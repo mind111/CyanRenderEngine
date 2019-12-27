@@ -1,0 +1,182 @@
+{
+    "cameras": [
+        {
+            "name": "main_camera",
+            "position": [0.0, 0.0, 0.0],
+            "target": [0.0, 0.0, -1.0],
+            "world_up": [0.0, 1.0, 0.0],
+            "fov": 50.0,
+            "z_near": 0.1,
+            "z_far": 100.0
+        }
+    ],
+
+    "lights": [
+        {
+            "type": "directional",
+            "color": [0, 0.5, 0.5],
+            "direction": [0, 0.5, 2]
+        },
+
+        {
+            "type": "directional",
+            "color": [1.0, 0.8, 0.8],
+            "direction": [0.5, 1, 2]
+        }
+    ],
+
+    "hasSkybox": true,
+
+    "skybox": {
+        "name": "sky",
+        "texturePaths": {
+            "front": "asset/cubemaps/yokohama/front.jpg",
+            "back": "asset/cubemaps/yokohama/back.jpg",
+            "left": "asset/cubemaps/yokohama/left.jpg",
+            "right": "asset/cubemaps/yokohama/right.jpg",
+            "top": "asset/cubemaps/yokohama/top.jpg",
+            "bottom": "asset/cubemaps/yokohama/bottom.jpg"
+        }
+    },
+
+    "mesh_info_list": [
+        {
+            "name": "diablo3_pose",
+            "path": "asset/diablo/mesh/diablo3_pose.obj",
+            "diffuseTexture": ["diablo_diffuse", "diablo_glow"],
+            "specularTexture": ["diablo_specular"], 
+            "normalMapName": "diablo_normal_map",
+            "aoMapName": "",
+            "roughnessMapName": ""
+        },
+
+        {
+            "name": "helmet_mesh",
+            "path": "asset/helmet/mesh/helmet.obj",
+            "diffuseTexture": ["helmet_diffuse", ""],
+            "specularTexture": [""], 
+            "normalMapName": "helmet_nm",
+            "aoMapName": "",
+            "roughnessMapName": ""
+        },
+
+        {
+            "name": "gun_mesh",
+            "path": "asset/gun/mesh/gun.obj",
+            "diffuseTexture": ["gun_diffuse"],
+            "specularTexture": [""], 
+            "normalMapName": "gun_normal_map",
+            "aoMapName": "",
+            "roughnessMapName": ""
+        },
+
+        {
+            "name": "teapot_mesh",
+            "path": "asset/teapot/mesh/utah_teapot.obj",
+            "diffuseTexture": [""],
+            "specularTexture": [""], 
+            "normalMapName": "",
+            "aoMapName": "",
+            "roughnessMapName": ""
+        },
+
+        {
+            "name": "light_probe",
+            "path":"asset/sphere/mesh/uv_sphere.obj",
+            "diffuseTexture": [""],
+            "specularTexture": [""], 
+            "normalMapName": "",
+            "aoMapName": "",
+            "roughnessMapName": ""
+        }
+    ],
+
+    "texture_info_list": [
+        {
+            "textureName": "diablo_diffuse",
+            "texturePath": "asset/diablo/texture/diablo3_pose_diffuse.tga"
+        },
+
+        {
+            "textureName": "diablo_specular",
+            "texturePath": "asset/diablo/texture/diablo3_pose_spec.tga"
+        },
+
+        {
+            "textureName": "diablo_glow",
+            "texturePath": "asset/diablo/texture/diablo3_pose_glow.tga"
+        },
+
+        {
+            "textureName": "diablo_normal_map",
+            "texturePath": "asset/diablo/texture/diablo3_pose_nm_tangent.tga"
+        },
+
+        {
+            "textureName": "gun_diffuse",
+            "texturePath": "asset/gun/texture/Cerberus_A.tga"
+        },
+
+        {
+            "textureName": "gun_normal_map",
+            "texturePath": "asset/gun/texture/Cerberus_N.tga"
+        },
+
+        {
+            "textureName": "helmet_diffuse",
+            "texturePath": "asset/helmet/texture/Default_albedo.jpg"
+        },
+        {
+            "textureName": "helmet_nm",
+            "texturePath": "asset/helmet/texture/Default_normal.jpg"
+        }
+    ],
+
+    "instance_list": [
+        {
+            "meshName": "diablo3_pose",
+            "xform": {
+                "translation": [0.0, 0.5, -4.8],
+                "rotation": [0, 0, 0],
+                "scale": [1.0, 1.0, 1.0]
+            },
+            "movable": "true"
+        },
+        {
+            "meshName": "teapot_mesh",
+            "xform": {
+                "translation": [-1.5, 0.0, -4.8],
+                "rotation": [0, 0, 0],
+                "scale": [0.25, 0.25, 0.25]
+            },
+            "movable": "true"
+        },
+        {
+            "meshName": "gun_mesh",
+            "xform": {
+                "translation": [2.0, 0.5, -3.8],
+                "rotation": [0, 0, 0],
+                "scale": [1.0, 1.0, 1.0]
+            },
+            "movable": "true"
+        },
+        {
+            "meshName": "helmet_mesh",
+            "xform": {
+                "translation": [-1.5, 0.5, -1.8],
+                "rotation": [0, 0, 0],
+                "scale": [0.3, 0.3, 0.3]
+            },
+            "movable": "true"
+        },
+        {
+            "meshName":"light_probe",
+            "xform": {
+                "translation": [1.0, 0.5, -2.0],
+                "rotation": [0, 0, 0],
+                "scale": [0.10, 0.10, 0.10]
+            },
+            "movable": "true" 
+        }
+    ]
+}
