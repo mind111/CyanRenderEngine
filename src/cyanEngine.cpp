@@ -227,6 +227,8 @@ int main(int argc, char* argv[]) {
     gridShader.setUniformMat4f("model", glm::value_ptr(gridModelMat));
     gridShader.setUniformMat4f("projection", glm::value_ptr(projection));
     glClearColor(0.f, 0.f, 0.f, 1.f);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
 
     std::chrono::high_resolution_clock::time_point current, last = std::chrono::high_resolution_clock::now();
     std::chrono::duration<float> timeSpan; 
@@ -249,6 +251,14 @@ int main(int argc, char* argv[]) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LEQUAL);
+        if (renderer.enableMSAA) {
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, renderer.MSAAColorBuffer, 0);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D_MULTISAMPLE, renderer.MSAADepthBuffer, 0);
+        } else {
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, renderer.colorBuffer, 0);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, renderer.depthBuffer, 0);
+        }
+
         //----------------------------
 
         //----- Draw calls -----------
@@ -262,12 +272,26 @@ int main(int argc, char* argv[]) {
         glBindVertexArray(0);
         //-------------------------
 
+        if (renderer.enableMSAA) {
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, renderer.defaultFBO);
+            // glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, renderer.intermFBO);
+            glBlitFramebuffer(0, 0, 800, 600, 0, 0, 800, 600, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        } else {
+
+        }
+
         //---- Render to default fbo--
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         renderer.quadShader.bindShader();
         glBindVertexArray(renderer.quadVAO);
-        glBindTexture(GL_TEXTURE_2D, renderer.colorBuffer);
+        if (renderer.enableMSAA) {
+            glBindTexture(GL_TEXTURE_2D, renderer.intermColorBuffer);
+        } else {
+            glBindTexture(GL_TEXTURE_2D, renderer.colorBuffer);
+        }
         glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindTexture(GL_TEXTURE_2D, 0);
         glBindVertexArray(0);
         glUseProgram(0);
         //----------------------------

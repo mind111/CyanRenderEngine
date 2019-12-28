@@ -28,9 +28,9 @@ public:
 
     // ---- Framebuffers -----
     GLuint quadVBO, quadVAO;
-    GLuint defaultFBO;
-    GLuint depthBuffer, stencilBuffer;
-    GLuint colorBuffer, depthStencilBuffer; // framebuffer attachment
+    GLuint defaultFBO, intermFBO;
+    GLuint intermDepthBuffer, depthBuffer, MSAADepthBuffer, stencilBuffer, MSAAStencilBuffer;
+    GLuint intermColorBuffer, colorBuffer, MSAAColorBuffer, depthStencilBuffer; // framebuffer attachment
     GLuint multiSampleFBO;
     // -----------------------
 

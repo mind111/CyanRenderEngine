@@ -14,6 +14,8 @@ float quadVerts[24] = {
 };
 
 void CyanRenderer::initRenderer() {
+    enableMSAA = true;
+
     //---- Shader initialization ----
     quadShader.init();
     shaderPool[static_cast<int>(ShadingMode::blinnPhong)].init(); 
@@ -57,15 +59,47 @@ void CyanRenderer::initRenderer() {
         std::cout << "incomplete framebuffer!" << std::endl;
     }
 
-    /*
-    glGenRenderbuffers(1, &depthStencilBuffer);
-    glBindRenderbuffer(GL_RENDERBUFFER, depthStencilBuffer);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, 800, 600);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL,);
-    */
-
-    glBindRenderbuffer(GL_RENDERBUFFER, 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    //---- MSAA buffer preparation ----
+    glGenFramebuffers(1, &intermFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, intermFBO);
+    glGenTextures(1, &intermColorBuffer);
+    glBindTexture(GL_TEXTURE_2D, intermColorBuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, intermColorBuffer, 0);
+
+    // glGenTextures(1, &intermDepthBuffer);
+    // glBindTexture(GL_TEXTURE_2D, intermDepthBuffer);
+    // glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, 800, 600, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+    // glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, intermDepthBuffer, 0);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        std::cout << "incomplete framebuffer!" << std::endl;
+    }
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, defaultFBO);
+    glGenTextures(1, &MSAAColorBuffer);
+    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, MSAAColorBuffer);
+    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 4, GL_RGB, 800, 600, true);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, MSAAColorBuffer, 0);
+
+    glGenTextures(1, &MSAADepthBuffer);
+    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, MSAADepthBuffer);
+    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 4, GL_DEPTH_COMPONENT32F, 800, 600, GL_TRUE);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D_MULTISAMPLE, MSAADepthBuffer, 0);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        std::cout << "incomplete MSAA framebuffer!" << std::endl;
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    //---------------------------------
 } 
 
 void CyanRenderer::initShaders() {
@@ -171,8 +205,6 @@ void CyanRenderer::drawInstance(Scene& scene, MeshInstance& instance) {
         int samplerLoc = shaderPool[activeShaderIdx].uniformLocMap[samplerName];
         glUniform1i(samplerLoc, numDiffuseMap);
     }
-    // glActiveTexture(GL_TEXTURE2);
-    // glBindTexture(GL_TEXTURE_2D, scene.textureList[3].textureObj);
 
     // TODO: progress marker here
     if (mesh.specularMapTable.size() > 0) {
