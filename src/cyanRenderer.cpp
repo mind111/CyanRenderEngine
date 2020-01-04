@@ -13,6 +13,7 @@ float quadVerts[24] = {
      1.f,  1.f, 1.f, 1.f
 };
 
+// TODO: @Refactor setting up framebuffers
 void CyanRenderer::initRenderer() {
     enableMSAA = true;
 
@@ -20,6 +21,8 @@ void CyanRenderer::initRenderer() {
     quadShader.init();
     shaderPool[static_cast<int>(ShadingMode::blinnPhong)].init(); 
     shaderPool[static_cast<int>(ShadingMode::cubemap)].init(); 
+    shaderPool[static_cast<int>(ShadingMode::bloom)].init();
+    shaderPool[static_cast<int>(ShadingMode::gaussianBlur)].init();
     //-------------------------------
 
     //---- Quad render params -------
@@ -40,12 +43,14 @@ void CyanRenderer::initRenderer() {
     glBindFramebuffer(GL_FRAMEBUFFER, defaultFBO);
 
     // Color attachment
+    // Maybe switch to use GLuint[]
     glGenTextures(1, &colorBuffer);
     glBindTexture(GL_TEXTURE_2D, colorBuffer);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr); // reserve memory for the color attachment
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorBuffer, 0);
+
 
     // Depth & stencil attachment
     glGenTextures(1, &depthBuffer);
@@ -59,7 +64,46 @@ void CyanRenderer::initRenderer() {
         std::cout << "incomplete framebuffer!" << std::endl;
     }
 
+    glBindTexture(GL_TEXTURE_2D, 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    //---- HDR framebuffer ----
+    glGenFramebuffers(1, &hdrFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
+    glGenTextures(1, &colorBuffer0);
+    glBindTexture(GL_TEXTURE_2D, colorBuffer0);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr); // reserve memory for the color attachment
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorBuffer0, 0);
+
+    glGenTextures(1, &colorBuffer1);
+    glBindTexture(GL_TEXTURE_2D, colorBuffer1);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr); // reserve memory for the color attachment
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, colorBuffer1, 0);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        std::cout << "HDR framebuffer incomplete !" << std::endl;
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    //-------------------------
+
+    //---- ping-pong framebuffer ----
+    for (int i = 0; i < 2; i++) {
+        glGenFramebuffers(2, pingPongFBO);
+        glBindFramebuffer(GL_FRAMEBUFFER, pingPongFBO[i]);
+
+        glGenTextures(1, &pingPongColorBuffer[i]);
+        glBindTexture(GL_TEXTURE_2D, pingPongColorBuffer[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr); // reserve memory for the color attachment
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, pingPongColorBuffer[i], 0);
+    }
+    //-------------------------------
 
     //---- MSAA buffer preparation ----
     glGenFramebuffers(1, &intermFBO);
@@ -77,13 +121,14 @@ void CyanRenderer::initRenderer() {
     // glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, intermDepthBuffer, 0);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        std::cout << "incomplete framebuffer!" << std::endl;
+        std::cout << "incomplete intermediate framebuffer!" << std::endl;
     }
 
     glBindTexture(GL_TEXTURE_2D, 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, defaultFBO);
+    glGenFramebuffers(1, &MSAAFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, MSAAFBO);
     glGenTextures(1, &MSAAColorBuffer);
     glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, MSAAColorBuffer);
     glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 4, GL_RGB, 800, 600, true);
@@ -149,6 +194,15 @@ void CyanRenderer::initShaders() {
         uniformNames.push_back("projection");
         shaderPool[activeShaderIdx].initUniformLoc(uniformNames);
     }
+
+    activeShaderIdx = static_cast<int>(ShadingMode::bloom);
+    shaderPool[activeShaderIdx].loadShaderSrc("shader/bloomShader.vert", "shader/bloomShader.frag");
+    shaderPool[activeShaderIdx].generateShaderProgram();
+
+    activeShaderIdx = static_cast<int>(ShadingMode::gaussianBlur);
+    shaderPool[activeShaderIdx].loadShaderSrc("shader/gaussianBlur.vert", "shader/gaussianBlur.frag");
+    shaderPool[activeShaderIdx].generateShaderProgram();
+
 
     // TODO: need to clean this up
     activeShaderIdx = static_cast<int>(ShadingMode::blinnPhong);

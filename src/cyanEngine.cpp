@@ -174,7 +174,7 @@ void handleInput(Window& window, Camera& camera, float deltaTime) {
 }
 
 // TODO: @camera orbit-mode controls
-// TODO: @scene data loading
+// TODO: @clean up control-flow with enabling MSAA
 int main(int argc, char* argv[]) {
     std::cout << "Hello Cyan!" << std::endl;
     if (!glfwInit()) {
@@ -185,6 +185,7 @@ int main(int argc, char* argv[]) {
         nullptr, 0, 0, 0, 0,
         {0}
     };
+
     windowManager.initWindow(mainWindow);
     glfwMakeContextCurrent(mainWindow.mpWindow);
     glewInit();
@@ -246,19 +247,19 @@ int main(int argc, char* argv[]) {
         handleInput(mainWindow, scene.mainCamera, .16); // TODO: need to swap out the hard-coded value later
         //---------------------------
 
-        //-- Framebuffer operations --
+        //-- framebuffer operations --
         glBindFramebuffer(GL_FRAMEBUFFER, renderer.defaultFBO);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glEnable(GL_DEPTH_TEST);
-        glDepthFunc(GL_LEQUAL);
         if (renderer.enableMSAA) {
+            glBindFramebuffer(GL_FRAMEBUFFER, renderer.MSAAFBO);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, renderer.MSAAColorBuffer, 0);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D_MULTISAMPLE, renderer.MSAADepthBuffer, 0);
         } else {
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, renderer.colorBuffer, 0);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, renderer.depthBuffer, 0);
         }
-
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LEQUAL);
         //----------------------------
 
         //----- Draw calls -----------
@@ -273,24 +274,57 @@ int main(int argc, char* argv[]) {
         //-------------------------
 
         if (renderer.enableMSAA) {
-            glBindFramebuffer(GL_READ_FRAMEBUFFER, renderer.defaultFBO);
-            // glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, renderer.MSAAFBO);
             glBindFramebuffer(GL_DRAW_FRAMEBUFFER, renderer.intermFBO);
             glBlitFramebuffer(0, 0, 800, 600, 0, 0, 800, 600, GL_COLOR_BUFFER_BIT, GL_NEAREST);
         } else {
 
         }
 
-        //---- Render to default fbo--
+        //---- Render to hdr fbo--
+        //---- Multi-render target---
+        glBindFramebuffer(GL_FRAMEBUFFER, renderer.hdrFBO);
+        renderer.shaderPool[(int)ShadingMode::bloom].bindShader();
+        GLuint renderTargert[2] = {
+            GL_COLOR_ATTACHMENT0, 
+            GL_COLOR_ATTACHMENT1
+        };
+        glDrawBuffers(2, renderTargert);
+        //---------------------------
+        glBindVertexArray(renderer.quadVAO);
+        glBindTexture(GL_TEXTURE_2D, renderer.intermColorBuffer);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glBindVertexArray(0);
+        glUseProgram(0);
+        //------------------------------------
+
+        //---- Apply blur -----
+        // renderer.shaderPool[(int)ShadingMode::gaussianBlur].bindShader();
+        // glBindVertexArray(renderer.quadVAO);
+        // glBindTexture(GL_TEXTURE_2D, renderer.colorBuffer1);
+        // glDrawArrays(GL_TRIANGLES, 0, 6);
+        //--------------------- 
+
+        //---- Render final output to default fbo--
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         renderer.quadShader.bindShader();
         glBindVertexArray(renderer.quadVAO);
+
         if (renderer.enableMSAA) {
             glBindTexture(GL_TEXTURE_2D, renderer.intermColorBuffer);
         } else {
             glBindTexture(GL_TEXTURE_2D, renderer.colorBuffer);
         }
+
+        glViewport(0, 0, 400, 300);
         glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        glBindTexture(GL_TEXTURE_2D, renderer.colorBuffer1);
+        glViewport(400, 0, 400, 300);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glViewport(0, 0, 800, 600); // Need to reset the viewport state so that it doesn't affect offscreen MSAA rendering 
+ 
         glBindTexture(GL_TEXTURE_2D, 0);
         glBindVertexArray(0);
         glUseProgram(0);

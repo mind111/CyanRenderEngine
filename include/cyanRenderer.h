@@ -9,7 +9,9 @@ enum class ShadingMode {
     cubemap,
     phong,
     blinnPhong,
-    pbr
+    pbr,
+    bloom,
+    gaussianBlur
 };
 
 class CyanRenderer {
@@ -23,15 +25,16 @@ public:
 
     // ---- Shader pools -----
     Shader quadShader;
-    Shader shaderPool[5];
+    Shader shaderPool[10];
     // -----------------------
 
     // ---- Framebuffers -----
     GLuint quadVBO, quadVAO;
-    GLuint defaultFBO, intermFBO;
+    GLuint defaultFBO, intermFBO, MSAAFBO, hdrFBO;
+    GLuint pingPongFBO[2], pingPongColorBuffer[2];
     GLuint intermDepthBuffer, depthBuffer, MSAADepthBuffer, stencilBuffer, MSAAStencilBuffer;
     GLuint intermColorBuffer, colorBuffer, MSAAColorBuffer, depthStencilBuffer; // framebuffer attachment
-    GLuint multiSampleFBO;
+    GLuint colorBuffer0, colorBuffer1;
     // -----------------------
 
     void initRenderer();
