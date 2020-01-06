@@ -10,7 +10,9 @@ enum class ShadingMode {
     phong,
     blinnPhong,
     pbr,
+    flat,
     bloom,
+    bloomBlend,
     gaussianBlur
 };
 
@@ -25,7 +27,7 @@ public:
 
     // ---- Shader pools -----
     Shader quadShader;
-    Shader shaderPool[10];
+    Shader shaderPool[15];
     // -----------------------
 
     // ---- Framebuffers -----
@@ -39,6 +41,9 @@ public:
 
     void initRenderer();
     void initShaders();
+    void prepareBlinnPhongShader(Scene& scene, MeshInstance& instance);
+    void prepareFlatShader(Scene& scene, MeshInstance& instance);
+
     void drawInstance(Scene& scene, MeshInstance& instance);
     void drawScene(Scene& scene);
     void drawSkybox(Scene& scene);

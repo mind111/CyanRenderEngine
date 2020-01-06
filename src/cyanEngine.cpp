@@ -295,7 +295,11 @@ int main(int argc, char* argv[]) {
         glDrawBuffers(2, renderTargert);
         //---------------------------
         glBindVertexArray(renderer.quadVAO);
-        glBindTexture(GL_TEXTURE_2D, renderer.intermColorBuffer);
+        if (renderer.enableMSAA) {
+            glBindTexture(GL_TEXTURE_2D, renderer.intermColorBuffer);
+        } else {
+            glBindTexture(GL_TEXTURE_2D, renderer.colorBuffer);
+        }
         glDrawArrays(GL_TRIANGLES, 0, 6);
         glBindTexture(GL_TEXTURE_2D, 0);
         glBindVertexArray(0);
@@ -328,6 +332,26 @@ int main(int argc, char* argv[]) {
             glDrawArrays(GL_TRIANGLES, 0, 6);
             //--------------------- 
         }
+
+        //---- Blend final output with original hdrFramebuffer ----
+        if (renderer.enableMSAA) {
+            glBindFramebuffer(GL_FRAMEBUFFER, renderer.intermFBO);
+        } else {
+            glBindFramebuffer(GL_FRAMEBUFFER, renderer.defaultFBO);
+        }
+        // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+        renderer.shaderPool[(int)ShadingMode::bloomBlend].bindShader();
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, renderer.colorBuffer0);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, renderer.pingPongColorBuffer[1]);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glBindVertexArray(0);
+        glUseProgram(0);
+        //---------------------------------
         //--------------------- 
 
         //---- Render final output to default fbo--
@@ -335,6 +359,7 @@ int main(int argc, char* argv[]) {
         renderer.quadShader.bindShader();
         glBindVertexArray(renderer.quadVAO);
 
+        glActiveTexture(GL_TEXTURE0);
         if (renderer.enableMSAA) {
             glBindTexture(GL_TEXTURE_2D, renderer.intermColorBuffer);
         } else {
@@ -344,6 +369,7 @@ int main(int argc, char* argv[]) {
         glViewport(0, 0, 400, 300);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
+        glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, renderer.pingPongColorBuffer[1]);
         glViewport(400, 0, 400, 300);
         glDrawArrays(GL_TRIANGLES, 0, 6);

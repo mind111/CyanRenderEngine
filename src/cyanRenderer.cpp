@@ -21,7 +21,9 @@ void CyanRenderer::initRenderer() {
     quadShader.init();
     shaderPool[static_cast<int>(ShadingMode::blinnPhong)].init(); 
     shaderPool[static_cast<int>(ShadingMode::cubemap)].init(); 
+    shaderPool[static_cast<int>(ShadingMode::flat)].init();
     shaderPool[static_cast<int>(ShadingMode::bloom)].init();
+    shaderPool[static_cast<int>(ShadingMode::bloomBlend)].init();
     shaderPool[static_cast<int>(ShadingMode::gaussianBlur)].init();
     //-------------------------------
 
@@ -200,9 +202,35 @@ void CyanRenderer::initShaders() {
         shaderPool[activeShaderIdx].initUniformLoc(uniformNames);
     }
 
+    activeShaderIdx = static_cast<int>(ShadingMode::flat);
+    shaderPool[activeShaderIdx].loadShaderSrc("shader/flatShader.vert", "shader/flatShader.frag");
+    shaderPool[activeShaderIdx].generateShaderProgram();
+    shaderPool[activeShaderIdx].bindShader();
+    {
+        std::vector<std::string> uniformNames;
+        uniformNames.push_back("model");
+        uniformNames.push_back("view");
+        uniformNames.push_back("projection");
+        uniformNames.push_back("color");
+        shaderPool[activeShaderIdx].initUniformLoc(uniformNames);
+    }
+    
     activeShaderIdx = static_cast<int>(ShadingMode::bloom);
     shaderPool[activeShaderIdx].loadShaderSrc("shader/bloomShader.vert", "shader/bloomShader.frag");
     shaderPool[activeShaderIdx].generateShaderProgram();
+
+    activeShaderIdx = static_cast<int>(ShadingMode::bloomBlend);
+    shaderPool[activeShaderIdx].loadShaderSrc("shader/bloomBlend.vert", "shader/bloomBlend.frag");
+    shaderPool[activeShaderIdx].generateShaderProgram();
+    shaderPool[activeShaderIdx].bindShader();
+    {
+        std::vector<std::string> uniformNames;
+        uniformNames.push_back("colorBuffer");
+        uniformNames.push_back("brightColorBuffer");
+        shaderPool[activeShaderIdx].initUniformLoc(uniformNames);
+    }
+    glUniform1i(shaderPool[activeShaderIdx].uniformLocMap["colorBuffer"], 0);
+    glUniform1i(shaderPool[activeShaderIdx].uniformLocMap["brightColorBuffer"], 1);
 
     activeShaderIdx = static_cast<int>(ShadingMode::gaussianBlur);
     shaderPool[activeShaderIdx].loadShaderSrc("shader/gaussianBlur.vert", "shader/gaussianBlur.frag");
@@ -221,29 +249,16 @@ void CyanRenderer::initShaders() {
     glUseProgram(0);
 }
 
-// TODO: Phong/blinn-phong shader
-// TODO: Cubemap
-// TODO: Image-based lighting
-// TODO: Refactor dealing with uniform names
-// TODO: Imgui
-// TODO: Mouse Picking
-
-// TODO: Transitioning to forward+ or tile-based deferred shading 
-void CyanRenderer::drawInstance(Scene& scene, MeshInstance& instance) {
+void CyanRenderer::prepareBlinnPhongShader(Scene& scene, MeshInstance& instance) {
     Mesh mesh = scene.meshList[instance.meshID];
     Transform xform = scene.xformList[instance.instanceID];
-    glBindVertexArray(mesh.vao);
-    shaderPool[activeShaderIdx].bindShader();    
-
-    //---- Configure transformation uniforms -----
     // TODO: Handle rotation
     glm::mat4 model(1.f);
     model = glm::translate(model, xform.translation);
     model = glm::scale(model, xform.scale);
-    shaderPool[activeShaderIdx].setUniformMat4f("model", glm::value_ptr(model));
-    shaderPool[activeShaderIdx].setUniformMat4f("view", glm::value_ptr(scene.mainCamera.view));
-    shaderPool[activeShaderIdx].setUniformMat4f("projection", glm::value_ptr(scene.mainCamera.projection));
-    //-----------------------------
+    shaderPool[(int)ShadingMode::blinnPhong].setUniformMat4f("model", glm::value_ptr(model));
+    shaderPool[(int)ShadingMode::blinnPhong].setUniformMat4f("view", glm::value_ptr(scene.mainCamera.view));
+    shaderPool[(int)ShadingMode::blinnPhong].setUniformMat4f("projection", glm::value_ptr(scene.mainCamera.projection));
 
     //---- Configure lighting uniforms ----- 
     //---- Lighting calculation is done in view space
@@ -271,7 +286,6 @@ void CyanRenderer::drawInstance(Scene& scene, MeshInstance& instance) {
         glUniform1i(samplerLoc, numDiffuseMap);
     }
 
-    // TODO: progress marker here
     if (mesh.specularMapTable.size() > 0) {
         glUniform1i(shaderPool[activeShaderIdx].uniformLocMap["numSpecularMaps"], 1);
         glUniform1i(shaderPool[activeShaderIdx].uniformLocMap["specularSampler"], numDiffuseMap);
@@ -288,6 +302,57 @@ void CyanRenderer::drawInstance(Scene& scene, MeshInstance& instance) {
         glUniform1i(shaderPool[activeShaderIdx].uniformLocMap["hasNormalMap"], 0);
     }
     //--------------------------------------
+}
+
+void CyanRenderer::prepareFlatShader(Scene& scene, MeshInstance& instance) {
+    Mesh mesh = scene.meshList[instance.meshID];
+    Transform xform = scene.xformList[instance.instanceID];
+    // TODO: Handle rotation
+    glm::mat4 model(1.f);
+    model = glm::translate(model, xform.translation);
+    model = glm::scale(model, xform.scale);
+    shaderPool[(int)ShadingMode::flat].setUniformMat4f("model", glm::value_ptr(model));
+    shaderPool[(int)ShadingMode::flat].setUniformMat4f("view", glm::value_ptr(scene.mainCamera.view));
+    shaderPool[(int)ShadingMode::flat].setUniformMat4f("projection", glm::value_ptr(scene.mainCamera.projection));
+
+    // Set color
+    glm::vec3 color(1.0, 0.84, 0.67);
+    color *= 1.2;
+    shaderPool[(int)ShadingMode::flat].setUniformVec3("color", glm::value_ptr(color));
+}
+
+// TODO: Image-based lighting
+// TODO: Refactor dealing with uniform names
+// TODO: Imgui
+// TODO: Mouse Picking
+
+// TODO: Transitioning to forward+ or tile-based deferred shading 
+void CyanRenderer::drawInstance(Scene& scene, MeshInstance& instance) {
+    Mesh mesh = scene.meshList[instance.meshID];
+    //---
+    // TODO: Probably will get rid of this in the future
+    // TODO: Configure shader input based on different types of shader
+    activeShaderIdx = scene.meshList[instance.meshID].shaderIdx;
+    //---
+
+    glBindVertexArray(mesh.vao);
+    shaderPool[activeShaderIdx].bindShader();
+
+    switch (activeShaderIdx)
+    {
+        case 3: {
+            prepareBlinnPhongShader(scene, instance);
+            break;
+        }
+
+        case 5: {
+            prepareFlatShader(scene, instance);
+            break;
+        }
+    
+        default:
+            break;
+    }
 
     //---- Draw call --------------
     glDrawArrays(GL_TRIANGLES, 0, mesh.numVerts);

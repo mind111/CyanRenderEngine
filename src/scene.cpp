@@ -40,7 +40,6 @@ void from_json(const nlohmann::json& j, Mesh& mesh) {
 //-------------------------------------------------------
 
 // Mesh loading
-// * have to do format conversion from assimp to raw format 
 void SceneManager::loadMesh(Mesh& mesh, const char* fileName) {
     Assimp::Importer importer;
     const aiScene* scene = importer.ReadFile(
@@ -99,6 +98,7 @@ void SceneManager::loadMesh(Mesh& mesh, const char* fileName) {
             glEnableVertexAttribArray(1);
             glBindBuffer(GL_ARRAY_BUFFER, 0);
         }
+
         // TODO:: right now only consider the first set of uv 
         if (assimpMesh->HasTextureCoords(0)) {
             for (int v = 0; v < assimpMesh->mNumVertices; v++) {
@@ -216,6 +216,21 @@ void SceneManager::loadSceneFromFile(Scene& scene, const char* fileName) {
         meshInfo.at("path").get_to(path);
         auto diffuseMaps = meshInfo.at("diffuseTexture");
         auto specularMaps = meshInfo.at("specularTexture");
+
+        // TODO: decouple mesh info with which shader to use to render them
+        // TODO: hard-code shaderIdx for now
+        //---- handling shader ----
+        std::string shaderName;
+        meshInfo.at("shader").get_to(shaderName);
+        if (shaderName == "blinnPhong") {
+            mesh.shaderIdx = 3;
+        } else if (shaderName == "flat") {
+            mesh.shaderIdx = 5;
+        } else if (shaderName == "pbr") {
+            mesh.shaderIdx = 6;
+        }
+        //-------------------------
+
         for (auto& diffuseMap : diffuseMaps) {
             std::string textureName;
             diffuseMap.get_to(textureName);

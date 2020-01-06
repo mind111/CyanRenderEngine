@@ -22,6 +22,7 @@ public:
     GLuint normalVBO;
     GLuint tangentVBO, biTangentVBO;
     GLuint ibo;
+    uint16_t shaderIdx;
 };
 
 struct Skybox {

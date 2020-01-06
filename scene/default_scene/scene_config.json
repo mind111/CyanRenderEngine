@@ -47,7 +47,9 @@
             "specularTexture": ["diablo_specular"], 
             "normalMapName": "diablo_normal_map",
             "aoMapName": "",
-            "roughnessMapName": ""
+            "roughnessMapName": "",
+
+            "shader": "blinnPhong"
         },
 
         {
@@ -57,7 +59,9 @@
             "specularTexture": [""], 
             "normalMapName": "helmet_nm",
             "aoMapName": "",
-            "roughnessMapName": ""
+            "roughnessMapName": "",
+
+            "shader": "blinnPhong"
         },
 
         {
@@ -67,7 +71,9 @@
             "specularTexture": [""], 
             "normalMapName": "",
             "aoMapName": "",
-            "roughnessMapName": ""
+            "roughnessMapName": "",
+
+            "shader": "blinnPhong"
         },
 
         {
@@ -77,7 +83,9 @@
             "specularTexture": [""], 
             "normalMapName": "",
             "aoMapName": "",
-            "roughnessMapName": ""
+            "roughnessMapName": "",
+
+            "shader": "flat"
         }
     ],
 

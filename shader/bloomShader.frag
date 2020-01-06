@@ -9,7 +9,7 @@ vec3 grayscaleCoefs = vec3(0.2126, 0.7152, 0.0722);
 
 void main() {
     fragColor = texture(colorBuffer, textureCoord);
-    if (dot(fragColor.xyz, grayscaleCoefs) > 0.8) {
+    if (dot(fragColor.xyz, grayscaleCoefs) > 0.9) {
         brightColor = fragColor;
     } else {
         brightColor = vec4(0.0, 0.0, 0.0, 1.0);
