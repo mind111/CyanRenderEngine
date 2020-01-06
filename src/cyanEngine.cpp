@@ -9,6 +9,8 @@
 #include "camera.h"
 #include "mathUtils.h"
 
+#define BLUR_ITERATION 5
+
 struct Grid {
     uint32_t gridSize; 
     uint32_t numOfVerts;
@@ -244,7 +246,7 @@ int main(int argc, char* argv[]) {
         //---------------------------
 
         //---- Input handling -------
-        handleInput(mainWindow, scene.mainCamera, .16); // TODO: need to swap out the hard-coded value later
+        handleInput(mainWindow, scene.mainCamera, .06); // TODO: need to swap out the hard-coded value later
         //---------------------------
 
         //-- framebuffer operations --
@@ -265,6 +267,7 @@ int main(int argc, char* argv[]) {
         //----- Draw calls -----------
         //----- Default first pass ---
         renderer.drawScene(scene);
+
         gridShader.bindShader();
         gridShader.setUniformMat4f("view", glm::value_ptr(scene.mainCamera.view));
         glBindVertexArray(floorGrid.vao);
@@ -300,10 +303,31 @@ int main(int argc, char* argv[]) {
         //------------------------------------
 
         //---- Apply blur -----
-        // renderer.shaderPool[(int)ShadingMode::gaussianBlur].bindShader();
-        // glBindVertexArray(renderer.quadVAO);
-        // glBindTexture(GL_TEXTURE_2D, renderer.colorBuffer1);
-        // glDrawArrays(GL_TRIANGLES, 0, 6);
+        for (int itr = 0; itr < BLUR_ITERATION; itr++) {
+            //---- Horizontal pass ----
+            glBindFramebuffer(GL_FRAMEBUFFER, renderer.pingPongFBO[itr * 2 % 2]);
+            renderer.shaderPool[(int)ShadingMode::gaussianBlur].bindShader();
+            renderer.shaderPool[(int)ShadingMode::gaussianBlur].setUniform1i("horizontalPass", 1);
+            renderer.shaderPool[(int)ShadingMode::gaussianBlur].setUniform1f("offset", 1.f / 800.f);
+            glBindVertexArray(renderer.quadVAO);
+            if (itr == 0) {
+                glBindTexture(GL_TEXTURE_2D, renderer.colorBuffer1);
+            } else {
+                glBindTexture(GL_TEXTURE_2D, renderer.pingPongColorBuffer[(itr * 2 - 1) % 2]);
+            }
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+            //--------------------- 
+
+            //---- Vertical pass ----
+            glBindFramebuffer(GL_FRAMEBUFFER, renderer.pingPongFBO[(itr * 2 + 1) % 2]);
+            renderer.shaderPool[(int)ShadingMode::gaussianBlur].bindShader();
+            renderer.shaderPool[(int)ShadingMode::gaussianBlur].setUniform1i("horizontalPass", 0);
+            renderer.shaderPool[(int)ShadingMode::gaussianBlur].setUniform1f("offset", 1.f / 600.f);
+            glBindVertexArray(renderer.quadVAO);
+            glBindTexture(GL_TEXTURE_2D, renderer.pingPongColorBuffer[itr * 2 % 2]);
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+            //--------------------- 
+        }
         //--------------------- 
 
         //---- Render final output to default fbo--
@@ -320,7 +344,7 @@ int main(int argc, char* argv[]) {
         glViewport(0, 0, 400, 300);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
-        glBindTexture(GL_TEXTURE_2D, renderer.colorBuffer1);
+        glBindTexture(GL_TEXTURE_2D, renderer.pingPongColorBuffer[1]);
         glViewport(400, 0, 400, 300);
         glDrawArrays(GL_TRIANGLES, 0, 6);
         glViewport(0, 0, 800, 600); // Need to reset the viewport state so that it doesn't affect offscreen MSAA rendering 

@@ -51,7 +51,6 @@ void CyanRenderer::initRenderer() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorBuffer, 0);
 
-
     // Depth & stencil attachment
     glGenTextures(1, &depthBuffer);
     glBindTexture(GL_TEXTURE_2D, depthBuffer);
@@ -72,14 +71,14 @@ void CyanRenderer::initRenderer() {
     glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
     glGenTextures(1, &colorBuffer0);
     glBindTexture(GL_TEXTURE_2D, colorBuffer0);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr); // reserve memory for the color attachment
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, 800, 600, 0, GL_RGB, GL_FLOAT, nullptr); // reserve memory for the color attachment
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorBuffer0, 0);
 
     glGenTextures(1, &colorBuffer1);
     glBindTexture(GL_TEXTURE_2D, colorBuffer1);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr); // reserve memory for the color attachment
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, 800, 600, 0, GL_RGB, GL_FLOAT, nullptr); // reserve memory for the color attachment
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, colorBuffer1, 0);
@@ -92,17 +91,23 @@ void CyanRenderer::initRenderer() {
     //-------------------------
 
     //---- ping-pong framebuffer ----
+    glGenFramebuffers(2, pingPongFBO);
     for (int i = 0; i < 2; i++) {
-        glGenFramebuffers(2, pingPongFBO);
         glBindFramebuffer(GL_FRAMEBUFFER, pingPongFBO[i]);
 
         glGenTextures(1, &pingPongColorBuffer[i]);
         glBindTexture(GL_TEXTURE_2D, pingPongColorBuffer[i]);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr); // reserve memory for the color attachment
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, 800, 600, 0, GL_RGB, GL_FLOAT, nullptr); // reserve memory for the color attachment
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, pingPongColorBuffer[i], 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pingPongColorBuffer[i], 0);
+        
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            std::cout << "ping pong framebuffer incomplete !" << std::endl;
+        }
     }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     //-------------------------------
 
     //---- MSAA buffer preparation ----
@@ -202,7 +207,13 @@ void CyanRenderer::initShaders() {
     activeShaderIdx = static_cast<int>(ShadingMode::gaussianBlur);
     shaderPool[activeShaderIdx].loadShaderSrc("shader/gaussianBlur.vert", "shader/gaussianBlur.frag");
     shaderPool[activeShaderIdx].generateShaderProgram();
-
+    shaderPool[activeShaderIdx].bindShader();
+    {
+        std::vector<std::string> uniformNames;
+        uniformNames.push_back("horizontalPass");
+        uniformNames.push_back("offset");
+        shaderPool[activeShaderIdx].initUniformLoc(uniformNames);
+    }
 
     // TODO: need to clean this up
     activeShaderIdx = static_cast<int>(ShadingMode::blinnPhong);

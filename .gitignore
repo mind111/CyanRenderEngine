@@ -1,0 +1,7 @@
+# folders to ignore
+.vscode/
+build/
+cmake/
+.git/
+
+# files

@@ -19,6 +19,8 @@ public:
     void bindShader(); 
     void unbindShader();
     
+    void setUniform1i(const char* uniformName, GLint data);
+    void setUniform1f(const char* uniformName, GLfloat data);
     void setUniformVec3(const char* uniformName, GLfloat* vecData);
     void setUniformMat4f(const char* uniformName, GLfloat* matData);
     

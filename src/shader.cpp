@@ -80,6 +80,16 @@ void Shader::generateShaderProgram() {
     checkShaderLinkage(shaderProgram);
 }
 
+void Shader::setUniform1i(const char* uniformName, GLint data) {
+    GLint intLocation = uniformLocMap[uniformName];
+    glUniform1i(intLocation, data);
+}
+
+void Shader::setUniform1f(const char* uniformName, GLfloat data) {
+    GLint floatLocation = uniformLocMap[uniformName];
+    glUniform1f(floatLocation, data);
+}
+
 void Shader::setUniformVec3(const char* uniformName, GLfloat* vecData) {
     GLint vecLocation = uniformLocMap[uniformName];
     glUniform3fv(vecLocation, 1, vecData);
