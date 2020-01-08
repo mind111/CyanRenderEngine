@@ -11,16 +11,21 @@ out vec2 textureUV;
 out vec3 fragTangent;
 out vec3 fragBitangent;
 out vec3 fragPosView;
+out flat mat4 viewXform;
 
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 
 void main() {
-    fragNormal = (view * model * vec4(normal, 0.0)).xyz;
-    fragTangent = (view * model * vec4(tangent, 0.0)).xyz;
-    fragBitangent = (view * model * vec4(bitangent, 0.0)).xyz;
-    fragPosView = (view * model * vec4(vertexPos, 1.0)).xyz;
+    mat4 modelView = view * model;
+    mat4 normalXform = transpose(inverse(modelView));
+
+    fragNormal = (normalXform * vec4(normal, 0.0)).xyz;
+    fragTangent = (normalXform * vec4(tangent, 0.0)).xyz;
+    fragBitangent = (normalXform * vec4(bitangent, 0.0)).xyz;
+    fragPosView = (modelView * vec4(vertexPos, 1.0)).xyz;
     textureUV = textureCoord;
-    gl_Position = projection * view * model * vec4(vertexPos, 1.0);
+    viewXform = view;
+    gl_Position = projection * modelView * vec4(vertexPos, 1.0);
 }

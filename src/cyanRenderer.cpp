@@ -1,7 +1,10 @@
 #include <iostream>
-#include "cyanRenderer.h"
 #include "gtc/matrix_transform.hpp"
 #include "gtc/type_ptr.hpp"
+#include "cyanRenderer.h"
+#include "mathUtils.h"
+
+#define BLUR_ITERATION 10
 
 float quadVerts[24] = {
     -1.f, -1.f, 0.f, 0.f,
@@ -19,6 +22,7 @@ void CyanRenderer::initRenderer() {
 
     //---- Shader initialization ----
     quadShader.init();
+    shaderPool[static_cast<int>(ShadingMode::grid)].init();
     shaderPool[static_cast<int>(ShadingMode::blinnPhong)].init(); 
     shaderPool[static_cast<int>(ShadingMode::cubemap)].init(); 
     shaderPool[static_cast<int>(ShadingMode::flat)].init();
@@ -151,7 +155,20 @@ void CyanRenderer::initRenderer() {
     }
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    glClearColor(0.f, 0.f, 0.f, 1.f);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
     //---------------------------------
+
+    //--- setup floor grid---------
+    floorGrid = {
+        20, 0, 0, 0, nullptr
+    };
+
+    floorGrid.generateVerts();
+    floorGrid.initRenderParams();
+    //------------------------------
 } 
 
 void CyanRenderer::initShaders() {
@@ -167,7 +184,20 @@ void CyanRenderer::initShaders() {
     quadShader.generateShaderProgram();
     quadShader.bindShader();
 
-    activeShaderIdx = static_cast<int>(ShadingMode::blinnPhong);
+    activeShaderIdx = (int)ShadingMode::grid;
+    shaderPool[activeShaderIdx].loadShaderSrc("shader/gridShader.vert", "shader/gridShader.frag");
+    shaderPool[activeShaderIdx].generateShaderProgram();
+    shaderPool[activeShaderIdx].bindShader();
+    {
+        std::vector<std::string> uniformNames;
+        uniformNames.push_back("model");
+        uniformNames.push_back("view");
+        uniformNames.push_back("projection");
+        shaderPool[activeShaderIdx].initUniformLoc(uniformNames);
+    }
+
+
+    activeShaderIdx = (int)ShadingMode::blinnPhong;
     shaderPool[activeShaderIdx].loadShaderSrc("shader/blinnPhong.vert", "shader/blinnPhong.frag");
     shaderPool[activeShaderIdx].generateShaderProgram();
     shaderPool[activeShaderIdx].bindShader();
@@ -304,6 +334,18 @@ void CyanRenderer::prepareBlinnPhongShader(Scene& scene, MeshInstance& instance)
     //--------------------------------------
 }
 
+void CyanRenderer::prepareGridShader(Scene& scene) {
+    Transform gridXform = {
+        glm::vec3(20.f, 20.f, 20.f),
+        glm::vec3(0, 0, 0),
+        glm::vec3(0, 0, 0.f)
+    };
+    glm::mat4 gridModelMat = MathUtils::transformToMat4(gridXform);
+    shaderPool[(int)ShadingMode::grid].setUniformMat4f("model", glm::value_ptr(gridModelMat));
+    shaderPool[(int)ShadingMode::grid].setUniformMat4f("view", glm::value_ptr(scene.mainCamera.view));
+    shaderPool[(int)ShadingMode::grid].setUniformMat4f("projection", glm::value_ptr(scene.mainCamera.projection));
+}
+
 void CyanRenderer::prepareFlatShader(Scene& scene, MeshInstance& instance) {
     Mesh mesh = scene.meshList[instance.meshID];
     Transform xform = scene.xformList[instance.instanceID];
@@ -325,7 +367,6 @@ void CyanRenderer::prepareFlatShader(Scene& scene, MeshInstance& instance) {
 // TODO: Refactor dealing with uniform names
 // TODO: Imgui
 // TODO: Mouse Picking
-
 // TODO: Transitioning to forward+ or tile-based deferred shading 
 void CyanRenderer::drawInstance(Scene& scene, MeshInstance& instance) {
     Mesh mesh = scene.meshList[instance.meshID];
@@ -370,8 +411,21 @@ void CyanRenderer::drawScene(Scene& scene) {
     for (auto instance : scene.instanceList) {
         drawInstance(scene, instance);
     }
-    //---- Draw skybox ----
+    //---- Draw skybox -----
     drawSkybox(scene);
+
+    shaderPool[(int)ShadingMode::grid].bindShader();
+    prepareGridShader(scene);
+    drawGrid();
+}
+
+void CyanRenderer::drawGrid() {
+    //---- Draw floor grid---
+    glBindVertexArray(floorGrid.vao);
+    glDrawArrays(GL_LINES, 0, floorGrid.numOfVerts);
+    glUseProgram(0);
+    glBindVertexArray(0);
+    //-----------------------
 }
 
 // TODO: Cancel out the translation part of view matrix
@@ -389,4 +443,241 @@ void CyanRenderer::drawSkybox(Scene& scene) {
     glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
     glBindVertexArray(0);
     glUseProgram(0);
+}
+
+void CyanRenderer::setupMSAA() {
+    glBindFramebuffer(GL_FRAMEBUFFER, MSAAFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, MSAAColorBuffer, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D_MULTISAMPLE, MSAADepthBuffer, 0);
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+}
+
+void CyanRenderer::bloomPostProcess() {
+    //---- Render to hdr fbo--
+    //---- Multi-render target---
+    glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
+    shaderPool[(int)ShadingMode::bloom].bindShader();
+    GLuint renderTargert[2] = {
+        GL_COLOR_ATTACHMENT0, 
+        GL_COLOR_ATTACHMENT1
+    };
+    glDrawBuffers(2, renderTargert);
+    //---------------------------
+
+    glBindVertexArray(quadVAO);
+
+    if (enableMSAA) {
+        glBindTexture(GL_TEXTURE_2D, intermColorBuffer);
+    } else {
+        glBindTexture(GL_TEXTURE_2D, colorBuffer);
+    }
+
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindVertexArray(0);
+    glUseProgram(0);
+    //------------------------------------
+
+    //---- Apply blur -----
+    for (int itr = 0; itr < BLUR_ITERATION; itr++) {
+        //---- Horizontal pass ----
+        glBindFramebuffer(GL_FRAMEBUFFER, pingPongFBO[itr * 2 % 2]);
+        shaderPool[(int)ShadingMode::gaussianBlur].bindShader();
+        shaderPool[(int)ShadingMode::gaussianBlur].setUniform1i("horizontalPass", 1);
+        shaderPool[(int)ShadingMode::gaussianBlur].setUniform1f("offset", 1.f / 800.f);
+        glBindVertexArray(quadVAO);
+        if (itr == 0) {
+            glBindTexture(GL_TEXTURE_2D, colorBuffer1);
+        } else {
+            glBindTexture(GL_TEXTURE_2D, pingPongColorBuffer[(itr * 2 - 1) % 2]);
+        }
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        //--------------------- 
+
+        //---- Vertical pass ----
+        glBindFramebuffer(GL_FRAMEBUFFER, pingPongFBO[(itr * 2 + 1) % 2]);
+        shaderPool[(int)ShadingMode::gaussianBlur].bindShader();
+        shaderPool[(int)ShadingMode::gaussianBlur].setUniform1i("horizontalPass", 0);
+        shaderPool[(int)ShadingMode::gaussianBlur].setUniform1f("offset", 1.f / 600.f);
+        glBindVertexArray(quadVAO);
+        glBindTexture(GL_TEXTURE_2D, pingPongColorBuffer[itr * 2 % 2]);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        //--------------------- 
+    }
+
+    //---- Blend final output with original hdrFramebuffer ----
+    if (enableMSAA) {
+        glBindFramebuffer(GL_FRAMEBUFFER, intermFBO);
+    } else {
+        glBindFramebuffer(GL_FRAMEBUFFER, defaultFBO);
+    }
+    
+    shaderPool[(int)ShadingMode::bloomBlend].bindShader();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, colorBuffer0);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, pingPongColorBuffer[1]);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindVertexArray(0);
+    glUseProgram(0);
+    //---------------------------------
+    //--------------------- 
+}
+
+void CyanRenderer::blitBackbuffer() {
+    //---- Render final output to default fbo--
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    quadShader.bindShader();
+    glBindVertexArray(quadVAO);
+
+    glActiveTexture(GL_TEXTURE0);
+    if (enableMSAA) {
+        glBindTexture(GL_TEXTURE_2D, intermColorBuffer);
+    } else {
+        glBindTexture(GL_TEXTURE_2D, colorBuffer);
+    }
+
+    glViewport(0, 0, 400, 300);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, pingPongColorBuffer[1]);
+    glViewport(400, 0, 400, 300);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glViewport(0, 0, 800, 600); // Need to reset the viewport state so that it doesn't affect offscreen MSAA rendering 
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindVertexArray(0);
+    glUseProgram(0);
+}
+
+void Grid::initRenderParams() {
+    glGenBuffers(1, &vbo);
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(verts[0]) * numOfVerts * 3 * 2, verts, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(GL_FLOAT) * 6, 0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, false, sizeof(GL_FLOAT) * 6, (GLvoid*)(sizeof(GL_FLOAT) * 3));
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+}
+
+void Grid::printGridVerts() {
+    for (int i = 0; i <= gridSize; i++) {
+        std::cout << i << ": " << std::endl;
+        std::cout << "x: " << verts[(i * 2 * 2) * 3]     << " "
+                  << "y: " << verts[(i * 2 * 2) * 3 + 1] << " "
+                  << "z: " << verts[(i * 2 * 2) * 3 + 2] << std::endl; 
+
+        std::cout << "x: " << verts[((i * 2 * 2) + 1) * 3] << " "
+                  << "y: " << verts[((i * 2 * 2) + 1) * 3 + 1] << " "
+                  << "z: " << verts[((i * 2 * 2) + 1) * 3 + 2] << std::endl; 
+
+        std::cout << "x: " << verts[((i * 2 + 1) * 2) * 3]     << " "
+                  << "y: " << verts[((i * 2 + 1) * 2) * 3 + 1] << " "
+                  << "z: " << verts[((i * 2 + 1) * 2) * 3 + 2] << std::endl;
+
+        std::cout << "x: " << verts[((i * 2 + 1) * 2 + 1) * 3]     << " "
+                  << "y: " << verts[((i * 2 + 1) * 2 + 1) * 3 + 1] << " "
+                  << "z: " << verts[((i * 2 + 1) * 2 + 1) * 3 + 2] << std::endl;
+    }
+}
+
+void Grid::generateVerts() {
+    int lineIdx = 0;
+    int numOfLines = gridSize + 1;
+    float cellSize = 1.f / gridSize;
+    float startX = -.5f;
+    float startZ = -startX;
+    // 6 extra verts for drawing three axis
+    this->numOfVerts = 4 * (gridSize + 1) + 6;
+    verts = new float[numOfVerts * 3 * 2]; 
+    int vertIdx = lineIdx * 2 * 2;
+    for (; lineIdx < numOfLines; lineIdx++) {
+        // vertical line
+        verts[vertIdx * 6    ] = startX + lineIdx * cellSize;    // x
+        verts[vertIdx * 6 + 1] = 0.f;                            // y
+        verts[vertIdx * 6 + 2] = startZ;                         // z
+        verts[vertIdx * 6 + 3] = .5f;                       // r
+        verts[vertIdx * 6 + 4] = .5f;                       // g
+        verts[vertIdx * 6 + 5] = .5f;                       // b
+        vertIdx++;
+
+        verts[vertIdx * 6    ] =  startX + lineIdx * cellSize;   // x
+        verts[vertIdx * 6 + 1] = 0.f;                            // y
+        verts[vertIdx * 6 + 2] = -startZ;                        // z
+        verts[vertIdx * 6 + 3] = .5f;                       // r
+        verts[vertIdx * 6 + 4] = .5f;                       // g
+        verts[vertIdx * 6 + 5] = .5f;                       // b
+        vertIdx++;
+
+        // horizontal li6e
+        verts[vertIdx * 6    ] = startX;                         // x
+        verts[vertIdx * 6 + 1] = 0.f;                            // y
+        verts[vertIdx * 6 + 2] = startZ- lineIdx * cellSize;     // z
+        verts[vertIdx * 6 + 3] = .5f;                       // r
+        verts[vertIdx * 6 + 4] = .5f;                       // g
+        verts[vertIdx * 6 + 5] = .5f;                       // b
+        vertIdx++;
+
+        verts[vertIdx * 6    ] = -startX;                        // x
+        verts[vertIdx * 6 + 1] = 0.f;                            // y
+        verts[vertIdx * 6 + 2] =  startZ - lineIdx * cellSize;   // z
+        verts[vertIdx * 6 + 3] = .5f;                       // r
+        verts[vertIdx * 6 + 4] = .5f;                       // g
+        verts[vertIdx * 6 + 5] = .5f;                       // b
+        vertIdx++;
+    }
+
+    // verts for three axis
+    verts[vertIdx * 6    ] = -1.f;                      // x
+    verts[vertIdx * 6 + 1] = 0.f;                       // y
+    verts[vertIdx * 6 + 2] = 0.f;                       // z
+    verts[vertIdx * 6 + 3] = 1.f;                       // r
+    verts[vertIdx * 6 + 4] = 0.f;                       // g
+    verts[vertIdx * 6 + 5] = 0.f;                       // b
+    vertIdx++;
+    verts[vertIdx * 6    ] = 1.f;                       // x
+    verts[vertIdx * 6 + 1] = 0.f;                       // y
+    verts[vertIdx * 6 + 2] = 0.f;                       // z
+    verts[vertIdx * 6 + 3] = 1.f;                       // r
+    verts[vertIdx * 6 + 4] = 0.f;                       // g
+    verts[vertIdx * 6 + 5] = 0.f;                       // b
+    vertIdx++;
+    verts[vertIdx * 6    ] = 0.f;                       // x
+    verts[vertIdx * 6 + 1] = -1.f;                      // y
+    verts[vertIdx * 6 + 2] = 0.f;                       // z
+    verts[vertIdx * 6 + 3] = 0.f;                       // r
+    verts[vertIdx * 6 + 4] = 1.f;                       // g
+    verts[vertIdx * 6 + 5] = 0.f;                       // b
+    vertIdx++;
+    verts[vertIdx * 6    ] = 0.f;                       // x
+    verts[vertIdx * 6 + 1] = 1.f;                       // y
+    verts[vertIdx * 6 + 2] = 0.f;                       // z
+    verts[vertIdx * 6 + 3] = 0.f;                       // r
+    verts[vertIdx * 6 + 4] = 1.f;                       // g
+    verts[vertIdx * 6 + 5] = 0.f;                       // b
+    vertIdx++;
+    verts[vertIdx * 6    ] = 0.f;                       // x
+    verts[vertIdx * 6 + 1] = 0.f;                       // y
+    verts[vertIdx * 6 + 2] = -1.f;                      // z
+    verts[vertIdx * 6 + 3] = 0.f;                       // r
+    verts[vertIdx * 6 + 4] = 0.f;                       // g
+    verts[vertIdx * 6 + 5] = 1.f;                       // b
+    vertIdx++;
+    verts[vertIdx * 6    ] = 0.f;                       // x
+    verts[vertIdx * 6 + 1] = 0.f;                       // y
+    verts[vertIdx * 6 + 2] = 1.f;                       // z
+    verts[vertIdx * 6 + 3] = 0.f;                       // r
+    verts[vertIdx * 6 + 4] = 0.f;                       // g
+    verts[vertIdx * 6 + 5] = 1.f;                       // b
+    vertIdx++;
 }

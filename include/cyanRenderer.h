@@ -16,8 +16,20 @@ enum class ShadingMode {
     gaussianBlur
 };
 
+struct Grid {
+    uint32_t gridSize; 
+    uint32_t numOfVerts;
+    GLuint vbo;
+    GLuint vao;
+    float* verts;
+    void initRenderParams();
+    void generateVerts();
+    void printGridVerts(); // Debugging purposes
+};
+
 class CyanRenderer {
 public:
+    Grid floorGrid;
     uint16_t bufferWidth, bufferHeight;
     uint16_t activeShaderIdx;
 
@@ -41,11 +53,17 @@ public:
 
     void initRenderer();
     void initShaders();
+    void prepareGridShader(Scene& scene);
     void prepareBlinnPhongShader(Scene& scene, MeshInstance& instance);
     void prepareFlatShader(Scene& scene, MeshInstance& instance);
 
+    void setupMSAA();
+    void bloomPostProcess();
+    void blitBackbuffer(); // final render pass
+
     void drawInstance(Scene& scene, MeshInstance& instance);
     void drawScene(Scene& scene);
+    void drawGrid();
     void drawSkybox(Scene& scene);
 };
 

@@ -4,6 +4,7 @@ in vec3 fragTangent;
 in vec3 fragBitangent;
 in vec2 textureUV;
 in vec3 fragPosView;
+in mat4 viewXform;
 
 out vec4 fragColor;
 
@@ -53,7 +54,7 @@ mat3 constructTBN(vec3 normal, vec3 tangent, vec3 bitangent) {
 // TODO: Re-orthonormalize t, b, n after interpolation
 // TODO: need to fix specular component
 void main() {
-    vec3 l = normalize(-dLight.direction);
+    vec3 l = normalize((viewXform * vec4(-dLight.direction, 0.0)).xyz);
     vec3 v = normalize(-fragPosView);
     vec3 h = normalize(l + v);
     vec3 normalSample = sampleNormal(textureUV);
@@ -63,9 +64,12 @@ void main() {
     float specularCoef = shininess < 0.03 ? 0.0 : pow(max(dot(n, h), 0.0), shininess * 255.0);
 
     vec3 albedo = numDiffuseMaps == 0 ? vec3(1.0, 0.2, 0.5) : vec3(0.0);
-    // diffuse
+
+    // diffuse with gamma-correction on input albedo
     for (int i = 0; i < numDiffuseMaps; i++) {
         albedo += pow(texture(diffuseSamplers[i], textureUV).rgb, vec3(2.2));
     } 
-    fragColor = vec4(pow(diffuseCoef * albedo + specularCoef * 0.4 * dLight.baseLight.color, vec3(0.4545)), 1.0);
+
+    // Since this is not final render pass, no need to do gamma-correction yet
+    fragColor = vec4(diffuseCoef * albedo + specularCoef * 0.4 * dLight.baseLight.color, 1.0);
 }

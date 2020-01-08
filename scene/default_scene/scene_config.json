@@ -154,7 +154,7 @@
             "xform": {
                 "translation": [1.0, 0.5, -2.0],
                 "rotation": [0, 0, 0],
-                "scale": [0.10, 0.10, 0.10]
+                "scale": [0.07, 0.07, 0.07]
             },
             "movable": "true" 
         }
