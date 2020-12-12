@@ -2,9 +2,9 @@
     "cameras": [
         {
             "name": "main_camera",
-            "position": [0.0, 0.0, 0.0],
-            "target": [0.0, 0.0, -1.0],
-            "world_up": [0.0, 1.0, 0.0],
+            "position": [0.0, 0.2, 1.0],
+            "lookAt": [0.0, 0.0, -1.0],
+            "worldUp": [0.0, 1.0, 0.0],
             "fov": 50.0,
             "z_near": 0.1,
             "z_far": 100.0
@@ -47,9 +47,18 @@
             "specularTexture": ["diablo_specular"], 
             "normalMapName": "diablo_normal_map",
             "aoMapName": "",
-            "roughnessMapName": "",
+            "roughnessMapName": ""
+        },
 
-            "shader": "blinnPhong"
+
+        {
+            "name": "autumn_tree",
+            "path": "asset/autumn_tree/mesh/autumn_tree.fbx",
+            "diffuseTexture": [""],
+            "specularTexture": [""], 
+            "normalMapName": "",
+            "aoMapName": "",
+            "roughnessMapName": ""
         },
 
         {
@@ -59,9 +68,7 @@
             "specularTexture": [""], 
             "normalMapName": "helmet_nm",
             "aoMapName": "",
-            "roughnessMapName": "",
-
-            "shader": "blinnPhong"
+            "roughnessMapName": ""
         },
 
         {
@@ -71,9 +78,7 @@
             "specularTexture": [""], 
             "normalMapName": "",
             "aoMapName": "",
-            "roughnessMapName": "",
-
-            "shader": "blinnPhong"
+            "roughnessMapName": ""
         },
 
         {
@@ -83,9 +88,7 @@
             "specularTexture": [""], 
             "normalMapName": "",
             "aoMapName": "",
-            "roughnessMapName": "",
-
-            "shader": "flat"
+            "roughnessMapName": ""
         }
     ],
 
@@ -121,42 +124,33 @@
         }
     ],
 
-    "instance_list": [
+    "materials": [
         {
-            "meshName": "diablo3_pose",
-            "xform": {
-                "translation": [0.0, 0.5, -4.8],
-                "rotation": [0, 0, 0],
-                "scale": [1.0, 1.0, 1.0]
-            },
-            "movable": "true"
+            "name": "diablo_matl",
+            "type": "BlinnPhong",
+            "diffuse": [ "diablo_diffuse", "diablo_glow"],
+            "specular": [],
+            "normal": "diablo_normal_map"
         },
+
         {
-            "meshName": "teapot_mesh",
-            "xform": {
-                "translation": [-1.5, 0.0, -4.8],
-                "rotation": [0, 0, 0],
-                "scale": [0.25, 0.25, 0.25]
-            },
-            "movable": "true"
-        },
+            "name": "tree_matl",
+            "type": "BlinnPhong",
+            "diffuse": [ ""],
+            "specular": [],
+            "normal": ""
+        }
+    ],
+
+    "entities": [
         {
             "meshName": "helmet_mesh",
+            "matlName": "tree_matl",
             "xform": {
-                "translation": [-1.5, 0.5, -1.8],
-                "rotation": [0, 0, 0],
-                "scale": [0.3, 0.3, 0.3]
-            },
-            "movable": "true"
-        },
-        {
-            "meshName":"light_probe",
-            "xform": {
-                "translation": [1.0, 0.5, -2.0],
-                "rotation": [0, 0, 0],
-                "scale": [0.07, 0.07, 0.07]
-            },
-            "movable": "true" 
+                "translation": [0.0, 0.0, -2.4],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [0.8, 0.8, 0.8]
+            }
         }
     ]
 }

@@ -1,7 +1,10 @@
 # folders to ignore
 .vscode/
-build/
+bin/
 cmake/
 .git/
+asset/
+lib/
 
 # files
+.vscode-ctags

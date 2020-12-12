@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
+
 project(cyanRenderEngine)
+
 #### src files ####
 file(GLOB_RECURSE include "${PROJECT_SOURCE_DIR}/include/*.h")
 file(GLOB_RECURSE src "${PROJECT_SOURCE_DIR}/src/*.cpp")
@@ -17,12 +19,13 @@ include_directories(${GLFW_INCLUDE_DIR})
 include_directories(${GLEW_INCLUDE_DIR})
 include_directories(${ASSIMP_INCLUDE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories(${PROJECT_SOURCE_DIR}/demo)
 include_directories(${PROJECT_SOURCE_DIR}/lib/stb_image/include/)
 include_directories(${PROJECT_SOURCE_DIR}/lib/glm/glm)
 include_directories(${PROJECT_SOURCE_DIR}/lib/json) 
 
 #### preprocessor ####
-add_definitions(-DGLEW_STATIC)
+add_definitions(-DGLEW_STATIC -DGLFW_INCLUDE_NONE)
 add_executable(cyanRenderEngine ${include} ${src} ${lib})
 target_compile_options(cyanRenderEngine PUBLIC /W1 /std:c++14)
 target_link_libraries(cyanRenderEngine ${GLFW_LIBRARY} ${GLEW_LIBRARY} ${OPENGL_LIBRARIES} ${ASSIMP_LIBRARY})
@@ -36,9 +39,11 @@ add_custom_command(TARGET cyanRenderEngine POST_BUILD
 add_custom_command(TARGET cyanRenderEngine POST_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy_directory
                        ${CMAKE_SOURCE_DIR}/asset/ $<TARGET_FILE_DIR:cyanRenderEngine>/asset/)
+
 add_custom_command(TARGET cyanRenderEngine POST_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy_directory
                        ${CMAKE_SOURCE_DIR}/shader/ $<TARGET_FILE_DIR:cyanRenderEngine>/shader/)
+
 add_custom_command(TARGET cyanRenderEngine POST_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy_directory
                        ${CMAKE_SOURCE_DIR}/scene/ $<TARGET_FILE_DIR:cyanRenderEngine>/scene/)

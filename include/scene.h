@@ -2,9 +2,11 @@
 
 #include <vector>
 #include "glm.hpp"
-#include "mesh.h"
+
 #include "camera.h"
-#include "texture.h"
+#include "Texture.h"
+#include "Material.h"
+#include "Entity.h"
 
 struct Light {
     glm::vec3 color;
@@ -20,37 +22,44 @@ struct PointLight : Light {
     float attenuation;
 };
 
-struct Transform {
-    glm::vec3 scale;
-    glm::vec3 rotation; // not sure how to handle rotation for now
-    glm::vec3 translation;
-};
-
+// TODO: Scene should only own mesh instances and lights
 struct Scene {
-    // Mesh
-    Skybox skybox;
-    std::vector<Mesh> meshList;
-    std::vector<Transform> xformList;
-    std::vector<MeshInstance> instanceList;
-
-    // Textures
-    std::vector<Texture> textureList;
-    std::vector<CubemapTexture> cubemapTextures;
-
     Camera mainCamera;
+    Skybox skybox;
+    std::vector<Entity> entities;
     // Lights
     std::vector<PointLight> pLights;
     std::vector<DirectionLight> dLights;
+
+    // legacy code to be removed soon
+    /*
+    // Mesh
+    std::vector<Mesh> meshes;
+    std::vector<Transform> xforms;
+    std::vector<MeshInstance> instances;
+    */
+
+
+    /*
+    // Textures
+    std::vector<Texture> textures;
+    std::vector<CubemapTexture> cubemapTextures;
+
+    // Materials
+    std::vector<Material> materials;
+    */
 };
 
 class SceneManager {
 public:
     static void setupSkybox(Skybox& skybox, CubemapTexture& texture);
     static void loadMesh(Mesh& mesh, const char* fileName);
-    static void loadSceneFromFile(Scene& scene, const char* fileName);
+    //static void loadSceneFromFile(Scene& scene, const char* fileName);
     static void loadTextureFromFile(Scene& scene, Texture& texture);
     static int findTextureIndex(const Scene& scene, const std::string& textureName);
     static void findTexturesForMesh(Scene& scene, Mesh& mesh);
+
+    static Entity* createEntity(Scene& scene);
 };
 
 extern SceneManager sceneManager;

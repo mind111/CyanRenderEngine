@@ -1,6 +1,6 @@
 #include <iostream>
 #include <fstream>
-#include "scene.h"
+
 #include "json.hpp"
 #include "glm.hpp"
 #include "stb_image.h"
@@ -9,37 +9,23 @@
 #include "assimp/postprocess.h"
 #include "gtc/matrix_transform.hpp"
 
+#include "Scene.h"
+
 SceneManager sceneManager;
 
-namespace glm {
-    //---- Utilities for loading the scene data from json
-    void from_json(const nlohmann::json& j, glm::vec3& v) { 
-        v.x = j.at(0).get<float>();
-        v.y = j.at(1).get<float>();
-        v.z = j.at(2).get<float>();
-    }
+// TODO: For now, entityId cannot be reused
+// NOTE: Reserve entityId 0 for null-entity
+Entity* SceneManager::createEntity(Scene& scene)
+{
+    Entity e = { };
+    e.entityId = scene.entities.size() > 0 ? scene.entities.size() + 1 : 1;
+    // !PERF
+    scene.entities.push_back(e);
+    return &scene.entities[scene.entities.size() - 1]; 
 }
-
-void from_json(const nlohmann::json& j, Transform& t) {
-    t.translation = j.at("translation").get<glm::vec3>();
-    t.rotation = j.at("rotation").get<glm::vec3>();
-    t.scale = j.at("scale").get<glm::vec3>();
-}
-
-void from_json(const nlohmann::json& j, Camera& c) {
-    c.position = j.at("position").get<glm::vec3>();
-    c.target = j.at("target").get<glm::vec3>();
-    j.at("fov").get_to(c.fov);
-    j.at("z_far").get_to(c.far);
-    j.at("z_near").get_to(c.near);
-}
-
-void from_json(const nlohmann::json& j, Mesh& mesh) {
-    j.at("name").get_to(mesh.name);
-}
-//-------------------------------------------------------
 
 // Mesh loading
+#if 0
 void SceneManager::loadMesh(Mesh& mesh, const char* fileName) {
     Assimp::Importer importer;
     const aiScene* scene = importer.ReadFile(
@@ -150,6 +136,8 @@ void SceneManager::loadMesh(Mesh& mesh, const char* fileName) {
     }
 }
 
+// TODO: Rewrite Texture related operations
+
 void SceneManager::loadTextureFromFile(Scene& scene, Texture& texture) {
     int w, h, numChannels;
     stbi_set_flip_vertically_on_load(true);
@@ -199,13 +187,13 @@ void SceneManager::loadSceneFromFile(Scene& scene, const char* fileName) {
         } // pointLight case
     }
     for (auto textureInfo : textureInfoList) {
-        Texture texture = {
-            textureInfo.at("textureName").get<std::string>(),
-            textureInfo.at("texturePath").get<std::string>(),
-            0
-        };
-        loadTextureFromFile(scene, texture);
-        scene.textureList.emplace_back(texture);
+        std::string filename = textureInfo.at("texturePath").get<std::string>();
+        Image image = { textureInfo.at("textureName").get<std::string>(),
+                        filename,
+                        TextureUtils::loadImage(filename.c_str()) };
+
+        
+        scene.textures.emplace_back(texture);
     }
     for (auto meshInfo : meshInfoList) {
         std::string path;
@@ -273,7 +261,7 @@ void SceneManager::loadSceneFromFile(Scene& scene, const char* fileName) {
 
         loadMesh(mesh, path.c_str());
         findTexturesForMesh(scene, mesh);
-        scene.meshList.emplace_back(mesh);
+        scene.meshes.emplace_back(mesh);
     }
     int instanceID = 0;
     for (auto instanceInfo : instanceInfoList) {
@@ -282,12 +270,12 @@ void SceneManager::loadSceneFromFile(Scene& scene, const char* fileName) {
         instanceInfo.at("meshName").get_to(meshName);
         auto xformInfo = instanceInfo.at("xform");
         Transform xform = instanceInfo.at("xform").get<Transform>();
-        for (int i = 0; i < scene.meshList.size(); i++) {
-            if (scene.meshList[i].name == meshName) {
-                meshInstance.instanceID = instanceID;
-                meshInstance.meshID = i;
-                scene.instanceList.emplace_back(meshInstance);
-                scene.xformList.emplace_back(xform);
+        for (int i = 0; i < scene.meshes.size(); i++) {
+            if (scene.meshes[i].name == meshName) {
+                meshInstance.instanceId = instanceID;
+                meshInstance.meshId = i;
+                scene.instances.emplace_back(meshInstance);
+                scene.xforms.emplace_back(xform);
                 break;
             }
         }
@@ -326,8 +314,8 @@ void SceneManager::loadSceneFromFile(Scene& scene, const char* fileName) {
 }
 
 int SceneManager::findTextureIndex(const Scene& scene, const std::string& textureName) {
-    for (int i = 0; i < scene.textureList.size(); i++) {
-            if (scene.textureList[i].name == textureName) {
+    for (int i = 0; i < scene.textures.size(); i++) {
+            if (scene.textures[i].name == textureName) {
                 return i;
             }
     }
@@ -335,14 +323,14 @@ int SceneManager::findTextureIndex(const Scene& scene, const std::string& textur
 }
 
 void SceneManager::findTexturesForMesh(Scene& scene, Mesh& mesh) {
-    for (int i = 0; i < scene.textureList.size(); i++) {
-        if (scene.textureList[i].name == mesh.normalMapName) {
+    for (int i = 0; i < scene.textures.size(); i++) {
+        if (scene.textures[i].name == mesh.normalMapName) {
             mesh.normalMapID = i;
         }
-        if (scene.textureList[i].name == mesh.aoMapName) {
+        if (scene.textures[i].name == mesh.aoMapName) {
             mesh.aoMapID = i;
         }
-        if (scene.textureList[i].name == mesh.roughnessMapName) {
+        if (scene.textures[i].name == mesh.roughnessMapName) {
             mesh.roughnessMapID = i;
         }
     }
@@ -376,3 +364,4 @@ void SceneManager::setupSkybox(Skybox& skybox, CubemapTexture& texture) {
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
     glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 }
+#endif

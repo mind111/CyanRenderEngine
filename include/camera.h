@@ -1,28 +1,19 @@
 #pragma once
 #include "glm.hpp"
 
-enum class ControlMode {
-    free,
-    orbit
-};
-
-class Camera {
-public:
-    glm::vec3 position, target;
-    glm::vec3 forward, right;
+struct Camera
+{
+    glm::vec3 lookAt;
+    glm::vec3 position;
+    glm::vec3 forward, right, up;
     glm::vec3 worldUp;
     glm::mat4 view, projection;
-    float fov, near, far;
+    float fov, n, f;
+};
 
-    // Rotation in degree
-    float yaw, pitch;
-
-    // Camera control mode
-    ControlMode eMode;
-
-    Camera();
-
-    void processKeyboard(int key, float deltaTime); 
-    void processMouse(double deltaX, double deltaY, float deltaTime);
-    void updateView();
+class CameraManager
+{
+public:
+    static void initDefaultCamera(Camera& camera);
+    static void updateCamera(Camera& camera);
 };

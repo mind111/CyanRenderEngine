@@ -7,3 +7,11 @@ glm::mat4 MathUtils::transformToMat4(const Transform& xform) {
     res = glm::scale(res, xform.scale);
     return res;
 }
+
+namespace Cyan
+{
+    f32 fabs(f32 value)
+    {
+        return abs(value);
+    }
+}

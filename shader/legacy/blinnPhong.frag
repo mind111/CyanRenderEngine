@@ -27,8 +27,8 @@ uniform DirectionLight dLight;
 
 // ----- Textures -----
 uniform int numDiffuseMaps, numSpecularMaps, hasNormalMap;
-uniform sampler2D diffuseSamplers[4];
-uniform sampler2D specularSampler;
+uniform sampler2D diffuseSamplers[5];
+uniform sampler2D specularSampler[5];
 uniform sampler2D normalSampler;
 
 float remap(float value, float low, float high, float newLow, float newHigh) {
