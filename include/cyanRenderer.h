@@ -99,7 +99,6 @@ public:
     static CyanRenderer* get();
     void bindSwapBufferCallback(RequestSwapCallback callback);
     void initRenderer();
-    void initShaders();
 
     void registerShader(ShaderBase* shader);
 
@@ -112,7 +111,6 @@ public:
     glm::mat4 generateViewMatrix(const Camera& camera);
 
     void prepareGridShader(Scene& scene);
-    void prepareFlatShader(Scene& scene, Entity& entity);
 
     void setupMSAA();
     void bloomPostProcess();
@@ -123,7 +121,7 @@ public:
     Material* findMaterial(const std::string& name);
 
     void drawMesh(MeshGroup& mesh);
-    void drawEntity(Scene& scene, Entity& entity);
+    void drawEntity(Scene& scene, Entity* entity);
     void drawGrid();
     void drawSkybox(Scene& scene);
 
@@ -146,7 +144,7 @@ private:
     friend class ToolKit;
     RequestSwapCallback mSwapBufferCallback;
 
-    void* updateShaderParams(Scene& scene, Entity& entity, ShaderType type);
+    void updateShaderVariables(Entity* entity);
 
     static Texture createTexture(GLenum target, GLint intermalFormat, GLenum pixelFormat, GLenum dataType, void* image, int width, int height);
     static Texture createTexture(GLenum target, GLint intermalFormat, GLenum pixelFormat, GLenum dataType, int width, int height);

@@ -7,6 +7,7 @@
 
 #include "glew.h"
 
+#include "Light.h"
 #include "Material.h"
 #include "Scene.h"
 
@@ -16,52 +17,35 @@ enum class ShaderType
 {
     None = 0,
     BlinnPhong,
-    PBR
+    Pbr
 };
 
-struct BlinnPhongShaderParams 
+struct BlinnPhongShaderVars 
 {
-    DirectionLight dLight;
     glm::mat4 model;
     glm::mat4 view;
     glm::mat4 projection;
+    float kAmbient, kDiffuse, kSpecular;
     Material* material;
 };
 
-struct PBRShaderParams
+struct PbrShaderVars
 {
-
+    glm::mat4 model;
+    glm::mat4 view;
+    glm::mat4 projection;
+    float kAmbient, kDiffuse, kSpecular;
+    Material* material;
+    DirectionalLight* dLights;
+    PointLight* pLights;
+    u8 numDirLights;
+    u8 numPointLights;
 };
 
-// TODO: Define this in the cpp file ...?
 struct ShaderFileInfo
 {
     const char* filePath;
     FILETIME lastWriteTime;
-};
-
-class Shader {
-public:
-    GLuint vertexShader;
-    GLuint fragmentShader;
-    GLuint shaderProgram;
-
-    std::map<std::string, GLint> uniformLocMap;
-
-    void init();
-    void initUniformLoc(const std::vector<std::string>& uniformNames);
-    void loadShaderSrc(const char* vertFileName, const char* fragFileName);
-    void generateShaderProgram();
-    void bindShader(); 
-    void unbindShader();
-    
-    void setUniform1i(const char* uniformName, GLint data);
-    void setUniform1f(const char* uniformName, GLfloat data);
-    void setUniformVec3(const char* uniformName, GLfloat* vecData);
-    void setUniformMat4f(const char* uniformName, GLfloat* matData);
-    
-    Shader() {}
-    ~Shader() {}
 };
 
 class ShaderBase
@@ -71,8 +55,11 @@ public:
     virtual ~ShaderBase() { }
 
     virtual ShaderType getShaderType() = 0;
-    virtual void prePass(void* params) = 0;
+    virtual void prePass() = 0;
     virtual void bindMaterialTextures(Material* matl) = 0;
+    virtual void setShaderVariables(void* vars) = 0;
+    virtual void updateShaderVarsForEntity(Entity* e) = 0;
+    virtual void initUniformLocations(std::vector<std::string>& names);
 
     void setUniform1i(const char* name, GLint data);
     void setUniform1f(const char* name, GLfloat data);
@@ -87,24 +74,54 @@ public:
 protected:
     void loadShaderSrc(GLuint vs, const char* vertFileName, GLuint fs, const char* fragFileName);
     void generateShaderProgram(GLuint vs, GLuint fs, GLuint program);
-    GLint getUniformLocation(std::string& name);
+    GLint getUniformLocation(const std::string& name);
 
     std::map<std::string, int> uniformMap;
+
     GLuint mProgramId;
 };
 
 class BlinnPhongShader : public ShaderBase
 {
 public:
-    static const int kMaxDiffuseMapCount = 5;
-    static const int kMaxSpecularMapCount = 5;
+    static const int kMaxNumDiffuseMap = 6;
+    static const int kMaxNumSpecularMap = 6;
+    static const int kMaxNumEmissionMap = 2;
 
     BlinnPhongShader(const char* vertSrc, const char* fragSrc);
     ~BlinnPhongShader() { }
 
     virtual inline ShaderType getShaderType() { return ShaderType::BlinnPhong; }
-    virtual void prePass(void* params) override;
+    virtual void prePass() override;
     virtual void bindMaterialTextures(Material* matl) override;
+    virtual void setShaderVariables(void* vars) override;
+    virtual void updateShaderVarsForEntity(Entity* e) override;
 
-    void initUniformLocations(std::vector<std::string>& names);
+    BlinnPhongShaderVars m_vars;
+private:
+
+};
+
+class PbrShader : public ShaderBase
+{
+public:
+    static const int kMaxNumDiffuseMap = 6;
+    static const int kMaxNumSpecularMap = 6;
+    static const int kMaxNumEmissionMap = 2;
+    static const int kMaxPointLights = 10;
+    static const int kMaxDirLights = 10;
+
+    virtual inline ShaderType getShaderType() { return ShaderType::Pbr; }
+    virtual void prePass() override;
+    virtual void bindMaterialTextures(Material* matl) override;
+    virtual void setShaderVariables(void* vars) override;
+    virtual void updateShaderVarsForEntity(Entity* e) override;
+
+    PbrShader(const char* vertSrc, const char* fragSrc);
+    ~PbrShader() { }
+
+    GLuint m_pLightsBuffer;
+    GLuint m_dLightsBuffer;
+
+    PbrShaderVars m_vars;
 };

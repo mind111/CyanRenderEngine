@@ -1,78 +1,78 @@
-#include <iostream>
-#include <cmath>
-
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_glfw.h"
 #include "imgui/imgui_impl_opengl3.h"
 
-#include "BasicApp.h"
+#include "Light.h"
+#include "PbrApp.h"
 #include "Shader.h"
 
 /* Constants */
 // In radians per pixel 
+
 static float kCameraOrbitSpeed = 0.005f;
 static float kCameraRotateSpeed = 0.005f;
 
-void mouseCursorCallback(double deltaX, double deltaY)
+namespace Pbr
 {
-    BasicApp* app = BasicApp::get();
-    app->bOrbit ? app->orbitCamera(deltaX, deltaY) : app->rotateCamera(deltaX, deltaY);
-}
-
-void mouseButtonCallback(int button, int action)
-{
-    BasicApp* app = BasicApp::get();
-    switch(button)
+    void mouseCursorCallback(double deltaX, double deltaY)
     {
-        case CYAN_MOUSE_BUTTON_LEFT:
+        PbrApp* app = PbrApp::get();
+        app->bOrbit ? app->orbitCamera(deltaX, deltaY) : app->rotateCamera(deltaX, deltaY);
+    }
+
+    void mouseButtonCallback(int button, int action)
+    {
+        PbrApp* app = PbrApp::get();
+        switch(button)
         {
-            break;
-        }
-        case CYAN_MOUSE_BUTTON_RIGHT:
-        {
-            if (action == CYAN_PRESS)
+            case CYAN_MOUSE_BUTTON_LEFT:
             {
-                app->bOrbit = true;
+                break;
             }
-            else if (action == CYAN_RELEASE)
+            case CYAN_MOUSE_BUTTON_RIGHT:
             {
-                app->bOrbit = false;
+                if (action == CYAN_PRESS)
+                {
+                    app->bOrbit = true;
+                }
+                else if (action == CYAN_RELEASE)
+                {
+                    app->bOrbit = false;
+                }
+                break;
             }
-            break;
-        }
-        default:
-        {
-            break;
+            default:
+            {
+                break;
+            }
         }
     }
 }
 
-static BasicApp* gApp = nullptr; 
+static PbrApp* gApp = nullptr;
 
-BasicApp::BasicApp()
-    : CyanApp()
-{
-    bOrbit = false;
-    bRunning = false;
-    gApp = this;
-}
-
-BasicApp* BasicApp::get()
+PbrApp* PbrApp::get()
 {
     if (gApp)
         return gApp;
     return nullptr;
 }
 
-void BasicApp::init(int appWindowWidth, int appWindowHeight)
+PbrApp::PbrApp()
+{
+    bOrbit = false;
+    gApp = this;
+}
+
+void PbrApp::init(int appWindowWidth, int appWindowHeight)
 {
     /* Init engine instance */
     gEngine->setup({ appWindowWidth, appWindowHeight});
     bRunning = true;
 
     /* Setup inputs */
-    gEngine->registerMouseCursorCallback(&mouseCursorCallback);
-    gEngine->registerMouseButtonCallback(&mouseButtonCallback);
+    gEngine->registerMouseCursorCallback(&Pbr::mouseCursorCallback);
+    gEngine->registerMouseButtonCallback(&Pbr::mouseButtonCallback);
 
     /* Setup ImGui */
     IMGUI_CHECKVERSION();
@@ -134,6 +134,38 @@ void BasicApp::init(int appWindowWidth, int appWindowHeight)
     m_scenes.push_back(scene);
     currentScene = 0;
 
+    scene->dLights.push_back(
+        DirectionalLight{
+            glm::vec4{0.9f, 0.9f, 0.9f, 1.f}, 
+            glm::vec4{0.0f, 0.0f, -1.0f, 0.f}
+        }
+    );
+
+    // Add lights into the scene
+    scene->pLights.push_back(
+        PointLight{
+            glm::vec4{0.8f, 1.0f, 0.95f, 4.f}, 
+            glm::vec4{10.2f, 4.0f, -3.2f, 1.f}
+        });
+
+    scene->pLights.push_back(
+        PointLight{
+            glm::vec4{0.9f, 0.9f, 0.9f, 4.f}, 
+            glm::vec4{0.4f, 1.5f, 2.4f, 1.f}
+        });
+
+    scene->pLights.push_back(
+        PointLight{
+            glm::vec4{0.9f, 0.9f, 0.9f, 6.f}, 
+            glm::vec4{0.0f, 1.5f, 2.4f, 1.f}
+        });
+
+    scene->pLights.push_back(
+        PointLight{
+            glm::vec4{0.9f, 0.9f, 0.75f, 4.f}, 
+            glm::vec4{-3.4f, 3.0f, -2.4f, 1.f}
+        });
+
     /* Displaying xform info */
     entityOnFocusIdx = 0;
 
@@ -147,11 +179,11 @@ void BasicApp::init(int appWindowWidth, int appWindowHeight)
     /* Init shader variables */
     // TODO: Following should really be part of material
     m_shaderVars.kAmbient = 0.2f;
-    m_shaderVars.kDiffuse = 0.2f;
-    m_shaderVars.kSpecular = 2.2f;
+    m_shaderVars.kDiffuse = 1.0f;
+    m_shaderVars.kSpecular = 1.0f;
     m_shaderVars.projection = m_scenes[currentScene]->mainCamera.projection;
 
-    m_shader = new BlinnPhongShader("../../shader/shader.vs", "../../shader/shader.fs");
+    m_shader = new PbrShader("../../shader/shader_pbr.vs", "../../shader/shader_pbr.fs");
 
     // TODO: Implement GfxContext class that handles rendering states ?
     // gEngine->GfxContext->bindShader();
@@ -161,20 +193,17 @@ void BasicApp::init(int appWindowWidth, int appWindowHeight)
     gEngine->getRenderer()->setClearColor(glm::vec4(0.2f, 0.2f, 0.2f, 1.f));
 }
 
-void BasicApp::update()
+void PbrApp::beginFrame()
 {
-    Camera& camera = m_scenes[currentScene]->mainCamera;
-    CameraManager::updateCamera(camera);
-
-    m_shaderVars.view = camera.view; 
-    m_shaderVars.projection = camera.projection; 
+    gEngine->getRenderer()->clearBackBuffer();
     
-    // Pass the params to shader
-    m_shader->setShaderVariables(&m_shaderVars);
+    // ImGui
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
 }
 
-// TODO: * Loading scene file dynamically
-void BasicApp::run()
+void PbrApp::run()
 {
     while (bRunning)
     {
@@ -188,17 +217,23 @@ void BasicApp::run()
     }
 }
 
-void BasicApp::beginFrame()
+void PbrApp::update()
 {
-    gEngine->getRenderer()->clearBackBuffer();
+    Camera& camera = m_scenes[currentScene]->mainCamera;
+    CameraManager::updateCamera(camera);
+
+    m_shaderVars.view = camera.view; 
+    m_shaderVars.projection = camera.projection; 
+    m_shaderVars.pLights = &m_scenes[currentScene]->pLights[0];
+    m_shaderVars.numPointLights = m_scenes[currentScene]->pLights.size();
+    m_shaderVars.dLights = &m_scenes[currentScene]->dLights[0];
+    m_shaderVars.numDirLights = m_scenes[currentScene]->dLights.size();
     
-    // ImGui
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
+    // Pass the params to shader
+    m_shader->setShaderVariables(&m_shaderVars);
 }
 
-void BasicApp::render()
+void PbrApp::render()
 {
     gEngine->render(*m_scenes[0]);
 
@@ -216,14 +251,15 @@ void BasicApp::render()
 
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
 }
 
-void BasicApp::endFrame()
+void PbrApp::endFrame()
 {
     gEngine->getRenderer()->requestSwapBuffers();
 }
 
-void BasicApp::shutDown()
+void PbrApp::shutDown()
 {
     // ImGui clean up
     ImGui_ImplOpenGL3_Shutdown();
@@ -234,7 +270,7 @@ void BasicApp::shutDown()
     delete gEngine;
 }
 
-void BasicApp::orbitCamera(double deltaX, double deltaY)
+void PbrApp::orbitCamera(double deltaX, double deltaY)
 {
     Camera& camera = m_scenes[currentScene]->mainCamera;
 
@@ -250,7 +286,7 @@ void BasicApp::orbitCamera(double deltaX, double deltaY)
     camera.position = glm::vec3(pPrime.x, pPrime.y, pPrime.z) + camera.lookAt;
 }
 
-void BasicApp::rotateCamera(double deltaX, double deltaY)
+void PbrApp::rotateCamera(double deltaX, double deltaY)
 {
 
 }

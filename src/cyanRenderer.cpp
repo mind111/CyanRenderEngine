@@ -13,7 +13,6 @@
 
 #include "Common.h"
 #include "CyanRenderer.h"
-// TODO: Resolve APIENTRY macro redefinition
 #include "glfw3.h"
 #include "Camera.h"
 #include "Scene.h"
@@ -117,7 +116,7 @@ Material* CyanRenderer::findMaterial(const std::string& name)
 {
     for(auto& matl : mRenderAssets.materials)
     {
-        if (name == matl->getMaterialName())
+        if (name == matl->m_name)
         {
             return matl;
         }
@@ -196,42 +195,53 @@ void ToolKit::loadScene(Scene& scene, const char* filename)
         scene.mainCamera.projection = glm::perspective(glm::radians(scene.mainCamera.fov), 800.f / 600.f, scene.mainCamera.n, scene.mainCamera.f);
     }
 
-    for (auto lightInfo : lights) 
+// TODO: Deal with loading lights information
+/*
+    for (auto lightinfo : lights) 
     {
-        std::string lightType;
-        DirectionLight directionLight;
-        PointLight pointLight;
-        lightInfo.at("type").get_to(lightType);
-        if (lightType == "directional") {
-            directionLight.direction = glm::normalize(lightInfo.at("direction").get<glm::vec3>());
-            directionLight.color = lightInfo.at("color").get<glm::vec3>();
-            scene.dLights.emplace_back(directionLight);
+        std::string lighttype;
+        directionallight directionlight;
+        pointlight pointlight;
+        lightinfo.at("type").get_to(lighttype);
+        if (lighttype == "directional") {
+            directionlight.direction = glm::normalize(lightinfo.at("direction").get<glm::vec4>().);
+            directionlight.baselight.color = lightinfo.at("color").get<glm::vec3>();
+            scene.dlights.emplace_back(directionlight);
         } else {
 
         } // pointLight case
     }
+*/
 
     for (auto textureInfo : textureInfoList) 
     {
         Texture* texture = new Texture();
-        std::string filename = textureInfo.at("texturePath").get<std::string>();
+        texture->path = textureInfo.at("texturePath").get<std::string>();
         texture->name = textureInfo.at("textureName").get<std::string>();
         int numChannels = 0;
-        texture->pixels = TextureUtils::loadImage(filename.c_str(), &texture->width, &texture->height, &numChannels);
+        texture->pixels = TextureUtils::loadImage(texture->path.c_str(), &texture->width, &texture->height, &numChannels);
 
         glCreateTextures(GL_TEXTURE_2D, 1, &texture->id);
+
+        // TODO: How to determin how many mipmap levels there should be ...?
+        // Turn off mipmap for now
+        GLuint kNumMipLevels = 4;
+
         // RGB
         if (numChannels == 3)
         {
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texture->width, texture->height, 0, GL_RGB, GL_UNSIGNED_BYTE, texture->pixels);
+            glTextureStorage2D(texture->id, kNumMipLevels, GL_RGB8, texture->width, texture->height);
+            glTextureSubImage2D(texture->id, 0, 0, 0, texture->width, texture->height, GL_RGB, GL_UNSIGNED_BYTE, texture->pixels);
         }
         // RGBA
         else if (numChannels == 4)
         {
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texture->width, texture->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture->pixels);
+            glTextureStorage2D(texture->id, kNumMipLevels, GL_RGBA8, texture->width, texture->height);
+            glTextureSubImage2D(texture->id, 0, 0, 0, texture->width, texture->height, GL_RGBA, GL_UNSIGNED_BYTE, texture->pixels);
         }
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glGenerateTextureMipmap(texture->id);
 
         CyanRenderer::get()->mRenderAssets.textures.push_back(texture);
     }
@@ -254,18 +264,81 @@ void ToolKit::loadScene(Scene& scene, const char* filename)
         if (matlType == "BlinnPhong")
         {
             BlinnPhongMaterial* matl = new BlinnPhongMaterial();
-            matlInfo.at("name").get_to(matl->mName);
+            matlInfo.at("name").get_to(matl->m_name);
+
+            /* Diffuse maps */
             for (auto diffuseMap : matlInfo["diffuse"])
             {
-                matl->pushDiffuseMap(CyanRenderer::get()->findTexture(diffuseMap));
+                matl->m_diffuseMaps.push_back(CyanRenderer::get()->findTexture(diffuseMap));
             }
+
+            /* Specular maps */
             for (auto specMap : matlInfo["specular"])
             {
-                matl->pushDiffuseMap(CyanRenderer::get()->findTexture(specMap));
+                matl->m_specularMaps.push_back(CyanRenderer::get()->findTexture(specMap));
             }
+            
+            /* Emission maps */
+            for (auto emissionMap : matlInfo["emission"])
+            {
+                matl->m_emissionMaps.push_back(CyanRenderer::get()->findTexture(emissionMap));
+            }
+
+            /* Normal map */
             std::string normalMapName;
             matlInfo.at("normal").get_to(normalMapName);
-            matl->setNormalMap(CyanRenderer::get()->findTexture(normalMapName));
+            matl->m_normalMap = CyanRenderer::get()->findTexture(normalMapName);
+
+            /* Ambient occlusion map */
+            std::string aoMapName;
+            matlInfo.at("ao").get_to(aoMapName);
+            matl->m_aoMap = CyanRenderer::get()->findTexture(aoMapName);
+
+            /* Roughness map */
+            std::string roughnessMapName;
+            matlInfo.at("roughness").get_to(roughnessMapName);
+            matl->m_roughnessMap = CyanRenderer::get()->findTexture(roughnessMapName);
+
+            CyanRenderer::get()->mRenderAssets.materials.push_back(matl);
+        }
+        else if (matlType == "Pbr")
+        {
+            PbrMaterial* matl = new PbrMaterial();
+            matlInfo.at("name").get_to(matl->m_name);
+
+            /* Diffuse maps */
+            for (auto diffuseMap : matlInfo["diffuse"])
+            {
+                matl->m_diffuseMaps.push_back(CyanRenderer::get()->findTexture(diffuseMap));
+            }
+
+            /* Specular maps */
+            for (auto specMap : matlInfo["specular"])
+            {
+                matl->m_specularMaps.push_back(CyanRenderer::get()->findTexture(specMap));
+            }
+            
+            /* Emission maps */
+            for (auto emissionMap : matlInfo["emission"])
+            {
+                matl->m_emissionMaps.push_back(CyanRenderer::get()->findTexture(emissionMap));
+            }
+
+            /* Normal map */
+            std::string normalMapName;
+            matlInfo.at("normal").get_to(normalMapName);
+            matl->m_normalMap = CyanRenderer::get()->findTexture(normalMapName);
+
+            /* Ambient occlusion map */
+            std::string aoMapName;
+            matlInfo.at("ao").get_to(aoMapName);
+            matl->m_aoMap = CyanRenderer::get()->findTexture(aoMapName);
+
+            /* Roughness map */
+            std::string roughnessMapName;
+            matlInfo.at("roughness").get_to(roughnessMapName);
+            matl->m_roughnessMap = CyanRenderer::get()->findTexture(roughnessMapName);
+
             CyanRenderer::get()->mRenderAssets.materials.push_back(matl);
         }
     }
@@ -335,7 +408,6 @@ VertexInfo ToolKit::loadSubMesh(aiMesh* assimpMesh, uint8_t* attribFlag)
         vertexSize += 3;
         *attribFlag |= NORMAL;
     }
-    /*
     if (assimpMesh->HasTextureCoords(0))
     {
         vertexSize += 2; 
@@ -346,7 +418,6 @@ VertexInfo ToolKit::loadSubMesh(aiMesh* assimpMesh, uint8_t* attribFlag)
         vertexSize += 6;
         *attribFlag |= TANGENTS;
     }
-    */
 
     result.vertexData = new float[vertexSize * assimpMesh->mNumVertices];
     result.vertexSize = vertexSize;
@@ -359,8 +430,7 @@ VertexInfo ToolKit::loadSubMesh(aiMesh* assimpMesh, uint8_t* attribFlag)
     // TODO: This can be abstract into a function taking flag as a argument
     switch (*attribFlag)
     {
-        case (POSITION | NORMAL):
-        //case (POSITION | NORMAL | UV | TANGENTS):
+        case (POSITION | NORMAL | UV | TANGENTS):
         {
             for (int v = 0; v < assimpMesh->mNumVertices; v++)
             {
@@ -374,19 +444,16 @@ VertexInfo ToolKit::loadSubMesh(aiMesh* assimpMesh, uint8_t* attribFlag)
                 result.vertexData[index + offset++] = assimpMesh->mNormals[v].x;
                 result.vertexData[index + offset++] = assimpMesh->mNormals[v].y;
                 result.vertexData[index + offset++] = assimpMesh->mNormals[v].z;
-                /*
                 // UV
-                vertexData[index + 0] = assimpMesh->mTextureCoords[0][v].x;
-                vertexData[index + 1] = assimpMesh->mTextureCoords[0][v].y;
+                result.vertexData[index + offset++] = assimpMesh->mTextureCoords[0][v].x;
+                result.vertexData[index + offset++] = assimpMesh->mTextureCoords[0][v].y;
                 // Tangents
-                vertexData[index + 0] = assimpMesh->mTangents[v].x;
-                vertexData[index + 1] = assimpMesh->mTangents[v].y;
-                vertexData[index + 2] = assimpMesh->mTangents[v].z;
-                vertexData[index + 3] = assimpMesh->mBitangents[v].x;
-                vertexData[index + 4] = assimpMesh->mBitangents[v].y;
-                vertexData[index + 5] = assimpMesh->mBitangents[v].z;
-                */
-
+                result.vertexData[index + offset++] = assimpMesh->mTangents[v].x;
+                result.vertexData[index + offset++] = assimpMesh->mTangents[v].y;
+                result.vertexData[index + offset++] = assimpMesh->mTangents[v].z;
+                result.vertexData[index + offset++] = assimpMesh->mBitangents[v].x;
+                result.vertexData[index + offset++] = assimpMesh->mBitangents[v].y;
+                result.vertexData[index + offset++] = assimpMesh->mBitangents[v].z;
             }
             break;
         }
@@ -423,7 +490,12 @@ MeshGroup* CyanRenderer::createMeshFromFile(const char* fileName)
         fileName,
         aiProcess_CalcTangentSpace | aiProcess_GenSmoothNormals
     );
-
+/*
+        {
+            "name": "helmet_mesh",
+            "path": "asset/helmet/mesh/helmet.obj"
+        },
+*/
     // TODO: Handle Sub-meshes
     MeshGroup* mesh = new MeshGroup();
 
@@ -445,7 +517,6 @@ MeshGroup* CyanRenderer::createMeshFromFile(const char* fileName)
         {
             subMesh->getVertexBuffer()->pushVertexAttribute({"Normal", GL_FLOAT, 3, 0});
         }
-        /*
         if (subMesh->mAttribFlag & UV)
         {
             subMesh->getVertexBuffer()->pushVertexAttribute({"UV", GL_FLOAT, 2, 0});
@@ -455,7 +526,6 @@ MeshGroup* CyanRenderer::createMeshFromFile(const char* fileName)
             subMesh->getVertexBuffer()->pushVertexAttribute({"Tangent", GL_FLOAT, 3, 0});
             subMesh->getVertexBuffer()->pushVertexAttribute({"Bitangent", GL_FLOAT, 3, 0});
         }
-        */
         subMesh->initVertexAttributes();
     }
     // Store the xform for normalizing object space mesh coordinates
@@ -474,43 +544,10 @@ glm::mat4 CyanRenderer::generateViewMatrix(const Camera& camera)
     return glm::lookAt(camera.position, camera.lookAt, camera.up);
 }
 
-void* CyanRenderer::updateShaderParams(Scene& scene, Entity& entity, ShaderType type)
+void CyanRenderer::updateShaderVariables(Entity* entity)
 {
-    switch (type)
-    {
-        case ShaderType::BlinnPhong:
-        {
-            DirectionLight dLight;    
-            dLight.color = glm::vec3(1.0f, 0.84f, 0.67f);
-            dLight.intensity = .8f;
-            dLight.direction = glm::vec3(-1.f, -.5f, -1.f);
-
-            glm::mat4 model(1.f);
-            model = glm::translate(model, entity.xform.translation);
-
-            // TODO: Refactor rotation into xform as well
-            // Constructor of quaternion need to compute tirg
-            glm::vec3 rotAxis(0.f, 1.f, 0.f);
-            float theta = RADIANS(90.f);
-            glm::quat quat(cos(theta * 0.5f), sin(theta * 0.5f) * rotAxis);
-            // Convert quaternion back to mat4 (is this necessary?) qpq^-1
-            glm::mat4 rot = glm::toMat4(entity.xform.qRot);
-            model *= rot;
-            model = glm::scale(model, entity.xform.scale);
-
-            // TODO: Basic camera control 
-
-            // TODO: Investigate the bug with autumn_tree mesh 
-            // TODO: Live shader editing
-
-            // model = model * entity.mesh->normalizeXform;
-
-            return new BlinnPhongShaderParams{ dLight, model, scene.mainCamera.view, scene.mainCamera.projection, entity.matl};
-        }
-        case ShaderType::PBR:
-            return new PBRShaderParams{ };
-    }
-    return nullptr;
+    ShaderBase* shader = getMaterialShader(entity->matl->m_type());
+    shader->updateShaderVarsForEntity(entity);
 }
 
 // TODO: Handle draw MeshGroup better
@@ -541,11 +578,11 @@ bool fileWasModified(const char* fileName, FILETIME* writeTime)
     return false;
 }
 
-void CyanRenderer::drawEntity(Scene& scene, Entity& e) 
+void CyanRenderer::drawEntity(Scene& scene, Entity* e) 
 {
-    MeshGroup& mesh = *e.mesh;
-    Material& material = *e.matl;
-    ShaderBase* shader = getMaterialShader(material.getMaterialType());
+    MeshGroup& mesh = *e->mesh;
+    Material& material = *e->matl;
+    ShaderBase* shader = getMaterialShader(material.m_type());
 
     // TODO: This should only be enabled for debug build
     // Reload shader if it is modified
@@ -556,8 +593,9 @@ void CyanRenderer::drawEntity(Scene& scene, Entity& e)
                 shader->reloadShaderProgram();
         }
     }
-
-    shader->prePass(updateShaderParams(scene, e, shader->getShaderType()));
+    updateShaderVariables(e);
+    // TODO: Extract stuff that does not need to be updated for each entity, such as lighting
+    shader->prePass();
     drawMesh(mesh);
 }
 
@@ -597,7 +635,7 @@ void CyanRenderer::render(Scene& scene, RenderConfig& renderConfg)
     {
         for (auto entity : scene.entities)
         {
-            drawEntity(scene, entity);
+            drawEntity(scene, &entity);
         }
     }
 
@@ -631,13 +669,13 @@ ShaderType materialTypeToShaderType(MaterialType type)
 {
     switch (type)
     {
-        case MaterialType::BlinnPhong:
+        case MaterialType::BlinnPhong :
         {
             return ShaderType::BlinnPhong;
         }
-        case MaterialType::PBR:
+        case MaterialType::Pbr :
         {
-            return ShaderType::PBR;
+            return ShaderType::Pbr;
         }
         default:
         {
@@ -647,6 +685,8 @@ ShaderType materialTypeToShaderType(MaterialType type)
     }
 }
 
+// TODO: As of right now, I am assuming that each ShaderType only have one unique instance of 
+// shader, m_shaders should really be a set instead of vector
 ShaderBase* CyanRenderer::getMaterialShader(MaterialType type)
 {
     ShaderType shaderType = materialTypeToShaderType(type);
@@ -853,118 +893,6 @@ void CyanRenderer::initRenderer() {
 #endif
 } 
 
-
-void CyanRenderer::initShaders() {
-#if 0
-    // TODO: set up all the shaders
-    // for (auto shader : shaderPool) {
-    //     shader.loadShaderSrc();
-    //     shader.generateShaderProgram();
-    //     shader.initUniformLoc();
-    // }
-
-    // TODO: hard-code shader name and according shader src for now
-    quadShader.loadShaderSrc("shader/quadShader.vert", "shader/quadShader.frag");
-    quadShader.generateShaderProgram();
-    quadShader.bindShader();
-
-    activeShaderIdx = (int)ShadingMode::grid;
-    mShaders[activeShaderIdx].loadShaderSrc("shader/gridShader.vert", "shader/gridShader.frag");
-    mShaders[activeShaderIdx].generateShaderProgram();
-    mShaders[activeShaderIdx].bindShader();
-    {
-        std::vector<std::string> uniformNames;
-        uniformNames.push_back("model");
-        uniformNames.push_back("view");
-        uniformNames.push_back("projection");
-        mShaders[activeShaderIdx].initUniformLoc(uniformNames);
-    }
-
-
-    activeShaderIdx = (int)ShadingMode::blinnPhong;
-    mShaders[activeShaderIdx].loadShaderSrc("shader/blinnPhong.vert", "shader/blinnPhong.frag");
-    mShaders[activeShaderIdx].generateShaderProgram();
-    mShaders[activeShaderIdx].bindShader();
-    {
-        std::vector<std::string> uniformNames;
-        uniformNames.push_back("model");
-        uniformNames.push_back("view");
-        uniformNames.push_back("projection");
-        uniformNames.push_back("dLight.baseLight.color");
-        uniformNames.push_back("dLight.direction");
-        uniformNames.push_back("normalSampler");
-        uniformNames.push_back("numDiffuseMaps");
-        uniformNames.push_back("numSpecularMaps");
-        uniformNames.push_back("hasNormalMap");
-        uniformNames.push_back("diffuseSamplers[0]");
-        uniformNames.push_back("diffuseSamplers[1]");
-        uniformNames.push_back("diffuseSamplers[2]");
-        uniformNames.push_back("diffuseSamplers[3]");
-        uniformNames.push_back("specularSampler");
-        mShaders[activeShaderIdx].initUniformLoc(uniformNames);
-    }
-
-    activeShaderIdx = static_cast<int>(ShadingMode::cubemap);
-    mShaders[activeShaderIdx].loadShaderSrc("shader/skyboxShader.vert", "shader/skyboxShader.frag");
-    mShaders[activeShaderIdx].generateShaderProgram();
-    mShaders[activeShaderIdx].bindShader();
-    {
-        std::vector<std::string> uniformNames;
-        uniformNames.push_back("model");
-        uniformNames.push_back("view");
-        uniformNames.push_back("projection");
-        mShaders[activeShaderIdx].initUniformLoc(uniformNames);
-    }
-
-    activeShaderIdx = static_cast<int>(ShadingMode::flat);
-    mShaders[activeShaderIdx].loadShaderSrc("shader/flatShader.vert", "shader/flatShader.frag");
-    mShaders[activeShaderIdx].generateShaderProgram();
-    mShaders[activeShaderIdx].bindShader();
-    {
-        std::vector<std::string> uniformNames;
-        uniformNames.push_back("model");
-        uniformNames.push_back("view");
-        uniformNames.push_back("projection");
-        uniformNames.push_back("color");
-        mShaders[activeShaderIdx].initUniformLoc(uniformNames);
-    }
-    
-    activeShaderIdx = static_cast<int>(ShadingMode::bloom);
-    mShaders[activeShaderIdx].loadShaderSrc("shader/bloomShader.vert", "shader/bloomShader.frag");
-    mShaders[activeShaderIdx].generateShaderProgram();
-
-    activeShaderIdx = static_cast<int>(ShadingMode::bloomBlend);
-    mShaders[activeShaderIdx].loadShaderSrc("shader/bloomBlend.vert", "shader/bloomBlend.frag");
-    mShaders[activeShaderIdx].generateShaderProgram();
-    mShaders[activeShaderIdx].bindShader();
-    {
-        std::vector<std::string> uniformNames;
-        uniformNames.push_back("colorBuffer");
-        uniformNames.push_back("brightColorBuffer");
-        mShaders[activeShaderIdx].initUniformLoc(uniformNames);
-    }
-    glUniform1i(mShaders[activeShaderIdx].uniformLocMap["colorBuffer"], 0);
-    glUniform1i(mShaders[activeShaderIdx].uniformLocMap["brightColorBuffer"], 1);
-
-    activeShaderIdx = static_cast<int>(ShadingMode::gaussianBlur);
-    mShaders[activeShaderIdx].loadShaderSrc("shader/gaussianBlur.vert", "shader/gaussianBlur.frag");
-    mShaders[activeShaderIdx].generateShaderProgram();
-    mShaders[activeShaderIdx].bindShader();
-    {
-        std::vector<std::string> uniformNames;
-        uniformNames.push_back("horizontalPass");
-        uniformNames.push_back("offset");
-        mShaders[activeShaderIdx].initUniformLoc(uniformNames);
-    }
-
-    // TODO: need to clean this up
-    activeShaderIdx = static_cast<int>(ShadingMode::blinnPhong);
-
-    glUseProgram(0);
-#endif
-}
-
-
 void CyanRenderer::prepareGridShader(Scene& scene) {
 #if 0
     Transform gridXform = {
@@ -976,26 +904,6 @@ void CyanRenderer::prepareGridShader(Scene& scene) {
     mShaders[(int)ShadingMode::grid]->setUniformMat4f("model", glm::value_ptr(gridModelMat));
     mShaders[(int)ShadingMode::grid]->setUniformMat4f("view", glm::value_ptr(scene.mainCamera.view));
     mShaders[(int)ShadingMode::grid]->setUniformMat4f("projection", glm::value_ptr(scene.mainCamera.projection));
-#endif
-}
-
-void CyanRenderer::prepareFlatShader(Scene& scene, Entity& entity) {
-#if 0
-    Mesh mesh = *entity.mesh;
-    Transform xform = entity.xform;
-    // TODO: Handle rotation
-    glm::mat4 model(1.f);
-    model = glm::translate(model, xform.translation);
-    model = glm::scale(model, xform.scale);
-
-    mShaders[(int)ShadingMode::flat].setUniformMat4f("model", glm::value_ptr(model));
-    mShaders[(int)ShadingMode::flat].setUniformMat4f("view", glm::value_ptr(scene.mainCamera.view));
-    mShaders[(int)ShadingMode::flat].setUniformMat4f("projection", glm::value_ptr(scene.mainCamera.projection));
-
-    // Set color
-    glm::vec3 color(1.0, 0.84, 0.67);
-    color *= 1.2;
-    mShaders[(int)ShadingMode::flat].setUniformVec3("color", glm::value_ptr(color));
 #endif
 }
 

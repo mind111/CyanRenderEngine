@@ -3,51 +3,19 @@
 #include <vector>
 #include "glm.hpp"
 
-#include "camera.h"
+#include "Camera.h"
 #include "Texture.h"
 #include "Material.h"
 #include "Entity.h"
+#include "Light.h"
 
-struct Light {
-    glm::vec3 color;
-    float intensity;
-};
-
-struct DirectionLight : Light {
-    glm::vec3 direction;
-};
-
-struct PointLight : Light {
-    glm::vec3 position;
-    float attenuation;
-};
-
-// TODO: Scene should only own mesh instances and lights
-struct Scene {
+struct Scene 
+{
     Camera mainCamera;
     Skybox skybox;
     std::vector<Entity> entities;
-    // Lights
     std::vector<PointLight> pLights;
-    std::vector<DirectionLight> dLights;
-
-    // legacy code to be removed soon
-    /*
-    // Mesh
-    std::vector<Mesh> meshes;
-    std::vector<Transform> xforms;
-    std::vector<MeshInstance> instances;
-    */
-
-
-    /*
-    // Textures
-    std::vector<Texture> textures;
-    std::vector<CubemapTexture> cubemapTextures;
-
-    // Materials
-    std::vector<Material> materials;
-    */
+    std::vector<DirectionalLight> dLights;
 };
 
 class SceneManager {

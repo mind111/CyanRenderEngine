@@ -10,6 +10,8 @@
 #define CYAN_MOUSE_BUTTON_RIGHT GLFW_MOUSE_BUTTON_RIGHT
 #define CYAN_MOUSE_BUTTON_LEFT GLFW_MOUSE_BUTTON_LEFT
 
+class CyanApp;
+
 struct MemoryArena
 {
 
@@ -53,6 +55,9 @@ public:
     void registerMouseButtonCallback(MouseButtonCallback* callback);
     void updateMouseCursorPosition(double x, double y);
     void processMouseButtonInput(int button, int action);
+
+    /* Rendering */
+    void updateShaderParams(ShaderBase* shader);
 
     const Window& getWindow() { return mWindow; } 
     CyanRenderer* getRenderer() { return mRenderer; }

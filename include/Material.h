@@ -6,40 +6,40 @@
 
 enum class MaterialType
 {
-    BlinnPhong = 0,
-    PBR = 1
+    None = 0,
+    BlinnPhong = 1,
+    Pbr = 2
 };
 
-class Material
+struct Material
 {
-public:
-    Material() {}
-    virtual ~Material() {}
-    virtual MaterialType getMaterialType() = 0;
-    virtual std::string getMaterialName() = 0;
+    std::string m_name;
+    virtual MaterialType m_type() = 0; 
 };
 
-class BlinnPhongMaterial : public Material
+struct BlinnPhongMaterial : Material
 {
-public:
-    BlinnPhongMaterial();
-    ~BlinnPhongMaterial();
-    MaterialType getMaterialType() override;
-    std::string getMaterialName() override { return mName; };
+    virtual MaterialType m_type() override { return MaterialType::BlinnPhong; }
 
-    void pushDiffuseMap(Texture* diffuseMap);
-    void pushSpecularMap(Texture* specularMap);
-    void setNormalMap(Texture* nm) { mNormalMap = nm; };
+    std::vector<Texture*> m_diffuseMaps;
+    std::vector<Texture*> m_specularMaps;
+    std::vector<Texture*> m_emissionMaps;
 
-    Texture* getNormalMap();
-    std::vector<Texture*>::iterator diffuseBegin();
-    std::vector<Texture*>::iterator diffuseEnd();
-    std::vector<Texture*>::iterator specularBegin();
-    std::vector<Texture*>::iterator specularEnd();
+    Texture* m_normalMap;
+    Texture* m_aoMap;
+    Texture* m_roughnessMap;
+};
 
-    std::string mName;
-private:
-    std::vector<Texture*> mDiffuseMaps;
-    std::vector<Texture*> mSpecularMaps;
-    Texture* mNormalMap;
+struct PbrMaterial : Material
+{
+    virtual MaterialType m_type() override { return MaterialType::Pbr; }
+
+    std::vector<Texture*> m_diffuseMaps;
+    std::vector<Texture*> m_specularMaps;
+    std::vector<Texture*> m_emissionMaps;
+
+    Texture* m_normalMap;
+    Texture* m_aoMap;
+    Texture* m_roughnessMap;
+    Texture* m_metalnessMap;
 };

@@ -6,6 +6,7 @@
 
 #include "Shader.h"
 #include "Scene.h"
+#include "Entity.h"
 
 void checkShaderCompilation(GLuint shader) {
     int compile_result;
@@ -65,27 +66,35 @@ ShaderBase::ShaderBase(const char* vsSrc, const char* fsSrc)
     CloseHandle(hFs);
 }
 
+#define CYAN_GUARD_SET_UNIFORM(name, glFunc, ...) \
+    if (getUniformLocation(name) >= 0) \
+    { \
+        GLint loc = uniformMap[name]; \
+        glFunc(loc, __VA_ARGS__); \
+    } \
+    else \
+    { \
+    } \
+
+// NOTE: If "name" key doesn't exist, [] operator will automatically add an entry instead of 
+// crashing the application
 void ShaderBase::setUniform1i(const char* name, GLint data) {
-    GLint loc = uniformMap[name];
-    glUniform1i(loc, data);
+    CYAN_GUARD_SET_UNIFORM(name, glUniform1i, data);
 }
 
 void ShaderBase::setUniform1f(const char* name, GLfloat data) {
-    GLint floatLocation = uniformMap[name];
-    glUniform1f(floatLocation, data);
+    CYAN_GUARD_SET_UNIFORM(name, glUniform1f, data);
 }
 
 void ShaderBase::setUniformVec3(const char* name, GLfloat* vecData) {
-    GLint vecLocation = uniformMap[name];
-    glUniform3fv(vecLocation, 1, vecData);
+    CYAN_GUARD_SET_UNIFORM(name, glUniform3fv, 1, vecData);
 }
 
 void ShaderBase::setUniformMat4f(const char* name, GLfloat* matData) {
-    GLint loc = uniformMap[name];
-    glUniformMatrix4fv(loc, 1, GL_FALSE, matData);
+    CYAN_GUARD_SET_UNIFORM(name, glUniformMatrix4fv, 1, GL_FALSE, matData);
 }
 
-GLint ShaderBase::getUniformLocation(std::string& name)
+GLint ShaderBase::getUniformLocation(const std::string& name)
 {
     if (uniformMap.find(name) != uniformMap.end())
         return uniformMap[name];
@@ -128,19 +137,7 @@ void ShaderBase::reloadShaderProgram()
     glDeleteShader(fs);
 }
 
-/*
-        {
-            "name": "chinese_dragon",
-            "path": "asset/dragon/dragon.obj",
-            "diffuseTexture": [""],
-            "specularTexture": [""], 
-            "normalMapName": "",
-            "aoMapName": "",
-            "roughnessMapName": ""
-        },
-*/
-
-void BlinnPhongShader::initUniformLocations(std::vector<std::string>& names)
+void ShaderBase::initUniformLocations(std::vector<std::string>& names)
 {
     for (auto& name : names)
     {
@@ -170,145 +167,344 @@ BlinnPhongShader::BlinnPhongShader(const char* vertSrc, const char* fragSrc)
     generateShaderProgram(vs, fs, mProgramId);
     glDeleteShader(vs);
     glDeleteShader(fs);
+    // TODO: Where to add uniform names
     std::vector<std::string> uniformNames = 
     {
         "model",
         "view",
-        "projection"
+        "projection",
+        "kAmbient",
+        "kDiffuse",
+        "kSpecular",
+        "activeNumDiffuse",
+        "activeNumSpecular",
+        "activeNumEmission",
+        "diffuseMaps[0]",
+        "specularMaps[0]",
+        "emissionMaps[0]",
+        "normalMap",
+        "aoMap",
+        "roughnessMap",
+        "hasAoMap"
     };
     initUniformLocations(uniformNames);
 }
 
+// TODO: Bind default textures to unbound samplers ...?
 void BlinnPhongShader::bindMaterialTextures(Material* material)
 {
-    BlinnPhongMaterial* bpMaterial = dynamic_cast<BlinnPhongMaterial*>(material);
+    BlinnPhongMaterial* bpMaterial = static_cast<BlinnPhongMaterial*>(material);
 
     int textureUnit = 0;
 
+    setUniform1i("activeNumDiffuse", bpMaterial->m_diffuseMaps.size());
+    setUniform1i("activeNumSpecular", bpMaterial->m_specularMaps.size());
+    setUniform1i("activeNumEmission", bpMaterial->m_emissionMaps.size());
+
     // Diffuse
     {
-        for (auto itr = bpMaterial->diffuseBegin(); itr != bpMaterial->diffuseEnd(); itr++)
+        for (int t = 0; t < bpMaterial->m_diffuseMaps.size(); t++)
         {
-            // Bind sampler2D to texture unit
             char samplerName[50];
-            sprintf(samplerName, "diffuseSampler[%d]", textureUnit);
-            setUniform1f(samplerName, textureUnit);
-            if (*itr)
-            {
-                // Bind texture object to texture unit
-                glBindTextureUnit(textureUnit++, (*itr)->id);
-            }
+            sprintf(samplerName, "diffuseMaps[%d]", t);
+            setUniform1i(samplerName, textureUnit);
+            glBindTextureUnit(textureUnit++, bpMaterial->m_diffuseMaps[t]->id);
         }
     }
 
     // Specular
     {
-        for (auto itr = bpMaterial->specularBegin(); itr != bpMaterial->specularEnd(); itr++)
+        // TODO: this is hard-coded for now! 
+        textureUnit = kMaxNumDiffuseMap;
+        for (int t = 0; t < bpMaterial->m_specularMaps.size(); t++)
         {
-            // Bind sampler2D to texture unit
             char samplerName[50];
-            sprintf(samplerName, "specularSamplers[%d]", textureUnit);
-            setUniform1f(samplerName, textureUnit);
-            if (*itr)
-            {
-                // Bind texture object to texture unit
-                glBindTextureUnit(textureUnit++, (*itr)->id);
-            }
+            sprintf(samplerName, "specularMaps[%d]", t);
+            setUniform1i(samplerName, textureUnit);
+            glBindTextureUnit(textureUnit++, bpMaterial->m_specularMaps[t]->id);
+        }
+    }
+
+    // Emission
+    {
+        textureUnit = kMaxNumDiffuseMap + kMaxNumSpecularMap;
+        for (int t = 0; t < bpMaterial->m_emissionMaps.size(); t++)
+        {
+            char samplerName[50];
+            sprintf(samplerName, "emissionMaps[%d]", t);
+            setUniform1i(samplerName, textureUnit);
+            glBindTextureUnit(textureUnit++, bpMaterial->m_emissionMaps[t]->id);
         }
     }
 
     // Other textures
     {
-        setUniform1f("normalSampler", textureUnit);
-        if (bpMaterial->getNormalMap())
+        /* Normal map */
+        textureUnit = kMaxNumDiffuseMap + kMaxNumSpecularMap + kMaxNumEmissionMap;
+        setUniform1i("normalMap", textureUnit);
+        if (bpMaterial->m_normalMap)
         {
-            // Bind texture object to texture unit
-            glBindTextureUnit(textureUnit++, bpMaterial->getNormalMap()->id);
+            glBindTextureUnit(textureUnit++, bpMaterial->m_normalMap->id);
+        }
+
+        /* Ao map */
+        setUniform1i("aoMap", textureUnit);
+        if (bpMaterial->m_aoMap)
+        {
+            glBindTextureUnit(textureUnit++, bpMaterial->m_aoMap->id);
+        }
+
+        /* Roughness map */
+        setUniform1i("roughnessMap", textureUnit);
+        if (bpMaterial->m_roughnessMap)
+        {
+            glBindTextureUnit(textureUnit++, bpMaterial->m_roughnessMap->id);
         }
     }
 }
 
-void BlinnPhongShader::prePass(void* params)
+void BlinnPhongShader::prePass()
 {
-    BlinnPhongShaderParams* blinnPhongParams = static_cast<BlinnPhongShaderParams*>(params);
-
     glUseProgram(mProgramId);
 
     // Lighting
     {
-        setUniformVec3("dLight.baseLight.color", glm::value_ptr(blinnPhongParams->dLight.color));
-        setUniformVec3("dLight.direction", glm::value_ptr(blinnPhongParams->dLight.direction));
+        // TODO:
+        setUniform1f("kAmbient", m_vars.kAmbient);
+        setUniform1f("kDiffuse", m_vars.kDiffuse);
+        setUniform1f("kSpecular", m_vars.kSpecular);
     }
 
     // xforms
     {
-        setUniformMat4f("model", glm::value_ptr(blinnPhongParams->model));
-        setUniformMat4f("view", glm::value_ptr(blinnPhongParams->view));
-        setUniformMat4f("projection", glm::value_ptr(blinnPhongParams->projection));
+        setUniformMat4f("model", glm::value_ptr(m_vars.model));
+        setUniformMat4f("view", glm::value_ptr(m_vars.view));
+        setUniformMat4f("projection", glm::value_ptr(m_vars.projection));
     }
 
     // Textures
     {
-        bindMaterialTextures(blinnPhongParams->material);
+        bindMaterialTextures(m_vars.material);
+    }
+
+    // Misc
+    {
+        BlinnPhongMaterial* blinnPhongMatl = static_cast<BlinnPhongMaterial*>(m_vars.material);
+        setUniform1f("hasAoMap", 0.0f);
+        if (blinnPhongMatl->m_aoMap)
+        {
+            setUniform1f("hasAoMap", 1.0f);
+        }
     }
 }
 
-// legacy code
-
-#if 0
-void Shader::init() {
-    vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    shaderProgram = glCreateProgram();
+void BlinnPhongShader::setShaderVariables(void* vars)
+{
+    memcpy(&m_vars, vars, sizeof(BlinnPhongShaderVars));
 }
 
-void Shader::initUniformLoc(const std::vector<std::string>& uniformNames) {
-    for (auto name : uniformNames) {
-        GLint location = glGetUniformLocation(shaderProgram, name.c_str());
-        uniformLocMap.insert(std::pair<std::string, GLint>(name, location));
+void BlinnPhongShader::updateShaderVarsForEntity(Entity* e)
+{
+    glm::mat4 model(1.f);
+    model = glm::translate(model, e->xform.translation);
+    glm::vec3 rotAxis(0.f, 1.f, 0.f);
+    float theta = RADIANS(90.f);
+    glm::quat quat(cos(theta * 0.5f), sin(theta * 0.5f) * rotAxis);
+    glm::mat4 rot = glm::toMat4(e->xform.qRot);
+    model *= rot;
+    model = glm::scale(model, e->xform.scale);
+    model *= e->mesh->normalizeXform;
+    m_vars.model = model;
+    m_vars.material = e->matl;
+}
+
+
+PbrShader::PbrShader(const char* vertSrc, const char* fragSrc)
+    : ShaderBase(vertSrc, fragSrc)
+{
+    GLuint vs = glCreateShader(GL_VERTEX_SHADER);
+    GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
+    mProgramId = glCreateProgram();
+    loadShaderSrc(vs, vertSrc, fs, fragSrc);
+    generateShaderProgram(vs, fs, mProgramId);
+    glDeleteShader(vs);
+    glDeleteShader(fs);
+    // TODO: Where to add uniform names
+    std::vector<std::string> uniformNames = 
+    {
+        "model",
+        "view",
+        "projection",
+        "kAmbient",
+        "kDiffuse",
+        "kSpecular",
+        "activeNumDiffuse",
+        "activeNumSpecular",
+        "activeNumEmission",
+        "diffuseMaps[0]",
+        "specularMaps[0]",
+        "emissionMaps[0]",
+        "normalMap",
+        "aoMap",
+        "roughnessMap",
+        "hasAoMap",
+        "hasNormalMap",
+        "numPointLights",
+        "numDirLights"
+    };
+    initUniformLocations(uniformNames);
+    glCreateBuffers(1, &m_pLightsBuffer);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_pLightsBuffer);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(PointLight) * kMaxPointLights, 0, GL_DYNAMIC_COPY);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, m_pLightsBuffer);
+
+    glCreateBuffers(1, &m_dLightsBuffer);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_dLightsBuffer);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(DirectionalLight) * kMaxDirLights, 0, GL_DYNAMIC_COPY);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, m_dLightsBuffer);
+} 
+
+void PbrShader::prePass()
+{
+    glUseProgram(mProgramId);
+
+    // Lighting
+    {
+        // TODO: Do we have to update this every frame ...?
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_pLightsBuffer);
+        void* baseAddr = glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_WRITE_ONLY);
+        memcpy(baseAddr, m_vars.pLights, sizeof(PointLight) * m_vars.numPointLights);
+        glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_dLightsBuffer);
+        baseAddr = glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_WRITE_ONLY);
+        memcpy(baseAddr, m_vars.dLights, sizeof(DirectionalLight) * m_vars.numDirLights);
+        glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+
+        setUniform1i("numPointLights", m_vars.numPointLights);
+        setUniform1i("numDirLights", m_vars.numDirLights);
+
+        setUniform1f("kAmbient", m_vars.kAmbient);
+        setUniform1f("kDiffuse", m_vars.kDiffuse);
+        setUniform1f("kSpecular", m_vars.kSpecular);
+    }
+
+    // xforms
+    {
+        setUniformMat4f("model", glm::value_ptr(m_vars.model));
+        setUniformMat4f("view", glm::value_ptr(m_vars.view));
+        setUniformMat4f("projection", glm::value_ptr(m_vars.projection));
+    }
+
+    // Textures
+    {
+        bindMaterialTextures(m_vars.material);
+    }
+
+    // Misc
+    {
+        PbrMaterial* pbrMaterial = static_cast<PbrMaterial*>(m_vars.material);
+        setUniform1f("hasAoMap", 0.0f);
+        if (pbrMaterial->m_aoMap)
+        {
+            setUniform1f("hasAoMap", 1.0f);
+        }
+        setUniform1f("hasNormalMap", 0.0f);
+        if (pbrMaterial->m_normalMap)
+        {
+            setUniform1f("hasNormalMap", 1.0f);
+        }
     }
 }
 
-void Shader::loadShaderSrc(const char* vertFileName, 
-                           const char* fragFileName) {
-    const char* vertShaderSrc = readShaderFile(vertFileName);
-    const char* fragShaderSrc = readShaderFile(fragFileName);
-    glShaderSource(vertexShader, 1, &vertShaderSrc, nullptr);
-    glShaderSource(fragmentShader, 1, &fragShaderSrc, nullptr);
+void PbrShader::bindMaterialTextures(Material* matl)
+{
+    PbrMaterial* pbrMaterial = static_cast<PbrMaterial*>(matl);
+
+    int textureUnit = 0;
+
+    setUniform1i("activeNumDiffuse", pbrMaterial->m_diffuseMaps.size());
+    setUniform1i("activeNumSpecular", pbrMaterial->m_specularMaps.size());
+    setUniform1i("activeNumEmission", pbrMaterial->m_emissionMaps.size());
+
+    // Diffuse
+    {
+        for (int t = 0; t < pbrMaterial->m_diffuseMaps.size(); t++)
+        {
+            char samplerName[50];
+            sprintf(samplerName, "diffuseMaps[%d]", t);
+            setUniform1i(samplerName, textureUnit);
+            glBindTextureUnit(textureUnit++, pbrMaterial->m_diffuseMaps[t]->id);
+        }
+    }
+
+    // Specular
+    {
+        // TODO: this is hard-coded for now! 
+        textureUnit = kMaxNumDiffuseMap;
+        for (int t = 0; t < pbrMaterial->m_specularMaps.size(); t++)
+        {
+            char samplerName[50];
+            sprintf(samplerName, "specularMaps[%d]", t);
+            setUniform1i(samplerName, textureUnit);
+            glBindTextureUnit(textureUnit++, pbrMaterial->m_specularMaps[t]->id);
+        }
+    }
+
+    // Emission
+    {
+        textureUnit = kMaxNumDiffuseMap + kMaxNumSpecularMap;
+        for (int t = 0; t < pbrMaterial->m_emissionMaps.size(); t++)
+        {
+            char samplerName[50];
+            sprintf(samplerName, "emissionMaps[%d]", t);
+            setUniform1i(samplerName, textureUnit);
+            glBindTextureUnit(textureUnit++, pbrMaterial->m_emissionMaps[t]->id);
+        }
+    }
+
+    // Other textures
+    {
+        /* Normal map */
+        textureUnit = kMaxNumDiffuseMap + kMaxNumSpecularMap + kMaxNumEmissionMap;
+        setUniform1i("normalMap", textureUnit);
+        if (pbrMaterial->m_normalMap)
+        {
+            glBindTextureUnit(textureUnit++, pbrMaterial->m_normalMap->id);
+        }
+
+        /* Ao map */
+        setUniform1i("aoMap", textureUnit);
+        if (pbrMaterial->m_aoMap)
+        {
+            glBindTextureUnit(textureUnit++, pbrMaterial->m_aoMap->id);
+        }
+
+        /* Roughness map */
+        setUniform1i("roughnessMap", textureUnit);
+        if (pbrMaterial->m_roughnessMap)
+        {
+            glBindTextureUnit(textureUnit++, pbrMaterial->m_roughnessMap->id);
+        }
+    }
 }
 
-void Shader::generateShaderProgram() {
-    glCompileShader(vertexShader);
-    glCompileShader(fragmentShader);
-    checkShaderCompilation(vertexShader);
-    checkShaderCompilation(fragmentShader);
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-    checkShaderLinkage(shaderProgram);
+void PbrShader::setShaderVariables(void* vars)
+{
+    memcpy(&m_vars, vars, sizeof(PbrShaderVars));
 }
 
-void Shader::setUniform1i(const char* uniformName, GLint data) {
-    GLint intLocation = uniformLocMap[uniformName];
-    glUniform1i(intLocation, data);
+void PbrShader::updateShaderVarsForEntity(Entity* e)
+{
+    glm::mat4 model(1.f);
+    model = glm::translate(model, e->xform.translation);
+    glm::vec3 rotAxis(0.f, 1.f, 0.f);
+    float theta = RADIANS(90.f);
+    glm::quat quat(cos(theta * 0.5f), sin(theta * 0.5f) * rotAxis);
+    glm::mat4 rot = glm::toMat4(e->xform.qRot);
+    model *= rot;
+    model = glm::scale(model, e->xform.scale);
+    model *= e->mesh->normalizeXform;
+    m_vars.model = model;
+    m_vars.material = e->matl;
 }
-
-void Shader::setUniform1f(const char* uniformName, GLfloat data) {
-    GLint floatLocation = uniformLocMap[uniformName];
-    glUniform1f(floatLocation, data);
-}
-
-void Shader::setUniformVec3(const char* uniformName, GLfloat* vecData) {
-    GLint vecLocation = uniformLocMap[uniformName];
-    glUniform3fv(vecLocation, 1, vecData);
-}
-
-void Shader::setUniformMat4f(const char* uniformName, GLfloat* matData) {
-    GLint matLocation = uniformLocMap[uniformName];
-    glUniformMatrix4fv(matLocation, 1, GL_FALSE, matData);
-}
-
-void Shader::bindShader() {
-    glUseProgram(shaderProgram);
-}
-#endif

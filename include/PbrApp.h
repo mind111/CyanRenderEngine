@@ -7,14 +7,14 @@
 
 // TODO: Can also let CyanApp define a basic beginFrame(), endFrame() where it calls customBeginFrame(), and customEndFrame(),
 // and child class override customBegin() and customEnd() to do each application specific stuffs
-class BasicApp : public CyanApp
+class PbrApp : public CyanApp
 {
 public:
-    BasicApp();
-    ~BasicApp() { }
+    PbrApp();
+    ~PbrApp() { }
     virtual void init(int appWindowWidth, int appWindowHeight) override;
 
-    static BasicApp* get();
+    static PbrApp* get();
 
     virtual void beginFrame() override;
     virtual void render() override;
@@ -29,11 +29,12 @@ public:
     void rotateCamera(double deltaX, double deltaY);
 
     bool bOrbit;
+
 private:
-    BlinnPhongShaderVars m_shaderVars;
-    BlinnPhongShader* m_shader;
+    PbrShaderVars m_shaderVars;
+    PbrShader* m_shader;
     bool bRunning;
-    u32 currentScene;
     u32 entityOnFocusIdx;
+    u32 currentScene;
     std::vector<Scene*> m_scenes;
 };

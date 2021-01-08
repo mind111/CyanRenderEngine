@@ -2,12 +2,13 @@
 
 #include "CyanEngine.h"
 #include "BasicApp.h"
+#include "PbrApp.h"
 
 int main(int argc, char* argv[]) {
 
     std::cout << "---- Hello Cyan! ----" << std::endl;
-    BasicApp* app = new BasicApp();
-    app->init(800, 600);
+    PbrApp* app = new PbrApp();
+    app->init(1280, 960);
     app->run();
     app->shutDown();
     delete app;

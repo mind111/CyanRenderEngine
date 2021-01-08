@@ -2,7 +2,7 @@
     "cameras": [
         {
             "name": "main_camera",
-            "position": [0.0, 0.2, 1.0],
+            "position": [0.0, 0.0, 1.2],
             "lookAt": [0.0, 0.0, -1.0],
             "worldUp": [0.0, 1.0, 0.0],
             "fov": 50.0,
@@ -14,14 +14,14 @@
     "lights": [
         {
             "type": "directional",
-            "color": [0, 0.5, 0.5],
-            "direction": [0, 0.5, 2]
+            "color": [0, 0.5, 0.5, 1.0],
+            "direction": [0, 0.5, 2, 0.0]
         },
 
         {
             "type": "directional",
-            "color": [1.0, 0.8, 0.8],
-            "direction": [0.5, 1, 2]
+            "color": [1.0, 0.8, 0.8, 1.0],
+            "direction": [0.5, 1, 2, 0.0]
         }
     ],
 
@@ -41,54 +41,13 @@
 
     "mesh_info_list": [
         {
-            "name": "diablo3_pose",
-            "path": "asset/diablo/mesh/diablo3_pose.obj",
-            "diffuseTexture": ["diablo_diffuse", "diablo_glow"],
-            "specularTexture": ["diablo_specular"], 
-            "normalMapName": "diablo_normal_map",
-            "aoMapName": "",
-            "roughnessMapName": ""
-        },
-
-
-        {
-            "name": "autumn_tree",
-            "path": "asset/autumn_tree/mesh/autumn_tree.fbx",
-            "diffuseTexture": [""],
-            "specularTexture": [""], 
-            "normalMapName": "",
-            "aoMapName": "",
-            "roughnessMapName": ""
-        },
-
-        {
             "name": "helmet_mesh",
-            "path": "asset/helmet/mesh/helmet.obj",
-            "diffuseTexture": ["helmet_diffuse", ""],
-            "specularTexture": [""], 
-            "normalMapName": "helmet_nm",
-            "aoMapName": "",
-            "roughnessMapName": ""
+            "path": "asset/helmet/mesh/helmet.obj"
         },
 
         {
-            "name": "teapot_mesh",
-            "path": "asset/teapot/mesh/utah_teapot.obj",
-            "diffuseTexture": [""],
-            "specularTexture": [""], 
-            "normalMapName": "",
-            "aoMapName": "",
-            "roughnessMapName": ""
-        },
-
-        {
-            "name": "light_probe",
-            "path":"asset/sphere/mesh/uv_sphere.obj",
-            "diffuseTexture": [""],
-            "specularTexture": [""], 
-            "normalMapName": "",
-            "aoMapName": "",
-            "roughnessMapName": ""
+            "name": "ksha_mesh",
+            "path": "asset/gundam-kshatriya/mesh/scene.gltf"
         }
     ],
 
@@ -99,7 +58,7 @@
         },
 
         {
-            "textureName": "diablo_specular",
+            "textureName": "diablo_gloss",
             "texturePath": "asset/diablo/texture/diablo3_pose_spec.tga"
         },
 
@@ -121,6 +80,41 @@
         {
             "textureName": "helmet_nm",
             "texturePath": "asset/helmet/texture/Default_normal.jpg"
+        },
+
+        {
+            "textureName": "helmet_ao",
+            "texturePath": "asset/helmet/texture/Default_AO.jpg"
+        },
+
+        {
+            "textureName": "helmet_roughness",
+            "texturePath": "asset/helmet/texture/Default_metalRoughness.jpg"
+        },
+
+        {
+            "textureName": "helmet_emission",
+            "texturePath": "asset/helmet/texture/Default_emissive.jpg"
+        },
+
+        {
+            "textureName": "kshatriya_diffuse",
+            "texturePath": "asset/gundam-kshatriya/texture/base_green_diffuse.png"
+        },
+
+        {
+            "textureName": "kshatriya_nm",
+            "texturePath": "asset/gundam-kshatriya/texture/base_green_normal.png"
+        },
+        
+        {
+            "textureName": "kshatriya_specular",
+            "texturePath": "asset/gundam-kshatriya/texture/kshatriya_Spec.tga.png"
+        },
+
+        {
+            "textureName": "kshatriya_binder_diffuse",
+            "texturePath": "asset/gundam-kshatriya/texture/yellow_diffuse.png"
         }
     ],
 
@@ -128,26 +122,66 @@
         {
             "name": "diablo_matl",
             "type": "BlinnPhong",
-            "diffuse": [ "diablo_diffuse", "diablo_glow"],
+            "diffuse": ["diablo_diffuse"],
             "specular": [],
-            "normal": "diablo_normal_map"
+            "roughness": "diablo_gloss",
+            "emission": ["diablo_glow"],
+            "normal": "diablo_normal_map",
+            "ao": ""
         },
 
         {
             "name": "tree_matl",
             "type": "BlinnPhong",
-            "diffuse": [ ""],
+            "diffuse": [""],
             "specular": [],
-            "normal": ""
+            "roughness": "", 
+            "emission": [],
+            "normal": "",
+            "ao": ""
+        },
+
+        {
+            "name": "helmet_matl",
+            "type": "BlinnPhong",
+            "diffuse": ["helmet_diffuse"],
+            "specular": [],
+            "roughness": "helmet_roughness",
+            "emission": ["helmet_emission"],
+            "normal": "helmet_nm",
+            "ao": "helmet_ao"
+        },
+
+        {
+            "name": "ksha_matl",
+            "type": "BlinnPhong",
+            "diffuse": ["kshatriya_diffuse", "kshatriya_binder_diffuse"],
+            "specular": ["kshatriya_specular"],
+            "roughness": "",
+            "emission": [],
+            "normal": "kshatriya_nm",
+            "ao": ""
+        },
+
+        {
+            "name": "helmet_matl_pbr",
+            "type": "Pbr",
+            "diffuse": ["helmet_diffuse"],
+            "specular": [],
+            "roughness": "helmet_roughness",
+            "metalness": "helmet_metal",
+            "emission": ["helmet_emission"],
+            "normal": "helmet_nm",
+            "ao": "helmet_ao"
         }
     ],
 
     "entities": [
         {
             "meshName": "helmet_mesh",
-            "matlName": "tree_matl",
+            "matlName": "helmet_matl_pbr",
             "xform": {
-                "translation": [0.0, 0.0, -2.4],
+                "translation": [0.0, 0.0, -1.0],
                 "rotation": [0.0, 0, 1, 0],
                 "scale": [0.8, 0.8, 0.8]
             }
