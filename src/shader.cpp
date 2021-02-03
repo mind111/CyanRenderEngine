@@ -69,7 +69,7 @@ ShaderBase::ShaderBase(const char* vsSrc, const char* fsSrc)
 #define CYAN_GUARD_SET_UNIFORM(name, glFunc, ...) \
     if (getUniformLocation(name) >= 0) \
     { \
-        GLint loc = uniformMap[name]; \
+        GLint loc = m_uniformMap[name]; \
         glFunc(loc, __VA_ARGS__); \
     } \
     else \
@@ -96,8 +96,8 @@ void ShaderBase::setUniformMat4f(const char* name, GLfloat* matData) {
 
 GLint ShaderBase::getUniformLocation(const std::string& name)
 {
-    if (uniformMap.find(name) != uniformMap.end())
-        return uniformMap[name];
+    if (m_uniformMap.find(name) != m_uniformMap.end())
+        return m_uniformMap[name];
     return -1;
 }
 
@@ -110,39 +110,39 @@ void ShaderBase::loadShaderSrc(GLuint vs, const char* vertSrc,
     glShaderSource(fs, 1, &fragShaderSrc, nullptr);
 }
 
-void ShaderBase::generateShaderProgram(GLuint vs, GLuint fs, GLuint program)
+void ShaderBase::generateShaderProgram(const char* vertSrc, const char* fragSrc)
 {
+    GLuint vs = glCreateShader(GL_VERTEX_SHADER);
+    GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
+    m_programId = glCreateProgram();
+    loadShaderSrc(vs, vertSrc, fs, fragSrc);
     glCompileShader(vs);
     glCompileShader(fs);
     checkShaderCompilation(vs);
     checkShaderCompilation(fs);
-    glAttachShader(program, vs);
-    glAttachShader(program, fs);
-    glLinkProgram(program);
-    checkShaderLinkage(program);
+    glAttachShader(m_programId, vs);
+    glAttachShader(m_programId, fs);
+    glLinkProgram(m_programId);
+    checkShaderLinkage(m_programId);
+    glDeleteShader(vs);
+    glDeleteShader(fs);
 }
 
 // TODO: This also need to re-init all the uniforms and update uniform names assuming
 // that user can modify unfiorm names or add/remove uniforms on the fly
 void ShaderBase::reloadShaderProgram()
 {
-    glDeleteProgram(mProgramId);
+    glDeleteProgram(m_programId);
     // Reload shader sources
-    GLuint vs = glCreateShader(GL_VERTEX_SHADER);
-    GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
-    mProgramId = glCreateProgram();
-    loadShaderSrc(vs, vsInfo.filePath, fs, fsInfo.filePath);
-    generateShaderProgram(vs, fs, mProgramId);
-    glDeleteShader(vs);
-    glDeleteShader(fs);
+    generateShaderProgram(vsInfo.filePath, fsInfo.filePath);
 }
 
 void ShaderBase::initUniformLocations(std::vector<std::string>& names)
 {
     for (auto& name : names)
     {
-        int loc = glGetUniformLocation(mProgramId, name.c_str());
-        uniformMap.insert(std::pair<std::string, int>(name, loc));
+        int loc = glGetUniformLocation(m_programId, name.c_str());
+        m_uniformMap.insert(std::pair<std::string, int>(name, loc));
     }
 }
 
@@ -160,13 +160,8 @@ void ShaderBase::initUniformLocations(std::vector<std::string>& names)
 BlinnPhongShader::BlinnPhongShader(const char* vertSrc, const char* fragSrc)
     : ShaderBase(vertSrc, fragSrc)
 {
-    GLuint vs = glCreateShader(GL_VERTEX_SHADER);
-    GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
-    mProgramId = glCreateProgram();
-    loadShaderSrc(vs, vertSrc, fs, fragSrc);
-    generateShaderProgram(vs, fs, mProgramId);
-    glDeleteShader(vs);
-    glDeleteShader(fs);
+    generateShaderProgram(vertSrc, fragSrc);
+
     // TODO: Where to add uniform names
     std::vector<std::string> uniformNames = 
     {
@@ -265,7 +260,7 @@ void BlinnPhongShader::bindMaterialTextures(Material* material)
 
 void BlinnPhongShader::prePass()
 {
-    glUseProgram(mProgramId);
+    glUseProgram(m_programId);
 
     // Lighting
     {
@@ -322,13 +317,8 @@ void BlinnPhongShader::updateShaderVarsForEntity(Entity* e)
 PbrShader::PbrShader(const char* vertSrc, const char* fragSrc)
     : ShaderBase(vertSrc, fragSrc)
 {
-    GLuint vs = glCreateShader(GL_VERTEX_SHADER);
-    GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
-    mProgramId = glCreateProgram();
-    loadShaderSrc(vs, vertSrc, fs, fragSrc);
-    generateShaderProgram(vs, fs, mProgramId);
-    glDeleteShader(vs);
-    glDeleteShader(fs);
+    generateShaderProgram(vertSrc, fragSrc);
+
     // TODO: Where to add uniform names
     std::vector<std::string> uniformNames = 
     {
@@ -366,7 +356,7 @@ PbrShader::PbrShader(const char* vertSrc, const char* fragSrc)
 
 void PbrShader::prePass()
 {
-    glUseProgram(mProgramId);
+    glUseProgram(m_programId);
 
     // Lighting
     {
@@ -507,4 +497,142 @@ void PbrShader::updateShaderVarsForEntity(Entity* e)
     model *= e->mesh->normalizeXform;
     m_vars.model = model;
     m_vars.material = e->matl;
+}
+
+GenEnvmapShader::GenEnvmapShader(const char* vertSrc, const char* fragSrc)
+    : ShaderBase(vertSrc, fragSrc)
+{
+    generateShaderProgram(vertSrc, fragSrc);
+
+    // TODO: Where to add uniform names
+    std::vector<std::string> uniformNames = 
+    {
+        "view",
+        "projection",
+        "rawEnvmapSampler",
+    };
+    initUniformLocations(uniformNames);
+}
+
+void GenEnvmapShader::prePass()
+{
+    glUseProgram(m_programId);
+
+    {
+        setUniformMat4f("view", glm::value_ptr(m_vars.view));
+        setUniformMat4f("projection", glm::value_ptr(m_vars.projection));
+    }
+
+    {
+        setUniform1i("rawEnvmapSampler", 0);
+        glBindTextureUnit(0, m_vars.envmap);
+    }
+}
+
+void GenEnvmapShader::bindMaterialTextures(Material* matl)
+{
+
+}
+
+void GenEnvmapShader::setShaderVariables(void* vars)
+{
+    memcpy(&m_vars, vars, sizeof(EnvmapShaderVars));
+}
+
+void GenEnvmapShader::updateShaderVarsForEntity(Entity* e)
+{
+
+}
+
+GenIrradianceShader::GenIrradianceShader(const char* vertSrc, const char* fragSrc)
+    : ShaderBase(vertSrc, fragSrc)
+{
+    generateShaderProgram(vertSrc, fragSrc);
+
+    // TODO: Where to add uniform names
+    std::vector<std::string> uniformNames = 
+    {
+        "view",
+        "projection",
+        "envmapSampler"
+    };
+    initUniformLocations(uniformNames);
+
+    glCreateBuffers(1, &m_sampleVertexBuffer);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_sampleVertexBuffer);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, 3 * sizeof(float) * 16, 0, GL_DYNAMIC_DRAW);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, m_sampleVertexBuffer);
+}
+
+void GenIrradianceShader::prePass()
+{
+    glUseProgram(m_programId);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_sampleVertexBuffer);
+    {
+        setUniformMat4f("view", glm::value_ptr(m_vars.view));
+        setUniformMat4f("projection", glm::value_ptr(m_vars.projection));
+    }
+    glBindTexture(GL_TEXTURE_CUBE_MAP, m_vars.envmap);
+}
+
+void GenIrradianceShader::setShaderVariables(void* vars)
+{
+    std::memcpy(&m_vars, vars, sizeof(EnvmapShaderVars));
+}
+
+EnvmapShader::EnvmapShader(const char* vertSrc, const char* fragSrc)
+    : ShaderBase(vertSrc, fragSrc)
+{
+    generateShaderProgram(vertSrc, fragSrc);
+
+    // TODO: Where to add uniform names
+    std::vector<std::string> uniformNames = 
+    {
+        "view",
+        "projection",
+        "envmapSampler"
+    };
+    initUniformLocations(uniformNames);
+}
+
+void EnvmapShader::prePass()
+{
+    glUseProgram(m_programId);
+    {
+        setUniformMat4f("view", glm::value_ptr(m_vars.view));
+        setUniformMat4f("projection", glm::value_ptr(m_vars.projection));
+    }
+    glBindTexture(GL_TEXTURE_CUBE_MAP, m_vars.envmap);
+}
+
+void EnvmapShader::setShaderVariables(void* vars)
+{
+    std::memcpy(&m_vars, vars, sizeof(EnvmapShaderVars));
+}
+
+QuadShader::QuadShader(const char* vertSrc, const char* fragSrc)
+    : ShaderBase(vertSrc, fragSrc)
+{
+    generateShaderProgram(vertSrc, fragSrc);
+
+    std::vector<std::string> uniformNames = 
+    {
+        "quadSampler"
+    };
+    initUniformLocations(uniformNames);
+}
+
+void QuadShader::prePass()
+{
+    glUseProgram(m_programId);
+
+    {
+        setUniform1i("quadSampler", 0);
+        glBindTextureUnit(0, m_vars.texture);
+    }
+}
+
+void QuadShader::setShaderVariables(void* vars)
+{
+    memcpy(&m_vars, vars, sizeof(QuadShaderVars));
 }

@@ -54,6 +54,9 @@ void CyanEngine::setup(WindowConfig WindowConfig, const char* sceneFolderPath)
         // glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
         mWindow.mpWindow = glfwCreateWindow(WindowConfig.width, WindowConfig.height,
                                             "-- Cyan --", nullptr, nullptr);
+        mWindow.width = WindowConfig.width;
+        mWindow.height = WindowConfig.height;
+
         glfwMakeContextCurrent(mWindow.mpWindow);
         if (glewInit())
         {
@@ -161,80 +164,3 @@ void CyanEngine::processMouseButtonInput(int button, int action)
         callback(button, action);
     }
 }
-
-// TODO: @camera orbit-mode controls
-// TODO: @clean up control-flow with enabling MSAA
-#if 0
-void LegacyRender()
-{
-    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    // |  Legacy code that needs to be refactored and rewrite  |
-    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-    std::cout << "Hello Cyan!" << std::endl;
-    if (!glfwInit()) {
-        std::cout << "glfw init failed" << std::endl;
-    }
-
-    Window mainWindow = {
-        nullptr, 0, 0, 0, 0,
-        {0}
-    };
-
-    CyanEngine cyanEngine;
-
-    windowManager.initWindow(mainWindow);
-    glfwMakeContextCurrent(mainWindow.mpWindow);
-    glewInit();
-
-    // Initialization
-    CyanRenderer* renderer = CyanRenderer::get();
-    renderer->initRenderer();
-    renderer->initShaders();
-
-    Scene scene;
-    sceneManager.loadSceneFromFile(scene, "scene/default_scene/scene_config.json");
-
-    std::chrono::high_resolution_clock::time_point current, last = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<float> timeSpan; 
-
-    while (!glfwWindowShouldClose(mainWindow.mpWindow)) {
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        //----- FPS -----------------
-        current = std::chrono::high_resolution_clock::now();
-        timeSpan = std::chrono::duration_cast<std::chrono::duration<float>>(current - last);
-        last = current;
-        //---------------------------
-
-        //---- Input handling -------
-        handleInput(mainWindow, scene.mainCamera, .06); // TODO: need to swap out the hard-coded value later
-        //---------------------------
-
-        //-- framebuffer operations --
-        glBindFramebuffer(GL_FRAMEBUFFER, CyanRenderer::get()->defaultFBO);
-
-        if (renderer->enableMSAA) {
-            renderer->setupMSAA();
-        }
-        //----------------------------
-
-        //----- Draw calls -----------
-        //----- Default first pass ---
-        RenderConfig renderConfig = { };
-        renderer->render(scene, renderConfig);
-        //----------------------------
-
-        if (renderer->enableMSAA) {
-            glBindFramebuffer(GL_READ_FRAMEBUFFER, renderer->MSAAFBO);
-            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, renderer->intermFBO);
-            glBlitFramebuffer(0, 0, 800, 600, 0, 0, 800, 600, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-        } else {
-
-        }
-
-        renderer->bloomPostProcess();
-        renderer->blitBackbuffer();
-    }
-}
-#endif

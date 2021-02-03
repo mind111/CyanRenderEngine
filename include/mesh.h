@@ -48,10 +48,16 @@ private:
     VertexBuffer* mVertexBuffer;
 };
 
+class MeshManager
+{
+public:
+    static void pushSubMesh(MeshGroup* meshGroup, Mesh* mesh);
+};
+
 struct Skybox {
     std::string name;
     GLuint vbo, vao;
     GLuint cubmapTexture;
 };
 
-extern float cubeVerts[108];
+extern float cubeVertices[108];

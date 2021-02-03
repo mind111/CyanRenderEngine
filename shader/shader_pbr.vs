@@ -17,12 +17,14 @@ uniform mat4 projection;
 void main() {
     fragmentPos = (view * model * vec4(vertexPos, 1.f)).xyz; 
     gl_Position = projection * view * model * vec4(vertexPos, 1.0f);
+
     mat4 normalXform = transpose(inverse(view * model)); 
 
     // Transform normals to camera space
-    n = (normalXform * vec4(normalize(vertexNormal), 0.f)).xyz;
+    n = (normalXform * vec4(vertexNormal, 0.f)).xyz;
 
     // Transform tangents to camera space
-    t = (view * model * vec4(normalize(vertexTangent), 0.f)).xyz;
+    t = (view * model * vec4(vertexTangent, 0.f)).xyz;
+
     uv = textureUv;
 }

@@ -192,26 +192,9 @@ void ToolKit::loadScene(Scene& scene, const char* filename)
     {
         scene.mainCamera = camera.get<Camera>();
         scene.mainCamera.view = glm::mat4(1.f);
+        // TODO: This should take into account of the window width and height;
         scene.mainCamera.projection = glm::perspective(glm::radians(scene.mainCamera.fov), 800.f / 600.f, scene.mainCamera.n, scene.mainCamera.f);
     }
-
-// TODO: Deal with loading lights information
-/*
-    for (auto lightinfo : lights) 
-    {
-        std::string lighttype;
-        directionallight directionlight;
-        pointlight pointlight;
-        lightinfo.at("type").get_to(lighttype);
-        if (lighttype == "directional") {
-            directionlight.direction = glm::normalize(lightinfo.at("direction").get<glm::vec4>().);
-            directionlight.baselight.color = lightinfo.at("color").get<glm::vec3>();
-            scene.dlights.emplace_back(directionlight);
-        } else {
-
-        } // pointLight case
-    }
-*/
 
     for (auto textureInfo : textureInfoList) 
     {
@@ -357,40 +340,6 @@ void ToolKit::loadScene(Scene& scene, const char* filename)
         newEntity->xform = entityInfo.at("xform").get<Transform>();
         newEntity->position = glm::vec3(0.f);
     }
-
-#if 0
-    // TODO: Fix this
-    if (sceneJson["hasSkybox"]) {
-        std::cout << "the scene contains skybox" << std::endl;
-        auto skyboxInfo = sceneJson["skybox"];
-        skyboxInfo.at("name").get_to(scene.skybox.name);
-        CubemapTexture cube;
-        auto texturePaths = skyboxInfo["texturePaths"];
-        
-        // TODO: fix the enums
-        texturePaths.at("front").get_to(cube.textures[CubemapTexture::front].path);
-        loadTextureFromFile(scene, cube.textures[CubemapTexture::front]);
-
-        texturePaths.at("back").get_to(cube.textures[CubemapTexture::back].path);
-        loadTextureFromFile(scene, cube.textures[CubemapTexture::back]);
-
-        texturePaths.at("left").get_to(cube.textures[CubemapTexture::left].path);
-        loadTextureFromFile(scene, cube.textures[CubemapTexture::left]);
-
-        texturePaths.at("right").get_to(cube.textures[CubemapTexture::right].path);
-        loadTextureFromFile(scene, cube.textures[CubemapTexture::right]);
-
-        texturePaths.at("top").get_to(cube.textures[CubemapTexture::top].path);
-        loadTextureFromFile(scene, cube.textures[CubemapTexture::top]);
-
-        texturePaths.at("bottom").get_to(cube.textures[CubemapTexture::bottom].path);
-        loadTextureFromFile(scene, cube.textures[CubemapTexture::bottom]);
-
-        scene.cubemapTextures.emplace_back(cube);
-
-        setupSkybox(scene.skybox, cube);
-    }
-#endif
 }
 
 VertexInfo ToolKit::loadSubMesh(aiMesh* assimpMesh, uint8_t* attribFlag)
@@ -472,7 +421,7 @@ CyanRenderer::CyanRenderer()
 }
 
 // Create an empty mesh that the data will be filled in later
-MeshGroup* CyanRenderer::createMesh(const char* meshName)
+MeshGroup* CyanRenderer::createMeshGroup(const char* meshName)
 {
     MeshGroup* mesh = new MeshGroup();
     mRenderAssets.meshes.push_back(mesh);
@@ -490,13 +439,7 @@ MeshGroup* CyanRenderer::createMeshFromFile(const char* fileName)
         fileName,
         aiProcess_CalcTangentSpace | aiProcess_GenSmoothNormals
     );
-/*
-        {
-            "name": "helmet_mesh",
-            "path": "asset/helmet/mesh/helmet.obj"
-        },
-*/
-    // TODO: Handle Sub-meshes
+
     MeshGroup* mesh = new MeshGroup();
 
     for (int i = 0; i < scene->mNumMeshes; i++) 
@@ -656,6 +599,90 @@ void CyanRenderer::bindSwapBufferCallback(RequestSwapCallback callback)
 void CyanRenderer::requestSwapBuffers()
 {
     mSwapBufferCallback();
+}
+
+GLuint CyanRenderer::createCubemapFromTexture(ShaderBase* shader, GLuint envmap, MeshGroup* cubeMesh, int windowWidth, int windowHeight, int viewportWidth, int viewportHeight)
+{
+    GLuint fbo, rbo, cubemap;
+    Camera camera = { };
+    camera.position = glm::vec3(0.f);
+    camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
+
+    glCreateFramebuffers(1, &fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    
+    glCreateRenderbuffers(1, &rbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, viewportWidth, viewportHeight);
+
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+    const int kNumFaces = 6;
+    glm::vec3 cameraTargets[] = {
+        {1.f, 0.f, 0.f},   // Right
+        {-1.f, 0.f, 0.f},  // Left
+        {0.f, 1.f, 0.f},   // Up
+        {0.f, -1.f, 0.f},  // Down
+        {0.f, 0.f, 1.f},   // Front
+        {0.f, 0.f, -1.f},  // Back
+    }; 
+
+    // TODO: (Min): Need to figure out why we need to flip the y-axis 
+    // I thought they should just be vec3(0.f, 1.f, 0.f)
+    // Referrence: https://www.khronos.org/opengl/wiki/Cubemap_Texture
+    glm::vec3 worldUps[] = {
+        {0.f, -1.f, 0.f},   // Right
+        {0.f, -1.f, 0.f},   // Left
+        {0.f, 0.f, 1.f},    // Up
+        {0.f, 0.f, -1.f},   // Down
+        {0.f, -1.f, 0.f},   // Forward
+        {0.f, -1.f, 0.f},   // Back
+    };
+
+    glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &cubemap);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap);
+    for (int f = 0; f < 6; f++)
+    {
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, 0, GL_RGB16F, viewportWidth, viewportHeight, 0, GL_RGB, GL_FLOAT, nullptr);
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    EnvmapShaderVars vars = { };
+    glDisable(GL_DEPTH_TEST);
+
+    // Since we are rendering to a framebuffer, we need to configure the viewport 
+    // to prevent the texture being stretched to fit the framebuffer's dimension
+    glViewport(0, 0, viewportWidth, viewportHeight);
+    for (int f = 0; f < kNumFaces; f++)
+    {
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, cubemap, 0);
+        if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        {
+            std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+        }
+
+        // Update view matrix
+        camera.lookAt = cameraTargets[f];
+        camera.worldUp = worldUps[f];
+        CameraManager::updateCamera(camera);
+        vars.view = camera.view;
+        vars.projection = camera.projection;
+        vars.envmap = envmap; 
+        shader->setShaderVariables(&vars);
+        shader->prePass();
+        drawMesh(*cubeMesh);
+    }
+    // Recover the viewport dimensions
+    glViewport(0, 0, windowWidth, windowHeight);
+    glEnable(GL_DEPTH_TEST);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);  
+    return cubemap;
 }
 
 ShaderBase* CyanRenderer::getShader(ShaderType type)

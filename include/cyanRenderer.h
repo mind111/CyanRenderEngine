@@ -108,6 +108,11 @@ public:
     void render(Scene& scene, RenderConfig& renderConfig);
     void requestSwapBuffers();
 
+    /*
+    * NOTE(min): Three different kinds of envmap shader can be passed to this function as they use same type of ShaderVars, EnvmapShaderVars
+    */
+    GLuint createCubemapFromTexture(ShaderBase* shader, GLuint envmap, MeshGroup* cubeMesh, int windowWidth, int windowHeight, int viewportWidth, int viewportHeight);
+
     glm::mat4 generateViewMatrix(const Camera& camera);
 
     void prepareGridShader(Scene& scene);
@@ -122,6 +127,8 @@ public:
 
     void drawMesh(MeshGroup& mesh);
     void drawEntity(Scene& scene, Entity* entity);
+    // TODO:
+    void drawEnvmap() { }
     void drawGrid();
     void drawSkybox(Scene& scene);
 
@@ -135,7 +142,7 @@ public:
     ShaderBase* getShader(ShaderType type);
     ShaderBase* getMaterialShader(MaterialType type);
 
-    MeshGroup* createMesh(const char* meshName);
+    MeshGroup* createMeshGroup(const char* meshName);
     MeshGroup* createMeshFromFile(const char* fileName);
 
     Assets mRenderAssets;

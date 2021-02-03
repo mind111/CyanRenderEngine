@@ -5,6 +5,7 @@
 struct Window {
     GLFWwindow* mpWindow;
     double lastX, lastY;
+    int width, height;
     int keys[1024];
 };
 

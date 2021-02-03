@@ -33,7 +33,7 @@ uniform int numDirLights;
 
 const int aoStrength = 2;
 
-#define pi 3.14159
+#define pi 3.14159265359
 
 struct Light 
 {
@@ -89,15 +89,16 @@ vec3 gammaCorrection(vec3 inColor)
 
 vec3 fresnel(vec3 f0, vec3 v, vec3 h)
 {
-    float fresnelCoef = 1 - saturate(dot(v, h));
+    float fresnelCoef = 1.f - dot(v, h);
     fresnelCoef = pow(fresnelCoef, 5.f);
     return mix(f0, vec3(1.f), fresnelCoef);
 }
 
 // Taking the formula from the GGX paper and simplify to avoid computing tangent
+// TODO: Why using alpha = roughness * roughness change diffuse color
+// Seems like the reason is with alpha = roughness * roughenss, the specular gets darker
 float GGX(float roughness, float ndoth) 
 {
-    if (ndoth <= 0) return 0.f;
     float alpha = roughness * roughness;
     float alpha2 = alpha * alpha;
     float result = alpha2;
@@ -131,7 +132,7 @@ vec3 ACESFilm(vec3 x)
     return vec3(saturate(result.r), saturate(result.g), saturate(result.b)); 
 }
 
-void shade(out vec3 color, vec3 albedo, vec3 f0, float roughness, float metallic, vec3 viewDir, vec3 n, vec3 lc, vec3 ld, float li, float ndotv)
+vec3 radiance(vec3 albedo, vec3 f0, float roughness, float metallic, float ao, vec3 viewDir, vec3 n, vec3 lc, vec3 ld, float li, float ndotv)
 {
     // Diffuse
     float ndotl = max(0.0f, dot(n, ld));
@@ -140,28 +141,31 @@ void shade(out vec3 color, vec3 albedo, vec3 f0, float roughness, float metallic
     // Specular
     vec3 h = normalize(ld + viewDir);
 
-    float D = GGX(roughness, dot(n,h)); // correct; need to examine roughness = 0.0
+    float D = GGX(roughness, max(0.0f, dot(n,h))); // correct; need to examine roughness = 0.0
     float G = smithG(ld, n, h, roughness) * smithG(viewDir, n, h, roughness);
     vec3 f = fresnel(f0, ld, h);
     vec3 specular = (f * D * G) / max(0.00001f, (4.f * ndotv * ndotl));
 
-    vec3 kd = mix(vec3(1.f) - f, vec3(0.f), metallic);
-    color += (kDiffuse * kd * diffuse + kSpecular * specular) * ndotl * lc * li;
+    vec3 kd = mix(vec3(1.f) - f, vec3(0.0f), metallic);
+    return (kDiffuse * kd * diffuse + kSpecular * specular) * ndotl * lc * li * ao;
 }
 
 void main() 
 {
     /* Normal mapping */
-    vec3 normal = n;
+    // Interpolation done by the rasterizer may change the length of the normal 
+    vec3 normal = normalize(n);
+    vec3 tangent = normalize(t);
 
-    // TODO: Debug tangent space normal mapping...!!!
     if (hasNormalMap > 0.5f)
     {
         vec3 tn = texture(normalMap, uv).xyz;
-        // Normalize from [0, 1] to [-1.0, 1.0]
+
+        // Convert from [0, 1] to [-1.0, 1.0]
         tn = tn * 2.f - vec3(1.f); 
+
         // Covert normal from tangent frame to camera space
-        normal = normalize(tangentSpaceToViewSpace(tn, n, t).xyz);
+        normal = tangentSpaceToViewSpace(tn, normal, t).xyz;
 
         // TODO: Re-orthonoramlize the tangent frame
     }
@@ -169,12 +173,14 @@ void main()
     /* Texture mapping */
     vec4 albedo = texture(diffuseMaps[0], uv);
     albedo.rgb = vec3(pow(albedo.r, 2.2f), pow(albedo.g, 2.2f), pow(albedo.b, 2.2f));
-    // According to gltf-2.0 spec, metal is sampled from b, roughness is sampled from g
-    // float roughness = texture(roughnessMap, uv).g;
-    float roughness = 0.1f;
+    // albedo = vec4(0.9f, 0.9f, 0.9f, 1.f);
 
-    // float metallic = texture(roughnessMap, uv).b; 
-    float metallic = 0.f;
+    // According to gltf-2.0 spec, metal is sampled from b, roughness is sampled from g
+    float roughness = texture(roughnessMap, uv).g;
+    // float roughness = 0.2f;
+    float metallic = texture(roughnessMap, uv).b; 
+    // float metallic = 0.0f
+;
     vec3 f0 = mix(vec3(0.04f), albedo.rgb, metallic); // correct
 
     /* Shading */
@@ -188,38 +194,22 @@ void main()
     float ndotv = max(0.0f, dot(normal,viewDir));
 
     vec3 color = vec3(0.f);
-    // for (int i = 0; i < numPointLights; i++)
-    // {
-    //     vec4 pos = view * pointLightsBuffer.lights[i].position;
-    //     vec3 ld = normalize(pos.xyz - fragmentPos);
-    //     vec3 lc = gammaCorrection(pointLightsBuffer.lights[i].color.rgb);
-    //     float li = pointLightsBuffer.lights[i].color.w;
-    //     shade(color, albedo.rgb, f0, roughness, metallic, viewDir, lc, ld, li);
-    // }
+    for (int i = 0; i < numPointLights; i++)
+    {
+        vec4 pos = view * pointLightsBuffer.lights[i].position;
+        vec3 ld = normalize(pos.xyz - fragmentPos);
+        vec3 lc = gammaCorrection(pointLightsBuffer.lights[i].color.rgb);
+        float li = pointLightsBuffer.lights[i].color.w;
+        color += radiance(albedo.rgb, f0, roughness, metallic, ao, viewDir, normal, lc, ld, li, ndotv);
+    }
 
     for (int i = 0; i < numDirLights; i++)
     {
         vec4 dir = view * dirLightsBuffer.lights[i].direction;
         vec3 ld = normalize(-dir.xyz);
-        vec3 lc = gammaCorrection(dirLightsBuffer.lights[i].color.rgb);
+        vec3 lc = dirLightsBuffer.lights[i].color.rgb;
         float li = dirLightsBuffer.lights[i].color.w;
-
-        shade(color, albedo.rgb, f0, roughness, metallic, viewDir, normal, lc, ld, li, ndotv);
-
-        // // Diffuse
-        // float ndotl = max(0.0f, dot(normal, l));
-        // vec3 diffuse = albedo.rgb;
-
-        // // Specular
-        // vec3 h = normalize(l + viewDir);
-
-        // float D = GGX(roughness, dot(normal,h)); // correct; need to examine roughness = 0.0
-        // float G = smithG(l, normal, h, roughness) * smithG(viewDir, normal, h, roughness);
-        // vec3 f = fresnel(f0, viewDir, h);
-        // vec3 specular = (f * D * G) / max(0.00001f, (4.f * ndotv * ndotl));
-
-        // vec3 kd = mix(vec3(1.f) - f, vec3(0.f), metallic);
-        // color += (kDiffuse * kd * diffuse + kSpecular * specular) * ndotl * lc * li;
+        color += radiance(albedo.rgb, f0, roughness, metallic, ao, viewDir, normal, lc, ld, li, ndotv);
     }
 /*
     // Emission
@@ -233,6 +223,8 @@ void main()
     color += emission;
     */
 
+    // Tone mapping
+    color.rgb = ACESFilm(color.rgb);
     color.rgb = vec3(pow(color.r, 1.f/2.2f), pow(color.g, 1.f/2.2f), pow(color.b, 1.f/2.2f));
-    fragColor = vec4(ACESFilm(color.rgb), 1.0f);
+    fragColor = vec4(color.rgb, 1.0f);
 }

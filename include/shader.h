@@ -17,7 +17,10 @@ enum class ShaderType
 {
     None = 0,
     BlinnPhong,
-    Pbr
+    Pbr,
+    GenEnvmap,
+    GenIrradiance,
+    QuadShader
 };
 
 struct BlinnPhongShaderVars 
@@ -73,12 +76,12 @@ public:
 
 protected:
     void loadShaderSrc(GLuint vs, const char* vertFileName, GLuint fs, const char* fragFileName);
-    void generateShaderProgram(GLuint vs, GLuint fs, GLuint program);
+    void generateShaderProgram(const char* vertSrc, const char* fragSrc);
     GLint getUniformLocation(const std::string& name);
 
-    std::map<std::string, int> uniformMap;
+    std::map<std::string, int> m_uniformMap;
 
-    GLuint mProgramId;
+    GLuint m_programId;
 };
 
 class BlinnPhongShader : public ShaderBase
@@ -124,4 +127,79 @@ public:
     GLuint m_dLightsBuffer;
 
     PbrShaderVars m_vars;
+};
+
+struct EnvmapShaderVars
+{
+    glm::mat4 view;
+    glm::mat4 projection;
+    GLuint envmap;
+};
+
+class GenEnvmapShader : public ShaderBase
+{
+public:
+    virtual inline ShaderType getShaderType() { return ShaderType::GenEnvmap; }
+    virtual void prePass() override;
+    virtual void bindMaterialTextures(Material* matl) override;
+    virtual void setShaderVariables(void* vars) override;
+    virtual void updateShaderVarsForEntity(Entity* e) override;
+
+    GenEnvmapShader(const char* vertSrc, const char* fragSrc);
+    ~GenEnvmapShader() { }
+
+    EnvmapShaderVars m_vars;
+};
+
+
+class EnvmapShader : public ShaderBase
+{
+public:
+    virtual inline ShaderType getShaderType() { return ShaderType::GenEnvmap; }
+    virtual void prePass() override;
+    virtual void bindMaterialTextures(Material* matl) override { }
+    virtual void setShaderVariables(void* vars) override;
+    virtual void updateShaderVarsForEntity(Entity* e) override { };
+
+    EnvmapShader(const char* vertSrc, const char* fragSrc);
+    ~EnvmapShader() { };
+
+    EnvmapShaderVars m_vars;
+};
+
+class GenIrradianceShader : public ShaderBase
+{
+public:
+    virtual inline ShaderType getShaderType() { return ShaderType::GenIrradiance; }
+    virtual void prePass() override;
+    virtual void bindMaterialTextures(Material* matl) override { }
+    virtual void setShaderVariables(void* vars) override;
+    virtual void updateShaderVarsForEntity(Entity* e) override { };
+
+    GenIrradianceShader(const char* vertSrc, const char* fragSrc);
+    ~GenIrradianceShader() { };
+
+    // Buffer used to store the vertex of generated samples (Debugging purpose)
+    GLuint m_sampleVertexBuffer;
+    EnvmapShaderVars m_vars; 
+};
+
+struct QuadShaderVars
+{
+    GLuint texture;
+};
+
+class QuadShader : public ShaderBase
+{
+public:
+    virtual inline ShaderType getShaderType() { return ShaderType::QuadShader; }
+    virtual void prePass() override;
+    virtual void bindMaterialTextures(Material* matl) override { }
+    virtual void setShaderVariables(void* vars) override;
+    virtual void updateShaderVarsForEntity(Entity* e) override { }
+
+    QuadShader(const char* vertSrc, const char* fragSrc);
+    ~QuadShader() { }
+
+    QuadShaderVars m_vars;
 };

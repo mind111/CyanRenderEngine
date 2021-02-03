@@ -130,15 +130,11 @@ void BasicApp::init(int appWindowWidth, int appWindowHeight)
 
     // Setup scenes
     Scene* scene = gEngine->loadScene("../../scene/default_scene/scene_config.json");
-    MeshGroup* planeMesh = CyanRenderer::get()->createMesh("PlaneMesh");
     m_scenes.push_back(scene);
     currentScene = 0;
 
     /* Displaying xform info */
     entityOnFocusIdx = 0;
-
-    // Add a plane
-    // Entity* plane = SceneManager::createEntity(*scene);
 
     // Setup shaders
     // - register all the shaders that this demo will use
