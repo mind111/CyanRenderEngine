@@ -28,13 +28,10 @@ public:
     void orbitCamera(double deltaX, double deltaY);
     void rotateCamera(double deltaX, double deltaY);
 
-    GLuint createCubemapFromEquirectMap(int w, int h);
-    GLuint createDiffuseIrradianceMap(int w, int h);
-
     bool bOrbit;
 
 private:
-    float m_sampleVertex[16 * 3] = { };
+    float m_sampleVertex[(64 + 1) * 4 * 2] = { };
     
     PbrShaderVars m_shaderVars;
     PbrShader* m_shader;
@@ -44,11 +41,23 @@ private:
     std::vector<Scene*> m_scenes;
 
     Camera m_genEnvmapCamera;
+
+    /* Shader */
+    Shader* m_genEnvmapShader;
+    Shader* m_genIrradianceShader;
+    Shader* m_envmapShader;
+    Shader* m_lineShader;
+
+    /*
     GenEnvmapShader* m_genEnvmapShader;
     GenIrradianceShader* m_genIrradianceShader;
     EnvmapShader* m_envmapShader;
+    LineShader* m_lineShader;
+    */
+
     GLuint m_envmapVbo, m_envmapVao;
     GLuint m_rawEnvmap, m_envmap;
     GLuint m_diffuseIrradianceMap;
+    GLuint m_linesVbo, m_linesVao;
     MeshGroup* m_cubeMesh;
 };

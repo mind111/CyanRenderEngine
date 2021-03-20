@@ -59,19 +59,21 @@ public:
     /* Rendering */
     void updateShaderParams(ShaderBase* shader);
 
-    const Window& getWindow() { return mWindow; } 
-    CyanRenderer* getRenderer() { return mRenderer; }
+    const Window& getWindow() { return m_window; } 
+    CyanRenderer* getRenderer() { return m_renderer; }
     glm::vec2 getMouseCursorDelta() { return glm::vec2(float(cursorDeltaX), float(cursorDeltaY)); }
     void swapBuffers(); 
 
+    /*** Renderer ***/
+    CyanRenderer* m_renderer;
+
 private:
-    Window mWindow;
+    Window m_window;
 
     /* These are recorded at sub frame precision */
     double cursorX, cursorY;
     double cursorDeltaX, cursorDeltaY;
 
-    CyanRenderer* mRenderer;
 
     /* Misc (To be refactored) */
     MouseCursorCallback* mouseCursorCallback;

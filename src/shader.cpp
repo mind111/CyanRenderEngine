@@ -8,48 +8,50 @@
 #include "Scene.h"
 #include "Entity.h"
 
-void checkShaderCompilation(GLuint shader) {
-    int compile_result;
-    char log[512];
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &compile_result);
-    if (!compile_result) {
-        glGetShaderInfoLog(shader, 512, nullptr, log);
-        std::cout << log << std::endl;
-    }
-}
-
-void checkShaderLinkage(GLuint shader) {
-    int link_result;
-    char log[512];
-    glGetShaderiv(shader, GL_LINK_STATUS, &link_result);
-    if (!link_result) {
-        glGetShaderInfoLog(shader, 512, nullptr, log);
-        std::cout << log << std::endl;
-    }
-}
-
-const char* readShaderFile(const char* filename) {
-    // Open file
-    std::fstream shader_file(filename);
-    std::string src_str;
-    const char* vertex_shader_src = nullptr; 
-    if (shader_file.is_open()) {
-        std::stringstream src_str_stream;
-        std::string line;
-        while (std::getline(shader_file, line)) {
-            src_str_stream << line << "\n";
+namespace ShaderUtil {
+    void checkShaderCompilation(GLuint shader) {
+        int compile_result;
+        char log[512];
+        glGetShaderiv(shader, GL_COMPILE_STATUS, &compile_result);
+        if (!compile_result) {
+            glGetShaderInfoLog(shader, 512, nullptr, log);
+            std::cout << log << std::endl;
         }
-        src_str = src_str_stream.str();
-        // Copy the string over to a char array
-        vertex_shader_src = new char[src_str.length()];
-        // + 1 here to include null character
-        std::memcpy((void*)vertex_shader_src, src_str.c_str(), src_str.length() + 1);
-    } else {
-        std::cout << "ERROR: Cannot open shader source file!" << std::endl;
     }
-    // close file
-    shader_file.close();
-    return vertex_shader_src;
+
+    void checkShaderLinkage(GLuint shader) {
+        int link_result;
+        char log[512];
+        glGetShaderiv(shader, GL_LINK_STATUS, &link_result);
+        if (!link_result) {
+            glGetShaderInfoLog(shader, 512, nullptr, log);
+            std::cout << log << std::endl;
+        }
+    }
+
+    const char* readShaderFile(const char* filename) {
+        // Open file
+        std::fstream shader_file(filename);
+        std::string src_str;
+        const char* vertex_shader_src = nullptr; 
+        if (shader_file.is_open()) {
+            std::stringstream src_str_stream;
+            std::string line;
+            while (std::getline(shader_file, line)) {
+                src_str_stream << line << "\n";
+            }
+            src_str = src_str_stream.str();
+            // Copy the string over to a char array
+            vertex_shader_src = new char[src_str.length()];
+            // + 1 here to include null character
+            std::memcpy((void*)vertex_shader_src, src_str.c_str(), src_str.length() + 1);
+        } else {
+            std::cout << "ERROR: Cannot open shader source file!" << std::endl;
+        }
+        // close file
+        shader_file.close();
+        return vertex_shader_src;
+    }
 }
 
 // NOTE (Min): Ran into a situation where if I don't close the file handle properly, later openning the 
@@ -104,8 +106,8 @@ GLint ShaderBase::getUniformLocation(const std::string& name)
 void ShaderBase::loadShaderSrc(GLuint vs, const char* vertSrc, 
                                GLuint fs, const char* fragSrc) 
 {
-    const char* vertShaderSrc = readShaderFile(vertSrc);
-    const char* fragShaderSrc = readShaderFile(fragSrc);
+    const char* vertShaderSrc = ShaderUtil::readShaderFile(vertSrc);
+    const char* fragShaderSrc = ShaderUtil::readShaderFile(fragSrc);
     glShaderSource(vs, 1, &vertShaderSrc, nullptr);
     glShaderSource(fs, 1, &fragShaderSrc, nullptr);
 }
@@ -118,12 +120,12 @@ void ShaderBase::generateShaderProgram(const char* vertSrc, const char* fragSrc)
     loadShaderSrc(vs, vertSrc, fs, fragSrc);
     glCompileShader(vs);
     glCompileShader(fs);
-    checkShaderCompilation(vs);
-    checkShaderCompilation(fs);
+    ShaderUtil::checkShaderCompilation(vs);
+    ShaderUtil::checkShaderCompilation(fs);
     glAttachShader(m_programId, vs);
     glAttachShader(m_programId, fs);
     glLinkProgram(m_programId);
-    checkShaderLinkage(m_programId);
+    ShaderUtil::checkShaderLinkage(m_programId);
     glDeleteShader(vs);
     glDeleteShader(fs);
 }
@@ -186,7 +188,7 @@ BlinnPhongShader::BlinnPhongShader(const char* vertSrc, const char* fragSrc)
 }
 
 // TODO: Bind default textures to unbound samplers ...?
-void BlinnPhongShader::bindMaterialTextures(Material* material)
+int BlinnPhongShader::bindMaterialTextures(Material* material)
 {
     BlinnPhongMaterial* bpMaterial = static_cast<BlinnPhongMaterial*>(material);
 
@@ -256,6 +258,7 @@ void BlinnPhongShader::bindMaterialTextures(Material* material)
             glBindTextureUnit(textureUnit++, bpMaterial->m_roughnessMap->id);
         }
     }
+    return textureUnit;
 }
 
 void BlinnPhongShader::prePass()
@@ -279,7 +282,7 @@ void BlinnPhongShader::prePass()
 
     // Textures
     {
-        bindMaterialTextures(m_vars.material);
+        int textureUnit = bindMaterialTextures(m_vars.material);
     }
 
     // Misc
@@ -340,7 +343,9 @@ PbrShader::PbrShader(const char* vertSrc, const char* fragSrc)
         "hasAoMap",
         "hasNormalMap",
         "numPointLights",
-        "numDirLights"
+        "numDirLights",
+        "envmap",
+        "diffuseIrradianceMap"
     };
     initUniformLocations(uniformNames);
     glCreateBuffers(1, &m_pLightsBuffer);
@@ -388,7 +393,17 @@ void PbrShader::prePass()
 
     // Textures
     {
-        bindMaterialTextures(m_vars.material);
+        int nextTextureUnit = bindMaterialTextures(m_vars.material);
+        if (m_vars.envmap)
+        {
+            setUniform1i("envmap", nextTextureUnit);
+            glBindTextureUnit(nextTextureUnit++, *m_vars.envmap);
+        }
+        if (m_vars.diffuseIrradianceMap)
+        {
+            setUniform1i("diffuseIrradianceMap", nextTextureUnit);
+            glBindTextureUnit(nextTextureUnit++, *m_vars.diffuseIrradianceMap);
+        }
     }
 
     // Misc
@@ -407,7 +422,7 @@ void PbrShader::prePass()
     }
 }
 
-void PbrShader::bindMaterialTextures(Material* matl)
+int PbrShader::bindMaterialTextures(Material* matl)
 {
     PbrMaterial* pbrMaterial = static_cast<PbrMaterial*>(matl);
 
@@ -477,6 +492,8 @@ void PbrShader::bindMaterialTextures(Material* matl)
             glBindTextureUnit(textureUnit++, pbrMaterial->m_roughnessMap->id);
         }
     }
+
+    return textureUnit;
 }
 
 void PbrShader::setShaderVariables(void* vars)
@@ -529,9 +546,9 @@ void GenEnvmapShader::prePass()
     }
 }
 
-void GenEnvmapShader::bindMaterialTextures(Material* matl)
+int GenEnvmapShader::bindMaterialTextures(Material* matl)
 {
-
+    return 0;
 }
 
 void GenEnvmapShader::setShaderVariables(void* vars)
@@ -560,7 +577,7 @@ GenIrradianceShader::GenIrradianceShader(const char* vertSrc, const char* fragSr
 
     glCreateBuffers(1, &m_sampleVertexBuffer);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_sampleVertexBuffer);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, 3 * sizeof(float) * 16, 0, GL_DYNAMIC_DRAW);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, 4 * sizeof(float) * (64 + 1) * 2, 0, GL_DYNAMIC_DRAW);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, m_sampleVertexBuffer);
 }
 
@@ -584,8 +601,6 @@ EnvmapShader::EnvmapShader(const char* vertSrc, const char* fragSrc)
     : ShaderBase(vertSrc, fragSrc)
 {
     generateShaderProgram(vertSrc, fragSrc);
-
-    // TODO: Where to add uniform names
     std::vector<std::string> uniformNames = 
     {
         "view",
@@ -636,3 +651,112 @@ void QuadShader::setShaderVariables(void* vars)
 {
     memcpy(&m_vars, vars, sizeof(QuadShaderVars));
 }
+
+LineShader::LineShader(const char* vertSrc, const char* fragSrc)
+    : ShaderBase(vertSrc, fragSrc)
+{
+    generateShaderProgram(vertSrc, fragSrc);
+    std::vector<std::string> uniformNames = 
+    {
+        "model",
+        "view",
+        "projection"
+    };
+    initUniformLocations(uniformNames);
+}
+
+void LineShader::setShaderVariables(void* vars)
+{
+    std::memcpy(&m_vars, vars, sizeof(LineShaderVars));
+}
+
+void LineShader::prePass()
+{
+    glUseProgram(m_programId);
+    setUniformMat4f("model", glm::value_ptr(m_vars.model));
+    setUniformMat4f("view", glm::value_ptr(m_vars.view));
+    setUniformMat4f("projection", glm::value_ptr(m_vars.projection));
+}
+
+#define SHADER_GUARD_SET_UNIFORM(name, glFunc, ...) \
+    if (getUniformLocation(name) >= 0) \
+    { \
+        GLint loc = m_uniformLocationCache[name]; \
+        glFunc(loc, __VA_ARGS__); \
+    } \
+    else \
+    { \
+    } \
+
+Shader::Shader()
+{
+
+}
+
+void Shader::setUniform(Uniform& _uniform)
+{
+    char* name = _uniform.m_name;
+    switch (_uniform.m_type)
+    {
+        case Uniform::UniformType::u_float:
+            setUniform1f(name, *(float*)_uniform.m_valuePtr);
+            break;
+        case Uniform::UniformType::u_int:
+            setUniform1i(name, *(int*)_uniform.m_valuePtr);
+            break;
+        case Uniform::UniformType::u_vec3:
+            setUniformVec3(name, (float*)_uniform.m_valuePtr);
+            break;
+        case Uniform::UniformType::u_vec4:
+            setUniformVec4(name, (float*)_uniform.m_valuePtr);
+            break;
+        case Uniform::UniformType::u_mat4:
+            setUniformMat4f(name, (float*)_uniform.m_valuePtr);
+            break;
+        default:
+            std::printf("Error when setting uniform %s", name);
+            break;
+    }
+}
+
+void Shader::setUniform1i(const char* name, GLint data) {
+    SHADER_GUARD_SET_UNIFORM(name, glUniform1i, data);
+}
+
+void Shader::setUniform1f(const char* name, GLfloat data) {
+    SHADER_GUARD_SET_UNIFORM(name, glUniform1f, data);
+}
+
+void Shader::setUniformVec3(const char* name, GLfloat* vecData) {
+    SHADER_GUARD_SET_UNIFORM(name, glUniform3fv, 1, vecData);
+}
+
+void Shader::setUniformVec4(const char* name, GLfloat* vecData) {
+    SHADER_GUARD_SET_UNIFORM(name, glUniform4fv, 1, vecData);
+}
+
+void Shader::setUniformMat4f(const char* name, GLfloat* matData) {
+    SHADER_GUARD_SET_UNIFORM(name, glUniformMatrix4fv, 1, GL_FALSE, matData);
+}
+
+GLint Shader::getUniformLocation(const std::string& name)
+{
+    if (m_uniformLocationCache.find(name) != m_uniformLocationCache.end())
+    {
+        return m_uniformLocationCache[name];
+    }
+    else 
+    {
+        GLint location = glGetUniformLocation(m_programId, name.c_str());
+        if (location >= 0)
+        {
+            m_uniformLocationCache[name] = location;
+            return location;
+        }
+    }
+
+    // TODO: Debug message
+    std::printf("Uniform: %s is cannot be found in shader progam: %d", name.c_str(), m_programId);
+    return -1;
+}
+

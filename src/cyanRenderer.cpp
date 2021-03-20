@@ -77,6 +77,47 @@ void from_json(const nlohmann::json& j, Camera& c)
     j.at("z_near").get_to(c.n);
 }
 
+namespace Cyan
+{
+    // TODO: impl
+    void createVsShader() { }
+    void createCsShader() { }
+    void createPsShader() { }
+
+    Shader* createShader(const char* vertSrc, const char* fragSrc)
+    {
+        // TODO: Memory management
+        Shader* shader = new Shader();
+
+        GLuint vs = glCreateShader(GL_VERTEX_SHADER);
+        GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
+        shader->m_programId = glCreateProgram();
+
+        // Load shader source
+        const char* vertShaderSrc = ShaderUtil::readShaderFile(vertSrc);
+        const char* fragShaderSrc = ShaderUtil::readShaderFile(fragSrc);
+        glShaderSource(vs, 1, &vertShaderSrc, nullptr);
+        glShaderSource(fs, 1, &fragShaderSrc, nullptr);
+
+        // Compile shader
+        glCompileShader(vs);
+        glCompileShader(fs);
+        ShaderUtil::checkShaderCompilation(vs);
+        ShaderUtil::checkShaderCompilation(fs);
+
+        // Link shader
+        glAttachShader(shader->m_programId, vs);
+        glAttachShader(shader->m_programId, fs);
+        glLinkProgram(shader->m_programId);
+        ShaderUtil::checkShaderLinkage(shader->m_programId);
+
+        glDeleteShader(vs);
+        glDeleteShader(fs);
+
+        return shader;
+    }
+}
+
 // TODO: Where should initialization happen..?
 static CyanRenderer* sRenderer = nullptr;
 
@@ -112,6 +153,123 @@ Texture* CyanRenderer::findTexture(const std::string& name)
     return nullptr;
 }
 
+GLuint CyanRenderer::Toolkit::createTextureFromFile(const char* file, TextureType textureType, TexFilterType filterType)
+{
+    int w, h, numChannels;
+
+    GLuint texId;
+    GLenum texType, internalFormat, dataFormat, dataType, filter; 
+
+    switch (textureType) 
+    {
+        case TextureType::TEX_2D:
+            texType  = GL_TEXTURE_2D;
+            break;
+        case TextureType::TEX_CUBEMAP:
+            texType  = GL_TEXTURE_CUBE_MAP;
+            break;
+        default:
+            // TODO: Print out debug message
+            break;
+    }
+
+    switch (filterType) 
+    {
+        case TexFilterType::LINEAR:
+            filter = GL_LINEAR;
+            break;
+        default:
+            // TODO: Print out debug message
+            break;
+    }
+
+    void* pixels = stbi_load(file, &w, &h, &numChannels, 0);
+    dataType = GL_UNSIGNED_BYTE;
+    switch (numChannels)
+    {
+        case 3: 
+            dataFormat = GL_RGB8;
+            internalFormat = GL_RGB; 
+            break;
+        case 4:
+            dataFormat = GL_RGBA8;
+            internalFormat = GL_RGBA; 
+            break;
+        default:
+            break;
+    }
+
+    glCreateTextures(texType, 1, &texId);
+    glTextureStorage2D(texId, 1, dataFormat, w, h);
+    glTextureSubImage2D(texId, 0, 0, 0, w, h, internalFormat, dataType, pixels);
+
+    glBindTexture(texType, texId);
+    glTexParameteri(texType, GL_TEXTURE_MAG_FILTER, filter);
+    glTexParameteri(texType, GL_TEXTURE_MIN_FILTER, filter);
+    glBindTexture(texType, 0);
+
+    return texId;
+}
+
+GLuint CyanRenderer::Toolkit::createHDRTextureFromFile(const char* file, TextureType textureType, TexFilterType filterType)
+{
+    int w, h, numChannels;
+
+    GLuint texId;
+    GLenum texType, internalFormat, dataFormat, dataType, filter; 
+
+    void* pixels = stbi_loadf(file, &w, &h, &numChannels, 0);
+    dataType = GL_FLOAT;
+
+    switch (textureType) 
+    {
+        case TextureType::TEX_2D:
+            texType  = GL_TEXTURE_2D;
+            break;
+        case TextureType::TEX_CUBEMAP:
+            texType  = GL_TEXTURE_CUBE_MAP;
+            break;
+        default:
+            // TODO: Print out debug message
+            break;
+    }
+
+    switch (filterType) 
+    {
+        case TexFilterType::LINEAR:
+            filter  = GL_LINEAR;
+            break;
+        default:
+            // TODO: Print out debug message
+            break;
+    }
+
+    switch (numChannels)
+    {
+        case 3: 
+            dataFormat = GL_RGB16F;
+            internalFormat = GL_RGB; 
+            break;
+        case 4:
+            dataFormat = GL_RGBA16F;
+            internalFormat = GL_RGBA; 
+            break;
+        default:
+            break;
+    }
+
+    glCreateTextures(texType, 1, &texId);
+    glTextureStorage2D(texId, 1, dataFormat, w, h);
+    glTextureSubImage2D(texId, 0, 0, 0, w, h, internalFormat, dataType, pixels);
+
+    glBindTexture(texType, texId);
+    glTexParameteri(texType, GL_TEXTURE_MAG_FILTER, filter);
+    glTexParameteri(texType, GL_TEXTURE_MIN_FILTER, filter);
+    glBindTexture(texType, 0);
+
+    return texId;
+}
+
 Material* CyanRenderer::findMaterial(const std::string& name) 
 {
     for(auto& matl : mRenderAssets.materials)
@@ -145,7 +303,7 @@ float findMax(float* vertexData, u32 numVerts, int vertexSize, int offset)
 }
 
 // TODO: Normalize mesh coordinates to x[-1, 1], y[-1, 1], z[-1, 1]
-glm::mat4 ToolKit::normalizeMeshScale(MeshGroup* mesh)
+glm::mat4 CyanRenderer::Toolkit::normalizeMeshScale(MeshGroup* mesh)
 {
     float meshXMin = FLT_MAX; 
     float meshXMax = FLT_MIN;
@@ -175,7 +333,7 @@ glm::mat4 ToolKit::normalizeMeshScale(MeshGroup* mesh)
     return glm::scale(glm::mat4(1.f), glm::vec3(1.f / scale));
 }
 
-void ToolKit::loadScene(Scene& scene, const char* filename)
+void CyanRenderer::Toolkit::loadScene(Scene& scene, const char* filename)
 {
     nlohmann::json sceneJson;
     std::ifstream sceneFile(filename);
@@ -342,7 +500,7 @@ void ToolKit::loadScene(Scene& scene, const char* filename)
     }
 }
 
-VertexInfo ToolKit::loadSubMesh(aiMesh* assimpMesh, uint8_t* attribFlag)
+VertexInfo CyanRenderer::Toolkit::loadSubMesh(aiMesh* assimpMesh, uint8_t* attribFlag)
 {
     VertexInfo result = { };
     int vertexSize = 0;
@@ -420,7 +578,6 @@ CyanRenderer::CyanRenderer()
     shaderCount = 0;
 }
 
-// Create an empty mesh that the data will be filled in later
 MeshGroup* CyanRenderer::createMeshGroup(const char* meshName)
 {
     MeshGroup* mesh = new MeshGroup();
@@ -430,7 +587,19 @@ MeshGroup* CyanRenderer::createMeshGroup(const char* meshName)
     return mesh;
 }
 
-// Load mesh data from a file and push it into the asset store held by the renderer
+MeshGroup* CyanRenderer::createCubeMesh(const char* meshName)
+{
+    MeshGroup* parentMesh = createMeshGroup(meshName);
+    Mesh* mesh = new Mesh();
+    mesh->setVertexBuffer(VertexBuffer::create(cubeVertices, sizeof(cubeVertices)));
+    mesh->setNumVerts(sizeof(cubeVertices) / (sizeof(float) * 3));
+    VertexBuffer* vb = mesh->getVertexBuffer();
+    vb->pushVertexAttribute({{"Position"}, GL_FLOAT, 3, 0});
+    mesh->initVertexAttributes();
+    MeshManager::pushSubMesh(parentMesh, mesh);
+    return parentMesh;
+}
+
 // TODO: Think about removing unused asset maybe?
 MeshGroup* CyanRenderer::createMeshFromFile(const char* fileName)
 {
@@ -447,7 +616,7 @@ MeshGroup* CyanRenderer::createMeshFromFile(const char* fileName)
         Mesh* subMesh = new Mesh();
         mesh->subMeshes.push_back(subMesh);
 
-        subMesh->vertexInfo = ToolKit::loadSubMesh(scene->mMeshes[i], &subMesh->mAttribFlag);
+        subMesh->vertexInfo = Toolkit::loadSubMesh(scene->mMeshes[i], &subMesh->mAttribFlag);
         subMesh->setNumVerts(scene->mMeshes[i]->mNumVertices);
         // Bind the vertex buffer to mesh
         subMesh->setVertexBuffer(VertexBuffer::create(subMesh->vertexInfo.vertexData, subMesh->vertexInfo.vertexSize * sizeof(float) * subMesh->mNumVerts));
@@ -472,7 +641,7 @@ MeshGroup* CyanRenderer::createMeshFromFile(const char* fileName)
         subMesh->initVertexAttributes();
     }
     // Store the xform for normalizing object space mesh coordinates
-    mesh->normalizeXform = ToolKit::normalizeMeshScale(mesh);
+    mesh->normalizeXform = Toolkit::normalizeMeshScale(mesh);
     return mesh;
 }
 
@@ -536,7 +705,9 @@ void CyanRenderer::drawEntity(Scene& scene, Entity* e)
                 shader->reloadShaderProgram();
         }
     }
+
     updateShaderVariables(e);
+
     // TODO: Extract stuff that does not need to be updated for each entity, such as lighting
     shader->prePass();
     drawMesh(mesh);
@@ -563,12 +734,6 @@ void CyanRenderer::render(Scene& scene, RenderConfig& renderConfg)
     /* 
         Rendering passes
     */
-
-    // Skybox pass
-    {
-
-    }
-
     // Terrain pass
     {
 
@@ -601,7 +766,7 @@ void CyanRenderer::requestSwapBuffers()
     mSwapBufferCallback();
 }
 
-GLuint CyanRenderer::createCubemapFromTexture(ShaderBase* shader, GLuint envmap, MeshGroup* cubeMesh, int windowWidth, int windowHeight, int viewportWidth, int viewportHeight)
+GLuint CyanRenderer::createCubemapFromTexture(ShaderBase* shader, GLuint envmap, MeshGroup* cubeMesh, int windowWidth, int windowHeight, int viewportWidth, int viewportHeight, bool hdr)
 {
     GLuint fbo, rbo, cubemap;
     Camera camera = { };
@@ -644,7 +809,10 @@ GLuint CyanRenderer::createCubemapFromTexture(ShaderBase* shader, GLuint envmap,
     glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap);
     for (int f = 0; f < 6; f++)
     {
-        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, 0, GL_RGB16F, viewportWidth, viewportHeight, 0, GL_RGB, GL_FLOAT, nullptr);
+        if (hdr)
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, 0, GL_RGB16F, viewportWidth, viewportHeight, 0, GL_RGB, GL_FLOAT, nullptr);
+        else
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, 0, GL_RGBA8, viewportWidth, viewportHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     }
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -943,143 +1111,16 @@ void CyanRenderer::drawGrid() {
     //-----------------------
 }
 
-// TODO: Cancel out the translation part of view matrix
-void CyanRenderer::drawSkybox(Scene& scene) {
-#if 0
-    mShaders[(int)ShadingMode::cubemap].bindShader();
-    glm::mat4 cubeXform(1.f);
-    cubeXform = glm::scale(cubeXform, glm::vec3(100.f));
-    mShaders[(int)ShadingMode::cubemap].setUniformMat4f("model", glm::value_ptr(cubeXform));
-    mShaders[(int)ShadingMode::cubemap].setUniformMat4f("projection", glm::value_ptr(scene.mainCamera.projection));
-    mShaders[(int)ShadingMode::cubemap].setUniformMat4f("view", glm::value_ptr(scene.mainCamera.view));
-    glBindVertexArray(scene.skybox.vao);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, scene.skybox.cubmapTexture);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
-    glBindVertexArray(0);
-    glUseProgram(0);
-#endif
-}
-
 void CyanRenderer::setupMSAA() {
-    glBindFramebuffer(GL_FRAMEBUFFER, MSAAFBO);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, MSAAColorBuffer, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D_MULTISAMPLE, MSAADepthBuffer, 0);
 
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LEQUAL);
 }
 
 void CyanRenderer::bloomPostProcess() {
-#if 0
-    //---- Render to hdr fbo--
-    //---- Multi-render target---
-    glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
-    mShaders[(int)ShadingMode::bloom].bindShader();
-    GLuint renderTargert[2] = {
-        GL_COLOR_ATTACHMENT0, 
-        GL_COLOR_ATTACHMENT1
-    };
-    glDrawBuffers(2, renderTargert);
-    //---------------------------
 
-    glBindVertexArray(quadVAO);
-    if (enableMSAA) {
-        glBindTexture(GL_TEXTURE_2D, intermColorBuffer);
-    } else {
-    }
-
-    glBindTexture(GL_TEXTURE_2D, colorBuffer);
-
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glBindVertexArray(0);
-    glUseProgram(0);
-    //------------------------------------
-
-    //---- Apply blur -----
-    for (int itr = 0; itr < BLUR_ITERATION; itr++) {
-        //---- Horizontal pass ----
-        glBindFramebuffer(GL_FRAMEBUFFER, pingPongFBO[itr * 2 % 2]);
-        mShaders[(int)ShadingMode::gaussianBlur].bindShader();
-        mShaders[(int)ShadingMode::gaussianBlur].setUniform1i("horizontalPass", 1);
-        mShaders[(int)ShadingMode::gaussianBlur].setUniform1f("offset", 1.f / 800.f);
-        glBindVertexArray(quadVAO);
-        if (itr == 0) {
-            glBindTexture(GL_TEXTURE_2D, colorBuffer1);
-        } else {
-            glBindTexture(GL_TEXTURE_2D, pingPongColorBuffer[(itr * 2 - 1) % 2]);
-        }
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-        //--------------------- 
-
-        //---- Vertical pass ----
-        glBindFramebuffer(GL_FRAMEBUFFER, pingPongFBO[(itr * 2 + 1) % 2]);
-        mShaders[(int)ShadingMode::gaussianBlur].bindShader();
-        mShaders[(int)ShadingMode::gaussianBlur].setUniform1i("horizontalPass", 0);
-        mShaders[(int)ShadingMode::gaussianBlur].setUniform1f("offset", 1.f / 600.f);
-        glBindVertexArray(quadVAO);
-        glBindTexture(GL_TEXTURE_2D, pingPongColorBuffer[itr * 2 % 2]);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-        //--------------------- 
-    }
-
-    //---- Blend final output with original hdrFramebuffer ----
-    #if 0
-    if (enableMSAA) {
-        glBindFramebuffer(GL_FRAMEBUFFER, intermFBO);
-    } else {
-    }
-    #endif
-
-    glBindFramebuffer(GL_FRAMEBUFFER, defaultFBO);
-    
-    mShaders[(int)ShadingMode::bloomBlend].bindShader();
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, colorBuffer0);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, pingPongColorBuffer[1]);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glBindVertexArray(0);
-    glUseProgram(0);
-    //---------------------------------
-    //--------------------- 
-#endif
 }
 
 void CyanRenderer::blitBackbuffer() {
-    //---- Render final output to default fbo--
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    // quadShader.bindShader();
-    glBindVertexArray(quadVAO);
 
-    glActiveTexture(GL_TEXTURE0);
-
-    #if 0
-    if (enableMSAA) {
-        glBindTexture(GL_TEXTURE_2D, intermColorBuffer);
-    } else {
-    }
-    #endif
-
-    glBindTexture(GL_TEXTURE_2D, colorBuffer);
-
-    glViewport(0, 0, 400, 300);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, pingPongColorBuffer[1]);
-    glViewport(400, 0, 400, 300);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    glViewport(0, 0, 800, 600); // Need to reset the viewport state so that it doesn't affect offscreen MSAA rendering 
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glBindVertexArray(0);
-    glUseProgram(0);
 }
 
 // Grid: Mesh
@@ -1119,45 +1160,4 @@ void Grid::printGridVerts() {
                   << "y: " << verts[((i * 2 + 1) * 2 + 1) * 3 + 1] << " "
                   << "z: " << verts[((i * 2 + 1) * 2 + 1) * 3 + 2] << std::endl;
     }
-}
-
-
-Texture CyanRenderer::createTexture(GLenum target, 
-                                    GLint internalFormat,
-                                    GLenum pixelFormat, 
-                                    GLenum dataType,
-                                    void* image,
-                                    int width, 
-                                    int height)
-{
-    Texture texture = { }; 
-    texture.width = width;
-    texture.height = height;
-
-    glGenTextures(1, &texture.id);
-    glBindTexture(target, texture.id);
-    glTexImage2D(target, 0, internalFormat, texture.width, texture.height, 0, pixelFormat, dataType, image);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    return texture;
-}
-
-Texture CyanRenderer::createTexture(GLenum target, 
-                                    GLint internalFormat,
-                                    GLenum pixelFormat, 
-                                    GLenum dataType,
-                                    int width, 
-                                    int height)
-{
-    Texture texture = { }; 
-    texture.width = width;
-    texture.height = height;
-
-    glGenTextures(1, &texture.id);
-    glBindTexture(target, texture.id);
-    glTexImage2D(target, 0, internalFormat, texture.width, texture.height, 0, pixelFormat, dataType, 0);
-    #include "Common.h"
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    return texture;
 }

@@ -1,8 +1,10 @@
 #pragma once
 
 #include <functional>
+#include <map>
 
 #include "glew.h"
+#include "stb_image.h"
 
 #include "Common.h"
 #include "Shader.h"
@@ -44,16 +46,6 @@ struct RenderConfig
     bool toneMapping;
 };
 
-// Asset loading utils
-class ToolKit
-{
-public:
-    static void loadScene(Scene& scene, const char* filename);
-    static void loadTexture();
-    static glm::mat4 normalizeMeshScale(MeshGroup* mesh);
-    static VertexInfo loadSubMesh(aiMesh* assimpMesh, uint8_t* attribFlag);
-};
-
 struct FrameBuffer
 {
     GLuint fbo;
@@ -61,11 +53,67 @@ struct FrameBuffer
     GLuint depthTarget;
 };
 
+// TODO: Implement GfxContext class to manage the rendering state
+class GfxContext
+{
+public:
+    GfxContext() { }
+    ~GfxContext() { }
+
+    void setMaterial(Material* _material) 
+    { 
+        _material->m_shader->bind();
+
+        for (auto& uniform : _material->m_uniforms)
+            shader->setUniform(uniform);
+
+        for (auto& texture : _material->m_textures)
+            shader->setTexture("", texture.id);
+    };
+
+    GLuint m_vao;
+    GLuint m_fbo;
+    GLuint m_activeShader;
+    glm::vec2 m_viewportSize;
+    bool b_depthTest;
+};
+
+namespace Cyan
+{
+    Shader* createShader(const char* vertSrc, const char* fragSrc);
+
+
+    // TODO: Do we need to cache uniforms and materials?
+    Uniform* createUniform(const char* _name, Uniform::UniformType _type)
+    {
+        Uniform* uniform = new Uniform{_type, _name, 0};
+        return uniform;
+    }
+    Material* createMaterial(Shader* _shader)
+    {
+        Material* material = new Material{_shader};
+        return material;
+    }
+}
+
 // TODO: Abstract FrameBuffer object 
 class CyanRenderer {
 public:
 
-    // Rendering assets
+    /* Utility functions */
+    class Toolkit
+    {
+    public:
+        static GLuint createTextureFromFile(const char* file, TextureType textureType, TexFilterType filterType);
+        static GLuint createHDRTextureFromFile(const char* file, TextureType textureType, TexFilterType filterType);
+
+        static void loadScene(Scene& scene, const char* filename);
+        static void loadTexture();
+        static glm::mat4 normalizeMeshScale(MeshGroup* mesh);
+        static VertexInfo loadSubMesh(aiMesh* assimpMesh, uint8_t* attribFlag);
+    };
+
+    /* Rendering assets */
     typedef struct
     {
         std::vector<MeshGroup*> meshes;
@@ -77,21 +125,8 @@ public:
     uint16_t bufferWidth, bufferHeight;
     uint16_t activeShaderIdx;
 
-    // ---- Shader Cache -----
-    uint16_t shaderCount;
+    u16 shaderCount;
     ShaderBase* mShaders[15];
-    // -----------------------
-
-    // ---- Framebuffers -----
-    FrameBuffer frameBuffer;
-
-    GLuint quadVBO, quadVAO;
-    GLuint defaultFBO, intermFBO, MSAAFBO, hdrFBO;
-    GLuint pingPongFBO[2], pingPongColorBuffer[2];
-    GLuint intermDepthBuffer, depthBuffer, MSAADepthBuffer, stencilBuffer, MSAAStencilBuffer;
-    GLuint intermColorBuffer, colorBuffer, MSAAColorBuffer, depthStencilBuffer; // framebuffer attachment
-    GLuint colorBuffer0, colorBuffer1;
-    // -----------------------
 
     CyanRenderer();
 
@@ -111,7 +146,7 @@ public:
     /*
     * NOTE(min): Three different kinds of envmap shader can be passed to this function as they use same type of ShaderVars, EnvmapShaderVars
     */
-    GLuint createCubemapFromTexture(ShaderBase* shader, GLuint envmap, MeshGroup* cubeMesh, int windowWidth, int windowHeight, int viewportWidth, int viewportHeight);
+    GLuint createCubemapFromTexture(ShaderBase* shader, GLuint envmap, MeshGroup* cubeMesh, int windowWidth, int windowHeight, int viewportWidth, int viewportHeight, bool hdr=true);
 
     glm::mat4 generateViewMatrix(const Camera& camera);
 
@@ -130,11 +165,7 @@ public:
     // TODO:
     void drawEnvmap() { }
     void drawGrid();
-    void drawSkybox(Scene& scene);
 
-    /* 
-        * Wrapper over basic OpenGL operations
-    */
     void clearBackBuffer();
     void enableDepthTest();
     void setClearColor(glm::vec4 color);
@@ -142,24 +173,25 @@ public:
     ShaderBase* getShader(ShaderType type);
     ShaderBase* getMaterialShader(MaterialType type);
 
+    /* Create an empty MeshGroup */
     MeshGroup* createMeshGroup(const char* meshName);
+
+    /* Create a MeshGroup from an asset file */
     MeshGroup* createMeshFromFile(const char* fileName);
+
+    /* Create a unit cube mesh */
+    MeshGroup* createCubeMesh(const char* meshName);
 
     Assets mRenderAssets;
 
 private:
-    friend class ToolKit;
     RequestSwapCallback mSwapBufferCallback;
 
     void updateShaderVariables(Entity* entity);
 
-    static Texture createTexture(GLenum target, GLint intermalFormat, GLenum pixelFormat, GLenum dataType, void* image, int width, int height);
-    static Texture createTexture(GLenum target, GLint intermalFormat, GLenum pixelFormat, GLenum dataType, int width, int height);
-
-    static void bindTexture(GLenum target, Texture& texture);
-
     std::vector<ShaderBase*> shaders;
     Scene* m_Scene;
+    Toolkit m_toolKit;
 };
 
 extern float quadVerts[24];

@@ -2,6 +2,17 @@
 #include <string>
 #include "glew.h"
 
+enum TextureType
+{
+    TEX_2D = 0,
+    TEX_CUBEMAP
+};
+
+enum TexFilterType
+{
+    LINEAR = 0
+};
+
 // miplevels?
 struct Texture
 {

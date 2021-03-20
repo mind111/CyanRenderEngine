@@ -13,6 +13,13 @@
 
 // TODO: Is there a way to further abstract this into a ShaderParams
 
+namespace ShaderUtil
+{
+    void checkShaderCompilation(GLuint shader);
+    void checkShaderLinkage(GLuint shader);
+    const char* readShaderFile(const char* filename);
+}
+
 enum class ShaderType
 {
     None = 0,
@@ -20,7 +27,8 @@ enum class ShaderType
     Pbr,
     GenEnvmap,
     GenIrradiance,
-    QuadShader
+    QuadShader,
+    LineShader
 };
 
 struct BlinnPhongShaderVars 
@@ -43,6 +51,29 @@ struct PbrShaderVars
     PointLight* pLights;
     u8 numDirLights;
     u8 numPointLights;
+    GLuint* envmap;
+    GLuint* diffuseIrradianceMap;
+};
+
+// TODO: Refactor shader class
+class Shader
+{
+public:
+    Shader();
+    ~Shader() {}
+    
+    void setUniform(Uniform& _uniform);
+
+    void setUniform1i(const char* name, GLint data);
+    void setUniform1f(const char* name, GLfloat data);
+    void setUniformVec3(const char* name, GLfloat* vecData);
+    void setUniformVec4(const char* name, GLfloat* vecData);
+    void setUniformMat4f(const char* name, GLfloat* matData);
+
+    GLint getUniformLocation(const std::string& name);
+
+    std::map<std::string, int> m_uniformLocationCache;
+    GLuint m_programId;
 };
 
 struct ShaderFileInfo
@@ -59,7 +90,7 @@ public:
 
     virtual ShaderType getShaderType() = 0;
     virtual void prePass() = 0;
-    virtual void bindMaterialTextures(Material* matl) = 0;
+    virtual int bindMaterialTextures(Material* matl) = 0;
     virtual void setShaderVariables(void* vars) = 0;
     virtual void updateShaderVarsForEntity(Entity* e) = 0;
     virtual void initUniformLocations(std::vector<std::string>& names);
@@ -96,7 +127,7 @@ public:
 
     virtual inline ShaderType getShaderType() { return ShaderType::BlinnPhong; }
     virtual void prePass() override;
-    virtual void bindMaterialTextures(Material* matl) override;
+    virtual int bindMaterialTextures(Material* matl) override;
     virtual void setShaderVariables(void* vars) override;
     virtual void updateShaderVarsForEntity(Entity* e) override;
 
@@ -116,7 +147,7 @@ public:
 
     virtual inline ShaderType getShaderType() { return ShaderType::Pbr; }
     virtual void prePass() override;
-    virtual void bindMaterialTextures(Material* matl) override;
+    virtual int bindMaterialTextures(Material* matl) override;
     virtual void setShaderVariables(void* vars) override;
     virtual void updateShaderVarsForEntity(Entity* e) override;
 
@@ -141,7 +172,7 @@ class GenEnvmapShader : public ShaderBase
 public:
     virtual inline ShaderType getShaderType() { return ShaderType::GenEnvmap; }
     virtual void prePass() override;
-    virtual void bindMaterialTextures(Material* matl) override;
+    virtual int bindMaterialTextures(Material* matl) override;
     virtual void setShaderVariables(void* vars) override;
     virtual void updateShaderVarsForEntity(Entity* e) override;
 
@@ -157,7 +188,7 @@ class EnvmapShader : public ShaderBase
 public:
     virtual inline ShaderType getShaderType() { return ShaderType::GenEnvmap; }
     virtual void prePass() override;
-    virtual void bindMaterialTextures(Material* matl) override { }
+    virtual int bindMaterialTextures(Material* matl) override { return 0; }
     virtual void setShaderVariables(void* vars) override;
     virtual void updateShaderVarsForEntity(Entity* e) override { };
 
@@ -172,7 +203,7 @@ class GenIrradianceShader : public ShaderBase
 public:
     virtual inline ShaderType getShaderType() { return ShaderType::GenIrradiance; }
     virtual void prePass() override;
-    virtual void bindMaterialTextures(Material* matl) override { }
+    virtual int bindMaterialTextures(Material* matl) override { return 0; }
     virtual void setShaderVariables(void* vars) override;
     virtual void updateShaderVarsForEntity(Entity* e) override { };
 
@@ -194,7 +225,7 @@ class QuadShader : public ShaderBase
 public:
     virtual inline ShaderType getShaderType() { return ShaderType::QuadShader; }
     virtual void prePass() override;
-    virtual void bindMaterialTextures(Material* matl) override { }
+    virtual int bindMaterialTextures(Material* matl) override { return 0; }
     virtual void setShaderVariables(void* vars) override;
     virtual void updateShaderVarsForEntity(Entity* e) override { }
 
@@ -202,4 +233,26 @@ public:
     ~QuadShader() { }
 
     QuadShaderVars m_vars;
+};
+
+struct LineShaderVars
+{
+    glm::mat4 model;
+    glm::mat4 view;
+    glm::mat4 projection;
+};
+
+class LineShader : public ShaderBase
+{
+public:
+    virtual inline ShaderType getShaderType() { return ShaderType::LineShader; }
+    virtual void prePass() override;
+    virtual int bindMaterialTextures(Material* matl) override { return 0; }
+    virtual void setShaderVariables(void* vars) override;
+    virtual void updateShaderVarsForEntity(Entity* e) override { }
+
+    LineShader(const char* vertSrc, const char* fragSrc);
+    ~LineShader() { }
+
+    LineShaderVars m_vars;
 };

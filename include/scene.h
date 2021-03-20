@@ -12,7 +12,6 @@
 struct Scene 
 {
     Camera mainCamera;
-    Skybox skybox;
     std::vector<Entity> entities;
     std::vector<PointLight> pLights;
     std::vector<DirectionalLight> dLights;
@@ -20,13 +19,8 @@ struct Scene
 
 class SceneManager {
 public:
-    static void setupSkybox(Skybox& skybox, CubemapTexture& texture);
-    static void loadMesh(Mesh& mesh, const char* fileName);
-    //static void loadSceneFromFile(Scene& scene, const char* fileName);
-    static void loadTextureFromFile(Scene& scene, Texture& texture);
-    static int findTextureIndex(const Scene& scene, const std::string& textureName);
-    static void findTexturesForMesh(Scene& scene, Mesh& mesh);
-
+    static void createDirectionalLight(Scene& scene, glm::vec3 color, glm::vec3 direction, float intensity);
+    static void createPointLight(Scene& scene, glm::vec3 color, glm::vec3 position, float intensity);
     static Entity* createEntity(Scene& scene);
 };
 

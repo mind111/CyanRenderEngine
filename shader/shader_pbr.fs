@@ -13,7 +13,6 @@ uniform float kAmbient;
 uniform float kDiffuse;
 uniform float kSpecular;
 
-
 uniform int activeNumDiffuse;
 uniform int activeNumSpecular;
 uniform int activeNumEmission;
@@ -22,11 +21,12 @@ uniform float hasAoMap;
 uniform float hasNormalMap;
 
 uniform sampler2D diffuseMaps[6];
-uniform sampler2D specularMaps[6];
 uniform sampler2D emissionMaps[2];
 uniform sampler2D normalMap;
 uniform sampler2D roughnessMap;
 uniform sampler2D aoMap;
+uniform samplerCube envmap;
+uniform samplerCube diffuseIrradianceMap;
 
 uniform int numPointLights;
 uniform int numDirLights;
@@ -90,7 +90,7 @@ vec3 gammaCorrection(vec3 inColor)
 vec3 fresnel(vec3 f0, vec3 v, vec3 h)
 {
     float fresnelCoef = 1.f - dot(v, h);
-    fresnelCoef = pow(fresnelCoef, 5.f);
+    fresnelCoef = fresnelCoef * fresnelCoef * fresnelCoef * fresnelCoef * fresnelCoef;
     return mix(f0, vec3(1.f), fresnelCoef);
 }
 
@@ -150,6 +150,31 @@ vec3 radiance(vec3 albedo, vec3 f0, float roughness, float metallic, float ao, v
     return (kDiffuse * kd * diffuse + kSpecular * specular) * ndotl * lc * li * ao;
 }
 
+float hash(float seed)
+{
+    return fract(sin(seed)*43758.5453);
+}
+
+// Generate a sample direction in tangent space and output world space direction
+vec3 generateSample(vec3 n, float theta, float phi)
+{
+    float x = sin(theta) * sin(phi);
+    float y = sin(theta) * cos(phi);
+    float z = cos(theta);
+    vec3 s = vec3(x, y, z);
+    // Prevent the case where n is  (0.f, 1.f, 0.f)
+    vec3 up = abs(n.x) > 0.f ? vec3(0.f, 1.f, 0.f) : vec3(0.f, 0.f, 1.f);
+    vec3 xAxis = cross(up, n);
+    vec3 yAxis = cross(n, xAxis);
+    vec3 zAxis = n;
+    mat3 toWorldSpace = {
+        xAxis,
+        yAxis,
+        zAxis
+    };
+    return normalize(toWorldSpace * s);
+}
+
 void main() 
 {
     /* Normal mapping */
@@ -173,15 +198,13 @@ void main()
     /* Texture mapping */
     vec4 albedo = texture(diffuseMaps[0], uv);
     albedo.rgb = vec3(pow(albedo.r, 2.2f), pow(albedo.g, 2.2f), pow(albedo.b, 2.2f));
-    // albedo = vec4(0.9f, 0.9f, 0.9f, 1.f);
 
     // According to gltf-2.0 spec, metal is sampled from b, roughness is sampled from g
     float roughness = texture(roughnessMap, uv).g;
-    // float roughness = 0.2f;
     float metallic = texture(roughnessMap, uv).b; 
-    // float metallic = 0.0f
-;
-    vec3 f0 = mix(vec3(0.04f), albedo.rgb, metallic); // correct
+
+    // Determine the specular color
+    vec3 f0 = mix(vec3(0.04f), albedo.rgb, metallic);
 
     /* Shading */
     // Ambient
@@ -211,6 +234,45 @@ void main()
         float li = dirLightsBuffer.lights[i].color.w;
         color += radiance(albedo.rgb, f0, roughness, metallic, ao, viewDir, normal, lc, ld, li, ndotv);
     }
+
+    // Image-based-lighting
+    {
+        // Diffuse
+        vec3 f = fresnel(f0, normal, normalize(normal + viewDir));
+        vec3 kd = mix(vec3(1.f) - f, vec3(0.f), metallic);
+        vec3 diffuseE = texture(diffuseIrradianceMap, normal).rgb;
+        color += albedo.rgb * diffuseE * 6.5f * kd;
+
+        // Specular: importance sampling GGX
+        vec3 specularE = vec3(0.f);
+        float numSamples = 512.f;
+        for (int sa = 0; sa < numSamples; sa++)
+        {
+            // Random samples a microfacet normal following GGX distribution
+            float rand_u = hash(sa * 12.3f / numSamples); 
+            float rand_v = hash(sa * 78.2f / numSamples); 
+
+            float theta = atan(roughness * sqrt(rand_u) / sqrt(1 - rand_u));
+            float phi = 2 * pi * rand_v;
+            vec3 h = generateSample(normal, theta, phi);
+
+            // Reflect viewDir against microfacet normal to get incident direction
+            vec3 vi = -reflect(viewDir, h);
+
+            // Sample a color
+            vec3 envColor = texture(envmap, vi).rgb;
+
+            // Shading
+            float shadowing = smithG(vi, normal, h, roughness) * smithG(viewDir, normal, h, roughness);
+            vec3 fresnel = fresnel(f0, vi, h); 
+            vec3 nom = fresnel * shadowing * saturate(dot(viewDir, h));
+            float denom = max(0.0001f, saturate(dot(viewDir, normal)) * saturate(dot(h, normal)));
+            specularE += envColor * (nom / denom);
+        }
+        specularE /= numSamples;
+        color += specularE * kSpecular;
+    }
+
 /*
     // Emission
     vec3 emission = vec3(0.f); 
@@ -221,10 +283,10 @@ void main()
         emission += le;
     }
     color += emission;
-    */
+*/
 
     // Tone mapping
-    color.rgb = ACESFilm(color.rgb);
-    color.rgb = vec3(pow(color.r, 1.f/2.2f), pow(color.g, 1.f/2.2f), pow(color.b, 1.f/2.2f));
-    fragColor = vec4(color.rgb, 1.0f);
+    color = ACESFilm(color);
+    color = vec3(pow(color.r, 1.f/2.2f), pow(color.g, 1.f/2.2f), pow(color.b, 1.f/2.2f));
+    fragColor = vec4(color, 1.0f);
 }
