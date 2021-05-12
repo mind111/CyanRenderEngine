@@ -6,17 +6,15 @@
 
 // Internal dependencies
 #include "Mesh.h"
-#include "Material.h"
 #include "Transform.h"
 
 // Instance of each
 struct Entity
 {
-    uint32_t entityId;
-    glm::vec3 position;
-    Transform xform;
-    MeshGroup* mesh;
-    Material* matl;
+    uint32_t m_entityId;
+    glm::vec3 m_position;
+    Transform m_xform;
+    Cyan::Mesh* m_mesh;
 };
 
 class EntityManager

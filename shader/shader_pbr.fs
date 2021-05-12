@@ -6,30 +6,26 @@ in vec2 uv;
 in vec3 fragmentPos;
 
 out vec4 fragColor;
-
+//- transforms
 uniform mat4 view;
-
-uniform float kAmbient;
+//- misc
 uniform float kDiffuse;
 uniform float kSpecular;
-
 uniform int activeNumDiffuse;
 uniform int activeNumSpecular;
 uniform int activeNumEmission;
-
 uniform float hasAoMap;
 uniform float hasNormalMap;
-
+uniform int numPointLights; //non-material
+uniform int numDirLights;   //non_material
+//- samplers
 uniform sampler2D diffuseMaps[6];
 uniform sampler2D emissionMaps[2];
 uniform sampler2D normalMap;
 uniform sampler2D roughnessMap;
 uniform sampler2D aoMap;
-uniform samplerCube envmap;
-uniform samplerCube diffuseIrradianceMap;
-
-uniform int numPointLights;
-uniform int numDirLights;
+uniform samplerCube diffuseIrradianceMap; //non-material
+uniform samplerCube envmap;               //non-material
 
 const int aoStrength = 2;
 

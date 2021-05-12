@@ -18,7 +18,7 @@ SceneManager sceneManager;
 Entity* SceneManager::createEntity(Scene& scene)
 {
     Entity e = { };
-    e.entityId = scene.entities.size() > 0 ? scene.entities.size() + 1 : 1;
+    e.m_entityId = scene.entities.size() > 0 ? scene.entities.size() + 1 : 1;
     // !PERF
     scene.entities.push_back(e);
     return &scene.entities[scene.entities.size() - 1]; 

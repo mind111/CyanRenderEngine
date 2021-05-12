@@ -1,17 +1,15 @@
 #include "VertexBuffer.h"
 
-VertexBuffer* VertexBuffer::create(float* data, int size)
+u32 VertexAttrib::getSize()
 {
-    VertexBuffer* vb = new VertexBuffer();
-    vb->mStride = 0;
-    glCreateBuffers(1, &vb->mBufferId);
-    glNamedBufferData(vb->mBufferId, size, data, GL_STATIC_DRAW);
-    return vb;
-}
-
-void VertexBuffer::pushVertexAttribute(VertexAttrib attrib)
-{
-    attrib.offset = mStride;
-    mStride += attrib.size * sizeof(attrib.type);
-    mVertexAttribs.push_back(attrib);
+    switch (m_type)
+    {
+        case VertexAttrib::DataType::Float:
+            return 4;
+        case VertexAttrib::DataType::Int:
+            return 4;
+        default:
+            return 0;
+            break;
+    }
 }

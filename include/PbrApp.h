@@ -4,6 +4,7 @@
 
 #include "CyanApp.h"
 #include "Scene.h"
+#include "Mesh.h"
 
 // TODO: Can also let CyanApp define a basic beginFrame(), endFrame() where it calls customBeginFrame(), and customEndFrame(),
 // and child class override customBegin() and customEnd() to do each application specific stuffs
@@ -33,8 +34,6 @@ public:
 private:
     float m_sampleVertex[(64 + 1) * 4 * 2] = { };
     
-    PbrShaderVars m_shaderVars;
-    PbrShader* m_shader;
     bool bRunning;
     u32 entityOnFocusIdx;
     u32 currentScene;
@@ -42,22 +41,43 @@ private:
 
     Camera m_genEnvmapCamera;
 
-    /* Shader */
-    Shader* m_genEnvmapShader;
-    Shader* m_genIrradianceShader;
-    Shader* m_envmapShader;
-    Shader* m_lineShader;
+    // Materials
+    Cyan::Material* m_helmetMatl;
+    Cyan::Material* m_envmapMatl;
 
-    /*
-    GenEnvmapShader* m_genEnvmapShader;
-    GenIrradianceShader* m_genIrradianceShader;
-    EnvmapShader* m_envmapShader;
-    LineShader* m_lineShader;
-    */
+    /* Shaders */
+    Shader* m_pbrShader;
+    Shader* m_envmapShader;
+
+    /* Buffers */
+    RegularBuffer* m_pointLightsBuffer;
+    RegularBuffer* m_dirLightsBuffer;
+
+    /* Textures */
+    Cyan::Texture* m_rawEnvmap;
+
+    /* Uniforms */
+    Uniform* u_numPointLights;
+    Uniform* u_numDirLights;
+    Uniform* u_cameraView;
+    Uniform* u_cameraProjection;
+    Uniform* u_kDiffuse;
+    Uniform* u_kSpecular;
+    Uniform* u_hasNormalMap;
+    Uniform* u_hasAoMap;
+
+    Cyan::Texture* m_envmap;
+    Cyan::Texture* m_diffuseIrradianceMap;
 
     GLuint m_envmapVbo, m_envmapVao;
-    GLuint m_rawEnvmap, m_envmap;
-    GLuint m_diffuseIrradianceMap;
     GLuint m_linesVbo, m_linesVao;
-    MeshGroup* m_cubeMesh;
+
+    // debugging purpose
+    Uniform* u_envmapSampler;
+    Uniform* u_projection_dbg;
+    Uniform* u_view_dbg;
+    Shader* shader_dbg;
+    Cyan::RenderTarget* rt_dbg;
+    Cyan::Texture* equirectMap;
+    Cyan::Texture* envmap_dbg;
 };

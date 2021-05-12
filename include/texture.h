@@ -1,36 +1,47 @@
 #pragma once
+
 #include <string>
+
 #include "glew.h"
 
-enum TextureType
-{
-    TEX_2D = 0,
-    TEX_CUBEMAP
-};
+#include "Common.h"
 
-enum TexFilterType
+namespace Cyan
 {
-    LINEAR = 0
-};
+    // TODO: miplevels?
+    struct Texture
+    {
+        enum Type
+        {
+            TEX_2D = 0,
+            TEX_CUBEMAP
+        };
 
-// miplevels?
-struct Texture
-{
-    std::string name;
-    GLuint id;
-    std::string path;
-    unsigned char* pixels;
-    int width;
-    int height;
-};
+        enum Filter
+        {
+            LINEAR = 0
+        };
+        
+        enum ColorFormat
+        {
+            R8G8B8 = 0,
+            R16G16B16,
+            R8G8B8A8,
+            R16G16B16A16,
+        };
 
-struct CubemapTexture 
-{
-    enum {
-        right, left, top, bottom, back, front
+        std::string m_name;
+        void* m_data;
+
+        ColorFormat m_format;
+        Filter m_filter;
+        Type m_type;
+
+        u32 m_width;
+        u32 m_height;
+        GLuint m_id;
     };
-    Texture textures[6];
-};
+}
 
 class TextureUtils
 {

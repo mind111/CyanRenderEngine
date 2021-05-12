@@ -3,7 +3,7 @@
         {
             "name": "main_camera",
             "position": [0.0, 0.0, 1.2],
-            "lookAt": [0.0, 0.0, -1.0],
+            "lookAt": [0.0, 0.0, -1.5],
             "worldUp": [0.0, 1.0, 0.0],
             "fov": 50.0,
             "z_near": 0.1,
@@ -11,177 +11,50 @@
         }
     ],
 
-    "lights": [
-        {
-            "type": "directional",
-            "color": [0, 0.5, 0.5, 1.0],
-            "direction": [0, 0.5, 2, 0.0]
-        },
-
-        {
-            "type": "directional",
-            "color": [1.0, 0.8, 0.8, 1.0],
-            "direction": [0.5, 1, 2, 0.0]
-        }
-    ],
-
-    "hasSkybox": true,
-
-    "skybox": {
-        "name": "sky",
-        "texturePaths": {
-            "front": "asset/cubemaps/yokohama/front.jpg",
-            "back": "asset/cubemaps/yokohama/back.jpg",
-            "left": "asset/cubemaps/yokohama/left.jpg",
-            "right": "asset/cubemaps/yokohama/right.jpg",
-            "top": "asset/cubemaps/yokohama/top.jpg",
-            "bottom": "asset/cubemaps/yokohama/bottom.jpg"
-        }
-    },
-
-    "mesh_info_list": [
+    "meshes": [
         {
             "name": "helmet_mesh",
             "path": "asset/helmet/mesh/helmet.obj"
-        },
-
-        {
-            "name": "ksha_mesh",
-            "path": "asset/gundam-kshatriya/mesh/scene.gltf"
         }
     ],
 
-    "texture_info_list": [
+    "textures": [
         {
-            "textureName": "diablo_diffuse",
-            "texturePath": "asset/diablo/texture/diablo3_pose_diffuse.tga"
+            "name": "helmet_diffuse",
+            "path": "asset/helmet/texture/Default_albedo.jpg",
+            "dynamic_range": "ldr"
         },
 
         {
-            "textureName": "diablo_gloss",
-            "texturePath": "asset/diablo/texture/diablo3_pose_spec.tga"
+            "name": "helmet_nm",
+            "path": "asset/helmet/texture/Default_normal.jpg",
+            "dynamic_range": "ldr"
         },
 
         {
-            "textureName": "diablo_glow",
-            "texturePath": "asset/diablo/texture/diablo3_pose_glow.tga"
+            "name": "helmet_ao",
+            "path": "asset/helmet/texture/Default_AO.jpg",
+            "dynamic_range": "ldr"
         },
 
         {
-            "textureName": "diablo_normal_map",
-            "texturePath": "asset/diablo/texture/diablo3_pose_nm_tangent.tga"
+            "name": "helmet_roughness",
+            "path": "asset/helmet/texture/Default_metalRoughness.jpg",
+            "dynamic_range": "ldr"
         },
 
         {
-            "textureName": "helmet_diffuse",
-            "texturePath": "asset/helmet/texture/Default_albedo.jpg"
-        },
-
-        {
-            "textureName": "helmet_nm",
-            "texturePath": "asset/helmet/texture/Default_normal.jpg"
-        },
-
-        {
-            "textureName": "helmet_ao",
-            "texturePath": "asset/helmet/texture/Default_AO.jpg"
-        },
-
-        {
-            "textureName": "helmet_roughness",
-            "texturePath": "asset/helmet/texture/Default_metalRoughness.jpg"
-        },
-
-        {
-            "textureName": "helmet_emission",
-            "texturePath": "asset/helmet/texture/Default_emissive.jpg"
-        },
-
-        {
-            "textureName": "kshatriya_diffuse",
-            "texturePath": "asset/gundam-kshatriya/texture/base_green_diffuse.png"
-        },
-
-        {
-            "textureName": "kshatriya_nm",
-            "texturePath": "asset/gundam-kshatriya/texture/base_green_normal.png"
-        },
-        
-        {
-            "textureName": "kshatriya_specular",
-            "texturePath": "asset/gundam-kshatriya/texture/kshatriya_Spec.tga.png"
-        },
-
-        {
-            "textureName": "kshatriya_binder_diffuse",
-            "texturePath": "asset/gundam-kshatriya/texture/yellow_diffuse.png"
-        }
-    ],
-
-    "materials": [
-        {
-            "name": "diablo_matl",
-            "type": "BlinnPhong",
-            "diffuse": ["diablo_diffuse"],
-            "specular": [],
-            "roughness": "diablo_gloss",
-            "emission": ["diablo_glow"],
-            "normal": "diablo_normal_map",
-            "ao": ""
-        },
-
-        {
-            "name": "tree_matl",
-            "type": "BlinnPhong",
-            "diffuse": [""],
-            "specular": [],
-            "roughness": "", 
-            "emission": [],
-            "normal": "",
-            "ao": ""
-        },
-
-        {
-            "name": "helmet_matl",
-            "type": "BlinnPhong",
-            "diffuse": ["helmet_diffuse"],
-            "specular": [],
-            "roughness": "helmet_roughness",
-            "emission": ["helmet_emission"],
-            "normal": "helmet_nm",
-            "ao": "helmet_ao"
-        },
-
-        {
-            "name": "ksha_matl",
-            "type": "BlinnPhong",
-            "diffuse": ["kshatriya_diffuse", "kshatriya_binder_diffuse"],
-            "specular": ["kshatriya_specular"],
-            "roughness": "",
-            "emission": [],
-            "normal": "kshatriya_nm",
-            "ao": ""
-        },
-
-        {
-            "name": "helmet_matl_pbr",
-            "type": "Pbr",
-            "diffuse": ["helmet_diffuse"],
-            "specular": [],
-            "roughness": "helmet_roughness",
-            "metalness": "helmet_metal",
-            "emission": ["helmet_emission"],
-            "normal": "helmet_nm",
-            "ao": "helmet_ao"
+            "name": "helmet_emission",
+            "path": "asset/helmet/texture/Default_emissive.jpg",
+            "dynamic_range": "ldr"
         }
     ],
 
     "entities": [
         {
-            "meshName": "helmet_mesh",
-            "matlName": "helmet_matl_pbr",
+            "mesh": "helmet_mesh",
             "xform": {
-                "translation": [0.0, 0.0, -1.0],
+                "translation": [0.0, 0.0, -1.5],
                 "rotation": [0.0, 0, 1, 0],
                 "scale": [0.8, 0.8, 0.8]
             }

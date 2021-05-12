@@ -1,7 +1,6 @@
 #include <iostream>
 
 #include "CyanEngine.h"
-#include "BasicApp.h"
 #include "PbrApp.h"
 
 int main(int argc, char* argv[]) {

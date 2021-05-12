@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <limits>
+#include <string>
 #include "intrin.h"
 
 #define ASSERT(expr) \
@@ -14,8 +15,8 @@
     sizeof(arr) / sizeof(arr[0])
 
 // TODO: Is this macro safe ...?
-#define min(a, b) ((a < b) ? a : b)
-#define max(a, b) ((a > b) ? a : b)
+#define Min(a, b) ((a < b) ? a : b)
+#define Max(a, b) ((a > b) ? a : b)
 
 typedef uint8_t   u8;
 typedef uint16_t  u16;

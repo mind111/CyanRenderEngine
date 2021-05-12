@@ -19,13 +19,6 @@ CyanEngine::CyanEngine()
     
 }
 
-Scene* CyanEngine::loadScene(const char* filename)
-{
-    Scene* scene = new Scene();
-    CyanRenderer::Toolkit::loadScene(*scene, filename);
-    return scene;
-}
-
 void mouseButtonFunc(GLFWwindow* window, int button, int action, int mods)
 {
     CyanEngine* gEngine = (CyanEngine*)glfwGetWindowUserPointer(window);
@@ -41,7 +34,7 @@ void cursorPosFunc(GLFWwindow* window, double xPos, double yPos)
     gEngine->updateMouseCursorPosition(xPos, yPos);
 }
 
-void CyanEngine::setup(WindowConfig WindowConfig, const char* sceneFolderPath)
+void CyanEngine::init(WindowConfig WindowConfig, const char* sceneFolderPath)
 {
     // Setup window
     {
@@ -71,8 +64,9 @@ void CyanEngine::setup(WindowConfig WindowConfig, const char* sceneFolderPath)
 
     // Setup renderer 
     {
-        m_renderer = CyanRenderer::get();
-        m_renderer->bindSwapBufferCallback(std::bind(&CyanEngine::swapBuffers, this));
+        m_renderer = new Cyan::Renderer;
+        m_renderer->init();
+        Cyan::getCurrentGfxCtx()->setWindow(&m_window);
     }
 
     // Init member variables
@@ -141,17 +135,9 @@ void CyanEngine::setup(WindowConfig WindowConfig, const char* sceneFolderPath)
     }
 }
 
-void CyanEngine::render(Scene& scene)
-{
-    // Render a frame of current active scene
-    m_renderer->render(scene, RenderConfig{ });
-}
-
-// TODO: Move glfwPollEvents() out of here
-void CyanEngine::swapBuffers()
+void CyanEngine::processInput()
 {
     glfwPollEvents();
-    glfwSwapBuffers(m_window.mpWindow);
 }
 
 void CyanEngine::shutDown()

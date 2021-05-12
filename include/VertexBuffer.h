@@ -1,36 +1,34 @@
 #pragma once
+
 #include <string>
 #include <vector>
 
 #include "glew.h"
 
-enum class meshattribtype
-{
-    position = 0,
-    normal,
-    textureuv,
-    tangents
-};
+#include "Common.h"
 
 struct VertexAttrib
 {
-    std::string desc;  // Name of the attrbute
-    GLenum type;       // Data type
-    int size;          // num of components
-    int offset;        // Offset relative to the first vertex attribute
+    enum DataType
+    {
+        Float,
+        Int
+    };
+
+    u32 getSize();
+
+    DataType m_type;
+    u32 m_size;
+    u32 m_strideInBytes;
+    u32 m_offset;
+    void* m_data;
 };
 
-class VertexBuffer
+struct VertexBuffer
 {
-public:
-    VertexBuffer() { }
-    ~VertexBuffer() { }
-    static VertexBuffer* create(float* data, int size);
-    void pushVertexAttribute(VertexAttrib attrib);
-    std::vector<VertexAttrib>& getAttribs() { return mVertexAttribs; }
-    GLuint getBufferId() { return mBufferId; }
-    unsigned int mStride;
-private:
-    std::vector<VertexAttrib> mVertexAttribs;
-    GLuint mBufferId;
+    void* m_data;
+    u32 m_strideInBytes;
+    u32 m_numVerts;
+    GLuint m_vbo;
+    std::vector<VertexAttrib> m_vertexAttribs;
 };

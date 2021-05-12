@@ -37,35 +37,27 @@ public:
     CyanEngine();
     ~CyanEngine() { }
 
-    void setup(WindowConfig windowConfig, const char* sceneFolderPath=0);
-
-    // TODO: This should be part of CyanDemo, engine should just provide functionalities
-    // like gEngine->render(uint32 sceneIdx)
-
-    void render(Scene& scene);
+    void init(WindowConfig windowConfig, const char* sceneFolderPath=0);
     void shutDown();
-    Scene* loadScene(const char* filename);
 
     /* Gui */
     void displaySliderFloat(const char* title, float* address, float min, float max);
     void displayFloat3(const char* title, glm::vec3& value, bool isStatic=false);
 
     /* Input */
+    void processInput();
     void registerMouseCursorCallback(MouseCursorCallback* callback);
     void registerMouseButtonCallback(MouseButtonCallback* callback);
     void updateMouseCursorPosition(double x, double y);
     void processMouseButtonInput(int button, int action);
 
-    /* Rendering */
-    void updateShaderParams(ShaderBase* shader);
-
     const Window& getWindow() { return m_window; } 
-    CyanRenderer* getRenderer() { return m_renderer; }
+    Cyan::Renderer* getRenderer() { return m_renderer; }
     glm::vec2 getMouseCursorDelta() { return glm::vec2(float(cursorDeltaX), float(cursorDeltaY)); }
     void swapBuffers(); 
 
-    /*** Renderer ***/
-    CyanRenderer* m_renderer;
+    /* Renderer */
+    Cyan::Renderer* m_renderer;
 
 private:
     Window m_window;
@@ -73,7 +65,6 @@ private:
     /* These are recorded at sub frame precision */
     double cursorX, cursorY;
     double cursorDeltaX, cursorDeltaY;
-
 
     /* Misc (To be refactored) */
     MouseCursorCallback* mouseCursorCallback;

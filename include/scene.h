@@ -5,7 +5,6 @@
 
 #include "Camera.h"
 #include "Texture.h"
-#include "Material.h"
 #include "Entity.h"
 #include "Light.h"
 

@@ -5,53 +5,26 @@
 
 #include "MathUtils.h"
 #include "VertexBuffer.h"
+#include "VertexArray.h"
+#include "Material.h"
 
-class Mesh;
-
-struct VertexInfo
+namespace Cyan
 {
-    float* vertexData;
-    uint32_t vertexSize;
-};
+    struct Mesh
+    {
+        struct SubMesh
+        {
+            VertexArray* m_vertexArray;
+            u32 m_numVerts;
+            Material* m_matl;
+        };
 
-struct MeshGroup
-{
-    std::vector<Mesh*> subMeshes;
-    std::string desc;
-    glm::mat4 normalizeXform;
-};
+        std::string m_name;
+        glm::mat4 m_normalization;
+        std::vector<SubMesh*> m_subMeshes;
 
-// TODO: Make Mesh owns all the related vertex buffer objects
-class Mesh 
-{
-public:
-    Mesh();
-    void initVertexAttributes();
-    unsigned int getNumVerts() { return mNumVerts; };
-    void setNumVerts(int vertCount) { mNumVerts = vertCount; }
-    VertexBuffer* getVertexBuffer() { return mVertexBuffer; }
-    void setVertexBuffer(VertexBuffer* vb) { mVertexBuffer = vb; }
-    GLuint getVertexArray() { return mVao; };
-
-    uint8_t activeAttrib;
-    uint8_t mAttribFlag;
-
-    unsigned int mNumVerts;
-    unsigned int mIbo;
-    unsigned int mVao;
-    VertexInfo vertexInfo;
-
-private:
-    unsigned int computeVertexSize();
-private:
-    // All attributes are packed in one vertex buffer for now
-    VertexBuffer* mVertexBuffer;
-};
-
-class MeshManager
-{
-public:
-    static void pushSubMesh(MeshGroup* meshGroup, Mesh* mesh);
-};
+        void setMaterial(u32 _idx, Material* _matl);
+    };
+}
 
 extern float cubeVertices[108];
