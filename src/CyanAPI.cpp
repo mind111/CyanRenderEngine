@@ -68,7 +68,7 @@ namespace Cyan
         }
     };
 
-    static const int kMaxUniforms = 256;
+    static const int kMaxNumUniforms = 256;
 
     // TODO: Where do these live in memory...?
     static std::vector<Texture*> s_textures;
@@ -79,7 +79,7 @@ namespace Cyan
     static LinearAllocator* s_allocator = nullptr;
     static std::unordered_map<std::string, u32> s_uniformHashTable;
     static HandleAllocator s_handleAllocator;
-    static void* m_uniforms[kMaxUniforms];
+    static void* m_uniforms[kMaxNumUniforms];
 
     void init()
     {
@@ -656,19 +656,13 @@ namespace Cyan
         return 0;
     }
 
-
-    Shader* createShader(const char* vertSrc, const char* fragSrc);
-
-    // TODO: Do we need to cache uniforms and materials?
     Uniform* createUniform(const char* _name, Uniform::Type _type)
     {
-        // Uniform* uniform = (Uniform*)s_allocator->alloc(sizeof(Uniform));
-        Uniform* uniform = new Uniform;
+        Uniform* uniform = (Uniform*)s_allocator->alloc(sizeof(Uniform));
         uniform->m_type = _type;
-        uniform->m_name = _name;
+        strcpy(uniform->m_name, _name);
         u32 size = uniform->getSize();
-        uniform->m_valuePtr = (void*)new char[size];
-        // uniform->m_valuePtr = s_allocator->alloc(size);
+        uniform->m_valuePtr = s_allocator->alloc(size);
         memset((u8*)uniform->m_valuePtr, 0x0, size);
         return uniform;
     }

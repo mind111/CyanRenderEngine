@@ -32,11 +32,9 @@ namespace Cyan
 
         std::string m_name;
         void* m_data;
-
         ColorFormat m_format;
         Filter m_filter;
         Type m_type;
-
         u32 m_width;
         u32 m_height;
         GLuint m_id;

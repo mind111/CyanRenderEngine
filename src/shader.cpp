@@ -87,7 +87,7 @@ void Shader::bindUniform(Uniform* _uniform)
 
 void Shader::setUniform(Uniform* _uniform)
 {
-    const char* name = _uniform->m_name.c_str();
+    const char* name = _uniform->m_name;
     switch (_uniform->m_type)
     {
         case Uniform::Type::u_float:
@@ -119,12 +119,12 @@ void Shader::setUniform(Uniform* _uniform)
 
 void Shader::setUniform(Uniform* _uniform, i32 _value)
 {
-    setUniform1i(_uniform->m_name.c_str(), _value);
+    setUniform1i(_uniform->m_name, _value);
 }
 
 void Shader::setUniform(Uniform* _uniform, f32 _value)
 {
-    setUniform1i(_uniform->m_name.c_str(), _value);
+    setUniform1i(_uniform->m_name, _value);
 }
 
 void Shader::setUniform1i(const char* name, GLint data) {

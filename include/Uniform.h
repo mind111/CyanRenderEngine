@@ -2,6 +2,7 @@
 
 #include "Common.h"
 
+const int kMaxUniformNameLen = 64;
 struct Uniform
 {
     enum Type
@@ -19,6 +20,6 @@ struct Uniform
     u32 getSize();
 
     Type m_type;
-    std::string m_name;
+    char m_name[kMaxUniformNameLen];
     void* m_valuePtr;
 };

@@ -13,7 +13,7 @@ namespace Cyan
             Uniform* result = nullptr;
             for (Uniform* uniform : m_uniforms)
             {
-                if (strcmp(uniform->m_name.c_str(),  _samplerName) == 0)
+                if (strcmp(uniform->m_name, _samplerName) == 0)
                 {
                     return uniform;
                 }
