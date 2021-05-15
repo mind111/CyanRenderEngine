@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <map>
 
 #include "Uniform.h"
 #include "Shader.h"
@@ -8,13 +9,14 @@
 
 namespace Cyan
 {
+    struct TextureBinding
+    {
+        Uniform* m_sampler;
+        Texture* m_tex;
+    };
+
     struct Material
     {
-        struct TextureBinding
-        {
-            Uniform* m_sampler;
-            Texture* m_tex;
-        };
 
         void bindUniform(Uniform* _uniform);
         void addTexture(const char* samplerName, Texture* _tex);
@@ -33,7 +35,7 @@ namespace Cyan
             Texture* m_tex;
         };
 
-        void bindTexture() { }; 
+        void bindTexture() { };
 
         Material* parent;
         std::vector<TextureBinding> m_bindings;

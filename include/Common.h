@@ -6,12 +6,13 @@
 #include <string>
 #include "intrin.h"
 
-#define ASSERT(expr) \
-    if (!(expr)) { \
-        __debugbreak(); \
+#define CYAN_ASSERT(expr, ...) \
+    if (!(expr)) {             \
+        printf(__VA_ARGS__);   \
+        __debugbreak();        \
     }
 
-#define ARRAY_COUNT(arr) \
+#define ARRAY_COUNT(arr)       \
     sizeof(arr) / sizeof(arr[0])
 
 // TODO: Is this macro safe ...?

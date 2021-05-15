@@ -213,7 +213,7 @@ void PbrApp::run()
 template <typename T>
 u32 sizeofVector(const std::vector<T>& vec)
 {
-    ASSERT(vec.size() > 0);
+    CYAN_ASSERT(vec.size() > 0, "empty vector");
     return sizeof(vec[0]) * (u32)vec.size();
 }
 

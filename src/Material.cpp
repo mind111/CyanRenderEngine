@@ -18,7 +18,7 @@ namespace Cyan
                     return uniform;
                 }
             }
-            ASSERT(0) // Should not reach
+            CYAN_ASSERT(0, "should not reach") // Should not reach
             return result;
         };
         Uniform* sampler = findSampler(); 

@@ -54,21 +54,17 @@ namespace Cyan
     {
         u32 m_nextHandle;
         u32 m_numAllocated;
-        std::stack<u32> m_recycled;
 
         u32 alloc()
         {
-            if (m_recycled.empty())
-            {
-                return m_nextHandle;
-            }
-            u32 handle = m_recycled.top();
-            m_recycled.pop();
+            u32 handle = m_nextHandle;
+            m_nextHandle += 1;
+            m_numAllocated += 1;
             return handle;
         }
     };
 
-    static const int kMaxNumUniforms = 256;
+    static const u32 kMaxNumUniforms = 256;
 
     // TODO: Where do these live in memory...?
     static std::vector<Texture*> s_textures;
@@ -78,17 +74,24 @@ namespace Cyan
     static void* s_memory = nullptr;
     static LinearAllocator* s_allocator = nullptr;
     static std::unordered_map<std::string, u32> s_uniformHashTable;
-    static HandleAllocator s_handleAllocator;
-    static void* m_uniforms[kMaxNumUniforms];
+    static HandleAllocator s_handleAllocator = { };
+    static Uniform* m_uniforms[kMaxNumUniforms];
+
+    static u32 m_numUniforms = 0;
 
     void init()
     {
-        ASSERT(!s_gfxc);
+        CYAN_ASSERT(!s_gfxc, "Graphics context was already initialized");
         // Create global graphics context
         s_gfxc = new GfxContext;
         s_gfxc->init();
         s_memory = (void*)(new char[1024 * 1024 * 1024]); // 1GB memory pool
         s_allocator = LinearAllocator::create(s_memory, 1024 * 1024 * 1024);
+    }
+
+    u32 allocHandle()
+    {
+        return s_handleAllocator.alloc();
     }
 
     void shutDown()
@@ -98,7 +101,7 @@ namespace Cyan
 
     GfxContext* getCurrentGfxCtx()
     {
-        ASSERT(s_gfxc);
+        CYAN_ASSERT(s_gfxc, "Graphics context was not initialized!");
         return s_gfxc;
     }
 
@@ -110,7 +113,6 @@ namespace Cyan
         buffer->m_data = nullptr;
 
         GLuint blockIndex = glGetProgramResourceIndex(_shader->m_programId, GL_SHADER_STORAGE_BLOCK, buffer->m_name);
-        //ASSERT(blockIndex != GL_INVALID_INDEX);
         glShaderStorageBlockBinding(_shader->m_programId, blockIndex, _binding);
         glCreateBuffers(1, &buffer->m_ssbo);
         _shader->bind();
@@ -125,10 +127,8 @@ namespace Cyan
 
     VertexBuffer* createVertexBuffer(void* _data, u32 _sizeInBytes, u32 _strideInBytes, u32 _numVerts)
     {
-        ASSERT(_sizeInBytes == _strideInBytes * _numVerts)
-
+        CYAN_ASSERT(_sizeInBytes == _strideInBytes * _numVerts, "wrong size in bytes")
         VertexBuffer* vb = new VertexBuffer;
-
         u32 offset = 0;
         vb->m_data = _data;
         vb->m_strideInBytes = _strideInBytes;
@@ -652,18 +652,30 @@ namespace Cyan
                 return texture;
             }
         }
-        ASSERT(0) // Unreachable
+        CYAN_ASSERT(0, "should not reach!") // Unreachable
         return 0;
     }
 
     Uniform* createUniform(const char* _name, Uniform::Type _type)
     {
-        Uniform* uniform = (Uniform*)s_allocator->alloc(sizeof(Uniform));
+        std::string key(_name); 
+        auto itr = s_uniformHashTable.find(key);
+        if (itr != s_uniformHashTable.end())
+        {
+            u32 handle = itr->second; 
+            return m_uniforms[handle]; 
+        }
+        u32 handle = allocHandle();
+        m_uniforms[handle] = (Uniform*)s_allocator->alloc(sizeof(Uniform)); 
+        Uniform* uniform = m_uniforms[handle];
         uniform->m_type = _type;
         strcpy(uniform->m_name, _name);
         u32 size = uniform->getSize();
         uniform->m_valuePtr = s_allocator->alloc(size);
         memset((u8*)uniform->m_valuePtr, 0x0, size);
+        s_uniformHashTable.insert(std::pair<std::string,u32>(key, handle));
+        m_numUniforms += 1;
+        CYAN_ASSERT(m_numUniforms <= kMaxNumUniforms, "Too many uniforms created");
         return uniform;
     }
 
@@ -699,14 +711,14 @@ namespace Cyan
     void setUniform(Uniform* _uniform, u32 _value)
     {
         // int type in glsl is 32bits
-        ASSERT(_uniform->m_type == Uniform::Type::u_int)
+        CYAN_ASSERT(_uniform->m_type == Uniform::Type::u_int, "mismatced uniform type, expecting unsigned int")
         u32* ptr = static_cast<u32*>(_uniform->m_valuePtr); 
         *(u32*)(_uniform->m_valuePtr) = _value;
     }
 
     void setUniform(Uniform* _uniform, float _value)
     {
-        ASSERT(_uniform->m_type == Uniform::Type::u_float)
+        CYAN_ASSERT(_uniform->m_type == Uniform::Type::u_float, "mismatched uniform type, expecting float")
         *(f32*)(_uniform->m_valuePtr) = _value;
     }
 
@@ -803,11 +815,9 @@ namespace Cyan
                 equirectMap = createTexture(_name, _file);
                 envmap = createTexture(_name, kViewportWidth, kViewportHeight, Texture::ColorFormat::R8G8B8, Texture::Type::TEX_CUBEMAP);
             }
-
             // Create render targets
             RenderTarget* rt = createRenderTarget(kViewportWidth, kViewportHeight);
             rt->attachColorBuffer(envmap);
-
             // Create shaders and uniforms
             Shader* shader = Cyan::createShader("../../shader/shader_gen_cubemap.vs", "../../shader/shader_gen_cubemap.fs");
             Uniform* u_projection = Cyan::createUniform("projection", Uniform::Type::u_mat4);
@@ -824,7 +834,6 @@ namespace Cyan
                 {0.f, 0.f, 1.f},   // Front
                 {0.f, 0.f, -1.f},  // Back
             }; 
-
             // TODO: (Min): Need to figure out why we need to flip the y-axis 
             // I thought they should just be vec3(0.f, 1.f, 0.f)
             // Referrence: https://www.khronos.org/opengl/wiki/Cubemap_Texture
@@ -836,16 +845,13 @@ namespace Cyan
                 {0.f, -1.f, 0.f},   // Forward
                 {0.f, -1.f, 0.f},   // Back
             };
-
             Mesh* cubeMesh = Cyan::getMesh("cubemapMesh");
             if (!cubeMesh)
             {
                 cubeMesh = Cyan::Toolkit::createCubeMesh("cubemapMesh");
             }
-
             // Cache viewport config
             glm::vec4 origViewport = s_gfxc->m_viewport;
-
             for (u32 f = 0; f < 6u; f++)
             {
                 // Update view matrix

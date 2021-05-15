@@ -17,9 +17,13 @@
 #include "GfxContext.h"
 
 /* TODO: 
+* implement handle system, every object can be identified using a handle
 * centralize uniform memory
 * implement a uniform cache to avoid calling glUniform() on uniforms that has not changed
 * implement DrawCall and Frame struct
+* memory usage visualization
+* refactor shader uniforms, only material should keep reference to uniforms
+* implement shader resource query to get rid of manual call to matl->bindUniform()
 */
 namespace Cyan
 {
@@ -47,7 +51,7 @@ namespace Cyan
 
         void* alloc(u32 sizeInBytes) 
         {
-            ASSERT(m_pos + sizeInBytes < m_size)
+            CYAN_ASSERT(m_pos + sizeInBytes < m_size, "out of memory")
             void* address = (void*)(static_cast<u8*>(m_data) + m_pos);
             m_pos += sizeInBytes;
             return address;
@@ -62,7 +66,10 @@ namespace Cyan
         kTangents = (1 << 3)
     };
 
+
     void init();
+
+    u32 allocHandle();
 
     /* Getter */
     GfxContext* getCurrentGfxCtx();

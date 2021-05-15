@@ -3,6 +3,12 @@
 #include "Common.h"
 
 const int kMaxUniformNameLen = 64;
+
+struct UniformHandle
+{
+    u32 m_id;
+};
+
 struct Uniform
 {
     enum Type
@@ -22,4 +28,15 @@ struct Uniform
     Type m_type;
     char m_name[kMaxUniformNameLen];
     void* m_valuePtr;
+};
+
+struct UniformBuffer
+{
+    enum Enum
+    {
+
+    };
+
+    u32 m_pos;
+    u32 m_size;
 };
