@@ -220,14 +220,6 @@ u32 sizeofVector(const std::vector<T>& vec)
 void PbrApp::update()
 {
     gEngine->processInput();
-    Camera& camera = m_scenes[currentScene]->mainCamera;
-    CameraManager::updateCamera(camera);
-    Cyan::setUniform(u_numPointLights, (u32)m_scenes[currentScene]->pLights.size());
-    Cyan::setUniform(u_numDirLights, (u32)m_scenes[currentScene]->dLights.size());
-    Cyan::setUniform(u_cameraView, (void*)&camera.view[0]);
-    Cyan::setUniform(u_cameraProjection, (void*)&camera.projection[0]);
-    Cyan::setBuffer(m_pointLightsBuffer, m_scenes[currentScene]->pLights.data(), sizeofVector(m_scenes[currentScene]->pLights));
-    Cyan::setBuffer(m_dirLightsBuffer, m_scenes[currentScene]->dLights.data(), sizeofVector(m_scenes[currentScene]->dLights));
 }
 
 void PbrApp::render()
@@ -300,6 +292,14 @@ void PbrApp::render()
 //     Cyan::getMesh("cubemapMesh")->setMaterial(0, m_envmapMatl);
 //     s_gfxc->reset();
 // }
+    Camera& camera = m_scenes[currentScene]->mainCamera;
+    CameraManager::updateCamera(camera);
+    Cyan::setUniform(u_numPointLights, (u32)m_scenes[currentScene]->pLights.size());
+    Cyan::setUniform(u_numDirLights, (u32)m_scenes[currentScene]->dLights.size());
+    Cyan::setUniform(u_cameraView, (void*)&camera.view[0]);
+    Cyan::setUniform(u_cameraProjection, (void*)&camera.projection[0]);
+    Cyan::setBuffer(m_pointLightsBuffer, m_scenes[currentScene]->pLights.data(), sizeofVector(m_scenes[currentScene]->pLights));
+    Cyan::setBuffer(m_dirLightsBuffer, m_scenes[currentScene]->dLights.data(), sizeofVector(m_scenes[currentScene]->dLights));
 
     Cyan::Renderer* renderer = gEngine->getRenderer();
     // draw entities in the scene

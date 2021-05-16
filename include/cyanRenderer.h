@@ -23,6 +23,8 @@ namespace Cyan
     {
         u32 m_index;
         Mesh* m_mesh;
+        u32 m_uniformBegin;
+        u32 m_uniformEnd;
         glm::mat4 m_modelTransform;
     };
 

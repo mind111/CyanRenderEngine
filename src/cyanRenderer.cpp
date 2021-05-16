@@ -82,11 +82,20 @@ namespace Cyan
         }
     }
 
+    // TODO:
     void Renderer::submitMesh(Mesh* mesh, glm::mat4 modelTransform)
     {
         for (u32 index = 0; index < mesh->m_subMeshes.size(); ++index)
         {
             DrawCall draw = {};
+            // draw.m_uniformBegin = m_frame->m_uniformBuffer.m_pos;
+            // MaterialInstance* material = mesh->m_subMeshes[index]->m_matl;
+            // for ( : material)
+            // {
+            //     Cyan::setUniform();
+            // }
+            // draw.m_uniformEnd = m_frame->m_uniformBuffer.m_pos;
+
             draw.m_mesh = mesh;
             draw.m_index = index;
             draw.m_modelTransform = modelTransform;
@@ -173,10 +182,6 @@ namespace Cyan
 
     void Renderer::render(Scene* scene)
     {
-        /* 
-            Rendering passes
-        */
-
         //
         // Draw all the entities
         for (auto entity : scene->entities)

@@ -76,6 +76,7 @@ namespace Cyan
     static std::unordered_map<std::string, u32> s_uniformHashTable;
     static HandleAllocator s_handleAllocator = { };
     static Uniform* m_uniforms[kMaxNumUniforms];
+    static UniformBuffer* m_uniformBuffer = nullptr;
 
     static u32 m_numUniforms = 0;
 
@@ -87,6 +88,7 @@ namespace Cyan
         s_gfxc->init();
         s_memory = (void*)(new char[1024 * 1024 * 1024]); // 1GB memory pool
         s_allocator = LinearAllocator::create(s_memory, 1024 * 1024 * 1024);
+        m_uniformBuffer = createUniformBuffer();
     }
 
     u32 allocHandle()
@@ -679,6 +681,15 @@ namespace Cyan
         return uniform;
     }
 
+    UniformBuffer* createUniformBuffer(u32 sizeInBytes)
+    {
+        UniformBuffer* buffer = (UniformBuffer*)s_allocator->alloc(sizeof(UniformBuffer));
+        buffer->m_size = sizeInBytes;
+        buffer->m_pos = 0;
+        buffer->m_data = s_allocator->alloc(sizeInBytes);
+        return buffer;
+    }
+
     Uniform* createShaderUniform(Shader* _shader, const char* _name, Uniform::Type _type)
     {
         Uniform* uniform = createUniform(_name, _type);
@@ -700,24 +711,53 @@ namespace Cyan
         return material;
     }
 
+    #define CYAN_CHECK_UNIFORM(uniform)                                                          \
+        std::string key(uniform->m_name);                                                        \
+        auto itr = s_uniformHashTable.find(key);                                                 \
+        CYAN_ASSERT(itr != s_uniformHashTable.end(), "Cannot find uniform %s", uniform->m_name); \
+
     // Notes(Min): for variables that are allocated from stack, we need to call ctx->setUniform
     //             before the variable goes out of scope
     void setUniform(Uniform* _uniform, void* _valuePtr)
     {
+        CYAN_CHECK_UNIFORM(_uniform)
+
         u32 size = _uniform->getSize();
+        u32 handle = itr->second; 
+        // // write uniform handle
+        // m_uniformBuffer->write((void*)&handle, sizeof(u32));
+        // // write data
+        // m_uniformBuffer->write(_valuePtr, size);
+
         memcpy(_uniform->m_valuePtr, _valuePtr, size);
     }
 
     void setUniform(Uniform* _uniform, u32 _value)
     {
+        CYAN_CHECK_UNIFORM(_uniform)
+
+        u32 handle = itr->second; 
         // int type in glsl is 32bits
         CYAN_ASSERT(_uniform->m_type == Uniform::Type::u_int, "mismatced uniform type, expecting unsigned int")
+        // // write uniform handle
+        // m_uniformBuffer->write(handle);
+        // // write data 
+        // m_uniformBuffer->write((void*)&_value, sizeof(u32));
+
         u32* ptr = static_cast<u32*>(_uniform->m_valuePtr); 
         *(u32*)(_uniform->m_valuePtr) = _value;
     }
 
     void setUniform(Uniform* _uniform, float _value)
     {
+        CYAN_CHECK_UNIFORM(_uniform)
+
+        u32 handle = itr->second; 
+        // // write uniform handle
+        // m_uniformBuffer->write(handle);
+        // // write data 
+        // m_uniformBuffer->write((void*)&_value, sizeof(f32));
+
         CYAN_ASSERT(_uniform->m_type == Uniform::Type::u_float, "mismatched uniform type, expecting float")
         *(f32*)(_uniform->m_valuePtr) = _value;
     }

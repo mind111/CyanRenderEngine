@@ -17,8 +17,11 @@
 #include "GfxContext.h"
 
 /* TODO: 
+* implement MaterialInstance class
+* remove the concept of shader uniform
+* shader resource interface query
+
 * implement handle system, every object can be identified using a handle
-* centralize uniform memory
 * implement a uniform cache to avoid calling glUniform() on uniforms that has not changed
 * implement DrawCall and Frame struct
 * memory usage visualization
@@ -96,6 +99,7 @@ namespace Cyan
 
     /* Uniform */
     Uniform* createUniform(const char* _name, Uniform::Type _type);
+    UniformBuffer* createUniformBuffer(u32 sizeInBytes=1024);
     void setUniform(Uniform* _uniform, void* _valuePtr);
     void setUniform(Uniform* _uniform, u32 _value);
     void setUniform(Uniform* _uniform, float _value);
