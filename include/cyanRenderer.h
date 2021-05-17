@@ -52,5 +52,7 @@ namespace Cyan
         Frame* m_frame;
         // Per entity xform uniform
         Uniform* u_model; 
+        Uniform* u_cameraView;
+        Uniform* u_cameraProjection;
     };
 }

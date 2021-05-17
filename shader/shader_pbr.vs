@@ -10,21 +10,17 @@ out vec3 t;
 out vec2 uv;
 out vec3 fragmentPos;
 
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
+uniform mat4 s_model;
+uniform mat4 s_view;
+uniform mat4 s_projection;
 
 void main() {
-    fragmentPos = (view * model * vec4(vertexPos, 1.f)).xyz; 
-    gl_Position = projection * view * model * vec4(vertexPos, 1.0f);
-
-    mat4 normalXform = transpose(inverse(view * model)); 
-
+    fragmentPos = (s_view * s_model * vec4(vertexPos, 1.f)).xyz; 
+    gl_Position = s_projection * s_view * s_model * vec4(vertexPos, 1.0f);
+    mat4 normalTransform = transpose(inverse(s_view * s_model)); 
     // Transform normals to camera space
-    n = (normalXform * vec4(vertexNormal, 0.f)).xyz;
-
+    n = (normalTransform * vec4(vertexNormal, 0.f)).xyz;
     // Transform tangents to camera space
-    t = (view * model * vec4(vertexTangent, 0.f)).xyz;
-
+    t = (s_view * s_model * vec4(vertexTangent, 0.f)).xyz;
     uv = textureUv;
 }

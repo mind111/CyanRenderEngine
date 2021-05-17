@@ -704,10 +704,66 @@ namespace Cyan
         return uniform;
     }
 
+    Uniform::Type glToCyanType(GLenum glType)
+    {
+        switch (glType)
+        {
+            case GL_SAMPLER_2D:
+                return Uniform::Type::u_sampler2D;
+            case GL_SAMPLER_CUBE:
+                return Uniform::Type::u_samplerCube;
+            case GL_UNSIGNED_INT:
+                return Uniform::Type::u_uint;
+            case GL_INT:
+                return Uniform::Type::u_int;
+            case GL_FLOAT:
+                return Uniform::Type::u_float;
+            case GL_FLOAT_MAT4:
+                return Uniform::Type::u_mat4;
+            case GL_FLOAT_VEC3:
+                return Uniform::Type::u_vec3;
+            case GL_FLOAT_VEC4:
+                return Uniform::Type::u_vec4;
+            default:
+                printf("[ERROR]: Unhandled GL type when converting GL types to Cyan types \n");
+                return Uniform::Type::u_undefined;
+        }
+    }
+
     Material* createMaterial(Shader* _shader)
     {
         Material* material = new Material;
         material->m_shader = _shader;
+        GLuint programId = material->m_shader->m_programId;
+        GLsizei numActiveUniforms;
+        glGetProgramiv(programId, GL_ACTIVE_UNIFORMS, &numActiveUniforms);
+        GLint nameMaxLen;
+        glGetProgramiv(programId, GL_ACTIVE_UNIFORM_MAX_LENGTH, &nameMaxLen);
+        char* name = (char*)_malloca(nameMaxLen + 1);
+        GLenum type;
+        GLint num;
+        for (u32 i = 0; i < numActiveUniforms; ++i)
+        {
+            glGetActiveUniform(programId, i, nameMaxLen, nullptr, &num, &type, name);
+            if (nameMaxLen > 2 && name[0] == 's' && name[1] == '_')
+            {
+                // predefined uniforms such as model, view, projection
+                continue;
+            }
+            for (u32 ii = 0; ii < num; ++ii)
+            {
+                // change the name for each array entry
+                if (ii > 0)
+                {
+                    char* token = strtok(name, "[");
+                    char suffix[5] = "[%u]";
+                    char* format = strcat(token, suffix);
+                    sprintf(name, format, ii);
+                }
+                Uniform::Type cyanType = glToCyanType(type);
+                createMaterialUniform(material, name, cyanType);
+            }
+        }
         return material;
     }
 

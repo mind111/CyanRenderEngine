@@ -40,7 +40,9 @@ namespace Cyan
     void Renderer::init()
     {
         Cyan::init();
-        u_model = createUniform("model", Uniform::Type::u_mat4);
+        u_model = createUniform("s_model", Uniform::Type::u_mat4);
+        u_cameraView = createUniform("s_view", Uniform::Type::u_mat4);
+        u_cameraProjection = createUniform("s_projection", Uniform::Type::u_mat4);
         m_frame = new Frame;
     }
 
@@ -52,6 +54,8 @@ namespace Cyan
             Material* matl = subMesh->m_matl; 
             Shader* shader = matl->m_shader;
             ctx->setShader(matl->m_shader);
+            ctx->setUniform(u_cameraView);
+            ctx->setUniform(u_cameraProjection);
             for (auto uniform : shader->m_uniforms)
             {
                 ctx->setUniform(uniform);

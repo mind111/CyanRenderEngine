@@ -89,36 +89,18 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight)
     // init shaders
     m_pbrShader = Cyan::createShader("../../shader/shader_pbr.vs" , "../../shader/shader_pbr.fs");
     // create uniforms
-    // TODO: automate creating shader uniforms and material uniforms 
-    u_numPointLights = Cyan::createShaderUniform(m_pbrShader, "numPointLights", Uniform::Type::u_int);
-    u_numDirLights = Cyan::createShaderUniform(m_pbrShader, "numDirLights", Uniform::Type::u_int);
-    u_kDiffuse = Cyan::createShaderUniform(m_pbrShader, "kDiffuse", Uniform::Type::u_float);
-    u_kSpecular = Cyan::createShaderUniform(m_pbrShader, "kSpecular", Uniform::Type::u_float);
-    u_cameraProjection = Cyan::createShaderUniform(m_pbrShader, "projection", Uniform::Type::u_mat4);
-    u_cameraView = Cyan::createShaderUniform(m_pbrShader, "view", Uniform::Type::u_mat4);
-    u_hasNormalMap = Cyan::createShaderUniform(m_pbrShader, "hasNormalMap", Uniform::Type::u_float); 
-    u_hasAoMap = Cyan::createShaderUniform(m_pbrShader, "hasAoMap", Uniform::Type::u_float); 
-    Cyan::setUniform(u_hasNormalMap, 1.f);
-    Cyan::setUniform(u_hasAoMap, 1.f);
+    u_numPointLights = Cyan::createUniform("numPointLights", Uniform::Type::u_int);
+    u_numDirLights = Cyan::createUniform("numDirLights", Uniform::Type::u_int);
+    u_kDiffuse = Cyan::createUniform("kDiffuse", Uniform::Type::u_float);
+    u_kSpecular = Cyan::createUniform("kSpecular", Uniform::Type::u_float);
+    u_cameraProjection = Cyan::createUniform("s_projection", Uniform::Type::u_mat4);
+    u_cameraView = Cyan::createUniform("s_view", Uniform::Type::u_mat4);
+    u_hasNormalMap = Cyan::createUniform("hasNormalMap", Uniform::Type::u_float); 
+    u_hasAoMap = Cyan::createUniform("hasAoMap", Uniform::Type::u_float); 
     m_dirLightsBuffer = Cyan::createRegularBuffer("dirLightsData", m_pbrShader, 1, sizeof(DirectionalLight) * 10);
     m_pointLightsBuffer = Cyan::createRegularBuffer("pointLightsData", m_pbrShader, 2, sizeof(PointLight) * 10);
     // init materials
     m_helmetMatl = Cyan::createMaterial(m_pbrShader);
-    for (int i = 0; i < 6; i++)
-    {
-        char samplerName[64];
-        std::sprintf(samplerName, "diffuseMaps[%d]", i);
-        Cyan::createMaterialUniform(m_helmetMatl, samplerName, Uniform::Type::u_sampler2D);
-    }
-    for (int i = 0; i < 2; i++)
-    {
-        char samplerName[64];
-        std::sprintf(samplerName, "emissionMaps[%d]", i);
-        Cyan::createMaterialUniform(m_helmetMatl, samplerName, Uniform::Type::u_sampler2D);
-    }
-    Cyan::createMaterialUniform(m_helmetMatl, "normalMap", Uniform::Type::u_sampler2D);
-    Cyan::createMaterialUniform(m_helmetMatl, "roughnessMap", Uniform::Type::u_sampler2D);
-    Cyan::createMaterialUniform(m_helmetMatl, "aoMap", Uniform::Type::u_sampler2D);
     m_helmetMatl->addTexture("diffuseMaps[0]", Cyan::getTexture("helmet_diffuse"));
     m_helmetMatl->addTexture("normalMap", Cyan::getTexture("helmet_nm"));
     m_helmetMatl->addTexture("roughnessMap", Cyan::getTexture("helmet_roughness"));
@@ -161,6 +143,8 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight)
 
     Cyan::setUniform(u_kDiffuse, 1.0f);
     Cyan::setUniform(u_kSpecular, 1.0f);
+    Cyan::setUniform(u_hasNormalMap, 1.f);
+    Cyan::setUniform(u_hasAoMap, 1.f);
 
     Cyan::getCurrentGfxCtx()->setClearColor(glm::vec4(0.2f, 0.2f, 0.2f, 1.f));
 }

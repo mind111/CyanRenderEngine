@@ -7,7 +7,7 @@ in vec3 fragmentPos;
 
 out vec4 fragColor;
 //- transforms
-uniform mat4 view;
+uniform mat4 s_view;
 //- misc
 uniform float kDiffuse;
 uniform float kSpecular;
@@ -215,7 +215,7 @@ void main()
     vec3 color = vec3(0.f);
     for (int i = 0; i < numPointLights; i++)
     {
-        vec4 pos = view * pointLightsBuffer.lights[i].position;
+        vec4 pos = s_view * pointLightsBuffer.lights[i].position;
         vec3 ld = normalize(pos.xyz - fragmentPos);
         vec3 lc = gammaCorrection(pointLightsBuffer.lights[i].color.rgb);
         float li = pointLightsBuffer.lights[i].color.w;
@@ -224,7 +224,7 @@ void main()
 
     for (int i = 0; i < numDirLights; i++)
     {
-        vec4 dir = view * dirLightsBuffer.lights[i].direction;
+        vec4 dir = s_view * dirLightsBuffer.lights[i].direction;
         vec3 ld = normalize(-dir.xyz);
         vec3 lc = dirLightsBuffer.lights[i].color.rgb;
         float li = dirLightsBuffer.lights[i].color.w;

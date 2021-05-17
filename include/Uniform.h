@@ -10,6 +10,7 @@ struct Uniform
     {
         u_float = 0,
         u_int,
+        u_uint,
         u_vec3,
         u_vec4,
         u_mat4,

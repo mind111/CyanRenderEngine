@@ -18,6 +18,7 @@
 
 /* TODO: 
 * implement MaterialInstance class
+* implement a simple logger
 * remove the concept of shader uniform
 * shader resource interface query
 

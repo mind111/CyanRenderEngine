@@ -29,6 +29,7 @@ namespace Cyan
         std::vector<Uniform*> m_uniforms;
         Uniform* m_samplers[CYAN_MAX_SAMPLER];
         std::vector<TextureBinding> m_bindings;
+        u32 m_bufferSize;
     };
 
     // TODO: impl this ...?
