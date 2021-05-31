@@ -91,6 +91,11 @@ namespace Cyan
         m_uniformBuffer = createUniformBuffer();
     }
 
+    void* alloc(u32 sizeInBytes)
+    {
+        return s_allocator->alloc(sizeInBytes);
+    }
+
     u32 allocHandle()
     {
         return s_handleAllocator.alloc();
@@ -681,6 +686,27 @@ namespace Cyan
         return uniform;
     }
 
+    UniformHandle getUniformHandle(const char* name)
+    {
+        std::string key(name);
+        auto itr = s_uniformHashTable.find(key);
+        if (itr != s_uniformHashTable.end())
+        {
+            return itr->second;
+        }
+        else
+        {
+            printf("[ERROR] Unknown uniform with name %s", name);
+        }
+        return (UniformHandle)-1;
+    }
+
+    Uniform* getUniform(UniformHandle handle)
+    {
+        CYAN_ASSERT(handle < kMaxNumUniforms, "Uniform handle %u out of bound", handle)
+        return m_uniforms[handle];
+    }
+
     UniformBuffer* createUniformBuffer(u32 sizeInBytes)
     {
         UniformBuffer* buffer = (UniformBuffer*)s_allocator->alloc(sizeof(UniformBuffer));
@@ -734,6 +760,8 @@ namespace Cyan
     {
         Material* material = new Material;
         material->m_shader = _shader;
+        material->m_bufferSize = 0; // at least need to contain UniformBuffer::End
+        material->m_numSamplers = 0;
         GLuint programId = material->m_shader->m_programId;
         GLsizei numActiveUniforms;
         glGetProgramiv(programId, GL_ACTIVE_UNIFORMS, &numActiveUniforms);
@@ -761,9 +789,19 @@ namespace Cyan
                     sprintf(name, format, ii);
                 }
                 Uniform::Type cyanType = glToCyanType(type);
-                createMaterialUniform(material, name, cyanType);
+                switch (cyanType)
+                {
+                    case Uniform::Type::u_sampler2D:
+                    case Uniform::Type::u_samplerCube:
+                        material->bindSampler(createUniform(name, cyanType));
+                        break;
+                    default:
+                        createMaterialUniform(material, name, cyanType);
+                        break;
+                }
             }
         }
+        material->finalize();
         return material;
     }
 
@@ -895,7 +933,6 @@ namespace Cyan
         {
             const u32 kViewportWidth = 1024;
             const u32 kViewportHeight = 1024;
-
             Camera camera = { };
             camera.position = glm::vec3(0.f);
             camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
@@ -957,7 +994,6 @@ namespace Cyan
                 // Update uniform
                 setUniform(u_projection, &camera.projection);
                 setUniform(u_view, &camera.view);
-
                 s_gfxc->setDepthControl(DepthControl::kDisable);
                 s_gfxc->setRenderTarget(rt, (1 << f));
                 // Since we are rendering to a framebuffer, we need to configure the viewport 
@@ -984,11 +1020,9 @@ namespace Cyan
         {
             const u32 kViewportWidth = 1024;
             const u32 kViewportHeight = 1024;
-
             Camera camera = { };
             camera.position = glm::vec3(0.f);
             camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
-
             // Create textures
             Texture* diffuseIrradianceMap;
             if (_hdr)
@@ -999,20 +1033,17 @@ namespace Cyan
             {
                 diffuseIrradianceMap = createTexture(_name, kViewportWidth, kViewportHeight, Texture::ColorFormat::R8G8B8, Texture::Type::TEX_CUBEMAP);
             }
-
             // Create render targets
             RenderTarget* rt = createRenderTarget(kViewportWidth, kViewportHeight);
             rt->attachColorBuffer(diffuseIrradianceMap);
-
             // Create shaders and uniforms
             Shader* shader = Cyan::createShader("../../shader/shader_diff_irradiance.vs", "../../shader/shader_diff_irradiance.fs");
             Uniform* u_projection = Cyan::createUniform("projection", Uniform::Type::u_mat4);
             Uniform* u_view = Cyan::createUniform("view", Uniform::Type::u_mat4);
-            Uniform* u_envmapSampler = Cyan::createUniform("envmapSampler", Uniform::Type::u_sampler2D);
+            Uniform* u_envmapSampler = Cyan::createUniform("envmapSampler", Uniform::Type::u_samplerCube);
             shader->bindUniform(u_projection);
             shader->bindUniform(u_view);
             shader->bindUniform(u_envmapSampler);
-
             glm::vec3 cameraTargets[] = {
                 {1.f, 0.f, 0.f},   // Right
                 {-1.f, 0.f, 0.f},  // Left
@@ -1021,7 +1052,6 @@ namespace Cyan
                 {0.f, 0.f, 1.f},   // Front
                 {0.f, 0.f, -1.f},  // Back
             }; 
-
             // TODO: (Min): Need to figure out why we need to flip the y-axis 
             // I thought they should just be vec3(0.f, 1.f, 0.f)
             // Referrence: https://www.khronos.org/opengl/wiki/Cubemap_Texture
@@ -1039,21 +1069,17 @@ namespace Cyan
             {
                 cubeMesh = Cyan::Toolkit::createCubeMesh("cubemapMesh");
             }
-
             // Cache viewport config
             glm::vec4 origViewport = s_gfxc->m_viewport;
-
             for (u32 f = 0; f < 6u; f++)
             {
                 // Update view matrix
                 camera.lookAt = cameraTargets[f];
                 camera.worldUp = worldUps[f];
                 CameraManager::updateCamera(camera);
-
                 // Update uniform
                 setUniform(u_projection, &camera.projection);
                 setUniform(u_view, &camera.view);
-
                 s_gfxc->setDepthControl(DepthControl::kDisable);
                 s_gfxc->setRenderTarget(rt, (1 << f));
                 s_gfxc->setViewport(0, 0, kViewportWidth, kViewportHeight);
@@ -1066,13 +1092,11 @@ namespace Cyan
                 s_gfxc->setVertexArray(cubeMesh->m_subMeshes[0]->m_vertexArray);
 
                 s_gfxc->drawIndex(cubeMesh->m_subMeshes[0]->m_numVerts, 0);
-                s_gfxc->reset();
             }
-
+            s_gfxc->reset();
             // Recover the viewport dimensions
             s_gfxc->setViewport(origViewport.x, origViewport.y, origViewport.z, origViewport.w);
             s_gfxc->setDepthControl(DepthControl::kEnable);
-
             return diffuseIrradianceMap;
         }
     }

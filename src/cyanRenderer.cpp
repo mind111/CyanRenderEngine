@@ -51,35 +51,40 @@ namespace Cyan
         for (auto subMesh : _mesh->m_subMeshes)
         {
             auto ctx = Cyan::getCurrentGfxCtx();
-            Material* matl = subMesh->m_matl; 
-            Shader* shader = matl->m_shader;
-            ctx->setShader(matl->m_shader);
+            MaterialInstance* matl = subMesh->m_matl; 
+            Material* matlClass = matl->m_template;
+            Shader* shader = matlClass->m_shader;
+            ctx->setShader(matlClass->m_shader);
             ctx->setUniform(u_cameraView);
             ctx->setUniform(u_cameraProjection);
-            for (auto uniform : shader->m_uniforms)
-            {
-                ctx->setUniform(uniform);
-            }
+            // for (auto uniform : shader->m_uniforms)
+            // {
+            //     ctx->setUniform(uniform);
+            // }
             for (auto buffer : shader->m_buffers)
             {
                 ctx->setBuffer(buffer);
             }
-            for (auto uniform : matl->m_uniforms)
-            {
-                ctx->setUniform(uniform);
-            }
-            u32 textureUnit = 0;
-            for (auto binding : matl->m_bindings)
-            {
-                ctx->setSampler(binding.m_sampler, textureUnit);
-                ctx->setTexture(binding.m_tex, textureUnit++);
-            }
+
+            u32 usedTextureUnits = matl->bind();
+
+            // for (auto uniform : matl->m_uniforms)
+            // {
+            //     ctx->setUniform(uniform);
+            // }
+            // u32 textureUnit = 0;
+            // for (auto binding : matl->m_bindings)
+            // {
+            //     ctx->setSampler(binding.m_sampler, textureUnit);
+            //     ctx->setTexture(binding.m_tex, textureUnit++);
+            // }
+
             ctx->setVertexArray(subMesh->m_vertexArray);
             ctx->setPrimitiveType(PrimitiveType::TriangleList);
             ctx->drawIndex(subMesh->m_numVerts);
             // NOTES: reset texture units because texture unit bindings are managed by gl context 
             // it won't change when binding different shaders
-            for (int t = 0; t < textureUnit; ++t)
+            for (u32 t = 0; t < usedTextureUnits; ++t)
             {
                 ctx->setTexture(nullptr, t);
             }
@@ -113,37 +118,31 @@ namespace Cyan
         for (auto draw : m_frame->m_renderQueue)
         {
             auto sm = draw.m_mesh->m_subMeshes[draw.m_index];
-            auto material = sm->m_matl;
-            auto shader = material->m_shader;
+            MaterialInstance* material = sm->m_matl;
+            Material* matlClass = material->m_template;
+            auto shader = matlClass->m_shader;
 
             ctx->setShader(shader);
             // TODO: This is dumb
             Cyan::setUniform(u_model, &draw.m_modelTransform[0][0]);
             ctx->setUniform(u_model);
-            for (auto uniform : shader->m_uniforms)
-            {
-                ctx->setUniform(uniform);
-            }
+            // for (auto uniform : shader->m_uniforms)
+            // {
+            //     ctx->setUniform(uniform);
+            // }
             for (auto buffer : shader->m_buffers)
             {
                 ctx->setBuffer(buffer);
             }
-            for (auto uniform : material->m_uniforms)
-            {
-                ctx->setUniform(uniform);
-            }
-            u32 textureUnit = 0;
-            for (auto binding : material->m_bindings)
-            {
-                ctx->setSampler(binding.m_sampler, textureUnit);
-                ctx->setTexture(binding.m_tex, textureUnit++);
-            }
+
+            u32 usedTextureUnit = material->bind();
+
             ctx->setVertexArray(sm->m_vertexArray);
             ctx->setPrimitiveType(PrimitiveType::TriangleList);
             ctx->drawIndex(sm->m_numVerts);
             // NOTES: reset texture units because texture unit bindings are managed by gl context 
             // it won't change when binding different shaders
-            for (int t = 0; t < textureUnit; ++t)
+            for (int t = 0; t < usedTextureUnit; ++t)
             {
                 ctx->setTexture(nullptr, t);
             }
@@ -171,7 +170,7 @@ namespace Cyan
         for (auto sm : mesh->m_subMeshes)
         {
             // TODO: (Optimize) This could be slow as well
-            Shader* shader = sm->m_matl->m_shader;
+            Shader* shader = sm->m_matl->m_template->m_shader;
             ctx->setShader(shader);
             ctx->setUniform(u_model);
         }

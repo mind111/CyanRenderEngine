@@ -5,6 +5,7 @@
 #include "CyanApp.h"
 #include "Scene.h"
 #include "Mesh.h"
+#include "Geometry.h"
 
 // TODO: Can also let CyanApp define a basic beginFrame(), endFrame() where it calls customBeginFrame(), and customEndFrame(),
 // and child class override customBegin() and customEnd() to do each application specific stuffs
@@ -42,8 +43,8 @@ private:
     Camera m_genEnvmapCamera;
 
     // Materials
-    Cyan::Material* m_helmetMatl;
-    Cyan::Material* m_envmapMatl;
+    Cyan::MaterialInstance* m_helmetMatl;
+    Cyan::MaterialInstance* m_envmapMatl;
 
     /* Shaders */
     Shader* m_pbrShader;
@@ -69,9 +70,6 @@ private:
     Cyan::Texture* m_envmap;
     Cyan::Texture* m_diffuseIrradianceMap;
 
-    GLuint m_envmapVbo, m_envmapVao;
-    GLuint m_linesVbo, m_linesVao;
-
     // debugging purpose
     Uniform* u_envmapSampler;
     Uniform* u_projection_dbg;
@@ -80,4 +78,7 @@ private:
     Cyan::RenderTarget* rt_dbg;
     Cyan::Texture* equirectMap;
     Cyan::Texture* envmap_dbg;
+
+    // misc
+    BufferVisualizer m_bufferVis;
 };

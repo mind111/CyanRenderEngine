@@ -26,40 +26,29 @@ struct Uniform
     void* m_valuePtr;
 };
 
+// TODO: draw visualization of the buffer layout 
+// TODO: implemenet auto-resizing
 struct UniformBuffer
 {
+    enum
+    {
+        End = UniformHandle(-1)
+    };
+
     u32 m_size;
     u32 m_pos;
     void* m_data;
 
-    void* read(u32 size)
-    {
-        CYAN_ASSERT(m_pos + size <= m_size, "Read from UniformBuffer out of bound")
-        void* data = (void*)((u8*)m_data + m_pos);
-        m_pos += size;
-        return data;
-    }
-
-    void write(void* data, u32 size)
-    {
-        CYAN_ASSERT(m_pos + size <= m_size, "Write to UniformBuffer out of bound")
-        memcpy((u8*)m_data + m_pos, data, size);
-        m_pos += size;
-    }
-
-    void write(u32 data)
-    {
-        CYAN_ASSERT(m_pos + 4 <= m_size, "Write from UniformBuffer out of bound")
-        u32* ptr = (u32*)((u8*)m_data + m_pos);
-        *ptr = data;
-        m_pos += 4;
-    }
-    
-    void write(f32 data)
-    {
-        CYAN_ASSERT(m_pos + 4 <= m_size, "Write from UniformBuffer out of bound")
-        f32* ptr = (f32*)((u8*)m_data + m_pos);
-        *ptr = data;
-        m_pos += 4;
-    }
+    void reset(u32 offset=0);
+    f32 readF32();
+    u32 readU32();
+    i32 readI32();
+    // Read float3
+    glm::vec3 readVec3();
+    void* read(u32 size);
+    void write(void* data, u32 size);
+    void write(u32 data);
+    void write(f32 data);
+    void finish();
+    void debugPrint();
 };

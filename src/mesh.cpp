@@ -3,9 +3,9 @@
 
 namespace Cyan
 {
-    void Mesh::setMaterial(u32 _idx, Material* _matl)
+    void Mesh::setMaterial(u32 _idx, MaterialInstance* matl)
     {
-        m_subMeshes[_idx]->m_matl = _matl;
+        m_subMeshes[_idx]->m_matl = matl;
     }
 };
 

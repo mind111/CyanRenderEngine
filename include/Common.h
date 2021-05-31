@@ -6,11 +6,26 @@
 #include <string>
 #include "intrin.h"
 
+// macros
 #define CYAN_ASSERT(expr, ...) \
     if (!(expr)) {             \
         printf(__VA_ARGS__);   \
         __debugbreak();        \
     }
+
+#define BREAK_WHEN(expr)     \
+    if (expr)                \
+    {                        \
+        break;               \
+    }                        \
+
+#define EXEC_ONCE(call)       \
+   static u32 numExecutions = 0; \
+    if (numExecutions < 1)    \
+    {                         \
+        call;                 \
+        numExecutions++;      \
+    }                         \
 
 #define ARRAY_COUNT(arr)       \
     sizeof(arr) / sizeof(arr[0])

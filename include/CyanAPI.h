@@ -20,7 +20,6 @@
 * implement MaterialInstance class
 * implement a simple logger
 * remove the concept of shader uniform
-* shader resource interface query
 
 * implement handle system, every object can be identified using a handle
 * implement a uniform cache to avoid calling glUniform() on uniforms that has not changed
@@ -78,6 +77,11 @@ namespace Cyan
     /* Getter */
     GfxContext* getCurrentGfxCtx();
 
+    /* Memory */
+    #define CYAN_ALLOC(size)  Cyan::alloc(size)
+
+    void* alloc(u32 sizeInBytes);
+
     /* Buffer */
     VertexBuffer* createVertexBuffer(void* _data, u32 _sizeInBytes, u32 _strideInBytes, u32 _numVerts);
     RegularBuffer* createRegularBuffer(const char* _blockName, Shader* _shader, u32 _binding, u32 _sizeInBytes);
@@ -106,6 +110,8 @@ namespace Cyan
     void setUniform(Uniform* _uniform, float _value);
     Uniform* createShaderUniform(Shader* _shader, const char* _name, Uniform::Type _type);
     Uniform* createMaterialUniform(Material* _material, const char* _name, Uniform::Type _type);
+    UniformHandle getUniformHandle(const char* name);
+    Uniform* getUniform(UniformHandle handle);
       
     Material* createMaterial(Shader* _shader);
 
@@ -118,6 +124,18 @@ namespace Cyan
 
     namespace Toolkit
     {
+        struct Timer
+        {
+            // begin
+            Timer() {}
+            // end
+            ~Timer() {}
+
+            double m_begin;
+            double m_end;
+            double m_duration;
+        };
+
         //-
         // Cubemap related
         Texture* loadEquirectangularMap(const char* _name, const char* _file, bool _hdr=false);
