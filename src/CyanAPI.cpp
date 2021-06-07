@@ -65,6 +65,8 @@ namespace Cyan
     };
 
     static const u32 kMaxNumUniforms = 256;
+    static const u32 kMaxNumShaders = 64;
+    static const u32 kMaxNumMaterialTypes = 64;
 
     // TODO: Where do these live in memory...?
     static std::vector<Texture*> s_textures;
@@ -73,9 +75,18 @@ namespace Cyan
     static GfxContext* s_gfxc = nullptr;
     static void* s_memory = nullptr;
     static LinearAllocator* s_allocator = nullptr;
-    static std::unordered_map<std::string, u32> s_uniformHashTable;
-    static HandleAllocator s_handleAllocator = { };
+
+    static std::unordered_map<std::string, u32> s_uniformRegistry;
+    static std::unordered_map<std::string, u32> s_shaderRegistry;
+
+    static HandleAllocator s_uniformHandleAllocator = { };
+    static HandleAllocator s_shaderHandleAllocator = { };
     static Uniform* m_uniforms[kMaxNumUniforms];
+
+    // each material type share same handle as its according shader 
+    static Shader* m_shaders[kMaxNumShaders];
+    static Material* m_materialTypes[kMaxNumMaterialTypes];
+
     static UniformBuffer* m_uniformBuffer = nullptr;
 
     static u32 m_numUniforms = 0;
@@ -96,9 +107,14 @@ namespace Cyan
         return s_allocator->alloc(sizeInBytes);
     }
 
-    u32 allocHandle()
+    u32 allocUniformHandle()
     {
-        return s_handleAllocator.alloc();
+        return s_uniformHandleAllocator.alloc();
+    }
+
+    u32 allocShaderHandle()
+    {
+        return s_shaderHandleAllocator.alloc();
     }
 
     void shutDown()
@@ -117,6 +133,7 @@ namespace Cyan
         RegularBuffer* buffer = new RegularBuffer;
         buffer->m_name = _blockName;
         buffer->m_binding = _binding;
+        buffer->m_sizeInBytes = _sizeInBytes;
         buffer->m_data = nullptr;
 
         GLuint blockIndex = glGetProgramResourceIndex(_shader->m_programId, GL_SHADER_STORAGE_BLOCK, buffer->m_name);
@@ -328,10 +345,24 @@ namespace Cyan
         return scene;
     }
 
-    Shader* createShader(const char* vertSrc, const char* fragSrc)
+    Shader* createShader(const char* name, const char* vertSrc, const char* fragSrc)
     {
+        using ShaderEntry = std::pair<std::string, u32>;
+
+        // found a existing shader
+        auto itr = s_shaderRegistry.find(std::string(name));
+        if (itr != s_shaderRegistry.end())
+        {
+            return m_shaders[itr->second];
+        }
+
         // TODO: Memory management
-        Shader* shader = new Shader();
+        u32 handle = ALLOC_HANDLE(Shader)
+        CYAN_ASSERT(handle < kMaxNumShaders,  "Too many shader created!!!")
+        m_shaders[handle] = new Shader();
+        Shader* shader = m_shaders[handle];
+        shader->m_name = std::string(name);
+        s_shaderRegistry.insert(ShaderEntry(shader->m_name, handle));
         GLuint vs = glCreateShader(GL_VERTEX_SHADER);
         GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
         shader->m_programId = glCreateProgram();
@@ -495,7 +526,7 @@ namespace Cyan
         if (texture->m_type == Texture::Type::TEX_2D)
         {
             glTextureStorage2D(texture->m_id, 1, dataFormat_gl, texture->m_width, texture->m_height);
-            glTextureSubImage2D(texture->m_id, 0, 0, 0, texture->m_width, texture->m_height, internalFormat_gl, GL_FLOAT, texture->m_data);
+            // glTextureSubImage2D(texture->m_id, 0, 0, 0, texture->m_width, texture->m_height, internalFormat_gl, GL_FLOAT, texture->m_data);
 
             glTexParameteri(type_gl, GL_TEXTURE_MAG_FILTER, filter_gl);
             glTexParameteri(type_gl, GL_TEXTURE_MIN_FILTER, filter_gl);
@@ -666,13 +697,13 @@ namespace Cyan
     Uniform* createUniform(const char* _name, Uniform::Type _type)
     {
         std::string key(_name); 
-        auto itr = s_uniformHashTable.find(key);
-        if (itr != s_uniformHashTable.end())
+        auto itr = s_uniformRegistry.find(key);
+        if (itr != s_uniformRegistry.end())
         {
             u32 handle = itr->second; 
             return m_uniforms[handle]; 
         }
-        u32 handle = allocHandle();
+        u32 handle = ALLOC_HANDLE(Uniform)
         m_uniforms[handle] = (Uniform*)s_allocator->alloc(sizeof(Uniform)); 
         Uniform* uniform = m_uniforms[handle];
         uniform->m_type = _type;
@@ -680,7 +711,7 @@ namespace Cyan
         u32 size = uniform->getSize();
         uniform->m_valuePtr = s_allocator->alloc(size);
         memset((u8*)uniform->m_valuePtr, 0x0, size);
-        s_uniformHashTable.insert(std::pair<std::string,u32>(key, handle));
+        s_uniformRegistry.insert(std::pair<std::string,u32>(key, handle));
         m_numUniforms += 1;
         CYAN_ASSERT(m_numUniforms <= kMaxNumUniforms, "Too many uniforms created");
         return uniform;
@@ -689,8 +720,8 @@ namespace Cyan
     UniformHandle getUniformHandle(const char* name)
     {
         std::string key(name);
-        auto itr = s_uniformHashTable.find(key);
-        if (itr != s_uniformHashTable.end())
+        auto itr = s_uniformRegistry.find(key);
+        if (itr != s_uniformRegistry.end())
         {
             return itr->second;
         }
@@ -758,7 +789,15 @@ namespace Cyan
 
     Material* createMaterial(Shader* _shader)
     {
-        Material* material = new Material;
+        auto itr = s_shaderRegistry.find(_shader->m_name);
+        CYAN_ASSERT(itr != s_shaderRegistry.end(), "Trying to create a Material type from an unregistered shader")
+        if (m_materialTypes[itr->second])
+        {
+            return m_materialTypes[itr->second];
+        }
+        u32 handle = itr->second; 
+        m_materialTypes[handle] = new Material;
+        Material* material = m_materialTypes[handle];
         material->m_shader = _shader;
         material->m_bufferSize = 0; // at least need to contain UniformBuffer::End
         material->m_numSamplers = 0;
@@ -807,8 +846,8 @@ namespace Cyan
 
     #define CYAN_CHECK_UNIFORM(uniform)                                                          \
         std::string key(uniform->m_name);                                                        \
-        auto itr = s_uniformHashTable.find(key);                                                 \
-        CYAN_ASSERT(itr != s_uniformHashTable.end(), "Cannot find uniform %s", uniform->m_name); \
+        auto itr = s_uniformRegistry.find(key);                                                 \
+        CYAN_ASSERT(itr != s_uniformRegistry.end(), "Cannot find uniform %s", uniform->m_name); \
 
     // Notes(Min): for variables that are allocated from stack, we need to call ctx->setUniform
     //             before the variable goes out of scope
@@ -952,7 +991,7 @@ namespace Cyan
             RenderTarget* rt = createRenderTarget(kViewportWidth, kViewportHeight);
             rt->attachColorBuffer(envmap);
             // Create shaders and uniforms
-            Shader* shader = Cyan::createShader("../../shader/shader_gen_cubemap.vs", "../../shader/shader_gen_cubemap.fs");
+            Shader* shader = Cyan::createShader("GenCubemapShader", "../../shader/shader_gen_cubemap.vs", "../../shader/shader_gen_cubemap.fs");
             Uniform* u_projection = Cyan::createUniform("projection", Uniform::Type::u_mat4);
             Uniform* u_view = Cyan::createUniform("view", Uniform::Type::u_mat4);
             Uniform* u_envmapSampler = Cyan::createUniform("rawEnvmapSampler", Uniform::Type::u_sampler2D);
@@ -995,7 +1034,7 @@ namespace Cyan
                 setUniform(u_projection, &camera.projection);
                 setUniform(u_view, &camera.view);
                 s_gfxc->setDepthControl(DepthControl::kDisable);
-                s_gfxc->setRenderTarget(rt, (1 << f));
+                s_gfxc->setRenderTarget(rt, f);
                 // Since we are rendering to a framebuffer, we need to configure the viewport 
                 // to prevent the texture being stretched to fit the framebuffer's dimension
                 s_gfxc->setViewport(0, 0, kViewportWidth, kViewportHeight);
@@ -1016,7 +1055,7 @@ namespace Cyan
             return envmap;
         }
 
-        Texture* generateDiffsueIrradianceMap(const char* _name, Texture* _envMap, bool _hdr)
+        Texture* prefilterEnvMapDiffuse(const char* _name, Texture* _envMap, bool _hdr)
         {
             const u32 kViewportWidth = 1024;
             const u32 kViewportHeight = 1024;
@@ -1037,7 +1076,7 @@ namespace Cyan
             RenderTarget* rt = createRenderTarget(kViewportWidth, kViewportHeight);
             rt->attachColorBuffer(diffuseIrradianceMap);
             // Create shaders and uniforms
-            Shader* shader = Cyan::createShader("../../shader/shader_diff_irradiance.vs", "../../shader/shader_diff_irradiance.fs");
+            Shader* shader = Cyan::createShader("DiffuseIrradianceShader", "../../shader/shader_diff_irradiance.vs", "../../shader/shader_diff_irradiance.fs");
             Uniform* u_projection = Cyan::createUniform("projection", Uniform::Type::u_mat4);
             Uniform* u_view = Cyan::createUniform("view", Uniform::Type::u_mat4);
             Uniform* u_envmapSampler = Cyan::createUniform("envmapSampler", Uniform::Type::u_samplerCube);
@@ -1081,7 +1120,7 @@ namespace Cyan
                 setUniform(u_projection, &camera.projection);
                 setUniform(u_view, &camera.view);
                 s_gfxc->setDepthControl(DepthControl::kDisable);
-                s_gfxc->setRenderTarget(rt, (1 << f));
+                s_gfxc->setRenderTarget(rt, f);
                 s_gfxc->setViewport(0, 0, kViewportWidth, kViewportHeight);
                 s_gfxc->setShader(shader);
                 s_gfxc->setUniform(u_projection);
@@ -1099,5 +1138,136 @@ namespace Cyan
             s_gfxc->setDepthControl(DepthControl::kEnable);
             return diffuseIrradianceMap;
         }
-    }
-}
+
+        Texture* prefilterEnvmapSpecular(Texture* envMap)
+        {
+            CYAN_ASSERT(envMap->m_type == Texture::Type::TEX_CUBEMAP, "Cannot prefilter a non-cubemap texture")
+            // create a copy of the envmap
+            Texture* prefilteredEnvMap;
+            // HDR
+            if (envMap->m_format == Texture::ColorFormat::R16G16B16 || envMap->m_format == Texture::ColorFormat::R16G16B16A16)
+            {
+                prefilteredEnvMap = createTextureHDR(envMap->m_name.c_str(), envMap->m_width, envMap->m_height, envMap->m_format, envMap->m_type);
+            }
+            else
+            {
+                prefilteredEnvMap = createTexture(envMap->m_name.c_str(), envMap->m_width, envMap->m_height, envMap->m_format, envMap->m_type);
+            }
+            glGenerateTextureMipmap(prefilteredEnvMap->m_id);
+            Shader* shader = createShader("PrefilterSpecularShader", "../../shader/shader_prefilter_specular.vs", "../../shader/shader_prefilter_specular.fs");
+            Uniform* u_roughness = Cyan::createUniform("roughness", Uniform::Type::u_float);
+            Uniform* u_projection = Cyan::createUniform("projection", Uniform::Type::u_mat4);
+            Uniform* u_view = Cyan::createUniform("view", Uniform::Type::u_mat4);
+            Uniform* u_envmapSampler = Cyan::createUniform("envmapSampler", Uniform::Type::u_samplerCube);
+            // camera
+            Camera camera = { };
+            camera.position = glm::vec3(0.f);
+            camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
+            glm::vec3 cameraTargets[] = {
+                {1.f, 0.f, 0.f},   // Right
+                {-1.f, 0.f, 0.f},  // Left
+                {0.f, 1.f, 0.f},   // Up
+                {0.f, -1.f, 0.f},  // Down
+                {0.f, 0.f, 1.f},   // Front
+                {0.f, 0.f, -1.f},  // Back
+            }; 
+            // TODO: (Min): Need to figure out why we need to flip the y-axis 
+            // I thought they should just be vec3(0.f, 1.f, 0.f)
+            // Referrence: https://www.khronos.org/opengl/wiki/Cubemap_Texture
+            glm::vec3 worldUps[] = {
+                {0.f, -1.f, 0.f},   // Right
+                {0.f, -1.f, 0.f},   // Left
+                {0.f, 0.f, 1.f},    // Up
+                {0.f, 0.f, -1.f},   // Down
+                {0.f, -1.f, 0.f},   // Forward
+                {0.f, -1.f, 0.f},   // Back
+            };
+            Mesh* cubeMesh = Cyan::getMesh("cubemapMesh");
+            if (!cubeMesh)
+            {
+                cubeMesh = Cyan::Toolkit::createCubeMesh("cubemapMesh");
+            }
+            // Cache viewport config
+            glm::vec4 origViewport = s_gfxc->m_viewport;
+            const u32 numMips = 5;
+            u32 mipWidth = prefilteredEnvMap->m_width; 
+            u32 mipHeight = prefilteredEnvMap->m_height;
+            RenderTarget* rts[numMips];;
+            for (u32 mip = 0; mip < numMips; ++mip)
+            {
+                rts[mip] = createRenderTarget(mipWidth, mipHeight);
+                rts[mip]->attachColorBuffer(prefilteredEnvMap, mip);
+                s_gfxc->setViewport(0u, 0u, mipWidth, mipHeight);
+                for (u32 f = 0; f < 6u; f++)
+                {
+                    camera.lookAt = cameraTargets[f];
+                    camera.worldUp = worldUps[f];
+                    CameraManager::updateCamera(camera);
+                    // Update uniforms
+                    setUniform(u_projection, &camera.projection);
+                    setUniform(u_view, &camera.view);
+                    setUniform(u_roughness, mip * (1.f / numMips));
+                    s_gfxc->setDepthControl(DepthControl::kDisable);
+                    s_gfxc->setRenderTarget(rts[mip], f);
+                    s_gfxc->setShader(shader);
+                    s_gfxc->setUniform(u_projection);
+                    s_gfxc->setUniform(u_view);
+                    s_gfxc->setSampler(u_envmapSampler, 0);
+                    s_gfxc->setTexture(envMap, 0);
+                    s_gfxc->setPrimitiveType(PrimitiveType::TriangleList);
+                    s_gfxc->setVertexArray(cubeMesh->m_subMeshes[0]->m_vertexArray);
+
+                    s_gfxc->drawIndex(cubeMesh->m_subMeshes[0]->m_numVerts, 0);
+                }
+                mipWidth /= 2u;
+                mipHeight /= 2u;
+                s_gfxc->reset();
+            }
+            // Recover the viewport dimensions
+            s_gfxc->setViewport(origViewport.x, origViewport.y, origViewport.z, origViewport.w);
+            s_gfxc->setDepthControl(DepthControl::kEnable);
+            return prefilteredEnvMap;
+        }
+
+        // integrate brdf for specular IBL
+        Texture* generateBrdfLUT()
+        {
+            const u32 kTexWidth = 512u;
+            const u32 kTexHeight = 512u;
+            Texture* outputTexture = createTextureHDR("integrateBrdf", kTexWidth, kTexHeight, Texture::ColorFormat::R16G16B16A16); 
+            Shader* shader = createShader("IntegrateBRDFShader", "../../shader/shader_integrate_brdf.vs", "../../shader/shader_integrate_brdf.fs");
+            RenderTarget* rt = createRenderTarget(kTexWidth, kTexWidth);
+            rt->attachColorBuffer(outputTexture);
+            f32 verts[] = {
+                -1.f,  1.f, 0.f, 0.f,  1.f,
+                -1.f, -1.f, 0.f, 0.f,  0.f,
+                 1.f, -1.f, 0.f, 0.f, -1.f,
+                -1.f,  1.f, 0.f, 0.f,  1.f,
+                 1.f, -1.f, 0.f, 1.f, -1.f,
+                 1.f,  1.f, 0.f, 1.f,  1.f
+            };
+
+            GLuint vbo, vao;
+            glCreateBuffers(1, &vbo);
+            glCreateVertexArrays(1, &vao);
+            glBindVertexArray(vao);
+            glNamedBufferData(vbo, sizeof(verts), verts, GL_STATIC_DRAW);
+            glBindBuffer(GL_ARRAY_BUFFER, vbo);
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), 0);
+            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (const void*)(3 * sizeof(f32)));
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+            glBindVertexArray(0);
+
+            auto gfxc = getCurrentGfxCtx();
+            gfxc->setViewport(0.f, 0.f, kTexWidth, kTexHeight);
+            gfxc->setShader(shader);
+            gfxc->setRenderTarget(rt, 0);
+            glBindVertexArray(vao);
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+            gfxc->reset();
+
+            return outputTexture;
+        }
+
+    } // Toolkit
+} // Cyan

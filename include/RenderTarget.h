@@ -8,7 +8,7 @@ namespace Cyan
 {
     struct RenderTarget
     {
-        void attachColorBuffer(Texture* _texture);
+        void attachColorBuffer(Texture* _texture, u32 mip=0);
         void setDrawBuffer(u32 _bufferIdx);
         bool validate();
 

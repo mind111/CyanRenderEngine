@@ -12,8 +12,9 @@ void Quad::init(glm::vec2 pos, float width, float height)
     m_vertices[4] = pos + glm::vec2( 0.5f * w, -0.5 * h);
     m_vertices[5] = pos + glm::vec2( 0.5f * w,  0.5 * h);
 
-    m_shader = Cyan::createShader("../../shader/shader_quad.vs", "../../shader/shader_quad.fs");
-    m_matl = Cyan::createMaterial(m_shader)->createInstance();
+    // TODO: this is bad, Quad class should only need static shader
+    Shader* shader = Cyan::createShader("QuadShader", "../../shader/shader_quad.vs", "../../shader/shader_quad.fs");
+    m_matl = Cyan::createMaterial(shader)->createInstance();
 
     glCreateBuffers(1, &m_vbo);
     glNamedBufferData(m_vbo, sizeof(m_vertices), m_vertices, GL_STATIC_DRAW);
@@ -21,14 +22,14 @@ void Quad::init(glm::vec2 pos, float width, float height)
     glBindVertexArray(m_vao);
     glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
     glEnableVertexArrayAttrib(m_vao, 0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+    glVertexAttribPointer(0, m_vertices[0].length(), GL_FLOAT, GL_FALSE, 0, 0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 }
 
 void Quad::draw()
 {
-    Cyan::getCurrentGfxCtx()->setShader(m_shader);
+    Cyan::getCurrentGfxCtx()->setShader(m_matl->m_template->m_shader);
     m_matl->bind();
     glBindVertexArray(m_vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);

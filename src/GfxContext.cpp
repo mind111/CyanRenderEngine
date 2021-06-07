@@ -116,16 +116,10 @@ namespace Cyan
         m_viewport.w = _top;
     }
 
-    void GfxContext::setRenderTarget(RenderTarget* _rt, u16 _colorBufferFlag) 
+    void GfxContext::setRenderTarget(RenderTarget* _rt, u16 drawBufferIdx) 
     { 
         glBindFramebuffer(GL_FRAMEBUFFER, _rt->m_frameBuffer);
-        for (u16 shift = 0u; shift < 16u; shift++)
-        {
-            if (_colorBufferFlag & (1 << shift))
-            {
-                _rt->setDrawBuffer(shift);
-            }
-        }
+        _rt->setDrawBuffer(drawBufferIdx);
     }
 
     void GfxContext::setClearColor(glm::vec4 color)

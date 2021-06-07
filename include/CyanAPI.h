@@ -17,15 +17,17 @@
 #include "GfxContext.h"
 
 /* TODO: 
-* implement MaterialInstance class
+* think about how to handle uniform with same name but different type
+* implement disney re-parameterization of "roughness"
+* look into why the render will contain "black" dots
 * implement a simple logger
 * remove the concept of shader uniform
+* refactor shader uniforms, only material should keep reference to uniforms
 
 * implement handle system, every object can be identified using a handle
 * implement a uniform cache to avoid calling glUniform() on uniforms that has not changed
 * implement DrawCall and Frame struct
 * memory usage visualization
-* refactor shader uniforms, only material should keep reference to uniforms
 * implement shader resource query to get rid of manual call to matl->bindUniform()
 */
 namespace Cyan
@@ -72,7 +74,11 @@ namespace Cyan
 
     void init();
 
-    u32 allocHandle();
+    #define ALLOC_HANDLE(type)   \
+    alloc##type##Handle();       \
+
+    u32 allocUniformHandle();
+    u32 allocShaderHandle();
 
     /* Getter */
     GfxContext* getCurrentGfxCtx();
@@ -97,7 +103,7 @@ namespace Cyan
     RenderTarget* createRenderTarget(u32 _width, u32 _height);
 
     /* Shader */
-    Shader* createShader(const char* vertSrc, const char* fragSrc);
+    Shader* createShader(const char* name, const char* vertSrc, const char* fragSrc);
 
     /* Buffer */
     void setBuffer(RegularBuffer* _buffer, void* data, u32 _sizeInBytes);
@@ -139,8 +145,9 @@ namespace Cyan
         //-
         // Cubemap related
         Texture* loadEquirectangularMap(const char* _name, const char* _file, bool _hdr=false);
-        Texture* generateDiffsueIrradianceMap(const char* _name, Texture* _envMap, bool _hdr=false);
-
+        Texture* prefilterEnvMapDiffuse(const char* _name, Texture* _envMap, bool _hdr=false);
+        Texture* prefilterEnvmapSpecular(Texture* envMap);
+        Texture* generateBrdfLUT();
         //-
         // Mesh related
         Mesh* createCubeMesh(const char* _name);

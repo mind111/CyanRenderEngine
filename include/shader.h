@@ -52,5 +52,21 @@ public:
     std::vector<Uniform*> m_uniforms;
     std::vector<RegularBuffer*> m_buffers;
 
+    std::string m_name;
     GLuint m_programId;
+};
+
+struct ShaderDef
+{
+    enum Type
+    {
+        VSFS = 0,
+        CS,
+        Undefined
+    };
+
+    std::string m_name;
+    std::string m_cs;
+    std::string m_vs;
+    std::string m_fs;
 };

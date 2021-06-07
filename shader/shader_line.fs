@@ -1,9 +1,10 @@
 #version 450 core
 
-in flat int vertexId;
 out vec4 fragColor;
+
+uniform vec3 color;
 
 void main()
 {
-    fragColor = vertexId > 0 ? vec4(1.f, 0.f, 0.f, 1.f) : vec4(1.f, 1.f, 1.f, 1.f);
+    fragColor = vec4(color, 1.f);
 }
