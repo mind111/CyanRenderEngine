@@ -93,11 +93,11 @@ namespace Cyan
     RegularBuffer* createRegularBuffer(const char* _blockName, Shader* _shader, u32 _binding, u32 _sizeInBytes);
 
     /* Texture */
-    Texture* createTexture(const char* _name, u32 _width, u32 _height, Texture::ColorFormat _format, Texture::Type _type=Texture::Type::TEX_2D, Texture::Filter _filter=Texture::Filter::LINEAR);
-    Texture* createTextureHDR(const char* _name, u32 _width, u32 _height, Texture::ColorFormat _format, Texture::Type _type=Texture::Type::TEX_2D, Texture::Filter _filter=Texture::Filter::LINEAR);
-    Texture* createTexture(const char* _name, const char* _file, Texture::Type _type=Texture::Type::TEX_2D, Texture::Filter _filter=Texture::Filter::LINEAR);
-    Texture* createTextureHDR(const char* _name, const char* _file, Texture::Type _type=Texture::Type::TEX_2D, Texture::Filter _filter=Texture::Filter::LINEAR);
     Texture* getTexture(const char* _name);
+    Texture* createTexture(const char* _name, u32 _width, u32 _height, TextureSpec spec);
+    Texture* createTextureHDR(const char* _name, u32 _width, u32 _height, TextureSpec spec);
+    Texture* createTexture(const char* _name, const char* _file, TextureSpec& spec);
+    Texture* createTextureHDR(const char* _name, const char* _file, TextureSpec& spec);
 
     /* RenderTarget */
     RenderTarget* createRenderTarget(u32 _width, u32 _height);

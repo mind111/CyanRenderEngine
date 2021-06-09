@@ -127,7 +127,7 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight)
     m_helmetMatl->bindTexture("aoMap", Cyan::getTexture("helmet_ao"));
     m_helmetMatl->bindTexture("envmap", m_envmap);
     m_helmetMatl->bindTexture("irradianceDiffuse", m_iblAssets.m_diffuse);
-    m_helmetMatl->bindTexture("irradianceSpecular", m_iblAssets.m_diffuse);
+    m_helmetMatl->bindTexture("irradianceSpecular", m_iblAssets.m_specular);
     m_helmetMatl->bindTexture("brdfIntegral", m_iblAssets.m_brdfIntegral);
     m_helmetMatl->set("hasAoMap", 1.f);
     m_helmetMatl->set("hasNormalMap", 1.f);

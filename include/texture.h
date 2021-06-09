@@ -19,7 +19,14 @@ namespace Cyan
 
         enum Filter
         {
-            LINEAR = 0
+            LINEAR = 0,
+            MIPMAP_LINEAR,
+        };
+
+        enum Wrap
+        {
+            CLAMP_TO_EDGE = 0,
+            NONE
         };
         
         enum ColorFormat
@@ -33,11 +40,26 @@ namespace Cyan
         std::string m_name;
         void* m_data;
         ColorFormat m_format;
-        Filter m_filter;
+        Filter m_minFilter;
+        Filter m_magFilter;
+        Wrap m_wrapS;
+        Wrap m_wrapT;
+        Wrap m_wrapR;
         Type m_type;
         u32 m_width;
         u32 m_height;
         GLuint m_id;
+    };
+
+    struct TextureSpec
+    {
+        Texture::Type m_type;
+        Texture::ColorFormat m_format;
+        Texture::Filter m_min;
+        Texture::Filter m_mag;
+        Texture::Wrap m_s;
+        Texture::Wrap m_t;
+        Texture::Wrap m_r;
     };
 }
 

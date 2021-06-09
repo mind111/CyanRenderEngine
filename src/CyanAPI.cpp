@@ -308,10 +308,21 @@ namespace Cyan
             std::string name     = textureInfo.at("name").get<std::string>();
             std::string dynamicRange = textureInfo.at("dynamic_range").get<std::string>();
             
+            TextureSpec spec = { };
+            spec.m_type = Texture::Type::TEX_2D;
+            spec.m_min = Texture::Filter::LINEAR;
+            spec.m_mag = Texture::Filter::LINEAR;
+            spec.m_s = Texture::Wrap::NONE;
+            spec.m_t = Texture::Wrap::NONE;
+            spec.m_r = Texture::Wrap::NONE;
             if (dynamicRange == "ldr")
-                createTexture(name.c_str(), filename.c_str());
+            {
+                createTexture(name.c_str(), filename.c_str(), spec);
+            }
             else if (dynamicRange == "hdr")
-                createTextureHDR(name.c_str(), filename.c_str());
+            {
+                createTextureHDR(name.c_str(), filename.c_str(), spec);
+            }
         }
 
         for (auto meshInfo : meshInfoList) 
@@ -407,275 +418,286 @@ namespace Cyan
         rt->validate();
         return rt;
     }
+
+    static GLenum convertTexFilter(Texture::Filter filter)
+    {
+        switch(filter)
+        {
+            case Texture::Filter::LINEAR:
+                return GL_LINEAR;
+            case Texture::Filter::MIPMAP_LINEAR:
+                return GL_LINEAR_MIPMAP_LINEAR;
+            default:
+                break;
+        }
+    }
+
+    static GLenum convertTexWrap(Texture::Wrap wrap)
+    {
+        switch(wrap)
+        {
+            case Texture::Wrap::CLAMP_TO_EDGE:
+                return GL_CLAMP_TO_EDGE;
+            default:
+                break;
+        }
+    }
+
+    struct TextureSpecGL
+    {
+        GLenum m_typeGL;
+        GLenum m_dataFormatGL;
+        GLenum m_internalFormatGL;
+        GLenum m_minGL;
+        GLenum m_magGL;
+        u8     m_wrapFlag;
+        GLenum m_sGL;
+        GLenum m_tGL;
+        GLenum m_rGL;
+    };
+
+    static TextureSpecGL translate(TextureSpec& spec)
+    {
+        struct DataFormatGL
+        {
+            GLenum m_dataFormatGL;
+            GLenum m_internalFormatGL;
+        };
+
+        auto convertTexType = [](Texture::Type type) {
+            switch(type)
+            {
+                case Texture::Type::TEX_2D:
+                    return GL_TEXTURE_2D;
+                case Texture::Type::TEX_CUBEMAP:
+                    return GL_TEXTURE_CUBE_MAP;
+                default:
+                    break;
+            }
+        };
+
+        auto convertDataFormat = [](Texture::ColorFormat format) {
+            switch (format)
+            {
+                case Texture::ColorFormat::R8G8B8: 
+                    return DataFormatGL{ GL_RGB8, GL_RGB };
+                case Texture::ColorFormat::R8G8B8A8: 
+                    return DataFormatGL{ GL_RGBA8, GL_RGBA };
+                case Texture::ColorFormat::R16G16B16: 
+                    return DataFormatGL{ GL_RGB16, GL_RGB };
+                case Texture::ColorFormat::R16G16B16A16:
+                    return DataFormatGL{ GL_RGBA16, GL_RGBA };
+                default:
+                    break;
+            }
+        };
+         
+       auto convertTexFilter = [](Texture::Filter filter) {
+            switch(filter)
+            {
+                case Texture::Filter::LINEAR:
+                    return GL_LINEAR;
+                case Texture::Filter::MIPMAP_LINEAR:
+                    return GL_LINEAR_MIPMAP_LINEAR;
+                default:
+                    break;
+            }
+        };
+
+        auto convertTexWrap = [](Texture::Wrap wrap) {
+            switch(wrap)
+            {
+                case Texture::Wrap::CLAMP_TO_EDGE:
+                    return GL_CLAMP_TO_EDGE;
+                case Texture::Wrap::NONE:
+                    return 0;
+                default:
+                    break;
+            }
+        };
+
+        TextureSpecGL specGL = { };
+        // type
+        specGL.m_typeGL = convertTexType(spec.m_type);
+        // format
+        DataFormatGL format = convertDataFormat(spec.m_format);
+        specGL.m_dataFormatGL = format.m_dataFormatGL;
+        specGL.m_internalFormatGL = format.m_internalFormatGL;
+        // filters
+        specGL.m_minGL = convertTexFilter(spec.m_min);
+        specGL.m_magGL = convertTexFilter(spec.m_mag);
+        // wraps
+        auto wrapS = convertTexWrap(spec.m_s);
+        auto wrapT = convertTexWrap(spec.m_t);
+        auto wrapR = convertTexWrap(spec.m_r);
+        if (wrapS > 0)
+        {
+            specGL.m_sGL = wrapS;
+            specGL.m_wrapFlag |= (1 << 0);
+        }
+        if (wrapT > 0)
+        {
+            specGL.m_tGL = wrapT;
+            specGL.m_wrapFlag |= (1 << 1);
+        }
+        if (wrapR > 0)
+        {
+            specGL.m_rGL = wrapR;
+            specGL.m_wrapFlag |= (1 << 2);
+        }
+        return specGL;
+    }
+
+    // set texture parameters such as min/mag filters, wrap_s, wrap_t, and wrap_r
+    static void setTextureParameters(Texture* texture, TextureSpecGL& specGL)
+    {
+        glBindTexture(specGL.m_typeGL, texture->m_id);
+        glTexParameteri(specGL.m_typeGL, GL_TEXTURE_MAG_FILTER, specGL.m_minGL);
+        glTexParameteri(specGL.m_typeGL, GL_TEXTURE_MIN_FILTER, specGL.m_magGL);
+        if (specGL.m_wrapFlag & (1 << 0 ))
+        {
+            glTexParameteri(specGL.m_typeGL, GL_TEXTURE_WRAP_S, specGL.m_sGL);
+        }
+        if (specGL.m_wrapFlag & (1 << 1))
+        {
+            glTexParameteri(specGL.m_typeGL, GL_TEXTURE_WRAP_T, specGL.m_tGL);
+        }
+        if (specGL.m_wrapFlag & (1 << 2))
+        {
+            glTexParameteri(specGL.m_typeGL, GL_TEXTURE_WRAP_R, specGL.m_rGL);
+        }
+        glBindTexture(specGL.m_typeGL, 0);
+    }
     
-    Texture* createTexture(const char* _name, u32 _width, u32 _height, Texture::ColorFormat _format, Texture::Type _type, Texture::Filter _filter)
+    Texture* createTexture(const char* _name, u32 _width, u32 _height, TextureSpec spec)
     {
         Texture* texture = new Texture();
 
         texture->m_name = _name;
         texture->m_width = _width;
         texture->m_height = _height;
-        texture->m_type = _type;
-        texture->m_format = _format;
-        texture->m_filter = _filter;
+        texture->m_type = spec.m_type;
+        texture->m_format = spec.m_format;
+        texture->m_minFilter = spec.m_min;
+        texture->m_magFilter = spec.m_mag;
+        texture->m_wrapS = spec.m_s; 
+        texture->m_wrapT = spec.m_t;
+        texture->m_wrapR = spec.m_r;
         texture->m_data = nullptr;
 
-        GLenum type_gl, internalFormat_gl, dataFormat_gl, filter_gl;
+        TextureSpecGL specGL = translate(spec);
 
-        switch(texture->m_type)
-        {
-            case Texture::Type::TEX_2D:
-                type_gl = GL_TEXTURE_2D;
-                break;
-            case Texture::Type::TEX_CUBEMAP:
-                type_gl = GL_TEXTURE_CUBE_MAP;
-                break;
-            default:
-                break;
-        }
+        glCreateTextures(specGL.m_typeGL, 1, &texture->m_id);
+        glTextureStorage2D(texture->m_id, 1, specGL.m_dataFormatGL, texture->m_width, texture->m_height);
+        // TODO: isn't this duplicated?
+        // glTextureSubImage2D(texture->m_id, 0, 0, 0, texture->m_width, texture->m_height, specGL.m_internalFormatGL, GL_UNSIGNED_BYTE, texture->m_data);
+        setTextureParameters(texture, specGL);
 
-        switch(texture->m_filter)
-        {
-            case Texture::Filter::LINEAR:
-                filter_gl = GL_LINEAR;
-                break;
-            default:
-                break;
-        }
-
-        switch (texture->m_format)
-        {
-            case Texture::ColorFormat::R8G8B8: 
-                dataFormat_gl = GL_RGB8;
-                internalFormat_gl = GL_RGB; 
-                break;
-            case Texture::ColorFormat::R8G8B8A8: 
-                dataFormat_gl = GL_RGBA8;
-                internalFormat_gl = GL_RGBA; 
-                break;
-            default:
-                break;
-        }
-
-        glCreateTextures(type_gl, 1, &texture->m_id);
-
-        glTextureStorage2D(texture->m_id, 1, dataFormat_gl, texture->m_width, texture->m_height);
-        glTextureSubImage2D(texture->m_id, 0, 0, 0, texture->m_width, texture->m_height, internalFormat_gl, GL_UNSIGNED_BYTE, texture->m_data);
-
-        glBindTexture(type_gl, texture->m_id);
-        glTexParameteri(type_gl, GL_TEXTURE_MAG_FILTER, filter_gl);
-        glTexParameteri(type_gl, GL_TEXTURE_MIN_FILTER, filter_gl);
-        glBindTexture(type_gl, 0);
-        
         return texture;
     }
 
-    Texture* createTextureHDR(const char* _name, u32 _width, u32 _height, Texture::ColorFormat _format, Texture::Type _type, Texture::Filter _filter)
+    Texture* createTextureHDR(const char* _name, u32 _width, u32 _height, TextureSpec spec)
     {
         Texture* texture = new Texture();
 
         texture->m_name = _name;
         texture->m_width = _width;
         texture->m_height = _height;
-        texture->m_type = _type;
-        texture->m_format = _format;
-        texture->m_filter = _filter;
+        texture->m_type = spec.m_type;
+        texture->m_format = spec.m_format;
+        texture->m_minFilter = spec.m_min;
+        texture->m_magFilter = spec.m_mag;
+        texture->m_wrapS = spec.m_s; 
+        texture->m_wrapT = spec.m_t;
+        texture->m_wrapR = spec.m_r;
         texture->m_data = nullptr;
 
-        GLenum type_gl, internalFormat_gl, dataFormat_gl, filter_gl;
+        TextureSpecGL specGL = translate(spec);
 
-        switch(texture->m_type)
+        glCreateTextures(specGL.m_typeGL, 1, &texture->m_id);
+        glBindTexture(specGL.m_typeGL, texture->m_id);
+        switch(spec.m_type)
         {
             case Texture::Type::TEX_2D:
-                type_gl = GL_TEXTURE_2D;
+                glTextureStorage2D(texture->m_id, 1, specGL.m_dataFormatGL, texture->m_width, texture->m_height);
                 break;
             case Texture::Type::TEX_CUBEMAP:
-                type_gl = GL_TEXTURE_CUBE_MAP;
+                for (int f = 0; f < 6; f++)
+                {
+                    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, 0, specGL.m_dataFormatGL, texture->m_width, texture->m_height, 0, specGL.m_internalFormatGL, GL_FLOAT, nullptr);
+                }
                 break;
             default:
                 break;
         }
+        glBindTexture(specGL.m_typeGL, 0);
+        setTextureParameters(texture, specGL);
 
-        switch(texture->m_filter)
-        {
-            case Texture::Filter::LINEAR:
-                filter_gl = GL_LINEAR;
-                break;
-            default:
-                break;
-        }
-
-        switch (texture->m_format)
-        {
-            case Texture::ColorFormat::R16G16B16: 
-                dataFormat_gl = GL_RGB16;
-                internalFormat_gl = GL_RGB; 
-                break;
-            case Texture::ColorFormat::R16G16B16A16: 
-                dataFormat_gl = GL_RGBA16;
-                internalFormat_gl = GL_RGBA; 
-                break;
-            default:
-                break;
-        }
-
-        glCreateTextures(type_gl, 1, &texture->m_id);
-
-        glBindTexture(type_gl, texture->m_id);
-
-        if (texture->m_type == Texture::Type::TEX_2D)
-        {
-            glTextureStorage2D(texture->m_id, 1, dataFormat_gl, texture->m_width, texture->m_height);
-            // glTextureSubImage2D(texture->m_id, 0, 0, 0, texture->m_width, texture->m_height, internalFormat_gl, GL_FLOAT, texture->m_data);
-
-            glTexParameteri(type_gl, GL_TEXTURE_MAG_FILTER, filter_gl);
-            glTexParameteri(type_gl, GL_TEXTURE_MIN_FILTER, filter_gl);
-        }
-        else if (texture->m_type == Texture::Type::TEX_CUBEMAP)
-        {
-            for (int f = 0; f < 6; f++)
-                glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, 0, dataFormat_gl, texture->m_width, texture->m_height, 0, internalFormat_gl, GL_FLOAT, nullptr);
-
-            glTexParameteri(type_gl, GL_TEXTURE_MIN_FILTER, filter_gl);
-            glTexParameteri(type_gl, GL_TEXTURE_MAG_FILTER, filter_gl);
-            glTexParameteri(type_gl, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-            glTexParameteri(type_gl, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-            glTexParameteri(type_gl, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-        }
-
-        glBindTexture(type_gl, 0);
-        
         return texture;
     }
 
-    Texture* createTexture(const char* _name, const char* _file, Texture::Type _type, Texture::Filter _filter)
+    // when loading a texture from file, TextureSpec.m_format will be modified as 
+    // the format is detmermined after loading the image, so @spec needs to be taken
+    // as a reference
+    Texture* createTexture(const char* _name, const char* _file, TextureSpec& spec)
     {
         int w, h, numChannels;
         Texture* texture = new Texture();
         stbi_set_flip_vertically_on_load(1);
         unsigned char* pixels = stbi_load(_file, &w, &h, &numChannels, 0);
 
+        spec.m_format = numChannels == 3 ? Texture::ColorFormat::R8G8B8 : Texture::ColorFormat::R8G8B8A8;
         texture->m_name = _name;
         texture->m_width = w;
         texture->m_height = h;
-        texture->m_type = _type;
-        texture->m_format = numChannels == 3 ? Texture::ColorFormat::R8G8B8 : Texture::ColorFormat::R8G8B8A8;
-        texture->m_filter = _filter;
+        texture->m_type = spec.m_type;
+        texture->m_format = spec.m_format;
+        texture->m_minFilter = spec.m_min;
+        texture->m_magFilter = spec.m_mag;
+        texture->m_wrapS = spec.m_s; 
+        texture->m_wrapT = spec.m_t;
+        texture->m_wrapR = spec.m_r;
         texture->m_data = pixels;
 
-        GLenum type_gl, internalFormat_gl, dataFormat_gl, filter_gl;
+        TextureSpecGL specGL = translate(spec);
 
-        switch(texture->m_type)
-        {
-            case Texture::Type::TEX_2D:
-                type_gl = GL_TEXTURE_2D;
-                break;
-            case Texture::Type::TEX_CUBEMAP:
-                type_gl = GL_TEXTURE_CUBE_MAP;
-                break;
-            default:
-                break;
-        }
-
-        switch(texture->m_filter)
-        {
-            case Texture::Filter::LINEAR:
-                filter_gl = GL_LINEAR;
-                break;
-            default:
-                break;
-        }
-
-        switch (texture->m_format)
-        {
-            case Texture::ColorFormat::R8G8B8: 
-                dataFormat_gl = GL_RGB8;
-                internalFormat_gl = GL_RGB; 
-                break;
-            case Texture::ColorFormat::R8G8B8A8: 
-                dataFormat_gl = GL_RGBA8;
-                internalFormat_gl = GL_RGBA; 
-                break;
-            default:
-                break;
-        }
-
-        glCreateTextures(type_gl, 1, &texture->m_id);
-
-        glTextureStorage2D(texture->m_id, 1, dataFormat_gl, texture->m_width, texture->m_height);
-        glTextureSubImage2D(texture->m_id, 0, 0, 0, texture->m_width, texture->m_height, internalFormat_gl, GL_UNSIGNED_BYTE, texture->m_data);
-
-        glBindTexture(type_gl, texture->m_id);
-        glTexParameteri(type_gl, GL_TEXTURE_MAG_FILTER, filter_gl);
-        glTexParameteri(type_gl, GL_TEXTURE_MIN_FILTER, filter_gl);
-        glBindTexture(type_gl, 0);
-
+        glCreateTextures(specGL.m_typeGL, 1, &texture->m_id);
+        glTextureStorage2D(texture->m_id, 1, specGL.m_dataFormatGL, texture->m_width, texture->m_height);
+        glTextureSubImage2D(texture->m_id, 0, 0, 0, texture->m_width, texture->m_height, specGL.m_internalFormatGL, GL_UNSIGNED_BYTE, texture->m_data);
+        setTextureParameters(texture, specGL);
         s_textures.push_back(texture);
 
         return texture;
     }
 
-    Texture* createTextureHDR(const char* _name, const char* _file, Texture::Type _type, Texture::Filter _filter)
+    // when loading a texture from file, TextureSpec.m_format will be modified as 
+    // the format is detmermined after loading the image, so @spec needs to be taken
+    // as a reference
+    Texture* createTextureHDR(const char* _name, const char* _file, TextureSpec& spec)
     {
         int w, h, numChannels;
         Texture* texture = new Texture();
         float* pixels = stbi_loadf(_file, &w, &h, &numChannels, 0);
 
+        spec.m_format = numChannels == 3 ? Texture::ColorFormat::R8G8B8 : Texture::ColorFormat::R8G8B8A8;
         texture->m_name = _name;
         texture->m_width = w;
         texture->m_height = h;
-        texture->m_type = _type;
-        texture->m_format = numChannels == 3 ? Texture::ColorFormat::R16G16B16 : Texture::ColorFormat::R16G16B16A16;
-        texture->m_filter = _filter;
+        texture->m_type = spec.m_type;
+        texture->m_format = spec.m_format;
+        texture->m_minFilter = spec.m_min;
+        texture->m_magFilter = spec.m_mag;
+        texture->m_wrapS = spec.m_s; 
+        texture->m_wrapT = spec.m_t;
+        texture->m_wrapR = spec.m_r;
         texture->m_data = pixels;
 
-        GLenum type_gl, internalFormat_gl, dataFormat_gl, filter_gl;
+        TextureSpecGL specGL = translate(spec);
 
-        switch(texture->m_type)
-        {
-            case Texture::Type::TEX_2D:
-                type_gl = GL_TEXTURE_2D;
-                break;
-            case Texture::Type::TEX_CUBEMAP:
-                type_gl = GL_TEXTURE_CUBE_MAP;
-                break;
-            default:
-                break;
-        }
-
-        switch(texture->m_filter)
-        {
-            case Texture::Filter::LINEAR:
-                filter_gl = GL_LINEAR;
-                break;
-            default:
-                break;
-        }
-
-        switch (texture->m_format)
-        {
-            case Texture::ColorFormat::R16G16B16: 
-                dataFormat_gl = GL_RGB16;
-                internalFormat_gl = GL_RGB; 
-                break;
-            case Texture::ColorFormat::R16G16B16A16: 
-                dataFormat_gl = GL_RGBA16;
-                internalFormat_gl = GL_RGBA; 
-                break;
-            default:
-                break;
-        }
-
-        glCreateTextures(type_gl, 1, &texture->m_id);
-
-        glTextureStorage2D(texture->m_id, 1, dataFormat_gl, texture->m_width, texture->m_height);
-        glTextureSubImage2D(texture->m_id, 0, 0, 0, texture->m_width, texture->m_height, internalFormat_gl, GL_FLOAT, texture->m_data);
-
-        glBindTexture(type_gl, texture->m_id);
-        glTexParameteri(type_gl, GL_TEXTURE_MAG_FILTER, filter_gl);
-        glTexParameteri(type_gl, GL_TEXTURE_MIN_FILTER, filter_gl);
-        glBindTexture(type_gl, 0);
-
+        glCreateTextures(specGL.m_typeGL, 1, &texture->m_id);
+        glTextureStorage2D(texture->m_id, 1, specGL.m_dataFormatGL, texture->m_width, texture->m_height);
+        glTextureSubImage2D(texture->m_id, 0, 0, 0, texture->m_width, texture->m_height, specGL.m_internalFormatGL, GL_FLOAT, texture->m_data);
+        setTextureParameters(texture, specGL);
         s_textures.push_back(texture);
 
         return texture;
@@ -975,18 +997,35 @@ namespace Cyan
             Camera camera = { };
             camera.position = glm::vec3(0.f);
             camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
+
             // Create textures
             Texture* equirectMap, *envmap;
+            TextureSpec spec = { };
+            spec.m_type = Texture::Type::TEX_2D;
+            spec.m_min = Texture::Filter::LINEAR;
+            spec.m_mag = Texture::Filter::LINEAR;
+            spec.m_s = Texture::Wrap::NONE;
+            spec.m_t = Texture::Wrap::NONE;
+            spec.m_r = Texture::Wrap::NONE;
             if (_hdr)
             {
-                equirectMap = createTextureHDR(_name, _file);
-                envmap = createTextureHDR(_name, kViewportWidth, kViewportHeight, Texture::ColorFormat::R16G16B16, Texture::Type::TEX_CUBEMAP);
+                equirectMap = createTextureHDR(_name, _file, spec);
+                spec.m_type = Texture::Type::TEX_CUBEMAP;
+                spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+                spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
+                spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
+                envmap = createTextureHDR(_name, kViewportWidth, kViewportHeight, spec);
             }
             else
             {
-                equirectMap = createTexture(_name, _file);
-                envmap = createTexture(_name, kViewportWidth, kViewportHeight, Texture::ColorFormat::R8G8B8, Texture::Type::TEX_CUBEMAP);
+                equirectMap = createTexture(_name, _file, spec);
+                spec.m_type = Texture::Type::TEX_CUBEMAP;
+                spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+                spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
+                spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
+                envmap = createTexture(_name, kViewportWidth, kViewportHeight, spec);
             }
+
             // Create render targets
             RenderTarget* rt = createRenderTarget(kViewportWidth, kViewportHeight);
             rt->attachColorBuffer(envmap);
@@ -1064,13 +1103,22 @@ namespace Cyan
             camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
             // Create textures
             Texture* diffuseIrradianceMap;
+            TextureSpec spec;
+            spec.m_min = Texture::Filter::LINEAR;
+            spec.m_mag = Texture::Filter::LINEAR;
+            spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+            spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
+            spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
             if (_hdr)
             {
-                diffuseIrradianceMap = createTextureHDR(_name, kViewportWidth, kViewportHeight, Texture::ColorFormat::R16G16B16, Texture::Type::TEX_CUBEMAP);
+                // TODO: fix this, this assumes that the envmap only has 3 channels
+                spec.m_format = Texture::ColorFormat::R16G16B16;
+                diffuseIrradianceMap = createTextureHDR(_name, kViewportWidth, kViewportHeight, spec);
             }
             else
             {
-                diffuseIrradianceMap = createTexture(_name, kViewportWidth, kViewportHeight, Texture::ColorFormat::R8G8B8, Texture::Type::TEX_CUBEMAP);
+                spec.m_format = Texture::ColorFormat::R8G8B8;
+                diffuseIrradianceMap = createTexture(_name, kViewportWidth, kViewportHeight, spec);
             }
             // Create render targets
             RenderTarget* rt = createRenderTarget(kViewportWidth, kViewportHeight);
@@ -1142,16 +1190,24 @@ namespace Cyan
         Texture* prefilterEnvmapSpecular(Texture* envMap)
         {
             CYAN_ASSERT(envMap->m_type == Texture::Type::TEX_CUBEMAP, "Cannot prefilter a non-cubemap texture")
-            // create a copy of the envmap
             Texture* prefilteredEnvMap;
             // HDR
-            if (envMap->m_format == Texture::ColorFormat::R16G16B16 || envMap->m_format == Texture::ColorFormat::R16G16B16A16)
+            TextureSpec spec;
+            spec.m_type = Texture::Type::TEX_CUBEMAP;
+            spec.m_format = envMap->m_format;
+            // set the min filter to mipmap_linear as we need to sample from its mipmap
+            spec.m_min = Texture::Filter::MIPMAP_LINEAR;
+            spec.m_mag = Texture::Filter::LINEAR;
+            spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+            spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
+            spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
+            if (spec.m_format == Texture::ColorFormat::R16G16B16 || spec.m_format == Texture::ColorFormat::R16G16B16A16)
             {
-                prefilteredEnvMap = createTextureHDR(envMap->m_name.c_str(), envMap->m_width, envMap->m_height, envMap->m_format, envMap->m_type);
+                prefilteredEnvMap = createTextureHDR(envMap->m_name.c_str(), envMap->m_width, envMap->m_height, spec);
             }
             else
             {
-                prefilteredEnvMap = createTexture(envMap->m_name.c_str(), envMap->m_width, envMap->m_height, envMap->m_format, envMap->m_type);
+                prefilteredEnvMap = createTexture(envMap->m_name.c_str(), envMap->m_width, envMap->m_height, spec);
             }
             glGenerateTextureMipmap(prefilteredEnvMap->m_id);
             Shader* shader = createShader("PrefilterSpecularShader", "../../shader/shader_prefilter_specular.vs", "../../shader/shader_prefilter_specular.fs");
@@ -1189,11 +1245,11 @@ namespace Cyan
             }
             // Cache viewport config
             glm::vec4 origViewport = s_gfxc->m_viewport;
-            const u32 numMips = 5;
+            const u32 kNumMips = 5;
             u32 mipWidth = prefilteredEnvMap->m_width; 
             u32 mipHeight = prefilteredEnvMap->m_height;
-            RenderTarget* rts[numMips];;
-            for (u32 mip = 0; mip < numMips; ++mip)
+            RenderTarget* rts[kNumMips];;
+            for (u32 mip = 0; mip < kNumMips; ++mip)
             {
                 rts[mip] = createRenderTarget(mipWidth, mipHeight);
                 rts[mip]->attachColorBuffer(prefilteredEnvMap, mip);
@@ -1206,12 +1262,15 @@ namespace Cyan
                     // Update uniforms
                     setUniform(u_projection, &camera.projection);
                     setUniform(u_view, &camera.view);
-                    setUniform(u_roughness, mip * (1.f / numMips));
+                    setUniform(u_roughness, mip * (1.f / kNumMips));
                     s_gfxc->setDepthControl(DepthControl::kDisable);
                     s_gfxc->setRenderTarget(rts[mip], f);
                     s_gfxc->setShader(shader);
+                    // uniforms
                     s_gfxc->setUniform(u_projection);
                     s_gfxc->setUniform(u_view);
+                    s_gfxc->setUniform(u_roughness);
+                    // textures
                     s_gfxc->setSampler(u_envmapSampler, 0);
                     s_gfxc->setTexture(envMap, 0);
                     s_gfxc->setPrimitiveType(PrimitiveType::TriangleList);
@@ -1234,36 +1293,49 @@ namespace Cyan
         {
             const u32 kTexWidth = 512u;
             const u32 kTexHeight = 512u;
-            Texture* outputTexture = createTextureHDR("integrateBrdf", kTexWidth, kTexHeight, Texture::ColorFormat::R16G16B16A16); 
+            TextureSpec spec = { };
+            spec.m_type = Texture::Type::TEX_2D;
+            spec.m_format = Texture::ColorFormat::R16G16B16A16;
+            spec.m_min = Texture::Filter::LINEAR;
+            spec.m_mag = Texture::Filter::LINEAR;
+            spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+            spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
+            spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
+            Texture* outputTexture = createTextureHDR("integrateBrdf", kTexWidth, kTexHeight, spec); 
             Shader* shader = createShader("IntegrateBRDFShader", "../../shader/shader_integrate_brdf.vs", "../../shader/shader_integrate_brdf.fs");
             RenderTarget* rt = createRenderTarget(kTexWidth, kTexWidth);
             rt->attachColorBuffer(outputTexture);
             f32 verts[] = {
                 -1.f,  1.f, 0.f, 0.f,  1.f,
                 -1.f, -1.f, 0.f, 0.f,  0.f,
-                 1.f, -1.f, 0.f, 0.f, -1.f,
+                1.f, -1.f, 0.f, 1.f,  0.f,
                 -1.f,  1.f, 0.f, 0.f,  1.f,
-                 1.f, -1.f, 0.f, 1.f, -1.f,
-                 1.f,  1.f, 0.f, 1.f,  1.f
+                1.f, -1.f, 0.f, 1.f,  0.f,
+                1.f,  1.f, 0.f, 1.f,  1.f
             };
-
             GLuint vbo, vao;
             glCreateBuffers(1, &vbo);
             glCreateVertexArrays(1, &vao);
             glBindVertexArray(vao);
             glNamedBufferData(vbo, sizeof(verts), verts, GL_STATIC_DRAW);
             glBindBuffer(GL_ARRAY_BUFFER, vbo);
+            glEnableVertexArrayAttrib(vao, 0);
             glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), 0);
+            glEnableVertexArrayAttrib(vao, 1);
             glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (const void*)(3 * sizeof(f32)));
             glBindBuffer(GL_ARRAY_BUFFER, 0);
             glBindVertexArray(0);
 
             auto gfxc = getCurrentGfxCtx();
+            glm::vec4 origViewport = gfxc->m_viewport;
             gfxc->setViewport(0.f, 0.f, kTexWidth, kTexHeight);
             gfxc->setShader(shader);
             gfxc->setRenderTarget(rt, 0);
             glBindVertexArray(vao);
+            gfxc->setDepthControl(Cyan::DepthControl::kDisable);
             glDrawArrays(GL_TRIANGLES, 0, 6);
+            gfxc->setDepthControl(Cyan::DepthControl::kEnable);
+            gfxc->setViewport(origViewport.x, origViewport.y, origViewport.z, origViewport.w);
             gfxc->reset();
 
             return outputTexture;

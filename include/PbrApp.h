@@ -31,7 +31,17 @@ struct EnvMapDebugger
 
     void init(Cyan::Texture* envMap) 
     { 
-        m_texture = Cyan::createTextureHDR("EnvmapDebug", envMap->m_width, envMap->m_height, Cyan::Texture::ColorFormat::R16G16B16, Cyan::Texture::Type::TEX_CUBEMAP);
+        using Cyan::Texture;
+        using Cyan::TextureSpec;
+        TextureSpec spec = { };
+        spec.m_type = Texture::Type::TEX_CUBEMAP;
+        spec.m_format = envMap->m_format;
+        spec.m_min = Texture::Filter::LINEAR;
+        spec.m_mag = Texture::Filter::LINEAR;
+        spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
+        m_texture = Cyan::createTextureHDR("EnvmapDebug", envMap->m_width, envMap->m_height, spec);
         glGenerateTextureMipmap(m_texture->m_id);
         m_envMap = envMap;
         m_shader = Cyan::createShader("PrefilterSpecularShader", "../../shader/shader_prefilter_specular.vs", "../../shader/shader_prefilter_specular.fs");
@@ -167,7 +177,17 @@ struct BrdfDebugger
 
     void init()
     {
-        m_output = Cyan::createTextureHDR("integrateBrdf", kTexWidth, kTexHeight, Cyan::Texture::ColorFormat::R16G16B16A16); 
+        using Cyan::Texture;
+        using Cyan::TextureSpec;
+        TextureSpec spec = { };
+        spec.m_type = Texture::Type::TEX_2D;
+        spec.m_format = Texture::ColorFormat::R16G16B16A16;
+        spec.m_min = Texture::Filter::LINEAR;
+        spec.m_mag = Texture::Filter::LINEAR;
+        spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.m_r = Texture::Wrap::NONE;
+        m_output = Cyan::createTextureHDR("integrateBrdf", kTexWidth, kTexHeight, spec); 
         m_shader = Cyan::createShader("IntegrateBRDFShader", "../../shader/shader_integrate_brdf.vs", "../../shader/shader_integrate_brdf.fs");
         m_renderTarget = Cyan::createRenderTarget(kTexWidth, kTexWidth);
         m_renderTarget->attachColorBuffer(m_output);
@@ -201,13 +221,12 @@ struct BrdfDebugger
         gfxc->setViewport(0.f, 0.f, kTexWidth, kTexHeight);
         gfxc->setShader(m_shader);
         gfxc->setRenderTarget(m_renderTarget, 0);
-        // gfxc->setDepthControl(Cyan::DepthControl::kDisable);
+        gfxc->setDepthControl(Cyan::DepthControl::kDisable);
         glBindVertexArray(m_vao);
         glDrawArrays(GL_TRIANGLES, 0, 6);
-        // Recover the viewport dimensions
         gfxc->setViewport(origViewport.x, origViewport.y, origViewport.z, origViewport.w);
         gfxc->reset();
-        // gfxc->setDepthControl(Cyan::DepthControl::kEnable);
+        gfxc->setDepthControl(Cyan::DepthControl::kEnable);
     }
 };
 
