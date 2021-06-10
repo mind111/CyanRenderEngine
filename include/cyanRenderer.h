@@ -44,7 +44,7 @@ namespace Cyan
         void init();
         void render(Scene* scene);
         void drawEntity(Entity* entity);
-        void drawMesh(Mesh* _mesh);
+        void drawMesh(Mesh* _mesh, MaterialInstance** matls);
         void submitMesh(Mesh* mesh, glm::mat4 modelTransform);
         void renderFrame();
         void endFrame();

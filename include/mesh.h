@@ -16,14 +16,14 @@ namespace Cyan
         {
             VertexArray* m_vertexArray;
             u32 m_numVerts;
-            MaterialInstance* m_matl;
+//            MaterialInstance* m_matl;
         };
 
         std::string m_name;
         glm::mat4 m_normalization;
         std::vector<SubMesh*> m_subMeshes;
 
-        void setMaterial(u32 _idx, MaterialInstance* _matl);
+        // void setMaterial(u32 _idx, MaterialInstance* _matl);
     };
 }
 

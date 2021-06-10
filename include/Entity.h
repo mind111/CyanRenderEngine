@@ -1,23 +1,22 @@
 #pragma once
 
-// External dependencies
 #include "glm.hpp"
 #include "gtc/matrix_transform.hpp"
 
-// Internal dependencies
 #include "Mesh.h"
 #include "Transform.h"
 
-// Instance of each
+// entity
 struct Entity
 {
+    void setMaterial(u32 subMeshIdx, Cyan::MaterialInstance* matl)
+    {
+        m_matls[subMeshIdx] = matl;
+    }
+
     uint32_t m_entityId;
     glm::vec3 m_position;
     Transform m_xform;
     Cyan::Mesh* m_mesh;
-};
-
-class EntityManager
-{
-
+    Cyan::MaterialInstance** m_matls;
 };

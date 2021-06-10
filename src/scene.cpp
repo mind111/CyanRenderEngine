@@ -9,19 +9,33 @@
 #include "assimp/postprocess.h"
 #include "gtc/matrix_transform.hpp"
 
+#include "CyanAPI.h"
 #include "Scene.h"
 
 SceneManager sceneManager;
 
-// TODO: For now, entityId cannot be reused
-// NOTE: Reserve entityId 0 for null-entity
-Entity* SceneManager::createEntity(Scene& scene)
+Entity* SceneManager::createEntity(Scene* scene, const char* meshName, Transform transform)
 {
-    Entity e = { };
-    e.m_entityId = scene.entities.size() > 0 ? scene.entities.size() + 1 : 1;
-    // !PERF
-    scene.entities.push_back(e);
-    return &scene.entities[scene.entities.size() - 1]; 
+    using Cyan::Mesh;
+    using Cyan::MaterialInstance;
+
+    Mesh* mesh = Cyan::getMesh(meshName);
+    u32 numSubMeshes = (u32)mesh->m_subMeshes.size();
+    Entity* entity = (Entity*)CYAN_ALLOC(sizeof(Entity));
+
+    // mesh
+    entity->m_mesh = mesh; 
+    // material instances
+    entity->m_matls = (MaterialInstance**)CYAN_ALLOC(numSubMeshes * sizeof(MaterialInstance*));
+    // id
+    entity->m_entityId = scene->entities.size() > 0 ? scene->entities.size() + 1 : 1;
+    // transform
+    entity->m_xform.translation = transform.translation;
+    entity->m_xform.qRot = transform.qRot;
+    entity->m_xform.scale = transform.scale;
+
+    scene->entities.push_back(entity);
+    return entity; 
 }
 
 void SceneManager::createDirectionalLight(Scene& scene, glm::vec3 color, glm::vec3 direction, float intensity)

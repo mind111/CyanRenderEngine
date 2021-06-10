@@ -277,6 +277,9 @@ private:
     Cyan::MaterialInstance* m_envmapMatl;
     Cyan::MaterialInstance* m_blitMatl;
 
+    // entities
+    Entity* m_envMapEntity;
+
     /* Shaders */
     Shader* m_pbrShader;
     Shader* m_envmapShader;

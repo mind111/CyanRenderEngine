@@ -17,8 +17,12 @@
 #include "GfxContext.h"
 
 /* TODO: 
+* implement a scene that contains arrays of sphere for debugging the Pbr rendering pipeline.
+* implement a ui to allow dynamically change to different envmap.
+* implement a ui to allow dynamically change to different mesh.
+* get rid of heap memory usage, no more "new" in the code base.
+
 * think about how to handle uniform with same name but different type
-* implement disney re-parameterization of "roughness"
 * look into why the render will contain "black" dots
 * implement a simple logger
 * remove the concept of shader uniform

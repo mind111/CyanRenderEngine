@@ -24,8 +24,10 @@ uniform sampler2D emissionMaps[2];
 uniform sampler2D normalMap;
 uniform sampler2D roughnessMap;
 uniform sampler2D aoMap;
-uniform samplerCube diffuseIrradianceMap; //non-material
-uniform samplerCube envmap;               //non-material
+uniform samplerCube envmap;             //non-material
+uniform samplerCube irradianceDiffuse;  //non-material
+uniform samplerCube irradianceSpecular; //non-material
+uniform sampler2D   brdfIntegral;
 
 const int aoStrength = 2;
 
@@ -91,6 +93,7 @@ vec3 fresnel(vec3 f0, vec3 v, vec3 h)
 }
 
 // Taking the formula from the GGX paper and simplify to avoid computing tangent
+// Using Disney's parameterization of alpha_g = roughness * roughness
 float GGX(float roughness, float ndoth) 
 {
     float alpha = roughness * roughness;
@@ -145,7 +148,7 @@ float VanDerCorput(uint n, uint base)
 
     return result;
 }
-// ----------------------------------------------------------------------------
+
 vec2 HammersleyNoBitOps(uint i, uint N)
 {
     return vec2(float(i)/float(N), VanDerCorput(i, 2u));
@@ -190,6 +193,55 @@ vec3 generateSample(vec3 n, float theta, float phi)
         zAxis
     };
     return normalize(toWorldSpace * s);
+}
+
+vec3 specularIBL(vec3 f0, vec3 normal, vec3 viewDir, float roughness)
+{
+    float numSamples = 512.f;
+    vec3 specularE = vec3(0.f);
+    for (uint sa = 0; sa < numSamples; sa++)
+    {
+        // vec2 rand_uv = HammersleyNoBitOps(sa, uint(numSamples));
+        // Random samples a microfacet normal following GGX distribution
+        float rand_u = hash(sa * 12.3f / numSamples); 
+        float rand_v = hash(sa * 78.2f / numSamples); 
+        // float rand_u = rand_uv.x; 
+        // float rand_v = rand_uv.y; 
+
+        // TODO: verify this importance sampling ggx procedure
+        float theta = atan(roughness * sqrt(rand_u) / sqrt(1 - rand_u));
+        float phi = 2 * pi * rand_v;
+        vec3 h = generateSample(normal, theta, phi);
+
+        // Reflect viewDir against microfacet normal to get incident direction
+        vec3 vi = -reflect(viewDir, h);
+        // Sample a color from envmap
+        vec3 envColor = texture(envmap, vi).rgb;
+        // Shading
+        float ndotv = saturate(dot(normal, viewDir));
+        float ndoth = saturate(dot(normal, h));
+        float vdoth = saturate(dot(viewDir, h)); 
+        float ndotl = saturate(dot(normal, vi));
+        // cook-torrance microfacet shading model
+        float shadowing = smithG(vi, normal, h, roughness) * smithG(viewDir, normal, h, roughness);
+        vec3 fresnel = fresnel(f0, vi, h);
+        /* 
+            Notes:
+                * Compared to the BRDF equation used in radiance(), 4 * ndotl * ndotv is missing,
+                because they got cancelled out by the pdf.
+
+                * pdf = (D * ndoth) / (4 * vdoth) 
+
+                * Notice that the GGX distribution term D is also cancelled out here from the original 
+                    microfacet BRDF fr = DFG / (4 * ndotv * ndotl)
+                    when doing importance sampling.
+        */
+        vec3 nom = fresnel * shadowing * vdoth;
+        float denom = max(0.0001f, ndotv * ndoth);
+        specularE += envColor * (nom / denom);
+    }
+    specularE /= numSamples;
+    return specularE;
 }
 
 void main() 
@@ -249,57 +301,19 @@ void main()
 
     // Image-based-lighting
     {
+        float ndotv = saturate(dot(n, viewDir));
+
         // Diffuse
         vec3 f = fresnel(f0, normal, normalize(normal + viewDir));
         vec3 kd = mix(vec3(1.f) - f, vec3(0.f), metallic);
-        vec3 diffuseE = texture(diffuseIrradianceMap, normal).rgb;
+        vec3 diffuseE = texture(irradianceDiffuse, normal).rgb;
         color += albedo.rgb * diffuseE * 6.5f * kd;
 
-        // Specular: importance sampling GGX
-        vec3 specularE = vec3(0.f);
-        float numSamples = 512.f;
-        for (uint sa = 0; sa < numSamples; sa++)
-        {
-            // vec2 rand_uv = HammersleyNoBitOps(sa, uint(numSamples));
-            // Random samples a microfacet normal following GGX distribution
-            float rand_u = hash(sa * 12.3f / numSamples); 
-            float rand_v = hash(sa * 78.2f / numSamples); 
-            // float rand_u = rand_uv.x; 
-            // float rand_v = rand_uv.y; 
-
-            // TODO: verify this importance sampling ggx procedure
-            float theta = atan(roughness * sqrt(rand_u) / sqrt(1 - rand_u));
-            float phi = 2 * pi * rand_v;
-            vec3 h = generateSample(normal, theta, phi);
-
-            // Reflect viewDir against microfacet normal to get incident direction
-            vec3 vi = -reflect(viewDir, h);
-            // Sample a color from envmap
-            vec3 envColor = texture(envmap, vi).rgb;
-            // Shading
-            float ndotv = saturate(dot(normal, viewDir));
-            float ndoth = saturate(dot(normal, h));
-            float vdoth = saturate(dot(viewDir, h)); 
-            float ndotl = saturate(dot(normal, vi));
-            // cook-torrance microfacet shading model
-            float shadowing = smithG(vi, normal, h, roughness) * smithG(viewDir, normal, h, roughness);
-            vec3 fresnel = fresnel(f0, vi, h);
-            /* 
-                Notes:
-                     * Compared to the BRDF equation used in radiance(), 4 * ndotl * ndotv is missing,
-                       because they got cancelled out by the pdf.
-
-                    * pdf = (D * ndoth) / (4 * vdoth) 
-
-                    * Notice that the GGX distribution term D is also cancelled out here from the original 
-                      microfacet BRDF fr = DFG / (4 * ndotv * ndotl)
-                      when doing importance sampling.
-            */
-            vec3 nom = fresnel * shadowing * vdoth;
-            float denom = max(0.0001f, ndotv * ndoth);
-            specularE += envColor * (nom / denom);
-        }
-        specularE /= numSamples;
+        // Specular: split sum approximation
+        vec3 vi = -reflect(viewDir, normal);
+        vec3 prefilteredColor = textureLod(irradianceSpecular, vi, roughness * 4.f).rgb;
+        vec3 brdf = texture(brdfIntegral, vec2(ndotv, roughness)).rgb; 
+        vec3 specularE = prefilteredColor * (f0 * brdf.r + brdf.g);
         color += specularE * kSpecular;
     }
 

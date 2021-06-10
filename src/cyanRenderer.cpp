@@ -46,12 +46,12 @@ namespace Cyan
         m_frame = new Frame;
     }
 
-    void Renderer::drawMesh(Mesh* _mesh)
+    void Renderer::drawMesh(Mesh* mesh, MaterialInstance** matls)
     {
-        for (auto subMesh : _mesh->m_subMeshes)
+        for (u32 i = 0; i < mesh->m_subMeshes.size(); ++i)
         {
             auto ctx = Cyan::getCurrentGfxCtx();
-            MaterialInstance* matl = subMesh->m_matl; 
+            MaterialInstance* matl = matls[i]; 
             Material* matlClass = matl->m_template;
             Shader* shader = matlClass->m_shader;
             ctx->setShader(matlClass->m_shader);
@@ -65,23 +65,11 @@ namespace Cyan
             {
                 ctx->setBuffer(buffer);
             }
-
             u32 usedTextureUnits = matl->bind();
-
-            // for (auto uniform : matl->m_uniforms)
-            // {
-            //     ctx->setUniform(uniform);
-            // }
-            // u32 textureUnit = 0;
-            // for (auto binding : matl->m_bindings)
-            // {
-            //     ctx->setSampler(binding.m_sampler, textureUnit);
-            //     ctx->setTexture(binding.m_tex, textureUnit++);
-            // }
-
-            ctx->setVertexArray(subMesh->m_vertexArray);
+            Mesh::SubMesh* sm = mesh->m_subMeshes[i];
+            ctx->setVertexArray(sm->m_vertexArray);
             ctx->setPrimitiveType(PrimitiveType::TriangleList);
-            ctx->drawIndex(subMesh->m_numVerts);
+            ctx->drawIndex(sm->m_numVerts);
             // NOTES: reset texture units because texture unit bindings are managed by gl context 
             // it won't change when binding different shaders
             for (u32 t = 0; t < usedTextureUnits; ++t)
@@ -114,6 +102,7 @@ namespace Cyan
 
     void Renderer::renderFrame()
     {
+    #if 0
         auto ctx = Cyan::getCurrentGfxCtx();
         for (auto draw : m_frame->m_renderQueue)
         {
@@ -147,17 +136,18 @@ namespace Cyan
                 ctx->setTexture(nullptr, t);
             }
         }
+    #endif
     }
 
-    void Renderer::drawEntity(Entity* _e) 
+    void Renderer::drawEntity(Entity* entity) 
     {
         auto computeModelMatrix = [&]() {
             glm::mat4 model(1.f);
             // model = trans * rot * scale
-            model = glm::translate(model, _e->m_xform.translation);
-            glm::mat4 rotation = glm::toMat4(_e->m_xform.qRot);
+            model = glm::translate(model, entity->m_xform.translation);
+            glm::mat4 rotation = glm::toMat4(entity->m_xform.qRot);
             model *= rotation;
-            model = glm::scale(model, _e->m_xform.scale);
+            model = glm::scale(model, entity->m_xform.scale);
             return model;
         };
         // glm::mat4 modelTransform = computeModelMatrix();
@@ -165,16 +155,23 @@ namespace Cyan
 
         Cyan::setUniform(u_model, &computeModelMatrix()[0][0]);
 
-        Mesh* mesh = _e->m_mesh;
+        Mesh* mesh = entity->m_mesh;
         auto ctx = Cyan::getCurrentGfxCtx();
-        for (auto sm : mesh->m_subMeshes)
+        for (u32 i = 0; i < mesh->m_subMeshes.size(); ++i)
         {
-            // TODO: (Optimize) This could be slow as well
-            Shader* shader = sm->m_matl->m_template->m_shader;
+            Shader* shader = entity->m_matls[i]->m_template->m_shader;
             ctx->setShader(shader);
             ctx->setUniform(u_model);
         }
-        drawMesh(mesh);
+        drawMesh(mesh, entity->m_matls);
+
+        // for (auto sm : mesh->m_subMeshes)
+        // {
+        //     // TODO: (Optimize) This could be slow as well
+        //     Shader* shader = sm->m_matl->m_template->m_shader;
+        //     ctx->setShader(shader);
+        //     ctx->setUniform(u_model);
+        // }
     }
 
     void Renderer::endFrame()
@@ -189,7 +186,7 @@ namespace Cyan
         // Draw all the entities
         for (auto entity : scene->entities)
         {
-            drawEntity(&entity);
+            drawEntity(entity);
         }
 
         // Post-processing

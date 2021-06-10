@@ -347,10 +347,8 @@ namespace Cyan
             entityInfo.at("mesh").get_to(meshName);
             auto xformInfo = entityInfo.at("xform");
             Transform xform = entityInfo.at("xform").get<Transform>();
-            Entity* newEntity = SceneManager::createEntity(*scene);
-            newEntity->m_mesh = getMesh(meshName.c_str()); 
-            newEntity->m_xform = entityInfo.at("xform").get<Transform>();
-            newEntity->m_position = glm::vec3(0.f);
+            Entity* entity = SceneManager::createEntity(scene, meshName.c_str(), xform);
+            entity->m_position = glm::vec3(0.f);
         }
 
         return scene;
@@ -552,8 +550,8 @@ namespace Cyan
     static void setTextureParameters(Texture* texture, TextureSpecGL& specGL)
     {
         glBindTexture(specGL.m_typeGL, texture->m_id);
-        glTexParameteri(specGL.m_typeGL, GL_TEXTURE_MAG_FILTER, specGL.m_minGL);
-        glTexParameteri(specGL.m_typeGL, GL_TEXTURE_MIN_FILTER, specGL.m_magGL);
+        glTexParameteri(specGL.m_typeGL, GL_TEXTURE_MIN_FILTER, specGL.m_minGL);
+        glTexParameteri(specGL.m_typeGL, GL_TEXTURE_MAG_FILTER, specGL.m_magGL);
         if (specGL.m_wrapFlag & (1 << 0 ))
         {
             glTexParameteri(specGL.m_typeGL, GL_TEXTURE_WRAP_S, specGL.m_sGL);
@@ -679,7 +677,7 @@ namespace Cyan
         Texture* texture = new Texture();
         float* pixels = stbi_loadf(_file, &w, &h, &numChannels, 0);
 
-        spec.m_format = numChannels == 3 ? Texture::ColorFormat::R8G8B8 : Texture::ColorFormat::R8G8B8A8;
+        spec.m_format = numChannels == 3 ? Texture::ColorFormat::R16G16B16 : Texture::ColorFormat::R16G16B16A16;
         texture->m_name = _name;
         texture->m_width = w;
         texture->m_height = h;
@@ -1104,6 +1102,7 @@ namespace Cyan
             // Create textures
             Texture* diffuseIrradianceMap;
             TextureSpec spec;
+            spec.m_type = Texture::Type::TEX_CUBEMAP;
             spec.m_min = Texture::Filter::LINEAR;
             spec.m_mag = Texture::Filter::LINEAR;
             spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
