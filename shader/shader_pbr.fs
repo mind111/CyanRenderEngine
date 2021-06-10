@@ -16,6 +16,9 @@ uniform int activeNumSpecular;
 uniform int activeNumEmission;
 uniform float hasAoMap;
 uniform float hasNormalMap;
+uniform float hasRoughnessMap;
+uniform float uniformRoughness;
+uniform float uniformMetallic;
 uniform int numPointLights; //non-material
 uniform int numDirLights;   //non_material
 //- samplers
@@ -265,8 +268,17 @@ void main()
     vec4 albedo = texture(diffuseMaps[0], uv);
     albedo.rgb = vec3(pow(albedo.r, 2.2f), pow(albedo.g, 2.2f), pow(albedo.b, 2.2f));
     // According to gltf-2.0 spec, metal is sampled from b, roughness is sampled from g
-    float roughness = texture(roughnessMap, uv).g;
-    float metallic = texture(roughnessMap, uv).b; 
+    float roughness, metallic;
+    if (hasRoughnessMap > 0.f)
+    {
+        roughness = texture(roughnessMap, uv).g;
+        metallic = texture(roughnessMap, uv).b; 
+    }
+    else
+    {
+        roughness = uniformRoughness;
+        metallic = uniformMetallic;
+    }
     // Determine the specular color
     vec3 f0 = mix(vec3(0.04f), albedo.rgb, metallic);
 
@@ -311,7 +323,18 @@ void main()
 
         // Specular: split sum approximation
         vec3 vi = -reflect(viewDir, normal);
-        vec3 prefilteredColor = textureLod(irradianceSpecular, vi, roughness * 4.f).rgb;
+        mat4 viewRotation = s_view;
+        // Cancel out the translation part of the view matrix so that the cubemap will always follow
+        // the camera, view of the cubemap will change along with the change of camera rotation 
+        viewRotation[3][0] = 0.f;
+        viewRotation[3][1] = 0.f;
+        viewRotation[3][2] = 0.f;
+        viewRotation[3][3] = 1.f;
+        // if directly uses vi to sample, the cubemap is basically always rotate along with the camera,
+        // its position in view space never changed. Need to apply inverse of view rotation to the reflection
+        // vector to get the correct reflection when rotating the camera
+        vec4 l = inverse(viewRotation) * vec4(vi, 0.f);
+        vec3 prefilteredColor = textureLod(irradianceSpecular, l.xyz, roughness * 4.f).rgb;
         vec3 brdf = texture(brdfIntegral, vec2(ndotv, roughness)).rgb; 
         vec3 specularE = prefilteredColor * (f0 * brdf.r + brdf.g);
         color += specularE * kSpecular;

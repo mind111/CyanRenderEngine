@@ -1,4 +1,3 @@
-#if 0
 #pragma once
 
 #include <vector>
@@ -7,6 +6,13 @@
 #include "Scene.h"
 #include "Mesh.h"
 #include "Geometry.h"
+
+struct IBLAssets
+{
+    Cyan::Texture* m_diffuse;
+    Cyan::Texture* m_specular;
+    Cyan::Texture* m_brdfIntegral;
+};
 
 class PbrSpheresSample : public CyanApp
 {
@@ -38,15 +44,13 @@ private:
     u32 currentScene;
     Scene* m_scene;
 
-    Camera m_genEnvmapCamera;
-
     /* Shaders */
     Shader* m_pbrShader;
     Shader* m_envmapShader;
 
     // Materials
     Cyan::MaterialInstance* m_envmapMatl;
-    Cyan::MaterialInstance* m_sphereMatl;
+    Cyan::MaterialInstance* m_sphereMatls[36];
 
     /* Buffers */
     RegularBuffer* m_pointLightsBuffer;
@@ -55,6 +59,8 @@ private:
     /* Textures */
     Cyan::Texture* m_rawEnvmap;
     Cyan::Texture* m_envmap;
+    Cyan::Texture* m_sphereAlbedo;
+    IBLAssets m_iblAssets;
 
     /* Uniforms */
     Uniform* u_numPointLights;
@@ -66,4 +72,3 @@ private:
     Uniform* u_hasNormalMap;
     Uniform* u_hasAoMap;
 };
-#endif

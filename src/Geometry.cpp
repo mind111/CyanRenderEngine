@@ -1,5 +1,53 @@
 #include "Geometry.h"
 
+void Line::init() 
+{ 
+    Shader* shader = Cyan::createShader("LineShader", "../../shader/shader_line.vs", "../../shader/shader_line.fs");
+    m_matl = Cyan::createMaterial(shader)->createInstance();
+    glCreateBuffers(1, &m_vbo);
+    glNamedBufferData(m_vbo, sizeof(m_vertices), nullptr, GL_STATIC_DRAW);
+    glCreateVertexArrays(1, &m_vao);
+    glBindVertexArray(m_vao);
+    glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+    glEnableVertexArrayAttrib(m_vao, 0);
+    glVertexAttribPointer(0, m_vertices[0].length(), GL_FLOAT, GL_FALSE, 0, 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+};
+
+Line& Line::setTransforms(Uniform* view, Uniform* projection)
+{
+    u_view = view;
+    u_projection = projection;
+    return *this;
+}
+
+Line& Line::setVerts(glm::vec3 v0, glm::vec3 v1)
+{
+    m_vertices[0] = v0;
+    m_vertices[1] = v1;
+    glNamedBufferData(m_vbo, sizeof(m_vertices), m_vertices, GL_STATIC_DRAW);
+    return *this;
+}
+
+Line& Line::setColor(glm::vec4 color)
+{
+    m_matl->set("color", &color.r);
+    return *this;
+}
+
+void Line::draw() 
+{ 
+    auto ctx = Cyan::getCurrentGfxCtx();
+    ctx->setShader(m_matl->m_template->m_shader);
+    m_matl->bind();
+    ctx->setUniform(u_view);
+    ctx->setUniform(u_projection);
+    glBindVertexArray(m_vao);
+    glDrawArrays(GL_LINES, 0, 2);
+    glBindVertexArray(0);
+};
+
 void Quad::init(glm::vec2 pos, float width, float height)
 {
     m_pos = pos;

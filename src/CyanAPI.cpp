@@ -675,6 +675,7 @@ namespace Cyan
     {
         int w, h, numChannels;
         Texture* texture = new Texture();
+        stbi_set_flip_vertically_on_load(1);
         float* pixels = stbi_loadf(_file, &w, &h, &numChannels, 0);
 
         spec.m_format = numChannels == 3 ? Texture::ColorFormat::R16G16B16 : Texture::ColorFormat::R16G16B16A16;
@@ -1307,10 +1308,10 @@ namespace Cyan
             f32 verts[] = {
                 -1.f,  1.f, 0.f, 0.f,  1.f,
                 -1.f, -1.f, 0.f, 0.f,  0.f,
-                1.f, -1.f, 0.f, 1.f,  0.f,
+                 1.f, -1.f, 0.f, 1.f,  0.f,
                 -1.f,  1.f, 0.f, 0.f,  1.f,
-                1.f, -1.f, 0.f, 1.f,  0.f,
-                1.f,  1.f, 0.f, 1.f,  1.f
+                 1.f, -1.f, 0.f, 1.f,  0.f,
+                 1.f,  1.f, 0.f, 1.f,  1.f
             };
             GLuint vbo, vao;
             glCreateBuffers(1, &vbo);
@@ -1338,6 +1339,62 @@ namespace Cyan
             gfxc->reset();
 
             return outputTexture;
+        }
+
+        // create a flat color albedo map via fragment shader
+        Texture* createFlatColorTexture(const char* name, u32 width, u32 height, glm::vec4 color)
+        {
+            TextureSpec spec = { };
+            spec.m_type = Texture::Type::TEX_2D;
+            spec.m_format = Texture::ColorFormat::R8G8B8A8;
+            spec.m_min = Texture::Filter::LINEAR;
+            spec.m_mag = Texture::Filter::LINEAR;
+            spec.m_s = Texture::Wrap::NONE;
+            spec.m_t = Texture::Wrap::NONE;
+            spec.m_r = Texture::Wrap::NONE;
+            f32 verts[] = {
+                -1.f,  1.f, 0.f, 0.f,  1.f,
+                -1.f, -1.f, 0.f, 0.f,  0.f,
+                 1.f, -1.f, 0.f, 1.f,  0.f,
+                -1.f,  1.f, 0.f, 0.f,  1.f,
+                 1.f, -1.f, 0.f, 1.f,  0.f,
+                 1.f,  1.f, 0.f, 1.f,  1.f
+            };
+            GLuint vbo, vao;
+            glCreateBuffers(1, &vbo);
+            glCreateVertexArrays(1, &vao);
+            glBindVertexArray(vao);
+            glNamedBufferData(vbo, sizeof(verts), verts, GL_STATIC_DRAW);
+            glBindBuffer(GL_ARRAY_BUFFER, vbo);
+            glEnableVertexArrayAttrib(vao, 0);
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), 0);
+            glEnableVertexArrayAttrib(vao, 1);
+            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (const void*)(3 * sizeof(f32)));
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+            glBindVertexArray(0);
+
+            Shader* shader = createShader("FlatColorShader", "../../shader/shader_flat_color.vs", "../../shader/shader_flat_color.fs");
+            Texture* texture = createTexture(name, width, height, spec);
+            RenderTarget* rt = createRenderTarget(width, height);
+            Uniform* u_color = createUniform("color", Uniform::Type::u_vec4);
+            setUniform(u_color, &color.r);
+            rt->attachColorBuffer(texture);
+
+            auto gfxc = getCurrentGfxCtx();
+            glm::vec4 origViewport = gfxc->m_viewport;
+            gfxc->setViewport(0.f, 0.f, texture->m_width, texture->m_height);
+            gfxc->setShader(shader);
+            gfxc->setRenderTarget(rt, 0);
+            gfxc->setUniform(u_color);
+            glBindVertexArray(vao);
+            gfxc->setDepthControl(Cyan::DepthControl::kDisable);
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+            gfxc->setDepthControl(Cyan::DepthControl::kEnable);
+            gfxc->setViewport(origViewport.x, origViewport.y, origViewport.z, origViewport.w);
+            gfxc->reset();
+
+            s_textures.push_back(texture);
+            return texture;
         }
 
     } // Toolkit

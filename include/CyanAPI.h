@@ -21,7 +21,7 @@
 * implement a ui to allow dynamically change to different envmap.
 * implement a ui to allow dynamically change to different mesh.
 * get rid of heap memory usage, no more "new" in the code base.
-* implement MSAA?
+* implement MSAA.
 
 * think about how to handle uniform with same name but different type
 * look into why the render will contain "black" dots
@@ -153,6 +153,8 @@ namespace Cyan
         Texture* prefilterEnvMapDiffuse(const char* _name, Texture* _envMap, bool _hdr=false);
         Texture* prefilterEnvmapSpecular(Texture* envMap);
         Texture* generateBrdfLUT();
+        Texture* createFlatColorTexture(const char* name, u32 width, u32 height, glm::vec4 color);
+
         //-
         // Mesh related
         Mesh* createCubeMesh(const char* _name);

@@ -42,6 +42,8 @@ Entity* SceneManager::createEntity(Scene* scene, const char* meshName, Transform
     entity->m_meshInstance = Cyan::getMesh(meshName)->createInstance(); 
     // id
     entity->m_entityId = scene->entities.size() > 0 ? scene->entities.size() + 1 : 1;
+    // pos
+    entity->m_position = glm::vec3(0.f);
     // transform
     entity->m_xform = (Transform*)CYAN_ALLOC(sizeof(Transform));
     entity->m_xform->translation = transform.translation;
