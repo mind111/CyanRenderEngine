@@ -21,6 +21,7 @@
 * implement a ui to allow dynamically change to different envmap.
 * implement a ui to allow dynamically change to different mesh.
 * get rid of heap memory usage, no more "new" in the code base.
+* implement MSAA?
 
 * think about how to handle uniform with same name but different type
 * look into why the render will contain "black" dots

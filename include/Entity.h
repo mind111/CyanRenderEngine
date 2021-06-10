@@ -9,14 +9,8 @@
 // entity
 struct Entity
 {
-    void setMaterial(u32 subMeshIdx, Cyan::MaterialInstance* matl)
-    {
-        m_matls[subMeshIdx] = matl;
-    }
-
     uint32_t m_entityId;
     glm::vec3 m_position;
-    Transform m_xform;
-    Cyan::Mesh* m_mesh;
-    Cyan::MaterialInstance** m_matls;
+    Transform* m_xform;
+    Cyan::MeshInstance* m_meshInstance;
 };

@@ -14,25 +14,39 @@
 
 SceneManager sceneManager;
 
+// create an entity that does not have transform component
+Entity* SceneManager::createEntity(Scene* scene, const char* meshName)
+{
+    using Cyan::Mesh;
+    using Cyan::MaterialInstance;
+
+    Entity* entity = (Entity*)CYAN_ALLOC(sizeof(Entity));
+    // mesh instance
+    entity->m_meshInstance = Cyan::getMesh(meshName)->createInstance(); 
+    // id
+    entity->m_entityId = scene->entities.size() > 0 ? scene->entities.size() + 1 : 1;
+    // transform
+    entity->m_xform = nullptr;
+
+    scene->entities.push_back(entity);
+    return entity; 
+}
+
 Entity* SceneManager::createEntity(Scene* scene, const char* meshName, Transform transform)
 {
     using Cyan::Mesh;
     using Cyan::MaterialInstance;
 
-    Mesh* mesh = Cyan::getMesh(meshName);
-    u32 numSubMeshes = (u32)mesh->m_subMeshes.size();
     Entity* entity = (Entity*)CYAN_ALLOC(sizeof(Entity));
-
-    // mesh
-    entity->m_mesh = mesh; 
-    // material instances
-    entity->m_matls = (MaterialInstance**)CYAN_ALLOC(numSubMeshes * sizeof(MaterialInstance*));
+    // mesh instance
+    entity->m_meshInstance = Cyan::getMesh(meshName)->createInstance(); 
     // id
     entity->m_entityId = scene->entities.size() > 0 ? scene->entities.size() + 1 : 1;
     // transform
-    entity->m_xform.translation = transform.translation;
-    entity->m_xform.qRot = transform.qRot;
-    entity->m_xform.scale = transform.scale;
+    entity->m_xform = (Transform*)CYAN_ALLOC(sizeof(Transform));
+    entity->m_xform->translation = transform.translation;
+    entity->m_xform->qRot = transform.qRot;
+    entity->m_xform->scale = transform.scale;
 
     scene->entities.push_back(entity);
     return entity; 

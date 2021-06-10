@@ -84,11 +84,11 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight)
     gEngine->registerMouseButtonCallback(&Pbr::mouseButtonCallback);
     // setup scenes
     Scene* helmetScene = Cyan::createScene("../../scene/default_scene/scene_config.json");
-    Scene* sphereScene = Cyan::createScene("../../scene/default_scene/scene_spheres.json");
+    // Scene* sphereScene = Cyan::createScene("../../scene/default_scene/scene_spheres.json");
     helmetScene->mainCamera.projection = glm::perspective(glm::radians(helmetScene->mainCamera.fov), (float)(gEngine->getWindow().width) / gEngine->getWindow().height, helmetScene->mainCamera.n, helmetScene->mainCamera.f);
-    sphereScene->mainCamera.projection = glm::perspective(glm::radians(sphereScene->mainCamera.fov), (float)(gEngine->getWindow().width) / gEngine->getWindow().height, sphereScene->mainCamera.n, sphereScene->mainCamera.f);
+    // sphereScene->mainCamera.projection = glm::perspective(glm::radians(sphereScene->mainCamera.fov), (float)(gEngine->getWindow().width) / gEngine->getWindow().height, sphereScene->mainCamera.n, sphereScene->mainCamera.f);
     m_scenes.push_back(helmetScene);
-    m_scenes.push_back(sphereScene);
+    // m_scenes.push_back(sphereScene);
     currentScene = 0;
 
     // helmet instance 
@@ -121,8 +121,8 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight)
         glm::quat(1.f, glm::vec3(0.f)), // identity quaternion
         glm::vec3(1.f)
     };
-    Entity* envMapEntity = SceneManager::createEntity(m_scenes[0], "cubemapMesh", transform);
-    envMapEntity->setMaterial(0, m_envmapMatl);
+    m_envMapEntity = SceneManager::createEntity(m_scenes[0], "cubemapMesh");
+    m_envMapEntity->m_meshInstance->setMaterial(0, m_envmapMatl);
 
     // Generate diffuse irradiace map from envmap
     m_iblAssets.m_diffuse = Cyan::Toolkit::prefilterEnvMapDiffuse("diffuse_irradiance_map", m_envmap, true);
@@ -144,7 +144,7 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight)
     m_helmetMatl->set("kDiffuse", 1.0f);
     m_helmetMatl->set("kSpecular", 1.0f);
 
-    SceneManager::getEntity(m_scenes[0], 0)->setMaterial(0, m_helmetMatl);
+    SceneManager::getEntity(m_scenes[0], 0)->m_meshInstance->setMaterial(0, m_helmetMatl);
 
     // add lights into the scene
     SceneManager::createDirectionalLight(*helmetScene, glm::vec3(1.0, 0.95f, 0.76f), glm::vec3(0.f, 0.f, -1.f), 2.f);
@@ -152,8 +152,8 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight)
     SceneManager::createPointLight(*helmetScene, glm::vec3(0.9, 0.95f, 0.76f), glm::vec3(0.4f, 1.5f, 2.4f), 1.f);
     SceneManager::createPointLight(*helmetScene, glm::vec3(0.9, 0.95f, 0.76f), glm::vec3(0.0f, 0.8f, -2.4f), 1.f);
 
-    SceneManager::createDirectionalLight(*sphereScene, glm::vec3(1.0, 0.95f, 0.76f), glm::vec3(0.f, 0.f, -1.f), 2.f);
-    SceneManager::createDirectionalLight(*sphereScene, glm::vec3(1.0, 0.95f, 0.76f), glm::vec3(-0.5f, -0.3f, -1.f), 2.f);
+    // SceneManager::createDirectionalLight(*sphereScene, glm::vec3(1.0, 0.95f, 0.76f), glm::vec3(0.f, 0.f, -1.f), 2.f);
+    // SceneManager::createDirectionalLight(*sphereScene, glm::vec3(1.0, 0.95f, 0.76f), glm::vec3(-0.5f, -0.3f, -1.f), 2.f);
 
     // misc
     entityOnFocusIdx = 0;
@@ -224,26 +224,21 @@ void PbrApp::render()
     if (!m_scenes[currentScene]->dLights.empty())
         Cyan::setBuffer(m_dirLightsBuffer, m_scenes[currentScene]->dLights.data(), sizeofVector(m_scenes[currentScene]->dLights));
 
-    m_brdfDebugger.draw();
-
     Cyan::Renderer* renderer = gEngine->getRenderer();
     // draw entities in the scene
-    renderer->render(m_scenes[currentScene]);
-    // envmap pass
-    renderer->drawEntity(m_envMapEntity);
-    // renderer->drawMesh(Cyan::getMesh("cubemapMesh"));
+    renderer->renderScene(m_scenes[currentScene]);
 
     // visualizer
     m_bufferVis.draw();
     // ui
     Entity* e = m_scenes[currentScene]->entities[entityOnFocusIdx];
     ImGui::Begin("Transform");
-    gEngine->displayFloat3("Translation", e->m_xform.translation);
-    gEngine->displayFloat3("Scale", e->m_xform.scale, true);
-    gEngine->displaySliderFloat("Scale", &e->m_xform.scale.x, 0.0f, 10.f);
+    gEngine->displayFloat3("Translation", e->m_xform->translation);
+    gEngine->displayFloat3("Scale", e->m_xform->scale, true);
+    gEngine->displaySliderFloat("Scale", &e->m_xform->scale.x, 0.0f, 10.f);
     gEngine->displaySliderFloat("kd", (f32*)u_kDiffuse->m_valuePtr, 0.0f, 1.0f);
     gEngine->displaySliderFloat("ks", (f32*)u_kSpecular->m_valuePtr, 0.0f, 7.0f);
-    e->m_xform.scale.z = e->m_xform.scale.y = e->m_xform.scale.x;
+    e->m_xform->scale.z = e->m_xform->scale.y = e->m_xform->scale.x;
     ImGui::End();
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

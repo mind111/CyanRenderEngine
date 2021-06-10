@@ -46,15 +46,24 @@ namespace Cyan
         m_frame = new Frame;
     }
 
-    void Renderer::drawMesh(Mesh* mesh, MaterialInstance** matls)
+    void Renderer::drawMeshInstance(MeshInstance* meshInstance, glm::mat4* modelMatrix)
     {
+        Mesh* mesh = meshInstance->m_mesh;
+
         for (u32 i = 0; i < mesh->m_subMeshes.size(); ++i)
         {
             auto ctx = Cyan::getCurrentGfxCtx();
-            MaterialInstance* matl = matls[i]; 
+            MaterialInstance* matl = meshInstance->m_matls[i]; 
             Material* matlClass = matl->m_template;
             Shader* shader = matlClass->m_shader;
+            // TODO: this is obviously redundant
             ctx->setShader(matlClass->m_shader);
+            if (modelMatrix)
+            {
+                // TODO: this is obviously redundant
+                Cyan::setUniform(u_model, &(*modelMatrix)[0][0]);
+                ctx->setUniform(u_model);
+            }
             ctx->setUniform(u_cameraView);
             ctx->setUniform(u_cameraProjection);
             // for (auto uniform : shader->m_uniforms)
@@ -144,26 +153,24 @@ namespace Cyan
         auto computeModelMatrix = [&]() {
             glm::mat4 model(1.f);
             // model = trans * rot * scale
-            model = glm::translate(model, entity->m_xform.translation);
-            glm::mat4 rotation = glm::toMat4(entity->m_xform.qRot);
+            model = glm::translate(model, entity->m_xform->translation);
+            glm::mat4 rotation = glm::toMat4(entity->m_xform->qRot);
             model *= rotation;
-            model = glm::scale(model, entity->m_xform.scale);
+            model = glm::scale(model, entity->m_xform->scale);
             return model;
         };
         // glm::mat4 modelTransform = computeModelMatrix();
         // submitMesh(_e->m_mesh, modelTransform);
-
-        Cyan::setUniform(u_model, &computeModelMatrix()[0][0]);
-
-        Mesh* mesh = entity->m_mesh;
-        auto ctx = Cyan::getCurrentGfxCtx();
-        for (u32 i = 0; i < mesh->m_subMeshes.size(); ++i)
+        glm::mat4 model;
+        if (entity->m_xform)
         {
-            Shader* shader = entity->m_matls[i]->m_template->m_shader;
-            ctx->setShader(shader);
-            ctx->setUniform(u_model);
+            model = computeModelMatrix();
+            drawMeshInstance(entity->m_meshInstance, &model);
         }
-        drawMesh(mesh, entity->m_matls);
+        else
+        {
+            drawMeshInstance(entity->m_meshInstance, nullptr);
+        }
 
         // for (auto sm : mesh->m_subMeshes)
         // {
@@ -180,7 +187,7 @@ namespace Cyan
         Cyan::getCurrentGfxCtx()->flip();
     }
 
-    void Renderer::render(Scene* scene)
+    void Renderer::renderScene(Scene* scene)
     {
         //
         // Draw all the entities
