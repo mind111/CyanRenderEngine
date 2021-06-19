@@ -128,24 +128,22 @@ namespace Cyan
         return s_gfxc;
     }
 
-    RegularBuffer* createRegularBuffer(const char* _blockName, Shader* _shader, u32 _binding, u32 _sizeInBytes)
+    RegularBuffer* createRegularBuffer(u32 totalSizeInBytes)
     {
         RegularBuffer* buffer = new RegularBuffer;
-        buffer->m_name = _blockName;
-        buffer->m_binding = _binding;
-        buffer->m_sizeInBytes = _sizeInBytes;
+        buffer->m_totalSize = totalSizeInBytes;
+        buffer->m_sizeToUpload = 0u;
         buffer->m_data = nullptr;
 
-        GLuint blockIndex = glGetProgramResourceIndex(_shader->m_programId, GL_SHADER_STORAGE_BLOCK, buffer->m_name);
-        glShaderStorageBlockBinding(_shader->m_programId, blockIndex, _binding);
+        // GLuint blockIndex = glGetProgramResourceIndex(_shader->m_programId, GL_SHADER_STORAGE_BLOCK, buffer->m_name);
+        // note: this is used to dynamically set the binding point of 
+        // glShaderStorageBlockBinding(_shader->m_programId, blockIndex, _binding);
         glCreateBuffers(1, &buffer->m_ssbo);
-        _shader->bind();
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer->m_ssbo);
-        glBufferData(GL_SHADER_STORAGE_BUFFER, _sizeInBytes, 0, GL_DYNAMIC_COPY);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, _binding, buffer->m_ssbo);
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-        _shader->unbind();
-        _shader->m_buffers.push_back(buffer);
+        glNamedBufferData(buffer->m_ssbo, buffer->m_totalSize, nullptr, GL_DYNAMIC_COPY);
+        // glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer->m_ssbo);
+        // glBufferData(GL_SHADER_STORAGE_BUFFER, _sizeInBytes, 0, GL_DYNAMIC_COPY);
+        // glBindBufferBase(GL_SHADER_STORAGE_BUFFER, _binding, buffer->m_ssbo);
+        // glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
         return buffer;
     }
 
@@ -294,6 +292,10 @@ namespace Cyan
         auto meshInfoList = sceneJson["meshes"];
         auto textureInfoList = sceneJson["textures"];
         auto entities = sceneJson["entities"];
+
+        // create buffer size that can contain max number of lights
+        scene->m_dirLightsBuffer = createRegularBuffer(Scene::kMaxNumDirLights * sizeof(DirectionalLight));
+        scene->m_pointLightsBuffer = createRegularBuffer(Scene::kMaxNumPointLights * sizeof(PointLight));
 
         // TODO: each scene should only have one camera
         for (auto camera : cameras) 
@@ -820,8 +822,11 @@ namespace Cyan
         m_materialTypes[handle] = new Material;
         Material* material = m_materialTypes[handle];
         material->m_shader = _shader;
-        material->m_bufferSize = 0; // at least need to contain UniformBuffer::End
-        material->m_numSamplers = 0;
+        material->m_bufferSize = 0u; // at least need to contain UniformBuffer::End
+        material->m_numSamplers = 0u;
+        material->m_numBuffers = 0u;
+        material->m_lit = false;
+
         GLuint programId = material->m_shader->m_programId;
         GLsizei numActiveUniforms;
         glGetProgramiv(programId, GL_ACTIVE_UNIFORMS, &numActiveUniforms);
@@ -837,6 +842,13 @@ namespace Cyan
             {
                 // predefined uniforms such as model, view, projection
                 continue;
+            }
+            // TODO: this is obviously not optimal
+            // TODO: how to determine if a material is lit or not
+            if ((strcmp(name, "numPointLights") == 0) || 
+                (strcmp(name, "numDirLights") == 0))
+            {
+                material->m_lit = true;
             }
             for (u32 ii = 0; ii < num; ++ii)
             {
@@ -861,6 +873,18 @@ namespace Cyan
                 }
             }
         }
+        // buffers ubo/ssbo
+        i32 numActiveBlocks = 0, maxBlockNameLength = 0;
+        glGetProgramInterfaceiv(programId, GL_SHADER_STORAGE_BLOCK, GL_ACTIVE_RESOURCES, &numActiveBlocks);
+        glGetProgramInterfaceiv(programId, GL_SHADER_STORAGE_BLOCK, GL_MAX_NAME_LENGTH, &maxBlockNameLength);
+        char* blockName = (char*)_alloca(maxBlockNameLength + 1);
+        for (u32 i = 0; i < numActiveBlocks; ++i)
+        {
+            i32 length = 0;
+            glGetProgramResourceName(programId, GL_SHADER_STORAGE_BLOCK, i, maxBlockNameLength + 1, &length, blockName);
+            material->m_bufferBlocks[i] = std::string(blockName);
+        }
+        material->m_numBuffers = numActiveBlocks;
         material->finalize();
         return material;
     }
@@ -916,10 +940,10 @@ namespace Cyan
         *(f32*)(_uniform->m_valuePtr) = _value;
     }
 
-    void setBuffer(RegularBuffer* _buffer, void* _data, u32 _sizeInBytes)
+    void setBuffer(RegularBuffer* _buffer, void* _data, u32 sizeToUpload)
     {
         _buffer->m_data = _data;
-        _buffer->m_sizeInBytes = _sizeInBytes;
+        _buffer->m_sizeToUpload = sizeToUpload;
     }
 
     namespace Toolkit
@@ -1093,7 +1117,7 @@ namespace Cyan
             return envmap;
         }
 
-        Texture* prefilterEnvMapDiffuse(const char* _name, Texture* _envMap, bool _hdr)
+        Texture* prefilterEnvMapDiffuse(const char* _name, Texture* envMap)
         {
             const u32 kViewportWidth = 1024;
             const u32 kViewportHeight = 1024;
@@ -1103,22 +1127,20 @@ namespace Cyan
             // Create textures
             Texture* diffuseIrradianceMap;
             TextureSpec spec;
+            spec.m_format = envMap->m_format;
             spec.m_type = Texture::Type::TEX_CUBEMAP;
             spec.m_min = Texture::Filter::LINEAR;
             spec.m_mag = Texture::Filter::LINEAR;
             spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
             spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
             spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
-            if (_hdr)
+            if (spec.m_format == Texture::ColorFormat::R16G16B16 || spec.m_format == Texture::ColorFormat::R16G16B16A16)
             {
-                // TODO: fix this, this assumes that the envmap only has 3 channels
-                spec.m_format = Texture::ColorFormat::R16G16B16;
-                diffuseIrradianceMap = createTextureHDR(_name, kViewportWidth, kViewportHeight, spec);
+                diffuseIrradianceMap = createTextureHDR(envMap->m_name.c_str(), envMap->m_width, envMap->m_height, spec);
             }
             else
             {
-                spec.m_format = Texture::ColorFormat::R8G8B8;
-                diffuseIrradianceMap = createTexture(_name, kViewportWidth, kViewportHeight, spec);
+                diffuseIrradianceMap = createTexture(envMap->m_name.c_str(), envMap->m_width, envMap->m_height, spec);
             }
             // Create render targets
             RenderTarget* rt = createRenderTarget(kViewportWidth, kViewportHeight);
@@ -1174,7 +1196,7 @@ namespace Cyan
                 s_gfxc->setUniform(u_projection);
                 s_gfxc->setUniform(u_view);
                 s_gfxc->setSampler(u_envmapSampler, 0);
-                s_gfxc->setTexture(_envMap, 0);
+                s_gfxc->setTexture(envMap, 0);
                 s_gfxc->setPrimitiveType(PrimitiveType::TriangleList);
                 s_gfxc->setVertexArray(cubeMesh->m_subMeshes[0]->m_vertexArray);
 
@@ -1245,7 +1267,7 @@ namespace Cyan
             }
             // Cache viewport config
             glm::vec4 origViewport = s_gfxc->m_viewport;
-            const u32 kNumMips = 5;
+            const u32 kNumMips = 10u;
             u32 mipWidth = prefilteredEnvMap->m_width; 
             u32 mipHeight = prefilteredEnvMap->m_height;
             RenderTarget* rts[kNumMips];;
@@ -1341,6 +1363,16 @@ namespace Cyan
             return outputTexture;
         }
 
+        LightProbe createLightProbe(const char* name, const char* file, bool hdr)
+        {
+            LightProbe probe = { };
+            probe.m_baseCubeMap = Toolkit::loadEquirectangularMap(name, file, hdr);
+            probe.m_diffuse = Toolkit::prefilterEnvMapDiffuse(name, probe.m_baseCubeMap);
+            probe.m_specular = Toolkit::prefilterEnvmapSpecular(probe.m_baseCubeMap);
+            probe.m_brdfIntegral = Toolkit::generateBrdfLUT();
+            return probe;
+        }
+
         // create a flat color albedo map via fragment shader
         Texture* createFlatColorTexture(const char* name, u32 width, u32 height, glm::vec4 color)
         {
@@ -1396,6 +1428,7 @@ namespace Cyan
             s_textures.push_back(texture);
             return texture;
         }
+
 
     } // Toolkit
 } // Cyan

@@ -56,6 +56,7 @@ Entity* SceneManager::createEntity(Scene* scene, const char* meshName, Transform
 
 void SceneManager::createDirectionalLight(Scene& scene, glm::vec3 color, glm::vec3 direction, float intensity)
 {
+    CYAN_ASSERT(scene.dLights.size() < Scene::kMaxNumDirLights, "Too many directional lights created.")
     scene.dLights.push_back(DirectionalLight{
         glm::vec4(color, intensity),
         glm::vec4(direction, 0.f)
@@ -64,6 +65,7 @@ void SceneManager::createDirectionalLight(Scene& scene, glm::vec3 color, glm::ve
 
 void SceneManager::createPointLight(Scene& scene, glm::vec3 color, glm::vec3 position, float intensity)
 {
+    CYAN_ASSERT(scene.pLights.size() < Scene::kMaxNumPointLights, "Too many point lights created.")
     scene.pLights.push_back(PointLight{
         glm::vec4(color, intensity),
         glm::vec4(position, 1.f)

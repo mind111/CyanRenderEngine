@@ -43,8 +43,8 @@ struct UniformBuffer
     f32 readF32();
     u32 readU32();
     i32 readI32();
-    // Read float3
     glm::vec3 readVec3();
+    glm::vec4 readVec4();
     void* read(u32 size);
     void write(void* data, u32 size);
     void write(u32 data);

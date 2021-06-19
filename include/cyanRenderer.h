@@ -54,5 +54,8 @@ namespace Cyan
         Uniform* u_model; 
         Uniform* u_cameraView;
         Uniform* u_cameraProjection;
+
+        RegularBuffer* m_pointLightsBuffer;
+        RegularBuffer* m_dirLightsBuffer;
     };
 }

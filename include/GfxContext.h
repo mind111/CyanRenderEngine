@@ -20,6 +20,18 @@ namespace Cyan
         LineStrip
     };
 
+    enum FrontFace
+    {
+        ClockWise = 0,
+        CounterClockWise
+    };
+
+    enum FaceCull
+    {
+        Front = 0,
+        Back
+    };
+
     enum DepthControl
     {
         kDisable = 0,
@@ -42,12 +54,13 @@ namespace Cyan
         void setSampler(Uniform* _sampler, u32 binding);
         void setTexture(Texture* _texture, u32 binding);
         void setVertexArray(VertexArray* _array);
-        void setBuffer(RegularBuffer* _buffer);
+        void setBuffer(RegularBuffer* _buffer, u32 binding);
         void setPrimitiveType(PrimitiveType _type);
         void setViewport(u32 _left, u32 _bottom, u32 _right, u32 _top);
         void setRenderTarget(RenderTarget* _rt, u16 drawBufferIdx); 
         void setDepthControl(DepthControl _ctrl);
         void setClearColor(glm::vec4 color);
+        void setCullFace(FrontFace frontFace, FaceCull faceToCull);
         //-
         void drawIndex(u32 _numVerts, u32 _offset=0);
         //-

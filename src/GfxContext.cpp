@@ -50,6 +50,32 @@ namespace Cyan
         m_shader->setUniform(_sampler, (i32)binding);
     }
 
+    void GfxContext::setCullFace(FrontFace frontFace, FaceCull faceToCull)
+    {
+        glEnable(GL_CULL_FACE);
+        GLenum gl_frontFace, gl_faceToCull;
+        switch(frontFace)
+        {
+            case FrontFace::ClockWise:
+                gl_frontFace = GL_CW;
+                break;
+            case FrontFace::CounterClockWise:
+                gl_frontFace = GL_CCW;
+                break;
+        }
+        switch(faceToCull)
+        {
+            case FaceCull::Front:
+                gl_faceToCull = GL_FRONT;
+                break;
+            case FaceCull::Back:
+                gl_faceToCull = GL_BACK;
+                break;
+        }
+        glFrontFace(gl_frontFace);
+        glCullFace(gl_faceToCull);
+    }
+
     void GfxContext::setDepthControl(DepthControl _ctrl)
     {
         switch(_ctrl)
@@ -78,11 +104,20 @@ namespace Cyan
         }
     }
 
-    void GfxContext::setBuffer(RegularBuffer* _buffer)
+    void GfxContext::setBuffer(RegularBuffer* _buffer, u32 binding)
     {
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, _buffer->m_ssbo);
-        void* baseAddr = glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_WRITE_ONLY);
-        memcpy(baseAddr, _buffer->m_data, _buffer->m_sizeInBytes);
+        // glBindBuffer(GL_SHADER_STORAGE_BUFFER, _buffer->m_ssbo);
+        // void* baseAddr = glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_WRITE_ONLY);
+        if (!_buffer)
+        {
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding, 0);
+            return;
+        }
+
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding, _buffer->m_ssbo);
+        void* baseAddr = glMapNamedBuffer(_buffer->m_ssbo, GL_WRITE_ONLY);
+
+        memcpy(baseAddr, _buffer->m_data, _buffer->m_sizeToUpload);
         glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
     }
 

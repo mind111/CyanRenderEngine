@@ -75,6 +75,15 @@ glm::vec3 UniformBuffer::readVec3()
     return glm::vec3(x, y, z);
 }
 
+glm::vec4 UniformBuffer::readVec4()
+{
+    float x = readF32();
+    float y = readF32();
+    float z = readF32();
+    float w = readF32();
+    return glm::vec4(x, y, z, w);
+}
+
 void* UniformBuffer::read(u32 size)
 {
     CYAN_ASSERT(m_pos + size <= m_size, "Read from UniformBuffer out of bound")
@@ -147,6 +156,13 @@ void UniformBuffer::debugPrint()
                 glm::vec3 data = readVec3();
                 u32 offset = m_pos - sizeof(f32) * 3;
                 printf("%u bytes| %u %s: x: %.2f y: %.2f z: %.2f \n", offset, handle, uniform->m_name, data.x, data.y, data.z);
+                break;
+            }
+            case Uniform::Type::u_vec4:
+            {
+                glm::vec4 data = readVec4();
+                u32 offset = m_pos - sizeof(f32) * 4;
+                printf("%u bytes| %u %s: x: %.2f y: %.2f z: %.2f, w: %.2f \n", offset, handle, uniform->m_name, data.x, data.y, data.z, data.w);
                 break;
             }
             case Uniform::Type::u_mat4:

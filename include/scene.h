@@ -7,13 +7,19 @@
 #include "Texture.h"
 #include "Entity.h"
 #include "Light.h"
+#include "Material.h"
 
 struct Scene 
 {
+    static const u32 kMaxNumPointLights = 20u;
+    static const u32 kMaxNumDirLights = 20u;
     Camera mainCamera;
+    u32 m_currentEnvMap;
     std::vector<Entity*> entities;
     std::vector<PointLight> pLights;
     std::vector<DirectionalLight> dLights;
+    RegularBuffer* m_pointLightsBuffer;
+    RegularBuffer* m_dirLightsBuffer;
 };
 
 class SceneManager {

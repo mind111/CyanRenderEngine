@@ -44,6 +44,8 @@ namespace Cyan
         u_cameraView = createUniform("s_view", Uniform::Type::u_mat4);
         u_cameraProjection = createUniform("s_projection", Uniform::Type::u_mat4);
         m_frame = new Frame;
+        // set back-face culling
+        Cyan::getCurrentGfxCtx()->setCullFace(FrontFace::CounterClockWise, FaceCull::Back);
     }
 
     void Renderer::drawMeshInstance(MeshInstance* meshInstance, glm::mat4* modelMatrix)
@@ -70,20 +72,26 @@ namespace Cyan
             // {
             //     ctx->setUniform(uniform);
             // }
-            for (auto buffer : shader->m_buffers)
-            {
-                ctx->setBuffer(buffer);
-            }
-            u32 usedTextureUnits = matl->bind();
+            // for (auto buffer : shader->m_buffers)
+            // {
+            //     ctx->setBuffer(buffer);
+            // }
+            UsedBindingPoints used = matl->bind();
             Mesh::SubMesh* sm = mesh->m_subMeshes[i];
             ctx->setVertexArray(sm->m_vertexArray);
             ctx->setPrimitiveType(PrimitiveType::TriangleList);
             ctx->drawIndex(sm->m_numVerts);
             // NOTES: reset texture units because texture unit bindings are managed by gl context 
             // it won't change when binding different shaders
-            for (u32 t = 0; t < usedTextureUnits; ++t)
+            for (u32 t = 0; t < used.m_usedTexBindings; ++t)
             {
                 ctx->setTexture(nullptr, t);
+            }
+            // NOTES: reset shader storage binding points
+            // TODO: verify if shader storage binding points are global
+            for (u32 p = 0; p < used.m_usedBufferBindings; ++p)
+            {
+                ctx->setBuffer(nullptr, p);
             }
         }
     }
@@ -159,8 +167,6 @@ namespace Cyan
             model = glm::scale(model, entity->m_xform->scale);
             return model;
         };
-        // glm::mat4 modelTransform = computeModelMatrix();
-        // submitMesh(_e->m_mesh, modelTransform);
         glm::mat4 model;
         if (entity->m_xform)
         {
@@ -171,14 +177,6 @@ namespace Cyan
         {
             drawMeshInstance(entity->m_meshInstance, nullptr);
         }
-
-        // for (auto sm : mesh->m_subMeshes)
-        // {
-        //     // TODO: (Optimize) This could be slow as well
-        //     Shader* shader = sm->m_matl->m_template->m_shader;
-        //     ctx->setShader(shader);
-        //     ctx->setUniform(u_model);
-        // }
     }
 
     void Renderer::endFrame()
@@ -187,21 +185,51 @@ namespace Cyan
         Cyan::getCurrentGfxCtx()->flip();
     }
 
+    template <typename T>
+    u32 sizeofVector(const std::vector<T>& vec)
+    {
+        CYAN_ASSERT(vec.size() > 0, "empty vector");
+        return sizeof(vec[0]) * (u32)vec.size();
+    }
+
     void Renderer::renderScene(Scene* scene)
     {
-        //
-        // Draw all the entities
+        // camera
+        Camera& camera = scene->mainCamera;
+        CameraManager::updateCamera(camera);
+        setUniform(u_cameraView, (void*)&camera.view[0]);
+        setUniform(u_cameraProjection, (void*)&camera.projection[0]);
+        // lights
+        if (!scene->pLights.empty())
+        {
+            setBuffer(scene->m_pointLightsBuffer, scene->pLights.data(), sizeofVector(scene->pLights));
+        }
+        if (!scene->dLights.empty())
+        {
+            setBuffer(scene->m_dirLightsBuffer, scene->dLights.data(), sizeofVector(scene->dLights));
+        }
+        /* 
+          TODO: split entities into those has lighting and those does not
+          * such as a helmet mesh need to react to lighiting in the scene but a cubemap meshInstance 
+          * does not need to.
+        */
+        // entities 
         for (auto entity : scene->entities)
         {
+            MeshInstance* meshInstance = entity->m_meshInstance; 
+            u32 numSubMeshs = (u32)meshInstance->m_mesh->m_subMeshes.size();
+            if (meshInstance->m_matls[0]->m_template->m_lit)
+            {
+                for (u32 sm = 0; sm < numSubMeshs; ++sm)
+                {
+                    // TODO: note that not necessarily every mateiralInstance will have this two
+                    // variables.
+                    meshInstance->m_matls[sm]->set("numPointLights", sizeofVector(scene->pLights) / (u32)sizeof(PointLight));
+                    meshInstance->m_matls[sm]->set("numDirLights",   sizeofVector(scene->dLights) / (u32)sizeof(DirectionalLight));
+                }
+            }
             drawEntity(entity);
         }
-
-        // Post-processing
-        {
-
-        }
-
-        //renderFrame();
     }
 
     float quadVerts[24] = {

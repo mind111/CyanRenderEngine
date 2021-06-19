@@ -13,4 +13,5 @@ struct Entity
     glm::vec3 m_position;
     Transform* m_xform;
     Cyan::MeshInstance* m_meshInstance;
+    bool m_lit;
 };

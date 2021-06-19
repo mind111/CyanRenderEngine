@@ -121,6 +121,32 @@ float smithG(vec3 v, vec3 n, vec3 h, float roughness)
     return result;
 }
 
+/*
+    lambda function in Smith geometry term
+*/
+float ggxSmithLambda(vec3 v, vec3 h, float roughness)
+{
+    float alpha = roughness * roughness;
+    float alpha2 = alpha * alpha;
+    float hdotv = dot(h, v);
+    // watch out divide by 0
+    return 0.5f * (sqrt(alpha2 + (1 - alpha2) * hdotv * hdotv) / max(hdotv, 0.0001f) - 1.f);
+}
+
+/*
+    * height-correlated Smith geometry 
+*/
+float ggxSmithG2(vec3 v, vec3 l, vec3 h, float roughness)
+{
+    if (dot(v, h) < 0.f || dot(l, h) < 0.f)
+    {
+        return 0.f;
+    }
+    float ggxV = ggxSmithLambda(v, n, roughness);
+    float ggxL = ggxSmithLambda(l, n, roughness);
+    return 1.f / (1.f + ggxV + ggxL);
+}
+
 vec3 ACESFilm(vec3 x)
 {
     float a = 2.51f;
@@ -164,8 +190,9 @@ vec3 radiance(vec3 albedo, vec3 f0, float roughness, float metallic, float ao, v
     vec3 diffuse = albedo;
     // Specular
     vec3 h = normalize(ld + viewDir);
-    float D = GGX(roughness, max(0.0f, dot(n,h))); // correct; need to examine roughness = 0.0
+    float D = GGX(roughness, max(0.0f, dot(n,h)));
     float G = smithG(ld, n, h, roughness) * smithG(viewDir, n, h, roughness);
+    // float G = ggxSmithG2(viewDir, ld, n, roughness);
     vec3 f = fresnel(f0, ld, h);
     // TODO: is multiplying by pi necessary?
     vec3 specular = pi * (f * D * G) / max(0.00001f, (4.f * ndotv * ndotl));
@@ -334,7 +361,7 @@ void main()
         // its position in view space never changed. Need to apply inverse of view rotation to the reflection
         // vector to get the correct reflection when rotating the camera
         vec4 l = inverse(viewRotation) * vec4(vi, 0.f);
-        vec3 prefilteredColor = textureLod(irradianceSpecular, l.xyz, roughness * 4.f).rgb;
+        vec3 prefilteredColor = textureLod(irradianceSpecular, l.xyz, roughness * 9.f).rgb;
         vec3 brdf = texture(brdfIntegral, vec2(ndotv, roughness)).rgb; 
         vec3 specularE = prefilteredColor * (f0 * brdf.r + brdf.g);
         color += specularE * kSpecular;

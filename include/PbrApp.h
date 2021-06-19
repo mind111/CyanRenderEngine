@@ -6,6 +6,7 @@
 #include "Scene.h"
 #include "Mesh.h"
 #include "Geometry.h"
+#include "imgui/imgui.h"
 
 struct EnvMapDebugger
 {
@@ -52,7 +53,7 @@ struct EnvMapDebugger
         u_roughness = Cyan::createUniform("roughness", Uniform::Type::u_float);
         u_drawSamples = Cyan::createUniform("drawSamples", Uniform::Type::u_float);
         u_sampler = Cyan::createUniform("envmapSampler", Uniform::Type::u_samplerCube);
-        m_buffer = Cyan::createRegularBuffer("sampleVertexData", m_shader, 3, (8 + 1) * 2 * 4 * sizeof(f32));
+        // m_buffer = Cyan::createRegularBuffer("sampleVertexData", m_shader, 3, (8 + 1) * 2 * 4 * sizeof(f32));
         u32 mipWidth = m_texture->m_width; 
         u32 mipHeight = m_texture->m_height;
         for (u32 mip = 0; mip < kNumMips; ++mip)
@@ -147,7 +148,7 @@ struct EnvMapDebugger
         {
             f32* vertices = (f32*)_alloca(kNumDebugSamples * vertsPerSample * f32PerVerts * sizeof(f32));
             glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-            glGetNamedBufferSubData(m_buffer->m_ssbo, 0, m_buffer->m_sizeInBytes, vertices);
+            glGetNamedBufferSubData(m_buffer->m_ssbo, 0, m_buffer->m_totalSize, vertices);
             f32* ptr = vertices;
             for (u32 sample = 0; sample < kNumDebugSamples; ++sample)
             {
@@ -260,6 +261,12 @@ public:
     void orbitCamera(double deltaX, double deltaY);
     void rotateCamera(double deltaX, double deltaY);
 
+    void initUniforms();
+    void initShaders();
+    void initHelmetScene();
+    void initSpheresScene();
+    void initEnvMaps();
+
     bool bOrbit;
 
 private:
@@ -267,13 +274,14 @@ private:
     
     bool bRunning;
     u32 entityOnFocusIdx;
-    u32 currentScene;
-    std::vector<Scene*> m_scenes;
+    u32 m_currentScene;
+    u32 m_currentEnvMap;
 
-    Camera m_genEnvmapCamera;
+    std::vector<Scene*> m_scenes;
 
     // Materials
     Cyan::MaterialInstance* m_helmetMatl;
+    Cyan::MaterialInstance* m_sphereMatls[36];
     Cyan::MaterialInstance* m_envmapMatl;
     Cyan::MaterialInstance* m_blitMatl;
 
@@ -310,4 +318,5 @@ private:
 
     // misc
     BufferVisualizer m_bufferVis;
+    ImFont* m_font;
 };

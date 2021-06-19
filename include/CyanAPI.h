@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstring>
+#include <chrono>
 
 #include "assimp/Importer.hpp"
 #include "assimp/scene.h"
@@ -14,26 +15,28 @@
 #include "Uniform.h"
 #include "RenderTarget.h"
 #include "Material.h"
+#include "LightProbe.h"
 #include "GfxContext.h"
 
 /* TODO: 
-* implement a scene that contains arrays of sphere for debugging the Pbr rendering pipeline.
 * implement a ui to allow dynamically change to different envmap.
+* look into why the render will contain "black" dots
 * implement a ui to allow dynamically change to different mesh.
 * get rid of heap memory usage, no more "new" in the code base.
 * implement MSAA.
+* new project structure..? static lib, dll, and driver app ?
+* study about resource management.
 
 * think about how to handle uniform with same name but different type
-* look into why the render will contain "black" dots
 * implement a simple logger
 * remove the concept of shader uniform
 * refactor shader uniforms, only material should keep reference to uniforms
+* maybe switch to use Hammersley sequence showed in Epic's notes?
 
 * implement handle system, every object can be identified using a handle
 * implement a uniform cache to avoid calling glUniform() on uniforms that has not changed
 * implement DrawCall and Frame struct
 * memory usage visualization
-* implement shader resource query to get rid of manual call to matl->bindUniform()
 */
 namespace Cyan
 {
@@ -95,7 +98,7 @@ namespace Cyan
 
     /* Buffer */
     VertexBuffer* createVertexBuffer(void* _data, u32 _sizeInBytes, u32 _strideInBytes, u32 _numVerts);
-    RegularBuffer* createRegularBuffer(const char* _blockName, Shader* _shader, u32 _binding, u32 _sizeInBytes);
+    RegularBuffer* createRegularBuffer(u32 totalSize);
 
     /* Texture */
     Texture* getTexture(const char* _name);
@@ -135,25 +138,55 @@ namespace Cyan
 
     namespace Toolkit
     {
-        struct Timer
+        /*
+            * How to evaluate OpenGL performance https://www.khronos.org/opengl/wiki/Performance 
+        */
+        struct ScopedTimer
         {
-            // begin
-            Timer() {}
-            // end
-            ~Timer() {}
+            using TimeSnapShot = std::chrono::high_resolution_clock::time_point;
 
-            double m_begin;
-            double m_end;
-            double m_duration;
+            // begin
+            ScopedTimer(const char* name, bool print=false) 
+            {
+                // Flush GPU commands
+                glFinish();
+                m_timedBlockName.assign(std::string(name)); // is this faster ...?
+                m_begin = std::chrono::high_resolution_clock::now();
+                m_durationInMs = 0.0;
+                m_print = print; 
+            }
+            ~ScopedTimer() { }
+
+            // end
+            void end()
+            {
+                // Flush GPU commands
+                glFinish();
+                m_end = std::chrono::high_resolution_clock::now();
+                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(m_end - m_begin);
+                m_durationInMs = duration.count();
+                if (m_print)
+                {
+                    printf("%s: %.3f ms \n", m_timedBlockName.c_str(), m_durationInMs);
+                }
+            }
+
+            TimeSnapShot m_begin;
+            TimeSnapShot m_end;
+            // elapsed time in %.2f ms
+            double m_durationInMs; 
+            std::string m_timedBlockName;
+            bool m_print;
         };
 
         //-
         // Cubemap related
         Texture* loadEquirectangularMap(const char* _name, const char* _file, bool _hdr=false);
-        Texture* prefilterEnvMapDiffuse(const char* _name, Texture* _envMap, bool _hdr=false);
+        Texture* prefilterEnvMapDiffuse(const char* _name, Texture* _envMap);
         Texture* prefilterEnvmapSpecular(Texture* envMap);
         Texture* generateBrdfLUT();
         Texture* createFlatColorTexture(const char* name, u32 width, u32 height, glm::vec4 color);
+        LightProbe createLightProbe(const char* name, const char* file);
 
         //-
         // Mesh related
@@ -161,4 +194,6 @@ namespace Cyan
         glm::mat4 computeMeshNormalization(Mesh* _mesh);
 
     } // namespace Toolkit
+
+    // TODO: Move following structs into their own files
 } // namespace Cyan

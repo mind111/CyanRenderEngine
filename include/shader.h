@@ -19,9 +19,9 @@ namespace ShaderUtil
 // Shader storage buffer
 struct RegularBuffer
 {
-    const char* m_name;
     const void* m_data;
-    u32         m_sizeInBytes;
+    u32         m_totalSize;
+    u32         m_sizeToUpload;
     GLuint m_binding;
     GLuint m_ssbo;            // Shader storage buffer object
 };

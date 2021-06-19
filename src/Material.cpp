@@ -61,6 +61,18 @@ namespace Cyan
         }
     }
 
+    void MaterialInstance::bindBuffer(const char* blockName, RegularBuffer* buffer) 
+    { 
+        for (u32 i = 0; i < CYAN_MAX_NUM_BUFFERS; ++i)
+        {
+            if (strcmp(blockName, m_template->m_bufferBlocks[i].c_str()) == 0)
+            {
+                m_bufferBindings[i] = buffer;
+                break;
+            }
+        }
+    }
+
     u32 MaterialInstance::getAttributeOffset(UniformHandle handle)
     {
         return m_template->m_dataOffsetMap[handle] + sizeof(UniformHandle);
@@ -96,7 +108,7 @@ namespace Cyan
         m_uniformBuffer->write(data, sizeInBytes);
     }
 
-    u32 MaterialInstance::bind()
+    UsedBindingPoints MaterialInstance::bind()
     {
         auto ctx = Cyan::getCurrentGfxCtx();
         // bind textures
@@ -107,6 +119,16 @@ namespace Cyan
             {
                 ctx->setSampler(m_bindings[s].m_sampler, textureUnit);
                 ctx->setTexture(m_bindings[s].m_tex, textureUnit++);
+            }
+        }
+        // bind buffers
+        u32 bufferBinding = 0u;
+        for (u32 s = 0; s < m_template->m_numBuffers; ++s)
+        {
+            if (m_bufferBindings[s])
+            {
+                glShaderStorageBlockBinding(m_template->m_shader->m_programId, s, bufferBinding);
+                ctx->setBuffer(m_bufferBindings[s], bufferBinding++);
             }
         }
         // update instance data
@@ -122,6 +144,6 @@ namespace Cyan
             Cyan::setUniform(uniform, data);
             ctx->setUniform(uniform);
         }
-        return textureUnit;
+        return { textureUnit, bufferBinding };
     }
 }
