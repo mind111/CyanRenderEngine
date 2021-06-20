@@ -21,7 +21,6 @@ static float kCameraRotateSpeed = 0.005f;
 
 namespace Pbr
 {
-
     void mouseCursorCallback(double deltaX, double deltaY)
     {
         PbrApp* app = PbrApp::get();
@@ -182,7 +181,9 @@ void PbrApp::initEnvMaps()
     Cyan::Toolkit::createLightProbe("glacier", "../../asset/cubemaps/glacier.hdr",     true);
     Cyan::Toolkit::createLightProbe("ennis", "../../asset/cubemaps/ennis.hdr",         true);
     Cyan::Toolkit::createLightProbe("pisa", "../../asset/cubemaps/pisa.hdr",           true);
-    Cyan::Toolkit::createLightProbe("doge2", "../../asset/cubemaps/doge2.hdr",          true);
+    Cyan::Toolkit::createLightProbe("doge2", "../../asset/cubemaps/doge2.hdr",         true);
+    Cyan::Toolkit::createLightProbe("studio", "../../asset/cubemaps/studio_01_4k.hdr",  true);
+    Cyan::Toolkit::createLightProbe("fire-sky", "../../asset/cubemaps/the_sky_is_on_fire_4k.hdr",  true);
     m_currentProbeIndex = 0u;
     m_envmap = Cyan::getProbe(m_currentProbeIndex)->m_baseCubeMap;
 
@@ -281,6 +282,10 @@ void PbrApp::update()
 
 void drawImGuiCombo(const char* items[], u32 numItems, const char* label, u32* currentIndex)
 {
+    /*
+        Note: For some reasons, @label has to be passed in or else having 
+        multiple combo boxes will not work 
+    */
     if (ImGui::BeginCombo(label, items[*currentIndex], 0))
     {
         for (int n = 0; n < numItems; n++)
@@ -323,8 +328,14 @@ void PbrApp::render()
     ImGui::Begin("Scene");
     ImGui::PushFont(m_font);
     {
-        const char* envMaps[] = { "grace-new", "glacier", "ennis", "pisa", "doge2" };
-        drawImGuiCombo(envMaps, 5u, "envMap", &m_currentProbeIndex);
+        std::vector<const char*> envMaps;
+        u32 numProbes = Cyan::getNumProbes();
+        for (u32 index = 0u; index < numProbes; ++index)
+        {
+            envMaps.push_back(Cyan::getProbe(index)->m_baseCubeMap->m_name.c_str());
+        }
+        // const char* envMaps[] = { "grace-new", "glacier", "ennis", "pisa", "doge2", "studio" };
+        drawImGuiCombo(envMaps.data(), numProbes, "envMap", &m_currentProbeIndex);
         const char* scenes[] = { "helmet_scene", "spheres_scene" };
         drawImGuiCombo(scenes, 2u, "scene", &m_currentScene);
         ImGui::SameLine();

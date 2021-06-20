@@ -34,7 +34,7 @@ void cursorPosFunc(GLFWwindow* window, double xPos, double yPos)
     gEngine->updateMouseCursorPosition(xPos, yPos);
 }
 
-void CyanEngine::init(WindowConfig WindowConfig, const char* sceneFolderPath)
+void CyanEngine::init(WindowConfig windowConfig)
 {
     // Setup window
     {
@@ -45,10 +45,10 @@ void CyanEngine::init(WindowConfig WindowConfig, const char* sceneFolderPath)
 
         // Always on-top window
         // glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
-        m_window.mpWindow = glfwCreateWindow(WindowConfig.width, WindowConfig.height,
+        m_window.mpWindow = glfwCreateWindow(windowConfig.width, windowConfig.height,
                                             "-- Cyan --", nullptr, nullptr);
-        m_window.width = WindowConfig.width;
-        m_window.height = WindowConfig.height;
+        m_window.width = windowConfig.width;
+        m_window.height = windowConfig.height;
 
         glfwMakeContextCurrent(m_window.mpWindow);
         if (glewInit())
@@ -65,7 +65,7 @@ void CyanEngine::init(WindowConfig WindowConfig, const char* sceneFolderPath)
     // Setup renderer 
     {
         m_renderer = new Cyan::Renderer;
-        m_renderer->init();
+        m_renderer->init(windowConfig.width, windowConfig.height);
         Cyan::getCurrentGfxCtx()->setWindow(&m_window);
     }
 

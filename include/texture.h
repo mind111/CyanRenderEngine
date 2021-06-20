@@ -35,6 +35,8 @@ namespace Cyan
             R16G16B16,
             R8G8B8A8,
             R16G16B16A16,
+            R32G32B32,
+            R32G32B32A32,
         };
 
         std::string m_name;
@@ -54,6 +56,7 @@ namespace Cyan
     struct TextureSpec
     {
         Texture::Type m_type;
+        u32 m_width, m_height;
         Texture::ColorFormat m_format;
         Texture::Filter m_min;
         Texture::Filter m_mag;

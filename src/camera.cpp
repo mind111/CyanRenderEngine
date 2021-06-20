@@ -18,7 +18,7 @@ void CameraManager::updateCamera(Camera& camera)
 {
     /* Update camera frames and view matrix accordingly */
     camera.forward = glm::normalize(camera.lookAt - camera.position);
-    camera.right = glm::cross(camera.forward, camera.worldUp);
-    camera.up = glm::cross(camera.right, camera.forward);
+    camera.right = glm::normalize(glm::cross(camera.forward, camera.worldUp));
+    camera.up = glm::normalize(glm::cross(camera.right, camera.forward));
     camera.view = glm::lookAt(camera.position, camera.lookAt, camera.worldUp);
 }

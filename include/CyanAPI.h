@@ -19,27 +19,30 @@
 #include "GfxContext.h"
 
 /* TODO: 
-    * implement a ui to allow dynamically change to different envmap.
-    * implement a ui to allow dynamically change to different mesh.
-    * get rid of heap memory usage, no more "new" in the code base.
-    * implement MSAA.
-    * new project structure..? static lib, dll, and driver app ?
-    * study about resource management.
-
-    * think about how to handle uniform with same name but different type
-    * implement a simple logger
-    * remove the concept of shader uniform
-    * refactor shader uniforms, only material should keep reference to uniforms
-    * maybe switch to use Hammersley sequence showed in Epic's notes?
-
-    * implement handle system, every object can be identified using a handle
-    * implement a uniform cache to avoid calling glUniform() on uniforms that has not changed
-    * implement DrawCall and Frame struct
-    * memory usage visualization
+    General:
+        * add support for adding entities via UI.
+        * add support for selecting entities via UI.
+        * add support for saving the scene settings (serialization....?).
+        * get rid of heap memory usage, no more "new" in the code base.
+        * new project structure..? static lib, dll, and driver app ?
+        * study about resource management.
+        * implement a simple logger
+        * think about how to handle uniform with same name but different type
+        * implement handle system, every object can be identified using a handle
+        * memory usage visualization
+    Rendering:
+        * implement MSAA.
+        * add support for 32-bits precision hdr.
+        * post-processing
+            * bloom
+            * auto-exposure  
+            * color-grading
+        * maybe switch to use Hammersley sequence showed in Epic's notes?
+        * implement a uniform cache to avoid calling glUniform() on uniforms that has not changed
+        * implement DrawCall and Frame struct
 */
 
 /* FIXME: 
-    * Bottom of the Cubemap always have a black square.
     * Look into why the render will contain "black" dots
 */
 namespace Cyan
@@ -105,8 +108,8 @@ namespace Cyan
 
     /* Texture */
     Texture* getTexture(const char* _name);
-    Texture* createTexture(const char* _name, u32 _width, u32 _height, TextureSpec spec);
-    Texture* createTextureHDR(const char* _name, u32 _width, u32 _height, TextureSpec spec);
+    Texture* createTexture(const char* _name, TextureSpec spec);
+    Texture* createTextureHDR(const char* _name, TextureSpec spec);
     Texture* createTexture(const char* _name, const char* _file, TextureSpec& spec);
     Texture* createTextureHDR(const char* _name, const char* _file, TextureSpec& spec);
 
@@ -139,6 +142,7 @@ namespace Cyan
     /* Scene */
     Scene* createScene(const char* _file);
     LightProbe* getProbe(u32 index);
+    u32         getNumProbes();
 
     namespace Toolkit
     {

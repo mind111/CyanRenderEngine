@@ -39,7 +39,7 @@ public:
     CyanEngine();
     ~CyanEngine() { }
 
-    void init(WindowConfig windowConfig, const char* sceneFolderPath=0);
+    void init(WindowConfig windowConfig);
     void shutDown();
 
     /* Gui */

@@ -37,7 +37,7 @@ bool fileWasModified(const char* fileName, FILETIME* writeTime)
 
 namespace Cyan
 {
-    void Renderer::init()
+    void Renderer::init(u32 renderWidth, u32 renderHeight)
     {
         Cyan::init();
         u_model = createUniform("s_model", Uniform::Type::u_mat4);
@@ -46,6 +46,16 @@ namespace Cyan
         m_frame = new Frame;
         // set back-face culling
         Cyan::getCurrentGfxCtx()->setCullFace(FrontFace::CounterClockWise, FaceCull::Back);
+        // render targets
+        m_renderWidth = renderWidth;
+        m_renderHeight = renderHeight;
+        TextureSpec spec = { };
+        spec.m_type = Texture::Type::TEX_2D;
+        spec.m_format = Texture::ColorFormat::R16G16B16A16; 
+        spec.m_min = Texture::Filter::LINEAR;
+        spec.m_mag = Texture::Filter::LINEAR;
+        // m_defaultColorBuffer = createTextureHDR("blit-texture", spec);
+        m_defaultRenderTarget = createRenderTarget(m_renderWidth, m_renderHeight);
     }
 
     void Renderer::drawMeshInstance(MeshInstance* meshInstance, glm::mat4* modelMatrix)
@@ -237,7 +247,7 @@ namespace Cyan
                     }
                 }
             };
-
+            // update lighting data if material can be lit
             if (materialType->m_dataFieldsFlag && (1 << Material::DataFields::Lit))
             {
                 for (u32 sm = 0; sm < numSubMeshs; ++sm)
@@ -253,15 +263,17 @@ namespace Cyan
             }
             drawEntity(entity);
         }
+        // final blit to default frame buffer
+
     }
 
     float quadVerts[24] = {
         -1.f, -1.f, 0.f, 0.f,
-        1.f,  1.f, 1.f, 1.f,
+         1.f,  1.f, 1.f, 1.f,
         -1.f,  1.f, 0.f, 1.f,
 
         -1.f, -1.f, 0.f, 0.f,
-        1.f, -1.f, 1.f, 0.f,
-        1.f,  1.f, 1.f, 1.f
+         1.f, -1.f, 1.f, 0.f,
+         1.f,  1.f, 1.f, 1.f
     };
 }

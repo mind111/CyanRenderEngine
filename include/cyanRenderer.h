@@ -41,7 +41,7 @@ namespace Cyan
 
         static Renderer* get();
 
-        void init();
+        void init(u32 renderWidth, u32 renderHeight);
         void renderScene(Scene* scene);
         void drawEntity(Entity* entity);
         void drawMeshInstance(MeshInstance* meshInstance, glm::mat4* modelMatrix);
@@ -57,5 +57,11 @@ namespace Cyan
 
         RegularBuffer* m_pointLightsBuffer;
         RegularBuffer* m_dirLightsBuffer;
+
+        u32 m_renderWidth, m_renderHeight;
+        Texture* m_defaultColorBuffer; // hdr
+        RenderTarget* m_defaultRenderTarget;
+        Texture* m_msaaColorBuffer;
+        RenderTarget* m_msaaRenderTarget;
     };
 }
