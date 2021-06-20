@@ -14,6 +14,12 @@
 
 SceneManager sceneManager;
 
+void SceneManager::setLightProbe(Scene* scene, LightProbe* probe)
+{
+    scene->m_lastProbe = scene->m_currentProbe;
+    scene->m_currentProbe = probe;
+}
+
 // create an entity that does not have transform component
 Entity* SceneManager::createEntity(Scene* scene, const char* meshName)
 {

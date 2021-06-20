@@ -28,6 +28,13 @@ namespace Cyan
 
     struct Material
     {
+        // determine if this material type contains what kind of data
+        enum DataFields
+        {
+            Lit = 0,
+            Probe
+        };
+
         using DataOffset = u32;
 
         void bindUniform(Uniform* _uniform);
@@ -45,6 +52,7 @@ namespace Cyan
         u32 m_numBuffers;
         u32 m_bufferSize;
         // determine if this material should care about lighting
+        u32 m_dataFieldsFlag;
         bool m_lit;
     };
 

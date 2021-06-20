@@ -35,8 +35,6 @@ public:
     void bind();
     void unbind();
 
-    void bindUniform(Uniform* _uniform);
-
     void setUniform(Uniform* _uniform);
     void setUniform(Uniform* _uniform, i32 _value);
     void setUniform(Uniform* _uniform, f32 _value);
@@ -49,8 +47,6 @@ public:
     GLint getUniformLocation(const char* _name);
 
     std::map<const char*, int> m_uniformLocationCache;
-    std::vector<Uniform*> m_uniforms;
-    std::vector<RegularBuffer*> m_buffers;
 
     std::string m_name;
     GLuint m_programId;

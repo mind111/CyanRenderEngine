@@ -68,14 +68,6 @@ namespace Cyan
             }
             ctx->setUniform(u_cameraView);
             ctx->setUniform(u_cameraProjection);
-            // for (auto uniform : shader->m_uniforms)
-            // {
-            //     ctx->setUniform(uniform);
-            // }
-            // for (auto buffer : shader->m_buffers)
-            // {
-            //     ctx->setBuffer(buffer);
-            // }
             UsedBindingPoints used = matl->bind();
             Mesh::SubMesh* sm = mesh->m_subMeshes[i];
             ctx->setVertexArray(sm->m_vertexArray);
@@ -208,25 +200,56 @@ namespace Cyan
         {
             setBuffer(scene->m_dirLightsBuffer, scene->dLights.data(), sizeofVector(scene->dLights));
         }
+
+        // determine if probe data should be update for this frame
+        bool shouldUpdateProbeData = (!scene->m_lastProbe || (scene->m_currentProbe->m_baseCubeMap->m_id != scene->m_lastProbe->m_baseCubeMap->m_id));
+        scene->m_lastProbe = scene->m_currentProbe;
+
         /* 
           TODO: split entities into those has lighting and those does not
           * such as a helmet mesh need to react to lighiting in the scene but a cubemap meshInstance 
           * does not need to.
         */
         // entities 
+        u32 debugCounter = 0;
         for (auto entity : scene->entities)
         {
             MeshInstance* meshInstance = entity->m_meshInstance; 
+            Material* materialType = meshInstance->m_matls[0]->m_template;
             u32 numSubMeshs = (u32)meshInstance->m_mesh->m_subMeshes.size();
-            if (meshInstance->m_matls[0]->m_template->m_lit)
+            // update lighting data if necessary
+            // TODO: implement these
+            auto updateLighting = []()
+            {
+
+            };
+            auto updateProbe = [&](Scene* scene, MeshInstance* meshInstance)
+            {
+                u32 numSubMeshs = (u32)meshInstance->m_mesh->m_subMeshes.size();
+                if (shouldUpdateProbeData)
+                {
+                    for (u32 sm = 0; sm < numSubMeshs; ++sm)
+                    {
+                        // update probe texture bindings
+                        meshInstance->m_matls[sm]->bindTexture("irradianceDiffuse", scene->m_currentProbe->m_diffuse);
+                        meshInstance->m_matls[sm]->bindTexture("irradianceSpecular", scene->m_currentProbe->m_specular);
+                        meshInstance->m_matls[sm]->bindTexture("brdfIntegral", scene->m_currentProbe->m_brdfIntegral);
+                    }
+                }
+            };
+
+            if (materialType->m_dataFieldsFlag && (1 << Material::DataFields::Lit))
             {
                 for (u32 sm = 0; sm < numSubMeshs; ++sm)
                 {
-                    // TODO: note that not necessarily every mateiralInstance will have this two
-                    // variables.
                     meshInstance->m_matls[sm]->set("numPointLights", sizeofVector(scene->pLights) / (u32)sizeof(PointLight));
                     meshInstance->m_matls[sm]->set("numDirLights",   sizeofVector(scene->dLights) / (u32)sizeof(DirectionalLight));
                 }
+            }
+            // update light probe data if necessary
+            if (materialType->m_dataFieldsFlag && (1 << Material::DataFields::Probe))
+            {
+                updateProbe(scene, meshInstance);
             }
             drawEntity(entity);
         }

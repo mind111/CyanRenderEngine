@@ -72,6 +72,7 @@ namespace Cyan
     static std::vector<Texture*> s_textures;
     static std::vector<Mesh*> s_meshes;
     static std::vector<Uniform*> s_uniforms;
+    static std::vector<LightProbe> s_probes;
     static GfxContext* s_gfxc = nullptr;
     static void* s_memory = nullptr;
     static LinearAllocator* s_allocator = nullptr;
@@ -134,16 +135,8 @@ namespace Cyan
         buffer->m_totalSize = totalSizeInBytes;
         buffer->m_sizeToUpload = 0u;
         buffer->m_data = nullptr;
-
-        // GLuint blockIndex = glGetProgramResourceIndex(_shader->m_programId, GL_SHADER_STORAGE_BLOCK, buffer->m_name);
-        // note: this is used to dynamically set the binding point of 
-        // glShaderStorageBlockBinding(_shader->m_programId, blockIndex, _binding);
         glCreateBuffers(1, &buffer->m_ssbo);
         glNamedBufferData(buffer->m_ssbo, buffer->m_totalSize, nullptr, GL_DYNAMIC_COPY);
-        // glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer->m_ssbo);
-        // glBufferData(GL_SHADER_STORAGE_BUFFER, _sizeInBytes, 0, GL_DYNAMIC_COPY);
-        // glBindBufferBase(GL_SHADER_STORAGE_BUFFER, _binding, buffer->m_ssbo);
-        // glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
         return buffer;
     }
 
@@ -284,6 +277,9 @@ namespace Cyan
     Scene* createScene(const char* _file)
     {
         Scene* scene = new Scene;
+
+        scene->m_lastProbe = nullptr;
+        scene->m_currentProbe = nullptr;
 
         nlohmann::json sceneJson;
         std::ifstream sceneFile(_file);
@@ -773,7 +769,6 @@ namespace Cyan
     Uniform* createShaderUniform(Shader* _shader, const char* _name, Uniform::Type _type)
     {
         Uniform* uniform = createUniform(_name, _type);
-        _shader->bindUniform(uniform);
         return uniform;
     }
 
@@ -810,6 +805,11 @@ namespace Cyan
         }
     }
 
+    LightProbe* getProbe(u32 index)
+    {
+        return &s_probes[index];
+    }
+
     Material* createMaterial(Shader* _shader)
     {
         auto itr = s_shaderRegistry.find(_shader->m_name);
@@ -825,6 +825,7 @@ namespace Cyan
         material->m_bufferSize = 0u; // at least need to contain UniformBuffer::End
         material->m_numSamplers = 0u;
         material->m_numBuffers = 0u;
+        material->m_dataFieldsFlag = 0u;
         material->m_lit = false;
 
         GLuint programId = material->m_shader->m_programId;
@@ -840,7 +841,7 @@ namespace Cyan
             glGetActiveUniform(programId, i, nameMaxLen, nullptr, &num, &type, name);
             if (nameMaxLen > 2 && name[0] == 's' && name[1] == '_')
             {
-                // predefined uniforms such as model, view, projection
+                // skipping predefined uniforms such as model, view, projection
                 continue;
             }
             // TODO: this is obviously not optimal
@@ -848,7 +849,11 @@ namespace Cyan
             if ((strcmp(name, "numPointLights") == 0) || 
                 (strcmp(name, "numDirLights") == 0))
             {
-                material->m_lit = true;
+                material->m_dataFieldsFlag |= (1 << Material::DataFields::Lit);
+            }
+            if (strcmp(name, "irradianceDiffuse") == 0)
+            {
+                material->m_dataFieldsFlag |= (1 << Material::DataFields::Probe);
             }
             for (u32 ii = 0; ii < num; ++ii)
             {
@@ -945,6 +950,7 @@ namespace Cyan
         _buffer->m_data = _data;
         _buffer->m_sizeToUpload = sizeToUpload;
     }
+
 
     namespace Toolkit
     {
@@ -1057,9 +1063,6 @@ namespace Cyan
             Uniform* u_projection = Cyan::createUniform("projection", Uniform::Type::u_mat4);
             Uniform* u_view = Cyan::createUniform("view", Uniform::Type::u_mat4);
             Uniform* u_envmapSampler = Cyan::createUniform("rawEnvmapSampler", Uniform::Type::u_sampler2D);
-            shader->bindUniform(u_projection);
-            shader->bindUniform(u_view);
-            shader->bindUniform(u_envmapSampler);
             glm::vec3 cameraTargets[] = {
                 {1.f, 0.f, 0.f},   // Right
                 {-1.f, 0.f, 0.f},  // Left
@@ -1150,9 +1153,6 @@ namespace Cyan
             Uniform* u_projection = Cyan::createUniform("projection", Uniform::Type::u_mat4);
             Uniform* u_view = Cyan::createUniform("view", Uniform::Type::u_mat4);
             Uniform* u_envmapSampler = Cyan::createUniform("envmapSampler", Uniform::Type::u_samplerCube);
-            shader->bindUniform(u_projection);
-            shader->bindUniform(u_view);
-            shader->bindUniform(u_envmapSampler);
             glm::vec3 cameraTargets[] = {
                 {1.f, 0.f, 0.f},   // Right
                 {-1.f, 0.f, 0.f},  // Left
@@ -1370,6 +1370,7 @@ namespace Cyan
             probe.m_diffuse = Toolkit::prefilterEnvMapDiffuse(name, probe.m_baseCubeMap);
             probe.m_specular = Toolkit::prefilterEnvmapSpecular(probe.m_baseCubeMap);
             probe.m_brdfIntegral = Toolkit::generateBrdfLUT();
+            s_probes.push_back(probe);
             return probe;
         }
 

@@ -231,13 +231,6 @@ struct BrdfDebugger
     }
 };
 
-struct IBLAssets
-{
-    Cyan::Texture* m_diffuse;
-    Cyan::Texture* m_specular;
-    Cyan::Texture* m_brdfIntegral;
-};
-
 // TODO: Can also let CyanApp define a basic beginFrame(), endFrame() where it calls customBeginFrame(), and customEndFrame(),
 // and child class override customBegin() and customEnd() to do each application specific stuffs
 class PbrApp : public CyanApp
@@ -275,7 +268,7 @@ private:
     bool bRunning;
     u32 entityOnFocusIdx;
     u32 m_currentScene;
-    u32 m_currentEnvMap;
+    u32 m_currentProbeIndex;
 
     std::vector<Scene*> m_scenes;
 
@@ -300,7 +293,9 @@ private:
     /* Textures */
     Cyan::Texture* m_rawEnvmap;
     Cyan::Texture* m_envmap;
-    IBLAssets m_iblAssets;
+    // a probe that is infinitely distant
+    LightProbe m_probe;
+    std::vector<LightProbe> m_probes;
 
     /* Uniforms */
     Uniform* u_numPointLights;

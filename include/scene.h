@@ -8,6 +8,7 @@
 #include "Entity.h"
 #include "Light.h"
 #include "Material.h"
+#include "LightProbe.h"
 
 struct Scene 
 {
@@ -20,10 +21,13 @@ struct Scene
     std::vector<DirectionalLight> dLights;
     RegularBuffer* m_pointLightsBuffer;
     RegularBuffer* m_dirLightsBuffer;
+    LightProbe*    m_currentProbe;
+    LightProbe*    m_lastProbe;
 };
 
 class SceneManager {
 public:
+    static void setLightProbe(Scene* scene, LightProbe* probe);
     static void createDirectionalLight(Scene& scene, glm::vec3 color, glm::vec3 direction, float intensity);
     static void createPointLight(Scene& scene, glm::vec3 color, glm::vec3 position, float intensity);
     static Entity* createEntity(Scene* scene, const char* meshName);

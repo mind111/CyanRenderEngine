@@ -95,9 +95,6 @@ void PbrApp::initHelmetScene()
     m_helmetMatl->bindTexture("roughnessMap", Cyan::getTexture("helmet_roughness"));
     m_helmetMatl->bindTexture("aoMap", Cyan::getTexture("helmet_ao"));
     m_helmetMatl->bindTexture("envmap", m_envmap);
-    m_helmetMatl->bindTexture("irradianceDiffuse", m_iblAssets.m_diffuse);
-    m_helmetMatl->bindTexture("irradianceSpecular", m_iblAssets.m_specular);
-    m_helmetMatl->bindTexture("brdfIntegral", m_iblAssets.m_brdfIntegral);
     m_helmetMatl->bindBuffer("dirLightsData", helmetScene->m_dirLightsBuffer);
     m_helmetMatl->bindBuffer("pointLightsData", helmetScene->m_pointLightsBuffer);
     m_helmetMatl->set("hasAoMap", 1.f);
@@ -152,9 +149,6 @@ void PbrApp::initSpheresScene()
             m_sphereMatls[idx] = materialType->createInstance();
             m_sphereMatls[idx]->bindTexture("diffuseMaps[0]", m_sphereAlbedo);
             m_sphereMatls[idx]->bindTexture("envmap", m_envmap);
-            m_sphereMatls[idx]->bindTexture("irradianceDiffuse", m_iblAssets.m_diffuse);
-            m_sphereMatls[idx]->bindTexture("irradianceSpecular", m_iblAssets.m_specular);
-            m_sphereMatls[idx]->bindTexture("brdfIntegral", m_iblAssets.m_brdfIntegral);
             m_sphereMatls[idx]->bindBuffer("dirLightsData", sphereScene->m_dirLightsBuffer);
             m_sphereMatls[idx]->bindBuffer("pointLightsData", sphereScene->m_pointLightsBuffer);
 
@@ -184,11 +178,13 @@ void PbrApp::initShaders()
 void PbrApp::initEnvMaps()
 {
     // image-based-lighting
-    m_envmap = Cyan::Toolkit::loadEquirectangularMap("grace-new", "../../asset/cubemaps/grace-new.hdr", true);
-    m_iblAssets = { };
-    m_iblAssets.m_diffuse = Cyan::Toolkit::prefilterEnvMapDiffuse("diffuse_irradiance_map", m_envmap);
-    m_iblAssets.m_specular = Cyan::Toolkit::prefilterEnvmapSpecular(m_envmap);
-    m_iblAssets.m_brdfIntegral = Cyan::Toolkit::generateBrdfLUT();
+    Cyan::Toolkit::createLightProbe("grace-new", "../../asset/cubemaps/grace-new.hdr", true);
+    Cyan::Toolkit::createLightProbe("glacier", "../../asset/cubemaps/glacier.hdr",     true);
+    Cyan::Toolkit::createLightProbe("ennis", "../../asset/cubemaps/ennis.hdr",         true);
+    Cyan::Toolkit::createLightProbe("pisa", "../../asset/cubemaps/pisa.hdr",           true);
+    Cyan::Toolkit::createLightProbe("doge2", "../../asset/cubemaps/doge2.hdr",          true);
+    m_currentProbeIndex = 0u;
+    m_envmap = Cyan::getProbe(m_currentProbeIndex)->m_baseCubeMap;
 
     m_envmapMatl = Cyan::createMaterial(m_envmapShader)->createInstance(); 
     m_envmapMatl->bindTexture("envmapSampler", m_envmap);
@@ -232,7 +228,6 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight)
     initHelmetScene();
     initSpheresScene();
     m_currentScene = 1u;
-    m_currentEnvMap = 0u;
 
     // misc
     entityOnFocusIdx = 0;
@@ -284,6 +279,27 @@ void PbrApp::update()
     gEngine->processInput();
 }
 
+void drawImGuiCombo(const char* items[], u32 numItems, const char* label, u32* currentIndex)
+{
+    if (ImGui::BeginCombo(label, items[*currentIndex], 0))
+    {
+        for (int n = 0; n < numItems; n++)
+        {
+            const bool isSelected = (*currentIndex == n);
+            if (ImGui::Selectable(items[n], isSelected))
+            {
+                *currentIndex = n;
+            }
+            // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+            if (isSelected)
+            {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+}
+
 void PbrApp::render()
 {
     static double lastFrameDurationInMs = 0.0;
@@ -291,39 +307,14 @@ void PbrApp::render()
     Cyan::Toolkit::ScopedTimer frameTimer("render()");
 
     Cyan::Renderer* renderer = gEngine->getRenderer();
-    // draw entities in the scene
-    renderer->renderScene(m_scenes[m_currentScene]);
-
-    // visualizer
-    m_bufferVis.draw();
-
-    // ui
-    auto drawImGuiCombo = [&](const char* items[], u32 numItems, const char* label, u32* currentIndex)
-    {
-        if (ImGui::BeginCombo("", items[*currentIndex], 0))
-        {
-            for (int n = 0; n < numItems; n++)
-            {
-                const bool isSelected = (*currentIndex == n);
-                if (ImGui::Selectable(items[n], isSelected))
-                {
-                    *currentIndex = n;
-                }
-                // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
-                if (isSelected)
-                {
-                    ImGui::SetItemDefaultFocus();
-                }
-            }
-            ImGui::EndCombo();
-        }
-    };
 
     // stats window
-    ImGui::Begin("Stats");
+    ImGui::Begin("Frame stats");
     ImGui::PushFont(m_font);
     {
-        ImGui::Text("Frame time:         %.2f ms", lastFrameDurationInMs);
+        ImGui::Text("Frame time:                   %.2f ms", lastFrameDurationInMs);
+        ImGui::Text("Number of draw calls:         %d", 100u);
+        ImGui::Text("Number of entities:           %d", m_scenes[m_currentScene]->entities.size());
     }
     ImGui::PopFont();
     ImGui::End();
@@ -332,28 +323,30 @@ void PbrApp::render()
     ImGui::Begin("Scene");
     ImGui::PushFont(m_font);
     {
-        const char* items[] = { "helmet_scene", "spheres_scene" };
-        drawImGuiCombo(items, 2u, "scene", &m_currentScene);
+        const char* envMaps[] = { "grace-new", "glacier", "ennis", "pisa", "doge2" };
+        drawImGuiCombo(envMaps, 5u, "envMap", &m_currentProbeIndex);
+        const char* scenes[] = { "helmet_scene", "spheres_scene" };
+        drawImGuiCombo(scenes, 2u, "scene", &m_currentScene);
         ImGui::SameLine();
         if (ImGui::Button("Load"))
         {
 
         }
-        const char* envMaps[] = { "grace-new" };
-        drawImGuiCombo(envMaps, 1u, "envMap", &m_currentEnvMap);
     }
     ImGui::PopFont();
     ImGui::End();
 
-    // Entity* e = m_scenes[m_currentScene]->entities[entityOnFocusIdx];
-    // ImGui::Begin("Transform");
-    // gEngine->displayFloat3("Translation", e->m_xform->translation);
-    // gEngine->displayFloat3("Scale", e->m_xform->scale, true);
-    // gEngine->displaySliderFloat("Scale", &e->m_xform->scale.x, 0.0f, 10.f);
-    // gEngine->displaySliderFloat("kd", (f32*)u_kDiffuse->m_valuePtr, 0.0f, 1.0f);
-    // gEngine->displaySliderFloat("ks", (f32*)u_kSpecular->m_valuePtr, 0.0f, 7.0f);
-    // e->m_xform->scale.z = e->m_xform->scale.y = e->m_xform->scale.x;
-    // ImGui::End();
+    // update probe
+    SceneManager::setLightProbe(m_scenes[m_currentScene], Cyan::getProbe(m_currentProbeIndex));
+    m_envmap = Cyan::getProbe(m_currentProbeIndex)->m_baseCubeMap;
+    m_envmapMatl->bindTexture("envmapSampler", m_envmap);
+
+    // draw entities in the scene
+    renderer->renderScene(m_scenes[m_currentScene]);
+
+    // visualizer
+    m_bufferVis.draw();
+
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     // flip

@@ -69,11 +69,6 @@ void Shader::unbind()
     glUseProgram(0);
 }
 
-void Shader::bindUniform(Uniform* _uniform)
-{
-    m_uniforms.push_back(_uniform);
-}
-
 #define SHADER_GUARD_SET_UNIFORM(name, glFunc, program, ...) \
     if (getUniformLocation(name) >= 0) \
     { \

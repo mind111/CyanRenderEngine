@@ -19,24 +19,28 @@
 #include "GfxContext.h"
 
 /* TODO: 
-* implement a ui to allow dynamically change to different envmap.
-* look into why the render will contain "black" dots
-* implement a ui to allow dynamically change to different mesh.
-* get rid of heap memory usage, no more "new" in the code base.
-* implement MSAA.
-* new project structure..? static lib, dll, and driver app ?
-* study about resource management.
+    * implement a ui to allow dynamically change to different envmap.
+    * implement a ui to allow dynamically change to different mesh.
+    * get rid of heap memory usage, no more "new" in the code base.
+    * implement MSAA.
+    * new project structure..? static lib, dll, and driver app ?
+    * study about resource management.
 
-* think about how to handle uniform with same name but different type
-* implement a simple logger
-* remove the concept of shader uniform
-* refactor shader uniforms, only material should keep reference to uniforms
-* maybe switch to use Hammersley sequence showed in Epic's notes?
+    * think about how to handle uniform with same name but different type
+    * implement a simple logger
+    * remove the concept of shader uniform
+    * refactor shader uniforms, only material should keep reference to uniforms
+    * maybe switch to use Hammersley sequence showed in Epic's notes?
 
-* implement handle system, every object can be identified using a handle
-* implement a uniform cache to avoid calling glUniform() on uniforms that has not changed
-* implement DrawCall and Frame struct
-* memory usage visualization
+    * implement handle system, every object can be identified using a handle
+    * implement a uniform cache to avoid calling glUniform() on uniforms that has not changed
+    * implement DrawCall and Frame struct
+    * memory usage visualization
+*/
+
+/* FIXME: 
+    * Bottom of the Cubemap always have a black square.
+    * Look into why the render will contain "black" dots
 */
 namespace Cyan
 {
@@ -88,7 +92,6 @@ namespace Cyan
     u32 allocUniformHandle();
     u32 allocShaderHandle();
 
-    /* Getter */
     GfxContext* getCurrentGfxCtx();
 
     /* Memory */
@@ -135,6 +138,7 @@ namespace Cyan
 
     /* Scene */
     Scene* createScene(const char* _file);
+    LightProbe* getProbe(u32 index);
 
     namespace Toolkit
     {
@@ -186,7 +190,7 @@ namespace Cyan
         Texture* prefilterEnvmapSpecular(Texture* envMap);
         Texture* generateBrdfLUT();
         Texture* createFlatColorTexture(const char* name, u32 width, u32 height, glm::vec4 color);
-        LightProbe createLightProbe(const char* name, const char* file);
+        LightProbe createLightProbe(const char* name, const char* file, bool hdr=false);
 
         //-
         // Mesh related

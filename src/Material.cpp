@@ -75,6 +75,8 @@ namespace Cyan
 
     u32 MaterialInstance::getAttributeOffset(UniformHandle handle)
     {
+        CYAN_ASSERT(m_template->m_dataOffsetMap.find(handle) != m_template->m_dataOffsetMap.end(), 
+            "Attempting to set an attribute that does not exist")
         return m_template->m_dataOffsetMap[handle] + sizeof(UniformHandle);
     }
 
