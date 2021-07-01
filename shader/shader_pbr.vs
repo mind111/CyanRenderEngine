@@ -20,7 +20,9 @@ void main() {
     mat4 normalTransform = transpose(inverse(s_view * s_model)); 
     // Transform normals to camera space
     n = (normalTransform * vec4(vertexNormal, 0.f)).xyz;
+    n = normalize(n);
     // Transform tangents to camera space
     t = (s_view * s_model * vec4(vertexTangent, 0.f)).xyz;
+    t = normalize(t);
     uv = textureUv;
 }

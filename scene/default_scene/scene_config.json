@@ -22,30 +22,35 @@
         {
             "name": "helmet_diffuse",
             "path": "asset/helmet/texture/Default_albedo.jpg",
+            "numMips": 11,
             "dynamic_range": "ldr"
         },
 
         {
             "name": "helmet_nm",
             "path": "asset/helmet/texture/Default_normal.jpg",
+            "numMips": 11,
             "dynamic_range": "ldr"
         },
 
         {
             "name": "helmet_ao",
             "path": "asset/helmet/texture/Default_AO.jpg",
+            "numMips": 11,
             "dynamic_range": "ldr"
         },
 
         {
             "name": "helmet_roughness",
             "path": "asset/helmet/texture/Default_metalRoughness.jpg",
+            "numMips": 11,
             "dynamic_range": "ldr"
         },
 
         {
             "name": "helmet_emission",
             "path": "asset/helmet/texture/Default_emissive.jpg",
+            "numMips": 11,
             "dynamic_range": "ldr"
         }
     ],

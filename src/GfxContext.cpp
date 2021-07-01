@@ -153,6 +153,11 @@ namespace Cyan
 
     void GfxContext::setRenderTarget(RenderTarget* _rt, u16 drawBufferIdx) 
     { 
+        if (!_rt)
+        {
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            return;
+        }
         glBindFramebuffer(GL_FRAMEBUFFER, _rt->m_frameBuffer);
         _rt->setDrawBuffer(drawBufferIdx);
     }

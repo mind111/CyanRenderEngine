@@ -32,6 +32,7 @@ struct WindowConfig
 
 typedef void MouseCursorCallback(double, double);
 typedef void MouseButtonCallback(int, int);
+typedef void MouseScrollWheelCallback(double, double);
 
 class CyanEngine
 {
@@ -50,8 +51,10 @@ public:
     void processInput();
     void registerMouseCursorCallback(MouseCursorCallback* callback);
     void registerMouseButtonCallback(MouseButtonCallback* callback);
+    void registerMouseScrollWheelCallback(MouseScrollWheelCallback* callback);
     void updateMouseCursorPosition(double x, double y);
     void processMouseButtonInput(int button, int action);
+    void processMouseScroll(double xOffset, double yOffset);
 
     const Window& getWindow() { return m_window; } 
     Cyan::Renderer* getRenderer() { return m_renderer; }
@@ -70,5 +73,6 @@ private:
 
     /* Misc (To be refactored) */
     MouseCursorCallback* mouseCursorCallback;
+    MouseScrollWheelCallback* mouseScrollCallback;
     std::vector<MouseButtonCallback*> mouseButtonCallbacks;
 };

@@ -23,6 +23,7 @@ struct Scene
     RegularBuffer* m_dirLightsBuffer;
     LightProbe*    m_currentProbe;
     LightProbe*    m_lastProbe;
+    std::string    m_name;
 };
 
 class SceneManager {

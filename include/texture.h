@@ -57,6 +57,7 @@ namespace Cyan
     {
         Texture::Type m_type;
         u32 m_width, m_height;
+        u32 m_numMips;
         Texture::ColorFormat m_format;
         Texture::Filter m_min;
         Texture::Filter m_mag;

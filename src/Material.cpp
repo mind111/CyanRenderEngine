@@ -75,8 +75,12 @@ namespace Cyan
 
     u32 MaterialInstance::getAttributeOffset(UniformHandle handle)
     {
-        CYAN_ASSERT(m_template->m_dataOffsetMap.find(handle) != m_template->m_dataOffsetMap.end(), 
-            "Attempting to set an attribute that does not exist")
+        // CYAN_ASSERT(m_template->m_dataOffsetMap.find(handle) != m_template->m_dataOffsetMap.end(), 
+        //     "Attempting to set an attribute that does not exist")
+        if (m_template->m_dataOffsetMap.find(handle) == m_template->m_dataOffsetMap.end())
+        {
+            return (u32)-1;
+        }
         return m_template->m_dataOffsetMap[handle] + sizeof(UniformHandle);
     }
 
@@ -86,6 +90,10 @@ namespace Cyan
         Uniform* uniform = Cyan::getUniform(handle);
         u32 sizeInBytes = uniform->getSize();
         u32 offset = getAttributeOffset(handle);
+        if (offset == (u32)-1)
+        {
+            return;
+        }
         m_uniformBuffer->reset(offset);
         m_uniformBuffer->write(data);
     }
@@ -96,6 +104,10 @@ namespace Cyan
         Uniform* uniform = Cyan::getUniform(handle);
         u32 sizeInBytes = uniform->getSize();
         u32 offset = getAttributeOffset(handle);
+        if (offset == (u32)-1)
+        {
+            return;
+        }
         m_uniformBuffer->reset(offset);
         m_uniformBuffer->write(data);
     }
@@ -106,6 +118,10 @@ namespace Cyan
         Uniform* uniform = Cyan::getUniform(handle);
         u32 sizeInBytes = uniform->getSize();
         u32 offset = getAttributeOffset(handle);
+        if (offset == (u32)-1)
+        {
+            return;
+        }
         m_uniformBuffer->reset(offset);
         m_uniformBuffer->write(data, sizeInBytes);
     }

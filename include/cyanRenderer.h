@@ -11,6 +11,7 @@
 #include "Scene.h"
 #include "camera.h"
 #include "Entity.h"
+#include "Geometry.h"
 
 class aiMesh;
 class Renderer;
@@ -42,7 +43,11 @@ namespace Cyan
         static Renderer* get();
 
         void init(u32 renderWidth, u32 renderHeight);
+
+        void beginRender();
         void renderScene(Scene* scene);
+        void endRender();
+
         void drawEntity(Entity* entity);
         void drawMeshInstance(MeshInstance* meshInstance, glm::mat4* modelMatrix);
         void submitMesh(Mesh* mesh, glm::mat4 modelTransform);
@@ -58,10 +63,38 @@ namespace Cyan
         RegularBuffer* m_pointLightsBuffer;
         RegularBuffer* m_dirLightsBuffer;
 
-        u32 m_renderWidth, m_renderHeight;
-        Texture* m_defaultColorBuffer; // hdr
+        // shaders
+        Shader* m_blitShader;
+        MaterialInstance* m_blitMaterial;
+
+        struct BlitQuadMesh
+        {
+            VertexBuffer* m_vb;
+            VertexArray*  m_va;
+            MaterialInstance* m_matl;
+        };
+
+        // blit quad mesh
+        BlitQuadMesh* m_blitQuad;
+        // Quad m_blitQuad;
+
+        // render targets
+        bool m_bSuperSampleAA;
+        u32 m_superSamplingRenderWidth, m_superSamplingRenderHeight;
+        u32 m_offscreenRenderWidth, m_offscreenRenderHeight;
+        u32 m_windowWidth, m_windowHeight;
+
+
+        Texture* m_defaultColorBuffer;             // hdr
         RenderTarget* m_defaultRenderTarget;
+        Texture* m_superSamplingColorBuffer;       // hdr
+        RenderTarget* m_superSamplingRenderTarget;
         Texture* m_msaaColorBuffer;
         RenderTarget* m_msaaRenderTarget;
+
+        // post processing params
+        f32  m_exposure;
+        GLuint m_lumHistogramShader;
+        GLuint m_lumHistogramProgram;
     };
 }

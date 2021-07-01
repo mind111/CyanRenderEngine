@@ -7,6 +7,7 @@
 #include "Mesh.h"
 #include "Geometry.h"
 #include "imgui/imgui.h"
+#include "CyanUI.h"
 
 struct EnvMapDebugger
 {
@@ -235,6 +236,11 @@ struct BrdfDebugger
     }
 };
 
+namespace Pbr
+{
+    void mouseScrollWheelCallback(double xOffset, double yOffset);
+};
+
 // TODO: Can also let CyanApp define a basic beginFrame(), endFrame() where it calls customBeginFrame(), and customEndFrame(),
 // and child class override customBegin() and customEnd() to do each application specific stuffs
 class PbrApp : public CyanApp
@@ -249,20 +255,24 @@ public:
     virtual void beginFrame() override;
     virtual void render() override;
     virtual void endFrame() override;
-
     virtual void run() override;
     virtual void shutDown() override;
-
+    // tick
     void update();
-
+    // camera control
     void orbitCamera(double deltaX, double deltaY);
     void rotateCamera(double deltaX, double deltaY);
-
+    // ui
+    void drawStatsWindow();
+    void drawSceneWindow();
+    // init
     void initUniforms();
     void initShaders();
     void initHelmetScene();
     void initSpheresScene();
     void initEnvMaps();
+
+    friend void Pbr::mouseScrollWheelCallback(double xOffset, double yOffset);
 
     bool bOrbit;
 
@@ -311,11 +321,20 @@ private:
     Uniform* u_hasNormalMap;
     Uniform* u_hasAoMap;
 
-    // debugging purpose
-    EnvMapDebugger m_envMapDebugger;
-    BrdfDebugger m_brdfDebugger;
+    // ui
+    UI m_ui;
 
     // misc
     BufferVisualizer m_bufferVis;
     ImFont* m_font;
+    u32 m_debugViewIndex;
+    double m_lastFrameDurationInMs;
+    // ui interatctions
+    bool bDisneyReparam;
+    float m_directDiffuseSlider;
+    float m_directSpecularSlider;
+    float m_indirectDiffuseSlider;
+    float m_indirectSpecularSlider;
+    float m_directLightingSlider;
+    float m_indirectLightingSlider;
 };

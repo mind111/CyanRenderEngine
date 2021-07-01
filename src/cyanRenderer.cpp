@@ -37,25 +37,85 @@ bool fileWasModified(const char* fileName, FILETIME* writeTime)
 
 namespace Cyan
 {
-    void Renderer::init(u32 renderWidth, u32 renderHeight)
+    float quadVerts[24] = {
+        -1.f, -1.f, 0.f, 0.f,
+         1.f,  1.f, 1.f, 1.f,
+        -1.f,  1.f, 0.f, 1.f,
+
+        -1.f, -1.f, 0.f, 0.f,
+         1.f, -1.f, 1.f, 0.f,
+         1.f,  1.f, 1.f, 1.f
+    };
+
+    void Renderer::init(u32 windowWidth, u32 windowHeight)
     {
         Cyan::init();
         u_model = createUniform("s_model", Uniform::Type::u_mat4);
         u_cameraView = createUniform("s_view", Uniform::Type::u_mat4);
         u_cameraProjection = createUniform("s_projection", Uniform::Type::u_mat4);
         m_frame = new Frame;
+
         // set back-face culling
-        Cyan::getCurrentGfxCtx()->setCullFace(FrontFace::CounterClockWise, FaceCull::Back);
+        // Cyan::getCurrentGfxCtx()->setCullFace(FrontFace::CounterClockWise, FaceCull::Back);
+
         // render targets
-        m_renderWidth = renderWidth;
-        m_renderHeight = renderHeight;
+        m_windowWidth = windowWidth;
+        m_windowHeight = windowHeight;
+        m_superSamplingRenderWidth = 2560u;
+        m_superSamplingRenderHeight = 1440u;
         TextureSpec spec = { };
         spec.m_type = Texture::Type::TEX_2D;
         spec.m_format = Texture::ColorFormat::R16G16B16A16; 
+        spec.m_width = m_superSamplingRenderWidth;
+        spec.m_height = m_superSamplingRenderHeight;
         spec.m_min = Texture::Filter::LINEAR;
         spec.m_mag = Texture::Filter::LINEAR;
-        // m_defaultColorBuffer = createTextureHDR("blit-texture", spec);
-        m_defaultRenderTarget = createRenderTarget(m_renderWidth, m_renderHeight);
+        spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
+        m_superSamplingColorBuffer = createTextureHDR("blit-SSAA-texture", spec);
+        m_superSamplingRenderTarget = createRenderTarget(m_superSamplingRenderWidth, m_superSamplingRenderHeight);
+        m_superSamplingRenderTarget->attachColorBuffer(m_superSamplingColorBuffer);
+
+        spec.m_width = m_windowWidth;
+        spec.m_height = m_windowHeight;
+        m_defaultColorBuffer = createTextureHDR("blit-texture", spec);
+        m_defaultRenderTarget = createRenderTarget(m_windowWidth, m_windowHeight);
+        m_defaultRenderTarget->attachColorBuffer(m_defaultColorBuffer);
+
+        // blit mesh & material
+        m_blitShader = createShader("BlitShader", "../../shader/shader_blit.vs", "../../shader/shader_blit.fs");
+        m_blitMaterial = createMaterial(m_blitShader)->createInstance();
+        m_blitMaterial->bindTexture("quadSampler", m_defaultColorBuffer);
+        // m_blitMaterial->set("exposure", 0.5f);
+
+        m_blitQuad = (BlitQuadMesh*)CYAN_ALLOC(sizeof(Renderer::BlitQuadMesh));
+        m_blitQuad->m_vb = createVertexBuffer((void*)quadVerts, sizeof(quadVerts), 4 * sizeof(f32), 6u);
+        m_blitQuad->m_va = createVertexArray(m_blitQuad->m_vb);
+        u32 strideInBytes = 4 * sizeof(f32);
+        u32 offset = 0;
+        m_blitQuad->m_vb->m_vertexAttribs.push_back({
+                VertexAttrib::DataType::Float, 2u, strideInBytes, offset, (f32*)m_blitQuad->m_vb->m_data + offset
+        });
+        offset += 2 * sizeof(f32);
+        m_blitQuad->m_vb->m_vertexAttribs.push_back({
+                VertexAttrib::DataType::Float, 2u, strideInBytes, offset, (f32*)m_blitQuad->m_vb->m_data + offset
+        });
+        m_blitQuad->m_va->init();
+        m_blitQuad->m_matl = m_blitMaterial;
+
+        // misc
+        m_bSuperSampleAA = true;
+        m_exposure = 1.f;
+        m_lumHistogramShader = glCreateShader(GL_COMPUTE_SHADER);
+        const char* src = ShaderUtil::readShaderFile("../../shader/shader_lumin_histogram.cs");
+        glShaderSource(m_lumHistogramShader, 1, &src, nullptr);
+        glCompileShader(m_lumHistogramShader);
+        ShaderUtil::checkShaderCompilation(m_lumHistogramShader);
+        m_lumHistogramProgram = glCreateProgram();
+        glAttachShader(m_lumHistogramProgram, m_lumHistogramShader);
+        glLinkProgram(m_lumHistogramProgram);
+        ShaderUtil::checkShaderLinkage(m_lumHistogramProgram);
     }
 
     void Renderer::drawMeshInstance(MeshInstance* meshInstance, glm::mat4* modelMatrix)
@@ -190,12 +250,65 @@ namespace Cyan
     template <typename T>
     u32 sizeofVector(const std::vector<T>& vec)
     {
-        CYAN_ASSERT(vec.size() > 0, "empty vector");
+        if (vec.size() == 0)
+        {
+            return 0;
+        }
+        // CYAN_ASSERT(vec.size() > 0, "empty vector");
         return sizeof(vec[0]) * (u32)vec.size();
+    }
+
+    void Renderer::beginRender()
+    {
+        // set render target to m_defaultRenderTarget
+        auto ctx = Cyan::getCurrentGfxCtx();
+        if (m_bSuperSampleAA)
+        {
+            ctx->setRenderTarget(m_superSamplingRenderTarget, 0u);
+            m_offscreenRenderWidth = m_superSamplingRenderWidth;
+            m_offscreenRenderHeight = m_superSamplingRenderHeight;
+        }
+        else 
+        {
+            ctx->setRenderTarget(m_defaultRenderTarget, 0u);
+            m_offscreenRenderWidth = m_windowWidth;
+            m_offscreenRenderHeight = m_windowHeight;
+        }
+
+        ctx->setViewport(0u, 0u, m_offscreenRenderWidth, m_offscreenRenderHeight);
+
+        // clear
+        ctx->clear();
+    }
+
+    void Renderer::endRender()
+    {
+        // post-processing pass
+        m_blitMaterial->set("exposure", m_exposure);
+
+        // final blit to default frame buffer
+        auto ctx = Cyan::getCurrentGfxCtx();
+        ctx->setRenderTarget(nullptr, 0u);
+        ctx->setViewport(0u, 0u, m_windowWidth, m_windowHeight);
+        ctx->setShader(m_blitShader);
+        if (m_bSuperSampleAA)
+        {
+            m_blitQuad->m_matl->bindTexture("quadSampler", m_superSamplingColorBuffer);
+        }
+        else
+        {
+            m_blitQuad->m_matl->bindTexture("quadSampler", m_defaultColorBuffer);
+        }
+        m_blitQuad->m_matl->bind();
+        ctx->setVertexArray(m_blitQuad->m_va);
+        ctx->setPrimitiveType(PrimitiveType::TriangleList);
+        ctx->drawIndex(6u);
     }
 
     void Renderer::renderScene(Scene* scene)
     {
+        beginRender();
+
         // camera
         Camera& camera = scene->mainCamera;
         CameraManager::updateCamera(camera);
@@ -214,6 +327,16 @@ namespace Cyan
         // determine if probe data should be update for this frame
         bool shouldUpdateProbeData = (!scene->m_lastProbe || (scene->m_currentProbe->m_baseCubeMap->m_id != scene->m_lastProbe->m_baseCubeMap->m_id));
         scene->m_lastProbe = scene->m_currentProbe;
+        
+        // set render target to m_defaultRenderTarget
+        // auto ctx = Cyan::getCurrentGfxCtx();
+        // auto status = glCheckNamedFramebufferStatus(m_superSamplingRenderTarget->m_frameBuffer, GL_FRAMEBUFFER);
+        // ctx->setRenderTarget(m_superSamplingRenderTarget, 0u);
+        // if (m_bSuperSampleAA)
+        //     ctx->setViewport(0u, 0u, m_superSamplingRenderWidth, m_superSamplingRenderHeight);
+        // else
+        // // clear
+        // ctx->clear();
 
         /* 
           TODO: split entities into those has lighting and those does not
@@ -221,7 +344,6 @@ namespace Cyan
           * does not need to.
         */
         // entities 
-        u32 debugCounter = 0;
         for (auto entity : scene->entities)
         {
             MeshInstance* meshInstance = entity->m_meshInstance; 
@@ -263,17 +385,15 @@ namespace Cyan
             }
             drawEntity(entity);
         }
+
         // final blit to default frame buffer
-
+        // ctx->setRenderTarget(nullptr, 0u);
+        // ctx->setViewport(0u, 0u, m_windowWidth, m_windowHeight);
+        // ctx->setShader(m_blitShader);
+        // m_blitQuad->m_matl->bind();
+        // ctx->setVertexArray(m_blitQuad->m_va);
+        // ctx->setPrimitiveType(PrimitiveType::TriangleList);
+        // ctx->drawIndex(6u);
+        endRender();
     }
-
-    float quadVerts[24] = {
-        -1.f, -1.f, 0.f, 0.f,
-         1.f,  1.f, 1.f, 1.f,
-        -1.f,  1.f, 0.f, 1.f,
-
-        -1.f, -1.f, 0.f, 0.f,
-         1.f, -1.f, 1.f, 0.f,
-         1.f,  1.f, 1.f, 1.f
-    };
 }

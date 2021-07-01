@@ -11,6 +11,13 @@ uniform mat4 s_view;
 //- misc
 uniform float kDiffuse;
 uniform float kSpecular;
+uniform float directDiffuseSlider;
+uniform float directSpecularSlider;
+uniform float indirectDiffuseSlider;
+uniform float indirectSpecularSlider;
+uniform float directLightingSlider;
+uniform float indirectLightingSlider;
+
 uniform int activeNumDiffuse;
 uniform int activeNumSpecular;
 uniform int activeNumEmission;
@@ -31,6 +38,13 @@ uniform samplerCube envmap;             //non-material
 uniform samplerCube irradianceDiffuse;  //non-material
 uniform samplerCube irradianceSpecular; //non-material
 uniform sampler2D   brdfIntegral;
+//- debug switches
+uniform float debugNormalMap;
+uniform float debugAO;
+uniform float debugD;
+uniform float debugF;
+uniform float debugG;
+uniform float disneyReparam;
 
 const int aoStrength = 2;
 
@@ -41,7 +55,6 @@ struct Light
     vec4 color;
 };
 
-// TODO: Watch out for alignment issues?
 struct DirLight
 {
     vec4 color;
@@ -69,6 +82,8 @@ layout(std430, binding = 2) buffer pointLightsData
 vec4 tangentSpaceToViewSpace(vec3 tn, vec3 vn, vec3 t) 
 {
     mat4 tbn;
+    // apply Gram-Schmidt process
+    t = normalize(t - dot(t, vn) * vn);
     vec3 b = cross(vn, t);
     tbn[0] = vec4(t, 0.f);
     tbn[1] = vec4(b, 0.f);
@@ -88,18 +103,13 @@ vec3 gammaCorrection(vec3 inColor)
     return vec3(pow(inColor.r, 2.2f), pow(inColor.g, 2.2f), pow(inColor.b, 2.2f));
 }
 
-vec3 fresnel(vec3 f0, vec3 v, vec3 h)
-{
-    float fresnelCoef = 1.f - dot(v, h);
-    fresnelCoef = fresnelCoef * fresnelCoef * fresnelCoef * fresnelCoef * fresnelCoef;
-    return mix(f0, vec3(1.f), fresnelCoef);
-}
-
 // Taking the formula from the GGX paper and simplify to avoid computing tangent
 // Using Disney's parameterization of alpha_g = roughness * roughness
 float GGX(float roughness, float ndoth) 
 {
-    float alpha = roughness * roughness;
+    float alpha = roughness;
+    if (disneyReparam > .5f)
+        alpha *= roughness;
     float alpha2 = alpha * alpha;
     float result = alpha2;
     float denom = ndoth * ndoth * (alpha2 - 1.f) + 1.f;
@@ -107,18 +117,14 @@ float GGX(float roughness, float ndoth)
     return result;
 }
 
-// v: light or view direction, h: half vector
-float smithG(vec3 v, vec3 n, vec3 h, float roughness)
+vec3 fresnel(vec3 f0, vec3 n, vec3 v)
 {
-    float ndotv = dot(n,v);
-    float hdotv = dot(h,v);
-    if ((hdotv / ndotv) <= 0.f) return 0.f;
-    float ndotv2 = ndotv * ndotv;
-    float alpha = roughness * roughness;
-    float alpha2 = alpha * alpha;
-    float tanTheta2 = (1.f - ndotv2) / ndotv2;
-    float result = 2.f / (1.f + sqrt(1.f + alpha2 * tanTheta2));
-    return result;
+    float ndotv = saturate(dot(n, v));
+    float fresnelCoef = 1.f - ndotv;
+    fresnelCoef = fresnelCoef * fresnelCoef * fresnelCoef * fresnelCoef * fresnelCoef;
+    // f0: fresnel reflectance at incidence angle 0
+    // f90: fresnel reflectance at incidence angle 90, f90 in this case is vec3(1.f) 
+    return mix(f0, vec3(1.f), fresnelCoef);
 }
 
 /*
@@ -126,78 +132,130 @@ float smithG(vec3 v, vec3 n, vec3 h, float roughness)
 */
 float ggxSmithLambda(vec3 v, vec3 h, float roughness)
 {
-    float alpha = roughness * roughness;
+    float alpha = roughness;
+    if (disneyReparam > .5f)
+        alpha *= roughness;
     float alpha2 = alpha * alpha;
-    float hdotv = dot(h, v);
-    // watch out divide by 0
-    return 0.5f * (sqrt(alpha2 + (1 - alpha2) * hdotv * hdotv) / max(hdotv, 0.0001f) - 1.f);
+    float hdotv = saturate(dot(h, v));
+    float hdotv2 = max(0.001f, hdotv * hdotv);
+    // float a2 = hdotv2 / (alpha2 * (1.f - hdotv * hdotv));
+    float a2Rcp = alpha2 * (1.f - hdotv2) / hdotv2;
+    return 0.5f * (sqrt(1.f + a2Rcp) - 1.f);
 }
 
 /*
-    * height-correlated Smith geometry 
+    * height-correlated Smith geometry attenuation 
 */
 float ggxSmithG2(vec3 v, vec3 l, vec3 h, float roughness)
 {
-    if (dot(v, h) < 0.f || dot(l, h) < 0.f)
+    if (dot(v, h) <= 0.f || dot(l, h) <= 0.f)
     {
-        return 0.f;
+        return 0.01f;
     }
-    float ggxV = ggxSmithLambda(v, n, roughness);
-    float ggxL = ggxSmithLambda(l, n, roughness);
+    float ggxV = ggxSmithLambda(v, h, roughness);
+    float ggxL = ggxSmithLambda(l, h, roughness);
     return 1.f / (1.f + ggxV + ggxL);
 }
 
-vec3 ACESFilm(vec3 x)
+/*
+    * microfacet diffuse brdf
+*/
+vec3 diffuseBrdf(vec3 baseColor)
 {
-    float a = 2.51f;
-    float b = 0.03f;
-    float c = 2.43f;
-    float d = 0.59f;
-    float e = 0.14f;
-    vec3 result = (x*(a*x+b))/(x*(c*x+d)+e);
-    return vec3(saturate(result.r), saturate(result.g), saturate(result.b)); 
+    return baseColor / pi;
 }
 
-float VanDerCorput(uint n, uint base)
+/*
+    * microfacet specular brdf 
+    * A brdf fr(i, o, n) 
+*/
+vec3 specularBrdf(vec3 wi, vec3 wo, vec3 n, float roughness, vec3 f0)
 {
-    float invBase = 1.0 / float(base);
-    float denom   = 1.0;
-    float result  = 0.0;
+    float ndotv = saturate(dot(n, wo));
+    float ndotl = saturate(dot(n, wi));
+    vec3 h = normalize(wi + wo);
+    float ndoth = saturate(dot(n, h));
+    float D = GGX(roughness, ndoth);
+    float G = ggxSmithG2(wo, wi, n, roughness);
+    vec3 F = fresnel(f0, n, wo);
+    vec3 brdf = D * F * G / ((4.f * ndotv * ndotl) + 0.001f);
+    return brdf;
+}
 
-    for(uint i = 0u; i < 32u; ++i)
+struct RenderParams
+{
+    vec3 baseColor;
+    vec3 f0;
+    float roughness;
+    float metallic;
+    vec3 n;
+    vec3 v;
+    vec3 l;
+    vec3 li;
+};
+
+/*
+    * render equation:
+    *    fr(i, o, n) * Li * cos(i, n)
+*/
+vec3 render(RenderParams params)
+{
+    vec3 h = normalize(params.v + params.l);
+    float ndotl = saturate(dot(params.n, params.l));
+    vec3 F = fresnel(params.f0, params.n, params.v);
+    vec3 kDiffuse = mix(vec3(1.f) - F, vec3(0.f), params.metallic);
+    vec3 diffuse = kDiffuse * diffuseBrdf(params.baseColor);
+    vec3 specular = specularBrdf(params.l, params.v, params.n, params.roughness, params.f0);
+    return (directDiffuseSlider * diffuse + directSpecularSlider * specular) * params.li * ndotl;
+}
+
+vec3 directLighting(RenderParams renderParams)
+{
+    vec3 color = vec3(0.f);
+    for (int i = 0; i < numPointLights; i++)
     {
-        if(n > 0u)
-        {
-            denom   = mod(float(n), 2.0);
-            result += denom * invBase;
-            invBase = invBase / 2.0;
-            n       = uint(float(n) / 2.0);
-        }
+        vec4 lightPos = s_view * pointLightsBuffer.lights[i].position;
+        // light dir
+        renderParams.l = normalize(lightPos.xyz - fragmentPos);
+        // light color
+        renderParams.li = pointLightsBuffer.lights[i].color.rgb * pointLightsBuffer.lights[i].color.w;
+        color += render(renderParams);
     }
-
-    return result;
+    for (int i = 0; i < numDirLights; i++)
+    {
+        vec4 lightDir = s_view * (dirLightsBuffer.lights[i].direction * -1.f);
+        // light dir
+        renderParams.l = normalize(lightDir.xyz);
+        // light color
+        renderParams.li = dirLightsBuffer.lights[i].color.rgb * dirLightsBuffer.lights[i].color.w;
+        color += render(renderParams);
+    }
+    return color;
 }
 
-vec2 HammersleyNoBitOps(uint i, uint N)
+vec3 indirectLighting(RenderParams params)
 {
-    return vec2(float(i)/float(N), VanDerCorput(i, 2u));
-}
-
-vec3 radiance(vec3 albedo, vec3 f0, float roughness, float metallic, float ao, vec3 viewDir, vec3 n, vec3 lc, vec3 ld, float li, float ndotv)
-{
-    // Diffuse
-    float ndotl = max(0.0f, dot(n, ld));
-    vec3 diffuse = albedo;
-    // Specular
-    vec3 h = normalize(ld + viewDir);
-    float D = GGX(roughness, max(0.0f, dot(n,h)));
-    float G = smithG(ld, n, h, roughness) * smithG(viewDir, n, h, roughness);
-    // float G = ggxSmithG2(viewDir, ld, n, roughness);
-    vec3 f = fresnel(f0, ld, h);
-    // TODO: is multiplying by pi necessary?
-    vec3 specular = pi * (f * D * G) / max(0.00001f, (4.f * ndotv * ndotl));
-    vec3 kd = mix(vec3(1.f) - f, vec3(0.0f), metallic);
-    return (kDiffuse * kd * diffuse + kSpecular * specular) * ndotl * lc * li * ao;
+    vec3 color = vec3(0.f);
+    vec3 F = fresnel(params.f0, params.n, params.v); 
+    vec3 kDiffuse = mix(vec3(1.f) - F, vec3(0.f), params.metallic);
+    // diffuse irradiance
+    vec3 diffuse = kDiffuse * params.baseColor * texture(irradianceDiffuse, params.n).rgb; 
+    // specular radiance
+    float ndotv = saturate(dot(params.n, params.v));
+    vec3 r = -reflect(params.v, params.n);
+    mat4 viewRotation = s_view;
+    // Cancel out the translation part of the view matrix so that the cubemap will always follow
+    // the camera, view of the cubemap will change along with the change of camera rotation 
+    viewRotation[3][0] = 0.f;
+    viewRotation[3][1] = 0.f;
+    viewRotation[3][2] = 0.f;
+    viewRotation[3][3] = 1.f;
+    vec3 rr = (inverse(viewRotation) * vec4(r, 0.f)).xyz;
+    vec3 prefilteredColor = textureLod(irradianceSpecular, rr, params.roughness * 10.f).rgb;
+    vec3 brdf = texture(brdfIntegral, vec2(params.roughness, ndotv)).rgb; 
+    vec3 specular = prefilteredColor * (params.f0 * brdf.r + brdf.g);
+    color += indirectDiffuseSlider * diffuse + indirectSpecularSlider * specular;
+    return color;
 }
 
 float hash(float seed)
@@ -253,7 +311,7 @@ vec3 specularIBL(vec3 f0, vec3 normal, vec3 viewDir, float roughness)
         float vdoth = saturate(dot(viewDir, h)); 
         float ndotl = saturate(dot(normal, vi));
         // cook-torrance microfacet shading model
-        float shadowing = smithG(vi, normal, h, roughness) * smithG(viewDir, normal, h, roughness);
+        float shadowing = ggxSmithG2(vi, viewDir, h, roughness);
         vec3 fresnel = fresnel(f0, vi, h);
         /* 
             Notes:
@@ -284,15 +342,15 @@ void main()
     if (hasNormalMap > 0.5f)
     {
         vec3 tn = texture(normalMap, uv).xyz;
-        // Convert from [0, 1] to [-1.0, 1.0]
-        tn = tn * 2.f - vec3(1.f); 
+        // Convert from [0, 1] to [-1.0, 1.0] and renomalize if texture filtering changes the length
+        tn = normalize(tn * 2.f - vec3(1.f)); 
         // Covert normal from tangent frame to camera space
-        normal = tangentSpaceToViewSpace(tn, normal, t).xyz;
-        // TODO: Re-orthonoramlize the tangent frame
+        normal = tangentSpaceToViewSpace(tn, normal, tangent).xyz;
     }
 
     /* Texture mapping */
     vec4 albedo = texture(diffuseMaps[0], uv);
+    // from sRGB to linear space
     albedo.rgb = vec3(pow(albedo.r, 2.2f), pow(albedo.g, 2.2f), pow(albedo.b, 2.2f));
     // According to gltf-2.0 spec, metal is sampled from b, roughness is sampled from g
     float roughness, metallic;
@@ -307,65 +365,31 @@ void main()
         metallic = uniformMetallic;
     }
     // Determine the specular color
-    vec3 f0 = mix(vec3(0.04f), albedo.rgb, metallic);
+    // sqrt() because I want to make specular color has stronger tint
+    vec3 f0 = mix(vec3(0.04f), albedo.rgb, sqrt(metallic));
 
-    /* Shading */
-    // Ambient
-    vec3 ambient = vec3(0.22f, 0.22f, 0.2f);
     float ao = hasAoMap > 0.5f ? texture(aoMap, uv).r : 1.0f;
     ao = pow(ao, aoStrength);
-    ambient *= albedo.rgb * ao;
 
     vec3 viewDir = normalize(-fragmentPos); 
-    float ndotv = max(0.0f, dot(normal,viewDir));
+
+    RenderParams renderParams = {
+        albedo.rgb,
+        f0,
+        roughness,
+        metallic,
+        normal,
+        viewDir,
+        vec3(0.f),
+        vec3(0.f)
+    };
 
     vec3 color = vec3(0.f);
-    for (int i = 0; i < numPointLights; i++)
-    {
-        vec4 pos = s_view * pointLightsBuffer.lights[i].position;
-        vec3 ld = normalize(pos.xyz - fragmentPos);
-        vec3 lc = gammaCorrection(pointLightsBuffer.lights[i].color.rgb);
-        float li = pointLightsBuffer.lights[i].color.w;
-        color += radiance(albedo.rgb, f0, roughness, metallic, ao, viewDir, normal, lc, ld, li, ndotv);
-    }
-
-    for (int i = 0; i < numDirLights; i++)
-    {
-        vec4 dir = s_view * dirLightsBuffer.lights[i].direction;
-        vec3 ld = normalize(-dir.xyz);
-        vec3 lc = dirLightsBuffer.lights[i].color.rgb;
-        float li = dirLightsBuffer.lights[i].color.w;
-        color += radiance(albedo.rgb, f0, roughness, metallic, ao, viewDir, normal, lc, ld, li, ndotv);
-    }
-
-    // Image-based-lighting
-    {
-        float ndotv = saturate(dot(n, viewDir));
-
-        // Diffuse
-        vec3 f = fresnel(f0, normal, normalize(normal + viewDir));
-        vec3 kd = mix(vec3(1.f) - f, vec3(0.f), metallic);
-        vec3 diffuseE = texture(irradianceDiffuse, normal).rgb;
-        color += albedo.rgb * diffuseE * 6.5f * kd;
-
-        // Specular: split sum approximation
-        vec3 vi = -reflect(viewDir, normal);
-        mat4 viewRotation = s_view;
-        // Cancel out the translation part of the view matrix so that the cubemap will always follow
-        // the camera, view of the cubemap will change along with the change of camera rotation 
-        viewRotation[3][0] = 0.f;
-        viewRotation[3][1] = 0.f;
-        viewRotation[3][2] = 0.f;
-        viewRotation[3][3] = 1.f;
-        // if directly uses vi to sample, the cubemap is basically always rotate along with the camera,
-        // its position in view space never changed. Need to apply inverse of view rotation to the reflection
-        // vector to get the correct reflection when rotating the camera
-        vec4 l = inverse(viewRotation) * vec4(vi, 0.f);
-        vec3 prefilteredColor = textureLod(irradianceSpecular, l.xyz, roughness * 9.f).rgb;
-        vec3 brdf = texture(brdfIntegral, vec2(ndotv, roughness)).rgb; 
-        vec3 specularE = prefilteredColor * (f0 * brdf.r + brdf.g);
-        color += specularE * kSpecular;
-    }
+    // analytical lighting
+    color += directLighting(renderParams);
+    // image-based-lighting
+    color += indirectLighting(renderParams);
+    color *= ao;
 
     // Emission
     // vec3 emission = vec3(0.f); 
@@ -377,8 +401,31 @@ void main()
     // }
     // color += emission;
 
-    // Tone mapping
-    color = ACESFilm(color);
-    color = vec3(pow(color.r, 1.f/2.2f), pow(color.g, 1.f/2.2f), pow(color.b, 1.f/2.2f));
+    // debug view
+    // D
+    if (debugD > 0.5f)
+    {
+        vec4 lightDir = s_view * dirLightsBuffer.lights[0].direction;
+        vec3 ld = normalize(lightDir.xyz);
+        vec3 debugHalfVector = normalize(viewDir + ld); 
+        color = vec3(GGX(roughness, max(0.0f, dot(normal, debugHalfVector))));
+    }
+    // F
+    if (debugF > 0.5f)
+    {
+        vec4 lightDir = s_view * (dirLightsBuffer.lights[0].direction * -1.f);
+        vec3 ld = normalize(lightDir.xyz);
+        color = fresnel(f0, normal, viewDir);
+    }
+    // G
+    if (debugG > 0.5f)
+    {
+        vec4 lightDir = s_view * (dirLightsBuffer.lights[0].direction * -1.f);
+        vec3 ld = normalize(lightDir.xyz);
+        float G = ggxSmithG2(viewDir, ld, normal, roughness);
+        color = vec3(G);
+    }
+
+    // write linear color to HDR Framebuffer
     fragColor = vec4(color, 1.0f);
 }

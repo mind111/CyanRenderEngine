@@ -63,6 +63,10 @@ namespace Cyan
         void set(const char* attribute, void* data);
         void set(const char* attribute, u32 data);
         void set(const char* attribute, float data);
+        void* get(const char* attribute, Uniform::Type* type)
+        {
+
+        }
         u32 getAttributeOffset(UniformHandle handle);
         UsedBindingPoints bind();
 
@@ -77,3 +81,8 @@ namespace Cyan
         UniformBuffer* m_uniformBuffer;
     };
 }
+
+struct MaterialVisualizer
+{
+
+};

@@ -20,9 +20,10 @@
 
 /* TODO: 
     General:
-        * add support for adding entities via UI.
         * add support for selecting entities via UI.
+        * add support for adding entities via UI.
         * add support for saving the scene settings (serialization....?).
+        * look into how to reduce load time (loading mesh, loading textures etc).
         * get rid of heap memory usage, no more "new" in the code base.
         * new project structure..? static lib, dll, and driver app ?
         * study about resource management.
@@ -31,13 +32,43 @@
         * implement handle system, every object can be identified using a handle
         * memory usage visualization
     Rendering:
-        * implement MSAA.
+        Problems:
+            * Specular anti-aliasing:
+                * when either ndotv or ndotl is zero, the denominator in microfacet BRDF will be a 
+                  really small number which cause the evaluated BRDF to be a larget number, causing
+                  really bright specular highlights, and they tend to aliase around edge of the mesh.
+                  To be more precise, this won't happen when ndotl is zero as this case will be culled by
+                  the cosine theta (ndotl) term in the rendering equation. Strong highlight is valid especially
+                  when both ndotv and ndotl are small numbers, because the fresnel will then be strong. Need
+                  to research about how to combat specular aliasing.
+                * This is a extreme advanced topic for now. Long term studying goal
+
+            * A lot of noise in environment maps that contains high frequency details, this happens
+              in both prefiltering diffuse/specular map
+                * Would gaussian blurring help in this case?
+
+            * histogram auto-exposure:
+
+        * Normal Mapping:
+            * draw debug normals
+            * re-orthonormalize the normals after tangent space normal mapping
+            * correct filtering
+        * implement temporal anti-aliasing first to combat specular aliasing
+        * add functionalities for capturing light probes
+        * look into how to reduce specular noise (NDF filtering ...?)
+        * look into parameters in Disney principled BRDF
+            * Disney's reparameterization of alpha in GGX specular is mainly because of matching
+            with their diffuse BRDF
         * add support for 32-bits precision hdr.
         * post-processing
             * bloom
             * auto-exposure  
             * color-grading
-        * maybe switch to use Hammersley sequence showed in Epic's notes?
+            * film grain
+            * ue4 tonemapper
+        * implement MSAA.
+        * study subsurface scattering
+    Optimization:
         * implement a uniform cache to avoid calling glUniform() on uniforms that has not changed
         * implement DrawCall and Frame struct
 */
@@ -102,7 +133,8 @@ namespace Cyan
 
     void* alloc(u32 sizeInBytes);
 
-    /* Buffer */
+    // Buffers
+    VertexArray*  createVertexArray(VertexBuffer* vb);
     VertexBuffer* createVertexBuffer(void* _data, u32 _sizeInBytes, u32 _strideInBytes, u32 _numVerts);
     RegularBuffer* createRegularBuffer(u32 totalSize);
 
@@ -140,7 +172,7 @@ namespace Cyan
     Mesh* getMesh(const char* _name);
 
     /* Scene */
-    Scene* createScene(const char* _file);
+    Scene* createScene(const char* name, const char* _file);
     LightProbe* getProbe(u32 index);
     u32         getNumProbes();
 

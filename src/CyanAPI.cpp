@@ -153,10 +153,11 @@ namespace Cyan
         return vb;
     }
 
-    VertexArray* createVertexArray()
+    VertexArray* createVertexArray(VertexBuffer* vb)
     {
         VertexArray* vertexArray = new VertexArray;
         glCreateVertexArrays(1, &vertexArray->m_vao);
+        vertexArray->m_vertexBuffer = vb;
         return vertexArray;
     }
 
@@ -223,8 +224,8 @@ namespace Cyan
                 }
             }
 
-            subMesh->m_vertexArray = createVertexArray();
-            subMesh->m_vertexArray->m_vertexBuffer = createVertexBuffer(data, strideInBytes * numVerts, strideInBytes, numVerts);
+            subMesh->m_vertexArray = createVertexArray(createVertexBuffer(data, strideInBytes * numVerts, strideInBytes, numVerts));
+            // subMesh->m_vertexArray->m_vertexBuffer = createVertexBuffer(data, strideInBytes * numVerts, strideInBytes, numVerts);
             mesh->m_subMeshes.push_back(subMesh);
 
             u32 offset = 0;
@@ -274,9 +275,10 @@ namespace Cyan
         return 0;
     }
 
-    Scene* createScene(const char* _file)
+    Scene* createScene(const char* name, const char* _file)
     {
         Scene* scene = new Scene;
+        scene->m_name = std::string(name);
 
         scene->m_lastProbe = nullptr;
         scene->m_currentProbe = nullptr;
@@ -305,9 +307,11 @@ namespace Cyan
             std::string filename = textureInfo.at("path").get<std::string>();
             std::string name     = textureInfo.at("name").get<std::string>();
             std::string dynamicRange = textureInfo.at("dynamic_range").get<std::string>();
+            u32 numMips = textureInfo.at("numMips").get<u32>();
             
             TextureSpec spec = { };
             spec.m_type = Texture::Type::TEX_2D;
+            spec.m_numMips = numMips;
             spec.m_min = Texture::Filter::LINEAR;
             spec.m_mag = Texture::Filter::LINEAR;
             spec.m_s = Texture::Wrap::NONE;
@@ -480,9 +484,9 @@ namespace Cyan
                 case Texture::ColorFormat::R8G8B8A8: 
                     return DataFormatGL{ GL_RGBA8, GL_RGBA };
                 case Texture::ColorFormat::R16G16B16: 
-                    return DataFormatGL{ GL_RGB16, GL_RGB };
+                    return DataFormatGL{ GL_RGB16F, GL_RGB };
                 case Texture::ColorFormat::R16G16B16A16:
-                    return DataFormatGL{ GL_RGBA16, GL_RGBA };
+                    return DataFormatGL{ GL_RGBA16F, GL_RGBA };
                 default:
                     break;
             }
@@ -522,6 +526,11 @@ namespace Cyan
         // filters
         specGL.m_minGL = convertTexFilter(spec.m_min);
         specGL.m_magGL = convertTexFilter(spec.m_mag);
+        // linear mipmap filtering
+        if (spec.m_numMips > 1u)
+        {
+            specGL.m_minGL = convertTexFilter(Texture::Filter::MIPMAP_LINEAR);
+        }
         // wraps
         auto wrapS = convertTexWrap(spec.m_s);
         auto wrapT = convertTexWrap(spec.m_t);
@@ -584,10 +593,14 @@ namespace Cyan
         TextureSpecGL specGL = translate(spec);
 
         glCreateTextures(specGL.m_typeGL, 1, &texture->m_id);
-        glTextureStorage2D(texture->m_id, 1, specGL.m_dataFormatGL, texture->m_width, texture->m_height);
-        // TODO: isn't this duplicated?
-        // glTextureSubImage2D(texture->m_id, 0, 0, 0, texture->m_width, texture->m_height, specGL.m_internalFormatGL, GL_UNSIGNED_BYTE, texture->m_data);
+        glBindTexture(specGL.m_typeGL, texture->m_id);
+        glTexImage2D(specGL.m_typeGL, 0, specGL.m_dataFormatGL, texture->m_width, texture->m_height, 0, specGL.m_internalFormatGL, GL_FLOAT, nullptr);
+        glBindTexture(GL_TEXTURE_2D, 0);
         setTextureParameters(texture, specGL);
+        if (spec.m_numMips > 1u)
+        {
+            glGenerateTextureMipmap(texture->m_id);
+        }
 
         return texture;
     }
@@ -615,7 +628,7 @@ namespace Cyan
         switch(spec.m_type)
         {
             case Texture::Type::TEX_2D:
-                glTextureStorage2D(texture->m_id, 1, specGL.m_dataFormatGL, texture->m_width, texture->m_height);
+                glTexImage2D(GL_TEXTURE_2D, 0, specGL.m_dataFormatGL, texture->m_width, texture->m_height, 0, specGL.m_internalFormatGL, GL_FLOAT, nullptr);
                 break;
             case Texture::Type::TEX_CUBEMAP:
                 for (int f = 0; f < 6; f++)
@@ -628,6 +641,10 @@ namespace Cyan
         }
         glBindTexture(specGL.m_typeGL, 0);
         setTextureParameters(texture, specGL);
+        if (spec.m_numMips > 1u)
+        {
+            glGenerateTextureMipmap(texture->m_id);
+        }
 
         return texture;
     }
@@ -658,9 +675,12 @@ namespace Cyan
         TextureSpecGL specGL = translate(spec);
 
         glCreateTextures(specGL.m_typeGL, 1, &texture->m_id);
-        glTextureStorage2D(texture->m_id, 1, specGL.m_dataFormatGL, texture->m_width, texture->m_height);
+        glTextureStorage2D(texture->m_id, spec.m_numMips, specGL.m_dataFormatGL, texture->m_width, texture->m_height);
         glTextureSubImage2D(texture->m_id, 0, 0, 0, texture->m_width, texture->m_height, specGL.m_internalFormatGL, GL_UNSIGNED_BYTE, texture->m_data);
-        setTextureParameters(texture, specGL);
+        if (spec.m_numMips > 1u)
+        {
+            glGenerateTextureMipmap(texture->m_id);
+        }
         s_textures.push_back(texture);
 
         return texture;
@@ -692,9 +712,13 @@ namespace Cyan
         TextureSpecGL specGL = translate(spec);
 
         glCreateTextures(specGL.m_typeGL, 1, &texture->m_id);
-        glTextureStorage2D(texture->m_id, 1, specGL.m_dataFormatGL, texture->m_width, texture->m_height);
+        glTextureStorage2D(texture->m_id, spec.m_numMips, specGL.m_dataFormatGL, texture->m_width, texture->m_height);
         glTextureSubImage2D(texture->m_id, 0, 0, 0, texture->m_width, texture->m_height, specGL.m_internalFormatGL, GL_FLOAT, texture->m_data);
         setTextureParameters(texture, specGL);
+        if (spec.m_numMips > 1u)
+        {
+            glGenerateTextureMipmap(texture->m_id);
+        }
         s_textures.push_back(texture);
 
         return texture;
@@ -966,8 +990,8 @@ namespace Cyan
             Mesh::SubMesh* subMesh = new Mesh::SubMesh;
             cubeMesh->m_name = _name;
             subMesh->m_numVerts = sizeof(cubeVertices) / sizeof(f32) / 3;
-            subMesh->m_vertexArray = createVertexArray();
-            subMesh->m_vertexArray->m_vertexBuffer = createVertexBuffer(cubeVertices, sizeof(cubeVertices), 3 * sizeof(f32), subMesh->m_numVerts);
+            subMesh->m_vertexArray = createVertexArray(createVertexBuffer(cubeVertices, sizeof(cubeVertices), 3 * sizeof(f32), subMesh->m_numVerts));
+            // subMesh->m_vertexArray->m_vertexBuffer = createVertexBuffer(cubeVertices, sizeof(cubeVertices), 3 * sizeof(f32), subMesh->m_numVerts);
             subMesh->m_vertexArray->m_vertexBuffer->m_vertexAttribs.push_back({VertexAttrib::DataType::Float, 3, 3 * sizeof(f32), 0, cubeVertices});
             subMesh->m_vertexArray->init();
 
@@ -1037,6 +1061,7 @@ namespace Cyan
             Texture* equirectMap, *envmap;
             TextureSpec spec = { };
             spec.m_type = Texture::Type::TEX_2D;
+            spec.m_numMips = 1u;
             spec.m_min = Texture::Filter::LINEAR;
             spec.m_mag = Texture::Filter::LINEAR;
             spec.m_s = Texture::Wrap::NONE;
@@ -1132,8 +1157,8 @@ namespace Cyan
 
         Texture* prefilterEnvMapDiffuse(const char* _name, Texture* envMap)
         {
-            const u32 kViewportWidth = 1024;
-            const u32 kViewportHeight = 1024;
+            const u32 kViewportWidth = 128u;
+            const u32 kViewportHeight = 128u;
             Camera camera = { };
             camera.position = glm::vec3(0.f);
             camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
@@ -1142,8 +1167,9 @@ namespace Cyan
             TextureSpec spec;
             spec.m_format = envMap->m_format;
             spec.m_type = Texture::Type::TEX_CUBEMAP;
-            spec.m_width = envMap->m_width;
-            spec.m_height = envMap->m_height;
+            spec.m_numMips = 1u;
+            spec.m_width = kViewportWidth;
+            spec.m_height = kViewportHeight;
             spec.m_min = Texture::Filter::LINEAR;
             spec.m_mag = Texture::Filter::LINEAR;
             spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
@@ -1229,6 +1255,7 @@ namespace Cyan
             TextureSpec spec;
             spec.m_type = Texture::Type::TEX_CUBEMAP;
             spec.m_format = envMap->m_format;
+            spec.m_numMips = 11u;
             spec.m_width = envMap->m_width;
             spec.m_height = envMap->m_height;
             // set the min filter to mipmap_linear as we need to sample from its mipmap
@@ -1245,7 +1272,7 @@ namespace Cyan
             {
                 prefilteredEnvMap = createTexture(envMap->m_name.c_str(), spec);
             }
-            glGenerateTextureMipmap(prefilteredEnvMap->m_id);
+            // glGenerateTextureMipmap(prefilteredEnvMap->m_id);
             Shader* shader = createShader("PrefilterSpecularShader", "../../shader/shader_prefilter_specular.vs", "../../shader/shader_prefilter_specular.fs");
             Uniform* u_roughness = Cyan::createUniform("roughness", Uniform::Type::u_float);
             Uniform* u_projection = Cyan::createUniform("projection", Uniform::Type::u_mat4);
@@ -1332,6 +1359,7 @@ namespace Cyan
             TextureSpec spec = { };
             spec.m_type = Texture::Type::TEX_2D;
             spec.m_format = Texture::ColorFormat::R16G16B16A16;
+            spec.m_numMips = 1u;
             spec.m_width = kTexWidth;
             spec.m_height = kTexHeight;
             spec.m_min = Texture::Filter::LINEAR;
@@ -1397,6 +1425,7 @@ namespace Cyan
             spec.m_type = Texture::Type::TEX_2D;
             spec.m_format = Texture::ColorFormat::R8G8B8A8;
             spec.m_width = width;
+            spec.m_numMips = 1u;
             spec.m_height = height;
             spec.m_min = Texture::Filter::LINEAR;
             spec.m_mag = Texture::Filter::LINEAR;
