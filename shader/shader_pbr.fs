@@ -148,10 +148,6 @@ float ggxSmithLambda(vec3 v, vec3 h, float roughness)
 */
 float ggxSmithG2(vec3 v, vec3 l, vec3 h, float roughness)
 {
-    if (dot(v, h) <= 0.f || dot(l, h) <= 0.f)
-    {
-        return 0.01f;
-    }
     float ggxV = ggxSmithLambda(v, h, roughness);
     float ggxL = ggxSmithLambda(l, h, roughness);
     return 1.f / (1.f + ggxV + ggxL);
@@ -201,7 +197,7 @@ struct RenderParams
 vec3 render(RenderParams params)
 {
     vec3 h = normalize(params.v + params.l);
-    float ndotl = saturate(dot(params.n, params.l));
+    float ndotl = max(0.001f, dot(params.n, params.l));
     vec3 F = fresnel(params.f0, params.n, params.v);
     vec3 kDiffuse = mix(vec3(1.f) - F, vec3(0.f), params.metallic);
     vec3 diffuse = kDiffuse * diffuseBrdf(params.baseColor);
@@ -283,6 +279,7 @@ vec3 generateSample(vec3 n, float theta, float phi)
     return normalize(toWorldSpace * s);
 }
 
+// ground-truthe specular IBL
 vec3 specularIBL(vec3 f0, vec3 normal, vec3 viewDir, float roughness)
 {
     float numSamples = 512.f;

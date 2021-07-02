@@ -51,7 +51,6 @@ float ggxSmithLambda(vec3 v, vec3 h, float roughness)
     float alpha2 = alpha * alpha;
     float hdotv = saturate(dot(h, v));
     float hdotv2 = max(0.001f, hdotv * hdotv);
-    // float a2 = hdotv2 / (alpha2 * (1.f - hdotv * hdotv));
     float a2Rcp = alpha2 * (1.f - hdotv2) / hdotv2;
     return 0.5f * (sqrt(1.f + a2Rcp) - 1.f);
 }
@@ -61,10 +60,6 @@ float ggxSmithLambda(vec3 v, vec3 h, float roughness)
 */
 float ggxSmithG2(vec3 v, vec3 l, vec3 h, float roughness)
 {
-    if (dot(v, h) < 0.f || dot(l, h) < 0.f)
-    {
-        return 0.01f;
-    }
     float ggxV = ggxSmithLambda(v, h, roughness);
     float ggxL = ggxSmithLambda(l, h, roughness);
     return 1.f / (1.f + ggxV + ggxL);
@@ -105,8 +100,8 @@ void main()
     float B = 0.f;
     for (uint s = 0; s < numSamples; ++s)
     {
-        vec2 uv =  HammersleyNoBitOps(s, numSamples);
-        vec3 h = importanceSampleGGX(n, roughness, uv.x, uv.y);
+        vec2 rand_uv =  HammersleyNoBitOps(s, numSamples);
+        vec3 h = importanceSampleGGX(n, roughness, rand_uv.x, rand_uv.y);
         vec3 l = -reflect(v, h);
 
         float ndotl = dot(n, l);
@@ -116,7 +111,7 @@ void main()
         if (ndotl > 0.f)
         {
             float G = ggxSmithG2(v, l, h, roughness);
-            float GVis = G * vdoth / ((ndotv * ndoth) + 0.0001f);
+            float GVis = G * vdoth / max((ndotv * ndoth), 0.0001f);
             float a = (1.f - vdoth) * (1.f - vdoth) * (1.f - vdoth) * (1.f - vdoth) * (1.f - vdoth);
             A += (1.f - a) * GVis; 
             B += a         * GVis; 
