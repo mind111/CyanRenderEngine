@@ -3,8 +3,8 @@
 
 glm::mat4 MathUtils::transformToMat4(const Transform& xform) {
     glm::mat4 res(1.f);
-    res = glm::translate(res, xform.translation);
-    res = glm::scale(res, xform.scale);
+    res = glm::translate(res, xform.m_translate);
+    res = glm::scale(res, xform.m_scale);
     return res;
 }
 

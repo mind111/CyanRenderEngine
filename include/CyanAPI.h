@@ -63,10 +63,7 @@
         * post-processing
             * bloom
             * auto-exposure  
-            * color-grading
-            * film grain
             * ue4 tonemapper
-        * implement MSAA.
         * study subsurface scattering
     Optimization:
         * implement a uniform cache to avoid calling glUniform() on uniforms that has not changed
@@ -172,6 +169,7 @@ namespace Cyan
     Mesh* getMesh(const char* _name);
 
     /* Scene */
+    SceneNode* allocSceneNode();
     Scene* createScene(const char* name, const char* _file);
     LightProbe* getProbe(u32 index);
     u32         getNumProbes();
@@ -233,7 +231,12 @@ namespace Cyan
         Mesh* createCubeMesh(const char* _name);
         glm::mat4 computeMeshNormalization(Mesh* _mesh);
 
-    } // namespace Toolkit
+    }; // namespace Toolkit
+
+    namespace AssetGen
+    {
+        Mesh* createTerrain(float extendX, float extendY);
+    }; // namespace AssetGen
 
     // TODO: Move following structs into their own files
 } // namespace Cyan

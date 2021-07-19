@@ -6,6 +6,7 @@
 #include "gtc/matrix_transform.hpp"
 #include "json.hpp"
 
+#include "Asset.h"
 #include "CyanAPI.h"
 #include "GfxContext.h"
 #include "Camera.h"
@@ -32,10 +33,10 @@ namespace glm {
 
 void from_json(const nlohmann::json& j, Transform& t) 
 {
-    t.translation = j.at("translation").get<glm::vec3>();
+    t.m_translate = j.at("translation").get<glm::vec3>();
     glm::vec4 rotation = j.at("rotation").get<glm::vec4>();
-    t.qRot = glm::quat(cos(RADIANS(rotation.x * 0.5f)), sin(RADIANS(rotation.x * 0.5f)) * glm::vec3(rotation.y, rotation.z, rotation.w));
-    t.scale = j.at("scale").get<glm::vec3>();
+    t.m_qRot = glm::quat(cos(RADIANS(rotation.x * 0.5f)), sin(RADIANS(rotation.x * 0.5f)) * glm::vec3(rotation.y, rotation.z, rotation.w));
+    t.m_scale = j.at("scale").get<glm::vec3>();
 }
 
 void from_json(const nlohmann::json& j, Camera& c) 
@@ -67,12 +68,14 @@ namespace Cyan
     static const u32 kMaxNumUniforms = 256;
     static const u32 kMaxNumShaders = 64;
     static const u32 kMaxNumMaterialTypes = 64;
+    static const u32 kMaxNumSceneNodes = 128;
 
     // TODO: Where do these live in memory...?
     static std::vector<Texture*> s_textures;
     static std::vector<Mesh*> s_meshes;
     static std::vector<Uniform*> s_uniforms;
     static std::vector<LightProbe> s_probes;
+    static SceneNode s_sceneNodes[kMaxNumSceneNodes];
     static GfxContext* s_gfxc = nullptr;
     static void* s_memory = nullptr;
     static LinearAllocator* s_allocator = nullptr;
@@ -90,7 +93,8 @@ namespace Cyan
 
     static UniformBuffer* m_uniformBuffer = nullptr;
 
-    static u32 m_numUniforms = 0;
+    static u32 m_numUniforms = 0u;
+    static u32 m_numSceneNodes = 0u;
 
     void init()
     {
@@ -116,6 +120,14 @@ namespace Cyan
     u32 allocShaderHandle()
     {
         return s_shaderHandleAllocator.alloc();
+    }
+
+    SceneNode* allocSceneNode()
+    {
+        CYAN_ASSERT(m_numSceneNodes < kMaxNumSceneNodes, "Too many scene nodes created!!")
+        s_sceneNodes[m_numSceneNodes].m_parent = nullptr;
+        s_sceneNodes[m_numSceneNodes].m_entity = nullptr;
+        return &s_sceneNodes[m_numSceneNodes++]; 
     }
 
     void shutDown()
@@ -161,101 +173,110 @@ namespace Cyan
         return vertexArray;
     }
 
+    // TODO: switch to use tinygltf for loading gltf files
     Mesh* createMesh(const char* _name, const char* _file)
     {
-        Assimp::Importer importer;
-        const aiScene* scene = importer.ReadFile(
-            _file,
-            aiProcess_CalcTangentSpace | aiProcess_GenSmoothNormals
-        );
-
         Mesh* mesh = new Mesh;
         mesh->m_name = _name;
 
-        for (u32 sm = 0u; sm < scene->mNumMeshes; sm++) 
+        // special case for gltf-2.0 for now
+        if (std::string(_file).find(".gltf") != std::string::npos)
         {
-            Mesh::SubMesh* subMesh = new Mesh::SubMesh;
+            AssetManager assetManager;
+            assetManager.loadGltf(mesh, _file);
+        }
+        else
+        {
+            Assimp::Importer importer;
+            const aiScene* scene = importer.ReadFile(
+                _file,
+                aiProcess_CalcTangentSpace | aiProcess_GenSmoothNormals
+            );
 
-            u8 attribFlag = 0x0;
-            u32 strideInBytes = 0;
-            attribFlag |= scene->mMeshes[sm]->HasPositions() ? VertexAttribFlag::kPosition : 0x0;
-            attribFlag |= scene->mMeshes[sm]->HasTextureCoords(0) ? VertexAttribFlag::kTexcoord : 0x0;
-            attribFlag |= scene->mMeshes[sm]->HasNormals() ? VertexAttribFlag::kNormal : 0x0;
-            attribFlag |= scene->mMeshes[sm]->HasTangentsAndBitangents() ? VertexAttribFlag::kTangents : 0x0;
-
-            strideInBytes += (attribFlag & VertexAttribFlag::kPosition) > 0 ? 3 * sizeof(f32) : 0;
-            strideInBytes += (attribFlag & VertexAttribFlag::kTexcoord) > 0 ? 2 * sizeof(f32) : 0;
-            strideInBytes += (attribFlag & VertexAttribFlag::kNormal)   > 0 ? 3 * sizeof(f32) : 0;
-            strideInBytes += (attribFlag & VertexAttribFlag::kTangents) > 0 ? 6 * sizeof(f32) : 0;
-
-            u32 numVerts = (u32)scene->mMeshes[sm]->mNumVertices;
-            float* data = new float[strideInBytes * numVerts];
-            subMesh->m_numVerts = numVerts;
-
-            for (u32 v = 0u; v < numVerts; v++)
+            for (u32 sm = 0u; sm < scene->mNumMeshes; sm++) 
             {
+                Mesh::SubMesh* subMesh = new Mesh::SubMesh;
+
+                u8 attribFlag = 0x0;
+                u32 strideInBytes = 0;
+                attribFlag |= scene->mMeshes[sm]->HasPositions() ? VertexAttribFlag::kPosition : 0x0;
+                attribFlag |= scene->mMeshes[sm]->HasTextureCoords(0) ? VertexAttribFlag::kTexcoord : 0x0;
+                attribFlag |= scene->mMeshes[sm]->HasNormals() ? VertexAttribFlag::kNormal : 0x0;
+                attribFlag |= scene->mMeshes[sm]->HasTangentsAndBitangents() ? VertexAttribFlag::kTangents : 0x0;
+
+                strideInBytes += (attribFlag & VertexAttribFlag::kPosition) > 0 ? 3 * sizeof(f32) : 0;
+                strideInBytes += (attribFlag & VertexAttribFlag::kTexcoord) > 0 ? 2 * sizeof(f32) : 0;
+                strideInBytes += (attribFlag & VertexAttribFlag::kNormal)   > 0 ? 3 * sizeof(f32) : 0;
+                strideInBytes += (attribFlag & VertexAttribFlag::kTangents) > 0 ? 6 * sizeof(f32) : 0;
+
+                u32 numVerts = (u32)scene->mMeshes[sm]->mNumVertices;
+                float* data = new float[strideInBytes * numVerts];
+                subMesh->m_numVerts = numVerts;
+
+                for (u32 v = 0u; v < numVerts; v++)
+                {
+                    u32 offset = 0;
+                    float* vertexAddress = (float*)((u8*)data + strideInBytes * v);
+                    if (attribFlag & VertexAttribFlag::kPosition)
+                    {
+                        vertexAddress[offset++] = scene->mMeshes[sm]->mVertices[v].x;
+                        vertexAddress[offset++] = scene->mMeshes[sm]->mVertices[v].y;
+                        vertexAddress[offset++] = scene->mMeshes[sm]->mVertices[v].z;
+                    }
+                    if (attribFlag & VertexAttribFlag::kNormal)
+                    {
+                        vertexAddress[offset++] = scene->mMeshes[sm]->mNormals[v].x;
+                        vertexAddress[offset++] = scene->mMeshes[sm]->mNormals[v].y;
+                        vertexAddress[offset++] = scene->mMeshes[sm]->mNormals[v].z;
+                    }
+                    if (attribFlag & VertexAttribFlag::kTexcoord)
+                    {
+                        vertexAddress[offset++] = scene->mMeshes[sm]->mTextureCoords[0][v].x;
+                        vertexAddress[offset++] = scene->mMeshes[sm]->mTextureCoords[0][v].y;
+                    }
+                    if (attribFlag & VertexAttribFlag::kTangents)
+                    {
+                        vertexAddress[offset++] = scene->mMeshes[sm]->mTangents[v].x;
+                        vertexAddress[offset++] = scene->mMeshes[sm]->mTangents[v].y;
+                        vertexAddress[offset++] = scene->mMeshes[sm]->mTangents[v].z;
+                        vertexAddress[offset++] = scene->mMeshes[sm]->mBitangents[v].x;
+                        vertexAddress[offset++] = scene->mMeshes[sm]->mBitangents[v].y;
+                        vertexAddress[offset++] = scene->mMeshes[sm]->mBitangents[v].z;
+                    }
+                }
+
+                subMesh->m_vertexArray = createVertexArray(createVertexBuffer(data, strideInBytes * numVerts, strideInBytes, numVerts));
+                mesh->m_subMeshes.push_back(subMesh);
+
                 u32 offset = 0;
-                float* vertexAddress = (float*)((u8*)data + strideInBytes * v);
                 if (attribFlag & VertexAttribFlag::kPosition)
                 {
-                    vertexAddress[offset++] = scene->mMeshes[sm]->mVertices[v].x;
-                    vertexAddress[offset++] = scene->mMeshes[sm]->mVertices[v].y;
-                    vertexAddress[offset++] = scene->mMeshes[sm]->mVertices[v].z;
+                    subMesh->m_vertexArray->m_vertexBuffer->m_vertexAttribs.push_back({
+                        VertexAttrib::DataType::Float, 3, strideInBytes, offset, (float*)subMesh->m_vertexArray->m_vertexBuffer->m_data + offset});
+                    offset += sizeof(f32) * 3;
                 }
                 if (attribFlag & VertexAttribFlag::kNormal)
                 {
-                    vertexAddress[offset++] = scene->mMeshes[sm]->mNormals[v].x;
-                    vertexAddress[offset++] = scene->mMeshes[sm]->mNormals[v].y;
-                    vertexAddress[offset++] = scene->mMeshes[sm]->mNormals[v].z;
+                    subMesh->m_vertexArray->m_vertexBuffer->m_vertexAttribs.push_back({
+                        VertexAttrib::DataType::Float, 3, strideInBytes, offset, (float*)subMesh->m_vertexArray->m_vertexBuffer->m_data + offset});
+                    offset += sizeof(f32) * 3;
                 }
                 if (attribFlag & VertexAttribFlag::kTexcoord)
                 {
-                    vertexAddress[offset++] = scene->mMeshes[sm]->mTextureCoords[0][v].x;
-                    vertexAddress[offset++] = scene->mMeshes[sm]->mTextureCoords[0][v].y;
+                    subMesh->m_vertexArray->m_vertexBuffer->m_vertexAttribs.push_back({
+                        VertexAttrib::DataType::Float, 2, strideInBytes, offset, (float*)subMesh->m_vertexArray->m_vertexBuffer->m_data + offset});
+                    offset += sizeof(f32) * 2;
                 }
                 if (attribFlag & VertexAttribFlag::kTangents)
                 {
-                    vertexAddress[offset++] = scene->mMeshes[sm]->mTangents[v].x;
-                    vertexAddress[offset++] = scene->mMeshes[sm]->mTangents[v].y;
-                    vertexAddress[offset++] = scene->mMeshes[sm]->mTangents[v].z;
-                    vertexAddress[offset++] = scene->mMeshes[sm]->mBitangents[v].x;
-                    vertexAddress[offset++] = scene->mMeshes[sm]->mBitangents[v].y;
-                    vertexAddress[offset++] = scene->mMeshes[sm]->mBitangents[v].z;
+                    subMesh->m_vertexArray->m_vertexBuffer->m_vertexAttribs.push_back({
+                        VertexAttrib::DataType::Float, 3, strideInBytes, offset, (float*)subMesh->m_vertexArray->m_vertexBuffer->m_data + offset});
+                    offset += sizeof(f32) * 3;
+                    subMesh->m_vertexArray->m_vertexBuffer->m_vertexAttribs.push_back({
+                        VertexAttrib::DataType::Float, 3, strideInBytes, offset, (float*)subMesh->m_vertexArray->m_vertexBuffer->m_data + offset});
                 }
+                subMesh->m_vertexArray->init();
             }
-
-            subMesh->m_vertexArray = createVertexArray(createVertexBuffer(data, strideInBytes * numVerts, strideInBytes, numVerts));
-            // subMesh->m_vertexArray->m_vertexBuffer = createVertexBuffer(data, strideInBytes * numVerts, strideInBytes, numVerts);
-            mesh->m_subMeshes.push_back(subMesh);
-
-            u32 offset = 0;
-            if (attribFlag & VertexAttribFlag::kPosition)
-            {
-                subMesh->m_vertexArray->m_vertexBuffer->m_vertexAttribs.push_back({
-                    VertexAttrib::DataType::Float, 3, strideInBytes, offset, (float*)subMesh->m_vertexArray->m_vertexBuffer->m_data + offset});
-                offset += sizeof(f32) * 3;
-            }
-            if (attribFlag & VertexAttribFlag::kNormal)
-            {
-                subMesh->m_vertexArray->m_vertexBuffer->m_vertexAttribs.push_back({
-                    VertexAttrib::DataType::Float, 3, strideInBytes, offset, (float*)subMesh->m_vertexArray->m_vertexBuffer->m_data + offset});
-                offset += sizeof(f32) * 3;
-            }
-            if (attribFlag & VertexAttribFlag::kTexcoord)
-            {
-                subMesh->m_vertexArray->m_vertexBuffer->m_vertexAttribs.push_back({
-                    VertexAttrib::DataType::Float, 2, strideInBytes, offset, (float*)subMesh->m_vertexArray->m_vertexBuffer->m_data + offset});
-                offset += sizeof(f32) * 2;
-            }
-            if (attribFlag & VertexAttribFlag::kTangents)
-            {
-                subMesh->m_vertexArray->m_vertexBuffer->m_vertexAttribs.push_back({
-                    VertexAttrib::DataType::Float, 3, strideInBytes, offset, (float*)subMesh->m_vertexArray->m_vertexBuffer->m_data + offset});
-                offset += sizeof(f32) * 3;
-                subMesh->m_vertexArray->m_vertexBuffer->m_vertexAttribs.push_back({
-                    VertexAttrib::DataType::Float, 3, strideInBytes, offset, (float*)subMesh->m_vertexArray->m_vertexBuffer->m_data + offset});
-            }
-            subMesh->m_vertexArray->init();
         }
         // Store the xform for normalizing object space mesh coordinates
         mesh->m_normalization = Toolkit::computeMeshNormalization(mesh);
@@ -265,11 +286,14 @@ namespace Cyan
 
     Mesh* getMesh(const char* _name)
     {
-        for (auto mesh : s_meshes)
+        if (_name)
         {
-            if (strcmp(mesh->m_name.c_str(), _name) == 0)
+            for (auto mesh : s_meshes)
             {
-                return mesh; 
+                if (strcmp(mesh->m_name.c_str(), _name) == 0)
+                {
+                    return mesh; 
+                }
             }
         }
         return 0;
@@ -282,6 +306,9 @@ namespace Cyan
 
         scene->m_lastProbe = nullptr;
         scene->m_currentProbe = nullptr;
+        scene->m_root = nullptr;
+        // create root entity
+        SceneManager::createEntity(scene, "Root", nullptr, Transform(), true);
 
         nlohmann::json sceneJson;
         std::ifstream sceneFile(_file);
@@ -349,10 +376,8 @@ namespace Cyan
             entityInfo.at("mesh").get_to(meshName);
             auto xformInfo = entityInfo.at("xform");
             Transform xform = entityInfo.at("xform").get<Transform>();
-            Entity* entity = SceneManager::createEntity(scene, meshName.c_str(), xform);
-            entity->m_position = glm::vec3(0.f);
+            Entity* entity = SceneManager::createEntity(scene, nullptr, meshName.c_str(), xform, true);
         }
-
         return scene;
     }
 
@@ -472,7 +497,8 @@ namespace Cyan
                 case Texture::Type::TEX_CUBEMAP:
                     return GL_TEXTURE_CUBE_MAP;
                 default:
-                    break;
+                    CYAN_ASSERT(0, "Undefined texture type.")
+                    return GL_INVALID_ENUM;
             }
         };
 
@@ -488,7 +514,8 @@ namespace Cyan
                 case Texture::ColorFormat::R16G16B16A16:
                     return DataFormatGL{ GL_RGBA16F, GL_RGBA };
                 default:
-                    break;
+                    CYAN_ASSERT(0, "Undefined texture color format.")
+                    return DataFormatGL{ GL_INVALID_ENUM, GL_INVALID_ENUM };
             }
         };
          
@@ -500,7 +527,8 @@ namespace Cyan
                 case Texture::Filter::MIPMAP_LINEAR:
                     return GL_LINEAR_MIPMAP_LINEAR;
                 default:
-                    break;
+                    CYAN_ASSERT(0, "Undefined texture filter parameter.")
+                    return GL_INVALID_ENUM;
             }
         };
 
@@ -512,7 +540,8 @@ namespace Cyan
                 case Texture::Wrap::NONE:
                     return 0;
                 default:
-                    break;
+                    CYAN_ASSERT(0, "Undefined texture wrap parameter.")
+                    return GL_INVALID_ENUM;
             }
         };
 
@@ -1476,7 +1505,119 @@ namespace Cyan
             s_textures.push_back(texture);
             return texture;
         }
-
-
     } // Toolkit
+
+    namespace AssetGen
+    {
+#if 0
+        struct Vertex
+        {
+            glm::vec3 m_position;
+            glm::vec3 m_uv;
+            glm::vec3 m_normal;
+            glm::vec3 m_tangent;
+        };
+
+        // 1 x 1 x 1 cube mesh with uv
+        glm::vec3 uvCubeVertices[] = {
+            //  z 
+            { glm::vec3(-1.f, -1.f, 1.f), glm::vec2(0.f, 0.f), glm::vec3(0.f, 0.f, 1.f), }
+            { glm::vec3( 1.f, -1.f, 1.f), glm::vec2(0.f, 1.f), glm::vec3(0.f, 0.f, -1.f), },
+            glm::vec3( 1.f,  1.f, 1.f),
+            glm::vec3( 1.f,  1.f, 1.f),
+            glm::vec3(-1.f,  1.f, 1.f),
+            glm::vec3(-1.f, -1.f, 1.f),
+            // -z
+            glm::vec3(-1.f, -1.f, -1.f),
+            glm::vec3( 1.f, -1.f, -1.f),
+            glm::vec3( 1.f,  1.f, -1.f),
+            glm::vec3( 1.f,  1.f, -1.f),
+            glm::vec3(-1.f,  1.f, -1.f),
+            glm::vec3(-1.f, -1.f, -1.f),
+            //  x
+            // -x
+            //  y
+            // -y
+        };
+#endif
+
+        Mesh* createTerrain(float extendX, float extendY)
+        {
+            // TODO: determine texture tiling automatically 
+
+            // texture tiling every 10 meters  
+            const f32 textureTileThreshold = 4.f; 
+
+            struct Vertex
+            {
+                glm::vec3 m_position;
+                glm::vec3 m_normal;
+                glm::vec2 m_uv;
+                glm::vec3 m_tangent;
+            };
+
+            std::vector<Vertex> vertices;
+            // each tile is a 1m x 1m squre
+            float tileXInMeters = 1.f;
+            float tileYInMeters = 1.f;
+            glm::vec2 offsets[6] = {
+                {0.f, 0.f},
+                {1.f, 0.f},
+                {1.f, 1.f},
+                {1.f, 1.f},
+                {0.f, 1.f},
+                {0.f, 0.f}
+            };
+            // coordinates are initially in terrain space, where x goes right, y goes forward, z goes up,
+            glm::vec2 deltaUv(1.f / extendX, 1.f / extendY);
+            for (float x = 0.f; x < extendX; ++x)
+            {
+                for (float y = 0; y < extendY; ++y)
+                {
+                    Vertex tileVerts[6];
+                    for (u32 v = 0u; v < 6u; ++v)
+                    {
+                        // position
+                        tileVerts[v].m_position.x = (x + offsets[v].x) * tileXInMeters;
+                        tileVerts[v].m_position.y = 0.f;
+                        tileVerts[v].m_position.z = extendY - (y + offsets[v].y) * tileYInMeters;
+                        // uv
+                        tileVerts[v].m_uv = glm::vec2(x, y) + offsets[v];
+                        tileVerts[v].m_uv /= textureTileThreshold;
+                        // normal
+                        tileVerts[v].m_normal = glm::vec3(0.f, 1.f, 0.f);
+                        // tangent
+                        tileVerts[v].m_tangent = glm::vec3(0.f, 0.f, 1.f);
+                        vertices.push_back(tileVerts[v]);
+                    }
+                }
+            }
+            // center the mesh to (0, 0, 0) in object space
+            for (auto& vertex : vertices)
+            {
+                glm::vec3 translate(-extendX * .5f, 0.f, -extendY * .5f);
+                vertex.m_position += translate;
+            }
+            // create mesh
+            Mesh* mesh = new Mesh;
+            mesh->m_name = std::string("terrain_mesh");
+            Mesh::SubMesh* subMesh = new Cyan::Mesh::SubMesh;
+            subMesh->m_numVerts = (u32)vertices.size();
+            u32 stride = sizeof(Vertex);
+            u32 offset = 0;
+            VertexBuffer* vb = Cyan::createVertexBuffer(vertices.data(), subMesh->m_numVerts * sizeof(Vertex), stride, subMesh->m_numVerts);
+            vb->m_vertexAttribs.push_back({ VertexAttrib::DataType::Float, 3, stride, offset, vb->m_data});
+            offset += sizeof(glm::vec3);
+            vb->m_vertexAttribs.push_back({ VertexAttrib::DataType::Float, 3, stride, offset, (void*)((u8*)vb->m_data + offset)});
+            offset += sizeof(glm::vec3);
+            vb->m_vertexAttribs.push_back({ VertexAttrib::DataType::Float, 2, stride, offset, (void*)((u8*)vb->m_data + offset)});
+            offset += sizeof(glm::vec2);
+            vb->m_vertexAttribs.push_back({ VertexAttrib::DataType::Float, 3, stride, offset, (void*)((u8*)vb->m_data + offset)});
+            subMesh->m_vertexArray = Cyan::createVertexArray(vb);
+            subMesh->m_vertexArray->init();
+            mesh->m_subMeshes.push_back(subMesh);
+            s_meshes.push_back(mesh);
+            return mesh;
+        }
+    }; // namespace AssetGen
 } // Cyan

@@ -65,6 +65,25 @@ float ggxSmithG2(vec3 v, vec3 l, vec3 h, float roughness)
     return 1.f / (1.f + ggxV + ggxL);
 }
 
+/* 
+    non-height correlated smith G2
+*/
+float ggxSmithG1(vec3 v, vec3 h, vec3 n, float roughness)
+{
+    float ndotv = dot(n, v); 
+    float hdotv = dot(h, v); 
+    float alpha = roughness * roughness;
+    float alpha2 = alpha * alpha;
+    float tangentTheta2 = (1 - ndotv * ndotv) / max(0.001f, (ndotv * ndotv));
+    return 2.f / (1.f + sqrt(1.f + alpha2 * tangentTheta2));
+}
+
+float ggxSmithG2Ex(vec3 v, vec3 l, vec3 n, float roughness)
+{
+    vec3 h = normalize(v + n);
+    return ggxSmithG1(v, h, n, roughness) * ggxSmithG1(l, h, n, roughness);
+}
+
 float VanDerCorput(uint n, uint base)
 {
     float invBase = 1.0 / float(base);

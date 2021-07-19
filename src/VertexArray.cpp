@@ -20,7 +20,7 @@ void VertexArray::init()
                 break;
         }
         glEnableVertexArrayAttrib(m_vao, index);
-        glVertexAttribPointer(index, attrib.m_size, glType, false, attrib.m_strideInBytes, (void*)attrib.m_offset);
+        glVertexAttribPointer(index, attrib.m_size, glType, false, attrib.m_strideInBytes, reinterpret_cast<void*>(attrib.m_offset));
     }
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);

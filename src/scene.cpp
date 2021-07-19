@@ -14,66 +14,137 @@
 
 SceneManager sceneManager;
 
+void SceneNode::addChild(SceneNode* child)
+{
+    child->m_parent = this;
+    m_child.push_back(child);
+    child->update();
+}
+
+// basic depth first traversal
+void SceneNode::update()
+{
+    if (m_parent)
+    {
+        m_entity->m_worldTransformMatrix = m_parent->m_entity->m_worldTransformMatrix * m_entity->m_instanceTransform.toMatrix();
+    }
+    else
+    {
+        m_entity->m_worldTransformMatrix = glm::mat4(1.f);
+    }
+    for (auto* child : m_child)
+    {
+        child->update();
+    }
+}
+
 void SceneManager::setLightProbe(Scene* scene, LightProbe* probe)
 {
     scene->m_lastProbe = scene->m_currentProbe;
     scene->m_currentProbe = probe;
 }
 
-// create an entity that does not have transform component
-Entity* SceneManager::createEntity(Scene* scene, const char* meshName)
+Entity* SceneManager::createEntity(Scene* scene, const char* entityName, const char* meshName, Transform transform, bool hasTransform)
 {
-    using Cyan::Mesh;
-    using Cyan::MaterialInstance;
-
     Entity* entity = (Entity*)CYAN_ALLOC(sizeof(Entity));
     // mesh instance
-    entity->m_meshInstance = Cyan::getMesh(meshName)->createInstance(); 
+    Cyan::Mesh* mesh = Cyan::getMesh(meshName);
+    entity->m_meshInstance = mesh ? mesh->createInstance() : nullptr; 
     // id
-    entity->m_entityId = scene->entities.size() > 0 ? scene->entities.size() + 1 : 1;
+    entity->m_entityId = scene->entities.size() > 0 ? scene->entities.size() : 0;
+    if (entityName) 
+    {
+        CYAN_ASSERT(strlen(entityName) < kEntityNameMaxLen, "Entity name too long !!")
+        strcpy(entity->m_name, entityName);
+    } 
+    else
+    {
+        char buff[64];
+        sprintf(buff, "Entity%u", entity->m_entityId);
+        strcpy(entity->m_name, buff);
+    }
     // transform
-    entity->m_xform = nullptr;
-
+    entity->m_instanceTransform = transform;
+    entity->m_hasTransform = hasTransform;
+    // insert into the scene graph, by default all the newly created entity that has a transform
+    // component should be child of the root node
+    if (hasTransform)
+    {
+        SceneNode* node = Cyan::allocSceneNode();
+        node->m_entity = entity;
+        if (!scene->m_root)
+        {
+            scene->m_root = node;
+            scene->m_root->m_entity->m_worldTransformMatrix = scene->m_root->m_entity->m_instanceTransform.toMatrix();
+        }
+        else
+        {
+            scene->m_root->addChild(node);
+        }
+    }
     scene->entities.push_back(entity);
     return entity; 
 }
 
-Entity* SceneManager::createEntity(Scene* scene, const char* meshName, Transform transform)
+void SceneManager::createDirectionalLight(Scene* scene, glm::vec3 color, glm::vec3 direction, float intensity)
 {
-    using Cyan::Mesh;
-    using Cyan::MaterialInstance;
-
-    Entity* entity = (Entity*)CYAN_ALLOC(sizeof(Entity));
-    // mesh instance
-    entity->m_meshInstance = Cyan::getMesh(meshName)->createInstance(); 
-    // id
-    entity->m_entityId = scene->entities.size() > 0 ? scene->entities.size() + 1 : 1;
-    // pos
-    entity->m_position = glm::vec3(0.f);
-    // transform
-    entity->m_xform = (Transform*)CYAN_ALLOC(sizeof(Transform));
-    entity->m_xform->translation = transform.translation;
-    entity->m_xform->qRot = transform.qRot;
-    entity->m_xform->scale = transform.scale;
-
-    scene->entities.push_back(entity);
-    return entity; 
-}
-
-void SceneManager::createDirectionalLight(Scene& scene, glm::vec3 color, glm::vec3 direction, float intensity)
-{
-    CYAN_ASSERT(scene.dLights.size() < Scene::kMaxNumDirLights, "Too many directional lights created.")
-    scene.dLights.push_back(DirectionalLight{
-        glm::vec4(color, intensity),
+    CYAN_ASSERT(scene->dLights.size() < Scene::kMaxNumDirLights, "Too many directional lights created.")
+    char nameBuff[64];
+    sprintf_s(nameBuff, "DirLight%u", (u32)scene->dLights.size());
+    Entity* entity = createEntity(scene, nameBuff, nullptr, Transform(), true); 
+    DirectionalLight light = {
+        {
+            entity,
+            {0.f, 0.f},
+            glm::vec4(color, intensity)
+        },
         glm::vec4(direction, 0.f)
-    });
+    };
+    scene->dLights.push_back(light);
 }
 
-void SceneManager::createPointLight(Scene& scene, glm::vec3 color, glm::vec3 position, float intensity)
+void SceneManager::createPointLight(Scene* scene, glm::vec3 color, glm::vec3 position, float intensity)
 {
-    CYAN_ASSERT(scene.pLights.size() < Scene::kMaxNumPointLights, "Too many point lights created.")
-    scene.pLights.push_back(PointLight{
-        glm::vec4(color, intensity),
+    CYAN_ASSERT(scene->pLights.size() < Scene::kMaxNumPointLights, "Too many point lights created.")
+    char nameBuff[64];
+    sprintf_s(nameBuff, "PointLight%u", (u32)scene->pLights.size());
+    Transform transform = Transform();
+    transform.m_translate = glm::vec3(position);
+    transform.m_scale = glm::vec3(0.1f);
+    Entity* entity = createEntity(scene, nameBuff, "sphere_mesh", transform, true); 
+    Shader* pointLightShader = Cyan::createShader("PointLightShader", "../../shader/shader_light.vs", "../../shader/shader_light.fs");
+    Cyan::MaterialInstance* matl = Cyan::createMaterial(pointLightShader)->createInstance();
+    entity->m_meshInstance->setMaterial(0, matl);
+    glm::vec4 u_color = glm::vec4(color, intensity);
+    matl->set("color", &u_color.x);
+    PointLight light = {
+        {
+            entity,
+            {0.f, 0.f},
+            glm::vec4(color, intensity)
+        },
         glm::vec4(position, 1.f)
-    });
+    };
+    scene->pLights.push_back(light);
+}
+
+void SceneManager::updateSceneGraph(Scene* scene)
+{
+    scene->m_root->update();
+}
+
+void SceneManager::updateDirLights(Scene* scene)
+{
+    for (auto& light : scene->dLights)
+    {
+        light.direction = light.baseLight.m_entity->m_worldTransformMatrix * light.direction;
+    }
+}
+
+void SceneManager::updatePointLights(Scene* scene)
+{
+    for (auto& light : scene->pLights)
+    {
+         light.position = light.baseLight.m_entity->m_worldTransformMatrix[3];
+    }
 }

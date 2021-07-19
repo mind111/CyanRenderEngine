@@ -47,22 +47,14 @@ namespace Cyan
          1.f,  1.f, 1.f, 1.f
     };
 
-    void Renderer::init(u32 windowWidth, u32 windowHeight)
+    void Renderer::initRenderTargets(u32 windowWidth, u32 windowHeight)
     {
-        Cyan::init();
-        u_model = createUniform("s_model", Uniform::Type::u_mat4);
-        u_cameraView = createUniform("s_view", Uniform::Type::u_mat4);
-        u_cameraProjection = createUniform("s_projection", Uniform::Type::u_mat4);
-        m_frame = new Frame;
-
-        // set back-face culling
-        // Cyan::getCurrentGfxCtx()->setCullFace(FrontFace::CounterClockWise, FaceCull::Back);
-
-        // render targets
         m_windowWidth = windowWidth;
         m_windowHeight = windowHeight;
         m_superSamplingRenderWidth = 2560u;
         m_superSamplingRenderHeight = 1440u;
+
+        // super-sampling setup
         TextureSpec spec = { };
         spec.m_type = Texture::Type::TEX_2D;
         spec.m_format = Texture::ColorFormat::R16G16B16A16; 
@@ -77,17 +69,72 @@ namespace Cyan
         m_superSamplingRenderTarget = createRenderTarget(m_superSamplingRenderWidth, m_superSamplingRenderHeight);
         m_superSamplingRenderTarget->attachColorBuffer(m_superSamplingColorBuffer);
 
+        // default rt for final blitting pass
         spec.m_width = m_windowWidth;
         spec.m_height = m_windowHeight;
         m_defaultColorBuffer = createTextureHDR("blit-texture", spec);
         m_defaultRenderTarget = createRenderTarget(m_windowWidth, m_windowHeight);
         m_defaultRenderTarget->attachColorBuffer(m_defaultColorBuffer);
 
+        // bloom setup
+        m_numBloomTextures = 0u;
+        auto initBloomBuffers = [&](u32 index, TextureSpec& spec) {
+            m_bloomSurfaces[index].m_renderTarget = createRenderTarget(spec.m_width, spec.m_height);
+            char buff[64];
+            sprintf_s(buff, "bloom-texture-%u", m_numBloomTextures++);
+            m_bloomSurfaces[index].m_pingPongColorBuffers[0] = createTextureHDR(buff, spec);
+            sprintf_s(buff, "bloom-texture-%u", m_numBloomTextures++);
+            m_bloomSurfaces[index].m_pingPongColorBuffers[1] = createTextureHDR(buff, spec);
+            m_bloomSurfaces[index].m_renderTarget->attachColorBuffer(m_bloomSurfaces[index].m_pingPongColorBuffers[0]);
+            m_bloomSurfaces[index].m_renderTarget->attachColorBuffer(m_bloomSurfaces[index].m_pingPongColorBuffers[1]);
+        };
+
+        spec.m_width /= 2u;
+        spec.m_height /= 2u;
+        initBloomBuffers(0u, spec);
+    }
+
+    void Renderer::initShaders()
+    {
+        m_lumHistogramShader = glCreateShader(GL_COMPUTE_SHADER);
+        const char* src = ShaderUtil::readShaderFile("../../shader/shader_lumin_histogram.cs");
+        glShaderSource(m_lumHistogramShader, 1, &src, nullptr);
+        glCompileShader(m_lumHistogramShader);
+        ShaderUtil::checkShaderCompilation(m_lumHistogramShader);
+        m_lumHistogramProgram = glCreateProgram();
+        glAttachShader(m_lumHistogramProgram, m_lumHistogramShader);
+        glLinkProgram(m_lumHistogramProgram);
+        ShaderUtil::checkShaderLinkage(m_lumHistogramProgram);
+
+        m_bloomPreprocessShader = Cyan::createShader("BloomPreprocessShader", "../../shader/shader_bloom_preprocess.vs", "../../shader/shader_bloom_preprocess.fs");
+        m_gaussianBlurShader = Cyan::createShader("GaussianBlurShader", "../../shader/shader_gaussian_blur.vs", "../../shader/shader_gaussian_blur.fs");
+    }
+
+    void Renderer::init(u32 windowWidth, u32 windowHeight)
+    {
+        Cyan::init();
+        u_model = createUniform("s_model", Uniform::Type::u_mat4);
+        u_cameraView = createUniform("s_view", Uniform::Type::u_mat4);
+        u_cameraProjection = createUniform("s_projection", Uniform::Type::u_mat4);
+        // misc
+        m_bSuperSampleAA = true;
+        m_exposure = 1.f;
+        m_bloom = true;
+        m_frame = new Frame();
+
+        // set back-face culling
+        Cyan::getCurrentGfxCtx()->setCullFace(FrontFace::CounterClockWise, FaceCull::Back);
+
+        // render targets
+        initShaders();
+        initRenderTargets(windowWidth, windowHeight);
+
         // blit mesh & material
         m_blitShader = createShader("BlitShader", "../../shader/shader_blit.vs", "../../shader/shader_blit.fs");
         m_blitMaterial = createMaterial(m_blitShader)->createInstance();
         m_blitMaterial->bindTexture("quadSampler", m_defaultColorBuffer);
-        // m_blitMaterial->set("exposure", 0.5f);
+        m_bloomPreprocessMatl = createMaterial(m_bloomPreprocessShader)->createInstance();
+        m_gaussianBlurMatl = createMaterial(m_gaussianBlurShader)->createInstance();
 
         m_blitQuad = (BlitQuadMesh*)CYAN_ALLOC(sizeof(Renderer::BlitQuadMesh));
         m_blitQuad->m_vb = createVertexBuffer((void*)quadVerts, sizeof(quadVerts), 4 * sizeof(f32), 6u);
@@ -103,19 +150,6 @@ namespace Cyan
         });
         m_blitQuad->m_va->init();
         m_blitQuad->m_matl = m_blitMaterial;
-
-        // misc
-        m_bSuperSampleAA = true;
-        m_exposure = 1.f;
-        m_lumHistogramShader = glCreateShader(GL_COMPUTE_SHADER);
-        const char* src = ShaderUtil::readShaderFile("../../shader/shader_lumin_histogram.cs");
-        glShaderSource(m_lumHistogramShader, 1, &src, nullptr);
-        glCompileShader(m_lumHistogramShader);
-        ShaderUtil::checkShaderCompilation(m_lumHistogramShader);
-        m_lumHistogramProgram = glCreateProgram();
-        glAttachShader(m_lumHistogramProgram, m_lumHistogramShader);
-        glLinkProgram(m_lumHistogramProgram);
-        ShaderUtil::checkShaderLinkage(m_lumHistogramProgram);
     }
 
     void Renderer::drawMeshInstance(MeshInstance* meshInstance, glm::mat4* modelMatrix)
@@ -220,20 +254,15 @@ namespace Cyan
 
     void Renderer::drawEntity(Entity* entity) 
     {
-        auto computeModelMatrix = [&]() {
-            glm::mat4 model(1.f);
-            // model = trans * rot * scale
-            model = glm::translate(model, entity->m_xform->translation);
-            glm::mat4 rotation = glm::toMat4(entity->m_xform->qRot);
-            model *= rotation;
-            model = glm::scale(model, entity->m_xform->scale);
-            return model;
-        };
-        glm::mat4 model;
-        if (entity->m_xform)
+        glm::mat4 modelMatrix;
+        if (entity->m_hasTransform)
         {
-            model = computeModelMatrix();
-            drawMeshInstance(entity->m_meshInstance, &model);
+            modelMatrix = entity->m_worldTransformMatrix;
+            if (strcmp(entity->m_name, "Entity2") == 0)
+            {
+                modelMatrix = entity->m_meshInstance->m_mesh->m_normalization * modelMatrix;
+            }
+            drawMeshInstance(entity->m_meshInstance, &modelMatrix);
         }
         else
         {
@@ -281,18 +310,86 @@ namespace Cyan
         ctx->clear();
     }
 
+    void Renderer::beginBloom(BloomSurface& bloomBuffer)
+    {
+        auto ctx = Cyan::getCurrentGfxCtx();
+        // bloom preprocess pass (blit the render results onto a smaller texture)
+        ctx->setRenderTarget(bloomBuffer.m_renderTarget, 0u);
+        ctx->clear();
+        ctx->setShader(m_bloomPreprocessShader);
+        ctx->setViewport(0u, 0u, bloomBuffer.m_pingPongColorBuffers[0]->m_width, bloomBuffer.m_pingPongColorBuffers[0]->m_height);
+        if (m_bSuperSampleAA)
+        {
+            m_bloomPreprocessMatl->bindTexture("quadSampler", m_superSamplingColorBuffer);
+        }
+        else
+        {
+            m_bloomPreprocessMatl->bindTexture("quadSampler", m_defaultColorBuffer);
+        }
+        m_bloomPreprocessMatl->bind();
+        ctx->setVertexArray(m_blitQuad->m_va);
+        ctx->setPrimitiveType(PrimitiveType::TriangleList);
+        ctx->drawIndex(6u);
+        glFinish();
+    }
+
     void Renderer::endRender()
     {
         // post-processing pass
         m_blitMaterial->set("exposure", m_exposure);
 
-        // final blit to default frame buffer
         auto ctx = Cyan::getCurrentGfxCtx();
+        // bloom
+        if (m_bloom)
+        {
+            if (m_bSuperSampleAA)
+            {
+                auto applyBloomPass = [&](BloomSurface& surface, u32 numIterations)
+                {
+                    for (u32 i = 0; i < 4u; ++i)
+                    {
+                        u32 dstBuffer = (i + 1u) % 2u;
+                        u32 srcBuffer = 1u - dstBuffer;
+                        ctx->setRenderTarget(surface.m_renderTarget, dstBuffer);
+                        ctx->setViewport(0u, 0u, surface.m_pingPongColorBuffers[0]->m_width, surface.m_pingPongColorBuffers[0]->m_height);
+                        ctx->setShader(m_gaussianBlurShader);
+                        // toggle between horizontal pass and vertical pass
+                        float horizontal = ((i % 2) == 0) ? 1.f : 0.f; 
+                        m_gaussianBlurMatl->set("horizontal", horizontal);
+                        m_gaussianBlurMatl->bindTexture("srcImage", surface.m_pingPongColorBuffers[srcBuffer]);
+                        m_gaussianBlurMatl->bind();
+                        ctx->setVertexArray(m_blitQuad->m_va);
+                        ctx->setPrimitiveType(PrimitiveType::TriangleList);
+                        ctx->drawIndex(6u);
+                        glFinish();
+                    }
+                };
+
+                for (u32 i = 0u; i < ARRAY_COUNT(m_bloomSurfaces); ++i)
+                {
+                    beginBloom(m_bloomSurfaces[i]);
+                    applyBloomPass(m_bloomSurfaces[i], 2u * i);
+                }
+            }
+        }
+
+        // final blit to default frame buffer
         ctx->setRenderTarget(nullptr, 0u);
         ctx->setViewport(0u, 0u, m_windowWidth, m_windowHeight);
         ctx->setShader(m_blitShader);
+        if (m_bloom)
+        {
+            m_blitQuad->m_matl->bindTexture("bloomSampler", m_bloomSurfaces[0].m_pingPongColorBuffers[0]);
+            m_blitQuad->m_matl->set("bloom", 1.f);
+        }
+        else
+        {
+            m_blitQuad->m_matl->set("bloom", 0.f);
+        }       m_blitQuad->m_matl = m_blitMaterial;
+
         if (m_bSuperSampleAA)
         {
+
             m_blitQuad->m_matl->bindTexture("quadSampler", m_superSamplingColorBuffer);
         }
         else
@@ -327,16 +424,6 @@ namespace Cyan
         // determine if probe data should be update for this frame
         bool shouldUpdateProbeData = (!scene->m_lastProbe || (scene->m_currentProbe->m_baseCubeMap->m_id != scene->m_lastProbe->m_baseCubeMap->m_id));
         scene->m_lastProbe = scene->m_currentProbe;
-        
-        // set render target to m_defaultRenderTarget
-        // auto ctx = Cyan::getCurrentGfxCtx();
-        // auto status = glCheckNamedFramebufferStatus(m_superSamplingRenderTarget->m_frameBuffer, GL_FRAMEBUFFER);
-        // ctx->setRenderTarget(m_superSamplingRenderTarget, 0u);
-        // if (m_bSuperSampleAA)
-        //     ctx->setViewport(0u, 0u, m_superSamplingRenderWidth, m_superSamplingRenderHeight);
-        // else
-        // // clear
-        // ctx->clear();
 
         /* 
           TODO: split entities into those has lighting and those does not
@@ -347,6 +434,11 @@ namespace Cyan
         for (auto entity : scene->entities)
         {
             MeshInstance* meshInstance = entity->m_meshInstance; 
+            // skip entities that doesn't have a mesh component
+            if (!meshInstance)
+            {
+                continue;
+            }
             Material* materialType = meshInstance->m_matls[0]->m_template;
             u32 numSubMeshs = (u32)meshInstance->m_mesh->m_subMeshes.size();
             // update lighting data if necessary
@@ -386,14 +478,6 @@ namespace Cyan
             drawEntity(entity);
         }
 
-        // final blit to default frame buffer
-        // ctx->setRenderTarget(nullptr, 0u);
-        // ctx->setViewport(0u, 0u, m_windowWidth, m_windowHeight);
-        // ctx->setShader(m_blitShader);
-        // m_blitQuad->m_matl->bind();
-        // ctx->setVertexArray(m_blitQuad->m_va);
-        // ctx->setPrimitiveType(PrimitiveType::TriangleList);
-        // ctx->drawIndex(6u);
         endRender();
     }
 }

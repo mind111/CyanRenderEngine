@@ -19,6 +19,7 @@ struct UI
 
         /* ImGui style */
         ImGuiStyle& style = ImGui::GetStyle();
+        style.ItemSpacing = ImVec2(1.f, 1.f);
         style.ChildRounding = 3.f;
         style.GrabRounding = 0.f;
         style.WindowRounding = 0.f;

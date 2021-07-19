@@ -30,6 +30,8 @@
 #define ARRAY_COUNT(arr)       \
     sizeof(arr) / sizeof(arr[0])
 
+#define BytesOffset(ptr, x) (reinterpret_cast<u8*>(ptr) + x)
+
 // TODO: Is this macro safe ...?
 #define Min(a, b) ((a < b) ? a : b)
 #define Max(a, b) ((a > b) ? a : b)

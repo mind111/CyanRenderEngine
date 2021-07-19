@@ -26,6 +26,9 @@ uniform sampler2D normalMap;
 uniform sampler2D roughnessMap;
 uniform sampler2D aoMap;
 
+//- transforms
+uniform mat4 s_view;
+
 const int aoStrength = 2;
 const int kMaxSpecularExponent = 512;
 

@@ -6,6 +6,7 @@ in vec2 uv;
 in vec3 fragmentPos;
 
 out vec4 fragColor;
+
 //- transforms
 uniform mat4 s_view;
 //- misc
@@ -45,8 +46,8 @@ uniform float debugD;
 uniform float debugF;
 uniform float debugG;
 uniform float disneyReparam;
-
-const int aoStrength = 2;
+// experiemental
+uniform float wrap;
 
 #define pi 3.14159265359
 
@@ -57,12 +58,14 @@ struct Light
 
 struct DirLight
 {
+    float padding[2]; // 8 bytes of padding
     vec4 color;
     vec4 direction;
 };
 
 struct PointLight
 {
+    float padding[2]; // 8 bytes of padding
     vec4 color;
     vec4 position;
 };
@@ -92,9 +95,52 @@ vec4 tangentSpaceToViewSpace(vec3 tn, vec3 vn, vec3 t)
     return tbn * vec4(tn, 0.0f);
 }
 
+// Generate a sample direction in tangent space and output world space direction
+vec3 generateSample(vec3 n, float theta, float phi)
+{
+    float x = sin(theta) * sin(phi);
+    float y = sin(theta) * cos(phi);
+    float z = cos(theta);
+    vec3 s = vec3(x, y, z);
+    // Prevent the case where n is  (0.f, 1.f, 0.f)
+    vec3 up = abs(n.x) > 0.f ? vec3(0.f, 1.f, 0.f) : vec3(0.f, 0.f, 1.f);
+    vec3 xAxis = cross(up, n);
+    vec3 yAxis = cross(n, xAxis);
+    vec3 zAxis = n;
+    mat3 toWorldSpace = {
+        xAxis,
+        yAxis,
+        zAxis
+    };
+    return normalize(toWorldSpace * s);
+}
+
 float saturate(float k)
 {
     return clamp(k, 0.f, 1.f);
+}
+
+float VanDerCorput(uint n, uint base)
+{
+    float invBase = 1.0 / float(base);
+    float denom   = 1.0;
+    float result  = 0.0;
+    for(uint i = 0u; i < 32u; ++i)
+    {
+        if(n > 0u)
+        {
+            denom   = mod(float(n), 2.0);
+            result += denom * invBase;
+            invBase = invBase / 2.0;
+            n       = uint(float(n) / 2.0);
+        }
+    }
+    return result;
+}
+
+vec2 HammersleyNoBitOps(uint i, uint N)
+{
+    return vec2(float(i)/float(N), VanDerCorput(i, 2u));
 }
 
 // TODO: Rename this or refactor this to handle gamma for both directions
@@ -153,6 +199,27 @@ float ggxSmithG2(vec3 v, vec3 l, vec3 h, float roughness)
     return 1.f / (1.f + ggxV + ggxL);
 }
 
+/* 
+    non-height correlated smith G2
+*/
+float ggxSmithG1(vec3 v, vec3 h, vec3 n, float roughness)
+{
+    float ndotv = dot(n, v); 
+    float hdotv = dot(h, v); 
+    float alpha = roughness;
+    if (disneyReparam > .5f)
+        alpha *= roughness;
+    float alpha2 = alpha * alpha;
+    float tangentTheta2 = (1 - ndotv * ndotv) / max(0.001f, (ndotv * ndotv));
+    return 2.f / (1.f + sqrt(1.f + alpha2 * tangentTheta2));
+}
+
+float ggxSmithG2Ex(vec3 v, vec3 l, vec3 n, float roughness)
+{
+    vec3 h = normalize(v + n);
+    return ggxSmithG1(v, h, n, roughness) * ggxSmithG1(l, h, n, roughness);
+}
+
 /*
     * microfacet diffuse brdf
 */
@@ -173,6 +240,7 @@ vec3 specularBrdf(vec3 wi, vec3 wo, vec3 n, float roughness, vec3 f0)
     float ndoth = saturate(dot(n, h));
     float D = GGX(roughness, ndoth);
     float G = ggxSmithG2(wo, wi, n, roughness);
+    // float G = ggxSmithG2Ex(wo, wi, n, roughness);
     vec3 F = fresnel(f0, n, wo);
     vec3 brdf = D * F * G / ((4.f * ndotv * ndotl) + 0.001f);
     return brdf;
@@ -198,11 +266,12 @@ vec3 render(RenderParams params)
 {
     vec3 h = normalize(params.v + params.l);
     float ndotl = max(0.001f, dot(params.n, params.l));
+    float ndotlWrap = max(0.1f, (dot(params.n, params.l) + wrap) / (1.f + wrap));
     vec3 F = fresnel(params.f0, params.n, params.v);
     vec3 kDiffuse = mix(vec3(1.f) - F, vec3(0.f), params.metallic);
-    vec3 diffuse = kDiffuse * diffuseBrdf(params.baseColor);
-    vec3 specular = specularBrdf(params.l, params.v, params.n, params.roughness, params.f0);
-    return (directDiffuseSlider * diffuse + directSpecularSlider * specular) * params.li * ndotl;
+    vec3 diffuse = kDiffuse * diffuseBrdf(params.baseColor) * ndotlWrap;
+    vec3 specular = specularBrdf(params.l, params.v, params.n, params.roughness, params.f0) * ndotl;
+    return (directDiffuseSlider * diffuse + directSpecularSlider * specular) * params.li;
 }
 
 vec3 directLighting(RenderParams renderParams)
@@ -229,56 +298,6 @@ vec3 directLighting(RenderParams renderParams)
     return color;
 }
 
-vec3 indirectLighting(RenderParams params)
-{
-    vec3 color = vec3(0.f);
-    vec3 F = fresnel(params.f0, params.n, params.v); 
-    vec3 kDiffuse = mix(vec3(1.f) - F, vec3(0.f), params.metallic);
-    // diffuse irradiance
-    vec3 diffuse = kDiffuse * params.baseColor * texture(irradianceDiffuse, params.n).rgb; 
-    // specular radiance
-    float ndotv = saturate(dot(params.n, params.v));
-    vec3 r = -reflect(params.v, params.n);
-    mat4 viewRotation = s_view;
-    // Cancel out the translation part of the view matrix so that the cubemap will always follow
-    // the camera, view of the cubemap will change along with the change of camera rotation 
-    viewRotation[3][0] = 0.f;
-    viewRotation[3][1] = 0.f;
-    viewRotation[3][2] = 0.f;
-    viewRotation[3][3] = 1.f;
-    vec3 rr = (inverse(viewRotation) * vec4(r, 0.f)).xyz;
-    vec3 prefilteredColor = textureLod(irradianceSpecular, rr, params.roughness * 10.f).rgb;
-    vec3 brdf = texture(brdfIntegral, vec2(params.roughness, ndotv)).rgb; 
-    vec3 specular = prefilteredColor * (params.f0 * brdf.r + brdf.g);
-    color += indirectDiffuseSlider * diffuse + indirectSpecularSlider * specular;
-    return color;
-}
-
-float hash(float seed)
-{
-    return fract(sin(seed)*43758.5453);
-}
-
-// Generate a sample direction in tangent space and output world space direction
-vec3 generateSample(vec3 n, float theta, float phi)
-{
-    float x = sin(theta) * sin(phi);
-    float y = sin(theta) * cos(phi);
-    float z = cos(theta);
-    vec3 s = vec3(x, y, z);
-    // Prevent the case where n is  (0.f, 1.f, 0.f)
-    vec3 up = abs(n.x) > 0.f ? vec3(0.f, 1.f, 0.f) : vec3(0.f, 0.f, 1.f);
-    vec3 xAxis = cross(up, n);
-    vec3 yAxis = cross(n, xAxis);
-    vec3 zAxis = n;
-    mat3 toWorldSpace = {
-        xAxis,
-        yAxis,
-        zAxis
-    };
-    return normalize(toWorldSpace * s);
-}
-
 // ground-truthe specular IBL
 vec3 specularIBL(vec3 f0, vec3 normal, vec3 viewDir, float roughness)
 {
@@ -286,15 +305,15 @@ vec3 specularIBL(vec3 f0, vec3 normal, vec3 viewDir, float roughness)
     vec3 specularE = vec3(0.f);
     for (uint sa = 0; sa < numSamples; sa++)
     {
-        // vec2 rand_uv = HammersleyNoBitOps(sa, uint(numSamples));
+        vec2 rand_uv = HammersleyNoBitOps(sa, uint(numSamples));
         // Random samples a microfacet normal following GGX distribution
-        float rand_u = hash(sa * 12.3f / numSamples); 
-        float rand_v = hash(sa * 78.2f / numSamples); 
-        // float rand_u = rand_uv.x; 
-        // float rand_v = rand_uv.y; 
+        // float rand_u = hash(sa * 12.3f / numSamples);
+        // float rand_v = hash(sa * 78.2f / numSamples); 
+        float rand_u = rand_uv.x; 
+        float rand_v = rand_uv.y; 
 
         // TODO: verify this importance sampling ggx procedure
-        float theta = atan(roughness * sqrt(rand_u) / sqrt(1 - rand_u));
+        float theta = atan(roughness * sqrt(rand_u) / sqrt(1 - rand_v));
         float phi = 2 * pi * rand_v;
         vec3 h = generateSample(normal, theta, phi);
 
@@ -329,6 +348,36 @@ vec3 specularIBL(vec3 f0, vec3 normal, vec3 viewDir, float roughness)
     return specularE;
 }
 
+vec3 indirectLighting(RenderParams params)
+{
+    vec3 color = vec3(0.f);
+    vec3 F = fresnel(params.f0, params.n, params.v); 
+    vec3 kDiffuse = mix(vec3(1.f) - F, vec3(0.f), params.metallic);
+    // diffuse irradiance
+    vec3 diffuse = kDiffuse * params.baseColor * texture(irradianceDiffuse, params.n).rgb; 
+    // specular radiance
+    float ndotv = saturate(dot(params.n, params.v));
+    vec3 r = -reflect(params.v, params.n);
+    mat4 viewRotation = s_view;
+    // Cancel out the translation part of the view matrix so that the cubemap will always follow
+    // the camera, view of the cubemap will change along with the change of camera rotation 
+    viewRotation[3][0] = 0.f;
+    viewRotation[3][1] = 0.f;
+    viewRotation[3][2] = 0.f;
+    viewRotation[3][3] = 1.f;
+    vec3 rr = (inverse(viewRotation) * vec4(r, 0.f)).xyz;
+    vec3 prefilteredColor = textureLod(irradianceSpecular, rr, params.roughness * 10.f).rgb;
+    vec3 brdf = texture(brdfIntegral, vec2(params.roughness, ndotv)).rgb; 
+    vec3 specular = prefilteredColor * (params.f0 * brdf.r + brdf.g);
+    color += indirectDiffuseSlider * diffuse + indirectSpecularSlider * specular;
+    return color;
+}
+
+float hash(float seed)
+{
+    return fract(sin(seed)*43758.5453);
+}
+
 void main() 
 {
     /* Normal mapping */
@@ -354,6 +403,7 @@ void main()
     if (hasRoughnessMap > 0.f)
     {
         roughness = texture(roughnessMap, uv).g;
+        roughness = roughness * roughness;
         metallic = texture(roughnessMap, uv).b; 
     }
     else
@@ -366,7 +416,7 @@ void main()
     vec3 f0 = mix(vec3(0.04f), albedo.rgb, sqrt(metallic));
 
     float ao = hasAoMap > 0.5f ? texture(aoMap, uv).r : 1.0f;
-    ao = pow(ao, aoStrength);
+    ao = pow(ao, 3.0f);
 
     vec3 viewDir = normalize(-fragmentPos); 
 
@@ -420,6 +470,7 @@ void main()
         vec4 lightDir = s_view * (dirLightsBuffer.lights[0].direction * -1.f);
         vec3 ld = normalize(lightDir.xyz);
         float G = ggxSmithG2(viewDir, ld, normal, roughness);
+        // float G = ggxSmithG2Ex(viewDir, ld, normal, roughness);
         color = vec3(G);
     }
 

@@ -15,6 +15,14 @@
         {
             "name": "helmet_mesh",
             "path": "asset/helmet/mesh/helmet.obj"
+        },
+        {
+            "name": "sphere_mesh",
+            "path": "asset/sphere/mesh/uv_sphere.obj"
+        },
+        {
+            "name": "drone_mesh",
+            "path": "asset/smart_drone/mesh/scene.gltf"
         }
     ],
 
@@ -52,6 +60,35 @@
             "path": "asset/helmet/texture/Default_emissive.jpg",
             "numMips": 11,
             "dynamic_range": "ldr"
+        },
+
+        {
+            "name": "brick_albedo",
+            "path": "asset/brick_surface/textures/albedo.jpg",
+            "numMips": 11,
+            "dynamic_range": "ldr"
+        },
+
+        {
+            "name": "brick_ao",
+            "path": "asset/brick_surface/textures/ao.jpg",
+            "numMips": 11,
+            "dynamic_range": "ldr"
+        },
+
+        {
+            "name": "brick_roughness",
+            "path": "asset/brick_surface/textures/roughness.jpg",
+            "numMips": 11,
+            "dynamic_range": "ldr"
+
+        },
+
+        {
+            "name": "brick_nm",
+            "path": "asset/brick_surface/textures/normal.jpg",
+            "numMips": 11,
+            "dynamic_range": "ldr"
         }
     ],
 
@@ -60,6 +97,15 @@
             "mesh": "helmet_mesh",
             "xform": {
                 "translation": [0.0, 0.0, -1.5],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [0.8, 0.8, 0.8]
+            }
+        },
+
+        {
+            "mesh": "drone_mesh",
+            "xform": {
+                "translation": [1.0, 0.0, -1.5],
                 "rotation": [0.0, 0, 1, 0],
                 "scale": [0.8, 0.8, 0.8]
             }

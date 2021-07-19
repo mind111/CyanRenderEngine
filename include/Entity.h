@@ -6,12 +6,23 @@
 #include "Mesh.h"
 #include "Transform.h"
 
+#define kEntityNameMaxLen 64u
+
 // entity
 struct Entity
 {
+    char m_name[kEntityNameMaxLen];
     uint32_t m_entityId;
-    glm::vec3 m_position;
-    Transform* m_xform;
+    Transform m_instanceTransform;
+    glm::mat4 m_worldTransformMatrix;
     Cyan::MeshInstance* m_meshInstance;
+    // flags
     bool m_lit;
+    bool m_hasTransform;
+
+    glm::vec3 worldPosition()
+    {
+        glm::vec4 translation = m_worldTransformMatrix[3];
+        return glm::vec3(translation.x, translation.y, translation.z);
+    }
 };
