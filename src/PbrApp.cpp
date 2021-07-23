@@ -1,5 +1,6 @@
 #include <iostream>
 #include <queue>
+#include <functional>
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_glfw.h"
@@ -178,11 +179,22 @@ void PbrApp::initHelmetScene()
     m_droneMatl->set("debugF", 0.f);
     m_droneMatl->set("debugD", 0.f);
     m_droneMatl->set("disneyReparam", 1.f);
-    // Entity* droneEntity = SceneManager::getEntity(m_scenes[0], "SmartDrone");
-    // for (u32 sm = 0u; sm < droneEntity->m_meshInstance->m_mesh->m_subMeshes.size(); ++sm)
-    // {
-    //     droneEntity->m_meshInstance->setMaterial(sm, m_droneMatl);
-    // }
+    Entity* droneEntity = SceneManager::getEntity(m_scenes[0], "RootNode (gltf orientation matrix)");
+    SceneNode* droneNode = helmetScene->m_root->find("RootNode (gltf orientation matrix)");
+
+    std::function<void(SceneNode*)> bindMaterial = [&](SceneNode* node) -> void {
+        Cyan::MeshInstance* meshInstance = node->m_entity->m_meshInstance;
+        if (meshInstance) {
+            for (u32 sm = 0u; sm < meshInstance->m_mesh->m_subMeshes.size(); ++sm) {
+                meshInstance->setMaterial(sm, m_droneMatl);
+            }
+        }
+        for (auto& child : node->m_child)
+        {
+            bindMaterial(child);
+        }
+    };
+    bindMaterial(droneNode);
 
     // add lights into the scene
     SceneManager::createPointLight(helmetScene, glm::vec3(0.9, 0.95f, 0.76f), glm::vec3(0.0f, 0.0f, 1.5f), 1.f);
