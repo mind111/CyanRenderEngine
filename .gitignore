@@ -1,7 +1,6 @@
 # folders to ignore
 .vscode/
 bin/
-cmake/
 .git/
 asset/
 lib/
