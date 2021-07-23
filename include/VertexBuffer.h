@@ -26,12 +26,6 @@ struct VertexAttrib
 
 struct VertexBuffer
 {
-    void pushVertexAttrib(VertexAttrib attrib)
-    {
-        m_strideInBytes += attrib.getSize();
-        m_vertexAttribs.push_back(attrib);
-    }
-
     void* m_data;
     u32 m_strideInBytes;
     u32 m_numVerts;

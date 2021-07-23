@@ -176,7 +176,11 @@ namespace Cyan
             Mesh::SubMesh* sm = mesh->m_subMeshes[i];
             ctx->setVertexArray(sm->m_vertexArray);
             ctx->setPrimitiveType(PrimitiveType::TriangleList);
-            ctx->drawIndex(sm->m_numVerts);
+            if (ctx->m_vertexArray->m_ibo != static_cast<u32>(-1)) {
+                ctx->drawIndex(ctx->m_vertexArray->m_numIndices);
+            } else {
+                ctx->drawIndexAuto(sm->m_numVerts);
+            }
             // NOTES: reset texture units because texture unit bindings are managed by gl context 
             // it won't change when binding different shaders
             for (u32 t = 0; t < used.m_usedTexBindings; ++t)
@@ -329,7 +333,7 @@ namespace Cyan
         m_bloomPreprocessMatl->bind();
         ctx->setVertexArray(m_blitQuad->m_va);
         ctx->setPrimitiveType(PrimitiveType::TriangleList);
-        ctx->drawIndex(6u);
+        ctx->drawIndexAuto(6u);
         glFinish();
     }
 
@@ -360,7 +364,7 @@ namespace Cyan
                         m_gaussianBlurMatl->bind();
                         ctx->setVertexArray(m_blitQuad->m_va);
                         ctx->setPrimitiveType(PrimitiveType::TriangleList);
-                        ctx->drawIndex(6u);
+                        ctx->drawIndexAuto(6u);
                         glFinish();
                     }
                 };
@@ -399,7 +403,7 @@ namespace Cyan
         m_blitQuad->m_matl->bind();
         ctx->setVertexArray(m_blitQuad->m_va);
         ctx->setPrimitiveType(PrimitiveType::TriangleList);
-        ctx->drawIndex(6u);
+        ctx->drawIndexAuto(6u);
     }
 
     void Renderer::renderScene(Scene* scene)

@@ -157,7 +157,8 @@ void PbrApp::initHelmetScene()
     m_helmetMatl->set("debugF", 0.f);
     m_helmetMatl->set("debugD", 0.f);
     m_helmetMatl->set("disneyReparam", 1.f);
-    SceneManager::getEntity(m_scenes[0], 1)->m_meshInstance->setMaterial(0, m_helmetMatl);
+    // SceneManager::getEntity(m_scenes[0], 1)->m_meshInstance->setMaterial(0, m_helmetMatl);
+    SceneManager::getEntity(m_scenes[0], "Entity96")->m_meshInstance->setMaterial(0, m_helmetMatl);
 
     m_droneMatl = Cyan::createMaterial(m_pbrShader)->createInstance();
     m_droneMatl->bindTexture("diffuseMaps[0]", Cyan::getTexture("helmet_diffuse"));
@@ -177,11 +178,11 @@ void PbrApp::initHelmetScene()
     m_droneMatl->set("debugF", 0.f);
     m_droneMatl->set("debugD", 0.f);
     m_droneMatl->set("disneyReparam", 1.f);
-    Entity* droneEntity = SceneManager::getEntity(m_scenes[0], 2);
-    for (u32 sm = 0u; sm < droneEntity->m_meshInstance->m_mesh->m_subMeshes.size(); ++sm)
-    {
-        droneEntity->m_meshInstance->setMaterial(sm, m_droneMatl);
-    }
+    // Entity* droneEntity = SceneManager::getEntity(m_scenes[0], "SmartDrone");
+    // for (u32 sm = 0u; sm < droneEntity->m_meshInstance->m_mesh->m_subMeshes.size(); ++sm)
+    // {
+    //     droneEntity->m_meshInstance->setMaterial(sm, m_droneMatl);
+    // }
 
     // add lights into the scene
     SceneManager::createPointLight(helmetScene, glm::vec3(0.9, 0.95f, 0.76f), glm::vec3(0.0f, 0.0f, 1.5f), 1.f);
@@ -191,7 +192,7 @@ void PbrApp::initHelmetScene()
     SceneManager::createDirectionalLight(helmetScene, glm::vec3(1.0), glm::normalize(glm::vec3(0.5f, -5.5f, -3.f)), 1.f);
 
     // manage entities
-    SceneNode* helmetNode = helmetScene->m_root->find("Entity1");
+    SceneNode* helmetNode = helmetScene->m_root->find("Entity96");
     Transform centerTransform;
     centerTransform.m_translate = helmetNode->m_entity->m_instanceTransform.m_translate;
     SceneManager::createEntity(helmetScene, "PointLightCenter", nullptr, centerTransform, true);

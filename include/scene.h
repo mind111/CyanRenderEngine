@@ -98,10 +98,20 @@ public:
     static void setLightProbe(Scene* scene, LightProbe* probe);
     static void createDirectionalLight(Scene* scene, glm::vec3 color, glm::vec3 direction, float intensity);
     static void createPointLight(Scene* scene, glm::vec3 color, glm::vec3 position, float intensity);
+    static SceneNode* createSceneNode(Scene* scene, SceneNode* parent, Entity* entity);
     static Entity* createEntity(Scene* scene, const char* entityName, const char* meshName, Transform transform, bool hasTransform);
     static Entity* getEntity(Scene* scene, u32 id) 
     {
         return scene->entities[id];
+    }
+    static Entity* getEntity(Scene* scene, const char* name)
+    {
+        for (auto& entity : scene->entities) {
+            if (strcmp(name, entity->m_name) == 0) {
+                return entity;
+            }
+        }
+        return nullptr;
     }
 };
 

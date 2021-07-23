@@ -132,7 +132,7 @@ namespace Cyan
 
     // Buffers
     VertexArray*  createVertexArray(VertexBuffer* vb);
-    VertexBuffer* createVertexBuffer(void* _data, u32 _sizeInBytes, u32 _strideInBytes, u32 _numVerts);
+    VertexBuffer* createVertexBuffer(void* _data, u32 _sizeInBytes, u32 strideInBytes, u32 _numVerts);
     RegularBuffer* createRegularBuffer(u32 totalSize);
 
     /* Texture */
@@ -165,6 +165,7 @@ namespace Cyan
     Material* createMaterial(Shader* _shader);
 
     /* Mesh */
+    void addMesh(Mesh* mesh);
     Mesh* createMesh(const char* _name, const char* _file);
     Mesh* getMesh(const char* _name);
 

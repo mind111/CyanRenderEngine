@@ -137,7 +137,7 @@ struct EnvMapDebugger
                 gfxc->setPrimitiveType(Cyan::PrimitiveType::TriangleList);
                 gfxc->setVertexArray(cubeMesh->m_subMeshes[0]->m_vertexArray);
 
-                gfxc->drawIndex(cubeMesh->m_subMeshes[0]->m_numVerts, 0);
+                gfxc->drawIndexAuto(cubeMesh->m_subMeshes[0]->m_numVerts, 0);
             }
             mipWidth /= 2u;
             mipHeight /= 2u;

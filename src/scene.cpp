@@ -44,6 +44,31 @@ void SceneManager::setLightProbe(Scene* scene, LightProbe* probe)
     scene->m_currentProbe = probe;
 }
 
+SceneNode* SceneManager::createSceneNode(Scene* scene, SceneNode* parent, Entity* entity) {
+    // insert into the scene graph, by default all the newly created entity that has a transform
+    // component should be child of the root node
+    SceneNode* node = nullptr;
+    if (entity->m_hasTransform)
+    {
+        SceneNode* node = Cyan::allocSceneNode();
+        node->m_entity = entity;
+        if (!scene->m_root)
+        {
+            scene->m_root = node;
+            scene->m_root->m_entity->m_worldTransformMatrix = scene->m_root->m_entity->m_instanceTransform.toMatrix();
+        }
+        else
+        {
+            if (parent) {
+                parent->addChild(node);
+            } else {
+                scene->m_root->addChild(node);
+            }
+        }
+    }
+    return node;
+}
+
 Entity* SceneManager::createEntity(Scene* scene, const char* entityName, const char* meshName, Transform transform, bool hasTransform)
 {
     Entity* entity = (Entity*)CYAN_ALLOC(sizeof(Entity));
@@ -52,7 +77,7 @@ Entity* SceneManager::createEntity(Scene* scene, const char* entityName, const c
     entity->m_meshInstance = mesh ? mesh->createInstance() : nullptr; 
     // id
     entity->m_entityId = scene->entities.size() > 0 ? scene->entities.size() : 0;
-    if (entityName) 
+    if (entityName && strlen(entityName) > 0) 
     {
         CYAN_ASSERT(strlen(entityName) < kEntityNameMaxLen, "Entity name too long !!")
         strcpy(entity->m_name, entityName);
@@ -66,22 +91,7 @@ Entity* SceneManager::createEntity(Scene* scene, const char* entityName, const c
     // transform
     entity->m_instanceTransform = transform;
     entity->m_hasTransform = hasTransform;
-    // insert into the scene graph, by default all the newly created entity that has a transform
-    // component should be child of the root node
-    if (hasTransform)
-    {
-        SceneNode* node = Cyan::allocSceneNode();
-        node->m_entity = entity;
-        if (!scene->m_root)
-        {
-            scene->m_root = node;
-            scene->m_root->m_entity->m_worldTransformMatrix = scene->m_root->m_entity->m_instanceTransform.toMatrix();
-        }
-        else
-        {
-            scene->m_root->addChild(node);
-        }
-    }
+    SceneManager::createSceneNode(scene, nullptr, entity);
     scene->entities.push_back(entity);
     return entity; 
 }

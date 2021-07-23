@@ -121,10 +121,17 @@ namespace Cyan
         glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
     }
 
-    void GfxContext::setVertexArray(VertexArray* _array)
+    void GfxContext::setVertexArray(VertexArray* array)
     {
-        this->m_vao = _array->m_vao; 
-        glBindVertexArray(_array->m_vao);
+        if (!array) {
+            m_vertexArray = nullptr;
+            this->m_vao = 0u; 
+            glBindVertexArray(this->m_vao);
+            return;
+        }
+        this->m_vao = array->m_vao; 
+        glBindVertexArray(array->m_vao);
+        m_vertexArray = array;
     }
 
     void GfxContext::setPrimitiveType(PrimitiveType _type)
@@ -177,9 +184,14 @@ namespace Cyan
         setShader(nullptr);
     }
 
-    void GfxContext::drawIndex(u32 _numVerts, u32 _offset) 
+    void GfxContext::drawIndexAuto(u32 _numVerts, u32 _offset) 
     {
         glDrawArrays(m_primitiveType, _offset, _numVerts);
+    }
+
+    void GfxContext::drawIndex(u32 numIndices) 
+    {
+        glDrawElements(m_primitiveType, numIndices, GL_UNSIGNED_INT, reinterpret_cast<const void*>(0));
     }
 
     void GfxContext::clear()

@@ -8,5 +8,7 @@ struct VertexArray
     void init();
 
     VertexBuffer* m_vertexBuffer;
+    u32           m_numIndices;
+    GLuint        m_ibo;
     GLuint        m_vao;
 };

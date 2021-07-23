@@ -62,7 +62,8 @@ namespace Cyan
         void setClearColor(glm::vec4 color);
         void setCullFace(FrontFace frontFace, FaceCull faceToCull);
         //-
-        void drawIndex(u32 _numVerts, u32 _offset=0);
+        void drawIndexAuto(u32 _numVerts, u32 _offset=0);
+        void drawIndex(u32 numIndices);
         //-
         void flip();
         void clear();
@@ -72,6 +73,7 @@ namespace Cyan
         Shader* m_shader;
         glm::vec4 m_viewport;
         GLenum m_primitiveType;
+        VertexArray* m_vertexArray;
         GLuint m_vao;
         GLuint m_fbo;
     };
