@@ -32,6 +32,7 @@ public:
         }
     }
 
+    // FIXME: Node hierachy constructed from this is wrong.
     void loadGltfNode(Scene* scene, tinygltf::Model& model, tinygltf::Node* parent, 
                         SceneNode* parentSceneNode, tinygltf::Node& node) {
         bool hasMesh = (node.mesh > -1);
