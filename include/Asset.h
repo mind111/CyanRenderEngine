@@ -32,9 +32,11 @@ public:
         }
     }
 
-    // FIXME: Node hierachy constructed from this is wrong.
+    // FIXME: Some parts of the mesh is not visable
+    // FIXME: Verify transform hierachy
+    // FIXME: Normalize mesh scale
     void loadGltfNode(Scene* scene, tinygltf::Model& model, tinygltf::Node* parent, 
-                        SceneNode* parentSceneNode, tinygltf::Node& node) {
+                        SceneNode* parentSceneNode, tinygltf::Node& node, u32 numNodes) {
         bool hasMesh = (node.mesh > -1);
         bool hasSkin = (node.skin > -1);
         bool hasMatrix = !node.matrix.empty();
@@ -48,7 +50,7 @@ public:
                 glm::vec4(node.matrix[0], node.matrix[1], node.matrix[2], node.matrix[3]),     // column 0
                 glm::vec4(node.matrix[4], node.matrix[5], node.matrix[6], node.matrix[7]),     // column 1
                 glm::vec4(node.matrix[8], node.matrix[9], node.matrix[10], node.matrix[11]),   // column 2
-                glm::vec4(node.matrix[12], node.matrix[13], node.matrix[14], node.matrix[15]), // column 3
+                glm::vec4(node.matrix[12], node.matrix[13], node.matrix[14], node.matrix[15])  // column 3
             };
             // convert matrix to local transform
             localTransform.fromMatrix(matrix);
@@ -65,14 +67,19 @@ public:
         }
 
         // create an entity for this node
-        // if (hasMesh) {
-        Entity* entity = SceneManager::createEntity(scene, node.name.c_str(), meshName, localTransform, hasTransform);
+        char entityName[64];
+        CYAN_ASSERT(node.name.size() < kEntityNameMaxLen, "Entity name too long !!")
+        if (node.name.empty()) {
+            sprintf_s(entityName, "Node%u", numNodes);
+        } else {
+            sprintf_s(entityName, "%s", node.name.c_str());
+        }
+        // every node has a transform component
+        Entity* entity = SceneManager::createEntity(scene, entityName, meshName, localTransform, true);
         SceneNode* sceneNode = SceneManager::createSceneNode(scene, parentSceneNode, entity);
-        // }
-
         // recurse to load all the children
         for (auto& child : node.children) {
-            loadGltfNode(scene, model, &node, sceneNode, model.nodes[child]);
+            loadGltfNode(scene, model, &node, sceneNode, model.nodes[child], ++numNodes);
         }
     }
 
@@ -197,6 +204,8 @@ public:
             tinygltf::Material gltfMaterial = model.materials[primitive.material];
             mesh->m_subMeshes.push_back(subMesh);
         } // primitive (submesh)
+        // FIXME: This is not correct
+        mesh->m_normalization = Cyan::Toolkit::computeMeshNormalization(mesh);
         return mesh;
     }
 
@@ -217,9 +226,8 @@ public:
         tinygltf::Scene& gltfScene = model.scenes[model.defaultScene];
         // load textures
         for (auto& image : model.images) {
-
+            continue;
         }
-
         // load meshes
         for (auto& gltfMesh : model.meshes)
         {
@@ -229,7 +237,7 @@ public:
         // FIXME: Handle multiple root nodes
         // assuming that there is only one root node for defaultScene
         tinygltf::Node rootNode = model.nodes[gltfScene.nodes[0]];
-        loadGltfNode(scene, model, nullptr, scene->m_root, rootNode);
+        loadGltfNode(scene, model, nullptr, scene->m_root, rootNode, 0);
     }
 
     tinygltf::TinyGLTF m_loader;

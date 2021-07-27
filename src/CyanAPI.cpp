@@ -202,9 +202,9 @@ namespace Cyan
             attribFlag |= scene->mMeshes[sm]->HasTangentsAndBitangents() ? VertexAttribFlag::kTangents : 0x0;
 
             strideInBytes += (attribFlag & VertexAttribFlag::kPosition) > 0 ? 3 * sizeof(f32) : 0;
-            strideInBytes += (attribFlag & VertexAttribFlag::kTexcoord) > 0 ? 2 * sizeof(f32) : 0;
             strideInBytes += (attribFlag & VertexAttribFlag::kNormal)   > 0 ? 3 * sizeof(f32) : 0;
-            strideInBytes += (attribFlag & VertexAttribFlag::kTangents) > 0 ? 6 * sizeof(f32) : 0;
+            strideInBytes += (attribFlag & VertexAttribFlag::kTangents) > 0 ? 4 * sizeof(f32) : 0;
+            strideInBytes += (attribFlag & VertexAttribFlag::kTexcoord) > 0 ? 2 * sizeof(f32) : 0;
 
             u32 numVerts = (u32)scene->mMeshes[sm]->mNumVertices;
             float* data = new float[strideInBytes * numVerts];
@@ -226,19 +226,17 @@ namespace Cyan
                     vertexAddress[offset++] = scene->mMeshes[sm]->mNormals[v].y;
                     vertexAddress[offset++] = scene->mMeshes[sm]->mNormals[v].z;
                 }
-                if (attribFlag & VertexAttribFlag::kTexcoord)
-                {
-                    vertexAddress[offset++] = scene->mMeshes[sm]->mTextureCoords[0][v].x;
-                    vertexAddress[offset++] = scene->mMeshes[sm]->mTextureCoords[0][v].y;
-                }
                 if (attribFlag & VertexAttribFlag::kTangents)
                 {
                     vertexAddress[offset++] = scene->mMeshes[sm]->mTangents[v].x;
                     vertexAddress[offset++] = scene->mMeshes[sm]->mTangents[v].y;
                     vertexAddress[offset++] = scene->mMeshes[sm]->mTangents[v].z;
-                    vertexAddress[offset++] = scene->mMeshes[sm]->mBitangents[v].x;
-                    vertexAddress[offset++] = scene->mMeshes[sm]->mBitangents[v].y;
-                    vertexAddress[offset++] = scene->mMeshes[sm]->mBitangents[v].z;
+                    vertexAddress[offset++] = 1.f;
+                }
+                if (attribFlag & VertexAttribFlag::kTexcoord)
+                {
+                    vertexAddress[offset++] = scene->mMeshes[sm]->mTextureCoords[0][v].x;
+                    vertexAddress[offset++] = scene->mMeshes[sm]->mTextureCoords[0][v].y;
                 }
             }
 
@@ -259,25 +257,23 @@ namespace Cyan
                     VertexAttrib::DataType::Float, 3, strideInBytes, offset, (float*)subMesh->m_vertexArray->m_vertexBuffer->m_data + offset});
                 offset += sizeof(f32) * 3;
             }
+            if (attribFlag & VertexAttribFlag::kTangents)
+            {
+                subMesh->m_vertexArray->m_vertexBuffer->m_vertexAttribs.push_back({
+                    VertexAttrib::DataType::Float, 4, strideInBytes, offset, (float*)subMesh->m_vertexArray->m_vertexBuffer->m_data + offset});
+                offset += sizeof(f32) * 4;
+            }
             if (attribFlag & VertexAttribFlag::kTexcoord)
             {
                 subMesh->m_vertexArray->m_vertexBuffer->m_vertexAttribs.push_back({
                     VertexAttrib::DataType::Float, 2, strideInBytes, offset, (float*)subMesh->m_vertexArray->m_vertexBuffer->m_data + offset});
                 offset += sizeof(f32) * 2;
             }
-            if (attribFlag & VertexAttribFlag::kTangents)
-            {
-                subMesh->m_vertexArray->m_vertexBuffer->m_vertexAttribs.push_back({
-                    VertexAttrib::DataType::Float, 3, strideInBytes, offset, (float*)subMesh->m_vertexArray->m_vertexBuffer->m_data + offset});
-                offset += sizeof(f32) * 3;
-                subMesh->m_vertexArray->m_vertexBuffer->m_vertexAttribs.push_back({
-                    VertexAttrib::DataType::Float, 3, strideInBytes, offset, (float*)subMesh->m_vertexArray->m_vertexBuffer->m_data + offset});
-            }
             subMesh->m_vertexArray->init();
         }
         // Store the xform for normalizing object space mesh coordinates
         mesh->m_normalization = Toolkit::computeMeshNormalization(mesh);
-        s_meshes.push_back(mesh);
+        addMesh(mesh);
         return mesh;
     }
 
@@ -305,7 +301,8 @@ namespace Cyan
         scene->m_currentProbe = nullptr;
         scene->m_root = nullptr;
         // create root entity
-        SceneManager::createEntity(scene, "Root", nullptr, Transform(), true);
+        Entity* rootEntity = SceneManager::createEntity(scene, "SceneRoot", nullptr, Transform(), true);
+        SceneManager::createSceneNode(scene, nullptr, rootEntity);
 
         nlohmann::json sceneJson;
         std::ifstream sceneFile(_file);
@@ -376,10 +373,13 @@ namespace Cyan
             };
 
             std::string meshName;
+            std::string entityName;
             entityInfo.at("mesh").get_to(meshName);
+            entityInfo.at("name").get_to(entityName);
             auto xformInfo = entityInfo.at("xform");
             Transform xform = entityInfo.at("xform").get<Transform>();
-            Entity* entity = SceneManager::createEntity(scene, nullptr, meshName.c_str(), xform, true);
+            Entity* entity = SceneManager::createEntity(scene, entityName.c_str(), meshName.c_str(), xform, true);
+            SceneManager::createSceneNode(scene, nullptr, entity);
         }
         return scene;
     }
@@ -626,7 +626,7 @@ namespace Cyan
 
         glCreateTextures(specGL.m_typeGL, 1, &texture->m_id);
         glBindTexture(specGL.m_typeGL, texture->m_id);
-        glTexImage2D(specGL.m_typeGL, 0, specGL.m_dataFormatGL, texture->m_width, texture->m_height, 0, specGL.m_internalFormatGL, GL_FLOAT, nullptr);
+        glTexImage2D(specGL.m_typeGL, 0, specGL.m_dataFormatGL, texture->m_width, texture->m_height, 0, specGL.m_internalFormatGL, GL_FLOAT, texture->m_data);
         glBindTexture(GL_TEXTURE_2D, 0);
         setTextureParameters(texture, specGL);
         if (spec.m_numMips > 1u)
@@ -1033,14 +1033,14 @@ namespace Cyan
 
         glm::mat4 computeMeshNormalization(Mesh* _mesh)
         {
-            auto findMin = [](float* vertexData, u32 numVerts, int vertexSize, int offset) {
+            auto findMin = [](float* vertexData, u32 numVerts, i32 vertexSize, i32 offset) {
                 float min = vertexData[offset];
                 for (u32 v = 1; v < numVerts; v++)
                     min = Min(min, vertexData[v * vertexSize + offset]); 
                 return min;
             };
 
-            auto findMax = [](float* vertexData, u32 numVerts, int vertexSize, int offset) {
+            auto findMax = [](float* vertexData, u32 numVerts, i32 vertexSize, i32 offset) {
                 float max = vertexData[offset];
                 for (u32 v = 1; v < numVerts; v++)
                     max = Max(max, vertexData[v * vertexSize + offset]); 
@@ -1077,6 +1077,13 @@ namespace Cyan
             scale = Max(scale, Max(Cyan::fabs(meshYMin), Cyan::fabs(meshYMax)));
             scale = Max(scale, Max(Cyan::fabs(meshZMin), Cyan::fabs(meshZMax)));
             return glm::scale(glm::mat4(1.f), glm::vec3(1.f / scale));
+        }
+
+        glm::mat4 computeMeshesNormalization(std::vector<Mesh*> meshes) {
+            for (auto& mesh : meshes) {
+                continue;
+            }
+            return glm::mat4(1.f);
         }
 
         // Load equirectangular map into a cubemap
@@ -1554,8 +1561,8 @@ namespace Cyan
             {
                 glm::vec3 m_position;
                 glm::vec3 m_normal;
-                glm::vec2 m_uv;
                 glm::vec3 m_tangent;
+                glm::vec2 m_uv;
             };
 
             std::vector<Vertex> vertices;
@@ -1583,14 +1590,14 @@ namespace Cyan
                         tileVerts[v].m_position.x = (x + offsets[v].x) * tileXInMeters;
                         tileVerts[v].m_position.y = 0.f;
                         tileVerts[v].m_position.z = extendY - (y + offsets[v].y) * tileYInMeters;
-                        // uv
-                        tileVerts[v].m_uv = glm::vec2(x, y) + offsets[v];
-                        tileVerts[v].m_uv /= textureTileThreshold;
                         // normal
                         tileVerts[v].m_normal = glm::vec3(0.f, 1.f, 0.f);
                         // tangent
                         tileVerts[v].m_tangent = glm::vec3(0.f, 0.f, 1.f);
                         vertices.push_back(tileVerts[v]);
+                        // uv
+                        tileVerts[v].m_uv = glm::vec2(x, y) + offsets[v];
+                        tileVerts[v].m_uv /= textureTileThreshold;
                     }
                 }
             }
@@ -1612,13 +1619,15 @@ namespace Cyan
             offset += sizeof(glm::vec3);
             vb->m_vertexAttribs.push_back({ VertexAttrib::DataType::Float, 3, stride, offset, (void*)((u8*)vb->m_data + offset)});
             offset += sizeof(glm::vec3);
+            vb->m_vertexAttribs.push_back({ VertexAttrib::DataType::Float, 3, stride, offset, (void*)((u8*)vb->m_data + offset)});
+            offset += sizeof(glm::vec3);
             vb->m_vertexAttribs.push_back({ VertexAttrib::DataType::Float, 2, stride, offset, (void*)((u8*)vb->m_data + offset)});
             offset += sizeof(glm::vec2);
-            vb->m_vertexAttribs.push_back({ VertexAttrib::DataType::Float, 3, stride, offset, (void*)((u8*)vb->m_data + offset)});
             subMesh->m_vertexArray = Cyan::createVertexArray(vb);
             subMesh->m_vertexArray->init();
             mesh->m_subMeshes.push_back(subMesh);
-            s_meshes.push_back(mesh);
+            mesh->m_normalization = glm::mat4(1.f);
+            addMesh(mesh);
             return mesh;
         }
     }; // namespace AssetGen

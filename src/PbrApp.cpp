@@ -116,6 +116,7 @@ void PbrApp::initHelmetScene()
     Transform terrainTransform = Transform();
     terrainTransform.m_translate = glm::vec3(0.f, -1.5f, 0.f);
     Entity* terrainEntity = SceneManager::createEntity(helmetScene, "Terrain", "terrain_mesh", terrainTransform, true);
+    SceneManager::createSceneNode(helmetScene, nullptr, terrainEntity);
 
     m_terrainMatl->bindTexture("diffuseMaps[0]", Cyan::getTexture("brick_albedo"));
     m_terrainMatl->bindTexture("normalMap", Cyan::getTexture("brick_nm"));
@@ -158,8 +159,7 @@ void PbrApp::initHelmetScene()
     m_helmetMatl->set("debugF", 0.f);
     m_helmetMatl->set("debugD", 0.f);
     m_helmetMatl->set("disneyReparam", 1.f);
-    // SceneManager::getEntity(m_scenes[0], 1)->m_meshInstance->setMaterial(0, m_helmetMatl);
-    SceneManager::getEntity(m_scenes[0], "Entity96")->m_meshInstance->setMaterial(0, m_helmetMatl);
+    SceneManager::getEntity(m_scenes[0], "DamagedHelmet")->m_meshInstance->setMaterial(0, m_helmetMatl);
 
     m_droneMatl = Cyan::createMaterial(m_pbrShader)->createInstance();
     m_droneMatl->bindTexture("diffuseMaps[0]", Cyan::getTexture("helmet_diffuse"));
@@ -179,7 +179,7 @@ void PbrApp::initHelmetScene()
     m_droneMatl->set("debugF", 0.f);
     m_droneMatl->set("debugD", 0.f);
     m_droneMatl->set("disneyReparam", 1.f);
-    Entity* droneEntity = SceneManager::getEntity(m_scenes[0], "RootNode (gltf orientation matrix)");
+
     SceneNode* droneNode = helmetScene->m_root->find("RootNode (gltf orientation matrix)");
 
     std::function<void(SceneNode*)> bindMaterial = [&](SceneNode* node) -> void {
@@ -204,10 +204,11 @@ void PbrApp::initHelmetScene()
     SceneManager::createDirectionalLight(helmetScene, glm::vec3(1.0), glm::normalize(glm::vec3(0.5f, -5.5f, -3.f)), 1.f);
 
     // manage entities
-    SceneNode* helmetNode = helmetScene->m_root->find("Entity96");
+    SceneNode* helmetNode = helmetScene->m_root->find("DamagedHelmet");
     Transform centerTransform;
     centerTransform.m_translate = helmetNode->m_entity->m_instanceTransform.m_translate;
-    SceneManager::createEntity(helmetScene, "PointLightCenter", nullptr, centerTransform, true);
+    Entity* pivotEntity = SceneManager::createEntity(helmetScene, "PointLightCenter", nullptr, centerTransform, true);
+    SceneManager::createSceneNode(helmetScene, nullptr, pivotEntity);
     m_centerNode = helmetScene->m_root->find("PointLightCenter");
     SceneNode* pointLightNode = helmetScene->m_root->removeChild("PointLight0");
     m_centerNode->addChild(pointLightNode);
@@ -285,9 +286,9 @@ void PbrApp::initEnvMaps()
     Cyan::Toolkit::createLightProbe("glacier", "../../asset/cubemaps/glacier.hdr",     true);
     Cyan::Toolkit::createLightProbe("ennis", "../../asset/cubemaps/ennis.hdr",         true);
     Cyan::Toolkit::createLightProbe("pisa", "../../asset/cubemaps/pisa.hdr",           true);
-    // Cyan::Toolkit::createLightProbe("doge2", "../../asset/cubemaps/doge2.hdr",         true);
-    // Cyan::Toolkit::createLightProbe("studio", "../../asset/cubemaps/studio_01_4k.hdr",  true);
-    Cyan::Toolkit::createLightProbe("fire-sky", "../../asset/cubemaps/the_sky_is_on_fire_4k.hdr",  true);
+    Cyan::Toolkit::createLightProbe("doge2", "../../asset/cubemaps/doge2.hdr",         true);
+    Cyan::Toolkit::createLightProbe("studio", "../../asset/cubemaps/studio_01_4k.hdr",  true);
+    Cyan::Toolkit:: createLightProbe("fire-sky", "../../asset/cubemaps/the_sky_is_on_fire_4k.hdr",  true);
     m_currentProbeIndex = 3u;
     m_envmap = Cyan::getProbe(m_currentProbeIndex)->m_baseCubeMap;
 
@@ -361,7 +362,7 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight)
 
     // font
     ImGuiIO& io = ImGui::GetIO();
-    m_font = io.Fonts->AddFontFromFileTTF("C:\\summerwars\\cyanRenderEngine\\lib\\imgui\\misc\\fonts\\Roboto-Medium.ttf", 16.f);
+    m_font = io.Fonts->AddFontFromFileTTF("C:\\dev\\cyanRenderEngine\\lib\\imgui\\misc\\fonts\\Roboto-Medium.ttf", 16.f);
 }
 
 void PbrApp::beginFrame()
@@ -651,6 +652,12 @@ void PbrApp::render()
     m_terrainMatl->set("indirectDiffuseSlider", m_indirectDiffuseSlider);
     m_terrainMatl->set("indirectSpecularSlider", m_indirectSpecularSlider);
     m_terrainMatl->set("wrap", m_wrap);
+
+    m_droneMatl->set("directDiffuseSlider", m_directDiffuseSlider);
+    m_droneMatl->set("directSpecularSlider", m_directSpecularSlider);
+    m_droneMatl->set("indirectDiffuseSlider", m_indirectDiffuseSlider);
+    m_droneMatl->set("indirectSpecularSlider", m_indirectSpecularSlider);
+    m_droneMatl->set("wrap", m_wrap);
 
     // update probe
     SceneManager::setLightProbe(m_scenes[m_currentScene], Cyan::getProbe(m_currentProbeIndex));

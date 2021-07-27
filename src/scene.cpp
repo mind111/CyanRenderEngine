@@ -27,13 +27,10 @@ void SceneNode::update()
     if (m_parent)
     {
         m_entity->m_worldTransformMatrix = m_parent->m_entity->m_worldTransformMatrix * m_entity->m_instanceTransform.toMatrix();
+    } else {
+        m_entity->m_worldTransformMatrix = m_entity->m_instanceTransform.toMatrix();
     }
-    else
-    {
-        m_entity->m_worldTransformMatrix = glm::mat4(1.f);
-    }
-    for (auto* child : m_child)
-    {
+    for (auto* child : m_child) {
         child->update();
     }
 }
@@ -47,24 +44,26 @@ void SceneManager::setLightProbe(Scene* scene, LightProbe* probe)
 SceneNode* SceneManager::createSceneNode(Scene* scene, SceneNode* parent, Entity* entity) {
     // insert into the scene graph, by default all the newly created entity that has a transform
     // component should be child of the root node
-    SceneNode* node = nullptr;
-    if (entity->m_hasTransform)
+    SceneNode* node = Cyan::allocSceneNode();
+    node->m_entity = entity;
+    glm::mat4 testMat = Transform().toMatrix();
+    // root node
+    if (!scene->m_root)
     {
-        SceneNode* node = Cyan::allocSceneNode();
-        node->m_entity = entity;
-        if (!scene->m_root)
-        {
-            scene->m_root = node;
-            scene->m_root->m_entity->m_worldTransformMatrix = scene->m_root->m_entity->m_instanceTransform.toMatrix();
-        }
-        else
-        {
-            if (parent) {
-                parent->addChild(node);
-            } else {
-                scene->m_root->addChild(node);
-            }
-        }
+        scene->m_root = node;
+        CYAN_ASSERT(entity->m_hasTransform, "Root node has to have Transform component")
+        scene->m_root->m_entity->m_worldTransformMatrix = scene->m_root->m_entity->m_instanceTransform.toMatrix();
+        return scene->m_root;
+    }
+    if (!entity->m_hasTransform) {
+        entity->m_instanceTransform = Transform();
+        entity->m_worldTransformMatrix = entity->m_instanceTransform.toMatrix();
+    }
+    // non-root node
+    if (parent) {
+        parent->addChild(node);
+    } else {
+        scene->m_root->addChild(node);
     }
     return node;
 }
@@ -77,21 +76,17 @@ Entity* SceneManager::createEntity(Scene* scene, const char* entityName, const c
     entity->m_meshInstance = mesh ? mesh->createInstance() : nullptr; 
     // id
     entity->m_entityId = scene->entities.size() > 0 ? scene->entities.size() : 0;
-    if (entityName && strlen(entityName) > 0) 
+    if (entityName) 
     {
         CYAN_ASSERT(strlen(entityName) < kEntityNameMaxLen, "Entity name too long !!")
         strcpy(entity->m_name, entityName);
-    } 
-    else
-    {
+    } else {
         char buff[64];
         sprintf(buff, "Entity%u", entity->m_entityId);
-        strcpy(entity->m_name, buff);
     }
     // transform
     entity->m_instanceTransform = transform;
     entity->m_hasTransform = hasTransform;
-    SceneManager::createSceneNode(scene, nullptr, entity);
     scene->entities.push_back(entity);
     return entity; 
 }
@@ -122,6 +117,7 @@ void SceneManager::createPointLight(Scene* scene, glm::vec3 color, glm::vec3 pos
     transform.m_translate = glm::vec3(position);
     transform.m_scale = glm::vec3(0.1f);
     Entity* entity = createEntity(scene, nameBuff, "sphere_mesh", transform, true); 
+    createSceneNode(scene, nullptr, entity); 
     Shader* pointLightShader = Cyan::createShader("PointLightShader", "../../shader/shader_light.vs", "../../shader/shader_light.fs");
     Cyan::MaterialInstance* matl = Cyan::createMaterial(pointLightShader)->createInstance();
     entity->m_meshInstance->setMaterial(0, matl);

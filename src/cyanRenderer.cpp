@@ -262,10 +262,7 @@ namespace Cyan
         if (entity->m_hasTransform)
         {
             modelMatrix = entity->m_worldTransformMatrix;
-            if (strcmp(entity->m_name, "Entity2") == 0)
-            {
-                modelMatrix = entity->m_meshInstance->m_mesh->m_normalization * modelMatrix;
-            }
+            modelMatrix = entity->m_meshInstance->m_mesh->m_normalization * modelMatrix;
             drawMeshInstance(entity->m_meshInstance, &modelMatrix);
         }
         else

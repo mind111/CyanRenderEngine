@@ -43,10 +43,12 @@ struct Transform
 
     void fromMatrix(glm::mat4 mat) {
         m_translate = glm::vec3(mat[3].x, mat[3].y, mat[3].z); 
-        m_scale = glm::vec3(glm::length(glm::vec3(mat[1].x, mat[1].y, mat[1].z)), 
-                            glm::length(glm::vec3(mat[2].x, mat[2].y, mat[2].z)),
-                            glm::length(glm::vec3(mat[3].x, mat[3].y, mat[3].z)));
+        m_scale = glm::vec3(glm::length(glm::vec3(mat[0].x, mat[0].y, mat[0].z)), 
+                            glm::length(glm::vec3(mat[1].x, mat[1].y, mat[1].z)),
+                            glm::length(glm::vec3(mat[2].x, mat[2].y, mat[2].z)));
+        // clear translation
         mat[3] = glm::vec4(0.f, 0.f, 0.f, 1.f);
+        // clear scale
         mat[0][0] *= 1.f / m_scale.x;
         mat[1][1] *= 1.f / m_scale.y;
         mat[2][2] *= 1.f / m_scale.z;
