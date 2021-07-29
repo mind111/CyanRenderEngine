@@ -620,13 +620,13 @@ namespace Cyan
         texture->m_wrapS = spec.m_s; 
         texture->m_wrapT = spec.m_t;
         texture->m_wrapR = spec.m_r;
-        texture->m_data = nullptr;
+        texture->m_data = spec.m_data;
 
         TextureSpecGL specGL = translate(spec);
 
         glCreateTextures(specGL.m_typeGL, 1, &texture->m_id);
         glBindTexture(specGL.m_typeGL, texture->m_id);
-        glTexImage2D(specGL.m_typeGL, 0, specGL.m_dataFormatGL, texture->m_width, texture->m_height, 0, specGL.m_internalFormatGL, GL_FLOAT, texture->m_data);
+        glTexImage2D(specGL.m_typeGL, 0, specGL.m_dataFormatGL, texture->m_width, texture->m_height, 0, specGL.m_internalFormatGL, GL_UNSIGNED_BYTE, texture->m_data);
         glBindTexture(GL_TEXTURE_2D, 0);
         setTextureParameters(texture, specGL);
         if (spec.m_numMips > 1u)
@@ -651,7 +651,7 @@ namespace Cyan
         texture->m_wrapS = spec.m_s; 
         texture->m_wrapT = spec.m_t;
         texture->m_wrapR = spec.m_r;
-        texture->m_data = nullptr;
+        texture->m_data = spec.m_data;
 
         TextureSpecGL specGL = translate(spec);
 
@@ -660,7 +660,7 @@ namespace Cyan
         switch(spec.m_type)
         {
             case Texture::Type::TEX_2D:
-                glTexImage2D(GL_TEXTURE_2D, 0, specGL.m_dataFormatGL, texture->m_width, texture->m_height, 0, specGL.m_internalFormatGL, GL_FLOAT, nullptr);
+                glTexImage2D(GL_TEXTURE_2D, 0, specGL.m_dataFormatGL, texture->m_width, texture->m_height, 0, specGL.m_internalFormatGL, GL_FLOAT, texture->m_data);
                 break;
             case Texture::Type::TEX_CUBEMAP:
                 for (int f = 0; f < 6; f++)
@@ -714,7 +714,7 @@ namespace Cyan
             glGenerateTextureMipmap(texture->m_id);
         }
         s_textures.push_back(texture);
-
+        delete[] pixels;
         return texture;
     }
 
@@ -752,8 +752,16 @@ namespace Cyan
             glGenerateTextureMipmap(texture->m_id);
         }
         s_textures.push_back(texture);
-
+        delete[] pixels;
         return texture;
+    }
+
+    void addTexture(Texture* texture) {
+        s_textures.push_back(texture);
+    }
+
+    u32 getNumTextures() {
+        return static_cast<u32>(s_textures.size());
     }
 
     Texture* getTexture(const char* _name)
@@ -1105,6 +1113,7 @@ namespace Cyan
             spec.m_s = Texture::Wrap::NONE;
             spec.m_t = Texture::Wrap::NONE;
             spec.m_r = Texture::Wrap::NONE;
+            spec.m_data = nullptr;
             if (_hdr)
             {
                 equirectMap = createTextureHDR(_name, _file, spec);
@@ -1213,6 +1222,7 @@ namespace Cyan
             spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
             spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
             spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
+            spec.m_data = nullptr;
             if (spec.m_format == Texture::ColorFormat::R16G16B16 || spec.m_format == Texture::ColorFormat::R16G16B16A16)
             {
                 diffuseIrradianceMap = createTextureHDR(envMap->m_name.c_str(), spec);
@@ -1296,12 +1306,14 @@ namespace Cyan
             spec.m_numMips = 11u;
             spec.m_width = envMap->m_width;
             spec.m_height = envMap->m_height;
+            spec.m_data = nullptr;
             // set the min filter to mipmap_linear as we need to sample from its mipmap
             spec.m_min = Texture::Filter::MIPMAP_LINEAR;
             spec.m_mag = Texture::Filter::LINEAR;
             spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
             spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
             spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
+            spec.m_data = nullptr;
             if (spec.m_format == Texture::ColorFormat::R16G16B16 || spec.m_format == Texture::ColorFormat::R16G16B16A16)
             {
                 prefilteredEnvMap = createTextureHDR(envMap->m_name.c_str(), spec);
@@ -1405,6 +1417,7 @@ namespace Cyan
             spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
             spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
             spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
+            spec.m_data = nullptr;
             Texture* outputTexture = createTextureHDR("integrateBrdf", spec); 
             Shader* shader = createShader("IntegrateBRDFShader", "../../shader/shader_integrate_brdf.vs", "../../shader/shader_integrate_brdf.fs");
             RenderTarget* rt = createRenderTarget(kTexWidth, kTexWidth);
@@ -1470,6 +1483,7 @@ namespace Cyan
             spec.m_s = Texture::Wrap::NONE;
             spec.m_t = Texture::Wrap::NONE;
             spec.m_r = Texture::Wrap::NONE;
+            spec.m_data = nullptr;
             f32 verts[] = {
                 -1.f,  1.f, 0.f, 0.f,  1.f,
                 -1.f, -1.f, 0.f, 0.f,  0.f,

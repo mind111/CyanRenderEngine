@@ -11,6 +11,7 @@
 #include "assimp/postprocess.h"
 
 #include "Common.h"
+#include "Texture.h"
 #include "Scene.h"
 #include "Mesh.h"
 #include "CyanAPI.h"
@@ -32,9 +33,69 @@ public:
         }
     }
 
-    // FIXME: Some parts of the mesh is not visable
-    // FIXME: Verify transform hierachy
-    // FIXME: Normalize mesh scale
+    // TODO: Fix this, the loaded textures are all black!!!
+    Cyan::Texture* loadGltfTexture(tinygltf::Model& model, i32 index) {
+        using Cyan::Texture;
+
+        Texture* texture = nullptr;
+        if (index > -1) {
+            auto image = model.images[index];
+            u32 sizeInBytes = image.image.size();
+            Cyan::TextureSpec spec = { };
+            spec.m_type = Texture::Type::TEX_2D;
+            spec.m_width = image.width;
+            spec.m_height = image.height;
+            switch (image.component) {
+                case 3: {
+                    if (image.bits == 8) {
+                        spec.m_format = Cyan::Texture::ColorFormat::R8G8B8;
+                    } else if (image.bits == 16) {
+                        spec.m_format = Cyan::Texture::ColorFormat::R16G16B16;
+                    } else if (image.bits == 32) {
+                        CYAN_ASSERT(0, "R32G32B32 color format is currently not supported!")
+                    } 
+                    break;
+                }
+                case 4: {
+                    if (image.bits == 8) {
+                        spec.m_format = Cyan::Texture::ColorFormat::R8G8B8A8;
+                    } else if (image.bits == 16) {
+                        spec.m_format = Cyan::Texture::ColorFormat::R16G16B16A16;
+                    } else if (image.bits == 32) {
+                        CYAN_ASSERT(0, "R32G32B32A32 color format is currently not supported!")
+                    } 
+                    break;
+                }
+                default: {
+                    break;
+                }
+            }
+            spec.m_min = Texture::Filter::LINEAR;
+            spec.m_mag = Texture::Filter::LINEAR;
+            spec.m_numMips = 11;
+            spec.m_data = reinterpret_cast<void*>(image.image.data());
+            char name[64];
+            sprintf(name, "%s", image.uri.c_str());
+            switch (spec.m_format) {
+                case Texture::ColorFormat::R8G8B8:
+                case Texture::ColorFormat::R8G8B8A8: {
+                    texture = Cyan::createTexture(name, spec);
+                    break;
+                }
+                case Texture::ColorFormat::R16G16B16:
+                case Texture::ColorFormat::R16G16B16A16: {
+                    texture = Cyan::createTextureHDR(name, spec);
+                    break;
+                }
+            }
+            Cyan::addTexture(texture);
+        }
+        return texture;
+    }
+
+    // TODO: Some parts of the mesh is not visable
+    // TODO: Verify transform hierachy
+    // TODO: Normalize mesh scale
     void loadGltfNode(Scene* scene, tinygltf::Model& model, tinygltf::Node* parent, 
                         SceneNode* parentSceneNode, tinygltf::Node& node, u32 numNodes) {
         bool hasMesh = (node.mesh > -1);
@@ -77,6 +138,61 @@ public:
         // every node has a transform component
         Entity* entity = SceneManager::createEntity(scene, entityName, meshName, localTransform, true);
         SceneNode* sceneNode = SceneManager::createSceneNode(scene, parentSceneNode, entity);
+        // bind material
+        if (entity->m_meshInstance) {
+            auto& gltfMesh = model.meshes[node.mesh];
+            for (u32 sm = 0u; sm < gltfMesh.primitives.size(); ++sm) {
+                // !TODO: material is hard coded to pbr material for now 
+                Shader* pbrShader = Cyan::createShader("PbrShader", "../../shader/shader_pbr.vs", "../../shader/shader_pbr.fs");
+                Cyan::MeshInstance* mesh = entity->m_meshInstance;
+                mesh->m_matls[sm] = Cyan::createMaterial(pbrShader)->createInstance();
+                auto& primitive = gltfMesh.primitives[sm];
+                if (primitive.material > -1) {
+                    auto& gltfMaterial = model.materials[primitive.material];
+                    auto pbr = gltfMaterial.pbrMetallicRoughness;
+                    auto getTexture = [&](i32 imageIndex) {
+                        Cyan::Texture* texture = nullptr;
+                        if (imageIndex > -1) {
+                            auto& image = model.images[imageIndex];
+                            texture = Cyan::getTexture(image.uri.c_str());
+                        }
+                        return texture;
+                    };
+
+                    // albedo
+                    Cyan::Texture* albedo = getTexture(pbr.baseColorTexture.index);
+                    mesh->m_matls[sm]->bindTexture("diffuseMaps[0]", albedo); 
+                    // normal map
+                    Cyan::Texture* normal = getTexture(gltfMaterial.normalTexture.index);
+                    mesh->m_matls[sm]->bindTexture("normalMap", normal); 
+                    // metallicRoughness
+                    Cyan::Texture* metallicRoughness = getTexture(pbr.metallicRoughnessTexture.index);
+                    mesh->m_matls[sm]->bindTexture("roughnessMap", metallicRoughness); 
+                    // occlusion
+                    Cyan::Texture* occlusion = getTexture(gltfMaterial.occlusionTexture.index);
+                    mesh->m_matls[sm]->bindTexture("aoMap", occlusion); 
+
+                    mesh->m_matls[sm]->bindBuffer("dirLightsData", scene->m_dirLightsBuffer);
+                    mesh->m_matls[sm]->bindBuffer("pointLightsData", scene->m_pointLightsBuffer);
+                    mesh->m_matls[sm]->set("debugG", 0.f);
+                    mesh->m_matls[sm]->set("debugF", 0.f);
+                    mesh->m_matls[sm]->set("debugD", 0.f);
+                    mesh->m_matls[sm]->set("disneyReparam", 1.f);
+                    mesh->m_matls[sm]->set("hasAoMap", 1.f);
+                    mesh->m_matls[sm]->set("hasNormalMap", 1.f);
+                    mesh->m_matls[sm]->set("kDiffuse", 1.0f);
+                    mesh->m_matls[sm]->set("kSpecular", 1.0f);
+                    mesh->m_matls[sm]->set("hasRoughnessMap", 0.f);
+                    mesh->m_matls[sm]->set("uniformRoughness", 0.2f);
+                    mesh->m_matls[sm]->set("uniformMetallic", 0.0f);
+                    mesh->m_matls[sm]->set("directDiffuseSlider", 1.0f);
+                    mesh->m_matls[sm]->set("directSpecularSlider", 1.0f);
+                    mesh->m_matls[sm]->set("indirectDiffuseSlider", 1.0f);
+                    mesh->m_matls[sm]->set("indirectSpecularSlider", 1.0f);
+                    mesh->m_matls[sm]->set("wrap", 0.15f);
+                }
+            }
+        }
         // recurse to load all the children
         for (auto& child : node.children) {
             loadGltfNode(scene, model, &node, sceneNode, model.nodes[child], ++numNodes);
@@ -209,8 +325,11 @@ public:
         return mesh;
     }
 
-    void loadGltfTextures() {
-
+    void loadGltfTextures(tinygltf::Model& model) {
+        using Cyan::Texture;
+        for (u32 t = 0u; t < model.images.size(); ++t) {
+            loadGltfTexture(model, t);
+        }
     }
 
     void loadGltf(Scene* scene, const char* filename)
@@ -225,9 +344,7 @@ public:
         }
         tinygltf::Scene& gltfScene = model.scenes[model.defaultScene];
         // load textures
-        for (auto& image : model.images) {
-            continue;
-        }
+        loadGltfTextures(model);
         // load meshes
         for (auto& gltfMesh : model.meshes)
         {

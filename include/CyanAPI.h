@@ -136,7 +136,9 @@ namespace Cyan
     RegularBuffer* createRegularBuffer(u32 totalSize);
 
     /* Texture */
+    void     addTexture(Texture* texture);
     Texture* getTexture(const char* _name);
+    u32      getNumTextures();
     Texture* createTexture(const char* _name, TextureSpec spec);
     Texture* createTextureHDR(const char* _name, TextureSpec spec);
     Texture* createTexture(const char* _name, const char* _file, TextureSpec& spec);

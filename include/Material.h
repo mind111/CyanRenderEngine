@@ -26,6 +26,14 @@ namespace Cyan
         u32 m_usedBufferBindings;
     };
 
+    struct GltfMaterial
+    {
+        Cyan::Texture* m_albedo;
+        Cyan::Texture* m_normal;
+        Cyan::Texture* m_metallicRoughness;
+        Cyan::Texture* m_occlusion;
+    };
+
     struct Material
     {
         // determine if this material type contains what kind of data
@@ -63,10 +71,6 @@ namespace Cyan
         void set(const char* attribute, void* data);
         void set(const char* attribute, u32 data);
         void set(const char* attribute, float data);
-        void* get(const char* attribute, Uniform::Type* type)
-        {
-
-        }
         u32 getAttributeOffset(UniformHandle handle);
         UsedBindingPoints bind();
 

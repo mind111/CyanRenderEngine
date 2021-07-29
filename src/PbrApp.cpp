@@ -30,7 +30,6 @@
     * saving the scene and assets as binaries (serialization)
 */
 
-#define DRAW_DEBUG_LINES 0
 
 /* Constants */
 // In radians per pixel 
@@ -161,26 +160,26 @@ void PbrApp::initHelmetScene()
     m_helmetMatl->set("disneyReparam", 1.f);
     SceneManager::getEntity(m_scenes[0], "DamagedHelmet")->m_meshInstance->setMaterial(0, m_helmetMatl);
 
-    m_droneMatl = Cyan::createMaterial(m_pbrShader)->createInstance();
-    m_droneMatl->bindTexture("diffuseMaps[0]", Cyan::getTexture("helmet_diffuse"));
-    m_droneMatl->bindTexture("normalMap", Cyan::getTexture("helmet_nm"));
-    m_droneMatl->bindTexture("roughnessMap", Cyan::getTexture("helmet_roughness"));
-    m_droneMatl->bindTexture("aoMap", Cyan::getTexture("helmet_ao"));
-    m_droneMatl->bindTexture("envmap", m_envmap);
-    m_droneMatl->bindBuffer("dirLightsData", helmetScene->m_dirLightsBuffer);
-    m_droneMatl->bindBuffer("pointLightsData", helmetScene->m_pointLightsBuffer);
-    m_droneMatl->set("hasAoMap", 1.f);
-    m_droneMatl->set("hasNormalMap", 1.f);
-    m_droneMatl->set("kDiffuse", 1.0f);
-    m_droneMatl->set("kSpecular", 1.0f);
-    m_droneMatl->set("hasRoughnessMap", 1.f);
-    // debug view
-    m_droneMatl->set("debugG", 0.f);
-    m_droneMatl->set("debugF", 0.f);
-    m_droneMatl->set("debugD", 0.f);
-    m_droneMatl->set("disneyReparam", 1.f);
+    // m_droneMatl = Cyan::createMaterial(m_pbrShader)->createInstance();
+    // m_droneMatl->bindTexture("diffuseMaps[0]", Cyan::getTexture("helmet_diffuse"));
+    // m_droneMatl->bindTexture("normalMap", Cyan::getTexture("helmet_nm"));
+    // m_droneMatl->bindTexture("roughnessMap", Cyan::getTexture("helmet_roughness"));
+    // m_droneMatl->bindTexture("aoMap", Cyan::getTexture("helmet_ao"));
+    // m_droneMatl->bindTexture("envmap", m_envmap);
+    // m_droneMatl->bindBuffer("dirLightsData", helmetScene->m_dirLightsBuffer);
+    // m_droneMatl->bindBuffer("pointLightsData", helmetScene->m_pointLightsBuffer);
+    // m_droneMatl->set("hasAoMap", 1.f);
+    // m_droneMatl->set("hasNormalMap", 1.f);
+    // m_droneMatl->set("kDiffuse", 1.0f);
+    // m_droneMatl->set("kSpecular", 1.0f);
+    // m_droneMatl->set("hasRoughnessMap", 1.f);
+    // // debug view
+    // m_droneMatl->set("debugG", 0.f);
+    // m_droneMatl->set("debugF", 0.f);
+    // m_droneMatl->set("debugD", 0.f);
+    // m_droneMatl->set("disneyReparam", 1.f);
 
-    SceneNode* droneNode = helmetScene->m_root->find("RootNode (gltf orientation matrix)");
+    // SceneNode* droneNode = helmetScene->m_root->find("RootNode (gltf orientation matrix)");
 
     std::function<void(SceneNode*)> bindMaterial = [&](SceneNode* node) -> void {
         Cyan::MeshInstance* meshInstance = node->m_entity->m_meshInstance;
@@ -194,7 +193,7 @@ void PbrApp::initHelmetScene()
             bindMaterial(child);
         }
     };
-    bindMaterial(droneNode);
+    // bindMaterial(droneNode);
 
     // add lights into the scene
     SceneManager::createPointLight(helmetScene, glm::vec3(0.9, 0.95f, 0.76f), glm::vec3(0.0f, 0.0f, 1.5f), 1.f);
@@ -653,11 +652,11 @@ void PbrApp::render()
     m_terrainMatl->set("indirectSpecularSlider", m_indirectSpecularSlider);
     m_terrainMatl->set("wrap", m_wrap);
 
-    m_droneMatl->set("directDiffuseSlider", m_directDiffuseSlider);
-    m_droneMatl->set("directSpecularSlider", m_directSpecularSlider);
-    m_droneMatl->set("indirectDiffuseSlider", m_indirectDiffuseSlider);
-    m_droneMatl->set("indirectSpecularSlider", m_indirectSpecularSlider);
-    m_droneMatl->set("wrap", m_wrap);
+    // m_droneMatl->set("directDiffuseSlider", m_directDiffuseSlider);
+    // m_droneMatl->set("directSpecularSlider", m_directSpecularSlider);
+    // m_droneMatl->set("indirectDiffuseSlider", m_indirectDiffuseSlider);
+    // m_droneMatl->set("indirectSpecularSlider", m_indirectSpecularSlider);
+    // m_droneMatl->set("wrap", m_wrap);
 
     // update probe
     SceneManager::setLightProbe(m_scenes[m_currentScene], Cyan::getProbe(m_currentProbeIndex));

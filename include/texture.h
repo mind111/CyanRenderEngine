@@ -64,6 +64,7 @@ namespace Cyan
         Texture::Wrap m_s;
         Texture::Wrap m_t;
         Texture::Wrap m_r;
+        void*      m_data;
     };
 }
 
