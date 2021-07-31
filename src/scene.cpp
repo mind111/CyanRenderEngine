@@ -57,7 +57,6 @@ SceneNode* SceneManager::createSceneNode(Scene* scene, SceneNode* parent, Entity
     }
     if (!entity->m_hasTransform) {
         entity->m_instanceTransform = Transform();
-        entity->m_worldTransformMatrix = entity->m_instanceTransform.toMatrix();
     }
     // non-root node
     if (parent) {

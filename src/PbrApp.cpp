@@ -117,9 +117,10 @@ void PbrApp::initHelmetScene()
     Entity* terrainEntity = SceneManager::createEntity(helmetScene, "Terrain", "terrain_mesh", terrainTransform, true);
     SceneManager::createSceneNode(helmetScene, nullptr, terrainEntity);
 
-    m_terrainMatl->bindTexture("diffuseMaps[0]", Cyan::getTexture("brick_albedo"));
-    m_terrainMatl->bindTexture("normalMap", Cyan::getTexture("brick_nm"));
-    m_terrainMatl->bindTexture("aoMap", Cyan::getTexture("brick_ao"));
+    m_terrainMatl->bindTexture("diffuseMaps[0]", Cyan::getTexture("grass_albedo"));
+    m_terrainMatl->bindTexture("normalMap", Cyan::getTexture("grass_normal"));
+    m_terrainMatl->bindTexture("aoMap", Cyan::getTexture("grass_occlusion"));
+    m_terrainMatl->bindTexture("roughnessMap", Cyan::getTexture("grass_roughness"));
     m_terrainMatl->bindTexture("envmap", m_envmap);
     m_terrainMatl->bindBuffer("dirLightsData", helmetScene->m_dirLightsBuffer);
     m_terrainMatl->bindBuffer("pointLightsData", helmetScene->m_pointLightsBuffer);
@@ -127,9 +128,8 @@ void PbrApp::initHelmetScene()
     m_terrainMatl->set("hasNormalMap", 1.f);
     m_terrainMatl->set("kDiffuse", 1.0f);
     m_terrainMatl->set("kSpecular", 1.0f);
-    m_terrainMatl->set("hasRoughnessMap", 0.f);
-    m_terrainMatl->set("uniformRoughness", 0.2f);
-    m_terrainMatl->set("uniformMetallic", 0.0f);
+    m_terrainMatl->set("hasRoughnessMap", 1.f);
+    m_terrainMatl->set("hasMetallicRoughnessMap", 0.f);
     // debug view
     m_terrainMatl->set("debugG", 0.f);
     m_terrainMatl->set("debugF", 0.f);
@@ -143,7 +143,7 @@ void PbrApp::initHelmetScene()
     // TODO: create a .cyanmatl file for definine materials?
     m_helmetMatl->bindTexture("diffuseMaps[0]", Cyan::getTexture("helmet_diffuse"));
     m_helmetMatl->bindTexture("normalMap", Cyan::getTexture("helmet_nm"));
-    m_helmetMatl->bindTexture("roughnessMap", Cyan::getTexture("helmet_roughness"));
+    m_helmetMatl->bindTexture("metallicRoughnessMap", Cyan::getTexture("helmet_roughness"));
     m_helmetMatl->bindTexture("aoMap", Cyan::getTexture("helmet_ao"));
     m_helmetMatl->bindTexture("envmap", m_envmap);
     m_helmetMatl->bindBuffer("dirLightsData", helmetScene->m_dirLightsBuffer);
@@ -152,48 +152,14 @@ void PbrApp::initHelmetScene()
     m_helmetMatl->set("hasNormalMap", 1.f);
     m_helmetMatl->set("kDiffuse", 1.0f);
     m_helmetMatl->set("kSpecular", 1.0f);
-    m_helmetMatl->set("hasRoughnessMap", 1.f);
+    m_helmetMatl->set("hasRoughnessMap", 0.f);
+    m_helmetMatl->set("hasMetallicRoughnessMap", 1.f);
     // debug view
     m_helmetMatl->set("debugG", 0.f);
     m_helmetMatl->set("debugF", 0.f);
     m_helmetMatl->set("debugD", 0.f);
     m_helmetMatl->set("disneyReparam", 1.f);
     SceneManager::getEntity(m_scenes[0], "DamagedHelmet")->m_meshInstance->setMaterial(0, m_helmetMatl);
-
-    // m_droneMatl = Cyan::createMaterial(m_pbrShader)->createInstance();
-    // m_droneMatl->bindTexture("diffuseMaps[0]", Cyan::getTexture("helmet_diffuse"));
-    // m_droneMatl->bindTexture("normalMap", Cyan::getTexture("helmet_nm"));
-    // m_droneMatl->bindTexture("roughnessMap", Cyan::getTexture("helmet_roughness"));
-    // m_droneMatl->bindTexture("aoMap", Cyan::getTexture("helmet_ao"));
-    // m_droneMatl->bindTexture("envmap", m_envmap);
-    // m_droneMatl->bindBuffer("dirLightsData", helmetScene->m_dirLightsBuffer);
-    // m_droneMatl->bindBuffer("pointLightsData", helmetScene->m_pointLightsBuffer);
-    // m_droneMatl->set("hasAoMap", 1.f);
-    // m_droneMatl->set("hasNormalMap", 1.f);
-    // m_droneMatl->set("kDiffuse", 1.0f);
-    // m_droneMatl->set("kSpecular", 1.0f);
-    // m_droneMatl->set("hasRoughnessMap", 1.f);
-    // // debug view
-    // m_droneMatl->set("debugG", 0.f);
-    // m_droneMatl->set("debugF", 0.f);
-    // m_droneMatl->set("debugD", 0.f);
-    // m_droneMatl->set("disneyReparam", 1.f);
-
-    // SceneNode* droneNode = helmetScene->m_root->find("RootNode (gltf orientation matrix)");
-
-    std::function<void(SceneNode*)> bindMaterial = [&](SceneNode* node) -> void {
-        Cyan::MeshInstance* meshInstance = node->m_entity->m_meshInstance;
-        if (meshInstance) {
-            for (u32 sm = 0u; sm < meshInstance->m_mesh->m_subMeshes.size(); ++sm) {
-                meshInstance->setMaterial(sm, m_droneMatl);
-            }
-        }
-        for (auto& child : node->m_child)
-        {
-            bindMaterial(child);
-        }
-    };
-    // bindMaterial(droneNode);
 
     // add lights into the scene
     SceneManager::createPointLight(helmetScene, glm::vec3(0.9, 0.95f, 0.76f), glm::vec3(0.0f, 0.0f, 1.5f), 1.f);

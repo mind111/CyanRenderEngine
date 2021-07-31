@@ -5,6 +5,7 @@
 #include <map>
 #include <algorithm>
 
+#include "stb_image.h"
 #include "tiny_gltf.h"
 #include "assimp/Importer.hpp"
 #include "assimp/scene.h"
@@ -39,7 +40,8 @@ public:
 
         Texture* texture = nullptr;
         if (index > -1) {
-            auto image = model.images[index];
+            auto gltfTexture = model.textures[index];
+            auto image = model.images[gltfTexture.source];
             u32 sizeInBytes = image.image.size();
             Cyan::TextureSpec spec = { };
             spec.m_type = Texture::Type::TEX_2D;
@@ -123,7 +125,8 @@ public:
                 localTransform.m_scale = glm::vec3(node.scale[0], node.scale[1], node.scale[2]);
             }
             if (!node.rotation.empty()) {
-                localTransform.m_qRot = glm::quat(node.rotation[0], node.rotation[1], node.rotation[2], node.rotation[3]);
+                // glm quaternion constructor (w, x, y, z) while gltf (x, y, z, w)
+                localTransform.m_qRot = glm::quat(node.rotation[3], node.rotation[0], node.rotation[1], node.rotation[2]);
             }
         }
 
@@ -183,8 +186,7 @@ public:
                     mesh->m_matls[sm]->set("kDiffuse", 1.0f);
                     mesh->m_matls[sm]->set("kSpecular", 1.0f);
                     mesh->m_matls[sm]->set("hasRoughnessMap", 0.f);
-                    mesh->m_matls[sm]->set("uniformRoughness", 0.2f);
-                    mesh->m_matls[sm]->set("uniformMetallic", 0.0f);
+                    mesh->m_matls[sm]->set("hasMetallicRoughnessMap", 1.f);
                     mesh->m_matls[sm]->set("directDiffuseSlider", 1.0f);
                     mesh->m_matls[sm]->set("directSpecularSlider", 1.0f);
                     mesh->m_matls[sm]->set("indirectDiffuseSlider", 1.0f);
@@ -272,6 +274,12 @@ public:
                     void* srcDataAddress = reinterpret_cast<void*>(srcStart + v * bufferView.byteStride);
                     void* dstDataAddress = reinterpret_cast<void*>(dstStart + v * strideInBytes); 
                     memcpy(dstDataAddress, srcDataAddress, sizeToCopy);
+                    // TODO: Do this in a not so hacky way 
+                    // flip the y-component of texcoord
+                    if (entry.name.find("TEXCOORD") == 0) {
+                        float* data = reinterpret_cast<float*>(dstDataAddress);
+                        data[1] = 1.f - data[1];
+                    }
                     totalBytes += sizeToCopy;
                 }
                 // FIXME: type is hard-coded fo float for now
@@ -315,19 +323,17 @@ public:
                 subMesh->m_vertexArray->m_numIndices = numIndices;
                 delete[] indexDataBuffer;
             }
-            // FIXME: load material for current submesh
-            // material
-            tinygltf::Material gltfMaterial = model.materials[primitive.material];
             mesh->m_subMeshes.push_back(subMesh);
         } // primitive (submesh)
         // FIXME: This is not correct
-        mesh->m_normalization = Cyan::Toolkit::computeMeshNormalization(mesh);
+        // mesh->m_normalization = Cyan::Toolkit::computeMeshNormalization(mesh);
+        mesh->m_normalization = glm::scale(glm::mat4(1.f), glm::vec3(0.05f, 0.05f, 0.05f));
         return mesh;
     }
 
     void loadGltfTextures(tinygltf::Model& model) {
         using Cyan::Texture;
-        for (u32 t = 0u; t < model.images.size(); ++t) {
+        for (u32 t = 0u; t < model.textures.size(); ++t) {
             loadGltfTexture(model, t);
         }
     }

@@ -25,6 +25,7 @@ uniform int activeNumEmission;
 uniform float hasAoMap;
 uniform float hasNormalMap;
 uniform float hasRoughnessMap;
+uniform float hasMetallicRoughnessMap;
 uniform float uniformRoughness;
 uniform float uniformMetallic;
 uniform int numPointLights; //non-material
@@ -34,6 +35,7 @@ uniform sampler2D diffuseMaps[6];
 uniform sampler2D emissionMaps[2];
 uniform sampler2D normalMap;
 uniform sampler2D roughnessMap;
+uniform sampler2D metallicRoughnessMap;
 uniform sampler2D aoMap;
 uniform samplerCube envmap;             //non-material
 uniform samplerCube irradianceDiffuse;  //non-material
@@ -400,13 +402,16 @@ void main()
     albedo.rgb = vec3(pow(albedo.r, 2.2f), pow(albedo.g, 2.2f), pow(albedo.b, 2.2f));
     // According to gltf-2.0 spec, metal is sampled from b, roughness is sampled from g
     float roughness, metallic;
-    if (hasRoughnessMap > 0.f)
+    if (hasMetallicRoughnessMap > 0.f)
     {
-        roughness = texture(roughnessMap, uv).g;
+        roughness = texture(metallicRoughnessMap, uv).g;
         roughness = roughness * roughness;
-        metallic = texture(roughnessMap, uv).b; 
-    }
-    else
+        metallic = texture(metallicRoughnessMap, uv).b; 
+    } else if (hasRoughnessMap > 0.f) {
+        roughness = texture(roughnessMap, uv).r;
+        roughness = roughness * roughness;
+        metallic = 0.0f;
+    } else
     {
         roughness = uniformRoughness;
         metallic = uniformMetallic;

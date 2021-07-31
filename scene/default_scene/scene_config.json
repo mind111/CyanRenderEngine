@@ -63,30 +63,30 @@
         },
 
         {
-            "name": "brick_albedo",
-            "path": "asset/brick_surface/textures/albedo.jpg",
+            "name": "grass_albedo",
+            "path": "asset/grass_wild/albedo.jpg",
             "numMips": 11,
             "dynamic_range": "ldr"
         },
 
         {
-            "name": "brick_ao",
-            "path": "asset/brick_surface/textures/ao.jpg",
+            "name": "grass_occlusion",
+            "path": "asset/grass_wild/occlusion.jpg",
             "numMips": 11,
             "dynamic_range": "ldr"
         },
 
         {
-            "name": "brick_roughness",
-            "path": "asset/brick_surface/textures/roughness.jpg",
+            "name": "grass_roughness",
+            "path": "asset/grass_wild/roughness.jpg",
             "numMips": 11,
             "dynamic_range": "ldr"
 
         },
 
         {
-            "name": "brick_nm",
-            "path": "asset/brick_surface/textures/normal.jpg",
+            "name": "grass_normal",
+            "path": "asset/grass_wild/normal.jpg",
             "numMips": 11,
             "dynamic_range": "ldr"
         }

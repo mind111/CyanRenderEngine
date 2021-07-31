@@ -19,8 +19,8 @@ struct Transform
     Transform()
     {
         m_translate = glm::vec3(0.f);    
-        // unit quaternion
-        m_qRot = glm::quat(1.f, glm::vec3(0.f));
+        // a quaternion with a rotation of 0 degree
+        m_qRot = glm::quat(1.f, glm::vec3(0.f, 0.f, 0.f));
         m_scale = glm::vec3(1.f);
     }
 
@@ -49,9 +49,9 @@ struct Transform
         // clear translation
         mat[3] = glm::vec4(0.f, 0.f, 0.f, 1.f);
         // clear scale
-        mat[0][0] *= 1.f / m_scale.x;
-        mat[1][1] *= 1.f / m_scale.y;
-        mat[2][2] *= 1.f / m_scale.z;
+        mat[0] *= 1.f / m_scale.x;
+        mat[1] *= 1.f / m_scale.y;
+        mat[2] *= 1.f / m_scale.z;
         m_qRot = glm::toQuat(mat);
     }
 

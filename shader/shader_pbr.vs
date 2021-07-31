@@ -4,7 +4,10 @@
 layout (location = 0) in vec3 vertexPos;
 layout (location = 1) in vec3 vertexNormal;
 layout (location = 2) in vec4 vertexTangent;
-layout (location = 3) in vec2 textureUv;
+layout (location = 3) in vec2 textureUv_0;
+layout (location = 4) in vec2 textureUv_1;
+layout (location = 5) in vec2 textureUv_2;
+layout (location = 6) in vec2 textureUv_3;
 
 out vec3 n;
 out vec3 t;
@@ -27,5 +30,5 @@ void main() {
     // Transform tangents to camera space
     t = (s_view * s_model * vec4(vt, 0.f)).xyz;
     t = normalize(t);
-    uv = textureUv;
+    uv = textureUv_0;
 }

@@ -24,6 +24,7 @@
         * add support for adding entities via UI.
         * add support for saving the scene settings (serialization....?).
         * look into how to reduce load time (loading mesh, loading textures etc).
+        * reduce memory foot print, look into why it's using so much memory
         * get rid of heap memory usage, no more "new" in the code base.
         * new project structure..? static lib, dll, and driver app ?
         * study about resource management.

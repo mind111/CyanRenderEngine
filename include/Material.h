@@ -90,3 +90,16 @@ struct MaterialVisualizer
 {
 
 };
+
+// TODO: Think about this way of doing material
+class MaterialInterface {
+    virtual void create();
+    virtual void bind();
+};
+
+class PbrMaterial : public MaterialInterface {
+    Cyan::Texture* m_albedo;
+    Cyan::Texture* m_normal;
+    Cyan::Texture* m_metallicRoughness;
+    Cyan::Texture* m_occlusion;
+};
