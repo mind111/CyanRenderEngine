@@ -13,9 +13,6 @@
 #include "Entity.h"
 #include "Geometry.h"
 
-class aiMesh;
-class Renderer;
-
 extern float quadVerts[24];
 
 namespace Cyan
@@ -33,6 +30,9 @@ namespace Cyan
     {
         std::vector<DrawCall> m_renderQueue;
     };
+    
+    // foward declarations
+    struct RenderTarget;
 
     class Renderer 
     {
@@ -56,6 +56,11 @@ namespace Cyan
         void renderFrame();
         void endFrame();
 
+        struct BloomSurface
+        {
+            RenderTarget* m_renderTarget;
+            Texture* m_pingPongColorBuffers[2];
+        };
 
         Frame* m_frame;
 
@@ -70,7 +75,6 @@ namespace Cyan
         Shader* m_blitShader;
         Shader* m_bloomPreprocessShader;
         MaterialInstance* m_bloomPreprocessMatl;
-        Shader* m_bloomShader;
         Shader* m_gaussianBlurShader;
         MaterialInstance* m_gaussianBlurMatl;
         MaterialInstance* m_blitMaterial;
@@ -98,15 +102,16 @@ namespace Cyan
         Texture* m_msaaColorBuffer;
         RenderTarget* m_msaaRenderTarget;
 
-        struct BloomSurface
-        {
-            RenderTarget* m_renderTarget;
-            Texture* m_pingPongColorBuffers[2];
-        };
-        BloomSurface m_bloomSurfaces[1];
+        RenderTarget* m_bloomPrefilterRT;           // preprocess surface
+        BloomSurface m_bloomDsSurfaces[5];          // downsample
+        BloomSurface m_bloomUsSurfaces[5];          // upsample
 
         // post-process
-        void beginBloom(BloomSurface& bloomBuffer);
+        void beginBloom();
+        void downSample(RenderTarget* src, u32 srcIdx, RenderTarget* dst, u32 dstIdx);
+        void upSample(RenderTarget* src, u32 srcIdx, RenderTarget* dst, u32 dstIdx, RenderTarget* blend, u32 blendIdx);
+        void gaussianBlur(BloomSurface surface);
+        void bloom();
 
         // post processing params
         bool m_bloom;

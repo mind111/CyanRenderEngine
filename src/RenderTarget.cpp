@@ -22,6 +22,7 @@ namespace Cyan
                 break;
         }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        m_colorBuffers.push_back(_texture);
     }
 
     void RenderTarget::setDrawBuffer(u32 _bufferIdx)

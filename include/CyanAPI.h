@@ -62,9 +62,7 @@
             with their diffuse BRDF
         * add support for 32-bits precision hdr.
         * post-processing
-            * bloom
             * auto-exposure  
-            * ue4 tonemapper
         * study subsurface scattering
     Optimization:
         * implement a uniform cache to avoid calling glUniform() on uniforms that has not changed

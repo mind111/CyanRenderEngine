@@ -51,6 +51,7 @@ namespace Cyan
         MaterialInstance* createInstance();
 
         Shader* m_shader;
+        std::string m_name;
         std::map<UniformHandle, DataOffset> m_dataOffsetMap;
         std::vector<Uniform*> m_uniforms;
         Uniform* m_samplers[CYAN_MAX_NUM_SAMPLERS];

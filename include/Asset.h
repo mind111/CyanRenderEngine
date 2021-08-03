@@ -321,13 +321,14 @@ public:
                 glBindVertexArray(0);
                 glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
                 subMesh->m_vertexArray->m_numIndices = numIndices;
+                delete[] vertexDataBuffer;
                 delete[] indexDataBuffer;
             }
             mesh->m_subMeshes.push_back(subMesh);
         } // primitive (submesh)
-        // FIXME: This is not correct
+        // TODO: This is not correct
         // mesh->m_normalization = Cyan::Toolkit::computeMeshNormalization(mesh);
-        mesh->m_normalization = glm::scale(glm::mat4(1.f), glm::vec3(0.05f, 0.05f, 0.05f));
+        mesh->m_normalization = glm::scale(glm::mat4(1.f), glm::vec3(0.01f, 0.01f, 0.01f));
         return mesh;
     }
 

@@ -189,7 +189,7 @@ namespace Cyan
             _file,
             aiProcess_CalcTangentSpace | aiProcess_GenSmoothNormals
         );
-
+        float** vertexDataPtrs = reinterpret_cast<float**>(_alloca(sizeof(float*) * scene->mNumMeshes));
         for (u32 sm = 0u; sm < scene->mNumMeshes; sm++) 
         {
             Mesh::SubMesh* subMesh = new Mesh::SubMesh;
@@ -207,7 +207,9 @@ namespace Cyan
             strideInBytes += (attribFlag & VertexAttribFlag::kTexcoord) > 0 ? 2 * sizeof(f32) : 0;
 
             u32 numVerts = (u32)scene->mMeshes[sm]->mNumVertices;
-            float* data = new float[strideInBytes * numVerts];
+            vertexDataPtrs[sm] = new float[strideInBytes * numVerts];
+            float* data = vertexDataPtrs[sm];
+
             subMesh->m_numVerts = numVerts;
 
             for (u32 v = 0u; v < numVerts; v++)
@@ -274,6 +276,9 @@ namespace Cyan
         // Store the xform for normalizing object space mesh coordinates
         mesh->m_normalization = Toolkit::computeMeshNormalization(mesh);
         addMesh(mesh);
+        for (u32 sm = 0u; sm < scene->mNumMeshes; ++sm) {
+            delete[] vertexDataPtrs[sm];
+        }
         return mesh;
     }
 
@@ -714,7 +719,7 @@ namespace Cyan
             glGenerateTextureMipmap(texture->m_id);
         }
         s_textures.push_back(texture);
-        delete[] pixels;
+        stbi_image_free(pixels);
         return texture;
     }
 
@@ -752,7 +757,7 @@ namespace Cyan
             glGenerateTextureMipmap(texture->m_id);
         }
         s_textures.push_back(texture);
-        delete[] pixels;
+        stbi_image_free(pixels);
         return texture;
     }
 
@@ -1458,6 +1463,7 @@ namespace Cyan
             return outputTexture;
         }
 
+        // TODO: This call uses a lot of memory, investigate why
         LightProbe createLightProbe(const char* name, const char* file, bool hdr)
         {
             LightProbe probe = { };

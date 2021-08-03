@@ -64,7 +64,7 @@
 
         {
             "name": "grass_albedo",
-            "path": "asset/grass_wild/albedo.jpg",
+            "path": "asset/grass_wild//albedo.jpg",
             "numMips": 11,
             "dynamic_range": "ldr"
         },

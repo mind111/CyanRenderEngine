@@ -107,8 +107,8 @@ void PbrApp::initHelmetScene()
 
     // TODO:
     Cyan::Mesh* uvSphereMesh = Cyan::getMesh("sphere_mesh");
-    Entity* envMapEntity = SceneManager::createEntity(helmetScene, "Envmap", "cubemapMesh", Transform(), false);
-    envMapEntity->m_meshInstance->setMaterial(0, m_envmapMatl);
+    // Entity* envMapEntity = SceneManager::createEntity(helmetScene, "Envmap", "cubemapMesh", Transform(), false);
+    // envMapEntity->m_meshInstance->setMaterial(0, m_envmapMatl);
 
     Cyan::Mesh* terreinMesh = Cyan::AssetGen::createTerrain(40.f, 40.f);
     m_terrainMatl = Cyan::createMaterial(m_pbrShader)->createInstance();
@@ -117,19 +117,35 @@ void PbrApp::initHelmetScene()
     Entity* terrainEntity = SceneManager::createEntity(helmetScene, "Terrain", "terrain_mesh", terrainTransform, true);
     SceneManager::createSceneNode(helmetScene, nullptr, terrainEntity);
 
-    m_terrainMatl->bindTexture("diffuseMaps[0]", Cyan::getTexture("grass_albedo"));
-    m_terrainMatl->bindTexture("normalMap", Cyan::getTexture("grass_normal"));
-    m_terrainMatl->bindTexture("aoMap", Cyan::getTexture("grass_occlusion"));
-    m_terrainMatl->bindTexture("roughnessMap", Cyan::getTexture("grass_roughness"));
+    // TODO: use this sphere to debug bloom
+    Transform sphereTransform = Transform();
+    sphereTransform.m_scale = glm::vec3(0.5, 0.5f, 0.5f);
+    sphereTransform.m_translate = glm::vec3(-1.0f, 0.f, -1.f);
+    // Entity* sphereEntity = SceneManager::createEntity(helmetScene, "BloomSphere", "sphere_mesh", sphereTransform, true);
+    // SceneManager::createSceneNode(helmetScene, nullptr, sphereEntity);
+    // Cyan::MaterialInstance* sphereMatl = Cyan::createMaterial(m_pbrShader)->createInstance();
+    // Cyan::Texture* sphereAlbedo = Cyan::Toolkit::createFlatColorTexture("sphere_albedo", 1024u, 1024u, glm::vec4(0.9f, 0.5f, 0.5f, 1.f));
+    // sphereMatl->bindTexture("diffuseMaps[0]", sphereAlbedo);
+    // sphereMatl->set("hasAoMap", 0.f);
+    // sphereMatl->set("hasNormalMap", 0.f);
+
+    // m_terrainMatl->bindTexture("diffuseMaps[0]", Cyan::getTexture("grass_albedo"));
+    // m_terrainMatl->bindTexture("normalMap", Cyan::getTexture("grass_normal"));
+    // m_terrainMatl->bindTexture("aoMap", Cyan::getTexture("grass_occlusion"));
+    // m_terrainMatl->bindTexture("roughnessMap", Cyan::getTexture("grass_roughness"));
+    Cyan::Texture* terrainAlbedo = Cyan::Toolkit::createFlatColorTexture("terrain_albedo", 1024u, 1024u, glm::vec4(0.9f, 0.9f, 0.6f, 1.f));
+    m_terrainMatl->bindTexture("diffuseMaps[0]", terrainAlbedo);
     m_terrainMatl->bindTexture("envmap", m_envmap);
     m_terrainMatl->bindBuffer("dirLightsData", helmetScene->m_dirLightsBuffer);
     m_terrainMatl->bindBuffer("pointLightsData", helmetScene->m_pointLightsBuffer);
-    m_terrainMatl->set("hasAoMap", 1.f);
-    m_terrainMatl->set("hasNormalMap", 1.f);
+    m_terrainMatl->set("hasAoMap", 0.f);
+    m_terrainMatl->set("hasNormalMap", 0.f);
     m_terrainMatl->set("kDiffuse", 1.0f);
     m_terrainMatl->set("kSpecular", 1.0f);
-    m_terrainMatl->set("hasRoughnessMap", 1.f);
+    m_terrainMatl->set("hasRoughnessMap", 0.f);
     m_terrainMatl->set("hasMetallicRoughnessMap", 0.f);
+    m_terrainMatl->set("uniformRoughness", 0.2f);
+    m_terrainMatl->set("uniformMetallic", 0.1f);
     // debug view
     m_terrainMatl->set("debugG", 0.f);
     m_terrainMatl->set("debugF", 0.f);
@@ -323,7 +339,7 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight)
     m_bufferVis = {};
     m_bufferVis.init(m_helmetMatl->m_uniformBuffer, glm::vec2(-0.6f, 0.8f), 0.8f, 0.05f);
     // clear color
-    Cyan::getCurrentGfxCtx()->setClearColor(glm::vec4(0.2f, 0.2f, 0.2f, 1.f));
+    Cyan::getCurrentGfxCtx()->setClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.f));
 
     // font
     ImGuiIO& io = ImGui::GetIO();

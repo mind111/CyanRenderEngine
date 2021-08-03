@@ -17,6 +17,7 @@
 #include "Material.h"
 #include "MathUtils.h"
 
+
 bool fileWasModified(const char* fileName, FILETIME* writeTime)
 {
     FILETIME lastWriteTime;
@@ -76,22 +77,39 @@ namespace Cyan
         m_defaultRenderTarget = createRenderTarget(m_windowWidth, m_windowHeight);
         m_defaultRenderTarget->attachColorBuffer(m_defaultColorBuffer);
 
+        m_bloomPrefilterRT = createRenderTarget(m_windowWidth, m_windowHeight);
+        m_bloomPrefilterRT->attachColorBuffer(createTextureHDR("bloom-prefilter-texture", spec));
+
         // bloom setup
         m_numBloomTextures = 0u;
         auto initBloomBuffers = [&](u32 index, TextureSpec& spec) {
-            m_bloomSurfaces[index].m_renderTarget = createRenderTarget(spec.m_width, spec.m_height);
+            m_bloomDsSurfaces[index].m_renderTarget = createRenderTarget(spec.m_width, spec.m_height);
             char buff[64];
             sprintf_s(buff, "bloom-texture-%u", m_numBloomTextures++);
-            m_bloomSurfaces[index].m_pingPongColorBuffers[0] = createTextureHDR(buff, spec);
+            m_bloomDsSurfaces[index].m_pingPongColorBuffers[0] = createTextureHDR(buff, spec);
             sprintf_s(buff, "bloom-texture-%u", m_numBloomTextures++);
-            m_bloomSurfaces[index].m_pingPongColorBuffers[1] = createTextureHDR(buff, spec);
-            m_bloomSurfaces[index].m_renderTarget->attachColorBuffer(m_bloomSurfaces[index].m_pingPongColorBuffers[0]);
-            m_bloomSurfaces[index].m_renderTarget->attachColorBuffer(m_bloomSurfaces[index].m_pingPongColorBuffers[1]);
+            m_bloomDsSurfaces[index].m_pingPongColorBuffers[1] = createTextureHDR(buff, spec);
+            m_bloomDsSurfaces[index].m_renderTarget->attachColorBuffer(m_bloomDsSurfaces[index].m_pingPongColorBuffers[0]);
+            m_bloomDsSurfaces[index].m_renderTarget->attachColorBuffer(m_bloomDsSurfaces[index].m_pingPongColorBuffers[1]);
+
+            m_bloomUsSurfaces[index].m_renderTarget = createRenderTarget(spec.m_width, spec.m_height);
+            sprintf_s(buff, "bloom-texture-%u", m_numBloomTextures++);
+            m_bloomUsSurfaces[index].m_pingPongColorBuffers[0] = createTextureHDR(buff, spec);
+            sprintf_s(buff, "bloom-texture-%u", m_numBloomTextures++);
+            m_bloomUsSurfaces[index].m_pingPongColorBuffers[1] = createTextureHDR(buff, spec);
+            m_bloomUsSurfaces[index].m_renderTarget->attachColorBuffer(m_bloomUsSurfaces[index].m_pingPongColorBuffers[0]);
+            m_bloomUsSurfaces[index].m_renderTarget->attachColorBuffer(m_bloomUsSurfaces[index].m_pingPongColorBuffers[1]);
+            spec.m_width /= 2;
+            spec.m_height /= 2;
         };
 
-        spec.m_width /= 2u;
-        spec.m_height /= 2u;
-        initBloomBuffers(0u, spec);
+        spec.m_width /= 2;
+        spec.m_height /= 2;
+        initBloomBuffers(0u, spec); // half res
+        initBloomBuffers(1u, spec);
+        initBloomBuffers(2u, spec);
+        initBloomBuffers(3u, spec);
+        initBloomBuffers(4u, spec);
     }
 
     void Renderer::initShaders()
@@ -311,76 +329,156 @@ namespace Cyan
         ctx->clear();
     }
 
-    void Renderer::beginBloom(BloomSurface& bloomBuffer)
+    void Renderer::beginBloom()
     {
         auto ctx = Cyan::getCurrentGfxCtx();
         // bloom preprocess pass (blit the render results onto a smaller texture)
-        ctx->setRenderTarget(bloomBuffer.m_renderTarget, 0u);
-        ctx->clear();
+        RenderTarget* renderTarget = m_bloomPrefilterRT;
+        Cyan::Texture* srcImage = nullptr;
+        if (m_bSuperSampleAA) {
+            srcImage = m_superSamplingColorBuffer;
+        } else {
+            srcImage = m_defaultColorBuffer;
+        }
+        ctx->setDepthControl(Cyan::DepthControl::kDisable);
+        ctx->setRenderTarget(renderTarget, 0u);
         ctx->setShader(m_bloomPreprocessShader);
-        ctx->setViewport(0u, 0u, bloomBuffer.m_pingPongColorBuffers[0]->m_width, bloomBuffer.m_pingPongColorBuffers[0]->m_height);
-        if (m_bSuperSampleAA)
-        {
-            m_bloomPreprocessMatl->bindTexture("quadSampler", m_superSamplingColorBuffer);
-        }
-        else
-        {
-            m_bloomPreprocessMatl->bindTexture("quadSampler", m_defaultColorBuffer);
-        }
+        ctx->setViewport(0u, 0u, renderTarget->m_width, renderTarget->m_height);
+        m_bloomPreprocessMatl->bindTexture("quadSampler", srcImage);
         m_bloomPreprocessMatl->bind();
         ctx->setVertexArray(m_blitQuad->m_va);
         ctx->setPrimitiveType(PrimitiveType::TriangleList);
         ctx->drawIndexAuto(6u);
+        ctx->setDepthControl(Cyan::DepthControl::kEnable);
         glFinish();
     }
 
+    void Renderer::downSample(RenderTarget* src, u32 srcIdx, RenderTarget* dst, u32 dstIdx) {
+        Shader* downSampleShader = Cyan::createShader("DownSampleShader", "../../shader/shader_downsample.vs", "../../shader/shader_downsample.fs");
+        Cyan::MaterialInstance* matl = Cyan::createMaterial(downSampleShader)->createInstance();
+        auto ctx = Cyan::getCurrentGfxCtx();
+        ctx->setDepthControl(Cyan::DepthControl::kDisable);
+        ctx->setRenderTarget(dst, dstIdx);
+        ctx->setShader(downSampleShader);
+        ctx->setViewport(0u, 0u, dst->m_width, dst->m_height);
+        matl->bindTexture("srcImage", src->m_colorBuffers[srcIdx]);
+        matl->bind();
+        ctx->setVertexArray(m_blitQuad->m_va);
+        ctx->setPrimitiveType(PrimitiveType::TriangleList);
+        ctx->drawIndexAuto(6u);
+        ctx->setDepthControl(Cyan::DepthControl::kEnable);
+        glFinish();
+    }
+
+    void Renderer::gaussianBlur(BloomSurface surface) {
+        auto ctx = Cyan::getCurrentGfxCtx();
+        ctx->setDepthControl(Cyan::DepthControl::kDisable);
+        ctx->setShader(m_gaussianBlurShader);
+        ctx->setRenderTarget(surface.m_renderTarget, 1u);
+        ctx->setViewport(0u, 0u, surface.m_renderTarget->m_width, surface.m_renderTarget->m_height);
+        // horizontal pass
+        m_gaussianBlurMatl->bindTexture("srcImage", surface.m_pingPongColorBuffers[0]);
+        m_gaussianBlurMatl->set("horizontal", 1.0f);
+        m_gaussianBlurMatl->bind();
+        ctx->setVertexArray(m_blitQuad->m_va);
+        ctx->setPrimitiveType(PrimitiveType::TriangleList);
+        ctx->drawIndexAuto(6u);
+        glFinish();
+        // vertical pass
+        ctx->setRenderTarget(surface.m_renderTarget, 0u);
+        m_gaussianBlurMatl->bindTexture("srcImage", surface.m_pingPongColorBuffers[1]);
+        m_gaussianBlurMatl->set("horizontal", 0.f);
+        m_gaussianBlurMatl->bind();
+        ctx->setVertexArray(m_blitQuad->m_va);
+        ctx->setPrimitiveType(PrimitiveType::TriangleList);
+        ctx->drawIndexAuto(6u);
+        ctx->setDepthControl(Cyan::DepthControl::kEnable);
+        glFinish();
+    }
+
+    void Renderer::upSample(RenderTarget* src, u32 srcIdx, RenderTarget* dst, u32 dstIdx, RenderTarget* blend, u32 blendIdx) {
+        Shader* upSampleShader = Cyan::createShader("UpSampleShader", "../../shader/shader_upsample.vs", "../../shader/shader_upsample.fs");
+        Cyan::MaterialInstance* matl = Cyan::createMaterial(upSampleShader)->createInstance();
+        auto ctx = Cyan::getCurrentGfxCtx();
+        ctx->setDepthControl(Cyan::DepthControl::kDisable);
+        ctx->setRenderTarget(dst, dstIdx);
+        ctx->setShader(upSampleShader);
+        ctx->setViewport(0u, 0u, dst->m_width, dst->m_height);
+        matl->bindTexture("srcImage", src->m_colorBuffers[srcIdx]);
+        matl->bindTexture("blendImage", blend->m_colorBuffers[blendIdx]);
+        matl->bind();
+        ctx->setVertexArray(m_blitQuad->m_va);
+        ctx->setPrimitiveType(PrimitiveType::TriangleList);
+        ctx->drawIndexAuto(6u);
+        ctx->setDepthControl(Cyan::DepthControl::kEnable);
+        glFinish();
+    }
+
+    void Renderer::bloom() {
+        /* 
+            TODO:
+            * Add a knee function to attenuate luminance
+            * Implement more advanced filters (right now both passes are using a simple box filter) when downsampling/upsampling, referring to a talk
+              at siggraph 2014 "Next gen post processing pipeline in Cod: Advanced Warfare" 
+            * Soft threshold
+            * How to combat temporal stability?
+        */
+
+        auto gaussianBlurTwice = [&](BloomSurface surface) {
+            for (u32 i = 0u; i < 2u; ++i) {
+                gaussianBlur(surface);
+            }
+        };
+
+        // preprocess pass
+        beginBloom();
+        // down sample pass
+        downSample(m_bloomPrefilterRT, 0, m_bloomDsSurfaces[0].m_renderTarget, 0);
+        gaussianBlurTwice(m_bloomDsSurfaces[0]);
+        downSample(m_bloomDsSurfaces[0].m_renderTarget, 0, m_bloomDsSurfaces[1].m_renderTarget, 0);
+        gaussianBlurTwice(m_bloomDsSurfaces[1]);
+        downSample(m_bloomDsSurfaces[1].m_renderTarget, 0, m_bloomDsSurfaces[2].m_renderTarget, 0);
+        gaussianBlurTwice(m_bloomDsSurfaces[2]);
+        downSample(m_bloomDsSurfaces[2].m_renderTarget, 0, m_bloomDsSurfaces[3].m_renderTarget, 0);
+        gaussianBlurTwice(m_bloomDsSurfaces[3]);
+        downSample(m_bloomDsSurfaces[3].m_renderTarget, 0, m_bloomDsSurfaces[4].m_renderTarget, 0);
+        gaussianBlurTwice(m_bloomDsSurfaces[4]);
+
+        // up sample and gather pass
+        upSample(m_bloomDsSurfaces[4].m_renderTarget, 0, m_bloomUsSurfaces[3].m_renderTarget, 0, m_bloomDsSurfaces[3].m_renderTarget, 0);
+        gaussianBlurTwice(m_bloomUsSurfaces[3]);
+        upSample(m_bloomUsSurfaces[3].m_renderTarget, 0, m_bloomUsSurfaces[2].m_renderTarget, 0, m_bloomDsSurfaces[2].m_renderTarget, 0);
+        gaussianBlurTwice(m_bloomUsSurfaces[2]);
+        upSample(m_bloomUsSurfaces[2].m_renderTarget, 0, m_bloomUsSurfaces[1].m_renderTarget, 0, m_bloomDsSurfaces[1].m_renderTarget, 0);
+        gaussianBlurTwice(m_bloomUsSurfaces[1]);
+        upSample(m_bloomUsSurfaces[1].m_renderTarget, 0, m_bloomUsSurfaces[0].m_renderTarget, 0, m_bloomDsSurfaces[0].m_renderTarget, 0);
+        gaussianBlurTwice(m_bloomUsSurfaces[0]);
+    }
+    
     void Renderer::endRender()
     {
         // post-processing pass
         m_blitMaterial->set("exposure", m_exposure);
-
         auto ctx = Cyan::getCurrentGfxCtx();
         // bloom
         if (m_bloom)
         {
             if (m_bSuperSampleAA)
             {
-                auto applyBloomPass = [&](BloomSurface& surface, u32 numIterations)
-                {
-                    for (u32 i = 0; i < 4u; ++i)
-                    {
-                        u32 dstBuffer = (i + 1u) % 2u;
-                        u32 srcBuffer = 1u - dstBuffer;
-                        ctx->setRenderTarget(surface.m_renderTarget, dstBuffer);
-                        ctx->setViewport(0u, 0u, surface.m_pingPongColorBuffers[0]->m_width, surface.m_pingPongColorBuffers[0]->m_height);
-                        ctx->setShader(m_gaussianBlurShader);
-                        // toggle between horizontal pass and vertical pass
-                        float horizontal = ((i % 2) == 0) ? 1.f : 0.f; 
-                        m_gaussianBlurMatl->set("horizontal", horizontal);
-                        m_gaussianBlurMatl->bindTexture("srcImage", surface.m_pingPongColorBuffers[srcBuffer]);
-                        m_gaussianBlurMatl->bind();
-                        ctx->setVertexArray(m_blitQuad->m_va);
-                        ctx->setPrimitiveType(PrimitiveType::TriangleList);
-                        ctx->drawIndexAuto(6u);
-                        glFinish();
-                    }
-                };
-
-                for (u32 i = 0u; i < ARRAY_COUNT(m_bloomSurfaces); ++i)
-                {
-                    beginBloom(m_bloomSurfaces[i]);
-                    applyBloomPass(m_bloomSurfaces[i], 2u * i);
-                }
+                bloom();
             }
         }
-
         // final blit to default frame buffer
         ctx->setRenderTarget(nullptr, 0u);
         ctx->setViewport(0u, 0u, m_windowWidth, m_windowHeight);
         ctx->setShader(m_blitShader);
         if (m_bloom)
         {
-            m_blitQuad->m_matl->bindTexture("bloomSampler", m_bloomSurfaces[0].m_pingPongColorBuffers[0]);
+            m_blitQuad->m_matl->bindTexture("bloomSampler_0", m_bloomUsSurfaces[0].m_pingPongColorBuffers[0]);
+            // m_blitQuad->m_matl->bindTexture("bloomSampler_1", m_bloomDsSurfaces[1].m_pingPongColorBuffers[0]);
+            // m_blitQuad->m_matl->bindTexture("bloomSampler_2", m_bloomDsSurfaces[2].m_pingPongColorBuffers[0]);
+            // m_blitQuad->m_matl->bindTexture("bloomSampler_3", m_bloomDsSurfaces[3].m_pingPongColorBuffers[0]);
+            // m_blitQuad->m_matl->bindTexture("bloomSampler_4", m_bloomDsSurfaces[4].m_pingPongColorBuffers[0]);
             m_blitQuad->m_matl->set("bloom", 1.f);
         }
         else
@@ -390,7 +488,6 @@ namespace Cyan
 
         if (m_bSuperSampleAA)
         {
-
             m_blitQuad->m_matl->bindTexture("quadSampler", m_superSamplingColorBuffer);
         }
         else

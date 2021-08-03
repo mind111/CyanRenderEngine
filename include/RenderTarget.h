@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include "glew.h"
 
 #include "Texture.h"
@@ -17,5 +19,6 @@ namespace Cyan
         u32 m_numColorBuffers;
         GLuint m_renderBuffer;
         GLuint m_frameBuffer;
+        std::vector<Cyan::Texture*> m_colorBuffers;
     };
 }

@@ -230,6 +230,7 @@ vec3 diffuseBrdf(vec3 baseColor)
     return baseColor / pi;
 }
 
+// TODO: debug this, the specular highlight is too high
 /*
     * microfacet specular brdf 
     * A brdf fr(i, o, n) 
