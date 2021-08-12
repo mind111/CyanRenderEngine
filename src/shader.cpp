@@ -61,6 +61,7 @@ Shader::Shader()
 
 void Shader::bind()
 {
+    // TODO: dynamically reload and rebuild shaders here
     glUseProgram(m_programId);
 }
 

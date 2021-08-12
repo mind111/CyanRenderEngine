@@ -453,6 +453,9 @@ namespace Cyan
         gaussianBlurTwice(m_bloomUsSurfaces[1]);
         upSample(m_bloomUsSurfaces[1].m_renderTarget, 0, m_bloomUsSurfaces[0].m_renderTarget, 0, m_bloomDsSurfaces[0].m_renderTarget, 0);
         gaussianBlurTwice(m_bloomUsSurfaces[0]);
+
+        // TODO: final upscale from half res to full res
+        // TODO: compensate the instensity lost during downsampling and upsampling 
     }
     
     void Renderer::endRender()

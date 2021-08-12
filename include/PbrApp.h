@@ -292,6 +292,7 @@ private:
     Cyan::MaterialInstance* m_helmetMatl;
     Cyan::MaterialInstance* m_sphereMatls[36];
     Cyan::MaterialInstance* m_envmapMatl;
+    Cyan::MaterialInstance* m_skyMatl;
     Cyan::MaterialInstance* m_blitMatl;
     Cyan::MaterialInstance* m_terrainMatl;
 
@@ -303,14 +304,19 @@ private:
     Shader* m_pbrShader;
     Shader* m_envmapShader;
     Shader* m_blitShader;
+    Shader* m_skyShader;
 
     /* Buffers */
     RegularBuffer* m_pointLightsBuffer;
     RegularBuffer* m_dirLightsBuffer;
 
+    // RenderTargets
+    Cyan::RenderTarget* m_backgroundRenderTarget;
+
     /* Textures */
     Cyan::Texture* m_rawEnvmap;
     Cyan::Texture* m_envmap;
+    Cyan::Texture* m_proceduralSky;
     // a probe that is infinitely distant
     LightProbe m_probe;
     std::vector<LightProbe> m_probes;

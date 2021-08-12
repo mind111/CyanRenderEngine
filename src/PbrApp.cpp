@@ -106,9 +106,11 @@ void PbrApp::initHelmetScene()
     helmetScene->mainCamera.projection = glm::perspective(glm::radians(helmetScene->mainCamera.fov), (float)(gEngine->getWindow().width) / gEngine->getWindow().height, helmetScene->mainCamera.n, helmetScene->mainCamera.f);
 
     // TODO:
-    Cyan::Mesh* uvSphereMesh = Cyan::getMesh("sphere_mesh");
-    // Entity* envMapEntity = SceneManager::createEntity(helmetScene, "Envmap", "cubemapMesh", Transform(), false);
+    // Cyan::Mesh* uvSphereMesh = Cyan::getMesh("sphere_mesh");
+    // Entity* envMapEntity = SceneManager::createEntity(helmetScene, "Envmap", "CubeMesh", Transform(), false);
     // envMapEntity->m_meshInstance->setMaterial(0, m_envmapMatl);
+    Entity* envMapEntity = SceneManager::createEntity(helmetScene, "Envmap", "CubeMesh", Transform(), false);
+    envMapEntity->m_meshInstance->setMaterial(0, m_skyMatl);
 
     Cyan::Mesh* terreinMesh = Cyan::AssetGen::createTerrain(40.f, 40.f);
     m_terrainMatl = Cyan::createMaterial(m_pbrShader)->createInstance();
@@ -129,11 +131,7 @@ void PbrApp::initHelmetScene()
     // sphereMatl->set("hasAoMap", 0.f);
     // sphereMatl->set("hasNormalMap", 0.f);
 
-    // m_terrainMatl->bindTexture("diffuseMaps[0]", Cyan::getTexture("grass_albedo"));
-    // m_terrainMatl->bindTexture("normalMap", Cyan::getTexture("grass_normal"));
-    // m_terrainMatl->bindTexture("aoMap", Cyan::getTexture("grass_occlusion"));
-    // m_terrainMatl->bindTexture("roughnessMap", Cyan::getTexture("grass_roughness"));
-    Cyan::Texture* terrainAlbedo = Cyan::Toolkit::createFlatColorTexture("terrain_albedo", 1024u, 1024u, glm::vec4(0.9f, 0.9f, 0.6f, 1.f));
+    Cyan::Texture* terrainAlbedo = Cyan::Toolkit::createFlatColorTexture("terrain_albedo", 1024u, 1024u, glm::vec4(0.65f, 0.30, 0.10, 1.f));
     m_terrainMatl->bindTexture("diffuseMaps[0]", terrainAlbedo);
     m_terrainMatl->bindTexture("envmap", m_envmap);
     m_terrainMatl->bindBuffer("dirLightsData", helmetScene->m_dirLightsBuffer);
@@ -156,7 +154,7 @@ void PbrApp::initHelmetScene()
     m_scenes.push_back(helmetScene);
 
     m_helmetMatl = Cyan::createMaterial(m_pbrShader)->createInstance();
-    // TODO: create a .cyanmatl file for definine materials?
+    // TODO: create a .cyanmatl file for defining materials?
     m_helmetMatl->bindTexture("diffuseMaps[0]", Cyan::getTexture("helmet_diffuse"));
     m_helmetMatl->bindTexture("normalMap", Cyan::getTexture("helmet_nm"));
     m_helmetMatl->bindTexture("metallicRoughnessMap", Cyan::getTexture("helmet_roughness"));
@@ -177,9 +175,30 @@ void PbrApp::initHelmetScene()
     m_helmetMatl->set("disneyReparam", 1.f);
     SceneManager::getEntity(m_scenes[0], "DamagedHelmet")->m_meshInstance->setMaterial(0, m_helmetMatl);
 
+    // Transform transform;
+    // transform.m_scale = glm::vec3(0.2, 0.2, 0.2);
+    // transform.m_translate = glm::vec3(-1.f, 0.f, 0.f);
+    // SceneNode* floorNode = SceneManager::createEntityAndNode(helmetScene, "Floor", "CubeMesh", transform, true, nullptr);
+    // Cyan::MaterialInstance* floorMatl = Cyan::createMaterial(m_pbrShader)->createInstance();
+    // Cyan::Texture* floorAlbedo = Cyan::Toolkit::createFlatColorTexture("floorAlbedo", 1024, 1024, glm::vec4(0.85f));
+    // floorMatl->bindTexture("diffuseMaps[0]", floorAlbedo);
+    // floorMatl->bindTexture("envmap", m_envmap);
+    // floorMatl->bindBuffer("dirLightsData", helmetScene->m_dirLightsBuffer);
+    // floorMatl->bindBuffer("pointLightsData", helmetScene->m_pointLightsBuffer);
+    // floorMatl->set("hasNormalMap", 0.f);
+    // floorMatl->set("hasRoughnessMap", 0.f);
+    // floorMatl->set("hasMetallicRoughnessMap", 0.f);
+    // floorMatl->set("uniformRoughness", 0.4f);
+    // floorMatl->set("uniformMetallic", 0.1f);
+    // floorMatl->set("debugG", 0.f);
+    // floorMatl->set("debugF", 0.f);
+    // floorMatl->set("debugD", 0.f);
+    // floorMatl->set("disneyReparam", 1.f);
+    // floorNode->m_entity->m_meshInstance->setMaterial(0, floorMatl);
+
     // add lights into the scene
-    SceneManager::createPointLight(helmetScene, glm::vec3(0.9, 0.95f, 0.76f), glm::vec3(0.0f, 0.0f, 1.5f), 1.f);
-    SceneManager::createPointLight(helmetScene, glm::vec3(0.6, 0.65f, 2.86f), glm::vec3(0.0f, 0.8f, -2.4f), 1.f);
+    SceneManager::createPointLight(helmetScene, glm::vec3(0.9, 0.95f, 0.76f), glm::vec3(0.0f, 0.0f, 1.5f), 2.f);
+    SceneManager::createPointLight(helmetScene, glm::vec3(0.6, 0.65f, 2.86f), glm::vec3(0.0f, 0.8f, -2.4f), 2.f);
     SceneManager::createDirectionalLight(helmetScene, glm::vec3(1.0), glm::normalize(glm::vec3(-1.0f, -0.5f, 5.f)), 1.f);
     SceneManager::createDirectionalLight(helmetScene, glm::vec3(1.0), glm::normalize(glm::vec3(-0.5f, -5.5f, -3.f)), 1.f);
     SceneManager::createDirectionalLight(helmetScene, glm::vec3(1.0), glm::normalize(glm::vec3(0.5f, -5.5f, -3.f)), 1.f);
@@ -203,7 +222,7 @@ void PbrApp::initSpheresScene()
     Scene* sphereScene = Cyan::createScene("spheres_scene", "../../scene/default_scene/scene_spheres.json");
     sphereScene->mainCamera.projection = glm::perspective(glm::radians(sphereScene->mainCamera.fov), (float)(gEngine->getWindow().width) / gEngine->getWindow().height, sphereScene->mainCamera.n, sphereScene->mainCamera.f);
 
-    Entity* envmapEntity = SceneManager::createEntity(sphereScene, "Envmap", "cubemapMesh", Transform(), false);
+    Entity* envmapEntity = SceneManager::createEntity(sphereScene, "Envmap", "CubeMesh", Transform(), false);
     envmapEntity->m_meshInstance->setMaterial(0, m_envmapMatl);
 
     // add lights into the scene
@@ -258,6 +277,7 @@ void PbrApp::initShaders()
 {
     m_pbrShader = Cyan::createShader("PbrShader", "../../shader/shader_pbr.vs" , "../../shader/shader_pbr.fs");
     m_envmapShader = Cyan::createShader("EnvMapShader", "../../shader/shader_envmap.vs", "../../shader/shader_envmap.fs");
+    m_skyShader = Cyan::createShader("SkyShader", "../../shader/shader_sky.vs", "../../shader/shader_sky.fs");
 }
 
 void PbrApp::initEnvMaps()
@@ -275,6 +295,7 @@ void PbrApp::initEnvMaps()
 
     m_envmapMatl = Cyan::createMaterial(m_envmapShader)->createInstance(); 
     m_envmapMatl->bindTexture("envmapSampler", m_envmap);
+    m_skyMatl = Cyan::createMaterial(m_skyShader)->createInstance();
     
     // this is necessary as we are setting z component of
     // the cubemap mesh to 1.f
@@ -383,21 +404,21 @@ void PbrApp::update()
 {
     gEngine->processInput();
     // helmet scene
-    Scene* scene = m_scenes[0];
-    float pointLightsRotSpeed = .5f; // in degree
-    float rotationSpeed = glm::radians(.5f);
-    glm::quat qRot = glm::quat(cos(rotationSpeed * .5f), sin(rotationSpeed * .5f) * glm::normalize(glm::vec3(0.f, 1.f, 1.f)));
-    m_centerNode->m_entity->m_instanceTransform.m_qRot *= qRot;
-    m_centerNode->update();
-    scene->pLights[0].position = scene->pLights[0].baseLight.m_entity->m_worldTransformMatrix[3]; 
+    // Scene* scene = m_scenes[0];
+    // float pointLightsRotSpeed = .5f; // in degree
+    // float rotationSpeed = glm::radians(.5f);
+    // glm::quat qRot = glm::quat(cos(rotationSpeed * .5f), sin(rotationSpeed * .5f) * glm::normalize(glm::vec3(0.f, 1.f, 1.f)));
+    // m_centerNode->m_entity->m_instanceTransform.m_qRot *= qRot;
+    // m_centerNode->update();
+    // scene->pLights[0].position = scene->pLights[0].baseLight.m_entity->m_worldTransformMatrix[3]; 
 
-    for (u32 i = 1; i < scene->pLights.size(); ++i)
-    {
-        glm::mat4 rotation = rotateAroundPoint(glm::vec3(0.f, 0.f, -1.5f), glm::vec3(0.f, 1.f, 0.f), pointLightsRotSpeed);
-        pointLightsRotSpeed *= -1.f;
-        scene->pLights[i].baseLight.m_entity->m_worldTransformMatrix = rotation * scene->pLights[i].baseLight.m_entity->m_worldTransformMatrix;
-        scene->pLights[i].position = scene->pLights[i].baseLight.m_entity->m_worldTransformMatrix[3]; 
-    }
+    // for (u32 i = 1; i < scene->pLights.size(); ++i)
+    // {
+    //     glm::mat4 rotation = rotateAroundPoint(glm::vec3(0.f, 0.f, -1.5f), glm::vec3(0.f, 1.f, 0.f), pointLightsRotSpeed);
+    //     pointLightsRotSpeed *= -1.f;
+    //     scene->pLights[i].baseLight.m_entity->m_worldTransformMatrix = rotation * scene->pLights[i].baseLight.m_entity->m_worldTransformMatrix;
+    //     scene->pLights[i].position = scene->pLights[i].baseLight.m_entity->m_worldTransformMatrix[3]; 
+    // }
 }
 
 void PbrApp::drawStatsWindow()

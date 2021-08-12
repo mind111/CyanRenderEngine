@@ -100,6 +100,7 @@ public:
     static void createPointLight(Scene* scene, glm::vec3 color, glm::vec3 position, float intensity);
     static SceneNode* createSceneNode(Scene* scene, SceneNode* parent, Entity* entity);
     static Entity* createEntity(Scene* scene, const char* entityName, const char* meshName, Transform transform, bool hasTransform);
+    static SceneNode* createEntityAndNode(Scene* scene, const char* entityName, const char* meshName, Transform transform, bool hasTransform, SceneNode* parent);
     static Entity* getEntity(Scene* scene, u32 id) 
     {
         return scene->entities[id];

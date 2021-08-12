@@ -92,9 +92,51 @@
         }
     ],
 
+    "materials": [
+        {
+            "name": "helmet_matl",
+            "albedo": "helmet_alebdo",
+            "normal": "helmet_nm",
+            "occlusion": "helmet_ao",
+            "metallicRoughness": "helmet_roughness",
+            "roughness": "",
+            "uniformRoughness": 0.2,
+            "uniformMetallic": 0.2,
+            "hasNormalMap": 0.0,
+            "hasRoughnessMap": 0.0,
+            "hasMetallicRoughnessMap": 0.0,
+            "kDiffuse": 1.0,
+            "kSpecular": 1.0,
+            "debugG": 0,
+            "debugF": 0,
+            "debugD": 0,
+            "disneyReparam": 1
+        },
+        {
+            "name": "cube_matl",
+            "albedo": "",
+            "normal": "",
+            "occlusion": "",
+            "metallicRoughness": "",
+            "roughness": "",
+            "uniformRoughness": 0.2,
+            "uniformMetallic": 0.2,
+            "hasNormalMap": 0.0,
+            "hasRoughnessMap": 0.0,
+            "hasMetallicRoughnessMap": 0.0,
+            "kDiffuse": 1.0,
+            "kSpecular": 1.0,
+            "debugG": 0,
+            "debugF": 0,
+            "debugD": 0,
+            "disneyReparam": 1
+        }
+    ],
+
     "entities": [
         {
             "mesh": "helmet_mesh",
+            "matls": [],
             "name": "DamagedHelmet",
             "xform": {
                 "translation": [0.0, 0.0, -1.5],

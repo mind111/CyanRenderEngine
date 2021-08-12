@@ -90,6 +90,12 @@ Entity* SceneManager::createEntity(Scene* scene, const char* entityName, const c
     return entity; 
 }
 
+SceneNode* SceneManager::createEntityAndNode(Scene* scene, const char* entityName, const char* meshName, Transform transform, bool hasTransform, SceneNode* parent) {
+    Entity* entity = SceneManager::createEntity(scene, entityName, meshName, transform, true);
+    SceneNode* node = SceneManager::createSceneNode(scene, parent, entity);
+    return node;
+}
+
 void SceneManager::createDirectionalLight(Scene* scene, glm::vec3 color, glm::vec3 direction, float intensity)
 {
     CYAN_ASSERT(scene->dLights.size() < Scene::kMaxNumDirLights, "Too many directional lights created.")

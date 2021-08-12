@@ -1169,10 +1169,10 @@ namespace Cyan
                 {0.f, -1.f, 0.f},   // Forward
                 {0.f, -1.f, 0.f},   // Back
             };
-            Mesh* cubeMesh = Cyan::getMesh("cubemapMesh");
+            Mesh* cubeMesh = Cyan::getMesh("CubeMesh");
             if (!cubeMesh)
             {
-                cubeMesh = Cyan::Toolkit::createCubeMesh("cubemapMesh");
+                cubeMesh = Cyan::Toolkit::createCubeMesh("CubeMesh");
             }
             // Cache viewport config
             glm::vec4 origViewport = s_gfxc->m_viewport;
@@ -1264,10 +1264,10 @@ namespace Cyan
                 {0.f, -1.f, 0.f},   // Back
             };
 
-            Mesh* cubeMesh = Cyan::getMesh("cubemapMesh");
+            Mesh* cubeMesh = Cyan::getMesh("CubeMesh");
             if (!cubeMesh)
             {
-                cubeMesh = Cyan::Toolkit::createCubeMesh("cubemapMesh");
+                cubeMesh = Cyan::Toolkit::createCubeMesh("CubeMesh");
             }
             // Cache viewport config
             glm::vec4 origViewport = s_gfxc->m_viewport;
@@ -1356,10 +1356,10 @@ namespace Cyan
                 {0.f, -1.f, 0.f},   // Forward
                 {0.f, -1.f, 0.f},   // Back
             };
-            Mesh* cubeMesh = Cyan::getMesh("cubemapMesh");
+            Mesh* cubeMesh = Cyan::getMesh("CubeMesh");
             if (!cubeMesh)
             {
-                cubeMesh = Cyan::Toolkit::createCubeMesh("cubemapMesh");
+                cubeMesh = Cyan::Toolkit::createCubeMesh("CubeMesh");
             }
             // Cache viewport config
             glm::vec4 origViewport = s_gfxc->m_viewport;
