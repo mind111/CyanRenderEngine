@@ -23,7 +23,13 @@ struct RegularBuffer
     u32         m_totalSize;
     u32         m_sizeToUpload;
     GLuint m_binding;
-    GLuint m_ssbo;            // Shader storage buffer object
+    GLuint m_ssbo;
+};
+
+struct ShaderFileInfo
+{
+    std::string m_path;
+    FILETIME m_lastWriteTime;
 };
 
 class Shader
@@ -34,6 +40,8 @@ public:
     
     void bind();
     void unbind();
+    void deleteProgram();
+
 
     void setUniform(Uniform* _uniform);
     void setUniform(Uniform* _uniform, i32 _value);
@@ -46,9 +54,16 @@ public:
 
     GLint getUniformLocation(const char* _name);
 
+    void buildFromSource(const char* vertSrc, const char* fragSrc);
+    void dynamicRebuild();
+    void getFileWriteTime(ShaderFileInfo& fileInfo);
+    bool fileHasChanged(ShaderFileInfo& fileInfo);
+
     std::map<const char*, int> m_uniformLocationCache;
 
     std::string m_name;
+    ShaderFileInfo m_vertSrcInfo;
+    ShaderFileInfo m_fragSrcInfo;
     GLuint m_programId;
 };
 

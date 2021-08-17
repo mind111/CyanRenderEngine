@@ -102,9 +102,10 @@ namespace Cyan
         Texture* m_msaaColorBuffer;
         RenderTarget* m_msaaRenderTarget;
 
-        RenderTarget* m_bloomPrefilterRT;           // preprocess surface
-        BloomSurface m_bloomDsSurfaces[5];          // downsample
-        BloomSurface m_bloomUsSurfaces[5];          // upsample
+        static const u32 kNumBloomDsPass = 7u;
+        RenderTarget* m_bloomPrefilterRT;                         // preprocess surface
+        BloomSurface m_bloomDsSurfaces[kNumBloomDsPass];          // downsample
+        BloomSurface m_bloomUsSurfaces[kNumBloomDsPass];          // upsample
 
         // post-process
         void beginBloom();

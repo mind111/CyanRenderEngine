@@ -22,17 +22,11 @@ struct Asset
 
 };
 
+// TODO: improve readability
+
 class AssetManager
 {
 public:
-
-    void interleaveVertexAttribute(float* dstBuffer, tinygltf::Buffer& srcBuffer, u32 numVertices)
-    {
-        for (u32 v = 0u; v < numVertices; ++v)
-        {
-
-        }
-    }
 
     // TODO: Fix this, the loaded textures are all black!!!
     Cyan::Texture* loadGltfTexture(tinygltf::Model& model, i32 index) {
@@ -95,8 +89,6 @@ public:
         return texture;
     }
 
-    // TODO: Some parts of the mesh is not visable
-    // TODO: Verify transform hierachy
     // TODO: Normalize mesh scale
     void loadGltfNode(Scene* scene, tinygltf::Model& model, tinygltf::Node* parent, 
                         SceneNode* parentSceneNode, tinygltf::Node& node, u32 numNodes) {

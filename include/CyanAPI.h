@@ -20,7 +20,6 @@
 
 /* TODO: 
     General:
-        * shader hot reloading
         * add support for selecting entities via UI.
         * add support for adding entities via UI.
         * add support for saving the scene settings (serialization....?).

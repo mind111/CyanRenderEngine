@@ -10,30 +10,44 @@ float hash(vec2 st) {
     return fract(sin(dot(st.xy, vec2(12.9898,78.233)))*43758.5453123);
 }
 
+// reference: http://www.iryoku.com/next-generation-post-processing-in-call-of-duty-advanced-warfare
+vec3 sampleCustom13TapFilter() {
+    vec2 uvOffset = 1.f / textureSize(srcImage, 0);
+    // handmade 13 blinear fetches filter
+    vec3 A = texture(srcImage, uv + vec2(-uvOffset.x,  uvOffset.y)).rgb; 
+    vec3 B = texture(srcImage, uv + vec2( uvOffset.x,  uvOffset.y)).rgb; 
+    vec3 C = texture(srcImage, uv + vec2(-uvOffset.x, -uvOffset.y)).rgb;
+    vec3 D = texture(srcImage, uv + vec2( uvOffset.x, -uvOffset.y)).rgb;
+
+    vec3 E = texture(srcImage, uv + vec2(-2.0 * uvOffset.x, 2.0 * uvOffset.y)).rgb;
+    vec3 F = texture(srcImage, uv + vec2( 0.0             , 2.0 * uvOffset.y)).rgb;
+    vec3 G = texture(srcImage, uv + vec2( 2.0 * uvOffset.x, 2.0 * uvOffset.y)).rgb;
+
+    vec3 H = texture(srcImage, uv + vec2(-2.0 * uvOffset.x, 0.0)).rgb;
+    vec3 I = texture(srcImage, uv + vec2( 0.0             , 0.0)).rgb;
+    vec3 J = texture(srcImage, uv + vec2( 2.0 * uvOffset.x, 0.0)).rgb;
+
+    vec3 K = texture(srcImage, uv + vec2(-2.0 * uvOffset.x, -2.0 * uvOffset.y)).rgb;
+    vec3 L = texture(srcImage, uv + vec2( 0.0             , -2.0 * uvOffset.y)).rgb;
+    vec3 M = texture(srcImage, uv + vec2( 2.0 * uvOffset.x, -2.0 * uvOffset.y)).rgb;
+
+    // weighted average
+    vec3 color = vec3(0.0);
+    // E + F + H + I
+    color += 0.125 * 0.25 * (E + F + H + I);
+    // F + G + I + J
+    color += 0.125 * 0.25 * (F + G + I + J);
+    // H + I + K + L
+    color += 0.125 * 0.25 * (H + I + K + L);
+    // I + J + L + M
+    color += 0.125 * 0.25 * (I + J + L + M);
+    // A + B + C + D
+    color += 0.5   * 0.25 * (A + B + C + D);
+    return color;
+}
+
 void main()
 {
-    vec2 uvOffset = 1.f / textureSize(srcImage, 0);
-    // TODO: add a random jitter to the filter center
-    vec2 jitter = vec2(hash(uv.xy), hash(uv.yx));
-    vec2 jitteredUv = uv + vec2(uvOffset.x * jitter.x, uvOffset.y * jitter.y);
-    // box filter
-    vec2 boxUv_0 = uv + vec2(-uvOffset.x, uvOffset.y);
-    vec2 boxUv_1 = uv + vec2(uvOffset.x, uvOffset.y);
-    vec2 boxUv_2 = uv + vec2(-uvOffset.x, -uvOffset.y);
-    vec2 boxUv_3 = uv + vec2(uvOffset.x, -uvOffset.y);
-    vec3 color = texture(srcImage, boxUv_0).rgb;
-    color += texture(srcImage,     boxUv_1).rgb;
-    color += texture(srcImage,     boxUv_2).rgb;
-    color += texture(srcImage,     boxUv_3).rgb;
-
-    vec2 boxUv_00 = boxUv_0 + vec2(-uvOffset.x, uvOffset.y);
-    vec2 boxUv_01 = boxUv_1 + vec2(uvOffset.x, uvOffset.y);
-    vec2 boxUv_02 = boxUv_2 + vec2(-uvOffset.x, -uvOffset.y);
-    vec2 boxUv_03 = boxUv_3 + vec2(uvOffset.x, -uvOffset.y);
-    color += texture(srcImage,     boxUv_00).rgb;
-    color += texture(srcImage,     boxUv_01).rgb;
-    color += texture(srcImage,     boxUv_02).rgb;
-    color += texture(srcImage,     boxUv_03).rgb;
-    color *= 0.125f;
+    vec3 color = sampleCustom13TapFilter();
     fragcolor = vec4(color, 1.f);
 }

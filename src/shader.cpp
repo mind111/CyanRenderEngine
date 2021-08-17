@@ -59,9 +59,78 @@ Shader::Shader()
 
 }
 
+void Shader::getFileWriteTime(ShaderFileInfo& fileInfo) {
+    HANDLE fileHandle = CreateFileA(fileInfo.m_path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
+                                    OPEN_ALWAYS,
+                                    FILE_ATTRIBUTE_READONLY,
+                                    nullptr);
+    GetFileTime(fileHandle, nullptr, nullptr, &fileInfo.m_lastWriteTime);
+    CloseHandle(fileHandle);
+}
+
+bool Shader::fileHasChanged(ShaderFileInfo& fileInfo) {
+    HANDLE fileHandle = CreateFileA(fileInfo.m_path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
+                                    OPEN_ALWAYS,
+                                    FILE_ATTRIBUTE_READONLY,
+                                    nullptr);
+    FILETIME lastWriteTime = { };
+    GetFileTime(fileHandle, nullptr, nullptr, &lastWriteTime);
+    // check if shader source file is modified, need to rebuild shader
+    bool wasModified = (CompareFileTime(reinterpret_cast<const LPFILETIME>(&fileInfo.m_lastWriteTime), 
+                                        reinterpret_cast<const LPFILETIME>(&lastWriteTime)) == -1);
+    CloseHandle(fileHandle);
+    return wasModified;
+}
+
+void Shader::buildFromSource(const char* vertSrc, const char* fragSrc) {
+    if (m_vertSrcInfo.m_path.empty() || m_fragSrcInfo.m_path.empty()) {
+        m_vertSrcInfo.m_path = std::string(vertSrc);
+        m_fragSrcInfo.m_path = std::string(fragSrc);
+    }
+    getFileWriteTime(m_vertSrcInfo);
+    getFileWriteTime(m_fragSrcInfo);
+
+    GLuint vs = glCreateShader(GL_VERTEX_SHADER);
+    GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
+    m_programId = glCreateProgram();
+    // Load shader source
+    const char* vertShaderSrc = ShaderUtil::readShaderFile(m_vertSrcInfo.m_path.c_str());
+    const char* fragShaderSrc = ShaderUtil::readShaderFile(m_fragSrcInfo.m_path.c_str());
+    glShaderSource(vs, 1, &vertShaderSrc, nullptr);
+    glShaderSource(fs, 1, &fragShaderSrc, nullptr);
+    // Compile shader
+    glCompileShader(vs);
+    glCompileShader(fs);
+    ShaderUtil::checkShaderCompilation(vs);
+    ShaderUtil::checkShaderCompilation(fs);
+    // Link shader
+    glAttachShader(m_programId, vs);
+    glAttachShader(m_programId, fs);
+    glLinkProgram(m_programId);
+    ShaderUtil::checkShaderLinkage(m_programId);
+    glDeleteShader(vs);
+    glDeleteShader(fs);
+}
+
+void Shader::dynamicRebuild() {
+    bool rebuild = false;
+    rebuild |= fileHasChanged(m_vertSrcInfo);
+    rebuild |= fileHasChanged(m_fragSrcInfo);
+    if (rebuild) 
+    {
+        deleteProgram();
+        buildFromSource(m_vertSrcInfo.m_path.c_str(), m_fragSrcInfo.m_path.c_str());
+    }
+}
+
+void Shader::deleteProgram() {
+    glDeleteProgram(m_programId);
+}
+
 void Shader::bind()
 {
-    // TODO: dynamically reload and rebuild shaders here
+    // dynamically rebuild the shader if src was modified
+    dynamicRebuild();
     glUseProgram(m_programId);
 }
 

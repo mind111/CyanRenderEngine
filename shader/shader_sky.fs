@@ -26,7 +26,7 @@ float sdSphere(vec3 p, vec3 c, float r) {
 
 TraceInfo scene(vec3 p) {
     float dSphere = sdSphere(p, vec3(0.f, 1.f, -3.f), 0.2f);
-    float dTerrain = sdTerrain(p, -1.f);
+    float dTerrain = sdTerrain(p, -0.1f);
     int objectId = -1;
     if (dSphere < dTerrain) {
         objectId = 1; 
@@ -57,19 +57,22 @@ Hit castRay(vec3 ro, vec3 rd) {
 
 // procedural sdf rendering of a sky and a terrain
 void main() {
+    vec3 ro = vec3(0.f);
     vec3 rd = normalize(fragmentObjPos);
     // rd.y = abs(rd.y);
     // default background color
     vec3 horizonColor = vec3(0.85f);
-    vec3 skyDomeColor = vec3(0.000, 0.249, 1.0000);
-    float k = smoothstep(0.0, 0.5, rd.y); 
-    vec3 skyColor = mix(horizonColor, skyDomeColor, pow(k, 1.0));
+    vec3 skyDomeColor = vec3(0.200, 0.449, 1.0000);
+    float k = smoothstep(-0.05, 0.05, rd.y);
+    vec3 skyColor = mix(horizonColor, skyDomeColor, k);
     fragColor = vec4(skyColor, 1.f);
     // ray marching
     Hit hit = castRay(vec3(0.f), rd);
     if (hit.t > 0.f) {
+        vec3 p = ro + hit.t * rd;
         if (hit.objectId == 0) {
-            fragColor = vec4(0.95f, 0.30f, 0.10f, 1.f);
-        }     
+            fragColor = (.5 + .5 * rd.y) * vec4(0.95f, 0.30f, 0.10f, 1.f);
+        }
     }
+    fragColor = vec4(0.0, 0.0, 0.0, 1.0);
 }

@@ -70,7 +70,7 @@ namespace Cyan
     static const u32 kMaxNumMaterialTypes = 64;
     static const u32 kMaxNumSceneNodes = 256;
 
-    // TODO: Where do these live in memory...?
+    // TODO: Where do these live in memory... stack or heap or somewhere else?
     static std::vector<Texture*> s_textures;
     static std::vector<Mesh*> s_meshes;
     static std::vector<Uniform*> s_uniforms;
@@ -407,26 +407,7 @@ namespace Cyan
         Shader* shader = m_shaders[handle];
         shader->m_name = std::string(name);
         s_shaderRegistry.insert(ShaderEntry(shader->m_name, handle));
-        GLuint vs = glCreateShader(GL_VERTEX_SHADER);
-        GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
-        shader->m_programId = glCreateProgram();
-        // Load shader source
-        const char* vertShaderSrc = ShaderUtil::readShaderFile(vertSrc);
-        const char* fragShaderSrc = ShaderUtil::readShaderFile(fragSrc);
-        glShaderSource(vs, 1, &vertShaderSrc, nullptr);
-        glShaderSource(fs, 1, &fragShaderSrc, nullptr);
-        // Compile shader
-        glCompileShader(vs);
-        glCompileShader(fs);
-        ShaderUtil::checkShaderCompilation(vs);
-        ShaderUtil::checkShaderCompilation(fs);
-        // Link shader
-        glAttachShader(shader->m_programId, vs);
-        glAttachShader(shader->m_programId, fs);
-        glLinkProgram(shader->m_programId);
-        ShaderUtil::checkShaderLinkage(shader->m_programId);
-        glDeleteShader(vs);
-        glDeleteShader(fs);
+        shader->buildFromSource(vertSrc, fragSrc);
         return shader;
     }
 

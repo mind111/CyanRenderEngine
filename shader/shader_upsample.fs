@@ -20,7 +20,6 @@ void main()
     upSampledColor += 0.25f * texture(srcImage,     boxUv_2).rgb;
     upSampledColor += 0.25f * texture(srcImage,     boxUv_3).rgb;
 
-    // vec3 upsampledColor = texture(srcImage, uv).rgb;
     vec3 blendColor = texture(blendImage, uv).rgb;
     fragColor = vec4(blendColor + upSampledColor, 1.f);
 }

@@ -105,11 +105,9 @@ namespace Cyan
 
         spec.m_width /= 2;
         spec.m_height /= 2;
-        initBloomBuffers(0u, spec); // half res
-        initBloomBuffers(1u, spec);
-        initBloomBuffers(2u, spec);
-        initBloomBuffers(3u, spec);
-        initBloomBuffers(4u, spec);
+        for (u32 i = 0u; i < kNumBloomDsPass; ++i) {
+            initBloomBuffers(i, spec);
+        }
     }
 
     void Renderer::initShaders()
@@ -424,38 +422,32 @@ namespace Cyan
             * How to combat temporal stability?
         */
 
-        auto gaussianBlurTwice = [&](BloomSurface surface) {
-            for (u32 i = 0u; i < 2u; ++i) {
+        auto gaussianBlurOnce = [&](BloomSurface surface) {
+            for (u32 i = 0u; i < 1u; ++i) {
                 gaussianBlur(surface);
             }
         };
 
         // preprocess pass
         beginBloom();
+
         // down sample pass
         downSample(m_bloomPrefilterRT, 0, m_bloomDsSurfaces[0].m_renderTarget, 0);
-        gaussianBlurTwice(m_bloomDsSurfaces[0]);
-        downSample(m_bloomDsSurfaces[0].m_renderTarget, 0, m_bloomDsSurfaces[1].m_renderTarget, 0);
-        gaussianBlurTwice(m_bloomDsSurfaces[1]);
-        downSample(m_bloomDsSurfaces[1].m_renderTarget, 0, m_bloomDsSurfaces[2].m_renderTarget, 0);
-        gaussianBlurTwice(m_bloomDsSurfaces[2]);
-        downSample(m_bloomDsSurfaces[2].m_renderTarget, 0, m_bloomDsSurfaces[3].m_renderTarget, 0);
-        gaussianBlurTwice(m_bloomDsSurfaces[3]);
-        downSample(m_bloomDsSurfaces[3].m_renderTarget, 0, m_bloomDsSurfaces[4].m_renderTarget, 0);
-        gaussianBlurTwice(m_bloomDsSurfaces[4]);
+        gaussianBlurOnce(m_bloomDsSurfaces[0]);
+        for (u32 i = 0u; i < kNumBloomDsPass - 1; ++i) {
+            downSample(m_bloomDsSurfaces[i].m_renderTarget, 0, m_bloomDsSurfaces[i+1].m_renderTarget, 0);
+            gaussianBlurOnce(m_bloomDsSurfaces[i+1]);
+        }
 
         // up sample and gather pass
-        upSample(m_bloomDsSurfaces[4].m_renderTarget, 0, m_bloomUsSurfaces[3].m_renderTarget, 0, m_bloomDsSurfaces[3].m_renderTarget, 0);
-        gaussianBlurTwice(m_bloomUsSurfaces[3]);
-        upSample(m_bloomUsSurfaces[3].m_renderTarget, 0, m_bloomUsSurfaces[2].m_renderTarget, 0, m_bloomDsSurfaces[2].m_renderTarget, 0);
-        gaussianBlurTwice(m_bloomUsSurfaces[2]);
-        upSample(m_bloomUsSurfaces[2].m_renderTarget, 0, m_bloomUsSurfaces[1].m_renderTarget, 0, m_bloomDsSurfaces[1].m_renderTarget, 0);
-        gaussianBlurTwice(m_bloomUsSurfaces[1]);
-        upSample(m_bloomUsSurfaces[1].m_renderTarget, 0, m_bloomUsSurfaces[0].m_renderTarget, 0, m_bloomDsSurfaces[0].m_renderTarget, 0);
-        gaussianBlurTwice(m_bloomUsSurfaces[0]);
-
-        // TODO: final upscale from half res to full res
-        // TODO: compensate the instensity lost during downsampling and upsampling 
+        gaussianBlurOnce(m_bloomDsSurfaces[kNumBloomDsPass-2]);
+        upSample(m_bloomDsSurfaces[kNumBloomDsPass - 1].m_renderTarget, 0, 
+            m_bloomUsSurfaces[kNumBloomDsPass-2].m_renderTarget, 0, 
+            m_bloomDsSurfaces[kNumBloomDsPass-2].m_renderTarget, 0);
+        for (u32 i = kNumBloomDsPass - 2; i > 0 ; --i) {
+            gaussianBlurOnce(m_bloomDsSurfaces[i-1]);
+            upSample(m_bloomUsSurfaces[i].m_renderTarget, 0, m_bloomUsSurfaces[i-1].m_renderTarget, 0, m_bloomDsSurfaces[i-1].m_renderTarget, 0);
+        }
     }
     
     void Renderer::endRender()
@@ -478,10 +470,6 @@ namespace Cyan
         if (m_bloom)
         {
             m_blitQuad->m_matl->bindTexture("bloomSampler_0", m_bloomUsSurfaces[0].m_pingPongColorBuffers[0]);
-            // m_blitQuad->m_matl->bindTexture("bloomSampler_1", m_bloomDsSurfaces[1].m_pingPongColorBuffers[0]);
-            // m_blitQuad->m_matl->bindTexture("bloomSampler_2", m_bloomDsSurfaces[2].m_pingPongColorBuffers[0]);
-            // m_blitQuad->m_matl->bindTexture("bloomSampler_3", m_bloomDsSurfaces[3].m_pingPongColorBuffers[0]);
-            // m_blitQuad->m_matl->bindTexture("bloomSampler_4", m_bloomDsSurfaces[4].m_pingPongColorBuffers[0]);
             m_blitQuad->m_matl->set("bloom", 1.f);
         }
         else
