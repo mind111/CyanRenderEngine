@@ -803,7 +803,8 @@ namespace Cyan
 
     Uniform* getUniform(UniformHandle handle)
     {
-        CYAN_ASSERT(handle < kMaxNumUniforms, "Uniform handle %u out of bound", handle)
+        // CYAN_ASSERT(handle < kMaxNumUniforms, "Uniform handle %u out of bound", handle)
+        if (handle > kMaxNumUniforms) return nullptr;
         return m_uniforms[handle];
     }
 

@@ -55,6 +55,7 @@ struct UniformBuffer
     void write(u32 data);
     void write(f32 data);
     void finish();
+    void clear();
     void debugPrint();
 };
 

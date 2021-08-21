@@ -161,7 +161,7 @@ float GGX(float roughness, float ndoth)
     float alpha2 = alpha * alpha;
     float result = alpha2;
     float denom = ndoth * ndoth * (alpha2 - 1.f) + 1.f;
-    result /= (pi * denom * denom); 
+    result /= max((pi * denom * denom), 0.0001); 
     return result;
 }
 
@@ -245,7 +245,10 @@ vec3 specularBrdf(vec3 wi, vec3 wo, vec3 n, float roughness, vec3 f0)
     float G = ggxSmithG2(wo, wi, n, roughness);
     // float G = ggxSmithG2Ex(wo, wi, n, roughness);
     vec3 F = fresnel(f0, n, wo);
-    vec3 brdf = D * F * G / ((4.f * ndotv * ndotl) + 0.001f);
+    // TODO: the max() operator here actually affects how strong the specular highlight is
+    // around grazing angle. Using a small value like 0.0001 will have pretty bad shading alias. However,
+    // is using 0.1 here corret though. Need to reference other implementation. 
+    vec3 brdf = D * F * G / max((4.f * ndotv * ndotl), 0.1);
     return brdf;
 }
 
@@ -268,30 +271,35 @@ struct RenderParams
 vec3 render(RenderParams params)
 {
     vec3 h = normalize(params.v + params.l);
-    float ndotl = max(0.001f, dot(params.n, params.l));
+    float ndotl = max(0.000f, dot(params.n, params.l));
+    // TODO: figure out how to use wrap lighting properly
     float ndotlWrap = max(0.1f, (dot(params.n, params.l) + wrap) / (1.f + wrap));
     vec3 F = fresnel(params.f0, params.n, params.v);
     vec3 kDiffuse = mix(vec3(1.f) - F, vec3(0.f), params.metallic);
-    vec3 diffuse = kDiffuse * diffuseBrdf(params.baseColor) * ndotlWrap;
+    vec3 diffuse = kDiffuse * diffuseBrdf(params.baseColor) * ndotl;
     vec3 specular = specularBrdf(params.l, params.v, params.n, params.roughness, params.f0) * ndotl;
+    // specular *= 0.0;
     return (directDiffuseSlider * diffuse + directSpecularSlider * specular) * params.li;
 }
 
 vec3 directLighting(RenderParams renderParams)
 {
     vec3 color = vec3(0.f);
+    // TODO: area lights?
+    {
+    }
     for (int i = 0; i < numPointLights; i++)
     {
         vec4 lightPos = s_view * pointLightsBuffer.lights[i].position;
         // light dir
         renderParams.l = normalize(lightPos.xyz - fragmentPos);
         // light color
-        renderParams.li = pointLightsBuffer.lights[i].color.rgb * pointLightsBuffer.lights[i].color.w;
+        renderParams.li = pointLightsBuffer.lights[i].color.rgb * pointLightsBuffer.lights[i].color.w * 0.01;
         color += render(renderParams);
     }
     for (int i = 0; i < numDirLights; i++)
     {
-        vec4 lightDir = s_view * (dirLightsBuffer.lights[i].direction * -1.f);
+        vec4 lightDir = s_view * (dirLightsBuffer.lights[i].direction);
         // light dir
         renderParams.l = normalize(lightDir.xyz);
         // light color
@@ -301,7 +309,7 @@ vec3 directLighting(RenderParams renderParams)
     return color;
 }
 
-// ground-truthe specular IBL
+// ground-truth specular IBL
 vec3 specularIBL(vec3 f0, vec3 normal, vec3 viewDir, float roughness)
 {
     float numSamples = 512.f;

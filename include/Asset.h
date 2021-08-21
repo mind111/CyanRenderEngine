@@ -162,7 +162,7 @@ public:
                     mesh->m_matls[sm]->bindTexture("normalMap", normal); 
                     // metallicRoughness
                     Cyan::Texture* metallicRoughness = getTexture(pbr.metallicRoughnessTexture.index);
-                    mesh->m_matls[sm]->bindTexture("roughnessMap", metallicRoughness); 
+                    mesh->m_matls[sm]->bindTexture("metallicRoughnessMap", metallicRoughness); 
                     // occlusion
                     Cyan::Texture* occlusion = getTexture(gltfMaterial.occlusionTexture.index);
                     mesh->m_matls[sm]->bindTexture("aoMap", occlusion); 

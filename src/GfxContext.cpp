@@ -42,7 +42,7 @@ namespace Cyan
 
     void GfxContext::setUniform(Uniform* _uniform)
     {
-            m_shader->setUniform(_uniform);
+        m_shader->setUniform(_uniform);
     }
 
     void GfxContext::setSampler(Uniform* _sampler, u32 binding)

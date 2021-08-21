@@ -20,6 +20,7 @@
 
 /* TODO: 
     General:
+        * add a asset manager UI that can display all the loaded assets.
         * add support for selecting entities via UI.
         * add support for adding entities via UI.
         * add support for saving the scene settings (serialization....?).

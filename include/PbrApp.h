@@ -291,6 +291,7 @@ private:
     Cyan::MaterialInstance* m_droneMatl;
     Cyan::MaterialInstance* m_helmetMatl;
     Cyan::MaterialInstance* m_sphereMatls[36];
+    Cyan::MaterialInstance* m_sphereMatl;
     Cyan::MaterialInstance* m_envmapMatl;
     Cyan::MaterialInstance* m_skyMatl;
     Cyan::MaterialInstance* m_blitMatl;

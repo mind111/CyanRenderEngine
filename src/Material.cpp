@@ -23,11 +23,16 @@ namespace Cyan
         m_samplers[m_numSamplers++] = _sampler;
     }
 
+    /*
+        * when creating a new instance, by default all the user data should be
+        cleared to 0, texture bindings should be cleared as well.
+    */
     MaterialInstance* Material::createInstance()
     {
         MaterialInstance* instance = (MaterialInstance*)CYAN_ALLOC(sizeof(MaterialInstance));
         instance->m_template = this;
         instance->m_uniformBuffer = Cyan::createUniformBuffer(this->m_bufferSize);
+        instance->m_uniformBuffer->clear();
         // init texture bindings
         for (u32 s = 0; s < m_numSamplers; ++s)
         {
@@ -88,6 +93,7 @@ namespace Cyan
     {
         UniformHandle handle = Cyan::getUniformHandle(attribute);
         Uniform* uniform = Cyan::getUniform(handle);
+        if (!uniform) return;
         u32 sizeInBytes = uniform->getSize();
         u32 offset = getAttributeOffset(handle);
         if (offset == (u32)-1)
@@ -102,6 +108,7 @@ namespace Cyan
     {
         UniformHandle handle = Cyan::getUniformHandle(attribute);
         Uniform* uniform = Cyan::getUniform(handle);
+        if (!uniform) return;
         u32 sizeInBytes = uniform->getSize();
         u32 offset = getAttributeOffset(handle);
         if (offset == (u32)-1)
@@ -116,6 +123,7 @@ namespace Cyan
     {
         UniformHandle handle = Cyan::getUniformHandle(attribute);
         Uniform* uniform = Cyan::getUniform(handle);
+        if (!uniform) return;
         u32 sizeInBytes = uniform->getSize();
         u32 offset = getAttributeOffset(handle);
         if (offset == (u32)-1)

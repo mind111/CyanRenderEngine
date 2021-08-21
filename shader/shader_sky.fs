@@ -71,8 +71,7 @@ void main() {
     if (hit.t > 0.f) {
         vec3 p = ro + hit.t * rd;
         if (hit.objectId == 0) {
-            fragColor = (.5 + .5 * rd.y) * vec4(0.95f, 0.30f, 0.10f, 1.f);
+            fragColor = (.5 + .5 * rd.y) * vec4(0.95f, 0.40f, 0.30f, 1.f);
         }
     }
-    fragColor = vec4(0.0, 0.0, 0.0, 1.0);
 }

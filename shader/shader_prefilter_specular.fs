@@ -62,7 +62,7 @@ vec3 generateSample(vec3 n, float theta, float phi)
 
 vec3 importanceSampleGGX(vec3 n, float roughness, float rand_u, float rand_v)
 {
-    float theta = atan(roughness * sqrt(rand_u) / sqrt(1 - rand_u));
+    float theta = atan(roughness * sqrt(rand_u) / max(sqrt(1 - rand_u), 0.01));
     float phi = 2 * pi * rand_v;
     return generateSample(n, theta, phi);
 }
@@ -96,7 +96,7 @@ float GGX(float roughness, float ndoth)
     float alpha2 = alpha * alpha;
     float result = alpha2;
     float denom = ndoth * ndoth * (alpha2 - 1.f) + 1.f;
-    result /= (pi * denom * denom); 
+    result /= max((pi * denom * denom), 0.001); 
     return result;
 }
 
@@ -126,7 +126,7 @@ void main()
                 which is equivalent to picking a texel from a lower mipmap level.
             */
             float D = GGX(roughness, ndoth);
-            float pdf = (D * ndoth) / (4 * vdoth + 0.0001f);
+            float pdf = (D * ndoth) / (4 * vdoth + 0.1f);
             float resolution = 1024.0; // resolution of source cubemap (per face)
             float texelSolidAngle  = 4.0 * pi / (6.0 * resolution * resolution);
             float sampleSolidAngle = 1.0 / (float(numSamples) * pdf + 0.0001);

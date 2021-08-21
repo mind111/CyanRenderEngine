@@ -32,7 +32,7 @@ vec3 generateSample(vec3 n, float theta, float phi)
 vec3 importanceSampleGGX(vec3 n, float roughness, float rand_u, float rand_v)
 {
     // TODO: verify this importance sampling ggx procedure
-    float theta = atan(roughness * sqrt(rand_u) / sqrt(1 - rand_u));
+    float theta = atan(roughness * sqrt(rand_u) / max(sqrt(1 - rand_u), 0.01));
     float phi = 2 * pi * rand_v;
     return generateSample(n, theta, phi);
 }
@@ -130,7 +130,7 @@ void main()
         if (ndotl > 0.f)
         {
             float G = ggxSmithG2(v, l, h, roughness);
-            float GVis = G * vdoth / max((ndotv * ndoth), 0.0001f);
+            float GVis = G * vdoth / max((ndotv * ndoth), 0.01f);
             float a = (1.f - vdoth) * (1.f - vdoth) * (1.f - vdoth) * (1.f - vdoth) * (1.f - vdoth);
             A += (1.f - a) * GVis; 
             B += a         * GVis; 

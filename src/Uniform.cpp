@@ -115,6 +115,11 @@ void UniformBuffer::write(f32 data)
     m_pos += 4;
 }
 
+void UniformBuffer::clear()
+{
+    memset(m_data, 0x0, m_size);
+}
+
 void UniformBuffer::finish()
 {
     write(UniformHandle(-1));

@@ -8,6 +8,8 @@
 
 #define kEntityNameMaxLen 64u
 
+// TODO: Components
+
 // entity
 struct Entity
 {
@@ -19,6 +21,10 @@ struct Entity
     // flags
     bool m_lit;
     bool m_hasTransform;
+    // entity hierarchy
+    Entity* m_parent;
+    std::vector<Entity*> m_child;
+    // scene componet
 
     glm::vec3 worldPosition()
     {
