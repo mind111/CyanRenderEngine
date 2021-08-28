@@ -274,23 +274,7 @@ namespace Cyan
 
     void Renderer::drawEntity(Entity* entity) 
     {
-        glm::mat4 modelMatrix;
-        if (entity->m_hasTransform)
-        {
-            modelMatrix = entity->m_worldTransformMatrix;
-            modelMatrix = entity->m_meshInstance->m_mesh->m_normalization * modelMatrix;
-            drawMeshInstance(entity->m_meshInstance, &modelMatrix);
-        }
-        else
-        {
-            drawMeshInstance(entity->m_meshInstance, nullptr);
-        }
-    }
-
-    void Renderer::endFrame()
-    {
-        m_frame->m_renderQueue.clear();
-        Cyan::getCurrentGfxCtx()->flip();
+        drawSceneNode(entity->m_sceneRoot);
     }
 
     template <typename T>
@@ -300,8 +284,63 @@ namespace Cyan
         {
             return 0;
         }
-        // CYAN_ASSERT(vec.size() > 0, "empty vector");
         return sizeof(vec[0]) * (u32)vec.size();
+    }
+
+    void Renderer::drawSceneNode(SceneNode* node)
+    {
+        if (node->m_meshInstance)
+        {
+            MeshInstance* meshInstance = node->m_meshInstance; 
+            Material* materialType = meshInstance->m_matls[0]->m_template;
+            u32 numSubMeshs = (u32)meshInstance->m_mesh->m_subMeshes.size();
+            // update lighting data if necessary
+            // TODO: implement these
+            auto updateLighting = []()
+            {
+
+            };
+
+            // update lighting data if material can be lit
+            if (materialType->m_dataFieldsFlag && (1 << Material::DataFields::Lit))
+            {
+                for (u32 sm = 0; sm < numSubMeshs; ++sm)
+                {
+                    meshInstance->m_matls[sm]->set("numPointLights", sizeofVector(*m_lighting.m_pLights) / (u32)sizeof(PointLight));
+                    meshInstance->m_matls[sm]->set("numDirLights",   sizeofVector(*m_lighting.m_dirLights) / (u32)sizeof(DirectionalLight));
+                }
+            }
+            // update light probe data if necessary
+            if (materialType->m_dataFieldsFlag && (1 << Material::DataFields::Probe))
+            {
+                if (m_lighting.bUpdateProbeData)
+                {
+                    for (u32 sm = 0; sm < numSubMeshs; ++sm)
+                    {
+                        // update probe texture bindings
+                        meshInstance->m_matls[sm]->bindTexture("irradianceDiffuse", m_lighting.m_probe->m_diffuse);
+                        meshInstance->m_matls[sm]->bindTexture("irradianceSpecular", m_lighting.m_probe->m_specular);
+                        meshInstance->m_matls[sm]->bindTexture("brdfIntegral", m_lighting.m_probe->m_brdfIntegral);
+                    }
+                }
+            }
+
+            glm::mat4 modelMatrix;
+            modelMatrix = node->m_worldTransform.toMatrix();
+            modelMatrix = node->m_meshInstance->m_mesh->m_normalization * modelMatrix;
+            drawMeshInstance(node->m_meshInstance, &modelMatrix);
+        }
+        for (auto* child : node->m_child)
+        {
+            SceneNode* childNode = dynamic_cast<SceneNode*>(child);
+            drawSceneNode(childNode);
+        }
+    }
+
+    void Renderer::endFrame()
+    {
+        m_frame->m_renderQueue.clear();
+        Cyan::getCurrentGfxCtx()->flip();
     }
 
     void Renderer::beginRender()
@@ -368,33 +407,44 @@ namespace Cyan
         glFinish();
     }
 
-    void Renderer::gaussianBlur(BloomSurface surface) {
+    void Renderer::gaussianBlur(BloomSurface surface, GaussianBlurInputs inputs) {
         auto ctx = Cyan::getCurrentGfxCtx();
         ctx->setDepthControl(Cyan::DepthControl::kDisable);
         ctx->setShader(m_gaussianBlurShader);
         ctx->setRenderTarget(surface.m_renderTarget, 1u);
         ctx->setViewport(0u, 0u, surface.m_renderTarget->m_width, surface.m_renderTarget->m_height);
+
         // horizontal pass
-        m_gaussianBlurMatl->bindTexture("srcImage", surface.m_pingPongColorBuffers[0]);
-        m_gaussianBlurMatl->set("horizontal", 1.0f);
-        m_gaussianBlurMatl->bind();
-        ctx->setVertexArray(m_blitQuad->m_va);
-        ctx->setPrimitiveType(PrimitiveType::TriangleList);
-        ctx->drawIndexAuto(6u);
-        glFinish();
+        {
+            m_gaussianBlurMatl->bindTexture("srcImage", surface.m_pingPongColorBuffers[0]);
+            m_gaussianBlurMatl->set("horizontal", 1.0f);
+            m_gaussianBlurMatl->set("kernelIndex", inputs.kernelIndex);
+            m_gaussianBlurMatl->set("radius", inputs.radius);
+            m_gaussianBlurMatl->bind();
+            ctx->setVertexArray(m_blitQuad->m_va);
+            ctx->setPrimitiveType(PrimitiveType::TriangleList);
+            ctx->drawIndexAuto(6u);
+            glFinish();
+        }
+
         // vertical pass
-        ctx->setRenderTarget(surface.m_renderTarget, 0u);
-        m_gaussianBlurMatl->bindTexture("srcImage", surface.m_pingPongColorBuffers[1]);
-        m_gaussianBlurMatl->set("horizontal", 0.f);
-        m_gaussianBlurMatl->bind();
-        ctx->setVertexArray(m_blitQuad->m_va);
-        ctx->setPrimitiveType(PrimitiveType::TriangleList);
-        ctx->drawIndexAuto(6u);
-        ctx->setDepthControl(Cyan::DepthControl::kEnable);
-        glFinish();
+        {
+            ctx->setRenderTarget(surface.m_renderTarget, 0u);
+            m_gaussianBlurMatl->bindTexture("srcImage", surface.m_pingPongColorBuffers[1]);
+            m_gaussianBlurMatl->set("horizontal", 0.f);
+            m_gaussianBlurMatl->set("kernelIndex", inputs.kernelIndex);
+            m_gaussianBlurMatl->set("radius", inputs.radius);
+            m_gaussianBlurMatl->bind();
+            ctx->setVertexArray(m_blitQuad->m_va);
+            ctx->setPrimitiveType(PrimitiveType::TriangleList);
+            ctx->drawIndexAuto(6u);
+            ctx->setDepthControl(Cyan::DepthControl::kEnable);
+            glFinish();
+        }
     }
 
-    void Renderer::upSample(RenderTarget* src, u32 srcIdx, RenderTarget* dst, u32 dstIdx, RenderTarget* blend, u32 blendIdx) {
+    void Renderer::upSample(RenderTarget* src, u32 srcIdx, RenderTarget* dst, u32 dstIdx, RenderTarget* blend, u32 blendIdx, UpScaleInputs inputs) 
+    {
         Shader* upSampleShader = Cyan::createShader("UpSampleShader", "../../shader/shader_upsample.vs", "../../shader/shader_upsample.fs");
         Cyan::MaterialInstance* matl = Cyan::createMaterial(upSampleShader)->createInstance();
         auto ctx = Cyan::getCurrentGfxCtx();
@@ -404,12 +454,59 @@ namespace Cyan
         ctx->setViewport(0u, 0u, dst->m_width, dst->m_height);
         matl->bindTexture("srcImage", src->m_colorBuffers[srcIdx]);
         matl->bindTexture("blendImage", blend->m_colorBuffers[blendIdx]);
+        matl->set("stageIndex", inputs.stageIndex);
         matl->bind();
         ctx->setVertexArray(m_blitQuad->m_va);
         ctx->setPrimitiveType(PrimitiveType::TriangleList);
         ctx->drawIndexAuto(6u);
         ctx->setDepthControl(Cyan::DepthControl::kEnable);
         glFinish();
+    }
+
+    void Renderer::bloomDownSample()
+    {
+        //TODO: more flexible raidus?
+        i32 kernelRadii[6] = { 3, 4, 6, 7, 8, 9};
+        GaussianBlurInputs inputs = { };
+
+        inputs.kernelIndex = 0;
+        inputs.radius = kernelRadii[0];
+        downSample(m_bloomPrefilterRT, 0, m_bloomDsSurfaces[0].m_renderTarget, 0);
+        gaussianBlur(m_bloomDsSurfaces[0], inputs);
+        for (u32 i = 0u; i < kNumBloomDsPass - 1; ++i) 
+        {
+            downSample(m_bloomDsSurfaces[i].m_renderTarget, 0, m_bloomDsSurfaces[i+1].m_renderTarget, 0);
+            inputs.kernelIndex = static_cast<i32>(i+1);
+            inputs.radius = kernelRadii[i+1];
+            gaussianBlur(m_bloomDsSurfaces[i+1], inputs);
+        }
+    }
+
+    void Renderer::bloomUpScale()
+    {
+        i32 kernelRadii[6] = { 3, 4, 6, 7, 8, 9};
+        GaussianBlurInputs inputs = { };
+
+        inputs.kernelIndex = 5;
+        inputs.radius = kernelRadii[5];
+        gaussianBlur(m_bloomDsSurfaces[kNumBloomDsPass-2], inputs);
+
+        UpScaleInputs upScaleInputs = { };
+        upScaleInputs.stageIndex = 0;
+
+        upSample(m_bloomDsSurfaces[kNumBloomDsPass - 1].m_renderTarget, 0, 
+            m_bloomUsSurfaces[kNumBloomDsPass-2].m_renderTarget, 0, 
+            m_bloomDsSurfaces[kNumBloomDsPass-2].m_renderTarget, 0,
+            upScaleInputs);
+
+        for (u32 i = kNumBloomDsPass - 2; i > 0 ; --i) {
+            inputs.kernelIndex = static_cast<i32>(i);
+            inputs.radius = kernelRadii[i];
+            gaussianBlur(m_bloomDsSurfaces[i-1], inputs);
+
+            upScaleInputs.stageIndex = kNumBloomDsPass - 1 - i;
+            upSample(m_bloomUsSurfaces[i].m_renderTarget, 0, m_bloomUsSurfaces[i-1].m_renderTarget, 0, m_bloomDsSurfaces[i-1].m_renderTarget, 0, upScaleInputs);
+        }
     }
 
     void Renderer::bloom() {
@@ -422,32 +519,12 @@ namespace Cyan
             * How to combat temporal stability?
         */
 
-        auto gaussianBlurOnce = [&](BloomSurface surface) {
-            for (u32 i = 0u; i < 1u; ++i) {
-                gaussianBlur(surface);
-            }
-        };
-
         // preprocess pass
         beginBloom();
-
-        // down sample pass
-        downSample(m_bloomPrefilterRT, 0, m_bloomDsSurfaces[0].m_renderTarget, 0);
-        gaussianBlurOnce(m_bloomDsSurfaces[0]);
-        for (u32 i = 0u; i < kNumBloomDsPass - 1; ++i) {
-            downSample(m_bloomDsSurfaces[i].m_renderTarget, 0, m_bloomDsSurfaces[i+1].m_renderTarget, 0);
-            gaussianBlurOnce(m_bloomDsSurfaces[i+1]);
-        }
-
-        // up sample and gather pass
-        gaussianBlurOnce(m_bloomDsSurfaces[kNumBloomDsPass-2]);
-        upSample(m_bloomDsSurfaces[kNumBloomDsPass - 1].m_renderTarget, 0, 
-            m_bloomUsSurfaces[kNumBloomDsPass-2].m_renderTarget, 0, 
-            m_bloomDsSurfaces[kNumBloomDsPass-2].m_renderTarget, 0);
-        for (u32 i = kNumBloomDsPass - 2; i > 0 ; --i) {
-            gaussianBlurOnce(m_bloomDsSurfaces[i-1]);
-            upSample(m_bloomUsSurfaces[i].m_renderTarget, 0, m_bloomUsSurfaces[i-1].m_renderTarget, 0, m_bloomDsSurfaces[i-1].m_renderTarget, 0);
-        }
+        // downsampling
+        bloomDownSample();
+        // upscale and gather
+        bloomUpScale();
     }
     
     void Renderer::endRender()
@@ -509,64 +586,18 @@ namespace Cyan
         {
             setBuffer(scene->m_dirLightsBuffer, scene->dLights.data(), sizeofVector(scene->dLights));
         }
-
+        
+        m_lighting.m_pLights = &scene->pLights;
+        m_lighting.m_dirLights = &scene->dLights; 
+        m_lighting.m_probe = scene->m_currentProbe;
         // determine if probe data should be update for this frame
-        bool shouldUpdateProbeData = (!scene->m_lastProbe || (scene->m_currentProbe->m_baseCubeMap->m_id != scene->m_lastProbe->m_baseCubeMap->m_id));
+        m_lighting.bUpdateProbeData = (!scene->m_lastProbe || (scene->m_currentProbe->m_baseCubeMap->m_id != scene->m_lastProbe->m_baseCubeMap->m_id));
         scene->m_lastProbe = scene->m_currentProbe;
-
-        /* 
-          TODO: split entities into those has lighting and those does not
-          * such as a helmet mesh need to react to lighiting in the scene but a cubemap meshInstance 
-          * does not need to.
-        */
         // entities 
         for (auto entity : scene->entities)
         {
-            MeshInstance* meshInstance = entity->m_meshInstance; 
-            // skip entities that doesn't have a mesh component
-            if (!meshInstance)
-            {
-                continue;
-            }
-            Material* materialType = meshInstance->m_matls[0]->m_template;
-            u32 numSubMeshs = (u32)meshInstance->m_mesh->m_subMeshes.size();
-            // update lighting data if necessary
-            // TODO: implement these
-            auto updateLighting = []()
-            {
-
-            };
-            auto updateProbe = [&](Scene* scene, MeshInstance* meshInstance)
-            {
-                u32 numSubMeshs = (u32)meshInstance->m_mesh->m_subMeshes.size();
-                if (shouldUpdateProbeData)
-                {
-                    for (u32 sm = 0; sm < numSubMeshs; ++sm)
-                    {
-                        // update probe texture bindings
-                        meshInstance->m_matls[sm]->bindTexture("irradianceDiffuse", scene->m_currentProbe->m_diffuse);
-                        meshInstance->m_matls[sm]->bindTexture("irradianceSpecular", scene->m_currentProbe->m_specular);
-                        meshInstance->m_matls[sm]->bindTexture("brdfIntegral", scene->m_currentProbe->m_brdfIntegral);
-                    }
-                }
-            };
-            // update lighting data if material can be lit
-            if (materialType->m_dataFieldsFlag && (1 << Material::DataFields::Lit))
-            {
-                for (u32 sm = 0; sm < numSubMeshs; ++sm)
-                {
-                    meshInstance->m_matls[sm]->set("numPointLights", sizeofVector(scene->pLights) / (u32)sizeof(PointLight));
-                    meshInstance->m_matls[sm]->set("numDirLights",   sizeofVector(scene->dLights) / (u32)sizeof(DirectionalLight));
-                }
-            }
-            // update light probe data if necessary
-            if (materialType->m_dataFieldsFlag && (1 << Material::DataFields::Probe))
-            {
-                updateProbe(scene, meshInstance);
-            }
             drawEntity(entity);
         }
-
         endRender();
     }
 }

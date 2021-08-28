@@ -61,4 +61,19 @@ struct Transform
         m_qRot = rhs.m_qRot;
         m_scale = rhs.m_scale;
     }
+
+    void rotate()
+    {
+
+    }
+
+    void translate()
+    {
+
+    }
+
+    void scale()
+    {
+
+    }
 };

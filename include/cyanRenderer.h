@@ -33,6 +33,11 @@ namespace Cyan
     
     // foward declarations
     struct RenderTarget;
+    struct RenderPass
+    {
+        RenderTarget* m_renderTarget;
+        Shader* m_shader;
+    };
 
     class Renderer 
     {
@@ -50,17 +55,22 @@ namespace Cyan
         void renderScene(Scene* scene);
         void endRender();
 
+        struct Lighting
+        {
+            std::vector<PointLight>* m_pLights;
+            std::vector<DirectionalLight>* m_dirLights;
+            LightProbe* m_probe;
+            bool bUpdateProbeData;
+        };
+
+        Lighting m_lighting;
         void drawEntity(Entity* entity);
+        void drawSceneNode(SceneNode* node);
         void drawMeshInstance(MeshInstance* meshInstance, glm::mat4* modelMatrix);
         void submitMesh(Mesh* mesh, glm::mat4 modelTransform);
         void renderFrame();
         void endFrame();
 
-        struct BloomSurface
-        {
-            RenderTarget* m_renderTarget;
-            Texture* m_pingPongColorBuffers[2];
-        };
 
         Frame* m_frame;
 
@@ -102,16 +112,38 @@ namespace Cyan
         Texture* m_msaaColorBuffer;
         RenderTarget* m_msaaRenderTarget;
 
-        static const u32 kNumBloomDsPass = 7u;
+        struct BloomSurface
+        {
+            RenderTarget* m_renderTarget;
+            Texture* m_pingPongColorBuffers[2];
+        };
+
+        static const u32 kNumBloomDsPass = 6u;
         RenderTarget* m_bloomPrefilterRT;                         // preprocess surface
+        // TODO: Is this necessary?
+        RenderTarget* m_bloomResultRT;                            // final results after upscale chain
         BloomSurface m_bloomDsSurfaces[kNumBloomDsPass];          // downsample
         BloomSurface m_bloomUsSurfaces[kNumBloomDsPass];          // upsample
 
         // post-process
         void beginBloom();
+        void bloomDownSample();
+        void bloomUpScale();
         void downSample(RenderTarget* src, u32 srcIdx, RenderTarget* dst, u32 dstIdx);
-        void upSample(RenderTarget* src, u32 srcIdx, RenderTarget* dst, u32 dstIdx, RenderTarget* blend, u32 blendIdx);
-        void gaussianBlur(BloomSurface surface);
+
+        struct UpScaleInputs
+        {
+            i32 stageIndex;
+        };
+        void upSample(RenderTarget* src, u32 srcIdx, RenderTarget* dst, u32 dstIdx, RenderTarget* blend, u32 blendIdx, UpScaleInputs inputs);
+
+        struct GaussianBlurInputs
+        {
+            i32 kernelIndex;
+            i32 radius;
+        };
+
+        void gaussianBlur(BloomSurface surface, GaussianBlurInputs inputs);
         void bloom();
 
         // post processing params

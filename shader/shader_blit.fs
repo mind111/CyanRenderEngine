@@ -6,13 +6,10 @@ out vec4 fragColor;
 
 uniform float exposure;
 uniform float bloom;
+uniform float bloomIntensity;
 
 uniform sampler2D quadSampler;
 uniform sampler2D bloomSampler_0;  // 1280 * 960
-uniform sampler2D bloomSampler_1;  // 640 * 480
-uniform sampler2D bloomSampler_2;  // 320 * 240
-uniform sampler2D bloomSampler_3;  
-uniform sampler2D bloomSampler_4;  
 
 float saturate(float k)
 {
@@ -69,11 +66,8 @@ void main()
     vec3 color = texture(quadSampler, uv).rgb;
     if (bloom > 0.5f)
     {
-        color += texture(bloomSampler_0, uv).rgb * bloomIntensity;
-        // color += texture(bloomSampler_1, uv).rgb * bloomIntensity;
-        // color += texture(bloomSampler_2, uv).rgb * bloomIntensity;
-        // color += texture(bloomSampler_3, uv).rgb * bloomIntensity;
-        // color += texture(bloomSampler_4, uv).rgb * bloomIntensity;
+        // TODO: bloomIntensity goes here
+        color += 0.65 * texture(bloomSampler_0, uv).rgb * bloomIntensity;
     }
     // tone mapping
     vec3 mappedColor = ACESFilm(exposure * color);

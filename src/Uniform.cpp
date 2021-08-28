@@ -115,6 +115,14 @@ void UniformBuffer::write(f32 data)
     m_pos += 4;
 }
 
+void UniformBuffer::write(i32 data)
+{
+    CYAN_ASSERT(m_pos + 4 <= m_size, "Write from UniformBuffer out of bound")
+    i32* ptr = (i32*)((u8*)m_data + m_pos);
+    *ptr = data;
+    m_pos += 4;
+}
+
 void UniformBuffer::clear()
 {
     memset(m_data, 0x0, m_size);

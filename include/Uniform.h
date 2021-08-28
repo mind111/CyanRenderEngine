@@ -53,6 +53,7 @@ struct UniformBuffer
     void* read(u32 size);
     void write(void* data, u32 size);
     void write(u32 data);
+    void write(i32 data);
     void write(f32 data);
     void finish();
     void clear();

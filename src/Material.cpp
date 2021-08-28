@@ -119,6 +119,21 @@ namespace Cyan
         m_uniformBuffer->write(data);
     }
 
+    void MaterialInstance::set(const char* attribute, i32 data)
+    {
+        UniformHandle handle = Cyan::getUniformHandle(attribute);
+        Uniform* uniform = Cyan::getUniform(handle);
+        if (!uniform) return;
+        u32 sizeInBytes = uniform->getSize();
+        u32 offset = getAttributeOffset(handle);
+        if (offset == (u32)-1)
+        {
+            return;
+        }
+        m_uniformBuffer->reset(offset);
+        m_uniformBuffer->write(data);
+    }
+
     void MaterialInstance::set(const char* attribute, void* data)
     {
         UniformHandle handle = Cyan::getUniformHandle(attribute);

@@ -123,23 +123,23 @@ public:
         }
 
         // create an entity for this node
-        char entityName[64];
+        char sceneNodeName[64];
         CYAN_ASSERT(node.name.size() < kEntityNameMaxLen, "Entity name too long !!")
         if (node.name.empty()) {
-            sprintf_s(entityName, "Node%u", numNodes);
+            sprintf_s(sceneNodeName, "Node%u", numNodes);
         } else {
-            sprintf_s(entityName, "%s", node.name.c_str());
+            sprintf_s(sceneNodeName, "%s", node.name.c_str());
         }
-        // every node has a transform component
-        Entity* entity = SceneManager::createEntity(scene, entityName, meshName, localTransform, true);
-        SceneNode* sceneNode = SceneManager::createSceneNode(scene, parentSceneNode, entity);
+        Cyan::Mesh* mesh = hasMesh ? Cyan::getMesh(meshName) : nullptr;
+        SceneNode* sceneNode = Cyan::createSceneNode(sceneNodeName, localTransform, mesh);
+        parentSceneNode->attach(sceneNode);
         // bind material
-        if (entity->m_meshInstance) {
+        if (sceneNode->m_meshInstance) {
             auto& gltfMesh = model.meshes[node.mesh];
             for (u32 sm = 0u; sm < gltfMesh.primitives.size(); ++sm) {
                 // !TODO: material is hard coded to pbr material for now 
                 Shader* pbrShader = Cyan::createShader("PbrShader", "../../shader/shader_pbr.vs", "../../shader/shader_pbr.fs");
-                Cyan::MeshInstance* mesh = entity->m_meshInstance;
+                Cyan::MeshInstance* mesh = sceneNode->m_meshInstance;
                 mesh->m_matls[sm] = Cyan::createMaterial(pbrShader)->createInstance();
                 auto& primitive = gltfMesh.primitives[sm];
                 if (primitive.material > -1) {
@@ -331,7 +331,7 @@ public:
         }
     }
 
-    void loadGltf(Scene* scene, const char* filename)
+    void loadGltf(Scene* scene, const char* filename, Transform transform)
     {
         using Cyan::Mesh;
         tinygltf::Model model;
@@ -353,7 +353,16 @@ public:
         // FIXME: Handle multiple root nodes
         // assuming that there is only one root node for defaultScene
         tinygltf::Node rootNode = model.nodes[gltfScene.nodes[0]];
-        loadGltfNode(scene, model, nullptr, scene->m_root, rootNode, 0);
+        Cyan::Mesh* rootNodeMesh = nullptr;
+        // TODO: handle transform of the root node
+        if (rootNode.mesh > 0)
+        {
+            tinygltf::Mesh gltfMesh = model.meshes[rootNode.mesh];
+            rootNodeMesh = Cyan::getMesh(gltfMesh.name.c_str());
+        }
+        Entity* entity = SceneManager::createEntity(scene, nullptr, transform);
+        entity->m_sceneRoot->attach(Cyan::createSceneNode(rootNode.name.c_str(), Transform(), rootNodeMesh));
+        loadGltfNode(scene, model, nullptr, entity->m_sceneRoot, rootNode, 0);
     }
 
     tinygltf::TinyGLTF m_loader;

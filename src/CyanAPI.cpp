@@ -71,6 +71,7 @@ namespace Cyan
     static const u32 kMaxNumSceneNodes = 256;
 
     // TODO: Where do these live in memory... stack or heap or somewhere else?
+    static AssetManager s_assetManager;
     static std::vector<Texture*> s_textures;
     static std::vector<Mesh*> s_meshes;
     static std::vector<Uniform*> s_uniforms;
@@ -107,6 +108,11 @@ namespace Cyan
         m_uniformBuffer = createUniformBuffer();
     }
 
+    LinearAllocator* getAllocator()
+    {
+        return s_allocator;
+    }
+
     void* alloc(u32 sizeInBytes)
     {
         return s_allocator->alloc(sizeInBytes);
@@ -126,8 +132,22 @@ namespace Cyan
     {
         CYAN_ASSERT(m_numSceneNodes < kMaxNumSceneNodes, "Too many scene nodes created!!")
         s_sceneNodes[m_numSceneNodes].m_parent = nullptr;
-        s_sceneNodes[m_numSceneNodes].m_entity = nullptr;
+        s_sceneNodes[m_numSceneNodes].m_meshInstance = nullptr;
         return &s_sceneNodes[m_numSceneNodes++]; 
+    }
+
+    SceneNode* createSceneNode(const char* name, Transform transform, Mesh* mesh)
+    {
+        SceneNode* node = allocSceneNode();
+        CYAN_ASSERT(name, "Name must be passed to createSceneNode().")
+        strcpy(node->m_name, name);
+        node->m_instanceTransform = transform;
+        node->m_worldTransform = transform;
+        if (mesh)
+        {
+            node->m_meshInstance = mesh->createInstance();
+        }
+        return node;
     }
 
     void shutDown()
@@ -304,10 +324,9 @@ namespace Cyan
 
         scene->m_lastProbe = nullptr;
         scene->m_currentProbe = nullptr;
-        scene->m_root = nullptr;
+        scene->m_rootEntity = nullptr;
         // create root entity
-        Entity* rootEntity = SceneManager::createEntity(scene, "SceneRoot", nullptr, Transform(), true);
-        SceneManager::createSceneNode(scene, nullptr, rootEntity);
+        scene->m_rootEntity = SceneManager::createEntity(scene, "SceneRoot", Transform());
 
         nlohmann::json sceneJson;
         std::ifstream sceneFile(_file);
@@ -360,8 +379,7 @@ namespace Cyan
             meshInfo.at("name").get_to(name);
             // special case for gltf-2.0 for now
             if (path.find(".gltf") != std::string::npos) {
-                AssetManager assetManager;
-                assetManager.loadGltf(scene, path.c_str());
+                s_assetManager.loadGltf(scene, path.c_str(), Transform());
             } else {
                 createMesh(name.c_str(), path.c_str());
             }
@@ -383,8 +401,7 @@ namespace Cyan
             entityInfo.at("name").get_to(entityName);
             auto xformInfo = entityInfo.at("xform");
             Transform xform = entityInfo.at("xform").get<Transform>();
-            Entity* entity = SceneManager::createEntity(scene, entityName.c_str(), meshName.c_str(), xform, true);
-            SceneManager::createSceneNode(scene, nullptr, entity);
+            Entity* entity = SceneManager::createEntity(scene, entityName.c_str(), xform);
         }
         return scene;
     }
@@ -796,7 +813,7 @@ namespace Cyan
         }
         else
         {
-            printf("[ERROR] Unknown uniform with name %s", name);
+            printf("[ERROR] Unknown uniform with name %s\n", name);
         }
         return (UniformHandle)-1;
     }
@@ -1611,7 +1628,7 @@ namespace Cyan
             }
             // create mesh
             Mesh* mesh = new Mesh;
-            mesh->m_name = std::string("terrain_mesh");
+            mesh->m_name = std::string("TerrainMesh");
             Mesh::SubMesh* subMesh = new Cyan::Mesh::SubMesh;
             subMesh->m_numVerts = (u32)vertices.size();
             u32 stride = sizeof(Vertex);

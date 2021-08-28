@@ -38,9 +38,13 @@ void main()
     color += texture(quadSampler, boxUv_3).rgb;
     color *= 0.25f;
     float lumin = luminance(color);
-    if (lumin > 1.0f)
+    // non-thresholded bloom
+    if (lumin > 0.0f)
     {
-        // color *= attenuate(lumin);
-        fragcolor = vec4(color, 1.f);
+        // inspired by UE4
+        // TODO: use another way to adjust contrast
+        float bloomScale = clamp(0.5 * lumin, 0.0, 1.0);
+        // exaggerate the constrast
+        fragcolor = vec4(1.0 * color, 1.f);
     }
 }

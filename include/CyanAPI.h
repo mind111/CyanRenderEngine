@@ -126,6 +126,7 @@ namespace Cyan
     GfxContext* getCurrentGfxCtx();
 
     /* Memory */
+    LinearAllocator* getAllocator();
     #define CYAN_ALLOC(size)  Cyan::alloc(size)
 
     void* alloc(u32 sizeInBytes);
@@ -173,6 +174,7 @@ namespace Cyan
 
     /* Scene */
     SceneNode* allocSceneNode();
+    SceneNode* createSceneNode(const char* name, Transform transform, Mesh* mesh=nullptr);
     Scene* createScene(const char* name, const char* _file);
     LightProbe* getProbe(u32 index);
     u32         getNumProbes();

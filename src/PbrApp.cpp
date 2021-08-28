@@ -109,22 +109,17 @@ void PbrApp::initHelmetScene()
     // Cyan::Mesh* uvSphereMesh = Cyan::getMesh("sphere_mesh");
     // Entity* envMapEntity = SceneManager::createEntity(helmetScene, "Envmap", "CubeMesh", Transform(), false);
     // envMapEntity->m_meshInstance->setMaterial(0, m_envmapMatl);
-    Entity* envMapEntity = SceneManager::createEntity(helmetScene, "Envmap", "CubeMesh", Transform(), false);
-    envMapEntity->m_meshInstance->setMaterial(0, m_skyMatl);
-
-    Cyan::Mesh* terreinMesh = Cyan::AssetGen::createTerrain(40.f, 40.f);
-    m_terrainMatl = Cyan::createMaterial(m_pbrShader)->createInstance();
-    Transform terrainTransform = Transform();
-    terrainTransform.m_translate = glm::vec3(0.f, -1.5f, 0.f);
-    Entity* terrainEntity = SceneManager::createEntity(helmetScene, "Terrain", "terrain_mesh", terrainTransform, true);
-    SceneManager::createSceneNode(helmetScene, nullptr, terrainEntity);
+    Entity* envMapEntity = SceneManager::createEntity(helmetScene, "Envmap", Transform());
+    envMapEntity->m_sceneRoot->attach(Cyan::createSceneNode("CubeMesh", Transform(), Cyan::getMesh("CubeMesh")));
+    SceneNode* node = envMapEntity->getSceneNode("CubeMesh");
+    node->m_meshInstance->setMaterial(0, m_skyMatl);
 
     // additional spheres for testing lighting
     Transform sphereTransform = Transform();
     sphereTransform.m_scale = glm::vec3(0.2, 0.2f, 0.2f);
     sphereTransform.m_translate = glm::vec3(-0.8f, 0.f, -0.2f);
-    Entity* sphereEntity = SceneManager::createEntity(helmetScene, "Sphere0", "sphere_mesh", sphereTransform, true);
-    SceneManager::createSceneNode(helmetScene, nullptr, sphereEntity);
+    Entity* sphereEntity = SceneManager::createEntity(helmetScene, "Sphere0", sphereTransform);
+    sphereEntity->m_sceneRoot->attach(Cyan::createSceneNode("SphereMesh", Transform(), Cyan::getMesh("sphere_mesh")));
     m_sphereMatl = Cyan::createMaterial(m_pbrShader)->createInstance();
     Cyan::Texture* sphereAlbedo = Cyan::Toolkit::createFlatColorTexture("sphere_albedo", 1024u, 1024u, glm::vec4(0.8f, 0.8f, 0.6f, 1.f));
     m_sphereMatl->bindTexture("diffuseMaps[0]", sphereAlbedo);
@@ -135,8 +130,15 @@ void PbrApp::initHelmetScene()
     m_sphereMatl->set("kDiffuse", 1.0f);
     m_sphereMatl->set("kSpecular", 1.0f);
     m_sphereMatl->set("disneyReparam", 1.0f);
-    sphereEntity->m_meshInstance->setMaterial(0, m_sphereMatl);
+    sphereEntity->getSceneNode("SphereMesh")->m_meshInstance->setMaterial(0, m_sphereMatl);
 
+    // terrain
+    Cyan::Mesh* terreinMesh = Cyan::AssetGen::createTerrain(40.f, 40.f);
+    m_terrainMatl = Cyan::createMaterial(m_pbrShader)->createInstance();
+    Transform terrainTransform = Transform();
+    terrainTransform.m_translate = glm::vec3(0.f, -1.5f, 0.f);
+    Entity* terrainEntity = SceneManager::createEntity(helmetScene, "Terrain", terrainTransform);
+    terrainEntity->m_sceneRoot->attach(Cyan::createSceneNode("TerrainMesh", Transform(), Cyan::getMesh("TerrainMesh")));
     Cyan::Texture* terrainAlbedo = Cyan::Toolkit::createFlatColorTexture("terrain_albedo", 1024u, 1024u, glm::vec4(0.65f, 0.30, 0.10, 1.f));
     m_terrainMatl->bindTexture("diffuseMaps[0]", terrainAlbedo);
     m_terrainMatl->bindTexture("envmap", m_envmap);
@@ -147,9 +149,7 @@ void PbrApp::initHelmetScene()
     m_terrainMatl->set("uniformRoughness", 0.2f);
     m_terrainMatl->set("uniformMetallic", 0.1f);
     m_terrainMatl->set("disneyReparam", 1.f);
-    terrainEntity->m_meshInstance->setMaterial(0, m_terrainMatl);
-
-    m_scenes.push_back(helmetScene);
+    terrainEntity->getSceneNode("TerrainMesh")->m_meshInstance->setMaterial(0, m_terrainMatl);
 
     m_helmetMatl = Cyan::createMaterial(m_pbrShader)->createInstance();
     // TODO: create a .cyanmatl file for defining materials?
@@ -166,7 +166,9 @@ void PbrApp::initHelmetScene()
     m_helmetMatl->set("kSpecular", 1.0f);
     m_helmetMatl->set("hasMetallicRoughnessMap", 1.f);
     m_helmetMatl->set("disneyReparam", 1.f);
-    SceneManager::getEntity(m_scenes[0], "DamagedHelmet")->m_meshInstance->setMaterial(0, m_helmetMatl);
+    Entity* helmetEntity = SceneManager::getEntity(helmetScene, "DamagedHelmet");
+    helmetEntity->m_sceneRoot->attach(Cyan::createSceneNode("HelmetMesh", Transform(), Cyan::getMesh("helmet_mesh")));
+    helmetEntity->getSceneNode("HelmetMesh")->m_meshInstance->setMaterial(0, m_helmetMatl);
 
     // add lights into the scene
     SceneManager::createPointLight(helmetScene, glm::vec3(0.9, 0.95f, 0.76f), glm::vec3(0.0f, 0.0f, 1.5f), 4.f);
@@ -179,14 +181,16 @@ void PbrApp::initHelmetScene()
     SceneManager::createDirectionalLight(helmetScene, glm::vec3(1.0, 0.375, 0.0), glm::normalize(glm::vec3(0.0f, -1.0f, 0.f)), 4.f);
 
     // manage entities
-    SceneNode* helmetNode = helmetScene->m_root->find("DamagedHelmet");
+    SceneNode* helmetNode = helmetEntity->getSceneNode("HelmetMesh");
     Transform centerTransform;
-    centerTransform.m_translate = helmetNode->m_entity->m_instanceTransform.m_translate;
-    Entity* pivotEntity = SceneManager::createEntity(helmetScene, "PointLightCenter", nullptr, centerTransform, true);
-    SceneManager::createSceneNode(helmetScene, nullptr, pivotEntity);
-    m_centerNode = helmetScene->m_root->find("PointLightCenter");
-    SceneNode* pointLightNode = helmetScene->m_root->removeChild("PointLight0");
-    m_centerNode->addChild(pointLightNode);
+    centerTransform.m_translate = helmetNode->m_instanceTransform.m_translate;
+    Entity* pivotEntity = SceneManager::createEntity(helmetScene, "PointLightCenter", centerTransform);
+    Entity* pointLightEntity = helmetScene->m_rootEntity->detachChild("PointLight0");
+    if (pointLightEntity) 
+    {
+        pivotEntity->attach(pointLightEntity);
+    }
+    m_scenes.push_back(helmetScene);
 }
 
 void PbrApp::initSpheresScene()
@@ -197,8 +201,9 @@ void PbrApp::initSpheresScene()
     Scene* sphereScene = Cyan::createScene("spheres_scene", "../../scene/default_scene/scene_spheres.json");
     sphereScene->mainCamera.projection = glm::perspective(glm::radians(sphereScene->mainCamera.fov), (float)(gEngine->getWindow().width) / gEngine->getWindow().height, sphereScene->mainCamera.n, sphereScene->mainCamera.f);
 
-    Entity* envmapEntity = SceneManager::createEntity(sphereScene, "Envmap", "CubeMesh", Transform(), false);
-    envmapEntity->m_meshInstance->setMaterial(0, m_envmapMatl);
+    Entity* envmapEntity = SceneManager::createEntity(sphereScene, "Envmap", Transform());
+    envmapEntity->m_sceneRoot->attach(Cyan::createSceneNode("sphere_mesh", Transform(), Cyan::getMesh("sphere_mesh")));
+    envmapEntity->getSceneNode("sphere_mesh")->m_meshInstance->setMaterial(0, m_envmapMatl);
 
     // add lights into the scene
     SceneManager::createDirectionalLight(sphereScene, glm::vec3(1.0, 0.95f, 0.76f), glm::vec3(0.f, 0.f, -1.f), 2.f);
@@ -218,7 +223,7 @@ void PbrApp::initSpheresScene()
                 glm::quat(1.f, glm::vec3(0.f)), // identity quaternion
                 glm::vec3(.2f)
             };
-            Entity* entity = SceneManager::createEntity(sphereScene, nullptr, "sphere_mesh", transform, true);
+            Entity* entity = SceneManager::createEntity(sphereScene, nullptr, transform);
 
             // create material
             m_sphereMatls[idx] = materialType->createInstance();
@@ -241,7 +246,7 @@ void PbrApp::initSpheresScene()
             m_sphereMatls[idx]->set("directSpecularSlider", 1.f);
             m_sphereMatls[idx]->set("indirectDiffuseSlider", 1.f);
             m_sphereMatls[idx]->set("indirectSpecularSlider", 1.f);
-            entity->m_meshInstance->setMaterial(0, m_sphereMatls[idx]);
+            entity->getSceneNode("sphere_mesh")->m_meshInstance->setMaterial(0, m_sphereMatls[idx]);
         }
     }
 
@@ -383,16 +388,22 @@ void PbrApp::update()
     float pointLightsRotSpeed = .5f; // in degree
     float rotationSpeed = glm::radians(.5f);
     glm::quat qRot = glm::quat(cos(rotationSpeed * .5f), sin(rotationSpeed * .5f) * glm::normalize(glm::vec3(0.f, 1.f, 1.f)));
-    m_centerNode->m_entity->m_instanceTransform.m_qRot *= qRot;
-    m_centerNode->update();
-    scene->pLights[0].position = scene->pLights[0].baseLight.m_entity->m_worldTransformMatrix[3]; 
+    Entity* pivotEntity = SceneManager::getEntity(m_scenes[0], "PointLightCenter");
+
+    // TODO: we should have something like entity->setTransform();
+    // FIXME: updating transform like this will break the child entity's transform, where child entities will not
+    // update their transform
+    pivotEntity->m_sceneRoot->m_instanceTransform.m_qRot *= qRot;
+    pivotEntity->m_sceneRoot->updateWorldTransform();
+    scene->pLights[0].position = glm::vec4(scene->pLights[0].baseLight.m_entity->m_sceneRoot->m_worldTransform.m_translate, 1.0f); 
 
     for (u32 i = 1; i < scene->pLights.size(); ++i)
     {
         glm::mat4 rotation = rotateAroundPoint(glm::vec3(0.f, 0.f, -1.5f), glm::vec3(0.f, 1.f, 0.f), pointLightsRotSpeed);
         pointLightsRotSpeed *= -1.f;
-        scene->pLights[i].baseLight.m_entity->m_worldTransformMatrix = rotation * scene->pLights[i].baseLight.m_entity->m_worldTransformMatrix;
-        scene->pLights[i].position = scene->pLights[i].baseLight.m_entity->m_worldTransformMatrix[3]; 
+        scene->pLights[i].baseLight.m_entity->applyWorldRotation(rotation);
+        // scene->pLights[i].baseLight.m_entity->m_sceneRoot->m_worldTransformMatrix = rotation * scene->pLights[i].baseLight.m_entity->m_sceneRoot->m_worldTransformMatrix;
+        scene->pLights[i].position = glm::vec4(scene->pLights[i].baseLight.m_entity->getWorldTransform().m_translate, 1.0f); 
     }
 }
 
@@ -410,18 +421,18 @@ void PbrApp::drawStatsWindow()
     m_ui.endWindow();
 }
 
-void drawSceneGraphUI(SceneNode* node) 
+void drawSceneGraphUI(Entity* entity) 
 {
     ImGuiTreeNodeFlags baseFlags = ImGuiTreeNodeFlags_OpenOnArrow 
                                 | ImGuiTreeNodeFlags_OpenOnDoubleClick 
                                 | ImGuiTreeNodeFlags_SpanAvailWidth 
                                 | ImGuiTreeNodeFlags_DefaultOpen;
-    char* label = node->m_entity->m_name;
-    if (node->m_child.size() > 0)
+    char* label = entity->m_name;
+    if (entity->m_child.size() > 0)
     {
         if (ImGui::TreeNodeEx(label, baseFlags))
         {
-            for (auto* child : node->m_child)
+            for (auto* child : entity->m_child)
             {
                 drawSceneGraphUI(child);
             }
@@ -439,21 +450,7 @@ void PbrApp::drawEntityWindow()
     ImGui::PushFont(m_font);
     {
         Scene* scene = m_scenes[m_currentScene];
-        std::queue<SceneNode*> nodesQueue;
-        std::vector<SceneNode*> nodes;
-        nodesQueue.push(scene->m_root);
-        u32 depth = 0u;
-        while (!nodesQueue.empty())
-        {
-            SceneNode* node = nodesQueue.front();
-            nodesQueue.pop();
-            nodes.push_back(node);
-            for (auto* child : node->m_child)
-            {
-                nodesQueue.push(child);
-            }
-        }
-        drawSceneGraphUI(scene->m_root);
+        drawSceneGraphUI(scene->m_rootEntity);
     }
     ImGui::PopFont();
     m_ui.endWindow();

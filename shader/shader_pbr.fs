@@ -275,7 +275,7 @@ vec3 render(RenderParams params)
     // TODO: figure out how to use wrap lighting properly
     float ndotlWrap = max(0.1f, (dot(params.n, params.l) + wrap) / (1.f + wrap));
     vec3 F = fresnel(params.f0, params.n, params.v);
-    vec3 kDiffuse = mix(vec3(1.f) - F, vec3(0.f), params.metallic);
+    vec3 kDiffuse = mix(vec3(1.f) - F, vec3(0.0f), params.metallic);
     vec3 diffuse = kDiffuse * diffuseBrdf(params.baseColor) * ndotl;
     vec3 specular = specularBrdf(params.l, params.v, params.n, params.roughness, params.f0) * ndotl;
     // specular *= 0.0;

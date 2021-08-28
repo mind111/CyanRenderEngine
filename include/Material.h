@@ -71,6 +71,7 @@ namespace Cyan
         void bindBuffer(const char* blockName, RegularBuffer* buffer);
         void set(const char* attribute, void* data);
         void set(const char* attribute, u32 data);
+        void set(const char* attribute, i32 data);
         void set(const char* attribute, float data);
         u32 getAttributeOffset(UniformHandle handle);
         UsedBindingPoints bind();
