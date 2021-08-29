@@ -183,7 +183,7 @@ void PbrApp::initHelmetScene()
     // manage entities
     SceneNode* helmetNode = helmetEntity->getSceneNode("HelmetMesh");
     Transform centerTransform;
-    centerTransform.m_translate = helmetNode->m_instanceTransform.m_translate;
+    centerTransform.m_translate = helmetNode->m_localTransform.m_translate;
     Entity* pivotEntity = SceneManager::createEntity(helmetScene, "PointLightCenter", centerTransform);
     Entity* pointLightEntity = helmetScene->m_rootEntity->detachChild("PointLight0");
     if (pointLightEntity) 
@@ -390,21 +390,8 @@ void PbrApp::update()
     glm::quat qRot = glm::quat(cos(rotationSpeed * .5f), sin(rotationSpeed * .5f) * glm::normalize(glm::vec3(0.f, 1.f, 1.f)));
     Entity* pivotEntity = SceneManager::getEntity(m_scenes[0], "PointLightCenter");
 
-    // TODO: we should have something like entity->setTransform();
-    // FIXME: updating transform like this will break the child entity's transform, where child entities will not
-    // update their transform
-    pivotEntity->m_sceneRoot->m_instanceTransform.m_qRot *= qRot;
-    pivotEntity->m_sceneRoot->updateWorldTransform();
+    pivotEntity->applyLocalRotation(qRot);
     scene->pLights[0].position = glm::vec4(scene->pLights[0].baseLight.m_entity->m_sceneRoot->m_worldTransform.m_translate, 1.0f); 
-
-    for (u32 i = 1; i < scene->pLights.size(); ++i)
-    {
-        glm::mat4 rotation = rotateAroundPoint(glm::vec3(0.f, 0.f, -1.5f), glm::vec3(0.f, 1.f, 0.f), pointLightsRotSpeed);
-        pointLightsRotSpeed *= -1.f;
-        scene->pLights[i].baseLight.m_entity->applyWorldRotation(rotation);
-        // scene->pLights[i].baseLight.m_entity->m_sceneRoot->m_worldTransformMatrix = rotation * scene->pLights[i].baseLight.m_entity->m_sceneRoot->m_worldTransformMatrix;
-        scene->pLights[i].position = glm::vec4(scene->pLights[i].baseLight.m_entity->getWorldTransform().m_translate, 1.0f); 
-    }
 }
 
 void PbrApp::drawStatsWindow()

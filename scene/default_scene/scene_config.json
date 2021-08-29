@@ -92,52 +92,47 @@
         }
     ],
 
-    "materials": [
+    "materials": [],
+    "nodes": [
         {
-            "name": "helmet_matl",
-            "albedo": "helmet_alebdo",
-            "normal": "helmet_nm",
-            "occlusion": "helmet_ao",
-            "metallicRoughness": "helmet_roughness",
-            "roughness": "",
-            "uniformRoughness": 0.2,
-            "uniformMetallic": 0.2,
-            "hasNormalMap": 0.0,
-            "hasRoughnessMap": 0.0,
-            "hasMetallicRoughnessMap": 0.0,
-            "kDiffuse": 1.0,
-            "kSpecular": 1.0,
-            "debugG": 0,
-            "debugF": 0,
-            "debugD": 0,
-            "disneyReparam": 1
+            "index": 0,
+            "mesh": "helmet_mesh",
+            "transform": {
+                "translation": [0.0, 0.0, -1.5],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [0.8, 0.8, 0.8]
+            },
+            "child": []
         },
+
         {
-            "name": "cube_matl",
-            "albedo": "",
-            "normal": "",
-            "occlusion": "",
-            "metallicRoughness": "",
-            "roughness": "",
-            "uniformRoughness": 0.2,
-            "uniformMetallic": 0.2,
-            "hasNormalMap": 0.0,
-            "hasRoughnessMap": 0.0,
-            "hasMetallicRoughnessMap": 0.0,
-            "kDiffuse": 1.0,
-            "kSpecular": 1.0,
-            "debugG": 0,
-            "debugF": 0,
-            "debugD": 0,
-            "disneyReparam": 1
+            "index": 1,
+            "mesh": "",
+            "file": "asset/smart_drone/scene.gltf",
+            "transform": {
+                "translation": [0.0, 0.0, -1.5],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [0.8, 0.8, 0.8]
+            },
+            "child": []
+        },
+
+        {
+            "index": 2,
+            "mesh": "sphere_mesh",
+            "transform": {
+                "translation": [0.0, 0.0, -1.5],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [0.8, 0.8, 0.8]
+            },
+            "child": []
         }
     ],
 
     "entities": [
         {
-            "mesh": "helmet_mesh",
-            "matls": [],
             "name": "DamagedHelmet",
+            "mesh": "helmet_mesh",
             "xform": {
                 "translation": [0.0, 0.0, -1.5],
                 "rotation": [0.0, 0, 1, 0],

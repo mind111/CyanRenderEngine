@@ -11,7 +11,7 @@ uniform int stageIndex;
 
 // TODO: Use a better weights here
 float weights[5] = {
-    0.1, 0.2, 0.30, 0.4, 0.6
+    0.1, 0.2, 0.30, 0.4, 1.0
 };
 
 void main()

@@ -11,44 +11,6 @@
 #include "GfxContext.h"
 #include "Camera.h"
 
-// TODO: I did lots of new but never delete any memory allocation 
-
-namespace glm {
-    //---- Utilities for loading the scene data from json
-    void from_json(const nlohmann::json& j, glm::vec3& v) 
-    { 
-        v.x = j.at(0).get<float>();
-        v.y = j.at(1).get<float>();
-        v.z = j.at(2).get<float>();
-    }
-
-    void from_json(const nlohmann::json& j, glm::vec4& v) 
-    { 
-        v.x = j.at(0).get<float>();
-        v.y = j.at(1).get<float>();
-        v.z = j.at(2).get<float>();
-        v.w = j.at(3).get<float>();
-    }
-}
-
-void from_json(const nlohmann::json& j, Transform& t) 
-{
-    t.m_translate = j.at("translation").get<glm::vec3>();
-    glm::vec4 rotation = j.at("rotation").get<glm::vec4>();
-    t.m_qRot = glm::quat(cos(RADIANS(rotation.x * 0.5f)), sin(RADIANS(rotation.x * 0.5f)) * glm::vec3(rotation.y, rotation.z, rotation.w));
-    t.m_scale = j.at("scale").get<glm::vec3>();
-}
-
-void from_json(const nlohmann::json& j, Camera& c) 
-{
-    c.position = j.at("position").get<glm::vec3>();
-    c.lookAt = j.at("lookAt").get<glm::vec3>();
-    c.worldUp = j.at("worldUp").get<glm::vec3>();
-    j.at("fov").get_to(c.fov);
-    j.at("z_far").get_to(c.f);
-    j.at("z_near").get_to(c.n);
-}
-
 namespace Cyan
 {
     struct HandleAllocator
@@ -141,7 +103,7 @@ namespace Cyan
         SceneNode* node = allocSceneNode();
         CYAN_ASSERT(name, "Name must be passed to createSceneNode().")
         strcpy(node->m_name, name);
-        node->m_instanceTransform = transform;
+        node->m_localTransform = transform;
         node->m_worldTransform = transform;
         if (mesh)
         {
@@ -317,7 +279,7 @@ namespace Cyan
         return 0;
     }
 
-    Scene* createScene(const char* name, const char* _file)
+    Scene* createScene(const char* name, const char* file)
     {
         Scene* scene = new Scene;
         scene->m_name = std::string(name);
@@ -327,82 +289,7 @@ namespace Cyan
         scene->m_rootEntity = nullptr;
         // create root entity
         scene->m_rootEntity = SceneManager::createEntity(scene, "SceneRoot", Transform());
-
-        nlohmann::json sceneJson;
-        std::ifstream sceneFile(_file);
-        sceneFile >> sceneJson;
-        auto cameras = sceneJson["cameras"];
-        auto meshInfoList = sceneJson["meshes"];
-        auto textureInfoList = sceneJson["textures"];
-        auto entities = sceneJson["entities"];
-
-        // create buffer size that can contain max number of lights
-        scene->m_dirLightsBuffer = createRegularBuffer(Scene::kMaxNumDirLights * sizeof(DirectionalLight));
-        scene->m_pointLightsBuffer = createRegularBuffer(Scene::kMaxNumPointLights * sizeof(PointLight));
-
-        // TODO: each scene should only have one camera
-        for (auto camera : cameras) 
-        {
-            scene->mainCamera = camera.get<Camera>();
-            scene->mainCamera.view = glm::mat4(1.f);
-        }
-
-        for (auto textureInfo : textureInfoList) 
-        {
-            std::string filename = textureInfo.at("path").get<std::string>();
-            std::string name     = textureInfo.at("name").get<std::string>();
-            std::string dynamicRange = textureInfo.at("dynamic_range").get<std::string>();
-            u32 numMips = textureInfo.at("numMips").get<u32>();
-            
-            TextureSpec spec = { };
-            spec.m_type = Texture::Type::TEX_2D;
-            spec.m_numMips = numMips;
-            spec.m_min = Texture::Filter::LINEAR;
-            spec.m_mag = Texture::Filter::LINEAR;
-            spec.m_s = Texture::Wrap::NONE;
-            spec.m_t = Texture::Wrap::NONE;
-            spec.m_r = Texture::Wrap::NONE;
-            if (dynamicRange == "ldr")
-            {
-                createTexture(name.c_str(), filename.c_str(), spec);
-            }
-            else if (dynamicRange == "hdr")
-            {
-                createTextureHDR(name.c_str(), filename.c_str(), spec);
-            }
-        }
-
-        for (auto meshInfo : meshInfoList) 
-        {
-            std::string path, name;
-            meshInfo.at("path").get_to(path);
-            meshInfo.at("name").get_to(name);
-            // special case for gltf-2.0 for now
-            if (path.find(".gltf") != std::string::npos) {
-                s_assetManager.loadGltf(scene, path.c_str(), Transform());
-            } else {
-                createMesh(name.c_str(), path.c_str());
-            }
-        }
-
-        for (auto entityInfo : entities) 
-        {
-            auto findMesh = [](const char* _name) {
-                for (auto mesh : s_meshes)
-                {
-                    if (mesh->m_name == _name)
-                        return mesh;
-                }
-            };
-
-            std::string meshName;
-            std::string entityName;
-            entityInfo.at("mesh").get_to(meshName);
-            entityInfo.at("name").get_to(entityName);
-            auto xformInfo = entityInfo.at("xform");
-            Transform xform = entityInfo.at("xform").get<Transform>();
-            Entity* entity = SceneManager::createEntity(scene, entityName.c_str(), xform);
-        }
+        s_assetManager.loadScene(scene, file);
         return scene;
     }
 

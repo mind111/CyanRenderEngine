@@ -27,9 +27,8 @@ struct SceneNode
     */
     // std::vector<SceneNode*> m_indirectChild;
     // transform component
-    Transform m_instanceTransform;
+    Transform m_localTransform;
     Transform m_worldTransform;
-    // glm::mat4 m_worldTransformMatrix;
 
     // mesh component 
     Cyan::MeshInstance* m_meshInstance;

@@ -34,13 +34,13 @@ void SceneNode::updateWorldTransform()
 {
     if (m_parent)
     {
-        m_worldTransform.fromMatrix(m_parent->m_worldTransform.toMatrix() * m_instanceTransform.toMatrix());
+        m_worldTransform.fromMatrix(m_parent->m_worldTransform.toMatrix() * m_localTransform.toMatrix());
         // m_worldTransformMatrix = m_parent->m_worldTransformMatrix * m_instanceTransform.toMatrix();
     } 
     else 
     {
         // this node is a root node
-        m_worldTransform = m_instanceTransform;
+        m_worldTransform = m_localTransform;
     }
     for (auto* child : m_child) 
     {

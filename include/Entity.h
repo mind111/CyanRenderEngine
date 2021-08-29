@@ -11,7 +11,6 @@
 
 // TODO: Components
 
-
 // entity
 /* 
     * every entity has to have a transform component, entity's transform component is represented by
@@ -31,7 +30,6 @@ struct Entity
 
     // flags
     bool m_lit;
-    bool m_hasTransform;
 
     SceneNode* getSceneRoot()
     {
@@ -112,7 +110,7 @@ struct Entity
 
     Transform& getLocalTransform()
     {
-        return m_sceneRoot->m_instanceTransform;
+        return m_sceneRoot->m_localTransform;
     }
 
     Transform& getWorldTransform()
@@ -121,11 +119,11 @@ struct Entity
     }
 
     // transform locally
-    void transform(Transform& transform)
+    void applyLocalTransform(Transform& transform)
     {
-        m_sceneRoot->m_instanceTransform.m_qRot *= transform.m_qRot;
-        m_sceneRoot->m_instanceTransform.m_translate += transform.m_translate;
-        m_sceneRoot->m_instanceTransform.m_scale *= transform.m_scale;
+        m_sceneRoot->m_localTransform.m_qRot *= transform.m_qRot;
+        m_sceneRoot->m_localTransform.m_translate += transform.m_translate;
+        m_sceneRoot->m_localTransform.m_scale *= transform.m_scale;
         updateWorldTransform();
     }
 
@@ -141,19 +139,12 @@ struct Entity
         transform.m_qRot *= rot;
     }
 
-    void rotate(glm::quat rot)
-    {
-        m_sceneRoot->m_instanceTransform.m_qRot *= rot;
-        m_sceneRoot->updateWorldTransform();
-        updateWorldTransform();
-    }
-
-    void translate()
+    void applyWorldTranslation(const glm::vec3 trans)
     {
 
     }
 
-    void scale()
+    void applyWorldScale(const glm::vec3 scale)
     {
 
     }
@@ -162,7 +153,7 @@ struct Entity
     {
         if (m_parent)
         {
-            m_sceneRoot->m_worldTransform.fromMatrix(m_parent->m_sceneRoot->m_worldTransform.toMatrix() * m_sceneRoot->m_instanceTransform.toMatrix());
+            m_sceneRoot->m_worldTransform.fromMatrix(m_parent->m_sceneRoot->m_worldTransform.toMatrix() * m_sceneRoot->m_localTransform.toMatrix());
             m_sceneRoot->updateWorldTransform();
             for (auto child : m_child)
             {
@@ -171,13 +162,24 @@ struct Entity
         }
         else
         {
-            m_sceneRoot->m_worldTransform = m_sceneRoot->m_instanceTransform;
+            m_sceneRoot->m_worldTransform = m_sceneRoot->m_localTransform;
         }
     }
 
-    // glm::vec3 worldPosition()
-    // {
-    //     glm::vec4 translation = m_sceneRoot->m_worldTransformMatrix[3];
-    //     return glm::vec3(translation.x, translation.y, translation.z);
-    // }
+    void applyLocalRotation(const glm::quat& rot)
+    {
+        m_sceneRoot->m_localTransform.m_qRot *= rot;
+        m_sceneRoot->updateWorldTransform();
+        updateWorldTransform();
+    }
+
+    void applyLocalTranslation(const glm::vec3 trans)
+    {
+
+    }
+
+    void applyLocalScale(const glm::vec3 scale)
+    {
+
+    }
 };
