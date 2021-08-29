@@ -167,7 +167,7 @@ void PbrApp::initHelmetScene()
     m_helmetMatl->set("hasMetallicRoughnessMap", 1.f);
     m_helmetMatl->set("disneyReparam", 1.f);
     Entity* helmetEntity = SceneManager::getEntity(helmetScene, "DamagedHelmet");
-    helmetEntity->m_sceneRoot->attach(Cyan::createSceneNode("HelmetMesh", Transform(), Cyan::getMesh("helmet_mesh")));
+    // helmetEntity->m_sceneRoot->attach(Cyan::createSceneNode("HelmetMesh", Transform(), Cyan::getMesh("helmet_mesh")));
     helmetEntity->getSceneNode("HelmetMesh")->m_meshInstance->setMaterial(0, m_helmetMatl);
 
     // add lights into the scene

@@ -29,6 +29,12 @@ class AssetManager
 {
 public:
 
+    struct LoadedNode
+    {
+        SceneNode* m_sceneNode;
+        std::vector<u32> m_child;
+    };
+
     Cyan::Texture* loadGltfTexture(tinygltf::Model& model, i32 index);
     // TODO: Normalize mesh scale
     void loadGltfNode(Scene* scene, tinygltf::Model& model, tinygltf::Node* parent, 

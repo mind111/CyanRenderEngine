@@ -96,8 +96,9 @@
     "nodes": [
         {
             "index": 0,
+            "name": "HelmetMesh",
             "mesh": "helmet_mesh",
-            "transform": {
+            "xform": {
                 "translation": [0.0, 0.0, -1.5],
                 "rotation": [0.0, 0, 1, 0],
                 "scale": [0.8, 0.8, 0.8]
@@ -107,9 +108,10 @@
 
         {
             "index": 1,
+            "name": "SmartDroneMesh",
             "mesh": "",
             "file": "asset/smart_drone/scene.gltf",
-            "transform": {
+            "xform": {
                 "translation": [0.0, 0.0, -1.5],
                 "rotation": [0.0, 0, 1, 0],
                 "scale": [0.8, 0.8, 0.8]
@@ -119,8 +121,9 @@
 
         {
             "index": 2,
+            "name": "SphereMesh",
             "mesh": "sphere_mesh",
-            "transform": {
+            "xform": {
                 "translation": [0.0, 0.0, -1.5],
                 "rotation": [0.0, 0, 1, 0],
                 "scale": [0.8, 0.8, 0.8]
@@ -132,12 +135,12 @@
     "entities": [
         {
             "name": "DamagedHelmet",
-            "mesh": "helmet_mesh",
             "xform": {
                 "translation": [0.0, 0.0, -1.5],
                 "rotation": [0.0, 0, 1, 0],
                 "scale": [0.8, 0.8, 0.8]
-            }
+            },
+            "nodes": [ 0 ]
         }
     ]
 }

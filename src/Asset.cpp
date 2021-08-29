@@ -89,9 +89,10 @@ void AssetManager::loadMeshes(Scene* scene, nlohmann::basic_json<std::map>& mesh
 
 void AssetManager::loadNodes(nlohmann::basic_json<std::map>& nodeInfoList)
 {
-    std::vector<SceneNode*> nodes;
     for (auto nodeInfo : nodeInfoList)
     {
+        u32 index = nodeInfo.at("index");
+        std::string nodeName = nodeInfo.at("name");
         auto xformInfo = nodeInfo.at("xform");
         Transform transform = nodeInfo.at("xform").get<Transform>();
         std::string meshName = nodeInfo.at("mesh");
@@ -99,23 +100,50 @@ void AssetManager::loadNodes(nlohmann::basic_json<std::map>& nodeInfoList)
         // TODO: No need to check if meshName is empty as getMesh() should return null
         // if meshName is empty anyway
         mesh = Cyan::getMesh(meshName.c_str());
-        SceneNode* node = Cyan::createSceneNode(nullptr, transform, mesh); 
-        nodes.push_back(node);
+        SceneNode* node = Cyan::createSceneNode(nodeName.c_str(), transform, mesh); 
+        m_nodes.push_back(node);
+    }
+    // second pass to setup the hierarchy
+    for (auto nodeInfo : nodeInfoList)
+    {
+        u32 index = nodeInfo.at("index");
+        std::vector<u32> childNodes = nodeInfo.at("child");
+        for (auto child : childNodes)
+        {
+            SceneNode* childNode = m_nodes[child];
+            m_nodes[index]->attach(childNode);
+        }
     }
 }
 
 void AssetManager::loadEntities(Scene* scene, nlohmann::basic_json<std::map>& entityInfoList)
 {
-    for (auto entityInfo : entityInfoList) 
+    // for (auto entityInfo : entityInfoList) 
+    // {
+    //     std::string meshName;
+    //     std::string entityName;
+    //     entityInfo.at("mesh").get_to(meshName);
+    //     entityInfo.at("name").get_to(entityName);
+    //     auto xformInfo = entityInfo.at("xform");
+    //     Transform xform = entityInfo.at("xform").get<Transform>();
+    //     Entity* entity = SceneManager::createEntity(scene, entityName.c_str(), xform);
+    // }
+
+    for (auto entityInfo : entityInfoList)
     {
-        std::string meshName;
         std::string entityName;
-        entityInfo.at("mesh").get_to(meshName);
         entityInfo.at("name").get_to(entityName);
         auto xformInfo = entityInfo.at("xform");
         Transform xform = entityInfo.at("xform").get<Transform>();
         Entity* entity = SceneManager::createEntity(scene, entityName.c_str(), xform);
+        auto sceneNodes = entityInfo.at("nodes");
+        for (auto node : sceneNodes)
+        {
+            entity->getSceneRoot()->attach(m_nodes[node]);
+        }
     }
+
+    // TODO: draw a debug print here to verify node hierarchy is correct
 }
 
 void AssetManager::loadScene(Scene* scene, const char* file)
@@ -142,7 +170,7 @@ void AssetManager::loadScene(Scene* scene, const char* file)
 
     loadTextures(textureInfoList);
     loadMeshes(scene, meshInfoList);
-    // loadNodes(nodes);
+    loadNodes(nodes);
     loadEntities(scene, entities);
 }
 
