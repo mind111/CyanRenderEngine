@@ -105,10 +105,6 @@ void PbrApp::initHelmetScene()
     Scene* helmetScene = Cyan::createScene("helmet_scene", "../../scene/default_scene/scene_config.json");
     helmetScene->mainCamera.projection = glm::perspective(glm::radians(helmetScene->mainCamera.fov), (float)(gEngine->getWindow().width) / gEngine->getWindow().height, helmetScene->mainCamera.n, helmetScene->mainCamera.f);
 
-    // TODO:
-    // Cyan::Mesh* uvSphereMesh = Cyan::getMesh("sphere_mesh");
-    // Entity* envMapEntity = SceneManager::createEntity(helmetScene, "Envmap", "CubeMesh", Transform(), false);
-    // envMapEntity->m_meshInstance->setMaterial(0, m_envmapMatl);
     Entity* envMapEntity = SceneManager::createEntity(helmetScene, "Envmap", Transform());
     envMapEntity->m_sceneRoot->attach(Cyan::createSceneNode("CubeMesh", Transform(), Cyan::getMesh("CubeMesh")));
     SceneNode* node = envMapEntity->getSceneNode("CubeMesh");
@@ -167,7 +163,6 @@ void PbrApp::initHelmetScene()
     m_helmetMatl->set("hasMetallicRoughnessMap", 1.f);
     m_helmetMatl->set("disneyReparam", 1.f);
     Entity* helmetEntity = SceneManager::getEntity(helmetScene, "DamagedHelmet");
-    // helmetEntity->m_sceneRoot->attach(Cyan::createSceneNode("HelmetMesh", Transform(), Cyan::getMesh("helmet_mesh")));
     helmetEntity->getSceneNode("HelmetMesh")->m_meshInstance->setMaterial(0, m_helmetMatl);
 
     // add lights into the scene

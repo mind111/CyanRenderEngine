@@ -78,16 +78,11 @@ void AssetManager::loadMeshes(Scene* scene, nlohmann::basic_json<std::map>& mesh
         std::string path, name;
         meshInfo.at("path").get_to(path);
         meshInfo.at("name").get_to(name);
-        // special case for gltf-2.0 for now
-        if (path.find(".gltf") != std::string::npos) {
-            loadGltf(scene, path.c_str(), Transform());
-        } else {
-            Cyan::createMesh(name.c_str(), path.c_str());
-        }
+        Cyan::createMesh(name.c_str(), path.c_str());
     }
 }
 
-void AssetManager::loadNodes(nlohmann::basic_json<std::map>& nodeInfoList)
+void AssetManager::loadNodes(Scene* scene, nlohmann::basic_json<std::map>& nodeInfoList)
 {
     for (auto nodeInfo : nodeInfoList)
     {
@@ -97,6 +92,16 @@ void AssetManager::loadNodes(nlohmann::basic_json<std::map>& nodeInfoList)
         Transform transform = nodeInfo.at("xform").get<Transform>();
         std::string meshName = nodeInfo.at("mesh");
         Cyan::Mesh* mesh = nullptr;
+        if (nodeInfo.find("file") != nodeInfo.end())
+        {
+            std::string nodeFile = nodeInfo.at("file");
+            SceneNode* node = nullptr; 
+            if (nodeFile.find(".gltf") != std::string::npos) {
+                node = loadGltf(scene, nodeFile.c_str(), nodeName.c_str(), transform);
+            }
+            m_nodes.push_back(node);
+            return;
+        }
         // TODO: No need to check if meshName is empty as getMesh() should return null
         // if meshName is empty anyway
         mesh = Cyan::getMesh(meshName.c_str());
@@ -118,17 +123,6 @@ void AssetManager::loadNodes(nlohmann::basic_json<std::map>& nodeInfoList)
 
 void AssetManager::loadEntities(Scene* scene, nlohmann::basic_json<std::map>& entityInfoList)
 {
-    // for (auto entityInfo : entityInfoList) 
-    // {
-    //     std::string meshName;
-    //     std::string entityName;
-    //     entityInfo.at("mesh").get_to(meshName);
-    //     entityInfo.at("name").get_to(entityName);
-    //     auto xformInfo = entityInfo.at("xform");
-    //     Transform xform = entityInfo.at("xform").get<Transform>();
-    //     Entity* entity = SceneManager::createEntity(scene, entityName.c_str(), xform);
-    // }
-
     for (auto entityInfo : entityInfoList)
     {
         std::string entityName;
@@ -170,7 +164,7 @@ void AssetManager::loadScene(Scene* scene, const char* file)
 
     loadTextures(textureInfoList);
     loadMeshes(scene, meshInfoList);
-    loadNodes(nodes);
+    loadNodes(scene, nodes);
     loadEntities(scene, entities);
 }
 
@@ -236,7 +230,7 @@ Cyan::Texture* AssetManager::loadGltfTexture(tinygltf::Model& model, i32 index) 
 }
 
 // TODO: Normalize mesh scale
-void AssetManager::loadGltfNode(Scene* scene, tinygltf::Model& model, tinygltf::Node* parent, 
+SceneNode* AssetManager::loadGltfNode(Scene* scene, tinygltf::Model& model, tinygltf::Node* parent, 
                     SceneNode* parentSceneNode, tinygltf::Node& node, u32 numNodes) {
     bool hasMesh = (node.mesh > -1);
     bool hasSkin = (node.skin > -1);
@@ -246,7 +240,8 @@ void AssetManager::loadGltfNode(Scene* scene, tinygltf::Model& model, tinygltf::
     bool hasTransform = (hasMatrix || hasTransformComponent);
     const char* meshName = hasMesh ? model.meshes[node.mesh].name.c_str() : nullptr;
     Transform localTransform;
-    if (hasMatrix) {
+    if (hasMatrix) 
+    {
         glm::mat4 matrix = {
             glm::vec4(node.matrix[0], node.matrix[1], node.matrix[2], node.matrix[3]),     // column 0
             glm::vec4(node.matrix[4], node.matrix[5], node.matrix[6], node.matrix[7]),     // column 1
@@ -255,7 +250,9 @@ void AssetManager::loadGltfNode(Scene* scene, tinygltf::Model& model, tinygltf::
         };
         // convert matrix to local transform
         localTransform.fromMatrix(matrix);
-    } else if (hasTransformComponent) {
+    } 
+    else if (hasTransformComponent) 
+    {
         if (!node.translation.empty()) {
             localTransform.m_translate = glm::vec3(node.translation[0], node.translation[1], node.translation[2]);
         }
@@ -276,9 +273,13 @@ void AssetManager::loadGltfNode(Scene* scene, tinygltf::Model& model, tinygltf::
     } else {
         sprintf_s(sceneNodeName, "%s", node.name.c_str());
     }
+
     Cyan::Mesh* mesh = hasMesh ? Cyan::getMesh(meshName) : nullptr;
     SceneNode* sceneNode = Cyan::createSceneNode(sceneNodeName, localTransform, mesh);
-    parentSceneNode->attach(sceneNode);
+    if (parentSceneNode)
+    {
+        parentSceneNode->attach(sceneNode);
+    }
     // bind material
     if (sceneNode->m_meshInstance) {
         auto& gltfMesh = model.meshes[node.mesh];
@@ -337,6 +338,7 @@ void AssetManager::loadGltfNode(Scene* scene, tinygltf::Model& model, tinygltf::
     for (auto& child : node.children) {
         loadGltfNode(scene, model, &node, sceneNode, model.nodes[child], ++numNodes);
     }
+    return sceneNode;
 }
 
 Cyan::Mesh* AssetManager::loadGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh) {
@@ -466,7 +468,8 @@ Cyan::Mesh* AssetManager::loadGltfMesh(tinygltf::Model& model, tinygltf::Mesh& g
     } // primitive (submesh)
     // TODO: This is not correct
     // mesh->m_normalization = Cyan::Toolkit::computeMeshNormalization(mesh);
-    mesh->m_normalization = glm::scale(glm::mat4(1.f), glm::vec3(0.01f, 0.01f, 0.01f));
+    // mesh->m_normalization = glm::scale(glm::mat4(1.f), glm::vec3(0.01f, 0.01f, 0.01f));
+    mesh->m_normalization = glm::mat4(1.0);
     return mesh;
 }
 
@@ -477,7 +480,7 @@ void AssetManager::loadGltfTextures(tinygltf::Model& model) {
     }
 }
 
-void AssetManager::loadGltf(Scene* scene, const char* filename, Transform transform)
+SceneNode* AssetManager::loadGltf(Scene* scene, const char* filename, const char* name, Transform transform)
 {
     using Cyan::Mesh;
     tinygltf::Model model;
@@ -506,7 +509,7 @@ void AssetManager::loadGltf(Scene* scene, const char* filename, Transform transf
         tinygltf::Mesh gltfMesh = model.meshes[rootNode.mesh];
         rootNodeMesh = Cyan::getMesh(gltfMesh.name.c_str());
     }
-    Entity* entity = SceneManager::createEntity(scene, nullptr, transform);
-    entity->m_sceneRoot->attach(Cyan::createSceneNode(rootNode.name.c_str(), Transform(), rootNodeMesh));
-    loadGltfNode(scene, model, nullptr, entity->m_sceneRoot, rootNode, 0);
+    SceneNode* parentNode = Cyan::createSceneNode(name, transform);
+    loadGltfNode(scene, model, nullptr, parentNode, rootNode, 0);
+    return parentNode;
 }

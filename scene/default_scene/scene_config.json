@@ -19,10 +19,6 @@
         {
             "name": "sphere_mesh",
             "path": "asset/sphere/mesh/uv_sphere.obj"
-        },
-        {
-            "name": "drone_mesh",
-            "path": "asset/smart_drone/scene.gltf"
         }
     ],
 
@@ -112,9 +108,9 @@
             "mesh": "",
             "file": "asset/smart_drone/scene.gltf",
             "xform": {
-                "translation": [0.0, 0.0, -1.5],
+                "translation": [0.0, -0.5, 0.0],
                 "rotation": [0.0, 0, 1, 0],
-                "scale": [0.8, 0.8, 0.8]
+                "scale": [0.01, 0.01, 0.01]
             },
             "child": []
         },
@@ -141,6 +137,17 @@
                 "scale": [0.8, 0.8, 0.8]
             },
             "nodes": [ 0 ]
+        },
+
+        {
+            "name": "SmartDrone",
+            "xform": {
+                "translation": [-2.0, 0.0, -1.5],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [1.00, 1.00, 1.00]
+            },
+            "nodes": [ 1 ]
         }
+
     ]
 }
