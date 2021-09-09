@@ -5,6 +5,7 @@
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_glfw.h"
 #include "imgui/imgui_impl_opengl3.h"
+#include "ImGuizmo.h"
 #include "stb_image.h"
 
 #include "CyanUI.h"
@@ -15,19 +16,24 @@
 #include "Mesh.h"
 
 /*
-    * add key light, fill light, and backlight
-    * add mesh for each rotating point light
     * particle system; particle rendering
     * grass rendering
     * procedural sky & clouds
     * look into ue4's skylight implementation
-    * implement bloom
     * toon shading
     * normalized blinn phong shading
-    * add more entities into the scene
-    * scene graph, animation
+    * animation
     * select entity via ui; highlight selected entities in the scene
     * saving the scene and assets as binaries (serialization)
+    * how to structure code around render pass
+
+    * struct RenderPass
+    * {
+    *   Shader* m_shader;
+    *   RenderTarget* m_renderTarget;
+    *   VertexArray*  m_vertexArray;
+    *   Material* (ShaderInputs) m_matl;
+    * }
 */
 
 
@@ -39,10 +45,12 @@ static float kCameraRotateSpeed = 0.005f;
 
 namespace Pbr
 {
-    void mouseCursorCallback(double deltaX, double deltaY)
+    void mouseCursorCallback(double cursorX, double cursorY, double deltaX, double deltaY)
     {
         PbrApp* app = PbrApp::get();
         app->bOrbit ? app->orbitCamera(deltaX, deltaY) : app->rotateCamera(deltaX, deltaY);
+        app->m_mouseCursorX = cursorX;
+        app->m_mouseCursorY = cursorY;
     }
 
     void mouseButtonCallback(int button, int action)
@@ -52,6 +60,14 @@ namespace Pbr
         {
             case CYAN_MOUSE_BUTTON_LEFT:
             {
+                if (action == CYAN_PRESS)
+                {
+                    app->bRayCast = true;
+                }
+                else if (action == CYAN_RELEASE)
+                {
+                    app->bRayCast = false;
+                }
                 break;
             }
             case CYAN_MOUSE_BUTTON_RIGHT:
@@ -99,53 +115,92 @@ PbrApp::PbrApp()
     gApp = this;
 }
 
+struct PbrMaterialInputs
+{
+    Cyan::Texture* m_baseColor;
+    Cyan::Texture* m_roughnessMap;
+    Cyan::Texture* m_metallicMap;
+    Cyan::Texture* m_metallicRoughnessMap;
+    Cyan::Texture* m_normalMap;
+    Cyan::Texture* m_occlusion;
+    float m_uRoughness;
+    float m_uMetallic;
+};
+
+Cyan::MaterialInstance* createDefaultPbrMatlInstance(Scene* scene, PbrMaterialInputs inputs)
+{
+    Shader* pbrShader = Cyan::createShader("PbrShader", nullptr, nullptr);
+    Cyan::MaterialInstance* matl = Cyan::createMaterial(pbrShader)->createInstance();
+    matl->bindTexture("diffuseMaps[0]", inputs.m_baseColor);
+    if (inputs.m_normalMap)
+    {
+        matl->set("hasNormalMap", 1.0f);
+        matl->bindTexture("normalMap", inputs.m_normalMap);
+    }
+    if (inputs.m_occlusion)
+    {
+        matl->set("hasAoMap", 1.0f);
+        matl->bindTexture("aoMap", inputs.m_occlusion);
+    }
+    if (inputs.m_roughnessMap)
+    {
+        matl->set("hasRoughnessMap", 1.0f);
+        matl->bindTexture("roughnessMap", inputs.m_roughnessMap);
+        matl->bindTexture("metallicMap", inputs.m_metallicMap);
+    }
+    else if (inputs.m_metallicRoughnessMap) 
+    {
+        matl->set("hasMetallicRoughnessMap", 1.0f);
+        matl->bindTexture("metallicRoughnessMap", inputs.m_metallicRoughnessMap);
+    }
+    else
+    {
+        matl->set("uniformRoughness", inputs.m_uRoughness);
+        matl->set("uniformMetallic", inputs.m_uMetallic);
+    }
+
+    matl->bindBuffer("dirLightsData", scene->m_dirLightsBuffer);
+    matl->bindBuffer("pointLightsData", scene->m_pointLightsBuffer);
+    matl->set("kDiffuse", 1.0f);
+    matl->set("kSpecular", 1.0f);
+    matl->set("disneyReparam", 1.0f);
+    return matl;
+}
+
 void PbrApp::initHelmetScene()
 {
     // setup scenes
     Scene* helmetScene = Cyan::createScene("helmet_scene", "../../scene/default_scene/scene_config.json");
-    helmetScene->mainCamera.projection = glm::perspective(glm::radians(helmetScene->mainCamera.fov), (float)(gEngine->getWindow().width) / gEngine->getWindow().height, helmetScene->mainCamera.n, helmetScene->mainCamera.f);
+    glm::vec2 viewportSize = gEngine->getRenderer()->getViewportSize();
+    float aspectRatio = viewportSize.x / viewportSize.y;
+    helmetScene->mainCamera.projection = glm::perspective(glm::radians(helmetScene->mainCamera.fov), aspectRatio, helmetScene->mainCamera.n, helmetScene->mainCamera.f);
 
     Entity* envMapEntity = SceneManager::createEntity(helmetScene, "Envmap", Transform());
     envMapEntity->m_sceneRoot->attach(Cyan::createSceneNode("CubeMesh", Transform(), Cyan::getMesh("CubeMesh")));
-    SceneNode* node = envMapEntity->getSceneNode("CubeMesh");
-    node->m_meshInstance->setMaterial(0, m_skyMatl);
+    envMapEntity->setMaterial("CubeMesh", 0, m_skyMatl);
 
     // additional spheres for testing lighting
-    Transform sphereTransform = Transform();
-    sphereTransform.m_scale = glm::vec3(0.2, 0.2f, 0.2f);
-    sphereTransform.m_translate = glm::vec3(-0.8f, 0.f, -0.2f);
-    Entity* sphereEntity = SceneManager::createEntity(helmetScene, "Sphere0", sphereTransform);
-    sphereEntity->m_sceneRoot->attach(Cyan::createSceneNode("SphereMesh", Transform(), Cyan::getMesh("sphere_mesh")));
-    m_sphereMatl = Cyan::createMaterial(m_pbrShader)->createInstance();
+    PbrMaterialInputs inputs = { 0 };
+    Entity* sphereEntity = SceneManager::getEntity(helmetScene, "Sphere0");
     Cyan::Texture* sphereAlbedo = Cyan::Toolkit::createFlatColorTexture("sphere_albedo", 1024u, 1024u, glm::vec4(0.8f, 0.8f, 0.6f, 1.f));
-    m_sphereMatl->bindTexture("diffuseMaps[0]", sphereAlbedo);
-    m_sphereMatl->bindBuffer("dirLightsData", helmetScene->m_dirLightsBuffer);
-    m_sphereMatl->bindBuffer("pointLightsData", helmetScene->m_pointLightsBuffer);
-    m_sphereMatl->set("uniformRoughness", 0.5f);
-    m_sphereMatl->set("uniformMetallic", 0.1f);
-    m_sphereMatl->set("kDiffuse", 1.0f);
-    m_sphereMatl->set("kSpecular", 1.0f);
-    m_sphereMatl->set("disneyReparam", 1.0f);
-    sphereEntity->getSceneNode("SphereMesh")->m_meshInstance->setMaterial(0, m_sphereMatl);
+    inputs.m_baseColor = sphereAlbedo;
+    inputs.m_uRoughness = 0.8f;
+    inputs.m_uMetallic = 0.1f;
+    m_sphereMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
+    sphereEntity->setMaterial("SphereMesh", 0, m_sphereMatl);
 
-    // terrain
-    Cyan::Mesh* terreinMesh = Cyan::AssetGen::createTerrain(40.f, 40.f);
-    m_terrainMatl = Cyan::createMaterial(m_pbrShader)->createInstance();
-    Transform terrainTransform = Transform();
-    terrainTransform.m_translate = glm::vec3(0.f, -1.5f, 0.f);
-    Entity* terrainEntity = SceneManager::createEntity(helmetScene, "Terrain", terrainTransform);
-    terrainEntity->m_sceneRoot->attach(Cyan::createSceneNode("TerrainMesh", Transform(), Cyan::getMesh("TerrainMesh")));
-    Cyan::Texture* terrainAlbedo = Cyan::Toolkit::createFlatColorTexture("terrain_albedo", 1024u, 1024u, glm::vec4(0.65f, 0.30, 0.10, 1.f));
-    m_terrainMatl->bindTexture("diffuseMaps[0]", terrainAlbedo);
-    m_terrainMatl->bindTexture("envmap", m_envmap);
-    m_terrainMatl->bindBuffer("dirLightsData", helmetScene->m_dirLightsBuffer);
-    m_terrainMatl->bindBuffer("pointLightsData", helmetScene->m_pointLightsBuffer);
-    m_terrainMatl->set("kDiffuse", 1.0f);
-    m_terrainMatl->set("kSpecular", 1.0f);
-    m_terrainMatl->set("uniformRoughness", 0.2f);
-    m_terrainMatl->set("uniformMetallic", 0.1f);
-    m_terrainMatl->set("disneyReparam", 1.f);
-    terrainEntity->getSceneNode("TerrainMesh")->m_meshInstance->setMaterial(0, m_terrainMatl);
+    // open room
+    Entity* floor = SceneManager::getEntity(helmetScene, "Floor");
+    Cyan::Texture* floorAlbedo = Cyan::Toolkit::createFlatColorTexture("FloorAlbedo", 1024u, 1024u, glm::vec4(1.00f, 0.90, 0.80, 1.f));
+    inputs.m_baseColor = floorAlbedo;
+    inputs.m_uRoughness = 0.8f;
+    inputs.m_uMetallic = 0.1f;
+    m_floorMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
+    floor->setMaterial("CubeMesh", 0, m_floorMatl);
+    Entity* frontWall = SceneManager::getEntity(helmetScene, "Wall_0");
+    frontWall->setMaterial("CubeMesh", 0, m_floorMatl);
+    Entity* sideWall = SceneManager::getEntity(helmetScene, "Wall_1");
+    sideWall->setMaterial("CubeMesh", 0, m_floorMatl);
 
     m_helmetMatl = Cyan::createMaterial(m_pbrShader)->createInstance();
     // TODO: create a .cyanmatl file for defining materials?
@@ -165,15 +220,29 @@ void PbrApp::initHelmetScene()
     Entity* helmetEntity = SceneManager::getEntity(helmetScene, "DamagedHelmet");
     helmetEntity->getSceneNode("HelmetMesh")->m_meshInstance->setMaterial(0, m_helmetMatl);
 
+    // cube
+    // TODO: default material parameters
+    Entity* cube = SceneManager::getEntity(helmetScene, "Cube");
+    Cyan::Texture* cubeAlbedo = Cyan::Toolkit::createFlatColorTexture("CubeAlbedo", 128, 128, glm::vec4(0.6, 0.6, 0.6, 1.0));
+    inputs.m_baseColor = cubeAlbedo;
+    inputs.m_uRoughness = 0.8f;
+    inputs.m_uMetallic = 0.0f;
+    m_cubeMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
+    cube->setMaterial("UvCubeMesh", 0, m_cubeMatl);
+
+    Cyan::Texture* coneAlbedo = Cyan::Toolkit::createFlatColorTexture("ConeAlbedo", 64, 64, glm::vec4(1.0, 0.8, 0.8, 1.0));
+    inputs.m_baseColor = coneAlbedo;
+    inputs.m_uRoughness = 0.2f;
+    inputs.m_uMetallic = 0.1f;
+    Entity* cone = SceneManager::getEntity(helmetScene, "Cone");
+    m_coneMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
+    cone->setMaterial("ConeMesh", 0, m_coneMatl);
+
     // add lights into the scene
     SceneManager::createPointLight(helmetScene, glm::vec3(0.9, 0.95f, 0.76f), glm::vec3(0.0f, 0.0f, 1.5f), 4.f);
     SceneManager::createPointLight(helmetScene, glm::vec3(0.6, 0.65f, 2.86f), glm::vec3(0.0f, 0.8f, -2.4f), 4.f);
     // top light
-    SceneManager::createDirectionalLight(helmetScene, glm::vec3(0.2f, 0.2, 1.0f), glm::normalize(glm::vec3(0.2f, 1.0f, 0.2f)), 4.f);
-    // side light
-    SceneManager::createDirectionalLight(helmetScene, glm::vec3(0.2, 0.2, 1.0), glm::normalize(glm::vec3(1.0f, 0.5f, 0.2f)), 4.f);
-    // bounce light
-    SceneManager::createDirectionalLight(helmetScene, glm::vec3(1.0, 0.375, 0.0), glm::normalize(glm::vec3(0.0f, -1.0f, 0.f)), 4.f);
+    SceneManager::createDirectionalLight(helmetScene, glm::vec3(1.0f, 1.0, 1.0f), glm::normalize(glm::vec3(0.2f, 1.0f, 0.2f)), 1.f);
 
     // manage entities
     SceneNode* helmetNode = helmetEntity->getSceneNode("HelmetMesh");
@@ -294,13 +363,13 @@ void PbrApp::initUniforms()
 }
 
 
-void PbrApp::init(int appWindowWidth, int appWindowHeight)
+void PbrApp::init(int appWindowWidth, int appWindowHeight, int viewportWidth, int viewportHeight)
 {
     using Cyan::Material;
     using Cyan::Mesh;
 
     // init engine
-    gEngine->init({ appWindowWidth, appWindowHeight});
+    gEngine->init({ appWindowWidth, appWindowHeight }, glm::ivec2(viewportWidth, viewportHeight));
     bRunning = true;
     // setup input control
     gEngine->registerMouseCursorCallback(&Pbr::mouseCursorCallback);
@@ -318,6 +387,8 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight)
     m_ui.init(gEngine->getWindow().mpWindow);
 
     // misc
+    bRayCast = false;
+    m_selectedEntity = nullptr;
     entityOnFocusIdx = 0;
     Cyan::setUniform(u_kDiffuse, 1.0f);
     Cyan::setUniform(u_kSpecular, 1.0f);
@@ -330,6 +401,9 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight)
     m_directLightingSlider = 1.f;
     m_indirectLightingSlider = 1.f;
     m_wrap = 0.1f;
+    m_debugRay.init();
+    m_debugRay.setColor(glm::vec4(0.1f, 0.1f, 0.9f, 1.0f));
+    m_debugRay.setViewProjection(gEngine->getRenderer()->u_cameraView, gEngine->getRenderer()->u_cameraProjection);
 
     // visualizer
     m_bufferVis = {};
@@ -340,6 +414,9 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight)
     // font
     ImGuiIO& io = ImGui::GetIO();
     m_font = io.Fonts->AddFontFromFileTTF("C:\\summerwars\\cyanRenderEngine\\lib\\imgui\\misc\\fonts\\Roboto-Medium.ttf", 16.f);
+
+    // set viewport
+    Cyan::getCurrentGfxCtx()->setViewport(400, 0, 1680, 960);
 }
 
 void PbrApp::beginFrame()
@@ -375,9 +452,55 @@ glm::mat4 rotateAroundPoint(glm::vec3 c, glm::vec3 axis, float degree)
     return result;
 }
 
+Entity* PbrApp::castMouseRay()
+{
+    // convert mouse cursor pos to view space 
+    glm::vec4 viewportRect = gEngine->getRenderer()->getViewportRect();
+    double viewportWidth = static_cast<double>(viewportRect.z);
+    double viewportHeight = static_cast<double>(viewportRect.w);
+    double mouseCursorX = m_mouseCursorX - viewportRect.x;
+    double mouseCursorY = m_mouseCursorY - viewportRect.y;
+    // NDC space
+    glm::vec2 uv(2.0 * mouseCursorX / viewportWidth - 1.0f, 2.0 * (viewportHeight - mouseCursorY) / viewportHeight - 1.0f);
+    // homogeneous clip space
+    glm::vec4 q = glm::vec4(uv, -0.8, 1.0);
+    glm::mat4 projInverse = glm::inverse(m_scenes[m_currentScene]->mainCamera.projection);
+    // q.z must be less than zero after this evaluation
+    q = projInverse * q;
+    // view space
+    q /= q.w;
+    glm::vec3 rd = glm::normalize(glm::vec3(q.x, q.y, q.z));
+    // in view space
+    m_debugRay.setVerts(glm::vec3(0.f, 0.f, -0.2f), glm::vec3(rd * 20.0f));
+    glm::mat4 viewInverse = glm::inverse(m_scenes[m_currentScene]->mainCamera.view);
+    glm::mat4 test = m_scenes[m_currentScene]->mainCamera.view * viewInverse;
+    m_debugRay.setModel(viewInverse);
+
+    glm::vec3 ro = glm::vec3(0.f);
+    SceneNode* target = nullptr;
+    RayCastInfo closestHit = { nullptr, nullptr, FLT_MAX };
+    // ray intersection test against all the entities in the scene to find the closest intersection
+    for (auto entity : m_scenes[m_currentScene]->entities)
+    {
+        RayCastInfo hitInfo = entity->intersectRay(ro, rd, m_scenes[m_currentScene]->mainCamera.view); 
+        if (hitInfo.t > 0.f && hitInfo < closestHit)
+        {
+            closestHit = hitInfo;
+            printf("Cast a ray from mouse that hits %s \n", hitInfo.m_entity->m_name);
+        }
+    }
+    return closestHit.m_entity;
+}
+
 void PbrApp::update()
 {
     gEngine->processInput();
+
+    // ray picking
+    if (bRayCast)
+        m_selectedEntity = castMouseRay();
+
+
     // helmet scene
     Scene* scene = m_scenes[0];
     float pointLightsRotSpeed = .5f; // in degree
@@ -389,27 +512,79 @@ void PbrApp::update()
     scene->pLights[0].position = glm::vec4(scene->pLights[0].baseLight.m_entity->m_sceneRoot->m_worldTransform.m_translate, 1.0f); 
 }
 
-void PbrApp::drawStatsWindow()
+void PbrApp::drawDebugWindows()
 {
-    m_ui.beginWindow("Frame stats");
+    // configure window pos and size
+    ImVec2 debugWindowSize(gEngine->getWindow().width - gEngine->getRenderer()->m_viewportRect.z, 
+                           gEngine->getWindow().height);
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::SetNextWindowSize(debugWindowSize);
+    ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    m_ui.beginWindow("Debug Utils", windowFlags);
     ImGui::PushFont(m_font);
+    {
+        // multiple tabs
+        ImGuiTabBarFlags tabFlags = ImGuiTabBarFlags_Reorderable;
+        if (ImGui::BeginTabBar("MyTabBar", tabFlags))
+        {
+            if (ImGui::BeginTabItem("Scene"))
+            {
+                {
+                    drawStats();
+                    ImGui::Separator();
+                }
+                {
+                    drawSceneGraphUI(m_scenes[m_currentScene]->m_rootEntity);
+                    ImGui::Separator();
+                }
+                {
+                    drawLightingWidgets();
+                    ImGui::Separator();
+                }
+                ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem("Settings"))
+            {
+                ImGui::Text("Settings tab");
+                {
+                    drawRenderSettings();
+                    ImGui::Separator();
+                }
+                ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem("Tools"))
+            {
+                ImGui::Text("This is the tools tab!");
+                ImGui::EndTabItem();
+            }
+            ImGui::EndTabBar();
+        }
+    }
+    ImGui::PopFont();
+    m_ui.endWindow();
+}
+
+void PbrApp::drawStats()
+{
     {
         ImGui::Text("Frame time:                   %.2f ms", m_lastFrameDurationInMs);
         ImGui::Text("Number of draw calls:         %d", 100u);
         ImGui::Text("Number of entities:           %d", m_scenes[m_currentScene]->entities.size());
         ImGui::Checkbox("Super Sampling 4x", &gEngine->getRenderer()->m_bSuperSampleAA);
     }
-    ImGui::PopFont();
-    m_ui.endWindow();
 }
 
-void drawSceneGraphUI(Entity* entity) 
+void PbrApp::drawSceneGraphUI(Entity* entity) 
 {
     ImGuiTreeNodeFlags baseFlags = ImGuiTreeNodeFlags_OpenOnArrow 
                                 | ImGuiTreeNodeFlags_OpenOnDoubleClick 
                                 | ImGuiTreeNodeFlags_SpanAvailWidth 
                                 | ImGuiTreeNodeFlags_DefaultOpen;
     char* label = entity->m_name;
+    if (m_selectedEntity && strcmp(entity->m_name, m_selectedEntity->m_name) == 0u)
+    {
+        baseFlags |= ImGuiTreeNodeFlags_Selected;
+    }
     if (entity->m_child.size() > 0)
     {
         if (ImGui::TreeNodeEx(label, baseFlags))
@@ -426,78 +601,65 @@ void drawSceneGraphUI(Entity* entity)
     }
 }
 
-void PbrApp::drawEntityWindow()
+void PbrApp::drawLightingWidgets()
 {
-    m_ui.beginWindow("Entities");
-    ImGui::PushFont(m_font);
+    ImGuiTreeNodeFlags baseFlags = ImGuiTreeNodeFlags_OpenOnArrow 
+                                | ImGuiTreeNodeFlags_OpenOnDoubleClick 
+                                | ImGuiTreeNodeFlags_SpanAvailWidth 
+                                | ImGuiTreeNodeFlags_DefaultOpen;
+    // experimental
+    if (ImGui::TreeNodeEx("Experienmental", baseFlags))
     {
-        Scene* scene = m_scenes[m_currentScene];
-        drawSceneGraphUI(scene->m_rootEntity);
+        ImGui::Text("Wrap");
+        ImGui::SameLine();
+        ImGui::SliderFloat("##Wrap", &m_wrap, 0.f, 1.f, "%.2f");
+        ImGui::TreePop();
     }
-    ImGui::PopFont();
-    m_ui.endWindow();
-}
-
-void PbrApp::drawLightingWindow()
-{
-    m_ui.beginWindow("Lighting");
-    ImGui::PushFont(m_font);
+    // directional Lights
+    if (ImGui::TreeNodeEx("Directional Lights", baseFlags))
     {
-        // experimental
-        if (m_ui.header("Experiemental"))
+        for (u32 i = 0; i < m_scenes[m_currentScene]->dLights.size(); ++i)
         {
-            ImGui::Text("Wrap");
-            ImGui::SameLine();
-            ImGui::SliderFloat("##Wrap", &m_wrap, 0.f, 1.f, "%.2f");
-        }
-        // directional Lights
-        if (m_ui.header("Directional Lights"))
-        {
-            for (u32 i = 0; i < m_scenes[m_currentScene]->dLights.size(); ++i)
+            char nameBuf[50];
+            sprintf_s(nameBuf, "DirLight %d", i);
+            if (ImGui::TreeNode(nameBuf))
             {
-                char nameBuf[50];
-                sprintf_s(nameBuf, "DirLight %d", i);
-                if (ImGui::TreeNode(nameBuf))
-                {
-                    ImGui::Text("Direction:");
-                    ImGui::SameLine();
-                    ImGui::InputFloat3("##Direction", &m_scenes[m_currentScene]->dLights[i].direction.x);
-                    ImGui::Text("Intensity:");
-                    ImGui::SameLine();
-                    ImGui::InputFloat("##Intensity", &m_scenes[m_currentScene]->dLights[i].baseLight.color.w);
-                    ImGui::Text("Color:");
-                    ImGui::ColorPicker3("##Color", &m_scenes[m_currentScene]->dLights[i].baseLight.color.r);
-                    ImGui::TreePop();
-                }
+                ImGui::Text("Direction:");
+                ImGui::SameLine();
+                ImGui::InputFloat3("##Direction", &m_scenes[m_currentScene]->dLights[i].direction.x);
+                ImGui::Text("Intensity:");
+                ImGui::SameLine();
+                ImGui::InputFloat("##Intensity", &m_scenes[m_currentScene]->dLights[i].baseLight.color.w);
+                ImGui::Text("Color:");
+                ImGui::ColorPicker3("##Color", &m_scenes[m_currentScene]->dLights[i].baseLight.color.r);
+                ImGui::TreePop();
             }
         }
-        // point lights
-        if (m_ui.header("Point Lights"))
+        ImGui::TreePop();
+    }
+    // point lights
+    ImGui::TreeNodeEx("Point Lights", baseFlags);
+    {
+        for (u32 i = 0; i < m_scenes[m_currentScene]->pLights.size(); ++i)
         {
-            for (u32 i = 0; i < m_scenes[m_currentScene]->pLights.size(); ++i)
+            char nameBuf[64];
+            sprintf_s(nameBuf, "PointLight %d", i);
+            if (ImGui::TreeNode(nameBuf))
             {
-                char nameBuf[64];
-                sprintf_s(nameBuf, "PointLight %d", i);
-                if (ImGui::TreeNode(nameBuf))
-                {
-                    ImGui::Text("Position:");
-                    ImGui::SameLine();
-                    ImGui::InputFloat3("##Position", &m_scenes[m_currentScene]->pLights[i].position.x);
-                    ImGui::Text("Color:");
-                    ImGui::ColorPicker3("##Color", &m_scenes[m_currentScene]->pLights[i].baseLight.color.r);
-                    ImGui::TreePop();
-                }
+                ImGui::Text("Position:");
+                ImGui::SameLine();
+                ImGui::InputFloat3("##Position", &m_scenes[m_currentScene]->pLights[i].position.x);
+                ImGui::Text("Color:");
+                ImGui::ColorPicker3("##Color", &m_scenes[m_currentScene]->pLights[i].baseLight.color.r);
+                ImGui::TreePop();
             }
         }
+        ImGui::TreePop();
     }
-    ImGui::PopFont();
-    m_ui.endWindow();
 }
 
-void PbrApp::drawSceneWindow()
+void PbrApp::drawRenderSettings()
 {
-    m_ui.beginWindow("Scene");
-    ImGui::PushFont(m_font);
     {
         std::vector<const char*> envMaps;
         u32 numProbes = Cyan::getNumProbes();
@@ -542,6 +704,12 @@ void PbrApp::drawSceneWindow()
         }
         if (m_ui.header("Post-Processing"))
         {
+            // bloom settings
+            ImGui::Text("Bloom");
+            ImGui::SameLine();
+            ImGui::Checkbox("##Enabled", &gEngine->getRenderer()->m_bloom); 
+
+            // exposure settings
             ImGui::Text("Exposure");
             ImGui::SameLine();
             ImGui::SliderFloat("##Exposure", &gEngine->getRenderer()->m_exposure, 0.f, 10.f, "%.2f");
@@ -580,57 +748,96 @@ void PbrApp::drawSceneWindow()
             m_helmetMatl->set("disneyReparam", disneyReparam);
         }
     }
-    ImGui::PopFont();
-    m_ui.endWindow();
 }
 
 void PbrApp::render()
 {
     // frame timer
     Cyan::Toolkit::ScopedTimer frameTimer("render()");
-
     Cyan::Renderer* renderer = gEngine->getRenderer();
+    // TODO: Gizmos related stuff!!!
+    if (m_selectedEntity)
+    {
+        /*
+        ImGuizmo::SetOrthographic(false);
+        ImGuizmo::SetDrawlist();
+        ImGuiIO& io = ImGui::GetIO();
+        ImGuizmo::SetRect(ImGui::GetWindowPos().x, ImGui::GetWindowPos().y, ImGui::GetWindowWidth(), ImGui::GetWindowHeight());
+        glm::mat4 transformMatrix = m_selectedEntity->getLocalTransform().toMatrix();
+        ImGuizmo::Manipulate(&m_scenes[m_currentScene]->mainCamera.view[0][0], 
+                             &m_scenes[m_currentScene]->mainCamera.projection[0][0],
+                             ImGuizmo::TRANSLATE, ImGuizmo::LOCAL, &transformMatrix[0][0]);
+        m_selectedEntity->setLocalTransform(Transform(transformMatrix));
+        */
+    }
 
-    // stats window
-    drawStatsWindow();
-    // scene window
-    drawSceneWindow();
-    // lighting window
-    drawLightingWindow();
-    // entities window
-    drawEntityWindow();
+    drawDebugWindows();
 
-    m_helmetMatl->set("directDiffuseSlider", m_directDiffuseSlider);
-    m_helmetMatl->set("directSpecularSlider", m_directSpecularSlider);
-    m_helmetMatl->set("indirectDiffuseSlider", m_indirectDiffuseSlider);
-    m_helmetMatl->set("indirectSpecularSlider", m_indirectSpecularSlider);
-    m_helmetMatl->set("wrap", m_wrap);
+    // TODO: how to not have to manually do this
+    struct SharedMaterialData
+    {
+        void* m_data;
+        std::vector<Cyan::MaterialInstance*> m_listeners;
 
-    m_terrainMatl->set("directDiffuseSlider", m_directDiffuseSlider);
-    m_terrainMatl->set("directSpecularSlider", m_directSpecularSlider);
-    m_terrainMatl->set("indirectDiffuseSlider", m_indirectDiffuseSlider);
-    m_terrainMatl->set("indirectSpecularSlider", m_indirectSpecularSlider);
-    m_terrainMatl->set("wrap", m_wrap);
+        void onUpdate() { }
+        void notify() { }
+    };
 
-    m_sphereMatl->set("directDiffuseSlider", m_directDiffuseSlider);
-    m_sphereMatl->set("directSpecularSlider", m_directSpecularSlider);
-    m_sphereMatl->set("indirectDiffuseSlider", m_indirectDiffuseSlider);
-    m_sphereMatl->set("indirectSpecularSlider", m_indirectSpecularSlider);
-    m_sphereMatl->set("wrap", m_wrap);
+    auto updateMatlInstanceData = [&](Cyan::MaterialInstance* matl) {
+        matl->set("directDiffuseSlider", m_directDiffuseSlider);
+        matl->set("directSpecularSlider", m_directSpecularSlider);
+        matl->set("indirectDiffuseSlider", m_indirectDiffuseSlider);
+        matl->set("indirectSpecularSlider", m_indirectSpecularSlider);
+        matl->set("wrap", m_wrap);
+    };
 
-    // m_droneMatl->set("directDiffuseSlider", m_directDiffuseSlider);
-    // m_droneMatl->set("directSpecularSlider", m_directSpecularSlider);
-    // m_droneMatl->set("indirectDiffuseSlider", m_indirectDiffuseSlider);
-    // m_droneMatl->set("indirectSpecularSlider", m_indirectSpecularSlider);
-    // m_droneMatl->set("wrap", m_wrap);
+    updateMatlInstanceData(m_helmetMatl);
+    updateMatlInstanceData(m_floorMatl);
+    updateMatlInstanceData(m_sphereMatl);
+    updateMatlInstanceData(m_cubeMatl);
+    updateMatlInstanceData(m_coneMatl);
 
     // update probe
     SceneManager::setLightProbe(m_scenes[m_currentScene], Cyan::getProbe(m_currentProbeIndex));
     m_envmap = Cyan::getProbe(m_currentProbeIndex)->m_baseCubeMap;
     m_envmapMatl->bindTexture("envmapSampler", m_envmap);
 
+    renderer->beginRender();
     // draw entities in the scene
     renderer->renderScene(m_scenes[m_currentScene]);
+
+    // draw debug ray
+    if (bRayCast)
+    {
+        m_debugRay.draw();
+    }
+
+    // debug pass to draw all the boudning boxes
+    for (auto entity : m_scenes[m_currentScene]->entities)
+    {
+        std::queue<SceneNode*> queue;
+        queue.push(entity->m_sceneRoot);
+        while (!queue.empty())
+        {
+            auto node = queue.front();
+            queue.pop();
+            if (node->m_meshInstance)
+            {
+                BoundingBox3f aabb = node->m_meshInstance->getAABB();
+                if (aabb.isValid)
+                {
+                    aabb.setViewProjection(gEngine->getRenderer()->u_cameraView, gEngine->getRenderer()->u_cameraProjection);
+                    aabb.draw(node->m_worldTransform.toMatrix() * node->m_meshInstance->m_mesh->m_normalization);
+                }
+            }
+            for (auto child : node->m_child)
+            {
+                queue.push(child);
+            }
+        }
+    }
+    renderer->endRender();
+
 
     // visualizer
     m_bufferVis.draw();

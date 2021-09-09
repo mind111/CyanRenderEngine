@@ -17,6 +17,11 @@ namespace Cyan
     {
         m_matls[index] = matl;
     }
+
+    BoundingBox3f& MeshInstance::getAABB()
+    {
+        return m_mesh->m_aabb;
+    }
 };
 
 float cubeVertices[] = {

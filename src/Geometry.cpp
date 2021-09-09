@@ -1,4 +1,6 @@
 #include "Geometry.h"
+#include "CyanAPI.h"
+#include "VertexArray.h"
 
 void Line::init() 
 { 
@@ -15,10 +17,16 @@ void Line::init()
     glBindVertexArray(0);
 };
 
-Line& Line::setTransforms(Uniform* view, Uniform* projection)
+Line& Line::setViewProjection(Uniform* view, Uniform* projection)
 {
     u_view = view;
     u_projection = projection;
+    return *this;
+}
+
+Line& Line::setModel(glm::mat4& mat)
+{
+    m_matl->set("lineModel", reinterpret_cast<void*>(&mat[0][0]));
     return *this;
 }
 
@@ -147,4 +155,166 @@ void BufferVisualizer::init(UniformBuffer* buffer, glm::vec2 pos, float width, f
         m_chunks.emplace_back(chunk);
     }
     m_buffer->reset(cachedCurrentPos);
+}
+
+glm::vec3 vec4ToVec3(const glm::vec4& v)
+{
+    return glm::vec3(v.x, v.y, v.z);
+}
+
+u32 indices[24] = {
+    0, 1, 
+    1, 2, 
+    2, 3, 
+    0, 3, 
+    1, 4, 
+    4, 5, 
+    5, 2,
+    5, 6,
+    4, 7,
+    6, 7,
+    3, 6,
+    0, 7
+};
+
+// setup for debug rendering
+void BoundingBox3f::init()
+{
+    glm::vec3 pMin = vec4ToVec3(m_pMin);
+    glm::vec3 pMax = vec4ToVec3(m_pMax);
+    glm::vec3 dim = pMax - pMin;
+
+    // compute all verts
+    m_vertices[0] = pMin;
+    m_vertices[1] = m_vertices[0] + glm::vec3(dim.x, 0.f, 0.f);
+    m_vertices[2] = m_vertices[1] + glm::vec3(0.f, dim.y, 0.f);
+    m_vertices[3] = m_vertices[2] + glm::vec3(-dim.x, 0.f, 0.f);
+
+    // dim.z < 0 becasue m_pMin.z > 0 while m_pMax.z < 0 
+    m_vertices[4] = m_vertices[1] + glm::vec3(0.f, 0.f, dim.z);
+    m_vertices[5] = m_vertices[2] + glm::vec3(0.f, 0.f, dim.z);
+    m_vertices[6] = m_vertices[3] + glm::vec3(0.f, 0.f, dim.z);
+    m_vertices[7] = m_vertices[0] + glm::vec3(0.f, 0.f, dim.z);
+
+    auto vb = Cyan::createVertexBuffer(reinterpret_cast<void*>(m_vertices), sizeof(m_vertices), sizeof(glm::vec3), 8u);
+    vb->m_vertexAttribs.push_back({
+        VertexAttrib::DataType::Float, 3, sizeof(glm::vec3), 0u, nullptr
+    });
+    m_vertexArray = Cyan::createVertexArray(vb);
+    glCreateBuffers(1, &m_vertexArray->m_ibo);
+    glBindVertexArray(m_vertexArray->m_vao);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_vertexArray->m_ibo);
+    glNamedBufferData(m_vertexArray->m_ibo, sizeof(indices),
+                        reinterpret_cast<const void*>(indices), GL_STATIC_DRAW);
+    glBindVertexArray(0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    m_vertexArray->init();
+    Shader* shader = Cyan::createShader("LineShader", "../../shader/shader_line.vs", "../../shader/shader_line.fs");
+    m_matl = Cyan::createMaterial(shader)->createInstance();
+    isValid = true;
+    m_color = glm::vec3(1.0, 0.8, 0.f);
+}
+
+void BoundingBox3f::setViewProjection(Uniform* view, Uniform* projection)
+{
+    u_view = view;
+    u_projection = projection;
+}
+
+void BoundingBox3f::draw(glm::mat4& transform)
+{
+    auto ctx = Cyan::getCurrentGfxCtx();
+    ctx->setShader(Cyan::createShader("LineShader", "../../shader_line.vs", "../../shader_line.fs"));
+    ctx->setVertexArray(m_vertexArray);
+    m_matl->set("lineModel", reinterpret_cast<void*>(&transform[0][0]));
+    m_matl->set("color", &m_color.r);
+    m_matl->bind();
+    ctx->setUniform(u_view);
+    ctx->setUniform(u_projection);
+    ctx->setPrimitiveType(Cyan::PrimitiveType::Line);
+    ctx->drawIndex(sizeof(indices) / sizeof(u32));
+}
+
+void BoundingBox3f::bound(const BoundingBox3f& aabb) 
+{
+    m_pMin.x = Min(m_pMin.x, aabb.m_pMin.x);
+    m_pMin.y = Min(m_pMin.y, aabb.m_pMin.y);
+    m_pMin.z = Min(m_pMin.z, aabb.m_pMin.z);
+
+    m_pMax.x = Max(m_pMax.x, aabb.m_pMax.x);
+    m_pMax.y = Max(m_pMax.y, aabb.m_pMax.y);
+    m_pMax.z = Max(m_pMax.z, aabb.m_pMax.z);
+}
+
+inline f32 ffmin(f32 a, f32 b) { return a < b ? a : b;}
+inline f32 ffmax(f32 a, f32 b) { return a > b ? a : b;}
+
+// do this computation in view space
+float BoundingBox3f::intersectRay(const glm::vec3& ro, const glm::vec3& rd, const glm::mat4& transform)
+{
+    f32 tMin, tMax;
+    glm::vec4 pMinView = transform * m_pMin;
+    glm::vec4 pMaxView = transform * m_pMax;
+    glm::vec3 min = glm::vec3(pMinView.x, pMinView.y, pMinView.z);
+    glm::vec3 max = glm::vec3(pMaxView.x, pMaxView.y, pMaxView.z);
+
+    // x-min, x-max
+    f32 txMin = ffmin((min.x - ro.x) / rd.x, (max.x - ro.x) / rd.x);
+    f32 txMax = ffmax((min.x - ro.x) / rd.x, (max.x - ro.x) / rd.x);
+    // y-min, y-max
+    f32 tyMin = ffmin((min.y - ro.y) / rd.y, (max.y - ro.y) / rd.y);
+    f32 tyMax = ffmax((min.y - ro.y) / rd.y, (max.y - ro.y) / rd.y);
+    // z-min, z-max
+    f32 tzMin = ffmin((min.z - ro.z) / rd.z, (max.z - ro.z) / rd.z);
+    f32 tzMax = ffmax((min.z - ro.z) / rd.z, (max.z - ro.z) / rd.z);
+    tMin = ffmax(ffmax(txMin, tyMin), tzMin);
+    tMax = ffmin(ffmin(txMax, tyMax), tzMax);
+    if (tMin <= tMax)
+    {
+        return tMin;
+    }
+    return -1.0;
+}
+
+// taken from https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
+float Triangle::intersectRay(const glm::vec3& ro, const glm::vec3& rd, const glm::mat4& transform)
+{
+    const float EPSILON = 0.0000001;
+    glm::vec4 v0_view = transform * m_vertices[0]; 
+    glm::vec4 v1_view = transform * m_vertices[1];
+    glm::vec4 v2_view = transform * m_vertices[2];
+
+    glm::vec3& v0 = glm::vec3(v0_view.x, v0_view.y, v0_view.z);
+    glm::vec3& v1 = glm::vec3(v1_view.x, v1_view.y, v1_view.z);
+    glm::vec3& v2 = glm::vec3(v2_view.x, v2_view.y, v2_view.z);
+    glm::vec3 edge1 = v1 - v0;
+    glm::vec3 edge2 = v2 - v0;
+    glm::vec3 h, s, q;
+    float a,f,u,v;
+
+    h = glm::cross(rd, edge2);
+    a = glm::dot(edge1, h);
+    if (a > -EPSILON && a < EPSILON)
+    {
+        return -1.0;
+    }
+    f = 1.0f / a;
+    s = ro - v0;
+    u = f * dot(s, h);
+    if (u < 0.0 || u > 1.0)
+    {
+        return -1.0;
+    }
+    q = glm::cross(s, edge1);
+    v = f * dot(rd, q);
+    if (v < 0.0 || u + v > 1.0)
+    {
+        return -1.0;
+    }
+    float t = f * glm::dot(edge2, q);
+    if (t > EPSILON)
+    {
+        return t;
+    }
+    return -1.0f;
 }

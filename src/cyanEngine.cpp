@@ -40,7 +40,7 @@ void mouseScrollFunc(GLFWwindow* window, double xOffset, double yOffset)
     gEngine->processMouseScroll(xOffset, yOffset);
 }
 
-void CyanEngine::init(WindowConfig windowConfig)
+void CyanEngine::init(WindowConfig windowConfig, glm::ivec2 viewportRect)
 {
     // window init
     if (!glfwInit())
@@ -54,6 +54,7 @@ void CyanEngine::init(WindowConfig windowConfig)
                                         "-- Cyan --", nullptr, nullptr);
     m_window.width = windowConfig.width;
     m_window.height = windowConfig.height;
+    m_viewportRect = viewportRect;
 
     glfwMakeContextCurrent(m_window.mpWindow);
     if (glewInit())
@@ -70,7 +71,8 @@ void CyanEngine::init(WindowConfig windowConfig)
     // Setup renderer 
     {
         m_renderer = new Cyan::Renderer;
-        m_renderer->init(windowConfig.width, windowConfig.height);
+        glm::vec4 viewportSpec = { windowConfig.width - viewportRect.x, 0, viewportRect.x, viewportRect.y};
+        m_renderer->init(viewportSpec);
         Cyan::getCurrentGfxCtx()->setWindow(&m_window);
     }
 
@@ -150,7 +152,7 @@ void CyanEngine::updateMouseCursorPosition(double x, double y)
     cursorY = y;
 
     // As of right now, only update camera rotation
-    mouseCursorCallback(cursorDeltaX, cursorDeltaY);
+    mouseCursorCallback(cursorX, cursorY, cursorDeltaX, cursorDeltaY);
 }
 
 // TODO: Defines CYAN_PRESS, CYAN_RELEASE as wrapper over glfw

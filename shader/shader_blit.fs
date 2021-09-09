@@ -67,7 +67,7 @@ void main()
     if (bloom > 0.5f)
     {
         // TODO: bloomIntensity goes here
-        color += 0.65 * texture(bloomSampler_0, uv).rgb * bloomIntensity;
+        color += 0.45 * texture(bloomSampler_0, uv).rgb * bloomIntensity;
     }
     // tone mapping
     vec3 mappedColor = ACESFilm(exposure * color);

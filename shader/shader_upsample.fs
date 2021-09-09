@@ -11,8 +11,13 @@ uniform int stageIndex;
 
 // TODO: Use a better weights here
 float weights[5] = {
-    0.1, 0.2, 0.30, 0.4, 1.0
+    0.091, 0.11, 0.14, 0.21, 0.38
 };
+
+float luminance(vec3 color)
+{
+    return dot(color, vec3(0.2126, 0.7152, 0.0722));
+}
 
 void main()
 {
@@ -35,5 +40,6 @@ void main()
     }
     float weight = weights[stageIndex];
     vec3 blendColor = texture(blendImage, uv).rgb;
-    fragColor = vec4(blendColor * weight + upSampledColor * srcWeight, 1.f);
+    float scale = clamp(luminance(blendColor), 0.0, 1.0);
+    fragColor = vec4(blendColor * scale + upSampledColor * srcWeight, 1.f);
 }

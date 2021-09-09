@@ -144,18 +144,21 @@ namespace Cyan
             case PrimitiveType::LineStrip:
                 m_primitiveType = GL_LINE_STRIP;
                 break;
+            case PrimitiveType::Line:
+                m_primitiveType = GL_LINES;
+                break;
             default:
                 break;
         }
     }
 
-    void GfxContext::setViewport(u32 _left, u32 _bottom, u32 _right, u32 _top)
+    void GfxContext::setViewport(u32 x, u32 y, u32 width, u32 height)
     {
-        glViewport(_left, _bottom, _right, _top);
-        m_viewport.x = _left;
-        m_viewport.y = _bottom;
-        m_viewport.z = _right;
-        m_viewport.w = _top;
+        glViewport(x, y, width, height);
+        m_viewport.x = x;
+        m_viewport.y = y;
+        m_viewport.z = width;
+        m_viewport.w = height;
     }
 
     void GfxContext::setRenderTarget(RenderTarget* _rt, u16 drawBufferIdx) 

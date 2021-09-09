@@ -47,7 +47,7 @@ namespace Cyan
 
         static Renderer* get();
 
-        void init(u32 renderWidth, u32 renderHeight);
+        void init(glm::vec4 viewport);
         void initRenderTargets(u32 windowWidth, u32 windowHeight);
         void initShaders();
 
@@ -71,8 +71,12 @@ namespace Cyan
         void renderFrame();
         void endFrame();
 
-
         Frame* m_frame;
+
+        // viewport
+        glm::vec2 getViewportSize();
+        glm::vec4 getViewportRect();
+        glm::vec4 m_viewportRect; 
 
         Uniform* u_model; 
         Uniform* u_cameraView;

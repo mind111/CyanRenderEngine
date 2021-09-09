@@ -156,7 +156,7 @@ struct EnvMapDebugger
             {
                 glm::vec3 v0(ptr[0], ptr[1], ptr[2]);
                 glm::vec3 v1(ptr[4], ptr[5], ptr[6]);
-                m_lines[sample].setVerts(v0, v1).setColor(glm::vec4(0.4f, 0.7f, 0.7f, 1.f)).setTransforms(u_cameraView, u_cameraProjection); 
+                m_lines[sample].setVerts(v0, v1).setColor(glm::vec4(0.4f, 0.7f, 0.7f, 1.f)).setViewProjection(u_cameraView, u_cameraProjection); 
                 if (sample == kNumDebugSamples - 1)
                 {
                     // set a different color for the fixed normal
@@ -247,7 +247,7 @@ class PbrApp : public CyanApp
 public:
     PbrApp();
     ~PbrApp() { }
-    virtual void init(int appWindowWidth, int appWindowHeight) override;
+    virtual void init(int appWindowWidth, int appWindowHeight, int viewportWidth, int viewportHeight) override;
 
     static PbrApp* get();
 
@@ -262,10 +262,13 @@ public:
     void orbitCamera(double deltaX, double deltaY);
     void rotateCamera(double deltaX, double deltaY);
     // ui
-    void drawLightingWindow();
+    void drawDebugWindows();
+    void drawLightingWidgets();
     void drawEntityWindow();
-    void drawStatsWindow();
-    void drawSceneWindow();
+    void drawStats();
+    void drawRenderSettings();
+    void drawSceneGraphUI(Entity* entity) ;
+    Entity* castMouseRay();
     // init
     void initUniforms();
     void initShaders();
@@ -276,6 +279,8 @@ public:
     friend void Pbr::mouseScrollWheelCallback(double xOffset, double yOffset);
 
     bool bOrbit;
+    bool bRayCast;
+    double m_mouseCursorX, m_mouseCursorY;
 
 private:
     float m_sampleVertex[(64 + 1) * 4 * 2] = { };
@@ -290,12 +295,14 @@ private:
     // Materials
     Cyan::MaterialInstance* m_droneMatl;
     Cyan::MaterialInstance* m_helmetMatl;
+    Cyan::MaterialInstance* m_cubeMatl;
+    Cyan::MaterialInstance* m_coneMatl;
     Cyan::MaterialInstance* m_sphereMatls[36];
     Cyan::MaterialInstance* m_sphereMatl;
     Cyan::MaterialInstance* m_envmapMatl;
     Cyan::MaterialInstance* m_skyMatl;
     Cyan::MaterialInstance* m_blitMatl;
-    Cyan::MaterialInstance* m_terrainMatl;
+    Cyan::MaterialInstance* m_floorMatl;
 
     // entities
     Entity* m_envMapEntity;
@@ -334,6 +341,7 @@ private:
 
     // ui
     UI m_ui;
+    Entity* m_selectedEntity;
 
     // misc
     BufferVisualizer m_bufferVis;
@@ -349,4 +357,7 @@ private:
     float m_directLightingSlider;
     float m_indirectLightingSlider;
     float m_wrap;
+
+    // debug parameters
+    Line m_debugRay;
 };

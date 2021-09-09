@@ -82,6 +82,7 @@ void main()
             result += texture(envmapSampler, r).rgb * cos(theta) * sin(theta);
         }
     }
+    // the denominator, divide by N comes from solid angle in the integration formula
     result = pi * result / (numSampleTheta * numSamplePhi);
     // No need for tonemapping at the end as the result will be used in lighting instead of being
     // displayed by the framebuffer

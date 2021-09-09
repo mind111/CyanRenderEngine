@@ -1,6 +1,5 @@
 #include "SceneNode.h"
 
-
 void SceneNode::setParent(SceneNode* parent)
 {
     m_parent = parent;

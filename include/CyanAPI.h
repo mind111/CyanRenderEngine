@@ -234,7 +234,7 @@ namespace Cyan
         //-
         // Mesh related
         Mesh* createCubeMesh(const char* _name);
-        glm::mat4 computeMeshNormalization(Mesh* _mesh);
+        glm::mat4 computeMeshNormalization(Mesh* mesh);
 
     }; // namespace Toolkit
 

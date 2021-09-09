@@ -30,7 +30,7 @@ struct WindowConfig
     int height;
 };
 
-typedef void MouseCursorCallback(double, double);
+typedef void MouseCursorCallback(double, double, double, double);
 typedef void MouseButtonCallback(int, int);
 typedef void MouseScrollWheelCallback(double, double);
 
@@ -40,7 +40,7 @@ public:
     CyanEngine();
     ~CyanEngine() { }
 
-    void init(WindowConfig windowConfig);
+    void init(WindowConfig windowConfig, glm::ivec2 viewportRect);
     void shutDown();
 
     /* Gui */
@@ -66,6 +66,7 @@ public:
 
 private:
     Window m_window;
+    glm::ivec2 m_viewportRect;
 
     /* These are recorded at sub frame precision */
     double cursorX, cursorY;

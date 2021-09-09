@@ -126,9 +126,11 @@ namespace Cyan
         m_gaussianBlurShader = Cyan::createShader("GaussianBlurShader", "../../shader/shader_gaussian_blur.vs", "../../shader/shader_gaussian_blur.fs");
     }
 
-    void Renderer::init(u32 windowWidth, u32 windowHeight)
+    void Renderer::init(glm::vec4 viewportRect)
     {
         Cyan::init();
+        m_viewportRect = viewportRect;
+
         u_model = createUniform("s_model", Uniform::Type::u_mat4);
         u_cameraView = createUniform("s_view", Uniform::Type::u_mat4);
         u_cameraProjection = createUniform("s_projection", Uniform::Type::u_mat4);
@@ -143,7 +145,7 @@ namespace Cyan
 
         // render targets
         initShaders();
-        initRenderTargets(windowWidth, windowHeight);
+        initRenderTargets(m_viewportRect.z, m_viewportRect.w);
 
         // blit mesh & material
         m_blitShader = createShader("BlitShader", "../../shader/shader_blit.vs", "../../shader/shader_blit.fs");
@@ -166,6 +168,16 @@ namespace Cyan
         });
         m_blitQuad->m_va->init();
         m_blitQuad->m_matl = m_blitMaterial;
+    }
+
+    glm::vec2 Renderer::getViewportSize()
+    {
+        return glm::vec2(m_viewportRect.z, m_viewportRect.w);
+    }
+
+    glm::vec4 Renderer::getViewportRect()
+    {
+        return m_viewportRect;
     }
 
     void Renderer::drawMeshInstance(MeshInstance* meshInstance, glm::mat4* modelMatrix)
@@ -327,7 +339,7 @@ namespace Cyan
 
             glm::mat4 modelMatrix;
             modelMatrix = node->m_worldTransform.toMatrix();
-            modelMatrix = node->m_meshInstance->m_mesh->m_normalization * modelMatrix;
+            modelMatrix = modelMatrix * node->m_meshInstance->m_mesh->m_normalization;
             drawMeshInstance(node->m_meshInstance, &modelMatrix);
         }
         for (auto* child : node->m_child)
@@ -352,15 +364,15 @@ namespace Cyan
             ctx->setRenderTarget(m_superSamplingRenderTarget, 0u);
             m_offscreenRenderWidth = m_superSamplingRenderWidth;
             m_offscreenRenderHeight = m_superSamplingRenderHeight;
+            ctx->setViewport(0, 0, 2560, 1440);
         }
         else 
         {
             ctx->setRenderTarget(m_defaultRenderTarget, 0u);
             m_offscreenRenderWidth = m_windowWidth;
             m_offscreenRenderHeight = m_windowHeight;
+            ctx->setViewport(0, 0, m_viewportRect.z, m_viewportRect.w);
         }
-
-        ctx->setViewport(0u, 0u, m_offscreenRenderWidth, m_offscreenRenderHeight);
 
         // clear
         ctx->clear();
@@ -542,7 +554,7 @@ namespace Cyan
         }
         // final blit to default frame buffer
         ctx->setRenderTarget(nullptr, 0u);
-        ctx->setViewport(0u, 0u, m_windowWidth, m_windowHeight);
+        ctx->setViewport(m_viewportRect.x, m_viewportRect.y, m_viewportRect.z, m_viewportRect.w);
         ctx->setShader(m_blitShader);
         if (m_bloom)
         {
@@ -570,8 +582,6 @@ namespace Cyan
 
     void Renderer::renderScene(Scene* scene)
     {
-        beginRender();
-
         // camera
         Camera& camera = scene->mainCamera;
         CameraManager::updateCamera(camera);
@@ -598,6 +608,5 @@ namespace Cyan
         {
             drawEntity(entity);
         }
-        endRender();
     }
 }

@@ -6,6 +6,7 @@
 #include "gtc/matrix_transform.hpp"
 #include "Node.h"
 #include "SceneNode.h"
+#include "Geometry.h"
 
 #define kEntityNameMaxLen 64u
 
@@ -31,155 +32,46 @@ struct Entity
     // flags
     bool m_lit;
 
-    SceneNode* getSceneRoot()
-    {
-        return m_sceneRoot;
-    }
-
-    SceneNode* getSceneNode(const char* name)
-    {
-        return m_sceneRoot->find(name);
-    }
-
+    SceneNode* getSceneRoot();
+    SceneNode* getSceneNode(const char* name);
+    void attachSceneNode(SceneNode* child, const char* parentName=nullptr);
+    struct RayCastInfo intersectRay(const glm::vec3& ro, const glm::vec3& rd, glm::mat4& view);
     // merely sets the parent entity, it's not this method's responsibility to trigger
     // any logic relates to parent change
-    void setParent(Entity* parent)
-    {
-        m_parent = parent;
-    }
-
+    void setParent(Entity* parent);
     // attach a new child Entity
-    void attach(Entity* child)
-    {
-        child->setParent(this);
-        m_child.push_back(child);
-        child->onAttach();
-    }
-
-    void onAttach()
-    {
-        // have the parent pointer points to parent Entity's m_sceneRoot while not
-        // adding this->m_sceneRoot as a child of Entity's m_sceneRoot
-        m_sceneRoot->setParent(m_parent->m_sceneRoot);
-        m_sceneRoot->updateWorldTransform();
-        for (auto* child : m_child)
-        {
-            child->onAttach();
-        }
-    }
-
+    void attach(Entity* child);
+    void onAttach();
     // detach from current parent
-    void detach()
-    {
-        onDetach();
-        setParent(nullptr);
-    }
-
-    i32 getChildIndex(const char* name)
-    {
-        i32 index = -1;
-        for (i32 i = 0; i < m_child.size(); ++i)
-        {
-            if (strcmp(m_child[i]->m_name, name) == 0)
-            {
-                index = i;
-                break;
-            }
-        }
-        return index;
-    }
-
-    void onDetach()
-    {
-        m_parent->removeChild(m_name);
-        m_sceneRoot->setParent(nullptr);
-        m_sceneRoot->updateWorldTransform();
-    }
-
-    void removeChild(const char* name)
-    {
-        m_child.erase(m_child.begin() + getChildIndex(name));
-    }
-
-    Entity* detachChild(const char* name)
-    {
-        Entity* child = treeBFS<Entity>(this, name);
-        child->detach();
-        return child;
-    }
-
-    Transform& getLocalTransform()
-    {
-        return m_sceneRoot->m_localTransform;
-    }
-
-    Transform& getWorldTransform()
-    {
-        return m_sceneRoot->m_worldTransform;
-    }
-
+    void detach();
+    i32 getChildIndex(const char* name);
+    void onDetach();
+    void removeChild(const char* name);
+    Entity* detachChild(const char* name);
+    Transform& getLocalTransform();
+    void setLocalTransform(const Transform& transform);
+    Transform& getWorldTransform();
     // transform locally
-    void applyLocalTransform(Transform& transform)
+    void applyLocalTransform(Transform& transform);
+    void applyWorldRotation(const glm::mat4& rot);
+    void applyWorldRotation(const glm::quat& rot);
+    void applyWorldTranslation(const glm::vec3 trans);
+    void applyWorldScale(const glm::vec3 scale);
+    void updateWorldTransform();
+    void applyLocalRotation(const glm::quat& rot);
+    void applyLocalTranslation(const glm::vec3 trans);
+    void applyLocalScale(const glm::vec3 scale);
+    void setMaterial(const char* nodeName, u32 subMeshIndex, Cyan::MaterialInstance* matl);
+};
+
+struct RayCastInfo
+{
+    Entity* m_entity;
+    SceneNode* m_node;
+    float t;
+    
+    bool operator<(const RayCastInfo& rhs)
     {
-        m_sceneRoot->m_localTransform.m_qRot *= transform.m_qRot;
-        m_sceneRoot->m_localTransform.m_translate += transform.m_translate;
-        m_sceneRoot->m_localTransform.m_scale *= transform.m_scale;
-        updateWorldTransform();
-    }
-
-    void applyWorldRotation(const glm::mat4& rot)
-    {
-        Transform& transform = getWorldTransform(); 
-        transform.fromMatrix(rot * transform.toMatrix());
-    }
-
-    void applyWorldRotation(const glm::quat& rot)
-    {
-        Transform& transform = getWorldTransform(); 
-        transform.m_qRot *= rot;
-    }
-
-    void applyWorldTranslation(const glm::vec3 trans)
-    {
-
-    }
-
-    void applyWorldScale(const glm::vec3 scale)
-    {
-
-    }
-
-    void updateWorldTransform()
-    {
-        if (m_parent)
-        {
-            m_sceneRoot->m_worldTransform.fromMatrix(m_parent->m_sceneRoot->m_worldTransform.toMatrix() * m_sceneRoot->m_localTransform.toMatrix());
-            m_sceneRoot->updateWorldTransform();
-            for (auto child : m_child)
-            {
-                child->updateWorldTransform();
-            }
-        }
-        else
-        {
-            m_sceneRoot->m_worldTransform = m_sceneRoot->m_localTransform;
-        }
-    }
-
-    void applyLocalRotation(const glm::quat& rot)
-    {
-        m_sceneRoot->m_localTransform.m_qRot *= rot;
-        m_sceneRoot->updateWorldTransform();
-        updateWorldTransform();
-    }
-
-    void applyLocalTranslation(const glm::vec3 trans)
-    {
-
-    }
-
-    void applyLocalScale(const glm::vec3 scale)
-    {
-
+        return t < rhs.t;
     }
 };

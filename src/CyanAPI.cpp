@@ -196,6 +196,18 @@ namespace Cyan
 
             for (u32 v = 0u; v < numVerts; v++)
             {
+                // assemble a triangle
+                u32 index = v % 3u;
+                if (index == 0u)
+                {
+                    subMesh->m_triangles.push_back(Triangle{ });
+                }
+                Triangle& tri = subMesh->m_triangles.back();
+                tri.m_vertices[index] = glm::vec4(scene->mMeshes[sm]->mVertices[v].x,
+                                                  scene->mMeshes[sm]->mVertices[v].y,
+                                                  scene->mMeshes[sm]->mVertices[v].z,
+                                                  1.0f);
+
                 u32 offset = 0;
                 float* vertexAddress = (float*)((u8*)data + strideInBytes * v);
                 if (attribFlag & VertexAttribFlag::kPosition)
@@ -700,7 +712,7 @@ namespace Cyan
         }
         else
         {
-            printf("[ERROR] Unknown uniform with name %s\n", name);
+            // printf("[Warning] Unknown uniform with name %s\n", name);
         }
         return (UniformHandle)-1;
     }
@@ -930,7 +942,7 @@ namespace Cyan
             return cubeMesh;
         }
 
-        glm::mat4 computeMeshNormalization(Mesh* _mesh)
+        void computeAABB(Mesh* mesh)
         {
             auto findMin = [](float* vertexData, u32 numVerts, i32 vertexSize, i32 offset) {
                 float min = vertexData[offset];
@@ -953,7 +965,7 @@ namespace Cyan
             float meshZMin = FLT_MAX; 
             float meshZMax = FLT_MIN;
 
-            for (auto sm : _mesh->m_subMeshes)
+            for (auto sm : mesh->m_subMeshes)
             {
                 u32 vertexSize = 0; 
                 for (auto attrib : sm->m_vertexArray->m_vertexBuffer->m_vertexAttribs)
@@ -972,6 +984,23 @@ namespace Cyan
                 meshYMax = Max(meshYMax, yMax);
                 meshZMax = Max(meshZMax, zMax);
             }
+            mesh->m_aabb.m_pMin = glm::vec4(meshXMin, meshYMin, meshZMin, 1.0f);
+            mesh->m_aabb.m_pMax = glm::vec4(meshXMax, meshYMax, meshZMax, 1.0f);
+            // TODO: cleanup
+            mesh->m_aabb.init();
+        }
+
+        glm::mat4 computeMeshNormalization(Mesh* mesh)
+        {
+            computeAABB(mesh);
+
+            float meshXMin = mesh->m_aabb.m_pMin.x;
+            float meshXMax = mesh->m_aabb.m_pMax.x;
+            float meshYMin = mesh->m_aabb.m_pMin.y;
+            float meshYMax = mesh->m_aabb.m_pMax.y;
+            float meshZMin = mesh->m_aabb.m_pMin.z;
+            float meshZMax = mesh->m_aabb.m_pMax.z;
+
             f32 scale = Max(Cyan::fabs(meshXMin), Cyan::fabs(meshXMax));
             scale = Max(scale, Max(Cyan::fabs(meshYMin), Cyan::fabs(meshYMax)));
             scale = Max(scale, Max(Cyan::fabs(meshZMin), Cyan::fabs(meshZMax)));

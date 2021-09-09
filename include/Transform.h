@@ -30,6 +30,11 @@ struct Transform
         m_qRot = rotation;
         m_scale = scale;
     }
+
+    Transform(const glm::mat4& mat)
+    {
+        fromMatrix(mat);
+    }
     
     glm::mat4 toMatrix()
     {

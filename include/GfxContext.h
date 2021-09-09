@@ -14,9 +14,18 @@
 
 namespace Cyan
 {
+    struct Viewport
+    {
+        u32 m_x;
+        u32 m_y;
+        u32 m_width;
+        u32 m_height;
+    };
+
     enum PrimitiveType
     {
         TriangleList = 0,
+        Line,
         LineStrip
     };
 
@@ -56,7 +65,7 @@ namespace Cyan
         void setVertexArray(VertexArray* _array);
         void setBuffer(RegularBuffer* _buffer, u32 binding);
         void setPrimitiveType(PrimitiveType _type);
-        void setViewport(u32 _left, u32 _bottom, u32 _right, u32 _top);
+        void setViewport(u32 x, u32 y, u32 _right, u32 _top);
         void setRenderTarget(RenderTarget* _rt, u16 drawBufferIdx); 
         void setDepthControl(DepthControl _ctrl);
         void setClearColor(glm::vec4 color);

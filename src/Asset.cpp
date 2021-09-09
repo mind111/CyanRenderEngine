@@ -100,7 +100,7 @@ void AssetManager::loadNodes(Scene* scene, nlohmann::basic_json<std::map>& nodeI
                 node = loadGltf(scene, nodeFile.c_str(), nodeName.c_str(), transform);
             }
             m_nodes.push_back(node);
-            return;
+            continue;
         }
         // TODO: No need to check if meshName is empty as getMesh() should return null
         // if meshName is empty anyway

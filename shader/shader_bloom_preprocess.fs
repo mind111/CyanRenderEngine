@@ -43,8 +43,8 @@ void main()
     {
         // inspired by UE4
         // TODO: use another way to adjust contrast
-        float bloomScale = clamp(0.5 * lumin, 0.0, 1.0);
+        float bloomScale = clamp(1.0 * lumin, 0.0, 1.0);
         // exaggerate the constrast
-        fragcolor = vec4(1.0 * color, 1.f);
+        fragcolor = vec4(color, 1.f);
     }
 }

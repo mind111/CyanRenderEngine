@@ -5,6 +5,7 @@ build/
 .git/
 asset/
 lib/
+src/ImGuizmo/
 
 # files
 .vscode-ctags

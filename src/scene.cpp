@@ -21,55 +21,6 @@ void SceneManager::setLightProbe(Scene* scene, LightProbe* probe)
     scene->m_currentProbe = probe;
 }
 
-// SceneNode* SceneManager::createSceneNode(Scene* scene, SceneNode* parent, Entity* entity) {
-//     // insert into the scene graph, by default all the newly created entity that has a transform
-//     // component should be child of the root node
-//     SceneNode* node = Cyan::allocSceneNode();
-//     node->m_entity = entity;
-//     glm::mat4 testMat = Transform().toMatrix();
-//     // root node
-//     if (!scene->m_root)
-//     {
-//         scene->m_root = node;
-//         CYAN_ASSERT(entity->m_hasTransform, "Root node has to have Transform component")
-//         scene->m_root->m_entity->m_worldTransformMatrix = scene->m_root->m_entity->m_instanceTransform.toMatrix();
-//         return scene->m_root;
-//     }
-//     if (!entity->m_hasTransform) {
-//         entity->m_instanceTransform = Transform();
-//     }
-//     // non-root node
-//     if (parent) {
-//         parent->attachChild(node);
-//     } else {
-//         scene->m_root->addChild(node);
-//     }
-//     return node;
-// }
-
-// Entity* SceneManager::createEntity(Scene* scene, const char* entityName, const char* meshName, Transform transform, bool hasTransform)
-// {
-//     Entity* entity = (Entity*)CYAN_ALLOC(sizeof(Entity));
-//     // mesh instance
-//     Cyan::Mesh* mesh = Cyan::getMesh(meshName);
-//     entity->m_meshInstance = mesh ? mesh->createInstance() : nullptr; 
-//     // id
-//     entity->m_entityId = scene->entities.size() > 0 ? scene->entities.size() : 0;
-//     if (entityName) 
-//     {
-//         CYAN_ASSERT(strlen(entityName) < kEntityNameMaxLen, "Entity name too long !!")
-//         strcpy(entity->m_name, entityName);
-//     } else {
-//         char buff[64];
-//         sprintf(buff, "Entity%u", entity->m_entityId);
-//     }
-//     // transform
-//     entity->m_instanceTransform = transform;
-//     entity->m_hasTransform = hasTransform;
-//     scene->entities.push_back(entity);
-//     return entity; 
-// }
-
 Entity* SceneManager::createEntity(Scene* scene, const char* entityName, Transform transform, Entity* parent)
 {
     /* Note(Min): 

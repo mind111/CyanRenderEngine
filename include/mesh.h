@@ -8,12 +8,14 @@
 #include "VertexArray.h"
 #include "Material.h"
 #include "Transform.h"
+#include "Geometry.h"
 
 namespace Cyan
 {
     struct MeshInstance;
     struct SkeletalMeshInstance;
 
+    // TODO: Mesh need to store object space vertex data
     struct Mesh
     {
         MeshInstance* createInstance();
@@ -23,11 +25,13 @@ namespace Cyan
             std::string m_name;
             VertexArray* m_vertexArray;
             u32 m_numVerts;
+            std::vector<Triangle> m_triangles;
         };
 
         std::string m_name;
         glm::mat4 m_normalization;
         std::vector<SubMesh*> m_subMeshes;
+        BoundingBox3f m_aabb;
     };
 
     struct MeshInstance
@@ -36,6 +40,7 @@ namespace Cyan
 
         Mesh* m_mesh;
         MaterialInstance** m_matls;
+        BoundingBox3f& getAABB();
     };
 
     struct Joint {

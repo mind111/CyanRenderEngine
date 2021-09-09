@@ -14,11 +14,41 @@
     "meshes": [
         {
             "name": "helmet_mesh",
-            "path": "asset/helmet/mesh/helmet.obj"
+            "path": "asset/helmet/mesh/helmet.obj",
+            "normalize": true
         },
         {
             "name": "sphere_mesh",
-            "path": "asset/sphere/mesh/uv_sphere.obj"
+            "path": "asset/sphere/mesh/uv_sphere.obj",
+            "normalize": true
+        },
+        {
+            "name": "cube_mesh",
+            "path": "asset/primitives/cube.obj",
+            "normalize": true
+        },
+        {
+            "name": "cone_mesh",
+            "path": "asset/primitives/cone.obj",
+            "normalize": true
+        },
+
+        {
+            "name": "floor_mesh",
+            "path": "asset/primitives/floor.obj",
+            "normalize": true
+        },
+
+        {
+            "name": "wall_0",
+            "path": "asset/primitives/wall_0.obj",
+            "normalize": true
+        },
+
+        {
+            "name": "wall_1",
+            "path": "asset/primitives/wall_1.obj",
+            "normalize": true
         }
     ],
 
@@ -120,9 +150,69 @@
             "name": "SphereMesh",
             "mesh": "sphere_mesh",
             "xform": {
-                "translation": [0.0, 0.0, -1.5],
+                "translation": [2.2, -0.6, -0.8],
                 "rotation": [0.0, 0, 1, 0],
-                "scale": [0.8, 0.8, 0.8]
+                "scale": [0.2, 0.2, 0.2]
+            },
+            "child": []
+        },
+
+        {
+            "index": 3,
+            "name": "UvCubeMesh",
+            "mesh": "cube_mesh",
+            "xform": {
+                "translation": [1.5, -0.5, -1.5],
+                "rotation": [0.0, 0, 1, 45],
+                "scale": [0.5, 0.5, 0.5]
+            },
+            "child": []
+        },
+
+        {
+            "index": 4,
+            "name": "ConeMesh",
+            "mesh": "cone_mesh",
+            "xform": {
+                "translation": [3.0, -0.5, -1.5],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [0.5, 0.5, 0.5]
+            },
+            "child": []
+        },
+
+        {
+            "index": 5,
+            "name": "CubeMesh",
+            "mesh": "floor_mesh",
+            "xform": {
+                "translation": [0.0, -1.5, 0.0],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [6.0, 6.0, 6.0]
+            },
+            "child": []
+        },
+
+        {
+            "index": 6,
+            "name": "CubeMesh",
+            "mesh": "wall_0",
+            "xform": {
+                "translation": [0.0, -1.5, 0.0],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [6.0, 6.0, 6.0]
+            },
+            "child": []
+        },
+
+        {
+            "index": 7,
+            "name": "CubeMesh",
+            "mesh": "wall_1",
+            "xform": {
+                "translation": [0.0, -1.5, 0.0],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [6.0, 6.0, 6.0]
             },
             "child": []
         }
@@ -147,7 +237,65 @@
                 "scale": [1.00, 1.00, 1.00]
             },
             "nodes": [ 1 ]
-        }
+        },
 
+        {
+            "name": "Sphere0",
+            "xform": {
+                "translation": [0.0, 0.0, 0.0],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [1.00, 1.00, 1.00]
+            },
+            "nodes": [ 2 ]
+        },
+
+        {
+            "name": "Cube",
+            "xform": {
+                "translation": [0.0, 0.0, 0.0],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [1.00, 1.00, 1.00]
+            },
+            "nodes": [ 3 ]
+        },
+
+        {
+            "name": "Cone",
+            "xform": {
+                "translation": [0.0, 0.0, 0.0],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [1.00, 1.00, 1.00]
+            },
+            "nodes": [ 4 ]
+        },
+
+        {
+            "name": "Floor",
+            "xform": {
+                "translation": [0.0, 0.0, 0.0],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [1.00, 1.00, 1.00]
+            },
+            "nodes": [ 5 ]
+        },
+
+        {
+            "name": "Wall_0",
+            "xform": {
+                "translation": [0.0, 0.0, 0.0],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [1.00, 1.00, 1.00]
+            },
+            "nodes": [ 6 ]
+        },
+        {
+            "name": "Wall_1",
+            "xform": {
+                "translation": [0.0, 0.0, 0.0],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [1.00, 1.00, 1.00]
+            },
+            "nodes": [ 7 ]
+        }
     ]
 }
