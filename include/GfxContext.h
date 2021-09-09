@@ -65,7 +65,7 @@ namespace Cyan
         void setVertexArray(VertexArray* _array);
         void setBuffer(RegularBuffer* _buffer, u32 binding);
         void setPrimitiveType(PrimitiveType _type);
-        void setViewport(u32 x, u32 y, u32 _right, u32 _top);
+        void setViewport(Viewport viewport);
         void setRenderTarget(RenderTarget* _rt, u16 drawBufferIdx); 
         void setDepthControl(DepthControl _ctrl);
         void setClearColor(glm::vec4 color);
@@ -80,7 +80,7 @@ namespace Cyan
 
         Window* m_window;
         Shader* m_shader;
-        glm::vec4 m_viewport;
+        Viewport m_viewport;
         GLenum m_primitiveType;
         VertexArray* m_vertexArray;
         GLuint m_vao;

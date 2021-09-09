@@ -75,8 +75,8 @@ namespace Cyan
 
         // viewport
         glm::vec2 getViewportSize();
-        glm::vec4 getViewportRect();
-        glm::vec4 m_viewportRect; 
+        Viewport getViewport();
+        Viewport m_viewport; 
 
         Uniform* u_model; 
         Uniform* u_cameraView;

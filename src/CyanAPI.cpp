@@ -1090,7 +1090,7 @@ namespace Cyan
                 cubeMesh = Cyan::Toolkit::createCubeMesh("CubeMesh");
             }
             // Cache viewport config
-            glm::vec4 origViewport = s_gfxc->m_viewport;
+            Viewport origViewport = s_gfxc->m_viewport;
             for (u32 f = 0; f < 6u; f++)
             {
                 // Update view matrix
@@ -1104,7 +1104,7 @@ namespace Cyan
                 s_gfxc->setRenderTarget(rt, f);
                 // Since we are rendering to a framebuffer, we need to configure the viewport 
                 // to prevent the texture being stretched to fit the framebuffer's dimension
-                s_gfxc->setViewport(0, 0, kViewportWidth, kViewportHeight);
+                s_gfxc->setViewport({ 0, 0, kViewportWidth, kViewportHeight });
                 s_gfxc->setShader(shader);
                 s_gfxc->setUniform(u_projection);
                 s_gfxc->setUniform(u_view);
@@ -1117,7 +1117,7 @@ namespace Cyan
                 s_gfxc->reset();
             }
             // Recover the viewport dimensions
-            s_gfxc->setViewport(origViewport.x, origViewport.y, origViewport.z, origViewport.w);
+            s_gfxc->setViewport(origViewport);
             s_gfxc->setDepthControl(DepthControl::kEnable);
             return envmap;
         }
@@ -1185,7 +1185,7 @@ namespace Cyan
                 cubeMesh = Cyan::Toolkit::createCubeMesh("CubeMesh");
             }
             // Cache viewport config
-            glm::vec4 origViewport = s_gfxc->m_viewport;
+            Viewport origViewport = s_gfxc->m_viewport;
             for (u32 f = 0; f < 6u; f++)
             {
                 // Update view matrix
@@ -1197,7 +1197,7 @@ namespace Cyan
                 setUniform(u_view, &camera.view);
                 s_gfxc->setDepthControl(DepthControl::kDisable);
                 s_gfxc->setRenderTarget(rt, f);
-                s_gfxc->setViewport(0, 0, kViewportWidth, kViewportHeight);
+                s_gfxc->setViewport({ 0, 0, kViewportWidth, kViewportHeight });
                 s_gfxc->setShader(shader);
                 s_gfxc->setUniform(u_projection);
                 s_gfxc->setUniform(u_view);
@@ -1210,7 +1210,7 @@ namespace Cyan
             }
             s_gfxc->reset();
             // Recover the viewport dimensions
-            s_gfxc->setViewport(origViewport.x, origViewport.y, origViewport.z, origViewport.w);
+            s_gfxc->setViewport(origViewport);
             s_gfxc->setDepthControl(DepthControl::kEnable);
             return diffuseIrradianceMap;
         }
@@ -1277,7 +1277,7 @@ namespace Cyan
                 cubeMesh = Cyan::Toolkit::createCubeMesh("CubeMesh");
             }
             // Cache viewport config
-            glm::vec4 origViewport = s_gfxc->m_viewport;
+            Viewport origViewport = s_gfxc->m_viewport;
             const u32 kNumMips = 10u;
             u32 mipWidth = prefilteredEnvMap->m_width; 
             u32 mipHeight = prefilteredEnvMap->m_height;
@@ -1286,7 +1286,7 @@ namespace Cyan
             {
                 rts[mip] = createRenderTarget(mipWidth, mipHeight);
                 rts[mip]->attachColorBuffer(prefilteredEnvMap, mip);
-                s_gfxc->setViewport(0u, 0u, mipWidth, mipHeight);
+                s_gfxc->setViewport({ 0u, 0u, mipWidth, mipHeight });
                 for (u32 f = 0; f < 6u; f++)
                 {
                     camera.lookAt = cameraTargets[f];
@@ -1316,7 +1316,7 @@ namespace Cyan
                 s_gfxc->reset();
             }
             // Recover the viewport dimensions
-            s_gfxc->setViewport(origViewport.x, origViewport.y, origViewport.z, origViewport.w);
+            s_gfxc->setViewport(origViewport);
             s_gfxc->setDepthControl(DepthControl::kEnable);
             return prefilteredEnvMap;
         }
@@ -1364,15 +1364,15 @@ namespace Cyan
             glBindVertexArray(0);
 
             auto gfxc = getCurrentGfxCtx();
-            glm::vec4 origViewport = gfxc->m_viewport;
-            gfxc->setViewport(0.f, 0.f, kTexWidth, kTexHeight);
+            Viewport origViewport = gfxc->m_viewport;
+            gfxc->setViewport({ 0, 0, kTexWidth, kTexHeight } );
             gfxc->setShader(shader);
             gfxc->setRenderTarget(rt, 0);
             glBindVertexArray(vao);
             gfxc->setDepthControl(Cyan::DepthControl::kDisable);
             glDrawArrays(GL_TRIANGLES, 0, 6);
             gfxc->setDepthControl(Cyan::DepthControl::kEnable);
-            gfxc->setViewport(origViewport.x, origViewport.y, origViewport.z, origViewport.w);
+            gfxc->setViewport(origViewport);
             gfxc->reset();
 
             return outputTexture;
@@ -1434,8 +1434,8 @@ namespace Cyan
             rt->attachColorBuffer(texture);
 
             auto gfxc = getCurrentGfxCtx();
-            glm::vec4 origViewport = gfxc->m_viewport;
-            gfxc->setViewport(0.f, 0.f, texture->m_width, texture->m_height);
+            Viewport origViewport = gfxc->m_viewport;
+            gfxc->setViewport({ 0u, 0u, texture->m_width, texture->m_height });
             gfxc->setShader(shader);
             gfxc->setRenderTarget(rt, 0);
             gfxc->setUniform(u_color);
@@ -1443,7 +1443,7 @@ namespace Cyan
             gfxc->setDepthControl(Cyan::DepthControl::kDisable);
             glDrawArrays(GL_TRIANGLES, 0, 6);
             gfxc->setDepthControl(Cyan::DepthControl::kEnable);
-            gfxc->setViewport(origViewport.x, origViewport.y, origViewport.z, origViewport.w);
+            gfxc->setViewport(origViewport);
             gfxc->reset();
 
             s_textures.push_back(texture);

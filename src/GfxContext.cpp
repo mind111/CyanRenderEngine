@@ -19,7 +19,7 @@ namespace Cyan
     void GfxContext::setWindow(Window* _window)
     {
         m_window = _window;
-        m_viewport = glm::vec4(0.f, 0.f, _window->width, _window->height);
+        m_viewport = { 0, 0, static_cast<u32>(_window->width), static_cast<u32>(_window->height) };
     }
 
     void GfxContext::setShader(Shader* _shader)
@@ -152,13 +152,10 @@ namespace Cyan
         }
     }
 
-    void GfxContext::setViewport(u32 x, u32 y, u32 width, u32 height)
+    void GfxContext::setViewport(Viewport viewport)
     {
-        glViewport(x, y, width, height);
-        m_viewport.x = x;
-        m_viewport.y = y;
-        m_viewport.z = width;
-        m_viewport.w = height;
+        m_viewport = viewport;
+        glViewport(viewport.m_x, viewport.m_y, viewport.m_width, viewport.m_height);
     }
 
     void GfxContext::setRenderTarget(RenderTarget* _rt, u16 drawBufferIdx) 

@@ -8,6 +8,7 @@
 #include "Geometry.h"
 #include "imgui/imgui.h"
 #include "CyanUI.h"
+#include "GfxContext.h"
 
 struct EnvMapDebugger
 {
@@ -99,13 +100,13 @@ struct EnvMapDebugger
         Cyan::Mesh* cubeMesh = Cyan::getMesh("cubemapMesh");
         auto gfxc = Cyan::getCurrentGfxCtx();
         // Cache viewport config
-        glm::vec4 origViewport = gfxc->m_viewport;
+        Cyan::Viewport origViewport = gfxc->m_viewport;
         const u32 numMips = 5;
         u32 mipWidth = m_texture->m_width; 
         u32 mipHeight = m_texture->m_height;
         for (u32 mip = 0; mip < numMips; ++mip)
         {
-            gfxc->setViewport(0u, 0u, mipWidth, mipHeight);
+            gfxc->setViewport({ 0u, 0u, mipWidth, mipHeight } );
             for (u32 f = 0; f < 6u; f++)
             {
                 camera.lookAt = cameraTargets[f];
@@ -144,7 +145,7 @@ struct EnvMapDebugger
             gfxc->reset();
         }
         // Recover the viewport dimensions
-        gfxc->setViewport(origViewport.x, origViewport.y, origViewport.z, origViewport.w);
+        gfxc->setViewport(origViewport);
         gfxc->setDepthControl(Cyan::DepthControl::kEnable);
         // draw debug lines for samples
         {
@@ -222,14 +223,14 @@ struct BrdfDebugger
     void draw()
     {
         auto gfxc = Cyan::getCurrentGfxCtx();
-        glm::vec4 origViewport = gfxc->m_viewport;
-        gfxc->setViewport(0.f, 0.f, kTexWidth, kTexHeight);
+        Cyan::Viewport origViewport = gfxc->m_viewport;
+        gfxc->setViewport({ 0u, 0u, kTexWidth, kTexHeight });
         gfxc->setShader(m_shader);
         gfxc->setRenderTarget(m_renderTarget, 0);
         gfxc->setDepthControl(Cyan::DepthControl::kDisable);
         glBindVertexArray(m_vao);
         glDrawArrays(GL_TRIANGLES, 0, 6);
-        gfxc->setViewport(origViewport.x, origViewport.y, origViewport.z, origViewport.w);
+        gfxc->setViewport(origViewport);
         gfxc->reset();
         gfxc->setDepthControl(Cyan::DepthControl::kEnable);
     }

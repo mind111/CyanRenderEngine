@@ -416,13 +416,13 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight, int viewportWidth, in
     m_font = io.Fonts->AddFontFromFileTTF("C:\\summerwars\\cyanRenderEngine\\lib\\imgui\\misc\\fonts\\Roboto-Medium.ttf", 16.f);
 
     // set viewport
-    Cyan::getCurrentGfxCtx()->setViewport(400, 0, 1680, 960);
+    // Cyan::getCurrentGfxCtx()->setViewport(400, 0, 1680, 960);
 }
 
 void PbrApp::beginFrame()
 {
     Cyan::getCurrentGfxCtx()->clear();
-    Cyan::getCurrentGfxCtx()->setViewport(0, 0, gEngine->getWindow().width, gEngine->getWindow().height);
+    Cyan::getCurrentGfxCtx()->setViewport({ 0, 0, static_cast<u32>(gEngine->getWindow().width), static_cast<u32>(gEngine->getWindow().height) });
     m_ui.begin();
 }
 
@@ -455,11 +455,11 @@ glm::mat4 rotateAroundPoint(glm::vec3 c, glm::vec3 axis, float degree)
 Entity* PbrApp::castMouseRay()
 {
     // convert mouse cursor pos to view space 
-    glm::vec4 viewportRect = gEngine->getRenderer()->getViewportRect();
-    double viewportWidth = static_cast<double>(viewportRect.z);
-    double viewportHeight = static_cast<double>(viewportRect.w);
-    double mouseCursorX = m_mouseCursorX - viewportRect.x;
-    double mouseCursorY = m_mouseCursorY - viewportRect.y;
+    Cyan::Viewport viewport = gEngine->getRenderer()->getViewport();
+    double viewportWidth = static_cast<double>(viewport.m_width);
+    double viewportHeight = static_cast<double>(viewport.m_height);
+    double mouseCursorX = m_mouseCursorX - viewport.m_x;
+    double mouseCursorY = m_mouseCursorY - viewport.m_y;
     // NDC space
     glm::vec2 uv(2.0 * mouseCursorX / viewportWidth - 1.0f, 2.0 * (viewportHeight - mouseCursorY) / viewportHeight - 1.0f);
     // homogeneous clip space
@@ -515,7 +515,7 @@ void PbrApp::update()
 void PbrApp::drawDebugWindows()
 {
     // configure window pos and size
-    ImVec2 debugWindowSize(gEngine->getWindow().width - gEngine->getRenderer()->m_viewportRect.z, 
+    ImVec2 debugWindowSize(gEngine->getWindow().width - gEngine->getRenderer()->m_viewport.m_width, 
                            gEngine->getWindow().height);
     ImGui::SetNextWindowPos(ImVec2(0, 0));
     ImGui::SetNextWindowSize(debugWindowSize);

@@ -129,7 +129,10 @@ namespace Cyan
     void Renderer::init(glm::vec4 viewportRect)
     {
         Cyan::init();
-        m_viewportRect = viewportRect;
+        m_viewport = { static_cast<u32>(viewportRect.x), 
+                       static_cast<u32>(viewportRect.y), 
+                       static_cast<u32>(viewportRect.z), 
+                       static_cast<u32>(viewportRect.w) };
 
         u_model = createUniform("s_model", Uniform::Type::u_mat4);
         u_cameraView = createUniform("s_view", Uniform::Type::u_mat4);
@@ -145,7 +148,7 @@ namespace Cyan
 
         // render targets
         initShaders();
-        initRenderTargets(m_viewportRect.z, m_viewportRect.w);
+        initRenderTargets(m_viewport.m_width, m_viewport.m_height);
 
         // blit mesh & material
         m_blitShader = createShader("BlitShader", "../../shader/shader_blit.vs", "../../shader/shader_blit.fs");
@@ -172,12 +175,12 @@ namespace Cyan
 
     glm::vec2 Renderer::getViewportSize()
     {
-        return glm::vec2(m_viewportRect.z, m_viewportRect.w);
+        return glm::vec2(m_viewport.m_width, m_viewport.m_height);
     }
 
-    glm::vec4 Renderer::getViewportRect()
+    Viewport Renderer::getViewport()
     {
-        return m_viewportRect;
+        return m_viewport;
     }
 
     void Renderer::drawMeshInstance(MeshInstance* meshInstance, glm::mat4* modelMatrix)
@@ -364,14 +367,14 @@ namespace Cyan
             ctx->setRenderTarget(m_superSamplingRenderTarget, 0u);
             m_offscreenRenderWidth = m_superSamplingRenderWidth;
             m_offscreenRenderHeight = m_superSamplingRenderHeight;
-            ctx->setViewport(0, 0, 2560, 1440);
+            ctx->setViewport({ 0u, 0u, 2560u, 1440u });
         }
         else 
         {
             ctx->setRenderTarget(m_defaultRenderTarget, 0u);
             m_offscreenRenderWidth = m_windowWidth;
             m_offscreenRenderHeight = m_windowHeight;
-            ctx->setViewport(0, 0, m_viewportRect.z, m_viewportRect.w);
+            ctx->setViewport(m_viewport);
         }
 
         // clear
@@ -392,7 +395,7 @@ namespace Cyan
         ctx->setDepthControl(Cyan::DepthControl::kDisable);
         ctx->setRenderTarget(renderTarget, 0u);
         ctx->setShader(m_bloomPreprocessShader);
-        ctx->setViewport(0u, 0u, renderTarget->m_width, renderTarget->m_height);
+        ctx->setViewport({ 0u, 0u, renderTarget->m_width, renderTarget->m_height });
         m_bloomPreprocessMatl->bindTexture("quadSampler", srcImage);
         m_bloomPreprocessMatl->bind();
         ctx->setVertexArray(m_blitQuad->m_va);
@@ -409,7 +412,7 @@ namespace Cyan
         ctx->setDepthControl(Cyan::DepthControl::kDisable);
         ctx->setRenderTarget(dst, dstIdx);
         ctx->setShader(downSampleShader);
-        ctx->setViewport(0u, 0u, dst->m_width, dst->m_height);
+        ctx->setViewport({ 0u, 0u, dst->m_width, dst->m_height });
         matl->bindTexture("srcImage", src->m_colorBuffers[srcIdx]);
         matl->bind();
         ctx->setVertexArray(m_blitQuad->m_va);
@@ -424,7 +427,7 @@ namespace Cyan
         ctx->setDepthControl(Cyan::DepthControl::kDisable);
         ctx->setShader(m_gaussianBlurShader);
         ctx->setRenderTarget(surface.m_renderTarget, 1u);
-        ctx->setViewport(0u, 0u, surface.m_renderTarget->m_width, surface.m_renderTarget->m_height);
+        ctx->setViewport({ 0u, 0u, surface.m_renderTarget->m_width, surface.m_renderTarget->m_height });
 
         // horizontal pass
         {
@@ -463,7 +466,7 @@ namespace Cyan
         ctx->setDepthControl(Cyan::DepthControl::kDisable);
         ctx->setRenderTarget(dst, dstIdx);
         ctx->setShader(upSampleShader);
-        ctx->setViewport(0u, 0u, dst->m_width, dst->m_height);
+        ctx->setViewport({ 0u, 0u, dst->m_width, dst->m_height });
         matl->bindTexture("srcImage", src->m_colorBuffers[srcIdx]);
         matl->bindTexture("blendImage", blend->m_colorBuffers[blendIdx]);
         matl->set("stageIndex", inputs.stageIndex);
@@ -554,7 +557,7 @@ namespace Cyan
         }
         // final blit to default frame buffer
         ctx->setRenderTarget(nullptr, 0u);
-        ctx->setViewport(m_viewportRect.x, m_viewportRect.y, m_viewportRect.z, m_viewportRect.w);
+        ctx->setViewport(m_viewport);
         ctx->setShader(m_blitShader);
         if (m_bloom)
         {
