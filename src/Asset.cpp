@@ -76,9 +76,11 @@ void AssetManager::loadMeshes(Scene* scene, nlohmann::basic_json<std::map>& mesh
     for (auto meshInfo : meshInfoList) 
     {
         std::string path, name;
+        bool normalize;
         meshInfo.at("path").get_to(path);
         meshInfo.at("name").get_to(name);
-        Cyan::createMesh(name.c_str(), path.c_str());
+        meshInfo.at("normalize").get_to(normalize);
+        Cyan::createMesh(name.c_str(), path.c_str(), normalize);
     }
 }
 

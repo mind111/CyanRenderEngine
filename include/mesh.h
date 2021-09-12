@@ -29,6 +29,7 @@ namespace Cyan
         };
 
         std::string m_name;
+        bool m_shouldNormalize;
         glm::mat4 m_normalization;
         std::vector<SubMesh*> m_subMeshes;
         BoundingBox3f m_aabb;

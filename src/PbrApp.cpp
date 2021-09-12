@@ -679,7 +679,6 @@ void PbrApp::drawSceneViewport()
             a, b, ImVec2(0, 1), ImVec2(1, 0));
 
         // ray picking
-        // FIXME: When mouse cursor hovers over the gizmos, IsUsing() returns false unless clicking on the gizmo
         if (bRayCast && !ImGuizmo::IsOver())
         {
             RayCastInfo hitInfo = castMouseRay(glm::vec2(a.x, a.y), glm::vec2(windowSize.x, windowSize.y - min.y));
@@ -693,14 +692,17 @@ void PbrApp::drawSceneViewport()
             ctx->setDepthControl(Cyan::DepthControl::kEnable);
         }
         // TODO: gizmos 
+        // TODO: when clicking on some objects (meshes) in the scene, the gizmo will be rendered not at the 
+        // center of the mesh, this may seem incorrect at first glance but it's actually expected because some parts of the mesh
+        // is offseted from the center of the mesh's transform. The gizmo is always rendered at the mesh's object space origin. In
+        // some cases, the mesh may not overlap the origin or centered at the origin in object space in the first place, so it's expected
+        // that the gizmo seems "detached" from the mesh itself.
         if (m_selectedEntity)
         {
             ImGuizmo::SetOrthographic(false);
             ImGuizmo::SetDrawlist(ImGui::GetForegroundDrawList());
             ImGuizmo::SetRect(ImGui::GetWindowPos().x, ImGui::GetWindowPos().y, ImGui::GetWindowWidth(), ImGui::GetWindowHeight());
 
-            // FIXME: I'm passing in wrong transform here, I'm passing entity's transform instead of 
-            // passing the selected mesh (node)'s transform
             glm::mat4 transformMatrix = m_selectedNode->getWorldTransform().toMatrix();
             glm::mat4 delta(1.0f);
             if (ImGuizmo::Manipulate(&m_scenes[m_currentScene]->mainCamera.view[0][0], 
@@ -862,7 +864,7 @@ void PbrApp::render()
                 if (aabb.isValid)
                 {
                     aabb.setViewProjection(gEngine->getRenderer()->u_cameraView, gEngine->getRenderer()->u_cameraProjection);
-                    aabb.draw(node->m_worldTransform.toMatrix() * node->m_meshInstance->m_mesh->m_normalization);
+                    aabb.draw(node->m_worldTransform.toMatrix());
                 }
             }
             for (auto child : node->m_child)

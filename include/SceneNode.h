@@ -43,6 +43,7 @@ struct SceneNode
     void setLocalTransform(glm::mat4 mat)
     {
         m_localTransform.fromMatrix(mat);
+        // TODO: can we defer this update to gain performance?
         updateWorldTransform();
     }
     const Transform& getWorldTransform();

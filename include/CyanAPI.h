@@ -169,7 +169,7 @@ namespace Cyan
 
     /* Mesh */
     void addMesh(Mesh* mesh);
-    Mesh* createMesh(const char* _name, const char* _file);
+    Mesh* createMesh(const char* name, const char* file, bool normalize);
     Mesh* getMesh(const char* _name);
 
     /* Scene */

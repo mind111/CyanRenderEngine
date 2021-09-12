@@ -348,7 +348,6 @@ namespace Cyan
 
             glm::mat4 modelMatrix;
             modelMatrix = node->m_worldTransform.toMatrix();
-            // modelMatrix = modelMatrix * node->m_meshInstance->m_mesh->m_normalization;
             modelMatrix = modelMatrix;
             drawMeshInstance(node->m_meshInstance, &modelMatrix);
         }

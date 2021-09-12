@@ -108,6 +108,11 @@ namespace Cyan
         if (mesh)
         {
             node->m_meshInstance = mesh->createInstance();
+            if (mesh->m_shouldNormalize)
+            {
+                glm::mat4 localTransformMat = node->m_localTransform.toMatrix() * mesh->m_normalization;
+                node->setLocalTransform(localTransformMat);
+            }
         }
         return node;
     }
@@ -161,14 +166,14 @@ namespace Cyan
     }
 
     // TODO: switch to use tinygltf for loading gltf files
-    Mesh* createMesh(const char* _name, const char* _file)
+    Mesh* createMesh(const char* name, const char* file, bool normalize)
     {
         Mesh* mesh = new Mesh;
-        mesh->m_name = _name;
+        mesh->m_name = name;
 
         Assimp::Importer importer;
         const aiScene* scene = importer.ReadFile(
-            _file,
+            file,
             aiProcess_CalcTangentSpace | aiProcess_GenSmoothNormals
         );
         float** vertexDataPtrs = reinterpret_cast<float**>(_alloca(sizeof(float*) * scene->mNumMeshes));
@@ -268,6 +273,7 @@ namespace Cyan
             subMesh->m_vertexArray->init();
         }
         // Store the xform for normalizing object space mesh coordinates
+        mesh->m_shouldNormalize = normalize;
         mesh->m_normalization = Toolkit::computeMeshNormalization(mesh);
         addMesh(mesh);
         for (u32 sm = 0u; sm < scene->mNumMeshes; ++sm) {
@@ -958,13 +964,18 @@ namespace Cyan
                 return max;
             };
 
-            float meshXMin = FLT_MAX; 
-            float meshXMax = FLT_MIN;
-            float meshYMin = FLT_MAX; 
-            float meshYMax = FLT_MIN;
-            float meshZMin = FLT_MAX; 
-            float meshZMax = FLT_MIN;
+            // note(min): FLT_MIN, FLT_MAX returns positive float limits
+            float meshXMin =  FLT_MAX; 
+            float meshXMax = -FLT_MAX;
+            float meshYMin =  FLT_MAX; 
+            float meshYMax = -FLT_MAX;
+            float meshZMin =  FLT_MAX; 
+            float meshZMax = -FLT_MAX;
 
+            if (strcmp(mesh->m_name.c_str(), "wall_1") == 0)
+            {
+                printf("breakpoint\n");
+            }
             for (auto sm : mesh->m_subMeshes)
             {
                 u32 vertexSize = 0; 
@@ -984,8 +995,11 @@ namespace Cyan
                 meshYMax = Max(meshYMax, yMax);
                 meshZMax = Max(meshZMax, zMax);
             }
-            mesh->m_aabb.m_pMin = glm::vec4(meshXMin, meshYMin, meshZMin, 1.0f);
-            mesh->m_aabb.m_pMax = glm::vec4(meshXMax, meshYMax, meshZMax, 1.0f);
+            // TODO: need to watch out for zmin and zmax as zmin is actually greater than 0 
+            // in OpenGL style right-handed coordinate system. This is why meshZMax is put in 
+            // pMin while meshZMin is put in pMax.
+            mesh->m_aabb.m_pMin = glm::vec4(meshXMin, meshYMin, meshZMax, 1.0f);
+            mesh->m_aabb.m_pMax = glm::vec4(meshXMax, meshYMax, meshZMin, 1.0f);
             // TODO: cleanup
             mesh->m_aabb.init();
         }
@@ -1007,6 +1021,7 @@ namespace Cyan
             return glm::scale(glm::mat4(1.f), glm::vec3(1.f / scale));
         }
 
+        // TODO: implement this to handle scale for submeshes correctly
         glm::mat4 computeMeshesNormalization(std::vector<Mesh*> meshes) {
             for (auto& mesh : meshes) {
                 continue;
