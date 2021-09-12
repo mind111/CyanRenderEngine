@@ -9,12 +9,11 @@ int main(int argc, char* argv[]) {
     std::cout << "---- Hello Cyan! ----" << std::endl;
     PbrApp* app = new PbrApp();
 
-    glm::ivec2 sceneViewportSize(1280, 960);
-    glm::ivec2 debugViewportSize(400, 960);
-    u32 windowWidth = sceneViewportSize.x + debugViewportSize.x;
-    u32 windowHeight = std::max(sceneViewportSize.y, debugViewportSize.y);
-    // app->init(1280, 960);
-    app->init(windowWidth, windowHeight, sceneViewportSize.x, sceneViewportSize.y);
+    glm::vec2 sceneRenderSize(1280.f, 960.f);
+    glm::vec2 debugViewportSize(400.f, 960.f);
+    f32 windowWidth = sceneRenderSize.x + debugViewportSize.x;
+    f32 windowHeight = std::max(sceneRenderSize.y, debugViewportSize.y);
+    app->init(windowWidth, windowHeight, glm::vec2(400.f, 0.f), sceneRenderSize);
     app->run();
     app->shutDown();
     delete app;

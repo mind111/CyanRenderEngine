@@ -9,7 +9,7 @@ public:
     CyanApp() { gEngine =  new CyanEngine(); }
     ~CyanApp() { }
 
-    virtual void init(int appWindowWidth, int appWindowHeight, int viewportWidth, int viewportHeight) = 0;
+    virtual void init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewportPos, glm::vec2 renderSize) = 0;
 
     virtual void beginFrame() = 0;
     virtual void render() = 0;

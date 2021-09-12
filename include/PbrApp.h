@@ -248,7 +248,7 @@ class PbrApp : public CyanApp
 public:
     PbrApp();
     ~PbrApp() { }
-    virtual void init(int appWindowWidth, int appWindowHeight, int viewportWidth, int viewportHeight) override;
+    virtual void init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewportPos, glm::vec2 renderSize) override;
 
     static PbrApp* get();
 
@@ -262,6 +262,9 @@ public:
     // camera control
     void orbitCamera(double deltaX, double deltaY);
     void rotateCamera(double deltaX, double deltaY);
+
+    // main scene viewport
+    void drawSceneViewport(); 
     // ui
     void drawDebugWindows();
     void drawLightingWidgets();
@@ -269,7 +272,7 @@ public:
     void drawStats();
     void drawRenderSettings();
     void drawSceneGraphUI(Entity* entity) ;
-    Entity* castMouseRay();
+    RayCastInfo castMouseRay(const glm::vec2& currentViewportPos, const glm::vec2& currentViewportSize);
     // init
     void initUniforms();
     void initShaders();
@@ -343,6 +346,7 @@ private:
     // ui
     UI m_ui;
     Entity* m_selectedEntity;
+    SceneNode* m_selectedNode;
 
     // misc
     BufferVisualizer m_bufferVis;

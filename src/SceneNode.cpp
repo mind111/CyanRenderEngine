@@ -28,13 +28,22 @@ void SceneNode::onDetach()
     updateWorldTransform();
 }
 
+const Transform& SceneNode::getLocalTransform()
+{
+    return m_localTransform; 
+}
+
+const Transform& SceneNode::getWorldTransform()
+{
+    return m_worldTransform; 
+}
+
 // basic depth first traversal
 void SceneNode::updateWorldTransform()
 {
     if (m_parent)
     {
         m_worldTransform.fromMatrix(m_parent->m_worldTransform.toMatrix() * m_localTransform.toMatrix());
-        // m_worldTransformMatrix = m_parent->m_worldTransformMatrix * m_instanceTransform.toMatrix();
     } 
     else 
     {
@@ -46,7 +55,6 @@ void SceneNode::updateWorldTransform()
         child->updateWorldTransform();
     }
 }
-
 
 SceneNode* SceneNode::find(const char* name)
 {

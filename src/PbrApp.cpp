@@ -363,13 +363,13 @@ void PbrApp::initUniforms()
 }
 
 
-void PbrApp::init(int appWindowWidth, int appWindowHeight, int viewportWidth, int viewportHeight)
+void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewportPos, glm::vec2 renderSize)
 {
     using Cyan::Material;
     using Cyan::Mesh;
 
     // init engine
-    gEngine->init({ appWindowWidth, appWindowHeight }, glm::ivec2(viewportWidth, viewportHeight));
+    gEngine->init({ appWindowWidth, appWindowHeight }, sceneViewportPos, renderSize);
     bRunning = true;
     // setup input control
     gEngine->registerMouseCursorCallback(&Pbr::mouseCursorCallback);
@@ -402,7 +402,7 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight, int viewportWidth, in
     m_indirectLightingSlider = 1.f;
     m_wrap = 0.1f;
     m_debugRay.init();
-    m_debugRay.setColor(glm::vec4(0.1f, 0.1f, 0.9f, 1.0f));
+    m_debugRay.setColor(glm::vec4(1.0f, 1.0f, 0.0f, 1.0f));
     m_debugRay.setViewProjection(gEngine->getRenderer()->u_cameraView, gEngine->getRenderer()->u_cameraProjection);
 
     // visualizer
@@ -414,9 +414,6 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight, int viewportWidth, in
     // font
     ImGuiIO& io = ImGui::GetIO();
     m_font = io.Fonts->AddFontFromFileTTF("C:\\summerwars\\cyanRenderEngine\\lib\\imgui\\misc\\fonts\\Roboto-Medium.ttf", 16.f);
-
-    // set viewport
-    // Cyan::getCurrentGfxCtx()->setViewport(400, 0, 1680, 960);
 }
 
 void PbrApp::beginFrame()
@@ -452,16 +449,15 @@ glm::mat4 rotateAroundPoint(glm::vec3 c, glm::vec3 axis, float degree)
     return result;
 }
 
-Entity* PbrApp::castMouseRay()
+RayCastInfo PbrApp::castMouseRay(const glm::vec2& currentViewportPos, const glm::vec2& currentViewportSize)
 {
     // convert mouse cursor pos to view space 
     Cyan::Viewport viewport = gEngine->getRenderer()->getViewport();
-    double viewportWidth = static_cast<double>(viewport.m_width);
-    double viewportHeight = static_cast<double>(viewport.m_height);
-    double mouseCursorX = m_mouseCursorX - viewport.m_x;
-    double mouseCursorY = m_mouseCursorY - viewport.m_y;
+    glm::vec2 viewportPos = gEngine->getSceneViewportPos();
+    double mouseCursorX = m_mouseCursorX - currentViewportPos.x;
+    double mouseCursorY = m_mouseCursorY - currentViewportPos.y;
     // NDC space
-    glm::vec2 uv(2.0 * mouseCursorX / viewportWidth - 1.0f, 2.0 * (viewportHeight - mouseCursorY) / viewportHeight - 1.0f);
+    glm::vec2 uv(2.0 * mouseCursorX / currentViewportSize.x - 1.0f, 2.0 * (currentViewportSize.y - mouseCursorY) / currentViewportSize.y - 1.0f);
     // homogeneous clip space
     glm::vec4 q = glm::vec4(uv, -0.8, 1.0);
     glm::mat4 projInverse = glm::inverse(m_scenes[m_currentScene]->mainCamera.projection);
@@ -473,7 +469,6 @@ Entity* PbrApp::castMouseRay()
     // in view space
     m_debugRay.setVerts(glm::vec3(0.f, 0.f, -0.2f), glm::vec3(rd * 20.0f));
     glm::mat4 viewInverse = glm::inverse(m_scenes[m_currentScene]->mainCamera.view);
-    glm::mat4 test = m_scenes[m_currentScene]->mainCamera.view * viewInverse;
     m_debugRay.setModel(viewInverse);
 
     glm::vec3 ro = glm::vec3(0.f);
@@ -489,17 +484,16 @@ Entity* PbrApp::castMouseRay()
             printf("Cast a ray from mouse that hits %s \n", hitInfo.m_entity->m_name);
         }
     }
-    return closestHit.m_entity;
+    return closestHit;
 }
 
 void PbrApp::update()
 {
     gEngine->processInput();
 
-    // ray picking
-    if (bRayCast)
-        m_selectedEntity = castMouseRay();
-
+    // camera
+    Camera& camera = m_scenes[m_currentScene]->mainCamera;
+    CameraManager::updateCamera(camera);
 
     // helmet scene
     Scene* scene = m_scenes[0];
@@ -658,6 +652,70 @@ void PbrApp::drawLightingWidgets()
     }
 }
 
+void PbrApp::drawSceneViewport()
+{
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+
+    Cyan::Viewport viewport = gEngine->getRenderer()->getViewport();
+    ImGui::SetNextWindowSize(ImVec2(viewport.m_width, viewport.m_height));
+    glm::vec2 viewportPos = gEngine->getSceneViewportPos();
+    ImGui::SetNextWindowPos(ImVec2(viewportPos.x, viewportPos.y));
+    ImGui::SetNextWindowContentSize(ImVec2(viewport.m_width, viewport.m_height));
+    // disable window padding for this window
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0,0));
+    m_ui.beginWindow("Scene Viewport", flags);
+    {
+        // fit the renderer viewport to ImGUi window size
+        ImVec2 min = ImGui::GetWindowContentRegionMin();
+        ImVec2 max = ImGui::GetWindowContentRegionMax();
+        ImVec2 windowPos = ImGui::GetWindowPos();
+        ImVec2 a(windowPos.x + min.x, windowPos.y + min.y);
+        ImVec2 windowSize = ImGui::GetWindowSize();
+        ImVec2 b(windowPos.x + windowSize.x - 1, windowPos.y + windowSize.y - 1);
+
+        // blit final render output texture to current ImGui window
+        Cyan::Texture* m_renderOutput = gEngine->getRenderer()->m_defaultColorBuffer;
+        ImGui::GetForegroundDrawList()->AddImage(reinterpret_cast<void*>((intptr_t)m_renderOutput->m_id), 
+            a, b, ImVec2(0, 1), ImVec2(1, 0));
+
+        // ray picking
+        // FIXME: When mouse cursor hovers over the gizmos, IsUsing() returns false unless clicking on the gizmo
+        if (bRayCast && !ImGuizmo::IsOver())
+        {
+            RayCastInfo hitInfo = castMouseRay(glm::vec2(a.x, a.y), glm::vec2(windowSize.x, windowSize.y - min.y));
+            m_selectedEntity = hitInfo.m_entity;
+            m_selectedNode = hitInfo.m_node;
+            auto ctx = Cyan::getCurrentGfxCtx();
+            ctx->setDepthControl(Cyan::DepthControl::kDisable);
+            ctx->setRenderTarget(gEngine->getRenderer()->m_defaultRenderTarget, 0u);
+            m_debugRay.draw();
+            ctx->setRenderTarget(nullptr, 0u);
+            ctx->setDepthControl(Cyan::DepthControl::kEnable);
+        }
+        // TODO: gizmos 
+        if (m_selectedEntity)
+        {
+            ImGuizmo::SetOrthographic(false);
+            ImGuizmo::SetDrawlist(ImGui::GetForegroundDrawList());
+            ImGuizmo::SetRect(ImGui::GetWindowPos().x, ImGui::GetWindowPos().y, ImGui::GetWindowWidth(), ImGui::GetWindowHeight());
+
+            // FIXME: I'm passing in wrong transform here, I'm passing entity's transform instead of 
+            // passing the selected mesh (node)'s transform
+            glm::mat4 transformMatrix = m_selectedNode->getWorldTransform().toMatrix();
+            glm::mat4 delta(1.0f);
+            if (ImGuizmo::Manipulate(&m_scenes[m_currentScene]->mainCamera.view[0][0], 
+                                &m_scenes[m_currentScene]->mainCamera.projection[0][0],
+                                ImGuizmo::TRANSLATE, ImGuizmo::LOCAL, &transformMatrix[0][0], &delta[0][0]))
+            {
+                // apply the change in transform (delta) to local transform
+                m_selectedNode->setLocalTransform(delta * m_selectedNode->getLocalTransform().toMatrix());
+            }
+        }
+    }
+    m_ui.endWindow();
+    ImGui::PopStyleVar();
+}
+
 void PbrApp::drawRenderSettings()
 {
     {
@@ -755,23 +813,6 @@ void PbrApp::render()
     // frame timer
     Cyan::Toolkit::ScopedTimer frameTimer("render()");
     Cyan::Renderer* renderer = gEngine->getRenderer();
-    // TODO: Gizmos related stuff!!!
-    if (m_selectedEntity)
-    {
-        /*
-        ImGuizmo::SetOrthographic(false);
-        ImGuizmo::SetDrawlist();
-        ImGuiIO& io = ImGui::GetIO();
-        ImGuizmo::SetRect(ImGui::GetWindowPos().x, ImGui::GetWindowPos().y, ImGui::GetWindowWidth(), ImGui::GetWindowHeight());
-        glm::mat4 transformMatrix = m_selectedEntity->getLocalTransform().toMatrix();
-        ImGuizmo::Manipulate(&m_scenes[m_currentScene]->mainCamera.view[0][0], 
-                             &m_scenes[m_currentScene]->mainCamera.projection[0][0],
-                             ImGuizmo::TRANSLATE, ImGuizmo::LOCAL, &transformMatrix[0][0]);
-        m_selectedEntity->setLocalTransform(Transform(transformMatrix));
-        */
-    }
-
-    drawDebugWindows();
 
     // TODO: how to not have to manually do this
     struct SharedMaterialData
@@ -806,12 +847,6 @@ void PbrApp::render()
     // draw entities in the scene
     renderer->renderScene(m_scenes[m_currentScene]);
 
-    // draw debug ray
-    if (bRayCast)
-    {
-        m_debugRay.draw();
-    }
-
     // debug pass to draw all the boudning boxes
     for (auto entity : m_scenes[m_currentScene]->entities)
     {
@@ -836,11 +871,13 @@ void PbrApp::render()
             }
         }
     }
-    renderer->endRender();
-
 
     // visualizer
     m_bufferVis.draw();
+    renderer->endRender();
+
+    drawSceneViewport();
+    drawDebugWindows();
 
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

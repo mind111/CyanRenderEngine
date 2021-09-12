@@ -126,13 +126,13 @@ namespace Cyan
         m_gaussianBlurShader = Cyan::createShader("GaussianBlurShader", "../../shader/shader_gaussian_blur.vs", "../../shader/shader_gaussian_blur.fs");
     }
 
-    void Renderer::init(glm::vec4 viewportRect)
+    void Renderer::init(glm::vec2 viewportSize)
     {
         Cyan::init();
-        m_viewport = { static_cast<u32>(viewportRect.x), 
-                       static_cast<u32>(viewportRect.y), 
-                       static_cast<u32>(viewportRect.z), 
-                       static_cast<u32>(viewportRect.w) };
+        m_viewport = { static_cast<u32>(0u), 
+                       static_cast<u32>(0u), 
+                       static_cast<u32>(viewportSize.x), 
+                       static_cast<u32>(viewportSize.y) };
 
         u_model = createUniform("s_model", Uniform::Type::u_mat4);
         u_cameraView = createUniform("s_view", Uniform::Type::u_mat4);
@@ -176,6 +176,12 @@ namespace Cyan
     glm::vec2 Renderer::getViewportSize()
     {
         return glm::vec2(m_viewport.m_width, m_viewport.m_height);
+    }
+
+    void Renderer::setViewportSize(glm::vec2 size)
+    {
+        m_viewport.m_width = size.x;
+        m_viewport.m_height = size.y;
     }
 
     Viewport Renderer::getViewport()
@@ -342,7 +348,8 @@ namespace Cyan
 
             glm::mat4 modelMatrix;
             modelMatrix = node->m_worldTransform.toMatrix();
-            modelMatrix = modelMatrix * node->m_meshInstance->m_mesh->m_normalization;
+            // modelMatrix = modelMatrix * node->m_meshInstance->m_mesh->m_normalization;
+            modelMatrix = modelMatrix;
             drawMeshInstance(node->m_meshInstance, &modelMatrix);
         }
         for (auto* child : node->m_child)
@@ -541,8 +548,8 @@ namespace Cyan
         // upscale and gather
         bloomUpScale();
     }
-    
-    void Renderer::endRender()
+
+    void Renderer::blitPass()
     {
         // post-processing pass
         m_blitMaterial->set("exposure", m_exposure);
@@ -556,8 +563,9 @@ namespace Cyan
             }
         }
         // final blit to default frame buffer
-        ctx->setRenderTarget(nullptr, 0u);
-        ctx->setViewport(m_viewport);
+        ctx->setDepthControl(Cyan::DepthControl::kDisable);
+        ctx->setRenderTarget(m_defaultRenderTarget, 0u);
+        ctx->setViewport({0u, 0u, m_viewport.m_width, m_viewport.m_height});
         ctx->setShader(m_blitShader);
         if (m_bloom)
         {
@@ -581,15 +589,23 @@ namespace Cyan
         ctx->setVertexArray(m_blitQuad->m_va);
         ctx->setPrimitiveType(PrimitiveType::TriangleList);
         ctx->drawIndexAuto(6u);
+        ctx->setDepthControl(Cyan::DepthControl::kEnable);
+    }
+    
+    void Renderer::endRender()
+    {
+        blitPass();
+        // reset render target
+        Cyan::getCurrentGfxCtx()->setRenderTarget(nullptr, 0u);
     }
 
     void Renderer::renderScene(Scene* scene)
     {
         // camera
         Camera& camera = scene->mainCamera;
-        CameraManager::updateCamera(camera);
         setUniform(u_cameraView, (void*)&camera.view[0]);
         setUniform(u_cameraProjection, (void*)&camera.projection[0]);
+
         // lights
         if (!scene->pLights.empty())
         {

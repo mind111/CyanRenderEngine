@@ -36,7 +36,7 @@ struct Transform
         fromMatrix(mat);
     }
     
-    glm::mat4 toMatrix()
+    glm::mat4 toMatrix() const
     {
         glm::mat4 mat(1.f);
         mat = glm::translate(mat, m_translate);

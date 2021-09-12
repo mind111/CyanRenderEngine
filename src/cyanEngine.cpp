@@ -40,7 +40,7 @@ void mouseScrollFunc(GLFWwindow* window, double xOffset, double yOffset)
     gEngine->processMouseScroll(xOffset, yOffset);
 }
 
-void CyanEngine::init(WindowConfig windowConfig, glm::ivec2 viewportRect)
+void CyanEngine::init(WindowConfig windowConfig, glm::vec2 sceneViewportPos, glm::vec2 renderSize)
 {
     // window init
     if (!glfwInit())
@@ -54,7 +54,8 @@ void CyanEngine::init(WindowConfig windowConfig, glm::ivec2 viewportRect)
                                         "-- Cyan --", nullptr, nullptr);
     m_window.width = windowConfig.width;
     m_window.height = windowConfig.height;
-    m_viewportRect = viewportRect;
+    m_sceneViewportPostion = sceneViewportPos;
+    m_renderSize = renderSize;
 
     glfwMakeContextCurrent(m_window.mpWindow);
     if (glewInit())
@@ -71,8 +72,7 @@ void CyanEngine::init(WindowConfig windowConfig, glm::ivec2 viewportRect)
     // Setup renderer 
     {
         m_renderer = new Cyan::Renderer;
-        glm::vec4 viewportSpec = { windowConfig.width - viewportRect.x, 0, viewportRect.x, viewportRect.y};
-        m_renderer->init(viewportSpec);
+        m_renderer->init(m_renderSize);
         Cyan::getCurrentGfxCtx()->setWindow(&m_window);
     }
 
@@ -84,6 +84,11 @@ void CyanEngine::init(WindowConfig windowConfig, glm::ivec2 viewportRect)
         cursorDeltaY = 0.0;
     }
 
+}
+
+glm::vec2 CyanEngine::getSceneViewportPos()
+{
+    return m_sceneViewportPostion;
 }
 
 void CyanEngine::processInput()

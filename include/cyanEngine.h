@@ -40,7 +40,7 @@ public:
     CyanEngine();
     ~CyanEngine() { }
 
-    void init(WindowConfig windowConfig, glm::ivec2 viewportRect);
+    void init(WindowConfig windowConfig, glm::vec2 viewportPos, glm::vec2 renderSize);
     void shutDown();
 
     /* Gui */
@@ -57,6 +57,7 @@ public:
     void processMouseScroll(double xOffset, double yOffset);
 
     const Window& getWindow() { return m_window; } 
+    glm::vec2 getSceneViewportPos();
     Cyan::Renderer* getRenderer() { return m_renderer; }
     glm::vec2 getMouseCursorDelta() { return glm::vec2(float(cursorDeltaX), float(cursorDeltaY)); }
     void swapBuffers(); 
@@ -66,7 +67,10 @@ public:
 
 private:
     Window m_window;
-    glm::ivec2 m_viewportRect;
+    // scene viewport origin in screen space
+    glm::vec2 m_sceneViewportPostion;
+    // default render target size for the renderer
+    glm::vec2 m_renderSize;
 
     /* These are recorded at sub frame precision */
     double cursorX, cursorY;

@@ -39,6 +39,13 @@ struct SceneNode
     void detach();
     void onDetach();
     void updateWorldTransform();
+    const Transform& getLocalTransform();
+    void setLocalTransform(glm::mat4 mat)
+    {
+        m_localTransform.fromMatrix(mat);
+        updateWorldTransform();
+    }
+    const Transform& getWorldTransform();
 
     SceneNode* find(const char* name);
 };

@@ -47,7 +47,7 @@ namespace Cyan
 
         static Renderer* get();
 
-        void init(glm::vec4 viewport);
+        void init(glm::vec2 viewportSize);
         void initRenderTargets(u32 windowWidth, u32 windowHeight);
         void initShaders();
 
@@ -76,6 +76,8 @@ namespace Cyan
         // viewport
         glm::vec2 getViewportSize();
         Viewport getViewport();
+        void setViewportSize(glm::vec2 size);
+        // viewport's x,y are in framebuffer's space
         Viewport m_viewport; 
 
         Uniform* u_model; 
@@ -149,6 +151,7 @@ namespace Cyan
 
         void gaussianBlur(BloomSurface surface, GaussianBlurInputs inputs);
         void bloom();
+        void blitPass();
 
         // post processing params
         bool m_bloom;
