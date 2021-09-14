@@ -17,26 +17,46 @@ extern float quadVerts[24];
 
 namespace Cyan
 {
-    struct DrawCall
-    {
-        u32 m_index;
-        Mesh* m_mesh;
-        u32 m_uniformBegin;
-        u32 m_uniformEnd;
-        glm::mat4 m_modelTransform;
-    };
-
-    struct Frame
-    {
-        std::vector<DrawCall> m_renderQueue;
-    };
-    
     // foward declarations
     struct RenderTarget;
+
     struct RenderPass
     {
         RenderTarget* m_renderTarget;
-        Shader* m_shader;
+        Viewport m_viewport;
+        virtual void render();
+    };
+
+    struct ScenePass : public RenderPass
+    {
+        Scene* m_scene;
+        virtual void render() override;
+    }
+    
+    struct MeshPass : public RenderPass
+    {
+        MeshInstance* m_mesh;
+        MaterialInstance* m_matl;
+        glm::mat4 m_modelMatrix;
+    };
+    
+    struct TexturedQuadPass : public RenderPass
+    {
+        Texture* m_srcTexture;
+        virtual void render() override;
+    };
+
+    struct LinePass : public RenderPass
+    {
+        // mesh
+        virtual void render() override;
+    };
+
+    class RenderState
+    {
+        bool m_superSampleAA; 
+        bool m_bloom;
+        std::vector<RenderPass*> m_renderPasses;
     };
 
     class Renderer 
@@ -67,9 +87,36 @@ namespace Cyan
         void drawEntity(Entity* entity);
         void drawSceneNode(SceneNode* node);
         void drawMeshInstance(MeshInstance* meshInstance, glm::mat4* modelMatrix);
+        // blit viewport to default frame buffer for debug rendering
+        void debugBlit(Cyan::Texture* texture, Viewport viewport);
         void submitMesh(Mesh* mesh, glm::mat4 modelTransform);
         void renderFrame();
         void endFrame();
+        RenderState m_renderState;
+        void addScenePass(Scene* scene, Viewport viewport)
+        {
+            ScenePass pass = {0};
+            pass.m_scene = scene;
+            pass.m_viewport = viewport;
+            pass.m_renderTarget = m_renderState.m_superSampleAA ? m_superSamplingRenderTarget : m_defaultRenderTarget;
+            m_renderState.m_renderPasses.push_back(pass);
+        }
+        void addTexturedQuadPass()
+        {
+
+        }
+        void addBloomPass()
+        {
+
+        }
+        void addGaussianBlurPass()
+        {
+
+        }
+        void addLinePass()
+        {
+
+        }
 
         Frame* m_frame;
 
@@ -117,6 +164,9 @@ namespace Cyan
         RenderTarget* m_superSamplingRenderTarget;
         Texture* m_msaaColorBuffer;
         RenderTarget* m_msaaRenderTarget;
+        
+        // voxel
+        Cyan::Texture* voxelizeMesh(MeshInstance* mesh, glm::mat4* modelMatrix);
 
         struct BloomSurface
         {
@@ -160,4 +210,4 @@ namespace Cyan
         GLuint m_lumHistogramShader;
         GLuint m_lumHistogramProgram;
     };
-}
+};

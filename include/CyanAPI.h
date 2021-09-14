@@ -149,7 +149,9 @@ namespace Cyan
     RenderTarget* createRenderTarget(u32 _width, u32 _height);
 
     /* Shader */
+    Shader* getShader(const char* name);
     Shader* createShader(const char* name, const char* vertSrc, const char* fragSrc);
+    Shader* createVsGsPsShader(const char* name, const char* vsSrcFile, const char* fsSrcFile, const char* gsSrcFile);
 
     /* Buffer */
     void setBuffer(RegularBuffer* _buffer, void* data, u32 _sizeInBytes);
@@ -178,6 +180,10 @@ namespace Cyan
     Scene* createScene(const char* name, const char* _file);
     LightProbe* getProbe(u32 index);
     u32         getNumProbes();
+
+    /* voxel cone tracing */
+    void voxelizeScene();
+    void voxelizeMesh();
 
     namespace Toolkit
     {

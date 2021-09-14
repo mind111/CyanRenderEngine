@@ -32,16 +32,45 @@ struct ShaderFileInfo
     FILETIME m_lastWriteTime;
 };
 
+struct ShaderSource
+{
+    const char* vsSrc; // vertex shader
+    const char* fsSrc; // fragment shader
+    const char* gsSrc; // geometry shader
+    const char* csSrc; // compute shader
+};
+
 class Shader
 {
 public:
+    enum Type
+    {
+        VsPs = 0,
+        VsGsPs,
+        Invalid
+    };
+
     Shader();
     ~Shader() {}
-    
+
+    void init(ShaderSource shaderSrc, Type shaderType)
+    {
+        switch (shaderType)
+        {
+            case VsPs:
+            {
+                buildVsPsFromSource(shaderSrc.vsSrc, shaderSrc.fsSrc);
+            } break;
+            case VsGsPs:
+            {
+                buildVsGsPsFromSource(shaderSrc.vsSrc, shaderSrc.gsSrc, shaderSrc.fsSrc);
+            } break;
+        }
+    }
+
     void bind();
     void unbind();
     void deleteProgram();
-
 
     void setUniform(Uniform* _uniform);
     void setUniform(Uniform* _uniform, i32 _value);
@@ -54,7 +83,38 @@ public:
 
     GLint getUniformLocation(const char* _name);
 
-    void buildFromSource(const char* vertSrc, const char* fragSrc);
+    void buildVsPsFromSource(const char* vertSrc, const char* fragSrc);
+    void buildVsGsPsFromSource(const char* vsSrcFile, const char* gsSrcFile, const char* fsSrcFile)
+    {
+        const char* vsSrc = ShaderUtil::readShaderFile(vsSrcFile);
+        const char* gsSrc = ShaderUtil::readShaderFile(gsSrcFile);
+        const char* fsSrc = ShaderUtil::readShaderFile(fsSrcFile);
+        GLuint vs = glCreateShader(GL_VERTEX_SHADER);
+        GLuint gs = glCreateShader(GL_GEOMETRY_SHADER);
+        GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
+        m_programId = glCreateProgram();
+        // upload shader source
+        glShaderSource(vs, 1, &vsSrc, nullptr);
+        glShaderSource(gs, 1, &gsSrc, nullptr);
+        glShaderSource(fs, 1, &fsSrc, nullptr);
+        // Compile shader
+        glCompileShader(vs);
+        glCompileShader(gs);
+        glCompileShader(fs);
+        ShaderUtil::checkShaderCompilation(vs);
+        ShaderUtil::checkShaderCompilation(gs);
+        ShaderUtil::checkShaderCompilation(fs);
+        // Link shader
+        glAttachShader(m_programId, vs);
+        glAttachShader(m_programId, gs);
+        glAttachShader(m_programId, fs);
+        glLinkProgram(m_programId);
+        ShaderUtil::checkShaderLinkage(m_programId);
+        glDeleteShader(vs);
+        glDeleteShader(gs);
+        glDeleteShader(fs);
+    }
+
     void dynamicRebuild();
     void getFileWriteTime(ShaderFileInfo& fileInfo);
     bool fileHasChanged(ShaderFileInfo& fileInfo);
@@ -65,19 +125,4 @@ public:
     ShaderFileInfo m_vertSrcInfo;
     ShaderFileInfo m_fragSrcInfo;
     GLuint m_programId;
-};
-
-struct ShaderDef
-{
-    enum Type
-    {
-        VSFS = 0,
-        CS,
-        Undefined
-    };
-
-    std::string m_name;
-    std::string m_cs;
-    std::string m_vs;
-    std::string m_fs;
 };

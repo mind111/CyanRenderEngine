@@ -241,6 +241,12 @@ namespace Pbr
     void mouseScrollWheelCallback(double xOffset, double yOffset);
 };
 
+// TODO:: impl this
+class GameState
+{
+
+};
+
 // TODO: Can also let CyanApp define a basic beginFrame(), endFrame() where it calls customBeginFrame(), and customEndFrame(),
 // and child class override customBegin() and customEnd() to do each application specific stuffs
 class PbrApp : public CyanApp
@@ -329,6 +335,7 @@ private:
     Cyan::Texture* m_rawEnvmap;
     Cyan::Texture* m_envmap;
     Cyan::Texture* m_proceduralSky;
+    Cyan::Texture* m_voxelOutput;
     // a probe that is infinitely distant
     LightProbe m_probe;
     std::vector<LightProbe> m_probes;

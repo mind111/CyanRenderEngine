@@ -311,6 +311,44 @@ namespace Cyan
         return scene;
     }
 
+    // TODO: implement this
+    Shader* createVsGsPsShader(const char* name, const char* vsSrc, const char* gsSrc, const char* fsSrc)
+    {
+        using ShaderEntry = std::pair<std::string, u32>;
+
+        ShaderSource src = {0};
+        src.vsSrc = vsSrc;
+        src.gsSrc = gsSrc;
+        src.fsSrc = fsSrc;
+
+        // found a existing shader
+        auto itr = s_shaderRegistry.find(std::string(name));
+        if (itr != s_shaderRegistry.end())
+        {
+            return m_shaders[itr->second];
+        }
+
+        // TODO: Memory management
+        u32 handle = ALLOC_HANDLE(Shader)
+        CYAN_ASSERT(handle < kMaxNumShaders,  "Too many shader created!!!")
+        m_shaders[handle] = new Shader();
+        Shader* shader = m_shaders[handle];
+        shader->m_name = std::string(name);
+        s_shaderRegistry.insert(ShaderEntry(shader->m_name, handle));
+        shader->init(src, Shader::Type::VsGsPs);
+        return shader;
+    }
+
+    Shader* getShader(const char* name)
+    {
+        auto itr = s_shaderRegistry.find(std::string(name));
+        if (itr != s_shaderRegistry.end())
+        {
+            return m_shaders[itr->second]; 
+        }
+        return nullptr;
+    }
+
     Shader* createShader(const char* name, const char* vertSrc, const char* fragSrc)
     {
         using ShaderEntry = std::pair<std::string, u32>;
@@ -329,7 +367,7 @@ namespace Cyan
         Shader* shader = m_shaders[handle];
         shader->m_name = std::string(name);
         s_shaderRegistry.insert(ShaderEntry(shader->m_name, handle));
-        shader->buildFromSource(vertSrc, fragSrc);
+        shader->buildVsPsFromSource(vertSrc, fragSrc);
         return shader;
     }
 
@@ -930,6 +968,19 @@ namespace Cyan
         _buffer->m_sizeToUpload = sizeToUpload;
     }
 
+    void voxelizeScene(Scene* scene)
+    {
+        // conservative raster using nvidia's extension
+        // reference https://developer.nvidia.com/sites/default/files/akamai/opengl/specs/GL_NV_conservative_raster.txt 
+        /* 
+            "Point, line, and polygon rasterization may optionally be made conservative
+            by calling Enable and Disable with a <pname> of CONSERVATIVE_-
+            RASTERIZATION_NV"
+        */
+
+        // geometry pass to project each triangle onto either x,y,z axis
+        glEnable(GL_NV_conservative_raster);
+    }
 
     namespace Toolkit
     {

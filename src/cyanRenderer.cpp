@@ -233,6 +233,58 @@ namespace Cyan
         }
     }
 
+    Cyan::Texture* Renderer::voxelizeMesh(MeshInstance* mesh, glm::mat4* modelMatrix)
+    {
+        glEnable(GL_NV_conservative_raster);
+        // geometry -> fragment pipeline
+        // create shader
+        Shader* shader = Cyan::createVsGsPsShader("VoxelizeShader", 
+                                                   "../../shader/shader_voxel.vs", 
+                                                   "../../shader/shader_voxel.gs", 
+                                                   "../../shader/shader_voxel.fs");
+        MaterialInstance* matl = Cyan::createMaterial(shader)->createInstance(); 
+
+        // create render target
+        auto rt = Cyan::createRenderTarget(512, 512);
+        TextureSpec spec = { };
+        spec.m_width = 512;
+        spec.m_height = 512;
+        spec.m_type = Texture::Type::TEX_2D;
+        spec.m_format = Texture::ColorFormat::R16G16B16;
+        spec.m_min = Texture::Filter::LINEAR; 
+        spec.m_mag = Texture::Filter::LINEAR;
+        spec.m_numMips = 1;
+        Texture* texture = Cyan::createTexture("Voxelization", spec);
+        rt->attachColorBuffer(texture);
+        auto ctx = getCurrentGfxCtx();
+
+        // set shader
+        ctx->setShader(shader);
+        // set render target
+        ctx->setRenderTarget(rt, 0u);
+        Viewport originViewport = ctx->m_viewport;
+        ctx->setViewport({ 0, 0, 512, 521 });
+        matl->set("model", modelMatrix);
+        BoundingBox3f aabb = mesh->getAABB();
+        glm::vec3 aabbMin = *modelMatrix * aabb.m_pMin;
+        glm::vec3 aabbMax = *modelMatrix * aabb.m_pMax;
+        matl->set("aabbMin", &aabbMin.x);
+        matl->set("aabbMax", &aabbMax.x);
+        matl->bind();
+        // draw mesh
+        auto meshDef = mesh->m_mesh;
+        for (auto sm : meshDef->m_subMeshes)
+        {
+            if (ctx->m_vertexArray->m_ibo != static_cast<u32>(-1)) {
+                ctx->drawIndex(ctx->m_vertexArray->m_numIndices);
+            } else {
+                ctx->drawIndexAuto(sm->m_numVerts);
+            }
+        }
+        glDisable(GL_NV_conservative_raster);
+        return texture;
+    }
+
     // TODO:
     void Renderer::submitMesh(Mesh* mesh, glm::mat4 modelTransform)
     {
@@ -256,41 +308,6 @@ namespace Cyan
 
     void Renderer::renderFrame()
     {
-    #if 0
-        auto ctx = Cyan::getCurrentGfxCtx();
-        for (auto draw : m_frame->m_renderQueue)
-        {
-            auto sm = draw.m_mesh->m_subMeshes[draw.m_index];
-            MaterialInstance* material = sm->m_matl;
-            Material* matlClass = material->m_template;
-            auto shader = matlClass->m_shader;
-
-            ctx->setShader(shader);
-            // TODO: This is dumb
-            Cyan::setUniform(u_model, &draw.m_modelTransform[0][0]);
-            ctx->setUniform(u_model);
-            // for (auto uniform : shader->m_uniforms)
-            // {
-            //     ctx->setUniform(uniform);
-            // }
-            for (auto buffer : shader->m_buffers)
-            {
-                ctx->setBuffer(buffer);
-            }
-
-            u32 usedTextureUnit = material->bind();
-
-            ctx->setVertexArray(sm->m_vertexArray);
-            ctx->setPrimitiveType(PrimitiveType::TriangleList);
-            ctx->drawIndex(sm->m_numVerts);
-            // NOTES: reset texture units because texture unit bindings are managed by gl context 
-            // it won't change when binding different shaders
-            for (int t = 0; t < usedTextureUnit; ++t)
-            {
-                ctx->setTexture(nullptr, t);
-            }
-        }
-    #endif
     }
 
     void Renderer::drawEntity(Entity* entity) 

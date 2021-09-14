@@ -33,7 +33,7 @@ namespace ShaderUtil {
         // Open file
         std::fstream shader_file(filename);
         std::string src_str;
-        const char* vertex_shader_src = nullptr; 
+        const char* shader_src = nullptr; 
         if (shader_file.is_open()) {
             std::stringstream src_str_stream;
             std::string line;
@@ -42,15 +42,15 @@ namespace ShaderUtil {
             }
             src_str = src_str_stream.str();
             // Copy the string over to a char array
-            vertex_shader_src = new char[src_str.length()];
+            shader_src = new char[src_str.length()];
             // + 1 here to include null character
-            std::memcpy((void*)vertex_shader_src, src_str.c_str(), src_str.length() + 1);
+            std::memcpy((void*)shader_src, src_str.c_str(), src_str.length() + 1);
         } else {
             std::cout << "ERROR: Cannot open shader source file!" << std::endl;
         }
         // close file
         shader_file.close();
-        return vertex_shader_src;
+        return shader_src;
     }
 }
 
@@ -82,7 +82,7 @@ bool Shader::fileHasChanged(ShaderFileInfo& fileInfo) {
     return wasModified;
 }
 
-void Shader::buildFromSource(const char* vertSrc, const char* fragSrc) {
+void Shader::buildVsPsFromSource(const char* vertSrc, const char* fragSrc) {
     if (m_vertSrcInfo.m_path.empty() || m_fragSrcInfo.m_path.empty()) {
         m_vertSrcInfo.m_path = std::string(vertSrc);
         m_fragSrcInfo.m_path = std::string(fragSrc);
@@ -119,7 +119,7 @@ void Shader::dynamicRebuild() {
     if (rebuild) 
     {
         deleteProgram();
-        buildFromSource(m_vertSrcInfo.m_path.c_str(), m_fragSrcInfo.m_path.c_str());
+        buildVsPsFromSource(m_vertSrcInfo.m_path.c_str(), m_fragSrcInfo.m_path.c_str());
     }
 }
 

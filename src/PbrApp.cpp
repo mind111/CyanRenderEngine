@@ -425,6 +425,19 @@ void PbrApp::beginFrame()
 
 void PbrApp::run()
 {
+    {
+        // test voxelization
+        auto renderer = gEngine->getRenderer();
+        Entity* helmetEntity = SceneManager::getEntity(m_scenes[m_currentScene], "DamagedHelmet");
+        SceneNode* sceneNode = helmetEntity->getSceneNode("HelmetMesh");
+        glm::mat4 modelMatrix = sceneNode->getWorldTransform().toMatrix();
+        m_voxelOutput = renderer->voxelizeMesh(sceneNode->m_meshInstance, &modelMatrix);
+        // create a sub viewport for debug rendering
+        Shader* blitShader = Cyan::getShader("BlitShader");
+        CYAN_ASSERT(blitShader, "shader does not exist!");
+        auto ctx = Cyan::getCurrentGfxCtx();
+        ctx->setShader(blitShader);
+    }
     while (bRunning)
     {
         // tick
