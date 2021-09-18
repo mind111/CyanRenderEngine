@@ -55,6 +55,10 @@ namespace Cyan
 
         void init();
 
+
+        //- getters
+        RenderTarget* getRenderTarget();
+
         //-
         void setWindow(Window* _window);
         //-
@@ -80,6 +84,7 @@ namespace Cyan
 
         Window* m_window;
         Shader* m_shader;
+        RenderTarget* m_currentRenderTarget;
         Viewport m_viewport;
         GLenum m_primitiveType;
         VertexArray* m_vertexArray;

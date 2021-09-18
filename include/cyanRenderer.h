@@ -2,76 +2,90 @@
 
 #include <functional>
 #include <map>
+#include <stack>
 
 #include "glew.h"
 #include "stb_image.h"
 
+#include "Allocator.h"
 #include "Common.h"
 #include "CyanAPI.h"
 #include "Scene.h"
 #include "camera.h"
 #include "Entity.h"
 #include "Geometry.h"
+#include "RenderPass.h"
 
 extern float quadVerts[24];
 
 namespace Cyan
 {
+    class FrameListener
+    {
+        FrameListener() { }
+        ~FrameListener() { }
+        virtual void onFrameStart();
+        virtual void onFrameEnd();
+    };
+
     // foward declarations
     struct RenderTarget;
 
-    struct RenderPass
-    {
-        RenderTarget* m_renderTarget;
-        Viewport m_viewport;
-        virtual void render();
-    };
-
-    struct ScenePass : public RenderPass
-    {
-        Scene* m_scene;
-        virtual void render() override;
-    }
-    
-    struct MeshPass : public RenderPass
-    {
-        MeshInstance* m_mesh;
-        MaterialInstance* m_matl;
-        glm::mat4 m_modelMatrix;
-    };
-    
-    struct TexturedQuadPass : public RenderPass
-    {
-        Texture* m_srcTexture;
-        virtual void render() override;
-    };
-
-    struct LinePass : public RenderPass
-    {
-        // mesh
-        virtual void render() override;
-    };
-
     class RenderState
     {
+    public:
         bool m_superSampleAA; 
         bool m_bloom;
         std::vector<RenderPass*> m_renderPasses;
+        // render targets that need to be cleared from last frame
+        std::vector<RenderTarget*> m_clearRenderTargetList;
+
+        void addRenderPass(RenderPass* pass)
+        {
+            m_renderPasses.push_back(pass);
+        }
+
+        void addClearRenderTarget(RenderTarget* renderTarget)
+        {
+            m_clearRenderTargetList.push_back(renderTarget);
+        }
+
+        void clearRenderTargets()
+        {
+            for (auto renderTarget : m_clearRenderTargetList)
+            {
+                auto ctx = getCurrentGfxCtx();
+                ctx->setRenderTarget(renderTarget, 0u);
+                ctx->clear();
+            }
+            m_clearRenderTargetList.clear();
+        }
+
+        void clearRenderPasses()
+        {
+            m_renderPasses.clear();
+        }
     };
 
     class Renderer 
     {
     public:
-        Renderer() {}
+        explicit Renderer();
         ~Renderer() {}
 
-        static Renderer* get();
+        static Renderer* getSingletonPtr();
 
         void init(glm::vec2 viewportSize);
         void initRenderTargets(u32 windowWidth, u32 windowHeight);
         void initShaders();
 
+        StackAllocator& getAllocator();
+        RenderTarget* getSceneColorRenderTarget();
+        RenderTarget* getRenderOutputRenderTarget();
+        Texture* getRenderOutputTexture();
+
         void beginRender();
+        void render();
         void renderScene(Scene* scene);
         void endRender();
 
@@ -83,7 +97,6 @@ namespace Cyan
             bool bUpdateProbeData;
         };
 
-        Lighting m_lighting;
         void drawEntity(Entity* entity);
         void drawSceneNode(SceneNode* node);
         void drawMeshInstance(MeshInstance* meshInstance, glm::mat4* modelMatrix);
@@ -92,33 +105,17 @@ namespace Cyan
         void submitMesh(Mesh* mesh, glm::mat4 modelTransform);
         void renderFrame();
         void endFrame();
+
+        void addScenePass(Scene* scene);
+        void addCustomPass(RenderPass* pass);
+        void addTexturedQuadPass(RenderTarget* renderTarget, Viewport viewport, Texture* srcTexture);
+        void addBloomPass();
+        void addGaussianBlurPass();
+        void addLinePass();
+        void addPostProcessPasses();
+
+        Lighting m_lighting;
         RenderState m_renderState;
-        void addScenePass(Scene* scene, Viewport viewport)
-        {
-            ScenePass pass = {0};
-            pass.m_scene = scene;
-            pass.m_viewport = viewport;
-            pass.m_renderTarget = m_renderState.m_superSampleAA ? m_superSamplingRenderTarget : m_defaultRenderTarget;
-            m_renderState.m_renderPasses.push_back(pass);
-        }
-        void addTexturedQuadPass()
-        {
-
-        }
-        void addBloomPass()
-        {
-
-        }
-        void addGaussianBlurPass()
-        {
-
-        }
-        void addLinePass()
-        {
-
-        }
-
-        Frame* m_frame;
 
         // viewport
         glm::vec2 getViewportSize();
@@ -127,7 +124,10 @@ namespace Cyan
         // viewport's x,y are in framebuffer's space
         Viewport m_viewport; 
 
-        Uniform* u_model; 
+        // allocators
+        StackAllocator m_frameAllocator;
+
+        Uniform* u_model;
         Uniform* u_cameraView;
         Uniform* u_cameraProjection;
 
@@ -154,18 +154,26 @@ namespace Cyan
 
         // render targets
         bool m_bSuperSampleAA;
-        u32 m_superSamplingRenderWidth, m_superSamplingRenderHeight;
+        // u32 m_superSamplingRenderWidth, m_superSamplingRenderHeight;
+        u32 m_SSAAWidth, m_SSAAHeight;
         u32 m_offscreenRenderWidth, m_offscreenRenderHeight;
         u32 m_windowWidth, m_windowHeight;
 
-        Texture* m_defaultColorBuffer;             // hdr
-        RenderTarget* m_defaultRenderTarget;
-        Texture* m_superSamplingColorBuffer;       // hdr
-        RenderTarget* m_superSamplingRenderTarget;
-        Texture* m_msaaColorBuffer;
-        RenderTarget* m_msaaRenderTarget;
+        // normal hdr scene color texture 
+        Texture* m_sceneColorTexture;
+        RenderTarget* m_sceneColorRenderTarget;
+        // hdr super sampling color buffer
+        Texture* m_sceneColorTextureSSAA;
+        RenderTarget* m_sceneColorRTSSAA;
+        // final render output
+        Texture* m_outputColorTexture;
+        RenderTarget* m_outputRenderTarget;
         
         // voxel
+        Shader* m_voxelizeShader;
+        MaterialInstance* m_voxelizeMatl;
+        RenderTarget* m_voxelRenderTarget;
+        Texture* m_voxelColorTexture;
         Cyan::Texture* voxelizeMesh(MeshInstance* mesh, glm::mat4* modelMatrix);
 
         struct BloomSurface
@@ -175,16 +183,13 @@ namespace Cyan
         };
 
         static const u32 kNumBloomDsPass = 6u;
-        RenderTarget* m_bloomPrefilterRT;                         // preprocess surface
-        // TODO: Is this necessary?
-        RenderTarget* m_bloomResultRT;                            // final results after upscale chain
-        BloomSurface m_bloomDsSurfaces[kNumBloomDsPass];          // downsample
-        BloomSurface m_bloomUsSurfaces[kNumBloomDsPass];          // upsample
+        Texture* m_bloomOutput;
+        RenderTarget* m_bloomOutputRT;            // final results after upscale chain
 
         // post-process
-        void beginBloom();
-        void bloomDownSample();
-        void bloomUpScale();
+        // void beginBloom();
+        // void bloomDownSample();
+        // void bloomUpScale();
         void downSample(RenderTarget* src, u32 srcIdx, RenderTarget* dst, u32 dstIdx);
 
         struct UpScaleInputs
@@ -199,9 +204,9 @@ namespace Cyan
             i32 radius;
         };
 
-        void gaussianBlur(BloomSurface surface, GaussianBlurInputs inputs);
-        void bloom();
-        void blitPass();
+        void gaussianBlur(BloomPass::BloomSurface surface, GaussianBlurInputs inputs);
+        // void bloom();
+        // void blitPass();
 
         // post processing params
         bool m_bloom;
@@ -209,5 +214,7 @@ namespace Cyan
         u32  m_numBloomTextures;
         GLuint m_lumHistogramShader;
         GLuint m_lumHistogramProgram;
+    private:
+        static Renderer* m_renderer;
     };
 };

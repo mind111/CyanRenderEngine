@@ -10,8 +10,10 @@ namespace Cyan
 {
     struct RenderTarget
     {
+        void setColorBuffer(Texture* texture, u32 index);
         void attachColorBuffer(Texture* _texture, u32 mip=0);
         void setDrawBuffer(u32 _bufferIdx);
+        Texture* getColorBuffer(u32 index);
         bool validate();
 
         u32 m_width;

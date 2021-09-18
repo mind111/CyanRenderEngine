@@ -16,6 +16,11 @@ namespace Cyan
         m_fbo = 0;
     }
 
+    RenderTarget* GfxContext::getRenderTarget()
+    {
+        return m_currentRenderTarget;
+    }
+
     void GfxContext::setWindow(Window* _window)
     {
         m_window = _window;

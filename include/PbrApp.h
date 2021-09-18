@@ -290,6 +290,8 @@ public:
 
     bool bOrbit;
     bool bRayCast;
+    RayCastInfo m_mouseRayHitInfo;
+    bool bPicking;
     double m_mouseCursorX, m_mouseCursorY;
 
 private:

@@ -17,7 +17,6 @@
 #include "Material.h"
 #include "MathUtils.h"
 
-
 bool fileWasModified(const char* fileName, FILETIME* writeTime)
 {
     FILETIME lastWriteTime;
@@ -48,66 +47,114 @@ namespace Cyan
          1.f,  1.f, 1.f, 1.f
     };
 
+    // static singleton pointer will be set to 0 before main() get called
+    Renderer* Renderer::m_renderer = 0;
+
+    // TODO: what to do in default constructor?
+    Renderer::Renderer()
+        : m_frameAllocator(1024u * 1024u),  // 1 megabytes
+        m_lighting{0, 0, 0, false},
+        u_model(0),
+        u_cameraView(0),
+        u_cameraProjection(0),
+        m_pointLightsBuffer(0),
+        m_dirLightsBuffer(0),   
+        m_gaussianBlurShader(0),
+        m_gaussianBlurMatl(0),
+        m_bSuperSampleAA(true),
+        m_offscreenRenderWidth(1280u),
+        m_offscreenRenderHeight(720u),
+        m_windowWidth(1280u),
+        m_windowHeight(720u),
+        m_sceneColorTexture(0),
+        m_sceneColorRenderTarget(0),
+        m_sceneColorTextureSSAA(0),
+        m_sceneColorRTSSAA(0)
+    {
+        if (!m_renderer)
+        {
+            m_renderer = this;
+        }
+        else
+        {
+            // FIXME: this does not prevent from creating new instance
+            // ensure that we are not creating new instance of Renderer
+            CYAN_ASSERT(0, "There should be only one instance of Renderer")
+        }
+    }
+
+    Renderer* Renderer::getSingletonPtr()
+    {
+        return m_renderer;
+    }
+
+    StackAllocator& Renderer::getAllocator()
+    {
+        return m_frameAllocator;
+    }
+
+    RenderTarget* Renderer::getSceneColorRenderTarget()
+    {
+        return m_bSuperSampleAA ? m_sceneColorRTSSAA : m_sceneColorRenderTarget;
+    }
+
+    RenderTarget* Renderer::getRenderOutputRenderTarget()
+    {
+        return m_outputRenderTarget;
+    }
+
+    Texture* Renderer::getRenderOutputTexture()
+    {
+        // if post-processing is enbaled
+        // else return m_sceneColorTexture
+        return m_outputColorTexture;
+    }
+
     void Renderer::initRenderTargets(u32 windowWidth, u32 windowHeight)
     {
         m_windowWidth = windowWidth;
         m_windowHeight = windowHeight;
-        m_superSamplingRenderWidth = 2560u;
-        m_superSamplingRenderHeight = 1440u;
+        m_SSAAWidth = 2u * m_windowWidth;
+        m_SSAAHeight = 2u * m_windowHeight;
 
         // super-sampling setup
         TextureSpec spec = { };
         spec.m_type = Texture::Type::TEX_2D;
         spec.m_format = Texture::ColorFormat::R16G16B16A16; 
-        spec.m_width = m_superSamplingRenderWidth;
-        spec.m_height = m_superSamplingRenderHeight;
+        spec.m_width = m_SSAAWidth;
+        spec.m_height = m_SSAAHeight;
         spec.m_min = Texture::Filter::LINEAR;
         spec.m_mag = Texture::Filter::LINEAR;
         spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
         spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
         spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
-        m_superSamplingColorBuffer = createTextureHDR("blit-SSAA-texture", spec);
-        m_superSamplingRenderTarget = createRenderTarget(m_superSamplingRenderWidth, m_superSamplingRenderHeight);
-        m_superSamplingRenderTarget->attachColorBuffer(m_superSamplingColorBuffer);
+        m_sceneColorTextureSSAA = createTextureHDR("SceneColorTexSSAA", spec);
+        m_sceneColorRTSSAA = createRenderTarget(m_SSAAWidth, m_SSAAHeight);
+        m_sceneColorRTSSAA->attachColorBuffer(m_sceneColorTextureSSAA);
 
-        // default rt for final blitting pass
+        // scene color render targets 
         spec.m_width = m_windowWidth;
         spec.m_height = m_windowHeight;
-        m_defaultColorBuffer = createTextureHDR("blit-texture", spec);
-        m_defaultRenderTarget = createRenderTarget(m_windowWidth, m_windowHeight);
-        m_defaultRenderTarget->attachColorBuffer(m_defaultColorBuffer);
+        m_sceneColorTexture = createTextureHDR("SceneColorTexture", spec);
+        m_sceneColorRenderTarget = createRenderTarget(m_windowWidth, m_windowHeight);
+        m_sceneColorRenderTarget->attachColorBuffer(m_sceneColorTexture);
+        m_outputColorTexture = createTextureHDR("FinalColorTexture", spec);
+        m_outputRenderTarget = createRenderTarget(spec.m_width, spec.m_height);
+        m_outputRenderTarget->attachColorBuffer(m_outputColorTexture);
 
-        m_bloomPrefilterRT = createRenderTarget(m_windowWidth, m_windowHeight);
-        m_bloomPrefilterRT->attachColorBuffer(createTextureHDR("bloom-prefilter-texture", spec));
-
-        // bloom setup
-        m_numBloomTextures = 0u;
-        auto initBloomBuffers = [&](u32 index, TextureSpec& spec) {
-            m_bloomDsSurfaces[index].m_renderTarget = createRenderTarget(spec.m_width, spec.m_height);
-            char buff[64];
-            sprintf_s(buff, "bloom-texture-%u", m_numBloomTextures++);
-            m_bloomDsSurfaces[index].m_pingPongColorBuffers[0] = createTextureHDR(buff, spec);
-            sprintf_s(buff, "bloom-texture-%u", m_numBloomTextures++);
-            m_bloomDsSurfaces[index].m_pingPongColorBuffers[1] = createTextureHDR(buff, spec);
-            m_bloomDsSurfaces[index].m_renderTarget->attachColorBuffer(m_bloomDsSurfaces[index].m_pingPongColorBuffers[0]);
-            m_bloomDsSurfaces[index].m_renderTarget->attachColorBuffer(m_bloomDsSurfaces[index].m_pingPongColorBuffers[1]);
-
-            m_bloomUsSurfaces[index].m_renderTarget = createRenderTarget(spec.m_width, spec.m_height);
-            sprintf_s(buff, "bloom-texture-%u", m_numBloomTextures++);
-            m_bloomUsSurfaces[index].m_pingPongColorBuffers[0] = createTextureHDR(buff, spec);
-            sprintf_s(buff, "bloom-texture-%u", m_numBloomTextures++);
-            m_bloomUsSurfaces[index].m_pingPongColorBuffers[1] = createTextureHDR(buff, spec);
-            m_bloomUsSurfaces[index].m_renderTarget->attachColorBuffer(m_bloomUsSurfaces[index].m_pingPongColorBuffers[0]);
-            m_bloomUsSurfaces[index].m_renderTarget->attachColorBuffer(m_bloomUsSurfaces[index].m_pingPongColorBuffers[1]);
-            spec.m_width /= 2;
-            spec.m_height /= 2;
-        };
-
-        spec.m_width /= 2;
-        spec.m_height /= 2;
-        for (u32 i = 0u; i < kNumBloomDsPass; ++i) {
-            initBloomBuffers(i, spec);
-        }
+        // voxel
+        // create render target
+        m_voxelRenderTarget = Cyan::createRenderTarget(512, 512);
+        TextureSpec voxelSpec = { };
+        voxelSpec.m_width = 512;
+        voxelSpec.m_height = 512;
+        voxelSpec.m_type = Texture::Type::TEX_2D;
+        voxelSpec.m_format = Texture::ColorFormat::R16G16B16;
+        voxelSpec.m_min = Texture::Filter::LINEAR; 
+        voxelSpec.m_mag = Texture::Filter::LINEAR;
+        voxelSpec.m_numMips = 1;
+        m_voxelColorTexture = Cyan::createTexture("Voxelization", voxelSpec);
+        m_voxelRenderTarget->attachColorBuffer(m_voxelColorTexture);
     }
 
     void Renderer::initShaders()
@@ -126,13 +173,15 @@ namespace Cyan
         m_gaussianBlurShader = Cyan::createShader("GaussianBlurShader", "../../shader/shader_gaussian_blur.vs", "../../shader/shader_gaussian_blur.fs");
     }
 
-    void Renderer::init(glm::vec2 viewportSize)
+    void Renderer::init(glm::vec2 windowSize)
     {
         Cyan::init();
+        onRendererInitialized(windowSize);
+
         m_viewport = { static_cast<u32>(0u), 
                        static_cast<u32>(0u), 
-                       static_cast<u32>(viewportSize.x), 
-                       static_cast<u32>(viewportSize.y) };
+                       static_cast<u32>(windowSize.x), 
+                       static_cast<u32>(windowSize.y) };
 
         u_model = createUniform("s_model", Uniform::Type::u_mat4);
         u_cameraView = createUniform("s_view", Uniform::Type::u_mat4);
@@ -141,7 +190,15 @@ namespace Cyan
         m_bSuperSampleAA = true;
         m_exposure = 1.f;
         m_bloom = true;
-        m_frame = new Frame();
+
+        // voxel
+        // create shader
+        // m_voxelizeShader = createVsGsPsShader("VoxelizeShader", 
+        //                                            "../../shader/shader_voxel.vs", 
+        //                                            "../../shader/shader_voxel.gs", 
+        //                                            "../../shader/shader_voxel.fs");
+        m_voxelizeShader = createShader("VoxelizeShader", "../../shader/shader_voxel.vs", "../../shader/shader_voxel.fs");
+        m_voxelizeMatl = createMaterial(m_voxelizeShader)->createInstance(); 
 
         // set back-face culling
         Cyan::getCurrentGfxCtx()->setCullFace(FrontFace::CounterClockWise, FaceCull::Back);
@@ -153,7 +210,7 @@ namespace Cyan
         // blit mesh & material
         m_blitShader = createShader("BlitShader", "../../shader/shader_blit.vs", "../../shader/shader_blit.fs");
         m_blitMaterial = createMaterial(m_blitShader)->createInstance();
-        m_blitMaterial->bindTexture("quadSampler", m_defaultColorBuffer);
+        m_blitMaterial->bindTexture("quadSampler", m_sceneColorTexture);
         m_bloomPreprocessMatl = createMaterial(m_bloomPreprocessShader)->createInstance();
         m_gaussianBlurMatl = createMaterial(m_gaussianBlurShader)->createInstance();
 
@@ -236,45 +293,27 @@ namespace Cyan
     Cyan::Texture* Renderer::voxelizeMesh(MeshInstance* mesh, glm::mat4* modelMatrix)
     {
         glEnable(GL_NV_conservative_raster);
-        // geometry -> fragment pipeline
-        // create shader
-        Shader* shader = Cyan::createVsGsPsShader("VoxelizeShader", 
-                                                   "../../shader/shader_voxel.vs", 
-                                                   "../../shader/shader_voxel.gs", 
-                                                   "../../shader/shader_voxel.fs");
-        MaterialInstance* matl = Cyan::createMaterial(shader)->createInstance(); 
-
-        // create render target
-        auto rt = Cyan::createRenderTarget(512, 512);
-        TextureSpec spec = { };
-        spec.m_width = 512;
-        spec.m_height = 512;
-        spec.m_type = Texture::Type::TEX_2D;
-        spec.m_format = Texture::ColorFormat::R16G16B16;
-        spec.m_min = Texture::Filter::LINEAR; 
-        spec.m_mag = Texture::Filter::LINEAR;
-        spec.m_numMips = 1;
-        Texture* texture = Cyan::createTexture("Voxelization", spec);
-        rt->attachColorBuffer(texture);
         auto ctx = getCurrentGfxCtx();
 
         // set shader
-        ctx->setShader(shader);
+        ctx->setShader(m_voxelizeShader);
         // set render target
-        ctx->setRenderTarget(rt, 0u);
+        ctx->setRenderTarget(m_voxelRenderTarget, 0u);
         Viewport originViewport = ctx->m_viewport;
-        ctx->setViewport({ 0, 0, 512, 521 });
-        matl->set("model", modelMatrix);
+        ctx->setViewport({ 0, 0, 512, 512 });
         BoundingBox3f aabb = mesh->getAABB();
         glm::vec3 aabbMin = *modelMatrix * aabb.m_pMin;
         glm::vec3 aabbMax = *modelMatrix * aabb.m_pMax;
-        matl->set("aabbMin", &aabbMin.x);
-        matl->set("aabbMax", &aabbMax.x);
-        matl->bind();
+        m_voxelizeMatl->set("model", modelMatrix);
+        m_voxelizeMatl->set("aabbMin", &aabbMin.x);
+        m_voxelizeMatl->set("aabbMax", &aabbMax.x);
+        m_voxelizeMatl->bind();
+        ctx->setPrimitiveType(PrimitiveType::TriangleList);
         // draw mesh
         auto meshDef = mesh->m_mesh;
         for (auto sm : meshDef->m_subMeshes)
         {
+            ctx->setVertexArray(sm->m_vertexArray);
             if (ctx->m_vertexArray->m_ibo != static_cast<u32>(-1)) {
                 ctx->drawIndex(ctx->m_vertexArray->m_numIndices);
             } else {
@@ -282,28 +321,78 @@ namespace Cyan
             }
         }
         glDisable(GL_NV_conservative_raster);
-        return texture;
+        return m_voxelColorTexture;
+    }
+
+    // TODO: this should take a custom factory defined by client and use
+    // that factory to create an according RenderPass instance 
+    void Renderer::addCustomPass(RenderPass* pass)
+    {
+        m_renderState.addRenderPass(pass);
+    }
+
+    void Renderer::addScenePass(Scene* scene)
+    {
+        RenderTarget* renderTarget = m_renderState.m_superSampleAA ? m_sceneColorRTSSAA : m_sceneColorRenderTarget;
+        void* preallocatedAddr = m_frameAllocator.alloc(sizeof(ScenePass));
+        // placement new for initialization
+        Viewport viewport = { 0, 0, m_offscreenRenderWidth, m_offscreenRenderHeight };
+        ScenePass* pass = new (preallocatedAddr) ScenePass(renderTarget, viewport, scene);
+        m_renderState.addClearRenderTarget(renderTarget);
+        m_renderState.addRenderPass(pass);
+    }
+
+    void Renderer::addPostProcessPasses()
+    {
+        addBloomPass();
+
+        RenderTarget* renderTarget = m_outputRenderTarget;
+        Texture* sceneColorTexture = m_bSuperSampleAA ? m_sceneColorTextureSSAA : m_sceneColorTexture;
+        void* preallocatedAddr = m_frameAllocator.alloc(sizeof(PostProcessResolvePass));
+        // placement new for initialization
+        Viewport viewport = { 0u, 0u, renderTarget->m_width, renderTarget->m_height };
+        PostProcessResolveInputs inputs = { m_exposure, 0.f, 1.0f, sceneColorTexture, BloomPass::getBloomOutput() };
+        if (m_bloom)
+        {
+            inputs.bloom = 1.0f;
+        }
+        PostProcessResolvePass* pass = new (preallocatedAddr) PostProcessResolvePass(renderTarget, viewport, inputs);
+        m_renderState.addRenderPass(pass);
+    }
+
+    void Renderer::addTexturedQuadPass(RenderTarget* renderTarget, Viewport viewport, Texture* srcTexture)
+    {
+        void* preallocatedAddr = m_frameAllocator.alloc(sizeof(TexturedQuadPass));
+        // need to call constructor to initialize vtable, that's why need to use placement new
+        TexturedQuadPass* pass = new (preallocatedAddr) TexturedQuadPass(renderTarget, viewport, srcTexture);
+        m_renderState.addRenderPass(pass);
+    }
+
+    void Renderer::addBloomPass()
+    {
+        void* preallocatedAddr = m_frameAllocator.alloc(sizeof(BloomPass));
+        Texture* sceneColorTexture = m_bSuperSampleAA ? m_sceneColorTextureSSAA : m_sceneColorTexture;
+        Viewport viewport = {0};
+        BloomPassInputs inputs = {sceneColorTexture, m_bloomOutput };
+        // placement new for initialization
+        BloomPass* pass = new (preallocatedAddr) BloomPass(nullptr, viewport, inputs);
+        m_renderState.addRenderPass(pass);
+    }
+
+    void Renderer::addGaussianBlurPass()
+    {
+
+    }
+
+    void Renderer::addLinePass()
+    {
+
     }
 
     // TODO:
     void Renderer::submitMesh(Mesh* mesh, glm::mat4 modelTransform)
     {
-        for (u32 index = 0; index < mesh->m_subMeshes.size(); ++index)
-        {
-            DrawCall draw = {};
-            // draw.m_uniformBegin = m_frame->m_uniformBuffer.m_pos;
-            // MaterialInstance* material = mesh->m_subMeshes[index]->m_matl;
-            // for ( : material)
-            // {
-            //     Cyan::setUniform();
-            // }
-            // draw.m_uniformEnd = m_frame->m_uniformBuffer.m_pos;
 
-            draw.m_mesh = mesh;
-            draw.m_index = index;
-            draw.m_modelTransform = modelTransform;
-            m_frame->m_renderQueue.push_back(draw);
-        }
     }
 
     void Renderer::renderFrame()
@@ -377,55 +466,39 @@ namespace Cyan
 
     void Renderer::endFrame()
     {
-        m_frame->m_renderQueue.clear();
         Cyan::getCurrentGfxCtx()->flip();
     }
-
+    /*
+        * render passes should be pushed after call to beginRender() 
+    */
     void Renderer::beginRender()
     {
         // set render target to m_defaultRenderTarget
         auto ctx = Cyan::getCurrentGfxCtx();
+
+        // clear per frame allocator
+        m_frameAllocator.reset();
+        m_renderState.clearRenderTargets();
+        m_renderState.clearRenderPasses();
+
         if (m_bSuperSampleAA)
         {
-            ctx->setRenderTarget(m_superSamplingRenderTarget, 0u);
-            m_offscreenRenderWidth = m_superSamplingRenderWidth;
-            m_offscreenRenderHeight = m_superSamplingRenderHeight;
-            ctx->setViewport({ 0u, 0u, 2560u, 1440u });
+            m_offscreenRenderWidth = m_SSAAWidth;
+            m_offscreenRenderHeight = m_SSAAHeight;
         }
         else 
         {
-            ctx->setRenderTarget(m_defaultRenderTarget, 0u);
             m_offscreenRenderWidth = m_windowWidth;
             m_offscreenRenderHeight = m_windowHeight;
-            ctx->setViewport(m_viewport);
         }
-
-        // clear
-        ctx->clear();
     }
 
-    void Renderer::beginBloom()
+    void Renderer::render()
     {
-        auto ctx = Cyan::getCurrentGfxCtx();
-        // bloom preprocess pass (blit the render results onto a smaller texture)
-        RenderTarget* renderTarget = m_bloomPrefilterRT;
-        Cyan::Texture* srcImage = nullptr;
-        if (m_bSuperSampleAA) {
-            srcImage = m_superSamplingColorBuffer;
-        } else {
-            srcImage = m_defaultColorBuffer;
+        for (auto renderPass : m_renderState.m_renderPasses)
+        {
+            renderPass->render();
         }
-        ctx->setDepthControl(Cyan::DepthControl::kDisable);
-        ctx->setRenderTarget(renderTarget, 0u);
-        ctx->setShader(m_bloomPreprocessShader);
-        ctx->setViewport({ 0u, 0u, renderTarget->m_width, renderTarget->m_height });
-        m_bloomPreprocessMatl->bindTexture("quadSampler", srcImage);
-        m_bloomPreprocessMatl->bind();
-        ctx->setVertexArray(m_blitQuad->m_va);
-        ctx->setPrimitiveType(PrimitiveType::TriangleList);
-        ctx->drawIndexAuto(6u);
-        ctx->setDepthControl(Cyan::DepthControl::kEnable);
-        glFinish();
     }
 
     void Renderer::downSample(RenderTarget* src, u32 srcIdx, RenderTarget* dst, u32 dstIdx) {
@@ -445,7 +518,7 @@ namespace Cyan
         glFinish();
     }
 
-    void Renderer::gaussianBlur(BloomSurface surface, GaussianBlurInputs inputs) {
+    void Renderer::gaussianBlur(BloomPass::BloomSurface surface, GaussianBlurInputs inputs) {
         auto ctx = Cyan::getCurrentGfxCtx();
         ctx->setDepthControl(Cyan::DepthControl::kDisable);
         ctx->setShader(m_gaussianBlurShader);
@@ -501,116 +574,8 @@ namespace Cyan
         glFinish();
     }
 
-    void Renderer::bloomDownSample()
-    {
-        //TODO: more flexible raidus?
-        i32 kernelRadii[6] = { 3, 4, 6, 7, 8, 9};
-        GaussianBlurInputs inputs = { };
-
-        inputs.kernelIndex = 0;
-        inputs.radius = kernelRadii[0];
-        downSample(m_bloomPrefilterRT, 0, m_bloomDsSurfaces[0].m_renderTarget, 0);
-        gaussianBlur(m_bloomDsSurfaces[0], inputs);
-        for (u32 i = 0u; i < kNumBloomDsPass - 1; ++i) 
-        {
-            downSample(m_bloomDsSurfaces[i].m_renderTarget, 0, m_bloomDsSurfaces[i+1].m_renderTarget, 0);
-            inputs.kernelIndex = static_cast<i32>(i+1);
-            inputs.radius = kernelRadii[i+1];
-            gaussianBlur(m_bloomDsSurfaces[i+1], inputs);
-        }
-    }
-
-    void Renderer::bloomUpScale()
-    {
-        i32 kernelRadii[6] = { 3, 4, 6, 7, 8, 9};
-        GaussianBlurInputs inputs = { };
-
-        inputs.kernelIndex = 5;
-        inputs.radius = kernelRadii[5];
-        gaussianBlur(m_bloomDsSurfaces[kNumBloomDsPass-2], inputs);
-
-        UpScaleInputs upScaleInputs = { };
-        upScaleInputs.stageIndex = 0;
-
-        upSample(m_bloomDsSurfaces[kNumBloomDsPass - 1].m_renderTarget, 0, 
-            m_bloomUsSurfaces[kNumBloomDsPass-2].m_renderTarget, 0, 
-            m_bloomDsSurfaces[kNumBloomDsPass-2].m_renderTarget, 0,
-            upScaleInputs);
-
-        for (u32 i = kNumBloomDsPass - 2; i > 0 ; --i) {
-            inputs.kernelIndex = static_cast<i32>(i);
-            inputs.radius = kernelRadii[i];
-            gaussianBlur(m_bloomDsSurfaces[i-1], inputs);
-
-            upScaleInputs.stageIndex = kNumBloomDsPass - 1 - i;
-            upSample(m_bloomUsSurfaces[i].m_renderTarget, 0, m_bloomUsSurfaces[i-1].m_renderTarget, 0, m_bloomDsSurfaces[i-1].m_renderTarget, 0, upScaleInputs);
-        }
-    }
-
-    void Renderer::bloom() {
-        /* 
-            TODO:
-            * Add a knee function to attenuate luminance
-            * Implement more advanced filters (right now both passes are using a simple box filter) when downsampling/upsampling, referring to a talk
-              at siggraph 2014 "Next gen post processing pipeline in Cod: Advanced Warfare" 
-            * Soft threshold
-            * How to combat temporal stability?
-        */
-
-        // preprocess pass
-        beginBloom();
-        // downsampling
-        bloomDownSample();
-        // upscale and gather
-        bloomUpScale();
-    }
-
-    void Renderer::blitPass()
-    {
-        // post-processing pass
-        m_blitMaterial->set("exposure", m_exposure);
-        auto ctx = Cyan::getCurrentGfxCtx();
-        // bloom
-        if (m_bloom)
-        {
-            if (m_bSuperSampleAA)
-            {
-                bloom();
-            }
-        }
-        // final blit to default frame buffer
-        ctx->setDepthControl(Cyan::DepthControl::kDisable);
-        ctx->setRenderTarget(m_defaultRenderTarget, 0u);
-        ctx->setViewport({0u, 0u, m_viewport.m_width, m_viewport.m_height});
-        ctx->setShader(m_blitShader);
-        if (m_bloom)
-        {
-            m_blitQuad->m_matl->bindTexture("bloomSampler_0", m_bloomUsSurfaces[0].m_pingPongColorBuffers[0]);
-            m_blitQuad->m_matl->set("bloom", 1.f);
-        }
-        else
-        {
-            m_blitQuad->m_matl->set("bloom", 0.f);
-        }       m_blitQuad->m_matl = m_blitMaterial;
-
-        if (m_bSuperSampleAA)
-        {
-            m_blitQuad->m_matl->bindTexture("quadSampler", m_superSamplingColorBuffer);
-        }
-        else
-        {
-            m_blitQuad->m_matl->bindTexture("quadSampler", m_defaultColorBuffer);
-        }
-        m_blitQuad->m_matl->bind();
-        ctx->setVertexArray(m_blitQuad->m_va);
-        ctx->setPrimitiveType(PrimitiveType::TriangleList);
-        ctx->drawIndexAuto(6u);
-        ctx->setDepthControl(Cyan::DepthControl::kEnable);
-    }
-    
     void Renderer::endRender()
     {
-        blitPass();
         // reset render target
         Cyan::getCurrentGfxCtx()->setRenderTarget(nullptr, 0u);
     }

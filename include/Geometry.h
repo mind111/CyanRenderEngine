@@ -33,6 +33,8 @@ struct Quad
     GLuint m_vbo;
     Cyan::MaterialInstance* m_matl;
 
+    Quad();
+    ~Quad();
     void init(glm::vec2 pos, float width, float height);
     void draw();
 };

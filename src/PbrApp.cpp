@@ -14,6 +14,7 @@
 #include "PbrApp.h"
 #include "Shader.h"
 #include "Mesh.h"
+#include "RenderPass.h"
 
 /*
     * particle system; particle rendering
@@ -388,6 +389,7 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewpo
 
     // misc
     bRayCast = false;
+    bPicking = false;
     m_selectedEntity = nullptr;
     entityOnFocusIdx = 0;
     Cyan::setUniform(u_kDiffuse, 1.0f);
@@ -425,19 +427,6 @@ void PbrApp::beginFrame()
 
 void PbrApp::run()
 {
-    {
-        // test voxelization
-        auto renderer = gEngine->getRenderer();
-        Entity* helmetEntity = SceneManager::getEntity(m_scenes[m_currentScene], "DamagedHelmet");
-        SceneNode* sceneNode = helmetEntity->getSceneNode("HelmetMesh");
-        glm::mat4 modelMatrix = sceneNode->getWorldTransform().toMatrix();
-        m_voxelOutput = renderer->voxelizeMesh(sceneNode->m_meshInstance, &modelMatrix);
-        // create a sub viewport for debug rendering
-        Shader* blitShader = Cyan::getShader("BlitShader");
-        CYAN_ASSERT(blitShader, "shader does not exist!");
-        auto ctx = Cyan::getCurrentGfxCtx();
-        ctx->setShader(blitShader);
-    }
     while (bRunning)
     {
         // tick
@@ -687,10 +676,11 @@ void PbrApp::drawSceneViewport()
         ImVec2 b(windowPos.x + windowSize.x - 1, windowPos.y + windowSize.y - 1);
 
         // blit final render output texture to current ImGui window
-        Cyan::Texture* m_renderOutput = gEngine->getRenderer()->m_defaultColorBuffer;
+        Cyan::Texture* m_renderOutput = gEngine->getRenderer()->m_outputColorTexture;
         ImGui::GetForegroundDrawList()->AddImage(reinterpret_cast<void*>((intptr_t)m_renderOutput->m_id), 
             a, b, ImVec2(0, 1), ImVec2(1, 0));
 
+        // TODO: refactor this
         // ray picking
         if (bRayCast && !ImGuizmo::IsOver())
         {
@@ -699,7 +689,8 @@ void PbrApp::drawSceneViewport()
             m_selectedNode = hitInfo.m_node;
             auto ctx = Cyan::getCurrentGfxCtx();
             ctx->setDepthControl(Cyan::DepthControl::kDisable);
-            ctx->setRenderTarget(gEngine->getRenderer()->m_defaultRenderTarget, 0u);
+            ctx->setRenderTarget(Cyan::Renderer::getSingletonPtr()->getRenderOutputRenderTarget(), 0u);
+            // TODO: the line is not rendered at exactly where the mouse is currently clicking
             m_debugRay.draw();
             ctx->setRenderTarget(nullptr, 0u);
             ctx->setDepthControl(Cyan::DepthControl::kEnable);
@@ -823,11 +814,51 @@ void PbrApp::drawRenderSettings()
     }
 }
 
+struct DebugAABBPass : public Cyan::RenderPass
+{
+    DebugAABBPass(Cyan::RenderTarget* renderTarget, Cyan::Viewport viewport, Scene* scene)
+        : RenderPass(renderTarget, viewport), m_scene(scene)
+    {
+
+    }
+
+    virtual void render() override
+    {
+        auto renderer = Cyan::Renderer::getSingletonPtr();
+        for (auto entity : m_scene->entities)
+        {
+            std::queue<SceneNode*> queue;
+            queue.push(entity->m_sceneRoot);
+            while (!queue.empty())
+            {
+                auto node = queue.front();
+                queue.pop();
+                if (node->m_meshInstance)
+                {
+                    BoundingBox3f aabb = node->m_meshInstance->getAABB();
+                    if (aabb.isValid)
+                    {
+                        aabb.setViewProjection(renderer->u_cameraView, renderer->u_cameraProjection);
+                        aabb.draw(node->m_worldTransform.toMatrix());
+                    }
+                }
+                for (auto child : node->m_child)
+                {
+                    queue.push(child);
+                }
+            }
+        }
+    }
+
+    Scene* m_scene;
+};
+
 void PbrApp::render()
 {
     // frame timer
     Cyan::Toolkit::ScopedTimer frameTimer("render()");
     Cyan::Renderer* renderer = gEngine->getRenderer();
+
 
     // TODO: how to not have to manually do this
     struct SharedMaterialData
@@ -858,37 +889,32 @@ void PbrApp::render()
     m_envmap = Cyan::getProbe(m_currentProbeIndex)->m_baseCubeMap;
     m_envmapMatl->bindTexture("envmapSampler", m_envmap);
 
+    // rendering
     renderer->beginRender();
-    // draw entities in the scene
-    renderer->renderScene(m_scenes[m_currentScene]);
-
-    // debug pass to draw all the boudning boxes
-    for (auto entity : m_scenes[m_currentScene]->entities)
+    renderer->addScenePass(m_scenes[m_currentScene]);
+    void* preallocated = renderer->getAllocator().alloc(sizeof(DebugAABBPass));
+    Cyan::RenderTarget* sceneRenderTarget = renderer->getSceneColorRenderTarget();
+    DebugAABBPass* pass = new (preallocated) DebugAABBPass(sceneRenderTarget, Cyan::Viewport{0u,0u, sceneRenderTarget->m_width, sceneRenderTarget->m_height}, m_scenes[m_currentScene]);
+    renderer->addCustomPass(pass);
+    // TODO: how to exclude things in the scene from being post processed
+    renderer->addPostProcessPasses();
     {
-        std::queue<SceneNode*> queue;
-        queue.push(entity->m_sceneRoot);
-        while (!queue.empty())
-        {
-            auto node = queue.front();
-            queue.pop();
-            if (node->m_meshInstance)
-            {
-                BoundingBox3f aabb = node->m_meshInstance->getAABB();
-                if (aabb.isValid)
-                {
-                    aabb.setViewProjection(gEngine->getRenderer()->u_cameraView, gEngine->getRenderer()->u_cameraProjection);
-                    aabb.draw(node->m_worldTransform.toMatrix());
-                }
-            }
-            for (auto child : node->m_child)
-            {
-                queue.push(child);
-            }
-        }
+        // test voxelization
+        Entity* helmetEntity = SceneManager::getEntity(m_scenes[m_currentScene], "DamagedHelmet");
+        SceneNode* sceneNode = helmetEntity->getSceneNode("HelmetMesh");
+        glm::mat4 modelMatrix = sceneNode->getWorldTransform().toMatrix();
+        m_voxelOutput = renderer->voxelizeMesh(sceneNode->m_meshInstance, &modelMatrix);
     }
-
+    Cyan::RenderTarget* rt = renderer->getRenderOutputRenderTarget();
+    renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 160, 320, 160}, m_voxelOutput);
+    renderer->render();
+    auto ctx = Cyan::getCurrentGfxCtx();
+    ctx->setRenderTarget(rt, 0u);
+    ctx->setViewport({0, 0, rt->m_width, rt->m_height});
+    ctx->setDepthControl(Cyan::DepthControl::kDisable);
     // visualizer
     m_bufferVis.draw();
+    ctx->setDepthControl(Cyan::DepthControl::kEnable);
     renderer->endRender();
 
     drawSceneViewport();

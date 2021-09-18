@@ -25,6 +25,18 @@ namespace Cyan
         m_colorBuffers.push_back(_texture);
     }
 
+    // TODO: implement this
+    void RenderTarget::setColorBuffer(Texture* texture, u32 index)
+    {
+        CYAN_ASSERT(m_colorBuffers.size() == index, "index %u is already bound", index)
+        // m_colorBuffers[index] must be empty
+    }
+
+    Texture* RenderTarget::getColorBuffer(u32 index)
+    {
+        return m_colorBuffers[index];
+    }
+
     void RenderTarget::setDrawBuffer(u32 _bufferIdx)
     {
         glNamedFramebufferDrawBuffer(m_frameBuffer, GL_COLOR_ATTACHMENT0 + _bufferIdx);

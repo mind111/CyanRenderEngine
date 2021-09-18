@@ -7,20 +7,18 @@ in VertexData
 {
     vec3 position;
     vec3 normal;
-    vec3 tangent;
-    vec3 texCoords;
-} VertexIn[3];
+    vec4 tangent;
+    vec2 texCoords;
+} VertexIn[];
 
 out VertexData
 {
+    vec3 position;
     vec3 normal;
-    vec3 tangent;
-    vec3 texCoords;
+    vec4 tangent;
+    vec2 texCoords;
 } VertexOut;
 
-// aabb need to be transformed to view space
-uniform vec3 aabbMin;
-uniform vec3 aabbMax;
 
 mat4 ortho(float l, float r, float b, float t, float n, float f)
 {
@@ -66,6 +64,7 @@ void main()
     {
         vec4 clipPos = vec4(0.f, 0.f, 0.f, 1.f);
         // pass-through per vertex attributes
+        VertexOut.position = VertexIn[i].position;
         VertexOut.normal = VertexIn[i].normal;
         VertexOut.tangent = VertexIn[i].tangent;
         VertexOut.texCoords = VertexIn[i].texCoords;
@@ -75,6 +74,7 @@ void main()
 
         mat4 proj;
         // x
+        /*
         if (flag == 1) 
         {
             proj = ortho(aabbMin.z, aabbMax.z, aabbMin.y, aabbMax.y, aabbMax.x, aabbMin.x);
@@ -89,8 +89,10 @@ void main()
         {
             proj = ortho(aabbMin.x, aabbMax.x, aabbMin.y, aabbMax.y, aabbMax.z, aabbMin.z);
         }
-        clipPos = proj * vec4(gl_in[i].gl_Position.xyz, 1.0f);
-        gl_Position = vec4(clipPos.xyz, 1.0f);
+        */
+        proj = ortho(aabbMin.x, aabbMax.x, aabbMin.y, aabbMax.y, aabbMax.z, aabbMin.z);
+        clipPos = proj * gl_in[i].gl_Position;
+        gl_Position = clipPos;
         EmitVertex();
     }
     EndPrimitive();

@@ -56,6 +56,17 @@ void Line::draw()
     glBindVertexArray(0);
 };
 
+Quad::Quad()
+    : m_matl(0)
+{
+    // do nothing
+}
+
+Quad::~Quad()
+{
+
+}
+
 void Quad::init(glm::vec2 pos, float width, float height)
 {
     m_pos = pos;

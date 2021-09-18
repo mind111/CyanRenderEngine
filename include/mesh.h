@@ -15,7 +15,7 @@ namespace Cyan
     struct MeshInstance;
     struct SkeletalMeshInstance;
 
-    // TODO: Mesh need to store object space vertex data
+    // TODO: how to distinguish between 2D mesh and 3D mesh
     struct Mesh
     {
         MeshInstance* createInstance();
@@ -42,6 +42,26 @@ namespace Cyan
         Mesh* m_mesh;
         MaterialInstance** m_matls;
         BoundingBox3f& getAABB();
+    };
+
+    struct QuadMesh
+    {
+        struct Vertex
+        {
+            glm::vec3 position;
+            glm::vec2 texCoords;
+        };
+
+        QuadMesh() {};
+        QuadMesh(glm::vec2 center, glm::vec2 extent);
+        ~QuadMesh() {}
+
+        void init(glm::vec2 center, glm::vec2 extent);
+
+        glm::vec2 m_center;
+        glm::vec2 m_extent;
+        Vertex m_verts[6];
+        VertexArray* m_vertexArray;
     };
 
     struct Joint {
