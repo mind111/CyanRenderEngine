@@ -4,6 +4,20 @@
 
 namespace Cyan
 {
+    void Mesh::onFinishLoading()
+    {
+        Toolkit::ScopedTimer timer("Mesh::onFinishLoading()", false);
+        if (m_shouldNormalize)
+        {
+            m_normalization = Toolkit::computeMeshNormalization(this);
+        }
+        else
+        {
+            Toolkit::computeAABB(this);
+        }
+        timer.end();
+    }
+
     MeshInstance* Mesh::createInstance()
     {
         MeshInstance* instance = (MeshInstance*)CYAN_ALLOC(sizeof(MeshInstance));
@@ -26,17 +40,6 @@ namespace Cyan
     QuadMesh::QuadMesh(glm::vec2 center, glm::vec2 extent)
         : m_center(center), m_extent(extent), m_vertexArray(0)
     {
-        // m_vertices[0] = m_center + glm::vec2(-0.5f,  0.5f) * m_extent;
-        // m_vertices[1] = m_center + glm::vec2(-0.5f, -0.5f) * m_extent;
-        // m_vertices[2] = m_center + glm::vec2( 0.5f, -0.5f) * m_extent;
-        // m_vertices[3] = m_center + glm::vec2(-0.5f,  0.5f) * m_extent;
-        // m_vertices[4] = m_center + glm::vec2( 0.5f, -0.5f) * m_extent;
-        // m_vertices[5] = m_center + glm::vec2( 0.5f,  0.5f) * m_extent;
-        // auto vb = createVertexBuffer(m_vertices, 6u * sizeof(m_vertices[0]), sizeof(glm::vec2), 6u);
-        // vb->addVertexAttrb({VertexAttrib::DataType::Float, 2, sizeof(glm::vec2), 0u, 0});
-        // m_vertexArray = createVertexArray(vb);
-        // // TODO: refactor how vb interacts with va, vb->finalize() va->onVbFinalize();
-        // m_vertexArray->init();
     }
     void QuadMesh::init(glm::vec2 center, glm::vec2 extent)
     {

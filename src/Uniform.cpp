@@ -21,6 +21,9 @@ u32 Uniform::getSize()
         case u_int:
             size = 4;
             break;
+        case u_uint:
+            size = 4;
+            break;
         case u_vec3:
             size = 4 * 3;
             break;
@@ -31,9 +34,13 @@ u32 Uniform::getSize()
             size = 4 * 4 * 4;
             break;
         case u_sampler2D:
-            size = 4;
+        case u_sampler3D:
         case u_samplerCube:
+        case u_image3D:
+        case u_uimage3D:
+        case u_atomic_uint:
             size = 4;
+            break;
         default:
             break;
     }

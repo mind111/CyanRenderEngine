@@ -137,7 +137,7 @@ void BufferVisualizer::init(UniformBuffer* buffer, glm::vec2 pos, float width, f
             chunk.m_quad.init(glm::vec2(offsetX + 0.6f * chunkWidth, m_pos.y), chunkWidth, m_height);
             glm::vec4 color4(chunk.m_color, 1.f);
             chunk.m_quad.m_matl->set("color", (void*)&color4.r);
-            chunk.m_quad.m_matl->m_uniformBuffer->debugPrint();
+            // chunk.m_quad.m_matl->m_uniformBuffer->debugPrint();
             auto ignored = m_buffer->read(uniform->getSize());
             offsetX += chunkWidth * 1.1f;
         };

@@ -31,7 +31,8 @@ struct SceneNode
     Transform m_worldTransform;
 
     // mesh component 
-    Cyan::MeshInstance* m_meshInstance;
+    Cyan::MeshInstance* m_meshInstance; // TODO: make this a component, not necessarily every scene nodes wants an AABB 
+    bool m_hasAABB;
 
     void setParent(SceneNode* parent);
     void attach(SceneNode* child);
@@ -46,6 +47,7 @@ struct SceneNode
         // TODO: can we defer this update to gain performance?
         updateWorldTransform();
     }
+    Cyan::MeshInstance* getAttachedMesh() { return m_meshInstance; }
     const Transform& getWorldTransform();
 
     SceneNode* find(const char* name);

@@ -8,6 +8,7 @@
 
 namespace Cyan
 {
+    QuadMesh* getQuadMesh();
     void onRendererInitialized(glm::vec2 renderSize);
 
     struct RenderPass
@@ -42,6 +43,13 @@ namespace Cyan
         Texture* bloomOutputTexture;
     };
 
+    // TODO: refactor this
+    struct GaussianBlurPass : public RenderPass
+    {
+        static void onInit();
+        virtual void render() override;
+    };
+
     struct BloomPass : public RenderPass
     {
         BloomPass(RenderTarget* rt, Viewport vp, BloomPassInputs inputs); 
@@ -50,8 +58,6 @@ namespace Cyan
         static void onInit(u32 windowWidth, u32 windowHeight);
         virtual void render() override;
         static Texture* getBloomOutput();
-        void bloomDownSample();
-        void bloomUpscale();
 
         struct BloomSurface
         {
@@ -59,9 +65,31 @@ namespace Cyan
             Texture* m_pingPongColorBuffers[2];
         };
 
+        struct GaussianBlurInputs
+        {
+            i32 kernelIndex;
+            i32 radius;
+        };
+
+        void downSample(RenderTarget* src, u32 srcIdx, RenderTarget* dst, u32 dstIdx);
+        void bloomDownSample();
+        void upScale(RenderTarget* src, u32 srcIdx, RenderTarget* dst, u32 dstIdx, RenderTarget* blend, u32 blendIdx, u32 stageIdx);
+        void bloomUpscale();
+        void gaussianBlur(BloomSurface src, GaussianBlurInputs inputs);
+
         static const u32 kNumBloomDsPass = 6u;
+        // setup
         static Shader* s_bloomSetupShader;
         static MaterialInstance* s_bloomSetupMatl;
+        // downsample
+        static Shader* s_bloomDsShader;
+        static MaterialInstance* s_bloomDsMatl;
+        // upscale
+        static Shader* s_bloomUsShader;
+        static MaterialInstance* s_bloomUsMatl;
+        // gaussian blur
+        static Shader* s_gaussianBlurShader;
+        static MaterialInstance* s_gaussianBlurMatl;
         static RenderTarget* s_bloomSetupRT;                         // preprocess surface
         static BloomSurface s_bloomDsSurfaces[kNumBloomDsPass];      // downsample
         static BloomSurface s_bloomUsSurfaces[kNumBloomDsPass];      // upsample
@@ -112,6 +140,16 @@ namespace Cyan
         static MaterialInstance* m_matl;
         Texture* m_srcTexture;
     };
+
+    struct DirectionalShadowPass : public RenderPass
+    {
+        DirectionalShadowPass(RenderTarget* renderTarget, Viewport viewport);
+        static void onInit();
+        virtual void render() override;
+
+        DirectionalLight m_light;
+        Scene* m_scene;
+    };    
 
     struct LinePass : public RenderPass
     {

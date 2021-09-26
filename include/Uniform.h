@@ -21,6 +21,10 @@ struct Uniform
         u_mat4,
         u_sampler2D,
         u_samplerCube,
+        u_sampler3D,
+        u_image3D,
+        u_uimage3D,
+        u_atomic_uint,
         u_undefined // Error
     };
 

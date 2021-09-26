@@ -80,12 +80,15 @@ void AssetManager::loadMeshes(Scene* scene, nlohmann::basic_json<std::map>& mesh
         meshInfo.at("path").get_to(path);
         meshInfo.at("name").get_to(name);
         meshInfo.at("normalize").get_to(normalize);
+        Cyan::Toolkit::ScopedTimer meshTimer(name.c_str(), true);
         Cyan::createMesh(name.c_str(), path.c_str(), normalize);
+        meshTimer.end();
     }
 }
 
 void AssetManager::loadNodes(Scene* scene, nlohmann::basic_json<std::map>& nodeInfoList)
 {
+    Cyan::Toolkit::ScopedTimer timer("loadNodes()", true);
     for (auto nodeInfo : nodeInfoList)
     {
         u32 index = nodeInfo.at("index");
@@ -121,10 +124,12 @@ void AssetManager::loadNodes(Scene* scene, nlohmann::basic_json<std::map>& nodeI
             m_nodes[index]->attach(childNode);
         }
     }
+    timer.end();
 }
 
 void AssetManager::loadEntities(Scene* scene, nlohmann::basic_json<std::map>& entityInfoList)
 {
+    Cyan::Toolkit::ScopedTimer timer("loadEntities()", true);
     for (auto entityInfo : entityInfoList)
     {
         std::string entityName;
@@ -138,8 +143,7 @@ void AssetManager::loadEntities(Scene* scene, nlohmann::basic_json<std::map>& en
             entity->getSceneRoot()->attach(m_nodes[node]);
         }
     }
-
-    // TODO: draw a debug print here to verify node hierarchy is correct
+    timer.end();
 }
 
 void AssetManager::loadScene(Scene* scene, const char* file)
@@ -187,8 +191,10 @@ Cyan::Texture* AssetManager::loadGltfTexture(tinygltf::Model& model, i32 index) 
             case 3: {
                 if (image.bits == 8) {
                     spec.m_format = Cyan::Texture::ColorFormat::R8G8B8;
+                    spec.m_dataType = Texture::DataType::UNSIGNED_BYTE;
                 } else if (image.bits == 16) {
                     spec.m_format = Cyan::Texture::ColorFormat::R16G16B16;
+                    spec.m_dataType = Texture::DataType::Float;
                 } else if (image.bits == 32) {
                     CYAN_ASSERT(0, "R32G32B32 color format is currently not supported!")
                 } 
@@ -197,8 +203,10 @@ Cyan::Texture* AssetManager::loadGltfTexture(tinygltf::Model& model, i32 index) 
             case 4: {
                 if (image.bits == 8) {
                     spec.m_format = Cyan::Texture::ColorFormat::R8G8B8A8;
+                    spec.m_dataType = Texture::DataType::UNSIGNED_BYTE;
                 } else if (image.bits == 16) {
                     spec.m_format = Cyan::Texture::ColorFormat::R16G16B16A16;
+                    spec.m_dataType = Texture::DataType::Float;
                 } else if (image.bits == 32) {
                     CYAN_ASSERT(0, "R32G32B32A32 color format is currently not supported!")
                 } 
@@ -330,8 +338,8 @@ SceneNode* AssetManager::loadGltfNode(Scene* scene, tinygltf::Model& model, tiny
                 mesh->m_matls[sm]->set("hasMetallicRoughnessMap", 1.f);
                 mesh->m_matls[sm]->set("directDiffuseSlider", 1.0f);
                 mesh->m_matls[sm]->set("directSpecularSlider", 1.0f);
-                mesh->m_matls[sm]->set("indirectDiffuseSlider", 1.0f);
-                mesh->m_matls[sm]->set("indirectSpecularSlider", 1.0f);
+                mesh->m_matls[sm]->set("indirectDiffuseSlider", 0.0f);
+                mesh->m_matls[sm]->set("indirectSpecularSlider", 0.0f);
                 mesh->m_matls[sm]->set("wrap", 0.15f);
             }
         }
@@ -472,6 +480,8 @@ Cyan::Mesh* AssetManager::loadGltfMesh(tinygltf::Model& model, tinygltf::Mesh& g
     // mesh->m_normalization = Cyan::Toolkit::computeMeshNormalization(mesh);
     // mesh->m_normalization = glm::scale(glm::mat4(1.f), glm::vec3(0.01f, 0.01f, 0.01f));
     mesh->m_normalization = glm::mat4(1.0);
+    mesh->m_shouldNormalize = false;
+    mesh->onFinishLoading();
     return mesh;
 }
 

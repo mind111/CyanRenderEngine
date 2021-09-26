@@ -13,10 +13,21 @@ namespace Cyan
     RenderTarget* BloomPass::s_bloomSetupRT = 0;
     Shader* BloomPass::s_bloomSetupShader = 0;
     MaterialInstance* BloomPass::s_bloomSetupMatl = 0;
+    Shader* BloomPass::s_bloomDsShader = 0;
+    MaterialInstance* BloomPass::s_bloomDsMatl = 0;
+    Shader* BloomPass::s_bloomUsShader = 0;
+    MaterialInstance* BloomPass::s_bloomUsMatl = 0;
+    Shader* BloomPass::s_gaussianBlurShader = 0;
+    MaterialInstance* BloomPass::s_gaussianBlurMatl = 0;
     BloomPass::BloomSurface BloomPass::s_bloomDsSurfaces[BloomPass::kNumBloomDsPass] = {0};          // downsample
     BloomPass::BloomSurface BloomPass::s_bloomUsSurfaces[BloomPass::kNumBloomDsPass] = {0};          // upsample
     Shader* TexturedQuadPass::m_shader = 0;
     MaterialInstance* TexturedQuadPass::m_matl = 0;
+
+    QuadMesh* getQuadMesh()
+    {
+        return &s_quadMesh;
+    }
 
     void onRendererInitialized(glm::vec2 windowSize)
     {
@@ -29,51 +40,6 @@ namespace Cyan
         BloomPass::onInit(windowWidth, windowHeight);
         PostProcessResolvePass::onInit();
         TexturedQuadPass::onInit();
-/*
-        PostProcessResolvePass::s_finalCompositeShader = createShader("BlitShader", "../../shader/shader_blit.vs", "../../shader/shader_blit.fs");
-        PostProcessResolvePass::s_matl = createMaterial(PostProcessResolvePass::s_finalCompositeShader)->createInstance();
-
-        BloomPass::s_bloomSetupRT = createRenderTarget(windowWidth, windowHeight);
-        TextureSpec spec = { };
-        spec.m_width = windowWidth;
-        spec.m_height = windowHeight;
-        spec.m_type = Texture::Type::TEX_2D;
-        spec.m_format = Texture::ColorFormat::R16G16B16A16; 
-        spec.m_min = Texture::Filter::LINEAR;
-        spec.m_mag = Texture::Filter::LINEAR;
-        spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
-        spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
-        spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
-        BloomPass::s_bloomSetupRT->attachColorBuffer(createTexture("BloomSetupTexture", spec));
-        BloomPass::s_bloomSetupShader = createShader("BloomSetupShader", "../../shader/shader_bloom_preprocess.vs", "../../shader/shader_bloom_preprocess.fs");
-        BloomPass::s_bloomSetupMatl = createMaterial(BloomPass::s_bloomSetupShader)->createInstance();
-
-        u32 numBloomTextures = 0u;
-        auto initBloomBuffers = [&](u32 index, TextureSpec& spec) {
-            BloomPass::s_bloomDsSurfaces[index].m_renderTarget = createRenderTarget(spec.m_width, spec.m_height);
-            char buff[64];
-            sprintf_s(buff, "BloomTexture%u", numBloomTextures++);
-            BloomPass::s_bloomDsSurfaces[index].m_pingPongColorBuffers[0] = createTextureHDR(buff, spec);
-            sprintf_s(buff, "BloomTexture%u", numBloomTextures++);
-            BloomPass::s_bloomDsSurfaces[index].m_pingPongColorBuffers[1] = createTextureHDR(buff, spec);
-            BloomPass::s_bloomDsSurfaces[index].m_renderTarget->attachColorBuffer(BloomPass::s_bloomDsSurfaces[index].m_pingPongColorBuffers[0]);
-            BloomPass::s_bloomDsSurfaces[index].m_renderTarget->attachColorBuffer(BloomPass::s_bloomDsSurfaces[index].m_pingPongColorBuffers[1]);
-
-            BloomPass::s_bloomUsSurfaces[index].m_renderTarget = createRenderTarget(spec.m_width, spec.m_height);
-            sprintf_s(buff, "BloomTexture%u", numBloomTextures++);
-            BloomPass::s_bloomUsSurfaces[index].m_pingPongColorBuffers[0] = createTextureHDR(buff, spec);
-            sprintf_s(buff, "BloomTexture%u", numBloomTextures++);
-            BloomPass::s_bloomUsSurfaces[index].m_pingPongColorBuffers[1] = createTextureHDR(buff, spec);
-            BloomPass::s_bloomUsSurfaces[index].m_renderTarget->attachColorBuffer(BloomPass::s_bloomUsSurfaces[index].m_pingPongColorBuffers[0]);
-            BloomPass::s_bloomUsSurfaces[index].m_renderTarget->attachColorBuffer(BloomPass::s_bloomUsSurfaces[index].m_pingPongColorBuffers[1]);
-            spec.m_width /= 2;
-            spec.m_height /= 2;
-        };
-
-        for (u32 i = 0u; i < BloomPass::kNumBloomDsPass; ++i) {
-            initBloomBuffers(i, spec);
-        }
-        */
     }
 
     ScenePass::ScenePass(RenderTarget* renderTarget, Viewport viewport, Scene* scene)
@@ -116,6 +82,7 @@ namespace Cyan
         spec.m_height = windowHeight;
         spec.m_type = Texture::Type::TEX_2D;
         spec.m_format = Texture::ColorFormat::R16G16B16A16; 
+        spec.m_dataType = Texture::DataType::Float;
         spec.m_min = Texture::Filter::LINEAR;
         spec.m_mag = Texture::Filter::LINEAR;
         spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
@@ -124,6 +91,12 @@ namespace Cyan
         s_bloomSetupRT->attachColorBuffer(createTexture("BloomSetupTexture", spec));
         s_bloomSetupShader = createShader("BloomSetupShader", "../../shader/shader_bloom_preprocess.vs", "../../shader/shader_bloom_preprocess.fs");
         s_bloomSetupMatl = createMaterial(BloomPass::s_bloomSetupShader)->createInstance();
+        s_bloomDsShader = createShader("BloomDownSampleShader", "../../shader/shader_downsample.vs", "../../shader/shader_downsample.fs");
+        s_bloomDsMatl = createMaterial(s_bloomDsShader)->createInstance();
+        s_bloomUsShader = createShader("UpSampleShader", "../../shader/shader_upsample.vs", "../../shader/shader_upsample.fs");
+        s_bloomUsMatl = createMaterial(s_bloomUsShader)->createInstance();
+        s_gaussianBlurShader = createShader("GaussianBlurShader", "../../shader/shader_gaussian_blur.vs", "../../shader/shader_gaussian_blur.fs");
+        s_gaussianBlurMatl = createMaterial(s_gaussianBlurShader)->createInstance();
 
         u32 numBloomTextures = 0u;
         auto initBloomBuffers = [&](u32 index, TextureSpec& spec) {
@@ -161,47 +134,115 @@ namespace Cyan
     {
         //TODO: more flexible raidus?
         i32 kernelRadii[6] = { 3, 4, 6, 7, 8, 9};
-        Renderer::GaussianBlurInputs inputs = { };
+        GaussianBlurInputs inputs = { };
 
         inputs.kernelIndex = 0;
         inputs.radius = kernelRadii[0];
         auto renderer = Renderer::getSingletonPtr();
-        renderer->downSample(s_bloomSetupRT, 0, s_bloomDsSurfaces[0].m_renderTarget, 0);
-        renderer->gaussianBlur(s_bloomDsSurfaces[0], inputs);
+        downSample(s_bloomSetupRT, 0, s_bloomDsSurfaces[0].m_renderTarget, 0);
+        gaussianBlur(s_bloomDsSurfaces[0], inputs);
         for (u32 i = 0u; i < kNumBloomDsPass - 1; ++i) 
         {
-            Renderer::getSingletonPtr()->downSample(s_bloomDsSurfaces[i].m_renderTarget, 0, s_bloomDsSurfaces[i+1].m_renderTarget, 0);
+            downSample(s_bloomDsSurfaces[i].m_renderTarget, 0, s_bloomDsSurfaces[i+1].m_renderTarget, 0);
             inputs.kernelIndex = static_cast<i32>(i+1);
             inputs.radius = kernelRadii[i+1];
-            Renderer::getSingletonPtr()->gaussianBlur(s_bloomDsSurfaces[i+1], inputs);
+            gaussianBlur(s_bloomDsSurfaces[i+1], inputs);
         }
         // copy result to output texture
+    }
+
+    void BloomPass::gaussianBlur(BloomSurface src, GaussianBlurInputs inputs)
+    {
+        auto ctx = Cyan::getCurrentGfxCtx();
+        ctx->setDepthControl(Cyan::DepthControl::kDisable);
+        ctx->setShader(s_gaussianBlurShader);
+        ctx->setRenderTarget(src.m_renderTarget, 1u);
+        ctx->setViewport({ 0u, 0u, src.m_renderTarget->m_width, src.m_renderTarget->m_height });
+
+        // horizontal pass
+        {
+            s_gaussianBlurMatl->bindTexture("srcImage", src.m_pingPongColorBuffers[0]);
+            s_gaussianBlurMatl->set("horizontal", 1.0f);
+            s_gaussianBlurMatl->set("kernelIndex", inputs.kernelIndex);
+            s_gaussianBlurMatl->set("radius", inputs.radius);
+            s_gaussianBlurMatl->bind();
+            ctx->setVertexArray(s_quadMesh.m_vertexArray);
+            ctx->setPrimitiveType(PrimitiveType::TriangleList);
+            ctx->drawIndexAuto(s_quadMesh.m_vertexArray->numVerts());
+            glFinish();
+        }
+
+        // vertical pass
+        {
+            ctx->setRenderTarget(src.m_renderTarget, 0u);
+            s_gaussianBlurMatl->bindTexture("srcImage", src.m_pingPongColorBuffers[1]);
+            s_gaussianBlurMatl->set("horizontal", 0.f);
+            s_gaussianBlurMatl->set("kernelIndex", inputs.kernelIndex);
+            s_gaussianBlurMatl->set("radius", inputs.radius);
+            s_gaussianBlurMatl->bind();
+            ctx->setVertexArray(s_quadMesh.m_vertexArray);
+            ctx->setPrimitiveType(PrimitiveType::TriangleList);
+            ctx->drawIndexAuto(s_quadMesh.m_vertexArray->numVerts());
+            ctx->setDepthControl(Cyan::DepthControl::kEnable);
+            glFinish();
+        }
+    }
+
+    void BloomPass::downSample(RenderTarget* src, u32 srcIdx, RenderTarget* dst, u32 dstIdx) {
+        auto ctx = Cyan::getCurrentGfxCtx();
+        ctx->setDepthControl(Cyan::DepthControl::kDisable);
+        ctx->setRenderTarget(dst, dstIdx);
+        ctx->setShader(s_bloomDsShader);
+        ctx->setViewport({ 0u, 0u, dst->m_width, dst->m_height });
+        s_bloomDsMatl->bindTexture("srcImage", src->m_colorBuffers[srcIdx]);
+        s_bloomDsMatl->bind();
+        ctx->setVertexArray(s_quadMesh.m_vertexArray);
+        ctx->setPrimitiveType(PrimitiveType::TriangleList);
+        ctx->drawIndexAuto(s_quadMesh.m_vertexArray->numVerts());
+        ctx->setDepthControl(Cyan::DepthControl::kEnable);
+        glFinish();
+    }
+
+    void BloomPass::upScale(RenderTarget* src, u32 srcIdx, RenderTarget* dst, u32 dstIdx, RenderTarget* blend, u32 blendIdx, u32 stageIdx) 
+    {
+        auto ctx = Cyan::getCurrentGfxCtx();
+        ctx->setDepthControl(Cyan::DepthControl::kDisable);
+        ctx->setRenderTarget(dst, dstIdx);
+        ctx->setShader(s_bloomUsShader);
+        ctx->setViewport({ 0u, 0u, dst->m_width, dst->m_height });
+        s_bloomUsMatl->bindTexture("srcImage", src->m_colorBuffers[srcIdx]);
+        s_bloomUsMatl->bindTexture("blendImage", blend->m_colorBuffers[blendIdx]);
+        s_bloomUsMatl->set("stageIndex", stageIdx);
+        s_bloomUsMatl->bind();
+        ctx->setVertexArray(s_quadMesh.m_vertexArray);
+        ctx->setPrimitiveType(PrimitiveType::TriangleList);
+        ctx->drawIndexAuto(s_quadMesh.m_vertexArray->numVerts());
+        ctx->setDepthControl(Cyan::DepthControl::kEnable);
+        glFinish();
     }
     
     void BloomPass::bloomUpscale()
     {
         i32 kernelRadii[6] = { 3, 4, 6, 7, 8, 9};
-        Renderer::GaussianBlurInputs inputs = { };
+        GaussianBlurInputs inputs = { };
         auto renderer = Renderer::getSingletonPtr();
         inputs.kernelIndex = 5;
         inputs.radius = kernelRadii[5];
-        renderer->gaussianBlur(s_bloomDsSurfaces[kNumBloomDsPass-2], inputs);
+        gaussianBlur(s_bloomDsSurfaces[kNumBloomDsPass-2], inputs);
 
-        Renderer::UpScaleInputs upScaleInputs = { };
-        upScaleInputs.stageIndex = 0;
-
-        renderer->upSample(s_bloomDsSurfaces[kNumBloomDsPass - 1].m_renderTarget, 0, 
+        u32 stageIndex = 0;
+        upScale(s_bloomDsSurfaces[kNumBloomDsPass - 1].m_renderTarget, 0, 
                 s_bloomUsSurfaces[kNumBloomDsPass-2].m_renderTarget, 0, 
                 s_bloomDsSurfaces[kNumBloomDsPass-2].m_renderTarget, 0,
-                upScaleInputs);
+                stageIndex);
 
         for (u32 i = kNumBloomDsPass - 2; i > 0 ; --i) {
             inputs.kernelIndex = static_cast<i32>(i);
             inputs.radius = kernelRadii[i];
-            renderer->gaussianBlur(s_bloomDsSurfaces[i-1], inputs);
+            gaussianBlur(s_bloomDsSurfaces[i-1], inputs);
 
-            upScaleInputs.stageIndex = kNumBloomDsPass - 1 - i;
-            renderer->upSample(s_bloomUsSurfaces[i].m_renderTarget, 0, s_bloomUsSurfaces[i-1].m_renderTarget, 0, s_bloomDsSurfaces[i-1].m_renderTarget, 0, upScaleInputs);
+            stageIndex = kNumBloomDsPass - 1 - i;
+            upScale(s_bloomUsSurfaces[i].m_renderTarget, 0, s_bloomUsSurfaces[i-1].m_renderTarget, 0, s_bloomDsSurfaces[i-1].m_renderTarget, 0, stageIndex);
         }
     }
 
@@ -266,6 +307,30 @@ namespace Cyan
         ctx->setDepthControl(DepthControl::kDisable);
         ctx->drawIndexAuto(6u);
         ctx->setDepthControl(DepthControl::kEnable);
+    }
+    
+    DirectionalShadowPass::DirectionalShadowPass(RenderTarget* renderTarget, Viewport viewport)
+        : RenderPass(renderTarget, viewport)
+    {
+
+    }
+
+    void DirectionalShadowPass::render()
+    {
+        Shader* shader = createShader("DirShadowShader", "../../shader/shader_dir_shadow.vs", "../../shader/shader_dir_shadow.fs");
+        RenderTarget* rt = createDepthRenderTarget(1024, 1024);
+        // setup render target to only has a depth buffer
+        // build view matrix that transform the world to light's view space
+        glm::mat4 lightView = glm::lookAt(glm::vec3(0.f), 
+                                          glm::vec3(m_light.direction.x, m_light.direction.y, m_light.direction.z), glm::vec3(0.f, 1.f, 0.f));
+        for (auto entity : m_scene->entities)
+        {
+            std::queue<SceneNode*> nodes;
+            nodes.push(entity->m_sceneRoot);
+            while(!nodes.empty())
+            {
+            }
+        }
     }
 
     TexturedQuadPass::TexturedQuadPass(RenderTarget* renderTarget, Viewport vp, Texture* srcTex)

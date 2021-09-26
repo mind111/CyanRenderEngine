@@ -6,6 +6,10 @@
 struct VertexArray
 {
     void init();
+    u32 numVerts()
+    {
+        return m_vertexBuffer->m_numVerts;
+    }
 
     VertexBuffer* m_vertexBuffer;
     u32           m_numIndices;

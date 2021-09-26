@@ -18,11 +18,11 @@ namespace Cyan
     // TODO: how to distinguish between 2D mesh and 3D mesh
     struct Mesh
     {
+        void onFinishLoading();
         MeshInstance* createInstance();
 
         struct SubMesh
         {
-            std::string m_name;
             VertexArray* m_vertexArray;
             u32 m_numVerts;
             std::vector<Triangle> m_triangles;
@@ -37,6 +37,10 @@ namespace Cyan
 
     struct MeshInstance
     {
+        MaterialInstance* getMaterial(u32 index)
+        {
+            return m_matls[index];
+        }
         void setMaterial(u32 index, MaterialInstance* matl);
 
         Mesh* m_mesh;
@@ -89,5 +93,14 @@ namespace Cyan
         MaterialInstance** m_matls;
     };
 }
+
+// TODO: implement serialization
+struct MeshBinaryDescriptor
+{
+    u32 version;
+    u32 name;
+    u32 shouldNormalize;
+    u32 numSubMeshes;
+};
 
 extern float cubeVertices[108];

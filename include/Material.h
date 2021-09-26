@@ -69,6 +69,8 @@ namespace Cyan
     {
         void bindTexture(const char* sampler, Texture* texture);
         void bindBuffer(const char* blockName, RegularBuffer* buffer);
+        Texture* getTexture(const char* sampler);
+
         void set(const char* attribute, void* data);
         void set(const char* attribute, u32 data);
         void set(const char* attribute, i32 data);

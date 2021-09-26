@@ -11,6 +11,7 @@ out VertexData
     vec3 normal;
     vec4 tangent;
     vec2 texCoords;
+    vec3 fragmentWorldPos;
 } VertexOut;
 
 uniform mat4 model;
@@ -33,14 +34,7 @@ void main()
     VertexOut.normal = vNormal;
     VertexOut.tangent = vTangent;
     VertexOut.texCoords = vTexCoords;
-
-    mat4 proj = ortho(aabbMin.x, aabbMax.x, aabbMin.y, aabbMax.y, aabbMin.z, aabbMax.z);
-    float aspect = (aabbMax.x - aabbMin.x) / (aabbMax.y - aabbMin.y);
-    vec4 vPosWorld = model * vec4(vPos, 1.f);
-    vPosWorld.x = 2.0 * (vPosWorld.x - aabbMin.x) / (aabbMax.x - aabbMin.x) - 1.0;
-    vPosWorld.x /= (16.0 / 9.0);
-    vPosWorld.y = 2.0 * (vPosWorld.y - aabbMin.y) / (aabbMax.x - aabbMin.x) - 1.0;
-    vPosWorld.z = abs(vPosWorld.z - aabbMax.z) / (aabbMin.z - aabbMax.z);
-    // gl_Position = proj * model * vec4(vPos, 1.0f);
-    gl_Position = vec4(vPosWorld.xyz, 1.0f);
+    vec4 worldPos = model * vec4(vPos.xyz, 1.0f);
+    VertexOut.fragmentWorldPos = worldPos.xyz;
+    gl_Position = worldPos;
 }

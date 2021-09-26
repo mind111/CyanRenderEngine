@@ -59,8 +59,6 @@ namespace Cyan
         u_cameraProjection(0),
         m_pointLightsBuffer(0),
         m_dirLightsBuffer(0),   
-        m_gaussianBlurShader(0),
-        m_gaussianBlurMatl(0),
         m_bSuperSampleAA(true),
         m_offscreenRenderWidth(1280u),
         m_offscreenRenderHeight(720u),
@@ -69,7 +67,8 @@ namespace Cyan
         m_sceneColorTexture(0),
         m_sceneColorRenderTarget(0),
         m_sceneColorTextureSSAA(0),
-        m_sceneColorRTSSAA(0)
+        m_sceneColorRTSSAA(0),
+        m_voxelData{0}
     {
         if (!m_renderer)
         {
@@ -121,6 +120,7 @@ namespace Cyan
         TextureSpec spec = { };
         spec.m_type = Texture::Type::TEX_2D;
         spec.m_format = Texture::ColorFormat::R16G16B16A16; 
+        spec.m_dataType = Texture::DataType::Float;
         spec.m_width = m_SSAAWidth;
         spec.m_height = m_SSAAHeight;
         spec.m_min = Texture::Filter::LINEAR;
@@ -143,18 +143,54 @@ namespace Cyan
         m_outputRenderTarget->attachColorBuffer(m_outputColorTexture);
 
         // voxel
+        m_voxelGridResolution = 512u;
         // create render target
-        m_voxelRenderTarget = Cyan::createRenderTarget(512, 512);
+        m_voxelRenderTarget = Cyan::createRenderTarget(m_voxelGridResolution, m_voxelGridResolution);
         TextureSpec voxelSpec = { };
-        voxelSpec.m_width = 512;
-        voxelSpec.m_height = 512;
+        // TODO: using low resolution voxel grid for now because we are regenerating
+        // mipmap per frame
+        voxelSpec.m_width = m_voxelGridResolution;
+        voxelSpec.m_height = m_voxelGridResolution;
         voxelSpec.m_type = Texture::Type::TEX_2D;
+        voxelSpec.m_dataType = Texture::DataType::Float;
         voxelSpec.m_format = Texture::ColorFormat::R16G16B16;
         voxelSpec.m_min = Texture::Filter::LINEAR; 
         voxelSpec.m_mag = Texture::Filter::LINEAR;
         voxelSpec.m_numMips = 1;
-        m_voxelColorTexture = Cyan::createTexture("Voxelization", voxelSpec);
+        m_voxelColorTexture = createTexture("Voxelization", voxelSpec);
+        {
+            TextureSpec visSpec = { };
+            visSpec.m_width = 320;
+            visSpec.m_height = 180;
+            visSpec.m_type = Texture::Type::TEX_2D;
+            visSpec.m_dataType = Texture::DataType::Float;
+            visSpec.m_format = Texture::ColorFormat::R16G16B16;
+            visSpec.m_min = Texture::Filter::LINEAR; 
+            visSpec.m_mag = Texture::Filter::LINEAR;
+            visSpec.m_numMips = 1;
+            m_voxelVisColorTexture = createTexture("VoxelVis", visSpec);
+            m_voxelVisRenderTarget = createRenderTarget(visSpec.m_width, visSpec.m_height);
+            m_voxelVisRenderTarget->attachColorBuffer(m_voxelVisColorTexture);
+        }
         m_voxelRenderTarget->attachColorBuffer(m_voxelColorTexture);
+        m_voxelVolumeTexture = new Texture;
+
+        TextureSpec voxelDataSpec = { };
+        voxelDataSpec.m_width = m_voxelGridResolution;
+        voxelDataSpec.m_height = m_voxelGridResolution;
+        voxelDataSpec.m_depth = m_voxelGridResolution;
+        voxelDataSpec.m_type = Texture::Type::TEX_3D;
+        voxelDataSpec.m_dataType = Texture::DataType::UNSIGNED_INT;
+        voxelDataSpec.m_format = Texture::ColorFormat::R8G8B8A8;
+        voxelDataSpec.m_min = Texture::Filter::LINEAR; 
+        voxelDataSpec.m_mag = Texture::Filter::LINEAR;
+        voxelDataSpec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
+        voxelDataSpec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+        voxelDataSpec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
+        voxelDataSpec.m_numMips = 1;
+        m_voxelData.m_albedo = createTexture3D("VoxelAlbedo", voxelDataSpec);
+        m_voxelData.m_normal = createTexture3D("VoxelNormal", voxelDataSpec);
+        m_voxelData.m_emission = createTexture3D("VoxelEmission", voxelDataSpec);
     }
 
     void Renderer::initShaders()
@@ -169,8 +205,8 @@ namespace Cyan
         glLinkProgram(m_lumHistogramProgram);
         ShaderUtil::checkShaderLinkage(m_lumHistogramProgram);
 
-        m_bloomPreprocessShader = Cyan::createShader("BloomPreprocessShader", "../../shader/shader_bloom_preprocess.vs", "../../shader/shader_bloom_preprocess.fs");
-        m_gaussianBlurShader = Cyan::createShader("GaussianBlurShader", "../../shader/shader_gaussian_blur.vs", "../../shader/shader_gaussian_blur.fs");
+        // m_bloomPreprocessShader = Cyan::createShader("BloomPreprocessShader", "../../shader/shader_bloom_preprocess.vs", "../../shader/shader_bloom_preprocess.fs");
+        // m_gaussianBlurShader = Cyan::createShader("GaussianBlurShader", "../../shader/shader_gaussian_blur.vs", "../../shader/shader_gaussian_blur.fs");
     }
 
     void Renderer::init(glm::vec2 windowSize)
@@ -192,12 +228,13 @@ namespace Cyan
         m_bloom = true;
 
         // voxel
+        m_voxelVisShader = createShader("VoxelVisShader", "../../shader/shader_render_voxel.vs", "../../shader/shader_render_voxel.fs");
         // create shader
-        // m_voxelizeShader = createVsGsPsShader("VoxelizeShader", 
-        //                                            "../../shader/shader_voxel.vs", 
-        //                                            "../../shader/shader_voxel.gs", 
-        //                                            "../../shader/shader_voxel.fs");
-        m_voxelizeShader = createShader("VoxelizeShader", "../../shader/shader_voxel.vs", "../../shader/shader_voxel.fs");
+        m_voxelizeShader = createVsGsPsShader("VoxelizeShader", 
+                                                   "../../shader/shader_voxel.vs", 
+                                                   "../../shader/shader_voxel.gs", 
+                                                   "../../shader/shader_voxel.fs");
+        m_voxelVisMatl = createMaterial(m_voxelVisShader)->createInstance();
         m_voxelizeMatl = createMaterial(m_voxelizeShader)->createInstance(); 
 
         // set back-face culling
@@ -206,28 +243,6 @@ namespace Cyan
         // render targets
         initShaders();
         initRenderTargets(m_viewport.m_width, m_viewport.m_height);
-
-        // blit mesh & material
-        m_blitShader = createShader("BlitShader", "../../shader/shader_blit.vs", "../../shader/shader_blit.fs");
-        m_blitMaterial = createMaterial(m_blitShader)->createInstance();
-        m_blitMaterial->bindTexture("quadSampler", m_sceneColorTexture);
-        m_bloomPreprocessMatl = createMaterial(m_bloomPreprocessShader)->createInstance();
-        m_gaussianBlurMatl = createMaterial(m_gaussianBlurShader)->createInstance();
-
-        m_blitQuad = (BlitQuadMesh*)CYAN_ALLOC(sizeof(Renderer::BlitQuadMesh));
-        m_blitQuad->m_vb = createVertexBuffer((void*)quadVerts, sizeof(quadVerts), 4 * sizeof(f32), 6u);
-        m_blitQuad->m_va = createVertexArray(m_blitQuad->m_vb);
-        u32 strideInBytes = 4 * sizeof(f32);
-        u32 offset = 0;
-        m_blitQuad->m_vb->m_vertexAttribs.push_back({
-                VertexAttrib::DataType::Float, 2u, strideInBytes, offset, (f32*)m_blitQuad->m_vb->m_data + offset
-        });
-        offset += 2 * sizeof(f32);
-        m_blitQuad->m_vb->m_vertexAttribs.push_back({
-                VertexAttrib::DataType::Float, 2u, strideInBytes, offset, (f32*)m_blitQuad->m_vb->m_data + offset
-        });
-        m_blitQuad->m_va->init();
-        m_blitQuad->m_matl = m_blitMaterial;
     }
 
     glm::vec2 Renderer::getViewportSize()
@@ -290,20 +305,40 @@ namespace Cyan
         }
     }
 
+    /*
+        @Note: Let's just go crazy and tank the frame rate to start things simple. Revoxelize the scene
+        every frame, and regenerate mipmap every frame.
+    */
     Cyan::Texture* Renderer::voxelizeMesh(MeshInstance* mesh, glm::mat4* modelMatrix)
     {
         glEnable(GL_NV_conservative_raster);
-        auto ctx = getCurrentGfxCtx();
+        // clear voxel grid textures
+        glClearTexImage(m_voxelData.m_albedo->m_id, 0, GL_RGBA, GL_UNSIGNED_INT, 0);
+        glClearTexImage(m_voxelData.m_normal->m_id, 0, GL_RGBA, GL_UNSIGNED_INT, 0);
 
+        auto ctx = getCurrentGfxCtx();
+        ctx->setDepthControl(DepthControl::kDisable);
         // set shader
         ctx->setShader(m_voxelizeShader);
         // set render target
         ctx->setRenderTarget(m_voxelRenderTarget, 0u);
+        ctx->setClearColor(glm::vec4(0.1f));
+        ctx->clear();
         Viewport originViewport = ctx->m_viewport;
-        ctx->setViewport({ 0, 0, 512, 512 });
+        ctx->setViewport({ 0, 0, m_voxelGridResolution, m_voxelGridResolution });
         BoundingBox3f aabb = mesh->getAABB();
         glm::vec3 aabbMin = *modelMatrix * aabb.m_pMin;
         glm::vec3 aabbMax = *modelMatrix * aabb.m_pMax;
+
+        MaterialInstance* boundMatl = mesh->getMaterial(0);
+        Texture* albedo = boundMatl->getTexture("diffuseMaps[0]");
+        Texture* normal = boundMatl->getTexture("normalMap");
+        m_voxelizeMatl->bindTexture("albedoMap", albedo);
+        m_voxelizeMatl->bindTexture("normalMap", normal);
+        // bind 3D volume texture to image units
+        glBindImageTexture(0, m_voxelData.m_albedo->m_id, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+        glBindImageTexture(1, m_voxelData.m_normal->m_id, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+
         m_voxelizeMatl->set("model", modelMatrix);
         m_voxelizeMatl->set("aabbMin", &aabbMin.x);
         m_voxelizeMatl->set("aabbMax", &aabbMax.x);
@@ -320,8 +355,195 @@ namespace Cyan
                 ctx->drawIndexAuto(sm->m_numVerts);
             }
         }
+        ctx->setDepthControl(DepthControl::kEnable);
         glDisable(GL_NV_conservative_raster);
+
+        glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+        // generate mipmap for updated voxel textures
+        // glGenerateTextureMipmap(m_voxelData.m_albedo->m_id);
+        // glGenerateTextureMipmap(m_voxelData.m_normal->m_id);
         return m_voxelColorTexture;
+    }
+
+    // @ returns a copy is slow
+    BoundingBox3f computeSceneAABB(Scene* scene)
+    {
+        BoundingBox3f sceneAABB;
+        // compute scene AABB in view space
+        for (auto entity : scene->entities)
+        {
+            std::queue<SceneNode*> nodes;
+            nodes.push(entity->m_sceneRoot);
+            while (!nodes.empty())
+            {
+                SceneNode* node = nodes.front();
+                nodes.pop();
+                for (auto child : node->m_child)
+                {
+                    nodes.push(child);
+                }
+                if (MeshInstance* mesh = node->getAttachedMesh())
+                {
+                    BoundingBox3f aabb = mesh->getAABB();
+                    glm::mat4 view = glm::lookAt(scene->mainCamera.position, scene->mainCamera.lookAt, glm::vec3(0.f, 1.f, 0.f));
+                    glm::mat4 model = node->getWorldTransform().toMatrix();
+                    aabb.m_pMin = model * aabb.m_pMin;
+                    aabb.m_pMax = model * aabb.m_pMax;
+                    sceneAABB.bound(aabb);
+                }
+            }
+        }
+        sceneAABB.init();
+        return sceneAABB;
+    } 
+
+    typedef void(*SceneNodeCallBack)(SceneNode*);
+
+    template<typename Callback>
+    void customSceneVisitor(Scene* scene, Callback callback)
+    {
+        for (auto entity : scene->entities)
+        {
+            std::queue<SceneNode*> nodes;
+            nodes.push(entity->m_sceneRoot);
+            while (!nodes.empty())
+            {
+                SceneNode* node = nodes.front();
+                nodes.pop();
+                callback(node);
+                for (auto child : node->m_child)
+                {
+                    nodes.push(child);
+                }
+            }
+        }
+    };
+
+    /*
+        * voxelize the scene by rasterizing along x,y and z-axis
+    */
+    Cyan::Texture* Renderer::voxelizeScene(Scene* scene)
+    {
+        BoundingBox3f sceneAABB = computeSceneAABB(scene);
+
+        glEnable(GL_NV_conservative_raster);
+        glDisable(GL_CULL_FACE);
+        // clear voxel grid textures
+        glClearTexImage(m_voxelData.m_albedo->m_id, 0, GL_RGBA, GL_UNSIGNED_INT, 0);
+        glClearTexImage(m_voxelData.m_normal->m_id, 0, GL_RGBA, GL_UNSIGNED_INT, 0);
+
+        auto ctx = getCurrentGfxCtx();
+        ctx->setDepthControl(DepthControl::kDisable);
+        // set shader
+        ctx->setShader(m_voxelizeShader);
+        // set render target
+        ctx->setRenderTarget(m_voxelRenderTarget, 0u);
+        ctx->setClearColor(glm::vec4(0.1f));
+        ctx->clear();
+        Viewport originViewport = ctx->m_viewport;
+        ctx->setViewport({ 0, 0, m_voxelGridResolution, m_voxelGridResolution });
+        ctx->setPrimitiveType(PrimitiveType::TriangleList);
+        // bind 3D volume texture to image units
+        glBindImageTexture(0, m_voxelData.m_albedo->m_id, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+        glBindImageTexture(1, m_voxelData.m_normal->m_id, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+
+        u32 axis = 0u;
+        auto nodeCallback = [&](SceneNode* node)
+        {
+            if (MeshInstance* meshInstance = node->getAttachedMesh())
+            {
+                if (node->m_hasAABB)
+                {
+                    i32 smIdx = 0u;
+                    for (auto sm : meshInstance->m_mesh->m_subMeshes)
+                    {
+                        glm::mat4 model = node->getWorldTransform().toMatrix();
+                        MaterialInstance* boundMatl = meshInstance->getMaterial(smIdx++);
+                        Texture* albedo = boundMatl->getTexture("diffuseMaps[0]");
+                        Texture* normal = boundMatl->getTexture("normalMap");
+                        m_voxelizeMatl->bindTexture("albedoMap", albedo);
+                        m_voxelizeMatl->set("flag", 0);
+                        m_voxelizeMatl->set("model", &model[0][0]);
+                        m_voxelizeMatl->set("aabbMin", &sceneAABB.m_pMin.x);
+                        m_voxelizeMatl->set("aabbMax", &sceneAABB.m_pMax.x);
+                        m_voxelizeMatl->bind();
+
+                        // x-axis
+                        ctx->setVertexArray(sm->m_vertexArray);
+                        if (sm->m_vertexArray->m_ibo != static_cast<u32>(-1))
+                        {
+                            ctx->drawIndex(sm->m_vertexArray->m_numIndices);
+                        }
+                        else
+                        {
+                            ctx->drawIndexAuto(sm->m_numVerts);
+                        }
+
+                        m_voxelizeMatl->set("flag", 1);
+                        m_voxelizeMatl->bind();
+                        glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+                        // y-axis
+                        if (sm->m_vertexArray->m_ibo != static_cast<u32>(-1))
+                        {
+                            ctx->drawIndex(sm->m_vertexArray->m_numIndices);
+                        }
+                        else
+                        {
+                            ctx->drawIndexAuto(sm->m_numVerts);
+                        }
+
+                        m_voxelizeMatl->set("flag", 2);
+                        m_voxelizeMatl->bind();
+                        glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+                        // z-axis
+                        if (sm->m_vertexArray->m_ibo != static_cast<u32>(-1))
+                        {
+                            ctx->drawIndex(sm->m_vertexArray->m_numIndices);
+                        }
+                        else
+                        {
+                            ctx->drawIndexAuto(sm->m_numVerts);
+                        }
+                    }
+                }
+            }
+        };     
+
+        customSceneVisitor(scene, nodeCallback);
+
+        ctx->setDepthControl(DepthControl::kEnable);
+        glEnable(GL_CULL_FACE);
+        glDisable(GL_NV_conservative_raster);
+        // generate mipmap for updated voxel textures
+        // glGenerateTextureMipmap(m_voxelData.m_albedo->m_id);
+        // glGenerateTextureMipmap(m_voxelData.m_normal->m_id);
+        return m_voxelColorTexture;
+    }
+
+    Texture* Renderer::renderVoxel(Scene* scene)
+    {
+        BoundingBox3f sceneAABB = computeSceneAABB(scene);
+        auto ctx = getCurrentGfxCtx();
+        ctx->setRenderTarget(m_voxelVisRenderTarget, 0u);
+        ctx->clear();
+        ctx->setViewport({0u, 0u, m_voxelVisRenderTarget->m_width, m_voxelVisRenderTarget->m_height});
+        ctx->setShader(m_voxelVisShader);
+        QuadMesh* quad = getQuadMesh();
+        ctx->setDepthControl(DepthControl::kDisable);
+        ctx->setVertexArray(quad->m_vertexArray);
+        m_voxelVisMatl->bindTexture("albedoMap", m_voxelData.m_albedo);
+        m_voxelVisMatl->bindTexture("normalMap", m_voxelData.m_normal);
+        m_voxelVisMatl->set("cameraPos", &scene->mainCamera.position.x);
+        m_voxelVisMatl->set("cameraLookAt", &scene->mainCamera.lookAt.x);
+        m_voxelVisMatl->set("aabbMin", &sceneAABB.m_pMin.x);
+        m_voxelVisMatl->set("aabbMax", &sceneAABB.m_pMax.x);
+        m_voxelVisMatl->bind();
+        ctx->drawIndexAuto(6u);
+        ctx->setDepthControl(DepthControl::kEnable);
+        return m_voxelVisColorTexture;
     }
 
     // TODO: this should take a custom factory defined by client and use
@@ -340,6 +562,11 @@ namespace Cyan
         ScenePass* pass = new (preallocatedAddr) ScenePass(renderTarget, viewport, scene);
         m_renderState.addClearRenderTarget(renderTarget);
         m_renderState.addRenderPass(pass);
+    }
+
+    void Renderer::addDirectionalShadowPass()
+    {
+
     }
 
     void Renderer::addPostProcessPasses()
@@ -456,11 +683,10 @@ namespace Cyan
             modelMatrix = node->m_worldTransform.toMatrix();
             modelMatrix = modelMatrix;
             drawMeshInstance(node->m_meshInstance, &modelMatrix);
-        }
+        } 
         for (auto* child : node->m_child)
         {
-            SceneNode* childNode = dynamic_cast<SceneNode*>(child);
-            drawSceneNode(childNode);
+            drawSceneNode(child);
         }
     }
 
@@ -499,79 +725,6 @@ namespace Cyan
         {
             renderPass->render();
         }
-    }
-
-    void Renderer::downSample(RenderTarget* src, u32 srcIdx, RenderTarget* dst, u32 dstIdx) {
-        Shader* downSampleShader = Cyan::createShader("DownSampleShader", "../../shader/shader_downsample.vs", "../../shader/shader_downsample.fs");
-        Cyan::MaterialInstance* matl = Cyan::createMaterial(downSampleShader)->createInstance();
-        auto ctx = Cyan::getCurrentGfxCtx();
-        ctx->setDepthControl(Cyan::DepthControl::kDisable);
-        ctx->setRenderTarget(dst, dstIdx);
-        ctx->setShader(downSampleShader);
-        ctx->setViewport({ 0u, 0u, dst->m_width, dst->m_height });
-        matl->bindTexture("srcImage", src->m_colorBuffers[srcIdx]);
-        matl->bind();
-        ctx->setVertexArray(m_blitQuad->m_va);
-        ctx->setPrimitiveType(PrimitiveType::TriangleList);
-        ctx->drawIndexAuto(6u);
-        ctx->setDepthControl(Cyan::DepthControl::kEnable);
-        glFinish();
-    }
-
-    void Renderer::gaussianBlur(BloomPass::BloomSurface surface, GaussianBlurInputs inputs) {
-        auto ctx = Cyan::getCurrentGfxCtx();
-        ctx->setDepthControl(Cyan::DepthControl::kDisable);
-        ctx->setShader(m_gaussianBlurShader);
-        ctx->setRenderTarget(surface.m_renderTarget, 1u);
-        ctx->setViewport({ 0u, 0u, surface.m_renderTarget->m_width, surface.m_renderTarget->m_height });
-
-        // horizontal pass
-        {
-            m_gaussianBlurMatl->bindTexture("srcImage", surface.m_pingPongColorBuffers[0]);
-            m_gaussianBlurMatl->set("horizontal", 1.0f);
-            m_gaussianBlurMatl->set("kernelIndex", inputs.kernelIndex);
-            m_gaussianBlurMatl->set("radius", inputs.radius);
-            m_gaussianBlurMatl->bind();
-            ctx->setVertexArray(m_blitQuad->m_va);
-            ctx->setPrimitiveType(PrimitiveType::TriangleList);
-            ctx->drawIndexAuto(6u);
-            glFinish();
-        }
-
-        // vertical pass
-        {
-            ctx->setRenderTarget(surface.m_renderTarget, 0u);
-            m_gaussianBlurMatl->bindTexture("srcImage", surface.m_pingPongColorBuffers[1]);
-            m_gaussianBlurMatl->set("horizontal", 0.f);
-            m_gaussianBlurMatl->set("kernelIndex", inputs.kernelIndex);
-            m_gaussianBlurMatl->set("radius", inputs.radius);
-            m_gaussianBlurMatl->bind();
-            ctx->setVertexArray(m_blitQuad->m_va);
-            ctx->setPrimitiveType(PrimitiveType::TriangleList);
-            ctx->drawIndexAuto(6u);
-            ctx->setDepthControl(Cyan::DepthControl::kEnable);
-            glFinish();
-        }
-    }
-
-    void Renderer::upSample(RenderTarget* src, u32 srcIdx, RenderTarget* dst, u32 dstIdx, RenderTarget* blend, u32 blendIdx, UpScaleInputs inputs) 
-    {
-        Shader* upSampleShader = Cyan::createShader("UpSampleShader", "../../shader/shader_upsample.vs", "../../shader/shader_upsample.fs");
-        Cyan::MaterialInstance* matl = Cyan::createMaterial(upSampleShader)->createInstance();
-        auto ctx = Cyan::getCurrentGfxCtx();
-        ctx->setDepthControl(Cyan::DepthControl::kDisable);
-        ctx->setRenderTarget(dst, dstIdx);
-        ctx->setShader(upSampleShader);
-        ctx->setViewport({ 0u, 0u, dst->m_width, dst->m_height });
-        matl->bindTexture("srcImage", src->m_colorBuffers[srcIdx]);
-        matl->bindTexture("blendImage", blend->m_colorBuffers[blendIdx]);
-        matl->set("stageIndex", inputs.stageIndex);
-        matl->bind();
-        ctx->setVertexArray(m_blitQuad->m_va);
-        ctx->setPrimitiveType(PrimitiveType::TriangleList);
-        ctx->drawIndexAuto(6u);
-        ctx->setDepthControl(Cyan::DepthControl::kEnable);
-        glFinish();
     }
 
     void Renderer::endRender()

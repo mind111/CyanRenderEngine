@@ -27,6 +27,14 @@ namespace Cyan
         virtual void onFrameStart();
         virtual void onFrameEnd();
     };
+    
+    // TODO: implement this
+    struct RenderView
+    {
+        RenderTarget* m_renderTarget;
+        Viewport m_viewport;
+        glm::vec4 m_clearColor;
+    };
 
     // foward declarations
     struct RenderTarget;
@@ -107,6 +115,7 @@ namespace Cyan
         void endFrame();
 
         void addScenePass(Scene* scene);
+        void addDirectionalShadowPass();
         void addCustomPass(RenderPass* pass);
         void addTexturedQuadPass(RenderTarget* renderTarget, Viewport viewport, Texture* srcTexture);
         void addBloomPass();
@@ -134,24 +143,6 @@ namespace Cyan
         RegularBuffer* m_pointLightsBuffer;
         RegularBuffer* m_dirLightsBuffer;
 
-        // shaders
-        Shader* m_blitShader;
-        Shader* m_bloomPreprocessShader;
-        MaterialInstance* m_bloomPreprocessMatl;
-        Shader* m_gaussianBlurShader;
-        MaterialInstance* m_gaussianBlurMatl;
-        MaterialInstance* m_blitMaterial;
-
-        struct BlitQuadMesh
-        {
-            VertexBuffer* m_vb;
-            VertexArray*  m_va;
-            MaterialInstance* m_matl;
-        };
-
-        // blit quad mesh
-        BlitQuadMesh* m_blitQuad;
-
         // render targets
         bool m_bSuperSampleAA;
         // u32 m_superSamplingRenderWidth, m_superSamplingRenderHeight;
@@ -170,43 +161,31 @@ namespace Cyan
         RenderTarget* m_outputRenderTarget;
         
         // voxel
+        struct VoxelVolumeData
+        {
+            Texture* m_albedo;
+            Texture* m_normal;
+            Texture* m_emission;
+        };
+
+        u32 m_voxelGridResolution;
+        VoxelVolumeData m_voxelData;
         Shader* m_voxelizeShader;
+        Shader* m_voxelVisShader;
+        MaterialInstance* m_voxelVisMatl;
         MaterialInstance* m_voxelizeMatl;
         RenderTarget* m_voxelRenderTarget;
+        RenderTarget* m_voxelVisRenderTarget;
+        Texture* m_voxelVisColorTexture;
         Texture* m_voxelColorTexture;
+        Texture* m_voxelVolumeTexture;
+        Cyan::Texture* voxelizeScene(Scene* scene);
         Cyan::Texture* voxelizeMesh(MeshInstance* mesh, glm::mat4* modelMatrix);
-
-        struct BloomSurface
-        {
-            RenderTarget* m_renderTarget;
-            Texture* m_pingPongColorBuffers[2];
-        };
+        Cyan::Texture* renderVoxel(Scene* scene);
 
         static const u32 kNumBloomDsPass = 6u;
         Texture* m_bloomOutput;
         RenderTarget* m_bloomOutputRT;            // final results after upscale chain
-
-        // post-process
-        // void beginBloom();
-        // void bloomDownSample();
-        // void bloomUpScale();
-        void downSample(RenderTarget* src, u32 srcIdx, RenderTarget* dst, u32 dstIdx);
-
-        struct UpScaleInputs
-        {
-            i32 stageIndex;
-        };
-        void upSample(RenderTarget* src, u32 srcIdx, RenderTarget* dst, u32 dstIdx, RenderTarget* blend, u32 blendIdx, UpScaleInputs inputs);
-
-        struct GaussianBlurInputs
-        {
-            i32 kernelIndex;
-            i32 radius;
-        };
-
-        void gaussianBlur(BloomPass::BloomSurface surface, GaussianBlurInputs inputs);
-        // void bloom();
-        // void blitPass();
 
         // post processing params
         bool m_bloom;

@@ -161,6 +161,9 @@ void Shader::setUniform(Uniform* _uniform)
         case Uniform::Type::u_int:
             setUniform1i(name, *(int*)_uniform->m_valuePtr);
             break;
+        case Uniform::Type::u_uint:
+            setUniform1ui(name, *(u32*)_uniform->m_valuePtr);
+            break;
         case Uniform::Type::u_vec3:
             setUniformVec3(name, (float*)_uniform->m_valuePtr);
             break;
@@ -194,6 +197,10 @@ void Shader::setUniform(Uniform* _uniform, f32 _value)
 
 void Shader::setUniform1i(const char* name, GLint data) {
     SHADER_GUARD_SET_UNIFORM(name, glProgramUniform1i, m_programId, data);
+}
+
+void Shader::setUniform1ui(const char* name, GLuint data) {
+    SHADER_GUARD_SET_UNIFORM(name, glProgramUniform1ui, m_programId, data);
 }
 
 void Shader::setUniform1f(const char* name, GLfloat data) {

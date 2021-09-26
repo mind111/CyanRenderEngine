@@ -88,6 +88,20 @@ namespace Cyan
         }
         return m_template->m_dataOffsetMap[handle] + sizeof(UniformHandle);
     }
+        
+    Texture* MaterialInstance::getTexture(const char* sampler)
+    {
+        for (u32 s = 0; s < m_template->m_numSamplers; ++s)
+        {
+            Uniform* u_sampler = m_template->m_samplers[s]; 
+            if (strcmp(sampler, u_sampler->m_name) == 0)
+            {
+                // update the binding
+                return m_bindings[s].m_tex;
+            }
+        }
+        return nullptr;
+    }
 
     void MaterialInstance::set(const char* attribute, float data)
     {

@@ -98,13 +98,14 @@ namespace Cyan
         return &s_sceneNodes[m_numSceneNodes++]; 
     }
 
-    SceneNode* createSceneNode(const char* name, Transform transform, Mesh* mesh)
+    SceneNode* createSceneNode(const char* name, Transform transform, Mesh* mesh, bool hasAABB)
     {
         SceneNode* node = allocSceneNode();
         CYAN_ASSERT(name, "Name must be passed to createSceneNode().")
         strcpy(node->m_name, name);
         node->m_localTransform = transform;
         node->m_worldTransform = transform;
+        node->m_hasAABB = hasAABB;
         if (mesh)
         {
             node->m_meshInstance = mesh->createInstance();
@@ -139,15 +140,18 @@ namespace Cyan
         return buffer;
     }
 
-    VertexBuffer* createVertexBuffer(void* _data, u32 _sizeInBytes, u32 _strideInBytes, u32 _numVerts)
+    VertexBuffer* createVertexBuffer(void* data, u32 sizeInBytes, u32 strideInBytes, u32 numVerts)
     {
         VertexBuffer* vb = new VertexBuffer;
         u32 offset = 0;
-        vb->m_data = _data;
-        vb->m_strideInBytes = _strideInBytes;
-        vb->m_numVerts = _numVerts;
+        vb->m_data = new char[sizeInBytes];
+        vb->m_sizeInBytes = sizeInBytes;
+        vb->m_strideInBytes = strideInBytes;
+        vb->m_numVerts = numVerts;
+        // let vertex buffer owns a copy of the raw vertex data
+        memcpy(vb->m_data, data, vb->m_sizeInBytes);
         glCreateBuffers(1, &vb->m_vbo);
-        glNamedBufferData(vb->m_vbo, _sizeInBytes, vb->m_data, GL_STATIC_DRAW);
+        glNamedBufferData(vb->m_vbo, sizeInBytes, vb->m_data, GL_STATIC_DRAW);
         return vb;
     }
 
@@ -274,7 +278,7 @@ namespace Cyan
         }
         // Store the xform for normalizing object space mesh coordinates
         mesh->m_shouldNormalize = normalize;
-        mesh->m_normalization = Toolkit::computeMeshNormalization(mesh);
+        mesh->onFinishLoading();
         addMesh(mesh);
         for (u32 sm = 0u; sm < scene->mNumMeshes; ++sm) {
             delete[] vertexDataPtrs[sm];
@@ -299,6 +303,7 @@ namespace Cyan
 
     Scene* createScene(const char* name, const char* file)
     {
+        Toolkit::ScopedTimer loadSceneTimer("createScene()", true);
         Scene* scene = new Scene;
         scene->m_name = std::string(name);
 
@@ -308,6 +313,7 @@ namespace Cyan
         // create root entity
         scene->m_rootEntity = SceneManager::createEntity(scene, "SceneRoot", Transform());
         s_assetManager.loadScene(scene, file);
+        loadSceneTimer.end();
         return scene;
     }
 
@@ -371,6 +377,7 @@ namespace Cyan
         return shader;
     }
 
+
     RenderTarget* createRenderTarget(u32 _width, u32 _height)
     {
         RenderTarget* rt = new RenderTarget();
@@ -387,6 +394,33 @@ namespace Cyan
                 glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rt->m_renderBuffer);
             }
             glBindRenderbuffer(GL_RENDERBUFFER, 0);
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        rt->validate();
+        return rt;
+    }
+
+    // depth only render target; mainly for directional shadow map
+    RenderTarget* createDepthRenderTarget(u32 width, u32 height)
+    {
+        RenderTarget* rt = new RenderTarget();
+        TextureSpec spec = { };
+        spec.m_width = width;
+        spec.m_height = height;
+        spec.m_format = Texture::ColorFormat::D24S8; // 32 bits
+        spec.m_dataType = Texture::DataType::UNSIGNED_INT_24_8;
+        spec.m_min = Texture::Filter::LINEAR;
+        spec.m_mag = Texture::Filter::LINEAR;
+        spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+        Texture* depthBuffer = createTexture("DepthTexture", spec);
+        rt->m_width = width;
+        rt->m_height = height;
+        rt->m_numColorBuffers = 0;
+        glCreateFramebuffers(1, &rt->m_frameBuffer);
+        glBindFramebuffer(GL_FRAMEBUFFER, rt->m_frameBuffer);
+        {
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH24_STENCIL8, GL_TEXTURE_2D, depthBuffer->m_id, 0);
         }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         rt->validate();
@@ -421,6 +455,7 @@ namespace Cyan
     {
         GLenum m_typeGL;
         GLenum m_dataFormatGL;
+        GLenum m_dataType;
         GLenum m_internalFormatGL;
         GLenum m_minGL;
         GLenum m_magGL;
@@ -445,6 +480,8 @@ namespace Cyan
                     return GL_TEXTURE_2D;
                 case Texture::Type::TEX_CUBEMAP:
                     return GL_TEXTURE_CUBE_MAP;
+                case Texture::Type::TEX_3D:
+                    return GL_TEXTURE_3D;
                 default:
                     CYAN_ASSERT(0, "Undefined texture type.")
                     return GL_INVALID_ENUM;
@@ -462,11 +499,30 @@ namespace Cyan
                     return DataFormatGL{ GL_RGB16F, GL_RGB };
                 case Texture::ColorFormat::R16G16B16A16:
                     return DataFormatGL{ GL_RGBA16F, GL_RGBA };
+                case Texture::ColorFormat::D24S8:
+                    return DataFormatGL{ GL_DEPTH24_STENCIL8, GL_DEPTH_STENCIL }; 
                 default:
                     CYAN_ASSERT(0, "Undefined texture color format.")
                     return DataFormatGL{ GL_INVALID_ENUM, GL_INVALID_ENUM };
             }
         };
+
+       auto convertDataType = [](Texture::DataType dataType) {
+           switch (dataType)
+           {
+               case Texture::DataType::UNSIGNED_BYTE:
+                    return GL_UNSIGNED_BYTE;
+               case Texture::DataType::UNSIGNED_INT:
+                    return GL_UNSIGNED_INT;
+               case Texture::DataType::UNSIGNED_INT_24_8:
+                    return GL_UNSIGNED_INT_24_8;
+               case Texture::DataType::Float:
+                    return GL_FLOAT;
+                default:
+                    CYAN_ASSERT(0, "Undefined texture data type parameter.")
+                    return GL_INVALID_ENUM;
+           }
+       };
          
        auto convertTexFilter = [](Texture::Filter filter) {
             switch(filter)
@@ -475,6 +531,8 @@ namespace Cyan
                     return GL_LINEAR;
                 case Texture::Filter::MIPMAP_LINEAR:
                     return GL_LINEAR_MIPMAP_LINEAR;
+                case Texture::Filter::NEAREST:
+                    return GL_NEAREST;
                 default:
                     CYAN_ASSERT(0, "Undefined texture filter parameter.")
                     return GL_INVALID_ENUM;
@@ -499,6 +557,7 @@ namespace Cyan
         specGL.m_typeGL = convertTexType(spec.m_type);
         // format
         DataFormatGL format = convertDataFormat(spec.m_format);
+        specGL.m_dataType = convertDataType(spec.m_dataType);
         specGL.m_dataFormatGL = format.m_dataFormatGL;
         specGL.m_internalFormatGL = format.m_internalFormatGL;
         // filters
@@ -561,6 +620,7 @@ namespace Cyan
         texture->m_height = spec.m_height;
         texture->m_type = spec.m_type;
         texture->m_format = spec.m_format;
+        texture->m_dataType = spec.m_dataType;
         texture->m_minFilter = spec.m_min;
         texture->m_magFilter = spec.m_mag;
         texture->m_wrapS = spec.m_s; 
@@ -572,25 +632,54 @@ namespace Cyan
 
         glCreateTextures(specGL.m_typeGL, 1, &texture->m_id);
         glBindTexture(specGL.m_typeGL, texture->m_id);
-        glTexImage2D(specGL.m_typeGL, 0, specGL.m_dataFormatGL, texture->m_width, texture->m_height, 0, specGL.m_internalFormatGL, GL_UNSIGNED_BYTE, texture->m_data);
+        glTexImage2D(specGL.m_typeGL, 0, specGL.m_dataFormatGL, texture->m_width, texture->m_height, 0, specGL.m_internalFormatGL, specGL.m_dataType, texture->m_data);
         glBindTexture(GL_TEXTURE_2D, 0);
         setTextureParameters(texture, specGL);
         if (spec.m_numMips > 1u)
         {
             glGenerateTextureMipmap(texture->m_id);
         }
-
         return texture;
     }
 
-    Texture* createTextureHDR(const char* _name, TextureSpec spec)
+    // TODO: @refactor
+    Texture* createTexture3D(const char* name, TextureSpec spec)
     {
         Texture* texture = new Texture();
 
-        texture->m_name = _name;
+        texture->m_name = name;
+        texture->m_width = spec.m_width;
+        texture->m_height = spec.m_height;
+        texture->m_depth = spec.m_depth;
+        texture->m_type = spec.m_type;
+        texture->m_format = spec.m_format;
+        texture->m_minFilter = spec.m_min;
+        texture->m_magFilter = spec.m_mag;
+        texture->m_wrapS = spec.m_s; 
+        texture->m_wrapT = spec.m_t;
+        texture->m_wrapR = spec.m_r;
+        texture->m_data = spec.m_data;
+
+        TextureSpecGL specGL = translate(spec);
+        setTextureParameters(texture, specGL);
+
+        glCreateTextures(GL_TEXTURE_3D, 1, &texture->m_id);
+        glBindTexture(GL_TEXTURE_3D, texture->m_id);
+        glTexImage3D(GL_TEXTURE_3D, 0, specGL.m_dataFormatGL, spec.m_width, spec.m_height, spec.m_depth, 0, specGL.m_internalFormatGL, GL_UNSIGNED_INT, 0);
+        glBindTexture(GL_TEXTURE_3D, 0u);
+        setTextureParameters(texture, specGL);
+        return texture;
+    }
+
+    Texture* createTextureHDR(const char* name, TextureSpec spec)
+    {
+        Texture* texture = new Texture();
+
+        texture->m_name = name;
         texture->m_width = spec.m_width;
         texture->m_height = spec.m_height;
         texture->m_type = spec.m_type;
+        texture->m_dataType = spec.m_dataType;
         texture->m_format = spec.m_format;
         texture->m_minFilter = spec.m_min;
         texture->m_magFilter = spec.m_mag;
@@ -642,6 +731,7 @@ namespace Cyan
         texture->m_width = w;
         texture->m_height = h;
         texture->m_type = spec.m_type;
+        texture->m_dataType = spec.m_dataType;
         texture->m_format = spec.m_format;
         texture->m_minFilter = spec.m_min;
         texture->m_magFilter = spec.m_mag;
@@ -679,6 +769,7 @@ namespace Cyan
         texture->m_width = w;
         texture->m_height = h;
         texture->m_type = spec.m_type;
+        texture->m_dataType = spec.m_dataType;
         texture->m_format = spec.m_format;
         texture->m_minFilter = spec.m_min;
         texture->m_magFilter = spec.m_mag;
@@ -797,10 +888,18 @@ namespace Cyan
         {
             case GL_SAMPLER_2D:
                 return Uniform::Type::u_sampler2D;
+            case GL_SAMPLER_3D:
+                return Uniform::Type::u_sampler3D;
             case GL_SAMPLER_CUBE:
                 return Uniform::Type::u_samplerCube;
+            case GL_IMAGE_3D:
+                return Uniform::Type::u_image3D;
+            case GL_UNSIGNED_INT_IMAGE_3D:
+                return Uniform::Type::u_uimage3D;
             case GL_UNSIGNED_INT:
                 return Uniform::Type::u_uint;
+            case GL_UNSIGNED_INT_ATOMIC_COUNTER:
+                return Uniform::Type::u_atomic_uint;
             case GL_INT:
                 return Uniform::Type::u_int;
             case GL_FLOAT:
@@ -887,6 +986,9 @@ namespace Cyan
                 {
                     case Uniform::Type::u_sampler2D:
                     case Uniform::Type::u_samplerCube:
+                    case Uniform::Type::u_image3D:   
+                    case Uniform::Type::u_uimage3D:
+                    case Uniform::Type::u_sampler3D:
                         material->bindSampler(createUniform(name, cyanType));
                         break;
                     default:
@@ -968,20 +1070,6 @@ namespace Cyan
         _buffer->m_sizeToUpload = sizeToUpload;
     }
 
-    void voxelizeScene(Scene* scene)
-    {
-        // conservative raster using nvidia's extension
-        // reference https://developer.nvidia.com/sites/default/files/akamai/opengl/specs/GL_NV_conservative_raster.txt 
-        /* 
-            "Point, line, and polygon rasterization may optionally be made conservative
-            by calling Enable and Disable with a <pname> of CONSERVATIVE_-
-            RASTERIZATION_NV"
-        */
-
-        // geometry pass to project each triangle onto either x,y,z axis
-        glEnable(GL_NV_conservative_raster);
-    }
-
     namespace Toolkit
     {
         Mesh* createCubeMesh(const char* _name)
@@ -995,6 +1083,8 @@ namespace Cyan
             subMesh->m_vertexArray->init();
 
             cubeMesh->m_subMeshes.push_back(subMesh);
+            cubeMesh->m_normalization = glm::mat4(1.f);
+            computeAABB(cubeMesh);
             s_meshes.push_back(cubeMesh);
             return cubeMesh;
         }
@@ -1023,10 +1113,6 @@ namespace Cyan
             float meshZMin =  FLT_MAX; 
             float meshZMax = -FLT_MAX;
 
-            if (strcmp(mesh->m_name.c_str(), "wall_1") == 0)
-            {
-                printf("breakpoint\n");
-            }
             for (auto sm : mesh->m_subMeshes)
             {
                 u32 vertexSize = 0; 
@@ -1102,6 +1188,7 @@ namespace Cyan
             spec.m_data = nullptr;
             if (_hdr)
             {
+                spec.m_dataType = Texture::DataType::Float;
                 equirectMap = createTextureHDR(_name, _file, spec);
                 spec.m_type = Texture::Type::TEX_CUBEMAP;
                 spec.m_width = kViewportWidth;
@@ -1113,6 +1200,7 @@ namespace Cyan
             }
             else
             {
+                spec.m_dataType = Texture::DataType::UNSIGNED_BYTE;
                 equirectMap = createTexture(_name, _file, spec);
                 spec.m_type = Texture::Type::TEX_CUBEMAP;
                 spec.m_width = kViewportWidth;
@@ -1211,10 +1299,12 @@ namespace Cyan
             spec.m_data = nullptr;
             if (spec.m_format == Texture::ColorFormat::R16G16B16 || spec.m_format == Texture::ColorFormat::R16G16B16A16)
             {
+                spec.m_dataType = Texture::DataType::Float;
                 diffuseIrradianceMap = createTextureHDR(envMap->m_name.c_str(), spec);
             }
             else
             {
+                spec.m_dataType = Texture::DataType::UNSIGNED_BYTE;
                 diffuseIrradianceMap = createTexture(envMap->m_name.c_str(), spec);
             }
             // Create render targets
@@ -1302,10 +1392,12 @@ namespace Cyan
             spec.m_data = nullptr;
             if (spec.m_format == Texture::ColorFormat::R16G16B16 || spec.m_format == Texture::ColorFormat::R16G16B16A16)
             {
+                spec.m_dataType = Texture::DataType::Float;
                 prefilteredEnvMap = createTextureHDR(envMap->m_name.c_str(), spec);
             }
             else
             {
+                spec.m_dataType = Texture::DataType::UNSIGNED_BYTE;
                 prefilteredEnvMap = createTexture(envMap->m_name.c_str(), spec);
             }
             // glGenerateTextureMipmap(prefilteredEnvMap->m_id);
@@ -1395,6 +1487,7 @@ namespace Cyan
             TextureSpec spec = { };
             spec.m_type = Texture::Type::TEX_2D;
             spec.m_format = Texture::ColorFormat::R16G16B16A16;
+            spec.m_dataType = Texture::DataType::Float;
             spec.m_numMips = 1u;
             spec.m_width = kTexWidth;
             spec.m_height = kTexHeight;
@@ -1462,6 +1555,7 @@ namespace Cyan
             TextureSpec spec = { };
             spec.m_type = Texture::Type::TEX_2D;
             spec.m_format = Texture::ColorFormat::R8G8B8A8;
+            spec.m_dataType = Texture::DataType::UNSIGNED_BYTE;
             spec.m_width = width;
             spec.m_numMips = 1u;
             spec.m_height = height;
@@ -1519,38 +1613,6 @@ namespace Cyan
 
     namespace AssetGen
     {
-#if 0
-        struct Vertex
-        {
-            glm::vec3 m_position;
-            glm::vec3 m_uv;
-            glm::vec3 m_normal;
-            glm::vec3 m_tangent;
-        };
-
-        // 1 x 1 x 1 cube mesh with uv
-        glm::vec3 uvCubeVertices[] = {
-            //  z 
-            { glm::vec3(-1.f, -1.f, 1.f), glm::vec2(0.f, 0.f), glm::vec3(0.f, 0.f, 1.f), }
-            { glm::vec3( 1.f, -1.f, 1.f), glm::vec2(0.f, 1.f), glm::vec3(0.f, 0.f, -1.f), },
-            glm::vec3( 1.f,  1.f, 1.f),
-            glm::vec3( 1.f,  1.f, 1.f),
-            glm::vec3(-1.f,  1.f, 1.f),
-            glm::vec3(-1.f, -1.f, 1.f),
-            // -z
-            glm::vec3(-1.f, -1.f, -1.f),
-            glm::vec3( 1.f, -1.f, -1.f),
-            glm::vec3( 1.f,  1.f, -1.f),
-            glm::vec3( 1.f,  1.f, -1.f),
-            glm::vec3(-1.f,  1.f, -1.f),
-            glm::vec3(-1.f, -1.f, -1.f),
-            //  x
-            // -x
-            //  y
-            // -y
-        };
-#endif
-
         Mesh* createTerrain(float extendX, float extendY)
         {
             // TODO: determine texture tiling automatically 

@@ -157,14 +157,19 @@ float GGX(float roughness, float ndoth)
 {
     float alpha = roughness;
     if (disneyReparam > .5f)
-        alpha *= roughness;
+        alpha *= alpha;
     float alpha2 = alpha * alpha;
     float result = alpha2;
     float denom = ndoth * ndoth * (alpha2 - 1.f) + 1.f;
-    result /= max((pi * denom * denom), 0.0001); 
+    // prevent divide by infinity at the same time will produce 
+    // incorrect specular highlight when roughness is really low.
+    // when roughness is really low, specular highlights are supposed to be
+    // really tiny and noisy.
+    result /= max((pi * denom * denom), 0.0001f); 
     return result;
 }
 
+// TODO: implement fresnel that takes roughness into consideration
 vec3 fresnel(vec3 f0, vec3 n, vec3 v)
 {
     float ndotv = saturate(dot(n, v));
@@ -175,6 +180,7 @@ vec3 fresnel(vec3 f0, vec3 n, vec3 v)
     return mix(f0, vec3(1.f), fresnelCoef);
 }
 
+// when roughness is 0, this term is 0
 /*
     lambda function in Smith geometry term
 */
@@ -248,7 +254,7 @@ vec3 specularBrdf(vec3 wi, vec3 wo, vec3 n, float roughness, vec3 f0)
     // TODO: the max() operator here actually affects how strong the specular highlight is
     // around grazing angle. Using a small value like 0.0001 will have pretty bad shading alias. However,
     // is using 0.1 here corret though. Need to reference other implementation. 
-    vec3 brdf = D * F * G / max((4.f * ndotv * ndotl), 0.1);
+    vec3 brdf = D * F * G / max((4.f * ndotv * ndotl), 0.01f);
     return brdf;
 }
 
@@ -278,7 +284,6 @@ vec3 render(RenderParams params)
     vec3 kDiffuse = mix(vec3(1.f) - F, vec3(0.0f), params.metallic);
     vec3 diffuse = kDiffuse * diffuseBrdf(params.baseColor) * ndotl;
     vec3 specular = specularBrdf(params.l, params.v, params.n, params.roughness, params.f0) * ndotl;
-    // specular *= 0.0;
     return (directDiffuseSlider * diffuse + directSpecularSlider * specular) * params.li;
 }
 
@@ -291,10 +296,14 @@ vec3 directLighting(RenderParams renderParams)
     for (int i = 0; i < numPointLights; i++)
     {
         vec4 lightPos = s_view * pointLightsBuffer.lights[i].position;
+        float distance = length(lightPos.xyz - fragmentPos);
+        // float attenuation = distance > 5.f ? 0.f : 1.f / (1.0f + 0.7 * distance + 1.8 * distance * distance);
+        float attenuation = 1.f / (1.0f + 0.7 * distance + 1.8 * distance * distance);
+
         // light dir
         renderParams.l = normalize(lightPos.xyz - fragmentPos);
         // light color
-        renderParams.li = pointLightsBuffer.lights[i].color.rgb * pointLightsBuffer.lights[i].color.w * 0.01;
+        renderParams.li = pointLightsBuffer.lights[i].color.rgb * pointLightsBuffer.lights[i].color.w * attenuation;
         color += render(renderParams);
     }
     for (int i = 0; i < numDirLights; i++)
@@ -389,6 +398,13 @@ float hash(float seed)
     return fract(sin(seed)*43758.5453);
 }
 
+float drawDebugD(vec3 v, vec3 l, vec3 n, float roughness)
+{
+    vec3 h = normalize(v+l);
+    float ndoth = saturate(dot(n, h));
+    return GGX(roughness, ndoth);
+}
+
 void main() 
 {
     /* Normal mapping */
@@ -466,10 +482,14 @@ void main()
     // D
     if (debugD > 0.5f)
     {
-        vec4 lightDir = s_view * dirLightsBuffer.lights[0].direction;
-        vec3 ld = normalize(lightDir.xyz);
-        vec3 debugHalfVector = normalize(viewDir + ld); 
-        color = vec3(GGX(roughness, max(0.0f, dot(normal, debugHalfVector))));
+        vec4 lightPos = s_view * pointLightsBuffer.lights[0].position; 
+        vec3 lightDir = normalize(lightPos.xyz - fragmentPos);
+        // vec4 lightDir = s_view * dirLightsBuffer.lights[0].direction;
+        // vec3 ld = normalize(lightDir.xyz);
+        // vec3 debugHalfVector = normalize(viewDir + ld); 
+        float D = drawDebugD(viewDir, lightDir, normal, roughness);
+        color = vec3(D);
+        // color = vec3(GGX(roughness, max(0.0f, dot(normal, debugHalfVector))));
     }
     // F
     if (debugF > 0.5f)

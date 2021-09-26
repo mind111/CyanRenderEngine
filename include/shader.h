@@ -76,6 +76,7 @@ public:
     void setUniform(Uniform* _uniform, i32 _value);
     void setUniform(Uniform* _uniform, f32 _value);
     void setUniform1i(const char* name, GLint data);
+    void setUniform1ui(const char* name, GLuint data);
     void setUniform1f(const char* name, GLfloat data);
     void setUniformVec3(const char* name, GLfloat* vecData);
     void setUniformVec4(const char* name, GLfloat* vecData);

@@ -27,6 +27,7 @@ struct VertexAttrib
 struct VertexBuffer
 {
     void* m_data;
+    u32 m_sizeInBytes;
     u32 m_strideInBytes;
     u32 m_numVerts;
     GLuint m_vbo;

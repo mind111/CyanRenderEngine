@@ -13,6 +13,12 @@
 
     "meshes": [
         {
+            "name": "statue_mesh",
+            "path": "../../asset/bunny/bunny.obj",
+            "normalize": true
+        },
+
+        {
             "name": "helmet_mesh",
             "path": "asset/helmet/mesh/helmet.obj",
             "normalize": false
@@ -215,6 +221,18 @@
                 "scale": [6.0, 6.0, 6.0]
             },
             "child": []
+        },
+
+        {
+            "index": 8,
+            "name": "StatueMesh",
+            "mesh": "statue_mesh",
+            "xform": {
+                "translation": [0.0, 0.0, 0.0],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [1.0, 1.0, 1.0]
+            },
+            "child": []
         }
     ],
 
@@ -296,6 +314,15 @@
                 "scale": [1.00, 1.00, 1.00]
             },
             "nodes": [ 7 ]
+        },
+        {
+            "name": "Erato",
+            "xform": {
+                "translation": [0.0, 0.0, 0.0],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [1.00, 1.00, 1.00]
+            },
+            "nodes": [ 8 ]
         }
     ]
 }

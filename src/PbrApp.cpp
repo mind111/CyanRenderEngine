@@ -170,38 +170,58 @@ Cyan::MaterialInstance* createDefaultPbrMatlInstance(Scene* scene, PbrMaterialIn
 
 void PbrApp::initHelmetScene()
 {
+    Cyan::Toolkit::ScopedTimer timer("initHelmetScene()", true);
     // setup scenes
+    Cyan::Toolkit::ScopedTimer loadSceneTimer("createScene()", true);
     Scene* helmetScene = Cyan::createScene("helmet_scene", "../../scene/default_scene/scene_config.json");
     glm::vec2 viewportSize = gEngine->getRenderer()->getViewportSize();
     float aspectRatio = viewportSize.x / viewportSize.y;
     helmetScene->mainCamera.projection = glm::perspective(glm::radians(helmetScene->mainCamera.fov), aspectRatio, helmetScene->mainCamera.n, helmetScene->mainCamera.f);
 
     Entity* envMapEntity = SceneManager::createEntity(helmetScene, "Envmap", Transform());
-    envMapEntity->m_sceneRoot->attach(Cyan::createSceneNode("CubeMesh", Transform(), Cyan::getMesh("CubeMesh")));
+    envMapEntity->m_sceneRoot->attach(Cyan::createSceneNode("CubeMesh", Transform(), Cyan::getMesh("CubeMesh"), false));
     envMapEntity->setMaterial("CubeMesh", 0, m_skyMatl);
 
     // additional spheres for testing lighting
-    PbrMaterialInputs inputs = { 0 };
-    Entity* sphereEntity = SceneManager::getEntity(helmetScene, "Sphere0");
-    Cyan::Texture* sphereAlbedo = Cyan::Toolkit::createFlatColorTexture("sphere_albedo", 1024u, 1024u, glm::vec4(0.8f, 0.8f, 0.6f, 1.f));
-    inputs.m_baseColor = sphereAlbedo;
-    inputs.m_uRoughness = 0.8f;
-    inputs.m_uMetallic = 0.1f;
-    m_sphereMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
-    sphereEntity->setMaterial("SphereMesh", 0, m_sphereMatl);
+    {
+        PbrMaterialInputs inputs = { 0 };
+        Entity* sphereEntity = SceneManager::getEntity(helmetScene, "Sphere0");
+        Cyan::Texture* sphereAlbedo = Cyan::Toolkit::createFlatColorTexture("sphere_albedo", 1024u, 1024u, glm::vec4(0.8f, 0.8f, 0.6f, 1.f));
+        inputs.m_baseColor = sphereAlbedo;
+        inputs.m_uRoughness = 0.8f;
+        inputs.m_uMetallic = 0.1f;
+        m_sphereMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
+        sphereEntity->setMaterial("SphereMesh", 0, m_sphereMatl);
+    }
+    timer.end();
+
+    // erato
+    {
+        PbrMaterialInputs inputs = { };
+        Entity* erato = SceneManager::getEntity(helmetScene, "Erato");
+        Cyan::Texture* albedo = Cyan::Toolkit::createFlatColorTexture("erato_albedo", 128u, 128u, glm::vec4(0.7f, 0.7f, 0.7f, 1.0f));
+        inputs.m_baseColor = albedo;
+        inputs.m_uRoughness = 0.01f;
+        inputs.m_uMetallic = 1.0f;
+        m_eratoMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
+        erato->setMaterial("StatueMesh", 0, m_eratoMatl);
+    }
 
     // open room
-    Entity* floor = SceneManager::getEntity(helmetScene, "Floor");
-    Cyan::Texture* floorAlbedo = Cyan::Toolkit::createFlatColorTexture("FloorAlbedo", 1024u, 1024u, glm::vec4(1.00f, 0.90, 0.80, 1.f));
-    inputs.m_baseColor = floorAlbedo;
-    inputs.m_uRoughness = 0.8f;
-    inputs.m_uMetallic = 0.1f;
-    m_floorMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
-    floor->setMaterial("CubeMesh", 0, m_floorMatl);
-    Entity* frontWall = SceneManager::getEntity(helmetScene, "Wall_0");
-    frontWall->setMaterial("CubeMesh", 0, m_floorMatl);
-    Entity* sideWall = SceneManager::getEntity(helmetScene, "Wall_1");
-    sideWall->setMaterial("CubeMesh", 0, m_floorMatl);
+    {
+        PbrMaterialInputs inputs = { };
+        Entity* floor = SceneManager::getEntity(helmetScene, "Floor");
+        Cyan::Texture* floorAlbedo = Cyan::Toolkit::createFlatColorTexture("FloorAlbedo", 1024u, 1024u, glm::vec4(1.00f, 0.90, 0.80, 1.f));
+        inputs.m_baseColor = floorAlbedo;
+        inputs.m_uRoughness = 0.8f;
+        inputs.m_uMetallic = 0.1f;
+        m_floorMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
+        floor->setMaterial("CubeMesh", 0, m_floorMatl);
+        Entity* frontWall = SceneManager::getEntity(helmetScene, "Wall_0");
+        frontWall->setMaterial("CubeMesh", 0, m_floorMatl);
+        Entity* sideWall = SceneManager::getEntity(helmetScene, "Wall_1");
+        sideWall->setMaterial("CubeMesh", 0, m_floorMatl);
+    }
 
     m_helmetMatl = Cyan::createMaterial(m_pbrShader)->createInstance();
     // TODO: create a .cyanmatl file for defining materials?
@@ -223,27 +243,33 @@ void PbrApp::initHelmetScene()
 
     // cube
     // TODO: default material parameters
-    Entity* cube = SceneManager::getEntity(helmetScene, "Cube");
-    Cyan::Texture* cubeAlbedo = Cyan::Toolkit::createFlatColorTexture("CubeAlbedo", 128, 128, glm::vec4(0.6, 0.6, 0.6, 1.0));
-    inputs.m_baseColor = cubeAlbedo;
-    inputs.m_uRoughness = 0.8f;
-    inputs.m_uMetallic = 0.0f;
-    m_cubeMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
-    cube->setMaterial("UvCubeMesh", 0, m_cubeMatl);
-
-    Cyan::Texture* coneAlbedo = Cyan::Toolkit::createFlatColorTexture("ConeAlbedo", 64, 64, glm::vec4(1.0, 0.8, 0.8, 1.0));
-    inputs.m_baseColor = coneAlbedo;
-    inputs.m_uRoughness = 0.2f;
-    inputs.m_uMetallic = 0.1f;
-    Entity* cone = SceneManager::getEntity(helmetScene, "Cone");
-    m_coneMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
-    cone->setMaterial("ConeMesh", 0, m_coneMatl);
+    {
+        PbrMaterialInputs inputs = { };
+        Entity* cube = SceneManager::getEntity(helmetScene, "Cube");
+        Cyan::Texture* cubeAlbedo = Cyan::Toolkit::createFlatColorTexture("CubeAlbedo", 128, 128, glm::vec4(0.6, 0.6, 0.6, 1.0));
+        inputs.m_baseColor = cubeAlbedo;
+        inputs.m_uRoughness = 0.8f;
+        inputs.m_uMetallic = 0.0f;
+        m_cubeMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
+        cube->setMaterial("UvCubeMesh", 0, m_cubeMatl);
+    }
+    // cone
+    {
+        PbrMaterialInputs inputs = { };
+        Cyan::Texture* coneAlbedo = Cyan::Toolkit::createFlatColorTexture("ConeAlbedo", 64, 64, glm::vec4(1.0, 0.8, 0.8, 1.0));
+        inputs.m_baseColor = coneAlbedo;
+        inputs.m_uRoughness = 0.2f;
+        inputs.m_uMetallic = 0.1f;
+        Entity* cone = SceneManager::getEntity(helmetScene, "Cone");
+        m_coneMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
+        cone->setMaterial("ConeMesh", 0, m_coneMatl);
+    }
 
     // add lights into the scene
-    SceneManager::createPointLight(helmetScene, glm::vec3(0.9, 0.95f, 0.76f), glm::vec3(0.0f, 0.0f, 1.5f), 4.f);
-    SceneManager::createPointLight(helmetScene, glm::vec3(0.6, 0.65f, 2.86f), glm::vec3(0.0f, 0.8f, -2.4f), 4.f);
+    SceneManager::createPointLight(helmetScene, glm::vec3(0.95, 0.59f, 0.149f), glm::vec3(-3.0f, 1.2f, 1.5f), 17.0f);
+    SceneManager::createPointLight(helmetScene, glm::vec3(0.0f, 0.21f, 1.0f), glm::vec3(3.0f, 0.8f, -0.4f), 20.f);
     // top light
-    SceneManager::createDirectionalLight(helmetScene, glm::vec3(1.0f, 1.0, 1.0f), glm::normalize(glm::vec3(0.2f, 1.0f, 0.2f)), 1.f);
+    SceneManager::createDirectionalLight(helmetScene, glm::vec3(1.0f, 1.0, 1.0f), glm::normalize(glm::vec3(0.2f, 1.0f, 0.2f)), 0.f);
 
     // manage entities
     SceneNode* helmetNode = helmetEntity->getSceneNode("HelmetMesh");
@@ -327,6 +353,7 @@ void PbrApp::initShaders()
 
 void PbrApp::initEnvMaps()
 {
+    Cyan::Toolkit::ScopedTimer timer("initEnvMaps()", true);
     // image-based-lighting
     Cyan::Toolkit::createLightProbe("grace-new", "../../asset/cubemaps/grace-new.hdr", true);
     Cyan::Toolkit::createLightProbe("glacier", "../../asset/cubemaps/glacier.hdr",     true);
@@ -345,6 +372,7 @@ void PbrApp::initEnvMaps()
     // this is necessary as we are setting z component of
     // the cubemap mesh to 1.f
     glDepthFunc(GL_LEQUAL);
+    timer.end();
 }
 
 void PbrApp::initUniforms()
@@ -366,6 +394,7 @@ void PbrApp::initUniforms()
 
 void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewportPos, glm::vec2 renderSize)
 {
+    Cyan::Toolkit::ScopedTimer timer("init()", true);
     using Cyan::Material;
     using Cyan::Mesh;
 
@@ -388,6 +417,7 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewpo
     m_ui.init(gEngine->getWindow().mpWindow);
 
     // misc
+    m_roughness = 0.f;
     bRayCast = false;
     bPicking = false;
     m_selectedEntity = nullptr;
@@ -398,10 +428,10 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewpo
     bDisneyReparam = true;
     m_directDiffuseSlider = 1.f;
     m_directSpecularSlider = 1.f;
-    m_indirectDiffuseSlider = 1.f;
-    m_indirectSpecularSlider = 1.f;
+    m_indirectDiffuseSlider = 0.f;
+    m_indirectSpecularSlider = 0.f;
     m_directLightingSlider = 1.f;
-    m_indirectLightingSlider = 1.f;
+    m_indirectLightingSlider = 0.f;
     m_wrap = 0.1f;
     m_debugRay.init();
     m_debugRay.setColor(glm::vec4(1.0f, 1.0f, 0.0f, 1.0f));
@@ -416,6 +446,7 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewpo
     // font
     ImGuiIO& io = ImGui::GetIO();
     m_font = io.Fonts->AddFontFromFileTTF("C:\\summerwars\\cyanRenderEngine\\lib\\imgui\\misc\\fonts\\Roboto-Medium.ttf", 16.f);
+    timer.end();
 }
 
 void PbrApp::beginFrame()
@@ -504,8 +535,67 @@ void PbrApp::update()
     glm::quat qRot = glm::quat(cos(rotationSpeed * .5f), sin(rotationSpeed * .5f) * glm::normalize(glm::vec3(0.f, 1.f, 1.f)));
     Entity* pivotEntity = SceneManager::getEntity(m_scenes[0], "PointLightCenter");
 
-    pivotEntity->applyLocalRotation(qRot);
+    // pivotEntity->applyLocalRotation(qRot);
     scene->pLights[0].position = glm::vec4(scene->pLights[0].baseLight.m_entity->m_sceneRoot->m_worldTransform.m_translate, 1.0f); 
+}
+
+void uiDrawSceneNode(SceneNode* node)
+{
+    ImGuiTreeNodeFlags baseFlags = ImGuiTreeNodeFlags_OpenOnArrow 
+                                | ImGuiTreeNodeFlags_OpenOnDoubleClick 
+                                | ImGuiTreeNodeFlags_SpanAvailWidth 
+                                | ImGuiTreeNodeFlags_DefaultOpen;
+    if (node)
+    {
+        if (node->m_child.size() > 0)
+        {
+            if (ImGui::TreeNodeEx(node->m_name, baseFlags))
+            {
+                for (auto child : node->m_child)
+                {
+                    uiDrawSceneNode(child);
+                }
+                ImGui::TreePop();
+            }
+        }
+        else
+        {
+            ImGuiTreeNodeFlags nodeFlags = baseFlags | ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+            ImGui::TreeNodeEx(node->m_name, nodeFlags);
+        }
+    }
+};
+
+void PbrApp::drawEntityPanel()
+{
+    ImGuiTreeNodeFlags baseFlags = ImGuiTreeNodeFlags_OpenOnArrow 
+                                | ImGuiTreeNodeFlags_OpenOnDoubleClick 
+                                | ImGuiTreeNodeFlags_SpanAvailWidth 
+                                | ImGuiTreeNodeFlags_DefaultOpen;
+    // transform
+    if (ImGui::TreeNodeEx("Transform", baseFlags))
+    {
+        Transform transform = m_selectedEntity->getWorldTransform();
+        ImGui::Text("Translation");
+        ImGui::SameLine();
+        ImGui::InputFloat3("##Translation", &transform.m_translate.x);
+        ImGui::Text("Rotation");
+        ImGui::SameLine();
+        ImGui::InputFloat4("##Rotation",  &transform.m_qRot.x);
+        ImGui::Text("Scale");
+        ImGui::SameLine();
+        ImGui::InputFloat3("##Scale", &transform.m_scale.x);
+        ImGui::TreePop();
+    }
+    ImGui::Separator();
+
+    // scene component panel
+    if (ImGui::TreeNodeEx("SceneComponent", baseFlags))
+    {
+        SceneNode* root = m_selectedEntity->m_sceneRoot;
+        uiDrawSceneNode(root);
+        ImGui::TreePop();
+    }
 }
 
 void PbrApp::drawDebugWindows()
@@ -530,7 +620,12 @@ void PbrApp::drawDebugWindows()
                     ImGui::Separator();
                 }
                 {
-                    drawSceneGraphUI(m_scenes[m_currentScene]->m_rootEntity);
+                    uiDrawEntityGraph(m_scenes[m_currentScene]->m_rootEntity);
+                    ImGui::Separator();
+                }
+                if (m_selectedEntity)
+                {
+                    drawEntityPanel();
                     ImGui::Separator();
                 }
                 {
@@ -570,7 +665,7 @@ void PbrApp::drawStats()
     }
 }
 
-void PbrApp::drawSceneGraphUI(Entity* entity) 
+void PbrApp::uiDrawEntityGraph(Entity* entity) 
 {
     ImGuiTreeNodeFlags baseFlags = ImGuiTreeNodeFlags_OpenOnArrow 
                                 | ImGuiTreeNodeFlags_OpenOnDoubleClick 
@@ -587,7 +682,7 @@ void PbrApp::drawSceneGraphUI(Entity* entity)
         {
             for (auto* child : entity->m_child)
             {
-                drawSceneGraphUI(child);
+                uiDrawEntityGraph(child);
             }
             ImGui::TreePop();
         }
@@ -606,6 +701,11 @@ void PbrApp::drawLightingWidgets()
     // experimental
     if (ImGui::TreeNodeEx("Experienmental", baseFlags))
     {
+        ImGui::Text("Roughness");
+        ImGui::SameLine();
+        ImGui::SliderFloat("##Roughness", &m_roughness, 0.f, 1.f, "%.2f");
+        m_eratoMatl->set("uniformRoughness", m_roughness);
+        
         ImGui::Text("Wrap");
         ImGui::SameLine();
         ImGui::SliderFloat("##Wrap", &m_wrap, 0.f, 1.f, "%.2f");
@@ -625,7 +725,7 @@ void PbrApp::drawLightingWidgets()
                 ImGui::InputFloat3("##Direction", &m_scenes[m_currentScene]->dLights[i].direction.x);
                 ImGui::Text("Intensity:");
                 ImGui::SameLine();
-                ImGui::InputFloat("##Intensity", &m_scenes[m_currentScene]->dLights[i].baseLight.color.w);
+                ImGui::SliderFloat("##Intensity", &m_scenes[m_currentScene]->dLights[i].baseLight.color.w, 0.f, 100.f, nullptr, 1.0f);
                 ImGui::Text("Color:");
                 ImGui::ColorPicker3("##Color", &m_scenes[m_currentScene]->dLights[i].baseLight.color.r);
                 ImGui::TreePop();
@@ -634,7 +734,7 @@ void PbrApp::drawLightingWidgets()
         ImGui::TreePop();
     }
     // point lights
-    ImGui::TreeNodeEx("Point Lights", baseFlags);
+    if (ImGui::TreeNodeEx("Point Lights", baseFlags))
     {
         for (u32 i = 0; i < m_scenes[m_currentScene]->pLights.size(); ++i)
         {
@@ -645,6 +745,8 @@ void PbrApp::drawLightingWidgets()
                 ImGui::Text("Position:");
                 ImGui::SameLine();
                 ImGui::InputFloat3("##Position", &m_scenes[m_currentScene]->pLights[i].position.x);
+                ImGui::Text("Intensity:");
+                ImGui::SliderFloat("##Intensity", &m_scenes[m_currentScene]->pLights[i].baseLight.color.w, 0.f, 100.f, nullptr, 1.0f);
                 ImGui::Text("Color:");
                 ImGui::ColorPicker3("##Color", &m_scenes[m_currentScene]->pLights[i].baseLight.color.r);
                 ImGui::TreePop();
@@ -785,24 +887,24 @@ void PbrApp::drawRenderSettings()
             switch (m_debugViewIndex)
             {
                 case 0:
-                    m_helmetMatl->set("debugD", 0.f);
-                    m_helmetMatl->set("debugF", 0.f);
-                    m_helmetMatl->set("debugG", 0.f);
+                    m_eratoMatl->set("debugD", 0.f);
+                    m_eratoMatl->set("debugF", 0.f);
+                    m_eratoMatl->set("debugG", 0.f);
                     break;
                 case 1:
-                    m_helmetMatl->set("debugD", 1.f);
-                    m_helmetMatl->set("debugF", 0.f);
-                    m_helmetMatl->set("debugG", 0.f);
+                    m_eratoMatl->set("debugD", 1.f);
+                    m_eratoMatl->set("debugF", 0.f);
+                    m_eratoMatl->set("debugG", 0.f);
                     break;
                 case 2:
-                    m_helmetMatl->set("debugD", 0.f);
-                    m_helmetMatl->set("debugF", 1.f);
-                    m_helmetMatl->set("debugG", 0.f);
+                    m_eratoMatl->set("debugD", 0.f);
+                    m_eratoMatl->set("debugF", 1.f);
+                    m_eratoMatl->set("debugG", 0.f);
                     break;
                 case 3:
-                    m_helmetMatl->set("debugD", 0.f);
-                    m_helmetMatl->set("debugF", 0.f);
-                    m_helmetMatl->set("debugG", 1.f);
+                    m_eratoMatl->set("debugD", 0.f);
+                    m_eratoMatl->set("debugF", 0.f);
+                    m_eratoMatl->set("debugG", 1.f);
                     break;
                 default:
                     break;
@@ -835,6 +937,10 @@ struct DebugAABBPass : public Cyan::RenderPass
                 queue.pop();
                 if (node->m_meshInstance)
                 {
+                    if (!node->m_hasAABB)
+                    {
+                        continue;
+                    }
                     BoundingBox3f aabb = node->m_meshInstance->getAABB();
                     if (aabb.isValid)
                     {
@@ -859,7 +965,6 @@ void PbrApp::render()
     Cyan::Toolkit::ScopedTimer frameTimer("render()");
     Cyan::Renderer* renderer = gEngine->getRenderer();
 
-
     // TODO: how to not have to manually do this
     struct SharedMaterialData
     {
@@ -883,6 +988,7 @@ void PbrApp::render()
     updateMatlInstanceData(m_sphereMatl);
     updateMatlInstanceData(m_cubeMatl);
     updateMatlInstanceData(m_coneMatl);
+    updateMatlInstanceData(m_eratoMatl);
 
     // update probe
     SceneManager::setLightProbe(m_scenes[m_currentScene], Cyan::getProbe(m_currentProbeIndex));
@@ -903,10 +1009,13 @@ void PbrApp::render()
         Entity* helmetEntity = SceneManager::getEntity(m_scenes[m_currentScene], "DamagedHelmet");
         SceneNode* sceneNode = helmetEntity->getSceneNode("HelmetMesh");
         glm::mat4 modelMatrix = sceneNode->getWorldTransform().toMatrix();
-        m_voxelOutput = renderer->voxelizeMesh(sceneNode->m_meshInstance, &modelMatrix);
+        // m_voxelOutput = renderer->voxelizeMesh(sceneNode->m_meshInstance, &modelMatrix);
+        m_voxelOutput = renderer->voxelizeScene(m_scenes[m_currentScene]);
     }
+    Cyan::Texture* voxelVis = renderer->renderVoxel(m_scenes[m_currentScene]);
     Cyan::RenderTarget* rt = renderer->getRenderOutputRenderTarget();
-    renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 160, 320, 160}, m_voxelOutput);
+    renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 180, 320, 180}, m_voxelOutput);
+    renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 360, 320, 180}, voxelVis);
     renderer->render();
     auto ctx = Cyan::getCurrentGfxCtx();
     ctx->setRenderTarget(rt, 0u);

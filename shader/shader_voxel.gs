@@ -3,12 +3,17 @@
 layout (triangles) in;
 layout (triangle_strip, max_vertices = 3) out;
 
+uniform vec3 aabbMin;
+uniform vec3 aabbMax;
+uniform uint flag;
+
 in VertexData
 {
     vec3 position;
     vec3 normal;
     vec4 tangent;
     vec2 texCoords;
+    vec3 fragmentWorldPos;
 } VertexIn[];
 
 out VertexData
@@ -17,17 +22,27 @@ out VertexData
     vec3 normal;
     vec4 tangent;
     vec2 texCoords;
+    vec3 fragmentWorldPos;
 } VertexOut;
 
-
-mat4 ortho(float l, float r, float b, float t, float n, float f)
+struct OrthoInput
 {
-    vec4 col0 = vec4(2.0f/(r - l), 0.f, 0.f, 0.f);
-    vec4 col1 = vec4(0.f, 2.f/(t - b),  0.f,  0.f);
-    vec4 col2 = vec4(0.f, 0.f, -2.f/(f - n), 0.f);
-    vec4 col3 = vec4(-(r+l)/(r-l), -(t+b)/(t-b), -(f+n)/(f-n), 1.0f);
-    return mat4(col0, col1, col2, col3);
-}
+    float l;
+    float r;
+    float b;
+    float t;
+    float n;
+    float f;
+};
+
+vec4 orthoProjection(vec4 v, float l, float r, float b, float t, float near, float far, float aspect)
+{
+    vec4 result = vec4(0., 0.f, 0.f, 1.f);
+    result.x = 2.0 * (v.x - l) / (r - l) - 1.0;
+    result.y = 2.0 * (v.y - b) / (t - b) - 1.0;
+    result.z = (v.z - near) / (far - near);
+    return result;
+} 
 
 void main()
 {
@@ -46,18 +61,12 @@ void main()
     vec3 v1 = gl_in[1].gl_Position.xyz;
     vec3 v2 = gl_in[2].gl_Position.xyz;
 
-    // assuming counter-clockwise winding order
-    vec3 fn = cross(v1 - v0, v2 - v0);
-    // find which axis to use for projection
-    int flag = 1;
-    if (abs(fn.y) > abs(fn.x) && abs(fn.y) > abs(fn.z))
-    {
-        flag = 2;
-    }
-    else if (abs(fn.z) > abs(fn.x))
-    {
-        flag = 3;
-    }
+    float left = 0.f ;
+    float right = 0.f;
+    float bottom = 0.f;
+    float top = 0.f;
+    float near = 0.f;
+    float far = 0.f;
 
     // orthographic projection
     for (int i = 0; i < gl_in.length(); ++i)
@@ -68,30 +77,45 @@ void main()
         VertexOut.normal = VertexIn[i].normal;
         VertexOut.tangent = VertexIn[i].tangent;
         VertexOut.texCoords = VertexIn[i].texCoords;
-        
-        float near = -0.2f;
-        float far = -100.f;
+        VertexOut.fragmentWorldPos = VertexIn[i].fragmentWorldPos;
 
-        mat4 proj;
         // x
-        /*
-        if (flag == 1) 
+        if (flag == 0) 
         {
-            proj = ortho(aabbMin.z, aabbMax.z, aabbMin.y, aabbMax.y, aabbMax.x, aabbMin.x);
+            left = aabbMax.z;
+            right = aabbMin.z;
+            bottom = aabbMin.y;
+            top = aabbMax.y;
+            near = aabbMax.x;
+            far = aabbMin.x;
+            vec4 viewSpacePos = vec4(gl_in[i].gl_Position.z, gl_in[i].gl_Position.y, -gl_in[i].gl_Position.x, 1.f);
+            clipPos = orthoProjection(viewSpacePos, left, right, bottom, top, near, far, 16.0 / 9.0);
         }
         // y
-        else if (flag == 2)
+        if (flag == 1) 
         {
-            proj = ortho(aabbMin.x, aabbMax.x, aabbMin.z, aabbMax.z, aabbMax.y, aabbMin.y);
+            left = aabbMax.z;
+            right = aabbMin.z;
+            bottom = aabbMax.x;
+            top = aabbMin.x;
+            near = aabbMax.y;
+            far = aabbMin.y;
+            vec4 viewSpacePos = vec4(gl_in[i].gl_Position.z, -gl_in[i].gl_Position.x, gl_in[i].gl_Position.y, 1.f);
+            clipPos = orthoProjection(viewSpacePos, left, right, bottom, top, near, far, 16.0 / 9.0);
         }
         // z
-        else if (flag == 3)
+        else if (flag == 2)
         {
-            proj = ortho(aabbMin.x, aabbMax.x, aabbMin.y, aabbMax.y, aabbMax.z, aabbMin.z);
+            left = aabbMin.x;
+            right = aabbMax.x;
+            bottom = aabbMin.y;
+            top = aabbMax.y;
+            near = aabbMax.z;
+            far = aabbMin.z - 0.01f;
+            clipPos = orthoProjection(gl_in[i].gl_Position, left, right, bottom, top, near, far, 16.0 / 9.0);
         }
-        */
-        proj = ortho(aabbMin.x, aabbMax.x, aabbMin.y, aabbMax.y, aabbMax.z, aabbMin.z);
-        clipPos = proj * gl_in[i].gl_Position;
+
+        // clipPos = orthoProjection(gl_in[i].gl_Position, left, right, bottom, top, near, far, 16.0 / 9.0);
         gl_Position = clipPos;
         EmitVertex();
     }

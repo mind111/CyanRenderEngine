@@ -86,8 +86,8 @@ struct BoundingBox3f
 
     BoundingBox3f()
     {
-        m_pMin = glm::vec4(FLT_MIN, FLT_MIN, FLT_MIN, 1.0f);
-        m_pMax = glm::vec4(FLT_MAX, FLT_MAX, FLT_MAX, 1.0f);
+        m_pMin = glm::vec4(FLT_MAX, FLT_MAX, FLT_MAX, 1.0f);
+        m_pMax = glm::vec4(-FLT_MIN, -FLT_MIN, -FLT_MIN, 1.0f);
         m_vertexArray = nullptr;
         m_ibo = -1;
         isValid = false;

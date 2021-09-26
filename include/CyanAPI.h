@@ -144,9 +144,11 @@ namespace Cyan
     Texture* createTextureHDR(const char* _name, TextureSpec spec);
     Texture* createTexture(const char* _name, const char* _file, TextureSpec& spec);
     Texture* createTextureHDR(const char* _name, const char* _file, TextureSpec& spec);
+    Texture* createTexture3D(const char* name, TextureSpec spec);
 
     /* RenderTarget */
     RenderTarget* createRenderTarget(u32 _width, u32 _height);
+    RenderTarget* createDepthRenderTarget(u32 width, u32 height);
 
     /* Shader */
     Shader* getShader(const char* name);
@@ -176,7 +178,7 @@ namespace Cyan
 
     /* Scene */
     SceneNode* allocSceneNode();
-    SceneNode* createSceneNode(const char* name, Transform transform, Mesh* mesh=nullptr);
+    SceneNode* createSceneNode(const char* name, Transform transform, Mesh* mesh=nullptr, bool hasAABB=true);
     Scene* createScene(const char* name, const char* _file);
     LightProbe* getProbe(u32 index);
     u32         getNumProbes();
@@ -239,6 +241,7 @@ namespace Cyan
 
         //-
         // Mesh related
+        void computeAABB(Mesh* mesh);
         Mesh* createCubeMesh(const char* _name);
         glm::mat4 computeMeshNormalization(Mesh* mesh);
 

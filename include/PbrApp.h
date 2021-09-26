@@ -272,12 +272,13 @@ public:
     // main scene viewport
     void drawSceneViewport(); 
     // ui
+    void drawEntityPanel();
     void drawDebugWindows();
     void drawLightingWidgets();
     void drawEntityWindow();
     void drawStats();
     void drawRenderSettings();
-    void drawSceneGraphUI(Entity* entity) ;
+    void uiDrawEntityGraph(Entity* entity) ;
     RayCastInfo castMouseRay(const glm::vec2& currentViewportPos, const glm::vec2& currentViewportSize);
     // init
     void initUniforms();
@@ -315,6 +316,7 @@ private:
     Cyan::MaterialInstance* m_skyMatl;
     Cyan::MaterialInstance* m_blitMatl;
     Cyan::MaterialInstance* m_floorMatl;
+    Cyan::MaterialInstance* m_eratoMatl;
 
     // entities
     Entity* m_envMapEntity;
@@ -371,6 +373,7 @@ private:
     float m_directLightingSlider;
     float m_indirectLightingSlider;
     float m_wrap;
+    f32   m_roughness;
 
     // debug parameters
     Line m_debugRay;
