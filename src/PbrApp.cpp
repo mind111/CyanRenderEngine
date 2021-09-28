@@ -1005,11 +1005,6 @@ void PbrApp::render()
     // TODO: how to exclude things in the scene from being post processed
     renderer->addPostProcessPasses();
     {
-        // test voxelization
-        Entity* helmetEntity = SceneManager::getEntity(m_scenes[m_currentScene], "DamagedHelmet");
-        SceneNode* sceneNode = helmetEntity->getSceneNode("HelmetMesh");
-        glm::mat4 modelMatrix = sceneNode->getWorldTransform().toMatrix();
-        // m_voxelOutput = renderer->voxelizeMesh(sceneNode->m_meshInstance, &modelMatrix);
         m_voxelOutput = renderer->voxelizeScene(m_scenes[m_currentScene]);
     }
     Cyan::Texture* voxelVis = renderer->renderVoxel(m_scenes[m_currentScene]);
@@ -1017,15 +1012,9 @@ void PbrApp::render()
     renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 180, 320, 180}, m_voxelOutput);
     renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 360, 320, 180}, voxelVis);
     renderer->render();
-    auto ctx = Cyan::getCurrentGfxCtx();
-    ctx->setRenderTarget(rt, 0u);
-    ctx->setViewport({0, 0, rt->m_width, rt->m_height});
-    ctx->setDepthControl(Cyan::DepthControl::kDisable);
-    // visualizer
-    m_bufferVis.draw();
-    ctx->setDepthControl(Cyan::DepthControl::kEnable);
     renderer->endRender();
 
+    // ui
     drawSceneViewport();
     drawDebugWindows();
 

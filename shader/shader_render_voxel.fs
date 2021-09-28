@@ -31,9 +31,9 @@ void main()
 
     float near = aabbMax.z;
     float t = (near - ro.z) / rd.z;
-    // TODO: right now we are assuming that cameraPos is within the scene aabb bounds
 
-    float stepSize = 0.001f;
+    // stepSize too big leads holes in the visualization
+    float stepSize = 0.01f;
     float numSteps = 2.0f * (aabbMax.z - aabbMin.z) / stepSize;
     vec4 color = vec4(0.f);
     // scene aabb related

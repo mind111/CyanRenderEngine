@@ -50,6 +50,12 @@ namespace Cyan
         virtual void render() override;
     };
 
+    // requires a depth buffer
+    struct SSAOPass : public RenderPass
+    {
+
+    }; 
+
     struct BloomPass : public RenderPass
     {
         BloomPass(RenderTarget* rt, Viewport vp, BloomPassInputs inputs); 
@@ -147,6 +153,10 @@ namespace Cyan
         static void onInit();
         virtual void render() override;
 
+        static Shader* s_directShadowShader;
+        static MaterialInstance* s_directShadowMatl;
+        static RenderTarget* s_depthRenderTarget;
+        static Texture* s_shadowMap;
         DirectionalLight m_light;
         Scene* m_scene;
     };    

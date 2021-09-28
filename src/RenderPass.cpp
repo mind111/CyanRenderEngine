@@ -23,6 +23,10 @@ namespace Cyan
     BloomPass::BloomSurface BloomPass::s_bloomUsSurfaces[BloomPass::kNumBloomDsPass] = {0};          // upsample
     Shader* TexturedQuadPass::m_shader = 0;
     MaterialInstance* TexturedQuadPass::m_matl = 0;
+    RenderTarget* DirectionalShadowPass::s_depthRenderTarget = 0;
+    Texture* DirectionalShadowPass::s_shadowMap = 0;
+    Shader* DirectionalShadowPass::s_directShadowShader = 0;
+    MaterialInstance* DirectionalShadowPass::s_directShadowMatl = 0;
 
     QuadMesh* getQuadMesh()
     {
@@ -315,20 +319,62 @@ namespace Cyan
 
     }
 
+    void DirectionalShadowPass::onInit()
+    {
+        s_depthRenderTarget = createDepthRenderTarget(1024, 1024);
+        // TODO: depth buffer creation coupled with render target creation
+        s_directShadowShader = createShader("DirShadowShader", "../../shader/shader_dir_shadow.vs", "../../shader/shader_dir_shadow.fs");
+        s_directShadowMatl = createMaterial(s_directShadowShader)->createInstance();
+    }
+
+    Texture* getShadowMap()
+    {
+        return 0;
+    }
+
     void DirectionalShadowPass::render()
     {
-        Shader* shader = createShader("DirShadowShader", "../../shader/shader_dir_shadow.vs", "../../shader/shader_dir_shadow.fs");
-        RenderTarget* rt = createDepthRenderTarget(1024, 1024);
         // setup render target to only has a depth buffer
         // build view matrix that transform the world to light's view space
         glm::mat4 lightView = glm::lookAt(glm::vec3(0.f), 
                                           glm::vec3(m_light.direction.x, m_light.direction.y, m_light.direction.z), glm::vec3(0.f, 1.f, 0.f));
+        auto ctx = getCurrentGfxCtx();
+        ctx->setRenderTarget(s_depthRenderTarget, 0u);
+        ctx->setShader(s_directShadowShader);
+        s_directShadowMatl->set("lightView", &lightView[0][0]);
+        ctx->setViewport({0u, 0u, s_depthRenderTarget->m_width, s_depthRenderTarget->m_height});
         for (auto entity : m_scene->entities)
         {
             std::queue<SceneNode*> nodes;
             nodes.push(entity->m_sceneRoot);
             while(!nodes.empty())
             {
+                SceneNode* node = nodes.front(); 
+                if (MeshInstance* meshInstance = node->m_meshInstance)
+                {
+                    // TODO: clean this up
+                    if (node->m_hasAABB)
+                    {
+                        glm::mat4 model = node->getWorldTransform().toMatrix();
+                        s_directShadowMatl->set("model", &model[0][0]);
+                        s_directShadowMatl->bind();
+
+                        u32 smIndex = 0u;
+                        for (auto sm : meshInstance->m_mesh->m_subMeshes)
+                        {
+                            ctx->setVertexArray(sm->m_vertexArray);
+                            if (sm->m_vertexArray->m_ibo != static_cast<u32>(-1))
+                            {
+                                ctx->drawIndex(sm->m_vertexArray->m_numIndices);
+                            }
+                            else
+                            {
+                                ctx->drawIndexAuto(sm->m_vertexArray->numVerts());
+                            }
+                            smIndex++;
+                        }
+                    }
+                }
             }
         }
     }

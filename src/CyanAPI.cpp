@@ -404,26 +404,27 @@ namespace Cyan
     RenderTarget* createDepthRenderTarget(u32 width, u32 height)
     {
         RenderTarget* rt = new RenderTarget();
-        TextureSpec spec = { };
-        spec.m_width = width;
-        spec.m_height = height;
-        spec.m_format = Texture::ColorFormat::D24S8; // 32 bits
-        spec.m_dataType = Texture::DataType::UNSIGNED_INT_24_8;
-        spec.m_min = Texture::Filter::LINEAR;
-        spec.m_mag = Texture::Filter::LINEAR;
-        spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
-        spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
-        Texture* depthBuffer = createTexture("DepthTexture", spec);
+        // TextureSpec spec = { };
+        // spec.m_width = width;
+        // spec.m_height = height;
+        // spec.m_format = Texture::ColorFormat::D24S8; // 32 bits
+        // spec.m_dataType = Texture::DataType::UNSIGNED_INT_24_8;
+        // spec.m_min = Texture::Filter::LINEAR;
+        // spec.m_mag = Texture::Filter::LINEAR;
+        // spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
+        // spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+        // Texture* depthBuffer = createTexture("DepthTexture", spec);
         rt->m_width = width;
         rt->m_height = height;
         rt->m_numColorBuffers = 0;
+        rt->m_numDepthBuffers = 0;
         glCreateFramebuffers(1, &rt->m_frameBuffer);
-        glBindFramebuffer(GL_FRAMEBUFFER, rt->m_frameBuffer);
-        {
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH24_STENCIL8, GL_TEXTURE_2D, depthBuffer->m_id, 0);
-        }
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        rt->validate();
+        // glBindFramebuffer(GL_FRAMEBUFFER, rt->m_frameBuffer);
+        // {
+        //     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH24_STENCIL8, GL_TEXTURE_2D, depthBuffer->m_id, 0);
+        // }
+        // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        // rt->validate();
         return rt;
     }
 

@@ -305,10 +305,6 @@ namespace Cyan
         }
     }
 
-    /*
-        @Note: Let's just go crazy and tank the frame rate to start things simple. Revoxelize the scene
-        every frame, and regenerate mipmap every frame.
-    */
     Cyan::Texture* Renderer::voxelizeMesh(MeshInstance* mesh, glm::mat4* modelMatrix)
     {
         glEnable(GL_NV_conservative_raster);
@@ -422,6 +418,10 @@ namespace Cyan
 
     /*
         * voxelize the scene by rasterizing along x,y and z-axis
+    */
+    /*
+        @Note: Let's just go crazy and tank the frame rate to start things simple. Revoxelize the scene
+        every frame, and regenerate mipmap every frame.
     */
     Cyan::Texture* Renderer::voxelizeScene(Scene* scene)
     {
@@ -706,7 +706,7 @@ namespace Cyan
         m_frameAllocator.reset();
         m_renderState.clearRenderTargets();
         m_renderState.clearRenderPasses();
-
+        m_renderState.m_superSampleAA = m_bSuperSampleAA;
         if (m_bSuperSampleAA)
         {
             m_offscreenRenderWidth = m_SSAAWidth;
