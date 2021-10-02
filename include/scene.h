@@ -40,6 +40,7 @@ struct Scene
 
 class SceneManager {
 public:
+    static u32 allocEntityId();
     static void updateSceneGraph(Scene* scene);
     static void buildLightList(Scene* scene, std::vector<PointLightData>& pLights, std::vector<DirLightData>& dLights);
     static void setLightProbe(Scene* scene, LightProbe* probe);
@@ -58,6 +59,10 @@ public:
             }
         }
         return nullptr;
+    }
+    static u32 allocEntityId(Scene* scene)
+    {
+        return scene->entities.size() > 0 ? scene->entities.size() : 0;
     }
 };
 

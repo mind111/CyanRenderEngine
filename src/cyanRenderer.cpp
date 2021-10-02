@@ -50,7 +50,7 @@ namespace Cyan
     RenderTarget* IrradianceProbe::m_radianceRenderTarget = 0u; 
     RenderTarget* IrradianceProbe::m_irradianceRenderTarget = 0u; 
     Shader* IrradianceProbe::m_renderProbeShader = 0u;
-    MaterialInstance* IrradianceProbe::m_renderProbeMatl = 0u;
+    Shader* IrradianceProbe::m_computeIrradianceShader = 0u;
 
     // static singleton pointer will be set to 0 before main() get called
     Renderer* Renderer::m_renderer = 0;
@@ -774,6 +774,12 @@ namespace Cyan
         }
     }
 
+    IrradianceProbe::IrradianceProbe(const char* name, u32 id, Transform t, Entity* parent)
+        : Entity(name , id, t, parent)
+    {
+        init();
+    }
+
     void IrradianceProbe::init()
     {
         if (!m_radianceRenderTarget)
@@ -781,7 +787,9 @@ namespace Cyan
             m_radianceRenderTarget = createRenderTarget(512u, 512u);
             m_irradianceRenderTarget = createRenderTarget(64u, 64u);
             m_renderProbeShader = createShader("RenderProbeShader", "../../shader/shader_render_probe.vs", "../../shader/shader_render_probe.fs");
-            m_renderProbeMatl = createMaterial(m_renderProbeShader)->createInstance();
+            m_computeIrradianceShader = createShader("DiffuseIrradianceShader", "../../shader/shader_diff_irradiance.vs", "../../shader/shader_diff_irradiance.fs");
+            m_cubeMeshInstance = getMesh("CubeMesh")->createInstance();
+            m_cubeMeshInstance->setMaterial(0, m_computeIrradianceMatl);
         }
         
         TextureSpec spec = { };
@@ -797,16 +805,28 @@ namespace Cyan
         spec.m_r = Texture::Wrap::NONE;
         spec.m_numMips = 1u;
         spec.m_data = 0;
-        m_radianceSamples = createTextureHDR("RadianceProbe", spec);
-        m_radianceRenderTarget->attachColorBuffer(m_radianceSamples);
+        m_radianceMap = createTextureHDR("RadianceProbe", spec);
+        m_radianceRenderTarget->attachColorBuffer(m_radianceMap);
         spec.m_width = 64u;
         spec.m_height = 64u;
         m_irradianceMap = createTextureHDR("IrradianceProbe", spec);
         m_irradianceRenderTarget->attachColorBuffer(m_irradianceMap);
 
+        m_computeIrradianceMatl = createMaterial(m_computeIrradianceShader)->createInstance();
+        m_renderProbeMatl = createMaterial(m_renderProbeShader)->createInstance();
+
         Mesh* mesh = Cyan::getMesh("sphere_mesh");
-        m_meshInstance = mesh->createInstance();
-        m_meshInstance->setMaterial(0, m_renderProbeMatl);
+        Transform transform;
+        m_sceneRoot->attach(createSceneNode("SphereMesh", transform, mesh, false));
+        setMaterial("SphereMesh", 0, m_renderProbeMatl);
+
+        auto renderMatlCallback = [&]()
+        {
+            m_renderProbeMatl->bindTexture(m_irradianceMap);
+        };
+
+        // m_sphereMeshInstance = mesh->createInstance();
+        // m_sphereMeshInstance->setMaterial(0, m_renderProbeMatl);
     }
 
     void IrradianceProbe::sampleRadiance()
@@ -858,15 +878,53 @@ namespace Cyan
         ctx->setRenderTarget(rt, 0u);
         ctx->setViewport({0u, 0u, rt->m_width, rt->m_height});
         ctx->setShader(m_renderProbeShader);
-        m_renderProbeMatl->bindTexture("radianceMap", m_radianceSamples);
+        m_renderProbeMatl->bindTexture("radianceMap", m_irradianceMap);
         Camera& camera = m_scene->mainCamera;
         setUniform(renderer->u_cameraProjection, &camera.projection[0][0]);
         setUniform(renderer->u_cameraView, &camera.view[0][0]);
-        Renderer::getSingletonPtr()->drawMeshInstance(m_meshInstance, &model);
+        Renderer::getSingletonPtr()->drawMeshInstance(m_sphereMeshInstance, &model);
     }
 
     void IrradianceProbe::computeIrradiance()
     {
+        Toolkit::ScopedTimer timer("ComputeIrradianceTimer");
+        auto ctx = Cyan::getCurrentGfxCtx();
+        Camera camera = { };
+        // camera set to probe's location
+        camera.position = glm::vec3(0.f);
+        camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
+        glm::vec3 cameraTargets[] = {
+            {1.f, 0.f, 0.f},   // Right
+            {-1.f, 0.f, 0.f},  // Left
+            {0.f, 1.f, 0.f},   // Up
+            {0.f, -1.f, 0.f},  // Down
+            {0.f, 0.f, 1.f},   // Front
+            {0.f, 0.f, -1.f},  // Back
+        }; 
+        glm::vec3 worldUps[] = {
+            {0.f, -1.f, 0.f},   // Right
+            {0.f, -1.f, 0.f},   // Left
+            {0.f, 0.f, 1.f},    // Up
+            {0.f, 0.f, -1.f},   // Down
+            {0.f, -1.f, 0.f},   // Forward
+            {0.f, -1.f, 0.f},   // Back
+        };
 
+        auto renderer = Renderer::getSingletonPtr();
+        ctx->setShader(m_computeIrradianceShader);
+        ctx->setViewport({0u, 0u, m_irradianceRenderTarget->m_width, m_irradianceRenderTarget->m_height});
+        ctx->setDepthControl(DepthControl::kDisable);
+        for (u32 f = 0; f < 6u; ++f)
+        {
+            camera.lookAt = cameraTargets[f];
+            camera.view = glm::lookAt(camera.position, camera.lookAt, worldUps[f]);
+            ctx->setRenderTarget(m_irradianceRenderTarget, f);
+            m_computeIrradianceMatl->set("view", &camera.view[0][0]);
+            m_computeIrradianceMatl->set("projection", &camera.projection[0][0]);
+            m_computeIrradianceMatl->bindTexture("envmapSampler", m_radianceMap);
+            Renderer::getSingletonPtr()->drawMeshInstance(m_cubeMeshInstance, nullptr);
+        }
+        ctx->setDepthControl(DepthControl::kEnable);
+        timer.end();
     }
 }

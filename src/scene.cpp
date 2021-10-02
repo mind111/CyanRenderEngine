@@ -55,6 +55,7 @@ Entity* SceneManager::createEntity(Scene* scene, const char* entityName, Transfo
         }
     }
     scene->entities.push_back(entity);
+    return new Entity(entityName, id, transform, parent);
     return entity; 
 }
 

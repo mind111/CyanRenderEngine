@@ -44,25 +44,40 @@ namespace Cyan
 
     };
 
-    struct IrradianceProbe
+    // TODO: group shader and material instance, technically don't need to store shader and matl instance at the same time.
+    struct IrradianceProbe : public Entity
     {
-        glm::vec3 m_position;
+        // glm::vec3 m_position;
         // render the scene from six faces
-        Texture* m_radianceSamples;
+        Texture* m_radianceMap;
         // convolve the radiance samples to get irradiance from every direction
         Texture* m_irradianceMap;
         Scene* m_scene;
-        MeshInstance* m_meshInstance;
+        // MeshInstance* m_sphereMeshInstance;
+        MaterialInstance* m_computeIrradianceMatl;
+        MaterialInstance* m_renderProbeMatl;
+        MeshInstance* m_cubeMeshInstance;
+
         static Shader* m_renderProbeShader;
-        static MaterialInstance* m_renderProbeMatl;
+        static Shader* m_computeIrradianceShader;
         static RenderTarget* m_radianceRenderTarget;
         static RenderTarget* m_irradianceRenderTarget;
-
+        IrradianceProbe(const char* name, u32 id, Transform t, Entity* parent);
         void init();
-
         void sampleRadiance();
         void computeIrradiance();
         void debugRenderProbe();
+    };
+
+    class ProbeFactory
+    {
+        IrradianceProbe* createProbe(glm::vec3 position)
+        {
+            u32 id = SceneManager::allocEntityId();
+            Transform t;
+            t.m_translate = position;
+            return new IrradianceProbe("IrradianceProbe0", id, t, nullptr);
+        }
     };
 
     class RenderState

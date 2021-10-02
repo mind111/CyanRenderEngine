@@ -295,7 +295,7 @@ public:
     RayCastInfo m_mouseRayHitInfo;
     bool bPicking;
     double m_mouseCursorX, m_mouseCursorY;
-    Cyan::IrradianceProbe m_irradianceProbe;
+    Cyan::IrradianceProbe* m_irradianceProbe;
 
 private:
     float m_sampleVertex[(64 + 1) * 4 * 2] = { };
@@ -317,6 +317,7 @@ private:
     Cyan::MaterialInstance* m_envmapMatl;
     Cyan::MaterialInstance* m_skyMatl;
     Cyan::MaterialInstance* m_blitMatl;
+    Cyan::MaterialInstance* m_roomMatl;
     Cyan::MaterialInstance* m_floorMatl;
     Cyan::MaterialInstance* m_eratoMatl;
 

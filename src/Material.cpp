@@ -39,6 +39,10 @@ namespace Cyan
             instance->m_bindings[s].m_sampler = m_samplers[s];
             instance->m_bindings[s].m_tex = nullptr;
         }
+        for (u32 b = 0; b < m_numBuffers; ++b)
+        {
+            instance->m_bufferBindings[b] = 0;
+        }
         // init data buffer
         for (auto entry : this->m_dataOffsetMap)
         {

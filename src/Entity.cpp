@@ -1,5 +1,10 @@
 #include "Entity.h"
 
+Entity::Entity(const char* name, u32 id, Transform t, Entity* parent)
+{
+
+}
+
 SceneNode* Entity::getSceneRoot()
 {
     return m_sceneRoot;

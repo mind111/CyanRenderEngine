@@ -227,16 +227,19 @@ void PbrApp::initHelmetScene()
     {
         PbrMaterialInputs inputs = { };
         Entity* floor = SceneManager::getEntity(helmetScene, "Floor");
-        Cyan::Texture* floorAlbedo = Cyan::Toolkit::createFlatColorTexture("FloorAlbedo", 1024u, 1024u, glm::vec4(1.00f, 0.90, 0.80, 1.f));
-        inputs.m_baseColor = floorAlbedo;
+        Cyan::Texture* roomAlbedo = Cyan::Toolkit::createFlatColorTexture("RoomAlbedo", 64u, 64u, glm::vec4(1.00f, 0.90, 0.80, 1.f));
+        Cyan::Texture* floorAlbedo = Cyan::Toolkit::createFlatColorTexture("FloorAlbedo", 64u, 64u, glm::vec4(1.00f, 0.50, 0.40, 1.f));
+        inputs.m_baseColor = roomAlbedo;
         inputs.m_uRoughness = 0.8f;
         inputs.m_uMetallic = 0.1f;
+        m_roomMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
+        inputs.m_baseColor = floorAlbedo;
         m_floorMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
         floor->setMaterial("CubeMesh", 0, m_floorMatl);
         Entity* frontWall = SceneManager::getEntity(helmetScene, "Wall_0");
-        frontWall->setMaterial("CubeMesh", 0, m_floorMatl);
+        frontWall->setMaterial("CubeMesh", 0, m_roomMatl);
         Entity* sideWall = SceneManager::getEntity(helmetScene, "Wall_1");
-        sideWall->setMaterial("CubeMesh", 0, m_floorMatl);
+        sideWall->setMaterial("CubeMesh", 0, m_roomMatl);
     }
 
     m_helmetMatl = Cyan::createMaterial(m_pbrShader)->createInstance();
@@ -472,10 +475,10 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewpo
     m_debugRay.setViewProjection(gEngine->getRenderer()->u_cameraView, gEngine->getRenderer()->u_cameraProjection);
 
     // test probe
-    m_irradianceProbe = { };
-    m_irradianceProbe.m_position = glm::vec3(0.f);
-    m_irradianceProbe.m_scene = m_scenes[0];
-    m_irradianceProbe.init();
+    m_irradianceProbe = SceneManager::createEntity(m_scenes[m_currentScene], "IrradianceProbe0", Transform());
+    // m_irradianceProbe.m_position = glm::vec3(0.f);
+    m_irradianceProbe->m_scene = m_scenes[m_currentScene];
+    m_irradianceProbe->init();
 
     // clear color
     Cyan::getCurrentGfxCtx()->setClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.f));
@@ -1025,10 +1028,11 @@ void PbrApp::render()
     };
 
     updateMatlInstanceData(m_helmetMatl);
-    updateMatlInstanceData(m_floorMatl);
+    updateMatlInstanceData(m_roomMatl);
     updateMatlInstanceData(m_sphereMatl);
     updateMatlInstanceData(m_cubeMatl);
     updateMatlInstanceData(m_coneMatl);
+    updateMatlInstanceData(m_floorMatl);
     // updateMatlInstanceData(m_eratoMatl);
 
     // ui
@@ -1042,6 +1046,7 @@ void PbrApp::render()
     renderer->beginRender();
     // rendering
     m_irradianceProbe.sampleRadiance();
+    m_irradianceProbe.computeIrradiance();
     m_irradianceProbe.debugRenderProbe();
     renderer->addScenePass(m_scenes[m_currentScene]);
     void* preallocated = renderer->getAllocator().alloc(sizeof(DebugAABBPass));
