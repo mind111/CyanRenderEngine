@@ -10,6 +10,7 @@ layout (location = 5) in vec2 textureUv_2;
 layout (location = 6) in vec2 textureUv_3;
 
 out vec3 n;
+out vec3 worldSpaceNormal;
 out vec3 t;
 out vec2 uv;
 out vec3 fragmentPos;
@@ -21,6 +22,8 @@ uniform mat4 s_projection;
 void main() {
     fragmentPos = (s_view * s_model * vec4(vertexPos, 1.f)).xyz; 
     gl_Position = s_projection * s_view * s_model * vec4(vertexPos, 1.0f);
+    mat4 normalTransformWorld = transpose(inverse(s_model));
+    worldSpaceNormal = (normalTransformWorld * vec4(vertexNormal, 0.f)).xyz;
     mat4 normalTransform = transpose(inverse(s_view * s_model)); 
     // Transform normals to camera space
     n = (normalTransform * vec4(vertexNormal, 0.f)).xyz;

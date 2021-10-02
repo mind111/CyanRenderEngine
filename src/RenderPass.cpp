@@ -69,7 +69,7 @@ namespace Cyan
         auto ctx = getCurrentGfxCtx();
         ctx->setRenderTarget(m_renderTarget, 0u);
         ctx->setViewport(m_viewport);
-        renderer->renderScene(m_scene);
+        renderer->renderScene(m_scene, m_scene->mainCamera);
     }
 
     BloomPass::BloomPass(RenderTarget* rt, Viewport vp, BloomPassInputs inputs) 

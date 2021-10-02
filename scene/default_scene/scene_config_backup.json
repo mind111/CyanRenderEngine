@@ -13,6 +13,12 @@
 
     "meshes": [
         {
+            "name": "statue_mesh",
+            "path": "../../asset/bunny/bunny.obj",
+            "normalize": true
+        },
+
+        {
             "name": "helmet_mesh",
             "path": "asset/helmet/mesh/helmet.obj",
             "normalize": false
@@ -134,6 +140,19 @@
 
         {
             "index": 1,
+            "name": "SmartDroneMesh",
+            "mesh": "",
+            "file": "asset/smart_drone/scene.gltf",
+            "xform": {
+                "translation": [0.0, -0.5, 0.0],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [0.01, 0.01, 0.01]
+            },
+            "child": []
+        },
+
+        {
+            "index": 2,
             "name": "SphereMesh",
             "mesh": "sphere_mesh",
             "xform": {
@@ -145,7 +164,7 @@
         },
 
         {
-            "index": 2,
+            "index": 3,
             "name": "UvCubeMesh",
             "mesh": "cube_mesh",
             "xform": {
@@ -157,7 +176,7 @@
         },
 
         {
-            "index": 3,
+            "index": 4,
             "name": "ConeMesh",
             "mesh": "cone_mesh",
             "xform": {
@@ -169,19 +188,19 @@
         },
 
         {
-            "index": 4,
+            "index": 5,
             "name": "CubeMesh",
             "mesh": "floor_mesh",
             "xform": {
                 "translation": [0.0, -1.5, 0.0],
                 "rotation": [0.0, 0, 1, 0],
-                "scale": [80.0, 1.0, 80.0]
+                "scale": [10.0, 10.0, 10.0]
             },
             "child": []
         },
 
         {
-            "index": 5,
+            "index": 6,
             "name": "CubeMesh",
             "mesh": "wall_0",
             "xform": {
@@ -193,13 +212,25 @@
         },
 
         {
-            "index": 6,
+            "index": 7,
             "name": "CubeMesh",
             "mesh": "wall_1",
             "xform": {
                 "translation": [0.0, -1.5, 0.0],
                 "rotation": [0.0, 0, 1, 0],
                 "scale": [6.0, 6.0, 6.0]
+            },
+            "child": []
+        },
+
+        {
+            "index": 8,
+            "name": "StatueMesh",
+            "mesh": "statue_mesh",
+            "xform": {
+                "translation": [0.0, 0.0, 0.0],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [1.0, 1.0, 1.0]
             },
             "child": []
         }
@@ -217,9 +248,9 @@
         },
 
         {
-            "name": "Sphere0",
+            "name": "SmartDrone",
             "xform": {
-                "translation": [0.0, 0.0, 0.0],
+                "translation": [-2.0, 0.0, -1.5],
                 "rotation": [0.0, 0, 1, 0],
                 "scale": [1.00, 1.00, 1.00]
             },
@@ -227,7 +258,7 @@
         },
 
         {
-            "name": "Cube",
+            "name": "Sphere0",
             "xform": {
                 "translation": [0.0, 0.0, 0.0],
                 "rotation": [0.0, 0, 1, 0],
@@ -237,7 +268,7 @@
         },
 
         {
-            "name": "Cone",
+            "name": "Cube",
             "xform": {
                 "translation": [0.0, 0.0, 0.0],
                 "rotation": [0.0, 0, 1, 0],
@@ -247,7 +278,7 @@
         },
 
         {
-            "name": "Floor",
+            "name": "Cone",
             "xform": {
                 "translation": [0.0, 0.0, 0.0],
                 "rotation": [0.0, 0, 1, 0],
@@ -257,13 +288,23 @@
         },
 
         {
-            "name": "Wall_0",
+            "name": "Floor",
             "xform": {
                 "translation": [0.0, 0.0, 0.0],
                 "rotation": [0.0, 0, 1, 0],
                 "scale": [1.00, 1.00, 1.00]
             },
             "nodes": [ 5 ]
+        },
+
+        {
+            "name": "Wall_0",
+            "xform": {
+                "translation": [0.0, 0.0, 0.0],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [1.00, 1.00, 1.00]
+            },
+            "nodes": [ 6 ]
         },
         {
             "name": "Wall_1",
@@ -272,7 +313,16 @@
                 "rotation": [0.0, 0, 1, 0],
                 "scale": [1.00, 1.00, 1.00]
             },
-            "nodes": [ 6 ]
+            "nodes": [ 7 ]
+        },
+        {
+            "name": "Erato",
+            "xform": {
+                "translation": [0.0, 0.0, 0.0],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [1.00, 1.00, 1.00]
+            },
+            "nodes": [ 8 ]
         }
     ]
 }

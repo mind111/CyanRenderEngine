@@ -1,6 +1,7 @@
 #version 450 core
 
 in vec3 n;
+in vec3 worldSpaceNormal;
 in vec3 t;
 in vec2 uv;
 in vec3 fragmentPos;
@@ -60,14 +61,14 @@ struct Light
 
 struct DirLight
 {
-    float padding[2]; // 8 bytes of padding
+    // float padding[2]; // 8 bytes of padding
     vec4 color;
     vec4 direction;
 };
 
 struct PointLight
 {
-    float padding[2]; // 8 bytes of padding
+    // float padding[2]; // 8 bytes of padding
     vec4 color;
     vec4 position;
 };
@@ -374,7 +375,9 @@ vec3 indirectLighting(RenderParams params)
     vec3 F = fresnel(params.f0, params.n, params.v); 
     vec3 kDiffuse = mix(vec3(1.f) - F, vec3(0.f), params.metallic);
     // diffuse irradiance
-    vec3 diffuse = kDiffuse * params.baseColor * texture(irradianceDiffuse, params.n).rgb; 
+    // Note(Min): should use world space normal to sample
+    // vec3 diffuse = kDiffuse * params.baseColor * texture(irradianceDiffuse, params.n).rgb; 
+    vec3 diffuse = kDiffuse * params.baseColor * texture(irradianceDiffuse, normalize(worldSpaceNormal)).rgb; 
     // specular radiance
     float ndotv = saturate(dot(params.n, params.v));
     vec3 r = -reflect(params.v, params.n);

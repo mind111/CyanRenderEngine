@@ -1,6 +1,7 @@
 #include <iostream>
 #include <queue>
 #include <functional>
+#include <stdlib.h>
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_glfw.h"
@@ -63,11 +64,17 @@ namespace Pbr
             {
                 if (action == CYAN_PRESS)
                 {
-                    app->bRayCast = true;
+                    if (!app->mouseOverUI())
+                    {
+                        app->bRayCast = true;
+                    }
                 }
                 else if (action == CYAN_RELEASE)
                 {
-                    app->bRayCast = false;
+                    if (!app->mouseOverUI())
+                    {
+                        app->bRayCast = false;
+                    }
                 }
                 break;
             }
@@ -93,11 +100,14 @@ namespace Pbr
     void mouseScrollWheelCallback(double xOffset, double yOffset)
     {
         PbrApp* app = PbrApp::get();
-        const f32 speed = 0.3f;
-        Scene* currentScene = app->m_scenes[app->m_currentScene];
-        // translate the camera along its lookAt direciton
-        glm::vec3 translation = currentScene->mainCamera.forward * (float)(speed * yOffset);
-        currentScene->mainCamera.position += translation;
+        if (!app->mouseOverUI())
+        {
+            const f32 speed = 0.3f;
+            Scene* currentScene = app->m_scenes[app->m_currentScene];
+            // translate the camera along its lookAt direciton
+            glm::vec3 translation = currentScene->mainCamera.forward * (float)(speed * yOffset);
+            currentScene->mainCamera.position += translation;
+        }
     }
 }
 
@@ -114,6 +124,11 @@ PbrApp::PbrApp()
 {
     bOrbit = false;
     gApp = this;
+}
+
+bool PbrApp::mouseOverUI()
+{
+    return (m_mouseCursorX < 400.f && m_mouseCursorX > 0.f && m_mouseCursorY < 720.f && m_mouseCursorY > 0.f);
 }
 
 struct PbrMaterialInputs
@@ -196,6 +211,7 @@ void PbrApp::initHelmetScene()
     timer.end();
 
     // erato
+#if 0
     {
         PbrMaterialInputs inputs = { };
         Entity* erato = SceneManager::getEntity(helmetScene, "Erato");
@@ -206,7 +222,7 @@ void PbrApp::initHelmetScene()
         m_eratoMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
         erato->setMaterial("StatueMesh", 0, m_eratoMatl);
     }
-
+#endif
     // open room
     {
         PbrMaterialInputs inputs = { };
@@ -270,6 +286,24 @@ void PbrApp::initHelmetScene()
     SceneManager::createPointLight(helmetScene, glm::vec3(0.0f, 0.21f, 1.0f), glm::vec3(3.0f, 0.8f, -0.4f), 20.f);
     // top light
     SceneManager::createDirectionalLight(helmetScene, glm::vec3(1.0f, 1.0, 1.0f), glm::normalize(glm::vec3(0.2f, 1.0f, 0.2f)), 0.f);
+    // create more point lights
+    {
+        f32 spacing = 2.f;
+        glm::vec3 translate = -glm::vec3(6.f, 0.f, -6.f);
+        for (i32 r = 0; r < 4; ++r)
+        {
+            for (i32 col = 0; col < 4; ++ col)
+            {
+                glm::vec3 position(col * 4.0f, -0.5f, -r * 4.0f);
+                position += translate;
+                // randomize color ..?
+                f32 red = static_cast<f32>((rand() % 256)) / 255.f;
+                f32 green = static_cast<f32>((rand() % 256)) / 255.f;
+                f32 blue = static_cast<f32>((rand() % 256)) / 255.f;
+                SceneManager::createPointLight(helmetScene, glm::vec3(red, green, blue), position, 20.f);
+            }
+        }
+    }
 
     // manage entities
     SceneNode* helmetNode = helmetEntity->getSceneNode("HelmetMesh");
@@ -437,9 +471,12 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewpo
     m_debugRay.setColor(glm::vec4(1.0f, 1.0f, 0.0f, 1.0f));
     m_debugRay.setViewProjection(gEngine->getRenderer()->u_cameraView, gEngine->getRenderer()->u_cameraProjection);
 
-    // visualizer
-    m_bufferVis = {};
-    m_bufferVis.init(m_helmetMatl->m_uniformBuffer, glm::vec2(-0.6f, 0.8f), 0.8f, 0.05f);
+    // test probe
+    m_irradianceProbe = { };
+    m_irradianceProbe.m_position = glm::vec3(0.f);
+    m_irradianceProbe.m_scene = m_scenes[0];
+    m_irradianceProbe.init();
+
     // clear color
     Cyan::getCurrentGfxCtx()->setClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.f));
 
@@ -536,7 +573,7 @@ void PbrApp::update()
     Entity* pivotEntity = SceneManager::getEntity(m_scenes[0], "PointLightCenter");
 
     // pivotEntity->applyLocalRotation(qRot);
-    scene->pLights[0].position = glm::vec4(scene->pLights[0].baseLight.m_entity->m_sceneRoot->m_worldTransform.m_translate, 1.0f); 
+    // scene->pLights[0].position = glm::vec4(scene->pLights[0].m_entity->m_sceneRoot->m_worldTransform.m_translate, 1.0f); 
 }
 
 void uiDrawSceneNode(SceneNode* node)
@@ -698,13 +735,17 @@ void PbrApp::drawLightingWidgets()
                                 | ImGuiTreeNodeFlags_OpenOnDoubleClick 
                                 | ImGuiTreeNodeFlags_SpanAvailWidth 
                                 | ImGuiTreeNodeFlags_DefaultOpen;
+    if (ImGui::Button("Create Point Light"))
+    {
+        SceneManager::createPointLight(m_scenes[m_currentScene], glm::vec3(0.9f), glm::vec3(0.f), 1.f);
+    }
     // experimental
     if (ImGui::TreeNodeEx("Experienmental", baseFlags))
     {
         ImGui::Text("Roughness");
         ImGui::SameLine();
-        ImGui::SliderFloat("##Roughness", &m_roughness, 0.f, 1.f, "%.2f");
-        m_eratoMatl->set("uniformRoughness", m_roughness);
+        // ImGui::SliderFloat("##Roughness", &m_roughness, 0.f, 1.f, "%.2f");
+        // m_eratoMatl->set("uniformRoughness", m_roughness);
         
         ImGui::Text("Wrap");
         ImGui::SameLine();
@@ -725,9 +766,9 @@ void PbrApp::drawLightingWidgets()
                 ImGui::InputFloat3("##Direction", &m_scenes[m_currentScene]->dLights[i].direction.x);
                 ImGui::Text("Intensity:");
                 ImGui::SameLine();
-                ImGui::SliderFloat("##Intensity", &m_scenes[m_currentScene]->dLights[i].baseLight.color.w, 0.f, 100.f, nullptr, 1.0f);
+                ImGui::SliderFloat("##Intensity", &m_scenes[m_currentScene]->dLights[i].color.w, 0.f, 100.f, nullptr, 1.0f);
                 ImGui::Text("Color:");
-                ImGui::ColorPicker3("##Color", &m_scenes[m_currentScene]->dLights[i].baseLight.color.r);
+                ImGui::ColorPicker3("##Color", &m_scenes[m_currentScene]->dLights[i].color.r);
                 ImGui::TreePop();
             }
         }
@@ -746,9 +787,9 @@ void PbrApp::drawLightingWidgets()
                 ImGui::SameLine();
                 ImGui::InputFloat3("##Position", &m_scenes[m_currentScene]->pLights[i].position.x);
                 ImGui::Text("Intensity:");
-                ImGui::SliderFloat("##Intensity", &m_scenes[m_currentScene]->pLights[i].baseLight.color.w, 0.f, 100.f, nullptr, 1.0f);
+                ImGui::SliderFloat("##Intensity", &m_scenes[m_currentScene]->pLights[i].color.w, 0.f, 100.f, nullptr, 1.0f);
                 ImGui::Text("Color:");
-                ImGui::ColorPicker3("##Color", &m_scenes[m_currentScene]->pLights[i].baseLight.color.r);
+                ImGui::ColorPicker3("##Color", &m_scenes[m_currentScene]->pLights[i].color.r);
                 ImGui::TreePop();
             }
         }
@@ -887,24 +928,24 @@ void PbrApp::drawRenderSettings()
             switch (m_debugViewIndex)
             {
                 case 0:
-                    m_eratoMatl->set("debugD", 0.f);
-                    m_eratoMatl->set("debugF", 0.f);
-                    m_eratoMatl->set("debugG", 0.f);
+                    m_helmetMatl->set("debugD", 0.f);
+                    m_helmetMatl->set("debugF", 0.f);
+                    m_helmetMatl->set("debugG", 0.f);
                     break;
                 case 1:
-                    m_eratoMatl->set("debugD", 1.f);
-                    m_eratoMatl->set("debugF", 0.f);
-                    m_eratoMatl->set("debugG", 0.f);
+                    m_helmetMatl->set("debugD", 1.f);
+                    m_helmetMatl->set("debugF", 0.f);
+                    m_helmetMatl->set("debugG", 0.f);
                     break;
                 case 2:
-                    m_eratoMatl->set("debugD", 0.f);
-                    m_eratoMatl->set("debugF", 1.f);
-                    m_eratoMatl->set("debugG", 0.f);
+                    m_helmetMatl->set("debugD", 0.f);
+                    m_helmetMatl->set("debugF", 1.f);
+                    m_helmetMatl->set("debugG", 0.f);
                     break;
                 case 3:
-                    m_eratoMatl->set("debugD", 0.f);
-                    m_eratoMatl->set("debugF", 0.f);
-                    m_eratoMatl->set("debugG", 1.f);
+                    m_helmetMatl->set("debugD", 0.f);
+                    m_helmetMatl->set("debugF", 0.f);
+                    m_helmetMatl->set("debugG", 1.f);
                     break;
                 default:
                     break;
@@ -988,15 +1029,20 @@ void PbrApp::render()
     updateMatlInstanceData(m_sphereMatl);
     updateMatlInstanceData(m_cubeMatl);
     updateMatlInstanceData(m_coneMatl);
-    updateMatlInstanceData(m_eratoMatl);
+    // updateMatlInstanceData(m_eratoMatl);
+
+    // ui
+    drawDebugWindows();
 
     // update probe
     SceneManager::setLightProbe(m_scenes[m_currentScene], Cyan::getProbe(m_currentProbeIndex));
     m_envmap = Cyan::getProbe(m_currentProbeIndex)->m_baseCubeMap;
     m_envmapMatl->bindTexture("envmapSampler", m_envmap);
 
-    // rendering
     renderer->beginRender();
+    // rendering
+    m_irradianceProbe.sampleRadiance();
+    m_irradianceProbe.debugRenderProbe();
     renderer->addScenePass(m_scenes[m_currentScene]);
     void* preallocated = renderer->getAllocator().alloc(sizeof(DebugAABBPass));
     Cyan::RenderTarget* sceneRenderTarget = renderer->getSceneColorRenderTarget();
@@ -1004,19 +1050,17 @@ void PbrApp::render()
     renderer->addCustomPass(pass);
     // TODO: how to exclude things in the scene from being post processed
     renderer->addPostProcessPasses();
-    {
-        m_voxelOutput = renderer->voxelizeScene(m_scenes[m_currentScene]);
-    }
-    Cyan::Texture* voxelVis = renderer->renderVoxel(m_scenes[m_currentScene]);
-    Cyan::RenderTarget* rt = renderer->getRenderOutputRenderTarget();
-    renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 180, 320, 180}, m_voxelOutput);
-    renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 360, 320, 180}, voxelVis);
+    // {
+    //     m_voxelOutput = renderer->voxelizeScene(m_scenes[m_currentScene]);
+    // }
+    // Cyan::Texture* voxelVis = renderer->renderVoxel(m_scenes[m_currentScene]);
+    // Cyan::RenderTarget* rt = renderer->getRenderOutputRenderTarget();
+    // renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 180, 320, 180}, m_voxelOutput);
+    // renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 360, 320, 180}, voxelVis);
     renderer->render();
     renderer->endRender();
 
-    // ui
     drawSceneViewport();
-    drawDebugWindows();
 
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

@@ -41,8 +41,7 @@ struct Scene
 class SceneManager {
 public:
     static void updateSceneGraph(Scene* scene);
-    static void updateDirLights(Scene* scene);
-    static void updatePointLights(Scene* scene);
+    static void buildLightList(Scene* scene, std::vector<PointLightData>& pLights, std::vector<DirLightData>& dLights);
     static void setLightProbe(Scene* scene, LightProbe* probe);
     static void createDirectionalLight(Scene* scene, glm::vec3 color, glm::vec3 direction, float intensity);
     static void createPointLight(Scene* scene, glm::vec3 color, glm::vec3 position, float intensity);

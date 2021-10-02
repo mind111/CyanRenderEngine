@@ -47,6 +47,11 @@ namespace Cyan
          1.f,  1.f, 1.f, 1.f
     };
 
+    RenderTarget* IrradianceProbe::m_radianceRenderTarget = 0u; 
+    RenderTarget* IrradianceProbe::m_irradianceRenderTarget = 0u; 
+    Shader* IrradianceProbe::m_renderProbeShader = 0u;
+    MaterialInstance* IrradianceProbe::m_renderProbeMatl = 0u;
+
     // static singleton pointer will be set to 0 before main() get called
     Renderer* Renderer::m_renderer = 0;
 
@@ -571,7 +576,11 @@ namespace Cyan
 
     void Renderer::addPostProcessPasses()
     {
-        addBloomPass();
+        // bloom right now takes about 7ms to run, need improve performance!
+        if (m_bloom)
+        {
+            addBloomPass();
+        }
 
         RenderTarget* renderTarget = m_outputRenderTarget;
         Texture* sceneColorTexture = m_bSuperSampleAA ? m_sceneColorTextureSSAA : m_sceneColorTexture;
@@ -660,8 +669,8 @@ namespace Cyan
             {
                 for (u32 sm = 0; sm < numSubMeshs; ++sm)
                 {
-                    meshInstance->m_matls[sm]->set("numPointLights", sizeofVector(*m_lighting.m_pLights) / (u32)sizeof(PointLight));
-                    meshInstance->m_matls[sm]->set("numDirLights",   sizeofVector(*m_lighting.m_dirLights) / (u32)sizeof(DirectionalLight));
+                    meshInstance->m_matls[sm]->set("numPointLights", static_cast<u32>(m_lighting.m_pLights->size()));
+                    meshInstance->m_matls[sm]->set("numDirLights", static_cast<u32>(m_lighting.m_dirLights->size()));
                 }
             }
             // update light probe data if necessary
@@ -733,25 +742,27 @@ namespace Cyan
         Cyan::getCurrentGfxCtx()->setRenderTarget(nullptr, 0u);
     }
 
-    void Renderer::renderScene(Scene* scene)
+    void Renderer::renderScene(Scene* scene, Camera& camera)
     {
         // camera
-        Camera& camera = scene->mainCamera;
         setUniform(u_cameraView, (void*)&camera.view[0]);
         setUniform(u_cameraProjection, (void*)&camera.projection[0]);
 
         // lights
-        if (!scene->pLights.empty())
+        std::vector<PointLightData> pLights;
+        std::vector<DirLightData> dLights;
+        SceneManager::buildLightList(scene, pLights, dLights);
+        if (!pLights.empty())
         {
-            setBuffer(scene->m_pointLightsBuffer, scene->pLights.data(), sizeofVector(scene->pLights));
+            setBuffer(scene->m_pointLightsBuffer, pLights.data(), sizeofVector(pLights));
         }
-        if (!scene->dLights.empty())
+        if (!dLights.empty())
         {
-            setBuffer(scene->m_dirLightsBuffer, scene->dLights.data(), sizeofVector(scene->dLights));
+            setBuffer(scene->m_dirLightsBuffer, dLights.data(), sizeofVector(dLights));
         }
         
-        m_lighting.m_pLights = &scene->pLights;
-        m_lighting.m_dirLights = &scene->dLights; 
+        m_lighting.m_pLights = &pLights;
+        m_lighting.m_dirLights = &dLights;
         m_lighting.m_probe = scene->m_currentProbe;
         // determine if probe data should be update for this frame
         m_lighting.bUpdateProbeData = (!scene->m_lastProbe || (scene->m_currentProbe->m_baseCubeMap->m_id != scene->m_lastProbe->m_baseCubeMap->m_id));
@@ -761,5 +772,101 @@ namespace Cyan
         {
             drawEntity(entity);
         }
+    }
+
+    void IrradianceProbe::init()
+    {
+        if (!m_radianceRenderTarget)
+        {
+            m_radianceRenderTarget = createRenderTarget(512u, 512u);
+            m_irradianceRenderTarget = createRenderTarget(64u, 64u);
+            m_renderProbeShader = createShader("RenderProbeShader", "../../shader/shader_render_probe.vs", "../../shader/shader_render_probe.fs");
+            m_renderProbeMatl = createMaterial(m_renderProbeShader)->createInstance();
+        }
+        
+        TextureSpec spec = { };
+        spec.m_width = 512u;
+        spec.m_height = 512u;
+        spec.m_type = Texture::Type::TEX_CUBEMAP;
+        spec.m_format = Texture::ColorFormat::R16G16B16;
+        spec.m_dataType =  Texture::Float;
+        spec.m_min = Texture::Filter::LINEAR;
+        spec.m_mag = Texture::Filter::LINEAR;
+        spec.m_s = Texture::Wrap::NONE;
+        spec.m_t = Texture::Wrap::NONE;
+        spec.m_r = Texture::Wrap::NONE;
+        spec.m_numMips = 1u;
+        spec.m_data = 0;
+        m_radianceSamples = createTextureHDR("RadianceProbe", spec);
+        m_radianceRenderTarget->attachColorBuffer(m_radianceSamples);
+        spec.m_width = 64u;
+        spec.m_height = 64u;
+        m_irradianceMap = createTextureHDR("IrradianceProbe", spec);
+        m_irradianceRenderTarget->attachColorBuffer(m_irradianceMap);
+
+        Mesh* mesh = Cyan::getMesh("sphere_mesh");
+        m_meshInstance = mesh->createInstance();
+        m_meshInstance->setMaterial(0, m_renderProbeMatl);
+    }
+
+    void IrradianceProbe::sampleRadiance()
+    {
+        const u32 kViewportWidth = 512u;
+        const u32 kViewportHeight = 512u;
+        Camera camera = { };
+        // camera set to probe's location
+        camera.position = m_position;
+        camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
+        glm::vec3 cameraTargets[] = {
+            {1.f, 0.f, 0.f},   // Right
+            {-1.f, 0.f, 0.f},  // Left
+            {0.f, 1.f, 0.f},   // Up
+            {0.f, -1.f, 0.f},  // Down
+            {0.f, 0.f, 1.f},   // Front
+            {0.f, 0.f, -1.f},  // Back
+        }; 
+        glm::vec3 worldUps[] = {
+            {0.f, -1.f, 0.f},   // Right
+            {0.f, -1.f, 0.f},   // Left
+            {0.f, 0.f, 1.f},    // Up
+            {0.f, 0.f, -1.f},   // Down
+            {0.f, -1.f, 0.f},   // Forward
+            {0.f, -1.f, 0.f},   // Back
+        };
+        auto ctx = Cyan::getCurrentGfxCtx();
+        ctx->setRenderTarget(m_radianceRenderTarget, 0u);
+        ctx->clear();
+        ctx->setViewport({0u, 0u, 512u, 512u});
+        for (u32 f = 0; f < (sizeof(cameraTargets)/sizeof(cameraTargets[0])); ++f)
+        {
+            ctx->setRenderTarget(m_radianceRenderTarget, f);
+            glClear(GL_DEPTH_BUFFER_BIT);
+            camera.lookAt = cameraTargets[f];
+            camera.view = glm::lookAt(camera.position, cameraTargets[f], worldUps[f]);
+            Renderer::getSingletonPtr()->renderScene(m_scene, camera);
+        }
+    }
+
+    void IrradianceProbe::debugRenderProbe()
+    {
+        auto ctx = Cyan::getCurrentGfxCtx();
+        glm::mat4 model = glm::mat4(1.f);
+        model = glm::translate(model, m_position);
+        model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
+        auto renderer = Renderer::getSingletonPtr();
+        RenderTarget* rt = renderer->m_bSuperSampleAA ? renderer->m_sceneColorRTSSAA : renderer->m_sceneColorRenderTarget;
+        ctx->setRenderTarget(rt, 0u);
+        ctx->setViewport({0u, 0u, rt->m_width, rt->m_height});
+        ctx->setShader(m_renderProbeShader);
+        m_renderProbeMatl->bindTexture("radianceMap", m_radianceSamples);
+        Camera& camera = m_scene->mainCamera;
+        setUniform(renderer->u_cameraProjection, &camera.projection[0][0]);
+        setUniform(renderer->u_cameraView, &camera.view[0][0]);
+        Renderer::getSingletonPtr()->drawMeshInstance(m_meshInstance, &model);
+    }
+
+    void IrradianceProbe::computeIrradiance()
+    {
+
     }
 }

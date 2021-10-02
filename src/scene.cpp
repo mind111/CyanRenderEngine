@@ -64,14 +64,7 @@ void SceneManager::createDirectionalLight(Scene* scene, glm::vec3 color, glm::ve
     char nameBuff[64];
     sprintf_s(nameBuff, "DirLight%u", (u32)scene->dLights.size());
     Entity* entity = createEntity(scene, nameBuff, Transform()); 
-    DirectionalLight light = {
-        {
-            entity,
-            {0.f, 0.f},
-            glm::vec4(color, intensity)
-        },
-        glm::vec4(direction, 0.f)
-    };
+    DirectionalLight light(entity, glm::vec4(color, intensity), glm::vec4(direction, 0.f));
     scene->dLights.push_back(light);
 }
 
@@ -80,13 +73,14 @@ void SceneManager::createPointLight(Scene* scene, glm::vec3 color, glm::vec3 pos
     CYAN_ASSERT(scene->pLights.size() < Scene::kMaxNumPointLights, "Too many point lights created.")
     char nameBuff[64];
     sprintf_s(nameBuff, "PointLight%u", (u32)scene->pLights.size());
+    // TODO: not sure why if I 
     Transform transform = Transform();
     transform.m_translate = glm::vec3(position);
     transform.m_scale = glm::vec3(0.1f);
-    Entity* entity = createEntity(scene, nameBuff, transform); 
+    Entity* entity = createEntity(scene, nameBuff, Transform()); 
     Cyan::Mesh* sphereMesh = Cyan::getMesh("sphere_mesh");
     CYAN_ASSERT(sphereMesh, "sphere_mesh does not exist")
-    SceneNode* meshNode = Cyan::createSceneNode("sphere_mesh", Transform(), sphereMesh); 
+    SceneNode* meshNode = Cyan::createSceneNode("LightMesh", transform, sphereMesh); 
     entity->m_sceneRoot->attach(meshNode);
     Shader* pointLightShader = Cyan::createShader("PointLightShader", "../../shader/shader_light.vs", "../../shader/shader_light.fs");
     Cyan::MaterialInstance* matl = Cyan::createMaterial(pointLightShader)->createInstance();
@@ -94,14 +88,7 @@ void SceneManager::createPointLight(Scene* scene, glm::vec3 color, glm::vec3 pos
     glm::vec4 u_color = glm::vec4(color, intensity);
     matl->set("color", &u_color.x);
 
-    PointLight light = {
-        {
-            entity,
-            {0.f, 0.f},
-            glm::vec4(color, intensity)
-        },
-        glm::vec4(position, 1.f)
-    };
+    PointLight light(entity, glm::vec4(color, intensity), glm::vec4(position, 1.f));
     scene->pLights.push_back(light);
 }
 
@@ -110,18 +97,17 @@ void SceneManager::updateSceneGraph(Scene* scene)
 
 }
 
-void SceneManager::updateDirLights(Scene* scene)
+// update light data and pack them in a buffer 
+void SceneManager::buildLightList(Scene* scene, std::vector<PointLightData>& pLights, std::vector<DirLightData>& dLights)
 {
     for (auto& light : scene->dLights)
     {
-        light.direction = light.baseLight.m_entity->getWorldTransform().toMatrix() * light.direction;
+        light.update();
+        dLights.push_back(light.getData());
     }
-}
-
-void SceneManager::updatePointLights(Scene* scene)
-{
     for (auto& light : scene->pLights)
     {
-         light.position = glm::vec4(light.baseLight.m_entity->getWorldTransform().m_translate, 1.0);
+        light.update();
+        pLights.push_back(light.getData());
     }
 }

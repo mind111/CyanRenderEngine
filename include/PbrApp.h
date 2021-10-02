@@ -268,6 +268,7 @@ public:
     // camera control
     void orbitCamera(double deltaX, double deltaY);
     void rotateCamera(double deltaX, double deltaY);
+    bool mouseOverUI();
 
     // main scene viewport
     void drawSceneViewport(); 
@@ -294,6 +295,7 @@ public:
     RayCastInfo m_mouseRayHitInfo;
     bool bPicking;
     double m_mouseCursorX, m_mouseCursorY;
+    Cyan::IrradianceProbe m_irradianceProbe;
 
 private:
     float m_sampleVertex[(64 + 1) * 4 * 2] = { };
@@ -360,7 +362,6 @@ private:
     SceneNode* m_selectedNode;
 
     // misc
-    BufferVisualizer m_bufferVis;
     ImFont* m_font;
     u32 m_debugViewIndex;
     double m_lastFrameDurationInMs;

@@ -39,6 +39,32 @@ namespace Cyan
     // foward declarations
     struct RenderTarget;
 
+    struct IrradianceVolume
+    {
+
+    };
+
+    struct IrradianceProbe
+    {
+        glm::vec3 m_position;
+        // render the scene from six faces
+        Texture* m_radianceSamples;
+        // convolve the radiance samples to get irradiance from every direction
+        Texture* m_irradianceMap;
+        Scene* m_scene;
+        MeshInstance* m_meshInstance;
+        static Shader* m_renderProbeShader;
+        static MaterialInstance* m_renderProbeMatl;
+        static RenderTarget* m_radianceRenderTarget;
+        static RenderTarget* m_irradianceRenderTarget;
+
+        void init();
+
+        void sampleRadiance();
+        void computeIrradiance();
+        void debugRenderProbe();
+    };
+
     class RenderState
     {
     public:
@@ -94,13 +120,13 @@ namespace Cyan
 
         void beginRender();
         void render();
-        void renderScene(Scene* scene);
+        void renderScene(Scene* scene, Camera& camera);
         void endRender();
 
         struct Lighting
         {
-            std::vector<PointLight>* m_pLights;
-            std::vector<DirectionalLight>* m_dirLights;
+            std::vector<PointLightData>* m_pLights;
+            std::vector<DirLightData>* m_dirLights;
             LightProbe* m_probe;
             bool bUpdateProbeData;
         };
