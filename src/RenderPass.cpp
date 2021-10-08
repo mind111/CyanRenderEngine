@@ -437,7 +437,6 @@ namespace Cyan
         m_frustumAABB.bound(fcv4);
         m_frustumAABB.bound(fdv4);
 
-        // FIXME: this is bugged
         f32 midX = .5f * (m_frustumAABB.m_pMin.x + m_frustumAABB.m_pMax.x);
         f32 midY = .5f * (m_frustumAABB.m_pMin.y + m_frustumAABB.m_pMax.y);
         m_frustumAABB.m_pMin.x = -fixedProjSizeX + midX;

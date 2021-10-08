@@ -282,23 +282,23 @@ namespace Cyan
         {
             auto ctx = Cyan::getCurrentGfxCtx();
             MaterialInstance* matl = meshInstance->m_matls[i]; 
-            Material* matlClass = matl->m_template;
-            Shader* shader = matlClass->m_shader;
-            // TODO: this is obviously redundant
-            ctx->setShader(matlClass->m_shader);
+            Shader* shader = matl->getShader();
+            ctx->setShader(shader);
             if (modelMatrix)
             {
-                // TODO: this is obviously redundant
-                Cyan::setUniform(u_model, &(*modelMatrix)[0][0]);
+                // TODO: this is obviously redumatl->m_shaderndant
+                Cyan::setUniform(u_model, &(*modelMatrix)[0]);
                 ctx->setUniform(u_model);
             }
             ctx->setUniform(u_cameraView);
             ctx->setUniform(u_cameraProjection);
+
             // TODO: clean up the logic regarding when and where to bind shadow map
             ShadowMapData* shadowData = DirectionalShadowPass::getShadowMap();
             matl->bindTexture("shadowMap", shadowData->shadowMap);
             matl->set("lightView", &shadowData->lightView[0][0]);
             matl->set("lightProjection", &shadowData->lightProjection[0][0]);
+
             UsedBindingPoints used = matl->bind();
             Mesh::SubMesh* sm = mesh->m_subMeshes[i];
             ctx->setVertexArray(sm->m_vertexArray);
@@ -315,7 +315,6 @@ namespace Cyan
                 ctx->setTexture(nullptr, t);
             }
             // NOTES: reset shader storage binding points
-            // TODO: verify if shader storage binding points are global
             for (u32 p = 0; p < used.m_usedBufferBindings; ++p)
             {
                 ctx->setBuffer(nullptr, p);
