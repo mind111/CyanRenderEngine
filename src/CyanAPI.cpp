@@ -10,9 +10,15 @@
 #include "CyanAPI.h"
 #include "GfxContext.h"
 #include "Camera.h"
+#include "GraphicsSystem.h"
 
 namespace Cyan
 {
+    class MeshManager
+    {
+
+    };
+
     struct HandleAllocator
     {
         u32 m_nextHandle;
@@ -32,31 +38,24 @@ namespace Cyan
     static const u32 kMaxNumMaterialTypes = 64;
     static const u32 kMaxNumSceneNodes = 256;
 
-    // TODO: Where do these live in memory... stack or heap or somewhere else?
-    static AssetManager s_assetManager;
-    static std::vector<Texture*> s_textures;
     static std::vector<Mesh*> s_meshes;
-    static std::vector<Uniform*> s_uniforms;
     static std::vector<LightProbe> s_probes;
-    static SceneNode s_sceneNodes[kMaxNumSceneNodes];
+    static SceneNode s_sceneNodes[kMaxNumSceneNodes] = { };
     static GfxContext* s_gfxc = nullptr;
     static void* s_memory = nullptr;
     static LinearAllocator* s_allocator = nullptr;
 
+    static std::vector<Uniform*> s_uniforms;
     static std::unordered_map<std::string, u32> s_uniformRegistry;
     static std::unordered_map<std::string, u32> s_shaderRegistry;
 
     static HandleAllocator s_uniformHandleAllocator = { };
     static HandleAllocator s_shaderHandleAllocator = { };
-    static Uniform* m_uniforms[kMaxNumUniforms];
 
     // each material type share same handle as its according shader 
     static Shader* m_shaders[kMaxNumShaders];
     static Material* m_materialTypes[kMaxNumMaterialTypes];
 
-    static UniformBuffer* m_uniformBuffer = nullptr;
-
-    static u32 m_numUniforms = 0u;
     static u32 m_numSceneNodes = 0u;
 
     void init()
@@ -67,7 +66,10 @@ namespace Cyan
         s_gfxc->init();
         s_memory = (void*)(new char[1024 * 1024 * 1024]); // 1GB memory pool
         s_allocator = LinearAllocator::create(s_memory, 1024 * 1024 * 1024);
-        m_uniformBuffer = createUniformBuffer();
+        // reserve 0th item for null handle
+        s_uniforms.resize(kMaxNumUniforms + 1);
+        s_shaderHandleAllocator.m_nextHandle = 1u;
+        s_uniformHandleAllocator.m_nextHandle = 1u;
     }
 
     LinearAllocator* getAllocator()
@@ -312,7 +314,8 @@ namespace Cyan
         scene->m_rootEntity = nullptr;
         // create root entity
         scene->m_rootEntity = SceneManager::getSingletonPtr()->createEntity(scene, "SceneRoot", Transform());
-        s_assetManager.loadScene(scene, file);
+        auto assetManager = GraphicsSystem::getSingletonPtr()->getAssetManager(); 
+        assetManager->loadScene(scene, file);
         loadSceneTimer.end();
         return scene;
     }
@@ -355,15 +358,23 @@ namespace Cyan
         return nullptr;
     }
 
-    Shader* createShader(const char* name, const char* vertSrc, const char* fragSrc)
+    u32 findShader(const char* name)
     {
-        using ShaderEntry = std::pair<std::string, u32>;
-
-        // found a existing shader
         auto itr = s_shaderRegistry.find(std::string(name));
         if (itr != s_shaderRegistry.end())
         {
-            return m_shaders[itr->second];
+            return itr->second;
+        }
+        return 0u;
+    }
+
+    Shader* createShader(const char* name, const char* vertSrc, const char* fragSrc)
+    {
+        using ShaderEntry = std::pair<std::string, u32>;
+        // found a existing shader
+        if (u32 foundShader = findShader(name))
+        {
+            return m_shaders[foundShader];
         }
 
         // TODO: Memory management
@@ -409,7 +420,7 @@ namespace Cyan
         glCreateFramebuffers(1, &rt->m_frameBuffer);
         return rt;
     }
-
+#if 0
     static GLenum convertTexFilter(Texture::Filter filter)
     {
         switch(filter)
@@ -775,48 +786,57 @@ namespace Cyan
         stbi_image_free(pixels);
         return texture;
     }
+#endif
 
-    void addTexture(Texture* texture) {
-        s_textures.push_back(texture);
-    }
+    // void addTexture(Texture* texture) {
+    //     s_textures.push_back(texture);
+    // }
 
-    u32 getNumTextures() {
-        return static_cast<u32>(s_textures.size());
-    }
+    // u32 getNumTextures() {
+    //     return static_cast<u32>(s_textures.size());
+    // }
 
-    Texture* getTexture(const char* _name)
+    // Texture* getTexture(const char* _name)
+    // {
+    //     for (auto texture :  s_textures)
+    //     {
+    //         if (strcmp(texture->m_name.c_str(), _name) == 0)
+    //         {
+    //             return texture;
+    //         }
+    //     }
+    //     CYAN_ASSERT(0, "should not reach!") // Unreachable
+    //     return 0;
+    // }
+
+    u32 findUniform(const char* name)
     {
-        for (auto texture :  s_textures)
+        auto itr = s_uniformRegistry.find(std::string(name));
+        if (itr != s_uniformRegistry.end())
         {
-            if (strcmp(texture->m_name.c_str(), _name) == 0)
-            {
-                return texture;
-            }
+            return itr->second; 
         }
-        CYAN_ASSERT(0, "should not reach!") // Unreachable
         return 0;
     }
 
-    Uniform* createUniform(const char* _name, Uniform::Type _type)
+    Uniform* createUniform(const char* name, Uniform::Type type)
     {
-        std::string key(_name); 
-        auto itr = s_uniformRegistry.find(key);
-        if (itr != s_uniformRegistry.end())
+        // TODO: build hashkey using name and type
+        if (u32 foundHandle = findUniform(name)) 
         {
-            u32 handle = itr->second; 
-            return m_uniforms[handle]; 
+            return s_uniforms[foundHandle];
         }
+
         u32 handle = ALLOC_HANDLE(Uniform)
-        m_uniforms[handle] = (Uniform*)s_allocator->alloc(sizeof(Uniform)); 
-        Uniform* uniform = m_uniforms[handle];
-        uniform->m_type = _type;
-        strcpy(uniform->m_name, _name);
+        // allocate from global uniform buffer
+        Uniform* uniform = (Uniform*)s_allocator->alloc(sizeof(Uniform));
+        s_uniforms.insert(s_uniforms.begin() + handle, uniform);
+        uniform->m_type = type;
+        strcpy(uniform->m_name, name);
         u32 size = uniform->getSize();
         uniform->m_valuePtr = s_allocator->alloc(size);
         memset((u8*)uniform->m_valuePtr, 0x0, size);
-        s_uniformRegistry.insert(std::pair<std::string,u32>(key, handle));
-        m_numUniforms += 1;
-        CYAN_ASSERT(m_numUniforms <= kMaxNumUniforms, "Too many uniforms created");
+        s_uniformRegistry.insert(std::pair<std::string,u32>(std::string(name), handle));
         return uniform;
     }
 
@@ -839,7 +859,7 @@ namespace Cyan
     {
         // CYAN_ASSERT(handle < kMaxNumUniforms, "Uniform handle %u out of bound", handle)
         if (handle > kMaxNumUniforms) return nullptr;
-        return m_uniforms[handle];
+        return s_uniforms[handle];
     }
 
     UniformBuffer* createUniformBuffer(u32 sizeInBytes)
@@ -854,7 +874,6 @@ namespace Cyan
     Uniform* createShaderUniform(Shader* _shader, const char* _name, Uniform::Type _type)
     {
         Uniform* uniform = createUniform(_name, _type);
-        // _shader->bindUniform(uniform);
         return uniform;
     }
 
@@ -1152,6 +1171,7 @@ namespace Cyan
         // Load equirectangular map into a cubemap
         Texture* loadEquirectangularMap(const char* _name, const char* _file, bool _hdr)
         {
+            auto textureManager = TextureManager::getSingletonPtr();
             const u32 kViewportWidth = 1024;
             const u32 kViewportHeight = 1024;
             Camera camera = { };
@@ -1172,26 +1192,26 @@ namespace Cyan
             if (_hdr)
             {
                 spec.m_dataType = Texture::DataType::Float;
-                equirectMap = createTextureHDR(_name, _file, spec);
+                equirectMap = textureManager->createTextureHDR(_name, _file, spec);
                 spec.m_type = Texture::Type::TEX_CUBEMAP;
                 spec.m_width = kViewportWidth;
                 spec.m_height = kViewportHeight;
                 spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
                 spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
                 spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
-                envmap = createTextureHDR(_name, spec);
+                envmap = textureManager->createTextureHDR(_name, spec);
             }
             else
             {
                 spec.m_dataType = Texture::DataType::UNSIGNED_BYTE;
-                equirectMap = createTexture(_name, _file, spec);
+                equirectMap = textureManager->createTexture(_name, _file, spec);
                 spec.m_type = Texture::Type::TEX_CUBEMAP;
                 spec.m_width = kViewportWidth;
                 spec.m_height = kViewportHeight;
                 spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
                 spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
                 spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
-                envmap = createTexture(_name, spec);
+                envmap = textureManager->createTexture(_name, spec);
             }
 
             // Create render targets
@@ -1261,6 +1281,7 @@ namespace Cyan
 
         Texture* prefilterEnvMapDiffuse(const char* _name, Texture* envMap)
         {
+            auto textureManager = TextureManager::getSingletonPtr();
             const u32 kViewportWidth = 128u;
             const u32 kViewportHeight = 128u;
             Camera camera = { };
@@ -1283,12 +1304,12 @@ namespace Cyan
             if (spec.m_format == Texture::ColorFormat::R16G16B16 || spec.m_format == Texture::ColorFormat::R16G16B16A16)
             {
                 spec.m_dataType = Texture::DataType::Float;
-                diffuseIrradianceMap = createTextureHDR(envMap->m_name.c_str(), spec);
+                diffuseIrradianceMap = textureManager->createTextureHDR(envMap->m_name.c_str(), spec);
             }
             else
             {
                 spec.m_dataType = Texture::DataType::UNSIGNED_BYTE;
-                diffuseIrradianceMap = createTexture(envMap->m_name.c_str(), spec);
+                diffuseIrradianceMap = textureManager->createTexture(envMap->m_name.c_str(), spec);
             }
             // Create render targets
             RenderTarget* rt = createRenderTarget(kViewportWidth, kViewportHeight);
@@ -1357,6 +1378,7 @@ namespace Cyan
         Texture* prefilterEnvmapSpecular(Texture* envMap)
         {
             CYAN_ASSERT(envMap->m_type == Texture::Type::TEX_CUBEMAP, "Cannot prefilter a non-cubemap texture")
+            auto textureManager = TextureManager::getSingletonPtr();
             Texture* prefilteredEnvMap;
             // HDR
             TextureSpec spec;
@@ -1376,12 +1398,12 @@ namespace Cyan
             if (spec.m_format == Texture::ColorFormat::R16G16B16 || spec.m_format == Texture::ColorFormat::R16G16B16A16)
             {
                 spec.m_dataType = Texture::DataType::Float;
-                prefilteredEnvMap = createTextureHDR(envMap->m_name.c_str(), spec);
+                prefilteredEnvMap = textureManager->createTextureHDR(envMap->m_name.c_str(), spec);
             }
             else
             {
                 spec.m_dataType = Texture::DataType::UNSIGNED_BYTE;
-                prefilteredEnvMap = createTexture(envMap->m_name.c_str(), spec);
+                prefilteredEnvMap = textureManager->createTexture(envMap->m_name.c_str(), spec);
             }
             // glGenerateTextureMipmap(prefilteredEnvMap->m_id);
             Shader* shader = createShader("PrefilterSpecularShader", "../../shader/shader_prefilter_specular.vs", "../../shader/shader_prefilter_specular.fs");
@@ -1465,6 +1487,8 @@ namespace Cyan
         // integrate brdf for specular IBL
         Texture* generateBrdfLUT()
         {
+            auto textureManager = TextureManager::getSingletonPtr();
+
             const u32 kTexWidth = 512u;
             const u32 kTexHeight = 512u;
             TextureSpec spec = { };
@@ -1480,7 +1504,7 @@ namespace Cyan
             spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
             spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
             spec.m_data = nullptr;
-            Texture* outputTexture = createTextureHDR("integrateBrdf", spec); 
+            Texture* outputTexture = textureManager->createTextureHDR("integrateBrdf", spec); 
             Shader* shader = createShader("IntegrateBRDFShader", "../../shader/shader_integrate_brdf.vs", "../../shader/shader_integrate_brdf.fs");
             RenderTarget* rt = createRenderTarget(kTexWidth, kTexWidth);
             rt->attachColorBuffer(outputTexture);
@@ -1535,6 +1559,7 @@ namespace Cyan
         // create a flat color albedo map via fragment shader
         Texture* createFlatColorTexture(const char* name, u32 width, u32 height, glm::vec4 color)
         {
+            auto textureManager = TextureManager::getSingletonPtr();
             TextureSpec spec = { };
             spec.m_type = Texture::Type::TEX_2D;
             spec.m_format = Texture::ColorFormat::R8G8B8A8;
@@ -1570,7 +1595,7 @@ namespace Cyan
             glBindVertexArray(0);
 
             Shader* shader = createShader("FlatColorShader", "../../shader/shader_flat_color.vs", "../../shader/shader_flat_color.fs");
-            Texture* texture = createTexture(name, spec);
+            Texture* texture = textureManager->createTexture(name, spec);
             RenderTarget* rt = createRenderTarget(width, height);
             Uniform* u_color = createUniform("color", Uniform::Type::u_vec4);
             setUniform(u_color, &color.r);
@@ -1589,7 +1614,6 @@ namespace Cyan
             gfxc->setViewport(origViewport);
             gfxc->reset();
 
-            s_textures.push_back(texture);
             return texture;
         }
     } // Toolkit

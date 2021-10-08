@@ -44,6 +44,7 @@ void AssetManager::loadTextures(nlohmann::basic_json<std::map>& textureInfoList)
 {
     using Cyan::Texture;
     using Cyan::TextureSpec;
+    auto textureManager = Cyan::TextureManager::getSingletonPtr();
 
     for (auto textureInfo : textureInfoList) 
     {
@@ -62,11 +63,11 @@ void AssetManager::loadTextures(nlohmann::basic_json<std::map>& textureInfoList)
         spec.m_r = Texture::Wrap::NONE;
         if (dynamicRange == "ldr")
         {
-            createTexture(name.c_str(), filename.c_str(), spec);
+            textureManager->createTexture(name.c_str(), filename.c_str(), spec);
         }
         else if (dynamicRange == "hdr")
         {
-            createTextureHDR(name.c_str(), filename.c_str(), spec);
+            textureManager->createTextureHDR(name.c_str(), filename.c_str(), spec);
         }
     }
 }
@@ -180,7 +181,7 @@ void AssetManager::loadScene(Scene* scene, const char* file)
 // TODO: Fix this, the loaded textures are all black!!!
 Cyan::Texture* AssetManager::loadGltfTexture(tinygltf::Model& model, i32 index) {
     using Cyan::Texture;
-
+    auto textureManager = Cyan::TextureManager::getSingletonPtr();
     Texture* texture = nullptr;
     if (index > -1) {
         auto gltfTexture = model.textures[index];
@@ -228,16 +229,15 @@ Cyan::Texture* AssetManager::loadGltfTexture(tinygltf::Model& model, i32 index) 
         switch (spec.m_format) {
             case Texture::ColorFormat::R8G8B8:
             case Texture::ColorFormat::R8G8B8A8: {
-                texture = Cyan::createTexture(name, spec);
+                texture = textureManager->createTexture(name, spec);
                 break;
             }
             case Texture::ColorFormat::R16G16B16:
             case Texture::ColorFormat::R16G16B16A16: {
-                texture = Cyan::createTextureHDR(name, spec);
+                texture = textureManager->createTextureHDR(name, spec);
                 break;
             }
         }
-        Cyan::addTexture(texture);
     }
     return texture;
 }
@@ -245,6 +245,7 @@ Cyan::Texture* AssetManager::loadGltfTexture(tinygltf::Model& model, i32 index) 
 // TODO: Normalize mesh scale
 SceneNode* AssetManager::loadGltfNode(Scene* scene, tinygltf::Model& model, tinygltf::Node* parent, 
                     SceneNode* parentSceneNode, tinygltf::Node& node, u32 numNodes) {
+    auto textureManager = Cyan::TextureManager::getSingletonPtr();
     bool hasMesh = (node.mesh > -1);
     bool hasSkin = (node.skin > -1);
     bool hasMatrix = !node.matrix.empty();
@@ -309,7 +310,7 @@ SceneNode* AssetManager::loadGltfNode(Scene* scene, tinygltf::Model& model, tiny
                     Cyan::Texture* texture = nullptr;
                     if (imageIndex > -1) {
                         auto& image = model.images[imageIndex];
-                        texture = Cyan::getTexture(image.uri.c_str());
+                        texture = textureManager->getTexture(image.uri.c_str());
                     }
                     return texture;
                 };

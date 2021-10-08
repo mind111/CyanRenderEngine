@@ -76,15 +76,10 @@ void CyanEngine::init(WindowConfig windowConfig, glm::vec2 sceneViewportPos, glm
     glfwSetScrollCallback(m_window.mpWindow, mouseScrollFunc);
     glfwSetKeyCallback(m_window.mpWindow, keyFunc);
 
-    // Setup renderer 
+    // setup graphics system 
     {
-        m_renderer = new Cyan::Renderer();
-        m_renderer->init(m_renderSize);
+        m_graphicsSystem = new Cyan::GraphicsSystem(glm::vec2(m_window.width, m_window.height));
         Cyan::getCurrentGfxCtx()->setWindow(&m_window);
-    }
-    // setup scene manager
-    {
-        m_sceneManager = new SceneManager();
     }
     // Init member variables
     {

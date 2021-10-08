@@ -1,5 +1,5 @@
 #include "RenderPass.h"
-#include "cyanRenderer.h"
+#include "GraphicsSystem.h"
 
 namespace Cyan
 {
@@ -83,6 +83,7 @@ namespace Cyan
 
     void BloomPass::onInit(u32 windowWidth, u32 windowHeight)
     {
+        auto textureManger = TextureManager::getSingletonPtr();
         s_bloomSetupRT = createRenderTarget(windowWidth, windowHeight);
         TextureSpec spec = { };
         spec.m_width = windowWidth;
@@ -95,7 +96,7 @@ namespace Cyan
         spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
         spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
         spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
-        s_bloomSetupRT->attachColorBuffer(createTexture("BloomSetupTexture", spec));
+        s_bloomSetupRT->attachColorBuffer(textureManger->createTexture("BloomSetupTexture", spec));
         s_bloomSetupShader = createShader("BloomSetupShader", "../../shader/shader_bloom_preprocess.vs", "../../shader/shader_bloom_preprocess.fs");
         s_bloomSetupMatl = createMaterial(BloomPass::s_bloomSetupShader)->createInstance();
         s_bloomDsShader = createShader("BloomDownSampleShader", "../../shader/shader_downsample.vs", "../../shader/shader_downsample.fs");
@@ -110,17 +111,17 @@ namespace Cyan
             BloomPass::s_bloomDsSurfaces[index].m_renderTarget = createRenderTarget(spec.m_width, spec.m_height);
             char buff[64];
             sprintf_s(buff, "BloomTexture%u", numBloomTextures++);
-            BloomPass::s_bloomDsSurfaces[index].m_pingPongColorBuffers[0] = createTextureHDR(buff, spec);
+            BloomPass::s_bloomDsSurfaces[index].m_pingPongColorBuffers[0] = textureManger->createTextureHDR(buff, spec);
             sprintf_s(buff, "BloomTexture%u", numBloomTextures++);
-            BloomPass::s_bloomDsSurfaces[index].m_pingPongColorBuffers[1] = createTextureHDR(buff, spec);
+            BloomPass::s_bloomDsSurfaces[index].m_pingPongColorBuffers[1] = textureManger->createTextureHDR(buff, spec);
             BloomPass::s_bloomDsSurfaces[index].m_renderTarget->attachColorBuffer(BloomPass::s_bloomDsSurfaces[index].m_pingPongColorBuffers[0]);
             BloomPass::s_bloomDsSurfaces[index].m_renderTarget->attachColorBuffer(BloomPass::s_bloomDsSurfaces[index].m_pingPongColorBuffers[1]);
 
             BloomPass::s_bloomUsSurfaces[index].m_renderTarget = createRenderTarget(spec.m_width, spec.m_height);
             sprintf_s(buff, "BloomTexture%u", numBloomTextures++);
-            BloomPass::s_bloomUsSurfaces[index].m_pingPongColorBuffers[0] = createTextureHDR(buff, spec);
+            BloomPass::s_bloomUsSurfaces[index].m_pingPongColorBuffers[0] = textureManger->createTextureHDR(buff, spec);
             sprintf_s(buff, "BloomTexture%u", numBloomTextures++);
-            BloomPass::s_bloomUsSurfaces[index].m_pingPongColorBuffers[1] = createTextureHDR(buff, spec);
+            BloomPass::s_bloomUsSurfaces[index].m_pingPongColorBuffers[1] = textureManger->createTextureHDR(buff, spec);
             BloomPass::s_bloomUsSurfaces[index].m_renderTarget->attachColorBuffer(BloomPass::s_bloomUsSurfaces[index].m_pingPongColorBuffers[0]);
             BloomPass::s_bloomUsSurfaces[index].m_renderTarget->attachColorBuffer(BloomPass::s_bloomUsSurfaces[index].m_pingPongColorBuffers[1]);
             spec.m_width /= 2;
@@ -324,6 +325,7 @@ namespace Cyan
 
     void DirectionalShadowPass::onInit()
     {
+        auto textureManager = TextureManager::getSingletonPtr();
         s_shadowMap = new ShadowMapData { };
         // TODO: depth buffer creation coupled with render target creation
         s_depthRenderTarget = createDepthRenderTarget(1024, 1024);
@@ -338,7 +340,7 @@ namespace Cyan
         spec.m_mag = Texture::Filter::LINEAR;
         spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
         spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
-        s_shadowMap->shadowMap = createTexture("DepthTexture", spec);
+        s_shadowMap->shadowMap = textureManager->createTexture("DepthTexture", spec);
         s_shadowMap->lightView = glm::mat4(1.f);
         s_shadowMap->lightProjection = glm::mat4(1.f);
         

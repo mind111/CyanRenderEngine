@@ -115,6 +115,7 @@ namespace Cyan
 
     void Renderer::initRenderTargets(u32 windowWidth, u32 windowHeight)
     {
+        auto textureManager = TextureManager::getSingletonPtr();
         m_windowWidth = windowWidth;
         m_windowHeight = windowHeight;
         m_SSAAWidth = 2u * m_windowWidth;
@@ -132,17 +133,17 @@ namespace Cyan
         spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
         spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
         spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
-        m_sceneColorTextureSSAA = createTextureHDR("SceneColorTexSSAA", spec);
+        m_sceneColorTextureSSAA = textureManager->createTextureHDR("SceneColorTexSSAA", spec);
         m_sceneColorRTSSAA = createRenderTarget(m_SSAAWidth, m_SSAAHeight);
         m_sceneColorRTSSAA->attachColorBuffer(m_sceneColorTextureSSAA);
 
         // scene color render targets 
         spec.m_width = m_windowWidth;
         spec.m_height = m_windowHeight;
-        m_sceneColorTexture = createTextureHDR("SceneColorTexture", spec);
+        m_sceneColorTexture = textureManager->createTextureHDR("SceneColorTexture", spec);
         m_sceneColorRenderTarget = createRenderTarget(m_windowWidth, m_windowHeight);
         m_sceneColorRenderTarget->attachColorBuffer(m_sceneColorTexture);
-        m_outputColorTexture = createTextureHDR("FinalColorTexture", spec);
+        m_outputColorTexture = textureManager->createTextureHDR("FinalColorTexture", spec);
         m_outputRenderTarget = createRenderTarget(spec.m_width, spec.m_height);
         m_outputRenderTarget->attachColorBuffer(m_outputColorTexture);
 
@@ -161,7 +162,7 @@ namespace Cyan
         voxelSpec.m_min = Texture::Filter::LINEAR; 
         voxelSpec.m_mag = Texture::Filter::LINEAR;
         voxelSpec.m_numMips = 1;
-        m_voxelColorTexture = createTexture("Voxelization", voxelSpec);
+        m_voxelColorTexture = textureManager->createTexture("Voxelization", voxelSpec);
         {
             TextureSpec visSpec = { };
             visSpec.m_width = 320;
@@ -172,7 +173,7 @@ namespace Cyan
             visSpec.m_min = Texture::Filter::LINEAR; 
             visSpec.m_mag = Texture::Filter::LINEAR;
             visSpec.m_numMips = 1;
-            m_voxelVisColorTexture = createTexture("VoxelVis", visSpec);
+            m_voxelVisColorTexture = textureManager->createTexture("VoxelVis", visSpec);
             m_voxelVisRenderTarget = createRenderTarget(visSpec.m_width, visSpec.m_height);
             m_voxelVisRenderTarget->attachColorBuffer(m_voxelVisColorTexture);
         }
@@ -192,9 +193,9 @@ namespace Cyan
         voxelDataSpec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
         voxelDataSpec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
         voxelDataSpec.m_numMips = 1;
-        m_voxelData.m_albedo = createTexture3D("VoxelAlbedo", voxelDataSpec);
-        m_voxelData.m_normal = createTexture3D("VoxelNormal", voxelDataSpec);
-        m_voxelData.m_emission = createTexture3D("VoxelEmission", voxelDataSpec);
+        m_voxelData.m_albedo = textureManager->createTexture3D("VoxelAlbedo", voxelDataSpec);
+        m_voxelData.m_normal = textureManager->createTexture3D("VoxelNormal", voxelDataSpec);
+        m_voxelData.m_emission = textureManager->createTexture3D("VoxelEmission", voxelDataSpec);
     }
 
     void Renderer::initShaders()
@@ -208,9 +209,6 @@ namespace Cyan
         glAttachShader(m_lumHistogramProgram, m_lumHistogramShader);
         glLinkProgram(m_lumHistogramProgram);
         ShaderUtil::checkShaderLinkage(m_lumHistogramProgram);
-
-        // m_bloomPreprocessShader = Cyan::createShader("BloomPreprocessShader", "../../shader/shader_bloom_preprocess.vs", "../../shader/shader_bloom_preprocess.fs");
-        // m_gaussianBlurShader = Cyan::createShader("GaussianBlurShader", "../../shader/shader_gaussian_blur.vs", "../../shader/shader_gaussian_blur.fs");
     }
 
     void Renderer::init(glm::vec2 windowSize)

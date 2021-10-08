@@ -3,7 +3,7 @@
 #include <vector>
 
 #include "CyanApp.h"
-#include "Scene.h"
+#include "GraphicsSystem.h"
 #include "Mesh.h"
 #include "Geometry.h"
 #include "imgui/imgui.h"
@@ -36,6 +36,7 @@ struct EnvMapDebugger
     { 
         using Cyan::Texture;
         using Cyan::TextureSpec;
+        auto textureManager = Cyan::TextureManager::getSingletonPtr();
         TextureSpec spec = { };
         spec.m_type = Texture::Type::TEX_CUBEMAP;
         spec.m_width = envMap->m_width;
@@ -46,7 +47,7 @@ struct EnvMapDebugger
         spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
         spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
         spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
-        m_texture = Cyan::createTextureHDR("EnvmapDebug", spec);
+        m_texture = textureManager->createTextureHDR("EnvmapDebug", spec);
         glGenerateTextureMipmap(m_texture->m_id);
         m_envMap = envMap;
         m_shader = Cyan::createShader("PrefilterSpecularShader", "../../shader/shader_prefilter_specular.vs", "../../shader/shader_prefilter_specular.fs");
@@ -183,6 +184,7 @@ struct BrdfDebugger
     {
         using Cyan::Texture;
         using Cyan::TextureSpec;
+        auto textureManager = Cyan::TextureManager::getSingletonPtr();
         TextureSpec spec = { };
         spec.m_type = Texture::Type::TEX_2D;
         spec.m_format = Texture::ColorFormat::R16G16B16A16;
@@ -193,7 +195,7 @@ struct BrdfDebugger
         spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
         spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
         spec.m_r = Texture::Wrap::NONE;
-        m_output = Cyan::createTextureHDR("integrateBrdf", spec); 
+        m_output = textureManager->createTextureHDR("integrateBrdf", spec); 
         m_shader = Cyan::createShader("IntegrateBRDFShader", "../../shader/shader_integrate_brdf.vs", "../../shader/shader_integrate_brdf.fs");
         m_renderTarget = Cyan::createRenderTarget(kTexWidth, kTexWidth);
         m_renderTarget->attachColorBuffer(m_output);
@@ -308,7 +310,6 @@ private:
     u32 m_currentScene;
     u32 m_currentProbeIndex;
 
-
     // Materials
     Cyan::MaterialInstance* m_droneMatl;
     Cyan::MaterialInstance* m_helmetMatl;
@@ -374,4 +375,6 @@ private:
 
     // debug parameters
     Line m_debugRay;
+
+    Cyan::GraphicsSystem* m_graphicsSystem;
 };

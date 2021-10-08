@@ -80,10 +80,24 @@ namespace Cyan
         Texture::Wrap m_r;
         void*      m_data;
     };
-}
 
-class TextureUtils
-{
-public:
-    static unsigned char* loadImage(const char* filename, int* w, int* h, int* numChannels);
-};
+    // TODO: implement following systems
+    class TextureManager
+    {
+    public:
+        TextureManager();
+        ~TextureManager() { }
+        static TextureManager* getSingletonPtr();
+        u32 getNumTextures();
+        Texture* getTexture(const char* name);
+        void addTexture(Texture* texture);
+        Texture* createTexture(const char* _name, TextureSpec spec);
+        Texture* createTextureHDR(const char* _name, TextureSpec spec);
+        Texture* createTexture(const char* _name, const char* _file, TextureSpec& spec);
+        Texture* createTextureHDR(const char* _name, const char* _file, TextureSpec& spec);
+        Texture* createTexture3D(const char* name, TextureSpec spec);
+
+        static std::vector<Texture*> s_textures;
+        static TextureManager* m_singleton;
+    };
+}

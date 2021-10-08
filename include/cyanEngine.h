@@ -2,7 +2,7 @@
 
 #include "imgui/imgui.h"
 
-#include "CyanRenderer.h"
+#include "GraphicsSystem.h"
 #include "Window.h"
 
 // TODO: Move this to somewhere else
@@ -61,15 +61,11 @@ public:
 
     const Window& getWindow() { return m_window; } 
     glm::vec2 getSceneViewportPos();
-    Cyan::Renderer* getRenderer() { return m_renderer; }
     glm::vec2 getMouseCursorDelta() { return glm::vec2(float(cursorDeltaX), float(cursorDeltaY)); }
     void swapBuffers(); 
 
-    // scene manager
-    SceneManager* m_sceneManager;
-
-    /* Renderer */
-    Cyan::Renderer* m_renderer;
+    // GfxSystem
+    Cyan::GraphicsSystem* m_graphicsSystem;
 
 private:
     Window m_window;

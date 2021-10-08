@@ -262,7 +262,8 @@ void PbrApp::initHelmetScene()
     // setup scenes
     Cyan::Toolkit::ScopedTimer loadSceneTimer("createScene()", true);
     Scene* helmetScene = Cyan::createScene("helmet_scene", "../../scene/default_scene/scene_config.json");
-    glm::vec2 viewportSize = gEngine->getRenderer()->getViewportSize();
+    auto renderer = Cyan::Renderer::getSingletonPtr();
+    glm::vec2 viewportSize = renderer->getViewportSize();
     float aspectRatio = viewportSize.x / viewportSize.y;
     for (auto& camera : helmetScene->cameras)
     {
@@ -307,12 +308,13 @@ void PbrApp::initHelmetScene()
         sideWall->setMaterial("CubeMesh", 0, m_roomMatl);
     }
 
+    auto textureManager = m_graphicsSystem->getTextureManager();
     m_helmetMatl = Cyan::createMaterial(m_pbrShader)->createInstance();
     // TODO: create a .cyanmatl file for defining materials?
-    m_helmetMatl->bindTexture("diffuseMaps[0]", Cyan::getTexture("helmet_diffuse"));
-    m_helmetMatl->bindTexture("normalMap", Cyan::getTexture("helmet_nm"));
-    m_helmetMatl->bindTexture("metallicRoughnessMap", Cyan::getTexture("helmet_roughness"));
-    m_helmetMatl->bindTexture("aoMap", Cyan::getTexture("helmet_ao"));
+    m_helmetMatl->bindTexture("diffuseMaps[0]", textureManager->getTexture("helmet_diffuse"));
+    m_helmetMatl->bindTexture("normalMap", textureManager->getTexture("helmet_nm"));
+    m_helmetMatl->bindTexture("metallicRoughnessMap", textureManager->getTexture("helmet_roughness"));
+    m_helmetMatl->bindTexture("aoMap", textureManager->getTexture("helmet_ao"));
     m_helmetMatl->bindTexture("envmap", m_envmap);
     m_helmetMatl->bindBuffer("dirLightsData", helmetScene->m_dirLightsBuffer);
     m_helmetMatl->bindBuffer("pointLightsData", helmetScene->m_pointLightsBuffer);
@@ -430,6 +432,8 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewpo
     gEngine->registerMouseScrollWheelCallback(&Pbr::mouseScrollWheelCallback);
     gEngine->registerKeyCallback(&Pbr::keyCallback);
 
+    m_graphicsSystem = Cyan::GraphicsSystem::getSingletonPtr();
+
     initShaders();
     initUniforms();
     initEnvMaps();
@@ -458,7 +462,8 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewpo
     m_wrap = 0.1f;
     m_debugRay.init();
     m_debugRay.setColor(glm::vec4(1.0f, 1.0f, 0.0f, 1.0f));
-    m_debugRay.setViewProjection(gEngine->getRenderer()->u_cameraView, gEngine->getRenderer()->u_cameraProjection);
+    auto renderer = Cyan::Renderer::getSingletonPtr();
+    m_debugRay.setViewProjection(renderer->u_cameraView, renderer->u_cameraProjection);
 
     // test probe
     m_irradianceProbe = SceneManager::getSingletonPtr()->createIrradianceProbe(m_scenes[m_currentScene], glm::vec3(0.f));
@@ -508,7 +513,7 @@ glm::mat4 rotateAroundPoint(glm::vec3 c, glm::vec3 axis, float degree)
 RayCastInfo PbrApp::castMouseRay(const glm::vec2& currentViewportPos, const glm::vec2& currentViewportSize)
 {
     // convert mouse cursor pos to view space 
-    Cyan::Viewport viewport = gEngine->getRenderer()->getViewport();
+    Cyan::Viewport viewport = m_graphicsSystem->getRenderer()->getViewport();
     glm::vec2 viewportPos = gEngine->getSceneViewportPos();
     double mouseCursorX = m_mouseCursorX - currentViewportPos.x;
     double mouseCursorY = m_mouseCursorY - currentViewportPos.y;
@@ -622,8 +627,10 @@ void PbrApp::drawEntityPanel()
 
 void PbrApp::drawDebugWindows()
 {
+    auto renderer = m_graphicsSystem->getRenderer();
+
     // configure window pos and size
-    ImVec2 debugWindowSize(gEngine->getWindow().width - gEngine->getRenderer()->m_viewport.m_width, 
+    ImVec2 debugWindowSize(gEngine->getWindow().width - renderer->m_viewport.m_width, 
                            gEngine->getWindow().height);
     ImGui::SetNextWindowPos(ImVec2(0, 0));
     ImGui::SetNextWindowSize(debugWindowSize);
@@ -683,7 +690,7 @@ void PbrApp::drawStats()
         ImGui::Text("Frame time:                   %.2f ms", m_lastFrameDurationInMs);
         ImGui::Text("Number of draw calls:         %d", 100u);
         ImGui::Text("Number of entities:           %d", m_scenes[m_currentScene]->entities.size());
-        ImGui::Checkbox("Super Sampling 4x", &gEngine->getRenderer()->m_bSuperSampleAA);
+        ImGui::Checkbox("Super Sampling 4x", &Cyan::Renderer::getSingletonPtr()->m_bSuperSampleAA);
     }
 }
 
@@ -786,8 +793,8 @@ void PbrApp::drawLightingWidgets()
 void PbrApp::drawSceneViewport()
 {
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
-
-    Cyan::Viewport viewport = gEngine->getRenderer()->getViewport();
+    auto renderer = m_graphicsSystem->getRenderer();
+    Cyan::Viewport viewport = renderer->getViewport();
     ImGui::SetNextWindowSize(ImVec2(viewport.m_width, viewport.m_height));
     glm::vec2 viewportPos = gEngine->getSceneViewportPos();
     ImGui::SetNextWindowPos(ImVec2(viewportPos.x, viewportPos.y));
@@ -805,7 +812,7 @@ void PbrApp::drawSceneViewport()
         ImVec2 b(windowPos.x + windowSize.x - 1, windowPos.y + windowSize.y - 1);
 
         // blit final render output texture to current ImGui window
-        Cyan::Texture* m_renderOutput = gEngine->getRenderer()->m_outputColorTexture;
+        Cyan::Texture* m_renderOutput = renderer->m_outputColorTexture;
         ImGui::GetForegroundDrawList()->AddImage(reinterpret_cast<void*>((intptr_t)m_renderOutput->m_id), 
             a, b, ImVec2(0, 1), ImVec2(1, 0));
 
@@ -854,6 +861,7 @@ void PbrApp::drawSceneViewport()
 
 void PbrApp::drawRenderSettings()
 {
+    auto renderer = m_graphicsSystem->getRenderer();
     {
         std::vector<const char*> envMaps;
         u32 numProbes = Cyan::getNumProbes();
@@ -901,12 +909,12 @@ void PbrApp::drawRenderSettings()
             // bloom settings
             ImGui::Text("Bloom");
             ImGui::SameLine();
-            ImGui::Checkbox("##Enabled", &gEngine->getRenderer()->m_bloom); 
+            ImGui::Checkbox("##Enabled", &renderer->m_bloom); 
 
             // exposure settings
             ImGui::Text("Exposure");
             ImGui::SameLine();
-            ImGui::SliderFloat("##Exposure", &gEngine->getRenderer()->m_exposure, 0.f, 10.f, "%.2f");
+            ImGui::SliderFloat("##Exposure", &renderer->m_exposure, 0.f, 10.f, "%.2f");
         }
         if (m_ui.header("Debug view"))
         {
@@ -1021,8 +1029,7 @@ void PbrApp::render()
 {
     // frame timer
     Cyan::Toolkit::ScopedTimer frameTimer("render()");
-    Cyan::Renderer* renderer = gEngine->getRenderer();
-
+    auto renderer = m_graphicsSystem->getRenderer();
 
     auto updateMatlInstanceData = [&](Cyan::MaterialInstance* matl) {
         matl->set("directDiffuseSlider", m_directDiffuseSlider);

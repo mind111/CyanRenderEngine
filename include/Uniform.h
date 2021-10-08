@@ -4,11 +4,6 @@
 
 const int kMaxUniformNameLen = 64;
 
-// TODO: Uniform should no longer hold a pointer to the acutal data; should create UniformInstance class
-//       to hold a handle to the referenced Uniforom and the actual data, UniformBuffer will thus be a vector
-//       of UniformInstance; UniformInstance should guarantee that the memory allocated for the data is contiguous
-//       with the uniform handle. | handle |            data              | ...
-
 struct Uniform
 {
     enum Type
@@ -27,7 +22,6 @@ struct Uniform
         u_atomic_uint,
         u_undefined // Error
     };
-
     u32 getSize();
 
     Type m_type;
@@ -35,8 +29,9 @@ struct Uniform
     void* m_valuePtr;
 };
 
-// TODO: draw visualization of the buffer layout 
 // TODO: implemenet auto-resizing
+// TODO: This should really be a ByteBuffer, UniformBuffer should be a wrapper 
+// of ByteBuffer
 struct UniformBuffer
 {
     enum
@@ -62,39 +57,4 @@ struct UniformBuffer
     void finish();
     void clear();
     void debugPrint();
-};
-
-struct NewUniform
-{
-    enum Type
-    {
-        u_float = 0,
-        u_int,
-        u_uint,
-        u_vec3,
-        u_vec4,
-        u_mat4,
-        u_sampler2D,
-        u_samplerCube,
-        u_undefined // Error
-    };
-    char m_name[kMaxUniformNameLen];
-    Type m_type;    
-    u32 m_sizeInBytes;
-
-    // UniformInstance* createInstance() {
-    // u32 size = sizeof(UniformHandle) + m_sizeInBytes;
-    // return reinterpret_cast<UniformInstance*>(CYAN_ALLOC(size);
-    // };
-};
-
-struct UniformInstance 
-{
-    UniformHandle m_handle;
-    char*         m_data;
-};
-
-struct UniformInstanceBuffer
-{
-    std::vector<UniformInstance> m_buffer; 
 };

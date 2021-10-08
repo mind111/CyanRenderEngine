@@ -3,8 +3,8 @@
 #include "CyanAPI.h"
 #include "CyanRenderer.h"
 
-namespace Cyan{
-
+namespace Cyan
+{
     IrradianceProbe::IrradianceProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene)
         : Entity(name , id, Transform(), parent), m_scene(scene)
     {
@@ -31,12 +31,13 @@ namespace Cyan{
         spec.m_r = Texture::Wrap::NONE;
         spec.m_numMips = 1u;
         spec.m_data = 0;
-        m_radianceMap = createTextureHDR("RadianceProbe", spec);
+        auto textureManager = TextureManager::getSingletonPtr();
+        m_radianceMap = textureManager->createTextureHDR("RadianceProbe", spec);
         // FIXME: this is bugged
         m_radianceRenderTarget->attachColorBuffer(m_radianceMap);
         spec.m_width = 64u;
         spec.m_height = 64u;
-        m_irradianceMap = createTextureHDR("IrradianceProbe", spec);
+        m_irradianceMap = textureManager->createTextureHDR("IrradianceProbe", spec);
         m_irradianceRenderTarget->attachColorBuffer(m_irradianceMap);
 
         m_computeIrradianceMatl = createMaterial(m_computeIrradianceShader)->createInstance();

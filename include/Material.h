@@ -93,6 +93,7 @@ namespace Cyan
         UniformBuffer* m_uniformBuffer;
     };
 }
+
 /*
 struct ShaderInputData
 {
