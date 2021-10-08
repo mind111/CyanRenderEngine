@@ -44,42 +44,6 @@ namespace Cyan
 
     };
 
-    // TODO: group shader and material instance, technically don't need to store shader and matl instance at the same time.
-    struct IrradianceProbe : public Entity
-    {
-        // glm::vec3 m_position;
-        // render the scene from six faces
-        Texture* m_radianceMap;
-        // convolve the radiance samples to get irradiance from every direction
-        Texture* m_irradianceMap;
-        Scene* m_scene;
-        // MeshInstance* m_sphereMeshInstance;
-        MaterialInstance* m_computeIrradianceMatl;
-        MaterialInstance* m_renderProbeMatl;
-        MeshInstance* m_cubeMeshInstance;
-
-        static Shader* m_renderProbeShader;
-        static Shader* m_computeIrradianceShader;
-        static RenderTarget* m_radianceRenderTarget;
-        static RenderTarget* m_irradianceRenderTarget;
-        IrradianceProbe(const char* name, u32 id, Transform t, Entity* parent);
-        void init();
-        void sampleRadiance();
-        void computeIrradiance();
-        void debugRenderProbe();
-    };
-
-    class ProbeFactory
-    {
-        IrradianceProbe* createProbe(glm::vec3 position)
-        {
-            u32 id = SceneManager::allocEntityId();
-            Transform t;
-            t.m_translate = position;
-            return new IrradianceProbe("IrradianceProbe0", id, t, nullptr);
-        }
-    };
-
     class RenderState
     {
     public:
@@ -146,6 +110,7 @@ namespace Cyan
             bool bUpdateProbeData;
         };
 
+        BoundingBox3f computeSceneAABB(Scene* scene);
         void drawEntity(Entity* entity);
         void drawSceneNode(SceneNode* node);
         void drawMeshInstance(MeshInstance* meshInstance, glm::mat4* modelMatrix);
@@ -156,7 +121,7 @@ namespace Cyan
         void endFrame();
 
         void addScenePass(Scene* scene);
-        void addDirectionalShadowPass();
+        void addDirectionalShadowPass(Scene* scene, u32 lightIndex);
         void addCustomPass(RenderPass* pass);
         void addTexturedQuadPass(RenderTarget* renderTarget, Viewport viewport, Texture* srcTexture);
         void addBloomPass();
@@ -234,6 +199,9 @@ namespace Cyan
         u32  m_numBloomTextures;
         GLuint m_lumHistogramShader;
         GLuint m_lumHistogramProgram;
+
+        // for debugging CSM
+        Camera m_debugCam;
     private:
         static Renderer* m_renderer;
     };

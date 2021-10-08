@@ -90,15 +90,11 @@ namespace Cyan
     };
 }
 
-struct MaterialVisualizer
-{
-
-};
-
 // TODO: Think about this way of doing material
 class MaterialInterface {
     virtual void create();
     virtual void bind();
+    virtual void update();
 };
 
 class PbrMaterial : public MaterialInterface {

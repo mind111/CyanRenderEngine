@@ -10,6 +10,7 @@ struct Camera
     glm::vec3 worldUp;
     glm::mat4 view, projection;
     float fov, n, f;
+    float aspectRatio;
 };
 
 class CameraManager

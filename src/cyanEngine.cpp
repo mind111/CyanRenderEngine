@@ -40,6 +40,12 @@ void mouseScrollFunc(GLFWwindow* window, double xOffset, double yOffset)
     gEngine->processMouseScroll(xOffset, yOffset);
 }
 
+void keyFunc(GLFWwindow* window, i32 key, i32 scancode, i32 action, i32 mods)
+{
+    CyanEngine* gEngine = (CyanEngine*)glfwGetWindowUserPointer(window);
+    gEngine->processKey(key, action);
+}
+
 void CyanEngine::init(WindowConfig windowConfig, glm::vec2 sceneViewportPos, glm::vec2 renderSize)
 {
     // window init
@@ -68,6 +74,7 @@ void CyanEngine::init(WindowConfig windowConfig, glm::vec2 sceneViewportPos, glm
     glfwSetMouseButtonCallback(m_window.mpWindow, mouseButtonFunc);
     glfwSetCursorPosCallback(m_window.mpWindow, cursorPosFunc);
     glfwSetScrollCallback(m_window.mpWindow, mouseScrollFunc);
+    glfwSetKeyCallback(m_window.mpWindow, keyFunc);
 
     // Setup renderer 
     {
@@ -75,7 +82,10 @@ void CyanEngine::init(WindowConfig windowConfig, glm::vec2 sceneViewportPos, glm
         m_renderer->init(m_renderSize);
         Cyan::getCurrentGfxCtx()->setWindow(&m_window);
     }
-
+    // setup scene manager
+    {
+        m_sceneManager = new SceneManager();
+    }
     // Init member variables
     {
         cursorX = -1.0;
@@ -127,6 +137,11 @@ void CyanEngine::displayFloat3(const char* title, glm::vec3& v, bool isStatic)
     }
 }
 
+void CyanEngine::registerKeyCallback(KeyCallback* callback)
+{
+    keyCallback = callback;
+}
+
 void CyanEngine::registerMouseCursorCallback(MouseCursorCallback* callback)
 {
     mouseCursorCallback = callback;
@@ -172,4 +187,9 @@ void CyanEngine::processMouseButtonInput(int button, int action)
 void CyanEngine::processMouseScroll(double xOffset, double yOffset)
 {
     mouseScrollCallback(xOffset, yOffset);
+}
+
+void CyanEngine::processKey(i32 key, i32 action)
+{
+    keyCallback(key, action);
 }

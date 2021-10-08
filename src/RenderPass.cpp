@@ -24,9 +24,11 @@ namespace Cyan
     Shader* TexturedQuadPass::m_shader = 0;
     MaterialInstance* TexturedQuadPass::m_matl = 0;
     RenderTarget* DirectionalShadowPass::s_depthRenderTarget = 0;
-    Texture* DirectionalShadowPass::s_shadowMap = 0;
     Shader* DirectionalShadowPass::s_directShadowShader = 0;
     MaterialInstance* DirectionalShadowPass::s_directShadowMatl = 0;
+    ShadowMapData* DirectionalShadowPass::s_shadowMap = 0;
+    std::vector<::Line> DirectionalShadowPass::m_frustumLines; 
+    BoundingBox3f DirectionalShadowPass::m_frustumAABB; 
 
     QuadMesh* getQuadMesh()
     {
@@ -44,6 +46,7 @@ namespace Cyan
         BloomPass::onInit(windowWidth, windowHeight);
         PostProcessResolvePass::onInit();
         TexturedQuadPass::onInit();
+        DirectionalShadowPass::onInit();
     }
 
     ScenePass::ScenePass(RenderTarget* renderTarget, Viewport viewport, Scene* scene)
@@ -69,7 +72,7 @@ namespace Cyan
         auto ctx = getCurrentGfxCtx();
         ctx->setRenderTarget(m_renderTarget, 0u);
         ctx->setViewport(m_viewport);
-        renderer->renderScene(m_scene, m_scene->mainCamera);
+        renderer->renderScene(m_scene, m_scene->getActiveCamera());
     }
 
     BloomPass::BloomPass(RenderTarget* rt, Viewport vp, BloomPassInputs inputs) 
@@ -313,35 +316,167 @@ namespace Cyan
         ctx->setDepthControl(DepthControl::kEnable);
     }
     
-    DirectionalShadowPass::DirectionalShadowPass(RenderTarget* renderTarget, Viewport viewport)
-        : RenderPass(renderTarget, viewport)
+    DirectionalShadowPass::DirectionalShadowPass(RenderTarget* renderTarget, Viewport viewport, Scene* scene, u32 dirLightIdx)
+        : RenderPass(renderTarget, viewport), m_scene(scene)
     {
-
+        m_light = scene->dLights[dirLightIdx];
     }
 
     void DirectionalShadowPass::onInit()
     {
-        s_depthRenderTarget = createDepthRenderTarget(1024, 1024);
+        s_shadowMap = new ShadowMapData { };
         // TODO: depth buffer creation coupled with render target creation
+        s_depthRenderTarget = createDepthRenderTarget(1024, 1024);
         s_directShadowShader = createShader("DirShadowShader", "../../shader/shader_dir_shadow.vs", "../../shader/shader_dir_shadow.fs");
         s_directShadowMatl = createMaterial(s_directShadowShader)->createInstance();
+        TextureSpec spec = { };
+        spec.m_width = 1024;
+        spec.m_height = 1024;
+        spec.m_format = Texture::ColorFormat::D24S8; // 32 bits
+        spec.m_dataType = Texture::DataType::UNSIGNED_INT_24_8;
+        spec.m_min = Texture::Filter::LINEAR;
+        spec.m_mag = Texture::Filter::LINEAR;
+        spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+        s_shadowMap->shadowMap = createTexture("DepthTexture", spec);
+        s_shadowMap->lightView = glm::mat4(1.f);
+        s_shadowMap->lightProjection = glm::mat4(1.f);
+        
+        // debuging lines for camera's view frustum
+        m_frustumLines.resize(15);
+        auto renderer = Renderer::getSingletonPtr();
+        for (auto& line : m_frustumLines)
+        {
+            line.init();
+            line.setColor(glm::vec4(1.f, 0.f, 0.f, 1.f));
+            line.setModel(glm::mat4(1.f));
+        }
+        m_frustumLines[13].setColor(glm::vec4(0.f, 0.f, 1.f, 1.f));
+        m_frustumLines[14].setColor(glm::vec4(0.f, 1.f, 0.f, 1.f));
+        m_frustumAABB.init();
     }
 
-    Texture* getShadowMap()
+    ShadowMapData* DirectionalShadowPass::getShadowMap()
     {
-        return 0;
+        return s_shadowMap;
+    }
+
+    // TODO: stablize the projection matrix
+    // compute view frustum's bounding box in world space
+    BoundingBox3f DirectionalShadowPass::computeFrustumAABB(const Camera& camera, glm::mat4& view)
+    {
+        DirectionalShadowPass::m_frustumAABB.resetBound();
+        f32 N = fabs(camera.n);
+        f32 F = fabs(20.f);
+        static f32 fixedProjSizeX = 0.f;
+        static f32 fixedProjSizeY = 0.f;
+        // stablize the projection matrix in xy-plane
+        if ((F-N) > 2.f * F * glm::tan(glm::radians(camera.fov)) * camera.aspectRatio)
+        {
+            fixedProjSizeX = 0.5f * (F-N);
+            fixedProjSizeY = F * glm::tan(glm::radians(camera.fov));
+        }
+        else
+        {
+            fixedProjSizeX = F * glm::tan(glm::radians(camera.fov)) * camera.aspectRatio;
+            fixedProjSizeY = F * glm::tan(glm::radians(camera.fov));
+        }
+
+        f32 dn = N * glm::tan(glm::radians(camera.fov));
+        // comptue lower left corner on near clipping plane
+        glm::vec3 cp = glm::normalize(camera.lookAt - camera.position) * N;
+        glm::vec3 ca = cp + -camera.up * dn + -camera.right * dn * camera.aspectRatio;
+
+        glm::vec3 na = camera.position + ca;
+        glm::vec3 nb = na + camera.right * 2.f * dn * camera.aspectRatio;
+        glm::vec3 nc = nb + camera.up * 2.f * dn;
+        glm::vec3 nd = na + camera.up * 2.f * dn;
+
+        glm::vec4 nav4 = view * glm::vec4(na, 1.f);
+        glm::vec4 nbv4 = view * glm::vec4(nb, 1.f);
+        glm::vec4 ncv4 = view * glm::vec4(nc, 1.f);
+        glm::vec4 ndv4 = view * glm::vec4(nd, 1.f);
+
+        f32 df = F * glm::tan(glm::radians(camera.fov));
+        glm::vec3 cpf = glm::normalize(camera.lookAt - camera.position) * F;
+        glm::vec3 caf = cpf + -camera.up * df + -camera.right * df  * camera.aspectRatio;
+
+        glm::vec3 fa = camera.position + caf;
+        glm::vec3 fb = fa + camera.right * 2.f * df * camera.aspectRatio;
+        glm::vec3 fc = fb + camera.up * 2.f * df;
+        glm::vec3 fd = fa + camera.up * 2.f * df;
+        glm::vec4 fav4 = view * glm::vec4(fa, 1.f);
+        glm::vec4 fbv4 = view * glm::vec4(fb, 1.f);
+        glm::vec4 fcv4 = view * glm::vec4(fc, 1.f);
+        glm::vec4 fdv4 = view * glm::vec4(fd, 1.f);
+
+        // set debug line verts
+        m_frustumLines[0].setVerts(na, nb);
+        m_frustumLines[1].setVerts(nb, nc);
+        m_frustumLines[2].setVerts(nc, nd);
+        m_frustumLines[3].setVerts(na, nd);
+        m_frustumLines[4].setVerts(fa, fb);
+        m_frustumLines[5].setVerts(fb, fc);
+        m_frustumLines[6].setVerts(fc, fd);
+        m_frustumLines[7].setVerts(fa, fd);
+        m_frustumLines[8].setVerts(na, fa);
+        m_frustumLines[9].setVerts(nb, fb);
+        m_frustumLines[10].setVerts(nc, fc);
+        m_frustumLines[11].setVerts(nd, fd);
+        m_frustumLines[12].setVerts(camera.position, camera.position + camera.forward);
+        m_frustumLines[13].setVerts(camera.position, camera.position + camera.up);
+        m_frustumLines[14].setVerts(camera.position, camera.position + camera.right);
+
+        m_frustumAABB.bound(nav4);
+        m_frustumAABB.bound(nbv4);
+        m_frustumAABB.bound(ncv4);
+        m_frustumAABB.bound(ndv4);
+
+        m_frustumAABB.bound(fav4);
+        m_frustumAABB.bound(fbv4);
+        m_frustumAABB.bound(fcv4);
+        m_frustumAABB.bound(fdv4);
+
+        // FIXME: this is bugged
+        f32 midX = .5f * (m_frustumAABB.m_pMin.x + m_frustumAABB.m_pMax.x);
+        f32 midY = .5f * (m_frustumAABB.m_pMin.y + m_frustumAABB.m_pMax.y);
+        m_frustumAABB.m_pMin.x = -fixedProjSizeX + midX;
+        m_frustumAABB.m_pMin.y = -fixedProjSizeY + midY;
+        m_frustumAABB.m_pMax.x = fixedProjSizeX + midX;
+        m_frustumAABB.m_pMax.y = fixedProjSizeY + midY;
+
+        m_frustumAABB.computeVerts();
+        return m_frustumAABB;
     }
 
     void DirectionalShadowPass::render()
     {
-        // setup render target to only has a depth buffer
-        // build view matrix that transform the world to light's view space
+        // render debug view frustum
+        u32 debugCameraIdx = (m_scene->activeCamera + 1) % 2;
         glm::mat4 lightView = glm::lookAt(glm::vec3(0.f), 
-                                          glm::vec3(m_light.direction.x, m_light.direction.y, m_light.direction.z), glm::vec3(0.f, 1.f, 0.f));
+                                          glm::vec3(-m_light.direction.x, -m_light.direction.y, -m_light.direction.z), glm::vec3(0.f, 1.f, 0.f));
+
+        u32 camIdx = 0u;
+        Camera& camera = m_scene->cameras[camIdx];
+        BoundingBox3f aabb = computeFrustumAABB(camera, lightView);
+        m_frustumAABB.setModel(glm::inverse(lightView));
+        // m_frustumAABB.setModel(glm::mat4(1.f));
+
+        // Note:(Min) this projection matrix maps depth to [-1, 1] while the depth stored in the depth buffer is in range [0, 1]
+        // a scale and bias is needed to convert the depth in order to comare the depth correctly.
+        glm::mat4 lightProjection = glm::orthoLH(aabb.m_pMin.x, aabb.m_pMax.x, aabb.m_pMin.y, aabb.m_pMax.y, aabb.m_pMax.z, aabb.m_pMin.z);
+        glm::vec4 test = lightProjection * glm::vec4(0.f, 0.f, 1.0f, 1.f);
+
+        s_shadowMap->lightView = lightView;
+        s_shadowMap->lightProjection = lightProjection;
+
         auto ctx = getCurrentGfxCtx();
+        s_depthRenderTarget->setDepthBuffer(s_shadowMap->shadowMap);
         ctx->setRenderTarget(s_depthRenderTarget, 0u);
+        glClear(GL_DEPTH_BUFFER_BIT);
         ctx->setShader(s_directShadowShader);
         s_directShadowMatl->set("lightView", &lightView[0][0]);
+        s_directShadowMatl->set("lightProjection", &lightProjection[0][0]);
         ctx->setViewport({0u, 0u, s_depthRenderTarget->m_width, s_depthRenderTarget->m_height});
         for (auto entity : m_scene->entities)
         {
@@ -350,6 +485,11 @@ namespace Cyan
             while(!nodes.empty())
             {
                 SceneNode* node = nodes.front(); 
+                nodes.pop();
+                for (auto child : node->m_child)
+                {
+                    nodes.push(child);
+                }
                 if (MeshInstance* meshInstance = node->m_meshInstance)
                 {
                     // TODO: clean this up

@@ -147,16 +147,28 @@ namespace Cyan
         Texture* m_srcTexture;
     };
 
+    // directional shadow map
+    struct ShadowMapData
+    {
+        Texture* shadowMap;
+        glm::mat4 lightView;
+        glm::mat4 lightProjection;
+    };
+
     struct DirectionalShadowPass : public RenderPass
     {
-        DirectionalShadowPass(RenderTarget* renderTarget, Viewport viewport);
+        DirectionalShadowPass(RenderTarget* renderTarget, Viewport viewport, Scene* scene, u32 dirLightIdx);
         static void onInit();
         virtual void render() override;
+        BoundingBox3f computeFrustumAABB(const Camera& camera, glm::mat4& view);
+        static ShadowMapData* getShadowMap();
 
         static Shader* s_directShadowShader;
         static MaterialInstance* s_directShadowMatl;
         static RenderTarget* s_depthRenderTarget;
-        static Texture* s_shadowMap;
+        static ShadowMapData* s_shadowMap;
+        static std::vector<::Line> m_frustumLines;
+        static BoundingBox3f m_frustumAABB;
         DirectionalLight m_light;
         Scene* m_scene;
     };    

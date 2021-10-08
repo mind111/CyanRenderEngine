@@ -5,6 +5,7 @@ in vec3 worldSpaceNormal;
 in vec3 t;
 in vec2 uv;
 in vec3 fragmentPos;
+in vec4 shadowPos;
 
 out vec4 fragColor;
 
@@ -42,6 +43,7 @@ uniform samplerCube envmap;             //non-material
 uniform samplerCube irradianceDiffuse;  //non-material
 uniform samplerCube irradianceSpecular; //non-material
 uniform sampler2D   brdfIntegral;
+uniform sampler2D shadowMap;
 //- debug switches
 uniform float debugNormalMap;
 uniform float debugAO;
@@ -51,6 +53,8 @@ uniform float debugG;
 uniform float disneyReparam;
 // experiemental
 uniform float wrap;
+uniform mat4 lightView;
+uniform mat4 lightProjection;
 
 #define pi 3.14159265359
 
@@ -269,6 +273,8 @@ struct RenderParams
     vec3 v;
     vec3 l;
     vec3 li;
+    float ao;
+    float shadow;
 };
 
 /*
@@ -285,7 +291,31 @@ vec3 render(RenderParams params)
     vec3 kDiffuse = mix(vec3(1.f) - F, vec3(0.0f), params.metallic);
     vec3 diffuse = kDiffuse * diffuseBrdf(params.baseColor) * ndotl;
     vec3 specular = specularBrdf(params.l, params.v, params.n, params.roughness, params.f0) * ndotl;
-    return (directDiffuseSlider * diffuse + directSpecularSlider * specular) * params.li;
+    return (directDiffuseSlider * diffuse * params.ao + directSpecularSlider * specular) * params.li * params.shadow;
+}
+
+float isInShadow()
+{
+    float shadow = 1.f;
+
+    // sample shadow map
+    vec4 worldFragPos = inverse(s_view) * vec4(fragmentPos, 1.f);
+    vec4 lightViewFragPos = lightProjection * lightView * worldFragPos; 
+    vec2 shadowTexCoords = lightViewFragPos.xy * .5f + vec2(.5f); 
+    // bring depth into [0, 1] from [-1, 1]
+    float fragmentDepth = lightViewFragPos.z * 0.5f + .5f;
+
+    // clip uv used to sample the shadow map 
+    if (shadowTexCoords.x >= 0.f && shadowTexCoords.x <= 1.0f && 
+        shadowTexCoords.y >= 0.f && shadowTexCoords.y <= 1.0f)
+    {
+        float sampledDepth = texture(shadowMap, shadowTexCoords).r;
+        if (sampledDepth != 1.f) 
+        {
+            shadow = sampledDepth < (fragmentDepth - 0.001f) ? 0.f : 1.f;
+        }
+    }
+    return shadow;
 }
 
 vec3 directLighting(RenderParams renderParams)
@@ -305,10 +335,16 @@ vec3 directLighting(RenderParams renderParams)
         renderParams.l = normalize(lightPos.xyz - fragmentPos);
         // light color
         renderParams.li = pointLightsBuffer.lights[i].color.rgb * pointLightsBuffer.lights[i].color.w * attenuation;
+        renderParams.shadow = 1.f;
         color += render(renderParams);
     }
     for (int i = 0; i < numDirLights; i++)
     {
+        // sample shadow map
+        vec4 worldFragPos = inverse(s_view) * vec4(fragmentPos, 1.f);
+        vec4 lightViewFragPos = lightProjection * lightView * worldFragPos; 
+        vec2 shadowTexCoords = lightViewFragPos.xy * .5f + vec2(.5f); 
+        renderParams.shadow = isInShadow();
         vec4 lightDir = s_view * (dirLightsBuffer.lights[i].direction);
         // light dir
         renderParams.l = normalize(lightDir.xyz);
@@ -461,7 +497,9 @@ void main()
         normal,
         viewDir,
         vec3(0.f),
-        vec3(0.f)
+        vec3(0.f),
+        ao,
+        1.0
     };
 
     vec3 color = vec3(0.f);
@@ -469,7 +507,7 @@ void main()
     color += directLighting(renderParams);
     // image-based-lighting
     color += indirectLighting(renderParams);
-    color *= ao;
+    // color *= ao;
 
     // Emission
     // vec3 emission = vec3(0.f); 
@@ -511,6 +549,12 @@ void main()
         color = vec3(G);
     }
 
+    vec4 worldFragPos = inverse(s_view) * vec4(fragmentPos, 1.f);
+    vec4 lightViewFragPos = lightProjection * lightView * worldFragPos; 
+    vec2 shadowTexCoords = lightViewFragPos.xy * .5f + vec2(.5f); 
+    // color = vec3(texture(shadowMap, shadowTexCoords.xy).r);
+    float fragDepth = lightViewFragPos.z * 0.5f + 0.5f;
+    // color = vec3(fragDepth);
     // write linear color to HDR Framebuffer
     fragColor = vec4(color, 1.0f);
 }

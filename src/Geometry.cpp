@@ -226,24 +226,55 @@ void BoundingBox3f::init()
     m_color = glm::vec3(1.0, 0.8, 0.f);
 }
 
+void BoundingBox3f::setModel(glm::mat4& model)
+{
+    m_matl->set("lineModel", reinterpret_cast<void*>(&model[0]));
+}
+
 void BoundingBox3f::setViewProjection(Uniform* view, Uniform* projection)
 {
     u_view = view;
     u_projection = projection;
 }
 
-void BoundingBox3f::draw(glm::mat4& transform)
+void BoundingBox3f::draw()
 {
     auto ctx = Cyan::getCurrentGfxCtx();
     ctx->setShader(Cyan::createShader("LineShader", "../../shader_line.vs", "../../shader_line.fs"));
     ctx->setVertexArray(m_vertexArray);
-    m_matl->set("lineModel", reinterpret_cast<void*>(&transform[0][0]));
     m_matl->set("color", &m_color.r);
     m_matl->bind();
     ctx->setUniform(u_view);
     ctx->setUniform(u_projection);
     ctx->setPrimitiveType(Cyan::PrimitiveType::Line);
     ctx->drawIndex(sizeof(indices) / sizeof(u32));
+}
+
+void BoundingBox3f::computeVerts()
+{
+    glm::vec3 pMin = vec4ToVec3(m_pMin);
+    glm::vec3 pMax = vec4ToVec3(m_pMax);
+    glm::vec3 dim = pMax - pMin;
+
+    // compute all verts
+    m_vertices[0] = pMin;
+    m_vertices[1] = m_vertices[0] + glm::vec3(dim.x, 0.f, 0.f);
+    m_vertices[2] = m_vertices[1] + glm::vec3(0.f, dim.y, 0.f);
+    m_vertices[3] = m_vertices[2] + glm::vec3(-dim.x, 0.f, 0.f);
+
+    // dim.z < 0 becasue m_pMin.z > 0 while m_pMax.z < 0 
+    m_vertices[4] = m_vertices[1] + glm::vec3(0.f, 0.f, dim.z);
+    m_vertices[5] = m_vertices[2] + glm::vec3(0.f, 0.f, dim.z);
+    m_vertices[6] = m_vertices[3] + glm::vec3(0.f, 0.f, dim.z);
+    m_vertices[7] = m_vertices[0] + glm::vec3(0.f, 0.f, dim.z);
+
+    glNamedBufferData(m_vertexArray->m_vertexBuffer->m_vbo, sizeof(m_vertices), m_vertices, GL_STATIC_DRAW);
+}
+
+void BoundingBox3f::resetBound()
+{
+    m_pMin = glm::vec4(FLT_MAX, FLT_MAX, FLT_MAX, 1.0f);
+    m_pMax = glm::vec4(-FLT_MAX, -FLT_MAX, -FLT_MAX, 1.0f);
 }
 
 void BoundingBox3f::bound(const BoundingBox3f& aabb) 
@@ -255,6 +286,26 @@ void BoundingBox3f::bound(const BoundingBox3f& aabb)
     m_pMax.x = Max(m_pMax.x, aabb.m_pMax.x);
     m_pMax.y = Max(m_pMax.y, aabb.m_pMax.y);
     m_pMax.z = Max(m_pMax.z, aabb.m_pMax.z);
+}
+
+void BoundingBox3f::bound(glm::vec3& v3)
+{
+    m_pMin.x = Min(m_pMin.x, v3.x);
+    m_pMin.y = Min(m_pMin.y, v3.y);
+    m_pMin.z = Min(m_pMin.z, v3.z);
+    m_pMax.x = Max(m_pMax.x, v3.x);
+    m_pMax.y = Max(m_pMax.y, v3.y);
+    m_pMax.z = Max(m_pMax.z, v3.z);
+}
+
+void BoundingBox3f::bound(glm::vec4& v4)
+{
+    m_pMin.x = Min(m_pMin.x, v4.x);
+    m_pMin.y = Min(m_pMin.y, v4.y);
+    m_pMin.z = Min(m_pMin.z, v4.z);
+    m_pMax.x = Max(m_pMax.x, v4.x);
+    m_pMax.y = Max(m_pMax.y, v4.y);
+    m_pMax.z = Max(m_pMax.z, v4.z);
 }
 
 inline f32 ffmin(f32 a, f32 b) { return a < b ? a : b;}

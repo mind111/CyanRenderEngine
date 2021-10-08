@@ -266,8 +266,11 @@ public:
     // tick
     void update();
     // camera control
-    void orbitCamera(double deltaX, double deltaY);
+    void dispatchCameraCommand(struct CameraCommand& command);
+    void orbitCamera(Camera& camera, double deltaX, double deltaY);
+    void zoomCamera(Camera& camera, double dx, double dy);
     void rotateCamera(double deltaX, double deltaY);
+    void switchCamera();
     bool mouseOverUI();
 
     // main scene viewport
@@ -285,7 +288,6 @@ public:
     void initUniforms();
     void initShaders();
     void initHelmetScene();
-    void initSpheresScene();
     void initEnvMaps();
 
     friend void Pbr::mouseScrollWheelCallback(double xOffset, double yOffset);
@@ -297,6 +299,7 @@ public:
     double m_mouseCursorX, m_mouseCursorY;
     Cyan::IrradianceProbe* m_irradianceProbe;
 
+    std::vector<Scene*> m_scenes;
 private:
     float m_sampleVertex[(64 + 1) * 4 * 2] = { };
     
@@ -305,21 +308,18 @@ private:
     u32 m_currentScene;
     u32 m_currentProbeIndex;
 
-    std::vector<Scene*> m_scenes;
 
     // Materials
     Cyan::MaterialInstance* m_droneMatl;
     Cyan::MaterialInstance* m_helmetMatl;
     Cyan::MaterialInstance* m_cubeMatl;
     Cyan::MaterialInstance* m_coneMatl;
-    Cyan::MaterialInstance* m_sphereMatls[36];
     Cyan::MaterialInstance* m_sphereMatl;
     Cyan::MaterialInstance* m_envmapMatl;
     Cyan::MaterialInstance* m_skyMatl;
     Cyan::MaterialInstance* m_blitMatl;
     Cyan::MaterialInstance* m_roomMatl;
     Cyan::MaterialInstance* m_floorMatl;
-    Cyan::MaterialInstance* m_eratoMatl;
 
     // entities
     Entity* m_envMapEntity;
@@ -343,19 +343,14 @@ private:
     Cyan::Texture* m_envmap;
     Cyan::Texture* m_proceduralSky;
     Cyan::Texture* m_voxelOutput;
+    Cyan::Texture* m_shadowMap;
     // a probe that is infinitely distant
     LightProbe m_probe;
     std::vector<LightProbe> m_probes;
 
     /* Uniforms */
-    Uniform* u_numPointLights;
-    Uniform* u_numDirLights;
-    Uniform* u_cameraView;
-    Uniform* u_cameraProjection;
     Uniform* u_kDiffuse;
     Uniform* u_kSpecular;
-    Uniform* u_hasNormalMap;
-    Uniform* u_hasAoMap;
 
     // ui
     UI m_ui;

@@ -5,6 +5,15 @@
             "position": [0.0, 0.0, 1.2],
             "lookAt": [0.0, 0.0, -1.5],
             "worldUp": [0.0, 1.0, 0.0],
+            "fov": 30.0,
+            "z_near": 0.5,
+            "z_far": 100.0
+        },
+        {
+            "name": "debug_camera",
+            "position": [-15.0, 15.0, -0.0],
+            "lookAt": [0.0, 0.0, -2],
+            "worldUp": [0.0, 1.0, 0.0],
             "fov": 50.0,
             "z_near": 0.1,
             "z_far": 100.0
@@ -90,7 +99,7 @@
 
         {
             "name": "grass_albedo",
-            "path": "asset/grass_wild//albedo.jpg",
+            "path": "asset/grass_wild/albedo.jpg",
             "numMips": 11,
             "dynamic_range": "ldr"
         },
@@ -175,7 +184,7 @@
             "xform": {
                 "translation": [0.0, -1.5, 0.0],
                 "rotation": [0.0, 0, 1, 0],
-                "scale": [80.0, 1.0, 80.0]
+                "scale": [6.0, 6.0, 6.0]
             },
             "child": []
         },
@@ -251,7 +260,7 @@
             "xform": {
                 "translation": [0.0, 0.0, 0.0],
                 "rotation": [0.0, 0, 1, 0],
-                "scale": [1.00, 1.00, 1.00]
+                "scale": [40.00, 1.00, 40.00]
             },
             "nodes": [ 4 ]
         },

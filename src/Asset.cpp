@@ -136,7 +136,7 @@ void AssetManager::loadEntities(Scene* scene, nlohmann::basic_json<std::map>& en
         entityInfo.at("name").get_to(entityName);
         auto xformInfo = entityInfo.at("xform");
         Transform xform = entityInfo.at("xform").get<Transform>();
-        Entity* entity = SceneManager::createEntity(scene, entityName.c_str(), xform);
+        Entity* entity = SceneManager::getSingletonPtr()->createEntity(scene, entityName.c_str(), xform);
         auto sceneNodes = entityInfo.at("nodes");
         for (auto node : sceneNodes)
         {
@@ -162,10 +162,13 @@ void AssetManager::loadScene(Scene* scene, const char* file)
     scene->m_pointLightsBuffer = Cyan::createRegularBuffer(Scene::kMaxNumPointLights * sizeof(PointLight));
 
     // TODO: each scene should only have one camera
-    for (auto camera : cameras) 
+    scene->activeCamera = 0u;
+    u32 camIdx = 0u;
+    for (auto& camera : cameras) 
     {
-        scene->mainCamera = camera.get<Camera>();
-        scene->mainCamera.view = glm::mat4(1.f);
+        scene->cameras[camIdx] = camera.get<Camera>();
+        scene->cameras[camIdx].view = glm::mat4(1.f);
+        CameraManager::updateCamera(scene->cameras[camIdx++]);
     }
 
     loadTextures(textureInfoList);

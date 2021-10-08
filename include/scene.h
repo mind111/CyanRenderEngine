@@ -24,7 +24,8 @@ struct Scene
     // identifier
     std::string    m_name;
     // camera
-    Camera mainCamera;
+    u32 activeCamera;
+    Camera cameras[2];
     // entities
     Entity*     m_rootEntity;
     std::vector<Entity*> entities;
@@ -36,22 +37,34 @@ struct Scene
     RegularBuffer* m_dirLightsBuffer;
     LightProbe*    m_currentProbe;
     LightProbe*    m_lastProbe;
+
+    Camera& getActiveCamera()
+    {
+        return cameras[activeCamera];
+    }
+
+    Camera& getCamera(u32 index)
+    {
+        return cameras[index];
+    }
 };
 
 class SceneManager {
 public:
-    static u32 allocEntityId();
-    static void updateSceneGraph(Scene* scene);
-    static void buildLightList(Scene* scene, std::vector<PointLightData>& pLights, std::vector<DirLightData>& dLights);
-    static void setLightProbe(Scene* scene, LightProbe* probe);
-    static void createDirectionalLight(Scene* scene, glm::vec3 color, glm::vec3 direction, float intensity);
-    static void createPointLight(Scene* scene, glm::vec3 color, glm::vec3 position, float intensity);
-    static Entity* createEntity(Scene* scene, const char* entityName, Transform transform, Entity* parent=nullptr);
-    static Entity* getEntity(Scene* scene, u32 id) 
+    SceneManager();
+    static SceneManager* getSingletonPtr();
+    u32 allocEntityId();
+    void updateSceneGraph(Scene* scene);
+    void buildLightList(Scene* scene, std::vector<PointLightData>& pLights, std::vector<DirLightData>& dLights);
+    void setLightProbe(Scene* scene, LightProbe* probe);
+    void createDirectionalLight(Scene* scene, glm::vec3 color, glm::vec3 direction, float intensity);
+    void createPointLight(Scene* scene, glm::vec3 color, glm::vec3 position, float intensity);
+    Entity* createEntity(Scene* scene, const char* entityName, Transform transform, Entity* parent=nullptr);
+    Entity* getEntity(Scene* scene, u32 id) 
     {
         return scene->entities[id];
     }
-    static Entity* getEntity(Scene* scene, const char* name)
+    Entity* getEntity(Scene* scene, const char* name)
     {
         for (auto& entity : scene->entities) {
             if (strcmp(name, entity->m_name) == 0) {
@@ -60,10 +73,12 @@ public:
         }
         return nullptr;
     }
-    static u32 allocEntityId(Scene* scene)
+    u32 allocEntityId(Scene* scene)
     {
         return scene->entities.size() > 0 ? scene->entities.size() : 0;
     }
+    Cyan::IrradianceProbe* createIrradianceProbe(Scene* scene, glm::vec3& pos);
+private:
+    static SceneManager* s_sceneManager;
+    Cyan::LightProbeFactory* m_probeFactory;
 };
-
-extern SceneManager sceneManager;

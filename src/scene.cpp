@@ -12,8 +12,25 @@
 #include "CyanAPI.h"
 #include "Scene.h"
 
-SceneManager sceneManager;
+SceneManager* SceneManager::s_sceneManager = 0u;
 
+SceneManager::SceneManager()
+{
+    if (!s_sceneManager)
+    {
+        s_sceneManager = this;
+    }
+    else {
+        CYAN_ASSERT(0, "There should be only one instance of SceneManager")
+    }
+
+    m_probeFactory = new Cyan::LightProbeFactory();
+}
+
+SceneManager* SceneManager::getSingletonPtr()
+{
+    return s_sceneManager;
+}
 
 void SceneManager::setLightProbe(Scene* scene, LightProbe* probe)
 {
@@ -29,34 +46,13 @@ Entity* SceneManager::createEntity(Scene* scene, const char* entityName, Transfo
     */
     // Entity* entity = (Entity*)CYAN_ALLOC(sizeof(Entity));
     // TODO: research about how to use custom allocator with virtual classes
-    Entity* entity = new Entity;
-    // mesh instance
+
     // id
-    entity->m_entityId = scene->entities.size() > 0 ? scene->entities.size() : 0;
-    if (entityName) 
-    {
-        CYAN_ASSERT(strlen(entityName) < kEntityNameMaxLen, "Entity name too long !!")
-        strcpy(entity->m_name, entityName);
-    } else {
-        char buff[64];
-        sprintf(buff, "Entity%u", entity->m_entityId);
-    }
-    entity->m_sceneRoot = Cyan::createSceneNode("DefaultSceneRoot", transform);
-    // transform
-    if (parent) 
-    {
-        parent->attach(entity);
-    }
-    else
-    {
-        if (scene->m_rootEntity)
-        {
-            scene->m_rootEntity->attach(entity);
-        }
-    }
-    scene->entities.push_back(entity);
-    return new Entity(entityName, id, transform, parent);
-    return entity; 
+    u32 id = allocEntityId(scene);
+    Entity* parentEntity = !parent ? scene->m_rootEntity : parent;
+    Entity* newEntity = new Entity(entityName, id, transform, parentEntity);
+    scene->entities.push_back(newEntity);
+    return newEntity; 
 }
 
 void SceneManager::createDirectionalLight(Scene* scene, glm::vec3 color, glm::vec3 direction, float intensity)
@@ -111,4 +107,11 @@ void SceneManager::buildLightList(Scene* scene, std::vector<PointLightData>& pLi
         light.update();
         pLights.push_back(light.getData());
     }
+}
+
+Cyan::IrradianceProbe* SceneManager::createIrradianceProbe(Scene* scene, glm::vec3& pos)
+{
+    auto probe = m_probeFactory->createIrradianceProbe(scene, pos); 
+    scene->entities.push_back(probe);
+    return probe;
 }

@@ -53,6 +53,7 @@ struct Entity
     Transform& getLocalTransform();
     void setLocalTransform(const Transform& transform);
     Transform& getWorldTransform();
+    glm::vec3& getWorldPosition();
     // transform locally
     void applyLocalTransform(Transform& transform);
     void applyWorldRotation(const glm::mat4& rot);

@@ -13,15 +13,19 @@ out vec3 n;
 out vec3 worldSpaceNormal;
 out vec3 t;
 out vec2 uv;
+out vec4 shadowPos;
 out vec3 fragmentPos;
 
 uniform mat4 s_model;
 uniform mat4 s_view;
 uniform mat4 s_projection;
+uniform mat4 lightView;
+uniform mat4 lightProjection;
 
 void main() {
     fragmentPos = (s_view * s_model * vec4(vertexPos, 1.f)).xyz; 
     gl_Position = s_projection * s_view * s_model * vec4(vertexPos, 1.0f);
+    // gl_Position = lightProjection * lightView * s_model * vec4(vertexPos, 1.0f);
     mat4 normalTransformWorld = transpose(inverse(s_model));
     worldSpaceNormal = (normalTransformWorld * vec4(vertexNormal, 0.f)).xyz;
     mat4 normalTransform = transpose(inverse(s_view * s_model)); 

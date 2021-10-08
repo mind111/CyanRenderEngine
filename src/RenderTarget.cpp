@@ -53,4 +53,16 @@ namespace Cyan
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         return true;
     }
+
+    void RenderTarget::setDepthBuffer(Texture* texture)
+    {
+        if (texture->m_width != m_width || texture->m_height != m_height)
+        {
+            CYAN_ASSERT(0, "Mismatched render target and depth buffer dimension!") 
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, m_frameBuffer);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, texture->m_id, 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        m_depthBuffer = texture;
+    }
 }

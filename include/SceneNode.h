@@ -33,8 +33,13 @@ struct SceneNode
     // mesh component 
     Cyan::MeshInstance* m_meshInstance; // TODO: make this a component, not necessarily every scene nodes wants an AABB 
     bool m_hasAABB;
+    bool m_castShadow;
 
     void setParent(SceneNode* parent);
+    void setCastShadw(bool& castShadow)
+    {
+        m_castShadow = castShadow;
+    }
     void attach(SceneNode* child);
     void onAttach();
     void detach();

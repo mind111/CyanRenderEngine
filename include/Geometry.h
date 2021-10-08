@@ -87,16 +87,21 @@ struct BoundingBox3f
     BoundingBox3f()
     {
         m_pMin = glm::vec4(FLT_MAX, FLT_MAX, FLT_MAX, 1.0f);
-        m_pMax = glm::vec4(-FLT_MIN, -FLT_MIN, -FLT_MIN, 1.0f);
+        m_pMax = glm::vec4(-FLT_MAX, -FLT_MAX, -FLT_MAX, 1.0f);
         m_vertexArray = nullptr;
         m_ibo = -1;
         isValid = false;
     } 
 
     void init();
+    void setModel(glm::mat4& model);
     void setViewProjection(Uniform* view, Uniform* projection);
-    void draw(glm::mat4& transform);
+    void computeVerts();
+    void draw();
+    void resetBound();
     void bound(const BoundingBox3f& aabb);
+    void bound(glm::vec3& v3);
+    void bound(glm::vec4& v4);
     float BoundingBox3f::intersectRay(const glm::vec3& ro, const glm::vec3& rd, const glm::mat4& transform);
 };
 

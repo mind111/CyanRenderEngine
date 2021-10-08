@@ -55,7 +55,6 @@ namespace Cyan
     // static singleton pointer will be set to 0 before main() get called
     Renderer* Renderer::m_renderer = 0;
 
-    // TODO: what to do in default constructor?
     Renderer::Renderer()
         : m_frameAllocator(1024u * 1024u),  // 1 megabytes
         m_lighting{0, 0, 0, false},
@@ -248,6 +247,15 @@ namespace Cyan
         // render targets
         initShaders();
         initRenderTargets(m_viewport.m_width, m_viewport.m_height);
+
+        // misc
+        m_debugCam.position = glm::vec3(0.f, 50.f, 0.f);
+        m_debugCam.lookAt = glm::vec3(0.f);
+        m_debugCam.fov = 50.f;
+        m_debugCam.n = 0.1f;
+        m_debugCam.f = 100.f;
+        m_debugCam.projection = glm::perspective(m_debugCam.fov, 16.f/9.f, m_debugCam.n, m_debugCam.f);
+        CameraManager::updateCamera(m_debugCam);
     }
 
     glm::vec2 Renderer::getViewportSize()
@@ -286,6 +294,11 @@ namespace Cyan
             }
             ctx->setUniform(u_cameraView);
             ctx->setUniform(u_cameraProjection);
+            // TODO: clean up the logic regarding when and where to bind shadow map
+            ShadowMapData* shadowData = DirectionalShadowPass::getShadowMap();
+            matl->bindTexture("shadowMap", shadowData->shadowMap);
+            matl->set("lightView", &shadowData->lightView[0][0]);
+            matl->set("lightProjection", &shadowData->lightProjection[0][0]);
             UsedBindingPoints used = matl->bind();
             Mesh::SubMesh* sm = mesh->m_subMeshes[i];
             ctx->setVertexArray(sm->m_vertexArray);
@@ -367,11 +380,11 @@ namespace Cyan
         return m_voxelColorTexture;
     }
 
-    // @ returns a copy is slow
-    BoundingBox3f computeSceneAABB(Scene* scene)
+    // @ returns a copy is slow; in world space
+    BoundingBox3f Renderer::computeSceneAABB(Scene* scene)
     {
         BoundingBox3f sceneAABB;
-        // compute scene AABB in view space
+        // compute scene AABB in model space
         for (auto entity : scene->entities)
         {
             std::queue<SceneNode*> nodes;
@@ -387,7 +400,6 @@ namespace Cyan
                 if (MeshInstance* mesh = node->getAttachedMesh())
                 {
                     BoundingBox3f aabb = mesh->getAABB();
-                    glm::mat4 view = glm::lookAt(scene->mainCamera.position, scene->mainCamera.lookAt, glm::vec3(0.f, 1.f, 0.f));
                     glm::mat4 model = node->getWorldTransform().toMatrix();
                     aabb.m_pMin = model * aabb.m_pMin;
                     aabb.m_pMax = model * aabb.m_pMax;
@@ -541,8 +553,8 @@ namespace Cyan
         ctx->setVertexArray(quad->m_vertexArray);
         m_voxelVisMatl->bindTexture("albedoMap", m_voxelData.m_albedo);
         m_voxelVisMatl->bindTexture("normalMap", m_voxelData.m_normal);
-        m_voxelVisMatl->set("cameraPos", &scene->mainCamera.position.x);
-        m_voxelVisMatl->set("cameraLookAt", &scene->mainCamera.lookAt.x);
+        m_voxelVisMatl->set("cameraPos", &scene->getActiveCamera().position.x);
+        m_voxelVisMatl->set("cameraLookAt", &scene->getActiveCamera().lookAt.x);
         m_voxelVisMatl->set("aabbMin", &sceneAABB.m_pMin.x);
         m_voxelVisMatl->set("aabbMax", &sceneAABB.m_pMax.x);
         m_voxelVisMatl->bind();
@@ -569,9 +581,12 @@ namespace Cyan
         m_renderState.addRenderPass(pass);
     }
 
-    void Renderer::addDirectionalShadowPass()
+    void Renderer::addDirectionalShadowPass(Scene* scene, u32 lightIdx)
     {
-
+        void* preallocatedAddr = m_frameAllocator.alloc(sizeof(DirectionalShadowPass));
+        Viewport viewport = { 0, 0, m_offscreenRenderWidth, m_offscreenRenderHeight };
+        DirectionalShadowPass* pass = new (preallocatedAddr) DirectionalShadowPass(0, viewport, scene, lightIdx);
+        m_renderState.addRenderPass(pass);
     }
 
     void Renderer::addPostProcessPasses()
@@ -585,7 +600,6 @@ namespace Cyan
         RenderTarget* renderTarget = m_outputRenderTarget;
         Texture* sceneColorTexture = m_bSuperSampleAA ? m_sceneColorTextureSSAA : m_sceneColorTexture;
         void* preallocatedAddr = m_frameAllocator.alloc(sizeof(PostProcessResolvePass));
-        // placement new for initialization
         Viewport viewport = { 0u, 0u, renderTarget->m_width, renderTarget->m_height };
         PostProcessResolveInputs inputs = { m_exposure, 0.f, 1.0f, sceneColorTexture, BloomPass::getBloomOutput() };
         if (m_bloom)
@@ -748,17 +762,27 @@ namespace Cyan
         setUniform(u_cameraView, (void*)&camera.view[0]);
         setUniform(u_cameraProjection, (void*)&camera.projection[0]);
 
+        for (auto line : DirectionalShadowPass::m_frustumLines)
+        {
+            line.setViewProjection(u_cameraView, u_cameraProjection);
+            line.draw();
+        }
+        DirectionalShadowPass::m_frustumAABB.setViewProjection(u_cameraView, u_cameraProjection);
+        DirectionalShadowPass::m_frustumAABB.draw();
+
         // lights
         std::vector<PointLightData> pLights;
         std::vector<DirLightData> dLights;
-        SceneManager::buildLightList(scene, pLights, dLights);
+        SceneManager::getSingletonPtr()->buildLightList(scene, pLights, dLights);
         if (!pLights.empty())
         {
             setBuffer(scene->m_pointLightsBuffer, pLights.data(), sizeofVector(pLights));
         }
         if (!dLights.empty())
         {
+            CYAN_ASSERT(dLights.size() <= 1, "At most one directional light is allowed!!")
             setBuffer(scene->m_dirLightsBuffer, dLights.data(), sizeofVector(dLights));
+            // bind shadow map
         }
         
         m_lighting.m_pLights = &pLights;
@@ -772,159 +796,5 @@ namespace Cyan
         {
             drawEntity(entity);
         }
-    }
-
-    IrradianceProbe::IrradianceProbe(const char* name, u32 id, Transform t, Entity* parent)
-        : Entity(name , id, t, parent)
-    {
-        init();
-    }
-
-    void IrradianceProbe::init()
-    {
-        if (!m_radianceRenderTarget)
-        {
-            m_radianceRenderTarget = createRenderTarget(512u, 512u);
-            m_irradianceRenderTarget = createRenderTarget(64u, 64u);
-            m_renderProbeShader = createShader("RenderProbeShader", "../../shader/shader_render_probe.vs", "../../shader/shader_render_probe.fs");
-            m_computeIrradianceShader = createShader("DiffuseIrradianceShader", "../../shader/shader_diff_irradiance.vs", "../../shader/shader_diff_irradiance.fs");
-            m_cubeMeshInstance = getMesh("CubeMesh")->createInstance();
-            m_cubeMeshInstance->setMaterial(0, m_computeIrradianceMatl);
-        }
-        
-        TextureSpec spec = { };
-        spec.m_width = 512u;
-        spec.m_height = 512u;
-        spec.m_type = Texture::Type::TEX_CUBEMAP;
-        spec.m_format = Texture::ColorFormat::R16G16B16;
-        spec.m_dataType =  Texture::Float;
-        spec.m_min = Texture::Filter::LINEAR;
-        spec.m_mag = Texture::Filter::LINEAR;
-        spec.m_s = Texture::Wrap::NONE;
-        spec.m_t = Texture::Wrap::NONE;
-        spec.m_r = Texture::Wrap::NONE;
-        spec.m_numMips = 1u;
-        spec.m_data = 0;
-        m_radianceMap = createTextureHDR("RadianceProbe", spec);
-        m_radianceRenderTarget->attachColorBuffer(m_radianceMap);
-        spec.m_width = 64u;
-        spec.m_height = 64u;
-        m_irradianceMap = createTextureHDR("IrradianceProbe", spec);
-        m_irradianceRenderTarget->attachColorBuffer(m_irradianceMap);
-
-        m_computeIrradianceMatl = createMaterial(m_computeIrradianceShader)->createInstance();
-        m_renderProbeMatl = createMaterial(m_renderProbeShader)->createInstance();
-
-        Mesh* mesh = Cyan::getMesh("sphere_mesh");
-        Transform transform;
-        m_sceneRoot->attach(createSceneNode("SphereMesh", transform, mesh, false));
-        setMaterial("SphereMesh", 0, m_renderProbeMatl);
-
-        auto renderMatlCallback = [&]()
-        {
-            m_renderProbeMatl->bindTexture(m_irradianceMap);
-        };
-
-        // m_sphereMeshInstance = mesh->createInstance();
-        // m_sphereMeshInstance->setMaterial(0, m_renderProbeMatl);
-    }
-
-    void IrradianceProbe::sampleRadiance()
-    {
-        const u32 kViewportWidth = 512u;
-        const u32 kViewportHeight = 512u;
-        Camera camera = { };
-        // camera set to probe's location
-        camera.position = m_position;
-        camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
-        glm::vec3 cameraTargets[] = {
-            {1.f, 0.f, 0.f},   // Right
-            {-1.f, 0.f, 0.f},  // Left
-            {0.f, 1.f, 0.f},   // Up
-            {0.f, -1.f, 0.f},  // Down
-            {0.f, 0.f, 1.f},   // Front
-            {0.f, 0.f, -1.f},  // Back
-        }; 
-        glm::vec3 worldUps[] = {
-            {0.f, -1.f, 0.f},   // Right
-            {0.f, -1.f, 0.f},   // Left
-            {0.f, 0.f, 1.f},    // Up
-            {0.f, 0.f, -1.f},   // Down
-            {0.f, -1.f, 0.f},   // Forward
-            {0.f, -1.f, 0.f},   // Back
-        };
-        auto ctx = Cyan::getCurrentGfxCtx();
-        ctx->setRenderTarget(m_radianceRenderTarget, 0u);
-        ctx->clear();
-        ctx->setViewport({0u, 0u, 512u, 512u});
-        for (u32 f = 0; f < (sizeof(cameraTargets)/sizeof(cameraTargets[0])); ++f)
-        {
-            ctx->setRenderTarget(m_radianceRenderTarget, f);
-            glClear(GL_DEPTH_BUFFER_BIT);
-            camera.lookAt = cameraTargets[f];
-            camera.view = glm::lookAt(camera.position, cameraTargets[f], worldUps[f]);
-            Renderer::getSingletonPtr()->renderScene(m_scene, camera);
-        }
-    }
-
-    void IrradianceProbe::debugRenderProbe()
-    {
-        auto ctx = Cyan::getCurrentGfxCtx();
-        glm::mat4 model = glm::mat4(1.f);
-        model = glm::translate(model, m_position);
-        model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-        auto renderer = Renderer::getSingletonPtr();
-        RenderTarget* rt = renderer->m_bSuperSampleAA ? renderer->m_sceneColorRTSSAA : renderer->m_sceneColorRenderTarget;
-        ctx->setRenderTarget(rt, 0u);
-        ctx->setViewport({0u, 0u, rt->m_width, rt->m_height});
-        ctx->setShader(m_renderProbeShader);
-        m_renderProbeMatl->bindTexture("radianceMap", m_irradianceMap);
-        Camera& camera = m_scene->mainCamera;
-        setUniform(renderer->u_cameraProjection, &camera.projection[0][0]);
-        setUniform(renderer->u_cameraView, &camera.view[0][0]);
-        Renderer::getSingletonPtr()->drawMeshInstance(m_sphereMeshInstance, &model);
-    }
-
-    void IrradianceProbe::computeIrradiance()
-    {
-        Toolkit::ScopedTimer timer("ComputeIrradianceTimer");
-        auto ctx = Cyan::getCurrentGfxCtx();
-        Camera camera = { };
-        // camera set to probe's location
-        camera.position = glm::vec3(0.f);
-        camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
-        glm::vec3 cameraTargets[] = {
-            {1.f, 0.f, 0.f},   // Right
-            {-1.f, 0.f, 0.f},  // Left
-            {0.f, 1.f, 0.f},   // Up
-            {0.f, -1.f, 0.f},  // Down
-            {0.f, 0.f, 1.f},   // Front
-            {0.f, 0.f, -1.f},  // Back
-        }; 
-        glm::vec3 worldUps[] = {
-            {0.f, -1.f, 0.f},   // Right
-            {0.f, -1.f, 0.f},   // Left
-            {0.f, 0.f, 1.f},    // Up
-            {0.f, 0.f, -1.f},   // Down
-            {0.f, -1.f, 0.f},   // Forward
-            {0.f, -1.f, 0.f},   // Back
-        };
-
-        auto renderer = Renderer::getSingletonPtr();
-        ctx->setShader(m_computeIrradianceShader);
-        ctx->setViewport({0u, 0u, m_irradianceRenderTarget->m_width, m_irradianceRenderTarget->m_height});
-        ctx->setDepthControl(DepthControl::kDisable);
-        for (u32 f = 0; f < 6u; ++f)
-        {
-            camera.lookAt = cameraTargets[f];
-            camera.view = glm::lookAt(camera.position, camera.lookAt, worldUps[f]);
-            ctx->setRenderTarget(m_irradianceRenderTarget, f);
-            m_computeIrradianceMatl->set("view", &camera.view[0][0]);
-            m_computeIrradianceMatl->set("projection", &camera.projection[0][0]);
-            m_computeIrradianceMatl->bindTexture("envmapSampler", m_radianceMap);
-            Renderer::getSingletonPtr()->drawMeshInstance(m_cubeMeshInstance, nullptr);
-        }
-        ctx->setDepthControl(DepthControl::kEnable);
-        timer.end();
     }
 }

@@ -7,6 +7,6 @@ uniform mat4 s_view;
 uniform mat4 s_projection;
 void main() 
 {
-    normal = vNormal;
+    normal = (transpose(inverse(s_model)) * vec4(vNormal, 1.f)).xyz;
     gl_Position = s_projection * s_view * s_model * vec4(vPos, 1.f);
 }

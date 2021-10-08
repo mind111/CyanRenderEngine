@@ -1,8 +1,21 @@
 #include "Entity.h"
+#include "CyanAPI.h"
 
 Entity::Entity(const char* name, u32 id, Transform t, Entity* parent)
 {
-
+    if (name) 
+    {
+        CYAN_ASSERT(strlen(name) < kEntityNameMaxLen, "Entity name too long !!")
+        strcpy(m_name, name);
+    } else {
+        char buff[64];
+        sprintf(buff, "Entity%u", m_entityId);
+    }
+    m_sceneRoot = Cyan::createSceneNode("DefaultSceneRoot", t);
+    if (parent)
+    {
+        parent->attach(this);
+    }
 }
 
 SceneNode* Entity::getSceneRoot()
@@ -147,6 +160,11 @@ void Entity::setLocalTransform(const Transform& transform)
 Transform& Entity::getWorldTransform()
 {
     return m_sceneRoot->m_worldTransform;
+}
+
+glm::vec3& Entity::getWorldPosition()
+{
+    return m_sceneRoot->m_worldTransform.m_translate; 
 }
 
 // transform locally
