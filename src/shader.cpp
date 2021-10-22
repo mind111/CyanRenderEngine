@@ -164,6 +164,9 @@ void Shader::setUniform(Uniform* _uniform)
         case Uniform::Type::u_uint:
             setUniform1ui(name, *(u32*)_uniform->m_valuePtr);
             break;
+        case Uniform::Type::u_atomic_uint:
+            setUniform1ui(name, *(u32*)_uniform->m_valuePtr);
+            break;
         case Uniform::Type::u_vec3:
             setUniformVec3(name, (float*)_uniform->m_valuePtr);
             break;
@@ -174,6 +177,9 @@ void Shader::setUniform(Uniform* _uniform)
             setUniformMat4f(name, (float*)_uniform->m_valuePtr);
             break;
         case Uniform::Type::u_sampler2D:
+            setUniform1i(name, *(int*)_uniform->m_valuePtr);
+            break;
+        case Uniform::Type::u_sampler2DShadow:
             setUniform1i(name, *(int*)_uniform->m_valuePtr);
             break;
         case Uniform::Type::u_samplerCube:

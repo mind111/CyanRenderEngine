@@ -1,6 +1,9 @@
 #version 450 core
 in vec3 fragmentObjPos;
-out vec4 fragColor;
+layout (location = 0) out vec4 fragColor;
+layout (location = 1) out vec3 fragNormal;
+layout (location = 2) out vec3 fragDepth;
+layout (location = 3) out vec3 radialDepth;
 uniform vec3 cameraPos;
 uniform vec3 cameraLookAt;
 
@@ -74,4 +77,8 @@ void main() {
             fragColor = (.5 + .5 * rd.y) * vec4(0.95f, 0.40f, 0.30f, 1.f);
         }
     }
+    fragNormal = vec3(0.f);
+    fragDepth = vec3(1.f);
+    // TODO: hard-coded for now
+    radialDepth = vec3(1000.f);
 }

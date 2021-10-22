@@ -114,7 +114,6 @@ namespace Cyan
         kTangents = (1 << 3)
     };
 
-
     void init();
 
     #define ALLOC_HANDLE(type)   \

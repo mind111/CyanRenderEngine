@@ -17,6 +17,7 @@ struct Uniform
         u_sampler2D,
         u_samplerCube,
         u_sampler3D,
+        u_sampler2DShadow,
         u_image3D,
         u_uimage3D,
         u_atomic_uint,

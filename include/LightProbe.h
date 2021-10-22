@@ -28,7 +28,6 @@ namespace Cyan
         MaterialInstance* m_renderProbeMatl;
         MeshInstance* m_cubeMeshInstance;
 
-        static Shader* m_renderProbeShader;
         static Shader* m_computeIrradianceShader;
         static struct RenderTarget* m_radianceRenderTarget;
         static struct RenderTarget* m_irradianceRenderTarget;
@@ -39,9 +38,42 @@ namespace Cyan
         void debugRenderProbe();
     };
 
+    // TODO: fix cornell box to make it double sided
+    // TODO: save / load the probe
+    // TODO: ray tracing cornell using single light field probe
+    // TODO: enable multi-bounce only for cornell or make a dedicated scene to just test cornell box
+    struct LightFieldProbe : public Entity
+    {
+        Texture* m_radiance;
+        Texture* m_radianceOct;
+        Texture* m_normal;
+        Texture* m_normalOct;
+        Texture* m_radialDistance;
+        Texture* m_distanceOct;
+        MaterialInstance* m_renderProbeMatl;
+        MaterialInstance* m_octProjMatl;
+        static Shader* m_octProjectionShader;
+        static RenderTarget* m_cubemapRenderTarget;
+        static RenderTarget* m_octMapRenderTarget;
+
+        Scene* m_scene;
+
+        Line2D* m_octMapDebugLines[6];
+
+        LightFieldProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene);
+        void resampleToOctMap();
+        void sampleRadianceOctMap();
+        void sampleRadialDistanceAndNormal(); 
+        void debugRenderProbe();
+        void save();
+    };
+
     class LightProbeFactory
     {
     public:
         IrradianceProbe* createIrradianceProbe(Scene* scene, glm::vec3 position);
+        LightFieldProbe* createLightFieldProbe(Scene* scene, glm::vec3 position);
+        u32 numIrradianceProbe;
+        u32 numLightFieldProbe;
     };
 }

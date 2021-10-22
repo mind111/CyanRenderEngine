@@ -69,6 +69,13 @@ namespace Cyan
             {
                 auto ctx = getCurrentGfxCtx();
                 ctx->setRenderTarget(renderTarget, 0u);
+                // clear all the color buffers
+                std::vector<u32> drawBuffers;
+                for (u32 b = 0u; b < renderTarget->m_colorBuffers.size(); ++b)
+                {
+                    drawBuffers.push_back(b);
+                }
+                ctx->setRenderTarget(renderTarget, drawBuffers.data(), static_cast<u32>(drawBuffers.size()));
                 ctx->clear();
             }
             m_clearRenderTargetList.clear();
@@ -99,7 +106,9 @@ namespace Cyan
 
         void beginRender();
         void render();
+        void renderSceneDepthNormal(Scene* scene, Camera& camera);
         void renderScene(Scene* scene, Camera& camera);
+        void renderDebugObjects();
         void endRender();
 
         struct Lighting
@@ -158,13 +167,24 @@ namespace Cyan
 
         // normal hdr scene color texture 
         Texture* m_sceneColorTexture;
+        Texture* m_sceneNormalTexture;
+        Texture* m_sceneDepthTexture;
         RenderTarget* m_sceneColorRenderTarget;
         // hdr super sampling color buffer
         Texture* m_sceneColorTextureSSAA;
+        Texture* m_sceneNormalTextureSSAA;
         RenderTarget* m_sceneColorRTSSAA;
+        Texture* m_sceneDepthTextureSSAA;
+        Shader* m_sceneDepthNormalShader;
+        // TODO: whether enabling post-processing or not, the final render output should always be in 
+        // following render targets
         // final render output
         Texture* m_outputColorTexture;
         RenderTarget* m_outputRenderTarget;
+        RenderTarget* m_ssaoRenderTarget;
+        Texture* m_ssaoTexture;
+        Shader* m_ssaoShader;
+        MaterialInstance* m_ssaoMatl;
         
         // voxel
         struct VoxelVolumeData

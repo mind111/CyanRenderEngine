@@ -216,6 +216,45 @@ struct PbrMaterialInputs
     float m_uMetallic;
 };
 
+Cyan::MaterialInstance* createDefaultRayTracingMatl(Scene* scene, Shader* shader, PbrMaterialInputs inputs)
+{
+    Cyan::MaterialInstance* matl = Cyan::createMaterial(shader)->createInstance();
+    matl->bindTexture("diffuseMaps[0]", inputs.m_baseColor);
+    if (inputs.m_normalMap)
+    {
+        matl->set("hasNormalMap", 1.0f);
+        matl->bindTexture("normalMap", inputs.m_normalMap);
+    }
+    if (inputs.m_occlusion)
+    {
+        matl->set("hasAoMap", 1.0f);
+        matl->bindTexture("aoMap", inputs.m_occlusion);
+    }
+    if (inputs.m_roughnessMap)
+    {
+        matl->set("hasRoughnessMap", 1.0f);
+        matl->bindTexture("roughnessMap", inputs.m_roughnessMap);
+        matl->bindTexture("metallicMap", inputs.m_metallicMap);
+    }
+    else if (inputs.m_metallicRoughnessMap) 
+    {
+        matl->set("hasMetallicRoughnessMap", 1.0f);
+        matl->bindTexture("metallicRoughnessMap", inputs.m_metallicRoughnessMap);
+    }
+    else
+    {
+        matl->set("uniformRoughness", inputs.m_uRoughness);
+        matl->set("uniformMetallic", inputs.m_uMetallic);
+    }
+
+    matl->bindBuffer("dirLightsData", scene->m_dirLightsBuffer);
+    matl->bindBuffer("pointLightsData", scene->m_pointLightsBuffer);
+    matl->set("kDiffuse", 1.0f);
+    matl->set("kSpecular", 1.0f);
+    matl->set("disneyReparam", 1.0f);
+    return matl;
+}
+
 Cyan::MaterialInstance* createDefaultPbrMatlInstance(Scene* scene, PbrMaterialInputs inputs)
 {
     Shader* pbrShader = Cyan::createShader("PbrShader", nullptr, nullptr);
@@ -350,12 +389,36 @@ void PbrApp::initHelmetScene()
         m_coneMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
         cone->setMaterial("ConeMesh", 0, m_coneMatl);
     }
+    // cornell_box
+    {
+        PbrMaterialInputs inputs = { };
+        Cyan::Texture* cornellAlbedo = Cyan::Toolkit::createFlatColorTexture("CornellAlbedo", 4, 4, glm::vec4(1.0, 0.9, 0.9, 1.0));
+        inputs.m_baseColor = cornellAlbedo;
+        inputs.m_uRoughness = 0.8f;
+        inputs.m_uMetallic = 0.1f;
+        Entity* cornellBox = sceneManager->getEntity(helmetScene, "CornellBox");
+        m_cornellMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
+        m_rayTracingShader = Cyan::createShader("RayTracingShader", "../../shader/shader_ray_tracing.vs", "../../shader/shader_ray_tracing.fs");
+        m_rayTracingMatl = createDefaultRayTracingMatl(helmetScene, m_rayTracingShader, inputs);
+        m_debugRayOctBuffer = Cyan::createRegularBuffer(sizeof(glm::vec2) * 11);
+        m_debugRayWorldBuffer = Cyan::createRegularBuffer(sizeof(glm::vec4) * 300);
+        m_debugRayBoundryBuffer = Cyan::createRegularBuffer(sizeof(glm::vec4) * 8);
+        cornellBox->setMaterial("CornellBox", 0, m_rayTracingMatl);
+    }
 
     // add lights into the scene
     sceneManager->createPointLight(helmetScene, glm::vec3(0.95, 0.59f, 0.149f), glm::vec3(-3.0f, 1.2f, 1.5f), 17.0f);
     sceneManager->createPointLight(helmetScene, glm::vec3(0.0f, 0.21f, 1.0f), glm::vec3(3.0f, 0.8f, -0.4f), 20.f);
     // top light
     sceneManager->createDirectionalLight(helmetScene, glm::vec3(1.0f, 1.0, 1.0f), glm::normalize(glm::vec3(1.0f, 1.0f, 1.0f)), 1.2f);
+
+    // test light field probe
+    { 
+        glCreateBuffers(1, &m_debugRayAtomicCounter);
+        glNamedBufferData(m_debugRayAtomicCounter, sizeof(u32), nullptr, GL_STATIC_DRAW);
+        m_lightFieldProbe = sceneManager->createLightFieldProbe(helmetScene, glm::vec3(-5.f, 1.155f, 0.f));
+        // m_irradianceProbe = sceneManager->createIrradianceProbe(helmetScene, glm::vec3(0.f));
+    }
     /*
     // create more point lights
     {
@@ -465,9 +528,6 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewpo
     auto renderer = Cyan::Renderer::getSingletonPtr();
     m_debugRay.setViewProjection(renderer->u_cameraView, renderer->u_cameraProjection);
 
-    // test probe
-    m_irradianceProbe = SceneManager::getSingletonPtr()->createIrradianceProbe(m_scenes[m_currentScene], glm::vec3(0.f));
-
     // clear color
     Cyan::getCurrentGfxCtx()->setClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.f));
 
@@ -481,11 +541,41 @@ void PbrApp::beginFrame()
 {
     Cyan::getCurrentGfxCtx()->clear();
     Cyan::getCurrentGfxCtx()->setViewport({ 0, 0, static_cast<u32>(gEngine->getWindow().width), static_cast<u32>(gEngine->getWindow().height) });
-    m_ui.begin();
+
+    auto updateMatlInstanceData = [&](Cyan::MaterialInstance* matl) {
+        matl->set("directDiffuseSlider", m_directDiffuseSlider);
+        matl->set("directSpecularSlider", m_directSpecularSlider);
+        matl->set("indirectDiffuseSlider", m_indirectDiffuseSlider);
+        matl->set("indirectSpecularSlider", m_indirectSpecularSlider);
+        matl->set("wrap", m_wrap);
+    };
+
+    updateMatlInstanceData(m_helmetMatl);
+    updateMatlInstanceData(m_roomMatl);
+    updateMatlInstanceData(m_sphereMatl);
+    updateMatlInstanceData(m_cubeMatl);
+    updateMatlInstanceData(m_coneMatl);
+    updateMatlInstanceData(m_floorMatl);
+    updateMatlInstanceData(m_cornellMatl);
+    updateMatlInstanceData(m_rayTracingMatl);
+
+    // update probe
+    SceneManager::getSingletonPtr()->setLightProbe(m_scenes[m_currentScene], Cyan::getProbe(m_currentProbeIndex));
+    m_envmap = Cyan::getProbe(m_currentProbeIndex)->m_baseCubeMap;
+    m_envmapMatl->bindTexture("envmapSampler", m_envmap);
 }
 
 void PbrApp::run()
 {
+    // precomute thingy here
+    {
+        auto ctx = Cyan::getCurrentGfxCtx();
+        beginFrame();
+        m_lightFieldProbe->sampleRadianceOctMap();
+        endFrame();
+        ctx->setRenderTarget(nullptr, 0u);
+        // m_lightFieldProbe->save();
+    }
     while (bRunning)
     {
         // tick
@@ -509,6 +599,14 @@ glm::mat4 rotateAroundPoint(glm::vec3 c, glm::vec3 axis, float degree)
     result = glm::translate(result, c);
     return result;
 }
+
+glm::vec3 computeMouseHitWorldSpacePos(Camera& camera, glm::vec3 rd, RayCastInfo hitInfo)
+{
+    glm::vec3 viewSpaceHit = hitInfo.t * rd;
+    glm::mat4 invViewMat = glm::inverse(camera.view);
+    glm::vec4 worldSpacePosV4 = invViewMat * glm::vec4(viewSpaceHit, 1.f);
+    return glm::vec3(worldSpacePosV4.x, worldSpacePosV4.y, worldSpacePosV4.z);
+};
 
 RayCastInfo PbrApp::castMouseRay(const glm::vec2& currentViewportPos, const glm::vec2& currentViewportSize)
 {
@@ -546,6 +644,8 @@ RayCastInfo PbrApp::castMouseRay(const glm::vec2& currentViewportPos, const glm:
             printf("Cast a ray from mouse that hits %s \n", hitInfo.m_entity->m_name);
         }
     }
+    glm::vec3 worldHit = computeMouseHitWorldSpacePos(camera, rd, closestHit);
+    printf("Mouse hit world at (%.2f, %.2f, %.2f) \n", worldHit.x, worldHit.y, worldHit.z);
     return closestHit;
 }
 
@@ -952,6 +1052,89 @@ void PbrApp::drawRenderSettings()
     }
 }
 
+struct RayTracingDebugPass : public Cyan::RenderPass
+{
+    RayTracingDebugPass(Cyan::RenderTarget* renderTarget, Cyan::Viewport viewport, PbrApp* app)
+        : RenderPass(renderTarget, viewport), m_app(app)
+    {
+        if (!m_debugWorldRay[0])
+        {
+            for (u32 i = 0; i < kNumDebugLines; i++)
+            {
+                m_debugWorldRay[i] = new Line();
+                m_debugWorldRay[i]->init();
+                m_debugWorldRay[i]->setColor(glm::vec4(1.f, 0.f, 0.f, 1.f));
+            }
+        }
+    }
+
+    virtual void render() override
+    {
+        auto renderer = Cyan::Renderer::getSingletonPtr();
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        f32* data = reinterpret_cast<f32*>(glMapNamedBuffer(m_app->m_debugRayWorldBuffer->m_ssbo, GL_READ_ONLY));
+        f32 numSegments = *data;
+        // skip padding
+        data += 4;
+        for (u32 i = 0; i < numSegments; ++i)
+        {
+            glm::vec4 vert0;
+            glm::vec4 vert1;
+            memcpy(&vert0.x, data, sizeof(glm::vec4));
+            memcpy(&vert1.x, data + 4, sizeof(glm::vec4));
+            glm::vec3 v0Vec3 = glm::vec3(vert0.x, vert0.y, vert0.z);
+            glm::vec3 v1Vec3 = glm::vec3(vert1.x, vert1.y, vert1.z);
+            m_debugWorldRay[i]->setVerts(v0Vec3, v1Vec3);
+            glm::mat4 model(1.f);
+            m_debugWorldRay[i]->setModel(model);
+            m_debugWorldRay[i]->setViewProjection(renderer->u_cameraView, renderer->u_cameraProjection);
+            m_debugWorldRay[i]->draw();
+            data += 8;
+        }
+        glUnmapNamedBuffer(m_app->m_debugRayWorldBuffer->m_ssbo);
+
+        /*
+        // draw projected debug ray on top of the octmap
+        data = reinterpret_cast<f32*>(glMapNamedBuffer(m_app->m_debugRayOctBuffer->m_ssbo, GL_READ_ONLY));
+        glm::vec2 vp0;
+        glm::vec2 vp1;
+        i32 numBoundryPoints = *reinterpret_cast<i32*>(data);
+        // +2 to skipp paddings bytes
+        data += 2;
+        auto ctx = Cyan::getCurrentGfxCtx();
+        ctx->setRenderTarget(m_renderTarget, 0u);
+        ctx->setViewport(m_viewport);
+        // TODO: why the line data is not updated in real-time?
+        for (i32 i = 0; i < numBoundryPoints; ++i)
+        {
+            memcpy(&vp0.x, data, sizeof(glm::vec2));
+            memcpy(&vp1.x, data + 2, sizeof(glm::vec2));
+            data += 4;
+            if (!m_debugRaySegments[i])
+            {
+                m_debugRaySegments[i] = new Line2D(glm::vec3(vp0, 0.f), glm::vec3(vp1, 0.f));
+            }
+            else
+            {
+                m_debugRaySegments[i]->setVerts(glm::vec3(vp0, 0.f), glm::vec3(vp1, 0.f));
+            }
+            m_debugRaySegments[i]->setColor(glm::vec4(0.2f, 0.8f, .2f, 1.f));
+            m_debugRaySegments[i]->draw();
+        }
+        glUnmapNamedBuffer(m_app->m_debugRayWorldBuffer->m_ssbo);
+        glUnmapNamedBuffer(m_app->m_debugRayOctBuffer->m_ssbo);
+        */
+    }
+
+    static const u32 kNumDebugLines = 102;
+    static Line* m_debugWorldRay[kNumDebugLines];
+    static Line2D* m_debugRaySegments[kNumDebugLines];
+    PbrApp* m_app;
+};
+
+Line* RayTracingDebugPass::m_debugWorldRay[RayTracingDebugPass::kNumDebugLines] = { };
+Line2D* RayTracingDebugPass::m_debugRaySegments[RayTracingDebugPass::kNumDebugLines] = { };
+
 struct DebugAABBPass : public Cyan::RenderPass
 {
     DebugAABBPass(Cyan::RenderTarget* renderTarget, Cyan::Viewport viewport, Scene* scene)
@@ -1031,44 +1214,64 @@ void PbrApp::render()
     Cyan::Toolkit::ScopedTimer frameTimer("render()");
     auto renderer = m_graphicsSystem->getRenderer();
 
-    auto updateMatlInstanceData = [&](Cyan::MaterialInstance* matl) {
-        matl->set("directDiffuseSlider", m_directDiffuseSlider);
-        matl->set("directSpecularSlider", m_directSpecularSlider);
-        matl->set("indirectDiffuseSlider", m_indirectDiffuseSlider);
-        matl->set("indirectSpecularSlider", m_indirectSpecularSlider);
-        matl->set("wrap", m_wrap);
-    };
-
-    updateMatlInstanceData(m_helmetMatl);
-    updateMatlInstanceData(m_roomMatl);
-    updateMatlInstanceData(m_sphereMatl);
-    updateMatlInstanceData(m_cubeMatl);
-    updateMatlInstanceData(m_coneMatl);
-    updateMatlInstanceData(m_floorMatl);
-
     // ui
+    m_ui.begin();
     drawDebugWindows();
 
     // update probe
     SceneManager::getSingletonPtr()->setLightProbe(m_scenes[m_currentScene], Cyan::getProbe(m_currentProbeIndex));
     m_envmap = Cyan::getProbe(m_currentProbeIndex)->m_baseCubeMap;
     m_envmapMatl->bindTexture("envmapSampler", m_envmap);
+    m_rayTracingMatl->bindBuffer("debugOctRayData", m_debugRayOctBuffer);
+    m_rayTracingMatl->bindBuffer("debugWorldRayData", m_debugRayWorldBuffer);
+    m_rayTracingMatl->bindBuffer("debugBoundryData", m_debugRayBoundryBuffer);
+    m_rayTracingMatl->bindTexture("octRadianceMap", m_lightFieldProbe->m_radianceOct);
+    m_rayTracingMatl->bindTexture("octRadialDepthMap", m_lightFieldProbe->m_distanceOct);
+    m_rayTracingMatl->set("enableReflection", 1.f);
+    auto camera = m_scenes[m_currentScene]->getActiveCamera();
+    m_rayTracingMatl->set("debugCameraPos", &camera.position.x);
+
+    // TODO: cleanup! this is temporary, atomic counter is really similar to SSBO
+    glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, m_debugRayAtomicCounter);
+    u32* rayCounterPtr = (u32*)glMapBuffer(GL_ATOMIC_COUNTER_BUFFER, GL_READ_WRITE);
+    memset(rayCounterPtr, 0x0, sizeof(u32));
+    glUnmapBuffer(GL_ATOMIC_COUNTER_BUFFER);
+    glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, m_debugRayAtomicCounter);
 
     renderer->beginRender();
     // rendering
-    m_irradianceProbe->sampleRadiance();
-    m_irradianceProbe->computeIrradiance();
+    // TODO: this should be bundled together with scene pass
     renderer->addDirectionalShadowPass(m_scenes[m_currentScene], 0u);
+    // m_irradianceProbe->sampleRadiance();
+    // m_irradianceProbe->computeIrradiance();
+    // m_lightFieldProbe->sampleRadianceOctMap();
     renderer->addScenePass(m_scenes[m_currentScene]);
-    void* preallocated = renderer->getAllocator().alloc(sizeof(DebugAABBPass));
-    Cyan::RenderTarget* sceneRenderTarget = renderer->getSceneColorRenderTarget();
-    DebugAABBPass* pass = new (preallocated) DebugAABBPass(sceneRenderTarget, Cyan::Viewport{0u,0u, sceneRenderTarget->m_width, sceneRenderTarget->m_height}, m_scenes[m_currentScene]);
-    renderer->addCustomPass(pass);
+    {
+        void* preallocated = renderer->getAllocator().alloc(sizeof(RayTracingDebugPass));
+        auto renderTarget = m_lightFieldProbe->m_octMapRenderTarget;
+        RayTracingDebugPass* pass = new (preallocated) RayTracingDebugPass(renderTarget, Cyan::Viewport{0u,0u, renderTarget->m_width, renderTarget->m_height}, this);
+        renderer->addCustomPass(pass);
+    }
+#if DRAW_DEBUG
+    {
+        void* preallocated = renderer->getAllocator().alloc(sizeof(DebugAABBPass));
+        Cyan::RenderTarget* sceneRenderTarget = renderer->getSceneColorRenderTarget();
+        DebugAABBPass* pass = new (preallocated) DebugAABBPass(sceneRenderTarget, Cyan::Viewport{0u,0u, sceneRenderTarget->m_width, sceneRenderTarget->m_height}, m_scenes[m_currentScene]);
+        renderer->addCustomPass(pass);
+    }
+#endif
     // TODO: how to exclude things in the scene from being post processed
     renderer->addPostProcessPasses();
-    Cyan::RenderTarget* rt = renderer->getRenderOutputRenderTarget();
-    auto shadowMap = Cyan::DirectionalShadowPass::getShadowMap();
-    renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 180, 320, 180}, shadowMap->shadowMap);
+    auto rt = renderer->getRenderOutputRenderTarget();
+    // debug visualization
+    {
+        renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 180, 320, 180}, renderer->m_sceneNormalTextureSSAA);
+        renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 360, 320, 180}, renderer->m_sceneDepthTextureSSAA);
+        // renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 540, 320, 180}, renderer->m_ssaoTexture);
+        renderer->addTexturedQuadPass(rt, {rt->m_width - 180, rt->m_height - 540, 180, 180}, m_lightFieldProbe->m_radianceOct);
+        renderer->addTexturedQuadPass(rt, {rt->m_width - 360, rt->m_height - 540, 180, 180}, m_lightFieldProbe->m_normalOct);
+        renderer->addTexturedQuadPass(rt, {rt->m_width - 180, rt->m_height - 720, 180, 180}, m_lightFieldProbe->m_distanceOct);
+    }
     renderer->render();
     renderer->endRender();
 

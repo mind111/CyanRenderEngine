@@ -25,6 +25,27 @@ namespace Cyan
         m_colorBuffers.push_back(_texture);
     }
 
+    // TODO: substitude attachColorBuffer() with this
+    void RenderTarget::attachTexture(Texture* texture, u32 attachmentIndex, u32 faceIndex)
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, m_frameBuffer);
+        switch (texture->m_type)
+        {
+            case Texture::Type::TEX_2D:
+                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + attachmentIndex, GL_TEXTURE_2D, texture->m_id, 0);
+                m_textures[attachmentIndex] = texture;
+                break;
+            case Texture::Type::TEX_CUBEMAP:
+                CYAN_ASSERT(faceIndex != -1, "Cannot attahc a cubemap as color attachment without specifiying which cubemap face to attach")
+                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + attachmentIndex, GL_TEXTURE_CUBE_MAP_POSITIVE_X + faceIndex, texture->m_id, 0);
+                m_textures[attachmentIndex] = texture;
+                break;
+            default:
+                break;
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+
     // TODO: implement this
     void RenderTarget::setColorBuffer(Texture* texture, u32 index)
     {
@@ -40,6 +61,21 @@ namespace Cyan
     void RenderTarget::setDrawBuffer(u32 _bufferIdx)
     {
         glNamedFramebufferDrawBuffer(m_frameBuffer, GL_COLOR_ATTACHMENT0 + _bufferIdx);
+    }
+
+    void RenderTarget::setDrawBuffers(u32* buffers, u32 numBuffers)
+    {
+        GLenum* drawBuffers = (GLenum*)_alloca(sizeof(GLenum) * numBuffers);
+        for (u32 b = 0; b < numBuffers; ++b)
+        {
+            if (buffers[b] == -1)
+                drawBuffers[b] = GL_NONE;
+            else
+            {
+                drawBuffers[b] = GL_COLOR_ATTACHMENT0 + buffers[b];
+            }
+        }
+        glNamedFramebufferDrawBuffers(m_frameBuffer, numBuffers, drawBuffers);
     }
 
     bool RenderTarget::validate()

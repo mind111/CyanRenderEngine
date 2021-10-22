@@ -174,6 +174,14 @@ namespace Cyan
         _rt->setDrawBuffer(drawBufferIdx);
     }
 
+    void GfxContext::setRenderTarget(RenderTarget* rt, u32* drawBuffers, u32 numBuffers)
+    {
+        if (!rt)
+            CYAN_ASSERT(0, "RenderTarget is null!");
+        glBindFramebuffer(GL_FRAMEBUFFER, rt->m_frameBuffer);
+        rt->setDrawBuffers(drawBuffers, numBuffers);
+    }
+
     void GfxContext::setClearColor(glm::vec4 color)
     {
         glClearColor(color.r, color.g, color.b, color.a);

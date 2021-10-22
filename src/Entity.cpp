@@ -2,6 +2,7 @@
 #include "CyanAPI.h"
 
 Entity::Entity(const char* name, u32 id, Transform t, Entity* parent)
+    : m_entityId(id)
 {
     if (name) 
     {
@@ -59,15 +60,19 @@ RayCastInfo Entity::intersectRay(const glm::vec3& ro, const glm::vec3& rd, glm::
                 Cyan::Mesh* mesh = node->m_meshInstance->m_mesh;
                 for (auto sm : mesh->m_subMeshes)
                 {
+                    // TODO: find exact hit or early exit as long as it hits anything belongs to current entity
+                    float closestHit = FLT_MAX;
                     for (auto& tri : sm->m_triangles)
                     {
                         Triangle t(tri);
                         float hit = t.intersectRay(ro, rd, modelView); 
-                        if (hit > 0.f)
+                        if (hit > 0.f && hit < closestHit)
                         {
-                            return { this, node, hit };
+                            closestHit = hit;
+                            // return { this, node, hit };
                         }
                     }
+                    return { this, node, closestHit };
                 }
             }
         }

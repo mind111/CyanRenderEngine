@@ -34,6 +34,7 @@ u32 Uniform::getSize()
             size = 4 * 4 * 4;
             break;
         case u_sampler2D:
+        case u_sampler2DShadow:
         case u_sampler3D:
         case u_samplerCube:
         case u_image3D:

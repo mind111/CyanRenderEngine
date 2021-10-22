@@ -3,6 +3,7 @@
 #include "glm.hpp"
 #include "gtc/matrix_transform.hpp"
 
+#include "VertexArray.h"
 #include "Shader.h"
 #include "Material.h"
 
@@ -22,6 +23,25 @@ struct Line
     GLuint m_vbo, m_vao;
     Uniform* u_view;
     Uniform* u_projection;
+};
+
+struct Line2D
+{
+    Line2D(glm::vec3& v0, glm::vec3& v1) 
+        : m_vertices{ v0, v1 }
+    {
+        init();
+    }
+    void init();
+    void setVerts(glm::vec3& v0, glm::vec3& v1);
+    void setColor(glm::vec4& color);
+    void draw();
+
+    glm::vec3 m_vertices[2];
+    glm::vec4 m_color;
+    GLuint m_vbo;
+    VertexArray* m_vertexArray;
+    Cyan::MaterialInstance* m_matl;
 };
 
 struct Quad

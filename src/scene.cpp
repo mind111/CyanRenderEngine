@@ -115,3 +115,10 @@ Cyan::IrradianceProbe* SceneManager::createIrradianceProbe(Scene* scene, glm::ve
     scene->entities.push_back(probe);
     return probe;
 }
+
+Cyan::LightFieldProbe* SceneManager::createLightFieldProbe(Scene* scene, glm::vec3& pos)
+{
+    auto probe = m_probeFactory->createLightFieldProbe(scene, pos); 
+    scene->entities.push_back(probe);
+    return probe;
+}

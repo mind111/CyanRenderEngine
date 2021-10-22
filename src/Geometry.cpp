@@ -56,6 +56,45 @@ void Line::draw()
     glBindVertexArray(0);
 };
 
+void Line2D::init()
+{
+    Shader* shader = Cyan::createShader("Line2DShader", "../../shader/shader_line2d.vs", "../../shader/shader_line2d.fs");
+    m_matl = Cyan::createMaterial(shader)->createInstance();
+    auto vb = Cyan::createVertexBuffer(m_vertices, sizeof(m_vertices), 3 * sizeof(f32), 2);
+    vb->addVertexAttrb({VertexAttrib::DataType::Float, 3, 3 * sizeof(f32), 0, nullptr});
+    m_vertexArray = Cyan::createVertexArray(vb);
+    m_vertexArray->init();
+}
+
+void Line2D::setVerts(glm::vec3& v0, glm::vec3& v1)
+{
+    m_vertices[0] = v0;
+    m_vertices[1] = v1;
+    glNamedBufferSubData(m_vertexArray->m_vertexBuffer->m_vbo, 0, sizeof(m_vertices), m_vertices);
+}
+
+void Line2D::setColor(glm::vec4& color)
+{
+    m_color = color;
+}
+
+void Line2D::draw()
+{
+    auto ctx = Cyan::getCurrentGfxCtx();
+    ctx->setDepthControl(Cyan::DepthControl::kDisable);
+    ctx->setShader(m_matl->m_template->m_shader);
+    m_matl->set("color", &m_color.r);
+    m_matl->bind();
+    ctx->setVertexArray(m_vertexArray);
+    ctx->setPrimitiveType(Cyan::PrimitiveType::Line);
+    ctx->drawIndexAuto(2);
+    ctx->setPrimitiveType(Cyan::PrimitiveType::TriangleList);
+    ctx->setDepthControl(Cyan::DepthControl::kEnable);
+    // glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+    // glDrawArrays(GL_LINE, 0, 2);
+    // glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
 Quad::Quad()
     : m_matl(0)
 {

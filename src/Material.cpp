@@ -18,9 +18,9 @@ namespace Cyan
         m_bufferSize += 4; // to leave space for UniformBuffer::End 
     }
 
-    void Material::bindSampler(Uniform* _sampler)
+    void Material::bindSampler(Uniform* sampler)
     {
-        m_samplers[m_numSamplers++] = _sampler;
+        m_samplers[m_numSamplers++] = sampler;
     }
 
     /*

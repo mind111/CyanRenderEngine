@@ -8,7 +8,7 @@
 
 namespace Cyan
 {
-    // TODO: miplevels?
+    // TODO: how to handled texture name?
     struct Texture
     {
         enum Type
@@ -33,7 +33,8 @@ namespace Cyan
         
         enum ColorFormat
         {
-            R8G8B8 = 0,
+            R32F = 0,
+            R8G8B8,
             R16G16B16,
             R8G8B8A8,
             R16G16B16A16,
@@ -64,6 +65,20 @@ namespace Cyan
         u32 m_height;
         u32 m_depth;
         GLuint m_id;
+
+        u32 getSizeInBytes()
+        {
+            u32 bpp = 0u;
+            switch(m_format)
+            {
+                case R16G16B16:
+                    break;
+                case R8G8B8:
+                    break;
+                default:
+                    break;
+            }
+        }
     };
 
     struct TextureSpec

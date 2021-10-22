@@ -78,6 +78,7 @@ public:
         return scene->entities.size() > 0 ? scene->entities.size() : 0;
     }
     Cyan::IrradianceProbe* createIrradianceProbe(Scene* scene, glm::vec3& pos);
+    Cyan::LightFieldProbe* createLightFieldProbe(Scene* scene, glm::vec3& pos);
 private:
     static SceneManager* s_sceneManager;
     Cyan::LightProbeFactory* m_probeFactory;

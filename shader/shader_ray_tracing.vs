@@ -11,6 +11,7 @@ layout (location = 6) in vec2 textureUv_3;
 
 out vec3 n;
 out vec3 worldSpaceNormal;
+out vec3 worldSpacePos;
 out vec3 t;
 out vec2 uv;
 out vec4 shadowPos;
@@ -21,6 +22,7 @@ uniform mat4 s_view;
 uniform mat4 s_projection;
 
 void main() {
+    worldSpacePos = (s_model * vec4(vertexPos, 1.f)).xyz;
     fragmentPos = (s_view * s_model * vec4(vertexPos, 1.f)).xyz; 
     gl_Position = s_projection * s_view * s_model * vec4(vertexPos, 1.0f);
     mat4 normalTransformWorld = transpose(inverse(s_model));

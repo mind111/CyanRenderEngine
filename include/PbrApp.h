@@ -300,8 +300,13 @@ public:
     bool bPicking;
     double m_mouseCursorX, m_mouseCursorY;
     Cyan::IrradianceProbe* m_irradianceProbe;
+    GLuint m_debugRayAtomicCounter;
+    Cyan::LightFieldProbe* m_lightFieldProbe;
 
     std::vector<Scene*> m_scenes;
+    RegularBuffer* m_debugRayOctBuffer;
+    RegularBuffer* m_debugRayWorldBuffer;
+    RegularBuffer* m_debugRayBoundryBuffer;
 private:
     float m_sampleVertex[(64 + 1) * 4 * 2] = { };
     
@@ -315,6 +320,7 @@ private:
     Cyan::MaterialInstance* m_helmetMatl;
     Cyan::MaterialInstance* m_cubeMatl;
     Cyan::MaterialInstance* m_coneMatl;
+    Cyan::MaterialInstance* m_cornellMatl;
     Cyan::MaterialInstance* m_sphereMatl;
     Cyan::MaterialInstance* m_envmapMatl;
     Cyan::MaterialInstance* m_skyMatl;
@@ -328,6 +334,8 @@ private:
 
     /* Shaders */
     Shader* m_pbrShader;
+    Shader* m_rayTracingShader;
+    Cyan::MaterialInstance* m_rayTracingMatl;
     Shader* m_envmapShader;
     Shader* m_blitShader;
     Shader* m_skyShader;

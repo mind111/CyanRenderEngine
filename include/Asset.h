@@ -23,33 +23,46 @@ struct Asset
 
 };
 
-// TODO: improve readability
-
-class AssetManager
+namespace Cyan
 {
-public:
-
-    struct LoadedNode
-    {
-        SceneNode* m_sceneNode;
-        std::vector<u32> m_child;
+    class ObjLoader
+    { 
+        Cyan::Mesh* loadMesh();
     };
 
-    Cyan::Texture* loadGltfTexture(tinygltf::Model& model, i32 index);
-    // TODO: Normalize mesh scale
-    SceneNode* loadGltfNode(Scene* scene, tinygltf::Model& model, tinygltf::Node* parent, 
-                        SceneNode* parentSceneNode, tinygltf::Node& node, u32 numNodes);
-    Cyan::Mesh* loadGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh); 
-    void loadGltfTextures(tinygltf::Model& model);
-    SceneNode* loadGltf(Scene* scene, const char* filename, const char* name, Transform transform);
+    class GltfLoader
+    {
+        Cyan::Mesh* loadMesh();
+    };
 
-    void loadScene(Scene* scene, const char* file);
-    void loadNodes(Scene* scene, nlohmann::basic_json<std::map>& nodeInfoList);
-    void loadEntities(Scene* scene, nlohmann::basic_json<std::map>& entityInfoList);
-    void loadTextures(nlohmann::basic_json<std::map>& textureInfoList);
-    void loadMeshes(Scene* scene, nlohmann::basic_json<std::map>& meshInfoList);
+    class AssetManager
+    {
+    public:
 
-    tinygltf::TinyGLTF m_loader;
-    Assimp::Importer m_importer;
-    std::vector<SceneNode*> m_nodes;
-};
+        struct LoadedNode
+        {
+            SceneNode* m_sceneNode;
+            std::vector<u32> m_child;
+        };
+
+        Cyan::Texture* loadGltfTexture(tinygltf::Model& model, i32 index);
+        // TODO: Normalize mesh scale
+        SceneNode* loadGltfNode(Scene* scene, tinygltf::Model& model, tinygltf::Node* parent, 
+                            SceneNode* parentSceneNode, tinygltf::Node& node, u32 numNodes);
+        Cyan::Mesh* loadGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh); 
+        void loadGltfTextures(tinygltf::Model& model);
+        SceneNode* loadGltf(Scene* scene, const char* filename, const char* name, Transform transform);
+
+        void loadScene(Scene* scene, const char* file);
+        void loadNodes(Scene* scene, nlohmann::basic_json<std::map>& nodeInfoList);
+        void loadEntities(Scene* scene, nlohmann::basic_json<std::map>& entityInfoList);
+        void loadTextures(nlohmann::basic_json<std::map>& textureInfoList);
+        void loadMeshes(Scene* scene, nlohmann::basic_json<std::map>& meshInfoList);
+
+        void* m_objLoader;
+        void* m_gltfLoader;
+        tinygltf::TinyGLTF m_loader;
+        Assimp::Importer m_importer;
+        std::vector<SceneNode*> m_nodes;
+    };
+}

@@ -50,12 +50,6 @@ namespace Cyan
         virtual void render() override;
     };
 
-    // requires a depth buffer
-    struct SSAOPass : public RenderPass
-    {
-
-    }; 
-
     struct BloomPass : public RenderPass
     {
         BloomPass(RenderTarget* rt, Viewport vp, BloomPassInputs inputs); 
@@ -147,12 +141,34 @@ namespace Cyan
         Texture* m_srcTexture;
     };
 
-    // directional shadow map
-    struct ShadowMapData
+    struct SSAOPass : public RenderPass
     {
-        Texture* shadowMap;
-        glm::mat4 lightView;
+        SSAOPass(RenderTarget* renderTarget, Viewport viewport, Texture* sceneDepthTexture, Texture* sceneNormalTexture);
+        static void onInit();
+        virtual void render() override;
+
+        static Shader* m_ssaoShader;
+        static MaterialInstance* m_ssaoMatl;
+        static Texture* m_ssaoTexture;
+        Texture* m_sceneDepthTexture;
+        Texture* m_sceneNormalTexture;
+    };
+
+    struct ShadowCascade
+    {
+        f32 n;
+        f32 f;
+        BoundingBox3f aabb;
+        ::Line frustumLines[12];
         glm::mat4 lightProjection;
+        Texture* shadowMap;
+    };
+
+    struct CascadedShadowMap
+    {
+        // Fixed four cascades for now
+        ShadowCascade cascades[4];
+        glm::mat4 lightView;
     };
 
     struct DirectionalShadowPass : public RenderPass
@@ -160,15 +176,18 @@ namespace Cyan
         DirectionalShadowPass(RenderTarget* renderTarget, Viewport viewport, Scene* scene, u32 dirLightIdx);
         static void onInit();
         virtual void render() override;
-        BoundingBox3f computeFrustumAABB(const Camera& camera, glm::mat4& view);
-        static ShadowMapData* getShadowMap();
+        glm::mat4 lightView = glm::lookAt(glm::vec3(0.f), 
+                                          glm::vec3(-m_light.direction.x, -m_light.direction.y, -m_light.direction.z), glm::vec3(0.f, 1.f, 0.f));
+        void renderCascade(ShadowCascade& cascade, glm::mat4& lightView);
+        void computeCascadeAABB(ShadowCascade& cascade, const Camera& camera, glm::mat4& view);
 
+        static void drawDebugLines(Uniform* view, Uniform* projection);
         static Shader* s_directShadowShader;
         static MaterialInstance* s_directShadowMatl;
         static RenderTarget* s_depthRenderTarget;
-        static ShadowMapData* s_shadowMap;
-        static std::vector<::Line> m_frustumLines;
-        static BoundingBox3f m_frustumAABB;
+        static const u32 kNumShadowCascades = 4u;
+        static BoundingBox3f m_frustumAABB[kNumShadowCascades];
+        static CascadedShadowMap m_cascadedShadowMap;
         DirectionalLight m_light;
         Scene* m_scene;
     };    

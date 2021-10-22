@@ -47,10 +47,6 @@ namespace Cyan
          1.f,  1.f, 1.f, 1.f
     };
 
-    RenderTarget* IrradianceProbe::m_radianceRenderTarget = 0u; 
-    RenderTarget* IrradianceProbe::m_irradianceRenderTarget = 0u; 
-    Shader* IrradianceProbe::m_renderProbeShader = 0u;
-    Shader* IrradianceProbe::m_computeIrradianceShader = 0u;
 
     // static singleton pointer will be set to 0 before main() get called
     Renderer* Renderer::m_renderer = 0;
@@ -136,6 +132,24 @@ namespace Cyan
         m_sceneColorTextureSSAA = textureManager->createTextureHDR("SceneColorTexSSAA", spec);
         m_sceneColorRTSSAA = createRenderTarget(m_SSAAWidth, m_SSAAHeight);
         m_sceneColorRTSSAA->attachColorBuffer(m_sceneColorTextureSSAA);
+        {
+            TextureSpec spec0 = { };
+            spec0.m_type = Texture::Type::TEX_2D;
+            spec0.m_format = Texture::ColorFormat::R32G32B32; 
+            spec0.m_dataType = Texture::DataType::Float;
+            spec0.m_width = m_SSAAWidth;
+            spec0.m_height = m_SSAAHeight;
+            spec0.m_min = Texture::Filter::LINEAR;
+            spec0.m_mag = Texture::Filter::LINEAR;
+            spec0.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+            spec0.m_t = Texture::Wrap::CLAMP_TO_EDGE;
+            spec0.m_r = Texture::Wrap::CLAMP_TO_EDGE;
+            m_sceneDepthTextureSSAA = textureManager->createTextureHDR("SceneDepthTexSSAA", spec0);
+            // spec0.m_format = Texture::ColorFormat::R32G32B32;
+            m_sceneNormalTextureSSAA = textureManager->createTextureHDR("SceneNormalTextureSSAA", spec0);
+            m_sceneColorRTSSAA->attachColorBuffer(m_sceneNormalTextureSSAA);
+            m_sceneColorRTSSAA->attachColorBuffer(m_sceneDepthTextureSSAA);
+        }
 
         // scene color render targets 
         spec.m_width = m_windowWidth;
@@ -143,6 +157,25 @@ namespace Cyan
         m_sceneColorTexture = textureManager->createTextureHDR("SceneColorTexture", spec);
         m_sceneColorRenderTarget = createRenderTarget(m_windowWidth, m_windowHeight);
         m_sceneColorRenderTarget->attachColorBuffer(m_sceneColorTexture);
+        {
+            TextureSpec spec0 = { };
+            spec0.m_type = Texture::Type::TEX_2D;
+            spec0.m_format = Texture::ColorFormat::R32G32B32; 
+            spec0.m_dataType = Texture::DataType::Float;
+            spec0.m_width = m_windowWidth;
+            spec0.m_height = m_windowHeight;
+            spec0.m_min = Texture::Filter::LINEAR;
+            spec0.m_mag = Texture::Filter::LINEAR;
+            spec0.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+            spec0.m_t = Texture::Wrap::CLAMP_TO_EDGE;
+            spec0.m_r = Texture::Wrap::CLAMP_TO_EDGE;
+            m_sceneNormalTexture = textureManager->createTextureHDR("SceneNormalTexture", spec0);
+            spec0.m_format = Texture::ColorFormat::R32F; 
+            m_sceneDepthTexture = textureManager->createTextureHDR("SceneDepthTexture", spec0);
+            m_sceneColorRenderTarget->attachColorBuffer(m_sceneNormalTexture);
+            m_sceneColorRenderTarget->attachColorBuffer(m_sceneDepthTexture);
+        }
+
         m_outputColorTexture = textureManager->createTextureHDR("FinalColorTexture", spec);
         m_outputRenderTarget = createRenderTarget(spec.m_width, spec.m_height);
         m_outputRenderTarget->attachColorBuffer(m_outputColorTexture);
@@ -246,14 +279,43 @@ namespace Cyan
         initShaders();
         initRenderTargets(m_viewport.m_width, m_viewport.m_height);
 
-        // misc
-        m_debugCam.position = glm::vec3(0.f, 50.f, 0.f);
-        m_debugCam.lookAt = glm::vec3(0.f);
-        m_debugCam.fov = 50.f;
-        m_debugCam.n = 0.1f;
-        m_debugCam.f = 100.f;
-        m_debugCam.projection = glm::perspective(m_debugCam.fov, 16.f/9.f, m_debugCam.n, m_debugCam.f);
-        CameraManager::updateCamera(m_debugCam);
+        // scene depth and normal
+        {
+            m_sceneDepthNormalShader = createShader("SceneDepthNormalShader", "../../shader/shader_depth_normal.vs", "../../shader/shader_depth_normal.fs");
+        }
+        // ssao
+        {
+            auto textureManager = TextureManager::getSingletonPtr();
+            TextureSpec spec = { };
+            spec.m_width = m_windowWidth;
+            spec.m_height = m_windowHeight;
+            spec.m_type = Texture::Type::TEX_2D;
+            spec.m_format = Texture::ColorFormat::R16G16B16; 
+            spec.m_dataType = Texture::DataType::Float;
+            spec.m_min = Texture::Filter::LINEAR;
+            spec.m_mag = Texture::Filter::LINEAR;
+            spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+            spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
+            spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
+            m_ssaoRenderTarget = createRenderTarget(spec.m_width, spec.m_height);
+            m_ssaoTexture = textureManager->createTextureHDR("SSAOTexture", spec);
+            m_ssaoRenderTarget->attachColorBuffer(m_ssaoTexture);
+            m_ssaoShader = createShader("SSAOShader", "../../shader/shader_ao.vs", "../../shader/shader_ao.fs");
+            m_ssaoMatl = createMaterial(m_ssaoShader)->createInstance();
+        }
+
+        {
+            // misc
+            m_debugCam.position = glm::vec3(0.f, 50.f, 0.f);
+            m_debugCam.lookAt = glm::vec3(0.f);
+            m_debugCam.fov = 50.f;
+            m_debugCam.n = 0.1f;
+            m_debugCam.f = 100.f;
+            m_debugCam.projection = glm::perspective(m_debugCam.fov, 16.f/9.f, m_debugCam.n, m_debugCam.f);
+            CameraManager::updateCamera(m_debugCam);
+            GLint kMaxNumColorBuffers = 0;
+            glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS, &kMaxNumColorBuffers);
+        }
     }
 
     glm::vec2 Renderer::getViewportSize()
@@ -292,10 +354,18 @@ namespace Cyan
             ctx->setUniform(u_cameraProjection);
 
             // TODO: clean up the logic regarding when and where to bind shadow map
-            ShadowMapData* shadowData = DirectionalShadowPass::getShadowMap();
-            matl->bindTexture("shadowMap", shadowData->shadowMap);
-            matl->set("lightView", &shadowData->lightView[0][0]);
-            matl->set("lightProjection", &shadowData->lightProjection[0][0]);
+            // ShadowMapData* shadowData = DirectionalShadowPass::getShadowMap();
+            CascadedShadowMap& cascadedShadowMap = DirectionalShadowPass::m_cascadedShadowMap;
+            matl->set("lightView", &cascadedShadowMap.lightView[0]);
+            for (u32 s = 0; s < DirectionalShadowPass::kNumShadowCascades; ++s)
+            {
+                char samplerName[64];
+                sprintf_s(samplerName, "shadowCascades[%d]", s);
+                matl->bindTexture(samplerName, cascadedShadowMap.cascades[s].shadowMap);
+                char projectionName[64];
+                sprintf_s(projectionName, "lightProjections[%d]", s);
+                matl->set(projectionName, &cascadedShadowMap.cascades[s].lightProjection[0]);
+            }
 
             UsedBindingPoints used = matl->bind();
             Mesh::SubMesh* sm = mesh->m_subMeshes[i];
@@ -565,6 +635,7 @@ namespace Cyan
     void Renderer::addCustomPass(RenderPass* pass)
     {
         m_renderState.addRenderPass(pass);
+        m_renderState.addClearRenderTarget(pass->m_renderTarget);
     }
 
     void Renderer::addScenePass(Scene* scene)
@@ -753,19 +824,44 @@ namespace Cyan
         Cyan::getCurrentGfxCtx()->setRenderTarget(nullptr, 0u);
     }
 
+    void Renderer::renderDebugObjects()
+    {
+
+    }
+
+    // TODO: implement this
+    void Renderer::renderSceneDepthNormal(Scene* scene, Camera& camera)
+    {
+        auto ctx = getCurrentGfxCtx();
+        auto renderTarget = m_renderState.m_superSampleAA ? m_sceneColorRTSSAA : m_sceneColorRenderTarget;
+        // camera
+        setUniform(u_cameraView, (void*)&camera.view[0]);
+        setUniform(u_cameraProjection, (void*)&camera.projection[0]);
+        // entities 
+        for (auto entity : scene->entities)
+        {
+            for (auto node : entity->m_sceneRoot->m_child)
+            {
+                if (node->m_meshInstance)
+                {
+                    continue;
+                    // ctx->setShader();
+                    u32 drawBuffers[2] = { 1u, 2u };
+                    ctx->setRenderTarget(renderTarget, drawBuffers, 2u);
+                    ctx->setShader(m_sceneDepthNormalShader);
+                }
+            }
+        }
+    }
+
     void Renderer::renderScene(Scene* scene, Camera& camera)
     {
         // camera
         setUniform(u_cameraView, (void*)&camera.view[0]);
         setUniform(u_cameraProjection, (void*)&camera.projection[0]);
-
-        for (auto line : DirectionalShadowPass::m_frustumLines)
-        {
-            line.setViewProjection(u_cameraView, u_cameraProjection);
-            line.draw();
-        }
-        DirectionalShadowPass::m_frustumAABB.setViewProjection(u_cameraView, u_cameraProjection);
-        DirectionalShadowPass::m_frustumAABB.draw();
+#if DRAW_DEBUG
+        DirectionalShadowPass::drawDebugLines(u_cameraView, u_cameraProjection);
+#endif
 
         // lights
         std::vector<PointLightData> pLights;
@@ -788,10 +884,31 @@ namespace Cyan
         // determine if probe data should be update for this frame
         m_lighting.bUpdateProbeData = (!scene->m_lastProbe || (scene->m_currentProbe->m_baseCubeMap->m_id != scene->m_lastProbe->m_baseCubeMap->m_id));
         scene->m_lastProbe = scene->m_currentProbe;
+
         // entities 
         for (auto entity : scene->entities)
         {
             drawEntity(entity);
         }
+
+        // test ssao pass
+        // {
+        //     auto ctx = getCurrentGfxCtx();
+        //     ctx->setShader(m_ssaoShader);
+        //     ctx->setRenderTarget(m_ssaoRenderTarget, 0u);
+        //     ctx->setViewport({0, 0, m_ssaoRenderTarget->m_width, m_ssaoRenderTarget->m_height});
+        //     ctx->clear();
+        //     ctx->setDepthControl(kDisable);
+        //     m_ssaoMatl->bindTexture("normalTexture", m_sceneNormalTextureSSAA);
+        //     m_ssaoMatl->bindTexture("depthTexture", m_sceneDepthTextureSSAA);
+        //     m_ssaoMatl->set("cameraPos", &camera.position.x);
+        //     m_ssaoMatl->set("view", &camera.view[0]);
+        //     m_ssaoMatl->set("projection", &camera.projection[0]);
+        //     m_ssaoMatl->bind();
+        //     auto quad = getQuadMesh();
+        //     ctx->setVertexArray(quad->m_vertexArray);
+        //     ctx->drawIndexAuto(quad->m_vertexArray->numVerts());
+        //     ctx->setDepthControl(DepthControl::kEnable);
+        // }
     }
 }

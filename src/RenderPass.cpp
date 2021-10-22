@@ -26,9 +26,8 @@ namespace Cyan
     RenderTarget* DirectionalShadowPass::s_depthRenderTarget = 0;
     Shader* DirectionalShadowPass::s_directShadowShader = 0;
     MaterialInstance* DirectionalShadowPass::s_directShadowMatl = 0;
-    ShadowMapData* DirectionalShadowPass::s_shadowMap = 0;
-    std::vector<::Line> DirectionalShadowPass::m_frustumLines; 
-    BoundingBox3f DirectionalShadowPass::m_frustumAABB; 
+    BoundingBox3f DirectionalShadowPass::m_frustumAABB[DirectionalShadowPass::kNumShadowCascades]; 
+    CascadedShadowMap DirectionalShadowPass::m_cascadedShadowMap = { };
 
     QuadMesh* getQuadMesh()
     {
@@ -71,6 +70,13 @@ namespace Cyan
         auto renderer = Renderer::getSingletonPtr();
         auto ctx = getCurrentGfxCtx();
         ctx->setRenderTarget(m_renderTarget, 0u);
+        u32 numBuffers = static_cast<u32>(m_renderTarget->m_colorBuffers.size());
+        std::vector<u32> drawBuffers;
+        for (u32 b = 0u; b < numBuffers; ++b)
+        {
+            drawBuffers.push_back(b);
+        }
+        ctx->setRenderTarget(m_renderTarget, drawBuffers.data(), numBuffers);
         ctx->setViewport(m_viewport);
         renderer->renderScene(m_scene, m_scene->getActiveCamera());
     }
@@ -326,62 +332,81 @@ namespace Cyan
     void DirectionalShadowPass::onInit()
     {
         auto textureManager = TextureManager::getSingletonPtr();
-        s_shadowMap = new ShadowMapData { };
         // TODO: depth buffer creation coupled with render target creation
-        s_depthRenderTarget = createDepthRenderTarget(1024, 1024);
+        s_depthRenderTarget = createDepthRenderTarget(2048, 2048);
         s_directShadowShader = createShader("DirShadowShader", "../../shader/shader_dir_shadow.vs", "../../shader/shader_dir_shadow.fs");
         s_directShadowMatl = createMaterial(s_directShadowShader)->createInstance();
         TextureSpec spec = { };
-        spec.m_width = 1024;
-        spec.m_height = 1024;
+        spec.m_width = s_depthRenderTarget->m_width;
+        spec.m_height = s_depthRenderTarget->m_height;
         spec.m_format = Texture::ColorFormat::D24S8; // 32 bits
+        spec.m_type = Texture::Type::TEX_2D;
         spec.m_dataType = Texture::DataType::UNSIGNED_INT_24_8;
         spec.m_min = Texture::Filter::LINEAR;
         spec.m_mag = Texture::Filter::LINEAR;
         spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
         spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
-        s_shadowMap->shadowMap = textureManager->createTexture("DepthTexture", spec);
-        s_shadowMap->lightView = glm::mat4(1.f);
-        s_shadowMap->lightProjection = glm::mat4(1.f);
-        
-        // debuging lines for camera's view frustum
-        m_frustumLines.resize(15);
-        auto renderer = Renderer::getSingletonPtr();
-        for (auto& line : m_frustumLines)
-        {
-            line.init();
-            line.setColor(glm::vec4(1.f, 0.f, 0.f, 1.f));
-            line.setModel(glm::mat4(1.f));
-        }
-        m_frustumLines[13].setColor(glm::vec4(0.f, 0.f, 1.f, 1.f));
-        m_frustumLines[14].setColor(glm::vec4(0.f, 1.f, 0.f, 1.f));
-        m_frustumAABB.init();
-    }
 
-    ShadowMapData* DirectionalShadowPass::getShadowMap()
-    {
-        return s_shadowMap;
+        for (u32 s = 0u; s < kNumShadowCascades; ++s)
+        {
+            m_frustumAABB[s].init();
+            m_cascadedShadowMap.cascades[s].lightProjection = glm::mat4(1.f);
+        }
+        // initialize cascaded shadow maps
+        m_cascadedShadowMap.lightView = glm::mat4(1.f);
+
+        auto initCascade = [&](ShadowCascade& cascade, glm::vec4& frustumColor) {
+            for (auto& line : cascade.frustumLines)
+            {
+                line.init();
+                line.setColor(frustumColor);
+                cascade.shadowMap = textureManager->createTexture("ShadowMap", spec);
+                glBindTexture(GL_TEXTURE_2D, cascade.shadowMap->m_id);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+                glBindTexture(GL_TEXTURE_2D, 0);
+            }
+            cascade.aabb.init();
+        };
+        for (u32 i = 0; i < kNumShadowCascades; ++i)
+        {
+            ShadowCascade& cascade = m_cascadedShadowMap.cascades[i];
+            switch (i)
+            {
+                case 0u:
+                    initCascade(cascade, glm::vec4(1.f,0.f,0.f,1.f));
+                    break;
+                case 1u:
+                    initCascade(cascade, glm::vec4(0.f,1.f,0.f,1.f));
+                    break;
+                case 2u:
+                    initCascade(cascade, glm::vec4(0.f,0.f,1.f,1.f));
+                    break;
+                case 3u:
+                    initCascade(cascade, glm::vec4(1.f,1.f,0.f,1.f));
+                    break;
+            }
+        }
     }
 
     // TODO: stablize the projection matrix
     // compute view frustum's bounding box in world space
-    BoundingBox3f DirectionalShadowPass::computeFrustumAABB(const Camera& camera, glm::mat4& view)
+    void DirectionalShadowPass::computeCascadeAABB(ShadowCascade& cascade, const Camera& camera, glm::mat4& view)
     {
-        DirectionalShadowPass::m_frustumAABB.resetBound();
-        f32 N = fabs(camera.n);
-        f32 F = fabs(20.f);
-        static f32 fixedProjSizeX = 0.f;
-        static f32 fixedProjSizeY = 0.f;
+        f32 N = fabs(cascade.n);
+        f32 F = fabs(cascade.f);
+
+        static f32 fixedProjRadius = 0.f;
+        // Note(Min): scale in z axis to enclose a bigger range in z, since occluder in another 
+        // frusta might cast shadow on current frusta!!
         // stablize the projection matrix in xy-plane
         if ((F-N) > 2.f * F * glm::tan(glm::radians(camera.fov)) * camera.aspectRatio)
         {
-            fixedProjSizeX = 0.5f * (F-N);
-            fixedProjSizeY = F * glm::tan(glm::radians(camera.fov));
+           fixedProjRadius = 0.5f * (F-N) * 1.2f;
         }
         else
         {
-            fixedProjSizeX = F * glm::tan(glm::radians(camera.fov)) * camera.aspectRatio;
-            fixedProjSizeY = F * glm::tan(glm::radians(camera.fov));
+           fixedProjRadius = F * glm::tan(glm::radians(camera.fov)) * camera.aspectRatio * 1.2f;
         }
 
         f32 dn = N * glm::tan(glm::radians(camera.fov));
@@ -413,71 +438,61 @@ namespace Cyan
         glm::vec4 fdv4 = view * glm::vec4(fd, 1.f);
 
         // set debug line verts
-        m_frustumLines[0].setVerts(na, nb);
-        m_frustumLines[1].setVerts(nb, nc);
-        m_frustumLines[2].setVerts(nc, nd);
-        m_frustumLines[3].setVerts(na, nd);
-        m_frustumLines[4].setVerts(fa, fb);
-        m_frustumLines[5].setVerts(fb, fc);
-        m_frustumLines[6].setVerts(fc, fd);
-        m_frustumLines[7].setVerts(fa, fd);
-        m_frustumLines[8].setVerts(na, fa);
-        m_frustumLines[9].setVerts(nb, fb);
-        m_frustumLines[10].setVerts(nc, fc);
-        m_frustumLines[11].setVerts(nd, fd);
-        m_frustumLines[12].setVerts(camera.position, camera.position + camera.forward);
-        m_frustumLines[13].setVerts(camera.position, camera.position + camera.up);
-        m_frustumLines[14].setVerts(camera.position, camera.position + camera.right);
+        cascade.frustumLines[0].setVerts(na, nb);
+        cascade.frustumLines[1].setVerts(nb, nc);
+        cascade.frustumLines[2].setVerts(nc, nd);
+        cascade.frustumLines[3].setVerts(na, nd);
+        cascade.frustumLines[4].setVerts(fa, fb);
+        cascade.frustumLines[5].setVerts(fb, fc);
+        cascade.frustumLines[6].setVerts(fc, fd);
+        cascade.frustumLines[7].setVerts(fa, fd);
+        cascade.frustumLines[8].setVerts(na, fa);
+        cascade.frustumLines[9].setVerts(nb, fb);
+        cascade.frustumLines[10].setVerts(nc, fc);
+        cascade.frustumLines[11].setVerts(nd, fd);
 
-        m_frustumAABB.bound(nav4);
-        m_frustumAABB.bound(nbv4);
-        m_frustumAABB.bound(ncv4);
-        m_frustumAABB.bound(ndv4);
+        BoundingBox3f& aabb = cascade.aabb;
+        aabb.resetBound();
+        aabb.bound(nav4);
+        aabb.bound(nbv4);
+        aabb.bound(ncv4);
+        aabb.bound(ndv4);
+        aabb.bound(fav4);
+        aabb.bound(fbv4);
+        aabb.bound(fcv4);
+        aabb.bound(fdv4);
 
-        m_frustumAABB.bound(fav4);
-        m_frustumAABB.bound(fbv4);
-        m_frustumAABB.bound(fcv4);
-        m_frustumAABB.bound(fdv4);
+        // TODO: improve this procedure for fixing the projection size 
+        f32 midX = .5f * (aabb.m_pMin.x + aabb.m_pMax.x);
+        f32 midY = .5f * (aabb.m_pMin.y + aabb.m_pMax.y);
+        glm::vec3 mid = 0.5f * (aabb.m_pMin + aabb.m_pMax);
 
-        f32 midX = .5f * (m_frustumAABB.m_pMin.x + m_frustumAABB.m_pMax.x);
-        f32 midY = .5f * (m_frustumAABB.m_pMin.y + m_frustumAABB.m_pMax.y);
-        m_frustumAABB.m_pMin.x = -fixedProjSizeX + midX;
-        m_frustumAABB.m_pMin.y = -fixedProjSizeY + midY;
-        m_frustumAABB.m_pMax.x = fixedProjSizeX + midX;
-        m_frustumAABB.m_pMax.y = fixedProjSizeY + midY;
+        // snap to texel increments
+        mid = glm::floor(mid);
+        aabb.m_pMin = glm::vec4(mid - glm::vec3(fixedProjRadius), 1.f);
+        aabb.m_pMax = glm::vec4(mid + glm::vec3(fixedProjRadius), 1.f);
 
-        m_frustumAABB.computeVerts();
-        return m_frustumAABB;
+        aabb.computeVerts();
     }
 
-    void DirectionalShadowPass::render()
+    // TODO: view frustum culling to only pass visible object within each frusta to render shadow
+    void DirectionalShadowPass::renderCascade(ShadowCascade& cascade, glm::mat4& lightView)
     {
-        // render debug view frustum
-        u32 debugCameraIdx = (m_scene->activeCamera + 1) % 2;
-        glm::mat4 lightView = glm::lookAt(glm::vec3(0.f), 
-                                          glm::vec3(-m_light.direction.x, -m_light.direction.y, -m_light.direction.z), glm::vec3(0.f, 1.f, 0.f));
+        // Had to switch to cull front face when using hardware PCF
+        glCullFace(GL_FRONT);
 
-        u32 camIdx = 0u;
-        Camera& camera = m_scene->cameras[camIdx];
-        BoundingBox3f aabb = computeFrustumAABB(camera, lightView);
-        m_frustumAABB.setModel(glm::inverse(lightView));
-        // m_frustumAABB.setModel(glm::mat4(1.f));
-
-        // Note:(Min) this projection matrix maps depth to [-1, 1] while the depth stored in the depth buffer is in range [0, 1]
-        // a scale and bias is needed to convert the depth in order to comare the depth correctly.
+        auto aabb = cascade.aabb;
         glm::mat4 lightProjection = glm::orthoLH(aabb.m_pMin.x, aabb.m_pMax.x, aabb.m_pMin.y, aabb.m_pMax.y, aabb.m_pMax.z, aabb.m_pMin.z);
-        glm::vec4 test = lightProjection * glm::vec4(0.f, 0.f, 1.0f, 1.f);
-
-        s_shadowMap->lightView = lightView;
-        s_shadowMap->lightProjection = lightProjection;
+        cascade.lightProjection = lightProjection;
+        aabb.setModel(glm::inverse(lightView));
 
         auto ctx = getCurrentGfxCtx();
-        s_depthRenderTarget->setDepthBuffer(s_shadowMap->shadowMap);
+        s_depthRenderTarget->setDepthBuffer(cascade.shadowMap);
         ctx->setRenderTarget(s_depthRenderTarget, 0u);
         glClear(GL_DEPTH_BUFFER_BIT);
         ctx->setShader(s_directShadowShader);
-        s_directShadowMatl->set("lightView", &lightView[0][0]);
-        s_directShadowMatl->set("lightProjection", &lightProjection[0][0]);
+        s_directShadowMatl->set("lightView", &lightView[0]);
+        s_directShadowMatl->set("lightProjection", &lightProjection[0]);
         ctx->setViewport({0u, 0u, s_depthRenderTarget->m_width, s_depthRenderTarget->m_height});
         for (auto entity : m_scene->entities)
         {
@@ -518,10 +533,65 @@ namespace Cyan
                 }
             }
         }
+
+        glCullFace(GL_BACK);
+    }
+
+    void DirectionalShadowPass::drawDebugLines(Uniform* view, Uniform* projection)
+    {
+        for (u32 i = 0; i < kNumShadowCascades; ++i)
+        {
+            auto& cascade = m_cascadedShadowMap.cascades[i];
+            cascade.aabb.setModel(glm::inverse(m_cascadedShadowMap.lightView));
+            cascade.aabb.setViewProjection(view, projection);
+            cascade.aabb.draw();
+            for (auto& line : cascade.frustumLines)
+            {
+                line.setModel(glm::mat4(1.f));
+                line.setViewProjection(view, projection);
+                line.draw();
+            }
+        }
+    }
+
+    void DirectionalShadowPass::render()
+    {
+        Camera& camera = m_scene->cameras[0];
+        f32 t[4] = { 0.1f, 0.3f, 0.6f, 1.f };
+        m_cascadedShadowMap.cascades[0].n = camera.n;
+        m_cascadedShadowMap.cascades[0].f = (1.0f - t[0]) * camera.n + t[0] * camera.f;
+
+        for (u32 i = 1u; i < DirectionalShadowPass::kNumShadowCascades; ++i)
+        {
+            m_cascadedShadowMap.cascades[i].n = m_cascadedShadowMap.cascades[i-1].f;
+            m_cascadedShadowMap.cascades[i].f = (1.f - t[i]) * camera.n + t[i] * camera.f;
+        }
+        m_cascadedShadowMap.lightView = glm::lookAt(glm::vec3(0.f), glm::vec3(-m_light.direction.x, -m_light.direction.y, -m_light.direction.z), glm::vec3(0.f, 1.f, 0.f));
+        for (u32 i = 0u; i < DirectionalShadowPass::kNumShadowCascades; ++i)
+        {
+            computeCascadeAABB(m_cascadedShadowMap.cascades[i], camera, lightView);
+            renderCascade(m_cascadedShadowMap.cascades[i], lightView);
+        }
+    }
+
+    SSAOPass::SSAOPass(RenderTarget* renderTarget, Viewport vp, Texture* sceneDepthTexture, Texture* sceneNormalTexture)
+        : RenderPass(renderTarget, vp), m_sceneDepthTexture(sceneDepthTexture), m_sceneNormalTexture(sceneNormalTexture)
+    {
+
+    }
+
+    void SSAOPass::onInit()
+    {
+
+    }
+
+    void SSAOPass::render()
+    {
+
     }
 
     TexturedQuadPass::TexturedQuadPass(RenderTarget* renderTarget, Viewport vp, Texture* srcTex)
-    : RenderPass(renderTarget, vp), m_srcTexture(srcTex)
+        : RenderPass(renderTarget, vp), m_srcTexture(srcTex)
     {
 
     }
