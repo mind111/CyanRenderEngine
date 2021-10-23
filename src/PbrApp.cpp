@@ -194,6 +194,7 @@ PbrApp* PbrApp::get()
 }
 
 PbrApp::PbrApp()
+: m_debugRayTracingNormal(0.f, 1.f, 0.f)
 {
     bOrbit = false;
     gApp = this;
@@ -402,7 +403,7 @@ void PbrApp::initHelmetScene()
         m_rayTracingMatl = createDefaultRayTracingMatl(helmetScene, m_rayTracingShader, inputs);
         m_debugRayOctBuffer = Cyan::createRegularBuffer(sizeof(glm::vec2) * 11);
         m_debugRayWorldBuffer = Cyan::createRegularBuffer(sizeof(glm::vec4) * 300);
-        m_debugRayBoundryBuffer = Cyan::createRegularBuffer(sizeof(glm::vec4) * 8);
+        m_debugRayBoundryBuffer = Cyan::createRegularBuffer(sizeof(glm::vec4) * 20);
         cornellBox->setMaterial("CornellBox", 0, m_rayTracingMatl);
     }
 
@@ -502,6 +503,9 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewpo
     initEnvMaps();
     initHelmetScene();
     m_currentScene = 0u;
+
+    glEnable(GL_LINE_SMOOTH);
+    glLineWidth(4.f);
 
     // ui
     m_ui.init(gEngine->getWindow().mpWindow);
@@ -761,6 +765,19 @@ void PbrApp::drawDebugWindows()
                     drawLightingWidgets();
                     ImGui::Separator();
                 }
+                ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem("Debug Tools"))
+            {
+                float v[3] = {
+                    m_debugRayTracingNormal.x,
+                    m_debugRayTracingNormal.y,
+                    m_debugRayTracingNormal.z
+                };
+                ImGui::SliderFloat3("##Debug normal", v, -1.f, 1.f, "%.2f");
+                m_debugRayTracingNormal.x = v[0];
+                m_debugRayTracingNormal.y = v[1];
+                m_debugRayTracingNormal.z = v[2];
                 ImGui::EndTabItem();
             }
             if (ImGui::BeginTabItem("Settings"))
@@ -1065,6 +1082,16 @@ struct RayTracingDebugPass : public Cyan::RenderPass
                 m_debugWorldRay[i]->init();
                 m_debugWorldRay[i]->setColor(glm::vec4(1.f, 0.f, 0.f, 1.f));
             }
+            for (u32 i = 0; i < 10; i++)
+            {
+                m_debugBoundryRay[i] = new Line();
+                m_debugBoundryRay[i]->init();
+                m_debugBoundryRay[i]->setColor(glm::vec4(0.f, 0.f, 1.f, 1.f));
+            }
+            for (u32 i = 0; i < kNumDebugLines; i++)
+            {
+                m_debugRaySegments[i] = new Line2D(glm::vec3(0.f), glm::vec3(0.f));
+            }
         }
     }
 
@@ -1072,7 +1099,31 @@ struct RayTracingDebugPass : public Cyan::RenderPass
     {
         auto renderer = Cyan::Renderer::getSingletonPtr();
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-        f32* data = reinterpret_cast<f32*>(glMapNamedBuffer(m_app->m_debugRayWorldBuffer->m_ssbo, GL_READ_ONLY));
+        f32* boundryData = reinterpret_cast<f32*>(glMapNamedBuffer(m_app->m_debugRayBoundryBuffer->m_ssbo, GL_READ_WRITE));
+        char* boundryDataCopy = (char*)boundryData;
+        f32 numBoundryPoints = *boundryData;
+        boundryData += 4;
+        for (u32 i = 0; i < numBoundryPoints; ++i)
+        {
+            glm::vec4 vert0;
+            glm::vec4 vert1;
+            memcpy(&vert0.x, boundryData, sizeof(glm::vec4));
+            memcpy(&vert1.x, boundryData + 4, sizeof(glm::vec4));
+            glm::vec3 v0Vec3 = glm::vec3(vert0.x, vert0.y, vert0.z);
+            glm::vec3 v1Vec3 = glm::vec3(vert1.x, vert1.y, vert1.z);
+            m_debugBoundryRay[i]->setVerts(v0Vec3, v1Vec3);
+            glm::mat4 model(1.f);
+            m_debugBoundryRay[i]->setModel(model);
+            m_debugBoundryRay[i]->setViewProjection(renderer->u_cameraView, renderer->u_cameraProjection);
+            m_debugBoundryRay[i]->draw();
+            boundryData += 8;
+        }
+        memset(boundryDataCopy, 0x0, m_app->m_debugRayBoundryBuffer->m_totalSize);
+        glUnmapNamedBuffer(m_app->m_debugRayBoundryBuffer->m_ssbo);
+
+        // line segment world ray
+        f32* data = reinterpret_cast<f32*>(glMapNamedBuffer(m_app->m_debugRayWorldBuffer->m_ssbo, GL_READ_WRITE));
+        char* dataCopy = (char*)data;
         f32 numSegments = *data;
         // skip padding
         data += 4;
@@ -1091,48 +1142,43 @@ struct RayTracingDebugPass : public Cyan::RenderPass
             m_debugWorldRay[i]->draw();
             data += 8;
         }
+        memset(dataCopy, 0x0, m_app->m_debugRayWorldBuffer->m_totalSize);
         glUnmapNamedBuffer(m_app->m_debugRayWorldBuffer->m_ssbo);
 
-        /*
         // draw projected debug ray on top of the octmap
-        data = reinterpret_cast<f32*>(glMapNamedBuffer(m_app->m_debugRayOctBuffer->m_ssbo, GL_READ_ONLY));
-        glm::vec2 vp0;
-        glm::vec2 vp1;
-        i32 numBoundryPoints = *reinterpret_cast<i32*>(data);
-        // +2 to skipp paddings bytes
-        data += 2;
-        auto ctx = Cyan::getCurrentGfxCtx();
-        ctx->setRenderTarget(m_renderTarget, 0u);
-        ctx->setViewport(m_viewport);
-        // TODO: why the line data is not updated in real-time?
-        for (i32 i = 0; i < numBoundryPoints; ++i)
-        {
-            memcpy(&vp0.x, data, sizeof(glm::vec2));
-            memcpy(&vp1.x, data + 2, sizeof(glm::vec2));
-            data += 4;
-            if (!m_debugRaySegments[i])
-            {
-                m_debugRaySegments[i] = new Line2D(glm::vec3(vp0, 0.f), glm::vec3(vp1, 0.f));
-            }
-            else
-            {
-                m_debugRaySegments[i]->setVerts(glm::vec3(vp0, 0.f), glm::vec3(vp1, 0.f));
-            }
-            m_debugRaySegments[i]->setColor(glm::vec4(0.2f, 0.8f, .2f, 1.f));
-            m_debugRaySegments[i]->draw();
-        }
-        glUnmapNamedBuffer(m_app->m_debugRayWorldBuffer->m_ssbo);
-        glUnmapNamedBuffer(m_app->m_debugRayOctBuffer->m_ssbo);
-        */
+        // data = reinterpret_cast<f32*>(glMapNamedBuffer(m_app->m_debugRayOctBuffer->m_ssbo, GL_READ_WRITE));
+        // dataCopy = (char*)data;
+        // glm::vec2 vp0;
+        // glm::vec2 vp1;
+        // // i32 numBoundryPoints = *reinterpret_cast<i32*>(data);
+        // // +2 to skipp paddings bytes
+        // data += 2;
+        // auto ctx = Cyan::getCurrentGfxCtx();
+        // ctx->setRenderTarget(m_renderTarget, 0u);
+        // ctx->setViewport(m_viewport);
+        // // TODO: why the line data is not updated in real-time?
+        // for (i32 i = 0; i < i32(numBoundryPoints); ++i)
+        // {
+        //     memcpy(&vp0.x, data, sizeof(glm::vec2));
+        //     memcpy(&vp1.x, data + 2, sizeof(glm::vec2));
+        //     data += 4;
+        //     m_debugRaySegments[i]->setVerts(glm::vec3(vp0, 0.f), glm::vec3(vp1, 0.f));
+        //     m_debugRaySegments[i]->setColor(glm::vec4(0.2f, 0.8f, .2f, 1.f));
+        //     m_debugRaySegments[i]->draw();
+        // }
+        // memset(dataCopy, 0x0, m_app->m_debugRayOctBuffer->m_totalSize);
+        // glUnmapNamedBuffer(m_app->m_debugRayOctBuffer->m_ssbo);
     }
 
     static const u32 kNumDebugLines = 102;
     static Line* m_debugWorldRay[kNumDebugLines];
+    static Line* m_debugBoundryRay[10];
     static Line2D* m_debugRaySegments[kNumDebugLines];
     PbrApp* m_app;
 };
 
 Line* RayTracingDebugPass::m_debugWorldRay[RayTracingDebugPass::kNumDebugLines] = { };
+Line* RayTracingDebugPass::m_debugBoundryRay[10] = { };
 Line2D* RayTracingDebugPass::m_debugRaySegments[RayTracingDebugPass::kNumDebugLines] = { };
 
 struct DebugAABBPass : public Cyan::RenderPass
@@ -1228,6 +1274,7 @@ void PbrApp::render()
     m_rayTracingMatl->bindTexture("octRadianceMap", m_lightFieldProbe->m_radianceOct);
     m_rayTracingMatl->bindTexture("octRadialDepthMap", m_lightFieldProbe->m_distanceOct);
     m_rayTracingMatl->set("enableReflection", 1.f);
+    m_rayTracingMatl->set("debugTraceNormal", &m_debugRayTracingNormal.x);
     auto camera = m_scenes[m_currentScene]->getActiveCamera();
     m_rayTracingMatl->set("debugCameraPos", &camera.position.x);
 
@@ -1268,8 +1315,8 @@ void PbrApp::render()
         renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 180, 320, 180}, renderer->m_sceneNormalTextureSSAA);
         renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 360, 320, 180}, renderer->m_sceneDepthTextureSSAA);
         // renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 540, 320, 180}, renderer->m_ssaoTexture);
-        renderer->addTexturedQuadPass(rt, {rt->m_width - 180, rt->m_height - 540, 180, 180}, m_lightFieldProbe->m_radianceOct);
-        renderer->addTexturedQuadPass(rt, {rt->m_width - 360, rt->m_height - 540, 180, 180}, m_lightFieldProbe->m_normalOct);
+        renderer->addTexturedQuadPass(rt, {rt->m_width - 360, rt->m_height - 540, 360, 360}, m_lightFieldProbe->m_radianceOct);
+        renderer->addTexturedQuadPass(rt, {rt->m_width - 360, rt->m_height - 720, 180, 180}, m_lightFieldProbe->m_normalOct);
         renderer->addTexturedQuadPass(rt, {rt->m_width - 180, rt->m_height - 720, 180, 180}, m_lightFieldProbe->m_distanceOct);
     }
     renderer->render();

@@ -289,16 +289,13 @@ namespace Cyan
         }
         // draw debug lines
         {
-            /*
-            glEnable(GL_LINE_SMOOTH);
-            glLineWidth(2.f);
-            m_octMapDebugLines[0]->draw();
-            m_octMapDebugLines[1]->draw();
-            m_octMapDebugLines[2]->draw();
-            m_octMapDebugLines[3]->draw();
-            m_octMapDebugLines[4]->draw();
-            m_octMapDebugLines[5]->draw();
-            */
+            // ctx->setRenderTarget(m_octMapRenderTarget, 0u);
+            // m_octMapDebugLines[0]->draw();
+            // m_octMapDebugLines[1]->draw();
+            // m_octMapDebugLines[2]->draw();
+            // m_octMapDebugLines[3]->draw();
+            // m_octMapDebugLines[4]->draw();
+            // m_octMapDebugLines[5]->draw();
         }
         ctx->setDepthControl(DepthControl::kEnable);
     }

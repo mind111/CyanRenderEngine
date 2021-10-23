@@ -302,6 +302,7 @@ public:
     Cyan::IrradianceProbe* m_irradianceProbe;
     GLuint m_debugRayAtomicCounter;
     Cyan::LightFieldProbe* m_lightFieldProbe;
+    glm::vec3 m_debugRayTracingNormal;
 
     std::vector<Scene*> m_scenes;
     RegularBuffer* m_debugRayOctBuffer;

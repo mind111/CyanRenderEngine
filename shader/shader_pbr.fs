@@ -1,7 +1,7 @@
 #version 450 core
 
 in vec3 n;
-in vec3 worldSpaceNormal;
+in vec3 wn;
 in vec3 t;
 in vec2 uv;
 in vec3 fragmentPos;
@@ -278,6 +278,7 @@ struct RenderParams
     float roughness;
     float metallic;
     vec3 n;
+    vec3 wn;
     vec3 v;
     vec3 l;
     vec3 li;
@@ -454,7 +455,7 @@ vec3 indirectLighting(RenderParams params)
     // diffuse irradiance
     // Note(Min): should use world space normal to sample
     // vec3 diffuse = kDiffuse * params.baseColor * texture(irradianceDiffuse, params.n).rgb; 
-    vec3 diffuse = kDiffuse * params.baseColor * texture(irradianceDiffuse, normalize(worldSpaceNormal)).rgb; 
+    vec3 diffuse = kDiffuse * params.baseColor * texture(irradianceDiffuse, params.wn).rgb; 
     // specular radiance
     float ndotv = saturate(dot(params.n, params.v));
     vec3 r = -reflect(params.v, params.n);
@@ -491,6 +492,7 @@ void main()
     // Interpolation done by the rasterizer may change the length of the normal 
     vec3 normal = normalize(n);
     vec3 tangent = normalize(t);
+    vec3 worldSpaceNormal = normalize(wn);
 
     if (hasNormalMap > 0.5f)
     {
@@ -536,6 +538,7 @@ void main()
         roughness,
         metallic,
         normal,
+        worldSpaceNormal,
         viewDir,
         vec3(0.f),
         vec3(0.f),

@@ -1,7 +1,7 @@
 #version 450 core
 
 in vec3 n;
-in vec3 worldSpaceNormal;
+in vec3 wn;
 in vec3 t;
 in vec2 uv;
 in vec3 fragmentPos;
@@ -70,10 +70,12 @@ uniform float enableReflection;
 uniform sampler2D octRadianceMap;
 uniform sampler2D octRadialDepthMap;
 uniform sampler2D octNormalMap;
+uniform vec3 debugTraceNormal;
 
 layout(binding = 0) uniform atomic_uint rayCounter;
 
 #define pi 3.14159265359
+#define MAX_NUM_DEBUG_RAYS 100
 float cascadeIntervals[4] = {0.1f, 0.3f, 0.6f, 1.0f};
 
 struct Light 
@@ -330,6 +332,7 @@ struct RenderParams
     float roughness;
     float metallic;
     vec3 n;
+    vec3 wn;
     vec3 v;
     vec3 l;
     vec3 li;
@@ -506,7 +509,7 @@ vec3 indirectLighting(RenderParams params)
     // diffuse irradiance
     // Note(Min): should use world space normal to sample
     // vec3 diffuse = kDiffuse * params.baseColor * texture(irradianceDiffuse, params.n).rgb; 
-    vec3 diffuse = kDiffuse * params.baseColor * texture(irradianceDiffuse, normalize(worldSpaceNormal)).rgb; 
+    vec3 diffuse = kDiffuse * params.baseColor * texture(irradianceDiffuse, params.wn).rgb; 
     // specular radiance
     float ndotv = saturate(dot(params.n, params.v));
     vec3 r = -reflect(params.v, params.n);
@@ -557,7 +560,123 @@ float distanceToIntersection(vec3 ro, vec3 rd, vec3 v) {
     return numer / denom;
 }
 
-float rayTraceOneProbe(vec3 probeOrigin, vec3 ro, vec3 rd)
+struct TraceResult
+{
+    int result;
+    float t;
+};
+
+struct Ray
+{
+    vec3 origin;
+    vec3 direction;
+};
+
+void drawDebugRay(vec3 ro, vec3 re, int rayIndex)
+{
+    if (rayIndex < MAX_NUM_DEBUG_RAYS)
+    {
+        debugRayWorldData.m_vertices[rayIndex * 2] = vec4(ro, 1.f);
+        debugRayWorldData.m_vertices[rayIndex * 2 + 1] = vec4(re, 1.f);
+    }
+}
+
+void drawDebugStepsAlongRay(vec3 probeOrigin, vec3 ro, vec3 rd, vec2 startOctCoord, vec2 texDirection, float stepLength, float texDistance, int segmentSteps, in int totalSteps)
+{
+    if (totalSteps < 100)
+    {
+        vec2 marched = min(texDistance, stepLength * segmentSteps) * texDirection;
+        vec3 probeToRayDir = octDecode(startOctCoord + marched);
+        // FIXME: when the ray is on the xz plane of where the probe is located
+        float distanceToRay = max(0.f, distanceToIntersection(ro - probeOrigin, rd, probeToRayDir));
+        drawDebugRay(probeOrigin, probeOrigin + probeToRayDir * distanceToRay, totalSteps);
+    }
+}
+
+const float minThickness = 0.03; // meters
+const float maxThickness = 0.50; // meters
+
+#define TRACE_MISS    -1
+#define TRACE_UNKNOWN 0
+#define TRACE_HIT     1
+
+// TODO: detect backface hit 
+// TODO: add thickness heuristic
+// TODO: deal wtih singularities for example if the ray lies in the xz-plane of probe (maybe having multiple probe solves this)
+// TODO: deal wtih singularities where the ray go through probe origin
+// TODO: regular probe grid
+TraceResult traceOneRaySegment(vec3 probeOrigin, vec2 startOctCoord, vec2 endOctCoord, vec3 ro, vec3 rd, out int totalNumSteps, in int segmentIndex) 
+{
+    vec2 texDirection = normalize(endOctCoord - startOctCoord);
+    float texDistance = length(endOctCoord - startOctCoord);
+    vec2 texelOffset = 2.f / textureSize(octRadialDepthMap, 0);
+    float stepLength = 1.5f * length(texelOffset);
+    float marched = 0.0f;
+
+    debugRayOctData.m_octMapTexCoords[segmentIndex * 2] = startOctCoord;
+    debugRayOctData.m_octMapTexCoords[segmentIndex * 2 + 1] = endOctCoord;
+
+    vec3 probeToStartDir = octDecode(startOctCoord);
+    vec3 probeToEndDir = octDecode(endOctCoord);
+    float probeToStartDistance = distanceToIntersection(ro-probeOrigin, rd, probeToStartDir);
+    float probeToEndDistance = distanceToIntersection(ro-probeOrigin, rd, probeToEndDir);
+
+    int segmentNumSteps = 0;
+
+    float distanceProbeToRayBefore = max(0.f, distanceToIntersection(ro - probeOrigin, rd, octDecode(startOctCoord)));
+    for (marched = 0.0f; marched < texDistance; marched += stepLength)
+    {
+        // debugging
+        // drawDebugStepsAlongRay(probeOrigin, ro, rd, startOctCoord, texDirection, stepLength, texDistance, segmentNumSteps, totalNumSteps);
+
+        vec2 pBefore = startOctCoord + min(texDistance, marched) * texDirection;
+        // half step
+        vec2 pMid = startOctCoord + min(texDistance, marched + 0.5f * stepLength) * texDirection;
+        // full step
+        vec2 pAfter = startOctCoord + min(texDistance, marched + 1.f * stepLength) * texDirection;
+
+        float distanceProbeToSurface = texture(octRadialDepthMap, pMid * .5f + .5f).r;
+        vec3 probeToRayDirBefore = octDecode(pBefore); 
+        vec3 probeToRayDirMid = octDecode(pMid);
+        vec3 probeToRayDirAfter = octDecode(pAfter);
+
+        // distance from p to probe origin after marching current step
+        float distanceProbeToRayAfter = max(0.f, distanceToIntersection(ro - probeOrigin, rd, probeToRayDirAfter));
+        float minDistanceProbeToRay = min(distanceProbeToRayBefore, distanceProbeToRayAfter);
+        float maxDistanceProbeToRay = max(distanceProbeToRayBefore, distanceProbeToRayAfter);
+
+        // one-sided hit: could be an actual hit or occluded from probe
+        if (maxDistanceProbeToRay >= distanceProbeToSurface) 
+        {
+            // two-sided hit
+            if (minDistanceProbeToRay < distanceProbeToSurface + 0.1f))
+            {
+                float distanceToHit = max(0.f, distanceToIntersection(ro-probeOrigin, rd, probeToRayDirMid));
+                vec3 hit = distanceToHit * probeToRayDirMid + probeOrigin;
+                vec3 before = probeOrigin + distanceProbeToRayBefore * probeToRayDirBefore;
+                vec3 after = probeOrigin + distanceProbeToRayAfter * probeToRayDirAfter;
+                return TraceResult(TRACE_HIT, dot(hit - ro, rd));
+            }
+            // traced ray is occluded from the probe
+            else 
+            {
+
+            }
+        }
+
+        distanceProbeToRayBefore = distanceProbeToRayAfter;
+        segmentNumSteps++;
+        totalNumSteps++;
+    }
+
+    vec3 endWorldPos = probeOrigin + probeToEndDistance * probeToEndDir;
+    float tracedDistance = dot(endWorldPos - ro, rd);
+
+    // return how much distance has been trace along the ray
+    return TraceResult(TRACE_MISS, tracedDistance);
+}
+
+TraceResult rayTraceOneProbe(vec3 probeOrigin, vec3 ro, vec3 rd)
 {
     float tMax = 50.f;
     int numBoundryPoints = 0;
@@ -569,7 +688,7 @@ float rayTraceOneProbe(vec3 probeOrigin, vec3 ro, vec3 rd)
         vec3(0.f)
     };
     float distances[3] = { 
-        0.f, 0.f, 0.f
+        tMax, tMax, tMax
     };
 
     // find intersection of ray with xy, yz, xz plane
@@ -619,143 +738,46 @@ float rayTraceOneProbe(vec3 probeOrigin, vec3 ro, vec3 rd)
         boundryPoints[i+1] = ro + distances[i] * rd;
     }
     // include ro, and the infinitely far away point on the ray
-    numBoundryPoints += 2;
+    numBoundryPoints += 1;
 
     // Note(Min): the projection of where the light goes to infinity should also be computed
-    boundryPoints[numBoundryPoints-1] = ro + tMax * rd;
+    boundryPoints[numBoundryPoints++] = ro + rd * tMax;
+    debugBoundries.numBoundryPoints = numBoundryPoints;
+    debugRayOctData.numBoundryPoints = numBoundryPoints;
     for (int i = 0; i < numBoundryPoints; ++i)
     {
+        // debugBoundries.boundryPoints[i * 2] = vec4(probeOrigin, 1.f);
+        // debugBoundries.boundryPoints[i * 2 + 1] = vec4(boundryPoints[i], 1.f);
         debugBoundries.boundryPoints[i] = vec4(boundryPoints[i], 1.f);
     }
-
-/*
-    // writing debug data
-    {
-        debugRayOctData.numBoundryPoints = numBoundryPoints;
-        debugRayOctData.m_octMapTexCoords[0] = octEncode(normalize(ro - probeOrigin));
-        debugRayOctData.m_octMapTexCoords[1] = octEncode(normalize(boundryPoints[0] - probeOrigin));
-        debugRayOctData.m_octMapTexCoords[2] = octEncode(normalize(boundryPoints[0] - probeOrigin));
-        debugRayOctData.m_octMapTexCoords[3] = octEncode(normalize(boundryPoints[1] - probeOrigin));
-        debugRayOctData.m_octMapTexCoords[4] = octEncode(normalize(boundryPoints[1] - probeOrigin));
-        debugRayOctData.m_octMapTexCoords[5] = octEncode(normalize(boundryPoints[2] - probeOrigin));
-        debugRayOctData.m_octMapTexCoords[6] = octEncode(normalize(boundryPoints[2] - probeOrigin));
-        debugRayOctData.m_octMapTexCoords[7] = octEncode(normalize(boundryPoints[3] - probeOrigin));
-
-        // FIXME: I cannot figure out why writing to the ssbo in a for loop is not working for now.
-        // for (int i = 1; i < 2; ++i)
-        // {
-        //     debugRayOctData.m_octMapTexCoords[i*2] = octEncode(normalize(boundryPoints[i] - probeOrigin));
-        //     debugRayOctData.m_octMapTexCoords[i*2+1] = octEncode(normalize(boundryPoints[i] - probeOrigin));
-        // }
-    }
-*/
-    // FIXME: the ray will miss surfaces that it supposed to hit
-    // FIXME: the ray will overshoot a bit after a hit
     float distAlongRay = -1.f;
     debugRayWorldData.numSegments = 100.f;
-    int totalNumSteps = 1;
-    debugRayWorldData.m_vertices[0] = vec4(ro, 1.f);
-    debugRayWorldData.m_vertices[1] = vec4(ro + 100.f * rd, 1.f);
-
-    for (int i = 3; i < numBoundryPoints; ++i)
+    int totalNumSteps = 3;
+    // FIXME: the last segment is always bugged, whyyyyyyy!!!!!!!
+    // Note: that happened because incorrect uv stiching, adding a ray bump solves this problem to certain
+    // extent
+    Ray probeSpaceRay = Ray(ro - probeOrigin, rd);
+    for (int i = 1; i < numBoundryPoints; ++i)
     {
-        int segmentNumSteps = 0; 
-        vec2 start = octEncode(normalize(boundryPoints[i-1] - probeOrigin));
-        vec2 end = octEncode(normalize(boundryPoints[i] - probeOrigin));
-        vec2 texDirection = normalize(end - start);
-        float texDistance = length(end - start);
-        vec2 texelOffset = vec2(2.f) / textureSize(octRadialDepthMap, 0);
-        float stepLength = 10.0f * length(texelOffset);
-        float marched = 0.f;
+        // bump the ray a tiny bit to avoid end points exactly on uv space boundry
+        vec2 start = octEncode(normalize(boundryPoints[i-1] + 0.001f * rd - probeOrigin));
+        vec2 end = octEncode(normalize(boundryPoints[i] - 0.001f * rd - probeOrigin));
 
-        if (texDistance < 0.001f)
-            continue; 
-
-        float distanceProbeToRayBefore = max(0.f, distanceToIntersection(ro - probeOrigin, rd, octDecode(start)));
-        for (marched = 0.f; marched < texDistance; marched += stepLength)
+        TraceResult result = traceOneRaySegment(probeOrigin, start, end, ro, rd, totalNumSteps, i-1);
+        if (result.result == TRACE_HIT)
         {
-            // debugging
-            if (totalNumSteps < 48)
-            {
-                vec2 ss = min(texDistance, stepLength * segmentNumSteps) * texDirection;
-                vec3 test = octDecode(start + ss);
-                float testDistance = max(0.f, distanceToIntersection(ro - probeOrigin, rd, test));
-                debugRayWorldData.m_vertices[totalNumSteps*2] = vec4(probeOrigin, 1.f);
-                debugRayWorldData.m_vertices[totalNumSteps*2+1] = vec4(probeOrigin + test * testDistance, 1.f);
-            }
-
-            vec2 pBefore = start + min(texDistance, marched) * texDirection;
-            // half step
-            vec2 pMid = start + min(texDistance, marched + 0.5f * stepLength) * texDirection;
-            // full step
-            vec2 pAfter = start + min(texDistance, marched + 1.f * stepLength) * texDirection;
-
-            float distanceProbeToSurface = texture(octRadialDepthMap, pMid * .5f + .5f).r;
-            vec3 probeToRayDirBefore = octDecode(pBefore); 
-            vec3 probeToRayDirMid = octDecode(pMid);
-            vec3 probeToRayDirAfter = octDecode(pAfter);
-
-            // distance from p to probe origin after marching current step
-            float distanceProbeToRayAfter = max(0.f, distanceToIntersection(ro - probeOrigin, rd, probeToRayDirAfter));
-            float minDistanceProbeToRay = min(distanceProbeToRayBefore, distanceProbeToRayAfter);
-            float maxDistanceProbeToRay = max(distanceProbeToRayBefore, distanceProbeToRayAfter);
-
-            // TODO: deal with undefined trace results between occluded ray or definitive miss
-            // TODO: add thickness heuristic
-            if (maxDistanceProbeToRay >= (distanceProbeToSurface) && (minDistanceProbeToRay < distanceProbeToSurface))
-            {
-                // coarse assumption that the hit happens at the midpoint between previous 
-                // probe to ray intersection and current probe to ray intersection
-                float distanceToHit = max(0.f, distanceToIntersection(ro-probeOrigin, rd, probeToRayDirMid));
-
-                vec3 hit = distanceToHit * probeToRayDirMid + probeOrigin;
-
-                vec3 before = probeOrigin + distanceProbeToRayBefore * probeToRayDirBefore;
-                vec3 after = probeOrigin + distanceProbeToRayAfter * probeToRayDirAfter;
-
-                // debugRayWorldData.m_vertices[4] = vec4(probeOrigin, 1.f);
-                // debugRayWorldData.m_vertices[5] = vec4(before, 1.f);
-                // debugRayWorldData.m_vertices[6] = vec4(probeOrigin, 1.f);
-                // debugRayWorldData.m_vertices[7] = vec4(after, 1.f);
-                // debugRayWorldData.m_vertices[8] = vec4(probeOrigin, 1.f);
-                // debugRayWorldData.m_vertices[9] = vec4(hit, 1.f);
-
-                // debugRayWorldData.m_vertices[0] = vec4(boundryPoints[i-1], 1.f);
-                // debugRayWorldData.m_vertices[1] = vec4(boundryPoints[i], 1.f);
-                vec3 startWorld = octDecode(start);
-                vec2 ss = stepLength * 80.f * texDirection;
-                // debug
-                debugBoundries.boundryPoints[0].x = ss.x;
-                debugBoundries.boundryPoints[0].y = ss.y;
-                debugBoundries.boundryPoints[0].z = texDirection.y;
-
-                // vec3 test = octDecode(start + ss);
-                // float startDistance = max(0.f, distanceToIntersection(ro - probeOrigin, rd, startWorld));
-                // float testDistance = max(0.f, distanceToIntersection(ro - probeOrigin, rd, test));
-
-                // debugRayWorldData.m_vertices[0] = vec4(ro, 1.f);
-                // debugRayWorldData.m_vertices[1] = vec4(ro + 100.f * rd, 1.f);
-                // debugRayWorldData.m_vertices[2] = vec4(probeOrigin, 1.f);
-                // debugRayWorldData.m_vertices[3] = vec4(probeOrigin + startWorld * startDistance, 1.f);
-                // debugRayWorldData.m_vertices[4] = vec4(probeOrigin, 1.f);
-                // debugRayWorldData.m_vertices[5] = vec4(probeOrigin + test * testDistance, 1.f);
-
-                return dot(hit-ro, rd);
-            }
-            distanceProbeToRayBefore = distanceProbeToRayAfter;
-            segmentNumSteps++;
-            totalNumSteps++;
+            return result;
         }
     }
-    return distAlongRay;
+    return TraceResult(TRACE_MISS, distAlongRay);
 }
 
 vec3 debugWorldPosSamples[5] = {
-    vec3(-5.79f, 1.55f, 0.02f),
+    vec3(-5.79f, 0.15f, 1.52f),
+    vec3(-4.03f, 1.155f, -1.48f),
+    vec3(4.16f, 1.55f, -7.27f),
     vec3(-5.79f, -0.11f, 0.02f),
     vec3(-5.79f, -0.11f, 0.02f),
-    vec3(-5.79f, -0.11f, 0.02f),
-    vec3(-5.79f, -0.11f, 0.02f)
 };
 
 void main() 
@@ -764,6 +786,7 @@ void main()
     // Interpolation done by the rasterizer may change the length of the normal 
     vec3 normal = normalize(n);
     vec3 tangent = normalize(t);
+    vec3 worldSpaceNormal = normalize(wn);
 
     if (hasNormalMap > 0.5f)
     {
@@ -772,6 +795,7 @@ void main()
         tn = normalize(tn * 2.f - vec3(1.f)); 
         // Covert normal from tangent frame to camera space
         normal = tangentSpaceToViewSpace(tn, normal, tangent).xyz;
+        worldSpaceNormal = tangentSpaceToViewSpace(tn, normalize(worldSpaceNormal), tangent).xyz;
     }
 
     /* Texture mapping */
@@ -809,6 +833,7 @@ void main()
         roughness,
         metallic,
         normal,
+        worldSpaceNormal,
         viewDir,
         vec3(0.f),
         vec3(0.f),
@@ -827,27 +852,33 @@ void main()
     vec3 probeOrigin = vec3(-5.f, 1.155f, 0.f);
     if (enableReflection > .5f)
     {
-        // write debug view ray data
-        uint rayIndex = atomicCounterIncrement(rayCounter);
-        // fix camera position for debugging purpose
-        if (rayIndex < 1)
+        //fix camera position for debugging purpose
+        vec3 simulatedViewPos = vec3(-5.f, -.5f, 9.f);
+        // // simulated view ray
+        drawDebugRay(simulatedViewPos, debugWorldPosSamples[1], 0);
+
+        vec3 ro = debugWorldPosSamples[1];
+        vec3 rv = -reflect(normalize(simulatedViewPos - debugWorldPosSamples[1]), normalize(debugTraceNormal));
+        vec3 rd = rv;
+        // vec3 rd = vec3(-1.f, 0.f, 0.f);
+        drawDebugRay(debugWorldPosSamples[1], debugWorldPosSamples[1] + rd * 10.f, 1);
+        TraceResult result = rayTraceOneProbe(probeOrigin, ro, rd);
+        if (result.result > 0)
         {
-            vec3 simulatedViewPos = vec3(-5.f, -.5f, 9.f);
-            // simulated view ray
-            // debugRayWorldData.m_vertices[rayIndex * 4] = vec4(simulatedViewPos, 1.f);
-            // debugRayWorldData.m_vertices[rayIndex * 4 + 1] = vec4(debugWorldPosSamples[rayIndex], 1.f);
-            vec3 rv = -reflect(normalize(simulatedViewPos - debugWorldPosSamples[rayIndex]), normalize(vec3(0.5f, 0.f, 0.5f)));
-            vec3 ro = probeOrigin + vec3(1.0f, -0.2f, 0.7f);
-            vec3 rd = normalize(vec3(-1.f, 1.f, -1.f));
-            // float tt = rayTraceOneProbe(probeOrigin, debugWorldPosSamples[rayIndex], rv);
-            float tt = rayTraceOneProbe(probeOrigin, ro, rd);
-            if (tt > 0.f)
-            {
-                // reflected view ray
-                // debugRayWorldData.m_vertices[rayIndex * 4 + 2] = vec4(debugWorldPosSamples[rayIndex], 1.f);
-                // debugRayWorldData.m_vertices[rayIndex * 4 + 3] = vec4(tt * rv + debugWorldPosSamples[rayIndex], 1.f);
-            }
+            vec3 hit = ro + rd * result.t;
+            drawDebugRay(debugWorldPosSamples[1], hit, 2);
         }
+
+        // TODO: can we trace this in other space..?
+        // vec3 rv = -reflect(viewDir, worldSpaceNormal);
+        // TraceResult result = rayTraceOneProbe(probeOrigin, worldSpacePos + worldSpaceNormal * 0.001f, rv);
+        // if (result.result > 0)
+        // {
+        //     // reflected view ray
+        //     vec3 hit = worldSpacePos + result.t * rv;
+        //     vec2 octUv = octEncode(normalize(hit - worldSpacePos)) * .5f + .5f;
+        //     color = texture(octRadianceMap, octUv).rgb;
+        // }
     }
 
     // Emission
@@ -900,16 +931,6 @@ void main()
         shadowDebugColor = vec3(0.f, 0.f, 1.f);
     else
         shadowDebugColor = vec3(0.7f, 0.7f, 0.7f);
-
-    // debug probe ray tracing
-    {
-        // vec3 ro = probeOrigin + vec3(1.0f, -0.2f, 0.7f);
-        // vec3 rd = normalize(vec3(-1.f, 1.f, -1.f));
-        // // debugRayWorldData.m_vertices[0] = vec4(ro, 1.f);
-        // float t = rayTraceOneProbe(probeOrigin, ro, rd);
-        // vec3 hit = ro + t * rd;
-        // // debugRayWorldData.m_vertices[1] = vec4(hit, 1.f);
-    }
 
     // write linear color to HDR Framebuffer
     fragColor = vec4(color, 1.0f);
