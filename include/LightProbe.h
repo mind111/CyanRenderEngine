@@ -61,11 +61,25 @@ namespace Cyan
         Line2D* m_octMapDebugLines[6];
 
         LightFieldProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene);
-        void resampleToOctMap();
-        void sampleRadianceOctMap();
-        void sampleRadialDistanceAndNormal(); 
+        void sampleScene();
         void debugRenderProbe();
         void save();
+    };
+
+    struct LightFieldProbeVolume
+    {
+        LightFieldProbeVolume(glm::vec3& pos, glm::vec3& dimension, glm::vec3& spacing);
+        ~LightFieldProbeVolume() { }
+        void sampleScene();
+        void packProbeTextures();
+        glm::vec3 m_volumePos;
+        glm::vec3 m_volumeDimension;
+        glm::vec3 m_probeSpacing;
+        glm::vec3 m_lowerLeftCorner;
+        std::vector<LightFieldProbe*> m_probes;
+        Texture* m_octRadianceGrid;
+        Texture* m_octNormalGrid;
+        Texture* m_octRadialDepthGrid;
     };
 
     class LightProbeFactory
@@ -73,6 +87,7 @@ namespace Cyan
     public:
         IrradianceProbe* createIrradianceProbe(Scene* scene, glm::vec3 position);
         LightFieldProbe* createLightFieldProbe(Scene* scene, glm::vec3 position);
+        LightFieldProbeVolume* createLightFieldProbeVolume(Scene* scene, glm::vec3& position, glm::vec3& dimension, glm::vec3& spacing);
         u32 numIrradianceProbe;
         u32 numLightFieldProbe;
     };

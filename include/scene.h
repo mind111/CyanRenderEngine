@@ -79,6 +79,7 @@ public:
     }
     Cyan::IrradianceProbe* createIrradianceProbe(Scene* scene, glm::vec3& pos);
     Cyan::LightFieldProbe* createLightFieldProbe(Scene* scene, glm::vec3& pos);
+    Cyan::LightFieldProbeVolume* createLightFieldProbeVolume(Scene* scene, glm::vec3& pos, glm::vec3& dimension, glm::vec3& stride);
 private:
     static SceneManager* s_sceneManager;
     Cyan::LightProbeFactory* m_probeFactory;

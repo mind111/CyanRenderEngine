@@ -501,6 +501,8 @@ namespace Cyan
         {
             case GL_SAMPLER_2D:
                 return Uniform::Type::u_sampler2D;
+            case GL_SAMPLER_2D_ARRAY:
+                return Uniform::Type::u_sampler2DArray;
             case GL_SAMPLER_3D:
                 return Uniform::Type::u_sampler3D;
             case GL_SAMPLER_2D_SHADOW:
@@ -600,6 +602,7 @@ namespace Cyan
                 switch (cyanType)
                 {
                     case Uniform::Type::u_sampler2D:
+                    case Uniform::Type::u_sampler2DArray:
                     case Uniform::Type::u_samplerCube:
                     case Uniform::Type::u_image3D:   
                     case Uniform::Type::u_uimage3D:

@@ -251,5 +251,17 @@ namespace Cyan
         Mesh* createTerrain(float extendX, float extendY);
     }; // namespace AssetGen
 
+    struct ByteBuffer
+    {
+        u32 m_pos;
+        u32 m_size;
+        void* m_data;
+
+        f32 readF32();
+        glm::vec2 readVec2();
+        glm::vec3 readVec3();
+        glm::vec4 readVec4();
+    };
+
     // TODO: Move following structs into their own files
 } // namespace Cyan

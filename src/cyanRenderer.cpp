@@ -845,12 +845,46 @@ namespace Cyan
                 if (node->m_meshInstance)
                 {
                     continue;
-                    // ctx->setShader();
                     u32 drawBuffers[2] = { 1u, 2u };
                     ctx->setRenderTarget(renderTarget, drawBuffers, 2u);
                     ctx->setShader(m_sceneDepthNormalShader);
                 }
             }
+        }
+    }
+
+    void Renderer::probeRenderScene(Scene* scene, Camera& camera)
+    {
+        // camera
+        setUniform(u_cameraView, (void*)&camera.view[0]);
+        setUniform(u_cameraProjection, (void*)&camera.projection[0]);
+
+        // lights
+        std::vector<PointLightData> pLights;
+        std::vector<DirLightData> dLights;
+        SceneManager::getSingletonPtr()->buildLightList(scene, pLights, dLights);
+        if (!pLights.empty())
+        {
+            setBuffer(scene->m_pointLightsBuffer, pLights.data(), sizeofVector(pLights));
+        }
+        if (!dLights.empty())
+        {
+            CYAN_ASSERT(dLights.size() <= 1, "At most one directional light is allowed!!")
+            setBuffer(scene->m_dirLightsBuffer, dLights.data(), sizeofVector(dLights));
+        }
+        
+        m_lighting.m_pLights = &pLights;
+        m_lighting.m_dirLights = &dLights;
+        m_lighting.m_probe = scene->m_currentProbe;
+        // determine if probe data should be update for this frame
+        m_lighting.bUpdateProbeData = (!scene->m_lastProbe || (scene->m_currentProbe->m_baseCubeMap->m_id != scene->m_lastProbe->m_baseCubeMap->m_id));
+        scene->m_lastProbe = scene->m_currentProbe;
+
+        // entities 
+        for (auto entity : scene->entities)
+        {
+            if (entity->m_bakedInProbes)
+                drawEntity(entity);
         }
     }
 

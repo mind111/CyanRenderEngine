@@ -417,7 +417,8 @@ void PbrApp::initHelmetScene()
     { 
         glCreateBuffers(1, &m_debugRayAtomicCounter);
         glNamedBufferData(m_debugRayAtomicCounter, sizeof(u32), nullptr, GL_STATIC_DRAW);
-        m_lightFieldProbe = sceneManager->createLightFieldProbe(helmetScene, glm::vec3(-5.f, 1.155f, 0.f));
+        // m_lightFieldProbe = sceneManager->createLightFieldProbe(helmetScene, glm::vec3(-5.f, 1.155f, 0.f));
+        m_probeVolume = sceneManager->createLightFieldProbeVolume(helmetScene, glm::vec3(-5.f, 1.155f, 0.f), glm::vec3(4.0f), glm::vec3(2.f));
         // m_irradianceProbe = sceneManager->createIrradianceProbe(helmetScene, glm::vec3(0.f));
     }
     /*
@@ -531,6 +532,7 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewpo
     m_debugRay.setColor(glm::vec4(1.0f, 1.0f, 0.0f, 1.0f));
     auto renderer = Cyan::Renderer::getSingletonPtr();
     m_debugRay.setViewProjection(renderer->u_cameraView, renderer->u_cameraProjection);
+    m_debugProbeIndex = 13;
 
     // clear color
     Cyan::getCurrentGfxCtx()->setClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.f));
@@ -575,7 +577,8 @@ void PbrApp::run()
     {
         auto ctx = Cyan::getCurrentGfxCtx();
         beginFrame();
-        m_lightFieldProbe->sampleRadianceOctMap();
+        // m_lightFieldProbe->sampleScene();
+        m_probeVolume->sampleScene();
         endFrame();
         ctx->setRenderTarget(nullptr, 0u);
         // m_lightFieldProbe->save();
@@ -767,17 +770,19 @@ void PbrApp::drawDebugWindows()
                 }
                 ImGui::EndTabItem();
             }
-            if (ImGui::BeginTabItem("Debug Tools"))
+            if (ImGui::BeginTabItem("LightFieldProbe Ray Tracing Debug Tools"))
             {
                 float v[3] = {
                     m_debugRayTracingNormal.x,
                     m_debugRayTracingNormal.y,
                     m_debugRayTracingNormal.z
                 };
-                ImGui::SliderFloat3("##Debug normal", v, -1.f, 1.f, "%.2f");
+                ImGui::SliderFloat3("Reflection normal", v, -1.f, 1.f, "%.2f");
                 m_debugRayTracingNormal.x = v[0];
                 m_debugRayTracingNormal.y = v[1];
                 m_debugRayTracingNormal.z = v[2];
+
+                ImGui::InputInt("Trace probe index", &m_debugProbeIndex);
                 ImGui::EndTabItem();
             }
             if (ImGui::BeginTabItem("Settings"))
@@ -1092,6 +1097,12 @@ struct RayTracingDebugPass : public Cyan::RenderPass
             {
                 m_debugRaySegments[i] = new Line2D(glm::vec3(0.f), glm::vec3(0.f));
             }
+
+            m_debugProbeLine = new Line();
+            m_debugProbeLine->init();
+            m_debugProbeLine->setColor(glm::vec4(0.f, 1.f, 0.f, 1.f));
+
+            m_debugProbeLineBuffer = Cyan::createRegularBuffer(sizeof(Line) * 10);
         }
     }
 
@@ -1099,87 +1110,122 @@ struct RayTracingDebugPass : public Cyan::RenderPass
     {
         auto renderer = Cyan::Renderer::getSingletonPtr();
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-        f32* boundryData = reinterpret_cast<f32*>(glMapNamedBuffer(m_app->m_debugRayBoundryBuffer->m_ssbo, GL_READ_WRITE));
-        char* boundryDataCopy = (char*)boundryData;
-        f32 numBoundryPoints = *boundryData;
-        boundryData += 4;
-        for (u32 i = 0; i < numBoundryPoints; ++i)
         {
-            glm::vec4 vert0;
-            glm::vec4 vert1;
-            memcpy(&vert0.x, boundryData, sizeof(glm::vec4));
-            memcpy(&vert1.x, boundryData + 4, sizeof(glm::vec4));
-            glm::vec3 v0Vec3 = glm::vec3(vert0.x, vert0.y, vert0.z);
-            glm::vec3 v1Vec3 = glm::vec3(vert1.x, vert1.y, vert1.z);
-            m_debugBoundryRay[i]->setVerts(v0Vec3, v1Vec3);
-            glm::mat4 model(1.f);
-            m_debugBoundryRay[i]->setModel(model);
-            m_debugBoundryRay[i]->setViewProjection(renderer->u_cameraView, renderer->u_cameraProjection);
-            m_debugBoundryRay[i]->draw();
-            boundryData += 8;
+            f32* data = reinterpret_cast<f32*>(glMapNamedBuffer(m_app->m_debugRayBoundryBuffer->m_ssbo, GL_READ_WRITE));
+            char* dataCpy = (char*)data;
+            f32 numBoundryPoints = *data;
+            data += 4;
+            for (u32 i = 0; i < numBoundryPoints; ++i)
+            {
+                glm::vec4 vert0;
+                glm::vec4 vert1;
+                memcpy(&vert0.x, data, sizeof(glm::vec4));
+                memcpy(&vert1.x, data + 4, sizeof(glm::vec4));
+                glm::vec3 v0Vec3 = glm::vec3(vert0.x, vert0.y, vert0.z);
+                glm::vec3 v1Vec3 = glm::vec3(vert1.x, vert1.y, vert1.z);
+                m_debugBoundryRay[i]->setVerts(v0Vec3, v1Vec3);
+                glm::mat4 model(1.f);
+                m_debugBoundryRay[i]->setModel(model);
+                m_debugBoundryRay[i]->setViewProjection(renderer->u_cameraView, renderer->u_cameraProjection);
+                m_debugBoundryRay[i]->draw();
+                data += 8;
+            }
+            memset(dataCpy, 0x0, m_app->m_debugRayBoundryBuffer->m_totalSize);
+            glUnmapNamedBuffer(m_app->m_debugRayBoundryBuffer->m_ssbo);
         }
-        memset(boundryDataCopy, 0x0, m_app->m_debugRayBoundryBuffer->m_totalSize);
-        glUnmapNamedBuffer(m_app->m_debugRayBoundryBuffer->m_ssbo);
 
         // line segment world ray
-        f32* data = reinterpret_cast<f32*>(glMapNamedBuffer(m_app->m_debugRayWorldBuffer->m_ssbo, GL_READ_WRITE));
-        char* dataCopy = (char*)data;
-        f32 numSegments = *data;
-        // skip padding
-        data += 4;
-        for (u32 i = 0; i < numSegments; ++i)
         {
-            glm::vec4 vert0;
-            glm::vec4 vert1;
-            memcpy(&vert0.x, data, sizeof(glm::vec4));
-            memcpy(&vert1.x, data + 4, sizeof(glm::vec4));
-            glm::vec3 v0Vec3 = glm::vec3(vert0.x, vert0.y, vert0.z);
-            glm::vec3 v1Vec3 = glm::vec3(vert1.x, vert1.y, vert1.z);
-            m_debugWorldRay[i]->setVerts(v0Vec3, v1Vec3);
-            glm::mat4 model(1.f);
-            m_debugWorldRay[i]->setModel(model);
-            m_debugWorldRay[i]->setViewProjection(renderer->u_cameraView, renderer->u_cameraProjection);
-            m_debugWorldRay[i]->draw();
-            data += 8;
+            f32* data = reinterpret_cast<f32*>(glMapNamedBuffer(m_app->m_debugRayWorldBuffer->m_ssbo, GL_READ_WRITE));
+            char* dataCopy = (char*)data;
+            f32 numSegments = *data;
+            // skip padding
+            data += 4;
+            for (u32 i = 0; i < numSegments; ++i)
+            {
+                glm::vec4 vert0;
+                glm::vec4 vert1;
+                memcpy(&vert0.x, data, sizeof(glm::vec4));
+                memcpy(&vert1.x, data + 4, sizeof(glm::vec4));
+                glm::vec3 v0Vec3 = glm::vec3(vert0.x, vert0.y, vert0.z);
+                glm::vec3 v1Vec3 = glm::vec3(vert1.x, vert1.y, vert1.z);
+                m_debugWorldRay[i]->setVerts(v0Vec3, v1Vec3);
+                glm::mat4 model(1.f);
+                m_debugWorldRay[i]->setModel(model);
+                m_debugWorldRay[i]->setViewProjection(renderer->u_cameraView, renderer->u_cameraProjection);
+                m_debugWorldRay[i]->draw();
+                data += 8;
+            }
+            memset(dataCopy, 0x0, m_app->m_debugRayWorldBuffer->m_totalSize);
+            glUnmapNamedBuffer(m_app->m_debugRayWorldBuffer->m_ssbo);
         }
-        memset(dataCopy, 0x0, m_app->m_debugRayWorldBuffer->m_totalSize);
-        glUnmapNamedBuffer(m_app->m_debugRayWorldBuffer->m_ssbo);
+
+        {
+            // f32* data = reinterpret_cast<f32*>(glMapNamedBuffer(m_debugProbeLineBuffer->m_ssbo, GL_READ_WRITE));
+            // char* dataCopy = (char*)data;
+            // f32 numSegments = *data;
+            // // skip padding
+            // data += 4;
+            // for (u32 i = 0; i < numSegments; ++i)
+            // {
+            //     glm::vec4 vert0;
+            //     glm::vec4 vert1;
+            //     memcpy(&vert0.x, data, sizeof(glm::vec4));
+            //     memcpy(&vert1.x, data + 4, sizeof(glm::vec4));
+            //     glm::vec3 v0Vec3 = glm::vec3(vert0.x, vert0.y, vert0.z);
+            //     glm::vec3 v1Vec3 = glm::vec3(vert1.x, vert1.y, vert1.z);
+            //     m_debugProbeLine->setVerts(v0Vec3, v1Vec3);
+            //     glm::mat4 model(1.f);
+            //     m_debugProbeLine->setModel(model);
+            //     m_debugProbeLine->setViewProjection(renderer->u_cameraView, renderer->u_cameraProjection);
+            //     m_debugProbeLine->draw();
+            //     data += 8;
+            // }
+            // memset(dataCopy, 0x0, m_debugProbeLineBuffer->m_totalSize);
+            // glUnmapNamedBuffer(m_debugProbeLineBuffer->m_ssbo);
+        }
 
         // draw projected debug ray on top of the octmap
-        // data = reinterpret_cast<f32*>(glMapNamedBuffer(m_app->m_debugRayOctBuffer->m_ssbo, GL_READ_WRITE));
-        // dataCopy = (char*)data;
-        // glm::vec2 vp0;
-        // glm::vec2 vp1;
-        // // i32 numBoundryPoints = *reinterpret_cast<i32*>(data);
-        // // +2 to skipp paddings bytes
-        // data += 2;
-        // auto ctx = Cyan::getCurrentGfxCtx();
-        // ctx->setRenderTarget(m_renderTarget, 0u);
-        // ctx->setViewport(m_viewport);
-        // // TODO: why the line data is not updated in real-time?
-        // for (i32 i = 0; i < i32(numBoundryPoints); ++i)
-        // {
-        //     memcpy(&vp0.x, data, sizeof(glm::vec2));
-        //     memcpy(&vp1.x, data + 2, sizeof(glm::vec2));
-        //     data += 4;
-        //     m_debugRaySegments[i]->setVerts(glm::vec3(vp0, 0.f), glm::vec3(vp1, 0.f));
-        //     m_debugRaySegments[i]->setColor(glm::vec4(0.2f, 0.8f, .2f, 1.f));
-        //     m_debugRaySegments[i]->draw();
-        // }
-        // memset(dataCopy, 0x0, m_app->m_debugRayOctBuffer->m_totalSize);
-        // glUnmapNamedBuffer(m_app->m_debugRayOctBuffer->m_ssbo);
+        {
+            // data = reinterpret_cast<f32*>(glMapNamedBuffer(m_app->m_debugRayOctBuffer->m_ssbo, GL_READ_WRITE));
+            // dataCopy = (char*)data;
+            // glm::vec2 vp0;
+            // glm::vec2 vp1;
+            // // i32 numBoundryPoints = *reinterpret_cast<i32*>(data);
+            // // +2 to skipp paddings bytes
+            // data += 2;
+            // auto ctx = Cyan::getCurrentGfxCtx();
+            // ctx->setRenderTarget(m_renderTarget, 0u);
+            // ctx->setViewport(m_viewport);
+            // // TODO: why the line data is not updated in real-time?
+            // for (i32 i = 0; i < i32(numBoundryPoints); ++i)
+            // {
+            //     memcpy(&vp0.x, data, sizeof(glm::vec2));
+            //     memcpy(&vp1.x, data + 2, sizeof(glm::vec2));
+            //     data += 4;
+            //     m_debugRaySegments[i]->setVerts(glm::vec3(vp0, 0.f), glm::vec3(vp1, 0.f));
+            //     m_debugRaySegments[i]->setColor(glm::vec4(0.2f, 0.8f, .2f, 1.f));
+            //     m_debugRaySegments[i]->draw();
+            // }
+            // memset(dataCopy, 0x0, m_app->m_debugRayOctBuffer->m_totalSize);
+            // glUnmapNamedBuffer(m_app->m_debugRayOctBuffer->m_ssbo);
+        }
     }
 
     static const u32 kNumDebugLines = 102;
     static Line* m_debugWorldRay[kNumDebugLines];
     static Line* m_debugBoundryRay[10];
+    static Line* m_debugProbeLine;
     static Line2D* m_debugRaySegments[kNumDebugLines];
+    static RegularBuffer* m_debugProbeLineBuffer;
     PbrApp* m_app;
 };
 
 Line* RayTracingDebugPass::m_debugWorldRay[RayTracingDebugPass::kNumDebugLines] = { };
 Line* RayTracingDebugPass::m_debugBoundryRay[10] = { };
 Line2D* RayTracingDebugPass::m_debugRaySegments[RayTracingDebugPass::kNumDebugLines] = { };
+Line* RayTracingDebugPass::m_debugProbeLine = nullptr;
+RegularBuffer* RayTracingDebugPass::m_debugProbeLineBuffer = nullptr;
 
 struct DebugAABBPass : public Cyan::RenderPass
 {
@@ -1271,13 +1317,20 @@ void PbrApp::render()
     m_rayTracingMatl->bindBuffer("debugOctRayData", m_debugRayOctBuffer);
     m_rayTracingMatl->bindBuffer("debugWorldRayData", m_debugRayWorldBuffer);
     m_rayTracingMatl->bindBuffer("debugBoundryData", m_debugRayBoundryBuffer);
-    m_rayTracingMatl->bindTexture("octRadianceMap", m_lightFieldProbe->m_radianceOct);
-    m_rayTracingMatl->bindTexture("octRadialDepthMap", m_lightFieldProbe->m_distanceOct);
+    m_rayTracingMatl->bindBuffer("debugProbeData", RayTracingDebugPass::m_debugProbeLineBuffer);
+
+    m_rayTracingMatl->bindTexture("octRadiance", m_probeVolume->m_octRadianceGrid);
+    m_rayTracingMatl->bindTexture("octNormal", m_probeVolume->m_octNormalGrid);
+    m_rayTracingMatl->bindTexture("octRadialDepth", m_probeVolume->m_octRadialDepthGrid);
+    m_rayTracingMatl->set("gProbeVolume.volumeDimension", &m_probeVolume->m_volumeDimension.x);
+    m_rayTracingMatl->set("gProbeVolume.probeSpacing", &m_probeVolume->m_probeSpacing.x);
+    m_rayTracingMatl->set("gProbeVolume.lowerLeftCorner", &m_probeVolume->m_lowerLeftCorner.x);
     m_rayTracingMatl->set("enableReflection", 1.f);
+    // debug
     m_rayTracingMatl->set("debugTraceNormal", &m_debugRayTracingNormal.x);
+    m_rayTracingMatl->set("debugProbeIndex", &m_debugProbeIndex);
     auto camera = m_scenes[m_currentScene]->getActiveCamera();
     m_rayTracingMatl->set("debugCameraPos", &camera.position.x);
-
     // TODO: cleanup! this is temporary, atomic counter is really similar to SSBO
     glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, m_debugRayAtomicCounter);
     u32* rayCounterPtr = (u32*)glMapBuffer(GL_ATOMIC_COUNTER_BUFFER, GL_READ_WRITE);
@@ -1289,9 +1342,6 @@ void PbrApp::render()
     // rendering
     // TODO: this should be bundled together with scene pass
     renderer->addDirectionalShadowPass(m_scenes[m_currentScene], 0u);
-    // m_irradianceProbe->sampleRadiance();
-    // m_irradianceProbe->computeIrradiance();
-    // m_lightFieldProbe->sampleRadianceOctMap();
     renderer->addScenePass(m_scenes[m_currentScene]);
     {
         void* preallocated = renderer->getAllocator().alloc(sizeof(RayTracingDebugPass));
@@ -1315,9 +1365,9 @@ void PbrApp::render()
         renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 180, 320, 180}, renderer->m_sceneNormalTextureSSAA);
         renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 360, 320, 180}, renderer->m_sceneDepthTextureSSAA);
         // renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 540, 320, 180}, renderer->m_ssaoTexture);
-        renderer->addTexturedQuadPass(rt, {rt->m_width - 360, rt->m_height - 540, 360, 360}, m_lightFieldProbe->m_radianceOct);
-        renderer->addTexturedQuadPass(rt, {rt->m_width - 360, rt->m_height - 720, 180, 180}, m_lightFieldProbe->m_normalOct);
-        renderer->addTexturedQuadPass(rt, {rt->m_width - 180, rt->m_height - 720, 180, 180}, m_lightFieldProbe->m_distanceOct);
+        renderer->addTexturedQuadPass(rt, {rt->m_width - 360, rt->m_height - 540, 360, 360}, m_probeVolume->m_probes[0]->m_radianceOct);
+        renderer->addTexturedQuadPass(rt, {rt->m_width - 360, rt->m_height - 720, 180, 180}, m_probeVolume->m_probes[0]->m_normalOct);
+        renderer->addTexturedQuadPass(rt, {rt->m_width - 180, rt->m_height - 720, 180, 180}, m_probeVolume->m_probes[0]->m_distanceOct);
     }
     renderer->render();
     renderer->endRender();

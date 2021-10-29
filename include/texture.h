@@ -14,6 +14,7 @@ namespace Cyan
         enum Type
         {
             TEX_2D = 0,
+            TEX_2D_ARRAY,
             TEX_3D,
             TEX_CUBEMAP
         };
@@ -111,6 +112,7 @@ namespace Cyan
         Texture* createTexture(const char* _name, const char* _file, TextureSpec& spec);
         Texture* createTextureHDR(const char* _name, const char* _file, TextureSpec& spec);
         Texture* createTexture3D(const char* name, TextureSpec spec);
+        Texture* createArrayTexture2D(const char* name, TextureSpec& spec);
 
         static std::vector<Texture*> s_textures;
         static TextureManager* m_singleton;

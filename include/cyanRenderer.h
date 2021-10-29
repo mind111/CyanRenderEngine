@@ -107,6 +107,7 @@ namespace Cyan
         void beginRender();
         void render();
         void renderSceneDepthNormal(Scene* scene, Camera& camera);
+        void probeRenderScene(Scene* scene, Camera& camera);
         void renderScene(Scene* scene, Camera& camera);
         void renderDebugObjects();
         void endRender();

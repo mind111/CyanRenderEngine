@@ -31,6 +31,7 @@ struct Entity
 
     // flags
     bool m_lit;
+    bool m_bakedInProbes;
 
     Entity(const char* name, u32 id, Transform t, Entity* parent);
 

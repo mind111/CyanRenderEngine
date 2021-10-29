@@ -80,5 +80,5 @@ void main() {
     fragNormal = vec3(0.f);
     fragDepth = vec3(1.f);
     // TODO: hard-coded for now
-    radialDepth = vec3(1000.f);
+    radialDepth = vec3(10.f);
 }

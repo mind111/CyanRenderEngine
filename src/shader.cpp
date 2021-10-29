@@ -179,6 +179,9 @@ void Shader::setUniform(Uniform* _uniform)
         case Uniform::Type::u_sampler2D:
             setUniform1i(name, *(int*)_uniform->m_valuePtr);
             break;
+        case Uniform::Type::u_sampler2DArray:
+            setUniform1i(name, *(int*)_uniform->m_valuePtr);
+            break;
         case Uniform::Type::u_sampler2DShadow:
             setUniform1i(name, *(int*)_uniform->m_valuePtr);
             break;

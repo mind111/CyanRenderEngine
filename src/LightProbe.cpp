@@ -159,6 +159,7 @@ namespace Cyan
     LightFieldProbe::LightFieldProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene)
         : Entity(name , id, Transform(), parent), m_scene(scene)
     {
+        m_bakedInProbes = false;
         auto textureManager = TextureManager::getSingletonPtr();
         {
             TextureSpec spec = { };
@@ -202,9 +203,6 @@ namespace Cyan
             m_octProjectionShader = createShader("OctProjShader", "../../shader/shader_oct_mapping.vs", "../../shader/shader_oct_mapping.fs");
             m_cubemapRenderTarget = createRenderTarget(1024u, 1024u);
             m_octMapRenderTarget = createRenderTarget(1024u, 1024u);
-            m_octMapRenderTarget->attachTexture(m_radianceOct, 0u);
-            m_octMapRenderTarget->attachTexture(m_normalOct, 1u);
-            m_octMapRenderTarget->attachTexture(m_distanceOct, 2u);
         }
         Mesh* mesh = Cyan::getMesh("sphere_mesh");
         Transform transform;
@@ -229,7 +227,7 @@ namespace Cyan
         }
     }
     
-    void LightFieldProbe::sampleRadianceOctMap()
+    void LightFieldProbe::sampleScene()
     {
         auto ctx = Cyan::getCurrentGfxCtx();
         // sample radiance into a cubemap
@@ -268,7 +266,7 @@ namespace Cyan
                 ctx->clear();
                 camera.lookAt = cameraTargets[f];
                 camera.view = glm::lookAt(camera.position, camera.position + cameraTargets[f], worldUps[f]);
-                Renderer::getSingletonPtr()->renderScene(m_scene, camera);
+                Renderer::getSingletonPtr()->probeRenderScene(m_scene, camera);
             }
         }
         
@@ -276,6 +274,9 @@ namespace Cyan
         {
             ctx->setDepthControl(DepthControl::kDisable);
             u32 drawBuffers[3] = { 0, 1, 2 };
+            m_octMapRenderTarget->attachTexture(m_radianceOct, 0u);
+            m_octMapRenderTarget->attachTexture(m_normalOct, 1u);
+            m_octMapRenderTarget->attachTexture(m_distanceOct, 2u);
             ctx->setRenderTarget(m_octMapRenderTarget, drawBuffers, 3);
             ctx->clear();
             ctx->setShader(m_octProjectionShader);
@@ -309,17 +310,122 @@ namespace Cyan
         // write to disk
     }
 
+    LightFieldProbeVolume::LightFieldProbeVolume(glm::vec3& pos, glm::vec3& dimension, glm::vec3& spacing)
+        : m_volumePos(pos), m_volumeDimension(dimension), m_probeSpacing(spacing)
+    {
+        glm::ivec3 numProbesDim = m_volumeDimension / spacing + glm::vec3(1.f);
+        u32 numProbes = numProbesDim.x * numProbesDim.y * numProbesDim.z;
+        m_probes.resize(numProbes);
+
+        const u32 octMapWidth = 1024u; 
+        const u32 octMapHeight = 1024u; 
+
+        m_lowerLeftCorner = m_volumePos - .5f * glm::vec3(m_volumeDimension.x, m_volumeDimension.y, -m_volumeDimension.z);
+
+        // create texture arrays
+        {
+            auto textureManager = TextureManager::getSingletonPtr();
+            TextureSpec spec = { };
+            spec.m_type = Texture::Type::TEX_2D_ARRAY;
+            spec.m_dataType = Texture::DataType::Float;
+            spec.m_width = 1024u;
+            spec.m_height = 1024u;
+            spec.m_depth = numProbes;
+            spec.m_format = Texture::ColorFormat::R16G16B16;
+            spec.m_min = Texture::Filter::LINEAR;
+            spec.m_mag = Texture::Filter::LINEAR;
+            spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+            spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
+            m_octRadianceGrid = textureManager->createArrayTexture2D("octRadianceGrid", spec);
+            m_octRadialDepthGrid = textureManager->createArrayTexture2D("octRadialDepthGrid", spec);
+            m_octNormalGrid = textureManager->createArrayTexture2D("octNormalGrid", spec);
+        }
+    }
+
+    void LightFieldProbeVolume::sampleScene()
+    {
+        for (auto probe : m_probes)
+        {
+            probe->sampleScene();
+        }
+        
+        packProbeTextures();
+    }
+
+    // pack probe textures into texture arrays
+    void LightFieldProbeVolume::packProbeTextures()
+    {
+        // copy probe textures into the pre-allocated texture array
+        // radiance
+        {
+            u32 numProbes = m_probes.size();
+            for (u32 i = 0; i < numProbes; ++i)
+            {
+                u32 layer = i;
+                // radiance
+                {
+                    glCopyImageSubData(
+                        m_probes[i]->m_radianceOct->m_id, GL_TEXTURE_2D, 0, 0, 0, 0, 
+                        m_octRadianceGrid->m_id, GL_TEXTURE_2D_ARRAY, 0, 0, 0, 
+                        layer, m_octRadianceGrid->m_width, m_octRadianceGrid->m_height, 0);
+                }
+
+                // normal
+                {
+                    glCopyImageSubData(
+                        m_probes[i]->m_normalOct->m_id, GL_TEXTURE_2D, 0, 0, 0, 0, 
+                        m_octNormalGrid->m_id, GL_TEXTURE_2D_ARRAY, 0, 0, 0, 
+                        layer, m_octNormalGrid->m_width, m_octNormalGrid->m_height, 0);
+                }
+
+                // radial depth
+                {
+                    glCopyImageSubData(
+                        m_probes[i]->m_distanceOct->m_id, GL_TEXTURE_2D, 0, 0, 0, 0, 
+                        m_octRadialDepthGrid->m_id, GL_TEXTURE_2D_ARRAY, 0, 0, 0, 
+                        layer, m_octRadialDepthGrid->m_width, m_octRadialDepthGrid->m_height, 0);
+                }
+            }
+        }
+    }
+
     IrradianceProbe* LightProbeFactory::createIrradianceProbe(Scene* scene, glm::vec3 position)
     {
         auto sceneManager = SceneManager::getSingletonPtr();
         u32 id = sceneManager->allocEntityId(scene);
-        return new IrradianceProbe("IrradianceProbe0", id, position, nullptr, scene);
+        auto probe = new IrradianceProbe("IrradianceProbe0", id, position, nullptr, scene);
+        scene->entities.push_back(probe);
+        return probe;
     }
 
     LightFieldProbe* LightProbeFactory::createLightFieldProbe(Scene* scene, glm::vec3 position)
     {
         auto sceneManager = SceneManager::getSingletonPtr();
         u32 id = sceneManager->allocEntityId(scene);
-        return new LightFieldProbe("LightFieldProbe", id, position, nullptr, scene);
+        auto probe = new LightFieldProbe("LightFieldProbe", id, position, nullptr, scene);
+        scene->entities.push_back(probe);
+        return probe;
+    }
+
+    LightFieldProbeVolume* LightProbeFactory::createLightFieldProbeVolume(Scene* scene, glm::vec3& position, glm::vec3& dimension, glm::vec3& spacing)
+    {
+        auto probeVolume = new LightFieldProbeVolume(position, dimension, spacing);
+        glm::ivec3 numProbesDim = probeVolume->m_volumeDimension / spacing + glm::vec3(1.f);
+
+        // start creating probes form lower left corner of the volume
+        glm::vec3 lowerLeftPos = probeVolume->m_lowerLeftCorner;
+        for (i32 k = 0; k < numProbesDim.y; ++k)
+        {
+            for (i32 j = 0; j < numProbesDim.z; ++j)
+            {
+                for (i32 i = 0; i < numProbesDim.x; ++i)
+                {
+                    glm::vec3 probePos = lowerLeftPos + glm::vec3(i, k, -j) * probeVolume->m_probeSpacing;
+                    u32 probeIndex = k * (numProbesDim.x * numProbesDim.z) + j * (numProbesDim.x) + i;
+                    probeVolume->m_probes[probeIndex] = createLightFieldProbe(scene, probePos);
+                } 
+            }
+        }
+        return probeVolume;
     }
 }

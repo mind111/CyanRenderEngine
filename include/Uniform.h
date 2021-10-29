@@ -15,6 +15,7 @@ struct Uniform
         u_vec4,
         u_mat4,
         u_sampler2D,
+        u_sampler2DArray,
         u_samplerCube,
         u_sampler3D,
         u_sampler2DShadow,
