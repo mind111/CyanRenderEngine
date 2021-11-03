@@ -163,15 +163,15 @@ namespace Cyan
         glViewport(viewport.m_x, viewport.m_y, viewport.m_width, viewport.m_height);
     }
 
-    void GfxContext::setRenderTarget(RenderTarget* _rt, u16 drawBufferIdx) 
+    void GfxContext::setRenderTarget(RenderTarget* rt, u16 drawBufferIdx) 
     { 
-        if (!_rt)
+        if (!rt)
         {
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             return;
         }
-        glBindFramebuffer(GL_FRAMEBUFFER, _rt->m_frameBuffer);
-        _rt->setDrawBuffer(drawBufferIdx);
+        glBindFramebuffer(GL_FRAMEBUFFER, rt->m_frameBuffer);
+        rt->setDrawBuffer(drawBufferIdx);
     }
 
     void GfxContext::setRenderTarget(RenderTarget* rt, u32* drawBuffers, u32 numBuffers)
@@ -180,6 +180,18 @@ namespace Cyan
             CYAN_ASSERT(0, "RenderTarget is null!");
         glBindFramebuffer(GL_FRAMEBUFFER, rt->m_frameBuffer);
         rt->setDrawBuffers(drawBuffers, numBuffers);
+        rt->bindDrawBuffers();
+    }
+
+    void GfxContext::setRenderTarget(RenderTarget* renderTarget)
+    {
+        if (!renderTarget)
+        {
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            return;
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, renderTarget->m_frameBuffer);
+        renderTarget->bindDrawBuffers();
     }
 
     void GfxContext::setClearColor(glm::vec4 color)

@@ -53,7 +53,7 @@ namespace Cyan
 
     Renderer::Renderer()
         : m_frameAllocator(1024u * 1024u),  // 1 megabytes
-        m_lighting{0, 0, 0, false},
+        m_gpuLightingData{nullptr, nullptr, {}, {}, nullptr, true},
         u_model(0),
         u_cameraView(0),
         u_cameraProjection(0),
@@ -80,6 +80,9 @@ namespace Cyan
             // ensure that we are not creating new instance of Renderer
             CYAN_ASSERT(0, "There should be only one instance of Renderer")
         }
+
+        m_gpuLightingData.pointLightsBuffer = createRegularBuffer(sizeof(PointLightGpuData) * 20);
+        m_gpuLightingData.dirLightsBuffer = createRegularBuffer(sizeof(DirLightGpuData) * 1);
     }
 
     Renderer* Renderer::getSingletonPtr()
@@ -283,6 +286,35 @@ namespace Cyan
         {
             m_sceneDepthNormalShader = createShader("SceneDepthNormalShader", "../../shader/shader_depth_normal.vs", "../../shader/shader_depth_normal.fs");
         }
+        // shadow
+        {
+            auto textureManager = TextureManager::getSingletonPtr();
+            // TODO: depth buffer creation coupled with render target creation
+            m_depthRenderTarget = createDepthRenderTarget(2048, 2048);
+            m_directionalShadowShader = createShader("DirShadowShader", "../../shader/shader_dir_shadow.vs", "../../shader/shader_dir_shadow.fs");
+            m_directionalShadowMatl = createMaterial(m_directionalShadowShader)->createInstance();
+
+            TextureSpec spec = { };
+            spec.m_width = m_depthRenderTarget->m_width;
+            spec.m_height = m_depthRenderTarget->m_height;
+            spec.m_format = Texture::ColorFormat::D24S8; // 32 bits
+            spec.m_type = Texture::Type::TEX_2D;
+            spec.m_dataType = Texture::DataType::UNSIGNED_INT_24_8;
+            spec.m_min = Texture::Filter::LINEAR;
+            spec.m_mag = Texture::Filter::LINEAR;
+            spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
+            spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+
+            for (u32 i = 0; i < kNumShadowCascades; ++i)
+            {
+                m_cascadedShadowMap.cascades[i].shadowMap = textureManager->createTexture("ShadowMap", spec);
+                glBindTexture(GL_TEXTURE_2D, m_cascadedShadowMap.cascades[i].shadowMap->m_id);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+                glBindTexture(GL_TEXTURE_2D, 0);
+                m_cascadedShadowMap.cascades[i].aabb.init();
+            }
+        }
         // ssao
         {
             auto textureManager = TextureManager::getSingletonPtr();
@@ -354,7 +386,6 @@ namespace Cyan
             ctx->setUniform(u_cameraProjection);
 
             // TODO: clean up the logic regarding when and where to bind shadow map
-            // ShadowMapData* shadowData = DirectionalShadowPass::getShadowMap();
             CascadedShadowMap& cascadedShadowMap = DirectionalShadowPass::m_cascadedShadowMap;
             matl->set("lightView", &cascadedShadowMap.lightView[0]);
             for (u32 s = 0; s < DirectionalShadowPass::kNumShadowCascades; ++s)
@@ -649,17 +680,17 @@ namespace Cyan
         m_renderState.addRenderPass(pass);
     }
 
-    void Renderer::addDirectionalShadowPass(Scene* scene, u32 lightIdx)
+    void Renderer::addDirectionalShadowPass(Scene* scene, Camera& camera, u32 lightIdx)
     {
         void* preallocatedAddr = m_frameAllocator.alloc(sizeof(DirectionalShadowPass));
         Viewport viewport = { 0, 0, m_offscreenRenderWidth, m_offscreenRenderHeight };
-        DirectionalShadowPass* pass = new (preallocatedAddr) DirectionalShadowPass(0, viewport, scene, lightIdx);
+        DirectionalShadowPass* pass = new (preallocatedAddr) DirectionalShadowPass(0, viewport, scene, camera, lightIdx);
         m_renderState.addRenderPass(pass);
     }
 
     void Renderer::addPostProcessPasses()
     {
-        // bloom right now takes about 7ms to run, need improve performance!
+        //TODO: bloom right now takes about 7ms to run, need improve performance!
         if (m_bloom)
         {
             addBloomPass();
@@ -691,9 +722,16 @@ namespace Cyan
         void* preallocatedAddr = m_frameAllocator.alloc(sizeof(BloomPass));
         Texture* sceneColorTexture = m_bSuperSampleAA ? m_sceneColorTextureSSAA : m_sceneColorTexture;
         Viewport viewport = {0};
-        BloomPassInputs inputs = {sceneColorTexture, m_bloomOutput };
+        BloomPassInputs inputs = { sceneColorTexture, m_bloomOutput };
         // placement new for initialization
         BloomPass* pass = new (preallocatedAddr) BloomPass(nullptr, viewport, inputs);
+        m_renderState.addRenderPass(pass);
+    }
+
+    void Renderer::addEntityPass(RenderTarget* renderTarget, Viewport viewport, std::vector<Entity*>& entities, LightingEnvironment& lighting, Camera& camera)
+    {
+        void* frameMem = m_frameAllocator.alloc(sizeof(EntityPass));
+        EntityPass* pass = new (frameMem) EntityPass(renderTarget, viewport, entities, lighting, camera);
         m_renderState.addRenderPass(pass);
     }
 
@@ -739,34 +777,21 @@ namespace Cyan
             MeshInstance* meshInstance = node->m_meshInstance; 
             Material* materialType = meshInstance->m_matls[0]->m_template;
             u32 numSubMeshs = (u32)meshInstance->m_mesh->m_subMeshes.size();
-            // update lighting data if necessary
-            // TODO: implement these
-            auto updateLighting = []()
-            {
-
-            };
 
             // update lighting data if material can be lit
             if (materialType->m_dataFieldsFlag && (1 << Material::DataFields::Lit))
             {
                 for (u32 sm = 0; sm < numSubMeshs; ++sm)
                 {
-                    meshInstance->m_matls[sm]->set("numPointLights", static_cast<u32>(m_lighting.m_pLights->size()));
-                    meshInstance->m_matls[sm]->set("numDirLights", static_cast<u32>(m_lighting.m_dirLights->size()));
-                }
-            }
-            // update light probe data if necessary
-            if (materialType->m_dataFieldsFlag && (1 << Material::DataFields::Probe))
-            {
-                if (m_lighting.bUpdateProbeData)
-                {
-                    for (u32 sm = 0; sm < numSubMeshs; ++sm)
-                    {
-                        // update probe texture bindings
-                        meshInstance->m_matls[sm]->bindTexture("irradianceDiffuse", m_lighting.m_probe->m_diffuse);
-                        meshInstance->m_matls[sm]->bindTexture("irradianceSpecular", m_lighting.m_probe->m_specular);
-                        meshInstance->m_matls[sm]->bindTexture("brdfIntegral", m_lighting.m_probe->m_brdfIntegral);
-                    }
+                    meshInstance->m_matls[sm]->set("numPointLights", static_cast<u32>(m_gpuLightingData.pLights.size()));
+                    meshInstance->m_matls[sm]->set("numDirLights", static_cast<u32>(m_gpuLightingData.dLights.size()));
+                    meshInstance->m_matls[sm]->bindBuffer("dirLightsData", m_gpuLightingData.dirLightsBuffer);
+                    meshInstance->m_matls[sm]->bindBuffer("pointLightsData", m_gpuLightingData.pointLightsBuffer);
+
+                    // update probe texture bindings
+                    meshInstance->m_matls[sm]->bindTexture("irradianceDiffuse", m_gpuLightingData.probe->m_diffuse);
+                    meshInstance->m_matls[sm]->bindTexture("irradianceSpecular", m_gpuLightingData.probe->m_specular);
+                    meshInstance->m_matls[sm]->bindTexture("brdfIntegral", m_gpuLightingData.probe->m_brdfIntegral);
                 }
             }
 
@@ -796,7 +821,6 @@ namespace Cyan
         // clear per frame allocator
         m_frameAllocator.reset();
         m_renderState.clearRenderTargets();
-        m_renderState.clearRenderPasses();
         m_renderState.m_superSampleAA = m_bSuperSampleAA;
         if (m_bSuperSampleAA)
         {
@@ -816,6 +840,7 @@ namespace Cyan
         {
             renderPass->render();
         }
+        m_renderState.clearRenderPasses();
     }
 
     void Renderer::endRender()
@@ -853,6 +878,122 @@ namespace Cyan
         }
     }
 
+    void Renderer::renderEntities(std::vector<Entity*>& entities, LightingEnvironment& lighting, Camera& camera)
+    {
+        // camera
+        setUniform(u_cameraView, (void*)&camera.view[0]);
+        setUniform(u_cameraProjection, (void*)&camera.projection[0]);
+        // lights
+        uploadGpuLightingData(lighting);
+        for (auto entity : entities)
+        {
+            drawEntity(entity);
+        }
+    }
+
+    void Renderer::renderCascade(Scene* scene, ShadowCascade& cascade, glm::mat4& lightView)
+    {
+        // Had to switch to cull front face when using hardware PCF
+        glCullFace(GL_FRONT);
+        auto aabb = cascade.aabb;
+        glm::mat4 lightProjection = glm::orthoLH(aabb.m_pMin.x, aabb.m_pMax.x, aabb.m_pMin.y, aabb.m_pMax.y, aabb.m_pMax.z, aabb.m_pMin.z);
+        cascade.lightProjection = lightProjection;
+        aabb.setModel(glm::inverse(lightView));
+
+        auto ctx = getCurrentGfxCtx();
+        m_depthRenderTarget->setDepthBuffer(cascade.shadowMap);
+        ctx->setRenderTarget(m_depthRenderTarget, 0u);
+        glClear(GL_DEPTH_BUFFER_BIT);
+        ctx->setShader(m_directionalShadowShader);
+        m_directionalShadowMatl->set("lightView", &lightView[0]);
+        m_directionalShadowMatl->set("lightProjection", &lightProjection[0]);
+        ctx->setViewport({0u, 0u, m_depthRenderTarget->m_width, m_depthRenderTarget->m_height});
+        for (auto entity : scene->entities)
+        {
+            std::queue<SceneNode*> nodes;
+            nodes.push(entity->m_sceneRoot);
+            while(!nodes.empty())
+            {
+                SceneNode* node = nodes.front(); 
+                nodes.pop();
+                for (auto child : node->m_child)
+                {
+                    nodes.push(child);
+                }
+                if (MeshInstance* meshInstance = node->m_meshInstance)
+                {
+                    // TODO: clean this up
+                    if (node->m_hasAABB)
+                    {
+                        glm::mat4 model = node->getWorldTransform().toMatrix();
+                        m_directionalShadowMatl->set("model", &model[0][0]);
+                        m_directionalShadowMatl->bind();
+
+                        u32 smIndex = 0u;
+                        for (auto sm : meshInstance->m_mesh->m_subMeshes)
+                        {
+                            ctx->setVertexArray(sm->m_vertexArray);
+                            if (sm->m_vertexArray->m_ibo != static_cast<u32>(-1))
+                            {
+                                ctx->drawIndex(sm->m_vertexArray->m_numIndices);
+                            }
+                            else
+                            {
+                                ctx->drawIndexAuto(sm->m_vertexArray->numVerts());
+                            }
+                            smIndex++;
+                        }
+                    }
+                }
+            }
+        }
+        glCullFace(GL_BACK);
+    }
+
+    void Renderer::renderDirectionalShadow(Scene* scene, Camera& camera)
+    {
+        for (auto& light : scene->dLights)
+        {
+            f32 t[4] = { 0.1f, 0.3f, 0.6f, 1.f };
+            m_cascadedShadowMap.cascades[0].n = camera.n;
+            m_cascadedShadowMap.cascades[0].f = (1.0f - t[0]) * camera.n + t[0] * camera.f;
+
+            for (u32 i = 1u; i < DirectionalShadowPass::kNumShadowCascades; ++i)
+            {
+                m_cascadedShadowMap.cascades[i].n = m_cascadedShadowMap.cascades[i-1].f;
+                m_cascadedShadowMap.cascades[i].f = (1.f - t[i]) * camera.n + t[i] * camera.f;
+            }
+            m_cascadedShadowMap.lightView = glm::lookAt(glm::vec3(0.f), glm::vec3(light.direction.x, light.direction.y, light.direction.z), glm::vec3(0.f, 1.f, 0.f));
+            for (u32 i = 0u; i < DirectionalShadowPass::kNumShadowCascades; ++i)
+            {
+                DirectionalShadowPass::computeCascadeAABB(m_cascadedShadowMap.cascades[i], camera, m_cascadedShadowMap.lightView);
+                renderCascade(scene, m_cascadedShadowMap.cascades[i], m_cascadedShadowMap.lightView);
+            }
+        }
+    }
+
+    void Renderer::uploadGpuLightingData(LightingEnvironment& lighting)
+    {
+        m_gpuLightingData.dLights.clear();
+        m_gpuLightingData.pLights.clear();
+
+        for (auto& light : lighting.m_dirLights)
+        {
+            light.update();
+            m_gpuLightingData.dLights.push_back(light.getData());
+        }
+        for (auto& light : lighting.m_pLights)
+        {
+            light.update();
+            m_gpuLightingData.pLights.push_back(light.getData());
+        }
+
+        setBuffer(m_gpuLightingData.pointLightsBuffer, m_gpuLightingData.pLights.data(), sizeofVector(m_gpuLightingData.pLights));
+        setBuffer(m_gpuLightingData.dirLightsBuffer, m_gpuLightingData.dLights.data(), sizeofVector(m_gpuLightingData.dLights));
+
+        m_gpuLightingData.probe = lighting.m_probe;
+    }
+
     void Renderer::probeRenderScene(Scene* scene, Camera& camera)
     {
         // camera
@@ -860,25 +1001,13 @@ namespace Cyan
         setUniform(u_cameraProjection, (void*)&camera.projection[0]);
 
         // lights
-        std::vector<PointLightData> pLights;
-        std::vector<DirLightData> dLights;
-        SceneManager::getSingletonPtr()->buildLightList(scene, pLights, dLights);
-        if (!pLights.empty())
-        {
-            setBuffer(scene->m_pointLightsBuffer, pLights.data(), sizeofVector(pLights));
-        }
-        if (!dLights.empty())
-        {
-            CYAN_ASSERT(dLights.size() <= 1, "At most one directional light is allowed!!")
-            setBuffer(scene->m_dirLightsBuffer, dLights.data(), sizeofVector(dLights));
-        }
-        
-        m_lighting.m_pLights = &pLights;
-        m_lighting.m_dirLights = &dLights;
-        m_lighting.m_probe = scene->m_currentProbe;
-        // determine if probe data should be update for this frame
-        m_lighting.bUpdateProbeData = (!scene->m_lastProbe || (scene->m_currentProbe->m_baseCubeMap->m_id != scene->m_lastProbe->m_baseCubeMap->m_id));
-        scene->m_lastProbe = scene->m_currentProbe;
+        LightingEnvironment lighting = { 
+            scene->pLights,
+            scene->dLights,
+            scene->m_currentProbe,
+            false
+        };
+        uploadGpuLightingData(lighting);
 
         // entities 
         for (auto entity : scene->entities)
@@ -893,31 +1022,19 @@ namespace Cyan
         // camera
         setUniform(u_cameraView, (void*)&camera.view[0]);
         setUniform(u_cameraProjection, (void*)&camera.projection[0]);
+
 #if DRAW_DEBUG
         DirectionalShadowPass::drawDebugLines(u_cameraView, u_cameraProjection);
 #endif
 
         // lights
-        std::vector<PointLightData> pLights;
-        std::vector<DirLightData> dLights;
-        SceneManager::getSingletonPtr()->buildLightList(scene, pLights, dLights);
-        if (!pLights.empty())
-        {
-            setBuffer(scene->m_pointLightsBuffer, pLights.data(), sizeofVector(pLights));
-        }
-        if (!dLights.empty())
-        {
-            CYAN_ASSERT(dLights.size() <= 1, "At most one directional light is allowed!!")
-            setBuffer(scene->m_dirLightsBuffer, dLights.data(), sizeofVector(dLights));
-            // bind shadow map
-        }
-        
-        m_lighting.m_pLights = &pLights;
-        m_lighting.m_dirLights = &dLights;
-        m_lighting.m_probe = scene->m_currentProbe;
-        // determine if probe data should be update for this frame
-        m_lighting.bUpdateProbeData = (!scene->m_lastProbe || (scene->m_currentProbe->m_baseCubeMap->m_id != scene->m_lastProbe->m_baseCubeMap->m_id));
-        scene->m_lastProbe = scene->m_currentProbe;
+        LightingEnvironment lighting = { 
+            scene->pLights,
+            scene->dLights,
+            scene->m_currentProbe,
+            false
+        };
+        uploadGpuLightingData(lighting);
 
         // entities 
         for (auto entity : scene->entities)

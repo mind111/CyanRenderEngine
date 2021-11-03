@@ -15,7 +15,8 @@ namespace Cyan
         void attachColorBuffer(Texture* _texture, u32 mip=0);
         void attachTexture(Texture* texture, u32 index, u32 faceIndex = -1);
         void setDepthBuffer(Texture* texture);
-        void setDrawBuffer(u32 _bufferIdx);
+        void setDrawBuffer(u32 bufferIdx);
+        void bindDrawBuffers();
         void setDrawBuffers(u32* buffers, u32 numBuffers);
         Texture* getColorBuffer(u32 index);
         bool validate();
@@ -27,6 +28,9 @@ namespace Cyan
         GLuint m_renderBuffer;
         GLuint m_frameBuffer;
         std::vector<Cyan::Texture*> m_colorBuffers;
+        // draw buffer binding
+        u32 m_numDrawBuffers;
+        i32 m_drawBuffers[8];
         // max 8 color attachments for a framebuffer
         Cyan::Texture* m_textures[8];
         Cyan::Texture* m_depthBuffer;

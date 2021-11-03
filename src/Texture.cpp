@@ -288,7 +288,7 @@ namespace Cyan
 
         glCreateTextures(GL_TEXTURE_3D, 1, &texture->m_id);
         glBindTexture(GL_TEXTURE_3D, texture->m_id);
-        glTexImage3D(GL_TEXTURE_3D, 0, specGL.m_dataFormatGL, spec.m_width, spec.m_height, spec.m_depth, 0, specGL.m_internalFormatGL, GL_UNSIGNED_INT, 0);
+        glTexImage3D(GL_TEXTURE_3D, 0, specGL.m_internalFormatGL, spec.m_width, spec.m_height, spec.m_depth, 0, specGL.m_dataFormatGL, GL_UNSIGNED_INT, 0);
         glBindTexture(GL_TEXTURE_3D, 0u);
         setTextureParameters(texture, specGL);
         s_textures.push_back(texture);
@@ -319,12 +319,12 @@ namespace Cyan
         switch(spec.m_type)
         {
             case Texture::Type::TEX_2D:
-                glTexImage2D(GL_TEXTURE_2D, 0, specGL.m_dataFormatGL, texture->m_width, texture->m_height, 0, specGL.m_internalFormatGL, GL_FLOAT, texture->m_data);
+                glTexImage2D(GL_TEXTURE_2D, 0, specGL.m_internalFormatGL, texture->m_width, texture->m_height, 0, specGL.m_dataFormatGL, GL_FLOAT, texture->m_data);
                 break;
             case Texture::Type::TEX_CUBEMAP:
                 for (int f = 0; f < 6; f++)
                 {
-                    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, 0, specGL.m_dataFormatGL, texture->m_width, texture->m_height, 0, specGL.m_internalFormatGL, GL_FLOAT, nullptr);
+                    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, 0, specGL.m_internalFormatGL, texture->m_width, texture->m_height, 0, specGL.m_dataFormatGL, GL_FLOAT, nullptr);
                 }
                 break;
             default:
@@ -367,8 +367,8 @@ namespace Cyan
         TextureSpecGL specGL = translate(spec);
 
         glCreateTextures(specGL.m_typeGL, 1, &texture->m_id);
-        glTextureStorage2D(texture->m_id, spec.m_numMips, specGL.m_dataFormatGL, texture->m_width, texture->m_height);
-        glTextureSubImage2D(texture->m_id, 0, 0, 0, texture->m_width, texture->m_height, specGL.m_internalFormatGL, GL_UNSIGNED_BYTE, texture->m_data);
+        glTextureStorage2D(texture->m_id, spec.m_numMips, specGL.m_internalFormatGL, texture->m_width, texture->m_height);
+        glTextureSubImage2D(texture->m_id, 0, 0, 0, texture->m_width, texture->m_height, specGL.m_dataFormatGL, GL_UNSIGNED_BYTE, texture->m_data);
         if (spec.m_numMips > 1u)
         {
             glGenerateTextureMipmap(texture->m_id);
@@ -405,8 +405,8 @@ namespace Cyan
         TextureSpecGL specGL = translate(spec);
 
         glCreateTextures(specGL.m_typeGL, 1, &texture->m_id);
-        glTextureStorage2D(texture->m_id, spec.m_numMips, specGL.m_dataFormatGL, texture->m_width, texture->m_height);
-        glTextureSubImage2D(texture->m_id, 0, 0, 0, texture->m_width, texture->m_height, specGL.m_internalFormatGL, GL_FLOAT, texture->m_data);
+        glTextureStorage2D(texture->m_id, spec.m_numMips, specGL.m_internalFormatGL, texture->m_width, texture->m_height);
+        glTextureSubImage2D(texture->m_id, 0, 0, 0, texture->m_width, texture->m_height, specGL.m_dataFormatGL, GL_FLOAT, texture->m_data);
         setTextureParameters(texture, specGL);
         if (spec.m_numMips > 1u)
         {
@@ -440,9 +440,7 @@ namespace Cyan
         {
             glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &texture->m_id);
             glBindTexture(GL_TEXTURE_2D_ARRAY, texture->m_id);
-            glTexStorage3D(GL_TEXTURE_2D_ARRAY, 0, specGL.m_internalFormatGL, texture->m_width, texture->m_height, texture->m_depth);
-            glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 0, texture->m_width, texture->m_height, texture->m_depth, specGL.m_dataFormatGL, specGL.m_dataType, nullptr);
-            GL_RGB16F
+            glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, specGL.m_internalFormatGL, texture->m_width, texture->m_height, texture->m_depth);
             glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
         }
         setTextureParameters(texture, specGL);
@@ -452,5 +450,20 @@ namespace Cyan
         }
         s_textures.push_back(texture);
         return texture;
+    }
+
+    Texture* TextureManager::createDepthTexture(const char* name, u32 width, u32 height)
+    {
+        TextureSpec spec = { };
+        spec.m_width = width;
+        spec.m_height =height;
+        spec.m_format = Texture::ColorFormat::D24S8; // 32 bits
+        spec.m_type = Texture::Type::TEX_2D;
+        spec.m_dataType = Texture::DataType::UNSIGNED_INT_24_8;
+        spec.m_min = Texture::Filter::NEAREST;
+        spec.m_mag = Texture::Filter::NEAREST;
+        spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+        return createTexture(name, spec);
     }
 }

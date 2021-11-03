@@ -82,6 +82,9 @@ uniform float enableReflection;
 uniform vec3 debugTraceNormal;
 uniform int debugProbeIndex;
 
+uniform vec3 debugRo;
+uniform vec3 debugRd;
+
 uniform LightFieldProbeVolume gProbeVolume;
 
 layout(binding = 0) uniform atomic_uint rayCounter;
@@ -89,6 +92,7 @@ layout(binding = 0) uniform atomic_uint rayCounter;
 #define pi 3.14159265359
 #define MAX_NUM_DEBUG_RAYS 100
 float cascadeIntervals[4] = {0.1f, 0.3f, 0.6f, 1.0f};
+int numDebugRays = 0;
 
 struct Light 
 {
@@ -467,6 +471,7 @@ vec3 directLighting(RenderParams renderParams)
         // sample shadow map
         vec4 worldFragPos = inverse(s_view) * vec4(fragmentPos, 1.f);
         renderParams.shadow = isInShadow();
+        // renderParams.shadow = 1.f;
         vec4 lightDir = s_view * (dirLightsBuffer.lights[i].direction);
         // light dir
         renderParams.l = normalize(lightDir.xyz);
@@ -639,25 +644,23 @@ struct Ray
     vec3 direction;
 };
 
-void drawDebugRay(vec3 ro, vec3 re, int rayIndex)
+void drawDebugRay(vec3 ro, vec3 re, int probeIndex)
 {
-    if (rayIndex < MAX_NUM_DEBUG_RAYS)
+    if (numDebugRays < MAX_NUM_DEBUG_RAYS)
     {
-        debugRayWorldData.m_vertices[rayIndex * 2] = vec4(ro, 1.f);
-        debugRayWorldData.m_vertices[rayIndex * 2 + 1] = vec4(re, 1.f);
+        debugRayWorldData.m_vertices[numDebugRays * 2] = vec4(ro, float(probeIndex));
+        debugRayWorldData.m_vertices[numDebugRays * 2 + 1] = vec4(re, float(probeIndex));
+        numDebugRays++; 
     }
 }
 
-void drawDebugStepsAlongRay(vec3 probeOrigin, vec3 ro, vec3 rd, vec2 startOctCoord, vec2 texDirection, float stepLength, float texDistance, int segmentSteps, in int totalSteps)
+void drawDebugStepsAlongRay(vec3 probeOrigin, int probeIndex, vec3 ro, vec3 rd, vec2 startOctCoord, vec2 texDirection, float stepLength, float texDistance, int segmentSteps)
 {
-    if (totalSteps < 100)
-    {
-        vec2 marched = min(texDistance, stepLength * segmentSteps) * texDirection;
-        vec3 probeToRayDir = octDecode(startOctCoord + marched);
-        // FIXME: when the ray is on the xz plane of where the probe is located
-        float distanceToRay = max(0.f, distanceToIntersection(ro - probeOrigin, rd, probeToRayDir));
-        drawDebugRay(probeOrigin, probeOrigin + probeToRayDir * distanceToRay, totalSteps);
-    }
+    vec2 marched = min(texDistance, stepLength * segmentSteps) * texDirection;
+    vec3 probeToRayDir = octDecode(startOctCoord + marched);
+    // FIXME: when the ray is on the xz plane of where the probe is located
+    float distanceToRay = max(0.f, distanceToIntersection(ro - probeOrigin, rd, probeToRayDir));
+    drawDebugRay(probeOrigin, probeOrigin + probeToRayDir * distanceToRay, probeIndex);
 }
 
 #define TRACE_MISS    -1
@@ -670,12 +673,12 @@ const float maxThickness = 0.50; // meters
 // TODO: deal wtih singularities for example if the ray lies in the xz-plane of probe (maybe having multiple probe solves this)
 // TODO: deal wtih singularities where the ray go through probe origin
 // TODO: regular probe grid
-TraceResult traceOneRaySegment(vec3 probeOrigin, int probeIndex, vec2 startOctCoord, vec2 endOctCoord, vec3 ro, vec3 rd, inout float tMin, inout float tMax, inout int totalNumSteps, in int segmentIndex)
+TraceResult traceOneRaySegment(vec3 probeOrigin, int probeIndex, vec2 startOctCoord, vec2 endOctCoord, vec3 ro, vec3 rd, inout float tMin, inout float tMax, in int segmentIndex)
 {
     vec2 texDirection = normalize(endOctCoord - startOctCoord);
     float texDistance = length(endOctCoord - startOctCoord);
     vec2 texelOffset = 2.f / textureSize(octRadiance, 0).xy;
-    float stepLength = 10.f * length(texelOffset);
+    float stepLength = 1.f * length(texelOffset);
     float marched = 0.0f;
 
     debugRayOctData.m_octMapTexCoords[segmentIndex * 2] = startOctCoord;
@@ -689,10 +692,30 @@ TraceResult traceOneRaySegment(vec3 probeOrigin, int probeIndex, vec2 startOctCo
     int segmentNumSteps = 0;
 
     float distanceProbeToRayBefore = max(0.f, distanceToIntersection(ro - probeOrigin, rd, octDecode(startOctCoord)));
+
+    float cosTheta = dot(probeToStartDir, rd);
+    if (abs(cosTheta) > 0.99) 
+    {        
+        // Check if the ray is going in the same direction as a ray from the probe through the start texel
+        if (cosTheta > 0) 
+        {
+            // If so, return a hit
+            float distanceFromProbeToSurface = texture(octRadialDepth, vec3(startOctCoord * .5f + .5f, probeIndex)).r;
+            vec3 hit = probeOrigin + probeToStartDir * distanceFromProbeToSurface;
+            tMax = dot(hit - ro, rd);
+            return TraceResult(TRACE_HIT, tMax);
+        } 
+        else 
+        {
+            // If it is going in the opposite direction, we're never going to find anything useful, so return false
+            return TraceResult(TRACE_UNKNOWN, tMin);
+        }
+    }
+
     for (marched = 0.0f; marched < texDistance; marched += stepLength)
     {
         // debugging
-        drawDebugStepsAlongRay(probeOrigin, ro, rd, startOctCoord, texDirection, stepLength, texDistance, segmentNumSteps, totalNumSteps);
+        // drawDebugStepsAlongRay(probeOrigin, probeIndex, ro, rd, startOctCoord, texDirection, stepLength, texDistance, segmentNumSteps);
 
         vec2 pBefore = startOctCoord + min(texDistance, marched) * texDirection;
         // half step
@@ -716,16 +739,9 @@ TraceResult traceOneRaySegment(vec3 probeOrigin, int probeIndex, vec2 startOctCo
             float distanceToHit = max(0.f, distanceToIntersection(ro-probeOrigin, rd, probeToRayDirMid));
             vec3 hit = distanceToHit * probeToRayDirMid + probeOrigin;
             float distAlongRay = dot(hit - ro, rd);
-            debugBoundries.boundryPoints[0].x = distanceProbeToSurface;
-            debugBoundries.boundryPoints[0].y = maxDistanceProbeToRay;
-            debugBoundries.boundryPoints[1].x = pMid.x * .5f + .5f;
-            debugBoundries.boundryPoints[1].y = pMid.y * .5f + .5f;
-            // totalNumSteps+=1;
-            // drawDebugRay(probeOrigin, probeOrigin + distanceProbeToSurface * probeToRayDirMid, totalNumSteps++);
-            // drawDebugRay(probeOrigin, probeOrigin + maxDistanceProbeToRay * probeToRayDirBefore, totalNumSteps);
 
             // detect back face
-            vec3 normal = texture(octNormal, vec3(pMid * .5f + .5f, probeIndex)).rgb * .5f + .5f;
+            vec3 normal = texture(octNormal, vec3(pMid * .5f + .5f, probeIndex)).rgb * 2.f - 1.f;
 
             float surfaceThickness = minThickness
                 + (maxThickness - minThickness) * 
@@ -740,7 +756,7 @@ TraceResult traceOneRaySegment(vec3 probeOrigin, int probeIndex, vec2 startOctCo
             if (minDistanceProbeToRay < (distanceProbeToSurface + surfaceThickness) && (dot(normal, rd) < 0.f))
             {
                 tMax = distAlongRay;
-                return TraceResult(TRACE_HIT, distAlongRay);
+                return TraceResult(TRACE_HIT, tMax);
             }
             // traced ray is occluded from the probe
             else 
@@ -753,7 +769,6 @@ TraceResult traceOneRaySegment(vec3 probeOrigin, int probeIndex, vec2 startOctCo
 
         distanceProbeToRayBefore = distanceProbeToRayAfter;
         segmentNumSteps++;
-        totalNumSteps++;
     }
     // return how much distance has been trace along the ray
     return TraceResult(TRACE_MISS, 0.f);
@@ -813,66 +828,17 @@ TraceResult rayTraceOneProbe(vec3 probeOrigin, int probeIndex, vec3 ro, vec3 rd,
 
     computeRaySegments(ro-probeOrigin, vec3(1.f) / rd, tMin, tMax, boundryTs);
 
-    // find intersection of ray with xy, yz, xz plane
-    // vec3 rxz = vec3(0.f);
-    // vec3 rxy = vec3(0.f);
-    // vec3 ryz = vec3(0.f);
-
-    // // TODO: deal with the case if rd.x/y/z = 0.f
-    // float txy = (probeOrigin.z - ro.z) / rd.z;
-    // if (txy > 0.f && rd.z != 0.f)
-    // {
-    //     distances[numBoundryPoints++] = txy;
-    // }
-    // float txz = (probeOrigin.y - ro.y) / rd.y;
-    // if (txz > 0.f && rd.y != 0.f)
-    // {
-    //     distances[numBoundryPoints++] = txz;
-    // }
-    // float tyz = (probeOrigin.x - ro.x) / rd.x;
-    // if (tyz > 0.f && rd.x != 0.f)
-    // {
-    //     distances[numBoundryPoints++] = tyz;
-    // }
-    // if (distances[1] < distances[0])
-    // {
-    //     float temp = distances[0];
-    //     distances[0] = distances[1];
-    //     distances[1] = temp;
-    // }
-    // if (distances[2] < distances[1])
-    // {
-    //     float temp = distances[1];
-    //     distances[1] = distances[2];
-    //     distances[2] = temp;
-    // }
-    // if (distances[1] < distances[0])
-    // {
-    //     float temp = distances[0];
-    //     distances[0] = distances[1];
-    //     distances[1] = temp;
-    // }
     numBoundryPoints = 5;
     for (int i = 0; i < numBoundryPoints; i++)
     {
-        // boundryPoints[i+1] = ro + distances[i] * rd;
         boundryPoints[i] = ro + boundryTs[i] * rd;
+        debugBoundries.boundryPoints[i*2] = vec4(probeOrigin, 1.f);
+        debugBoundries.boundryPoints[i*2 + 1] = vec4(boundryPoints[i], 1.f);
     }
-    // include ro, and the infinitely far away point on the ray
-    // numBoundryPoints += 1;
-
     // Note(Min): the projection of where the light goes to infinity should also be computed
     // boundryPoints[numBoundryPoints++] = ro + rd * tMax;
     debugBoundries.numBoundryPoints = 5;
     debugRayOctData.numBoundryPoints = numBoundryPoints;
-    // for (int i = 0; i < numBoundryPoints; ++i)
-    // {
-    //     // debugBoundries.boundryPoints[i * 2] = vec4(probeOrigin, 1.f);
-    //     // debugBoundries.boundryPoints[i * 2 + 1] = vec4(boundryPoints[i], 1.f);
-    //     debugBoundries.boundryPoints[i] = vec4(boundryPoints[i], 1.f);
-    // }
-    // debugBoundries.boundryPoints[0] = vec4(boundryTs[0], boundryTs[1], boundryTs[2], boundryTs[3]);
-    // debugBoundries.boundryPoints[1] = vec4(boundryTs[4], boundryTs[4], boundryTs[4], boundryTs[4]);
     float distAlongRay = -1.f;
     debugRayWorldData.numSegments = 100.f;
     int totalNumSteps = 4;
@@ -889,7 +855,7 @@ TraceResult rayTraceOneProbe(vec3 probeOrigin, int probeIndex, vec3 ro, vec3 rd,
         vec2 start = octEncode(normalize(startWorld - probeOrigin));
         vec2 end = octEncode(normalize(endWorld - probeOrigin));
 
-        TraceResult result = traceOneRaySegment(probeOrigin, probeIndex, start, end, ro, rd, tMin, tMax, totalNumSteps, i-1);
+        TraceResult result = traceOneRaySegment(probeOrigin, probeIndex, start, end, ro, rd, tMin, tMax, i-1);
         switch (result.result)
         {
             case TRACE_HIT:
@@ -900,30 +866,90 @@ TraceResult rayTraceOneProbe(vec3 probeOrigin, int probeIndex, vec3 ro, vec3 rd,
     return TraceResult(TRACE_MISS, tMin);
 }
 
-/*
-TraceResult trace(vec3 ro, vec3 rd)
-{
-    float tMin = 0.f;
-    float tMax = 50.f;
+int neighborOffsets[7];
 
-    TraceResult result(TRACE_UNKNOWN, 0.f);
+TraceResult trace01(vec3 ro, vec3 rd, inout float tMin, inout float tMax)
+{
+    int lastProbe = -1;
+    TraceResult result = TraceResult(TRACE_UNKNOWN, 0.f);
+    vec3 intermRo = ro;
     while (result.result == TRACE_UNKNOWN)
     {
-        vec3 ro = ro + rd * tMin;
+        intermRo = ro + tMin * rd;
         // get 8 enclosing probes, and pick the one that is closest to ro 
-        int probeIndex = selectProbe(ro);
+        int probeIndex = selectProbe(intermRo);
+
+        int fallbackProbe = probeIndex;
+        int numFallbackProbes = 0;
+        if (probeIndex == lastProbe)
+        {
+            // recycle among 8 neighbours
+            for (int i = 0; i < 1; i++)
+            {
+                // cycle to next neighbour
+                fallbackProbe = fallbackProbe + 1;
+                vec3 probeOrigin = getProbePositionFromIndex(fallbackProbe);
+                rayTraceOneProbe(probeOrigin, fallbackProbe, ro, rd, tMin, tMax);
+                vec3 rp = ro + tMin * rd;
+                probeIndex = selectProbe(rp);                
+                if (probeIndex != lastProbe)
+                    break;
+                numFallbackProbes++;
+            }
+        }
+        if (numFallbackProbes >= 2)
+        {
+            return TraceResult(TRACE_HIT, tMin);
+        }
+
+        vec3 probeOrigin = getProbePositionFromIndex(probeIndex);
         // in the case of a unknown result, tMin will be updated
-        TraceResult result = rayTraceOneProbe(probeOrigin, ro, rd, tMin, tMax);
+        result = rayTraceOneProbe(probeOrigin, probeIndex, ro, rd, tMin, tMax);
+        // drawDebugRay(intermRo, ro + tMin * rd, probeIndex);
+        lastProbe = probeIndex;
     }
-    switch (result.result)
-    {
-        case TRACE_HIT:
-            return result;
-        case TRACE_MISS:
-            return result;
-    }
+    return result;
 }
-*/
+
+// TODO: address the case where we select a already trace probe
+TraceResult trace02(vec3 ro, vec3 rd, inout float tMin, inout float tMax, inout int hitProbe)
+{
+    vec3 intermRo = ro;
+    int neighborsLeft = 7;
+    int probeIndex = selectProbe(ro);
+    int fallbackProbe = probeIndex;
+    while (neighborsLeft >= 0 && fallbackProbe <= 26)
+    {
+        intermRo = ro + tMin * rd;
+        vec3 probeOrigin = getProbePositionFromIndex(fallbackProbe);
+        float tMinBefore = tMin;
+        TraceResult result = rayTraceOneProbe(probeOrigin, fallbackProbe, ro, rd, tMin, tMax);
+        drawDebugRay(probeOrigin, ro, fallbackProbe);
+        if (result.result == TRACE_UNKNOWN)
+        {
+            if (tMin > tMinBefore)
+                hitProbe = fallbackProbe;
+            // FIXME: probe cycling is wrong!!!
+            if (neighborsLeft > 0)
+                fallbackProbe = probeIndex + neighborOffsets[neighborsLeft-1];
+            neighborsLeft--;
+            continue;
+        }
+        // definitive hit or miss
+        switch (result.result)
+        {
+            case TRACE_HIT:
+                hitProbe = fallbackProbe;
+                break;
+            case TRACE_MISS:
+                hitProbe = -1; 
+                break;
+        }
+        return result;
+    }
+    // all eight neighbors didn't find a hit
+    return TraceResult(TRACE_HIT, tMin);
+}
 
 vec3 debugWorldPosSamples[5] = {
     vec3(-5.79f, 0.15f, 1.52f),
@@ -933,22 +959,52 @@ vec3 debugWorldPosSamples[5] = {
     vec3(-5.79f, -0.11f, 0.02f),
 };
 
-void simulateMirrorReflection(int probeIndex)
+void debugRayTrace()
 {
-    int debugRayIndex = 0;
+    vec3 simulateRo = vec3(-3.79, -1.15, 2.43);
+    vec3 simulateViewDir = normalize(debugCameraPos - simulateRo);
+    vec3 simulateRd = normalize(-reflect(simulateViewDir, vec3(0.f, 1.f, 0.f)));
+    float tMin = 0.f;
+    float tMax = 50.f;
+    int hitProbe = -1;
+    TraceResult result = trace02(simulateRo, simulateRd, tMin, tMax, hitProbe);
+    switch (result.result)
+    {
+        case TRACE_HIT:
+            vec3 probePos = getProbePositionFromIndex(hitProbe);
+            vec3 hit = simulateRo + simulateRd * result.t;
+
+            debugRayWorldData.m_vertices[numDebugRays * 2] = vec4(simulateRo, float(4.f));
+            debugRayWorldData.m_vertices[numDebugRays * 2 + 1] = vec4(probePos, float(4.f));
+            numDebugRays++;
+
+            debugRayWorldData.m_vertices[numDebugRays * 2] = vec4(probePos, float(5.f));
+            debugRayWorldData.m_vertices[numDebugRays * 2 + 1] = vec4(hit, float(5.f));
+            numDebugRays++;
+
+            drawDebugRay(simulateRo, simulateRo + simulateRd * result.t, 1);
+            // drawDebugRay(simulateRo, probePos, 4);
+            break;
+        case TRACE_MISS:
+            drawDebugRay(simulateRo, simulateRo + simulateRd * result.t, 3);
+            break;
+        case TRACE_UNKNOWN:
+            drawDebugRay(simulateRo, simulateRo + simulateRd * result.t, 4);
+            break;
+    }
+}
+
+void simulateMirrorReflection(void)
+{
     //fix camera position for debugging purpose
     vec3 simulatedViewPos = vec3(-5.f, -.5f, 9.f);
-    vec3 simulatedRo = debugWorldPosSamples[0];
-    // int probeIndex = selectProbe(simulatedRo);
-    // debugBoundries.boundryPoints[3].x = float(probeIndex);
-    vec3 po = getProbePositionFromIndex(probeIndex);
-    drawDebugRay(simulatedRo, po, debugRayIndex++);
+    vec3 simulatedRo = vec3(-5.37, -1.16, 0.52);
 
     // vec3 simulatedNormal = normalize(debugTraceNormal);
-    vec3 simulatedNormal = normalize(vec3(1.f, 0.51f, 1.f));
+    vec3 simulatedNormal = normalize(vec3(0.f, 1.f, 0.f));
     // simulated view ray
-    drawDebugRay(simulatedViewPos, simulatedRo, debugRayIndex++);
-    drawDebugRay(simulatedRo, simulatedRo + simulatedNormal, debugRayIndex++);
+    drawDebugRay(simulatedViewPos, simulatedRo, 0);
+    // drawDebugRay(simulatedRo, simulatedRo + simulatedNormal, 0);
 
     vec3 ro = simulatedRo;
     vec3 rv = -reflect(normalize(simulatedViewPos - simulatedRo), simulatedNormal);
@@ -956,17 +1012,27 @@ void simulateMirrorReflection(int probeIndex)
 
     float tMin = 0.f;
     float tMax = 50.f;
-    TraceResult result = rayTraceOneProbe(po, probeIndex, ro, rd, tMin, tMax);
+    int hitProbe = -1;
+    TraceResult result = trace02(ro, rd, tMin, tMax, hitProbe);
+
     if (result.result == TRACE_HIT)
     {
         vec3 hit = ro + rd * result.t;
-        drawDebugRay(ro, hit, 3);
+        drawDebugRay(ro, hit, 0);
     }
 }
 
-
 void main() 
 {
+    ivec3 numProbesDim = ivec3(gProbeVolume.volumeDimension / gProbeVolume.probeSpacing + vec3(1.f));
+    neighborOffsets[0] = 1;
+    neighborOffsets[1] = numProbesDim.x;
+    neighborOffsets[2] = numProbesDim.x + 1;
+    neighborOffsets[3] = numProbesDim.x * numProbesDim.z;
+    neighborOffsets[4] = neighborOffsets[3] + 1;
+    neighborOffsets[5] = neighborOffsets[3] + numProbesDim.x;
+    neighborOffsets[6] = neighborOffsets[5] + 1;
+
     /* Normal mapping */
     // Interpolation done by the rasterizer may change the length of the normal 
     vec3 normal = normalize(n);
@@ -1034,19 +1100,28 @@ void main()
 
     // experiemental: world space ray-traced reflection using light field probe!!
     vec3 probeOrigin = vec3(-5.f, 1.155f, 0.f);
-    if (enableReflection > .5f)
+    // if (enableReflection > .5f && worldSpaceNormal.y > 0.95f)
+    if (enableReflection > .5f) 
     {
-        simulateMirrorReflection(debugProbeIndex);
+        // simulateMirrorReflection();
+        debugRayTrace();
 
         // TODO: can we trace this in other space..?
-        // vec3 rv = -reflect(viewDir, worldSpaceNormal);
-        // TraceResult result = rayTraceOneProbe(probeOrigin, worldSpacePos + worldSpaceNormal * 0.001f, rv);
-        // if (result.result > 0)
+        // if (worldSpaceNormal.y > 0.95f)
         // {
-        //     // reflected view ray
-        //     vec3 hit = worldSpacePos + result.t * rv;
-        //     vec2 octUv = octEncode(normalize(hit - worldSpacePos)) * .5f + .5f;
-        //     color = texture(octRadianceMap, octUv).rgb;
+        //     vec3 rv = -reflect(viewDir, worldSpaceNormal);
+        //     int hitProbe = -1;
+        //     float tMin = 0.f;
+        //     float tMax = 50.f;
+        //     TraceResult result = trace02(worldSpacePos + worldSpaceNormal * 0.001f, rv, tMin, tMax, hitProbe);
+        //     if (result.result == TRACE_HIT)
+        //     {
+        //         // reflected view ray
+        //         vec3 hit = worldSpacePos + result.t * rv;
+        //         vec3 probeOrigin = getProbePositionFromIndex(hitProbe);
+        //         vec2 octUv = octEncode(normalize(hit - probeOrigin)) * .5f + .5f;
+        //         color = texture(octRadiance, vec3(octUv, hitProbe)).rgb;
+        //     }
         // }
     }
 

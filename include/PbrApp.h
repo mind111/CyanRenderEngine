@@ -383,6 +383,8 @@ private:
     float m_indirectLightingSlider;
     float m_wrap;
     f32   m_roughness;
+    glm::vec3 m_debugRo;
+    glm::vec3 m_debugRd;
 
     // debug parameters
     Line m_debugRay;

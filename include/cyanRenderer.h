@@ -108,18 +108,25 @@ namespace Cyan
         void render();
         void renderSceneDepthNormal(Scene* scene, Camera& camera);
         void probeRenderScene(Scene* scene, Camera& camera);
+        void renderCascade(Scene* scene, ShadowCascade& cascade, glm::mat4& lightView);
+        void renderDirectionalShadow(Scene* scene, Camera& camera);
         void renderScene(Scene* scene, Camera& camera);
         void renderDebugObjects();
         void endRender();
 
-        struct Lighting
+        // gpu compatible lighting data
+        struct LightingGpuData
         {
-            std::vector<PointLightData>* m_pLights;
-            std::vector<DirLightData>* m_dirLights;
-            LightProbe* m_probe;
-            bool bUpdateProbeData;
-        };
+            RegularBuffer* pointLightsBuffer;
+            RegularBuffer* dirLightsBuffer;
+            std::vector<PointLightGpuData> pLights;
+            std::vector<DirLightGpuData> dLights;
+            LightProbe* probe;
+            bool bUpdateProbe;
+        } m_gpuLightingData;
 
+        void uploadGpuLightingData(LightingEnvironment& lighting);
+        void renderEntities(std::vector<Entity*>& entities, LightingEnvironment& lighting, Camera& camera);
         BoundingBox3f computeSceneAABB(Scene* scene);
         void drawEntity(Entity* entity);
         void drawSceneNode(SceneNode* node);
@@ -131,7 +138,8 @@ namespace Cyan
         void endFrame();
 
         void addScenePass(Scene* scene);
-        void addDirectionalShadowPass(Scene* scene, u32 lightIndex);
+        void addEntityPass(RenderTarget* renderTarget, Viewport viewport, std::vector<Entity*>& entities, LightingEnvironment& lighting, Camera& camera);
+        void addDirectionalShadowPass(Scene* scene, Camera& camera, u32 lightIndex);
         void addCustomPass(RenderPass* pass);
         void addTexturedQuadPass(RenderTarget* renderTarget, Viewport viewport, Texture* srcTexture);
         void addBloomPass();
@@ -139,7 +147,6 @@ namespace Cyan
         void addLinePass();
         void addPostProcessPasses();
 
-        Lighting m_lighting;
         RenderState m_renderState;
 
         // viewport
@@ -182,6 +189,15 @@ namespace Cyan
         // final render output
         Texture* m_outputColorTexture;
         RenderTarget* m_outputRenderTarget;
+
+        // directional shadow
+        CascadedShadowMap m_cascadedShadowMap;
+        const u32 kNumShadowCascades = 4u;
+        Shader* m_directionalShadowShader;
+        MaterialInstance* m_directionalShadowMatl;
+        RenderTarget* m_depthRenderTarget;
+
+        // ssao
         RenderTarget* m_ssaoRenderTarget;
         Texture* m_ssaoTexture;
         Shader* m_ssaoShader;

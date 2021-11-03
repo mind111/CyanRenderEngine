@@ -26,7 +26,6 @@ namespace Cyan
     RenderTarget* DirectionalShadowPass::s_depthRenderTarget = 0;
     Shader* DirectionalShadowPass::s_directShadowShader = 0;
     MaterialInstance* DirectionalShadowPass::s_directShadowMatl = 0;
-    BoundingBox3f DirectionalShadowPass::m_frustumAABB[DirectionalShadowPass::kNumShadowCascades]; 
     CascadedShadowMap DirectionalShadowPass::m_cascadedShadowMap = { };
 
     QuadMesh* getQuadMesh()
@@ -69,7 +68,7 @@ namespace Cyan
     {
         auto renderer = Renderer::getSingletonPtr();
         auto ctx = getCurrentGfxCtx();
-        ctx->setRenderTarget(m_renderTarget, 0u);
+        // ctx->setRenderTarget(m_renderTarget, 0u);
         u32 numBuffers = static_cast<u32>(m_renderTarget->m_colorBuffers.size());
         std::vector<u32> drawBuffers;
         for (u32 b = 0u; b < numBuffers; ++b)
@@ -323,8 +322,8 @@ namespace Cyan
         ctx->setDepthControl(DepthControl::kEnable);
     }
     
-    DirectionalShadowPass::DirectionalShadowPass(RenderTarget* renderTarget, Viewport viewport, Scene* scene, u32 dirLightIdx)
-        : RenderPass(renderTarget, viewport), m_scene(scene)
+    DirectionalShadowPass::DirectionalShadowPass(RenderTarget* renderTarget, Viewport viewport, Scene* scene, Camera& camera, u32 dirLightIdx)
+        : RenderPass(renderTarget, viewport), m_scene(scene), m_camera(camera)
     {
         m_light = scene->dLights[dirLightIdx];
     }
@@ -349,7 +348,6 @@ namespace Cyan
 
         for (u32 s = 0u; s < kNumShadowCascades; ++s)
         {
-            m_frustumAABB[s].init();
             m_cascadedShadowMap.cascades[s].lightProjection = glm::mat4(1.f);
         }
         // initialize cascaded shadow maps
@@ -410,7 +408,7 @@ namespace Cyan
         }
 
         f32 dn = N * glm::tan(glm::radians(camera.fov));
-        // comptue lower left corner on near clipping plane
+        // comptue lower left corner of near clipping plane
         glm::vec3 cp = glm::normalize(camera.lookAt - camera.position) * N;
         glm::vec3 ca = cp + -camera.up * dn + -camera.right * dn * camera.aspectRatio;
 
@@ -556,7 +554,7 @@ namespace Cyan
 
     void DirectionalShadowPass::render()
     {
-        Camera& camera = m_scene->cameras[0];
+        Camera& camera = m_camera;
         f32 t[4] = { 0.1f, 0.3f, 0.6f, 1.f };
         m_cascadedShadowMap.cascades[0].n = camera.n;
         m_cascadedShadowMap.cascades[0].f = (1.0f - t[0]) * camera.n + t[0] * camera.f;
@@ -569,8 +567,8 @@ namespace Cyan
         m_cascadedShadowMap.lightView = glm::lookAt(glm::vec3(0.f), glm::vec3(-m_light.direction.x, -m_light.direction.y, -m_light.direction.z), glm::vec3(0.f, 1.f, 0.f));
         for (u32 i = 0u; i < DirectionalShadowPass::kNumShadowCascades; ++i)
         {
-            computeCascadeAABB(m_cascadedShadowMap.cascades[i], camera, lightView);
-            renderCascade(m_cascadedShadowMap.cascades[i], lightView);
+            computeCascadeAABB(m_cascadedShadowMap.cascades[i], camera, m_cascadedShadowMap.lightView);
+            renderCascade(m_cascadedShadowMap.cascades[i], m_cascadedShadowMap.lightView);
         }
     }
 
@@ -588,6 +586,25 @@ namespace Cyan
     void SSAOPass::render()
     {
 
+    }
+
+    EntityPass::EntityPass(RenderTarget* renderTarget, Viewport viewport, std::vector<Entity*>& entities, LightingEnvironment& lighting, Camera& camera)
+        : RenderPass(renderTarget, viewport), m_entities(entities), m_camera(camera), m_lighting(lighting)
+    {
+
+    }
+
+    void EntityPass::onInit()
+    {
+
+    }
+
+    void EntityPass::render()
+    {
+        auto renderer = Renderer::getSingletonPtr();
+        auto ctx = getCurrentGfxCtx();
+        ctx->setRenderTarget(m_renderTarget);
+        renderer->renderEntities(m_entities, m_lighting, m_camera);
     }
 
     TexturedQuadPass::TexturedQuadPass(RenderTarget* renderTarget, Viewport vp, Texture* srcTex)

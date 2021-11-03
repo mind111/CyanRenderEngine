@@ -70,7 +70,9 @@ namespace Cyan
         void setBuffer(RegularBuffer* _buffer, u32 binding);
         void setPrimitiveType(PrimitiveType _type);
         void setViewport(Viewport viewport);
-        void setRenderTarget(RenderTarget* _rt, u16 drawBufferIdx); 
+        // TODO: consolidate different version of setRenderTarget() into one version
+        void setRenderTarget(RenderTarget* rt, u16 drawBufferIdx); 
+        void setRenderTarget(RenderTarget* renderTarget); 
         void setRenderTarget(RenderTarget* rt, u32* drawBuffers, u32 numBuffers); 
         void setDepthControl(DepthControl _ctrl);
         void setClearColor(glm::vec4 color);

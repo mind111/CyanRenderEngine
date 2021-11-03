@@ -75,6 +75,7 @@ void SceneManager::createPointLight(Scene* scene, glm::vec3 color, glm::vec3 pos
     transform.m_translate = glm::vec3(position);
     transform.m_scale = glm::vec3(0.1f);
     Entity* entity = createEntity(scene, nameBuff, Transform()); 
+    entity->m_bakedInProbes = false;
     Cyan::Mesh* sphereMesh = Cyan::getMesh("sphere_mesh");
     CYAN_ASSERT(sphereMesh, "sphere_mesh does not exist")
     SceneNode* meshNode = Cyan::createSceneNode("LightMesh", transform, sphereMesh); 
@@ -95,7 +96,7 @@ void SceneManager::updateSceneGraph(Scene* scene)
 }
 
 // update light data and pack them in a buffer 
-void SceneManager::buildLightList(Scene* scene, std::vector<PointLightData>& pLights, std::vector<DirLightData>& dLights)
+void SceneManager::buildLightList(Scene* scene, std::vector<PointLightGpuData>& pLights, std::vector<DirLightGpuData>& dLights)
 {
     for (auto& light : scene->dLights)
     {

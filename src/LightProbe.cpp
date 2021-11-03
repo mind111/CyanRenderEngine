@@ -100,8 +100,6 @@ namespace Cyan
             {0.f, -1.f, 0.f},   // Back
         };
         auto ctx = Cyan::getCurrentGfxCtx();
-        ctx->setRenderTarget(m_radianceRenderTarget, 0u);
-        ctx->clear();
         ctx->setViewport({0u, 0u, 512u, 512u});
         for (u32 f = 0; f < (sizeof(cameraTargets)/sizeof(cameraTargets[0])); ++f)
         {
@@ -235,7 +233,10 @@ namespace Cyan
             Camera camera = { };
             // camera set to probe's location
             camera.position = getSceneNode("SphereMesh")->getWorldTransform().m_translate;
-            camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
+            camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.001f, 100.f); 
+            camera.n = 0.1f;
+            camera.f = 100.f;
+            camera.fov = glm::radians(90.f);
             glm::vec3 cameraTargets[] = {
                 {1.f, 0.f, 0.f},   // Right
                 {-1.f, 0.f, 0.f},  // Left
@@ -253,6 +254,25 @@ namespace Cyan
                 {0.f, -1.f, 0.f},   // Back
             };
             ctx->setViewport({ 0u, 0u, m_cubemapRenderTarget->m_width, m_cubemapRenderTarget->m_height });
+
+            // bundle entities that should be baked
+            std::vector<Entity*> bakeEntities;
+            bakeEntities.resize(m_scene->entities.size());
+            u32 numBakedEntities = 0u;
+            for (u32 i = 0; i < m_scene->entities.size(); ++i)
+            {
+                auto entity = m_scene->entities[i];
+                if (entity->m_bakedInProbes)
+                {
+                    bakeEntities[numBakedEntities++] = entity;
+                }
+            }
+            bakeEntities.resize(numBakedEntities);
+
+            u32 drawBuffers[4] = { 0, 1, -1, 2 };
+            m_cubemapRenderTarget->setDrawBuffers(drawBuffers, sizeof(drawBuffers) / sizeof(drawBuffers[0]));
+
+            auto renderer = Renderer::getSingletonPtr();
             for (u32 f = 0; f < (sizeof(cameraTargets)/sizeof(cameraTargets[0])); ++f)
             {
                 // rebind color attachments
@@ -261,12 +281,26 @@ namespace Cyan
                     m_cubemapRenderTarget->attachTexture(m_normal, 1, f);
                     m_cubemapRenderTarget->attachTexture(m_radialDistance, 2, f);
                 }
-                u32 drawBuffers[4] = { 0, 1, -1, 2 };
-                ctx->setRenderTarget(m_cubemapRenderTarget, drawBuffers, 4u);
+                ctx->setRenderTarget(m_cubemapRenderTarget);
                 ctx->clear();
-                camera.lookAt = cameraTargets[f];
-                camera.view = glm::lookAt(camera.position, camera.position + cameraTargets[f], worldUps[f]);
-                Renderer::getSingletonPtr()->probeRenderScene(m_scene, camera);
+
+                // update camera
+                camera.lookAt = camera.position + cameraTargets[f];
+                camera.worldUp = worldUps[f];
+                CameraManager::updateCamera(camera);
+
+                LightingEnvironment lighting = {
+                    m_scene->pLights,
+                    m_scene->dLights,
+                    m_scene->m_currentProbe,
+                    true
+                };
+                for (u32 i = 0; i < m_scene->dLights.size(); ++i)
+                {
+                    renderer->addDirectionalShadowPass(m_scene, camera, i);
+                }
+                renderer->addEntityPass(m_cubemapRenderTarget, {0, 0, m_cubemapRenderTarget->m_width, m_cubemapRenderTarget->m_height}, bakeEntities, lighting, camera);
+                renderer->render();
             }
         }
         
@@ -288,6 +322,7 @@ namespace Cyan
             ctx->setVertexArray(quad->m_vertexArray);
             ctx->drawIndexAuto(quad->m_vertexArray->numVerts());
         }
+
         // draw debug lines
         {
             // ctx->setRenderTarget(m_octMapRenderTarget, 0u);
@@ -358,32 +393,32 @@ namespace Cyan
         // copy probe textures into the pre-allocated texture array
         // radiance
         {
-            u32 numProbes = m_probes.size();
-            for (u32 i = 0; i < numProbes; ++i)
+            int numProbes = m_probes.size();
+            for (int i = 0; i < numProbes; ++i)
             {
-                u32 layer = i;
+                int layer = i;
                 // radiance
                 {
                     glCopyImageSubData(
                         m_probes[i]->m_radianceOct->m_id, GL_TEXTURE_2D, 0, 0, 0, 0, 
-                        m_octRadianceGrid->m_id, GL_TEXTURE_2D_ARRAY, 0, 0, 0, 
-                        layer, m_octRadianceGrid->m_width, m_octRadianceGrid->m_height, 0);
+                        m_octRadianceGrid->m_id, GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, 
+                        m_octRadianceGrid->m_width, m_octRadianceGrid->m_height, 1);
                 }
 
                 // normal
                 {
                     glCopyImageSubData(
                         m_probes[i]->m_normalOct->m_id, GL_TEXTURE_2D, 0, 0, 0, 0, 
-                        m_octNormalGrid->m_id, GL_TEXTURE_2D_ARRAY, 0, 0, 0, 
-                        layer, m_octNormalGrid->m_width, m_octNormalGrid->m_height, 0);
+                        m_octNormalGrid->m_id, GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, 
+                        m_octNormalGrid->m_width, m_octNormalGrid->m_height, 1);
                 }
 
                 // radial depth
                 {
                     glCopyImageSubData(
                         m_probes[i]->m_distanceOct->m_id, GL_TEXTURE_2D, 0, 0, 0, 0, 
-                        m_octRadialDepthGrid->m_id, GL_TEXTURE_2D_ARRAY, 0, 0, 0, 
-                        layer, m_octRadialDepthGrid->m_width, m_octRadialDepthGrid->m_height, 0);
+                        m_octRadialDepthGrid->m_id, GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, 
+                        m_octRadialDepthGrid->m_width, m_octRadialDepthGrid->m_height, 1);
                 }
             }
         }

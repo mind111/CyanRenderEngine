@@ -113,6 +113,7 @@ namespace Cyan
         Texture* createTextureHDR(const char* _name, const char* _file, TextureSpec& spec);
         Texture* createTexture3D(const char* name, TextureSpec spec);
         Texture* createArrayTexture2D(const char* name, TextureSpec& spec);
+        Texture* createDepthTexture(const char* name, u32 width, u32 height);
 
         static std::vector<Texture*> s_textures;
         static TextureManager* m_singleton;

@@ -10,11 +10,18 @@
 #include "Material.h"
 #include "LightProbe.h"
 
+struct SkyLight
+{
+
+};
+
 // TODO: implement this
 struct LightingEnvironment
 {
-    std::vector<PointLight> pLights;
-    std::vector<DirectionalLight> dLights;
+    std::vector<PointLight>& m_pLights;
+    std::vector<DirectionalLight>& m_dirLights;
+    LightProbe* m_probe;
+    bool bUpdateProbeData;
 };
 
 struct Scene 
@@ -54,8 +61,10 @@ public:
     SceneManager();
     static SceneManager* getSingletonPtr();
     u32 allocEntityId();
+    // TODO: implement this
+    std::vector<Entity*> packEntities() { }
     void updateSceneGraph(Scene* scene);
-    void buildLightList(Scene* scene, std::vector<PointLightData>& pLights, std::vector<DirLightData>& dLights);
+    void buildLightList(Scene* scene, std::vector<PointLightGpuData>& pLights, std::vector<DirLightGpuData>& dLights);
     void setLightProbe(Scene* scene, LightProbe* probe);
     void createDirectionalLight(Scene* scene, glm::vec3 color, glm::vec3 direction, float intensity);
     void createPointLight(Scene* scene, glm::vec3 color, glm::vec3 position, float intensity);

@@ -63,19 +63,27 @@ namespace Cyan
         glNamedFramebufferDrawBuffer(m_frameBuffer, GL_COLOR_ATTACHMENT0 + _bufferIdx);
     }
 
-    void RenderTarget::setDrawBuffers(u32* buffers, u32 numBuffers)
+    void RenderTarget::bindDrawBuffers()
     {
-        GLenum* drawBuffers = (GLenum*)_alloca(sizeof(GLenum) * numBuffers);
-        for (u32 b = 0; b < numBuffers; ++b)
+        GLenum* drawBuffers = (GLenum*)_alloca(sizeof(GLenum) * m_numDrawBuffers);
+        for (u32 i = 0; i < m_numDrawBuffers; ++i)
         {
-            if (buffers[b] == -1)
-                drawBuffers[b] = GL_NONE;
+            if (m_drawBuffers[i] == -1)
+                drawBuffers[i] = GL_NONE;
             else
             {
-                drawBuffers[b] = GL_COLOR_ATTACHMENT0 + buffers[b];
+                drawBuffers[i] = GL_COLOR_ATTACHMENT0 + m_drawBuffers[i];
             }
         }
-        glNamedFramebufferDrawBuffers(m_frameBuffer, numBuffers, drawBuffers);
+        glNamedFramebufferDrawBuffers(m_frameBuffer, m_numDrawBuffers, drawBuffers);
+
+    }
+
+    void RenderTarget::setDrawBuffers(u32* buffers, u32 numBuffers)
+    {
+        memset(m_drawBuffers, 0x0, sizeof(m_drawBuffers));
+        memcpy(m_drawBuffers, buffers, numBuffers * sizeof(i32));
+        m_numDrawBuffers = numBuffers;
     }
 
     bool RenderTarget::validate()

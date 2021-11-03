@@ -161,7 +161,7 @@ namespace Cyan
         BoundingBox3f aabb;
         ::Line frustumLines[12];
         glm::mat4 lightProjection;
-        Texture* shadowMap;
+        Cyan::Texture* shadowMap;
     };
 
     struct CascadedShadowMap
@@ -173,24 +173,33 @@ namespace Cyan
 
     struct DirectionalShadowPass : public RenderPass
     {
-        DirectionalShadowPass(RenderTarget* renderTarget, Viewport viewport, Scene* scene, u32 dirLightIdx);
+        DirectionalShadowPass(RenderTarget* renderTarget, Viewport viewport, Scene* scene, Camera& camera, u32 dirLightIdx);
         static void onInit();
         virtual void render() override;
-        glm::mat4 lightView = glm::lookAt(glm::vec3(0.f), 
-                                          glm::vec3(-m_light.direction.x, -m_light.direction.y, -m_light.direction.z), glm::vec3(0.f, 1.f, 0.f));
         void renderCascade(ShadowCascade& cascade, glm::mat4& lightView);
-        void computeCascadeAABB(ShadowCascade& cascade, const Camera& camera, glm::mat4& view);
+        static void computeCascadeAABB(ShadowCascade& cascade, const Camera& camera, glm::mat4& view);
 
         static void drawDebugLines(Uniform* view, Uniform* projection);
         static Shader* s_directShadowShader;
         static MaterialInstance* s_directShadowMatl;
         static RenderTarget* s_depthRenderTarget;
         static const u32 kNumShadowCascades = 4u;
-        static BoundingBox3f m_frustumAABB[kNumShadowCascades];
         static CascadedShadowMap m_cascadedShadowMap;
+        Camera m_camera;
         DirectionalLight m_light;
         Scene* m_scene;
-    };    
+    };
+
+    struct EntityPass : public RenderPass
+    {
+        EntityPass(RenderTarget* renderTarget, Viewport viewport, std::vector<Entity*>& entities, LightingEnvironment& lighting, Camera& camera);
+        static void onInit();
+        virtual void render() override;
+
+        std::vector<Entity*>& m_entities;
+        Camera m_camera;
+        LightingEnvironment m_lighting;
+    };
 
     struct LinePass : public RenderPass
     {

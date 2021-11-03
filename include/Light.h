@@ -3,6 +3,7 @@
 #include "glm.hpp"
 
 #include "Entity.h"
+#include "Texture.h"
 
 struct Light
 {
@@ -16,16 +17,18 @@ struct Light
     virtual void update() = 0;
 };
 
-struct DirLightData
+struct DirLightGpuData
 {
     glm::vec4 m_color;
     glm::vec4 m_direction;
 };
 
+
 struct DirectionalLight : public Light
 {
     // Light baseLight;
     glm::vec4 direction;
+
     DirectionalLight()
         : Light(0, glm::vec4(1.f)), direction(glm::vec4(0.f))
     {}
@@ -40,13 +43,13 @@ struct DirectionalLight : public Light
         direction = m_entity->getWorldTransform().toMatrix() * direction;
     }
 
-    DirLightData getData()
+    DirLightGpuData getData()
     {
         return {color, direction};
     }
-}; 
+};
 
-struct PointLightData
+struct PointLightGpuData
 {
     glm::vec4 m_color;
     glm::vec4 m_position;
@@ -65,7 +68,7 @@ struct PointLight : public Light
         position = m_entity->getSceneNode("LightMesh")->getWorldTransform().toMatrix()[3];
     }
 
-    PointLightData getData()
+    PointLightGpuData getData()
     {
         return {color, position};
     }
@@ -84,5 +87,5 @@ struct PointLight2 : public Light2
         m_lightData.m_position = glm::vec4(getWorldTransform().m_translate, 1.0f);
     }
 
-    PointLightData m_lightData;
+    PointLightGpuData m_lightData;
 };
