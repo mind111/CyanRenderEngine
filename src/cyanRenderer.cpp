@@ -17,6 +17,8 @@
 #include "Material.h"
 #include "MathUtils.h"
 
+#define DRAW_SSAO_DEBUG_VIS 0
+
 bool fileWasModified(const char* fileName, FILETIME* writeTime)
 {
     FILETIME lastWriteTime;
@@ -53,7 +55,7 @@ namespace Cyan
 
     Renderer::Renderer()
         : m_frameAllocator(1024u * 1024u),  // 1 megabytes
-        m_gpuLightingData{nullptr, nullptr, {}, {}, nullptr, true},
+        m_gpuLightingData{nullptr, nullptr, {}, {}, nullptr, nullptr, true},
         u_model(0),
         u_cameraView(0),
         u_cameraProjection(0),
@@ -68,7 +70,8 @@ namespace Cyan
         m_sceneColorRenderTarget(0),
         m_sceneColorTextureSSAA(0),
         m_sceneColorRTSSAA(0),
-        m_voxelData{0}
+        m_voxelData{0},
+        m_ssaoSamplePoints(32)
     {
         if (!m_renderer)
         {
@@ -81,8 +84,14 @@ namespace Cyan
             CYAN_ASSERT(0, "There should be only one instance of Renderer")
         }
 
+        u_model = createUniform("s_model", Uniform::Type::u_mat4);
+        u_cameraView = createUniform("s_view", Uniform::Type::u_mat4);
+        u_cameraProjection = createUniform("s_projection", Uniform::Type::u_mat4);
+
         m_gpuLightingData.pointLightsBuffer = createRegularBuffer(sizeof(PointLightGpuData) * 20);
         m_gpuLightingData.dirLightsBuffer = createRegularBuffer(sizeof(DirLightGpuData) * 1);
+        m_ssaoSamplePoints.setColor(glm::vec4(0.f, 1.f, 1.f, 1.f));
+        m_ssaoSamplePoints.setViewProjection(u_cameraView, u_cameraProjection);
     }
 
     Renderer* Renderer::getSingletonPtr()
@@ -148,7 +157,6 @@ namespace Cyan
             spec0.m_t = Texture::Wrap::CLAMP_TO_EDGE;
             spec0.m_r = Texture::Wrap::CLAMP_TO_EDGE;
             m_sceneDepthTextureSSAA = textureManager->createTextureHDR("SceneDepthTexSSAA", spec0);
-            // spec0.m_format = Texture::ColorFormat::R32G32B32;
             m_sceneNormalTextureSSAA = textureManager->createTextureHDR("SceneNormalTextureSSAA", spec0);
             m_sceneColorRTSSAA->attachColorBuffer(m_sceneNormalTextureSSAA);
             m_sceneColorRTSSAA->attachColorBuffer(m_sceneDepthTextureSSAA);
@@ -249,7 +257,6 @@ namespace Cyan
 
     void Renderer::init(glm::vec2 windowSize)
     {
-        Cyan::init();
         onRendererInitialized(windowSize);
 
         m_viewport = { static_cast<u32>(0u), 
@@ -257,9 +264,6 @@ namespace Cyan
                        static_cast<u32>(windowSize.x), 
                        static_cast<u32>(windowSize.y) };
 
-        u_model = createUniform("s_model", Uniform::Type::u_mat4);
-        u_cameraView = createUniform("s_view", Uniform::Type::u_mat4);
-        u_cameraProjection = createUniform("s_projection", Uniform::Type::u_mat4);
         // misc
         m_bSuperSampleAA = true;
         m_exposure = 1.f;
@@ -286,37 +290,9 @@ namespace Cyan
         {
             m_sceneDepthNormalShader = createShader("SceneDepthNormalShader", "../../shader/shader_depth_normal.vs", "../../shader/shader_depth_normal.fs");
         }
-        // shadow
-        {
-            auto textureManager = TextureManager::getSingletonPtr();
-            // TODO: depth buffer creation coupled with render target creation
-            m_depthRenderTarget = createDepthRenderTarget(2048, 2048);
-            m_directionalShadowShader = createShader("DirShadowShader", "../../shader/shader_dir_shadow.vs", "../../shader/shader_dir_shadow.fs");
-            m_directionalShadowMatl = createMaterial(m_directionalShadowShader)->createInstance();
-
-            TextureSpec spec = { };
-            spec.m_width = m_depthRenderTarget->m_width;
-            spec.m_height = m_depthRenderTarget->m_height;
-            spec.m_format = Texture::ColorFormat::D24S8; // 32 bits
-            spec.m_type = Texture::Type::TEX_2D;
-            spec.m_dataType = Texture::DataType::UNSIGNED_INT_24_8;
-            spec.m_min = Texture::Filter::LINEAR;
-            spec.m_mag = Texture::Filter::LINEAR;
-            spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
-            spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
-
-            for (u32 i = 0; i < kNumShadowCascades; ++i)
-            {
-                m_cascadedShadowMap.cascades[i].shadowMap = textureManager->createTexture("ShadowMap", spec);
-                glBindTexture(GL_TEXTURE_2D, m_cascadedShadowMap.cascades[i].shadowMap->m_id);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
-                glBindTexture(GL_TEXTURE_2D, 0);
-                m_cascadedShadowMap.cascades[i].aabb.init();
-            }
-        }
         // ssao
         {
+            m_freezeDebugLines = false;
             auto textureManager = TextureManager::getSingletonPtr();
             TextureSpec spec = { };
             spec.m_width = m_windowWidth;
@@ -334,6 +310,36 @@ namespace Cyan
             m_ssaoRenderTarget->attachColorBuffer(m_ssaoTexture);
             m_ssaoShader = createShader("SSAOShader", "../../shader/shader_ao.vs", "../../shader/shader_ao.fs");
             m_ssaoMatl = createMaterial(m_ssaoShader)->createInstance();
+            m_ssaoDebugVisBuffer = createRegularBuffer(sizeof(SSAODebugVisData));
+
+            glm::mat4 model(1.f);
+            m_ssaoDebugVisLines.normal.init();
+            m_ssaoDebugVisLines.normal.setColor(glm::vec4(0.f, 0.f, 1.f, 1.f));
+            m_ssaoDebugVisLines.normal.setModel(model);
+            m_ssaoDebugVisLines.normal.setViewProjection(u_cameraView, u_cameraProjection);
+
+            m_ssaoDebugVisLines.projectedNormal.init();
+            m_ssaoDebugVisLines.projectedNormal.setColor(glm::vec4(1.f, 1.f, 0.f, 1.f));
+            m_ssaoDebugVisLines.projectedNormal.setModel(model);
+            m_ssaoDebugVisLines.projectedNormal.setViewProjection(u_cameraView, u_cameraProjection);
+
+            m_ssaoDebugVisLines.wo.init();
+            m_ssaoDebugVisLines.wo.setColor(glm::vec4(1.f, 0.f, 1.f, 1.f));
+            m_ssaoDebugVisLines.wo.setModel(model);
+            m_ssaoDebugVisLines.wo.setViewProjection(u_cameraView, u_cameraProjection);
+
+            m_ssaoDebugVisLines.sliceDir.init();
+            m_ssaoDebugVisLines.sliceDir.setColor(glm::vec4(1.f, 1.f, 1.f, 1.f));
+            m_ssaoDebugVisLines.sliceDir.setModel(model);
+            m_ssaoDebugVisLines.sliceDir.setViewProjection(u_cameraView, u_cameraProjection);
+
+            for (int i = 0; i < ARRAY_COUNT(m_ssaoDebugVisLines.samples); ++i)
+            {
+                m_ssaoDebugVisLines.samples[i].init();
+                m_ssaoDebugVisLines.samples[i].setColor(glm::vec4(1.f, 0.f, 0.f, 1.f));
+                m_ssaoDebugVisLines.samples[i].setModel(model);
+                m_ssaoDebugVisLines.samples[i].setViewProjection(u_cameraView, u_cameraProjection);
+            }
         }
 
         {
@@ -388,14 +394,34 @@ namespace Cyan
             // TODO: clean up the logic regarding when and where to bind shadow map
             CascadedShadowMap& cascadedShadowMap = DirectionalShadowPass::m_cascadedShadowMap;
             matl->set("lightView", &cascadedShadowMap.lightView[0]);
-            for (u32 s = 0; s < DirectionalShadowPass::kNumShadowCascades; ++s)
+            switch (cascadedShadowMap.m_technique)
             {
-                char samplerName[64];
-                sprintf_s(samplerName, "shadowCascades[%d]", s);
-                matl->bindTexture(samplerName, cascadedShadowMap.cascades[s].shadowMap);
-                char projectionName[64];
-                sprintf_s(projectionName, "lightProjections[%d]", s);
-                matl->set(projectionName, &cascadedShadowMap.cascades[s].lightProjection[0]);
+                case kVariance_Shadow:
+                    for (u32 s = 0; s < DirectionalShadowPass::kNumShadowCascades; ++s)
+                    {
+                        char samplerName0[64];
+                        sprintf_s(samplerName0, "shadowCascades[%d].depthMap", s);
+                        matl->bindTexture(samplerName0, cascadedShadowMap.cascades[s].varianceShadowMap.shadowMap);
+
+                        char projectionName[64];
+                        sprintf_s(projectionName, "shadowCascades[%d].lightProjection", s);
+                        matl->set(projectionName, &cascadedShadowMap.cascades[s].lightProjection[0]);
+                    }
+                    break;
+                case kPCF_Shadow:
+                    for (u32 s = 0; s < DirectionalShadowPass::kNumShadowCascades; ++s)
+                    {
+                        char samplerName0[64];
+                        sprintf_s(samplerName0, "shadowCascades[%d].depthMap", s);
+                        matl->bindTexture(samplerName0, cascadedShadowMap.cascades[s].basicShadowMap.shadowMap);
+
+                        char projectionName[64];
+                        sprintf_s(projectionName, "shadowCascades[%d].lightProjection", s);
+                        matl->set(projectionName, &cascadedShadowMap.cascades[s].lightProjection[0]);
+                    }
+                    break;
+                default:
+                    CYAN_ASSERT(0, "Unknown shadow technique.")
             }
 
             UsedBindingPoints used = matl->bind();
@@ -683,9 +709,37 @@ namespace Cyan
     void Renderer::addDirectionalShadowPass(Scene* scene, Camera& camera, u32 lightIdx)
     {
         void* preallocatedAddr = m_frameAllocator.alloc(sizeof(DirectionalShadowPass));
-        Viewport viewport = { 0, 0, m_offscreenRenderWidth, m_offscreenRenderHeight };
+        Viewport viewport = { 0, 0, DirectionalShadowPass::s_depthRenderTarget->m_width, DirectionalShadowPass::s_depthRenderTarget->m_height };
         DirectionalShadowPass* pass = new (preallocatedAddr) DirectionalShadowPass(0, viewport, scene, camera, lightIdx);
         m_renderState.addRenderPass(pass);
+
+        switch (DirectionalShadowPass::m_cascadedShadowMap.m_technique)
+        {
+            case ShadowTechnique::kVariance_Shadow:
+            {
+                GaussianBlurInputs inputs = { };
+                inputs.kernelIndex = 0;
+                inputs.radius = 3;
+
+                for (u32 i = 0; i < (DirectionalShadowPass::kNumShadowCascades / 2); ++i)
+                {
+                    auto& cascade = DirectionalShadowPass::m_cascadedShadowMap.cascades[i];
+                    // TODO: add gaussian blur pass really soften the shadow, but the shadow becomes almost too light
+                    void* mem = m_frameAllocator.alloc(sizeof(GaussianBlurPass) * 2);
+                    GaussianBlurPass* depthBlurPass = 
+                        new (mem) GaussianBlurPass(DirectionalShadowPass::s_depthRenderTarget,
+                            viewport,
+                            cascade.varianceShadowMap.shadowMap,
+                            DirectionalShadowPass::m_horizontalBlurTex,
+                            cascade.varianceShadowMap.shadowMap,
+                            inputs);
+                    m_renderState.addRenderPass(depthBlurPass);
+                }
+
+            } break;
+            case ShadowTechnique::kPCF_Shadow:
+                break;
+        }
     }
 
     void Renderer::addPostProcessPasses()
@@ -792,6 +846,10 @@ namespace Cyan
                     meshInstance->m_matls[sm]->bindTexture("irradianceDiffuse", m_gpuLightingData.probe->m_diffuse);
                     meshInstance->m_matls[sm]->bindTexture("irradianceSpecular", m_gpuLightingData.probe->m_specular);
                     meshInstance->m_matls[sm]->bindTexture("brdfIntegral", m_gpuLightingData.probe->m_brdfIntegral);
+
+                    // GI probes
+                    if (m_gpuLightingData.irradianceProbe)
+                        meshInstance->m_matls[sm]->bindTexture("gLighting.irradianceProbe", m_gpuLightingData.irradianceProbe->m_irradianceMap);
                 }
             }
 
@@ -870,7 +928,7 @@ namespace Cyan
                 if (node->m_meshInstance)
                 {
                     continue;
-                    u32 drawBuffers[2] = { 1u, 2u };
+                    i32 drawBuffers[2] = { 1u, 2u };
                     ctx->setRenderTarget(renderTarget, drawBuffers, 2u);
                     ctx->setShader(m_sceneDepthNormalShader);
                 }
@@ -888,87 +946,6 @@ namespace Cyan
         for (auto entity : entities)
         {
             drawEntity(entity);
-        }
-    }
-
-    void Renderer::renderCascade(Scene* scene, ShadowCascade& cascade, glm::mat4& lightView)
-    {
-        // Had to switch to cull front face when using hardware PCF
-        glCullFace(GL_FRONT);
-        auto aabb = cascade.aabb;
-        glm::mat4 lightProjection = glm::orthoLH(aabb.m_pMin.x, aabb.m_pMax.x, aabb.m_pMin.y, aabb.m_pMax.y, aabb.m_pMax.z, aabb.m_pMin.z);
-        cascade.lightProjection = lightProjection;
-        aabb.setModel(glm::inverse(lightView));
-
-        auto ctx = getCurrentGfxCtx();
-        m_depthRenderTarget->setDepthBuffer(cascade.shadowMap);
-        ctx->setRenderTarget(m_depthRenderTarget, 0u);
-        glClear(GL_DEPTH_BUFFER_BIT);
-        ctx->setShader(m_directionalShadowShader);
-        m_directionalShadowMatl->set("lightView", &lightView[0]);
-        m_directionalShadowMatl->set("lightProjection", &lightProjection[0]);
-        ctx->setViewport({0u, 0u, m_depthRenderTarget->m_width, m_depthRenderTarget->m_height});
-        for (auto entity : scene->entities)
-        {
-            std::queue<SceneNode*> nodes;
-            nodes.push(entity->m_sceneRoot);
-            while(!nodes.empty())
-            {
-                SceneNode* node = nodes.front(); 
-                nodes.pop();
-                for (auto child : node->m_child)
-                {
-                    nodes.push(child);
-                }
-                if (MeshInstance* meshInstance = node->m_meshInstance)
-                {
-                    // TODO: clean this up
-                    if (node->m_hasAABB)
-                    {
-                        glm::mat4 model = node->getWorldTransform().toMatrix();
-                        m_directionalShadowMatl->set("model", &model[0][0]);
-                        m_directionalShadowMatl->bind();
-
-                        u32 smIndex = 0u;
-                        for (auto sm : meshInstance->m_mesh->m_subMeshes)
-                        {
-                            ctx->setVertexArray(sm->m_vertexArray);
-                            if (sm->m_vertexArray->m_ibo != static_cast<u32>(-1))
-                            {
-                                ctx->drawIndex(sm->m_vertexArray->m_numIndices);
-                            }
-                            else
-                            {
-                                ctx->drawIndexAuto(sm->m_vertexArray->numVerts());
-                            }
-                            smIndex++;
-                        }
-                    }
-                }
-            }
-        }
-        glCullFace(GL_BACK);
-    }
-
-    void Renderer::renderDirectionalShadow(Scene* scene, Camera& camera)
-    {
-        for (auto& light : scene->dLights)
-        {
-            f32 t[4] = { 0.1f, 0.3f, 0.6f, 1.f };
-            m_cascadedShadowMap.cascades[0].n = camera.n;
-            m_cascadedShadowMap.cascades[0].f = (1.0f - t[0]) * camera.n + t[0] * camera.f;
-
-            for (u32 i = 1u; i < DirectionalShadowPass::kNumShadowCascades; ++i)
-            {
-                m_cascadedShadowMap.cascades[i].n = m_cascadedShadowMap.cascades[i-1].f;
-                m_cascadedShadowMap.cascades[i].f = (1.f - t[i]) * camera.n + t[i] * camera.f;
-            }
-            m_cascadedShadowMap.lightView = glm::lookAt(glm::vec3(0.f), glm::vec3(light.direction.x, light.direction.y, light.direction.z), glm::vec3(0.f, 1.f, 0.f));
-            for (u32 i = 0u; i < DirectionalShadowPass::kNumShadowCascades; ++i)
-            {
-                DirectionalShadowPass::computeCascadeAABB(m_cascadedShadowMap.cascades[i], camera, m_cascadedShadowMap.lightView);
-                renderCascade(scene, m_cascadedShadowMap.cascades[i], m_cascadedShadowMap.lightView);
-            }
         }
     }
 
@@ -992,6 +969,7 @@ namespace Cyan
         setBuffer(m_gpuLightingData.dirLightsBuffer, m_gpuLightingData.dLights.data(), sizeofVector(m_gpuLightingData.dLights));
 
         m_gpuLightingData.probe = lighting.m_probe;
+        m_gpuLightingData.irradianceProbe = lighting.m_irradianceProbe;
     }
 
     void Renderer::probeRenderScene(Scene* scene, Camera& camera)
@@ -1017,6 +995,7 @@ namespace Cyan
         }
     }
 
+    // TODO: render scene depth & normal to compute ao results first
     void Renderer::renderScene(Scene* scene, Camera& camera)
     {
         // camera
@@ -1032,6 +1011,7 @@ namespace Cyan
             scene->pLights,
             scene->dLights,
             scene->m_currentProbe,
+            scene->m_irradianceProbe,
             false
         };
         uploadGpuLightingData(lighting);
@@ -1043,23 +1023,97 @@ namespace Cyan
         }
 
         // test ssao pass
-        // {
-        //     auto ctx = getCurrentGfxCtx();
-        //     ctx->setShader(m_ssaoShader);
-        //     ctx->setRenderTarget(m_ssaoRenderTarget, 0u);
-        //     ctx->setViewport({0, 0, m_ssaoRenderTarget->m_width, m_ssaoRenderTarget->m_height});
-        //     ctx->clear();
-        //     ctx->setDepthControl(kDisable);
-        //     m_ssaoMatl->bindTexture("normalTexture", m_sceneNormalTextureSSAA);
-        //     m_ssaoMatl->bindTexture("depthTexture", m_sceneDepthTextureSSAA);
-        //     m_ssaoMatl->set("cameraPos", &camera.position.x);
-        //     m_ssaoMatl->set("view", &camera.view[0]);
-        //     m_ssaoMatl->set("projection", &camera.projection[0]);
-        //     m_ssaoMatl->bind();
-        //     auto quad = getQuadMesh();
-        //     ctx->setVertexArray(quad->m_vertexArray);
-        //     ctx->drawIndexAuto(quad->m_vertexArray->numVerts());
-        //     ctx->setDepthControl(DepthControl::kEnable);
-        // }
+        {
+            auto ctx = getCurrentGfxCtx();
+            ctx->setShader(m_ssaoShader);
+            ctx->setRenderTarget(m_ssaoRenderTarget, 0u);
+            ctx->setViewport({0, 0, m_ssaoRenderTarget->m_width, m_ssaoRenderTarget->m_height});
+            ctx->clear();
+            ctx->setDepthControl(kDisable);
+            m_ssaoMatl->bindTexture("normalTexture", m_sceneNormalTextureSSAA);
+            m_ssaoMatl->bindTexture("depthTexture", m_sceneDepthTextureSSAA);
+            m_ssaoMatl->set("cameraPos", &camera.position.x);
+            m_ssaoMatl->set("view", &camera.view[0]);
+            m_ssaoMatl->set("projection", &camera.projection[0]);
+            m_ssaoMatl->bindBuffer("DebugVisData", m_ssaoDebugVisBuffer);
+            m_ssaoMatl->bind();
+            auto quad = getQuadMesh();
+            ctx->setVertexArray(quad->m_vertexArray);
+            ctx->drawIndexAuto(quad->m_vertexArray->numVerts());
+            ctx->setDepthControl(DepthControl::kEnable);
+
+#if DRAW_SSAO_DEBUG_VIS
+            // render ssao debug vis
+            {
+                // read out data from buffer
+                glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+                SSAODebugVisData* debugVisDataPtr = reinterpret_cast<SSAODebugVisData*>(glMapNamedBuffer(m_ssaoDebugVisBuffer->m_ssbo, GL_READ_WRITE));
+                memcpy(&m_ssaoDebugVisData, debugVisDataPtr, sizeof(SSAODebugVisData));
+                glUnmapNamedBuffer(m_ssaoDebugVisBuffer->m_ssbo);
+
+                // draw debug sample points
+                int numDebugPoints = m_ssaoDebugVisData.numSamplePoints;
+                if (!m_freezeDebugLines)
+                {
+                    m_ssaoSamplePoints.reset();
+                    for (int i = 0; i < numDebugPoints; ++i)
+                    {
+                        m_ssaoSamplePoints.push(vec4ToVec3(m_ssaoDebugVisData.intermSamplePoints[i]));
+                    }
+                }
+                m_ssaoSamplePoints.draw();
+
+                // draw debug lines
+                {
+                    glm::vec3 v0, v1;
+                    v0 = vec4ToVec3(m_ssaoDebugVisData.samplePointWS);
+                    v1 = v0 + vec4ToVec3(m_ssaoDebugVisData.normal);
+                    if (!m_freezeDebugLines)
+                        m_ssaoDebugVisLines.normal.setVerts(v0, v1);
+                    m_ssaoDebugVisLines.normal.draw();
+                }
+
+                {
+                    glm::vec3 v0, v1;
+                    v0 = vec4ToVec3(m_ssaoDebugVisData.samplePointWS);
+                    v1 = v0 + vec4ToVec3(m_ssaoDebugVisData.projectedNormal);
+                    if (!m_freezeDebugLines)
+                        m_ssaoDebugVisLines.projectedNormal.setVerts(v0, v1);
+                    m_ssaoDebugVisLines.projectedNormal.draw();
+                }
+
+                {
+                    glm::vec3 v0, v1;
+                    v0 = vec4ToVec3(m_ssaoDebugVisData.samplePointWS);
+                    v1 = v0 + vec4ToVec3(m_ssaoDebugVisData.wo);
+                    if (!m_freezeDebugLines)
+                        m_ssaoDebugVisLines.wo.setVerts(v0, v1);
+                    m_ssaoDebugVisLines.wo.draw();
+                }
+                
+                {
+                    glm::vec3 v0, v1;
+                    v0 = vec4ToVec3(m_ssaoDebugVisData.samplePointWS);
+                    v1 = v0 + vec4ToVec3(m_ssaoDebugVisData.sliceDir);
+                    if (!m_freezeDebugLines)
+                        m_ssaoDebugVisLines.sliceDir.setVerts(v0, v1);
+                    m_ssaoDebugVisLines.sliceDir.draw();
+                }
+
+                int numDebugLines = m_ssaoDebugVisData.numSampleLines;
+                for (int i = 0; i < numDebugLines; ++i)
+                {
+                    glm::vec3 v0, v1;
+                    v0 = vec4ToVec3(m_ssaoDebugVisData.samplePointWS);
+                    v1 = vec4ToVec3(m_ssaoDebugVisData.sampleVec[i]);
+                    if (!m_freezeDebugLines)
+                    {
+                        m_ssaoDebugVisLines.samples[i].setVerts(v0, v1);
+                    }
+                    m_ssaoDebugVisLines.samples[i].draw();
+                }
+            }
+#endif
+        }
     }
 }

@@ -10,6 +10,9 @@
 #include "CyanUI.h"
 #include "GfxContext.h"
 
+#define DEBUG_PROBE_TRACING 0
+#define DEBUG_SSAO          1
+
 struct EnvMapDebugger
 {
     static const u32 kNumMips = 5u;
@@ -243,10 +246,16 @@ namespace Pbr
     void mouseScrollWheelCallback(double xOffset, double yOffset);
 };
 
-// TODO:: impl this
-class GameState
+struct CyanFactoryScene : public Scene
 {
+    virtual void customInit();
+    virtual void save();
+};
 
+struct CyanFactoryScene : public Scene
+{
+    virtual void customInit();
+    virtual void save();
 };
 
 // TODO: Can also let CyanApp define a basic beginFrame(), endFrame() where it calls customBeginFrame(), and customEndFrame(),
@@ -265,6 +274,9 @@ public:
     virtual void endFrame() override;
     virtual void run() override;
     virtual void shutDown() override;
+
+    void doProcomputeWork();
+
     // tick
     void update();
     // camera control
@@ -287,8 +299,12 @@ public:
     void uiDrawEntityGraph(Entity* entity) ;
     RayCastInfo castMouseRay(const glm::vec2& currentViewportPos, const glm::vec2& currentViewportSize);
     // init
+    void initScenes();
     void initUniforms();
     void initShaders();
+
+    // manual scene initialization
+    void initFactoryScene();
     void initHelmetScene();
     void initEnvMaps();
 
@@ -306,6 +322,8 @@ public:
     int m_debugProbeIndex;
     glm::vec3 m_debugRayTracingNormal;
 
+    Scene* m_factoryScene;
+    Scene* m_helmetScene;
     std::vector<Scene*> m_scenes;
     RegularBuffer* m_debugRayOctBuffer;
     RegularBuffer* m_debugRayWorldBuffer;
@@ -385,6 +403,7 @@ private:
     f32   m_roughness;
     glm::vec3 m_debugRo;
     glm::vec3 m_debugRd;
+    bool m_debugDrawSSAO;
 
     // debug parameters
     Line m_debugRay;

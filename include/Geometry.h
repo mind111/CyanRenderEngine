@@ -7,8 +7,32 @@
 #include "Shader.h"
 #include "Material.h"
 
-// TODO: line segment rendered using a cylinder mesh
+struct Point
+{
+    glm::vec3 m_position;
+};
 
+struct PointGroup
+{
+    PointGroup(u32 size);
+    void push(glm::vec3& position);
+    void draw();
+    void reset();
+    void clear();
+    void setViewProjection(Uniform* view, Uniform* projection);
+    void setColor(glm::vec4& color);
+
+    std::vector<Point> m_points;
+    Uniform* u_view;
+    Uniform* u_projection;
+    u32 kMaxNumPoints;
+    u32 m_numPoints;
+    Shader* m_shader;
+    Cyan::MaterialInstance* m_matl;
+    VertexArray* m_vertexArray;
+};
+
+// TODO: line segment rendered using a cylinder mesh
 struct Line
 {
     void init();

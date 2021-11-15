@@ -17,7 +17,7 @@ namespace Cyan
         void setDepthBuffer(Texture* texture);
         void setDrawBuffer(u32 bufferIdx);
         void bindDrawBuffers();
-        void setDrawBuffers(u32* buffers, u32 numBuffers);
+        void setDrawBuffers(i32* buffers, u32 numBuffers);
         Texture* getColorBuffer(u32 index);
         bool validate();
 

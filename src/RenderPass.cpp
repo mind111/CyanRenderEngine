@@ -21,12 +21,19 @@ namespace Cyan
     MaterialInstance* BloomPass::s_gaussianBlurMatl = 0;
     BloomPass::BloomSurface BloomPass::s_bloomDsSurfaces[BloomPass::kNumBloomDsPass] = {0};          // downsample
     BloomPass::BloomSurface BloomPass::s_bloomUsSurfaces[BloomPass::kNumBloomDsPass] = {0};          // upsample
+    // textured quad
     Shader* TexturedQuadPass::m_shader = 0;
     MaterialInstance* TexturedQuadPass::m_matl = 0;
+    // directional shadow
     RenderTarget* DirectionalShadowPass::s_depthRenderTarget = 0;
     Shader* DirectionalShadowPass::s_directShadowShader = 0;
     MaterialInstance* DirectionalShadowPass::s_directShadowMatl = 0;
     CascadedShadowMap DirectionalShadowPass::m_cascadedShadowMap = { };
+    Texture* DirectionalShadowPass::m_horizontalBlurTex = nullptr;
+    Texture* DirectionalShadowPass::m_verticalBlurTex = nullptr;
+    // gaussian blur
+    Shader* GaussianBlurPass::m_gaussianBlurShader = nullptr;
+    MaterialInstance* GaussianBlurPass::m_gaussianBlurMatl = nullptr;
 
     QuadMesh* getQuadMesh()
     {
@@ -45,6 +52,7 @@ namespace Cyan
         PostProcessResolvePass::onInit();
         TexturedQuadPass::onInit();
         DirectionalShadowPass::onInit();
+        GaussianBlurPass::onInit();
     }
 
     ScenePass::ScenePass(RenderTarget* renderTarget, Viewport viewport, Scene* scene)
@@ -68,9 +76,8 @@ namespace Cyan
     {
         auto renderer = Renderer::getSingletonPtr();
         auto ctx = getCurrentGfxCtx();
-        // ctx->setRenderTarget(m_renderTarget, 0u);
         u32 numBuffers = static_cast<u32>(m_renderTarget->m_colorBuffers.size());
-        std::vector<u32> drawBuffers;
+        std::vector<i32> drawBuffers;
         for (u32 b = 0u; b < numBuffers; ++b)
         {
             drawBuffers.push_back(b);
@@ -78,6 +85,63 @@ namespace Cyan
         ctx->setRenderTarget(m_renderTarget, drawBuffers.data(), numBuffers);
         ctx->setViewport(m_viewport);
         renderer->renderScene(m_scene, m_scene->getActiveCamera());
+    }
+
+    GaussianBlurPass::GaussianBlurPass(RenderTarget* renderTarget, Viewport viewport, Texture* srcTex, Texture* horizontal, Texture* vertical, GaussianBlurInputs params)
+        : RenderPass(renderTarget, viewport), 
+        m_srcTexture(srcTex), 
+        m_horiztontalTex(horizontal), 
+        m_verticalTex(vertical),
+        m_params(params)
+    {
+
+    }
+
+    void GaussianBlurPass::onInit()
+    {
+        if (!m_gaussianBlurShader)
+        {
+            m_gaussianBlurShader = createShader("GaussianBlurShader", "../../shader/shader_gaussian_blur.vs", "../../shader/shader_gaussian_blur.fs");
+            m_gaussianBlurMatl = createMaterial(m_gaussianBlurShader)->createInstance();
+        }
+    }
+
+    void GaussianBlurPass::render()
+    {
+        auto ctx = getCurrentGfxCtx();
+        m_renderTarget->attachTexture(m_verticalTex, 0);
+        m_renderTarget->attachTexture(m_horiztontalTex, 1);
+        ctx->setDepthControl(DepthControl::kDisable);
+        ctx->setVertexArray(s_quadMesh.m_vertexArray);
+        m_gaussianBlurMatl->set("kernelIndex", m_params.kernelIndex);
+        m_gaussianBlurMatl->set("radius", m_params.radius);
+
+        // horizontal pass
+        {
+            ctx->setRenderTarget(m_renderTarget, 1);
+            ctx->setShader(m_gaussianBlurShader);
+            m_gaussianBlurMatl->bindTexture("srcImage", m_srcTexture);
+            m_gaussianBlurMatl->set("horizontal", 1.0f);
+            m_gaussianBlurMatl->bind();
+            ctx->drawIndexAuto(s_quadMesh.m_vertexArray->numVerts());
+        }
+        // vertical pass
+        {
+            ctx->setRenderTarget(m_renderTarget, 0);
+            ctx->setShader(m_gaussianBlurShader);
+            ctx->setVertexArray(s_quadMesh.m_vertexArray);
+            m_gaussianBlurMatl->bindTexture("srcImage", m_horiztontalTex);
+            m_gaussianBlurMatl->set("horizontal", 0.0f);
+            m_gaussianBlurMatl->bind();
+            ctx->drawIndexAuto(s_quadMesh.m_vertexArray->numVerts());
+        }
+        ctx->setDepthControl(DepthControl::kEnable);
+    }
+
+    Texture* GaussianBlurPass::getBlurOutput()
+    {
+        // final blur output is written to the texture for vertical pass
+        return m_verticalTex;
     }
 
     BloomPass::BloomPass(RenderTarget* rt, Viewport vp, BloomPassInputs inputs) 
@@ -330,21 +394,49 @@ namespace Cyan
 
     void DirectionalShadowPass::onInit()
     {
+        m_cascadedShadowMap.m_technique = ShadowTechnique::kPCF_Shadow;
+
         auto textureManager = TextureManager::getSingletonPtr();
         // TODO: depth buffer creation coupled with render target creation
-        s_depthRenderTarget = createDepthRenderTarget(2048, 2048);
+        s_depthRenderTarget = createDepthRenderTarget(4096, 4096);
         s_directShadowShader = createShader("DirShadowShader", "../../shader/shader_dir_shadow.vs", "../../shader/shader_dir_shadow.fs");
         s_directShadowMatl = createMaterial(s_directShadowShader)->createInstance();
-        TextureSpec spec = { };
-        spec.m_width = s_depthRenderTarget->m_width;
-        spec.m_height = s_depthRenderTarget->m_height;
-        spec.m_format = Texture::ColorFormat::D24S8; // 32 bits
-        spec.m_type = Texture::Type::TEX_2D;
-        spec.m_dataType = Texture::DataType::UNSIGNED_INT_24_8;
-        spec.m_min = Texture::Filter::LINEAR;
-        spec.m_mag = Texture::Filter::LINEAR;
-        spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
-        spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+
+        TextureSpec depthSpec = { };
+        depthSpec.m_width = s_depthRenderTarget->m_width;
+        depthSpec.m_height = s_depthRenderTarget->m_height;
+        depthSpec.m_format = Texture::ColorFormat::D24S8; // 32 bits
+        depthSpec.m_type = Texture::Type::TEX_2D;
+        depthSpec.m_min = Texture::Filter::NEAREST;
+        depthSpec.m_mag = Texture::Filter::NEAREST;
+        depthSpec.m_dataType = Texture::DataType::UNSIGNED_INT_24_8;
+        depthSpec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
+        depthSpec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+
+        TextureSpec vsmSpec = { };
+        vsmSpec.m_width = s_depthRenderTarget->m_width;
+        vsmSpec.m_height = s_depthRenderTarget->m_height;
+        vsmSpec.m_format = Texture::ColorFormat::R32G32F;
+        vsmSpec.m_type = Texture::Type::TEX_2D;
+        vsmSpec.m_dataType = Texture::DataType::Float;
+        vsmSpec.m_min = Texture::Filter::LINEAR;
+        vsmSpec.m_mag = Texture::Filter::LINEAR;
+        vsmSpec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
+        vsmSpec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+
+        TextureSpec blurSpec = { };
+        blurSpec.m_width = s_depthRenderTarget->m_width;
+        blurSpec.m_height = s_depthRenderTarget->m_height;
+        blurSpec.m_format = Texture::ColorFormat::R32G32F;
+        blurSpec.m_type = Texture::Type::TEX_2D;
+        blurSpec.m_dataType = Texture::DataType::Float;
+        blurSpec.m_min = Texture::Filter::LINEAR;
+        blurSpec.m_mag = Texture::Filter::LINEAR;
+        blurSpec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
+        blurSpec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+
+        m_horizontalBlurTex = textureManager->createTexture("GaussianBlurHori", blurSpec);
+        m_verticalBlurTex = textureManager->createTexture("GaussianBlurVert", blurSpec);
 
         for (u32 s = 0u; s < kNumShadowCascades; ++s)
         {
@@ -358,11 +450,8 @@ namespace Cyan
             {
                 line.init();
                 line.setColor(frustumColor);
-                cascade.shadowMap = textureManager->createTexture("ShadowMap", spec);
-                glBindTexture(GL_TEXTURE_2D, cascade.shadowMap->m_id);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
-                glBindTexture(GL_TEXTURE_2D, 0);
+                cascade.basicShadowMap.shadowMap = textureManager->createTexture("ShadowMap", depthSpec);
+                cascade.varianceShadowMap.shadowMap = textureManager->createTexture("VSM", vsmSpec);
             }
             cascade.aabb.init();
         };
@@ -473,21 +562,32 @@ namespace Cyan
         aabb.computeVerts();
     }
 
-    // TODO: view frustum culling to only pass visible object within each frusta to render shadow
     void DirectionalShadowPass::renderCascade(ShadowCascade& cascade, glm::mat4& lightView)
     {
-        // Had to switch to cull front face when using hardware PCF
-        glCullFace(GL_FRONT);
-
         auto aabb = cascade.aabb;
         glm::mat4 lightProjection = glm::orthoLH(aabb.m_pMin.x, aabb.m_pMax.x, aabb.m_pMin.y, aabb.m_pMax.y, aabb.m_pMax.z, aabb.m_pMin.z);
         cascade.lightProjection = lightProjection;
         aabb.setModel(glm::inverse(lightView));
 
         auto ctx = getCurrentGfxCtx();
-        s_depthRenderTarget->setDepthBuffer(cascade.shadowMap);
+
+        s_depthRenderTarget->setDepthBuffer(cascade.basicShadowMap.shadowMap);
+        switch (m_cascadedShadowMap.m_technique)
+        {
+            case ShadowTechnique::kVariance_Shadow:
+                s_depthRenderTarget->attachTexture(cascade.varianceShadowMap.shadowMap, 0);
+                break;
+            case ShadowTechnique::kPCF_Shadow:
+                // s_depthRenderTarget->attachTexture(cascade.basicShadowMap.shadowMap, 0);
+                break;
+        };
         ctx->setRenderTarget(s_depthRenderTarget, 0u);
-        glClear(GL_DEPTH_BUFFER_BIT);
+
+        // need to clear color depth to 1.0f
+        ctx->setClearColor(glm::vec4(1.f));
+        glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+        ctx->setClearColor(glm::vec4(0.f));
+
         ctx->setShader(s_directShadowShader);
         s_directShadowMatl->set("lightView", &lightView[0]);
         s_directShadowMatl->set("lightProjection", &lightProjection[0]);
@@ -531,8 +631,6 @@ namespace Cyan
                 }
             }
         }
-
-        glCullFace(GL_BACK);
     }
 
     void DirectionalShadowPass::drawDebugLines(Uniform* view, Uniform* projection)
@@ -569,6 +667,9 @@ namespace Cyan
         {
             computeCascadeAABB(m_cascadedShadowMap.cascades[i], camera, m_cascadedShadowMap.lightView);
             renderCascade(m_cascadedShadowMap.cascades[i], m_cascadedShadowMap.lightView);
+            // TODO: down sample two times to 1/4 resolution before filtering
+
+            // filter the cascade using gaussian blur
         }
     }
 

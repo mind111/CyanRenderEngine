@@ -21,6 +21,7 @@ struct LightingEnvironment
     std::vector<PointLight>& m_pLights;
     std::vector<DirectionalLight>& m_dirLights;
     LightProbe* m_probe;
+    Cyan::IrradianceProbe* m_irradianceProbe;
     bool bUpdateProbeData;
 };
 
@@ -42,6 +43,7 @@ struct Scene
     std::vector<DirectionalLight> dLights;
     RegularBuffer* m_pointLightsBuffer;
     RegularBuffer* m_dirLightsBuffer;
+    Cyan::IrradianceProbe* m_irradianceProbe;
     LightProbe*    m_currentProbe;
     LightProbe*    m_lastProbe;
 
@@ -54,6 +56,9 @@ struct Scene
     {
         return cameras[index];
     }
+
+    virtual void customInit() { }
+    virtual void save() { }
 };
 
 class SceneManager {

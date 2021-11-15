@@ -15,6 +15,7 @@ out vec3 t;
 out vec2 uv;
 out vec4 shadowPos;
 out vec3 fragmentPos;
+out vec3 fragmentPosWS;
 
 uniform mat4 s_model;
 uniform mat4 s_view;
@@ -22,6 +23,7 @@ uniform mat4 s_projection;
 
 void main() {
     fragmentPos = (s_view * s_model * vec4(vertexPos, 1.f)).xyz; 
+    fragmentPosWS = (s_model * vec4(vertexPos, 1.f)).xyz;
     gl_Position = s_projection * s_view * s_model * vec4(vertexPos, 1.0f);
     mat4 normalTransformWorld = transpose(inverse(s_model));
     wn = (normalTransformWorld * vec4(vertexNormal, 0.f)).xyz;

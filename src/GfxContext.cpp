@@ -152,6 +152,9 @@ namespace Cyan
             case PrimitiveType::Line:
                 m_primitiveType = GL_LINES;
                 break;
+            case PrimitiveType::Points:
+                m_primitiveType = GL_POINTS;
+                break;
             default:
                 break;
         }
@@ -174,7 +177,7 @@ namespace Cyan
         rt->setDrawBuffer(drawBufferIdx);
     }
 
-    void GfxContext::setRenderTarget(RenderTarget* rt, u32* drawBuffers, u32 numBuffers)
+    void GfxContext::setRenderTarget(RenderTarget* rt, i32* drawBuffers, u32 numBuffers)
     {
         if (!rt)
             CYAN_ASSERT(0, "RenderTarget is null!");

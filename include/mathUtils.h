@@ -18,4 +18,5 @@ public:
 namespace Cyan
 {
     f32 fabs(f32 value);
+    glm::vec3 vec4ToVec3(const glm::vec4& v4);
 }

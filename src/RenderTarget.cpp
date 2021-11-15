@@ -79,7 +79,7 @@ namespace Cyan
 
     }
 
-    void RenderTarget::setDrawBuffers(u32* buffers, u32 numBuffers)
+    void RenderTarget::setDrawBuffers(i32* buffers, u32 numBuffers)
     {
         memset(m_drawBuffers, 0x0, sizeof(m_drawBuffers));
         memcpy(m_drawBuffers, buffers, numBuffers * sizeof(i32));

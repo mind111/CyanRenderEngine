@@ -34,7 +34,10 @@ namespace Cyan
         
         enum ColorFormat
         {
-            R32F = 0,
+            R16F = 0,
+            R32F,
+            R32G32F,
+            Lum32F,
             R8G8B8,
             R16G16B16,
             R8G8B8A8,

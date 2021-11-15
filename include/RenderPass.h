@@ -11,6 +11,7 @@ namespace Cyan
     QuadMesh* getQuadMesh();
     void onRendererInitialized(glm::vec2 renderSize);
 
+    // TODO: make RenderPass persistent, instead of scratching and recreating again every frame
     struct RenderPass
     {
         RenderTarget* m_renderTarget;
@@ -43,11 +44,10 @@ namespace Cyan
         Texture* bloomOutputTexture;
     };
 
-    // TODO: refactor this
-    struct GaussianBlurPass : public RenderPass
+    struct GaussianBlurInputs
     {
-        static void onInit();
-        virtual void render() override;
+        i32 kernelIndex;
+        i32 radius;
     };
 
     struct BloomPass : public RenderPass
@@ -63,12 +63,6 @@ namespace Cyan
         {
             RenderTarget* m_renderTarget;
             Texture* m_pingPongColorBuffers[2];
-        };
-
-        struct GaussianBlurInputs
-        {
-            i32 kernelIndex;
-            i32 radius;
         };
 
         void downSample(RenderTarget* src, u32 srcIdx, RenderTarget* dst, u32 dstIdx);
@@ -154,6 +148,34 @@ namespace Cyan
         Texture* m_sceneNormalTexture;
     };
 
+    struct GaussianBlurPass : public RenderPass
+    {
+        GaussianBlurPass(RenderTarget* renderTarget, Viewport viewport, Texture* srcTex, Texture* horizontal, Texture* vertical, GaussianBlurInputs params);
+        static void onInit();
+        virtual void render() override;
+        Texture* getBlurOutput();
+
+        static Shader* m_gaussianBlurShader;
+        static MaterialInstance* m_gaussianBlurMatl;
+        RenderTarget* m_blurRenderTarget;
+        i32 m_drawBuffers[8];
+        u32 m_numDrawBuffers;
+        Texture* m_srcTexture;
+        Texture* m_horiztontalTex;
+        Texture* m_verticalTex;
+        GaussianBlurInputs m_params;
+    };
+
+    struct BasicShadowMap
+    {
+        Cyan::Texture* shadowMap;
+    };
+
+    struct VarianceShadowMap
+    {
+        Cyan::Texture* shadowMap;
+    };
+
     struct ShadowCascade
     {
         f32 n;
@@ -161,7 +183,14 @@ namespace Cyan
         BoundingBox3f aabb;
         ::Line frustumLines[12];
         glm::mat4 lightProjection;
-        Cyan::Texture* shadowMap;
+        BasicShadowMap basicShadowMap;
+        VarianceShadowMap varianceShadowMap;
+    };
+
+    enum ShadowTechnique
+    {
+        kPCF_Shadow = 0,   
+        kVariance_Shadow
     };
 
     struct CascadedShadowMap
@@ -169,8 +198,13 @@ namespace Cyan
         // Fixed four cascades for now
         ShadowCascade cascades[4];
         glm::mat4 lightView;
+        ShadowTechnique m_technique;
     };
 
+    // TODO: min/max depth for each cascade to help shrink the orthographic projection size
+    // TODO: blend between cascades to alleviate artifact when transitioning between cascades
+    // TODO: better shadow biasing; normal bias and receiver geometry bias
+    // TODO: distribution based shadow mapping methods: VSM, ESM etc.
     struct DirectionalShadowPass : public RenderPass
     {
         DirectionalShadowPass(RenderTarget* renderTarget, Viewport viewport, Scene* scene, Camera& camera, u32 dirLightIdx);
@@ -185,6 +219,8 @@ namespace Cyan
         static RenderTarget* s_depthRenderTarget;
         static const u32 kNumShadowCascades = 4u;
         static CascadedShadowMap m_cascadedShadowMap;
+        static Texture* m_horizontalBlurTex;
+        static Texture* m_verticalBlurTex;
         Camera m_camera;
         DirectionalLight m_light;
         Scene* m_scene;

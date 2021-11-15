@@ -11,6 +11,12 @@
 
 #define kSceneNodeNameMaxLen 64u
 
+enum SceneNodeProperty
+{
+    AABB = 0,
+    CastShadow,
+};
+
 struct SceneNode
 {
     // identifier

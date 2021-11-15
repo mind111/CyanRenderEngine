@@ -5,12 +5,14 @@ in vec3 wn;
 in vec3 t;
 in vec2 uv;
 in vec3 fragmentPos;
+in vec3 fragmentPosWS;
 in vec4 shadowPos;
 
 layout (location = 0) out vec4 fragColor;
 layout (location = 1) out vec3 fragmentNormal; 
 layout (location = 2) out vec3 fragmentDepth; 
 layout (location = 3) out vec3 radialDistance;
+layout (location = 4) out float shadowMask;
 
 // out vec4 fragColor;
 
@@ -37,6 +39,7 @@ uniform float uniformRoughness;
 uniform float uniformMetallic;
 uniform int numPointLights; //non-material
 uniform int numDirLights;   //non_material
+
 //- samplers
 uniform sampler2D diffuseMaps[2];
 uniform sampler2D emissionMaps[2];
@@ -48,6 +51,7 @@ uniform samplerCube envmap;             //non-material
 uniform samplerCube irradianceDiffuse;  //non-material
 uniform samplerCube irradianceSpecular; //non-material
 uniform sampler2D   brdfIntegral;
+
 //- debug switches
 uniform float debugNormalMap;
 uniform float debugAO;
@@ -59,9 +63,14 @@ uniform float disneyReparam;
 uniform float wrap;
 
 // shaodw
-uniform sampler2DShadow shadowCascades[4];
+struct ShadowCascade
+{
+    sampler2D depthMap;
+    mat4 lightProjection;
+};
+uniform ShadowCascade shadowCascades[4];
+
 uniform mat4 lightView;
-uniform mat4 lightProjections[4];
 
 #define pi 3.14159265359
 float cascadeIntervals[4] = {0.1f, 0.3f, 0.6f, 1.0f};
@@ -85,6 +94,7 @@ struct PointLight
     vec4 position;
 };
 
+// TODO: shader storage buffer is slower compared to uniform buffer, maybe switch to use ubo instead?
 layout(std430, binding = 1) buffer dirLightsData
 {
     DirLight lights[];
@@ -95,6 +105,12 @@ layout(std430, binding = 2) buffer pointLightsData
     PointLight lights[];
 } pointLightsBuffer;
 
+// precomputed GI
+uniform struct Lighting
+{
+    samplerCube irradianceProbe;
+    samplerCube localReflectionProbe;
+} gLighting;
 
 // TODO: Handedness ...?
 vec4 tangentSpaceToViewSpace(vec3 tn, vec3 vn, vec3 t) 
@@ -303,62 +319,166 @@ vec3 render(RenderParams params)
     return (directDiffuseSlider * diffuse * params.ao + directSpecularSlider * specular) * params.li * params.shadow;
 }
 
-int computeCascadeIndex()
+struct CascadeOffset
 {
-    // determin which cascade to sample
-    float t = abs(fragmentPos.z) / (100.f - 0.5f);
+    int cascadeIndex;
+    float blend;
+};
+
+CascadeOffset computeCascadeIndex()
+{
+    // determine which cascade to sample
+    float t = (abs(fragmentPos.z) - 0.5f) / (100.f - 0.5f);
     int cascadeIndex = 0;
+    float blend = 1.f;
     for (int i = 0; i < 4; ++i)
     {
         if (t < cascadeIntervals[i])
         {
             cascadeIndex = i;
+            if (i > 0)
+            {
+                float cascadeRelDepth = (t - cascadeIntervals[i-1]) / (cascadeIntervals[i] - cascadeIntervals[i-1]); 
+                cascadeRelDepth = clamp(cascadeRelDepth, 0.f, 0.2f);
+                blend = cascadeRelDepth * 5.f;
+            }
             break;
         }
     }
-    return cascadeIndex;
+    return CascadeOffset(cascadeIndex, blend);
 }
 
-// TODO: slope scaled bias...?
+float receiverPlaneBias()
+{
+    return 0.f;
+}
+
+// TODO: improve shadow biasing, normal bias and receiver plane bias...?
+// TODO: add a manual depth bias for each dir light maybe...?
 // TODO: proper blending between cascades
-// TODO: PCF
-float isInShadow()
+float PCFShadow(CascadeOffset cascadeOffset, float bias)
 {
     float shadow = 1.f;
 
-    // determine which cascade to sample
-    int cascadeOffset = computeCascadeIndex();
-
     // compute shadowmap uv
-    vec4 worldFragPos = inverse(s_view) * vec4(fragmentPos, 1.f);
-    vec4 lightViewFragPos = lightProjections[cascadeOffset] * lightView * worldFragPos; 
-    vec2 shadowTexCoords = lightViewFragPos.xy * .5f + vec2(.5f); 
+    vec4 lightViewFragPos = shadowCascades[cascadeOffset.cascadeIndex].lightProjection * lightView * vec4(fragmentPosWS, 1.f); 
+    vec2 shadowTexCoord = lightViewFragPos.xy * .5f + .5f; 
 
     // bring depth into [0, 1] from [-1, 1]
     float fragmentDepth = lightViewFragPos.z * 0.5f + .5f;
 
     // clip uv used to sample the shadow map 
-    vec2 texelOffset = vec2(1.f) / textureSize(shadowCascades[cascadeOffset], 0);
-    vec2 samples[9] = { vec2(-1.f, 1.f), vec2(0.f, 1.f), vec2(1.f, 1.f),
-                        vec2(-1.f, 0.f), vec2(0.f, 0.f), vec2(1.f, 0.f),  
-                        vec2(-1.f, -1.f),vec2(0.f, -1.f), vec2(1.f, -1.f)
-                       };
-    float sampleWeights[9] = {
-        0.1, 0.1, 0.1,
-        0.1, 0.2, 0.1,
-        0.1, 0.1, 0.1 
+    vec2 texelOffset = vec2(1.f) / textureSize(shadowCascades[cascadeOffset.cascadeIndex].depthMap, 0);
+
+    // filtering when sampling
+    vec2 samples[9] = { 
+        vec2(-1.f, 1.f), vec2(0.f, 1.f), vec2(1.f, 1.f),
+        vec2(-1.f, 0.f), vec2(0.f, 0.f), vec2(1.f, 0.f),  
+        vec2(-1.f, -1.f),vec2(0.f, -1.f), vec2(1.f, -1.f)
     };
-    float results = 0.f;
-    for (int s = 0; s < 9; ++s)
+
+    const int kernelRaius = 4;
+    // 5 x 5 filter kernel
+    // float kernel[25] = {
+    //     0.04, 0.04, 0.04, 0.04, 0.04,
+    //     0.04, 0.04, 0.04, 0.04, 0.04,
+    //     0.04, 0.04, 0.04, 0.04, 0.04,
+    //     0.04, 0.04, 0.04, 0.04, 0.04,
+    //     0.04, 0.04, 0.04, 0.04, 0.04
+    // };
+
+    // 7 x 7 filter kernel
+    float kernel[49] = {
+        0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02,
+        0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02,
+        0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02,
+        0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02,
+        0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02,
+        0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02,
+        0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02,
+    };
+    float convolved = 0.f;
+    for (int i = -kernelRaius; i <= kernelRaius; ++i)
     {
-        vec2 sampleTexCoords = shadowTexCoords + samples[s] * texelOffset * 1.5f;
-        float clipUv = dot(sampleTexCoords, vec2(1.f));
-        if (clipUv <= 2.f && clipUv >= 0.f)
+        for (int j = -kernelRaius; j <= kernelRaius; ++j)
         {
-            results += sampleWeights[s] * texture(shadowCascades[cascadeOffset], vec3(sampleTexCoords, fragmentDepth)).r;
+            vec2 offset = vec2(i, j) * texelOffset;
+            vec2 sampleTexCoord = shadowTexCoord + offset;
+            if (sampleTexCoord.x < 0.f 
+                || sampleTexCoord.x > 1.f 
+                || sampleTexCoord.y < 0.f 
+                || sampleTexCoord.y > 1.f) 
+                continue;
+
+            float depthTest = texture(shadowCascades[cascadeOffset.cascadeIndex].depthMap, sampleTexCoord).r < (fragmentDepth - bias) ? 0.f : 1.f;
+            convolved += depthTest * kernel[(i + kernelRaius) * kernelRaius + (j + kernelRaius)];
         }
     }
-    shadow = results;
+    shadow = convolved;
+    return shadow;
+}
+
+// TODO: the shadow is almost too soft!
+/* 
+    Note(Min): objects that are closer to the near clipping plane for each frusta in CSM doesn't show such 
+    artifact, which infers that when t decreases, the Chebychev inequility increases. Don't know why this happens!
+*/
+float varianceShadow(vec2 shadowTexCoord, float fragmentDepth, int cascadeOffset)
+{
+    float shadow = 1.f;
+    float firstMoment = texture(shadowCascades[cascadeOffset].depthMap, shadowTexCoord).r;
+    if (firstMoment <= fragmentDepth)
+    {
+        float t = fragmentDepth;
+        float secondMoment = texture(shadowCascades[cascadeOffset].depthMap, shadowTexCoord).g;
+        // use second and first moment to compute variance
+        float variance = max(secondMoment - firstMoment * firstMoment, 0.0001f);
+        //he Chebycv visibility test
+        shadow = variance / (variance + (t - firstMoment) * (t - firstMoment));
+    }
+    return shadow;
+}
+
+#define PCF_SHADOW   1
+#define VSM_SHADOW   0
+
+float slopeBasedBias(vec3 n, vec3 l)
+{
+    float cosAlpha = max(dot(n, l), 0.f);
+    float tanAlpha = tan(acos(cosAlpha));
+    float bias = clamp(tanAlpha * 0.0007f, 0.f, 1.f);
+    return bias;
+}
+
+#define BLEND_CASCADES 0
+float isInShadow(float bias)
+{
+    float shadow = 1.f;
+
+    // determine which cascade to sample
+    CascadeOffset cascadeOffset = computeCascadeIndex();
+
+#if PCF_SHADOW
+#if BLEND_CASCADES
+    if (cascadeOffset.blend < 1.f)
+    {
+        float shadow0 = PCFShadow(cascadeOffset, bias);
+        cascadeOffset.cascadeIndex -= 1;
+        float shadow1 = PCFShadow(cascadeOffset, bias);
+        shadow = mix(shadow0, shadow1, cascadeOffset.blend);
+    }
+    else
+    {
+        shadow = PCFShadow(cascadeOffset, bias);
+    }
+#else
+        shadow = PCFShadow(cascadeOffset, bias);
+#endif
+#endif
+#if VSM_SHADOW
+    shadow = varianceShadow(shadowTexCoord, fragmentDepth, cascadeOffset);
+#endif
+    shadowMask = shadow;
     return shadow;
 }
 
@@ -386,10 +506,11 @@ vec3 directLighting(RenderParams renderParams)
     {
         // sample shadow map
         vec4 worldFragPos = inverse(s_view) * vec4(fragmentPos, 1.f);
-        renderParams.shadow = isInShadow();
         vec4 lightDir = s_view * (dirLightsBuffer.lights[i].direction);
         // light dir
         renderParams.l = normalize(lightDir.xyz);
+        float shadowBias = slopeBasedBias(renderParams.n, renderParams.l);
+        renderParams.shadow = isInShadow(shadowBias);
         // light color
         renderParams.li = dirLightsBuffer.lights[i].color.rgb * dirLightsBuffer.lights[i].color.w;
         color += render(renderParams);
@@ -453,9 +574,7 @@ vec3 indirectLighting(RenderParams params)
     vec3 F = fresnel(params.f0, params.n, params.v); 
     vec3 kDiffuse = mix(vec3(1.f) - F, vec3(0.f), params.metallic);
     // diffuse irradiance
-    // Note(Min): should use world space normal to sample
-    // vec3 diffuse = kDiffuse * params.baseColor * texture(irradianceDiffuse, params.n).rgb; 
-    vec3 diffuse = kDiffuse * params.baseColor * texture(irradianceDiffuse, params.wn).rgb; 
+    vec3 diffuse = 0.f * kDiffuse * params.baseColor * texture(irradianceDiffuse, params.wn).rgb; 
     // specular radiance
     float ndotv = saturate(dot(params.n, params.v));
     vec3 r = -reflect(params.v, params.n);
@@ -470,6 +589,12 @@ vec3 indirectLighting(RenderParams params)
     vec3 prefilteredColor = textureLod(irradianceSpecular, rr, params.roughness * 10.f).rgb;
     vec3 brdf = texture(brdfIntegral, vec2(params.roughness, ndotv)).rgb; 
     vec3 specular = prefilteredColor * (params.f0 * brdf.r + brdf.g);
+
+    // probe based diffuse GI
+    {
+        diffuse += kDiffuse * params.baseColor * texture(gLighting.irradianceProbe, params.wn).rgb;
+    }
+
     color += indirectDiffuseSlider * diffuse + indirectSpecularSlider * specular;
     return color;
 }
@@ -593,21 +718,11 @@ void main()
         color = vec3(G);
     }
 
-    int cascade = computeCascadeIndex();
-    vec3 shadowDebugColor = vec3(0.f);
-    if (cascade == 0)
-        shadowDebugColor = vec3(1.f, 0.f, 0.f);
-    else if (cascade == 1)
-        shadowDebugColor = vec3(0.f, 1.f, 0.f);
-    else if (cascade == 2)
-        shadowDebugColor = vec3(0.f, 0.f, 1.f);
-    else
-        shadowDebugColor = vec3(0.7f, 0.7f, 0.7f);
-
     // write linear color to HDR Framebuffer
     fragColor = vec4(color, 1.0f);
     // in world space
     fragmentNormal = worldSpaceNormal * 0.5f + vec3(.5f);
+    // fragmentNormal = normal * 0.5f + vec3(.5f);
     fragmentDepth = vec3(gl_FragCoord.z);
     // TODO: normalize the depth
     // vec2 clipSpaceXy = (gl_FragCoord.xy / 512.f) * 2.f - vec2(1.f);

@@ -12,6 +12,12 @@
 
 // TODO: Components
 
+enum EntityProperty
+{
+    Lit = 0,
+    BakeInProbes
+};
+
 // entity
 /* 
     * every entity has to have a transform component, entity's transform component is represented by

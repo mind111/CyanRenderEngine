@@ -26,7 +26,8 @@ namespace Cyan
     {
         TriangleList = 0,
         Line,
-        LineStrip
+        LineStrip,
+        Points
     };
 
     enum FrontFace
@@ -73,7 +74,7 @@ namespace Cyan
         // TODO: consolidate different version of setRenderTarget() into one version
         void setRenderTarget(RenderTarget* rt, u16 drawBufferIdx); 
         void setRenderTarget(RenderTarget* renderTarget); 
-        void setRenderTarget(RenderTarget* rt, u32* drawBuffers, u32 numBuffers); 
+        void setRenderTarget(RenderTarget* rt, i32* drawBuffers, u32 numBuffers); 
         void setDepthControl(DepthControl _ctrl);
         void setClearColor(glm::vec4 color);
         void setCullFace(FrontFace frontFace, FaceCull faceToCull);

@@ -23,7 +23,6 @@ struct DirLightGpuData
     glm::vec4 m_direction;
 };
 
-
 struct DirectionalLight : public Light
 {
     // Light baseLight;

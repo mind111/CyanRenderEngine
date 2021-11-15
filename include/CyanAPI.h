@@ -139,11 +139,6 @@ namespace Cyan
     void     addTexture(Texture* texture);
     Texture* getTexture(const char* _name);
     u32      getNumTextures();
-    // Texture* createTexture(const char* _name, TextureSpec spec);
-    // Texture* createTextureHDR(const char* _name, TextureSpec spec);
-    // Texture* createTexture(const char* _name, const char* _file, TextureSpec& spec);
-    // Texture* createTextureHDR(const char* _name, const char* _file, TextureSpec& spec);
-    // Texture* createTexture3D(const char* name, TextureSpec spec);
 
     /* RenderTarget */
     RenderTarget* createRenderTarget(u32 _width, u32 _height);

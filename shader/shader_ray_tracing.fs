@@ -60,9 +60,13 @@ uniform float disneyReparam;
 uniform float wrap;
 
 // shaodw
-uniform sampler2DShadow shadowCascades[4];
+struct ShadowCascade
+{
+    sampler2D depthMap;
+    mat4 lightProjection;
+};
+uniform ShadowCascade shadowCascades[4];
 uniform mat4 lightView;
-uniform mat4 lightProjections[4];
 
 struct LightFieldProbeVolume
 {
@@ -403,10 +407,62 @@ int computeCascadeIndex()
     return cascadeIndex;
 }
 
-// TODO: slope scaled bias...?
-// TODO: proper blending between cascades
-// TODO: PCF
-float isInShadow()
+float slopeBasedBias(vec3 n, vec3 l)
+{
+    float cosAlpha = max(dot(n, l), 0.f);
+    float tanAlpha = tan(acos(cosAlpha));
+    float bias = clamp(tanAlpha * 0.0007f, 0.f, 1.f);
+    return bias;
+}
+
+float PCFShadow(vec2 shadowTexCoord, float fragmentDepth, int cascadeOffset, float bias)
+{
+    float shadow = 1.f;
+
+    // clip uv used to sample the shadow map 
+    vec2 texelOffset = vec2(1.f) / textureSize(shadowCascades[cascadeOffset].depthMap, 0);
+
+    // filtering when sampling
+    vec2 samples[9] = { 
+        vec2(-1.f, 1.f), vec2(0.f, 1.f), vec2(1.f, 1.f),
+        vec2(-1.f, 0.f), vec2(0.f, 0.f), vec2(1.f, 0.f),  
+        vec2(-1.f, -1.f),vec2(0.f, -1.f), vec2(1.f, -1.f)
+    };
+
+    const int kernelRaius = 3;
+    float kernel[49] = {
+        0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02,
+        0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02,
+        0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02,
+        0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02,
+        0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02,
+        0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02,
+        0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02,
+    };
+    float convolved = 0.f;
+    for (int i = -kernelRaius; i <= kernelRaius; ++i)
+    {
+        for (int j = -kernelRaius; j <= kernelRaius; ++j)
+        {
+            vec2 sampleTexCoord = shadowTexCoord + vec2(i, j) * texelOffset;
+            if (sampleTexCoord.x < 0.f 
+                || sampleTexCoord.x > 1.f 
+                || sampleTexCoord.y < 0.f 
+                || sampleTexCoord.y > 1.f) 
+                continue;
+            float depthTest = texture(shadowCascades[cascadeOffset].depthMap, sampleTexCoord).r < (fragmentDepth - bias) ? 0.f : 1.f;
+            convolved += depthTest * kernel[(i + kernelRaius) * kernelRaius + (j + kernelRaius)];
+        }
+    }
+    shadow = convolved;
+    return shadow;
+}
+
+#define PCF_SHADOW   1
+#define BASIC_SHADOW 0
+#define VSM_SHADOW   0
+
+float isInShadow(float bias)
 {
     float shadow = 1.f;
 
@@ -414,35 +470,18 @@ float isInShadow()
     int cascadeOffset = computeCascadeIndex();
 
     // compute shadowmap uv
-    vec4 worldFragPos = inverse(s_view) * vec4(fragmentPos, 1.f);
-    vec4 lightViewFragPos = lightProjections[cascadeOffset] * lightView * worldFragPos; 
-    vec2 shadowTexCoords = lightViewFragPos.xy * .5f + vec2(.5f); 
+    vec4 lightViewFragPos = shadowCascades[cascadeOffset].lightProjection * lightView * vec4(worldSpacePos, 1.f); 
+    vec2 shadowTexCoord = lightViewFragPos.xy * .5f + .5f; 
 
     // bring depth into [0, 1] from [-1, 1]
     float fragmentDepth = lightViewFragPos.z * 0.5f + .5f;
 
-    // clip uv used to sample the shadow map 
-    vec2 texelOffset = vec2(1.f) / textureSize(shadowCascades[cascadeOffset], 0);
-    vec2 samples[9] = { vec2(-1.f, 1.f), vec2(0.f, 1.f), vec2(1.f, 1.f),
-                        vec2(-1.f, 0.f), vec2(0.f, 0.f), vec2(1.f, 0.f),  
-                        vec2(-1.f, -1.f),vec2(0.f, -1.f), vec2(1.f, -1.f)
-                       };
-    float sampleWeights[9] = {
-        0.1, 0.1, 0.1,
-        0.1, 0.2, 0.1,
-        0.1, 0.1, 0.1 
-    };
-    float results = 0.f;
-    for (int s = 0; s < 9; ++s)
-    {
-        vec2 sampleTexCoords = shadowTexCoords + samples[s] * texelOffset * 1.5f;
-        float clipUv = dot(sampleTexCoords, vec2(1.f));
-        if (clipUv <= 2.f && clipUv >= 0.f)
-        {
-            results += sampleWeights[s] * texture(shadowCascades[cascadeOffset], vec3(sampleTexCoords, fragmentDepth)).r;
-        }
-    }
-    shadow = results;
+#if PCF_SHADOW
+    shadow = PCFShadow(shadowTexCoord, fragmentDepth, cascadeOffset, bias);
+#endif
+#if VSM_SHADOW
+    shadow = varianceShadow(shadowTexCoord, fragmentDepth, cascadeOffset);
+#endif
     return shadow;
 }
 
@@ -470,11 +509,12 @@ vec3 directLighting(RenderParams renderParams)
     {
         // sample shadow map
         vec4 worldFragPos = inverse(s_view) * vec4(fragmentPos, 1.f);
-        renderParams.shadow = isInShadow();
         // renderParams.shadow = 1.f;
         vec4 lightDir = s_view * (dirLightsBuffer.lights[i].direction);
         // light dir
         renderParams.l = normalize(lightDir.xyz);
+        float shadowBias = slopeBasedBias(renderParams.n, renderParams.l);
+        renderParams.shadow = isInShadow(shadowBias);
         // light color
         renderParams.li = dirLightsBuffer.lights[i].color.rgb * dirLightsBuffer.lights[i].color.w;
         color += render(renderParams);
@@ -1101,7 +1141,7 @@ void main()
     // experiemental: world space ray-traced reflection using light field probe!!
     vec3 probeOrigin = vec3(-5.f, 1.155f, 0.f);
     // if (enableReflection > .5f && worldSpaceNormal.y > 0.95f)
-    if (enableReflection > .5f) 
+    if (enableReflection > 1.5f) 
     {
         // simulateMirrorReflection();
         debugRayTrace();

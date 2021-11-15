@@ -7,7 +7,7 @@
 #include "Shader.h"
 #include "Texture.h"
 
-#define CYAN_MAX_NUM_SAMPLERS 16
+#define CYAN_MAX_NUM_SAMPLERS 32
 #define CYAN_MAX_NUM_BUFFERS 16
 
 namespace Cyan

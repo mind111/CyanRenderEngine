@@ -70,7 +70,6 @@ void SceneManager::createPointLight(Scene* scene, glm::vec3 color, glm::vec3 pos
     CYAN_ASSERT(scene->pLights.size() < Scene::kMaxNumPointLights, "Too many point lights created.")
     char nameBuff[64];
     sprintf_s(nameBuff, "PointLight%u", (u32)scene->pLights.size());
-    // TODO: not sure why if I 
     Transform transform = Transform();
     transform.m_translate = glm::vec3(position);
     transform.m_scale = glm::vec3(0.1f);
@@ -114,6 +113,7 @@ Cyan::IrradianceProbe* SceneManager::createIrradianceProbe(Scene* scene, glm::ve
 {
     auto probe = m_probeFactory->createIrradianceProbe(scene, pos); 
     scene->entities.push_back(probe);
+    scene->m_irradianceProbe = probe;
     return probe;
 }
 

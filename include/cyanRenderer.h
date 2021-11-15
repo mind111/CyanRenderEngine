@@ -70,7 +70,7 @@ namespace Cyan
                 auto ctx = getCurrentGfxCtx();
                 ctx->setRenderTarget(renderTarget, 0u);
                 // clear all the color buffers
-                std::vector<u32> drawBuffers;
+                std::vector<i32> drawBuffers;
                 for (u32 b = 0u; b < renderTarget->m_colorBuffers.size(); ++b)
                 {
                     drawBuffers.push_back(b);
@@ -108,8 +108,6 @@ namespace Cyan
         void render();
         void renderSceneDepthNormal(Scene* scene, Camera& camera);
         void probeRenderScene(Scene* scene, Camera& camera);
-        void renderCascade(Scene* scene, ShadowCascade& cascade, glm::mat4& lightView);
-        void renderDirectionalShadow(Scene* scene, Camera& camera);
         void renderScene(Scene* scene, Camera& camera);
         void renderDebugObjects();
         void endRender();
@@ -122,6 +120,7 @@ namespace Cyan
             std::vector<PointLightGpuData> pLights;
             std::vector<DirLightGpuData> dLights;
             LightProbe* probe;
+            IrradianceProbe* irradianceProbe;
             bool bUpdateProbe;
         } m_gpuLightingData;
 
@@ -202,6 +201,30 @@ namespace Cyan
         Texture* m_ssaoTexture;
         Shader* m_ssaoShader;
         MaterialInstance* m_ssaoMatl;
+        struct SSAODebugVisData
+        {
+            glm::vec4 samplePointWS;
+            glm::vec4 normal;
+            glm::vec4 wo;
+            glm::vec4 sliceDir;
+            glm::vec4 projectedNormal;
+            glm::vec4 sampleVec[16];
+            glm::vec4 intermSamplePoints[48];
+            int numSampleLines;
+            int numSamplePoints;
+        } m_ssaoDebugVisData;
+        RegularBuffer* m_ssaoDebugVisBuffer;
+        bool m_freezeDebugLines;
+
+        struct SSAODebugLines
+        {
+            ::Line normal;
+            ::Line projectedNormal;
+            ::Line wo;
+            ::Line sliceDir;
+            ::Line samples[16];
+        } m_ssaoDebugVisLines;
+        PointGroup m_ssaoSamplePoints;
         
         // voxel
         struct VoxelVolumeData

@@ -34,6 +34,8 @@ namespace Cyan
             m_cubeMeshInstance = getMesh("CubeMesh")->createInstance();
             m_cubeMeshInstance->setMaterial(0, m_computeIrradianceMatl);
         }
+
+        m_bakedInProbes = false;
         
         TextureSpec spec = { };
         spec.m_width = 512u;
@@ -43,9 +45,9 @@ namespace Cyan
         spec.m_dataType =  Texture::Float;
         spec.m_min = Texture::Filter::LINEAR;
         spec.m_mag = Texture::Filter::LINEAR;
-        spec.m_s = Texture::Wrap::NONE;
-        spec.m_t = Texture::Wrap::NONE;
-        spec.m_r = Texture::Wrap::NONE;
+        spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
         spec.m_numMips = 1u;
         spec.m_data = 0;
         auto textureManager = TextureManager::getSingletonPtr();
@@ -75,6 +77,7 @@ namespace Cyan
         };
     }
 
+    // TODO: exclude dynamic objects
     void IrradianceProbe::sampleRadiance()
     {
         const u32 kViewportWidth = 512u;
@@ -83,6 +86,9 @@ namespace Cyan
         // camera set to probe's location
         camera.position = getSceneNode("SphereMesh")->getWorldTransform().m_translate;
         camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
+        camera.n = 0.1f;
+        camera.f = 100.f;
+        camera.fov = glm::radians(90.f);
         glm::vec3 cameraTargets[] = {
             {1.f, 0.f, 0.f},   // Right
             {-1.f, 0.f, 0.f},  // Left
@@ -99,15 +105,48 @@ namespace Cyan
             {0.f, -1.f, 0.f},   // Forward
             {0.f, -1.f, 0.f},   // Back
         };
+
+        // bundle entities that should be baked
+        std::vector<Entity*> bakeEntities;
+        bakeEntities.resize(m_scene->entities.size());
+        u32 numBakedEntities = 0u;
+        for (u32 i = 0; i < m_scene->entities.size(); ++i)
+        {
+            auto entity = m_scene->entities[i];
+            if (entity->m_bakedInProbes)
+            {
+                bakeEntities[numBakedEntities++] = entity;
+            }
+        }
+        bakeEntities.resize(numBakedEntities);
+
+        auto renderer = Renderer::getSingletonPtr();
         auto ctx = Cyan::getCurrentGfxCtx();
         ctx->setViewport({0u, 0u, 512u, 512u});
         for (u32 f = 0; f < (sizeof(cameraTargets)/sizeof(cameraTargets[0])); ++f)
         {
-            ctx->setRenderTarget(m_radianceRenderTarget, f);
-            glClear(GL_DEPTH_BUFFER_BIT);
-            camera.lookAt = cameraTargets[f];
-            camera.view = glm::lookAt(camera.position, camera.position + cameraTargets[f], worldUps[f]);
-            Renderer::getSingletonPtr()->renderScene(m_scene, camera);
+            i32 drawBuffers[4] = {(i32)f, -1, -1, -1};
+            m_radianceRenderTarget->setDrawBuffers(drawBuffers, 4);
+            ctx->setRenderTarget(m_radianceRenderTarget);
+            ctx->clear();
+
+            camera.lookAt = camera.position + cameraTargets[f];
+            camera.worldUp = worldUps[f];
+            CameraManager::updateCamera(camera);
+            renderer->probeRenderScene(m_scene, camera);
+
+            // LightingEnvironment lighting = {
+            //     m_scene->pLights,
+            //     m_scene->dLights,
+            //     m_scene->m_currentProbe,
+            //     true
+            // };
+            // for (u32 i = 0; i < m_scene->dLights.size(); ++i)
+            // {
+            //     renderer->addDirectionalShadowPass(m_scene, camera, i);
+            // }
+            // renderer->addEntityPass(m_radianceRenderTarget, {0, 0, m_radianceRenderTarget->m_width, m_radianceRenderTarget->m_height}, bakeEntities, lighting, camera);
+            // renderer->render();
         }
     }
 
@@ -233,10 +272,10 @@ namespace Cyan
             Camera camera = { };
             // camera set to probe's location
             camera.position = getSceneNode("SphereMesh")->getWorldTransform().m_translate;
-            camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.001f, 100.f); 
+            camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
             camera.n = 0.1f;
             camera.f = 100.f;
-            camera.fov = glm::radians(90.f);
+            // camera.fov = glm::radians(45.f);
             glm::vec3 cameraTargets[] = {
                 {1.f, 0.f, 0.f},   // Right
                 {-1.f, 0.f, 0.f},  // Left
@@ -269,7 +308,7 @@ namespace Cyan
             }
             bakeEntities.resize(numBakedEntities);
 
-            u32 drawBuffers[4] = { 0, 1, -1, 2 };
+            i32 drawBuffers[4] = { 0, 1, -1, 2 };
             m_cubemapRenderTarget->setDrawBuffers(drawBuffers, sizeof(drawBuffers) / sizeof(drawBuffers[0]));
 
             auto renderer = Renderer::getSingletonPtr();
@@ -293,6 +332,7 @@ namespace Cyan
                     m_scene->pLights,
                     m_scene->dLights,
                     m_scene->m_currentProbe,
+                    nullptr,
                     true
                 };
                 for (u32 i = 0; i < m_scene->dLights.size(); ++i)
@@ -307,11 +347,12 @@ namespace Cyan
         // resample radiance cubemap into a octmap using octahedral projection
         {
             ctx->setDepthControl(DepthControl::kDisable);
-            u32 drawBuffers[3] = { 0, 1, 2 };
+            i32 drawBuffers[3] = { 0, 1, 2 };
             m_octMapRenderTarget->attachTexture(m_radianceOct, 0u);
             m_octMapRenderTarget->attachTexture(m_normalOct, 1u);
             m_octMapRenderTarget->attachTexture(m_distanceOct, 2u);
             ctx->setRenderTarget(m_octMapRenderTarget, drawBuffers, 3);
+            ctx->setViewport({0, 0, m_octMapRenderTarget->m_width, m_octMapRenderTarget->m_height});
             ctx->clear();
             ctx->setShader(m_octProjectionShader);
             m_octProjMatl->bindTexture("radiance", m_radiance);

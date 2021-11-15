@@ -1,6 +1,67 @@
 #include "Geometry.h"
 #include "CyanAPI.h"
 #include "VertexArray.h"
+#include "MathUtils.h"
+
+PointGroup::PointGroup(u32 size) 
+    : kMaxNumPoints(size),
+    m_numPoints(0),
+    m_shader(nullptr),
+    m_matl(nullptr)
+{
+    m_points.resize(kMaxNumPoints);
+    VertexBuffer* vb = Cyan::createVertexBuffer(m_points.data(), sizeof(Point) * m_points.size(), sizeof(Point), m_points.size());
+    vb->addVertexAttrb({VertexAttrib::DataType::Float, 3, sizeof(Point), 0, nullptr});
+    m_vertexArray = Cyan::createVertexArray(vb);
+    m_vertexArray->init();
+    m_shader = Cyan::createShader("LineShader", "../../shader/shader_line.vs", "../../shader/shader_line.fs");
+    m_matl = Cyan::createMaterial(m_shader)->createInstance();
+    glPointSize(7.f);
+}
+
+void PointGroup::push(glm::vec3& position)
+{
+    CYAN_ASSERT(m_numPoints < kMaxNumPoints, "Pushing too many points into a point group!\n");
+    m_points[m_numPoints++] = Point{position};
+}
+
+void PointGroup::reset()
+{
+    m_numPoints = 0;
+}
+
+void PointGroup::clear()
+{
+    m_points.clear();
+    m_numPoints = 0;
+}
+
+void PointGroup::setViewProjection(Uniform* view, Uniform* projection)
+{
+    u_view = view;
+    u_projection = projection;
+}
+
+void PointGroup::setColor(glm::vec4& color)
+{
+    m_matl->set("color", &color.x);
+}
+
+void PointGroup::draw()
+{
+    glNamedBufferSubData(m_vertexArray->m_vertexBuffer->m_vbo, 0, sizeof(m_points[0]) * m_points.size(), m_points.data());
+
+    auto ctx = Cyan::getCurrentGfxCtx();
+    ctx->setShader(m_shader);
+    ctx->setUniform(u_view);
+    ctx->setUniform(u_projection);
+    glm::mat4 model(1.f);
+    m_matl->set("lineModel", &model[0]);
+    m_matl->bind();
+    ctx->setVertexArray(m_vertexArray);
+    ctx->setPrimitiveType(Cyan::PrimitiveType::Points);
+    ctx->drawIndexAuto(m_vertexArray->numVerts());
+}
 
 void Line::init() 
 { 
@@ -207,11 +268,6 @@ void BufferVisualizer::init(UniformBuffer* buffer, glm::vec2 pos, float width, f
     m_buffer->reset(cachedCurrentPos);
 }
 
-glm::vec3 vec4ToVec3(const glm::vec4& v)
-{
-    return glm::vec3(v.x, v.y, v.z);
-}
-
 u32 indices[24] = {
     0, 1, 
     1, 2, 
@@ -230,8 +286,8 @@ u32 indices[24] = {
 // setup for debug rendering
 void BoundingBox3f::init()
 {
-    glm::vec3 pMin = vec4ToVec3(m_pMin);
-    glm::vec3 pMax = vec4ToVec3(m_pMax);
+    glm::vec3 pMin = Cyan::vec4ToVec3(m_pMin);
+    glm::vec3 pMax = Cyan::vec4ToVec3(m_pMax);
     glm::vec3 dim = pMax - pMin;
 
     // compute all verts
@@ -291,8 +347,8 @@ void BoundingBox3f::draw()
 
 void BoundingBox3f::computeVerts()
 {
-    glm::vec3 pMin = vec4ToVec3(m_pMin);
-    glm::vec3 pMax = vec4ToVec3(m_pMax);
+    glm::vec3 pMin = Cyan::vec4ToVec3(m_pMin);
+    glm::vec3 pMax = Cyan::vec4ToVec3(m_pMax);
     glm::vec3 dim = pMax - pMin;
 
     // compute all verts

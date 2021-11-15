@@ -72,8 +72,14 @@ namespace Cyan
         auto convertDataFormat = [](Texture::ColorFormat format) {
             switch (format)
             {
+                case Texture::ColorFormat::R16F:
+                    return DataFormatGL { GL_R16F, GL_RED };
                 case Texture::ColorFormat::R32F:
-                    return DataFormatGL { GL_R32F, GL_R };
+                    return DataFormatGL { GL_R32F, GL_RED };
+                case Texture::ColorFormat::R32G32F:
+                    return DataFormatGL { GL_RG32F, GL_RG };
+                case Texture::ColorFormat::Lum32F:
+                    return DataFormatGL { GL_LUMINANCE32F_ARB, GL_LUMINANCE };
                 case Texture::ColorFormat::R8G8B8: 
                     return DataFormatGL{ GL_RGB8, GL_RGB };
                 case Texture::ColorFormat::R8G8B8A8: 

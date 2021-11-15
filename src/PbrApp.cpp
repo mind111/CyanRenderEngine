@@ -294,6 +294,37 @@ Cyan::MaterialInstance* createDefaultPbrMatlInstance(Scene* scene, PbrMaterialIn
     return matl;
 }
 
+void PbrApp::initFactoryScene()
+{
+    Cyan::Toolkit::ScopedTimer timer("initFactoryScene()", true);
+    m_factoryScene = Cyan::createScene("factory_scene", "../../scene/default_scene/scene_factory.json");
+    auto renderer = Cyan::Renderer::getSingletonPtr();
+    glm::vec2 viewportSize = renderer->getViewportSize();
+    float aspectRatio = viewportSize.x / viewportSize.y;
+    for (auto& camera : ->cameras)
+    {
+        // TODO: add setters
+        camera.aspectRatio = aspectRatio;
+        camera.projection = glm::perspective(glm::radians(camera.fov), aspectRatio, camera.n, camera.f);
+    }
+    timer.end();
+}
+
+void PbrApp::createScene(Scene* scene)
+{
+    createScene(scene, file);
+    auto renderer = Cyan::Renderer::getSingletonPtr();
+    glm::vec2 viewportSize = renderer->getViewportSize();
+    float aspectRatio = viewportSize.x / viewportSize.y;
+    for (auto& camera : ->cameras)
+    {
+        // TODO: add setters
+        camera.aspectRatio = aspectRatio;
+        camera.projection = glm::perspective(glm::radians(camera.fov), aspectRatio, camera.n, camera.f);
+    }
+    scene->customInit();
+}
+
 void PbrApp::initHelmetScene()
 {
     Cyan::Toolkit::ScopedTimer timer("initHelmetScene()", true);
@@ -397,17 +428,19 @@ void PbrApp::initHelmetScene()
         inputs.m_uMetallic = 0.1f;
         Entity* cornellBox = sceneManager->getEntity(helmetScene, "CornellBox");
         m_cornellMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
+#if 0
         m_rayTracingShader = Cyan::createShader("RayTracingShader", "../../shader/shader_ray_tracing.vs", "../../shader/shader_ray_tracing.fs");
         m_rayTracingMatl = createDefaultRayTracingMatl(helmetScene, m_rayTracingShader, inputs);
         m_debugRayOctBuffer = Cyan::createRegularBuffer(sizeof(glm::vec2) * 11);
         m_debugRayWorldBuffer = Cyan::createRegularBuffer(sizeof(glm::vec4) * 300);
         m_debugRayBoundryBuffer = Cyan::createRegularBuffer(sizeof(glm::vec4) * 20);
-        cornellBox->setMaterial("CornellBox", 0, m_rayTracingMatl);
+#endif
+        cornellBox->setMaterial("CornellBox", 0, m_cornellMatl);
     }
 
     // add lights into the scene
-    sceneManager->createPointLight(helmetScene, glm::vec3(0.95, 0.59f, 0.149f), glm::vec3(-3.0f, 1.2f, 1.5f), 17.0f);
-    sceneManager->createPointLight(helmetScene, glm::vec3(0.0f, 0.21f, 1.0f), glm::vec3(3.0f, 0.8f, -0.4f), 20.f);
+    // sceneManager->createPointLight(helmetScene, glm::vec3(0.95, 0.59f, 0.149f), glm::vec3(-3.0f, 1.2f, 1.5f), 0.0f);
+    // sceneManager->createPointLight(helmetScene, glm::vec3(0.0f, 0.21f, 1.0f), glm::vec3(3.0f, 0.8f, -0.4f), 0.f);
     // top light
     sceneManager->createDirectionalLight(helmetScene, glm::vec3(1.0f, 1.0, 1.0f), glm::normalize(glm::vec3(1.0f, 1.0f, 1.0f)), 1.2f);
 
@@ -415,8 +448,8 @@ void PbrApp::initHelmetScene()
     { 
         glCreateBuffers(1, &m_debugRayAtomicCounter);
         glNamedBufferData(m_debugRayAtomicCounter, sizeof(u32), nullptr, GL_STATIC_DRAW);
-        m_probeVolume = sceneManager->createLightFieldProbeVolume(helmetScene, glm::vec3(-5.f, 1.155f, 0.f), glm::vec3(4.0f), glm::vec3(2.f));
-        // m_irradianceProbe = sceneManager->createIrradianceProbe(helmetScene, glm::vec3(0.f));
+        // m_probeVolume = sceneManager->createLightFieldProbeVolume(helmetScene, glm::vec3(-5.f, 1.155f, 0.f), glm::vec3(4.0f), glm::vec3(2.f));
+        m_irradianceProbe = sceneManager->createIrradianceProbe(helmetScene, glm::vec3(0.f));
     }
     /*
     // create more point lights
@@ -532,6 +565,7 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewpo
     m_debugProbeIndex = 13;
     m_debugRo = glm::vec3(-5.f, 2.43, 0.86);
     m_debugRd = glm::vec3(0.0f, -0.29f, 0.47f);
+    m_debugDrawSSAO = false;
 
     // clear color
     Cyan::getCurrentGfxCtx()->setClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.f));
@@ -562,7 +596,7 @@ void PbrApp::beginFrame()
     updateMatlInstanceData(m_coneMatl);
     updateMatlInstanceData(m_floorMatl);
     updateMatlInstanceData(m_cornellMatl);
-    updateMatlInstanceData(m_rayTracingMatl);
+    // updateMatlInstanceData(m_rayTracingMatl);
 
     // update probe
     SceneManager::getSingletonPtr()->setLightProbe(m_scenes[m_currentScene], Cyan::getProbe(m_currentProbeIndex));
@@ -570,18 +604,31 @@ void PbrApp::beginFrame()
     m_envmapMatl->bindTexture("envmapSampler", m_envmap);
 }
 
-void PbrApp::run()
+void PbrApp::doProcomputeWork()
 {
     // precomute thingy here
     {
         auto ctx = Cyan::getCurrentGfxCtx();
         beginFrame();
-        // m_lightFieldProbe->sampleScene();
+#if 0
         m_probeVolume->sampleScene();
+#endif
+#if 1
+        auto renderer = Cyan::Renderer::getSingletonPtr();
+        renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), 0);
+        renderer->render();
+        m_irradianceProbe->sampleRadiance();
+        m_irradianceProbe->computeIrradiance();
+#endif
         endFrame();
         ctx->setRenderTarget(nullptr, 0u);
-        // m_lightFieldProbe->save();
     }
+}
+
+void PbrApp::run()
+{
+    doProcomputeWork();
+
     while (bRunning)
     {
         // tick
@@ -818,7 +865,8 @@ void PbrApp::drawDebugWindows()
             }
             if (ImGui::BeginTabItem("Tools"))
             {
-                ImGui::Text("This is the tools tab!");
+                ImGui::Checkbox("SSAO debug view", &m_debugDrawSSAO);
+                ImGui::Checkbox("Freeze debug view", &renderer->m_freezeDebugLines);
                 ImGui::EndTabItem();
             }
             ImGui::EndTabBar();
@@ -956,9 +1004,18 @@ void PbrApp::drawSceneViewport()
         ImVec2 b(windowPos.x + windowSize.x - 1, windowPos.y + windowSize.y - 1);
 
         // blit final render output texture to current ImGui window
-        Cyan::Texture* m_renderOutput = renderer->m_outputColorTexture;
-        ImGui::GetForegroundDrawList()->AddImage(reinterpret_cast<void*>((intptr_t)m_renderOutput->m_id), 
-            a, b, ImVec2(0, 1), ImVec2(1, 0));
+        Cyan::Texture* renderOutput = renderer->m_outputColorTexture;
+        if (m_debugDrawSSAO)
+        {
+            Cyan::Texture* ssaoOutput = renderer->m_ssaoTexture;
+            ImGui::GetForegroundDrawList()->AddImage(reinterpret_cast<void*>((intptr_t)ssaoOutput->m_id), 
+                a, b, ImVec2(0, 1), ImVec2(1, 0));
+        }
+        else
+        {
+            ImGui::GetForegroundDrawList()->AddImage(reinterpret_cast<void*>((intptr_t)renderOutput->m_id), 
+                a, b, ImVec2(0, 1), ImVec2(1, 0));
+        }
 
         // TODO: refactor this
         // ray picking
@@ -1338,7 +1395,6 @@ struct SharedMaterialData
 
 // TODO: fix PCF shadow
 // TODO: try out variance shadow map
-// TODO: direcional shadow pass should be part of the renderScene()
 // TODO: read about probe selection & multi-probe tracing
 // TODO: irradiance probe with visibility (prefiltered radial depth map)
 void PbrApp::render()
@@ -1355,6 +1411,7 @@ void PbrApp::render()
     SceneManager::getSingletonPtr()->setLightProbe(m_scenes[m_currentScene], Cyan::getProbe(m_currentProbeIndex));
     m_envmap = Cyan::getProbe(m_currentProbeIndex)->m_baseCubeMap;
     m_envmapMatl->bindTexture("envmapSampler", m_envmap);
+#if 0
     m_rayTracingMatl->bindBuffer("debugOctRayData", m_debugRayOctBuffer);
     m_rayTracingMatl->bindBuffer("debugWorldRayData", m_debugRayWorldBuffer);
     m_rayTracingMatl->bindBuffer("debugBoundryData", m_debugRayBoundryBuffer);
@@ -1380,18 +1437,28 @@ void PbrApp::render()
     memset(rayCounterPtr, 0x0, sizeof(u32));
     glUnmapBuffer(GL_ATOMIC_COUNTER_BUFFER);
     glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, m_debugRayAtomicCounter);
+#endif
 
     renderer->beginRender();
     // rendering
-    // TODO: this should be bundled together with scene pass
     renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), 0);
     renderer->addScenePass(m_scenes[m_currentScene]);
+    m_irradianceProbe->computeIrradiance();
+    // LightingEnvironment lighting = {
+    //     m_scenes[m_currentScene]->pLights,
+    //     m_scenes[m_currentScene]->dLights,
+    //     m_scenes[m_currentScene]->m_currentProbe,
+    //     true
+    // };
+    // renderer->addEntityPass(renderer->m_sceneColorRTSSAA, {0, 0, 1280, 720}, m_scenes[m_currentScene]->entities, lighting, m_scenes[m_currentScene]->getActiveCamera());
+#if DEBUG_PROBE_TRACING
     {
         void* preallocated = renderer->getAllocator().alloc(sizeof(RayTracingDebugPass));
         auto renderTarget = m_probeVolume->m_probes[22]->m_octMapRenderTarget;
         RayTracingDebugPass* pass = new (preallocated) RayTracingDebugPass(renderTarget, Cyan::Viewport{0u,0u, renderTarget->m_width, renderTarget->m_height}, this);
         renderer->addCustomPass(pass);
     }
+#endif
 #if DRAW_DEBUG
     {
         void* preallocated = renderer->getAllocator().alloc(sizeof(DebugAABBPass));
@@ -1407,10 +1474,14 @@ void PbrApp::render()
     {
         renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 180, 320, 180}, renderer->m_sceneNormalTextureSSAA);
         renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 360, 320, 180}, renderer->m_sceneDepthTextureSSAA);
-        // renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 540, 320, 180}, renderer->m_ssaoTexture);
+#if DEBUG_SSAO
+        renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 540, 320, 180}, renderer->m_ssaoTexture);
+#endif
+#if DEBUG_PROBE_TRACING
         renderer->addTexturedQuadPass(rt, {rt->m_width - 360, rt->m_height - 540, 360, 360}, m_probeVolume->m_probes[1]->m_radianceOct);
         renderer->addTexturedQuadPass(rt, {rt->m_width - 360, rt->m_height - 720, 180, 180}, m_probeVolume->m_probes[1]->m_normalOct);
         renderer->addTexturedQuadPass(rt, {rt->m_width - 180, rt->m_height - 720, 180, 180}, m_probeVolume->m_probes[1]->m_distanceOct);
+#endif
     }
     renderer->render();
     renderer->endRender();

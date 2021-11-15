@@ -78,6 +78,7 @@ void CyanEngine::init(WindowConfig windowConfig, glm::vec2 sceneViewportPos, glm
 
     // setup graphics system 
     {
+        Cyan::init();
         m_graphicsSystem = new Cyan::GraphicsSystem(glm::vec2(m_renderSize.x, m_renderSize.y));
         Cyan::getCurrentGfxCtx()->setWindow(&m_window);
     }
