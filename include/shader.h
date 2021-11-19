@@ -47,6 +47,7 @@ public:
     {
         VsPs = 0,
         VsGsPs,
+        Cs,
         Invalid
     };
 
@@ -64,6 +65,10 @@ public:
             case VsGsPs:
             {
                 buildVsGsPsFromSource(shaderSrc.vsSrc, shaderSrc.gsSrc, shaderSrc.fsSrc);
+            } break;
+            case Cs:
+            {
+                buildCsFromSource(shaderSrc.csSrc);
             } break;
         }
     }
@@ -85,36 +90,8 @@ public:
     GLint getUniformLocation(const char* _name);
 
     void buildVsPsFromSource(const char* vertSrc, const char* fragSrc);
-    void buildVsGsPsFromSource(const char* vsSrcFile, const char* gsSrcFile, const char* fsSrcFile)
-    {
-        const char* vsSrc = ShaderUtil::readShaderFile(vsSrcFile);
-        const char* gsSrc = ShaderUtil::readShaderFile(gsSrcFile);
-        const char* fsSrc = ShaderUtil::readShaderFile(fsSrcFile);
-        GLuint vs = glCreateShader(GL_VERTEX_SHADER);
-        GLuint gs = glCreateShader(GL_GEOMETRY_SHADER);
-        GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
-        m_programId = glCreateProgram();
-        // upload shader source
-        glShaderSource(vs, 1, &vsSrc, nullptr);
-        glShaderSource(gs, 1, &gsSrc, nullptr);
-        glShaderSource(fs, 1, &fsSrc, nullptr);
-        // Compile shader
-        glCompileShader(vs);
-        glCompileShader(gs);
-        glCompileShader(fs);
-        ShaderUtil::checkShaderCompilation(vs);
-        ShaderUtil::checkShaderCompilation(gs);
-        ShaderUtil::checkShaderCompilation(fs);
-        // Link shader
-        glAttachShader(m_programId, vs);
-        glAttachShader(m_programId, gs);
-        glAttachShader(m_programId, fs);
-        glLinkProgram(m_programId);
-        ShaderUtil::checkShaderLinkage(m_programId);
-        glDeleteShader(vs);
-        glDeleteShader(gs);
-        glDeleteShader(fs);
-    }
+    void buildCsFromSource(const char* csSrcFile);
+    void buildVsGsPsFromSource(const char* vsSrcFile, const char* gsSrcFile, const char* fsSrcFile);
 
     void dynamicRebuild();
     void getFileWriteTime(ShaderFileInfo& fileInfo);

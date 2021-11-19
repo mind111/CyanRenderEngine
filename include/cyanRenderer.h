@@ -39,11 +39,6 @@ namespace Cyan
     // foward declarations
     struct RenderTarget;
 
-    struct IrradianceVolume
-    {
-
-    };
-
     class RenderState
     {
     public:

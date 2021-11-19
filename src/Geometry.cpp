@@ -437,9 +437,9 @@ float BoundingBox3f::intersectRay(const glm::vec3& ro, const glm::vec3& rd, cons
 float Triangle::intersectRay(const glm::vec3& ro, const glm::vec3& rd, const glm::mat4& transform)
 {
     const float EPSILON = 0.0000001;
-    glm::vec4 v0_view = transform * m_vertices[0]; 
-    glm::vec4 v1_view = transform * m_vertices[1];
-    glm::vec4 v2_view = transform * m_vertices[2];
+    glm::vec4 v0_view = transform * m_vertices[0].position; 
+    glm::vec4 v1_view = transform * m_vertices[1].position;
+    glm::vec4 v2_view = transform * m_vertices[2].position;
 
     glm::vec3& v0 = glm::vec3(v0_view.x, v0_view.y, v0_view.z);
     glm::vec3& v1 = glm::vec3(v1_view.x, v1_view.y, v1_view.z);
@@ -469,6 +469,7 @@ float Triangle::intersectRay(const glm::vec3& ro, const glm::vec3& rd, const glm
         return -1.0;
     }
     float t = f * glm::dot(edge2, q);
+    // hit
     if (t > EPSILON)
     {
         return t;

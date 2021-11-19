@@ -57,8 +57,8 @@ struct Scene
         return cameras[index];
     }
 
-    virtual void customInit() { }
-    virtual void save() { }
+    RayCastInfo castRay(glm::vec3& ro, glm::vec3& rd, bool debugPrint=false);
+    bool castVisibilityRay(glm::vec3& ro, glm::vec3& rd);
 };
 
 class SceneManager {
@@ -91,6 +91,7 @@ public:
     {
         return scene->entities.size() > 0 ? scene->entities.size() : 0;
     }
+    //- probe related
     Cyan::IrradianceProbe* createIrradianceProbe(Scene* scene, glm::vec3& pos);
     Cyan::LightFieldProbe* createLightFieldProbe(Scene* scene, glm::vec3& pos);
     Cyan::LightFieldProbeVolume* createLightFieldProbeVolume(Scene* scene, glm::vec3& pos, glm::vec3& dimension, glm::vec3& stride);

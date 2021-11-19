@@ -12,6 +12,38 @@
 #include "CyanAPI.h"
 #include "Scene.h"
 
+// ray cast in world space
+RayCastInfo Scene::castRay(glm::vec3& ro, glm::vec3& rd, bool debugPrint)
+{
+    RayCastInfo closestHit = { nullptr, nullptr, -1, -1, FLT_MAX };
+    for (auto entity : entities)
+    {
+        auto traceInfo = entity->intersectRay(ro, rd, glm::mat4(1.f)); 
+        // as long as it hits something
+        if (traceInfo.t > 0.f && traceInfo < closestHit)
+        {
+            closestHit = traceInfo;
+        }
+    }
+    if (debugPrint)
+        printf("Cast a ray from mouse that hits %s \n", closestHit.m_entity->m_name);
+    return closestHit;
+}
+
+bool Scene::castVisibilityRay(glm::vec3& ro, glm::vec3& rd)
+{
+    for (auto entity : entities)
+    {
+        auto traceInfo = entity->intersectRay(ro, rd, glm::mat4(1.f)); 
+        // as long as it hits something
+        if (traceInfo.t > 0.f)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 SceneManager* SceneManager::s_sceneManager = 0u;
 
 SceneManager::SceneManager()

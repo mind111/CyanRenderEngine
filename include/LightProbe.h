@@ -15,9 +15,38 @@ struct Scene;
 
 namespace Cyan
 {
+    struct Ray
+    {
+
+    };
+
+    struct GpuRay
+    {
+        glm::vec4 ro;
+        glm::vec3 rd;
+        float     visibility;
+    };
+
     // TODO: group shader and material instance, technically don't need to store shader and matl instance at the same time.
     struct IrradianceProbe : public Entity
     {
+        IrradianceProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene);
+        void init();
+        void sampleRadiance();
+        void computeIrradiance();
+        void sampleSkyVisibility();
+        void debugRenderProbe();
+
+        static Shader* m_computeIrradianceShader;
+        static Shader* m_skyIrradianceShader;
+        static struct RenderTarget* m_radianceRenderTarget;
+        static struct RenderTarget* m_irradianceRenderTarget;
+        static MeshInstance* m_cubeMeshInstance;
+        static RegularBuffer*      m_rayBuffers;
+        static const u32 kNumZenithSlice       = 32u;
+        static const u32 kNumAzimuthalSlice    = 32u;
+        static const u32 kNumRaysPerHemiSphere = 128u;
+
         // render the scene from six faces
         Texture* m_radianceMap;
         // convolve the radiance samples to get irradiance from every direction
@@ -26,16 +55,17 @@ namespace Cyan
         // MeshInstance* m_sphereMeshInstance;
         MaterialInstance* m_computeIrradianceMatl;
         MaterialInstance* m_renderProbeMatl;
-        MeshInstance* m_cubeMeshInstance;
+        std::vector<GpuRay> m_skyRays;
+        u32                 m_numVisibieRays;
+    };
 
-        static Shader* m_computeIrradianceShader;
-        static struct RenderTarget* m_radianceRenderTarget;
-        static struct RenderTarget* m_irradianceRenderTarget;
-        IrradianceProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene);
-        void init();
-        void sampleRadiance();
-        void computeIrradiance();
-        void debugRenderProbe();
+    struct IrradianceVolume
+    {
+        glm::vec3 m_volumePos;
+        glm::vec3 m_volumeDimension;
+        glm::vec3 m_probeSpacing;
+        glm::vec3 m_lowerLeftCorner;
+        std::vector<IrradianceProbe*> m_probes;
     };
 
     // TODO: fix cornell box to make it double sided

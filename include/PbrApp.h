@@ -9,6 +9,7 @@
 #include "imgui/imgui.h"
 #include "CyanUI.h"
 #include "GfxContext.h"
+#include "CyanPathTracer.h"
 
 #define DEBUG_PROBE_TRACING 0
 #define DEBUG_SSAO          1
@@ -246,18 +247,6 @@ namespace Pbr
     void mouseScrollWheelCallback(double xOffset, double yOffset);
 };
 
-struct CyanFactoryScene : public Scene
-{
-    virtual void customInit();
-    virtual void save();
-};
-
-struct CyanFactoryScene : public Scene
-{
-    virtual void customInit();
-    virtual void save();
-};
-
 // TODO: Can also let CyanApp define a basic beginFrame(), endFrame() where it calls customBeginFrame(), and customEndFrame(),
 // and child class override customBegin() and customEnd() to do each application specific stuffs
 class PbrApp : public CyanApp
@@ -275,7 +264,7 @@ public:
     virtual void run() override;
     virtual void shutDown() override;
 
-    void doProcomputeWork();
+    void doPrecomputeWork();
 
     // tick
     void update();
@@ -298,6 +287,7 @@ public:
     void drawRenderSettings();
     void uiDrawEntityGraph(Entity* entity) ;
     RayCastInfo castMouseRay(const glm::vec2& currentViewportPos, const glm::vec2& currentViewportSize);
+
     // init
     void initScenes();
     void initUniforms();
@@ -322,8 +312,6 @@ public:
     int m_debugProbeIndex;
     glm::vec3 m_debugRayTracingNormal;
 
-    Scene* m_factoryScene;
-    Scene* m_helmetScene;
     std::vector<Scene*> m_scenes;
     RegularBuffer* m_debugRayOctBuffer;
     RegularBuffer* m_debugRayWorldBuffer;
@@ -404,6 +392,9 @@ private:
     glm::vec3 m_debugRo;
     glm::vec3 m_debugRd;
     bool m_debugDrawSSAO;
+
+    // toy path tracer
+    Cyan::PathTracer* m_pathTracer;
 
     // debug parameters
     Line m_debugRay;

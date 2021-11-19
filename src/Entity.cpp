@@ -56,32 +56,37 @@ RayCastInfo Entity::intersectRay(const glm::vec3& ro, const glm::vec3& rd, glm::
             BoundingBox3f aabb = node->m_meshInstance->getAABB();
             if (aabb.intersectRay(ro, rd, modelView) > 0.f)
             {
+                float closestHit = FLT_MAX;
+
                 // do ray triangle intersectiont test
                 Cyan::Mesh* mesh = node->m_meshInstance->m_mesh;
-                for (auto sm : mesh->m_subMeshes)
+                i32 smIndex = -1;
+                for (u32 i = 0; i < mesh->m_subMeshes.size(); ++i)
                 {
-                    // TODO: find exact hit or early exit as long as it hits anything belongs to current entity
-                    float closestHit = FLT_MAX;
-                    for (auto& tri : sm->m_triangles)
+                    auto sm = mesh->m_subMeshes[i];
+                    i32   triIndex   = -1;
+                    for (u32 j = 0; j < sm->m_triangles.size(); ++j)
                     {
-                        Triangle t(tri);
-                        float hit = t.intersectRay(ro, rd, modelView); 
+                        auto& tri = sm->m_triangles[j];
+                        float hit = tri.intersectRay(ro, rd, modelView); 
                         if (hit > 0.f && hit < closestHit)
                         {
+                            smIndex = i;
+                            triIndex = j; 
                             closestHit = hit;
-                            // return { this, node, hit };
                         }
                     }
-                    return { this, node, closestHit };
+                    return { this, node, smIndex, triIndex, closestHit };
                 }
             }
         }
+
         for (auto child : node->m_child)
         {
             queue.push(child);
         }
     }
-    return { nullptr, nullptr, -1.0f };
+    return { nullptr, nullptr, -1, -1, FLT_MAX };
 }
 
 // merely sets the parent entity, it's not this method's responsibility to trigger

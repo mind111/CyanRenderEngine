@@ -78,6 +78,8 @@ struct RayCastInfo
 {
     Entity* m_entity;
     SceneNode* m_node;
+    i32   smIndex;
+    i32   triIndex;
     float t;
     
     bool operator<(const RayCastInfo& rhs)

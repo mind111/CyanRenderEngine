@@ -204,20 +204,24 @@ namespace Cyan
             float* data = vertexDataPtrs[sm];
 
             subMesh->m_numVerts = numVerts;
+            subMesh->m_triangles.m_positionArray.resize(subMesh->m_numVerts * 3);
+            subMesh->m_triangles.m_normalArray.resize(subMesh->m_numVerts * 3);
+            subMesh->m_triangles.m_tangentArray.resize(subMesh->m_numVerts * 3);
+            subMesh->m_triangles.m_texCoordArray.resize(subMesh->m_numVerts * 2);
+            auto& triangles = subMesh->m_triangles;
 
             for (u32 v = 0u; v < numVerts; v++)
             {
                 // assemble a triangle
-                u32 index = v % 3u;
-                if (index == 0u)
-                {
-                    subMesh->m_triangles.push_back(Triangle{ });
-                }
-                Triangle& tri = subMesh->m_triangles.back();
-                tri.m_vertices[index] = glm::vec4(scene->mMeshes[sm]->mVertices[v].x,
-                                                  scene->mMeshes[sm]->mVertices[v].y,
-                                                  scene->mMeshes[sm]->mVertices[v].z,
-                                                  1.0f);
+                u32 triangleIndex = v / 3u;
+                u32 vertexIndex = v % 3u;
+                // subMesh->m_triangles.
+                // if (vertexIndex == 0u)
+                // {
+                //     subMesh->m_triangles.push_back(Triangle{ });
+                // }
+                // Triangle& tri = subMesh->m_triangles.back();
+                // tri.m_vertices[vertexIndex] = { };
 
                 u32 offset = 0;
                 float* vertexAddress = (float*)((u8*)data + strideInBytes * v);
@@ -226,12 +230,22 @@ namespace Cyan
                     vertexAddress[offset++] = scene->mMeshes[sm]->mVertices[v].x;
                     vertexAddress[offset++] = scene->mMeshes[sm]->mVertices[v].y;
                     vertexAddress[offset++] = scene->mMeshes[sm]->mVertices[v].z;
+
+                    triangles.m_positionArray[triangleIndex * 3 + vertexIndex] = glm::vec4();
+                    tirangle = glm::vec4(scene->mMeshes[sm]->mVertices[v].x, 
+                                                               scene->mMeshes[sm]->mVertices[v].y,
+                                                               scene->mMeshes[sm]->mVertices[v].z,
+                                                               1.f);
                 }
                 if (attribFlag & VertexAttribFlag::kNormal)
                 {
                     vertexAddress[offset++] = scene->mMeshes[sm]->mNormals[v].x;
                     vertexAddress[offset++] = scene->mMeshes[sm]->mNormals[v].y;
                     vertexAddress[offset++] = scene->mMeshes[sm]->mNormals[v].z;
+
+                    tri.m_vertices[vertexIndex].normal = glm::vec3(scene->mMeshes[sm]->mNormals[v].x, 
+                                                             scene->mMeshes[sm]->mNormals[v].y,
+                                                             scene->mMeshes[sm]->mNormals[v].z);
                 }
                 if (attribFlag & VertexAttribFlag::kTangents)
                 {
@@ -239,11 +253,18 @@ namespace Cyan
                     vertexAddress[offset++] = scene->mMeshes[sm]->mTangents[v].y;
                     vertexAddress[offset++] = scene->mMeshes[sm]->mTangents[v].z;
                     vertexAddress[offset++] = 1.f;
+
+                    tri.m_vertices[vertexIndex].tangent = glm::vec3(scene->mMeshes[sm]->mTangents[v].x,
+                                                              scene->mMeshes[sm]->mTangents[v].y,
+                                                              scene->mMeshes[sm]->mTangents[v].z);
                 }
                 if (attribFlag & VertexAttribFlag::kTexcoord)
                 {
                     vertexAddress[offset++] = scene->mMeshes[sm]->mTextureCoords[0][v].x;
                     vertexAddress[offset++] = scene->mMeshes[sm]->mTextureCoords[0][v].y;
+
+                    tri.m_vertices[vertexIndex].texCoord = glm::vec2(scene->mMeshes[sm]->mTextureCoords[0][v].x,
+                                                               scene->mMeshes[sm]->mTextureCoords[0][v].y);
                 }
             }
 
@@ -385,6 +406,26 @@ namespace Cyan
         shader->m_name = std::string(name);
         s_shaderRegistry.insert(ShaderEntry(shader->m_name, handle));
         shader->buildVsPsFromSource(vertSrc, fragSrc);
+        return shader;
+    }
+
+    Shader* createCsShader(const char* name, const char* csSrc)
+    {
+        using ShaderEntry = std::pair<std::string, u32>;
+        // found a existing shader
+        if (u32 foundShader = findShader(name))
+        {
+            return m_shaders[foundShader];
+        }
+
+        // TODO: Memory management
+        u32 handle = ALLOC_HANDLE(Shader)
+        CYAN_ASSERT(handle < kMaxNumShaders,  "Too many shader created!!!")
+        m_shaders[handle] = new Shader();
+        Shader* shader = m_shaders[handle];
+        shader->m_name = std::string(name);
+        s_shaderRegistry.insert(ShaderEntry(shader->m_name, handle));
+        shader->buildCsFromSource(csSrc);
         return shader;
     }
 

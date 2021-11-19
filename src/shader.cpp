@@ -33,7 +33,7 @@ namespace ShaderUtil {
         // Open file
         std::fstream shader_file(filename);
         std::string src_str;
-        const char* shader_src = nullptr; 
+        const char* shader_src = nullptr;
         if (shader_file.is_open()) {
             std::stringstream src_str_stream;
             std::string line;
@@ -42,7 +42,7 @@ namespace ShaderUtil {
             }
             src_str = src_str_stream.str();
             // Copy the string over to a char array
-            shader_src = new char[src_str.length()];
+            shader_src = new char[src_str.length() + 1];
             // + 1 here to include null character
             std::memcpy((void*)shader_src, src_str.c_str(), src_str.length() + 1);
         } else {
@@ -109,6 +109,54 @@ void Shader::buildVsPsFromSource(const char* vertSrc, const char* fragSrc) {
     glLinkProgram(m_programId);
     ShaderUtil::checkShaderLinkage(m_programId);
     glDeleteShader(vs);
+    glDeleteShader(fs);
+}
+
+void Shader::buildCsFromSource(const char* csSrcFile)
+{
+    const char* csSrc = ShaderUtil::readShaderFile(csSrcFile);
+    GLuint cs = glCreateShader(GL_COMPUTE_SHADER);
+    m_programId = glCreateProgram();
+    // upload shader source
+    glShaderSource(cs, 1, &csSrc, nullptr);
+    // Compile shader
+    glCompileShader(cs);
+    ShaderUtil::checkShaderCompilation(cs);
+    // Link shader
+    glAttachShader(m_programId, cs);
+    glLinkProgram(m_programId);
+    ShaderUtil::checkShaderLinkage(m_programId);
+    glDeleteShader(cs);
+}
+
+void Shader::buildVsGsPsFromSource(const char* vsSrcFile, const char* gsSrcFile, const char* fsSrcFile)
+{
+    const char* vsSrc = ShaderUtil::readShaderFile(vsSrcFile);
+    const char* gsSrc = ShaderUtil::readShaderFile(gsSrcFile);
+    const char* fsSrc = ShaderUtil::readShaderFile(fsSrcFile);
+    GLuint vs = glCreateShader(GL_VERTEX_SHADER);
+    GLuint gs = glCreateShader(GL_GEOMETRY_SHADER);
+    GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
+    m_programId = glCreateProgram();
+    // upload shader source
+    glShaderSource(vs, 1, &vsSrc, nullptr);
+    glShaderSource(gs, 1, &gsSrc, nullptr);
+    glShaderSource(fs, 1, &fsSrc, nullptr);
+    // Compile shader
+    glCompileShader(vs);
+    glCompileShader(gs);
+    glCompileShader(fs);
+    ShaderUtil::checkShaderCompilation(vs);
+    ShaderUtil::checkShaderCompilation(gs);
+    ShaderUtil::checkShaderCompilation(fs);
+    // Link shader
+    glAttachShader(m_programId, vs);
+    glAttachShader(m_programId, gs);
+    glAttachShader(m_programId, fs);
+    glLinkProgram(m_programId);
+    ShaderUtil::checkShaderLinkage(m_programId);
+    glDeleteShader(vs);
+    glDeleteShader(gs);
     glDeleteShader(fs);
 }
 

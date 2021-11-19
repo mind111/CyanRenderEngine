@@ -92,6 +92,18 @@ namespace Cyan
         // Warning: every attributes has to be set
         UniformBuffer* m_uniformBuffer;
     };
+
+    class SolidColorMaterial
+    {
+    public:
+        SolidColorMaterial(glm::vec3& color)
+            : m_color(color)
+        {
+
+        }
+        glm::vec3 m_color;
+        MaterialInstance* m_matl;
+    };
 }
 
 /*

@@ -147,6 +147,7 @@ namespace Cyan
     /* Shader */
     Shader* getShader(const char* name);
     Shader* createShader(const char* name, const char* vertSrc, const char* fragSrc);
+    Shader* createCsShader(const char* name, const char* csSrc);
     Shader* createVsGsPsShader(const char* name, const char* vsSrcFile, const char* fsSrcFile, const char* gsSrcFile);
 
     /* Buffer */

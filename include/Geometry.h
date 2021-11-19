@@ -102,10 +102,28 @@ struct BufferVisualizer
     void draw();
 };
 
+struct Vertex
+{
+    glm::vec4 position;
+    glm::vec3 normal;
+    glm::vec3 tangent;
+    glm::vec2 texCoord;
+};
+
 struct Triangle
 {
-    glm::vec4 m_vertices[3];
+    Vertex m_vertices[3];
     float intersectRay(const glm::vec3& ro, const glm::vec3& rd, const glm::mat4& transform);
+};
+
+// SoA data oriented triangle mesh meant for imrpoving ray tracing procedure
+struct TriangleArray 
+{
+    std::vector<glm::vec4> m_positionArray;
+    std::vector<glm::vec3> m_normalArray;
+    std::vector<glm::vec3> m_tangentArray;
+    std::vector<glm::vec3> m_texCoordArray;
+    u32 m_numVerts;
 };
 
 struct BoundingBox3f

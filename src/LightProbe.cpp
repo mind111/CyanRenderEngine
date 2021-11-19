@@ -6,13 +6,16 @@
 
 namespace Cyan
 {
-    Shader* s_renderProbeShader = 0;
-    Shader* IrradianceProbe::m_computeIrradianceShader = 0;
-    RenderTarget* IrradianceProbe::m_radianceRenderTarget = 0; 
-    RenderTarget* IrradianceProbe::m_irradianceRenderTarget = 0; 
-    Shader* LightFieldProbe::m_octProjectionShader = 0;
-    RenderTarget* LightFieldProbe::m_cubemapRenderTarget = 0;
-    RenderTarget* LightFieldProbe::m_octMapRenderTarget = 0;
+    Shader*        s_renderProbeShader                        = nullptr;
+    Shader*        IrradianceProbe::m_computeIrradianceShader = nullptr;
+    Shader*        IrradianceProbe::m_skyIrradianceShader     = nullptr;
+    RenderTarget*  IrradianceProbe::m_radianceRenderTarget    = nullptr; 
+    RenderTarget*  IrradianceProbe::m_irradianceRenderTarget  = nullptr; 
+    MeshInstance*  IrradianceProbe::m_cubeMeshInstance        = nullptr; 
+    RegularBuffer* IrradianceProbe::m_rayBuffers              = nullptr;
+    Shader* LightFieldProbe::m_octProjectionShader            = nullptr;
+    RenderTarget* LightFieldProbe::m_cubemapRenderTarget      = nullptr;
+    RenderTarget* LightFieldProbe::m_octMapRenderTarget       = nullptr;
 
     Shader* getRenderProbeShader()
     {
@@ -24,7 +27,9 @@ namespace Cyan
     }
 
     IrradianceProbe::IrradianceProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene)
-        : Entity(name , id, Transform(), parent), m_scene(scene)
+        : Entity(name , id, Transform(), parent), 
+        m_scene(scene), 
+        m_numVisibieRays(0)
     {
         if (!m_radianceRenderTarget)
         {
@@ -33,6 +38,8 @@ namespace Cyan
             m_computeIrradianceShader = createShader("DiffuseIrradianceShader", "../../shader/shader_diff_irradiance.vs", "../../shader/shader_diff_irradiance.fs");
             m_cubeMeshInstance = getMesh("CubeMesh")->createInstance();
             m_cubeMeshInstance->setMaterial(0, m_computeIrradianceMatl);
+            m_rayBuffers = createRegularBuffer(sizeof(GpuRay) * m_skyRays.size());
+            m_skyIrradianceShader = createCsShader("SkyIrradianceShader", "../../shader/sky_irradiance_c.glsl");
         }
 
         m_bakedInProbes = false;
@@ -70,11 +77,7 @@ namespace Cyan
         setMaterial("SphereMesh", 0, m_renderProbeMatl);
         m_renderProbeMatl->bindTexture("radianceMap", m_irradianceMap);
         m_cubeMeshInstance->setMaterial(0, m_computeIrradianceMatl);
-
-        auto renderMatlCallback = [&]()
-        {
-            m_renderProbeMatl->bindTexture("radianceMap", m_irradianceMap);
-        };
+        m_skyRays.resize(kNumZenithSlice * kNumAzimuthalSlice * kNumRaysPerHemiSphere);
     }
 
     // TODO: exclude dynamic objects
@@ -191,6 +194,73 @@ namespace Cyan
         }
         ctx->setDepthControl(DepthControl::kEnable);
         timer.end();
+    }
+
+    void IrradianceProbe::sampleSkyVisibility()
+    {
+        float deltaPhi = M_PI * 2.f / float(kNumAzimuthalSlice);
+        float deltaTheta = M_PI * .5f / float(kNumZenithSlice);
+
+        // tangent to world space 
+        auto tangentToWorld = [&](const glm::vec3& n)
+        {
+            glm::vec3 right = n.y < 0.99f ? glm::cross(n, glm::vec3(0.f, 1.f, 0.f)) : glm::cross(n, glm::vec3(0.f, 0.f, 1.f));
+            glm::vec3 forward = glm::cross(n, right);
+            glm::mat3 coordFrame = {
+                right,
+                forward,
+                n
+            };
+            return coordFrame;
+        };
+
+        // random sample hemi-sphere oriented by @normal
+        auto sampleHemiSphere = [&](glm::vec3& n)
+        {
+            float r0 = rand() / RAND_MAX;
+            float r1 = rand() / RAND_MAX;
+            float theta = acosf(r0);
+            float phi = 2 * M_PI * r1;
+            glm::vec3 localDir = {
+                sin(theta) * cos(phi),
+                cos(theta),
+                sin(theta) * sin(phi)
+            };
+            return tangentToWorld(n) * localDir; 
+        };
+
+        m_numVisibieRays = 0;
+        for (u32 i = 0; i < kNumAzimuthalSlice; ++i)
+        {
+            float phi = deltaPhi * i;
+            for (u32 j = 0; j < kNumZenithSlice; ++j)
+            {
+                float theta = j * deltaTheta;
+                glm::vec3 ro = getWorldPosition();
+                glm::vec3 hemiSphereNormal = glm::vec3(sin(theta) * cos(phi), cos(theta), -sin(theta) * sin(phi));
+
+                for (u32 k = 0; k < kNumRaysPerHemiSphere; ++k)
+                {
+                    glm::vec3 rd = sampleHemiSphere(hemiSphereNormal);
+                    // sample visibility, if visibile, bundle the ray and send to GPU to sample radiance
+                    if (m_scene->castVisibilityRay(ro, rd))
+                    {
+                        m_skyRays[i * j + k] = GpuRay{ glm::vec4(ro, 1.f), rd,  1.f };
+                        m_numVisibieRays++;
+                    }
+                    else
+                        m_skyRays[i * j + k] = GpuRay{ glm::vec4(ro, 1.f), rd, -1.f };
+                }
+            }
+        }
+
+        {
+            /* 
+                batch the rays of current sample hemi-sphere to gpu compute shader and then sample sky irradiance;
+                each workgroup will have kNumSamplesPerHemiSphere of rays
+            */
+            glDispatchCompute(kNumZenithSlice, kNumAzimuthalSlice, 1);
+        }
     }
 
     LightFieldProbe::LightFieldProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene)

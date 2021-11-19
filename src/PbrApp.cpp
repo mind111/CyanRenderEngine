@@ -184,6 +184,15 @@ namespace Pbr
     }
 }
 
+#define SCENE_HELMET
+
+enum Scenes
+{
+    Helmet_Scene = 0,
+    Factory_Scene,
+    kCount
+};
+
 static PbrApp* gApp = nullptr;
 
 PbrApp* PbrApp::get()
@@ -297,32 +306,39 @@ Cyan::MaterialInstance* createDefaultPbrMatlInstance(Scene* scene, PbrMaterialIn
 void PbrApp::initFactoryScene()
 {
     Cyan::Toolkit::ScopedTimer timer("initFactoryScene()", true);
-    m_factoryScene = Cyan::createScene("factory_scene", "../../scene/default_scene/scene_factory.json");
-    auto renderer = Cyan::Renderer::getSingletonPtr();
-    glm::vec2 viewportSize = renderer->getViewportSize();
-    float aspectRatio = viewportSize.x / viewportSize.y;
-    for (auto& camera : ->cameras)
-    {
-        // TODO: add setters
-        camera.aspectRatio = aspectRatio;
-        camera.projection = glm::perspective(glm::radians(camera.fov), aspectRatio, camera.n, camera.f);
-    }
+    m_scenes[Scenes::Factory_Scene] = Cyan::createScene("factory_scene", "../../scene/default_scene/scene_factory.json");
     timer.end();
 }
 
-void PbrApp::createScene(Scene* scene)
+void PbrApp::initScenes()
 {
-    createScene(scene, file);
+    // m_scenes.resize(Scenes::kCount);
+    m_scenes.resize(1);
     auto renderer = Cyan::Renderer::getSingletonPtr();
     glm::vec2 viewportSize = renderer->getViewportSize();
     float aspectRatio = viewportSize.x / viewportSize.y;
-    for (auto& camera : ->cameras)
+    auto initCamera = [&](Scene* scene)
     {
-        // TODO: add setters
-        camera.aspectRatio = aspectRatio;
-        camera.projection = glm::perspective(glm::radians(camera.fov), aspectRatio, camera.n, camera.f);
+        for (auto& camera : scene->cameras)
+        {
+            camera.aspectRatio = aspectRatio;
+            camera.projection = glm::perspective(glm::radians(camera.fov), aspectRatio, camera.n, camera.f);
+        }
+    };
+
+#ifdef SCENE_FACTORY
+    {
+        initFactoryScene();
+        initCamera(m_scenes[Scenes::Factory_Scene]);
     }
-    scene->customInit();
+#endif
+
+#ifdef SCENE_HELMET
+    {
+        initHelmetScene();
+        initCamera(m_scenes[Scenes::Helmet_Scene]);
+    }
+#endif
 }
 
 void PbrApp::initHelmetScene()
@@ -330,16 +346,9 @@ void PbrApp::initHelmetScene()
     Cyan::Toolkit::ScopedTimer timer("initHelmetScene()", true);
     // setup scenes
     Cyan::Toolkit::ScopedTimer loadSceneTimer("createScene()", true);
-    Scene* helmetScene = Cyan::createScene("helmet_scene", "../../scene/default_scene/scene_config.json");
-    auto renderer = Cyan::Renderer::getSingletonPtr();
-    glm::vec2 viewportSize = renderer->getViewportSize();
-    float aspectRatio = viewportSize.x / viewportSize.y;
-    for (auto& camera : helmetScene->cameras)
-    {
-        // TODO: add setters
-        camera.aspectRatio = aspectRatio;
-        camera.projection = glm::perspective(glm::radians(camera.fov), aspectRatio, camera.n, camera.f);
-    }
+    m_scenes[Scenes::Helmet_Scene] = Cyan::createScene("helmet_scene", "../../scene/default_scene/scene_config.json");
+    auto helmetScene = m_scenes[Scenes::Helmet_Scene];
+
     auto sceneManager = SceneManager::getSingletonPtr();
     Entity* envMapEntity = sceneManager->createEntity(helmetScene, "Envmap", Transform());
     envMapEntity->m_sceneRoot->attach(Cyan::createSceneNode("CubeMesh", Transform(), Cyan::getMesh("CubeMesh"), false));
@@ -532,8 +541,9 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewpo
     initShaders();
     initUniforms();
     initEnvMaps();
-    initHelmetScene();
-    m_currentScene = 0u;
+    initScenes();
+    m_currentScene = Scenes::Helmet_Scene;
+    m_pathTracer = new Cyan::PathTracer(m_scenes[m_currentScene]);
 
     glEnable(GL_LINE_SMOOTH);
     glLineWidth(4.f);
@@ -604,7 +614,7 @@ void PbrApp::beginFrame()
     m_envmapMatl->bindTexture("envmapSampler", m_envmap);
 }
 
-void PbrApp::doProcomputeWork()
+void PbrApp::doPrecomputeWork()
 {
     // precomute thingy here
     {
@@ -612,6 +622,7 @@ void PbrApp::doProcomputeWork()
         beginFrame();
 #if 0
         m_probeVolume->sampleScene();
+        m_irradianceProbe->sampleSkyVisibility();
 #endif
 #if 1
         auto renderer = Cyan::Renderer::getSingletonPtr();
@@ -627,7 +638,7 @@ void PbrApp::doProcomputeWork()
 
 void PbrApp::run()
 {
-    doProcomputeWork();
+    doPrecomputeWork();
 
     while (bRunning)
     {
@@ -685,16 +696,16 @@ RayCastInfo PbrApp::castMouseRay(const glm::vec2& currentViewportPos, const glm:
     m_debugRay.setModel(viewInverse);
 
     glm::vec3 ro = glm::vec3(0.f);
-    SceneNode* target = nullptr;
+
     RayCastInfo closestHit = { nullptr, nullptr, FLT_MAX };
     // ray intersection test against all the entities in the scene to find the closest intersection
     for (auto entity : m_scenes[m_currentScene]->entities)
     {
-        RayCastInfo hitInfo = entity->intersectRay(ro, rd, camera.view); 
-        if (hitInfo.t > 0.f && hitInfo < closestHit)
+        RayCastInfo traceInfo = entity->intersectRay(ro, rd, camera.view); 
+        if (traceInfo.t > 0.f && traceInfo < closestHit)
         {
-            closestHit = hitInfo;
-            printf("Cast a ray from mouse that hits %s \n", hitInfo.m_entity->m_name);
+            closestHit = traceInfo;
+            printf("Cast a ray from mouse that hits %s \n", traceInfo.m_entity->m_name);
         }
     }
     glm::vec3 worldHit = computeMouseHitWorldSpacePos(camera, rd, closestHit);
@@ -814,6 +825,13 @@ void PbrApp::drawDebugWindows()
                     drawLightingWidgets();
                     ImGui::Separator();
                 }
+                ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem("Debug Views"))
+            {
+                ImGui::Text("Path Tracing");
+                ImGui::Image((ImTextureID)m_pathTracer->m_texture->m_id, ImVec2(320, 180));
+                ImGui::Separator();
                 ImGui::EndTabItem();
             }
             if (ImGui::BeginTabItem("LightFieldProbe Ray Tracing Debug Tools"))
@@ -1439,6 +1457,7 @@ void PbrApp::render()
     glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, m_debugRayAtomicCounter);
 #endif
 
+    m_pathTracer->render(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera());
     renderer->beginRender();
     // rendering
     renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), 0);

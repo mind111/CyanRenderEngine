@@ -15,6 +15,7 @@ namespace Cyan
     struct MeshInstance;
     struct SkeletalMeshInstance;
 
+
     // TODO: how to distinguish between 2D mesh and 3D mesh
     struct Mesh
     {
@@ -23,9 +24,10 @@ namespace Cyan
 
         struct SubMesh
         {
-            VertexArray* m_vertexArray;
-            u32 m_numVerts;
-            std::vector<Triangle> m_triangles;
+            VertexArray*   m_vertexArray;
+            u32            m_numVerts;
+            TriangleArray  m_triangles;
+            // std::vector<Triangle> m_triangles;
         };
 
         std::string m_name;
