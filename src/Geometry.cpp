@@ -403,6 +403,13 @@ void BoundingBox3f::bound(glm::vec4& v4)
     m_pMax.z = Max(m_pMax.z, v4.z);
 }
 
+void BoundingBox3f::bound(Triangle& tri)
+{
+    bound(tri.m_vertices[0]);
+    bound(tri.m_vertices[1]);
+    bound(tri.m_vertices[2]);
+}
+
 inline f32 ffmin(f32 a, f32 b) { return a < b ? a : b;}
 inline f32 ffmax(f32 a, f32 b) { return a > b ? a : b;}
 
@@ -437,9 +444,9 @@ float BoundingBox3f::intersectRay(const glm::vec3& ro, const glm::vec3& rd, cons
 float Triangle::intersectRay(const glm::vec3& ro, const glm::vec3& rd, const glm::mat4& transform)
 {
     const float EPSILON = 0.0000001;
-    glm::vec4 v0_view = transform * m_vertices[0].position; 
-    glm::vec4 v1_view = transform * m_vertices[1].position;
-    glm::vec4 v2_view = transform * m_vertices[2].position;
+    glm::vec4 v0_view = transform * glm::vec4(m_vertices[0], 1.f);
+    glm::vec4 v1_view = transform * glm::vec4(m_vertices[1], 1.f);
+    glm::vec4 v2_view = transform * glm::vec4(m_vertices[2], 1.f);
 
     glm::vec3& v0 = glm::vec3(v0_view.x, v0_view.y, v0_view.z);
     glm::vec3& v1 = glm::vec3(v1_view.x, v1_view.y, v1_view.z);

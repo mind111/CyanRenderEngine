@@ -8,8 +8,10 @@ namespace Cyan
         PathTracer(Scene* scene);
 
         // inputs: scene, camera
+        void progressiveRender(Scene* scene, Camera& camera);
         void render(Scene* scene, Camera& camera);
         glm::vec3 traceScene(glm::vec3& ro, glm::vec3& rd);        
+        f32 traceShadowRay(glm::vec3& ro, glm::vec3& rd);
         void setPixel(u32 px, u32 py, glm::vec3& color);
 
         // constants

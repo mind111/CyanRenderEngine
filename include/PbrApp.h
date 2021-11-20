@@ -316,12 +316,14 @@ public:
     RegularBuffer* m_debugRayOctBuffer;
     RegularBuffer* m_debugRayWorldBuffer;
     RegularBuffer* m_debugRayBoundryBuffer;
+    // toy path tracer
+    Cyan::PathTracer* m_pathTracer;
+    u32 m_currentScene;
 private:
     float m_sampleVertex[(64 + 1) * 4 * 2] = { };
     
     bool bRunning;
     u32 entityOnFocusIdx;
-    u32 m_currentScene;
     u32 m_currentProbeIndex;
 
     // Materials
@@ -393,8 +395,6 @@ private:
     glm::vec3 m_debugRd;
     bool m_debugDrawSSAO;
 
-    // toy path tracer
-    Cyan::PathTracer* m_pathTracer;
 
     // debug parameters
     Line m_debugRay;

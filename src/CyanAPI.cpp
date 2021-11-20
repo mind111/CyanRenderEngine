@@ -171,6 +171,105 @@ namespace Cyan
         s_meshes.push_back(mesh);
     }
 
+    BVHNode* buildMeshBVH(Mesh* mesh)
+    {
+        BVHNode* root = new BVHNode();
+        std::vector<Triangle> triangles;
+        for (auto sm : mesh->m_subMeshes)
+        {
+            for (u32 v = 0; v < sm->m_numVerts; ++v)
+            {
+                Triangle tri = {
+                    sm->m_triangles.m_positionArray[v * 3 + 0],
+                    sm->m_triangles.m_positionArray[v * 3 + 1],
+                    sm->m_triangles.m_positionArray[v * 3 + 2]
+                };
+                triangles.push_back(tri);
+            }
+        }
+        buildBVH(triangles, root);
+        return root;
+    }
+
+    void splitTriangles(BoundingBox3f& aabb, std::vector<Triangle>& triangles, std::vector<Triangle>& triangles0, std::vector<Triangle>& triangles1)
+    {
+        enum SplitAxis
+        {
+            X_Axis = 0,
+            Y_Axis,
+            Z_Axis
+        };
+
+        // randomly determine a binary split axis
+        i32 axis = rand() % 3;
+        switch (axis)
+        {
+            case SplitAxis::X_Axis:
+            {
+                f32 mid = (aabb.m_pMin.x + aabb.m_pMax.x) * .5f;
+                for (auto& tri : triangles)
+                {
+                    // compute center of each triangle
+                    glm::vec3 center = ((tri.m_vertices[0] + tri.m_vertices[1]) * .5f + tri.m_vertices[2]) * .5f;
+                    auto& subTriangles = center.x <= mid ? triangles0 : triangles1;
+                    subTriangles.push_back(tri);
+                }
+            } break; 
+            case SplitAxis::Y_Axis:
+            {
+                f32 mid = (aabb.m_pMin.y + aabb.m_pMax.y) * .5f;
+                for (auto& tri : triangles)
+                {
+                    // compute center of each triangle
+                    glm::vec3 center = ((tri.m_vertices[0] + tri.m_vertices[1]) * .5f + tri.m_vertices[2]) * .5f;
+                    auto& subTriangles = center.y <= mid ? triangles0 : triangles1;
+                    subTriangles.push_back(tri);
+                }
+
+            } break;
+            case SplitAxis::Z_Axis:
+            {
+                f32 mid = (aabb.m_pMin.z + aabb.m_pMax.z) * .5f;
+                for (auto& tri : triangles)
+                {
+                    // compute center of each triangle
+                    glm::vec3 center = ((tri.m_vertices[0] + tri.m_vertices[1]) * .5f + tri.m_vertices[2]) * .5f;
+                    auto& subTriangles = center.z <= mid ? triangles0 : triangles1;
+                    subTriangles.push_back(tri);
+                }
+            } break;
+            default:
+               break;
+        };
+    } 
+
+    void buildBVH(std::vector<Triangle>& triangles, BVHNode* parent)
+    {
+        // terminate when we arive at a leaf node where there is only single triangle
+        if (triangles.size() <= 1)
+        {
+            parent->m_leftChild = new BVHNode();
+            parent->m_rightChild = nullptr;
+            parent->m_leftChild->m_aabb.bound(triangles[0]);
+            return;
+        }
+
+        std::vector<Triangle> triangles0;
+        std::vector<Triangle> triangles1;
+
+        BoundingBox3f& aabb = parent->m_aabb;
+        for (auto& tri : triangles)
+            aabb.bound(tri);
+
+        splitTriangles(aabb, triangles, triangles0, triangles1);
+
+        parent->m_leftChild = new BVHNode(); 
+        parent->m_rightChild = new BVHNode(); 
+        
+        buildBVH(triangles0, parent->m_leftChild);
+        buildBVH(triangles1, parent->m_rightChild);
+    }
+
     Mesh* createMesh(const char* name, const char* file, bool normalize)
     {
         Mesh* mesh = new Mesh;
@@ -204,24 +303,28 @@ namespace Cyan
             float* data = vertexDataPtrs[sm];
 
             subMesh->m_numVerts = numVerts;
+            subMesh->m_triangles.m_numVerts = numVerts;
             subMesh->m_triangles.m_positionArray.resize(subMesh->m_numVerts * 3);
             subMesh->m_triangles.m_normalArray.resize(subMesh->m_numVerts * 3);
             subMesh->m_triangles.m_tangentArray.resize(subMesh->m_numVerts * 3);
             subMesh->m_triangles.m_texCoordArray.resize(subMesh->m_numVerts * 2);
             auto& triangles = subMesh->m_triangles;
 
+            // TODO: this is potentially error prone
+            if (attribFlag & VertexAttribFlag::kPosition)
+                memcpy(triangles.m_positionArray.data(), scene->mMeshes[sm]->mVertices, sizeof(scene->mMeshes[sm]->mVertices[0]) * numVerts);
+            if (attribFlag & VertexAttribFlag::kNormal)
+                memcpy(triangles.m_normalArray.data(), scene->mMeshes[sm]->mNormals, sizeof(scene->mMeshes[sm]->mNormals[0]) * numVerts);
+            if (attribFlag & VertexAttribFlag::kTangents)
+                memcpy(triangles.m_tangentArray.data(), scene->mMeshes[sm]->mTangents, sizeof(scene->mMeshes[sm]->mTangents[0]) * numVerts);
+            if (attribFlag & VertexAttribFlag::kTexcoord)
+                memcpy(triangles.m_texCoordArray.data(), scene->mMeshes[sm]->mTextureCoords[0], sizeof(scene->mMeshes[sm]->mTextureCoords[0][0]) * numVerts);
+
             for (u32 v = 0u; v < numVerts; v++)
             {
                 // assemble a triangle
                 u32 triangleIndex = v / 3u;
-                u32 vertexIndex = v % 3u;
-                // subMesh->m_triangles.
-                // if (vertexIndex == 0u)
-                // {
-                //     subMesh->m_triangles.push_back(Triangle{ });
-                // }
-                // Triangle& tri = subMesh->m_triangles.back();
-                // tri.m_vertices[vertexIndex] = { };
+                u32 vertexIndex = triangleIndex * 3u + v % 3u;
 
                 u32 offset = 0;
                 float* vertexAddress = (float*)((u8*)data + strideInBytes * v);
@@ -230,22 +333,12 @@ namespace Cyan
                     vertexAddress[offset++] = scene->mMeshes[sm]->mVertices[v].x;
                     vertexAddress[offset++] = scene->mMeshes[sm]->mVertices[v].y;
                     vertexAddress[offset++] = scene->mMeshes[sm]->mVertices[v].z;
-
-                    triangles.m_positionArray[triangleIndex * 3 + vertexIndex] = glm::vec4();
-                    tirangle = glm::vec4(scene->mMeshes[sm]->mVertices[v].x, 
-                                                               scene->mMeshes[sm]->mVertices[v].y,
-                                                               scene->mMeshes[sm]->mVertices[v].z,
-                                                               1.f);
                 }
                 if (attribFlag & VertexAttribFlag::kNormal)
                 {
                     vertexAddress[offset++] = scene->mMeshes[sm]->mNormals[v].x;
                     vertexAddress[offset++] = scene->mMeshes[sm]->mNormals[v].y;
                     vertexAddress[offset++] = scene->mMeshes[sm]->mNormals[v].z;
-
-                    tri.m_vertices[vertexIndex].normal = glm::vec3(scene->mMeshes[sm]->mNormals[v].x, 
-                                                             scene->mMeshes[sm]->mNormals[v].y,
-                                                             scene->mMeshes[sm]->mNormals[v].z);
                 }
                 if (attribFlag & VertexAttribFlag::kTangents)
                 {
@@ -253,18 +346,11 @@ namespace Cyan
                     vertexAddress[offset++] = scene->mMeshes[sm]->mTangents[v].y;
                     vertexAddress[offset++] = scene->mMeshes[sm]->mTangents[v].z;
                     vertexAddress[offset++] = 1.f;
-
-                    tri.m_vertices[vertexIndex].tangent = glm::vec3(scene->mMeshes[sm]->mTangents[v].x,
-                                                              scene->mMeshes[sm]->mTangents[v].y,
-                                                              scene->mMeshes[sm]->mTangents[v].z);
                 }
                 if (attribFlag & VertexAttribFlag::kTexcoord)
                 {
                     vertexAddress[offset++] = scene->mMeshes[sm]->mTextureCoords[0][v].x;
                     vertexAddress[offset++] = scene->mMeshes[sm]->mTextureCoords[0][v].y;
-
-                    tri.m_vertices[vertexIndex].texCoord = glm::vec2(scene->mMeshes[sm]->mTextureCoords[0][v].x,
-                                                               scene->mMeshes[sm]->mTextureCoords[0][v].y);
                 }
             }
 
@@ -299,6 +385,7 @@ namespace Cyan
             }
             subMesh->m_vertexArray->init();
         }
+
         // Store the xform for normalizing object space mesh coordinates
         mesh->m_shouldNormalize = normalize;
         mesh->onFinishLoading();
@@ -741,6 +828,7 @@ namespace Cyan
             subMesh->m_vertexArray = createVertexArray(createVertexBuffer(cubeVertices, sizeof(cubeVertices), 3 * sizeof(f32), subMesh->m_numVerts));
             subMesh->m_vertexArray->m_vertexBuffer->m_vertexAttribs.push_back({VertexAttrib::DataType::Float, 3, 3 * sizeof(f32), 0, cubeVertices});
             subMesh->m_vertexArray->init();
+            subMesh->m_triangles.m_numVerts = 0;
 
             cubeMesh->m_subMeshes.push_back(subMesh);
             cubeMesh->m_normalization = glm::mat4(1.f);

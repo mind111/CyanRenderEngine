@@ -2,6 +2,7 @@
 #include <queue>
 #include <functional>
 #include <stdlib.h>
+#include <thread>
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_glfw.h"
@@ -634,11 +635,31 @@ void PbrApp::doPrecomputeWork()
         endFrame();
         ctx->setRenderTarget(nullptr, 0u);
     }
+    // path tracing
+    {
+        m_pathTracer->render(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera());
+    }
+}
+
+void pathTracingWorker(PbrApp* app)
+{
+    Scene* scene = app->m_scenes[app->m_currentScene];
+    while(1)
+    {
+        app->m_pathTracer->progressiveRender(scene, scene->getActiveCamera());
+    }
 }
 
 void PbrApp::run()
 {
     doPrecomputeWork();
+
+    // TODO: proper thread termination
+    // TODO: do opengl multi-threading properly
+#if 0
+    std::thread worker(pathTracingWorker, this);
+    worker.join();
+#endif
 
     while (bRunning)
     {
@@ -1411,8 +1432,7 @@ struct SharedMaterialData
     }
 };
 
-// TODO: fix PCF shadow
-// TODO: try out variance shadow map
+// TODO: basic toy path tracer just for fun
 // TODO: read about probe selection & multi-probe tracing
 // TODO: irradiance probe with visibility (prefiltered radial depth map)
 void PbrApp::render()
@@ -1457,7 +1477,7 @@ void PbrApp::render()
     glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, m_debugRayAtomicCounter);
 #endif
 
-    m_pathTracer->render(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera());
+    // m_pathTracer->progressiveRender(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera());
     renderer->beginRender();
     // rendering
     renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), 0);

@@ -44,6 +44,7 @@ struct Entity
     SceneNode* getSceneRoot();
     SceneNode* getSceneNode(const char* name);
     void attachSceneNode(SceneNode* child, const char* parentName=nullptr);
+    bool intersectRay(const glm::vec3& ro, const glm::vec3& rd);
     struct RayCastInfo intersectRay(const glm::vec3& ro, const glm::vec3& rd, glm::mat4& view);
     // merely sets the parent entity, it's not this method's responsibility to trigger
     // any logic relates to parent change
