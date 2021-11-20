@@ -481,6 +481,9 @@ void PbrApp::initHelmetScene()
         }
     }
     */
+
+    Cyan::Mesh* helmetMesh = Cyan::getMesh("helmet_mesh");
+    BVHNode* root = Cyan::buildMeshBVH(helmetMesh);
     m_scenes.push_back(helmetScene);
 }
 
