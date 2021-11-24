@@ -171,109 +171,11 @@ namespace Cyan
         s_meshes.push_back(mesh);
     }
 
-    BVHNode* buildMeshBVH(Mesh* mesh)
-    {
-        BVHNode* root = new BVHNode();
-        std::vector<Triangle> triangles;
-        for (auto sm : mesh->m_subMeshes)
-        {
-            for (u32 v = 0; v < sm->m_numVerts; ++v)
-            {
-                Triangle tri = {
-                    sm->m_triangles.m_positionArray[v * 3 + 0],
-                    sm->m_triangles.m_positionArray[v * 3 + 1],
-                    sm->m_triangles.m_positionArray[v * 3 + 2]
-                };
-                triangles.push_back(tri);
-            }
-        }
-        buildBVH(triangles, root);
-        return root;
-    }
-
-    void splitTriangles(BoundingBox3f& aabb, std::vector<Triangle>& triangles, std::vector<Triangle>& triangles0, std::vector<Triangle>& triangles1)
-    {
-        enum SplitAxis
-        {
-            X_Axis = 0,
-            Y_Axis,
-            Z_Axis
-        };
-
-        // randomly determine a binary split axis
-        i32 axis = rand() % 3;
-        switch (axis)
-        {
-            case SplitAxis::X_Axis:
-            {
-                f32 mid = (aabb.m_pMin.x + aabb.m_pMax.x) * .5f;
-                for (auto& tri : triangles)
-                {
-                    // compute center of each triangle
-                    glm::vec3 center = ((tri.m_vertices[0] + tri.m_vertices[1]) * .5f + tri.m_vertices[2]) * .5f;
-                    auto& subTriangles = center.x <= mid ? triangles0 : triangles1;
-                    subTriangles.push_back(tri);
-                }
-            } break; 
-            case SplitAxis::Y_Axis:
-            {
-                f32 mid = (aabb.m_pMin.y + aabb.m_pMax.y) * .5f;
-                for (auto& tri : triangles)
-                {
-                    // compute center of each triangle
-                    glm::vec3 center = ((tri.m_vertices[0] + tri.m_vertices[1]) * .5f + tri.m_vertices[2]) * .5f;
-                    auto& subTriangles = center.y <= mid ? triangles0 : triangles1;
-                    subTriangles.push_back(tri);
-                }
-
-            } break;
-            case SplitAxis::Z_Axis:
-            {
-                f32 mid = (aabb.m_pMin.z + aabb.m_pMax.z) * .5f;
-                for (auto& tri : triangles)
-                {
-                    // compute center of each triangle
-                    glm::vec3 center = ((tri.m_vertices[0] + tri.m_vertices[1]) * .5f + tri.m_vertices[2]) * .5f;
-                    auto& subTriangles = center.z <= mid ? triangles0 : triangles1;
-                    subTriangles.push_back(tri);
-                }
-            } break;
-            default:
-               break;
-        };
-    } 
-
-    void buildBVH(std::vector<Triangle>& triangles, BVHNode* parent)
-    {
-        // terminate when we arive at a leaf node where there is only single triangle
-        if (triangles.size() <= 1)
-        {
-            parent->m_leftChild = new BVHNode();
-            parent->m_rightChild = nullptr;
-            parent->m_leftChild->m_aabb.bound(triangles[0]);
-            return;
-        }
-
-        std::vector<Triangle> triangles0;
-        std::vector<Triangle> triangles1;
-
-        BoundingBox3f& aabb = parent->m_aabb;
-        for (auto& tri : triangles)
-            aabb.bound(tri);
-
-        splitTriangles(aabb, triangles, triangles0, triangles1);
-
-        parent->m_leftChild = new BVHNode(); 
-        parent->m_rightChild = new BVHNode(); 
-        
-        buildBVH(triangles0, parent->m_leftChild);
-        buildBVH(triangles1, parent->m_rightChild);
-    }
-
     Mesh* createMesh(const char* name, const char* file, bool normalize)
     {
         Mesh* mesh = new Mesh;
         mesh->m_name = name;
+        mesh->m_bvh = nullptr;
 
         Assimp::Importer importer;
         const aiScene* scene = importer.ReadFile(

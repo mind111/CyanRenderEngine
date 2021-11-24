@@ -15,11 +15,10 @@
 // ray cast in world space
 RayCastInfo Scene::castRay(glm::vec3& ro, glm::vec3& rd, bool debugPrint)
 {
-    RayCastInfo closestHit = { nullptr, nullptr, -1, -1, FLT_MAX };
+    RayCastInfo closestHit;
     for (auto entity : entities)
     {
         auto traceInfo = entity->intersectRay(ro, rd, glm::mat4(1.f)); 
-        // as long as it hits something
         if (traceInfo.t > 0.f && traceInfo < closestHit)
         {
             closestHit = traceInfo;
@@ -37,9 +36,7 @@ bool Scene::castVisibilityRay(glm::vec3& ro, glm::vec3& rd)
         auto traceInfo = entity->intersectRay(ro, rd, glm::mat4(1.f)); 
         // as long as it hits something
         if (traceInfo.t > 0.f)
-        {
             return false;
-        }
     }
     return true;
 }
@@ -76,8 +73,6 @@ Entity* SceneManager::createEntity(Scene* scene, const char* entityName, Transfo
         this custom allocator does not work for classes that has virtual methods, need to use placment
         new. Study about why sizeof() won't include size for the vtable or virtual methods?
     */
-    // Entity* entity = (Entity*)CYAN_ALLOC(sizeof(Entity));
-    // TODO: research about how to use custom allocator with virtual classes
 
     // id
     u32 id = allocEntityId(scene);
@@ -144,7 +139,7 @@ void SceneManager::buildLightList(Scene* scene, std::vector<PointLightGpuData>& 
 Cyan::IrradianceProbe* SceneManager::createIrradianceProbe(Scene* scene, glm::vec3& pos)
 {
     auto probe = m_probeFactory->createIrradianceProbe(scene, pos); 
-    scene->entities.push_back(probe);
+    // TODO: this need to be remoded
     scene->m_irradianceProbe = probe;
     return probe;
 }

@@ -113,7 +113,7 @@ struct Vertex
 struct Triangle
 {
     glm::vec3 m_vertices[3];
-    float intersectRay(const glm::vec3& ro, const glm::vec3& rd, const glm::mat4& transform);
+    float intersectRay(const glm::vec3& ro, const glm::vec3& rd);
 };
 
 // SoA data oriented triangle mesh meant for imrpoving ray tracing procedure
@@ -165,21 +165,5 @@ struct BoundingBox3f
     void bound(glm::vec3& v3);
     void bound(glm::vec4& v4);
     void bound(Triangle& tri);
-    float BoundingBox3f::intersectRay(const glm::vec3& ro, const glm::vec3& rd, const glm::mat4& transform);
-};
-
-struct BVHNode
-{
-    BVHNode* m_parent;
-    BVHNode* m_leftChild;
-    BVHNode* m_rightChild;
-    BoundingBox3f m_aabb;
-    BVHNode() 
-        : m_parent(nullptr), m_leftChild(nullptr), m_rightChild(nullptr), m_aabb{} 
-    { }
-
-    void bound(BVHNode* node) 
-    { 
-
-    }
+    float BoundingBox3f::intersectRay(const glm::vec3& ro, const glm::vec3& rd);
 };

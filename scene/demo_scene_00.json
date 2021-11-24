@@ -1,0 +1,148 @@
+{
+    "cameras": [
+        {
+            "name": "main_camera",
+            "position": [0.0, 3.0, 1.2],
+            "lookAt": [-2.0, 2.7, -5.0],
+            "worldUp": [0.0, 1.0, 0.0],
+            "fov": 45.0,
+            "z_near": 0.5,
+            "z_far": 100.0
+        },
+        {
+            "name": "debug_camera",
+            "position": [-20.0, 20.0, 5.0],
+            "lookAt": [0.0, 0.0, -2],
+            "worldUp": [0.0, 1.0, 0.0],
+            "fov": 50.0,
+            "z_near": 0.1,
+            "z_far": 100.0
+        }
+    ],
+
+    "meshes": [
+        {
+            "name": "helmet_mesh",
+            "path": "asset/helmet/mesh/helmet.obj",
+            "normalize": false
+        },
+        {
+            "name": "sphere_mesh",
+            "path": "asset/sphere/mesh/uv_sphere.obj",
+            "normalize": false
+        },
+        {
+            "name": "room_mesh",
+            "path": "../../asset/demo_scene/demo_room.obj",
+            "normalize": false
+        }
+    ],
+
+    "textures": [
+        {
+            "name": "helmet_diffuse",
+            "path": "asset/helmet/texture/Default_albedo.jpg",
+            "numMips": 11,
+            "dynamic_range": "ldr"
+        },
+
+        {
+            "name": "helmet_nm",
+            "path": "asset/helmet/texture/Default_normal.jpg",
+            "numMips": 11,
+            "dynamic_range": "ldr"
+        },
+
+        {
+            "name": "helmet_ao",
+            "path": "asset/helmet/texture/Default_AO.jpg",
+            "numMips": 11,
+            "dynamic_range": "ldr"
+        },
+
+        {
+            "name": "helmet_roughness",
+            "path": "asset/helmet/texture/Default_metalRoughness.jpg",
+            "numMips": 11,
+            "dynamic_range": "ldr"
+        },
+
+        {
+            "name": "helmet_emission",
+            "path": "asset/helmet/texture/Default_emissive.jpg",
+            "numMips": 11,
+            "dynamic_range": "ldr"
+        }
+    ],
+
+    "materials": [],
+    "nodes": [
+        {
+            "index": 0,
+            "name": "HelmetMesh",
+            "mesh": "helmet_mesh",
+            "xform": {
+                "translation": [-2.0, 2.7, -5.0],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [0.8, 0.8, 0.8]
+            },
+            "child": []
+        },
+
+        {
+            "index": 1,
+            "name": "SphereMesh",
+            "mesh": "sphere_mesh",
+            "xform": {
+                "translation": [2.2, -0.87, -0.8],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [0.2, 0.2, 0.2]
+            },
+            "child": []
+        },
+
+        {
+            "index": 2,
+            "name": "RoomMesh",
+            "mesh": "room_mesh",
+            "xform": {
+                "translation": [0.0, 0.0, 0.0],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [1.0, 1.0, 1.0]
+            },
+            "child": []
+        }
+    ],
+
+    "entities": [
+        {
+            "name": "DamagedHelmet",
+            "xform": {
+                "translation": [0.0, 0.0, 0.0],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [1.0, 1.0, 1.0]
+            },
+            "nodes": [ 0 ]
+        },
+
+        {
+            "name": "Sphere0",
+            "xform": {
+                "translation": [0.0, 0.0, 0.0],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [1.00, 1.00, 1.00]
+            },
+            "nodes": [ 1 ]
+        },
+
+        {
+            "name": "Room",
+            "xform": {
+                "translation": [0.0, 0.0, 0.0],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [1.00, 1.00, 1.00]
+            },
+            "nodes": [ 2 ]
+        }
+    ]
+}

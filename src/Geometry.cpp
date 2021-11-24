@@ -414,13 +414,11 @@ inline f32 ffmin(f32 a, f32 b) { return a < b ? a : b;}
 inline f32 ffmax(f32 a, f32 b) { return a > b ? a : b;}
 
 // do this computation in view space
-float BoundingBox3f::intersectRay(const glm::vec3& ro, const glm::vec3& rd, const glm::mat4& transform)
+float BoundingBox3f::intersectRay(const glm::vec3& ro, const glm::vec3& rd)
 {
     f32 tMin, tMax;
-    glm::vec4 pMinView = transform * m_pMin;
-    glm::vec4 pMaxView = transform * m_pMax;
-    glm::vec3 min = glm::vec3(pMinView.x, pMinView.y, pMinView.z);
-    glm::vec3 max = glm::vec3(pMaxView.x, pMaxView.y, pMaxView.z);
+    glm::vec3 min = Cyan::vec4ToVec3(m_pMin);
+    glm::vec3 max = Cyan::vec4ToVec3(m_pMax);
 
     // x-min, x-max
     f32 txMin = ffmin((min.x - ro.x) / rd.x, (max.x - ro.x) / rd.x);
@@ -435,42 +433,38 @@ float BoundingBox3f::intersectRay(const glm::vec3& ro, const glm::vec3& rd, cons
     tMax = ffmin(ffmin(txMax, tyMax), tzMax);
     if (tMin <= tMax)
     {
-        return tMin;
+        return tMin > 0.f ? tMin : tMax;
     }
     return -1.0;
 }
 
 // taken from https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
-float Triangle::intersectRay(const glm::vec3& ro, const glm::vec3& rd, const glm::mat4& transform)
+float Triangle::intersectRay(const glm::vec3& roObjectSpace, const glm::vec3& rdObjectSpace)
 {
     const float EPSILON = 0.0000001;
-    glm::vec4 v0_view = transform * glm::vec4(m_vertices[0], 1.f);
-    glm::vec4 v1_view = transform * glm::vec4(m_vertices[1], 1.f);
-    glm::vec4 v2_view = transform * glm::vec4(m_vertices[2], 1.f);
-
-    glm::vec3& v0 = glm::vec3(v0_view.x, v0_view.y, v0_view.z);
-    glm::vec3& v1 = glm::vec3(v1_view.x, v1_view.y, v1_view.z);
-    glm::vec3& v2 = glm::vec3(v2_view.x, v2_view.y, v2_view.z);
+    glm::vec3& v0 = m_vertices[0];
+    glm::vec3& v1 = m_vertices[1];
+    glm::vec3& v2 = m_vertices[2];
     glm::vec3 edge1 = v1 - v0;
     glm::vec3 edge2 = v2 - v0;
     glm::vec3 h, s, q;
     float a,f,u,v;
 
-    h = glm::cross(rd, edge2);
+    h = glm::cross(rdObjectSpace, edge2);
     a = glm::dot(edge1, h);
     if (a > -EPSILON && a < EPSILON)
     {
         return -1.0;
     }
     f = 1.0f / a;
-    s = ro - v0;
+    s = roObjectSpace - v0;
     u = f * dot(s, h);
     if (u < 0.0 || u > 1.0)
     {
         return -1.0;
     }
     q = glm::cross(s, edge1);
-    v = f * dot(rd, q);
+    v = f * dot(rdObjectSpace, q);
     if (v < 0.0 || u + v > 1.0)
     {
         return -1.0;

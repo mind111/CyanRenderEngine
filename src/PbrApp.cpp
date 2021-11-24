@@ -22,23 +22,10 @@
     * particle system; particle rendering
     * grass rendering
     * procedural sky & clouds
-    * look into ue4's skylight implementation
-    * toon shading
     * normalized blinn phong shading
     * animation
-    * select entity via ui; highlight selected entities in the scene
     * saving the scene and assets as binaries (serialization)
-    * how to structure code around render pass
-
-    * struct RenderPass
-    * {
-    *   Shader* m_shader;
-    *   RenderTarget* m_renderTarget;
-    *   VertexArray*  m_vertexArray;
-    *   Material* (ShaderInputs) m_matl;
-    * }
 */
-
 
 /* Constants */
 // In radians per pixel 
@@ -185,12 +172,13 @@ namespace Pbr
     }
 }
 
-#define SCENE_HELMET
+#define SCENE_DEMO_00
 
 enum Scenes
 {
     Helmet_Scene = 0,
     Factory_Scene,
+    Demo_Scene_00,
     kCount
 };
 
@@ -205,9 +193,11 @@ PbrApp* PbrApp::get()
 
 PbrApp::PbrApp()
 : m_debugRayTracingNormal(0.f, 1.f, 0.f)
+, bOrbit(false)
 {
     bOrbit = false;
     gApp = this;
+    m_scenes.resize(Scenes::kCount, nullptr);
 }
 
 bool PbrApp::mouseOverUI()
@@ -215,18 +205,15 @@ bool PbrApp::mouseOverUI()
     return (m_mouseCursorX < 400.f && m_mouseCursorX > 0.f && m_mouseCursorY < 720.f && m_mouseCursorY > 0.f);
 }
 
-struct PbrMaterialInputs
+void PbrApp::addSceneMaterial(Scene* scene, Cyan::MaterialInstance* matl)
 {
-    Cyan::Texture* m_baseColor;
-    Cyan::Texture* m_roughnessMap;
-    Cyan::Texture* m_metallicMap;
-    Cyan::Texture* m_metallicRoughnessMap;
-    Cyan::Texture* m_normalMap;
-    Cyan::Texture* m_occlusion;
-    float m_uRoughness;
-    float m_uMetallic;
-};
+    auto& materials = m_sceneMaterialTable[scene->m_name];
+    if (materials.size() == 0)
+        printf("Created new scene materials vector for '%s' \n", scene->m_name.c_str());
+    materials.push_back(matl);
+}
 
+#if 0
 Cyan::MaterialInstance* createDefaultRayTracingMatl(Scene* scene, Shader* shader, PbrMaterialInputs inputs)
 {
     Cyan::MaterialInstance* matl = Cyan::createMaterial(shader)->createInstance();
@@ -263,8 +250,9 @@ Cyan::MaterialInstance* createDefaultRayTracingMatl(Scene* scene, Shader* shader
     matl->set("disneyReparam", 1.0f);
     return matl;
 }
+#endif
 
-Cyan::MaterialInstance* createDefaultPbrMatlInstance(Scene* scene, PbrMaterialInputs inputs)
+Cyan::MaterialInstance* PbrApp::createDefaultPbrMatlInstance(Scene* scene, PbrMaterialInputs inputs)
 {
     Shader* pbrShader = Cyan::createShader("PbrShader", nullptr, nullptr);
     Cyan::MaterialInstance* matl = Cyan::createMaterial(pbrShader)->createInstance();
@@ -301,7 +289,104 @@ Cyan::MaterialInstance* createDefaultPbrMatlInstance(Scene* scene, PbrMaterialIn
     matl->set("kDiffuse", 1.0f);
     matl->set("kSpecular", 1.0f);
     matl->set("disneyReparam", 1.0f);
+
+    addSceneMaterial(scene, matl);
     return matl;
+}
+
+void PbrApp::createHelmetInstance(Scene* scene)
+{
+    auto textureManager = m_graphicsSystem->getTextureManager();
+    auto sceneManager = SceneManager::getSingletonPtr();
+    // helmet
+    {
+        PbrMaterialInputs inputs = { 0 };
+        inputs.m_baseColor = textureManager->getTexture("helmet_diffuse");
+        inputs.m_normalMap = textureManager->getTexture("helmet_nm");
+        inputs.m_metallicRoughnessMap = textureManager->getTexture("helmet_roughness");
+        inputs.m_occlusion = textureManager->getTexture("helmet_ao");
+        auto helmetMatl = createDefaultPbrMatlInstance(scene, inputs);
+
+        // TODO: create a .cyanmatl file for defining materials?
+        // helmetMatl->bindTexture("diffuseMaps[0]", textureManager->getTexture("helmet_diffuse"));
+        // helmetMatl->bindTexture("normalMap", textureManager->getTexture("helmet_nm"));
+        // helmetMatl->bindTexture("metallicRoughnessMap", textureManager->getTexture("helmet_roughness"));
+        // helmetMatl->bindTexture("aoMap", textureManager->getTexture("helmet_ao"));
+        // helmetMatl->bindTexture("envmap", m_envmap);
+        // helmetMatl->bindBuffer("dirLightsData", scene->m_dirLightsBuffer);
+        // helmetMatl->bindBuffer("pointLightsData", scene->m_pointLightsBuffer);
+        // helmetMatl->set("hasAoMap", 1.f);
+        // helmetMatl->set("hasNormalMap", 1.f);
+        // helmetMatl->set("kDiffuse", 1.0f);
+        // helmetMatl->set("kSpecular", 1.0f);
+        // helmetMatl->set("hasMetallicRoughnessMap", 1.f);
+        // helmetMatl->set("disneyReparam", 1.f);
+        Entity* helmet = sceneManager->getEntity(scene, "DamagedHelmet");
+        helmet->setMaterial("HelmetMesh", 0, helmetMatl);
+    }
+}
+
+void PbrApp::initDemoScene00()
+{
+    Cyan::Toolkit::ScopedTimer timer("initDemoScene00()", true);
+    m_scenes[Scenes::Demo_Scene_00] = Cyan::createScene("demo_scene_00", "C:\\dev\\cyanRenderEngine\\scene\\demo_scene_00.json");
+    Scene* demoScene00 = m_scenes[Scenes::Demo_Scene_00];
+
+    auto textureManager = m_graphicsSystem->getTextureManager();
+    auto sceneManager = SceneManager::getSingletonPtr();
+
+    // helmet
+    {
+        createHelmetInstance(demoScene00);
+#if 1
+        auto helmet = sceneManager->getEntity(demoScene00, "DamagedHelmet");
+        auto helmetMesh = helmet->getSceneNode("HelmetMesh")->m_meshInstance->m_mesh;
+        helmetMesh->m_bvh = new Cyan::MeshBVH(helmetMesh);
+        helmetMesh->m_bvh->build();
+#endif
+    }
+
+    // sphere 0
+    {
+        PbrMaterialInputs inputs = { 0 };
+        Entity* sphereEntity = sceneManager->getEntity(demoScene00, "Sphere0");
+        Cyan::Texture* sphereAlbedo = Cyan::Toolkit::createFlatColorTexture("sphere_albedo", 4u, 4u, glm::vec4(0.8f, 0.8f, 0.6f, 1.f));
+        inputs.m_baseColor = sphereAlbedo;
+        inputs.m_uRoughness = 0.8f;
+        inputs.m_uMetallic = 0.1f;
+        auto sphereMatl = createDefaultPbrMatlInstance(demoScene00, inputs);
+        sphereEntity->setMaterial("SphereMesh", 0, sphereMatl);
+    }
+    
+    // room
+    {
+        PbrMaterialInputs inputs = { 0 };
+        Entity* room = sceneManager->getEntity(demoScene00, "Room");
+        Cyan::Texture* albedo = Cyan::Toolkit::createFlatColorTexture("room_albedo", 4, 4u, glm::vec4(0.9f, 0.9f, 0.9f, 1.f));
+        inputs.m_baseColor = albedo;
+        inputs.m_uRoughness = 0.8f;
+        inputs.m_uMetallic = 0.1f;
+        auto roomMatl = createDefaultPbrMatlInstance(demoScene00, inputs);
+        auto sceneNode = room->getSceneNode("RoomMesh");
+        // bind material for all submeshes
+        for (u32 i = 0; i < sceneNode->m_meshInstance->m_mesh->numSubMeshes(); ++i)
+            room->setMaterial("RoomMesh", i, roomMatl);
+    }
+
+    // lighting
+    {
+        sceneManager->createDirectionalLight(demoScene00, glm::vec3(1.0f, 1.0, 1.0f), glm::normalize(glm::vec3(1.0f, 1.0f, 1.0f)), 1.2f);
+        // sky light
+        auto sceneManager = SceneManager::getSingletonPtr();
+        Entity* envMapEntity = sceneManager->createEntity(demoScene00, "Envmap", Transform());
+        envMapEntity->m_sceneRoot->attach(Cyan::createSceneNode("CubeMesh", Transform(), Cyan::getMesh("CubeMesh"), false));
+        envMapEntity->setMaterial("CubeMesh", 0, m_skyMatl);
+
+        // irradiance probes
+        m_irradianceProbe = sceneManager->createIrradianceProbe(demoScene00, glm::vec3(0.f, 2.5f, 0.f));
+    }
+
+    timer.end();
 }
 
 void PbrApp::initFactoryScene()
@@ -313,8 +398,6 @@ void PbrApp::initFactoryScene()
 
 void PbrApp::initScenes()
 {
-    // m_scenes.resize(Scenes::kCount);
-    m_scenes.resize(1);
     auto renderer = Cyan::Renderer::getSingletonPtr();
     glm::vec2 viewportSize = renderer->getViewportSize();
     float aspectRatio = viewportSize.x / viewportSize.y;
@@ -340,6 +423,12 @@ void PbrApp::initScenes()
         initCamera(m_scenes[Scenes::Helmet_Scene]);
     }
 #endif
+#ifdef SCENE_DEMO_00
+    {
+        initDemoScene00();
+        initCamera(m_scenes[Scenes::Demo_Scene_00]);
+    }
+#endif
 }
 
 void PbrApp::initHelmetScene()
@@ -363,8 +452,8 @@ void PbrApp::initHelmetScene()
         inputs.m_baseColor = sphereAlbedo;
         inputs.m_uRoughness = 0.8f;
         inputs.m_uMetallic = 0.1f;
-        m_sphereMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
-        sphereEntity->setMaterial("SphereMesh", 0, m_sphereMatl);
+        auto sphereMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
+        sphereEntity->setMaterial("SphereMesh", 0, sphereMatl);
     }
     timer.end();
 
@@ -377,34 +466,35 @@ void PbrApp::initHelmetScene()
         inputs.m_baseColor = roomAlbedo;
         inputs.m_uRoughness = 0.8f;
         inputs.m_uMetallic = 0.1f;
-        m_roomMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
+        auto roomMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
         inputs.m_baseColor = floorAlbedo;
-        m_floorMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
-        floor->setMaterial("CubeMesh", 0, m_floorMatl);
+        auto floorMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
+        floor->setMaterial("CubeMesh", 0, floorMatl);
         Entity* frontWall = sceneManager->getEntity(helmetScene, "Wall_0");
-        frontWall->setMaterial("CubeMesh", 0, m_roomMatl);
+        frontWall->setMaterial("CubeMesh", 0, roomMatl);
         Entity* sideWall = sceneManager->getEntity(helmetScene, "Wall_1");
-        sideWall->setMaterial("CubeMesh", 0, m_roomMatl);
+        sideWall->setMaterial("CubeMesh", 0, roomMatl);
     }
 
-    auto textureManager = m_graphicsSystem->getTextureManager();
-    m_helmetMatl = Cyan::createMaterial(m_pbrShader)->createInstance();
-    // TODO: create a .cyanmatl file for defining materials?
-    m_helmetMatl->bindTexture("diffuseMaps[0]", textureManager->getTexture("helmet_diffuse"));
-    m_helmetMatl->bindTexture("normalMap", textureManager->getTexture("helmet_nm"));
-    m_helmetMatl->bindTexture("metallicRoughnessMap", textureManager->getTexture("helmet_roughness"));
-    m_helmetMatl->bindTexture("aoMap", textureManager->getTexture("helmet_ao"));
-    m_helmetMatl->bindTexture("envmap", m_envmap);
-    m_helmetMatl->bindBuffer("dirLightsData", helmetScene->m_dirLightsBuffer);
-    m_helmetMatl->bindBuffer("pointLightsData", helmetScene->m_pointLightsBuffer);
-    m_helmetMatl->set("hasAoMap", 1.f);
-    m_helmetMatl->set("hasNormalMap", 1.f);
-    m_helmetMatl->set("kDiffuse", 1.0f);
-    m_helmetMatl->set("kSpecular", 1.0f);
-    m_helmetMatl->set("hasMetallicRoughnessMap", 1.f);
-    m_helmetMatl->set("disneyReparam", 1.f);
-    Entity* helmet = sceneManager->getEntity(helmetScene, "DamagedHelmet");
-    helmet->setMaterial("HelmetMesh", 0, m_helmetMatl);
+    createHelmetInstance(helmetScene);
+    // auto textureManager = m_graphicsSystem->getTextureManager();
+    // auto helmetMatl = Cyan::createMaterial(m_pbrShader)->createInstance();
+    // // TODO: create a .cyanmatl file for defining materials?
+    // helmetMatl->bindTexture("diffuseMaps[0]", textureManager->getTexture("helmet_diffuse"));
+    // helmetMatl->bindTexture("normalMap", textureManager->getTexture("helmet_nm"));
+    // helmetMatl->bindTexture("metallicRoughnessMap", textureManager->getTexture("helmet_roughness"));
+    // helmetMatl->bindTexture("aoMap", textureManager->getTexture("helmet_ao"));
+    // helmetMatl->bindTexture("envmap", m_envmap);
+    // helmetMatl->bindBuffer("dirLightsData", helmetScene->m_dirLightsBuffer);
+    // helmetMatl->bindBuffer("pointLightsData", helmetScene->m_pointLightsBuffer);
+    // helmetMatl->set("hasAoMap", 1.f);
+    // helmetMatl->set("hasNormalMap", 1.f);
+    // helmetMatl->set("kDiffuse", 1.0f);
+    // helmetMatl->set("kSpecular", 1.0f);
+    // helmetMatl->set("hasMetallicRoughnessMap", 1.f);
+    // helmetMatl->set("disneyReparam", 1.f);
+    // Entity* helmet = sceneManager->getEntity(helmetScene, "DamagedHelmet");
+    // helmet->setMaterial("HelmetMesh", 0, helmetMatl);
 
     // cube
     // TODO: default material parameters
@@ -415,8 +505,8 @@ void PbrApp::initHelmetScene()
         inputs.m_baseColor = cubeAlbedo;
         inputs.m_uRoughness = 0.8f;
         inputs.m_uMetallic = 0.0f;
-        m_cubeMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
-        cube->setMaterial("UvCubeMesh", 0, m_cubeMatl);
+        auto cubeMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
+        cube->setMaterial("UvCubeMesh", 0, cubeMatl);
     }
     // cone
     {
@@ -426,8 +516,8 @@ void PbrApp::initHelmetScene()
         inputs.m_uRoughness = 0.2f;
         inputs.m_uMetallic = 0.1f;
         Entity* cone = sceneManager->getEntity(helmetScene, "Cone");
-        m_coneMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
-        cone->setMaterial("ConeMesh", 0, m_coneMatl);
+        auto coneMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
+        cone->setMaterial("ConeMesh", 0, coneMatl);
     }
     // cornell_box
     {
@@ -437,7 +527,7 @@ void PbrApp::initHelmetScene()
         inputs.m_uRoughness = 0.8f;
         inputs.m_uMetallic = 0.1f;
         Entity* cornellBox = sceneManager->getEntity(helmetScene, "CornellBox");
-        m_cornellMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
+        auto cornellMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
 #if 0
         m_rayTracingShader = Cyan::createShader("RayTracingShader", "../../shader/shader_ray_tracing.vs", "../../shader/shader_ray_tracing.fs");
         m_rayTracingMatl = createDefaultRayTracingMatl(helmetScene, m_rayTracingShader, inputs);
@@ -445,7 +535,7 @@ void PbrApp::initHelmetScene()
         m_debugRayWorldBuffer = Cyan::createRegularBuffer(sizeof(glm::vec4) * 300);
         m_debugRayBoundryBuffer = Cyan::createRegularBuffer(sizeof(glm::vec4) * 20);
 #endif
-        cornellBox->setMaterial("CornellBox", 0, m_cornellMatl);
+        cornellBox->setMaterial("CornellBox", 0, cornellMatl);
     }
 
     // add lights into the scene
@@ -459,7 +549,7 @@ void PbrApp::initHelmetScene()
         glCreateBuffers(1, &m_debugRayAtomicCounter);
         glNamedBufferData(m_debugRayAtomicCounter, sizeof(u32), nullptr, GL_STATIC_DRAW);
         // m_probeVolume = sceneManager->createLightFieldProbeVolume(helmetScene, glm::vec3(-5.f, 1.155f, 0.f), glm::vec3(4.0f), glm::vec3(2.f));
-        m_irradianceProbe = sceneManager->createIrradianceProbe(helmetScene, glm::vec3(0.f));
+        m_irradianceProbe = sceneManager->createIrradianceProbe(helmetScene, glm::vec3(0.f, 2.5f, 0.f));
     }
     /*
     // create more point lights
@@ -482,8 +572,6 @@ void PbrApp::initHelmetScene()
     }
     */
 
-    Cyan::Mesh* helmetMesh = Cyan::getMesh("helmet_mesh");
-    BVHNode* root = Cyan::buildMeshBVH(helmetMesh);
     m_scenes.push_back(helmetScene);
 }
 
@@ -546,7 +634,15 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewpo
     initUniforms();
     initEnvMaps();
     initScenes();
+#ifdef SCENE_HELMET
     m_currentScene = Scenes::Helmet_Scene;
+#endif
+#ifdef SCENE_FACTORY
+    m_currentScene = Scenes::Factory_Scene;
+#endif
+#ifdef SCENE_DEMO_00
+    m_currentScene = Scenes::Demo_Scene_00;
+#endif
     m_pathTracer = new Cyan::PathTracer(m_scenes[m_currentScene]);
 
     glEnable(GL_LINE_SMOOTH);
@@ -580,37 +676,30 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewpo
     m_debugRo = glm::vec3(-5.f, 2.43, 0.86);
     m_debugRd = glm::vec3(0.0f, -0.29f, 0.47f);
     m_debugDrawSSAO = false;
+    m_debugPathTracing = false;
 
     // clear color
     Cyan::getCurrentGfxCtx()->setClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.f));
 
     // font
     ImGuiIO& io = ImGui::GetIO();
-    m_font = io.Fonts->AddFontFromFileTTF("C:\\summerwars\\cyanRenderEngine\\lib\\imgui\\misc\\fonts\\Roboto-Medium.ttf", 16.f);
+    m_font = io.Fonts->AddFontFromFileTTF("C:\\dev\\cyanRenderEngine\\lib\\imgui\\misc\\fonts\\Roboto-Medium.ttf", 16.f);
     timer.end();
+}
+
+void PbrApp::updateMaterialData(Cyan::MaterialInstance* matl)
+{
+    matl->set("directDiffuseSlider", m_directDiffuseSlider);
+    matl->set("directSpecularSlider", m_directSpecularSlider);
+    matl->set("indirectDiffuseSlider", m_indirectDiffuseSlider);
+    matl->set("indirectSpecularSlider", m_indirectSpecularSlider);
+    matl->set("wrap", m_wrap);
 }
 
 void PbrApp::beginFrame()
 {
     Cyan::getCurrentGfxCtx()->clear();
     Cyan::getCurrentGfxCtx()->setViewport({ 0, 0, static_cast<u32>(gEngine->getWindow().width), static_cast<u32>(gEngine->getWindow().height) });
-
-    auto updateMatlInstanceData = [&](Cyan::MaterialInstance* matl) {
-        matl->set("directDiffuseSlider", m_directDiffuseSlider);
-        matl->set("directSpecularSlider", m_directSpecularSlider);
-        matl->set("indirectDiffuseSlider", m_indirectDiffuseSlider);
-        matl->set("indirectSpecularSlider", m_indirectSpecularSlider);
-        matl->set("wrap", m_wrap);
-    };
-
-    updateMatlInstanceData(m_helmetMatl);
-    updateMatlInstanceData(m_roomMatl);
-    updateMatlInstanceData(m_sphereMatl);
-    updateMatlInstanceData(m_cubeMatl);
-    updateMatlInstanceData(m_coneMatl);
-    updateMatlInstanceData(m_floorMatl);
-    updateMatlInstanceData(m_cornellMatl);
-    // updateMatlInstanceData(m_rayTracingMatl);
 
     // update probe
     SceneManager::getSingletonPtr()->setLightProbe(m_scenes[m_currentScene], Cyan::getProbe(m_currentProbeIndex));
@@ -721,7 +810,7 @@ RayCastInfo PbrApp::castMouseRay(const glm::vec2& currentViewportPos, const glm:
 
     glm::vec3 ro = glm::vec3(0.f);
 
-    RayCastInfo closestHit = { nullptr, nullptr, FLT_MAX };
+    RayCastInfo closestHit;
     // ray intersection test against all the entities in the scene to find the closest intersection
     for (auto entity : m_scenes[m_currentScene]->entities)
     {
@@ -737,21 +826,26 @@ RayCastInfo PbrApp::castMouseRay(const glm::vec2& currentViewportPos, const glm:
     return closestHit;
 }
 
+void PbrApp::updateScene(Scene* scene)
+{
+    std::string sceneName = scene->m_name;
+    auto materials = m_sceneMaterialTable[sceneName];
+    CYAN_ASSERT(materials.size() > 0, "Unknown scene '%s'", sceneName.c_str());
+    for (auto matl : materials)
+        updateMaterialData(matl);
+}
+
 void PbrApp::update()
 {
     gEngine->processInput();
 
     // camera
     u32 camIdx = 0u;
-    Camera& camera = m_scenes[0]->cameras[camIdx];
+    Camera& camera = m_scenes[m_currentScene]->cameras[camIdx];
     // Camera& camera = m_scenes[m_currentScene]->getActiveCamera();
     CameraManager::updateCamera(camera);
 
-    // helmet scene
-    Scene* scene = m_scenes[0];
-    float pointLightsRotSpeed = .5f; // in degree
-    float rotationSpeed = glm::radians(.5f);
-    glm::quat qRot = glm::quat(cos(rotationSpeed * .5f), sin(rotationSpeed * .5f) * glm::normalize(glm::vec3(0.f, 1.f, 1.f)));
+    updateScene(m_scenes[m_currentScene]);
 }
 
 void uiDrawSceneNode(SceneNode* node)
@@ -853,9 +947,18 @@ void PbrApp::drawDebugWindows()
             }
             if (ImGui::BeginTabItem("Debug Views"))
             {
-                ImGui::Text("Path Tracing");
-                ImGui::Image((ImTextureID)m_pathTracer->m_texture->m_id, ImVec2(320, 180));
-                ImGui::Separator();
+                auto renderer = Cyan::Renderer::getSingletonPtr();
+                auto buildDebugView = [&](const char* viewName, Cyan::Texture* texture)
+                {
+                    ImGui::Text(viewName);
+                    ImGui::Image((ImTextureID)texture->m_id, ImVec2(320, 180));
+                    ImGui::Separator();
+                };
+                buildDebugView("PathTracing", m_pathTracer->m_texture);
+                // TODO: debug following three debug visualizations 
+                buildDebugView("SceneDepth",  renderer->m_sceneDepthTextureSSAA);
+                buildDebugView("SceneNormal", renderer->m_sceneNormalTextureSSAA);
+                buildDebugView("SceneGTAO",   renderer->m_ssaoTexture);
                 ImGui::EndTabItem();
             }
             if (ImGui::BeginTabItem("LightFieldProbe Ray Tracing Debug Tools"))
@@ -908,6 +1011,7 @@ void PbrApp::drawDebugWindows()
             if (ImGui::BeginTabItem("Tools"))
             {
                 ImGui::Checkbox("SSAO debug view", &m_debugDrawSSAO);
+                ImGui::Checkbox("Path Tracing debug view", &m_debugPathTracing);
                 ImGui::Checkbox("Freeze debug view", &renderer->m_freezeDebugLines);
                 ImGui::EndTabItem();
             }
@@ -1053,6 +1157,12 @@ void PbrApp::drawSceneViewport()
             ImGui::GetForegroundDrawList()->AddImage(reinterpret_cast<void*>((intptr_t)ssaoOutput->m_id), 
                 a, b, ImVec2(0, 1), ImVec2(1, 0));
         }
+        else if (m_debugPathTracing)
+        {
+            Cyan::Texture* output = m_pathTracer->m_texture;
+            ImGui::GetForegroundDrawList()->AddImage(reinterpret_cast<void*>((intptr_t)output->m_id), 
+                a, b, ImVec2(0, 0), ImVec2(1, 1));
+        }
         else
         {
             ImGui::GetForegroundDrawList()->AddImage(reinterpret_cast<void*>((intptr_t)renderOutput->m_id), 
@@ -1114,12 +1224,6 @@ void PbrApp::drawRenderSettings()
         }
         m_ui.comboBox(envMaps.data(), numProbes, "EnvMap", &m_currentProbeIndex);
 
-        std::vector<const char*> scenes;
-        for (u32 index = 0u; index < (u32)m_scenes.size(); ++index)
-        {
-            scenes.push_back(m_scenes[index]->m_name.c_str());
-        }
-        m_ui.comboBox(scenes.data(), scenes.size(), "Scene", &m_currentScene);
         ImGui::SameLine();
         if (m_ui.button("Load"))
         {
@@ -1158,39 +1262,6 @@ void PbrApp::drawRenderSettings()
             ImGui::Text("Exposure");
             ImGui::SameLine();
             ImGui::SliderFloat("##Exposure", &renderer->m_exposure, 0.f, 10.f, "%.2f");
-        }
-        if (m_ui.header("Debug view"))
-        {
-            const char* options[] = { "None", "D", "Fresnel", "G"};
-            m_ui.comboBox(options, 4u, "PBR components", &m_debugViewIndex);
-            switch (m_debugViewIndex)
-            {
-                case 0:
-                    m_helmetMatl->set("debugD", 0.f);
-                    m_helmetMatl->set("debugF", 0.f);
-                    m_helmetMatl->set("debugG", 0.f);
-                    break;
-                case 1:
-                    m_helmetMatl->set("debugD", 1.f);
-                    m_helmetMatl->set("debugF", 0.f);
-                    m_helmetMatl->set("debugG", 0.f);
-                    break;
-                case 2:
-                    m_helmetMatl->set("debugD", 0.f);
-                    m_helmetMatl->set("debugF", 1.f);
-                    m_helmetMatl->set("debugG", 0.f);
-                    break;
-                case 3:
-                    m_helmetMatl->set("debugD", 0.f);
-                    m_helmetMatl->set("debugF", 0.f);
-                    m_helmetMatl->set("debugG", 1.f);
-                    break;
-                default:
-                    break;
-            }
-            ImGui::Checkbox("Use Disney reparameterization", &bDisneyReparam);
-            float disneyReparam = 1.f ? bDisneyReparam : 0.f;
-            m_helmetMatl->set("disneyReparam", disneyReparam);
         }
     }
 }
@@ -1444,10 +1515,6 @@ void PbrApp::render()
     Cyan::Toolkit::ScopedTimer frameTimer("render()");
     auto renderer = m_graphicsSystem->getRenderer();
 
-    // ui
-    m_ui.begin();
-    drawDebugWindows();
-
     // update probe
     SceneManager::getSingletonPtr()->setLightProbe(m_scenes[m_currentScene], Cyan::getProbe(m_currentProbeIndex));
     m_envmap = Cyan::getProbe(m_currentProbeIndex)->m_baseCubeMap;
@@ -1485,7 +1552,7 @@ void PbrApp::render()
     // rendering
     renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), 0);
     renderer->addScenePass(m_scenes[m_currentScene]);
-    m_irradianceProbe->computeIrradiance();
+    // m_irradianceProbe->computeIrradiance();
     // LightingEnvironment lighting = {
     //     m_scenes[m_currentScene]->pLights,
     //     m_scenes[m_currentScene]->dLights,
@@ -1514,10 +1581,10 @@ void PbrApp::render()
     auto rt = renderer->getRenderOutputRenderTarget();
     // debug visualization
     {
-        renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 180, 320, 180}, renderer->m_sceneNormalTextureSSAA);
-        renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 360, 320, 180}, renderer->m_sceneDepthTextureSSAA);
+        // renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 180, 320, 180}, renderer->m_sceneNormalTextureSSAA);
+        // renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 360, 320, 180}, renderer->m_sceneDepthTextureSSAA);
 #if DEBUG_SSAO
-        renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 540, 320, 180}, renderer->m_ssaoTexture);
+        // renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 540, 320, 180}, renderer->m_ssaoTexture);
 #endif
 #if DEBUG_PROBE_TRACING
         renderer->addTexturedQuadPass(rt, {rt->m_width - 360, rt->m_height - 540, 360, 360}, m_probeVolume->m_probes[1]->m_radianceOct);
@@ -1528,7 +1595,10 @@ void PbrApp::render()
     renderer->render();
     renderer->endRender();
 
+    // ui
+    m_ui.begin();
     drawSceneViewport();
+    drawDebugWindows();
 
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

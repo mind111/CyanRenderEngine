@@ -158,7 +158,14 @@ namespace Cyan
     {
         nlohmann::json sceneJson;
         std::ifstream sceneFile(file);
-        sceneFile >> sceneJson;
+        try
+        {
+            sceneFile >> sceneJson;
+        }
+        catch (std::exception& e) 
+        {
+            std::cerr << e.what() << std::endl;
+        }
         auto cameras = sceneJson["cameras"];
         auto meshInfoList = sceneJson["meshes"];
         auto textureInfoList = sceneJson["textures"];

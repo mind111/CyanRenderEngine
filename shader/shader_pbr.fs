@@ -446,7 +446,7 @@ float slopeBasedBias(vec3 n, vec3 l)
 {
     float cosAlpha = max(dot(n, l), 0.f);
     float tanAlpha = tan(acos(cosAlpha));
-    float bias = clamp(tanAlpha * 0.0007f, 0.f, 1.f);
+    float bias = clamp(tanAlpha * 0.001f, 0.f, 1.f);
     return bias;
 }
 

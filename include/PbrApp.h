@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <unordered_map>
 
 #include "CyanApp.h"
 #include "GraphicsSystem.h"
@@ -264,10 +265,14 @@ public:
     virtual void run() override;
     virtual void shutDown() override;
 
+    // pre-computation
     void doPrecomputeWork();
 
     // tick
     void update();
+    void updateScene(Scene* scene);
+    void updateMaterialData(Cyan::MaterialInstance* matl);
+
     // camera control
     void dispatchCameraCommand(struct CameraCommand& command);
     void orbitCamera(Camera& camera, double deltaX, double deltaY);
@@ -294,9 +299,28 @@ public:
     void initShaders();
 
     // manual scene initialization
+    void initDemoScene00();
     void initFactoryScene();
     void initHelmetScene();
     void initEnvMaps();
+
+    // material
+    struct PbrMaterialInputs
+    {
+        Cyan::Texture* m_baseColor;
+        Cyan::Texture* m_roughnessMap;
+        Cyan::Texture* m_metallicMap;
+        Cyan::Texture* m_metallicRoughnessMap;
+        Cyan::Texture* m_normalMap;
+        Cyan::Texture* m_occlusion;
+        float m_uRoughness;
+        float m_uMetallic;
+    };
+    Cyan::MaterialInstance* createDefaultPbrMatlInstance(Scene* scene, PbrMaterialInputs inputs);
+    void addSceneMaterial(Scene* scene, Cyan::MaterialInstance* matl);
+
+    // manual custom entity creation
+    void createHelmetInstance(Scene* scene);
 
     friend void Pbr::mouseScrollWheelCallback(double xOffset, double yOffset);
 
@@ -319,6 +343,12 @@ public:
     // toy path tracer
     Cyan::PathTracer* m_pathTracer;
     u32 m_currentScene;
+
+    std::vector<Cyan::MaterialInstance*> m_helmetSceneMatls;
+    std::vector<Cyan::MaterialInstance*> m_demoScene00Matls;
+
+    // mapping between scene and materials used in that scene
+    std::unordered_map<std::string, std::vector<Cyan::MaterialInstance*>> m_sceneMaterialTable;
 private:
     float m_sampleVertex[(64 + 1) * 4 * 2] = { };
     
@@ -327,17 +357,17 @@ private:
     u32 m_currentProbeIndex;
 
     // Materials
-    Cyan::MaterialInstance* m_droneMatl;
-    Cyan::MaterialInstance* m_helmetMatl;
-    Cyan::MaterialInstance* m_cubeMatl;
-    Cyan::MaterialInstance* m_coneMatl;
-    Cyan::MaterialInstance* m_cornellMatl;
-    Cyan::MaterialInstance* m_sphereMatl;
-    Cyan::MaterialInstance* m_envmapMatl;
+    // Cyan::MaterialInstance* m_droneMatl;
+    // Cyan::MaterialInstance* m_helmetMatl;
+    // Cyan::MaterialInstance* m_cubeMatl;
+    // Cyan::MaterialInstance* m_coneMatl;
+    // Cyan::MaterialInstance* m_cornellMatl;
+    // Cyan::MaterialInstance* m_sphereMatl;
+    // Cyan::MaterialInstance* m_blitMatl;
+    // Cyan::MaterialInstance* m_roomMatl;
+    // Cyan::MaterialInstance* m_floorMatl;
     Cyan::MaterialInstance* m_skyMatl;
-    Cyan::MaterialInstance* m_blitMatl;
-    Cyan::MaterialInstance* m_roomMatl;
-    Cyan::MaterialInstance* m_floorMatl;
+    Cyan::MaterialInstance* m_envmapMatl;
 
     // entities
     Entity* m_envMapEntity;
@@ -394,7 +424,7 @@ private:
     glm::vec3 m_debugRo;
     glm::vec3 m_debugRd;
     bool m_debugDrawSSAO;
-
+    bool m_debugPathTracing;
 
     // debug parameters
     Line m_debugRay;

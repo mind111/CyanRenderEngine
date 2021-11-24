@@ -9,25 +9,51 @@
 #include "Material.h"
 #include "Transform.h"
 #include "Geometry.h"
+#include "BVH.h"
 
 namespace Cyan
 {
     struct MeshInstance;
     struct SkeletalMeshInstance;
 
+    struct MeshRayHit
+    {
+        struct Mesh* mesh;
+        f32   t;
+        i32   smIndex;
+        i32   triangleIndex;
+
+        MeshRayHit() 
+        : mesh(nullptr), t(FLT_MAX), smIndex(-1), triangleIndex(-1)
+        {}
+    };
 
     // TODO: how to distinguish between 2D mesh and 3D mesh
     struct Mesh
     {
         void onFinishLoading();
         MeshInstance* createInstance();
+        u32 numSubMeshes();
+        MeshRayHit bruteForceIntersectRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd);
+        MeshRayHit bvhIntersectRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd);
+        MeshRayHit intersectRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd);
+        bool       bruteForceVisibilityRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd)
+        bool       intersectRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd);
+        Triangle getTriangle(u32 smIndex, u32 triIndex) { 
+            const auto& sm = m_subMeshes[smIndex];
+            u32 offset = triIndex * 3;
+            return { 
+                sm->m_triangles.m_positionArray[offset], 
+                sm->m_triangles.m_positionArray[offset + 1], 
+                sm->m_triangles.m_positionArray[offset + 2] 
+            };
+        }
 
         struct SubMesh
         {
             VertexArray*   m_vertexArray;
             u32            m_numVerts;
             TriangleArray  m_triangles;
-            // std::vector<Triangle> m_triangles;
         };
 
         std::string m_name;
@@ -35,6 +61,7 @@ namespace Cyan
         glm::mat4 m_normalization;
         std::vector<SubMesh*> m_subMeshes;
         BoundingBox3f m_aabb;
+        MeshBVH* m_bvh;
     };
 
     struct MeshInstance

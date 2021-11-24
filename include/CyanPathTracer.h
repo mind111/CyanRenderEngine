@@ -2,6 +2,7 @@
 #include "scene.h"
 namespace Cyan 
 {
+
     class PathTracer
     {
     public:

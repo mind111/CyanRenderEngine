@@ -1,6 +1,7 @@
 #include "Entity.h"
 #include "CyanAPI.h"
 #include "MathUtils.h"
+#include "BVH.h"
 
 Entity::Entity(const char* name, u32 id, Transform t, Entity* parent)
     : m_entityId(id), m_bakedInProbes(true)
@@ -43,9 +44,24 @@ void Entity::attachSceneNode(SceneNode* child, const char* parentName)
     }
 }
 
+void transformRayToObjectSpace(glm::vec3& ro, glm::vec3& rd, glm::mat4& transform)
+{
+    auto invWorldTransform = glm::inverse(transform);
+    ro = Cyan::vec4ToVec3(invWorldTransform * glm::vec4(ro, 1.f));
+    rd = Cyan::vec4ToVec3(invWorldTransform * glm::vec4(rd, 0.f));
+}
+
+f32 transformHitFromObjectToWorldSpace(glm::vec3& objectSpaceHit, glm::mat4& transform, const glm::vec3& roWorldSpace, const glm::vec3& rdWorldSpace)
+{
+    glm::vec3 worldSpaceHit = Cyan::vec4ToVec3(transform * glm::vec4(objectSpaceHit, 1.f));
+    f32 t = (worldSpaceHit.x - roWorldSpace.x) / rdWorldSpace.x;
+    CYAN_ASSERT(t > 0.f, "Invalid ray hit!");
+    return t;
+}
+
 // this intersection procedure does not need to find closest intersection, it 
 // only returns whether there is a occlusion or not
-bool Entity::intersectRay(const glm::vec3& ro, const glm::vec3& rd)
+bool Entity::intersectRay(const glm::vec3& ro, const glm::vec3& rd, glm::mat4& modelView)
 {
     std::queue<SceneNode*> queue;
     queue.push(m_sceneRoot);
@@ -57,27 +73,17 @@ bool Entity::intersectRay(const glm::vec3& ro, const glm::vec3& rd)
         {
             glm::mat4 modelView = node->m_worldTransform.toMatrix();
             BoundingBox3f aabb = node->m_meshInstance->getAABB();
-            if (aabb.intersectRay(ro, rd, modelView) > 0.f)
+
+            // transform the ray into object space
+            glm::vec3 roObjectSpace = ro;
+            glm::vec3 rdObjectSpace = rd;
+            transformRayToObjectSpace(roObjectSpace, rdObjectSpace, modelView);
+            rdObjectSpace = glm::normalize(rdObjectSpace);
+
+            if (aabb.intersectRay(roObjectSpace, rdObjectSpace) > 0.f)
             {
                 // do ray triangle intersectiont test
                 Cyan::Mesh* mesh = node->m_meshInstance->m_mesh;
-                for (u32 i = 0; i < mesh->m_subMeshes.size(); ++i)
-                {
-                    auto sm = mesh->m_subMeshes[i];
-                    u32 numTriangles = sm->m_triangles.m_numVerts / 3;
-                    for (u32 j = 0; j < numTriangles; ++j)
-                    {
-                        Triangle tri = {
-                            sm->m_triangles.m_positionArray[j * 3],
-                            sm->m_triangles.m_positionArray[j * 3 + 1],
-                            sm->m_triangles.m_positionArray[j * 3 + 2]
-                        };
-
-                        float hit = tri.intersectRay(ro, rd, modelView); 
-                        if (hit > 0.f)
-                            return true;
-                    }
-                }
             }
         }
 
@@ -89,12 +95,7 @@ bool Entity::intersectRay(const glm::vec3& ro, const glm::vec3& rd)
 
 RayCastInfo Entity::intersectRay(const glm::vec3& ro, const glm::vec3& rd, glm::mat4& view)
 {
-    // Cyan::Toolkit::ScopedTimer cpuTimer("Entity::intersectRay()", true);
-    Entity* hitEntity = nullptr;
-    SceneNode* hitNode = nullptr;
-    i32     smIndex  = -1;
-    i32     triIndex = -1;
-    float closestHit = FLT_MAX;
+    RayCastInfo globalRayHit;
 
     std::queue<SceneNode*> queue;
     queue.push(m_sceneRoot);
@@ -106,41 +107,32 @@ RayCastInfo Entity::intersectRay(const glm::vec3& ro, const glm::vec3& rd, glm::
         {
             glm::mat4 modelView = view * node->m_worldTransform.toMatrix();
             BoundingBox3f aabb = node->m_meshInstance->getAABB();
-            if (aabb.intersectRay(ro, rd, modelView) > 0.f)
+
+            // transform the ray into object space
+            glm::vec3 roObjectSpace = ro;
+            glm::vec3 rdObjectSpace = rd;
+            transformRayToObjectSpace(roObjectSpace, rdObjectSpace, modelView);
+            rdObjectSpace = glm::normalize(rdObjectSpace);
+
+            if (aabb.intersectRay(roObjectSpace, rdObjectSpace) > 0.f)
             {
                 // do ray triangle intersectiont test
                 Cyan::Mesh* mesh = node->m_meshInstance->m_mesh;
-                for (u32 i = 0; i < mesh->m_subMeshes.size(); ++i)
+                Cyan::MeshRayHit currentRayHit = mesh->intersectRay(roObjectSpace, rdObjectSpace);
+
+                if (currentRayHit.t > 0.f)
                 {
-                    auto sm = mesh->m_subMeshes[i];
-                    // CYAN_ASSERT(sm->m_triangles.m_numVerts % 3 == 0, "Invalid triangle mesh!");
-                    u32 numTriangles = sm->m_triangles.m_numVerts / 3;
-                    for (u32 j = 0; j < numTriangles; ++j)
+                    // convert hit from object space back to world space
+                    auto objectSpaceHit = roObjectSpace + currentRayHit.t * rdObjectSpace;
+                    f32 currentWorldSpaceDistance = transformHitFromObjectToWorldSpace(objectSpaceHit, modelView, ro, rd);
+
+                    if (currentWorldSpaceDistance < globalRayHit.t)
                     {
-                        Triangle tri = {
-                            sm->m_triangles.m_positionArray[j * 3],
-                            sm->m_triangles.m_positionArray[j * 3 + 1],
-                            sm->m_triangles.m_positionArray[j * 3 + 2]
-                        };
-
-                        float hit = tri.intersectRay(ro, rd, modelView); 
-                        if (hit > 0.f && hit < closestHit)
-                        {
-                            // compute face normal for skipping backfaced triangles
-                            auto v0 = Cyan::vec4ToVec3(modelView * glm::vec4(tri.m_vertices[0], 1.f)); 
-                            auto v1 = Cyan::vec4ToVec3(modelView * glm::vec4(tri.m_vertices[1], 1.f)); 
-                            auto v2 = Cyan::vec4ToVec3(modelView * glm::vec4(tri.m_vertices[2], 1.f)); 
-
-                            glm::vec3 faceNormal = glm::cross(v1 - v0, v2 - v0);
-                            if (glm::dot(rd, faceNormal) < 0.f)
-                            {
-                                smIndex = i;
-                                triIndex = j;
-                                closestHit = hit;
-                                hitEntity = this;
-                                hitNode = node;
-                            }
-                        }
+                        globalRayHit.t = currentWorldSpaceDistance;
+                        globalRayHit.smIndex = currentRayHit.smIndex;
+                        globalRayHit.triIndex = currentRayHit.triangleIndex;
+                        globalRayHit.m_entity = this;
+                        globalRayHit.m_node = node;
                     }
                 }
             }
@@ -149,8 +141,8 @@ RayCastInfo Entity::intersectRay(const glm::vec3& ro, const glm::vec3& rd, glm::
         for (auto child : node->m_child)
             queue.push(child);
     }
-    // cpuTimer.end();
-    return { hitEntity, hitNode, smIndex, triIndex, closestHit };
+
+    return globalRayHit;
 }
 
 // merely sets the parent entity, it's not this method's responsibility to trigger

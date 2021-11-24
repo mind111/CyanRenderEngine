@@ -170,9 +170,11 @@ namespace Cyan
     void addMesh(Mesh* mesh);
     Mesh* createMesh(const char* name, const char* file, bool normalize);
     Mesh* getMesh(const char* _name);
-    BVHNode* buildMeshBVH(Mesh* mesh);
-    void buildBVH(std::vector<Triangle>& triangles, BVHNode* parent);
-    
+    struct TriangleIndex
+    {
+        u32 submeshIndex;
+        u32 triangleIndex;
+    };
 
     /* Scene */
     SceneNode* allocSceneNode();
