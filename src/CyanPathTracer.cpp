@@ -41,7 +41,7 @@ namespace Cyan
         m_pixels[index + 2] = color.b;
     }
 
-    // TODO: multi-threading
+    // TODO: multi-threading (opengl multi-threading)
     // TODO: diffuse shading
     // TODO: glossy specular
     void PathTracer::progressiveRender(Scene* scene, Camera& camera)

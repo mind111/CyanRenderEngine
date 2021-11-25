@@ -259,4 +259,22 @@ namespace Cyan
         }
         return meshRayHit;
     }
+
+    bool BVHNode::traceVisibility(glm::vec3& ro, glm::vec3& rd)
+    {
+        if (m_aabb.intersectRay(ro, rd) > 0.f)
+        {
+            // leaf node
+            if (m_submeshIndex >= 0 && m_triangleIndex >= 0)
+            {
+                auto tri = m_mesh->getTriangle(m_submeshIndex, m_triangleIndex);
+                f32 t = tri.intersectRay(ro, rd);
+                if (t > 0.f)
+                    return true;
+                return false;
+            }
+            return m_leftChild->traceVisibility(ro, rd) || m_rightChild->traceVisibility(ro, rd);
+        }
+        return false;
+    }
 }

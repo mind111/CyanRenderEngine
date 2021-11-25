@@ -57,7 +57,30 @@ namespace Cyan
 
     bool Mesh::bruteForceVisibilityRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd)
     {
+        for (u32 i = 0; i < m_subMeshes.size(); ++i)
+        {
+            auto sm = m_subMeshes[i];
+            u32 numTriangles = sm->m_triangles.m_numVerts / 3;
+            for (u32 j = 0; j < numTriangles; ++j)
+            {
+                Triangle tri = {
+                    sm->m_triangles.m_positionArray[j * 3],
+                    sm->m_triangles.m_positionArray[j * 3 + 1],
+                    sm->m_triangles.m_positionArray[j * 3 + 2]
+                };
 
+                float currentHit = tri.intersectRay(objectSpaceRo, objectSpaceRd); 
+                if (currentHit > 0.f)
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    bool Mesh::bvhVisibilityRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd)
+    {
+        auto bvhRoot = m_bvh->root;
+        return bvhRoot->traceVisibility(objectSpaceRo, objectSpaceRd);
     }
 
     MeshRayHit Mesh::bvhIntersectRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd)
@@ -78,16 +101,12 @@ namespace Cyan
     }
 
     // coarse binary ray test
-    bool Mesh::intersectRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd)
+    bool Mesh::castVisibilityRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd)
     {
-        MeshRayHit meshRayHit;
         if (m_bvh)
-            meshRayHit = bvhIntersectRay(objectSpaceRo, objectSpaceRd);
+            return bvhVisibilityRay(objectSpaceRo, objectSpaceRd);
         else
-            meshRayHit = bruteForceIntersectRay(objectSpaceRo, objectSpaceRd);
-        if (meshRayHit.smIndex < 0 || meshRayHit.triangleIndex < 0)
-            meshRayHit.t = -1.f;
-        return meshRayHit; 
+            return bruteForceVisibilityRay(objectSpaceRo, objectSpaceRd);
     }
 
     MeshInstance* Mesh::createInstance()

@@ -61,7 +61,7 @@ f32 transformHitFromObjectToWorldSpace(glm::vec3& objectSpaceHit, glm::mat4& tra
 
 // this intersection procedure does not need to find closest intersection, it 
 // only returns whether there is a occlusion or not
-bool Entity::intersectRay(const glm::vec3& ro, const glm::vec3& rd, glm::mat4& modelView)
+bool Entity::castVisibilityRay(const glm::vec3& ro, const glm::vec3& rd, glm::mat4& modelView)
 {
     std::queue<SceneNode*> queue;
     queue.push(m_sceneRoot);
@@ -84,9 +84,10 @@ bool Entity::intersectRay(const glm::vec3& ro, const glm::vec3& rd, glm::mat4& m
             {
                 // do ray triangle intersectiont test
                 Cyan::Mesh* mesh = node->m_meshInstance->m_mesh;
+                if (mesh->bruteForceVisibilityRay(roObjectSpace, rdObjectSpace))
+                    return true; 
             }
         }
-
         for (auto child : node->m_child)
             queue.push(child);
     }

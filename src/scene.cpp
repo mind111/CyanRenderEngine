@@ -33,12 +33,10 @@ bool Scene::castVisibilityRay(glm::vec3& ro, glm::vec3& rd)
 {
     for (auto entity : entities)
     {
-        auto traceInfo = entity->intersectRay(ro, rd, glm::mat4(1.f)); 
-        // as long as it hits something
-        if (traceInfo.t > 0.f)
-            return false;
+        if (entity->castVisibilityRay(ro, rd, glm::mat4(1.f)))
+            return true; 
     }
-    return true;
+    return false;
 }
 
 SceneManager* SceneManager::s_sceneManager = 0u;

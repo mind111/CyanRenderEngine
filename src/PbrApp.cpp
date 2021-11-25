@@ -811,6 +811,7 @@ RayCastInfo PbrApp::castMouseRay(const glm::vec2& currentViewportPos, const glm:
     glm::vec3 ro = glm::vec3(0.f);
 
     RayCastInfo closestHit;
+
     // ray intersection test against all the entities in the scene to find the closest intersection
     for (auto entity : m_scenes[m_currentScene]->entities)
     {

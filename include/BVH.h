@@ -31,6 +31,7 @@ namespace Cyan
         }
 
         struct MeshRayHit trace(glm::vec3& ro, glm::vec3& rd);
+        bool traceVisibility(glm::vec3& ro, glm::vec3& rd);
     };
 
     struct MeshBVH

@@ -37,12 +37,13 @@ namespace Cyan
         MeshRayHit bruteForceIntersectRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd);
         MeshRayHit bvhIntersectRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd);
         MeshRayHit intersectRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd);
-        bool       bruteForceVisibilityRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd)
-        bool       intersectRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd);
+        bool       bruteForceVisibilityRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd);
+        bool       bvhVisibilityRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd);
+        bool       castVisibilityRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd);
         Triangle getTriangle(u32 smIndex, u32 triIndex) { 
             const auto& sm = m_subMeshes[smIndex];
             u32 offset = triIndex * 3;
-            return { 
+            return {
                 sm->m_triangles.m_positionArray[offset], 
                 sm->m_triangles.m_positionArray[offset + 1], 
                 sm->m_triangles.m_positionArray[offset + 2] 
