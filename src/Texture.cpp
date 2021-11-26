@@ -380,7 +380,7 @@ namespace Cyan
             glGenerateTextureMipmap(texture->m_id);
         }
         s_textures.push_back(texture);
-        stbi_image_free(pixels);
+        // stbi_image_free(pixels);
         return texture;
     }
 

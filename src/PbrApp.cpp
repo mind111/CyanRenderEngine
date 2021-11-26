@@ -378,9 +378,9 @@ void PbrApp::initDemoScene00()
         sceneManager->createDirectionalLight(demoScene00, glm::vec3(1.0f, 1.0, 1.0f), glm::normalize(glm::vec3(1.0f, 1.0f, 1.0f)), 1.2f);
         // sky light
         auto sceneManager = SceneManager::getSingletonPtr();
-        Entity* envMapEntity = sceneManager->createEntity(demoScene00, "Envmap", Transform());
-        envMapEntity->m_sceneRoot->attach(Cyan::createSceneNode("CubeMesh", Transform(), Cyan::getMesh("CubeMesh"), false));
-        envMapEntity->setMaterial("CubeMesh", 0, m_skyMatl);
+        // Entity* envMapEntity = sceneManager->createEntity(demoScene00, "Envmap", Transform());
+        // envMapEntity->m_sceneRoot->attach(Cyan::createSceneNode("CubeMesh", Transform(), Cyan::getMesh("CubeMesh"), false));
+        // envMapEntity->setMaterial("CubeMesh", 0, m_skyMatl);
 
         // irradiance probes
         m_irradianceProbe = sceneManager->createIrradianceProbe(demoScene00, glm::vec3(0.f, 2.5f, 0.f));

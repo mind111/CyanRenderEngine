@@ -19,4 +19,7 @@ namespace Cyan
 {
     f32 fabs(f32 value);
     glm::vec3 vec4ToVec3(const glm::vec4& v4);
+    glm::mat3 tangentToWorld(const glm::vec3& n);
+    f32 uniformSampleZeroToOne();
+    glm::vec3 uniformSampleHemiSphere(glm::vec3& n);
 }

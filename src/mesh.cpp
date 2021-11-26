@@ -48,10 +48,12 @@ namespace Cyan
                         globalHit.smIndex = i;
                         globalHit.triangleIndex = j;
                         globalHit.t = currentHit;
+                        globalHit.mesh = this;
                     }
                 }
             }
         }
+
         return globalHit;
     }
 

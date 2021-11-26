@@ -19,4 +19,36 @@ namespace Cyan
     {
         return glm::vec3(v4.x, v4.y, v4.z);
     }
+
+    glm::mat3 tangentToWorld(const glm::vec3& n)
+    {
+        glm::vec3 worldUp = abs(n.y) < 0.95f ? glm::vec3(0.f, 1.f, 0.f) : glm::vec3(0.f, 0.f, 1.f);
+        glm::vec3 right = glm::cross(n, worldUp);
+        glm::vec3 forward = glm::cross(n, right);
+        glm::mat3 coordFrame = {
+            right,
+            forward,
+            n
+        };
+        return coordFrame;
+    }
+
+    f32 uniformSampleZeroToOne()
+    {
+        return rand() / (f32)RAND_MAX;
+    }
+
+    glm::vec3 uniformSampleHemiSphere(glm::vec3& n)
+    {
+        f32 r0 = uniformSampleZeroToOne();
+        f32 r1 = uniformSampleZeroToOne();
+        f32 theta = acosf(r0);
+        f32 phi = 2 * M_PI * r1;
+        glm::vec3 localDir = {
+            sin(theta) * cos(phi),
+            sin(theta) * sin(phi),
+            cos(theta)
+        };
+        return tangentToWorld(n) * localDir; 
+    }
 }

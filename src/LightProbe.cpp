@@ -201,34 +201,6 @@ namespace Cyan
         float deltaPhi = M_PI * 2.f / float(kNumAzimuthalSlice);
         float deltaTheta = M_PI * .5f / float(kNumZenithSlice);
 
-        // tangent to world space 
-        auto tangentToWorld = [&](const glm::vec3& n)
-        {
-            glm::vec3 right = n.y < 0.99f ? glm::cross(n, glm::vec3(0.f, 1.f, 0.f)) : glm::cross(n, glm::vec3(0.f, 0.f, 1.f));
-            glm::vec3 forward = glm::cross(n, right);
-            glm::mat3 coordFrame = {
-                right,
-                forward,
-                n
-            };
-            return coordFrame;
-        };
-
-        // random sample hemi-sphere oriented by @normal
-        auto sampleHemiSphere = [&](glm::vec3& n)
-        {
-            float r0 = rand() / RAND_MAX;
-            float r1 = rand() / RAND_MAX;
-            float theta = acosf(r0);
-            float phi = 2 * M_PI * r1;
-            glm::vec3 localDir = {
-                sin(theta) * cos(phi),
-                cos(theta),
-                sin(theta) * sin(phi)
-            };
-            return tangentToWorld(n) * localDir; 
-        };
-
         m_numVisibieRays = 0;
         for (u32 i = 0; i < kNumAzimuthalSlice; ++i)
         {
@@ -241,7 +213,7 @@ namespace Cyan
 
                 for (u32 k = 0; k < kNumRaysPerHemiSphere; ++k)
                 {
-                    glm::vec3 rd = sampleHemiSphere(hemiSphereNormal);
+                    glm::vec3 rd = uniformSampleHemiSphere(hemiSphereNormal);
                     // sample visibility, if visibile, bundle the ray and send to GPU to sample radiance
                     if (m_scene->castVisibilityRay(ro, rd))
                     {

@@ -122,7 +122,7 @@ struct TriangleArray
     std::vector<glm::vec3> m_positionArray;
     std::vector<glm::vec3> m_normalArray;
     std::vector<glm::vec3> m_tangentArray;
-    std::vector<glm::vec2> m_texCoordArray;
+    std::vector<glm::vec3> m_texCoordArray;
     u32 m_numVerts;
 };
 

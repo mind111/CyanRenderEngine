@@ -54,8 +54,14 @@ void transformRayToObjectSpace(glm::vec3& ro, glm::vec3& rd, glm::mat4& transfor
 f32 transformHitFromObjectToWorldSpace(glm::vec3& objectSpaceHit, glm::mat4& transform, const glm::vec3& roWorldSpace, const glm::vec3& rdWorldSpace)
 {
     glm::vec3 worldSpaceHit = Cyan::vec4ToVec3(transform * glm::vec4(objectSpaceHit, 1.f));
-    f32 t = (worldSpaceHit.x - roWorldSpace.x) / rdWorldSpace.x;
-    CYAN_ASSERT(t > 0.f, "Invalid ray hit!");
+    f32 t = -1.f;
+    if (rdWorldSpace.x != 0.f)
+        t = (worldSpaceHit.x - roWorldSpace.x) / rdWorldSpace.x;
+    else if (rdWorldSpace.y != 0.f)
+        t = (worldSpaceHit.y - roWorldSpace.y) / rdWorldSpace.y;
+    else if (worldSpaceHit.z != 0.f)
+        t = (worldSpaceHit.z - roWorldSpace.z) / rdWorldSpace.z;
+    CYAN_ASSERT(t >= 0.f, "Invalid ray hit!");
     return t;
 }
 
@@ -142,6 +148,9 @@ RayCastInfo Entity::intersectRay(const glm::vec3& ro, const glm::vec3& rd, glm::
         for (auto child : node->m_child)
             queue.push(child);
     }
+
+    if (globalRayHit.smIndex < 0 || globalRayHit.triIndex < 0)
+        globalRayHit.t = -1.f;
 
     return globalRayHit;
 }

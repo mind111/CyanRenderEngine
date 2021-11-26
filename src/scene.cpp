@@ -26,6 +26,9 @@ RayCastInfo Scene::castRay(glm::vec3& ro, glm::vec3& rd, bool debugPrint)
     }
     if (debugPrint)
         printf("Cast a ray from mouse that hits %s \n", closestHit.m_entity->m_name);
+
+    if (closestHit.smIndex < 0 || closestHit.triIndex < 0)
+        closestHit.t = -1.f;
     return closestHit;
 }
 
