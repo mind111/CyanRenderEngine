@@ -990,7 +990,7 @@ namespace Cyan
         // entities 
         for (auto entity : scene->entities)
         {
-            if (entity->m_bakedInProbes)
+            if (entity->m_bakeInProbes)
                 drawEntity(entity);
         }
     }

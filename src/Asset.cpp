@@ -76,6 +76,9 @@ namespace Cyan
 
     void AssetManager::loadMeshes(Scene* scene, nlohmann::basic_json<std::map>& meshInfoList)
     {
+        Thekla::Atlas_Options options = { };
+        Thekla::atlas_set_default_options(&options);
+
         for (auto meshInfo : meshInfoList) 
         {
             std::string path, name;
@@ -90,7 +93,6 @@ namespace Cyan
 
             Cyan::Toolkit::ScopedTimer meshTimer(name.c_str(), true);
             Cyan::createMesh(name.c_str(), path.c_str(), normalize);
-            meshTimer.end();
         }
     }
 
@@ -115,8 +117,6 @@ namespace Cyan
                 m_nodes.push_back(node);
                 continue;
             }
-            // TODO: No need to check if meshName is empty as getMesh() should return null
-            // if meshName is empty anyway
             mesh = Cyan::getMesh(meshName.c_str());
             SceneNode* node = Cyan::createSceneNode(nodeName.c_str(), transform, mesh); 
             m_nodes.push_back(node);
@@ -132,7 +132,6 @@ namespace Cyan
                 m_nodes[index]->attach(childNode);
             }
         }
-        timer.end();
     }
 
     void AssetManager::loadEntities(Scene* scene, nlohmann::basic_json<std::map>& entityInfoList)
@@ -151,7 +150,6 @@ namespace Cyan
                 entity->getSceneRoot()->attach(m_nodes[node]);
             }
         }
-        timer.end();
     }
 
     void AssetManager::loadScene(Scene* scene, const char* file)
@@ -455,16 +453,12 @@ namespace Cyan
                     VertexAttrib::DataType::Float,
                     static_cast<u32>(tinygltf::GetNumComponentsInType(accessor.type)),
                     strideInBytes,
-                    offset,
-                    nullptr
+                    offset
                 });
                 offset += sizeToCopy;
             }
             CYAN_ASSERT(totalBytes == strideInBytes * numVertices, "mismatched buffer size")
             VertexBuffer* vb = Cyan::createVertexBuffer(reinterpret_cast<void*>(vertexDataBuffer), strideInBytes * numVertices, strideInBytes, numVertices);
-            for (auto& va : vb->m_vertexAttribs) {
-                va.m_data = reinterpret_cast<void*>(reinterpret_cast<u8*>(vb->m_data) + va.m_offset);
-            }
             vb->m_vertexAttribs = vertexAttribs;
             subMesh->m_vertexArray = Cyan::createVertexArray(vb);
             subMesh->m_vertexArray->init();

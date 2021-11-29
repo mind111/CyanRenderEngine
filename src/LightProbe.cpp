@@ -42,7 +42,7 @@ namespace Cyan
             m_skyIrradianceShader = createCsShader("SkyIrradianceShader", "../../shader/sky_irradiance_c.glsl");
         }
 
-        m_bakedInProbes = false;
+        m_bakeInProbes = false;
         
         TextureSpec spec = { };
         spec.m_width = 512u;
@@ -116,7 +116,7 @@ namespace Cyan
         for (u32 i = 0; i < m_scene->entities.size(); ++i)
         {
             auto entity = m_scene->entities[i];
-            if (entity->m_bakedInProbes)
+            if (entity->m_bakeInProbes)
             {
                 bakeEntities[numBakedEntities++] = entity;
             }
@@ -155,7 +155,7 @@ namespace Cyan
 
     void IrradianceProbe::computeIrradiance()
     {
-        Toolkit::ScopedTimer timer("ComputeIrradianceTimer");
+        Toolkit::GpuTimer timer("ComputeIrradianceTimer");
         auto ctx = Cyan::getCurrentGfxCtx();
         Camera camera = { };
         // camera set to probe's location
@@ -238,7 +238,7 @@ namespace Cyan
     LightFieldProbe::LightFieldProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene)
         : Entity(name , id, Transform(), parent), m_scene(scene)
     {
-        m_bakedInProbes = false;
+        m_bakeInProbes = false;
         auto textureManager = TextureManager::getSingletonPtr();
         {
             TextureSpec spec = { };
@@ -343,7 +343,7 @@ namespace Cyan
             for (u32 i = 0; i < m_scene->entities.size(); ++i)
             {
                 auto entity = m_scene->entities[i];
-                if (entity->m_bakedInProbes)
+                if (entity->m_bakeInProbes)
                 {
                     bakeEntities[numBakedEntities++] = entity;
                 }

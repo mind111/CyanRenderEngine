@@ -171,6 +171,48 @@ namespace Cyan
         s_meshes.push_back(mesh);
     }
 
+    Thekla::Atlas_Input_Mesh* convertSubMeshToTheklaInputMesh(Mesh::SubMesh* sm)
+    {
+        using namespace Thekla;
+        Atlas_Input_Mesh* inputMesh = new Atlas_Input_Mesh;
+
+        // convert vertices
+        inputMesh->vertex_count = sm->m_numVerts;
+        inputMesh->vertex_array = new Atlas_Input_Vertex[sm->m_numVerts];
+        for (i32 v = 0; v < sm->m_numVerts; ++v)
+        {
+            auto position = sm->m_triangles.m_positionArray[v];
+            auto normal = sm->m_triangles.m_normalArray[v];
+            auto texCoord = sm->m_triangles.m_positionArray[v];
+            // position
+            inputMesh->vertex_array[v].position[0]   = sm->m_triangles.m_positionArray[v].x;
+            inputMesh->vertex_array[v].position[1]   = sm->m_triangles.m_positionArray[v].y;
+            inputMesh->vertex_array[v].position[2]   = sm->m_triangles.m_positionArray[v].z;
+            // normal
+            inputMesh->vertex_array[v].normal[0]     = sm->m_triangles.m_normalArray[v].x;
+            inputMesh->vertex_array[v].normal[1]     = sm->m_triangles.m_normalArray[v].y;
+            inputMesh->vertex_array[v].normal[2]     = sm->m_triangles.m_normalArray[v].z;
+            // texcoord
+            inputMesh->vertex_array[v].uv[0]         = sm->m_triangles.m_texCoordArray[v].x;
+            inputMesh->vertex_array[v].uv[1]         = sm->m_triangles.m_texCoordArray[v].y;
+            // todo: would this break the unwrapping..?
+            inputMesh->vertex_array[v].first_colocal = v;
+        }
+
+        // convert faces
+        CYAN_ASSERT(sm->m_numVerts % 3 == 0, "Invalid triangle mesh.");
+        inputMesh->face_count = sm->m_numVerts / 3;
+        inputMesh->face_array = new Atlas_Input_Face[inputMesh->face_count];
+        for (u32 f = 0; f < inputMesh->face_count; ++f)
+        {
+            inputMesh->face_array[f].vertex_index[0] = f * 3 + 0;
+            inputMesh->face_array[f].vertex_index[1] = f * 3 + 1;
+            inputMesh->face_array[f].vertex_index[2] = f * 3 + 2;
+            inputMesh->face_array[f].material_index  = 0;
+        }
+        return inputMesh;
+    }
+
     Mesh* createMesh(const char* name, const char* file, bool normalize)
     {
         Mesh* mesh = new Mesh;
@@ -264,25 +306,25 @@ namespace Cyan
             if (attribFlag & VertexAttribFlag::kPosition)
             {
                 subMesh->m_vertexArray->m_vertexBuffer->m_vertexAttribs.push_back({
-                    VertexAttrib::DataType::Float, 3, strideInBytes, offset, (float*)subMesh->m_vertexArray->m_vertexBuffer->m_data + offset});
+                    VertexAttrib::DataType::Float, 3, strideInBytes, offset });
                 offset += sizeof(f32) * 3;
             }
             if (attribFlag & VertexAttribFlag::kNormal)
             {
                 subMesh->m_vertexArray->m_vertexBuffer->m_vertexAttribs.push_back({
-                    VertexAttrib::DataType::Float, 3, strideInBytes, offset, (float*)subMesh->m_vertexArray->m_vertexBuffer->m_data + offset});
+                    VertexAttrib::DataType::Float, 3, strideInBytes, offset });
                 offset += sizeof(f32) * 3;
             }
             if (attribFlag & VertexAttribFlag::kTangents)
             {
                 subMesh->m_vertexArray->m_vertexBuffer->m_vertexAttribs.push_back({
-                    VertexAttrib::DataType::Float, 4, strideInBytes, offset, (float*)subMesh->m_vertexArray->m_vertexBuffer->m_data + offset});
+                    VertexAttrib::DataType::Float, 4, strideInBytes, offset });
                 offset += sizeof(f32) * 4;
             }
             if (attribFlag & VertexAttribFlag::kTexcoord)
             {
                 subMesh->m_vertexArray->m_vertexBuffer->m_vertexAttribs.push_back({
-                    VertexAttrib::DataType::Float, 2, strideInBytes, offset, (float*)subMesh->m_vertexArray->m_vertexBuffer->m_data + offset});
+                    VertexAttrib::DataType::Float, 2, strideInBytes, offset });
                 offset += sizeof(f32) * 2;
             }
             subMesh->m_vertexArray->init();
@@ -292,6 +334,7 @@ namespace Cyan
         mesh->m_shouldNormalize = normalize;
         mesh->onFinishLoading();
         addMesh(mesh);
+
         for (u32 sm = 0u; sm < scene->mNumMeshes; ++sm) {
             delete[] vertexDataPtrs[sm];
         }
@@ -315,7 +358,7 @@ namespace Cyan
 
     Scene* createScene(const char* name, const char* file)
     {
-        Toolkit::ScopedTimer loadSceneTimer("createScene()", true);
+        Toolkit::GpuTimer loadSceneTimer("createScene()", true);
         Scene* scene = new Scene;
         scene->m_name = std::string(name);
 
@@ -728,7 +771,7 @@ namespace Cyan
             cubeMesh->m_name = _name;
             subMesh->m_numVerts = sizeof(cubeVertices) / sizeof(f32) / 3;
             subMesh->m_vertexArray = createVertexArray(createVertexBuffer(cubeVertices, sizeof(cubeVertices), 3 * sizeof(f32), subMesh->m_numVerts));
-            subMesh->m_vertexArray->m_vertexBuffer->m_vertexAttribs.push_back({VertexAttrib::DataType::Float, 3, 3 * sizeof(f32), 0, cubeVertices});
+            subMesh->m_vertexArray->m_vertexBuffer->m_vertexAttribs.push_back({VertexAttrib::DataType::Float, 3, 3 * sizeof(f32), 0 });
             subMesh->m_vertexArray->init();
             subMesh->m_triangles.m_numVerts = 0;
 
@@ -1333,13 +1376,13 @@ namespace Cyan
             u32 stride = sizeof(Vertex);
             u32 offset = 0;
             VertexBuffer* vb = Cyan::createVertexBuffer(vertices.data(), subMesh->m_numVerts * sizeof(Vertex), stride, subMesh->m_numVerts);
-            vb->m_vertexAttribs.push_back({ VertexAttrib::DataType::Float, 3, stride, offset, vb->m_data});
+            vb->m_vertexAttribs.push_back({ VertexAttrib::DataType::Float, 3, stride, offset });
             offset += sizeof(glm::vec3);
-            vb->m_vertexAttribs.push_back({ VertexAttrib::DataType::Float, 3, stride, offset, (void*)((u8*)vb->m_data + offset)});
+            vb->m_vertexAttribs.push_back({ VertexAttrib::DataType::Float, 3, stride, offset });
             offset += sizeof(glm::vec3);
-            vb->m_vertexAttribs.push_back({ VertexAttrib::DataType::Float, 3, stride, offset, (void*)((u8*)vb->m_data + offset)});
+            vb->m_vertexAttribs.push_back({ VertexAttrib::DataType::Float, 3, stride, offset });
             offset += sizeof(glm::vec3);
-            vb->m_vertexAttribs.push_back({ VertexAttrib::DataType::Float, 2, stride, offset, (void*)((u8*)vb->m_data + offset)});
+            vb->m_vertexAttribs.push_back({ VertexAttrib::DataType::Float, 2, stride, offset });
             offset += sizeof(glm::vec2);
             subMesh->m_vertexArray = Cyan::createVertexArray(vb);
             subMesh->m_vertexArray->init();

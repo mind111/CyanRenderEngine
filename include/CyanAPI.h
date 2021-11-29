@@ -6,6 +6,7 @@
 #include "assimp/Importer.hpp"
 #include "assimp/scene.h"
 #include "assimp/postprocess.h"
+#include "thekla_atlas.h"
 
 #include "Mesh.h"
 #include "Scene.h"
@@ -25,13 +26,9 @@
         * add support for adding entities via UI.
         * add support for saving the scene settings (serialization....?).
         * look into how to reduce load time (loading mesh, loading textures etc).
-        * reduce memory foot print, look into why it's using so much memory
-        * get rid of heap memory usage, no more "new" in the code base.
         * new project structure..? static lib, dll, and driver app ?
         * study about resource management.
-        * implement a simple logger
         * think about how to handle uniform with same name but different type
-        * implement handle system, every object can be identified using a handle
         * memory usage visualization
     Rendering:
         Problems:
@@ -56,12 +53,10 @@
             * re-orthonormalize the normals after tangent space normal mapping
             * correct filtering
         * implement temporal anti-aliasing first to combat specular aliasing
-        * add functionalities for capturing light probes
         * look into how to reduce specular noise (NDF filtering ...?)
         * look into parameters in Disney principled BRDF
             * Disney's reparameterization of alpha in GGX specular is mainly because of matching
             with their diffuse BRDF
-        * add support for 32-bits precision hdr.
         * post-processing
             * auto-exposure  
         * study subsurface scattering
@@ -70,9 +65,6 @@
         * implement DrawCall and Frame struct
 */
 
-/* FIXME: 
-    * Look into why the render will contain "black" dots
-*/
 namespace Cyan
 {
     struct Context
@@ -170,6 +162,8 @@ namespace Cyan
     void addMesh(Mesh* mesh);
     Mesh* createMesh(const char* name, const char* file, bool normalize);
     Mesh* getMesh(const char* _name);
+    // todo: move this to a better place later
+    struct Thekla::Atlas_Input_Mesh* convertSubMeshToTheklaInputMesh(Mesh::SubMesh* subMesh);
     struct TriangleIndex
     {
         u32 submeshIndex;
@@ -192,12 +186,12 @@ namespace Cyan
         /*
             * How to evaluate OpenGL performance https://www.khronos.org/opengl/wiki/Performance 
         */
-        struct ScopedTimer
+        struct GpuTimer
         {
             using TimeSnapShot = std::chrono::high_resolution_clock::time_point;
 
             // begin
-            ScopedTimer(const char* name, bool print=false) 
+            GpuTimer(const char* name, bool print=false) 
             {
                 // Flush GPU commands
                 glFinish();
@@ -206,7 +200,7 @@ namespace Cyan
                 m_durationInMs = 0.0;
                 m_print = print; 
             }
-            ~ScopedTimer() { }
+            ~GpuTimer() {}
 
             // end
             void end()
@@ -228,6 +222,43 @@ namespace Cyan
             double m_durationInMs; 
             std::string m_timedBlockName;
             bool m_print;
+        };
+
+        struct ScopedTimer
+        {
+            using TimeSnapShot = std::chrono::high_resolution_clock::time_point;
+
+            // begin
+            ScopedTimer(const char* name, bool print=false) 
+            {
+                m_timedBlockName.assign(std::string(name)); // is this faster ...?
+                m_begin = std::chrono::high_resolution_clock::now();
+                m_durationInMs = 0.0;
+                m_print = print; 
+            }
+            ~ScopedTimer() {
+                end();
+            }
+
+            // end
+            void end()
+            {
+                m_end = std::chrono::high_resolution_clock::now();
+                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(m_end - m_begin);
+                m_durationInMs = duration.count();
+                if (m_print)
+                {
+                    printf("%s: %.3f ms \n", m_timedBlockName.c_str(), m_durationInMs);
+                }
+            }
+
+            TimeSnapShot m_begin;
+            TimeSnapShot m_end;
+            // elapsed time in %.2f ms
+            double m_durationInMs; 
+            std::string m_timedBlockName;
+            bool m_print;
+
         };
 
         //-

@@ -3,7 +3,19 @@
 #include "Texture.h"
 #include "mathUtils.h"
 
-#define EPISILON 0.0001f
+/* 
+    * todo: (Feature) uv wrapp the scene geometry into a texture atlus
+    * todo: (Feature) start baking a light map
+    * todo: (Feature) integrate intel's open image denoiser
+    * todo: (Optimization) multi-threading
+    * todo: (Optimization) do some profiling
+    * todo: (Optimization) think about how can I further improve performance
+    * todo: (Bug) debug invalid barycentric coord computed for some ray intersections.
+    * todo: (Bug) debug weird "black" vertical line in the final render, increasing "EPSILON" seems alleviate the issue."
+*/
+
+// Is 2mm of an offset too large..?
+#define EPISILON 0.002f
 namespace Cyan
 {
     PathTracer::PathTracer(Scene* scene)
@@ -13,8 +25,8 @@ namespace Cyan
     , m_checkPoint(0u)
     , m_numTracedPixels(0u)
     , m_staticCamera(scene->getActiveCamera())
-    , hitPositionCache{ }
     , numAccumulatedSamples(0)
+    , m_renderMode(RenderMode::BakeLightmap)
     {
         u32 bytesPerPixel = sizeof(float) * 3;
         u32 numPixels = numPixelsInX * numPixelsInY;
@@ -45,7 +57,6 @@ namespace Cyan
     }
 
     // TODO: multi-threading (opengl multi-threading)
-    // TODO: diffuse shading
     // TODO: glossy specular
     void PathTracer::progressiveRender(Scene* scene, Camera& camera)
     {
@@ -69,7 +80,8 @@ namespace Cyan
                                        + camera.right   * pixelCenterCoord.x 
                                        + camera.up      * pixelCenterCoord.y);
 
-                glm::vec3 color = traceScene(ro, rd);
+                auto hit = traceScene(ro, rd);
+                glm::vec3 color = renderSurface(hit, ro, rd);
                 setPixel(x, numPixelsInY - y - 1, color);
                 m_numTracedPixels += 1;
             }
@@ -88,12 +100,10 @@ namespace Cyan
         }
     }
 
-    void PathTracer::render(Scene* scene, Camera& camera)
+    void PathTracer::renderScene(Camera& camera)
     {
         // todo: split the work into 8 threads?
         f32 aspectRatio = (f32)numPixelsInX / numPixelsInY;
-        u32 boundryX = min(m_checkPoint.x + perFrameWorkGroupX, numPixelsInX);
-        u32 boundryY = min(m_checkPoint.y + perFrameWorkGroupY, numPixelsInY);
         f32 w = camera.n * glm::tan(glm::radians(.5f * 45.f));
         u32 totalNumRays = numPixelsInX * numPixelsInY; 
         f32 pixelSize = 1.f / (f32)numPixelsInY;
@@ -123,10 +133,11 @@ namespace Cyan
 
                         glm::vec3 ro = camera.position;
                         glm::vec3 rd = normalize(camera.forward * camera.n
-                                            + camera.right   * sampleScreenCoord.x * w 
-                                            + camera.up      * sampleScreenCoord.y * w);
+                                               + camera.right   * sampleScreenCoord.x * w 
+                                               + camera.up      * sampleScreenCoord.y * w);
 
-                        pixelColor += traceScene(ro, rd);
+                        auto hit = traceScene(ro, rd);
+                        pixelColor += renderSurface(hit, ro, rd);
                     }
                 }
 
@@ -160,7 +171,6 @@ namespace Cyan
 
         f32 w = glm::length(glm::cross(p1 - p0, p - p0)) / totalArea;
         f32 v = glm::length(glm::cross(p2 - p0, p - p0)) / totalArea;
-        // CYAN_ASSERT((w + v) <= 1.f, "Invalid barycentric coordinates!\n");
         f32 u = 1.f - v - w;
         return glm::vec3(u, v, w);
     }
@@ -233,13 +243,8 @@ namespace Cyan
         }
     }
 
-    glm::vec3 getRayHitSurfaceAlbedo()
-    {
-        return glm::vec3(0.f);
-    }
-
     // return surface normal at ray hit in world space
-    glm::vec3 getRayHitSurfaceNormal(RayCastInfo& rayHit, glm::vec3& baryCoord)
+    glm::vec3 getSurfaceNormal(RayCastInfo& rayHit, glm::vec3& baryCoord)
     {
         auto mesh = rayHit.m_node->m_meshInstance->m_mesh;
         auto sm = mesh->m_subMeshes[rayHit.smIndex];
@@ -252,12 +257,26 @@ namespace Cyan
         auto worldTransformMatrix = rayHit.m_node->getWorldTransform().toMatrix();
         normal = vec4ToVec3(glm::inverse(glm::transpose(worldTransformMatrix)) * glm::vec4(normal, 0.f));
         return glm::normalize(normal);
-    } 
+    }
 
-    glm::vec3 PathTracer::computeDirectLighting()
+    glm::vec3 PathTracer::computeDirectLighting(glm::vec3& hitPosition, glm::vec3& normal)
     {
         glm::vec3 color(0.f);
+        for (auto dirLight : m_scene->dLights)
+        {
+            glm::vec3 lightDir = dirLight.direction;
+            // trace shadow ray
+            f32 shadow = traceShadowRay(hitPosition + EPISILON * normal, lightDir);
+            f32 ndotl = max(glm::dot(normal, lightDir), 0.f);
+            glm::vec3 Li = vec4ToVec3(dirLight.color) * dirLight.color.w * shadow;
+            color += Li * ndotl;
+        }
         return color;
+    }
+
+    glm::vec3 gammaCorrect(glm::vec3& color, f32 gamma)
+    {
+        return glm::vec3(pow(color.r, gamma), pow(color.g, gamma), pow(color.b, gamma));
     }
 
     glm::vec3 PathTracer::computeDirectSkyLight(glm::vec3& ro, glm::vec3& n)
@@ -280,68 +299,162 @@ namespace Cyan
 
     glm::vec3 PathTracer::recursiveTraceDiffuse(glm::vec3& ro, glm::vec3& n, u32 numBounces)
     {
-        if (numBounces >= 3)
-            return glm::vec3(0.529f, 0.808f, 0.922f);
          
         glm::vec3 exitRadiance(0.f);
+
+        // direct
+        {
+            exitRadiance += computeDirectSkyLight(ro, n);
+        }
+
+        // stop recursion
+        if (numBounces >= 3)
+            return exitRadiance;
+
         glm::vec3 rd = uniformSampleHemiSphere(n);
 
         // ray cast
-        auto nextRayHit = m_scene->castRay(ro, rd);
+        auto nextRayHit = m_scene->castRay(ro, rd, EntityFilter::BakeInLightMap);
 
         if (nextRayHit.t > 0.f)
         {
             // compute geometric information
             glm::vec3 nextBounceRo = ro + nextRayHit.t * rd;
             glm::vec3 baryCoord = computeBaryCoordFromHit(nextRayHit, nextBounceRo);
-            glm::vec3 nextBounceNormal = getRayHitSurfaceNormal(nextRayHit, baryCoord);
 
+            glm::vec3 nextBounceNormal = getSurfaceNormal(nextRayHit, baryCoord);
             // avoid self-intersecting
             nextBounceRo += EPISILON * nextBounceNormal;
 
             // indirect
-            exitRadiance += 0.5f * recursiveTraceDiffuse(nextBounceRo, nextBounceNormal, numBounces + 1) * max(glm::dot(n, rd), 0.f);
+            // todo: is there any better attenuation ..?
+            f32 atten = .8f;
+            exitRadiance += atten * recursiveTraceDiffuse(nextBounceRo, nextBounceNormal, numBounces + 1) * max(glm::dot(n, rd), 0.f);
         }
 
-        // direct
-        exitRadiance += computeDirectSkyLight(ro, n);
-        exitRadiance *= glm::vec3(0.95f);
         return exitRadiance;
     }
-
-    glm::vec3 PathTracer::traceScene(glm::vec3& ro, glm::vec3& rd)
+    void PathTracer::run(Camera& camera)
     {
-        auto hit = m_scene->castRay(ro, rd);
-        glm::vec3 surfaceColor(0.0f);
+        switch (m_renderMode)
+        {
+            case RenderMode::BakeLightmap:
+                bakeScene(camera);
+                break;
+            case RenderMode::Render:
+                renderScene(camera);
+                break;
+            default:
+                printf("Invalid PathTracer setting! \n");
+                break;
+        }
+    }
 
+    f32 saturate(f32 val)
+    {
+        return glm::clamp(val, 0.f, 1.f);
+    }
+
+    // reference: https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/
+    glm::vec3 ACESFilm(glm::vec3 x)
+    {
+        f32 a = 2.51f;
+        f32 b = 0.03f;
+        f32 c = 2.43f;
+        f32 d = 0.59f;
+        f32 e = 0.14f;
+        glm::vec3 result = (x*(a*x+b))/(x*(c*x+d)+e);
+        return glm::vec3(saturate(result.r), saturate(result.g), saturate(result.b)); 
+    }
+
+    void PathTracer::bakeScene(Camera& camera)
+    {
+        // todo: split the work into 8 threads?
+        f32 aspectRatio = (f32)numPixelsInX / numPixelsInY;
+        f32 w = camera.n * glm::tan(glm::radians(.5f * 45.f));
+        u32 totalNumRays = numPixelsInX * numPixelsInY; 
+        f32 pixelSize = 1.f / (f32)numPixelsInY;
+        f32 subPixelSize = pixelSize / (f32)sppxCount;
+        u32 subPixelSampleCount = sppxCount * sppyCount;
+
+        for (u32 x = 0u; x < numPixelsInX; ++x)
+        {
+            for (u32 y = 0u; y < numPixelsInY; ++y)
+            {
+                glm::vec3 pixelColor(0.f);
+                glm::vec2 pixelCenterCoord;
+                pixelCenterCoord.x = ((f32)x / (f32)numPixelsInX) * 2.f - 1.f;
+                pixelCenterCoord.y = ((f32)y / (f32)numPixelsInY) * 2.f - 1.f;
+
+                // stratified sampling
+                for (u32 spx = 0; spx < sppxCount; ++spx)
+                {
+                    for (u32 spy = 0; spy < sppyCount; ++spy)
+                    {
+                        glm::vec2 subPixelOffset((f32)spx * subPixelSize, (f32)spy * subPixelSize);
+                        // jitter the sub pixel samples
+                        glm::vec2 jitter = glm::vec2(subPixelSize) * glm::vec2(uniformSampleZeroToOne(), uniformSampleZeroToOne());
+                        subPixelOffset += jitter;
+                        glm::vec2 sampleScreenCoord = pixelCenterCoord + subPixelOffset;
+                        sampleScreenCoord.x *= aspectRatio;
+
+                        glm::vec3 ro = camera.position;
+                        glm::vec3 rd = normalize(camera.forward * camera.n
+                                            + camera.right   * sampleScreenCoord.x * w 
+                                            + camera.up      * sampleScreenCoord.y * w);
+
+                        auto hit = traceScene(ro, rd);
+                        pixelColor += bakeSurface(hit, ro, rd);
+                    }
+                }
+
+                // tone mapping here
+                glm::vec3 finalColor = pixelColor / (f32)subPixelSampleCount;
+                {
+                    finalColor = ACESFilm(finalColor);
+                    finalColor = gammaCorrect(finalColor, 0.45f);
+                }
+
+                setPixel(x, numPixelsInY - y - 1, finalColor);
+
+                {
+                    m_numTracedPixels += 1;
+                    printf("\rPath tracing progress ...%.2f%", (f32)m_numTracedPixels * 100.f / totalNumRays);
+                    fflush(stdout);
+                }
+            }
+        }
+
+        // copy data to gpu texture
+        {
+            glBindTexture(GL_TEXTURE_2D, m_texture->m_id);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, numPixelsInX, numPixelsInY, GL_RGB, GL_FLOAT, m_pixels);
+            glBindTexture(GL_TEXTURE_2D, 0);
+        }
+    }
+
+    glm::vec3 PathTracer::renderSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd)
+    {
+        glm::vec3 surfaceColor(0.f);
         if (hit.t > 0.f)
         {
-            auto worldTransformMatrix = hit.m_node->getWorldTransform().toMatrix();
             glm::vec3 hitPosition = ro + rd * hit.t;
-            // convert world space hit back to object space
-            glm::vec3 hitPosObjectSpace = vec4ToVec3(glm::inverse(worldTransformMatrix) * glm::vec4(hitPosition, 1.f));
 
             auto mesh = hit.m_node->m_meshInstance->m_mesh;
             auto tri = mesh->getTriangle(hit.smIndex, hit.triIndex); 
             auto& triangles = mesh->m_subMeshes[hit.smIndex]->m_triangles;
-            u32 vertexOffset = hit.triIndex * 3;
-
-            // material data
-            auto meshInstance = hit.m_node->m_meshInstance;
-            auto material = meshInstance->m_matls[hit.smIndex];
-            auto albedoTexture = material->getTexture("diffuseMaps[0]");
 
             glm::vec3 albedo(1.f);
 
             // compute barycentric coord of the surface point that we hit 
             glm::vec3 baryCoord = computeBaryCoordFromHit(hit, hitPosition);
-            glm::vec3 normal = getRayHitSurfaceNormal(hit, baryCoord);
+            glm::vec3 normal = getSurfaceNormal(hit, baryCoord);
 
-#if 0
+    #if 0
             // texCoord
             glm::vec3 texCoord = baryCoord.x * triangles.m_texCoordArray[vertexOffset]
-                               + baryCoord.y * triangles.m_texCoordArray[vertexOffset + 1]
-                               + baryCoord.z * triangles.m_texCoordArray[vertexOffset + 2];
+                                + baryCoord.y * triangles.m_texCoordArray[vertexOffset + 1]
+                                + baryCoord.z * triangles.m_texCoordArray[vertexOffset + 2];
             texCoord.x = texCoord.x < 0.f ? 1.f + texCoord.x : texCoord.x;
             texCoord.y = texCoord.y < 0.f ? 1.f + texCoord.y : texCoord.y;
 
@@ -350,20 +463,20 @@ namespace Cyan
             else
                 albedo = normal * .5f + glm::vec3(.5f);
             albedo = glm::vec3(texCoord.x, texCoord.y, 0.0f);
-#endif
+    #endif
 
             //direct lighting
-            // for (auto dirLight : m_scene->dLights)
-            // {
-            //     glm::vec3 lightDir = dirLight.direction;
-            //     // trace shadow ray
-            //     f32 shadow = traceShadowRay(hitPosition + EPISILON * normal, lightDir);
+            for (auto dirLight : m_scene->dLights)
+            {
+                glm::vec3 lightDir = dirLight.direction;
+                // trace shadow ray
+                f32 shadow = traceShadowRay(hitPosition + EPISILON * normal, lightDir);
 
-            //     f32 ndotl = max(glm::dot(normal, lightDir), 0.f);
-            //     glm::vec3 fr = (albedo / M_PI);
-            //     glm::vec3 Li = vec4ToVec3(dirLight.color) * dirLight.color.w * shadow;
-            //     surfaceColor += Li * fr * ndotl;
-            // }
+                f32 ndotl = max(glm::dot(normal, lightDir), 0.f);
+                glm::vec3 fr = (albedo / M_PI);
+                glm::vec3 Li = vec4ToVec3(dirLight.color) * dirLight.color.w * shadow;
+                surfaceColor += Li * fr * ndotl;
+            }
 
             // indirect lighting
             {
@@ -372,5 +485,159 @@ namespace Cyan
             }
         }
         return surfaceColor;
+    }
+
+    glm::vec3 PathTracer::bakeSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd)
+    {
+        glm::vec3 radiance(0.f);
+        if (hit.t > 0.f)
+        {
+            glm::vec3 hitPosition = ro + rd * hit.t;
+            auto mesh = hit.m_node->m_meshInstance->m_mesh;
+            auto tri = mesh->getTriangle(hit.smIndex, hit.triIndex); 
+            auto& triangles = mesh->m_subMeshes[hit.smIndex]->m_triangles;
+
+            // compute barycentric coord of the surface point that we hit 
+            glm::vec3 baryCoord = computeBaryCoordFromHit(hit, hitPosition);
+#if 0
+            // todo: debug the cause of invalid baryCoord and a weird "black" line in the final render, it seems increasing the EPISLON alleviate the artifact
+            {
+                // sanitize baryCoord
+                if ((baryCoord.y + baryCoord.z) > 1.f)
+                    m_debugRayHits.push_back(hit);
+            }
+#endif
+            glm::vec3 normal = getSurfaceNormal(hit, baryCoord);
+
+            glm::vec3 indirectRo = hitPosition + EPISILON * normal;
+
+            // bake static lighting lighting
+            // radiance += computeDirectLighting(hitPosition, normal);
+            radiance += computeDirectSkyLight(indirectRo, normal);
+
+            // indirect lighting
+            {
+                radiance += recursiveTraceDiffuse(indirectRo, normal, 0);
+            }
+        }
+        return radiance;
+    }
+
+    SurfaceProperty PathTracer::getSurfaceProperty(RayCastInfo& hit, glm::vec3& baryCoord)
+    {
+        SurfaceProperty props = { };
+
+        auto mesh = hit.m_node->m_meshInstance->m_mesh;
+        auto sm = mesh->m_subMeshes[hit.smIndex];
+        u32 vertexOffset = hit.triIndex * 3;
+        // normal
+        {
+            props.normal = baryCoord.x * sm->m_triangles.m_normalArray[vertexOffset]
+                        + baryCoord.y * sm->m_triangles.m_normalArray[vertexOffset + 1]
+                        + baryCoord.z * sm->m_triangles.m_normalArray[vertexOffset + 2];
+            props.normal = glm::normalize(props.normal);
+            // convert normal back to world space
+            auto worldTransformMatrix = hit.m_node->getWorldTransform().toMatrix();
+            props.normal = vec4ToVec3(glm::inverse(glm::transpose(worldTransformMatrix)) * glm::vec4(props.normal, 0.f));
+            props.normal = glm::normalize(props.normal);
+        }
+        // albedo
+        {
+            props.albedo = glm::vec3(0.f);
+        }
+        // roughness
+        {
+            props.roughness = glm::vec3(0.f);
+        }
+        // metallic
+        {
+            props.metalness = glm::vec3(0.f);
+        }
+        return props;
+    }
+
+    RayCastInfo PathTracer::traceScene(glm::vec3& ro, glm::vec3& rd)
+    {
+        return m_scene->castRay(ro, rd, EntityFilter::BakeInLightMap);
+    }
+
+    glm::vec3 PathTracer::sampleIrradiance(glm::vec3& samplePos, glm::vec3& n)
+    {
+        const u32 numSamples = 128u;
+        glm::vec3 irradiance(0.f);
+        for (u32 i = 0; i < numSamples; ++i)
+        {
+            auto rd = uniformSampleHemiSphere(n);
+            auto hit = traceScene(samplePos, rd);
+            // todo: instead of only consider diffuse reflections along the path, also include indirect specular
+            auto radiance = bakeSurface(hit, samplePos, rd);
+            irradiance += radiance * max(glm::dot(rd, n), 0.f);
+        }
+        irradiance /= numSamples;
+        return irradiance;
+    }
+
+    glm::vec3 computeRayDirectionFromTexCoord(Camera& camera, glm::vec2 texCoord)
+    {
+        f32 w = camera.n * glm::tan(glm::radians(.5f * 45.f));
+        glm::vec3 rd = normalize(camera.forward * camera.n
+                               + camera.right   * texCoord.x * w 
+                               + camera.up      * texCoord.y * w);
+        return rd;
+    }
+
+    void PathTracer::bakeIrradianceProbe(glm::vec3& probePos, glm::ivec2& resolution)
+    {
+        glm::vec3 cameraTargets[] = {
+            {1.f, 0.f, 0.f},   // Right
+            {-1.f, 0.f, 0.f},  // Left
+            {0.f, 1.f, 0.f},   // Up
+            {0.f, -1.f, 0.f},  // Down
+            {0.f, 0.f, 1.f},   // Front
+            {0.f, 0.f, -1.f},  // Back
+        }; 
+        glm::vec3 worldUps[] = {
+            {0.f, -1.f, 0.f},   // Right
+            {0.f, -1.f, 0.f},   // Left
+            {0.f, 0.f, 1.f},    // Up
+            {0.f, 0.f, -1.f},   // Down
+            {0.f, -1.f, 0.f},   // Forward
+            {0.f, -1.f, 0.f},   // Back
+        };
+
+        Camera camera = { };
+        for (u32 f = 0; f < 6; ++f)
+        {
+            // configure camera
+            {
+                camera.position = probePos;
+                camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
+                camera.n = 0.1f;
+                camera.f = 100.f;
+                camera.fov = glm::radians(90.f);
+                camera.lookAt = camera.position + cameraTargets[f];
+                camera.worldUp = worldUps[f];
+                CameraManager::updateCamera(camera);
+            }
+
+            // compute irradiance 
+            for (u32 x = 0; x < (u32)resolution.x; ++x)
+            {
+                for (u32 y = 0; y < (u32)resolution.y; ++y)
+                {
+                    glm::vec2 texCoord(0.f);
+                    texCoord.x = ((f32)x / (f32)resolution.x) * 2.f - 1.f;
+                    texCoord.y = ((f32)y / (f32)resolution.y) * 2.f - 1.f;
+
+                    glm::vec3 hemiSphereNormalDir = computeRayDirectionFromTexCoord(camera, texCoord);
+                    glm::vec3 irradiance = sampleIrradiance(probePos, hemiSphereNormalDir);
+
+                    // write to a cubemap texture at direction "hemiSphereNormalDir"
+                    {
+
+                    }
+                }
+            }
+        }
     }
 };

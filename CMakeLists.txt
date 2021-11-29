@@ -27,12 +27,14 @@ include_directories(${PROJECT_SOURCE_DIR}/lib/stb_image/include/)
 include_directories(${PROJECT_SOURCE_DIR}/lib/tinygltf/include/)
 include_directories(${PROJECT_SOURCE_DIR}/lib/glm/glm)
 include_directories(${PROJECT_SOURCE_DIR}/lib/json) 
+include_directories(${PROJECT_SOURCE_DIR}/lib/thekla_atlas/include)
 
 #### preprocessor ####
 add_definitions(-DGLEW_STATIC -DGLFW_INCLUDE_NONE)
 add_executable(cyanRenderEngine ${include} ${src} ${lib})
 target_compile_options(cyanRenderEngine PUBLIC /W1 /std:c++14 /DTINYGLTF_NOEXCEPTION)
 target_link_libraries(cyanRenderEngine ${GLFW_LIBRARY} ${GLEW_LIBRARY} ${OPENGL_LIBRARIES} ${ASSIMP_LIBRARY})
+target_link_libraries(cyanRenderEngine "${PROJECT_SOURCE_DIR}\\lib\\thekla_atlas\\thekla_atlas.lib")
 
 #### copy over dll after build ####
 add_custom_command(TARGET cyanRenderEngine POST_BUILD

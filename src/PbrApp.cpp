@@ -17,6 +17,7 @@
 #include "Shader.h"
 #include "Mesh.h"
 #include "RenderPass.h"
+#include "LightMap.h"
 
 /*
     * particle system; particle rendering
@@ -328,44 +329,66 @@ void PbrApp::createHelmetInstance(Scene* scene)
 
 void PbrApp::initDemoScene00()
 {
-    Cyan::Toolkit::ScopedTimer timer("initDemoScene00()", true);
+    Cyan::Toolkit::GpuTimer timer("initDemoScene00()", true);
     m_scenes[Scenes::Demo_Scene_00] = Cyan::createScene("demo_scene_00", "C:\\dev\\cyanRenderEngine\\scene\\demo_scene_00.json");
     Scene* demoScene00 = m_scenes[Scenes::Demo_Scene_00];
 
     auto textureManager = m_graphicsSystem->getTextureManager();
     auto sceneManager = SceneManager::getSingletonPtr();
 
+    // uvwrap the scene into a texture atlas for light mapping
+    {
+
+    }
+
     // helmet
     {
         createHelmetInstance(demoScene00);
-#if 1
         auto helmet = sceneManager->getEntity(demoScene00, "DamagedHelmet");
         auto helmetMesh = helmet->getSceneNode("HelmetMesh")->m_meshInstance->m_mesh;
         helmetMesh->m_bvh = new Cyan::MeshBVH(helmetMesh);
         helmetMesh->m_bvh->build();
-#endif
-    }
+#if 1
+        {
+            using namespace Thekla;
+            Atlas_Input_Mesh* input_mesh = Cyan::convertSubMeshToTheklaInputMesh(helmetMesh->m_subMeshes[0]);
+            // Generate Atlas_Output_Mesh.
+            Atlas_Options atlas_options;
+            atlas_set_default_options(&atlas_options);
+            // Avoid brute force packing, since it can be unusably slow in some situations.
+            atlas_options.packer_options.witness.packing_quality = 1;
+            Atlas_Error error = Atlas_Error_Success;
+            Atlas_Output_Mesh* output_mesh = atlas_generate(input_mesh, &atlas_options, &error);
+            Cyan::LightMap lightMap = { };
+            Cyan::TextureSpec spec = { };
+            spec.m_width  = output_mesh->atlas_width;
+            spec.m_height = output_mesh->atlas_height;
+            lightMap.m_texAltas = textureManager->createTextureHDR("LightMap", spec);
+            auto subMesh = helmetMesh->m_subMeshes[0];
+            subMesh->m_lightMapTexCoord.resize(output_mesh->vertex_count);
+            // render to light map using lightmap texcoord
+            for (i32 v = 0; v < output_mesh->vertex_count; ++v)
+            {
+                i32 vertexIndex = output_mesh->vertex_array[v].xref;
+                subMesh->m_lightMapTexCoord[vertexIndex] = output_mesh->vertex_array[v].uv;
+            }
+            numTriangles
+            for (i32 f = 0; f < subMesh->m_triangles->)
+            {
 
-    // sphere 0
-    {
-        PbrMaterialInputs inputs = { 0 };
-        Entity* sphereEntity = sceneManager->getEntity(demoScene00, "Sphere0");
-        Cyan::Texture* sphereAlbedo = Cyan::Toolkit::createFlatColorTexture("sphere_albedo", 4u, 4u, glm::vec4(0.8f, 0.8f, 0.6f, 1.f));
-        inputs.m_baseColor = sphereAlbedo;
-        inputs.m_uRoughness = 0.8f;
-        inputs.m_uMetallic = 0.1f;
-        auto sphereMatl = createDefaultPbrMatlInstance(demoScene00, inputs);
-        sphereEntity->setMaterial("SphereMesh", 0, sphereMatl);
+            }
+        }
+#endif
     }
     
     // room
     {
         PbrMaterialInputs inputs = { 0 };
         Entity* room = sceneManager->getEntity(demoScene00, "Room");
-        Cyan::Texture* albedo = Cyan::Toolkit::createFlatColorTexture("room_albedo", 4, 4u, glm::vec4(0.9f, 0.9f, 0.9f, 1.f));
+        Cyan::Texture* albedo = Cyan::Toolkit::createFlatColorTexture("room_albedo", 4, 4u, glm::vec4(1.0f, 1.0f, 1.0f, 1.f));
         inputs.m_baseColor = albedo;
-        inputs.m_uRoughness = 0.8f;
-        inputs.m_uMetallic = 0.1f;
+        inputs.m_uRoughness = 0.5f;
+        inputs.m_uMetallic = 0.5f;
         auto roomMatl = createDefaultPbrMatlInstance(demoScene00, inputs);
         auto sceneNode = room->getSceneNode("RoomMesh");
         // bind material for all submeshes
@@ -375,15 +398,17 @@ void PbrApp::initDemoScene00()
 
     // lighting
     {
-        sceneManager->createDirectionalLight(demoScene00, glm::vec3(1.0f, 1.0, 1.0f), glm::normalize(glm::vec3(1.0f, 1.0f, 1.0f)), 1.2f);
+        sceneManager->createDirectionalLight(demoScene00, glm::vec3(1.0f, 0.9, 0.7f), glm::normalize(glm::vec3(1.0f, 1.0f, 1.0f)), 7.2f);
         // sky light
         auto sceneManager = SceneManager::getSingletonPtr();
-        // Entity* envMapEntity = sceneManager->createEntity(demoScene00, "Envmap", Transform());
-        // envMapEntity->m_sceneRoot->attach(Cyan::createSceneNode("CubeMesh", Transform(), Cyan::getMesh("CubeMesh"), false));
-        // envMapEntity->setMaterial("CubeMesh", 0, m_skyMatl);
+        Entity* envMapEntity = sceneManager->createEntity(demoScene00, "Envmap", Transform());
+        envMapEntity->m_sceneRoot->attach(Cyan::createSceneNode("CubeMesh", Transform(), Cyan::getMesh("CubeMesh"), false));
+        envMapEntity->setMaterial("CubeMesh", 0, m_skyMatl);
+        envMapEntity->m_bakeInLightmap = false;
 
         // irradiance probes
         m_irradianceProbe = sceneManager->createIrradianceProbe(demoScene00, glm::vec3(0.f, 2.5f, 0.f));
+        m_irradianceProbe->m_bakeInLightmap = false;
     }
 
     timer.end();
@@ -391,7 +416,7 @@ void PbrApp::initDemoScene00()
 
 void PbrApp::initFactoryScene()
 {
-    Cyan::Toolkit::ScopedTimer timer("initFactoryScene()", true);
+    Cyan::Toolkit::GpuTimer timer("initFactoryScene()", true);
     m_scenes[Scenes::Factory_Scene] = Cyan::createScene("factory_scene", "../../scene/default_scene/scene_factory.json");
     timer.end();
 }
@@ -433,9 +458,9 @@ void PbrApp::initScenes()
 
 void PbrApp::initHelmetScene()
 {
-    Cyan::Toolkit::ScopedTimer timer("initHelmetScene()", true);
+    Cyan::Toolkit::GpuTimer timer("initHelmetScene()", true);
     // setup scenes
-    Cyan::Toolkit::ScopedTimer loadSceneTimer("createScene()", true);
+    Cyan::Toolkit::GpuTimer loadSceneTimer("createScene()", true);
     m_scenes[Scenes::Helmet_Scene] = Cyan::createScene("helmet_scene", "../../scene/default_scene/scene_config.json");
     auto helmetScene = m_scenes[Scenes::Helmet_Scene];
 
@@ -584,7 +609,7 @@ void PbrApp::initShaders()
 
 void PbrApp::initEnvMaps()
 {
-    Cyan::Toolkit::ScopedTimer timer("initEnvMaps()", true);
+    Cyan::Toolkit::GpuTimer timer("initEnvMaps()", true);
     // image-based-lighting
     Cyan::Toolkit::createLightProbe("pisa", "../../asset/cubemaps/pisa.hdr",           true);
     // Cyan::Toolkit::createLightProbe("grace-new", "../../asset/cubemaps/grace-new.hdr", true);
@@ -615,7 +640,7 @@ void PbrApp::initUniforms()
 
 void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewportPos, glm::vec2 renderSize)
 {
-    Cyan::Toolkit::ScopedTimer timer("init()", true);
+    Cyan::Toolkit::GpuTimer timer("init()", true);
     using Cyan::Material;
     using Cyan::Mesh;
 
@@ -729,7 +754,7 @@ void PbrApp::doPrecomputeWork()
     }
     // path tracing
     {
-        m_pathTracer->render(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera());
+        // m_pathTracer->run(m_scenes[m_currentScene]->getActiveCamera());
     }
 }
 
@@ -1513,7 +1538,7 @@ struct SharedMaterialData
 void PbrApp::render()
 {
     // frame timer
-    Cyan::Toolkit::ScopedTimer frameTimer("render()");
+    Cyan::Toolkit::GpuTimer frameTimer("render()");
     auto renderer = m_graphicsSystem->getRenderer();
 
     // update probe

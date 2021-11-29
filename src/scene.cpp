@@ -13,15 +13,28 @@
 #include "Scene.h"
 
 // ray cast in world space
-RayCastInfo Scene::castRay(glm::vec3& ro, glm::vec3& rd, bool debugPrint)
+RayCastInfo Scene::castRay(glm::vec3& ro, glm::vec3& rd, EntityFilter filter, bool debugPrint)
 {
     RayCastInfo closestHit;
     for (auto entity : entities)
     {
-        auto traceInfo = entity->intersectRay(ro, rd, glm::mat4(1.f)); 
-        if (traceInfo.t > 0.f && traceInfo < closestHit)
+        bool flag = true;
+        switch (filter)
         {
-            closestHit = traceInfo;
+            case EntityFilter::BakeInLightMap:
+                flag = entity->m_bakeInLightmap; 
+                break;
+            default:
+                printf("Unknown entity filter! \n");
+        };
+
+        if (flag)
+        {
+            auto traceInfo = entity->intersectRay(ro, rd, glm::mat4(1.f)); 
+            if (traceInfo.t > 0.f && traceInfo < closestHit)
+            {
+                closestHit = traceInfo;
+            }
         }
     }
     if (debugPrint)
@@ -102,7 +115,7 @@ void SceneManager::createPointLight(Scene* scene, glm::vec3 color, glm::vec3 pos
     transform.m_translate = glm::vec3(position);
     transform.m_scale = glm::vec3(0.1f);
     Entity* entity = createEntity(scene, nameBuff, Transform()); 
-    entity->m_bakedInProbes = false;
+    entity->m_bakeInProbes = false;
     Cyan::Mesh* sphereMesh = Cyan::getMesh("sphere_mesh");
     CYAN_ASSERT(sphereMesh, "sphere_mesh does not exist")
     SceneNode* meshNode = Cyan::createSceneNode("LightMesh", transform, sphereMesh); 

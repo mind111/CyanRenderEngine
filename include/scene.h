@@ -57,7 +57,7 @@ struct Scene
         return cameras[index];
     }
 
-    RayCastInfo castRay(glm::vec3& ro, glm::vec3& rd, bool debugPrint=false);
+    RayCastInfo castRay(glm::vec3& ro, glm::vec3& rd, EntityFilter filter, bool debugPrint=false);
     bool castVisibilityRay(glm::vec3& ro, glm::vec3& rd);
 };
 

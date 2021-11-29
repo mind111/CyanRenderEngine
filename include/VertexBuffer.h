@@ -1,5 +1,4 @@
 #pragma once
-
 #include <string>
 #include <vector>
 
@@ -21,7 +20,6 @@ struct VertexAttrib
     u32 m_size;
     u32 m_strideInBytes;
     u32 m_offset;
-    void* m_data;
 };
 
 struct VertexBuffer

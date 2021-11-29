@@ -15,7 +15,12 @@
 enum EntityProperty
 {
     Lit = 0,
-    BakeInProbes
+    BakeInProbes,
+};
+
+enum EntityFilter
+{
+    BakeInLightMap = 0
 };
 
 // entity
@@ -37,7 +42,8 @@ struct Entity
 
     // flags
     bool m_lit;
-    bool m_bakedInProbes;
+    bool m_bakeInProbes;
+    bool m_bakeInLightmap;
 
     Entity(const char* name, u32 id, Transform t, Entity* parent);
 

@@ -6,6 +6,7 @@ layout (location = 2) out vec3 fragDepth;
 layout (location = 3) out vec3 radialDepth;
 uniform vec3 cameraPos;
 uniform vec3 cameraLookAt;
+#define pi 3.14159265359
 
 struct Hit {
     float t;
@@ -17,19 +18,19 @@ struct TraceInfo {
     int objectId;
 };
 
-// object id #1
+// object id #0
 float sdTerrain(vec3 p, float height) {
     return p.y - height;
 }
 
-// object id #0
+// object id #1
 float sdSphere(vec3 p, vec3 c, float r) {
     return length(p - c) - r; 
 }
 
 TraceInfo scene(vec3 p) {
     float dSphere = sdSphere(p, vec3(0.f, 1.f, -3.f), 0.2f);
-    float dTerrain = sdTerrain(p, -0.1f);
+    float dTerrain = sdTerrain(p, -0.01f);
     int objectId = -1;
     if (dSphere < dTerrain) {
         objectId = 1; 
@@ -69,12 +70,14 @@ void main() {
     float k = smoothstep(-0.05, 0.05, rd.y);
     vec3 skyColor = mix(horizonColor, skyDomeColor, k);
     fragColor = vec4(skyColor, 1.f);
+    vec3 colorA = vec3(.9f);
+    vec3 colorB = vec3(.2f);
     // ray marching
     Hit hit = castRay(vec3(0.f), rd);
     if (hit.t > 0.f) {
         vec3 p = ro + hit.t * rd;
         if (hit.objectId == 0) {
-            fragColor = (.5 + .5 * rd.y) * vec4(0.95f, 0.40f, 0.30f, 1.f);
+            fragColor = (.5 + .5 * rd.y) * vec4(0.95f, 0.60f, 0.30f, 1.f);
         }
     }
     fragNormal = vec3(0.f);
