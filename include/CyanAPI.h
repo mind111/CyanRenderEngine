@@ -103,7 +103,8 @@ namespace Cyan
         kPosition = 0x1,
         kNormal   = (1 << 1),
         kTexcoord = (1 << 2),
-        kTangents = (1 << 3)
+        kTangents = (1 << 3),
+        kLightMapUv = (1 << 4)
     };
 
     void init();

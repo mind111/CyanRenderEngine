@@ -65,6 +65,7 @@ namespace Cyan
 
     void RenderTarget::bindDrawBuffers()
     {
+        CYAN_ASSERT(m_numDrawBuffers > 0, "No draw buffers are set for render target \n");
         GLenum* drawBuffers = (GLenum*)_alloca(sizeof(GLenum) * m_numDrawBuffers);
         for (u32 i = 0; i < m_numDrawBuffers; ++i)
         {
@@ -76,7 +77,6 @@ namespace Cyan
             }
         }
         glNamedFramebufferDrawBuffers(m_frameBuffer, m_numDrawBuffers, drawBuffers);
-
     }
 
     void RenderTarget::setDrawBuffers(i32* buffers, u32 numBuffers)

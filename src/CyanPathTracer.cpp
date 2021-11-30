@@ -305,6 +305,7 @@ namespace Cyan
         // direct
         {
             exitRadiance += computeDirectSkyLight(ro, n);
+            exitRadiance += computeDirectLighting(ro, n);
         }
 
         // stop recursion

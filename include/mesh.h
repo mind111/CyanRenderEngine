@@ -55,7 +55,6 @@ namespace Cyan
             VertexArray*     m_vertexArray;
             u32              m_numVerts;
             TriangleArray    m_triangles;
-            std::vector<glm::vec2> m_lightMapTexCoord;
             glm::vec2        m_lightMapDimension;
             // std::vector<u32> m_faces;
         };

@@ -11,6 +11,7 @@
 #include "CyanUI.h"
 #include "GfxContext.h"
 #include "CyanPathTracer.h"
+#include "LightMap.h"
 
 #define DEBUG_PROBE_TRACING 0
 #define DEBUG_SSAO          1
@@ -337,12 +338,15 @@ public:
     glm::vec3 m_debugRayTracingNormal;
 
     std::vector<Scene*> m_scenes;
-    RegularBuffer* m_debugRayOctBuffer;
-    RegularBuffer* m_debugRayWorldBuffer;
-    RegularBuffer* m_debugRayBoundryBuffer;
+    RegularBuffer*      m_debugRayOctBuffer;
+    RegularBuffer*      m_debugRayWorldBuffer;
+    RegularBuffer*      m_debugRayBoundryBuffer;
     // toy path tracer
-    Cyan::PathTracer* m_pathTracer;
-    u32 m_currentScene;
+    Cyan::PathTracer*   m_pathTracer;
+    u32                 m_currentScene;
+    Cyan::RenderTarget* m_lightMapRenderTarget;
+    Shader*             m_lightMapShader;
+    Cyan::LightMap      m_lightMap;      
 
     std::vector<Cyan::MaterialInstance*> m_helmetSceneMatls;
     std::vector<Cyan::MaterialInstance*> m_demoScene00Matls;

@@ -336,11 +336,6 @@ void PbrApp::initDemoScene00()
     auto textureManager = m_graphicsSystem->getTextureManager();
     auto sceneManager = SceneManager::getSingletonPtr();
 
-    // uvwrap the scene into a texture atlas for light mapping
-    {
-
-    }
-
     // helmet
     {
         createHelmetInstance(demoScene00);
@@ -349,35 +344,21 @@ void PbrApp::initDemoScene00()
         helmetMesh->m_bvh = new Cyan::MeshBVH(helmetMesh);
         helmetMesh->m_bvh->build();
 #if 1
-        {
-            using namespace Thekla;
-            Atlas_Input_Mesh* input_mesh = Cyan::convertSubMeshToTheklaInputMesh(helmetMesh->m_subMeshes[0]);
-            // Generate Atlas_Output_Mesh.
-            Atlas_Options atlas_options;
-            atlas_set_default_options(&atlas_options);
-            // Avoid brute force packing, since it can be unusably slow in some situations.
-            atlas_options.packer_options.witness.packing_quality = 1;
-            Atlas_Error error = Atlas_Error_Success;
-            Atlas_Output_Mesh* output_mesh = atlas_generate(input_mesh, &atlas_options, &error);
-            Cyan::LightMap lightMap = { };
-            Cyan::TextureSpec spec = { };
-            spec.m_width  = output_mesh->atlas_width;
-            spec.m_height = output_mesh->atlas_height;
-            lightMap.m_texAltas = textureManager->createTextureHDR("LightMap", spec);
-            auto subMesh = helmetMesh->m_subMeshes[0];
-            subMesh->m_lightMapTexCoord.resize(output_mesh->vertex_count);
-            // render to light map using lightmap texcoord
-            for (i32 v = 0; v < output_mesh->vertex_count; ++v)
-            {
-                i32 vertexIndex = output_mesh->vertex_array[v].xref;
-                subMesh->m_lightMapTexCoord[vertexIndex] = output_mesh->vertex_array[v].uv;
-            }
-            numTriangles
-            for (i32 f = 0; f < subMesh->m_triangles->)
-            {
-
-            }
-        }
+        auto sm = helmetMesh->m_subMeshes[0];
+        // light map
+        Cyan::TextureSpec spec  = { };
+        spec.m_width    = (u32)sm->m_lightMapDimension.x;
+        spec.m_height   = (u32)sm->m_lightMapDimension.y;
+        spec.m_dataType = Cyan::Texture::DataType::Float;
+        spec.m_type     = Cyan::Texture::Type::TEX_2D;
+        spec.m_format   = Cyan::Texture::ColorFormat::R16G16B16;
+        spec.m_min      = Cyan::Texture::Filter::LINEAR;
+        spec.m_mag      = Cyan::Texture::Filter::LINEAR;
+        spec.m_numMips  = 1;
+        m_lightMap.m_texAltas = textureManager->createTextureHDR("LightMap", spec);
+        m_lightMapRenderTarget = Cyan::createRenderTarget(m_lightMap.m_texAltas->m_width, m_lightMap.m_texAltas->m_height);
+        m_lightMapRenderTarget->attachTexture(m_lightMap.m_texAltas, 0);
+        m_lightMapShader = Cyan::createShader("LightMapShader", "../../shader/shader_lightmap.vs", "../../shader/shader_lightmap.fs");
 #endif
     }
     
@@ -398,7 +379,7 @@ void PbrApp::initDemoScene00()
 
     // lighting
     {
-        sceneManager->createDirectionalLight(demoScene00, glm::vec3(1.0f, 0.9, 0.7f), glm::normalize(glm::vec3(1.0f, 1.0f, 1.0f)), 7.2f);
+        sceneManager->createDirectionalLight(demoScene00, glm::vec3(1.0f, 0.9, 0.7f), glm::normalize(glm::vec3(1.0f, 0.5f, 1.8f)), 7.2f);
         // sky light
         auto sceneManager = SceneManager::getSingletonPtr();
         Entity* envMapEntity = sceneManager->createEntity(demoScene00, "Envmap", Transform());
@@ -754,7 +735,7 @@ void PbrApp::doPrecomputeWork()
     }
     // path tracing
     {
-        // m_pathTracer->run(m_scenes[m_currentScene]->getActiveCamera());
+        m_pathTracer->run(m_scenes[m_currentScene]->getActiveCamera());
     }
 }
 
@@ -981,6 +962,7 @@ void PbrApp::drawDebugWindows()
                     ImGui::Separator();
                 };
                 buildDebugView("PathTracing", m_pathTracer->m_texture);
+                buildDebugView("LightMap",    m_lightMap.m_texAltas);
                 // TODO: debug following three debug visualizations 
                 buildDebugView("SceneDepth",  renderer->m_sceneDepthTextureSSAA);
                 buildDebugView("SceneNormal", renderer->m_sceneNormalTextureSSAA);
@@ -1572,13 +1554,26 @@ void PbrApp::render()
     glUnmapBuffer(GL_ATOMIC_COUNTER_BUFFER);
     glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, m_debugRayAtomicCounter);
 #endif
+    // render to lightmap
+    {
+        auto sm = Cyan::getMesh("helmet_mesh")->m_subMeshes[0];
+        // auto sceneNode = helmet->getSceneNode("HelmetMesh");
+        auto ctx = Cyan::getCurrentGfxCtx();
+        ctx->setDepthControl(Cyan::DepthControl::kDisable);
+        ctx->setRenderTarget(m_lightMapRenderTarget, 0);
+        ctx->setViewport({ 0, 0, m_lightMap.m_texAltas->m_width, m_lightMap.m_texAltas->m_height });
+        ctx->setShader(m_lightMapShader);
+        auto renderer = Cyan::Renderer::getSingletonPtr();
+        ctx->setVertexArray(sm->m_vertexArray);
+        ctx->drawIndexAuto(sm->m_numVerts);
+        ctx->setDepthControl(Cyan::DepthControl::kEnable);
+    }
 
-    // m_pathTracer->progressiveRender(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera());
     renderer->beginRender();
     // rendering
     renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), 0);
     renderer->addScenePass(m_scenes[m_currentScene]);
-    // m_irradianceProbe->computeIrradiance();
+
     // LightingEnvironment lighting = {
     //     m_scenes[m_currentScene]->pLights,
     //     m_scenes[m_currentScene]->dLights,

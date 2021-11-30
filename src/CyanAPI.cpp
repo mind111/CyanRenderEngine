@@ -218,6 +218,7 @@ namespace Cyan
         Mesh* mesh = new Mesh;
         mesh->m_name = name;
         mesh->m_bvh = nullptr;
+        bool generateLightMapUv = false;
 
         Assimp::Importer importer;
         const aiScene* scene = importer.ReadFile(
@@ -229,6 +230,10 @@ namespace Cyan
         for (u32 sm = 0u; sm < scene->mNumMeshes; sm++) 
         {
             Mesh::SubMesh* subMesh = new Mesh::SubMesh;
+#if 1
+            if (strcmp(name, "helmet_mesh") == 0 && sm == 0)
+                generateLightMapUv = true;
+#endif
 
             u8 attribFlag = 0x0;
             u32 strideInBytes = 0;
@@ -236,17 +241,20 @@ namespace Cyan
             attribFlag |= scene->mMeshes[sm]->HasTextureCoords(0) ? VertexAttribFlag::kTexcoord : 0x0;
             attribFlag |= scene->mMeshes[sm]->HasNormals() ? VertexAttribFlag::kNormal : 0x0;
             attribFlag |= scene->mMeshes[sm]->HasTangentsAndBitangents() ? VertexAttribFlag::kTangents : 0x0;
+            attribFlag |= generateLightMapUv ? VertexAttribFlag::kLightMapUv : 0x0;
 
             strideInBytes += (attribFlag & VertexAttribFlag::kPosition) > 0 ? 3 * sizeof(f32) : 0;
             strideInBytes += (attribFlag & VertexAttribFlag::kNormal)   > 0 ? 3 * sizeof(f32) : 0;
             strideInBytes += (attribFlag & VertexAttribFlag::kTangents) > 0 ? 4 * sizeof(f32) : 0;
             strideInBytes += (attribFlag & VertexAttribFlag::kTexcoord) > 0 ? 2 * sizeof(f32) : 0;
+            strideInBytes += (attribFlag & VertexAttribFlag::kLightMapUv) > 0 ? 2 * sizeof(f32) : 0;
 
             u32 numVerts = (u32)scene->mMeshes[sm]->mNumVertices;
+            subMesh->m_numVerts = numVerts;
             vertexDataPtrs[sm] = new float[strideInBytes * numVerts];
             float* data = vertexDataPtrs[sm];
 
-            subMesh->m_numVerts = numVerts;
+            // cpu data for necessary for ray tracing
             subMesh->m_triangles.m_numVerts = numVerts;
             subMesh->m_triangles.m_positionArray.resize(subMesh->m_numVerts * 3);
             subMesh->m_triangles.m_normalArray.resize(subMesh->m_numVerts * 3);
@@ -263,13 +271,34 @@ namespace Cyan
                 memcpy(triangles.m_tangentArray.data(), scene->mMeshes[sm]->mTangents, sizeof(scene->mMeshes[sm]->mTangents[0]) * numVerts);
             if (attribFlag & VertexAttribFlag::kTexcoord)
                 memcpy(triangles.m_texCoordArray.data(), scene->mMeshes[sm]->mTextureCoords[0], sizeof(scene->mMeshes[sm]->mTextureCoords[0][0]) * numVerts);
-
+#if 1
+            std::vector<glm::vec2> lightMapTexCoord;
+            {
+                using namespace Thekla;
+                if (generateLightMapUv)
+                {
+                    Atlas_Input_Mesh* input_mesh = Cyan::convertSubMeshToTheklaInputMesh(subMesh);
+                    // Generate Atlas_Output_Mesh.
+                    Atlas_Options atlas_options;
+                    atlas_set_default_options(&atlas_options);
+                    // Avoid brute force packing, since it can be unusably slow in some situations.
+                    atlas_options.packer_options.witness.packing_quality = 1;
+                    Atlas_Error error = Atlas_Error_Success;
+                    Atlas_Output_Mesh* output_mesh = atlas_generate(input_mesh, &atlas_options, &error);
+                    lightMapTexCoord.resize(output_mesh->vertex_count);
+                    for (i32 v = 0; v < output_mesh->vertex_count; ++v)
+                    {
+                        i32 vertexIndex = output_mesh->vertex_array[v].xref;
+                        lightMapTexCoord[vertexIndex].x = (output_mesh->vertex_array[v].uv[0] / output_mesh->atlas_width);
+                        lightMapTexCoord[vertexIndex].y = (output_mesh->vertex_array[v].uv[1] / output_mesh->atlas_height);
+                    }
+                    subMesh->m_lightMapDimension.x = output_mesh->atlas_width;
+                    subMesh->m_lightMapDimension.y = output_mesh->atlas_height;
+                }
+            }
+#endif
             for (u32 v = 0u; v < numVerts; v++)
             {
-                // assemble a triangle
-                u32 triangleIndex = v / 3u;
-                u32 vertexIndex = triangleIndex * 3u + v % 3u;
-
                 u32 offset = 0;
                 float* vertexAddress = (float*)((u8*)data + strideInBytes * v);
                 if (attribFlag & VertexAttribFlag::kPosition)
@@ -296,13 +325,17 @@ namespace Cyan
                     vertexAddress[offset++] = scene->mMeshes[sm]->mTextureCoords[0][v].x;
                     vertexAddress[offset++] = scene->mMeshes[sm]->mTextureCoords[0][v].y;
                 }
+                if (attribFlag & VertexAttribFlag::kLightMapUv)
+                {
+                    vertexAddress[offset++] = lightMapTexCoord[v].x;
+                    vertexAddress[offset++] = lightMapTexCoord[v].y;
+                }
             }
 
             subMesh->m_vertexArray = createVertexArray(createVertexBuffer(data, strideInBytes * numVerts, strideInBytes, numVerts));
             mesh->m_subMeshes.push_back(subMesh);
 
             u32 offset = 0;
-            // FIXME: last parameter in VertexAttrib initialization is wrong
             if (attribFlag & VertexAttribFlag::kPosition)
             {
                 subMesh->m_vertexArray->m_vertexBuffer->m_vertexAttribs.push_back({
@@ -322,6 +355,12 @@ namespace Cyan
                 offset += sizeof(f32) * 4;
             }
             if (attribFlag & VertexAttribFlag::kTexcoord)
+            {
+                subMesh->m_vertexArray->m_vertexBuffer->m_vertexAttribs.push_back({
+                    VertexAttrib::DataType::Float, 2, strideInBytes, offset });
+                offset += sizeof(f32) * 2;
+            }
+            if (attribFlag & VertexAttribFlag::kLightMapUv)
             {
                 subMesh->m_vertexArray->m_vertexBuffer->m_vertexAttribs.push_back({
                     VertexAttrib::DataType::Float, 2, strideInBytes, offset });
