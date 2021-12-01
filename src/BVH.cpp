@@ -25,7 +25,6 @@ namespace Cyan
             u32 numTriangles = subMesh->m_triangles.m_numVerts / 3;
             for (u32 f = 0; f < numTriangles; ++f)
             {
-                // leafNodes[triangleCounter].m_mesh = m_owner;
                 leafNodes[triangleCounter].bound(mesh->getTriangle(sm, f));
                 leafNodes[triangleCounter].m_submeshIndex = sm;
                 leafNodes[triangleCounter++].m_triangleIndex = f;

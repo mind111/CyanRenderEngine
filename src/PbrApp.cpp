@@ -1555,19 +1555,19 @@ void PbrApp::render()
     glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, m_debugRayAtomicCounter);
 #endif
     // render to lightmap
-    {
-        auto sm = Cyan::getMesh("helmet_mesh")->m_subMeshes[0];
-        // auto sceneNode = helmet->getSceneNode("HelmetMesh");
-        auto ctx = Cyan::getCurrentGfxCtx();
-        ctx->setDepthControl(Cyan::DepthControl::kDisable);
-        ctx->setRenderTarget(m_lightMapRenderTarget, 0);
-        ctx->setViewport({ 0, 0, m_lightMap.m_texAltas->m_width, m_lightMap.m_texAltas->m_height });
-        ctx->setShader(m_lightMapShader);
-        auto renderer = Cyan::Renderer::getSingletonPtr();
-        ctx->setVertexArray(sm->m_vertexArray);
-        ctx->drawIndexAuto(sm->m_numVerts);
-        ctx->setDepthControl(Cyan::DepthControl::kEnable);
-    }
+    // {
+    //     auto sm = Cyan::getMesh("helmet_mesh")->m_subMeshes[0];
+    //     // auto sceneNode = helmet->getSceneNode("HelmetMesh");
+    //     auto ctx = Cyan::getCurrentGfxCtx();
+    //     ctx->setDepthControl(Cyan::DepthControl::kDisable);
+    //     ctx->setRenderTarget(m_lightMapRenderTarget, 0);
+    //     ctx->setViewport({ 0, 0, m_lightMap.m_texAltas->m_width, m_lightMap.m_texAltas->m_height });
+    //     ctx->setShader(m_lightMapShader);
+    //     auto renderer = Cyan::Renderer::getSingletonPtr();
+    //     ctx->setVertexArray(sm->m_vertexArray);
+    //     ctx->drawIndexAuto(sm->m_numVerts);
+    //     ctx->setDepthControl(Cyan::DepthControl::kEnable);
+    // }
 
     renderer->beginRender();
     // rendering

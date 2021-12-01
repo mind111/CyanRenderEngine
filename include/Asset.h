@@ -54,6 +54,7 @@ namespace Cyan
         SceneNode* loadGltf(Scene* scene, const char* filename, const char* name, Transform transform);
 
         Mesh* loadObj(const char* baseDir, const char* filename);
+        Mesh* loadMesh(std::string& path, const char* name, bool normalize);
 
         void loadScene(Scene* scene, const char* file);
         void loadNodes(Scene* scene, nlohmann::basic_json<std::map>& nodeInfoList);

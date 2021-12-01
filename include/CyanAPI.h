@@ -161,7 +161,7 @@ namespace Cyan
 
     /* Mesh */
     void addMesh(Mesh* mesh);
-    Mesh* createMesh(const char* name, const char* file, bool normalize);
+    Mesh* createMesh(const char* name, std::string& file, bool normalize);
     Mesh* getMesh(const char* _name);
     // todo: move this to a better place later
     struct Thekla::Atlas_Input_Mesh* convertSubMeshToTheklaInputMesh(Mesh::SubMesh* subMesh);

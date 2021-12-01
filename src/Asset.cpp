@@ -13,7 +13,7 @@ struct ObjVertex
 {
     glm::vec3 position;
     glm::vec3 normal;
-    glm::vec3 tangent;
+    glm::vec4 tangent;
     glm::vec2 texCoord;
 };
 
@@ -108,9 +108,23 @@ namespace Cyan
         }
     }
 
-    glm::vec3 computeTangent()
+    void computeTangent(std::vector<ObjVertex>& vertices, u32 face[3])
     {
-        return glm::vec3(0.f);
+        auto& v0 = vertices[face[0]];
+        auto& v1 = vertices[face[1]];
+        auto& v2 = vertices[face[2]];
+        glm::vec3 v0v1 = v1.position - v0.position;
+        glm::vec3 v0v2 = v2.position - v0.position;
+        glm::vec2 deltaUv0 = v1.texCoord - v0.texCoord;
+        glm::vec2 deltaUv1 = v2.texCoord - v0.texCoord;
+        f32 tx = (deltaUv1.y * v0v1.x - deltaUv0.y * v0v2.x) / (deltaUv0.x * deltaUv1.y - deltaUv1.x * deltaUv0.y);
+        f32 ty = (deltaUv1.y * v0v1.y - deltaUv0.y * v0v2.y) / (deltaUv0.x * deltaUv1.y - deltaUv1.x * deltaUv0.y);
+        f32 tz = (deltaUv1.y * v0v1.z - deltaUv0.y * v0v2.z) / (deltaUv0.x * deltaUv1.y - deltaUv1.x * deltaUv0.y);
+        glm::vec3 tangent(tx, ty, tz);
+        tangent = glm::normalize(tangent);
+        v0.tangent = glm::vec4(tangent, 1.f);
+        v1.tangent = glm::vec4(tangent, 1.f);
+        v2.tangent = glm::vec4(tangent, 1.f);
     }
 
     // treat all the meshes inside one obj file as submeshes
@@ -148,56 +162,59 @@ namespace Cyan
             for (u32 f = 0; f < shapes[s].mesh.indices.size() / 3; ++f)
             {
                 ObjVertex vertex = { };
+                u32 face[3] = { };
 
                 for (u32 v = 0; v < 3; ++v)
                 {
-                    tinyobj::index_t index = shapes[s].mesh.indices[3 * f + v];
+                    tinyobj::index_t index = shapes[s].mesh.indices[f * 3 + v];
                     // position
-                    f32 vx = attrib.vertices[index.vertex_index + 0];
-                    f32 vy = attrib.vertices[index.vertex_index + 1];
-                    f32 vz = attrib.vertices[index.vertex_index + 2];
+                    f32 vx = attrib.vertices[index.vertex_index * 3 + 0];
+                    f32 vy = attrib.vertices[index.vertex_index * 3 + 1];
+                    f32 vz = attrib.vertices[index.vertex_index * 3 + 2];
                     vertex.position = glm::vec3(vx, vy, vz);
                     // normal
-                    if (index.normal_index > 0)
+                    if (index.normal_index >= 0)
                     {
-                        f32 nx = attrib.vertices[index.normal_index + 0];
-                        f32 ny = attrib.vertices[index.normal_index + 1];
-                        f32 nz = attrib.vertices[index.normal_index + 2];
+                        f32 nx = attrib.normals[index.normal_index * 3 + 0];
+                        f32 ny = attrib.normals[index.normal_index * 3 + 1];
+                        f32 nz = attrib.normals[index.normal_index * 3 + 2];
                         vertex.normal = glm::vec3(nx, ny, nz);
                     } 
                     else 
                         vertex.normal = glm::vec3(0.f);
                     // texcoord
-                    if (index.texcoord_index > 0)
+                    if (index.texcoord_index >= 0)
                     {
-                        f32 tx = attrib.vertices[index.texcoord_index + 0];
-                        f32 ty = attrib.vertices[index.texcoord_index + 1];
+                        f32 tx = attrib.texcoords[index.texcoord_index * 2 + 0];
+                        f32 ty = attrib.texcoords[index.texcoord_index * 2 + 1];
                         vertex.texCoord = glm::vec2(tx, ty);
                     }
                     else
                         vertex.texCoord = glm::vec2(0.f);
-                    // compute tangent
-                    if (index.normal_index > 0 && index.texcoord_index > 0)
-                        vertex.tangent = computeTangent();
 
                     // deduplicate vertices
                     auto iter = vertexMap.find(vertex);
                     if (iter == vertexMap.end())
                     {
                         vertexMap[vertex] = numUniqueVertices;
-                        indices.push_back(numUniqueVertices++);
                         vertices.push_back(vertex);
+                        face[v] = numUniqueVertices;
+                        indices[f * 3 + v] = numUniqueVertices++;
                     }
                     else
                     {
-                        u32 reuseIndex = vertexMap[vertex];
-                        indices.push_back(reuseIndex);
+                        u32 reuseIndex = iter->second;
+                        indices[f * 3 + v] = reuseIndex;
+                        face[v] = reuseIndex;
                     }
 
                     subMesh->m_triangles.m_positionArray.push_back(vertex.position);
                     subMesh->m_triangles.m_normalArray.push_back(vertex.normal);
                     subMesh->m_triangles.m_texCoordArray.push_back(glm::vec3(vertex.texCoord, 0.f));
                 }
+
+                // compute face tangent
+                computeTangent(vertices, face);
             }
             auto vb = Cyan::createVertexBuffer(vertices.data(), sizeof(vertices[0]) * numUniqueVertices, strideInBytes, numUniqueVertices);
             u32 offset = 0;
@@ -205,39 +222,48 @@ namespace Cyan
             offset += 3 * sizeof(f32);
             vb->addVertexAttrib({ VertexAttrib::DataType::Float, 3, strideInBytes, offset});
             offset += 3 * sizeof(f32);
-            vb->addVertexAttrib({ VertexAttrib::DataType::Float, 3, strideInBytes, offset});
-            offset += 3 * sizeof(f32);
+            vb->addVertexAttrib({ VertexAttrib::DataType::Float, 4, strideInBytes, offset});
+            offset += 4 * sizeof(f32);
             vb->addVertexAttrib({ VertexAttrib::DataType::Float, 2, strideInBytes, offset});
             offset += 2 * sizeof(f32);
             subMesh->m_vertexArray = Cyan::createVertexArray(vb);
             subMesh->m_vertexArray->init();
             subMesh->m_numVerts = numUniqueVertices;
             subMesh->m_triangles.m_numVerts = indices.size();
+            // create index buffer
+            glCreateBuffers(1, &subMesh->m_vertexArray->m_ibo);
+            glBindVertexArray(subMesh->m_vertexArray->m_vao);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, subMesh->m_vertexArray->m_ibo);
+            glNamedBufferData(subMesh->m_vertexArray->m_ibo, indices.size() * sizeof(u32), indices.data(), GL_STATIC_DRAW);
+            glBindVertexArray(0);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+            subMesh->m_vertexArray->m_numIndices = indices.size();
             mesh->m_subMeshes.push_back(subMesh);
         }
         return mesh;
     }
 
-    Mesh* AssetManager::loadMesh(const char* path, const char* name, bool normalize)
+    Mesh* AssetManager::loadMesh(std::string& path, const char* name, bool normalize)
     {
-        Cyan::Toolkit::ScopedTimer meshTimer(name.c_str(), true);
+        Cyan::Toolkit::ScopedTimer meshTimer(name, true);
 
         // get extension from mesh path
         u32 found = path.find_last_of('.');
         std::string extension = path.substr(found, found + 1);
         std::string baseDir   = path.substr(0, found);
         printf("The mesh file extension is %s", extension.c_str());
-        if (extension == "obj")
-            return loadObj(baseDir.c_str(), path.c_str(), normalize);
-#if 0
-        else if (extension == "gltf")
-        {
-
-        }
-#endif
+        Mesh* mesh = nullptr;
+        if (extension == ".obj")
+             mesh = loadObj(baseDir.c_str(), path.c_str());
+        else if (extension == ".gltf") { }
+        else
+            printf("Unsupported mesh file format %s", extension.c_str());
         // Store the xform for normalizing object space mesh coordinates
+        mesh->m_name = name;
+        mesh->m_bvh  = nullptr;
         mesh->m_shouldNormalize = normalize;
         mesh->onFinishLoading();
+        return mesh;
     }
 
     void AssetManager::loadMeshes(Scene* scene, nlohmann::basic_json<std::map>& meshInfoList)
@@ -253,9 +279,8 @@ namespace Cyan
             meshInfo.at("name").get_to(name);
             meshInfo.at("normalize").get_to(normalize);
             
-            auto mesh = loadMesh(path.c_str(), name.c_str(), normalize);
+            auto mesh = loadMesh(path, name.c_str(), normalize);
             Cyan::addMesh(mesh);
-            // Cyan::createMesh(name.c_str(), path.c_str(), normalize);
         }
     }
 
