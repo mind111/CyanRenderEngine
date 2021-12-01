@@ -735,7 +735,7 @@ void PbrApp::doPrecomputeWork()
     }
     // path tracing
     {
-        m_pathTracer->run(m_scenes[m_currentScene]->getActiveCamera());
+        // m_pathTracer->run(m_scenes[m_currentScene]->getActiveCamera());
     }
 }
 

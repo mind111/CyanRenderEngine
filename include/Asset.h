@@ -53,6 +53,8 @@ namespace Cyan
         void loadGltfTextures(tinygltf::Model& model);
         SceneNode* loadGltf(Scene* scene, const char* filename, const char* name, Transform transform);
 
+        Mesh* loadObj(const char* baseDir, const char* filename);
+
         void loadScene(Scene* scene, const char* file);
         void loadNodes(Scene* scene, nlohmann::basic_json<std::map>& nodeInfoList);
         void loadEntities(Scene* scene, nlohmann::basic_json<std::map>& entityInfoList);

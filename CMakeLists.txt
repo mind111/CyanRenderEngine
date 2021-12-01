@@ -7,6 +7,7 @@ file(GLOB_RECURSE include "${PROJECT_SOURCE_DIR}/include/*.h")
 file(GLOB_RECURSE src "${PROJECT_SOURCE_DIR}/src/*.cpp")
 file(GLOB_RECURSE lib "${PROJECT_SOURCE_DIR}/lib/stb_image/*.cpp"
                       "${PROJECT_SOURCE_DIR}/lib/tinygltf/*.cc"
+                      "${PROJECT_SOURCE_DIR}/lib/tinyobj/*.cc"
                       "${PROJECT_SOURCE_DIR}/lib/json/json.hpp")
 
 #### dependencies ####
@@ -25,6 +26,7 @@ include_directories(${PROJECT_SOURCE_DIR}/src/imgui/)
 include_directories(${PROJECT_SOURCE_DIR}/src/ImGuizmo/)
 include_directories(${PROJECT_SOURCE_DIR}/lib/stb_image/include/)
 include_directories(${PROJECT_SOURCE_DIR}/lib/tinygltf/include/)
+include_directories(${PROJECT_SOURCE_DIR}/lib/tinyobj/include)
 include_directories(${PROJECT_SOURCE_DIR}/lib/glm/glm)
 include_directories(${PROJECT_SOURCE_DIR}/lib/json) 
 include_directories(${PROJECT_SOURCE_DIR}/lib/thekla_atlas/include)

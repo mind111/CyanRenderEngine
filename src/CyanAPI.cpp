@@ -2,6 +2,7 @@
 #include <unordered_map>
 #include <stack>
 
+#include "tiny_obj_loader.h"
 #include "glm.hpp"
 #include "gtc/matrix_transform.hpp"
 #include "json.hpp"
@@ -215,11 +216,12 @@ namespace Cyan
 
     Mesh* createMesh(const char* name, const char* file, bool normalize)
     {
-        Mesh* mesh = new Mesh;
         mesh->m_name = name;
         mesh->m_bvh = nullptr;
         bool generateLightMapUv = false;
+        Mesh* mesh = AssetManager::loadObj();
 
+#if 0
         Assimp::Importer importer;
         const aiScene* scene = importer.ReadFile(
             file,
@@ -369,14 +371,16 @@ namespace Cyan
             subMesh->m_vertexArray->init();
         }
 
+
+        for (u32 sm = 0u; sm < scene->mNumMeshes; ++sm) {
+            delete[] vertexDataPtrs[sm];
+        }
+#endif
         // Store the xform for normalizing object space mesh coordinates
         mesh->m_shouldNormalize = normalize;
         mesh->onFinishLoading();
         addMesh(mesh);
 
-        for (u32 sm = 0u; sm < scene->mNumMeshes; ++sm) {
-            delete[] vertexDataPtrs[sm];
-        }
         return mesh;
     }
 

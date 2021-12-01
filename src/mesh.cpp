@@ -159,8 +159,8 @@ namespace Cyan
         m_verts[5].texCoords = glm::vec2(1.f, 1.f);
 
         auto vb = createVertexBuffer(m_verts, 6u * sizeof(Vertex), sizeof(Vertex), 6u);
-        vb->addVertexAttrb({VertexAttrib::DataType::Float, 3, sizeof(Vertex), 0u });
-        vb->addVertexAttrb({VertexAttrib::DataType::Float, 2, sizeof(Vertex), sizeof(glm::vec3) });
+        vb->addVertexAttrib({VertexAttrib::DataType::Float, 3, sizeof(Vertex), 0u });
+        vb->addVertexAttrib({VertexAttrib::DataType::Float, 2, sizeof(Vertex), sizeof(glm::vec3) });
         m_vertexArray = createVertexArray(vb);
         // TODO: refactor how vb interacts with va, vb->finalize() va->onVbFinalize();
         m_vertexArray->init();

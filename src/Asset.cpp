@@ -1,8 +1,42 @@
 #include <fstream>
 
+#define GLM_ENABLE_EXPERIMENTAL
+#include "gtx/hash.hpp"
+#include "tiny_obj_loader.h"
+
 #include "Asset.h"
 #include "Texture.h"
 #include "CyanAPI.h"
+
+// treat this as a string and hash it ...?
+struct ObjVertex
+{
+    glm::vec3 position;
+    glm::vec3 normal;
+    glm::vec3 tangent;
+    glm::vec2 texCoord;
+};
+
+bool operator==(const ObjVertex& lhs, const ObjVertex& rhs)
+{
+    return (lhs.position == rhs.position) 
+        && (lhs.normal == rhs.normal) 
+        && (lhs.texCoord == rhs.texCoord);
+}
+
+namespace std {
+    template<> 
+    struct hash<ObjVertex> 
+    {
+        size_t operator()(ObjVertex const& vertex) const 
+        {
+            size_t a = hash<glm::vec3>()(vertex.position); 
+            size_t b = hash<glm::vec3>()(vertex.normal); 
+            size_t c = hash<glm::vec2>()(vertex.texCoord); 
+            return (a ^ (b << 1)) ^ (c << 1);
+        }
+    };
+}
 
 namespace glm {
     //---- Utilities for loading the scene data from json
@@ -74,6 +108,138 @@ namespace Cyan
         }
     }
 
+    glm::vec3 computeTangent()
+    {
+        return glm::vec3(0.f);
+    }
+
+    // treat all the meshes inside one obj file as submeshes
+    Mesh* AssetManager::loadObj(const char* baseDir, const char* filename)
+    {
+        tinyobj::attrib_t attrib;
+        std::vector<tinyobj::shape_t> shapes;
+        std::vector<tinyobj::material_t> materials;
+        std::string warn;
+        std::string err;
+        bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filename, baseDir);
+        if (!ret)
+        {
+            printf("Failed loading obj file %s \n", filename);
+            printf("Warnings: %s               \n", warn.c_str());
+            printf("Errors:   %s               \n", err.c_str());
+        }
+
+        Mesh* mesh = new Mesh;
+
+        materials.push_back(tinyobj::material_t());
+
+        for (u32 s = 0; s < shapes.size(); ++s)
+        {
+            printf("shape[%d].name = %s\n", s, shapes[s].name.c_str());
+            std::vector<ObjVertex> vertices;
+            std::vector<u32>       indices(shapes[s].mesh.indices.size());
+            std::unordered_map<ObjVertex, u32> vertexMap;
+            auto objMesh = shapes[s].mesh;
+            u32 numUniqueVertices = 0;
+            u32 strideInBytes = sizeof(ObjVertex);
+            Mesh::SubMesh* subMesh = new Mesh::SubMesh;
+
+            // indices
+            for (u32 f = 0; f < shapes[s].mesh.indices.size() / 3; ++f)
+            {
+                ObjVertex vertex = { };
+
+                for (u32 v = 0; v < 3; ++v)
+                {
+                    tinyobj::index_t index = shapes[s].mesh.indices[3 * f + v];
+                    // position
+                    f32 vx = attrib.vertices[index.vertex_index + 0];
+                    f32 vy = attrib.vertices[index.vertex_index + 1];
+                    f32 vz = attrib.vertices[index.vertex_index + 2];
+                    vertex.position = glm::vec3(vx, vy, vz);
+                    // normal
+                    if (index.normal_index > 0)
+                    {
+                        f32 nx = attrib.vertices[index.normal_index + 0];
+                        f32 ny = attrib.vertices[index.normal_index + 1];
+                        f32 nz = attrib.vertices[index.normal_index + 2];
+                        vertex.normal = glm::vec3(nx, ny, nz);
+                    } 
+                    else 
+                        vertex.normal = glm::vec3(0.f);
+                    // texcoord
+                    if (index.texcoord_index > 0)
+                    {
+                        f32 tx = attrib.vertices[index.texcoord_index + 0];
+                        f32 ty = attrib.vertices[index.texcoord_index + 1];
+                        vertex.texCoord = glm::vec2(tx, ty);
+                    }
+                    else
+                        vertex.texCoord = glm::vec2(0.f);
+                    // compute tangent
+                    if (index.normal_index > 0 && index.texcoord_index > 0)
+                        vertex.tangent = computeTangent();
+
+                    // deduplicate vertices
+                    auto iter = vertexMap.find(vertex);
+                    if (iter == vertexMap.end())
+                    {
+                        vertexMap[vertex] = numUniqueVertices;
+                        indices.push_back(numUniqueVertices++);
+                        vertices.push_back(vertex);
+                    }
+                    else
+                    {
+                        u32 reuseIndex = vertexMap[vertex];
+                        indices.push_back(reuseIndex);
+                    }
+
+                    subMesh->m_triangles.m_positionArray.push_back(vertex.position);
+                    subMesh->m_triangles.m_normalArray.push_back(vertex.normal);
+                    subMesh->m_triangles.m_texCoordArray.push_back(glm::vec3(vertex.texCoord, 0.f));
+                }
+            }
+            auto vb = Cyan::createVertexBuffer(vertices.data(), sizeof(vertices[0]) * numUniqueVertices, strideInBytes, numUniqueVertices);
+            u32 offset = 0;
+            vb->addVertexAttrib({ VertexAttrib::DataType::Float, 3, strideInBytes, offset});
+            offset += 3 * sizeof(f32);
+            vb->addVertexAttrib({ VertexAttrib::DataType::Float, 3, strideInBytes, offset});
+            offset += 3 * sizeof(f32);
+            vb->addVertexAttrib({ VertexAttrib::DataType::Float, 3, strideInBytes, offset});
+            offset += 3 * sizeof(f32);
+            vb->addVertexAttrib({ VertexAttrib::DataType::Float, 2, strideInBytes, offset});
+            offset += 2 * sizeof(f32);
+            subMesh->m_vertexArray = Cyan::createVertexArray(vb);
+            subMesh->m_vertexArray->init();
+            subMesh->m_numVerts = numUniqueVertices;
+            subMesh->m_triangles.m_numVerts = indices.size();
+            mesh->m_subMeshes.push_back(subMesh);
+        }
+        return mesh;
+    }
+
+    Mesh* AssetManager::loadMesh(const char* path, const char* name, bool normalize)
+    {
+        Cyan::Toolkit::ScopedTimer meshTimer(name.c_str(), true);
+
+        // get extension from mesh path
+        u32 found = path.find_last_of('.');
+        std::string extension = path.substr(found, found + 1);
+        std::string baseDir   = path.substr(0, found);
+        printf("The mesh file extension is %s", extension.c_str());
+        if (extension == "obj")
+            return loadObj(baseDir.c_str(), path.c_str(), normalize);
+#if 0
+        else if (extension == "gltf")
+        {
+
+        }
+#endif
+        // Store the xform for normalizing object space mesh coordinates
+        mesh->m_shouldNormalize = normalize;
+        mesh->onFinishLoading();
+    }
+
     void AssetManager::loadMeshes(Scene* scene, nlohmann::basic_json<std::map>& meshInfoList)
     {
         Thekla::Atlas_Options options = { };
@@ -86,13 +252,10 @@ namespace Cyan
             meshInfo.at("path").get_to(path);
             meshInfo.at("name").get_to(name);
             meshInfo.at("normalize").get_to(normalize);
-
-            // get extension from mesh path
-
-            // determine which loader to use
-
-            Cyan::Toolkit::ScopedTimer meshTimer(name.c_str(), true);
-            Cyan::createMesh(name.c_str(), path.c_str(), normalize);
+            
+            auto mesh = loadMesh(path.c_str(), name.c_str(), normalize);
+            Cyan::addMesh(mesh);
+            // Cyan::createMesh(name.c_str(), path.c_str(), normalize);
         }
     }
 

@@ -11,7 +11,7 @@ PointGroup::PointGroup(u32 size)
 {
     m_points.resize(kMaxNumPoints);
     VertexBuffer* vb = Cyan::createVertexBuffer(m_points.data(), sizeof(Point) * m_points.size(), sizeof(Point), m_points.size());
-    vb->addVertexAttrb({VertexAttrib::DataType::Float, 3, sizeof(Point), 0 });
+    vb->addVertexAttrib({VertexAttrib::DataType::Float, 3, sizeof(Point), 0 });
     m_vertexArray = Cyan::createVertexArray(vb);
     m_vertexArray->init();
     m_shader = Cyan::createShader("LineShader", "../../shader/shader_line.vs", "../../shader/shader_line.fs");
@@ -122,7 +122,7 @@ void Line2D::init()
     Shader* shader = Cyan::createShader("Line2DShader", "../../shader/shader_line2d.vs", "../../shader/shader_line2d.fs");
     m_matl = Cyan::createMaterial(shader)->createInstance();
     auto vb = Cyan::createVertexBuffer(m_vertices, sizeof(m_vertices), 3 * sizeof(f32), 2);
-    vb->addVertexAttrb({VertexAttrib::DataType::Float, 3, 3 * sizeof(f32), 0 });
+    vb->addVertexAttrib({VertexAttrib::DataType::Float, 3, 3 * sizeof(f32), 0 });
     m_vertexArray = Cyan::createVertexArray(vb);
     m_vertexArray->init();
 }

@@ -29,9 +29,10 @@ struct VertexBuffer
     u32 m_strideInBytes;
     u32 m_numVerts;
     GLuint m_vbo;
+    u32 m_offset;
     std::vector<VertexAttrib> m_vertexAttribs;
 
-    void addVertexAttrb(const VertexAttrib& attrib)
+    void addVertexAttrib(const VertexAttrib& attrib)
     {
         m_vertexAttribs.push_back(attrib);
     }
