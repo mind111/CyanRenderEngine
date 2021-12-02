@@ -172,48 +172,6 @@ namespace Cyan
         s_meshes.push_back(mesh);
     }
 
-    Thekla::Atlas_Input_Mesh* convertSubMeshToTheklaInputMesh(Mesh::SubMesh* sm)
-    {
-        using namespace Thekla;
-        Atlas_Input_Mesh* inputMesh = new Atlas_Input_Mesh;
-
-        // convert vertices
-        inputMesh->vertex_count = sm->m_numVerts;
-        inputMesh->vertex_array = new Atlas_Input_Vertex[sm->m_numVerts];
-        for (i32 v = 0; v < sm->m_numVerts; ++v)
-        {
-            auto position = sm->m_triangles.m_positionArray[v];
-            auto normal = sm->m_triangles.m_normalArray[v];
-            auto texCoord = sm->m_triangles.m_positionArray[v];
-            // position
-            inputMesh->vertex_array[v].position[0]   = sm->m_triangles.m_positionArray[v].x;
-            inputMesh->vertex_array[v].position[1]   = sm->m_triangles.m_positionArray[v].y;
-            inputMesh->vertex_array[v].position[2]   = sm->m_triangles.m_positionArray[v].z;
-            // normal
-            inputMesh->vertex_array[v].normal[0]     = sm->m_triangles.m_normalArray[v].x;
-            inputMesh->vertex_array[v].normal[1]     = sm->m_triangles.m_normalArray[v].y;
-            inputMesh->vertex_array[v].normal[2]     = sm->m_triangles.m_normalArray[v].z;
-            // texcoord
-            inputMesh->vertex_array[v].uv[0]         = sm->m_triangles.m_texCoordArray[v].x;
-            inputMesh->vertex_array[v].uv[1]         = sm->m_triangles.m_texCoordArray[v].y;
-            // todo: would this break the unwrapping..?
-            inputMesh->vertex_array[v].first_colocal = v;
-        }
-
-        // convert faces
-        CYAN_ASSERT(sm->m_numVerts % 3 == 0, "Invalid triangle mesh.");
-        inputMesh->face_count = sm->m_numVerts / 3;
-        inputMesh->face_array = new Atlas_Input_Face[inputMesh->face_count];
-        for (u32 f = 0; f < inputMesh->face_count; ++f)
-        {
-            inputMesh->face_array[f].vertex_index[0] = f * 3 + 0;
-            inputMesh->face_array[f].vertex_index[1] = f * 3 + 1;
-            inputMesh->face_array[f].vertex_index[2] = f * 3 + 2;
-            inputMesh->face_array[f].material_index  = 0;
-        }
-        return inputMesh;
-    }
-
     Mesh* createMesh(const char* name, std::string& file, bool normalize)
     {
         auto assetManager = GraphicsSystem::getSingletonPtr()->getAssetManager(); 

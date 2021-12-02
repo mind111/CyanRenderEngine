@@ -15,6 +15,7 @@ struct ObjVertex
     glm::vec3 normal;
     glm::vec4 tangent;
     glm::vec2 texCoord;
+    glm::vec2 texCoord1;
 };
 
 bool operator==(const ObjVertex& lhs, const ObjVertex& rhs)
@@ -108,6 +109,118 @@ namespace Cyan
         }
     }
 
+    void generateLightMapUv(Mesh::SubMesh* sm, std::vector<ObjVertex>& vertices, std::vector<u32>& indices)
+    {
+        using namespace Thekla;
+
+        Atlas_Options atlas_options;
+        atlas_set_default_options(&atlas_options);
+        // Avoid brute force packing, since it can be unusably slow in some situations.
+        atlas_options.packer_options.witness.packing_quality = 1;
+        Atlas_Error error = Atlas_Error_Success;
+
+        Atlas_Input_Mesh* input_mesh = new Atlas_Input_Mesh;
+
+        // convert vertices
+        input_mesh->vertex_count = vertices.size();
+        input_mesh->vertex_array = new Atlas_Input_Vertex[vertices.size()];
+        for (i32 v = 0; v < input_mesh->vertex_count; ++v)
+        {
+            auto position = vertices[v].position;
+            auto normal   = vertices[v].normal;
+            auto texCoord = vertices[v].texCoord;
+
+            // position
+            input_mesh->vertex_array[v].position[0]   = position.x;
+            input_mesh->vertex_array[v].position[1]   = position.y;
+            input_mesh->vertex_array[v].position[2]   = position.z;
+            // normal
+            input_mesh->vertex_array[v].normal[0]     = normal.x;
+            input_mesh->vertex_array[v].normal[1]     = normal.y;
+            input_mesh->vertex_array[v].normal[2]     = normal.z;
+            // texcoord
+            input_mesh->vertex_array[v].uv[0]         = texCoord.x;
+            input_mesh->vertex_array[v].uv[1]         = texCoord.y;
+            // todo: would this break the unwrapping..?
+            input_mesh->vertex_array[v].first_colocal = v;
+        }
+
+        // convert faces
+        CYAN_ASSERT(indices.size() % 3 == 0, "Invalid triangle mesh.");
+        input_mesh->face_count = indices.size() / 3;
+        input_mesh->face_array = new Atlas_Input_Face[input_mesh->face_count];
+        for (u32 f = 0; f < input_mesh->face_count; ++f)
+        {
+            input_mesh->face_array[f].vertex_index[0] = indices[f * 3];
+            input_mesh->face_array[f].vertex_index[1] = indices[f * 3 + 1];
+            input_mesh->face_array[f].vertex_index[2] = indices[f * 3 + 2];
+            input_mesh->face_array[f].material_index  = 0;
+        }
+
+        Atlas_Output_Mesh* output_mesh = atlas_generate(input_mesh, &atlas_options, &error);
+        sm->m_lightMapDimension = glm::ivec2(output_mesh->atlas_width, output_mesh->atlas_height);
+
+        // write back generated lightmap uv
+        for (i32 v = 0; v < output_mesh->vertex_count; ++v)
+        {
+            Atlas_Output_Vertex output_vertex = output_mesh->vertex_array[v];
+            vertices[output_vertex.xref].texCoord1.x = output_vertex.uv[0];
+            vertices[output_vertex.xref].texCoord1.y = output_vertex.uv[1];
+        } 
+
+        delete[] input_mesh->vertex_array;
+        delete input_mesh;
+        atlas_free(output_mesh);
+    }
+
+    void generateLightMapUv1(Mesh* mesh, tinyobj::attrib_t& attrib, std::vector<tinyobj::shape_t>& shapes)
+    {
+        using namespace Thekla;
+
+        Atlas_Options atlas_options;
+        atlas_set_default_options(&atlas_options);
+        // Avoid brute force packing, since it can be unusably slow in some situations.
+        atlas_options.packer_options.witness.packing_quality = 1;
+        Atlas_Error error = Atlas_Error_Success;
+
+        Atlas_Input_Mesh* input_mesh = new Atlas_Input_Mesh;
+        input_mesh->vertex_count = attrib.vertices.size() / 3;
+        input_mesh->vertex_array = new Atlas_Input_Vertex[input_mesh->vertex_count];
+        input_mesh->face_count = 0;
+        for (i32 s = 0; s < shapes.size(); ++s)
+            input_mesh->face_count += shapes[s].mesh.indices.size() / 3;
+        for (i32 v = 0; v < input_mesh->vertex_count; ++v)
+        {
+            // position
+            input_mesh->vertex_array[v].position[0]   = attrib.vertices[v * 3 + 0];
+            input_mesh->vertex_array[v].position[1]   = attrib.vertices[v * 3 + 1];
+            input_mesh->vertex_array[v].position[2]   = attrib.vertices[v * 3 + 2];
+            // normal
+            input_mesh->vertex_array[v].normal[0]   = attrib.normals[v * 3 + 0];
+            input_mesh->vertex_array[v].normal[1]   = attrib.normals[v * 3 + 1];
+            input_mesh->vertex_array[v].normal[2]   = attrib.normals[v * 3 + 2];
+            // texcoord
+            input_mesh->vertex_array[v].uv[0]         = attrib.texcoords[v * 2 + 0];
+            input_mesh->vertex_array[v].uv[1]         = attrib.texcoords[v * 2 + 1];
+            // todo: would this break the unwrapping..?
+            input_mesh->vertex_array[v].first_colocal = v;
+        }
+
+        u32 totalNumFaces = 0;
+        for (i32 s = 0; s < shapes.size(); ++s)
+        {
+            for (i32 f = 0; f < shapes[s].mesh.indices.size() / 3; ++f)
+            {
+                input_mesh->face_array[totalNumFaces].vertex_index[0] = shapes[s].mesh.indices[f * 3 + 0].vertex_index;
+                input_mesh->face_array[totalNumFaces].vertex_index[1] = shapes[s].mesh.indices[f * 3 + 1].vertex_index;
+                input_mesh->face_array[totalNumFaces].vertex_index[2] = shapes[s].mesh.indices[f * 3 + 2].vertex_index;
+                totalNumFaces++;
+            }
+        }
+
+        atlas_generate(input_mesh, &atlas_options, &error);
+    }
+
     void computeTangent(std::vector<ObjVertex>& vertices, u32 face[3])
     {
         auto& v0 = vertices[face[0]];
@@ -128,7 +241,8 @@ namespace Cyan
     }
 
     // treat all the meshes inside one obj file as submeshes
-    Mesh* AssetManager::loadObj(const char* baseDir, const char* filename)
+    // todo: materials
+    Mesh* AssetManager::loadObj(const char* baseDir, const char* filename, bool bGenerateLightMapUv)
     {
         tinyobj::attrib_t attrib;
         std::vector<tinyobj::shape_t> shapes;
@@ -216,6 +330,10 @@ namespace Cyan
                 // compute face tangent
                 computeTangent(vertices, face);
             }
+
+            // generate lightmap uv if necessary
+            if (bGenerateLightMapUv) generateLightMapUv(subMesh, vertices, indices);
+
             auto vb = Cyan::createVertexBuffer(vertices.data(), sizeof(vertices[0]) * numUniqueVertices, strideInBytes, numUniqueVertices);
             u32 offset = 0;
             vb->addVertexAttrib({ VertexAttrib::DataType::Float, 3, strideInBytes, offset});
@@ -224,6 +342,8 @@ namespace Cyan
             offset += 3 * sizeof(f32);
             vb->addVertexAttrib({ VertexAttrib::DataType::Float, 4, strideInBytes, offset});
             offset += 4 * sizeof(f32);
+            vb->addVertexAttrib({ VertexAttrib::DataType::Float, 2, strideInBytes, offset});
+            offset += 2 * sizeof(f32);
             vb->addVertexAttrib({ VertexAttrib::DataType::Float, 2, strideInBytes, offset});
             offset += 2 * sizeof(f32);
             subMesh->m_vertexArray = Cyan::createVertexArray(vb);
@@ -251,13 +371,19 @@ namespace Cyan
         u32 found = path.find_last_of('.');
         std::string extension = path.substr(found, found + 1);
         std::string baseDir   = path.substr(0, found);
-        printf("The mesh file extension is %s", extension.c_str());
+        cyanInfo("The mesh file extension is %s", extension.c_str());
+
         Mesh* mesh = nullptr;
+        bool generateLightMapUv = false;
+        if (strcmp(name, "helmet_mesh") == 0) generateLightMapUv = true;
         if (extension == ".obj")
-             mesh = loadObj(baseDir.c_str(), path.c_str());
+        {
+            cyanInfo("Loading .obj file %s", path.c_str());
+            mesh = loadObj(baseDir.c_str(), path.c_str(), generateLightMapUv);
+        }
         else if (extension == ".gltf") { }
         else
-            printf("Unsupported mesh file format %s", extension.c_str());
+            cyanError("Unsupported mesh file format %s", extension.c_str());
         // Store the xform for normalizing object space mesh coordinates
         mesh->m_name = name;
         mesh->m_bvh  = nullptr;
@@ -268,9 +394,6 @@ namespace Cyan
 
     void AssetManager::loadMeshes(Scene* scene, nlohmann::basic_json<std::map>& meshInfoList)
     {
-        Thekla::Atlas_Options options = { };
-        Thekla::atlas_set_default_options(&options);
-
         for (auto meshInfo : meshInfoList) 
         {
             std::string path, name;
@@ -278,7 +401,7 @@ namespace Cyan
             meshInfo.at("path").get_to(path);
             meshInfo.at("name").get_to(name);
             meshInfo.at("normalize").get_to(normalize);
-            
+
             auto mesh = loadMesh(path, name.c_str(), normalize);
             Cyan::addMesh(mesh);
         }

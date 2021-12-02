@@ -33,6 +33,16 @@
 
 #define BytesOffset(ptr, x) (reinterpret_cast<u8*>(ptr) + x)
 
+#define cyanInfo(...)       \
+    printf("[Info] ");      \
+    printf(__VA_ARGS__);    \
+    printf("\n");           \
+
+#define cyanError(...)      \
+    printf("[Error] ");     \
+    printf(__VA_ARGS__);    \
+    printf("\n");           \
+
 // TODO: Is this macro safe ...?
 #define Min(a, b) ((a < b) ? a : b)
 #define Max(a, b) ((a > b) ? a : b)

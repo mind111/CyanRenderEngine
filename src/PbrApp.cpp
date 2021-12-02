@@ -336,6 +336,21 @@ void PbrApp::initDemoScene00()
     auto textureManager = m_graphicsSystem->getTextureManager();
     auto sceneManager = SceneManager::getSingletonPtr();
 
+    // large plane
+    {
+        Entity* terrain = sceneManager->createEntity(m_scenes[Scenes::Demo_Scene_00], "Terrain", Transform{});
+        terrain->applyLocalTranslation(glm::vec3(0.f, -0.01f, 0.f));
+        Cyan::Mesh* terrainMesh = Cyan::AssetGen::createTerrain(40, 40);
+        auto node = Cyan::createSceneNode("TerrainMesh", Transform{}, terrainMesh);
+        terrain->attachSceneNode(node);
+        PbrMaterialInputs inputs = { 0 };
+        inputs.m_baseColor = Cyan::Toolkit::createFlatColorTexture("TerrainAlbedo", 4, 4, glm::vec4(0.8f, 0.8f, 0.8f, 1.f));
+        inputs.m_uRoughness = 0.5f;
+        inputs.m_uMetallic = 0.5f;
+        auto matl = createDefaultPbrMatlInstance(m_scenes[Scenes::Demo_Scene_00], inputs);
+        node->m_meshInstance->setMaterial(0, matl);
+    }
+
     // helmet
     {
         createHelmetInstance(demoScene00);
@@ -1555,19 +1570,19 @@ void PbrApp::render()
     glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, m_debugRayAtomicCounter);
 #endif
     // render to lightmap
-    // {
-    //     auto sm = Cyan::getMesh("helmet_mesh")->m_subMeshes[0];
-    //     // auto sceneNode = helmet->getSceneNode("HelmetMesh");
-    //     auto ctx = Cyan::getCurrentGfxCtx();
-    //     ctx->setDepthControl(Cyan::DepthControl::kDisable);
-    //     ctx->setRenderTarget(m_lightMapRenderTarget, 0);
-    //     ctx->setViewport({ 0, 0, m_lightMap.m_texAltas->m_width, m_lightMap.m_texAltas->m_height });
-    //     ctx->setShader(m_lightMapShader);
-    //     auto renderer = Cyan::Renderer::getSingletonPtr();
-    //     ctx->setVertexArray(sm->m_vertexArray);
-    //     ctx->drawIndexAuto(sm->m_numVerts);
-    //     ctx->setDepthControl(Cyan::DepthControl::kEnable);
-    // }
+    {
+        auto sm = Cyan::getMesh("helmet_mesh")->m_subMeshes[0];
+        // auto sceneNode = helmet->getSceneNode("HelmetMesh");
+        auto ctx = Cyan::getCurrentGfxCtx();
+        ctx->setDepthControl(Cyan::DepthControl::kDisable);
+        ctx->setRenderTarget(m_lightMapRenderTarget, 0);
+        ctx->setViewport({ 0, 0, m_lightMap.m_texAltas->m_width, m_lightMap.m_texAltas->m_height });
+        ctx->setShader(m_lightMapShader);
+        auto renderer = Cyan::Renderer::getSingletonPtr();
+        ctx->setVertexArray(sm->m_vertexArray);
+        ctx->drawIndexAuto(sm->m_numVerts);
+        ctx->setDepthControl(Cyan::DepthControl::kEnable);
+    }
 
     renderer->beginRender();
     // rendering

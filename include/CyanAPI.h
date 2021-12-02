@@ -6,7 +6,6 @@
 #include "assimp/Importer.hpp"
 #include "assimp/scene.h"
 #include "assimp/postprocess.h"
-#include "thekla_atlas.h"
 
 #include "Mesh.h"
 #include "Scene.h"
@@ -163,8 +162,6 @@ namespace Cyan
     void addMesh(Mesh* mesh);
     Mesh* createMesh(const char* name, std::string& file, bool normalize);
     Mesh* getMesh(const char* _name);
-    // todo: move this to a better place later
-    struct Thekla::Atlas_Input_Mesh* convertSubMeshToTheklaInputMesh(Mesh::SubMesh* subMesh);
     struct TriangleIndex
     {
         u32 submeshIndex;

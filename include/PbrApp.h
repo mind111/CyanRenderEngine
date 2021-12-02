@@ -384,6 +384,7 @@ private:
     Shader* m_envmapShader;
     Shader* m_blitShader;
     Shader* m_skyShader;
+    Shader* m_proceduralGridShader;
 
     /* Buffers */
     RegularBuffer* m_pointLightsBuffer;

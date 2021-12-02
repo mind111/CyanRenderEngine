@@ -8,9 +8,6 @@
 #include "stb_image.h"
 #include "json.hpp"
 #include "tiny_gltf.h"
-#include "assimp/Importer.hpp"
-#include "assimp/scene.h"
-#include "assimp/postprocess.h"
 
 #include "Common.h"
 #include "Texture.h"
@@ -53,7 +50,7 @@ namespace Cyan
         void loadGltfTextures(tinygltf::Model& model);
         SceneNode* loadGltf(Scene* scene, const char* filename, const char* name, Transform transform);
 
-        Mesh* loadObj(const char* baseDir, const char* filename);
+        Mesh* loadObj(const char* baseDir, const char* filename, bool generateLightMapUv);
         Mesh* loadMesh(std::string& path, const char* name, bool normalize);
 
         void loadScene(Scene* scene, const char* file);
@@ -65,7 +62,6 @@ namespace Cyan
         void* m_objLoader;
         void* m_gltfLoader;
         tinygltf::TinyGLTF m_loader;
-        Assimp::Importer m_importer;
         std::vector<SceneNode*> m_nodes;
     };
 }
