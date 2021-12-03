@@ -17,7 +17,6 @@
 #include "Shader.h"
 #include "Mesh.h"
 #include "RenderPass.h"
-#include "LightMap.h"
 
 /*
     * particle system; particle rendering
@@ -358,23 +357,6 @@ void PbrApp::initDemoScene00()
         auto helmetMesh = helmet->getSceneNode("HelmetMesh")->m_meshInstance->m_mesh;
         helmetMesh->m_bvh = new Cyan::MeshBVH(helmetMesh);
         helmetMesh->m_bvh->build();
-#if 1
-        auto sm = helmetMesh->m_subMeshes[0];
-        // light map
-        Cyan::TextureSpec spec  = { };
-        spec.m_width    = (u32)sm->m_lightMapDimension.x;
-        spec.m_height   = (u32)sm->m_lightMapDimension.y;
-        spec.m_dataType = Cyan::Texture::DataType::Float;
-        spec.m_type     = Cyan::Texture::Type::TEX_2D;
-        spec.m_format   = Cyan::Texture::ColorFormat::R16G16B16;
-        spec.m_min      = Cyan::Texture::Filter::LINEAR;
-        spec.m_mag      = Cyan::Texture::Filter::LINEAR;
-        spec.m_numMips  = 1;
-        m_lightMap.m_texAltas = textureManager->createTextureHDR("LightMap", spec);
-        m_lightMapRenderTarget = Cyan::createRenderTarget(m_lightMap.m_texAltas->m_width, m_lightMap.m_texAltas->m_height);
-        m_lightMapRenderTarget->attachTexture(m_lightMap.m_texAltas, 0);
-        m_lightMapShader = Cyan::createShader("LightMapShader", "../../shader/shader_lightmap.vs", "../../shader/shader_lightmap.fs");
-#endif
     }
     
     // room
@@ -390,6 +372,23 @@ void PbrApp::initDemoScene00()
         // bind material for all submeshes
         for (u32 i = 0; i < sceneNode->m_meshInstance->m_mesh->numSubMeshes(); ++i)
             room->setMaterial("RoomMesh", i, roomMatl);
+#if 1
+        // light map
+        auto roomMesh = Cyan::getMesh("room_mesh");
+        Cyan::TextureSpec spec  = { };
+        spec.m_width    = roomMesh->m_lightMapWidth;
+        spec.m_height   = roomMesh->m_lightMapHeight;
+        spec.m_dataType = Cyan::Texture::DataType::Float;
+        spec.m_type     = Cyan::Texture::Type::TEX_2D;
+        spec.m_format   = Cyan::Texture::ColorFormat::R16G16B16;
+        spec.m_min      = Cyan::Texture::Filter::LINEAR;
+        spec.m_mag      = Cyan::Texture::Filter::LINEAR;
+        spec.m_numMips  = 1;
+        m_lightMap.m_texAltas = textureManager->createTextureHDR("LightMap", spec);
+        m_lightMapRenderTarget = Cyan::createRenderTarget(m_lightMap.m_texAltas->m_width, m_lightMap.m_texAltas->m_height);
+        m_lightMapRenderTarget->attachTexture(m_lightMap.m_texAltas, 0);
+        m_lightMapShader = Cyan::createShader("LightMapShader", "../../shader/shader_lightmap.vs", "../../shader/shader_lightmap.fs");
+#endif
     }
 
     // lighting
@@ -1571,16 +1570,24 @@ void PbrApp::render()
 #endif
     // render to lightmap
     {
-        auto sm = Cyan::getMesh("helmet_mesh")->m_subMeshes[0];
-        // auto sceneNode = helmet->getSceneNode("HelmetMesh");
+        SceneManager* sceneManager = SceneManager::getSingletonPtr();
+        auto room = sceneManager->getEntity(m_scenes[Scenes::Demo_Scene_00], "Room");
+        SceneNode* node = room->getSceneNode("RoomMesh");
+        Cyan::LightMapManager::createLightMapForMeshInstance(node);
+
+        auto roomMesh = Cyan::getMesh("room_mesh");
         auto ctx = Cyan::getCurrentGfxCtx();
         ctx->setDepthControl(Cyan::DepthControl::kDisable);
         ctx->setRenderTarget(m_lightMapRenderTarget, 0);
         ctx->setViewport({ 0, 0, m_lightMap.m_texAltas->m_width, m_lightMap.m_texAltas->m_height });
         ctx->setShader(m_lightMapShader);
-        auto renderer = Cyan::Renderer::getSingletonPtr();
-        ctx->setVertexArray(sm->m_vertexArray);
-        ctx->drawIndexAuto(sm->m_numVerts);
+        for (u32 sm = 0; sm < roomMesh->m_subMeshes.size(); ++sm)
+        {
+            auto ctx = Cyan::getCurrentGfxCtx();
+            auto renderer = Cyan::Renderer::getSingletonPtr();
+            ctx->setVertexArray(roomMesh->m_subMeshes[sm]->m_vertexArray);
+            ctx->drawIndex(roomMesh->m_subMeshes[sm]->m_numIndices);
+        }
         ctx->setDepthControl(Cyan::DepthControl::kEnable);
     }
 

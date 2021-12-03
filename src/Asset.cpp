@@ -7,6 +7,7 @@
 #include "Asset.h"
 #include "Texture.h"
 #include "CyanAPI.h"
+#include "xatlas.h"
 
 // treat this as a string and hash it ...?
 struct ObjVertex
@@ -16,6 +17,12 @@ struct ObjVertex
     glm::vec4 tangent;
     glm::vec2 texCoord;
     glm::vec2 texCoord1;
+};
+
+struct ObjMesh
+{
+    std::vector<ObjVertex> vertices;
+    std::vector<u32>       indices;
 };
 
 bool operator==(const ObjVertex& lhs, const ObjVertex& rhs)
@@ -109,116 +116,57 @@ namespace Cyan
         }
     }
 
-    void generateLightMapUv(Mesh::SubMesh* sm, std::vector<ObjVertex>& vertices, std::vector<u32>& indices)
+    /*
+    https://github.com/jpcy/xatlas/blob/master/source/examples/example.cpp
+
+    MIT License
+    Copyright (c) 2018-2020 Jonathan Young
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+    */
+    static int Print(const char *format, ...)
     {
-        using namespace Thekla;
-
-        Atlas_Options atlas_options;
-        atlas_set_default_options(&atlas_options);
-        // Avoid brute force packing, since it can be unusably slow in some situations.
-        atlas_options.packer_options.witness.packing_quality = 1;
-        Atlas_Error error = Atlas_Error_Success;
-
-        Atlas_Input_Mesh* input_mesh = new Atlas_Input_Mesh;
-
-        // convert vertices
-        input_mesh->vertex_count = vertices.size();
-        input_mesh->vertex_array = new Atlas_Input_Vertex[vertices.size()];
-        for (i32 v = 0; v < input_mesh->vertex_count; ++v)
-        {
-            auto position = vertices[v].position;
-            auto normal   = vertices[v].normal;
-            auto texCoord = vertices[v].texCoord;
-
-            // position
-            input_mesh->vertex_array[v].position[0]   = position.x;
-            input_mesh->vertex_array[v].position[1]   = position.y;
-            input_mesh->vertex_array[v].position[2]   = position.z;
-            // normal
-            input_mesh->vertex_array[v].normal[0]     = normal.x;
-            input_mesh->vertex_array[v].normal[1]     = normal.y;
-            input_mesh->vertex_array[v].normal[2]     = normal.z;
-            // texcoord
-            input_mesh->vertex_array[v].uv[0]         = texCoord.x;
-            input_mesh->vertex_array[v].uv[1]         = texCoord.y;
-            // todo: would this break the unwrapping..?
-            input_mesh->vertex_array[v].first_colocal = v;
-        }
-
-        // convert faces
-        CYAN_ASSERT(indices.size() % 3 == 0, "Invalid triangle mesh.");
-        input_mesh->face_count = indices.size() / 3;
-        input_mesh->face_array = new Atlas_Input_Face[input_mesh->face_count];
-        for (u32 f = 0; f < input_mesh->face_count; ++f)
-        {
-            input_mesh->face_array[f].vertex_index[0] = indices[f * 3];
-            input_mesh->face_array[f].vertex_index[1] = indices[f * 3 + 1];
-            input_mesh->face_array[f].vertex_index[2] = indices[f * 3 + 2];
-            input_mesh->face_array[f].material_index  = 0;
-        }
-
-        Atlas_Output_Mesh* output_mesh = atlas_generate(input_mesh, &atlas_options, &error);
-        sm->m_lightMapDimension = glm::ivec2(output_mesh->atlas_width, output_mesh->atlas_height);
-
-        // write back generated lightmap uv
-        for (i32 v = 0; v < output_mesh->vertex_count; ++v)
-        {
-            Atlas_Output_Vertex output_vertex = output_mesh->vertex_array[v];
-            vertices[output_vertex.xref].texCoord1.x = output_vertex.uv[0];
-            vertices[output_vertex.xref].texCoord1.y = output_vertex.uv[1];
-        } 
-
-        delete[] input_mesh->vertex_array;
-        delete input_mesh;
-        atlas_free(output_mesh);
+        va_list arg;
+        va_start(arg, format);
+        printf("\r"); // Clear progress text.
+        const int result = vprintf(format, arg);
+        va_end(arg);
+        return result;
     }
 
-    void generateLightMapUv1(Mesh* mesh, tinyobj::attrib_t& attrib, std::vector<tinyobj::shape_t>& shapes)
+    void addSubMeshToLightMap(xatlas::Atlas* atlas, std::vector<ObjVertex>& vertices, std::vector<u32>& indices)
     {
-        using namespace Thekla;
+        xatlas::SetPrint(Print, true);
 
-        Atlas_Options atlas_options;
-        atlas_set_default_options(&atlas_options);
-        // Avoid brute force packing, since it can be unusably slow in some situations.
-        atlas_options.packer_options.witness.packing_quality = 1;
-        Atlas_Error error = Atlas_Error_Success;
+        // Add meshes to atlas.
+        xatlas::MeshDecl meshDecl;
+        meshDecl.vertexCount = vertices.size();
+        meshDecl.vertexPositionData = &vertices[0].position.x;
+        meshDecl.vertexPositionStride = sizeof(ObjVertex);
+        meshDecl.vertexNormalData = &vertices[0].normal.x;
+        meshDecl.vertexNormalStride = sizeof(ObjVertex);
+        meshDecl.vertexUvData = &vertices[0].texCoord.x;
+        meshDecl.vertexUvStride = sizeof(ObjVertex);
+        meshDecl.indexCount = (u32)indices.size();
+        meshDecl.indexData = indices.data();
+        meshDecl.indexFormat = xatlas::IndexFormat::UInt32;
 
-        Atlas_Input_Mesh* input_mesh = new Atlas_Input_Mesh;
-        input_mesh->vertex_count = attrib.vertices.size() / 3;
-        input_mesh->vertex_array = new Atlas_Input_Vertex[input_mesh->vertex_count];
-        input_mesh->face_count = 0;
-        for (i32 s = 0; s < shapes.size(); ++s)
-            input_mesh->face_count += shapes[s].mesh.indices.size() / 3;
-        for (i32 v = 0; v < input_mesh->vertex_count; ++v)
-        {
-            // position
-            input_mesh->vertex_array[v].position[0]   = attrib.vertices[v * 3 + 0];
-            input_mesh->vertex_array[v].position[1]   = attrib.vertices[v * 3 + 1];
-            input_mesh->vertex_array[v].position[2]   = attrib.vertices[v * 3 + 2];
-            // normal
-            input_mesh->vertex_array[v].normal[0]   = attrib.normals[v * 3 + 0];
-            input_mesh->vertex_array[v].normal[1]   = attrib.normals[v * 3 + 1];
-            input_mesh->vertex_array[v].normal[2]   = attrib.normals[v * 3 + 2];
-            // texcoord
-            input_mesh->vertex_array[v].uv[0]         = attrib.texcoords[v * 2 + 0];
-            input_mesh->vertex_array[v].uv[1]         = attrib.texcoords[v * 2 + 1];
-            // todo: would this break the unwrapping..?
-            input_mesh->vertex_array[v].first_colocal = v;
-        }
-
-        u32 totalNumFaces = 0;
-        for (i32 s = 0; s < shapes.size(); ++s)
-        {
-            for (i32 f = 0; f < shapes[s].mesh.indices.size() / 3; ++f)
-            {
-                input_mesh->face_array[totalNumFaces].vertex_index[0] = shapes[s].mesh.indices[f * 3 + 0].vertex_index;
-                input_mesh->face_array[totalNumFaces].vertex_index[1] = shapes[s].mesh.indices[f * 3 + 1].vertex_index;
-                input_mesh->face_array[totalNumFaces].vertex_index[2] = shapes[s].mesh.indices[f * 3 + 2].vertex_index;
-                totalNumFaces++;
-            }
-        }
-
-        atlas_generate(input_mesh, &atlas_options, &error);
+        xatlas::AddMeshError error = xatlas::AddMesh(atlas, meshDecl);
+        if (error != xatlas::AddMeshError::Success) 
+            cyanError("Error adding mesh");
     }
 
     void computeTangent(std::vector<ObjVertex>& vertices, u32 face[3])
@@ -239,6 +187,76 @@ namespace Cyan
         v1.tangent = glm::vec4(tangent, 1.f);
         v2.tangent = glm::vec4(tangent, 1.f);
     }
+#if 0
+    void loadObjSubMesh(tinyobj::shape_t& shape, u32 shapeIndex)
+    {
+        printf("shape[%d].name = %s\n", s, shapes[s].name.c_str());
+        ObjMesh* objMesh = new ObjMesh; 
+
+        std::vector<ObjVertex>& vertices = objMesh->vertices;
+        std::vector<u32>&       indices  = objMesh->indices;
+        indices.resize(shape.mesh.indices.size());
+
+        std::unordered_map<ObjVertex, u32> vertexMap;
+        auto objMesh = shape.mesh;
+        u32 numUniqueVertices = 0;
+        u32 strideInBytes = sizeof(ObjVertex);
+
+        for (u32 f = 0; f < shapes[s].mesh.indices.size() / 3; ++f)
+        {
+            ObjVertex vertex = { };
+            u32 face[3] = { };
+
+            for (u32 v = 0; v < 3; ++v)
+            {
+                tinyobj::index_t index = shapes[s].mesh.indices[f * 3 + v];
+                // position
+                f32 vx = attrib.vertices[index.vertex_index * 3 + 0];
+                f32 vy = attrib.vertices[index.vertex_index * 3 + 1];
+                f32 vz = attrib.vertices[index.vertex_index * 3 + 2];
+                vertex.position = glm::vec3(vx, vy, vz);
+                // normal
+                if (index.normal_index >= 0)
+                {
+                    f32 nx = attrib.normals[index.normal_index * 3 + 0];
+                    f32 ny = attrib.normals[index.normal_index * 3 + 1];
+                    f32 nz = attrib.normals[index.normal_index * 3 + 2];
+                    vertex.normal = glm::vec3(nx, ny, nz);
+                } 
+                else 
+                    vertex.normal = glm::vec3(0.f);
+                // texcoord
+                if (index.texcoord_index >= 0)
+                {
+                    f32 tx = attrib.texcoords[index.texcoord_index * 2 + 0];
+                    f32 ty = attrib.texcoords[index.texcoord_index * 2 + 1];
+                    vertex.texCoord = glm::vec2(tx, ty);
+                }
+                else
+                    vertex.texCoord = glm::vec2(0.f);
+
+                // deduplicate vertices
+                auto iter = vertexMap.find(vertex);
+                if (iter == vertexMap.end())
+                {
+                    vertexMap[vertex] = numUniqueVertices;
+                    vertices.push_back(vertex);
+                    face[v] = numUniqueVertices;
+                    indices[f * 3 + v] = numUniqueVertices++;
+                }
+                else
+                {
+                    u32 reuseIndex = iter->second;
+                    indices[f * 3 + v] = reuseIndex;
+                    face[v] = reuseIndex;
+                }
+            }
+
+            // compute face tangent
+            computeTangent(vertices, face);
+        }
+    }
+#endif
 
     // treat all the meshes inside one obj file as submeshes
     // todo: materials
@@ -261,18 +279,21 @@ namespace Cyan
 
         materials.push_back(tinyobj::material_t());
 
+        std::vector<ObjMesh*> objMeshes;
         for (u32 s = 0; s < shapes.size(); ++s)
         {
             printf("shape[%d].name = %s\n", s, shapes[s].name.c_str());
-            std::vector<ObjVertex> vertices;
-            std::vector<u32>       indices(shapes[s].mesh.indices.size());
-            std::unordered_map<ObjVertex, u32> vertexMap;
-            auto objMesh = shapes[s].mesh;
-            u32 numUniqueVertices = 0;
-            u32 strideInBytes = sizeof(ObjVertex);
+            ObjMesh* objMesh = new ObjMesh; 
+            objMeshes.push_back(objMesh);
             Mesh::SubMesh* subMesh = new Mesh::SubMesh;
+            mesh->m_subMeshes.push_back(subMesh);
 
-            // indices
+            std::vector<ObjVertex>& vertices = objMesh->vertices;
+            std::vector<u32>&       indices = objMesh->indices;
+            indices.resize(shapes[s].mesh.indices.size());
+            std::unordered_map<ObjVertex, u32> uniqueVertexMap;
+            u32 numUniqueVertices = 0;
+
             for (u32 f = 0; f < shapes[s].mesh.indices.size() / 3; ++f)
             {
                 ObjVertex vertex = { };
@@ -307,10 +328,10 @@ namespace Cyan
                         vertex.texCoord = glm::vec2(0.f);
 
                     // deduplicate vertices
-                    auto iter = vertexMap.find(vertex);
-                    if (iter == vertexMap.end())
+                    auto iter = uniqueVertexMap.find(vertex);
+                    if (iter == uniqueVertexMap.end())
                     {
-                        vertexMap[vertex] = numUniqueVertices;
+                        uniqueVertexMap[vertex] = numUniqueVertices;
                         vertices.push_back(vertex);
                         face[v] = numUniqueVertices;
                         indices[f * 3 + v] = numUniqueVertices++;
@@ -330,11 +351,43 @@ namespace Cyan
                 // compute face tangent
                 computeTangent(vertices, face);
             }
+        }
 
-            // generate lightmap uv if necessary
-            if (bGenerateLightMapUv) generateLightMapUv(subMesh, vertices, indices);
+        if (bGenerateLightMapUv)
+        {
+            auto atlas = xatlas::Create();
+            for (auto objMesh : objMeshes)
+                addSubMeshToLightMap(atlas, objMesh->vertices, objMesh->indices);
+            // atlas now holds results of packing
+            xatlas::Generate(atlas);
+            CYAN_ASSERT(atlas->meshCount == objMeshes.size(), "# Submeshes and # of meshes in atlas doesn't match!");
+            mesh->m_lightMapWidth = atlas->width;
+            mesh->m_lightMapHeight = atlas->height;
+            // todo: render the image stored in atlas ..?
+            for (u32 sm = 0; sm < objMeshes.size(); ++sm)
+            {
+                std::vector<ObjVertex> packedVertices(atlas->meshes[sm].vertexCount);
+                std::vector<u32>       packedIndices(atlas->meshes[sm].indexCount);
+                for (u32 v = 0; v < atlas->meshes[sm].vertexCount; ++v)
+                {
+                    xatlas::Vertex atlasVertex = atlas->meshes[sm].vertexArray[v];
+                    packedVertices[v] = objMeshes[sm]->vertices[atlasVertex.xref];
+                    packedVertices[v].texCoord1.x = atlasVertex.uv[0] / atlas->width;
+                    packedVertices[v].texCoord1.y = atlasVertex.uv[1] / atlas->height;
+                }
+                for (u32 i = 0; i < atlas->meshes[sm].indexCount; ++i)
+                    packedIndices[i] = atlas->meshes[sm].indexArray[i];
+                objMeshes[sm]->vertices.swap(packedVertices);
+                objMeshes[sm]->indices.swap(packedIndices);
+            }
+            xatlas::Destroy(atlas);
+        }
 
-            auto vb = Cyan::createVertexBuffer(vertices.data(), sizeof(vertices[0]) * numUniqueVertices, strideInBytes, numUniqueVertices);
+        u32 strideInBytes = sizeof(ObjVertex);
+        for (u32 sm = 0; sm < mesh->m_subMeshes.size(); ++sm)
+        {
+            ObjMesh* objMesh = objMeshes[sm];
+            auto vb = Cyan::createVertexBuffer(objMesh->vertices.data(), sizeof(ObjVertex) * objMesh->vertices.size(), strideInBytes, objMesh->indices.size());
             u32 offset = 0;
             vb->addVertexAttrib({ VertexAttrib::DataType::Float, 3, strideInBytes, offset});
             offset += 3 * sizeof(f32);
@@ -346,20 +399,23 @@ namespace Cyan
             offset += 2 * sizeof(f32);
             vb->addVertexAttrib({ VertexAttrib::DataType::Float, 2, strideInBytes, offset});
             offset += 2 * sizeof(f32);
-            subMesh->m_vertexArray = Cyan::createVertexArray(vb);
-            subMesh->m_vertexArray->init();
-            subMesh->m_numVerts = numUniqueVertices;
-            subMesh->m_triangles.m_numVerts = indices.size();
+            mesh->m_subMeshes[sm]->m_vertexArray = Cyan::createVertexArray(vb);
+            mesh->m_subMeshes[sm]->m_vertexArray->init();
+            mesh->m_subMeshes[sm]->m_numVerts = objMesh->vertices.size();
+            mesh->m_subMeshes[sm]->m_numIndices = objMesh->indices.size();
+            mesh->m_subMeshes[sm]->m_triangles.m_numVerts = objMesh->indices.size();
             // create index buffer
-            glCreateBuffers(1, &subMesh->m_vertexArray->m_ibo);
-            glBindVertexArray(subMesh->m_vertexArray->m_vao);
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, subMesh->m_vertexArray->m_ibo);
-            glNamedBufferData(subMesh->m_vertexArray->m_ibo, indices.size() * sizeof(u32), indices.data(), GL_STATIC_DRAW);
+            glCreateBuffers(1, &mesh->m_subMeshes[sm]->m_vertexArray->m_ibo);
+            glBindVertexArray(mesh->m_subMeshes[sm]->m_vertexArray->m_vao);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->m_subMeshes[sm]->m_vertexArray->m_ibo);
+            glNamedBufferData(mesh->m_subMeshes[sm]->m_vertexArray->m_ibo, objMesh->indices.size() * sizeof(u32), objMesh->indices.data(), GL_STATIC_DRAW);
             glBindVertexArray(0);
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-            subMesh->m_vertexArray->m_numIndices = indices.size();
-            mesh->m_subMeshes.push_back(subMesh);
+            mesh->m_subMeshes[sm]->m_vertexArray->m_numIndices = objMesh->indices.size();
         }
+        // release resources
+        for (auto objMesh : objMeshes)
+            delete objMesh;
         return mesh;
     }
 
@@ -375,7 +431,7 @@ namespace Cyan
 
         Mesh* mesh = nullptr;
         bool generateLightMapUv = false;
-        if (strcmp(name, "helmet_mesh") == 0) generateLightMapUv = true;
+        if (strcmp(name, "room_mesh") == 0) generateLightMapUv = true;
         if (extension == ".obj")
         {
             cyanInfo("Loading .obj file %s", path.c_str());

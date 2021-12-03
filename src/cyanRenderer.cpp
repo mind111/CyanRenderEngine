@@ -428,8 +428,8 @@ namespace Cyan
             Mesh::SubMesh* sm = mesh->m_subMeshes[i];
             ctx->setVertexArray(sm->m_vertexArray);
             ctx->setPrimitiveType(PrimitiveType::TriangleList);
-            if (ctx->m_vertexArray->m_ibo != static_cast<u32>(-1)) {
-                ctx->drawIndex(ctx->m_vertexArray->m_numIndices);
+            if (sm->m_vertexArray->m_ibo != static_cast<u32>(-1)) {
+                ctx->drawIndex(sm->m_numIndices);
             } else {
                 ctx->drawIndexAuto(sm->m_numVerts);
             }

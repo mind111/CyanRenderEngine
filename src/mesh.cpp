@@ -1,6 +1,7 @@
 #include "Common.h"
 #include "CyanAPI.h"
 #include "Mesh.h"
+#include "LightMap.h"
 
 namespace Cyan
 {
@@ -117,6 +118,7 @@ namespace Cyan
         instance->m_mesh = this;
         u32 numSubMeshes = (u32)this->m_subMeshes.size();
         instance->m_matls = (MaterialInstance**)CYAN_ALLOC(sizeof(MaterialInstance*) * numSubMeshes);
+        instance->m_lightMap = nullptr;
         return instance;
     }
 

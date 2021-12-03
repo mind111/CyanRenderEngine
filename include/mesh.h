@@ -54,11 +54,12 @@ namespace Cyan
         {
             VertexArray*     m_vertexArray;
             u32              m_numVerts;
+            u32              m_numIndices;
             TriangleArray    m_triangles;
-            glm::vec2        m_lightMapDimension;
-            // std::vector<u32> m_faces;
         };
 
+        i32         m_lightMapWidth;
+        i32         m_lightMapHeight;
         std::string m_name;
         bool m_shouldNormalize;
         glm::mat4 m_normalization;
@@ -78,6 +79,7 @@ namespace Cyan
         Mesh* m_mesh;
         MaterialInstance** m_matls;
         BoundingBox3f& getAABB();
+        struct LightMap* m_lightMap;
     };
 
     struct QuadMesh

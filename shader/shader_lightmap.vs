@@ -8,8 +8,10 @@ layout (location = 5) in vec2 textureUv_2;
 layout (location = 6) in vec2 textureUv_3;
 
 out vec3 worldPos;
+out vec3 color;
 
 uniform mat4 s_model;
+uniform vec3 randomVertexColor;
 
 void main()
 {

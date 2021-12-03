@@ -8,6 +8,7 @@ file(GLOB_RECURSE src "${PROJECT_SOURCE_DIR}/src/*.cpp")
 file(GLOB_RECURSE lib "${PROJECT_SOURCE_DIR}/lib/stb_image/*.cpp"
                       "${PROJECT_SOURCE_DIR}/lib/tinygltf/*.cc"
                       "${PROJECT_SOURCE_DIR}/lib/tinyobj/*.cc"
+                      "${PROJECT_SOURCE_DIR}/lib/xatlas/*.cpp"
                       "${PROJECT_SOURCE_DIR}/lib/json/json.hpp")
 
 #### dependencies ####
@@ -36,7 +37,6 @@ add_definitions(-DGLEW_STATIC -DGLFW_INCLUDE_NONE)
 add_executable(cyanRenderEngine ${include} ${src} ${lib})
 target_compile_options(cyanRenderEngine PUBLIC /W1 /std:c++14 /DTINYGLTF_NOEXCEPTION)
 target_link_libraries(cyanRenderEngine ${GLFW_LIBRARY} ${GLEW_LIBRARY} ${OPENGL_LIBRARIES} ${ASSIMP_LIBRARY})
-target_link_libraries(cyanRenderEngine "${PROJECT_SOURCE_DIR}\\lib\\xatlas\\xatlas.lib")
 
 #### copy over dll after build ####
 add_custom_command(TARGET cyanRenderEngine POST_BUILD
