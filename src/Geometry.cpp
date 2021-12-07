@@ -452,7 +452,8 @@ float Triangle::intersectRay(const glm::vec3& roObjectSpace, const glm::vec3& rd
 
     h = glm::cross(rdObjectSpace, edge2);
     a = glm::dot(edge1, h);
-    if (a > -EPSILON && a < EPSILON)
+    if (fabs(a) < EPSILON)
+    // if (a > -EPSILON && a < EPSILON)
     {
         return -1.0;
     }

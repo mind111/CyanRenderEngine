@@ -336,9 +336,10 @@ void PbrApp::initDemoScene00()
     auto sceneManager = SceneManager::getSingletonPtr();
 
     // large plane
+#if 0
     {
         Entity* terrain = sceneManager->createEntity(m_scenes[Scenes::Demo_Scene_00], "Terrain", Transform{});
-        terrain->applyLocalTranslation(glm::vec3(0.f, -0.01f, 0.f));
+        terrain->applyLocalTranslation(glm::vec3(0.f, -0.05f, 0.f));
         Cyan::Mesh* terrainMesh = Cyan::AssetGen::createTerrain(40, 40);
         auto node = Cyan::createSceneNode("TerrainMesh", Transform{}, terrainMesh);
         terrain->attachSceneNode(node);
@@ -348,7 +349,9 @@ void PbrApp::initDemoScene00()
         inputs.m_uMetallic = 0.5f;
         auto matl = createDefaultPbrMatlInstance(m_scenes[Scenes::Demo_Scene_00], inputs);
         node->m_meshInstance->setMaterial(0, matl);
+        terrain->m_bakeInLightmap = false;
     }
+#endif
 
     // helmet
     {
@@ -357,38 +360,37 @@ void PbrApp::initDemoScene00()
         auto helmetMesh = helmet->getSceneNode("HelmetMesh")->m_meshInstance->m_mesh;
         helmetMesh->m_bvh = new Cyan::MeshBVH(helmetMesh);
         helmetMesh->m_bvh->build();
+        helmet->m_bakeInLightmap = false;
     }
     
     // room
     {
         PbrMaterialInputs inputs = { 0 };
         Entity* room = sceneManager->getEntity(demoScene00, "Room");
+        auto sceneNode = room->getSceneNode("RoomMesh");
+        Cyan::Mesh* roomMesh = sceneNode->m_meshInstance->m_mesh;
+        roomMesh->m_bvh = new Cyan::MeshBVH(roomMesh);
+        roomMesh->m_bvh->build();
+
+        // bake light map
+        auto lightMapManager = Cyan::LightMapManager::getSingletonPtr();
+#if 1
+        lightMapManager->bakeLightMap(m_scenes[Scenes::Demo_Scene_00], sceneNode, true);
+#else
+        lightMapManager->createLightMapForMeshInstance(m_scenes[Scenes::Demo_Scene_00], sceneNode);
+#endif
+
         Cyan::Texture* albedo = Cyan::Toolkit::createFlatColorTexture("room_albedo", 4, 4u, glm::vec4(1.0f, 1.0f, 1.0f, 1.f));
         inputs.m_baseColor = albedo;
         inputs.m_uRoughness = 0.5f;
         inputs.m_uMetallic = 0.5f;
+
         auto roomMatl = createDefaultPbrMatlInstance(demoScene00, inputs);
-        auto sceneNode = room->getSceneNode("RoomMesh");
+        roomMatl->set("hasBakedLighting", 1.f);
+        roomMatl->bindTexture("lightMap", sceneNode->m_meshInstance->m_lightMap->m_texAltas);
         // bind material for all submeshes
         for (u32 i = 0; i < sceneNode->m_meshInstance->m_mesh->numSubMeshes(); ++i)
             room->setMaterial("RoomMesh", i, roomMatl);
-#if 1
-        // light map
-        auto roomMesh = Cyan::getMesh("room_mesh");
-        Cyan::TextureSpec spec  = { };
-        spec.m_width    = roomMesh->m_lightMapWidth;
-        spec.m_height   = roomMesh->m_lightMapHeight;
-        spec.m_dataType = Cyan::Texture::DataType::Float;
-        spec.m_type     = Cyan::Texture::Type::TEX_2D;
-        spec.m_format   = Cyan::Texture::ColorFormat::R16G16B16;
-        spec.m_min      = Cyan::Texture::Filter::LINEAR;
-        spec.m_mag      = Cyan::Texture::Filter::LINEAR;
-        spec.m_numMips  = 1;
-        m_lightMap.m_texAltas = textureManager->createTextureHDR("LightMap", spec);
-        m_lightMapRenderTarget = Cyan::createRenderTarget(m_lightMap.m_texAltas->m_width, m_lightMap.m_texAltas->m_height);
-        m_lightMapRenderTarget->attachTexture(m_lightMap.m_texAltas, 0);
-        m_lightMapShader = Cyan::createShader("LightMapShader", "../../shader/shader_lightmap.vs", "../../shader/shader_lightmap.fs");
-#endif
     }
 
     // lighting
@@ -663,7 +665,6 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewpo
 #ifdef SCENE_DEMO_00
     m_currentScene = Scenes::Demo_Scene_00;
 #endif
-    m_pathTracer = new Cyan::PathTracer(m_scenes[m_currentScene]);
 
     glEnable(GL_LINE_SMOOTH);
     glLineWidth(4.f);
@@ -749,16 +750,8 @@ void PbrApp::doPrecomputeWork()
     }
     // path tracing
     {
-        // m_pathTracer->run(m_scenes[m_currentScene]->getActiveCamera());
-    }
-}
-
-void pathTracingWorker(PbrApp* app)
-{
-    Scene* scene = app->m_scenes[app->m_currentScene];
-    while(1)
-    {
-        app->m_pathTracer->progressiveRender(scene, scene->getActiveCamera());
+        auto pathTracer = Cyan::PathTracer::getSingletonPtr();
+        // pathTracer->run(m_scenes[m_currentScene]->getActiveCamera());
     }
 }
 
@@ -975,8 +968,10 @@ void PbrApp::drawDebugWindows()
                     ImGui::Image((ImTextureID)texture->m_id, ImVec2(320, 180));
                     ImGui::Separator();
                 };
-                buildDebugView("PathTracing", m_pathTracer->m_texture);
-                buildDebugView("LightMap",    m_lightMap.m_texAltas);
+                buildDebugView("PathTracing", Cyan::PathTracer::getSingletonPtr()->getRenderOutput());
+                Entity* room = SceneManager::getSingletonPtr()->getSingletonPtr()->getEntity(m_scenes[Demo_Scene_00], "Room");
+                SceneNode* sceneNode = room->getSceneNode("RoomMesh");
+                buildDebugView("LightMap", sceneNode->m_meshInstance->m_lightMap->m_texAltas);
                 // TODO: debug following three debug visualizations 
                 buildDebugView("SceneDepth",  renderer->m_sceneDepthTextureSSAA);
                 buildDebugView("SceneNormal", renderer->m_sceneNormalTextureSSAA);
@@ -1096,9 +1091,7 @@ void PbrApp::drawLightingWidgets()
     if (ImGui::TreeNodeEx("Experienmental", baseFlags))
     {
         ImGui::Text("Roughness");
-        ImGui::SameLine();
-        // ImGui::SliderFloat("##Roughness", &m_roughness, 0.f, 1.f, "%.2f");
-        // m_eratoMatl->set("uniformRoughness", m_roughness);
+        ImGui::SameLine(); 
         
         ImGui::Text("Wrap");
         ImGui::SameLine();
@@ -1181,7 +1174,7 @@ void PbrApp::drawSceneViewport()
         }
         else if (m_debugPathTracing)
         {
-            Cyan::Texture* output = m_pathTracer->m_texture;
+            Cyan::Texture* output = Cyan::PathTracer::getSingletonPtr()->getRenderOutput();
             ImGui::GetForegroundDrawList()->AddImage(reinterpret_cast<void*>((intptr_t)output->m_id), 
                 a, b, ImVec2(0, 0), ImVec2(1, 1));
         }
@@ -1528,9 +1521,8 @@ struct SharedMaterialData
     }
 };
 
-// TODO: basic toy path tracer just for fun
-// TODO: read about probe selection & multi-probe tracing
-// TODO: irradiance probe with visibility (prefiltered radial depth map)
+// todo: read about probe selection & multi-probe tracing
+// todo: irradiance probe with visibility (prefiltered radial depth map)
 void PbrApp::render()
 {
     // frame timer
@@ -1568,28 +1560,11 @@ void PbrApp::render()
     glUnmapBuffer(GL_ATOMIC_COUNTER_BUFFER);
     glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, m_debugRayAtomicCounter);
 #endif
-    // render to lightmap
-    {
-        SceneManager* sceneManager = SceneManager::getSingletonPtr();
-        auto room = sceneManager->getEntity(m_scenes[Scenes::Demo_Scene_00], "Room");
-        SceneNode* node = room->getSceneNode("RoomMesh");
-        Cyan::LightMapManager::createLightMapForMeshInstance(node);
 
-        auto roomMesh = Cyan::getMesh("room_mesh");
-        auto ctx = Cyan::getCurrentGfxCtx();
-        ctx->setDepthControl(Cyan::DepthControl::kDisable);
-        ctx->setRenderTarget(m_lightMapRenderTarget, 0);
-        ctx->setViewport({ 0, 0, m_lightMap.m_texAltas->m_width, m_lightMap.m_texAltas->m_height });
-        ctx->setShader(m_lightMapShader);
-        for (u32 sm = 0; sm < roomMesh->m_subMeshes.size(); ++sm)
-        {
-            auto ctx = Cyan::getCurrentGfxCtx();
-            auto renderer = Cyan::Renderer::getSingletonPtr();
-            ctx->setVertexArray(roomMesh->m_subMeshes[sm]->m_vertexArray);
-            ctx->drawIndex(roomMesh->m_subMeshes[sm]->m_numIndices);
-        }
-        ctx->setDepthControl(Cyan::DepthControl::kEnable);
-    }
+#if 0
+    SceneNode* node = SceneManager::getSingletonPtr()->getEntity(m_scenes[Scenes::Demo_Scene_00], "Room")->getSceneNode("RoomMesh");
+    Cyan::LightMapManager::getSingletonPtr()->renderMeshInstanceToLightMap(node);
+#endif
 
     renderer->beginRender();
     // rendering

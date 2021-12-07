@@ -1,11 +1,11 @@
 #include <thread>
+
 #include "CyanPathTracer.h"
 #include "Texture.h"
 #include "mathUtils.h"
+#include "CyanAPI.h"
 
 /* 
-    * todo: (Feature) uv wrapp the scene geometry into a texture atlus
-    * todo: (Feature) start baking a light map
     * todo: (Feature) integrate intel's open image denoiser
     * todo: (Optimization) multi-threading
     * todo: (Optimization) do some profiling
@@ -15,31 +15,54 @@
 */
 
 // Is 2mm of an offset too large..?
-#define EPISILON 0.002f
+#define EPSILON 0.002f
 namespace Cyan
 {
-    PathTracer::PathTracer(Scene* scene)
-    : m_scene(scene)
+    PathTracer* PathTracer::m_singleton = nullptr;
+
+    PathTracer::PathTracer()
+    : m_scene(nullptr)
     , m_pixels(nullptr)
     , m_texture(nullptr)
     , m_checkPoint(0u)
     , m_numTracedPixels(0u)
-    , m_staticCamera(scene->getActiveCamera())
     , numAccumulatedSamples(0)
+    , m_skyColor(0.529f, 0.808f, 0.922f)
     , m_renderMode(RenderMode::BakeLightmap)
     {
-        u32 bytesPerPixel = sizeof(float) * 3;
-        u32 numPixels = numPixelsInX * numPixelsInY;
-        m_pixels = (float*)new char[bytesPerPixel * numPixels];
-        auto textureManager = TextureManager::getSingletonPtr();
-        TextureSpec spec = { }; 
-        spec.m_type   = Texture::Type::TEX_2D;
-        spec.m_width  = numPixelsInX;
-        spec.m_height = numPixelsInY;
-        spec.m_format = Texture::ColorFormat::R32G32B32;
-        spec.m_type = Texture::Type::TEX_2D;
-        spec.m_dataType = Texture::DataType::Float;
-        m_texture = textureManager->createTexture("PathTracingOutput", spec);
+        if (!m_singleton)
+        {
+            u32 bytesPerPixel = sizeof(float) * 3;
+            u32 numPixels = numPixelsInX * numPixelsInY;
+            m_pixels = (float*)new char[bytesPerPixel * numPixels];
+            auto textureManager = TextureManager::getSingletonPtr();
+            TextureSpec spec = { }; 
+            spec.m_type   = Texture::Type::TEX_2D;
+            spec.m_width  = numPixelsInX;
+            spec.m_height = numPixelsInY;
+            spec.m_format = Texture::ColorFormat::R32G32B32;
+            spec.m_type = Texture::Type::TEX_2D;
+            spec.m_dataType = Texture::DataType::Float;
+            m_texture = textureManager->createTexture("PathTracingOutput", spec);
+            m_singleton = this;
+        }
+        else
+            cyanError("Multiple instances are created for PathTracer!");
+    }
+
+    PathTracer* PathTracer::getSingletonPtr()
+    {
+        return m_singleton;
+    }
+
+    Texture* PathTracer::getRenderOutput()
+    {
+        return m_texture;
+    }
+
+    void PathTracer::setScene(Scene* scene)
+    {
+        m_scene = scene;
     }
 
     glm::vec2 getScreenCoordOfPixel(u32 x, u32 y)
@@ -189,7 +212,7 @@ namespace Cyan
     f32 PathTracer::traceShadowRay(glm::vec3& ro, glm::vec3& rd)
     {
         f32 shadow = 1.f;
-        if (m_scene->castVisibilityRay(ro, rd))
+        if (m_scene->castVisibilityRay(ro, rd, EntityFilter::BakeInLightMap))
             shadow = 0.f;
         return shadow;
     }
@@ -266,7 +289,7 @@ namespace Cyan
         {
             glm::vec3 lightDir = dirLight.direction;
             // trace shadow ray
-            f32 shadow = traceShadowRay(hitPosition + EPISILON * normal, lightDir);
+            f32 shadow = traceShadowRay(hitPosition + EPSILON * normal, lightDir);
             f32 ndotl = max(glm::dot(normal, lightDir), 0.f);
             glm::vec3 Li = vec4ToVec3(dirLight.color) * dirLight.color.w * shadow;
             color += Li * ndotl;
@@ -289,7 +312,7 @@ namespace Cyan
         {
             glm::vec3 sampleDir = uniformSampleHemiSphere(n);
             // the ray hit the skybox
-            if (!m_scene->castVisibilityRay(ro, sampleDir))
+            if (!m_scene->castVisibilityRay(ro, sampleDir, EntityFilter::BakeInLightMap))
             {
                 outColor += skyColor * max(glm::dot(sampleDir, n), 0.f);
             }
@@ -309,7 +332,7 @@ namespace Cyan
         }
 
         // stop recursion
-        if (numBounces >= 3)
+        if (numBounces >= 2)
             return exitRadiance;
 
         glm::vec3 rd = uniformSampleHemiSphere(n);
@@ -325,7 +348,7 @@ namespace Cyan
 
             glm::vec3 nextBounceNormal = getSurfaceNormal(nextRayHit, baryCoord);
             // avoid self-intersecting
-            nextBounceRo += EPISILON * nextBounceNormal;
+            nextBounceRo += EPSILON * nextBounceNormal;
 
             // indirect
             // todo: is there any better attenuation ..?
@@ -420,7 +443,7 @@ namespace Cyan
 
                 {
                     m_numTracedPixels += 1;
-                    printf("\rPath tracing progress ...%.2f%", (f32)m_numTracedPixels * 100.f / totalNumRays);
+                    printf("\r[Info]: Path tracing progress ...%.2f%", (f32)m_numTracedPixels * 100.f / totalNumRays);
                     fflush(stdout);
                 }
             }
@@ -471,7 +494,7 @@ namespace Cyan
             {
                 glm::vec3 lightDir = dirLight.direction;
                 // trace shadow ray
-                f32 shadow = traceShadowRay(hitPosition + EPISILON * normal, lightDir);
+                f32 shadow = traceShadowRay(hitPosition + EPSILON * normal, lightDir);
 
                 f32 ndotl = max(glm::dot(normal, lightDir), 0.f);
                 glm::vec3 fr = (albedo / M_PI);
@@ -481,7 +504,7 @@ namespace Cyan
 
             // indirect lighting
             {
-                glm::vec3 indirectRo = hitPosition + EPISILON * normal;
+                glm::vec3 indirectRo = hitPosition + EPSILON * normal;
                 surfaceColor += recursiveTraceDiffuse(indirectRo, normal, 2);
             }
         }
@@ -510,10 +533,9 @@ namespace Cyan
 #endif
             glm::vec3 normal = getSurfaceNormal(hit, baryCoord);
 
-            glm::vec3 indirectRo = hitPosition + EPISILON * normal;
+            glm::vec3 indirectRo = hitPosition + EPSILON * normal;
 
-            // bake static lighting lighting
-            // radiance += computeDirectLighting(hitPosition, normal);
+            // bake static sky light
             radiance += computeDirectSkyLight(indirectRo, normal);
 
             // indirect lighting
@@ -562,17 +584,23 @@ namespace Cyan
         return m_scene->castRay(ro, rd, EntityFilter::BakeInLightMap);
     }
 
+    // importace sampling the cosine lobe
     glm::vec3 PathTracer::sampleIrradiance(glm::vec3& samplePos, glm::vec3& n)
     {
-        const u32 numSamples = 128u;
+        const u32 numSamples = 1;
         glm::vec3 irradiance(0.f);
         for (u32 i = 0; i < numSamples; ++i)
         {
             auto rd = uniformSampleHemiSphere(n);
             auto hit = traceScene(samplePos, rd);
-            // todo: instead of only consider diffuse reflections along the path, also include indirect specular
-            auto radiance = bakeSurface(hit, samplePos, rd);
-            irradiance += radiance * max(glm::dot(rd, n), 0.f);
+            if (hit.t > 0.f)
+            {
+                // todo: instead of only consider diffuse reflections along the path, also include indirect specular
+                auto radiance = bakeSurface(hit, samplePos, rd);
+                irradiance += radiance * max(glm::dot(rd, n), 0.f) * (1.f / M_PI);
+            }
+            else
+                irradiance += m_skyColor * max(glm::dot(rd, n), 0.f);
         }
         irradiance /= numSamples;
         return irradiance;

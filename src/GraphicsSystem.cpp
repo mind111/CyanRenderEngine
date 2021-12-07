@@ -19,6 +19,8 @@ namespace Cyan
         m_sceneManager = new SceneManager;
         m_textureManager = new TextureManager;
         m_assetManager = new AssetManager;
+        m_lightMapManager = new LightMapManager;
+        m_pathTracer = new PathTracer;
         m_renderer = new Renderer;
         m_renderer->init(m_windowSize);
     }

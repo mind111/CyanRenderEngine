@@ -16,8 +16,11 @@ namespace Cyan
     class PathTracer
     {
     public:
-        PathTracer(Scene* scene);
+        PathTracer();
 
+        static PathTracer* getSingletonPtr();
+        Texture*    getRenderOutput();
+        void setScene(Scene* scene);
         // inputs: scene, camera
         void progressiveRender(Scene* scene, Camera& camera);
         void run(Camera& camera);
@@ -45,8 +48,8 @@ namespace Cyan
         // constants
         const u32 numPixelsInX = 640u;
         const u32 numPixelsInY = 360u;
-        const u32 sppxCount = 2u;
-        const u32 sppyCount = 2u;
+        const u32 sppxCount = 16u;
+        const u32 sppyCount = 16u;
         const u32 numChannelPerPixel = 3u;
         const u32 perFrameWorkGroupX = 4u;
         const u32 perFrameWorkGroupY = 4u;
@@ -63,8 +66,11 @@ namespace Cyan
         Camera     m_staticCamera;
         u32        m_numTracedPixels; 
         glm::uvec2 m_checkPoint;
+        glm::vec3 m_skyColor;
         Texture* m_texture;
         Scene* m_scene;
         float* m_pixels;
+
+        static PathTracer* m_singleton;
     };
 }

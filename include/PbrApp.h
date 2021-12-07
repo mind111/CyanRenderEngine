@@ -342,7 +342,6 @@ public:
     RegularBuffer*      m_debugRayWorldBuffer;
     RegularBuffer*      m_debugRayBoundryBuffer;
     // toy path tracer
-    Cyan::PathTracer*   m_pathTracer;
     u32                 m_currentScene;
     Cyan::RenderTarget* m_lightMapRenderTarget;
     Shader*             m_lightMapShader;

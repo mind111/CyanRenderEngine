@@ -22,4 +22,14 @@ namespace Cyan
     glm::mat3 tangentToWorld(const glm::vec3& n);
     f32 uniformSampleZeroToOne();
     glm::vec3 uniformSampleHemiSphere(glm::vec3& n);
+
+    struct Vec3 
+    {
+        f32 x, y, z;
+    };
+
+    Vec3 operator+(const Vec3& lhs, const Vec3& rhs);
+    Vec3 operator-(const Vec3& lhs, const Vec3& rhs);
+    Vec3 operator*(const Vec3& lhs, const Vec3& rhs);
+    Vec3 operator/(const Vec3& lhs, const Vec3& rhs);
 }

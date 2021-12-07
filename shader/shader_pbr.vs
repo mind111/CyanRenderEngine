@@ -13,6 +13,7 @@ out vec3 n;
 out vec3 wn;
 out vec3 t;
 out vec2 uv;
+out vec2 uv1;
 out vec4 shadowPos;
 out vec3 fragmentPos;
 out vec3 fragmentPosWS;
@@ -37,4 +38,5 @@ void main() {
     t = (s_view * s_model * vec4(vt, 0.f)).xyz;
     t = normalize(t);
     uv = textureUv_0;
+    uv1 = textureUv_1;
 }

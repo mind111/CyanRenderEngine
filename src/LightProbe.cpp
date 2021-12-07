@@ -215,7 +215,7 @@ namespace Cyan
                 {
                     glm::vec3 rd = uniformSampleHemiSphere(hemiSphereNormal);
                     // sample visibility, if visibile, bundle the ray and send to GPU to sample radiance
-                    if (m_scene->castVisibilityRay(ro, rd))
+                    if (m_scene->castVisibilityRay(ro, rd, EntityFilter::BakeInLightMap))
                     {
                         m_skyRays[i * j + k] = GpuRay{ glm::vec4(ro, 1.f), rd,  1.f };
                         m_numVisibieRays++;

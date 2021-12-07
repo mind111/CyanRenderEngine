@@ -51,4 +51,24 @@ namespace Cyan
         };
         return tangentToWorld(n) * localDir; 
     }
+
+    Vec3 operator+(const Vec3& lhs, const Vec3& rhs)
+    {
+        return Vec3{lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z};
+    }  
+
+    Vec3 operator-(const Vec3& lhs, const Vec3& rhs)
+    {
+        return Vec3{lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z};
+    }  
+
+    Vec3 operator*(const Vec3& lhs, const Vec3& rhs)
+    {
+        return Vec3{lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z};
+    }  
+
+    Vec3 operator/(const Vec3& lhs, const Vec3& rhs)
+    {
+        return Vec3{lhs.x / rhs.x, lhs.y / rhs.y, lhs.z / rhs.z};
+    }
 }

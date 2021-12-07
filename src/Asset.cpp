@@ -359,7 +359,11 @@ namespace Cyan
             for (auto objMesh : objMeshes)
                 addSubMeshToLightMap(atlas, objMesh->vertices, objMesh->indices);
             // atlas now holds results of packing
-            xatlas::Generate(atlas);
+            xatlas::PackOptions packOptions = { };
+            packOptions.bruteForce = true;
+            packOptions.padding = 5.f;
+
+            xatlas::Generate(atlas, xatlas::ChartOptions{}, packOptions);
             CYAN_ASSERT(atlas->meshCount == objMeshes.size(), "# Submeshes and # of meshes in atlas doesn't match!");
             mesh->m_lightMapWidth = atlas->width;
             mesh->m_lightMapHeight = atlas->height;

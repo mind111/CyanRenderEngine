@@ -3,6 +3,8 @@
 #include "Scene.h"
 #include "Texture.h"
 #include "Asset.h"
+#include "LightMap.h"
+#include "CyanPathTracer.h"
 #include "CyanRenderer.h"
 
 namespace Cyan
@@ -25,6 +27,8 @@ namespace Cyan
         SceneManager* m_sceneManager;
         TextureManager* m_textureManager;
         AssetManager* m_assetManager;
+        LightMapManager* m_lightMapManager;
+        PathTracer*      m_pathTracer;
         Renderer*     m_renderer;
         static GraphicsSystem* m_singleton;
     };

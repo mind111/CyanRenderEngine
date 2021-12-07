@@ -8,14 +8,16 @@ layout (location = 5) in vec2 textureUv_2;
 layout (location = 6) in vec2 textureUv_3;
 
 out vec3 worldPos;
-out vec3 color;
+out vec3 normal;
 
-uniform mat4 s_model;
-uniform vec3 randomVertexColor;
+uniform mat4 model;
+uniform vec3 uvOffset;
 
 void main()
 {
     vec2 screenCoord = lightMapTexCoord * 2.f - 1.f;
-    worldPos = (s_model * vec4(vertexPos, 1.f)).xyz;
-    gl_Position = vec4(screenCoord, 0.f, 1.f);
+    worldPos = (model * vec4(vertexPos, 1.f)).xyz;
+    normal = (inverse(transpose(model)) * vec4(vertexNormal, 0.f)).xyz;
+    normal = normalize(normal);
+    gl_Position = vec4(screenCoord + uvOffset.xy, 0.f, 1.f);
 }

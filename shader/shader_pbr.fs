@@ -4,6 +4,7 @@ in vec3 n;
 in vec3 wn;
 in vec3 t;
 in vec2 uv;
+in vec2 uv1;
 in vec3 fragmentPos;
 in vec3 fragmentPosWS;
 in vec4 shadowPos;
@@ -35,6 +36,7 @@ uniform float hasAoMap;
 uniform float hasNormalMap;
 uniform float hasRoughnessMap;
 uniform float hasMetallicRoughnessMap;
+uniform float hasBakedLighting;
 uniform float uniformRoughness;
 uniform float uniformMetallic;
 uniform int numPointLights; //non-material
@@ -51,6 +53,7 @@ uniform samplerCube envmap;             //non-material
 uniform samplerCube irradianceDiffuse;  //non-material
 uniform samplerCube irradianceSpecular; //non-material
 uniform sampler2D   brdfIntegral;
+uniform sampler2D   lightMap;
 
 //- debug switches
 uniform float debugNormalMap;
@@ -676,7 +679,9 @@ void main()
     color += directLighting(renderParams);
     // image-based-lighting
     color += indirectLighting(renderParams);
-    // color *= ao;
+
+    if (hasBakedLighting > 0.5f)
+        color = texture(lightMap, uv1).rgb;
 
     // Emission
     // vec3 emission = vec3(0.f); 

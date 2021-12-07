@@ -58,7 +58,7 @@ struct Scene
     }
 
     RayCastInfo castRay(glm::vec3& ro, glm::vec3& rd, EntityFilter filter, bool debugPrint=false);
-    bool castVisibilityRay(glm::vec3& ro, glm::vec3& rd);
+    bool castVisibilityRay(glm::vec3& ro, glm::vec3& rd, EntityFilter filter);
 };
 
 class SceneManager {

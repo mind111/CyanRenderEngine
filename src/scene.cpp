@@ -45,12 +45,25 @@ RayCastInfo Scene::castRay(glm::vec3& ro, glm::vec3& rd, EntityFilter filter, bo
     return closestHit;
 }
 
-bool Scene::castVisibilityRay(glm::vec3& ro, glm::vec3& rd)
+bool Scene::castVisibilityRay(glm::vec3& ro, glm::vec3& rd, EntityFilter filter)
 {
     for (auto entity : entities)
     {
-        if (entity->castVisibilityRay(ro, rd, glm::mat4(1.f)))
-            return true; 
+        bool flag = true;
+        switch (filter)
+        {
+            case EntityFilter::BakeInLightMap:
+                flag = entity->m_bakeInLightmap; 
+                break;
+            default:
+                printf("Unknown entity filter! \n");
+        };
+
+        if (flag)
+        {
+            if (entity->castVisibilityRay(ro, rd, glm::mat4(1.f)))
+                return true; 
+        }
     }
     return false;
 }

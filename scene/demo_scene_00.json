@@ -2,8 +2,8 @@
     "cameras": [
         {
             "name": "main_camera",
-            "position": [3.0, 3.0, 5.2],
-            "lookAt": [-1.0, 1.2, -4.8],
+            "position": [0.0, 1.2, 4.0],
+            "lookAt": [-0.0, 0.0, -1.0],
             "worldUp": [0.0, 1.0, 0.0],
             "fov": 45.0,
             "z_near": 0.5,
@@ -23,7 +23,7 @@
     "meshes": [
         {
             "name": "room_mesh",
-            "path": "../../asset/demo_scene/demo_room.obj",
+            "path": "../../asset/demo_scene/room_test.obj",
             "normalize": false
         },
         {
@@ -82,7 +82,7 @@
             "name": "HelmetMesh",
             "mesh": "helmet_mesh",
             "xform": {
-                "translation": [-1.0, 1.2, -4.8],
+                "translation": [0.0, 0.0, 0.0],
                 "rotation": [0.0, 0, 1, 0],
                 "scale": [0.25, 0.25, 0.25]
             },
