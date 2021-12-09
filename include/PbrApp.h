@@ -265,6 +265,7 @@ public:
     virtual void endFrame() override;
     virtual void run() override;
     virtual void shutDown() override;
+    void buildFrame();
 
     // pre-computation
     void doPrecomputeWork();

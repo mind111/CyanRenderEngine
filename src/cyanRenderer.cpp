@@ -717,7 +717,7 @@ namespace Cyan
         {
             case ShadowTechnique::kVariance_Shadow:
             {
-                GaussianBlurInputs inputs = { };
+                GaussianBlurInput inputs = { };
                 inputs.kernelIndex = 0;
                 inputs.radius = 3;
 
@@ -754,7 +754,7 @@ namespace Cyan
         Texture* sceneColorTexture = m_bSuperSampleAA ? m_sceneColorTextureSSAA : m_sceneColorTexture;
         void* preallocatedAddr = m_frameAllocator.alloc(sizeof(PostProcessResolvePass));
         Viewport viewport = { 0u, 0u, renderTarget->m_width, renderTarget->m_height };
-        PostProcessResolveInputs inputs = { m_exposure, 0.f, 1.0f, sceneColorTexture, BloomPass::getBloomOutput() };
+        PostProcessResolveInput inputs = { m_exposure, 0.f, 1.0f, sceneColorTexture, BloomPass::getBloomOutput() };
         if (m_bloom)
         {
             inputs.bloom = 1.0f;
@@ -776,7 +776,7 @@ namespace Cyan
         void* preallocatedAddr = m_frameAllocator.alloc(sizeof(BloomPass));
         Texture* sceneColorTexture = m_bSuperSampleAA ? m_sceneColorTextureSSAA : m_sceneColorTexture;
         Viewport viewport = {0};
-        BloomPassInputs inputs = { sceneColorTexture, m_bloomOutput };
+        BloomPassInput inputs = { sceneColorTexture, m_bloomOutput };
         // placement new for initialization
         BloomPass* pass = new (preallocatedAddr) BloomPass(nullptr, viewport, inputs);
         m_renderState.addRenderPass(pass);

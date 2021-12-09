@@ -1,5 +1,4 @@
 #include <thread>
-#include <atomic>
 
 #include "LightMap.h"
 #include "Mesh.h"
@@ -9,9 +8,13 @@
 #include "CyanRenderer.h"
 #include "CyanPathTracer.h"
 #include "stb_image_write.h"
+
 #define MULTITHREAD_BAKE 1
+
 namespace Cyan
 {
+    std::atomic<u32> LightMapManager::progressCounter(0u);
+
     void LightMap::setPixel(u32 px, u32 py, glm::vec3& color)
     {
         u32 width = m_texAltas->m_width;
@@ -182,8 +185,6 @@ namespace Cyan
     // todo: super sampling when baking (this alleviate shadow leaking issue but does not completely solve it)
     void bakeWorker(LightMap* lightMap, std::vector<u32>& texelIndices, u32 start, u32 end, u32 overlappedTexelCount)
     {
-        static std::atomic<u32> progressCounter(0u);
-
         const f32 EPSILON = 0.0001f;
         PathTracer* pathTracer = PathTracer::getSingletonPtr();
         pathTracer->setScene(lightMap->m_scene);
@@ -198,7 +199,7 @@ namespace Cyan
             u32 px = floor(texCoord.x);
             u32 py = floor(texCoord.y);
             lightMap->setPixel(px, py, irradiance);
-            u32 numBakedTexels = progressCounter.fetch_add(1u);
+            u32 numBakedTexels = LightMapManager::progressCounter.fetch_add(1u);
             printf("\r[Info] Baked %d texels ... %.2f%%", numBakedTexels, ((f32)numBakedTexels * 100.f / overlappedTexelCount));
             fflush(stdout);
         }
@@ -222,7 +223,6 @@ namespace Cyan
         const u32 workGroupCount = 16;
         u32 workGroupPixelCount = overlappedTexelCount / workGroupCount;
         // divide work into 8 threads
-        std::atomic<u32> progressCounter(0u);
         std::thread* workers[workGroupCount] = { };
         for (u32 i = 0; i < workGroupCount; ++i)
         {
@@ -234,6 +234,7 @@ namespace Cyan
             workers[i]->join();
 
         // free resources
+        progressCounter = 0;
         for (u32 i = 0; i < workGroupCount; ++i)
             delete workers[i];
     }

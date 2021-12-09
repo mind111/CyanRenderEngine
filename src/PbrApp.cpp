@@ -713,11 +713,6 @@ void PbrApp::beginFrame()
 {
     Cyan::getCurrentGfxCtx()->clear();
     Cyan::getCurrentGfxCtx()->setViewport({ 0, 0, static_cast<u32>(gEngine->getWindow().width), static_cast<u32>(gEngine->getWindow().height) });
-
-    // update probe
-    SceneManager::getSingletonPtr()->setLightProbe(m_scenes[m_currentScene], Cyan::getProbe(m_currentProbeIndex));
-    m_envmap = Cyan::getProbe(m_currentProbeIndex)->m_baseCubeMap;
-    m_envmapMatl->bindTexture("envmapSampler", m_envmap);
 }
 
 void PbrApp::doPrecomputeWork()
@@ -731,6 +726,10 @@ void PbrApp::doPrecomputeWork()
         m_irradianceProbe->sampleSkyVisibility();
 #endif
 #if 1
+        // update probe
+        SceneManager::getSingletonPtr()->setLightProbe(m_scenes[m_currentScene], Cyan::getProbe(m_currentProbeIndex));
+        m_envmap = Cyan::getProbe(m_currentProbeIndex)->m_baseCubeMap;
+        m_envmapMatl->bindTexture("envmapSampler", m_envmap);
         auto renderer = Cyan::Renderer::getSingletonPtr();
         renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), 0);
         renderer->render();
@@ -1491,34 +1490,31 @@ struct DebugAABBPass : public Cyan::RenderPass
     Scene* m_scene;
 };
 
-struct UniformData
+void PbrApp::buildFrame()
 {
-    u32 m_handle;
-    void* m_data;
-};
-
-// TODO: how to not have to manually do this
-template<typename T> 
-struct SharedMaterialData
-{
-    T m_data;
-    const char* m_uniformName;
-    std::vector<Cyan::MaterialInstance*> m_listeners;
-
-    void onUpdate() 
-    { 
-        for (auto matl : m_listeners)
-        {
-            matl->set(m_uniformName, m_data);
-        }
-    }
-
-    void setData(T data)
+    Cyan::Renderer* renderer = Cyan::Renderer::getSingletonPtr();
+    // construct work for current frame
+    renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), 0);
+    renderer->addScenePass(m_scenes[m_currentScene]);
+#if DEBUG_PROBE_TRACING
     {
-        m_data = data;
-        onUpdate()
+        void* preallocated = renderer->getAllocator().alloc(sizeof(RayTracingDebugPass));
+        auto renderTarget = m_probeVolume->m_probes[22]->m_octMapRenderTarget;
+        RayTracingDebugPass* pass = new (preallocated) RayTracingDebugPass(renderTarget, Cyan::Viewport{0u,0u, renderTarget->m_width, renderTarget->m_height}, this);
+        renderer->addCustomPass(pass);
     }
-};
+#endif
+#if DRAW_DEBUG
+    {
+        void* preallocated = renderer->getAllocator().alloc(sizeof(DebugAABBPass));
+        Cyan::RenderTarget* sceneRenderTarget = renderer->getSceneColorRenderTarget();
+        DebugAABBPass* pass = new (preallocated) DebugAABBPass(sceneRenderTarget, Cyan::Viewport{0u,0u, sceneRenderTarget->m_width, sceneRenderTarget->m_height}, m_scenes[m_currentScene]);
+        renderer->addCustomPass(pass);
+    }
+#endif
+    // TODO: how to exclude things in the scene from being post processed
+    renderer->addPostProcessPasses();
+}
 
 // todo: read about probe selection & multi-probe tracing
 // todo: irradiance probe with visibility (prefiltered radial depth map)
@@ -1532,6 +1528,7 @@ void PbrApp::render()
     SceneManager::getSingletonPtr()->setLightProbe(m_scenes[m_currentScene], Cyan::getProbe(m_currentProbeIndex));
     m_envmap = Cyan::getProbe(m_currentProbeIndex)->m_baseCubeMap;
     m_envmapMatl->bindTexture("envmapSampler", m_envmap);
+
 #if 0
     m_rayTracingMatl->bindBuffer("debugOctRayData", m_debugRayOctBuffer);
     m_rayTracingMatl->bindBuffer("debugWorldRayData", m_debugRayWorldBuffer);
@@ -1560,55 +1557,8 @@ void PbrApp::render()
     glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, m_debugRayAtomicCounter);
 #endif
 
-#if 0
-    SceneNode* node = SceneManager::getSingletonPtr()->getEntity(m_scenes[Scenes::Demo_Scene_00], "Room")->getSceneNode("RoomMesh");
-    Cyan::LightMapManager::getSingletonPtr()->renderMeshInstanceToLightMap(node);
-#endif
-
     renderer->beginRender();
-    // rendering
-    renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), 0);
-    renderer->addScenePass(m_scenes[m_currentScene]);
-
-    // LightingEnvironment lighting = {
-    //     m_scenes[m_currentScene]->pLights,
-    //     m_scenes[m_currentScene]->dLights,
-    //     m_scenes[m_currentScene]->m_currentProbe,
-    //     true
-    // };
-    // renderer->addEntityPass(renderer->m_sceneColorRTSSAA, {0, 0, 1280, 720}, m_scenes[m_currentScene]->entities, lighting, m_scenes[m_currentScene]->getActiveCamera());
-#if DEBUG_PROBE_TRACING
-    {
-        void* preallocated = renderer->getAllocator().alloc(sizeof(RayTracingDebugPass));
-        auto renderTarget = m_probeVolume->m_probes[22]->m_octMapRenderTarget;
-        RayTracingDebugPass* pass = new (preallocated) RayTracingDebugPass(renderTarget, Cyan::Viewport{0u,0u, renderTarget->m_width, renderTarget->m_height}, this);
-        renderer->addCustomPass(pass);
-    }
-#endif
-#if DRAW_DEBUG
-    {
-        void* preallocated = renderer->getAllocator().alloc(sizeof(DebugAABBPass));
-        Cyan::RenderTarget* sceneRenderTarget = renderer->getSceneColorRenderTarget();
-        DebugAABBPass* pass = new (preallocated) DebugAABBPass(sceneRenderTarget, Cyan::Viewport{0u,0u, sceneRenderTarget->m_width, sceneRenderTarget->m_height}, m_scenes[m_currentScene]);
-        renderer->addCustomPass(pass);
-    }
-#endif
-    // TODO: how to exclude things in the scene from being post processed
-    renderer->addPostProcessPasses();
-    auto rt = renderer->getRenderOutputRenderTarget();
-    // debug visualization
-    {
-        // renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 180, 320, 180}, renderer->m_sceneNormalTextureSSAA);
-        // renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 360, 320, 180}, renderer->m_sceneDepthTextureSSAA);
-#if DEBUG_SSAO
-        // renderer->addTexturedQuadPass(rt, {rt->m_width - 320, rt->m_height - 540, 320, 180}, renderer->m_ssaoTexture);
-#endif
-#if DEBUG_PROBE_TRACING
-        renderer->addTexturedQuadPass(rt, {rt->m_width - 360, rt->m_height - 540, 360, 360}, m_probeVolume->m_probes[1]->m_radianceOct);
-        renderer->addTexturedQuadPass(rt, {rt->m_width - 360, rt->m_height - 720, 180, 180}, m_probeVolume->m_probes[1]->m_normalOct);
-        renderer->addTexturedQuadPass(rt, {rt->m_width - 180, rt->m_height - 720, 180, 180}, m_probeVolume->m_probes[1]->m_distanceOct);
-#endif
-    }
+    buildFrame();
     renderer->render();
     renderer->endRender();
 
@@ -1619,6 +1569,7 @@ void PbrApp::render()
 
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
     // flip
     renderer->endFrame();
     frameTimer.end();

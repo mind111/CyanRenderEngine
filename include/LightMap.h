@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <atomic>
 
 #include "glm.hpp"
 #include "scene.h"
@@ -45,6 +46,7 @@ namespace Cyan
         void bakeSingleThread(LightMap* lightMap, u32 overlappedTexelCount);
         void bakeMultiThread(LightMap* lightMap, u32 overlappedTexelCount);
         static LightMapManager* getSingletonPtr();
+        static std::atomic<u32> progressCounter;
 
         Shader* m_lightMapShader;
         MaterialInstance* m_lightMapMatl;

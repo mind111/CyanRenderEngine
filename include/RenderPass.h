@@ -26,6 +26,20 @@ namespace Cyan
         virtual void render() = 0;
     };
 
+    struct ScenePassInput
+    {
+        Scene* scene;
+    };
+
+    struct ScenePassOutput
+    {
+        RenderTarget* renderTarget;
+        Viewport viewport;
+        Texture* color;
+        Texture* normal;
+        Texture* depth;
+    };
+
     struct ScenePass : public RenderPass
     {
         ScenePass(RenderTarget* dstRenderTarget, Viewport viewport, Scene* scene);
@@ -37,14 +51,14 @@ namespace Cyan
         Scene* m_scene;
     };
 
-    struct BloomPassInputs
+    struct BloomPassInput
     {
         // TODO: output should really just be a texture
         Texture* sceneTexture;
         Texture* bloomOutputTexture;
     };
 
-    struct GaussianBlurInputs
+    struct GaussianBlurInput
     {
         i32 kernelIndex;
         i32 radius;
@@ -52,7 +66,7 @@ namespace Cyan
 
     struct BloomPass : public RenderPass
     {
-        BloomPass(RenderTarget* rt, Viewport vp, BloomPassInputs inputs); 
+        BloomPass(RenderTarget* rt, Viewport vp, BloomPassInput inputs); 
         ~BloomPass() { }
 
         static void onInit(u32 windowWidth, u32 windowHeight);
@@ -69,7 +83,7 @@ namespace Cyan
         void bloomDownSample();
         void upScale(RenderTarget* src, u32 srcIdx, RenderTarget* dst, u32 dstIdx, RenderTarget* blend, u32 blendIdx, u32 stageIdx);
         void bloomUpscale();
-        void gaussianBlur(BloomSurface src, GaussianBlurInputs inputs);
+        void gaussianBlur(BloomSurface src, GaussianBlurInput inputs);
 
         static const u32 kNumBloomDsPass = 6u;
         // setup
@@ -87,10 +101,10 @@ namespace Cyan
         static RenderTarget* s_bloomSetupRT;                         // preprocess surface
         static BloomSurface s_bloomDsSurfaces[kNumBloomDsPass];      // downsample
         static BloomSurface s_bloomUsSurfaces[kNumBloomDsPass];      // upsample
-        BloomPassInputs m_inputs;
+        BloomPassInput m_inputs;
     };
 
-    struct PostProcessResolveInputs
+    struct PostProcessResolveInput
     {
         float exposure;
         float bloom;
@@ -104,12 +118,12 @@ namespace Cyan
     // would this heart cache performance when calling render()
     struct PostProcessResolvePass : public RenderPass
     {
-        PostProcessResolvePass(RenderTarget* rt, Viewport vp, PostProcessResolveInputs inputs);
+        PostProcessResolvePass(RenderTarget* rt, Viewport vp, PostProcessResolveInput inputs);
 
         static void onInit();
         virtual void render() override;
 
-        PostProcessResolveInputs m_inputs;
+        PostProcessResolveInput m_inputs;
         static Shader* s_finalCompositeShader;
         static MaterialInstance* s_matl;
     };
@@ -150,7 +164,7 @@ namespace Cyan
 
     struct GaussianBlurPass : public RenderPass
     {
-        GaussianBlurPass(RenderTarget* renderTarget, Viewport viewport, Texture* srcTex, Texture* horizontal, Texture* vertical, GaussianBlurInputs params);
+        GaussianBlurPass(RenderTarget* renderTarget, Viewport viewport, Texture* srcTex, Texture* horizontal, Texture* vertical, GaussianBlurInput params);
         static void onInit();
         virtual void render() override;
         Texture* getBlurOutput();
@@ -163,7 +177,7 @@ namespace Cyan
         Texture* m_srcTexture;
         Texture* m_horiztontalTex;
         Texture* m_verticalTex;
-        GaussianBlurInputs m_params;
+        GaussianBlurInput m_params;
     };
 
     struct BasicShadowMap

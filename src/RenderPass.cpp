@@ -87,7 +87,7 @@ namespace Cyan
         renderer->renderScene(m_scene, m_scene->getActiveCamera());
     }
 
-    GaussianBlurPass::GaussianBlurPass(RenderTarget* renderTarget, Viewport viewport, Texture* srcTex, Texture* horizontal, Texture* vertical, GaussianBlurInputs params)
+    GaussianBlurPass::GaussianBlurPass(RenderTarget* renderTarget, Viewport viewport, Texture* srcTex, Texture* horizontal, Texture* vertical, GaussianBlurInput params)
         : RenderPass(renderTarget, viewport), 
         m_srcTexture(srcTex), 
         m_horiztontalTex(horizontal), 
@@ -144,7 +144,7 @@ namespace Cyan
         return m_verticalTex;
     }
 
-    BloomPass::BloomPass(RenderTarget* rt, Viewport vp, BloomPassInputs inputs) 
+    BloomPass::BloomPass(RenderTarget* rt, Viewport vp, BloomPassInput inputs) 
         : RenderPass(rt, vp), m_inputs(inputs)
     {
 
@@ -211,7 +211,7 @@ namespace Cyan
     {
         //TODO: more flexible raidus?
         i32 kernelRadii[6] = { 3, 4, 6, 7, 8, 9};
-        GaussianBlurInputs inputs = { };
+        GaussianBlurInput inputs = { };
 
         inputs.kernelIndex = 0;
         inputs.radius = kernelRadii[0];
@@ -228,7 +228,7 @@ namespace Cyan
         // copy result to output texture
     }
 
-    void BloomPass::gaussianBlur(BloomSurface src, GaussianBlurInputs inputs)
+    void BloomPass::gaussianBlur(BloomSurface src, GaussianBlurInput inputs)
     {
         auto ctx = Cyan::getCurrentGfxCtx();
         ctx->setDepthControl(Cyan::DepthControl::kDisable);
@@ -301,7 +301,7 @@ namespace Cyan
     void BloomPass::bloomUpscale()
     {
         i32 kernelRadii[6] = { 3, 4, 6, 7, 8, 9};
-        GaussianBlurInputs inputs = { };
+        GaussianBlurInput inputs = { };
         auto renderer = Renderer::getSingletonPtr();
         inputs.kernelIndex = 5;
         inputs.radius = kernelRadii[5];
@@ -350,7 +350,7 @@ namespace Cyan
         }
     }
 
-    PostProcessResolvePass::PostProcessResolvePass(RenderTarget* rt, Viewport vp, PostProcessResolveInputs inputs)
+    PostProcessResolvePass::PostProcessResolvePass(RenderTarget* rt, Viewport vp, PostProcessResolveInput inputs)
         : RenderPass(rt, vp), m_inputs(inputs)
     {
 
