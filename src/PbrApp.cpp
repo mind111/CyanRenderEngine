@@ -198,6 +198,8 @@ PbrApp::PbrApp()
     bOrbit = false;
     gApp = this;
     m_scenes.resize(Scenes::kCount, nullptr);
+    activeDebugViewTexture = nullptr;
+    m_currentDebugView = 0;
 }
 
 bool PbrApp::mouseOverUI()
@@ -335,24 +337,6 @@ void PbrApp::initDemoScene00()
     auto textureManager = m_graphicsSystem->getTextureManager();
     auto sceneManager = SceneManager::getSingletonPtr();
 
-    // large plane
-#if 0
-    {
-        Entity* terrain = sceneManager->createEntity(m_scenes[Scenes::Demo_Scene_00], "Terrain", Transform{});
-        terrain->applyLocalTranslation(glm::vec3(0.f, -0.05f, 0.f));
-        Cyan::Mesh* terrainMesh = Cyan::AssetGen::createTerrain(40, 40);
-        auto node = Cyan::createSceneNode("TerrainMesh", Transform{}, terrainMesh);
-        terrain->attachSceneNode(node);
-        PbrMaterialInputs inputs = { 0 };
-        inputs.m_baseColor = Cyan::Toolkit::createFlatColorTexture("TerrainAlbedo", 4, 4, glm::vec4(0.8f, 0.8f, 0.8f, 1.f));
-        inputs.m_uRoughness = 0.5f;
-        inputs.m_uMetallic = 0.5f;
-        auto matl = createDefaultPbrMatlInstance(m_scenes[Scenes::Demo_Scene_00], inputs);
-        node->m_meshInstance->setMaterial(0, matl);
-        terrain->m_bakeInLightmap = false;
-    }
-#endif
-
     // helmet
     {
         createHelmetInstance(demoScene00);
@@ -361,36 +345,6 @@ void PbrApp::initDemoScene00()
         helmetMesh->m_bvh = new Cyan::MeshBVH(helmetMesh);
         helmetMesh->m_bvh->build();
         helmet->m_bakeInLightmap = false;
-    }
-    
-    // room
-    {
-        PbrMaterialInputs inputs = { 0 };
-        Entity* room = sceneManager->getEntity(demoScene00, "Room");
-        auto sceneNode = room->getSceneNode("RoomMesh");
-        Cyan::Mesh* roomMesh = sceneNode->m_meshInstance->m_mesh;
-        roomMesh->m_bvh = new Cyan::MeshBVH(roomMesh);
-        roomMesh->m_bvh->build();
-
-        // bake light map
-        auto lightMapManager = Cyan::LightMapManager::getSingletonPtr();
-#if 1
-        lightMapManager->bakeLightMap(m_scenes[Scenes::Demo_Scene_00], sceneNode, true);
-#else
-        lightMapManager->createLightMapForMeshInstance(m_scenes[Scenes::Demo_Scene_00], sceneNode);
-#endif
-
-        Cyan::Texture* albedo = Cyan::Toolkit::createFlatColorTexture("room_albedo", 4, 4u, glm::vec4(1.0f, 1.0f, 1.0f, 1.f));
-        inputs.m_baseColor = albedo;
-        inputs.m_uRoughness = 0.5f;
-        inputs.m_uMetallic = 0.5f;
-
-        auto roomMatl = createDefaultPbrMatlInstance(demoScene00, inputs);
-        roomMatl->set("hasBakedLighting", 1.f);
-        roomMatl->bindTexture("lightMap", sceneNode->m_meshInstance->m_lightMap->m_texAltas);
-        // bind material for all submeshes
-        for (u32 i = 0; i < sceneNode->m_meshInstance->m_mesh->numSubMeshes(); ++i)
-            room->setMaterial("RoomMesh", i, roomMatl);
     }
 
     // lighting
@@ -406,6 +360,44 @@ void PbrApp::initDemoScene00()
         // irradiance probes
         m_irradianceProbe = sceneManager->createIrradianceProbe(demoScene00, glm::vec3(0.f, 2.5f, 0.f));
         m_irradianceProbe->m_bakeInLightmap = false;
+    }
+    
+    // room
+    {
+        PbrMaterialInputs inputs = { 0 };
+        Entity* room = sceneManager->getEntity(demoScene00, "Room");
+        auto roomNode = room->getSceneNode("RoomMesh");
+        auto planeNode = room->getSceneNode("PlaneMesh");
+        Cyan::Mesh* roomMesh = roomNode->m_meshInstance->m_mesh;
+        roomMesh->m_bvh = new Cyan::MeshBVH(roomMesh);
+        roomMesh->m_bvh->build();
+
+        // bake light map
+        auto lightMapManager = Cyan::LightMapManager::getSingletonPtr();
+#if 1
+        lightMapManager->bakeLightMap(m_scenes[Scenes::Demo_Scene_00], roomNode, true);
+        lightMapManager->bakeLightMap(m_scenes[Scenes::Demo_Scene_00], planeNode, true);
+#else
+        lightMapManager->createLightMapForMeshInstance(m_scenes[Scenes::Demo_Scene_00], sceneNode);
+#endif
+
+        Cyan::Texture* albedo = Cyan::Toolkit::createFlatColorTexture("room_albedo", 4, 4u, glm::vec4(1.0f, 1.0f, 1.0f, 1.f));
+        inputs.m_baseColor = albedo;
+        inputs.m_uRoughness = 0.5f;
+        inputs.m_uMetallic = 0.5f;
+
+        auto roomMatl = createDefaultPbrMatlInstance(demoScene00, inputs);
+        roomMatl->set("hasBakedLighting", 1.f);
+        roomMatl->bindTexture("lightMap", roomNode->m_meshInstance->m_lightMap->m_texAltas);
+        // bind material for all submeshes
+        for (u32 i = 0; i < roomNode->m_meshInstance->m_mesh->numSubMeshes(); ++i)
+            room->setMaterial("RoomMesh", i, roomMatl);
+
+        auto planeMatl = createDefaultPbrMatlInstance(demoScene00, inputs);
+        planeMatl->set("hasBakedLighting", 1.f);
+        planeMatl->bindTexture("lightMap", planeNode->m_meshInstance->m_lightMap->m_texAltas);
+        for (u32 i = 0; i < planeNode->m_meshInstance->m_mesh->numSubMeshes(); ++i)
+            room->setMaterial("PlaneMesh", i, planeMatl);
     }
 
     timer.end();
@@ -759,13 +751,6 @@ void PbrApp::run()
 {
     doPrecomputeWork();
 
-    // TODO: proper thread termination
-    // TODO: do opengl multi-threading properly
-#if 0
-    std::thread worker(pathTracingWorker, this);
-    worker.join();
-#endif
-
     while (bRunning)
     {
         // tick
@@ -842,6 +827,13 @@ RayCastInfo PbrApp::castMouseRay(const glm::vec2& currentViewportPos, const glm:
 
 void PbrApp::updateScene(Scene* scene)
 {
+    // update camera
+    u32 camIdx = 0u;
+    Camera& camera = m_scenes[m_currentScene]->cameras[camIdx];
+    // Camera& camera = m_scenes[m_currentScene]->getActiveCamera();
+    CameraManager::updateCamera(camera);
+
+    // update material parameters
     std::string sceneName = scene->m_name;
     auto materials = m_sceneMaterialTable[sceneName];
     CYAN_ASSERT(materials.size() > 0, "Unknown scene '%s'", sceneName.c_str());
@@ -852,13 +844,6 @@ void PbrApp::updateScene(Scene* scene)
 void PbrApp::update()
 {
     gEngine->processInput();
-
-    // camera
-    u32 camIdx = 0u;
-    Camera& camera = m_scenes[m_currentScene]->cameras[camIdx];
-    // Camera& camera = m_scenes[m_currentScene]->getActiveCamera();
-    CameraManager::updateCamera(camera);
-
     updateScene(m_scenes[m_currentScene]);
 }
 
@@ -962,16 +947,26 @@ void PbrApp::drawDebugWindows()
             if (ImGui::BeginTabItem("Debug Views"))
             {
                 auto renderer = Cyan::Renderer::getSingletonPtr();
-                auto buildDebugView = [&](const char* viewName, Cyan::Texture* texture)
+                u32 numDebugViews = 0;
+                auto buildDebugView = [&](const char* viewName, Cyan::Texture* texture, u32 width=320, u32 height=180)
                 {
                     ImGui::Text(viewName);
-                    ImGui::Image((ImTextureID)texture->m_id, ImVec2(320, 180));
+                    ImGui::Image((ImTextureID)texture->m_id, ImVec2(width, height));
+                    char buttonName[64];
+                    sprintf_s(buttonName, "Focus on view##%s", viewName);
+                    if (ImGui::Button(buttonName))
+                    {
+                        if (m_currentDebugView == numDebugViews) 
+                            activeDebugViewTexture = nullptr;
+                        else activeDebugViewTexture = texture;
+                    }
                     ImGui::Separator();
+                    numDebugViews++;
                 };
                 buildDebugView("PathTracing", Cyan::PathTracer::getSingletonPtr()->getRenderOutput());
                 Entity* room = SceneManager::getSingletonPtr()->getSingletonPtr()->getEntity(m_scenes[Demo_Scene_00], "Room");
                 SceneNode* sceneNode = room->getSceneNode("RoomMesh");
-                buildDebugView("LightMap", sceneNode->m_meshInstance->m_lightMap->m_texAltas);
+                buildDebugView("LightMap", sceneNode->m_meshInstance->m_lightMap->m_texAltas, 320u, 320u);
                 // TODO: debug following three debug visualizations 
                 buildDebugView("SceneDepth",  renderer->m_sceneDepthTextureSSAA);
                 buildDebugView("SceneNormal", renderer->m_sceneNormalTextureSSAA);
@@ -1165,24 +1160,28 @@ void PbrApp::drawSceneViewport()
         ImVec2 b(windowPos.x + windowSize.x - 1, windowPos.y + windowSize.y - 1);
 
         // blit final render output texture to current ImGui window
-        Cyan::Texture* renderOutput = renderer->m_outputColorTexture;
-        if (m_debugDrawSSAO)
-        {
-            Cyan::Texture* ssaoOutput = renderer->m_ssaoTexture;
-            ImGui::GetForegroundDrawList()->AddImage(reinterpret_cast<void*>((intptr_t)ssaoOutput->m_id), 
-                a, b, ImVec2(0, 1), ImVec2(1, 0));
-        }
-        else if (m_debugPathTracing)
-        {
-            Cyan::Texture* output = Cyan::PathTracer::getSingletonPtr()->getRenderOutput();
-            ImGui::GetForegroundDrawList()->AddImage(reinterpret_cast<void*>((intptr_t)output->m_id), 
-                a, b, ImVec2(0, 0), ImVec2(1, 1));
-        }
-        else
-        {
-            ImGui::GetForegroundDrawList()->AddImage(reinterpret_cast<void*>((intptr_t)renderOutput->m_id), 
-                a, b, ImVec2(0, 1), ImVec2(1, 0));
-        }
+        if (!activeDebugViewTexture)
+            activeDebugViewTexture = renderer->m_outputColorTexture;
+        ImGui::GetForegroundDrawList()->AddImage(reinterpret_cast<void*>((intptr_t)activeDebugViewTexture->m_id), 
+            a, b, ImVec2(0, 1), ImVec2(1, 0));
+
+        // if (m_debugDrawSSAO)
+        // {
+        //     Cyan::Texture* ssaoOutput = renderer->m_ssaoTexture;
+        //     ImGui::GetForegroundDrawList()->AddImage(reinterpret_cast<void*>((intptr_t)ssaoOutput->m_id), 
+        //         a, b, ImVec2(0, 1), ImVec2(1, 0));
+        // }
+        // else if (m_debugPathTracing)
+        // {
+        //     Cyan::Texture* output = Cyan::PathTracer::getSingletonPtr()->getRenderOutput();
+        //     ImGui::GetForegroundDrawList()->AddImage(reinterpret_cast<void*>((intptr_t)output->m_id), 
+        //         a, b, ImVec2(0, 0), ImVec2(1, 1));
+        // }
+        // else
+        // {
+        //     ImGui::GetForegroundDrawList()->AddImage(reinterpret_cast<void*>((intptr_t)renderOutput->m_id), 
+        //         a, b, ImVec2(0, 1), ImVec2(1, 0));
+        // }
 
         // TODO: refactor this
         // ray picking

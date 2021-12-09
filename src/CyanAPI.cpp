@@ -172,10 +172,10 @@ namespace Cyan
         s_meshes.push_back(mesh);
     }
 
-    Mesh* createMesh(const char* name, std::string& file, bool normalize)
+    Mesh* createMesh(const char* name, std::string& file, bool normalize, bool generateLightMapUv)
     {
         auto assetManager = GraphicsSystem::getSingletonPtr()->getAssetManager(); 
-        return assetManager->loadMesh(file, name, normalize);
+        return assetManager->loadMesh(file, name, normalize, generateLightMapUv);
     }
 
     Mesh* getMesh(const char* _name)

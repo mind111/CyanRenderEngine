@@ -244,9 +244,18 @@ namespace Cyan
                 m_end = std::chrono::high_resolution_clock::now();
                 auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(m_end - m_begin);
                 m_durationInMs = duration.count();
+                u32 durationInSeconds = 0u;
+                if (m_durationInMs > 1000.f)
+                {
+                    durationInSeconds = static_cast<u32>(round(m_durationInMs)) / 1000u;
+                    m_durationInMs = f32(static_cast<u32>(round(m_durationInMs)) % 1000u);
+                }
                 if (m_print)
                 {
-                    printf("%s: %.3f ms \n", m_timedBlockName.c_str(), m_durationInMs);
+                    if (durationInSeconds > 0) 
+                        cyanInfo("%s: %d seconds %.3f ms", m_timedBlockName.c_str(), durationInSeconds, m_durationInMs)
+                    else 
+                        cyanInfo("%s: %.3f ms", m_timedBlockName.c_str(), m_durationInMs)
                 }
             }
 

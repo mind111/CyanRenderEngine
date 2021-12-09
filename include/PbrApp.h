@@ -337,6 +337,7 @@ public:
     int m_debugProbeIndex;
     glm::vec3 m_debugRayTracingNormal;
 
+    Cyan::Texture* activeDebugViewTexture;
     std::vector<Scene*> m_scenes;
     RegularBuffer*      m_debugRayOctBuffer;
     RegularBuffer*      m_debugRayWorldBuffer;
@@ -346,6 +347,7 @@ public:
     Cyan::RenderTarget* m_lightMapRenderTarget;
     Shader*             m_lightMapShader;
     Cyan::LightMap      m_lightMap;      
+    u32                 m_currentDebugView;
 
     std::vector<Cyan::MaterialInstance*> m_helmetSceneMatls;
     std::vector<Cyan::MaterialInstance*> m_demoScene00Matls;

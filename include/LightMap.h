@@ -42,6 +42,8 @@ namespace Cyan
         void renderMeshInstanceToLightMap(SceneNode* node, bool saveImage);
         void createLightMapForMeshInstance(Scene* scene, SceneNode* node);
         void bakeLightMap(Scene* scene, SceneNode* node, bool saveImage=false);
+        void bakeSingleThread(LightMap* lightMap, u32 overlappedTexelCount);
+        void bakeMultiThread(LightMap* lightMap, u32 overlappedTexelCount);
         static LightMapManager* getSingletonPtr();
 
         Shader* m_lightMapShader;

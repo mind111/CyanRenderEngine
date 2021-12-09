@@ -15,9 +15,9 @@ uniform vec3 uvOffset;
 
 void main()
 {
-    vec2 screenCoord = lightMapTexCoord * 2.f - 1.f;
+    vec2 screenCoord = (lightMapTexCoord + uvOffset.xy) * 2.f - 1.f;
     worldPos = (model * vec4(vertexPos, 1.f)).xyz;
     normal = (inverse(transpose(model)) * vec4(vertexNormal, 0.f)).xyz;
     normal = normalize(normal);
-    gl_Position = vec4(screenCoord + uvOffset.xy, 0.f, 1.f);
+    gl_Position = vec4(screenCoord, 0.f, 1.f);
 }

@@ -38,19 +38,10 @@ namespace Cyan
                 float currentHit = tri.intersectRay(objectSpaceRo, objectSpaceRd); 
                 if (currentHit > 0.f && currentHit < globalHit.t)
                 {
-                    // compute face normal for skipping backfaced triangles
-                    auto v0 = tri.m_vertices[0]; 
-                    auto v1 = tri.m_vertices[1]; 
-                    auto v2 = tri.m_vertices[2];
-
-                    glm::vec3 faceNormal = glm::cross(v1 - v0, v2 - v0);
-                    if (glm::dot(objectSpaceRd, faceNormal) < 0.f)
-                    {
-                        globalHit.smIndex = i;
-                        globalHit.triangleIndex = j;
-                        globalHit.t = currentHit;
-                        globalHit.mesh = this;
-                    }
+                    globalHit.smIndex = i;
+                    globalHit.triangleIndex = j;
+                    globalHit.t = currentHit;
+                    globalHit.mesh = this;
                 }
             }
         }

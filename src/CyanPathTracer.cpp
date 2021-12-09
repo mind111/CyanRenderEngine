@@ -332,7 +332,7 @@ namespace Cyan
         }
 
         // stop recursion
-        if (numBounces >= 2)
+        if (numBounces >= 3)
             return exitRadiance;
 
         glm::vec3 rd = uniformSampleHemiSphere(n);
@@ -353,7 +353,7 @@ namespace Cyan
             // indirect
             // todo: is there any better attenuation ..?
             f32 atten = .8f;
-            exitRadiance += atten * recursiveTraceDiffuse(nextBounceRo, nextBounceNormal, numBounces + 1) * max(glm::dot(n, rd), 0.f);
+            exitRadiance += atten * recursiveTraceDiffuse(nextBounceRo, nextBounceNormal, numBounces + 1) * max(glm::dot(n, rd), 0.f) * (1.f / M_PI);
         }
 
         return exitRadiance;
@@ -428,6 +428,7 @@ namespace Cyan
                                             + camera.up      * sampleScreenCoord.y * w);
 
                         auto hit = traceScene(ro, rd);
+                        if (hit.t)
                         pixelColor += bakeSurface(hit, ro, rd);
                     }
                 }
@@ -532,16 +533,13 @@ namespace Cyan
             }
 #endif
             glm::vec3 normal = getSurfaceNormal(hit, baryCoord);
+            // back face hit
+            if (glm::dot(normal, rd) > 0) return radiance;
 
+            // bake direct static sky light & indirect lighting
             glm::vec3 indirectRo = hitPosition + EPSILON * normal;
-
-            // bake static sky light
             radiance += computeDirectSkyLight(indirectRo, normal);
-
-            // indirect lighting
-            {
-                radiance += recursiveTraceDiffuse(indirectRo, normal, 0);
-            }
+            radiance += recursiveTraceDiffuse(indirectRo, normal, 0);
         }
         return radiance;
     }
@@ -584,10 +582,10 @@ namespace Cyan
         return m_scene->castRay(ro, rd, EntityFilter::BakeInLightMap);
     }
 
-    // importace sampling the cosine lobe
+    // todo: importance sampling the cosine lobe
     glm::vec3 PathTracer::sampleIrradiance(glm::vec3& samplePos, glm::vec3& n)
     {
-        const u32 numSamples = 1;
+        const u32 numSamples = 8;
         glm::vec3 irradiance(0.f);
         for (u32 i = 0; i < numSamples; ++i)
         {

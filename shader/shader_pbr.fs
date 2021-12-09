@@ -680,8 +680,9 @@ void main()
     // image-based-lighting
     color += indirectLighting(renderParams);
 
-    if (hasBakedLighting > 0.5f)
-        color = texture(lightMap, uv1).rgb;
+    vec3 bakedLighting = vec3(0.f);
+    if (hasBakedLighting > 0.5f) bakedLighting = texture(lightMap, uv1).rgb;
+    color += bakedLighting;
 
     // Emission
     // vec3 emission = vec3(0.f); 

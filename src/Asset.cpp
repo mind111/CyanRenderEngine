@@ -187,76 +187,6 @@ namespace Cyan
         v1.tangent = glm::vec4(tangent, 1.f);
         v2.tangent = glm::vec4(tangent, 1.f);
     }
-#if 0
-    void loadObjSubMesh(tinyobj::shape_t& shape, u32 shapeIndex)
-    {
-        printf("shape[%d].name = %s\n", s, shapes[s].name.c_str());
-        ObjMesh* objMesh = new ObjMesh; 
-
-        std::vector<ObjVertex>& vertices = objMesh->vertices;
-        std::vector<u32>&       indices  = objMesh->indices;
-        indices.resize(shape.mesh.indices.size());
-
-        std::unordered_map<ObjVertex, u32> vertexMap;
-        auto objMesh = shape.mesh;
-        u32 numUniqueVertices = 0;
-        u32 strideInBytes = sizeof(ObjVertex);
-
-        for (u32 f = 0; f < shapes[s].mesh.indices.size() / 3; ++f)
-        {
-            ObjVertex vertex = { };
-            u32 face[3] = { };
-
-            for (u32 v = 0; v < 3; ++v)
-            {
-                tinyobj::index_t index = shapes[s].mesh.indices[f * 3 + v];
-                // position
-                f32 vx = attrib.vertices[index.vertex_index * 3 + 0];
-                f32 vy = attrib.vertices[index.vertex_index * 3 + 1];
-                f32 vz = attrib.vertices[index.vertex_index * 3 + 2];
-                vertex.position = glm::vec3(vx, vy, vz);
-                // normal
-                if (index.normal_index >= 0)
-                {
-                    f32 nx = attrib.normals[index.normal_index * 3 + 0];
-                    f32 ny = attrib.normals[index.normal_index * 3 + 1];
-                    f32 nz = attrib.normals[index.normal_index * 3 + 2];
-                    vertex.normal = glm::vec3(nx, ny, nz);
-                } 
-                else 
-                    vertex.normal = glm::vec3(0.f);
-                // texcoord
-                if (index.texcoord_index >= 0)
-                {
-                    f32 tx = attrib.texcoords[index.texcoord_index * 2 + 0];
-                    f32 ty = attrib.texcoords[index.texcoord_index * 2 + 1];
-                    vertex.texCoord = glm::vec2(tx, ty);
-                }
-                else
-                    vertex.texCoord = glm::vec2(0.f);
-
-                // deduplicate vertices
-                auto iter = vertexMap.find(vertex);
-                if (iter == vertexMap.end())
-                {
-                    vertexMap[vertex] = numUniqueVertices;
-                    vertices.push_back(vertex);
-                    face[v] = numUniqueVertices;
-                    indices[f * 3 + v] = numUniqueVertices++;
-                }
-                else
-                {
-                    u32 reuseIndex = iter->second;
-                    indices[f * 3 + v] = reuseIndex;
-                    face[v] = reuseIndex;
-                }
-            }
-
-            // compute face tangent
-            computeTangent(vertices, face);
-        }
-    }
-#endif
 
     // treat all the meshes inside one obj file as submeshes
     // todo: materials
@@ -270,9 +200,9 @@ namespace Cyan
         bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filename, baseDir);
         if (!ret)
         {
-            printf("Failed loading obj file %s \n", filename);
-            printf("Warnings: %s               \n", warn.c_str());
-            printf("Errors:   %s               \n", err.c_str());
+            cyanError("Failed loading obj file %s \n", filename);
+            cyanError("Warnings: %s               \n", warn.c_str());
+            cyanError("Errors:   %s               \n", err.c_str());
         }
 
         Mesh* mesh = new Mesh;
@@ -282,7 +212,7 @@ namespace Cyan
         std::vector<ObjMesh*> objMeshes;
         for (u32 s = 0; s < shapes.size(); ++s)
         {
-            printf("shape[%d].name = %s\n", s, shapes[s].name.c_str());
+            cyanInfo("shape[%d].name = %s\n", s, shapes[s].name.c_str());
             ObjMesh* objMesh = new ObjMesh; 
             objMeshes.push_back(objMesh);
             Mesh::SubMesh* subMesh = new Mesh::SubMesh;
@@ -362,12 +292,13 @@ namespace Cyan
             xatlas::PackOptions packOptions = { };
             packOptions.bruteForce = true;
             packOptions.padding = 5.f;
+            // packOptions.resolution = 1024;
 
             xatlas::Generate(atlas, xatlas::ChartOptions{}, packOptions);
             CYAN_ASSERT(atlas->meshCount == objMeshes.size(), "# Submeshes and # of meshes in atlas doesn't match!");
             mesh->m_lightMapWidth = atlas->width;
             mesh->m_lightMapHeight = atlas->height;
-            // todo: render the image stored in atlas ..?
+
             for (u32 sm = 0; sm < objMeshes.size(); ++sm)
             {
                 std::vector<ObjVertex> packedVertices(atlas->meshes[sm].vertexCount);
@@ -423,7 +354,7 @@ namespace Cyan
         return mesh;
     }
 
-    Mesh* AssetManager::loadMesh(std::string& path, const char* name, bool normalize)
+    Mesh* AssetManager::loadMesh(std::string& path, const char* name, bool normalize, bool generateLightMapUv)
     {
         Cyan::Toolkit::ScopedTimer meshTimer(name, true);
 
@@ -434,8 +365,6 @@ namespace Cyan
         cyanInfo("The mesh file extension is %s", extension.c_str());
 
         Mesh* mesh = nullptr;
-        bool generateLightMapUv = false;
-        if (strcmp(name, "room_mesh") == 0) generateLightMapUv = true;
         if (extension == ".obj")
         {
             cyanInfo("Loading .obj file %s", path.c_str());
@@ -457,12 +386,13 @@ namespace Cyan
         for (auto meshInfo : meshInfoList) 
         {
             std::string path, name;
-            bool normalize;
+            bool normalize, generateLightMapUv;
             meshInfo.at("path").get_to(path);
             meshInfo.at("name").get_to(name);
             meshInfo.at("normalize").get_to(normalize);
+            meshInfo.at("generateLightMapUv").get_to(generateLightMapUv);
 
-            auto mesh = loadMesh(path, name.c_str(), normalize);
+            auto mesh = loadMesh(path, name.c_str(), normalize, generateLightMapUv);
             Cyan::addMesh(mesh);
         }
     }
