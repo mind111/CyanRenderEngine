@@ -315,6 +315,9 @@ public:
         Cyan::Texture* m_metallicRoughnessMap;
         Cyan::Texture* m_normalMap;
         Cyan::Texture* m_occlusion;
+        glm::vec4      m_flatBaseColor;
+        f32            m_hasBakedLighting;
+        bool           m_usePrototypeTexture;
         float m_uRoughness;
         float m_uMetallic;
     };

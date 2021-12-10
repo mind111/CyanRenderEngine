@@ -78,7 +78,7 @@ struct Entity
     void applyLocalRotation(const glm::quat& rot);
     void applyLocalTranslation(const glm::vec3 trans);
     void applyLocalScale(const glm::vec3 scale);
-    void setMaterial(const char* nodeName, u32 subMeshIndex, Cyan::MaterialInstance* matl);
+    void setMaterial(const char* nodeName, i32 subMeshIndex, Cyan::MaterialInstance* matl);
 };
 
 struct RayCastInfo

@@ -245,7 +245,7 @@ namespace Cyan
     void Renderer::initShaders()
     {
         m_lumHistogramShader = glCreateShader(GL_COMPUTE_SHADER);
-        const char* src = ShaderUtil::readShaderFile("../../shader/shader_lumin_histogram.cs");
+        const char* src = ShaderUtil::readShaderFile("../../shader/shader_lumin_histogram_c.glsl");
         glShaderSource(m_lumHistogramShader, 1, &src, nullptr);
         glCompileShader(m_lumHistogramShader);
         ShaderUtil::checkShaderCompilation(m_lumHistogramShader);

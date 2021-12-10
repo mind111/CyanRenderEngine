@@ -258,26 +258,35 @@ Cyan::MaterialInstance* PbrApp::createDefaultPbrMatlInstance(Scene* scene, PbrMa
 {
     Shader* pbrShader = Cyan::createShader("PbrShader", nullptr, nullptr);
     Cyan::MaterialInstance* matl = Cyan::createMaterial(pbrShader)->createInstance();
-    matl->bindTexture("diffuseMaps[0]", inputs.m_baseColor);
+    if (inputs.m_baseColor)
+    {
+        matl->set("uMaterialProps.hasDiffuseMap", 1.f);
+        matl->bindTexture("diffuseMaps[0]", inputs.m_baseColor);
+    }
+    else
+    {
+        matl->set("flatColor", &inputs.m_flatBaseColor.x);
+        if (inputs.m_usePrototypeTexture) matl->set("uMaterialProps.usePrototypeTexture", 1.f);
+    }
     if (inputs.m_normalMap)
     {
-        matl->set("hasNormalMap", 1.0f);
+        matl->set("uMaterialProps.hasNormalMap", 1.0f);
         matl->bindTexture("normalMap", inputs.m_normalMap);
     }
     if (inputs.m_occlusion)
     {
-        matl->set("hasAoMap", 1.0f);
+        matl->set("uMaterialProps.hasAoMap", 1.0f);
         matl->bindTexture("aoMap", inputs.m_occlusion);
     }
     if (inputs.m_roughnessMap)
     {
-        matl->set("hasRoughnessMap", 1.0f);
+        matl->set("uMaterialProps.hasRoughnessMap", 1.0f);
         matl->bindTexture("roughnessMap", inputs.m_roughnessMap);
         matl->bindTexture("metallicMap", inputs.m_metallicMap);
     }
     else if (inputs.m_metallicRoughnessMap) 
     {
-        matl->set("hasMetallicRoughnessMap", 1.0f);
+        matl->set("uMaterialProps.hasMetallicRoughnessMap", 1.0f);
         matl->bindTexture("metallicRoughnessMap", inputs.m_metallicRoughnessMap);
     }
     else
@@ -286,6 +295,7 @@ Cyan::MaterialInstance* PbrApp::createDefaultPbrMatlInstance(Scene* scene, PbrMa
         matl->set("uniformMetallic", inputs.m_uMetallic);
     }
 
+    matl->set("uMaterialProps.hasBakedLighting", inputs.m_hasBakedLighting);
     matl->bindBuffer("dirLightsData", scene->m_dirLightsBuffer);
     matl->bindBuffer("pointLightsData", scene->m_pointLightsBuffer);
     matl->set("kDiffuse", 1.0f);
@@ -308,21 +318,6 @@ void PbrApp::createHelmetInstance(Scene* scene)
         inputs.m_metallicRoughnessMap = textureManager->getTexture("helmet_roughness");
         inputs.m_occlusion = textureManager->getTexture("helmet_ao");
         auto helmetMatl = createDefaultPbrMatlInstance(scene, inputs);
-
-        // TODO: create a .cyanmatl file for defining materials?
-        // helmetMatl->bindTexture("diffuseMaps[0]", textureManager->getTexture("helmet_diffuse"));
-        // helmetMatl->bindTexture("normalMap", textureManager->getTexture("helmet_nm"));
-        // helmetMatl->bindTexture("metallicRoughnessMap", textureManager->getTexture("helmet_roughness"));
-        // helmetMatl->bindTexture("aoMap", textureManager->getTexture("helmet_ao"));
-        // helmetMatl->bindTexture("envmap", m_envmap);
-        // helmetMatl->bindBuffer("dirLightsData", scene->m_dirLightsBuffer);
-        // helmetMatl->bindBuffer("pointLightsData", scene->m_pointLightsBuffer);
-        // helmetMatl->set("hasAoMap", 1.f);
-        // helmetMatl->set("hasNormalMap", 1.f);
-        // helmetMatl->set("kDiffuse", 1.0f);
-        // helmetMatl->set("kSpecular", 1.0f);
-        // helmetMatl->set("hasMetallicRoughnessMap", 1.f);
-        // helmetMatl->set("disneyReparam", 1.f);
         Entity* helmet = sceneManager->getEntity(scene, "DamagedHelmet");
         helmet->setMaterial("HelmetMesh", 0, helmetMatl);
     }
@@ -344,7 +339,20 @@ void PbrApp::initDemoScene00()
         auto helmetMesh = helmet->getSceneNode("HelmetMesh")->m_meshInstance->m_mesh;
         helmetMesh->m_bvh = new Cyan::MeshBVH(helmetMesh);
         helmetMesh->m_bvh->build();
-        helmet->m_bakeInLightmap = false;
+    }
+
+    // bunnies
+    {
+        PbrMaterialInputs inputs = { 0 };
+        Entity* bunny0 = sceneManager->getEntity(demoScene00, "Bunny0");
+        Entity* bunny1 = sceneManager->getEntity(demoScene00, "Bunny1");
+        inputs.m_flatBaseColor = glm::vec4(0.855, 0.647, 0.125f, 1.f);
+        inputs.m_uRoughness = 0.1f;
+        inputs.m_uMetallic = 0.8f;
+
+        auto bunnyMatl = createDefaultPbrMatlInstance(demoScene00, inputs);
+        bunny0->setMaterial("BunnyMesh", -1, bunnyMatl);
+        bunny1->setMaterial("BunnyMesh", -1, bunnyMatl);
     }
 
     // lighting
@@ -374,27 +382,22 @@ void PbrApp::initDemoScene00()
 
         // bake light map
         auto lightMapManager = Cyan::LightMapManager::getSingletonPtr();
-#if 1
         lightMapManager->bakeLightMap(m_scenes[Scenes::Demo_Scene_00], roomNode, true);
         lightMapManager->bakeLightMap(m_scenes[Scenes::Demo_Scene_00], planeNode, true);
-#else
-        lightMapManager->createLightMapForMeshInstance(m_scenes[Scenes::Demo_Scene_00], sceneNode);
-#endif
 
-        Cyan::Texture* albedo = Cyan::Toolkit::createFlatColorTexture("room_albedo", 4, 4u, glm::vec4(1.0f, 1.0f, 1.0f, 1.f));
-        inputs.m_baseColor = albedo;
+        inputs.m_flatBaseColor = glm::vec4(1.f);
         inputs.m_uRoughness = 0.5f;
         inputs.m_uMetallic = 0.5f;
+        inputs.m_hasBakedLighting = 1.f;
 
         auto roomMatl = createDefaultPbrMatlInstance(demoScene00, inputs);
-        roomMatl->set("hasBakedLighting", 1.f);
         roomMatl->bindTexture("lightMap", roomNode->m_meshInstance->m_lightMap->m_texAltas);
         // bind material for all submeshes
         for (u32 i = 0; i < roomNode->m_meshInstance->m_mesh->numSubMeshes(); ++i)
             room->setMaterial("RoomMesh", i, roomMatl);
 
+        inputs.m_usePrototypeTexture = true;
         auto planeMatl = createDefaultPbrMatlInstance(demoScene00, inputs);
-        planeMatl->set("hasBakedLighting", 1.f);
         planeMatl->bindTexture("lightMap", planeNode->m_meshInstance->m_lightMap->m_texAltas);
         for (u32 i = 0; i < planeNode->m_meshInstance->m_mesh->numSubMeshes(); ++i)
             room->setMaterial("PlaneMesh", i, planeMatl);
@@ -972,44 +975,6 @@ void PbrApp::drawDebugWindows()
                 buildDebugView("SceneGTAO",   renderer->m_ssaoTexture);
                 ImGui::EndTabItem();
             }
-            if (ImGui::BeginTabItem("LightFieldProbe Ray Tracing Debug Tools"))
-            {
-                float v[3] = {
-                    m_debugRayTracingNormal.x,
-                    m_debugRayTracingNormal.y,
-                    m_debugRayTracingNormal.z
-                };
-                ImGui::SliderFloat3("Reflection normal", v, -1.f, 1.f, "%.2f");
-                m_debugRayTracingNormal.x = v[0];
-                m_debugRayTracingNormal.y = v[1];
-                m_debugRayTracingNormal.z = v[2];
-
-                ImGui::Text("Debug Ro");
-                ImGui::SameLine();
-                float ro[3] = {
-                    m_debugRo.x,
-                    m_debugRo.y,
-                    m_debugRo.z
-                };
-                ImGui::SliderFloat3("##Debug Ro", ro, -5.f, 5.f, "%.2f");
-                m_debugRo.x = ro[0];
-                m_debugRo.y = ro[1];
-                m_debugRo.z = ro[2];
-                ImGui::Text("Debug Rd");
-                float rd[3] = {
-                    m_debugRd.x,
-                    m_debugRd.y,
-                    m_debugRd.z
-                };
-                ImGui::SameLine();
-                ImGui::SliderFloat3("##Debug Rd", rd, -5.f, 5.f, "%.2f");
-                m_debugRd.x = rd[0];
-                m_debugRd.y = rd[1];
-                m_debugRd.z = rd[2];
-
-                ImGui::InputInt("Trace probe index", &m_debugProbeIndex);
-                ImGui::EndTabItem();
-            }
             if (ImGui::BeginTabItem("Settings"))
             {
                 ImGui::Text("Settings tab");
@@ -1081,24 +1046,13 @@ void PbrApp::drawLightingWidgets()
     {
         sceneManager->createPointLight(m_scenes[m_currentScene], glm::vec3(0.9f), glm::vec3(0.f), 1.f);
     }
-    // experimental
-    if (ImGui::TreeNodeEx("Experienmental", baseFlags))
-    {
-        ImGui::Text("Roughness");
-        ImGui::SameLine(); 
-        
-        ImGui::Text("Wrap");
-        ImGui::SameLine();
-        ImGui::SliderFloat("##Wrap", &m_wrap, 0.f, 1.f, "%.2f");
-        ImGui::TreePop();
-    }
     // directional Lights
-    if (ImGui::TreeNodeEx("Directional Lights", baseFlags))
+    if (ImGui::TreeNodeEx("Sun Light", baseFlags))
     {
         for (u32 i = 0; i < m_scenes[m_currentScene]->dLights.size(); ++i)
         {
             char nameBuf[50];
-            sprintf_s(nameBuf, "DirLight %d", i);
+            sprintf_s(nameBuf, "Sun Light %d", i);
             if (ImGui::TreeNode(nameBuf))
             {
                 ImGui::Text("Direction:");

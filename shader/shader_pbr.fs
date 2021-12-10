@@ -29,16 +29,20 @@ uniform float indirectSpecularSlider;
 uniform float directLightingSlider;
 uniform float indirectLightingSlider;
 
-uniform int activeNumDiffuse;
-uniform int activeNumSpecular;
-uniform int activeNumEmission;
-uniform float hasAoMap;
-uniform float hasNormalMap;
-uniform float hasRoughnessMap;
-uniform float hasMetallicRoughnessMap;
-uniform float hasBakedLighting;
+uniform struct MaterialProperty
+{
+    float hasDiffuseMap;
+    float usePrototypeTexture;
+    float hasAoMap;
+    float hasNormalMap;
+    float hasRoughnessMap;
+    float hasMetallicRoughnessMap;
+    float hasBakedLighting;
+} uMaterialProps; 
+
 uniform float uniformRoughness;
 uniform float uniformMetallic;
+uniform vec4 flatColor;
 uniform int numPointLights; //non-material
 uniform int numDirLights;   //non_material
 
@@ -614,6 +618,20 @@ float drawDebugD(vec3 v, vec3 l, vec3 n, float roughness)
     return GGX(roughness, ndoth);
 }
 
+vec3 prototypeGridTexture(vec3 worldPos)
+{
+    float coef = (abs(worldPos.x - round(worldPos.x)) < 0.01f) || (abs(worldPos.z - round(worldPos.z)) < 0.01f) ? .2f : 1.f;
+    vec3 color = flatColor.rgb * coef;
+    return color;
+}
+
+vec3 defaultAlbedo(vec3 worldPos, vec2 texCoord)
+{
+    vec3 color = flatColor.rgb;
+    color = uMaterialProps.usePrototypeTexture > .5f ? prototypeGridTexture(worldPos) : color;
+    return color;
+}
+
 void main() 
 {
     /* Normal mapping */
@@ -622,7 +640,7 @@ void main()
     vec3 tangent = normalize(t);
     vec3 worldSpaceNormal = normalize(wn);
 
-    if (hasNormalMap > 0.5f)
+    if (uMaterialProps.hasNormalMap > 0.5f)
     {
         vec3 tn = texture(normalMap, uv).xyz;
         // Convert from [0, 1] to [-1.0, 1.0] and renomalize if texture filtering changes the length
@@ -632,17 +650,18 @@ void main()
     }
 
     /* Texture mapping */
-    vec4 albedo = texture(diffuseMaps[0], uv);
+    vec4 albedo = uMaterialProps.hasDiffuseMap > .5f ? texture(diffuseMaps[0], uv) : vec4(defaultAlbedo(fragmentPosWS, uv), 1.f);
     // from sRGB to linear space
     albedo.rgb = vec3(pow(albedo.r, 2.2f), pow(albedo.g, 2.2f), pow(albedo.b, 2.2f));
+
     // According to gltf-2.0 spec, metal is sampled from b, roughness is sampled from g
     float roughness, metallic;
-    if (hasMetallicRoughnessMap > 0.f)
+    if (uMaterialProps.hasMetallicRoughnessMap > 0.f)
     {
         roughness = texture(metallicRoughnessMap, uv).g;
         roughness = roughness * roughness;
         metallic = texture(metallicRoughnessMap, uv).b; 
-    } else if (hasRoughnessMap > 0.f) {
+    } else if (uMaterialProps.hasRoughnessMap > 0.f) {
         roughness = texture(roughnessMap, uv).r;
         roughness = roughness * roughness;
         metallic = 0.0f;
@@ -655,7 +674,7 @@ void main()
     // sqrt() because I want to make specular color has stronger tint
     vec3 f0 = mix(vec3(0.04f), albedo.rgb, sqrt(metallic));
 
-    float ao = hasAoMap > 0.5f ? texture(aoMap, uv).r : 1.0f;
+    float ao = uMaterialProps.hasAoMap > 0.5f ? texture(aoMap, uv).r : 1.0f;
     ao = pow(ao, 3.0f);
 
     vec3 viewDir = normalize(-fragmentPos); 
@@ -679,50 +698,11 @@ void main()
     color += directLighting(renderParams);
     // image-based-lighting
     color += indirectLighting(renderParams);
-
+    // baked lighting
     vec3 bakedLighting = vec3(0.f);
-    if (hasBakedLighting > 0.5f) bakedLighting = texture(lightMap, uv1).rgb;
-    color += bakedLighting;
-
-    // Emission
-    // vec3 emission = vec3(0.f); 
-    // for (int i = 0; i < activeNumEmission; i++)
-    // {
-    //     vec3 le = texture(emissionMaps[i], uv).rgb;
-    //     le = vec3(pow(le.r, 2.2f), pow(le.g, 2.2f), pow(le.b, 2.2f));
-    //     emission += le;
-    // }
-    // color += emission;
-
-    // debug view
-    // D
-    if (debugD > 0.5f)
-    {
-        vec4 lightPos = s_view * pointLightsBuffer.lights[0].position; 
-        vec3 lightDir = normalize(lightPos.xyz - fragmentPos);
-        // vec4 lightDir = s_view * dirLightsBuffer.lights[0].direction;
-        // vec3 ld = normalize(lightDir.xyz);
-        // vec3 debugHalfVector = normalize(viewDir + ld); 
-        float D = drawDebugD(viewDir, lightDir, normal, roughness);
-        color = vec3(D);
-        // color = vec3(GGX(roughness, max(0.0f, dot(normal, debugHalfVector))));
-    }
-    // F
-    if (debugF > 0.5f)
-    {
-        vec4 lightDir = s_view * (dirLightsBuffer.lights[0].direction * -1.f);
-        vec3 ld = normalize(lightDir.xyz);
-        color = fresnel(f0, normal, viewDir);
-    }
-    // G
-    if (debugG > 0.5f)
-    {
-        vec4 lightDir = s_view * (dirLightsBuffer.lights[0].direction * -1.f);
-        vec3 ld = normalize(lightDir.xyz);
-        float G = ggxSmithG2(viewDir, ld, normal, roughness);
-        // float G = ggxSmithG2Ex(viewDir, ld, normal, roughness);
-        color = vec3(G);
-    }
+    if (uMaterialProps.hasBakedLighting > 0.5f) 
+        bakedLighting = texture(lightMap, uv1).rgb;
+    color += bakedLighting * albedo.rgb;
 
     // write linear color to HDR Framebuffer
     fragColor = vec4(color, 1.0f);

@@ -292,7 +292,6 @@ namespace Cyan
             xatlas::PackOptions packOptions = { };
             packOptions.bruteForce = true;
             packOptions.padding = 5.f;
-            // packOptions.resolution = 1024;
 
             xatlas::Generate(atlas, xatlas::ChartOptions{}, packOptions);
             CYAN_ASSERT(atlas->meshCount == objMeshes.size(), "# Submeshes and # of meshes in atlas doesn't match!");
@@ -447,9 +446,8 @@ namespace Cyan
             Entity* entity = SceneManager::getSingletonPtr()->createEntity(scene, entityName.c_str(), xform);
             auto sceneNodes = entityInfo.at("nodes");
             for (auto node : sceneNodes)
-            {
                 entity->getSceneRoot()->attach(m_nodes[node]);
-            }
+            entity->m_bakeInLightmap = entityInfo.at("static");
         }
     }
 
