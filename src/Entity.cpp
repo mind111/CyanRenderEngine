@@ -310,7 +310,7 @@ void Entity::applyLocalScale(const glm::vec3 scale)
 
 void Entity::setMaterial(const char* nodeName, i32 subMeshIndex, Cyan::MaterialInstance* matl)
 {
-    if (subMeshIndex > 0)
+    if (subMeshIndex >= 0)
         getSceneNode(nodeName)->m_meshInstance->setMaterial(subMeshIndex, matl);
     else
     {

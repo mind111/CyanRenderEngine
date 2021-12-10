@@ -37,9 +37,9 @@ uniform struct MaterialProperty
     float hasNormalMap;
     float hasRoughnessMap;
     float hasMetallicRoughnessMap;
-    float hasBakedLighting;
 } uMaterialProps; 
 
+uniform float hasBakedLighting;
 uniform float uniformRoughness;
 uniform float uniformMetallic;
 uniform vec4 flatColor;
@@ -700,9 +700,10 @@ void main()
     color += indirectLighting(renderParams);
     // baked lighting
     vec3 bakedLighting = vec3(0.f);
-    if (uMaterialProps.hasBakedLighting > 0.5f) 
+    if (hasBakedLighting > 0.5f) 
         bakedLighting = texture(lightMap, uv1).rgb;
-    color += bakedLighting * albedo.rgb;
+    // color += bakedLighting * albedo.rgb;
+    color += bakedLighting;
 
     // write linear color to HDR Framebuffer
     fragColor = vec4(color, 1.0f);

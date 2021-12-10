@@ -295,7 +295,7 @@ Cyan::MaterialInstance* PbrApp::createDefaultPbrMatlInstance(Scene* scene, PbrMa
         matl->set("uniformMetallic", inputs.m_uMetallic);
     }
 
-    matl->set("uMaterialProps.hasBakedLighting", inputs.m_hasBakedLighting);
+    // matl->set("uMaterialProps.hasBakedLighting", inputs.m_hasBakedLighting);
     matl->bindBuffer("dirLightsData", scene->m_dirLightsBuffer);
     matl->bindBuffer("pointLightsData", scene->m_pointLightsBuffer);
     matl->set("kDiffuse", 1.0f);
@@ -392,15 +392,15 @@ void PbrApp::initDemoScene00()
 
         auto roomMatl = createDefaultPbrMatlInstance(demoScene00, inputs);
         roomMatl->bindTexture("lightMap", roomNode->m_meshInstance->m_lightMap->m_texAltas);
+        roomMatl->set("hasBakedLighting", 1.f);
         // bind material for all submeshes
-        for (u32 i = 0; i < roomNode->m_meshInstance->m_mesh->numSubMeshes(); ++i)
-            room->setMaterial("RoomMesh", i, roomMatl);
+        room->setMaterial("RoomMesh", -1, roomMatl);
 
         inputs.m_usePrototypeTexture = true;
         auto planeMatl = createDefaultPbrMatlInstance(demoScene00, inputs);
         planeMatl->bindTexture("lightMap", planeNode->m_meshInstance->m_lightMap->m_texAltas);
-        for (u32 i = 0; i < planeNode->m_meshInstance->m_mesh->numSubMeshes(); ++i)
-            room->setMaterial("PlaneMesh", i, planeMatl);
+        planeMatl->set("hasBakedLighting", 1.f);
+        room->setMaterial("PlaneMesh", -1, planeMatl);
     }
 
     timer.end();
