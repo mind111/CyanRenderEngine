@@ -79,12 +79,24 @@ namespace Cyan
         u32 numBuffers = static_cast<u32>(m_renderTarget->m_colorBuffers.size());
         std::vector<i32> drawBuffers;
         for (u32 b = 0u; b < numBuffers; ++b)
-        {
             drawBuffers.push_back(b);
-        }
         ctx->setRenderTarget(m_renderTarget, drawBuffers.data(), numBuffers);
         ctx->setViewport(m_viewport);
         renderer->renderScene(m_scene, m_scene->getActiveCamera());
+
+        // todo: moving to deferred 
+        // scene albedo & depth & normal pass
+        {
+
+        }
+        // ssao pass
+        {
+
+        }
+        // lighting pass
+        {
+
+        }
     }
 
     GaussianBlurPass::GaussianBlurPass(RenderTarget* renderTarget, Viewport viewport, Texture* srcTex, Texture* horizontal, Texture* vertical, GaussianBlurInput params)

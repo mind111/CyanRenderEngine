@@ -109,7 +109,7 @@ namespace Cyan
                                        + camera.up      * pixelCenterCoord.y);
 
                 auto hit = traceScene(ro, rd);
-                glm::vec3 color = renderSurface(hit, ro, rd);
+                glm::vec3 color = renderSurface(hit, ro, rd, getHitMaterial(hit));
                 setPixel(x, numPixelsInY - y - 1, color);
                 m_numTracedPixels += 1;
             }
@@ -165,7 +165,7 @@ namespace Cyan
                                                + camera.up      * sampleScreenCoord.y * w);
 
                         auto hit = traceScene(ro, rd);
-                        pixelColor += renderSurface(hit, ro, rd);
+                        pixelColor += renderSurface(hit, ro, rd, getHitMaterial(hit));
                     }
                 }
 
@@ -322,7 +322,7 @@ namespace Cyan
         return outColor / (f32)sampleCount;
     }
 
-    glm::vec3 PathTracer::recursiveTraceDiffuse(glm::vec3& ro, glm::vec3& n, u32 numBounces)
+    glm::vec3 PathTracer::recursiveTraceDiffuse(glm::vec3& ro, glm::vec3& n, u32 numBounces, TriMaterial& matl)
     {
          
         glm::vec3 exitRadiance(0.f);
@@ -356,11 +356,9 @@ namespace Cyan
             // indirect
             // todo: is there any better attenuation ..?
             f32 atten = .8f;
-            auto& matl = m_sceneMaterials[nextRayHit.m_node->m_meshInstance->m_rtMatls[nextRayHit.smIndex]];
-            // exitRadiance += atten * recursiveTraceDiffuse(nextBounceRo, nextBounceNormal, numBounces + 1) * max(glm::dot(n, rd), 0.f) * (1.f / M_PI) * albedo;
-            exitRadiance += atten * recursiveTraceDiffuse(nextBounceRo, nextBounceNormal, numBounces + 1) * max(glm::dot(n, rd), 0.f) * matl.flatColor;
+            exitRadiance += atten * recursiveTraceDiffuse(nextBounceRo, nextBounceNormal, numBounces + 1, matl) * max(glm::dot(n, rd), 0.f);
         }
-        return exitRadiance;
+        return exitRadiance * matl.flatColor;
     }
 
     void PathTracer::preprocessSceneData()
@@ -429,6 +427,11 @@ namespace Cyan
         return glm::vec3(saturate(result.r), saturate(result.g), saturate(result.b)); 
     }
 
+    TriMaterial& PathTracer::getHitMaterial(RayCastInfo& hit)
+    {
+        return m_sceneMaterials[hit.m_node->m_meshInstance->m_rtMatls[hit.smIndex]];
+    }
+
     void PathTracer::bakeScene(Camera& camera)
     {
         // todo: split the work into 8 threads?
@@ -468,9 +471,7 @@ namespace Cyan
                         auto hit = traceScene(ro, rd);
                         if (hit.t > 0.f)
                         {
-                            // get surface material
-                            auto matl = hit.m_node->m_meshInstance->m_matls[hit.smIndex];
-                            pixelColor += bakeSurface(hit, ro, rd, matl);
+                            pixelColor += bakeSurface(hit, ro, rd, getHitMaterial(hit));
                         }
                     }
                 }
@@ -500,7 +501,7 @@ namespace Cyan
         }
     }
 
-    glm::vec3 PathTracer::renderSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd)
+    glm::vec3 PathTracer::renderSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd, TriMaterial& matl)
     {
         glm::vec3 surfaceColor(0.f);
         if (hit.t > 0.f)
@@ -548,14 +549,14 @@ namespace Cyan
             // indirect lighting
             {
                 glm::vec3 indirectRo = hitPosition + EPSILON * normal;
-                surfaceColor += recursiveTraceDiffuse(indirectRo, normal, 2);
+                surfaceColor += recursiveTraceDiffuse(indirectRo, normal, 2, matl);
             }
         }
         return surfaceColor;
     }
 
     // todo: make diffuse lambert reflectance into account when bouncing indirect light
-    glm::vec3 PathTracer::bakeSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd, MaterialInstance* matl)
+    glm::vec3 PathTracer::bakeSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd, TriMaterial& matl)
     {
         glm::vec3 radiance(0.f);
         if (hit.t > 0.f)
@@ -582,7 +583,7 @@ namespace Cyan
             // bake direct static sky light & indirect lighting
             glm::vec3 indirectRo = hitPosition + EPSILON * normal;
             radiance += computeDirectSkyLight(indirectRo, normal);
-            radiance += recursiveTraceDiffuse(indirectRo, normal, 0);
+            radiance += recursiveTraceDiffuse(indirectRo, normal, 0, getHitMaterial(hit));
         }
         return radiance;
     }
@@ -636,8 +637,8 @@ namespace Cyan
             auto hit = traceScene(samplePos, rd);
             if (hit.t > 0.f)
             {
+                auto& matl = m_sceneMaterials[hit.m_node->m_meshInstance->m_rtMatls[hit.smIndex]];
                 // todo: instead of only consider diffuse reflections along the path, also include indirect specular
-                auto matl = hit.m_node->m_meshInstance->m_matls[hit.smIndex];
                 auto radiance = bakeSurface(hit, samplePos, rd, matl);
                 irradiance += radiance * max(glm::dot(rd, n), 0.f) * (1.f / M_PI);
             }

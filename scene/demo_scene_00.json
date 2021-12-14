@@ -46,6 +46,12 @@
             "generateLightMapUv": false
         },
         {
+            "name": "shaderball_mesh",
+            "path": "../../asset/shader_ball/shaderBall.obj",
+            "normalize": false,
+            "generateLightMapUv": false
+        },
+        {
             "name": "bunny_mesh",
             "path": "../../asset/bunny/bunny.obj",
             "normalize": false,

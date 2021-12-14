@@ -15,6 +15,8 @@ layout (location = 2) out vec3 fragmentDepth;
 layout (location = 3) out vec3 radialDistance;
 layout (location = 4) out float shadowMask;
 
+#define SlopeBasedBias 0
+
 // out vec4 fragColor;
 
 //- transforms
@@ -459,6 +461,11 @@ float slopeBasedBias(vec3 n, vec3 l)
     return bias;
 }
 
+float constantBias()
+{
+    return 0.001f;
+}
+
 #define BLEND_CASCADES 0
 float isInShadow(float bias)
 {
@@ -518,7 +525,11 @@ vec3 directLighting(RenderParams renderParams)
         vec4 lightDir = s_view * (dirLightsBuffer.lights[i].direction);
         // light dir
         renderParams.l = normalize(lightDir.xyz);
+#if SlopeBasedBias
         float shadowBias = slopeBasedBias(renderParams.n, renderParams.l);
+#else
+        float shadowBias = constantBias();
+#endif
         renderParams.shadow = isInShadow(shadowBias);
         // light color
         renderParams.li = dirLightsBuffer.lights[i].color.rgb * dirLightsBuffer.lights[i].color.w;
@@ -697,8 +708,7 @@ void main()
     vec3 bakedLighting = vec3(0.f);
     if (uMaterialProps.hasBakedLighting > 0.5f) 
         bakedLighting = texture(lightMap, uv1).rgb;
-    // color += bakedLighting * albedo.rgb;
-    color += bakedLighting;
+    color += bakedLighting * albedo.rgb;
 
     // write linear color to HDR Framebuffer
     fragColor = vec4(color, 1.0f);

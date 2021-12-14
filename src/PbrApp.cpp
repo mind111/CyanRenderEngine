@@ -27,7 +27,7 @@
     * saving the scene and assets as binaries (serialization)
 */
 
-#define REBAKE_LIGHTMAP 1
+#define REBAKE_LIGHTMAP 0
 
 /* Constants */
 // In radians per pixel 
@@ -384,37 +384,52 @@ void PbrApp::initDemoScene00()
         m_irradianceProbe->m_bakeInLightmap = false;
     }
 
-    // grid of spheres on the table
+    // grid of shader ball on the table
     {
-        glm::vec3 gridLowerLeft(-2.3706, 1.4186, 2.5952);
-        glm::vec3 baseColors[6] = {
-
-        };
+        glm::vec3 gridLowerLeft(-2.1581, 1.1629, 2.5421);
         glm::vec3 silver(.753f, .753f, .753f);
-        for (u32 i = 0; i < 6; ++i)
+        glm::vec3 gold(1.f, 0.843f, 0.f);
+        glm::vec3 chrome(1.f);
+        glm::vec3 plastic(0.061f, 0.757f, 0.800f);
+        PbrMaterialInputs matlInputs[4] = { };
+        matlInputs[0].m_flatBaseColor = glm::vec4(gold, 1.f);
+        matlInputs[0].m_uRoughness = .02f;
+        matlInputs[0].m_uMetallic = 0.95f;
+        matlInputs[1].m_flatBaseColor = glm::vec4(silver, 1.f);
+        matlInputs[1].m_uRoughness = .02f;
+        matlInputs[1].m_uMetallic = 0.95f;
+        matlInputs[2].m_flatBaseColor = glm::vec4(chrome, 1.f);
+        matlInputs[2].m_uRoughness = .02f;
+        matlInputs[2].m_uMetallic = 0.95f;
+        matlInputs[3].m_flatBaseColor = glm::vec4(plastic, 1.f);
+        matlInputs[3].m_uRoughness = .32f;
+        matlInputs[3].m_uMetallic = 0.05f;
+
+        for (u32 i = 0; i < 4; ++i)
         {
             char entityName[32];
             char meshNodeName[32];
-            sprintf_s(entityName, "Sphere%u", i);
-            sprintf_s(meshNodeName, "SphereMesh%u", i);
-            auto sphere = sceneManager->createEntity(demoScene00, entityName, Transform{});
-            glm::vec3 posOffset = glm::vec3(1.f * (f32)i, 0.f, 0.f);
+            sprintf_s(entityName, "ShaderBall%u", i);
+            sprintf_s(meshNodeName, "ShaderBall%u", i);
+            auto shaderBall = sceneManager->createEntity(demoScene00, entityName, Transform{});
+            shaderBall->m_bakeInLightmap = false;
+
+            glm::vec3 posOffset = glm::vec3(1.3f * (f32)i, 0.f, 0.f);
             Transform transform = { };
             transform.m_translate = gridLowerLeft + posOffset;
-            transform.m_scale = glm::vec3(.25f);
-            auto meshNode = Cyan::createSceneNode(meshNodeName, transform, Cyan::getMesh("sphere_mesh"));
-            sphere->attachSceneNode(meshNode);
+            transform.m_scale = glm::vec3(.003f);
+            auto meshNode = Cyan::createSceneNode(meshNodeName, transform, Cyan::getMesh("shaderball_mesh"));
+            shaderBall->attachSceneNode(meshNode);
             PbrMaterialInputs input = { };
-            input.m_roughnessMap = textureManager->getTexture("imperfection_grunge");
-            input.m_flatBaseColor = glm::vec4(silver, 1.f);
-            input.m_uMetallic = .9f;
-            auto matl = createDefaultPbrMatlInstance(demoScene00, input);
-            glm::vec4 testColor = matl->getVec4("flatColor");
-            cyanInfo("testColor (vec4): x %.2f y %.2f z %.2f", testColor.x, testColor.y, testColor.z, testColor.w);
-            f32 testHasDiffuseMap = matl->getF32("uMaterialProps.hasDiffuseMap");
-            cyanInfo("testHasDiffuseMap: %.2f", testHasDiffuseMap);
-            sphere->setMaterial(meshNodeName, -1, matl);
-            sphere->m_bakeInLightmap = false;
+            input.m_flatBaseColor = glm::vec4(0.5f, 0.5f, .5f, 1.f);
+            input.m_uRoughness = .7f;
+            input.m_uMetallic = .2f;
+            auto defaultMatl = createDefaultPbrMatlInstance(demoScene00, input);
+            auto matl = createDefaultPbrMatlInstance(demoScene00, matlInputs[i]);
+            shaderBall->setMaterial(meshNodeName, -1, defaultMatl);
+            shaderBall->setMaterial(meshNodeName, 0, matl);
+            shaderBall->setMaterial(meshNodeName, 1, matl);
+            shaderBall->setMaterial(meshNodeName, 5, matl);
         }
     }
     
@@ -436,7 +451,6 @@ void PbrApp::initDemoScene00()
             inputs.m_uRoughness = 0.5f;
             inputs.m_uMetallic = 0.5f;
             inputs.m_hasBakedLighting = 1.f;
-            // inputs.m_lightMap = roomNode->m_meshInstance->m_lightMap->m_texAltas;
 
             i32 matlIdx = roomMesh->m_subMeshes[sm]->m_materialIdx;
             if (matlIdx > 0)
@@ -453,7 +467,6 @@ void PbrApp::initDemoScene00()
         inputs.m_uMetallic = 0.5f;
         inputs.m_hasBakedLighting = 1.f;
         inputs.m_usePrototypeTexture = 1.f;
-        // inputs.m_lightMap = planeNode->m_meshInstance->m_lightMap->m_texAltas;
         auto planeMatl = createDefaultPbrMatlInstance(demoScene00, inputs);
         room->setMaterial("PlaneMesh", -1, planeMatl);
 
@@ -468,10 +481,10 @@ void PbrApp::initDemoScene00()
             matl->bindTexture("lightMap", roomNode->m_meshInstance->m_lightMap->m_texAltas);
         }
 
-        for (u32 sm = 0; sm < roomMesh->numSubMeshes(); ++sm)
+        for (u32 sm = 0; sm < planeMesh->numSubMeshes(); ++sm)
         {
-            auto matl = roomNode->m_meshInstance->m_matls[sm];
-            matl->bindTexture("lightMap", roomNode->m_meshInstance->m_lightMap->m_texAltas);
+            auto matl = planeNode->m_meshInstance->m_matls[sm];
+            matl->bindTexture("lightMap", planeNode->m_meshInstance->m_lightMap->m_texAltas);
         }
 #else
         // directly use prebaked lightmap
@@ -510,7 +523,6 @@ void PbrApp::initDemoScene00()
 #endif
 
     }
-
     timer.end();
 }
 
@@ -602,24 +614,6 @@ void PbrApp::initHelmetScene()
     }
 
     createHelmetInstance(helmetScene);
-    // auto textureManager = m_graphicsSystem->getTextureManager();
-    // auto helmetMatl = Cyan::createMaterial(m_pbrShader)->createInstance();
-    // // TODO: create a .cyanmatl file for defining materials?
-    // helmetMatl->bindTexture("diffuseMaps[0]", textureManager->getTexture("helmet_diffuse"));
-    // helmetMatl->bindTexture("normalMap", textureManager->getTexture("helmet_nm"));
-    // helmetMatl->bindTexture("metallicRoughnessMap", textureManager->getTexture("helmet_roughness"));
-    // helmetMatl->bindTexture("aoMap", textureManager->getTexture("helmet_ao"));
-    // helmetMatl->bindTexture("envmap", m_envmap);
-    // helmetMatl->bindBuffer("dirLightsData", helmetScene->m_dirLightsBuffer);
-    // helmetMatl->bindBuffer("pointLightsData", helmetScene->m_pointLightsBuffer);
-    // helmetMatl->set("hasAoMap", 1.f);
-    // helmetMatl->set("hasNormalMap", 1.f);
-    // helmetMatl->set("kDiffuse", 1.0f);
-    // helmetMatl->set("kSpecular", 1.0f);
-    // helmetMatl->set("hasMetallicRoughnessMap", 1.f);
-    // helmetMatl->set("disneyReparam", 1.f);
-    // Entity* helmet = sceneManager->getEntity(helmetScene, "DamagedHelmet");
-    // helmet->setMaterial("HelmetMesh", 0, helmetMatl);
 
     // cube
     // TODO: default material parameters
@@ -1527,6 +1521,8 @@ void PbrApp::buildFrame()
     // construct work for current frame
     renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), 0);
     renderer->addScenePass(m_scenes[m_currentScene]);
+    // TODO: how to exclude things in the scene from being post processed
+    renderer->addPostProcessPasses();
 #if DEBUG_PROBE_TRACING
     {
         void* preallocated = renderer->getAllocator().alloc(sizeof(RayTracingDebugPass));
@@ -1543,8 +1539,6 @@ void PbrApp::buildFrame()
         renderer->addCustomPass(pass);
     }
 #endif
-    // TODO: how to exclude things in the scene from being post processed
-    renderer->addPostProcessPasses();
 }
 
 // todo: read about probe selection & multi-probe tracing

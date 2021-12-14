@@ -26,6 +26,7 @@ namespace Cyan
 
         static PathTracer* getSingletonPtr();
         Texture*    getRenderOutput();
+        TriMaterial& getHitMaterial(RayCastInfo& hit);
         void setScene(Scene* scene);
         void progressiveRender(Scene* scene, Camera& camera);
         void preprocessSceneData();
@@ -33,9 +34,9 @@ namespace Cyan
         SurfaceProperty getSurfaceProperty(RayCastInfo& hit, glm::vec3& baryCoord);
         RayCastInfo traceScene(glm::vec3& ro, glm::vec3& rd);        
         void renderScene(Camera& camera);
-        glm::vec3 renderSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd);
+        glm::vec3 renderSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd, TriMaterial& matl);
         void bakeScene(Camera& camera);
-        glm::vec3 bakeSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd, MaterialInstance* matl);
+        glm::vec3 bakeSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd, TriMaterial& matl);
 
         void progressiveIndirectLighting();
 
@@ -45,7 +46,7 @@ namespace Cyan
         void setPixel(u32 px, u32 py, glm::vec3& color);
 
         // global illumination
-        glm::vec3 recursiveTraceDiffuse(glm::vec3& ro, glm::vec3& n, u32 numBounces);
+        glm::vec3 recursiveTraceDiffuse(glm::vec3& ro, glm::vec3& n, u32 numBounces, TriMaterial& matl);
 
         // baking utility
         glm::vec3 sampleIrradiance(glm::vec3& samplePos, glm::vec3& n);

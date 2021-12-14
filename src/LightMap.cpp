@@ -144,6 +144,10 @@ namespace Cyan
 
         // bake lighting using path tracer
 #if MULTITHREAD_BAKE
+        /* 
+            This currently takes around 200 seconds to bake a 2k by 2k lightmap
+            with 8 rays per lightmap texel
+        */
         bakeMultiThread(lightMap, overlappedTexelCount);
 #else
         bakeSingleThread(lightMap, overlappedTexelCount);
