@@ -315,9 +315,10 @@ public:
         Cyan::Texture* m_metallicRoughnessMap;
         Cyan::Texture* m_normalMap;
         Cyan::Texture* m_occlusion;
+        Cyan::Texture* m_lightMap;
         glm::vec4      m_flatBaseColor;
         f32            m_hasBakedLighting;
-        bool           m_usePrototypeTexture;
+        f32            m_usePrototypeTexture;
         float m_uRoughness;
         float m_uMetallic;
     };
@@ -366,15 +367,6 @@ private:
     u32 m_currentProbeIndex;
 
     // Materials
-    // Cyan::MaterialInstance* m_droneMatl;
-    // Cyan::MaterialInstance* m_helmetMatl;
-    // Cyan::MaterialInstance* m_cubeMatl;
-    // Cyan::MaterialInstance* m_coneMatl;
-    // Cyan::MaterialInstance* m_cornellMatl;
-    // Cyan::MaterialInstance* m_sphereMatl;
-    // Cyan::MaterialInstance* m_blitMatl;
-    // Cyan::MaterialInstance* m_roomMatl;
-    // Cyan::MaterialInstance* m_floorMatl;
     Cyan::MaterialInstance* m_skyMatl;
     Cyan::MaterialInstance* m_envmapMatl;
 

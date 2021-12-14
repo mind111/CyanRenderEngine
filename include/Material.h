@@ -34,6 +34,15 @@ namespace Cyan
         Cyan::Texture* m_occlusion;
     };
 
+    // interpret parameters in traditional obj material as pbr
+    struct ObjMaterial
+    {
+        glm::vec3 diffuse;
+        glm::vec3 specular; // how to use this ...?
+        f32       kRoughness;
+        f32       kMetalness;
+    };
+
     struct Material
     {
         // determine if this material type contains what kind of data
@@ -75,6 +84,10 @@ namespace Cyan
         void set(const char* attribute, u32 data);
         void set(const char* attribute, i32 data);
         void set(const char* attribute, float data);
+        glm::vec3 getVec3(const char* attribute);
+        glm::vec4 getVec4(const char* attribute);
+        f32 getF32(const char* attribute);
+        u32 getAttributeOffset(const char* attribute);
         u32 getAttributeOffset(UniformHandle handle);
         Shader* getShader()
         {
@@ -89,7 +102,6 @@ namespace Cyan
         // ubo/ssbo bindings
         RegularBuffer* m_bufferBindings[CYAN_MAX_NUM_BUFFERS];
         // material instance data buffer
-        // Warning: every attributes has to be set
         UniformBuffer* m_uniformBuffer;
     };
 
@@ -107,16 +119,6 @@ namespace Cyan
 }
 
 /*
-struct ShaderInputData
-{
-
-};
-
-struct MaterialData
-{
-    std::vector<Texture*>
-    std::vector<UniformData*> 
-};
 
 // TODO: Think about this way of doing material
 class BaseMaterial {

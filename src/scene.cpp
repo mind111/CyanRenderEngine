@@ -4,9 +4,6 @@
 #include "json.hpp"
 #include "glm.hpp"
 #include "stb_image.h"
-#include "assimp/Importer.hpp"
-#include "assimp/scene.h"
-#include "assimp/postprocess.h"
 #include "gtc/matrix_transform.hpp"
 
 #include "CyanAPI.h"
@@ -38,7 +35,7 @@ RayCastInfo Scene::castRay(glm::vec3& ro, glm::vec3& rd, EntityFilter filter, bo
         }
     }
     if (debugPrint)
-        printf("Cast a ray from mouse that hits %s \n", closestHit.m_entity->m_name);
+        printf("Cast a ray from mouse that hits %s \n", closestHit.m_node->m_name);
 
     if (closestHit.smIndex < 0 || closestHit.triIndex < 0)
         closestHit.t = -1.f;
@@ -107,6 +104,22 @@ Entity* SceneManager::createEntity(Scene* scene, const char* entityName, Transfo
     Entity* newEntity = new Entity(entityName, id, transform, parentEntity);
     scene->entities.push_back(newEntity);
     return newEntity; 
+}
+
+void SceneManager::traverseScene(Scene* scene)
+{
+    for (u32 i = 0; i < (u32)scene->entities.size(); ++i)
+    {
+        std::queue<SceneNode*> nodes;
+        nodes.push(scene->entities[i]->m_sceneRoot);
+        while(!nodes.empty())
+        {
+            auto* node = nodes.front();
+            nodes.pop();
+            for (u32 i = 0; i < node->m_child.size(); ++i)
+                nodes.push(node->m_child[i]);
+        }
+    }
 }
 
 void SceneManager::createDirectionalLight(Scene* scene, glm::vec3 color, glm::vec3 direction, float intensity)

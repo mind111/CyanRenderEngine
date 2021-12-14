@@ -56,6 +56,7 @@ namespace Cyan
             u32              m_numVerts;
             u32              m_numIndices;
             TriangleArray    m_triangles;
+            i32              m_materialIdx;
         };
 
         i32         m_lightMapWidth;
@@ -64,6 +65,7 @@ namespace Cyan
         bool m_shouldNormalize;
         glm::mat4 m_normalization;
         std::vector<SubMesh*> m_subMeshes;
+        std::vector<ObjMaterial> m_objMaterials;
         BoundingBox3f m_aabb;
         MeshBVH* m_bvh;
     };
@@ -78,6 +80,7 @@ namespace Cyan
 
         Mesh* m_mesh;
         MaterialInstance** m_matls;
+        std::vector<u32>   m_rtMatls;
         BoundingBox3f& getAABB();
         struct LightMap* m_lightMap;
     };

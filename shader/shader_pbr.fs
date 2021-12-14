@@ -36,10 +36,11 @@ uniform struct MaterialProperty
     float hasAoMap;
     float hasNormalMap;
     float hasRoughnessMap;
+    float hasMetelnessMap;
     float hasMetallicRoughnessMap;
+    float hasBakedLighting;
 } uMaterialProps; 
 
-uniform float hasBakedLighting;
 uniform float uniformRoughness;
 uniform float uniformMetallic;
 uniform vec4 flatColor;
@@ -51,6 +52,7 @@ uniform sampler2D diffuseMaps[2];
 uniform sampler2D emissionMaps[2];
 uniform sampler2D normalMap;
 uniform sampler2D roughnessMap;
+uniform sampler2D metalnessMap;
 uniform sampler2D metallicRoughnessMap;
 uniform sampler2D aoMap;
 uniform samplerCube envmap;             //non-material
@@ -611,13 +613,6 @@ float hash(float seed)
     return fract(sin(seed)*43758.5453);
 }
 
-float drawDebugD(vec3 v, vec3 l, vec3 n, float roughness)
-{
-    vec3 h = normalize(v+l);
-    float ndoth = saturate(dot(n, h));
-    return GGX(roughness, ndoth);
-}
-
 vec3 prototypeGridTexture(vec3 worldPos)
 {
     float coef = (abs(worldPos.x - round(worldPos.x)) < 0.01f) || (abs(worldPos.z - round(worldPos.z)) < 0.01f) ? .2f : 1.f;
@@ -664,7 +659,7 @@ void main()
     } else if (uMaterialProps.hasRoughnessMap > 0.f) {
         roughness = texture(roughnessMap, uv).r;
         roughness = roughness * roughness;
-        metallic = 0.0f;
+        metallic = uniformMetallic;
     } else
     {
         roughness = uniformRoughness;
@@ -700,7 +695,7 @@ void main()
     color += indirectLighting(renderParams);
     // baked lighting
     vec3 bakedLighting = vec3(0.f);
-    if (hasBakedLighting > 0.5f) 
+    if (uMaterialProps.hasBakedLighting > 0.5f) 
         bakedLighting = texture(lightMap, uv1).rgb;
     // color += bakedLighting * albedo.rgb;
     color += bakedLighting;

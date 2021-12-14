@@ -1,3 +1,4 @@
+#include "Common.h"
 #include "CyanAPI.h"
 #include "Material.h"
 
@@ -82,6 +83,18 @@ namespace Cyan
         }
     }
 
+    u32 MaterialInstance::getAttributeOffset(const char* attribute)
+    {
+        UniformHandle handle = Cyan::getUniformHandle(attribute);
+        Uniform* uniform = Cyan::getUniform(handle);
+        if (!uniform)
+        {
+            cyanError("Uniform %s doesn't exist", attribute);
+        }
+        u32 sizeInBytes = uniform->getSize();
+        return getAttributeOffset(handle);
+    }
+
     u32 MaterialInstance::getAttributeOffset(UniformHandle handle)
     {
         // CYAN_ASSERT(m_template->m_dataOffsetMap.find(handle) != m_template->m_dataOffsetMap.end(), 
@@ -144,10 +157,7 @@ namespace Cyan
         if (!uniform) return;
         u32 sizeInBytes = uniform->getSize();
         u32 offset = getAttributeOffset(handle);
-        if (offset == (u32)-1)
-        {
-            return;
-        }
+        if (offset == (u32)-1) return;
         m_uniformBuffer->reset(offset);
         m_uniformBuffer->write(data);
     }
@@ -159,12 +169,30 @@ namespace Cyan
         if (!uniform) return;
         u32 sizeInBytes = uniform->getSize();
         u32 offset = getAttributeOffset(handle);
-        if (offset == (u32)-1)
-        {
-            return;
-        }
+        if (offset == (u32)-1) return;
         m_uniformBuffer->reset(offset);
         m_uniformBuffer->write(data, sizeInBytes);
+    }
+
+    glm::vec3 MaterialInstance::getVec3(const char* attribute)
+    {
+        u32 offset = getAttributeOffset(attribute);
+        m_uniformBuffer->reset(offset);
+        return m_uniformBuffer->readVec3();
+    }
+
+    glm::vec4 MaterialInstance::getVec4(const char* attribute)
+    {
+        u32 offset = getAttributeOffset(attribute);
+        m_uniformBuffer->reset(offset);
+        return m_uniformBuffer->readVec4();
+    }
+
+    f32 MaterialInstance::getF32(const char* attribute)
+    {
+        u32 offset = getAttributeOffset(attribute);
+        m_uniformBuffer->reset(offset);
+        return m_uniformBuffer->readF32();
     }
 
     UsedBindingPoints MaterialInstance::bind()

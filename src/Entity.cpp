@@ -42,6 +42,7 @@ void Entity::attachSceneNode(SceneNode* child, const char* parentName)
     {
         m_sceneRoot->attach(child);
     }
+    child->m_owner = this;
 }
 
 void transformRayToObjectSpace(glm::vec3& ro, glm::vec3& rd, glm::mat4& transform)
@@ -138,7 +139,7 @@ RayCastInfo Entity::intersectRay(const glm::vec3& ro, const glm::vec3& rd, glm::
                         globalRayHit.t = currentWorldSpaceDistance;
                         globalRayHit.smIndex = currentRayHit.smIndex;
                         globalRayHit.triIndex = currentRayHit.triangleIndex;
-                        globalRayHit.m_entity = this;
+                        // globalRayHit.m_entity = this;
                         globalRayHit.m_node = node;
                     }
                 }

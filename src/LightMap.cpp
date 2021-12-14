@@ -51,6 +51,13 @@ namespace Cyan
     {
         return m_singleton;
     }
+    
+    void LightMapManager::createLightMapFromTexture(SceneNode* node, Texture* bakedTexture)
+    {
+        node->m_meshInstance->m_lightMap = new LightMap{ };
+        node->m_meshInstance->m_lightMap->m_owner = node;
+        node->m_meshInstance->m_lightMap->m_texAltas = bakedTexture;
+    }
 
     void LightMapManager::renderMeshInstanceToLightMap(SceneNode* node, bool saveImage)
     {
@@ -115,6 +122,11 @@ namespace Cyan
             }
             glDisable(GL_NV_conservative_raster);
             ctx->setDepthControl(DepthControl::kEnable);
+            /* 
+                Note: I haven't figure out why unbinding framebuffer here seems fixed the issue where
+                the lightmap texture data is not updated by glTexSubImage2D
+            */
+            ctx->setRenderTarget(nullptr, 0);
         }
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_ATOMIC_COUNTER_BARRIER_BIT);
         u32 overlappedTexelCount = 0;
@@ -147,7 +159,12 @@ namespace Cyan
         }
         // write the texture as an image to disk
         if (saveImage)
-            stbi_write_hdr("room_lightmap.hdr", lightMap->m_texAltas->m_width, lightMap->m_texAltas->m_height, 3, lightMap->m_pixels);
+        {
+            char fileName[64];
+            sprintf_s(fileName, "%s_lightmap.hdr", node->m_name);
+            stbi_flip_vertically_on_write(1);
+            stbi_write_hdr(fileName, lightMap->m_texAltas->m_width, lightMap->m_texAltas->m_height, 3, lightMap->m_pixels);
+        }
         glEnable(GL_CULL_FACE);
     }
 
@@ -232,6 +249,7 @@ namespace Cyan
         }
         for (u32 i = 0; i < workGroupCount; ++i)
             workers[i]->join();
+        printf("\n");
 
         // free resources
         progressCounter = 0;

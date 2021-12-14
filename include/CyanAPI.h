@@ -3,10 +3,6 @@
 #include <cstring>
 #include <chrono>
 
-#include "assimp/Importer.hpp"
-#include "assimp/scene.h"
-#include "assimp/postprocess.h"
-
 #include "Mesh.h"
 #include "Scene.h"
 #include "VertexBuffer.h"

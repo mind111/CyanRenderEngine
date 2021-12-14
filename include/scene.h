@@ -91,6 +91,8 @@ public:
     {
         return scene->entities.size() > 0 ? scene->entities.size() : 0;
     }
+
+    void traverseScene(Scene* scene);
     //- probe related
     Cyan::IrradianceProbe* createIrradianceProbe(Scene* scene, glm::vec3& pos);
     Cyan::LightFieldProbe* createLightFieldProbe(Scene* scene, glm::vec3& pos);

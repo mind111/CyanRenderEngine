@@ -19,6 +19,9 @@ enum SceneNodeProperty
 
 struct SceneNode
 {
+    // owner
+    struct Entity* m_owner; 
+
     // identifier
     char m_name[kSceneNodeNameMaxLen];
 

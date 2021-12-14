@@ -27,9 +27,10 @@
     * saving the scene and assets as binaries (serialization)
 */
 
+#define REBAKE_LIGHTMAP 1
+
 /* Constants */
 // In radians per pixel 
-
 static float kCameraOrbitSpeed = 0.005f;
 static float kCameraRotateSpeed = 0.005f;
 
@@ -266,7 +267,7 @@ Cyan::MaterialInstance* PbrApp::createDefaultPbrMatlInstance(Scene* scene, PbrMa
     else
     {
         matl->set("flatColor", &inputs.m_flatBaseColor.x);
-        if (inputs.m_usePrototypeTexture) matl->set("uMaterialProps.usePrototypeTexture", 1.f);
+        matl->set("uMaterialProps.usePrototypeTexture", inputs.m_usePrototypeTexture);
     }
     if (inputs.m_normalMap)
     {
@@ -282,20 +283,22 @@ Cyan::MaterialInstance* PbrApp::createDefaultPbrMatlInstance(Scene* scene, PbrMa
     {
         matl->set("uMaterialProps.hasRoughnessMap", 1.0f);
         matl->bindTexture("roughnessMap", inputs.m_roughnessMap);
-        matl->bindTexture("metallicMap", inputs.m_metallicMap);
     }
-    else if (inputs.m_metallicRoughnessMap) 
+    if (inputs.m_metallicMap) 
+    {
+        matl->set("uMaterialProps.hasMetalnessMap", 1.f);
+        matl->bindTexture("metalnessMap", inputs.m_metallicMap);
+    }
+    if (inputs.m_metallicRoughnessMap) 
     {
         matl->set("uMaterialProps.hasMetallicRoughnessMap", 1.0f);
         matl->bindTexture("metallicRoughnessMap", inputs.m_metallicRoughnessMap);
     }
-    else
-    {
-        matl->set("uniformRoughness", inputs.m_uRoughness);
-        matl->set("uniformMetallic", inputs.m_uMetallic);
-    }
+    matl->set("uniformRoughness", inputs.m_uRoughness);
+    matl->set("uniformMetallic", inputs.m_uMetallic);
+    matl->set("uMaterialProps.hasBakedLighting", inputs.m_hasBakedLighting);
+    if (inputs.m_hasBakedLighting > .5f) matl->bindTexture("lightMap", inputs.m_lightMap);
 
-    // matl->set("uMaterialProps.hasBakedLighting", inputs.m_hasBakedLighting);
     matl->bindBuffer("dirLightsData", scene->m_dirLightsBuffer);
     matl->bindBuffer("pointLightsData", scene->m_pointLightsBuffer);
     matl->set("kDiffuse", 1.0f);
@@ -355,9 +358,20 @@ void PbrApp::initDemoScene00()
         bunny1->setMaterial("BunnyMesh", -1, bunnyMatl);
     }
 
+    // man
+    {
+        PbrMaterialInputs inputs = { 0 };
+        Entity* man = sceneManager->getEntity(demoScene00, "Man");
+        inputs.m_flatBaseColor = glm::vec4(0.855, 0.855, 0.855, 1.f);
+        inputs.m_uRoughness = 0.3f;
+        inputs.m_uMetallic = 0.3f;
+        auto manMatl = createDefaultPbrMatlInstance(demoScene00, inputs);
+        man->setMaterial("ManMesh", -1, manMatl);
+    }
+
     // lighting
     {
-        sceneManager->createDirectionalLight(demoScene00, glm::vec3(1.0f, 0.9, 0.7f), glm::normalize(glm::vec3(1.0f, 0.5f, 1.8f)), 7.2f);
+        sceneManager->createDirectionalLight(demoScene00, glm::vec3(1.0f, 0.9, 0.7f), glm::normalize(glm::vec3(1.0f, 0.5f, 1.8f)), 2.2f);
         // sky light
         auto sceneManager = SceneManager::getSingletonPtr();
         Entity* envMapEntity = sceneManager->createEntity(demoScene00, "Envmap", Transform());
@@ -369,10 +383,43 @@ void PbrApp::initDemoScene00()
         m_irradianceProbe = sceneManager->createIrradianceProbe(demoScene00, glm::vec3(0.f, 2.5f, 0.f));
         m_irradianceProbe->m_bakeInLightmap = false;
     }
+
+    // grid of spheres on the table
+    {
+        glm::vec3 gridLowerLeft(-2.3706, 1.4186, 2.5952);
+        glm::vec3 baseColors[6] = {
+
+        };
+        glm::vec3 silver(.753f, .753f, .753f);
+        for (u32 i = 0; i < 6; ++i)
+        {
+            char entityName[32];
+            char meshNodeName[32];
+            sprintf_s(entityName, "Sphere%u", i);
+            sprintf_s(meshNodeName, "SphereMesh%u", i);
+            auto sphere = sceneManager->createEntity(demoScene00, entityName, Transform{});
+            glm::vec3 posOffset = glm::vec3(1.f * (f32)i, 0.f, 0.f);
+            Transform transform = { };
+            transform.m_translate = gridLowerLeft + posOffset;
+            transform.m_scale = glm::vec3(.25f);
+            auto meshNode = Cyan::createSceneNode(meshNodeName, transform, Cyan::getMesh("sphere_mesh"));
+            sphere->attachSceneNode(meshNode);
+            PbrMaterialInputs input = { };
+            input.m_roughnessMap = textureManager->getTexture("imperfection_grunge");
+            input.m_flatBaseColor = glm::vec4(silver, 1.f);
+            input.m_uMetallic = .9f;
+            auto matl = createDefaultPbrMatlInstance(demoScene00, input);
+            glm::vec4 testColor = matl->getVec4("flatColor");
+            cyanInfo("testColor (vec4): x %.2f y %.2f z %.2f", testColor.x, testColor.y, testColor.z, testColor.w);
+            f32 testHasDiffuseMap = matl->getF32("uMaterialProps.hasDiffuseMap");
+            cyanInfo("testHasDiffuseMap: %.2f", testHasDiffuseMap);
+            sphere->setMaterial(meshNodeName, -1, matl);
+            sphere->m_bakeInLightmap = false;
+        }
+    }
     
     // room
     {
-        PbrMaterialInputs inputs = { 0 };
         Entity* room = sceneManager->getEntity(demoScene00, "Room");
         auto roomNode = room->getSceneNode("RoomMesh");
         auto planeNode = room->getSceneNode("PlaneMesh");
@@ -380,27 +427,88 @@ void PbrApp::initDemoScene00()
         roomMesh->m_bvh = new Cyan::MeshBVH(roomMesh);
         roomMesh->m_bvh->build();
 
-        // bake light map
-        auto lightMapManager = Cyan::LightMapManager::getSingletonPtr();
-        lightMapManager->bakeLightMap(m_scenes[Scenes::Demo_Scene_00], roomNode, true);
-        lightMapManager->bakeLightMap(m_scenes[Scenes::Demo_Scene_00], planeNode, true);
+#if REBAKE_LIGHTMAP
+        for (u32 sm = 0; sm < roomMesh->numSubMeshes(); ++sm)
+        {
+            // default matl param
+            PbrMaterialInputs inputs = { };
+            inputs.m_flatBaseColor = glm::vec4(1.f);
+            inputs.m_uRoughness = 0.5f;
+            inputs.m_uMetallic = 0.5f;
+            inputs.m_hasBakedLighting = 1.f;
+            // inputs.m_lightMap = roomNode->m_meshInstance->m_lightMap->m_texAltas;
 
+            i32 matlIdx = roomMesh->m_subMeshes[sm]->m_materialIdx;
+            if (matlIdx > 0)
+            {
+                auto& objMatl = roomMesh->m_objMaterials[matlIdx];
+                inputs.m_flatBaseColor = glm::vec4(objMatl.diffuse, 1.f);
+            }
+            auto matl = createDefaultPbrMatlInstance(demoScene00, inputs);
+            room->setMaterial("RoomMesh", sm, matl);
+        }
+        PbrMaterialInputs inputs = { };
         inputs.m_flatBaseColor = glm::vec4(1.f);
         inputs.m_uRoughness = 0.5f;
         inputs.m_uMetallic = 0.5f;
         inputs.m_hasBakedLighting = 1.f;
-
-        auto roomMatl = createDefaultPbrMatlInstance(demoScene00, inputs);
-        roomMatl->bindTexture("lightMap", roomNode->m_meshInstance->m_lightMap->m_texAltas);
-        roomMatl->set("hasBakedLighting", 1.f);
-        // bind material for all submeshes
-        room->setMaterial("RoomMesh", -1, roomMatl);
-
-        inputs.m_usePrototypeTexture = true;
+        inputs.m_usePrototypeTexture = 1.f;
+        // inputs.m_lightMap = planeNode->m_meshInstance->m_lightMap->m_texAltas;
         auto planeMatl = createDefaultPbrMatlInstance(demoScene00, inputs);
-        planeMatl->bindTexture("lightMap", planeNode->m_meshInstance->m_lightMap->m_texAltas);
-        planeMatl->set("hasBakedLighting", 1.f);
         room->setMaterial("PlaneMesh", -1, planeMatl);
+
+        // bake lightmap
+        auto lightMapManager = Cyan::LightMapManager::getSingletonPtr();
+        lightMapManager->bakeLightMap(m_scenes[Scenes::Demo_Scene_00], roomNode, true);
+        lightMapManager->bakeLightMap(m_scenes[Scenes::Demo_Scene_00], planeNode, true);
+
+        for (u32 sm = 0; sm < roomMesh->numSubMeshes(); ++sm)
+        {
+            auto matl = roomNode->m_meshInstance->m_matls[sm];
+            matl->bindTexture("lightMap", roomNode->m_meshInstance->m_lightMap->m_texAltas);
+        }
+
+        for (u32 sm = 0; sm < roomMesh->numSubMeshes(); ++sm)
+        {
+            auto matl = roomNode->m_meshInstance->m_matls[sm];
+            matl->bindTexture("lightMap", roomNode->m_meshInstance->m_lightMap->m_texAltas);
+        }
+#else
+        // directly use prebaked lightmap
+        auto lightMapManager = Cyan::LightMapManager::getSingletonPtr();
+        lightMapManager->createLightMapFromTexture(roomNode, textureManager->getTexture("RoomMesh_lightmap"));
+        lightMapManager->createLightMapFromTexture(planeNode, textureManager->getTexture("PlaneMesh_lightmap"));
+
+        for (u32 sm = 0; sm < roomMesh->numSubMeshes(); ++sm)
+        {
+            // default matl param
+            PbrMaterialInputs inputs = { };
+            inputs.m_flatBaseColor = glm::vec4(1.f);
+            inputs.m_uRoughness = 0.5f;
+            inputs.m_uMetallic = 0.5f;
+            inputs.m_hasBakedLighting = 1.f;
+            inputs.m_lightMap = roomNode->m_meshInstance->m_lightMap->m_texAltas;
+
+            i32 matlIdx = roomMesh->m_subMeshes[sm]->m_materialIdx;
+            if (matlIdx > 0)
+            {
+                auto& objMatl = roomMesh->m_objMaterials[matlIdx];
+                inputs.m_flatBaseColor = glm::vec4(objMatl.diffuse, 1.f);
+            }
+            auto matl = createDefaultPbrMatlInstance(demoScene00, inputs);
+            room->setMaterial("RoomMesh", sm, matl);
+        }
+        PbrMaterialInputs inputs = { };
+        inputs.m_flatBaseColor = glm::vec4(1.f);
+        inputs.m_uRoughness = 0.5f;
+        inputs.m_uMetallic = 0.5f;
+        inputs.m_hasBakedLighting = 1.f;
+        inputs.m_usePrototypeTexture = 1.f;
+        inputs.m_lightMap = planeNode->m_meshInstance->m_lightMap->m_texAltas;
+        auto planeMatl = createDefaultPbrMatlInstance(demoScene00, inputs);
+        room->setMaterial("PlaneMesh", -1, planeMatl);
+#endif
+
     }
 
     timer.end();
@@ -680,7 +788,7 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewpo
     m_directDiffuseSlider = 1.f;
     m_directSpecularSlider = 1.f;
     m_indirectDiffuseSlider = 0.f;
-    m_indirectSpecularSlider = 0.f;
+    m_indirectSpecularSlider = 0.2f;
     m_directLightingSlider = 1.f;
     m_indirectLightingSlider = 0.f;
     m_wrap = 0.1f;
@@ -819,7 +927,7 @@ RayCastInfo PbrApp::castMouseRay(const glm::vec2& currentViewportPos, const glm:
         if (traceInfo.t > 0.f && traceInfo < closestHit)
         {
             closestHit = traceInfo;
-            printf("Cast a ray from mouse that hits %s \n", traceInfo.m_entity->m_name);
+            printf("Cast a ray from mouse that hits %s \n", traceInfo.m_node->m_name);
         }
     }
     glm::vec3 worldHit = computeMouseHitWorldSpacePos(camera, rd, closestHit);
@@ -882,7 +990,7 @@ void PbrApp::drawEntityPanel()
                                 | ImGuiTreeNodeFlags_OpenOnDoubleClick 
                                 | ImGuiTreeNodeFlags_SpanAvailWidth 
                                 | ImGuiTreeNodeFlags_DefaultOpen;
-    // transform
+    // transform panel
     if (ImGui::TreeNodeEx("Transform", baseFlags))
     {
         Transform transform = m_selectedEntity->getWorldTransform();
@@ -918,7 +1026,7 @@ void PbrApp::drawDebugWindows()
     ImGui::SetNextWindowPos(ImVec2(0, 0));
     ImGui::SetNextWindowSize(debugWindowSize);
     ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-    m_ui.beginWindow("Debug Utils", windowFlags);
+    m_ui.beginWindow("Editor", windowFlags);
     ImGui::PushFont(m_font);
     {
         // multiple tabs
@@ -940,13 +1048,16 @@ void PbrApp::drawDebugWindows()
                     drawEntityPanel();
                     ImGui::Separator();
                 }
-                {
-                    drawLightingWidgets();
-                    ImGui::Separator();
-                }
                 ImGui::EndTabItem();
             }
-            if (ImGui::BeginTabItem("Debug Views"))
+            if (ImGui::BeginTabItem("Lighting"))
+            {
+                drawLightingWidgets();
+                ImGui::Separator();
+                drawRenderSettings();
+                ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem("Debug"))
             {
                 auto renderer = Cyan::Renderer::getSingletonPtr();
                 u32 numDebugViews = 0;
@@ -975,22 +1086,6 @@ void PbrApp::drawDebugWindows()
                 buildDebugView("SceneGTAO",   renderer->m_ssaoTexture);
                 ImGui::EndTabItem();
             }
-            if (ImGui::BeginTabItem("Settings"))
-            {
-                ImGui::Text("Settings tab");
-                {
-                    drawRenderSettings();
-                    ImGui::Separator();
-                }
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("Tools"))
-            {
-                ImGui::Checkbox("SSAO debug view", &m_debugDrawSSAO);
-                ImGui::Checkbox("Path Tracing debug view", &m_debugPathTracing);
-                ImGui::Checkbox("Freeze debug view", &renderer->m_freezeDebugLines);
-                ImGui::EndTabItem();
-            }
             ImGui::EndTabBar();
         }
     }
@@ -1002,7 +1097,6 @@ void PbrApp::drawStats()
 {
     {
         ImGui::Text("Frame time:                   %.2f ms", m_lastFrameDurationInMs);
-        ImGui::Text("Number of draw calls:         %d", 100u);
         ImGui::Text("Number of entities:           %d", m_scenes[m_currentScene]->entities.size());
         ImGui::Checkbox("Super Sampling 4x", &Cyan::Renderer::getSingletonPtr()->m_bSuperSampleAA);
     }
@@ -1042,10 +1136,6 @@ void PbrApp::drawLightingWidgets()
                                 | ImGuiTreeNodeFlags_SpanAvailWidth 
                                 | ImGuiTreeNodeFlags_DefaultOpen;
     auto sceneManager = SceneManager::getSingletonPtr();
-    if (ImGui::Button("Create Point Light"))
-    {
-        sceneManager->createPointLight(m_scenes[m_currentScene], glm::vec3(0.9f), glm::vec3(0.f), 1.f);
-    }
     // directional Lights
     if (ImGui::TreeNodeEx("Sun Light", baseFlags))
     {
@@ -1089,6 +1179,18 @@ void PbrApp::drawLightingWidgets()
         }
         ImGui::TreePop();
     }
+    // sky light
+    std::vector<const char*> envMaps;
+    u32 numProbes = Cyan::getNumProbes();
+    for (u32 index = 0u; index < numProbes; ++index)
+        envMaps.push_back(Cyan::getProbe(index)->m_baseCubeMap->m_name.c_str());
+    m_ui.comboBox(envMaps.data(), numProbes, "EnvMap", &m_currentProbeIndex);
+
+    ImGui::SameLine();
+    if (m_ui.button("Load"))
+    {
+
+    }
 }
 
 void PbrApp::drawSceneViewport()
@@ -1118,30 +1220,12 @@ void PbrApp::drawSceneViewport()
         ImGui::GetForegroundDrawList()->AddImage(reinterpret_cast<void*>((intptr_t)activeDebugViewTexture->m_id), 
             a, b, ImVec2(0, 1), ImVec2(1, 0));
 
-        // if (m_debugDrawSSAO)
-        // {
-        //     Cyan::Texture* ssaoOutput = renderer->m_ssaoTexture;
-        //     ImGui::GetForegroundDrawList()->AddImage(reinterpret_cast<void*>((intptr_t)ssaoOutput->m_id), 
-        //         a, b, ImVec2(0, 1), ImVec2(1, 0));
-        // }
-        // else if (m_debugPathTracing)
-        // {
-        //     Cyan::Texture* output = Cyan::PathTracer::getSingletonPtr()->getRenderOutput();
-        //     ImGui::GetForegroundDrawList()->AddImage(reinterpret_cast<void*>((intptr_t)output->m_id), 
-        //         a, b, ImVec2(0, 0), ImVec2(1, 1));
-        // }
-        // else
-        // {
-        //     ImGui::GetForegroundDrawList()->AddImage(reinterpret_cast<void*>((intptr_t)renderOutput->m_id), 
-        //         a, b, ImVec2(0, 1), ImVec2(1, 0));
-        // }
-
         // TODO: refactor this
         // ray picking
         if (bRayCast && !ImGuizmo::IsOver())
         {
             RayCastInfo hitInfo = castMouseRay(glm::vec2(a.x, a.y), glm::vec2(windowSize.x, windowSize.y - min.y));
-            m_selectedEntity = hitInfo.m_entity;
+            m_selectedEntity = hitInfo.m_node->m_owner;
             m_selectedNode = hitInfo.m_node;
             auto ctx = Cyan::getCurrentGfxCtx();
             ctx->setDepthControl(Cyan::DepthControl::kDisable);
@@ -1182,54 +1266,47 @@ void PbrApp::drawSceneViewport()
 void PbrApp::drawRenderSettings()
 {
     auto renderer = m_graphicsSystem->getRenderer();
+    ImGuiTreeNodeFlags baseFlags = ImGuiTreeNodeFlags_OpenOnArrow 
+                                | ImGuiTreeNodeFlags_OpenOnDoubleClick 
+                                | ImGuiTreeNodeFlags_SpanAvailWidth 
+                                | ImGuiTreeNodeFlags_DefaultOpen;
+    // ibl controls
+    if (ImGui::TreeNodeEx("IBL settings", baseFlags))
     {
-        std::vector<const char*> envMaps;
-        u32 numProbes = Cyan::getNumProbes();
-        for (u32 index = 0u; index < numProbes; ++index)
+        if (ImGui::TreeNodeEx("Direct lighting", baseFlags))
         {
-            envMaps.push_back(Cyan::getProbe(index)->m_baseCubeMap->m_name.c_str());
+            ImGui::Text("Diffuse");
+            ImGui::SameLine();
+            ImGui::SliderFloat("##Diffuse", &m_directDiffuseSlider, 0.f, 1.f, "%.2f");
+            ImGui::Text("Specular");
+            ImGui::SameLine();
+            ImGui::SliderFloat("##Specular", &m_directSpecularSlider, 0.f, 1.f, "%.2f");
+            ImGui::TreePop();
         }
-        m_ui.comboBox(envMaps.data(), numProbes, "EnvMap", &m_currentProbeIndex);
-
+        if (ImGui::TreeNodeEx("Indirect lighting", baseFlags))
+        {
+            ImGui::Text("Diffuse");
+            ImGui::SameLine();
+            ImGui::SliderFloat("##IndirectDiffuse", &m_indirectDiffuseSlider, 0.f, 10.f, "%.2f");
+            ImGui::Text("Specular");
+            ImGui::SameLine();
+            ImGui::SliderFloat("##IndirectSpecular", &m_indirectSpecularSlider, 0.f, 10.f, "%.2f");
+            ImGui::TreePop();
+        }
+        ImGui::TreePop();
+    }
+    if (ImGui::TreeNodeEx("Post-Processing", baseFlags))
+    {
+        // bloom settings
+        ImGui::Text("Bloom");
         ImGui::SameLine();
-        if (m_ui.button("Load"))
-        {
+        ImGui::Checkbox("##Enabled", &renderer->m_bloom); 
 
-        }
-        // ibl controls
-        if (m_ui.header("IBL settings"))
-        {
-            if (m_ui.header("Direct lighting"))
-            {
-                ImGui::Text("Diffuse");
-                ImGui::SameLine();
-                ImGui::SliderFloat("##Diffuse", &m_directDiffuseSlider, 0.f, 1.f, "%.2f");
-                ImGui::Text("Specular");
-                ImGui::SameLine();
-                ImGui::SliderFloat("##Specular", &m_directSpecularSlider, 0.f, 1.f, "%.2f");
-            }
-            if (m_ui.header("Indirect lighting"))
-            {
-                ImGui::Text("Diffuse");
-                ImGui::SameLine();
-                ImGui::SliderFloat("##IndirectDiffuse", &m_indirectDiffuseSlider, 0.f, 10.f, "%.2f");
-                ImGui::Text("Specular");
-                ImGui::SameLine();
-                ImGui::SliderFloat("##IndirectSpecular", &m_indirectSpecularSlider, 0.f, 10.f, "%.2f");
-            }
-        }
-        if (m_ui.header("Post-Processing"))
-        {
-            // bloom settings
-            ImGui::Text("Bloom");
-            ImGui::SameLine();
-            ImGui::Checkbox("##Enabled", &renderer->m_bloom); 
-
-            // exposure settings
-            ImGui::Text("Exposure");
-            ImGui::SameLine();
-            ImGui::SliderFloat("##Exposure", &renderer->m_exposure, 0.f, 10.f, "%.2f");
-        }
+        // exposure settings
+        ImGui::Text("Exposure");
+        ImGui::SameLine();
+        ImGui::SliderFloat("##Exposure", &renderer->m_exposure, 0.f, 10.f, "%.2f");
+        ImGui::TreePop();
     }
 }
 

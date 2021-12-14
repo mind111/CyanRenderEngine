@@ -3,13 +3,12 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include "gtx/hash.hpp"
 #include "tiny_obj_loader.h"
+#include "xatlas.h"
 
 #include "Asset.h"
 #include "Texture.h"
 #include "CyanAPI.h"
-#include "xatlas.h"
 
-// treat this as a string and hash it ...?
 struct ObjVertex
 {
     glm::vec3 position;
@@ -23,7 +22,9 @@ struct ObjMesh
 {
     std::vector<ObjVertex> vertices;
     std::vector<u32>       indices;
+    u32                    materialId;
 };
+
 
 bool operator==(const ObjVertex& lhs, const ObjVertex& rhs)
 {
@@ -200,19 +201,28 @@ namespace Cyan
         bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filename, baseDir);
         if (!ret)
         {
-            cyanError("Failed loading obj file %s \n", filename);
-            cyanError("Warnings: %s               \n", warn.c_str());
-            cyanError("Errors:   %s               \n", err.c_str());
+            cyanError("Failed loading obj file %s ", filename);
+            cyanError("Warnings: %s               ", warn.c_str());
+            cyanError("Errors:   %s               ", err.c_str());
         }
 
         Mesh* mesh = new Mesh;
-
-        materials.push_back(tinyobj::material_t());
+        for (u32 i = 0; i < materials.size(); ++i)
+        {
+            mesh->m_objMaterials.emplace_back();
+            auto& objMatl = mesh->m_objMaterials.back();
+            objMatl.diffuse = glm::vec3{ materials[i].diffuse[0], materials[i].diffuse[1], materials[i].diffuse[2] };
+            objMatl.specular = glm::vec3{ materials[i].specular[0], materials[i].specular[2], materials[i].specular[3] };
+            objMatl.kMetalness = materials[i].metallic;
+            objMatl.kRoughness = materials[i].roughness;
+        }
 
         std::vector<ObjMesh*> objMeshes;
+
+        // submeshes
         for (u32 s = 0; s < shapes.size(); ++s)
         {
-            cyanInfo("shape[%d].name = %s\n", s, shapes[s].name.c_str());
+            cyanInfo("shape[%d].name = %s", s, shapes[s].name.c_str());
             ObjMesh* objMesh = new ObjMesh; 
             objMeshes.push_back(objMesh);
             Mesh::SubMesh* subMesh = new Mesh::SubMesh;
@@ -223,6 +233,9 @@ namespace Cyan
             indices.resize(shapes[s].mesh.indices.size());
             std::unordered_map<ObjVertex, u32> uniqueVertexMap;
             u32 numUniqueVertices = 0;
+
+            // assume that one submesh can only have one material
+            subMesh->m_materialIdx = shapes[s].mesh.material_ids[0];
 
             for (u32 f = 0; f < shapes[s].mesh.indices.size() / 3; ++f)
             {
@@ -292,6 +305,7 @@ namespace Cyan
             xatlas::PackOptions packOptions = { };
             packOptions.bruteForce = true;
             packOptions.padding = 5.f;
+            packOptions.resolution = 2048;
 
             xatlas::Generate(atlas, xatlas::ChartOptions{}, packOptions);
             CYAN_ASSERT(atlas->meshCount == objMeshes.size(), "# Submeshes and # of meshes in atlas doesn't match!");
@@ -347,6 +361,7 @@ namespace Cyan
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
             mesh->m_subMeshes[sm]->m_vertexArray->m_numIndices = objMesh->indices.size();
         }
+
         // release resources
         for (auto objMesh : objMeshes)
             delete objMesh;
@@ -360,6 +375,8 @@ namespace Cyan
         // get extension from mesh path
         u32 found = path.find_last_of('.');
         std::string extension = path.substr(found, found + 1);
+        // todo: fix this!
+        found = path.find_last_of('/');
         std::string baseDir   = path.substr(0, found);
         cyanInfo("The mesh file extension is %s", extension.c_str());
 

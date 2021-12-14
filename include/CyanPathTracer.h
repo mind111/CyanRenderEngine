@@ -13,6 +13,12 @@ namespace Cyan
         glm::vec3 metalness;
     };
 
+    struct TriMaterial
+    {
+        Texture* diffuseTex;
+        glm::vec3 flatColor;
+    };
+
     class PathTracer
     {
     public:
@@ -21,15 +27,15 @@ namespace Cyan
         static PathTracer* getSingletonPtr();
         Texture*    getRenderOutput();
         void setScene(Scene* scene);
-        // inputs: scene, camera
         void progressiveRender(Scene* scene, Camera& camera);
+        void preprocessSceneData();
         void run(Camera& camera);
         SurfaceProperty getSurfaceProperty(RayCastInfo& hit, glm::vec3& baryCoord);
         RayCastInfo traceScene(glm::vec3& ro, glm::vec3& rd);        
         void renderScene(Camera& camera);
         glm::vec3 renderSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd);
         void bakeScene(Camera& camera);
-        glm::vec3 bakeSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd);
+        glm::vec3 bakeSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd, MaterialInstance* matl);
 
         void progressiveIndirectLighting();
 
@@ -69,6 +75,7 @@ namespace Cyan
         glm::vec3 m_skyColor;
         Texture* m_texture;
         Scene* m_scene;
+        std::vector<TriMaterial> m_sceneMaterials;
         float* m_pixels;
 
         static PathTracer* m_singleton;

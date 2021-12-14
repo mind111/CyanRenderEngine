@@ -83,14 +83,16 @@ struct Entity
 
 struct RayCastInfo
 {
-    Entity* m_entity;
+    // Entity* m_entity;
     SceneNode* m_node;
     i32   smIndex;
     i32   triIndex;
     float t;
 
     RayCastInfo() 
-    : m_entity(nullptr), m_node(nullptr), smIndex(-1), triIndex(-1), t(FLT_MAX)
+    : 
+    //m_entity(nullptr), 
+    m_node(nullptr), smIndex(-1), triIndex(-1), t(FLT_MAX)
     {} 
 
     bool operator<(const RayCastInfo& rhs)

@@ -16,7 +16,6 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 find_package(OpenGL REQUIRED)
 find_package(glfw3 3.3 REQUIRED)
 find_package(GLEW 2.2 REQUIRED)
-find_package(Assimp REQUIRED)
 
 include_directories(${GLFW_INCLUDE_DIR})
 include_directories(${GLEW_INCLUDE_DIR})
@@ -36,12 +35,7 @@ include_directories(${PROJECT_SOURCE_DIR}/lib/xatlas/include)
 add_definitions(-DGLEW_STATIC -DGLFW_INCLUDE_NONE)
 add_executable(cyanRenderEngine ${include} ${src} ${lib})
 target_compile_options(cyanRenderEngine PUBLIC /W1 /std:c++14 /DTINYGLTF_NOEXCEPTION)
-target_link_libraries(cyanRenderEngine ${GLFW_LIBRARY} ${GLEW_LIBRARY} ${OPENGL_LIBRARIES} ${ASSIMP_LIBRARY})
-
-#### copy over dll after build ####
-add_custom_command(TARGET cyanRenderEngine POST_BUILD
-                   COMMAND ${CMAKE_COMMAND} -E copy
-                       ${CMAKE_SOURCE_DIR}/lib/assimp/lib/assimp-vc140-mt.dll $<TARGET_FILE_DIR:cyanRenderEngine>)
+target_link_libraries(cyanRenderEngine ${GLFW_LIBRARY} ${GLEW_LIBRARY} ${OPENGL_LIBRARIES})
 
 #### copy over data folder after build ####
 add_custom_command(TARGET cyanRenderEngine POST_BUILD
