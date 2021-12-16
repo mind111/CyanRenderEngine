@@ -44,6 +44,7 @@ struct Entity
     bool m_lit;
     bool m_bakeInProbes;
     bool m_bakeInLightmap;
+    bool m_includeInGBufferPass;
 
     Entity(const char* name, u32 id, Transform t, Entity* parent);
 

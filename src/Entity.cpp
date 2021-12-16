@@ -4,7 +4,7 @@
 #include "BVH.h"
 
 Entity::Entity(const char* name, u32 id, Transform t, Entity* parent)
-    : m_entityId(id), m_bakeInProbes(true), m_bakeInLightmap(true)
+    : m_entityId(id), m_bakeInProbes(true), m_bakeInLightmap(true), m_includeInGBufferPass(true)
 {
     if (name) 
     {

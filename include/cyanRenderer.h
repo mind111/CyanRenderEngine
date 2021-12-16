@@ -103,6 +103,7 @@ namespace Cyan
         void render();
         void renderSceneDepthNormal(Scene* scene, Camera& camera);
         void probeRenderScene(Scene* scene, Camera& camera);
+        void renderSSAO(Camera& camera);
         void renderScene(Scene* scene, Camera& camera);
         void renderDebugObjects();
         void endRender();
@@ -114,7 +115,7 @@ namespace Cyan
             RegularBuffer* dirLightsBuffer;
             std::vector<PointLightGpuData> pLights;
             std::vector<DirLightGpuData> dLights;
-            LightProbe* probe;
+            DistantLightProbe* probe;
             IrradianceProbe* irradianceProbe;
             bool bUpdateProbe;
         } m_gpuLightingData;
@@ -124,6 +125,7 @@ namespace Cyan
         BoundingBox3f computeSceneAABB(Scene* scene);
         void drawEntity(Entity* entity);
         void drawSceneNode(SceneNode* node);
+        void drawMesh(Mesh* mesh);
         void drawMeshInstance(MeshInstance* meshInstance, glm::mat4* modelMatrix);
         // blit viewport to default frame buffer for debug rendering
         void debugBlit(Cyan::Texture* texture, Viewport viewport);
@@ -137,7 +139,7 @@ namespace Cyan
         void addCustomPass(RenderPass* pass);
         void addTexturedQuadPass(RenderTarget* renderTarget, Viewport viewport, Texture* srcTexture);
         void addBloomPass();
-        void addGaussianBlurPass();
+        void addGaussianBlurPass(RenderTarget* renderTarget, Viewport viewport, Texture* srcTexture, Texture* horiTexture, Texture* vertTexture, GaussianBlurInput input);
         void addLinePass();
         void addPostProcessPasses();
 

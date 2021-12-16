@@ -294,6 +294,10 @@ Cyan::MaterialInstance* PbrApp::createDefaultPbrMatlInstance(Scene* scene, PbrMa
         matl->set("uMaterialProps.hasMetallicRoughnessMap", 1.0f);
         matl->bindTexture("metallicRoughnessMap", inputs.m_metallicRoughnessMap);
     }
+    if (inputs.m_uSpecular > 0.f)
+        matl->set("uniformSpecular", inputs.m_uSpecular);
+    else
+        matl->set("uniformSpecular", .5f);
     matl->set("uniformRoughness", inputs.m_uRoughness);
     matl->set("uniformMetallic", inputs.m_uMetallic);
     matl->set("uMaterialProps.hasBakedLighting", inputs.m_hasBakedLighting);
@@ -378,6 +382,7 @@ void PbrApp::initDemoScene00()
         envMapEntity->m_sceneRoot->attach(Cyan::createSceneNode("CubeMesh", Transform(), Cyan::getMesh("CubeMesh"), false));
         envMapEntity->setMaterial("CubeMesh", 0, m_skyMatl);
         envMapEntity->m_bakeInLightmap = false;
+        envMapEntity->m_includeInGBufferPass = false;
 
         // irradiance probes
         m_irradianceProbe = sceneManager->createIrradianceProbe(demoScene00, glm::vec3(0.f, 2.5f, 0.f));
@@ -402,7 +407,7 @@ void PbrApp::initDemoScene00()
         matlInputs[2].m_uRoughness = .02f;
         matlInputs[2].m_uMetallic = 0.95f;
         matlInputs[3].m_flatBaseColor = glm::vec4(plastic, 1.f);
-        matlInputs[3].m_uRoughness = .32f;
+        matlInputs[3].m_uRoughness = .02f;
         matlInputs[3].m_uMetallic = 0.05f;
 
         for (u32 i = 0; i < 4; ++i)
@@ -1013,6 +1018,8 @@ void PbrApp::drawEntityPanel()
 void PbrApp::drawDebugWindows()
 {
     auto renderer = m_graphicsSystem->getRenderer();
+    auto ctx = Cyan::getCurrentGfxCtx();
+    ctx->setRenderTarget(nullptr);
 
     // configure window pos and size
     ImVec2 debugWindowSize(gEngine->getWindow().width - renderer->m_viewport.m_width, 
@@ -1055,10 +1062,13 @@ void PbrApp::drawDebugWindows()
             {
                 auto renderer = Cyan::Renderer::getSingletonPtr();
                 u32 numDebugViews = 0;
-                auto buildDebugView = [&](const char* viewName, Cyan::Texture* texture, u32 width=320, u32 height=180)
+                auto buildDebugView = [&](const char* viewName, Cyan::Texture* texture, u32 width=320, u32 height=180, bool flip = true)
                 {
                     ImGui::Text(viewName);
-                    ImGui::Image((ImTextureID)texture->m_id, ImVec2(width, height));
+                    if (flip)
+                        ImGui::Image((ImTextureID)texture->m_id, ImVec2(width, height), ImVec2(0, 1), ImVec2(1, 0));
+                    else
+                        ImGui::Image((ImTextureID)texture->m_id, ImVec2(width, height));
                     char buttonName[64];
                     sprintf_s(buttonName, "Focus on view##%s", viewName);
                     if (ImGui::Button(buttonName))

@@ -168,7 +168,7 @@ namespace Cyan
     SceneNode* allocSceneNode();
     SceneNode* createSceneNode(const char* name, Transform transform, Mesh* mesh=nullptr, bool hasAABB=true);
     Scene* createScene(const char* name, const char* _file);
-    LightProbe* getProbe(u32 index);
+    DistantLightProbe* getProbe(u32 index);
     u32         getNumProbes();
 
     /* voxel cone tracing */
@@ -271,7 +271,7 @@ namespace Cyan
         Texture* prefilterEnvmapSpecular(Texture* envMap);
         Texture* generateBrdfLUT();
         Texture* createFlatColorTexture(const char* name, u32 width, u32 height, glm::vec4 color);
-        LightProbe createLightProbe(const char* name, const char* file, bool hdr=false);
+        DistantLightProbe createLightProbe(const char* name, const char* file, bool hdr=false);
 
         //-
         // Mesh related

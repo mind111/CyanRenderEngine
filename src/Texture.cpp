@@ -91,7 +91,7 @@ namespace Cyan
                 case Texture::ColorFormat::D24S8:
                     return DataFormatGL{ GL_DEPTH24_STENCIL8, GL_DEPTH_STENCIL }; 
                 case Texture::ColorFormat::R32G32B32:
-                    return DataFormatGL{ GL_RGBA32F, GL_RGB }; 
+                    return DataFormatGL{ GL_RGB32F, GL_RGB }; 
                 default:
                     CYAN_ASSERT(0, "Undefined texture color format.")
                     return DataFormatGL{ GL_INVALID_ENUM, GL_INVALID_ENUM };

@@ -6,6 +6,11 @@ namespace Cyan
     //- static initialization of class static data members
 
     static QuadMesh s_quadMesh;
+    // scene
+    Shader* ScenePass::s_sceneNormalDepthShader = nullptr;
+    Texture* ScenePass::ssaoBlurVertTex = nullptr;
+    Texture* ScenePass::ssaoBlurHoriTex = nullptr;
+    RenderTarget* ScenePass::ssaoBlurRt = nullptr;
     // post process resolve
     Shader* PostProcessResolvePass::s_finalCompositeShader = 0;
     MaterialInstance* PostProcessResolvePass::s_matl = 0;
@@ -69,33 +74,60 @@ namespace Cyan
 
     void ScenePass::onInit()
     {
-
+        s_sceneNormalDepthShader = createShader("SceneNormalDepthShader", "../../shader/scene_normal_depth.vs", "../../shader/scene_normal_depth.fs");
+        TextureSpec spec = { };
+        Texture* ssaoTex = Renderer::getSingletonPtr()->m_ssaoTexture;
+        spec.m_type = Texture::Type::TEX_2D;
+        spec.m_width = 1280;
+        spec.m_height = 720;
+        spec.m_dataType = Texture::DataType::Float;
+        spec.m_format = Texture::ColorFormat::R16G16B16;
+        spec.m_min = Texture::Filter::LINEAR;
+        spec.m_mag = Texture::Filter::LINEAR;
+        spec.m_numMips = 1;
+        ssaoBlurHoriTex = TextureManager::getSingletonPtr()->createTexture("SSAOVertBlur", spec);
+        ssaoBlurRt = createRenderTarget(spec.m_width, spec.m_height);
     }
 
     void ScenePass::render()
     {
         auto renderer = Renderer::getSingletonPtr();
         auto ctx = getCurrentGfxCtx();
-        u32 numBuffers = static_cast<u32>(m_renderTarget->m_colorBuffers.size());
-        std::vector<i32> drawBuffers;
-        for (u32 b = 0u; b < numBuffers; ++b)
-            drawBuffers.push_back(b);
-        ctx->setRenderTarget(m_renderTarget, drawBuffers.data(), numBuffers);
-        ctx->setViewport(m_viewport);
-        renderer->renderScene(m_scene, m_scene->getActiveCamera());
 
         // todo: moving to deferred 
         // scene albedo & depth & normal pass
         {
-
+            i32 drawBuffers[2] = { 1, 2 }; 
+            ctx->setRenderTarget(m_renderTarget, drawBuffers, 2);
+            ctx->setViewport(m_viewport);
+            ctx->setShader(s_sceneNormalDepthShader);
+            renderer->renderSceneDepthNormal(m_scene, m_scene->getActiveCamera());
         }
+
         // ssao pass
         {
-
+            renderer->renderSSAO(m_scene->getActiveCamera());
+            // todo: move this to a proper place
+            // gaussian blur
+            void* mem = renderer->m_frameAllocator.alloc(sizeof(GaussianBlurPass));
+            GaussianBlurInput input = { 0, 3 };
+            GaussianBlurPass* ssaoBlurPass = new (mem) GaussianBlurPass(
+                ssaoBlurRt,
+                { 0, 0, renderer->m_ssaoTexture->m_width, renderer->m_ssaoTexture->m_height },
+                renderer->m_ssaoTexture,
+                ssaoBlurHoriTex,
+                renderer->m_ssaoTexture,
+                input
+            );
+            ssaoBlurPass->render();
         }
-        // lighting pass
-        {
 
+        // full lighting pass
+        {
+            i32 drawBuffers[5] = {0, -1, -1, -1, -1 };
+            ctx->setRenderTarget(m_renderTarget, drawBuffers, 5);
+            ctx->setViewport(m_viewport);
+            renderer->renderScene(m_scene, m_scene->getActiveCamera());
         }
     }
 

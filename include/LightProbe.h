@@ -3,7 +3,7 @@
 #include "Texture.h"
 #include "Entity.h"
 
-struct LightProbe
+struct DistantLightProbe
 {
     Cyan::Texture* m_baseCubeMap;
     Cyan::Texture* m_diffuse;
@@ -15,18 +15,6 @@ struct Scene;
 
 namespace Cyan
 {
-    struct Ray
-    {
-
-    };
-
-    struct GpuRay
-    {
-        glm::vec4 ro;
-        glm::vec3 rd;
-        float     visibility;
-    };
-
     // TODO: group shader and material instance, technically don't need to store shader and matl instance at the same time.
     struct IrradianceProbe : public Entity
     {
@@ -34,11 +22,9 @@ namespace Cyan
         void init();
         void sampleRadiance();
         void computeIrradiance();
-        void sampleSkyVisibility();
         void debugRenderProbe();
 
         static Shader* m_computeIrradianceShader;
-        static Shader* m_skyIrradianceShader;
         static struct RenderTarget* m_radianceRenderTarget;
         static struct RenderTarget* m_irradianceRenderTarget;
         static MeshInstance* m_cubeMeshInstance;
@@ -55,8 +41,6 @@ namespace Cyan
         // MeshInstance* m_sphereMeshInstance;
         MaterialInstance* m_computeIrradianceMatl;
         MaterialInstance* m_renderProbeMatl;
-        std::vector<GpuRay> m_skyRays;
-        u32                 m_numVisibieRays;
     };
 
     struct IrradianceVolume
@@ -66,6 +50,12 @@ namespace Cyan
         glm::vec3 m_probeSpacing;
         glm::vec3 m_lowerLeftCorner;
         std::vector<IrradianceProbe*> m_probes;
+    };
+
+    struct ReflectionProbe
+    {
+        // render the scene from six faces
+        Texture* m_radianceMap;
     };
 
     // TODO: fix cornell box to make it double sided

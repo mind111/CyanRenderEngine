@@ -40,7 +40,7 @@ namespace Cyan
     static const u32 kMaxNumSceneNodes = 256;
 
     static std::vector<Mesh*> s_meshes;
-    static std::vector<LightProbe> s_probes;
+    static std::vector<DistantLightProbe> s_probes;
     static SceneNode s_sceneNodes[kMaxNumSceneNodes] = { };
     static GfxContext* s_gfxc = nullptr;
     static void* s_memory = nullptr;
@@ -441,7 +441,7 @@ namespace Cyan
         }
     }
 
-    LightProbe* getProbe(u32 index)
+    DistantLightProbe* getProbe(u32 index)
     {
         return &s_probes[index];
     }
@@ -1071,9 +1071,9 @@ namespace Cyan
         }
 
         // TODO: This call uses a lot of memory, investigate why
-        LightProbe createLightProbe(const char* name, const char* file, bool hdr)
+        DistantLightProbe createLightProbe(const char* name, const char* file, bool hdr)
         {
-            LightProbe probe = { };
+            DistantLightProbe probe = { };
             probe.m_baseCubeMap = Toolkit::loadEquirectangularMap(name, file, hdr);
             probe.m_diffuse = Toolkit::prefilterEnvMapDiffuse(name, probe.m_baseCubeMap);
             probe.m_specular = Toolkit::prefilterEnvmapSpecular(probe.m_baseCubeMap);

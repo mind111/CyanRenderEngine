@@ -16,6 +16,11 @@ struct VertexArray
 
     }
 
+    bool hasIndexBuffer()
+    {
+        return m_ibo != (u32)-1 ? true : false;
+    }
+
     VertexBuffer* m_vertexBuffer;
     u32           m_numIndices;
     GLuint        m_ibo;

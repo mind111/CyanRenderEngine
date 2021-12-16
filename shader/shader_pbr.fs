@@ -43,6 +43,7 @@ uniform struct MaterialProperty
     float hasBakedLighting;
 } uMaterialProps; 
 
+uniform float uniformSpecular; // control incident specular amount .5 by default
 uniform float uniformRoughness;
 uniform float uniformMetallic;
 uniform vec4 flatColor;
@@ -62,6 +63,7 @@ uniform samplerCube irradianceDiffuse;  //non-material
 uniform samplerCube irradianceSpecular; //non-material
 uniform sampler2D   brdfIntegral;
 uniform sampler2D   lightMap;
+uniform sampler2D   ssaoTex;
 
 //- debug switches
 uniform float debugNormalMap;
@@ -321,12 +323,10 @@ vec3 render(RenderParams params)
 {
     vec3 h = normalize(params.v + params.l);
     float ndotl = max(0.000f, dot(params.n, params.l));
-    // TODO: figure out how to use wrap lighting properly
-    float ndotlWrap = max(0.1f, (dot(params.n, params.l) + wrap) / (1.f + wrap));
     vec3 F = fresnel(params.f0, params.n, params.v);
     vec3 kDiffuse = mix(vec3(1.f) - F, vec3(0.0f), params.metallic);
     vec3 diffuse = kDiffuse * diffuseBrdf(params.baseColor) * ndotl;
-    vec3 specular = specularBrdf(params.l, params.v, params.n, params.roughness, params.f0) * ndotl;
+    vec3 specular = specularBrdf(params.l, params.v, params.n, params.roughness, params.f0) * ndotl * uniformSpecular;
     return (directDiffuseSlider * diffuse * params.ao + directSpecularSlider * specular) * params.li * params.shadow;
 }
 
@@ -608,7 +608,7 @@ vec3 indirectLighting(RenderParams params)
     vec3 rr = (inverse(viewRotation) * vec4(r, 0.f)).xyz;
     vec3 prefilteredColor = textureLod(irradianceSpecular, rr, params.roughness * 10.f).rgb;
     vec3 brdf = texture(brdfIntegral, vec2(params.roughness, ndotv)).rgb; 
-    vec3 specular = prefilteredColor * (params.f0 * brdf.r + brdf.g);
+    vec3 specular = (prefilteredColor * uniformSpecular) * (params.f0 * brdf.r + brdf.g);
 
     // probe based diffuse GI
     {
@@ -699,23 +699,23 @@ void main()
         1.0
     };
 
+    vec2 screenTexCoord = gl_FragCoord.xy *.5f / vec2(1280.f, 720.f);
+    float ssao = texture(ssaoTex, screenTexCoord).r;
+
     vec3 color = vec3(0.f);
     // analytical lighting
     color += directLighting(renderParams);
     // image-based-lighting
-    color += indirectLighting(renderParams);
+    color += indirectLighting(renderParams) * ssao;
     // baked lighting
     vec3 bakedLighting = vec3(0.f);
     if (uMaterialProps.hasBakedLighting > 0.5f) 
         bakedLighting = texture(lightMap, uv1).rgb;
-    color += bakedLighting * albedo.rgb;
+    color += bakedLighting * albedo.rgb * ssao;
 
     // write linear color to HDR Framebuffer
     fragColor = vec4(color, 1.0f);
-    // in world space
-    fragmentNormal = worldSpaceNormal * 0.5f + vec3(.5f);
-    // fragmentNormal = normal * 0.5f + vec3(.5f);
-    fragmentDepth = vec3(gl_FragCoord.z);
+
     // TODO: normalize the depth
     // vec2 clipSpaceXy = (gl_FragCoord.xy / 512.f) * 2.f - vec2(1.f);
     // radialDistance = vec3(length(vec3(clipSpaceXy, gl_FragCoord.z)));

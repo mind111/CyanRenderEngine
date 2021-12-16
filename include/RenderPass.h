@@ -26,20 +26,6 @@ namespace Cyan
         virtual void render() = 0;
     };
 
-    struct ScenePassInput
-    {
-        Scene* scene;
-    };
-
-    struct ScenePassOutput
-    {
-        RenderTarget* renderTarget;
-        Viewport viewport;
-        Texture* color;
-        Texture* normal;
-        Texture* depth;
-    };
-
     struct ScenePass : public RenderPass
     {
         ScenePass(RenderTarget* dstRenderTarget, Viewport viewport, Scene* scene);
@@ -49,6 +35,10 @@ namespace Cyan
         virtual void render() override;
 
         Scene* m_scene;
+        static Shader* s_sceneNormalDepthShader;
+        static Texture* ssaoBlurHoriTex;
+        static Texture* ssaoBlurVertTex;
+        static RenderTarget* ssaoBlurRt;
     };
 
     struct BloomPassInput

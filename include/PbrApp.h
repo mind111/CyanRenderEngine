@@ -321,6 +321,7 @@ public:
         f32            m_usePrototypeTexture;
         float m_uRoughness;
         float m_uMetallic;
+        float m_uSpecular;
     };
     Cyan::MaterialInstance* createDefaultPbrMatlInstance(Scene* scene, PbrMaterialInputs inputs);
     void addSceneMaterial(Scene* scene, Cyan::MaterialInstance* matl);
@@ -397,8 +398,8 @@ private:
     Cyan::Texture* m_voxelOutput;
     Cyan::Texture* m_shadowMap;
     // a probe that is infinitely distant
-    LightProbe m_probe;
-    std::vector<LightProbe> m_probes;
+    DistantLightProbe m_probe;
+    std::vector<DistantLightProbe> m_probes;
 
     /* Uniforms */
     Uniform* u_kDiffuse;

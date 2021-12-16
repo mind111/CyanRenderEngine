@@ -85,7 +85,7 @@ SceneManager* SceneManager::getSingletonPtr()
     return s_sceneManager;
 }
 
-void SceneManager::setLightProbe(Scene* scene, LightProbe* probe)
+void SceneManager::setLightProbe(Scene* scene, DistantLightProbe* probe)
 {
     scene->m_lastProbe = scene->m_currentProbe;
     scene->m_currentProbe = probe;

@@ -153,6 +153,7 @@ namespace Cyan
             spec0.m_s = Texture::Wrap::CLAMP_TO_EDGE;
             spec0.m_t = Texture::Wrap::CLAMP_TO_EDGE;
             spec0.m_r = Texture::Wrap::CLAMP_TO_EDGE;
+            // todo: it seems using rgb16f leads to precision issue when building ssao
             m_sceneDepthTextureSSAA = textureManager->createTextureHDR("SceneDepthTexSSAA", spec0);
             m_sceneNormalTextureSSAA = textureManager->createTextureHDR("SceneNormalTextureSSAA", spec0);
             m_sceneColorRTSSAA->attachColorBuffer(m_sceneNormalTextureSSAA);
@@ -379,9 +380,12 @@ namespace Cyan
             MaterialInstance* matl = meshInstance->m_matls[i]; 
             Shader* shader = matl->getShader();
             ctx->setShader(shader);
+            // todo: seperate scene data from per instance material data, two combined together to form shader input data
+            // ssao
+            matl->bindTexture("ssaoTex", m_ssaoTexture);
             if (modelMatrix)
             {
-                // TODO: this is obviously redumatl->m_shaderndant
+                // TODO: this is obviously redundant
                 Cyan::setUniform(u_model, &(*modelMatrix)[0]);
                 ctx->setUniform(u_model);
             }
@@ -425,7 +429,7 @@ namespace Cyan
             Mesh::SubMesh* sm = mesh->m_subMeshes[i];
             ctx->setVertexArray(sm->m_vertexArray);
             ctx->setPrimitiveType(PrimitiveType::TriangleList);
-            if (sm->m_vertexArray->m_ibo != static_cast<u32>(-1)) {
+            if (sm->m_vertexArray->hasIndexBuffer()) {
                 ctx->drawIndex(sm->m_numIndices);
             } else {
                 ctx->drawIndexAuto(sm->m_numVerts);
@@ -786,9 +790,17 @@ namespace Cyan
         m_renderState.addRenderPass(pass);
     }
 
-    void Renderer::addGaussianBlurPass()
+    void Renderer::addGaussianBlurPass(RenderTarget* renderTarget, Viewport viewport, Texture* srcTexture, Texture* horiTexture, Texture* vertTexture, GaussianBlurInput input)
     {
-
+        void* mem = m_frameAllocator.alloc(sizeof(GaussianBlurPass) * 2);
+        GaussianBlurPass* depthBlurPass = 
+            new (mem) GaussianBlurPass(renderTarget,
+                viewport,
+                srcTexture,
+                horiTexture,
+                vertTexture,
+                input);
+        m_renderState.addRenderPass(depthBlurPass);
     }
 
     void Renderer::addLinePass()
@@ -826,6 +838,7 @@ namespace Cyan
         if (node->m_meshInstance)
         {
             MeshInstance* meshInstance = node->m_meshInstance; 
+            // assume that all submeshes are using same type of material
             Material* materialType = meshInstance->m_matls[0]->m_template;
             u32 numSubMeshs = (u32)meshInstance->m_mesh->m_subMeshes.size();
 
@@ -909,25 +922,50 @@ namespace Cyan
 
     }
 
-    // TODO: implement this
+    void Renderer::drawMesh(Mesh* mesh)
+    {
+        auto ctx = getCurrentGfxCtx();
+        for (u32 sm = 0; sm < mesh->numSubMeshes(); ++sm)
+        {
+            auto subMesh = mesh->m_subMeshes[sm];
+            ctx->setVertexArray(subMesh->m_vertexArray);
+            if (subMesh->m_vertexArray->hasIndexBuffer())
+                ctx->drawIndex(subMesh->m_vertexArray->m_numIndices);
+            else ctx->drawIndexAuto(subMesh->m_vertexArray->numVerts());
+        }
+    }
+
     void Renderer::renderSceneDepthNormal(Scene* scene, Camera& camera)
     {
         auto ctx = getCurrentGfxCtx();
-        auto renderTarget = m_renderState.m_superSampleAA ? m_sceneColorRTSSAA : m_sceneColorRenderTarget;
+
         // camera
-        setUniform(u_cameraView, (void*)&camera.view[0]);
-        setUniform(u_cameraProjection, (void*)&camera.projection[0]);
+        setUniform(u_cameraView, &camera.view[0]);
+        setUniform(u_cameraProjection, &camera.projection[0]);
+        ctx->setUniform(u_cameraView);
+        ctx->setUniform(u_cameraProjection);
+
         // entities 
-        for (auto entity : scene->entities)
+        for (u32 e = 0; e < (u32)scene->entities.size(); ++e)
         {
-            for (auto node : entity->m_sceneRoot->m_child)
+            auto entity = scene->entities[e];
+            if (entity->m_includeInGBufferPass)
             {
-                if (node->m_meshInstance)
+                std::queue<SceneNode*> nodes;
+                nodes.push(entity->m_sceneRoot);
+                while (!nodes.empty())
                 {
-                    continue;
-                    i32 drawBuffers[2] = { 1u, 2u };
-                    ctx->setRenderTarget(renderTarget, drawBuffers, 2u);
-                    ctx->setShader(m_sceneDepthNormalShader);
+                    auto node = nodes.front();
+                    nodes.pop();
+                    if (node->m_meshInstance)
+                    {
+                        glm::mat4 model = node->getWorldTransform().toMatrix();
+                        setUniform(u_model, &model[0]);
+                        ctx->setUniform(u_model);
+                        drawMesh(node->m_meshInstance->m_mesh);
+                    }
+                    for (u32 i = 0; i < (u32)node->m_child.size(); ++i)
+                        nodes.push(node->m_child[i]);
                 }
             }
         }
@@ -941,9 +979,7 @@ namespace Cyan
         // lights
         uploadGpuLightingData(lighting);
         for (auto entity : entities)
-        {
             drawEntity(entity);
-        }
     }
 
     void Renderer::uploadGpuLightingData(LightingEnvironment& lighting)
@@ -992,6 +1028,100 @@ namespace Cyan
         }
     }
 
+    void Renderer::renderSSAO(Camera& camera)
+    {
+        auto ctx = getCurrentGfxCtx();
+        ctx->setShader(m_ssaoShader);
+        ctx->setRenderTarget(m_ssaoRenderTarget, 0u);
+        ctx->setViewport({0, 0, m_ssaoRenderTarget->m_width, m_ssaoRenderTarget->m_height});
+        ctx->clear();
+        ctx->setDepthControl(kDisable);
+        m_ssaoMatl->bindTexture("normalTexture", m_sceneNormalTextureSSAA);
+        m_ssaoMatl->bindTexture("depthTexture", m_sceneDepthTextureSSAA);
+        m_ssaoMatl->set("cameraPos", &camera.position.x);
+        m_ssaoMatl->set("view", &camera.view[0]);
+        m_ssaoMatl->set("projection", &camera.projection[0]);
+        m_ssaoMatl->bindBuffer("DebugVisData", m_ssaoDebugVisBuffer);
+        m_ssaoMatl->bind();
+        auto quad = getQuadMesh();
+        ctx->setVertexArray(quad->m_vertexArray);
+        ctx->drawIndexAuto(quad->m_vertexArray->numVerts());
+        ctx->setDepthControl(DepthControl::kEnable);
+
+#if DRAW_SSAO_DEBUG_VIS
+        // render ssao debug vis
+        {
+            // read out data from buffer
+            glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+            SSAODebugVisData* debugVisDataPtr = reinterpret_cast<SSAODebugVisData*>(glMapNamedBuffer(m_ssaoDebugVisBuffer->m_ssbo, GL_READ_WRITE));
+            memcpy(&m_ssaoDebugVisData, debugVisDataPtr, sizeof(SSAODebugVisData));
+            glUnmapNamedBuffer(m_ssaoDebugVisBuffer->m_ssbo);
+
+            // draw debug sample points
+            int numDebugPoints = m_ssaoDebugVisData.numSamplePoints;
+            if (!m_freezeDebugLines)
+            {
+                m_ssaoSamplePoints.reset();
+                for (int i = 0; i < numDebugPoints; ++i)
+                {
+                    m_ssaoSamplePoints.push(vec4ToVec3(m_ssaoDebugVisData.intermSamplePoints[i]));
+                }
+            }
+            m_ssaoSamplePoints.draw();
+
+            // draw debug lines
+            {
+                glm::vec3 v0, v1;
+                v0 = vec4ToVec3(m_ssaoDebugVisData.samplePointWS);
+                v1 = v0 + vec4ToVec3(m_ssaoDebugVisData.normal);
+                if (!m_freezeDebugLines)
+                    m_ssaoDebugVisLines.normal.setVerts(v0, v1);
+                m_ssaoDebugVisLines.normal.draw();
+            }
+
+            {
+                glm::vec3 v0, v1;
+                v0 = vec4ToVec3(m_ssaoDebugVisData.samplePointWS);
+                v1 = v0 + vec4ToVec3(m_ssaoDebugVisData.projectedNormal);
+                if (!m_freezeDebugLines)
+                    m_ssaoDebugVisLines.projectedNormal.setVerts(v0, v1);
+                m_ssaoDebugVisLines.projectedNormal.draw();
+            }
+
+            {
+                glm::vec3 v0, v1;
+                v0 = vec4ToVec3(m_ssaoDebugVisData.samplePointWS);
+                v1 = v0 + vec4ToVec3(m_ssaoDebugVisData.wo);
+                if (!m_freezeDebugLines)
+                    m_ssaoDebugVisLines.wo.setVerts(v0, v1);
+                m_ssaoDebugVisLines.wo.draw();
+            }
+            
+            {
+                glm::vec3 v0, v1;
+                v0 = vec4ToVec3(m_ssaoDebugVisData.samplePointWS);
+                v1 = v0 + vec4ToVec3(m_ssaoDebugVisData.sliceDir);
+                if (!m_freezeDebugLines)
+                    m_ssaoDebugVisLines.sliceDir.setVerts(v0, v1);
+                m_ssaoDebugVisLines.sliceDir.draw();
+            }
+
+            int numDebugLines = m_ssaoDebugVisData.numSampleLines;
+            for (int i = 0; i < numDebugLines; ++i)
+            {
+                glm::vec3 v0, v1;
+                v0 = vec4ToVec3(m_ssaoDebugVisData.samplePointWS);
+                v1 = vec4ToVec3(m_ssaoDebugVisData.sampleVec[i]);
+                if (!m_freezeDebugLines)
+                {
+                    m_ssaoDebugVisLines.samples[i].setVerts(v0, v1);
+                }
+                m_ssaoDebugVisLines.samples[i].draw();
+            }
+        }
+#endif
+    }
+
     // TODO: render scene depth & normal to compute ao results first
     void Renderer::renderScene(Scene* scene, Camera& camera)
     {
@@ -1002,7 +1132,6 @@ namespace Cyan
 #if DRAW_DEBUG
         DirectionalShadowPass::drawDebugLines(u_cameraView, u_cameraProjection);
 #endif
-
         // lights
         LightingEnvironment lighting = { 
             scene->pLights,
@@ -1017,100 +1146,6 @@ namespace Cyan
         for (auto entity : scene->entities)
         {
             drawEntity(entity);
-        }
-
-        // test ssao pass
-        {
-            auto ctx = getCurrentGfxCtx();
-            ctx->setShader(m_ssaoShader);
-            ctx->setRenderTarget(m_ssaoRenderTarget, 0u);
-            ctx->setViewport({0, 0, m_ssaoRenderTarget->m_width, m_ssaoRenderTarget->m_height});
-            ctx->clear();
-            ctx->setDepthControl(kDisable);
-            m_ssaoMatl->bindTexture("normalTexture", m_sceneNormalTextureSSAA);
-            m_ssaoMatl->bindTexture("depthTexture", m_sceneDepthTextureSSAA);
-            m_ssaoMatl->set("cameraPos", &camera.position.x);
-            m_ssaoMatl->set("view", &camera.view[0]);
-            m_ssaoMatl->set("projection", &camera.projection[0]);
-            m_ssaoMatl->bindBuffer("DebugVisData", m_ssaoDebugVisBuffer);
-            m_ssaoMatl->bind();
-            auto quad = getQuadMesh();
-            ctx->setVertexArray(quad->m_vertexArray);
-            ctx->drawIndexAuto(quad->m_vertexArray->numVerts());
-            ctx->setDepthControl(DepthControl::kEnable);
-
-#if DRAW_SSAO_DEBUG_VIS
-            // render ssao debug vis
-            {
-                // read out data from buffer
-                glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-                SSAODebugVisData* debugVisDataPtr = reinterpret_cast<SSAODebugVisData*>(glMapNamedBuffer(m_ssaoDebugVisBuffer->m_ssbo, GL_READ_WRITE));
-                memcpy(&m_ssaoDebugVisData, debugVisDataPtr, sizeof(SSAODebugVisData));
-                glUnmapNamedBuffer(m_ssaoDebugVisBuffer->m_ssbo);
-
-                // draw debug sample points
-                int numDebugPoints = m_ssaoDebugVisData.numSamplePoints;
-                if (!m_freezeDebugLines)
-                {
-                    m_ssaoSamplePoints.reset();
-                    for (int i = 0; i < numDebugPoints; ++i)
-                    {
-                        m_ssaoSamplePoints.push(vec4ToVec3(m_ssaoDebugVisData.intermSamplePoints[i]));
-                    }
-                }
-                m_ssaoSamplePoints.draw();
-
-                // draw debug lines
-                {
-                    glm::vec3 v0, v1;
-                    v0 = vec4ToVec3(m_ssaoDebugVisData.samplePointWS);
-                    v1 = v0 + vec4ToVec3(m_ssaoDebugVisData.normal);
-                    if (!m_freezeDebugLines)
-                        m_ssaoDebugVisLines.normal.setVerts(v0, v1);
-                    m_ssaoDebugVisLines.normal.draw();
-                }
-
-                {
-                    glm::vec3 v0, v1;
-                    v0 = vec4ToVec3(m_ssaoDebugVisData.samplePointWS);
-                    v1 = v0 + vec4ToVec3(m_ssaoDebugVisData.projectedNormal);
-                    if (!m_freezeDebugLines)
-                        m_ssaoDebugVisLines.projectedNormal.setVerts(v0, v1);
-                    m_ssaoDebugVisLines.projectedNormal.draw();
-                }
-
-                {
-                    glm::vec3 v0, v1;
-                    v0 = vec4ToVec3(m_ssaoDebugVisData.samplePointWS);
-                    v1 = v0 + vec4ToVec3(m_ssaoDebugVisData.wo);
-                    if (!m_freezeDebugLines)
-                        m_ssaoDebugVisLines.wo.setVerts(v0, v1);
-                    m_ssaoDebugVisLines.wo.draw();
-                }
-                
-                {
-                    glm::vec3 v0, v1;
-                    v0 = vec4ToVec3(m_ssaoDebugVisData.samplePointWS);
-                    v1 = v0 + vec4ToVec3(m_ssaoDebugVisData.sliceDir);
-                    if (!m_freezeDebugLines)
-                        m_ssaoDebugVisLines.sliceDir.setVerts(v0, v1);
-                    m_ssaoDebugVisLines.sliceDir.draw();
-                }
-
-                int numDebugLines = m_ssaoDebugVisData.numSampleLines;
-                for (int i = 0; i < numDebugLines; ++i)
-                {
-                    glm::vec3 v0, v1;
-                    v0 = vec4ToVec3(m_ssaoDebugVisData.samplePointWS);
-                    v1 = vec4ToVec3(m_ssaoDebugVisData.sampleVec[i]);
-                    if (!m_freezeDebugLines)
-                    {
-                        m_ssaoDebugVisLines.samples[i].setVerts(v0, v1);
-                    }
-                    m_ssaoDebugVisLines.samples[i].draw();
-                }
-            }
-#endif
         }
     }
 }
