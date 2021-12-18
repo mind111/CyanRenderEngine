@@ -12,6 +12,9 @@ namespace Cyan
     RenderTarget*  IrradianceProbe::m_irradianceRenderTarget  = nullptr; 
     MeshInstance*  IrradianceProbe::m_cubeMeshInstance        = nullptr; 
     RegularBuffer* IrradianceProbe::m_rayBuffers              = nullptr;
+    RenderTarget*  ReflectionProbe::m_renderTarget            = nullptr;
+    RenderTarget*  ReflectionProbe::m_prefilterRts[kNumMips]  = {  };
+    Shader*        ReflectionProbe::m_prefilterShader         = nullptr;
     Shader* LightFieldProbe::m_octProjectionShader            = nullptr;
     RenderTarget* LightFieldProbe::m_cubemapRenderTarget      = nullptr;
     RenderTarget* LightFieldProbe::m_octMapRenderTarget       = nullptr;
@@ -26,7 +29,7 @@ namespace Cyan
     }
 
     IrradianceProbe::IrradianceProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene)
-        : Entity(name , id, Transform(), parent), 
+        : Entity(name , id, Transform(), parent, false), 
         m_scene(scene)
     {
         if (!m_radianceRenderTarget)
@@ -37,9 +40,8 @@ namespace Cyan
             m_cubeMeshInstance = getMesh("CubeMesh")->createInstance();
             m_cubeMeshInstance->setMaterial(0, m_computeIrradianceMatl);
         }
-
-        m_bakeInProbes = false;
         
+        m_visible = false;
         TextureSpec spec = { };
         spec.m_width = 512u;
         spec.m_height = 512u;
@@ -104,20 +106,6 @@ namespace Cyan
             {0.f, -1.f, 0.f},   // Back
         };
 
-        // bundle entities that should be baked
-        std::vector<Entity*> bakeEntities;
-        bakeEntities.resize(m_scene->entities.size());
-        u32 numBakedEntities = 0u;
-        for (u32 i = 0; i < m_scene->entities.size(); ++i)
-        {
-            auto entity = m_scene->entities[i];
-            if (entity->m_bakeInProbes)
-            {
-                bakeEntities[numBakedEntities++] = entity;
-            }
-        }
-        bakeEntities.resize(numBakedEntities);
-
         auto renderer = Renderer::getSingletonPtr();
         auto ctx = Cyan::getCurrentGfxCtx();
         ctx->setViewport({0u, 0u, 512u, 512u});
@@ -132,19 +120,6 @@ namespace Cyan
             camera.worldUp = worldUps[f];
             CameraManager::updateCamera(camera);
             renderer->probeRenderScene(m_scene, camera);
-
-            // LightingEnvironment lighting = {
-            //     m_scene->pLights,
-            //     m_scene->dLights,
-            //     m_scene->m_currentProbe,
-            //     true
-            // };
-            // for (u32 i = 0; i < m_scene->dLights.size(); ++i)
-            // {
-            //     renderer->addDirectionalShadowPass(m_scene, camera, i);
-            // }
-            // renderer->addEntityPass(m_radianceRenderTarget, {0, 0, m_radianceRenderTarget->m_width, m_radianceRenderTarget->m_height}, bakeEntities, lighting, camera);
-            // renderer->render();
         }
     }
 
@@ -191,10 +166,164 @@ namespace Cyan
         timer.end();
     }
 
-    LightFieldProbe::LightFieldProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene)
-        : Entity(name , id, Transform(), parent), m_scene(scene)
+    ReflectionProbe::ReflectionProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene)
+        : Entity(name , id, Transform(), parent, true), m_scene(scene)
     {
-        m_bakeInProbes = false;
+        if (!m_renderTarget)
+        {
+            m_renderTarget = createRenderTarget(2048u, 2048u);
+            m_prefilterShader = createShader("PrefilterSpecularShader", "../../shader/shader_prefilter_specular.vs", "../../shader/shader_prefilter_specular.fs");
+            u32 mipWidth = 2048;
+            u32 mipHeight = 2048;
+            for (u32 mip = 0; mip < kNumMips; ++mip)
+            {
+                m_prefilterRts[mip] = createRenderTarget(mipWidth, mipHeight);
+                mipWidth  /= 2;
+                mipHeight /= 2;
+            }
+        }
+        m_visible = false;
+        TextureSpec spec = { };
+        spec.m_width = 2048u;
+        spec.m_height = 2048u;
+        spec.m_type = Texture::Type::TEX_CUBEMAP;
+        spec.m_format = Texture::ColorFormat::R16G16B16;
+        spec.m_dataType = Texture::Float;
+        spec.m_min = Texture::Filter::LINEAR;
+        spec.m_mag = Texture::Filter::LINEAR;
+        spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.m_numMips = 1u;
+        spec.m_data = 0;
+        auto textureManager = TextureManager::getSingletonPtr();
+        m_radianceMap = textureManager->createTextureHDR("RadianceProbe", spec);
+        // FIXME: this is bugged, should only detach/attach when rendering
+        m_renderTarget->attachColorBuffer(m_radianceMap, 0);
+        m_renderProbeMatl = createMaterial(getRenderProbeShader())->createInstance();
+
+        Mesh* mesh = Cyan::getMesh("sphere_mesh");
+        Transform transform;
+        transform.m_translate = p;
+        transform.m_scale = glm::vec3(1.0f);
+        m_sceneRoot->attach(createSceneNode("SphereMesh", transform, mesh, false));
+        setMaterial("SphereMesh", 0, m_renderProbeMatl);
+
+        spec.m_numMips = 11u;
+        spec.m_min = Texture::Filter::MIPMAP_LINEAR;
+        m_prefilteredProbe = textureManager->createTextureHDR("PrefilteredReflectionProbe", spec);
+        m_prefilterMatl = createMaterial(m_prefilterShader)->createInstance();
+        m_renderProbeMatl->bindTexture("radianceMap", m_prefilteredProbe);
+    }
+    
+    void ReflectionProbe::sampleRadiance()
+    {
+        const u32 kViewportWidth = m_radianceMap->m_width;
+        const u32 kViewportHeight = m_radianceMap->m_height;
+        Camera camera = { };
+        // camera set to probe's location
+        camera.position = getSceneNode("SphereMesh")->getWorldTransform().m_translate;
+        camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
+        camera.n = 0.1f;
+        camera.f = 100.f;
+        camera.fov = glm::radians(90.f);
+        glm::vec3 cameraTargets[] = {
+            {1.f, 0.f, 0.f},   // Right
+            {-1.f, 0.f, 0.f},  // Left
+            {0.f, 1.f, 0.f},   // Up
+            {0.f, -1.f, 0.f},  // Down
+            {0.f, 0.f, 1.f},   // Front
+            {0.f, 0.f, -1.f},  // Back
+        }; 
+        glm::vec3 worldUps[] = {
+            {0.f, -1.f, 0.f},   // Right
+            {0.f, -1.f, 0.f},   // Left
+            {0.f, 0.f, 1.f},    // Up
+            {0.f, 0.f, -1.f},   // Down
+            {0.f, -1.f, 0.f},   // Forward
+            {0.f, -1.f, 0.f},   // Back
+        };
+        auto renderer = Renderer::getSingletonPtr();
+        auto ctx = Cyan::getCurrentGfxCtx();
+        ctx->setViewport({0u, 0u, kViewportWidth, kViewportHeight});
+        for (u32 f = 0; f < (sizeof(cameraTargets)/sizeof(cameraTargets[0])); ++f)
+        {
+            i32 drawBuffers[4] = {(i32)f, -1, -1, -1};
+            m_renderTarget->setDrawBuffers(drawBuffers, 4);
+            ctx->setRenderTarget(m_renderTarget);
+            ctx->clear();
+
+            camera.lookAt = camera.position + cameraTargets[f];
+            camera.worldUp = worldUps[f];
+            CameraManager::updateCamera(camera);
+            renderer->probeRenderScene(m_scene, camera);
+        }
+    }
+
+    void ReflectionProbe::prefilter()
+    {
+        const u32 kViewportWidth = m_prefilteredProbe->m_width;
+        const u32 kViewportHeight = m_prefilteredProbe->m_height;
+        Camera camera = { };
+        // camera set to probe's location
+        camera.position = glm::vec3(0.f);
+        camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
+        camera.n = 0.1f;
+        camera.f = 100.f;
+        camera.fov = glm::radians(90.f);
+        glm::vec3 cameraTargets[] = {
+            {1.f, 0.f, 0.f},   // Right
+            {-1.f, 0.f, 0.f},  // Left
+            {0.f, 1.f, 0.f},   // Up
+            {0.f, -1.f, 0.f},  // Down
+            {0.f, 0.f, 1.f},   // Front
+            {0.f, 0.f, -1.f},  // Back
+        }; 
+        glm::vec3 worldUps[] = {
+            {0.f, -1.f, 0.f},   // Right
+            {0.f, -1.f, 0.f},   // Left
+            {0.f, 0.f, 1.f},    // Up
+            {0.f, 0.f, -1.f},   // Down
+            {0.f, -1.f, 0.f},   // Forward
+            {0.f, -1.f, 0.f},   // Back
+        };
+        auto renderer = Renderer::getSingletonPtr();
+        auto ctx = getCurrentGfxCtx();
+        u32 kNumMips = 11;
+        u32 mipWidth = m_prefilteredProbe->m_width; 
+        u32 mipHeight = m_prefilteredProbe->m_height;
+        ctx->setDepthControl(DepthControl::kDisable);
+        ctx->setShader(m_prefilterShader);
+        for (u32 mip = 0; mip < kNumMips; ++mip)
+        {
+            m_prefilterRts[mip]->attachColorBuffer(m_prefilteredProbe, mip);
+            ctx->setViewport({ 0u, 0u, m_prefilterRts[mip]->m_width, m_prefilterRts[mip]->m_height });
+            for (u32 f = 0; f < 6u; f++)
+            {
+                ctx->setRenderTarget(m_prefilterRts[mip], f);
+                camera.lookAt = cameraTargets[f];
+                camera.worldUp = worldUps[f];
+                CameraManager::updateCamera(camera);
+                // Update uniforms
+                m_prefilterMatl->set("projection", &camera.projection[0]);
+                m_prefilterMatl->set("view", &camera.view[0]);
+                m_prefilterMatl->set("roughness", mip * (1.f / (kNumMips - 1)));
+                m_prefilterMatl->bindTexture("envmapSampler", m_radianceMap);
+                m_prefilterMatl->bind();
+                auto va = getMesh("CubeMesh")->m_subMeshes[0]->m_vertexArray;
+                ctx->setVertexArray(va);
+                ctx->drawIndexAuto(va->numVerts());
+            }
+            mipWidth /= 2u;
+            mipHeight /= 2u;
+        }
+        ctx->setDepthControl(DepthControl::kEnable);
+    }
+
+    LightFieldProbe::LightFieldProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene)
+        : Entity(name , id, Transform(), parent, false), m_scene(scene)
+    {
+        // m_bakeInProbes = false;
         auto textureManager = TextureManager::getSingletonPtr();
         {
             TextureSpec spec = { };
@@ -299,7 +428,7 @@ namespace Cyan
             for (u32 i = 0; i < m_scene->entities.size(); ++i)
             {
                 auto entity = m_scene->entities[i];
-                if (entity->m_bakeInProbes)
+                if (entity->m_static)
                 {
                     bakeEntities[numBakedEntities++] = entity;
                 }
@@ -330,6 +459,7 @@ namespace Cyan
                     m_scene->pLights,
                     m_scene->dLights,
                     m_scene->m_currentProbe,
+                    nullptr,
                     nullptr,
                     true
                 };
@@ -468,6 +598,15 @@ namespace Cyan
         auto sceneManager = SceneManager::getSingletonPtr();
         u32 id = sceneManager->allocEntityId(scene);
         auto probe = new IrradianceProbe("IrradianceProbe0", id, position, nullptr, scene);
+        scene->entities.push_back(probe);
+        return probe;
+    }
+
+    ReflectionProbe* LightProbeFactory::createReflectionProbe(Scene* scene, glm::vec3 position)
+    {
+        auto sceneManager = SceneManager::getSingletonPtr();
+        u32 id = sceneManager->allocEntityId(scene);
+        auto probe = new ReflectionProbe("ReflectionProbe0", id, position, nullptr, scene);
         scene->entities.push_back(probe);
         return probe;
     }

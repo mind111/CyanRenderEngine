@@ -225,7 +225,10 @@ void main()
 #endif
 
     float depth = texture(depthTexture, texCoords).r;
-    if (depth >= 0.99f)
+    vec3 normal = texture(normalTexture, texCoords).rgb;
+    normal = normalize(normal * 2.f - vec3(1.f));
+
+    if (depth >= 0.99999f)
     {
         fragColor = vec4(1.f);
         return;
@@ -263,8 +266,6 @@ void main()
     float sampleRadius = 1.f;
     int numSlices = 4;
 
-    vec3 normal = texture(normalTexture, texCoords).rgb;
-    normal = normalize(normal * 2.f - vec3(1.f));
     float totalAo = 0.f;
     // horizon angle t1
     float cosT1 = 0.f;
@@ -359,6 +360,6 @@ void main()
         totalAo += ao;
     }
     totalAo /= float(numSlices);
-    totalAo = pow(totalAo, 3.f);
+    totalAo = pow(totalAo, 2.f);
     fragColor = vec4(vec3(totalAo), 1.f);
 }

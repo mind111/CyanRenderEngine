@@ -5,5 +5,5 @@ in vec3 normal;
 out vec4 fragColor;
 void main()
 {
-    fragColor = vec4(texture(radianceMap, normalize(normal)).rgb, 1.f);
+    fragColor = vec4(textureLod(radianceMap, normalize(normal), 0).rgb, 1.f);
 }

@@ -19,12 +19,29 @@
 #include "RenderPass.h"
 
 /*
-    * particle system; particle rendering
-    * grass rendering
-    * procedural sky & clouds
-    * normalized blinn phong shading
-    * animation
+    * gltf-2.0 assets loading
     * saving the scene and assets as binaries (serialization)
+    * a simple material editor
+    * irradiance volume
+    * local reflection probes
+        * reflection doesn't have shadow
+    * screen-space ray tracing
+        * or world space .. using gpu?
+    * shadow improvements
+        * instead of using box filter, maybe use randonly rotated poisson samples? 
+        * pcf 5x5 shadow acne issue
+        * reducing the far clipping plane for view frustum almost fixed everything, but this is only a work-around for now.
+        * debug visualize shadow cascades add blending between cascades.
+    * lightmapping improvements
+        * is backface culling necessary?
+        * only one bounce but exaggerate indirect bounce contribution
+        * denoise..? 
+        * irradiance caching plus photon mapping..? (ue4)
+    * physically based lighting units
+    * practical sky rendering
+    * animation
+    * shading model
+        * roughness < .1f will cause specular highlight from sun light to disappear
 */
 
 #define REBAKE_LIGHTMAP 0
@@ -177,9 +194,8 @@ namespace Pbr
 
 enum Scenes
 {
-    Helmet_Scene = 0,
+    Demo_Scene_00 = 0,
     Factory_Scene,
-    Demo_Scene_00,
     kCount
 };
 
@@ -255,7 +271,7 @@ Cyan::MaterialInstance* createDefaultRayTracingMatl(Scene* scene, Shader* shader
 }
 #endif
 
-Cyan::MaterialInstance* PbrApp::createDefaultPbrMatlInstance(Scene* scene, PbrMaterialInputs inputs)
+Cyan::MaterialInstance* PbrApp::createDefaultPbrMatlInstance(Scene* scene, PbrMaterialInputs inputs, bool isStatic)
 {
     Shader* pbrShader = Cyan::createShader("PbrShader", nullptr, nullptr);
     Cyan::MaterialInstance* matl = Cyan::createMaterial(pbrShader)->createInstance();
@@ -301,6 +317,16 @@ Cyan::MaterialInstance* PbrApp::createDefaultPbrMatlInstance(Scene* scene, PbrMa
     matl->set("uniformRoughness", inputs.m_uRoughness);
     matl->set("uniformMetallic", inputs.m_uMetallic);
     matl->set("uMaterialProps.hasBakedLighting", inputs.m_hasBakedLighting);
+    if (isStatic)
+    {
+        matl->set("gLighting.diffuseScale", 0.f);
+        matl->set("gLighting.specularScale", 0.f);
+    }
+    else
+    {
+        matl->set("gLighting.diffuseScale", 1.f);
+        matl->set("gLighting.specularScale", 1.f);
+    }
     if (inputs.m_hasBakedLighting > .5f) matl->bindTexture("lightMap", inputs.m_lightMap);
 
     matl->bindBuffer("dirLightsData", scene->m_dirLightsBuffer);
@@ -324,7 +350,7 @@ void PbrApp::createHelmetInstance(Scene* scene)
         inputs.m_normalMap = textureManager->getTexture("helmet_nm");
         inputs.m_metallicRoughnessMap = textureManager->getTexture("helmet_roughness");
         inputs.m_occlusion = textureManager->getTexture("helmet_ao");
-        auto helmetMatl = createDefaultPbrMatlInstance(scene, inputs);
+        auto helmetMatl = createDefaultPbrMatlInstance(scene, inputs, false);
         Entity* helmet = sceneManager->getEntity(scene, "DamagedHelmet");
         helmet->setMaterial("HelmetMesh", 0, helmetMatl);
     }
@@ -338,6 +364,11 @@ void PbrApp::initDemoScene00()
 
     auto textureManager = m_graphicsSystem->getTextureManager();
     auto sceneManager = SceneManager::getSingletonPtr();
+    PbrMaterialInputs input = { };
+    input.m_flatBaseColor = glm::vec4(1.f);
+    input.m_uRoughness = .8f;
+    input.m_uMetallic = .02f;
+    auto defaultMatl = createDefaultPbrMatlInstance(demoScene00, input, false);
 
     // helmet
     {
@@ -355,9 +386,9 @@ void PbrApp::initDemoScene00()
         Entity* bunny1 = sceneManager->getEntity(demoScene00, "Bunny1");
         inputs.m_flatBaseColor = glm::vec4(0.855, 0.647, 0.125f, 1.f);
         inputs.m_uRoughness = 0.1f;
-        inputs.m_uMetallic = 0.8f;
+        inputs.m_uMetallic = 1.0f;
 
-        auto bunnyMatl = createDefaultPbrMatlInstance(demoScene00, inputs);
+        auto bunnyMatl = createDefaultPbrMatlInstance(demoScene00, inputs, bunny0->m_static);
         bunny0->setMaterial("BunnyMesh", -1, bunnyMatl);
         bunny1->setMaterial("BunnyMesh", -1, bunnyMatl);
     }
@@ -369,72 +400,85 @@ void PbrApp::initDemoScene00()
         inputs.m_flatBaseColor = glm::vec4(0.855, 0.855, 0.855, 1.f);
         inputs.m_uRoughness = 0.3f;
         inputs.m_uMetallic = 0.3f;
-        auto manMatl = createDefaultPbrMatlInstance(demoScene00, inputs);
+        auto manMatl = createDefaultPbrMatlInstance(demoScene00, inputs, man->m_static);
         man->setMaterial("ManMesh", -1, manMatl);
     }
 
     // lighting
     {
-        sceneManager->createDirectionalLight(demoScene00, glm::vec3(1.0f, 0.9, 0.7f), glm::normalize(glm::vec3(1.0f, 0.5f, 1.8f)), 2.2f);
+        sceneManager->createDirectionalLight(demoScene00, glm::vec3(1.0f, 0.9, 0.7f), glm::normalize(glm::vec3(1.0f, 0.5f, 1.8f)), 3.6f);
         // sky light
         auto sceneManager = SceneManager::getSingletonPtr();
-        Entity* envMapEntity = sceneManager->createEntity(demoScene00, "Envmap", Transform());
+        Entity* envMapEntity = sceneManager->createEntity(demoScene00, "Envmap", Transform(), true);
         envMapEntity->m_sceneRoot->attach(Cyan::createSceneNode("CubeMesh", Transform(), Cyan::getMesh("CubeMesh"), false));
         envMapEntity->setMaterial("CubeMesh", 0, m_skyMatl);
-        envMapEntity->m_bakeInLightmap = false;
         envMapEntity->m_includeInGBufferPass = false;
 
-        // irradiance probes
-        m_irradianceProbe = sceneManager->createIrradianceProbe(demoScene00, glm::vec3(0.f, 2.5f, 0.f));
-        m_irradianceProbe->m_bakeInLightmap = false;
+        // a irradiance probe
+        m_irradianceProbe = sceneManager->createIrradianceProbe(demoScene00, glm::vec3(0.f, 2.f, 0.f));
+        // a reflection probe
+        m_reflectionProbe = sceneManager->createReflectionProbe(demoScene00, glm::vec3(0.f, 3.f, 0.f));
+        demoScene00->m_reflectionProbe = m_reflectionProbe;
     }
 
     // grid of shader ball on the table
     {
         glm::vec3 gridLowerLeft(-2.1581, 1.1629, 2.5421);
+        glm::vec3 defaultAlbedo(1.f);
         glm::vec3 silver(.753f, .753f, .753f);
         glm::vec3 gold(1.f, 0.843f, 0.f);
         glm::vec3 chrome(1.f);
         glm::vec3 plastic(0.061f, 0.757f, 0.800f);
-        PbrMaterialInputs matlInputs[4] = { };
-        matlInputs[0].m_flatBaseColor = glm::vec4(gold, 1.f);
-        matlInputs[0].m_uRoughness = .02f;
-        matlInputs[0].m_uMetallic = 0.95f;
-        matlInputs[1].m_flatBaseColor = glm::vec4(silver, 1.f);
-        matlInputs[1].m_uRoughness = .02f;
-        matlInputs[1].m_uMetallic = 0.95f;
-        matlInputs[2].m_flatBaseColor = glm::vec4(chrome, 1.f);
-        matlInputs[2].m_uRoughness = .02f;
-        matlInputs[2].m_uMetallic = 0.95f;
-        matlInputs[3].m_flatBaseColor = glm::vec4(plastic, 1.f);
-        matlInputs[3].m_uRoughness = .02f;
-        matlInputs[3].m_uMetallic = 0.05f;
+        PbrMaterialInputs matlInputs[2][4] = { };
+        matlInputs[0][0].m_flatBaseColor = glm::vec4(gold, 1.f);
+        matlInputs[0][0].m_uRoughness = .1f;
+        matlInputs[0][0].m_uMetallic = 0.95f;
+        matlInputs[0][1].m_flatBaseColor = glm::vec4(silver, 1.f);
+        matlInputs[0][1].m_uRoughness = .02f;
+        matlInputs[0][1].m_uMetallic = 0.95f;
+        matlInputs[0][2].m_flatBaseColor = glm::vec4(chrome, 1.f);
+        matlInputs[0][2].m_uRoughness = .3f;
+        matlInputs[0][2].m_uMetallic = 0.95f;
+        matlInputs[0][3].m_flatBaseColor = glm::vec4(plastic, 1.f);
+        matlInputs[0][3].m_uRoughness = .02f;
+        matlInputs[0][3].m_uMetallic = 0.05f;
+        matlInputs[0][3].m_uSpecular = 1.f;
+        matlInputs[1][0].m_flatBaseColor = glm::vec4(gold, 1.f);
+        matlInputs[1][0].m_roughnessMap = textureManager->getTexture("imperfection_grunge");
+        matlInputs[1][0].m_uMetallic = 0.95f;
+        matlInputs[1][1].m_flatBaseColor = glm::vec4(silver, 1.f);
+        matlInputs[1][1].m_uRoughness = .02f;
+        matlInputs[1][1].m_uMetallic = 0.95f;
+        matlInputs[1][2].m_flatBaseColor = glm::vec4(chrome, 1.f);
+        matlInputs[1][2].m_uRoughness = .3f;
+        matlInputs[1][2].m_uMetallic = 0.95f;
+        matlInputs[1][3].m_flatBaseColor = glm::vec4(plastic, 1.f);
+        matlInputs[1][3].m_uRoughness = .02f;
+        matlInputs[1][3].m_uMetallic = 0.05f;
+        matlInputs[1][3].m_uSpecular = 1.f;
 
-        for (u32 i = 0; i < 4; ++i)
+        for (u32 j = 0; j < 2; ++j)
         {
-            char entityName[32];
-            char meshNodeName[32];
-            sprintf_s(entityName, "ShaderBall%u", i);
-            sprintf_s(meshNodeName, "ShaderBall%u", i);
-            auto shaderBall = sceneManager->createEntity(demoScene00, entityName, Transform{});
-            shaderBall->m_bakeInLightmap = false;
+            for (u32 i = 0; i < 4; ++i)
+            {
+                char entityName[32];
+                char meshNodeName[32];
+                sprintf_s(entityName, "ShaderBall%u", j * 4 + i);
+                sprintf_s(meshNodeName, "ShaderBall%u", j * 4 + i);
+                auto shaderBall = sceneManager->createEntity(demoScene00, entityName, Transform{}, false);
 
-            glm::vec3 posOffset = glm::vec3(1.3f * (f32)i, 0.f, 0.f);
-            Transform transform = { };
-            transform.m_translate = gridLowerLeft + posOffset;
-            transform.m_scale = glm::vec3(.003f);
-            auto meshNode = Cyan::createSceneNode(meshNodeName, transform, Cyan::getMesh("shaderball_mesh"));
-            shaderBall->attachSceneNode(meshNode);
-            PbrMaterialInputs input = { };
-            input.m_flatBaseColor = glm::vec4(0.5f, 0.5f, .5f, 1.f);
-            input.m_uRoughness = .7f;
-            input.m_uMetallic = .2f;
-            auto defaultMatl = createDefaultPbrMatlInstance(demoScene00, input);
-            auto matl = createDefaultPbrMatlInstance(demoScene00, matlInputs[i]);
-            shaderBall->setMaterial(meshNodeName, -1, defaultMatl);
-            shaderBall->setMaterial(meshNodeName, 0, matl);
-            shaderBall->setMaterial(meshNodeName, 1, matl);
-            shaderBall->setMaterial(meshNodeName, 5, matl);
+                glm::vec3 posOffset = glm::vec3(1.3f * (f32)i, 0.f, -1.5f * (f32)j);
+                Transform transform = { };
+                transform.m_translate = gridLowerLeft + posOffset;
+                transform.m_scale = glm::vec3(.003f);
+                auto meshNode = Cyan::createSceneNode(meshNodeName, transform, Cyan::getMesh("shaderball_mesh"));
+                shaderBall->attachSceneNode(meshNode);
+                auto matl = createDefaultPbrMatlInstance(demoScene00, matlInputs[j][i], shaderBall->m_static);
+                shaderBall->setMaterial(meshNodeName, -1, defaultMatl);
+                shaderBall->setMaterial(meshNodeName, 0, matl);
+                shaderBall->setMaterial(meshNodeName, 1, matl);
+                shaderBall->setMaterial(meshNodeName, 5, matl);
+            }
         }
     }
     
@@ -444,6 +488,7 @@ void PbrApp::initDemoScene00()
         auto roomNode = room->getSceneNode("RoomMesh");
         auto planeNode = room->getSceneNode("PlaneMesh");
         Cyan::Mesh* roomMesh = roomNode->m_meshInstance->m_mesh;
+        Cyan::Mesh* planeMesh = planeNode->m_meshInstance->m_mesh;
         roomMesh->m_bvh = new Cyan::MeshBVH(roomMesh);
         roomMesh->m_bvh->build();
 
@@ -463,7 +508,7 @@ void PbrApp::initDemoScene00()
                 auto& objMatl = roomMesh->m_objMaterials[matlIdx];
                 inputs.m_flatBaseColor = glm::vec4(objMatl.diffuse, 1.f);
             }
-            auto matl = createDefaultPbrMatlInstance(demoScene00, inputs);
+            auto matl = createDefaultPbrMatlInstance(demoScene00, inputs, room->m_static);
             room->setMaterial("RoomMesh", sm, matl);
         }
         PbrMaterialInputs inputs = { };
@@ -472,7 +517,7 @@ void PbrApp::initDemoScene00()
         inputs.m_uMetallic = 0.5f;
         inputs.m_hasBakedLighting = 1.f;
         inputs.m_usePrototypeTexture = 1.f;
-        auto planeMatl = createDefaultPbrMatlInstance(demoScene00, inputs);
+        auto planeMatl = createDefaultPbrMatlInstance(demoScene00, inputs, room->m_static);
         room->setMaterial("PlaneMesh", -1, planeMatl);
 
         // bake lightmap
@@ -502,8 +547,8 @@ void PbrApp::initDemoScene00()
             // default matl param
             PbrMaterialInputs inputs = { };
             inputs.m_flatBaseColor = glm::vec4(1.f);
-            inputs.m_uRoughness = 0.5f;
-            inputs.m_uMetallic = 0.5f;
+            inputs.m_uRoughness = 0.8f;
+            inputs.m_uMetallic = 0.0f;
             inputs.m_hasBakedLighting = 1.f;
             inputs.m_lightMap = roomNode->m_meshInstance->m_lightMap->m_texAltas;
 
@@ -513,7 +558,7 @@ void PbrApp::initDemoScene00()
                 auto& objMatl = roomMesh->m_objMaterials[matlIdx];
                 inputs.m_flatBaseColor = glm::vec4(objMatl.diffuse, 1.f);
             }
-            auto matl = createDefaultPbrMatlInstance(demoScene00, inputs);
+            auto matl = createDefaultPbrMatlInstance(demoScene00, inputs, room->m_static);
             room->setMaterial("RoomMesh", sm, matl);
         }
         PbrMaterialInputs inputs = { };
@@ -523,7 +568,7 @@ void PbrApp::initDemoScene00()
         inputs.m_hasBakedLighting = 1.f;
         inputs.m_usePrototypeTexture = 1.f;
         inputs.m_lightMap = planeNode->m_meshInstance->m_lightMap->m_texAltas;
-        auto planeMatl = createDefaultPbrMatlInstance(demoScene00, inputs);
+        auto planeMatl = createDefaultPbrMatlInstance(demoScene00, inputs, room->m_static);
         room->setMaterial("PlaneMesh", -1, planeMatl);
 #endif
 
@@ -558,145 +603,12 @@ void PbrApp::initScenes()
         initCamera(m_scenes[Scenes::Factory_Scene]);
     }
 #endif
-
-#ifdef SCENE_HELMET
-    {
-        initHelmetScene();
-        initCamera(m_scenes[Scenes::Helmet_Scene]);
-    }
-#endif
 #ifdef SCENE_DEMO_00
     {
         initDemoScene00();
         initCamera(m_scenes[Scenes::Demo_Scene_00]);
     }
 #endif
-}
-
-void PbrApp::initHelmetScene()
-{
-    Cyan::Toolkit::GpuTimer timer("initHelmetScene()", true);
-    // setup scenes
-    Cyan::Toolkit::GpuTimer loadSceneTimer("createScene()", true);
-    m_scenes[Scenes::Helmet_Scene] = Cyan::createScene("helmet_scene", "../../scene/default_scene/scene_config.json");
-    auto helmetScene = m_scenes[Scenes::Helmet_Scene];
-
-    auto sceneManager = SceneManager::getSingletonPtr();
-    Entity* envMapEntity = sceneManager->createEntity(helmetScene, "Envmap", Transform());
-    envMapEntity->m_sceneRoot->attach(Cyan::createSceneNode("CubeMesh", Transform(), Cyan::getMesh("CubeMesh"), false));
-    envMapEntity->setMaterial("CubeMesh", 0, m_skyMatl);
-
-    // additional spheres for testing lighting
-    {
-        PbrMaterialInputs inputs = { 0 };
-        Entity* sphereEntity = sceneManager->getEntity(helmetScene, "Sphere0");
-        Cyan::Texture* sphereAlbedo = Cyan::Toolkit::createFlatColorTexture("sphere_albedo", 1024u, 1024u, glm::vec4(0.8f, 0.8f, 0.6f, 1.f));
-        inputs.m_baseColor = sphereAlbedo;
-        inputs.m_uRoughness = 0.8f;
-        inputs.m_uMetallic = 0.1f;
-        auto sphereMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
-        sphereEntity->setMaterial("SphereMesh", 0, sphereMatl);
-    }
-    timer.end();
-
-    // open room
-    {
-        PbrMaterialInputs inputs = { };
-        Entity* floor = sceneManager->getEntity(helmetScene, "Floor");
-        Cyan::Texture* roomAlbedo = Cyan::Toolkit::createFlatColorTexture("RoomAlbedo", 64u, 64u, glm::vec4(1.00f, 0.90, 0.80, 1.f));
-        Cyan::Texture* floorAlbedo = Cyan::Toolkit::createFlatColorTexture("FloorAlbedo", 64u, 64u, glm::vec4(1.00f, 0.50, 0.40, 1.f));
-        inputs.m_baseColor = roomAlbedo;
-        inputs.m_uRoughness = 0.8f;
-        inputs.m_uMetallic = 0.1f;
-        auto roomMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
-        inputs.m_baseColor = floorAlbedo;
-        auto floorMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
-        floor->setMaterial("CubeMesh", 0, floorMatl);
-        Entity* frontWall = sceneManager->getEntity(helmetScene, "Wall_0");
-        frontWall->setMaterial("CubeMesh", 0, roomMatl);
-        Entity* sideWall = sceneManager->getEntity(helmetScene, "Wall_1");
-        sideWall->setMaterial("CubeMesh", 0, roomMatl);
-    }
-
-    createHelmetInstance(helmetScene);
-
-    // cube
-    // TODO: default material parameters
-    {
-        PbrMaterialInputs inputs = { };
-        Entity* cube = sceneManager->getEntity(helmetScene, "Cube");
-        Cyan::Texture* cubeAlbedo = Cyan::Toolkit::createFlatColorTexture("CubeAlbedo", 128, 128, glm::vec4(0.6, 0.6, 0.6, 1.0));
-        inputs.m_baseColor = cubeAlbedo;
-        inputs.m_uRoughness = 0.8f;
-        inputs.m_uMetallic = 0.0f;
-        auto cubeMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
-        cube->setMaterial("UvCubeMesh", 0, cubeMatl);
-    }
-    // cone
-    {
-        PbrMaterialInputs inputs = { };
-        Cyan::Texture* coneAlbedo = Cyan::Toolkit::createFlatColorTexture("ConeAlbedo", 64, 64, glm::vec4(1.0, 0.8, 0.8, 1.0));
-        inputs.m_baseColor = coneAlbedo;
-        inputs.m_uRoughness = 0.2f;
-        inputs.m_uMetallic = 0.1f;
-        Entity* cone = sceneManager->getEntity(helmetScene, "Cone");
-        auto coneMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
-        cone->setMaterial("ConeMesh", 0, coneMatl);
-    }
-    // cornell_box
-    {
-        PbrMaterialInputs inputs = { };
-        Cyan::Texture* cornellAlbedo = Cyan::Toolkit::createFlatColorTexture("CornellAlbedo", 4, 4, glm::vec4(1.0, 0.9, 0.9, 1.0));
-        inputs.m_baseColor = cornellAlbedo;
-        inputs.m_uRoughness = 0.8f;
-        inputs.m_uMetallic = 0.1f;
-        Entity* cornellBox = sceneManager->getEntity(helmetScene, "CornellBox");
-        auto cornellMatl = createDefaultPbrMatlInstance(helmetScene, inputs);
-#if 0
-        m_rayTracingShader = Cyan::createShader("RayTracingShader", "../../shader/shader_ray_tracing.vs", "../../shader/shader_ray_tracing.fs");
-        m_rayTracingMatl = createDefaultRayTracingMatl(helmetScene, m_rayTracingShader, inputs);
-        m_debugRayOctBuffer = Cyan::createRegularBuffer(sizeof(glm::vec2) * 11);
-        m_debugRayWorldBuffer = Cyan::createRegularBuffer(sizeof(glm::vec4) * 300);
-        m_debugRayBoundryBuffer = Cyan::createRegularBuffer(sizeof(glm::vec4) * 20);
-#endif
-        cornellBox->setMaterial("CornellBox", 0, cornellMatl);
-    }
-
-    // add lights into the scene
-    // sceneManager->createPointLight(helmetScene, glm::vec3(0.95, 0.59f, 0.149f), glm::vec3(-3.0f, 1.2f, 1.5f), 0.0f);
-    // sceneManager->createPointLight(helmetScene, glm::vec3(0.0f, 0.21f, 1.0f), glm::vec3(3.0f, 0.8f, -0.4f), 0.f);
-    // top light
-    sceneManager->createDirectionalLight(helmetScene, glm::vec3(1.0f, 1.0, 1.0f), glm::normalize(glm::vec3(1.0f, 1.0f, 1.0f)), 1.2f);
-
-    // test light field probe
-    { 
-        glCreateBuffers(1, &m_debugRayAtomicCounter);
-        glNamedBufferData(m_debugRayAtomicCounter, sizeof(u32), nullptr, GL_STATIC_DRAW);
-        // m_probeVolume = sceneManager->createLightFieldProbeVolume(helmetScene, glm::vec3(-5.f, 1.155f, 0.f), glm::vec3(4.0f), glm::vec3(2.f));
-        m_irradianceProbe = sceneManager->createIrradianceProbe(helmetScene, glm::vec3(0.f, 2.5f, 0.f));
-    }
-    /*
-    // create more point lights
-    {
-        f32 spacing = 2.f;
-        glm::vec3 translate = -glm::vec3(6.f, 0.f, -6.f);
-        for (i32 r = 0; r < 4; ++r)
-        {
-            for (i32 col = 0; col < 4; ++ col)
-            {
-                glm::vec3 position(col * 4.0f, -0.5f, -r * 4.0f);
-                position += translate;
-                // randomize color ..?
-                f32 red = static_cast<f32>((rand() % 256)) / 255.f;
-                f32 green = static_cast<f32>((rand() % 256)) / 255.f;
-                f32 blue = static_cast<f32>((rand() % 256)) / 255.f;
-                sceneManager->createPointLight(helmetScene, glm::vec3(red, green, blue), position, 20.f);
-            }
-        }
-    }
-    */
-
-    m_scenes.push_back(helmetScene);
 }
 
 void PbrApp::initShaders()
@@ -812,11 +724,15 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewpo
 
 void PbrApp::updateMaterialData(Cyan::MaterialInstance* matl)
 {
-    matl->set("directDiffuseSlider", m_directDiffuseSlider);
-    matl->set("directSpecularSlider", m_directSpecularSlider);
-    matl->set("indirectDiffuseSlider", m_indirectDiffuseSlider);
-    matl->set("indirectSpecularSlider", m_indirectSpecularSlider);
-    matl->set("wrap", m_wrap);
+    matl->set("directDiffuseScale", m_directDiffuseSlider);
+    matl->set("directSpecularScale", m_directSpecularSlider);
+#if 0
+    matl->set("indirectDiffuseScale", 1.f);
+    matl->set("indirectSpecularScale", 2.f);
+#else
+    matl->set("indirectDiffuseScale", m_indirectDiffuseSlider);
+    matl->set("indirectSpecularScale", m_indirectSpecularSlider);
+#endif
 }
 
 void PbrApp::beginFrame()
@@ -833,18 +749,22 @@ void PbrApp::doPrecomputeWork()
         beginFrame();
 #if 0
         m_probeVolume->sampleScene();
-        m_irradianceProbe->sampleSkyVisibility();
 #endif
 #if 1
         // update probe
         SceneManager::getSingletonPtr()->setLightProbe(m_scenes[m_currentScene], Cyan::getProbe(m_currentProbeIndex));
         m_envmap = Cyan::getProbe(m_currentProbeIndex)->m_baseCubeMap;
         m_envmapMatl->bindTexture("envmapSampler", m_envmap);
+
         auto renderer = Cyan::Renderer::getSingletonPtr();
         renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), 0);
+        renderer->beginRender();
         renderer->render();
-        m_irradianceProbe->sampleRadiance();
-        m_irradianceProbe->computeIrradiance();
+        renderer->endRender();
+        // m_irradianceProbe->sampleRadiance();
+        // m_irradianceProbe->computeIrradiance();
+        m_reflectionProbe->sampleRadiance();
+        m_reflectionProbe->prefilter();
 #endif
         endFrame();
         ctx->setRenderTarget(nullptr, 0u);
@@ -1239,6 +1159,7 @@ void PbrApp::drawSceneViewport()
             ctx->setRenderTarget(nullptr, 0u);
             ctx->setDepthControl(Cyan::DepthControl::kEnable);
         }
+
         // TODO: gizmos 
         // TODO: when clicking on some objects (meshes) in the scene, the gizmo will be rendered not at the 
         // center of the mesh, this may seem incorrect at first glance but it's actually expected because some parts of the mesh
@@ -1297,6 +1218,13 @@ void PbrApp::drawRenderSettings()
             ImGui::SliderFloat("##IndirectSpecular", &m_indirectSpecularSlider, 0.f, 10.f, "%.2f");
             ImGui::TreePop();
         }
+        ImGui::TreePop();
+    }
+    if (ImGui::TreeNodeEx("Light Probes", baseFlags))
+    {
+        ImGui::Checkbox("Visualize irradiance probes", &m_irradianceProbe->m_visible);
+        ImGui::Checkbox("Visualize reflection probes", &m_reflectionProbe->m_visible);
+        ImGui::Separator();
         ImGui::TreePop();
     }
     if (ImGui::TreeNodeEx("Post-Processing", baseFlags))
@@ -1527,11 +1455,10 @@ struct DebugAABBPass : public Cyan::RenderPass
 
 void PbrApp::buildFrame()
 {
-    Cyan::Renderer* renderer = Cyan::Renderer::getSingletonPtr();
     // construct work for current frame
+    Cyan::Renderer* renderer = Cyan::Renderer::getSingletonPtr();
     renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), 0);
     renderer->addScenePass(m_scenes[m_currentScene]);
-    // TODO: how to exclude things in the scene from being post processed
     renderer->addPostProcessPasses();
 #if DEBUG_PROBE_TRACING
     {
@@ -1591,9 +1518,10 @@ void PbrApp::render()
     glUnmapBuffer(GL_ATOMIC_COUNTER_BUFFER);
     glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, m_debugRayAtomicCounter);
 #endif
-
     renderer->beginRender();
     buildFrame();
+    // m_reflectionProbe->sampleRadiance();
+    // m_reflectionProbe->prefilter();
     renderer->render();
     renderer->endRender();
 

@@ -46,13 +46,12 @@ namespace Cyan
          1.f,  1.f, 1.f, 1.f
     };
 
-
     // static singleton pointer will be set to 0 before main() get called
     Renderer* Renderer::m_renderer = 0;
 
     Renderer::Renderer()
         : m_frameAllocator(1024u * 1024u),  // 1 megabytes
-        m_gpuLightingData{nullptr, nullptr, {}, {}, nullptr, nullptr, true},
+        m_gpuLightingData{nullptr, nullptr, {}, {}, nullptr, nullptr, nullptr, true},
         u_model(0),
         u_cameraView(0),
         u_cameraProjection(0),
@@ -68,7 +67,8 @@ namespace Cyan
         m_sceneColorTextureSSAA(0),
         m_sceneColorRTSSAA(0),
         m_voxelData{0},
-        m_ssaoSamplePoints(32)
+        m_ssaoSamplePoints(32),
+        m_ssao(1.f)
     {
         if (!m_renderer)
         {
@@ -382,7 +382,9 @@ namespace Cyan
             ctx->setShader(shader);
             // todo: seperate scene data from per instance material data, two combined together to form shader input data
             // ssao
+            matl->set("uPostProcessSetting.m_ssao", m_ssao);
             matl->bindTexture("ssaoTex", m_ssaoTexture);
+
             if (modelMatrix)
             {
                 // TODO: this is obviously redundant
@@ -860,12 +862,12 @@ namespace Cyan
                     // GI probes
                     if (m_gpuLightingData.irradianceProbe)
                         meshInstance->m_matls[sm]->bindTexture("gLighting.irradianceProbe", m_gpuLightingData.irradianceProbe->m_irradianceMap);
+                    if (m_gpuLightingData.reflectionProbe)
+                        meshInstance->m_matls[sm]->bindTexture("gLighting.localReflectionProbe", m_gpuLightingData.reflectionProbe->m_prefilteredProbe);
                 }
             }
 
-            glm::mat4 modelMatrix;
-            modelMatrix = node->m_worldTransform.toMatrix();
-            modelMatrix = modelMatrix;
+            glm::mat4 modelMatrix = node->m_worldTransform.toMatrix();
             drawMeshInstance(node->m_meshInstance, &modelMatrix);
         } 
         for (auto* child : node->m_child)
@@ -949,7 +951,7 @@ namespace Cyan
         for (u32 e = 0; e < (u32)scene->entities.size(); ++e)
         {
             auto entity = scene->entities[e];
-            if (entity->m_includeInGBufferPass)
+            if (entity->m_includeInGBufferPass && entity->m_visible)
             {
                 std::queue<SceneNode*> nodes;
                 nodes.push(entity->m_sceneRoot);
@@ -1002,7 +1004,8 @@ namespace Cyan
         setBuffer(m_gpuLightingData.dirLightsBuffer, m_gpuLightingData.dLights.data(), sizeofVector(m_gpuLightingData.dLights));
 
         m_gpuLightingData.probe = lighting.m_probe;
-        m_gpuLightingData.irradianceProbe = lighting.m_irradianceProbe;
+        m_gpuLightingData.irradianceProbe = lighting.irradianceProbe;
+        m_gpuLightingData.reflectionProbe = lighting.localReflectionProbe;
     }
 
     void Renderer::probeRenderScene(Scene* scene, Camera& camera)
@@ -1012,7 +1015,7 @@ namespace Cyan
         setUniform(u_cameraProjection, (void*)&camera.projection[0]);
 
         // lights
-        LightingEnvironment lighting = { 
+        LightingEnvironment lighting = {
             scene->pLights,
             scene->dLights,
             scene->m_currentProbe,
@@ -1020,12 +1023,15 @@ namespace Cyan
         };
         uploadGpuLightingData(lighting);
 
+        // turn off ssao
+        m_ssao = 0.f;
         // entities 
         for (auto entity : scene->entities)
         {
-            if (entity->m_bakeInProbes)
+            if (entity->m_static)
                 drawEntity(entity);
         }
+        m_ssao = 1.f;
     }
 
     void Renderer::renderSSAO(Camera& camera)
@@ -1138,6 +1144,7 @@ namespace Cyan
             scene->dLights,
             scene->m_currentProbe,
             scene->m_irradianceProbe,
+            scene->m_reflectionProbe,
             false
         };
         uploadGpuLightingData(lighting);
@@ -1145,7 +1152,8 @@ namespace Cyan
         // entities 
         for (auto entity : scene->entities)
         {
-            drawEntity(entity);
+            if (entity->m_visible)
+                drawEntity(entity);
         }
     }
 }

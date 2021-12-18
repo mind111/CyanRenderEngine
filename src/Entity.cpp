@@ -3,8 +3,8 @@
 #include "MathUtils.h"
 #include "BVH.h"
 
-Entity::Entity(const char* name, u32 id, Transform t, Entity* parent)
-    : m_entityId(id), m_bakeInProbes(true), m_bakeInLightmap(true), m_includeInGBufferPass(true)
+Entity::Entity(const char* name, u32 id, Transform t, Entity* parent, bool isStatic)
+    : m_entityId(id), m_static(isStatic), m_includeInGBufferPass(true), m_visible(true)
 {
     if (name) 
     {

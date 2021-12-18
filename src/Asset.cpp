@@ -422,8 +422,6 @@ namespace Cyan
             std::string nodeName = nodeInfo.at("name");
             auto xformInfo = nodeInfo.at("xform");
             Transform transform = nodeInfo.at("xform").get<Transform>();
-            std::string meshName = nodeInfo.at("mesh");
-            Cyan::Mesh* mesh = nullptr;
             if (nodeInfo.find("file") != nodeInfo.end())
             {
                 std::string nodeFile = nodeInfo.at("file");
@@ -434,6 +432,8 @@ namespace Cyan
                 m_nodes.push_back(node);
                 continue;
             }
+            std::string meshName = nodeInfo.at("mesh");
+            Cyan::Mesh* mesh = nullptr;
             mesh = Cyan::getMesh(meshName.c_str());
             SceneNode* node = Cyan::createSceneNode(nodeName.c_str(), transform, mesh); 
             m_nodes.push_back(node);
@@ -460,11 +460,10 @@ namespace Cyan
             entityInfo.at("name").get_to(entityName);
             auto xformInfo = entityInfo.at("xform");
             Transform xform = entityInfo.at("xform").get<Transform>();
-            Entity* entity = SceneManager::getSingletonPtr()->createEntity(scene, entityName.c_str(), xform);
+            Entity* entity = SceneManager::getSingletonPtr()->createEntity(scene, entityName.c_str(), xform, entityInfo.at("static"));
             auto sceneNodes = entityInfo.at("nodes");
             for (auto node : sceneNodes)
                 entity->getSceneRoot()->attach(m_nodes[node]);
-            entity->m_bakeInLightmap = entityInfo.at("static");
         }
     }
 

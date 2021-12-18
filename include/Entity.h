@@ -42,11 +42,11 @@ struct Entity
 
     // flags
     bool m_lit;
-    bool m_bakeInProbes;
-    bool m_bakeInLightmap;
+    bool m_static;
+    bool m_visible;
     bool m_includeInGBufferPass;
 
-    Entity(const char* name, u32 id, Transform t, Entity* parent);
+    Entity(const char* name, u32 id, Transform t, Entity* parent, bool isStatic);
 
     SceneNode* getSceneRoot();
     SceneNode* getSceneNode(const char* name);

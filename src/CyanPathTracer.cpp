@@ -355,7 +355,7 @@ namespace Cyan
 
             // indirect
             // todo: is there any better attenuation ..?
-            f32 atten = .8f;
+            f32 atten = 1.8f;
             exitRadiance += atten * recursiveTraceDiffuse(nextBounceRo, nextBounceNormal, numBounces + 1, matl) * max(glm::dot(n, rd), 0.f);
         }
         return exitRadiance * matl.flatColor;
@@ -583,7 +583,7 @@ namespace Cyan
             // bake direct static sky light & indirect lighting
             glm::vec3 indirectRo = hitPosition + EPSILON * normal;
             radiance += computeDirectSkyLight(indirectRo, normal);
-            radiance += recursiveTraceDiffuse(indirectRo, normal, 0, getHitMaterial(hit));
+            radiance += recursiveTraceDiffuse(indirectRo, normal, 2, getHitMaterial(hit));
         }
         return radiance;
     }

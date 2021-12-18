@@ -19,7 +19,7 @@ RayCastInfo Scene::castRay(glm::vec3& ro, glm::vec3& rd, EntityFilter filter, bo
         switch (filter)
         {
             case EntityFilter::BakeInLightMap:
-                flag = entity->m_bakeInLightmap; 
+                flag = entity->m_static; 
                 break;
             default:
                 printf("Unknown entity filter! \n");
@@ -50,7 +50,7 @@ bool Scene::castVisibilityRay(glm::vec3& ro, glm::vec3& rd, EntityFilter filter)
         switch (filter)
         {
             case EntityFilter::BakeInLightMap:
-                flag = entity->m_bakeInLightmap; 
+                flag = entity->m_static; 
                 break;
             default:
                 printf("Unknown entity filter! \n");
@@ -91,17 +91,12 @@ void SceneManager::setLightProbe(Scene* scene, DistantLightProbe* probe)
     scene->m_currentProbe = probe;
 }
 
-Entity* SceneManager::createEntity(Scene* scene, const char* entityName, Transform transform, Entity* parent)
+Entity* SceneManager::createEntity(Scene* scene, const char* entityName, Transform transform, bool isStatic, Entity* parent)
 {
-    /* Note(Min): 
-        this custom allocator does not work for classes that has virtual methods, need to use placment
-        new. Study about why sizeof() won't include size for the vtable or virtual methods?
-    */
-
     // id
     u32 id = allocEntityId(scene);
     Entity* parentEntity = !parent ? scene->m_rootEntity : parent;
-    Entity* newEntity = new Entity(entityName, id, transform, parentEntity);
+    Entity* newEntity = new Entity(entityName, id, transform, parentEntity, isStatic);
     scene->entities.push_back(newEntity);
     return newEntity; 
 }
@@ -127,7 +122,7 @@ void SceneManager::createDirectionalLight(Scene* scene, glm::vec3 color, glm::ve
     CYAN_ASSERT(scene->dLights.size() < Scene::kMaxNumDirLights, "Too many directional lights created.")
     char nameBuff[64];
     sprintf_s(nameBuff, "DirLight%u", (u32)scene->dLights.size());
-    Entity* entity = createEntity(scene, nameBuff, Transform()); 
+    Entity* entity = createEntity(scene, nameBuff, Transform(), true); 
     DirectionalLight light(entity, glm::vec4(color, intensity), glm::vec4(direction, 0.f));
     scene->dLights.push_back(light);
 }
@@ -140,8 +135,7 @@ void SceneManager::createPointLight(Scene* scene, glm::vec3 color, glm::vec3 pos
     Transform transform = Transform();
     transform.m_translate = glm::vec3(position);
     transform.m_scale = glm::vec3(0.1f);
-    Entity* entity = createEntity(scene, nameBuff, Transform()); 
-    entity->m_bakeInProbes = false;
+    Entity* entity = createEntity(scene, nameBuff, Transform(), false); 
     Cyan::Mesh* sphereMesh = Cyan::getMesh("sphere_mesh");
     CYAN_ASSERT(sphereMesh, "sphere_mesh does not exist")
     SceneNode* meshNode = Cyan::createSceneNode("LightMesh", transform, sphereMesh); 
@@ -179,8 +173,14 @@ void SceneManager::buildLightList(Scene* scene, std::vector<PointLightGpuData>& 
 Cyan::IrradianceProbe* SceneManager::createIrradianceProbe(Scene* scene, glm::vec3& pos)
 {
     auto probe = m_probeFactory->createIrradianceProbe(scene, pos); 
-    // TODO: this need to be remoded
+    // TODO: this need to be removed
     scene->m_irradianceProbe = probe;
+    return probe;
+}
+
+Cyan::ReflectionProbe* SceneManager::createReflectionProbe(Scene* scene, glm::vec3& pos)
+{
+    auto probe = m_probeFactory->createReflectionProbe(scene, pos); 
     return probe;
 }
 

@@ -117,6 +117,7 @@ namespace Cyan
             std::vector<DirLightGpuData> dLights;
             DistantLightProbe* probe;
             IrradianceProbe* irradianceProbe;
+            ReflectionProbe* reflectionProbe;
             bool bUpdateProbe;
         } m_gpuLightingData;
 
@@ -194,6 +195,7 @@ namespace Cyan
         RenderTarget* m_depthRenderTarget;
 
         // ssao
+        f32           m_ssao;
         RenderTarget* m_ssaoRenderTarget;
         Texture* m_ssaoTexture;
         Shader* m_ssaoShader;

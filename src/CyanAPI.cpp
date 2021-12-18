@@ -201,7 +201,7 @@ namespace Cyan
         scene->m_currentProbe = nullptr;
         scene->m_rootEntity = nullptr;
         // create root entity
-        scene->m_rootEntity = SceneManager::getSingletonPtr()->createEntity(scene, "SceneRoot", Transform());
+        scene->m_rootEntity = SceneManager::getSingletonPtr()->createEntity(scene, "SceneRoot", Transform(), true);
         auto assetManager = GraphicsSystem::getSingletonPtr()->getAssetManager(); 
         assetManager->loadScene(scene, file);
         loadSceneTimer.end();
@@ -931,7 +931,6 @@ namespace Cyan
                 spec.m_dataType = Texture::DataType::UNSIGNED_BYTE;
                 prefilteredEnvMap = textureManager->createTexture(envMap->m_name.c_str(), spec);
             }
-            // glGenerateTextureMipmap(prefilteredEnvMap->m_id);
             Shader* shader = createShader("PrefilterSpecularShader", "../../shader/shader_prefilter_specular.vs", "../../shader/shader_prefilter_specular.fs");
             Uniform* u_roughness = Cyan::createUniform("roughness", Uniform::Type::u_float);
             Uniform* u_projection = Cyan::createUniform("projection", Uniform::Type::u_mat4);

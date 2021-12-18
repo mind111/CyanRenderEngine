@@ -249,8 +249,6 @@ namespace Pbr
     void mouseScrollWheelCallback(double xOffset, double yOffset);
 };
 
-// TODO: Can also let CyanApp define a basic beginFrame(), endFrame() where it calls customBeginFrame(), and customEndFrame(),
-// and child class override customBegin() and customEnd() to do each application specific stuffs
 class PbrApp : public CyanApp
 {
 public:
@@ -319,11 +317,13 @@ public:
         glm::vec4      m_flatBaseColor;
         f32            m_hasBakedLighting;
         f32            m_usePrototypeTexture;
+        f32            m_localDiffuseScale;
+        f32            m_localSpecularScale;
         float m_uRoughness;
         float m_uMetallic;
         float m_uSpecular;
     };
-    Cyan::MaterialInstance* createDefaultPbrMatlInstance(Scene* scene, PbrMaterialInputs inputs);
+    Cyan::MaterialInstance* createDefaultPbrMatlInstance(Scene* scene, PbrMaterialInputs inputs, bool isStatic);
     void addSceneMaterial(Scene* scene, Cyan::MaterialInstance* matl);
 
     // manual custom entity creation
@@ -337,6 +337,7 @@ public:
     bool bPicking;
     double m_mouseCursorX, m_mouseCursorY;
     Cyan::IrradianceProbe* m_irradianceProbe;
+    Cyan::ReflectionProbe* m_reflectionProbe;
     GLuint m_debugRayAtomicCounter;
     Cyan::LightFieldProbe* m_lightFieldProbe;
     Cyan::LightFieldProbeVolume* m_probeVolume;

@@ -105,7 +105,7 @@ void main()
     vec3 n = normalize(fragmentObjPos);
     // fix viewDir
     vec3 viewDir = n;
-    uint numSamples = 2048;
+    uint numSamples = 1024;
     vec3 result = vec3(0.f);
     float weight = 0.f; 
     for (int s = 0; s < numSamples; s++)

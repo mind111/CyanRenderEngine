@@ -7,7 +7,7 @@
             "worldUp": [0.0, 1.0, 0.0],
             "fov": 45.0,
             "z_near": 0.5,
-            "z_far": 100.0
+            "z_far": 60.0
         },
         {
             "name": "debug_camera",
@@ -195,6 +195,17 @@
                 "scale": [1.00, 1.00, 1.00]
             },
             "child": []
+        },
+
+        {
+            "index": 6,
+            "name": "RobotMesh",
+            "file": "../../asset/metal_gear_mk/scene.gltf",
+            "xform": {
+                "translation": [-4.5761, 0.24115, 0.0],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [1.00, 1.00, 1.00]
+            }
         }
     ],
 

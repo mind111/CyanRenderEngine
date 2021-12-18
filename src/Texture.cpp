@@ -329,9 +329,7 @@ namespace Cyan
                 break;
             case Texture::Type::TEX_CUBEMAP:
                 for (int f = 0; f < 6; f++)
-                {
                     glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, 0, specGL.m_internalFormatGL, texture->m_width, texture->m_height, 0, specGL.m_dataFormatGL, GL_FLOAT, nullptr);
-                }
                 break;
             default:
                 break;

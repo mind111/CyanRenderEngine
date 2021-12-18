@@ -99,6 +99,12 @@ namespace Cyan
         {
             i32 drawBuffers[2] = { 1, 2 }; 
             ctx->setRenderTarget(m_renderTarget, drawBuffers, 2);
+            // clear buffers to proper values
+            glm::vec4 normalBufferClear(0.f, 0.f, 0.f, 1.f);
+            glm::vec4 depthBufferClear(1.f);
+            glClearBufferfv(GL_COLOR, 0, &normalBufferClear.x);
+            glClearBufferfv(GL_COLOR, 1, &depthBufferClear.x);
+
             ctx->setViewport(m_viewport);
             ctx->setShader(s_sceneNormalDepthShader);
             renderer->renderSceneDepthNormal(m_scene, m_scene->getActiveCamera());

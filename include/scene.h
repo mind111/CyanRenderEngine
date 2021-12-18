@@ -21,7 +21,8 @@ struct LightingEnvironment
     std::vector<PointLight>& m_pLights;
     std::vector<DirectionalLight>& m_dirLights;
     DistantLightProbe* m_probe;
-    Cyan::IrradianceProbe* m_irradianceProbe;
+    Cyan::IrradianceProbe* irradianceProbe;
+    Cyan::ReflectionProbe* localReflectionProbe;
     bool bUpdateProbeData;
 };
 
@@ -44,6 +45,7 @@ struct Scene
     RegularBuffer* m_pointLightsBuffer;
     RegularBuffer* m_dirLightsBuffer;
     Cyan::IrradianceProbe* m_irradianceProbe;
+    Cyan::ReflectionProbe* m_reflectionProbe;
     DistantLightProbe*    m_currentProbe;
     DistantLightProbe*    m_lastProbe;
 
@@ -73,7 +75,7 @@ public:
     void setLightProbe(Scene* scene, DistantLightProbe* probe);
     void createDirectionalLight(Scene* scene, glm::vec3 color, glm::vec3 direction, float intensity);
     void createPointLight(Scene* scene, glm::vec3 color, glm::vec3 position, float intensity);
-    Entity* createEntity(Scene* scene, const char* entityName, Transform transform, Entity* parent=nullptr);
+    Entity* createEntity(Scene* scene, const char* entityName, Transform transform, bool isStatic, Entity* parent=nullptr);
     Entity* getEntity(Scene* scene, u32 id) 
     {
         return scene->entities[id];
@@ -95,6 +97,7 @@ public:
     void traverseScene(Scene* scene);
     //- probe related
     Cyan::IrradianceProbe* createIrradianceProbe(Scene* scene, glm::vec3& pos);
+    Cyan::ReflectionProbe* createReflectionProbe(Scene* scene, glm::vec3& pos);
     Cyan::LightFieldProbe* createLightFieldProbe(Scene* scene, glm::vec3& pos);
     Cyan::LightFieldProbeVolume* createLightFieldProbeVolume(Scene* scene, glm::vec3& pos, glm::vec3& dimension, glm::vec3& stride);
 private:

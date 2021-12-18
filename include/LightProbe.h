@@ -19,7 +19,6 @@ namespace Cyan
     struct IrradianceProbe : public Entity
     {
         IrradianceProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene);
-        void init();
         void sampleRadiance();
         void computeIrradiance();
         void debugRenderProbe();
@@ -52,10 +51,21 @@ namespace Cyan
         std::vector<IrradianceProbe*> m_probes;
     };
 
-    struct ReflectionProbe
+    struct ReflectionProbe : public Entity
     {
-        // render the scene from six faces
+        ReflectionProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene);
+        void sampleRadiance();
+        void prefilter();
+
+        static const u32     kNumMips = 11; 
+        static RenderTarget* m_renderTarget;
+        static RenderTarget* m_prefilterRts[kNumMips];
+        static Shader*       m_prefilterShader;
+        Scene* m_scene;
         Texture* m_radianceMap;
+        Texture* m_prefilteredProbe;
+        MaterialInstance* m_renderProbeMatl;
+        MaterialInstance* m_prefilterMatl;
     };
 
     // TODO: fix cornell box to make it double sided
@@ -106,6 +116,7 @@ namespace Cyan
     {
     public:
         IrradianceProbe* createIrradianceProbe(Scene* scene, glm::vec3 position);
+        ReflectionProbe* createReflectionProbe(Scene* scene, glm::vec3 position);
         LightFieldProbe* createLightFieldProbe(Scene* scene, glm::vec3 position);
         LightFieldProbeVolume* createLightFieldProbeVolume(Scene* scene, glm::vec3& position, glm::vec3& dimension, glm::vec3& spacing);
         u32 numIrradianceProbe;
