@@ -506,7 +506,7 @@ namespace Cyan
     }
 
     // TODO: Fix this, the loaded textures are all black!!!
-    Cyan::Texture* AssetManager::loadGltfTexture(tinygltf::Model& model, i32 index) {
+    Cyan::Texture* AssetManager::loadGltfTexture(const char* nodeName, tinygltf::Model& model, i32 index) {
         using Cyan::Texture;
         auto textureManager = Cyan::TextureManager::getSingletonPtr();
         Texture* texture = nullptr;
@@ -519,31 +519,46 @@ namespace Cyan
             spec.m_width = image.width;
             spec.m_height = image.height;
             switch (image.component) {
-                case 3: {
-                    if (image.bits == 8) {
+                case 3: 
+                {
+                    if (image.bits == 8) 
+                    {
                         spec.m_format = Cyan::Texture::ColorFormat::R8G8B8;
                         spec.m_dataType = Texture::DataType::UNSIGNED_BYTE;
-                    } else if (image.bits == 16) {
+                    } 
+                    else if (image.bits == 16) 
+                    {
                         spec.m_format = Cyan::Texture::ColorFormat::R16G16B16;
                         spec.m_dataType = Texture::DataType::Float;
-                    } else if (image.bits == 32) {
-                        CYAN_ASSERT(0, "R32G32B32 color format is currently not supported!")
+                    } 
+                    else if (image.bits == 32) 
+                    {
+                        spec.m_format = Cyan::Texture::ColorFormat::R32G32B32;
+                        spec.m_dataType = Texture::DataType::Float;
                     } 
                     break;
                 }
                 case 4: {
-                    if (image.bits == 8) {
+                    if (image.bits == 8) 
+                    {
                         spec.m_format = Cyan::Texture::ColorFormat::R8G8B8A8;
                         spec.m_dataType = Texture::DataType::UNSIGNED_BYTE;
-                    } else if (image.bits == 16) {
+                    } 
+                    else if (image.bits == 16) 
+                    {
                         spec.m_format = Cyan::Texture::ColorFormat::R16G16B16A16;
                         spec.m_dataType = Texture::DataType::Float;
-                    } else if (image.bits == 32) {
-                        CYAN_ASSERT(0, "R32G32B32A32 color format is currently not supported!")
+                    } 
+                    else if (image.bits == 32) 
+                    {
+                        spec.m_format = Cyan::Texture::ColorFormat::R32G32B32A32;
+                        spec.m_dataType = Texture::DataType::Float;
                     } 
                     break;
                 }
-                default: {
+                default: 
+                {
+                    cyanError("Invalid number of channels when loading gltf image");
                     break;
                 }
             }
@@ -555,15 +570,21 @@ namespace Cyan
             sprintf(name, "%s", image.uri.c_str());
             switch (spec.m_format) {
                 case Texture::ColorFormat::R8G8B8:
-                case Texture::ColorFormat::R8G8B8A8: {
+                case Texture::ColorFormat::R8G8B8A8: 
+                {
                     texture = textureManager->createTexture(name, spec);
                     break;
                 }
                 case Texture::ColorFormat::R16G16B16:
-                case Texture::ColorFormat::R16G16B16A16: {
+                case Texture::ColorFormat::R16G16B16A16: 
+                case Texture::ColorFormat::R32G32B32:
+                case Texture::ColorFormat::R32G32B32A32:
+                {
                     texture = textureManager->createTextureHDR(name, spec);
                     break;
                 }
+                default:
+                    break;
             }
         }
         return texture;
@@ -606,36 +627,37 @@ namespace Cyan
             }
         }
 
-        // create an entity for this node
+        // create a SceneNode for this node
         char sceneNodeName[64];
         CYAN_ASSERT(node.name.size() < kEntityNameMaxLen, "Entity name too long !!")
-        if (node.name.empty()) {
+        if (node.name.empty())
             sprintf_s(sceneNodeName, "Node%u", numNodes);
-        } else {
+        else 
             sprintf_s(sceneNodeName, "%s", node.name.c_str());
-        }
 
         Cyan::Mesh* mesh = hasMesh ? Cyan::getMesh(meshName) : nullptr;
         SceneNode* sceneNode = Cyan::createSceneNode(sceneNodeName, localTransform, mesh);
         if (parentSceneNode)
-        {
             parentSceneNode->attach(sceneNode);
-        }
         // bind material
-        if (sceneNode->m_meshInstance) {
+        Material* pbrMatl = createMaterial(Cyan::getShader("PbrShader"));
+        if (sceneNode->m_meshInstance)
+        {
             auto& gltfMesh = model.meshes[node.mesh];
-            for (u32 sm = 0u; sm < gltfMesh.primitives.size(); ++sm) {
-                // !TODO: material is hard coded to pbr material for now 
-                Shader* pbrShader = Cyan::createShader("PbrShader", "../../shader/shader_pbr.vs", "../../shader/shader_pbr.fs");
+            for (u32 sm = 0u; sm < gltfMesh.primitives.size(); ++sm) 
+            {
                 Cyan::MeshInstance* mesh = sceneNode->m_meshInstance;
-                mesh->m_matls[sm] = Cyan::createMaterial(pbrShader)->createInstance();
+                mesh->m_matls[sm] = pbrMatl->createInstance();
                 auto& primitive = gltfMesh.primitives[sm];
-                if (primitive.material > -1) {
+                if (primitive.material > -1) 
+                {
                     auto& gltfMaterial = model.materials[primitive.material];
                     auto pbr = gltfMaterial.pbrMetallicRoughness;
-                    auto getTexture = [&](i32 imageIndex) {
+                    auto getTexture = [&](i32 imageIndex) 
+                    {
                         Cyan::Texture* texture = nullptr;
-                        if (imageIndex > -1) {
+                        if (imageIndex > -1) 
+                        {
                             auto& image = model.images[imageIndex];
                             texture = textureManager->getTexture(image.uri.c_str());
                         }
@@ -644,41 +666,47 @@ namespace Cyan
 
                     // albedo
                     Cyan::Texture* albedo = getTexture(pbr.baseColorTexture.index);
-                    mesh->m_matls[sm]->bindTexture("diffuseMaps[0]", albedo); 
+                    if (albedo)
+                    {
+                        mesh->m_matls[sm]->bindTexture("diffuseMaps[0]", albedo); 
+                        mesh->m_matls[sm]->set("hasDiffuseMap", 1.f);
+                    }
                     // normal map
                     Cyan::Texture* normal = getTexture(gltfMaterial.normalTexture.index);
-                    mesh->m_matls[sm]->bindTexture("normalMap", normal); 
+                    if (normal)
+                    {
+                        mesh->m_matls[sm]->bindTexture("normalMap", normal); 
+                        mesh->m_matls[sm]->set("hasNormalMap", 1.f);
+                    }
                     // metallicRoughness
                     Cyan::Texture* metallicRoughness = getTexture(pbr.metallicRoughnessTexture.index);
-                    mesh->m_matls[sm]->bindTexture("metallicRoughnessMap", metallicRoughness); 
+                    if (metallicRoughness)
+                    {
+                        mesh->m_matls[sm]->bindTexture("metallicRoughnessMap", metallicRoughness); 
+                        mesh->m_matls[sm]->set("hasMetallicRoughnessMap", 1.f);
+                        mesh->m_matls[sm]->set("hasRoughnessMap", 0.f);
+                    }
                     // occlusion
                     Cyan::Texture* occlusion = getTexture(gltfMaterial.occlusionTexture.index);
-                    mesh->m_matls[sm]->bindTexture("aoMap", occlusion); 
+                    if (occlusion)
+                    {
+                        mesh->m_matls[sm]->bindTexture("aoMap", occlusion); 
+                        mesh->m_matls[sm]->set("hasAoMap", 1.f); 
+                    }
 
-                    mesh->m_matls[sm]->bindBuffer("dirLightsData", scene->m_dirLightsBuffer);
-                    mesh->m_matls[sm]->bindBuffer("pointLightsData", scene->m_pointLightsBuffer);
-                    mesh->m_matls[sm]->set("debugG", 0.f);
-                    mesh->m_matls[sm]->set("debugF", 0.f);
-                    mesh->m_matls[sm]->set("debugD", 0.f);
                     mesh->m_matls[sm]->set("disneyReparam", 1.f);
-                    mesh->m_matls[sm]->set("hasAoMap", 1.f);
-                    mesh->m_matls[sm]->set("hasNormalMap", 1.f);
                     mesh->m_matls[sm]->set("kDiffuse", 1.0f);
                     mesh->m_matls[sm]->set("kSpecular", 1.0f);
-                    mesh->m_matls[sm]->set("hasRoughnessMap", 0.f);
-                    mesh->m_matls[sm]->set("hasMetallicRoughnessMap", 1.f);
                     mesh->m_matls[sm]->set("directDiffuseSlider", 1.0f);
                     mesh->m_matls[sm]->set("directSpecularSlider", 1.0f);
                     mesh->m_matls[sm]->set("indirectDiffuseSlider", 0.0f);
                     mesh->m_matls[sm]->set("indirectSpecularSlider", 0.0f);
-                    mesh->m_matls[sm]->set("wrap", 0.15f);
                 }
             }
         }
         // recurse to load all the children
-        for (auto& child : node.children) {
+        for (auto& child : node.children) 
             loadGltfNode(scene, model, &node, sceneNode, model.nodes[child], ++numNodes);
-        }
         return sceneNode;
     }
 
@@ -697,11 +725,12 @@ namespace Cyan
             u32 strideInBytes = 0u;
             auto incrementVertexStride = [&](auto& attribute) {
                 tinygltf::Accessor accessor = model.accessors[attribute.second];
-                if (numVertices > 0u) {
+                if (numVertices > 0u)
+                {
                     CYAN_ASSERT(numVertices == accessor.count, "Mismatch vertex count among vertex attributes")
-                } else {
-                    numVertices = accessor.count;
                 }
+                else
+                    numVertices = accessor.count;
                 strideInBytes += tinygltf::GetComponentSizeInBytes(accessor.componentType) * tinygltf::GetNumComponentsInType(accessor.type);
             };
             struct SortAttribute
@@ -750,6 +779,7 @@ namespace Cyan
                 u8* srcStart = &buffer.data[accessor.byteOffset + bufferView.byteOffset];
                 u8* dstStart = reinterpret_cast<u8*>(vertexDataBuffer) + offset;
                 u32 sizeToCopy = tinygltf::GetComponentSizeInBytes(accessor.componentType) * tinygltf::GetNumComponentsInType(accessor.type);
+                u32 numComponents = tinygltf::GetNumComponentsInType(accessor.type);
                 for (u32 v = 0; v < numVertices; ++v)
                 {
                     void* srcDataAddress = reinterpret_cast<void*>(srcStart + v * bufferView.byteStride);
@@ -761,6 +791,26 @@ namespace Cyan
                         float* data = reinterpret_cast<float*>(dstDataAddress);
                         data[1] = 1.f - data[1];
                     }
+                    // switch (accessor.type)
+                    // {
+                    //     case TINYGLTF_COMPONENT_TYPE_FLOAT:
+                    //     {
+                    //         f32* srcDataAddress = reinterpret_cast<f32*>(srcStart + v * bufferView.byteStride);
+                    //         f32* dstDataAddress = reinterpret_cast<f32*>(dstStart + v * strideInBytes); 
+                    //         for (u32 i = 0; i < numComponents; ++i)
+                    //             dstDataAddress[i] = srcDataAddress[i];
+                    //         // TODO: Do this in a not so hacky way 
+                    //         // flip the y-component of texcoord
+                    //         if (entry.name.find("TEXCOORD") == 0) 
+                    //         {
+                    //             float* data = reinterpret_cast<float*>(dstDataAddress);
+                    //             data[1] = 1.f - data[1];
+                    //         }
+                    //     } break;
+                    //     default:
+                    //         cyanError("Unprocessed vertex attribute type");
+                    //         break;
+                    // }
                     totalBytes += sizeToCopy;
                 }
                 // FIXME: type is hard-coded fo float for now
@@ -803,19 +853,16 @@ namespace Cyan
             }
             mesh->m_subMeshes.push_back(subMesh);
         } // primitive (submesh)
-        // TODO: This is not correct
-        // mesh->m_normalization = Cyan::Toolkit::computeMeshNormalization(mesh);
-        // mesh->m_normalization = glm::scale(glm::mat4(1.f), glm::vec3(0.01f, 0.01f, 0.01f));
         mesh->m_normalization = glm::mat4(1.0);
         mesh->m_shouldNormalize = false;
         mesh->onFinishLoading();
         return mesh;
     }
 
-    void AssetManager::loadGltfTextures(tinygltf::Model& model) {
+    void AssetManager::loadGltfTextures(const char* nodeName, tinygltf::Model& model) {
         using Cyan::Texture;
         for (u32 t = 0u; t < model.textures.size(); ++t) {
-            loadGltfTexture(model, t);
+            loadGltfTexture(nodeName, model, t);
         }
     }
 
@@ -831,14 +878,14 @@ namespace Cyan
         }
         tinygltf::Scene& gltfScene = model.scenes[model.defaultScene];
         // load textures
-        loadGltfTextures(model);
+        loadGltfTextures(name, model);
         // load meshes
         for (auto& gltfMesh : model.meshes)
         {
             Mesh* mesh = loadGltfMesh(model, gltfMesh);
             Cyan::addMesh(mesh);
         }
-        // FIXME: Handle multiple root nodes
+        // todo: Handle multiple root nodes
         // assuming that there is only one root node for defaultScene
         tinygltf::Node rootNode = model.nodes[gltfScene.nodes[0]];
         Cyan::Mesh* rootNodeMesh = nullptr;

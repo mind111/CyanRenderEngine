@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>16.0</VCProjectVersion>
+    <ProjectGuid>{62026850-A964-40B6-9E28-BA5BAEAD64CF}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectName>CyanLib</ProjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>Disabled</Optimization>
+    </ClCompile>
+    <Link>
+      <TargetMachine>MachineX86</TargetMachine>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <TargetMachine>MachineX86</TargetMachine>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="src\Asset.cpp" />
+    <ClCompile Include="src\BVH.cpp" />
+    <ClCompile Include="src\camera.cpp" />
+    <ClCompile Include="src\CyanAPI.cpp" />
+    <ClCompile Include="src\CyanApp.cpp" />
+    <ClCompile Include="src\cyanEngine.cpp" />
+    <ClCompile Include="src\CyanPathTracer.cpp" />
+    <ClCompile Include="src\cyanRenderer.cpp" />
+    <ClCompile Include="src\Entity.cpp" />
+    <ClCompile Include="src\EntryPoint.cpp" />
+    <ClCompile Include="src\Geometry.cpp" />
+    <ClCompile Include="src\GfxContext.cpp" />
+    <ClCompile Include="src\GraphicsSystem.cpp" />
+    <ClCompile Include="src\imguizmo\ImGuizmo.cpp" />
+    <ClCompile Include="src\imgui\imgui.cpp" />
+    <ClCompile Include="src\imgui\imgui_demo.cpp" />
+    <ClCompile Include="src\imgui\imgui_draw.cpp" />
+    <ClCompile Include="src\imgui\imgui_impl_glfw.cpp" />
+    <ClCompile Include="src\imgui\imgui_impl_opengl3.cpp" />
+    <ClCompile Include="src\imgui\imgui_tables.cpp" />
+    <ClCompile Include="src\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="src\LightMap.cpp" />
+    <ClCompile Include="src\LightProbe.cpp" />
+    <ClCompile Include="src\Material.cpp" />
+    <ClCompile Include="src\mathUtils.cpp" />
+    <ClCompile Include="src\mesh.cpp" />
+    <ClCompile Include="src\RenderPass.cpp" />
+    <ClCompile Include="src\RenderTarget.cpp" />
+    <ClCompile Include="src\scene.cpp" />
+    <ClCompile Include="src\SceneNode.cpp" />
+    <ClCompile Include="src\shader.cpp" />
+    <ClCompile Include="src\Texture.cpp" />
+    <ClCompile Include="src\todos.cpp" />
+    <ClCompile Include="src\Uniform.cpp" />
+    <ClCompile Include="src\Utils.cpp" />
+    <ClCompile Include="src\VertexArray.cpp" />
+    <ClCompile Include="src\VertexBuffer.cpp" />
+    <ClCompile Include="src\window.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\Allocator.h" />
+    <ClInclude Include="include\Asset.h" />
+    <ClInclude Include="include\BVH.h" />
+    <ClInclude Include="include\camera.h" />
+    <ClInclude Include="include\Common.h" />
+    <ClInclude Include="include\CyanAPI.h" />
+    <ClInclude Include="include\CyanApp.h" />
+    <ClInclude Include="include\cyanEngine.h" />
+    <ClInclude Include="include\CyanPathTracer.h" />
+    <ClInclude Include="include\cyanRenderer.h" />
+    <ClInclude Include="include\CyanUI.h" />
+    <ClInclude Include="include\Entity.h" />
+    <ClInclude Include="include\Geometry.h" />
+    <ClInclude Include="include\GfxContext.h" />
+    <ClInclude Include="include\GraphicsSystem.h" />
+    <ClInclude Include="include\Light.h" />
+    <ClInclude Include="include\LightMap.h" />
+    <ClInclude Include="include\LightProbe.h" />
+    <ClInclude Include="include\Material.h" />
+    <ClInclude Include="include\mathUtils.h" />
+    <ClInclude Include="include\mesh.h" />
+    <ClInclude Include="include\Node.h" />
+    <ClInclude Include="include\PbrApp.h" />
+    <ClInclude Include="include\Plane.h" />
+    <ClInclude Include="include\RenderPass.h" />
+    <ClInclude Include="include\RenderTarget.h" />
+    <ClInclude Include="include\scene.h" />
+    <ClInclude Include="include\SceneNode.h" />
+    <ClInclude Include="include\shader.h" />
+    <ClInclude Include="include\texture.h" />
+    <ClInclude Include="include\Transform.h" />
+    <ClInclude Include="include\Uniform.h" />
+    <ClInclude Include="include\Utils.h" />
+    <ClInclude Include="include\VertexArray.h" />
+    <ClInclude Include="include\VertexBuffer.h" />
+    <ClInclude Include="include\window.h" />
+    <ClInclude Include="src\imguizmo\ImGuizmo.h" />
+    <ClInclude Include="src\imgui\imconfig.h" />
+    <ClInclude Include="src\imgui\imgui.h" />
+    <ClInclude Include="src\imgui\imgui_impl_glfw.h" />
+    <ClInclude Include="src\imgui\imgui_impl_opengl3.h" />
+    <ClInclude Include="src\imgui\imgui_internal.h" />
+    <ClInclude Include="src\imgui\imstb_rectpack.h" />
+    <ClInclude Include="src\imgui\imstb_textedit.h" />
+    <ClInclude Include="src\imgui\imstb_truetype.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

@@ -35,7 +35,7 @@
         },
         {
             "name": "helmet_mesh",
-            "path": "asset/helmet/mesh/helmet.obj",
+            "path": "../../asset/helmet/mesh/helmet.obj",
             "normalize": false,
             "generateLightMapUv": false
         },
@@ -68,35 +68,35 @@
     "textures": [
         {
             "name": "helmet_diffuse",
-            "path": "asset/helmet/texture/Default_albedo.jpg",
+            "path": "../../asset/helmet/texture/Default_albedo.jpg",
             "numMips": 11,
             "dynamic_range": "ldr"
         },
 
         {
             "name": "helmet_nm",
-            "path": "asset/helmet/texture/Default_normal.jpg",
+            "path": "../../asset/helmet/texture/Default_normal.jpg",
             "numMips": 11,
             "dynamic_range": "ldr"
         },
 
         {
             "name": "helmet_ao",
-            "path": "asset/helmet/texture/Default_AO.jpg",
+            "path": "../../asset/helmet/texture/Default_AO.jpg",
             "numMips": 11,
             "dynamic_range": "ldr"
         },
 
         {
             "name": "helmet_roughness",
-            "path": "asset/helmet/texture/Default_metalRoughness.jpg",
+            "path": "../../asset/helmet/texture/Default_metalRoughness.jpg",
             "numMips": 11,
             "dynamic_range": "ldr"
         },
 
         {
             "name": "helmet_emission",
-            "path": "asset/helmet/texture/Default_emissive.jpg",
+            "path": "../../asset/helmet/texture/Default_emissive.jpg",
             "numMips": 11,
             "dynamic_range": "ldr"
         },
@@ -118,6 +118,62 @@
         {
             "name": "imperfection_grunge",
             "path": "../../asset/common_textures/imperfection_grunge.jpg",
+            "numMips": 1,
+            "dynamic_range": "ldr"
+        },
+
+        {
+            "name": "green_marble_albedo",
+            "path": "../../asset/textures/green_marble_Albedo.jpg",
+            "numMips": 1,
+            "dynamic_range": "ldr"
+        },
+
+        {
+            "name": "green_marble_roughness",
+            "path": "../../asset/textures/green_marble_Roughness.jpg",
+            "numMips": 1,
+            "dynamic_range": "ldr"
+        }, 
+
+        {
+            "name": "white_marble_albedo",
+            "path": "../../asset/textures/white_marble_Albedo.jpg",
+            "numMips": 1,
+            "dynamic_range": "ldr"
+        },
+
+        {
+            "name": "white_marble_roughness",
+            "path": "../../asset/textures/white_marble_Roughness.jpg",
+            "numMips": 1,
+            "dynamic_range": "ldr"
+        },
+
+        {
+            "name": "brick_albedo",
+            "path": "../../asset/textures/brick_Albedo.jpg",
+            "numMips": 1,
+            "dynamic_range": "ldr"
+        },
+
+        {
+            "name": "brick_roughness",
+            "path": "../../asset/textures/brick_Roughness.jpg",
+            "numMips": 1,
+            "dynamic_range": "ldr"
+        },
+
+        {
+            "name": "brick_nm",
+            "path": "../../asset/textures/brick_nm.jpg",
+            "numMips": 1,
+            "dynamic_range": "ldr"
+        },
+
+        {
+            "name": "brick_roughness",
+            "path": "../../asset/textures/brick_Roughness.jpg",
             "numMips": 1,
             "dynamic_range": "ldr"
         }
@@ -205,7 +261,8 @@
                 "translation": [-4.5761, 0.24115, 0.0],
                 "rotation": [0.0, 0, 1, 0],
                 "scale": [1.00, 1.00, 1.00]
-            }
+            },
+            "child": []
         }
     ],
 
