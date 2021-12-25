@@ -760,7 +760,6 @@ void main()
     if (uMaterialProps.hasBakedLighting > 0.5f) 
         bakedLighting = texture(lightMap, uv1).rgb;
     color += uPostProcessSetting.m_ssao > .5f ? bakedLighting * albedo.rgb * ssao : bakedLighting * albedo.rgb;
-
     // write linear color to HDR Framebuffer
     fragColor = vec4(color, 1.0f);
 

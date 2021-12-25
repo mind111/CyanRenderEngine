@@ -258,9 +258,9 @@
             "name": "RobotMesh",
             "file": "../../asset/metal_gear_mk/scene.gltf",
             "xform": {
-                "translation": [-4.5761, 0.24115, 0.0],
-                "rotation": [0.0, 0, 1, 0],
-                "scale": [1.00, 1.00, 1.00]
+                "translation": [-4.5761, 0.24115, -3.0],
+                "rotation": [90.0, 0, 1, 0],
+                "scale": [0.285, 0.285, 0.285]
             },
             "child": []
         }
@@ -320,6 +320,17 @@
             },
             "static": false,
             "nodes": [ 5 ]
+        },
+
+        {
+            "name": "Mk2",
+            "xform": {
+                "translation": [0.0, 0.0, 0.0],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [1.00, 1.00, 1.00]
+            },
+            "static": false,
+            "nodes": [ 6 ]
         }
     ]
 }

@@ -105,6 +105,37 @@ namespace Cyan
         UniformBuffer* m_uniformBuffer;
     };
 
+    struct PbrMaterialParam
+    {
+        glm::vec4      flatBaseColor;
+        Cyan::Texture* baseColor;
+        Cyan::Texture* normal;
+        Cyan::Texture* metallicRoughness;
+        Cyan::Texture* metallic;
+        Cyan::Texture* roughness;
+        Cyan::Texture* occlusion;
+        Cyan::Texture* lightMap;
+        f32            kRoughness;
+        f32            kMetallic;
+        f32            kSpecular;
+        // flags
+        f32            hasBakedLighting;
+        f32            usePrototypeTexture;
+    };
+
+    // todo: implement this
+    class StandardPbrMaterial
+    {
+        StandardPbrMaterial(const PbrMaterialParam& param);
+        ~StandardPbrMaterial()
+        {
+
+        }
+
+        static Shader*    m_standardPbrShader;
+        MaterialInstance* m_materialInstance;
+    };
+
     class SolidColorMaterial
     {
     public:
@@ -143,6 +174,6 @@ class PbrMaterial : public BaseMaterial {
 
 class FlatColorMaterial : public BaseMaterial
 {
-    glm::vec4 color; 
+    glm::vec4 color;
 };
 */

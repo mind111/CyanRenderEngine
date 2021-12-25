@@ -431,11 +431,11 @@ namespace Cyan
             Mesh::SubMesh* sm = mesh->m_subMeshes[i];
             ctx->setVertexArray(sm->m_vertexArray);
             ctx->setPrimitiveType(PrimitiveType::TriangleList);
-            if (sm->m_vertexArray->hasIndexBuffer()) {
+            if (sm->m_vertexArray->hasIndexBuffer())
                 ctx->drawIndex(sm->m_numIndices);
-            } else {
+            else
                 ctx->drawIndexAuto(sm->m_numVerts);
-            }
+
             // NOTES: reset texture units because texture unit bindings are managed by gl context 
             // it won't change when binding different shaders
             for (u32 t = 0; t < used.m_usedTexBindings; ++t)

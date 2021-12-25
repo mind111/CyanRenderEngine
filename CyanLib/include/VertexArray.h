@@ -18,7 +18,7 @@ struct VertexArray
 
     bool hasIndexBuffer()
     {
-        return m_ibo != (u32)-1 ? true : false;
+        return m_ibo != (u32)-1;
     }
 
     VertexBuffer* m_vertexBuffer;

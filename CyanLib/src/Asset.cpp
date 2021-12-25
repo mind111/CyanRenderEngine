@@ -669,38 +669,38 @@ namespace Cyan
                     if (albedo)
                     {
                         mesh->m_matls[sm]->bindTexture("diffuseMaps[0]", albedo); 
-                        mesh->m_matls[sm]->set("hasDiffuseMap", 1.f);
+                        mesh->m_matls[sm]->set("uMaterialProps.hasDiffuseMap", 1.f);
                     }
                     // normal map
                     Cyan::Texture* normal = getTexture(gltfMaterial.normalTexture.index);
                     if (normal)
                     {
                         mesh->m_matls[sm]->bindTexture("normalMap", normal); 
-                        mesh->m_matls[sm]->set("hasNormalMap", 1.f);
+                        mesh->m_matls[sm]->set("uMaterialProps.hasNormalMap", 1.f);
                     }
                     // metallicRoughness
                     Cyan::Texture* metallicRoughness = getTexture(pbr.metallicRoughnessTexture.index);
                     if (metallicRoughness)
                     {
                         mesh->m_matls[sm]->bindTexture("metallicRoughnessMap", metallicRoughness); 
-                        mesh->m_matls[sm]->set("hasMetallicRoughnessMap", 1.f);
-                        mesh->m_matls[sm]->set("hasRoughnessMap", 0.f);
+                        mesh->m_matls[sm]->set("uMaterialProps.hasMetallicRoughnessMap", 1.f);
+                        mesh->m_matls[sm]->set("uMaterialProps.hasRoughnessMap", 0.f);
                     }
                     // occlusion
                     Cyan::Texture* occlusion = getTexture(gltfMaterial.occlusionTexture.index);
                     if (occlusion)
                     {
                         mesh->m_matls[sm]->bindTexture("aoMap", occlusion); 
-                        mesh->m_matls[sm]->set("hasAoMap", 1.f); 
+                        mesh->m_matls[sm]->set("uMaterialProps.hasAoMap", 1.f); 
                     }
 
                     mesh->m_matls[sm]->set("disneyReparam", 1.f);
                     mesh->m_matls[sm]->set("kDiffuse", 1.0f);
                     mesh->m_matls[sm]->set("kSpecular", 1.0f);
-                    mesh->m_matls[sm]->set("directDiffuseSlider", 1.0f);
-                    mesh->m_matls[sm]->set("directSpecularSlider", 1.0f);
-                    mesh->m_matls[sm]->set("indirectDiffuseSlider", 0.0f);
-                    mesh->m_matls[sm]->set("indirectSpecularSlider", 0.0f);
+                    mesh->m_matls[sm]->set("directDiffuseScale", 1.0f);
+                    mesh->m_matls[sm]->set("directSpecularScale", 1.0f);
+                    mesh->m_matls[sm]->set("indirectDiffuseScale", 1.0f);
+                    mesh->m_matls[sm]->set("indirectSpecularScale", 1.0f);
                 }
             }
         }
@@ -783,7 +783,7 @@ namespace Cyan
                 for (u32 v = 0; v < numVertices; ++v)
                 {
                     void* srcDataAddress = reinterpret_cast<void*>(srcStart + v * bufferView.byteStride);
-                    void* dstDataAddress = reinterpret_cast<void*>(dstStart + v * strideInBytes); 
+                    void* dstDataAddress = reinterpret_cast<void*>(dstStart + (u64)(v * strideInBytes)); 
                     memcpy(dstDataAddress, srcDataAddress, sizeToCopy);
                     // TODO: Do this in a not so hacky way 
                     // flip the y-component of texcoord
@@ -836,7 +836,7 @@ namespace Cyan
                 tinygltf::BufferView bufferView = model.bufferViews[accessor.bufferView];
                 tinygltf::Buffer buffer = model.buffers[bufferView.buffer];
                 u32 indexSize = tinygltf::GetComponentSizeInBytes(accessor.componentType);
-                // FIXME: type is hard-coded fo u32 for now
+                // FIXME: type is hard-coded to u32 for now
                 u32* indexDataBuffer  = new u32[numIndices];
                 void* srcDataAddress = reinterpret_cast<void*>(&buffer.data[accessor.byteOffset + bufferView.byteOffset]);
                 memcpy(indexDataBuffer, srcDataAddress, numIndices * indexSize);
@@ -848,6 +848,7 @@ namespace Cyan
                 glBindVertexArray(0);
                 glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
                 subMesh->m_vertexArray->m_numIndices = numIndices;
+                subMesh->m_numIndices = numIndices;
                 delete[] vertexDataBuffer;
                 delete[] indexDataBuffer;
             }
@@ -889,7 +890,6 @@ namespace Cyan
         // assuming that there is only one root node for defaultScene
         tinygltf::Node rootNode = model.nodes[gltfScene.nodes[0]];
         Cyan::Mesh* rootNodeMesh = nullptr;
-        // TODO: handle transform of the root node
         if (rootNode.mesh > 0)
         {
             tinygltf::Mesh gltfMesh = model.meshes[rootNode.mesh];
