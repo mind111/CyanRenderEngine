@@ -2,24 +2,16 @@
 .vscode/
 bin/
 build/
+/lib/
 .git/
 asset/
-lib/
 src/ImGuizmo/
 
 x64/
-CyanRenderEngine.vcxproj.filters
 CyanRenderEngine.vcxproj.user
 CyanApp/x64
-CyanApp/*.vcxproj.filters
 CyanApp/*.vcxproj.user
 CyanLib/x64
-CyanLib/*.vcxproj.filters
 CyanLib/*.vcxproj.user
 ExternalLib/x64
-ExternalLib/*.vcxproj.filters
 ExternalLib/*.vcxproj.user
-
-
-# files
-.vscode-ctags

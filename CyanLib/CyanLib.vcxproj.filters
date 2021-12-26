@@ -1,0 +1,488 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Source Files\Internal">
+      <UniqueIdentifier>{ac1a7914-2e18-4049-b778-cc2c974aac25}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\External">
+      <UniqueIdentifier>{2ea109a2-2c68-4994-ad6f-4faf2c7e82b7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\External\ImGui">
+      <UniqueIdentifier>{2e706d5d-bf13-4e56-9fdb-4ef6a587ba85}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\External\ImGuizmo">
+      <UniqueIdentifier>{2306cbf7-6675-427a-a36d-4fc777a72178}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{076b0f35-28e5-45d0-ba3c-e908fa947e32}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\Allocator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Asset.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\BVH.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\camera.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\CyanAPI.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\CyanApp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\cyanEngine.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\CyanPathTracer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\CyanRenderer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\CyanUI.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Entity.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Geometry.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\GfxContext.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\GraphicsSystem.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Light.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\LightMap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\LightProbe.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Material.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mathUtils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mesh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Node.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Plane.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\RenderPass.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\RenderTarget.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\SceneNode.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\texture.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Transform.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Uniform.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\VertexArray.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\VertexBuffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\window.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\imgui\imconfig.h">
+      <Filter>Source Files\External\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\imgui\imgui.h">
+      <Filter>Source Files\External\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\imgui\imgui_impl_glfw.h">
+      <Filter>Source Files\External\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\imgui\imgui_impl_opengl3.h">
+      <Filter>Source Files\External\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\imgui\imgui_internal.h">
+      <Filter>Source Files\External\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\imgui\imstb_rectpack.h">
+      <Filter>Source Files\External\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\imgui\imstb_textedit.h">
+      <Filter>Source Files\External\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\imgui\imstb_truetype.h">
+      <Filter>Source Files\External\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ImGuizmo\ImGuizmo.h">
+      <Filter>Source Files\External\ImGuizmo</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\Asset.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\BVH.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\camera.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CyanAPI.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CyanApp.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\cyanEngine.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CyanPathTracer.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\cyanRenderer.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Entity.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\EntryPoint.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Geometry.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GfxContext.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GraphicsSystem.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\LightMap.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\LightProbe.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Material.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mathUtils.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mesh.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PbrApp.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\RenderPass.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\RenderTarget.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\scene.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SceneNode.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\shader.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Texture.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\todos.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Uniform.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Utils.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\VertexArray.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\VertexBuffer.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\window.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\imgui\imgui.cpp">
+      <Filter>Source Files\External\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\imgui\imgui_demo.cpp">
+      <Filter>Source Files\External\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\imgui\imgui_draw.cpp">
+      <Filter>Source Files\External\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\imgui\imgui_impl_glfw.cpp">
+      <Filter>Source Files\External\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\imgui\imgui_impl_opengl3.cpp">
+      <Filter>Source Files\External\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\imgui\imgui_tables.cpp">
+      <Filter>Source Files\External\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\imgui\imgui_widgets.cpp">
+      <Filter>Source Files\External\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ImGuizmo\ImGuizmo.cpp">
+      <Filter>Source Files\External\ImGuizmo</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\ImGuizmo\LICENSE">
+      <Filter>Source Files\External\ImGuizmo</Filter>
+    </None>
+    <None Include="..\shader\scene_normal_depth.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\scene_normal_depth.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_ao.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_ao.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_blinn_phong.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_blinn_phong.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_blit.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_blit.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_bloom.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_bloom.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_bloom_preprocess.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_bloom_preprocess.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_depth_normal.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_depth_normal.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_diff_irradiance.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_diff_irradiance.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_dir_shadow.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_dir_shadow.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_downsample.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_downsample.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_envmap.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_envmap.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_flat_color.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_flat_color.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_gaussian_blur.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_gaussian_blur.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_gen_cubemap.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_gen_cubemap.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_grid_texture.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_grid_texture.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_integrate_brdf.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_integrate_brdf.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_light.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_light.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_lightmap.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_lightmap.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_line.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_line.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_line2d.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_line2d.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_lumin_histogram_c.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_oct_mapping.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_oct_mapping.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_pbr.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_pbr.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_prefilter_specular.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_prefilter_specular.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_quad.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_quad.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_ray_tracing.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_ray_tracing.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_render_probe.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_render_probe.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_render_voxel.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_render_voxel.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_sky.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_sky.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_test.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_textured_quad.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_textured_quad.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_upsample.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_upsample.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_voxel.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_voxel.gs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\shader_voxel.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\sky_irradiance_c.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+  </ItemGroup>
+</Project>
