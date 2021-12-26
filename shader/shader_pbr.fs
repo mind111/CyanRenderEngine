@@ -52,8 +52,8 @@ uniform struct Lighting
     // precomputed GI
     samplerCube irradianceProbe;
     samplerCube localReflectionProbe;
-    float       diffuseScale;
-    float       specularScale;
+    float       indirectDiffuseScale;
+    float       indirectSpecularScale;
 } gLighting;
 
 uniform float useDistantProbe;
@@ -550,9 +550,6 @@ float isInShadow(float bias)
 vec3 directLighting(RenderParams renderParams)
 {
     vec3 color = vec3(0.f);
-    // TODO: area lights?
-    {
-    }
     for (int i = 0; i < numPointLights; i++)
     {
         vec4 lightPos = s_view * pointLightsBuffer.lights[i].position;
@@ -643,7 +640,7 @@ vec3 indirectLighting(RenderParams params)
     vec3 F = fresnel(params.f0, params.n, params.v); 
     vec3 kDiffuse = mix(vec3(1.f) - F, vec3(0.f), params.metallic);
     // diffuse irradiance
-    vec3 diffuse = kDiffuse * gLighting.diffuseScale * params.baseColor * texture(irradianceDiffuse, params.wn).rgb;
+    vec3 diffuse = kDiffuse * gLighting.indirectDiffuseScale * params.baseColor * texture(irradianceDiffuse, params.wn).rgb;
     // specular radiance
     float ndotv = saturate(dot(params.n, params.v));
     vec3 r = -reflect(params.v, params.n);
@@ -660,7 +657,7 @@ vec3 indirectLighting(RenderParams params)
     vec3 prefilteredColor = useDistantProbe > .5f ? textureLod(gDistantProbe.reflection, rr, params.roughness * 10.f).rgb : textureLod(gLighting.localReflectionProbe, rr, params.roughness * 10.f).rgb;
 
     vec3 brdf = texture(brdfIntegral, vec2(params.roughness, ndotv)).rgb; 
-    vec3 specular = (gLighting.specularScale * prefilteredColor * uniformSpecular) * (params.f0 * brdf.r + brdf.g);
+    vec3 specular = (gLighting.indirectSpecularScale * prefilteredColor * uniformSpecular) * (params.f0 * brdf.r + brdf.g);
 
     // probe based diffuse GI
     {

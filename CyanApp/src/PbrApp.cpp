@@ -320,13 +320,13 @@ Cyan::MaterialInstance* PbrApp::createDefaultPbrMatlInstance(Scene* scene, PbrMa
     matl->set("uMaterialProps.hasBakedLighting", inputs.m_hasBakedLighting);
     if (isStatic)
     {
-        matl->set("gLighting.diffuseScale", 0.f);
-        matl->set("gLighting.specularScale", 0.f);
+        matl->set("gLighting.indirectDiffuseScale", 0.f);
+        matl->set("gLighting.indirectSpecularScale", 0.f);
     }
     else
     {
-        matl->set("gLighting.diffuseScale", 1.f);
-        matl->set("gLighting.specularScale", 1.f);
+        matl->set("gLighting.indirectDiffuseScale", 1.f);
+        matl->set("gLighting.indirectSpecularScale", 1.f);
     }
     if (inputs.m_hasBakedLighting > .5f) matl->bindTexture("lightMap", inputs.m_lightMap);
 

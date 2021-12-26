@@ -118,6 +118,8 @@ namespace Cyan
         f32            kRoughness;
         f32            kMetallic;
         f32            kSpecular;
+        f32            indirectDiffuseScale;
+        f32            indirectSpecularScale;
         // flags
         f32            hasBakedLighting;
         f32            usePrototypeTexture;
@@ -126,6 +128,7 @@ namespace Cyan
     // todo: implement this
     class StandardPbrMaterial
     {
+        StandardPbrMaterial();
         StandardPbrMaterial(const PbrMaterialParam& param);
         ~StandardPbrMaterial()
         {

@@ -234,6 +234,17 @@ namespace Cyan
         return { textureUnit, bufferBinding };
     }
 
+    StandardPbrMaterial::StandardPbrMaterial()
+    {
+        // create a material instance
+        glm::vec4 defaultBaseColor(0.9f, 0.9f, 0.9f, 1.f);
+        m_materialInstance->set("flatBaseColor", &defaultBaseColor.x);
+        m_materialInstance->set("uniformSpecular", .5f);
+        m_materialInstance->set("uniformRoughness", .5f);
+        m_materialInstance->set("uniformMetallic", .5f);
+        m_materialInstance->set("uMaterialProps.hasBakedLighting", 0.f);
+    }
+
     StandardPbrMaterial::StandardPbrMaterial(const PbrMaterialParam& param)
     {
         // albedo
@@ -247,31 +258,37 @@ namespace Cyan
             m_materialInstance->set("flatColor", &param.flatBaseColor.x);
             m_materialInstance->set("uMaterialProps.usePrototypeTexture", param.usePrototypeTexture);
         }
+        // normal
         if (param.normal)
         {
             m_materialInstance->set("uMaterialProps.hasNormalMap", 1.0f);
             m_materialInstance->bindTexture("normalMap", param.normal);
         }
+        // occlusion
         if (param.occlusion)
         {
             m_materialInstance->set("uMaterialProps.hasAoMap", 1.0f);
             m_materialInstance->bindTexture("aoMap", param.occlusion);
         }
+        // roughness
         if (param.roughness)
         {
             m_materialInstance->set("uMaterialProps.hasRoughnessMap", 1.0f);
             m_materialInstance->bindTexture("roughnessMap", param.roughness);
         }
+        // metallic
         if (param.metallic)
         {
             m_materialInstance->set("uMaterialProps.hasMetalnessMap", 1.f);
             m_materialInstance->bindTexture("metalnessMap", param.metallic);
         }
+        // metallicRoughness map
         if (param.metallicRoughness)
         {
             m_materialInstance->set("uMaterialProps.hasMetallicRoughnessMap", 1.0f);
             m_materialInstance->bindTexture("metallicRoughnessMap", param.metallicRoughness);
         }
+        // specular
         if (param.kSpecular > 0.f)
             m_materialInstance->set("uniformSpecular", param.kSpecular);
         else
@@ -279,12 +296,13 @@ namespace Cyan
 
         m_materialInstance->set("uniformRoughness", param.kRoughness);
         m_materialInstance->set("uniformMetallic", param.kMetallic);
+
+        // baked lighting
         m_materialInstance->set("uMaterialProps.hasBakedLighting", param.hasBakedLighting);
         if (param.hasBakedLighting > .5f) m_materialInstance->bindTexture("lightMap", param.lightMap);
 
-        // disable direct lighting
-        m_materialInstance->set("gLighting.diffuseScale", 0.f);
-        m_materialInstance->set("gLighting.specularScale", 0.f);
+        m_materialInstance->set("gLighting.indirectDiffuseScale", param.indirectDiffuseScale);
+        m_materialInstance->set("gLighting.indirectSpecularScale", param.indirectSpecularScale);
 
         m_materialInstance->set("kDiffuse", 1.0f);
         m_materialInstance->set("kSpecular", 1.0f);
