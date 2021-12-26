@@ -8,10 +8,6 @@ asset/
 src/ImGuizmo/
 
 x64/
-CyanRenderEngine.vcxproj.user
 CyanApp/x64
-CyanApp/*.vcxproj.user
 CyanLib/x64
-CyanLib/*.vcxproj.user
 ExternalLib/x64
-ExternalLib/*.vcxproj.user
