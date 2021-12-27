@@ -9,7 +9,7 @@
 #include "Transform.h"
 #include "Mesh.h" 
 
-#define kSceneNodeNameMaxLen 64u
+#define kSceneNodeNameMaxLen 128u
 
 enum SceneNodeProperty
 {

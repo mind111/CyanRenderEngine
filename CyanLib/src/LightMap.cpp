@@ -10,6 +10,7 @@
 #include "stb_image_write.h"
 
 #define MULTITHREAD_BAKE 1
+#define SUPER_SAMPLING 1
 
 namespace Cyan
 {
@@ -28,8 +29,22 @@ namespace Cyan
         m_pixels[index + 2] = color.b;
     }
 
+    void LightMap::accumulatePixel(u32 px, u32 py, glm::vec3 & color)
+    {
+        u32 ppx = px / LightMapManager::kNumSubPixelSamples;
+        u32 ppy = py / LightMapManager::kNumSubPixelSamples;
+        u32 width = m_texAltas->m_width;
+        u32 height = m_texAltas->m_height;
+        const u32 numChannelsPerPixel = 3;
+        u32 index = (ppy * width + ppx) * numChannelsPerPixel;
+        m_pixels[index + 0] += color.r;
+        m_pixels[index + 1] += color.g;
+        m_pixels[index + 2] += color.b;
+    }
+
     LightMapManager* LightMapManager::m_singleton = nullptr;
     LightMapManager::LightMapManager()
+        : m_lightMapShader(nullptr), m_lightMapMatl(nullptr), texelCounterBuffer(-1)
     {
         if (!m_singleton)
         {
@@ -81,6 +96,11 @@ namespace Cyan
             } 
             m_lightMapMatl->bindBuffer("LightMapData", lightMap->m_bakingGpuDataBuffer);
 
+            /* 
+                Multi-tap rasterization to create a "ribbon" area around each chart to alleviate
+                black seams when sampling lightmap, because bilinear filter texels close to edge of 
+                a chart. Following ideas from https://ndotl.wordpress.com/2018/08/29/baking-artifact-free-lightmaps/
+            */
             glm::vec3 uvOffset(1.f / lightMap->m_texAltas->m_width, 1.f / lightMap->m_texAltas->m_height, 0.f);
             glm::vec3 passes[9] = {
                 glm::vec3(-1.f, 0.f, 0.f),
@@ -100,11 +120,6 @@ namespace Cyan
             m_lightMapMatl->set("model", &model[0]);
             u32 numPasses = sizeof(passes) / sizeof(passes[0]);
 
-            /* 
-                Multi-tap rasterization to create a "ribbon" area around each chart to alleviate
-                black seams when sampling lightmap, because bilinear filter texels close to edge of 
-                a chart. Following ideas from https://ndotl.wordpress.com/2018/08/29/baking-artifact-free-lightmaps/
-            */
             glEnable(GL_NV_conservative_raster);
             for (u32 pass = 0; pass < numPasses; ++pass)
             {
@@ -130,7 +145,7 @@ namespace Cyan
         }
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_ATOMIC_COUNTER_BARRIER_BIT);
         u32 overlappedTexelCount = 0;
-        // read back lightmap texel data and run path tracing to bake each texel
+        // read back lightmap texel data and run path tracer to bake each texel
         {
             glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightMap->m_bakingGpuDataBuffer->m_ssbo);
             glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(LightMapTexelData) * maxNumTexels, lightMap->m_bakingData.data());
@@ -243,7 +258,7 @@ namespace Cyan
         }
         const u32 workGroupCount = 16;
         u32 workGroupPixelCount = overlappedTexelCount / workGroupCount;
-        // divide work into 8 threads
+        // divide work into 16 threads
         std::thread* workers[workGroupCount] = { };
         for (u32 i = 0; i < workGroupCount; ++i)
         {
@@ -280,8 +295,16 @@ namespace Cyan
             spec.m_numMips  = 1;
 
             lightMap->m_texAltas = textureManager->createTextureHDR("LightMap", spec);
+#if SUPER_SAMPLING
+            spec.m_width    = meshInstance->m_mesh->m_lightMapWidth * kNumSubPixelSamples;
+            spec.m_height   = meshInstance->m_mesh->m_lightMapHeight * kNumSubPixelSamples;
+            lightMap->m_texAltas = textureManager->createTextureHDR("LightMap", spec);
             lightMap->m_renderTarget = createRenderTarget(meshInstance->m_lightMap->m_texAltas->m_width, meshInstance->m_lightMap->m_texAltas->m_height);
             lightMap->m_renderTarget->attachTexture(meshInstance->m_lightMap->m_texAltas, 0);
+#else
+            lightMap->m_renderTarget = createRenderTarget(meshInstance->m_lightMap->m_texAltas->m_width, meshInstance->m_lightMap->m_texAltas->m_height);
+            lightMap->m_renderTarget->attachTexture(meshInstance->m_lightMap->m_texAltas, 0);
+#endif
         }
 
         u32 maxNumTexels = lightMap->m_texAltas->m_height * lightMap->m_texAltas->m_width;

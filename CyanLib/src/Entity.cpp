@@ -320,3 +320,15 @@ void Entity::setMaterial(const char* nodeName, i32 subMeshIndex, Cyan::MaterialI
             sceneNode->m_meshInstance->setMaterial(sm, matl);
     }
 }
+
+void Entity::setMaterial(const char* nodeName, i32 subMeshIndex, Cyan::StandardPbrMaterial* matl)
+{
+    if (subMeshIndex >= 0)
+        getSceneNode(nodeName)->m_meshInstance->setMaterial(subMeshIndex, matl->m_materialInstance);
+    else
+    {
+        SceneNode* sceneNode = getSceneNode(nodeName);
+        for (u32 sm = 0; sm < sceneNode->m_meshInstance->m_mesh->numSubMeshes(); ++sm)
+            sceneNode->m_meshInstance->setMaterial(sm, matl->m_materialInstance);
+    }
+}

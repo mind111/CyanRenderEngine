@@ -225,19 +225,11 @@ bool PbrApp::mouseOverUI()
     return (m_mouseCursorX < 400.f && m_mouseCursorX > 0.f && m_mouseCursorY < 720.f && m_mouseCursorY > 0.f);
 }
 
-void PbrApp::addSceneMaterial(Scene* scene, Cyan::MaterialInstance* matl)
-{
-    auto& materials = m_sceneMaterialTable[scene->m_name];
-    if (materials.size() == 0)
-        printf("Created new scene materials vector for '%s' \n", scene->m_name.c_str());
-    materials.push_back(matl);
-}
-
 #if 0
 Cyan::MaterialInstance* createDefaultRayTracingMatl(Scene* scene, Shader* shader, PbrMaterialInputs inputs)
 {
     Cyan::MaterialInstance* matl = Cyan::createMaterial(shader)->createInstance();
-    matl->bindTexture("diffuseMaps[0]", inputs.m_baseColor);
+    matl->bindTexture("diffuseMaps[0]", inputs.baseColor);
     if (inputs.m_normalMap)
     {
         matl->set("hasNormalMap", 1.0f);
@@ -248,10 +240,10 @@ Cyan::MaterialInstance* createDefaultRayTracingMatl(Scene* scene, Shader* shader
         matl->set("hasAoMap", 1.0f);
         matl->bindTexture("aoMap", inputs.m_occlusion);
     }
-    if (inputs.m_roughnessMap)
+    if (inputs.roughness)
     {
         matl->set("hasRoughnessMap", 1.0f);
-        matl->bindTexture("roughnessMap", inputs.m_roughnessMap);
+        matl->bindTexture("roughnessMap", inputs.roughness);
         matl->bindTexture("metallicMap", inputs.m_metallicMap);
     }
     else if (inputs.m_metallicRoughnessMap) 
@@ -261,8 +253,8 @@ Cyan::MaterialInstance* createDefaultRayTracingMatl(Scene* scene, Shader* shader
     }
     else
     {
-        matl->set("uniformRoughness", inputs.m_uRoughness);
-        matl->set("uniformMetallic", inputs.m_uMetallic);
+        matl->set("uniformRoughness", inputs.kRoughness);
+        matl->set("uniformMetallic", inputs.kMetallic);
     }
 
     matl->set("kDiffuse", 1.0f);
@@ -272,71 +264,20 @@ Cyan::MaterialInstance* createDefaultRayTracingMatl(Scene* scene, Shader* shader
 }
 #endif
 
-Cyan::MaterialInstance* PbrApp::createDefaultPbrMatlInstance(Scene* scene, PbrMaterialInputs inputs, bool isStatic)
+Cyan::StandardPbrMaterial* PbrApp::createStandardPbrMatlInstance(Scene* scene, Cyan::PbrMaterialParam params, bool isStatic)
 {
-    Shader* pbrShader = Cyan::createShader("PbrShader", nullptr, nullptr);
-    Cyan::MaterialInstance* matl = Cyan::createMaterial(pbrShader)->createInstance();
-    if (inputs.m_baseColor)
-    {
-        matl->set("uMaterialProps.hasDiffuseMap", 1.f);
-        matl->bindTexture("diffuseMaps[0]", inputs.m_baseColor);
-    }
-    else
-    {
-        matl->set("flatColor", &inputs.m_flatBaseColor.x);
-        matl->set("uMaterialProps.usePrototypeTexture", inputs.m_usePrototypeTexture);
-    }
-    if (inputs.m_normalMap)
-    {
-        matl->set("uMaterialProps.hasNormalMap", 1.0f);
-        matl->bindTexture("normalMap", inputs.m_normalMap);
-    }
-    if (inputs.m_occlusion)
-    {
-        matl->set("uMaterialProps.hasAoMap", 1.0f);
-        matl->bindTexture("aoMap", inputs.m_occlusion);
-    }
-    if (inputs.m_roughnessMap)
-    {
-        matl->set("uMaterialProps.hasRoughnessMap", 1.0f);
-        matl->bindTexture("roughnessMap", inputs.m_roughnessMap);
-    }
-    if (inputs.m_metallicMap) 
-    {
-        matl->set("uMaterialProps.hasMetalnessMap", 1.f);
-        matl->bindTexture("metalnessMap", inputs.m_metallicMap);
-    }
-    if (inputs.m_metallicRoughnessMap) 
-    {
-        matl->set("uMaterialProps.hasMetallicRoughnessMap", 1.0f);
-        matl->bindTexture("metallicRoughnessMap", inputs.m_metallicRoughnessMap);
-    }
-    if (inputs.m_uSpecular > 0.f)
-        matl->set("uniformSpecular", inputs.m_uSpecular);
-    else
-        matl->set("uniformSpecular", .5f);
-    matl->set("uniformRoughness", inputs.m_uRoughness);
-    matl->set("uniformMetallic", inputs.m_uMetallic);
-    matl->set("uMaterialProps.hasBakedLighting", inputs.m_hasBakedLighting);
     if (isStatic)
     {
-        matl->set("gLighting.indirectDiffuseScale", 0.f);
-        matl->set("gLighting.indirectSpecularScale", 0.f);
+        params.indirectDiffuseScale = 0.f;
+        params.indirectSpecularScale = 0.f;
     }
     else
     {
-        matl->set("gLighting.indirectDiffuseScale", 1.f);
-        matl->set("gLighting.indirectSpecularScale", 1.f);
+        params.indirectDiffuseScale = 1.f;
+        params.indirectSpecularScale = 1.f;
     }
-    if (inputs.m_hasBakedLighting > .5f) matl->bindTexture("lightMap", inputs.m_lightMap);
-
-    matl->bindBuffer("dirLightsData", scene->m_dirLightsBuffer);
-    matl->bindBuffer("pointLightsData", scene->m_pointLightsBuffer);
-    matl->set("kDiffuse", 1.0f);
-    matl->set("kSpecular", 1.0f);
-    matl->set("disneyReparam", 1.0f);
-
-    addSceneMaterial(scene, matl);
+    Cyan::StandardPbrMaterial* matl = new Cyan::StandardPbrMaterial(params);
+    scene->addStandardPbrMaterial(matl);
     return matl;
 }
 
@@ -346,12 +287,12 @@ void PbrApp::createHelmetInstance(Scene* scene)
     auto sceneManager = SceneManager::getSingletonPtr();
     // helmet
     {
-        PbrMaterialInputs inputs = { 0 };
-        inputs.m_baseColor = textureManager->getTexture("helmet_diffuse");
-        inputs.m_normalMap = textureManager->getTexture("helmet_nm");
-        inputs.m_metallicRoughnessMap = textureManager->getTexture("helmet_roughness");
-        inputs.m_occlusion = textureManager->getTexture("helmet_ao");
-        auto helmetMatl = createDefaultPbrMatlInstance(scene, inputs, false);
+        Cyan::PbrMaterialParam params = { };
+        params.baseColor = textureManager->getTexture("helmet_diffuse");
+        params.normal = textureManager->getTexture("helmet_nm");
+        params.metallicRoughness = textureManager->getTexture("helmet_roughness");
+        params.occlusion = textureManager->getTexture("helmet_ao");
+        auto helmetMatl = createStandardPbrMatlInstance(scene, params, false);
         Entity* helmet = sceneManager->getEntity(scene, "DamagedHelmet");
         helmet->setMaterial("HelmetMesh", 0, helmetMatl);
     }
@@ -365,11 +306,18 @@ void PbrApp::initDemoScene00()
 
     auto textureManager = m_graphicsSystem->getTextureManager();
     auto sceneManager = SceneManager::getSingletonPtr();
+#if 0
     PbrMaterialInputs input = { };
     input.m_flatBaseColor = glm::vec4(1.f);
-    input.m_uRoughness = .8f;
-    input.m_uMetallic = .02f;
+    input.kRoughness = .8f;
+    input.kMetallic = .02f;
     auto defaultMatl = createDefaultPbrMatlInstance(demoScene00, input, false);
+#endif
+    Cyan::PbrMaterialParam params = { };
+    params.flatBaseColor = glm::vec4(1.f);
+    params.kRoughness = .8f;
+    params.kMetallic = .02f;
+    Cyan::StandardPbrMaterial* defaultMatl = createStandardPbrMatlInstance(demoScene00, params, false);
 
     // helmet
     {
@@ -382,26 +330,26 @@ void PbrApp::initDemoScene00()
 
     // bunnies
     {
-        PbrMaterialInputs inputs = { 0 };
+        Cyan::PbrMaterialParam params = { };
         Entity* bunny0 = sceneManager->getEntity(demoScene00, "Bunny0");
         Entity* bunny1 = sceneManager->getEntity(demoScene00, "Bunny1");
-        inputs.m_flatBaseColor = glm::vec4(0.855, 0.647, 0.125f, 1.f);
-        inputs.m_uRoughness = 0.1f;
-        inputs.m_uMetallic = 1.0f;
+        params.flatBaseColor = glm::vec4(0.855, 0.647, 0.125f, 1.f);
+        params.kRoughness = 0.1f;
+        params.kMetallic = 1.0f;
 
-        auto bunnyMatl = createDefaultPbrMatlInstance(demoScene00, inputs, bunny0->m_static);
+        auto bunnyMatl = createStandardPbrMatlInstance(demoScene00, params, bunny0->m_static);
         bunny0->setMaterial("BunnyMesh", -1, bunnyMatl);
         bunny1->setMaterial("BunnyMesh", -1, bunnyMatl);
     }
 
     // man
     {
-        PbrMaterialInputs inputs = { 0 };
+        Cyan::PbrMaterialParam params = { };
         Entity* man = sceneManager->getEntity(demoScene00, "Man");
-        inputs.m_flatBaseColor = glm::vec4(0.855, 0.855, 0.855, 1.f);
-        inputs.m_uRoughness = 0.3f;
-        inputs.m_uMetallic = 0.3f;
-        auto manMatl = createDefaultPbrMatlInstance(demoScene00, inputs, man->m_static);
+        params.flatBaseColor = glm::vec4(0.855, 0.855, 0.855, 1.f);
+        params.kRoughness = 0.3f;
+        params.kMetallic = 0.3f;
+        auto manMatl = createStandardPbrMatlInstance(demoScene00, params, man->m_static);
         man->setMaterial("ManMesh", -1, manMatl);
     }
 
@@ -430,34 +378,34 @@ void PbrApp::initDemoScene00()
         glm::vec3 gold(1.f, 0.843f, 0.f);
         glm::vec3 chrome(1.f);
         glm::vec3 plastic(0.061f, 0.757f, 0.800f);
-        PbrMaterialInputs matlInputs[2][4] = { };
-        matlInputs[0][0].m_flatBaseColor = glm::vec4(gold, 1.f);
-        matlInputs[0][0].m_uRoughness = .1f;
-        matlInputs[0][0].m_uMetallic = 0.95f;
-        matlInputs[0][1].m_flatBaseColor = glm::vec4(silver, 1.f);
-        matlInputs[0][1].m_uRoughness = .02f;
-        matlInputs[0][1].m_uMetallic = 0.95f;
-        matlInputs[0][2].m_flatBaseColor = glm::vec4(chrome, 1.f);
-        matlInputs[0][2].m_uRoughness = .3f;
-        matlInputs[0][2].m_uMetallic = 0.95f;
-        matlInputs[0][3].m_flatBaseColor = glm::vec4(plastic, 1.f);
-        matlInputs[0][3].m_uRoughness = .02f;
-        matlInputs[0][3].m_uMetallic = 0.05f;
-        matlInputs[0][3].m_uSpecular = 1.f;
-        matlInputs[1][0].m_flatBaseColor = glm::vec4(gold, 1.f);
-        matlInputs[1][0].m_roughnessMap = textureManager->getTexture("imperfection_grunge");
-        matlInputs[1][0].m_uMetallic = 0.95f;
-        matlInputs[1][1].m_baseColor = textureManager->getTexture("green_marble_albedo");
-        matlInputs[1][1].m_roughnessMap = textureManager->getTexture("green_marble_roughness");
-        matlInputs[1][1].m_uMetallic = 0.01f;
-        matlInputs[1][2].m_baseColor = textureManager->getTexture("white_marble_albedo");
-        matlInputs[1][2].m_roughnessMap = textureManager->getTexture("white_marble_roughness");
-        matlInputs[1][2].m_uMetallic = 0.01f;
-        matlInputs[1][3].m_baseColor = textureManager->getTexture("brick_albedo");
-        matlInputs[1][3].m_roughnessMap = textureManager->getTexture("brick_roughness");
-        matlInputs[1][3].m_normalMap = textureManager->getTexture("brick_nm");
-        matlInputs[1][3].m_uMetallic = 0.01f;
-        matlInputs[1][3].m_uSpecular = 0.01f;
+        Cyan::PbrMaterialParam matlParams[2][4] = { };
+        matlParams[0][0].flatBaseColor = glm::vec4(gold, 1.f);
+        matlParams[0][0].kRoughness = .1f;
+        matlParams[0][0].kMetallic = 0.95f;
+        matlParams[0][1].flatBaseColor = glm::vec4(silver, 1.f);
+        matlParams[0][1].kRoughness = .02f;
+        matlParams[0][1].kMetallic = 0.95f;
+        matlParams[0][2].flatBaseColor = glm::vec4(chrome, 1.f);
+        matlParams[0][2].kRoughness = .3f;
+        matlParams[0][2].kMetallic = 0.95f;
+        matlParams[0][3].flatBaseColor = glm::vec4(plastic, 1.f);
+        matlParams[0][3].kRoughness = .02f;
+        matlParams[0][3].kMetallic = 0.05f;
+        matlParams[0][3].kSpecular = 1.f;
+        matlParams[1][0].flatBaseColor = glm::vec4(gold, 1.f);
+        matlParams[1][0].roughness = textureManager->getTexture("imperfection_grunge");
+        matlParams[1][0].kMetallic = 0.95f;
+        matlParams[1][1].baseColor = textureManager->getTexture("green_marble_albedo");
+        matlParams[1][1].roughness = textureManager->getTexture("green_marble_roughness");
+        matlParams[1][1].kMetallic = 0.01f;
+        matlParams[1][2].baseColor = textureManager->getTexture("white_marble_albedo");
+        matlParams[1][2].roughness = textureManager->getTexture("white_marble_roughness");
+        matlParams[1][2].kMetallic = 0.01f;
+        matlParams[1][3].baseColor = textureManager->getTexture("brick_albedo");
+        matlParams[1][3].roughness = textureManager->getTexture("brick_roughness");
+        matlParams[1][3].normal = textureManager->getTexture("brick_nm");
+        matlParams[1][3].kMetallic = 0.01f;
+        matlParams[1][3].kSpecular = 0.01f;
 
         for (u32 j = 0; j < 2; ++j)
         {
@@ -475,7 +423,7 @@ void PbrApp::initDemoScene00()
                 transform.m_scale = glm::vec3(.003f);
                 auto meshNode = Cyan::createSceneNode(meshNodeName, transform, Cyan::getMesh("shaderball_mesh"));
                 shaderBall->attachSceneNode(meshNode);
-                auto matl = createDefaultPbrMatlInstance(demoScene00, matlInputs[j][i], shaderBall->m_static);
+                auto matl = createStandardPbrMatlInstance(demoScene00, matlParams[j][i], shaderBall->m_static);
                 shaderBall->setMaterial(meshNodeName, -1, defaultMatl);
                 shaderBall->setMaterial(meshNodeName, 0, matl);
                 shaderBall->setMaterial(meshNodeName, 1, matl);
@@ -500,8 +448,8 @@ void PbrApp::initDemoScene00()
             // default matl param
             PbrMaterialInputs inputs = { };
             inputs.m_flatBaseColor = glm::vec4(1.f);
-            inputs.m_uRoughness = 0.5f;
-            inputs.m_uMetallic = 0.5f;
+            inputs.kRoughness = 0.5f;
+            inputs.kMetallic = 0.5f;
             inputs.m_hasBakedLighting = 1.f;
 
             i32 matlIdx = roomMesh->m_subMeshes[sm]->m_materialIdx;
@@ -515,8 +463,8 @@ void PbrApp::initDemoScene00()
         }
         PbrMaterialInputs inputs = { };
         inputs.m_flatBaseColor = glm::vec4(1.f);
-        inputs.m_uRoughness = 0.5f;
-        inputs.m_uMetallic = 0.5f;
+        inputs.kRoughness = 0.5f;
+        inputs.kMetallic = 0.5f;
         inputs.m_hasBakedLighting = 1.f;
         inputs.m_usePrototypeTexture = 1.f;
         auto planeMatl = createDefaultPbrMatlInstance(demoScene00, inputs, room->m_static);
@@ -547,30 +495,30 @@ void PbrApp::initDemoScene00()
         for (u32 sm = 0; sm < roomMesh->numSubMeshes(); ++sm)
         {
             // default matl param
-            PbrMaterialInputs inputs = { };
-            inputs.m_flatBaseColor = glm::vec4(1.f);
-            inputs.m_uRoughness = 0.8f;
-            inputs.m_uMetallic = 0.0f;
-            inputs.m_hasBakedLighting = 1.f;
-            inputs.m_lightMap = roomNode->m_meshInstance->m_lightMap->m_texAltas;
+            Cyan::PbrMaterialParam params = { };
+            params.flatBaseColor = glm::vec4(1.f);
+            params.kRoughness = 0.8f;
+            params.kMetallic = 0.0f;
+            params.hasBakedLighting = 1.f;
+            params.lightMap = roomNode->m_meshInstance->m_lightMap->m_texAltas;
 
             i32 matlIdx = roomMesh->m_subMeshes[sm]->m_materialIdx;
             if (matlIdx > 0)
             {
                 auto& objMatl = roomMesh->m_objMaterials[matlIdx];
-                inputs.m_flatBaseColor = glm::vec4(objMatl.diffuse, 1.f);
+                params.flatBaseColor = glm::vec4(objMatl.diffuse, 1.f);
             }
-            auto matl = createDefaultPbrMatlInstance(demoScene00, inputs, room->m_static);
+            auto matl = createStandardPbrMatlInstance(demoScene00, params, room->m_static);
             room->setMaterial("RoomMesh", sm, matl);
         }
-        PbrMaterialInputs inputs = { };
-        inputs.m_flatBaseColor = glm::vec4(1.f);
-        inputs.m_uRoughness = 0.5f;
-        inputs.m_uMetallic = 0.5f;
-        inputs.m_hasBakedLighting = 1.f;
-        inputs.m_usePrototypeTexture = 1.f;
-        inputs.m_lightMap = planeNode->m_meshInstance->m_lightMap->m_texAltas;
-        auto planeMatl = createDefaultPbrMatlInstance(demoScene00, inputs, room->m_static);
+        Cyan::PbrMaterialParam params = { };
+        params.flatBaseColor = glm::vec4(1.f);
+        params.kRoughness = 0.5f;
+        params.kMetallic = 0.5f;
+        params.hasBakedLighting = 1.f;
+        params.usePrototypeTexture = 1.f;
+        params.lightMap = planeNode->m_meshInstance->m_lightMap->m_texAltas;
+        auto planeMatl = createStandardPbrMatlInstance(demoScene00, params, room->m_static);
         room->setMaterial("PlaneMesh", -1, planeMatl);
 #endif
 
@@ -700,8 +648,8 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewpo
     bDisneyReparam = true;
     m_directDiffuseSlider = 1.f;
     m_directSpecularSlider = 1.f;
-    m_indirectDiffuseSlider = 0.f;
-    m_indirectSpecularSlider = 0.2f;
+    m_indirectDiffuseSlider = 1.f;
+    m_indirectSpecularSlider = 4.0f;
     m_directLightingSlider = 1.f;
     m_indirectLightingSlider = 0.f;
     m_wrap = 0.1f;
@@ -720,21 +668,18 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewpo
 
     // font
     ImGuiIO& io = ImGui::GetIO();
-    m_font = io.Fonts->AddFontFromFileTTF("C:\\dev\\cyanRenderEngine\\lib\\imgui\\misc\\fonts\\Roboto-Medium.ttf", 16.f);
+    m_font = io.Fonts->AddFontFromFileTTF("C:\\dev\\cyanRenderEngine\\asset\\fonts\\Roboto-Medium.ttf", 16.f);
     timer.end();
 }
 
-void PbrApp::updateMaterialData(Cyan::MaterialInstance* matl)
+void PbrApp::updateMaterialData(Cyan::StandardPbrMaterial* matl)
 {
-    matl->set("directDiffuseScale", m_directDiffuseSlider);
-    matl->set("directSpecularScale", m_directSpecularSlider);
-#if 0
-    matl->set("indirectDiffuseScale", 1.f);
-    matl->set("indirectSpecularScale", 2.f);
-#else
-    matl->set("indirectDiffuseScale", m_indirectDiffuseSlider);
-    matl->set("indirectSpecularScale", m_indirectSpecularSlider);
-#endif
+    // per material instance lighting params
+    matl->m_materialInstance->set("directDiffuseScale", m_directDiffuseSlider);
+    matl->m_materialInstance->set("directSpecularScale", m_directSpecularSlider);
+    // global lighting parameters
+    matl->m_materialInstance->set("gLighting.indirectDiffuseScale", m_indirectDiffuseSlider);
+    matl->m_materialInstance->set("gLighting.indirectSpecularScale", m_indirectSpecularSlider);
 }
 
 void PbrApp::beginFrame()
@@ -861,14 +806,10 @@ void PbrApp::updateScene(Scene* scene)
     // update camera
     u32 camIdx = 0u;
     Camera& camera = m_scenes[m_currentScene]->cameras[camIdx];
-    // Camera& camera = m_scenes[m_currentScene]->getActiveCamera();
     CameraManager::updateCamera(camera);
 
     // update material parameters
-    std::string sceneName = scene->m_name;
-    auto materials = m_sceneMaterialTable[sceneName];
-    CYAN_ASSERT(materials.size() > 0, "Unknown scene '%s'", sceneName.c_str());
-    for (auto matl : materials)
+    for (auto matl : m_scenes[m_currentScene]->m_materials)
         updateMaterialData(matl);
 }
 

@@ -99,7 +99,7 @@ vec4 convertRGBA8ToVec4(uint v)
 /*
     @vec4 v: must be noramlized to [0.f, 1.f]
 */
-void imageAtomicAddVec4(layout (r32ui) coherent volatile uimage3D volumeTexture, ivec3 texCoords, vec4 v)
+void imageAtomicAddVec4(layout(r32ui) coherent volatile uimage3D volumeTexture, ivec3 texCoords, vec4 v)
 {
     uint prev = 0;
     vec4 partialSum = v;

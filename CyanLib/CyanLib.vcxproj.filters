@@ -218,9 +218,6 @@
     <ClCompile Include="src\mesh.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
-    <ClCompile Include="src\PbrApp.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
     <ClCompile Include="src\RenderPass.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>

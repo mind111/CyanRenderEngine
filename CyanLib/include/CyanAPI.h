@@ -205,9 +205,7 @@ namespace Cyan
                 auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(m_end - m_begin);
                 m_durationInMs = duration.count();
                 if (m_print)
-                {
-                    printf("%s: %.3f ms \n", m_timedBlockName.c_str(), m_durationInMs);
-                }
+                    cyanInfo("%s: %.3f ms \n", m_timedBlockName.c_str(), m_durationInMs);
             }
 
             TimeSnapShot m_begin;
@@ -261,7 +259,6 @@ namespace Cyan
             double m_durationInMs; 
             std::string m_timedBlockName;
             bool m_print;
-
         };
 
         //-

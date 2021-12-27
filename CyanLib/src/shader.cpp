@@ -82,8 +82,10 @@ bool Shader::fileHasChanged(ShaderFileInfo& fileInfo) {
     return wasModified;
 }
 
-void Shader::buildVsPsFromSource(const char* vertSrc, const char* fragSrc) {
-    if (m_vertSrcInfo.m_path.empty() || m_fragSrcInfo.m_path.empty()) {
+void Shader::buildVsPsFromSource(const char* vertSrc, const char* fragSrc) 
+{
+    if (m_vertSrcInfo.m_path.empty() || m_fragSrcInfo.m_path.empty()) 
+    {
         m_vertSrcInfo.m_path = std::string(vertSrc);
         m_fragSrcInfo.m_path = std::string(fragSrc);
     }

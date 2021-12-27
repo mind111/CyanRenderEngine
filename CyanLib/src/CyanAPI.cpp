@@ -37,7 +37,7 @@ namespace Cyan
     static const u32 kMaxNumUniforms = 256;
     static const u32 kMaxNumShaders = 64;
     static const u32 kMaxNumMaterialTypes = 64;
-    static const u32 kMaxNumSceneNodes = 256;
+    static const u32 kMaxNumSceneNodes = 512;
 
     static std::vector<Mesh*> s_meshes;
     static std::vector<DistantLightProbe> s_probes;
@@ -272,6 +272,7 @@ namespace Cyan
         Shader* shader = m_shaders[handle];
         shader->m_name = std::string(name);
         s_shaderRegistry.insert(ShaderEntry(shader->m_name, handle));
+        cyanInfo("Building VsPs shader: %s", name);
         shader->buildVsPsFromSource(vertSrc, fragSrc);
         return shader;
     }
@@ -284,7 +285,7 @@ namespace Cyan
         {
             return m_shaders[foundShader];
         }
-
+        cyanInfo("Building compute shader: %s", name);
         // TODO: Memory management
         u32 handle = ALLOC_HANDLE(Shader)
         CYAN_ASSERT(handle < kMaxNumShaders,  "Too many shader created!!!")

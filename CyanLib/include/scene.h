@@ -38,6 +38,8 @@ struct Scene
     // entities
     Entity*     m_rootEntity;
     std::vector<Entity*> entities;
+    // materials
+    std::vector<Cyan::StandardPbrMaterial*> m_materials;
     // lighting
     u32 m_currentEnvMap;
     std::vector<PointLight> pLights;
@@ -61,6 +63,7 @@ struct Scene
 
     RayCastInfo castRay(glm::vec3& ro, glm::vec3& rd, EntityFilter filter, bool debugPrint=false);
     bool castVisibilityRay(const glm::vec3& ro, glm::vec3& rd, EntityFilter filter);
+    void addStandardPbrMaterial(Cyan::StandardPbrMaterial* matl);
 };
 
 class SceneManager {

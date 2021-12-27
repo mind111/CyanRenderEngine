@@ -8,7 +8,7 @@
 #include "SceneNode.h"
 #include "Geometry.h"
 
-#define kEntityNameMaxLen 64u
+#define kEntityNameMaxLen 128u
 
 // TODO: Components
 
@@ -80,6 +80,7 @@ struct Entity
     void applyLocalTranslation(const glm::vec3 trans);
     void applyLocalScale(const glm::vec3 scale);
     void setMaterial(const char* nodeName, i32 subMeshIndex, Cyan::MaterialInstance* matl);
+    void setMaterial(const char* nodeName, i32 subMeshIndex, Cyan::StandardPbrMaterial* matl);
 };
 
 struct RayCastInfo

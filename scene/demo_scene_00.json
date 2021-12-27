@@ -263,6 +263,18 @@
                 "scale": [0.285, 0.285, 0.285]
             },
             "child": []
+        },
+
+        {
+            "index": 7,
+            "name": "KnightMesh",
+            "file": "../../asset/medieval_knight/scene.gltf",
+            "xform": {
+                "translation": [-1.5761, 0.24115, -3.0],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [0.01, 0.01, 0.01]
+            },
+            "child": []
         }
     ],
 
@@ -325,12 +337,24 @@
         {
             "name": "Mk2",
             "xform": {
-                "translation": [0.0, 0.0, 0.0],
-                "rotation": [0.0, 0, 1, 0],
-                "scale": [1.00, 1.00, 1.00]
+              "translation": [ 0.0, 0.0, 0.0 ],
+              "rotation": [ 0.0, 0, 1, 0 ],
+              "scale": [ 1.00, 1.00, 1.00 ]
             },
             "static": false,
             "nodes": [ 6 ]
+        },
+
+        {
+            "name": "Knight",
+            "xform": {
+              "translation": [ 0.0, 0.0, 0.0 ],
+              "rotation": [ 0.0, 0, 1, 0 ],
+              "scale": [ 1.00, 1.00, 1.00 ]
+            },
+            "static": false,
+            "nodes": [ 7 ]
+
         }
     ]
 }

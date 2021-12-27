@@ -222,7 +222,9 @@ namespace Cyan
         // submeshes
         for (u32 s = 0; s < shapes.size(); ++s)
         {
+#if CYAN_DEBUG
             cyanInfo("shape[%d].name = %s", s, shapes[s].name.c_str());
+#endif
             ObjMesh* objMesh = new ObjMesh; 
             objMeshes.push_back(objMesh);
             Mesh::SubMesh* subMesh = new Mesh::SubMesh;
@@ -375,10 +377,8 @@ namespace Cyan
         // get extension from mesh path
         u32 found = path.find_last_of('.');
         std::string extension = path.substr(found, found + 1);
-        // todo: fix this!
         found = path.find_last_of('/');
         std::string baseDir   = path.substr(0, found);
-        cyanInfo("The mesh file extension is %s", extension.c_str());
 
         Mesh* mesh = nullptr;
         if (extension == ".obj")
@@ -386,9 +386,9 @@ namespace Cyan
             cyanInfo("Loading .obj file %s", path.c_str());
             mesh = loadObj(baseDir.c_str(), path.c_str(), generateLightMapUv);
         }
-        else if (extension == ".gltf") { }
         else
             cyanError("Unsupported mesh file format %s", extension.c_str());
+
         // Store the xform for normalizing object space mesh coordinates
         mesh->m_name = name;
         mesh->m_bvh  = nullptr;
@@ -505,7 +505,6 @@ namespace Cyan
         loadEntities(scene, entities);
     }
 
-    // TODO: Fix this, the loaded textures are all black!!!
     Cyan::Texture* AssetManager::loadGltfTexture(const char* nodeName, tinygltf::Model& model, i32 index) {
         using Cyan::Texture;
         auto textureManager = Cyan::TextureManager::getSingletonPtr();
@@ -566,7 +565,9 @@ namespace Cyan
             spec.m_mag = Texture::Filter::LINEAR;
             spec.m_numMips = 11;
             spec.m_data = reinterpret_cast<void*>(image.image.data());
-            char name[64];
+            u32 nameLen = (u32)strlen(image.uri.c_str());
+            CYAN_ASSERT(nameLen < 128, "Texture filename too long!");
+            char name[128];
             sprintf(name, "%s", image.uri.c_str());
             switch (spec.m_format) {
                 case Texture::ColorFormat::R8G8B8:
@@ -628,7 +629,7 @@ namespace Cyan
         }
 
         // create a SceneNode for this node
-        char sceneNodeName[64];
+        char sceneNodeName[128];
         CYAN_ASSERT(node.name.size() < kEntityNameMaxLen, "Entity name too long !!")
         if (node.name.empty())
             sprintf_s(sceneNodeName, "Node%u", numNodes);
@@ -640,19 +641,19 @@ namespace Cyan
         if (parentSceneNode)
             parentSceneNode->attach(sceneNode);
         // bind material
-        Material* pbrMatl = createMaterial(Cyan::getShader("PbrShader"));
-        if (sceneNode->m_meshInstance)
+        Cyan::MeshInstance* meshInstance = sceneNode->m_meshInstance;
+        if (meshInstance)
         {
             auto& gltfMesh = model.meshes[node.mesh];
             for (u32 sm = 0u; sm < gltfMesh.primitives.size(); ++sm) 
             {
-                Cyan::MeshInstance* mesh = sceneNode->m_meshInstance;
-                mesh->m_matls[sm] = pbrMatl->createInstance();
                 auto& primitive = gltfMesh.primitives[sm];
+                Cyan::StandardPbrMaterial* matl = nullptr;
                 if (primitive.material > -1) 
                 {
                     auto& gltfMaterial = model.materials[primitive.material];
                     auto pbr = gltfMaterial.pbrMetallicRoughness;
+                    PbrMaterialParam params = { };
                     auto getTexture = [&](i32 imageIndex) 
                     {
                         Cyan::Texture* texture = nullptr;
@@ -664,44 +665,21 @@ namespace Cyan
                         return texture;
                     };
 
-                    // albedo
-                    Cyan::Texture* albedo = getTexture(pbr.baseColorTexture.index);
-                    if (albedo)
-                    {
-                        mesh->m_matls[sm]->bindTexture("diffuseMaps[0]", albedo); 
-                        mesh->m_matls[sm]->set("uMaterialProps.hasDiffuseMap", 1.f);
-                    }
-                    // normal map
-                    Cyan::Texture* normal = getTexture(gltfMaterial.normalTexture.index);
-                    if (normal)
-                    {
-                        mesh->m_matls[sm]->bindTexture("normalMap", normal); 
-                        mesh->m_matls[sm]->set("uMaterialProps.hasNormalMap", 1.f);
-                    }
-                    // metallicRoughness
-                    Cyan::Texture* metallicRoughness = getTexture(pbr.metallicRoughnessTexture.index);
-                    if (metallicRoughness)
-                    {
-                        mesh->m_matls[sm]->bindTexture("metallicRoughnessMap", metallicRoughness); 
-                        mesh->m_matls[sm]->set("uMaterialProps.hasMetallicRoughnessMap", 1.f);
-                        mesh->m_matls[sm]->set("uMaterialProps.hasRoughnessMap", 0.f);
-                    }
-                    // occlusion
-                    Cyan::Texture* occlusion = getTexture(gltfMaterial.occlusionTexture.index);
-                    if (occlusion)
-                    {
-                        mesh->m_matls[sm]->bindTexture("aoMap", occlusion); 
-                        mesh->m_matls[sm]->set("uMaterialProps.hasAoMap", 1.f); 
-                    }
-
-                    mesh->m_matls[sm]->set("disneyReparam", 1.f);
-                    mesh->m_matls[sm]->set("kDiffuse", 1.0f);
-                    mesh->m_matls[sm]->set("kSpecular", 1.0f);
-                    mesh->m_matls[sm]->set("directDiffuseScale", 1.0f);
-                    mesh->m_matls[sm]->set("directSpecularScale", 1.0f);
-                    mesh->m_matls[sm]->set("indirectDiffuseScale", 1.0f);
-                    mesh->m_matls[sm]->set("indirectSpecularScale", 1.0f);
+                    params.baseColor = getTexture(pbr.baseColorTexture.index);
+                    params.normal = getTexture(gltfMaterial.normalTexture.index);
+                    params.metallicRoughness = getTexture(pbr.metallicRoughnessTexture.index);
+                    params.occlusion = getTexture(gltfMaterial.occlusionTexture.index);
+                    params.indirectDiffuseScale = 1.f;
+                    params.indirectSpecularScale = 1.f;
+                    matl = new StandardPbrMaterial(params);
+                    meshInstance->m_matls[sm] = matl->m_materialInstance;
                 }
+                else
+                {
+                    matl = new StandardPbrMaterial;
+                    meshInstance->m_matls[sm] = matl->m_materialInstance;
+                }
+                scene->addStandardPbrMaterial(matl);
             }
         }
         // recurse to load all the children

@@ -128,6 +128,7 @@ namespace Cyan
     // todo: implement this
     class StandardPbrMaterial
     {
+    public:
         StandardPbrMaterial();
         StandardPbrMaterial(const PbrMaterialParam& param);
         ~StandardPbrMaterial()
@@ -135,7 +136,7 @@ namespace Cyan
 
         }
 
-        static Shader*    m_standardPbrShader;
+        static Material*    m_standardPbrMatl;
         MaterialInstance* m_materialInstance;
     };
 

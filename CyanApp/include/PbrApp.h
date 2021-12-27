@@ -271,7 +271,7 @@ public:
     // tick
     void update();
     void updateScene(Scene* scene);
-    void updateMaterialData(Cyan::MaterialInstance* matl);
+    void updateMaterialData(Cyan::StandardPbrMaterial* matl);
 
     // camera control
     void dispatchCameraCommand(struct CameraCommand& command);
@@ -323,8 +323,7 @@ public:
         float m_uMetallic;
         float m_uSpecular;
     };
-    Cyan::MaterialInstance* createDefaultPbrMatlInstance(Scene* scene, PbrMaterialInputs inputs, bool isStatic);
-    void addSceneMaterial(Scene* scene, Cyan::MaterialInstance* matl);
+    Cyan::StandardPbrMaterial* createStandardPbrMatlInstance(Scene* scene, Cyan::PbrMaterialParam params, bool isStatic);
 
     // manual custom entity creation
     void createHelmetInstance(Scene* scene);
@@ -355,12 +354,6 @@ public:
     Shader*             m_lightMapShader;
     Cyan::LightMap      m_lightMap;      
     u32                 m_currentDebugView;
-
-    std::vector<Cyan::MaterialInstance*> m_helmetSceneMatls;
-    std::vector<Cyan::MaterialInstance*> m_demoScene00Matls;
-
-    // mapping between scene and materials used in that scene
-    std::unordered_map<std::string, std::vector<Cyan::MaterialInstance*>> m_sceneMaterialTable;
 private:
     float m_sampleVertex[(64 + 1) * 4 * 2] = { };
     

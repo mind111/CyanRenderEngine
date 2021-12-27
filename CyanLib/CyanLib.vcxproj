@@ -96,7 +96,6 @@
     <ClCompile Include="src\Material.cpp" />
     <ClCompile Include="src\mathUtils.cpp" />
     <ClCompile Include="src\mesh.cpp" />
-    <ClCompile Include="src\PbrApp.cpp" />
     <ClCompile Include="src\RenderPass.cpp" />
     <ClCompile Include="src\RenderTarget.cpp" />
     <ClCompile Include="src\scene.cpp" />
@@ -317,6 +316,7 @@
     </Link>
     <Lib>
       <AdditionalDependencies>opengl32.lib</AdditionalDependencies>
+      <AdditionalOptions>/fp:fast %(AdditionalOptions)</AdditionalOptions>
     </Lib>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

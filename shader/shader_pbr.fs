@@ -47,6 +47,7 @@ uniform struct PostProcessSetting
     float m_ssao;
 } uPostProcessSetting;
 
+// global lighting settings
 uniform struct Lighting
 {
     // precomputed GI
@@ -54,17 +55,19 @@ uniform struct Lighting
     samplerCube localReflectionProbe;
     float       indirectDiffuseScale;
     float       indirectSpecularScale;
+	float       directLightingScale;
+	float       indirectLightingScale;
+	float       diffuseScale;
+    float       specularScale;
 } gLighting;
 
+// per instance lighting settings
 uniform float useDistantProbe;
-uniform float kDiffuse;
 uniform float kSpecular;
 uniform float directDiffuseScale;
 uniform float directSpecularScale;
 uniform float indirectDiffuseScale;
 uniform float indirectSpecularScale;
-uniform float directLightingScale;
-uniform float indirectLightingScale;
 
 // matl
 uniform float uniformSpecular; // control incident specular amount .5 by default
@@ -749,7 +752,7 @@ void main()
 
     vec3 color = vec3(0.f);
     // analytical lighting
-    color += directLighting(renderParams);
+    color += directLighting(renderParams) * ssao;
     // image-based-lighting
     color += uPostProcessSetting.m_ssao > .5f ? indirectLighting(renderParams) * ssao : indirectLighting(renderParams);
     // baked lighting

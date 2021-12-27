@@ -65,6 +65,11 @@ bool Scene::castVisibilityRay(const glm::vec3& ro, glm::vec3& rd, EntityFilter f
     return false;
 }
 
+void Scene::addStandardPbrMaterial(Cyan::StandardPbrMaterial* matl)
+{
+    m_materials.push_back(matl);
+}
+
 SceneManager* SceneManager::s_sceneManager = 0u;
 
 SceneManager::SceneManager()

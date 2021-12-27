@@ -234,8 +234,17 @@ namespace Cyan
         return { textureUnit, bufferBinding };
     }
 
+    Material* StandardPbrMaterial::m_standardPbrMatl = nullptr;
     StandardPbrMaterial::StandardPbrMaterial()
     {
+        // todo: make the initialization of pbr material deterministic so that we don't have to do this check everytime when creating a new matl instance
+        if (!m_standardPbrMatl)
+        {
+            Shader* standardPbrShader = getShader("PbrShader");
+            CYAN_ASSERT(standardPbrShader, "Standard PBR shader was not created!");
+            m_standardPbrMatl = createMaterial(standardPbrShader);
+        }
+        m_materialInstance = m_standardPbrMatl->createInstance();
         // create a material instance
         glm::vec4 defaultBaseColor(0.9f, 0.9f, 0.9f, 1.f);
         m_materialInstance->set("flatBaseColor", &defaultBaseColor.x);
@@ -243,10 +252,22 @@ namespace Cyan
         m_materialInstance->set("uniformRoughness", .5f);
         m_materialInstance->set("uniformMetallic", .5f);
         m_materialInstance->set("uMaterialProps.hasBakedLighting", 0.f);
+        m_materialInstance->set("gLighting.indirectDiffuseScale", 1.f);
+        m_materialInstance->set("gLighting.indirectSpecularScale", 1.f);
+        m_materialInstance->set("kDiffuse", 1.0f);
+        m_materialInstance->set("kSpecular", 1.0f);
+        m_materialInstance->set("disneyReparam", 1.0f);
     }
 
     StandardPbrMaterial::StandardPbrMaterial(const PbrMaterialParam& param)
     {
+        if (!m_standardPbrMatl)
+        {
+            Shader* standardPbrShader = getShader("PbrShader");
+            CYAN_ASSERT(standardPbrShader, "Standard PBR shader was not created!");
+            m_standardPbrMatl = createMaterial(standardPbrShader);
+        }
+        m_materialInstance = m_standardPbrMatl->createInstance();
         // albedo
         if (param.baseColor)
         {
@@ -296,16 +317,13 @@ namespace Cyan
 
         m_materialInstance->set("uniformRoughness", param.kRoughness);
         m_materialInstance->set("uniformMetallic", param.kMetallic);
+        m_materialInstance->set("indirectDiffuseScale", param.indirectDiffuseScale);
+        m_materialInstance->set("indirectSpecularScale", param.indirectSpecularScale);
 
         // baked lighting
         m_materialInstance->set("uMaterialProps.hasBakedLighting", param.hasBakedLighting);
         if (param.hasBakedLighting > .5f) m_materialInstance->bindTexture("lightMap", param.lightMap);
 
-        m_materialInstance->set("gLighting.indirectDiffuseScale", param.indirectDiffuseScale);
-        m_materialInstance->set("gLighting.indirectSpecularScale", param.indirectSpecularScale);
-
-        m_materialInstance->set("kDiffuse", 1.0f);
-        m_materialInstance->set("kSpecular", 1.0f);
         m_materialInstance->set("disneyReparam", 1.0f);
     }
 }
