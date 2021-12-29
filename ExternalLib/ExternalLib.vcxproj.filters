@@ -13,6 +13,12 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Header Files\HosekSky">
+      <UniqueIdentifier>{8fc646e8-b13b-4ff6-a4a6-59931232b365}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\HosekSky">
+      <UniqueIdentifier>{433db867-4bba-431f-ad27-bbc7a7c5bf67}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\glfw3native.h">
@@ -45,6 +51,18 @@
     <ClInclude Include="include\glfw3.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\ArHosekSkyModel.h">
+      <Filter>Header Files\HosekSky</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ArHosekSkyModelData_CIEXYZ.h">
+      <Filter>Header Files\HosekSky</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ArHosekSkyModelData_RGB.h">
+      <Filter>Header Files\HosekSky</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ArHosekSkyModelData_Spectral.h">
+      <Filter>Header Files\HosekSky</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\stb_image.cpp">
@@ -58,6 +76,9 @@
     </ClCompile>
     <ClCompile Include="src\xatlas.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ArHosekSkyModel.c">
+      <Filter>Source Files\HosekSky</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

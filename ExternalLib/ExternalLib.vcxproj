@@ -19,6 +19,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\ArHosekSkyModel.h" />
+    <ClInclude Include="include\ArHosekSkyModelData_CIEXYZ.h" />
+    <ClInclude Include="include\ArHosekSkyModelData_RGB.h" />
+    <ClInclude Include="include\ArHosekSkyModelData_Spectral.h" />
     <ClInclude Include="include\glew.h" />
     <ClInclude Include="include\glfw3.h" />
     <ClInclude Include="include\glfw3native.h" />
@@ -31,6 +35,7 @@
     <ClInclude Include="include\xatlas_c.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\ArHosekSkyModel.c" />
     <ClCompile Include="src\stb_image.cpp" />
     <ClCompile Include="src\tiny_gltf.cc" />
     <ClCompile Include="src\tiny_obj_loader.cc" />

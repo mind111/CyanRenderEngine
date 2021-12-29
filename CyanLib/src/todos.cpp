@@ -13,11 +13,14 @@
 */
 
 /*
+    * integrate hosek skylight model && study about using photometric lighting units different type of light sources
+        * physically based lighting units
+        * practical sky rendering
+    * irradiance volume
+    * fix GTAO
     * gltf-2.0 assets loading (sort of done)
     * saving the scene and assets as binaries (serialization)
     * a simple material editor
-    * irradiance volume
-    * fix GTAO
     * local reflection probes
         * reflection doesn't have shadow
         * no sky backgroud reflection
@@ -33,8 +36,6 @@
         * is backface culling necessary?
         * denoise..?
         * irradiance caching plus photon mapping..? (ue4)
-    * physically based lighting units
-    * practical sky rendering
     * animation
     * shading model
         * roughness < .1f will cause specular highlight from sun light to disappear

@@ -7,7 +7,8 @@
 #include "gtc/type_ptr.hpp"
 #include "mat4x4.hpp"
 
-#define M_PI 3.1415926f
+#define M_PI 3.141592653589793f
+
 #define RADIANS(x) (x) * 2 * M_PI / 360.f
 
 class MathUtils {

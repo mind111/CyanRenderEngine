@@ -39,7 +39,7 @@
     <ClInclude Include="include\BVH.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\camera.h">
+    <ClInclude Include="include\Camera.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\Common.h">
@@ -51,7 +51,7 @@
     <ClInclude Include="include\CyanApp.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\cyanEngine.h">
+    <ClInclude Include="include\CyanEngine.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\CyanPathTracer.h">
@@ -87,10 +87,10 @@
     <ClInclude Include="include\Material.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\mathUtils.h">
+    <ClInclude Include="include\MathUtils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\mesh.h">
+    <ClInclude Include="include\Mesh.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\Node.h">
@@ -105,16 +105,16 @@
     <ClInclude Include="include\RenderTarget.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\scene.h">
+    <ClInclude Include="include\Scene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\SceneNode.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\shader.h">
+    <ClInclude Include="include\Shader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\texture.h">
+    <ClInclude Include="include\Texture.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\Transform.h">
@@ -132,7 +132,7 @@
     <ClInclude Include="include\VertexBuffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\window.h">
+    <ClInclude Include="include\Window.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\imgui\imconfig.h">
@@ -170,7 +170,7 @@
     <ClCompile Include="src\BVH.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
-    <ClCompile Include="src\camera.cpp">
+    <ClCompile Include="src\Camera.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
     <ClCompile Include="src\CyanAPI.cpp">
@@ -179,13 +179,13 @@
     <ClCompile Include="src\CyanApp.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
-    <ClCompile Include="src\cyanEngine.cpp">
+    <ClCompile Include="src\CyanEngine.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
     <ClCompile Include="src\CyanPathTracer.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
-    <ClCompile Include="src\cyanRenderer.cpp">
+    <ClCompile Include="src\CyanRenderer.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
     <ClCompile Include="src\Entity.cpp">
@@ -212,10 +212,10 @@
     <ClCompile Include="src\Material.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
-    <ClCompile Include="src\mathUtils.cpp">
+    <ClCompile Include="src\MathUtils.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
-    <ClCompile Include="src\mesh.cpp">
+    <ClCompile Include="src\Mesh.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
     <ClCompile Include="src\RenderPass.cpp">
@@ -224,13 +224,13 @@
     <ClCompile Include="src\RenderTarget.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
-    <ClCompile Include="src\scene.cpp">
+    <ClCompile Include="src\Scene.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
     <ClCompile Include="src\SceneNode.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
-    <ClCompile Include="src\shader.cpp">
+    <ClCompile Include="src\Shader.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
     <ClCompile Include="src\Texture.cpp">
@@ -251,7 +251,7 @@
     <ClCompile Include="src\VertexBuffer.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
-    <ClCompile Include="src\window.cpp">
+    <ClCompile Include="src\Window.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
     <ClCompile Include="src\imgui\imgui.cpp">
