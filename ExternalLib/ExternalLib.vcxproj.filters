@@ -15,12 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\lib\glew\include\glew.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\lib\glfw\include\glfw3.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\glfw3native.h">
       <Filter>Header Files</Filter>
     </ClInclude>

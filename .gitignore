@@ -1,13 +1,8 @@
 # folders to ignore
-.vscode/
-bin/
-build/
-/lib/
 .git/
 asset/
-src/ImGuizmo/
-
 x64/
 CyanApp/x64
 CyanLib/x64
+ExternalLib/include/glm
 ExternalLib/x64

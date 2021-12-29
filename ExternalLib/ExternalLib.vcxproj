@@ -19,8 +19,6 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\lib\glew\include\glew.h" />
-    <ClInclude Include="..\lib\glfw\include\glfw3.h" />
     <ClInclude Include="include\glew.h" />
     <ClInclude Include="include\glfw3.h" />
     <ClInclude Include="include\glfw3native.h" />
