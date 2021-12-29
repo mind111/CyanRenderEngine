@@ -49,6 +49,8 @@ namespace Cyan
         glm::vec3 recursiveTraceDiffuse(glm::vec3& ro, glm::vec3& n, u32 numBounces, TriMaterial& matl);
 
         // baking utility
+        f32 sampleAo(glm::vec3& samplePos, glm::vec3& n);
+        glm::vec3 importanceSampleIrradiance(glm::vec3& samplePos, glm::vec3& n);
         glm::vec3 sampleIrradiance(glm::vec3& samplePos, glm::vec3& n);
         void      bakeIrradianceProbe(glm::vec3& probePos, glm::ivec2& resolution);
 

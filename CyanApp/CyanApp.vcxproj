@@ -133,6 +133,8 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>C:\dev\cyanRenderEngine\CyanApp\include;C:\dev\cyanRenderEngine\CyanLib\include;C:\dev\cyanRenderEngine\CyanLib\src\;C:\dev\cyanRenderEngine\ExternalLib\include;C:\dev\cyanRenderEngine\ExternalLib\include\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <Optimization>Full</Optimization>
+      <AdditionalOptions>/fp:fast %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

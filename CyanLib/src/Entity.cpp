@@ -4,7 +4,7 @@
 #include "BVH.h"
 
 Entity::Entity(const char* name, u32 id, Transform t, Entity* parent, bool isStatic)
-    : m_entityId(id), m_static(isStatic), m_includeInGBufferPass(true), m_visible(true)
+    : m_entityId(id), m_static(isStatic), m_includeInGBufferPass(true), m_visible(true), m_selectable(true)
 {
     if (name) 
     {

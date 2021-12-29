@@ -66,20 +66,23 @@ void main() {
     // rd.y = abs(rd.y);
     // default background color
     vec3 horizonColor = vec3(0.85f);
-    vec3 skyDomeColor = vec3(0.200, 0.449, 1.0000);
-    float k = smoothstep(-0.05, 0.05, rd.y);
+    //vec3 skyDomeColor = vec3(0.200, 0.449, 1.0000);
+    vec3 skyDomeColor = vec3(0.128f, 0.207f, 1.f);
+    float k = smoothstep(-0.18, 0.01, rd.y);
     vec3 skyColor = mix(horizonColor, skyDomeColor, k);
     fragColor = vec4(skyColor, 1.f);
     vec3 colorA = vec3(.9f);
     vec3 colorB = vec3(.2f);
     // ray marching
     Hit hit = castRay(vec3(0.f), rd);
+#if 0
     if (hit.t > 0.f) {
         vec3 p = ro + hit.t * rd;
         if (hit.objectId == 0) {
             fragColor = (.5 + .5 * rd.y) * vec4(0.95f, 0.60f, 0.30f, 1.f);
         }
     }
+#endif
     fragNormal = vec3(0.f);
     fragDepth = vec3(1.f);
     // TODO: hard-coded for now

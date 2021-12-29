@@ -64,7 +64,6 @@ namespace Cyan
     void PathTracer::setScene(Scene* scene)
     {
         m_scene = scene;
-
         m_sceneMaterials.clear();
         // convert scene data to decouple ray tracing required data from raster pipeline
         preprocessSceneData();
@@ -324,7 +323,6 @@ namespace Cyan
 
     glm::vec3 PathTracer::recursiveTraceDiffuse(glm::vec3& ro, glm::vec3& n, u32 numBounces, TriMaterial& matl)
     {
-         
         glm::vec3 exitRadiance(0.f);
 
         // direct
@@ -355,8 +353,8 @@ namespace Cyan
 
             // indirect
             // todo: is there any better attenuation ..?
-            f32 atten = 1.8f;
-            exitRadiance += atten * recursiveTraceDiffuse(nextBounceRo, nextBounceNormal, numBounces + 1, matl) * max(glm::dot(n, rd), 0.f);
+            f32 indirectBoost = 1.0f;
+            exitRadiance += (indirectBoost * recursiveTraceDiffuse(nextBounceRo, nextBounceNormal, numBounces + 1, matl) * max(glm::dot(n, rd), 0.f));
         }
         return exitRadiance * matl.flatColor;
     }
@@ -367,29 +365,32 @@ namespace Cyan
         u32 matlInstanceCount = 0;
         for (u32 i = 0; i < (u32)m_scene->entities.size(); ++i)
         {
-            std::queue<SceneNode*> nodes;
-            nodes.push(m_scene->entities[i]->m_sceneRoot);
-            while(!nodes.empty())
+            if (m_scene->entities[i]->m_static)
             {
-                auto* node = nodes.front();
-                nodes.pop();
-                if (node->m_meshInstance)
+                std::queue<SceneNode*> nodes;
+                nodes.push(m_scene->entities[i]->m_sceneRoot);
+                while (!nodes.empty())
                 {
-                    for (u32 sm = 0; sm < node->m_meshInstance->m_mesh->numSubMeshes(); ++sm)
+                    auto* node = nodes.front();
+                    nodes.pop();
+                    if (node->m_meshInstance)
                     {
-                        node->m_meshInstance->m_rtMatls.emplace_back(matlInstanceCount++);
-                        m_sceneMaterials.emplace_back();
-                        auto& matl = m_sceneMaterials.back(); 
-                        f32 hasDiffuseMap = node->m_meshInstance->m_matls[sm]->getF32("uMaterialProps.hasDiffuseMap");
-                        if (hasDiffuseMap < .5f)
+                        for (u32 sm = 0; sm < node->m_meshInstance->m_mesh->numSubMeshes(); ++sm)
                         {
-                            matl.flatColor = vec4ToVec3(node->m_meshInstance->m_matls[sm]->getVec4("flatColor"));
-                            matl.diffuseTex = nullptr;
+                            node->m_meshInstance->m_rtMatls.emplace_back(matlInstanceCount++);
+                            m_sceneMaterials.emplace_back();
+                            auto& matl = m_sceneMaterials.back();
+                            f32 hasDiffuseMap = node->m_meshInstance->m_matls[sm]->getF32("uMaterialProps.hasDiffuseMap");
+                            if (hasDiffuseMap < .5f)
+                            {
+                                matl.flatColor = vec4ToVec3(node->m_meshInstance->m_matls[sm]->getVec4("flatColor"));
+                                matl.diffuseTex = nullptr;
+                            }
                         }
                     }
+                    for (u32 i = 0; i < node->m_child.size(); ++i)
+                        nodes.push(node->m_child[i]);
                 }
-                for (u32 i = 0; i < node->m_child.size(); ++i)
-                    nodes.push(node->m_child[i]);
             }
         }
     }
@@ -583,7 +584,7 @@ namespace Cyan
             // bake direct static sky light & indirect lighting
             glm::vec3 indirectRo = hitPosition + EPSILON * normal;
             radiance += computeDirectSkyLight(indirectRo, normal);
-            radiance += recursiveTraceDiffuse(indirectRo, normal, 2, getHitMaterial(hit));
+            radiance += recursiveTraceDiffuse(indirectRo, normal, 0, getHitMaterial(hit));
         }
         return radiance;
     }
@@ -626,14 +627,41 @@ namespace Cyan
         return m_scene->castRay(ro, rd, EntityFilter::BakeInLightMap);
     }
 
+    f32 PathTracer::sampleAo(glm::vec3& samplePos, glm::vec3& n)
+    {
+        return 1.f;
+    }
+
     // todo: importance sampling the cosine lobe
     glm::vec3 PathTracer::sampleIrradiance(glm::vec3& samplePos, glm::vec3& n)
     {
-        const u32 numSamples = 256;
+        const u32 numSamples = 8;
         glm::vec3 irradiance(0.f);
         for (u32 i = 0; i < numSamples; ++i)
         {
             auto rd = uniformSampleHemiSphere(n);
+            auto hit = traceScene(samplePos, rd);
+            if (hit.t > 0.f)
+            {
+                auto& matl = m_sceneMaterials[hit.m_node->m_meshInstance->m_rtMatls[hit.smIndex]];
+                // todo: instead of only consider diffuse reflections along the path, also include indirect specular
+                auto radiance = bakeSurface(hit, samplePos, rd, matl);
+                irradiance += radiance * max(glm::dot(rd, n), 0.f) * (1.f / M_PI);
+            }
+            else
+                irradiance += m_skyColor * max(glm::dot(rd, n), 0.f);
+        }
+        irradiance /= numSamples;
+        return irradiance;
+    }
+
+    glm::vec3 PathTracer::importanceSampleIrradiance(glm::vec3& samplePos, glm::vec3& n)
+    {
+        const u32 numSamples = 64;
+        glm::vec3 irradiance(0.f);
+        for (u32 i = 0; i < numSamples; ++i)
+        {
+            auto rd = cosineWeightedSampleHemiSphere(n);
             auto hit = traceScene(samplePos, rd);
             if (hit.t > 0.f)
             {

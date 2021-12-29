@@ -10,8 +10,6 @@
 
 #define kEntityNameMaxLen 128u
 
-// TODO: Components
-
 enum EntityProperty
 {
     Lit = 0,
@@ -44,6 +42,7 @@ struct Entity
     bool m_lit;
     bool m_static;
     bool m_visible;
+    bool m_selectable;
     bool m_includeInGBufferPass;
 
     Entity(const char* name, u32 id, Transform t, Entity* parent, bool isStatic);

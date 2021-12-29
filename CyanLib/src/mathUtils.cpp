@@ -52,6 +52,23 @@ namespace Cyan
         return tangentToWorld(n) * localDir; 
     }
 
+    glm::vec2 uniformSampleUnitDisk()
+    {
+        f32 u = uniformSampleZeroToOne();
+        f32 v = uniformSampleZeroToOne();
+        f32 r = sqrt(u);
+        f32 theta = 2 * M_PI * v;
+        return glm::vec2(r * cos(theta), r * sin(theta));
+    }
+
+    glm::vec3 cosineWeightedSampleHemiSphere(glm::vec3& n)
+    {
+        glm::vec2 pDisk = uniformSampleUnitDisk();
+        f32 pz = 1.f - sqrt(pDisk.x * pDisk.x + pDisk.y * pDisk.y);
+        glm::vec3 localDir(pDisk, pz);
+        return tangentToWorld(n) * localDir; 
+    }
+
     Vec3 operator+(const Vec3& lhs, const Vec3& rhs)
     {
         return Vec3{lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z};

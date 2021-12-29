@@ -167,7 +167,6 @@ namespace Cyan
 #else
         bakeSingleThread(lightMap, overlappedTexelCount);
 #endif
-
         // write color data back to texture
         {
             u32 width = lightMap->m_texAltas->m_width;
@@ -187,11 +186,138 @@ namespace Cyan
         glEnable(GL_CULL_FACE);
     }
 
+    void LightMapManager::renderMeshInstanceToSuperSampledLightMap(SceneNode* node, bool saveImage)
+    {
+        glDisable(GL_CULL_FACE);
+        LightMap* lightMap = node->m_meshInstance->m_lightMap;
+        CYAN_ASSERT(lightMap->superSampledTex, "SuperSampled texture is not created for lightMap");
+        Mesh* mesh = node->m_meshInstance->m_mesh;
+        // raster the lightmap using gpu
+        u32 maxNumTexels = lightMap->superSampledTex->m_width * lightMap->superSampledTex->m_height;
+        {
+            glm::mat4 model = node->getWorldTransform().toMatrix();
+            auto ctx = getCurrentGfxCtx();
+            ctx->setDepthControl(DepthControl::kDisable);
+            ctx->setRenderTarget(lightMap->m_renderTarget, 0);
+            ctx->setViewport({ 0, 0, lightMap->superSampledTex->m_width, lightMap->superSampledTex->m_height });
+            ctx->setShader(m_lightMapShader);
+            // reset the counter
+            {
+                u32 counter = 0;
+                glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, texelCounterBuffer);
+                glBufferSubData(GL_ATOMIC_COUNTER_BUFFER, 0, sizeof(u32), &counter);
+            } 
+            m_lightMapMatl->bindBuffer("LightMapData", lightMap->m_bakingGpuDataBuffer);
+
+            /* 
+                Multi-tap rasterization to create a "ribbon" area around each chart to alleviate
+                black seams when sampling lightmap, because bilinear filter texels close to edge of 
+                a chart. Following ideas from https://ndotl.wordpress.com/2018/08/29/baking-artifact-free-lightmaps/
+            */
+            glm::vec3 uvOffset(1.f / lightMap->superSampledTex->m_width, 1.f / lightMap->superSampledTex->m_height, 0.f);
+            glm::vec3 passes[9] = {
+                glm::vec3(-1.f, 0.f, 0.f),
+                glm::vec3( 1.f, 0.f, 0.f),
+                glm::vec3( 0.f, 1.f, 0.f),
+                glm::vec3( 0.f,-1.f, 0.f),
+
+                glm::vec3(-1.f, -1.f, 0.f),
+                glm::vec3( 1.f, 1.f, 0.f),
+                glm::vec3(-1.f, 1.f, 0.f),
+                glm::vec3( 1.f, -1.f, 0.f),
+
+                glm::vec3( 0.f, 0.f, 0.f)
+            };
+            glm::vec3 textureSize(lightMap->superSampledTex->m_width, lightMap->superSampledTex->m_height, 0.f);
+            m_lightMapMatl->set("textureSize", &textureSize.x);
+            m_lightMapMatl->set("model", &model[0]);
+            u32 numPasses = sizeof(passes) / sizeof(passes[0]);
+
+            glEnable(GL_NV_conservative_raster);
+            for (u32 pass = 0; pass < numPasses; ++pass)
+            {
+                glm::vec3 offset = passes[pass] * uvOffset * (f32)kNumSubPixelSamples;
+                m_lightMapMatl->set("pass", (f32)pass);
+                m_lightMapMatl->set("uvOffset", &offset.x);
+                m_lightMapMatl->bind();
+                for (u32 sm = 0; sm < mesh->m_subMeshes.size(); ++sm)
+                {
+                    auto ctx = getCurrentGfxCtx();
+                    auto renderer = Renderer::getSingletonPtr();
+                    ctx->setVertexArray(mesh->m_subMeshes[sm]->m_vertexArray);
+                    ctx->drawIndex(mesh->m_subMeshes[sm]->m_numIndices);
+                }
+            }
+            glDisable(GL_NV_conservative_raster);
+            ctx->setDepthControl(DepthControl::kEnable);
+            /* 
+                Note: I haven't figure out why unbinding framebuffer here seems fixed the issue where
+                the lightmap texture data is not updated by glTexSubImage2D
+            */
+            ctx->setRenderTarget(nullptr, 0);
+        }
+#if 1
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_ATOMIC_COUNTER_BARRIER_BIT);
+        u32 overlappedTexelCount = 0;
+        // read back lightmap texel data and run path tracer to bake each texel
+        {
+            glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightMap->m_bakingGpuDataBuffer->m_ssbo);
+            glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(LightMapTexelData) * maxNumTexels, lightMap->m_bakingData.data());
+            glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+            glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, texelCounterBuffer);
+            glGetBufferSubData(GL_ATOMIC_COUNTER_BUFFER, 0, sizeof(u32), &overlappedTexelCount);
+            glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
+            cyanInfo("%d overlapped pixels out of total %d, %.2f%% utilization", overlappedTexelCount, maxNumTexels, f32(overlappedTexelCount) * 100.f / maxNumTexels);
+        }
+
+        // bake lighting using path tracer
+#if MULTITHREAD_BAKE
+        /* 
+            This currently takes around 200 seconds to bake a 2k by 2k lightmap
+            with 8 rays per lightmap texel
+        */
+        bakeMultiThread(lightMap, overlappedTexelCount);
+#else
+        bakeSingleThread(lightMap, overlappedTexelCount);
+#endif
+        // resolve
+        {
+            for (u32 y = 0; y < lightMap->m_texAltas->m_height; ++y)
+            {
+                for (u32 x = 0; x < lightMap->m_texAltas->m_width; ++x)
+                {
+                    u32 pixelIndex = (y * lightMap->m_texAltas->m_width + x);
+                    lightMap->m_pixels[pixelIndex * 3 + 0] /= (kNumSubPixelSamples * kNumSubPixelSamples);
+                    lightMap->m_pixels[pixelIndex * 3 + 1] /= (kNumSubPixelSamples * kNumSubPixelSamples);
+                    lightMap->m_pixels[pixelIndex * 3 + 2] /= (kNumSubPixelSamples * kNumSubPixelSamples);
+                }
+            }
+        }
+        // write color data back to texture
+        {
+            u32 width = lightMap->m_texAltas->m_width;
+            u32 height = lightMap->m_texAltas->m_height;
+            glBindTexture(GL_TEXTURE_2D, lightMap->m_texAltas->m_id);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGB, GL_FLOAT, lightMap->m_pixels);
+            glBindTexture(GL_TEXTURE_2D, 0);
+        }
+        // write the texture as an image to disk
+        if (saveImage)
+        {
+            char fileName[64];
+            sprintf_s(fileName, "%s_lightmap.hdr", node->m_name);
+            stbi_flip_vertically_on_write(1);
+            stbi_write_hdr(fileName, lightMap->m_texAltas->m_width, lightMap->m_texAltas->m_height, 3, lightMap->m_pixels);
+        }
+#endif
+        glEnable(GL_CULL_FACE);
+    }
+
     void LightMapManager::bakeSingleThread(LightMap* lightMap, u32 overlappedTexelCount)
     {
         const f32 EPSILON = 0.001f;
         PathTracer* pathTracer = PathTracer::getSingletonPtr();
-        pathTracer->setScene(lightMap->m_scene);
         u32 numBakedTexels = 0;
         for (u32 y = 0; y < lightMap->m_texAltas->m_height; ++y)
         {
@@ -223,7 +349,6 @@ namespace Cyan
     {
         const f32 EPSILON = 0.0001f;
         PathTracer* pathTracer = PathTracer::getSingletonPtr();
-        pathTracer->setScene(lightMap->m_scene);
         for (u32 i = start; i < end; ++i)
         {
             u32 index = texelIndices[i];
@@ -231,10 +356,18 @@ namespace Cyan
             glm::vec3 normal = vec4ToVec3(lightMap->m_bakingData[index].normal);
             glm::vec4 texCoord = lightMap->m_bakingData[index].texCoord;
             glm::vec3 ro = worldPos + normal * EPSILON;
+#if 0
             glm::vec3 irradiance = pathTracer->sampleIrradiance(ro, normal);
+#else
+            glm::vec3 irradiance = pathTracer->importanceSampleIrradiance(ro, normal);
+#endif
             u32 px = floor(texCoord.x);
             u32 py = floor(texCoord.y);
+#if SUPER_SAMPLING
+            lightMap->accumulatePixel(px, py, irradiance);
+#else
             lightMap->setPixel(px, py, irradiance);
+#endif
             u32 numBakedTexels = LightMapManager::progressCounter.fetch_add(1u);
             printf("\r[Info] Baked %d texels ... %.2f%%", numBakedTexels, ((f32)numBakedTexels * 100.f / overlappedTexelCount));
             fflush(stdout);
@@ -246,11 +379,18 @@ namespace Cyan
         Toolkit::ScopedTimer bakeTimer("bakeMultiThread", true);
         std::vector<u32> texelIndices(overlappedTexelCount);
         u32 numTexels = 0;
-        for (u32 y = 0; y < lightMap->m_texAltas->m_height; ++y)
+#if SUPER_SAMPLING
+        u32 textureWidth = lightMap->superSampledTex->m_width;
+        u32 textureHeight = lightMap->superSampledTex->m_height;
+#else
+        u32 textureWidth = lightMap->m_texAltas->m_width;
+        u32 textureHeight = lightMap->m_texAltas->m_height;
+#endif
+        for (u32 y = 0; y < textureHeight; ++y)
         {
-            for (u32 x = 0; x < lightMap->m_texAltas->m_width; ++x)
+            for (u32 x = 0; x < textureWidth; ++x)
             {
-                u32 i = lightMap->m_texAltas->m_width * y + x;
+                u32 i = textureWidth * y + x;
                 glm::vec4 texCoord = lightMap->m_bakingData[i].texCoord;
                 if (texCoord.w == 1.f)
                     texelIndices[numTexels++] = i;
@@ -280,6 +420,9 @@ namespace Cyan
     {
         MeshInstance* meshInstance = node->m_meshInstance;         
         Mesh*         mesh =  meshInstance->m_mesh;
+        CYAN_ASSERT(!meshInstance->m_lightMap, "lightMap is not properly initialized to nullptr");
+        meshInstance->m_lightMap = new LightMap{ };
+        meshInstance->m_lightMap->m_owner = node;
         LightMap* lightMap = meshInstance->m_lightMap;
         {
             lightMap->m_owner = node;
@@ -292,31 +435,48 @@ namespace Cyan
             spec.m_format   = Texture::ColorFormat::R16G16B16;
             spec.m_min      = Texture::Filter::LINEAR;
             spec.m_mag      = Texture::Filter::LINEAR;
+            spec.m_r        = Texture::Wrap::CLAMP_TO_EDGE;
+            spec.m_s        = Texture::Wrap::CLAMP_TO_EDGE;
+            spec.m_t        = Texture::Wrap::CLAMP_TO_EDGE;
             spec.m_numMips  = 1;
 
             lightMap->m_texAltas = textureManager->createTextureHDR("LightMap", spec);
 #if SUPER_SAMPLING
             spec.m_width    = meshInstance->m_mesh->m_lightMapWidth * kNumSubPixelSamples;
             spec.m_height   = meshInstance->m_mesh->m_lightMapHeight * kNumSubPixelSamples;
-            lightMap->m_texAltas = textureManager->createTextureHDR("LightMap", spec);
-            lightMap->m_renderTarget = createRenderTarget(meshInstance->m_lightMap->m_texAltas->m_width, meshInstance->m_lightMap->m_texAltas->m_height);
-            lightMap->m_renderTarget->attachTexture(meshInstance->m_lightMap->m_texAltas, 0);
+            lightMap->superSampledTex = textureManager->createTextureHDR("SuperSampledLightMap", spec);
+            lightMap->m_renderTarget = createRenderTarget(meshInstance->m_lightMap->superSampledTex->m_width, meshInstance->m_lightMap->superSampledTex->m_height);
+            lightMap->m_renderTarget->attachTexture(meshInstance->m_lightMap->superSampledTex, 0);
 #else
             lightMap->m_renderTarget = createRenderTarget(meshInstance->m_lightMap->m_texAltas->m_width, meshInstance->m_lightMap->m_texAltas->m_height);
             lightMap->m_renderTarget->attachTexture(meshInstance->m_lightMap->m_texAltas, 0);
 #endif
         }
 
+        u32 baseNumTexels = lightMap->m_texAltas->m_width * lightMap->m_texAltas->m_height;
+#if SUPER_SAMPLING
+        u32 maxNumTexels = lightMap->superSampledTex->m_height * lightMap->superSampledTex->m_width;
+#else
         u32 maxNumTexels = lightMap->m_texAltas->m_height * lightMap->m_texAltas->m_width;
+#endif
         lightMap->m_bakingGpuDataBuffer = createRegularBuffer(sizeof(LightMapTexelData) * maxNumTexels);
         lightMap->m_bakingData.resize(maxNumTexels);
-        lightMap->m_pixels = new float[maxNumTexels * 3 * sizeof(float)];
+        lightMap->m_pixels = new f32[(u64)baseNumTexels * 3];
+        // clear to 0
+        memset(lightMap->m_pixels, 0x0, sizeof(f32) * 3 * baseNumTexels);
         lightMap->m_scene = scene;
     }
 
     void LightMapManager::bakeLightMap(Scene* scene, SceneNode* node, bool saveImage)
     {
+        PathTracer* pathTracer = PathTracer::getSingletonPtr();
+        if (scene != pathTracer->m_scene)
+            pathTracer->setScene(scene);
         createLightMapForMeshInstance(scene, node);
+#if SUPER_SAMPLING
+        renderMeshInstanceToSuperSampledLightMap(node, saveImage);
+#else
         renderMeshInstanceToLightMap(node, saveImage);
+#endif
     }
 }

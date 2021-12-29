@@ -44,6 +44,7 @@ namespace Cyan
         ~LightMapManager();
 
         void renderMeshInstanceToLightMap(SceneNode* node, bool saveImage);
+        void renderMeshInstanceToSuperSampledLightMap(SceneNode* node, bool saveImage);
         void createLightMapForMeshInstance(Scene* scene, SceneNode* node);
         void createLightMapFromTexture(SceneNode* node, Texture* bakedTexture);
         void bakeLightMap(Scene* scene, SceneNode* node, bool saveImage=false);
@@ -53,7 +54,7 @@ namespace Cyan
         static std::atomic<u32> progressCounter;
 
         // super sampling sample size
-        static const u32 kNumSubPixelSamples = 2;
+        static const u32 kNumSubPixelSamples = 4;
 
         Shader* m_lightMapShader;
         MaterialInstance* m_lightMapMatl;

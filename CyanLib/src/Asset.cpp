@@ -307,7 +307,7 @@ namespace Cyan
             xatlas::PackOptions packOptions = { };
             packOptions.bruteForce = true;
             packOptions.padding = 5.f;
-            packOptions.resolution = 2048;
+            packOptions.resolution = 1024;
 
             xatlas::Generate(atlas, xatlas::ChartOptions{}, packOptions);
             CYAN_ASSERT(atlas->meshCount == objMeshes.size(), "# Submeshes and # of meshes in atlas doesn't match!");
@@ -692,6 +692,7 @@ namespace Cyan
         using Cyan::Mesh;
         Mesh* mesh = new Mesh;
         mesh->m_name = gltfMesh.name;
+        mesh->m_bvh = nullptr;
 
         // primitives (submeshes)
         for (u32 i = 0u; i < (u32)gltfMesh.primitives.size(); ++i)
@@ -769,26 +770,6 @@ namespace Cyan
                         float* data = reinterpret_cast<float*>(dstDataAddress);
                         data[1] = 1.f - data[1];
                     }
-                    // switch (accessor.type)
-                    // {
-                    //     case TINYGLTF_COMPONENT_TYPE_FLOAT:
-                    //     {
-                    //         f32* srcDataAddress = reinterpret_cast<f32*>(srcStart + v * bufferView.byteStride);
-                    //         f32* dstDataAddress = reinterpret_cast<f32*>(dstStart + v * strideInBytes); 
-                    //         for (u32 i = 0; i < numComponents; ++i)
-                    //             dstDataAddress[i] = srcDataAddress[i];
-                    //         // TODO: Do this in a not so hacky way 
-                    //         // flip the y-component of texcoord
-                    //         if (entry.name.find("TEXCOORD") == 0) 
-                    //         {
-                    //             float* data = reinterpret_cast<float*>(dstDataAddress);
-                    //             data[1] = 1.f - data[1];
-                    //         }
-                    //     } break;
-                    //     default:
-                    //         cyanError("Unprocessed vertex attribute type");
-                    //         break;
-                    // }
                     totalBytes += sizeToCopy;
                 }
                 // FIXME: type is hard-coded fo float for now
@@ -827,6 +808,22 @@ namespace Cyan
                 glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
                 subMesh->m_vertexArray->m_numIndices = numIndices;
                 subMesh->m_numIndices = numIndices;
+                // load cpu mesh data
+                u32 numFaces = numIndices / 3;
+                CYAN_ASSERT(numIndices % 3 == 0, "Given gltf mesh has invalid index buffer!");
+                for (u32 f = 0; f < numFaces; ++f)
+                {
+                    for (u32 v = 0; v < 3; ++v)
+                    {
+                        u32 offset = strideInBytes * indexDataBuffer[f * 3 + v];
+                        f32* srcDataAddress = (f32*)((u8*)vertexDataBuffer + offset);
+                        subMesh->m_triangles.m_positionArray.emplace_back(srcDataAddress[0], srcDataAddress[1], srcDataAddress[2]);
+                        subMesh->m_triangles.m_normalArray.emplace_back(srcDataAddress[3], srcDataAddress[4], srcDataAddress[5]);
+                        subMesh->m_triangles.m_tangentArray.emplace_back(srcDataAddress[6], srcDataAddress[7], srcDataAddress[8]);
+                        subMesh->m_triangles.m_texCoordArray.emplace_back(srcDataAddress[10], srcDataAddress[11], 0.f);
+                    }
+                }
+                subMesh->m_triangles.m_numVerts = numIndices;
                 delete[] vertexDataBuffer;
                 delete[] indexDataBuffer;
             }

@@ -101,7 +101,8 @@ namespace Cyan
 
     MeshInstance* Mesh::createInstance()
     {
-        MeshInstance* instance = (MeshInstance*)CYAN_ALLOC(sizeof(MeshInstance));
+        //MeshInstance* instance = (MeshInstance*)CYAN_ALLOC(sizeof(MeshInstance));
+        MeshInstance* instance = new MeshInstance;
         instance->m_mesh = this;
         u32 numSubMeshes = (u32)this->m_subMeshes.size();
         instance->m_matls = (MaterialInstance**)CYAN_ALLOC(sizeof(MaterialInstance*) * numSubMeshes);

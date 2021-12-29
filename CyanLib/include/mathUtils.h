@@ -22,6 +22,7 @@ namespace Cyan
     glm::mat3 tangentToWorld(const glm::vec3& n);
     f32 uniformSampleZeroToOne();
     glm::vec3 uniformSampleHemiSphere(glm::vec3& n);
+    glm::vec3 cosineWeightedSampleHemiSphere(glm::vec3& n);
 
     struct Vec3 
     {

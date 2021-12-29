@@ -306,13 +306,6 @@ void PbrApp::initDemoScene00()
 
     auto textureManager = m_graphicsSystem->getTextureManager();
     auto sceneManager = SceneManager::getSingletonPtr();
-#if 0
-    PbrMaterialInputs input = { };
-    input.m_flatBaseColor = glm::vec4(1.f);
-    input.kRoughness = .8f;
-    input.kMetallic = .02f;
-    auto defaultMatl = createDefaultPbrMatlInstance(demoScene00, input, false);
-#endif
     Cyan::PbrMaterialParam params = { };
     params.flatBaseColor = glm::vec4(1.f);
     params.kRoughness = .8f;
@@ -358,9 +351,10 @@ void PbrApp::initDemoScene00()
         sceneManager->createDirectionalLight(demoScene00, glm::vec3(1.0f, 0.9, 0.7f), glm::normalize(glm::vec3(1.0f, 0.5f, 1.8f)), 3.6f);
         // sky light
         auto sceneManager = SceneManager::getSingletonPtr();
-        Entity* envMapEntity = sceneManager->createEntity(demoScene00, "Envmap", Transform(), true);
+        Entity* envMapEntity = sceneManager->createEntity(demoScene00, "Envmap", Transform(), false);
         envMapEntity->m_sceneRoot->attach(Cyan::createSceneNode("CubeMesh", Transform(), Cyan::getMesh("CubeMesh"), false));
         envMapEntity->setMaterial("CubeMesh", 0, m_skyMatl);
+        envMapEntity->m_selectable = false;
         envMapEntity->m_includeInGBufferPass = false;
 
         // a irradiance probe
@@ -443,31 +437,26 @@ void PbrApp::initDemoScene00()
         roomMesh->m_bvh->build();
 
 #if REBAKE_LIGHTMAP
+        // default matl param
+        Cyan::PbrMaterialParam params = { };
+        params.flatBaseColor = glm::vec4(1.f);
+        params.kRoughness = 0.8f;
+        params.kMetallic = 0.02f;
+        params.hasBakedLighting = 1.f;
         for (u32 sm = 0; sm < roomMesh->numSubMeshes(); ++sm)
         {
-            // default matl param
-            PbrMaterialInputs inputs = { };
-            inputs.m_flatBaseColor = glm::vec4(1.f);
-            inputs.kRoughness = 0.5f;
-            inputs.kMetallic = 0.5f;
-            inputs.m_hasBakedLighting = 1.f;
 
             i32 matlIdx = roomMesh->m_subMeshes[sm]->m_materialIdx;
-            if (matlIdx > 0)
+            if (matlIdx >= 0)
             {
                 auto& objMatl = roomMesh->m_objMaterials[matlIdx];
-                inputs.m_flatBaseColor = glm::vec4(objMatl.diffuse, 1.f);
+                params.flatBaseColor = glm::vec4(objMatl.diffuse, 1.f);
             }
-            auto matl = createDefaultPbrMatlInstance(demoScene00, inputs, room->m_static);
+            auto matl = createStandardPbrMatlInstance(demoScene00, params, room->m_static);
             room->setMaterial("RoomMesh", sm, matl);
         }
-        PbrMaterialInputs inputs = { };
-        inputs.m_flatBaseColor = glm::vec4(1.f);
-        inputs.kRoughness = 0.5f;
-        inputs.kMetallic = 0.5f;
-        inputs.m_hasBakedLighting = 1.f;
-        inputs.m_usePrototypeTexture = 1.f;
-        auto planeMatl = createDefaultPbrMatlInstance(demoScene00, inputs, room->m_static);
+        params.usePrototypeTexture = 1.f;
+        auto planeMatl = createStandardPbrMatlInstance(demoScene00, params, room->m_static);
         room->setMaterial("PlaneMesh", -1, planeMatl);
 
         // bake lightmap
@@ -480,7 +469,6 @@ void PbrApp::initDemoScene00()
             auto matl = roomNode->m_meshInstance->m_matls[sm];
             matl->bindTexture("lightMap", roomNode->m_meshInstance->m_lightMap->m_texAltas);
         }
-
         for (u32 sm = 0; sm < planeMesh->numSubMeshes(); ++sm)
         {
             auto matl = planeNode->m_meshInstance->m_matls[sm];
@@ -513,8 +501,8 @@ void PbrApp::initDemoScene00()
         }
         Cyan::PbrMaterialParam params = { };
         params.flatBaseColor = glm::vec4(1.f);
-        params.kRoughness = 0.5f;
-        params.kMetallic = 0.5f;
+        params.kRoughness = 0.8f;
+        params.kMetallic = 0.0f;
         params.hasBakedLighting = 1.f;
         params.usePrototypeTexture = 1.f;
         params.lightMap = planeNode->m_meshInstance->m_lightMap->m_texAltas;
@@ -789,11 +777,14 @@ RayCastInfo PbrApp::castMouseRay(const glm::vec2& currentViewportPos, const glm:
     // ray intersection test against all the entities in the scene to find the closest intersection
     for (auto entity : m_scenes[m_currentScene]->entities)
     {
-        RayCastInfo traceInfo = entity->intersectRay(ro, rd, camera.view); 
-        if (traceInfo.t > 0.f && traceInfo < closestHit)
+        if (entity->m_visible && entity->m_selectable)
         {
-            closestHit = traceInfo;
-            printf("Cast a ray from mouse that hits %s \n", traceInfo.m_node->m_name);
+            RayCastInfo traceInfo = entity->intersectRay(ro, rd, camera.view); 
+            if (traceInfo.t > 0.f && traceInfo < closestHit)
+            {
+                closestHit = traceInfo;
+                printf("Cast a ray from mouse that hits %s \n", traceInfo.m_node->m_name);
+            }
         }
     }
     glm::vec3 worldHit = computeMouseHitWorldSpacePos(camera, rd, closestHit);
@@ -1083,7 +1074,7 @@ void PbrApp::drawSceneViewport()
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
     auto renderer = m_graphicsSystem->getRenderer();
     Cyan::Viewport viewport = renderer->getViewport();
-    ImGui::SetNextWindowSize(ImVec2(viewport.m_width, viewport.m_height));
+    ImGui::SetNextWindowSize(ImVec2((f32)viewport.m_width, (f32)viewport.m_height));
     glm::vec2 viewportPos = gEngine->getSceneViewportPos();
     ImGui::SetNextWindowPos(ImVec2(viewportPos.x, viewportPos.y));
     ImGui::SetNextWindowContentSize(ImVec2(viewport.m_width, viewport.m_height));

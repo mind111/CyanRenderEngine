@@ -7,12 +7,20 @@
 */
 
 /*
+    Bugs
+    * mouse picking gltf-2.0 entities doesn't work
+    * mouse picking issues
+*/
+
+/*
     * gltf-2.0 assets loading (sort of done)
     * saving the scene and assets as binaries (serialization)
     * a simple material editor
     * irradiance volume
+    * fix GTAO
     * local reflection probes
         * reflection doesn't have shadow
+        * no sky backgroud reflection
     * screen-space ray tracing
         * or world space .. using gpu?
     * shadow improvements
@@ -21,10 +29,9 @@
         * reducing the far clipping plane for view frustum almost fixed everything, but this is only a work-around for now.
         * debug visualize shadow cascades add blending between cascades.
     * lightmapping improvements
-        * super-sampling each lightmap texel
+        * bake static ao using path tracer, and disble ssao for static geometry
         * is backface culling necessary?
-        * only one bounce but exaggerate indirect bounce contribution
-        * denoise..? 
+        * denoise..?
         * irradiance caching plus photon mapping..? (ue4)
     * physically based lighting units
     * practical sky rendering
