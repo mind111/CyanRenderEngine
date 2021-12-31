@@ -45,8 +45,8 @@ struct Entity
     bool m_selectable;
     bool m_includeInGBufferPass;
 
-    Entity(const char* name, u32 id, Transform t, Entity* parent, bool isStatic);
-
+    Entity(struct Scene* scene, const char* name, u32 id, Transform t, Entity* parent, bool isStatic);
+ 
     SceneNode* getSceneRoot();
     SceneNode* getSceneNode(const char* name);
     void attachSceneNode(SceneNode* child, const char* parentName=nullptr);

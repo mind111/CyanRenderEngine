@@ -2,6 +2,7 @@
 #include "CyanAPI.h"
 #include "Mesh.h"
 #include "LightMap.h"
+#include "Scene.h"
 
 namespace Cyan
 {
@@ -99,14 +100,38 @@ namespace Cyan
             return bruteForceVisibilityRay(objectSpaceRo, objectSpaceRd);
     }
 
-    MeshInstance* Mesh::createInstance()
+    MeshInstance* Mesh::createInstance(Scene* scene)
     {
-        //MeshInstance* instance = (MeshInstance*)CYAN_ALLOC(sizeof(MeshInstance));
         MeshInstance* instance = new MeshInstance;
         instance->m_mesh = this;
         u32 numSubMeshes = (u32)this->m_subMeshes.size();
         instance->m_matls = (MaterialInstance**)CYAN_ALLOC(sizeof(MaterialInstance*) * numSubMeshes);
         instance->m_lightMap = nullptr;
+#if 1
+        // apply obj material defined in the asset
+        if (!m_objMaterials.empty())
+        {
+            for (u32 sm = 0; sm < numSubMeshes; ++sm)
+            {
+                i32 matlIdx = m_subMeshes[sm]->m_materialIdx;
+                if (matlIdx >= 0)
+                {
+                    auto& objMatl = m_objMaterials[matlIdx];
+                    PbrMaterialParam params = { };
+                    params.flatBaseColor = glm::vec4(objMatl.diffuse, 1.f);
+                    // hard-coded default roughness/metallic for obj materials
+                    params.kMetallic = 0.02f;
+                    params.kRoughness = 0.5f;
+                    params.hasBakedLighting = 0.f;
+                    params.indirectDiffuseScale = 1.f;
+                    params.indirectSpecularScale = 1.f;
+                    auto matl = new StandardPbrMaterial(params);
+                    instance->m_matls[sm] = matl->m_materialInstance;
+                    scene->addStandardPbrMaterial(matl);
+                }
+            }
+        }
+#endif
         return instance;
     }
 

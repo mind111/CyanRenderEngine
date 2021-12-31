@@ -2,12 +2,12 @@
     "cameras": [
         {
             "name": "main_camera",
-            "position": [0.0, 1.2, 4.0],
-            "lookAt": [-0.0, 0.0, -1.0],
+            "position": [0.0, 1.2, 6.0],
+            "lookAt": [-0.0, 1.0, -1.0],
             "worldUp": [0.0, 1.0, 0.0],
             "fov": 45.0,
             "z_near": 0.5,
-            "z_far": 60.0
+            "z_far": 80.0
         },
         {
             "name": "debug_camera",
@@ -32,6 +32,18 @@
             "path": "../../asset/demo_scene/plane.obj",
             "normalize": false,
             "generateLightMapUv": true
+        },
+        {
+            "name": "building_mesh",
+            "path": "../../asset/demo_scene/buildings.obj",
+            "normalize": false,
+            "generateLightMapUv": false
+        },
+        {
+            "name": "tower_mesh",
+            "path": "../../asset/demo_scene/towers.obj",
+            "normalize": false,
+            "generateLightMapUv": false
         },
         {
             "name": "helmet_mesh",
@@ -287,6 +299,30 @@
                 "scale": [0.346, 0.346, 0.346]
             },
             "child": []
+        },
+
+        {
+            "index": 9,
+            "name": "BuildingMesh",
+            "mesh": "building_mesh",
+            "xform": {
+                "translation": [0.0, 0.0, 0.0],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [1.0, 1.0, 1.0]
+            },
+            "child": []
+        },
+
+        {
+            "index": 10,
+            "name": "TowerMesh",
+            "mesh": "tower_mesh",
+            "xform": {
+                "translation": [0.0, 0.0, 0.0],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [1.0, 1.0, 1.0]
+            },
+            "child": []
         }
     ],
 
@@ -310,7 +346,7 @@
                 "scale": [1.00, 1.00, 1.00]
             },
             "static": true,
-            "nodes": [ 1, 2 ]
+            "nodes": [ 1, 2, 9, 10]
         },
 
         {

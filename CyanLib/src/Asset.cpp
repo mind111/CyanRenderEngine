@@ -435,7 +435,7 @@ namespace Cyan
             std::string meshName = nodeInfo.at("mesh");
             Cyan::Mesh* mesh = nullptr;
             mesh = Cyan::getMesh(meshName.c_str());
-            SceneNode* node = Cyan::createSceneNode(nodeName.c_str(), transform, mesh); 
+            SceneNode* node = Cyan::createSceneNode(scene, nodeName.c_str(), transform, mesh); 
             m_nodes.push_back(node);
         }
         // second pass to setup the hierarchy
@@ -451,7 +451,7 @@ namespace Cyan
         }
     }
 
-    void AssetManager::loadEntities(Scene* scene, nlohmann::basic_json<std::map>& entityInfoList)
+    void AssetManager::loadEntities(::Scene* scene, nlohmann::basic_json<std::map>& entityInfoList)
     {
         Cyan::Toolkit::ScopedTimer timer("loadEntities()", true);
         for (auto entityInfo : entityInfoList)
@@ -637,7 +637,7 @@ namespace Cyan
             sprintf_s(sceneNodeName, "%s", node.name.c_str());
 
         Cyan::Mesh* mesh = hasMesh ? Cyan::getMesh(meshName) : nullptr;
-        SceneNode* sceneNode = Cyan::createSceneNode(sceneNodeName, localTransform, mesh);
+        SceneNode* sceneNode = Cyan::createSceneNode(scene, sceneNodeName, localTransform, mesh);
         if (parentSceneNode)
             parentSceneNode->attach(sceneNode);
         // bind material
@@ -811,6 +811,7 @@ namespace Cyan
                 // load cpu mesh data
                 u32 numFaces = numIndices / 3;
                 CYAN_ASSERT(numIndices % 3 == 0, "Given gltf mesh has invalid index buffer!");
+#if 0
                 for (u32 f = 0; f < numFaces; ++f)
                 {
                     for (u32 v = 0; v < 3; ++v)
@@ -824,6 +825,7 @@ namespace Cyan
                     }
                 }
                 subMesh->m_triangles.m_numVerts = numIndices;
+#endif
                 delete[] vertexDataBuffer;
                 delete[] indexDataBuffer;
             }
@@ -870,7 +872,7 @@ namespace Cyan
             tinygltf::Mesh gltfMesh = model.meshes[rootNode.mesh];
             rootNodeMesh = Cyan::getMesh(gltfMesh.name.c_str());
         }
-        SceneNode* parentNode = Cyan::createSceneNode(name, transform);
+        SceneNode* parentNode = Cyan::createSceneNode(scene, name, transform);
         loadGltfNode(scene, model, nullptr, parentNode, rootNode, 0);
         return parentNode;
     }

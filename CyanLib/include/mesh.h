@@ -11,6 +11,9 @@
 #include "Geometry.h"
 #include "BVH.h"
 
+// forward declaration
+struct Scene;
+
 namespace Cyan
 {
     struct MeshInstance;
@@ -32,7 +35,7 @@ namespace Cyan
     struct Mesh
     {
         void onFinishLoading();
-        MeshInstance* createInstance();
+        MeshInstance* createInstance(Scene* scene);
         u32 numSubMeshes();
         MeshRayHit bruteForceIntersectRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd);
         MeshRayHit bvhIntersectRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd);

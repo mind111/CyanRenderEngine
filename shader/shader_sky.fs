@@ -1,4 +1,5 @@
 #version 450 core
+
 in vec3 fragmentObjPos;
 layout (location = 0) out vec4 fragColor;
 layout (location = 1) out vec3 fragNormal;
@@ -65,7 +66,7 @@ void main() {
     vec3 rd = normalize(fragmentObjPos);
     // rd.y = abs(rd.y);
     // default background color
-    vec3 horizonColor = vec3(0.85f);
+    vec3 horizonColor = vec3(1.f, 0.279f, 0.1f);
     //vec3 skyDomeColor = vec3(0.200, 0.449, 1.0000);
     vec3 skyDomeColor = vec3(0.128f, 0.207f, 1.f);
     float k = smoothstep(-0.18, 0.01, rd.y);

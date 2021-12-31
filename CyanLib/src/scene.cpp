@@ -101,7 +101,7 @@ Entity* SceneManager::createEntity(Scene* scene, const char* entityName, Transfo
     // id
     u32 id = allocEntityId(scene);
     Entity* parentEntity = !parent ? scene->m_rootEntity : parent;
-    Entity* newEntity = new Entity(entityName, id, transform, parentEntity, isStatic);
+    Entity* newEntity = new Entity(scene, entityName, id, transform, parentEntity, isStatic);
     scene->entities.push_back(newEntity);
     return newEntity; 
 }
@@ -143,7 +143,7 @@ void SceneManager::createPointLight(Scene* scene, glm::vec3 color, glm::vec3 pos
     Entity* entity = createEntity(scene, nameBuff, Transform(), false); 
     Cyan::Mesh* sphereMesh = Cyan::getMesh("sphere_mesh");
     CYAN_ASSERT(sphereMesh, "sphere_mesh does not exist")
-    SceneNode* meshNode = Cyan::createSceneNode("LightMesh", transform, sphereMesh); 
+    SceneNode* meshNode = Cyan::createSceneNode(scene, "LightMesh", transform, sphereMesh); 
     entity->m_sceneRoot->attach(meshNode);
     Shader* pointLightShader = Cyan::createShader("PointLightShader", "../../shader/shader_light.vs", "../../shader/shader_light.fs");
     Cyan::MaterialInstance* matl = Cyan::createMaterial(pointLightShader)->createInstance();

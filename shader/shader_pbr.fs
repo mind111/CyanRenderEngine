@@ -658,13 +658,12 @@ vec3 indirectLighting(RenderParams params)
 
     // todo: update to only sample local reflection
     vec3 prefilteredColor = useDistantProbe > .5f ? textureLod(gDistantProbe.reflection, rr, params.roughness * 10.f).rgb : textureLod(gLighting.localReflectionProbe, rr, params.roughness * 10.f).rgb;
-
     vec3 brdf = texture(brdfIntegral, vec2(params.roughness, ndotv)).rgb; 
     vec3 specular = (gLighting.indirectSpecularScale * prefilteredColor * uniformSpecular) * (params.f0 * brdf.r + brdf.g);
 
     // probe based diffuse GI
     {
-        diffuse += kDiffuse * params.baseColor * texture(gLighting.irradianceProbe, params.wn).rgb;
+	   //diffuse += kDiffuse * params.baseColor * texture(gLighting.irradianceProbe, params.wn).rgb;
     }
 
     color += indirectDiffuseScale * diffuse + indirectSpecularScale * specular;
@@ -705,8 +704,9 @@ void main()
 
     /* Texture mapping */
     vec4 albedo = uMaterialProps.hasDiffuseMap > .5f ? texture(diffuseMaps[0], uv) : vec4(defaultAlbedo(fragmentPosWS, uv), 1.f);
-    // from sRGB to linear space
+    // from sRGB to linear space if using a texture
     albedo.rgb = vec3(pow(albedo.r, 2.2f), pow(albedo.g, 2.2f), pow(albedo.b, 2.2f));
+    //albedo.rgb = uMaterialProps.hasDiffuseMap > .5f ? vec3(pow(albedo.r, 2.2f), pow(albedo.g, 2.2f), pow(albedo.b, 2.2f)) : albedo.rgb;
 
     // According to gltf-2.0 spec, metal is sampled from b, roughness is sampled from g
     float roughness, metallic;
@@ -726,7 +726,7 @@ void main()
     }
     // Determine the specular color
     // sqrt() because I want to make specular color has stronger tint
-    vec3 f0 = mix(vec3(0.04f), albedo.rgb, sqrt(metallic));
+    vec3 f0 = mix(vec3(0.04f), albedo.rgb, metallic);
 
     float ao = uMaterialProps.hasAoMap > 0.5f ? texture(aoMap, uv).r : 1.0f;
     ao = pow(ao, 3.0f);

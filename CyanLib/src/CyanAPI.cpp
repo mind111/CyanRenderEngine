@@ -101,7 +101,7 @@ namespace Cyan
         return &s_sceneNodes[m_numSceneNodes++]; 
     }
 
-    SceneNode* createSceneNode(const char* name, Transform transform, Mesh* mesh, bool hasAABB)
+    SceneNode* createSceneNode(Scene* scene, const char* name, Transform transform, Mesh* mesh, bool hasAABB)
     {
         SceneNode* node = allocSceneNode();
         CYAN_ASSERT(name, "Name must be passed to createSceneNode().")
@@ -111,7 +111,7 @@ namespace Cyan
         node->m_hasAABB = hasAABB;
         if (mesh)
         {
-            node->m_meshInstance = mesh->createInstance();
+            node->m_meshInstance = mesh->createInstance(scene);
             if (mesh->m_shouldNormalize)
             {
                 glm::mat4 localTransformMat = node->m_localTransform.toMatrix() * mesh->m_normalization;

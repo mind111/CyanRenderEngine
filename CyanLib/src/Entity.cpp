@@ -3,7 +3,7 @@
 #include "MathUtils.h"
 #include "BVH.h"
 
-Entity::Entity(const char* name, u32 id, Transform t, Entity* parent, bool isStatic)
+Entity::Entity(Scene* scene, const char* name, u32 id, Transform t, Entity* parent, bool isStatic)
     : m_entityId(id), m_static(isStatic), m_includeInGBufferPass(true), m_visible(true), m_selectable(true)
 {
     if (name) 
@@ -14,7 +14,7 @@ Entity::Entity(const char* name, u32 id, Transform t, Entity* parent, bool isSta
         char buff[64];
         sprintf(buff, "Entity%u", m_entityId);
     }
-    m_sceneRoot = Cyan::createSceneNode("DefaultSceneRoot", t);
+    m_sceneRoot = Cyan::createSceneNode(scene, "DefaultSceneRoot", t);
     if (parent)
     {
         parent->attach(this);

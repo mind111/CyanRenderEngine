@@ -29,7 +29,7 @@ namespace Cyan
     }
 
     IrradianceProbe::IrradianceProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene)
-        : Entity(name , id, Transform(), parent, false), 
+        : Entity(scene, name , id, Transform(), parent, false), 
         m_scene(scene)
     {
         if (!m_radianceRenderTarget)
@@ -37,7 +37,7 @@ namespace Cyan
             m_radianceRenderTarget = createRenderTarget(512u, 512u);
             m_irradianceRenderTarget = createRenderTarget(64u, 64u);
             m_computeIrradianceShader = createShader("DiffuseIrradianceShader", "../../shader/shader_diff_irradiance.vs", "../../shader/shader_diff_irradiance.fs");
-            m_cubeMeshInstance = getMesh("CubeMesh")->createInstance();
+            m_cubeMeshInstance = getMesh("CubeMesh")->createInstance(scene);
             m_cubeMeshInstance->setMaterial(0, m_computeIrradianceMatl);
         }
         
@@ -71,7 +71,7 @@ namespace Cyan
         Transform transform;
         transform.m_translate = p;
         transform.m_scale = glm::vec3(0.2f);
-        m_sceneRoot->attach(createSceneNode("SphereMesh", transform, mesh, false));
+        m_sceneRoot->attach(createSceneNode(scene, "SphereMesh", transform, mesh, false));
         setMaterial("SphereMesh", 0, m_renderProbeMatl);
         m_renderProbeMatl->bindTexture("radianceMap", m_irradianceMap);
         m_cubeMeshInstance->setMaterial(0, m_computeIrradianceMatl);
@@ -167,7 +167,7 @@ namespace Cyan
     }
 
     ReflectionProbe::ReflectionProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene)
-        : Entity(name , id, Transform(), parent, true), m_scene(scene)
+        : Entity(scene, name , id, Transform(), parent, true), m_scene(scene)
     {
         if (!m_renderTarget)
         {
@@ -206,7 +206,7 @@ namespace Cyan
         Transform transform;
         transform.m_translate = p;
         transform.m_scale = glm::vec3(1.0f);
-        m_sceneRoot->attach(createSceneNode("SphereMesh", transform, mesh, false));
+        m_sceneRoot->attach(createSceneNode(scene, "SphereMesh", transform, mesh, false));
         setMaterial("SphereMesh", 0, m_renderProbeMatl);
 
         spec.m_numMips = 11u;
@@ -321,7 +321,7 @@ namespace Cyan
     }
 
     LightFieldProbe::LightFieldProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene)
-        : Entity(name , id, Transform(), parent, false), m_scene(scene)
+        : Entity(scene, name , id, Transform(), parent, false), m_scene(scene)
     {
         // m_bakeInProbes = false;
         auto textureManager = TextureManager::getSingletonPtr();
@@ -372,7 +372,7 @@ namespace Cyan
         Transform transform;
         transform.m_translate = p;
         transform.m_scale = glm::vec3(0.2f);
-        m_sceneRoot->attach(createSceneNode("SphereMesh", transform, mesh, false));
+        m_sceneRoot->attach(createSceneNode(scene, "SphereMesh", transform, mesh, false));
         m_renderProbeMatl = createMaterial(getRenderProbeShader())->createInstance();
         m_renderProbeMatl->bindTexture("radianceMap", m_radiance);
         m_octProjMatl = createMaterial(m_octProjectionShader)->createInstance();

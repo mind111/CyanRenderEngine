@@ -72,19 +72,3 @@ struct PointLight : public Light
         return {color, position};
     }
 }; 
-
-struct Light2 : public Entity
-{
-    glm::vec4 color;
-};
-
-struct PointLight2 : public Light2
-{
-    void updateData()
-    {
-        m_lightData.m_color = this->color;
-        m_lightData.m_position = glm::vec4(getWorldTransform().m_translate, 1.0f);
-    }
-
-    PointLightGpuData m_lightData;
-};

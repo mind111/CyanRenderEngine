@@ -215,6 +215,7 @@ namespace Cyan
             if (m_bufferBindings[s])
             {
                 glShaderStorageBlockBinding(m_template->m_shader->m_programId, s, bufferBinding);
+                // todo: this is slow possibly because of memcpy() !!!!! 
                 ctx->setBuffer(m_bufferBindings[s], bufferBinding++);
             }
         }

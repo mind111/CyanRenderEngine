@@ -11,6 +11,7 @@
 #include "imgui/imgui_impl_opengl3.h"
 #include "ImGuizmo/ImGuizmo.h"
 #include "stb_image.h"
+#include "ArHosekSkyModel.h"
 
 #include "CyanUI.h"
 #include "CyanAPI.h"
@@ -19,38 +20,34 @@
 #include "Mesh.h"
 #include "RenderPass.h"
 
-/*
-    * gltf-2.0 assets loading
-    * saving the scene and assets as binaries (serialization)
-    * a simple material editor
-    * irradiance volume
-    * local reflection probes
-        * reflection doesn't have shadow
-    * screen-space ray tracing
-        * or world space .. using gpu?
-    * shadow improvements
-        * instead of using box filter, maybe use randonly rotated poisson samples? 
-        * pcf 5x5 shadow acne issue
-        * reducing the far clipping plane for view frustum almost fixed everything, but this is only a work-around for now.
-        * debug visualize shadow cascades add blending between cascades.
-    * lightmapping improvements
-        * is backface culling necessary?
-        * only one bounce but exaggerate indirect bounce contribution
-        * denoise..? 
-        * irradiance caching plus photon mapping..? (ue4)
-    * physically based lighting units
-    * practical sky rendering
-    * animation
-    * shading model
-        * roughness < .1f will cause specular highlight from sun light to disappear
-*/
-
 #define REBAKE_LIGHTMAP 0
 
 /* Constants */
 // In radians per pixel 
 static float kCameraOrbitSpeed = 0.005f;
 static float kCameraRotateSpeed = 0.005f;
+
+struct HosekSkyLight
+{
+    ArHosekSkyModelState* stateR;
+    ArHosekSkyModelState* stateG;
+    ArHosekSkyModelState* stateB;
+
+    HosekSkyLight(const glm::vec3& sunDir, const glm::vec3& groundAlbedo)
+        : stateR(nullptr), stateG(nullptr), stateB(nullptr)
+    {
+        // in radians
+        f32 solarElevation = acos(glm::dot(sunDir, glm::vec3(0.f, 1.f, 0.f)));
+        auto stateR = arhosek_rgb_skymodelstate_alloc_init(2.f, groundAlbedo.r, solarElevation);
+        auto stateG = arhosek_rgb_skymodelstate_alloc_init(2.f, groundAlbedo.g, solarElevation);
+        auto stateB = arhosek_rgb_skymodelstate_alloc_init(2.f, groundAlbedo.b, solarElevation);
+    }
+
+    glm::vec3 sample(const glm::vec3& dir)
+    {
+
+    }
+};
 
 struct CameraControlInputs
 {
@@ -59,6 +56,7 @@ struct CameraControlInputs
     double mouseWheelDx;
     double mouseWheelDy;
 };
+
 struct CameraCommand
 {
     enum Type
@@ -348,11 +346,12 @@ void PbrApp::initDemoScene00()
 
     // lighting
     {
-        sceneManager->createDirectionalLight(demoScene00, glm::vec3(1.0f, 0.9, 0.7f), glm::normalize(glm::vec3(1.0f, 0.5f, 1.8f)), 3.6f);
+        glm::vec3 sunDir = glm::normalize(glm::vec3(1.0f, 0.5f, 1.8f));
+        sceneManager->createDirectionalLight(demoScene00, glm::vec3(1.0f, 0.9, 0.7f), sunDir, 3.6f);
         // sky light
         auto sceneManager = SceneManager::getSingletonPtr();
         Entity* envMapEntity = sceneManager->createEntity(demoScene00, "Envmap", Transform(), false);
-        envMapEntity->m_sceneRoot->attach(Cyan::createSceneNode("CubeMesh", Transform(), Cyan::getMesh("CubeMesh"), false));
+        envMapEntity->m_sceneRoot->attach(Cyan::createSceneNode(demoScene00, "CubeMesh", Transform(), Cyan::getMesh("CubeMesh"), false));
         envMapEntity->setMaterial("CubeMesh", 0, m_skyMatl);
         envMapEntity->m_selectable = false;
         envMapEntity->m_includeInGBufferPass = false;
@@ -362,6 +361,8 @@ void PbrApp::initDemoScene00()
         // a reflection probe
         m_reflectionProbe = sceneManager->createReflectionProbe(demoScene00, glm::vec3(0.f, 3.f, 0.f));
         demoScene00->m_reflectionProbe = m_reflectionProbe;
+        // procedural sky
+        glm::vec3 groundAlbedo(1.f, 0.5f, 0.5f);
     }
 
     // grid of shader ball on the table
@@ -375,13 +376,13 @@ void PbrApp::initDemoScene00()
         Cyan::PbrMaterialParam matlParams[2][4] = { };
         matlParams[0][0].flatBaseColor = glm::vec4(gold, 1.f);
         matlParams[0][0].kRoughness = .1f;
-        matlParams[0][0].kMetallic = 0.95f;
+        matlParams[0][0].kMetallic = 0.999f;
         matlParams[0][1].flatBaseColor = glm::vec4(silver, 1.f);
         matlParams[0][1].kRoughness = .02f;
-        matlParams[0][1].kMetallic = 0.95f;
+        matlParams[0][1].kMetallic = 1.0;
         matlParams[0][2].flatBaseColor = glm::vec4(chrome, 1.f);
         matlParams[0][2].kRoughness = .3f;
-        matlParams[0][2].kMetallic = 0.95f;
+        matlParams[0][2].kMetallic = 0.999f;
         matlParams[0][3].flatBaseColor = glm::vec4(plastic, 1.f);
         matlParams[0][3].kRoughness = .02f;
         matlParams[0][3].kMetallic = 0.05f;
@@ -415,7 +416,7 @@ void PbrApp::initDemoScene00()
                 Transform transform = { };
                 transform.m_translate = gridLowerLeft + posOffset;
                 transform.m_scale = glm::vec3(.003f);
-                auto meshNode = Cyan::createSceneNode(meshNodeName, transform, Cyan::getMesh("shaderball_mesh"));
+                auto meshNode = Cyan::createSceneNode(demoScene00, meshNodeName, transform, Cyan::getMesh("shaderball_mesh"));
                 shaderBall->attachSceneNode(meshNode);
                 auto matl = createStandardPbrMatlInstance(demoScene00, matlParams[j][i], shaderBall->m_static);
                 shaderBall->setMaterial(meshNodeName, -1, defaultMatl);
@@ -425,7 +426,7 @@ void PbrApp::initDemoScene00()
             }
         }
     }
-    
+
     // room
     {
         Entity* room = sceneManager->getEntity(demoScene00, "Room");
@@ -479,25 +480,15 @@ void PbrApp::initDemoScene00()
         auto lightMapManager = Cyan::LightMapManager::getSingletonPtr();
         lightMapManager->createLightMapFromTexture(roomNode, textureManager->getTexture("RoomMesh_lightmap"));
         lightMapManager->createLightMapFromTexture(planeNode, textureManager->getTexture("PlaneMesh_lightmap"));
-
         for (u32 sm = 0; sm < roomMesh->numSubMeshes(); ++sm)
         {
-            // default matl param
-            Cyan::PbrMaterialParam params = { };
-            params.flatBaseColor = glm::vec4(1.f);
-            params.kRoughness = 0.8f;
-            params.kMetallic = 0.0f;
-            params.hasBakedLighting = 1.f;
-            params.lightMap = roomNode->m_meshInstance->m_lightMap->m_texAltas;
-
-            i32 matlIdx = roomMesh->m_subMeshes[sm]->m_materialIdx;
-            if (matlIdx > 0)
-            {
-                auto& objMatl = roomMesh->m_objMaterials[matlIdx];
-                params.flatBaseColor = glm::vec4(objMatl.diffuse, 1.f);
-            }
-            auto matl = createStandardPbrMatlInstance(demoScene00, params, room->m_static);
-            room->setMaterial("RoomMesh", sm, matl);
+            roomNode->m_meshInstance->m_matls[sm]->set("uniformRoughness", .8f);
+            roomNode->m_meshInstance->m_matls[sm]->set("uniformMetallic", .02f);
+            roomNode->m_meshInstance->m_matls[sm]->set("uMaterialProps.hasBakedLighting", 1.f);
+            roomNode->m_meshInstance->m_matls[sm]->set("indirectDiffuseScale", 0.f);
+            roomNode->m_meshInstance->m_matls[sm]->set("indirectSpecularScale", 0.f);
+            roomNode->m_meshInstance->m_matls[sm]->set("uMaterialProps.hasBakedLighting", 1.f);
+            roomNode->m_meshInstance->m_matls[sm]->bindTexture("lightMap", roomNode->m_meshInstance->m_lightMap->m_texAltas);
         }
         Cyan::PbrMaterialParam params = { };
         params.flatBaseColor = glm::vec4(1.f);
@@ -509,7 +500,6 @@ void PbrApp::initDemoScene00()
         auto planeMatl = createStandardPbrMatlInstance(demoScene00, params, room->m_static);
         room->setMaterial("PlaneMesh", -1, planeMatl);
 #endif
-
     }
     timer.end();
 }
@@ -1164,10 +1154,10 @@ void PbrApp::drawRenderSettings()
         {
             ImGui::Text("Diffuse");
             ImGui::SameLine();
-            ImGui::SliderFloat("##IndirectDiffuse", &m_indirectDiffuseSlider, 0.f, 10.f, "%.2f");
+            ImGui::SliderFloat("##IndirectDiffuse", &m_indirectDiffuseSlider, 0.f, 1.f, "%.2f");
             ImGui::Text("Specular");
             ImGui::SameLine();
-            ImGui::SliderFloat("##IndirectSpecular", &m_indirectSpecularSlider, 0.f, 10.f, "%.2f");
+            ImGui::SliderFloat("##IndirectSpecular", &m_indirectSpecularSlider, 0.f, 20.f, "%.2f");
             ImGui::TreePop();
         }
         ImGui::TreePop();
