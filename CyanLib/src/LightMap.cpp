@@ -342,9 +342,7 @@ namespace Cyan
         }
     }
 
-    // todo: debug the odd bright line around overlapping edges
     // todo: debug shadow leaking ...
-    // todo: super sampling when baking (this alleviate shadow leaking issue but does not completely solve it)
     void bakeWorker(LightMap* lightMap, std::vector<u32>& texelIndices, u32 start, u32 end, u32 overlappedTexelCount)
     {
         const f32 EPSILON = 0.0001f;
@@ -356,11 +354,7 @@ namespace Cyan
             glm::vec3 normal = vec4ToVec3(lightMap->m_bakingData[index].normal);
             glm::vec4 texCoord = lightMap->m_bakingData[index].texCoord;
             glm::vec3 ro = worldPos + normal * EPSILON;
-#if 0
-            glm::vec3 irradiance = pathTracer->sampleIrradiance(ro, normal);
-#else
             glm::vec3 irradiance = pathTracer->importanceSampleIrradiance(ro, normal);
-#endif
             u32 px = floor(texCoord.x);
             u32 py = floor(texCoord.y);
 #if SUPER_SAMPLING

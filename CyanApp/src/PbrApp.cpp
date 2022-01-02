@@ -694,10 +694,13 @@ void PbrApp::doPrecomputeWork()
         endFrame();
         ctx->setRenderTarget(nullptr, 0u);
     }
+
     // path tracing
     {
         auto pathTracer = Cyan::PathTracer::getSingletonPtr();
-        // pathTracer->run(m_scenes[m_currentScene]->getActiveCamera());
+        pathTracer->m_renderMode = Cyan::PathTracer::RenderMode::Render;
+        pathTracer->setScene(m_scenes[Scenes::Demo_Scene_00]);
+        pathTracer->run(m_scenes[m_currentScene]->getActiveCamera());
     }
 }
 

@@ -1,15 +1,14 @@
 #include <thread>
 #include <queue>
+#include <atomic>
 
 #include "CyanPathTracer.h"
 #include "Texture.h"
-#include "mathUtils.h"
+#include "MathUtils.h"
 #include "CyanAPI.h"
 
 /* 
     * todo: (Feature) integrate intel's open image denoiser
-    * todo: (Optimization) multi-threading
-    * todo: (Optimization) do some profiling
     * todo: (Optimization) think about how can I further improve performance
     * todo: (Bug) debug invalid barycentric coord computed for some ray intersections.
     * todo: (Bug) debug weird "black" vertical line in the final render, increasing "EPSILON" seems alleviate the issue."
@@ -20,6 +19,7 @@
 namespace Cyan
 {
     PathTracer* PathTracer::m_singleton = nullptr;
+    std::atomic<u32> PathTracer::progressCounter(0u);
 
     PathTracer::PathTracer()
     : m_scene(nullptr)
@@ -83,53 +83,80 @@ namespace Cyan
         m_pixels[index + 2] = color.b;
     }
 
-    // TODO: multi-threading (opengl multi-threading)
-    // TODO: glossy specular
-    void PathTracer::progressiveRender(Scene* scene, Camera& camera)
+    void PathTracer::renderWorker(u32 start, u32 end, Camera& camera, u32 totalNumRays)
     {
+        glm::vec3 color(0.f);
         f32 aspectRatio = (f32)numPixelsInX / numPixelsInY;
-        u32 totalNumRays = numPixelsInX * numPixelsInY; 
-        u32 boundryX = min(m_checkPoint.x + perFrameWorkGroupX, numPixelsInX);
-        u32 boundryY = min(m_checkPoint.y + perFrameWorkGroupY, numPixelsInY);
+        f32 w = camera.n * glm::tan(glm::radians(.5f * 45.f));
+        f32 pixelSize = 1.f / (f32)numPixelsInY;
+        f32 subPixelSize = pixelSize / (f32)sppxCount;
 
-        for (u32 x = m_checkPoint.x; x < boundryX; ++x)
+        for (u32 i = start; i < end; ++i)
         {
-            for (u32 y = m_checkPoint.y; y < boundryY; ++y)
-            {
-                glm::vec2 pixelCenterCoord;
-                pixelCenterCoord.x = ((f32)x / (f32)numPixelsInX) * 2.f - 1.f;
-                pixelCenterCoord.y = ((f32)y / (f32)numPixelsInY) * 2.f - 1.f;
-                pixelCenterCoord.x *= aspectRatio;
-                // jitter the sub pixel samples
+            u32 py = i / numPixelsInX;
+            u32 px = i % numPixelsInX;
+            glm::vec2 pixelCenterCoord;
+            pixelCenterCoord.x = ((f32)px / (f32)numPixelsInX) * 2.f - 1.f;
+            pixelCenterCoord.y = ((f32)py / (f32)numPixelsInY) * 2.f - 1.f;
 
-                glm::vec3 ro = camera.position;
-                glm::vec3 rd = normalize(camera.forward * camera.n
-                                       + camera.right   * pixelCenterCoord.x 
-                                       + camera.up      * pixelCenterCoord.y);
-
-                auto hit = traceScene(ro, rd);
-                glm::vec3 color = renderSurface(hit, ro, rd, getHitMaterial(hit));
-                setPixel(x, numPixelsInY - y - 1, color);
-                m_numTracedPixels += 1;
-            }
-            if (++m_checkPoint.x >= numPixelsInX)
+            // stratified sampling
+            for (u32 spx = 0; spx < sppxCount; ++spx)
             {
-                m_checkPoint.x = 0u;
-                m_checkPoint.y += perFrameWorkGroupY;
+                for (u32 spy = 0; spy < sppyCount; ++spy)
+                {
+                    glm::vec2 subPixelOffset((f32)spx * subPixelSize, (f32)spy * subPixelSize);
+                    // jitter the sub pixel samples
+                    glm::vec2 jitter = glm::vec2(subPixelSize) * glm::vec2(uniformSampleZeroToOne(), uniformSampleZeroToOne());
+                    subPixelOffset += jitter;
+                    glm::vec2 sampleScreenCoord = pixelCenterCoord + subPixelOffset;
+                    sampleScreenCoord.x *= aspectRatio;
+
+                    glm::vec3 ro = camera.position;
+                    glm::vec3 rd = normalize(camera.forward * camera.n
+                                           + camera.right   * sampleScreenCoord.x * w 
+                                           + camera.up      * sampleScreenCoord.y * w);
+                    auto hit = traceScene(ro, rd);
+                    color += renderSurface(hit, ro, rd, getHitMaterial(hit));
+
+                    u32 numTracedRays = progressCounter.fetch_add(1u);
+                    printf("\r[Info] Traced %d rays ... %.2f%%", numTracedRays, ((f32)numTracedRays * 100.f / totalNumRays));
+                    fflush(stdout);
+                }
             }
+
+            color /= (sppxCount * sppyCount);
+            setPixel(px, py, color);
         }
+    }
 
-        // copy data to gpu texture
+    void PathTracer::renderSceneMultiThread(Camera& camera)
+    {
+        u32 numPixels = numPixelsInX * numPixelsInY;
+        u32 totalNumRays = numPixels * sppxCount * sppyCount;
+
+        // trace all the rays using multi-threads
+        const u32 workGroupCount = 16;
+        u32 workGroupPixelCount = numPixels / workGroupCount;
+        // divide work into 16 threads
+        std::thread* workers[workGroupCount] = { };
+        for (u32 i = 0; i < workGroupCount; ++i)
         {
-            glBindTexture(GL_TEXTURE_2D, m_texture->m_id);
-            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, numPixelsInX, numPixelsInY, GL_RGB, GL_FLOAT, m_pixels);
-            glBindTexture(GL_TEXTURE_2D, 0);
+            u32 start = workGroupPixelCount * i;
+            u32 end = min(start + workGroupPixelCount, numPixels);
+            workers[i] = new std::thread(&PathTracer::renderWorker, this, start, end, std::ref(camera), totalNumRays);
         }
+        for (u32 i = 0; i < workGroupCount; ++i)
+            workers[i]->join();
+        printf("\n");
+
+        // free resources
+        progressCounter = 0;
+        for (u32 i = 0; i < workGroupCount; ++i)
+            delete workers[i];
     }
 
     void PathTracer::renderScene(Camera& camera)
     {
-        // todo: split the work into 8 threads?
         f32 aspectRatio = (f32)numPixelsInX / numPixelsInY;
         f32 w = camera.n * glm::tan(glm::radians(.5f * 45.f));
         u32 totalNumRays = numPixelsInX * numPixelsInY; 
@@ -246,28 +273,6 @@ namespace Cyan
     MaterialInstance* getSurfaceMaterial(RayCastInfo& rayHit)
     {
         return nullptr;
-    }
-
-    void PathTracer::progressiveIndirectLighting()
-    {
-        f32 aspectRatio = (f32)numPixelsInX / numPixelsInY;
-        u32 totalNumRays = numPixelsInX * numPixelsInY; 
-        u32 boundryX = min(m_checkPoint.x + perFrameWorkGroupX, numPixelsInX);
-        u32 boundryY = min(m_checkPoint.y + perFrameWorkGroupY, numPixelsInY);
-
-        for (u32 x = m_checkPoint.x; x < boundryX; ++x)
-        {
-            for (u32 y = m_checkPoint.y; y < boundryY; ++y)
-            {
-            }
-        }
-
-        // copy data to gpu texture
-        {
-            glBindTexture(GL_TEXTURE_2D, m_texture->m_id);
-            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, numPixelsInX, numPixelsInY, GL_RGB, GL_FLOAT, m_pixels);
-            glBindTexture(GL_TEXTURE_2D, 0);
-        }
     }
 
     // return surface normal at ray hit in world space
@@ -403,7 +408,11 @@ namespace Cyan
                 bakeScene(camera);
                 break;
             case RenderMode::Render:
+#if 0
                 renderScene(camera);
+#else
+                renderSceneMultiThread(camera);
+#endif
                 break;
             default:
                 printf("Invalid PathTracer setting! \n");
