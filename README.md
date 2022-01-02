@@ -3,6 +3,16 @@
 ![Screenshot_03](images/screenshot_03.png)
 ![Screenshot_01](images/screenshot_01.png)
 ![Screenshot_02](images/screenshot_02.png)
+#### Overview
+******
+Visualize baked indirect lighting from the sun light and a constant skylight (only light sources in the scene) with GTAO and the according baked lightmap for the "room".
+
+<img src="images/indirect_lighting.png" width="480" height="270"><img src="images/sample_lightmap.png" height="270">
+
+Directional sun light only
+
+<img src="images/direct_lighting_only.png" width="480" height="270">
+
 #### TODOs
 ******
 - [ ] Irradiance volume. (Currently there is only one irradiance probe which is sampled at the center of the "room" in the scene)
