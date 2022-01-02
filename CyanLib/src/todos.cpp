@@ -4,6 +4,7 @@
     * irradiance caching
     * radiance caching
     * Cook's survey paper on sampling techniques
+    * Practical voxel based GI (the original sparse octree voxel cone tracing and Nvidia's VXGI)
 */
 
 /*
@@ -13,6 +14,7 @@
 */
 
 /*
+    * try to load the classic Sponza scene, and make the rendering work.
     * integrate hosek skylight model && study about using photometric lighting units different type of light sources
         * physically based lighting units
         * practical sky rendering
