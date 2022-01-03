@@ -21,7 +21,7 @@
 
         {
             "name": "sphere_mesh",
-            "path": "../../asset/uv_sphere/sphere.obj",
+            "path": "../../asset/sphere/mesh/uv_sphere.obj",
             "normalize": false,
             "generateLightMapUv": false
         }
@@ -51,7 +51,7 @@
                 "rotation": [0.0, 0, 1, 0],
                 "scale": [1.0, 1.0, 1.0]
             },
-            "static": false,
+            "static": true,
             "nodes": [ 0 ]
         }
     ]

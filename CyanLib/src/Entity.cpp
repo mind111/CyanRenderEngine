@@ -62,7 +62,7 @@ f32 transformHitFromObjectToWorldSpace(glm::vec3& objectSpaceHit, glm::mat4& tra
         t = (worldSpaceHit.y - roWorldSpace.y) / rdWorldSpace.y;
     else if (worldSpaceHit.z != 0.f)
         t = (worldSpaceHit.z - roWorldSpace.z) / rdWorldSpace.z;
-    CYAN_ASSERT(t >= 0.f, "Invalid ray hit!");
+    //CYAN_ASSERT(t >= 0.f, "Invalid ray hit!");
     return t;
 }
 

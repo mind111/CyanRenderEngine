@@ -50,6 +50,8 @@ uniform struct PostProcessSetting
 // global lighting settings
 uniform struct Lighting
 {
+	samplerCube distantIrradiance;
+	samplerCube distantReflection;
     // precomputed GI
     samplerCube irradianceProbe;
     samplerCube localReflectionProbe;
@@ -74,8 +76,8 @@ uniform float uniformSpecular; // control incident specular amount .5 by default
 uniform float uniformRoughness;
 uniform float uniformMetallic;
 uniform vec4 flatColor;
-uniform int numPointLights; //non-material
-uniform int numDirLights;   //non_material
+uniform int numPointLights; 
+uniform int numDirLights;   
 
 //- samplers
 uniform sampler2D diffuseMaps[2];
@@ -85,9 +87,6 @@ uniform sampler2D roughnessMap;
 uniform sampler2D metalnessMap;
 uniform sampler2D metallicRoughnessMap;
 uniform sampler2D aoMap;
-uniform samplerCube envmap;             //non-material
-uniform samplerCube irradianceDiffuse;  //non-material
-uniform samplerCube irradianceSpecular; //non-material
 uniform sampler2D   brdfIntegral;
 uniform sampler2D   lightMap;
 uniform sampler2D   ssaoTex;
@@ -587,63 +586,13 @@ vec3 directLighting(RenderParams renderParams)
     return color;
 }
 
-// ground-truth specular IBL
-vec3 specularIBL(vec3 f0, vec3 normal, vec3 viewDir, float roughness)
-{
-    float numSamples = 512.f;
-    vec3 specularE = vec3(0.f);
-    for (uint sa = 0; sa < numSamples; sa++)
-    {
-        vec2 rand_uv = HammersleyNoBitOps(sa, uint(numSamples));
-        // Random samples a microfacet normal following GGX distribution
-        // float rand_u = hash(sa * 12.3f / numSamples);
-        // float rand_v = hash(sa * 78.2f / numSamples); 
-        float rand_u = rand_uv.x; 
-        float rand_v = rand_uv.y; 
-
-        // TODO: verify this importance sampling ggx procedure
-        float theta = atan(roughness * sqrt(rand_u) / sqrt(1 - rand_v));
-        float phi = 2 * pi * rand_v;
-        vec3 h = generateSample(normal, theta, phi);
-
-        // Reflect viewDir against microfacet normal to get incident direction
-        vec3 vi = -reflect(viewDir, h);
-        // Sample a color from envmap
-        vec3 envColor = texture(envmap, vi).rgb;
-        // Shading
-        float ndotv = saturate(dot(normal, viewDir));
-        float ndoth = saturate(dot(normal, h));
-        float vdoth = saturate(dot(viewDir, h)); 
-        float ndotl = saturate(dot(normal, vi));
-        // cook-torrance microfacet shading model
-        float shadowing = ggxSmithG2(vi, viewDir, h, roughness);
-        vec3 fresnel = fresnel(f0, vi, h);
-        /* 
-            Notes:
-                * Compared to the BRDF equation used in radiance(), 4 * ndotl * ndotv is missing,
-                because they got cancelled out by the pdf.
-
-                * pdf = (D * ndoth) / (4 * vdoth) 
-
-                * Notice that the GGX distribution term D is also cancelled out here from the original 
-                    microfacet BRDF fr = DFG / (4 * ndotv * ndotl)
-                    when doing importance sampling.
-        */
-        vec3 nom = fresnel * shadowing * vdoth;
-        float denom = max(0.0001f, ndotv * ndoth);
-        specularE += envColor * (nom / denom);
-    }
-    specularE /= numSamples;
-    return specularE;
-}
-
 vec3 indirectLighting(RenderParams params)
 {
     vec3 color = vec3(0.f);
     vec3 F = fresnel(params.f0, params.n, params.v); 
     vec3 kDiffuse = mix(vec3(1.f) - F, vec3(0.f), params.metallic);
     // diffuse irradiance
-    vec3 diffuse = kDiffuse * gLighting.indirectDiffuseScale * params.baseColor * texture(irradianceDiffuse, params.wn).rgb;
+    vec3 diffuse = kDiffuse * gLighting.indirectDiffuseScale * params.baseColor * texture(gLighting.distantIrradiance, params.wn).rgb;
     // specular radiance
     float ndotv = saturate(dot(params.n, params.v));
     vec3 r = -reflect(params.v, params.n);

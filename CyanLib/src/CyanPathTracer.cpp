@@ -397,6 +397,7 @@ namespace Cyan
         {
             if (m_scene->entities[i]->m_static)
             {
+                m_staticEntities.push_back(m_scene->entities[i]);
                 std::queue<SceneNode*> nodes;
                 nodes.push(m_scene->entities[i]->m_sceneRoot);
                 while (!nodes.empty())
@@ -487,7 +488,7 @@ namespace Cyan
 
             // direct + indirect (diffuse interreflection)
             radiance += recursiveTraceDiffuse(hitPosition, normal, 0, getHitMaterial(hit));
-            radiance *= sampleAo(hitPosition, normal, 8);
+            //radiance *= sampleAo(hitPosition, normal, 8);
         }
         return radiance;
     }
@@ -565,7 +566,15 @@ namespace Cyan
 
     RayCastInfo PathTracer::traceScene(glm::vec3& ro, glm::vec3& rd)
     {
-        return m_scene->castRay(ro, rd, EntityFilter::BakeInLightMap);
+        RayCastInfo closestHit;
+        for (u32 i = 0; i < m_staticEntities.size(); ++i)
+        {
+            auto hit = m_staticEntities[i]->intersectRay(ro, rd, glm::mat4(1.f));
+            if (hit.t > 0.f && hit < closestHit)
+                closestHit = hit;
+        }
+        return closestHit;
+        //return m_scene->castRay(ro, rd, EntityFilter::BakeInLightMap);
     }
 
     f32 PathTracer::sampleAo(glm::vec3& samplePos, glm::vec3& n, u32 numSamples)

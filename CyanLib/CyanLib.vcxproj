@@ -130,8 +130,8 @@
     <None Include="..\shader\shader_dir_shadow.vs" />
     <None Include="..\shader\shader_downsample.fs" />
     <None Include="..\shader\shader_downsample.vs" />
-    <None Include="..\shader\shader_envmap.fs" />
-    <None Include="..\shader\shader_envmap.vs" />
+    <None Include="..\shader\shader_skybox.fs" />
+    <None Include="..\shader\shader_skybox.vs" />
     <None Include="..\shader\shader_flat_color.fs" />
     <None Include="..\shader\shader_flat_color.vs" />
     <None Include="..\shader\shader_gaussian_blur.fs" />

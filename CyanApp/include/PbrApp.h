@@ -60,7 +60,6 @@ public:
     void drawEntityPanel();
     void drawDebugWindows();
     void drawLightingWidgets();
-    void drawEntityWindow();
     void drawStats();
     void drawRenderSettings();
     void uiDrawEntityGraph(Entity* entity) ;
@@ -74,7 +73,7 @@ public:
     // manual scene initialization
     void initDemoScene00();
     void initSponzaScene();
-    void initEnvMaps();
+    void initSkyBoxes();
 
     // material
     Cyan::StandardPbrMaterial* createStandardPbrMatlInstance(Scene* scene, Cyan::PbrMaterialParam params, bool isStatic);
@@ -113,27 +112,17 @@ private:
     bool bRunning;
     u32 m_currentProbeIndex;
 
-    // Materials
-    Cyan::MaterialInstance* m_skyMatl;
-    Cyan::MaterialInstance* m_envmapMatl;
 
-    /* Shaders */
-    Shader* m_pbrShader;
-    Shader* m_rayTracingShader;
+    Shader*                 m_rayTracingShader;
     Cyan::MaterialInstance* m_rayTracingMatl;
-    Shader* m_envmapShader;
-    Shader* m_skyShader;
+    Shader*                 m_skyBoxShader;
+    Cyan::MaterialInstance* m_skyBoxMatl;
+    Shader*                 m_skyShader;
+    Cyan::MaterialInstance* m_skyMatl;
 
     /* Buffers */
     RegularBuffer* m_pointLightsBuffer;
     RegularBuffer* m_dirLightsBuffer;
-
-    /* Textures */
-    Cyan::Texture* m_rawEnvmap;
-    Cyan::Texture* m_envmap;
-    Cyan::Texture* m_proceduralSky;
-    // a probe that is infinitely distant
-    DistantLightProbe m_probe;
 
     // ui
     UI m_ui;
@@ -152,8 +141,6 @@ private:
 
     glm::vec3 m_debugRo;
     glm::vec3 m_debugRd;
-    bool m_debugDrawSSAO;
-    bool m_debugPathTracing;
 
     // debug parameters
     Line m_debugRay;

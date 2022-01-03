@@ -343,10 +343,10 @@
     <None Include="..\shader\shader_downsample.vs">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_envmap.fs">
+    <None Include="..\shader\shader_skybox.fs">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_envmap.vs">
+    <None Include="..\shader\shader_skybox.vs">
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\shader_flat_color.fs">

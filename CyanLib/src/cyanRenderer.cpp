@@ -854,12 +854,12 @@ namespace Cyan
                     meshInstance->m_matls[sm]->bindBuffer("dirLightsData", m_gpuLightingData.dirLightsBuffer);
                     meshInstance->m_matls[sm]->bindBuffer("pointLightsData", m_gpuLightingData.pointLightsBuffer);
 
-                    // update probe texture bindings
-                    meshInstance->m_matls[sm]->bindTexture("irradianceDiffuse", m_gpuLightingData.probe->m_diffuse);
-                    meshInstance->m_matls[sm]->bindTexture("irradianceSpecular", m_gpuLightingData.probe->m_specular);
-                    meshInstance->m_matls[sm]->bindTexture("brdfIntegral", m_gpuLightingData.probe->m_brdfIntegral);
+                    // distant probe
+                    meshInstance->m_matls[sm]->bindTexture("gLighting.distantIrradiance", m_gpuLightingData.distantProbe->m_diffuse);
+                    meshInstance->m_matls[sm]->bindTexture("gLighting.distantReflection", m_gpuLightingData.distantProbe->m_specular);
+                    meshInstance->m_matls[sm]->bindTexture("brdfIntegral", m_gpuLightingData.distantProbe->m_brdfIntegral);
 
-                    // GI probes
+                    // local GI probes
                     if (m_gpuLightingData.irradianceProbe)
                         meshInstance->m_matls[sm]->bindTexture("gLighting.irradianceProbe", m_gpuLightingData.irradianceProbe->m_irradianceMap);
                     if (m_gpuLightingData.reflectionProbe)
@@ -1003,7 +1003,7 @@ namespace Cyan
         setBuffer(m_gpuLightingData.pointLightsBuffer, m_gpuLightingData.pLights.data(), sizeofVector(m_gpuLightingData.pLights));
         setBuffer(m_gpuLightingData.dirLightsBuffer, m_gpuLightingData.dLights.data(), sizeofVector(m_gpuLightingData.dLights));
 
-        m_gpuLightingData.probe = lighting.m_probe;
+        m_gpuLightingData.distantProbe = lighting.m_distantProbe;
         m_gpuLightingData.irradianceProbe = lighting.irradianceProbe;
         m_gpuLightingData.reflectionProbe = lighting.localReflectionProbe;
     }
@@ -1018,7 +1018,7 @@ namespace Cyan
         LightingEnvironment lighting = {
             scene->pLights,
             scene->dLights,
-            scene->m_currentProbe,
+            scene->m_distantProbe,
             nullptr,
             nullptr,
             false
@@ -1055,96 +1055,19 @@ namespace Cyan
         ctx->setVertexArray(quad->m_vertexArray);
         ctx->drawIndexAuto(quad->m_vertexArray->numVerts());
         ctx->setDepthControl(DepthControl::kEnable);
-
-#if DRAW_SSAO_DEBUG_VIS
-        // render ssao debug vis
-        {
-            // read out data from buffer
-            glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-            SSAODebugVisData* debugVisDataPtr = reinterpret_cast<SSAODebugVisData*>(glMapNamedBuffer(m_ssaoDebugVisBuffer->m_ssbo, GL_READ_WRITE));
-            memcpy(&m_ssaoDebugVisData, debugVisDataPtr, sizeof(SSAODebugVisData));
-            glUnmapNamedBuffer(m_ssaoDebugVisBuffer->m_ssbo);
-
-            // draw debug sample points
-            int numDebugPoints = m_ssaoDebugVisData.numSamplePoints;
-            if (!m_freezeDebugLines)
-            {
-                m_ssaoSamplePoints.reset();
-                for (int i = 0; i < numDebugPoints; ++i)
-                {
-                    m_ssaoSamplePoints.push(vec4ToVec3(m_ssaoDebugVisData.intermSamplePoints[i]));
-                }
-            }
-            m_ssaoSamplePoints.draw();
-
-            // draw debug lines
-            {
-                glm::vec3 v0, v1;
-                v0 = vec4ToVec3(m_ssaoDebugVisData.samplePointWS);
-                v1 = v0 + vec4ToVec3(m_ssaoDebugVisData.normal);
-                if (!m_freezeDebugLines)
-                    m_ssaoDebugVisLines.normal.setVerts(v0, v1);
-                m_ssaoDebugVisLines.normal.draw();
-            }
-
-            {
-                glm::vec3 v0, v1;
-                v0 = vec4ToVec3(m_ssaoDebugVisData.samplePointWS);
-                v1 = v0 + vec4ToVec3(m_ssaoDebugVisData.projectedNormal);
-                if (!m_freezeDebugLines)
-                    m_ssaoDebugVisLines.projectedNormal.setVerts(v0, v1);
-                m_ssaoDebugVisLines.projectedNormal.draw();
-            }
-
-            {
-                glm::vec3 v0, v1;
-                v0 = vec4ToVec3(m_ssaoDebugVisData.samplePointWS);
-                v1 = v0 + vec4ToVec3(m_ssaoDebugVisData.wo);
-                if (!m_freezeDebugLines)
-                    m_ssaoDebugVisLines.wo.setVerts(v0, v1);
-                m_ssaoDebugVisLines.wo.draw();
-            }
-            
-            {
-                glm::vec3 v0, v1;
-                v0 = vec4ToVec3(m_ssaoDebugVisData.samplePointWS);
-                v1 = v0 + vec4ToVec3(m_ssaoDebugVisData.sliceDir);
-                if (!m_freezeDebugLines)
-                    m_ssaoDebugVisLines.sliceDir.setVerts(v0, v1);
-                m_ssaoDebugVisLines.sliceDir.draw();
-            }
-
-            int numDebugLines = m_ssaoDebugVisData.numSampleLines;
-            for (int i = 0; i < numDebugLines; ++i)
-            {
-                glm::vec3 v0, v1;
-                v0 = vec4ToVec3(m_ssaoDebugVisData.samplePointWS);
-                v1 = vec4ToVec3(m_ssaoDebugVisData.sampleVec[i]);
-                if (!m_freezeDebugLines)
-                {
-                    m_ssaoDebugVisLines.samples[i].setVerts(v0, v1);
-                }
-                m_ssaoDebugVisLines.samples[i].draw();
-            }
-        }
-#endif
     }
 
-    // TODO: render scene depth & normal to compute ao results first
     void Renderer::renderScene(Scene* scene, Camera& camera)
     {
         // camera
         setUniform(u_cameraView, (void*)&camera.view[0]);
         setUniform(u_cameraProjection, (void*)&camera.projection[0]);
 
-#if DRAW_DEBUG
-        DirectionalShadowPass::drawDebugLines(u_cameraView, u_cameraProjection);
-#endif
         // lights
         LightingEnvironment lighting = { 
             scene->pLights,
             scene->dLights,
-            scene->m_currentProbe,
+            scene->m_distantProbe,
             scene->m_irradianceProbe,
             scene->m_reflectionProbe,
             false

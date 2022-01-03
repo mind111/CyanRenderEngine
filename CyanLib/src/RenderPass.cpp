@@ -111,11 +111,10 @@ namespace Cyan
         }
 
         // ssao pass
+        // todo: move this to a proper place
         {
             renderer->renderSSAO(m_scene->getActiveCamera());
-            // todo: move this to a proper place
             // gaussian blur
-#if 1
             for (u32 i = 0; i < 1; ++i)
             {
                 void* mem = renderer->m_frameAllocator.alloc(sizeof(GaussianBlurPass));
@@ -130,7 +129,6 @@ namespace Cyan
                 );
                 ssaoBlurPass->render();
             }
-#endif
         }
 
         // full lighting pass

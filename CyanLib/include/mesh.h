@@ -37,6 +37,7 @@ namespace Cyan
         void onFinishLoading();
         MeshInstance* createInstance(Scene* scene);
         u32 numSubMeshes();
+        u32 numTriangles();
         MeshRayHit bruteForceIntersectRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd);
         MeshRayHit bvhIntersectRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd);
         MeshRayHit intersectRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd);

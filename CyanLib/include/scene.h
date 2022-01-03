@@ -20,7 +20,7 @@ struct LightingEnvironment
 {
     std::vector<PointLight>& m_pLights;
     std::vector<DirectionalLight>& m_dirLights;
-    DistantLightProbe* m_probe;
+    DistantLightProbe* m_distantProbe;
     Cyan::IrradianceProbe* irradianceProbe;
     Cyan::ReflectionProbe* localReflectionProbe;
     bool bUpdateProbeData;
@@ -48,8 +48,7 @@ struct Scene
     RegularBuffer* m_dirLightsBuffer;
     Cyan::IrradianceProbe* m_irradianceProbe;
     Cyan::ReflectionProbe* m_reflectionProbe;
-    DistantLightProbe*    m_currentProbe;
-    DistantLightProbe*    m_lastProbe;
+    DistantLightProbe*    m_distantProbe;
 
     Camera& getActiveCamera()
     {
@@ -75,7 +74,7 @@ public:
     std::vector<Entity*> packEntities() { }
     void updateSceneGraph(Scene* scene);
     void buildLightList(Scene* scene, std::vector<PointLightGpuData>& pLights, std::vector<DirLightGpuData>& dLights);
-    void setLightProbe(Scene* scene, DistantLightProbe* probe);
+    void setDistantLightProbe(Scene* scene, DistantLightProbe* probe);
     void createDirectionalLight(Scene* scene, glm::vec3 color, glm::vec3 direction, float intensity);
     void createPointLight(Scene* scene, glm::vec3 color, glm::vec3 position, float intensity);
     Entity* createEntity(Scene* scene, const char* entityName, Transform transform, bool isStatic, Entity* parent=nullptr);

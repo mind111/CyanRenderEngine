@@ -91,10 +91,9 @@ SceneManager* SceneManager::getSingletonPtr()
     return s_sceneManager;
 }
 
-void SceneManager::setLightProbe(Scene* scene, DistantLightProbe* probe)
+void SceneManager::setDistantLightProbe(Scene* scene, DistantLightProbe* probe)
 {
-    scene->m_lastProbe = scene->m_currentProbe;
-    scene->m_currentProbe = probe;
+    scene->m_distantProbe = probe;
 }
 
 Entity* SceneManager::createEntity(Scene* scene, const char* entityName, Transform transform, bool isStatic, Entity* parent)

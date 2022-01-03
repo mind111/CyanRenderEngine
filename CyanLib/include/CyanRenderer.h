@@ -115,7 +115,7 @@ namespace Cyan
             RegularBuffer* dirLightsBuffer;
             std::vector<PointLightGpuData> pLights;
             std::vector<DirLightGpuData> dLights;
-            DistantLightProbe* probe;
+            DistantLightProbe* distantProbe;
             IrradianceProbe* irradianceProbe;
             ReflectionProbe* reflectionProbe;
             bool bUpdateProbe;

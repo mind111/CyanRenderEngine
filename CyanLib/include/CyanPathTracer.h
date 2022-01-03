@@ -19,6 +19,18 @@ namespace Cyan
         glm::vec3 flatColor;
     };
 
+    struct IrradianceRecord
+    {
+        glm::vec3 indirectIrradiance;
+        glm::vec3 position;
+        glm::vec3 normal;
+    };
+
+    struct IrradianceCache
+    {
+        static std::vector<IrradianceRecord> cache;
+    };
+
     class PathTracer
     {
     public:
@@ -63,8 +75,8 @@ namespace Cyan
         // constants
         const u32 numPixelsInX = 640u;
         const u32 numPixelsInY = 360u;
-        const u32 sppxCount = 8u;
-        const u32 sppyCount = 8u;
+        const u32 sppxCount = 1u;
+        const u32 sppyCount = 1u;
         const u32 numChannelPerPixel = 3u;
 
         enum RenderMode
@@ -76,6 +88,7 @@ namespace Cyan
         glm::vec3 m_skyColor;
         Texture* m_texture;
         Scene* m_scene;
+        std::vector<Entity*> m_staticEntities;
         std::vector<TriMaterial> m_sceneMaterials;
         float* m_pixels;
 

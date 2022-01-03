@@ -18,6 +18,8 @@
     * integrate hosek skylight model && study about using photometric lighting units different type of light sources
         * physically based lighting units
         * practical sky rendering
+    * irradiance caching
+    * irradiance gradients
     * irradiance volume
     * fix GTAO
     * gltf-2.0 assets loading (sort of done)

@@ -13,6 +13,7 @@ namespace Cyan
             m_normalization = Toolkit::computeMeshNormalization(this);
         else
             Toolkit::computeAABB(this);
+        cyanInfo("%s mesh has %u triangles", m_name.c_str(), numTriangles());
         timer.end();
     }
 
@@ -138,6 +139,14 @@ namespace Cyan
     u32 Mesh::numSubMeshes()
     {
         return (u32)m_subMeshes.size();
+    }
+
+    u32 Mesh::numTriangles()
+    {
+        u32 numTriangles = 0;
+        for (u32 sm = 0; sm < m_subMeshes.size(); ++sm)
+            numTriangles += (m_subMeshes[sm]->m_numIndices / 3);
+        return numTriangles;
     }
 
     void MeshInstance::setMaterial(u32 index, MaterialInstance* matl)

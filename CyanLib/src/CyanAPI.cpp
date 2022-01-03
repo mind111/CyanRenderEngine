@@ -197,8 +197,7 @@ namespace Cyan
         Scene* scene = new Scene;
         scene->m_name = std::string(name);
 
-        scene->m_lastProbe = nullptr;
-        scene->m_currentProbe = nullptr;
+        scene->m_distantProbe = nullptr;
         scene->m_rootEntity = nullptr;
         // create root entity
         scene->m_rootEntity = SceneManager::getSingletonPtr()->createEntity(scene, "SceneRoot", Transform(), true);
@@ -208,7 +207,6 @@ namespace Cyan
         return scene;
     }
 
-    // TODO: implement this
     Shader* createVsGsPsShader(const char* name, const char* vsSrc, const char* gsSrc, const char* fsSrc)
     {
         using ShaderEntry = std::pair<std::string, u32>;

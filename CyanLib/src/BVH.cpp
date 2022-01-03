@@ -1,5 +1,6 @@
 #include "BVH.h"
 #include "Mesh.h"
+#include "CyanAPI.h"
 
 namespace Cyan
 {
@@ -47,6 +48,8 @@ namespace Cyan
     // TODO: improve the tree by not choosing the split axis randomly 
     void MeshBVH::build()
     {
+        Toolkit::ScopedTimer timer("MeshBVH::build()", true);
+        cyanInfo("Building bvh for %s mesh", m_owner->m_name.c_str());
         root = allocNode(); 
 
         // fix rand() seed
@@ -54,9 +57,36 @@ namespace Cyan
         recursiveBuild(0, (u32)leafNodes.size(), root);
     }
 
+    i32 sortAlongX(const void* a,  const void* b)
+    {
+        auto nodeA = static_cast<const BVHNode*>(a);
+        auto nodeB = static_cast<const BVHNode*>(b);
+        f32 centerA = (nodeA->m_aabb.m_pMin.x + nodeA->m_aabb.m_pMax.x) * .5f;
+        f32 centerB = (nodeB->m_aabb.m_pMin.x + nodeB->m_aabb.m_pMax.x) * .5f;
+        return centerA < centerB ? -1 : 1;
+    }
+
+    i32 sortAlongY(const void* a,  const void* b)
+    {
+        auto nodeA = static_cast<const BVHNode*>(a);
+        auto nodeB = static_cast<const BVHNode*>(b);
+        f32 centerA = (nodeA->m_aabb.m_pMin.y + nodeA->m_aabb.m_pMax.y) * .5f;
+        f32 centerB = (nodeB->m_aabb.m_pMin.y + nodeB->m_aabb.m_pMax.y) * .5f;
+        return centerA < centerB ? -1 : 1;
+    }
+
+    i32 sortAlongZ(const void* a,  const void* b)
+    {
+        auto nodeA = static_cast<const BVHNode*>(a);
+        auto nodeB = static_cast<const BVHNode*>(b);
+        f32 centerA = (nodeA->m_aabb.m_pMin.z + nodeA->m_aabb.m_pMax.z) * .5f;
+        f32 centerB = (nodeB->m_aabb.m_pMin.z + nodeB->m_aabb.m_pMax.z) * .5f;
+        return centerA < centerB ? -1 : 1;
+    }
+
     void MeshBVH::recursiveBuild(u32 start, u32 end, BVHNode* node)
     {
-        // terminate when we arive at a leaf node where there is only single triangle
+        // terminate when we arrive at a leaf node where there is only single triangle
         if (end - start <= 1)
         {
             node->m_mesh = m_owner;
@@ -65,44 +95,6 @@ namespace Cyan
             node->m_triangleIndex = leafNodes[start].m_triangleIndex;
             return;
         }
-
-        // sort sub triangle groups and divide evenly
-        auto sortAlongX = [](const void* a,  const void* b)
-        {
-            auto nodeA = static_cast<const BVHNode*>(a);
-            auto nodeB = static_cast<const BVHNode*>(b);
-            f32 centerA = (nodeA->m_aabb.m_pMin.x + nodeA->m_aabb.m_pMax.x) * .5f;
-            f32 centerB = (nodeA->m_aabb.m_pMin.x + nodeA->m_aabb.m_pMax.x) * .5f;
-            if (centerA < centerB)
-                return -1;
-            else
-                return 1; 
-        };
-
-        auto sortAlongY = [](const void* a,  const void* b)
-        {
-            auto nodeA = static_cast<const BVHNode*>(a);
-            auto nodeB = static_cast<const BVHNode*>(b);
-            f32 centerA = (nodeA->m_aabb.m_pMin.x + nodeA->m_aabb.m_pMax.y) * .5f;
-            f32 centerB = (nodeA->m_aabb.m_pMin.x + nodeA->m_aabb.m_pMax.y) * .5f;
-            if (centerA < centerB)
-                return -1;
-            else
-                return 1; 
-        };
-
-        auto sortAlongZ = [](const void* a,  const void* b)
-        {
-            auto nodeA = static_cast<const BVHNode*>(a);
-            auto nodeB = static_cast<const BVHNode*>(b);
-            f32 centerA = (nodeA->m_aabb.m_pMin.z + nodeA->m_aabb.m_pMax.z) * .5f;
-            f32 centerB = (nodeA->m_aabb.m_pMin.z + nodeA->m_aabb.m_pMax.z) * .5f;
-            if (centerA < centerB)
-                return -1;
-            else
-                return 1; 
-        };
-
         u32 axis = rand() % 3u;
         if (axis == 0)
             std::qsort(leafNodes.data(), end - start, sizeof(BVHNode), sortAlongX);
