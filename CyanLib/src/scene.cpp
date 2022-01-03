@@ -13,13 +13,14 @@
 RayCastInfo Scene::castRay(glm::vec3& ro, glm::vec3& rd, EntityFilter filter, bool debugPrint)
 {
     RayCastInfo closestHit;
-    for (auto entity : entities)
+    for (u32 i = 0; i < entities.size();  ++i)
     {
+        auto entity = entities[i];
         bool flag = true;
         switch (filter)
         {
             case EntityFilter::BakeInLightMap:
-                flag = entity->m_static; 
+                flag = entity->m_static;
                 break;
             default:
                 printf("Unknown entity filter! \n");

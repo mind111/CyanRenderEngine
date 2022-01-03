@@ -342,8 +342,7 @@ namespace Cyan
         }
     }
 
-    // todo: debug shadow leaking ...
-    void bakeWorker(LightMap* lightMap, std::vector<u32>& texelIndices, u32 start, u32 end, u32 overlappedTexelCount)
+    void LightMapManager::bakeWorker(LightMap* lightMap, std::vector<u32>& texelIndices, u32 start, u32 end, u32 overlappedTexelCount)
     {
         const f32 EPSILON = 0.0001f;
         PathTracer* pathTracer = PathTracer::getSingletonPtr();
@@ -355,6 +354,7 @@ namespace Cyan
             glm::vec4 texCoord = lightMap->m_bakingData[index].texCoord;
             glm::vec3 ro = worldPos + normal * EPSILON;
             glm::vec3 irradiance = pathTracer->importanceSampleIrradiance(ro, normal);
+            progressCounter.fetch_add(1);
             u32 px = floor(texCoord.x);
             u32 py = floor(texCoord.y);
 #if SUPER_SAMPLING
@@ -362,9 +362,6 @@ namespace Cyan
 #else
             lightMap->setPixel(px, py, irradiance);
 #endif
-            u32 numBakedTexels = LightMapManager::progressCounter.fetch_add(1u);
-            printf("\r[Info] Baked %d texels ... %.2f%%", numBakedTexels, ((f32)numBakedTexels * 100.f / overlappedTexelCount));
-            fflush(stdout);
         }
     }
 
@@ -398,8 +395,15 @@ namespace Cyan
         {
             u32 start = workGroupPixelCount * i;
             u32 end = min(start + workGroupPixelCount, overlappedTexelCount);
-            workers[i] = new std::thread(bakeWorker, lightMap, std::ref(texelIndices), start, end, overlappedTexelCount);
+            workers[i] = new std::thread(&LightMapManager::bakeWorker, this, lightMap, std::ref(texelIndices), start, end, overlappedTexelCount);
         }
+        // log progress
+        while (progressCounter.load() < overlappedTexelCount)
+        {
+            printf("\r[Info] Baked %d/%d texels ... %.2f%%", progressCounter.load(), overlappedTexelCount, ((f32)progressCounter.load() * 100.f / overlappedTexelCount));
+            fflush(stdout);
+        }
+
         for (u32 i = 0; i < workGroupCount; ++i)
             workers[i]->join();
         printf("\n");

@@ -10,14 +10,18 @@
 /* 
     * todo: (Feature) integrate intel's open image denoiser
     * todo: (Optimization) think about how can I further improve performance
-    * todo: (Bug) debug invalid barycentric coord computed for some ray intersections.
-    * todo: (Bug) debug weird "black" vertical line in the final render, increasing "EPSILON" seems alleviate the issue."
+    * todo: treat the sun light as a disk area light source
 */
 
 // Is 2mm of an offset too large..?
 #define EPSILON 0.002f
+#define POST_PROCESSING 1
+
 namespace Cyan
 {
+    glm::vec3 ACESFilm(const glm::vec3& color);
+    glm::vec3 gammaCorrect(const glm::vec3& color, f32 gamma);
+
     PathTracer* PathTracer::m_singleton = nullptr;
     std::atomic<u32> PathTracer::progressCounter(0u);
 
@@ -25,17 +29,14 @@ namespace Cyan
     : m_scene(nullptr)
     , m_pixels(nullptr)
     , m_texture(nullptr)
-    , m_checkPoint(0u)
-    , m_numTracedPixels(0u)
-    , numAccumulatedSamples(0)
     , m_skyColor(0.328f, 0.467f, 1.f)
-    , m_renderMode(RenderMode::BakeLightmap)
+    , m_renderMode(RenderMode::Render)
     {
         if (!m_singleton)
         {
             u32 bytesPerPixel = sizeof(float) * 3;
             u32 numPixels = numPixelsInX * numPixelsInY;
-            m_pixels = (float*)new char[bytesPerPixel * numPixels];
+            m_pixels = (float*)new char[(u64)(bytesPerPixel * numPixels)];
             auto textureManager = TextureManager::getSingletonPtr();
             TextureSpec spec = { }; 
             spec.m_type   = Texture::Type::TEX_2D;
@@ -85,7 +86,6 @@ namespace Cyan
 
     void PathTracer::renderWorker(u32 start, u32 end, Camera& camera, u32 totalNumRays)
     {
-        glm::vec3 color(0.f);
         f32 aspectRatio = (f32)numPixelsInX / numPixelsInY;
         f32 w = camera.n * glm::tan(glm::radians(.5f * 45.f));
         f32 pixelSize = 1.f / (f32)numPixelsInY;
@@ -100,6 +100,7 @@ namespace Cyan
             pixelCenterCoord.y = ((f32)py / (f32)numPixelsInY) * 2.f - 1.f;
 
             // stratified sampling
+            glm::vec3 color(0.f);
             for (u32 spx = 0; spx < sppxCount; ++spx)
             {
                 for (u32 spy = 0; spy < sppyCount; ++spy)
@@ -117,20 +118,28 @@ namespace Cyan
                                            + camera.up      * sampleScreenCoord.y * w);
                     auto hit = traceScene(ro, rd);
                     color += renderSurface(hit, ro, rd, getHitMaterial(hit));
-
-                    u32 numTracedRays = progressCounter.fetch_add(1u);
-                    printf("\r[Info] Traced %d rays ... %.2f%%", numTracedRays, ((f32)numTracedRays * 100.f / totalNumRays));
-                    fflush(stdout);
+                    progressCounter.fetch_add(1);
                 }
             }
-
             color /= (sppxCount * sppyCount);
+#if POST_PROCESSING
+            // post-processing
+            {
+                // tone mapping
+                auto toneMappedColor = ACESFilm(color);
+                // gamma correction
+                auto finalColor = gammaCorrect(toneMappedColor, .4545f);
+                setPixel(px, py, finalColor);
+            }
+#else
             setPixel(px, py, color);
+#endif
         }
     }
 
     void PathTracer::renderSceneMultiThread(Camera& camera)
     {
+        Cyan::Toolkit::ScopedTimer timer("PathTracer::renderSceneMultiThread", true);
         u32 numPixels = numPixelsInX * numPixelsInY;
         u32 totalNumRays = numPixels * sppxCount * sppyCount;
 
@@ -145,9 +154,24 @@ namespace Cyan
             u32 end = min(start + workGroupPixelCount, numPixels);
             workers[i] = new std::thread(&PathTracer::renderWorker, this, start, end, std::ref(camera), totalNumRays);
         }
+
+        // let the main thread monitor the progress
+        while (progressCounter.load() < totalNumRays)
+        {
+            printf("\r[Info] Traced %d rays ... %.2f%%", progressCounter.load(), ((f32)progressCounter.load() * 100.f / totalNumRays));
+            fflush(stdout);
+        }
+
         for (u32 i = 0; i < workGroupCount; ++i)
             workers[i]->join();
         printf("\n");
+
+        // copy data to gpu texture
+        {
+            glBindTexture(GL_TEXTURE_2D, m_texture->m_id);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, numPixelsInX, numPixelsInY, GL_RGB, GL_FLOAT, m_pixels);
+            glBindTexture(GL_TEXTURE_2D, 0);
+        }
 
         // free resources
         progressCounter = 0;
@@ -163,6 +187,8 @@ namespace Cyan
         f32 pixelSize = 1.f / (f32)numPixelsInY;
         f32 subPixelSize = pixelSize / (f32)sppxCount;
         u32 subPixelSampleCount = sppxCount * sppyCount;
+        totalNumRays *= subPixelSampleCount;
+        u32 numTracedRays = 0;
 
         for (u32 x = 0u; x < numPixelsInX; ++x)
         {
@@ -192,16 +218,15 @@ namespace Cyan
 
                         auto hit = traceScene(ro, rd);
                         pixelColor += renderSurface(hit, ro, rd, getHitMaterial(hit));
+
+                        {
+                            numTracedRays += 1;
+                            printf("\r[Info] Traced %u/%u  ...%.2f%", numTracedRays, totalNumRays, (f32)numTracedRays * 100.f / totalNumRays);
+                            fflush(stdout);
+                        }
                     }
                 }
-
-                setPixel(x, numPixelsInY - y - 1, pixelColor / (f32)subPixelSampleCount);
-
-                {
-                    m_numTracedPixels += 1;
-                    printf("\rPath tracing progress ...%.2f%", (f32)m_numTracedPixels * 100.f / totalNumRays);
-                    fflush(stdout);
-                }
+                setPixel(x, y, pixelColor / (f32)subPixelSampleCount);
             }
         }
 
@@ -298,7 +323,7 @@ namespace Cyan
         {
             glm::vec3 lightDir = dirLight.direction;
             // trace shadow ray
-            f32 shadow = traceShadowRay(hitPosition + EPSILON * normal, lightDir);
+            f32 shadow = traceShadowRay(hitPosition, lightDir);
             f32 ndotl = max(glm::dot(normal, lightDir), 0.f);
             glm::vec3 Li = vec4ToVec3(dirLight.color) * dirLight.color.w * shadow;
             color += Li * ndotl;
@@ -306,7 +331,7 @@ namespace Cyan
         return color;
     }
 
-    glm::vec3 gammaCorrect(glm::vec3& color, f32 gamma)
+    glm::vec3 gammaCorrect(const glm::vec3& color, f32 gamma)
     {
         return glm::vec3(pow(color.r, gamma), pow(color.g, gamma), pow(color.b, gamma));
     }
@@ -330,17 +355,15 @@ namespace Cyan
     {
         glm::vec3 exitRadiance(0.f);
 
-        // direct
-        {
-            exitRadiance += computeDirectSkyLight(ro, n);
-            exitRadiance += computeDirectLighting(ro, n);
-        }
+        // direct 
+        exitRadiance += computeDirectSkyLight(ro, n);
+        exitRadiance += computeDirectLighting(ro, n);
 
         // stop recursion
         if (numBounces >= 3)
             return exitRadiance;
 
-        glm::vec3 rd = uniformSampleHemiSphere(n);
+        glm::vec3 rd = cosineWeightedSampleHemiSphere(n);
 
         // ray cast
         auto nextRayHit = m_scene->castRay(ro, rd, EntityFilter::BakeInLightMap);
@@ -355,13 +378,15 @@ namespace Cyan
 
             // avoid self-intersecting
             nextBounceRo += EPSILON * nextBounceNormal;
-
+ 
             // indirect
-            // todo: is there any better attenuation ..?
             f32 indirectBoost = 1.0f;
-            exitRadiance += (indirectBoost * recursiveTraceDiffuse(nextBounceRo, nextBounceNormal, numBounces + 1, matl) * max(glm::dot(n, rd), 0.f));
+
+            // exitRadiance += (indirectBoost * recursiveTraceDiffuse(nextBounceRo, nextBounceNormal, numBounces + 1, matl) * max(glm::dot(n, rd), 0.f));
+            // the cosine geometric term is cancelled with the pdf
+            exitRadiance += (indirectBoost * recursiveTraceDiffuse(nextBounceRo, nextBounceNormal, numBounces + 1, matl));
         }
-        return exitRadiance * matl.flatColor;
+        return exitRadiance * (matl.flatColor * INV_PI);
     }
 
     void PathTracer::preprocessSceneData()
@@ -388,7 +413,8 @@ namespace Cyan
                             f32 hasDiffuseMap = node->m_meshInstance->m_matls[sm]->getF32("uMaterialProps.hasDiffuseMap");
                             if (hasDiffuseMap < .5f)
                             {
-                                matl.flatColor = vec4ToVec3(node->m_meshInstance->m_matls[sm]->getVec4("flatColor"));
+                                // assume that the input color value is in sRGB space
+                                matl.flatColor = gammaCorrect(vec4ToVec3(node->m_meshInstance->m_matls[sm]->getVec4("flatColor")), 2.2f);
                                 matl.diffuseTex = nullptr;
                             }
                         }
@@ -404,9 +430,6 @@ namespace Cyan
     {
         switch (m_renderMode)
         {
-            case RenderMode::BakeLightmap:
-                bakeScene(camera);
-                break;
             case RenderMode::Render:
 #if 0
                 renderScene(camera);
@@ -422,11 +445,13 @@ namespace Cyan
 
     f32 saturate(f32 val)
     {
-        return glm::clamp(val, 0.f, 1.f);
+        if (val < 0.f) val = 0.f;
+        if (val > 1.f) val = 1.f;
+        return val;
     }
 
     // reference: https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/
-    glm::vec3 ACESFilm(glm::vec3 x)
+    glm::vec3 ACESFilm(const glm::vec3& x)
     {
         f32 a = 2.51f;
         f32 b = 0.03f;
@@ -442,127 +467,34 @@ namespace Cyan
         return m_sceneMaterials[hit.m_node->m_meshInstance->m_rtMatls[hit.smIndex]];
     }
 
-    void PathTracer::bakeScene(Camera& camera)
-    {
-        // todo: split the work into 8 threads?
-        f32 aspectRatio = (f32)numPixelsInX / numPixelsInY;
-        f32 w = camera.n * glm::tan(glm::radians(.5f * 45.f));
-        u32 totalNumRays = numPixelsInX * numPixelsInY; 
-        f32 pixelSize = 1.f / (f32)numPixelsInY;
-        f32 subPixelSize = pixelSize / (f32)sppxCount;
-        u32 subPixelSampleCount = sppxCount * sppyCount;
-
-        for (u32 x = 0u; x < numPixelsInX; ++x)
-        {
-            for (u32 y = 0u; y < numPixelsInY; ++y)
-            {
-                glm::vec3 pixelColor(0.f);
-                glm::vec2 pixelCenterCoord;
-                pixelCenterCoord.x = ((f32)x / (f32)numPixelsInX) * 2.f - 1.f;
-                pixelCenterCoord.y = ((f32)y / (f32)numPixelsInY) * 2.f - 1.f;
-
-                // stratified sampling
-                for (u32 spx = 0; spx < sppxCount; ++spx)
-                {
-                    for (u32 spy = 0; spy < sppyCount; ++spy)
-                    {
-                        glm::vec2 subPixelOffset((f32)spx * subPixelSize, (f32)spy * subPixelSize);
-                        // jitter the sub pixel samples
-                        glm::vec2 jitter = glm::vec2(subPixelSize) * glm::vec2(uniformSampleZeroToOne(), uniformSampleZeroToOne());
-                        subPixelOffset += jitter;
-                        glm::vec2 sampleScreenCoord = pixelCenterCoord + subPixelOffset;
-                        sampleScreenCoord.x *= aspectRatio;
-
-                        glm::vec3 ro = camera.position;
-                        glm::vec3 rd = normalize(camera.forward * camera.n
-                                            + camera.right   * sampleScreenCoord.x * w 
-                                            + camera.up      * sampleScreenCoord.y * w);
-
-                        auto hit = traceScene(ro, rd);
-                        if (hit.t > 0.f)
-                        {
-                            pixelColor += bakeSurface(hit, ro, rd, getHitMaterial(hit));
-                        }
-                    }
-                }
-
-                // tone mapping here
-                glm::vec3 finalColor = pixelColor / (f32)subPixelSampleCount;
-                {
-                    finalColor = ACESFilm(finalColor);
-                    finalColor = gammaCorrect(finalColor, 0.45f);
-                }
-
-                setPixel(x, numPixelsInY - y - 1, finalColor);
-
-                {
-                    m_numTracedPixels += 1;
-                    printf("\r[Info]: Path tracing progress ...%.2f%", (f32)m_numTracedPixels * 100.f / totalNumRays);
-                    fflush(stdout);
-                }
-            }
-        }
-
-        // copy data to gpu texture
-        {
-            glBindTexture(GL_TEXTURE_2D, m_texture->m_id);
-            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, numPixelsInX, numPixelsInY, GL_RGB, GL_FLOAT, m_pixels);
-            glBindTexture(GL_TEXTURE_2D, 0);
-        }
-    }
-
     glm::vec3 PathTracer::renderSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd, TriMaterial& matl)
     {
-        glm::vec3 surfaceColor(0.f);
+        glm::vec3 radiance(0.f);
         if (hit.t > 0.f)
         {
             glm::vec3 hitPosition = ro + rd * hit.t;
-
             auto mesh = hit.m_node->m_meshInstance->m_mesh;
             auto tri = mesh->getTriangle(hit.smIndex, hit.triIndex); 
             auto& triangles = mesh->m_subMeshes[hit.smIndex]->m_triangles;
 
-            glm::vec3 albedo(1.f);
-
             // compute barycentric coord of the surface point that we hit 
             glm::vec3 baryCoord = computeBaryCoordFromHit(hit, hitPosition);
             glm::vec3 normal = getSurfaceNormal(hit, baryCoord);
+            hitPosition += normal * EPSILON;
 
-    #if 0
-            // texCoord
-            glm::vec3 texCoord = baryCoord.x * triangles.m_texCoordArray[vertexOffset]
-                                + baryCoord.y * triangles.m_texCoordArray[vertexOffset + 1]
-                                + baryCoord.z * triangles.m_texCoordArray[vertexOffset + 2];
-            texCoord.x = texCoord.x < 0.f ? 1.f + texCoord.x : texCoord.x;
-            texCoord.y = texCoord.y < 0.f ? 1.f + texCoord.y : texCoord.y;
+            // back face hit
+            if (glm::dot(normal, rd) > 0) return radiance;
 
-            if (albedoTexture->m_data)
-                texelFetch(albedoTexture, texCoord); 
-            else
-                albedo = normal * .5f + glm::vec3(.5f);
-            albedo = glm::vec3(texCoord.x, texCoord.y, 0.0f);
-    #endif
-
-            //direct lighting
-            for (auto dirLight : m_scene->dLights)
-            {
-                glm::vec3 lightDir = dirLight.direction;
-                // trace shadow ray
-                f32 shadow = traceShadowRay(hitPosition + EPSILON * normal, lightDir);
-
-                f32 ndotl = max(glm::dot(normal, lightDir), 0.f);
-                glm::vec3 fr = (albedo / M_PI);
-                glm::vec3 Li = vec4ToVec3(dirLight.color) * dirLight.color.w * shadow;
-                surfaceColor += Li * fr * ndotl;
-            }
-
-            // indirect lighting
-            {
-                glm::vec3 indirectRo = hitPosition + EPSILON * normal;
-                surfaceColor += recursiveTraceDiffuse(indirectRo, normal, 2, matl);
-            }
+            // direct + indirect (diffuse interreflection)
+            radiance += recursiveTraceDiffuse(hitPosition, normal, 0, getHitMaterial(hit));
+            radiance *= sampleAo(hitPosition, normal, 8);
         }
-        return surfaceColor;
+        return radiance;
+    }
+
+    void PathTracer::postProcess()
+    {
+        // not implemented
     }
 
     // todo: make diffuse lambert reflectance into account when bouncing indirect light
@@ -636,12 +568,21 @@ namespace Cyan
         return m_scene->castRay(ro, rd, EntityFilter::BakeInLightMap);
     }
 
-    f32 PathTracer::sampleAo(glm::vec3& samplePos, glm::vec3& n)
+    f32 PathTracer::sampleAo(glm::vec3& samplePos, glm::vec3& n, u32 numSamples)
     {
-        return 1.f;
+        f32 visibility = 1.f;
+        for (u32 i = 0; i < numSamples; ++i)
+        {
+            glm::vec3 sampleDir = cosineWeightedSampleHemiSphere(n);
+            auto hit = m_scene->castRay(samplePos, sampleDir, EntityFilter::BakeInLightMap);
+            if (hit.t > 0.f)
+            {
+                visibility -= (1.f / (f32)numSamples) * saturate(1.f / (1.f + hit.t));
+            }
+        }
+        return visibility;
     }
 
-    // todo: importance sampling the cosine lobe
     glm::vec3 PathTracer::sampleIrradiance(glm::vec3& samplePos, glm::vec3& n)
     {
         const u32 numSamples = 8;
@@ -675,12 +616,11 @@ namespace Cyan
             if (hit.t > 0.f)
             {
                 auto& matl = m_sceneMaterials[hit.m_node->m_meshInstance->m_rtMatls[hit.smIndex]];
-                // todo: instead of only consider diffuse reflections along the path, also include indirect specular
-                auto radiance = bakeSurface(hit, samplePos, rd, matl);
-                irradiance += radiance * max(glm::dot(rd, n), 0.f) * (1.f / M_PI);
+                auto radiance = renderSurface(hit, samplePos, rd, matl);
+                irradiance += radiance;
             }
             else
-                irradiance += m_skyColor * max(glm::dot(rd, n), 0.f);
+                irradiance += m_skyColor;
         }
         irradiance /= numSamples;
         return irradiance;

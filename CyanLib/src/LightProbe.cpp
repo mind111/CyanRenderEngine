@@ -167,7 +167,7 @@ namespace Cyan
     }
 
     ReflectionProbe::ReflectionProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene)
-        : Entity(scene, name , id, Transform(), parent, true), m_scene(scene)
+        : Entity(scene, name , id, Transform(), parent, false), m_scene(scene)
     {
         if (!m_renderTarget)
         {

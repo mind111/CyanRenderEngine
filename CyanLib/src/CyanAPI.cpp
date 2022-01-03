@@ -1071,7 +1071,7 @@ namespace Cyan
         }
 
         // TODO: This call uses a lot of memory, investigate why
-        DistantLightProbe createLightProbe(const char* name, const char* file, bool hdr)
+        DistantLightProbe createDistantLightProbe(const char* name, const char* file, bool hdr)
         {
             DistantLightProbe probe = { };
             probe.m_baseCubeMap = Toolkit::loadEquirectangularMap(name, file, hdr);

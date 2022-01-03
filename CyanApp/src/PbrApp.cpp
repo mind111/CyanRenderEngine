@@ -189,12 +189,13 @@ namespace Pbr
     }
 }
 
-#define SCENE_DEMO_00
+// #define SCENE_DEMO_00
+#define SCENE_SPONZA
 
 enum Scenes
 {
     Demo_Scene_00 = 0,
-    Factory_Scene,
+    Sponza_Scene,
     kCount
 };
 
@@ -215,7 +216,7 @@ PbrApp::PbrApp()
     gApp = this;
     m_scenes.resize(Scenes::kCount, nullptr);
     activeDebugViewTexture = nullptr;
-    m_currentDebugView = 0;
+    m_currentDebugView = -1;
 }
 
 bool PbrApp::mouseOverUI()
@@ -500,15 +501,63 @@ void PbrApp::initDemoScene00()
         auto planeMatl = createStandardPbrMatlInstance(demoScene00, params, room->m_static);
         room->setMaterial("PlaneMesh", -1, planeMatl);
 #endif
+        // path tracing
+        {
+            auto pathTracer = Cyan::PathTracer::getSingletonPtr();
+            pathTracer->m_renderMode = Cyan::PathTracer::RenderMode::Render;
+            pathTracer->setScene(m_scenes[Scenes::Demo_Scene_00]);
+            pathTracer->run(m_scenes[m_currentScene]->getActiveCamera());
+        }
     }
     timer.end();
 }
 
-void PbrApp::initFactoryScene()
+void PbrApp::pathTraceScene(Scene* scene)
 {
-    Cyan::Toolkit::GpuTimer timer("initFactoryScene()", true);
-    m_scenes[Scenes::Factory_Scene] = Cyan::createScene("factory_scene", "../../scene/default_scene/scene_factory.json");
-    timer.end();
+
+}
+
+void PbrApp::initSponzaScene()
+{
+    Cyan::Toolkit::GpuTimer timer("initSponzaScene()", true);
+    m_scenes[Scenes::Sponza_Scene] = Cyan::createScene("sponza_scene", "C:\\dev\\cyanRenderEngine\\scene\\sponza_scene.json");
+    Scene* sponzaScene = m_scenes[Scenes::Sponza_Scene];
+    auto sceneManager = SceneManager::getSingletonPtr();
+
+    Entity* sponza = sceneManager->getEntity(sponzaScene, "Sponza");
+    auto sponzaNode = sponza->getSceneNode("SponzaMesh");
+    Cyan::Mesh* sponzaMesh = sponzaNode->m_meshInstance->m_mesh;
+
+#if 0
+    sponzaMesh->m_bvh = new Cyan::MeshBVH(sponzaMesh);
+    sponzaMesh->m_bvh->build();
+
+    // path tracing
+    {
+        auto pathTracer = Cyan::PathTracer::getSingletonPtr();
+        pathTracer->m_renderMode = Cyan::PathTracer::RenderMode::Render;
+        pathTracer->setScene(m_scenes[Scenes::Demo_Scene_00]);
+        pathTracer->run(m_scenes[m_currentScene]->getActiveCamera());
+    }
+#endif
+
+    // lighting
+    glm::vec3 sunDir = glm::normalize(glm::vec3(1.0f, 0.5f, 1.8f));
+    sceneManager->createDirectionalLight(sponzaScene, glm::vec3(1.0f, 0.9, 0.7f), sunDir, 3.6f);
+    // sky light
+    Entity* envMapEntity = sceneManager->createEntity(sponzaScene, "Envmap", Transform(), false);
+    envMapEntity->m_sceneRoot->attach(Cyan::createSceneNode(sponzaScene, "CubeMesh", Transform(), Cyan::getMesh("CubeMesh"), false));
+    envMapEntity->setMaterial("CubeMesh", 0, m_skyMatl);
+    envMapEntity->m_selectable = false;
+    envMapEntity->m_includeInGBufferPass = false;
+
+    // a irradiance probe
+    m_irradianceProbe = sceneManager->createIrradianceProbe(sponzaScene, glm::vec3(0.f, 2.f, 0.f));
+    // a reflection probe
+    m_reflectionProbe = sceneManager->createReflectionProbe(sponzaScene, glm::vec3(0.f, 3.f, 0.f));
+    sponzaScene->m_reflectionProbe = m_reflectionProbe;
+    // procedural sky
+    glm::vec3 groundAlbedo(1.f, 0.5f, 0.5f);
 }
 
 void PbrApp::initScenes()
@@ -525,10 +574,10 @@ void PbrApp::initScenes()
         }
     };
 
-#ifdef SCENE_FACTORY
+#ifdef SCENE_SPONZA
     {
-        initFactoryScene();
-        initCamera(m_scenes[Scenes::Factory_Scene]);
+        initSponzaScene();
+        initCamera(m_scenes[Scenes::Sponza_Scene]);
     }
 #endif
 #ifdef SCENE_DEMO_00
@@ -550,13 +599,7 @@ void PbrApp::initEnvMaps()
 {
     Cyan::Toolkit::GpuTimer timer("initEnvMaps()", true);
     // image-based-lighting
-    Cyan::Toolkit::createLightProbe("pisa", "../../asset/cubemaps/pisa.hdr",           true);
-    // Cyan::Toolkit::createLightProbe("grace-new", "../../asset/cubemaps/grace-new.hdr", true);
-    // Cyan::Toolkit::createLightProbe("glacier", "../../asset/cubemaps/glacier.hdr",     true);
-    // Cyan::Toolkit::createLightProbe("ennis", "../../asset/cubemaps/ennis.hdr",         true);
-    // Cyan::Toolkit::createLightProbe("doge2", "../../asset/cubemaps/doge2.hdr",         true);
-    // Cyan::Toolkit::createLightProbe("studio", "../../asset/cubemaps/studio_01_4k.hdr",  true);
-    // Cyan::Toolkit:: createLightProbe("fire-sky", "../../asset/cubemaps/the_sky_is_on_fire_4k.hdr",  true);
+    Cyan::Toolkit::createDistantLightProbe("pisa", "../../asset/cubemaps/pisa.hdr",           true);
 
     m_currentProbeIndex = 0u;
     m_envmap = Cyan::getProbe(m_currentProbeIndex)->m_baseCubeMap;
@@ -572,9 +615,7 @@ void PbrApp::initEnvMaps()
 
 void PbrApp::initUniforms()
 {
-    // create uniforms
-    u_kDiffuse = Cyan::createUniform("kDiffuse", Uniform::Type::u_float);
-    u_kSpecular = Cyan::createUniform("kSpecular", Uniform::Type::u_float);
+
 }
 
 void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewportPos, glm::vec2 renderSize)
@@ -598,11 +639,9 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewpo
     initUniforms();
     initEnvMaps();
     initScenes();
-#ifdef SCENE_HELMET
-    m_currentScene = Scenes::Helmet_Scene;
-#endif
-#ifdef SCENE_FACTORY
-    m_currentScene = Scenes::Factory_Scene;
+
+#ifdef SCENE_SPONZA
+    m_currentScene = Scenes::Sponza_Scene;
 #endif
 #ifdef SCENE_DEMO_00
     m_currentScene = Scenes::Demo_Scene_00;
@@ -615,13 +654,9 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewpo
     m_ui.init(gEngine->getWindow().mpWindow);
 
     // misc
-    m_roughness = 0.f;
     bRayCast = false;
     bPicking = false;
     m_selectedEntity = nullptr;
-    entityOnFocusIdx = 0;
-    Cyan::setUniform(u_kDiffuse, 1.0f);
-    Cyan::setUniform(u_kSpecular, 1.0f);
     m_debugViewIndex = 0u;
     bDisneyReparam = true;
     m_directDiffuseSlider = 1.f;
@@ -630,7 +665,6 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewpo
     m_indirectSpecularSlider = 4.0f;
     m_directLightingSlider = 1.f;
     m_indirectLightingSlider = 0.f;
-    m_wrap = 0.1f;
     m_debugRay.init();
     m_debugRay.setColor(glm::vec4(1.0f, 1.0f, 0.0f, 1.0f));
     auto renderer = Cyan::Renderer::getSingletonPtr();
@@ -672,15 +706,12 @@ void PbrApp::doPrecomputeWork()
     {
         auto ctx = Cyan::getCurrentGfxCtx();
         beginFrame();
-#if 0
-        m_probeVolume->sampleScene();
-#endif
-#if 1
         // update probe
         SceneManager::getSingletonPtr()->setLightProbe(m_scenes[m_currentScene], Cyan::getProbe(m_currentProbeIndex));
         m_envmap = Cyan::getProbe(m_currentProbeIndex)->m_baseCubeMap;
         m_envmapMatl->bindTexture("envmapSampler", m_envmap);
 
+#if 0
         auto renderer = Cyan::Renderer::getSingletonPtr();
         renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), 0);
         renderer->beginRender();
@@ -690,17 +721,9 @@ void PbrApp::doPrecomputeWork()
         // m_irradianceProbe->computeIrradiance();
         m_reflectionProbe->sampleRadiance();
         m_reflectionProbe->prefilter();
-#endif
         endFrame();
         ctx->setRenderTarget(nullptr, 0u);
-    }
-
-    // path tracing
-    {
-        auto pathTracer = Cyan::PathTracer::getSingletonPtr();
-        pathTracer->m_renderMode = Cyan::PathTracer::RenderMode::Render;
-        pathTracer->setScene(m_scenes[Scenes::Demo_Scene_00]);
-        pathTracer->run(m_scenes[m_currentScene]->getActiveCamera());
+#endif
     }
 }
 
@@ -888,6 +911,15 @@ void PbrApp::drawDebugWindows()
                     ImGui::Separator();
                 }
                 {
+                    Camera& camera = m_scenes[m_currentScene]->getActiveCamera();
+                    ImGui::Text("Camera");
+                    ImGui::Indent();
+                    ImGui::Text("Position: %.2f, %.2f, %.2f", camera.position.x, camera.position.y, camera.position.z);
+                    ImGui::Text("Look at:  %.2f, %.2f, %.2f", camera.lookAt.x, camera.lookAt.y, camera.lookAt.z);
+                    ImGui::Unindent();
+                    ImGui::Separator();
+                }
+                {
                     uiDrawEntityGraph(m_scenes[m_currentScene]->m_rootEntity);
                     ImGui::Separator();
                 }
@@ -917,7 +949,7 @@ void PbrApp::drawDebugWindows()
                     for (u32 i = 0; i < numTextures; ++i)
                         textureNames[i] = textures[i]->m_name.c_str();
                     ImGui::Text("Textures");
-                    ImGui::Text("Num of textures: %u", numTextures);
+                    ImGui::Text("Number of textures: %u", numTextures);
                     ImGui::ListBox("##Textures", &currentItem, textureNames.data(), textureNames.size());
                     ImGui::Separator();
                 }
@@ -938,17 +970,26 @@ void PbrApp::drawDebugWindows()
                     sprintf_s(buttonName, "Focus on view##%s", viewName);
                     if (ImGui::Button(buttonName))
                     {
-                        if (m_currentDebugView == numDebugViews) 
+                        if (m_currentDebugView == numDebugViews)
+                        {
                             activeDebugViewTexture = nullptr;
-                        else activeDebugViewTexture = texture;
+                            m_currentDebugView = -1;
+                        }
+                        else
+                        {
+                            m_currentDebugView = numDebugViews;
+                            activeDebugViewTexture = texture;
+                        }
                     }
                     ImGui::Separator();
                     numDebugViews++;
                 };
                 buildDebugView("PathTracing", Cyan::PathTracer::getSingletonPtr()->getRenderOutput());
+#ifdef SCENE_DEMO_00
                 Entity* room = SceneManager::getSingletonPtr()->getSingletonPtr()->getEntity(m_scenes[Demo_Scene_00], "Room");
                 SceneNode* sceneNode = room->getSceneNode("RoomMesh");
                 buildDebugView("LightMap", sceneNode->m_meshInstance->m_lightMap->m_texAltas, 320u, 320u);
+#endif
                 // TODO: debug following three debug visualizations 
                 buildDebugView("SceneDepth",  renderer->m_sceneDepthTextureSSAA);
                 buildDebugView("SceneNormal", renderer->m_sceneNormalTextureSSAA);
@@ -1410,14 +1451,6 @@ void PbrApp::buildFrame()
         void* preallocated = renderer->getAllocator().alloc(sizeof(RayTracingDebugPass));
         auto renderTarget = m_probeVolume->m_probes[22]->m_octMapRenderTarget;
         RayTracingDebugPass* pass = new (preallocated) RayTracingDebugPass(renderTarget, Cyan::Viewport{0u,0u, renderTarget->m_width, renderTarget->m_height}, this);
-        renderer->addCustomPass(pass);
-    }
-#endif
-#if DRAW_DEBUG
-    {
-        void* preallocated = renderer->getAllocator().alloc(sizeof(DebugAABBPass));
-        Cyan::RenderTarget* sceneRenderTarget = renderer->getSceneColorRenderTarget();
-        DebugAABBPass* pass = new (preallocated) DebugAABBPass(sceneRenderTarget, Cyan::Viewport{0u,0u, sceneRenderTarget->m_width, sceneRenderTarget->m_height}, m_scenes[m_currentScene]);
         renderer->addCustomPass(pass);
     }
 #endif

@@ -439,33 +439,35 @@ float BoundingBox3f::intersectRay(const glm::vec3& ro, const glm::vec3& rd)
 }
 
 // taken from https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
+/* 
+    Note(Min): It seems using glm::dot() is quite slow here; Implementing own math library should be beneficial 
+*/
 float Triangle::intersectRay(const glm::vec3& roObjectSpace, const glm::vec3& rdObjectSpace)
 {
     const float EPSILON = 0.0000001;
-    glm::vec3& v0 = m_vertices[0];
-    glm::vec3& v1 = m_vertices[1];
-    glm::vec3& v2 = m_vertices[2];
-    glm::vec3 edge1 = v1 - v0;
-    glm::vec3 edge2 = v2 - v0;
+    glm::vec3 edge1 = m_vertices[1] - m_vertices[0];
+    glm::vec3 edge2 = m_vertices[2] - m_vertices[0];
     glm::vec3 h, s, q;
     float a,f,u,v;
 
     h = glm::cross(rdObjectSpace, edge2);
-    a = glm::dot(edge1, h);
+    // a = glm::dot(edge1, h);
+    a = edge1.x * h.x + edge1.y * h.y + edge1.z * h.z;
     if (fabs(a) < EPSILON)
-    // if (a > -EPSILON && a < EPSILON)
     {
         return -1.0;
     }
     f = 1.0f / a;
-    s = roObjectSpace - v0;
-    u = f * dot(s, h);
+    s = roObjectSpace - m_vertices[0];
+    // u = f * dot(s, h);
+    u = f * (s.x*h.x + s.y*h.y + s.z*h.z);
     if (u < 0.0 || u > 1.0)
     {
         return -1.0;
     }
     q = glm::cross(s, edge1);
-    v = f * dot(rdObjectSpace, q);
+    // v = f * dot(rdObjectSpace, q);
+    v = f * (rdObjectSpace.x*q.x + rdObjectSpace.y*q.y + rdObjectSpace.z*q.z);
     if (v < 0.0 || u + v > 1.0)
     {
         return -1.0;

@@ -49,6 +49,7 @@ namespace Cyan
         void createLightMapFromTexture(SceneNode* node, Texture* bakedTexture);
         void bakeLightMap(Scene* scene, SceneNode* node, bool saveImage=false);
         void bakeSingleThread(LightMap* lightMap, u32 overlappedTexelCount);
+        void bakeWorker(LightMap* lightMap, std::vector<u32>& texelIndices, u32 start, u32 end, u32 overlappedTexelCount);
         void bakeMultiThread(LightMap* lightMap, u32 overlappedTexelCount);
         static LightMapManager* getSingletonPtr();
         static std::atomic<u32> progressCounter;

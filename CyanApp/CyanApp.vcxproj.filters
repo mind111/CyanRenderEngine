@@ -31,5 +31,8 @@
     <None Include="..\scene\demo_scene_00.json">
       <Filter>Data</Filter>
     </None>
+    <None Include="..\scene\sponza_scene.json">
+      <Filter>Data</Filter>
+    </None>
   </ItemGroup>
 </Project>

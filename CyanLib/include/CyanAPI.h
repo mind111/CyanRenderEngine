@@ -268,7 +268,7 @@ namespace Cyan
         Texture* prefilterEnvmapSpecular(Texture* envMap);
         Texture* generateBrdfLUT();
         Texture* createFlatColorTexture(const char* name, u32 width, u32 height, glm::vec4 color);
-        DistantLightProbe createLightProbe(const char* name, const char* file, bool hdr=false);
+        DistantLightProbe createDistantLightProbe(const char* name, const char* file, bool hdr=false);
 
         //-
         // Mesh related

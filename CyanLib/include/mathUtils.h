@@ -8,6 +8,7 @@
 #include "mat4x4.hpp"
 
 #define M_PI 3.141592653589793f
+#define INV_PI 0.31830988f
 
 #define RADIANS(x) (x) * 2 * M_PI / 360.f
 

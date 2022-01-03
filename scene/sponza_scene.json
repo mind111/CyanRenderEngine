@@ -1,0 +1,58 @@
+{
+    "cameras": [
+        {
+            "name": "main_camera",
+            "position": [-7.3, 1.95, -0.84],
+            "lookAt": [-0.0, 1.0, -1.0],
+            "worldUp": [0.0, 1.0, 0.0],
+            "fov": 45.0,
+            "z_near": 0.5,
+            "z_far": 80.0
+        }
+    ],
+
+    "meshes": [
+        {
+          "name": "sponza_mesh",
+          "path": "../../asset/sponza/sponza.obj",
+          "normalize": false,
+          "generateLightMapUv": false
+        },
+
+        {
+            "name": "sphere_mesh",
+            "path": "../../asset/uv_sphere/sphere.obj",
+            "normalize": false,
+            "generateLightMapUv": false
+        }
+    ],
+
+    "textures": [],
+    "materials": [],
+    "nodes": [
+        {
+            "index": 0,
+            "name": "SponzaMesh",
+            "mesh": "sponza_mesh",
+            "xform": {
+              "translation": [ 0.0, 0.0, 0.0 ],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [0.01, 0.01, 0.01]
+            },
+            "child": []
+        }
+    ],
+
+    "entities": [
+        {
+            "name": "Sponza",
+            "xform": {
+                "translation": [0.0, 0.0, 0.0],
+                "rotation": [0.0, 0, 1, 0],
+                "scale": [1.0, 1.0, 1.0]
+            },
+            "static": false,
+            "nodes": [ 0 ]
+        }
+    ]
+}
