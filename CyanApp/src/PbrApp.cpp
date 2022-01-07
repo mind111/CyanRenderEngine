@@ -21,6 +21,7 @@
 #include "RenderPass.h"
 
 #define REBAKE_LIGHTMAP 0
+#define MOUSE_PICKING   0
 
 /* Constants */
 // In radians per pixel 
@@ -97,6 +98,27 @@ void PbrApp::dispatchCameraCommand(CameraCommand& command)
     }
 }
 
+struct DebugRenderPass : Cyan::RenderPass
+{
+    DebugRenderPass(Cyan::RenderTarget* renderTarget, Cyan::Viewport viewport, PbrApp* app)
+        : RenderPass(renderTarget, viewport), m_app(app)
+    {
+
+    }
+
+    ~DebugRenderPass() { }
+
+    virtual void render() override
+    {
+        auto ctx = Cyan::getCurrentGfxCtx();
+        ctx->setRenderTarget(m_renderTarget);
+        ctx->setViewport(m_viewport);
+        m_app->debugRenderOctree();
+    }
+
+    PbrApp* m_app;
+};
+
 namespace Pbr
 {
     void mouseCursorCallback(double cursorX, double cursorY, double deltaX, double deltaY)
@@ -122,10 +144,12 @@ namespace Pbr
             {
                 if (action == CYAN_PRESS)
                 {
+#if MOUSE_PICKING
                     if (!app->mouseOverUI())
                     {
                         app->bRayCast = true;
                     }
+#endif
                 }
                 else if (action == CYAN_RELEASE)
                 {
@@ -515,6 +539,9 @@ void PbrApp::pathTraceScene(Scene* scene)
     pathTracer->m_renderMode = Cyan::PathTracer::RenderMode::Render;
     pathTracer->setScene(scene);
     pathTracer->run(scene->getActiveCamera());
+
+    // debug
+    auto shader = Cyan::createShader("DebugShadingShader", "../../shader/debug_color_vs.glsl", "../../shader/debug_color_fs.glsl");
 }
 
 void PbrApp::initSponzaScene()
@@ -1394,6 +1421,11 @@ void PbrApp::buildFrame()
     Cyan::Renderer* renderer = Cyan::Renderer::getSingletonPtr();
     renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), 0);
     renderer->addScenePass(m_scenes[m_currentScene]);
+    {
+        void* memory = renderer->getAllocator().alloc(sizeof(DebugRenderPass));
+        DebugRenderPass* debugPass = new (memory) DebugRenderPass(renderer->m_sceneColorRTSSAA, {0u, 0u, renderer->m_sceneColorRTSSAA->m_width, renderer->m_sceneColorRTSSAA->m_height }, this);
+        renderer->addCustomPass(debugPass);
+    }
     renderer->addPostProcessPasses();
 #if DEBUG_PROBE_TRACING
     {
@@ -1403,6 +1435,43 @@ void PbrApp::buildFrame()
         renderer->addCustomPass(pass);
     }
 #endif
+}
+
+void PbrApp::debugRenderOctree()
+{
+    auto pathTracer = Cyan::PathTracer::getSingletonPtr();
+    auto renderer = Cyan::Renderer::getSingletonPtr();
+    Cyan::Octree* octree = pathTracer->m_irradianceCache->m_octree;
+    std::queue<Cyan::OctreeNode*> nodes;
+    for (u32 i = 0; i < pathTracer->m_debugObjects.octreeBoundingBoxes.size(); ++i)
+    {
+        pathTracer->m_debugObjects.octreeBoundingBoxes[i].setViewProjection(renderer->u_cameraView, renderer->u_cameraProjection);
+        pathTracer->m_debugObjects.octreeBoundingBoxes[i].draw();
+    }
+    auto ctx = Cyan::getCurrentGfxCtx();
+    ctx->setPrimitiveType(Cyan::PrimitiveType::TriangleList);
+    auto cubeMesh = Cyan::getMesh("CubeMesh");
+    auto debugShader = Cyan::getShader("DebugShadingShader");
+    Camera& camera = m_scenes[m_currentScene]->getActiveCamera();
+    glm::mat4 vp = camera.projection * camera.view;
+    glm::vec4 color(1.f, 0.f, 0.f, 1.f);
+    for (u32 i = 0; i < pathTracer->m_debugObjects.debugSpheres.size(); ++i)
+    {
+        ctx->setShader(debugShader);
+        Transform transform;
+        transform.m_translate = pathTracer->m_debugObjects.debugSpheres[i].center;
+        //transform.m_scale = glm::vec3(pathTracer->m_debugObjects.debugSpheres[i].radius);
+        // glm::mat4 mvp = vp * transform.toMatrix();
+        glm::mat4 mvp = vp;
+        glm::mat4 model(1.f);
+        debugShader->setUniformVec4("color", &color.r);
+        for (u32 sm = 0; sm < cubeMesh->m_subMeshes.size(); ++sm)
+        {
+            debugShader->setUniformMat4f("mvp", &model[0][0]);
+            ctx->setVertexArray(cubeMesh->m_subMeshes[sm]->m_vertexArray);
+            ctx->drawIndexAuto(cubeMesh->m_subMeshes[sm]->m_numVerts);
+        }
+    }
 }
 
 // todo: irradiance probe with visibility (prefiltered radial depth map)

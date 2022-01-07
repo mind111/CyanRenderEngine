@@ -45,6 +45,7 @@ public:
     void update();
     void updateScene(Scene* scene);
     void updateMaterialData(Cyan::StandardPbrMaterial* matl);
+    void debugRenderOctree();
 
     // camera control
     void dispatchCameraCommand(struct CameraCommand& command);

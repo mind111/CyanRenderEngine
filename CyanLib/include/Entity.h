@@ -21,6 +21,9 @@ enum EntityFilter
     BakeInLightMap = 0
 };
 
+void transformRayToObjectSpace(glm::vec3& ro, glm::vec3& rd, glm::mat4& transform);
+f32  transformHitFromObjectToWorldSpace(glm::vec3& objectSpaceHit, glm::mat4& transform, const glm::vec3& roWorldSpace, const glm::vec3& rdWorldSpace);
+
 // entity
 /* 
     * every entity has to have a transform component, entity's transform component is represented by
@@ -84,15 +87,13 @@ struct Entity
 
 struct RayCastInfo
 {
-    // Entity* m_entity;
     SceneNode* m_node;
-    i32   smIndex;
-    i32   triIndex;
-    float t;
+    i32        smIndex;
+    i32        triIndex;
+    f32        t;
 
-    RayCastInfo() 
+    RayCastInfo()
     : 
-    //m_entity(nullptr), 
     m_node(nullptr), smIndex(-1), triIndex(-1), t(FLT_MAX)
     {} 
 

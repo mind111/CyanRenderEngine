@@ -37,7 +37,7 @@ namespace Cyan
     static const u32 kMaxNumUniforms = 256;
     static const u32 kMaxNumShaders = 64;
     static const u32 kMaxNumMaterialTypes = 64;
-    static const u32 kMaxNumSceneNodes = 512;
+    static const u32 kMaxNumSceneNodes = 100000;
 
     static std::vector<Mesh*> s_meshes;
     static std::vector<DistantLightProbe> s_probes;

@@ -481,5 +481,11 @@
     <None Include="..\shader\sky_irradiance_c.glsl">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="..\shader\debug_color_fs.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\debug_color_vs.glsl">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

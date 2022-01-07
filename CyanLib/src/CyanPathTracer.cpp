@@ -16,11 +16,14 @@
 // Is 2mm of an offset too large..?
 #define EPSILON 0.002f
 #define POST_PROCESSING 1
+// #define VISUALIZE_IRRADIANCE
 
 namespace Cyan
 {
+    f32 saturate(f32 val);
     glm::vec3 ACESFilm(const glm::vec3& color);
     glm::vec3 gammaCorrect(const glm::vec3& color, f32 gamma);
+    glm::vec3 getSurfaceNormal(RayCastInfo& rayHit, glm::vec3& baryCoord);
 
     PathTracer* PathTracer::m_singleton = nullptr;
     std::atomic<u32> PathTracer::progressCounter(0u);
@@ -31,6 +34,7 @@ namespace Cyan
     , m_texture(nullptr)
     , m_skyColor(0.328f, 0.467f, 1.f)
     , m_renderMode(RenderMode::Render)
+    , m_irradianceCache(nullptr)
     {
         if (!m_singleton)
         {
@@ -47,6 +51,7 @@ namespace Cyan
             spec.m_dataType = Texture::DataType::Float;
             m_texture = textureManager->createTexture("PathTracingOutput", spec);
             m_singleton = this;
+            m_irradianceCache = new IrradianceCache;
         }
         else
             cyanError("Multiple instances are created for PathTracer!");
@@ -68,6 +73,7 @@ namespace Cyan
         m_sceneMaterials.clear();
         // convert scene data to decouple ray tracing required data from raster pipeline
         preprocessSceneData();
+        m_irradianceCache->init(m_staticSceneNodes);
     }
 
     glm::vec2 getScreenCoordOfPixel(u32 x, u32 y)
@@ -117,7 +123,22 @@ namespace Cyan
                                            + camera.right   * sampleScreenCoord.x * w 
                                            + camera.up      * sampleScreenCoord.y * w);
                     auto hit = traceScene(ro, rd);
-                    color += renderSurface(hit, ro, rd, getHitMaterial(hit));
+                    if (hit.t > 0.f)
+                    {
+#ifndef VISUALIZE_IRRADIANCE
+                        color += renderSurface(hit, ro, rd, getHitMaterial(hit));
+#else
+                        glm::vec3 hitPosition = ro + rd * hit.t;
+                        auto mesh = hit.m_node->m_meshInstance->m_mesh;
+                        auto tri = mesh->getTriangle(hit.smIndex, hit.triIndex); 
+                        auto& triangles = mesh->m_subMeshes[hit.smIndex]->m_triangles;
+                        // compute barycentric coord of the surface point that we hit 
+                        glm::vec3 baryCoord = computeBaryCoordFromHit(hit, hitPosition);
+                        glm::vec3 normal = getSurfaceNormal(hit, baryCoord);
+                        hitPosition += normal * EPSILON;
+                        color += sampleNewIrradianceRecord(hitPosition, normal);
+#endif
+                    }
                     progressCounter.fetch_add(1);
                 }
             }
@@ -217,7 +238,8 @@ namespace Cyan
                                                + camera.up      * sampleScreenCoord.y * w);
 
                         auto hit = traceScene(ro, rd);
-                        pixelColor += renderSurface(hit, ro, rd, getHitMaterial(hit));
+                        if (hit.t > 0.f)
+                            pixelColor += renderSurface(hit, ro, rd, getHitMaterial(hit));
 
                         {
                             numTracedRays += 1;
@@ -360,8 +382,8 @@ namespace Cyan
         exitRadiance += computeDirectLighting(ro, n);
 
         // stop recursion
-        if (numBounces >= 3)
-            return exitRadiance;
+        if (numBounces == 0)
+            return exitRadiance * (matl.flatColor * INV_PI);
 
         glm::vec3 rd = cosineWeightedSampleHemiSphere(n);
 
@@ -384,9 +406,216 @@ namespace Cyan
 
             // exitRadiance += (indirectBoost * recursiveTraceDiffuse(nextBounceRo, nextBounceNormal, numBounces + 1, matl) * max(glm::dot(n, rd), 0.f));
             // the cosine geometric term is cancelled with the pdf
-            exitRadiance += (indirectBoost * recursiveTraceDiffuse(nextBounceRo, nextBounceNormal, numBounces + 1, matl));
+            exitRadiance += (indirectBoost * recursiveTraceDiffuse(nextBounceRo, nextBounceNormal, numBounces - 1, matl));
         }
         return exitRadiance * (matl.flatColor * INV_PI);
+    }
+
+    glm::vec3 PathTracer::sampleNewIrradianceRecord(glm::vec3& p, glm::vec3& n)
+    {
+        const u32 numSamples = 4u;
+        glm::vec3 irradiance(0.f);
+        // harmonic mean of distance to visible surfaces
+        f32 r = FLT_MAX;
+        for (u32 i = 0; i < numSamples; ++i)
+        {
+            auto rd = cosineWeightedSampleHemiSphere(n);
+            auto hit = traceScene(p, rd);
+            if (hit.t > 0.f)
+            {
+                auto& matl = m_sceneMaterials[hit.m_node->m_meshInstance->m_rtMatls[hit.smIndex]];
+                auto radiance = renderSurface(hit, p, rd, matl);
+                irradiance += radiance;
+                //r += (1.f / hit.t);
+                r = min(r, hit.t);
+            }
+            else
+                irradiance += m_skyColor;
+        }
+        irradiance /= numSamples;
+        // r /= numSamples;
+        // r = 1.f / r;
+
+        // add to the cache
+        m_irradianceCache->addIrradianceRecord(p, n, irradiance, r);
+        return irradiance;
+    }
+
+    glm::vec3 PathTracer::fastRenderSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd, TriMaterial& matl)
+    {
+        glm::vec3 radiance(0.f);
+        if (hit.t > 0.f)
+        {
+            glm::vec3 hitPosition = ro + rd * hit.t;
+            auto mesh = hit.m_node->m_meshInstance->m_mesh;
+            auto tri = mesh->getTriangle(hit.smIndex, hit.triIndex); 
+            auto& triangles = mesh->m_subMeshes[hit.smIndex]->m_triangles;
+
+            // compute barycentric coord of the surface point that we hit 
+            glm::vec3 baryCoord = computeBaryCoordFromHit(hit, hitPosition);
+            glm::vec3 normal = getSurfaceNormal(hit, baryCoord);
+            hitPosition += normal * EPSILON;
+
+            // back face hit
+            if (glm::dot(normal, rd) > 0) return radiance;
+
+            // direct + indirect (diffuse interreflection)
+            // radiance += computeDirectLighting(hitPosition, normal);
+            // radiance += computeDirectSkyLight(hitPosition, normal);
+            radiance += irradianceCaching(hitPosition, normal);
+            //radiance *= sampleAo(hitPosition, normal, 8);
+        }
+        //return radiance * (matl.flatColor * INV_PI);
+        return radiance;
+    }
+
+    // irradiance caching
+    void PathTracer::fastRenderWorker(u32 start, u32 end, Camera& camera, u32 totalNumRays)
+    {
+        f32 aspectRatio = (f32)numPixelsInX / numPixelsInY;
+        f32 w = camera.n * glm::tan(glm::radians(.5f * 45.f));
+        f32 pixelSize = 1.f / (f32)numPixelsInY;
+        f32 subPixelSize = pixelSize / (f32)sppxCount;
+
+        for (u32 i = start; i < end; ++i)
+        {
+            u32 py = i / numPixelsInX;
+            u32 px = i % numPixelsInX;
+            glm::vec2 pixelCenterCoord;
+            pixelCenterCoord.x = ((f32)px / (f32)numPixelsInX) * 2.f - 1.f;
+            pixelCenterCoord.y = ((f32)py / (f32)numPixelsInY) * 2.f - 1.f;
+
+            // stratified sampling
+            glm::vec3 color(0.f);
+            for (u32 spx = 0; spx < sppxCount; ++spx)
+            {
+                for (u32 spy = 0; spy < sppyCount; ++spy)
+                {
+                    glm::vec2 subPixelOffset((f32)spx * subPixelSize, (f32)spy * subPixelSize);
+                    // jitter the sub pixel samples
+                    glm::vec2 jitter = glm::vec2(subPixelSize) * glm::vec2(uniformSampleZeroToOne(), uniformSampleZeroToOne());
+                    subPixelOffset += jitter;
+                    glm::vec2 sampleScreenCoord = pixelCenterCoord + subPixelOffset;
+                    sampleScreenCoord.x *= aspectRatio;
+
+                    glm::vec3 ro = camera.position;
+                    glm::vec3 rd = normalize(camera.forward * camera.n
+                        + camera.right * sampleScreenCoord.x * w
+                        + camera.up * sampleScreenCoord.y * w);
+                    auto hit = traceScene(ro, rd);
+                    color += fastRenderSurface(hit, ro, rd, getHitMaterial(hit));
+                    progressCounter.fetch_add(1);
+                }
+            }
+            color /= (sppxCount * sppyCount);
+            // post-processing
+            {
+                // tone mapping
+                auto toneMappedColor = ACESFilm(color);
+                // gamma correction
+                auto finalColor = gammaCorrect(toneMappedColor, .4545f);
+                setPixel(px, py, finalColor);
+            }
+        }
+    }
+
+    glm::vec3 PathTracer::fastRenderScene(Camera& camera)
+    {
+        Cyan::Toolkit::ScopedTimer timer("PathTracer::renderSceneMultiThread", true);
+        u32 numPixels = numPixelsInX * numPixelsInY;
+        u32 totalNumRays = numPixels * sppxCount * sppyCount;
+
+        // trace all the rays using multi-threads
+        // const u32 workGroupCount = 16;
+        const u32 workGroupCount = 1;
+        u32 workGroupPixelCount = numPixels / workGroupCount;
+        // divide work into 16 threads
+        std::thread* workers[workGroupCount] = { };
+        for (u32 i = 0; i < workGroupCount; ++i)
+        {
+            u32 start = workGroupPixelCount * i;
+            u32 end = min(start + workGroupPixelCount, numPixels);
+            workers[i] = new std::thread(&PathTracer::fastRenderWorker, this, start, end, std::ref(camera), totalNumRays);
+        }
+
+        // let the main thread monitor the progress
+        while (progressCounter.load() < totalNumRays)
+        {
+            printf("\r[Info] Traced %d rays ... %.2f%%", progressCounter.load(), ((f32)progressCounter.load() * 100.f / totalNumRays));
+            fflush(stdout);
+        }
+
+        for (u32 i = 0; i < workGroupCount; ++i)
+            workers[i]->join();
+        printf("\n");
+
+        // copy data to gpu texture
+        {
+            glBindTexture(GL_TEXTURE_2D, m_texture->m_id);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, numPixelsInX, numPixelsInY, GL_RGB, GL_FLOAT, m_pixels);
+            glBindTexture(GL_TEXTURE_2D, 0);
+        }
+
+        // free resources
+        progressCounter = 0;
+        for (u32 i = 0; i < workGroupCount; ++i)
+            delete workers[i];
+
+        // generate debug bounding boxes for the octree
+        for (u32 i = 0; i < m_irradianceCache->m_octree->m_numAllocatedNodes; ++i)
+        {
+            m_debugObjects.octreeBoundingBoxes.emplace_back();
+            auto& aabb = m_debugObjects.octreeBoundingBoxes.back();
+            auto& octreeNode = m_irradianceCache->m_octree->m_nodePool[i];
+            aabb.m_pMin = glm::vec4(octreeNode.center + glm::vec3(-.5f, -.5f, -.5f) * octreeNode.sideLength, 1.f);
+            aabb.m_pMax = glm::vec4(octreeNode.center + glm::vec3( .5f,  .5f,  .5f) * octreeNode.sideLength, 1.f);
+            aabb.init();
+            glm::mat4 model(1.f);
+            aabb.setModel(model);
+        }
+        // generate debug spheres for cached irradiance samples
+        cyanInfo("There were %u cached irradiance records", m_irradianceCache->m_numRecords);
+        for (u32 i = 0; i < m_irradianceCache->m_numRecords; ++i)
+        {
+            m_debugObjects.debugSpheres.emplace_back();
+            auto& sphere = m_debugObjects.debugSpheres.back();
+            sphere.center = m_irradianceCache->m_cache[i].position;
+            sphere.radius = .1f;
+        }
+    }
+
+    void PathTracer::debugRender()
+    {
+
+    }
+
+    glm::vec3 PathTracer::irradianceCaching(glm::vec3& p, glm::vec3& pn)
+    {
+        // find valid set
+        glm::vec3 irradiance(0.f);
+        std::vector<IrradianceRecord*> validSet;
+        m_irradianceCache->findValidRecords(validSet, p, pn);
+        // compute irradiance
+        if (validSet.empty())
+        {
+            irradiance = sampleNewIrradianceRecord(p, pn);
+        }
+        // "lazy" evaluation
+        else
+        {
+            f32 denominator = 0.f;
+            for (u32 i = 0; i < validSet.size(); ++i)
+            {
+                auto validRecord = validSet[i];
+                f32 distance = glm::distance(p, validRecord->position);
+                f32 wi = 1.f / ((distance / validRecord->r) + sqrt(1.f - glm::dot(pn, validRecord->normal))) - 1.0f;
+                wi = saturate(wi);
+                irradiance += wi * validRecord->irradiance;
+                denominator += wi;
+            }
+            irradiance /= denominator;
+        }
+        return irradiance;
     }
 
     void PathTracer::preprocessSceneData()
@@ -406,6 +635,7 @@ namespace Cyan
                     nodes.pop();
                     if (node->m_meshInstance)
                     {
+                        m_staticSceneNodes.push_back(node);
                         for (u32 sm = 0; sm < node->m_meshInstance->m_mesh->numSubMeshes(); ++sm)
                         {
                             node->m_meshInstance->m_rtMatls.emplace_back(matlInstanceCount++);
@@ -435,7 +665,8 @@ namespace Cyan
 #if 0
                 renderScene(camera);
 #else
-                renderSceneMultiThread(camera);
+                //renderSceneMultiThread(camera);
+                fastRenderScene(camera);
 #endif
                 break;
             default:
@@ -471,25 +702,22 @@ namespace Cyan
     glm::vec3 PathTracer::renderSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd, TriMaterial& matl)
     {
         glm::vec3 radiance(0.f);
-        if (hit.t > 0.f)
-        {
-            glm::vec3 hitPosition = ro + rd * hit.t;
-            auto mesh = hit.m_node->m_meshInstance->m_mesh;
-            auto tri = mesh->getTriangle(hit.smIndex, hit.triIndex); 
-            auto& triangles = mesh->m_subMeshes[hit.smIndex]->m_triangles;
+        glm::vec3 hitPosition = ro + rd * hit.t;
+        auto mesh = hit.m_node->m_meshInstance->m_mesh;
+        auto tri = mesh->getTriangle(hit.smIndex, hit.triIndex); 
+        auto& triangles = mesh->m_subMeshes[hit.smIndex]->m_triangles;
 
-            // compute barycentric coord of the surface point that we hit 
-            glm::vec3 baryCoord = computeBaryCoordFromHit(hit, hitPosition);
-            glm::vec3 normal = getSurfaceNormal(hit, baryCoord);
-            hitPosition += normal * EPSILON;
+        // compute barycentric coord of the surface point that we hit 
+        glm::vec3 baryCoord = computeBaryCoordFromHit(hit, hitPosition);
+        glm::vec3 normal = getSurfaceNormal(hit, baryCoord);
+        hitPosition += normal * EPSILON;
 
-            // back face hit
-            if (glm::dot(normal, rd) > 0) return radiance;
+        // back face hit
+        if (glm::dot(normal, rd) > 0) return radiance;
 
-            // direct + indirect (diffuse interreflection)
-            radiance += recursiveTraceDiffuse(hitPosition, normal, 0, getHitMaterial(hit));
-            //radiance *= sampleAo(hitPosition, normal, 8);
-        }
+        // direct + indirect (diffuse interreflection)
+        radiance += recursiveTraceDiffuse(hitPosition, normal, numIndirectBounce - 1, getHitMaterial(hit));
+        //radiance *= sampleAo(hitPosition, normal, 8);
         return radiance;
     }
 
@@ -567,14 +795,51 @@ namespace Cyan
     RayCastInfo PathTracer::traceScene(glm::vec3& ro, glm::vec3& rd)
     {
         RayCastInfo closestHit;
+        // it seems two approaches have similar performance
+#if 0
         for (u32 i = 0; i < m_staticEntities.size(); ++i)
         {
             auto hit = m_staticEntities[i]->intersectRay(ro, rd, glm::mat4(1.f));
             if (hit.t > 0.f && hit < closestHit)
                 closestHit = hit;
         }
+#else
+        for (u32 i = 0; i < m_staticSceneNodes.size(); ++i)
+        {
+            glm::mat4 modelView = m_staticSceneNodes[i]->m_worldTransform.toMatrix();
+            BoundingBox3f aabb = m_staticSceneNodes[i]->m_meshInstance->getAABB();
+
+            // transform the ray into object space
+            glm::vec3 roObjectSpace = ro;
+            glm::vec3 rdObjectSpace = rd;
+            transformRayToObjectSpace(roObjectSpace, rdObjectSpace, modelView);
+            rdObjectSpace = glm::normalize(rdObjectSpace);
+
+            if (aabb.intersectRay(roObjectSpace, rdObjectSpace) > 0.f)
+            {
+                // do ray triangle intersectiont test
+                Cyan::Mesh* mesh = m_staticSceneNodes[i]->m_meshInstance->m_mesh;
+                Cyan::MeshRayHit currentRayHit = mesh->intersectRay(roObjectSpace, rdObjectSpace);
+
+                if (currentRayHit.t > 0.f)
+                {
+                    // convert hit from object space back to world space
+                    auto objectSpaceHit = roObjectSpace + currentRayHit.t * rdObjectSpace;
+                    f32 currentWorldSpaceDistance = transformHitFromObjectToWorldSpace(objectSpaceHit, modelView, ro, rd);
+                    if (currentWorldSpaceDistance < closestHit.t)
+                    {
+                        closestHit.t = currentWorldSpaceDistance;
+                        closestHit.smIndex = currentRayHit.smIndex;
+                        closestHit.triIndex = currentRayHit.triangleIndex;
+                        closestHit.m_node = m_staticSceneNodes[i];
+                    }
+                }
+            }
+        }
+#endif
+        if (!closestHit.m_node)
+            closestHit.t = -1.f;
         return closestHit;
-        //return m_scene->castRay(ro, rd, EntityFilter::BakeInLightMap);
     }
 
     f32 PathTracer::sampleAo(glm::vec3& samplePos, glm::vec3& n, u32 numSamples)
@@ -694,6 +959,138 @@ namespace Cyan
                     {
 
                     }
+                }
+            }
+        }
+    }
+
+    Octree::Octree()
+        : m_numAllocatedNodes(0), m_root(nullptr)
+    {
+        m_nodePool.resize(maxNodeCount);
+    }
+
+    void Octree::init(const glm::vec3& center, f32 sideLength)
+    {
+        m_root = allocNode();
+        m_root->center = center;
+        m_root->sideLength = sideLength;
+    }
+
+    glm::vec3 childOffsets[8] = {
+        glm::vec3(-.5f,  .5f,  .5f),  // 0
+        glm::vec3( .5f,  .5f,  .5f),  // 1
+        glm::vec3(-.5f, -.5f,  .5f),  // 2
+        glm::vec3( .5f, -.5f,  .5f),  // 3
+        glm::vec3(-.5f,  .5f, -.5f),  // 4
+        glm::vec3( .5f,  .5f, -.5f),  // 5
+        glm::vec3(-.5f, -.5f, -.5f),  // 6
+        glm::vec3( .5f, -.5f, -.5f),  // 7
+    };
+
+    void Octree::insert(IrradianceRecord* newRecord)
+    {
+        std::queue<OctreeNode*> nodes;
+        nodes.push(m_root);
+
+        // breadth first search
+        while (!nodes.empty())
+        {
+            OctreeNode* node = nodes.front();
+            nodes.pop();
+            // recurse into child
+            if (node->sideLength > 0.1f && (node->sideLength > (4.f * newRecord->r) || node->sideLength < (2.f * newRecord->r)))
+            {
+                // compute which octant that current point belongs to
+                u32 childIndex = getChildIndexEnclosingSurfel(node, newRecord->position);
+                if (!node->childs[childIndex])
+                {
+                    node->childs[childIndex] = allocNode();
+                    node->childs[childIndex]->sideLength = node->sideLength * .5f;
+                    node->childs[childIndex]->center = node->center + childOffsets[childIndex] * node->childs[childIndex]->sideLength;
+                    nodes.push(node->childs[childIndex]);
+                }
+            }
+            else
+                node->records.push_back(newRecord);
+        }
+    }
+
+    u32 Octree::getChildIndexEnclosingSurfel(OctreeNode* node, glm::vec3& position)
+    {
+        glm::vec3 vv = position - node->center;
+        u32 k = (vv.z <= 0.f) ? 1 : 0;
+        u32 i = (vv.y <= 0.f) ? 1 : 0;
+        u32 j = (vv.x >= 0.f) ? 1 : 0;
+        return k * 4 + i * 2 + j;
+    }
+
+    OctreeNode* Octree::allocNode()
+    {
+        CYAN_ASSERT(m_numAllocatedNodes < maxNodeCount, "Too many OctreeNode allocated!");
+        return &m_nodePool[m_numAllocatedNodes++];
+    }
+ 
+    IrradianceCache::IrradianceCache()
+        : m_numRecords(0u), m_octree(nullptr)
+    {
+        m_cache.resize(cacheSize);
+        m_numRecords = 0u;
+        m_octree = new Octree();
+    }
+
+    void IrradianceCache::init(std::vector<SceneNode*>& nodes)
+    {
+        BoundingBox3f aabb;
+        for (u32 i = 0; i < nodes.size(); ++i)
+        {
+            if (nodes[i]->m_meshInstance)
+            {
+                auto& objectSpaceAABB = nodes[i]->m_meshInstance->getAABB();
+                glm::mat4 model = nodes[i]->getWorldTransform().toMatrix();
+                BoundingBox3f worldSpaceAABB;
+                worldSpaceAABB.m_pMin = model * objectSpaceAABB.m_pMin;
+                worldSpaceAABB.m_pMax = model * objectSpaceAABB.m_pMax;
+                aabb.bound(worldSpaceAABB);
+            }
+        }
+        f32 length = aabb.m_pMax.x - aabb.m_pMin.x;
+        length = max(length, aabb.m_pMax.y - aabb.m_pMin.y);
+        length = max(length, aabb.m_pMax.z - aabb.m_pMin.z);
+        m_octree->init((aabb.m_pMin + aabb.m_pMax) * .5f, length);
+    }
+
+    void IrradianceCache::addIrradianceRecord(const glm::vec3& p, const glm::vec3& pn, const glm::vec3& irradiance, f32 r)
+    {
+        CYAN_ASSERT(m_numRecords < cacheSize, "Too many irradiance records inserted!");
+        IrradianceRecord* newRecord = &m_cache[m_numRecords++];
+        newRecord->position = p;
+        newRecord->normal = pn;
+        newRecord->irradiance = irradiance;
+        newRecord->r = r;
+        // insert into the octree
+        m_octree->insert(newRecord);
+    }
+
+    void IrradianceCache::findValidRecords(std::vector<IrradianceRecord*>& validSet, const glm::vec3& p, const glm::vec3& pn)
+    {
+        std::queue<OctreeNode*> nodes;
+        nodes.push(m_octree->m_root);
+        while (!nodes.empty())
+        {
+            auto node = nodes.front();
+            nodes.pop();
+            for (u32 i = 0; i < node->records.size(); ++i)
+            {
+                f32 distance = glm::length(node->records[i]->position - p);
+                f32 wi = 1.f / ((distance / node->records[i]->r) + sqrt(1.f - glm::dot(pn, node->records[i]->normal))) - 1.0f;
+                if (wi > 0.f) validSet.push_back(node->records[i]);
+
+                // recurse into child
+                for (u32 i = 0; i < 8; ++i)
+                {
+                    if (node->childs[i] && glm::length(p - node->childs[i]->center) <= node->childs[i]->sideLength)
+                        nodes.push(node->childs[i]);
                 }
             }
         }

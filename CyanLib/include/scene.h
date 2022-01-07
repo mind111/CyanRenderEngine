@@ -63,6 +63,7 @@ struct Scene
     RayCastInfo castRay(glm::vec3& ro, glm::vec3& rd, EntityFilter filter, bool debugPrint=false);
     bool castVisibilityRay(const glm::vec3& ro, glm::vec3& rd, EntityFilter filter);
     void addStandardPbrMaterial(Cyan::StandardPbrMaterial* matl);
+    BoundingBox3f getBoundingBox();
 };
 
 class SceneManager {

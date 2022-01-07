@@ -71,6 +71,29 @@ void Scene::addStandardPbrMaterial(Cyan::StandardPbrMaterial* matl)
     m_materials.push_back(matl);
 }
 
+BoundingBox3f Scene::getBoundingBox()
+{
+    BoundingBox3f aabb = { };
+    for (u32 i = 0; i < entities.size(); ++i)
+    {
+        std::queue<SceneNode*> nodes;
+
+        auto sceneRoot = entities[i]->m_sceneRoot;
+        nodes.push(sceneRoot);
+
+        while (!nodes.empty())
+        {
+            auto node = nodes.front();
+            nodes.pop();
+            if (node->m_meshInstance)
+                aabb.bound(node->m_meshInstance->getAABB());
+            for (u32 i = 0; i < node->m_child.size(); ++i)
+                nodes.push(node->m_child[i]);
+        }
+    }
+    return aabb;
+}
+
 SceneManager* SceneManager::s_sceneManager = 0u;
 
 SceneManager::SceneManager()

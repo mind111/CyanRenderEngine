@@ -458,7 +458,7 @@ namespace Cyan
                 LightingEnvironment lighting = {
                     m_scene->pLights,
                     m_scene->dLights,
-                    m_scene->m_currentProbe,
+                    m_scene->m_distantProbe,
                     nullptr,
                     nullptr,
                     true

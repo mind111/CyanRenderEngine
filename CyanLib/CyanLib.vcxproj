@@ -110,6 +110,8 @@
     <ClCompile Include="src\Window.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\shader\debug_color_fs.glsl" />
+    <None Include="..\shader\debug_color_vs.glsl" />
     <None Include="..\shader\scene_normal_depth.fs" />
     <None Include="..\shader\scene_normal_depth.vs" />
     <None Include="..\shader\shader_ao.fs" />

@@ -139,7 +139,6 @@ RayCastInfo Entity::intersectRay(const glm::vec3& ro, const glm::vec3& rd, const
                         globalRayHit.t = currentWorldSpaceDistance;
                         globalRayHit.smIndex = currentRayHit.smIndex;
                         globalRayHit.triIndex = currentRayHit.triangleIndex;
-                        // globalRayHit.m_entity = this;
                         globalRayHit.m_node = node;
                     }
                 }

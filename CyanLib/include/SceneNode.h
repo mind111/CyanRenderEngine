@@ -28,19 +28,13 @@ struct SceneNode
     // node hierarchy
     SceneNode* m_parent;
     std::vector<SceneNode*> m_child;
-    /*
-        * indirect child refers to child nodes added because another entity 
-        is attached to this node's hosting entity. To seperate them from direct
-        child so that when node->find() is called, it won't search child nodes among
-        indirect child.
-    */
-    // std::vector<SceneNode*> m_indirectChild;
+
     // transform component
     Transform m_localTransform;
     Transform m_worldTransform;
 
     // mesh component 
-    Cyan::MeshInstance* m_meshInstance; // TODO: make this a component, not necessarily every scene nodes wants an AABB 
+    Cyan::MeshInstance* m_meshInstance;
     bool m_hasAABB;
     bool m_castShadow;
 
@@ -65,4 +59,5 @@ struct SceneNode
     const Transform& getWorldTransform();
 
     SceneNode* find(const char* name);
+    struct RayCastInfo traceRay(const glm::vec3& ro, const glm::vec3& rd);
 };
