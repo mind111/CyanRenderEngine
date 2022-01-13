@@ -109,17 +109,15 @@ public:
     u32                          m_currentDebugView;
 private:
     float m_sampleVertex[(64 + 1) * 4 * 2] = { };
-    
     bool bRunning;
     u32 m_currentProbeIndex;
 
-
-    Shader*                 m_rayTracingShader;
-    Cyan::MaterialInstance* m_rayTracingMatl;
-    Shader*                 m_skyBoxShader;
-    Cyan::MaterialInstance* m_skyBoxMatl;
-    Shader*                 m_skyShader;
-    Cyan::MaterialInstance* m_skyMatl;
+    Shader*                      m_rayTracingShader;
+    Cyan::MaterialInstance*      m_rayTracingMatl;
+    Shader*                      m_skyBoxShader;
+    Cyan::MaterialInstance*      m_skyBoxMatl;
+    Shader*                      m_skyShader;
+    Cyan::MaterialInstance*      m_skyMatl;
 
     /* Buffers */
     RegularBuffer* m_pointLightsBuffer;

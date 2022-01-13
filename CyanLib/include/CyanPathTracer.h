@@ -5,6 +5,12 @@ namespace Cyan
     glm::vec3 computeBaryCoord(Triangle& tri, glm::vec3& hitPosObjectSpace);
     glm::vec3 computeBaryCoordFromHit(RayCastInfo rayHit, glm::vec3& hitPosition);
 
+    struct Ray
+    {
+        glm::vec3 ro;
+        glm::vec3 rd;
+    };
+
     struct SurfaceProperty
     {
         glm::vec3 albedo;
@@ -40,7 +46,7 @@ namespace Cyan
         Octree();
         ~Octree() { }
 
-        static const u32        maxNodeCount = 1024 * 1024 * 200;
+        static const u32        maxNodeCount = 1024 * 1024;
         u32                     m_numAllocatedNodes;
         std::vector<OctreeNode> m_nodePool;
         OctreeNode*             m_root;
@@ -59,9 +65,10 @@ namespace Cyan
 
         void init(std::vector<SceneNode*>& nodes);
         void addIrradianceRecord(const glm::vec3& p, const glm::vec3& pn, const glm::vec3& irradiance, f32 r);
-        void findValidRecords(std::vector<IrradianceRecord*>& validSet, const glm::vec3& p, const glm::vec3& pn);
+        void findValidRecords(std::vector<IrradianceRecord*>& validSet, const glm::vec3& p, const glm::vec3& pn, f32 error);
 
-        static const u32 cacheSize = 1024 * 1024 * 100;
+        static const u32 cacheSize = 1024 * 1024;
+        const f32 kError           = 10.f;
         std::vector<IrradianceRecord> m_cache;
         u32 m_numRecords;
         Octree* m_octree;
@@ -101,7 +108,7 @@ namespace Cyan
         // irradiance caching
         void      fastRenderWorker(u32 start, u32 end, Camera& camera, u32 totalNumRays);
         glm::vec3 fastRenderSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd, TriMaterial& matl);
-        glm::vec3 fastRenderScene(Camera& camera);
+        void      fastRenderScene(Camera& camera);
         void      debugRender();
 
         glm::vec3 bakeSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd, TriMaterial& matl);
@@ -114,7 +121,9 @@ namespace Cyan
 
         // global illumination
         glm::vec3 recursiveTraceDiffuse(glm::vec3& ro, glm::vec3& n, u32 numBounces, TriMaterial& matl);
-        glm::vec3 irradianceCaching(glm::vec3& p, glm::vec3& pn);
+        glm::vec3 irradianceCaching(glm::vec3& p, glm::vec3& pn, f32 error);
+        glm::vec3 recursiveIC(glm::vec3& p, glm::vec3& pn, const TriMaterial& matl, u32 level);
+        void      firstPassIC(const std::vector<Ray>& rays, u32 start, u32 end, Camera& camera);
 
         // utility
         f32       sampleAo(glm::vec3& samplePos, glm::vec3& n, u32 numSamples);
@@ -122,14 +131,19 @@ namespace Cyan
         glm::vec3 sampleIrradiance(glm::vec3& samplePos, glm::vec3& n);
         glm::vec3 sampleNewIrradianceRecord(glm::vec3& p, glm::vec3& n);
         void      bakeIrradianceProbe(glm::vec3& probePos, glm::ivec2& resolution);
+        void      debugIC(Camera& camera);
+        glm::vec3 m_debugPos0;
+        glm::vec3 m_debugPos1;
+        glm::vec3 cachedIrradiance;
+        glm::vec3 interpolatedIrradiance;
 
         // constants
         const u32 numPixelsInX = 640u;
         const u32 numPixelsInY = 360u;
-        const u32 sppxCount = 4u;
-        const u32 sppyCount = 4u;
+        const u32 sppxCount = 1u;
+        const u32 sppyCount = 1u;
         const u32 numChannelPerPixel = 3u;
-        u32       numIndirectBounce = 3u;
+        u32       numIndirectBounce = 1u;
 
         enum RenderMode
         {
@@ -143,6 +157,7 @@ namespace Cyan
         std::vector<Entity*>     m_staticEntities;
         std::vector<SceneNode*>  m_staticSceneNodes;
         IrradianceCache*         m_irradianceCache;
+        IrradianceCache*         m_irradianceCaches[3];
         std::vector<TriMaterial> m_sceneMaterials;
         float*                   m_pixels;
         static std::atomic<u32>  progressCounter;

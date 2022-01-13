@@ -26,6 +26,9 @@ namespace Cyan
     glm::vec3 uniformSampleHemiSphere(glm::vec3& n);
     glm::vec3 cosineWeightedSampleHemiSphere(glm::vec3& n);
 
+    // vector math
+    inline f32 dot(const glm::vec3& v0, const glm::vec3& v1);
+
     struct Vec3 
     {
         f32 x, y, z;

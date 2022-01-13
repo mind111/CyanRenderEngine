@@ -69,6 +69,11 @@ namespace Cyan
         return tangentToWorld(n) * localDir; 
     }
 
+    f32 dot(const glm::vec3& v0, const glm::vec3& v1)
+    {
+        return v0.x * v1.x + v0.y * v1.y + v0.z * v1.z;
+    }
+
     Vec3 operator+(const Vec3& lhs, const Vec3& rhs)
     {
         return Vec3{lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z};

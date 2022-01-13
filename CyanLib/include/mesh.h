@@ -17,7 +17,6 @@ struct Scene;
 namespace Cyan
 {
     struct MeshInstance;
-    struct SkeletalMeshInstance;
 
     struct MeshRayHit
     {
@@ -26,12 +25,11 @@ namespace Cyan
         i32   smIndex;
         i32   triangleIndex;
 
-        MeshRayHit() 
-        : mesh(nullptr), t(FLT_MAX), smIndex(-1), triangleIndex(-1)
+        MeshRayHit()
+            : mesh(nullptr), t(FLT_MAX), smIndex(-1), triangleIndex(-1)
         {}
     };
 
-    // TODO: how to distinguish between 2D mesh and 3D mesh
     struct Mesh
     {
         void onFinishLoading();
@@ -44,12 +42,12 @@ namespace Cyan
         bool       bruteForceVisibilityRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd);
         bool       bvhVisibilityRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd);
         bool       castVisibilityRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd);
-        Triangle getTriangle(u32 smIndex, u32 triIndex) { 
+        Triangle getTriangle(u32 smIndex, u32 triIndex) {
             const auto& sm = m_subMeshes[smIndex];
             u32 offset = triIndex * 3;
             return {
-                sm->m_triangles.m_positionArray[offset], 
-                sm->m_triangles.m_positionArray[offset + 1], 
+                sm->m_triangles.m_positionArray[offset],
+                sm->m_triangles.m_positionArray[offset + 1],
                 sm->m_triangles.m_positionArray[offset + 2]
             };
         }
@@ -59,14 +57,14 @@ namespace Cyan
             VertexArray*     m_vertexArray;
             u32              m_numVerts;
             u32              m_numIndices;
-            TriangleArray    m_triangles;
             i32              m_materialIdx;
+            TriangleArray    m_triangles;
         };
 
         i32         m_lightMapWidth;
         i32         m_lightMapHeight;
         std::string m_name;
-        bool m_shouldNormalize;
+        bool        m_shouldNormalize;
         glm::mat4 m_normalization;
         std::vector<SubMesh*> m_subMeshes;
         std::vector<ObjMaterial> m_objMaterials;
@@ -107,31 +105,6 @@ namespace Cyan
         glm::vec2 m_extent;
         Vertex m_verts[6];
         VertexArray* m_vertexArray;
-    };
-
-    struct Joint {
-        Joint* m_parent;
-        Transform m_localTransform;
-        glm::mat4 m_worldMatrix;
-    };
-
-    struct Skeleton {
-        Joint* m_root;
-        std::vector<Joint> m_joints;
-    };
-
-    struct SkeletalMesh : public Mesh {
-        struct SubMesh {
-            std::vector<glm::vec4> m_joints;
-            std::vector<glm::vec4> m_weights;
-        };
-        Skeleton* m_skeleton;
-        std::vector<SubMesh*> m_subMeshes;
-    };
-
-    struct SkeletalMeshInstance {
-        SkeletalMesh* m_mesh;
-        MaterialInstance** m_matls;
     };
 }
 

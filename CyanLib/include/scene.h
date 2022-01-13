@@ -29,26 +29,29 @@ struct LightingEnvironment
 struct Scene 
 {
     static const u32 kMaxNumPointLights = 20u;
-    static const u32 kMaxNumDirLights = 20u;
+    static const u32 kMaxNumDirLights   = 20u;
     // identifier
-    std::string    m_name;
-    // camera
-    u32 activeCamera;
-    Camera cameras[2];
-    // entities
-    Entity*     m_rootEntity;
-    std::vector<Entity*> entities;
-    // materials
+    std::string                             m_name;
+    u32                                     activeCamera;
+    Camera                                  cameras[2];
+    Entity*                                 m_rootEntity;
+    std::vector<Entity*>                    entities;
+    // data
     std::vector<Cyan::StandardPbrMaterial*> m_materials;
+    std::vector<Cyan::Material>             g_materials;
+    std::vector<Cyan::MaterialInstance>     g_materialInstances;
+    std::vector<Cyan::Mesh>                 g_meshes;
+    std::vector<Cyan::Texture>              g_textures;
+
     // lighting
-    u32 m_currentEnvMap;
-    std::vector<PointLight> pLights;
-    std::vector<DirectionalLight> dLights;
-    RegularBuffer* m_pointLightsBuffer;
-    RegularBuffer* m_dirLightsBuffer;
-    Cyan::IrradianceProbe* m_irradianceProbe;
-    Cyan::ReflectionProbe* m_reflectionProbe;
-    DistantLightProbe*    m_distantProbe;
+    u32                                     m_currentEnvMap;
+    std::vector<PointLight>                 pLights;
+    std::vector<DirectionalLight>           dLights;
+    RegularBuffer*                          m_pointLightsBuffer;
+    RegularBuffer*                          m_dirLightsBuffer;
+    Cyan::IrradianceProbe*                  m_irradianceProbe;
+    Cyan::ReflectionProbe*                  m_reflectionProbe;
+    DistantLightProbe*                      m_distantProbe;
 
     Camera& getActiveCamera()
     {

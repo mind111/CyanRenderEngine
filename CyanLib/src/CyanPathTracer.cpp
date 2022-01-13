@@ -16,7 +16,9 @@
 // Is 2mm of an offset too large..?
 #define EPSILON 0.002f
 #define POST_PROCESSING 1
-// #define VISUALIZE_IRRADIANCE
+#define PATHTRACE_IC 1
+#define RECURSIVE_IC 0
+#define VISUALIZE_IRRADIANCE 0
 
 namespace Cyan
 {
@@ -29,12 +31,14 @@ namespace Cyan
     std::atomic<u32> PathTracer::progressCounter(0u);
 
     PathTracer::PathTracer()
-    : m_scene(nullptr)
-    , m_pixels(nullptr)
-    , m_texture(nullptr)
-    , m_skyColor(0.328f, 0.467f, 1.f)
-    , m_renderMode(RenderMode::Render)
-    , m_irradianceCache(nullptr)
+        : m_scene(nullptr)
+        , m_pixels(nullptr)
+        , m_texture(nullptr)
+        , m_skyColor(0.328f, 0.467f, 1.f)
+        , m_renderMode(RenderMode::Render)
+        , m_irradianceCache(nullptr)
+        , m_irradianceCaches{ nullptr, nullptr, nullptr }
+        , m_debugPos0(0.f)
     {
         if (!m_singleton)
         {
@@ -42,9 +46,9 @@ namespace Cyan
             u32 numPixels = numPixelsInX * numPixelsInY;
             m_pixels = (float*)new char[(u64)(bytesPerPixel * numPixels)];
             auto textureManager = TextureManager::getSingletonPtr();
-            TextureSpec spec = { }; 
-            spec.m_type   = Texture::Type::TEX_2D;
-            spec.m_width  = numPixelsInX;
+            TextureSpec spec = { };
+            spec.m_type = Texture::Type::TEX_2D;
+            spec.m_width = numPixelsInX;
             spec.m_height = numPixelsInY;
             spec.m_format = Texture::ColorFormat::R32G32B32;
             spec.m_type = Texture::Type::TEX_2D;
@@ -52,6 +56,8 @@ namespace Cyan
             m_texture = textureManager->createTexture("PathTracingOutput", spec);
             m_singleton = this;
             m_irradianceCache = new IrradianceCache;
+            for (u32 i = 0; i < 3; ++i)
+                m_irradianceCaches[i] = new IrradianceCache;
         }
         else
             cyanError("Multiple instances are created for PathTracer!");
@@ -84,7 +90,7 @@ namespace Cyan
     void PathTracer::setPixel(u32 px, u32 py, const glm::vec3& color)
     {
         u32 index = (py * numPixelsInX + px) * numChannelPerPixel;
-        CYAN_ASSERT(index < numPixelsInX * numPixelsInY * numChannelPerPixel, "Writing to a pixel out of bound");
+        CYAN_ASSERT(index < numPixelsInX* numPixelsInY* numChannelPerPixel, "Writing to a pixel out of bound");
         m_pixels[index + 0] = color.r;
         m_pixels[index + 1] = color.g;
         m_pixels[index + 2] = color.b;
@@ -120,23 +126,23 @@ namespace Cyan
 
                     glm::vec3 ro = camera.position;
                     glm::vec3 rd = normalize(camera.forward * camera.n
-                                           + camera.right   * sampleScreenCoord.x * w 
-                                           + camera.up      * sampleScreenCoord.y * w);
+                        + camera.right * sampleScreenCoord.x * w
+                        + camera.up * sampleScreenCoord.y * w);
                     auto hit = traceScene(ro, rd);
                     if (hit.t > 0.f)
                     {
-#ifndef VISUALIZE_IRRADIANCE
-                        color += renderSurface(hit, ro, rd, getHitMaterial(hit));
-#else
+#if VISUALIZE_IRRADIANCE
                         glm::vec3 hitPosition = ro + rd * hit.t;
                         auto mesh = hit.m_node->m_meshInstance->m_mesh;
-                        auto tri = mesh->getTriangle(hit.smIndex, hit.triIndex); 
+                        auto tri = mesh->getTriangle(hit.smIndex, hit.triIndex);
                         auto& triangles = mesh->m_subMeshes[hit.smIndex]->m_triangles;
                         // compute barycentric coord of the surface point that we hit 
                         glm::vec3 baryCoord = computeBaryCoordFromHit(hit, hitPosition);
                         glm::vec3 normal = getSurfaceNormal(hit, baryCoord);
                         hitPosition += normal * EPSILON;
-                        color += sampleNewIrradianceRecord(hitPosition, normal);
+                        color += sampleNewIrradianceRecord(hitPosition, normal) * getHitMaterial(hit).flatColor;
+#else
+                        color += renderSurface(hit, ro, rd, getHitMaterial(hit));
 #endif
                     }
                     progressCounter.fetch_add(1);
@@ -204,7 +210,7 @@ namespace Cyan
     {
         f32 aspectRatio = (f32)numPixelsInX / numPixelsInY;
         f32 w = camera.n * glm::tan(glm::radians(.5f * 45.f));
-        u32 totalNumRays = numPixelsInX * numPixelsInY; 
+        u32 totalNumRays = numPixelsInX * numPixelsInY;
         f32 pixelSize = 1.f / (f32)numPixelsInY;
         f32 subPixelSize = pixelSize / (f32)sppxCount;
         u32 subPixelSampleCount = sppxCount * sppyCount;
@@ -234,8 +240,8 @@ namespace Cyan
 
                         glm::vec3 ro = camera.position;
                         glm::vec3 rd = normalize(camera.forward * camera.n
-                                               + camera.right   * sampleScreenCoord.x * w 
-                                               + camera.up      * sampleScreenCoord.y * w);
+                            + camera.right * sampleScreenCoord.x * w
+                            + camera.up * sampleScreenCoord.y * w);
 
                         auto hit = traceScene(ro, rd);
                         if (hit.t > 0.f)
@@ -283,7 +289,7 @@ namespace Cyan
         glm::vec3 hitPosObjectSpace = vec4ToVec3(glm::inverse(worldTransformMatrix) * glm::vec4(hitPosition, 1.f));
 
         auto mesh = rayHit.m_node->m_meshInstance->m_mesh;
-        auto tri = mesh->getTriangle(rayHit.smIndex, rayHit.triIndex); 
+        auto tri = mesh->getTriangle(rayHit.smIndex, rayHit.triIndex);
         return computeBaryCoord(tri, hitPosObjectSpace);
     }
 
@@ -309,7 +315,7 @@ namespace Cyan
         u8 r = *pixelAddress;
         u8 g = *(pixelAddress + 1);
         u8 b = *(pixelAddress + 2);
-        return glm::vec3((r/255.f), (g/255.f), (b/255.f));
+        return glm::vec3((r / 255.f), (g / 255.f), (b / 255.f));
     }
 
     glm::vec3 texelFetchCube(Texture* cubemap, glm::vec3 rd)
@@ -329,8 +335,8 @@ namespace Cyan
         auto sm = mesh->m_subMeshes[rayHit.smIndex];
         u32 vertexOffset = rayHit.triIndex * 3;
         glm::vec3 normal = baryCoord.x * sm->m_triangles.m_normalArray[vertexOffset]
-                         + baryCoord.y * sm->m_triangles.m_normalArray[vertexOffset + 1]
-                         + baryCoord.z * sm->m_triangles.m_normalArray[vertexOffset + 2];
+            + baryCoord.y * sm->m_triangles.m_normalArray[vertexOffset + 1]
+            + baryCoord.z * sm->m_triangles.m_normalArray[vertexOffset + 2];
         normal = glm::normalize(normal);
         // convert normal back to world space
         auto worldTransformMatrix = rayHit.m_node->getWorldTransform().toMatrix();
@@ -380,10 +386,13 @@ namespace Cyan
         // direct 
         exitRadiance += computeDirectSkyLight(ro, n);
         exitRadiance += computeDirectLighting(ro, n);
+        // only consider the pi term for direct lighting, including the pi term in lambertian brdf in the indirect lighting darkens
+        // the indirect lighting too much
+        exitRadiance *= INV_PI;
 
         // stop recursion
         if (numBounces == 0)
-            return exitRadiance * (matl.flatColor * INV_PI);
+            return exitRadiance * (matl.flatColor);
 
         glm::vec3 rd = cosineWeightedSampleHemiSphere(n);
 
@@ -395,28 +404,27 @@ namespace Cyan
             // compute geometric information
             glm::vec3 nextBounceRo = ro + nextRayHit.t * rd;
             glm::vec3 baryCoord = computeBaryCoordFromHit(nextRayHit, nextBounceRo);
-
             glm::vec3 nextBounceNormal = getSurfaceNormal(nextRayHit, baryCoord);
+            auto      nextMatl = getHitMaterial(nextRayHit);
 
             // avoid self-intersecting
             nextBounceRo += EPSILON * nextBounceNormal;
- 
+
             // indirect
             f32 indirectBoost = 1.0f;
 
-            // exitRadiance += (indirectBoost * recursiveTraceDiffuse(nextBounceRo, nextBounceNormal, numBounces + 1, matl) * max(glm::dot(n, rd), 0.f));
             // the cosine geometric term is cancelled with the pdf
-            exitRadiance += (indirectBoost * recursiveTraceDiffuse(nextBounceRo, nextBounceNormal, numBounces - 1, matl));
+            exitRadiance += (indirectBoost * recursiveTraceDiffuse(nextBounceRo, nextBounceNormal, numBounces - 1, nextMatl));
         }
-        return exitRadiance * (matl.flatColor * INV_PI);
+        return exitRadiance * matl.flatColor;
     }
 
     glm::vec3 PathTracer::sampleNewIrradianceRecord(glm::vec3& p, glm::vec3& n)
     {
-        const u32 numSamples = 4u;
+        const u32 numSamples = 128u;
         glm::vec3 irradiance(0.f);
-        // harmonic mean of distance to visible surfaces
-        f32 r = FLT_MAX;
+        // harmonic mean of distance to visible surfaces and not set it to 0 to avoid divide by 0
+        f32 r = 0.f;
         for (u32 i = 0; i < numSamples; ++i)
         {
             auto rd = cosineWeightedSampleHemiSphere(n);
@@ -426,15 +434,12 @@ namespace Cyan
                 auto& matl = m_sceneMaterials[hit.m_node->m_meshInstance->m_rtMatls[hit.smIndex]];
                 auto radiance = renderSurface(hit, p, rd, matl);
                 irradiance += radiance;
-                //r += (1.f / hit.t);
-                r = min(r, hit.t);
+                r += (1.f / hit.t);
             }
-            else
-                irradiance += m_skyColor;
         }
         irradiance /= numSamples;
-        // r /= numSamples;
-        // r = 1.f / r;
+        r = numSamples / r;
+        r = glm::clamp(r, 0.1f, 8.0f);
 
         // add to the cache
         m_irradianceCache->addIrradianceRecord(p, n, irradiance, r);
@@ -448,7 +453,7 @@ namespace Cyan
         {
             glm::vec3 hitPosition = ro + rd * hit.t;
             auto mesh = hit.m_node->m_meshInstance->m_mesh;
-            auto tri = mesh->getTriangle(hit.smIndex, hit.triIndex); 
+            auto tri = mesh->getTriangle(hit.smIndex, hit.triIndex);
             auto& triangles = mesh->m_subMeshes[hit.smIndex]->m_triangles;
 
             // compute barycentric coord of the surface point that we hit 
@@ -462,11 +467,50 @@ namespace Cyan
             // direct + indirect (diffuse interreflection)
             // radiance += computeDirectLighting(hitPosition, normal);
             // radiance += computeDirectSkyLight(hitPosition, normal);
-            radiance += irradianceCaching(hitPosition, normal);
-            //radiance *= sampleAo(hitPosition, normal, 8);
+#if PATHTRACE_IC
+            radiance += irradianceCaching(hitPosition, normal, m_irradianceCache->kError * .2f);
+#endif
+#if RECURSIVE_IC
+            radiance += recursiveIC(hitPosition, normal, getHitMaterial(hit), 0);
+#endif
         }
-        //return radiance * (matl.flatColor * INV_PI);
-        return radiance;
+        return radiance * matl.flatColor;
+    }
+
+    Ray generateRay(const glm::uvec2& pixelCoord, Camera& camera, const glm::uvec2& screenDim)
+    {
+        glm::vec2 uv;
+        uv.x = (f32)pixelCoord.x / screenDim.x * 2.f - 1.f;
+        uv.y = (f32)pixelCoord.y / screenDim.y * 2.f - 1.f;
+        uv.x *= (f32)screenDim.x / screenDim.y;
+        f32 w = camera.n * glm::tan(glm::radians(.5f * 45.f));
+        glm::vec3 ro = camera.position;
+        glm::vec3 rd = normalize(
+              camera.forward * camera.n
+            + camera.right   * uv.x * w
+            + camera.up      * uv.y * w);
+        return {ro, rd};
+    }
+
+    void PathTracer::debugIC(Camera& camera)
+    {
+        u32 px = 64, py = 120;
+        auto ray0 = generateRay(glm::uvec2(px, py), camera, glm::uvec2(numPixelsInX, numPixelsInY));
+        auto debugHit0 = traceScene(ray0.ro, ray0.rd);
+        m_debugPos0 = ray0.ro + debugHit0.t * ray0.rd;
+
+        // compute barycentric coord of the surface point that we hit 
+        glm::vec3 baryCoord  = computeBaryCoordFromHit(debugHit0, m_debugPos0);
+        glm::vec3 normal     = getSurfaceNormal(debugHit0, baryCoord);
+        cachedIrradiance = sampleNewIrradianceRecord(m_debugPos0, normal);
+
+        u32 debugPx = 67, debugPy = 120;
+        auto ray1 = generateRay(glm::uvec2(debugPx, debugPy), camera, glm::uvec2(numPixelsInX, numPixelsInY));
+        auto debugHit1 = traceScene(ray1.ro, ray1.rd);
+        m_debugPos1 = ray1.ro + debugHit1.t * ray1.rd;
+        glm::vec3 baryCoord1  = computeBaryCoordFromHit(debugHit1, m_debugPos0);
+        glm::vec3 normal1     = getSurfaceNormal(debugHit1, baryCoord);
+        interpolatedIrradiance = irradianceCaching(m_debugPos1, normal1, m_irradianceCache->kError);
     }
 
     // irradiance caching
@@ -519,18 +563,76 @@ namespace Cyan
         }
     }
 
-    glm::vec3 PathTracer::fastRenderScene(Camera& camera)
+    void PathTracer::firstPassIC(const std::vector<Ray>& rays, u32 start, u32 end, Camera& camera)
+    {
+        for (u32 i = start; i < end; ++i)
+        {
+            auto ray = rays[i];
+            auto hit = traceScene(ray.ro, ray.rd);
+            if (hit.t > 0.f)
+            {
+                glm::vec3 hitPos = ray.ro + hit.t * ray.rd;
+                glm::vec3 baryCoord = computeBaryCoordFromHit(hit, hitPos);
+                glm::vec3 normal = getSurfaceNormal(hit, baryCoord);
+                hitPos += EPSILON * normal;
+#if PATHTRACE_IC
+                //sampleNewIrradianceRecord(hitPos, normal);
+                irradianceCaching(hitPos, normal, m_irradianceCache->kError);
+#endif
+#if RECURSIVE_IC
+                recursiveIC(hitPos, normal, getHitMaterial(hit), 0);
+#endif
+            }
+            progressCounter.fetch_add(1);
+        }
+    }
+
+    void PathTracer::fastRenderScene(Camera& camera)
     {
         Cyan::Toolkit::ScopedTimer timer("PathTracer::renderSceneMultiThread", true);
         u32 numPixels = numPixelsInX * numPixelsInY;
         u32 totalNumRays = numPixels * sppxCount * sppyCount;
-
+#if 1
         // trace all the rays using multi-threads
         // const u32 workGroupCount = 16;
         const u32 workGroupCount = 1;
         u32 workGroupPixelCount = numPixels / workGroupCount;
+
         // divide work into 16 threads
         std::thread* workers[workGroupCount] = { };
+
+        // first pass fill-in irradiance records
+        std::vector<Ray> firstPassRays;
+        glm::uvec2 dim(numPixelsInX / 16, numPixelsInY / 16);
+        for (u32 i = 0; i < 4; ++i)
+        {
+            for (u32 y = 0; y < dim.y; ++y)
+            {
+                for (u32 x = 0; x < dim.x; ++x)
+                    firstPassRays.emplace_back(generateRay(glm::uvec2(x, y), camera, dim));
+            }
+            dim *= 2u;
+        }
+        u32        firstPassWorkLoad = firstPassRays.size();
+        u32        threadWorkload = firstPassWorkLoad / workGroupCount;
+        for (u32 i = 0; i < workGroupCount; ++i)
+        {
+            u32 start = threadWorkload * i;
+            u32 end = min(start + threadWorkload, firstPassWorkLoad);
+            workers[i] = new std::thread(&PathTracer::firstPassIC, this, std::cref(firstPassRays), start, end, std::ref(camera));
+        }
+
+        // let the main thread monitor the progress
+        while (progressCounter.load() < firstPassWorkLoad)
+        {
+            printf("\r[Info] First pass irradiance caching: Processed %d pixels ... %.2f%%", progressCounter.load(), ((f32)progressCounter.load() * 100.f / firstPassWorkLoad));
+            fflush(stdout);
+        }
+        printf("\n");
+        // reset the counter
+        progressCounter = 0;
+
+        // second pass
         for (u32 i = 0; i < workGroupCount; ++i)
         {
             u32 start = workGroupPixelCount * i;
@@ -538,7 +640,6 @@ namespace Cyan
             workers[i] = new std::thread(&PathTracer::fastRenderWorker, this, start, end, std::ref(camera), totalNumRays);
         }
 
-        // let the main thread monitor the progress
         while (progressCounter.load() < totalNumRays)
         {
             printf("\r[Info] Traced %d rays ... %.2f%%", progressCounter.load(), ((f32)progressCounter.load() * 100.f / totalNumRays));
@@ -580,8 +681,11 @@ namespace Cyan
             m_debugObjects.debugSpheres.emplace_back();
             auto& sphere = m_debugObjects.debugSpheres.back();
             sphere.center = m_irradianceCache->m_cache[i].position;
-            sphere.radius = .1f;
+            sphere.radius = m_irradianceCache->m_cache[i].r;
         }
+#else
+        debugIC(camera);
+#endif
     }
 
     void PathTracer::debugRender()
@@ -589,12 +693,77 @@ namespace Cyan
 
     }
 
-    glm::vec3 PathTracer::irradianceCaching(glm::vec3& p, glm::vec3& pn)
+    inline f32 computeICWeight(const glm::vec3& p, const glm::vec3 pn, IrradianceRecord* record, f32 error) 
+    {
+        f32 distance = glm::length(p - record->position);
+        return 1.f / ((distance / record->r) + sqrt(1.0f - min(glm::dot(pn, record->normal), 1.f))) - error;
+    }
+
+    // todo: instead of using cosine weighted importance sampling, do stratified hemisphere sampling!
+    glm::vec3 PathTracer::recursiveIC(glm::vec3& p, glm::vec3& pn, const TriMaterial& matl, u32 level)
+    {
+        const u32 numSamples = 8u;
+        glm::vec3 irradiance(0.f);
+
+        auto ro = p + EPSILON * pn;
+        if (level == numIndirectBounce)
+        {
+            // sample direct lighting
+            glm::vec3 directLighting(0.f);
+            for (u32 i = 0; i < 32; ++i)
+                directLighting += computeDirectSkyLight(ro, pn);
+            directLighting /= 32.f;
+            directLighting += computeDirectLighting(ro, pn);
+            return directLighting * matl.flatColor;
+        }
+
+        auto cache = m_irradianceCaches[level];
+        std::vector<IrradianceRecord*> validSet;
+        cache->findValidRecords(validSet, p, pn, cache->kError);
+        if (validSet.empty())
+        {
+            // hemi-sphere sampling recursively
+            f32 r = 0.f;
+            for (u32 i = 0; i < numSamples; ++i)
+            {
+                auto rd = cosineWeightedSampleHemiSphere(pn);
+                auto hit = traceScene(ro, rd);
+                if (hit.t > 0.f)
+                {
+                    auto nextRo = ro + hit.t * rd;
+                    glm::vec3 baryCoord = computeBaryCoordFromHit(hit, nextRo);
+                    glm::vec3 normal = getSurfaceNormal(hit, baryCoord);
+                    irradiance += recursiveIC(nextRo, normal, getHitMaterial(hit), level + 1);
+                    r += (1.f / hit.t);
+                }
+            }
+            irradiance /= numSamples;
+            r = glm::clamp(numSamples / r, 0.1f, 2.f);
+            cache->addIrradianceRecord(p, pn, irradiance, r);
+            irradiance *= matl.flatColor;
+        }
+        else
+        {
+            f32 denominator = 0.f;
+            for (u32 i = 0; i < validSet.size(); ++i)
+            {
+                auto validRecord = validSet[i];
+                f32 distance = glm::length(p - validRecord->position);
+                f32 wi = computeICWeight(p, pn, validRecord, m_irradianceCache->kError);
+                irradiance += wi * validRecord->irradiance;
+                denominator += wi;
+            }
+            irradiance /= denominator;
+        }
+        return irradiance;
+    }
+
+    glm::vec3 PathTracer::irradianceCaching(glm::vec3& p, glm::vec3& pn, f32 error)
     {
         // find valid set
         glm::vec3 irradiance(0.f);
         std::vector<IrradianceRecord*> validSet;
-        m_irradianceCache->findValidRecords(validSet, p, pn);
+        m_irradianceCache->findValidRecords(validSet, p, pn, error);
         // compute irradiance
         if (validSet.empty())
         {
@@ -607,9 +776,8 @@ namespace Cyan
             for (u32 i = 0; i < validSet.size(); ++i)
             {
                 auto validRecord = validSet[i];
-                f32 distance = glm::distance(p, validRecord->position);
-                f32 wi = 1.f / ((distance / validRecord->r) + sqrt(1.f - glm::dot(pn, validRecord->normal))) - 1.0f;
-                wi = saturate(wi);
+                f32 distance = glm::length(p - validRecord->position);
+                f32 wi = computeICWeight(p, pn, validRecord, m_irradianceCache->kError);
                 irradiance += wi * validRecord->irradiance;
                 denominator += wi;
             }
@@ -665,7 +833,7 @@ namespace Cyan
 #if 0
                 renderScene(camera);
 #else
-                //renderSceneMultiThread(camera);
+                // renderSceneMultiThread(camera);
                 fastRenderScene(camera);
 #endif
                 break;
@@ -726,7 +894,6 @@ namespace Cyan
         // not implemented
     }
 
-    // todo: make diffuse lambert reflectance into account when bouncing indirect light
     glm::vec3 PathTracer::bakeSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd, TriMaterial& matl)
     {
         glm::vec3 radiance(0.f);
@@ -740,7 +907,6 @@ namespace Cyan
             // compute barycentric coord of the surface point that we hit 
             glm::vec3 baryCoord = computeBaryCoordFromHit(hit, hitPosition);
 #if 0
-            // todo: debug the cause of invalid baryCoord and a weird "black" line in the final render, it seems increasing the EPISLON alleviate the artifact
             {
                 // sanitize baryCoord
                 if ((baryCoord.y + baryCoord.z) > 1.f)
@@ -922,8 +1088,8 @@ namespace Cyan
         glm::vec3 worldUps[] = {
             {0.f, -1.f, 0.f},   // Right
             {0.f, -1.f, 0.f},   // Left
-            {0.f, 0.f, 1.f},    // Up
-            {0.f, 0.f, -1.f},   // Down
+            {0.f,  0.f, 1.f},    // Up
+            {0.f,  0.f, -1.f},   // Down
             {0.f, -1.f, 0.f},   // Forward
             {0.f, -1.f, 0.f},   // Back
         };
@@ -943,7 +1109,7 @@ namespace Cyan
                 CameraManager::updateCamera(camera);
             }
 
-            // compute irradiance 
+            // compute irradiance
             for (u32 x = 0; x < (u32)resolution.x; ++x)
             {
                 for (u32 y = 0; y < (u32)resolution.y; ++y)
@@ -999,7 +1165,7 @@ namespace Cyan
             OctreeNode* node = nodes.front();
             nodes.pop();
             // recurse into child
-            if (node->sideLength > 0.1f && (node->sideLength > (4.f * newRecord->r) || node->sideLength < (2.f * newRecord->r)))
+            if (node->sideLength > 0.1f && (node->sideLength > (4.f * newRecord->r)))
             {
                 // compute which octant that current point belongs to
                 u32 childIndex = getChildIndexEnclosingSurfel(node, newRecord->position);
@@ -1027,8 +1193,7 @@ namespace Cyan
 
     OctreeNode* Octree::allocNode()
     {
-        CYAN_ASSERT(m_numAllocatedNodes < maxNodeCount, "Too many OctreeNode allocated!");
-        return &m_nodePool[m_numAllocatedNodes++];
+        CYAN_ASSERT(m_numAllocatedNodes < maxNodeCount, "Too many OctreeNode allocated!"); return &m_nodePool[m_numAllocatedNodes++];
     }
  
     IrradianceCache::IrradianceCache()
@@ -1069,11 +1234,12 @@ namespace Cyan
         newRecord->irradiance = irradiance;
         newRecord->r = r;
         // insert into the octree
-        m_octree->insert(newRecord);
+        // m_octree->insert(newRecord);
     }
 
-    void IrradianceCache::findValidRecords(std::vector<IrradianceRecord*>& validSet, const glm::vec3& p, const glm::vec3& pn)
+    void IrradianceCache::findValidRecords(std::vector<IrradianceRecord*>& validSet, const glm::vec3& p, const glm::vec3& pn, f32 error)
     {
+#if 0
         std::queue<OctreeNode*> nodes;
         nodes.push(m_octree->m_root);
         while (!nodes.empty())
@@ -1082,17 +1248,29 @@ namespace Cyan
             nodes.pop();
             for (u32 i = 0; i < node->records.size(); ++i)
             {
-                f32 distance = glm::length(node->records[i]->position - p);
-                f32 wi = 1.f / ((distance / node->records[i]->r) + sqrt(1.f - glm::dot(pn, node->records[i]->normal))) - 1.0f;
-                if (wi > 0.f) validSet.push_back(node->records[i]);
+                f32 wi = computeICWeight(p, pn, node->records[i], kError);
+                // exclude cached samples that are "in front of" p
+                f32 dp = glm::dot(p - node->records[i]->position, (node->records[i]->normal + pn) * .5f);
+                if (wi > 0.f && dp >= 0.f) validSet.push_back(node->records[i]);
+            }
 
-                // recurse into child
-                for (u32 i = 0; i < 8; ++i)
-                {
-                    if (node->childs[i] && glm::length(p - node->childs[i]->center) <= node->childs[i]->sideLength)
-                        nodes.push(node->childs[i]);
-                }
+            // recurse into child
+            for (u32 i = 0; i < 8; ++i)
+            {
+                if (node->childs[i] && glm::length(p - node->childs[i]->center) <= node->childs[i]->sideLength)
+                    nodes.push(node->childs[i]);
             }
         }
+#else
+        for (u32 i = 0; i < m_numRecords; i++)
+        {
+            auto& record = m_cache[i];
+            f32 wi = computeICWeight(p, pn, &record, error);
+            // exclude cached samples that are "in front of" p
+            f32 dp = glm::dot(p - record.position, (record.normal + pn) * .5f);
+            if (wi > 0.f && dp >= 0.f)
+                validSet.push_back(&record);
+        }
+#endif
     }
 };

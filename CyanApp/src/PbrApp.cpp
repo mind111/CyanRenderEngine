@@ -21,7 +21,7 @@
 #include "RenderPass.h"
 
 #define REBAKE_LIGHTMAP 0
-#define MOUSE_PICKING   0
+#define MOUSE_PICKING   1
 
 /* Constants */
 // In radians per pixel 
@@ -1437,6 +1437,11 @@ void PbrApp::buildFrame()
 #endif
 }
 
+void debugRenderCube()
+{
+
+}
+
 void PbrApp::debugRenderOctree()
 {
     auto pathTracer = Cyan::PathTracer::getSingletonPtr();
@@ -1455,23 +1460,39 @@ void PbrApp::debugRenderOctree()
     Camera& camera = m_scenes[m_currentScene]->getActiveCamera();
     glm::mat4 vp = camera.projection * camera.view;
     glm::vec4 color(1.f, 0.f, 0.f, 1.f);
-    for (u32 i = 0; i < pathTracer->m_debugObjects.debugSpheres.size(); ++i)
-    {
+
+    auto debugRenderCube = [&](const glm::vec3& pos, const glm::vec3& scale, glm::vec4& color) {
         ctx->setShader(debugShader);
         Transform transform;
-        transform.m_translate = pathTracer->m_debugObjects.debugSpheres[i].center;
-        //transform.m_scale = glm::vec3(pathTracer->m_debugObjects.debugSpheres[i].radius);
-        // glm::mat4 mvp = vp * transform.toMatrix();
-        glm::mat4 mvp = vp;
-        glm::mat4 model(1.f);
+        transform.m_translate = pos;
+        transform.m_scale = scale;
+        glm::mat4 mvp = vp * transform.toMatrix();
         debugShader->setUniformVec4("color", &color.r);
         for (u32 sm = 0; sm < cubeMesh->m_subMeshes.size(); ++sm)
         {
-            debugShader->setUniformMat4f("mvp", &model[0][0]);
+            debugShader->setUniformMat4f("mvp", &mvp[0][0]);
             ctx->setVertexArray(cubeMesh->m_subMeshes[sm]->m_vertexArray);
             ctx->drawIndexAuto(cubeMesh->m_subMeshes[sm]->m_numVerts);
         }
+    };
+
+    glDisable(GL_CULL_FACE);
+    {
+#if 1
+        for (u32 i = 0; i < pathTracer->m_irradianceCache->m_numRecords; ++i)
+        {
+            auto& record = pathTracer->m_irradianceCache->m_cache[i];
+            debugRenderCube(record.position, glm::vec3(0.01f), color);
+            //debugRenderCube(record.position, glm::vec3(record.r), color);
+        }
+#else
+        glm::vec4 red(1.f, 0.f, 0.f, 1.f);
+        debugRenderCube(pathTracer->m_debugPos0, glm::vec3(0.02f), red);
+        glm::vec4 blue(0.f, 0.f, 1.f, 1.f);
+        debugRenderCube(pathTracer->m_debugPos1, glm::vec3(0.02f), blue);
+#endif
     }
+    glEnable(GL_CULL_FACE);
 }
 
 // todo: irradiance probe with visibility (prefiltered radial depth map)

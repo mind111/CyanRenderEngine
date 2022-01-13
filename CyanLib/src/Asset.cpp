@@ -489,7 +489,6 @@ namespace Cyan
         scene->m_dirLightsBuffer = Cyan::createRegularBuffer(Scene::kMaxNumDirLights * sizeof(DirectionalLight));
         scene->m_pointLightsBuffer = Cyan::createRegularBuffer(Scene::kMaxNumPointLights * sizeof(PointLight));
 
-        // TODO: each scene should only have one camera
         scene->activeCamera = 0u;
         u32 camIdx = 0u;
         for (auto& camera : cameras) 
