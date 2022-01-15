@@ -487,5 +487,8 @@
     <None Include="..\shader\debug_color_vs.glsl">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="..\shader\global_buffers.glsl">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

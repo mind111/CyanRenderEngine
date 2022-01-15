@@ -199,24 +199,13 @@ namespace Cyan
     {
         auto ctx = Cyan::getCurrentGfxCtx();
         // bind textures
-        u32 textureUnit = 0;
+        u32 textureUnit = 10;
         for (u32 s = 0; s < m_template->m_numSamplers; ++s)
         {
             if (m_bindings[s].m_tex)
             {
                 ctx->setSampler(m_bindings[s].m_sampler, textureUnit);
                 ctx->setTexture(m_bindings[s].m_tex, textureUnit++);
-            }
-        }
-        // bind buffers
-        u32 bufferBinding = 0u;
-        for (u32 s = 0; s < m_template->m_numBuffers; ++s)
-        {
-            if (m_bufferBindings[s])
-            {
-                glShaderStorageBlockBinding(m_template->m_shader->m_programId, s, bufferBinding);
-                // todo: this is slow possibly because of memcpy() !!!!! 
-                ctx->setBuffer(m_bufferBindings[s], bufferBinding++);
             }
         }
         // update instance data
@@ -232,7 +221,7 @@ namespace Cyan
             Cyan::setUniform(uniform, data);
             ctx->setUniform(uniform);
         }
-        return { textureUnit, bufferBinding };
+        return { 0, 0 };
     }
 
     Material* StandardPbrMaterial::m_standardPbrMatl = nullptr;

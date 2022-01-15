@@ -51,12 +51,9 @@ namespace Cyan
 
     Renderer::Renderer()
         : m_frameAllocator(1024u * 1024u),  // 1 megabytes
-        m_gpuLightingData{nullptr, nullptr, {}, {}, nullptr, nullptr, nullptr, true},
         u_model(0),
         u_cameraView(0),
         u_cameraProjection(0),
-        m_pointLightsBuffer(0),
-        m_dirLightsBuffer(0),   
         m_bSuperSampleAA(true),
         m_offscreenRenderWidth(1280u),
         m_offscreenRenderHeight(720u),
@@ -66,9 +63,12 @@ namespace Cyan
         m_sceneColorRenderTarget(0),
         m_sceneColorTextureSSAA(0),
         m_sceneColorRTSSAA(0),
-        m_voxelData{0},
+        m_voxelData{ 0 },
         m_ssaoSamplePoints(32),
-        m_ssao(1.f)
+        m_ssao(1.f),
+        m_globalDrawData{ },
+        gLighting { }, 
+        gDrawDataBuffer(-1)
     {
         if (!m_renderer)
         {
@@ -84,11 +84,16 @@ namespace Cyan
         u_model = createUniform("s_model", Uniform::Type::u_mat4);
         u_cameraView = createUniform("s_view", Uniform::Type::u_mat4);
         u_cameraProjection = createUniform("s_projection", Uniform::Type::u_mat4);
-
-        m_gpuLightingData.pointLightsBuffer = createRegularBuffer(sizeof(PointLightGpuData) * 20);
-        m_gpuLightingData.dirLightsBuffer = createRegularBuffer(sizeof(DirLightGpuData) * 1);
         m_ssaoSamplePoints.setColor(glm::vec4(0.f, 1.f, 1.f, 1.f));
         m_ssaoSamplePoints.setViewProjection(u_cameraView, u_cameraProjection);
+
+        // initialize per frame shader draw data
+        glCreateBuffers(1, &gDrawDataBuffer);
+        glNamedBufferData(gDrawDataBuffer, sizeof(GlobalDrawData), &m_globalDrawData, GL_DYNAMIC_DRAW);
+        glCreateBuffers(1, &gLighting.dirLightSBO);
+        glNamedBufferData(gLighting.dirLightSBO, gLighting.kDynamicLightBufferSize, nullptr, GL_DYNAMIC_DRAW);
+        glCreateBuffers(1, &gLighting.pointLightsSBO);
+        glNamedBufferData(gLighting.pointLightsSBO, gLighting.kDynamicLightBufferSize, nullptr, GL_DYNAMIC_DRAW);
     }
 
     Renderer* Renderer::getSingletonPtr()
@@ -253,7 +258,7 @@ namespace Cyan
         ShaderUtil::checkShaderLinkage(m_lumHistogramProgram);
     }
 
-    void Renderer::init(glm::vec2 windowSize)
+    void Renderer::initialize(glm::vec2 windowSize)
     {
         onRendererInitialized(windowSize);
 
@@ -352,6 +357,8 @@ namespace Cyan
             GLint kMaxNumColorBuffers = 0;
             glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS, &kMaxNumColorBuffers);
         }
+
+        // load global glsl definitions and save them in a map <path, content>
     }
 
     glm::vec2 Renderer::getViewportSize()
@@ -373,60 +380,18 @@ namespace Cyan
     void Renderer::drawMeshInstance(MeshInstance* meshInstance, glm::mat4* modelMatrix)
     {
         Mesh* mesh = meshInstance->m_mesh;
-
         for (u32 i = 0; i < mesh->m_subMeshes.size(); ++i)
         {
             auto ctx = Cyan::getCurrentGfxCtx();
             MaterialInstance* matl = meshInstance->m_matls[i]; 
             Shader* shader = matl->getShader();
             ctx->setShader(shader);
-            // todo: seperate scene data from per instance material data, two combined together to form shader input data
-            // ssao
-            matl->set("uPostProcessSetting.m_ssao", m_ssao);
-            matl->bindTexture("ssaoTex", m_ssaoTexture);
-
             if (modelMatrix)
             {
                 // TODO: this is obviously redundant
                 Cyan::setUniform(u_model, &(*modelMatrix)[0]);
                 ctx->setUniform(u_model);
             }
-            ctx->setUniform(u_cameraView);
-            ctx->setUniform(u_cameraProjection);
-
-            // TODO: clean up the logic regarding when and where to bind shadow map
-            CascadedShadowMap& cascadedShadowMap = DirectionalShadowPass::m_cascadedShadowMap;
-            matl->set("lightView", &cascadedShadowMap.lightView[0]);
-            switch (cascadedShadowMap.m_technique)
-            {
-                case kVariance_Shadow:
-                    for (u32 s = 0; s < DirectionalShadowPass::kNumShadowCascades; ++s)
-                    {
-                        char samplerName0[64];
-                        sprintf_s(samplerName0, "shadowCascades[%d].depthMap", s);
-                        matl->bindTexture(samplerName0, cascadedShadowMap.cascades[s].varianceShadowMap.shadowMap);
-
-                        char projectionName[64];
-                        sprintf_s(projectionName, "shadowCascades[%d].lightProjection", s);
-                        matl->set(projectionName, &cascadedShadowMap.cascades[s].lightProjection[0]);
-                    }
-                    break;
-                case kPCF_Shadow:
-                    for (u32 s = 0; s < DirectionalShadowPass::kNumShadowCascades; ++s)
-                    {
-                        char samplerName0[64];
-                        sprintf_s(samplerName0, "shadowCascades[%d].depthMap", s);
-                        matl->bindTexture(samplerName0, cascadedShadowMap.cascades[s].basicShadowMap.shadowMap);
-
-                        char projectionName[64];
-                        sprintf_s(projectionName, "shadowCascades[%d].lightProjection", s);
-                        matl->set(projectionName, &cascadedShadowMap.cascades[s].lightProjection[0]);
-                    }
-                    break;
-                default:
-                    CYAN_ASSERT(0, "Unknown shadow technique.")
-            }
-
             UsedBindingPoints used = matl->bind();
             Mesh::SubMesh* sm = mesh->m_subMeshes[i];
             ctx->setVertexArray(sm->m_vertexArray);
@@ -435,18 +400,6 @@ namespace Cyan
                 ctx->drawIndex(sm->m_numIndices);
             else
                 ctx->drawIndexAuto(sm->m_numVerts);
-
-            // NOTES: reset texture units because texture unit bindings are managed by gl context 
-            // it won't change when binding different shaders
-            for (u32 t = 0; t < used.m_usedTexBindings; ++t)
-            {
-                ctx->setTexture(nullptr, t);
-            }
-            // NOTES: reset shader storage binding points
-            for (u32 p = 0; p < used.m_usedBufferBindings; ++p)
-            {
-                ctx->setBuffer(nullptr, p);
-            }
         }
     }
 
@@ -785,13 +738,6 @@ namespace Cyan
         m_renderState.addRenderPass(pass);
     }
 
-    void Renderer::addEntityPass(RenderTarget* renderTarget, Viewport viewport, std::vector<Entity*>& entities, LightingEnvironment& lighting, Camera& camera)
-    {
-        void* frameMem = m_frameAllocator.alloc(sizeof(EntityPass));
-        EntityPass* pass = new (frameMem) EntityPass(renderTarget, viewport, entities, lighting, camera);
-        m_renderState.addRenderPass(pass);
-    }
-
     void Renderer::addGaussianBlurPass(RenderTarget* renderTarget, Viewport viewport, Texture* srcTexture, Texture* horiTexture, Texture* vertTexture, GaussianBlurInput input)
     {
         void* mem = m_frameAllocator.alloc(sizeof(GaussianBlurPass) * 2);
@@ -839,34 +785,6 @@ namespace Cyan
     {
         if (node->m_meshInstance)
         {
-            MeshInstance* meshInstance = node->m_meshInstance; 
-            // assume that all submeshes are using same type of material
-            Material* materialType = meshInstance->m_matls[0]->m_template;
-            u32 numSubMeshs = (u32)meshInstance->m_mesh->m_subMeshes.size();
-
-            // update lighting data if material can be lit
-            if (materialType->m_dataFieldsFlag && (1 << Material::DataFields::Lit))
-            {
-                for (u32 sm = 0; sm < numSubMeshs; ++sm)
-                {
-                    meshInstance->m_matls[sm]->set("numPointLights", static_cast<u32>(m_gpuLightingData.pLights.size()));
-                    meshInstance->m_matls[sm]->set("numDirLights", static_cast<u32>(m_gpuLightingData.dLights.size()));
-                    meshInstance->m_matls[sm]->bindBuffer("dirLightsData", m_gpuLightingData.dirLightsBuffer);
-                    meshInstance->m_matls[sm]->bindBuffer("pointLightsData", m_gpuLightingData.pointLightsBuffer);
-
-                    // distant probe
-                    meshInstance->m_matls[sm]->bindTexture("gLighting.distantIrradiance", m_gpuLightingData.distantProbe->m_diffuse);
-                    meshInstance->m_matls[sm]->bindTexture("gLighting.distantReflection", m_gpuLightingData.distantProbe->m_specular);
-                    meshInstance->m_matls[sm]->bindTexture("brdfIntegral", m_gpuLightingData.distantProbe->m_brdfIntegral);
-
-                    // local GI probes
-                    if (m_gpuLightingData.irradianceProbe)
-                        meshInstance->m_matls[sm]->bindTexture("gLighting.irradianceProbe", m_gpuLightingData.irradianceProbe->m_irradianceMap);
-                    if (m_gpuLightingData.reflectionProbe)
-                        meshInstance->m_matls[sm]->bindTexture("gLighting.localReflectionProbe", m_gpuLightingData.reflectionProbe->m_prefilteredProbe);
-                }
-            }
-
             glm::mat4 modelMatrix = node->m_worldTransform.toMatrix();
             drawMeshInstance(node->m_meshInstance, &modelMatrix);
         } 
@@ -973,57 +891,50 @@ namespace Cyan
         }
     }
 
-    void Renderer::renderEntities(std::vector<Entity*>& entities, LightingEnvironment& lighting, Camera& camera)
+    void Renderer::updateLighting(Scene* scene)
     {
-        // camera
-        setUniform(u_cameraView, (void*)&camera.view[0]);
-        setUniform(u_cameraProjection, (void*)&camera.projection[0]);
-        // lights
-        uploadGpuLightingData(lighting);
-        for (auto entity : entities)
-            drawEntity(entity);
-    }
-
-    void Renderer::uploadGpuLightingData(LightingEnvironment& lighting)
-    {
-        m_gpuLightingData.dLights.clear();
-        m_gpuLightingData.pLights.clear();
-
-        for (auto& light : lighting.m_dirLights)
+        gLighting.dirLights.clear();
+        gLighting.pointLights.clear();
+        for (u32 i = 0; i < scene->dLights.size(); ++i)
         {
-            light.update();
-            m_gpuLightingData.dLights.push_back(light.getData());
+            scene->dLights[i].update();
+            gLighting.dirLights.emplace_back(scene->dLights[i].getData());
         }
-        for (auto& light : lighting.m_pLights)
+        for (u32 i = 0; i < scene->pLights.size(); ++i)
         {
-            light.update();
-            m_gpuLightingData.pLights.push_back(light.getData());
+            scene->pLights[i].update();
+            gLighting.pointLights.emplace_back(scene->pLights[i].getData());
         }
-
-        setBuffer(m_gpuLightingData.pointLightsBuffer, m_gpuLightingData.pLights.data(), sizeofVector(m_gpuLightingData.pLights));
-        setBuffer(m_gpuLightingData.dirLightsBuffer, m_gpuLightingData.dLights.data(), sizeofVector(m_gpuLightingData.dLights));
-
-        m_gpuLightingData.distantProbe = lighting.m_distantProbe;
-        m_gpuLightingData.irradianceProbe = lighting.irradianceProbe;
-        m_gpuLightingData.reflectionProbe = lighting.localReflectionProbe;
+        glNamedBufferSubData(gLighting.dirLightSBO, 0, sizeofVector(gLighting.dirLights), gLighting.dirLights.data());
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, gLighting.dirLightSBO);
+        glNamedBufferSubData(gLighting.pointLightsSBO, 0, sizeofVector(gLighting.pointLights), gLighting.pointLights.data());
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, gLighting.pointLightsSBO);
+        gLighting.distantProbe    = scene->m_distantProbe;
+        gLighting.irradianceProbe = scene->m_irradianceProbe;
+        gLighting.reflectionProbe = scene->m_reflectionProbe;
+        // global distant probe
+        if (gLighting.distantProbe)
+        {
+            glBindTextureUnit(0, gLighting.distantProbe->m_diffuse->m_id);
+            glBindTextureUnit(1, gLighting.distantProbe->m_specular->m_id);
+            glBindTextureUnit(2, gLighting.distantProbe->m_brdfIntegral->m_id);
+        }
+        // local GI probes
+        if (gLighting.irradianceProbe)
+            glBindTextureUnit(3, gLighting.irradianceProbe->m_irradianceMap->m_id);
+        if (gLighting.reflectionProbe)
+            glBindTextureUnit(4, gLighting.reflectionProbe->m_radianceMap->m_id);
     }
 
     void Renderer::probeRenderScene(Scene* scene, Camera& camera)
     {
-        // camera
-        setUniform(u_cameraView, (void*)&camera.view[0]);
-        setUniform(u_cameraProjection, (void*)&camera.projection[0]);
-
-        // lights
-        LightingEnvironment lighting = {
-            scene->pLights,
-            scene->dLights,
-            scene->m_distantProbe,
-            nullptr,
-            nullptr,
-            false
-        };
-        uploadGpuLightingData(lighting);
+        m_globalDrawData.view           = camera.view;
+        m_globalDrawData.projection     = camera.projection;
+        m_globalDrawData.numPointLights = (i32)scene->pLights.size();
+        m_globalDrawData.numDirLights   = (i32)scene->dLights.size();
+        glNamedBufferSubData(gDrawDataBuffer, 0, sizeof(GlobalDrawData), &m_globalDrawData);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, static_cast<u32>(BufferBindings::DrawData), gDrawDataBuffer);
+        updateLighting(scene);
 
         // turn off ssao
         m_ssao = 0.f;
@@ -1057,24 +968,36 @@ namespace Cyan
         ctx->setDepthControl(DepthControl::kEnable);
     }
 
+#define gTexBinding(x) static_cast<u32>(GlobalTextureBindings##::##x)
+
     void Renderer::renderScene(Scene* scene, Camera& camera)
     {
-        // camera
-        setUniform(u_cameraView, (void*)&camera.view[0]);
-        setUniform(u_cameraProjection, (void*)&camera.projection[0]);
-
-        // lights
-        LightingEnvironment lighting = { 
-            scene->pLights,
-            scene->dLights,
-            scene->m_distantProbe,
-            scene->m_irradianceProbe,
-            scene->m_reflectionProbe,
-            false
-        };
-        uploadGpuLightingData(lighting);
-
-        // entities 
+        // bind global draw data
+        m_globalDrawData.view           = camera.view;
+        m_globalDrawData.projection     = camera.projection;
+        m_globalDrawData.numPointLights = (i32)scene->pLights.size();
+        m_globalDrawData.numDirLights   = (i32)scene->dLights.size();
+        m_globalDrawData.m_ssao         = m_ssao;
+        // bind lighting data
+        updateLighting(scene);
+        // bind global textures
+        glBindTextureUnit(gTexBinding(SSAO), m_ssaoTexture->m_id);
+        // bind sun light shadow for this frame
+        CascadedShadowMap& csm          = DirectionalShadowPass::m_cascadedShadowMap;
+        m_globalDrawData.sunLightView   = csm.lightView;
+        u32 textureUnitOffset = gTexBinding(SunShadow);
+        for (u32 i = 0; i < DirectionalShadowPass::kNumShadowCascades; ++i)
+        {
+            m_globalDrawData.sunShadowProjections[i] = csm.cascades[i].lightProjection;
+            if (csm.m_technique == kVariance_Shadow)
+                glBindTextureUnit(textureUnitOffset + i, csm.cascades[i].varianceShadowMap.shadowMap->m_id);
+            else if (csm.m_technique == kPCF_Shadow)
+                glBindTextureUnit(textureUnitOffset + i, csm.cascades[i].basicShadowMap.shadowMap->m_id);
+        }
+        // upload data to gpu
+        glNamedBufferSubData(gDrawDataBuffer, 0, sizeof(GlobalDrawData), &m_globalDrawData);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, static_cast<u32>(BufferBindings::DrawData), gDrawDataBuffer);
+        // draw entities
         for (auto entity : scene->entities)
         {
             if (entity->m_visible)

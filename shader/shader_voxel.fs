@@ -13,7 +13,7 @@ layout(binding = 1, r32ui) uniform coherent volatile uimage3D voxelNormalTexture
 layout(binding = 2, r32ui) uniform coherent volatile uimage3D voxelEmissionTexture;
 
 // atomic counter
-layout(binding = 0) uniform atomic_uint voxelFragmentCounter;
+layout(binding = 5) uniform atomic_uint voxelFragmentCounter;
 
 struct VoxelFragment
 {

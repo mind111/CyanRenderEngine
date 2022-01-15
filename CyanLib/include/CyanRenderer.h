@@ -90,7 +90,7 @@ namespace Cyan
 
         static Renderer* getSingletonPtr();
 
-        void init(glm::vec2 viewportSize);
+        void initialize(glm::vec2 viewportSize);
         void initRenderTargets(u32 windowWidth, u32 windowHeight);
         void initShaders();
 
@@ -108,20 +108,8 @@ namespace Cyan
         void renderDebugObjects();
         void endRender();
 
-        // gpu compatible lighting data
-        struct LightingGpuData
-        {
-            RegularBuffer* pointLightsBuffer;
-            RegularBuffer* dirLightsBuffer;
-            std::vector<PointLightGpuData> pLights;
-            std::vector<DirLightGpuData> dLights;
-            DistantLightProbe* distantProbe;
-            IrradianceProbe* irradianceProbe;
-            ReflectionProbe* reflectionProbe;
-            bool bUpdateProbe;
-        } m_gpuLightingData;
 
-        void uploadGpuLightingData(LightingEnvironment& lighting);
+        void updateLighting(Scene* scene);
         void renderEntities(std::vector<Entity*>& entities, LightingEnvironment& lighting, Camera& camera);
         BoundingBox3f computeSceneAABB(Scene* scene);
         void drawEntity(Entity* entity);
@@ -135,7 +123,6 @@ namespace Cyan
         void endFrame();
 
         void addScenePass(Scene* scene);
-        void addEntityPass(RenderTarget* renderTarget, Viewport viewport, std::vector<Entity*>& entities, LightingEnvironment& lighting, Camera& camera);
         void addDirectionalShadowPass(Scene* scene, Camera& camera, u32 lightIndex);
         void addCustomPass(RenderPass* pass);
         void addTexturedQuadPass(RenderTarget* renderTarget, Viewport viewport, Texture* srcTexture);
@@ -160,39 +147,73 @@ namespace Cyan
         Uniform* u_cameraView;
         Uniform* u_cameraProjection;
 
-        RegularBuffer* m_pointLightsBuffer;
-        RegularBuffer* m_dirLightsBuffer;
-
         // render targets
-        bool m_bSuperSampleAA;
-        // u32 m_superSamplingRenderWidth, m_superSamplingRenderHeight;
-        u32 m_SSAAWidth, m_SSAAHeight;
-        u32 m_offscreenRenderWidth, m_offscreenRenderHeight;
-        u32 m_windowWidth, m_windowHeight;
+        bool          m_bSuperSampleAA;
+        u32           m_SSAAWidth, m_SSAAHeight;
+        u32           m_offscreenRenderWidth, m_offscreenRenderHeight;
+        u32           m_windowWidth, m_windowHeight;
 
         // normal hdr scene color texture 
-        Texture* m_sceneColorTexture;
-        Texture* m_sceneNormalTexture;
-        Texture* m_sceneDepthTexture;
+        Texture*      m_sceneColorTexture;
+        Texture*      m_sceneNormalTexture;
+        Texture*      m_sceneDepthTexture;
         RenderTarget* m_sceneColorRenderTarget;
         // hdr super sampling color buffer
-        Texture* m_sceneColorTextureSSAA;
-        Texture* m_sceneNormalTextureSSAA;
+        Texture*      m_sceneColorTextureSSAA;
+        Texture*      m_sceneNormalTextureSSAA;
         RenderTarget* m_sceneColorRTSSAA;
-        Texture* m_sceneDepthTextureSSAA;
-        Shader* m_sceneDepthNormalShader;
-        // TODO: whether enabling post-processing or not, the final render output should always be in 
-        // following render targets
+        Texture*      m_sceneDepthTextureSSAA;
+        Shader*       m_sceneDepthNormalShader;
         // final render output
-        Texture* m_outputColorTexture;
+        Texture*      m_outputColorTexture;
         RenderTarget* m_outputRenderTarget;
 
-        // directional shadow
-        CascadedShadowMap m_cascadedShadowMap;
-        const u32 kNumShadowCascades = 4u;
-        Shader* m_directionalShadowShader;
-        MaterialInstance* m_directionalShadowMatl;
-        RenderTarget* m_depthRenderTarget;
+        enum class BufferBindings
+        {
+            DrawData     = 0,
+            DirLightData,
+            PointLightsData,
+            kCount
+        };
+
+        enum class GlobalTextureBindings
+        {
+            DistantProbeDiffuse = 0,
+            DistantProbeSpecular,
+            DistantProbeBRDF,
+            IrradianceProbe,
+            ReflectionProbe,
+            SSAO,
+            SunShadow,
+            kCount = 10
+        };
+
+        struct GlobalDrawData
+        {
+            glm::mat4 view;
+            glm::mat4 projection;
+            glm::mat4 sunLightView;
+            glm::mat4 sunShadowProjections[4];
+            i32       numDirLights;
+            i32       numPointLights;
+            f32       m_ssao;
+            f32       dummy;
+        } m_globalDrawData;
+        GLuint gDrawDataBuffer;
+
+        struct Lighting
+        {
+            const u32                      kNumShadowCascades = 4u;
+            const u32                      kDynamicLightBufferSize = 1024;
+            CascadedShadowMap              sunLightShadowMap;
+            std::vector<PointLightGpuData> pointLights;
+            std::vector<DirLightGpuData>   dirLights;
+            GLuint                         dirLightSBO;
+            GLuint                         pointLightsSBO;
+            DistantLightProbe*             distantProbe;
+            IrradianceProbe*               irradianceProbe;
+            ReflectionProbe*               reflectionProbe;
+        } gLighting;
 
         // ssao
         f32           m_ssao;

@@ -200,8 +200,8 @@ namespace Cyan
     struct CascadedShadowMap
     {
         // Fixed four cascades for now
-        ShadowCascade cascades[4];
-        glm::mat4 lightView;
+        ShadowCascade   cascades[4];
+        glm::mat4       lightView;
         ShadowTechnique m_technique;
     };
 
@@ -228,17 +228,6 @@ namespace Cyan
         Camera m_camera;
         DirectionalLight m_light;
         Scene* m_scene;
-    };
-
-    struct EntityPass : public RenderPass
-    {
-        EntityPass(RenderTarget* renderTarget, Viewport viewport, std::vector<Entity*>& entities, LightingEnvironment& lighting, Camera& camera);
-        static void onInit();
-        virtual void render() override;
-
-        std::vector<Entity*>& m_entities;
-        Camera m_camera;
-        LightingEnvironment m_lighting;
     };
 
     struct LinePass : public RenderPass

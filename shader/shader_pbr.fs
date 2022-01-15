@@ -13,13 +13,60 @@ layout (location = 0) out vec4 fragColor;
 layout (location = 1) out vec3 fragmentNormal; 
 layout (location = 2) out vec3 fragmentDepth; 
 layout (location = 3) out vec3 radialDistance;
-layout (location = 4) out float shadowMask;
 
+//- samplers
+layout (binding = 0) uniform samplerCube distantIrradiance;
+layout (binding = 1) uniform samplerCube distantReflection;
+layout (binding = 2) uniform sampler2D   brdfIntegral;
+layout (binding = 3) uniform samplerCube irradianceProbe;
+layout (binding = 4) uniform samplerCube localReflectionProbe;
+layout (binding = 5) uniform sampler2D   ssaoTex;
+layout (binding = 6) uniform sampler2D   shadowCascades[4];
+//- sun shadow
+float cascadeIntervals[4] = {0.1f, 0.3f, 0.6f, 1.0f};
+
+struct Light 
+{
+    vec4 color;
+};
+
+struct DirLight
+{
+    vec4 color;
+    vec4 direction;
+};
+
+struct PointLight
+{
+    vec4 color;
+    vec4 position;
+};
+
+//- buffers
+layout(std430, binding = 0) buffer GlobalDrawData
+{
+    mat4  view;
+    mat4  projection;
+	mat4  sunLightView;
+	mat4  sunShadowProjections[4];
+    int   numDirLights;
+    int   numPointLights;
+    float m_ssao;
+    float dummy;
+} gDrawData;
+
+layout(std430, binding = 1) buffer dirLightsData
+{
+    DirLight lights[];
+} dirLightsBuffer;
+
+layout(std430, binding = 2) buffer pointLightsData
+{
+    PointLight lights[];
+} pointLightsBuffer;
+
+#define pi 3.14159265359
 #define SlopeBasedBias 1
-
-//- transforms
-uniform mat4 s_view;
-//- misc
 
 uniform struct MaterialProperty
 {
@@ -33,28 +80,9 @@ uniform struct MaterialProperty
     float hasBakedLighting;
 } uMaterialProps; 
 
-// distant probe
-uniform struct GlobalDistantProbe
-{
-    float diffuseScale; 
-    float specularScale;
-    samplerCube irradiance;
-    samplerCube reflection;
-} gDistantProbe;
-
-uniform struct PostProcessSetting
-{
-    float m_ssao;
-} uPostProcessSetting;
-
 // global lighting settings
 uniform struct Lighting
 {
-	samplerCube distantIrradiance;
-	samplerCube distantReflection;
-    // precomputed GI
-    samplerCube irradianceProbe;
-    samplerCube localReflectionProbe;
     float       indirectDiffuseScale;
     float       indirectSpecularScale;
 	float       directLightingScale;
@@ -76,8 +104,6 @@ uniform float uniformSpecular; // control incident specular amount .5 by default
 uniform float uniformRoughness;
 uniform float uniformMetallic;
 uniform vec4 flatColor;
-uniform int numPointLights; 
-uniform int numDirLights;   
 
 //- samplers
 uniform sampler2D diffuseMaps[2];
@@ -87,9 +113,7 @@ uniform sampler2D roughnessMap;
 uniform sampler2D metalnessMap;
 uniform sampler2D metallicRoughnessMap;
 uniform sampler2D aoMap;
-uniform sampler2D   brdfIntegral;
-uniform sampler2D   lightMap;
-uniform sampler2D   ssaoTex;
+uniform sampler2D lightMap;
 
 //- debug switches
 uniform float debugNormalMap;
@@ -98,55 +122,7 @@ uniform float debugD;
 uniform float debugF;
 uniform float debugG;
 uniform float disneyReparam;
-// experiemental
 
-uniform float wrap;
-
-// shaodw
-struct ShadowCascade
-{
-    sampler2D depthMap;
-    mat4 lightProjection;
-};
-uniform ShadowCascade shadowCascades[4];
-
-uniform mat4 lightView;
-
-#define pi 3.14159265359
-float cascadeIntervals[4] = {0.1f, 0.3f, 0.6f, 1.0f};
-
-struct Light 
-{
-    vec4 color;
-};
-
-struct DirLight
-{
-    // float padding[2]; // 8 bytes of padding
-    vec4 color;
-    vec4 direction;
-};
-
-struct PointLight
-{
-    // float padding[2]; // 8 bytes of padding
-    vec4 color;
-    vec4 position;
-};
-
-// TODO: shader storage buffer is slower compared to uniform buffer, maybe switch to use ubo instead?
-layout(std430, binding = 1) buffer dirLightsData
-{
-    DirLight lights[];
-} dirLightsBuffer;
-
-layout(std430, binding = 2) buffer pointLightsData
-{
-    PointLight lights[];
-} pointLightsBuffer;
-
-
-// TODO: Handedness ...?
 vec4 tangentSpaceToViewSpace(vec3 tn, vec3 vn, vec3 t) 
 {
     mat4 tbn;
@@ -203,15 +179,9 @@ float VanDerCorput(uint n, uint base)
     return result;
 }
 
-vec2 HammersleyNoBitOps(uint i, uint N)
+vec3 gammaCorrection(vec3 inColor, float gamma)
 {
-    return vec2(float(i)/float(N), VanDerCorput(i, 2u));
-}
-
-// TODO: Rename this or refactor this to handle gamma for both directions
-vec3 gammaCorrection(vec3 inColor)
-{
-    return vec3(pow(inColor.r, 2.2f), pow(inColor.g, 2.2f), pow(inColor.b, 2.2f));
+    return vec3(pow(inColor.r, gamma), pow(inColor.g, gamma), pow(inColor.b, gamma));
 }
 
 // Taking the formula from the GGX paper and simplify to avoid computing tangent
@@ -243,7 +213,6 @@ vec3 fresnel(vec3 f0, vec3 n, vec3 v)
     return mix(f0, vec3(1.f), fresnelCoef);
 }
 
-// when roughness is 0, this term is 0
 /*
     lambda function in Smith geometry term
 */
@@ -299,7 +268,6 @@ vec3 diffuseBrdf(vec3 baseColor)
     return baseColor / pi;
 }
 
-// TODO: debug this, the specular highlight is too high
 /*
     * microfacet specular brdf 
     * A brdf fr(i, o, n) 
@@ -315,7 +283,7 @@ vec3 specularBrdf(vec3 wi, vec3 wo, vec3 n, float roughness, vec3 f0)
     // float G = ggxSmithG2Ex(wo, wi, n, roughness);
     vec3 F = fresnel(f0, n, wo);
     // TODO: the max() operator here actually affects how strong the specular highlight is
-    // around grazing angle. Using a small value like 0.0001 will have pretty bad shading alias. However,
+    // near grazing angle. Using a small value like 0.0001 will have pretty bad shading alias. However,
     // is using 0.1 here corret though. Need to reference other implementation. 
     vec3 brdf = D * F * G / max((4.f * ndotv * ndotl), 0.01f);
     return brdf;
@@ -343,7 +311,7 @@ struct RenderParams
 vec3 render(RenderParams params)
 {
     vec3 h = normalize(params.v + params.l);
-    float ndotl = max(0.000f, dot(params.n, params.l));
+    float ndotl = max(0.f, dot(params.n, params.l));
     vec3 F = fresnel(params.f0, params.n, params.v);
     vec3 kDiffuse = mix(vec3(1.f) - F, vec3(0.0f), params.metallic);
     vec3 diffuse = kDiffuse * diffuseBrdf(params.baseColor) * ndotl;
@@ -357,28 +325,6 @@ struct CascadeOffset
     float blend;
 };
 
-CascadeOffset computeCascadeIndex()
-{
-    // determine which cascade to sample
-    float t = (abs(fragmentPos.z) - 0.5f) / (100.f - 0.5f);
-    int cascadeIndex = 0;
-    float blend = 1.f;
-    for (int i = 0; i < 4; ++i)
-    {
-        if (t < cascadeIntervals[i])
-        {
-            cascadeIndex = i;
-            if (i > 0)
-            {
-                float cascadeRelDepth = (t - cascadeIntervals[i-1]) / (cascadeIntervals[i] - cascadeIntervals[i-1]); 
-                cascadeRelDepth = clamp(cascadeRelDepth, 0.f, 0.2f);
-                blend = cascadeRelDepth * 5.f;
-            }
-            break;
-        }
-    }
-    return CascadeOffset(cascadeIndex, blend);
-}
 
 float receiverPlaneBias()
 {
@@ -419,6 +365,29 @@ vec2 poissonSample(uint index)
     return (rot * vec2(1.f, 0.f)) * poissonDisk[index];
 }
 
+CascadeOffset computeCascadeIndex()
+{
+    // determine which cascade to sample
+    float t = (abs(fragmentPos.z) - 0.5f) / (100.f - 0.5f);
+    int cascadeIndex = 0;
+    float blend = 1.f;
+    for (int i = 0; i < 4; ++i)
+    {
+        if (t < cascadeIntervals[i])
+        {
+            cascadeIndex = i;
+            if (i > 0)
+            {
+                float cascadeRelDepth = (t - cascadeIntervals[i-1]) / (cascadeIntervals[i] - cascadeIntervals[i-1]); 
+                cascadeRelDepth = clamp(cascadeRelDepth, 0.f, 0.2f);
+                blend = cascadeRelDepth * 5.f;
+            }
+            break;
+        }
+    }
+    return CascadeOffset(cascadeIndex, blend);
+}
+
 // TODO: improve shadow biasing, normal bias and receiver plane bias...?
 // TODO: add a manual depth bias for each dir light maybe...?
 // TODO: proper blending between cascades
@@ -428,11 +397,11 @@ float PCFShadow(CascadeOffset cascadeOffset, float bias)
     float shadow = 1.f;
 
     // clip uv used to sample the shadow map 
-    vec2 texelOffset = vec2(1.f) / textureSize(shadowCascades[cascadeOffset.cascadeIndex].depthMap, 0);
+    vec2 texelOffset = vec2(1.f) / textureSize(shadowCascades[cascadeOffset.cascadeIndex], 0);
     // compute shadowmap uv
-    vec4 lightViewFragPos = shadowCascades[cascadeOffset.cascadeIndex].lightProjection * lightView * vec4(fragmentPosWS, 1.f);
-    vec2 shadowTexCoord = floor((lightViewFragPos.xy * .5f + .5f) * textureSize(shadowCascades[cascadeOffset.cascadeIndex].depthMap, 0)) + .5f; 
-    shadowTexCoord /= textureSize(shadowCascades[cascadeOffset.cascadeIndex].depthMap, 0);
+    vec4 lightViewFragPos = gDrawData.sunShadowProjections[cascadeOffset.cascadeIndex] * gDrawData.sunLightView * vec4(fragmentPosWS, 1.f);
+    vec2 shadowTexCoord = floor((lightViewFragPos.xy * .5f + .5f) * textureSize(shadowCascades[cascadeOffset.cascadeIndex], 0)) + .5f; 
+    shadowTexCoord /= textureSize(shadowCascades[cascadeOffset.cascadeIndex], 0);
 
     // bring depth into [0, 1] from [-1, 1]
     float fragmentDepth = lightViewFragPos.z * 0.5f + .5f;
@@ -469,7 +438,7 @@ float PCFShadow(CascadeOffset cascadeOffset, float bias)
                 || sampleTexCoord.y > 1.f) 
                 continue;
 
-            float depthTest = texture(shadowCascades[cascadeOffset.cascadeIndex].depthMap, sampleTexCoord).r < (fragmentDepth - bias) ? 0.f : 1.f;
+            float depthTest = texture(shadowCascades[cascadeOffset.cascadeIndex], sampleTexCoord).r < (fragmentDepth - bias) ? 0.f : 1.f;
 #if GAUSSIAN_KERNEL
             convolved += depthTest * (gaussianKernel[(i + kernelRadius) * 5 + (j + kernelRadius)] * (1.f / 273.f));
 #else
@@ -489,11 +458,11 @@ float PCFShadow(CascadeOffset cascadeOffset, float bias)
 float varianceShadow(vec2 shadowTexCoord, float fragmentDepth, int cascadeOffset)
 {
     float shadow = 1.f;
-    float firstMoment = texture(shadowCascades[cascadeOffset].depthMap, shadowTexCoord).r;
+    float firstMoment = texture(shadowCascades[cascadeOffset], shadowTexCoord).r;
     if (firstMoment <= fragmentDepth)
     {
         float t = fragmentDepth;
-        float secondMoment = texture(shadowCascades[cascadeOffset].depthMap, shadowTexCoord).g;
+        float secondMoment = texture(shadowCascades[cascadeOffset], shadowTexCoord).g;
         // use second and first moment to compute variance
         float variance = max(secondMoment - firstMoment * firstMoment, 0.0001f);
         //he Chebycv visibility test
@@ -518,69 +487,44 @@ float constantBias()
     return 0.0025f;
 }
 
-#define BLEND_CASCADES 0
 float isInShadow(float bias)
 {
     float shadow = 1.f;
     // determine which cascade to sample
     CascadeOffset cascadeOffset = computeCascadeIndex();
-
 #if PCF_SHADOW
-#if BLEND_CASCADES
-    if (cascadeOffset.blend < 1.f)
-    {
-        float shadow0 = PCFShadow(cascadeOffset, bias);
-        cascadeOffset.cascadeIndex -= 1;
-        float shadow1 = PCFShadow(cascadeOffset, bias);
-        shadow = mix(shadow0, shadow1, cascadeOffset.blend);
-    }
-    else
-    {
         shadow = PCFShadow(cascadeOffset, bias);
-    }
-#else
-        shadow = PCFShadow(cascadeOffset, bias);
-#endif
 #endif
 #if VSM_SHADOW
     shadow = varianceShadow(shadowTexCoord, fragmentDepth, cascadeOffset);
 #endif
-    shadowMask = shadow;
     return shadow;
 }
 
 vec3 directLighting(RenderParams renderParams)
 {
     vec3 color = vec3(0.f);
-    for (int i = 0; i < numPointLights; i++)
+    for (int i = 0; i < gDrawData.numPointLights; i++)
     {
-        vec4 lightPos = s_view * pointLightsBuffer.lights[i].position;
+        vec4 lightPos = gDrawData.view * pointLightsBuffer.lights[i].position;
         float distance = length(lightPos.xyz - fragmentPos);
-        // float attenuation = distance > 5.f ? 0.f : 1.f / (1.0f + 0.7 * distance + 1.8 * distance * distance);
         float attenuation = 1.f / (1.0f + 0.7 * distance + 1.8 * distance * distance);
-
-        // light dir
         renderParams.l = normalize(lightPos.xyz - fragmentPos);
-        // light color
         renderParams.li = pointLightsBuffer.lights[i].color.rgb * pointLightsBuffer.lights[i].color.w * attenuation;
-        renderParams.shadow = 1.f;
         color += render(renderParams);
     }
-    for (int i = 0; i < numDirLights; i++)
+    for (int i = 0; i < gDrawData.numDirLights; i++)
     {
-        // sample shadow map
-        vec4 worldFragPos = inverse(s_view) * vec4(fragmentPos, 1.f);
-        vec4 lightDir = s_view * (dirLightsBuffer.lights[i].direction);
-        // light dir
+        vec4 worldFragPos = inverse(gDrawData.view) * vec4(fragmentPos, 1.f);
+        vec4 lightDir = gDrawData.view * (dirLightsBuffer.lights[i].direction);
         renderParams.l = normalize(lightDir.xyz);
+        renderParams.li = dirLightsBuffer.lights[i].color.rgb * dirLightsBuffer.lights[i].color.w;
 #if SlopeBasedBias
         float shadowBias = constantBias() + slopeBasedBias(renderParams.n, renderParams.l);
 #else
         float shadowBias = constantBias();
 #endif
         renderParams.shadow = isInShadow(shadowBias);
-        // light color
-        renderParams.li = dirLightsBuffer.lights[i].color.rgb * dirLightsBuffer.lights[i].color.w;
         color += render(renderParams);
     }
     return color;
@@ -592,11 +536,11 @@ vec3 indirectLighting(RenderParams params)
     vec3 F = fresnel(params.f0, params.n, params.v); 
     vec3 kDiffuse = mix(vec3(1.f) - F, vec3(0.f), params.metallic);
     // diffuse irradiance
-    vec3 diffuse = kDiffuse * gLighting.indirectDiffuseScale * params.baseColor * texture(gLighting.distantIrradiance, params.wn).rgb;
+    vec3 diffuse = kDiffuse * gLighting.indirectDiffuseScale * params.baseColor * texture(distantIrradiance, params.wn).rgb;
     // specular radiance
     float ndotv = saturate(dot(params.n, params.v));
     vec3 r = -reflect(params.v, params.n);
-    mat4 viewRotation = s_view;
+    mat4 viewRotation = gDrawData.view;
     // Cancel out the translation part of the view matrix so that the cubemap will always follow
     // the camera, view of the cubemap will change along with the change of camera rotation 
     viewRotation[3][0] = 0.f;
@@ -604,17 +548,13 @@ vec3 indirectLighting(RenderParams params)
     viewRotation[3][2] = 0.f;
     viewRotation[3][3] = 1.f;
     vec3 rr = (inverse(viewRotation) * vec4(r, 0.f)).xyz;
-
     // todo: update to only sample local reflection
-    vec3 prefilteredColor = useDistantProbe > .5f ? textureLod(gDistantProbe.reflection, rr, params.roughness * 10.f).rgb : textureLod(gLighting.localReflectionProbe, rr, params.roughness * 10.f).rgb;
+    vec3 prefilteredColor = useDistantProbe > .5f ? textureLod(distantReflection, rr, params.roughness * 10.f).rgb : textureLod(localReflectionProbe, rr, params.roughness * 10.f).rgb;
     vec3 brdf = texture(brdfIntegral, vec2(params.roughness, ndotv)).rgb; 
     vec3 specular = (gLighting.indirectSpecularScale * prefilteredColor * uniformSpecular) * (params.f0 * brdf.r + brdf.g);
-
-    // probe based diffuse GI
     {
 	   //diffuse += kDiffuse * params.baseColor * texture(gLighting.irradianceProbe, params.wn).rgb;
     }
-
     color += indirectDiffuseScale * diffuse + indirectSpecularScale * specular;
     return color;
 }
@@ -703,17 +643,14 @@ void main()
     // analytical lighting
     color += directLighting(renderParams) * ssao;
     // image-based-lighting
-    color += uPostProcessSetting.m_ssao > .5f ? indirectLighting(renderParams) * ssao : indirectLighting(renderParams);
+    color += gDrawData.m_ssao > .5f ? indirectLighting(renderParams) * ssao : indirectLighting(renderParams);
     // baked lighting
     vec3 bakedLighting = vec3(0.f);
     if (uMaterialProps.hasBakedLighting > 0.5f) 
         bakedLighting = texture(lightMap, uv1).rgb;
-    color += uPostProcessSetting.m_ssao > .5f ? bakedLighting * albedo.rgb * ssao : bakedLighting * albedo.rgb;
+    color += gDrawData.m_ssao > .5f ? bakedLighting * albedo.rgb * ssao : bakedLighting * albedo.rgb;
     // write linear color to HDR Framebuffer
     fragColor = vec4(color, 1.0f);
 
-    // TODO: normalize the depth
-    // vec2 clipSpaceXy = (gl_FragCoord.xy / 512.f) * 2.f - vec2(1.f);
-    // radialDistance = vec3(length(vec3(clipSpaceXy, gl_FragCoord.z)));
     radialDistance = vec3(length(fragmentPos));
 }

@@ -336,6 +336,7 @@ void PbrApp::initDemoScene00()
     Cyan::StandardPbrMaterial* defaultMatl = createStandardPbrMatlInstance(demoScene00, params, false);
 
     // helmet
+
     {
         createHelmetInstance(demoScene00);
         auto helmet = sceneManager->getEntity(demoScene00, "DamagedHelmet");
@@ -527,7 +528,7 @@ void PbrApp::initDemoScene00()
 #endif
         // path tracing
         {
-            pathTraceScene(demoScene00);
+       //     pathTraceScene(demoScene00);
         }
     }
     timer.end();

@@ -18,24 +18,34 @@ out vec4 shadowPos;
 out vec3 fragmentPos;
 out vec3 fragmentPosWS;
 
+layout(std430, binding = 0) buffer GlobalDrawData
+{
+    mat4  view;
+    mat4  projection;
+	mat4  sunLightView;
+	mat4  sunShadowProjections[4];
+    int   numDirLights;
+    int   numPointLights;
+    float m_ssao;
+    float dummy;
+} gDrawData;
+
 uniform mat4 s_model;
-uniform mat4 s_view;
-uniform mat4 s_projection;
 
 void main() {
-    fragmentPos = (s_view * s_model * vec4(vertexPos, 1.f)).xyz; 
+    fragmentPos = (gDrawData.view * s_model * vec4(vertexPos, 1.f)).xyz; 
     fragmentPosWS = (s_model * vec4(vertexPos, 1.f)).xyz;
-    gl_Position = s_projection * s_view * s_model * vec4(vertexPos, 1.0f);
+    gl_Position = gDrawData.projection * gDrawData.view * s_model * vec4(vertexPos, 1.0f);
     mat4 normalTransformWorld = transpose(inverse(s_model));
     wn = (normalTransformWorld * vec4(vertexNormal, 0.f)).xyz;
-    mat4 normalTransform = transpose(inverse(s_view * s_model)); 
+    mat4 normalTransform = transpose(inverse(gDrawData.view * s_model)); 
     // Transform normals to camera space
     n = (normalTransform * vec4(vertexNormal, 0.f)).xyz;
     n = normalize(n);
     // the w-component of input vertex tangent indicate the handedness of the tangent frame 
     vec3 vt = vertexTangent.xyz * vertexTangent.w;
     // Transform tangents to camera space
-    t = (s_view * s_model * vec4(vt, 0.f)).xyz;
+    t = (gDrawData.view * s_model * vec4(vt, 0.f)).xyz;
     t = normalize(t);
     uv = textureUv_0;
     uv1 = textureUv_1;

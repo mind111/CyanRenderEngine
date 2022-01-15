@@ -22,7 +22,7 @@ namespace Cyan
         m_lightMapManager = new LightMapManager;
         m_pathTracer = new PathTracer;
         m_renderer = new Renderer;
-        m_renderer->init(m_windowSize);
+        m_renderer->initialize(m_windowSize);
     }
 
     GraphicsSystem* GraphicsSystem::getSingletonPtr()

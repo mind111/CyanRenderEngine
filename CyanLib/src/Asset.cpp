@@ -485,10 +485,6 @@ namespace Cyan
         auto nodes = sceneJson["nodes"];
         auto entities = sceneJson["entities"];
 
-        // create buffer size that can contain max number of lights
-        scene->m_dirLightsBuffer = Cyan::createRegularBuffer(Scene::kMaxNumDirLights * sizeof(DirectionalLight));
-        scene->m_pointLightsBuffer = Cyan::createRegularBuffer(Scene::kMaxNumPointLights * sizeof(PointLight));
-
         scene->activeCamera = 0u;
         u32 camIdx = 0u;
         for (auto& camera : cameras) 

@@ -654,35 +654,27 @@ namespace Cyan
             {
                 SceneNode* node = nodes.front(); 
                 nodes.pop();
-                for (auto child : node->m_child)
-                {
-                    nodes.push(child);
-                }
                 if (MeshInstance* meshInstance = node->m_meshInstance)
                 {
-                    // TODO: clean this up
                     if (node->m_hasAABB)
                     {
                         glm::mat4 model = node->getWorldTransform().toMatrix();
                         s_directShadowMatl->set("model", &model[0][0]);
                         s_directShadowMatl->bind();
-
                         u32 smIndex = 0u;
                         for (auto sm : meshInstance->m_mesh->m_subMeshes)
                         {
                             ctx->setVertexArray(sm->m_vertexArray);
                             if (sm->m_vertexArray->m_ibo != static_cast<u32>(-1))
-                            {
                                 ctx->drawIndex(sm->m_vertexArray->m_numIndices);
-                            }
                             else
-                            {
                                 ctx->drawIndexAuto(sm->m_vertexArray->numVerts());
-                            }
                             smIndex++;
                         }
                     }
                 }
+                for (auto child : node->m_child)
+                    nodes.push(child);
             }
         }
     }
@@ -710,7 +702,6 @@ namespace Cyan
         f32 t[4] = { 0.1f, 0.3f, 0.6f, 1.f };
         m_cascadedShadowMap.cascades[0].n = camera.n;
         m_cascadedShadowMap.cascades[0].f = (1.0f - t[0]) * camera.n + t[0] * camera.f;
-
         for (u32 i = 1u; i < DirectionalShadowPass::kNumShadowCascades; ++i)
         {
             m_cascadedShadowMap.cascades[i].n = m_cascadedShadowMap.cascades[i-1].f;
@@ -721,9 +712,6 @@ namespace Cyan
         {
             computeCascadeAABB(m_cascadedShadowMap.cascades[i], camera, m_cascadedShadowMap.lightView);
             renderCascade(m_cascadedShadowMap.cascades[i], m_cascadedShadowMap.lightView);
-            // TODO: down sample two times to 1/4 resolution before filtering
-
-            // filter the cascade using gaussian blur
         }
     }
 
@@ -741,25 +729,6 @@ namespace Cyan
     void SSAOPass::render()
     {
 
-    }
-
-    EntityPass::EntityPass(RenderTarget* renderTarget, Viewport viewport, std::vector<Entity*>& entities, LightingEnvironment& lighting, Camera& camera)
-        : RenderPass(renderTarget, viewport), m_entities(entities), m_camera(camera), m_lighting(lighting)
-    {
-
-    }
-
-    void EntityPass::onInit()
-    {
-
-    }
-
-    void EntityPass::render()
-    {
-        auto renderer = Renderer::getSingletonPtr();
-        auto ctx = getCurrentGfxCtx();
-        ctx->setRenderTarget(m_renderTarget);
-        renderer->renderEntities(m_entities, m_lighting, m_camera);
     }
 
     TexturedQuadPass::TexturedQuadPass(RenderTarget* renderTarget, Viewport vp, Texture* srcTex)

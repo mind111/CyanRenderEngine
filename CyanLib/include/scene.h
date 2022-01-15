@@ -15,15 +15,13 @@ struct SkyLight
 
 };
 
-// TODO: implement this
 struct LightingEnvironment
 {
-    std::vector<PointLight>& m_pLights;
+    std::vector<PointLight>&       m_pLights;
     std::vector<DirectionalLight>& m_dirLights;
-    DistantLightProbe* m_distantProbe;
-    Cyan::IrradianceProbe* irradianceProbe;
-    Cyan::ReflectionProbe* localReflectionProbe;
-    bool bUpdateProbeData;
+    DistantLightProbe*             m_distantProbe;
+    Cyan::IrradianceProbe*         irradianceProbe;
+    Cyan::ReflectionProbe*         localReflectionProbe;
 };
 
 struct Scene 
@@ -38,17 +36,15 @@ struct Scene
     std::vector<Entity*>                    entities;
     // data
     std::vector<Cyan::StandardPbrMaterial*> m_materials;
+    std::vector<glm::mat4>                  g_globalTransforms;
     std::vector<Cyan::Material>             g_materials;
     std::vector<Cyan::MaterialInstance>     g_materialInstances;
     std::vector<Cyan::Mesh>                 g_meshes;
     std::vector<Cyan::Texture>              g_textures;
-
     // lighting
     u32                                     m_currentEnvMap;
     std::vector<PointLight>                 pLights;
     std::vector<DirectionalLight>           dLights;
-    RegularBuffer*                          m_pointLightsBuffer;
-    RegularBuffer*                          m_dirLightsBuffer;
     Cyan::IrradianceProbe*                  m_irradianceProbe;
     Cyan::ReflectionProbe*                  m_reflectionProbe;
     DistantLightProbe*                      m_distantProbe;

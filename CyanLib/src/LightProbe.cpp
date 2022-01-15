@@ -454,21 +454,9 @@ namespace Cyan
                 camera.lookAt = camera.position + cameraTargets[f];
                 camera.worldUp = worldUps[f];
                 CameraManager::updateCamera(camera);
-
-                LightingEnvironment lighting = {
-                    m_scene->pLights,
-                    m_scene->dLights,
-                    m_scene->m_distantProbe,
-                    nullptr,
-                    nullptr,
-                    true
-                };
                 for (u32 i = 0; i < m_scene->dLights.size(); ++i)
-                {
                     renderer->addDirectionalShadowPass(m_scene, camera, i);
-                }
-                renderer->addEntityPass(m_cubemapRenderTarget, {0, 0, m_cubemapRenderTarget->m_width, m_cubemapRenderTarget->m_height}, bakeEntities, lighting, camera);
-                renderer->render();
+                
             }
         }
         
