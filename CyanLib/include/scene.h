@@ -36,6 +36,7 @@ struct Scene
     std::vector<Entity*>                    entities;
     // data
     std::vector<Cyan::StandardPbrMaterial*> m_materials;
+    std::vector<glm::mat4>                  g_localTransforms;
     std::vector<glm::mat4>                  g_globalTransforms;
     std::vector<Cyan::Material>             g_materials;
     std::vector<Cyan::MaterialInstance>     g_materialInstances;
@@ -77,6 +78,7 @@ public:
     void setDistantLightProbe(Scene* scene, DistantLightProbe* probe);
     void createDirectionalLight(Scene* scene, glm::vec3 color, glm::vec3 direction, float intensity);
     void createPointLight(Scene* scene, glm::vec3 color, glm::vec3 position, float intensity);
+    SceneNode* createSceneNode(Scene* );
     Entity* createEntity(Scene* scene, const char* entityName, Transform transform, bool isStatic, Entity* parent=nullptr);
     Entity* getEntity(Scene* scene, u32 id) 
     {
@@ -103,6 +105,8 @@ public:
     Cyan::LightFieldProbe* createLightFieldProbe(Scene* scene, const glm::vec3& pos);
     Cyan::LightFieldProbeVolume* createLightFieldProbeVolume(Scene* scene, glm::vec3& pos, glm::vec3& dimension, glm::vec3& stride);
 private:
-    static SceneManager* s_sceneManager;
+    const u32                kMaxNumSceneNodes = 1024u;
+    std::vector<SceneNode>   m_sceneNodePool;
+    static SceneManager*     s_sceneManager;
     Cyan::LightProbeFactory* m_probeFactory;
 };

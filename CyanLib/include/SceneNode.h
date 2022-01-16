@@ -21,23 +21,20 @@ struct SceneNode
 {
     // owner
     struct Entity* m_owner; 
-
     // identifier
     char m_name[kSceneNodeNameMaxLen];
-
     // node hierarchy
     SceneNode* m_parent;
     std::vector<SceneNode*> m_child;
-
     // transform component
+    u32       localTransform;
+    u32       globalTransform;
     Transform m_localTransform;
     Transform m_worldTransform;
-
     // mesh component 
     Cyan::MeshInstance* m_meshInstance;
     bool m_hasAABB;
     bool m_castShadow;
-
     void setParent(SceneNode* parent);
     void setCastShadw(bool& castShadow)
     {
@@ -57,7 +54,6 @@ struct SceneNode
     }
     Cyan::MeshInstance* getAttachedMesh() { return m_meshInstance; }
     const Transform& getWorldTransform();
-
     SceneNode* find(const char* name);
     struct RayCastInfo traceRay(const glm::vec3& ro, const glm::vec3& rd);
 };

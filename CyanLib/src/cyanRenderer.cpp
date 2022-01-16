@@ -680,7 +680,6 @@ namespace Cyan
                 for (u32 i = 0; i < (DirectionalShadowPass::kNumShadowCascades / 2); ++i)
                 {
                     auto& cascade = DirectionalShadowPass::m_cascadedShadowMap.cascades[i];
-                    // TODO: add gaussian blur pass really soften the shadow, but the shadow becomes almost too light
                     void* mem = m_frameAllocator.alloc(sizeof(GaussianBlurPass) * 2);
                     GaussianBlurPass* depthBlurPass = 
                         new (mem) GaussianBlurPass(DirectionalShadowPass::s_depthRenderTarget,
@@ -891,6 +890,7 @@ namespace Cyan
         }
     }
 
+#define gTexBinding(x) static_cast<u32>(GlobalTextureBindings##::##x)
     void Renderer::updateLighting(Scene* scene)
     {
         gLighting.dirLights.clear();
@@ -926,25 +926,44 @@ namespace Cyan
             glBindTextureUnit(4, gLighting.reflectionProbe->m_radianceMap->m_id);
     }
 
-    void Renderer::probeRenderScene(Scene* scene, Camera& camera)
+    void Renderer::updateSunShadow()
     {
+        // bind sun light shadow for this frame
+        CascadedShadowMap& csm          = DirectionalShadowPass::m_cascadedShadowMap;
+        m_globalDrawData.sunLightView   = csm.lightView;
+        u32 textureUnitOffset = gTexBinding(SunShadow);
+        for (u32 i = 0; i < DirectionalShadowPass::kNumShadowCascades; ++i)
+        {
+            m_globalDrawData.sunShadowProjections[i] = csm.cascades[i].lightProjection;
+            if (csm.m_technique == kVariance_Shadow)
+                glBindTextureUnit(textureUnitOffset + i, csm.cascades[i].varianceShadowMap.shadowMap->m_id);
+            else if (csm.m_technique == kPCF_Shadow)
+                glBindTextureUnit(textureUnitOffset + i, csm.cascades[i].basicShadowMap.shadowMap->m_id);
+        }
+    }
+
+    void Renderer::renderScene(Scene* scene, Camera& camera)
+    {
+        // bind global draw data
         m_globalDrawData.view           = camera.view;
         m_globalDrawData.projection     = camera.projection;
         m_globalDrawData.numPointLights = (i32)scene->pLights.size();
         m_globalDrawData.numDirLights   = (i32)scene->dLights.size();
+        m_globalDrawData.m_ssao         = m_ssao;
+        // bind lighting data
+        updateLighting(scene);
+        updateSunShadow();
+        // bind global textures
+        glBindTextureUnit(gTexBinding(SSAO), m_ssaoTexture->m_id);
+        // upload data to gpu
         glNamedBufferSubData(gDrawDataBuffer, 0, sizeof(GlobalDrawData), &m_globalDrawData);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, static_cast<u32>(BufferBindings::DrawData), gDrawDataBuffer);
-        updateLighting(scene);
-
-        // turn off ssao
-        m_ssao = 0.f;
-        // entities 
+        // draw entities
         for (auto entity : scene->entities)
         {
-            if (entity->m_static)
+            if (entity->m_visible)
                 drawEntity(entity);
         }
-        m_ssao = 1.f;
     }
 
     void Renderer::renderSSAO(Camera& camera)
@@ -968,40 +987,24 @@ namespace Cyan
         ctx->setDepthControl(DepthControl::kEnable);
     }
 
-#define gTexBinding(x) static_cast<u32>(GlobalTextureBindings##::##x)
-
-    void Renderer::renderScene(Scene* scene, Camera& camera)
+    void Renderer::probeRenderScene(Scene* scene, Camera& camera)
     {
-        // bind global draw data
         m_globalDrawData.view           = camera.view;
         m_globalDrawData.projection     = camera.projection;
         m_globalDrawData.numPointLights = (i32)scene->pLights.size();
         m_globalDrawData.numDirLights   = (i32)scene->dLights.size();
-        m_globalDrawData.m_ssao         = m_ssao;
-        // bind lighting data
         updateLighting(scene);
-        // bind global textures
-        glBindTextureUnit(gTexBinding(SSAO), m_ssaoTexture->m_id);
-        // bind sun light shadow for this frame
-        CascadedShadowMap& csm          = DirectionalShadowPass::m_cascadedShadowMap;
-        m_globalDrawData.sunLightView   = csm.lightView;
-        u32 textureUnitOffset = gTexBinding(SunShadow);
-        for (u32 i = 0; i < DirectionalShadowPass::kNumShadowCascades; ++i)
-        {
-            m_globalDrawData.sunShadowProjections[i] = csm.cascades[i].lightProjection;
-            if (csm.m_technique == kVariance_Shadow)
-                glBindTextureUnit(textureUnitOffset + i, csm.cascades[i].varianceShadowMap.shadowMap->m_id);
-            else if (csm.m_technique == kPCF_Shadow)
-                glBindTextureUnit(textureUnitOffset + i, csm.cascades[i].basicShadowMap.shadowMap->m_id);
-        }
-        // upload data to gpu
         glNamedBufferSubData(gDrawDataBuffer, 0, sizeof(GlobalDrawData), &m_globalDrawData);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, static_cast<u32>(BufferBindings::DrawData), gDrawDataBuffer);
-        // draw entities
+
+        // turn off ssao
+        m_ssao = 0.f;
+        // entities 
         for (auto entity : scene->entities)
         {
-            if (entity->m_visible)
+            if (entity->m_static)
                 drawEntity(entity);
         }
+        m_ssao = 1.f;
     }
 }

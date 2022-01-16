@@ -214,7 +214,7 @@ namespace Pbr
 }
 
 #define SCENE_DEMO_00
-//#define SCENE_SPONZA
+// #define SCENE_SPONZA
 
 enum Scenes
 {

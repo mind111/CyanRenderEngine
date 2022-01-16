@@ -107,6 +107,7 @@ SceneManager::SceneManager()
     }
 
     m_probeFactory = new Cyan::LightProbeFactory();
+    m_sceneNodePool.resize(kMaxNumSceneNodes);
 }
 
 SceneManager* SceneManager::getSingletonPtr()

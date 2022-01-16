@@ -116,11 +116,6 @@ uniform sampler2D aoMap;
 uniform sampler2D lightMap;
 
 //- debug switches
-uniform float debugNormalMap;
-uniform float debugAO;
-uniform float debugD;
-uniform float debugF;
-uniform float debugG;
 uniform float disneyReparam;
 
 vec4 tangentSpaceToViewSpace(vec3 tn, vec3 vn, vec3 t) 

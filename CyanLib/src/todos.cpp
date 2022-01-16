@@ -5,6 +5,14 @@
     * radiance caching
     * Cook's survey paper on sampling techniques
     * Practical voxel based GI (the original sparse octree voxel cone tracing and Nvidia's VXGI)
+    * DDGI
+*/
+
+/*
+    Refactoring
+    * use a global buffer for all the transform data
+    * material rework
+    * add shader #include to reduce duplicated code in shader
 */
 
 /*
@@ -14,7 +22,6 @@
 */
 
 /*
-    * try to load the classic Sponza scene, and make the rendering work.
     * integrate hosek skylight model && study about using photometric lighting units different type of light sources
         * physically based lighting units
         * practical sky rendering
@@ -37,10 +44,9 @@
         * debug visualize shadow cascades add blending between cascades.
     * lightmapping improvements
         * bake static ao using path tracer, and disble ssao for static geometry
-        * is backface culling necessary?
         * denoise..?
         * irradiance caching plus photon mapping..? (ue4)
-    * animation
     * shading model
         * roughness < .1f will cause specular highlight from sun light to disappear
+    * animation
 */

@@ -152,32 +152,3 @@ namespace Cyan
         MaterialInstance* m_matl;
     };
 }
-
-/*
-
-// TODO: Think about this way of doing material
-class BaseMaterial {
-public:
-    virtual void create();
-    virtual void bind();
-    virtual void update();
-
-    MaterialData m_materialData;
-};
-
-class PbrMaterial : public BaseMaterial {
-
-    void setRoughnessConstant() { }
-    void setMetallicConstant() { }
-    void setAlbedo(Cyan::Texture* albedo) { m_matlInstance->bindTexture("diffuseMap[0]", albedo); }
-    void setMetallicRoughness() { }
-    virtual void bind() override { }
-
-    Cyan::MaterialInstance* m_matlInstance;
-};
-
-class FlatColorMaterial : public BaseMaterial
-{
-    glm::vec4 color;
-};
-*/

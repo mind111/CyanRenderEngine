@@ -110,6 +110,7 @@ namespace Cyan
 
 
         void updateLighting(Scene* scene);
+        void updateSunShadow();
         void renderEntities(std::vector<Entity*>& entities, LightingEnvironment& lighting, Camera& camera);
         BoundingBox3f computeSceneAABB(Scene* scene);
         void drawEntity(Entity* entity);
