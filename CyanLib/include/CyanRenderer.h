@@ -100,7 +100,7 @@ namespace Cyan
         Texture* getRenderOutputTexture();
 
         void beginRender();
-        void render();
+        void render(Scene* scene);
         void renderSceneDepthNormal(Scene* scene, Camera& camera);
         void probeRenderScene(Scene* scene, Camera& camera);
         void renderSSAO(Camera& camera);
@@ -109,9 +109,9 @@ namespace Cyan
         void endRender();
 
 
+        void updateTransforms(Scene* scene);
         void updateLighting(Scene* scene);
         void updateSunShadow();
-        void renderEntities(std::vector<Entity*>& entities, LightingEnvironment& lighting, Camera& camera);
         BoundingBox3f computeSceneAABB(Scene* scene);
         void drawEntity(Entity* entity);
         void drawSceneNode(SceneNode* node);
@@ -215,6 +215,13 @@ namespace Cyan
             IrradianceProbe*               irradianceProbe;
             ReflectionProbe*               reflectionProbe;
         } gLighting;
+
+        struct GlobalTransforms
+        {
+            const u32 kMaxNumTransforms = 1024;
+            const u32 kBufferSize       = kMaxNumTransforms * sizeof(glm::mat4);
+            GLuint SBO;
+        } gInstanceTransforms;
 
         // ssao
         f32           m_ssao;

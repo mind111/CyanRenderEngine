@@ -15,13 +15,13 @@ void SceneNode::attach(SceneNode* child)
 
 void SceneNode::onAttach()
 {
-    markToUpdate();
+    toggleToUpdate();
     updateWorldTransform();
 }
 
-void SceneNode::markToUpdate()
+void SceneNode::toggleToUpdate()
 {
-    needUpdate = true;
+    needUpdate = !needUpdate;
 }
 
 void SceneNode::detach()
@@ -66,32 +66,4 @@ void SceneNode::updateWorldTransform()
 SceneNode* SceneNode::find(const char* name)
 {
     return treeBFS<SceneNode>(this, name);
-}
-
-RayCastInfo SceneNode::traceRay(const glm::vec3& ro, const glm::vec3& rd)
-{
-    glm::mat4 modelView = m_worldTransform.toMatrix();
-    BoundingBox3f aabb = m_meshInstance->getAABB();
-
-    // transform the ray into object space
-    glm::vec3 roObjectSpace = ro;
-    glm::vec3 rdObjectSpace = rd;
-    transformRayToObjectSpace(roObjectSpace, rdObjectSpace, modelView);
-    rdObjectSpace = glm::normalize(rdObjectSpace);
-
-    if (aabb.intersectRay(roObjectSpace, rdObjectSpace) > 0.f)
-    {
-        // do ray triangle intersectiont test
-        Cyan::Mesh* mesh = m_meshInstance->m_mesh;
-        Cyan::MeshRayHit currentRayHit = mesh->intersectRay(roObjectSpace, rdObjectSpace);
-
-        if (currentRayHit.t > 0.f)
-        {
-            // convert hit from object space back to world space
-            auto objectSpaceHit = roObjectSpace + currentRayHit.t * rdObjectSpace;
-            f32 currentWorldSpaceDistance = transformHitFromObjectToWorldSpace(objectSpaceHit, modelView, ro, rd);
-            // return { this, currentRayHit.smIndex, currentRayHit.triangleIndex, currentWorldSpaceDistance };
-            return RayCastInfo();
-        }
-    }
 }

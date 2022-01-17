@@ -40,7 +40,7 @@ struct SceneNode
     void onAttach();
     void detach();
     void onDetach();
-    void markToUpdate();
+    void toggleToUpdate();
     void updateWorldTransform();
     const Transform& getLocalTransform();
     void setLocalTransform(glm::mat4 mat)
@@ -52,5 +52,4 @@ struct SceneNode
     Cyan::MeshInstance* getAttachedMesh() { return m_meshInstance; }
     const Transform& getWorldTransform();
     SceneNode* find(const char* name);
-    struct RayCastInfo traceRay(const glm::vec3& ro, const glm::vec3& rd);
 };

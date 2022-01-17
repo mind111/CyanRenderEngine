@@ -145,6 +145,7 @@ SceneNode* SceneManager::createSceneNode(Scene* scene, const char* name, Transfo
     newNode.localTransform  = handle;
     newNode.globalTransform = handle;
     newNode.m_hasAABB = hasAABB;
+    newNode.needUpdate = false;
     scene->g_localTransforms[handle] = transform.toMatrix();
     scene->g_globalTransforms[handle] = transform.toMatrix();
     if (mesh)
@@ -222,11 +223,11 @@ void SceneManager::updateSceneGraph(Scene* scene)
         {
             if (node->m_parent)
                 scene->g_globalTransforms[node->globalTransform] = scene->g_globalTransforms[node->m_parent->globalTransform] * scene->g_localTransforms[node->localTransform];
-            node->markToUpdate();
+            node->toggleToUpdate();
         }
         for (u32 i = 0; i < node->m_child.size(); ++i)
         {
-            node->m_child[i]->markToUpdate();
+            node->m_child[i]->toggleToUpdate();
             nodes.push(node->m_child[i]);
         }
     }

@@ -94,6 +94,8 @@ namespace Cyan
         glNamedBufferData(gLighting.dirLightSBO, gLighting.kDynamicLightBufferSize, nullptr, GL_DYNAMIC_DRAW);
         glCreateBuffers(1, &gLighting.pointLightsSBO);
         glNamedBufferData(gLighting.pointLightsSBO, gLighting.kDynamicLightBufferSize, nullptr, GL_DYNAMIC_DRAW);
+        glCreateBuffers(1, &gInstanceTransforms.SBO);
+        glNamedBufferData(gInstanceTransforms.SBO, gInstanceTransforms.kBufferSize, nullptr, GL_DYNAMIC_DRAW);
     }
 
     Renderer* Renderer::getSingletonPtr()
@@ -821,8 +823,11 @@ namespace Cyan
         }
     }
 
-    void Renderer::render()
+    void Renderer::render(Scene* scene)
     {
+        if (sizeofVector(scene->g_globalTransforms) > gInstanceTransforms.kBufferSize)
+            cyanError("Gpu global transform SBO overflow!");
+        glNamedBufferData(gInstanceTransforms.SBO, sizeofVector(scene->g_globalTransforms), scene->g_localTransforms.data(), GL_DYNAMIC_DRAW);
         for (auto renderPass : m_renderState.m_renderPasses)
         {
             renderPass->render();
@@ -857,7 +862,6 @@ namespace Cyan
     void Renderer::renderSceneDepthNormal(Scene* scene, Camera& camera)
     {
         auto ctx = getCurrentGfxCtx();
-
         // camera
         setUniform(u_cameraView, &camera.view[0]);
         setUniform(u_cameraProjection, &camera.projection[0]);
@@ -888,6 +892,13 @@ namespace Cyan
                 }
             }
         }
+    }
+
+    void Renderer::updateTransforms(Scene* scene)
+    {
+        if (sizeofVector(scene->g_globalTransforms) > gInstanceTransforms.kBufferSize)
+            cyanError("Gpu global transform SBO overflow!");
+        glNamedBufferData(gInstanceTransforms.SBO, sizeofVector(scene->g_globalTransforms), scene->g_localTransforms.data(), GL_DYNAMIC_DRAW);
     }
 
 #define gTexBinding(x) static_cast<u32>(GlobalTextureBindings##::##x)

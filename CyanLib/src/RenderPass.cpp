@@ -622,9 +622,7 @@ namespace Cyan
         cascade.lightProjection = lightProjection;
         glm::mat4 mat = glm::inverse(lightView);
         aabb.setModel(mat);
-
         auto ctx = getCurrentGfxCtx();
-
         s_depthRenderTarget->setDepthBuffer(cascade.basicShadowMap.shadowMap);
         switch (m_cascadedShadowMap.m_technique)
         {

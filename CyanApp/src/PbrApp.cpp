@@ -730,7 +730,7 @@ void PbrApp::doPrecomputeWork()
         auto renderer = Cyan::Renderer::getSingletonPtr();
         renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), 0);
         renderer->beginRender();
-        renderer->render();
+        renderer->render(m_scenes[m_currentScene]);
         renderer->endRender();
         // m_irradianceProbe->sampleRadiance();
         // m_irradianceProbe->computeIrradiance();
@@ -1530,7 +1530,7 @@ void PbrApp::render()
 
     renderer->beginRender();
     buildFrame();
-    renderer->render();
+    renderer->render(m_scenes[m_currentScene]);
     renderer->endRender();
 
     // ui
