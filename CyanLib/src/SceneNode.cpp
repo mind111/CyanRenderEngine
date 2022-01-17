@@ -15,7 +15,13 @@ void SceneNode::attach(SceneNode* child)
 
 void SceneNode::onAttach()
 {
+    markToUpdate();
     updateWorldTransform();
+}
+
+void SceneNode::markToUpdate()
+{
+    needUpdate = true;
 }
 
 void SceneNode::detach()

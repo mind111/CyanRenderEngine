@@ -65,6 +65,11 @@ layout(std430, binding = 2) buffer pointLightsData
     PointLight lights[];
 } pointLightsBuffer;
 
+layout(std430, binding = 3) buffer InstanceTransformData
+{
+    mat4 model[];
+} gInstanceTransforms;
+
 #define pi 3.14159265359
 #define SlopeBasedBias 1
 

@@ -336,7 +336,6 @@ void PbrApp::initDemoScene00()
     Cyan::StandardPbrMaterial* defaultMatl = createStandardPbrMatlInstance(demoScene00, params, false);
 
     // helmet
-
     {
         createHelmetInstance(demoScene00);
         auto helmet = sceneManager->getEntity(demoScene00, "DamagedHelmet");
@@ -344,7 +343,6 @@ void PbrApp::initDemoScene00()
         helmetMesh->m_bvh = new Cyan::MeshBVH(helmetMesh);
         helmetMesh->m_bvh->build();
     }
-
     // bunnies
     {
         Cyan::PbrMaterialParam params = { };
@@ -358,7 +356,6 @@ void PbrApp::initDemoScene00()
         bunny0->setMaterial("BunnyMesh", -1, bunnyMatl);
         bunny1->setMaterial("BunnyMesh", -1, bunnyMatl);
     }
-
     // man
     {
         Cyan::PbrMaterialParam params = { };
@@ -369,7 +366,6 @@ void PbrApp::initDemoScene00()
         auto manMatl = createStandardPbrMatlInstance(demoScene00, params, man->m_static);
         man->setMaterial("ManMesh", -1, manMatl);
     }
-
     // lighting
     {
         glm::vec3 sunDir = glm::normalize(glm::vec3(1.0f, 0.5f, 1.8f));
@@ -381,7 +377,6 @@ void PbrApp::initDemoScene00()
         skyBoxEntity->setMaterial("CubeMesh", 0, m_skyMatl);
         skyBoxEntity->m_selectable = false;
         skyBoxEntity->m_includeInGBufferPass = false;
-
         // a irradiance probe
         m_irradianceProbe = sceneManager->createIrradianceProbe(demoScene00, glm::vec3(0.f, 2.f, 0.f));
         // a reflection probe
@@ -390,7 +385,6 @@ void PbrApp::initDemoScene00()
         // procedural sky
         glm::vec3 groundAlbedo(1.f, 0.5f, 0.5f);
     }
-
     // grid of shader ball on the table
     {
         glm::vec3 gridLowerLeft(-2.1581, 1.1629, 2.5421);
@@ -452,7 +446,6 @@ void PbrApp::initDemoScene00()
             }
         }
     }
-
     // room
     {
         Entity* room = sceneManager->getEntity(demoScene00, "Room");
@@ -525,6 +518,7 @@ void PbrApp::initDemoScene00()
         params.lightMap = planeNode->m_meshInstance->m_lightMap->m_texAltas;
         auto planeMatl = createStandardPbrMatlInstance(demoScene00, params, room->m_static);
         room->setMaterial("PlaneMesh", -1, planeMatl);
+        sceneManager->updateSceneGraph(demoScene00);
 #endif
         // path tracing
         {
@@ -835,10 +829,10 @@ void PbrApp::updateScene(Scene* scene)
     u32 camIdx = 0u;
     Camera& camera = m_scenes[m_currentScene]->cameras[camIdx];
     CameraManager::updateCamera(camera);
-
     // update material parameters
     for (auto matl : m_scenes[m_currentScene]->m_materials)
         updateMaterialData(matl);
+    SceneManager::getSingletonPtr()->updateSceneGraph(m_scenes[m_currentScene]);
 }
 
 void PbrApp::update()

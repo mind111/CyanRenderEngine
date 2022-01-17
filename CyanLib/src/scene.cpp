@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <queue>
 
 #include "json.hpp"
 #include "glm.hpp"
@@ -97,6 +98,7 @@ BoundingBox3f Scene::getBoundingBox()
 SceneManager* SceneManager::s_sceneManager = 0u;
 
 SceneManager::SceneManager()
+    : m_numSceneNodes(0)
 {
     if (!s_sceneManager)
     {
@@ -128,6 +130,35 @@ Entity* SceneManager::createEntity(Scene* scene, const char* entityName, Transfo
     Entity* newEntity = new Entity(scene, entityName, id, transform, parentEntity, isStatic);
     scene->entities.push_back(newEntity);
     return newEntity; 
+}
+
+u32 SceneManager::allocSceneNode()
+{
+    CYAN_ASSERT(m_numSceneNodes < kMaxNumSceneNodes, "Too many scene nodes created!");
+    return (m_numSceneNodes++);
+}
+
+SceneNode* SceneManager::createSceneNode(Scene* scene, const char* name, Transform transform, Cyan::Mesh* mesh, bool hasAABB)
+{
+    u32 handle              = allocSceneNode();
+    SceneNode& newNode      = m_sceneNodePool[handle];
+    newNode.localTransform  = handle;
+    newNode.globalTransform = handle;
+    newNode.m_hasAABB = hasAABB;
+    scene->g_localTransforms[handle] = transform.toMatrix();
+    scene->g_globalTransforms[handle] = transform.toMatrix();
+    if (mesh)
+    {
+        newNode.m_meshInstance = mesh->createInstance(scene);
+        if (mesh->m_shouldNormalize)
+        {
+            glm::mat4 localTransformMat = newNode.m_localTransform.toMatrix() * mesh->m_normalization;
+            newNode.setLocalTransform(localTransformMat);
+            scene->g_localTransforms[newNode.localTransform] *= mesh->m_normalization;
+        }
+    }
+    scene->g_sceneNodes.push_back(&newNode);
+    return &newNode;
 }
 
 void SceneManager::traverseScene(Scene* scene)
@@ -181,7 +212,24 @@ void SceneManager::createPointLight(Scene* scene, glm::vec3 color, glm::vec3 pos
 
 void SceneManager::updateSceneGraph(Scene* scene)
 {
-
+    std::queue<SceneNode*> nodes;
+    nodes.push(scene->g_sceneRoot);
+    while (!nodes.empty())
+    {
+        auto node = nodes.front();
+        nodes.pop();
+        if (node->needUpdate)
+        {
+            if (node->m_parent)
+                scene->g_globalTransforms[node->globalTransform] = scene->g_globalTransforms[node->m_parent->globalTransform] * scene->g_localTransforms[node->localTransform];
+            node->markToUpdate();
+        }
+        for (u32 i = 0; i < node->m_child.size(); ++i)
+        {
+            node->m_child[i]->markToUpdate();
+            nodes.push(node->m_child[i]);
+        }
+    }
 }
 
 // update light data and pack them in a buffer 

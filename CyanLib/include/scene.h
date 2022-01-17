@@ -35,6 +35,8 @@ struct Scene
     Entity*                                 m_rootEntity;
     std::vector<Entity*>                    entities;
     // data
+    std::vector<SceneNode*>                 g_sceneNodes;
+    SceneNode*                              g_sceneRoot;
     std::vector<Cyan::StandardPbrMaterial*> m_materials;
     std::vector<glm::mat4>                  g_localTransforms;
     std::vector<glm::mat4>                  g_globalTransforms;
@@ -60,9 +62,9 @@ struct Scene
         return cameras[index];
     }
 
-    RayCastInfo castRay(glm::vec3& ro, glm::vec3& rd, EntityFilter filter, bool debugPrint=false);
-    bool castVisibilityRay(const glm::vec3& ro, glm::vec3& rd, EntityFilter filter);
-    void addStandardPbrMaterial(Cyan::StandardPbrMaterial* matl);
+    RayCastInfo   castRay(glm::vec3& ro, glm::vec3& rd, EntityFilter filter, bool debugPrint=false);
+    bool          castVisibilityRay(const glm::vec3& ro, glm::vec3& rd, EntityFilter filter);
+    void          addStandardPbrMaterial(Cyan::StandardPbrMaterial* matl);
     BoundingBox3f getBoundingBox();
 };
 
@@ -70,17 +72,17 @@ class SceneManager {
 public:
     SceneManager();
     static SceneManager* getSingletonPtr();
-    u32 allocEntityId();
-    // TODO: implement this
-    std::vector<Entity*> packEntities() { }
-    void updateSceneGraph(Scene* scene);
-    void buildLightList(Scene* scene, std::vector<PointLightGpuData>& pLights, std::vector<DirLightGpuData>& dLights);
-    void setDistantLightProbe(Scene* scene, DistantLightProbe* probe);
-    void createDirectionalLight(Scene* scene, glm::vec3 color, glm::vec3 direction, float intensity);
-    void createPointLight(Scene* scene, glm::vec3 color, glm::vec3 position, float intensity);
-    SceneNode* createSceneNode(Scene* );
-    Entity* createEntity(Scene* scene, const char* entityName, Transform transform, bool isStatic, Entity* parent=nullptr);
-    Entity* getEntity(Scene* scene, u32 id) 
+    u32        allocEntityId();
+    void       updateSceneGraph(Scene* scene);
+    void       buildLightList(Scene* scene, std::vector<PointLightGpuData>& pLights, std::vector<DirLightGpuData>& dLights);
+    void       setDistantLightProbe(Scene* scene, DistantLightProbe* probe);
+    void       createDirectionalLight(Scene* scene, glm::vec3 color, glm::vec3 direction, float intensity);
+    void       createPointLight(Scene* scene, glm::vec3 color, glm::vec3 position, float intensity);
+    u32        allocSceneNode();
+    SceneNode* createSceneNode(Scene* scene, const char* name, Transform transform, Cyan::Mesh* mesh, bool hasAABB);
+
+    Entity*    createEntity(Scene* scene, const char* entityName, Transform transform, bool isStatic, Entity* parent=nullptr);
+    Entity*    getEntity(Scene* scene, u32 id) 
     {
         return scene->entities[id];
     }
@@ -106,6 +108,7 @@ public:
     Cyan::LightFieldProbeVolume* createLightFieldProbeVolume(Scene* scene, glm::vec3& pos, glm::vec3& dimension, glm::vec3& stride);
 private:
     const u32                kMaxNumSceneNodes = 1024u;
+    u32                      m_numSceneNodes;
     std::vector<SceneNode>   m_sceneNodePool;
     static SceneManager*     s_sceneManager;
     Cyan::LightProbeFactory* m_probeFactory;

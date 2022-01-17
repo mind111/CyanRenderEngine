@@ -201,6 +201,7 @@ namespace Cyan
         scene->m_rootEntity = nullptr;
         // create root entity
         scene->m_rootEntity = SceneManager::getSingletonPtr()->createEntity(scene, "SceneRoot", Transform(), true);
+        scene->g_sceneRoot = scene->m_rootEntity->m_sceneRoot;
         auto assetManager = GraphicsSystem::getSingletonPtr()->getAssetManager(); 
         assetManager->loadScene(scene, file);
         loadSceneTimer.end();

@@ -1,5 +1,4 @@
 #pragma once
-
 #include <vector>
 #include <queue>
 
@@ -11,10 +10,11 @@
 
 #define kSceneNodeNameMaxLen 128u
 
-enum SceneNodeProperty
+enum SceneNodeFlag
 {
-    AABB = 0,
-    CastShadow,
+    HasAABB    = 0 << 1,
+    CastShadow = 1 << 1,
+    NeedUpdate = 2 << 1,
 };
 
 struct SceneNode
@@ -27,6 +27,7 @@ struct SceneNode
     SceneNode* m_parent;
     std::vector<SceneNode*> m_child;
     // transform component
+    bool      needUpdate;
     u32       localTransform;
     u32       globalTransform;
     Transform m_localTransform;
@@ -34,16 +35,12 @@ struct SceneNode
     // mesh component 
     Cyan::MeshInstance* m_meshInstance;
     bool m_hasAABB;
-    bool m_castShadow;
     void setParent(SceneNode* parent);
-    void setCastShadw(bool& castShadow)
-    {
-        m_castShadow = castShadow;
-    }
     void attach(SceneNode* child);
     void onAttach();
     void detach();
     void onDetach();
+    void markToUpdate();
     void updateWorldTransform();
     const Transform& getLocalTransform();
     void setLocalTransform(glm::mat4 mat)
