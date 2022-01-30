@@ -30,22 +30,27 @@ layout(std430, binding = 0) buffer GlobalDrawData
     float dummy;
 } gDrawData;
 
-uniform mat4 s_model;
+layout(std430, binding = 3) buffer InstanceTransformData
+{
+    mat4 models[];
+} gInstanceTransforms;
+uniform int transformIndex;
 
 void main() {
-    fragmentPos = (gDrawData.view * s_model * vec4(vertexPos, 1.f)).xyz; 
-    fragmentPosWS = (s_model * vec4(vertexPos, 1.f)).xyz;
-    gl_Position = gDrawData.projection * gDrawData.view * s_model * vec4(vertexPos, 1.0f);
-    mat4 normalTransformWorld = transpose(inverse(s_model));
+    mat4 model = gInstanceTransforms.models[transformIndex];
+    fragmentPos = (gDrawData.view * model * vec4(vertexPos, 1.f)).xyz; 
+    fragmentPosWS = (model * vec4(vertexPos, 1.f)).xyz;
+    gl_Position = gDrawData.projection * gDrawData.view * model * vec4(vertexPos, 1.0f);
+    mat4 normalTransformWorld = transpose(inverse(model));
     wn = (normalTransformWorld * vec4(vertexNormal, 0.f)).xyz;
-    mat4 normalTransform = transpose(inverse(gDrawData.view * s_model)); 
+    mat4 normalTransform = transpose(inverse(gDrawData.view * model)); 
     // Transform normals to camera space
     n = (normalTransform * vec4(vertexNormal, 0.f)).xyz;
     n = normalize(n);
     // the w-component of input vertex tangent indicate the handedness of the tangent frame 
     vec3 vt = vertexTangent.xyz * vertexTangent.w;
     // Transform tangents to camera space
-    t = (gDrawData.view * s_model * vec4(vt, 0.f)).xyz;
+    t = (gDrawData.view * model * vec4(vt, 0.f)).xyz;
     t = normalize(t);
     uv = textureUv_0;
     uv1 = textureUv_1;

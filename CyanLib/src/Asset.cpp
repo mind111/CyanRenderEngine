@@ -416,6 +416,7 @@ namespace Cyan
     void AssetManager::loadNodes(Scene* scene, nlohmann::basic_json<std::map>& nodeInfoList)
     {
         Cyan::Toolkit::ScopedTimer timer("loadNodes()", true);
+        auto sceneManager = SceneManager::getSingletonPtr();
         for (auto nodeInfo : nodeInfoList)
         {
             u32 index = nodeInfo.at("index");
@@ -435,7 +436,7 @@ namespace Cyan
             std::string meshName = nodeInfo.at("mesh");
             Cyan::Mesh* mesh = nullptr;
             mesh = Cyan::getMesh(meshName.c_str());
-            SceneNode* node = Cyan::createSceneNode(scene, nodeName.c_str(), transform, mesh); 
+            SceneNode* node = sceneManager->createSceneNode(scene, nodeName.c_str(), transform, mesh); 
             m_nodes.push_back(node);
         }
         // second pass to setup the hierarchy
@@ -590,6 +591,7 @@ namespace Cyan
     SceneNode* AssetManager::loadGltfNode(Scene* scene, tinygltf::Model& model, tinygltf::Node* parent, 
                         SceneNode* parentSceneNode, tinygltf::Node& node, u32 numNodes) {
         auto textureManager = Cyan::TextureManager::getSingletonPtr();
+        auto sceneManager = SceneManager::getSingletonPtr();
         bool hasMesh = (node.mesh > -1);
         bool hasSkin = (node.skin > -1);
         bool hasMatrix = !node.matrix.empty();
@@ -632,7 +634,7 @@ namespace Cyan
             sprintf_s(sceneNodeName, "%s", node.name.c_str());
 
         Cyan::Mesh* mesh = hasMesh ? Cyan::getMesh(meshName) : nullptr;
-        SceneNode* sceneNode = Cyan::createSceneNode(scene, sceneNodeName, localTransform, mesh);
+        SceneNode* sceneNode = sceneManager->createSceneNode(scene, sceneNodeName, localTransform, mesh);
         if (parentSceneNode)
             parentSceneNode->attach(sceneNode);
         // bind material
@@ -844,6 +846,7 @@ namespace Cyan
         using Cyan::Mesh;
         tinygltf::Model model;
         std::string warn, err;
+        auto sceneManager = SceneManager::getSingletonPtr();
         if (!m_loader.LoadASCIIFromFile(&model, &err, &warn, std::string(filename)))
         {
             std::cout << warn << std::endl;
@@ -867,7 +870,7 @@ namespace Cyan
             tinygltf::Mesh gltfMesh = model.meshes[rootNode.mesh];
             rootNodeMesh = Cyan::getMesh(gltfMesh.name.c_str());
         }
-        SceneNode* parentNode = Cyan::createSceneNode(scene, name, transform);
+        SceneNode* parentNode = sceneManager->createSceneNode(scene, name, transform, nullptr);
         loadGltfNode(scene, model, nullptr, parentNode, rootNode, 0);
         return parentNode;
     }

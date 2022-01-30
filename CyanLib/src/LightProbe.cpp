@@ -56,6 +56,7 @@ namespace Cyan
         spec.m_numMips = 1u;
         spec.m_data = 0;
         auto textureManager = TextureManager::getSingletonPtr();
+        auto sceneManager = SceneManager::getSingletonPtr();
         m_radianceMap = textureManager->createTextureHDR("RadianceProbe", spec);
         // FIXME: this is bugged, should only detach/attach when rendering
         m_radianceRenderTarget->attachColorBuffer(m_radianceMap);
@@ -71,7 +72,7 @@ namespace Cyan
         Transform transform;
         transform.m_translate = p;
         transform.m_scale = glm::vec3(0.2f);
-        m_sceneRoot->attach(createSceneNode(scene, "SphereMesh", transform, mesh, false));
+        m_sceneRoot->attach(sceneManager->createSceneNode(scene, "SphereMesh", transform, mesh, false));
         setMaterial("SphereMesh", 0, m_renderProbeMatl);
         m_renderProbeMatl->bindTexture("radianceMap", m_irradianceMap);
         m_cubeMeshInstance->setMaterial(0, m_computeIrradianceMatl);
@@ -152,6 +153,7 @@ namespace Cyan
         ctx->setShader(m_computeIrradianceShader);
         ctx->setViewport({0u, 0u, m_irradianceRenderTarget->m_width, m_irradianceRenderTarget->m_height});
         ctx->setDepthControl(DepthControl::kDisable);
+        SceneNode* node = getSceneNode("SphereMesh");
         for (u32 f = 0; f < 6u; ++f)
         {
             camera.lookAt = cameraTargets[f];
@@ -160,7 +162,7 @@ namespace Cyan
             m_computeIrradianceMatl->set("view", &camera.view[0][0]);
             m_computeIrradianceMatl->set("projection", &camera.projection[0][0]);
             m_computeIrradianceMatl->bindTexture("envmapSampler", m_radianceMap);
-            Renderer::getSingletonPtr()->drawMeshInstance(m_cubeMeshInstance, nullptr);
+            Renderer::getSingletonPtr()->drawMeshInstance(m_cubeMeshInstance, node->globalTransform);
         }
         ctx->setDepthControl(DepthControl::kEnable);
         timer.end();
@@ -197,6 +199,7 @@ namespace Cyan
         spec.m_numMips = 1u;
         spec.m_data = 0;
         auto textureManager = TextureManager::getSingletonPtr();
+        auto sceneManager = SceneManager::getSingletonPtr();
         m_radianceMap = textureManager->createTextureHDR("RadianceProbe", spec);
         // FIXME: this is bugged, should only detach/attach when rendering
         m_renderTarget->attachColorBuffer(m_radianceMap, 0);
@@ -206,7 +209,7 @@ namespace Cyan
         Transform transform;
         transform.m_translate = p;
         transform.m_scale = glm::vec3(1.0f);
-        m_sceneRoot->attach(createSceneNode(scene, "SphereMesh", transform, mesh, false));
+        m_sceneRoot->attach(sceneManager->createSceneNode(scene, "SphereMesh", transform, mesh, false));
         setMaterial("SphereMesh", 0, m_renderProbeMatl);
 
         spec.m_numMips = 11u;
@@ -325,6 +328,7 @@ namespace Cyan
     {
         // m_bakeInProbes = false;
         auto textureManager = TextureManager::getSingletonPtr();
+        auto sceneManager = SceneManager::getSingletonPtr();
         {
             TextureSpec spec = { };
             spec.m_width = 1024u;
@@ -372,7 +376,7 @@ namespace Cyan
         Transform transform;
         transform.m_translate = p;
         transform.m_scale = glm::vec3(0.2f);
-        m_sceneRoot->attach(createSceneNode(scene, "SphereMesh", transform, mesh, false));
+        m_sceneRoot->attach(sceneManager->createSceneNode(scene, "SphereMesh", transform, mesh, false));
         m_renderProbeMatl = createMaterial(getRenderProbeShader())->createInstance();
         m_renderProbeMatl->bindTexture("radianceMap", m_radiance);
         m_octProjMatl = createMaterial(m_octProjectionShader)->createInstance();

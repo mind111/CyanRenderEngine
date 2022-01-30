@@ -140,7 +140,7 @@ namespace Cyan
                         glm::vec3 baryCoord = computeBaryCoordFromHit(hit, hitPosition);
                         glm::vec3 normal = getSurfaceNormal(hit, baryCoord);
                         hitPosition += normal * EPSILON;
-                        color += sampleNewIrradianceRecord(hitPosition, normal) * getHitMaterial(hit).flatColor;
+                        color += sampleIrradiance(hitPosition, normal) * getHitMaterial(hit).flatColor;
 #else
                         color += renderSurface(hit, ro, rd, getHitMaterial(hit));
 #endif
@@ -833,8 +833,8 @@ namespace Cyan
 #if 0
                 renderScene(camera);
 #else
-                // renderSceneMultiThread(camera);
-                fastRenderScene(camera);
+                renderSceneMultiThread(camera);
+                // fastRenderScene(camera);
 #endif
                 break;
             default:
@@ -1025,7 +1025,7 @@ namespace Cyan
 
     glm::vec3 PathTracer::sampleIrradiance(glm::vec3& samplePos, glm::vec3& n)
     {
-        const u32 numSamples = 8;
+        const u32 numSamples = 32;
         glm::vec3 irradiance(0.f);
         for (u32 i = 0; i < numSamples; ++i)
         {

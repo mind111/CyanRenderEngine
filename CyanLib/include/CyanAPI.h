@@ -166,7 +166,7 @@ namespace Cyan
 
     /* Scene */
     SceneNode* allocSceneNode();
-    SceneNode* createSceneNode(Scene* scene, const char* name, Transform transform, Mesh* mesh=nullptr, bool hasAABB=true);
+    // SceneNode* createSceneNode(Scene* scene, const char* name, Transform transform, Mesh* mesh=nullptr, bool hasAABB=true);
     Scene* createScene(const char* name, const char* _file);
     DistantLightProbe* getProbe(u32 index);
     u32         getNumProbes();

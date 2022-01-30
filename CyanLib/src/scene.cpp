@@ -9,6 +9,7 @@
 
 #include "CyanAPI.h"
 #include "Scene.h"
+#include "GraphicsSystem.h"
 
 // ray cast in world space
 RayCastInfo Scene::castRay(glm::vec3& ro, glm::vec3& rd, EntityFilter filter, bool debugPrint)
@@ -98,7 +99,6 @@ BoundingBox3f Scene::getBoundingBox()
 SceneManager* SceneManager::s_sceneManager = 0u;
 
 SceneManager::SceneManager()
-    : m_numSceneNodes(0)
 {
     if (!s_sceneManager)
     {
@@ -107,9 +107,7 @@ SceneManager::SceneManager()
     else {
         CYAN_ASSERT(0, "There should be only one instance of SceneManager")
     }
-
     m_probeFactory = new Cyan::LightProbeFactory();
-    m_sceneNodePool.resize(kMaxNumSceneNodes);
 }
 
 SceneManager* SceneManager::getSingletonPtr()
@@ -132,22 +130,50 @@ Entity* SceneManager::createEntity(Scene* scene, const char* entityName, Transfo
     return newEntity; 
 }
 
-u32 SceneManager::allocSceneNode()
+u32 SceneManager::allocSceneNode(Scene* scene)
 {
-    CYAN_ASSERT(m_numSceneNodes < kMaxNumSceneNodes, "Too many scene nodes created!");
-    return (m_numSceneNodes++);
+    CYAN_ASSERT(scene->m_numSceneNodes < Scene::kMaxNumSceneNodes, "Too many scene nodes created!");
+    return (scene->m_numSceneNodes++);
+}
+
+Scene* SceneManager::createScene(const char* name, const char* file)
+{
+    Cyan::Toolkit::GpuTimer loadSceneTimer("createScene()", true);
+    Scene* scene = new Scene;
+    scene->m_name = std::string(name);
+    scene->g_sceneNodes.resize(Scene::kMaxNumSceneNodes);
+    scene->g_localTransforms.resize(Scene::kMaxNumSceneNodes);
+    scene->g_globalTransforms.resize(Scene::kMaxNumSceneNodes);
+    scene->g_localTransformMatrices.resize(Scene::kMaxNumSceneNodes);
+    scene->g_globalTransformMatrices.resize(Scene::kMaxNumSceneNodes);
+    scene->m_numSceneNodes = 0;
+
+    scene->m_distantProbe = nullptr;
+    scene->m_rootEntity = nullptr;
+    // create root entity
+    scene->m_rootEntity = SceneManager::getSingletonPtr()->createEntity(scene, "SceneRoot", Transform(), true);
+    scene->g_sceneRoot = scene->m_rootEntity->m_sceneRoot;
+    auto assetManager = Cyan::GraphicsSystem::getSingletonPtr()->getAssetManager(); 
+    assetManager->loadScene(scene, file);
+    loadSceneTimer.end();
+    return scene;
 }
 
 SceneNode* SceneManager::createSceneNode(Scene* scene, const char* name, Transform transform, Cyan::Mesh* mesh, bool hasAABB)
 {
-    u32 handle              = allocSceneNode();
-    SceneNode& newNode      = m_sceneNodePool[handle];
+    u32 handle              = allocSceneNode(scene);
+    SceneNode& newNode      = scene->g_sceneNodes[handle];
+    newNode.m_scene = scene;
+    CYAN_ASSERT(strlen(name) < 128, "SceneNode name %s is too long!", name);
+    strcpy(newNode.m_name, name);
     newNode.localTransform  = handle;
     newNode.globalTransform = handle;
     newNode.m_hasAABB = hasAABB;
     newNode.needUpdate = false;
-    scene->g_localTransforms[handle] = transform.toMatrix();
-    scene->g_globalTransforms[handle] = transform.toMatrix();
+    scene->g_localTransforms[handle]  = transform;
+    scene->g_globalTransforms[handle] = Transform();
+    scene->g_localTransformMatrices[handle]  = transform.toMatrix();
+    scene->g_globalTransformMatrices[handle] = glm::mat4(1.f);
     if (mesh)
     {
         newNode.m_meshInstance = mesh->createInstance(scene);
@@ -155,10 +181,9 @@ SceneNode* SceneManager::createSceneNode(Scene* scene, const char* name, Transfo
         {
             glm::mat4 localTransformMat = newNode.m_localTransform.toMatrix() * mesh->m_normalization;
             newNode.setLocalTransform(localTransformMat);
-            scene->g_localTransforms[newNode.localTransform] *= mesh->m_normalization;
+            //scene->g_localTransformMatrices[newNode.localTransform] *= mesh->m_normalization;
         }
     }
-    scene->g_sceneNodes.push_back(&newNode);
     return &newNode;
 }
 
@@ -199,7 +224,7 @@ void SceneManager::createPointLight(Scene* scene, glm::vec3 color, glm::vec3 pos
     Entity* entity = createEntity(scene, nameBuff, Transform(), false); 
     Cyan::Mesh* sphereMesh = Cyan::getMesh("sphere_mesh");
     CYAN_ASSERT(sphereMesh, "sphere_mesh does not exist")
-    SceneNode* meshNode = Cyan::createSceneNode(scene, "LightMesh", transform, sphereMesh); 
+    SceneNode* meshNode = SceneManager::getSingletonPtr()->createSceneNode(scene, "LightMesh", transform, sphereMesh); 
     entity->m_sceneRoot->attach(meshNode);
     Shader* pointLightShader = Cyan::createShader("PointLightShader", "../../shader/shader_light.vs", "../../shader/shader_light.fs");
     Cyan::MaterialInstance* matl = Cyan::createMaterial(pointLightShader)->createInstance();
@@ -213,24 +238,31 @@ void SceneManager::createPointLight(Scene* scene, glm::vec3 color, glm::vec3 pos
 
 void SceneManager::updateSceneGraph(Scene* scene)
 {
+#if 0
     std::queue<SceneNode*> nodes;
     nodes.push(scene->g_sceneRoot);
     while (!nodes.empty())
     {
         auto node = nodes.front();
         nodes.pop();
-        if (node->needUpdate)
+        if (node->m_parent)
         {
-            if (node->m_parent)
-                scene->g_globalTransforms[node->globalTransform] = scene->g_globalTransforms[node->m_parent->globalTransform] * scene->g_localTransforms[node->localTransform];
-            node->toggleToUpdate();
+            scene->g_globalTransformMatrices[node->globalTransform] = scene->g_globalTransformMatrices[node->m_parent->globalTransform] * scene->g_localTransformMatrices[node->localTransform];
         }
         for (u32 i = 0; i < node->m_child.size(); ++i)
         {
-            node->m_child[i]->toggleToUpdate();
             nodes.push(node->m_child[i]);
         }
     }
+    for (u32 i = 0; i < scene->m_numSceneNodes; ++i)
+    {
+        auto& node = scene->g_sceneNodes[i];
+        if (node.m_parent)
+        {
+            scene->g_globalTransformMatrices[node.globalTransform] = scene->g_globalTransformMatrices[node.m_parent->globalTransform] * scene->g_localTransformMatrices[node.localTransform];
+        }
+    }
+#endif
 }
 
 // update light data and pack them in a buffer 

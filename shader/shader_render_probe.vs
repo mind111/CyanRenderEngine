@@ -5,6 +5,26 @@ out vec3 normal;
 uniform mat4 s_model;
 uniform mat4 s_view;
 uniform mat4 s_projection;
+
+layout(std430, binding = 0) buffer GlobalDrawData
+{
+    mat4  view;
+    mat4  projection;
+	mat4  sunLightView;
+	mat4  sunShadowProjections[4];
+    int   numDirLights;
+    int   numPointLights;
+    float m_ssao;
+    float dummy;
+} gDrawData;
+
+layout(std430, binding = 3) buffer InstanceTransformData
+{
+    mat4 models[];
+} gInstanceTransforms;
+uniform int transformIndex;
+uniform mat4 s_model;
+
 void main() 
 {
     normal = (transpose(inverse(s_model)) * vec4(vNormal, 1.f)).xyz;

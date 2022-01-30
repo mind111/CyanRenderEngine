@@ -1,6 +1,7 @@
 // TODO: Deal with name conflicts with windows header
 #include <iostream>
 #include <fstream>
+#include <queue>
 
 #include "glfw3.h"
 #include "gtx/quaternion.hpp"
@@ -379,7 +380,7 @@ namespace Cyan
         return m_viewport;
     }
 
-    void Renderer::drawMeshInstance(MeshInstance* meshInstance, glm::mat4* modelMatrix)
+    void Renderer::drawMeshInstance(MeshInstance* meshInstance, i32 transformIndex)
     {
         Mesh* mesh = meshInstance->m_mesh;
         for (u32 i = 0; i < mesh->m_subMeshes.size(); ++i)
@@ -388,12 +389,7 @@ namespace Cyan
             MaterialInstance* matl = meshInstance->m_matls[i]; 
             Shader* shader = matl->getShader();
             ctx->setShader(shader);
-            if (modelMatrix)
-            {
-                // TODO: this is obviously redundant
-                Cyan::setUniform(u_model, &(*modelMatrix)[0]);
-                ctx->setUniform(u_model);
-            }
+            matl->set("transformIndex", transformIndex);
             UsedBindingPoints used = matl->bind();
             Mesh::SubMesh* sm = mesh->m_subMeshes[i];
             ctx->setVertexArray(sm->m_vertexArray);
@@ -785,10 +781,7 @@ namespace Cyan
     void Renderer::drawSceneNode(SceneNode* node)
     {
         if (node->m_meshInstance)
-        {
-            glm::mat4 modelMatrix = node->m_worldTransform.toMatrix();
-            drawMeshInstance(node->m_meshInstance, &modelMatrix);
-        } 
+            drawMeshInstance(node->m_meshInstance, node->globalTransform);
         for (auto* child : node->m_child)
         {
             drawSceneNode(child);
@@ -898,7 +891,8 @@ namespace Cyan
     {
         if (sizeofVector(scene->g_globalTransforms) > gInstanceTransforms.kBufferSize)
             cyanError("Gpu global transform SBO overflow!");
-        glNamedBufferData(gInstanceTransforms.SBO, sizeofVector(scene->g_globalTransforms), scene->g_localTransforms.data(), GL_DYNAMIC_DRAW);
+        glNamedBufferSubData(gInstanceTransforms.SBO, 0, sizeofVector(scene->g_globalTransformMatrices), scene->g_globalTransformMatrices.data());
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, gInstanceTransforms.SBO);
     }
 
 #define gTexBinding(x) static_cast<u32>(GlobalTextureBindings##::##x)
@@ -962,6 +956,7 @@ namespace Cyan
         m_globalDrawData.numDirLights   = (i32)scene->dLights.size();
         m_globalDrawData.m_ssao         = m_ssao;
         // bind lighting data
+        updateTransforms(scene);
         updateLighting(scene);
         updateSunShadow();
         // bind global textures
@@ -970,10 +965,30 @@ namespace Cyan
         glNamedBufferSubData(gDrawDataBuffer, 0, sizeof(GlobalDrawData), &m_globalDrawData);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, static_cast<u32>(BufferBindings::DrawData), gDrawDataBuffer);
         // draw entities
-        for (auto entity : scene->entities)
+        /*
+        for (u32 i = 0; i < scene->entities.size(); ++i)
         {
-            if (entity->m_visible)
-                drawEntity(entity);
+            if (scene->entities[i]->m_visible)
+            {
+                std::queue<SceneNode*> nodes;
+                nodes.push(scene->entities[i]->m_sceneRoot);
+                while (!nodes.empty())
+                {
+                    auto node = nodes.front();
+                    nodes.pop();
+                    if (node->m_meshInstance)
+                        drawMeshInstance(node->m_meshInstance, node->globalTransform);
+                    for (u32 i = 0; i < node->m_child.size(); ++i)
+                        nodes.push(node->m_child[i]);
+                }
+            }
+        }
+        */
+        for (u32 i = 0; i < scene->m_numSceneNodes; ++i)
+        {
+            auto& node = scene->g_sceneNodes[i];
+            if (node.m_meshInstance)
+                drawMeshInstance(node.m_meshInstance, node.globalTransform);
         }
     }
 

@@ -33,12 +33,8 @@ struct Entity
 {
     char m_name[kEntityNameMaxLen];
     uint32_t m_entityId;
-
-    // entity hierarchy
     Entity* m_parent;
     std::vector<Entity*> m_child;
-
-    // scene component
     SceneNode* m_sceneRoot;
 
     // flags
@@ -78,9 +74,6 @@ struct Entity
     void applyWorldTranslation(const glm::vec3 trans);
     void applyWorldScale(const glm::vec3 scale);
     void updateWorldTransform();
-    void applyLocalRotation(const glm::quat& rot);
-    void applyLocalTranslation(const glm::vec3 trans);
-    void applyLocalScale(const glm::vec3 scale);
     void setMaterial(const char* nodeName, i32 subMeshIndex, Cyan::MaterialInstance* matl);
     void setMaterial(const char* nodeName, i32 subMeshIndex, Cyan::StandardPbrMaterial* matl);
 };

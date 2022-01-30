@@ -14,7 +14,7 @@ Entity::Entity(Scene* scene, const char* name, u32 id, Transform t, Entity* pare
         char buff[64];
         sprintf(buff, "Entity%u", m_entityId);
     }
-    m_sceneRoot = Cyan::createSceneNode(scene, "DefaultSceneRoot", t);
+    m_sceneRoot = SceneManager::getSingletonPtr()->createSceneNode(scene, "DefaultSceneRoot", t, nullptr);
     if (parent)
     {
         parent->attach(this);
@@ -175,11 +175,8 @@ void Entity::onAttach()
     // have the parent pointer points to parent Entity's m_sceneRoot while not
     // adding this->m_sceneRoot as a child of Entity's m_sceneRoot
     m_sceneRoot->setParent(m_parent->m_sceneRoot);
-    m_sceneRoot->updateWorldTransform();
     for (auto* child : m_child)
-    {
         child->onAttach();
-    }
 }
 
 // detach from current parent
@@ -207,7 +204,6 @@ void Entity::onDetach()
 {
     m_parent->removeChild(m_name);
     m_sceneRoot->setParent(nullptr);
-    m_sceneRoot->updateWorldTransform();
 }
 
 void Entity::removeChild(const char* name)
@@ -230,7 +226,7 @@ Transform& Entity::getLocalTransform()
 void Entity::setLocalTransform(const Transform& transform)
 {
     m_sceneRoot->m_localTransform = transform;
-    m_sceneRoot->updateWorldTransform();
+    m_sceneRoot->markChanged();
 }
 
 Transform& Entity::getWorldTransform()
@@ -278,34 +274,19 @@ void Entity::updateWorldTransform()
 {
     if (m_parent)
     {
-        m_sceneRoot->m_worldTransform.fromMatrix(m_parent->m_sceneRoot->m_worldTransform.toMatrix() * m_sceneRoot->m_localTransform.toMatrix());
-        m_sceneRoot->updateWorldTransform();
+        // m_sceneRoot->m_worldTransform.fromMatrix(m_parent->m_sceneRoot->m_worldTransform.toMatrix() * m_sceneRoot->m_localTransform.toMatrix());
+        m_sceneRoot->markChanged();
+/*
         for (auto child : m_child)
         {
             child->updateWorldTransform();
         }
+*/
     }
     else
     {
         m_sceneRoot->m_worldTransform = m_sceneRoot->m_localTransform;
     }
-}
-
-void Entity::applyLocalRotation(const glm::quat& rot)
-{
-    m_sceneRoot->m_localTransform.m_qRot *= rot;
-    m_sceneRoot->updateWorldTransform();
-    updateWorldTransform();
-}
-
-void Entity::applyLocalTranslation(const glm::vec3 trans)
-{
-
-}
-
-void Entity::applyLocalScale(const glm::vec3 scale)
-{
-
 }
 
 void Entity::setMaterial(const char* nodeName, i32 subMeshIndex, Cyan::MaterialInstance* matl)

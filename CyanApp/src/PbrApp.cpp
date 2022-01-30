@@ -213,8 +213,8 @@ namespace Pbr
     }
 }
 
-#define SCENE_DEMO_00
-// #define SCENE_SPONZA
+//#define SCENE_DEMO_00
+#define SCENE_SPONZA
 
 enum Scenes
 {
@@ -324,11 +324,11 @@ void PbrApp::createHelmetInstance(Scene* scene)
 void PbrApp::initDemoScene00()
 {
     Cyan::Toolkit::GpuTimer timer("initDemoScene00()", true);
-    m_scenes[Scenes::Demo_Scene_00] = Cyan::createScene("demo_scene_00", "C:\\dev\\cyanRenderEngine\\scene\\demo_scene_00.json");
-    Scene* demoScene00 = m_scenes[Scenes::Demo_Scene_00];
-
     auto textureManager = m_graphicsSystem->getTextureManager();
     auto sceneManager = SceneManager::getSingletonPtr();
+    m_scenes[Scenes::Demo_Scene_00] = sceneManager->createScene("demo_scene_00", "C:\\dev\\cyanRenderEngine\\scene\\demo_scene_00.json");
+    Scene* demoScene00 = m_scenes[Scenes::Demo_Scene_00];
+
     Cyan::PbrMaterialParam params = { };
     params.flatBaseColor = glm::vec4(1.f);
     params.kRoughness = .8f;
@@ -373,7 +373,7 @@ void PbrApp::initDemoScene00()
         // sky light
         auto sceneManager = SceneManager::getSingletonPtr();
         Entity* skyBoxEntity = sceneManager->createEntity(demoScene00, "SkyBox", Transform(), false);
-        skyBoxEntity->m_sceneRoot->attach(Cyan::createSceneNode(demoScene00, "CubeMesh", Transform(), Cyan::getMesh("CubeMesh"), false));
+        skyBoxEntity->m_sceneRoot->attach(sceneManager->createSceneNode(demoScene00, "CubeMesh", Transform(), Cyan::getMesh("CubeMesh"), false));
         skyBoxEntity->setMaterial("CubeMesh", 0, m_skyMatl);
         skyBoxEntity->m_selectable = false;
         skyBoxEntity->m_includeInGBufferPass = false;
@@ -436,7 +436,7 @@ void PbrApp::initDemoScene00()
                 Transform transform = { };
                 transform.m_translate = gridLowerLeft + posOffset;
                 transform.m_scale = glm::vec3(.003f);
-                auto meshNode = Cyan::createSceneNode(demoScene00, meshNodeName, transform, Cyan::getMesh("shaderball_mesh"));
+                auto meshNode = sceneManager->createSceneNode(demoScene00, meshNodeName, transform, Cyan::getMesh("shaderball_mesh"));
                 shaderBall->attachSceneNode(meshNode);
                 auto matl = createStandardPbrMatlInstance(demoScene00, matlParams[j][i], shaderBall->m_static);
                 shaderBall->setMaterial(meshNodeName, -1, defaultMatl);
@@ -522,7 +522,7 @@ void PbrApp::initDemoScene00()
 #endif
         // path tracing
         {
-       //     pathTraceScene(demoScene00);
+            pathTraceScene(demoScene00);
         }
     }
     timer.end();
@@ -542,10 +542,10 @@ void PbrApp::pathTraceScene(Scene* scene)
 void PbrApp::initSponzaScene()
 {
     Cyan::Toolkit::GpuTimer timer("initSponzaScene()", true);
-    m_scenes[Scenes::Sponza_Scene] = Cyan::createScene("sponza_scene", "C:\\dev\\cyanRenderEngine\\scene\\sponza_scene.json");
+    auto sceneManager = SceneManager::getSingletonPtr();
+    m_scenes[Scenes::Sponza_Scene] = sceneManager->createScene("sponza_scene", "C:\\dev\\cyanRenderEngine\\scene\\sponza_scene.json");
     Scene* sponzaScene = m_scenes[Scenes::Sponza_Scene];
     m_currentScene = static_cast<u32>(Scenes::Sponza_Scene);
-    auto sceneManager = SceneManager::getSingletonPtr();
 
     Entity* sponza = sceneManager->getEntity(sponzaScene, "Sponza");
     auto sponzaNode = sponza->getSceneNode("SponzaMesh");
@@ -556,7 +556,7 @@ void PbrApp::initSponzaScene()
     sceneManager->createDirectionalLight(sponzaScene, glm::vec3(1.0f, 0.9, 0.7f), sunDir, 3.6f);
     // sky light
     Entity* skyBoxEntity = sceneManager->createEntity(sponzaScene, "SkyBox", Transform(), false);
-    skyBoxEntity->m_sceneRoot->attach(Cyan::createSceneNode(sponzaScene, "CubeMesh", Transform(), Cyan::getMesh("CubeMesh"), false));
+    skyBoxEntity->m_sceneRoot->attach(sceneManager->createSceneNode(sponzaScene, "CubeMesh", Transform(), Cyan::getMesh("CubeMesh"), false));
     skyBoxEntity->setMaterial("CubeMesh", 0, m_skyMatl);
     skyBoxEntity->m_selectable = false;
     skyBoxEntity->m_includeInGBufferPass = false;
@@ -570,7 +570,7 @@ void PbrApp::initSponzaScene()
     glm::vec3 groundAlbedo(1.f, 0.5f, 0.5f);
 
     // path tracing
-#if 0
+#if 1
     {
         sponzaMesh->m_bvh = new Cyan::MeshBVH(sponzaMesh);
         sponzaMesh->m_bvh->build();
@@ -832,6 +832,7 @@ void PbrApp::updateScene(Scene* scene)
     // update material parameters
     for (auto matl : m_scenes[m_currentScene]->m_materials)
         updateMaterialData(matl);
+    // todo: fix this
     SceneManager::getSingletonPtr()->updateSceneGraph(m_scenes[m_currentScene]);
 }
 

@@ -116,7 +116,7 @@ namespace Cyan
         void drawEntity(Entity* entity);
         void drawSceneNode(SceneNode* node);
         void drawMesh(Mesh* mesh);
-        void drawMeshInstance(MeshInstance* meshInstance, glm::mat4* modelMatrix);
+        void drawMeshInstance(MeshInstance* meshInstance, i32 transformIndex);
         // blit viewport to default frame buffer for debug rendering
         void debugBlit(Cyan::Texture* texture, Viewport viewport);
         void submitMesh(Mesh* mesh, glm::mat4 modelTransform);
@@ -218,7 +218,7 @@ namespace Cyan
 
         struct GlobalTransforms
         {
-            const u32 kMaxNumTransforms = 1024;
+            const u32 kMaxNumTransforms = Scene::kMaxNumSceneNodes;
             const u32 kBufferSize       = kMaxNumTransforms * sizeof(glm::mat4);
             GLuint SBO;
         } gInstanceTransforms;

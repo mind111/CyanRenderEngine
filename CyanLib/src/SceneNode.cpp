@@ -1,3 +1,4 @@
+#include "Scene.h"
 #include "SceneNode.h"
 #include "Entity.h"
 
@@ -15,13 +16,17 @@ void SceneNode::attach(SceneNode* child)
 
 void SceneNode::onAttach()
 {
-    toggleToUpdate();
-    updateWorldTransform();
+    markChanged();
 }
 
-void SceneNode::toggleToUpdate()
+void SceneNode::markChanged()
 {
-    needUpdate = !needUpdate;
+    needUpdate = true;
+}
+
+void SceneNode::markUnchanged()
+{
+    needUpdate = false;
 }
 
 void SceneNode::detach()
@@ -32,19 +37,50 @@ void SceneNode::detach()
 
 void SceneNode::onDetach()
 {
-    updateWorldTransform();
+    markChanged();
 }
 
 const Transform& SceneNode::getLocalTransform()
 {
-    return m_localTransform; 
+    return m_scene->g_localTransforms[localTransform];
 }
 
 const Transform& SceneNode::getWorldTransform()
 {
-    return m_worldTransform; 
+    return m_scene->g_globalTransforms[globalTransform];
 }
 
+const glm::mat4& SceneNode::getLocalMatrix()
+{
+    return m_scene->g_localTransformMatrices[localTransform];
+}
+
+const glm::mat4& SceneNode::getWorldMatrix()
+{
+    return m_scene->g_globalTransformMatrices[globalTransform];
+}
+
+void SceneNode::setLocalTransform(const Transform& t)
+{
+
+}
+
+void SceneNode::setWorldTransform(const Transform& t)
+{
+
+}
+
+void SceneNode::setLocalMatrix(const glm::mat4& mat)
+{
+
+}
+
+void SceneNode::setWorldMatrix(const glm::mat4& mat)
+{
+
+}
+
+#if 0
 // basic depth first traversal
 void SceneNode::updateWorldTransform()
 {
@@ -62,6 +98,7 @@ void SceneNode::updateWorldTransform()
         child->updateWorldTransform();
     }
 }
+#endif
 
 SceneNode* SceneNode::find(const char* name)
 {

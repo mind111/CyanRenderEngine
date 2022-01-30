@@ -21,6 +21,7 @@ struct SceneNode
 {
     // owner
     struct Entity* m_owner; 
+    struct Scene*  m_scene;
     // identifier
     char m_name[kSceneNodeNameMaxLen];
     // node hierarchy
@@ -40,16 +41,19 @@ struct SceneNode
     void onAttach();
     void detach();
     void onDetach();
-    void toggleToUpdate();
+    void markChanged();
+    void markUnchanged();
+#if 0
     void updateWorldTransform();
+#endif
     const Transform& getLocalTransform();
-    void setLocalTransform(glm::mat4 mat)
-    {
-        m_localTransform.fromMatrix(mat);
-        // TODO: can we defer this update to gain performance?
-        updateWorldTransform();
-    }
-    Cyan::MeshInstance* getAttachedMesh() { return m_meshInstance; }
     const Transform& getWorldTransform();
+    const glm::mat4& getLocalMatrix();
+    const glm::mat4& getWorldMatrix();
+    void             setLocalTransform(const Transform& mat);
+    void             setWorldTransform(const Transform& mat);
+    void             setLocalMatrix(const glm::mat4& mat);
+    void             setWorldMatrix(const glm::mat4& mat);
+    Cyan::MeshInstance* getAttachedMesh() { return m_meshInstance; }
     SceneNode* find(const char* name);
 };
