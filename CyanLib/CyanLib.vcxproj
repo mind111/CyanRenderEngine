@@ -113,8 +113,8 @@
     <None Include="..\shader\debug_color_fs.glsl" />
     <None Include="..\shader\debug_color_vs.glsl" />
     <None Include="..\shader\global_buffers.glsl" />
-    <None Include="..\shader\scene_normal_depth.fs" />
-    <None Include="..\shader\scene_normal_depth.vs" />
+    <None Include="..\shader\scene_depth_normal_p.glsl" />
+    <None Include="..\shader\scene_depth_normal_v.glsl" />
     <None Include="..\shader\shader_ao.fs" />
     <None Include="..\shader\shader_ao.vs" />
     <None Include="..\shader\shader_blinn_phong.fs" />

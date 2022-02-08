@@ -15,6 +15,7 @@ Entity::Entity(Scene* scene, const char* name, u32 id, Transform t, Entity* pare
         sprintf(buff, "Entity%u", m_entityId);
     }
     m_sceneRoot = SceneManager::getSingletonPtr()->createSceneNode(scene, "DefaultSceneRoot", t, nullptr);
+    m_sceneRoot->m_owner = this;
     if (parent)
     {
         parent->attach(this);
@@ -172,11 +173,7 @@ void Entity::attach(Entity* child)
 
 void Entity::onAttach()
 {
-    // have the parent pointer points to parent Entity's m_sceneRoot while not
-    // adding this->m_sceneRoot as a child of Entity's m_sceneRoot
-    m_sceneRoot->setParent(m_parent->m_sceneRoot);
-    for (auto* child : m_child)
-        child->onAttach();
+    m_parent->m_sceneRoot->attachIndirect(m_sceneRoot);
 }
 
 // detach from current parent

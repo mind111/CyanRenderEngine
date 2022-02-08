@@ -213,8 +213,8 @@ namespace Pbr
     }
 }
 
-//#define SCENE_DEMO_00
-#define SCENE_SPONZA
+#define SCENE_DEMO_00
+//#define SCENE_SPONZA
 
 enum Scenes
 {
@@ -522,7 +522,7 @@ void PbrApp::initDemoScene00()
 #endif
         // path tracing
         {
-            pathTraceScene(demoScene00);
+            // pathTraceScene(demoScene00);
         }
     }
     timer.end();
@@ -531,8 +531,7 @@ void PbrApp::initDemoScene00()
 void PbrApp::pathTraceScene(Scene* scene)
 {
     auto pathTracer = Cyan::PathTracer::getSingletonPtr();
-    pathTracer->m_renderMode = Cyan::PathTracer::RenderMode::Render;
-    pathTracer->setScene(scene);
+    pathTracer->m_renderMode = Cyan::PathTracer::RenderMode::Render; pathTracer->setScene(scene);
     pathTracer->run(scene->getActiveCamera());
 
     // debug
@@ -570,7 +569,7 @@ void PbrApp::initSponzaScene()
     glm::vec3 groundAlbedo(1.f, 0.5f, 0.5f);
 
     // path tracing
-#if 1
+#if 0
     {
         sponzaMesh->m_bvh = new Cyan::MeshBVH(sponzaMesh);
         sponzaMesh->m_bvh->build();

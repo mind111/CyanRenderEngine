@@ -124,7 +124,11 @@ Entity* SceneManager::createEntity(Scene* scene, const char* entityName, Transfo
 {
     // id
     u32 id = allocEntityId(scene);
-    Entity* parentEntity = !parent ? scene->m_rootEntity : parent;
+    Entity* parentEntity = parent;
+    if (id != 0 && !parent)
+    {
+        parentEntity = scene->m_rootEntity;
+    }
     Entity* newEntity = new Entity(scene, entityName, id, transform, parentEntity, isStatic);
     scene->entities.push_back(newEntity);
     return newEntity; 
@@ -181,7 +185,7 @@ SceneNode* SceneManager::createSceneNode(Scene* scene, const char* name, Transfo
         {
             glm::mat4 localTransformMat = newNode.m_localTransform.toMatrix() * mesh->m_normalization;
             newNode.setLocalTransform(localTransformMat);
-            //scene->g_localTransformMatrices[newNode.localTransform] *= mesh->m_normalization;
+            scene->g_localTransformMatrices[newNode.localTransform] *= mesh->m_normalization;
         }
     }
     return &newNode;
@@ -238,7 +242,6 @@ void SceneManager::createPointLight(Scene* scene, glm::vec3 color, glm::vec3 pos
 
 void SceneManager::updateSceneGraph(Scene* scene)
 {
-#if 0
     std::queue<SceneNode*> nodes;
     nodes.push(scene->g_sceneRoot);
     while (!nodes.empty())
@@ -253,16 +256,11 @@ void SceneManager::updateSceneGraph(Scene* scene)
         {
             nodes.push(node->m_child[i]);
         }
-    }
-    for (u32 i = 0; i < scene->m_numSceneNodes; ++i)
-    {
-        auto& node = scene->g_sceneNodes[i];
-        if (node.m_parent)
+        for (u32 i = 0; i < node->m_indirectChild.size(); ++i)
         {
-            scene->g_globalTransformMatrices[node.globalTransform] = scene->g_globalTransformMatrices[node.m_parent->globalTransform] * scene->g_localTransformMatrices[node.localTransform];
+            nodes.push(node->m_indirectChild[i]);
         }
     }
-#endif
 }
 
 // update light data and pack them in a buffer 

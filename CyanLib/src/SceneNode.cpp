@@ -14,6 +14,13 @@ void SceneNode::attach(SceneNode* child)
     child->onAttach();
 }
 
+void SceneNode::attachIndirect(SceneNode* child)
+{
+    m_indirectChild.push_back(child);
+    child->setParent(this);
+    child->onAttach();
+}
+
 void SceneNode::onAttach()
 {
     markChanged();

@@ -108,11 +108,12 @@ namespace Cyan
         void renderDebugObjects();
         void endRender();
 
-
+        void updateFrameGlobalData(Scene* scene, const Camera& camara);
         void updateTransforms(Scene* scene);
         void updateLighting(Scene* scene);
         void updateSunShadow();
         BoundingBox3f computeSceneAABB(Scene* scene);
+        void executeOnEntity(Entity* e, const std::function<void(SceneNode*)>& func);
         void drawEntity(Entity* entity);
         void drawSceneNode(SceneNode* node);
         void drawMesh(Mesh* mesh);
@@ -153,6 +154,7 @@ namespace Cyan
         u32           m_SSAAWidth, m_SSAAHeight;
         u32           m_offscreenRenderWidth, m_offscreenRenderHeight;
         u32           m_windowWidth, m_windowHeight;
+        Shader*       m_sceneDepthNormalShader;
 
         // normal hdr scene color texture 
         Texture*      m_sceneColorTexture;
@@ -164,7 +166,6 @@ namespace Cyan
         Texture*      m_sceneNormalTextureSSAA;
         RenderTarget* m_sceneColorRTSSAA;
         Texture*      m_sceneDepthTextureSSAA;
-        Shader*       m_sceneDepthNormalShader;
         // final render output
         Texture*      m_outputColorTexture;
         RenderTarget* m_outputRenderTarget;
@@ -174,6 +175,7 @@ namespace Cyan
             DrawData     = 0,
             DirLightData,
             PointLightsData,
+            GlobalTransforms,
             kCount
         };
 

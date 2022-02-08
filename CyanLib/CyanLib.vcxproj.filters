@@ -283,10 +283,10 @@
     <None Include="src\ImGuizmo\LICENSE">
       <Filter>Source Files\External\ImGuizmo</Filter>
     </None>
-    <None Include="..\shader\scene_normal_depth.fs">
+    <None Include="..\shader\scene_depth_normal_p.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\scene_normal_depth.vs">
+    <None Include="..\shader\scene_depth_normal_v.glsl">
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\shader_ao.fs">

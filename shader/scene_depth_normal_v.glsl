@@ -1,7 +1,7 @@
 #version 450 core
-layout(location = 0) in vec3 vPos;
-out vec3 vPosCS; 
-uniform mat4 lightProjection;
+layout (location = 0) in vec3 vPos; 
+layout (location = 1) in vec3 vNormal;
+layout (location = 2) in vec4 vTangent;
 
 layout(std430, binding = 0) buffer GlobalDrawData
 {
@@ -19,12 +19,16 @@ layout(std430, binding = 3) buffer InstanceTransformData
 {
     mat4 models[];
 } gInstanceTransforms;
-
 uniform int transformIndex;
-uniform int cascadeIndex;
+
+out vec3 normalWorld;
+out vec3 tangentWorld;
+
 void main()
 {
     mat4 model = gInstanceTransforms.models[transformIndex];
-    vPosCS = (gDrawData.sunShadowProjections[cascadeIndex] * gDrawData.sunLightView * model * vec4(vPos, 1.f)).xyz;
-    gl_Position = vec4(vPosCS, 1.f);
+    normalWorld = (inverse(transpose(model)) * vec4(vNormal, 0.f)).xyz;
+    // todo: handedness of tangent
+    tangentWorld = normalize((model * vec4(vTangent.xyz, 0.f)).xyz);
+    gl_Position = gDrawData.projection * gDrawData.view * model * vec4(vPos, 1.f);
 }

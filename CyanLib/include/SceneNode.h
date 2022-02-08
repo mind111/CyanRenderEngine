@@ -27,6 +27,7 @@ struct SceneNode
     // node hierarchy
     SceneNode* m_parent;
     std::vector<SceneNode*> m_child;
+    std::vector<SceneNode*> m_indirectChild;
     // transform component
     bool      needUpdate;
     u32       localTransform;
@@ -38,6 +39,7 @@ struct SceneNode
     bool m_hasAABB;
     void setParent(SceneNode* parent);
     void attach(SceneNode* child);
+    void attachIndirect(SceneNode* child);
     void onAttach();
     void detach();
     void onDetach();

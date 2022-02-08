@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <queue>
+#include <functional>
 
 #include "glfw3.h"
 #include "gtx/quaternion.hpp"
@@ -87,7 +88,8 @@ namespace Cyan
         u_cameraProjection = createUniform("s_projection", Uniform::Type::u_mat4);
         m_ssaoSamplePoints.setColor(glm::vec4(0.f, 1.f, 1.f, 1.f));
         m_ssaoSamplePoints.setViewProjection(u_cameraView, u_cameraProjection);
-
+        // create shaders
+        m_sceneDepthNormalShader = createShader("SceneDepthNormalShader", "../../shader/scene_depth_normal_v.glsl", "../../shader/scene_depth_normal_p.glsl");
         // initialize per frame shader draw data
         glCreateBuffers(1, &gDrawDataBuffer);
         glNamedBufferData(gDrawDataBuffer, sizeof(GlobalDrawData), &m_globalDrawData, GL_DYNAMIC_DRAW);
@@ -292,10 +294,6 @@ namespace Cyan
         initShaders();
         initRenderTargets(m_viewport.m_width, m_viewport.m_height);
 
-        // scene depth and normal
-        {
-            m_sceneDepthNormalShader = createShader("SceneDepthNormalShader", "../../shader/shader_depth_normal.vs", "../../shader/shader_depth_normal.fs");
-        }
         // ssao
         {
             m_freezeDebugLines = false;
@@ -765,7 +763,18 @@ namespace Cyan
 
     void Renderer::drawEntity(Entity* entity) 
     {
-        drawSceneNode(entity->m_sceneRoot);
+        // drawSceneNode(entity->m_sceneRoot);
+        std::queue<SceneNode*> nodes;
+        nodes.push(entity->m_sceneRoot);
+        while (!nodes.empty())
+        {
+            auto node = nodes.front();
+            nodes.pop();
+            if (node->m_meshInstance)
+                drawMeshInstance(node->m_meshInstance, node->globalTransform);
+            for (u32 i = 0; i < node->m_child.size(); ++i)
+                nodes.push(node->m_child[i]);
+        }
     }
 
     template <typename T>
@@ -818,9 +827,8 @@ namespace Cyan
 
     void Renderer::render(Scene* scene)
     {
-        if (sizeofVector(scene->g_globalTransforms) > gInstanceTransforms.kBufferSize)
-            cyanError("Gpu global transform SBO overflow!");
-        glNamedBufferData(gInstanceTransforms.SBO, sizeofVector(scene->g_globalTransforms), scene->g_localTransforms.data(), GL_DYNAMIC_DRAW);
+        // update all global data
+        updateFrameGlobalData(scene, scene->cameras[scene->activeCamera]);
         for (auto renderPass : m_renderState.m_renderPasses)
         {
             renderPass->render();
@@ -852,21 +860,38 @@ namespace Cyan
         }
     }
 
+    void Renderer::executeOnEntity(Entity* e, const std::function<void(SceneNode*)>& func)
+    {
+        std::queue<SceneNode*> nodes;
+        nodes.push(e->m_sceneRoot);
+        while (!nodes.empty())
+        {
+            auto node = nodes.front();
+            nodes.pop();
+            func(node);
+            for (u32 i = 0; i < (u32)node->m_child.size(); ++i)
+                nodes.push(node->m_child[i]);
+        }
+    }
+
     void Renderer::renderSceneDepthNormal(Scene* scene, Camera& camera)
     {
         auto ctx = getCurrentGfxCtx();
-        // camera
-        setUniform(u_cameraView, &camera.view[0]);
-        setUniform(u_cameraProjection, &camera.projection[0]);
-        ctx->setUniform(u_cameraView);
-        ctx->setUniform(u_cameraProjection);
-
+        ctx->setShader(m_sceneDepthNormalShader);
         // entities 
         for (u32 e = 0; e < (u32)scene->entities.size(); ++e)
         {
             auto entity = scene->entities[e];
             if (entity->m_includeInGBufferPass && entity->m_visible)
             {
+                executeOnEntity(entity, [this, ctx](SceneNode* node) { 
+                    if (node->m_meshInstance)
+                    {
+                        m_sceneDepthNormalShader->setUniform1i("transformIndex", node->globalTransform);
+                        drawMesh(node->m_meshInstance->m_mesh);
+                    }
+                });
+#if 0
                 std::queue<SceneNode*> nodes;
                 nodes.push(entity->m_sceneRoot);
                 while (!nodes.empty())
@@ -883,19 +908,40 @@ namespace Cyan
                     for (u32 i = 0; i < (u32)node->m_child.size(); ++i)
                         nodes.push(node->m_child[i]);
                 }
+#endif
             }
         }
+    }
+
+#define gTexBinding(x) static_cast<u32>(GlobalTextureBindings##::##x)
+    void Renderer::updateFrameGlobalData(Scene* scene, const Camera& camera)
+    {
+        // bind global draw data
+        m_globalDrawData.view = camera.view;
+        m_globalDrawData.projection = camera.projection;
+        m_globalDrawData.numPointLights = (i32)scene->pLights.size();
+        m_globalDrawData.numDirLights = (i32)scene->dLights.size();
+        m_globalDrawData.m_ssao = m_ssao;
+        // bind lighting data
+        updateTransforms(scene);
+        updateLighting(scene);
+        updateSunShadow();
+        // bind global textures
+        glBindTextureUnit(gTexBinding(SSAO), m_ssaoTexture->m_id);
+        // upload data to gpu
+        glNamedBufferSubData(gDrawDataBuffer, 0, sizeof(GlobalDrawData), &m_globalDrawData);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, static_cast<u32>(BufferBindings::DrawData), gDrawDataBuffer);
     }
 
     void Renderer::updateTransforms(Scene* scene)
     {
         if (sizeofVector(scene->g_globalTransforms) > gInstanceTransforms.kBufferSize)
             cyanError("Gpu global transform SBO overflow!");
+        u32 sizeInBytes = sizeofVector(scene->g_globalTransformMatrices);
         glNamedBufferSubData(gInstanceTransforms.SBO, 0, sizeofVector(scene->g_globalTransformMatrices), scene->g_globalTransformMatrices.data());
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, gInstanceTransforms.SBO);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)BufferBindings::GlobalTransforms, gInstanceTransforms.SBO);
     }
 
-#define gTexBinding(x) static_cast<u32>(GlobalTextureBindings##::##x)
     void Renderer::updateLighting(Scene* scene)
     {
         gLighting.dirLights.clear();
@@ -949,23 +995,8 @@ namespace Cyan
 
     void Renderer::renderScene(Scene* scene, Camera& camera)
     {
-        // bind global draw data
-        m_globalDrawData.view           = camera.view;
-        m_globalDrawData.projection     = camera.projection;
-        m_globalDrawData.numPointLights = (i32)scene->pLights.size();
-        m_globalDrawData.numDirLights   = (i32)scene->dLights.size();
-        m_globalDrawData.m_ssao         = m_ssao;
-        // bind lighting data
-        updateTransforms(scene);
-        updateLighting(scene);
-        updateSunShadow();
-        // bind global textures
-        glBindTextureUnit(gTexBinding(SSAO), m_ssaoTexture->m_id);
-        // upload data to gpu
-        glNamedBufferSubData(gDrawDataBuffer, 0, sizeof(GlobalDrawData), &m_globalDrawData);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, static_cast<u32>(BufferBindings::DrawData), gDrawDataBuffer);
+#if 1
         // draw entities
-        /*
         for (u32 i = 0; i < scene->entities.size(); ++i)
         {
             if (scene->entities[i]->m_visible)
@@ -983,13 +1014,17 @@ namespace Cyan
                 }
             }
         }
+#else
+        /*
+        *  This version runs faster but doesn't allow skipping invisible entity
         */
         for (u32 i = 0; i < scene->m_numSceneNodes; ++i)
         {
             auto& node = scene->g_sceneNodes[i];
-            if (node.m_meshInstance)
+            if (node.m_owner->m_visible && node.m_meshInstance)
                 drawMeshInstance(node.m_meshInstance, node.globalTransform);
         }
+#endif
     }
 
     void Renderer::renderSSAO(Camera& camera)

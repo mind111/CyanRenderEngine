@@ -7,7 +7,7 @@ namespace Cyan
 
     static QuadMesh s_quadMesh;
     // scene
-    Shader* ScenePass::s_sceneNormalDepthShader = nullptr;
+    // Shader* ScenePass::s_sceneNormalDepthShader = nullptr;
     Texture* ScenePass::ssaoBlurVertTex = nullptr;
     Texture* ScenePass::ssaoBlurHoriTex = nullptr;
     RenderTarget* ScenePass::ssaoBlurRt = nullptr;
@@ -74,7 +74,7 @@ namespace Cyan
 
     void ScenePass::onInit()
     {
-        s_sceneNormalDepthShader = createShader("SceneNormalDepthShader", "../../shader/scene_normal_depth.vs", "../../shader/scene_normal_depth.fs");
+        // s_sceneNormalDepthShader = createShader("SceneNormalDepthShader", "../../shader/scene_normal_depth.vs", "../../shader/scene_normal_depth.fs");
         TextureSpec spec = { };
         Texture* ssaoTex = Renderer::getSingletonPtr()->m_ssaoTexture;
         spec.m_type = Texture::Type::TEX_2D;
@@ -104,9 +104,7 @@ namespace Cyan
             glm::vec4 depthBufferClear(1.f);
             glClearBufferfv(GL_COLOR, 0, &normalBufferClear.x);
             glClearBufferfv(GL_COLOR, 1, &depthBufferClear.x);
-
             ctx->setViewport(m_viewport);
-            ctx->setShader(s_sceneNormalDepthShader);
             renderer->renderSceneDepthNormal(m_scene, m_scene->getActiveCamera());
         }
 
@@ -611,12 +609,12 @@ namespace Cyan
         mid = glm::floor(mid);
         aabb.m_pMin = glm::vec4(mid - glm::vec3(fixedProjRadius), 1.f);
         aabb.m_pMax = glm::vec4(mid + glm::vec3(fixedProjRadius), 1.f);
-
         aabb.computeVerts();
     }
 
-    void DirectionalShadowPass::renderCascade(ShadowCascade& cascade, glm::mat4& lightView)
+    void DirectionalShadowPass::renderCascade(CascadedShadowMap& csm, i32 cascadeIndex, glm::mat4& lightView)
     {
+        auto& cascade = csm.cascades[cascadeIndex];
         auto aabb = cascade.aabb;
         glm::mat4 lightProjection = glm::orthoLH(aabb.m_pMin.x, aabb.m_pMax.x, aabb.m_pMin.y, aabb.m_pMax.y, aabb.m_pMax.z, aabb.m_pMin.z);
         cascade.lightProjection = lightProjection;
@@ -634,15 +632,13 @@ namespace Cyan
                 break;
         };
         ctx->setRenderTarget(s_depthRenderTarget, 0u);
-
-        // need to clear color depth to 1.0f
+        // need to clear depth to 1.0f
         ctx->setClearColor(glm::vec4(1.f));
         glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
         ctx->setClearColor(glm::vec4(0.f));
 
         ctx->setShader(s_directShadowShader);
-        s_directShadowMatl->set("lightView", &lightView[0]);
-        s_directShadowMatl->set("lightProjection", &lightProjection[0]);
+        s_directShadowMatl->set("cascadeIndex", cascadeIndex);
         ctx->setViewport({0u, 0u, s_depthRenderTarget->m_width, s_depthRenderTarget->m_height});
         for (auto entity : m_scene->entities)
         {
@@ -654,21 +650,16 @@ namespace Cyan
                 nodes.pop();
                 if (MeshInstance* meshInstance = node->m_meshInstance)
                 {
-                    if (node->m_hasAABB)
+                    s_directShadowMatl->set("transformIndex", node->globalTransform);
+                    s_directShadowMatl->bind();
+                    for (u32 i = 0; i < meshInstance->m_mesh->m_subMeshes.size(); ++i)
                     {
-                        glm::mat4 model = node->getWorldTransform().toMatrix();
-                        s_directShadowMatl->set("model", &model[0][0]);
-                        s_directShadowMatl->bind();
-                        u32 smIndex = 0u;
-                        for (auto sm : meshInstance->m_mesh->m_subMeshes)
-                        {
-                            ctx->setVertexArray(sm->m_vertexArray);
-                            if (sm->m_vertexArray->m_ibo != static_cast<u32>(-1))
-                                ctx->drawIndex(sm->m_vertexArray->m_numIndices);
-                            else
-                                ctx->drawIndexAuto(sm->m_vertexArray->numVerts());
-                            smIndex++;
-                        }
+                        auto sm = meshInstance->m_mesh->m_subMeshes[i];
+                        ctx->setVertexArray(sm->m_vertexArray);
+                        if (sm->m_vertexArray->m_ibo != static_cast<u32>(-1))
+                            ctx->drawIndex(sm->m_vertexArray->m_numIndices);
+                        else
+                            ctx->drawIndexAuto(sm->m_vertexArray->numVerts());
                     }
                 }
                 for (auto child : node->m_child)
@@ -709,7 +700,7 @@ namespace Cyan
         for (u32 i = 0u; i < DirectionalShadowPass::kNumShadowCascades; ++i)
         {
             computeCascadeAABB(m_cascadedShadowMap.cascades[i], camera, m_cascadedShadowMap.lightView);
-            renderCascade(m_cascadedShadowMap.cascades[i], m_cascadedShadowMap.lightView);
+            renderCascade(m_cascadedShadowMap, i, m_cascadedShadowMap.lightView);
         }
     }
 

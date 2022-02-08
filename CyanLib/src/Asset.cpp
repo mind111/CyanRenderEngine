@@ -464,7 +464,7 @@ namespace Cyan
             Entity* entity = SceneManager::getSingletonPtr()->createEntity(scene, entityName.c_str(), xform, entityInfo.at("static"));
             auto sceneNodes = entityInfo.at("nodes");
             for (auto node : sceneNodes)
-                entity->getSceneRoot()->attach(m_nodes[node]);
+                entity->attachSceneNode(m_nodes[node]);
         }
     }
 

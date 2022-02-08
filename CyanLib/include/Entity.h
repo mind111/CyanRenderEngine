@@ -12,7 +12,11 @@
 
 enum EntityProperty
 {
-    Lit = 0,
+    kLit = 0 << 1,
+    kVisible = 1 << 1,
+    kStatic = 2 << 1,
+    kSelectable = 3 << 1,
+    kIncludeInGBufferPass = 4 << 1,
     BakeInProbes,
 };
 

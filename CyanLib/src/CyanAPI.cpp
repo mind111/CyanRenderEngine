@@ -369,7 +369,7 @@ namespace Cyan
         }
         else
         {
-            // printf("[Warning] Unknown uniform with name %s\n", name);
+            printf("[Warning] Unknown uniform with name %s\n", name);
         }
         return (UniformHandle)-1;
     }
