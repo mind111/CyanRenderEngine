@@ -40,6 +40,7 @@ public:
 
     // pre-computation
     void doPrecomputeWork();
+    void bakeLightProbes(Cyan::ReflectionProbe* probe, u32 numProbes);
 
     // tick
     void update();

@@ -631,6 +631,7 @@ namespace Cyan
                 // s_depthRenderTarget->attachTexture(cascade.basicShadowMap.shadowMap, 0);
                 break;
         };
+        ctx->setViewport({0u, 0u, s_depthRenderTarget->m_width, s_depthRenderTarget->m_height});
         ctx->setRenderTarget(s_depthRenderTarget, 0u);
         // need to clear depth to 1.0f
         ctx->setClearColor(glm::vec4(1.f));
@@ -639,32 +640,17 @@ namespace Cyan
 
         ctx->setShader(s_directShadowShader);
         s_directShadowMatl->set("cascadeIndex", cascadeIndex);
-        ctx->setViewport({0u, 0u, s_depthRenderTarget->m_width, s_depthRenderTarget->m_height});
+        auto renderer = Renderer::getSingletonPtr();
         for (auto entity : m_scene->entities)
         {
-            std::queue<SceneNode*> nodes;
-            nodes.push(entity->m_sceneRoot);
-            while(!nodes.empty())
-            {
-                SceneNode* node = nodes.front(); 
-                nodes.pop();
+            renderer->executeOnEntity(entity, [ctx, renderer](SceneNode* node) {
                 if (MeshInstance* meshInstance = node->m_meshInstance)
                 {
                     s_directShadowMatl->set("transformIndex", node->globalTransform);
                     s_directShadowMatl->bind();
-                    for (u32 i = 0; i < meshInstance->m_mesh->m_subMeshes.size(); ++i)
-                    {
-                        auto sm = meshInstance->m_mesh->m_subMeshes[i];
-                        ctx->setVertexArray(sm->m_vertexArray);
-                        if (sm->m_vertexArray->m_ibo != static_cast<u32>(-1))
-                            ctx->drawIndex(sm->m_vertexArray->m_numIndices);
-                        else
-                            ctx->drawIndexAuto(sm->m_vertexArray->numVerts());
-                    }
+                    renderer->drawMesh(meshInstance->m_mesh);
                 }
-                for (auto child : node->m_child)
-                    nodes.push(child);
-            }
+            });
         }
     }
 

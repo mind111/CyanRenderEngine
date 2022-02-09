@@ -18,8 +18,6 @@ namespace Cyan
     };
 
     // todo: optimize Triangle::intersectRay() to improve baking speed
-    // todo: figure out ways to combat seams
-    // todo: save baked map to an image
     // todo: streamline lightmap baking code path
     struct LightMap
     {

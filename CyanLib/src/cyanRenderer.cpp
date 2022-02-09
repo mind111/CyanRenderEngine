@@ -913,6 +913,7 @@ namespace Cyan
         }
     }
 
+    // Data that needs to be updated on frame start, such as transforms, and lighting
 #define gTexBinding(x) static_cast<u32>(GlobalTextureBindings##::##x)
     void Renderer::updateFrameGlobalData(Scene* scene, const Camera& camera)
     {
@@ -925,7 +926,6 @@ namespace Cyan
         // bind lighting data
         updateTransforms(scene);
         updateLighting(scene);
-        updateSunShadow();
         // bind global textures
         glBindTextureUnit(gTexBinding(SSAO), m_ssaoTexture->m_id);
         // upload data to gpu
@@ -995,6 +995,8 @@ namespace Cyan
 
     void Renderer::renderScene(Scene* scene, Camera& camera)
     {
+        // update & bind shadow data
+        updateSunShadow();
 #if 1
         // draw entities
         for (u32 i = 0; i < scene->entities.size(); ++i)
@@ -1050,16 +1052,11 @@ namespace Cyan
 
     void Renderer::probeRenderScene(Scene* scene, Camera& camera)
     {
-        m_globalDrawData.view           = camera.view;
-        m_globalDrawData.projection     = camera.projection;
-        m_globalDrawData.numPointLights = (i32)scene->pLights.size();
-        m_globalDrawData.numDirLights   = (i32)scene->dLights.size();
-        updateLighting(scene);
-        glNamedBufferSubData(gDrawDataBuffer, 0, sizeof(GlobalDrawData), &m_globalDrawData);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, static_cast<u32>(BufferBindings::DrawData), gDrawDataBuffer);
-
         // turn off ssao
         m_ssao = 0.f;
+        updateFrameGlobalData(scene, camera);
+        // update & bind shadow data
+        updateSunShadow();
         // entities 
         for (auto entity : scene->entities)
         {

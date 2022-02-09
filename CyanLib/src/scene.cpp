@@ -155,7 +155,7 @@ Scene* SceneManager::createScene(const char* name, const char* file)
     scene->m_distantProbe = nullptr;
     scene->m_rootEntity = nullptr;
     // create root entity
-    scene->m_rootEntity = SceneManager::getSingletonPtr()->createEntity(scene, "SceneRoot", Transform(), true);
+    scene->m_rootEntity = SceneManager::getSingletonPtr()->createEntity(scene, "Root", Transform(), true);
     scene->g_sceneRoot = scene->m_rootEntity->m_sceneRoot;
     auto assetManager = Cyan::GraphicsSystem::getSingletonPtr()->getAssetManager(); 
     assetManager->loadScene(scene, file);
@@ -251,6 +251,7 @@ void SceneManager::updateSceneGraph(Scene* scene)
         if (node->m_parent)
         {
             scene->g_globalTransformMatrices[node->globalTransform] = scene->g_globalTransformMatrices[node->m_parent->globalTransform] * scene->g_localTransformMatrices[node->localTransform];
+            scene->g_globalTransforms[node->globalTransform].fromMatrix(scene->g_globalTransformMatrices[node->globalTransform]);
         }
         for (u32 i = 0; i < node->m_child.size(); ++i)
         {

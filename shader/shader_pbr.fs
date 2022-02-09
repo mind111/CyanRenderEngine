@@ -312,7 +312,8 @@ vec3 render(RenderParams params)
     vec3 kDiffuse = mix(vec3(1.f) - F, vec3(0.0f), params.metallic);
     vec3 diffuse = kDiffuse * diffuseBrdf(params.baseColor) * ndotl;
     vec3 specular = specularBrdf(params.l, params.v, params.n, params.roughness, params.f0) * ndotl * uniformSpecular;
-    return (directDiffuseScale * diffuse * params.ao + directSpecularScale * specular) * params.li * params.shadow;
+    // return (directDiffuseScale * diffuse * params.ao + directSpecularScale * specular) * params.li * params.shadow;
+    return (directDiffuseScale * diffuse + directSpecularScale * specular) * params.li * params.shadow;
 }
 
 struct CascadeOffset
@@ -612,7 +613,6 @@ void main()
     // Determine the specular color
     // sqrt() because I want to make specular color has stronger tint
     vec3 f0 = mix(vec3(0.04f), albedo.rgb, metallic);
-
     float ao = uMaterialProps.hasAoMap > 0.5f ? texture(aoMap, uv).r : 1.0f;
     ao = pow(ao, 3.0f);
 
@@ -633,20 +633,19 @@ void main()
     };
 
     vec2 screenTexCoord = gl_FragCoord.xy *.5f / vec2(1280.f, 720.f);
-    float ssao = texture(ssaoTex, screenTexCoord).r;
+    float ssao = gDrawData.m_ssao > .5f ? texture(ssaoTex, screenTexCoord).r : 1.f;
 
     vec3 color = vec3(0.f);
     // analytical lighting
     color += directLighting(renderParams) * ssao;
     // image-based-lighting
-    color += gDrawData.m_ssao > .5f ? indirectLighting(renderParams) * ssao : indirectLighting(renderParams);
+    color += indirectLighting(renderParams) * ssao;
     // baked lighting
     vec3 bakedLighting = vec3(0.f);
     if (uMaterialProps.hasBakedLighting > 0.5f) 
         bakedLighting = texture(lightMap, uv1).rgb;
-    color += gDrawData.m_ssao > .5f ? bakedLighting * albedo.rgb * ssao : bakedLighting * albedo.rgb;
+    color += bakedLighting * albedo.rgb * ssao;
     // write linear color to HDR Framebuffer
     fragColor = vec4(color, 1.0f);
-
     radialDistance = vec3(length(fragmentPos));
 }

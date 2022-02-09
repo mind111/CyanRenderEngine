@@ -218,6 +218,12 @@ namespace Cyan
         m_prefilterMatl = createMaterial(m_prefilterShader)->createInstance();
         m_renderProbeMatl->bindTexture("radianceMap", m_prefilteredProbe);
     }
+
+    void ReflectionProbe::bake()
+    {
+        sampleRadiance();
+        prefilter();
+    }
     
     void ReflectionProbe::sampleRadiance()
     {
@@ -255,11 +261,11 @@ namespace Cyan
             m_renderTarget->setDrawBuffers(drawBuffers, 4);
             ctx->setRenderTarget(m_renderTarget);
             ctx->clear();
-
             camera.lookAt = camera.position + cameraTargets[f];
             camera.worldUp = worldUps[f];
             CameraManager::updateCamera(camera);
             renderer->probeRenderScene(m_scene, camera);
+            //renderer->renderScene(m_scene, camera);
         }
     }
 
@@ -589,7 +595,7 @@ namespace Cyan
     {
         auto sceneManager = SceneManager::getSingletonPtr();
         u32 id = sceneManager->allocEntityId(scene);
-        auto probe = new IrradianceProbe("IrradianceProbe0", id, position, nullptr, scene);
+        auto probe = new IrradianceProbe("IrradianceProbe0", id, position, scene->m_rootEntity, scene);
         scene->entities.push_back(probe);
         return probe;
     }
@@ -598,7 +604,7 @@ namespace Cyan
     {
         auto sceneManager = SceneManager::getSingletonPtr();
         u32 id = sceneManager->allocEntityId(scene);
-        auto probe = new ReflectionProbe("ReflectionProbe0", id, position, nullptr, scene);
+        auto probe = new ReflectionProbe("ReflectionProbe0", id, position, scene->m_rootEntity, scene);
         scene->entities.push_back(probe);
         return probe;
     }
@@ -607,7 +613,7 @@ namespace Cyan
     {
         auto sceneManager = SceneManager::getSingletonPtr();
         u32 id = sceneManager->allocEntityId(scene);
-        auto probe = new LightFieldProbe("LightFieldProbe", id, position, nullptr, scene);
+        auto probe = new LightFieldProbe("LightFieldProbe", id, position, scene->m_rootEntity, scene);
         scene->entities.push_back(probe);
         return probe;
     }

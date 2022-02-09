@@ -17,7 +17,8 @@ enum EntityProperty
     kStatic = 2 << 1,
     kSelectable = 3 << 1,
     kIncludeInGBufferPass = 4 << 1,
-    BakeInProbes,
+    kCastShadow = 5 << 1,
+    BakeInProbes = 6 << 1,
 };
 
 enum EntityFilter
@@ -42,6 +43,7 @@ struct Entity
     SceneNode* m_sceneRoot;
 
     // flags
+    u32 m_properties;
     bool m_lit;
     bool m_static;
     bool m_visible;

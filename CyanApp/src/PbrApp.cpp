@@ -76,8 +76,6 @@ CameraCommand buildCameraCommand(CameraCommand::Type type, double mouseCursorDx,
     return CameraCommand{ type, { mouseCursorDx, mouseCursorDy, mouseWheelDx, mouseWheelDy }};
 }
 
-// TODO: coding this way prevents different control from happening at the same time. Command type should
-// really be just setting different bits of type member variable.
 void PbrApp::dispatchCameraCommand(CameraCommand& command)
 {
     PbrApp* app = PbrApp::get();
@@ -372,7 +370,8 @@ void PbrApp::initDemoScene00()
         sceneManager->createDirectionalLight(demoScene00, glm::vec3(1.0f, 0.9, 0.7f), sunDir, 3.6f);
         // sky light
         auto sceneManager = SceneManager::getSingletonPtr();
-        Entity* skyBoxEntity = sceneManager->createEntity(demoScene00, "SkyBox", Transform(), false);
+        // todo: refactor lights, decouple them from Entity
+        Entity* skyBoxEntity = sceneManager->createEntity(demoScene00, "SkyBox", Transform(), true);
         skyBoxEntity->m_sceneRoot->attach(sceneManager->createSceneNode(demoScene00, "CubeMesh", Transform(), Cyan::getMesh("CubeMesh"), false));
         skyBoxEntity->setMaterial("CubeMesh", 0, m_skyMatl);
         skyBoxEntity->m_selectable = false;
@@ -554,7 +553,7 @@ void PbrApp::initSponzaScene()
     glm::vec3 sunDir = glm::normalize(glm::vec3(0.0f, 1.0f, 0.0f));
     sceneManager->createDirectionalLight(sponzaScene, glm::vec3(1.0f, 0.9, 0.7f), sunDir, 3.6f);
     // sky light
-    Entity* skyBoxEntity = sceneManager->createEntity(sponzaScene, "SkyBox", Transform(), false);
+    Entity* skyBoxEntity = sceneManager->createEntity(sponzaScene, "SkyBox", Transform(), true);
     skyBoxEntity->m_sceneRoot->attach(sceneManager->createSceneNode(sponzaScene, "CubeMesh", Transform(), Cyan::getMesh("CubeMesh"), false));
     skyBoxEntity->setMaterial("CubeMesh", 0, m_skyMatl);
     skyBoxEntity->m_selectable = false;
@@ -716,15 +715,27 @@ void PbrApp::beginFrame()
     Cyan::getCurrentGfxCtx()->setViewport({ 0, 0, static_cast<u32>(gEngine->getWindow().width), static_cast<u32>(gEngine->getWindow().height) });
 }
 
+void PbrApp::bakeLightProbes(Cyan::ReflectionProbe* probes, u32 numProbes)
+{
+    auto renderer = Cyan::Renderer::getSingletonPtr();
+    // global sun light shadow pass
+    renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), 0);
+    for (u32 i = 0; i < numProbes; ++i)
+    {
+        probes[i].bake();
+    }
+}
+
 void PbrApp::doPrecomputeWork()
 {
     // precomute thingy here
     {
         auto ctx = Cyan::getCurrentGfxCtx();
-        beginFrame();
+        // beginFrame();
         // update probe
-        SceneManager::getSingletonPtr()->setDistantLightProbe(m_scenes[m_currentScene], Cyan::getProbe(m_currentProbeIndex));
-
+        auto sceneManager = SceneManager::getSingletonPtr();
+        sceneManager->setDistantLightProbe(m_scenes[m_currentScene], Cyan::getProbe(m_currentProbeIndex));
+        sceneManager->updateSceneGraph(m_scenes[m_currentScene]);
 #ifdef SCENE_DEMO_00 
         auto renderer = Cyan::Renderer::getSingletonPtr();
         renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), 0);
@@ -733,9 +744,7 @@ void PbrApp::doPrecomputeWork()
         renderer->endRender();
         // m_irradianceProbe->sampleRadiance();
         // m_irradianceProbe->computeIrradiance();
-        m_reflectionProbe->sampleRadiance();
-        m_reflectionProbe->prefilter();
-        endFrame();
+        m_reflectionProbe->bake();
         ctx->setRenderTarget(nullptr, 0u);
 #endif
     }
@@ -744,7 +753,6 @@ void PbrApp::doPrecomputeWork()
 void PbrApp::run()
 {
     doPrecomputeWork();
-
     while (bRunning)
     {
         // tick
@@ -1414,7 +1422,7 @@ void PbrApp::buildFrame()
 {
     // construct work for current frame
     Cyan::Renderer* renderer = Cyan::Renderer::getSingletonPtr();
-    renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), 0);
+    //renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), 0);
     renderer->addScenePass(m_scenes[m_currentScene]);
     {
         void* memory = renderer->getAllocator().alloc(sizeof(DebugRenderPass));
@@ -1527,11 +1535,19 @@ void PbrApp::render()
     glUnmapBuffer(GL_ATOMIC_COUNTER_BUFFER);
     glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, m_debugRayAtomicCounter);
 #endif
-
+#if 0
+    renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), 0);
+    renderer->beginRender();
+    renderer->render(m_scenes[m_currentScene]);
+    renderer->endRender();
+#endif
+    // m_reflectionProbe->bake();
+#if 1
     renderer->beginRender();
     buildFrame();
     renderer->render(m_scenes[m_currentScene]);
     renderer->endRender();
+#endif
 
     // ui
     m_ui.begin();

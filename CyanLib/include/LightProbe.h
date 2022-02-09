@@ -56,6 +56,7 @@ namespace Cyan
         ReflectionProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene);
         void sampleRadiance();
         void prefilter();
+        void bake();
 
         static const u32     kNumMips = 11; 
         static RenderTarget* m_renderTarget;
@@ -68,10 +69,6 @@ namespace Cyan
         MaterialInstance* m_prefilterMatl;
     };
 
-    // TODO: fix cornell box to make it double sided
-    // TODO: save / load the probe
-    // TODO: ray tracing cornell using single light field probe
-    // TODO: enable multi-bounce only for cornell or make a dedicated scene to just test cornell box
     struct LightFieldProbe : public Entity
     {
         Texture* m_radiance;

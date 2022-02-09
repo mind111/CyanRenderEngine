@@ -133,6 +133,11 @@ namespace Cyan
         void addLinePass();
         void addPostProcessPasses();
 
+        struct Options
+        {
+            f32 m_ssao;
+        } m_opts;
+
         RenderState m_renderState;
 
         // viewport

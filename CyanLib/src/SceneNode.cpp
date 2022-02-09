@@ -69,7 +69,8 @@ const glm::mat4& SceneNode::getWorldMatrix()
 
 void SceneNode::setLocalTransform(const Transform& t)
 {
-
+    m_scene->g_localTransforms[localTransform] = t;
+    m_scene->g_localTransformMatrices[localTransform] = t.toMatrix();
 }
 
 void SceneNode::setWorldTransform(const Transform& t)
