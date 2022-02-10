@@ -108,8 +108,6 @@ public:
     //- probe related
     Cyan::IrradianceProbe* createIrradianceProbe(Scene* scene, const glm::vec3& pos);
     Cyan::ReflectionProbe* createReflectionProbe(Scene* scene, const glm::vec3& pos);
-    Cyan::LightFieldProbe* createLightFieldProbe(Scene* scene, const glm::vec3& pos);
-    Cyan::LightFieldProbeVolume* createLightFieldProbeVolume(Scene* scene, glm::vec3& pos, glm::vec3& dimension, glm::vec3& stride);
 private:
     //u32                      m_numSceneNodes;
     //std::vector<SceneNode>   m_sceneNodePool;

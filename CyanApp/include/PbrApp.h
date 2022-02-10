@@ -92,8 +92,6 @@ public:
     Cyan::IrradianceProbe*       m_irradianceProbe;
     Cyan::ReflectionProbe*       m_reflectionProbe;
     GLuint                       m_debugRayAtomicCounter;
-    Cyan::LightFieldProbe*       m_lightFieldProbe;
-    Cyan::LightFieldProbeVolume* m_probeVolume;
     int                          m_debugProbeIndex;
     glm::vec3                    m_debugRayTracingNormal;
 

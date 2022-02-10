@@ -69,53 +69,11 @@ namespace Cyan
         MaterialInstance* m_prefilterMatl;
     };
 
-    struct LightFieldProbe : public Entity
-    {
-        Texture* m_radiance;
-        Texture* m_radianceOct;
-        Texture* m_normal;
-        Texture* m_normalOct;
-        Texture* m_radialDistance;
-        Texture* m_distanceOct;
-        MaterialInstance* m_renderProbeMatl;
-        MaterialInstance* m_octProjMatl;
-        static Shader* m_octProjectionShader;
-        static RenderTarget* m_cubemapRenderTarget;
-        static RenderTarget* m_octMapRenderTarget;
-
-        Scene* m_scene;
-
-        Line2D* m_octMapDebugLines[6];
-
-        LightFieldProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene);
-        void sampleScene();
-        void debugRenderProbe();
-        void save();
-    };
-
-    struct LightFieldProbeVolume
-    {
-        LightFieldProbeVolume(glm::vec3& pos, glm::vec3& dimension, glm::vec3& spacing);
-        ~LightFieldProbeVolume() { }
-        void sampleScene();
-        void packProbeTextures();
-        glm::vec3 m_volumePos;
-        glm::vec3 m_volumeDimension;
-        glm::vec3 m_probeSpacing;
-        glm::vec3 m_lowerLeftCorner;
-        std::vector<LightFieldProbe*> m_probes;
-        Texture* m_octRadianceGrid;
-        Texture* m_octNormalGrid;
-        Texture* m_octRadialDepthGrid;
-    };
-
     class LightProbeFactory
     {
     public:
         IrradianceProbe* createIrradianceProbe(Scene* scene, glm::vec3 position);
         ReflectionProbe* createReflectionProbe(Scene* scene, glm::vec3 position);
-        LightFieldProbe* createLightFieldProbe(Scene* scene, glm::vec3 position);
-        LightFieldProbeVolume* createLightFieldProbeVolume(Scene* scene, glm::vec3& position, glm::vec3& dimension, glm::vec3& spacing);
         u32 numIrradianceProbe;
         u32 numLightFieldProbe;
     };

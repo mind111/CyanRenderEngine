@@ -292,15 +292,3 @@ Cyan::ReflectionProbe* SceneManager::createReflectionProbe(Scene* scene, const g
     auto probe = m_probeFactory->createReflectionProbe(scene, pos); 
     return probe;
 }
-
-Cyan::LightFieldProbe* SceneManager::createLightFieldProbe(Scene* scene, const glm::vec3& pos)
-{
-    auto probe = m_probeFactory->createLightFieldProbe(scene, pos); 
-    return probe;
-}
-
-Cyan::LightFieldProbeVolume* SceneManager::createLightFieldProbeVolume(Scene* scene, glm::vec3& pos, glm::vec3& dimension, glm::vec3& spacing)
-{
-    auto probeVolume = m_probeFactory->createLightFieldProbeVolume(scene, pos, dimension, spacing);
-    return probeVolume;
-}
