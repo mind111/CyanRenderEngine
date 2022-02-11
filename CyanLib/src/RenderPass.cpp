@@ -437,8 +437,8 @@ namespace Cyan
         ctx->setDepthControl(DepthControl::kEnable);
     }
     
-    DirectionalShadowPass::DirectionalShadowPass(RenderTarget* renderTarget, Viewport viewport, Scene* scene, Camera& camera, u32 dirLightIdx)
-        : RenderPass(renderTarget, viewport), m_scene(scene), m_camera(camera)
+    DirectionalShadowPass::DirectionalShadowPass(RenderTarget* renderTarget, Viewport viewport, Scene* scene, Camera& camera, const std::vector<Entity*>& shadowCasters, u32 dirLightIdx)
+        : RenderPass(renderTarget, viewport), m_scene(scene), m_camera(camera). m_shadowCasters(shadowCasters)
     {
         m_light = scene->dLights[dirLightIdx];
     }

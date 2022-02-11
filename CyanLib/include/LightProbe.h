@@ -38,7 +38,7 @@ namespace Cyan
         virtual void debugRender() override;
         void convolve();
 
-        static Shader* m_convolveIrradianceShader;
+        static Shader* s_convolveIrradianceShader;
         static RegularBuffer*      m_rayBuffers;
         static const u32 kNumZenithSlice       = 32u;
         static const u32 kNumAzimuthalSlice    = 32u;

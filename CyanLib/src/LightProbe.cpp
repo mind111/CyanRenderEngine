@@ -8,7 +8,7 @@ namespace Cyan
 {
     Mesh*          s_cubeMesh                                  = nullptr;
     Shader*        s_debugRenderShader                         = nullptr;
-    Shader*        IrradianceProbe::m_convolveIrradianceShader = nullptr;
+    Shader*        IrradianceProbe::s_convolveIrradianceShader = nullptr;
     Shader*        ReflectionProbe::s_convolveReflectionShader = nullptr;
     RegularBuffer* IrradianceProbe::m_rayBuffers               = nullptr;
 
@@ -46,7 +46,7 @@ namespace Cyan
         : m_scene(scene), m_position(p), m_resolution(resolution), m_debugSphereMesh(nullptr), m_sceneCapture(nullptr), m_debugRenderMatl(nullptr)
     {
         m_debugSphereMesh = getMesh("sphere_mesh")->createInstance(m_scene);
-        m_debugRenderMatl = createMaterial(s_debugRenderShader)->createInstance();
+        m_debugRenderMatl = createMaterial(getRenderProbeShader())->createInstance();
 
         initialize();
     }
@@ -84,8 +84,17 @@ namespace Cyan
             camera.fov = glm::radians(90.f);
             // render sun light shadow
             auto renderer = Renderer::getSingletonPtr();
+            // only capture static objects
+            std::vector<Entity*> staticObjects;
+            for (u32 i = 0; i < m_scene->entities.size(); ++i)
+            {
+                if (m_scene->entities[i]->m_static)
+                {
+                    staticObjects.push_back(m_scene->entities[i]);
+                }
+            }
             renderer->beginRender();
-            renderer->addDirectionalShadowPass(m_scene, camera, 0);
+            renderer->addDirectionalShadowPass(m_scene, m_scene->getActiveCamera(), staticObjects, 0);
             renderer->render(m_scene);
             renderer->endRender();
             // render scene into each face of the cubemap
@@ -134,7 +143,16 @@ namespace Cyan
         auto sceneManager = SceneManager::getSingletonPtr();
         m_convolvedIrradianceTexture = textureManager->createTextureHDR("IrradianceProbe", spec);
 
-        m_convolveIrradianceMatl = createMaterial(m_convolveIrradianceShader)->createInstance();
+        if (!s_convolveIrradianceShader)
+        {
+            s_convolveIrradianceShader = createShader("ConvolveIrradianceShader", "../../shader/shader_diff_irradiance.vs", "../../shader/shader_diff_irradiance.fs");
+        }
+        m_convolveIrradianceMatl = createMaterial(s_convolveIrradianceShader)->createInstance();
+
+        if (!s_cubeMesh)
+        {
+            s_cubeMesh = getMesh("CubeMesh");
+        }
     }
 
     void IrradianceProbe::convolve()
@@ -148,7 +166,7 @@ namespace Cyan
         auto renderer = Renderer::getSingletonPtr();
         auto renderTarget = createRenderTarget(m_irradianceTextureRes.x, m_irradianceTextureRes.y);
         {
-            ctx->setShader(m_convolveIrradianceShader);
+            ctx->setShader(s_convolveIrradianceShader);
             ctx->setViewport({0u, 0u, renderTarget->m_width, renderTarget->m_height});
             ctx->setDepthControl(DepthControl::kDisable);
             for (u32 f = 0; f < 6u; ++f)
@@ -176,11 +194,6 @@ namespace Cyan
     ReflectionProbe::ReflectionProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& sceneCaptureResolution)
         : LightProbe(scene, p, sceneCaptureResolution), m_convolvedReflectionTexture(nullptr), m_convolveReflectionMatl(nullptr)
     {
-        if (!s_convolveReflectionShader)
-        {
-            s_convolveReflectionShader = createShader("ConvolveReflectionShader", "../../shader/shader_prefilter_specular.vs", "../../shader/shader_prefilter_specular.fs");
-        }
-
         // convolved radiance texture
         TextureSpec spec = { };
         spec.m_width = m_resolution.x;
@@ -197,6 +210,17 @@ namespace Cyan
         spec.m_data = nullptr;
         auto textureManager = TextureManager::getSingletonPtr();
         m_convolvedReflectionTexture = textureManager->createTextureHDR("ConvolvedReflectionProbe", spec);
+
+        if (!s_convolveReflectionShader)
+        {
+            s_convolveReflectionShader = createShader("ConvolveReflectionShader", "../../shader/shader_prefilter_specular.vs", "../../shader/shader_prefilter_specular.fs");
+        }
+        m_convolveReflectionMatl = createMaterial(s_convolveReflectionShader)->createInstance();
+
+        if (!s_cubeMesh)
+        {
+            s_cubeMesh = getMesh("CubeMesh");
+        }
     }
 
     void ReflectionProbe::convolve()

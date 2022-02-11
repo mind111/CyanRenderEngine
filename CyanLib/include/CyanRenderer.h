@@ -125,7 +125,7 @@ namespace Cyan
         void endFrame();
 
         void addScenePass(Scene* scene);
-        void addDirectionalShadowPass(Scene* scene, Camera& camera, u32 lightIndex);
+        void addDirectionalShadowPass(Scene* scene, Camera& camera, const std::vector<Entity*>& shadowCasters, u32 lightIdx);
         void addCustomPass(RenderPass* pass);
         void addTexturedQuadPass(RenderTarget* renderTarget, Viewport viewport, Texture* srcTexture);
         void addBloomPass();

@@ -658,11 +658,11 @@ namespace Cyan
         m_renderState.addRenderPass(pass);
     }
 
-    void Renderer::addDirectionalShadowPass(Scene* scene, Camera& camera, u32 lightIdx)
+    void Renderer::addDirectionalShadowPass(Scene* scene, Camera& camera, const std::vector<Entity*>& shadowCasters, u32 lightIdx)
     {
         void* preallocatedAddr = m_frameAllocator.alloc(sizeof(DirectionalShadowPass));
         Viewport viewport = { 0, 0, DirectionalShadowPass::s_depthRenderTarget->m_width, DirectionalShadowPass::s_depthRenderTarget->m_height };
-        DirectionalShadowPass* pass = new (preallocatedAddr) DirectionalShadowPass(0, viewport, scene, camera, lightIdx);
+        DirectionalShadowPass* pass = new (preallocatedAddr) DirectionalShadowPass(0, viewport, scene, camera, shadowCasters, lightIdx);
         m_renderState.addRenderPass(pass);
 
         switch (DirectionalShadowPass::m_cascadedShadowMap.m_technique)
