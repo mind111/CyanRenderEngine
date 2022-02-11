@@ -104,13 +104,10 @@ public:
         return scene->entities.size() > 0 ? scene->entities.size() : 0;
     }
 
-    void traverseScene(Scene* scene);
-    //- probe related
-    Cyan::IrradianceProbe* createIrradianceProbe(Scene* scene, const glm::vec3& pos);
-    Cyan::ReflectionProbe* createReflectionProbe(Scene* scene, const glm::vec3& pos);
+    Cyan::IrradianceProbe* createIrradianceProbe(Scene* scene, const glm::vec3& pos, const glm::uvec2& sceneCaptureRes, const glm::uvec2& irradianceRes);
+    Cyan::ReflectionProbe* createReflectionProbe(Scene* scene, const glm::vec3& pos, const glm::uvec2& sceneCaptureRes);
+
 private:
-    //u32                      m_numSceneNodes;
-    //std::vector<SceneNode>   m_sceneNodePool;
     static SceneManager*     s_sceneManager;
     Cyan::LightProbeFactory* m_probeFactory;
 };

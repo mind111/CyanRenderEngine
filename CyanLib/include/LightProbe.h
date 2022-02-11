@@ -17,43 +17,36 @@ namespace Cyan
 {
     struct LightProbe
     {
-        LightProbe(Scene* scene, const glm::vec3& p, const glm::vec2& resolution);
+        LightProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& resolution);
         ~LightProbe() { }
         virtual void initialize();
         virtual void captureScene();
         virtual void debugRender();
 
-        static Mesh* s_debugSphereMesh;
-        Scene*        m_scene;
-        glm::vec3     m_position;
-        glm::vec2     m_resolution;
-        Texture*      m_sceneCapture;
-        MeshInstance* m_debugSphereMeshInstance;
+        Scene*               m_scene;
+        glm::vec3            m_position;
+        glm::vec2            m_resolution;
+        Texture*             m_sceneCapture;
+        MeshInstance*        m_debugSphereMesh;
+        MaterialInstance*    m_debugRenderMatl;
     };
 
     struct IrradianceProbe : public LightProbe
     {
-        IrradianceProbe(Scene* scene, glm::vec3& p);
-        void sampleRadiance();
-        void computeIrradiance();
+        IrradianceProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& sceneCaptureResolution, const glm::uvec2& irradianceResolution);
+        ~IrradianceProbe() { }
+        virtual void debugRender() override;
+        void convolve();
 
-        static Shader* m_computeIrradianceShader;
-        static struct RenderTarget* m_radianceRenderTarget;
-        static struct RenderTarget* m_irradianceRenderTarget;
-        static MeshInstance* m_cubeMeshInstance;
+        static Shader* m_convolveIrradianceShader;
         static RegularBuffer*      m_rayBuffers;
         static const u32 kNumZenithSlice       = 32u;
         static const u32 kNumAzimuthalSlice    = 32u;
         static const u32 kNumRaysPerHemiSphere = 128u;
 
-        // render the scene from six faces
-        Texture* m_radianceMap;
-        // convolve the radiance samples to get irradiance from every direction
-        Texture* m_irradianceMap;
-        Scene* m_scene;
-        // MeshInstance* m_sphereMeshInstance;
-        MaterialInstance* m_computeIrradianceMatl;
-        MaterialInstance* m_renderProbeMatl;
+        glm::vec2         m_irradianceTextureRes;
+        Texture*          m_convolvedIrradianceTexture;
+        MaterialInstance* m_convolveIrradianceMatl;
     };
 
     struct IrradianceVolume
@@ -65,30 +58,24 @@ namespace Cyan
         std::vector<IrradianceProbe*> m_probes;
     };
 
-    struct ReflectionProbe
+    struct ReflectionProbe : public LightProbe
     {
-        ReflectionProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene);
-        void sampleSceneRadiance();
+        ReflectionProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& sceneCaptureResolution);
+        ~ReflectionProbe() { }
+        virtual void debugRender() override;
         void convolve();
         void bake();
 
         static const u32     kNumMips = 11; 
-        static RenderTarget* m_renderTarget;
-        static RenderTarget* m_prefilterRts[kNumMips];
-        static Shader*       m_convolveSpecShader;
-        Scene* m_scene;
-        Texture* m_radianceMap;
-        Texture* m_prefilteredProbe;
-        MaterialInstance* m_renderProbeMatl;
-        MaterialInstance* m_convolveSpecMatl;
+        static Shader*       s_convolveReflectionShader;
+        Texture*             m_convolvedReflectionTexture;
+        MaterialInstance*    m_convolveReflectionMatl;
     };
 
     class LightProbeFactory
     {
     public:
-        IrradianceProbe* createIrradianceProbe(Scene* scene, glm::vec3 position);
-        ReflectionProbe* createReflectionProbe(Scene* scene, glm::vec3 position);
-        u32 numIrradianceProbe;
-        u32 numLightFieldProbe;
+        IrradianceProbe* createIrradianceProbe(Scene* scene, const glm::vec3& pos, const glm::uvec2& sceneCaptureRes, const glm::uvec2& irradianceResolution);
+        ReflectionProbe* createReflectionProbe(Scene* scene, const glm::vec3& position, const glm::uvec2& sceneCaptureRes);
     };
 }

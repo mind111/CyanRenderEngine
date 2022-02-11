@@ -191,22 +191,6 @@ SceneNode* SceneManager::createSceneNode(Scene* scene, const char* name, Transfo
     return &newNode;
 }
 
-void SceneManager::traverseScene(Scene* scene)
-{
-    for (u32 i = 0; i < (u32)scene->entities.size(); ++i)
-    {
-        std::queue<SceneNode*> nodes;
-        nodes.push(scene->entities[i]->m_sceneRoot);
-        while(!nodes.empty())
-        {
-            auto* node = nodes.front();
-            nodes.pop();
-            for (u32 i = 0; i < node->m_child.size(); ++i)
-                nodes.push(node->m_child[i]);
-        }
-    }
-}
-
 void SceneManager::createDirectionalLight(Scene* scene, glm::vec3 color, glm::vec3 direction, float intensity)
 {
     CYAN_ASSERT(scene->dLights.size() < Scene::kMaxNumDirLights, "Too many directional lights created.")
@@ -279,16 +263,15 @@ void SceneManager::buildLightList(Scene* scene, std::vector<PointLightGpuData>& 
     }
 }
 
-Cyan::IrradianceProbe* SceneManager::createIrradianceProbe(Scene* scene, const glm::vec3& pos)
+Cyan::IrradianceProbe* SceneManager::createIrradianceProbe(Scene* scene, const glm::vec3& pos, const glm::uvec2& sceneCaptureRes, const glm::uvec2& irradianceResolution)
 {
-    auto probe = m_probeFactory->createIrradianceProbe(scene, pos); 
-    // TODO: this need to be removed
+    auto probe = m_probeFactory->createIrradianceProbe(scene, pos, sceneCaptureRes, irradianceResolution); 
     scene->m_irradianceProbe = probe;
     return probe;
 }
 
-Cyan::ReflectionProbe* SceneManager::createReflectionProbe(Scene* scene, const glm::vec3& pos)
+Cyan::ReflectionProbe* SceneManager::createReflectionProbe(Scene* scene, const glm::vec3& pos, const glm::uvec2& sceneCaptureRes)
 {
-    auto probe = m_probeFactory->createReflectionProbe(scene, pos); 
+    auto probe = m_probeFactory->createReflectionProbe(scene, pos, sceneCaptureRes); 
     return probe;
 }

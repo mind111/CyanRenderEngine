@@ -337,10 +337,11 @@ void PbrApp::initDemoScene00()
         skyBoxEntity->setMaterial("CubeMesh", 0, m_skyMatl);
         skyBoxEntity->m_selectable = false;
         skyBoxEntity->m_includeInGBufferPass = false;
-        // a irradiance probe
-        m_irradianceProbe = sceneManager->createIrradianceProbe(demoScene00, glm::vec3(0.f, 2.f, 0.f));
-        // a reflection probe
-        m_reflectionProbe = sceneManager->createReflectionProbe(demoScene00, glm::vec3(0.f, 3.f, 0.f));
+
+        // light probes
+        m_irradianceProbe = sceneManager->createIrradianceProbe(demoScene00, glm::vec3(0.f, 2.f, 0.f), glm::uvec2(512u, 512u), glm::uvec2(64u, 64u));
+        m_reflectionProbe = sceneManager->createReflectionProbe(demoScene00, glm::vec3(0.f, 3.f, 0.f), glm::uvec2(2048u, 2048u));
+
         demoScene00->m_reflectionProbe = m_reflectionProbe;
         // procedural sky
         glm::vec3 groundAlbedo(1.f, 0.5f, 0.5f);
@@ -521,11 +522,9 @@ void PbrApp::initSponzaScene()
     skyBoxEntity->setMaterial("CubeMesh", 0, m_skyMatl);
     skyBoxEntity->m_selectable = false;
     skyBoxEntity->m_includeInGBufferPass = false;
-
-    // a irradiance probe
-    m_irradianceProbe = sceneManager->createIrradianceProbe(sponzaScene, glm::vec3(0.f, 2.f, 0.f));
-    // a reflection probe
-    m_reflectionProbe = sceneManager->createReflectionProbe(sponzaScene, glm::vec3(0.f, 3.f, 0.f));
+    // light probes
+    m_irradianceProbe = sceneManager->createIrradianceProbe(sponzaScene, glm::vec3(0.f, 2.f, 0.f), glm::uvec2(512u, 512u), glm::uvec2(64u, 64u));
+    m_reflectionProbe = sceneManager->createReflectionProbe(sponzaScene, glm::vec3(0.f, 3.f, 0.f), glm::uvec2(2048u, 2048u));
     sponzaScene->m_reflectionProbe = m_reflectionProbe;
     // procedural sky
     glm::vec3 groundAlbedo(1.f, 0.5f, 0.5f);
@@ -1192,8 +1191,6 @@ void PbrApp::drawRenderSettings()
     }
     if (ImGui::TreeNodeEx("Light Probes", baseFlags))
     {
-        ImGui::Checkbox("Visualize irradiance probes", &m_irradianceProbe->m_visible);
-        ImGui::Checkbox("Visualize reflection probes", &m_reflectionProbe->m_visible);
         ImGui::Separator();
         ImGui::TreePop();
     }

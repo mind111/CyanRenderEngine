@@ -936,10 +936,10 @@ namespace Cyan
         }
         // local GI probes
         if (gLighting.irradianceProbe)
-            glBindTextureUnit(3, gLighting.irradianceProbe->m_irradianceMap->m_id);
+            glBindTextureUnit(3, gLighting.irradianceProbe->m_convolvedIrradianceTexture->m_id);
 
         if (gLighting.reflectionProbe)
-            glBindTextureUnit(4, gLighting.reflectionProbe->m_prefilteredProbe->m_id);
+            glBindTextureUnit(4, gLighting.reflectionProbe->m_convolvedReflectionTexture->m_id);
     }
 
     void Renderer::updateSunShadow()

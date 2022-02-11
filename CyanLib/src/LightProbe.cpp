@@ -6,16 +6,11 @@
 
 namespace Cyan
 {
-    Mesh*          LightProbe::s_debugSphereMesh              = nullptr;
-    Shader*        s_renderProbeShader                        = nullptr;
-    Shader*        IrradianceProbe::m_computeIrradianceShader = nullptr;
-    RenderTarget*  IrradianceProbe::m_radianceRenderTarget    = nullptr; 
-    RenderTarget*  IrradianceProbe::m_irradianceRenderTarget  = nullptr; 
-    MeshInstance*  IrradianceProbe::m_cubeMeshInstance        = nullptr; 
-    RegularBuffer* IrradianceProbe::m_rayBuffers              = nullptr;
-    RenderTarget*  ReflectionProbe::m_renderTarget            = nullptr;
-    RenderTarget*  ReflectionProbe::m_prefilterRts[kNumMips]  = {  };
-    Shader*        ReflectionProbe::m_convolveSpecShader      = nullptr;
+    Mesh*          s_cubeMesh                                  = nullptr;
+    Shader*        s_debugRenderShader                         = nullptr;
+    Shader*        IrradianceProbe::m_convolveIrradianceShader = nullptr;
+    Shader*        ReflectionProbe::s_convolveReflectionShader = nullptr;
+    RegularBuffer* IrradianceProbe::m_rayBuffers               = nullptr;
 
     namespace CameraSettings
     {
@@ -40,26 +35,24 @@ namespace Cyan
 
     Shader* getRenderProbeShader()
     {
-        if (!s_renderProbeShader)
+        if (!s_debugRenderShader)
         {
-            s_renderProbeShader = createShader("RenderProbeShader", "../../shader/shader_render_probe.vs", "../../shader/shader_render_probe.fs");
+            s_debugRenderShader = createShader("RenderProbeShader", "../../shader/shader_render_probe.vs", "../../shader/shader_render_probe.fs");
         }
-        return s_renderProbeShader;
+        return s_debugRenderShader;
     }
 
-    LightProbe::LightProbe(Scene* scene, const glm::vec3& p, const glm::vec2& resolution)
-        : m_scene(scene), m_position(p), m_resolution(resolution), m_debugSphereMeshInstance(nullptr), m_sceneCapture(nullptr)
+    LightProbe::LightProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& resolution)
+        : m_scene(scene), m_position(p), m_resolution(resolution), m_debugSphereMesh(nullptr), m_sceneCapture(nullptr), m_debugRenderMatl(nullptr)
     {
-        if (!s_debugSphereMesh)
-        {
-            s_debugSphereMesh = getMesh("sphere_mesh");
-        }
-        m_debugSphereMeshInstance = s_debugSphereMesh->createInstance();
+        m_debugSphereMesh = getMesh("sphere_mesh")->createInstance(m_scene);
+        m_debugRenderMatl = createMaterial(s_debugRenderShader)->createInstance();
+
+        initialize();
     }
 
     void LightProbe::initialize()
     {
-        auto textureManager = TextureManager::getSingletonPtr();
         TextureSpec spec = { };
         spec.m_width = m_resolution.x;
         spec.m_height = m_resolution.y;
@@ -74,7 +67,6 @@ namespace Cyan
         spec.m_numMips = 1u;
         spec.m_data = 0;
         auto textureManager = TextureManager::getSingletonPtr();
-        auto sceneManager = SceneManager::getSingletonPtr();
         m_sceneCapture = textureManager->createTextureHDR("SceneCapture", spec);
     }
 
@@ -122,22 +114,12 @@ namespace Cyan
 
     }
 
-    IrradianceProbe::IrradianceProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene)
-        : Entity(scene, name , id, Transform(), parent, false), 
-        m_scene(scene)
+    IrradianceProbe::IrradianceProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& sceneCaptureResolution, const glm::uvec2& irradianceRes)
+        : LightProbe(scene, p, sceneCaptureResolution), m_irradianceTextureRes(irradianceRes)
     {
-        if (!m_radianceRenderTarget)
-        {
-            m_radianceRenderTarget = createRenderTarget(512u, 512u);
-            m_irradianceRenderTarget = createRenderTarget(64u, 64u);
-            m_computeIrradianceShader = createShader("DiffuseIrradianceShader", "../../shader/shader_diff_irradiance.vs", "../../shader/shader_diff_irradiance.fs");
-            m_cubeMeshInstance = getMesh("CubeMesh")->createInstance(scene);
-            m_cubeMeshInstance->setMaterial(0, m_computeIrradianceMatl);
-        }
-        
         TextureSpec spec = { };
-        spec.m_width = 512u;
-        spec.m_height = 512u;
+        spec.m_width = 64u;
+        spec.m_height = 64u;
         spec.m_type = Texture::Type::TEX_CUBEMAP;
         spec.m_format = Texture::ColorFormat::R16G16B16;
         spec.m_dataType =  Texture::Float;
@@ -147,144 +129,78 @@ namespace Cyan
         spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
         spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
         spec.m_numMips = 1u;
-        spec.m_data = 0;
+        spec.m_data = nullptr;
         auto textureManager = TextureManager::getSingletonPtr();
         auto sceneManager = SceneManager::getSingletonPtr();
-        m_radianceMap = textureManager->createTextureHDR("RadianceProbe", spec);
-        // FIXME: this is bugged, should only detach/attach when rendering
-        m_radianceRenderTarget->attachColorBuffer(m_radianceMap);
-        spec.m_width = 64u;
-        spec.m_height = 64u;
-        m_irradianceMap = textureManager->createTextureHDR("IrradianceProbe", spec);
-        m_irradianceRenderTarget->attachColorBuffer(m_irradianceMap);
+        m_convolvedIrradianceTexture = textureManager->createTextureHDR("IrradianceProbe", spec);
 
-        m_computeIrradianceMatl = createMaterial(m_computeIrradianceShader)->createInstance();
-        m_renderProbeMatl = createMaterial(getRenderProbeShader())->createInstance();
-
-        Mesh* mesh = Cyan::getMesh("sphere_mesh");
-        Transform transform;
-        transform.m_translate = p;
-        transform.m_scale = glm::vec3(0.2f);
-        m_sceneRoot->attach(sceneManager->createSceneNode(scene, "SphereMesh", transform, mesh, false));
-        setMaterial("SphereMesh", 0, m_renderProbeMatl);
-        m_renderProbeMatl->bindTexture("radianceMap", m_irradianceMap);
-        m_cubeMeshInstance->setMaterial(0, m_computeIrradianceMatl);
+        m_convolveIrradianceMatl = createMaterial(m_convolveIrradianceShader)->createInstance();
     }
 
     void IrradianceProbe::convolve()
     {
-        Toolkit::GpuTimer timer("ComputeIrradianceTimer");
+        Toolkit::GpuTimer timer("ConvolveIrradianceTimer");
         auto ctx = Cyan::getCurrentGfxCtx();
         Camera camera = { };
         // camera set to probe's location
         camera.position = glm::vec3(0.f);
         camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
         auto renderer = Renderer::getSingletonPtr();
-        ctx->setShader(m_computeIrradianceShader);
-        ctx->setViewport({0u, 0u, m_irradianceRenderTarget->m_width, m_irradianceRenderTarget->m_height});
-        ctx->setDepthControl(DepthControl::kDisable);
-        SceneNode* node = getSceneNode("SphereMesh");
-        for (u32 f = 0; f < 6u; ++f)
+        auto renderTarget = createRenderTarget(m_irradianceTextureRes.x, m_irradianceTextureRes.y);
         {
-            camera.lookAt = CameraSettings::cameraFacingDirections[f];
-            camera.view = glm::lookAt(camera.position, camera.lookAt, CameraSettings::worldUps[f]);
-            ctx->setRenderTarget(m_irradianceRenderTarget, f);
-            m_computeIrradianceMatl->set("view", &camera.view[0][0]);
-            m_computeIrradianceMatl->set("projection", &camera.projection[0][0]);
-            m_computeIrradianceMatl->bindTexture("envmapSampler", m_radianceMap);
-            Renderer::getSingletonPtr()->drawMeshInstance(m_cubeMeshInstance, node->globalTransform);
+            ctx->setShader(m_convolveIrradianceShader);
+            ctx->setViewport({0u, 0u, renderTarget->m_width, renderTarget->m_height});
+            ctx->setDepthControl(DepthControl::kDisable);
+            for (u32 f = 0; f < 6u; ++f)
+            {
+                camera.lookAt = CameraSettings::cameraFacingDirections[f];
+                camera.view = glm::lookAt(camera.position, camera.lookAt, CameraSettings::worldUps[f]);
+                ctx->setRenderTarget(renderTarget, f);
+                m_convolveIrradianceMatl->set("view", &camera.view[0][0]);
+                m_convolveIrradianceMatl->set("projection", &camera.projection[0][0]);
+                m_convolveIrradianceMatl->bindTexture("envmapSampler", m_sceneCapture);
+                renderer->drawMesh(s_cubeMesh);
+            }
+            ctx->setDepthControl(DepthControl::kEnable);
+            timer.end();
         }
-        ctx->setDepthControl(DepthControl::kEnable);
-        timer.end();
+        // release resources
+        glDeleteFramebuffers(1, &renderTarget->m_frameBuffer);
+        delete renderTarget;
     }
 
-    ReflectionProbe::ReflectionProbe(u32 id, glm::vec3& p, Entity* parent, Scene* scene)
+    void IrradianceProbe::debugRender()
     {
-        if (!m_renderTarget)
+    }
+
+    ReflectionProbe::ReflectionProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& sceneCaptureResolution)
+        : LightProbe(scene, p, sceneCaptureResolution), m_convolvedReflectionTexture(nullptr), m_convolveReflectionMatl(nullptr)
+    {
+        if (!s_convolveReflectionShader)
         {
-            m_renderTarget = createRenderTarget(2048u, 2048u);
-            m_convolveSpecShader = createShader("PrefilterSpecularShader", "../../shader/shader_prefilter_specular.vs", "../../shader/shader_prefilter_specular.fs");
-            u32 mipWidth = 2048;
-            u32 mipHeight = 2048;
-            for (u32 mip = 0; mip < kNumMips; ++mip)
-            {
-                m_prefilterRts[mip] = createRenderTarget(mipWidth, mipHeight);
-                mipWidth  /= 2;
-                mipHeight /= 2;
-            }
+            s_convolveReflectionShader = createShader("ConvolveReflectionShader", "../../shader/shader_prefilter_specular.vs", "../../shader/shader_prefilter_specular.fs");
         }
+
+        // convolved radiance texture
         TextureSpec spec = { };
-        spec.m_width = 2048u;
-        spec.m_height = 2048u;
+        spec.m_width = m_resolution.x;
+        spec.m_height = m_resolution.y;
         spec.m_type = Texture::Type::TEX_CUBEMAP;
         spec.m_format = Texture::ColorFormat::R16G16B16;
         spec.m_dataType = Texture::Float;
-        spec.m_min = Texture::Filter::LINEAR;
+        spec.m_min = Texture::Filter::MIPMAP_LINEAR;
         spec.m_mag = Texture::Filter::LINEAR;
         spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
         spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
         spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
-        spec.m_numMips = 1u;
-        spec.m_data = 0;
+        spec.m_numMips = kNumMips;
+        spec.m_data = nullptr;
         auto textureManager = TextureManager::getSingletonPtr();
-        auto sceneManager = SceneManager::getSingletonPtr();
-        m_radianceMap = textureManager->createTextureHDR("RadianceProbe", spec);
-        // FIXME: this is bugged, should only detach/attach when rendering
-        m_renderTarget->attachColorBuffer(m_radianceMap, 0);
-        m_renderProbeMatl = createMaterial(getRenderProbeShader())->createInstance();
-
-        Mesh* mesh = Cyan::getMesh("sphere_mesh");
-        Transform transform;
-        transform.m_translate = p;
-        transform.m_scale = glm::vec3(1.0f);
-        m_sceneRoot->attach(sceneManager->createSceneNode(scene, "SphereMesh", transform, mesh, false));
-        setMaterial("SphereMesh", 0, m_renderProbeMatl);
-
-        spec.m_numMips = 11u;
-        spec.m_min = Texture::Filter::MIPMAP_LINEAR;
-        m_prefilteredProbe = textureManager->createTextureHDR("PrefilteredReflectionProbe", spec);
-        m_convolveSpecMatl = createMaterial(m_convolveSpecShader)->createInstance();
-        m_renderProbeMatl->bindTexture("radianceMap", m_prefilteredProbe);
-    }
-
-    // todo: bake handles everything
-    void ReflectionProbe::bake()
-    {
-        sampleSceneRadiance();
-        convolve();
-    }
-    
-    void ReflectionProbe::sampleSceneRadiance()
-    {
-        const u32 kViewportWidth = m_radianceMap->m_width;
-        const u32 kViewportHeight = m_radianceMap->m_height;
-        Camera camera = { };
-        // camera set to probe's location
-        camera.position = getSceneNode("SphereMesh")->getWorldTransform().m_translate;
-        camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
-        camera.n = 0.1f;
-        camera.f = 100.f;
-        camera.fov = glm::radians(90.f);
-        auto renderer = Renderer::getSingletonPtr();
-        auto ctx = Cyan::getCurrentGfxCtx();
-        ctx->setViewport({0u, 0u, kViewportWidth, kViewportHeight});
-        for (u32 f = 0; f < (sizeof(CameraSettings::cameraFacingDirections)/sizeof(CameraSettings::cameraFacingDirections[0])); ++f)
-        {
-            i32 drawBuffers[4] = {(i32)f, -1, -1, -1};
-            m_renderTarget->setDrawBuffers(drawBuffers, 4);
-            ctx->setRenderTarget(m_renderTarget);
-            ctx->clear();
-            camera.lookAt = camera.position + CameraSettings::cameraFacingDirections[f];
-            camera.worldUp = CameraSettings::worldUps[f];
-            CameraManager::updateCamera(camera);
-            renderer->probeRenderScene(m_scene, camera);
-        }
+        m_convolvedReflectionTexture = textureManager->createTextureHDR("ConvolvedReflectionProbe", spec);
     }
 
     void ReflectionProbe::convolve()
     {
-        const u32 kViewportWidth = m_prefilteredProbe->m_width;
-        const u32 kViewportHeight = m_prefilteredProbe->m_height;
         Camera camera = { };
         // camera set to probe's location
         camera.position = glm::vec3(0.f);
@@ -295,51 +211,59 @@ namespace Cyan
         auto renderer = Renderer::getSingletonPtr();
         auto ctx = getCurrentGfxCtx();
         u32 kNumMips = 11;
-        u32 mipWidth = m_prefilteredProbe->m_width; 
-        u32 mipHeight = m_prefilteredProbe->m_height;
+        u32 mipWidth = m_sceneCapture->m_width; 
+        u32 mipHeight = m_sceneCapture->m_height;
         ctx->setDepthControl(DepthControl::kDisable);
-        ctx->setShader(m_convolveSpecShader);
+        ctx->setShader(s_convolveReflectionShader);
         for (u32 mip = 0; mip < kNumMips; ++mip)
         {
-            m_prefilterRts[mip]->attachColorBuffer(m_prefilteredProbe, mip);
-            ctx->setViewport({ 0u, 0u, m_prefilterRts[mip]->m_width, m_prefilterRts[mip]->m_height });
-            for (u32 f = 0; f < 6u; f++)
+            auto renderTarget = createRenderTarget(mipWidth, mipHeight);
+            renderTarget->attachColorBuffer(m_convolvedReflectionTexture, mip);
+            ctx->setViewport({ 0u, 0u, renderTarget->m_width, renderTarget->m_height });
             {
-                ctx->setRenderTarget(m_prefilterRts[mip], f);
-                camera.lookAt = CameraSettings::cameraFacingDirections[f];
-                camera.worldUp = CameraSettings::worldUps[f];
-                CameraManager::updateCamera(camera);
-                // Update uniforms
-                m_convolveSpecMatl->set("projection", &camera.projection[0]);
-                m_convolveSpecMatl->set("view", &camera.view[0]);
-                m_convolveSpecMatl->set("roughness", mip * (1.f / (kNumMips - 1)));
-                m_convolveSpecMatl->bindTexture("envmapSampler", m_radianceMap);
-                m_convolveSpecMatl->bind();
-                auto va = getMesh("CubeMesh")->m_subMeshes[0]->m_vertexArray;
-                ctx->setVertexArray(va);
-                ctx->drawIndexAuto(va->numVerts());
+                for (u32 f = 0; f < 6u; f++)
+                {
+                    ctx->setRenderTarget(renderTarget, f);
+                    camera.lookAt = CameraSettings::cameraFacingDirections[f];
+                    camera.worldUp = CameraSettings::worldUps[f];
+                    CameraManager::updateCamera(camera);
+                    m_convolveReflectionMatl->set("projection", &camera.projection[0]);
+                    m_convolveReflectionMatl->set("view", &camera.view[0]);
+                    m_convolveReflectionMatl->set("roughness", mip * (1.f / (kNumMips - 1)));
+                    m_convolveReflectionMatl->bindTexture("envmapSampler", m_sceneCapture);
+                    m_convolveReflectionMatl->bind();
+                    renderer->drawMesh(s_cubeMesh);
+                }
             }
+            glDeleteFramebuffers(1, &renderTarget->m_frameBuffer);
+            delete renderTarget;
+
             mipWidth /= 2u;
             mipHeight /= 2u;
         }
         ctx->setDepthControl(DepthControl::kEnable);
     }
 
-    IrradianceProbe* LightProbeFactory::createIrradianceProbe(Scene* scene, glm::vec3 position)
+    void ReflectionProbe::bake()
     {
-        auto sceneManager = SceneManager::getSingletonPtr();
-        u32 id = sceneManager->allocEntityId(scene);
-        auto probe = new IrradianceProbe("IrradianceProbe0", id, position, scene->m_rootEntity, scene);
-        scene->entities.push_back(probe);
+        captureScene();
+        convolve();
+    }
+
+    void ReflectionProbe::debugRender()
+    {
+
+    }
+
+    IrradianceProbe* LightProbeFactory::createIrradianceProbe(Scene* scene, const glm::vec3& position, const glm::uvec2& sceneCaptureRes, const glm::uvec2& irradianceRes)
+    {
+        auto probe = new IrradianceProbe(scene, position, sceneCaptureRes, irradianceRes);
         return probe;
     }
 
-    ReflectionProbe* LightProbeFactory::createReflectionProbe(Scene* scene, glm::vec3 position)
+    ReflectionProbe* LightProbeFactory::createReflectionProbe(Scene* scene, const glm::vec3& position, const glm::uvec2& sceneCaptureRes)
     {
-        auto sceneManager = SceneManager::getSingletonPtr();
-        u32 id = sceneManager->allocEntityId(scene);
-        auto probe = new ReflectionProbe("ReflectionProbe0", id, position, scene->m_rootEntity, scene);
-        scene->entities.push_back(probe);
+        auto probe = new ReflectionProbe(scene, position, sceneCaptureRes);
         return probe;
     }
 }
