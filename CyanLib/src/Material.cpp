@@ -226,6 +226,7 @@ namespace Cyan
 
     Material* StandardPbrMaterial::m_standardPbrMatl = nullptr;
     StandardPbrMaterial::StandardPbrMaterial()
+        : m_flags(0u)
     {
         // todo: make the initialization of pbr material deterministic so that we don't have to do this check everytime when creating a new matl instance
         if (!m_standardPbrMatl)
@@ -237,19 +238,23 @@ namespace Cyan
         m_materialInstance = m_standardPbrMatl->createInstance();
         // create a material instance
         glm::vec4 defaultBaseColor(0.9f, 0.9f, 0.9f, 1.f);
-        m_materialInstance->set("flatBaseColor", &defaultBaseColor.x);
-        m_materialInstance->set("uniformSpecular", .5f);
-        m_materialInstance->set("uniformRoughness", .5f);
-        m_materialInstance->set("uniformMetallic", .5f);
-        m_materialInstance->set("uMaterialProps.hasBakedLighting", 0.f);
+        m_materialInstance->set("uMatlData.flags", 0u);
+        m_materialInstance->set("uMatlData.flatBaseColor", &defaultBaseColor.x);
+        m_materialInstance->set("uMatlData.uniformSpecular", .5f);
+        m_materialInstance->set("uMatlData.uniformRoughness", .5f);
+        m_materialInstance->set("uMatlData.uniformMetallic", .5f);
+        m_materialInstance->set("uMatlData.directDiffuseScale", 1.f);
+        m_materialInstance->set("uMatlData.directSpecularScale", 1.f);
+        m_materialInstance->set("uMatlData.indirectDiffuseScale", 1.f);
+        m_materialInstance->set("uMatlData.indirectSpecularScale", 1.f);
         m_materialInstance->set("gLighting.indirectDiffuseScale", 1.f);
         m_materialInstance->set("gLighting.indirectSpecularScale", 1.f);
-        m_materialInstance->set("kDiffuse", 1.0f);
-        m_materialInstance->set("kSpecular", 1.0f);
+        m_materialInstance->set("uMaterialProps.hasBakedLighting", 0.f);
         m_materialInstance->set("disneyReparam", 1.0f);
     }
 
     StandardPbrMaterial::StandardPbrMaterial(const PbrMaterialParam& param)
+        : m_flags(0u)
     {
         if (!m_standardPbrMatl)
         {
@@ -261,59 +266,67 @@ namespace Cyan
         // albedo
         if (param.baseColor)
         {
-            m_materialInstance->set("uMaterialProps.hasDiffuseMap", 1.f);
+            m_flags |= Flags::kHasDiffuseMap;
             m_materialInstance->bindTexture("diffuseMaps[0]", param.baseColor);
         }
         else
         {
-            m_materialInstance->set("flatColor", &param.flatBaseColor.x);
-            m_materialInstance->set("uMaterialProps.usePrototypeTexture", param.usePrototypeTexture);
+            m_materialInstance->set("uMatlData.flatColor", &param.flatBaseColor.x);
+            if (param.usePrototypeTexture > .5f)
+            {
+                m_flags |= Flags::kUsePrototypeTexture;
+            }
         }
         // normal
         if (param.normal)
         {
-            m_materialInstance->set("uMaterialProps.hasNormalMap", 1.0f);
+            m_flags |= Flags::kHasNormalMap;
             m_materialInstance->bindTexture("normalMap", param.normal);
         }
         // occlusion
         if (param.occlusion)
         {
-            m_materialInstance->set("uMaterialProps.hasAoMap", 1.0f);
+            m_flags |= Flags::kHasOcclusionMap;
             m_materialInstance->bindTexture("aoMap", param.occlusion);
         }
         // roughness
         if (param.roughness)
         {
-            m_materialInstance->set("uMaterialProps.hasRoughnessMap", 1.0f);
+            m_flags |= Flags::kHasRoughnessMap;
             m_materialInstance->bindTexture("roughnessMap", param.roughness);
         }
         // metallic
         if (param.metallic)
         {
-            m_materialInstance->set("uMaterialProps.hasMetalnessMap", 1.f);
+            m_flags |= Flags::kHasMetallicMap;
             m_materialInstance->bindTexture("metalnessMap", param.metallic);
         }
         // metallicRoughness map
         if (param.metallicRoughness)
         {
-            m_materialInstance->set("uMaterialProps.hasMetallicRoughnessMap", 1.0f);
+            m_flags |= Flags::kHasMetallicRoughnessMap;
             m_materialInstance->bindTexture("metallicRoughnessMap", param.metallicRoughness);
         }
         // specular
         if (param.kSpecular > 0.f)
-            m_materialInstance->set("uniformSpecular", param.kSpecular);
+            m_materialInstance->set("uMatlData.uniformSpecular", param.kSpecular);
         else
-            m_materialInstance->set("uniformSpecular", .5f);
+            m_materialInstance->set("uMatlData.uniformSpecular", .5f);
 
-        m_materialInstance->set("uniformRoughness", param.kRoughness);
-        m_materialInstance->set("uniformMetallic", param.kMetallic);
-        m_materialInstance->set("indirectDiffuseScale", param.indirectDiffuseScale);
-        m_materialInstance->set("indirectSpecularScale", param.indirectSpecularScale);
+        m_materialInstance->set("uMatlData.uniformRoughness", param.kRoughness);
+        m_materialInstance->set("uMatlData.uniformMetallic", param.kMetallic);
+        m_materialInstance->set("uMatlData.directDiffuseScale", 1.f);
+        m_materialInstance->set("uMatlData.directSpecularScale", 1.f);
+        m_materialInstance->set("uMatlData.indirectDiffuseScale", param.indirectDiffuseScale);
+        m_materialInstance->set("uMatlData.indirectSpecularScale", param.indirectSpecularScale);
 
         // baked lighting
-        m_materialInstance->set("uMaterialProps.hasBakedLighting", param.hasBakedLighting);
-        if (param.hasBakedLighting > .5f) m_materialInstance->bindTexture("lightMap", param.lightMap);
-
+        if (param.hasBakedLighting > .5f)
+        {
+            m_flags |= Flags::kUseLightMap;
+            m_materialInstance->bindTexture("lightMap", param.lightMap);
+        }
         m_materialInstance->set("disneyReparam", 1.0f);
+        m_materialInstance->set("uMatlData.flags", m_flags);
     }
 }

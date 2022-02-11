@@ -874,44 +874,6 @@ namespace Cyan
         }
     }
 
-    void Renderer::renderSceneDepthNormal(Scene* scene, Camera& camera)
-    {
-        auto ctx = getCurrentGfxCtx();
-        ctx->setShader(m_sceneDepthNormalShader);
-        // entities 
-        for (u32 e = 0; e < (u32)scene->entities.size(); ++e)
-        {
-            auto entity = scene->entities[e];
-            if (entity->m_includeInGBufferPass && entity->m_visible)
-            {
-                executeOnEntity(entity, [this, ctx](SceneNode* node) { 
-                    if (node->m_meshInstance)
-                    {
-                        m_sceneDepthNormalShader->setUniform1i("transformIndex", node->globalTransform);
-                        drawMesh(node->m_meshInstance->m_mesh);
-                    }
-                });
-#if 0
-                std::queue<SceneNode*> nodes;
-                nodes.push(entity->m_sceneRoot);
-                while (!nodes.empty())
-                {
-                    auto node = nodes.front();
-                    nodes.pop();
-                    if (node->m_meshInstance)
-                    {
-                        glm::mat4 model = node->getWorldTransform().toMatrix();
-                        setUniform(u_model, &model[0]);
-                        ctx->setUniform(u_model);
-                        drawMesh(node->m_meshInstance->m_mesh);
-                    }
-                    for (u32 i = 0; i < (u32)node->m_child.size(); ++i)
-                        nodes.push(node->m_child[i]);
-                }
-#endif
-            }
-        }
-    }
 
     // Data that needs to be updated on frame start, such as transforms, and lighting
 #define gTexBinding(x) static_cast<u32>(GlobalTextureBindings##::##x)
@@ -923,11 +885,14 @@ namespace Cyan
         m_globalDrawData.numPointLights = (i32)scene->pLights.size();
         m_globalDrawData.numDirLights = (i32)scene->dLights.size();
         m_globalDrawData.m_ssao = m_ssao;
+
         // bind lighting data
         updateTransforms(scene);
         updateLighting(scene);
+
         // bind global textures
         glBindTextureUnit(gTexBinding(SSAO), m_ssaoTexture->m_id);
+
         // upload data to gpu
         glNamedBufferSubData(gDrawDataBuffer, 0, sizeof(GlobalDrawData), &m_globalDrawData);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, static_cast<u32>(BufferBindings::DrawData), gDrawDataBuffer);
@@ -937,7 +902,6 @@ namespace Cyan
     {
         if (sizeofVector(scene->g_globalTransforms) > gInstanceTransforms.kBufferSize)
             cyanError("Gpu global transform SBO overflow!");
-        u32 sizeInBytes = sizeofVector(scene->g_globalTransformMatrices);
         glNamedBufferSubData(gInstanceTransforms.SBO, 0, sizeofVector(scene->g_globalTransformMatrices), scene->g_globalTransformMatrices.data());
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)BufferBindings::GlobalTransforms, gInstanceTransforms.SBO);
     }
@@ -973,15 +937,16 @@ namespace Cyan
         // local GI probes
         if (gLighting.irradianceProbe)
             glBindTextureUnit(3, gLighting.irradianceProbe->m_irradianceMap->m_id);
+
         if (gLighting.reflectionProbe)
-            glBindTextureUnit(4, gLighting.reflectionProbe->m_radianceMap->m_id);
+            glBindTextureUnit(4, gLighting.reflectionProbe->m_prefilteredProbe->m_id);
     }
 
     void Renderer::updateSunShadow()
     {
-        // bind sun light shadow for this frame
         CascadedShadowMap& csm          = DirectionalShadowPass::m_cascadedShadowMap;
         m_globalDrawData.sunLightView   = csm.lightView;
+        // bind sun light shadow for this frame
         u32 textureUnitOffset = gTexBinding(SunShadow);
         for (u32 i = 0; i < DirectionalShadowPass::kNumShadowCascades; ++i)
         {
@@ -991,42 +956,47 @@ namespace Cyan
             else if (csm.m_technique == kPCF_Shadow)
                 glBindTextureUnit(textureUnitOffset + i, csm.cascades[i].basicShadowMap.shadowMap->m_id);
         }
+
+        // upload data to gpu
+        glNamedBufferSubData(gDrawDataBuffer, 0, sizeof(GlobalDrawData), &m_globalDrawData);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, static_cast<u32>(BufferBindings::DrawData), gDrawDataBuffer);
+    }
+
+    void Renderer::renderSceneDepthNormal(Scene* scene, Camera& camera)
+    {
+        auto ctx = getCurrentGfxCtx();
+        ctx->setShader(m_sceneDepthNormalShader);
+        // entities 
+        for (u32 e = 0; e < (u32)scene->entities.size(); ++e)
+        {
+            auto entity = scene->entities[e];
+            if (entity->m_includeInGBufferPass && entity->m_visible)
+            {
+                executeOnEntity(entity, [this, ctx](SceneNode* node) { 
+                    if (node->m_meshInstance)
+                    {
+                        m_sceneDepthNormalShader->setUniform1i("transformIndex", node->globalTransform);
+                        drawMesh(node->m_meshInstance->m_mesh);
+                    }
+                });
+            }
+        }
     }
 
     void Renderer::renderScene(Scene* scene, Camera& camera)
     {
-        // update & bind shadow data
-        updateSunShadow();
-#if 1
         // draw entities
         for (u32 i = 0; i < scene->entities.size(); ++i)
         {
             if (scene->entities[i]->m_visible)
             {
-                std::queue<SceneNode*> nodes;
-                nodes.push(scene->entities[i]->m_sceneRoot);
-                while (!nodes.empty())
-                {
-                    auto node = nodes.front();
-                    nodes.pop();
-                    if (node->m_meshInstance)
-                        drawMeshInstance(node->m_meshInstance, node->globalTransform);
-                    for (u32 i = 0; i < node->m_child.size(); ++i)
-                        nodes.push(node->m_child[i]);
-                }
+                executeOnEntity(scene->entities[i], 
+                    [this](SceneNode* node) {
+                        if (node->m_meshInstance)
+                            drawMeshInstance(node->m_meshInstance, node->globalTransform);
+                    });
             }
         }
-#else
-        /*
-        *  This version runs faster but doesn't allow skipping invisible entity
-        */
-        for (u32 i = 0; i < scene->m_numSceneNodes; ++i)
-        {
-            auto& node = scene->g_sceneNodes[i];
-            if (node.m_owner->m_visible && node.m_meshInstance)
-                drawMeshInstance(node.m_meshInstance, node.globalTransform);
-        }
-#endif
     }
 
     void Renderer::renderSSAO(Camera& camera)
@@ -1055,8 +1025,6 @@ namespace Cyan
         // turn off ssao
         m_ssao = 0.f;
         updateFrameGlobalData(scene, camera);
-        // update & bind shadow data
-        updateSunShadow();
         // entities 
         for (auto entity : scene->entities)
         {

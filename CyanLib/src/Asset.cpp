@@ -190,7 +190,6 @@ namespace Cyan
     }
 
     // treat all the meshes inside one obj file as submeshes
-    // todo: materials
     Mesh* AssetManager::loadObj(const char* baseDir, const char* filename, bool bGenerateLightMapUv)
     {
         tinyobj::attrib_t attrib;
@@ -378,7 +377,7 @@ namespace Cyan
         u32 found = path.find_last_of('.');
         std::string extension = path.substr(found, found + 1);
         found = path.find_last_of('/');
-        std::string baseDir   = path.substr(0, found);
+        std::string baseDir = path.substr(0, found);
 
         Mesh* mesh = nullptr;
         if (extension == ".obj")
@@ -769,7 +768,7 @@ namespace Cyan
                     }
                     totalBytes += sizeToCopy;
                 }
-                // FIXME: type is hard-coded fo float for now
+                // FIXME: type is hard-coded to float for now
                 vertexAttribs.push_back({
                     VertexAttrib::DataType::Float,
                     static_cast<u32>(tinygltf::GetNumComponentsInType(accessor.type)),

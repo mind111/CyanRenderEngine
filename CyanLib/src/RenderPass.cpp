@@ -612,9 +612,8 @@ namespace Cyan
         aabb.computeVerts();
     }
 
-    void DirectionalShadowPass::renderCascade(CascadedShadowMap& csm, i32 cascadeIndex, glm::mat4& lightView)
+    void DirectionalShadowPass::renderCascade(ShadowCascade& cascade, glm::mat4& lightView)
     {
-        auto& cascade = csm.cascades[cascadeIndex];
         auto aabb = cascade.aabb;
         glm::mat4 lightProjection = glm::orthoLH(aabb.m_pMin.x, aabb.m_pMax.x, aabb.m_pMin.y, aabb.m_pMax.y, aabb.m_pMax.z, aabb.m_pMin.z);
         cascade.lightProjection = lightProjection;
@@ -637,18 +636,18 @@ namespace Cyan
         ctx->setClearColor(glm::vec4(1.f));
         glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
         ctx->setClearColor(glm::vec4(0.f));
-
         ctx->setShader(s_directShadowShader);
-        s_directShadowMatl->set("cascadeIndex", cascadeIndex);
         auto renderer = Renderer::getSingletonPtr();
         for (auto entity : m_scene->entities)
         {
-            renderer->executeOnEntity(entity, [ctx, renderer](SceneNode* node) {
-                if (MeshInstance* meshInstance = node->m_meshInstance)
+            renderer->executeOnEntity(entity, [ctx, renderer, cascade, lightView](SceneNode* node) {
+                if (node->m_meshInstance)
                 {
                     s_directShadowMatl->set("transformIndex", node->globalTransform);
+                    s_directShadowMatl->set("sunLightView", &lightView[0][0]);
+                    s_directShadowMatl->set("sunLightProjection", &cascade.lightProjection[0][0]);
                     s_directShadowMatl->bind();
-                    renderer->drawMesh(meshInstance->m_mesh);
+                    renderer->drawMesh(node->m_meshInstance->m_mesh);
                 }
             });
         }
@@ -686,8 +685,9 @@ namespace Cyan
         for (u32 i = 0u; i < DirectionalShadowPass::kNumShadowCascades; ++i)
         {
             computeCascadeAABB(m_cascadedShadowMap.cascades[i], camera, m_cascadedShadowMap.lightView);
-            renderCascade(m_cascadedShadowMap, i, m_cascadedShadowMap.lightView);
+            renderCascade(m_cascadedShadowMap.cascades[i], m_cascadedShadowMap.lightView);
         }
+        Renderer::getSingletonPtr()->updateSunShadow();
     }
 
     SSAOPass::SSAOPass(RenderTarget* renderTarget, Viewport vp, Texture* sceneDepthTexture, Texture* sceneNormalTexture)

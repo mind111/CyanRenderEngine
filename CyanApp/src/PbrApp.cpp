@@ -246,45 +246,6 @@ bool PbrApp::mouseOverUI()
     return (m_mouseCursorX < 400.f && m_mouseCursorX > 0.f && m_mouseCursorY < 720.f && m_mouseCursorY > 0.f);
 }
 
-#if 0
-Cyan::MaterialInstance* createDefaultRayTracingMatl(Scene* scene, Shader* shader, PbrMaterialInputs inputs)
-{
-    Cyan::MaterialInstance* matl = Cyan::createMaterial(shader)->createInstance();
-    matl->bindTexture("diffuseMaps[0]", inputs.baseColor);
-    if (inputs.m_normalMap)
-    {
-        matl->set("hasNormalMap", 1.0f);
-        matl->bindTexture("normalMap", inputs.m_normalMap);
-    }
-    if (inputs.m_occlusion)
-    {
-        matl->set("hasAoMap", 1.0f);
-        matl->bindTexture("aoMap", inputs.m_occlusion);
-    }
-    if (inputs.roughness)
-    {
-        matl->set("hasRoughnessMap", 1.0f);
-        matl->bindTexture("roughnessMap", inputs.roughness);
-        matl->bindTexture("metallicMap", inputs.m_metallicMap);
-    }
-    else if (inputs.m_metallicRoughnessMap) 
-    {
-        matl->set("hasMetallicRoughnessMap", 1.0f);
-        matl->bindTexture("metallicRoughnessMap", inputs.m_metallicRoughnessMap);
-    }
-    else
-    {
-        matl->set("uniformRoughness", inputs.kRoughness);
-        matl->set("uniformMetallic", inputs.kMetallic);
-    }
-
-    matl->set("kDiffuse", 1.0f);
-    matl->set("kSpecular", 1.0f);
-    matl->set("disneyReparam", 1.0f);
-    return matl;
-}
-#endif
-
 Cyan::StandardPbrMaterial* PbrApp::createStandardPbrMatlInstance(Scene* scene, Cyan::PbrMaterialParam params, bool isStatic)
 {
     if (isStatic)
@@ -494,18 +455,20 @@ void PbrApp::initDemoScene00()
             matl->bindTexture("lightMap", planeNode->m_meshInstance->m_lightMap->m_texAltas);
         }
 #else
+        // todo: debug this, how is the material created for the room?
         // directly use prebaked lightmap
         auto lightMapManager = Cyan::LightMapManager::getSingletonPtr();
         lightMapManager->createLightMapFromTexture(roomNode, textureManager->getTexture("RoomMesh_lightmap"));
         lightMapManager->createLightMapFromTexture(planeNode, textureManager->getTexture("PlaneMesh_lightmap"));
         for (u32 sm = 0; sm < roomMesh->numSubMeshes(); ++sm)
         {
-            roomNode->m_meshInstance->m_matls[sm]->set("uniformRoughness", .8f);
-            roomNode->m_meshInstance->m_matls[sm]->set("uniformMetallic", .02f);
+            roomNode->m_meshInstance->m_matls[sm]->set("uMatlData.uniformRoughness", .8f);
+            roomNode->m_meshInstance->m_matls[sm]->set("uMatlData.uniformMetallic", .02f);
             roomNode->m_meshInstance->m_matls[sm]->set("uMaterialProps.hasBakedLighting", 1.f);
-            roomNode->m_meshInstance->m_matls[sm]->set("indirectDiffuseScale", 0.f);
-            roomNode->m_meshInstance->m_matls[sm]->set("indirectSpecularScale", 0.f);
+            roomNode->m_meshInstance->m_matls[sm]->set("uMatlData.indirectDiffuseScale", 0.f);
+            roomNode->m_meshInstance->m_matls[sm]->set("uMatlData.indirectSpecularScale", 0.f);
             roomNode->m_meshInstance->m_matls[sm]->set("uMaterialProps.hasBakedLighting", 1.f);
+            roomNode->m_meshInstance->m_matls[sm]->set("uMatlData.flags", Cyan::StandardPbrMaterial::Flags::kUseLightMap);
             roomNode->m_meshInstance->m_matls[sm]->bindTexture("lightMap", roomNode->m_meshInstance->m_lightMap->m_texAltas);
         }
         Cyan::PbrMaterialParam params = { };
@@ -731,21 +694,20 @@ void PbrApp::doPrecomputeWork()
     // precomute thingy here
     {
         auto ctx = Cyan::getCurrentGfxCtx();
-        // beginFrame();
         // update probe
         auto sceneManager = SceneManager::getSingletonPtr();
         sceneManager->setDistantLightProbe(m_scenes[m_currentScene], Cyan::getProbe(m_currentProbeIndex));
-        sceneManager->updateSceneGraph(m_scenes[m_currentScene]);
 #ifdef SCENE_DEMO_00 
         auto renderer = Cyan::Renderer::getSingletonPtr();
-        renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), 0);
         renderer->beginRender();
+        renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), 0);
         renderer->render(m_scenes[m_currentScene]);
         renderer->endRender();
+        // updateScene(m_scenes[m_currentScene]);
+        m_reflectionProbe->bake();
         // m_irradianceProbe->sampleRadiance();
         // m_irradianceProbe->computeIrradiance();
-        m_reflectionProbe->bake();
-        ctx->setRenderTarget(nullptr, 0u);
+        // ctx->setRenderTarget(nullptr, 0u);
 #endif
     }
 }
@@ -839,7 +801,6 @@ void PbrApp::updateScene(Scene* scene)
     // update material parameters
     for (auto matl : m_scenes[m_currentScene]->m_materials)
         updateMaterialData(matl);
-    // todo: fix this
     SceneManager::getSingletonPtr()->updateSceneGraph(m_scenes[m_currentScene]);
 }
 
@@ -1263,14 +1224,6 @@ void PbrApp::buildFrame()
         renderer->addCustomPass(debugPass);
     }
     renderer->addPostProcessPasses();
-#if DEBUG_PROBE_TRACING
-    {
-        void* preallocated = renderer->getAllocator().alloc(sizeof(RayTracingDebugPass));
-        auto renderTarget = m_probeVolume->m_probes[22]->m_octMapRenderTarget;
-        RayTracingDebugPass* pass = new (preallocated) RayTracingDebugPass(renderTarget, Cyan::Viewport{0u,0u, renderTarget->m_width, renderTarget->m_height}, this);
-        renderer->addCustomPass(pass);
-    }
-#endif
 }
 
 void debugRenderCube()
@@ -1331,28 +1284,18 @@ void PbrApp::debugRenderOctree()
     glEnable(GL_CULL_FACE);
 }
 
-// todo: irradiance probe with visibility (prefiltered radial depth map)
 void PbrApp::render()
 {
     // frame timer
     Cyan::Toolkit::GpuTimer frameTimer("render()");
-    auto renderer = m_graphicsSystem->getRenderer();
 
     // update probe
     SceneManager::getSingletonPtr()->setDistantLightProbe(m_scenes[m_currentScene], Cyan::getProbe(m_currentProbeIndex));
-#if 0
-    renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), 0);
-    renderer->beginRender();
-    renderer->render(m_scenes[m_currentScene]);
-    renderer->endRender();
-#endif
-    // m_reflectionProbe->bake();
-#if 1
+    auto renderer = m_graphicsSystem->getRenderer();
     renderer->beginRender();
     buildFrame();
     renderer->render(m_scenes[m_currentScene]);
     renderer->endRender();
-#endif
 
     // ui
     m_ui.begin();

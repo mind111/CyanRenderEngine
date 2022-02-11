@@ -65,21 +65,17 @@ layout(std430, binding = 2) buffer pointLightsData
     PointLight lights[];
 } pointLightsBuffer;
 
-
+// constants
 #define pi 3.14159265359
 #define SlopeBasedBias 1
-
-uniform struct MaterialProperty
-{
-    float hasDiffuseMap;
-    float usePrototypeTexture;
-    float hasAoMap;
-    float hasNormalMap;
-    float hasRoughnessMap;
-    float hasMetelnessMap;
-    float hasMetallicRoughnessMap;
-    float hasBakedLighting;
-} uMaterialProps; 
+const uint kHasRoughnessMap         = 1 << 0;
+const uint kHasMetallicMap          = 1 << 1;
+const uint kHasMetallicRoughnessMap = 1 << 2;
+const uint kHasOcclusionMap         = 1 << 3;
+const uint kHasDiffuseMap           = 1 << 4;
+const uint kHasNormalMap            = 1 << 5;
+const uint kUsePrototypeTexture     = 1 << 6;
+const uint kUseLightMap             = 1 << 7;            
 
 // global lighting settings
 uniform struct Lighting
@@ -92,19 +88,21 @@ uniform struct Lighting
     float       specularScale;
 } gLighting;
 
-// per instance lighting settings
-uniform float useDistantProbe;
-uniform float kSpecular;
-uniform float directDiffuseScale;
-uniform float directSpecularScale;
-uniform float indirectDiffuseScale;
-uniform float indirectSpecularScale;
-
-// matl
-uniform float uniformSpecular; // control incident specular amount .5 by default
-uniform float uniformRoughness;
-uniform float uniformMetallic;
-uniform vec4 flatColor;
+// per instance material data
+uniform struct MaterialInstanceData
+{
+	uint   flags;
+	float useDistantProbe;
+	float directDiffuseScale;
+	float directSpecularScale;
+	float indirectDiffuseScale;
+	float indirectSpecularScale;
+	// control incident specular amount .5 by default
+	float uniformSpecular;
+	float uniformRoughness;
+	float uniformMetallic;
+	vec4  flatColor;
+} uMatlData;
 
 //- samplers
 uniform sampler2D diffuseMaps[2];
@@ -118,7 +116,6 @@ uniform sampler2D lightMap;
 
 //- debug switches
 uniform float disneyReparam;
-
 vec4 tangentSpaceToViewSpace(vec3 tn, vec3 vn, vec3 t) 
 {
     mat4 tbn;
@@ -311,9 +308,8 @@ vec3 render(RenderParams params)
     vec3 F = fresnel(params.f0, params.n, params.v);
     vec3 kDiffuse = mix(vec3(1.f) - F, vec3(0.0f), params.metallic);
     vec3 diffuse = kDiffuse * diffuseBrdf(params.baseColor) * ndotl;
-    vec3 specular = specularBrdf(params.l, params.v, params.n, params.roughness, params.f0) * ndotl * uniformSpecular;
-    // return (directDiffuseScale * diffuse * params.ao + directSpecularScale * specular) * params.li * params.shadow;
-    return (directDiffuseScale * diffuse + directSpecularScale * specular) * params.li * params.shadow;
+    vec3 specular = specularBrdf(params.l, params.v, params.n, params.roughness, params.f0) * ndotl * uMatlData.uniformSpecular;
+    return (uMatlData.directDiffuseScale * diffuse * params.ao + uMatlData.directSpecularScale * specular) * params.li * params.shadow;
 }
 
 struct CascadeOffset
@@ -546,13 +542,13 @@ vec3 indirectLighting(RenderParams params)
     viewRotation[3][3] = 1.f;
     vec3 rr = (inverse(viewRotation) * vec4(r, 0.f)).xyz;
     // todo: update to only sample local reflection
-    vec3 prefilteredColor = useDistantProbe > .5f ? textureLod(distantReflection, rr, params.roughness * 10.f).rgb : textureLod(localReflectionProbe, rr, params.roughness * 10.f).rgb;
+    vec3 prefilteredColor = uMatlData.useDistantProbe > .5f ? textureLod(distantReflection, rr, params.roughness * 10.f).rgb : textureLod(localReflectionProbe, rr, params.roughness * 10.f).rgb;
     vec3 brdf = texture(brdfIntegral, vec2(params.roughness, ndotv)).rgb; 
-    vec3 specular = (gLighting.indirectSpecularScale * prefilteredColor * uniformSpecular) * (params.f0 * brdf.r + brdf.g);
+    vec3 specular = (gLighting.indirectSpecularScale * prefilteredColor * uMatlData.uniformSpecular) * (params.f0 * brdf.r + brdf.g);
     {
 	   //diffuse += kDiffuse * params.baseColor * texture(gLighting.irradianceProbe, params.wn).rgb;
     }
-    color += indirectDiffuseScale * diffuse + indirectSpecularScale * specular;
+    color += uMatlData.indirectDiffuseScale * diffuse + uMatlData.indirectSpecularScale * specular;
     return color;
 }
 
@@ -560,14 +556,14 @@ vec3 indirectLighting(RenderParams params)
 vec3 prototypeGridTexture(vec3 worldPos)
 {
     float coef = (abs(worldPos.x - round(worldPos.x)) < 0.01f) || (abs(worldPos.z - round(worldPos.z)) < 0.01f) ? .2f : 1.f;
-    vec3 color = flatColor.rgb * coef;
+    vec3 color = uMatlData.flatColor.rgb * coef;
     return color;
 }
 
 vec3 defaultAlbedo(vec3 worldPos, vec2 texCoord)
 {
-    vec3 color = flatColor.rgb;
-    color = uMaterialProps.usePrototypeTexture > .5f ? prototypeGridTexture(worldPos) : color;
+    vec3 color = uMatlData.flatColor.rgb;
+    color = ((uMatlData.flags & kUsePrototypeTexture) != 0u) ? prototypeGridTexture(worldPos) : color;
     return color;
 }
 
@@ -579,7 +575,7 @@ void main()
     vec3 tangent = normalize(t);
     vec3 worldSpaceNormal = normalize(wn);
 
-    if (uMaterialProps.hasNormalMap > 0.5f)
+    if ((uMatlData.flags & kHasNormalMap) != 0u)
     {
         vec3 tn = texture(normalMap, uv).xyz;
         // Convert from [0, 1] to [-1.0, 1.0] and renomalize if texture filtering changes the length
@@ -589,31 +585,34 @@ void main()
     }
 
     /* Texture mapping */
-    vec4 albedo = uMaterialProps.hasDiffuseMap > .5f ? texture(diffuseMaps[0], uv) : vec4(defaultAlbedo(fragmentPosWS, uv), 1.f);
+    vec4 albedo = (uMatlData.flags & kHasDiffuseMap) != 0u ? texture(diffuseMaps[0], uv) : vec4(defaultAlbedo(fragmentPosWS, uv), 1.f);
     // from sRGB to linear space if using a texture
     albedo.rgb = vec3(pow(albedo.r, 2.2f), pow(albedo.g, 2.2f), pow(albedo.b, 2.2f));
-    //albedo.rgb = uMaterialProps.hasDiffuseMap > .5f ? vec3(pow(albedo.r, 2.2f), pow(albedo.g, 2.2f), pow(albedo.b, 2.2f)) : albedo.rgb;
 
     // According to gltf-2.0 spec, metal is sampled from b, roughness is sampled from g
     float roughness, metallic;
-    if (uMaterialProps.hasMetallicRoughnessMap > 0.f)
+    // if (uMaterialProps.hasMetallicRoughnessMap > 0.f)
+    if ((uMatlData.flags & kHasMetallicRoughnessMap) != 0u)
     {
         roughness = texture(metallicRoughnessMap, uv).g;
         roughness = roughness * roughness;
         metallic = texture(metallicRoughnessMap, uv).b; 
-    } else if (uMaterialProps.hasRoughnessMap > 0.f) {
+    }
+    else if ((uMatlData.flags & kHasRoughnessMap) != 0u)
+    {
         roughness = texture(roughnessMap, uv).r;
         roughness = roughness * roughness;
-        metallic = uniformMetallic;
-    } else
+        metallic = uMatlData.uniformMetallic;
+    } 
+    else
     {
-        roughness = uniformRoughness;
-        metallic = uniformMetallic;
+        roughness = uMatlData.uniformRoughness;
+        metallic = uMatlData.uniformMetallic;
     }
     // Determine the specular color
     // sqrt() because I want to make specular color has stronger tint
     vec3 f0 = mix(vec3(0.04f), albedo.rgb, metallic);
-    float ao = uMaterialProps.hasAoMap > 0.5f ? texture(aoMap, uv).r : 1.0f;
+    float ao = (uMatlData.flags & kHasOcclusionMap) != 0u ? texture(aoMap, uv).r : 1.0f;
     ao = pow(ao, 3.0f);
 
     vec3 viewDir = normalize(-fragmentPos); 
@@ -641,9 +640,7 @@ void main()
     // image-based-lighting
     color += indirectLighting(renderParams) * ssao;
     // baked lighting
-    vec3 bakedLighting = vec3(0.f);
-    if (uMaterialProps.hasBakedLighting > 0.5f) 
-        bakedLighting = texture(lightMap, uv1).rgb;
+	vec3 bakedLighting = (uMatlData.flags & kUseLightMap) != 0u ? texture(lightMap, uv1).rgb : vec3(0.f);
     color += bakedLighting * albedo.rgb * ssao;
     // write linear color to HDR Framebuffer
     fragColor = vec4(color, 1.0f);

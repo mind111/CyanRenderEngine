@@ -214,7 +214,7 @@ namespace Cyan
         DirectionalShadowPass(RenderTarget* renderTarget, Viewport viewport, Scene* scene, Camera& camera, u32 dirLightIdx);
         static void onInit();
         virtual void render() override;
-        void renderCascade(CascadedShadowMap& csm, i32 cascadeIndex, glm::mat4& lightView);
+        void renderCascade(ShadowCascade& cascade, glm::mat4& lightView);
         static void computeCascadeAABB(ShadowCascade& cascade, const Camera& camera, glm::mat4& view);
 
         static void drawDebugLines(Uniform* view, Uniform* projection);

@@ -1069,7 +1069,6 @@ namespace Cyan
             return outputTexture;
         }
 
-        // TODO: This call uses a lot of memory, investigate why
         DistantLightProbe createDistantLightProbe(const char* name, const char* file, bool hdr)
         {
             DistantLightProbe probe = { };

@@ -14,7 +14,28 @@ namespace Cyan
     RegularBuffer* IrradianceProbe::m_rayBuffers              = nullptr;
     RenderTarget*  ReflectionProbe::m_renderTarget            = nullptr;
     RenderTarget*  ReflectionProbe::m_prefilterRts[kNumMips]  = {  };
-    Shader*        ReflectionProbe::m_prefilterShader         = nullptr;
+    Shader*        ReflectionProbe::m_convolveSpecShader         = nullptr;
+
+    namespace CameraSettings
+    {
+        const static glm::vec3 cameraFacingDirections[] = {
+            {1.f, 0.f, 0.f},   // Right
+            {-1.f, 0.f, 0.f},  // Left
+            {0.f, 1.f, 0.f},   // Up
+            {0.f, -1.f, 0.f},  // Down
+            {0.f, 0.f, 1.f},   // Front
+            {0.f, 0.f, -1.f},  // Back
+        }; 
+
+        const static glm::vec3 worldUps[] = {
+            {0.f, -1.f, 0.f},   // Right
+            {0.f, -1.f, 0.f},   // Left
+            {0.f, 0.f, 1.f},    // Up
+            {0.f, 0.f, -1.f},   // Down
+            {0.f, -1.f, 0.f},   // Forward
+            {0.f, -1.f, 0.f},   // Back
+        };
+    }
 
     Shader* getRenderProbeShader()
     {
@@ -87,35 +108,18 @@ namespace Cyan
         camera.n = 0.1f;
         camera.f = 100.f;
         camera.fov = glm::radians(90.f);
-        glm::vec3 cameraTargets[] = {
-            {1.f, 0.f, 0.f},   // Right
-            {-1.f, 0.f, 0.f},  // Left
-            {0.f, 1.f, 0.f},   // Up
-            {0.f, -1.f, 0.f},  // Down
-            {0.f, 0.f, 1.f},   // Front
-            {0.f, 0.f, -1.f},  // Back
-        }; 
-        glm::vec3 worldUps[] = {
-            {0.f, -1.f, 0.f},   // Right
-            {0.f, -1.f, 0.f},   // Left
-            {0.f, 0.f, 1.f},    // Up
-            {0.f, 0.f, -1.f},   // Down
-            {0.f, -1.f, 0.f},   // Forward
-            {0.f, -1.f, 0.f},   // Back
-        };
-
         auto renderer = Renderer::getSingletonPtr();
         auto ctx = Cyan::getCurrentGfxCtx();
         ctx->setViewport({0u, 0u, 512u, 512u});
-        for (u32 f = 0; f < (sizeof(cameraTargets)/sizeof(cameraTargets[0])); ++f)
+        for (u32 f = 0; f < (sizeof(CameraSettings::cameraFacingDirections)/sizeof(CameraSettings::cameraFacingDirections[0])); ++f)
         {
             i32 drawBuffers[4] = {(i32)f, -1, -1, -1};
             m_radianceRenderTarget->setDrawBuffers(drawBuffers, 4);
             ctx->setRenderTarget(m_radianceRenderTarget);
             ctx->clear();
 
-            camera.lookAt = camera.position + cameraTargets[f];
-            camera.worldUp = worldUps[f];
+            camera.lookAt = camera.position + CameraSettings::cameraFacingDirections[f];
+            camera.worldUp = CameraSettings::worldUps[f];
             CameraManager::updateCamera(camera);
             renderer->probeRenderScene(m_scene, camera);
         }
@@ -129,23 +133,6 @@ namespace Cyan
         // camera set to probe's location
         camera.position = glm::vec3(0.f);
         camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
-        glm::vec3 cameraTargets[] = {
-            {1.f, 0.f, 0.f},   // Right
-            {-1.f, 0.f, 0.f},  // Left
-            {0.f, 1.f, 0.f},   // Up
-            {0.f, -1.f, 0.f},  // Down
-            {0.f, 0.f, 1.f},   // Front
-            {0.f, 0.f, -1.f},  // Back
-        }; 
-        glm::vec3 worldUps[] = {
-            {0.f, -1.f, 0.f},   // Right
-            {0.f, -1.f, 0.f},   // Left
-            {0.f, 0.f, 1.f},    // Up
-            {0.f, 0.f, -1.f},   // Down
-            {0.f, -1.f, 0.f},   // Forward
-            {0.f, -1.f, 0.f},   // Back
-        };
-
         auto renderer = Renderer::getSingletonPtr();
         ctx->setShader(m_computeIrradianceShader);
         ctx->setViewport({0u, 0u, m_irradianceRenderTarget->m_width, m_irradianceRenderTarget->m_height});
@@ -153,8 +140,8 @@ namespace Cyan
         SceneNode* node = getSceneNode("SphereMesh");
         for (u32 f = 0; f < 6u; ++f)
         {
-            camera.lookAt = cameraTargets[f];
-            camera.view = glm::lookAt(camera.position, camera.lookAt, worldUps[f]);
+            camera.lookAt = CameraSettings::cameraFacingDirections[f];
+            camera.view = glm::lookAt(camera.position, camera.lookAt, CameraSettings::worldUps[f]);
             ctx->setRenderTarget(m_irradianceRenderTarget, f);
             m_computeIrradianceMatl->set("view", &camera.view[0][0]);
             m_computeIrradianceMatl->set("projection", &camera.projection[0][0]);
@@ -171,7 +158,7 @@ namespace Cyan
         if (!m_renderTarget)
         {
             m_renderTarget = createRenderTarget(2048u, 2048u);
-            m_prefilterShader = createShader("PrefilterSpecularShader", "../../shader/shader_prefilter_specular.vs", "../../shader/shader_prefilter_specular.fs");
+            m_convolveSpecShader = createShader("PrefilterSpecularShader", "../../shader/shader_prefilter_specular.vs", "../../shader/shader_prefilter_specular.fs");
             u32 mipWidth = 2048;
             u32 mipHeight = 2048;
             for (u32 mip = 0; mip < kNumMips; ++mip)
@@ -212,17 +199,18 @@ namespace Cyan
         spec.m_numMips = 11u;
         spec.m_min = Texture::Filter::MIPMAP_LINEAR;
         m_prefilteredProbe = textureManager->createTextureHDR("PrefilteredReflectionProbe", spec);
-        m_prefilterMatl = createMaterial(m_prefilterShader)->createInstance();
+        m_convolveSpecMatl = createMaterial(m_convolveSpecShader)->createInstance();
         m_renderProbeMatl->bindTexture("radianceMap", m_prefilteredProbe);
     }
 
+    // todo: bake handles everything
     void ReflectionProbe::bake()
     {
-        sampleRadiance();
-        prefilter();
+        sampleSceneRadiance();
+        convolve();
     }
     
-    void ReflectionProbe::sampleRadiance()
+    void ReflectionProbe::sampleSceneRadiance()
     {
         const u32 kViewportWidth = m_radianceMap->m_width;
         const u32 kViewportHeight = m_radianceMap->m_height;
@@ -233,40 +221,23 @@ namespace Cyan
         camera.n = 0.1f;
         camera.f = 100.f;
         camera.fov = glm::radians(90.f);
-        glm::vec3 cameraTargets[] = {
-            {1.f, 0.f, 0.f},   // Right
-            {-1.f, 0.f, 0.f},  // Left
-            {0.f, 1.f, 0.f},   // Up
-            {0.f, -1.f, 0.f},  // Down
-            {0.f, 0.f, 1.f},   // Front
-            {0.f, 0.f, -1.f},  // Back
-        }; 
-        glm::vec3 worldUps[] = {
-            {0.f, -1.f, 0.f},   // Right
-            {0.f, -1.f, 0.f},   // Left
-            {0.f, 0.f, 1.f},    // Up
-            {0.f, 0.f, -1.f},   // Down
-            {0.f, -1.f, 0.f},   // Forward
-            {0.f, -1.f, 0.f},   // Back
-        };
         auto renderer = Renderer::getSingletonPtr();
         auto ctx = Cyan::getCurrentGfxCtx();
         ctx->setViewport({0u, 0u, kViewportWidth, kViewportHeight});
-        for (u32 f = 0; f < (sizeof(cameraTargets)/sizeof(cameraTargets[0])); ++f)
+        for (u32 f = 0; f < (sizeof(CameraSettings::cameraFacingDirections)/sizeof(CameraSettings::cameraFacingDirections[0])); ++f)
         {
             i32 drawBuffers[4] = {(i32)f, -1, -1, -1};
             m_renderTarget->setDrawBuffers(drawBuffers, 4);
             ctx->setRenderTarget(m_renderTarget);
             ctx->clear();
-            camera.lookAt = camera.position + cameraTargets[f];
-            camera.worldUp = worldUps[f];
+            camera.lookAt = camera.position + CameraSettings::cameraFacingDirections[f];
+            camera.worldUp = CameraSettings::worldUps[f];
             CameraManager::updateCamera(camera);
             renderer->probeRenderScene(m_scene, camera);
-            //renderer->renderScene(m_scene, camera);
         }
     }
 
-    void ReflectionProbe::prefilter()
+    void ReflectionProbe::convolve()
     {
         const u32 kViewportWidth = m_prefilteredProbe->m_width;
         const u32 kViewportHeight = m_prefilteredProbe->m_height;
@@ -277,29 +248,13 @@ namespace Cyan
         camera.n = 0.1f;
         camera.f = 100.f;
         camera.fov = glm::radians(90.f);
-        glm::vec3 cameraTargets[] = {
-            {1.f, 0.f, 0.f},   // Right
-            {-1.f, 0.f, 0.f},  // Left
-            {0.f, 1.f, 0.f},   // Up
-            {0.f, -1.f, 0.f},  // Down
-            {0.f, 0.f, 1.f},   // Front
-            {0.f, 0.f, -1.f},  // Back
-        }; 
-        glm::vec3 worldUps[] = {
-            {0.f, -1.f, 0.f},   // Right
-            {0.f, -1.f, 0.f},   // Left
-            {0.f, 0.f, 1.f},    // Up
-            {0.f, 0.f, -1.f},   // Down
-            {0.f, -1.f, 0.f},   // Forward
-            {0.f, -1.f, 0.f},   // Back
-        };
         auto renderer = Renderer::getSingletonPtr();
         auto ctx = getCurrentGfxCtx();
         u32 kNumMips = 11;
         u32 mipWidth = m_prefilteredProbe->m_width; 
         u32 mipHeight = m_prefilteredProbe->m_height;
         ctx->setDepthControl(DepthControl::kDisable);
-        ctx->setShader(m_prefilterShader);
+        ctx->setShader(m_convolveSpecShader);
         for (u32 mip = 0; mip < kNumMips; ++mip)
         {
             m_prefilterRts[mip]->attachColorBuffer(m_prefilteredProbe, mip);
@@ -307,15 +262,15 @@ namespace Cyan
             for (u32 f = 0; f < 6u; f++)
             {
                 ctx->setRenderTarget(m_prefilterRts[mip], f);
-                camera.lookAt = cameraTargets[f];
-                camera.worldUp = worldUps[f];
+                camera.lookAt = CameraSettings::cameraFacingDirections[f];
+                camera.worldUp = CameraSettings::worldUps[f];
                 CameraManager::updateCamera(camera);
                 // Update uniforms
-                m_prefilterMatl->set("projection", &camera.projection[0]);
-                m_prefilterMatl->set("view", &camera.view[0]);
-                m_prefilterMatl->set("roughness", mip * (1.f / (kNumMips - 1)));
-                m_prefilterMatl->bindTexture("envmapSampler", m_radianceMap);
-                m_prefilterMatl->bind();
+                m_convolveSpecMatl->set("projection", &camera.projection[0]);
+                m_convolveSpecMatl->set("view", &camera.view[0]);
+                m_convolveSpecMatl->set("roughness", mip * (1.f / (kNumMips - 1)));
+                m_convolveSpecMatl->bindTexture("envmapSampler", m_radianceMap);
+                m_convolveSpecMatl->bind();
                 auto va = getMesh("CubeMesh")->m_subMeshes[0]->m_vertexArray;
                 ctx->setVertexArray(va);
                 ctx->drawIndexAuto(va->numVerts());

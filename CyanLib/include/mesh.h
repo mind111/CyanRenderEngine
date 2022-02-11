@@ -11,7 +11,6 @@
 #include "Geometry.h"
 #include "BVH.h"
 
-// forward declaration
 struct Scene;
 
 namespace Cyan

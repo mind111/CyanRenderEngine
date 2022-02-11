@@ -54,19 +54,19 @@ namespace Cyan
     struct ReflectionProbe : public Entity
     {
         ReflectionProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene);
-        void sampleRadiance();
-        void prefilter();
+        void sampleSceneRadiance();
+        void convolve();
         void bake();
 
         static const u32     kNumMips = 11; 
         static RenderTarget* m_renderTarget;
         static RenderTarget* m_prefilterRts[kNumMips];
-        static Shader*       m_prefilterShader;
+        static Shader*       m_convolveSpecShader;
         Scene* m_scene;
         Texture* m_radianceMap;
         Texture* m_prefilteredProbe;
         MaterialInstance* m_renderProbeMatl;
-        MaterialInstance* m_prefilterMatl;
+        MaterialInstance* m_convolveSpecMatl;
     };
 
     class LightProbeFactory

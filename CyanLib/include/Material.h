@@ -125,10 +125,21 @@ namespace Cyan
         f32            usePrototypeTexture;
     };
 
-    // todo: implement this
     class StandardPbrMaterial
     {
     public:
+        enum Flags
+        {
+            kHasRoughnessMap         = 1 << 0,
+            kHasMetallicMap          = 1 << 1,
+            kHasMetallicRoughnessMap = 1 << 2,
+            kHasOcclusionMap         = 1 << 3,
+            kHasDiffuseMap           = 1 << 4,
+            kHasNormalMap            = 1 << 5,
+            kUsePrototypeTexture     = 1 << 6,
+            kUseLightMap             = 1 << 7             
+        };
+
         StandardPbrMaterial();
         StandardPbrMaterial(const PbrMaterialParam& param);
         ~StandardPbrMaterial()
@@ -136,19 +147,8 @@ namespace Cyan
 
         }
 
+        u32 m_flags;
         static Material*    m_standardPbrMatl;
         MaterialInstance* m_materialInstance;
-    };
-
-    class SolidColorMaterial
-    {
-    public:
-        SolidColorMaterial(glm::vec3& color)
-            : m_color(color)
-        {
-
-        }
-        glm::vec3 m_color;
-        MaterialInstance* m_matl;
     };
 }
