@@ -31,7 +31,6 @@ namespace Cyan
         // draw buffer binding
         u32 m_numDrawBuffers;
         i32 m_drawBuffers[8];
-        // max 8 color attachments for a framebuffer
         Cyan::Texture* m_textures[8];
         Cyan::Texture* m_depthBuffer;
     };

@@ -1020,7 +1020,7 @@ namespace Cyan
         ctx->setDepthControl(DepthControl::kEnable);
     }
 
-    void Renderer::probeRenderScene(Scene* scene, Camera& camera)
+    void Renderer::renderSceneToLightProbe(Scene* scene, Camera& camera)
     {
         // turn off ssao
         m_ssao = 0.f;

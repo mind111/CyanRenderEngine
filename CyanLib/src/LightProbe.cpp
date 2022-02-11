@@ -6,6 +6,7 @@
 
 namespace Cyan
 {
+    Mesh*          LightProbe::s_debugSphereMesh              = nullptr;
     Shader*        s_renderProbeShader                        = nullptr;
     Shader*        IrradianceProbe::m_computeIrradianceShader = nullptr;
     RenderTarget*  IrradianceProbe::m_radianceRenderTarget    = nullptr; 
@@ -14,7 +15,7 @@ namespace Cyan
     RegularBuffer* IrradianceProbe::m_rayBuffers              = nullptr;
     RenderTarget*  ReflectionProbe::m_renderTarget            = nullptr;
     RenderTarget*  ReflectionProbe::m_prefilterRts[kNumMips]  = {  };
-    Shader*        ReflectionProbe::m_convolveSpecShader         = nullptr;
+    Shader*        ReflectionProbe::m_convolveSpecShader      = nullptr;
 
     namespace CameraSettings
     {
@@ -46,6 +47,81 @@ namespace Cyan
         return s_renderProbeShader;
     }
 
+    LightProbe::LightProbe(Scene* scene, const glm::vec3& p, const glm::vec2& resolution)
+        : m_scene(scene), m_position(p), m_resolution(resolution), m_debugSphereMeshInstance(nullptr), m_sceneCapture(nullptr)
+    {
+        if (!s_debugSphereMesh)
+        {
+            s_debugSphereMesh = getMesh("sphere_mesh");
+        }
+        m_debugSphereMeshInstance = s_debugSphereMesh->createInstance();
+    }
+
+    void LightProbe::initialize()
+    {
+        auto textureManager = TextureManager::getSingletonPtr();
+        TextureSpec spec = { };
+        spec.m_width = m_resolution.x;
+        spec.m_height = m_resolution.y;
+        spec.m_type = Texture::Type::TEX_CUBEMAP;
+        spec.m_format = Texture::ColorFormat::R16G16B16;
+        spec.m_dataType =  Texture::Float;
+        spec.m_min = Texture::Filter::LINEAR;
+        spec.m_mag = Texture::Filter::LINEAR;
+        spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.m_numMips = 1u;
+        spec.m_data = 0;
+        auto textureManager = TextureManager::getSingletonPtr();
+        auto sceneManager = SceneManager::getSingletonPtr();
+        m_sceneCapture = textureManager->createTextureHDR("SceneCapture", spec);
+    }
+
+    void LightProbe::captureScene()
+    {
+        // create render target
+        auto renderTarget = createRenderTarget(m_sceneCapture->m_width, m_sceneCapture->m_height);
+        {
+            renderTarget->attachColorBuffer(m_sceneCapture);
+            Camera camera = { };
+            camera.position = m_position;
+            camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
+            camera.n = 0.1f;
+            camera.f = 100.f;
+            camera.fov = glm::radians(90.f);
+            // render sun light shadow
+            auto renderer = Renderer::getSingletonPtr();
+            renderer->beginRender();
+            renderer->addDirectionalShadowPass(m_scene, camera, 0);
+            renderer->render(m_scene);
+            renderer->endRender();
+            // render scene into each face of the cubemap
+            auto ctx = Cyan::getCurrentGfxCtx();
+            ctx->setViewport({0u, 0u, m_sceneCapture->m_width, m_sceneCapture->m_height});
+            for (u32 f = 0; f < (sizeof(CameraSettings::cameraFacingDirections)/sizeof(CameraSettings::cameraFacingDirections[0])); ++f)
+            {
+                i32 drawBuffers[4] = {(i32)f, -1, -1, -1};
+                renderTarget->setDrawBuffers(drawBuffers, 4);
+                ctx->setRenderTarget(renderTarget);
+                ctx->clear();
+
+                camera.lookAt = camera.position + CameraSettings::cameraFacingDirections[f];
+                camera.worldUp = CameraSettings::worldUps[f];
+                CameraManager::updateCamera(camera);
+                renderer->renderSceneToLightProbe(m_scene, camera);
+            }
+        }
+        // release resources
+        glDeleteFramebuffers(1, &renderTarget->m_frameBuffer);
+        delete renderTarget;
+    }
+
+    void LightProbe::debugRender()
+    {
+
+    }
+
     IrradianceProbe::IrradianceProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene)
         : Entity(scene, name , id, Transform(), parent, false), 
         m_scene(scene)
@@ -59,7 +135,6 @@ namespace Cyan
             m_cubeMeshInstance->setMaterial(0, m_computeIrradianceMatl);
         }
         
-        m_visible = false;
         TextureSpec spec = { };
         spec.m_width = 512u;
         spec.m_height = 512u;
@@ -96,36 +171,7 @@ namespace Cyan
         m_cubeMeshInstance->setMaterial(0, m_computeIrradianceMatl);
     }
 
-    // TODO: exclude dynamic objects
-    void IrradianceProbe::sampleRadiance()
-    {
-        const u32 kViewportWidth = 512u;
-        const u32 kViewportHeight = 512u;
-        Camera camera = { };
-        // camera set to probe's location
-        camera.position = getSceneNode("SphereMesh")->getWorldTransform().m_translate;
-        camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
-        camera.n = 0.1f;
-        camera.f = 100.f;
-        camera.fov = glm::radians(90.f);
-        auto renderer = Renderer::getSingletonPtr();
-        auto ctx = Cyan::getCurrentGfxCtx();
-        ctx->setViewport({0u, 0u, 512u, 512u});
-        for (u32 f = 0; f < (sizeof(CameraSettings::cameraFacingDirections)/sizeof(CameraSettings::cameraFacingDirections[0])); ++f)
-        {
-            i32 drawBuffers[4] = {(i32)f, -1, -1, -1};
-            m_radianceRenderTarget->setDrawBuffers(drawBuffers, 4);
-            ctx->setRenderTarget(m_radianceRenderTarget);
-            ctx->clear();
-
-            camera.lookAt = camera.position + CameraSettings::cameraFacingDirections[f];
-            camera.worldUp = CameraSettings::worldUps[f];
-            CameraManager::updateCamera(camera);
-            renderer->probeRenderScene(m_scene, camera);
-        }
-    }
-
-    void IrradianceProbe::computeIrradiance()
+    void IrradianceProbe::convolve()
     {
         Toolkit::GpuTimer timer("ComputeIrradianceTimer");
         auto ctx = Cyan::getCurrentGfxCtx();
@@ -152,8 +198,7 @@ namespace Cyan
         timer.end();
     }
 
-    ReflectionProbe::ReflectionProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene)
-        : Entity(scene, name , id, Transform(), parent, false), m_scene(scene)
+    ReflectionProbe::ReflectionProbe(u32 id, glm::vec3& p, Entity* parent, Scene* scene)
     {
         if (!m_renderTarget)
         {
@@ -168,7 +213,6 @@ namespace Cyan
                 mipHeight /= 2;
             }
         }
-        m_visible = false;
         TextureSpec spec = { };
         spec.m_width = 2048u;
         spec.m_height = 2048u;

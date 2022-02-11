@@ -15,13 +15,27 @@ struct Scene;
 
 namespace Cyan
 {
-    // TODO: group shader and material instance, technically don't need to store shader and matl instance at the same time.
-    struct IrradianceProbe : public Entity
+    struct LightProbe
     {
-        IrradianceProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene);
+        LightProbe(Scene* scene, const glm::vec3& p, const glm::vec2& resolution);
+        ~LightProbe() { }
+        virtual void initialize();
+        virtual void captureScene();
+        virtual void debugRender();
+
+        static Mesh* s_debugSphereMesh;
+        Scene*        m_scene;
+        glm::vec3     m_position;
+        glm::vec2     m_resolution;
+        Texture*      m_sceneCapture;
+        MeshInstance* m_debugSphereMeshInstance;
+    };
+
+    struct IrradianceProbe : public LightProbe
+    {
+        IrradianceProbe(Scene* scene, glm::vec3& p);
         void sampleRadiance();
         void computeIrradiance();
-        void debugRenderProbe();
 
         static Shader* m_computeIrradianceShader;
         static struct RenderTarget* m_radianceRenderTarget;
@@ -51,7 +65,7 @@ namespace Cyan
         std::vector<IrradianceProbe*> m_probes;
     };
 
-    struct ReflectionProbe : public Entity
+    struct ReflectionProbe
     {
         ReflectionProbe(const char* name, u32 id, glm::vec3& p, Entity* parent, Scene* scene);
         void sampleSceneRadiance();
