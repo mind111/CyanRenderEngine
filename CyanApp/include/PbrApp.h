@@ -12,6 +12,7 @@
 #include "GfxContext.h"
 #include "CyanPathTracer.h"
 #include "LightMap.h"
+#include "SkyBox.h"
 
 #define DEBUG_PROBE_TRACING 0
 #define DEBUG_SSAO          1
@@ -26,7 +27,7 @@ class PbrApp : public CyanApp
 public:
     PbrApp();
     ~PbrApp() { }
-    virtual void init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewportPos, glm::vec2 renderSize) override;
+    virtual void initialize(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewportPos, glm::vec2 renderSize) override;
 
     static PbrApp* get();
 
@@ -91,9 +92,6 @@ public:
     double m_mouseCursorX,       m_mouseCursorY;
     Cyan::IrradianceProbe*       m_irradianceProbe;
     Cyan::ReflectionProbe*       m_reflectionProbe;
-    GLuint                       m_debugRayAtomicCounter;
-    int                          m_debugProbeIndex;
-    glm::vec3                    m_debugRayTracingNormal;
 
     Cyan::Texture*               activeDebugViewTexture;
     std::vector<Scene*>          m_scenes;
@@ -102,25 +100,11 @@ public:
     RegularBuffer*               m_debugRayBoundryBuffer;
 
     u32                          m_currentScene;
-    Cyan::RenderTarget*          m_lightMapRenderTarget;
-    Shader*                      m_lightMapShader;
-    Cyan::LightMap               m_lightMap;      
     u32                          m_currentDebugView;
 private:
     float m_sampleVertex[(64 + 1) * 4 * 2] = { };
     bool bRunning;
     u32 m_currentProbeIndex;
-
-    Shader*                      m_rayTracingShader;
-    Cyan::MaterialInstance*      m_rayTracingMatl;
-    Shader*                      m_skyBoxShader;
-    Cyan::MaterialInstance*      m_skyBoxMatl;
-    Shader*                      m_skyShader;
-    Cyan::MaterialInstance*      m_skyMatl;
-
-    /* Buffers */
-    RegularBuffer* m_pointLightsBuffer;
-    RegularBuffer* m_dirLightsBuffer;
 
     // ui
     UI m_ui;
@@ -136,9 +120,6 @@ private:
     float m_indirectSpecularSlider;
     float m_directLightingSlider;
     float m_indirectLightingSlider;
-
-    glm::vec3 m_debugRo;
-    glm::vec3 m_debugRd;
 
     // debug parameters
     Line m_debugRay;

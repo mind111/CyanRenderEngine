@@ -231,9 +231,9 @@ namespace Cyan
         // todo: make the initialization of pbr material deterministic so that we don't have to do this check everytime when creating a new matl instance
         if (!m_standardPbrMatl)
         {
-            Shader* standardPbrShader = getShader("PbrShader");
-            CYAN_ASSERT(standardPbrShader, "Standard PBR shader was not created!");
-            m_standardPbrMatl = createMaterial(standardPbrShader);
+            Shader* standardPBSShader = getShader("PBSShader");
+            CYAN_ASSERT(standardPBSShader, "Standard PBS shader was not created!");
+            m_standardPbrMatl = createMaterial(standardPBSShader);
         }
         m_materialInstance = m_standardPbrMatl->createInstance();
         // create a material instance
@@ -258,9 +258,9 @@ namespace Cyan
     {
         if (!m_standardPbrMatl)
         {
-            Shader* standardPbrShader = getShader("PbrShader");
-            CYAN_ASSERT(standardPbrShader, "Standard PBR shader was not created!");
-            m_standardPbrMatl = createMaterial(standardPbrShader);
+            Shader* standardPBSShader = getShader("PBSShader");
+            CYAN_ASSERT(standardPBSShader, "Standard PBR shader was not created!");
+            m_standardPbrMatl = createMaterial(standardPBSShader);
         }
         m_materialInstance = m_standardPbrMatl->createInstance();
         // albedo

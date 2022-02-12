@@ -211,13 +211,13 @@ namespace Cyan
     // TODO: distribution based shadow mapping methods: VSM, ESM etc.
     struct DirectionalShadowPass : public RenderPass
     {
-        DirectionalShadowPass(RenderTarget* renderTarget, Viewport viewport, Scene* scene, Camera& camera, const std::vector<Entity*>& shadowCasters, u32 dirLightIdx);
+        DirectionalShadowPass(RenderTarget* renderTarget, Viewport viewport, const Camera& camera, const DirectionalLight& light, const std::vector<Entity*>& shadowCasters);
         static void onInit();
         virtual void render() override;
         void renderCascade(ShadowCascade& cascade, glm::mat4& lightView);
         static void computeCascadeAABB(ShadowCascade& cascade, const Camera& camera, glm::mat4& view);
-
         static void drawDebugLines(Uniform* view, Uniform* projection);
+
         static Shader* s_directShadowShader;
         static MaterialInstance* s_directShadowMatl;
         static RenderTarget* s_depthRenderTarget;
@@ -225,10 +225,10 @@ namespace Cyan
         static CascadedShadowMap m_cascadedShadowMap;
         static Texture* m_horizontalBlurTex;
         static Texture* m_verticalBlurTex;
-        const std::vector<Entity*>& m_shadowCasters;
+
         Camera m_camera;
         DirectionalLight m_light;
-        Scene* m_scene;
+        const std::vector<Entity*>& m_shadowCasters;
     };
 
     struct LinePass : public RenderPass

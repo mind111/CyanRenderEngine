@@ -40,7 +40,6 @@ namespace Cyan
     static const u32 kMaxNumSceneNodes = 100000;
 
     static std::vector<Mesh*> s_meshes;
-    static std::vector<DistantLightProbe> s_probes;
     static SceneNode s_sceneNodes[kMaxNumSceneNodes] = { };
     static GfxContext* s_gfxc = nullptr;
     static void* s_memory = nullptr;
@@ -197,7 +196,6 @@ namespace Cyan
         Scene* scene = new Scene;
         scene->m_name = std::string(name);
 
-        scene->m_distantProbe = nullptr;
         scene->m_rootEntity = nullptr;
         // create root entity
         scene->m_rootEntity = SceneManager::getSingletonPtr()->createEntity(scene, "SceneRoot", Transform(), true);
@@ -439,16 +437,6 @@ namespace Cyan
                 printf("[ERROR]: Unhandled GL type when converting GL types to Cyan types \n");
                 return Uniform::Type::u_undefined;
         }
-    }
-
-    DistantLightProbe* getProbe(u32 index)
-    {
-        return &s_probes[index];
-    }
-
-    u32 getNumProbes()
-    {
-        return (u32)s_probes.size();
     }
 
     Material* createMaterial(Shader* _shader)
@@ -1067,17 +1055,6 @@ namespace Cyan
             gfxc->reset();
 
             return outputTexture;
-        }
-
-        DistantLightProbe createDistantLightProbe(const char* name, const char* file, bool hdr)
-        {
-            DistantLightProbe probe = { };
-            probe.m_baseCubeMap = Toolkit::loadEquirectangularMap(name, file, hdr);
-            probe.m_diffuse = Toolkit::prefilterEnvMapDiffuse(name, probe.m_baseCubeMap);
-            probe.m_specular = Toolkit::prefilterEnvmapSpecular(probe.m_baseCubeMap);
-            probe.m_brdfIntegral = Toolkit::generateBrdfLUT();
-            s_probes.push_back(probe);
-            return probe;
         }
 
         // create a flat color albedo map via fragment shader

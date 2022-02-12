@@ -9,20 +9,7 @@
 #include "Light.h"
 #include "Material.h"
 #include "LightProbe.h"
-
-struct SkyLight
-{
-
-};
-
-struct LightingEnvironment
-{
-    std::vector<PointLight>&       m_pLights;
-    std::vector<DirectionalLight>& m_dirLights;
-    DistantLightProbe*             m_distantProbe;
-    Cyan::IrradianceProbe*         irradianceProbe;
-    Cyan::ReflectionProbe*         localReflectionProbe;
-};
+#include "SkyBox.h"
 
 struct Scene 
 {
@@ -54,7 +41,6 @@ struct Scene
     std::vector<DirectionalLight>           dLights;
     Cyan::IrradianceProbe*                  m_irradianceProbe;
     Cyan::ReflectionProbe*                  m_reflectionProbe;
-    DistantLightProbe*                      m_distantProbe;
 
     Camera& getActiveCamera()
     {
@@ -79,7 +65,6 @@ public:
     u32        allocEntityId();
     void       updateSceneGraph(Scene* scene);
     void       buildLightList(Scene* scene, std::vector<PointLightGpuData>& pLights, std::vector<DirLightGpuData>& dLights);
-    void       setDistantLightProbe(Scene* scene, DistantLightProbe* probe);
     void       createDirectionalLight(Scene* scene, glm::vec3 color, glm::vec3 direction, float intensity);
     void       createPointLight(Scene* scene, glm::vec3 color, glm::vec3 position, float intensity);
     u32        allocSceneNode(Scene* scene);
@@ -104,10 +89,11 @@ public:
         return scene->entities.size() > 0 ? scene->entities.size() : 0;
     }
 
+    Cyan::IrradianceProbe* createIrradianceProbe(Cyan::Texture* srcCubemapTexture, const glm::uvec2& irradianceRes);
     Cyan::IrradianceProbe* createIrradianceProbe(Scene* scene, const glm::vec3& pos, const glm::uvec2& sceneCaptureRes, const glm::uvec2& irradianceRes);
+    Cyan::ReflectionProbe* createReflectionProbe(Cyan::Texture* srcCubemapTexture);
     Cyan::ReflectionProbe* createReflectionProbe(Scene* scene, const glm::vec3& pos, const glm::uvec2& sceneCaptureRes);
 
 private:
     static SceneManager*     s_sceneManager;
-    Cyan::LightProbeFactory* m_probeFactory;
 };

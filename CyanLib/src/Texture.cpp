@@ -347,15 +347,15 @@ namespace Cyan
     // when loading a texture from file, TextureSpec.m_format will be modified as 
     // the format is detmermined after loading the image, so @spec needs to be taken
     // as a reference
-    Texture* TextureManager::createTexture(const char* _name, const char* _file, TextureSpec& spec)
+    Texture* TextureManager::createTexture(const char* name, const char* filePath, TextureSpec& spec)
     {
         int w, h, numChannels;
         Texture* texture = new Texture();
         stbi_set_flip_vertically_on_load(1);
-        unsigned char* pixels = stbi_load(_file, &w, &h, &numChannels, 0);
+        unsigned char* pixels = stbi_load(filePath, &w, &h, &numChannels, 0);
 
         spec.m_format = numChannels == 3 ? Texture::ColorFormat::R8G8B8 : Texture::ColorFormat::R8G8B8A8;
-        texture->m_name = _name;
+        texture->m_name = name;
         texture->m_width = w;
         texture->m_height = h;
         texture->m_type = spec.m_type;
@@ -378,22 +378,22 @@ namespace Cyan
             glGenerateTextureMipmap(texture->m_id);
         }
         s_textures.push_back(texture);
-        // stbi_image_free(pixels);
+        stbi_image_free(pixels);
         return texture;
     }
 
     // when loading a texture from file, TextureSpec.m_format will be modified as 
     // the format is detmermined after loading the image, so @spec needs to be taken
     // as a reference
-    Texture* TextureManager::createTextureHDR(const char* _name, const char* _file, TextureSpec& spec)
+    Texture* TextureManager::createTextureHDR(const char* name, const char* filePath, TextureSpec& spec)
     {
         int w, h, numChannels;
         Texture* texture = new Texture();
         stbi_set_flip_vertically_on_load(1);
-        float* pixels = stbi_loadf(_file, &w, &h, &numChannels, 0);
+        float* pixels = stbi_loadf(filePath, &w, &h, &numChannels, 0);
 
         spec.m_format = numChannels == 3 ? Texture::ColorFormat::R16G16B16 : Texture::ColorFormat::R16G16B16A16;
-        texture->m_name = _name;
+        texture->m_name = name;
         texture->m_width = w;
         texture->m_height = h;
         texture->m_type = spec.m_type;

@@ -107,17 +107,11 @@ SceneManager::SceneManager()
     else {
         CYAN_ASSERT(0, "There should be only one instance of SceneManager")
     }
-    m_probeFactory = new Cyan::LightProbeFactory();
 }
 
 SceneManager* SceneManager::getSingletonPtr()
 {
     return s_sceneManager;
-}
-
-void SceneManager::setDistantLightProbe(Scene* scene, DistantLightProbe* probe)
-{
-    scene->m_distantProbe = probe;
 }
 
 Entity* SceneManager::createEntity(Scene* scene, const char* entityName, Transform transform, bool isStatic, Entity* parent)
@@ -152,7 +146,6 @@ Scene* SceneManager::createScene(const char* name, const char* file)
     scene->g_globalTransformMatrices.resize(Scene::kMaxNumSceneNodes);
     scene->m_numSceneNodes = 0;
 
-    scene->m_distantProbe = nullptr;
     scene->m_rootEntity = nullptr;
     // create root entity
     scene->m_rootEntity = SceneManager::getSingletonPtr()->createEntity(scene, "Root", Transform(), true);
@@ -263,15 +256,22 @@ void SceneManager::buildLightList(Scene* scene, std::vector<PointLightGpuData>& 
     }
 }
 
+Cyan::IrradianceProbe* SceneManager::createIrradianceProbe(Cyan::Texture* srcCubemapTexture, const glm::uvec2& irradianceRes)
+{
+    return new Cyan::IrradianceProbe(srcCubemapTexture, irradianceRes);
+}
+
 Cyan::IrradianceProbe* SceneManager::createIrradianceProbe(Scene* scene, const glm::vec3& pos, const glm::uvec2& sceneCaptureRes, const glm::uvec2& irradianceResolution)
 {
-    auto probe = m_probeFactory->createIrradianceProbe(scene, pos, sceneCaptureRes, irradianceResolution); 
-    scene->m_irradianceProbe = probe;
-    return probe;
+    return new Cyan::IrradianceProbe(scene, pos, sceneCaptureRes, irradianceResolution);
+}
+
+Cyan::ReflectionProbe* createReflectionProbe(Cyan::Texture* srcCubemapTexture)
+{
+    return new Cyan::ReflectionProbe(srcCubemapTexture);
 }
 
 Cyan::ReflectionProbe* SceneManager::createReflectionProbe(Scene* scene, const glm::vec3& pos, const glm::uvec2& sceneCaptureRes)
 {
-    auto probe = m_probeFactory->createReflectionProbe(scene, pos, sceneCaptureRes); 
-    return probe;
+    return new Cyan::ReflectionProbe(scene, pos, sceneCaptureRes);
 }

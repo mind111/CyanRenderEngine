@@ -6,7 +6,7 @@ in vec3 fragmentObjPos;
 
 out vec4 fragColor;
 
-uniform sampler2D rawEnvmapSampler;
+uniform sampler2D srcImageTexture;
 
 float saturate(float k)
 {
@@ -29,6 +29,6 @@ void main()
 {
     vec3 d = normalize(fragmentObjPos);
     vec2 uv = sampleEquirectangularMap(d);
-    vec3 hdrColor = texture(rawEnvmapSampler, uv).rgb;
+    vec3 hdrColor = texture(srcImageTexture, uv).rgb;
     fragColor = vec4(hdrColor, 1.0f);
 }

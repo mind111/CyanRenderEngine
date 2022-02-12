@@ -9,6 +9,8 @@
 
 #include "Uniform.h"
 
+#define SHADER_SOURCE_PATH "../../shader/"
+
 namespace ShaderUtil
 {
     void checkShaderCompilation(GLuint shader);

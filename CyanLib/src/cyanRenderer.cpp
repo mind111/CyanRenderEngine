@@ -378,6 +378,36 @@ namespace Cyan
         return m_viewport;
     }
 
+    void Renderer::drawMesh(Mesh* mesh)
+    {
+        auto ctx = getCurrentGfxCtx();
+        for (u32 sm = 0; sm < mesh->numSubMeshes(); ++sm)
+        {
+            auto subMesh = mesh->m_subMeshes[sm];
+            ctx->setVertexArray(subMesh->m_vertexArray);
+            if (subMesh->m_vertexArray->hasIndexBuffer())
+                ctx->drawIndex(subMesh->m_vertexArray->m_numIndices);
+            else ctx->drawIndexAuto(subMesh->m_vertexArray->numVerts());
+        }
+    }
+
+    void Renderer::drawMesh(Mesh* mesh, MaterialInstance* matl, RenderTarget* dstRenderTarget, const Viewport& viewport)
+    {
+        auto ctx = getCurrentGfxCtx();
+        ctx->setShader(matl->getShader());
+        matl->bind();
+        ctx->setRenderTarget(dstRenderTarget);
+        ctx->setViewport(viewport);
+        for (u32 sm = 0; sm < mesh->numSubMeshes(); ++sm)
+        {
+            auto subMesh = mesh->m_subMeshes[sm];
+            ctx->setVertexArray(subMesh->m_vertexArray);
+            if (subMesh->m_vertexArray->hasIndexBuffer())
+                ctx->drawIndex(subMesh->m_vertexArray->m_numIndices);
+            else ctx->drawIndexAuto(subMesh->m_vertexArray->numVerts());
+        }
+    }
+
     void Renderer::drawMeshInstance(MeshInstance* meshInstance, i32 transformIndex)
     {
         Mesh* mesh = meshInstance->m_mesh;
@@ -658,11 +688,11 @@ namespace Cyan
         m_renderState.addRenderPass(pass);
     }
 
-    void Renderer::addDirectionalShadowPass(Scene* scene, Camera& camera, const std::vector<Entity*>& shadowCasters, u32 lightIdx)
+    void Renderer::addDirectionalShadowPass(Scene* scene, const Camera& camera, const std::vector<Entity*>& shadowCasters)
     {
         void* preallocatedAddr = m_frameAllocator.alloc(sizeof(DirectionalShadowPass));
         Viewport viewport = { 0, 0, DirectionalShadowPass::s_depthRenderTarget->m_width, DirectionalShadowPass::s_depthRenderTarget->m_height };
-        DirectionalShadowPass* pass = new (preallocatedAddr) DirectionalShadowPass(0, viewport, scene, camera, shadowCasters, lightIdx);
+        DirectionalShadowPass* pass = new (preallocatedAddr) DirectionalShadowPass(nullptr, viewport, camera, scene->dLights[0], shadowCasters);
         m_renderState.addRenderPass(pass);
 
         switch (DirectionalShadowPass::m_cascadedShadowMap.m_technique)
@@ -763,7 +793,6 @@ namespace Cyan
 
     void Renderer::drawEntity(Entity* entity) 
     {
-        // drawSceneNode(entity->m_sceneRoot);
         std::queue<SceneNode*> nodes;
         nodes.push(entity->m_sceneRoot);
         while (!nodes.empty())
@@ -785,16 +814,6 @@ namespace Cyan
             return 0;
         }
         return sizeof(vec[0]) * (u32)vec.size();
-    }
-
-    void Renderer::drawSceneNode(SceneNode* node)
-    {
-        if (node->m_meshInstance)
-            drawMeshInstance(node->m_meshInstance, node->globalTransform);
-        for (auto* child : node->m_child)
-        {
-            drawSceneNode(child);
-        }
     }
 
     void Renderer::endFrame()
@@ -845,19 +864,6 @@ namespace Cyan
     void Renderer::renderDebugObjects()
     {
 
-    }
-
-    void Renderer::drawMesh(Mesh* mesh)
-    {
-        auto ctx = getCurrentGfxCtx();
-        for (u32 sm = 0; sm < mesh->numSubMeshes(); ++sm)
-        {
-            auto subMesh = mesh->m_subMeshes[sm];
-            ctx->setVertexArray(subMesh->m_vertexArray);
-            if (subMesh->m_vertexArray->hasIndexBuffer())
-                ctx->drawIndex(subMesh->m_vertexArray->m_numIndices);
-            else ctx->drawIndexAuto(subMesh->m_vertexArray->numVerts());
-        }
     }
 
     void Renderer::executeOnEntity(Entity* e, const std::function<void(SceneNode*)>& func)
@@ -924,17 +930,18 @@ namespace Cyan
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, gLighting.dirLightSBO);
         glNamedBufferSubData(gLighting.pointLightsSBO, 0, sizeofVector(gLighting.pointLights), gLighting.pointLights.data());
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, gLighting.pointLightsSBO);
-        gLighting.distantProbe    = scene->m_distantProbe;
         gLighting.irradianceProbe = scene->m_irradianceProbe;
         gLighting.reflectionProbe = scene->m_reflectionProbe;
-        // global distant probe
-        if (gLighting.distantProbe)
+
+        // skybox
+        glBindTextureUnit(2, ReflectionProbe::getBRDFLookupTexture()->m_id);
+        if (gLighting.skyBox)
         {
-            glBindTextureUnit(0, gLighting.distantProbe->m_diffuse->m_id);
-            glBindTextureUnit(1, gLighting.distantProbe->m_specular->m_id);
-            glBindTextureUnit(2, gLighting.distantProbe->m_brdfIntegral->m_id);
+            glBindTextureUnit(0, gLighting.skyBox->getDiffueTexture()->m_id);
+            glBindTextureUnit(1, gLighting.skyBox->getSpecularTexture()->m_id);
         }
-        // local GI probes
+
+        // additional light probes
         if (gLighting.irradianceProbe)
             glBindTextureUnit(3, gLighting.irradianceProbe->m_convolvedIrradianceTexture->m_id);
 

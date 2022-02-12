@@ -437,10 +437,10 @@ namespace Cyan
         ctx->setDepthControl(DepthControl::kEnable);
     }
     
-    DirectionalShadowPass::DirectionalShadowPass(RenderTarget* renderTarget, Viewport viewport, Scene* scene, Camera& camera, const std::vector<Entity*>& shadowCasters, u32 dirLightIdx)
-        : RenderPass(renderTarget, viewport), m_scene(scene), m_camera(camera). m_shadowCasters(shadowCasters)
+    DirectionalShadowPass::DirectionalShadowPass(RenderTarget* renderTarget, Viewport viewport, const Camera& camera, const DirectionalLight& light, const std::vector<Entity*>& shadowCasters)
+        : RenderPass(renderTarget, viewport), m_light(light), m_camera(camera), m_shadowCasters(shadowCasters)
     {
-        m_light = scene->dLights[dirLightIdx];
+
     }
 
     void DirectionalShadowPass::onInit()
@@ -637,10 +637,11 @@ namespace Cyan
         glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
         ctx->setClearColor(glm::vec4(0.f));
         ctx->setShader(s_directShadowShader);
+        ctx->setPrimitiveType(PrimitiveType::TriangleList);
         auto renderer = Renderer::getSingletonPtr();
-        for (auto entity : m_scene->entities)
+        for (u32 i = 0; i < m_shadowCasters.size(); i++)
         {
-            renderer->executeOnEntity(entity, [ctx, renderer, cascade, lightView](SceneNode* node) {
+            renderer->executeOnEntity(m_shadowCasters[i], [ctx, renderer, cascade, lightView](SceneNode* node) {
                 if (node->m_meshInstance)
                 {
                     s_directShadowMatl->set("transformIndex", node->globalTransform);

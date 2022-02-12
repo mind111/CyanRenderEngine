@@ -162,6 +162,9 @@
     <ClInclude Include="src\ImGuizmo\ImGuizmo.h">
       <Filter>Source Files\External\ImGuizmo</Filter>
     </ClInclude>
+    <ClInclude Include="include\SkyBox.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Asset.cpp">
@@ -278,6 +281,9 @@
     <ClCompile Include="src\ImGuizmo\ImGuizmo.cpp">
       <Filter>Source Files\External\ImGuizmo</Filter>
     </ClCompile>
+    <ClCompile Include="src\SkyBox.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\ImGuizmo\LICENSE">
@@ -343,10 +349,10 @@
     <None Include="..\shader\shader_downsample.vs">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_skybox.fs">
+    <None Include="..\shader\skybox_p.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_skybox.vs">
+    <None Include="..\shader\skybox_v.glsl">
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\shader_flat_color.fs">
@@ -412,10 +418,10 @@
     <None Include="..\shader\shader_oct_mapping.vs">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_pbr.fs">
+    <None Include="..\shader\pbs_p.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_pbr.vs">
+    <None Include="..\shader\pbs_v.glsl">
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\shader_prefilter_specular.fs">

@@ -28,28 +28,6 @@
 static float kCameraOrbitSpeed = 0.005f;
 static float kCameraRotateSpeed = 0.005f;
 
-struct HosekSkyLight
-{
-    ArHosekSkyModelState* stateR;
-    ArHosekSkyModelState* stateG;
-    ArHosekSkyModelState* stateB;
-
-    HosekSkyLight(const glm::vec3& sunDir, const glm::vec3& groundAlbedo)
-        : stateR(nullptr), stateG(nullptr), stateB(nullptr)
-    {
-        // in radians
-        f32 solarElevation = acos(glm::dot(sunDir, glm::vec3(0.f, 1.f, 0.f)));
-        auto stateR = arhosek_rgb_skymodelstate_alloc_init(2.f, groundAlbedo.r, solarElevation);
-        auto stateG = arhosek_rgb_skymodelstate_alloc_init(2.f, groundAlbedo.g, solarElevation);
-        auto stateB = arhosek_rgb_skymodelstate_alloc_init(2.f, groundAlbedo.b, solarElevation);
-    }
-
-    glm::vec3 sample(const glm::vec3& dir)
-    {
-
-    }
-};
-
 struct CameraControlInputs
 {
     double mouseCursorDx;
@@ -231,8 +209,7 @@ PbrApp* PbrApp::get()
 }
 
 PbrApp::PbrApp()
-: m_debugRayTracingNormal(0.f, 1.f, 0.f)
-, bOrbit(false)
+: bOrbit(false)
 {
     bOrbit = false;
     gApp = this;
@@ -329,22 +306,11 @@ void PbrApp::initDemoScene00()
     {
         glm::vec3 sunDir = glm::normalize(glm::vec3(1.0f, 0.5f, 1.8f));
         sceneManager->createDirectionalLight(demoScene00, glm::vec3(1.0f, 0.9, 0.7f), sunDir, 3.6f);
-        // sky light
-        auto sceneManager = SceneManager::getSingletonPtr();
         // todo: refactor lights, decouple them from Entity
-        Entity* skyBoxEntity = sceneManager->createEntity(demoScene00, "SkyBox", Transform(), true);
-        skyBoxEntity->m_sceneRoot->attach(sceneManager->createSceneNode(demoScene00, "CubeMesh", Transform(), Cyan::getMesh("CubeMesh"), false));
-        skyBoxEntity->setMaterial("CubeMesh", 0, m_skyMatl);
-        skyBoxEntity->m_selectable = false;
-        skyBoxEntity->m_includeInGBufferPass = false;
 
         // light probes
-        m_irradianceProbe = sceneManager->createIrradianceProbe(demoScene00, glm::vec3(0.f, 2.f, 0.f), glm::uvec2(512u, 512u), glm::uvec2(64u, 64u));
-        m_reflectionProbe = sceneManager->createReflectionProbe(demoScene00, glm::vec3(0.f, 3.f, 0.f), glm::uvec2(2048u, 2048u));
-
-        demoScene00->m_reflectionProbe = m_reflectionProbe;
-        // procedural sky
-        glm::vec3 groundAlbedo(1.f, 0.5f, 0.5f);
+        demoScene00->m_irradianceProbe = sceneManager->createIrradianceProbe(demoScene00, glm::vec3(0.f, 2.f, 0.f), glm::uvec2(512u, 512u), glm::uvec2(64u, 64u));
+        demoScene00->m_reflectionProbe = sceneManager->createReflectionProbe(demoScene00, glm::vec3(0.f, 3.f, 0.f), glm::uvec2(2048u, 2048u));
     }
     // grid of shader ball on the table
     {
@@ -516,12 +482,6 @@ void PbrApp::initSponzaScene()
     // lighting
     glm::vec3 sunDir = glm::normalize(glm::vec3(0.0f, 1.0f, 0.0f));
     sceneManager->createDirectionalLight(sponzaScene, glm::vec3(1.0f, 0.9, 0.7f), sunDir, 3.6f);
-    // sky light
-    Entity* skyBoxEntity = sceneManager->createEntity(sponzaScene, "SkyBox", Transform(), true);
-    skyBoxEntity->m_sceneRoot->attach(sceneManager->createSceneNode(sponzaScene, "CubeMesh", Transform(), Cyan::getMesh("CubeMesh"), false));
-    skyBoxEntity->setMaterial("CubeMesh", 0, m_skyMatl);
-    skyBoxEntity->m_selectable = false;
-    skyBoxEntity->m_includeInGBufferPass = false;
     // light probes
     m_irradianceProbe = sceneManager->createIrradianceProbe(sponzaScene, glm::vec3(0.f, 2.f, 0.f), glm::uvec2(512u, 512u), glm::uvec2(64u, 64u));
     m_reflectionProbe = sceneManager->createReflectionProbe(sponzaScene, glm::vec3(0.f, 3.f, 0.f), glm::uvec2(2048u, 2048u));
@@ -569,23 +529,13 @@ void PbrApp::initScenes()
 
 void PbrApp::initShaders()
 {
-    Cyan::createShader("PbrShader", "../../shader/shader_pbr.vs", "../../shader/shader_pbr.fs");
-    m_skyBoxShader = Cyan::createShader("SkyBoxShader", "../../shader/shader_skybox.vs", "../../shader/shader_skybox.fs");
-    m_skyShader = Cyan::createShader("SkyShader", "../../shader/shader_sky.vs", "../../shader/shader_sky.fs");
+    Cyan::createShader("PBSShader", SHADER_SOURCE_PATH "pbs_v.glsl", SHADER_SOURCE_PATH "pbs_p.glsl");
 }
 
 void PbrApp::initSkyBoxes()
 {
     Cyan::Toolkit::GpuTimer timer("initEnvMaps()", true);
-    // image-based-lighting
-    Cyan::Toolkit::createDistantLightProbe("pisa", "../../asset/cubemaps/pisa.hdr", true);
-
     m_currentProbeIndex = 0u;
-    Cyan::Texture* skyBoxTex = Cyan::getProbe(m_currentProbeIndex)->m_baseCubeMap;
-    m_skyBoxMatl = Cyan::createMaterial(m_skyBoxShader)->createInstance(); 
-    m_skyBoxMatl->bindTexture("envmapSampler", skyBoxTex);
-    m_skyMatl = Cyan::createMaterial(m_skyShader)->createInstance();
-    
     // this is necessary as we are setting z component of
     // the cubemap mesh to 1.f
     glDepthFunc(GL_LEQUAL);
@@ -597,7 +547,7 @@ void PbrApp::initUniforms()
 
 }
 
-void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewportPos, glm::vec2 renderSize)
+void PbrApp::initialize(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewportPos, glm::vec2 renderSize)
 {
     Cyan::Toolkit::GpuTimer timer("init()", true);
     using Cyan::Material;
@@ -644,13 +594,7 @@ void PbrApp::init(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewpo
     m_indirectSpecularSlider = 4.0f;
     m_directLightingSlider = 1.f;
     m_indirectLightingSlider = 0.f;
-    m_debugRay.init();
-    m_debugRay.setColor(glm::vec4(1.0f, 1.0f, 0.0f, 1.0f));
     auto renderer = Cyan::Renderer::getSingletonPtr();
-    m_debugRay.setViewProjection(renderer->u_cameraView, renderer->u_cameraProjection);
-    m_debugProbeIndex = 13;
-    m_debugRo = glm::vec3(-5.f, 2.43, 0.86);
-    m_debugRd = glm::vec3(0.0f, -0.29f, 0.47f);
 
     // clear color
     Cyan::getCurrentGfxCtx()->setClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.f));
@@ -679,34 +623,16 @@ void PbrApp::beginFrame()
 
 void PbrApp::bakeLightProbes(Cyan::ReflectionProbe* probes, u32 numProbes)
 {
-    auto renderer = Cyan::Renderer::getSingletonPtr();
-    // global sun light shadow pass
-    renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), 0);
-    for (u32 i = 0; i < numProbes; ++i)
-    {
-        probes[i].bake();
-    }
+
 }
 
 void PbrApp::doPrecomputeWork()
 {
     // precomute thingy here
     {
-        auto ctx = Cyan::getCurrentGfxCtx();
-        // update probe
-        auto sceneManager = SceneManager::getSingletonPtr();
-        sceneManager->setDistantLightProbe(m_scenes[m_currentScene], Cyan::getProbe(m_currentProbeIndex));
-#ifdef SCENE_DEMO_00 
         auto renderer = Cyan::Renderer::getSingletonPtr();
-        renderer->beginRender();
-        renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), 0);
-        renderer->render(m_scenes[m_currentScene]);
-        renderer->endRender();
-        // updateScene(m_scenes[m_currentScene]);
-        m_reflectionProbe->bake();
-        // m_irradianceProbe->sampleRadiance();
-        // m_irradianceProbe->computeIrradiance();
-        // ctx->setRenderTarget(nullptr, 0u);
+#ifdef SCENE_DEMO_00 
+        m_scenes[Scenes::Demo_Scene_00]->m_reflectionProbe->build();
 #endif
     }
 }
@@ -1072,12 +998,14 @@ void PbrApp::drawLightingWidgets()
         }
         ImGui::TreePop();
     }
+#if 0
     // sky light
     std::vector<const char*> envMaps;
     u32 numProbes = Cyan::getNumProbes();
     for (u32 index = 0u; index < numProbes; ++index)
         envMaps.push_back(Cyan::getProbe(index)->m_baseCubeMap->m_name.c_str());
     m_ui.comboBox(envMaps.data(), numProbes, "EnvMap", &m_currentProbeIndex);
+#endif
 
     ImGui::SameLine();
     if (m_ui.button("Load"))
@@ -1213,7 +1141,7 @@ void PbrApp::buildFrame()
 {
     // construct work for current frame
     Cyan::Renderer* renderer = Cyan::Renderer::getSingletonPtr();
-    //renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), 0);
+    renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), m_scenes[m_currentScene]->entities);
     renderer->addScenePass(m_scenes[m_currentScene]);
     {
         void* memory = renderer->getAllocator().alloc(sizeof(DebugRenderPass));
@@ -1286,8 +1214,6 @@ void PbrApp::render()
     // frame timer
     Cyan::Toolkit::GpuTimer frameTimer("render()");
 
-    // update probe
-    SceneManager::getSingletonPtr()->setDistantLightProbe(m_scenes[m_currentScene], Cyan::getProbe(m_currentProbeIndex));
     auto renderer = m_graphicsSystem->getRenderer();
     renderer->beginRender();
     buildFrame();
@@ -1298,7 +1224,6 @@ void PbrApp::render()
     m_ui.begin();
     drawSceneViewport();
     drawDebugWindows();
-
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 

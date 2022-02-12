@@ -20,14 +20,6 @@ extern float quadVerts[24];
 
 namespace Cyan
 {
-    class FrameListener
-    {
-        FrameListener() { }
-        ~FrameListener() { }
-        virtual void onFrameStart();
-        virtual void onFrameEnd();
-    };
-    
     // TODO: implement this
     struct RenderView
     {
@@ -115,9 +107,17 @@ namespace Cyan
         BoundingBox3f computeSceneAABB(Scene* scene);
         void executeOnEntity(Entity* e, const std::function<void(SceneNode*)>& func);
         void drawEntity(Entity* entity);
-        void drawSceneNode(SceneNode* node);
         void drawMesh(Mesh* mesh);
+        /* Brief:
+            * Draw a mesh without transform using same type of material for all its submeshes.
+        */
+        void drawMesh(Mesh* mesh, MaterialInstance* matl, RenderTarget* dstRenderTarget, const Viewport& viewport);
+
+        /* Brief:
+            * Draw an instanced mesh with transform that allows different types of materials for each submeshes.
+        */
         void drawMeshInstance(MeshInstance* meshInstance, i32 transformIndex);
+
         // blit viewport to default frame buffer for debug rendering
         void debugBlit(Cyan::Texture* texture, Viewport viewport);
         void submitMesh(Mesh* mesh, glm::mat4 modelTransform);
@@ -125,7 +125,7 @@ namespace Cyan
         void endFrame();
 
         void addScenePass(Scene* scene);
-        void addDirectionalShadowPass(Scene* scene, Camera& camera, const std::vector<Entity*>& shadowCasters, u32 lightIdx);
+        void addDirectionalShadowPass(Scene* scene, const Camera& camera, const std::vector<Entity*>& shadowCasters);
         void addCustomPass(RenderPass* pass);
         void addTexturedQuadPass(RenderTarget* renderTarget, Viewport viewport, Texture* srcTexture);
         void addBloomPass();
@@ -218,7 +218,7 @@ namespace Cyan
             std::vector<DirLightGpuData>   dirLights;
             GLuint                         dirLightSBO;
             GLuint                         pointLightsSBO;
-            DistantLightProbe*             distantProbe;
+            SkyBox*                        skyBox;
             IrradianceProbe*               irradianceProbe;
             ReflectionProbe*               reflectionProbe;
         } gLighting;

@@ -31,7 +31,6 @@ vec3 generateSample(vec3 n, float theta, float phi)
 
 vec3 importanceSampleGGX(vec3 n, float roughness, float rand_u, float rand_v)
 {
-    // TODO: verify this importance sampling ggx procedure
     float theta = atan(roughness * sqrt(rand_u) / max(sqrt(1 - rand_u), 0.01));
     float phi = 2 * pi * rand_v;
     return generateSample(n, theta, phi);
@@ -113,7 +112,7 @@ void main()
     float ndotv = uv.y; 
     float sinTheta = sqrt(1 - ndotv * ndotv);
     vec3 v = vec3(sinTheta, ndotv, 0.f);
-    uint numSamples = 2048u;
+    uint numSamples = 1024u;
     vec3 n = vec3(0.f, 1.f, 0.f);
     float A = 0.f;
     float B = 0.f;
