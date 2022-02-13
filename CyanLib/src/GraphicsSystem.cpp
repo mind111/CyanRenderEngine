@@ -23,6 +23,13 @@ namespace Cyan
         m_pathTracer = new PathTracer;
         m_renderer = new Renderer;
         m_renderer->initialize(m_windowSize);
+        
+        // configure some necessary gl global states
+        // this is necessary as we are setting z component of
+        // the cubemap mesh to 1.f
+        glDepthFunc(GL_LEQUAL);
+        glEnable(GL_LINE_SMOOTH);
+        glLineWidth(4.f);
     }
 
     GraphicsSystem* GraphicsSystem::getSingletonPtr()

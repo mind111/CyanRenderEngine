@@ -5,8 +5,7 @@ layout (location = 0) out vec4 fragColor;
 layout (location = 1) out vec3 fragNormal;
 layout (location = 2) out vec3 fragDepth;
 layout (location = 3) out vec3 radialDepth;
-uniform vec3 cameraPos;
-uniform vec3 cameraLookAt;
+
 #define pi 3.14159265359
 
 struct Hit {
@@ -64,7 +63,7 @@ Hit castRay(vec3 ro, vec3 rd) {
 void main() {
     vec3 ro = vec3(0.f);
     vec3 rd = normalize(fragmentObjPos);
-    // rd.y = abs(rd.y);
+
     // default background color
     vec3 horizonColor = vec3(1.f, 0.279f, 0.1f);
     //vec3 skyDomeColor = vec3(0.200, 0.449, 1.0000);
@@ -74,6 +73,7 @@ void main() {
     fragColor = vec4(skyColor, 1.f);
     vec3 colorA = vec3(.9f);
     vec3 colorB = vec3(.2f);
+
     // ray marching
     Hit hit = castRay(vec3(0.f), rd);
 #if 0
@@ -84,6 +84,7 @@ void main() {
         }
     }
 #endif
+
     fragNormal = vec3(0.f);
     fragDepth = vec3(1.f);
     // TODO: hard-coded for now

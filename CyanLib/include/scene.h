@@ -36,9 +36,9 @@ struct Scene
     std::vector<Cyan::Mesh>                 g_meshes;
     std::vector<Cyan::Texture>              g_textures;
     // lighting
-    u32                                     m_currentEnvMap;
     std::vector<PointLight>                 pLights;
     std::vector<DirectionalLight>           dLights;
+    Cyan::Skybox*                           m_skybox;
     Cyan::IrradianceProbe*                  m_irradianceProbe;
     Cyan::ReflectionProbe*                  m_reflectionProbe;
 
@@ -64,7 +64,6 @@ public:
     static SceneManager* getSingletonPtr();
     u32        allocEntityId();
     void       updateSceneGraph(Scene* scene);
-    void       buildLightList(Scene* scene, std::vector<PointLightGpuData>& pLights, std::vector<DirLightGpuData>& dLights);
     void       createDirectionalLight(Scene* scene, glm::vec3 color, glm::vec3 direction, float intensity);
     void       createPointLight(Scene* scene, glm::vec3 color, glm::vec3 position, float intensity);
     u32        allocSceneNode(Scene* scene);

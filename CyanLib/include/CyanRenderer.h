@@ -186,9 +186,9 @@ namespace Cyan
 
         enum class GlobalTextureBindings
         {
-            DistantProbeDiffuse = 0,
-            DistantProbeSpecular,
-            DistantProbeBRDF,
+            SkyboxDiffuse = 0,
+            SkyboxSpecular,
+            BRDFLookupTexture,
             IrradianceProbe,
             ReflectionProbe,
             SSAO,
@@ -218,7 +218,7 @@ namespace Cyan
             std::vector<DirLightGpuData>   dirLights;
             GLuint                         dirLightSBO;
             GLuint                         pointLightsSBO;
-            SkyBox*                        skyBox;
+            Skybox*                        skybox;
             IrradianceProbe*               irradianceProbe;
             ReflectionProbe*               reflectionProbe;
         } gLighting;

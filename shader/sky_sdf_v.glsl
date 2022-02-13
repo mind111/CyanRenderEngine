@@ -60,12 +60,11 @@ float cubeVertices[] = {
      1.0f, -1.0f,  1.0f
 };
 
-void main()
+void main() 
 {
     vec3 vPosition = vec3(cubeVertices[gl_VertexID * 3 + 0], cubeVertices[gl_VertexID * 3 + 1], cubeVertices[gl_VertexID * 3 + 2]);
     fragmentObjPos = vPosition;
     mat4 view = gDrawData.view;
-    // remove translation from view matrix
     view[3] = vec4(0.f, 0.f, 0.f, 1.f);
     gl_Position = (gDrawData.projection * view * vec4(vPosition, 1.f)).xyww;
 }

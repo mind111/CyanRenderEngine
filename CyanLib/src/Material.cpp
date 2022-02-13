@@ -247,9 +247,9 @@ namespace Cyan
         m_materialInstance->set("uMatlData.directSpecularScale", 1.f);
         m_materialInstance->set("uMatlData.indirectDiffuseScale", 1.f);
         m_materialInstance->set("uMatlData.indirectSpecularScale", 1.f);
+        m_materialInstance->set("uMatlData.useSkybox", 0.f);
         m_materialInstance->set("gLighting.indirectDiffuseScale", 1.f);
         m_materialInstance->set("gLighting.indirectSpecularScale", 1.f);
-        m_materialInstance->set("uMaterialProps.hasBakedLighting", 0.f);
         m_materialInstance->set("disneyReparam", 1.0f);
     }
 

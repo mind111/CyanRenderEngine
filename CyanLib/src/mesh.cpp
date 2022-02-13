@@ -13,7 +13,9 @@ namespace Cyan
             m_normalization = Toolkit::computeMeshNormalization(this);
         else
             Toolkit::computeAABB(this);
+#ifdef _DEBUG
         cyanInfo("%s mesh has %u triangles", m_name.c_str(), numTriangles());
+#endif
         timer.end();
     }
 

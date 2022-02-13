@@ -54,9 +54,9 @@ CameraCommand buildCameraCommand(CameraCommand::Type type, double mouseCursorDx,
     return CameraCommand{ type, { mouseCursorDx, mouseCursorDy, mouseWheelDx, mouseWheelDy }};
 }
 
-void PbrApp::dispatchCameraCommand(CameraCommand& command)
+void DemoApp::dispatchCameraCommand(CameraCommand& command)
 {
-    PbrApp* app = PbrApp::get();
+    DemoApp* app = DemoApp::get();
     switch(command.type)
     {
         case CameraCommand::Type::Orbit:
@@ -76,7 +76,7 @@ void PbrApp::dispatchCameraCommand(CameraCommand& command)
 
 struct DebugRenderPass : Cyan::RenderPass
 {
-    DebugRenderPass(Cyan::RenderTarget* renderTarget, Cyan::Viewport viewport, PbrApp* app)
+    DebugRenderPass(Cyan::RenderTarget* renderTarget, Cyan::Viewport viewport, DemoApp* app)
         : RenderPass(renderTarget, viewport), m_app(app)
     {
 
@@ -92,14 +92,14 @@ struct DebugRenderPass : Cyan::RenderPass
         m_app->debugRenderOctree();
     }
 
-    PbrApp* m_app;
+    DemoApp* m_app;
 };
 
-namespace Pbr
+namespace Demo
 {
     void mouseCursorCallback(double cursorX, double cursorY, double deltaX, double deltaY)
     {
-        PbrApp* app = PbrApp::get();
+        DemoApp* app = DemoApp::get();
         CameraCommand command = { };
         command.type = CameraCommand::Type::Orbit;
         command.params.mouseCursorDx = deltaX;
@@ -113,7 +113,7 @@ namespace Pbr
 
     void mouseButtonCallback(int button, int action)
     {
-        PbrApp* app = PbrApp::get();
+        DemoApp* app = DemoApp::get();
         switch(button)
         {
             case CYAN_MOUSE_BUTTON_LEFT:
@@ -157,7 +157,7 @@ namespace Pbr
 
     void mouseScrollWheelCallback(double xOffset, double yOffset)
     {
-        PbrApp* app = PbrApp::get();
+        DemoApp* app = DemoApp::get();
         if (!app->mouseOverUI())
         {
             CameraCommand command = { };
@@ -170,7 +170,7 @@ namespace Pbr
 
     void keyCallback(i32 key, i32 action)
     {
-        PbrApp* app = PbrApp::get();
+        DemoApp* app = DemoApp::get();
         switch (key)
         {
             // switch camera view
@@ -199,16 +199,16 @@ enum Scenes
     kCount
 };
 
-static PbrApp* gApp = nullptr;
+static DemoApp* gApp = nullptr;
 
-PbrApp* PbrApp::get()
+DemoApp* DemoApp::get()
 {
     if (gApp)
         return gApp;
     return nullptr;
 }
 
-PbrApp::PbrApp()
+DemoApp::DemoApp()
 : bOrbit(false)
 {
     bOrbit = false;
@@ -218,12 +218,12 @@ PbrApp::PbrApp()
     m_currentDebugView = -1;
 }
 
-bool PbrApp::mouseOverUI()
+bool DemoApp::mouseOverUI()
 {
     return (m_mouseCursorX < 400.f && m_mouseCursorX > 0.f && m_mouseCursorY < 720.f && m_mouseCursorY > 0.f);
 }
 
-Cyan::StandardPbrMaterial* PbrApp::createStandardPbrMatlInstance(Scene* scene, Cyan::PbrMaterialParam params, bool isStatic)
+Cyan::StandardPbrMaterial* DemoApp::createStandardPbrMatlInstance(Scene* scene, Cyan::PbrMaterialParam params, bool isStatic)
 {
     if (isStatic)
     {
@@ -240,7 +240,7 @@ Cyan::StandardPbrMaterial* PbrApp::createStandardPbrMatlInstance(Scene* scene, C
     return matl;
 }
 
-void PbrApp::createHelmetInstance(Scene* scene)
+void DemoApp::createHelmetInstance(Scene* scene)
 {
     auto textureManager = m_graphicsSystem->getTextureManager();
     auto sceneManager = SceneManager::getSingletonPtr();
@@ -257,7 +257,7 @@ void PbrApp::createHelmetInstance(Scene* scene)
     }
 }
 
-void PbrApp::initDemoScene00()
+void DemoApp::initDemoScene00()
 {
     Cyan::Toolkit::GpuTimer timer("initDemoScene00()", true);
     auto textureManager = m_graphicsSystem->getTextureManager();
@@ -303,15 +303,21 @@ void PbrApp::initDemoScene00()
         man->setMaterial("ManMesh", -1, manMatl);
     }
     // lighting
+    // todo: refactor lights, decouple them from Entity
     {
+        // sun light
         glm::vec3 sunDir = glm::normalize(glm::vec3(1.0f, 0.5f, 1.8f));
         sceneManager->createDirectionalLight(demoScene00, glm::vec3(1.0f, 0.9, 0.7f), sunDir, 3.6f);
-        // todo: refactor lights, decouple them from Entity
+
+        // skybox
+        demoScene00->m_skybox = new Cyan::Skybox(nullptr, glm::uvec2(1024u), Cyan::SkyboxConfig::kUseProcedural);
+        demoScene00->m_skybox->build();
 
         // light probes
         demoScene00->m_irradianceProbe = sceneManager->createIrradianceProbe(demoScene00, glm::vec3(0.f, 2.f, 0.f), glm::uvec2(512u, 512u), glm::uvec2(64u, 64u));
         demoScene00->m_reflectionProbe = sceneManager->createReflectionProbe(demoScene00, glm::vec3(0.f, 3.f, 0.f), glm::uvec2(2048u, 2048u));
     }
+
     // grid of shader ball on the table
     {
         glm::vec3 gridLowerLeft(-2.1581, 1.1629, 2.5421);
@@ -422,8 +428,7 @@ void PbrApp::initDemoScene00()
             matl->bindTexture("lightMap", planeNode->m_meshInstance->m_lightMap->m_texAltas);
         }
 #else
-        // todo: debug this, how is the material created for the room?
-        // directly use prebaked lightmap
+        // directly use baked lightmap
         auto lightMapManager = Cyan::LightMapManager::getSingletonPtr();
         lightMapManager->createLightMapFromTexture(roomNode, textureManager->getTexture("RoomMesh_lightmap"));
         lightMapManager->createLightMapFromTexture(planeNode, textureManager->getTexture("PlaneMesh_lightmap"));
@@ -449,25 +454,11 @@ void PbrApp::initDemoScene00()
         room->setMaterial("PlaneMesh", -1, planeMatl);
         sceneManager->updateSceneGraph(demoScene00);
 #endif
-        // path tracing
-        {
-            // pathTraceScene(demoScene00);
-        }
     }
     timer.end();
 }
 
-void PbrApp::pathTraceScene(Scene* scene)
-{
-    auto pathTracer = Cyan::PathTracer::getSingletonPtr();
-    pathTracer->m_renderMode = Cyan::PathTracer::RenderMode::Render; pathTracer->setScene(scene);
-    pathTracer->run(scene->getActiveCamera());
-
-    // debug
-    auto shader = Cyan::createShader("DebugShadingShader", "../../shader/debug_color_vs.glsl", "../../shader/debug_color_fs.glsl");
-}
-
-void PbrApp::initSponzaScene()
+void DemoApp::initSponzaScene()
 {
     Cyan::Toolkit::GpuTimer timer("initSponzaScene()", true);
     auto sceneManager = SceneManager::getSingletonPtr();
@@ -478,33 +469,40 @@ void PbrApp::initSponzaScene()
     Entity* sponza = sceneManager->getEntity(sponzaScene, "Sponza");
     auto sponzaNode = sponza->getSceneNode("SponzaMesh");
     Cyan::Mesh* sponzaMesh = sponzaNode->m_meshInstance->m_mesh;
+    sponzaMesh->m_bvh = new Cyan::MeshBVH(sponzaMesh);
+    sponzaMesh->m_bvh->build();
 
     // lighting
     glm::vec3 sunDir = glm::normalize(glm::vec3(0.0f, 1.0f, 0.0f));
     sceneManager->createDirectionalLight(sponzaScene, glm::vec3(1.0f, 0.9, 0.7f), sunDir, 3.6f);
-    // light probes
-    m_irradianceProbe = sceneManager->createIrradianceProbe(sponzaScene, glm::vec3(0.f, 2.f, 0.f), glm::uvec2(512u, 512u), glm::uvec2(64u, 64u));
-    m_reflectionProbe = sceneManager->createReflectionProbe(sponzaScene, glm::vec3(0.f, 3.f, 0.f), glm::uvec2(2048u, 2048u));
-    sponzaScene->m_reflectionProbe = m_reflectionProbe;
-    // procedural sky
-    glm::vec3 groundAlbedo(1.f, 0.5f, 0.5f);
 
-    // path tracing
-#if 0
-    {
-        sponzaMesh->m_bvh = new Cyan::MeshBVH(sponzaMesh);
-        sponzaMesh->m_bvh->build();
-        pathTraceScene(sponzaScene);
-    }
-#endif
+    // light probes
+    sponzaScene->m_irradianceProbe = sceneManager->createIrradianceProbe(sponzaScene, glm::vec3(0.f, 2.f, 0.f), glm::uvec2(512u, 512u), glm::uvec2(64u, 64u));
+    sponzaScene->m_reflectionProbe = sceneManager->createReflectionProbe(sponzaScene, glm::vec3(0.f, 3.f, 0.f), glm::uvec2(2048u, 2048u));
 }
 
-void PbrApp::initScenes()
+void DemoApp::initialize(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewportPos, glm::vec2 renderSize)
 {
-    auto renderer = Cyan::Renderer::getSingletonPtr();
+    Cyan::Toolkit::GpuTimer timer("DemoApp::initialize()", true);
+
+    bRunning = true;
+    // init engine
+    gEngine->initialize({ appWindowWidth, appWindowHeight }, sceneViewportPos, renderSize);
+    // setup input control
+    gEngine->registerMouseCursorCallback(&Demo::mouseCursorCallback);
+    gEngine->registerMouseButtonCallback(&Demo::mouseButtonCallback);
+    gEngine->registerMouseScrollWheelCallback(&Demo::mouseScrollWheelCallback);
+    gEngine->registerKeyCallback(&Demo::keyCallback);
+
+    m_graphicsSystem = Cyan::GraphicsSystem::getSingletonPtr();
+
+    // physically-based shading shader
+    Cyan::createShader("PBSShader", SHADER_SOURCE_PATH "pbs_v.glsl", SHADER_SOURCE_PATH "pbs_p.glsl");
+
+    auto renderer = m_graphicsSystem->getRenderer();
     glm::vec2 viewportSize = renderer->getViewportSize();
     float aspectRatio = viewportSize.x / viewportSize.y;
-    auto initCamera = [&](Scene* scene)
+    auto initializeCamera = [&](Scene* scene)
     {
         for (auto& camera : scene->cameras)
         {
@@ -512,75 +510,18 @@ void PbrApp::initScenes()
             camera.projection = glm::perspective(glm::radians(camera.fov), aspectRatio, camera.n, camera.f);
         }
     };
-
-#ifdef SCENE_SPONZA
-    {
-        initSponzaScene();
-        initCamera(m_scenes[Scenes::Sponza_Scene]);
-    }
-#endif
 #ifdef SCENE_DEMO_00
     {
         initDemoScene00();
-        initCamera(m_scenes[Scenes::Demo_Scene_00]);
+        initializeCamera(m_scenes[Scenes::Demo_Scene_00]);
+        m_currentScene = Scenes::Demo_Scene_00;
     }
 #endif
-}
-
-void PbrApp::initShaders()
-{
-    Cyan::createShader("PBSShader", SHADER_SOURCE_PATH "pbs_v.glsl", SHADER_SOURCE_PATH "pbs_p.glsl");
-}
-
-void PbrApp::initSkyBoxes()
-{
-    Cyan::Toolkit::GpuTimer timer("initEnvMaps()", true);
-    m_currentProbeIndex = 0u;
-    // this is necessary as we are setting z component of
-    // the cubemap mesh to 1.f
-    glDepthFunc(GL_LEQUAL);
-    timer.end();
-}
-
-void PbrApp::initUniforms()
-{
-
-}
-
-void PbrApp::initialize(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewportPos, glm::vec2 renderSize)
-{
-    Cyan::Toolkit::GpuTimer timer("init()", true);
-    using Cyan::Material;
-    using Cyan::Mesh;
-
-    // init engine
-    gEngine->init({ appWindowWidth, appWindowHeight }, sceneViewportPos, renderSize);
-    bRunning = true;
-    // setup input control
-    gEngine->registerMouseCursorCallback(&Pbr::mouseCursorCallback);
-    gEngine->registerMouseButtonCallback(&Pbr::mouseButtonCallback);
-    gEngine->registerMouseScrollWheelCallback(&Pbr::mouseScrollWheelCallback);
-    gEngine->registerKeyCallback(&Pbr::keyCallback);
-
-    m_graphicsSystem = Cyan::GraphicsSystem::getSingletonPtr();
-
-    initShaders();
-    initUniforms();
-    initSkyBoxes();
-    initScenes();
-
-#ifdef SCENE_SPONZA
-    m_currentScene = Scenes::Sponza_Scene;
-#endif
-#ifdef SCENE_DEMO_00
-    m_currentScene = Scenes::Demo_Scene_00;
-#endif
-
-    glEnable(GL_LINE_SMOOTH);
-    glLineWidth(4.f);
 
     // ui
     m_ui.init(gEngine->getWindow().mpWindow);
+    ImGuiIO& io = ImGui::GetIO();
+    m_font = io.Fonts->AddFontFromFileTTF("C:\\dev\\cyanRenderEngine\\asset\\fonts\\Roboto-Medium.ttf", 16.f);
 
     // misc
     bRayCast = false;
@@ -594,18 +535,14 @@ void PbrApp::initialize(int appWindowWidth, int appWindowHeight, glm::vec2 scene
     m_indirectSpecularSlider = 4.0f;
     m_directLightingSlider = 1.f;
     m_indirectLightingSlider = 0.f;
-    auto renderer = Cyan::Renderer::getSingletonPtr();
 
     // clear color
     Cyan::getCurrentGfxCtx()->setClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.f));
 
-    // font
-    ImGuiIO& io = ImGui::GetIO();
-    m_font = io.Fonts->AddFontFromFileTTF("C:\\dev\\cyanRenderEngine\\asset\\fonts\\Roboto-Medium.ttf", 16.f);
     timer.end();
 }
 
-void PbrApp::updateMaterialData(Cyan::StandardPbrMaterial* matl)
+void DemoApp::updateMaterialData(Cyan::StandardPbrMaterial* matl)
 {
     // per material instance lighting params
     matl->m_materialInstance->set("directDiffuseScale", m_directDiffuseSlider);
@@ -615,31 +552,37 @@ void PbrApp::updateMaterialData(Cyan::StandardPbrMaterial* matl)
     matl->m_materialInstance->set("gLighting.indirectSpecularScale", m_indirectSpecularSlider);
 }
 
-void PbrApp::beginFrame()
+void DemoApp::beginFrame()
 {
     Cyan::getCurrentGfxCtx()->clear();
     Cyan::getCurrentGfxCtx()->setViewport({ 0, 0, static_cast<u32>(gEngine->getWindow().width), static_cast<u32>(gEngine->getWindow().height) });
 }
 
-void PbrApp::bakeLightProbes(Cyan::ReflectionProbe* probes, u32 numProbes)
+void DemoApp::precompute()
 {
-
-}
-
-void PbrApp::doPrecomputeWork()
-{
-    // precomute thingy here
-    {
-        auto renderer = Cyan::Renderer::getSingletonPtr();
+    // build lighting
 #ifdef SCENE_DEMO_00 
-        m_scenes[Scenes::Demo_Scene_00]->m_reflectionProbe->build();
+    m_scenes[Scenes::Demo_Scene_00]->m_irradianceProbe->build();
+    m_scenes[Scenes::Demo_Scene_00]->m_reflectionProbe->build();
 #endif
-    }
+/*
+    auto pathTracer = Cyan::PathTracer::getSingletonPtr();
+    pathTracer->m_renderMode = Cyan::PathTracer::RenderMode::Render; 
+// #ifdef SCENE_SPONZA
+    pathTracer->setScene(m_scenes[Sponza_Scene]);
+    pathTracer->run(m_scenes[Sponza_Scene]->getActiveCamera());
+// #endif
+// #ifdef SCENE_DEMO_00
+    pathTracer->setScene(m_scenes[Demo_Scene_00]);
+    pathTracer->run(m_scenes[Demo_Scene_00]->getActiveCamera());
+// #endif
+*/  
+    auto shader = Cyan::createShader("DebugShadingShader", SHADER_SOURCE_PATH "debug_color_vs.glsl", SHADER_SOURCE_PATH "debug_color_fs.glsl");
 }
 
-void PbrApp::run()
+void DemoApp::run()
 {
-    doPrecomputeWork();
+    precompute();
     while (bRunning)
     {
         // tick
@@ -672,7 +615,7 @@ glm::vec3 computeMouseHitWorldSpacePos(Camera& camera, glm::vec3 rd, RayCastInfo
     return glm::vec3(worldSpacePosV4.x, worldSpacePosV4.y, worldSpacePosV4.z);
 };
 
-RayCastInfo PbrApp::castMouseRay(const glm::vec2& currentViewportPos, const glm::vec2& currentViewportSize)
+RayCastInfo DemoApp::castMouseRay(const glm::vec2& currentViewportPos, const glm::vec2& currentViewportSize)
 {
     // convert mouse cursor pos to view space 
     Cyan::Viewport viewport = m_graphicsSystem->getRenderer()->getViewport();
@@ -717,7 +660,7 @@ RayCastInfo PbrApp::castMouseRay(const glm::vec2& currentViewportPos, const glm:
     return closestHit;
 }
 
-void PbrApp::updateScene(Scene* scene)
+void DemoApp::updateScene(Scene* scene)
 {
     // update camera
     u32 camIdx = 0u;
@@ -729,7 +672,7 @@ void PbrApp::updateScene(Scene* scene)
     SceneManager::getSingletonPtr()->updateSceneGraph(m_scenes[m_currentScene]);
 }
 
-void PbrApp::update()
+void DemoApp::update()
 {
     gEngine->processInput();
     updateScene(m_scenes[m_currentScene]);
@@ -762,7 +705,7 @@ void uiDrawSceneNode(SceneNode* node)
     }
 };
 
-void PbrApp::drawEntityPanel()
+void DemoApp::drawEntityPanel()
 {
     ImGuiTreeNodeFlags baseFlags = ImGuiTreeNodeFlags_OpenOnArrow 
                                 | ImGuiTreeNodeFlags_OpenOnDoubleClick 
@@ -794,7 +737,7 @@ void PbrApp::drawEntityPanel()
     }
 }
 
-void PbrApp::drawDebugWindows()
+void DemoApp::drawDebugWindows()
 {
     auto renderer = m_graphicsSystem->getRenderer();
     auto ctx = Cyan::getCurrentGfxCtx();
@@ -899,7 +842,6 @@ void PbrApp::drawDebugWindows()
                 SceneNode* sceneNode = room->getSceneNode("RoomMesh");
                 buildDebugView("LightMap", sceneNode->m_meshInstance->m_lightMap->m_texAltas, 320u, 320u);
 #endif
-                // TODO: debug following three debug visualizations 
                 buildDebugView("SceneDepth",  renderer->m_sceneDepthTextureSSAA);
                 buildDebugView("SceneNormal", renderer->m_sceneNormalTextureSSAA);
                 buildDebugView("SceneGTAO",   renderer->m_ssaoTexture);
@@ -912,7 +854,7 @@ void PbrApp::drawDebugWindows()
     m_ui.endWindow();
 }
 
-void PbrApp::drawStats()
+void DemoApp::drawStats()
 {
     {
         ImGui::Text("Frame time:                   %.2f ms", m_lastFrameDurationInMs);
@@ -921,7 +863,7 @@ void PbrApp::drawStats()
     }
 }
 
-void PbrApp::uiDrawEntityGraph(Entity* entity) 
+void DemoApp::uiDrawEntityGraph(Entity* entity) 
 {
     ImGuiTreeNodeFlags baseFlags = ImGuiTreeNodeFlags_OpenOnArrow 
                                 | ImGuiTreeNodeFlags_OpenOnDoubleClick 
@@ -948,7 +890,7 @@ void PbrApp::uiDrawEntityGraph(Entity* entity)
     }
 }
 
-void PbrApp::drawLightingWidgets()
+void DemoApp::drawLightingWidgets()
 {
     ImGuiTreeNodeFlags baseFlags = ImGuiTreeNodeFlags_OpenOnArrow 
                                 | ImGuiTreeNodeFlags_OpenOnDoubleClick 
@@ -998,14 +940,6 @@ void PbrApp::drawLightingWidgets()
         }
         ImGui::TreePop();
     }
-#if 0
-    // sky light
-    std::vector<const char*> envMaps;
-    u32 numProbes = Cyan::getNumProbes();
-    for (u32 index = 0u; index < numProbes; ++index)
-        envMaps.push_back(Cyan::getProbe(index)->m_baseCubeMap->m_name.c_str());
-    m_ui.comboBox(envMaps.data(), numProbes, "EnvMap", &m_currentProbeIndex);
-#endif
 
     ImGui::SameLine();
     if (m_ui.button("Load"))
@@ -1014,7 +948,7 @@ void PbrApp::drawLightingWidgets()
     }
 }
 
-void PbrApp::drawSceneViewport()
+void DemoApp::drawSceneViewport()
 {
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
     auto renderer = m_graphicsSystem->getRenderer();
@@ -1085,7 +1019,7 @@ void PbrApp::drawSceneViewport()
     ImGui::PopStyleVar();
 }
 
-void PbrApp::drawRenderSettings()
+void DemoApp::drawRenderSettings()
 {
     auto renderer = m_graphicsSystem->getRenderer();
     ImGuiTreeNodeFlags baseFlags = ImGuiTreeNodeFlags_OpenOnArrow 
@@ -1093,7 +1027,7 @@ void PbrApp::drawRenderSettings()
                                 | ImGuiTreeNodeFlags_SpanAvailWidth 
                                 | ImGuiTreeNodeFlags_DefaultOpen;
     // ibl controls
-    if (ImGui::TreeNodeEx("IBL settings", baseFlags))
+    if (ImGui::TreeNodeEx("Lighting", baseFlags))
     {
         if (ImGui::TreeNodeEx("Direct lighting", baseFlags))
         {
@@ -1109,7 +1043,7 @@ void PbrApp::drawRenderSettings()
         {
             ImGui::Text("Diffuse");
             ImGui::SameLine();
-            ImGui::SliderFloat("##IndirectDiffuse", &m_indirectDiffuseSlider, 0.f, 1.f, "%.2f");
+            ImGui::SliderFloat("##IndirectDiffuse", &m_indirectDiffuseSlider, 0.f, 20.f, "%.2f");
             ImGui::Text("Specular");
             ImGui::SameLine();
             ImGui::SliderFloat("##IndirectSpecular", &m_indirectSpecularSlider, 0.f, 20.f, "%.2f");
@@ -1137,7 +1071,7 @@ void PbrApp::drawRenderSettings()
     }
 }
 
-void PbrApp::buildFrame()
+void DemoApp::buildFrame()
 {
     // construct work for current frame
     Cyan::Renderer* renderer = Cyan::Renderer::getSingletonPtr();
@@ -1156,7 +1090,7 @@ void debugRenderCube()
 
 }
 
-void PbrApp::debugRenderOctree()
+void DemoApp::debugRenderOctree()
 {
     auto pathTracer = Cyan::PathTracer::getSingletonPtr();
     auto renderer = Cyan::Renderer::getSingletonPtr();
@@ -1209,7 +1143,7 @@ void PbrApp::debugRenderOctree()
     glEnable(GL_CULL_FACE);
 }
 
-void PbrApp::render()
+void DemoApp::render()
 {
     // frame timer
     Cyan::Toolkit::GpuTimer frameTimer("render()");
@@ -1233,12 +1167,12 @@ void PbrApp::render()
     m_lastFrameDurationInMs = frameTimer.m_durationInMs;
 }
 
-void PbrApp::endFrame()
+void DemoApp::endFrame()
 {
 
 }
 
-void PbrApp::shutDown()
+void DemoApp::shutDown()
 {
     // ImGui clean up
     ImGui_ImplOpenGL3_Shutdown();
@@ -1249,7 +1183,7 @@ void PbrApp::shutDown()
     delete gEngine;
 }
 
-void PbrApp::zoomCamera(Camera& camera, double dx, double dy)
+void DemoApp::zoomCamera(Camera& camera, double dx, double dy)
 {
     const f32 speed = 0.3f;
     // translate the camera along its lookAt direciton
@@ -1266,7 +1200,7 @@ void PbrApp::zoomCamera(Camera& camera, double dx, double dy)
     }
 }
 
-void PbrApp::orbitCamera(Camera& camera, double deltaX, double deltaY)
+void DemoApp::orbitCamera(Camera& camera, double deltaX, double deltaY)
 {
     // Camera& camera = m_scenes[m_currentScene]->getActiveCamera();
     // Note:(Min) limit the camera control to camera 0 for now
@@ -1285,12 +1219,12 @@ void PbrApp::orbitCamera(Camera& camera, double deltaX, double deltaY)
     camera.position = glm::vec3(pPrime.x, pPrime.y, pPrime.z) + camera.lookAt;
 }
 
-void PbrApp::rotateCamera(double deltaX, double deltaY)
+void DemoApp::rotateCamera(double deltaX, double deltaY)
 {
 
 }
 
-void PbrApp::switchCamera()
+void DemoApp::switchCamera()
 {
     u32 cameraIdx = m_scenes[m_currentScene]->activeCamera;
     m_scenes[m_currentScene]->activeCamera = (cameraIdx + 1) % 2;

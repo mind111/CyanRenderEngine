@@ -8,7 +8,7 @@ namespace Cyan
 {
     Mesh*          s_cubeMesh                                  = nullptr;
     Shader*        s_debugRenderShader                         = nullptr;
-    Texture*       ReflectionProbe::s_BRDFLookupTexture = nullptr;
+    Texture*       ReflectionProbe::s_BRDFLookupTexture        = nullptr;
     Shader*        IrradianceProbe::s_convolveIrradianceShader = nullptr;
     Shader*        ReflectionProbe::s_convolveReflectionShader = nullptr;
     RegularBuffer* IrradianceProbe::m_rayBuffers               = nullptr;
@@ -162,8 +162,8 @@ namespace Cyan
     void IrradianceProbe::initialize()
     {
         TextureSpec spec = { };
-        spec.m_width = 64u;
-        spec.m_height = 64u;
+        spec.m_width = m_irradianceTextureRes.x;
+        spec.m_height = m_irradianceTextureRes.y;
         spec.m_type = Texture::Type::TEX_CUBEMAP;
         spec.m_format = Texture::ColorFormat::R16G16B16;
         spec.m_dataType =  Texture::Float;
@@ -180,7 +180,7 @@ namespace Cyan
 
         if (!s_convolveIrradianceShader)
         {
-            s_convolveIrradianceShader = createShader("ConvolveIrradianceShader", "../../shader/shader_diff_irradiance.vs", "../../shader/shader_diff_irradiance.fs");
+            s_convolveIrradianceShader = createShader("ConvolveIrradianceShader", SHADER_SOURCE_PATH "convolve_diffuse_v.glsl", SHADER_SOURCE_PATH "convolve_diffuse_p.glsl");
         }
         m_convolveIrradianceMatl = createMaterial(s_convolveIrradianceShader)->createInstance();
     }
@@ -193,8 +193,8 @@ namespace Cyan
         // camera set to probe's location
         camera.position = glm::vec3(0.f);
         camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
-        auto renderer = Renderer::getSingletonPtr();
         auto renderTarget = createRenderTarget(m_irradianceTextureRes.x, m_irradianceTextureRes.y);
+        renderTarget->attachColorBuffer(m_convolvedIrradianceTexture);
         {
             ctx->setShader(s_convolveIrradianceShader);
             ctx->setViewport({0u, 0u, renderTarget->m_width, renderTarget->m_height});
@@ -202,12 +202,14 @@ namespace Cyan
             for (u32 f = 0; f < 6u; ++f)
             {
                 camera.lookAt = LightProbeCameras::cameraFacingDirections[f];
-                camera.view = glm::lookAt(camera.position, camera.lookAt, LightProbeCameras::worldUps[f]);
+                camera.worldUp = LightProbeCameras::worldUps[f];
+                CameraManager::updateCamera(camera);
                 ctx->setRenderTarget(renderTarget, f);
-                m_convolveIrradianceMatl->set("view", &camera.view[0][0]);
-                m_convolveIrradianceMatl->set("projection", &camera.projection[0][0]);
-                m_convolveIrradianceMatl->bindTexture("envmapSampler", m_sceneCapture);
-                renderer->drawMesh(s_cubeMesh);
+                m_convolveIrradianceMatl->set("view", &camera.view[0]);
+                m_convolveIrradianceMatl->set("projection", &camera.projection[0]);
+                m_convolveIrradianceMatl->bindTexture("srcCubemapTexture", m_sceneCapture);
+                m_convolveIrradianceMatl->bind();
+                ctx->drawIndexAuto(36u);
             }
             ctx->setDepthControl(DepthControl::kEnable);
             timer.end();
@@ -266,7 +268,7 @@ namespace Cyan
 
         if (!s_convolveReflectionShader)
         {
-            s_convolveReflectionShader = createShader("ConvolveReflectionShader", "../../shader/shader_prefilter_specular.vs", "../../shader/shader_prefilter_specular.fs");
+            s_convolveReflectionShader = createShader("ConvolveReflectionShader", SHADER_SOURCE_PATH "convolve_specular_v.glsl", SHADER_SOURCE_PATH "convolve_specular_p.glsl");
         }
         m_convolveReflectionMatl = createMaterial(s_convolveReflectionShader)->createInstance();
 
@@ -344,7 +346,6 @@ namespace Cyan
         camera.n = 0.1f;
         camera.f = 100.f;
         camera.fov = glm::radians(90.f);
-        auto renderer = Renderer::getSingletonPtr();
         auto ctx = getCurrentGfxCtx();
         u32 kNumMips = 11;
         u32 mipWidth = m_sceneCapture->m_width; 
@@ -368,8 +369,7 @@ namespace Cyan
                     m_convolveReflectionMatl->set("roughness", mip * (1.f / (kNumMips - 1)));
                     m_convolveReflectionMatl->bindTexture("envmapSampler", m_sceneCapture);
                     m_convolveReflectionMatl->bind();
-                    renderer->drawMesh(s_cubeMesh);
-                    // ctx->drawIndexAuto(36);
+                    ctx->drawIndexAuto(36);
                 }
             }
             glDeleteFramebuffers(1, &renderTarget->m_frameBuffer);

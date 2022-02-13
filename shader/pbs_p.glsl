@@ -15,9 +15,9 @@ layout (location = 2) out vec3 fragmentDepth;
 layout (location = 3) out vec3 radialDistance;
 
 //- samplers
-layout (binding = 0) uniform samplerCube distantIrradiance;
-layout (binding = 1) uniform samplerCube distantReflection;
-layout (binding = 2) uniform sampler2D   brdfIntegral;
+layout (binding = 0) uniform samplerCube skyboxDiffuse;
+layout (binding = 1) uniform samplerCube skyboxSpecular;
+layout (binding = 2) uniform sampler2D   BRDFLookupTexture;
 layout (binding = 3) uniform samplerCube irradianceProbe;
 layout (binding = 4) uniform samplerCube localReflectionProbe;
 layout (binding = 5) uniform sampler2D   ssaoTex;
@@ -91,8 +91,8 @@ uniform struct Lighting
 // per instance material data
 uniform struct MaterialInstanceData
 {
-	uint   flags;
-	float useDistantProbe;
+	uint  flags;
+	float useSkybox;
 	float directDiffuseScale;
 	float directSpecularScale;
 	float indirectDiffuseScale;
@@ -528,30 +528,24 @@ vec3 indirectLighting(RenderParams params)
     vec3 color = vec3(0.f);
     vec3 F = fresnel(params.f0, params.n, params.v); 
     vec3 kDiffuse = mix(vec3(1.f) - F, vec3(0.f), params.metallic);
+
     // diffuse irradiance
-    vec3 diffuse = kDiffuse * gLighting.indirectDiffuseScale * params.baseColor * texture(distantIrradiance, params.wn).rgb;
+    vec3 irradiance = (uMatlData.useSkybox > .5f) ? texture(skyboxDiffuse, params.wn).rgb : texture(irradianceProbe, params.wn).rgb;
+    vec3 diffuse = kDiffuse * gLighting.indirectDiffuseScale * params.baseColor * irradiance * pow(params.ao, 5.f);
+
     // specular radiance
     float ndotv = saturate(dot(params.n, params.v));
     vec3 r = -reflect(params.v, params.n);
-    mat4 viewRotation = gDrawData.view;
-    // Cancel out the translation part of the view matrix so that the cubemap will always follow
-    // the camera, view of the cubemap will change along with the change of camera rotation 
-    viewRotation[3][0] = 0.f;
-    viewRotation[3][1] = 0.f;
-    viewRotation[3][2] = 0.f;
-    viewRotation[3][3] = 1.f;
-    vec3 rr = (inverse(viewRotation) * vec4(r, 0.f)).xyz;
-    // todo: update to only sample local reflection
-    vec3 prefilteredColor = uMatlData.useDistantProbe > .5f ? textureLod(distantReflection, rr, params.roughness * 10.f).rgb : textureLod(localReflectionProbe, rr, params.roughness * 10.f).rgb;
-    vec3 brdf = texture(brdfIntegral, vec2(params.roughness, ndotv)).rgb; 
-    vec3 specular = (gLighting.indirectSpecularScale * prefilteredColor * uMatlData.uniformSpecular) * (params.f0 * brdf.r + brdf.g);
-    {
-	   //diffuse += kDiffuse * params.baseColor * texture(gLighting.irradianceProbe, params.wn).rgb;
-    }
+    mat4 view = gDrawData.view;
+    view[3] = vec4(0.f, 0.f, 0.f, 1.f);
+    vec3 rr = (inverse(view) * vec4(r, 0.f)).xyz;
+    vec3 convolvedRadiance = uMatlData.useSkybox > .5f ? textureLod(skyboxSpecular, rr, params.roughness * 10.f).rgb : textureLod(localReflectionProbe, rr, params.roughness * 10.f).rgb;
+    vec3 BRDF = texture(BRDFLookupTexture, vec2(params.roughness, ndotv)).rgb; 
+    vec3 specular = (gLighting.indirectSpecularScale * convolvedRadiance * uMatlData.uniformSpecular) * (params.f0 * BRDF.r + BRDF.g);
     color += uMatlData.indirectDiffuseScale * diffuse + uMatlData.indirectSpecularScale * specular;
+
     return color;
 }
-
 
 vec3 prototypeGridTexture(vec3 worldPos)
 {

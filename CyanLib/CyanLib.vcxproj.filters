@@ -331,10 +331,10 @@
     <None Include="..\shader\shader_depth_normal.vs">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_diff_irradiance.fs">
+    <None Include="..\shader\convolve_diffuse_p.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_diff_irradiance.vs">
+    <None Include="..\shader\convolve_diffuse_v.glsl">
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\shader_dir_shadow.fs">
@@ -367,10 +367,10 @@
     <None Include="..\shader\shader_gaussian_blur.vs">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_gen_cubemap.fs">
+    <None Include="..\shader\render_to_cubemap_p.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_gen_cubemap.vs">
+    <None Include="..\shader\render_to_cubemap_v.glsl">
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\shader_grid_texture.fs">
@@ -424,10 +424,10 @@
     <None Include="..\shader\pbs_v.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_prefilter_specular.fs">
+    <None Include="..\shader\convolve_specular_p.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_prefilter_specular.vs">
+    <None Include="..\shader\convolve_specular_v.glsl">
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\shader_quad.fs">
@@ -454,10 +454,10 @@
     <None Include="..\shader\shader_render_voxel.vs">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_sky.fs">
+    <None Include="..\shader\sky_sdf_p.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_sky.vs">
+    <None Include="..\shader\sky_sdf_v.glsl">
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\shader_test.glsl">

@@ -933,12 +933,14 @@ namespace Cyan
         gLighting.irradianceProbe = scene->m_irradianceProbe;
         gLighting.reflectionProbe = scene->m_reflectionProbe;
 
-        // skybox
+        // shared BRDF lookup texture used in split sum approximation for image based lighting
         glBindTextureUnit(2, ReflectionProbe::getBRDFLookupTexture()->m_id);
-        if (gLighting.skyBox)
+
+        // skybox
+        if (gLighting.skybox)
         {
-            glBindTextureUnit(0, gLighting.skyBox->getDiffueTexture()->m_id);
-            glBindTextureUnit(1, gLighting.skyBox->getSpecularTexture()->m_id);
+            glBindTextureUnit(0, gLighting.skybox->getDiffueTexture()->m_id);
+            glBindTextureUnit(1, gLighting.skybox->getSpecularTexture()->m_id);
         }
 
         // additional light probes
@@ -992,6 +994,11 @@ namespace Cyan
 
     void Renderer::renderScene(Scene* scene, Camera& camera)
     {
+        // draw skybox
+        if (scene->m_skybox)
+        {
+            scene->m_skybox->render();
+        }
         // draw entities
         for (u32 i = 0; i < scene->entities.size(); ++i)
         {
@@ -1032,7 +1039,12 @@ namespace Cyan
         // turn off ssao
         m_ssao = 0.f;
         updateFrameGlobalData(scene, camera);
-        // entities 
+        // draw skybox
+        if (scene->m_skybox)
+        {
+            scene->m_skybox->render();
+        }
+        // draw entities 
         for (auto entity : scene->entities)
         {
             if (entity->m_static)

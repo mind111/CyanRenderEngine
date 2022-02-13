@@ -46,7 +46,7 @@ void keyFunc(GLFWwindow* window, i32 key, i32 scancode, i32 action, i32 mods)
     gEngine->processKey(key, action);
 }
 
-void CyanEngine::init(WindowConfig windowConfig, glm::vec2 sceneViewportPos, glm::vec2 renderSize)
+void CyanEngine::initialize(WindowConfig windowConfig, glm::vec2 sceneViewportPos, glm::vec2 renderSize)
 {
     // window init
     if (!glfwInit())

@@ -129,8 +129,8 @@
     <None Include="..\shader\shader_bloom_preprocess.vs" />
     <None Include="..\shader\shader_depth_normal.fs" />
     <None Include="..\shader\shader_depth_normal.vs" />
-    <None Include="..\shader\shader_diff_irradiance.fs" />
-    <None Include="..\shader\shader_diff_irradiance.vs" />
+    <None Include="..\shader\convolve_diffuse_p.glsl" />
+    <None Include="..\shader\convolve_diffuse_v.glsl" />
     <None Include="..\shader\shader_dir_shadow.fs" />
     <None Include="..\shader\shader_dir_shadow.vs" />
     <None Include="..\shader\shader_downsample.fs" />
@@ -141,8 +141,8 @@
     <None Include="..\shader\shader_flat_color.vs" />
     <None Include="..\shader\shader_gaussian_blur.fs" />
     <None Include="..\shader\shader_gaussian_blur.vs" />
-    <None Include="..\shader\shader_gen_cubemap.fs" />
-    <None Include="..\shader\shader_gen_cubemap.vs" />
+    <None Include="..\shader\render_to_cubemap_p.glsl" />
+    <None Include="..\shader\render_to_cubemap_v.glsl" />
     <None Include="..\shader\shader_grid_texture.fs" />
     <None Include="..\shader\shader_grid_texture.vs" />
     <None Include="..\shader\shader_integrate_brdf.fs" />
@@ -160,8 +160,8 @@
     <None Include="..\shader\shader_oct_mapping.vs" />
     <None Include="..\shader\pbs_p.glsl" />
     <None Include="..\shader\pbs_v.glsl" />
-    <None Include="..\shader\shader_prefilter_specular.fs" />
-    <None Include="..\shader\shader_prefilter_specular.vs" />
+    <None Include="..\shader\convolve_specular_p.glsl" />
+    <None Include="..\shader\convolve_specular_v.glsl" />
     <None Include="..\shader\shader_quad.fs" />
     <None Include="..\shader\shader_quad.vs" />
     <None Include="..\shader\shader_ray_tracing.fs" />
@@ -170,8 +170,8 @@
     <None Include="..\shader\shader_render_probe.vs" />
     <None Include="..\shader\shader_render_voxel.fs" />
     <None Include="..\shader\shader_render_voxel.vs" />
-    <None Include="..\shader\shader_sky.fs" />
-    <None Include="..\shader\shader_sky.vs" />
+    <None Include="..\shader\sky_sdf_p.glsl" />
+    <None Include="..\shader\sky_sdf_v.glsl" />
     <None Include="..\shader\shader_test.glsl" />
     <None Include="..\shader\shader_textured_quad.fs" />
     <None Include="..\shader\shader_textured_quad.vs" />

@@ -17,19 +17,19 @@
 #define DEBUG_PROBE_TRACING 0
 #define DEBUG_SSAO          1
 
-namespace Pbr
+namespace Demo
 {
     void mouseScrollWheelCallback(double xOffset, double yOffset);
 };
 
-class PbrApp : public CyanApp
+class DemoApp : public CyanApp
 {
 public:
-    PbrApp();
-    ~PbrApp() { }
+    DemoApp();
+    ~DemoApp() { }
     virtual void initialize(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewportPos, glm::vec2 renderSize) override;
 
-    static PbrApp* get();
+    static DemoApp* get();
 
     virtual void beginFrame() override;
     virtual void render() override;
@@ -40,8 +40,7 @@ public:
     void pathTraceScene(Scene* scene);
 
     // pre-computation
-    void doPrecomputeWork();
-    void bakeLightProbes(Cyan::ReflectionProbe* probe, u32 numProbes);
+    void precompute();
 
     // tick
     void update();
@@ -60,51 +59,39 @@ public:
     // main scene viewport
     void drawSceneViewport(); 
     // ui
+    void drawStats();
     void drawEntityPanel();
     void drawDebugWindows();
     void drawLightingWidgets();
-    void drawStats();
     void drawRenderSettings();
     void uiDrawEntityGraph(Entity* entity) ;
     RayCastInfo castMouseRay(const glm::vec2& currentViewportPos, const glm::vec2& currentViewportSize);
 
-    // init
-    void initScenes();
-    void initUniforms();
-    void initShaders();
-
     // manual scene initialization
     void initDemoScene00();
     void initSponzaScene();
-    void initSkyBoxes();
 
     // material
     Cyan::StandardPbrMaterial* createStandardPbrMatlInstance(Scene* scene, Cyan::PbrMaterialParam params, bool isStatic);
     // manual custom entity creation
     void createHelmetInstance(Scene* scene);
 
-    friend void Pbr::mouseScrollWheelCallback(double xOffset, double yOffset);
+    friend void Demo::mouseScrollWheelCallback(double xOffset, double yOffset);
 
     bool                         bOrbit;
     bool                         bRayCast;
     RayCastInfo                  m_mouseRayHitInfo;
     bool                         bPicking;
-    double m_mouseCursorX,       m_mouseCursorY;
-    Cyan::IrradianceProbe*       m_irradianceProbe;
-    Cyan::ReflectionProbe*       m_reflectionProbe;
+    double                       m_mouseCursorX, m_mouseCursorY;
 
     Cyan::Texture*               activeDebugViewTexture;
     std::vector<Scene*>          m_scenes;
-    RegularBuffer*               m_debugRayOctBuffer;
-    RegularBuffer*               m_debugRayWorldBuffer;
-    RegularBuffer*               m_debugRayBoundryBuffer;
 
     u32                          m_currentScene;
     u32                          m_currentDebugView;
 private:
     float m_sampleVertex[(64 + 1) * 4 * 2] = { };
     bool bRunning;
-    u32 m_currentProbeIndex;
 
     // ui
     UI m_ui;

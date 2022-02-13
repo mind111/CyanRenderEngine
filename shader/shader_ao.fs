@@ -360,6 +360,6 @@ void main()
         totalAo += ao;
     }
     totalAo /= float(numSlices);
-    totalAo = pow(totalAo, 2.f);
+    totalAo = pow(totalAo, 3.f);
     fragColor = vec4(vec3(totalAo), 1.f);
 }

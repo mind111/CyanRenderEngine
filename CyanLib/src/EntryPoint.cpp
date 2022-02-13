@@ -7,7 +7,7 @@
 int main(int argc, char* argv[]) {
 
     std::cout << "---- Hello Cyan! ----" << std::endl;
-    PbrApp* app = new PbrApp();
+    DemoApp* app = new DemoApp();
 
     glm::vec2 sceneRenderSize(1280.f, 720.f);
     glm::vec2 debugViewportSize(400.f, 720.f);

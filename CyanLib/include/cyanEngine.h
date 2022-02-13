@@ -41,7 +41,7 @@ public:
     CyanEngine();
     ~CyanEngine() { }
 
-    void init(WindowConfig windowConfig, glm::vec2 viewportPos, glm::vec2 renderSize);
+    void initialize(WindowConfig windowConfig, glm::vec2 viewportPos, glm::vec2 renderSize);
     void shutDown();
 
     /* Gui */

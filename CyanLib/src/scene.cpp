@@ -241,21 +241,6 @@ void SceneManager::updateSceneGraph(Scene* scene)
     }
 }
 
-// update light data and pack them in a buffer 
-void SceneManager::buildLightList(Scene* scene, std::vector<PointLightGpuData>& pLights, std::vector<DirLightGpuData>& dLights)
-{
-    for (auto& light : scene->dLights)
-    {
-        light.update();
-        dLights.push_back(light.getData());
-    }
-    for (auto& light : scene->pLights)
-    {
-        light.update();
-        pLights.push_back(light.getData());
-    }
-}
-
 Cyan::IrradianceProbe* SceneManager::createIrradianceProbe(Cyan::Texture* srcCubemapTexture, const glm::uvec2& irradianceRes)
 {
     return new Cyan::IrradianceProbe(srcCubemapTexture, irradianceRes);
@@ -266,7 +251,7 @@ Cyan::IrradianceProbe* SceneManager::createIrradianceProbe(Scene* scene, const g
     return new Cyan::IrradianceProbe(scene, pos, sceneCaptureRes, irradianceResolution);
 }
 
-Cyan::ReflectionProbe* createReflectionProbe(Cyan::Texture* srcCubemapTexture)
+Cyan::ReflectionProbe* SceneManager::createReflectionProbe(Cyan::Texture* srcCubemapTexture)
 {
     return new Cyan::ReflectionProbe(srcCubemapTexture);
 }

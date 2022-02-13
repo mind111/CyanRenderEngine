@@ -1,7 +1,5 @@
 #version 450 core
 
-layout (location = 0) in vec3 vertexPos;
-
 out vec3 fragmentObjPos;
 
 uniform mat4 view;
@@ -53,11 +51,9 @@ float cubeVertices[] = {
 
 void main()
 {
-    // fragmentObjPos = cubeVertices[gl_VertexID];
-    fragmentObjPos = vertexPos;
+    vec3 vPosition = vec3(cubeVertices[gl_VertexID * 3 + 0], cubeVertices[gl_VertexID * 3 + 1], cubeVertices[gl_VertexID * 3 + 2]);
+    fragmentObjPos = vPosition;
     mat4 viewRotation = view;
     viewRotation[3] = vec4(0.f, 0.f, 0.f, 1.f);
-    // gl_Position = projection * viewRotation * vec4(cubeVertices[gl_VertexID], 1.f); 
-    gl_Position = projection * viewRotation * vec4(vertexPos, 1.f); 
-    gl_Position = gl_Position.xyww;
+    gl_Position = (projection * viewRotation * vec4(vPosition, 1.f)).xyww; 
 }
