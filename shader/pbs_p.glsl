@@ -585,7 +585,6 @@ void main()
 
     // According to gltf-2.0 spec, metal is sampled from b, roughness is sampled from g
     float roughness, metallic;
-    // if (uMaterialProps.hasMetallicRoughnessMap > 0.f)
     if ((uMatlData.flags & kHasMetallicRoughnessMap) != 0u)
     {
         roughness = texture(metallicRoughnessMap, uv).g;

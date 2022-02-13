@@ -195,6 +195,13 @@ namespace Cyan
         return m_uniformBuffer->readF32();
     }
 
+    u32 MaterialInstance::getU32(const char* attribute)
+    {
+        u32 offset = getAttributeOffset(attribute);
+        m_uniformBuffer->reset(offset);
+        return m_uniformBuffer->readU32();
+    }
+
     UsedBindingPoints MaterialInstance::bind()
     {
         auto ctx = Cyan::getCurrentGfxCtx();

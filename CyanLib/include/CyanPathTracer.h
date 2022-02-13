@@ -57,7 +57,6 @@ namespace Cyan
         OctreeNode* allocNode();
     };
 
-    // todo: debug visualize all the hemisphere sampled irradiance samples
     struct IrradianceCache
     {
         IrradianceCache();
@@ -68,7 +67,7 @@ namespace Cyan
         void findValidRecords(std::vector<IrradianceRecord*>& validSet, const glm::vec3& p, const glm::vec3& pn, f32 error);
 
         static const u32 cacheSize = 1024 * 1024;
-        const f32 kError           = 10.f;
+        const f32 kError           = 0.1f;
         std::vector<IrradianceRecord> m_cache;
         u32 m_numRecords;
         Octree* m_octree;
@@ -103,16 +102,16 @@ namespace Cyan
         void      renderWorker(u32 start, u32 end, Camera& camera, u32 totalNumRays);
         void      renderScene(Camera& camera);
         void      renderSceneMultiThread(Camera& camera);
-        glm::vec3 renderSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd, TriMaterial& matl);
+        glm::vec3 shadeSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd, TriMaterial& matl);
         
         // irradiance caching
         void      fastRenderWorker(u32 start, u32 end, Camera& camera, u32 totalNumRays);
-        glm::vec3 fastRenderSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd, TriMaterial& matl);
+        glm::vec3 fastShadeSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd, TriMaterial& matl);
         void      fastRenderScene(Camera& camera);
         void      debugRender();
 
         glm::vec3 bakeSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd, TriMaterial& matl);
-        void      postProcess();
+        void      postprocess();
 
         glm::vec3 computeDirectLighting(glm::vec3& hitPosition, glm::vec3& n);
         glm::vec3 computeDirectSkyLight(glm::vec3& ro, glm::vec3& n);
@@ -122,8 +121,12 @@ namespace Cyan
         // global illumination
         glm::vec3 recursiveTraceDiffuse(glm::vec3& ro, glm::vec3& n, u32 numBounces, TriMaterial& matl);
         glm::vec3 irradianceCaching(glm::vec3& p, glm::vec3& pn, f32 error);
+        void      fillIrradianceCache(const std::vector<Ray>& rays, u32 start, u32 end, Camera& camera);
+
+        /* brief
+            * deprecated
+        */
         glm::vec3 recursiveIC(glm::vec3& p, glm::vec3& pn, const TriMaterial& matl, u32 level);
-        void      firstPassIC(const std::vector<Ray>& rays, u32 start, u32 end, Camera& camera);
 
         // utility
         f32       sampleAo(glm::vec3& samplePos, glm::vec3& n, u32 numSamples);
@@ -154,11 +157,10 @@ namespace Cyan
         glm::vec3                m_skyColor;
         Texture*                 m_texture;
         Scene*                   m_scene;
-        std::vector<Entity*>     m_staticEntities;
-        std::vector<SceneNode*>  m_staticSceneNodes;
-        IrradianceCache*         m_irradianceCache;
-        IrradianceCache*         m_irradianceCaches[3];
+        std::vector<SceneNode*>  m_staticMeshNodes;
         std::vector<TriMaterial> m_sceneMaterials;
+        IrradianceCache*         m_irradianceCache;
+        IrradianceCache*         m_irradianceCacheLevels[3];
         float*                   m_pixels;
         static std::atomic<u32>  progressCounter;
         static PathTracer*       m_singleton;

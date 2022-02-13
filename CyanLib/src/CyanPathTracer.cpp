@@ -13,12 +13,17 @@
     * todo: treat the sun light as a disk area light source
 */
 
+// irradiance caching controls
+#if 1
+    #define USE_IC
+#endif
+#define POST_PROCESSING
+#if 0
+    #define VISUALIZE_IRRADIANCE
+#endif
+
 // Is 2mm of an offset too large..?
-#define EPSILON 0.002f
-#define POST_PROCESSING 1
-#define PATHTRACE_IC 1
-#define RECURSIVE_IC 0
-#define VISUALIZE_IRRADIANCE 0
+#define EPSILON              0.002f
 
 namespace Cyan
 {
@@ -37,7 +42,7 @@ namespace Cyan
         , m_skyColor(0.328f, 0.467f, 1.f)
         , m_renderMode(RenderMode::Render)
         , m_irradianceCache(nullptr)
-        , m_irradianceCaches{ nullptr, nullptr, nullptr }
+        , m_irradianceCacheLevels{ nullptr, nullptr, nullptr }
         , m_debugPos0(0.f)
     {
         if (!m_singleton)
@@ -57,7 +62,7 @@ namespace Cyan
             m_singleton = this;
             m_irradianceCache = new IrradianceCache;
             for (u32 i = 0; i < 3; ++i)
-                m_irradianceCaches[i] = new IrradianceCache;
+                m_irradianceCacheLevels[i] = new IrradianceCache;
         }
         else
             cyanError("Multiple instances are created for PathTracer!");
@@ -79,7 +84,7 @@ namespace Cyan
         m_sceneMaterials.clear();
         // convert scene data to decouple ray tracing required data from raster pipeline
         preprocessSceneData();
-        m_irradianceCache->init(m_staticSceneNodes);
+        m_irradianceCache->init(m_staticMeshNodes);
     }
 
     glm::vec2 getScreenCoordOfPixel(u32 x, u32 y)
@@ -131,7 +136,7 @@ namespace Cyan
                     auto hit = traceScene(ro, rd);
                     if (hit.t > 0.f)
                     {
-#if VISUALIZE_IRRADIANCE
+#ifdef VISUALIZE_IRRADIANCE
                         glm::vec3 hitPosition = ro + rd * hit.t;
                         auto mesh = hit.m_node->m_meshInstance->m_mesh;
                         auto tri = mesh->getTriangle(hit.smIndex, hit.triIndex);
@@ -142,14 +147,14 @@ namespace Cyan
                         hitPosition += normal * EPSILON;
                         color += sampleIrradiance(hitPosition, normal) * getHitMaterial(hit).flatColor;
 #else
-                        color += renderSurface(hit, ro, rd, getHitMaterial(hit));
+                        color += shadeSurface(hit, ro, rd, getHitMaterial(hit));
 #endif
                     }
                     progressCounter.fetch_add(1);
                 }
             }
             color /= (sppxCount * sppyCount);
-#if POST_PROCESSING
+#ifdef POST_PROCESSING
             // post-processing
             {
                 // tone mapping
@@ -245,7 +250,7 @@ namespace Cyan
 
                         auto hit = traceScene(ro, rd);
                         if (hit.t > 0.f)
-                            pixelColor += renderSurface(hit, ro, rd, getHitMaterial(hit));
+                            pixelColor += shadeSurface(hit, ro, rd, getHitMaterial(hit));
 
                         {
                             numTracedRays += 1;
@@ -432,7 +437,7 @@ namespace Cyan
             if (hit.t > 0.f)
             {
                 auto& matl = m_sceneMaterials[hit.m_node->m_meshInstance->m_rtMatls[hit.smIndex]];
-                auto radiance = renderSurface(hit, p, rd, matl);
+                auto radiance = shadeSurface(hit, p, rd, matl);
                 irradiance += radiance;
                 r += (1.f / hit.t);
             }
@@ -446,7 +451,7 @@ namespace Cyan
         return irradiance;
     }
 
-    glm::vec3 PathTracer::fastRenderSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd, TriMaterial& matl)
+    glm::vec3 PathTracer::fastShadeSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd, TriMaterial& matl)
     {
         glm::vec3 radiance(0.f);
         if (hit.t > 0.f)
@@ -467,12 +472,7 @@ namespace Cyan
             // direct + indirect (diffuse interreflection)
             // radiance += computeDirectLighting(hitPosition, normal);
             // radiance += computeDirectSkyLight(hitPosition, normal);
-#if PATHTRACE_IC
-            radiance += irradianceCaching(hitPosition, normal, m_irradianceCache->kError * .2f);
-#endif
-#if RECURSIVE_IC
-            radiance += recursiveIC(hitPosition, normal, getHitMaterial(hit), 0);
-#endif
+            radiance += irradianceCaching(hitPosition, normal, m_irradianceCache->kError * 1.4f);
         }
         return radiance * matl.flatColor;
     }
@@ -547,7 +547,7 @@ namespace Cyan
                         + camera.right * sampleScreenCoord.x * w
                         + camera.up * sampleScreenCoord.y * w);
                     auto hit = traceScene(ro, rd);
-                    color += fastRenderSurface(hit, ro, rd, getHitMaterial(hit));
+                    color += fastShadeSurface(hit, ro, rd, getHitMaterial(hit));
                     progressCounter.fetch_add(1);
                 }
             }
@@ -563,7 +563,7 @@ namespace Cyan
         }
     }
 
-    void PathTracer::firstPassIC(const std::vector<Ray>& rays, u32 start, u32 end, Camera& camera)
+    void PathTracer::fillIrradianceCache(const std::vector<Ray>& rays, u32 start, u32 end, Camera& camera)
     {
         for (u32 i = start; i < end; ++i)
         {
@@ -575,13 +575,7 @@ namespace Cyan
                 glm::vec3 baryCoord = computeBaryCoordFromHit(hit, hitPos);
                 glm::vec3 normal = getSurfaceNormal(hit, baryCoord);
                 hitPos += EPSILON * normal;
-#if PATHTRACE_IC
-                //sampleNewIrradianceRecord(hitPos, normal);
                 irradianceCaching(hitPos, normal, m_irradianceCache->kError);
-#endif
-#if RECURSIVE_IC
-                recursiveIC(hitPos, normal, getHitMaterial(hit), 0);
-#endif
             }
             progressCounter.fetch_add(1);
         }
@@ -589,11 +583,9 @@ namespace Cyan
 
     void PathTracer::fastRenderScene(Camera& camera)
     {
-        Cyan::Toolkit::ScopedTimer timer("PathTracer::renderSceneMultiThread", true);
+        Cyan::Toolkit::ScopedTimer timer("PathTracer::fastRenderScene", true);
         u32 numPixels = numPixelsInX * numPixelsInY;
         u32 totalNumRays = numPixels * sppxCount * sppyCount;
-#if 1
-        // trace all the rays using multi-threads
         // const u32 workGroupCount = 16;
         const u32 workGroupCount = 1;
         u32 workGroupPixelCount = numPixels / workGroupCount;
@@ -603,6 +595,7 @@ namespace Cyan
 
         // first pass fill-in irradiance records
         std::vector<Ray> firstPassRays;
+#if 0
         glm::uvec2 dim(numPixelsInX / 16, numPixelsInY / 16);
         for (u32 i = 0; i < 4; ++i)
         {
@@ -613,13 +606,23 @@ namespace Cyan
             }
             dim *= 2u;
         }
+#else
+        glm::uvec2 dim(numPixelsInX / 2, numPixelsInY / 2);
+        for (u32 y = 0; y < dim.y; ++y)
+        {
+            for (u32 x = 0; x < dim.x; ++x)
+            {
+                firstPassRays.emplace_back(generateRay(glm::uvec2(x, y), camera, dim));
+            }
+        }
+#endif
         u32        firstPassWorkLoad = firstPassRays.size();
         u32        threadWorkload = firstPassWorkLoad / workGroupCount;
         for (u32 i = 0; i < workGroupCount; ++i)
         {
             u32 start = threadWorkload * i;
             u32 end = min(start + threadWorkload, firstPassWorkLoad);
-            workers[i] = new std::thread(&PathTracer::firstPassIC, this, std::cref(firstPassRays), start, end, std::ref(camera));
+            workers[i] = new std::thread(&PathTracer::fillIrradianceCache, this, std::cref(firstPassRays), start, end, std::ref(camera));
         }
 
         // let the main thread monitor the progress
@@ -683,9 +686,8 @@ namespace Cyan
             sphere.center = m_irradianceCache->m_cache[i].position;
             sphere.radius = m_irradianceCache->m_cache[i].r;
         }
-#else
-        debugIC(camera);
-#endif
+
+        // debugIC(camera);
     }
 
     void PathTracer::debugRender()
@@ -693,13 +695,41 @@ namespace Cyan
 
     }
 
-    inline f32 computeICWeight(const glm::vec3& p, const glm::vec3 pn, IrradianceRecord* record, f32 error) 
+    inline f32 computeICWeight(const glm::vec3& p, const glm::vec3& pn, IrradianceRecord* record, f32 error) 
     {
         f32 distance = glm::length(p - record->position);
-        return 1.f / ((distance / record->r) + sqrt(1.0f - min(glm::dot(pn, record->normal), 1.f))) - error;
+        return 1.f / ((distance / record->r) + sqrt(1.0f - min(glm::dot(pn, record->normal), 1.f))) - 1.f / error;
     }
 
-    // todo: instead of using cosine weighted importance sampling, do stratified hemisphere sampling!
+    glm::vec3 PathTracer::irradianceCaching(glm::vec3& p, glm::vec3& pn, f32 error)
+    {
+        // find valid set
+        glm::vec3 irradiance(0.f);
+        std::vector<IrradianceRecord*> validSet;
+        m_irradianceCache->findValidRecords(validSet, p, pn, error);
+        // compute irradiance
+        if (validSet.empty())
+        {
+            irradiance = sampleNewIrradianceRecord(p, pn);
+        }
+        // "lazy" evaluation
+        else
+        {
+            f32 denominator = 0.f;
+            for (u32 i = 0; i < validSet.size(); ++i)
+            {
+                auto validRecord = validSet[i];
+                f32 distance = glm::length(p - validRecord->position);
+                f32 wi = computeICWeight(p, pn, validRecord, m_irradianceCache->kError);
+                irradiance += wi * validRecord->irradiance;
+                denominator += wi;
+            }
+            irradiance /= denominator;
+        }
+        return irradiance;
+    }
+
+
     glm::vec3 PathTracer::recursiveIC(glm::vec3& p, glm::vec3& pn, const TriMaterial& matl, u32 level)
     {
         const u32 numSamples = 8u;
@@ -717,7 +747,7 @@ namespace Cyan
             return directLighting * matl.flatColor;
         }
 
-        auto cache = m_irradianceCaches[level];
+        auto cache = m_irradianceCacheLevels[level];
         std::vector<IrradianceRecord*> validSet;
         cache->findValidRecords(validSet, p, pn, cache->kError);
         if (validSet.empty())
@@ -758,34 +788,6 @@ namespace Cyan
         return irradiance;
     }
 
-    glm::vec3 PathTracer::irradianceCaching(glm::vec3& p, glm::vec3& pn, f32 error)
-    {
-        // find valid set
-        glm::vec3 irradiance(0.f);
-        std::vector<IrradianceRecord*> validSet;
-        m_irradianceCache->findValidRecords(validSet, p, pn, error);
-        // compute irradiance
-        if (validSet.empty())
-        {
-            irradiance = sampleNewIrradianceRecord(p, pn);
-        }
-        // "lazy" evaluation
-        else
-        {
-            f32 denominator = 0.f;
-            for (u32 i = 0; i < validSet.size(); ++i)
-            {
-                auto validRecord = validSet[i];
-                f32 distance = glm::length(p - validRecord->position);
-                f32 wi = computeICWeight(p, pn, validRecord, m_irradianceCache->kError);
-                irradiance += wi * validRecord->irradiance;
-                denominator += wi;
-            }
-            irradiance /= denominator;
-        }
-        return irradiance;
-    }
-
     void PathTracer::preprocessSceneData()
     {
         // todo: deduplicate material instances
@@ -794,7 +796,6 @@ namespace Cyan
         {
             if (m_scene->entities[i]->m_static)
             {
-                m_staticEntities.push_back(m_scene->entities[i]);
                 std::queue<SceneNode*> nodes;
                 nodes.push(m_scene->entities[i]->m_sceneRoot);
                 while (!nodes.empty())
@@ -803,17 +804,17 @@ namespace Cyan
                     nodes.pop();
                     if (node->m_meshInstance)
                     {
-                        m_staticSceneNodes.push_back(node);
+                        m_staticMeshNodes.push_back(node);
                         for (u32 sm = 0; sm < node->m_meshInstance->m_mesh->numSubMeshes(); ++sm)
                         {
                             node->m_meshInstance->m_rtMatls.emplace_back(matlInstanceCount++);
                             m_sceneMaterials.emplace_back();
                             auto& matl = m_sceneMaterials.back();
-                            f32 hasDiffuseMap = node->m_meshInstance->m_matls[sm]->getF32("uMaterialProps.hasDiffuseMap");
-                            if (hasDiffuseMap < .5f)
+                            u32 materialFlags = node->m_meshInstance->m_matls[sm]->getU32("uMatlData.flags");
+                            if ((materialFlags & StandardPbrMaterial::Flags::kHasDiffuseMap) == 0u)
                             {
                                 // assume that the input color value is in sRGB space
-                                matl.flatColor = gammaCorrect(vec4ToVec3(node->m_meshInstance->m_matls[sm]->getVec4("flatColor")), 2.2f);
+                                matl.flatColor = gammaCorrect(vec4ToVec3(node->m_meshInstance->m_matls[sm]->getVec4("uMatlData.flatColor")), 2.2f);
                                 matl.diffuseTex = nullptr;
                             }
                         }
@@ -827,14 +828,15 @@ namespace Cyan
 
     void PathTracer::run(Camera& camera)
     {
+        CYAN_ASSERT(m_scene, "PathTracer::m_scene is NULL when PathTracer::run() is called!")
+
         switch (m_renderMode)
         {
             case RenderMode::Render:
-#if 0
-                renderScene(camera);
+#ifdef USE_IC
+                fastRenderScene(camera);
 #else
                 renderSceneMultiThread(camera);
-                // fastRenderScene(camera);
 #endif
                 break;
             default:
@@ -867,7 +869,7 @@ namespace Cyan
         return m_sceneMaterials[hit.m_node->m_meshInstance->m_rtMatls[hit.smIndex]];
     }
 
-    glm::vec3 PathTracer::renderSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd, TriMaterial& matl)
+    glm::vec3 PathTracer::shadeSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd, TriMaterial& matl)
     {
         glm::vec3 radiance(0.f);
         glm::vec3 hitPosition = ro + rd * hit.t;
@@ -884,12 +886,12 @@ namespace Cyan
         if (glm::dot(normal, rd) > 0) return radiance;
 
         // direct + indirect (diffuse interreflection)
-        radiance += recursiveTraceDiffuse(hitPosition, normal, numIndirectBounce - 1, getHitMaterial(hit));
+        radiance += recursiveTraceDiffuse(hitPosition, normal, numIndirectBounce, getHitMaterial(hit));
         //radiance *= sampleAo(hitPosition, normal, 8);
         return radiance;
     }
 
-    void PathTracer::postProcess()
+    void PathTracer::postprocess()
     {
         // not implemented
     }
@@ -961,48 +963,40 @@ namespace Cyan
     RayCastInfo PathTracer::traceScene(glm::vec3& ro, glm::vec3& rd)
     {
         RayCastInfo closestHit;
-        // it seems two approaches have similar performance
-#if 0
-        for (u32 i = 0; i < m_staticEntities.size(); ++i)
+
+        for (u32 i = 0; i < m_staticMeshNodes.size(); ++i)
         {
-            auto hit = m_staticEntities[i]->intersectRay(ro, rd, glm::mat4(1.f));
-            if (hit.t > 0.f && hit < closestHit)
-                closestHit = hit;
-        }
-#else
-        for (u32 i = 0; i < m_staticSceneNodes.size(); ++i)
-        {
-            glm::mat4 modelView = m_staticSceneNodes[i]->m_worldTransform.toMatrix();
-            BoundingBox3f aabb = m_staticSceneNodes[i]->m_meshInstance->getAABB();
+            glm::mat4 model = m_staticMeshNodes[i]->getWorldMatrix();
+            BoundingBox3f aabb = m_staticMeshNodes[i]->m_meshInstance->getAABB();
 
             // transform the ray into object space
             glm::vec3 roObjectSpace = ro;
             glm::vec3 rdObjectSpace = rd;
-            transformRayToObjectSpace(roObjectSpace, rdObjectSpace, modelView);
+            transformRayToObjectSpace(roObjectSpace, rdObjectSpace, model);
             rdObjectSpace = glm::normalize(rdObjectSpace);
 
             if (aabb.intersectRay(roObjectSpace, rdObjectSpace) > 0.f)
             {
                 // do ray triangle intersectiont test
-                Cyan::Mesh* mesh = m_staticSceneNodes[i]->m_meshInstance->m_mesh;
+                Cyan::Mesh* mesh = m_staticMeshNodes[i]->m_meshInstance->m_mesh;
                 Cyan::MeshRayHit currentRayHit = mesh->intersectRay(roObjectSpace, rdObjectSpace);
 
                 if (currentRayHit.t > 0.f)
                 {
                     // convert hit from object space back to world space
                     auto objectSpaceHit = roObjectSpace + currentRayHit.t * rdObjectSpace;
-                    f32 currentWorldSpaceDistance = transformHitFromObjectToWorldSpace(objectSpaceHit, modelView, ro, rd);
+                    f32 currentWorldSpaceDistance = transformHitFromObjectToWorldSpace(objectSpaceHit, model, ro, rd);
                     if (currentWorldSpaceDistance < closestHit.t)
                     {
                         closestHit.t = currentWorldSpaceDistance;
                         closestHit.smIndex = currentRayHit.smIndex;
                         closestHit.triIndex = currentRayHit.triangleIndex;
-                        closestHit.m_node = m_staticSceneNodes[i];
+                        closestHit.m_node = m_staticMeshNodes[i];
                     }
                 }
             }
         }
-#endif
+
         if (!closestHit.m_node)
             closestHit.t = -1.f;
         return closestHit;
@@ -1056,7 +1050,7 @@ namespace Cyan
             if (hit.t > 0.f)
             {
                 auto& matl = m_sceneMaterials[hit.m_node->m_meshInstance->m_rtMatls[hit.smIndex]];
-                auto radiance = renderSurface(hit, samplePos, rd, matl);
+                auto radiance = shadeSurface(hit, samplePos, rd, matl);
                 irradiance += radiance;
             }
             else

@@ -565,18 +565,16 @@ void DemoApp::precompute()
     m_scenes[Scenes::Demo_Scene_00]->m_irradianceProbe->build();
     m_scenes[Scenes::Demo_Scene_00]->m_reflectionProbe->build();
 #endif
-/*
     auto pathTracer = Cyan::PathTracer::getSingletonPtr();
     pathTracer->m_renderMode = Cyan::PathTracer::RenderMode::Render; 
-// #ifdef SCENE_SPONZA
+#ifdef SCENE_SPONZA
     pathTracer->setScene(m_scenes[Sponza_Scene]);
     pathTracer->run(m_scenes[Sponza_Scene]->getActiveCamera());
-// #endif
-// #ifdef SCENE_DEMO_00
+#endif
+#ifdef SCENE_DEMO_00
     pathTracer->setScene(m_scenes[Demo_Scene_00]);
     pathTracer->run(m_scenes[Demo_Scene_00]->getActiveCamera());
-// #endif
-*/  
+#endif
     auto shader = Cyan::createShader("DebugShadingShader", SHADER_SOURCE_PATH "debug_color_vs.glsl", SHADER_SOURCE_PATH "debug_color_fs.glsl");
 }
 
@@ -939,12 +937,6 @@ void DemoApp::drawLightingWidgets()
             }
         }
         ImGui::TreePop();
-    }
-
-    ImGui::SameLine();
-    if (m_ui.button("Load"))
-    {
-
     }
 }
 

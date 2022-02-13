@@ -86,6 +86,7 @@ namespace Cyan
         void set(const char* attribute, float data);
         glm::vec3 getVec3(const char* attribute);
         glm::vec4 getVec4(const char* attribute);
+        u32 getU32(const char* attribute);
         f32 getF32(const char* attribute);
         u32 getAttributeOffset(const char* attribute);
         u32 getAttributeOffset(UniformHandle handle);
