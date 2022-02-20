@@ -34,6 +34,13 @@
             "generateLightMapUv": true
         },
         {
+            "name": "circle_mesh",
+            "path": "../../asset/mesh/circle.obj",
+            "normalize": false,
+            "generateLightMapUv": false
+
+        },
+        {
             "name": "building_mesh",
             "path": "../../asset/demo_scene/buildings.obj",
             "normalize": false,

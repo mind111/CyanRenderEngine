@@ -189,6 +189,16 @@ namespace Cyan
         v2.tangent = glm::vec4(tangent, 1.f);
     }
 
+    void loadObjTriMesh()
+    {
+
+    }
+
+    void loadObjLineMesh()
+    {
+
+    }
+
     // treat all the meshes inside one obj file as submeshes
     Mesh* AssetManager::loadObj(const char* baseDir, const char* filename, bool bGenerateLightMapUv)
     {
@@ -217,83 +227,130 @@ namespace Cyan
         }
 
         std::vector<ObjMesh*> objMeshes;
-
         // submeshes
         for (u32 s = 0; s < shapes.size(); ++s)
         {
 #if CYAN_DEBUG
             cyanInfo("shape[%d].name = %s", s, shapes[s].name.c_str());
 #endif
-            ObjMesh* objMesh = new ObjMesh; 
+            ObjMesh* objMesh = new ObjMesh;
             objMeshes.push_back(objMesh);
             Mesh::SubMesh* subMesh = new Mesh::SubMesh;
             mesh->m_subMeshes.push_back(subMesh);
 
-            std::vector<ObjVertex>& vertices = objMesh->vertices;
-            std::vector<u32>&       indices = objMesh->indices;
-            indices.resize(shapes[s].mesh.indices.size());
-            std::unordered_map<ObjVertex, u32> uniqueVertexMap;
-            u32 numUniqueVertices = 0;
-
-            // assume that one submesh can only have one material
-            subMesh->m_materialIdx = shapes[s].mesh.material_ids[0];
-
-            for (u32 f = 0; f < shapes[s].mesh.indices.size() / 3; ++f)
+            // load tri mesh
+            if (shapes[s].mesh.indices.size() > 0)
             {
-                ObjVertex vertex = { };
-                u32 face[3] = { };
+                std::vector<ObjVertex>& vertices = objMesh->vertices;
+                std::vector<u32>& indices = objMesh->indices;
+                indices.resize(shapes[s].mesh.indices.size());
+                std::unordered_map<ObjVertex, u32> uniqueVerticesMap;
+                u32 numUniqueVertices = 0;
 
-                for (u32 v = 0; v < 3; ++v)
+                // assume that one submesh can only have one material
+                if (shapes[s].mesh.material_ids.size() > 0)
                 {
-                    tinyobj::index_t index = shapes[s].mesh.indices[f * 3 + v];
-                    // position
-                    f32 vx = attrib.vertices[index.vertex_index * 3 + 0];
-                    f32 vy = attrib.vertices[index.vertex_index * 3 + 1];
-                    f32 vz = attrib.vertices[index.vertex_index * 3 + 2];
-                    vertex.position = glm::vec3(vx, vy, vz);
-                    // normal
-                    if (index.normal_index >= 0)
-                    {
-                        f32 nx = attrib.normals[index.normal_index * 3 + 0];
-                        f32 ny = attrib.normals[index.normal_index * 3 + 1];
-                        f32 nz = attrib.normals[index.normal_index * 3 + 2];
-                        vertex.normal = glm::vec3(nx, ny, nz);
-                    } 
-                    else 
-                        vertex.normal = glm::vec3(0.f);
-                    // texcoord
-                    if (index.texcoord_index >= 0)
-                    {
-                        f32 tx = attrib.texcoords[index.texcoord_index * 2 + 0];
-                        f32 ty = attrib.texcoords[index.texcoord_index * 2 + 1];
-                        vertex.texCoord = glm::vec2(tx, ty);
-                    }
-                    else
-                        vertex.texCoord = glm::vec2(0.f);
-
-                    // deduplicate vertices
-                    auto iter = uniqueVertexMap.find(vertex);
-                    if (iter == uniqueVertexMap.end())
-                    {
-                        uniqueVertexMap[vertex] = numUniqueVertices;
-                        vertices.push_back(vertex);
-                        face[v] = numUniqueVertices;
-                        indices[f * 3 + v] = numUniqueVertices++;
-                    }
-                    else
-                    {
-                        u32 reuseIndex = iter->second;
-                        indices[f * 3 + v] = reuseIndex;
-                        face[v] = reuseIndex;
-                    }
-
-                    subMesh->m_triangles.m_positionArray.push_back(vertex.position);
-                    subMesh->m_triangles.m_normalArray.push_back(vertex.normal);
-                    subMesh->m_triangles.m_texCoordArray.push_back(glm::vec3(vertex.texCoord, 0.f));
+                    subMesh->m_materialIdx = shapes[s].mesh.material_ids[0];
                 }
+                // load triangles
+                for (u32 f = 0; f < shapes[s].mesh.indices.size() / 3; ++f)
+                {
+                    ObjVertex vertex = { };
+                    u32 face[3] = { };
 
-                // compute face tangent
-                computeTangent(vertices, face);
+                    for (u32 v = 0; v < 3; ++v)
+                    {
+                        tinyobj::index_t index = shapes[s].mesh.indices[f * 3 + v];
+                        // position
+                        f32 vx = attrib.vertices[index.vertex_index * 3 + 0];
+                        f32 vy = attrib.vertices[index.vertex_index * 3 + 1];
+                        f32 vz = attrib.vertices[index.vertex_index * 3 + 2];
+                        vertex.position = glm::vec3(vx, vy, vz);
+                        // normal
+                        if (index.normal_index >= 0)
+                        {
+                            f32 nx = attrib.normals[index.normal_index * 3 + 0];
+                            f32 ny = attrib.normals[index.normal_index * 3 + 1];
+                            f32 nz = attrib.normals[index.normal_index * 3 + 2];
+                            vertex.normal = glm::vec3(nx, ny, nz);
+                        }
+                        else
+                            vertex.normal = glm::vec3(0.f);
+                        // texcoord
+                        if (index.texcoord_index >= 0)
+                        {
+                            f32 tx = attrib.texcoords[index.texcoord_index * 2 + 0];
+                            f32 ty = attrib.texcoords[index.texcoord_index * 2 + 1];
+                            vertex.texCoord = glm::vec2(tx, ty);
+                        }
+                        else
+                            vertex.texCoord = glm::vec2(0.f);
+
+                        // deduplicate vertices
+                        auto iter = uniqueVerticesMap.find(vertex);
+                        if (iter == uniqueVerticesMap.end())
+                        {
+                            uniqueVerticesMap[vertex] = numUniqueVertices;
+                            vertices.push_back(vertex);
+                            face[v] = numUniqueVertices;
+                            indices[f * 3 + v] = numUniqueVertices++;
+                        }
+                        else
+                        {
+                            u32 reuseIndex = iter->second;
+                            indices[f * 3 + v] = reuseIndex;
+                            face[v] = reuseIndex;
+                        }
+
+                        subMesh->m_triangles.m_positionArray.push_back(vertex.position);
+                        subMesh->m_triangles.m_normalArray.push_back(vertex.normal);
+                        subMesh->m_triangles.m_texCoordArray.push_back(glm::vec3(vertex.texCoord, 0.f));
+                    }
+
+                    // compute face tangent
+                    computeTangent(vertices, face);
+                }
+            } 
+            // todo: this loading code is extremely buggy!!! 
+            // load lines
+            if (shapes[s].lines.indices.size() > 0)
+            {
+                std::vector<ObjVertex>& vertices = objMesh->vertices;
+                vertices.resize(shapes[s].lines.num_line_vertices.size());
+                std::vector<u32>& indices = objMesh->indices;
+                indices.resize(shapes[s].lines.indices.size());
+                std::unordered_map<ObjVertex, u32> uniqueVerticesMap;
+                u32 numUniqueVertices = 0;
+
+                for (u32 l = 0; l < shapes[s].lines.indices.size() / 2; ++l)
+                {
+                    ObjVertex vertex = { };
+                    for (u32 v = 0; v < 2; ++v)
+                    {
+                        tinyobj::index_t index = shapes[s].lines.indices[l * 2 + v];
+                        f32 vx = attrib.vertices[index.vertex_index * 3 + 0];
+                        f32 vy = attrib.vertices[index.vertex_index * 3 + 1];
+                        f32 vz = attrib.vertices[index.vertex_index * 3 + 2];
+                        vertex.position = glm::vec3(vx, vy, vz);
+                        vertices[index.vertex_index] = vertex;
+                        indices[l * 2 + v] = index.vertex_index;
+#if 0
+                        // deduplicate vertices
+                        auto iter = uniqueVerticesMap.find(vertex);
+                        if (iter == uniqueVerticesMap.end())
+                        {
+                            uniqueVerticesMap[vertex] = numUniqueVertices;
+                            vertices.push_back(vertex);
+                            indices[l * 2 + v] = numUniqueVertices++;
+                        }
+                        else
+                        {
+                            u32 reuseIndex = iter->second;
+                            indices[l * 2 + v] = reuseIndex;
+                        }
+#endif
+                    }
+                }
             }
         }
 

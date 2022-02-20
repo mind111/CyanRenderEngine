@@ -46,7 +46,7 @@ public:
     void update();
     void updateScene(Scene* scene);
     void updateMaterialData(Cyan::StandardPbrMaterial* matl);
-    void debugRenderOctree();
+    void debugIrradianceCache();
 
     // camera control
     void dispatchCameraCommand(struct CameraCommand& command);
@@ -89,6 +89,7 @@ public:
 
     u32                          m_currentScene;
     u32                          m_currentDebugView;
+    std::vector<Line>            m_debugLines;
 private:
     float m_sampleVertex[(64 + 1) * 4 * 2] = { };
     bool bRunning;

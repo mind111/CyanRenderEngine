@@ -3,14 +3,13 @@
     * practical sky light model
     * irradiance caching
     * radiance caching
-    * Cook's survey paper on sampling techniques
     * Practical voxel based GI (the original sparse octree voxel cone tracing and Nvidia's VXGI)
     * DDGI
 */
 
 /*
     Refactoring
-    * use a global buffer for all the transform data
+    * refactor Mesh class and mesh loading code path, and Line class
     * material rework
     * add shader #include to reduce duplicated code in shader
 */

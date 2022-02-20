@@ -316,33 +316,22 @@ namespace Cyan
             m_ssaoMatl = createMaterial(m_ssaoShader)->createInstance();
             m_ssaoDebugVisBuffer = createRegularBuffer(sizeof(SSAODebugVisData));
 
-            glm::mat4 model(1.f);
             m_ssaoDebugVisLines.normal.init();
             m_ssaoDebugVisLines.normal.setColor(glm::vec4(0.f, 0.f, 1.f, 1.f));
-            m_ssaoDebugVisLines.normal.setModel(model);
-            m_ssaoDebugVisLines.normal.setViewProjection(u_cameraView, u_cameraProjection);
 
             m_ssaoDebugVisLines.projectedNormal.init();
             m_ssaoDebugVisLines.projectedNormal.setColor(glm::vec4(1.f, 1.f, 0.f, 1.f));
-            m_ssaoDebugVisLines.projectedNormal.setModel(model);
-            m_ssaoDebugVisLines.projectedNormal.setViewProjection(u_cameraView, u_cameraProjection);
 
             m_ssaoDebugVisLines.wo.init();
             m_ssaoDebugVisLines.wo.setColor(glm::vec4(1.f, 0.f, 1.f, 1.f));
-            m_ssaoDebugVisLines.wo.setModel(model);
-            m_ssaoDebugVisLines.wo.setViewProjection(u_cameraView, u_cameraProjection);
 
             m_ssaoDebugVisLines.sliceDir.init();
             m_ssaoDebugVisLines.sliceDir.setColor(glm::vec4(1.f, 1.f, 1.f, 1.f));
-            m_ssaoDebugVisLines.sliceDir.setModel(model);
-            m_ssaoDebugVisLines.sliceDir.setViewProjection(u_cameraView, u_cameraProjection);
 
             for (int i = 0; i < ARRAY_COUNT(m_ssaoDebugVisLines.samples); ++i)
             {
                 m_ssaoDebugVisLines.samples[i].init();
                 m_ssaoDebugVisLines.samples[i].setColor(glm::vec4(1.f, 0.f, 0.f, 1.f));
-                m_ssaoDebugVisLines.samples[i].setModel(model);
-                m_ssaoDebugVisLines.samples[i].setViewProjection(u_cameraView, u_cameraProjection);
             }
         }
 

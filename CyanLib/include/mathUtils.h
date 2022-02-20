@@ -22,12 +22,17 @@ namespace Cyan
     f32 fabs(f32 value);
     glm::vec3 vec4ToVec3(const glm::vec4& v4);
     glm::mat3 tangentToWorld(const glm::vec3& n);
+    glm::vec3 sphericalToCartesian(const glm::vec3& n, f32 theta, f32 phi);
     f32 uniformSampleZeroToOne();
-    glm::vec3 uniformSampleHemiSphere(glm::vec3& n);
-    glm::vec3 cosineWeightedSampleHemiSphere(glm::vec3& n);
+    glm::vec3 uniformSampleHemisphere(glm::vec3& n);
+    glm::vec3 cosineWeightedSampleHemisphere(glm::vec3& n);
+    glm::vec3 stratifiedCosineWeightedSampleHemiSphere(glm::vec3& normal, f32 j, f32 k, f32 M, f32 N);
 
     // vector math
-    inline f32 dot(const glm::vec3& v0, const glm::vec3& v1);
+    inline f32 dot(const glm::vec3& v0, const glm::vec3& v1)
+    {
+        return v0.x * v1.x + v0.y * v1.y + v0.z * v1.z;
+    }
 
     struct Vec3 
     {

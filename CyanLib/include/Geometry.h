@@ -32,21 +32,17 @@ struct PointGroup
     VertexArray* m_vertexArray;
 };
 
-// TODO: line segment rendered using a cylinder mesh
+// todo: line segment rendered using a cylinder mesh
 struct Line
 {
     void init();
-    Line& setViewProjection(Uniform* view, Uniform* projection);
-    Line& setModel(const glm::mat4& model);
-    Line& setVerts(glm::vec3 v0, glm::vec3 v1);
+    Line& setVertices(glm::vec3 v0, glm::vec3 v1);
     Line& setColor(glm::vec4 color);
-    void draw();
+    void draw(glm::mat4& mvp);
 
     glm::vec3 m_vertices[2];
     Cyan::MaterialInstance* m_matl;
     GLuint m_vbo, m_vao;
-    Uniform* u_view;
-    Uniform* u_projection;
 };
 
 struct Line2D

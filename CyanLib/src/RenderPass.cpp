@@ -576,18 +576,18 @@ namespace Cyan
         glm::vec4 fdv4 = view * glm::vec4(fd, 1.f);
 
         // set debug line verts
-        cascade.frustumLines[0].setVerts(na, nb);
-        cascade.frustumLines[1].setVerts(nb, nc);
-        cascade.frustumLines[2].setVerts(nc, nd);
-        cascade.frustumLines[3].setVerts(na, nd);
-        cascade.frustumLines[4].setVerts(fa, fb);
-        cascade.frustumLines[5].setVerts(fb, fc);
-        cascade.frustumLines[6].setVerts(fc, fd);
-        cascade.frustumLines[7].setVerts(fa, fd);
-        cascade.frustumLines[8].setVerts(na, fa);
-        cascade.frustumLines[9].setVerts(nb, fb);
-        cascade.frustumLines[10].setVerts(nc, fc);
-        cascade.frustumLines[11].setVerts(nd, fd);
+        cascade.frustumLines[0].setVertices(na, nb);
+        cascade.frustumLines[1].setVertices(nb, nc);
+        cascade.frustumLines[2].setVertices(nc, nd);
+        cascade.frustumLines[3].setVertices(na, nd);
+        cascade.frustumLines[4].setVertices(fa, fb);
+        cascade.frustumLines[5].setVertices(fb, fc);
+        cascade.frustumLines[6].setVertices(fc, fd);
+        cascade.frustumLines[7].setVertices(fa, fd);
+        cascade.frustumLines[8].setVertices(na, fa);
+        cascade.frustumLines[9].setVertices(nb, fb);
+        cascade.frustumLines[10].setVertices(nc, fc);
+        cascade.frustumLines[11].setVertices(nd, fd);
 
         BoundingBox3f& aabb = cascade.aabb;
         aabb.resetBound();
@@ -656,6 +656,7 @@ namespace Cyan
 
     void DirectionalShadowPass::drawDebugLines(Uniform* view, Uniform* projection)
     {
+        glm::mat4 mvp(1.f);
         for (u32 i = 0; i < kNumShadowCascades; ++i)
         {
             auto& cascade = m_cascadedShadowMap.cascades[i];
@@ -664,9 +665,7 @@ namespace Cyan
             cascade.aabb.draw();
             for (auto& line : cascade.frustumLines)
             {
-                line.setModel(glm::mat4(1.f));
-                line.setViewProjection(view, projection);
-                line.draw();
+                line.draw(mvp);
             }
         }
     }

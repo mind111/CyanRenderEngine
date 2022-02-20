@@ -38,7 +38,17 @@ namespace Cyan
         return rand() / (f32)RAND_MAX;
     }
 
-    glm::vec3 uniformSampleHemiSphere(glm::vec3& n)
+    glm::vec3 sphericalToCartesian(const glm::vec3& n, f32 theta, f32 phi)
+    {
+        glm::vec3 localDir = {
+            sin(theta) * cos(phi),
+            sin(theta) * sin(phi),
+            cos(theta)
+        };
+        return tangentToWorld(n) * localDir;
+    }
+
+    glm::vec3 uniformSampleHemisphere(glm::vec3& n)
     {
         f32 r0 = uniformSampleZeroToOne();
         f32 r1 = uniformSampleZeroToOne();
@@ -61,7 +71,7 @@ namespace Cyan
         return glm::vec2(r * cos(theta), r * sin(theta));
     }
 
-    glm::vec3 cosineWeightedSampleHemiSphere(glm::vec3& n)
+    glm::vec3 cosineWeightedSampleHemisphere(glm::vec3& n)
     {
         glm::vec2 pDisk = uniformSampleUnitDisk();
         f32 pz = 1.f - sqrt(pDisk.x * pDisk.x + pDisk.y * pDisk.y);
@@ -69,9 +79,18 @@ namespace Cyan
         return tangentToWorld(n) * localDir; 
     }
 
-    f32 dot(const glm::vec3& v0, const glm::vec3& v1)
+    glm::vec3 stratifiedCosineWeightedSampleHemiSphere(glm::vec3& n, f32 j, f32 k, f32 M, f32 N)
     {
-        return v0.x * v1.x + v0.y * v1.y + v0.z * v1.z;
+        f32 u = uniformSampleZeroToOne();
+        f32 v = uniformSampleZeroToOne();
+        f32 theta = glm::acos(sqrt(1.f - (j + u) / M));
+        f32 phi = 2 * M_PI * (k + v) / N;
+        return sphericalToCartesian(n, theta, phi);
+    }
+
+    glm::vec3 stratifiedSampleHemisphere(glm::vec3& n)
+    {
+        return glm::vec3(0.f);
     }
 
     Vec3 operator+(const Vec3& lhs, const Vec3& rhs)

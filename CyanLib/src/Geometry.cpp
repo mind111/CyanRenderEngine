@@ -78,20 +78,7 @@ void Line::init()
     glBindVertexArray(0);
 };
 
-Line& Line::setViewProjection(Uniform* view, Uniform* projection)
-{
-    u_view = view;
-    u_projection = projection;
-    return *this;
-}
-
-Line& Line::setModel(const glm::mat4& mat)
-{
-    m_matl->set("lineModel", reinterpret_cast<const void*>(&mat[0][0]));
-    return *this;
-}
-
-Line& Line::setVerts(glm::vec3 v0, glm::vec3 v1)
+Line& Line::setVertices(glm::vec3 v0, glm::vec3 v1)
 {
     m_vertices[0] = v0;
     m_vertices[1] = v1;
@@ -105,13 +92,12 @@ Line& Line::setColor(glm::vec4 color)
     return *this;
 }
 
-void Line::draw() 
+void Line::draw(glm::mat4& mvp) 
 { 
     auto ctx = Cyan::getCurrentGfxCtx();
     ctx->setShader(m_matl->m_template->m_shader);
+    m_matl->set("mvp", &mvp[0]);
     m_matl->bind();
-    ctx->setUniform(u_view);
-    ctx->setUniform(u_projection);
     glBindVertexArray(m_vao);
     glDrawArrays(GL_LINES, 0, 2);
     glBindVertexArray(0);

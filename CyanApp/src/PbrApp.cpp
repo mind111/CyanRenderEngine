@@ -89,7 +89,7 @@ struct DebugRenderPass : Cyan::RenderPass
         auto ctx = Cyan::getCurrentGfxCtx();
         ctx->setRenderTarget(m_renderTarget);
         ctx->setViewport(m_viewport);
-        m_app->debugRenderOctree();
+        m_app->debugIrradianceCache();
     }
 
     DemoApp* m_app;
@@ -573,7 +573,56 @@ void DemoApp::precompute()
 #endif
 #ifdef SCENE_DEMO_00
     pathTracer->setScene(m_scenes[Demo_Scene_00]);
+    auto fillIrradianceCacheDebugData = [&]()
+    {
+        pathTracer->fillIrradianceCacheDebugData(m_scenes[Demo_Scene_00]->getActiveCamera());
+#if 0
+        // visualize tangent frame for hemisphere sampling
+        glm::vec4 tangentColor(0.f, 1.f, 0.f, 1.f);
+        glm::vec4 bitangentColor(1.f, 0.f, 0.f, 1.f);
+        for (u32 i = 0; i < sizeof(pathTracer->m_debugData.hemisphereTangentFrame) / sizeof(pathTracer->m_debugData.hemisphereTangentFrame[0]); ++i)
+        {
+            m_debugLines.emplace_back();
+            auto& tangent = m_debugLines.back();
+            tangent.init();
+            tangent.setVertices(pathTracer->m_debugData.debugIrradianceRecord.position, pathTracer->m_debugData.debugIrradianceRecord.position + pathTracer->m_debugData.hemisphereTangentFrame[i * 2 + 0]);
+            tangent.setColor(tangentColor);
+
+            m_debugLines.emplace_back();
+            auto& bitangent = m_debugLines.back();
+            bitangent.init();
+            bitangent.setVertices(pathTracer->m_debugData.debugIrradianceRecord.position, pathTracer->m_debugData.debugIrradianceRecord.position + pathTracer->m_debugData.hemisphereTangentFrame[i * 2 + 1]);
+            bitangent.setColor(bitangentColor);
+        }
+#else
+        pathTracer->debugIrradianceCache(m_scenes[Demo_Scene_00]->getActiveCamera());
+        m_debugLines.resize(pathTracer->m_irradianceCache->m_numRecords);
+        glm::vec4 color(0.f, 0.f, 1.f, 1.f);
+        for (u32 i = 0; i < m_debugLines.size(); ++i)
+        {
+            auto& record = pathTracer->m_irradianceCache->m_records[i];
+            auto& translationalGradient = pathTracer->m_debugData.translationalGradients[i];
+            m_debugLines[i].init();
+            m_debugLines[i].setVertices(record.position, record.position + translationalGradient);
+            m_debugLines[i].setColor(color);
+        }
+#endif
+    };
+#if 0
+    fillIrradianceCacheDebugData();
+#else
     pathTracer->run(m_scenes[Demo_Scene_00]->getActiveCamera());
+    m_debugLines.resize(pathTracer->m_irradianceCache->m_numRecords);
+    glm::vec4 color(0.f, 0.f, 1.f, 1.f);
+    for (u32 i = 0; i < m_debugLines.size(); ++i)
+    {
+        auto& record = pathTracer->m_irradianceCache->m_records[i];
+        auto& translationalGradient = pathTracer->m_debugData.translationalGradients[i];
+        m_debugLines[i].init();
+        m_debugLines[i].setVertices(record.position, record.position + translationalGradient);
+        m_debugLines[i].setColor(color);
+    }
+#endif
 #endif
     auto shader = Cyan::createShader("DebugShadingShader", SHADER_SOURCE_PATH "debug_color_vs.glsl", SHADER_SOURCE_PATH "debug_color_fs.glsl");
 }
@@ -632,9 +681,9 @@ RayCastInfo DemoApp::castMouseRay(const glm::vec2& currentViewportPos, const glm
     q /= q.w;
     glm::vec3 rd = glm::normalize(glm::vec3(q.x, q.y, q.z));
     // in view space
-    m_debugRay.setVerts(glm::vec3(0.f, 0.f, -0.2f), glm::vec3(rd * 20.0f));
+    m_debugRay.setVertices(glm::vec3(0.f, 0.f, -0.2f), glm::vec3(rd * 20.0f));
     glm::mat4 viewInverse = glm::inverse(camera.view);
-    m_debugRay.setModel(viewInverse);
+    // m_debugRay.setModel(viewInverse);
 
     glm::vec3 ro = glm::vec3(0.f);
 
@@ -978,7 +1027,7 @@ void DemoApp::drawSceneViewport()
             ctx->setDepthControl(Cyan::DepthControl::kDisable);
             ctx->setRenderTarget(Cyan::Renderer::getSingletonPtr()->getRenderOutputRenderTarget(), 0u);
             // TODO: the line is not rendered at exactly where the mouse is currently clicking
-            m_debugRay.draw();
+            // m_debugRay.draw();
             ctx->setRenderTarget(nullptr, 0u);
             ctx->setDepthControl(Cyan::DepthControl::kEnable);
         }
@@ -1077,32 +1126,31 @@ void DemoApp::buildFrame()
     renderer->addPostProcessPasses();
 }
 
-void debugRenderCube()
-{
-
-}
-
-void DemoApp::debugRenderOctree()
+void DemoApp::debugIrradianceCache()
 {
     auto pathTracer = Cyan::PathTracer::getSingletonPtr();
     auto renderer = Cyan::Renderer::getSingletonPtr();
     Cyan::Octree* octree = pathTracer->m_irradianceCache->m_octree;
-    std::queue<Cyan::OctreeNode*> nodes;
-    for (u32 i = 0; i < pathTracer->m_debugObjects.octreeBoundingBoxes.size(); ++i)
+    for (u32 i = 0; i < pathTracer->m_debugData.octreeBoundingBoxes.size(); ++i)
     {
-        pathTracer->m_debugObjects.octreeBoundingBoxes[i].setViewProjection(renderer->u_cameraView, renderer->u_cameraProjection);
-        pathTracer->m_debugObjects.octreeBoundingBoxes[i].draw();
+        pathTracer->m_debugData.octreeBoundingBoxes[i].setViewProjection(renderer->u_cameraView, renderer->u_cameraProjection);
+        pathTracer->m_debugData.octreeBoundingBoxes[i].draw();
     }
+
     auto ctx = Cyan::getCurrentGfxCtx();
     ctx->setPrimitiveType(Cyan::PrimitiveType::TriangleList);
     auto cubeMesh = Cyan::getMesh("CubeMesh");
+    auto circleMesh = Cyan::getMesh("circle_mesh");
     auto debugShader = Cyan::getShader("DebugShadingShader");
     Camera& camera = m_scenes[m_currentScene]->getActiveCamera();
     glm::mat4 vp = camera.projection * camera.view;
-    glm::vec4 color(1.f, 0.f, 0.f, 1.f);
+    glm::vec4 color0(1.f, 1.f, 1.f, 1.f);
+    glm::vec4 color1(0.f, 1.f, 0.f, 1.f);
+    glm::vec4 color2(0.f, 0.f, 1.f, 1.f);
 
-    auto debugRenderCube = [&](const glm::vec3& pos, const glm::vec3& scale, glm::vec4& color) {
+    auto debugDrawCube = [&](const glm::vec3& pos, const glm::vec3& scale, glm::vec4& color) {
         ctx->setShader(debugShader);
+        ctx->setPrimitiveType(Cyan::PrimitiveType::TriangleList);
         Transform transform;
         transform.m_translate = pos;
         transform.m_scale = scale;
@@ -1111,26 +1159,57 @@ void DemoApp::debugRenderOctree()
         for (u32 sm = 0; sm < cubeMesh->m_subMeshes.size(); ++sm)
         {
             debugShader->setUniformMat4f("mvp", &mvp[0][0]);
-            ctx->setVertexArray(cubeMesh->m_subMeshes[sm]->m_vertexArray);
-            ctx->drawIndexAuto(cubeMesh->m_subMeshes[sm]->m_numVerts);
+            renderer->drawMesh(cubeMesh);
+        }
+    };
+
+    auto debugDrawCircle = [&](const glm::vec3& pos, const glm::vec3& n, const glm::vec3& scale, glm::vec4& color) {
+        ctx->setShader(debugShader);
+        ctx->setPrimitiveType(Cyan::PrimitiveType::Line);
+        glm::mat3 tangentFrame = Cyan::tangentToWorld(n);
+        glm::mat4 rotation = { 
+            glm::vec4(tangentFrame[0], 0.f),
+            glm::vec4(tangentFrame[2], 0.f),
+            glm::vec4(tangentFrame[1], 0.f),
+            glm::vec4(0.f, 0.f, 0.f, 1.f)
+        };
+        glm::mat4 m(1.f);
+        m = glm::translate(m, pos);
+        m *= rotation;
+        m = glm::scale(m, glm::vec3(scale));
+        glm::mat4 mvp = vp * m;
+        debugShader->setUniformVec4("color", &color.r);
+        for (u32 sm = 0; sm < circleMesh->m_subMeshes.size(); ++sm)
+        {
+            debugShader->setUniformMat4f("mvp", &mvp[0][0]);
+            renderer->drawMesh(circleMesh);
         }
     };
 
     glDisable(GL_CULL_FACE);
     {
-#if 1
-        for (u32 i = 0; i < pathTracer->m_irradianceCache->m_numRecords; ++i)
+        // irradiance records visualization
+#if 0
+        u32 start = pathTracer->m_irradianceCache->m_numRecords * .8f;
+        for (u32 i = start; i < pathTracer->m_irradianceCache->m_numRecords; ++i)
         {
             auto& record = pathTracer->m_irradianceCache->m_cache[i];
-            debugRenderCube(record.position, glm::vec3(0.01f), color);
-            //debugRenderCube(record.position, glm::vec3(record.r), color);
+            debugDrawCircle(record.position, record.normal, glm::vec3(record.r), color0);
+            debugDrawCube(record.position, glm::vec3(record.r * .05f), color2);
         }
-#else
-        glm::vec4 red(1.f, 0.f, 0.f, 1.f);
-        debugRenderCube(pathTracer->m_debugPos0, glm::vec3(0.02f), red);
-        glm::vec4 blue(0.f, 0.f, 1.f, 1.f);
-        debugRenderCube(pathTracer->m_debugPos1, glm::vec3(0.02f), blue);
 #endif
+        // hemisphere sample directions
+        for (u32 i = 0; i < m_debugLines.size(); ++i)
+        {
+            m_debugLines[i].draw(vp);
+        }
+        // primary ray hit
+        /*
+        for (u32 i = 0; i < pathTracer->m_debugData.debugRayHitPositions.size(); ++i)
+        {
+            debugDrawCube(pathTracer->m_debugData.debugRayHitPositions[i], glm::vec3(0.02f), color2);
+        }
+        */
     }
     glEnable(GL_CULL_FACE);
 }
