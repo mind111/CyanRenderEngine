@@ -216,7 +216,6 @@ namespace Cyan
         virtual void render() override;
         void renderCascade(ShadowCascade& cascade, glm::mat4& lightView);
         static void computeCascadeAABB(ShadowCascade& cascade, const Camera& camera, glm::mat4& view);
-        static void drawDebugLines(Uniform* view, Uniform* projection);
 
         static Shader* s_directShadowShader;
         static MaterialInstance* s_directShadowMatl;
@@ -225,6 +224,8 @@ namespace Cyan
         static CascadedShadowMap m_cascadedShadowMap;
         static Texture* m_horizontalBlurTex;
         static Texture* m_verticalBlurTex;
+
+        void drawDebugLines();
 
         Camera m_camera;
         DirectionalLight m_light;

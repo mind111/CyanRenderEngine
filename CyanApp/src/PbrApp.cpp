@@ -573,45 +573,8 @@ void DemoApp::precompute()
 #endif
 #ifdef SCENE_DEMO_00
     pathTracer->setScene(m_scenes[Demo_Scene_00]);
-    auto fillIrradianceCacheDebugData = [&]()
-    {
-        pathTracer->fillIrradianceCacheDebugData(m_scenes[Demo_Scene_00]->getActiveCamera());
-#if 0
-        // visualize tangent frame for hemisphere sampling
-        glm::vec4 tangentColor(0.f, 1.f, 0.f, 1.f);
-        glm::vec4 bitangentColor(1.f, 0.f, 0.f, 1.f);
-        for (u32 i = 0; i < sizeof(pathTracer->m_debugData.hemisphereTangentFrame) / sizeof(pathTracer->m_debugData.hemisphereTangentFrame[0]); ++i)
-        {
-            m_debugLines.emplace_back();
-            auto& tangent = m_debugLines.back();
-            tangent.init();
-            tangent.setVertices(pathTracer->m_debugData.debugIrradianceRecord.position, pathTracer->m_debugData.debugIrradianceRecord.position + pathTracer->m_debugData.hemisphereTangentFrame[i * 2 + 0]);
-            tangent.setColor(tangentColor);
-
-            m_debugLines.emplace_back();
-            auto& bitangent = m_debugLines.back();
-            bitangent.init();
-            bitangent.setVertices(pathTracer->m_debugData.debugIrradianceRecord.position, pathTracer->m_debugData.debugIrradianceRecord.position + pathTracer->m_debugData.hemisphereTangentFrame[i * 2 + 1]);
-            bitangent.setColor(bitangentColor);
-        }
-#else
-        pathTracer->debugIrradianceCache(m_scenes[Demo_Scene_00]->getActiveCamera());
-        m_debugLines.resize(pathTracer->m_irradianceCache->m_numRecords);
-        glm::vec4 color(0.f, 0.f, 1.f, 1.f);
-        for (u32 i = 0; i < m_debugLines.size(); ++i)
-        {
-            auto& record = pathTracer->m_irradianceCache->m_records[i];
-            auto& translationalGradient = pathTracer->m_debugData.translationalGradients[i];
-            m_debugLines[i].init();
-            m_debugLines[i].setVertices(record.position, record.position + translationalGradient);
-            m_debugLines[i].setColor(color);
-        }
-#endif
-    };
-#if 0
-    fillIrradianceCacheDebugData();
-#else
     pathTracer->run(m_scenes[Demo_Scene_00]->getActiveCamera());
+    pathTracer->fillIrradianceCacheDebugData(m_scenes[Demo_Scene_00]->getActiveCamera());
     m_debugLines.resize(pathTracer->m_irradianceCache->m_numRecords);
     glm::vec4 color(0.f, 0.f, 1.f, 1.f);
     for (u32 i = 0; i < m_debugLines.size(); ++i)
@@ -622,7 +585,6 @@ void DemoApp::precompute()
         m_debugLines[i].setVertices(record.position, record.position + translationalGradient);
         m_debugLines[i].setColor(color);
     }
-#endif
 #endif
     auto shader = Cyan::createShader("DebugShadingShader", SHADER_SOURCE_PATH "debug_color_vs.glsl", SHADER_SOURCE_PATH "debug_color_fs.glsl");
 }
@@ -1130,13 +1092,6 @@ void DemoApp::debugIrradianceCache()
 {
     auto pathTracer = Cyan::PathTracer::getSingletonPtr();
     auto renderer = Cyan::Renderer::getSingletonPtr();
-    Cyan::Octree* octree = pathTracer->m_irradianceCache->m_octree;
-    for (u32 i = 0; i < pathTracer->m_debugData.octreeBoundingBoxes.size(); ++i)
-    {
-        pathTracer->m_debugData.octreeBoundingBoxes[i].setViewProjection(renderer->u_cameraView, renderer->u_cameraProjection);
-        pathTracer->m_debugData.octreeBoundingBoxes[i].draw();
-    }
-
     auto ctx = Cyan::getCurrentGfxCtx();
     ctx->setPrimitiveType(Cyan::PrimitiveType::TriangleList);
     auto cubeMesh = Cyan::getMesh("CubeMesh");
@@ -1188,8 +1143,8 @@ void DemoApp::debugIrradianceCache()
 
     glDisable(GL_CULL_FACE);
     {
-        // irradiance records visualization
 #if 0
+        // visualize irradiance records
         u32 start = pathTracer->m_irradianceCache->m_numRecords * .8f;
         for (u32 i = start; i < pathTracer->m_irradianceCache->m_numRecords; ++i)
         {
@@ -1198,18 +1153,16 @@ void DemoApp::debugIrradianceCache()
             debugDrawCube(record.position, glm::vec3(record.r * .05f), color2);
         }
 #endif
-        // hemisphere sample directions
+        // visualize translational gradients
         for (u32 i = 0; i < m_debugLines.size(); ++i)
         {
             m_debugLines[i].draw(vp);
         }
-        // primary ray hit
-        /*
-        for (u32 i = 0; i < pathTracer->m_debugData.debugRayHitPositions.size(); ++i)
+        // visualize octree
+        for (u32 i = 0; i < pathTracer->m_debugData.octreeBoundingBoxes.size(); ++i)
         {
-            debugDrawCube(pathTracer->m_debugData.debugRayHitPositions[i], glm::vec3(0.02f), color2);
+            pathTracer->m_debugData.octreeBoundingBoxes[i].draw(vp);
         }
-        */
     }
     glEnable(GL_CULL_FACE);
 }

@@ -83,7 +83,7 @@ namespace Cyan
     {
         f32 u = uniformSampleZeroToOne();
         f32 v = uniformSampleZeroToOne();
-        f32 theta = glm::acos(sqrt(1.f - (j + u) / M));
+        f32 theta = glm::asin(sqrt((j + u) / M));
         f32 phi = 2 * M_PI * (k + v) / N;
         return sphericalToCartesian(n, theta, phi);
     }

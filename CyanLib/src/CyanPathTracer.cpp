@@ -213,7 +213,7 @@ namespace Cyan
         m_sceneMaterials.clear();
         // convert scene data to decouple ray tracing required data from raster pipeline
         preprocessSceneData();
-        m_irradianceCache->initialize(m_staticMeshNodes);
+        m_irradianceCache->init(m_staticMeshNodes);
     }
 
     void PathTracer::setPixel(u32 px, u32 py, const glm::vec3& color)
@@ -733,9 +733,77 @@ namespace Cyan
         f32 r;
     };
 
-    void computeIrradianceGradients(IrradianceRecord& record, HemisphereCellData* cells, f32 M, f32 N)
+    struct IrradianceGradients
     {
+        glm::vec3 t[3];
+        glm::vec3 r[3];
+    };
 
+    void computeIrradianceGradients(IrradianceGradients& gradients, HemisphereCellData** cells, f32 M, f32 N, const glm::vec3& n, const glm::vec3& irradiance, f32 Ri)
+    {
+        auto tangentFrame = tangentToWorld(n);
+        auto tangent = tangentFrame[0];
+        auto bitangent = tangentFrame[1];
+        f32 dPhi = 2 * M_PI / N;
+
+        f32 rMin = FLT_MAX;
+        for (u32 k = 0; k < N; ++k)
+        {
+            u32 sliceIndexPrev = (k - 1) % (u32)N;
+            // rotate tangent vector by (k + .5f) * dPhi to get a unit vector point towards center of cell j,k 
+            auto quat0 = glm::angleAxis(dPhi * ((f32)k + .5f), n);
+            auto quat1 = glm::angleAxis(dPhi * k, n);
+            glm::vec3 uk = glm::normalize(glm::rotate(quat0, tangent));
+            glm::vec3 vk = glm::normalize(glm::rotate(quat0, bitangent));
+            glm::vec3 vkPrev = glm::normalize(glm::rotate(quat1, bitangent));
+            f32 magnitude_t0[3] = { 0.f, 0.f, 0.f };
+            f32 magnitude_t1[3] = { 0.f, 0.f, 0.f };
+
+            for (u32 j = 0; j < M; ++j)
+            {
+                f32 sinThetaMinus = sqrt((f32)j / M);
+                f32 sinThetaPlus = sqrt(((f32)j + 1.f) / M);
+
+                // rotational gradient
+
+                // translational gradient
+                if (j > 0)
+                {
+                    f32 denom = min(cells[k][j - 1].r, cells[k][j].r);
+                    magnitude_t0[0] += sinThetaMinus * (1.f - sinThetaMinus * sinThetaMinus) * (cells[k][j].radiance.r - cells[k][j-1].radiance.r) / denom;
+                    magnitude_t0[1] += sinThetaMinus * (1.f - sinThetaMinus * sinThetaMinus) * (cells[k][j].radiance.g - cells[k][j-1].radiance.g) / denom;
+                    magnitude_t0[2] += sinThetaMinus * (1.f - sinThetaMinus * sinThetaMinus) * (cells[k][j].radiance.b - cells[k][j-1].radiance.b) / denom;
+                }
+
+                f32 denom = min(cells[sliceIndexPrev][j].r, cells[k][j].r);
+                magnitude_t1[0] += (sinThetaPlus - sinThetaMinus) * (cells[k][j].radiance.r - cells[sliceIndexPrev][j].radiance.r) / denom;
+                magnitude_t1[1] += (sinThetaPlus - sinThetaMinus) * (cells[k][j].radiance.g - cells[sliceIndexPrev][j].radiance.g) / denom;
+                magnitude_t1[2] += (sinThetaPlus - sinThetaMinus) * (cells[k][j].radiance.b - cells[sliceIndexPrev][j].radiance.b) / denom;
+            }
+            gradients.t[0] += uk * magnitude_t0[0] * (2.f * M_PI / N) + vkPrev * magnitude_t1[0];
+            gradients.t[1] += uk * magnitude_t0[1] * (2.f * M_PI / N) + vkPrev * magnitude_t1[1];
+            gradients.t[2] += uk * magnitude_t0[2] * (2.f * M_PI / N) + vkPrev * magnitude_t1[2];
+        }
+
+        // how to normalize & cap the gradient ...?
+        // clamp gradients length
+        f32 maxLength = -FLT_MAX;
+        for (u32 i = 0; i < 3; ++i)
+        {
+            f32 magnitude = glm::length(gradients.t[i]);
+            if (magnitude > maxLength)
+            {
+                maxLength = magnitude;
+            }
+        }
+        if (maxLength > Ri)
+        {
+            for (u32 i = 0; i < 3; ++i)
+            {
+                f32 norm = 1.f / maxLength;
+                gradients.t[i] *= norm;
+            }
+        }
     }
 
     /* Notes:
@@ -749,52 +817,19 @@ namespace Cyan
         glm::vec3 irradiance(0.f);
 
         // stratified sampling constants
-        const f32 M = 32.f;
-        const f32 N = 32.f;
+        const f32 M = 8.f;
+        const f32 N = 8.f;
         f32 numSamples = M * N;
-        const f32 dTheta = .5f * M_PI / M;
-        const f32 dPhi   = 2.f * M_PI / N;
-        auto tangentFrame = tangentToWorld(n);
-        auto tangent = tangentFrame[0];
-        auto bitangent = tangentFrame[1];
-        glm::vec3 gradient_r[3] = {
-            glm::vec3(0.f),
-            glm::vec3(0.f),
-            glm::vec3(0.f)
-        };
-        glm::vec3 gradient_t[3] = {
-            glm::vec3(0.f),
-            glm::vec3(0.f),
-            glm::vec3(0.f)
-        };
-        f32* prevSliceLr = static_cast<f32*>(alloca(sizeof(f32) * M));
-        f32* prevSliceLg = static_cast<f32*>(alloca(sizeof(f32) * M));
-        f32* prevSliceLb = static_cast<f32*>(alloca(sizeof(f32) * M));
-        f32* prevSliceR = static_cast<f32*>(alloca(sizeof(f32) * M));
-        glm::vec3 prevVk(0.f);
-        for (u32 i = 0; i < M; ++i)
+        // N slices, each slice has M cells;
+        HemisphereCellData** cells = static_cast<HemisphereCellData**>(alloca(sizeof(HemisphereCellData*) * (u64)N));
+        for (u32 i = 0; i < N; ++i)
         {
-            prevSliceR[i] = FLT_MAX;
-            prevSliceLr[i] = 0.f;
-            prevSliceLg[i] = 0.f;
-            prevSliceLb[i] = 0.f;
+            cells[i] = static_cast<HemisphereCellData*>(alloca(sizeof(HemisphereCellData) * (u64)M));
         }
 
-        f32 Ri = FLT_MAX;
+        f32 Ri = 0.f, nom = 0.f;
         for (u32 k = 0; k < N; ++k)
         {
-            f32 scale_t0[3] = { 0.f, 0.f, 0.f };
-            f32 scale_t1[3] = { 0.f, 0.f, 0.f };
-
-            // rotate tangent vector by (k + .5f) * dPhi to get a unit vector point towards center of cell j,k 
-            auto quat = glm::angleAxis(dPhi * ((f32)k + .5f), n);
-            glm::vec3 uk = glm::normalize(glm::rotate(quat, tangent));
-            glm::vec3 vk = glm::normalize(glm::rotate(quat, bitangent));
-            f32 prevThetaLr = 0.f;
-            f32 prevThetaLg = 0.f;
-            f32 prevThetaLb = 0.f;
-            f32 prevThetaR = FLT_MAX;
-
             for (u32 j = 0; j < M; ++j)
             {
                 auto rd = stratifiedCosineWeightedSampleHemiSphere(n, (f32)j, (f32)k, M, N);
@@ -807,55 +842,34 @@ namespace Cyan
                     auto& matl = m_sceneMaterials[hit.m_node->m_meshInstance->m_rtMatls[hit.smIndex]];
                     radiance = shadeSurface(hit, p, rd, matl);
                     irradiance += radiance;
-                    if (dot(rd, n) >= 0.1f)
-                        Ri = min(Ri, hit.t);
                     hitDistance = hit.t;
+                    nom += 1.f;
                 }
-                {
-                    // translational gradient
-                    f32 sineThetaMinus = sqrt((f32)j / M);
-                    f32 sineThetaPlus = sqrt(((f32)j + 1.f) / M);
 
-                    // todo: is clamping the motion rate here correct?
-                    if (j > 0)
-                    {
-                        scale_t0[0] += sineThetaMinus * (1.f - sineThetaMinus * sineThetaMinus) * (radiance.r - prevThetaLr) / max(min(prevThetaR, hitDistance), 1.f);
-                        scale_t0[1] += sineThetaMinus * (1.f - sineThetaMinus * sineThetaMinus) * (radiance.g - prevThetaLg) / max(min(prevThetaR, hitDistance), 1.f);
-                        scale_t0[2] += sineThetaMinus * (1.f - sineThetaMinus * sineThetaMinus) * (radiance.b - prevThetaLb) / max(min(prevThetaR, hitDistance), 1.f);
-                    }
-                    if (k > 0)
-                    {
-                        scale_t1[0] += (sineThetaPlus - sineThetaMinus) * (radiance.r - prevSliceLr[j]) / max(min(prevSliceR[j], hitDistance), 1.f);
-                        scale_t1[1] += (sineThetaPlus - sineThetaMinus) * (radiance.g - prevSliceLg[j]) / max(min(prevSliceR[j], hitDistance), 1.f);
-                        scale_t1[2] += (sineThetaPlus - sineThetaMinus) * (radiance.b - prevSliceLb[j]) / max(min(prevSliceR[j], hitDistance), 1.f);
-                    }
-                    prevSliceLr[j] = radiance.r;
-                    prevSliceLg[j] = radiance.g;
-                    prevSliceLb[j] = radiance.b;
-                    prevSliceR[j] = hitDistance;
-                    prevThetaLr = radiance.r;
-                    prevThetaLg = radiance.g;
-                    prevThetaLb = radiance.b;
-                    prevThetaR = hitDistance;
-                }
+                Ri += 1.f / hitDistance;
+
+                cells[k][j].radiance = radiance;
+                cells[k][j].r = hitDistance;
             }
-            gradient_t[0] += scale_t0[0] * (2 * M_PI / N) * uk;
-            gradient_t[1] += scale_t0[1] * (2 * M_PI / N) * uk;
-            gradient_t[2] += scale_t0[2] * (2 * M_PI / N) * uk;
-            gradient_t[0] += scale_t1[0] * prevVk;
-            gradient_t[1] += scale_t1[1] * prevVk;
-            gradient_t[2] += scale_t1[2] * prevVk;
-            prevVk = vk;
         };
+        Ri = nom / Ri;
         irradiance /= numSamples;
 
         // clamp sample spacing to avoid too sparse or too dense sample distribution
         Ri = glm::clamp(Ri, 0.1f, 2.0f);
 
+        // compute irradiance gradients
+        IrradianceGradients gradients = { 
+            { glm::vec3(0.f), glm::vec3(0.f), glm::vec3(0.f)},
+            { glm::vec3(0.f), glm::vec3(0.f), glm::vec3(0.f)}
+        };
+        computeIrradianceGradients(gradients, cells, M, N, n, irradiance, Ri);
+
         // debugging (translational gradients should be on the tangent plane of the hemisphere sample)
-        m_debugData.translationalGradients.push_back(gradient_t[0]);
+        m_debugData.translationalGradients.push_back(gradients.t[0]);
+
         // add to the cache
-        return m_irradianceCache->addIrradianceRecord(p, n, irradiance, Ri, gradient_r, gradient_t);
+        return m_irradianceCache->addIrradianceRecord(p, n, irradiance, Ri, gradients.r, gradients.t);
     }
 
     glm::vec3 PathTracer::fastShadeSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd, TriMaterial& matl)
@@ -889,27 +903,16 @@ namespace Cyan
 
     void PathTracer::fillIrradianceCacheDebugData(Camera& camera)
     {
-#if 0
+#if 1
         // generate debug bounding boxes for the octree
         for (u32 i = 0; i < m_irradianceCache->m_octree->m_numAllocatedNodes; ++i)
         {
-            m_debugObjects.octreeBoundingBoxes.emplace_back();
-            auto& aabb = m_debugObjects.octreeBoundingBoxes.back();
+            m_debugData.octreeBoundingBoxes.emplace_back();
+            auto& aabb = m_debugData.octreeBoundingBoxes.back();
             auto& octreeNode = m_irradianceCache->m_octree->m_nodePool[i];
             aabb.m_pMin = glm::vec4(octreeNode.center + glm::vec3(-.5f, -.5f, -.5f) * octreeNode.sideLength, 1.f);
             aabb.m_pMax = glm::vec4(octreeNode.center + glm::vec3( .5f,  .5f,  .5f) * octreeNode.sideLength, 1.f);
             aabb.init();
-            glm::mat4 model(1.f);
-            aabb.setModel(model);
-        }
-        // generate debug spheres for cached irradiance samples
-        cyanInfo("There were %u cached irradiance records", m_irradianceCache->m_numRecords);
-        for (u32 i = 0; i < m_irradianceCache->m_numRecords; ++i)
-        {
-            m_debugObjects.debugSpheres.emplace_back();
-            auto& sphere = m_debugObjects.debugSpheres.back();
-            sphere.center = m_irradianceCache->m_cache[i].position;
-            sphere.radius = m_irradianceCache->m_cache[i].r;
         }
 #endif
         u32 px = 320, py = 240;
@@ -922,16 +925,6 @@ namespace Cyan
         glm::vec3 normal     = getSurfaceNormal(debugHit0, baryCoord);
         m_debugPos0 += normal * EPSILON;
         m_debugData.debugIrradianceRecord = IrradianceRecord(sampleIrradianceRecord(m_debugPos0, normal));
-        /*
-        auto tangentFrame = tangentToWorld(normal);
-        u32 numDebugTangentFrames = sizeof(m_debugData.hemisphereTangentFrame) / sizeof(m_debugData.hemisphereTangentFrame[0]);
-        for (u32 i = 0; i < numDebugTangentFrames; ++i)
-        {
-            glm::quat rotation = glm::angleAxis((f32)i * (2 * M_PI) / (f32)(numDebugTangentFrames), normal);
-            m_debugData.hemisphereTangentFrame[i * 2 + 0] = glm::rotate(rotation, tangentFrame[0]);
-            m_debugData.hemisphereTangentFrame[i * 2 + 1] = glm::rotate(rotation, tangentFrame[1]);
-        }
-        */
     }
 
     void PathTracer::debugIrradianceCache(Camera& camera)
@@ -1141,7 +1134,7 @@ namespace Cyan
 
     f32 getIrradianceLerpWeight(const glm::vec3& p, const glm::vec3& pn, IrradianceRecord* record, f32 error)
     {
-#if 0
+#if 1
         return computeIrradianceRecordWeight0(p, pn, record, error); 
 #else
         return computeIrradianceRecordWeight1(p, pn, record, error);
@@ -1172,7 +1165,7 @@ namespace Cyan
                 f32 tr = dot(p - record.position, record.gradient_t[0]);
                 f32 tg = dot(p - record.position, record.gradient_t[1]);
                 f32 tb = dot(p - record.position, record.gradient_t[2]);
-                irradiance += wi * (record.irradiance + glm::vec3(tr, tg, tb));
+                irradiance += wi * (record.irradiance + glm::vec3(max(tr, 0.f), max(tg, 0.f), max(tb, 0.f)));
 #else
                 irradiance += wi * record.irradiance;
 #endif
@@ -1224,8 +1217,8 @@ namespace Cyan
         {
             OctreeNode* node = nodes.front();
             nodes.pop();
-            // recurse into child
-            if (node->sideLength > 0.1f && (node->sideLength > (4.f * newRecord->r)))
+            // current node is too big for this new record, recurse into child and subdivide
+            if ((node->sideLength > (4.f * newRecord->r)))
             {
                 // compute which octant that current point belongs to
                 u32 childIndex = getChildIndexEnclosingSurfel(node, newRecord->position);
@@ -1237,8 +1230,12 @@ namespace Cyan
                     nodes.push(node->childs[childIndex]);
                 }
             }
-            else
+            else if (node->sideLength >= (2.f * newRecord->r))
+            {
                 node->records.push_back(newRecord);
+            }
+            else
+                cyanError("Invalid record insertion into octree!");
         }
     }
 
@@ -1264,7 +1261,7 @@ namespace Cyan
         m_octree = new Octree();
     }
 
-    void IrradianceCache::initialize(std::vector<SceneNode*>& nodes)
+    void IrradianceCache::init(std::vector<SceneNode*>& nodes)
     {
         BoundingBox3f aabb;
         for (u32 i = 0; i < nodes.size(); ++i)
@@ -1300,7 +1297,7 @@ namespace Cyan
         newRecord->gradient_t[1] = translationalGradient[1];
         newRecord->gradient_t[2] = translationalGradient[2];
         // insert into the octree
-        // m_octree->insert(newRecord);
+        m_octree->insert(newRecord);
         return *newRecord;
     }
 

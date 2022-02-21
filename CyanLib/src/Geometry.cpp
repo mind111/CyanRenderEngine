@@ -303,30 +303,17 @@ void BoundingBox3f::init()
     m_vertexArray->init();
     Shader* shader = Cyan::createShader("LineShader", "../../shader/shader_line.vs", "../../shader/shader_line.fs");
     m_matl = Cyan::createMaterial(shader)->createInstance();
-    isValid = true;
     m_color = glm::vec3(1.0, 0.8, 0.f);
 }
 
-void BoundingBox3f::setModel(const glm::mat4& model)
-{
-    m_matl->set("lineModel", reinterpret_cast<const void*>(&model[0]));
-}
-
-void BoundingBox3f::setViewProjection(Uniform* view, Uniform* projection)
-{
-    u_view = view;
-    u_projection = projection;
-}
-
-void BoundingBox3f::draw()
+void BoundingBox3f::draw(glm::mat4& mvp)
 {
     auto ctx = Cyan::getCurrentGfxCtx();
     ctx->setShader(Cyan::createShader("LineShader", "../../shader_line.vs", "../../shader_line.fs"));
     ctx->setVertexArray(m_vertexArray);
     m_matl->set("color", &m_color.r);
+    m_matl->set("mvp", &mvp[0]);
     m_matl->bind();
-    ctx->setUniform(u_view);
-    ctx->setUniform(u_projection);
     ctx->setPrimitiveType(Cyan::PrimitiveType::Line);
     ctx->drawIndex(sizeof(indices) / sizeof(u32));
 }

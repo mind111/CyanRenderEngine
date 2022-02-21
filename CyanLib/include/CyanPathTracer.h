@@ -13,6 +13,12 @@ namespace Cyan
         glm::vec3 rd;
     };
 
+    struct Sphere
+    {
+        glm::vec3 center;
+        f32       radius;
+    };
+
     struct SurfaceProperty
     {
         glm::vec3 albedo;
@@ -76,7 +82,7 @@ namespace Cyan
         IrradianceCache();
         ~IrradianceCache() {}
 
-        void initialize(std::vector<SceneNode*>& nodes);
+        void init(std::vector<SceneNode*>& nodes);
         const IrradianceRecord& addIrradianceRecord(const glm::vec3& p, const glm::vec3& pn, const glm::vec3& irradiance, f32 r, const glm::vec3* rotationalGradient, const glm::vec3* translationalGradient);
         void findValidRecords(std::vector<IrradianceRecord*>& validSet, const glm::vec3& p, const glm::vec3& pn, f32 error);
 
@@ -84,12 +90,6 @@ namespace Cyan
         std::vector<IrradianceRecord> m_records;
         u32 m_numRecords;
         Octree* m_octree;
-    };
-
-    struct Sphere
-    {
-        glm::vec3 center;
-        f32       radius;
     };
 
     class PathTracer
@@ -132,8 +132,8 @@ namespace Cyan
 
         struct IrradianceCacheConfig
         {
-            const f32 kError = 1.f;
-            const f32 kSmoothing = 1.4f;
+            const f32 kError = 0.2f;
+            const f32 kSmoothing = 1.6f;
         } m_irradianceCacheCfg;
 
         /*

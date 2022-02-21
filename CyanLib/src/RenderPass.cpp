@@ -617,8 +617,6 @@ namespace Cyan
         auto aabb = cascade.aabb;
         glm::mat4 lightProjection = glm::orthoLH(aabb.m_pMin.x, aabb.m_pMax.x, aabb.m_pMin.y, aabb.m_pMax.y, aabb.m_pMax.z, aabb.m_pMin.z);
         cascade.lightProjection = lightProjection;
-        glm::mat4 mat = glm::inverse(lightView);
-        aabb.setModel(mat);
         auto ctx = getCurrentGfxCtx();
         s_depthRenderTarget->setDepthBuffer(cascade.basicShadowMap.shadowMap);
         switch (m_cascadedShadowMap.m_technique)
@@ -654,15 +652,15 @@ namespace Cyan
         }
     }
 
-    void DirectionalShadowPass::drawDebugLines(Uniform* view, Uniform* projection)
+    void DirectionalShadowPass::drawDebugLines()
     {
         glm::mat4 mvp(1.f);
         for (u32 i = 0; i < kNumShadowCascades; ++i)
         {
             auto& cascade = m_cascadedShadowMap.cascades[i];
-            cascade.aabb.setModel(glm::inverse(m_cascadedShadowMap.lightView));
-            cascade.aabb.setViewProjection(view, projection);
-            cascade.aabb.draw();
+            glm::mat4 mvp(glm::inverse(m_cascadedShadowMap.lightView));
+            mvp = m_camera.projection * m_camera.view * mvp;
+            cascade.aabb.draw(mvp);
             for (auto& line : cascade.frustumLines)
             {
                 line.draw(mvp);

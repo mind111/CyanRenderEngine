@@ -8,10 +8,27 @@
 */
 
 /*
-    Refactoring
+    @Refactoring
     * refactor Mesh class and mesh loading code path, and Line class
     * material rework
     * add shader #include to reduce duplicated code in shader
+    * 
+
+    @Precompute GI 
+    * add octree for irradiance cache
+    * multi-threading for path tracing using irradiance caching
+    * refactor light mapper using irradiance cache to bake lightmap
+    * try to scale the lightmapper to bake sponza...?
+
+    @Runtime dynamic GI
+    * voxel cone tracing
+    * surfel based GI (GIBS)
+    * irradiance volume
+    * DDGI
+    
+    @Runtime lighting
+    * area light
+    * material layering
 */
 
 /*

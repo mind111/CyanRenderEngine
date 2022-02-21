@@ -133,12 +133,6 @@ struct BoundingBox3f
     glm::vec3 m_color;
     struct VertexArray* m_vertexArray;
     GLuint m_ibo;
-    bool isValid;
-
-    // TODO: cleanup
-    // transform uniforms
-    Uniform* u_view;
-    Uniform* u_projection;
 
     Cyan::MaterialInstance* m_matl;
 
@@ -148,14 +142,11 @@ struct BoundingBox3f
         m_pMax = glm::vec4(-FLT_MAX, -FLT_MAX, -FLT_MAX, 1.0f);
         m_vertexArray = nullptr;
         m_ibo = -1;
-        isValid = false;
     } 
 
     void init();
-    void setModel(const glm::mat4& model);
-    void setViewProjection(Uniform* view, Uniform* projection);
     void computeVerts();
-    void draw();
+    void draw(glm::mat4& mvp);
     void resetBound();
     void bound(const BoundingBox3f& aabb);
     void bound(const glm::vec3& v3);
