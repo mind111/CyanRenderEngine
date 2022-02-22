@@ -39,10 +39,10 @@ namespace Cyan
 
     struct OctreeNode
     {
-        glm::vec3                      center;
-        f32                            sideLength;
-        OctreeNode*                    childs[8];
-        std::vector<IrradianceRecord*> records;
+        glm::vec3        center;
+        f32              sideLength;
+        OctreeNode*      childs[8];
+        std::vector<u32> records;
     };
 
     struct Octree
@@ -56,10 +56,10 @@ namespace Cyan
         OctreeNode*             m_root;
 
         void        init(const glm::vec3& center, f32 sideLength);
-        void        insert(IrradianceRecord* newRecord);
-        void        traverse(const std::function<void(std::queue<OctreeNode*>&, OctreeNode*)>& callback);
-        u32         getChildIndexEnclosingSurfel(OctreeNode* node, glm::vec3& position);
         OctreeNode* allocNode();
+        u32         getChildIndexEnclosingSurfel(OctreeNode* node, const glm::vec3& position);
+        void        traverse(const std::function<void(std::queue<OctreeNode*>&, OctreeNode*)>& callback);
+        void        insert(const IrradianceRecord& newRecord, u32 recordIndex);
     };
 
     /* @brief:
@@ -78,9 +78,7 @@ namespace Cyan
 
     /* @brief:
     * todo: irradiance gradients
-    * todo: octree traversal for finding a valid set of irradiance records 
     * todo: neighbor clamping 
-    * fix:  using distance to closest visible surface as Ri makes irradiance records too dense! 
     */
     struct IrradianceCache
     {

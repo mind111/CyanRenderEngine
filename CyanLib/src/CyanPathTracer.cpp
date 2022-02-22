@@ -1178,7 +1178,7 @@ namespace Cyan
             // check all the records in current node
             for (u32 i = 0; i < node->records.size(); ++i)
             {
-                auto& record = *node->records[i];
+                auto& record = cache.m_records[node->records[i]];
                 f32 wi = getIrradianceLerpWeight(p, pn, record, error);
                 // exclude cached samples that are "in front of" p
                 f32 dp = dot(p - record.position, (record.normal + pn) * .5f);
@@ -1242,7 +1242,7 @@ namespace Cyan
         m_root->sideLength = sideLength;
     }
 
-    u32 Octree::getChildIndexEnclosingSurfel(OctreeNode* node, glm::vec3& position)
+    u32 Octree::getChildIndexEnclosingSurfel(OctreeNode* node, const glm::vec3& position)
     {
         glm::vec3 vv = position - node->center;
         u32 k = (vv.z <= 0.f) ? 1 : 0;
@@ -1282,14 +1282,14 @@ namespace Cyan
         glm::vec3( .5f, -.5f, -.5f),  // 7
     };
 
-    void Octree::insert(IrradianceRecord* newRecord)
+    void Octree::insert(const IrradianceRecord& newRecord, u32 recordIndex)
     {
-        traverse([this, newRecord](std::queue<OctreeNode*>& nodes, OctreeNode* node) {
+        traverse([this, &newRecord, recordIndex](std::queue<OctreeNode*>& nodes, OctreeNode* node) {
             // current node is too big for this new record, recurse into child and subdivide
-            if ((node->sideLength > (4.f * newRecord->r)))
+            if ((node->sideLength > (4.f * newRecord.r)))
             {
                 // compute which octant that current point belongs to
-                u32 childIndex = getChildIndexEnclosingSurfel(node, newRecord->position);
+                u32 childIndex = getChildIndexEnclosingSurfel(node, newRecord.position);
                 if (!node->childs[childIndex])
                 {
                     node->childs[childIndex] = allocNode();
@@ -1298,9 +1298,9 @@ namespace Cyan
                 }
                 nodes.push(node->childs[childIndex]);
             }
-            else if (node->sideLength >= (2.f * newRecord->r))
+            else if (node->sideLength >= (2.f * newRecord.r))
             {
-                node->records.push_back(newRecord);
+                node->records.push_back(recordIndex);
             }
             else
                 cyanError("Invalid record insertion into octree!");
@@ -1350,21 +1350,8 @@ namespace Cyan
         newRecord.gradient_t[0] = translationalGradient[0];
         newRecord.gradient_t[1] = translationalGradient[1];
         newRecord.gradient_t[2] = translationalGradient[2];
-        /*
-        IrradianceRecord* newRecord = &m_records[m_numRecords++];
-        newRecord->position = p;
-        newRecord->normal = pn;
-        newRecord->irradiance = irradiance;
-        newRecord->r = r;
-        newRecord->gradient_r[0] = rotationalGradient[0];
-        newRecord->gradient_r[1] = rotationalGradient[1];
-        newRecord->gradient_r[2] = rotationalGradient[2];
-        newRecord->gradient_t[0] = translationalGradient[0];
-        newRecord->gradient_t[1] = translationalGradient[1];
-        newRecord->gradient_t[2] = translationalGradient[2];
-        */
         // insert into the octree
-        m_octree->insert(m_numRecords++);
+        m_octree->insert(newRecord, m_numRecords++);
         return newRecord;
     }
 };
