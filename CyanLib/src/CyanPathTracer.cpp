@@ -40,7 +40,7 @@ namespace Cyan
     glm::vec3 gammaCorrect(const glm::vec3& color, f32 gamma);
     inline f32 getLuminance(const glm::vec3& color);
     inline f32 getSpectralAverage(const glm::vec3& rgb);
-    f32 getIrradianceLerpWeight(const glm::vec3& p, const glm::vec3& pn, IrradianceRecord* record, f32 error);
+    f32 getIrradianceLerpWeight(const glm::vec3& p, const glm::vec3& pn, const IrradianceRecord& record, f32 error);
 
     f32 saturate(f32 val)
     {
@@ -1113,26 +1113,26 @@ namespace Cyan
     /*
     * Vanila weight formula presented in [WRC88] "A Ray Tracing Solution for Diffuse Interreflection"
     */
-    inline f32 computeIrradianceRecordWeight0(const glm::vec3& p, const glm::vec3& pn, IrradianceRecord* record, f32 error)
+    inline f32 computeIrradianceRecordWeight0(const glm::vec3& p, const glm::vec3& pn, const IrradianceRecord& record, f32 error)
     {
-        f32 distance = glm::length(p - record->position);
-        return 1.f / ((distance / record->r) + sqrt(max(0.f, 1.0f - dot(pn, record->normal)))) - 1.f / error;
+        f32 distance = glm::length(p - record.position);
+        return 1.f / ((distance / record.r) + sqrt(max(0.f, 1.0f - dot(pn, record.normal)))) - 1.f / error;
     }
 
     /*
     * Improved weight formula presented in [TL04] "An Approximate Global Illumination System for Computer Generated Films"
     * with a slight tweak by removing the times 2.0 in the translation error
     */
-    inline f32 computeIrradianceRecordWeight1(const glm::vec3& p, const glm::vec3& pn, IrradianceRecord* record, f32 error)
+    inline f32 computeIrradianceRecordWeight1(const glm::vec3& p, const glm::vec3& pn, const IrradianceRecord& record, f32 error)
     {
         f32 accuracy = 1.f / error;
-        f32 distance = glm::length(p - record->position);
-        f32 translationalError = 2.f * distance / (record->r);
-        f32 rotationalError = sqrt(max(0.f, 1.f - dot(pn, record->normal))) / sqrt(1.f - glm::cos(10.f / M_PI));
+        f32 distance = glm::length(p - record.position);
+        f32 translationalError = 2.f * distance / (record.r);
+        f32 rotationalError = sqrt(max(0.f, 1.f - dot(pn, record.normal))) / sqrt(1.f - glm::cos(10.f / M_PI));
         return 1.f - accuracy * max(translationalError, rotationalError);
     }
 
-    f32 getIrradianceLerpWeight(const glm::vec3& p, const glm::vec3& pn, IrradianceRecord* record, f32 error)
+    f32 getIrradianceLerpWeight(const glm::vec3& p, const glm::vec3& pn, const IrradianceRecord& record, f32 error)
     {
 #if 1
         return computeIrradianceRecordWeight0(p, pn, record, error); 
@@ -1142,12 +1142,96 @@ namespace Cyan
     }
 
     /*
+    * Find valid irradiance records and compute their interpolation weights in the irradiance cache naively by iterating through all the records
+    */
+    void lerpIrradianceSlow(glm::vec3& outIrrad, f32& outWeight, const IrradianceCache& cache, const glm::vec3& p, const glm::vec3& pn, f32 error)
+    {
+        // brute-force find all the valid record that can be used for extrapolation
+        for (u32 i = 0; i < cache.m_numRecords; i++)
+        {
+            auto& record = cache.m_records[i];
+            f32 wi = getIrradianceLerpWeight(p, pn, record, error);
+            // exclude cached samples that are "in front of" p
+            f32 dp = dot(p - record.position, (record.normal + pn) * .5f);
+            if (wi > 0.f && dp >= 0.f)
+            {
+                // rotational gradient
+                f32 rr = dot(glm::cross(record.normal, pn), record.gradient_r[0]);
+                f32 rg = dot(glm::cross(record.normal, pn), record.gradient_r[1]);
+                f32 rb = dot(glm::cross(record.normal, pn), record.gradient_r[2]);
+                // translational gradient
+                f32 tr = dot(p - record.position, record.gradient_t[0]);
+                f32 tg = dot(p - record.position, record.gradient_t[1]);
+                f32 tb = dot(p - record.position, record.gradient_t[2]);
+                outIrrad += wi * (record.irradiance + glm::vec3(max(tr, 0.f), max(tg, 0.f), max(tb, 0.f)));
+                outWeight += wi;
+            }
+        }
+    }
+
+    /*
+    * Efficiently find valid irradiance records and compute their interpolation weights in the irradiance cache by traversing a Octree
+    */
+    void lerpIrradianceFast(glm::vec3& outIrrad, f32& outWeight, const IrradianceCache& cache, const glm::vec3& p, const glm::vec3& pn, f32 error)
+    {
+        // traverse octree to find valid records
+        std::queue<OctreeNode*> nodes;
+        nodes.push(cache.m_octree->m_root);
+        while (!nodes.empty())
+        {
+            auto node = nodes.front();
+            nodes.pop();
+            // check all the records in current node
+            for (u32 i = 0; i < node->records.size(); ++i)
+            {
+                auto& record = *node->records[i];
+                f32 wi = getIrradianceLerpWeight(p, pn, record, error);
+                // exclude cached samples that are "in front of" p
+                f32 dp = dot(p - record.position, (record.normal + pn) * .5f);
+                if (wi > 0.f && dp >= 0.f)
+                {
+                    /*
+                    // rotational gradient
+                    f32 rr = dot(glm::cross(record.normal, pn), record.gradient_r[0]);
+                    f32 rg = dot(glm::cross(record.normal, pn), record.gradient_r[1]);
+                    f32 rb = dot(glm::cross(record.normal, pn), record.gradient_r[2]);
+                    // translational gradient
+                    f32 tr = dot(p - record.position, record.gradient_t[0]);
+                    f32 tg = dot(p - record.position, record.gradient_t[1]);
+                    f32 tb = dot(p - record.position, record.gradient_t[2]);
+                    irradiance += wi * (record.irradiance + glm::vec3(max(tr, 0.f), max(tg, 0.f), max(tb, 0.f)));
+                    */
+                    outIrrad += wi * record.irradiance;
+                    outWeight += wi;
+                }
+            }
+            // search among all childs
+            for (u32 i = 0; i < 8; ++i)
+            { 
+                auto child = node->childs[i];
+                if (child)
+                {
+                    // recurse into childs
+                    if (abs(p.x - child->center.x) < child->sideLength 
+                        && abs(p.y - child->center.y) < child->sideLength 
+                        && abs(p.z - child->center.z) < child->sideLength)
+                    {
+                        nodes.push(child);
+                    }
+                }
+            }
+        }
+    }
+
+    /*
     * Compute indirect diffuse interreflection using irradiance caching
     */
     glm::vec3 PathTracer::approximateDiffuseInterreflection(glm::vec3& p, glm::vec3& pn, f32 error)
     {
         glm::vec3 irradiance(0.f);
         f32       weight = 0.f;
+#if 0
+        // brute-force find all the valid record that can be used for extrapolation
         for (u32 i = 0; i < m_irradianceCache->m_numRecords; i++)
         {
             auto& record = m_irradianceCache->m_records[i];
@@ -1156,7 +1240,7 @@ namespace Cyan
             f32 dp = dot(p - record.position, (record.normal + pn) * .5f);
             if (wi > 0.f && dp >= 0.f)
             {
-#if 1
+                /*
                 // rotational gradient
                 f32 rr = dot(glm::cross(record.normal, pn), record.gradient_r[0]);
                 f32 rg = dot(glm::cross(record.normal, pn), record.gradient_r[1]);
@@ -1166,12 +1250,60 @@ namespace Cyan
                 f32 tg = dot(p - record.position, record.gradient_t[1]);
                 f32 tb = dot(p - record.position, record.gradient_t[2]);
                 irradiance += wi * (record.irradiance + glm::vec3(max(tr, 0.f), max(tg, 0.f), max(tb, 0.f)));
-#else
+                */
                 irradiance += wi * record.irradiance;
-#endif
                 weight += wi;
             }
         }
+#else
+        // traverse octree to find valid records
+        std::queue<OctreeNode*> nodes;
+        nodes.push(m_irradianceCache->m_octree->m_root);
+        while (!nodes.empty())
+        {
+            auto node = nodes.front();
+            nodes.pop();
+            // check all the records in current node
+            for (u32 i = 0; i < node->records.size(); ++i)
+            {
+                auto& record = *node->records[i];
+                f32 wi = getIrradianceLerpWeight(p, pn, record, error);
+                // exclude cached samples that are "in front of" p
+                f32 dp = dot(p - record.position, (record.normal + pn) * .5f);
+                if (wi > 0.f && dp >= 0.f)
+                {
+                    /*
+                    // rotational gradient
+                    f32 rr = dot(glm::cross(record.normal, pn), record.gradient_r[0]);
+                    f32 rg = dot(glm::cross(record.normal, pn), record.gradient_r[1]);
+                    f32 rb = dot(glm::cross(record.normal, pn), record.gradient_r[2]);
+                    // translational gradient
+                    f32 tr = dot(p - record.position, record.gradient_t[0]);
+                    f32 tg = dot(p - record.position, record.gradient_t[1]);
+                    f32 tb = dot(p - record.position, record.gradient_t[2]);
+                    irradiance += wi * (record.irradiance + glm::vec3(max(tr, 0.f), max(tg, 0.f), max(tb, 0.f)));
+                    */
+                    irradiance += wi * record.irradiance;
+                    weight += wi;
+                }
+            }
+            // search among all childs
+            for (u32 i = 0; i < 8; ++i)
+            { 
+                auto child = node->childs[i];
+                if (child)
+                {
+                    // recurse into childs
+                    if (abs(p.x - child->center.x) < child->sideLength 
+                        && abs(p.y - child->center.y) < child->sideLength 
+                        && abs(p.z - child->center.z) < child->sideLength)
+                    {
+                        nodes.push(child);
+                    }
+                }
+            }
+        }
+#endif
         if (weight > 0.f)
         {
             irradiance /= weight;
@@ -1227,8 +1359,8 @@ namespace Cyan
                     node->childs[childIndex] = allocNode();
                     node->childs[childIndex]->sideLength = node->sideLength * .5f;
                     node->childs[childIndex]->center = node->center + childOffsets[childIndex] * node->childs[childIndex]->sideLength;
-                    nodes.push(node->childs[childIndex]);
                 }
+                nodes.push(node->childs[childIndex]);
             }
             else if (node->sideLength >= (2.f * newRecord->r))
             {
@@ -1301,40 +1433,4 @@ namespace Cyan
         return *newRecord;
     }
 
-    void IrradianceCache::findValidRecords(std::vector<IrradianceRecord*>& validSet, const glm::vec3& p, const glm::vec3& pn, f32 error)
-    {
-#if 0
-        std::queue<OctreeNode*> nodes;
-        nodes.push(m_octree->m_root);
-        while (!nodes.empty())
-        {
-            auto node = nodes.front();
-            nodes.pop();
-            for (u32 i = 0; i < node->records.size(); ++i)
-            {
-                f32 wi = getIrradianceLerpWeight(p, pn, node->records[i], kError);
-                // exclude cached samples that are "in front of" p
-                f32 dp = dot(p - node->records[i]->position, (node->records[i]->normal + pn) * .5f);
-                if (wi > 0.f && dp >= 0.f) validSet.push_back(node->records[i]);
-            }
-
-            // recurse into child
-            for (u32 i = 0; i < 8; ++i)
-            {
-                if (node->childs[i] && glm::length(p - node->childs[i]->center) <= node->childs[i]->sideLength)
-                    nodes.push(node->childs[i]);
-            }
-        }
-#else
-        for (u32 i = 0; i < m_numRecords; i++)
-        {
-            auto& record = m_records[i];
-            f32 wi = getIrradianceLerpWeight(p, pn, &record, error);
-            // exclude cached samples that are "in front of" p
-            f32 dp = dot(p - record.position, (record.normal + pn) * .5f);
-            if (wi > 0.f && dp >= 0.f)
-                validSet.push_back(&record);
-        }
-#endif
-    }
 };

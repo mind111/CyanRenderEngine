@@ -1,5 +1,9 @@
 #pragma once
+
+#include <functional>
+
 #include "scene.h"
+
 namespace Cyan 
 {
     struct IrradianceRecord;
@@ -53,6 +57,7 @@ namespace Cyan
 
         void        init(const glm::vec3& center, f32 sideLength);
         void        insert(IrradianceRecord* newRecord);
+        void        traverse(const std::function<void(void)>& callback);
         u32         getChildIndexEnclosingSurfel(OctreeNode* node, glm::vec3& position);
         OctreeNode* allocNode();
     };
@@ -84,7 +89,6 @@ namespace Cyan
 
         void init(std::vector<SceneNode*>& nodes);
         const IrradianceRecord& addIrradianceRecord(const glm::vec3& p, const glm::vec3& pn, const glm::vec3& irradiance, f32 r, const glm::vec3* rotationalGradient, const glm::vec3* translationalGradient);
-        void findValidRecords(std::vector<IrradianceRecord*>& validSet, const glm::vec3& p, const glm::vec3& pn, f32 error);
 
         static const u32 cacheSize = 1024 * 1024;
         std::vector<IrradianceRecord> m_records;
@@ -132,8 +136,8 @@ namespace Cyan
 
         struct IrradianceCacheConfig
         {
-            const f32 kError = 0.2f;
-            const f32 kSmoothing = 1.6f;
+            const f32 kError = 0.5f;
+            const f32 kSmoothing = 1.4f;
         } m_irradianceCacheCfg;
 
         /*

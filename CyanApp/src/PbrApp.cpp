@@ -1143,21 +1143,24 @@ void DemoApp::debugIrradianceCache()
 
     glDisable(GL_CULL_FACE);
     {
-#if 0
+#if 1
         // visualize irradiance records
-        u32 start = pathTracer->m_irradianceCache->m_numRecords * .8f;
-        for (u32 i = start; i < pathTracer->m_irradianceCache->m_numRecords; ++i)
+        u32 start = pathTracer->m_irradianceCache->m_numRecords * .0f;
+        u32 end = pathTracer->m_irradianceCache->m_numRecords * 1.f;
+        for (u32 i = start; i < end; ++i)
         {
-            auto& record = pathTracer->m_irradianceCache->m_cache[i];
+            auto& record = pathTracer->m_irradianceCache->m_records[i];
             debugDrawCircle(record.position, record.normal, glm::vec3(record.r), color0);
-            debugDrawCube(record.position, glm::vec3(record.r * .05f), color2);
+            debugDrawCube(record.position, glm::vec3(record.r * .02f), color1);
         }
 #endif
+#if 0
         // visualize translational gradients
         for (u32 i = 0; i < m_debugLines.size(); ++i)
         {
             m_debugLines[i].draw(vp);
         }
+#endif
         // visualize octree
         for (u32 i = 0; i < pathTracer->m_debugData.octreeBoundingBoxes.size(); ++i)
         {
