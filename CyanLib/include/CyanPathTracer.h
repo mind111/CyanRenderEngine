@@ -57,7 +57,7 @@ namespace Cyan
 
         void        init(const glm::vec3& center, f32 sideLength);
         void        insert(IrradianceRecord* newRecord);
-        void        traverse(const std::function<void(void)>& callback);
+        void        traverse(const std::function<void(std::queue<OctreeNode*>&, OctreeNode*)>& callback);
         u32         getChildIndexEnclosingSurfel(OctreeNode* node, glm::vec3& position);
         OctreeNode* allocNode();
     };

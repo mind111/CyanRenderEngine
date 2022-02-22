@@ -1174,13 +1174,7 @@ namespace Cyan
     */
     void lerpIrradianceFast(glm::vec3& outIrrad, f32& outWeight, const IrradianceCache& cache, const glm::vec3& p, const glm::vec3& pn, f32 error)
     {
-        // traverse octree to find valid records
-        std::queue<OctreeNode*> nodes;
-        nodes.push(cache.m_octree->m_root);
-        while (!nodes.empty())
-        {
-            auto node = nodes.front();
-            nodes.pop();
+        cache.m_octree->traverse([&outIrrad, &outWeight, &cache, &p, &pn, error](std::queue<OctreeNode*>& nodes, OctreeNode* node) {
             // check all the records in current node
             for (u32 i = 0; i < node->records.size(); ++i)
             {
@@ -1190,17 +1184,6 @@ namespace Cyan
                 f32 dp = dot(p - record.position, (record.normal + pn) * .5f);
                 if (wi > 0.f && dp >= 0.f)
                 {
-                    /*
-                    // rotational gradient
-                    f32 rr = dot(glm::cross(record.normal, pn), record.gradient_r[0]);
-                    f32 rg = dot(glm::cross(record.normal, pn), record.gradient_r[1]);
-                    f32 rb = dot(glm::cross(record.normal, pn), record.gradient_r[2]);
-                    // translational gradient
-                    f32 tr = dot(p - record.position, record.gradient_t[0]);
-                    f32 tg = dot(p - record.position, record.gradient_t[1]);
-                    f32 tb = dot(p - record.position, record.gradient_t[2]);
-                    irradiance += wi * (record.irradiance + glm::vec3(max(tr, 0.f), max(tg, 0.f), max(tb, 0.f)));
-                    */
                     outIrrad += wi * record.irradiance;
                     outWeight += wi;
                 }
@@ -1220,7 +1203,7 @@ namespace Cyan
                     }
                 }
             }
-        }
+        });
     }
 
     /*
@@ -1231,78 +1214,9 @@ namespace Cyan
         glm::vec3 irradiance(0.f);
         f32       weight = 0.f;
 #if 0
-        // brute-force find all the valid record that can be used for extrapolation
-        for (u32 i = 0; i < m_irradianceCache->m_numRecords; i++)
-        {
-            auto& record = m_irradianceCache->m_records[i];
-            f32 wi = getIrradianceLerpWeight(p, pn, &record, error);
-            // exclude cached samples that are "in front of" p
-            f32 dp = dot(p - record.position, (record.normal + pn) * .5f);
-            if (wi > 0.f && dp >= 0.f)
-            {
-                /*
-                // rotational gradient
-                f32 rr = dot(glm::cross(record.normal, pn), record.gradient_r[0]);
-                f32 rg = dot(glm::cross(record.normal, pn), record.gradient_r[1]);
-                f32 rb = dot(glm::cross(record.normal, pn), record.gradient_r[2]);
-                // translational gradient
-                f32 tr = dot(p - record.position, record.gradient_t[0]);
-                f32 tg = dot(p - record.position, record.gradient_t[1]);
-                f32 tb = dot(p - record.position, record.gradient_t[2]);
-                irradiance += wi * (record.irradiance + glm::vec3(max(tr, 0.f), max(tg, 0.f), max(tb, 0.f)));
-                */
-                irradiance += wi * record.irradiance;
-                weight += wi;
-            }
-        }
+        lerpIrradianceSlow(irradiance, weight, *m_irradianceCache, p, pn, error);
 #else
-        // traverse octree to find valid records
-        std::queue<OctreeNode*> nodes;
-        nodes.push(m_irradianceCache->m_octree->m_root);
-        while (!nodes.empty())
-        {
-            auto node = nodes.front();
-            nodes.pop();
-            // check all the records in current node
-            for (u32 i = 0; i < node->records.size(); ++i)
-            {
-                auto& record = *node->records[i];
-                f32 wi = getIrradianceLerpWeight(p, pn, record, error);
-                // exclude cached samples that are "in front of" p
-                f32 dp = dot(p - record.position, (record.normal + pn) * .5f);
-                if (wi > 0.f && dp >= 0.f)
-                {
-                    /*
-                    // rotational gradient
-                    f32 rr = dot(glm::cross(record.normal, pn), record.gradient_r[0]);
-                    f32 rg = dot(glm::cross(record.normal, pn), record.gradient_r[1]);
-                    f32 rb = dot(glm::cross(record.normal, pn), record.gradient_r[2]);
-                    // translational gradient
-                    f32 tr = dot(p - record.position, record.gradient_t[0]);
-                    f32 tg = dot(p - record.position, record.gradient_t[1]);
-                    f32 tb = dot(p - record.position, record.gradient_t[2]);
-                    irradiance += wi * (record.irradiance + glm::vec3(max(tr, 0.f), max(tg, 0.f), max(tb, 0.f)));
-                    */
-                    irradiance += wi * record.irradiance;
-                    weight += wi;
-                }
-            }
-            // search among all childs
-            for (u32 i = 0; i < 8; ++i)
-            { 
-                auto child = node->childs[i];
-                if (child)
-                {
-                    // recurse into childs
-                    if (abs(p.x - child->center.x) < child->sideLength 
-                        && abs(p.y - child->center.y) < child->sideLength 
-                        && abs(p.z - child->center.z) < child->sideLength)
-                    {
-                        nodes.push(child);
-                    }
-                }
-            }
-        }
+        lerpIrradianceFast(irradiance, weight, *m_irradianceCache, p, pn, error);
 #endif
         if (weight > 0.f)
         {
@@ -1328,7 +1242,36 @@ namespace Cyan
         m_root->sideLength = sideLength;
     }
 
-    glm::vec3 childOffsets[8] = {
+    u32 Octree::getChildIndexEnclosingSurfel(OctreeNode* node, glm::vec3& position)
+    {
+        glm::vec3 vv = position - node->center;
+        u32 k = (vv.z <= 0.f) ? 1 : 0;
+        u32 i = (vv.y <= 0.f) ? 1 : 0;
+        u32 j = (vv.x >= 0.f) ? 1 : 0;
+        return k * 4 + i * 2 + j;
+    }
+
+    OctreeNode* Octree::allocNode()
+    {
+        CYAN_ASSERT(m_numAllocatedNodes < maxNodeCount, "Too many OctreeNode allocated!"); return &m_nodePool[m_numAllocatedNodes++];
+    }
+
+    void Octree::traverse(const std::function<void(std::queue<OctreeNode*>&, OctreeNode*)>& callback)
+    {
+        std::queue<OctreeNode*> nodes;
+        nodes.push(m_root);
+
+        // breadth first search, loop termination is determined by 'callback'
+        while (!nodes.empty())
+        {
+            OctreeNode* node = nodes.front();
+            nodes.pop();
+
+            callback(nodes, node);
+        }
+    }
+
+    const static glm::vec3 childOffsets[8] = {
         glm::vec3(-.5f,  .5f,  .5f),  // 0
         glm::vec3( .5f,  .5f,  .5f),  // 1
         glm::vec3(-.5f, -.5f,  .5f),  // 2
@@ -1341,14 +1284,7 @@ namespace Cyan
 
     void Octree::insert(IrradianceRecord* newRecord)
     {
-        std::queue<OctreeNode*> nodes;
-        nodes.push(m_root);
-
-        // breadth first search
-        while (!nodes.empty())
-        {
-            OctreeNode* node = nodes.front();
-            nodes.pop();
+        traverse([this, newRecord](std::queue<OctreeNode*>& nodes, OctreeNode* node) {
             // current node is too big for this new record, recurse into child and subdivide
             if ((node->sideLength > (4.f * newRecord->r)))
             {
@@ -1368,21 +1304,7 @@ namespace Cyan
             }
             else
                 cyanError("Invalid record insertion into octree!");
-        }
-    }
-
-    u32 Octree::getChildIndexEnclosingSurfel(OctreeNode* node, glm::vec3& position)
-    {
-        glm::vec3 vv = position - node->center;
-        u32 k = (vv.z <= 0.f) ? 1 : 0;
-        u32 i = (vv.y <= 0.f) ? 1 : 0;
-        u32 j = (vv.x >= 0.f) ? 1 : 0;
-        return k * 4 + i * 2 + j;
-    }
-
-    OctreeNode* Octree::allocNode()
-    {
-        CYAN_ASSERT(m_numAllocatedNodes < maxNodeCount, "Too many OctreeNode allocated!"); return &m_nodePool[m_numAllocatedNodes++];
+        });
     }
  
     IrradianceCache::IrradianceCache()
@@ -1417,6 +1339,18 @@ namespace Cyan
     const IrradianceRecord& IrradianceCache::addIrradianceRecord(const glm::vec3& p, const glm::vec3& pn, const glm::vec3& irradiance, f32 r, const glm::vec3* rotationalGradient, const glm::vec3* translationalGradient)
     {
         CYAN_ASSERT(m_numRecords < cacheSize, "Too many irradiance records inserted!");
+        IrradianceRecord& newRecord = m_records[m_numRecords];
+        newRecord.position = p;
+        newRecord.normal = pn;
+        newRecord.irradiance = irradiance;
+        newRecord.r = r;
+        newRecord.gradient_r[0] = rotationalGradient[0];
+        newRecord.gradient_r[1] = rotationalGradient[1];
+        newRecord.gradient_r[2] = rotationalGradient[2];
+        newRecord.gradient_t[0] = translationalGradient[0];
+        newRecord.gradient_t[1] = translationalGradient[1];
+        newRecord.gradient_t[2] = translationalGradient[2];
+        /*
         IrradianceRecord* newRecord = &m_records[m_numRecords++];
         newRecord->position = p;
         newRecord->normal = pn;
@@ -1428,9 +1362,9 @@ namespace Cyan
         newRecord->gradient_t[0] = translationalGradient[0];
         newRecord->gradient_t[1] = translationalGradient[1];
         newRecord->gradient_t[2] = translationalGradient[2];
+        */
         // insert into the octree
-        m_octree->insert(newRecord);
-        return *newRecord;
+        m_octree->insert(m_numRecords++);
+        return newRecord;
     }
-
 };
