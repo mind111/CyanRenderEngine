@@ -15,7 +15,6 @@
     * 
 
     @Precompute GI 
-    * add octree for irradiance cache
     * multi-threading for path tracing using irradiance caching
     * refactor light mapper using irradiance cache to bake lightmap
     * try to scale the lightmapper to bake sponza...?

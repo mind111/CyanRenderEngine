@@ -134,8 +134,8 @@ namespace Cyan
 
         struct IrradianceCacheConfig
         {
-            const f32 kError = 0.5f;
-            const f32 kSmoothing = 1.4f;
+            const f32 kError = 0.2f;
+            const f32 kSmoothing = 1.6f;
         } m_irradianceCacheCfg;
 
         /*

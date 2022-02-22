@@ -1143,7 +1143,7 @@ void DemoApp::debugIrradianceCache()
 
     glDisable(GL_CULL_FACE);
     {
-#if 1
+#if 0
         // visualize irradiance records
         u32 start = pathTracer->m_irradianceCache->m_numRecords * .0f;
         u32 end = pathTracer->m_irradianceCache->m_numRecords * 1.f;
@@ -1154,7 +1154,7 @@ void DemoApp::debugIrradianceCache()
             debugDrawCube(record.position, glm::vec3(record.r * .02f), color1);
         }
 #endif
-#if 0
+#if 1
         // visualize translational gradients
         for (u32 i = 0; i < m_debugLines.size(); ++i)
         {

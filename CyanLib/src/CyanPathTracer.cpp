@@ -784,9 +784,8 @@ namespace Cyan
             gradients.t[1] += uk * magnitude_t0[1] * (2.f * M_PI / N) + vkPrev * magnitude_t1[1];
             gradients.t[2] += uk * magnitude_t0[2] * (2.f * M_PI / N) + vkPrev * magnitude_t1[2];
         }
-
-        // how to normalize & cap the gradient ...?
-        // clamp gradients length
+#if 1
+        // "normalize" gradients to prevent artifact
         f32 maxLength = -FLT_MAX;
         for (u32 i = 0; i < 3; ++i)
         {
@@ -796,14 +795,12 @@ namespace Cyan
                 maxLength = magnitude;
             }
         }
-        if (maxLength > Ri)
+        f32 norm = getLuminance(irradiance) / maxLength;
+        for (u32 i = 0; i < 3; ++i)
         {
-            for (u32 i = 0; i < 3; ++i)
-            {
-                f32 norm = 1.f / maxLength;
-                gradients.t[i] *= norm;
-            }
+            gradients.t[i] *= norm;
         }
+#endif
     }
 
     /* Notes:
@@ -817,8 +814,8 @@ namespace Cyan
         glm::vec3 irradiance(0.f);
 
         // stratified sampling constants
-        const f32 M = 8.f;
-        const f32 N = 8.f;
+        const f32 M = 16.f;
+        const f32 N = 16.f;
         f32 numSamples = M * N;
         // N slices, each slice has M cells;
         HemisphereCellData** cells = static_cast<HemisphereCellData**>(alloca(sizeof(HemisphereCellData*) * (u64)N));
@@ -903,7 +900,7 @@ namespace Cyan
 
     void PathTracer::fillIrradianceCacheDebugData(Camera& camera)
     {
-#if 1
+#if 0
         // generate debug bounding boxes for the octree
         for (u32 i = 0; i < m_irradianceCache->m_octree->m_numAllocatedNodes; ++i)
         {
@@ -1025,14 +1022,51 @@ namespace Cyan
             auto hit = traceScene(ray.ro, ray.rd);
             if (hit.t > 0.f)
             {
-#ifdef DEBUG_IC
-                m_debugData.debugRayHitPositions.push_back(ray.ro + ray.rd * hit.t);
-#endif
                 glm::vec3 hitPos = ray.ro + hit.t * ray.rd;
                 glm::vec3 baryCoord = computeBaryCoordFromHit(hit, hitPos);
                 glm::vec3 normal = getSurfaceNormal(hit, baryCoord);
                 hitPos += EPSILON * normal;
+#if 1
+                // somehow this is faster than the code path below
                 approximateDiffuseInterreflection(hitPos, normal, m_irradianceCacheCfg.kError);
+#else
+                f32 weight = 0.f;
+                m_irradianceCache->m_octree->traverse([this, &weight, &hitPos, &normal](std::queue<OctreeNode*>& nodes, OctreeNode* node) {
+                    // check all the records in current node
+                    for (u32 i = 0; i < node->records.size(); ++i)
+                    {
+                        auto& record = m_irradianceCache->m_records[node->records[i]];
+                        f32 wi = getIrradianceLerpWeight(hitPos, normal, record, m_irradianceCacheCfg.kError);
+                        // exclude cached samples that are "in front of" p
+                        f32 dp = dot(hitPos - record.position, (record.normal + normal) * .5f);
+                        if (wi > 0.f && dp >= 0.f)
+                        {
+                            weight += wi;
+                            // early exit as long as we found one valid record, we can skip the hemisphere sampling
+                            return;
+                        }
+                    }
+                    // search among childs
+                    for (u32 i = 0; i < 8; ++i)
+                    { 
+                        auto child = node->childs[i];
+                        if (child)
+                        {
+                            // recurse into this child if it has records that potentially overlaps 'p'
+                            if (abs(hitPos.x - child->center.x) < child->sideLength 
+                                && abs(hitPos.y - child->center.y) < child->sideLength 
+                                && abs(hitPos.z - child->center.z) < child->sideLength)
+                            {
+                                nodes.push(child);
+                            }
+                        }
+                    }
+                });
+                if (weight <= 0.f)
+                {
+                    sampleIrradianceRecord(hitPos, normal);
+                }
+#endif
             }
             progressCounter.fetch_add(1);
         }
@@ -1184,17 +1218,26 @@ namespace Cyan
                 f32 dp = dot(p - record.position, (record.normal + pn) * .5f);
                 if (wi > 0.f && dp >= 0.f)
                 {
-                    outIrrad += wi * record.irradiance;
+                    // rotational gradient
+                    f32 rr = dot(glm::cross(record.normal, pn), record.gradient_r[0]);
+                    f32 rg = dot(glm::cross(record.normal, pn), record.gradient_r[1]);
+                    f32 rb = dot(glm::cross(record.normal, pn), record.gradient_r[2]);
+                    // translational gradient
+                    f32 tr = dot(p - record.position, record.gradient_t[0]);
+                    f32 tg = dot(p - record.position, record.gradient_t[1]);
+                    f32 tb = dot(p - record.position, record.gradient_t[2]);
+                    glm::vec3 gradients(max(tr + 1.f, 0.f), max(tg + 1.f, 0.f), max(tb + 1.f, 0.f));
+                    outIrrad += wi * (record.irradiance * gradients);
                     outWeight += wi;
                 }
             }
-            // search among all childs
+            // search among childs
             for (u32 i = 0; i < 8; ++i)
             { 
                 auto child = node->childs[i];
                 if (child)
                 {
-                    // recurse into childs
+                    // recurse into this child if it has records that potentially overlaps 'p'
                     if (abs(p.x - child->center.x) < child->sideLength 
                         && abs(p.y - child->center.y) < child->sideLength 
                         && abs(p.z - child->center.z) < child->sideLength)
