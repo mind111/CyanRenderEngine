@@ -2,7 +2,6 @@
 
 #include "CyanEngine.h"
 #include "PbrApp.h"
-// #include "PbrSpheres.h"
 
 int main(int argc, char* argv[]) {
 

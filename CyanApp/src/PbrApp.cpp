@@ -552,12 +552,6 @@ void DemoApp::updateMaterialData(Cyan::StandardPbrMaterial* matl)
     matl->m_materialInstance->set("gLighting.indirectSpecularScale", m_indirectSpecularSlider);
 }
 
-void DemoApp::beginFrame()
-{
-    Cyan::getCurrentGfxCtx()->clear();
-    Cyan::getCurrentGfxCtx()->setViewport({ 0, 0, static_cast<u32>(gEngine->getWindow().width), static_cast<u32>(gEngine->getWindow().height) });
-}
-
 void DemoApp::precompute()
 {
     // build lighting
@@ -565,13 +559,14 @@ void DemoApp::precompute()
     m_scenes[Scenes::Demo_Scene_00]->m_irradianceProbe->build();
     m_scenes[Scenes::Demo_Scene_00]->m_reflectionProbe->build();
 #endif
-    auto pathTracer = Cyan::PathTracer::getSingletonPtr();
-    pathTracer->m_renderMode = Cyan::PathTracer::RenderMode::Render; 
 #ifdef SCENE_SPONZA
+    auto pathTracer = Cyan::PathTracer::getSingletonPtr();
     pathTracer->setScene(m_scenes[Sponza_Scene]);
     pathTracer->run(m_scenes[Sponza_Scene]->getActiveCamera());
 #endif
+#if 0
 #ifdef SCENE_DEMO_00
+    auto pathTracer = Cyan::PathTracer::getSingletonPtr();
     pathTracer->setScene(m_scenes[Demo_Scene_00]);
     pathTracer->run(m_scenes[Demo_Scene_00]->getActiveCamera());
     pathTracer->fillIrradianceCacheDebugData(m_scenes[Demo_Scene_00]->getActiveCamera());
@@ -586,6 +581,7 @@ void DemoApp::precompute()
         m_debugLines[i].setColor(color);
     }
 #endif
+#endif
     auto shader = Cyan::createShader("DebugShadingShader", SHADER_SOURCE_PATH "debug_color_vs.glsl", SHADER_SOURCE_PATH "debug_color_fs.glsl");
 }
 
@@ -594,12 +590,8 @@ void DemoApp::run()
     precompute();
     while (bRunning)
     {
-        // tick
         update();
-        // render
-        beginFrame();
         render();
-        endFrame();
     }
 }
 
@@ -1172,6 +1164,10 @@ void DemoApp::debugIrradianceCache()
 
 void DemoApp::render()
 {
+    // clear
+    Cyan::getCurrentGfxCtx()->clear();
+    Cyan::getCurrentGfxCtx()->setViewport({ 0, 0, static_cast<u32>(gEngine->getWindow().width), static_cast<u32>(gEngine->getWindow().height) });
+
     // frame timer
     Cyan::Toolkit::GpuTimer frameTimer("render()");
 
@@ -1192,11 +1188,6 @@ void DemoApp::render()
     renderer->endFrame();
     frameTimer.end();
     m_lastFrameDurationInMs = frameTimer.m_durationInMs;
-}
-
-void DemoApp::endFrame()
-{
-
 }
 
 void DemoApp::shutDown()

@@ -11,11 +11,8 @@ public:
 
     virtual void initialize(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewportPos, glm::vec2 renderSize) = 0;
 
-    virtual void beginFrame() = 0;
-    virtual void render() = 0;
-    virtual void endFrame() = 0;
-
     virtual void run() = 0;
+    virtual void render() = 0;
     virtual void shutDown() = 0;
 
 protected:

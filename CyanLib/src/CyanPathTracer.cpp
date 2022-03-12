@@ -169,10 +169,8 @@ namespace Cyan
         , m_pixels(nullptr)
         , m_texture(nullptr)
         , m_skyColor(0.328f, 0.467f, 1.f)
-        , m_renderMode(RenderMode::Render)
         , m_irradianceCache(nullptr)
         , m_irradianceCacheLevels{ nullptr, nullptr, nullptr }
-        , m_debugPos0(0.f)
     {
         if (!m_singleton)
         {
@@ -267,19 +265,13 @@ namespace Cyan
     {
         CYAN_ASSERT(m_scene, "PathTracer::m_scene is NULL when PathTracer::run() is called!")
 
-        switch (m_renderMode)
-        {
-            case RenderMode::Render:
 #ifdef USE_IC
-                fastRenderScene(camera);
+        // render the scene using irradiance caching
+        fastRenderScene(camera);
 #else
-                renderSceneMultiThread(camera);
+        // render the scene using brute-force path tracing
+        renderSceneMultiThread(camera);
 #endif
-                break;
-            default:
-                printf("Invalid PathTracer setting! \n");
-                break;
-        }
     }
 
     glm::vec3 PathTracer::bakeSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd, TriMaterial& matl)
@@ -739,7 +731,7 @@ namespace Cyan
         glm::vec3 r[3];
     };
 
-    void computeIrradianceGradients(IrradianceGradients& gradients, HemisphereCellData** cells, f32 M, f32 N, const glm::vec3& n, const glm::vec3& irradiance, f32 Ri)
+    void computeIrradianceGradients(IrradianceGradients& gradients, HemisphereCellData** cells, f32 M, f32 N, const glm::vec3& n)
     {
         auto tangentFrame = tangentToWorld(n);
         auto tangent = tangentFrame[0];
@@ -784,30 +776,12 @@ namespace Cyan
             gradients.t[1] += uk * magnitude_t0[1] * (2.f * M_PI / N) + vkPrev * magnitude_t1[1];
             gradients.t[2] += uk * magnitude_t0[2] * (2.f * M_PI / N) + vkPrev * magnitude_t1[2];
         }
-#if 1
-        // "normalize" gradients to prevent artifact
-        f32 maxLength = -FLT_MAX;
-        for (u32 i = 0; i < 3; ++i)
-        {
-            f32 magnitude = glm::length(gradients.t[i]);
-            if (magnitude > maxLength)
-            {
-                maxLength = magnitude;
-            }
-        }
-        f32 norm = getLuminance(irradiance) / maxLength;
-        for (u32 i = 0; i < 3; ++i)
-        {
-            gradients.t[i] *= norm;
-        }
-#endif
     }
 
     /* Notes:
-    * It seems having separate gradient vector for each color component doesn't improve quality, maybe just use spectral average
-    * mentioned in the original Irradiance Gradients paper instead ?
-    * 
     * translational gradients still seems somewhat wrong, not sure which part is incorrect.
+    * todo: cap Ri by gradient
+    * todo: neighbor clamping
     */
     const IrradianceRecord& PathTracer::sampleIrradianceRecord(glm::vec3& p, glm::vec3& n)
     {
@@ -852,15 +826,43 @@ namespace Cyan
         Ri = nom / Ri;
         irradiance /= numSamples;
 
-        // clamp sample spacing to avoid too sparse or too dense sample distribution
-        Ri = glm::clamp(Ri, 0.1f, 2.0f);
-
         // compute irradiance gradients
         IrradianceGradients gradients = { 
             { glm::vec3(0.f), glm::vec3(0.f), glm::vec3(0.f)},
             { glm::vec3(0.f), glm::vec3(0.f), glm::vec3(0.f)}
         };
-        computeIrradianceGradients(gradients, cells, M, N, n, irradiance, Ri);
+        computeIrradianceGradients(gradients, cells, M, N, n);
+
+#if 0
+        // "normalize" gradients to prevent artifact
+        f32 maxLength = -FLT_MAX;
+        for (u32 i = 0; i < 3; ++i)
+        {
+            f32 magnitude = glm::length(gradients.t[i]);
+            if (magnitude > maxLength)
+            {
+                maxLength = magnitude;
+            }
+        }
+        f32 norm = getLuminance(irradiance) / maxLength;
+        for (u32 i = 0; i < 3; ++i)
+        {
+            gradients.t[i] *= norm;
+        }
+#endif
+        f32 maxLength = -FLT_MAX;
+        for (u32 i = 0; i < 3; ++i)
+        {
+            f32 magnitude = glm::length(gradients.t[i]);
+            if (magnitude > maxLength)
+            {
+                maxLength = magnitude;
+            }
+        }
+
+        f32 R = min(Ri, 1.f / maxLength);
+        // clamp sample spacing to avoid too sparse or too dense sample distribution
+        Ri = glm::clamp(R, 0.1f, 2.0f);
 
         // debugging (translational gradients should be on the tangent plane of the hemisphere sample)
         m_debugData.translationalGradients.push_back(gradients.t[0]);
@@ -913,15 +915,46 @@ namespace Cyan
         }
 #endif
         u32 px = 320, py = 240;
-        auto ray0 = generateRay(glm::uvec2(px, py), camera, glm::uvec2(numPixelsInX, numPixelsInY));
-        auto debugHit0 = traceScene(ray0.ro, ray0.rd);
-        m_debugPos0 = ray0.ro + debugHit0.t * ray0.rd;
+        auto ray = generateRay(glm::uvec2(px, py), camera, glm::uvec2(numPixelsInX, numPixelsInY));
+        auto debugHit = traceScene(ray.ro, ray.rd);
+        m_debugData.pos = ray.ro + debugHit.t * ray.rd;
+        auto bary = computeBaryCoordFromHit(debugHit, m_debugData.pos);
+        auto n = getSurfaceNormal(debugHit, bary);
+        auto tangentFrame = tangentToWorld(n);
+        m_debugData.tangentFrame[0] = tangentFrame[0];
+        m_debugData.tangentFrame[1] = tangentFrame[1];
+        m_debugData.tangentFrame[2] = tangentFrame[2];
 
-        // compute barycentric coord of the surface point that we hit 
-        glm::vec3 baryCoord  = computeBaryCoordFromHit(debugHit0, m_debugPos0);
-        glm::vec3 normal     = getSurfaceNormal(debugHit0, baryCoord);
-        m_debugPos0 += normal * EPSILON;
-        m_debugData.debugIrradianceRecord = IrradianceRecord(sampleIrradianceRecord(m_debugPos0, normal));
+        // capture all the records used for interpolating irradiance at current position
+        m_irradianceCache->m_octree->traverse([this, &n](std::queue<OctreeNode*>& nodes, OctreeNode* node) {
+            // check all the records in current node
+            for (u32 i = 0; i < node->records.size(); ++i)
+            {
+                auto& record = m_irradianceCache->m_records[node->records[i]];
+                f32 wi = getIrradianceLerpWeight(m_debugData.pos, n, record, m_irradianceCacheCfg.kError);
+                // exclude cached samples that are "in front of" p
+                f32 dp = dot(m_debugData.pos - record.position, (record.normal + n) * .5f);
+                if (wi > 0.f && dp >= 0.f)
+                {
+                    m_debugData.lerpRecords.push_back(node->records[i]);
+                }
+            }
+            // search among childs
+            for (u32 i = 0; i < 8; ++i)
+            { 
+                auto child = node->childs[i];
+                if (child)
+                {
+                    // recurse into this child if it has records that potentially overlaps 'p'
+                    if (abs(m_debugData.pos.x - child->center.x) < child->sideLength 
+                        && abs(m_debugData.pos.y - child->center.y) < child->sideLength 
+                        && abs(m_debugData.pos.z - child->center.z) < child->sideLength)
+                    {
+                        nodes.push(child);
+                    }
+                }
+            }
+        });
     }
 
     void PathTracer::debugIrradianceCache(Camera& camera)
@@ -1227,7 +1260,7 @@ namespace Cyan
                     f32 tg = dot(p - record.position, record.gradient_t[1]);
                     f32 tb = dot(p - record.position, record.gradient_t[2]);
                     glm::vec3 gradients(max(tr + 1.f, 0.f), max(tg + 1.f, 0.f), max(tb + 1.f, 0.f));
-                    outIrrad += wi * (record.irradiance * gradients);
+                    outIrrad += wi * (record.irradiance + glm::vec3(tr, tg, tb));
                     outWeight += wi;
                 }
             }

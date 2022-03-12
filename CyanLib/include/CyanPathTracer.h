@@ -164,17 +164,16 @@ namespace Cyan
 
         struct DebugData
         {
-            std::vector<glm::vec3> debugRayHitPositions;
-            IrradianceRecord debugIrradianceRecord;
             std::vector<BoundingBox3f> octreeBoundingBoxes;
             std::vector<Ray> debugHemisphereSamples;
-            glm::vec3 hemisphereTangentFrame[16];
             std::vector<glm::vec3> translationalGradients;
+            glm::vec3 pos;
+            glm::vec3 tangentFrame[3];
+            glm::vec3 ukvk[2];
+            std::vector<u32> lerpRecords;
         } m_debugData;
 
         void      fillIrradianceCacheDebugData(Camera& camera);
-        glm::vec3 m_debugPos0;
-        glm::vec3 m_debugPos1;
         glm::vec3 cachedIrradiance;
         glm::vec3 interpolatedIrradiance;
 
@@ -185,12 +184,6 @@ namespace Cyan
         const u32 sppyCount = 1u;
         const u32 numChannelPerPixel = 3u;
         u32       numIndirectBounce = 1u;
-
-        enum RenderMode
-        {
-            Render = 0,
-            BakeLightmap
-        } m_renderMode;
 
         glm::vec3                m_skyColor;
         Texture*                 m_texture;

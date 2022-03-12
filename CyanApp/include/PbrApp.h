@@ -31,15 +31,12 @@ public:
 
     static DemoApp* get();
 
-    virtual void beginFrame() override;
     virtual void render() override;
-    virtual void endFrame() override;
     virtual void run() override;
     virtual void shutDown() override;
     void buildFrame();
-    void pathTraceScene(Scene* scene);
 
-    // pre-computation
+    // precomputation
     void precompute();
 
     // tick
