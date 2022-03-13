@@ -57,7 +57,7 @@ void CyanEngine::initialize(WindowConfig windowConfig, glm::vec2 sceneViewportPo
     // Always on-top window
     // glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
     m_window.mpWindow = glfwCreateWindow(windowConfig.width, windowConfig.height,
-                                        "-- Cyan --", nullptr, nullptr);
+                                        "Cyan", nullptr, nullptr);
     m_window.width = windowConfig.width;
     m_window.height = windowConfig.height;
     m_sceneViewportPostion = sceneViewportPos;
@@ -79,17 +79,16 @@ void CyanEngine::initialize(WindowConfig windowConfig, glm::vec2 sceneViewportPo
     // setup graphics system 
     {
         Cyan::init();
-        m_graphicsSystem = new Cyan::GraphicsSystem(glm::vec2(m_renderSize.x, m_renderSize.y));
+        m_graphicsSystem = new Cyan::GraphicsSystem(m_window.mpWindow, glm::vec2(m_renderSize.x, m_renderSize.y));
         Cyan::getCurrentGfxCtx()->setWindow(&m_window);
     }
-    // Init member variables
+    // init member variables
     {
         cursorX = -1.0;
         cursorY = -1.0;
         cursorDeltaX = 0.0;
         cursorDeltaY = 0.0;
     }
-
 }
 
 glm::vec2 CyanEngine::getSceneViewportPos()
@@ -102,9 +101,9 @@ void CyanEngine::processInput()
     glfwPollEvents();
 }
 
-void CyanEngine::shutDown()
+void CyanEngine::finalize()
 {
-
+    m_graphicsSystem->getRenderer()->finalize();
 }
 
 void CyanEngine::displaySliderFloat(const char* title, float* address, float min, float max)

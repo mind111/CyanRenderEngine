@@ -8,7 +8,6 @@
 #include "Mesh.h"
 #include "Geometry.h"
 #include "imgui/imgui.h"
-#include "CyanUI.h"
 #include "GfxContext.h"
 #include "CyanPathTracer.h"
 #include "LightMap.h"
@@ -91,11 +90,8 @@ private:
     float m_sampleVertex[(64 + 1) * 4 * 2] = { };
     bool bRunning;
 
-    // ui
-    UI m_ui;
     Entity* m_selectedEntity;
     SceneNode* m_selectedNode;
-    ImFont* m_font;
     u32 m_debugViewIndex;
     double m_lastFrameDurationInMs;
     bool bDisneyReparam;

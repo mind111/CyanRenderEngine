@@ -282,7 +282,10 @@
       <Filter>Source Files\External\ImGuizmo</Filter>
     </ClCompile>
     <ClCompile Include="src\SkyBox.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CyanUI.cpp">
+      <Filter>Source Files\Internal</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

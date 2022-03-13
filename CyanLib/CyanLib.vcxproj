@@ -79,6 +79,7 @@
     <ClCompile Include="src\CyanEngine.cpp" />
     <ClCompile Include="src\CyanPathTracer.cpp" />
     <ClCompile Include="src\CyanRenderer.cpp" />
+    <ClCompile Include="src\CyanUI.cpp" />
     <ClCompile Include="src\Entity.cpp" />
     <ClCompile Include="src\EntryPoint.cpp" />
     <ClCompile Include="src\Geometry.cpp" />

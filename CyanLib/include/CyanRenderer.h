@@ -77,28 +77,43 @@ namespace Cyan
     class Renderer 
     {
     public:
-        explicit Renderer();
+        explicit Renderer(GLFWwindow* window, const glm::vec2& windowSize);
         ~Renderer() {}
 
         static Renderer* getSingletonPtr();
 
-        void initialize(glm::vec2 viewportSize);
-        void initRenderTargets(u32 windowWidth, u32 windowHeight);
+        void initialize(GLFWwindow* window, glm::vec2 viewportSize);
+        void finalize();
+
         void initShaders();
+        void initRenderTargets(u32 windowWidth, u32 windowHeight);
 
         StackAllocator& getAllocator();
         RenderTarget* getSceneColorRenderTarget();
         RenderTarget* getRenderOutputRenderTarget();
         Texture* getRenderOutputTexture();
 
+// rendering
         void beginRender();
         void render(Scene* scene);
-        void renderSceneDepthNormal(Scene* scene, Camera& camera);
-        void renderSceneToLightProbe(Scene* scene, Camera& camera);
-        void renderSSAO(Camera& camera);
-        void renderScene(Scene* scene, Camera& camera);
-        void renderDebugObjects();
         void endRender();
+        void renderSunShadow(Scene* scene);
+        void renderScene(Scene* scene);
+        void renderSceneDepthNormal(Scene* scene);
+        void renderSceneToLightProbe(Scene* scene, Camera& camera);
+        void renderUI(const std::function<void()>& callback);
+        void renderDebugObjects();
+//
+
+// post-processing
+        void ssao(Camera& camera);
+        void bloom();
+        /*
+            * Final compositing and blitting pass that handles tone mapping & gamma correction
+        */
+        void composite();
+//
+        void flip();
 
         void updateFrameGlobalData(Scene* scene, const Camera& camara);
         void updateTransforms(Scene* scene);
@@ -108,21 +123,15 @@ namespace Cyan
         void executeOnEntity(Entity* e, const std::function<void(SceneNode*)>& func);
         void drawEntity(Entity* entity);
         void drawMesh(Mesh* mesh);
-        /* Brief:
+        /*
             * Draw a mesh without transform using same type of material for all its submeshes.
         */
         void drawMesh(Mesh* mesh, MaterialInstance* matl, RenderTarget* dstRenderTarget, const Viewport& viewport);
 
-        /* Brief:
+        /* 
             * Draw an instanced mesh with transform that allows different types of materials for each submeshes.
         */
         void drawMeshInstance(MeshInstance* meshInstance, i32 transformIndex);
-
-        // blit viewport to default frame buffer for debug rendering
-        void debugBlit(Cyan::Texture* texture, Viewport viewport);
-        void submitMesh(Mesh* mesh, glm::mat4 modelTransform);
-        void renderFrame();
-        void endFrame();
 
         void addScenePass(Scene* scene);
         void addDirectionalShadowPass(Scene* scene, const Camera& camera, const std::vector<Entity*>& shadowCasters);
@@ -130,12 +139,15 @@ namespace Cyan
         void addTexturedQuadPass(RenderTarget* renderTarget, Viewport viewport, Texture* srcTexture);
         void addBloomPass();
         void addGaussianBlurPass(RenderTarget* renderTarget, Viewport viewport, Texture* srcTexture, Texture* horiTexture, Texture* vertTexture, GaussianBlurInput input);
-        void addLinePass();
         void addPostProcessPasses();
 
         struct Options
         {
-            f32 m_ssao;
+            bool enableAA = true;
+            bool enableSunShadow = true;
+            bool enableSSAO = true;
+            bool enableBloom = true;
+            f32  exposure = 1.f;
         } m_opts;
 
         RenderState m_renderState;
@@ -144,7 +156,6 @@ namespace Cyan
         glm::vec2 getViewportSize();
         Viewport getViewport();
         void setViewportSize(glm::vec2 size);
-        // viewport's x,y are in framebuffer's space
         Viewport m_viewport; 
 
         // allocators
@@ -298,6 +309,7 @@ namespace Cyan
         // for debugging CSM
         Camera m_debugCam;
     private:
+        GfxContext* m_ctx;
         static Renderer* m_renderer;
     };
 };

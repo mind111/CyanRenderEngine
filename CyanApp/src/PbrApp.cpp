@@ -4,15 +4,10 @@
 #include <stdlib.h>
 #include <thread>
 
-#include "PbrApp.h"
-
-#include "imgui/imgui.h"
-#include "imgui/imgui_impl_glfw.h"
-#include "imgui/imgui_impl_opengl3.h"
-#include "ImGuizmo/ImGuizmo.h"
 #include "stb_image.h"
 #include "ArHosekSkyModel.h"
 
+#include "PbrApp.h"
 #include "CyanUI.h"
 #include "CyanAPI.h"
 #include "Light.h"
@@ -518,11 +513,6 @@ void DemoApp::initialize(int appWindowWidth, int appWindowHeight, glm::vec2 scen
     }
 #endif
 
-    // ui
-    m_ui.init(gEngine->getWindow().mpWindow);
-    ImGuiIO& io = ImGui::GetIO();
-    m_font = io.Fonts->AddFontFromFileTTF("C:\\dev\\cyanRenderEngine\\asset\\fonts\\Roboto-Medium.ttf", 16.f);
-
     // misc
     bRayCast = false;
     bPicking = false;
@@ -750,8 +740,8 @@ void DemoApp::drawDebugWindows()
     ImGui::SetNextWindowPos(ImVec2(0, 0));
     ImGui::SetNextWindowSize(debugWindowSize);
     ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-    m_ui.beginWindow("Editor", windowFlags);
-    ImGui::PushFont(m_font);
+    Cyan::UI::beginWindow("Editor", windowFlags);
+    ImGui::PushFont(Cyan::UI::gFont);
     {
         // multiple tabs
         ImGuiTabBarFlags tabFlags = ImGuiTabBarFlags_Reorderable;
@@ -852,7 +842,7 @@ void DemoApp::drawDebugWindows()
         }
     }
     ImGui::PopFont();
-    m_ui.endWindow();
+    Cyan::UI::endWindow();
 }
 
 void DemoApp::drawStats()
@@ -954,7 +944,7 @@ void DemoApp::drawSceneViewport()
     ImGui::SetNextWindowContentSize(ImVec2(viewport.m_width, viewport.m_height));
     // disable window padding for this window
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0,0));
-    m_ui.beginWindow("Scene Viewport", flags);
+    Cyan::UI::beginWindow("Scene Viewport", flags);
     {
         // fit the renderer viewport to ImGUi window size
         ImVec2 min = ImGui::GetWindowContentRegionMin();
@@ -1010,7 +1000,7 @@ void DemoApp::drawSceneViewport()
             }
         }
     }
-    m_ui.endWindow();
+    Cyan::UI::endWindow();
     ImGui::PopStyleVar();
 }
 
@@ -1164,40 +1154,32 @@ void DemoApp::debugIrradianceCache()
 
 void DemoApp::render()
 {
-    // clear
+    // clear (todo: remove this)
     Cyan::getCurrentGfxCtx()->clear();
     Cyan::getCurrentGfxCtx()->setViewport({ 0, 0, static_cast<u32>(gEngine->getWindow().width), static_cast<u32>(gEngine->getWindow().height) });
 
     // frame timer
     Cyan::Toolkit::GpuTimer frameTimer("render()");
-
-    auto renderer = m_graphicsSystem->getRenderer();
-    renderer->beginRender();
-    buildFrame();
-    renderer->render(m_scenes[m_currentScene]);
-    renderer->endRender();
-
-    // ui
-    m_ui.begin();
-    drawSceneViewport();
-    drawDebugWindows();
-    ImGui::Render();
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-    // flip
-    renderer->endFrame();
+    {
+        auto renderer = m_graphicsSystem->getRenderer();
+        // scene
+        renderer->render(m_scenes[m_currentScene]);
+        // ui
+        renderer->renderUI([this]() {
+            drawSceneViewport();
+            drawDebugWindows();
+        });
+        // request flip
+        renderer->flip();
+    }
     frameTimer.end();
     m_lastFrameDurationInMs = frameTimer.m_durationInMs;
 }
 
 void DemoApp::shutDown()
 {
-    // ImGui clean up
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
 
-    gEngine->shutDown();
+    gEngine->finalize();
     delete gEngine;
 }
 

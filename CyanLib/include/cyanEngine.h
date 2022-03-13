@@ -42,7 +42,7 @@ public:
     ~CyanEngine() { }
 
     void initialize(WindowConfig windowConfig, glm::vec2 viewportPos, glm::vec2 renderSize);
-    void shutDown();
+    void finalize();
 
     /* Gui */
     void displaySliderFloat(const char* title, float* address, float min, float max);

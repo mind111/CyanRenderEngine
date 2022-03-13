@@ -10,11 +10,16 @@
 #include "gtc/type_ptr.hpp"
 #include "json.hpp"
 #include "glm.hpp"
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_glfw.h"
+#include "imgui/imgui_impl_opengl3.h"
+#include "ImGuizmo/ImGuizmo.h"
 
 #include "Common.h"
 #include "CyanRenderer.h"
 #include "Material.h"
 #include "MathUtils.h"
+#include "CyanUI.h"
 
 #define DRAW_SSAO_DEBUG_VIS 0
 
@@ -51,8 +56,9 @@ namespace Cyan
     // static singleton pointer will be set to 0 before main() get called
     Renderer* Renderer::m_renderer = 0;
 
-    Renderer::Renderer()
+    Renderer::Renderer(GLFWwindow* window, const glm::vec2& windowSize)
         : m_frameAllocator(1024u * 1024u),  // 1 megabytes
+        m_ctx(nullptr),
         u_model(0),
         u_cameraView(0),
         u_cameraProjection(0),
@@ -75,6 +81,7 @@ namespace Cyan
         if (!m_renderer)
         {
             m_renderer = this;
+            m_renderer->initialize(window, windowSize);
         }
         else
         {
@@ -82,23 +89,6 @@ namespace Cyan
             // ensure that we are not creating new instance of Renderer
             CYAN_ASSERT(0, "There should be only one instance of Renderer")
         }
-
-        u_model = createUniform("s_model", Uniform::Type::u_mat4);
-        u_cameraView = createUniform("s_view", Uniform::Type::u_mat4);
-        u_cameraProjection = createUniform("s_projection", Uniform::Type::u_mat4);
-        m_ssaoSamplePoints.setColor(glm::vec4(0.f, 1.f, 1.f, 1.f));
-        m_ssaoSamplePoints.setViewProjection(u_cameraView, u_cameraProjection);
-        // create shaders
-        m_sceneDepthNormalShader = createShader("SceneDepthNormalShader", "../../shader/scene_depth_normal_v.glsl", "../../shader/scene_depth_normal_p.glsl");
-        // initialize per frame shader draw data
-        glCreateBuffers(1, &gDrawDataBuffer);
-        glNamedBufferData(gDrawDataBuffer, sizeof(GlobalDrawData), &m_globalDrawData, GL_DYNAMIC_DRAW);
-        glCreateBuffers(1, &gLighting.dirLightSBO);
-        glNamedBufferData(gLighting.dirLightSBO, gLighting.kDynamicLightBufferSize, nullptr, GL_DYNAMIC_DRAW);
-        glCreateBuffers(1, &gLighting.pointLightsSBO);
-        glNamedBufferData(gLighting.pointLightsSBO, gLighting.kDynamicLightBufferSize, nullptr, GL_DYNAMIC_DRAW);
-        glCreateBuffers(1, &gInstanceTransforms.SBO);
-        glNamedBufferData(gInstanceTransforms.SBO, gInstanceTransforms.kBufferSize, nullptr, GL_DYNAMIC_DRAW);
     }
 
     Renderer* Renderer::getSingletonPtr()
@@ -263,9 +253,27 @@ namespace Cyan
         ShaderUtil::checkShaderLinkage(m_lumHistogramProgram);
     }
 
-    void Renderer::initialize(glm::vec2 windowSize)
+    void Renderer::initialize(GLFWwindow* window, glm::vec2 windowSize)
     {
         onRendererInitialized(windowSize);
+
+        m_ctx = getCurrentGfxCtx();
+        u_model = createUniform("s_model", Uniform::Type::u_mat4);
+        u_cameraView = createUniform("s_view", Uniform::Type::u_mat4);
+        u_cameraProjection = createUniform("s_projection", Uniform::Type::u_mat4);
+        m_ssaoSamplePoints.setColor(glm::vec4(0.f, 1.f, 1.f, 1.f));
+        m_ssaoSamplePoints.setViewProjection(u_cameraView, u_cameraProjection);
+        // create shaders
+        m_sceneDepthNormalShader = createShader("SceneDepthNormalShader", "../../shader/scene_depth_normal_v.glsl", "../../shader/scene_depth_normal_p.glsl");
+        // initialize per frame shader draw data
+        glCreateBuffers(1, &gDrawDataBuffer);
+        glNamedBufferData(gDrawDataBuffer, sizeof(GlobalDrawData), &m_globalDrawData, GL_DYNAMIC_DRAW);
+        glCreateBuffers(1, &gLighting.dirLightSBO);
+        glNamedBufferData(gLighting.dirLightSBO, gLighting.kDynamicLightBufferSize, nullptr, GL_DYNAMIC_DRAW);
+        glCreateBuffers(1, &gLighting.pointLightsSBO);
+        glNamedBufferData(gLighting.pointLightsSBO, gLighting.kDynamicLightBufferSize, nullptr, GL_DYNAMIC_DRAW);
+        glCreateBuffers(1, &gInstanceTransforms.SBO);
+        glNamedBufferData(gInstanceTransforms.SBO, gInstanceTransforms.kBufferSize, nullptr, GL_DYNAMIC_DRAW);
 
         m_viewport = { static_cast<u32>(0u), 
                        static_cast<u32>(0u), 
@@ -348,7 +356,18 @@ namespace Cyan
             glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS, &kMaxNumColorBuffers);
         }
 
-        // load global glsl definitions and save them in a map <path, content>
+        // todo: load global glsl definitions and save them in a map <path, content>
+
+        // ui
+        UI::initialize(window);
+    }
+
+    void Renderer::finalize()
+    {
+        // imgui clean up
+        ImGui_ImplOpenGL3_Shutdown();
+        ImGui_ImplGlfw_Shutdown();
+        ImGui::DestroyContext();
     }
 
     glm::vec2 Renderer::getViewportSize()
@@ -765,21 +784,6 @@ namespace Cyan
         m_renderState.addRenderPass(depthBlurPass);
     }
 
-    void Renderer::addLinePass()
-    {
-
-    }
-
-    // TODO:
-    void Renderer::submitMesh(Mesh* mesh, glm::mat4 modelTransform)
-    {
-
-    }
-
-    void Renderer::renderFrame()
-    {
-    }
-
     void Renderer::drawEntity(Entity* entity) 
     {
         std::queue<SceneNode*> nodes;
@@ -805,10 +809,6 @@ namespace Cyan
         return sizeof(vec[0]) * (u32)vec.size();
     }
 
-    void Renderer::endFrame()
-    {
-        Cyan::getCurrentGfxCtx()->flip();
-    }
     /*
         * render passes should be pushed after call to beginRender() 
     */
@@ -835,13 +835,38 @@ namespace Cyan
 
     void Renderer::render(Scene* scene)
     {
-        // update all global data
-        updateFrameGlobalData(scene, scene->cameras[scene->activeCamera]);
-        for (auto renderPass : m_renderState.m_renderPasses)
+        beginRender();
         {
-            renderPass->render();
+            // update all global data
+            updateFrameGlobalData(scene, scene->cameras[scene->activeCamera]);
+            RenderTarget* renderTarget = m_opts.enableAA ? m_sceneColorRTSSAA : m_sceneColorRenderTarget;
+            // sun shadow pass
+            if (m_opts.enableSunShadow)
+            {
+                renderSunShadow(scene);
+            }
+            // scene depth & normal pass
+            if (m_opts.enableSSAO)
+            {
+                renderSceneDepthNormal(scene);
+                // ssao pass
+                {
+                    ssao(scene->getActiveCamera());
+                }
+            }
+            // main scene pass
+            {
+
+            }
+            // post processing
+            {
+                if (m_opts.enableBloom)
+                {
+
+                }
+            }
         }
-        m_renderState.clearRenderPasses();
+        endRender();
     }
 
     void Renderer::endRender()
@@ -850,9 +875,9 @@ namespace Cyan
         Cyan::getCurrentGfxCtx()->setRenderTarget(nullptr, 0u);
     }
 
-    void Renderer::renderDebugObjects()
+    void Renderer::flip()
     {
-
+        Cyan::getCurrentGfxCtx()->flip();
     }
 
     void Renderer::executeOnEntity(Entity* e, const std::function<void(SceneNode*)>& func)
@@ -944,7 +969,7 @@ namespace Cyan
     {
         CascadedShadowMap& csm          = DirectionalShadowPass::m_cascadedShadowMap;
         m_globalDrawData.sunLightView   = csm.lightView;
-        // bind sun light shadow for this frame
+        // bind sun light shadow map for this frame
         u32 textureUnitOffset = gTexBinding(SunShadow);
         for (u32 i = 0; i < DirectionalShadowPass::kNumShadowCascades; ++i)
         {
@@ -960,17 +985,30 @@ namespace Cyan
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, static_cast<u32>(BufferBindings::DrawData), gDrawDataBuffer);
     }
 
-    void Renderer::renderSceneDepthNormal(Scene* scene, Camera& camera)
+    void Renderer::renderSunShadow(Scene* scene)
     {
-        auto ctx = getCurrentGfxCtx();
-        ctx->setShader(m_sceneDepthNormalShader);
-        // entities 
+
+    }
+
+    void Renderer::renderSceneDepthNormal(Scene* scene)
+    {
+        auto renderTarget = m_opts.enableAA ? m_sceneColorRTSSAA : m_sceneColorRenderTarget;
+        i32 drawBuffers[2] = { 1, 2 }; 
+        m_ctx->setRenderTarget(renderTarget, drawBuffers, 2);
+        m_ctx->setViewport({ 0u, 0u, renderTarget->m_width, renderTarget->m_height });
+        // clear buffers
+        glm::vec4 normalBufferClear(0.f, 0.f, 0.f, 1.f);
+        glm::vec4 depthBufferClear(1.f);
+        glClearBufferfv(GL_COLOR, 0, &normalBufferClear.x);
+        glClearBufferfv(GL_COLOR, 1, &depthBufferClear.x);
+
+        m_ctx->setShader(m_sceneDepthNormalShader);
         for (u32 e = 0; e < (u32)scene->entities.size(); ++e)
         {
             auto entity = scene->entities[e];
             if (entity->m_includeInGBufferPass && entity->m_visible)
             {
-                executeOnEntity(entity, [this, ctx](SceneNode* node) { 
+                executeOnEntity(entity, [this](SceneNode* node) { 
                     if (node->m_meshInstance)
                     {
                         m_sceneDepthNormalShader->setUniform1i("transformIndex", node->globalTransform);
@@ -981,13 +1019,16 @@ namespace Cyan
         }
     }
 
-    void Renderer::renderScene(Scene* scene, Camera& camera)
+    void Renderer::renderScene(Scene* scene)
     {
         // draw skybox
         if (scene->m_skybox)
         {
             scene->m_skybox->render();
         }
+        auto renderTarget = m_opts.enableAA ? m_sceneColorRTSSAA : m_sceneColorRenderTarget;
+        m_ctx->setRenderTarget(renderTarget);
+        m_ctx->setViewport({ 0u, 0u, renderTarget->m_width, renderTarget->m_height });
         // draw entities
         for (u32 i = 0; i < scene->entities.size(); ++i)
         {
@@ -1002,14 +1043,14 @@ namespace Cyan
         }
     }
 
-    void Renderer::renderSSAO(Camera& camera)
+    void Renderer::ssao(Camera& camera)
     {
-        auto ctx = getCurrentGfxCtx();
-        ctx->setShader(m_ssaoShader);
-        ctx->setRenderTarget(m_ssaoRenderTarget, 0u);
-        ctx->setViewport({0, 0, m_ssaoRenderTarget->m_width, m_ssaoRenderTarget->m_height});
-        ctx->clear();
-        ctx->setDepthControl(kDisable);
+        m_ctx->setRenderTarget(m_ssaoRenderTarget, 0u);
+        m_ctx->setViewport({0, 0, m_ssaoRenderTarget->m_width, m_ssaoRenderTarget->m_height});
+        m_ctx->clear();
+
+        m_ctx->setShader(m_ssaoShader);
+        m_ctx->setDepthControl(kDisable);
         m_ssaoMatl->bindTexture("normalTexture", m_sceneNormalTextureSSAA);
         m_ssaoMatl->bindTexture("depthTexture", m_sceneDepthTextureSSAA);
         m_ssaoMatl->set("cameraPos", &camera.position.x);
@@ -1018,9 +1059,35 @@ namespace Cyan
         m_ssaoMatl->bindBuffer("DebugVisData", m_ssaoDebugVisBuffer);
         m_ssaoMatl->bind();
         auto quad = getQuadMesh();
-        ctx->setVertexArray(quad->m_vertexArray);
-        ctx->drawIndexAuto(quad->m_vertexArray->numVerts());
-        ctx->setDepthControl(DepthControl::kEnable);
+        m_ctx->setVertexArray(quad->m_vertexArray);
+        m_ctx->drawIndexAuto(quad->m_vertexArray->numVerts());
+        m_ctx->setDepthControl(DepthControl::kEnable);
+    }
+
+    void Renderer::bloom()
+    {
+
+    }
+
+    void Renderer::composite()
+    {
+
+    }
+    
+    void Renderer::renderUI(const std::function<void()>& callback)
+    {
+        // begin imgui
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+        ImGuizmo::BeginFrame();
+
+        // draw widgets
+        callback();
+
+        // end imgui
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     }
 
     void Renderer::renderSceneToLightProbe(Scene* scene, Camera& camera)

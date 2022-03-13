@@ -105,13 +105,13 @@ namespace Cyan
             glClearBufferfv(GL_COLOR, 0, &normalBufferClear.x);
             glClearBufferfv(GL_COLOR, 1, &depthBufferClear.x);
             ctx->setViewport(m_viewport);
-            renderer->renderSceneDepthNormal(m_scene, m_scene->getActiveCamera());
+            renderer->renderSceneDepthNormal(m_scene);
         }
 
         // ssao pass
         // todo: move this to a proper place
         {
-            renderer->renderSSAO(m_scene->getActiveCamera());
+            renderer->ssao(m_scene->getActiveCamera());
             // gaussian blur
             for (u32 i = 0; i < 1; ++i)
             {
@@ -134,7 +134,7 @@ namespace Cyan
             i32 drawBuffers[5] = {0, -1, -1, -1, -1 };
             ctx->setRenderTarget(m_renderTarget, drawBuffers, 5);
             ctx->setViewport(m_viewport);
-            renderer->renderScene(m_scene, m_scene->getActiveCamera());
+            renderer->renderScene(m_scene);
         }
     }
 

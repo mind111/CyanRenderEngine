@@ -3,8 +3,8 @@
 namespace Cyan
 {
     GraphicsSystem* GraphicsSystem::m_singleton = 0;
-    GraphicsSystem::GraphicsSystem(const glm::vec2& windowSize)
-        : m_windowSize(windowSize)
+    GraphicsSystem::GraphicsSystem(GLFWwindow* window, const glm::vec2& windowSize)
+        : m_window(window), m_windowSize(windowSize)
     {
         if (!m_singleton)
             m_singleton = this;
@@ -21,12 +21,9 @@ namespace Cyan
         m_assetManager = new AssetManager;
         m_lightMapManager = new LightMapManager;
         m_pathTracer = new PathTracer;
-        m_renderer = new Renderer;
-        m_renderer->initialize(m_windowSize);
+        m_renderer = new Renderer(m_window, m_windowSize);
         
         // configure some necessary gl global states
-        // this is necessary as we are setting z component of
-        // the cubemap mesh to 1.f
         glDepthFunc(GL_LEQUAL);
         glEnable(GL_LINE_SMOOTH);
         glLineWidth(4.f);

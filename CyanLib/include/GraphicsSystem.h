@@ -13,7 +13,7 @@ namespace Cyan
     {
     public:
 
-        GraphicsSystem(const glm::vec2& windowSize);
+        GraphicsSystem(GLFWwindow* window, const glm::vec2& windowSize);
         ~GraphicsSystem() { }
 
         static GraphicsSystem* getSingletonPtr();
@@ -23,6 +23,7 @@ namespace Cyan
         void initialize();
 
     private:
+        GLFWwindow* m_window;
         glm::vec2 m_windowSize; 
         SceneManager* m_sceneManager;
         TextureManager* m_textureManager;
