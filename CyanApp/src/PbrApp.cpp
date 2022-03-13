@@ -1058,6 +1058,7 @@ void DemoApp::drawRenderSettings()
 
 void DemoApp::buildFrame()
 {
+    /*
     // construct work for current frame
     Cyan::Renderer* renderer = Cyan::Renderer::getSingletonPtr();
     renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), m_scenes[m_currentScene]->entities);
@@ -1068,6 +1069,7 @@ void DemoApp::buildFrame()
         renderer->addCustomPass(debugPass);
     }
     renderer->addPostProcessPasses();
+    */
 }
 
 void DemoApp::debugIrradianceCache()
@@ -1162,8 +1164,10 @@ void DemoApp::render()
     Cyan::Toolkit::GpuTimer frameTimer("render()");
     {
         auto renderer = m_graphicsSystem->getRenderer();
-        // scene
-        renderer->render(m_scenes[m_currentScene]);
+        // scene & debug objects
+        renderer->render(m_scenes[m_currentScene], [this]() {
+            debugIrradianceCache();
+        });
         // ui
         renderer->renderUI([this]() {
             drawSceneViewport();

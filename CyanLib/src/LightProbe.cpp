@@ -106,8 +106,8 @@ namespace Cyan
             camera.n = 0.1f;
             camera.f = 100.f;
             camera.fov = glm::radians(90.f);
-            // render sun light shadow
             auto renderer = Renderer::getSingletonPtr();
+
             // only capture static objects
             std::vector<Entity*> staticObjects;
             for (u32 i = 0; i < m_scene->entities.size(); ++i)
@@ -117,12 +117,11 @@ namespace Cyan
                     staticObjects.push_back(m_scene->entities[i]);
                 }
             }
-            renderer->beginRender();
-            renderer->addDirectionalShadowPass(m_scene, m_scene->getActiveCamera(), staticObjects);
-            renderer->render(m_scene);
-            renderer->endRender();
+            // render sun light shadow
+            renderer->renderSunShadow(m_scene, staticObjects);
+
             // render scene into each face of the cubemap
-            auto ctx = Cyan::getCurrentGfxCtx();
+            auto ctx = renderer->getGfxCtx();
             ctx->setViewport({0u, 0u, m_sceneCapture->m_width, m_sceneCapture->m_height});
             for (u32 f = 0; f < (sizeof(LightProbeCameras::cameraFacingDirections)/sizeof(LightProbeCameras::cameraFacingDirections[0])); ++f)
             {

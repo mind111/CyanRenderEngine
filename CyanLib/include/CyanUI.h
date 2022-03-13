@@ -18,6 +18,7 @@ namespace Cyan
         void comboBox(const char* items[], u32 numItems, const char* label, u32* currentIndex);
         bool button(const char* label);
         bool header(const char* label);
+
         extern ImFont* gFont;
     }
 }

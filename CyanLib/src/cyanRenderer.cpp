@@ -251,6 +251,8 @@ namespace Cyan
         glAttachShader(m_lumHistogramProgram, m_lumHistogramShader);
         glLinkProgram(m_lumHistogramProgram);
         ShaderUtil::checkShaderLinkage(m_lumHistogramProgram);
+
+        m_sceneDepthNormalShader = createShader("SceneDepthNormalShader", "../../shader/scene_depth_normal_v.glsl", "../../shader/scene_depth_normal_p.glsl");
     }
 
     void Renderer::initialize(GLFWwindow* window, glm::vec2 windowSize)
@@ -263,8 +265,6 @@ namespace Cyan
         u_cameraProjection = createUniform("s_projection", Uniform::Type::u_mat4);
         m_ssaoSamplePoints.setColor(glm::vec4(0.f, 1.f, 1.f, 1.f));
         m_ssaoSamplePoints.setViewProjection(u_cameraView, u_cameraProjection);
-        // create shaders
-        m_sceneDepthNormalShader = createShader("SceneDepthNormalShader", "../../shader/scene_depth_normal_v.glsl", "../../shader/scene_depth_normal_p.glsl");
         // initialize per frame shader draw data
         glCreateBuffers(1, &gDrawDataBuffer);
         glNamedBufferData(gDrawDataBuffer, sizeof(GlobalDrawData), &m_globalDrawData, GL_DYNAMIC_DRAW);
@@ -279,11 +279,8 @@ namespace Cyan
                        static_cast<u32>(0u), 
                        static_cast<u32>(windowSize.x), 
                        static_cast<u32>(windowSize.y) };
-
-        // misc
-        m_bSuperSampleAA = true;
-        m_exposure = 1.f;
-        m_bloom = true;
+        // shadow
+        m_shadowmapManager.initShadowmap(m_csm, glm::uvec2(4096u, 4096u));
 
         // voxel
         m_voxelVisShader = createShader("VoxelVisShader", "../../shader/shader_render_voxel.vs", "../../shader/shader_render_voxel.fs");
@@ -298,8 +295,9 @@ namespace Cyan
         // set back-face culling
         Cyan::getCurrentGfxCtx()->setCullFace(FrontFace::CounterClockWise, FaceCull::Back);
 
-        // render targets
+        // create shaders
         initShaders();
+        // render targets
         initRenderTargets(m_viewport.m_width, m_viewport.m_height);
 
         // ssao
@@ -352,8 +350,6 @@ namespace Cyan
             m_debugCam.f = 100.f;
             m_debugCam.projection = glm::perspective(m_debugCam.fov, 16.f/9.f, m_debugCam.n, m_debugCam.f);
             CameraManager::updateCamera(m_debugCam);
-            GLint kMaxNumColorBuffers = 0;
-            glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS, &kMaxNumColorBuffers);
         }
 
         // todo: load global glsl definitions and save them in a map <path, content>
@@ -696,44 +692,9 @@ namespace Cyan
         m_renderState.addRenderPass(pass);
     }
 
-    void Renderer::addDirectionalShadowPass(Scene* scene, const Camera& camera, const std::vector<Entity*>& shadowCasters)
-    {
-        void* preallocatedAddr = m_frameAllocator.alloc(sizeof(DirectionalShadowPass));
-        Viewport viewport = { 0, 0, DirectionalShadowPass::s_depthRenderTarget->m_width, DirectionalShadowPass::s_depthRenderTarget->m_height };
-        DirectionalShadowPass* pass = new (preallocatedAddr) DirectionalShadowPass(nullptr, viewport, camera, scene->dLights[0], shadowCasters);
-        m_renderState.addRenderPass(pass);
-
-        switch (DirectionalShadowPass::m_cascadedShadowMap.m_technique)
-        {
-            case ShadowTechnique::kVariance_Shadow:
-            {
-                GaussianBlurInput inputs = { };
-                inputs.kernelIndex = 0;
-                inputs.radius = 3;
-
-                for (u32 i = 0; i < (DirectionalShadowPass::kNumShadowCascades / 2); ++i)
-                {
-                    auto& cascade = DirectionalShadowPass::m_cascadedShadowMap.cascades[i];
-                    void* mem = m_frameAllocator.alloc(sizeof(GaussianBlurPass) * 2);
-                    GaussianBlurPass* depthBlurPass = 
-                        new (mem) GaussianBlurPass(DirectionalShadowPass::s_depthRenderTarget,
-                            viewport,
-                            cascade.varianceShadowMap.shadowMap,
-                            DirectionalShadowPass::m_horizontalBlurTex,
-                            cascade.varianceShadowMap.shadowMap,
-                            inputs);
-                    m_renderState.addRenderPass(depthBlurPass);
-                }
-
-            } break;
-            case ShadowTechnique::kPCF_Shadow:
-                break;
-        }
-    }
-
     void Renderer::addPostProcessPasses()
     {
-        //TODO: bloom right now takes about 7ms to run, need improve performance!
+        // TODO: bloom right now takes about 7ms to run, need to improve performance!
         if (m_bloom)
         {
             addBloomPass();
@@ -833,17 +794,16 @@ namespace Cyan
         }
     }
 
-    void Renderer::render(Scene* scene)
+    void Renderer::render(Scene* scene, const std::function<void()>& debugRender)
     {
         beginRender();
         {
             // update all global data
             updateFrameGlobalData(scene, scene->cameras[scene->activeCamera]);
-            RenderTarget* renderTarget = m_opts.enableAA ? m_sceneColorRTSSAA : m_sceneColorRenderTarget;
             // sun shadow pass
             if (m_opts.enableSunShadow)
             {
-                renderSunShadow(scene);
+                renderSunShadow(scene, scene->entities);
             }
             // scene depth & normal pass
             if (m_opts.enableSSAO)
@@ -857,6 +817,10 @@ namespace Cyan
             // main scene pass
             {
 
+            }
+            // debug object pass
+            {
+                debugRender();
             }
             // post processing
             {
@@ -894,7 +858,6 @@ namespace Cyan
         }
     }
 
-
     // Data that needs to be updated on frame start, such as transforms, and lighting
 #define gTexBinding(x) static_cast<u32>(GlobalTextureBindings##::##x)
     void Renderer::updateFrameGlobalData(Scene* scene, const Camera& camera)
@@ -904,7 +867,7 @@ namespace Cyan
         m_globalDrawData.projection = camera.projection;
         m_globalDrawData.numPointLights = (i32)scene->pLights.size();
         m_globalDrawData.numDirLights = (i32)scene->dLights.size();
-        m_globalDrawData.m_ssao = m_ssao;
+        m_globalDrawData.ssao = m_opts.enableSSAO ? 1.f : 0.f;
 
         // bind lighting data
         updateTransforms(scene);
@@ -965,19 +928,18 @@ namespace Cyan
             glBindTextureUnit(4, gLighting.reflectionProbe->m_convolvedReflectionTexture->m_id);
     }
 
-    void Renderer::updateSunShadow()
+    void Renderer::updateSunShadow(const CascadedShadowmap& csm)
     {
-        CascadedShadowMap& csm          = DirectionalShadowPass::m_cascadedShadowMap;
         m_globalDrawData.sunLightView   = csm.lightView;
         // bind sun light shadow map for this frame
         u32 textureUnitOffset = gTexBinding(SunShadow);
-        for (u32 i = 0; i < DirectionalShadowPass::kNumShadowCascades; ++i)
+        for (u32 i = 0; i < CascadedShadowmap::kNumCascades; ++i)
         {
             m_globalDrawData.sunShadowProjections[i] = csm.cascades[i].lightProjection;
-            if (csm.m_technique == kVariance_Shadow)
-                glBindTextureUnit(textureUnitOffset + i, csm.cascades[i].varianceShadowMap.shadowMap->m_id);
-            else if (csm.m_technique == kPCF_Shadow)
-                glBindTextureUnit(textureUnitOffset + i, csm.cascades[i].basicShadowMap.shadowMap->m_id);
+            if (csm.technique == kVariance_Shadow)
+                glBindTextureUnit(textureUnitOffset + i, csm.cascades[i].vsm.shadowmap->m_id);
+            else if (csm.technique == kPCF_Shadow)
+                glBindTextureUnit(textureUnitOffset + i, csm.cascades[i].basicShadowmap.shadowmap->m_id);
         }
 
         // upload data to gpu
@@ -985,9 +947,12 @@ namespace Cyan
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, static_cast<u32>(BufferBindings::DrawData), gDrawDataBuffer);
     }
 
-    void Renderer::renderSunShadow(Scene* scene)
+    void Renderer::renderSunShadow(Scene* scene, const std::vector<Entity*>& shadowCasters)
     {
-
+        Camera& camera = scene->getActiveCamera();
+        auto& sunLight = scene->dLights[0];
+        m_shadowmapManager.render(m_csm, scene, sunLight, shadowCasters);
+        updateSunShadow(m_csm);
     }
 
     void Renderer::renderSceneDepthNormal(Scene* scene)
@@ -1093,7 +1058,7 @@ namespace Cyan
     void Renderer::renderSceneToLightProbe(Scene* scene, Camera& camera)
     {
         // turn off ssao
-        m_ssao = 0.f;
+        m_opts.enableSSAO = false;
         updateFrameGlobalData(scene, camera);
         // draw skybox
         if (scene->m_skybox)
@@ -1106,6 +1071,6 @@ namespace Cyan
             if (entity->m_static)
                 drawEntity(entity);
         }
-        m_ssao = 1.f;
+        m_opts.enableSSAO = true;
     }
 }

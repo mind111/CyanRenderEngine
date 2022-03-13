@@ -170,45 +170,11 @@ namespace Cyan
         GaussianBlurInput m_params;
     };
 
-    struct BasicShadowMap
-    {
-        Cyan::Texture* shadowMap;
-    };
-
-    struct VarianceShadowMap
-    {
-        Cyan::Texture* shadowMap;
-    };
-
-    struct ShadowCascade
-    {
-        f32 n;
-        f32 f;
-        BoundingBox3f aabb;
-        ::Line frustumLines[12];
-        glm::mat4 lightProjection;
-        BasicShadowMap basicShadowMap;
-        VarianceShadowMap varianceShadowMap;
-    };
-
-    enum ShadowTechnique
-    {
-        kPCF_Shadow = 0,   
-        kVariance_Shadow
-    };
-
-    struct CascadedShadowMap
-    {
-        // Fixed four cascades for now
-        ShadowCascade   cascades[4];
-        glm::mat4       lightView;
-        ShadowTechnique m_technique;
-    };
-
     // TODO: min/max depth for each cascade to help shrink the orthographic projection size
     // TODO: blend between cascades to alleviate artifact when transitioning between cascades
     // TODO: better shadow biasing; normal bias and receiver geometry bias
     // TODO: distribution based shadow mapping methods: VSM, ESM etc.
+    /*
     struct DirectionalShadowPass : public RenderPass
     {
         DirectionalShadowPass(RenderTarget* renderTarget, Viewport viewport, const Camera& camera, const DirectionalLight& light, const std::vector<Entity*>& shadowCasters);
@@ -221,7 +187,7 @@ namespace Cyan
         static MaterialInstance* s_directShadowMatl;
         static RenderTarget* s_depthRenderTarget;
         static const u32 kNumShadowCascades = 4u;
-        static CascadedShadowMap m_cascadedShadowMap;
+        static CascadedShadowmap m_cascadedShadowMap;
         static Texture* m_horizontalBlurTex;
         static Texture* m_verticalBlurTex;
 
@@ -231,6 +197,7 @@ namespace Cyan
         DirectionalLight m_light;
         const std::vector<Entity*>& m_shadowCasters;
     };
+    */
 
     struct LinePass : public RenderPass
     {

@@ -165,6 +165,9 @@
     <ClInclude Include="include\SkyBox.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\Shadow.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Asset.cpp">
@@ -285,6 +288,9 @@
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
     <ClCompile Include="src\CyanUI.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Shadow.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
   </ItemGroup>

@@ -30,12 +30,14 @@ namespace Cyan
     Shader* TexturedQuadPass::m_shader = 0;
     MaterialInstance* TexturedQuadPass::m_matl = 0;
     // directional shadow
+/*
     RenderTarget* DirectionalShadowPass::s_depthRenderTarget = 0;
     Shader* DirectionalShadowPass::s_directShadowShader = 0;
     MaterialInstance* DirectionalShadowPass::s_directShadowMatl = 0;
-    CascadedShadowMap DirectionalShadowPass::m_cascadedShadowMap = { };
+    CascadedShadowmap DirectionalShadowPass::m_cascadedShadowMap = { };
     Texture* DirectionalShadowPass::m_horizontalBlurTex = nullptr;
     Texture* DirectionalShadowPass::m_verticalBlurTex = nullptr;
+*/
     // gaussian blur
     Shader* GaussianBlurPass::m_gaussianBlurShader = nullptr;
     MaterialInstance* GaussianBlurPass::m_gaussianBlurMatl = nullptr;
@@ -56,7 +58,7 @@ namespace Cyan
         BloomPass::onInit(windowWidth, windowHeight);
         PostProcessResolvePass::onInit();
         TexturedQuadPass::onInit();
-        DirectionalShadowPass::onInit();
+        // DirectionalShadowPass::onInit();
         GaussianBlurPass::onInit();
     }
 
@@ -436,7 +438,8 @@ namespace Cyan
         ctx->drawIndexAuto(6u);
         ctx->setDepthControl(DepthControl::kEnable);
     }
-    
+
+    /*
     DirectionalShadowPass::DirectionalShadowPass(RenderTarget* renderTarget, Viewport viewport, const Camera& camera, const DirectionalLight& light, const std::vector<Entity*>& shadowCasters)
         : RenderPass(renderTarget, viewport), m_light(light), m_camera(camera), m_shadowCasters(shadowCasters)
     {
@@ -445,7 +448,7 @@ namespace Cyan
 
     void DirectionalShadowPass::onInit()
     {
-        m_cascadedShadowMap.m_technique = ShadowTechnique::kPCF_Shadow;
+        m_cascadedShadowMap.technique = ShadowTechnique::kPCF_Shadow;
 
         auto textureManager = TextureManager::getSingletonPtr();
         // TODO: depth buffer creation coupled with render target creation
@@ -501,8 +504,8 @@ namespace Cyan
             {
                 line.init();
                 line.setColor(frustumColor);
-                cascade.basicShadowMap.shadowMap = textureManager->createTexture("ShadowMap", depthSpec);
-                cascade.varianceShadowMap.shadowMap = textureManager->createTexture("VSM", vsmSpec);
+                cascade.basicShadowmap.shadowmap = textureManager->createTexture("ShadowMap", depthSpec);
+                cascade.vsm.shadowmap = textureManager->createTexture("VSM", vsmSpec);
             }
             cascade.aabb.init();
         };
@@ -618,11 +621,11 @@ namespace Cyan
         glm::mat4 lightProjection = glm::orthoLH(aabb.m_pMin.x, aabb.m_pMax.x, aabb.m_pMin.y, aabb.m_pMax.y, aabb.m_pMax.z, aabb.m_pMin.z);
         cascade.lightProjection = lightProjection;
         auto ctx = getCurrentGfxCtx();
-        s_depthRenderTarget->setDepthBuffer(cascade.basicShadowMap.shadowMap);
+        s_depthRenderTarget->setDepthBuffer(cascade.basicShadowmap.shadowmap);
         switch (m_cascadedShadowMap.m_technique)
         {
             case ShadowTechnique::kVariance_Shadow:
-                s_depthRenderTarget->attachTexture(cascade.varianceShadowMap.shadowMap, 0);
+                s_depthRenderTarget->attachTexture(cascade.vsm.shadowmap, 0);
                 break;
             case ShadowTechnique::kPCF_Shadow:
                 // s_depthRenderTarget->attachTexture(cascade.basicShadowMap.shadowMap, 0);
@@ -687,6 +690,7 @@ namespace Cyan
         }
         Renderer::getSingletonPtr()->updateSunShadow();
     }
+    */
 
     SSAOPass::SSAOPass(RenderTarget* renderTarget, Viewport vp, Texture* sceneDepthTexture, Texture* sceneNormalTexture)
         : RenderPass(renderTarget, vp), m_sceneDepthTexture(sceneDepthTexture), m_sceneNormalTexture(sceneNormalTexture)

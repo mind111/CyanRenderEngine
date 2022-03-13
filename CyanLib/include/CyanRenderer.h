@@ -15,6 +15,7 @@
 #include "Entity.h"
 #include "Geometry.h"
 #include "RenderPass.h"
+#include "Shadow.h"
 
 extern float quadVerts[24];
 
@@ -92,35 +93,24 @@ namespace Cyan
         RenderTarget* getSceneColorRenderTarget();
         RenderTarget* getRenderOutputRenderTarget();
         Texture* getRenderOutputTexture();
+        GfxContext* getGfxCtx() { return m_ctx; };
+
+// shadow
+        ShadowmapManager m_shadowmapManager;
+        CascadedShadowmap m_csm;
+//
 
 // rendering
         void beginRender();
-        void render(Scene* scene);
+        void render(Scene* scene, const std::function<void()>& debugRender = [](){ });
         void endRender();
-        void renderSunShadow(Scene* scene);
+        void renderSunShadow(Scene* scene, const std::vector<Entity*>& shaodwCasters);
         void renderScene(Scene* scene);
         void renderSceneDepthNormal(Scene* scene);
         void renderSceneToLightProbe(Scene* scene, Camera& camera);
         void renderUI(const std::function<void()>& callback);
-        void renderDebugObjects();
-//
-
-// post-processing
-        void ssao(Camera& camera);
-        void bloom();
-        /*
-            * Final compositing and blitting pass that handles tone mapping & gamma correction
-        */
-        void composite();
-//
         void flip();
 
-        void updateFrameGlobalData(Scene* scene, const Camera& camara);
-        void updateTransforms(Scene* scene);
-        void updateLighting(Scene* scene);
-        void updateSunShadow();
-        BoundingBox3f computeSceneAABB(Scene* scene);
-        void executeOnEntity(Entity* e, const std::function<void(SceneNode*)>& func);
         void drawEntity(Entity* entity);
         void drawMesh(Mesh* mesh);
         /*
@@ -132,9 +122,28 @@ namespace Cyan
             * Draw an instanced mesh with transform that allows different types of materials for each submeshes.
         */
         void drawMeshInstance(MeshInstance* meshInstance, i32 transformIndex);
+//
+
+// post-processing
+        void ssao(Camera& camera);
+        void bloom();
+        /*
+            * Final compositing and blitting pass that handles tone mapping & gamma correction
+        */
+        void composite();
+//
+
+// per frame data
+        void updateFrameGlobalData(Scene* scene, const Camera& camara);
+        void updateTransforms(Scene* scene);
+        void updateLighting(Scene* scene);
+        void updateSunShadow(const CascadedShadowmap& csm);
+//
+        BoundingBox3f computeSceneAABB(Scene* scene);
+        void executeOnEntity(Entity* e, const std::function<void(SceneNode*)>& func);
 
         void addScenePass(Scene* scene);
-        void addDirectionalShadowPass(Scene* scene, const Camera& camera, const std::vector<Entity*>& shadowCasters);
+        // void addDirectionalShadowPass(Scene* scene, const Camera& camera, const std::vector<Entity*>& shadowCasters);
         void addCustomPass(RenderPass* pass);
         void addTexturedQuadPass(RenderTarget* renderTarget, Viewport viewport, Texture* srcTexture);
         void addBloomPass();
@@ -215,16 +224,15 @@ namespace Cyan
             glm::mat4 sunShadowProjections[4];
             i32       numDirLights;
             i32       numPointLights;
-            f32       m_ssao;
+            f32       ssao;
             f32       dummy;
         } m_globalDrawData;
         GLuint gDrawDataBuffer;
 
         struct Lighting
         {
-            const u32                      kNumShadowCascades = 4u;
             const u32                      kDynamicLightBufferSize = 1024;
-            CascadedShadowMap              sunLightShadowMap;
+            CascadedShadowmap              sunLightShadowmap;
             std::vector<PointLightGpuData> pointLights;
             std::vector<DirLightGpuData>   dirLights;
             GLuint                         dirLightSBO;

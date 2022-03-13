@@ -52,6 +52,7 @@
     <ClInclude Include="include\Scene.h" />
     <ClInclude Include="include\SceneNode.h" />
     <ClInclude Include="include\Shader.h" />
+    <ClInclude Include="include\Shadow.h" />
     <ClInclude Include="include\SkyBox.h" />
     <ClInclude Include="include\Texture.h" />
     <ClInclude Include="include\Transform.h" />
@@ -103,6 +104,7 @@
     <ClCompile Include="src\Scene.cpp" />
     <ClCompile Include="src\SceneNode.cpp" />
     <ClCompile Include="src\Shader.cpp" />
+    <ClCompile Include="src\Shadow.cpp" />
     <ClCompile Include="src\SkyBox.cpp" />
     <ClCompile Include="src\Texture.cpp" />
     <ClCompile Include="src\todos.cpp" />
