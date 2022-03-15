@@ -334,12 +334,6 @@
     <None Include="..\shader\shader_bloom_preprocess.vs">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_depth_normal.fs">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\shader\shader_depth_normal.vs">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="..\shader\convolve_diffuse_p.glsl">
       <Filter>Shaders</Filter>
     </None>

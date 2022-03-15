@@ -294,20 +294,19 @@ namespace Cyan
         return shader;
     }
 
-    RenderTarget* createRenderTarget(u32 _width, u32 _height)
+    RenderTarget* createRenderTarget(u32 width, u32 height)
     {
         RenderTarget* rt = new RenderTarget();
-        rt->m_width = _width;
-        rt->m_height = _height;
-        rt->m_numColorBuffers = 0;
-        glCreateFramebuffers(1, &rt->m_frameBuffer);
-        glBindFramebuffer(GL_FRAMEBUFFER, rt->m_frameBuffer);
+        rt->width = width;
+        rt->height = height;
+        glCreateFramebuffers(1, &rt->fbo);
+        glBindFramebuffer(GL_FRAMEBUFFER, rt->fbo);
         {
-            glCreateRenderbuffers(1, &rt->m_renderBuffer);
-            glBindRenderbuffer(GL_RENDERBUFFER, rt->m_renderBuffer);
+            glCreateRenderbuffers(1, &rt->rbo);
+            glBindRenderbuffer(GL_RENDERBUFFER, rt->rbo);
             {
-                glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, rt->m_width, rt->m_height);
-                glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rt->m_renderBuffer);
+                glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, rt->width, rt->height);
+                glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rt->rbo);
             }
             glBindRenderbuffer(GL_RENDERBUFFER, 0);
         }
@@ -316,13 +315,13 @@ namespace Cyan
         return rt;
     }
 
-    // depth only render target; mainly for directional shadow map
+    // depth only render target
     RenderTarget* createDepthRenderTarget(u32 width, u32 height)
     {
         RenderTarget* rt = new RenderTarget();
-        rt->m_width = width;
-        rt->m_height = height;
-        glCreateFramebuffers(1, &rt->m_frameBuffer);
+        rt->width = width;
+        rt->height = height;
+        glCreateFramebuffers(1, &rt->fbo);
         return rt;
     }
 
@@ -682,6 +681,7 @@ namespace Cyan
             return glm::mat4(1.f);
         }
 
+#if 0
         // Load equirectangular map into a cubemap
         Texture* loadEquirectangularMap(const char* _name, const char* _file, bool _hdr)
         {
@@ -1056,6 +1056,7 @@ namespace Cyan
 
             return outputTexture;
         }
+#endif
 
         // create a flat color albedo map via fragment shader
         Texture* createFlatColorTexture(const char* name, u32 width, u32 height, glm::vec4 color)
@@ -1100,13 +1101,15 @@ namespace Cyan
             RenderTarget* rt = createRenderTarget(width, height);
             Uniform* u_color = createUniform("color", Uniform::Type::u_vec4);
             setUniform(u_color, &color.r);
-            rt->attachColorBuffer(texture);
+//            rt->attachColorBuffer(texture);
+            rt->setColorBuffer(texture, 0u);
 
             auto gfxc = getCurrentGfxCtx();
             Viewport origViewport = gfxc->m_viewport;
             gfxc->setViewport({ 0u, 0u, texture->m_width, texture->m_height });
             gfxc->setShader(shader);
-            gfxc->setRenderTarget(rt, 0);
+            // gfxc->setRenderTarget(rt, 0);
+            gfxc->setRenderTarget(rt, { 0 });
             gfxc->setUniform(u_color);
             glBindVertexArray(vao);
             gfxc->setDepthControl(Cyan::DepthControl::kDisable);

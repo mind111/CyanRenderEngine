@@ -6,6 +6,7 @@ namespace Cyan
     //- static initialization of class static data members
 
     static QuadMesh s_quadMesh;
+#if 0
     // scene
     // Shader* ScenePass::s_sceneNormalDepthShader = nullptr;
     Texture* ScenePass::ssaoBlurVertTex = nullptr;
@@ -41,11 +42,16 @@ namespace Cyan
     // gaussian blur
     Shader* GaussianBlurPass::m_gaussianBlurShader = nullptr;
     MaterialInstance* GaussianBlurPass::m_gaussianBlurMatl = nullptr;
-
+#endif
     QuadMesh* getQuadMesh()
     {
+        if (!s_quadMesh.m_vertexArray)
+        {
+            s_quadMesh.init(glm::vec2(0.f), glm::vec2(1.f, 1.f));
+        }
         return &s_quadMesh;
     }
+#if 0
 
     void onRendererInitialized(glm::vec2 windowSize)
     {
@@ -734,4 +740,5 @@ namespace Cyan
         ctx->drawIndexAuto(6u);
         ctx->setDepthControl(DepthControl::kEnable);
     }
+#endif
 }

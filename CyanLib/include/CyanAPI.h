@@ -261,11 +261,13 @@ namespace Cyan
 
         //-
         // Cubemap related
+#if 0
         Texture* loadEquirectangularMap(const char* _name, const char* _file, bool _hdr=false);
         Texture* prefilterEnvMapDiffuse(const char* _name, Texture* _envMap);
         Texture* prefilterEnvmapSpecular(Texture* envMap);
         Texture* generateBrdfLUT();
         Texture* createFlatColorTexture(const char* name, u32 width, u32 height, glm::vec4 color);
+#endif
 
         //-
         // Mesh related

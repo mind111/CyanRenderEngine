@@ -9,6 +9,7 @@
 namespace Cyan
 {
     QuadMesh* getQuadMesh();
+#if 0
     void onRendererInitialized(glm::vec2 renderSize);
 
     // TODO: make RenderPass persistent, instead of scratching and recreating again every frame
@@ -228,4 +229,5 @@ namespace Cyan
         virtual RenderPass* createRenderPass(RenderTarget* renderTarget, Viewport viewport);
         virtual RenderPass* createRenderPass(RenderTarget* renderTarget, Viewport viewport, Scene* scene) { return  0; }
     };
+#endif
 }

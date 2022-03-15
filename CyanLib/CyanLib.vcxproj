@@ -130,8 +130,6 @@
     <None Include="..\shader\shader_bloom.vs" />
     <None Include="..\shader\shader_bloom_preprocess.fs" />
     <None Include="..\shader\shader_bloom_preprocess.vs" />
-    <None Include="..\shader\shader_depth_normal.fs" />
-    <None Include="..\shader\shader_depth_normal.vs" />
     <None Include="..\shader\convolve_diffuse_p.glsl" />
     <None Include="..\shader\convolve_diffuse_v.glsl" />
     <None Include="..\shader\shader_dir_shadow.fs" />

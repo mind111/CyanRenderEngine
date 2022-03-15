@@ -29,8 +29,8 @@ namespace Cyan
         auto textureManager = TextureManager::getSingletonPtr();
         auto initCascade = [this, textureManager, csm](ShadowCascade& cascade, const glm::vec4& frustumColor) {
             TextureSpec spec = { };
-            spec.m_width = csm.depthRenderTarget->m_width;
-            spec.m_height = csm.depthRenderTarget->m_height;
+            spec.m_width = csm.depthRenderTarget->width;
+            spec.m_height = csm.depthRenderTarget->height;
             spec.m_format = Texture::ColorFormat::D24S8; // 32 bits
             spec.m_type = Texture::Type::TEX_2D;
             spec.m_min = Texture::Filter::NEAREST;
@@ -40,8 +40,8 @@ namespace Cyan
             spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
 
             TextureSpec vsmSpec = { };
-            vsmSpec.m_width = csm.depthRenderTarget->m_width;
-            vsmSpec.m_height = csm.depthRenderTarget->m_height;
+            vsmSpec.m_width = csm.depthRenderTarget->width;
+            vsmSpec.m_height = csm.depthRenderTarget->height;
             vsmSpec.m_format = Texture::ColorFormat::R32G32F;
             vsmSpec.m_type = Texture::Type::TEX_2D;
             vsmSpec.m_dataType = Texture::DataType::Float;
@@ -204,8 +204,8 @@ namespace Cyan
         auto ctx = renderer->getGfxCtx();
 
         csm.depthRenderTarget->setDepthBuffer(cascade.basicShadowmap.shadowmap);
-        ctx->setViewport({ 0u, 0u, csm.depthRenderTarget->m_width, csm.depthRenderTarget->m_height });
-        ctx->setRenderTarget(csm.depthRenderTarget, 0u);
+        ctx->setViewport({ 0u, 0u, csm.depthRenderTarget->width, csm.depthRenderTarget->height });
+        ctx->setRenderTarget(csm.depthRenderTarget, { 0 });
         // need to clear depth to 1.0f
         ctx->setClearColor(glm::vec4(1.f));
         glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);

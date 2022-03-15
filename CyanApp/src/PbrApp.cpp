@@ -69,27 +69,6 @@ void DemoApp::dispatchCameraCommand(CameraCommand& command)
     }
 }
 
-struct DebugRenderPass : Cyan::RenderPass
-{
-    DebugRenderPass(Cyan::RenderTarget* renderTarget, Cyan::Viewport viewport, DemoApp* app)
-        : RenderPass(renderTarget, viewport), m_app(app)
-    {
-
-    }
-
-    ~DebugRenderPass() { }
-
-    virtual void render() override
-    {
-        auto ctx = Cyan::getCurrentGfxCtx();
-        ctx->setRenderTarget(m_renderTarget);
-        ctx->setViewport(m_viewport);
-        m_app->debugIrradianceCache();
-    }
-
-    DemoApp* m_app;
-};
-
 namespace Demo
 {
     void mouseCursorCallback(double cursorX, double cursorY, double deltaX, double deltaY)
@@ -732,7 +711,7 @@ void DemoApp::drawDebugWindows()
 {
     auto renderer = m_graphicsSystem->getRenderer();
     auto ctx = Cyan::getCurrentGfxCtx();
-    ctx->setRenderTarget(nullptr);
+    ctx->setRenderTarget(nullptr, {});
 
     // configure window pos and size
     ImVec2 debugWindowSize(gEngine->getWindow().width - renderer->m_viewport.m_width, 
@@ -969,10 +948,9 @@ void DemoApp::drawSceneViewport()
             m_selectedNode = hitInfo.m_node;
             auto ctx = Cyan::getCurrentGfxCtx();
             ctx->setDepthControl(Cyan::DepthControl::kDisable);
-            ctx->setRenderTarget(Cyan::Renderer::getSingletonPtr()->getRenderOutputRenderTarget(), 0u);
-            // TODO: the line is not rendered at exactly where the mouse is currently clicking
+            ctx->setRenderTarget(Cyan::Renderer::getSingletonPtr()->getRenderOutputRenderTarget(), { 0 });
             // m_debugRay.draw();
-            ctx->setRenderTarget(nullptr, 0u);
+            ctx->setRenderTarget(nullptr, { });
             ctx->setDepthControl(Cyan::DepthControl::kEnable);
         }
 
@@ -1046,30 +1024,14 @@ void DemoApp::drawRenderSettings()
         // bloom settings
         ImGui::Text("Bloom");
         ImGui::SameLine();
-        ImGui::Checkbox("##Enabled", &renderer->m_bloom); 
+        ImGui::Checkbox("##Enabled", &renderer->m_opts.enableBloom); 
 
         // exposure settings
         ImGui::Text("Exposure");
         ImGui::SameLine();
-        ImGui::SliderFloat("##Exposure", &renderer->m_exposure, 0.f, 10.f, "%.2f");
+        ImGui::SliderFloat("##Exposure", &renderer->m_opts.exposure, 0.f, 10.f, "%.2f");
         ImGui::TreePop();
     }
-}
-
-void DemoApp::buildFrame()
-{
-    /*
-    // construct work for current frame
-    Cyan::Renderer* renderer = Cyan::Renderer::getSingletonPtr();
-    renderer->addDirectionalShadowPass(m_scenes[m_currentScene], m_scenes[m_currentScene]->getActiveCamera(), m_scenes[m_currentScene]->entities);
-    renderer->addScenePass(m_scenes[m_currentScene]);
-    {
-        void* memory = renderer->getAllocator().alloc(sizeof(DebugRenderPass));
-        DebugRenderPass* debugPass = new (memory) DebugRenderPass(renderer->m_sceneColorRTSSAA, {0u, 0u, renderer->m_sceneColorRTSSAA->m_width, renderer->m_sceneColorRTSSAA->m_height }, this);
-        renderer->addCustomPass(debugPass);
-    }
-    renderer->addPostProcessPasses();
-    */
 }
 
 void DemoApp::debugIrradianceCache()

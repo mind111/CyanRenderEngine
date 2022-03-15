@@ -99,7 +99,7 @@ namespace Cyan
         // create render target
         auto renderTarget = createRenderTarget(m_sceneCapture->m_width, m_sceneCapture->m_height);
         {
-            renderTarget->attachColorBuffer(m_sceneCapture);
+            renderTarget->setColorBuffer(m_sceneCapture, 0u);
             Camera camera = { };
             camera.position = m_position;
             camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
@@ -125,9 +125,7 @@ namespace Cyan
             ctx->setViewport({0u, 0u, m_sceneCapture->m_width, m_sceneCapture->m_height});
             for (u32 f = 0; f < (sizeof(LightProbeCameras::cameraFacingDirections)/sizeof(LightProbeCameras::cameraFacingDirections[0])); ++f)
             {
-                i32 drawBuffers[4] = {(i32)f, -1, -1, -1};
-                renderTarget->setDrawBuffers(drawBuffers, 4);
-                ctx->setRenderTarget(renderTarget);
+                ctx->setRenderTarget(renderTarget, { (i32)f, -1, -1, -1 });
                 ctx->clear();
 
                 camera.lookAt = camera.position + LightProbeCameras::cameraFacingDirections[f];
@@ -137,7 +135,7 @@ namespace Cyan
             }
         }
         // release resources
-        glDeleteFramebuffers(1, &renderTarget->m_frameBuffer);
+        glDeleteFramebuffers(1, &renderTarget->fbo);
         delete renderTarget;
     }
 
@@ -193,17 +191,17 @@ namespace Cyan
         camera.position = glm::vec3(0.f);
         camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
         auto renderTarget = createRenderTarget(m_irradianceTextureRes.x, m_irradianceTextureRes.y);
-        renderTarget->attachColorBuffer(m_convolvedIrradianceTexture);
+        renderTarget->setColorBuffer(m_convolvedIrradianceTexture, 0u);
         {
             ctx->setShader(s_convolveIrradianceShader);
-            ctx->setViewport({0u, 0u, renderTarget->m_width, renderTarget->m_height});
+            ctx->setViewport({0u, 0u, renderTarget->width, renderTarget->height});
             ctx->setDepthControl(DepthControl::kDisable);
             for (u32 f = 0; f < 6u; ++f)
             {
                 camera.lookAt = LightProbeCameras::cameraFacingDirections[f];
                 camera.worldUp = LightProbeCameras::worldUps[f];
                 CameraManager::updateCamera(camera);
-                ctx->setRenderTarget(renderTarget, f);
+                ctx->setRenderTarget(renderTarget, { (i32)f });
                 m_convolveIrradianceMatl->set("view", &camera.view[0]);
                 m_convolveIrradianceMatl->set("projection", &camera.projection[0]);
                 m_convolveIrradianceMatl->bindTexture("srcCubemapTexture", m_sceneCapture);
@@ -214,7 +212,7 @@ namespace Cyan
             timer.end();
         }
         // release resources
-        glDeleteFramebuffers(1, &renderTarget->m_frameBuffer);
+        glDeleteFramebuffers(1, &renderTarget->fbo);
         delete renderTarget;
     }
 
@@ -299,7 +297,7 @@ namespace Cyan
         Texture* outTexture = textureManager->createTextureHDR("BRDFLUT", spec); 
         Shader* shader = createShader("IntegrateBRDFShader", "../../shader/shader_integrate_brdf.vs", "../../shader/shader_integrate_brdf.fs");
         RenderTarget* rt = createRenderTarget(kTexWidth, kTexWidth);
-        rt->attachColorBuffer(outTexture);
+        rt->setColorBuffer(outTexture, 0u);
         f32 verts[] = {
             -1.f,  1.f, 0.f, 0.f,  1.f,
             -1.f, -1.f, 0.f, 0.f,  0.f,
@@ -322,15 +320,15 @@ namespace Cyan
         glBindVertexArray(0);
 
         auto ctx = getCurrentGfxCtx();
+        ctx->setRenderTarget(rt, { 0 });
         ctx->setViewport({ 0, 0, kTexWidth, kTexHeight } );
         ctx->setShader(shader);
-        ctx->setRenderTarget(rt, 0);
         glBindVertexArray(vao);
         ctx->setDepthControl(Cyan::DepthControl::kDisable);
         glDrawArrays(GL_TRIANGLES, 0, 6);
         ctx->setDepthControl(Cyan::DepthControl::kEnable);
         ctx->reset();
-        glDeleteFramebuffers(1, &rt->m_frameBuffer);
+        glDeleteFramebuffers(1, &rt->fbo);
         glDeleteBuffers(1, &vbo);
         glDeleteVertexArrays(1, &vao);
         return outTexture;
@@ -354,12 +352,12 @@ namespace Cyan
         for (u32 mip = 0; mip < kNumMips; ++mip)
         {
             auto renderTarget = createRenderTarget(mipWidth, mipHeight);
-            renderTarget->attachColorBuffer(m_convolvedReflectionTexture, mip);
-            ctx->setViewport({ 0u, 0u, renderTarget->m_width, renderTarget->m_height });
+            renderTarget->setColorBuffer(m_convolvedReflectionTexture, 0u, mip);
+            ctx->setViewport({ 0u, 0u, renderTarget->width, renderTarget->height });
             {
                 for (u32 f = 0; f < 6u; f++)
                 {
-                    ctx->setRenderTarget(renderTarget, f);
+                    ctx->setRenderTarget(renderTarget, { (i32)f });
                     camera.lookAt = LightProbeCameras::cameraFacingDirections[f];
                     camera.worldUp = LightProbeCameras::worldUps[f];
                     CameraManager::updateCamera(camera);
@@ -371,7 +369,7 @@ namespace Cyan
                     ctx->drawIndexAuto(36);
                 }
             }
-            glDeleteFramebuffers(1, &renderTarget->m_frameBuffer);
+            glDeleteFramebuffers(1, &renderTarget->fbo);
             delete renderTarget;
 
             mipWidth /= 2u;

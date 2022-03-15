@@ -21,59 +21,8 @@ extern float quadVerts[24];
 
 namespace Cyan
 {
-    // TODO: implement this
-    struct RenderView
-    {
-        RenderTarget* m_renderTarget;
-        Viewport m_viewport;
-        glm::vec4 m_clearColor;
-    };
-
     // foward declarations
     struct RenderTarget;
-
-    class RenderState
-    {
-    public:
-        bool m_superSampleAA; 
-        bool m_bloom;
-        std::vector<RenderPass*> m_renderPasses;
-        // render targets that need to be cleared from last frame
-        std::vector<RenderTarget*> m_clearRenderTargetList;
-
-        void addRenderPass(RenderPass* pass)
-        {
-            m_renderPasses.push_back(pass);
-        }
-
-        void addClearRenderTarget(RenderTarget* renderTarget)
-        {
-            m_clearRenderTargetList.push_back(renderTarget);
-        }
-
-        void clearRenderTargets()
-        {
-            for (auto renderTarget : m_clearRenderTargetList)
-            {
-                auto ctx = getCurrentGfxCtx();
-                ctx->setRenderTarget(renderTarget, 0u);
-                // clear all the color buffers
-                std::vector<i32> drawBuffers;
-                for (u32 b = 0u; b < renderTarget->m_colorBuffers.size(); ++b)
-                {
-                    drawBuffers.push_back(b);
-                }
-                ctx->setRenderTarget(renderTarget, drawBuffers.data(), static_cast<u32>(drawBuffers.size()));
-                ctx->clear();
-            }
-            m_clearRenderTargetList.clear();
-        }
-
-        void clearRenderPasses()
-        {
-            m_renderPasses.clear();
-        }
-    };
 
     class Renderer 
     {
@@ -116,7 +65,7 @@ namespace Cyan
         /*
             * Draw a mesh without transform using same type of material for all its submeshes.
         */
-        void drawMesh(Mesh* mesh, MaterialInstance* matl, RenderTarget* dstRenderTarget, const Viewport& viewport);
+        void drawMesh(Mesh* mesh, MaterialInstance* matl, RenderTarget* dstRenderTarget, const std::initializer_list<i32>& drawBuffers, const Viewport& viewport);
 
         /* 
             * Draw an instanced mesh with transform that allows different types of materials for each submeshes.
@@ -141,7 +90,7 @@ namespace Cyan
 //
         BoundingBox3f computeSceneAABB(Scene* scene);
         void executeOnEntity(Entity* e, const std::function<void(SceneNode*)>& func);
-
+#if 0
         void addScenePass(Scene* scene);
         // void addDirectionalShadowPass(Scene* scene, const Camera& camera, const std::vector<Entity*>& shadowCasters);
         void addCustomPass(RenderPass* pass);
@@ -149,7 +98,7 @@ namespace Cyan
         void addBloomPass();
         void addGaussianBlurPass(RenderTarget* renderTarget, Viewport viewport, Texture* srcTexture, Texture* horiTexture, Texture* vertTexture, GaussianBlurInput input);
         void addPostProcessPasses();
-
+#endif
         struct Options
         {
             bool enableAA = true;
@@ -158,8 +107,6 @@ namespace Cyan
             bool enableBloom = true;
             f32  exposure = 1.f;
         } m_opts;
-
-        RenderState m_renderState;
 
         // viewport
         glm::vec2 getViewportSize();
@@ -307,10 +254,6 @@ namespace Cyan
         Texture* m_bloomOutput;
         RenderTarget* m_bloomOutputRT;            // final results after upscale chain
 
-        // post processing params
-        bool m_bloom;
-        f32  m_exposure;
-        u32  m_numBloomTextures;
         GLuint m_lumHistogramShader;
         GLuint m_lumHistogramProgram;
 

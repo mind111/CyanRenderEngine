@@ -140,7 +140,7 @@ namespace Cyan
         spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
         m_sceneColorTextureSSAA = textureManager->createTextureHDR("SceneColorTexSSAA", spec);
         m_sceneColorRTSSAA = createRenderTarget(m_SSAAWidth, m_SSAAHeight);
-        m_sceneColorRTSSAA->attachColorBuffer(m_sceneColorTextureSSAA);
+        m_sceneColorRTSSAA->setColorBuffer(m_sceneColorTextureSSAA, 0u);
         {
             TextureSpec spec0 = { };
             spec0.m_type = Texture::Type::TEX_2D;
@@ -156,8 +156,8 @@ namespace Cyan
             // todo: it seems using rgb16f leads to precision issue when building ssao
             m_sceneDepthTextureSSAA = textureManager->createTextureHDR("SceneDepthTexSSAA", spec0);
             m_sceneNormalTextureSSAA = textureManager->createTextureHDR("SceneNormalTextureSSAA", spec0);
-            m_sceneColorRTSSAA->attachColorBuffer(m_sceneNormalTextureSSAA);
-            m_sceneColorRTSSAA->attachColorBuffer(m_sceneDepthTextureSSAA);
+            m_sceneColorRTSSAA->setColorBuffer(m_sceneDepthTextureSSAA, 1u);
+            m_sceneColorRTSSAA->setColorBuffer(m_sceneNormalTextureSSAA, 2u);
         }
 
         // scene color render targets 
@@ -165,7 +165,7 @@ namespace Cyan
         spec.m_height = m_windowHeight;
         m_sceneColorTexture = textureManager->createTextureHDR("SceneColorTexture", spec);
         m_sceneColorRenderTarget = createRenderTarget(m_windowWidth, m_windowHeight);
-        m_sceneColorRenderTarget->attachColorBuffer(m_sceneColorTexture);
+        m_sceneColorRenderTarget->setColorBuffer(m_sceneColorTexture, 0u);
         {
             TextureSpec spec0 = { };
             spec0.m_type = Texture::Type::TEX_2D;
@@ -181,13 +181,13 @@ namespace Cyan
             m_sceneNormalTexture = textureManager->createTextureHDR("SceneNormalTexture", spec0);
             spec0.m_format = Texture::ColorFormat::R32F; 
             m_sceneDepthTexture = textureManager->createTextureHDR("SceneDepthTexture", spec0);
-            m_sceneColorRenderTarget->attachColorBuffer(m_sceneNormalTexture);
-            m_sceneColorRenderTarget->attachColorBuffer(m_sceneDepthTexture);
+            m_sceneColorRenderTarget->setColorBuffer(m_sceneDepthTexture, 1u);
+            m_sceneColorRenderTarget->setColorBuffer(m_sceneNormalTexture, 2u);
         }
 
         m_outputColorTexture = textureManager->createTextureHDR("FinalColorTexture", spec);
         m_outputRenderTarget = createRenderTarget(spec.m_width, spec.m_height);
-        m_outputRenderTarget->attachColorBuffer(m_outputColorTexture);
+        m_outputRenderTarget->setColorBuffer(m_outputColorTexture, 0u);
 
         // voxel
         m_voxelGridResolution = 512u;
@@ -217,9 +217,9 @@ namespace Cyan
             visSpec.m_numMips = 1;
             m_voxelVisColorTexture = textureManager->createTexture("VoxelVis", visSpec);
             m_voxelVisRenderTarget = createRenderTarget(visSpec.m_width, visSpec.m_height);
-            m_voxelVisRenderTarget->attachColorBuffer(m_voxelVisColorTexture);
+            m_voxelVisRenderTarget->setColorBuffer(m_voxelVisColorTexture, 0u);
         }
-        m_voxelRenderTarget->attachColorBuffer(m_voxelColorTexture);
+        m_voxelRenderTarget->setColorBuffer(m_voxelColorTexture, 0u);
         m_voxelVolumeTexture = new Texture;
 
         TextureSpec voxelDataSpec = { };
@@ -243,7 +243,7 @@ namespace Cyan
     void Renderer::initShaders()
     {
         m_lumHistogramShader = glCreateShader(GL_COMPUTE_SHADER);
-        const char* src = ShaderUtil::readShaderFile("../../shader/shader_lumin_histogram_c.glsl");
+        const char* src = ShaderUtil::readShaderFile( SHADER_SOURCE_PATH "shader_lumin_histogram_c.glsl");
         glShaderSource(m_lumHistogramShader, 1, &src, nullptr);
         glCompileShader(m_lumHistogramShader);
         ShaderUtil::checkShaderCompilation(m_lumHistogramShader);
@@ -252,12 +252,12 @@ namespace Cyan
         glLinkProgram(m_lumHistogramProgram);
         ShaderUtil::checkShaderLinkage(m_lumHistogramProgram);
 
-        m_sceneDepthNormalShader = createShader("SceneDepthNormalShader", "../../shader/scene_depth_normal_v.glsl", "../../shader/scene_depth_normal_p.glsl");
+        m_sceneDepthNormalShader = createShader("SceneDepthNormalShader", SHADER_SOURCE_PATH "scene_depth_normal_v.glsl", SHADER_SOURCE_PATH "scene_depth_normal_p.glsl");
     }
 
     void Renderer::initialize(GLFWwindow* window, glm::vec2 windowSize)
     {
-        onRendererInitialized(windowSize);
+        // onRendererInitialized(windowSize);
 
         m_ctx = getCurrentGfxCtx();
         u_model = createUniform("s_model", Uniform::Type::u_mat4);
@@ -283,12 +283,12 @@ namespace Cyan
         m_shadowmapManager.initShadowmap(m_csm, glm::uvec2(4096u, 4096u));
 
         // voxel
-        m_voxelVisShader = createShader("VoxelVisShader", "../../shader/shader_render_voxel.vs", "../../shader/shader_render_voxel.fs");
+        m_voxelVisShader = createShader("VoxelVisShader", SHADER_SOURCE_PATH "shader_render_voxel.vs", SHADER_SOURCE_PATH "shader_render_voxel.fs");
         // create shader
         m_voxelizeShader = createVsGsPsShader("VoxelizeShader", 
-                                                   "../../shader/shader_voxel.vs", 
-                                                   "../../shader/shader_voxel.gs", 
-                                                   "../../shader/shader_voxel.fs");
+                                                   SHADER_SOURCE_PATH "shader_voxel.vs", 
+                                                   SHADER_SOURCE_PATH "shader_voxel.gs", 
+                                                   SHADER_SOURCE_PATH "shader_voxel.fs");
         m_voxelVisMatl = createMaterial(m_voxelVisShader)->createInstance();
         m_voxelizeMatl = createMaterial(m_voxelizeShader)->createInstance(); 
 
@@ -317,7 +317,7 @@ namespace Cyan
             spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
             m_ssaoRenderTarget = createRenderTarget(spec.m_width, spec.m_height);
             m_ssaoTexture = textureManager->createTextureHDR("SSAOTexture", spec);
-            m_ssaoRenderTarget->attachColorBuffer(m_ssaoTexture);
+            m_ssaoRenderTarget->setColorBuffer(m_ssaoTexture, 0u);
             m_ssaoShader = createShader("SSAOShader", "../../shader/shader_ao.vs", "../../shader/shader_ao.fs");
             m_ssaoMatl = createMaterial(m_ssaoShader)->createInstance();
             m_ssaoDebugVisBuffer = createRegularBuffer(sizeof(SSAODebugVisData));
@@ -395,12 +395,12 @@ namespace Cyan
         }
     }
 
-    void Renderer::drawMesh(Mesh* mesh, MaterialInstance* matl, RenderTarget* dstRenderTarget, const Viewport& viewport)
+    void Renderer::drawMesh(Mesh* mesh, MaterialInstance* matl, RenderTarget* dstRenderTarget, const std::initializer_list<i32>& drawBuffers, const Viewport& viewport)
     {
         auto ctx = getCurrentGfxCtx();
         ctx->setShader(matl->getShader());
         matl->bind();
-        ctx->setRenderTarget(dstRenderTarget);
+        ctx->setRenderTarget(dstRenderTarget, drawBuffers);
         ctx->setViewport(viewport);
         for (u32 sm = 0; sm < mesh->numSubMeshes(); ++sm)
         {
@@ -445,7 +445,7 @@ namespace Cyan
         // set shader
         ctx->setShader(m_voxelizeShader);
         // set render target
-        ctx->setRenderTarget(m_voxelRenderTarget, 0u);
+        ctx->setRenderTarget(m_voxelRenderTarget, { 0 });
         ctx->setClearColor(glm::vec4(0.1f));
         ctx->clear();
         Viewport originViewport = ctx->m_viewport;
@@ -565,7 +565,7 @@ namespace Cyan
         // set shader
         ctx->setShader(m_voxelizeShader);
         // set render target
-        ctx->setRenderTarget(m_voxelRenderTarget, 0u);
+        ctx->setRenderTarget(m_voxelRenderTarget, { 0 });
         ctx->setClearColor(glm::vec4(0.1f));
         ctx->clear();
         Viewport originViewport = ctx->m_viewport;
@@ -654,9 +654,9 @@ namespace Cyan
     {
         BoundingBox3f sceneAABB = computeSceneAABB(scene);
         auto ctx = getCurrentGfxCtx();
-        ctx->setRenderTarget(m_voxelVisRenderTarget, 0u);
+        ctx->setRenderTarget(m_voxelVisRenderTarget, { 0 });
         ctx->clear();
-        ctx->setViewport({0u, 0u, m_voxelVisRenderTarget->m_width, m_voxelVisRenderTarget->m_height});
+        ctx->setViewport({0u, 0u, m_voxelVisRenderTarget->width, m_voxelVisRenderTarget->height});
         ctx->setShader(m_voxelVisShader);
         QuadMesh* quad = getQuadMesh();
         ctx->setDepthControl(DepthControl::kDisable);
@@ -673,6 +673,7 @@ namespace Cyan
         return m_voxelVisColorTexture;
     }
 
+/*
     // TODO: this should take a custom factory defined by client and use
     // that factory to create an according RenderPass instance 
     void Renderer::addCustomPass(RenderPass* pass)
@@ -744,6 +745,7 @@ namespace Cyan
                 input);
         m_renderState.addRenderPass(depthBlurPass);
     }
+*/
 
     void Renderer::drawEntity(Entity* entity) 
     {
@@ -775,14 +777,10 @@ namespace Cyan
     */
     void Renderer::beginRender()
     {
-        // set render target to m_defaultRenderTarget
-        auto ctx = Cyan::getCurrentGfxCtx();
-
         // clear per frame allocator
         m_frameAllocator.reset();
-        m_renderState.clearRenderTargets();
-        m_renderState.m_superSampleAA = m_bSuperSampleAA;
-        if (m_bSuperSampleAA)
+
+        if (m_opts.enableAA)
         {
             m_offscreenRenderWidth = m_SSAAWidth;
             m_offscreenRenderHeight = m_SSAAHeight;
@@ -805,29 +803,24 @@ namespace Cyan
             {
                 renderSunShadow(scene, scene->entities);
             }
-            // scene depth & normal pass
             if (m_opts.enableSSAO)
             {
+                // scene depth & normal pass
                 renderSceneDepthNormal(scene);
                 // ssao pass
-                {
-                    ssao(scene->getActiveCamera());
-                }
+                ssao(scene->getActiveCamera());
             }
             // main scene pass
-            {
-
-            }
+            renderScene(scene);
             // debug object pass
-            {
-                debugRender();
-            }
+            debugRender();
             // post processing
             {
                 if (m_opts.enableBloom)
                 {
-
+                    bloom();
                 }
+                composite();
             }
         }
         endRender();
@@ -836,7 +829,7 @@ namespace Cyan
     void Renderer::endRender()
     {
         // reset render target
-        Cyan::getCurrentGfxCtx()->setRenderTarget(nullptr, 0u);
+        Cyan::getCurrentGfxCtx()->setRenderTarget(nullptr, {});
     }
 
     void Renderer::flip()
@@ -958,14 +951,18 @@ namespace Cyan
     void Renderer::renderSceneDepthNormal(Scene* scene)
     {
         auto renderTarget = m_opts.enableAA ? m_sceneColorRTSSAA : m_sceneColorRenderTarget;
+        /*
         i32 drawBuffers[2] = { 1, 2 }; 
         m_ctx->setRenderTarget(renderTarget, drawBuffers, 2);
-        m_ctx->setViewport({ 0u, 0u, renderTarget->m_width, renderTarget->m_height });
-        // clear buffers
         glm::vec4 normalBufferClear(0.f, 0.f, 0.f, 1.f);
         glm::vec4 depthBufferClear(1.f);
         glClearBufferfv(GL_COLOR, 0, &normalBufferClear.x);
         glClearBufferfv(GL_COLOR, 1, &depthBufferClear.x);
+        glClear(GL_DEPTH_BUFFER_BIT);
+        */
+        m_ctx->setRenderTarget(renderTarget, { 1, 2 });
+        m_ctx->setViewport({ 0u, 0u, renderTarget->width, renderTarget->height });
+        renderTarget->clear({ 1, 2 });
 
         m_ctx->setShader(m_sceneDepthNormalShader);
         for (u32 e = 0; e < (u32)scene->entities.size(); ++e)
@@ -986,14 +983,16 @@ namespace Cyan
 
     void Renderer::renderScene(Scene* scene)
     {
+        auto renderTarget = m_opts.enableAA ? m_sceneColorRTSSAA : m_sceneColorRenderTarget;
+        m_ctx->setRenderTarget(renderTarget, { 0 });
+        m_ctx->setViewport({ 0u, 0u, renderTarget->width, renderTarget->height });
+        renderTarget->clear({ 0 });
+
         // draw skybox
         if (scene->m_skybox)
         {
             scene->m_skybox->render();
         }
-        auto renderTarget = m_opts.enableAA ? m_sceneColorRTSSAA : m_sceneColorRenderTarget;
-        m_ctx->setRenderTarget(renderTarget);
-        m_ctx->setViewport({ 0u, 0u, renderTarget->m_width, renderTarget->m_height });
         // draw entities
         for (u32 i = 0; i < scene->entities.size(); ++i)
         {
@@ -1010,9 +1009,9 @@ namespace Cyan
 
     void Renderer::ssao(Camera& camera)
     {
-        m_ctx->setRenderTarget(m_ssaoRenderTarget, 0u);
-        m_ctx->setViewport({0, 0, m_ssaoRenderTarget->m_width, m_ssaoRenderTarget->m_height});
-        m_ctx->clear();
+        m_ctx->setRenderTarget(m_ssaoRenderTarget, { 0 });
+        m_ctx->setViewport({0, 0, m_ssaoRenderTarget->width, m_ssaoRenderTarget->height});
+        m_ssaoRenderTarget->clear({ 0 }, glm::vec4(1.f));
 
         m_ctx->setShader(m_ssaoShader);
         m_ctx->setDepthControl(kDisable);

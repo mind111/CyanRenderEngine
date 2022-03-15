@@ -1,6 +1,6 @@
 #version 450 core
-layout (location = 0) out vec3 fNormal;
-layout (location = 1) out vec3 fDepth;
+out vec3 fDepth;
+out vec3 fNormal;
 
 in vec3 normalWorld; 
 in vec3 tangentWorld;
@@ -20,6 +20,6 @@ vec4 tangentSpaceToViewSpace(vec3 tn, vec3 vn, vec3 t)
 
 void main()
 {
-    fNormal = normalize(normalWorld * .5f + .5f);
     fDepth = vec3(gl_FragCoord.z);
+    fNormal = normalize(normalWorld * .5f + .5f);
 }

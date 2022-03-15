@@ -166,6 +166,32 @@ namespace Cyan
         glViewport(viewport.m_x, viewport.m_y, viewport.m_width, viewport.m_height);
     }
 
+    void GfxContext::setRenderTarget(RenderTarget* rt, const std::initializer_list<i32>& drawBuffers)
+    {
+        if (!rt)
+        {
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            return;
+        }
+        GLenum* buffers = static_cast<GLenum*>(_alloca(sizeof(drawBuffers)));
+        i32 numBuffers = drawBuffers.size();
+        for (i32 i = 0; i < numBuffers; ++i)
+        {
+            i32 val = *(drawBuffers.begin() + i);
+            if (val > -1)
+            {
+                buffers[i] = GL_COLOR_ATTACHMENT0 + val;
+            }
+            else
+            {
+                buffers[i] = GL_NONE;
+            }
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, rt->fbo);
+        glDrawBuffers(numBuffers, buffers);
+    }
+
+/*
     void GfxContext::setRenderTarget(RenderTarget* rt, u16 drawBufferIdx) 
     { 
         if (!rt)
@@ -196,6 +222,7 @@ namespace Cyan
         glBindFramebuffer(GL_FRAMEBUFFER, renderTarget->m_frameBuffer);
         renderTarget->bindDrawBuffers();
     }
+    */
 
     void GfxContext::setClearColor(glm::vec4 color)
     {

@@ -84,7 +84,7 @@ namespace Cyan
             // step 1: create a cubemap texture from a src equirectangular image
             {
                 RenderTarget* renderTarget = createRenderTarget(m_srcCubemapTexture->m_width, m_srcCubemapTexture->m_height);
-                renderTarget->attachColorBuffer(m_srcCubemapTexture);
+                renderTarget->setColorBuffer(m_srcCubemapTexture, 0u);
                 Shader* shader = createShader("RenderToCubemapShader", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl");
                 auto    matl = createMaterial(shader)->createInstance();
                 Mesh* cubeMesh = Cyan::getMesh("CubeMesh");
@@ -99,14 +99,14 @@ namespace Cyan
                     matl->set("projection", &camera.projection);
                     matl->set("view", &camera.view);
                     ctx->setDepthControl(DepthControl::kDisable);
-                    ctx->setRenderTarget(renderTarget, f);
-                    ctx->setViewport({ 0, 0, renderTarget->m_width, renderTarget->m_height});
+                    ctx->setRenderTarget(renderTarget, { (i32)f });
+                    ctx->setViewport({ 0, 0, renderTarget->width, renderTarget->height});
                     ctx->setPrimitiveType(PrimitiveType::TriangleList);
                     renderer->drawMesh(cubeMesh);
                 }
                 ctx->setDepthControl(DepthControl::kEnable);
                 // release one-time resources
-                glDeleteFramebuffers(1, &renderTarget->m_frameBuffer);
+                glDeleteFramebuffers(1, &renderTarget->fbo);
                 delete renderTarget;
             }
             break;

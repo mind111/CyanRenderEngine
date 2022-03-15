@@ -85,7 +85,7 @@ namespace Cyan
             glm::mat4 model = node->getWorldTransform().toMatrix();
             auto ctx = getCurrentGfxCtx();
             ctx->setDepthControl(DepthControl::kDisable);
-            ctx->setRenderTarget(lightMap->m_renderTarget, 0);
+            ctx->setRenderTarget(lightMap->m_renderTarget, { 0 });
             ctx->setViewport({ 0, 0, lightMap->m_texAltas->m_width, lightMap->m_texAltas->m_height });
             ctx->setShader(m_lightMapShader);
             // reset the counter
@@ -141,7 +141,7 @@ namespace Cyan
                 Note: I haven't figure out why unbinding framebuffer here seems fixed the issue where
                 the lightmap texture data is not updated by glTexSubImage2D
             */
-            ctx->setRenderTarget(nullptr, 0);
+            ctx->setRenderTarget(nullptr, { });
         }
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_ATOMIC_COUNTER_BARRIER_BIT);
         u32 overlappedTexelCount = 0;
@@ -198,7 +198,7 @@ namespace Cyan
             glm::mat4 model = node->getWorldTransform().toMatrix();
             auto ctx = getCurrentGfxCtx();
             ctx->setDepthControl(DepthControl::kDisable);
-            ctx->setRenderTarget(lightMap->m_renderTarget, 0);
+            ctx->setRenderTarget(lightMap->m_renderTarget, { 0 });
             ctx->setViewport({ 0, 0, lightMap->superSampledTex->m_width, lightMap->superSampledTex->m_height });
             ctx->setShader(m_lightMapShader);
             // reset the counter
@@ -254,7 +254,7 @@ namespace Cyan
                 Note: I haven't figure out why unbinding framebuffer here seems fixed the issue where
                 the lightmap texture data is not updated by glTexSubImage2D
             */
-            ctx->setRenderTarget(nullptr, 0);
+            ctx->setRenderTarget(nullptr, { });
         }
 #if 1
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_ATOMIC_COUNTER_BARRIER_BIT);
@@ -444,7 +444,7 @@ namespace Cyan
             spec.m_height   = meshInstance->m_mesh->m_lightMapHeight * kNumSubPixelSamples;
             lightMap->superSampledTex = textureManager->createTextureHDR("SuperSampledLightMap", spec);
             lightMap->m_renderTarget = createRenderTarget(meshInstance->m_lightMap->superSampledTex->m_width, meshInstance->m_lightMap->superSampledTex->m_height);
-            lightMap->m_renderTarget->attachTexture(meshInstance->m_lightMap->superSampledTex, 0);
+            lightMap->m_renderTarget->setColorBuffer(meshInstance->m_lightMap->superSampledTex, 0u);
 #else
             lightMap->m_renderTarget = createRenderTarget(meshInstance->m_lightMap->m_texAltas->m_width, meshInstance->m_lightMap->m_texAltas->m_height);
             lightMap->m_renderTarget->attachTexture(meshInstance->m_lightMap->m_texAltas, 0);
