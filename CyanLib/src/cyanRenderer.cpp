@@ -128,31 +128,31 @@ namespace Cyan
 
         // super-sampling setup
         TextureSpec spec = { };
-        spec.m_type = Texture::Type::TEX_2D;
-        spec.m_format = Texture::ColorFormat::R16G16B16A16; 
-        spec.m_dataType = Texture::DataType::Float;
-        spec.m_width = m_SSAAWidth;
-        spec.m_height = m_SSAAHeight;
-        spec.m_min = Texture::Filter::LINEAR;
-        spec.m_mag = Texture::Filter::LINEAR;
-        spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
-        spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
-        spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.type = Texture::Type::TEX_2D;
+        spec.format = Texture::ColorFormat::R16G16B16A16; 
+        spec.dataType = Texture::DataType::Float;
+        spec.width = m_SSAAWidth;
+        spec.height = m_SSAAHeight;
+        spec.min = Texture::Filter::LINEAR;
+        spec.mag = Texture::Filter::LINEAR;
+        spec.s = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.t = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.r = Texture::Wrap::CLAMP_TO_EDGE;
         m_sceneColorTextureSSAA = textureManager->createTextureHDR("SceneColorTexSSAA", spec);
         m_sceneColorRTSSAA = createRenderTarget(m_SSAAWidth, m_SSAAHeight);
         m_sceneColorRTSSAA->setColorBuffer(m_sceneColorTextureSSAA, 0u);
         {
             TextureSpec spec0 = { };
-            spec0.m_type = Texture::Type::TEX_2D;
-            spec0.m_format = Texture::ColorFormat::R32G32B32; 
-            spec0.m_dataType = Texture::DataType::Float;
-            spec0.m_width = m_SSAAWidth;
-            spec0.m_height = m_SSAAHeight;
-            spec0.m_min = Texture::Filter::LINEAR;
-            spec0.m_mag = Texture::Filter::LINEAR;
-            spec0.m_s = Texture::Wrap::CLAMP_TO_EDGE;
-            spec0.m_t = Texture::Wrap::CLAMP_TO_EDGE;
-            spec0.m_r = Texture::Wrap::CLAMP_TO_EDGE;
+            spec0.type = Texture::Type::TEX_2D;
+            spec0.format = Texture::ColorFormat::R32G32B32; 
+            spec0.dataType = Texture::DataType::Float;
+            spec0.width = m_SSAAWidth;
+            spec0.height = m_SSAAHeight;
+            spec0.min = Texture::Filter::LINEAR;
+            spec0.mag = Texture::Filter::LINEAR;
+            spec0.s = Texture::Wrap::CLAMP_TO_EDGE;
+            spec0.t = Texture::Wrap::CLAMP_TO_EDGE;
+            spec0.r = Texture::Wrap::CLAMP_TO_EDGE;
             // todo: it seems using rgb16f leads to precision issue when building ssao
             m_sceneDepthTextureSSAA = textureManager->createTextureHDR("SceneDepthTexSSAA", spec0);
             m_sceneNormalTextureSSAA = textureManager->createTextureHDR("SceneNormalTextureSSAA", spec0);
@@ -161,32 +161,32 @@ namespace Cyan
         }
 
         // scene color render targets 
-        spec.m_width = m_windowWidth;
-        spec.m_height = m_windowHeight;
+        spec.width = m_windowWidth;
+        spec.height = m_windowHeight;
         m_sceneColorTexture = textureManager->createTextureHDR("SceneColorTexture", spec);
         m_sceneColorRenderTarget = createRenderTarget(m_windowWidth, m_windowHeight);
         m_sceneColorRenderTarget->setColorBuffer(m_sceneColorTexture, 0u);
         {
             TextureSpec spec0 = { };
-            spec0.m_type = Texture::Type::TEX_2D;
-            spec0.m_format = Texture::ColorFormat::R32G32B32; 
-            spec0.m_dataType = Texture::DataType::Float;
-            spec0.m_width = m_windowWidth;
-            spec0.m_height = m_windowHeight;
-            spec0.m_min = Texture::Filter::LINEAR;
-            spec0.m_mag = Texture::Filter::LINEAR;
-            spec0.m_s = Texture::Wrap::CLAMP_TO_EDGE;
-            spec0.m_t = Texture::Wrap::CLAMP_TO_EDGE;
-            spec0.m_r = Texture::Wrap::CLAMP_TO_EDGE;
+            spec0.type = Texture::Type::TEX_2D;
+            spec0.format = Texture::ColorFormat::R32G32B32; 
+            spec0.dataType = Texture::DataType::Float;
+            spec0.width = m_windowWidth;
+            spec0.height = m_windowHeight;
+            spec0.min = Texture::Filter::LINEAR;
+            spec0.mag = Texture::Filter::LINEAR;
+            spec0.s = Texture::Wrap::CLAMP_TO_EDGE;
+            spec0.t = Texture::Wrap::CLAMP_TO_EDGE;
+            spec0.r = Texture::Wrap::CLAMP_TO_EDGE;
             m_sceneNormalTexture = textureManager->createTextureHDR("SceneNormalTexture", spec0);
-            spec0.m_format = Texture::ColorFormat::R32F; 
+            spec0.format = Texture::ColorFormat::R32F; 
             m_sceneDepthTexture = textureManager->createTextureHDR("SceneDepthTexture", spec0);
             m_sceneColorRenderTarget->setColorBuffer(m_sceneDepthTexture, 1u);
             m_sceneColorRenderTarget->setColorBuffer(m_sceneNormalTexture, 2u);
         }
 
         m_outputColorTexture = textureManager->createTextureHDR("FinalColorTexture", spec);
-        m_outputRenderTarget = createRenderTarget(spec.m_width, spec.m_height);
+        m_outputRenderTarget = createRenderTarget(spec.width, spec.height);
         m_outputRenderTarget->setColorBuffer(m_outputColorTexture, 0u);
 
         // voxel
@@ -196,45 +196,45 @@ namespace Cyan
         TextureSpec voxelSpec = { };
         // TODO: using low resolution voxel grid for now because we are regenerating
         // mipmap per frame
-        voxelSpec.m_width = m_voxelGridResolution;
-        voxelSpec.m_height = m_voxelGridResolution;
-        voxelSpec.m_type = Texture::Type::TEX_2D;
-        voxelSpec.m_dataType = Texture::DataType::Float;
-        voxelSpec.m_format = Texture::ColorFormat::R16G16B16;
-        voxelSpec.m_min = Texture::Filter::LINEAR; 
-        voxelSpec.m_mag = Texture::Filter::LINEAR;
-        voxelSpec.m_numMips = 1;
+        voxelSpec.width = m_voxelGridResolution;
+        voxelSpec.height = m_voxelGridResolution;
+        voxelSpec.type = Texture::Type::TEX_2D;
+        voxelSpec.dataType = Texture::DataType::Float;
+        voxelSpec.format = Texture::ColorFormat::R16G16B16;
+        voxelSpec.min = Texture::Filter::LINEAR; 
+        voxelSpec.mag = Texture::Filter::LINEAR;
+        voxelSpec.numMips = 1;
         m_voxelColorTexture = textureManager->createTexture("Voxelization", voxelSpec);
         {
             TextureSpec visSpec = { };
-            visSpec.m_width = 320;
-            visSpec.m_height = 180;
-            visSpec.m_type = Texture::Type::TEX_2D;
-            visSpec.m_dataType = Texture::DataType::Float;
-            visSpec.m_format = Texture::ColorFormat::R16G16B16;
-            visSpec.m_min = Texture::Filter::LINEAR; 
-            visSpec.m_mag = Texture::Filter::LINEAR;
-            visSpec.m_numMips = 1;
+            visSpec.width = 320;
+            visSpec.height = 180;
+            visSpec.type = Texture::Type::TEX_2D;
+            visSpec.dataType = Texture::DataType::Float;
+            visSpec.format = Texture::ColorFormat::R16G16B16;
+            visSpec.min = Texture::Filter::LINEAR; 
+            visSpec.mag = Texture::Filter::LINEAR;
+            visSpec.numMips = 1;
             m_voxelVisColorTexture = textureManager->createTexture("VoxelVis", visSpec);
-            m_voxelVisRenderTarget = createRenderTarget(visSpec.m_width, visSpec.m_height);
+            m_voxelVisRenderTarget = createRenderTarget(visSpec.width, visSpec.height);
             m_voxelVisRenderTarget->setColorBuffer(m_voxelVisColorTexture, 0u);
         }
         m_voxelRenderTarget->setColorBuffer(m_voxelColorTexture, 0u);
         m_voxelVolumeTexture = new Texture;
 
         TextureSpec voxelDataSpec = { };
-        voxelDataSpec.m_width = m_voxelGridResolution;
-        voxelDataSpec.m_height = m_voxelGridResolution;
-        voxelDataSpec.m_depth = m_voxelGridResolution;
-        voxelDataSpec.m_type = Texture::Type::TEX_3D;
-        voxelDataSpec.m_dataType = Texture::DataType::UNSIGNED_INT;
-        voxelDataSpec.m_format = Texture::ColorFormat::R8G8B8A8;
-        voxelDataSpec.m_min = Texture::Filter::LINEAR; 
-        voxelDataSpec.m_mag = Texture::Filter::LINEAR;
-        voxelDataSpec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
-        voxelDataSpec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
-        voxelDataSpec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
-        voxelDataSpec.m_numMips = 1;
+        voxelDataSpec.width = m_voxelGridResolution;
+        voxelDataSpec.height = m_voxelGridResolution;
+        voxelDataSpec.depth = m_voxelGridResolution;
+        voxelDataSpec.type = Texture::Type::TEX_3D;
+        voxelDataSpec.dataType = Texture::DataType::UNSIGNED_INT;
+        voxelDataSpec.format = Texture::ColorFormat::R8G8B8A8;
+        voxelDataSpec.min = Texture::Filter::LINEAR; 
+        voxelDataSpec.mag = Texture::Filter::LINEAR;
+        voxelDataSpec.r = Texture::Wrap::CLAMP_TO_EDGE;
+        voxelDataSpec.s = Texture::Wrap::CLAMP_TO_EDGE;
+        voxelDataSpec.t = Texture::Wrap::CLAMP_TO_EDGE;
+        voxelDataSpec.numMips = 1;
         m_voxelData.m_albedo = textureManager->createTexture3D("VoxelAlbedo", voxelDataSpec);
         m_voxelData.m_normal = textureManager->createTexture3D("VoxelNormal", voxelDataSpec);
         m_voxelData.m_emission = textureManager->createTexture3D("VoxelEmission", voxelDataSpec);
@@ -305,17 +305,17 @@ namespace Cyan
             m_freezeDebugLines = false;
             auto textureManager = TextureManager::getSingletonPtr();
             TextureSpec spec = { };
-            spec.m_width = m_windowWidth;
-            spec.m_height = m_windowHeight;
-            spec.m_type = Texture::Type::TEX_2D;
-            spec.m_format = Texture::ColorFormat::R16G16B16; 
-            spec.m_dataType = Texture::DataType::Float;
-            spec.m_min = Texture::Filter::LINEAR;
-            spec.m_mag = Texture::Filter::LINEAR;
-            spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
-            spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
-            spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
-            m_ssaoRenderTarget = createRenderTarget(spec.m_width, spec.m_height);
+            spec.width = m_windowWidth;
+            spec.height = m_windowHeight;
+            spec.type = Texture::Type::TEX_2D;
+            spec.format = Texture::ColorFormat::R16G16B16; 
+            spec.dataType = Texture::DataType::Float;
+            spec.min = Texture::Filter::LINEAR;
+            spec.mag = Texture::Filter::LINEAR;
+            spec.s = Texture::Wrap::CLAMP_TO_EDGE;
+            spec.t = Texture::Wrap::CLAMP_TO_EDGE;
+            spec.r = Texture::Wrap::CLAMP_TO_EDGE;
+            m_ssaoRenderTarget = createRenderTarget(spec.width, spec.height);
             m_ssaoTexture = textureManager->createTextureHDR("SSAOTexture", spec);
             m_ssaoRenderTarget->setColorBuffer(m_ssaoTexture, 0u);
             m_ssaoShader = createShader("SSAOShader", "../../shader/shader_ao.vs", "../../shader/shader_ao.fs");
@@ -349,7 +349,7 @@ namespace Cyan
             m_debugCam.n = 0.1f;
             m_debugCam.f = 100.f;
             m_debugCam.projection = glm::perspective(m_debugCam.fov, 16.f/9.f, m_debugCam.n, m_debugCam.f);
-            CameraManager::updateCamera(m_debugCam);
+            m_debugCam.update();
         }
 
         // todo: load global glsl definitions and save them in a map <path, content>
@@ -437,8 +437,8 @@ namespace Cyan
     {
         glEnable(GL_NV_conservative_raster);
         // clear voxel grid textures
-        glClearTexImage(m_voxelData.m_albedo->m_id, 0, GL_RGBA, GL_UNSIGNED_INT, 0);
-        glClearTexImage(m_voxelData.m_normal->m_id, 0, GL_RGBA, GL_UNSIGNED_INT, 0);
+        glClearTexImage(m_voxelData.m_albedo->handle, 0, GL_RGBA, GL_UNSIGNED_INT, 0);
+        glClearTexImage(m_voxelData.m_normal->handle, 0, GL_RGBA, GL_UNSIGNED_INT, 0);
 
         auto ctx = getCurrentGfxCtx();
         ctx->setDepthControl(DepthControl::kDisable);
@@ -460,8 +460,8 @@ namespace Cyan
         m_voxelizeMatl->bindTexture("albedoMap", albedo);
         m_voxelizeMatl->bindTexture("normalMap", normal);
         // bind 3D volume texture to image units
-        glBindImageTexture(0, m_voxelData.m_albedo->m_id, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
-        glBindImageTexture(1, m_voxelData.m_normal->m_id, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+        glBindImageTexture(0, m_voxelData.m_albedo->handle, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+        glBindImageTexture(1, m_voxelData.m_normal->handle, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
 
         m_voxelizeMatl->set("model", modelMatrix);
         m_voxelizeMatl->set("aabbMin", &aabbMin.x);
@@ -557,8 +557,8 @@ namespace Cyan
         glEnable(GL_NV_conservative_raster);
         glDisable(GL_CULL_FACE);
         // clear voxel grid textures
-        glClearTexImage(m_voxelData.m_albedo->m_id, 0, GL_RGBA, GL_UNSIGNED_INT, 0);
-        glClearTexImage(m_voxelData.m_normal->m_id, 0, GL_RGBA, GL_UNSIGNED_INT, 0);
+        glClearTexImage(m_voxelData.m_albedo->handle, 0, GL_RGBA, GL_UNSIGNED_INT, 0);
+        glClearTexImage(m_voxelData.m_normal->handle, 0, GL_RGBA, GL_UNSIGNED_INT, 0);
 
         auto ctx = getCurrentGfxCtx();
         ctx->setDepthControl(DepthControl::kDisable);
@@ -572,8 +572,8 @@ namespace Cyan
         ctx->setViewport({ 0, 0, m_voxelGridResolution, m_voxelGridResolution });
         ctx->setPrimitiveType(PrimitiveType::TriangleList);
         // bind 3D volume texture to image units
-        glBindImageTexture(0, m_voxelData.m_albedo->m_id, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
-        glBindImageTexture(1, m_voxelData.m_normal->m_id, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+        glBindImageTexture(0, m_voxelData.m_albedo->handle, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+        glBindImageTexture(1, m_voxelData.m_normal->handle, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
 
         u32 axis = 0u;
         auto nodeCallback = [&](SceneNode* node)
@@ -862,12 +862,12 @@ namespace Cyan
         m_globalDrawData.numDirLights = (i32)scene->dLights.size();
         m_globalDrawData.ssao = m_opts.enableSSAO ? 1.f : 0.f;
 
-        // bind lighting data
         updateTransforms(scene);
+        // bind lighting data
         updateLighting(scene);
 
         // bind global textures
-        glBindTextureUnit(gTexBinding(SSAO), m_ssaoTexture->m_id);
+        glBindTextureUnit(gTexBinding(SSAO), m_ssaoTexture->handle);
 
         // upload data to gpu
         glNamedBufferSubData(gDrawDataBuffer, 0, sizeof(GlobalDrawData), &m_globalDrawData);
@@ -904,21 +904,21 @@ namespace Cyan
         gLighting.reflectionProbe = scene->m_reflectionProbe;
 
         // shared BRDF lookup texture used in split sum approximation for image based lighting
-        glBindTextureUnit(2, ReflectionProbe::getBRDFLookupTexture()->m_id);
+        glBindTextureUnit(2, ReflectionProbe::getBRDFLookupTexture()->handle);
 
         // skybox
         if (gLighting.skybox)
         {
-            glBindTextureUnit(0, gLighting.skybox->getDiffueTexture()->m_id);
-            glBindTextureUnit(1, gLighting.skybox->getSpecularTexture()->m_id);
+            glBindTextureUnit(0, gLighting.skybox->getDiffueTexture()->handle);
+            glBindTextureUnit(1, gLighting.skybox->getSpecularTexture()->handle);
         }
 
         // additional light probes
         if (gLighting.irradianceProbe)
-            glBindTextureUnit(3, gLighting.irradianceProbe->m_convolvedIrradianceTexture->m_id);
+            glBindTextureUnit(3, gLighting.irradianceProbe->m_convolvedIrradianceTexture->handle);
 
         if (gLighting.reflectionProbe)
-            glBindTextureUnit(4, gLighting.reflectionProbe->m_convolvedReflectionTexture->m_id);
+            glBindTextureUnit(4, gLighting.reflectionProbe->m_convolvedReflectionTexture->handle);
     }
 
     void Renderer::updateSunShadow(const CascadedShadowmap& csm)
@@ -930,9 +930,9 @@ namespace Cyan
         {
             m_globalDrawData.sunShadowProjections[i] = csm.cascades[i].lightProjection;
             if (csm.technique == kVariance_Shadow)
-                glBindTextureUnit(textureUnitOffset + i, csm.cascades[i].vsm.shadowmap->m_id);
+                glBindTextureUnit(textureUnitOffset + i, csm.cascades[i].vsm.shadowmap->handle);
             else if (csm.technique == kPCF_Shadow)
-                glBindTextureUnit(textureUnitOffset + i, csm.cascades[i].basicShadowmap.shadowmap->m_id);
+                glBindTextureUnit(textureUnitOffset + i, csm.cascades[i].basicShadowmap.shadowmap->handle);
         }
 
         // upload data to gpu
@@ -942,7 +942,6 @@ namespace Cyan
 
     void Renderer::renderSunShadow(Scene* scene, const std::vector<Entity*>& shadowCasters)
     {
-        Camera& camera = scene->getActiveCamera();
         auto& sunLight = scene->dLights[0];
         m_shadowmapManager.render(m_csm, scene, sunLight, shadowCasters);
         updateSunShadow(m_csm);
@@ -951,15 +950,6 @@ namespace Cyan
     void Renderer::renderSceneDepthNormal(Scene* scene)
     {
         auto renderTarget = m_opts.enableAA ? m_sceneColorRTSSAA : m_sceneColorRenderTarget;
-        /*
-        i32 drawBuffers[2] = { 1, 2 }; 
-        m_ctx->setRenderTarget(renderTarget, drawBuffers, 2);
-        glm::vec4 normalBufferClear(0.f, 0.f, 0.f, 1.f);
-        glm::vec4 depthBufferClear(1.f);
-        glClearBufferfv(GL_COLOR, 0, &normalBufferClear.x);
-        glClearBufferfv(GL_COLOR, 1, &depthBufferClear.x);
-        glClear(GL_DEPTH_BUFFER_BIT);
-        */
         m_ctx->setRenderTarget(renderTarget, { 1, 2 });
         m_ctx->setViewport({ 0u, 0u, renderTarget->width, renderTarget->height });
         renderTarget->clear({ 1, 2 });
@@ -1054,22 +1044,57 @@ namespace Cyan
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     }
 
-    void Renderer::renderSceneToLightProbe(Scene* scene, Camera& camera)
+    void Renderer::renderSceneToLightProbe(Scene* scene, LightProbe* probe, RenderTarget* renderTarget)
     {
+        updateTransforms(scene);
+
+        // only capture static objects
+        std::vector<Entity*> staticObjects;
+        for (u32 i = 0; i < scene->entities.size(); ++i)
+        {
+            if (scene->entities[i]->m_static)
+            {
+                staticObjects.push_back(scene->entities[i]);
+            }
+        }
+
+        // render sun light shadow
+        renderSunShadow(scene, staticObjects);
+
         // turn off ssao
         m_opts.enableSSAO = false;
-        updateFrameGlobalData(scene, camera);
-        // draw skybox
-        if (scene->m_skybox)
+
+        // render scene into each face of the cubemap
+        Camera camera = { };
+        camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
+        camera.n = 0.1f;
+        camera.f = 100.f;
+        camera.fov = glm::radians(90.f);
+
+        m_ctx->setViewport({ 0u, 0u, probe->sceneCapture->width, probe->sceneCapture->height });
+        for (u32 f = 0; f < (sizeof(LightProbeCameras::cameraFacingDirections)/sizeof(LightProbeCameras::cameraFacingDirections[0])); ++f)
         {
-            scene->m_skybox->render();
+            m_ctx->setRenderTarget(renderTarget, { (i32)f, -1, -1, -1 });
+            renderTarget->clear({ (i32)f });
+
+            camera.position = probe->position;
+            camera.lookAt = camera.position + LightProbeCameras::cameraFacingDirections[f];
+            camera.worldUp = LightProbeCameras::worldUps[f];
+            camera.update();
+
+            updateFrameGlobalData(scene, camera);
+            // draw skybox
+            if (scene->m_skybox)
+            {
+                scene->m_skybox->render();
+            }
+            // draw entities 
+            for (u32 i = 0; i < staticObjects.size(); ++i)
+            {
+                drawEntity(staticObjects[i]);
+            }
         }
-        // draw entities 
-        for (auto entity : scene->entities)
-        {
-            if (entity->m_static)
-                drawEntity(entity);
-        }
+
         m_opts.enableSSAO = true;
     }
 }

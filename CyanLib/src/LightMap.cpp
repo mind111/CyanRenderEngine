@@ -18,8 +18,8 @@ namespace Cyan
 
     void LightMap::setPixel(u32 px, u32 py, glm::vec3& color)
     {
-        u32 width = m_texAltas->m_width;
-        u32 height = m_texAltas->m_height;
+        u32 width = m_texAltas->width;
+        u32 height = m_texAltas->height;
         const u32 numChannelsPerPixel = 3;
 
         u32 index = (py * width + px) * numChannelsPerPixel;
@@ -33,8 +33,8 @@ namespace Cyan
     {
         u32 ppx = px / LightMapManager::kNumSubPixelSamples;
         u32 ppy = py / LightMapManager::kNumSubPixelSamples;
-        u32 width = m_texAltas->m_width;
-        u32 height = m_texAltas->m_height;
+        u32 width = m_texAltas->width;
+        u32 height = m_texAltas->height;
         const u32 numChannelsPerPixel = 3;
         u32 index = (ppy * width + ppx) * numChannelsPerPixel;
         m_pixels[index + 0] += color.r;
@@ -80,13 +80,13 @@ namespace Cyan
         LightMap* lightMap = node->m_meshInstance->m_lightMap;
         Mesh* mesh = node->m_meshInstance->m_mesh;
         // raster the lightmap using gpu
-        u32 maxNumTexels = lightMap->m_texAltas->m_height * lightMap->m_texAltas->m_width;
+        u32 maxNumTexels = lightMap->m_texAltas->height * lightMap->m_texAltas->width;
         {
             glm::mat4 model = node->getWorldTransform().toMatrix();
             auto ctx = getCurrentGfxCtx();
             ctx->setDepthControl(DepthControl::kDisable);
             ctx->setRenderTarget(lightMap->m_renderTarget, { 0 });
-            ctx->setViewport({ 0, 0, lightMap->m_texAltas->m_width, lightMap->m_texAltas->m_height });
+            ctx->setViewport({ 0, 0, lightMap->m_texAltas->width, lightMap->m_texAltas->height });
             ctx->setShader(m_lightMapShader);
             // reset the counter
             {
@@ -101,7 +101,7 @@ namespace Cyan
                 black seams when sampling lightmap, because bilinear filter texels close to edge of 
                 a chart. Following ideas from https://ndotl.wordpress.com/2018/08/29/baking-artifact-free-lightmaps/
             */
-            glm::vec3 uvOffset(1.f / lightMap->m_texAltas->m_width, 1.f / lightMap->m_texAltas->m_height, 0.f);
+            glm::vec3 uvOffset(1.f / lightMap->m_texAltas->width, 1.f / lightMap->m_texAltas->height, 0.f);
             glm::vec3 passes[9] = {
                 glm::vec3(-1.f, 0.f, 0.f),
                 glm::vec3( 1.f, 0.f, 0.f),
@@ -115,7 +115,7 @@ namespace Cyan
 
                 glm::vec3( 0.f, 0.f, 0.f)
             };
-            glm::vec3 textureSize(lightMap->m_texAltas->m_width, lightMap->m_texAltas->m_height, 0.f);
+            glm::vec3 textureSize(lightMap->m_texAltas->width, lightMap->m_texAltas->height, 0.f);
             m_lightMapMatl->set("textureSize", &textureSize.x);
             m_lightMapMatl->set("model", &model[0]);
             u32 numPasses = sizeof(passes) / sizeof(passes[0]);
@@ -169,9 +169,9 @@ namespace Cyan
 #endif
         // write color data back to texture
         {
-            u32 width = lightMap->m_texAltas->m_width;
-            u32 height = lightMap->m_texAltas->m_height;
-            glBindTexture(GL_TEXTURE_2D, lightMap->m_texAltas->m_id);
+            u32 width = lightMap->m_texAltas->width;
+            u32 height = lightMap->m_texAltas->height;
+            glBindTexture(GL_TEXTURE_2D, lightMap->m_texAltas->handle);
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGB, GL_FLOAT, lightMap->m_pixels);
             glBindTexture(GL_TEXTURE_2D, 0);
         }
@@ -181,7 +181,7 @@ namespace Cyan
             char fileName[64];
             sprintf_s(fileName, "%s_lightmap.hdr", node->m_name);
             stbi_flip_vertically_on_write(1);
-            stbi_write_hdr(fileName, lightMap->m_texAltas->m_width, lightMap->m_texAltas->m_height, 3, lightMap->m_pixels);
+            stbi_write_hdr(fileName, lightMap->m_texAltas->width, lightMap->m_texAltas->height, 3, lightMap->m_pixels);
         }
         glEnable(GL_CULL_FACE);
     }
@@ -193,13 +193,13 @@ namespace Cyan
         CYAN_ASSERT(lightMap->superSampledTex, "SuperSampled texture is not created for lightMap");
         Mesh* mesh = node->m_meshInstance->m_mesh;
         // raster the lightmap using gpu
-        u32 maxNumTexels = lightMap->superSampledTex->m_width * lightMap->superSampledTex->m_height;
+        u32 maxNumTexels = lightMap->superSampledTex->width * lightMap->superSampledTex->height;
         {
             glm::mat4 model = node->getWorldTransform().toMatrix();
             auto ctx = getCurrentGfxCtx();
             ctx->setDepthControl(DepthControl::kDisable);
             ctx->setRenderTarget(lightMap->m_renderTarget, { 0 });
-            ctx->setViewport({ 0, 0, lightMap->superSampledTex->m_width, lightMap->superSampledTex->m_height });
+            ctx->setViewport({ 0, 0, lightMap->superSampledTex->width, lightMap->superSampledTex->height });
             ctx->setShader(m_lightMapShader);
             // reset the counter
             {
@@ -214,7 +214,7 @@ namespace Cyan
                 black seams when sampling lightmap, because bilinear filter texels close to edge of 
                 a chart. Following ideas from https://ndotl.wordpress.com/2018/08/29/baking-artifact-free-lightmaps/
             */
-            glm::vec3 uvOffset(1.f / lightMap->superSampledTex->m_width, 1.f / lightMap->superSampledTex->m_height, 0.f);
+            glm::vec3 uvOffset(1.f / lightMap->superSampledTex->width, 1.f / lightMap->superSampledTex->height, 0.f);
             glm::vec3 passes[9] = {
                 glm::vec3(-1.f, 0.f, 0.f),
                 glm::vec3( 1.f, 0.f, 0.f),
@@ -228,7 +228,7 @@ namespace Cyan
 
                 glm::vec3( 0.f, 0.f, 0.f)
             };
-            glm::vec3 textureSize(lightMap->superSampledTex->m_width, lightMap->superSampledTex->m_height, 0.f);
+            glm::vec3 textureSize(lightMap->superSampledTex->width, lightMap->superSampledTex->height, 0.f);
             m_lightMapMatl->set("textureSize", &textureSize.x);
             m_lightMapMatl->set("model", &model[0]);
             u32 numPasses = sizeof(passes) / sizeof(passes[0]);
@@ -283,11 +283,11 @@ namespace Cyan
 #endif
         // resolve
         {
-            for (u32 y = 0; y < lightMap->m_texAltas->m_height; ++y)
+            for (u32 y = 0; y < lightMap->m_texAltas->height; ++y)
             {
-                for (u32 x = 0; x < lightMap->m_texAltas->m_width; ++x)
+                for (u32 x = 0; x < lightMap->m_texAltas->width; ++x)
                 {
-                    u32 pixelIndex = (y * lightMap->m_texAltas->m_width + x);
+                    u32 pixelIndex = (y * lightMap->m_texAltas->width + x);
                     lightMap->m_pixels[pixelIndex * 3 + 0] /= (kNumSubPixelSamples * kNumSubPixelSamples);
                     lightMap->m_pixels[pixelIndex * 3 + 1] /= (kNumSubPixelSamples * kNumSubPixelSamples);
                     lightMap->m_pixels[pixelIndex * 3 + 2] /= (kNumSubPixelSamples * kNumSubPixelSamples);
@@ -296,9 +296,9 @@ namespace Cyan
         }
         // write color data back to texture
         {
-            u32 width = lightMap->m_texAltas->m_width;
-            u32 height = lightMap->m_texAltas->m_height;
-            glBindTexture(GL_TEXTURE_2D, lightMap->m_texAltas->m_id);
+            u32 width = lightMap->m_texAltas->width;
+            u32 height = lightMap->m_texAltas->height;
+            glBindTexture(GL_TEXTURE_2D, lightMap->m_texAltas->handle);
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGB, GL_FLOAT, lightMap->m_pixels);
             glBindTexture(GL_TEXTURE_2D, 0);
         }
@@ -308,7 +308,7 @@ namespace Cyan
             char fileName[64];
             sprintf_s(fileName, "%s_lightmap.hdr", node->m_name);
             stbi_flip_vertically_on_write(1);
-            stbi_write_hdr(fileName, lightMap->m_texAltas->m_width, lightMap->m_texAltas->m_height, 3, lightMap->m_pixels);
+            stbi_write_hdr(fileName, lightMap->m_texAltas->width, lightMap->m_texAltas->height, 3, lightMap->m_pixels);
         }
 #endif
         glEnable(GL_CULL_FACE);
@@ -319,11 +319,11 @@ namespace Cyan
         const f32 EPSILON = 0.001f;
         PathTracer* pathTracer = PathTracer::getSingletonPtr();
         u32 numBakedTexels = 0;
-        for (u32 y = 0; y < lightMap->m_texAltas->m_height; ++y)
+        for (u32 y = 0; y < lightMap->m_texAltas->height; ++y)
         {
-            for (u32 x = 0; x < lightMap->m_texAltas->m_width; ++x)
+            for (u32 x = 0; x < lightMap->m_texAltas->width; ++x)
             {
-                u32 i = lightMap->m_texAltas->m_width * y + x;
+                u32 i = lightMap->m_texAltas->width * y + x;
                 glm::vec3 worldPos = vec4ToVec3(lightMap->m_bakingData[i].worldPosition);
                 glm::vec3 normal = vec4ToVec3(lightMap->m_bakingData[i].normal);
                 glm::vec4 texCoord = lightMap->m_bakingData[i].texCoord;
@@ -371,8 +371,8 @@ namespace Cyan
         std::vector<u32> texelIndices(overlappedTexelCount);
         u32 numTexels = 0;
 #if SUPER_SAMPLING
-        u32 textureWidth = lightMap->superSampledTex->m_width;
-        u32 textureHeight = lightMap->superSampledTex->m_height;
+        u32 textureWidth = lightMap->superSampledTex->width;
+        u32 textureHeight = lightMap->superSampledTex->height;
 #else
         u32 textureWidth = lightMap->m_texAltas->m_width;
         u32 textureHeight = lightMap->m_texAltas->m_height;
@@ -426,24 +426,24 @@ namespace Cyan
             lightMap->m_owner = node;
             auto textureManager = TextureManager::getSingletonPtr();
             TextureSpec spec  = { };
-            spec.m_width    = meshInstance->m_mesh->m_lightMapWidth;
-            spec.m_height   = meshInstance->m_mesh->m_lightMapHeight;
-            spec.m_dataType = Texture::DataType::Float;
-            spec.m_type     = Texture::Type::TEX_2D;
-            spec.m_format   = Texture::ColorFormat::R16G16B16;
-            spec.m_min      = Texture::Filter::LINEAR;
-            spec.m_mag      = Texture::Filter::LINEAR;
-            spec.m_r        = Texture::Wrap::CLAMP_TO_EDGE;
-            spec.m_s        = Texture::Wrap::CLAMP_TO_EDGE;
-            spec.m_t        = Texture::Wrap::CLAMP_TO_EDGE;
-            spec.m_numMips  = 1;
+            spec.width    = meshInstance->m_mesh->m_lightMapWidth;
+            spec.height   = meshInstance->m_mesh->m_lightMapHeight;
+            spec.dataType = Texture::DataType::Float;
+            spec.type     = Texture::Type::TEX_2D;
+            spec.format   = Texture::ColorFormat::R16G16B16;
+            spec.min      = Texture::Filter::LINEAR;
+            spec.mag      = Texture::Filter::LINEAR;
+            spec.r        = Texture::Wrap::CLAMP_TO_EDGE;
+            spec.s        = Texture::Wrap::CLAMP_TO_EDGE;
+            spec.t        = Texture::Wrap::CLAMP_TO_EDGE;
+            spec.numMips  = 1;
 
             lightMap->m_texAltas = textureManager->createTextureHDR("LightMap", spec);
 #if SUPER_SAMPLING
-            spec.m_width    = meshInstance->m_mesh->m_lightMapWidth * kNumSubPixelSamples;
-            spec.m_height   = meshInstance->m_mesh->m_lightMapHeight * kNumSubPixelSamples;
+            spec.width    = meshInstance->m_mesh->m_lightMapWidth * kNumSubPixelSamples;
+            spec.height   = meshInstance->m_mesh->m_lightMapHeight * kNumSubPixelSamples;
             lightMap->superSampledTex = textureManager->createTextureHDR("SuperSampledLightMap", spec);
-            lightMap->m_renderTarget = createRenderTarget(meshInstance->m_lightMap->superSampledTex->m_width, meshInstance->m_lightMap->superSampledTex->m_height);
+            lightMap->m_renderTarget = createRenderTarget(meshInstance->m_lightMap->superSampledTex->width, meshInstance->m_lightMap->superSampledTex->height);
             lightMap->m_renderTarget->setColorBuffer(meshInstance->m_lightMap->superSampledTex, 0u);
 #else
             lightMap->m_renderTarget = createRenderTarget(meshInstance->m_lightMap->m_texAltas->m_width, meshInstance->m_lightMap->m_texAltas->m_height);
@@ -451,9 +451,9 @@ namespace Cyan
 #endif
         }
 
-        u32 baseNumTexels = lightMap->m_texAltas->m_width * lightMap->m_texAltas->m_height;
+        u32 baseNumTexels = lightMap->m_texAltas->width * lightMap->m_texAltas->height;
 #if SUPER_SAMPLING
-        u32 maxNumTexels = lightMap->superSampledTex->m_height * lightMap->superSampledTex->m_width;
+        u32 maxNumTexels = lightMap->superSampledTex->height * lightMap->superSampledTex->width;
 #else
         u32 maxNumTexels = lightMap->m_texAltas->m_height * lightMap->m_texAltas->m_width;
 #endif

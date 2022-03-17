@@ -21,6 +21,15 @@ extern float quadVerts[24];
 
 namespace Cyan
 {
+    // todo: maybe implement this ...?
+    struct DrawTask
+    {
+        RenderTarget* renderTarget;
+        Viewport viewport;
+        Shader* shader;
+        std::function<void()> callback;
+    };
+
     // foward declarations
     struct RenderTarget;
 
@@ -56,19 +65,27 @@ namespace Cyan
         void renderSunShadow(Scene* scene, const std::vector<Entity*>& shaodwCasters);
         void renderScene(Scene* scene);
         void renderSceneDepthNormal(Scene* scene);
-        void renderSceneToLightProbe(Scene* scene, Camera& camera);
+
+        /*
+        * Render provided scene into a light probe
+        */
+        void renderSceneToLightProbe(Scene* scene, LightProbe* probe, RenderTarget* renderTarget);
+
+        /*
+        * Render ui widgets given a custom callback defined in an application
+        */
         void renderUI(const std::function<void()>& callback);
         void flip();
 
         void drawEntity(Entity* entity);
         void drawMesh(Mesh* mesh);
         /*
-            * Draw a mesh without transform using same type of material for all its submeshes.
+        * Draw a mesh without transform using same type of material for all its submeshes.
         */
         void drawMesh(Mesh* mesh, MaterialInstance* matl, RenderTarget* dstRenderTarget, const std::initializer_list<i32>& drawBuffers, const Viewport& viewport);
 
         /* 
-            * Draw an instanced mesh with transform that allows different types of materials for each submeshes.
+        * Draw an instanced mesh with transform that allows different types of materials for each submeshes.
         */
         void drawMeshInstance(MeshInstance* meshInstance, i32 transformIndex);
 //

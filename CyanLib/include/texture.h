@@ -55,25 +55,25 @@ namespace Cyan
             Float,
         };
 
-        std::string m_name;
-        void* m_data;
-        ColorFormat m_format;
-        DataType m_dataType;
-        Filter m_minFilter;
-        Filter m_magFilter;
-        Wrap m_wrapS;
-        Wrap m_wrapT;
-        Wrap m_wrapR;
-        Type m_type;
-        u32 m_width;
-        u32 m_height;
-        u32 m_depth;
-        GLuint m_id;
+        std::string name;
+        void* data;
+        ColorFormat format;
+        DataType dataType;
+        Filter minFilter;
+        Filter magFilter;
+        Wrap wrapS;
+        Wrap wrapT;
+        Wrap wrapR;
+        Type type;
+        u32 width;
+        u32 height;
+        u32 depth;
+        GLuint handle;
 
         u32 getSizeInBytes()
         {
             u32 bpp = 0u;
-            switch(m_format)
+            switch(format)
             {
                 case R16G16B16:
                     break;
@@ -87,17 +87,17 @@ namespace Cyan
 
     struct TextureSpec
     {
-        Texture::Type m_type;
-        u32 m_width, m_height, m_depth;
-        u32 m_numMips;
-        Texture::ColorFormat m_format;
-        Texture::DataType m_dataType;
-        Texture::Filter m_min;
-        Texture::Filter m_mag;
-        Texture::Wrap m_s;
-        Texture::Wrap m_t;
-        Texture::Wrap m_r;
-        void*      m_data;
+        Texture::Type type;
+        u32 width, height, depth;
+        u32 numMips;
+        Texture::ColorFormat format;
+        Texture::DataType dataType;
+        Texture::Filter min;
+        Texture::Filter mag;
+        Texture::Wrap s;
+        Texture::Wrap t;
+        Texture::Wrap r;
+        void*      data;
     };
 
     // TODO: implement following systems

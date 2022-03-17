@@ -2,6 +2,7 @@
 
 #include "Texture.h"
 #include "Entity.h"
+#include "RenderTarget.h"
 
 struct Scene;
 
@@ -16,12 +17,12 @@ namespace Cyan
         virtual void captureScene();
         virtual void debugRender();
 
-        Scene*               m_scene;
-        glm::vec3            m_position;
-        glm::vec2            m_resolution;
-        Texture*             m_sceneCapture;
-        MeshInstance*        m_debugSphereMesh;
-        MaterialInstance*    m_debugRenderMatl;
+        Scene*               scene;
+        glm::vec3            position;
+        glm::vec2            resolution;
+        Texture*             sceneCapture;
+        MeshInstance*        debugSphereMesh;
+        MaterialInstance*    debugRenderMatl;
     };
 
     struct IrradianceProbe : public LightProbe

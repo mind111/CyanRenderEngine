@@ -122,13 +122,13 @@ namespace Cyan
     glm::vec3 texelFetch(Texture* texture, glm::vec3& texCoord)
     {
         // how to interpret the data should be according to texture format
-        u32 px = (u32)roundf(texCoord.x * texture->m_width);
-        u32 py = (u32)roundf(texCoord.y * texture->m_height);
+        u32 px = (u32)roundf(texCoord.x * texture->width);
+        u32 py = (u32)roundf(texCoord.y * texture->height);
         // assuming rgb one byte per pixel
         u32 bytesPerPixel = 4;
-        u32 flattendPixelIndex = (py * texture->m_width + px);
+        u32 flattendPixelIndex = (py * texture->width + px);
         u32 bytesOffset = flattendPixelIndex * bytesPerPixel;
-        u8* pixelAddress = ((u8*)texture->m_data + bytesOffset);
+        u8* pixelAddress = ((u8*)texture->data + bytesOffset);
         u8 r = *pixelAddress;
         u8 g = *(pixelAddress + 1);
         u8 b = *(pixelAddress + 2);
@@ -179,12 +179,12 @@ namespace Cyan
             m_pixels = (float*)new char[(u64)(bytesPerPixel * numPixels)];
             auto textureManager = TextureManager::getSingletonPtr();
             TextureSpec spec = { };
-            spec.m_type = Texture::Type::TEX_2D;
-            spec.m_width = numPixelsInX;
-            spec.m_height = numPixelsInY;
-            spec.m_format = Texture::ColorFormat::R32G32B32;
-            spec.m_type = Texture::Type::TEX_2D;
-            spec.m_dataType = Texture::DataType::Float;
+            spec.type = Texture::Type::TEX_2D;
+            spec.width = numPixelsInX;
+            spec.height = numPixelsInY;
+            spec.format = Texture::ColorFormat::R32G32B32;
+            spec.type = Texture::Type::TEX_2D;
+            spec.dataType = Texture::DataType::Float;
             m_texture = textureManager->createTexture("PathTracingOutput", spec);
             m_singleton = this;
             m_irradianceCache = new IrradianceCache;
@@ -525,7 +525,7 @@ namespace Cyan
 
         // copy data to gpu texture
         {
-            glBindTexture(GL_TEXTURE_2D, m_texture->m_id);
+            glBindTexture(GL_TEXTURE_2D, m_texture->handle);
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, numPixelsInX, numPixelsInY, GL_RGB, GL_FLOAT, m_pixels);
             glBindTexture(GL_TEXTURE_2D, 0);
         }
@@ -630,7 +630,7 @@ namespace Cyan
 
         // copy data to gpu texture
         {
-            glBindTexture(GL_TEXTURE_2D, m_texture->m_id);
+            glBindTexture(GL_TEXTURE_2D, m_texture->handle);
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, numPixelsInX, numPixelsInY, GL_RGB, GL_FLOAT, m_pixels);
             glBindTexture(GL_TEXTURE_2D, 0);
         }
@@ -1166,7 +1166,7 @@ namespace Cyan
 
         // copy data to gpu texture
         {
-            glBindTexture(GL_TEXTURE_2D, m_texture->m_id);
+            glBindTexture(GL_TEXTURE_2D, m_texture->handle);
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, numPixelsInX, numPixelsInY, GL_RGB, GL_FLOAT, m_pixels);
             glBindTexture(GL_TEXTURE_2D, 0);
         }

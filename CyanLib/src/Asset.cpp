@@ -99,13 +99,13 @@ namespace Cyan
             u32 numMips = textureInfo.at("numMips").get<u32>();
             
             TextureSpec spec = { };
-            spec.m_type = Texture::Type::TEX_2D;
-            spec.m_numMips = numMips;
-            spec.m_min = Texture::Filter::LINEAR;
-            spec.m_mag = Texture::Filter::LINEAR;
-            spec.m_s = Texture::Wrap::NONE;
-            spec.m_t = Texture::Wrap::NONE;
-            spec.m_r = Texture::Wrap::NONE;
+            spec.type = Texture::Type::TEX_2D;
+            spec.numMips = numMips;
+            spec.min = Texture::Filter::LINEAR;
+            spec.mag = Texture::Filter::LINEAR;
+            spec.s = Texture::Wrap::NONE;
+            spec.t = Texture::Wrap::NONE;
+            spec.r = Texture::Wrap::NONE;
             if (dynamicRange == "ldr")
             {
                 textureManager->createTexture(name.c_str(), filename.c_str(), spec);
@@ -548,7 +548,7 @@ namespace Cyan
         {
             scene->cameras[camIdx] = camera.get<Camera>();
             scene->cameras[camIdx].view = glm::mat4(1.f);
-            CameraManager::updateCamera(scene->cameras[camIdx++]);
+            scene->cameras[camIdx++].update();
         }
 
         loadTextures(textureInfoList);
@@ -566,44 +566,44 @@ namespace Cyan
             auto image = model.images[gltfTexture.source];
             u32 sizeInBytes = image.image.size();
             Cyan::TextureSpec spec = { };
-            spec.m_type = Texture::Type::TEX_2D;
-            spec.m_width = image.width;
-            spec.m_height = image.height;
+            spec.type = Texture::Type::TEX_2D;
+            spec.width = image.width;
+            spec.height = image.height;
             switch (image.component) {
                 case 3: 
                 {
                     if (image.bits == 8) 
                     {
-                        spec.m_format = Cyan::Texture::ColorFormat::R8G8B8;
-                        spec.m_dataType = Texture::DataType::UNSIGNED_BYTE;
+                        spec.format = Cyan::Texture::ColorFormat::R8G8B8;
+                        spec.dataType = Texture::DataType::UNSIGNED_BYTE;
                     } 
                     else if (image.bits == 16) 
                     {
-                        spec.m_format = Cyan::Texture::ColorFormat::R16G16B16;
-                        spec.m_dataType = Texture::DataType::Float;
+                        spec.format = Cyan::Texture::ColorFormat::R16G16B16;
+                        spec.dataType = Texture::DataType::Float;
                     } 
                     else if (image.bits == 32) 
                     {
-                        spec.m_format = Cyan::Texture::ColorFormat::R32G32B32;
-                        spec.m_dataType = Texture::DataType::Float;
+                        spec.format = Cyan::Texture::ColorFormat::R32G32B32;
+                        spec.dataType = Texture::DataType::Float;
                     } 
                     break;
                 }
                 case 4: {
                     if (image.bits == 8) 
                     {
-                        spec.m_format = Cyan::Texture::ColorFormat::R8G8B8A8;
-                        spec.m_dataType = Texture::DataType::UNSIGNED_BYTE;
+                        spec.format = Cyan::Texture::ColorFormat::R8G8B8A8;
+                        spec.dataType = Texture::DataType::UNSIGNED_BYTE;
                     } 
                     else if (image.bits == 16) 
                     {
-                        spec.m_format = Cyan::Texture::ColorFormat::R16G16B16A16;
-                        spec.m_dataType = Texture::DataType::Float;
+                        spec.format = Cyan::Texture::ColorFormat::R16G16B16A16;
+                        spec.dataType = Texture::DataType::Float;
                     } 
                     else if (image.bits == 32) 
                     {
-                        spec.m_format = Cyan::Texture::ColorFormat::R32G32B32A32;
-                        spec.m_dataType = Texture::DataType::Float;
+                        spec.format = Cyan::Texture::ColorFormat::R32G32B32A32;
+                        spec.dataType = Texture::DataType::Float;
                     } 
                     break;
                 }
@@ -613,15 +613,15 @@ namespace Cyan
                     break;
                 }
             }
-            spec.m_min = Texture::Filter::LINEAR;
-            spec.m_mag = Texture::Filter::LINEAR;
-            spec.m_numMips = 11;
-            spec.m_data = reinterpret_cast<void*>(image.image.data());
+            spec.min = Texture::Filter::LINEAR;
+            spec.mag = Texture::Filter::LINEAR;
+            spec.numMips = 11;
+            spec.data = reinterpret_cast<void*>(image.image.data());
             u32 nameLen = (u32)strlen(image.uri.c_str());
             CYAN_ASSERT(nameLen < 128, "Texture filename too long!");
             char name[128];
             sprintf(name, "%s", image.uri.c_str());
-            switch (spec.m_format) {
+            switch (spec.format) {
                 case Texture::ColorFormat::R8G8B8:
                 case Texture::ColorFormat::R8G8B8A8: 
                 {

@@ -11,11 +11,6 @@ struct Camera
     glm::mat4 view, projection;
     float fov, n, f;
     float aspectRatio;
-};
 
-class CameraManager
-{
-public:
-    static void initDefaultCamera(Camera& camera);
-    static void updateCamera(Camera& camera);
+    void update();
 };

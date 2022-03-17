@@ -18,32 +18,32 @@ namespace Cyan
         case kUseHDRI: 
             {
                 TextureSpec srcSpec = { };
-                srcSpec.m_type = Texture::Type::TEX_2D;
-                srcSpec.m_dataType = Texture::DataType::Float;
-                srcSpec.m_min = Texture::Filter::LINEAR;
-                srcSpec.m_mag = Texture::Filter::LINEAR;
-                srcSpec.m_s = Texture::Wrap::NONE;
-                srcSpec.m_t = Texture::Wrap::NONE;
-                srcSpec.m_r = Texture::Wrap::NONE;
-                srcSpec.m_numMips = 1u;
-                srcSpec.m_data = nullptr;
+                srcSpec.type = Texture::Type::TEX_2D;
+                srcSpec.dataType = Texture::DataType::Float;
+                srcSpec.min = Texture::Filter::LINEAR;
+                srcSpec.mag = Texture::Filter::LINEAR;
+                srcSpec.s = Texture::Wrap::NONE;
+                srcSpec.t = Texture::Wrap::NONE;
+                srcSpec.r = Texture::Wrap::NONE;
+                srcSpec.numMips = 1u;
+                srcSpec.data = nullptr;
                 m_srcHDRITexture = textureManager->createTextureHDR("HDRITexture", srcImagePath, srcSpec);
             }
         case kUseProcedural:
         default:
             {
                 TextureSpec dstSpec = { };
-                dstSpec.m_type = Texture::Type::TEX_CUBEMAP;
-                dstSpec.m_width = resolution.x;
-                dstSpec.m_height = resolution.y;
-                dstSpec.m_dataType = Texture::DataType::Float;
-                dstSpec.m_min = Texture::Filter::LINEAR;
-                dstSpec.m_mag = Texture::Filter::LINEAR;
-                dstSpec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
-                dstSpec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
-                dstSpec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
-                dstSpec.m_numMips = 1u;
-                dstSpec.m_data = nullptr;
+                dstSpec.type = Texture::Type::TEX_CUBEMAP;
+                dstSpec.width = resolution.x;
+                dstSpec.height = resolution.y;
+                dstSpec.dataType = Texture::DataType::Float;
+                dstSpec.min = Texture::Filter::LINEAR;
+                dstSpec.mag = Texture::Filter::LINEAR;
+                dstSpec.s = Texture::Wrap::CLAMP_TO_EDGE;
+                dstSpec.t = Texture::Wrap::CLAMP_TO_EDGE;
+                dstSpec.r = Texture::Wrap::CLAMP_TO_EDGE;
+                dstSpec.numMips = 1u;
+                dstSpec.data = nullptr;
                 m_srcCubemapTexture = textureManager->createTextureHDR("SkyBoxTexture", dstSpec);
 
             }
@@ -83,7 +83,7 @@ namespace Cyan
         case kUseHDRI:
             // step 1: create a cubemap texture from a src equirectangular image
             {
-                RenderTarget* renderTarget = createRenderTarget(m_srcCubemapTexture->m_width, m_srcCubemapTexture->m_height);
+                RenderTarget* renderTarget = createRenderTarget(m_srcCubemapTexture->width, m_srcCubemapTexture->height);
                 renderTarget->setColorBuffer(m_srcCubemapTexture, 0u);
                 Shader* shader = createShader("RenderToCubemapShader", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl");
                 auto    matl = createMaterial(shader)->createInstance();
@@ -95,7 +95,8 @@ namespace Cyan
                     // Update view matrix
                     camera.lookAt = LightProbeCameras::cameraFacingDirections[f];
                     camera.worldUp = LightProbeCameras::worldUps[f];
-                    CameraManager::updateCamera(camera);
+                    camera.update();
+
                     matl->set("projection", &camera.projection);
                     matl->set("view", &camera.view);
                     ctx->setDepthControl(DepthControl::kDisable);

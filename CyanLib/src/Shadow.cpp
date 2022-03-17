@@ -29,26 +29,26 @@ namespace Cyan
         auto textureManager = TextureManager::getSingletonPtr();
         auto initCascade = [this, textureManager, csm](ShadowCascade& cascade, const glm::vec4& frustumColor) {
             TextureSpec spec = { };
-            spec.m_width = csm.depthRenderTarget->width;
-            spec.m_height = csm.depthRenderTarget->height;
-            spec.m_format = Texture::ColorFormat::D24S8; // 32 bits
-            spec.m_type = Texture::Type::TEX_2D;
-            spec.m_min = Texture::Filter::NEAREST;
-            spec.m_mag = Texture::Filter::NEAREST;
-            spec.m_dataType = Texture::DataType::UNSIGNED_INT_24_8;
-            spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
-            spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+            spec.width = csm.depthRenderTarget->width;
+            spec.height = csm.depthRenderTarget->height;
+            spec.format = Texture::ColorFormat::D24S8; // 32 bits
+            spec.type = Texture::Type::TEX_2D;
+            spec.min = Texture::Filter::NEAREST;
+            spec.mag = Texture::Filter::NEAREST;
+            spec.dataType = Texture::DataType::UNSIGNED_INT_24_8;
+            spec.r = Texture::Wrap::CLAMP_TO_EDGE;
+            spec.s = Texture::Wrap::CLAMP_TO_EDGE;
 
             TextureSpec vsmSpec = { };
-            vsmSpec.m_width = csm.depthRenderTarget->width;
-            vsmSpec.m_height = csm.depthRenderTarget->height;
-            vsmSpec.m_format = Texture::ColorFormat::R32G32F;
-            vsmSpec.m_type = Texture::Type::TEX_2D;
-            vsmSpec.m_dataType = Texture::DataType::Float;
-            vsmSpec.m_min = Texture::Filter::LINEAR;
-            vsmSpec.m_mag = Texture::Filter::LINEAR;
-            vsmSpec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
-            vsmSpec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+            vsmSpec.width = csm.depthRenderTarget->width;
+            vsmSpec.height = csm.depthRenderTarget->height;
+            vsmSpec.format = Texture::ColorFormat::R32G32F;
+            vsmSpec.type = Texture::Type::TEX_2D;
+            vsmSpec.dataType = Texture::DataType::Float;
+            vsmSpec.min = Texture::Filter::LINEAR;
+            vsmSpec.mag = Texture::Filter::LINEAR;
+            vsmSpec.r = Texture::Wrap::CLAMP_TO_EDGE;
+            vsmSpec.s = Texture::Wrap::CLAMP_TO_EDGE;
 
             for (auto& line : cascade.frustumLines)
             {

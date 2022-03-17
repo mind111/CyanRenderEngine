@@ -1063,18 +1063,18 @@ namespace Cyan
         {
             auto textureManager = TextureManager::getSingletonPtr();
             TextureSpec spec = { };
-            spec.m_type = Texture::Type::TEX_2D;
-            spec.m_format = Texture::ColorFormat::R8G8B8A8;
-            spec.m_dataType = Texture::DataType::UNSIGNED_BYTE;
-            spec.m_width = width;
-            spec.m_numMips = 1u;
-            spec.m_height = height;
-            spec.m_min = Texture::Filter::LINEAR;
-            spec.m_mag = Texture::Filter::LINEAR;
-            spec.m_s = Texture::Wrap::NONE;
-            spec.m_t = Texture::Wrap::NONE;
-            spec.m_r = Texture::Wrap::NONE;
-            spec.m_data = nullptr;
+            spec.type = Texture::Type::TEX_2D;
+            spec.format = Texture::ColorFormat::R8G8B8A8;
+            spec.dataType = Texture::DataType::UNSIGNED_BYTE;
+            spec.width = width;
+            spec.numMips = 1u;
+            spec.height = height;
+            spec.min = Texture::Filter::LINEAR;
+            spec.mag = Texture::Filter::LINEAR;
+            spec.s = Texture::Wrap::NONE;
+            spec.t = Texture::Wrap::NONE;
+            spec.r = Texture::Wrap::NONE;
+            spec.data = nullptr;
             f32 verts[] = {
                 -1.f,  1.f, 0.f, 0.f,  1.f,
                 -1.f, -1.f, 0.f, 0.f,  0.f,
@@ -1106,7 +1106,7 @@ namespace Cyan
 
             auto gfxc = getCurrentGfxCtx();
             Viewport origViewport = gfxc->m_viewport;
-            gfxc->setViewport({ 0u, 0u, texture->m_width, texture->m_height });
+            gfxc->setViewport({ 0u, 0u, texture->width, texture->height });
             gfxc->setShader(shader);
             // gfxc->setRenderTarget(rt, 0);
             gfxc->setRenderTarget(rt, { 0 });

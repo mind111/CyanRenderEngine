@@ -635,7 +635,7 @@ void DemoApp::updateScene(Scene* scene)
     // update camera
     u32 camIdx = 0u;
     Camera& camera = m_scenes[m_currentScene]->cameras[camIdx];
-    CameraManager::updateCamera(camera);
+    camera.update();
     // update material parameters
     for (auto matl : m_scenes[m_currentScene]->m_materials)
         updateMaterialData(matl);
@@ -769,7 +769,7 @@ void DemoApp::drawDebugWindows()
                     std::vector<const char*> textureNames(numTextures);
                     std::vector<Cyan::Texture*>& textures = textureManager->s_textures;
                     for (u32 i = 0; i < numTextures; ++i)
-                        textureNames[i] = textures[i]->m_name.c_str();
+                        textureNames[i] = textures[i]->name.c_str();
                     ImGui::Text("Textures");
                     ImGui::Text("Number of textures: %u", numTextures);
                     ImGui::ListBox("##Textures", &currentItem, textureNames.data(), textureNames.size());
@@ -785,9 +785,9 @@ void DemoApp::drawDebugWindows()
                 {
                     ImGui::Text(viewName);
                     if (flip)
-                        ImGui::Image((ImTextureID)texture->m_id, ImVec2(width, height), ImVec2(0, 1), ImVec2(1, 0));
+                        ImGui::Image((ImTextureID)texture->handle, ImVec2(width, height), ImVec2(0, 1), ImVec2(1, 0));
                     else
-                        ImGui::Image((ImTextureID)texture->m_id, ImVec2(width, height));
+                        ImGui::Image((ImTextureID)texture->handle, ImVec2(width, height));
                     char buttonName[64];
                     sprintf_s(buttonName, "Focus on view##%s", viewName);
                     if (ImGui::Button(buttonName))
@@ -936,7 +936,7 @@ void DemoApp::drawSceneViewport()
         // blit final render output texture to current ImGui window
         if (!activeDebugViewTexture)
             activeDebugViewTexture = renderer->m_outputColorTexture;
-        ImGui::GetForegroundDrawList()->AddImage(reinterpret_cast<void*>((intptr_t)activeDebugViewTexture->m_id), 
+        ImGui::GetForegroundDrawList()->AddImage(reinterpret_cast<void*>((intptr_t)activeDebugViewTexture->handle), 
             a, b, ImVec2(0, 1), ImVec2(1, 0));
 
         // TODO: refactor this

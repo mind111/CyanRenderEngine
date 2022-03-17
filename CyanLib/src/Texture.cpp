@@ -145,24 +145,24 @@ namespace Cyan
 
         TextureSpecGL specGL = { };
         // type
-        specGL.m_typeGL = convertTexType(spec.m_type);
+        specGL.m_typeGL = convertTexType(spec.type);
         // format
-        DataFormatGL format = convertDataFormat(spec.m_format);
-        specGL.m_dataType = convertDataType(spec.m_dataType);
+        DataFormatGL format = convertDataFormat(spec.format);
+        specGL.m_dataType = convertDataType(spec.dataType);
         specGL.m_dataFormatGL = format.m_dataFormatGL;
         specGL.m_internalFormatGL = format.m_internalFormatGL;
         // filters
-        specGL.m_minGL = convertTexFilter(spec.m_min);
-        specGL.m_magGL = convertTexFilter(spec.m_mag);
+        specGL.m_minGL = convertTexFilter(spec.min);
+        specGL.m_magGL = convertTexFilter(spec.mag);
         // linear mipmap filtering
-        if (spec.m_numMips > 1u)
+        if (spec.numMips > 1u)
         {
             specGL.m_minGL = convertTexFilter(Texture::Filter::MIPMAP_LINEAR);
         }
         // wraps
-        auto wrapS = convertTexWrap(spec.m_s);
-        auto wrapT = convertTexWrap(spec.m_t);
-        auto wrapR = convertTexWrap(spec.m_r);
+        auto wrapS = convertTexWrap(spec.s);
+        auto wrapT = convertTexWrap(spec.t);
+        auto wrapR = convertTexWrap(spec.r);
         if (wrapS > 0)
         {
             specGL.m_sGL = wrapS;
@@ -184,7 +184,7 @@ namespace Cyan
     // set texture parameters such as min/mag filters, wrap_s, wrap_t, and wrap_r
     static void setTextureParameters(Texture* texture, TextureSpecGL& specGL)
     {
-        glBindTexture(specGL.m_typeGL, texture->m_id);
+        glBindTexture(specGL.m_typeGL, texture->handle);
         glTexParameteri(specGL.m_typeGL, GL_TEXTURE_MIN_FILTER, specGL.m_minGL);
         glTexParameteri(specGL.m_typeGL, GL_TEXTURE_MAG_FILTER, specGL.m_magGL);
         if (specGL.m_wrapFlag & (1 << 0 ))
@@ -219,7 +219,7 @@ namespace Cyan
     {
         for (auto texture : s_textures)
         {
-            if (strcmp(texture->m_name.c_str(), _name) == 0)
+            if (strcmp(texture->name.c_str(), _name) == 0)
             {
                 return texture;
             }
@@ -232,28 +232,28 @@ namespace Cyan
     {
         Texture* texture = new Texture();
 
-        texture->m_name = _name;
-        texture->m_width = spec.m_width;
-        texture->m_height = spec.m_height;
-        texture->m_type = spec.m_type;
-        texture->m_format = spec.m_format;
-        texture->m_dataType = spec.m_dataType;
-        texture->m_minFilter = spec.m_min;
-        texture->m_magFilter = spec.m_mag;
-        texture->m_wrapS = spec.m_s; 
-        texture->m_wrapT = spec.m_t;
-        texture->m_wrapR = spec.m_r;
-        texture->m_data = spec.m_data;
+        texture->name = _name;
+        texture->width = spec.width;
+        texture->height = spec.height;
+        texture->type = spec.type;
+        texture->format = spec.format;
+        texture->dataType = spec.dataType;
+        texture->minFilter = spec.min;
+        texture->magFilter = spec.mag;
+        texture->wrapS = spec.s; 
+        texture->wrapT = spec.t;
+        texture->wrapR = spec.r;
+        texture->data = spec.data;
 
         TextureSpecGL specGL = translate(spec);
-        glCreateTextures(specGL.m_typeGL, 1, &texture->m_id);
-        glBindTexture(specGL.m_typeGL, texture->m_id);
-        glTexImage2D(specGL.m_typeGL, 0, specGL.m_internalFormatGL, texture->m_width, texture->m_height, 0, specGL.m_dataFormatGL, specGL.m_dataType, texture->m_data);
+        glCreateTextures(specGL.m_typeGL, 1, &texture->handle);
+        glBindTexture(specGL.m_typeGL, texture->handle);
+        glTexImage2D(specGL.m_typeGL, 0, specGL.m_internalFormatGL, texture->width, texture->height, 0, specGL.m_dataFormatGL, specGL.m_dataType, texture->data);
         glBindTexture(GL_TEXTURE_2D, 0);
         setTextureParameters(texture, specGL);
-        if (spec.m_numMips > 1u)
+        if (spec.numMips > 1u)
         {
-            glGenerateTextureMipmap(texture->m_id);
+            glGenerateTextureMipmap(texture->handle);
         }
         s_textures.push_back(texture);
         return texture;
@@ -276,25 +276,25 @@ namespace Cyan
     {
         Texture* texture = new Texture();
 
-        texture->m_name = name;
-        texture->m_width = spec.m_width;
-        texture->m_height = spec.m_height;
-        texture->m_depth = spec.m_depth;
-        texture->m_type = spec.m_type;
-        texture->m_format = spec.m_format;
-        texture->m_minFilter = spec.m_min;
-        texture->m_magFilter = spec.m_mag;
-        texture->m_wrapS = spec.m_s; 
-        texture->m_wrapT = spec.m_t;
-        texture->m_wrapR = spec.m_r;
-        texture->m_data = spec.m_data;
+        texture->name = name;
+        texture->width = spec.width;
+        texture->height = spec.height;
+        texture->depth = spec.depth;
+        texture->type = spec.type;
+        texture->format = spec.format;
+        texture->minFilter = spec.min;
+        texture->magFilter = spec.mag;
+        texture->wrapS = spec.s; 
+        texture->wrapT = spec.t;
+        texture->wrapR = spec.r;
+        texture->data = spec.data;
 
         TextureSpecGL specGL = translate(spec);
         setTextureParameters(texture, specGL);
 
-        glCreateTextures(GL_TEXTURE_3D, 1, &texture->m_id);
-        glBindTexture(GL_TEXTURE_3D, texture->m_id);
-        glTexImage3D(GL_TEXTURE_3D, 0, specGL.m_internalFormatGL, spec.m_width, spec.m_height, spec.m_depth, 0, specGL.m_dataFormatGL, GL_UNSIGNED_INT, 0);
+        glCreateTextures(GL_TEXTURE_3D, 1, &texture->handle);
+        glBindTexture(GL_TEXTURE_3D, texture->handle);
+        glTexImage3D(GL_TEXTURE_3D, 0, specGL.m_internalFormatGL, spec.width, spec.height, spec.depth, 0, specGL.m_dataFormatGL, GL_UNSIGNED_INT, 0);
         glBindTexture(GL_TEXTURE_3D, 0u);
         setTextureParameters(texture, specGL);
         s_textures.push_back(texture);
@@ -305,40 +305,40 @@ namespace Cyan
     {
         Texture* texture = new Texture();
 
-        texture->m_name = name;
-        texture->m_width = spec.m_width;
-        texture->m_height = spec.m_height;
-        texture->m_type = spec.m_type;
-        texture->m_dataType = spec.m_dataType;
-        texture->m_format = spec.m_format;
-        texture->m_minFilter = spec.m_min;
-        texture->m_magFilter = spec.m_mag;
-        texture->m_wrapS = spec.m_s; 
-        texture->m_wrapT = spec.m_t;
-        texture->m_wrapR = spec.m_r;
-        texture->m_data = spec.m_data;
+        texture->name = name;
+        texture->width = spec.width;
+        texture->height = spec.height;
+        texture->type = spec.type;
+        texture->dataType = spec.dataType;
+        texture->format = spec.format;
+        texture->minFilter = spec.min;
+        texture->magFilter = spec.mag;
+        texture->wrapS = spec.s; 
+        texture->wrapT = spec.t;
+        texture->wrapR = spec.r;
+        texture->data = spec.data;
 
         TextureSpecGL specGL = translate(spec);
 
-        glCreateTextures(specGL.m_typeGL, 1, &texture->m_id);
-        glBindTexture(specGL.m_typeGL, texture->m_id);
-        switch(spec.m_type)
+        glCreateTextures(specGL.m_typeGL, 1, &texture->handle);
+        glBindTexture(specGL.m_typeGL, texture->handle);
+        switch(spec.type)
         {
             case Texture::Type::TEX_2D:
-                glTexImage2D(GL_TEXTURE_2D, 0, specGL.m_internalFormatGL, texture->m_width, texture->m_height, 0, specGL.m_dataFormatGL, GL_FLOAT, texture->m_data);
+                glTexImage2D(GL_TEXTURE_2D, 0, specGL.m_internalFormatGL, texture->width, texture->height, 0, specGL.m_dataFormatGL, GL_FLOAT, texture->data);
                 break;
             case Texture::Type::TEX_CUBEMAP:
                 for (int f = 0; f < 6; f++)
-                    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, 0, specGL.m_internalFormatGL, texture->m_width, texture->m_height, 0, specGL.m_dataFormatGL, GL_FLOAT, nullptr);
+                    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, 0, specGL.m_internalFormatGL, texture->width, texture->height, 0, specGL.m_dataFormatGL, GL_FLOAT, nullptr);
                 break;
             default:
                 break;
         }
         glBindTexture(specGL.m_typeGL, 0);
         setTextureParameters(texture, specGL);
-        if (spec.m_numMips > 1u)
+        if (spec.numMips > 1u)
         {
-            glGenerateTextureMipmap(texture->m_id);
+            glGenerateTextureMipmap(texture->handle);
         }
         s_textures.push_back(texture);
         return texture;
@@ -354,28 +354,28 @@ namespace Cyan
         stbi_set_flip_vertically_on_load(1);
         unsigned char* pixels = stbi_load(filePath, &w, &h, &numChannels, 0);
 
-        spec.m_format = numChannels == 3 ? Texture::ColorFormat::R8G8B8 : Texture::ColorFormat::R8G8B8A8;
-        texture->m_name = name;
-        texture->m_width = w;
-        texture->m_height = h;
-        texture->m_type = spec.m_type;
-        texture->m_dataType = spec.m_dataType;
-        texture->m_format = spec.m_format;
-        texture->m_minFilter = spec.m_min;
-        texture->m_magFilter = spec.m_mag;
-        texture->m_wrapS = spec.m_s; 
-        texture->m_wrapT = spec.m_t;
-        texture->m_wrapR = spec.m_r;
-        texture->m_data = pixels;
+        spec.format = numChannels == 3 ? Texture::ColorFormat::R8G8B8 : Texture::ColorFormat::R8G8B8A8;
+        texture->name = name;
+        texture->width = w;
+        texture->height = h;
+        texture->type = spec.type;
+        texture->dataType = spec.dataType;
+        texture->format = spec.format;
+        texture->minFilter = spec.min;
+        texture->magFilter = spec.mag;
+        texture->wrapS = spec.s; 
+        texture->wrapT = spec.t;
+        texture->wrapR = spec.r;
+        texture->data = pixels;
 
         TextureSpecGL specGL = translate(spec);
 
-        glCreateTextures(specGL.m_typeGL, 1, &texture->m_id);
-        glTextureStorage2D(texture->m_id, spec.m_numMips, specGL.m_internalFormatGL, texture->m_width, texture->m_height);
-        glTextureSubImage2D(texture->m_id, 0, 0, 0, texture->m_width, texture->m_height, specGL.m_dataFormatGL, GL_UNSIGNED_BYTE, texture->m_data);
-        if (spec.m_numMips > 1u)
+        glCreateTextures(specGL.m_typeGL, 1, &texture->handle);
+        glTextureStorage2D(texture->handle, spec.numMips, specGL.m_internalFormatGL, texture->width, texture->height);
+        glTextureSubImage2D(texture->handle, 0, 0, 0, texture->width, texture->height, specGL.m_dataFormatGL, GL_UNSIGNED_BYTE, texture->data);
+        if (spec.numMips > 1u)
         {
-            glGenerateTextureMipmap(texture->m_id);
+            glGenerateTextureMipmap(texture->handle);
         }
         s_textures.push_back(texture);
         stbi_image_free(pixels);
@@ -392,29 +392,29 @@ namespace Cyan
         stbi_set_flip_vertically_on_load(1);
         float* pixels = stbi_loadf(filePath, &w, &h, &numChannels, 0);
 
-        spec.m_format = numChannels == 3 ? Texture::ColorFormat::R16G16B16 : Texture::ColorFormat::R16G16B16A16;
-        texture->m_name = name;
-        texture->m_width = w;
-        texture->m_height = h;
-        texture->m_type = spec.m_type;
-        texture->m_dataType = spec.m_dataType;
-        texture->m_format = spec.m_format;
-        texture->m_minFilter = spec.m_min;
-        texture->m_magFilter = spec.m_mag;
-        texture->m_wrapS = spec.m_s; 
-        texture->m_wrapT = spec.m_t;
-        texture->m_wrapR = spec.m_r;
-        texture->m_data = pixels;
+        spec.format = numChannels == 3 ? Texture::ColorFormat::R16G16B16 : Texture::ColorFormat::R16G16B16A16;
+        texture->name = name;
+        texture->width = w;
+        texture->height = h;
+        texture->type = spec.type;
+        texture->dataType = spec.dataType;
+        texture->format = spec.format;
+        texture->minFilter = spec.min;
+        texture->magFilter = spec.mag;
+        texture->wrapS = spec.s; 
+        texture->wrapT = spec.t;
+        texture->wrapR = spec.r;
+        texture->data = pixels;
 
         TextureSpecGL specGL = translate(spec);
 
-        glCreateTextures(specGL.m_typeGL, 1, &texture->m_id);
-        glTextureStorage2D(texture->m_id, spec.m_numMips, specGL.m_internalFormatGL, texture->m_width, texture->m_height);
-        glTextureSubImage2D(texture->m_id, 0, 0, 0, texture->m_width, texture->m_height, specGL.m_dataFormatGL, GL_FLOAT, texture->m_data);
+        glCreateTextures(specGL.m_typeGL, 1, &texture->handle);
+        glTextureStorage2D(texture->handle, spec.numMips, specGL.m_internalFormatGL, texture->width, texture->height);
+        glTextureSubImage2D(texture->handle, 0, 0, 0, texture->width, texture->height, specGL.m_dataFormatGL, GL_FLOAT, texture->data);
         setTextureParameters(texture, specGL);
-        if (spec.m_numMips > 1u)
+        if (spec.numMips > 1u)
         {
-            glGenerateTextureMipmap(texture->m_id);
+            glGenerateTextureMipmap(texture->handle);
         }
         s_textures.push_back(texture);
         stbi_image_free(pixels);
@@ -425,32 +425,32 @@ namespace Cyan
     {
         Texture* texture = new Texture();
 
-        texture->m_name = name;
-        texture->m_width = spec.m_width;
-        texture->m_height = spec.m_height;
-        texture->m_depth = spec.m_depth;
-        texture->m_type = spec.m_type;
-        texture->m_dataType = spec.m_dataType;
-        texture->m_format = spec.m_format;
-        texture->m_minFilter = spec.m_min;
-        texture->m_magFilter = spec.m_mag;
-        texture->m_wrapS = spec.m_s; 
-        texture->m_wrapT = spec.m_t;
-        texture->m_wrapR = spec.m_r;
-        texture->m_data = spec.m_data;
+        texture->name = name;
+        texture->width = spec.width;
+        texture->height = spec.height;
+        texture->depth = spec.depth;
+        texture->type = spec.type;
+        texture->dataType = spec.dataType;
+        texture->format = spec.format;
+        texture->minFilter = spec.min;
+        texture->magFilter = spec.mag;
+        texture->wrapS = spec.s; 
+        texture->wrapT = spec.t;
+        texture->wrapR = spec.r;
+        texture->data = spec.data;
 
         TextureSpecGL specGL = translate(spec);
         // create texture arrays
         {
-            glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &texture->m_id);
-            glBindTexture(GL_TEXTURE_2D_ARRAY, texture->m_id);
-            glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, specGL.m_internalFormatGL, texture->m_width, texture->m_height, texture->m_depth);
+            glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &texture->handle);
+            glBindTexture(GL_TEXTURE_2D_ARRAY, texture->handle);
+            glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, specGL.m_internalFormatGL, texture->width, texture->height, texture->depth);
             glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
         }
         setTextureParameters(texture, specGL);
-        if (spec.m_numMips > 1u)
+        if (spec.numMips > 1u)
         {
-            glGenerateTextureMipmap(texture->m_id);
+            glGenerateTextureMipmap(texture->handle);
         }
         s_textures.push_back(texture);
         return texture;
@@ -459,15 +459,15 @@ namespace Cyan
     Texture* TextureManager::createDepthTexture(const char* name, u32 width, u32 height)
     {
         TextureSpec spec = { };
-        spec.m_width = width;
-        spec.m_height =height;
-        spec.m_format = Texture::ColorFormat::D24S8; // 32 bits
-        spec.m_type = Texture::Type::TEX_2D;
-        spec.m_dataType = Texture::DataType::UNSIGNED_INT_24_8;
-        spec.m_min = Texture::Filter::NEAREST;
-        spec.m_mag = Texture::Filter::NEAREST;
-        spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
-        spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.width = width;
+        spec.height =height;
+        spec.format = Texture::ColorFormat::D24S8; // 32 bits
+        spec.type = Texture::Type::TEX_2D;
+        spec.dataType = Texture::DataType::UNSIGNED_INT_24_8;
+        spec.min = Texture::Filter::NEAREST;
+        spec.mag = Texture::Filter::NEAREST;
+        spec.r = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.s = Texture::Wrap::CLAMP_TO_EDGE;
         return createTexture(name, spec);
     }
 }

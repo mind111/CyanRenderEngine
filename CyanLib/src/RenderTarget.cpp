@@ -13,10 +13,10 @@ namespace Cyan
         {
             cyanError("Drawbuffer index out of bound!");
         }
-        switch (texture->m_type)
+        switch (texture->type)
         {
         case Texture::TEX_2D:
-            glNamedFramebufferTexture2DEXT(fbo, GL_COLOR_ATTACHMENT0 + index, GL_TEXTURE_2D, texture->m_id, mip);
+            glNamedFramebufferTexture2DEXT(fbo, GL_COLOR_ATTACHMENT0 + index, GL_TEXTURE_2D, texture->handle, mip);
             colorBuffers[index] = texture;
             break;
         case Texture::TEX_CUBEMAP:
@@ -30,7 +30,8 @@ namespace Cyan
             {
                 for (i32 f = 0; f < numFaces; ++f)
                 {
-                    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + (index + f), GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, texture->m_id, mip);
+                    glNamedFramebufferTexture2DEXT(fbo, GL_COLOR_ATTACHMENT0 + (index + f), GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, texture->handle, mip);
+                    colorBuffers[index + f] = texture;
                 }
             }
             break;
@@ -42,12 +43,12 @@ namespace Cyan
 
     void RenderTarget::setDepthBuffer(Texture* texture)
     {
-        if (texture->m_width != width || texture->m_height != height)
+        if (texture->width != width || texture->height != height)
         {
             CYAN_ASSERT(0, "Mismatched render target and depth buffer dimension!") 
         }
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, texture->m_id, 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, texture->handle, 0);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         depthBuffer = texture;
     }

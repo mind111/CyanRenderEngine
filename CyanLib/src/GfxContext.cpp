@@ -105,7 +105,7 @@ namespace Cyan
         }
         else
         {
-            glBindTextureUnit(binding, _texture->m_id);
+            glBindTextureUnit(binding, _texture->handle);
         }
     }
 

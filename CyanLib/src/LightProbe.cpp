@@ -44,17 +44,17 @@ namespace Cyan
     }
 
     LightProbe::LightProbe(Texture* srcCubemapTexture)
-        : m_scene(nullptr), m_position(glm::vec3(0.f)), m_resolution(glm::uvec2(srcCubemapTexture->m_width, srcCubemapTexture->m_height)), 
-        m_debugSphereMesh(nullptr), m_sceneCapture(srcCubemapTexture), m_debugRenderMatl(nullptr)
+        : scene(nullptr), position(glm::vec3(0.f)), resolution(glm::uvec2(srcCubemapTexture->width, srcCubemapTexture->height)), 
+        debugSphereMesh(nullptr), sceneCapture(srcCubemapTexture), debugRenderMatl(nullptr)
     {
 
     }
 
     LightProbe::LightProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& resolution)
-        : m_scene(scene), m_position(p), m_resolution(resolution), m_debugSphereMesh(nullptr), m_sceneCapture(nullptr), m_debugRenderMatl(nullptr)
+        : scene(scene), position(p), resolution(resolution), debugSphereMesh(nullptr), sceneCapture(nullptr), debugRenderMatl(nullptr)
     {
-        m_debugSphereMesh = getMesh("sphere_mesh")->createInstance(m_scene);
-        m_debugRenderMatl = createMaterial(getRenderProbeShader())->createInstance();
+        debugSphereMesh = getMesh("sphere_mesh")->createInstance(scene);
+        debugRenderMatl = createMaterial(getRenderProbeShader())->createInstance();
 
         initialize();
     }
@@ -62,20 +62,20 @@ namespace Cyan
     void LightProbe::initialize()
     {
         TextureSpec spec = { };
-        spec.m_width = m_resolution.x;
-        spec.m_height = m_resolution.y;
-        spec.m_type = Texture::Type::TEX_CUBEMAP;
-        spec.m_format = Texture::ColorFormat::R16G16B16;
-        spec.m_dataType =  Texture::Float;
-        spec.m_min = Texture::Filter::LINEAR;
-        spec.m_mag = Texture::Filter::LINEAR;
-        spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
-        spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
-        spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
-        spec.m_numMips = 1u;
-        spec.m_data = 0;
+        spec.width = resolution.x;
+        spec.height = resolution.y;
+        spec.type = Texture::Type::TEX_CUBEMAP;
+        spec.format = Texture::ColorFormat::R16G16B16;
+        spec.dataType =  Texture::Float;
+        spec.min = Texture::Filter::LINEAR;
+        spec.mag = Texture::Filter::LINEAR;
+        spec.s = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.t = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.r = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.numMips = 1u;
+        spec.data = 0;
         auto textureManager = TextureManager::getSingletonPtr();
-        m_sceneCapture = textureManager->createTextureHDR("SceneCapture", spec);
+        sceneCapture = textureManager->createTextureHDR("SceneCapture", spec);
 
         // shared cube mesh
         if (!s_cubeMesh)
@@ -94,45 +94,13 @@ namespace Cyan
 
     void LightProbe::captureScene()
     {
-        CYAN_ASSERT(m_scene, "Attempt to call LightProbe::captureScene() while scene is NULL!");
+        CYAN_ASSERT(scene, "Attempt to call LightProbe::captureScene() while scene is NULL!");
 
         // create render target
-        auto renderTarget = createRenderTarget(m_sceneCapture->m_width, m_sceneCapture->m_height);
+        auto renderTarget = createRenderTarget(sceneCapture->width, sceneCapture->height);
         {
-            renderTarget->setColorBuffer(m_sceneCapture, 0u);
-            Camera camera = { };
-            camera.position = m_position;
-            camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
-            camera.n = 0.1f;
-            camera.f = 100.f;
-            camera.fov = glm::radians(90.f);
-            auto renderer = Renderer::getSingletonPtr();
-
-            // only capture static objects
-            std::vector<Entity*> staticObjects;
-            for (u32 i = 0; i < m_scene->entities.size(); ++i)
-            {
-                if (m_scene->entities[i]->m_static)
-                {
-                    staticObjects.push_back(m_scene->entities[i]);
-                }
-            }
-            // render sun light shadow
-            renderer->renderSunShadow(m_scene, staticObjects);
-
-            // render scene into each face of the cubemap
-            auto ctx = renderer->getGfxCtx();
-            ctx->setViewport({0u, 0u, m_sceneCapture->m_width, m_sceneCapture->m_height});
-            for (u32 f = 0; f < (sizeof(LightProbeCameras::cameraFacingDirections)/sizeof(LightProbeCameras::cameraFacingDirections[0])); ++f)
-            {
-                ctx->setRenderTarget(renderTarget, { (i32)f, -1, -1, -1 });
-                ctx->clear();
-
-                camera.lookAt = camera.position + LightProbeCameras::cameraFacingDirections[f];
-                camera.worldUp = LightProbeCameras::worldUps[f];
-                CameraManager::updateCamera(camera);
-                renderer->renderSceneToLightProbe(m_scene, camera);
-            }
+            renderTarget->setColorBuffer(sceneCapture, 0u);
+            Renderer::getSingletonPtr()->renderSceneToLightProbe(scene, this, renderTarget);
         }
         // release resources
         glDeleteFramebuffers(1, &renderTarget->fbo);
@@ -159,18 +127,18 @@ namespace Cyan
     void IrradianceProbe::initialize()
     {
         TextureSpec spec = { };
-        spec.m_width = m_irradianceTextureRes.x;
-        spec.m_height = m_irradianceTextureRes.y;
-        spec.m_type = Texture::Type::TEX_CUBEMAP;
-        spec.m_format = Texture::ColorFormat::R16G16B16;
-        spec.m_dataType =  Texture::Float;
-        spec.m_min = Texture::Filter::LINEAR;
-        spec.m_mag = Texture::Filter::LINEAR;
-        spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
-        spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
-        spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
-        spec.m_numMips = 1u;
-        spec.m_data = nullptr;
+        spec.width = m_irradianceTextureRes.x;
+        spec.height = m_irradianceTextureRes.y;
+        spec.type = Texture::Type::TEX_CUBEMAP;
+        spec.format = Texture::ColorFormat::R16G16B16;
+        spec.dataType =  Texture::Float;
+        spec.min = Texture::Filter::LINEAR;
+        spec.mag = Texture::Filter::LINEAR;
+        spec.s = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.t = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.r = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.numMips = 1u;
+        spec.data = nullptr;
         auto textureManager = TextureManager::getSingletonPtr();
         auto sceneManager = SceneManager::getSingletonPtr();
         m_convolvedIrradianceTexture = textureManager->createTextureHDR("IrradianceProbe", spec);
@@ -198,13 +166,15 @@ namespace Cyan
             ctx->setDepthControl(DepthControl::kDisable);
             for (u32 f = 0; f < 6u; ++f)
             {
+                ctx->setRenderTarget(renderTarget, { (i32)f });
+
                 camera.lookAt = LightProbeCameras::cameraFacingDirections[f];
                 camera.worldUp = LightProbeCameras::worldUps[f];
-                CameraManager::updateCamera(camera);
-                ctx->setRenderTarget(renderTarget, { (i32)f });
+                camera.update();
+
                 m_convolveIrradianceMatl->set("view", &camera.view[0]);
                 m_convolveIrradianceMatl->set("projection", &camera.projection[0]);
-                m_convolveIrradianceMatl->bindTexture("srcCubemapTexture", m_sceneCapture);
+                m_convolveIrradianceMatl->bindTexture("srcCubemapTexture", sceneCapture);
                 m_convolveIrradianceMatl->bind();
                 ctx->drawIndexAuto(36u);
             }
@@ -248,18 +218,18 @@ namespace Cyan
     {
         // convolved radiance texture
         TextureSpec spec = { };
-        spec.m_width = m_resolution.x;
-        spec.m_height = m_resolution.y;
-        spec.m_type = Texture::Type::TEX_CUBEMAP;
-        spec.m_format = Texture::ColorFormat::R16G16B16;
-        spec.m_dataType = Texture::Float;
-        spec.m_min = Texture::Filter::MIPMAP_LINEAR;
-        spec.m_mag = Texture::Filter::LINEAR;
-        spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
-        spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
-        spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
-        spec.m_numMips = kNumMips;
-        spec.m_data = nullptr;
+        spec.width = resolution.x;
+        spec.height = resolution.y;
+        spec.type = Texture::Type::TEX_CUBEMAP;
+        spec.format = Texture::ColorFormat::R16G16B16;
+        spec.dataType = Texture::Float;
+        spec.min = Texture::Filter::MIPMAP_LINEAR;
+        spec.mag = Texture::Filter::LINEAR;
+        spec.s = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.t = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.r = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.numMips = kNumMips;
+        spec.data = nullptr;
         auto textureManager = TextureManager::getSingletonPtr();
         m_convolvedReflectionTexture = textureManager->createTextureHDR("ConvolvedReflectionProbe", spec);
 
@@ -281,18 +251,18 @@ namespace Cyan
         const u32 kTexWidth = 512u;
         const u32 kTexHeight = 512u;
         TextureSpec spec = { };
-        spec.m_type = Texture::Type::TEX_2D;
-        spec.m_format = Texture::ColorFormat::R16G16B16A16;
-        spec.m_dataType = Texture::DataType::Float;
-        spec.m_numMips = 1u;
-        spec.m_width = kTexWidth;
-        spec.m_height = kTexHeight;
-        spec.m_min = Texture::Filter::LINEAR;
-        spec.m_mag = Texture::Filter::LINEAR;
-        spec.m_s = Texture::Wrap::CLAMP_TO_EDGE;
-        spec.m_t = Texture::Wrap::CLAMP_TO_EDGE;
-        spec.m_r = Texture::Wrap::CLAMP_TO_EDGE;
-        spec.m_data = nullptr;
+        spec.type = Texture::Type::TEX_2D;
+        spec.format = Texture::ColorFormat::R16G16B16A16;
+        spec.dataType = Texture::DataType::Float;
+        spec.numMips = 1u;
+        spec.width = kTexWidth;
+        spec.height = kTexHeight;
+        spec.min = Texture::Filter::LINEAR;
+        spec.mag = Texture::Filter::LINEAR;
+        spec.s = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.t = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.r = Texture::Wrap::CLAMP_TO_EDGE;
+        spec.data = nullptr;
         auto textureManager = TextureManager::getSingletonPtr();
         Texture* outTexture = textureManager->createTextureHDR("BRDFLUT", spec); 
         Shader* shader = createShader("IntegrateBRDFShader", "../../shader/shader_integrate_brdf.vs", "../../shader/shader_integrate_brdf.fs");
@@ -345,8 +315,8 @@ namespace Cyan
         camera.fov = glm::radians(90.f);
         auto ctx = getCurrentGfxCtx();
         u32 kNumMips = 11;
-        u32 mipWidth = m_sceneCapture->m_width; 
-        u32 mipHeight = m_sceneCapture->m_height;
+        u32 mipWidth = sceneCapture->width; 
+        u32 mipHeight = sceneCapture->height;
         ctx->setDepthControl(DepthControl::kDisable);
         ctx->setShader(s_convolveReflectionShader);
         for (u32 mip = 0; mip < kNumMips; ++mip)
@@ -358,13 +328,15 @@ namespace Cyan
                 for (u32 f = 0; f < 6u; f++)
                 {
                     ctx->setRenderTarget(renderTarget, { (i32)f });
+
                     camera.lookAt = LightProbeCameras::cameraFacingDirections[f];
                     camera.worldUp = LightProbeCameras::worldUps[f];
-                    CameraManager::updateCamera(camera);
+                    camera.update();
+
                     m_convolveReflectionMatl->set("projection", &camera.projection[0]);
                     m_convolveReflectionMatl->set("view", &camera.view[0]);
                     m_convolveReflectionMatl->set("roughness", mip * (1.f / (kNumMips - 1)));
-                    m_convolveReflectionMatl->bindTexture("envmapSampler", m_sceneCapture);
+                    m_convolveReflectionMatl->bindTexture("envmapSampler", sceneCapture);
                     m_convolveReflectionMatl->bind();
                     ctx->drawIndexAuto(36);
                 }
