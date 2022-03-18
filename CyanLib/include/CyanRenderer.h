@@ -91,10 +91,65 @@ namespace Cyan
 //
 
 // post-processing
+        // ssao
+        RenderTarget* m_ssaoRenderTarget;
+        Texture* m_ssaoTexture;
+        Shader* m_ssaoShader;
+        MaterialInstance* m_ssaoMatl;
+        struct SSAODebugVisData
+        {
+            glm::vec4 samplePointWS;
+            glm::vec4 normal;
+            glm::vec4 wo;
+            glm::vec4 sliceDir;
+            glm::vec4 projectedNormal;
+            glm::vec4 sampleVec[16];
+            glm::vec4 intermSamplePoints[48];
+            int numSampleLines;
+            int numSamplePoints;
+        } m_ssaoDebugVisData;
+        RegularBuffer* m_ssaoDebugVisBuffer;
+        bool m_freezeDebugLines;
+
+        struct SSAODebugLines
+        {
+            ::Line normal;
+            ::Line projectedNormal;
+            ::Line wo;
+            ::Line sliceDir;
+            ::Line samples[16];
+        } m_ssaoDebugVisLines;
+        PointGroup m_ssaoSamplePoints;
+
         void ssao(Camera& camera);
+
+        // bloom
+        struct BloomRenderView
+        {
+            RenderTarget* renderTarget;
+            Texture* pingPongBuffers[2];
+        };
+        static const u32 kNumBloomDsPass = 6u;
+        // setup
+        Shader* m_bloomSetupShader;
+        MaterialInstance* m_bloomSetupMatl;
+        // downsample
+        Shader* m_bloomDsShader;
+        MaterialInstance* m_bloomDsMatl;
+        // upscale
+        Shader* m_bloomUsShader;
+        MaterialInstance* m_bloomUsMatl;
+        // gaussian blur
+        Shader* m_gaussianBlurShader;
+        MaterialInstance* m_gaussianBlurMatl;
+        RenderTarget* m_bloomSetupRT;
+        BloomRenderView m_bloomDsSurfaces[kNumBloomDsPass];
+        BloomRenderView m_bloomUsSurfaces[kNumBloomDsPass];
+
         void bloom();
+
         /*
-            * Final compositing and blitting pass that handles tone mapping & gamma correction
+        * Final compositing and bliting pass that handles tone mapping & gamma correction
         */
         void composite();
 //
@@ -213,36 +268,6 @@ namespace Cyan
             GLuint SBO;
         } gInstanceTransforms;
 
-        // ssao
-        f32           m_ssao;
-        RenderTarget* m_ssaoRenderTarget;
-        Texture* m_ssaoTexture;
-        Shader* m_ssaoShader;
-        MaterialInstance* m_ssaoMatl;
-        struct SSAODebugVisData
-        {
-            glm::vec4 samplePointWS;
-            glm::vec4 normal;
-            glm::vec4 wo;
-            glm::vec4 sliceDir;
-            glm::vec4 projectedNormal;
-            glm::vec4 sampleVec[16];
-            glm::vec4 intermSamplePoints[48];
-            int numSampleLines;
-            int numSamplePoints;
-        } m_ssaoDebugVisData;
-        RegularBuffer* m_ssaoDebugVisBuffer;
-        bool m_freezeDebugLines;
-
-        struct SSAODebugLines
-        {
-            ::Line normal;
-            ::Line projectedNormal;
-            ::Line wo;
-            ::Line sliceDir;
-            ::Line samples[16];
-        } m_ssaoDebugVisLines;
-        PointGroup m_ssaoSamplePoints;
         
         // voxel
         struct VoxelVolumeData
@@ -267,7 +292,6 @@ namespace Cyan
         Cyan::Texture* voxelizeMesh(MeshInstance* mesh, glm::mat4* modelMatrix);
         Cyan::Texture* renderVoxel(Scene* scene);
 
-        static const u32 kNumBloomDsPass = 6u;
         Texture* m_bloomOutput;
         RenderTarget* m_bloomOutputRT;            // final results after upscale chain
 

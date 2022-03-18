@@ -73,7 +73,6 @@ namespace Cyan
         m_sceneColorRTSSAA(0),
         m_voxelData{ 0 },
         m_ssaoSamplePoints(32),
-        m_ssao(1.f),
         m_globalDrawData{ },
         gLighting { }, 
         gDrawDataBuffer(-1)
@@ -293,7 +292,7 @@ namespace Cyan
         m_voxelizeMatl = createMaterial(m_voxelizeShader)->createInstance(); 
 
         // set back-face culling
-        Cyan::getCurrentGfxCtx()->setCullFace(FrontFace::CounterClockWise, FaceCull::Back);
+        m_ctx->setCullFace(FrontFace::CounterClockWise, FaceCull::Back);
 
         // create shaders
         initShaders();
@@ -341,6 +340,58 @@ namespace Cyan
             }
         }
 
+        // bloom
+        {
+            auto textureManger = TextureManager::getSingletonPtr();
+            m_bloomSetupRT = createRenderTarget(windowSize.x, windowSize.y);
+            TextureSpec spec = { };
+            spec.width = windowSize.x;
+            spec.height = windowSize.y;
+            spec.type = Texture::Type::TEX_2D;
+            spec.format = Texture::ColorFormat::R16G16B16A16; 
+            spec.dataType = Texture::DataType::Float;
+            spec.min = Texture::Filter::LINEAR;
+            spec.mag = Texture::Filter::LINEAR;
+            spec.s = Texture::Wrap::CLAMP_TO_EDGE;
+            spec.t = Texture::Wrap::CLAMP_TO_EDGE;
+            spec.r = Texture::Wrap::CLAMP_TO_EDGE;
+            m_bloomSetupRT->setColorBuffer(textureManger->createTexture("BloomSetupTexture", spec), 0);
+            m_bloomSetupShader = createShader("BloomSetupShader", SHADER_SOURCE_PATH "shader_bloom_preprocess.vs", SHADER_SOURCE_PATH "shader_bloom_preprocess.fs");
+            m_bloomSetupMatl = createMaterial(m_bloomSetupShader)->createInstance();
+            m_bloomDsShader = createShader("BloomDownSampleShader", SHADER_SOURCE_PATH "shader_downsample.vs", SHADER_SOURCE_PATH "shader_downsample.fs");
+            m_bloomDsMatl = createMaterial(m_bloomDsShader)->createInstance();
+            m_bloomUsShader = createShader("UpSampleShader", SHADER_SOURCE_PATH "shader_upsample.vs", SHADER_SOURCE_PATH "shader_upsample.fs");
+            m_bloomUsMatl = createMaterial(m_bloomUsShader)->createInstance();
+            m_gaussianBlurShader = createShader("GaussianBlurShader", SHADER_SOURCE_PATH "shader_gaussian_blur.vs", SHADER_SOURCE_PATH "shader_gaussian_blur.fs");
+            m_gaussianBlurMatl = createMaterial(m_gaussianBlurShader)->createInstance();
+
+            u32 numBloomTextures = 0u;
+            auto initBloomBuffers = [&](u32 index, TextureSpec& spec) {
+                m_bloomDsSurfaces[index].renderTarget = createRenderTarget(spec.width, spec.height);
+                char buff[64];
+                sprintf_s(buff, "BloomTexture%u", numBloomTextures++);
+                m_bloomDsSurfaces[index].pingPongBuffers[0] = textureManger->createTextureHDR(buff, spec);
+                sprintf_s(buff, "BloomTexture%u", numBloomTextures++);
+                m_bloomDsSurfaces[index].pingPongBuffers[1] = textureManger->createTextureHDR(buff, spec);
+                m_bloomDsSurfaces[index].renderTarget->setColorBuffer(m_bloomDsSurfaces[index].pingPongBuffers[0], 0u);
+                m_bloomDsSurfaces[index].renderTarget->setColorBuffer(m_bloomDsSurfaces[index].pingPongBuffers[1], 0u);
+
+                m_bloomUsSurfaces[index].renderTarget = createRenderTarget(spec.width, spec.height);
+                sprintf_s(buff, "BloomTexture%u", numBloomTextures++);
+                m_bloomUsSurfaces[index].pingPongBuffers[0] = textureManger->createTextureHDR(buff, spec);
+                sprintf_s(buff, "BloomTexture%u", numBloomTextures++);
+                m_bloomUsSurfaces[index].pingPongBuffers[1] = textureManger->createTextureHDR(buff, spec);
+                m_bloomUsSurfaces[index].renderTarget->setColorBuffer(m_bloomUsSurfaces[index].pingPongBuffers[0], 0u);
+                m_bloomUsSurfaces[index].renderTarget->setColorBuffer(m_bloomUsSurfaces[index].pingPongBuffers[1], 0u);
+                spec.width /= 2;
+                spec.height /= 2;
+            };
+
+            for (u32 i = 0u; i < kNumBloomDsPass; ++i) {
+                initBloomBuffers(i, spec);
+            }
+        }
+
         {
             // misc
             m_debugCam.position = glm::vec3(0.f, 50.f, 0.f);
@@ -384,31 +435,29 @@ namespace Cyan
 
     void Renderer::drawMesh(Mesh* mesh)
     {
-        auto ctx = getCurrentGfxCtx();
         for (u32 sm = 0; sm < mesh->numSubMeshes(); ++sm)
         {
             auto subMesh = mesh->m_subMeshes[sm];
-            ctx->setVertexArray(subMesh->m_vertexArray);
+            m_ctx->setVertexArray(subMesh->m_vertexArray);
             if (subMesh->m_vertexArray->hasIndexBuffer())
-                ctx->drawIndex(subMesh->m_vertexArray->m_numIndices);
-            else ctx->drawIndexAuto(subMesh->m_vertexArray->numVerts());
+                m_ctx->drawIndex(subMesh->m_vertexArray->m_numIndices);
+            else m_ctx->drawIndexAuto(subMesh->m_vertexArray->numVerts());
         }
     }
 
     void Renderer::drawMesh(Mesh* mesh, MaterialInstance* matl, RenderTarget* dstRenderTarget, const std::initializer_list<i32>& drawBuffers, const Viewport& viewport)
     {
-        auto ctx = getCurrentGfxCtx();
-        ctx->setShader(matl->getShader());
+        m_ctx->setShader(matl->getShader());
         matl->bind();
-        ctx->setRenderTarget(dstRenderTarget, drawBuffers);
-        ctx->setViewport(viewport);
+        m_ctx->setRenderTarget(dstRenderTarget, drawBuffers);
+        m_ctx->setViewport(viewport);
         for (u32 sm = 0; sm < mesh->numSubMeshes(); ++sm)
         {
             auto subMesh = mesh->m_subMeshes[sm];
-            ctx->setVertexArray(subMesh->m_vertexArray);
+            m_ctx->setVertexArray(subMesh->m_vertexArray);
             if (subMesh->m_vertexArray->hasIndexBuffer())
-                ctx->drawIndex(subMesh->m_vertexArray->m_numIndices);
-            else ctx->drawIndexAuto(subMesh->m_vertexArray->numVerts());
+                m_ctx->drawIndex(subMesh->m_vertexArray->m_numIndices);
+            else m_ctx->drawIndexAuto(subMesh->m_vertexArray->numVerts());
         }
     }
 
@@ -417,19 +466,18 @@ namespace Cyan
         Mesh* mesh = meshInstance->m_mesh;
         for (u32 i = 0; i < mesh->m_subMeshes.size(); ++i)
         {
-            auto ctx = Cyan::getCurrentGfxCtx();
             MaterialInstance* matl = meshInstance->m_matls[i]; 
             Shader* shader = matl->getShader();
-            ctx->setShader(shader);
+            m_ctx->setShader(shader);
             matl->set("transformIndex", transformIndex);
             UsedBindingPoints used = matl->bind();
             Mesh::SubMesh* sm = mesh->m_subMeshes[i];
-            ctx->setVertexArray(sm->m_vertexArray);
-            ctx->setPrimitiveType(PrimitiveType::TriangleList);
+            m_ctx->setVertexArray(sm->m_vertexArray);
+            m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
             if (sm->m_vertexArray->hasIndexBuffer())
-                ctx->drawIndex(sm->m_numIndices);
+                m_ctx->drawIndex(sm->m_numIndices);
             else
-                ctx->drawIndexAuto(sm->m_numVerts);
+                m_ctx->drawIndexAuto(sm->m_numVerts);
         }
     }
 
@@ -440,16 +488,15 @@ namespace Cyan
         glClearTexImage(m_voxelData.m_albedo->handle, 0, GL_RGBA, GL_UNSIGNED_INT, 0);
         glClearTexImage(m_voxelData.m_normal->handle, 0, GL_RGBA, GL_UNSIGNED_INT, 0);
 
-        auto ctx = getCurrentGfxCtx();
-        ctx->setDepthControl(DepthControl::kDisable);
+        m_ctx->setDepthControl(DepthControl::kDisable);
         // set shader
-        ctx->setShader(m_voxelizeShader);
+        m_ctx->setShader(m_voxelizeShader);
         // set render target
-        ctx->setRenderTarget(m_voxelRenderTarget, { 0 });
-        ctx->setClearColor(glm::vec4(0.1f));
-        ctx->clear();
-        Viewport originViewport = ctx->m_viewport;
-        ctx->setViewport({ 0, 0, m_voxelGridResolution, m_voxelGridResolution });
+        m_ctx->setRenderTarget(m_voxelRenderTarget, { 0 });
+        m_ctx->setClearColor(glm::vec4(0.1f));
+        m_ctx->clear();
+        Viewport originViewport = m_ctx->m_viewport;
+        m_ctx->setViewport({ 0, 0, m_voxelGridResolution, m_voxelGridResolution });
         BoundingBox3f aabb = mesh->getAABB();
         glm::vec3 aabbMin = *modelMatrix * aabb.m_pMin;
         glm::vec3 aabbMax = *modelMatrix * aabb.m_pMax;
@@ -467,19 +514,19 @@ namespace Cyan
         m_voxelizeMatl->set("aabbMin", &aabbMin.x);
         m_voxelizeMatl->set("aabbMax", &aabbMax.x);
         m_voxelizeMatl->bind();
-        ctx->setPrimitiveType(PrimitiveType::TriangleList);
+        m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
         // draw mesh
         auto meshDef = mesh->m_mesh;
         for (auto sm : meshDef->m_subMeshes)
         {
-            ctx->setVertexArray(sm->m_vertexArray);
-            if (ctx->m_vertexArray->m_ibo != static_cast<u32>(-1)) {
-                ctx->drawIndex(ctx->m_vertexArray->m_numIndices);
+            m_ctx->setVertexArray(sm->m_vertexArray);
+            if (m_ctx->m_vertexArray->m_ibo != static_cast<u32>(-1)) {
+                m_ctx->drawIndex(m_ctx->m_vertexArray->m_numIndices);
             } else {
-                ctx->drawIndexAuto(sm->m_numVerts);
+                m_ctx->drawIndexAuto(sm->m_numVerts);
             }
         }
-        ctx->setDepthControl(DepthControl::kEnable);
+        m_ctx->setDepthControl(DepthControl::kEnable);
         glDisable(GL_NV_conservative_raster);
 
         glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
@@ -560,17 +607,16 @@ namespace Cyan
         glClearTexImage(m_voxelData.m_albedo->handle, 0, GL_RGBA, GL_UNSIGNED_INT, 0);
         glClearTexImage(m_voxelData.m_normal->handle, 0, GL_RGBA, GL_UNSIGNED_INT, 0);
 
-        auto ctx = getCurrentGfxCtx();
-        ctx->setDepthControl(DepthControl::kDisable);
+        m_ctx->setDepthControl(DepthControl::kDisable);
         // set shader
-        ctx->setShader(m_voxelizeShader);
+        m_ctx->setShader(m_voxelizeShader);
         // set render target
-        ctx->setRenderTarget(m_voxelRenderTarget, { 0 });
-        ctx->setClearColor(glm::vec4(0.1f));
-        ctx->clear();
-        Viewport originViewport = ctx->m_viewport;
-        ctx->setViewport({ 0, 0, m_voxelGridResolution, m_voxelGridResolution });
-        ctx->setPrimitiveType(PrimitiveType::TriangleList);
+        m_ctx->setRenderTarget(m_voxelRenderTarget, { 0 });
+        m_ctx->setClearColor(glm::vec4(0.1f));
+        m_ctx->clear();
+        Viewport originViewport = m_ctx->m_viewport;
+        m_ctx->setViewport({ 0, 0, m_voxelGridResolution, m_voxelGridResolution });
+        m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
         // bind 3D volume texture to image units
         glBindImageTexture(0, m_voxelData.m_albedo->handle, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
         glBindImageTexture(1, m_voxelData.m_normal->handle, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
@@ -597,14 +643,14 @@ namespace Cyan
                         m_voxelizeMatl->bind();
 
                         // x-axis
-                        ctx->setVertexArray(sm->m_vertexArray);
+                        m_ctx->setVertexArray(sm->m_vertexArray);
                         if (sm->m_vertexArray->m_ibo != static_cast<u32>(-1))
                         {
-                            ctx->drawIndex(sm->m_vertexArray->m_numIndices);
+                            m_ctx->drawIndex(sm->m_vertexArray->m_numIndices);
                         }
                         else
                         {
-                            ctx->drawIndexAuto(sm->m_numVerts);
+                            m_ctx->drawIndexAuto(sm->m_numVerts);
                         }
 
                         m_voxelizeMatl->set("flag", 1);
@@ -614,11 +660,11 @@ namespace Cyan
                         // y-axis
                         if (sm->m_vertexArray->m_ibo != static_cast<u32>(-1))
                         {
-                            ctx->drawIndex(sm->m_vertexArray->m_numIndices);
+                            m_ctx->drawIndex(sm->m_vertexArray->m_numIndices);
                         }
                         else
                         {
-                            ctx->drawIndexAuto(sm->m_numVerts);
+                            m_ctx->drawIndexAuto(sm->m_numVerts);
                         }
 
                         m_voxelizeMatl->set("flag", 2);
@@ -628,11 +674,11 @@ namespace Cyan
                         // z-axis
                         if (sm->m_vertexArray->m_ibo != static_cast<u32>(-1))
                         {
-                            ctx->drawIndex(sm->m_vertexArray->m_numIndices);
+                            m_ctx->drawIndex(sm->m_vertexArray->m_numIndices);
                         }
                         else
                         {
-                            ctx->drawIndexAuto(sm->m_numVerts);
+                            m_ctx->drawIndexAuto(sm->m_numVerts);
                         }
                     }
                 }
@@ -641,7 +687,7 @@ namespace Cyan
 
         customSceneVisitor(scene, nodeCallback);
 
-        ctx->setDepthControl(DepthControl::kEnable);
+        m_ctx->setDepthControl(DepthControl::kEnable);
         glEnable(GL_CULL_FACE);
         glDisable(GL_NV_conservative_raster);
         // generate mipmap for updated voxel textures
@@ -653,14 +699,13 @@ namespace Cyan
     Texture* Renderer::renderVoxel(Scene* scene)
     {
         BoundingBox3f sceneAABB = computeSceneAABB(scene);
-        auto ctx = getCurrentGfxCtx();
-        ctx->setRenderTarget(m_voxelVisRenderTarget, { 0 });
-        ctx->clear();
-        ctx->setViewport({0u, 0u, m_voxelVisRenderTarget->width, m_voxelVisRenderTarget->height});
-        ctx->setShader(m_voxelVisShader);
+        m_ctx->setRenderTarget(m_voxelVisRenderTarget, { 0 });
+        m_ctx->clear();
+        m_ctx->setViewport({0u, 0u, m_voxelVisRenderTarget->width, m_voxelVisRenderTarget->height});
+        m_ctx->setShader(m_voxelVisShader);
         QuadMesh* quad = getQuadMesh();
-        ctx->setDepthControl(DepthControl::kDisable);
-        ctx->setVertexArray(quad->m_vertexArray);
+        m_ctx->setDepthControl(DepthControl::kDisable);
+        m_ctx->setVertexArray(quad->m_vertexArray);
         m_voxelVisMatl->bindTexture("albedoMap", m_voxelData.m_albedo);
         m_voxelVisMatl->bindTexture("normalMap", m_voxelData.m_normal);
         m_voxelVisMatl->set("cameraPos", &scene->getActiveCamera().position.x);
@@ -668,8 +713,8 @@ namespace Cyan
         m_voxelVisMatl->set("aabbMin", &sceneAABB.m_pMin.x);
         m_voxelVisMatl->set("aabbMax", &sceneAABB.m_pMax.x);
         m_voxelVisMatl->bind();
-        ctx->drawIndexAuto(6u);
-        ctx->setDepthControl(DepthControl::kEnable);
+        m_ctx->drawIndexAuto(6u);
+        m_ctx->setDepthControl(DepthControl::kEnable);
         return m_voxelVisColorTexture;
     }
 
@@ -829,12 +874,12 @@ namespace Cyan
     void Renderer::endRender()
     {
         // reset render target
-        Cyan::getCurrentGfxCtx()->setRenderTarget(nullptr, {});
+        m_ctx->setRenderTarget(nullptr, {});
     }
 
     void Renderer::flip()
     {
-        Cyan::getCurrentGfxCtx()->flip();
+        m_ctx->flip();
     }
 
     void Renderer::executeOnEntity(Entity* e, const std::function<void(SceneNode*)>& func)
