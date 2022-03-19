@@ -5,7 +5,7 @@ in vec2 uv;
 out vec4 fragcolor;
 
 // input will be super-sample sized 2560 * 1440
-uniform sampler2D quadSampler;
+uniform sampler2D srcTexture;
 
 float luminance(vec3 color)
 {
@@ -27,24 +27,23 @@ void main()
     fragcolor = vec4(0.f, 0.f, 0.f, 1.f);
 
     // box filter
-    vec2 uvOffset = 1.f / textureSize(quadSampler, 0);
+    vec2 uvOffset = 1.f / textureSize(srcTexture, 0);
     vec2 boxUv_0 = uv + vec2(-uvOffset.x, uvOffset.y);
     vec2 boxUv_1 = uv + vec2(uvOffset.x, uvOffset.y);
     vec2 boxUv_2 = uv + vec2(-uvOffset.x, -uvOffset.y);
     vec2 boxUv_3 = uv + vec2(uvOffset.x, -uvOffset.y);
-    vec3 color = texture(quadSampler, boxUv_0).rgb;
-    color += texture(quadSampler, boxUv_1).rgb;
-    color += texture(quadSampler, boxUv_2).rgb;
-    color += texture(quadSampler, boxUv_3).rgb;
+    vec3 color = texture(srcTexture, boxUv_0).rgb;
+    color += texture(srcTexture, boxUv_1).rgb;
+    color += texture(srcTexture, boxUv_2).rgb;
+    color += texture(srcTexture, boxUv_3).rgb;
     color *= 0.25f;
     float lumin = luminance(color);
     // non-thresholded bloom
     if (lumin > 0.0f)
     {
         // inspired by UE4
-        // TODO: use another way to adjust contrast
-        float bloomScale = clamp(1.0 * lumin * lumin * lumin * lumin, 0.0, 1.0);
+        float bloomScale = clamp(lumin, 0.0, 1.0);
         // exaggerate the constrast
-        fragcolor = vec4(color, 1.f);
+        fragcolor = vec4(bloomScale * color, 1.f);
     }
 }

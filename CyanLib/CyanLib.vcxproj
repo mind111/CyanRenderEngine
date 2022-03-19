@@ -61,6 +61,7 @@
     <ClInclude Include="include\VertexArray.h" />
     <ClInclude Include="include\VertexBuffer.h" />
     <ClInclude Include="include\Window.h" />
+    <ClInclude Include="PostProcess.h" />
     <ClInclude Include="src\ImGuizmo\ImGuizmo.h" />
     <ClInclude Include="src\imgui\imconfig.h" />
     <ClInclude Include="src\imgui\imgui.h" />
@@ -72,6 +73,7 @@
     <ClInclude Include="src\imgui\imstb_truetype.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="PostProcess.cpp" />
     <ClCompile Include="src\Asset.cpp" />
     <ClCompile Include="src\BVH.cpp" />
     <ClCompile Include="src\Camera.cpp" />
@@ -124,8 +126,8 @@
     <None Include="..\shader\shader_ao.vs" />
     <None Include="..\shader\shader_blinn_phong.fs" />
     <None Include="..\shader\shader_blinn_phong.vs" />
-    <None Include="..\shader\shader_blit.fs" />
-    <None Include="..\shader\shader_blit.vs" />
+    <None Include="..\shader\composite_p.glsl" />
+    <None Include="..\shader\composite_v.glsl" />
     <None Include="..\shader\shader_bloom.fs" />
     <None Include="..\shader\shader_bloom.vs" />
     <None Include="..\shader\shader_bloom_preprocess.fs" />

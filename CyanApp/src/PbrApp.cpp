@@ -935,26 +935,12 @@ void DemoApp::drawSceneViewport()
 
         // blit final render output texture to current ImGui window
         if (!activeDebugViewTexture)
-            activeDebugViewTexture = renderer->m_outputColorTexture;
-        ImGui::GetForegroundDrawList()->AddImage(reinterpret_cast<void*>((intptr_t)activeDebugViewTexture->handle), 
-            a, b, ImVec2(0, 1), ImVec2(1, 0));
-
-        // TODO: refactor this
-        // ray picking
-        if (bRayCast && !ImGuizmo::IsOver())
         {
-            RayCastInfo hitInfo = castMouseRay(glm::vec2(a.x, a.y), glm::vec2(windowSize.x, windowSize.y - min.y));
-            m_selectedEntity = hitInfo.m_node->m_owner;
-            m_selectedNode = hitInfo.m_node;
-            auto ctx = Cyan::getCurrentGfxCtx();
-            ctx->setDepthControl(Cyan::DepthControl::kDisable);
-            ctx->setRenderTarget(Cyan::Renderer::getSingletonPtr()->getRenderOutputRenderTarget(), { 0 });
-            // m_debugRay.draw();
-            ctx->setRenderTarget(nullptr, { });
-            ctx->setDepthControl(Cyan::DepthControl::kEnable);
+            activeDebugViewTexture = renderer->getColorOutTexture();
         }
+        ImGui::GetForegroundDrawList()->AddImage(reinterpret_cast<void*>((intptr_t)activeDebugViewTexture->handle), a, b, ImVec2(0, 1), ImVec2(1, 0));
 
-        // TODO: gizmos 
+        // TODO: refactor ray picking and gizmos 
         // TODO: when clicking on some objects (meshes) in the scene, the gizmo will be rendered not at the 
         // center of the mesh, this may seem incorrect at first glance but it's actually expected because some parts of the mesh
         // is offseted from the center of the mesh's transform. The gizmo is always rendered at the mesh's object space origin. In

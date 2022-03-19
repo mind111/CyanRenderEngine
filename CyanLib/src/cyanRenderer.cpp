@@ -75,7 +75,8 @@ namespace Cyan
         m_ssaoSamplePoints(32),
         m_globalDrawData{ },
         gLighting { }, 
-        gDrawDataBuffer(-1)
+        gDrawDataBuffer(-1),
+        m_bloomOutTexture(nullptr)
     {
         if (!m_renderer)
         {
@@ -100,21 +101,9 @@ namespace Cyan
         return m_frameAllocator;
     }
 
-    RenderTarget* Renderer::getSceneColorRenderTarget()
+    Texture* Renderer::getColorOutTexture()
     {
-        return m_bSuperSampleAA ? m_sceneColorRTSSAA : m_sceneColorRenderTarget;
-    }
-
-    RenderTarget* Renderer::getRenderOutputRenderTarget()
-    {
-        return m_outputRenderTarget;
-    }
-
-    Texture* Renderer::getRenderOutputTexture()
-    {
-        // if post-processing is enbaled
-        // else return m_sceneColorTexture
-        return m_outputColorTexture;
+        return m_finalColorTexture;
     }
 
     void Renderer::initRenderTargets(u32 windowWidth, u32 windowHeight)
@@ -183,10 +172,10 @@ namespace Cyan
             m_sceneColorRenderTarget->setColorBuffer(m_sceneDepthTexture, 1u);
             m_sceneColorRenderTarget->setColorBuffer(m_sceneNormalTexture, 2u);
         }
-
-        m_outputColorTexture = textureManager->createTextureHDR("FinalColorTexture", spec);
-        m_outputRenderTarget = createRenderTarget(spec.width, spec.height);
-        m_outputRenderTarget->setColorBuffer(m_outputColorTexture, 0u);
+        // for composite pass
+        m_compositeColorTexture = textureManager->createTextureHDR("CompositeColorTexture", spec);
+        m_compositeRenderTarget = createRenderTarget(spec.width, spec.height);
+        m_compositeRenderTarget->setColorBuffer(m_compositeColorTexture, 0u);
 
         // voxel
         m_voxelGridResolution = 512u;
@@ -317,7 +306,7 @@ namespace Cyan
             m_ssaoRenderTarget = createRenderTarget(spec.width, spec.height);
             m_ssaoTexture = textureManager->createTextureHDR("SSAOTexture", spec);
             m_ssaoRenderTarget->setColorBuffer(m_ssaoTexture, 0u);
-            m_ssaoShader = createShader("SSAOShader", "../../shader/shader_ao.vs", "../../shader/shader_ao.fs");
+            m_ssaoShader = createShader("SSAOShader", SHADER_SOURCE_PATH "shader_ao.vs", SHADER_SOURCE_PATH "shader_ao.fs");
             m_ssaoMatl = createMaterial(m_ssaoShader)->createInstance();
             m_ssaoDebugVisBuffer = createRegularBuffer(sizeof(SSAODebugVisData));
 
@@ -343,7 +332,7 @@ namespace Cyan
         // bloom
         {
             auto textureManger = TextureManager::getSingletonPtr();
-            m_bloomSetupRT = createRenderTarget(windowSize.x, windowSize.y);
+            m_bloomSetupRenderTarget = createRenderTarget(windowSize.x, windowSize.y);
             TextureSpec spec = { };
             spec.width = windowSize.x;
             spec.height = windowSize.y;
@@ -355,7 +344,7 @@ namespace Cyan
             spec.s = Texture::Wrap::CLAMP_TO_EDGE;
             spec.t = Texture::Wrap::CLAMP_TO_EDGE;
             spec.r = Texture::Wrap::CLAMP_TO_EDGE;
-            m_bloomSetupRT->setColorBuffer(textureManger->createTexture("BloomSetupTexture", spec), 0);
+            m_bloomSetupRenderTarget->setColorBuffer(textureManger->createTexture("BloomSetupTexture", spec), 0);
             m_bloomSetupShader = createShader("BloomSetupShader", SHADER_SOURCE_PATH "shader_bloom_preprocess.vs", SHADER_SOURCE_PATH "shader_bloom_preprocess.fs");
             m_bloomSetupMatl = createMaterial(m_bloomSetupShader)->createInstance();
             m_bloomDsShader = createShader("BloomDownSampleShader", SHADER_SOURCE_PATH "shader_downsample.vs", SHADER_SOURCE_PATH "shader_downsample.fs");
@@ -367,29 +356,31 @@ namespace Cyan
 
             u32 numBloomTextures = 0u;
             auto initBloomBuffers = [&](u32 index, TextureSpec& spec) {
-                m_bloomDsSurfaces[index].renderTarget = createRenderTarget(spec.width, spec.height);
+                m_bloomDsTargets[index].renderTarget = createRenderTarget(spec.width, spec.height);
                 char buff[64];
                 sprintf_s(buff, "BloomTexture%u", numBloomTextures++);
-                m_bloomDsSurfaces[index].pingPongBuffers[0] = textureManger->createTextureHDR(buff, spec);
+                m_bloomDsTargets[index].src = textureManger->createTextureHDR(buff, spec);
                 sprintf_s(buff, "BloomTexture%u", numBloomTextures++);
-                m_bloomDsSurfaces[index].pingPongBuffers[1] = textureManger->createTextureHDR(buff, spec);
-                m_bloomDsSurfaces[index].renderTarget->setColorBuffer(m_bloomDsSurfaces[index].pingPongBuffers[0], 0u);
-                m_bloomDsSurfaces[index].renderTarget->setColorBuffer(m_bloomDsSurfaces[index].pingPongBuffers[1], 0u);
+                m_bloomDsTargets[index].scratch = textureManger->createTextureHDR(buff, spec);
 
-                m_bloomUsSurfaces[index].renderTarget = createRenderTarget(spec.width, spec.height);
+                m_bloomUsTargets[index].renderTarget = createRenderTarget(spec.width, spec.height);
                 sprintf_s(buff, "BloomTexture%u", numBloomTextures++);
-                m_bloomUsSurfaces[index].pingPongBuffers[0] = textureManger->createTextureHDR(buff, spec);
+                m_bloomUsTargets[index].src = textureManger->createTextureHDR(buff, spec);
                 sprintf_s(buff, "BloomTexture%u", numBloomTextures++);
-                m_bloomUsSurfaces[index].pingPongBuffers[1] = textureManger->createTextureHDR(buff, spec);
-                m_bloomUsSurfaces[index].renderTarget->setColorBuffer(m_bloomUsSurfaces[index].pingPongBuffers[0], 0u);
-                m_bloomUsSurfaces[index].renderTarget->setColorBuffer(m_bloomUsSurfaces[index].pingPongBuffers[1], 0u);
+                m_bloomUsTargets[index].scratch = textureManger->createTextureHDR(buff, spec);
                 spec.width /= 2;
                 spec.height /= 2;
             };
 
-            for (u32 i = 0u; i < kNumBloomDsPass; ++i) {
+            for (u32 i = 0u; i < kNumBloomPasses; ++i) {
                 initBloomBuffers(i, spec);
             }
+        }
+
+        // composite
+        {
+            m_compositeShader = createShader("CompositeShader", SHADER_SOURCE_PATH "composite_v.glsl", SHADER_SOURCE_PATH "composite_p.glsl");
+            m_compositeMatl = createMaterial(m_compositeShader)->createInstance();
         }
 
         {
@@ -861,6 +852,10 @@ namespace Cyan
             debugRender();
             // post processing
             {
+                // reset state
+                m_bloomOutTexture = nullptr;
+                m_finalColorTexture = m_opts.enableAA ? m_sceneColorTextureSSAA : m_sceneColorTexture;
+
                 if (m_opts.enableBloom)
                 {
                     bloom();
@@ -994,10 +989,22 @@ namespace Cyan
 
     void Renderer::renderSceneDepthNormal(Scene* scene)
     {
+        enum class ColorBuffers
+        {
+            kColor = 0,
+            kDepth,
+            kNormal
+        };
+        enum class DrawBuffers
+        {
+            kDepth = 0,
+            kNormal
+        };
         auto renderTarget = m_opts.enableAA ? m_sceneColorRTSSAA : m_sceneColorRenderTarget;
-        m_ctx->setRenderTarget(renderTarget, { 1, 2 });
+        m_ctx->setRenderTarget(renderTarget, { static_cast<i32>(ColorBuffers::kDepth), static_cast<i32>(ColorBuffers::kNormal) });
         m_ctx->setViewport({ 0u, 0u, renderTarget->width, renderTarget->height });
-        renderTarget->clear({ 1, 2 });
+        renderTarget->clear({ static_cast<i32>(DrawBuffers::kDepth) }, glm::vec4(1.f));
+        renderTarget->clear({ static_cast<i32>(DrawBuffers::kNormal) });
 
         m_ctx->setShader(m_sceneDepthNormalShader);
         for (u32 e = 0; e < (u32)scene->entities.size(); ++e)
@@ -1050,13 +1057,14 @@ namespace Cyan
 
         m_ctx->setShader(m_ssaoShader);
         m_ctx->setDepthControl(kDisable);
-        m_ssaoMatl->bindTexture("normalTexture", m_sceneNormalTextureSSAA);
-        m_ssaoMatl->bindTexture("depthTexture", m_sceneDepthTextureSSAA);
+        m_ssaoMatl->bindTexture("normalTexture", m_opts.enableAA ? m_sceneNormalTextureSSAA : m_sceneNormalTexture);
+        m_ssaoMatl->bindTexture("depthTexture", m_opts.enableAA ? m_sceneDepthTextureSSAA : m_sceneDepthTexture);
         m_ssaoMatl->set("cameraPos", &camera.position.x);
         m_ssaoMatl->set("view", &camera.view[0]);
         m_ssaoMatl->set("projection", &camera.projection[0]);
         m_ssaoMatl->bindBuffer("DebugVisData", m_ssaoDebugVisBuffer);
         m_ssaoMatl->bind();
+
         auto quad = getQuadMesh();
         m_ctx->setVertexArray(quad->m_vertexArray);
         m_ctx->drawIndexAuto(quad->m_vertexArray->numVerts());
@@ -1065,12 +1073,176 @@ namespace Cyan
 
     void Renderer::bloom()
     {
+        auto quad = getQuadMesh();
 
+        // be aware that these functions modify 'renderTarget''s state
+        auto downsample = [this, quad](Texture* dst, Texture* src, RenderTarget* renderTarget) {
+            enum class ColorBuffer
+            {
+                kDst = 0
+            };
+
+            renderTarget->setColorBuffer(dst, static_cast<u32>(ColorBuffer::kDst));
+            m_ctx->setRenderTarget(renderTarget, { static_cast<u32>(ColorBuffer::kDst) });
+            m_ctx->setViewport({ 0u, 0u, dst->width, dst->height });
+            m_ctx->setDepthControl(Cyan::DepthControl::kDisable);
+
+            m_ctx->setShader(m_bloomDsShader);
+            m_bloomDsMatl->bindTexture("srcImage", src);
+            m_bloomDsMatl->bind();
+            m_ctx->setVertexArray(quad->m_vertexArray);
+            m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
+            m_ctx->drawIndexAuto(quad->m_vertexArray->numVerts());
+
+            m_ctx->setDepthControl(Cyan::DepthControl::kEnable);
+            // glFinish();
+        };
+
+        auto upscale = [this, quad](Texture* dst, Texture* src, Texture* blend, RenderTarget* renderTarget, u32 stageIndex) {
+            enum class ColorBuffer
+            {
+                kDst = 0
+            };
+            renderTarget->setColorBuffer(dst, static_cast<i32>(ColorBuffer::kDst));
+            m_ctx->setRenderTarget(renderTarget, { static_cast<i32>(ColorBuffer::kDst)});
+            m_ctx->setViewport({ 0u, 0u, dst->width, dst->height });
+            m_ctx->setDepthControl(Cyan::DepthControl::kDisable);
+
+            m_ctx->setShader(m_bloomUsShader);
+            m_bloomUsMatl->bindTexture("srcImage", src);
+            m_bloomUsMatl->bindTexture("blendImage", blend);
+            m_bloomUsMatl->set("stageIndex", stageIndex);
+            m_bloomUsMatl->bind();
+            m_ctx->setVertexArray(quad->m_vertexArray);
+            m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
+            m_ctx->drawIndexAuto(quad->m_vertexArray->numVerts());
+
+            m_ctx->setDepthControl(Cyan::DepthControl::kEnable);
+            // glFinish();
+        };
+
+        // user have to make sure that renderTarget is compatible with 'dst', 'src', and 'scratch'
+        auto gaussianBlur = [this, quad](Texture* dst, Texture* src, Texture* scratch, RenderTarget* renderTarget, i32 kernelIndex, i32 radius) {
+
+            enum class ColorBuffer
+            {
+                kSrc = 0,
+                kScratch,
+                kDst
+            };
+
+            m_ctx->setDepthControl(Cyan::DepthControl::kDisable);
+            m_ctx->setShader(m_gaussianBlurShader);
+            renderTarget->setColorBuffer(src, static_cast<u32>(ColorBuffer::kSrc));
+            renderTarget->setColorBuffer(scratch, static_cast<u32>(ColorBuffer::kScratch));
+            if (dst)
+            {
+                renderTarget->setColorBuffer(dst, static_cast<u32>(ColorBuffer::kDst));
+            }
+            m_ctx->setViewport({ 0u, 0u, renderTarget->width, renderTarget->height });
+
+            // horizontal pass (blur 'src' into 'scratch')
+            {
+                m_ctx->setRenderTarget(renderTarget, { static_cast<u32>(ColorBuffer::kScratch) });
+                m_gaussianBlurMatl->bindTexture("srcTexture", src);
+                m_gaussianBlurMatl->set("horizontal", 1.0f);
+                m_gaussianBlurMatl->set("kernelIndex", kernelIndex);
+                m_gaussianBlurMatl->set("radius", radius);
+                m_gaussianBlurMatl->bind();
+                m_ctx->setVertexArray(quad->m_vertexArray);
+                m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
+                m_ctx->drawIndexAuto(quad->m_vertexArray->numVerts());
+                // glFinish();
+            }
+
+            // vertical pass
+            {
+                if (dst)
+                {
+                    m_ctx->setRenderTarget(renderTarget, { static_cast<i32>(ColorBuffer::kDst) });
+                }
+                else
+                {
+                    m_ctx->setRenderTarget(renderTarget, { static_cast<i32>(ColorBuffer::kSrc) });
+                }
+                m_gaussianBlurMatl->bindTexture("srcTexture", scratch);
+                m_gaussianBlurMatl->set("horizontal", 0.f);
+                m_gaussianBlurMatl->set("kernelIndex", kernelIndex);
+                m_gaussianBlurMatl->set("radius", radius);
+                m_gaussianBlurMatl->bind();
+                m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
+                m_ctx->setVertexArray(quad->m_vertexArray);
+                m_ctx->drawIndexAuto(quad->m_vertexArray->numVerts());
+                // glFinish();
+            }
+            m_ctx->setDepthControl(Cyan::DepthControl::kEnable);
+        };
+
+        auto* src = m_opts.enableAA ? m_sceneColorTextureSSAA : m_sceneColorTexture;
+
+        // bloom setup
+        m_ctx->setRenderTarget(m_bloomSetupRenderTarget, { 0u });
+        m_ctx->setShader(m_bloomSetupShader);
+        m_ctx->setViewport({ 0u, 0u, m_bloomSetupRenderTarget->width, m_bloomSetupRenderTarget->height });
+        m_bloomSetupRenderTarget->clear({ 0u });
+
+        m_bloomSetupMatl->bindTexture("srcTexture", src);
+        m_bloomSetupMatl->bind();
+
+        m_ctx->setDepthControl(Cyan::DepthControl::kDisable);
+        m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
+        m_ctx->setVertexArray(quad->m_vertexArray);
+        m_ctx->drawIndexAuto(quad->m_vertexArray->numVerts());
+        m_ctx->setDepthControl(Cyan::DepthControl::kEnable);
+        // glFinish();
+
+        // downsample
+        i32 kernelRadii[6] = { 3, 4, 6, 7, 8, 9};
+        downsample(m_bloomDsTargets[0].src, m_bloomSetupRenderTarget->getColorBuffer(0u), m_bloomDsTargets[0].renderTarget);
+        gaussianBlur(nullptr, m_bloomDsTargets[0].src, m_bloomDsTargets[0].scratch, m_bloomDsTargets[0].renderTarget, 0, kernelRadii[0]);
+        for (u32 i = 0u; i < kNumBloomPasses - 1; ++i) 
+        {
+            downsample(m_bloomDsTargets[i+1].src, m_bloomDsTargets[i].src, m_bloomDsTargets[i+1].renderTarget);
+            gaussianBlur(nullptr, m_bloomDsTargets[i+1].src, m_bloomDsTargets[i+1].scratch, m_bloomDsTargets[i+1].renderTarget, (i32)(i+1), kernelRadii[i+1]);
+        }
+
+        // upscale
+        u32 start = kNumBloomPasses - 2, end = 0;
+        upscale(m_bloomUsTargets[start].src, m_bloomDsTargets[kNumBloomPasses - 1].src, nullptr, m_bloomUsTargets[start].renderTarget, 0u);
+        gaussianBlur(nullptr, m_bloomDsTargets[start].src, m_bloomDsTargets[start].scratch, m_bloomDsTargets[start].renderTarget, start, kernelRadii[start]);
+
+        // final output will be written to m_bloomUsTarget[0].src
+        for (u32 i = start; i > end ; --i) 
+        {
+            u32 srcIndex = i, dstIndex = i - 1;
+            upscale(m_bloomUsTargets[dstIndex].src, m_bloomUsTargets[srcIndex].src, m_bloomDsTargets[dstIndex].src, m_bloomUsTargets[dstIndex].renderTarget, start - i + 1u);
+            gaussianBlur(nullptr, m_bloomUsTargets[dstIndex].src, m_bloomUsTargets[dstIndex].scratch, m_bloomUsTargets[dstIndex].renderTarget, (i32)(dstIndex), kernelRadii[dstIndex]);
+        }
+
+        m_bloomOutTexture = m_bloomUsTargets[0].src;
     }
 
     void Renderer::composite()
     {
+        m_ctx->setRenderTarget(m_compositeRenderTarget, { 0u });
+        m_ctx->setViewport({0u, 0u, m_compositeRenderTarget->width, m_compositeRenderTarget->height});
 
+        m_ctx->setShader(m_compositeShader);
+        m_compositeMatl->set("exposure", m_opts.exposure);
+        m_compositeMatl->set("bloom", m_opts.enableBloom ? 1.f : 0.f);
+        m_compositeMatl->set("bloomInstensity", m_opts.bloomIntensity);
+        m_compositeMatl->bindTexture("bloomOutTexture", m_bloomOutTexture);
+        m_compositeMatl->bindTexture("sceneColorTexture", m_opts.enableAA ? m_sceneColorTextureSSAA : m_sceneColorTexture);
+        m_compositeMatl->bind();
+
+        m_ctx->setDepthControl(DepthControl::kDisable);
+        m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
+        auto quad = getQuadMesh();
+        m_ctx->setVertexArray(quad->m_vertexArray);
+        m_ctx->drawIndexAuto(quad->m_vertexArray->numVerts());
+        m_ctx->setDepthControl(DepthControl::kEnable);
+
+        m_finalColorTexture = m_compositeColorTexture;
     }
     
     void Renderer::renderUI(const std::function<void()>& callback)

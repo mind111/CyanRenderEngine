@@ -8,8 +8,8 @@ uniform float exposure;
 uniform float bloom;
 uniform float bloomIntensity;
 
-uniform sampler2D quadSampler;
-uniform sampler2D bloomSampler_0;  // 1280 * 960
+uniform sampler2D sceneColorTexture;
+uniform sampler2D bloomOutTexture;  // 1280 * 960
 
 float saturate(float k)
 {
@@ -63,11 +63,10 @@ vec3 ACESFitted(vec3 color)
 void main()
 {
     const float bloomIntensity = .7f;
-    vec3 color = texture(quadSampler, uv).rgb;
+    vec3 color = texture(sceneColorTexture, uv).rgb;
     if (bloom > 0.5f)
     {
-        // TODO: bloomIntensity goes here
-        color += 0.45 * texture(bloomSampler_0, uv).rgb * bloomIntensity;
+        color += 0.45 * texture(bloomOutTexture, uv).rgb * bloomIntensity;
     }
     // tone mapping
     vec3 mappedColor = ACESFilm(exposure * color);

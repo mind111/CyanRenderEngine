@@ -168,6 +168,9 @@
     <ClInclude Include="include\Shadow.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="PostProcess.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Asset.cpp">
@@ -293,6 +296,9 @@
     <ClCompile Include="src\Shadow.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
+    <ClCompile Include="PostProcess.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\ImGuizmo\LICENSE">
@@ -316,10 +322,10 @@
     <None Include="..\shader\shader_blinn_phong.vs">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_blit.fs">
+    <None Include="..\shader\composite_p.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_blit.vs">
+    <None Include="..\shader\composite_v.glsl">
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\shader_bloom.fs">

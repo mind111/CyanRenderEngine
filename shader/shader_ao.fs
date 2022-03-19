@@ -228,7 +228,7 @@ void main()
     vec3 normal = texture(normalTexture, texCoords).rgb;
     normal = normalize(normal * 2.f - vec3(1.f));
 
-    if (depth >= 0.99999f)
+    if (depth >= 0.9999f)
     {
         fragColor = vec4(1.f);
         return;

@@ -47,11 +47,9 @@ namespace Cyan
         void initShaders();
         void initRenderTargets(u32 windowWidth, u32 windowHeight);
 
-        StackAllocator& getAllocator();
-        RenderTarget* getSceneColorRenderTarget();
-        RenderTarget* getRenderOutputRenderTarget();
-        Texture* getRenderOutputTexture();
         GfxContext* getGfxCtx() { return m_ctx; };
+        StackAllocator& getAllocator();
+        Texture* getColorOutTexture();
 
 // shadow
         ShadowmapManager m_shadowmapManager;
@@ -62,7 +60,16 @@ namespace Cyan
         void beginRender();
         void render(Scene* scene, const std::function<void()>& debugRender = [](){ });
         void endRender();
+
+        /*
+        * Render a directional shadow map for the sun in 'scene'
+        * TODO: min/max depth for each cascade to help shrink the orthographic projection size
+        * TODO: blend between cascades to alleviate artifact when transitioning between cascades
+        * TODO: better shadow biasing; normal bias and receiver geometry bias
+        * TODO: distribution based shadow mapping methods: VSM, ESM etc.
+        */
         void renderSunShadow(Scene* scene, const std::vector<Entity*>& shaodwCasters);
+
         void renderScene(Scene* scene);
         void renderSceneDepthNormal(Scene* scene);
 
@@ -124,12 +131,7 @@ namespace Cyan
         void ssao(Camera& camera);
 
         // bloom
-        struct BloomRenderView
-        {
-            RenderTarget* renderTarget;
-            Texture* pingPongBuffers[2];
-        };
-        static const u32 kNumBloomDsPass = 6u;
+        static constexpr u32 kNumBloomPasses = 6u;
         // setup
         Shader* m_bloomSetupShader;
         MaterialInstance* m_bloomSetupMatl;
@@ -142,14 +144,27 @@ namespace Cyan
         // gaussian blur
         Shader* m_gaussianBlurShader;
         MaterialInstance* m_gaussianBlurMatl;
-        RenderTarget* m_bloomSetupRT;
-        BloomRenderView m_bloomDsSurfaces[kNumBloomDsPass];
-        BloomRenderView m_bloomUsSurfaces[kNumBloomDsPass];
+        RenderTarget* m_bloomSetupRenderTarget;
+        // bloom chain intermediate buffers
+        struct BloomRenderTarget
+        {
+            RenderTarget* renderTarget;
+            Texture* src;
+            Texture* scratch;
+        };
+        BloomRenderTarget m_bloomDsTargets[kNumBloomPasses];
+        BloomRenderTarget m_bloomUsTargets[kNumBloomPasses];
+        Texture* m_bloomOutTexture;
 
         void bloom();
 
+        // final composite
+        Shader* m_compositeShader;
+        MaterialInstance* m_compositeMatl;
+        Texture* m_compositeColorTexture;
+        RenderTarget* m_compositeRenderTarget;
         /*
-        * Final compositing and bliting pass that handles tone mapping & gamma correction
+        * Compositing and resolving to final output color texture. Applying bloom, tone mapping, and gamma correction.
         */
         void composite();
 //
@@ -178,6 +193,7 @@ namespace Cyan
             bool enableSSAO = true;
             bool enableBloom = true;
             f32  exposure = 1.f;
+            f32 bloomIntensity = 0.7f;
         } m_opts;
 
         // viewport
@@ -205,14 +221,12 @@ namespace Cyan
         Texture*      m_sceneNormalTexture;
         Texture*      m_sceneDepthTexture;
         RenderTarget* m_sceneColorRenderTarget;
+        Texture*      m_finalColorTexture;
         // hdr super sampling color buffer
         Texture*      m_sceneColorTextureSSAA;
         Texture*      m_sceneNormalTextureSSAA;
         RenderTarget* m_sceneColorRTSSAA;
         Texture*      m_sceneDepthTextureSSAA;
-        // final render output
-        Texture*      m_outputColorTexture;
-        RenderTarget* m_outputRenderTarget;
 
         enum class BufferBindings
         {
