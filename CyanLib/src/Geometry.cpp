@@ -36,27 +36,18 @@ void PointGroup::clear()
     m_numPoints = 0;
 }
 
-void PointGroup::setViewProjection(Uniform* view, Uniform* projection)
-{
-    u_view = view;
-    u_projection = projection;
-}
-
 void PointGroup::setColor(const glm::vec4& color)
 {
     m_matl->set("color", &color.x);
 }
 
-void PointGroup::draw()
+void PointGroup::draw(glm::mat4& mvp)
 {
     glNamedBufferSubData(m_vertexArray->m_vertexBuffer->m_vbo, 0, sizeof(m_points[0]) * m_points.size(), m_points.data());
 
     auto ctx = Cyan::getCurrentGfxCtx();
     ctx->setShader(m_shader);
-    ctx->setUniform(u_view);
-    ctx->setUniform(u_projection);
-    glm::mat4 model(1.f);
-    m_matl->set("lineModel", &model[0]);
+    m_matl->set("mvp", &mvp[0]);
     m_matl->bind();
     ctx->setVertexArray(m_vertexArray);
     ctx->setPrimitiveType(Cyan::PrimitiveType::Points);

@@ -44,7 +44,6 @@ namespace Cyan
         void finalize();
 
         void initShaders();
-        void initRenderTargets(u32 windowWidth, u32 windowHeight);
 
         GfxContext* getGfxCtx() { return m_ctx; };
         StackAllocator& getAllocator();
@@ -62,11 +61,12 @@ namespace Cyan
         void endRender();
 
         /*
-        * Render a directional shadow map for the sun in 'scene'
         * TODO: min/max depth for each cascade to help shrink the orthographic projection size
         * TODO: blend between cascades to alleviate artifact when transitioning between cascades
         * TODO: better shadow biasing; normal bias and receiver geometry bias
         * TODO: distribution based shadow mapping methods: VSM, ESM etc.
+        * 
+        * Render a directional shadow map for the sun in 'scene'
         */
         void renderSunShadow(Scene* scene, const std::vector<Entity*>& shaodwCasters);
 
@@ -132,16 +132,12 @@ namespace Cyan
 
         // bloom
         static constexpr u32 kNumBloomPasses = 6u;
-        // setup
         Shader* m_bloomSetupShader;
         MaterialInstance* m_bloomSetupMatl;
-        // downsample
         Shader* m_bloomDsShader;
         MaterialInstance* m_bloomDsMatl;
-        // upscale
         Shader* m_bloomUsShader;
         MaterialInstance* m_bloomUsMatl;
-        // gaussian blur
         Shader* m_gaussianBlurShader;
         MaterialInstance* m_gaussianBlurMatl;
         RenderTarget* m_bloomSetupRenderTarget;
@@ -177,15 +173,7 @@ namespace Cyan
 //
         BoundingBox3f computeSceneAABB(Scene* scene);
         void executeOnEntity(Entity* e, const std::function<void(SceneNode*)>& func);
-#if 0
-        void addScenePass(Scene* scene);
-        // void addDirectionalShadowPass(Scene* scene, const Camera& camera, const std::vector<Entity*>& shadowCasters);
-        void addCustomPass(RenderPass* pass);
-        void addTexturedQuadPass(RenderTarget* renderTarget, Viewport viewport, Texture* srcTexture);
-        void addBloomPass();
-        void addGaussianBlurPass(RenderTarget* renderTarget, Viewport viewport, Texture* srcTexture, Texture* horiTexture, Texture* vertTexture, GaussianBlurInput input);
-        void addPostProcessPasses();
-#endif
+
         struct Options
         {
             bool enableAA = true;
@@ -196,37 +184,26 @@ namespace Cyan
             f32 bloomIntensity = 0.7f;
         } m_opts;
 
-        // viewport
-        glm::vec2 getViewportSize();
-        Viewport getViewport();
-        void setViewportSize(glm::vec2 size);
-        Viewport m_viewport; 
-
         // allocators
         StackAllocator m_frameAllocator;
 
-        Uniform* u_model;
-        Uniform* u_cameraView;
-        Uniform* u_cameraProjection;
-
-        // render targets
-        bool          m_bSuperSampleAA;
-        u32           m_SSAAWidth, m_SSAAHeight;
-        u32           m_offscreenRenderWidth, m_offscreenRenderHeight;
         u32           m_windowWidth, m_windowHeight;
-        Shader*       m_sceneDepthNormalShader;
+        u32           m_SSAAWidth, m_SSAAHeight;
 
         // normal hdr scene color texture 
         Texture*      m_sceneColorTexture;
         Texture*      m_sceneNormalTexture;
         Texture*      m_sceneDepthTexture;
         RenderTarget* m_sceneColorRenderTarget;
-        Texture*      m_finalColorTexture;
+
         // hdr super sampling color buffer
         Texture*      m_sceneColorTextureSSAA;
         Texture*      m_sceneNormalTextureSSAA;
         RenderTarget* m_sceneColorRTSSAA;
         Texture*      m_sceneDepthTextureSSAA;
+        Shader*       m_sceneDepthNormalShader;
+
+        Texture*      m_finalColorTexture;
 
         enum class BufferBindings
         {
@@ -282,7 +259,6 @@ namespace Cyan
             GLuint SBO;
         } gInstanceTransforms;
 
-        
         // voxel
         struct VoxelVolumeData
         {
@@ -305,9 +281,6 @@ namespace Cyan
         Cyan::Texture* voxelizeScene(Scene* scene);
         Cyan::Texture* voxelizeMesh(MeshInstance* mesh, glm::mat4* modelMatrix);
         Cyan::Texture* renderVoxel(Scene* scene);
-
-        Texture* m_bloomOutput;
-        RenderTarget* m_bloomOutputRT;            // final results after upscale chain
 
         GLuint m_lumHistogramShader;
         GLuint m_lumHistogramProgram;

@@ -16,15 +16,12 @@ struct PointGroup
 {
     PointGroup(u32 size);
     void push(glm::vec3& position);
-    void draw();
+    void draw(glm::mat4& mvp);
     void reset();
     void clear();
-    void setViewProjection(Uniform* view, Uniform* projection);
     void setColor(const glm::vec4& color);
 
     std::vector<Point> m_points;
-    Uniform* u_view;
-    Uniform* u_projection;
     u32 kMaxNumPoints;
     u32 m_numPoints;
     Shader* m_shader;

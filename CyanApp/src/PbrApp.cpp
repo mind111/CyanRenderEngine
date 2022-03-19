@@ -473,7 +473,7 @@ void DemoApp::initialize(int appWindowWidth, int appWindowHeight, glm::vec2 scen
     Cyan::createShader("PBSShader", SHADER_SOURCE_PATH "pbs_v.glsl", SHADER_SOURCE_PATH "pbs_p.glsl");
 
     auto renderer = m_graphicsSystem->getRenderer();
-    glm::vec2 viewportSize = renderer->getViewportSize();
+    glm::vec2 viewportSize(renderer->m_windowWidth, renderer->m_windowHeight);
     float aspectRatio = viewportSize.x / viewportSize.y;
     auto initializeCamera = [&](Scene* scene)
     {
@@ -587,7 +587,6 @@ glm::vec3 computeMouseHitWorldSpacePos(Camera& camera, glm::vec3 rd, RayCastInfo
 RayCastInfo DemoApp::castMouseRay(const glm::vec2& currentViewportPos, const glm::vec2& currentViewportSize)
 {
     // convert mouse cursor pos to view space 
-    Cyan::Viewport viewport = m_graphicsSystem->getRenderer()->getViewport();
     glm::vec2 viewportPos = gEngine->getSceneViewportPos();
     double mouseCursorX = m_mouseCursorX - currentViewportPos.x;
     double mouseCursorY = m_mouseCursorY - currentViewportPos.y;
@@ -713,7 +712,7 @@ void DemoApp::drawDebugWindows()
     ctx->setRenderTarget(nullptr, {});
 
     // configure window pos and size
-    ImVec2 debugWindowSize(gEngine->getWindow().width - renderer->m_viewport.m_width, 
+    ImVec2 debugWindowSize(gEngine->getWindow().width - renderer->m_windowWidth, 
                            gEngine->getWindow().height);
     ImGui::SetNextWindowPos(ImVec2(0, 0));
     ImGui::SetNextWindowSize(debugWindowSize);
@@ -828,7 +827,7 @@ void DemoApp::drawStats()
     {
         ImGui::Text("Frame time:                   %.2f ms", m_lastFrameDurationInMs);
         ImGui::Text("Number of entities:           %d", m_scenes[m_currentScene]->entities.size());
-        ImGui::Checkbox("Super Sampling 4x", &Cyan::Renderer::getSingletonPtr()->m_bSuperSampleAA);
+        ImGui::Checkbox("4x Super Sampling", &Cyan::Renderer::getSingletonPtr()->m_opts.enableAA);
     }
 }
 
@@ -915,11 +914,10 @@ void DemoApp::drawSceneViewport()
 {
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
     auto renderer = m_graphicsSystem->getRenderer();
-    Cyan::Viewport viewport = renderer->getViewport();
-    ImGui::SetNextWindowSize(ImVec2((f32)viewport.m_width, (f32)viewport.m_height));
+    ImGui::SetNextWindowSize(ImVec2((f32)renderer->m_windowWidth, (f32)renderer->m_windowHeight));
     glm::vec2 viewportPos = gEngine->getSceneViewportPos();
     ImGui::SetNextWindowPos(ImVec2(viewportPos.x, viewportPos.y));
-    ImGui::SetNextWindowContentSize(ImVec2(viewport.m_width, viewport.m_height));
+    ImGui::SetNextWindowContentSize(ImVec2(renderer->m_windowWidth, renderer->m_windowHeight));
     // disable window padding for this window
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0,0));
     Cyan::UI::beginWindow("Scene Viewport", flags);
