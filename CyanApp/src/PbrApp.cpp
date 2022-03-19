@@ -17,7 +17,6 @@
 #define REBAKE_LIGHTMAP 0
 #define MOUSE_PICKING   1
 
-/* Constants */
 // In radians per pixel 
 static float kCameraOrbitSpeed = 0.005f;
 static float kCameraRotateSpeed = 0.005f;
@@ -1101,10 +1100,6 @@ void DemoApp::debugIrradianceCache()
 
 void DemoApp::render()
 {
-    // clear (todo: remove this)
-    Cyan::getCurrentGfxCtx()->clear();
-    Cyan::getCurrentGfxCtx()->setViewport({ 0, 0, static_cast<u32>(gEngine->getWindow().width), static_cast<u32>(gEngine->getWindow().height) });
-
     // frame timer
     Cyan::Toolkit::GpuTimer frameTimer("render()");
     {
