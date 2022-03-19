@@ -99,9 +99,6 @@
     <ClInclude Include="include\Plane.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\RenderPass.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\RenderTarget.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -225,9 +222,6 @@
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
     <ClCompile Include="src\Mesh.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\RenderPass.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
     <ClCompile Include="src\RenderTarget.cpp">

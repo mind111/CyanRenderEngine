@@ -53,6 +53,17 @@ namespace Cyan
          1.f,  1.f, 1.f, 1.f
     };
 
+    static QuadMesh s_quad = { };
+
+    QuadMesh* Renderer::getQuadMesh()
+    {
+        if (!s_quad.m_vertexArray)
+        {
+            s_quad.init(glm::vec2(0.f), glm::vec2(1.f, 1.f));
+        }
+        return &s_quad;
+    }
+
     // static singleton pointer will be set to 0 before main() get called
     Renderer* Renderer::m_renderer = 0;
 
@@ -245,8 +256,6 @@ namespace Cyan
 
     void Renderer::initialize(GLFWwindow* window, glm::vec2 windowSize)
     {
-        // onRendererInitialized(windowSize);
-
         m_ctx = getCurrentGfxCtx();
         u_model = createUniform("s_model", Uniform::Type::u_mat4);
         u_cameraView = createUniform("s_view", Uniform::Type::u_mat4);
@@ -267,6 +276,10 @@ namespace Cyan
                        static_cast<u32>(0u), 
                        static_cast<u32>(windowSize.x), 
                        static_cast<u32>(windowSize.y) };
+
+        // quad mesh
+        s_quad.init(glm::vec2(0.f), glm::vec2(1.f, 1.f));
+
         // shadow
         m_shadowmapManager.initShadowmap(m_csm, glm::uvec2(4096u, 4096u));
 
@@ -694,9 +707,8 @@ namespace Cyan
         m_ctx->clear();
         m_ctx->setViewport({0u, 0u, m_voxelVisRenderTarget->width, m_voxelVisRenderTarget->height});
         m_ctx->setShader(m_voxelVisShader);
-        QuadMesh* quad = getQuadMesh();
         m_ctx->setDepthControl(DepthControl::kDisable);
-        m_ctx->setVertexArray(quad->m_vertexArray);
+        m_ctx->setVertexArray(s_quad.m_vertexArray);
         m_voxelVisMatl->bindTexture("albedoMap", m_voxelData.m_albedo);
         m_voxelVisMatl->bindTexture("normalMap", m_voxelData.m_normal);
         m_voxelVisMatl->set("cameraPos", &scene->getActiveCamera().position.x);
@@ -708,80 +720,6 @@ namespace Cyan
         m_ctx->setDepthControl(DepthControl::kEnable);
         return m_voxelVisColorTexture;
     }
-
-/*
-    // TODO: this should take a custom factory defined by client and use
-    // that factory to create an according RenderPass instance 
-    void Renderer::addCustomPass(RenderPass* pass)
-    {
-        m_renderState.addRenderPass(pass);
-        m_renderState.addClearRenderTarget(pass->m_renderTarget);
-    }
-
-    void Renderer::addScenePass(Scene* scene)
-    {
-        RenderTarget* renderTarget = m_renderState.m_superSampleAA ? m_sceneColorRTSSAA : m_sceneColorRenderTarget;
-        void* preallocatedAddr = m_frameAllocator.alloc(sizeof(ScenePass));
-        // placement new for initialization
-        Viewport viewport = { 0, 0, m_offscreenRenderWidth, m_offscreenRenderHeight };
-        ScenePass* pass = new (preallocatedAddr) ScenePass(renderTarget, viewport, scene);
-        m_renderState.addClearRenderTarget(renderTarget);
-        m_renderState.addRenderPass(pass);
-    }
-
-    void Renderer::addPostProcessPasses()
-    {
-        // TODO: bloom right now takes about 7ms to run, need to improve performance!
-        if (m_bloom)
-        {
-            addBloomPass();
-        }
-
-        RenderTarget* renderTarget = m_outputRenderTarget;
-        Texture* sceneColorTexture = m_bSuperSampleAA ? m_sceneColorTextureSSAA : m_sceneColorTexture;
-        void* preallocatedAddr = m_frameAllocator.alloc(sizeof(PostProcessResolvePass));
-        Viewport viewport = { 0u, 0u, renderTarget->m_width, renderTarget->m_height };
-        PostProcessResolveInput inputs = { m_exposure, 0.f, 1.0f, sceneColorTexture, BloomPass::getBloomOutput() };
-        if (m_bloom)
-        {
-            inputs.bloom = 1.0f;
-        }
-        PostProcessResolvePass* pass = new (preallocatedAddr) PostProcessResolvePass(renderTarget, viewport, inputs);
-        m_renderState.addRenderPass(pass);
-    }
-
-    void Renderer::addTexturedQuadPass(RenderTarget* renderTarget, Viewport viewport, Texture* srcTexture)
-    {
-        void* preallocatedAddr = m_frameAllocator.alloc(sizeof(TexturedQuadPass));
-        // need to call constructor to initialize vtable, that's why need to use placement new
-        TexturedQuadPass* pass = new (preallocatedAddr) TexturedQuadPass(renderTarget, viewport, srcTexture);
-        m_renderState.addRenderPass(pass);
-    }
-
-    void Renderer::addBloomPass()
-    {
-        void* preallocatedAddr = m_frameAllocator.alloc(sizeof(BloomPass));
-        Texture* sceneColorTexture = m_bSuperSampleAA ? m_sceneColorTextureSSAA : m_sceneColorTexture;
-        Viewport viewport = {0};
-        BloomPassInput inputs = { sceneColorTexture, m_bloomOutput };
-        // placement new for initialization
-        BloomPass* pass = new (preallocatedAddr) BloomPass(nullptr, viewport, inputs);
-        m_renderState.addRenderPass(pass);
-    }
-
-    void Renderer::addGaussianBlurPass(RenderTarget* renderTarget, Viewport viewport, Texture* srcTexture, Texture* horiTexture, Texture* vertTexture, GaussianBlurInput input)
-    {
-        void* mem = m_frameAllocator.alloc(sizeof(GaussianBlurPass) * 2);
-        GaussianBlurPass* depthBlurPass = 
-            new (mem) GaussianBlurPass(renderTarget,
-                viewport,
-                srcTexture,
-                horiTexture,
-                vertTexture,
-                input);
-        m_renderState.addRenderPass(depthBlurPass);
-    }
-*/
 
     void Renderer::drawEntity(Entity* entity) 
     {
@@ -1065,18 +1003,15 @@ namespace Cyan
         m_ssaoMatl->bindBuffer("DebugVisData", m_ssaoDebugVisBuffer);
         m_ssaoMatl->bind();
 
-        auto quad = getQuadMesh();
-        m_ctx->setVertexArray(quad->m_vertexArray);
-        m_ctx->drawIndexAuto(quad->m_vertexArray->numVerts());
+        m_ctx->setVertexArray(s_quad.m_vertexArray);
+        m_ctx->drawIndexAuto(s_quad.m_vertexArray->numVerts());
         m_ctx->setDepthControl(DepthControl::kEnable);
     }
 
     void Renderer::bloom()
     {
-        auto quad = getQuadMesh();
-
         // be aware that these functions modify 'renderTarget''s state
-        auto downsample = [this, quad](Texture* dst, Texture* src, RenderTarget* renderTarget) {
+        auto downsample = [this](Texture* dst, Texture* src, RenderTarget* renderTarget) {
             enum class ColorBuffer
             {
                 kDst = 0
@@ -1090,15 +1025,15 @@ namespace Cyan
             m_ctx->setShader(m_bloomDsShader);
             m_bloomDsMatl->bindTexture("srcImage", src);
             m_bloomDsMatl->bind();
-            m_ctx->setVertexArray(quad->m_vertexArray);
+            m_ctx->setVertexArray(s_quad.m_vertexArray);
             m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
-            m_ctx->drawIndexAuto(quad->m_vertexArray->numVerts());
+            m_ctx->drawIndexAuto(s_quad.m_vertexArray->numVerts());
 
             m_ctx->setDepthControl(Cyan::DepthControl::kEnable);
             // glFinish();
         };
 
-        auto upscale = [this, quad](Texture* dst, Texture* src, Texture* blend, RenderTarget* renderTarget, u32 stageIndex) {
+        auto upscale = [this](Texture* dst, Texture* src, Texture* blend, RenderTarget* renderTarget, u32 stageIndex) {
             enum class ColorBuffer
             {
                 kDst = 0
@@ -1113,16 +1048,16 @@ namespace Cyan
             m_bloomUsMatl->bindTexture("blendImage", blend);
             m_bloomUsMatl->set("stageIndex", stageIndex);
             m_bloomUsMatl->bind();
-            m_ctx->setVertexArray(quad->m_vertexArray);
+            m_ctx->setVertexArray(s_quad.m_vertexArray);
             m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
-            m_ctx->drawIndexAuto(quad->m_vertexArray->numVerts());
+            m_ctx->drawIndexAuto(s_quad.m_vertexArray->numVerts());
 
             m_ctx->setDepthControl(Cyan::DepthControl::kEnable);
             // glFinish();
         };
 
         // user have to make sure that renderTarget is compatible with 'dst', 'src', and 'scratch'
-        auto gaussianBlur = [this, quad](Texture* dst, Texture* src, Texture* scratch, RenderTarget* renderTarget, i32 kernelIndex, i32 radius) {
+        auto gaussianBlur = [this](Texture* dst, Texture* src, Texture* scratch, RenderTarget* renderTarget, i32 kernelIndex, i32 radius) {
 
             enum class ColorBuffer
             {
@@ -1149,9 +1084,9 @@ namespace Cyan
                 m_gaussianBlurMatl->set("kernelIndex", kernelIndex);
                 m_gaussianBlurMatl->set("radius", radius);
                 m_gaussianBlurMatl->bind();
-                m_ctx->setVertexArray(quad->m_vertexArray);
+                m_ctx->setVertexArray(s_quad.m_vertexArray);
                 m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
-                m_ctx->drawIndexAuto(quad->m_vertexArray->numVerts());
+                m_ctx->drawIndexAuto(s_quad.m_vertexArray->numVerts());
                 // glFinish();
             }
 
@@ -1171,8 +1106,8 @@ namespace Cyan
                 m_gaussianBlurMatl->set("radius", radius);
                 m_gaussianBlurMatl->bind();
                 m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
-                m_ctx->setVertexArray(quad->m_vertexArray);
-                m_ctx->drawIndexAuto(quad->m_vertexArray->numVerts());
+                m_ctx->setVertexArray(s_quad.m_vertexArray);
+                m_ctx->drawIndexAuto(s_quad.m_vertexArray->numVerts());
                 // glFinish();
             }
             m_ctx->setDepthControl(Cyan::DepthControl::kEnable);
@@ -1191,8 +1126,8 @@ namespace Cyan
 
         m_ctx->setDepthControl(Cyan::DepthControl::kDisable);
         m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
-        m_ctx->setVertexArray(quad->m_vertexArray);
-        m_ctx->drawIndexAuto(quad->m_vertexArray->numVerts());
+        m_ctx->setVertexArray(s_quad.m_vertexArray);
+        m_ctx->drawIndexAuto(s_quad.m_vertexArray->numVerts());
         m_ctx->setDepthControl(Cyan::DepthControl::kEnable);
         // glFinish();
 
@@ -1237,9 +1172,8 @@ namespace Cyan
 
         m_ctx->setDepthControl(DepthControl::kDisable);
         m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
-        auto quad = getQuadMesh();
-        m_ctx->setVertexArray(quad->m_vertexArray);
-        m_ctx->drawIndexAuto(quad->m_vertexArray->numVerts());
+        m_ctx->setVertexArray(s_quad.m_vertexArray);
+        m_ctx->drawIndexAuto(s_quad.m_vertexArray->numVerts());
         m_ctx->setDepthControl(DepthControl::kEnable);
 
         m_finalColorTexture = m_compositeColorTexture;

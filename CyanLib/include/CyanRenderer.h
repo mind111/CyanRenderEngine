@@ -14,7 +14,6 @@
 #include "camera.h"
 #include "Entity.h"
 #include "Geometry.h"
-#include "RenderPass.h"
 #include "Shadow.h"
 
 extern float quadVerts[24];
@@ -50,6 +49,7 @@ namespace Cyan
         GfxContext* getGfxCtx() { return m_ctx; };
         StackAllocator& getAllocator();
         Texture* getColorOutTexture();
+        QuadMesh* getQuadMesh();
 
 // shadow
         ShadowmapManager m_shadowmapManager;

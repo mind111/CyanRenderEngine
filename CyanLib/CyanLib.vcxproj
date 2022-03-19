@@ -47,7 +47,6 @@
     <ClInclude Include="include\Mesh.h" />
     <ClInclude Include="include\Node.h" />
     <ClInclude Include="include\Plane.h" />
-    <ClInclude Include="include\RenderPass.h" />
     <ClInclude Include="include\RenderTarget.h" />
     <ClInclude Include="include\Scene.h" />
     <ClInclude Include="include\SceneNode.h" />
@@ -101,7 +100,6 @@
     <ClCompile Include="src\Material.cpp" />
     <ClCompile Include="src\MathUtils.cpp" />
     <ClCompile Include="src\Mesh.cpp" />
-    <ClCompile Include="src\RenderPass.cpp" />
     <ClCompile Include="src\RenderTarget.cpp" />
     <ClCompile Include="src\Scene.cpp" />
     <ClCompile Include="src\SceneNode.cpp" />

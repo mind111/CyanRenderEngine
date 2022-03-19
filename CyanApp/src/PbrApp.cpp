@@ -13,7 +13,6 @@
 #include "Light.h"
 #include "Shader.h"
 #include "Mesh.h"
-#include "RenderPass.h"
 
 #define REBAKE_LIGHTMAP 0
 #define MOUSE_PICKING   1
