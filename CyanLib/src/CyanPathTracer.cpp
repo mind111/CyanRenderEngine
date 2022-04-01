@@ -1401,15 +1401,15 @@ namespace Cyan
                 auto& objectSpaceAABB = nodes[i]->m_meshInstance->getAABB();
                 glm::mat4 model = nodes[i]->getWorldTransform().toMatrix();
                 BoundingBox3f worldSpaceAABB;
-                worldSpaceAABB.m_pMin = model * objectSpaceAABB.m_pMin;
-                worldSpaceAABB.m_pMax = model * objectSpaceAABB.m_pMax;
+                worldSpaceAABB.pmin = model * objectSpaceAABB.pmin;
+                worldSpaceAABB.pmax = model * objectSpaceAABB.pmax;
                 aabb.bound(worldSpaceAABB);
             }
         }
-        f32 length = aabb.m_pMax.x - aabb.m_pMin.x;
-        length = max(length, aabb.m_pMax.y - aabb.m_pMin.y);
-        length = max(length, aabb.m_pMax.z - aabb.m_pMin.z);
-        m_octree->init((aabb.m_pMin + aabb.m_pMax) * .5f, length);
+        f32 length = aabb.pmax.x - aabb.pmin.x;
+        length = max(length, aabb.pmax.y - aabb.pmin.y);
+        length = max(length, aabb.pmax.z - aabb.pmin.z);
+        m_octree->init((aabb.pmin + aabb.pmax) * .5f, length);
     }
 
     const IrradianceRecord& IrradianceCache::addIrradianceRecord(const glm::vec3& p, const glm::vec3& pn, const glm::vec3& irradiance, f32 r, const glm::vec3* rotationalGradient, const glm::vec3* translationalGradient)

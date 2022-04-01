@@ -1,6 +1,5 @@
 #version 450 core
 
-// TODO: No longer hard code the binding in shader, binding can be changed at runtime
 layout (location = 0) in vec3 vertexPos;
 layout (location = 1) in vec3 vertexNormal;
 layout (location = 2) in vec4 vertexTangent;

@@ -85,6 +85,7 @@ public:
     void setUniform1i(const char* name, GLint data);
     void setUniform1ui(const char* name, GLuint data);
     void setUniform1f(const char* name, GLfloat data);
+    void setUniformVec2(const char* name, GLfloat* data);
     void setUniformVec3(const char* name, GLfloat* vecData);
     void setUniformVec4(const char* name, GLfloat* vecData);
     void setUniformMat4f(const char* name, GLfloat* matData);

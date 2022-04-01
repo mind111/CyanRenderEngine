@@ -142,7 +142,7 @@ namespace Cyan
         cascade.frustumLines[11].setVertices(nd, fd);
 
         BoundingBox3f& aabb = cascade.aabb;
-        aabb.resetBound();
+        aabb.reset();
         aabb.bound(nav4);
         aabb.bound(nbv4);
         aabb.bound(ncv4);
@@ -153,15 +153,15 @@ namespace Cyan
         aabb.bound(fdv4);
 
         // TODO: improve this procedure for fixing the projection size 
-        f32 midX = .5f * (aabb.m_pMin.x + aabb.m_pMax.x);
-        f32 midY = .5f * (aabb.m_pMin.y + aabb.m_pMax.y);
-        glm::vec3 mid = 0.5f * (aabb.m_pMin + aabb.m_pMax);
+        f32 midX = .5f * (aabb.pmin.x + aabb.pmax.x);
+        f32 midY = .5f * (aabb.pmin.y + aabb.pmax.y);
+        glm::vec3 mid = 0.5f * (aabb.pmin + aabb.pmax);
 
         // snap to texel increments
         mid = glm::floor(mid);
-        aabb.m_pMin = glm::vec4(mid - glm::vec3(fixedProjRadius), 1.f);
-        aabb.m_pMax = glm::vec4(mid + glm::vec3(fixedProjRadius), 1.f);
-        aabb.computeVerts();
+        aabb.pmin = glm::vec4(mid - glm::vec3(fixedProjRadius), 1.f);
+        aabb.pmax = glm::vec4(mid + glm::vec3(fixedProjRadius), 1.f);
+        aabb.update();
     }
 
     void ShadowmapManager::render(CascadedShadowmap& csm, Scene* scene, const DirectionalLight& sunLight, const std::vector<Entity*>& shadowCasters)
@@ -198,7 +198,7 @@ namespace Cyan
     {
         auto& cascade = csm.cascades[cascadeIndex];
         auto aabb = cascade.aabb;
-        glm::mat4 lightProjection = glm::orthoLH(aabb.m_pMin.x, aabb.m_pMax.x, aabb.m_pMin.y, aabb.m_pMax.y, aabb.m_pMax.z, aabb.m_pMin.z);
+        glm::mat4 lightProjection = glm::orthoLH(aabb.pmin.x, aabb.pmax.x, aabb.pmin.y, aabb.pmax.y, aabb.pmax.z, aabb.pmin.z);
         cascade.lightProjection = lightProjection;
         auto renderer = Renderer::getSingletonPtr();
         auto ctx = renderer->getGfxCtx();

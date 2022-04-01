@@ -812,6 +812,7 @@ void DemoApp::drawDebugWindows()
                 buildDebugView("SceneDepth",  renderer->m_sceneDepthTextureSSAA);
                 buildDebugView("SceneNormal", renderer->m_sceneNormalTextureSSAA);
                 buildDebugView("SceneGTAO",   renderer->m_ssaoTexture);
+                buildDebugView("SceneVoxelized", renderer->m_voxelVisColorTexture);
                 ImGui::EndTabItem();
             }
             ImGui::EndTabBar();
@@ -889,7 +890,7 @@ void DemoApp::drawLightingWidgets()
     // point lights
     if (ImGui::TreeNodeEx("Point Lights", baseFlags))
     {
-        for (u32 i = 0; i < m_scenes[m_currentScene]->pLights.size(); ++i)
+        for (u32 i = 0; i < m_scenes[m_currentScene]->pointLights.size(); ++i)
         {
             char nameBuf[64];
             sprintf_s(nameBuf, "PointLight %d", i);
@@ -897,11 +898,11 @@ void DemoApp::drawLightingWidgets()
             {
                 ImGui::Text("Position:");
                 ImGui::SameLine();
-                ImGui::InputFloat3("##Position", &m_scenes[m_currentScene]->pLights[i].position.x);
+                ImGui::InputFloat3("##Position", &m_scenes[m_currentScene]->pointLights[i].position.x);
                 ImGui::Text("Intensity:");
-                ImGui::SliderFloat("##Intensity", &m_scenes[m_currentScene]->pLights[i].color.w, 0.f, 100.f, nullptr, 1.0f);
+                ImGui::SliderFloat("##Intensity", &m_scenes[m_currentScene]->pointLights[i].color.w, 0.f, 100.f, nullptr, 1.0f);
                 ImGui::Text("Color:");
-                ImGui::ColorPicker3("##Color", &m_scenes[m_currentScene]->pLights[i].color.r);
+                ImGui::ColorPicker3("##Color", &m_scenes[m_currentScene]->pointLights[i].color.r);
                 ImGui::TreePop();
             }
         }
@@ -911,7 +912,7 @@ void DemoApp::drawLightingWidgets()
 
 void DemoApp::drawSceneViewport()
 {
-    ImGuiWindowFlags flags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoCollapse;
     auto renderer = m_graphicsSystem->getRenderer();
     ImGui::SetNextWindowSize(ImVec2((f32)renderer->m_windowWidth, (f32)renderer->m_windowHeight));
     glm::vec2 viewportPos = gEngine->getSceneViewportPos();
@@ -934,7 +935,7 @@ void DemoApp::drawSceneViewport()
         {
             activeDebugViewTexture = renderer->getColorOutTexture();
         }
-        ImGui::GetForegroundDrawList()->AddImage(reinterpret_cast<void*>((intptr_t)activeDebugViewTexture->handle), a, b, ImVec2(0, 1), ImVec2(1, 0));
+        ImGui::Image(reinterpret_cast<void*>((intptr_t)activeDebugViewTexture->handle), ImVec2(max.x - min.x, max.y - min.y), ImVec2(0, 1), ImVec2(1, 0));
 
         // TODO: refactor ray picking and gizmos 
         // TODO: when clicking on some objects (meshes) in the scene, the gizmo will be rendered not at the 

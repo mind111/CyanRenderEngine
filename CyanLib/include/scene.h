@@ -36,11 +36,13 @@ struct Scene
     std::vector<Cyan::Mesh>                 g_meshes;
     std::vector<Cyan::Texture>              g_textures;
     // lighting
-    std::vector<PointLight>                 pLights;
+    std::vector<PointLight>                 pointLights;
     std::vector<DirectionalLight>           dLights;
     Cyan::Skybox*                           m_skybox;
     Cyan::IrradianceProbe*                  m_irradianceProbe;
     Cyan::ReflectionProbe*                  m_reflectionProbe;
+    // aabb
+    BoundingBox3f                           aabb;
 
     Camera& getActiveCamera()
     {

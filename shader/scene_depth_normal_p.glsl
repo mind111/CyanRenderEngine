@@ -21,5 +21,5 @@ vec4 tangentSpaceToViewSpace(vec3 tn, vec3 vn, vec3 t)
 void main()
 {
     fDepth = vec3(gl_FragCoord.z);
-    fNormal = normalize(normalWorld * .5f + .5f);
+    fNormal = normalize(normalWorld) * .5f + .5f;
 }

@@ -7,11 +7,6 @@
 #include "Shader.h"
 #include "Material.h"
 
-struct Point
-{
-    glm::vec3 m_position;
-};
-
 struct PointGroup
 {
     PointGroup(u32 size);
@@ -21,11 +16,16 @@ struct PointGroup
     void clear();
     void setColor(const glm::vec4& color);
 
+    struct Point
+    {
+        glm::vec3 m_position;
+    };
+
     std::vector<Point> m_points;
     u32 kMaxNumPoints;
     u32 m_numPoints;
     Shader* m_shader;
-    Cyan::MaterialInstance* m_matl;
+    Cyan::MaterialInstance* matl;
     VertexArray* m_vertexArray;
 };
 
@@ -38,7 +38,7 @@ struct Line
     void draw(glm::mat4& mvp);
 
     glm::vec3 m_vertices[2];
-    Cyan::MaterialInstance* m_matl;
+    Cyan::MaterialInstance* matl;
     GLuint m_vbo, m_vao;
 };
 
@@ -58,7 +58,7 @@ struct Line2D
     glm::vec4 m_color;
     GLuint m_vbo;
     VertexArray* m_vertexArray;
-    Cyan::MaterialInstance* m_matl;
+    Cyan::MaterialInstance* matl;
 };
 
 struct Quad
@@ -68,7 +68,7 @@ struct Quad
     glm::vec2 m_vertices[6];
     GLuint m_vao;
     GLuint m_vbo;
-    Cyan::MaterialInstance* m_matl;
+    Cyan::MaterialInstance* matl;
 
     Quad();
     ~Quad();
@@ -102,33 +102,34 @@ struct TriangleArray
 
 struct BoundingBox3f
 {
-    // pmin & pmax in object space
-    glm::vec4 m_pMin;
-    glm::vec4 m_pMax;
+    // in object space
+    glm::vec4 pmin;
+    glm::vec4 pmax;
 
     // debug rendering
-    glm::vec3 m_vertices[8];
-    glm::vec3 m_color;
-    struct VertexArray* m_vertexArray;
-    GLuint m_ibo;
+    glm::vec3 vertices[8];
+    glm::vec3 color;
+    struct VertexArray* vertexArray;
+    static Shader* shader;
+    Cyan::MaterialInstance* matl;
 
-    Cyan::MaterialInstance* m_matl;
-
-    BoundingBox3f()
-    {
-        m_pMin = glm::vec4(FLT_MAX, FLT_MAX, FLT_MAX, 1.0f);
-        m_pMax = glm::vec4(-FLT_MAX, -FLT_MAX, -FLT_MAX, 1.0f);
-        m_vertexArray = nullptr;
-        m_ibo = -1;
-    } 
+    BoundingBox3f();
 
     void init();
-    void computeVerts();
+
     void draw(glm::mat4& mvp);
-    void resetBound();
     void bound(const BoundingBox3f& aabb);
     void bound(const glm::vec3& v3);
     void bound(const glm::vec4& v4);
     void bound(const Triangle& tri);
+    /*
+    * Reset bounds and vertex data
+    */
+    void reset();
+
+    /*
+    * Recompute and udpate bounds and vertex data
+    */
+    void update();
     float intersectRay(const glm::vec3& ro, const glm::vec3& rd);
 };

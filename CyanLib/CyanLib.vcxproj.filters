@@ -478,13 +478,10 @@
     <None Include="..\shader\shader_upsample.vs">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_voxel.fs">
+    <None Include="..\shader\voxelize_g.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_voxel.gs">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\shader\shader_voxel.vs">
+    <None Include="..\shader\voxelize_v.glsl">
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\sky_irradiance_c.glsl">
@@ -497,6 +494,42 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\global_buffers.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\voxelize_p.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\voxel_vis_v.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\voxel_vis_g.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\voxel_vis_p.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\vct_vis_g.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\vct_vis_p.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\vct_vis_v.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\vct_vis_c.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\vctx_filter_c.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\vctx_debug_g.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\vctx_debug_p.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\vctx_debug_v.glsl">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

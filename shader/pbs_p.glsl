@@ -1,5 +1,7 @@
 #version 450 core
 
+#define VCTX 1
+
 in vec3 n;
 in vec3 wn;
 in vec3 t;
@@ -11,7 +13,7 @@ in vec4 shadowPos;
 
 layout (location = 0) out vec4 fragColor;
 layout (location = 1) out vec3 fragmentNormal; 
-layout (location = 2) out vec3 fragmentDepth; 
+layout (location = 2) out vec3 fragmentDepth;
 layout (location = 3) out vec3 radialDistance;
 
 //- samplers
@@ -21,14 +23,14 @@ layout (binding = 2) uniform sampler2D   BRDFLookupTexture;
 layout (binding = 3) uniform samplerCube irradianceProbe;
 layout (binding = 4) uniform samplerCube localReflectionProbe;
 layout (binding = 5) uniform sampler2D   ssaoTex;
-layout (binding = 6) uniform sampler2D   shadowCascades[4];
+layout (binding = 6) uniform sampler2D shadowCascades[4];
+
+layout (binding = 10) uniform sampler3D sceneVoxelGridAlbedo;
+layout (binding = 11) uniform sampler3D sceneVoxelGridNormal;
+layout (binding = 12) uniform sampler3D sceneVoxelGridRadiance;
+
 //- sun shadow
 float cascadeIntervals[4] = {0.1f, 0.3f, 0.6f, 1.0f};
-
-struct Light 
-{
-    vec4 color;
-};
 
 struct DirLight
 {
@@ -64,6 +66,15 @@ layout(std430, binding = 2) buffer pointLightsData
 {
     PointLight lights[];
 } pointLightsBuffer;
+
+//- voxel cone tracing
+layout(std430, binding = 4) buffer VoxelGridData
+{
+    vec3 localOrigin;
+    float voxelSize;
+    int visMode;
+    vec3 padding;
+} sceneVoxelGrid;
 
 // constants
 #define pi 3.14159265359
@@ -127,6 +138,18 @@ vec4 tangentSpaceToViewSpace(vec3 tn, vec3 vn, vec3 t)
     tbn[2] = vec4(vn, 0.f);
     tbn[3] = vec4(0.f, 0.f, 0.f, 1.f);
     return tbn * vec4(tn, 0.0f);
+}
+
+mat3 tbn(vec3 n)
+{
+    vec3 up = abs(n.y) < 0.98f ? vec3(0.f, 1.f, 0.f) : vec3(0.f, 0.f, 1.f);
+    vec3 right = cross(n, up);
+    vec3 forward = cross(n, right);
+    return mat3(
+        right,
+        forward,
+        n
+    );
 }
 
 // Generate a sample direction in tangent space and output world space direction
@@ -526,6 +549,7 @@ vec3 directLighting(RenderParams renderParams)
 vec3 indirectLighting(RenderParams params)
 {
     vec3 color = vec3(0.f);
+
     vec3 F = fresnel(params.f0, params.n, params.v); 
     vec3 kDiffuse = mix(vec3(1.f) - F, vec3(0.f), params.metallic);
 
@@ -561,10 +585,176 @@ vec3 defaultAlbedo(vec3 worldPos, vec2 texCoord)
     return color;
 }
 
+vec3 encodeHDR(vec3 color)
+{
+	return color / (color + vec3(1.f));
+}
+
+vec3 decodeHDR(vec3 color)
+{
+    return color / (vec3(1.f) - color);
+}
+
+bool isInsideBound(vec3 texCoord)
+{
+	if ((texCoord.x < 0.f || texCoord.x > 1.f) || (texCoord.y < 0.f || texCoord.y > 1.f) ||
+		(texCoord.z < 0.f || texCoord.z > 1.f))
+	{
+		return false;
+	}
+    return true;
+}
+
+vec3 getVoxelGridCoord(vec3 p)
+{
+    ivec3 voxelGridRes = textureSize(sceneVoxelGridAlbedo, 0);
+    vec3 voxelGridDim = vec3(
+		float(voxelGridRes.x) * sceneVoxelGrid.voxelSize,
+		float(voxelGridRes.y) * sceneVoxelGrid.voxelSize,
+		float(voxelGridRes.z) * sceneVoxelGrid.voxelSize
+	);
+    vec3 dd = p - sceneVoxelGrid.localOrigin;
+    dd.z *= -1.f;
+    return dd / voxelGridDim;
+}
+
+struct ConeTraceRecord
+{
+    vec3 radiance;
+    float occ;
+};
+
+ConeTraceRecord traceCone(vec3 p, vec3 rd, float halfAngle)
+{
+    float alpha = 0.f;
+    float occ = 0.f;
+    vec3 accRadiance = vec3(0.f);
+    vec3 accAlbedo = vec3(0.f);
+
+    vec3 q = p;
+	vec3 texCoord = getVoxelGridCoord(q);
+    float traced = 0.f;
+    float tanHalfAngle = tan(halfAngle);
+    int numSteps = 0;
+
+    while (alpha < 0.95f && isInsideBound(texCoord))
+    {
+        float coneDiameter = 2.f * traced * tanHalfAngle;
+        float mip = log2(max(coneDiameter / sceneVoxelGrid.voxelSize, 1.f));
+        float scale = pow(4.f, int(mip));
+
+		vec4 albedo = textureLod(sceneVoxelGridAlbedo, texCoord, mip);
+        vec4 radiance = textureLod(sceneVoxelGridRadiance, texCoord, mip);
+        radiance.rgb = decodeHDR(radiance.rgb);
+
+        float opacity = albedo.a;
+
+        // this is necessary for correcting the "darkness" caused by auto generated mipmap included empty voxels in the average
+        albedo *= scale;
+        albedo /= albedo.a;
+        radiance *= scale;
+        radiance /= radiance.a;
+
+		// emission-absorption model front to back blending
+        // todo: integrated value is too dark
+		occ = alpha * occ + (1.f - alpha) * opacity * 2.f;
+        accAlbedo += (1.f - alpha) * albedo.rgb;
+        accRadiance += (1.f - alpha) * radiance.rgb;
+		alpha += (1.f - alpha) * opacity;
+
+        // write cube data to buffer
+        float sampleVoxelSize = sceneVoxelGrid.voxelSize * pow(2.f, floor(mip));
+        numSteps++;
+
+        // marching along the ray
+        float stepSize = sampleVoxelSize;
+		q += rd * stepSize;
+        traced += stepSize;
+        texCoord = getVoxelGridCoord(q);
+    }
+	float atten = 1.f / (1.f + traced);
+    return ConeTraceRecord(accRadiance, occ);
+}
+
+vec3 generateHemisphereSample(vec3 n, float theta, float phi)
+{
+	vec3 localDir = {
+		sin(theta) * cos(phi),
+		sin(theta) * sin(phi),
+		cos(theta)
+	};
+	return tbn(n) * localDir;
+}
+
+ConeTraceRecord coneTraceHemisphere(vec3 p, vec3 n, int numTheta, int numPhi)
+{
+    // offset to next voxel in normal direction
+    p += n * 2.0f * sceneVoxelGrid.voxelSize;
+
+    vec3 radiance = vec3(0.f);
+    float occ = 0.f;
+    mat3 tbn = tbn(n);
+    // compute half angle based on number of samples
+    float halfAngle = .25f * pi / numTheta;
+    float dTheta = .5f * pi / numTheta;
+    float dPhi = 2.f * pi / numPhi;
+
+#if 1
+    // the sample in normal direction
+	vec3 dir = generateHemisphereSample(n, 0, 0);
+	ConeTraceRecord record = traceCone(p, dir, halfAngle);
+	occ += record.occ;
+	radiance += record.radiance;
+
+    for (int i = 0; i < numPhi; ++i)
+    {
+        for (int j = 0; j < numTheta; ++j)
+        {
+            float theta = (float(j) + .5f) * dTheta;
+            float phi = (float(i) + .5f) * dPhi;
+            dir = generateHemisphereSample(n, theta, phi);
+			ConeTraceRecord record = traceCone(p, dir, halfAngle);
+			occ += record.occ * max(dot(n, dir), 0.f);
+			radiance += record.radiance;
+        }
+    }
+    radiance /= (numTheta * numPhi + 1);
+    occ /= (numTheta * numPhi + 1);
+#else
+    // trace 5 cones distributed in the hemisphere around surface normal
+    //   0, 0
+    ConeTraceRecord record = traceCone(p, tbn * vec3(0.f, 0.f, 1.f), halfAngle);
+    occ += record.occ;
+    radiance += record.radiance;
+
+    //  60, 0
+    record = traceCone(p, tbn * vec3(1.7f, 0.f, 0.5f), halfAngle);
+    occ += record.occ;
+    radiance += record.radiance;
+
+    // -60, 180
+    record = traceCone(p, tbn * vec3(-1.7f, 0.f, 0.5f), halfAngle);
+    occ += record.occ;
+    radiance += record.radiance;
+
+    //  60, 90
+    record = traceCone(p, tbn * vec3(0.f, 1.7f, 0.5f), halfAngle);
+    occ += record.occ;
+    radiance += record.radiance;
+
+    // -60, -90
+    record = traceCone(p, tbn * vec3(0.f, -1.7f, 0.5f), halfAngle);
+    occ += record.occ;
+    radiance += record.radiance;
+
+    radiance /= 5.f;
+    occ /= 5.f;
+#endif
+    return ConeTraceRecord(radiance, 1.f - min(occ, 1.f));
+}
+
 void main() 
 {
-    /* Normal mapping */
-    // Interpolation done by the rasterizer may change the length of the normal 
     vec3 normal = normalize(n);
     vec3 tangent = normalize(t);
     vec3 worldSpaceNormal = normalize(wn);
@@ -573,7 +763,7 @@ void main()
     {
         vec3 tn = texture(normalMap, uv).xyz;
         // Convert from [0, 1] to [-1.0, 1.0] and renomalize if texture filtering changes the length
-        tn = normalize(tn * 2.f - vec3(1.f)); 
+        tn = normalize(tn * 2.f - vec3(1.f));
         // Covert normal from tangent frame to camera space
         normal = tangentSpaceToViewSpace(tn, normal, tangent).xyz;
     }
@@ -624,17 +814,30 @@ void main()
         1.0
     };
 
-    vec2 screenTexCoord = gl_FragCoord.xy *.5f / vec2(1280.f, 720.f);
+    vec2 screenTexCoord = gl_FragCoord.xy *.5f / vec2(textureSize(ssaoTex, 0));
     float ssao = gDrawData.m_ssao > .5f ? texture(ssaoTex, screenTexCoord).r : 1.f;
 
     vec3 color = vec3(0.f);
-    // analytical lighting
-    color += directLighting(renderParams) * ssao;
+#if VCTX
+    ssao = 1.f;
+    // sky occlusion
+    float vxao = coneTraceHemisphere(fragmentPosWS, worldSpaceNormal, 3, 3).occ;
+    // direct lighting
+    color += directLighting(renderParams) * vxao;
+    // image-based-lighting
+    color += indirectLighting(renderParams) * ssao * vxao;
+    // baked lighting
+	vec3 bakedLighting = (uMatlData.flags & kUseLightMap) != 0u ? texture(lightMap, uv1).rgb : vec3(0.f);
+    color += bakedLighting * albedo.rgb * ssao * vxao;
+#else
+    color += directLighting(renderParams);
     // image-based-lighting
     color += indirectLighting(renderParams) * ssao;
     // baked lighting
 	vec3 bakedLighting = (uMatlData.flags & kUseLightMap) != 0u ? texture(lightMap, uv1).rgb : vec3(0.f);
     color += bakedLighting * albedo.rgb * ssao;
+#endif
+
     // write linear color to HDR Framebuffer
     fragColor = vec4(color, 1.0f);
     radialDistance = vec3(length(fragmentPos));

@@ -1,4 +1,4 @@
-#version 450
+#version 450 core
 // input
 layout(local_size_x = 32, local_size_y = 32) in;
 uniform samplerCube g_skybox;

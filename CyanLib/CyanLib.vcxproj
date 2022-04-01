@@ -136,6 +136,15 @@
     <None Include="..\shader\shader_dir_shadow.vs" />
     <None Include="..\shader\shader_downsample.fs" />
     <None Include="..\shader\shader_downsample.vs" />
+    <None Include="..\shader\vctx_debug_g.glsl" />
+    <None Include="..\shader\vctx_debug_p.glsl" />
+    <None Include="..\shader\vctx_debug_v.glsl" />
+    <None Include="..\shader\vctx_filter_c.glsl" />
+    <None Include="..\shader\vct_vis_c.glsl" />
+    <None Include="..\shader\vct_vis_g.glsl" />
+    <None Include="..\shader\vct_vis_p.glsl" />
+    <None Include="..\shader\vct_vis_v.glsl" />
+    <None Include="..\shader\voxelize_p.glsl" />
     <None Include="..\shader\skybox_p.glsl" />
     <None Include="..\shader\skybox_v.glsl" />
     <None Include="..\shader\shader_flat_color.fs" />
@@ -178,10 +187,12 @@
     <None Include="..\shader\shader_textured_quad.vs" />
     <None Include="..\shader\shader_upsample.fs" />
     <None Include="..\shader\shader_upsample.vs" />
-    <None Include="..\shader\shader_voxel.fs" />
-    <None Include="..\shader\shader_voxel.gs" />
-    <None Include="..\shader\shader_voxel.vs" />
+    <None Include="..\shader\voxelize_g.glsl" />
+    <None Include="..\shader\voxelize_v.glsl" />
     <None Include="..\shader\sky_irradiance_c.glsl" />
+    <None Include="..\shader\voxel_vis_g.glsl" />
+    <None Include="..\shader\voxel_vis_p.glsl" />
+    <None Include="..\shader\voxel_vis_v.glsl" />
     <None Include="src\ImGuizmo\LICENSE" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

@@ -7,6 +7,7 @@
 #include "stb_image.h"
 #include "gtc/matrix_transform.hpp"
 
+#include "Mesh.h"
 #include "CyanAPI.h"
 #include "Scene.h"
 #include "GraphicsSystem.h"
@@ -147,9 +148,9 @@ Scene* SceneManager::createScene(const char* name, const char* file)
     scene->m_numSceneNodes = 0;
 
     scene->m_rootEntity = nullptr;
-    // create root entity
     scene->m_rootEntity = SceneManager::getSingletonPtr()->createEntity(scene, "Root", Transform(), true);
     scene->g_sceneRoot = scene->m_rootEntity->m_sceneRoot;
+    scene->aabb.init();
     auto assetManager = Cyan::GraphicsSystem::getSingletonPtr()->getAssetManager(); 
     assetManager->loadScene(scene, file);
     loadSceneTimer.end();
@@ -196,9 +197,9 @@ void SceneManager::createDirectionalLight(Scene* scene, glm::vec3 color, glm::ve
 
 void SceneManager::createPointLight(Scene* scene, glm::vec3 color, glm::vec3 position, float intensity)
 {
-    CYAN_ASSERT(scene->pLights.size() < Scene::kMaxNumPointLights, "Too many point lights created.")
+    CYAN_ASSERT(scene->pointLights.size() < Scene::kMaxNumPointLights, "Too many point lights created.")
     char nameBuff[64];
-    sprintf_s(nameBuff, "PointLight%u", (u32)scene->pLights.size());
+    sprintf_s(nameBuff, "PointLight%u", (u32)scene->pointLights.size());
     Transform transform = Transform();
     transform.m_translate = glm::vec3(position);
     transform.m_scale = glm::vec3(0.1f);
@@ -214,7 +215,7 @@ void SceneManager::createPointLight(Scene* scene, glm::vec3 color, glm::vec3 pos
     matl->set("color", &u_color.x);
 
     PointLight light(entity, glm::vec4(color, intensity), glm::vec4(position, 1.f));
-    scene->pLights.push_back(light);
+    scene->pointLights.push_back(light);
 }
 
 void SceneManager::updateSceneGraph(Scene* scene)
@@ -239,6 +240,31 @@ void SceneManager::updateSceneGraph(Scene* scene)
             nodes.push(node->m_indirectChild[i]);
         }
     }
+
+    // update scene's bounding box in world space
+    for (auto entity : scene->entities)
+    {
+        std::queue<SceneNode*> nodes;
+        nodes.push(entity->m_sceneRoot);
+        while (!nodes.empty())
+        {
+            SceneNode* node = nodes.front();
+            nodes.pop();
+            for (auto child : node->m_child)
+            {
+                nodes.push(child);
+            }
+            if (Cyan::MeshInstance* mesh = node->getAttachedMesh())
+            {
+                BoundingBox3f meshAABB = mesh->getAABB();
+                glm::mat4 model = node->getWorldTransform().toMatrix();
+                meshAABB.pmin = model * meshAABB.pmin;
+                meshAABB.pmax = model * meshAABB.pmax;
+                scene->aabb.bound(meshAABB);
+            }
+        }
+    }
+    scene->aabb.update();
 }
 
 Cyan::IrradianceProbe* SceneManager::createIrradianceProbe(Cyan::Texture* srcCubemapTexture, const glm::uvec2& irradianceRes)

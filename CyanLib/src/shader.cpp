@@ -8,6 +8,42 @@
 #include "Scene.h"
 #include "Entity.h"
 
+// todo: how to utilize the following
+namespace Cyan
+{
+    // global shader definitions shared by multiple shaders
+    const char* gCommonMathDefs = {
+        R"(
+            #define PI 3.1415926f
+        )"
+    };
+
+    const char* gDrawDataDef = {
+        R"(
+            layout(std430, binding = 0) buffer GlobalDrawData
+            {
+                mat4  view;
+                mat4  projection;
+                mat4  sunLightView;
+                mat4  sunShadowProjections[4];
+                int   numDirLights;
+                int   numPointLights;
+                float m_ssao;
+                float dummy;
+            } gDrawData;
+        )"
+    };
+
+    const char* gGlobalTransformDef = {
+        R"(
+            layout(std430, binding = 3) buffer InstanceTransformData
+            {
+                mat4 models[];
+            } gInstanceTransforms;
+        )"
+    };
+}
+
 namespace ShaderUtil {
     void checkShaderCompilation(GLuint shader) {
         int compile_result;
@@ -180,7 +216,7 @@ void Shader::deleteProgram() {
 void Shader::bind()
 {
     // dynamically rebuild the shader if src was modified
-    dynamicRebuild();
+    // dynamicRebuild();
     glUseProgram(m_programId);
 }
 
@@ -266,6 +302,11 @@ void Shader::setUniform1f(const char* name, GLfloat data) {
     SHADER_GUARD_SET_UNIFORM(name, glProgramUniform1f, m_programId, data);
 }
 
+void Shader::setUniformVec2(const char* name, GLfloat* v)
+{
+    SHADER_GUARD_SET_UNIFORM(name, glProgramUniform2fv, m_programId, 1, v);
+}
+
 void Shader::setUniformVec3(const char* name, GLfloat* vecData) {
     SHADER_GUARD_SET_UNIFORM(name, glProgramUniform3fv, m_programId, 1, vecData);
 }
@@ -295,6 +336,6 @@ GLint Shader::getUniformLocation(const char* name)
     }
 
     // TODO: Debug message
-    // printf("Uniform: %s cannot be found in shader progam: %d\n", name, m_programId);
+    printf("Uniform: %s cannot be found in shader progam: %d\n", name, m_programId);
     return -1;
 }

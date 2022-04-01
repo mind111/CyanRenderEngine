@@ -240,7 +240,7 @@ namespace Cyan
         texture->dataType = spec.dataType;
         texture->minFilter = spec.min;
         texture->magFilter = spec.mag;
-        texture->wrapS = spec.s; 
+        texture->wrapS = spec.s;
         texture->wrapT = spec.t;
         texture->wrapR = spec.r;
         texture->data = spec.data;
@@ -290,13 +290,17 @@ namespace Cyan
         texture->data = spec.data;
 
         TextureSpecGL specGL = translate(spec);
-        setTextureParameters(texture, specGL);
 
         glCreateTextures(GL_TEXTURE_3D, 1, &texture->handle);
         glBindTexture(GL_TEXTURE_3D, texture->handle);
         glTexImage3D(GL_TEXTURE_3D, 0, specGL.m_internalFormatGL, spec.width, spec.height, spec.depth, 0, specGL.m_dataFormatGL, GL_UNSIGNED_INT, 0);
+        if (spec.numMips > 1u)
+        {
+            glGenerateMipmap(GL_TEXTURE_3D);
+        }
         glBindTexture(GL_TEXTURE_3D, 0u);
         setTextureParameters(texture, specGL);
+
         s_textures.push_back(texture);
         return texture;
     }

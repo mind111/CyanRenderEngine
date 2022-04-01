@@ -100,26 +100,6 @@ namespace Cyan
         return &s_sceneNodes[m_numSceneNodes++]; 
     }
 
-    SceneNode* createSceneNode(Scene* scene, const char* name, Transform transform, Mesh* mesh, bool hasAABB)
-    {
-        SceneNode* node = allocSceneNode();
-        CYAN_ASSERT(name, "Name must be passed to createSceneNode().")
-        strcpy(node->m_name, name);
-        node->m_localTransform = transform;
-        node->m_worldTransform = transform;
-        node->m_hasAABB = hasAABB;
-        if (mesh)
-        {
-            node->m_meshInstance = mesh->createInstance(scene);
-            if (mesh->m_shouldNormalize)
-            {
-                glm::mat4 localTransformMat = node->m_localTransform.toMatrix() * mesh->m_normalization;
-                node->setLocalTransform(localTransformMat);
-            }
-        }
-        return node;
-    }
-
     void shutDown()
     {
         delete s_gfxc;
@@ -190,22 +170,6 @@ namespace Cyan
         return 0;
     }
 
-    Scene* createScene(const char* name, const char* file)
-    {
-        Toolkit::GpuTimer loadSceneTimer("createScene()", true);
-        Scene* scene = new Scene;
-        scene->m_name = std::string(name);
-
-        scene->m_rootEntity = nullptr;
-        // create root entity
-        scene->m_rootEntity = SceneManager::getSingletonPtr()->createEntity(scene, "SceneRoot", Transform(), true);
-        scene->g_sceneRoot = scene->m_rootEntity->m_sceneRoot;
-        auto assetManager = GraphicsSystem::getSingletonPtr()->getAssetManager(); 
-        assetManager->loadScene(scene, file);
-        loadSceneTimer.end();
-        return scene;
-    }
-
     Shader* createVsGsPsShader(const char* name, const char* vsSrc, const char* gsSrc, const char* fsSrc)
     {
         using ShaderEntry = std::pair<std::string, u32>;
@@ -229,6 +193,7 @@ namespace Cyan
         Shader* shader = m_shaders[handle];
         shader->m_name = std::string(name);
         s_shaderRegistry.insert(ShaderEntry(shader->m_name, handle));
+        cyanInfo("Building VsGsPs shader: %s", name);
         shader->init(src, Shader::Type::VsGsPs);
         return shader;
     }
@@ -650,8 +615,8 @@ namespace Cyan
             // TODO: need to watch out for zmin and zmax as zmin is actually greater than 0 
             // in OpenGL style right-handed coordinate system. This is why meshZMax is put in 
             // pMin while meshZMin is put in pMax.
-            mesh->m_aabb.m_pMin = glm::vec4(meshXMin, meshYMin, meshZMax, 1.0f);
-            mesh->m_aabb.m_pMax = glm::vec4(meshXMax, meshYMax, meshZMin, 1.0f);
+            mesh->m_aabb.pmin = glm::vec4(meshXMin, meshYMin, meshZMax, 1.0f);
+            mesh->m_aabb.pmax = glm::vec4(meshXMax, meshYMax, meshZMin, 1.0f);
             // TODO: cleanup
             mesh->m_aabb.init();
         }
@@ -660,12 +625,12 @@ namespace Cyan
         {
             computeAABB(mesh);
 
-            float meshXMin = mesh->m_aabb.m_pMin.x;
-            float meshXMax = mesh->m_aabb.m_pMax.x;
-            float meshYMin = mesh->m_aabb.m_pMin.y;
-            float meshYMax = mesh->m_aabb.m_pMax.y;
-            float meshZMin = mesh->m_aabb.m_pMin.z;
-            float meshZMax = mesh->m_aabb.m_pMax.z;
+            float meshXMin = mesh->m_aabb.pmin.x;
+            float meshXMax = mesh->m_aabb.pmax.x;
+            float meshYMin = mesh->m_aabb.pmin.y;
+            float meshYMax = mesh->m_aabb.pmax.y;
+            float meshZMin = mesh->m_aabb.pmin.z;
+            float meshZMax = mesh->m_aabb.pmax.z;
 
             f32 scale = Max(Cyan::fabs(meshXMin), Cyan::fabs(meshXMax));
             scale = Max(scale, Max(Cyan::fabs(meshYMin), Cyan::fabs(meshYMax)));

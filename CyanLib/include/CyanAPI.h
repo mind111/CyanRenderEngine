@@ -166,8 +166,6 @@ namespace Cyan
 
     /* Scene */
     SceneNode* allocSceneNode();
-    // SceneNode* createSceneNode(Scene* scene, const char* name, Transform transform, Mesh* mesh=nullptr, bool hasAABB=true);
-    Scene* createScene(const char* name, const char* _file);
 
     /* voxel cone tracing */
     void voxelizeScene();

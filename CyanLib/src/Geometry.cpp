@@ -7,7 +7,7 @@ PointGroup::PointGroup(u32 size)
     : kMaxNumPoints(size),
     m_numPoints(0),
     m_shader(nullptr),
-    m_matl(nullptr)
+    matl(nullptr)
 {
     m_points.resize(kMaxNumPoints);
     VertexBuffer* vb = Cyan::createVertexBuffer(m_points.data(), sizeof(Point) * m_points.size(), sizeof(Point), m_points.size());
@@ -15,7 +15,7 @@ PointGroup::PointGroup(u32 size)
     m_vertexArray = Cyan::createVertexArray(vb);
     m_vertexArray->init();
     m_shader = Cyan::createShader("LineShader", "../../shader/shader_line.vs", "../../shader/shader_line.fs");
-    m_matl = Cyan::createMaterial(m_shader)->createInstance();
+    matl = Cyan::createMaterial(m_shader)->createInstance();
     glPointSize(7.f);
 }
 
@@ -38,7 +38,7 @@ void PointGroup::clear()
 
 void PointGroup::setColor(const glm::vec4& color)
 {
-    m_matl->set("color", &color.x);
+    matl->set("color", &color.x);
 }
 
 void PointGroup::draw(glm::mat4& mvp)
@@ -47,8 +47,8 @@ void PointGroup::draw(glm::mat4& mvp)
 
     auto ctx = Cyan::getCurrentGfxCtx();
     ctx->setShader(m_shader);
-    m_matl->set("mvp", &mvp[0]);
-    m_matl->bind();
+    matl->set("mvp", &mvp[0]);
+    matl->bind();
     ctx->setVertexArray(m_vertexArray);
     ctx->setPrimitiveType(Cyan::PrimitiveType::Points);
     ctx->drawIndexAuto(m_vertexArray->numVerts());
@@ -57,7 +57,7 @@ void PointGroup::draw(glm::mat4& mvp)
 void Line::init() 
 { 
     Shader* shader = Cyan::createShader("LineShader", "../../shader/shader_line.vs", "../../shader/shader_line.fs");
-    m_matl = Cyan::createMaterial(shader)->createInstance();
+    matl = Cyan::createMaterial(shader)->createInstance();
     glCreateBuffers(1, &m_vbo);
     glNamedBufferData(m_vbo, sizeof(m_vertices), nullptr, GL_STATIC_DRAW);
     glCreateVertexArrays(1, &m_vao);
@@ -79,16 +79,16 @@ Line& Line::setVertices(glm::vec3 v0, glm::vec3 v1)
 
 Line& Line::setColor(glm::vec4 color)
 {
-    m_matl->set("color", &color.r);
+    matl->set("color", &color.r);
     return *this;
 }
 
 void Line::draw(glm::mat4& mvp) 
 { 
     auto ctx = Cyan::getCurrentGfxCtx();
-    ctx->setShader(m_matl->m_template->m_shader);
-    m_matl->set("mvp", &mvp[0]);
-    m_matl->bind();
+    ctx->setShader(matl->m_template->m_shader);
+    matl->set("mvp", &mvp[0]);
+    matl->bind();
     glBindVertexArray(m_vao);
     glDrawArrays(GL_LINES, 0, 2);
     glBindVertexArray(0);
@@ -97,7 +97,7 @@ void Line::draw(glm::mat4& mvp)
 void Line2D::init()
 {
     Shader* shader = Cyan::createShader("Line2DShader", "../../shader/shader_line2d.vs", "../../shader/shader_line2d.fs");
-    m_matl = Cyan::createMaterial(shader)->createInstance();
+    matl = Cyan::createMaterial(shader)->createInstance();
     auto vb = Cyan::createVertexBuffer(m_vertices, sizeof(m_vertices), 3 * sizeof(f32), 2);
     vb->addVertexAttrib({VertexAttrib::DataType::Float, 3, 3 * sizeof(f32), 0 });
     m_vertexArray = Cyan::createVertexArray(vb);
@@ -120,9 +120,9 @@ void Line2D::draw()
 {
     auto ctx = Cyan::getCurrentGfxCtx();
     ctx->setDepthControl(Cyan::DepthControl::kDisable);
-    ctx->setShader(m_matl->m_template->m_shader);
-    m_matl->set("color", &m_color.r);
-    m_matl->bind();
+    ctx->setShader(matl->m_template->m_shader);
+    matl->set("color", &m_color.r);
+    matl->bind();
     ctx->setVertexArray(m_vertexArray);
     ctx->setPrimitiveType(Cyan::PrimitiveType::Line);
     ctx->drawIndexAuto(2);
@@ -134,7 +134,7 @@ void Line2D::draw()
 }
 
 Quad::Quad()
-    : m_matl(0)
+    : matl(0)
 {
     // do nothing
 }
@@ -158,7 +158,7 @@ void Quad::init(glm::vec2 pos, float width, float height)
 
     // TODO: this is bad, Quad class should only need static shader
     Shader* shader = Cyan::createShader("QuadShader", "../../shader/shader_quad.vs", "../../shader/shader_quad.fs");
-    m_matl = Cyan::createMaterial(shader)->createInstance();
+    matl = Cyan::createMaterial(shader)->createInstance();
 
     glCreateBuffers(1, &m_vbo);
     glNamedBufferData(m_vbo, sizeof(m_vertices), m_vertices, GL_STATIC_DRAW);
@@ -173,8 +173,8 @@ void Quad::init(glm::vec2 pos, float width, float height)
 
 void Quad::draw()
 {
-    Cyan::getCurrentGfxCtx()->setShader(m_matl->m_template->m_shader);
-    m_matl->bind();
+    Cyan::getCurrentGfxCtx()->setShader(matl->m_template->m_shader);
+    matl->bind();
     glBindVertexArray(m_vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glBindVertexArray(0);
@@ -195,111 +195,113 @@ u32 indices[24] = {
     0, 7
 };
 
+Shader* BoundingBox3f::shader = nullptr;
+
+BoundingBox3f::BoundingBox3f()
+{
+    pmin = glm::vec4(FLT_MAX, FLT_MAX, FLT_MAX, 1.0f);
+    pmax = glm::vec4(-FLT_MAX, -FLT_MAX, -FLT_MAX, 1.0f);
+    vertexArray = nullptr;
+    if (!shader)
+    {
+        shader = Cyan::createShader("LineShader", SHADER_SOURCE_PATH "shader_line.vs", SHADER_SOURCE_PATH "shader_line.fs");
+    }
+}
+
 // setup for debug rendering
 void BoundingBox3f::init()
 {
-    glm::vec3 pMin = Cyan::vec4ToVec3(m_pMin);
-    glm::vec3 pMax = Cyan::vec4ToVec3(m_pMax);
-    glm::vec3 dim = pMax - pMin;
-
-    // compute all verts
-    m_vertices[0] = pMin;
-    m_vertices[1] = m_vertices[0] + glm::vec3(dim.x, 0.f, 0.f);
-    m_vertices[2] = m_vertices[1] + glm::vec3(0.f, dim.y, 0.f);
-    m_vertices[3] = m_vertices[2] + glm::vec3(-dim.x, 0.f, 0.f);
-
-    // dim.z < 0 becasue m_pMin.z > 0 while m_pMax.z < 0 
-    m_vertices[4] = m_vertices[1] + glm::vec3(0.f, 0.f, dim.z);
-    m_vertices[5] = m_vertices[2] + glm::vec3(0.f, 0.f, dim.z);
-    m_vertices[6] = m_vertices[3] + glm::vec3(0.f, 0.f, dim.z);
-    m_vertices[7] = m_vertices[0] + glm::vec3(0.f, 0.f, dim.z);
-
-    auto vb = Cyan::createVertexBuffer(reinterpret_cast<void*>(m_vertices), sizeof(m_vertices), sizeof(glm::vec3), 8u);
+    auto vb = Cyan::createVertexBuffer(reinterpret_cast<void*>(vertices), sizeof(vertices), sizeof(glm::vec3), 8u);
     vb->m_vertexAttribs.push_back({
         VertexAttrib::DataType::Float, 3, sizeof(glm::vec3), 0u
     });
-    m_vertexArray = Cyan::createVertexArray(vb);
-    glCreateBuffers(1, &m_vertexArray->m_ibo);
-    glBindVertexArray(m_vertexArray->m_vao);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_vertexArray->m_ibo);
-    glNamedBufferData(m_vertexArray->m_ibo, sizeof(indices),
+    vertexArray = Cyan::createVertexArray(vb);
+    glCreateBuffers(1, &vertexArray->m_ibo);
+    glBindVertexArray(vertexArray->m_vao);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertexArray->m_ibo);
+    glNamedBufferData(vertexArray->m_ibo, sizeof(indices),
                         reinterpret_cast<const void*>(indices), GL_STATIC_DRAW);
     glBindVertexArray(0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-    m_vertexArray->init();
-    Shader* shader = Cyan::createShader("LineShader", "../../shader/shader_line.vs", "../../shader/shader_line.fs");
-    m_matl = Cyan::createMaterial(shader)->createInstance();
-    m_color = glm::vec3(1.0, 0.8, 0.f);
+    vertexArray->init();
+    matl = Cyan::createMaterial(shader)->createInstance();
+    color = glm::vec3(1.0, 0.8, 0.f);
 }
 
 void BoundingBox3f::draw(glm::mat4& mvp)
 {
     auto ctx = Cyan::getCurrentGfxCtx();
-    ctx->setShader(Cyan::createShader("LineShader", "../../shader_line.vs", "../../shader_line.fs"));
-    ctx->setVertexArray(m_vertexArray);
-    m_matl->set("color", &m_color.r);
-    m_matl->set("mvp", &mvp[0]);
-    m_matl->bind();
+    ctx->setShader(shader);
+    matl->set("color", &color.r);
+    matl->set("mvp", &mvp[0]);
+    matl->bind();
+
     ctx->setPrimitiveType(Cyan::PrimitiveType::Line);
+    ctx->setVertexArray(vertexArray);
     ctx->drawIndex(sizeof(indices) / sizeof(u32));
 }
 
-void BoundingBox3f::computeVerts()
+void BoundingBox3f::update()
 {
-    glm::vec3 pMin = Cyan::vec4ToVec3(m_pMin);
-    glm::vec3 pMax = Cyan::vec4ToVec3(m_pMax);
+    glm::vec3 pMin = Cyan::vec4ToVec3(pmin);
+    glm::vec3 pMax = Cyan::vec4ToVec3(pmax);
     glm::vec3 dim = pMax - pMin;
 
-    // compute all verts
-    m_vertices[0] = pMin;
-    m_vertices[1] = m_vertices[0] + glm::vec3(dim.x, 0.f, 0.f);
-    m_vertices[2] = m_vertices[1] + glm::vec3(0.f, dim.y, 0.f);
-    m_vertices[3] = m_vertices[2] + glm::vec3(-dim.x, 0.f, 0.f);
+    // update vertices
+    vertices[0] = pMin;
+    vertices[1] = vertices[0] + glm::vec3(dim.x, 0.f, 0.f);
+    vertices[2] = vertices[1] + glm::vec3(0.f, dim.y, 0.f);
+    vertices[3] = vertices[2] + glm::vec3(-dim.x, 0.f, 0.f);
 
     // dim.z < 0 becasue m_pMin.z > 0 while m_pMax.z < 0 
-    m_vertices[4] = m_vertices[1] + glm::vec3(0.f, 0.f, dim.z);
-    m_vertices[5] = m_vertices[2] + glm::vec3(0.f, 0.f, dim.z);
-    m_vertices[6] = m_vertices[3] + glm::vec3(0.f, 0.f, dim.z);
-    m_vertices[7] = m_vertices[0] + glm::vec3(0.f, 0.f, dim.z);
+    vertices[4] = vertices[1] + glm::vec3(0.f, 0.f, dim.z);
+    vertices[5] = vertices[2] + glm::vec3(0.f, 0.f, dim.z);
+    vertices[6] = vertices[3] + glm::vec3(0.f, 0.f, dim.z);
+    vertices[7] = vertices[0] + glm::vec3(0.f, 0.f, dim.z);
 
-    glNamedBufferData(m_vertexArray->m_vertexBuffer->m_vbo, sizeof(m_vertices), m_vertices, GL_STATIC_DRAW);
+    glNamedBufferSubData(vertexArray->m_vertexBuffer->m_vbo, 0, sizeof(vertices), vertices);
 }
 
-void BoundingBox3f::resetBound()
+void BoundingBox3f::reset()
 {
-    m_pMin = glm::vec4(FLT_MAX, FLT_MAX, FLT_MAX, 1.0f);
-    m_pMax = glm::vec4(-FLT_MAX, -FLT_MAX, -FLT_MAX, 1.0f);
+    pmin = glm::vec4(FLT_MAX, FLT_MAX, FLT_MAX, 1.0f);
+    pmax = glm::vec4(-FLT_MAX, -FLT_MAX, -FLT_MAX, 1.0f);
+    for (u32 i = 0; i < 8; ++i)
+    {
+        vertices[i] = glm::vec3(0.f);
+    }
+    glNamedBufferSubData(vertexArray->m_vertexBuffer->m_vbo, 0, sizeof(vertices), vertices);
 }
 
 void BoundingBox3f::bound(const BoundingBox3f& aabb) 
 {
-    m_pMin.x = Min(m_pMin.x, aabb.m_pMin.x);
-    m_pMin.y = Min(m_pMin.y, aabb.m_pMin.y);
-    m_pMin.z = Min(m_pMin.z, aabb.m_pMin.z);
+    pmin.x = Min(pmin.x, aabb.pmin.x);
+    pmin.y = Min(pmin.y, aabb.pmin.y);
+    pmin.z = Min(pmin.z, aabb.pmin.z);
 
-    m_pMax.x = Max(m_pMax.x, aabb.m_pMax.x);
-    m_pMax.y = Max(m_pMax.y, aabb.m_pMax.y);
-    m_pMax.z = Max(m_pMax.z, aabb.m_pMax.z);
+    pmax.x = Max(pmax.x, aabb.pmax.x);
+    pmax.y = Max(pmax.y, aabb.pmax.y);
+    pmax.z = Max(pmax.z, aabb.pmax.z);
 }
 
 void BoundingBox3f::bound(const glm::vec3& v3)
 {
-    m_pMin.x = Min(m_pMin.x, v3.x);
-    m_pMin.y = Min(m_pMin.y, v3.y);
-    m_pMin.z = Min(m_pMin.z, v3.z);
-    m_pMax.x = Max(m_pMax.x, v3.x);
-    m_pMax.y = Max(m_pMax.y, v3.y);
-    m_pMax.z = Max(m_pMax.z, v3.z);
+    pmin.x = Min(pmin.x, v3.x);
+    pmin.y = Min(pmin.y, v3.y);
+    pmin.z = Min(pmin.z, v3.z);
+    pmax.x = Max(pmax.x, v3.x);
+    pmax.y = Max(pmax.y, v3.y);
+    pmax.z = Max(pmax.z, v3.z);
 }
 
 void BoundingBox3f::bound(const glm::vec4& v4)
 {
-    m_pMin.x = Min(m_pMin.x, v4.x);
-    m_pMin.y = Min(m_pMin.y, v4.y);
-    m_pMin.z = Min(m_pMin.z, v4.z);
-    m_pMax.x = Max(m_pMax.x, v4.x);
-    m_pMax.y = Max(m_pMax.y, v4.y);
-    m_pMax.z = Max(m_pMax.z, v4.z);
+    pmin.x = Min(pmin.x, v4.x);
+    pmin.y = Min(pmin.y, v4.y);
+    pmin.z = Min(pmin.z, v4.z);
+    pmax.x = Max(pmax.x, v4.x);
+    pmax.y = Max(pmax.y, v4.y);
+    pmax.z = Max(pmax.z, v4.z);
 }
 
 void BoundingBox3f::bound(const Triangle& tri)
@@ -316,8 +318,8 @@ inline f32 ffmax(f32 a, f32 b) { return a > b ? a : b;}
 float BoundingBox3f::intersectRay(const glm::vec3& ro, const glm::vec3& rd)
 {
     f32 tMin, tMax;
-    glm::vec3 min = Cyan::vec4ToVec3(m_pMin);
-    glm::vec3 max = Cyan::vec4ToVec3(m_pMax);
+    glm::vec3 min = Cyan::vec4ToVec3(pmin);
+    glm::vec3 max = Cyan::vec4ToVec3(pmax);
 
     // x-min, x-max
     f32 txMin = ffmin((min.x - ro.x) / rd.x, (max.x - ro.x) / rd.x);

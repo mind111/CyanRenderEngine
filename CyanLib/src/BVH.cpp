@@ -61,8 +61,8 @@ namespace Cyan
     {
         auto nodeA = static_cast<const BVHNode*>(a);
         auto nodeB = static_cast<const BVHNode*>(b);
-        f32 centerA = (nodeA->m_aabb.m_pMin.x + nodeA->m_aabb.m_pMax.x) * .5f;
-        f32 centerB = (nodeB->m_aabb.m_pMin.x + nodeB->m_aabb.m_pMax.x) * .5f;
+        f32 centerA = (nodeA->m_aabb.pmin.x + nodeA->m_aabb.pmax.x) * .5f;
+        f32 centerB = (nodeB->m_aabb.pmin.x + nodeB->m_aabb.pmax.x) * .5f;
         return centerA < centerB ? -1 : 1;
     }
 
@@ -70,8 +70,8 @@ namespace Cyan
     {
         auto nodeA = static_cast<const BVHNode*>(a);
         auto nodeB = static_cast<const BVHNode*>(b);
-        f32 centerA = (nodeA->m_aabb.m_pMin.y + nodeA->m_aabb.m_pMax.y) * .5f;
-        f32 centerB = (nodeB->m_aabb.m_pMin.y + nodeB->m_aabb.m_pMax.y) * .5f;
+        f32 centerA = (nodeA->m_aabb.pmin.y + nodeA->m_aabb.pmax.y) * .5f;
+        f32 centerB = (nodeB->m_aabb.pmin.y + nodeB->m_aabb.pmax.y) * .5f;
         return centerA < centerB ? -1 : 1;
     }
 
@@ -79,8 +79,8 @@ namespace Cyan
     {
         auto nodeA = static_cast<const BVHNode*>(a);
         auto nodeB = static_cast<const BVHNode*>(b);
-        f32 centerA = (nodeA->m_aabb.m_pMin.z + nodeA->m_aabb.m_pMax.z) * .5f;
-        f32 centerB = (nodeB->m_aabb.m_pMin.z + nodeB->m_aabb.m_pMax.z) * .5f;
+        f32 centerA = (nodeA->m_aabb.pmin.z + nodeA->m_aabb.pmax.z) * .5f;
+        f32 centerB = (nodeB->m_aabb.pmin.z + nodeB->m_aabb.pmax.z) * .5f;
         return centerA < centerB ? -1 : 1;
     }
 
@@ -168,8 +168,8 @@ namespace Cyan
         {
             auto nodeA = static_cast<const BVHNode*>(a);
             auto nodeB = static_cast<const BVHNode*>(b);
-            f32 centerA = (nodeA->m_aabb.m_pMin.x + nodeA->m_aabb.m_pMax.x) * .5f;
-            f32 centerB = (nodeA->m_aabb.m_pMin.x + nodeA->m_aabb.m_pMax.x) * .5f;
+            f32 centerA = (nodeA->m_aabb.pmin.x + nodeA->m_aabb.pmax.x) * .5f;
+            f32 centerB = (nodeA->m_aabb.pmin.x + nodeA->m_aabb.pmax.x) * .5f;
             if (centerA < centerB)
                 return -1;
             else
@@ -180,8 +180,8 @@ namespace Cyan
         {
             auto nodeA = static_cast<const BVHNode*>(a);
             auto nodeB = static_cast<const BVHNode*>(b);
-            f32 centerA = (nodeA->m_aabb.m_pMin.x + nodeA->m_aabb.m_pMax.y) * .5f;
-            f32 centerB = (nodeA->m_aabb.m_pMin.x + nodeA->m_aabb.m_pMax.y) * .5f;
+            f32 centerA = (nodeA->m_aabb.pmin.x + nodeA->m_aabb.pmax.y) * .5f;
+            f32 centerB = (nodeA->m_aabb.pmin.x + nodeA->m_aabb.pmax.y) * .5f;
             if (centerA < centerB)
                 return -1;
             else
@@ -192,8 +192,8 @@ namespace Cyan
         {
             auto nodeA = static_cast<const BVHNode*>(a);
             auto nodeB = static_cast<const BVHNode*>(b);
-            f32 centerA = (nodeA->m_aabb.m_pMin.z + nodeA->m_aabb.m_pMax.z) * .5f;
-            f32 centerB = (nodeA->m_aabb.m_pMin.z + nodeA->m_aabb.m_pMax.z) * .5f;
+            f32 centerA = (nodeA->m_aabb.pmin.z + nodeA->m_aabb.pmax.z) * .5f;
+            f32 centerB = (nodeA->m_aabb.pmin.z + nodeA->m_aabb.pmax.z) * .5f;
             if (centerA < centerB)
                 return -1;
             else
