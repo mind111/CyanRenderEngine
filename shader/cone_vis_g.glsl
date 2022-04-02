@@ -6,9 +6,13 @@
 layout (points) in;
 layout (triangle_strip, max_vertices = 36) out;
 
-#define pi 3.1415926
+in VS_OUT
+{ 
+    float size;
+    vec3 color;
+} gsIn[];
 
-in int index[];
+#define pi 3.1415926
 
 out vec3 voxelColor;
 
@@ -24,29 +28,6 @@ layout(std430, binding = 0) buffer GlobalDrawData
     float m_ssao;
     float dummy;
 } gDrawData;
-
-//- voxel cone tracing
-layout(std430, binding = 4) buffer VoxelGridData
-{
-    vec3 localOrigin;
-    float voxelSize;
-    int visMode;
-    vec3 padding;
-} sceneVoxelGrid;
-
-struct ConeCube
-{
-	vec3 center;
-	float size;
-    vec4 color;
-};
-
-layout(std430) buffer ConeTraceDebugData
-{
-    int numCubes;
-    vec3 padding;
-	ConeCube cubes[];
-} debugConeBuffer;
 
 uniform float boost;
 
@@ -121,12 +102,12 @@ void generateCube(vec3 p, float size, vec3 color)
 	}
 }
 
-void visualizeVct()
+void visualizeConeStep()
 {
-	generateCube(debugConeBuffer.cubes[index[0]].center, debugConeBuffer.cubes[index[0]].size, debugConeBuffer.cubes[index[0]].color.rgb);
+	generateCube(gl_in[0].gl_Position.xyz, gsIn[0].size, gsIn[0].color.rgb);
 }
 
 void main()
 {
-    visualizeVct();
+    visualizeConeStep();
 }

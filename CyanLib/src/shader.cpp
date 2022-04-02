@@ -130,7 +130,7 @@ void Shader::buildVsPsFromSource(const char* vertSrc, const char* fragSrc)
 
     GLuint vs = glCreateShader(GL_VERTEX_SHADER);
     GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
-    m_programId = glCreateProgram();
+    handle = glCreateProgram();
     // Load shader source
     const char* vertShaderSrc = ShaderUtil::readShaderFile(m_vertSrcInfo.m_path.c_str());
     const char* fragShaderSrc = ShaderUtil::readShaderFile(m_fragSrcInfo.m_path.c_str());
@@ -142,10 +142,10 @@ void Shader::buildVsPsFromSource(const char* vertSrc, const char* fragSrc)
     ShaderUtil::checkShaderCompilation(vs);
     ShaderUtil::checkShaderCompilation(fs);
     // Link shader
-    glAttachShader(m_programId, vs);
-    glAttachShader(m_programId, fs);
-    glLinkProgram(m_programId);
-    ShaderUtil::checkShaderLinkage(m_programId);
+    glAttachShader(handle, vs);
+    glAttachShader(handle, fs);
+    glLinkProgram(handle);
+    ShaderUtil::checkShaderLinkage(handle);
     glDeleteShader(vs);
     glDeleteShader(fs);
 }
@@ -154,16 +154,16 @@ void Shader::buildCsFromSource(const char* csSrcFile)
 {
     const char* csSrc = ShaderUtil::readShaderFile(csSrcFile);
     GLuint cs = glCreateShader(GL_COMPUTE_SHADER);
-    m_programId = glCreateProgram();
+    handle = glCreateProgram();
     // upload shader source
     glShaderSource(cs, 1, &csSrc, nullptr);
     // Compile shader
     glCompileShader(cs);
     ShaderUtil::checkShaderCompilation(cs);
     // Link shader
-    glAttachShader(m_programId, cs);
-    glLinkProgram(m_programId);
-    ShaderUtil::checkShaderLinkage(m_programId);
+    glAttachShader(handle, cs);
+    glLinkProgram(handle);
+    ShaderUtil::checkShaderLinkage(handle);
     glDeleteShader(cs);
 }
 
@@ -175,7 +175,7 @@ void Shader::buildVsGsPsFromSource(const char* vsSrcFile, const char* gsSrcFile,
     GLuint vs = glCreateShader(GL_VERTEX_SHADER);
     GLuint gs = glCreateShader(GL_GEOMETRY_SHADER);
     GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
-    m_programId = glCreateProgram();
+    handle = glCreateProgram();
     // upload shader source
     glShaderSource(vs, 1, &vsSrc, nullptr);
     glShaderSource(gs, 1, &gsSrc, nullptr);
@@ -188,11 +188,11 @@ void Shader::buildVsGsPsFromSource(const char* vsSrcFile, const char* gsSrcFile,
     ShaderUtil::checkShaderCompilation(gs);
     ShaderUtil::checkShaderCompilation(fs);
     // Link shader
-    glAttachShader(m_programId, vs);
-    glAttachShader(m_programId, gs);
-    glAttachShader(m_programId, fs);
-    glLinkProgram(m_programId);
-    ShaderUtil::checkShaderLinkage(m_programId);
+    glAttachShader(handle, vs);
+    glAttachShader(handle, gs);
+    glAttachShader(handle, fs);
+    glLinkProgram(handle);
+    ShaderUtil::checkShaderLinkage(handle);
     glDeleteShader(vs);
     glDeleteShader(gs);
     glDeleteShader(fs);
@@ -210,14 +210,14 @@ void Shader::dynamicRebuild() {
 }
 
 void Shader::deleteProgram() {
-    glDeleteProgram(m_programId);
+    glDeleteProgram(handle);
 }
 
 void Shader::bind()
 {
     // dynamically rebuild the shader if src was modified
     // dynamicRebuild();
-    glUseProgram(m_programId);
+    glUseProgram(handle);
 }
 
 void Shader::unbind()
@@ -291,32 +291,32 @@ void Shader::setUniform(Uniform* _uniform, f32 _value)
 }
 
 void Shader::setUniform1i(const char* name, GLint data) {
-    SHADER_GUARD_SET_UNIFORM(name, glProgramUniform1i, m_programId, data);
+    SHADER_GUARD_SET_UNIFORM(name, glProgramUniform1i, handle, data);
 }
 
 void Shader::setUniform1ui(const char* name, GLuint data) {
-    SHADER_GUARD_SET_UNIFORM(name, glProgramUniform1ui, m_programId, data);
+    SHADER_GUARD_SET_UNIFORM(name, glProgramUniform1ui, handle, data);
 }
 
 void Shader::setUniform1f(const char* name, GLfloat data) {
-    SHADER_GUARD_SET_UNIFORM(name, glProgramUniform1f, m_programId, data);
+    SHADER_GUARD_SET_UNIFORM(name, glProgramUniform1f, handle, data);
 }
 
 void Shader::setUniformVec2(const char* name, GLfloat* v)
 {
-    SHADER_GUARD_SET_UNIFORM(name, glProgramUniform2fv, m_programId, 1, v);
+    SHADER_GUARD_SET_UNIFORM(name, glProgramUniform2fv, handle, 1, v);
 }
 
 void Shader::setUniformVec3(const char* name, GLfloat* vecData) {
-    SHADER_GUARD_SET_UNIFORM(name, glProgramUniform3fv, m_programId, 1, vecData);
+    SHADER_GUARD_SET_UNIFORM(name, glProgramUniform3fv, handle, 1, vecData);
 }
 
 void Shader::setUniformVec4(const char* name, GLfloat* vecData) {
-    SHADER_GUARD_SET_UNIFORM(name, glProgramUniform4fv, m_programId, 1, vecData);
+    SHADER_GUARD_SET_UNIFORM(name, glProgramUniform4fv, handle, 1, vecData);
 }
 
 void Shader::setUniformMat4f(const char* name, GLfloat* matData) {
-    SHADER_GUARD_SET_UNIFORM(name, glProgramUniformMatrix4fv, m_programId, 1, GL_FALSE, matData);
+    SHADER_GUARD_SET_UNIFORM(name, glProgramUniformMatrix4fv, handle, 1, GL_FALSE, matData);
 }
 
 GLint Shader::getUniformLocation(const char* name)
@@ -327,7 +327,7 @@ GLint Shader::getUniformLocation(const char* name)
     }
     else 
     {
-        GLint location = glGetUniformLocation(m_programId, name);
+        GLint location = glGetUniformLocation(handle, name);
         if (location >= 0)
         {
             m_uniformLocationCache[name] = location;
@@ -336,6 +336,6 @@ GLint Shader::getUniformLocation(const char* name)
     }
 
     // TODO: Debug message
-    printf("Uniform: %s cannot be found in shader progam: %d\n", name, m_programId);
+    printf("Uniform: %s cannot be found in shader progam: %d\n", name, handle);
     return -1;
 }

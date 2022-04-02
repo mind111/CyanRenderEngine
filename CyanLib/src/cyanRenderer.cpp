@@ -83,6 +83,8 @@ namespace Cyan
         gDrawDataBuffer(-1),
         m_bloomOutTexture(nullptr)
     {
+            // m_vctVisShader = createVsGsPsShader("VctVisShader", SHADER_SOURCE_PATH "vct_vis_v.glsl", SHADER_SOURCE_PATH "vct_vis_g.glsl", SHADER_SOURCE_PATH "vct_vis_p.glsl");
+            // m_vctVisMatl = createMaterial(m_vctVisShader)->createInstance();
         if (!m_renderer)
         {
             m_renderer = this;
@@ -358,31 +360,43 @@ namespace Cyan
             m_sceneVoxelGrid.emission = textureManager->createTexture3D("VoxelGridEmission", voxelDataSpec);
 
             voxelDataSpec.numMips = std::log2(m_sceneVoxelGrid.resolution) + 1;
-            // voxelDataSpec.numMips = m_sceneVoxelGrid.maxNumMips;
             m_sceneVoxelGrid.albedo = textureManager->createTexture3D("VoxelGridAlbedo", voxelDataSpec);
-
             m_sceneVoxelGrid.radiance = textureManager->createTexture3D("VoxelGridRadiance", voxelDataSpec);
 
             m_voxelizeShader = createVsGsPsShader("VoxelizeShader", SHADER_SOURCE_PATH "voxelize_v.glsl", SHADER_SOURCE_PATH "voxelize_g.glsl", SHADER_SOURCE_PATH "voxelize_p.glsl");
             m_voxelizeMatl = createMaterial(m_voxelizeShader)->createInstance(); 
             m_voxelVisShader = createVsGsPsShader("VoxelVisShader", SHADER_SOURCE_PATH "voxel_vis_v.glsl", SHADER_SOURCE_PATH "voxel_vis_g.glsl", SHADER_SOURCE_PATH "voxel_vis_p.glsl");
             m_voxelVisMatl = createMaterial(m_voxelVisShader)->createInstance();
-            m_vctVisShader = createVsGsPsShader("VctVisShader", SHADER_SOURCE_PATH "vct_vis_v.glsl", SHADER_SOURCE_PATH "vct_vis_g.glsl", SHADER_SOURCE_PATH "vct_vis_p.glsl");
-            m_vctVisMatl = createMaterial(m_vctVisShader)->createInstance();
-            m_vctxVis.prepShader = createCsShader("VctxVisPreprocessShader", SHADER_SOURCE_PATH "vct_vis_c.glsl");
             m_filterVoxelGridShader = createCsShader("VctxFilterShader", SHADER_SOURCE_PATH "vctx_filter_c.glsl");
-            m_vctxDebugShader = createVsGsPsShader("VctxDebugShader", SHADER_SOURCE_PATH "vctx_debug_v.glsl", SHADER_SOURCE_PATH "vctx_debug_g.glsl", SHADER_SOURCE_PATH "vctx_debug_p.glsl");
+
+            TextureSpec spec = { };
+            spec.width = 1280;
+            spec.height = 720;
+            spec.type = Texture::Type::TEX_2D;
+            spec.dataType = Texture::DataType::Float;
+            spec.format = Texture::ColorFormat::R16G16B16;
+            spec.min = Texture::Filter::LINEAR; 
+            spec.mag = Texture::Filter::LINEAR;
+            spec.numMips = 1;
+            m_vctxVis.renderTarget = createRenderTarget(spec.width, spec.width);
+            auto coneVisTexture = textureManager->createTexture("ConeVisTexture", spec);
+            m_vctxVis.renderTarget->setColorBuffer(coneVisTexture, 0);
+
+            m_vctxVis.coneVisComputeShader = createCsShader("ConeVisComputeShader", SHADER_SOURCE_PATH "cone_vis_c.glsl");
+            m_vctxVis.coneVisDrawShader = createVsGsPsShader("ConeVisGraphicsShader", SHADER_SOURCE_PATH "cone_vis_v.glsl", SHADER_SOURCE_PATH "cone_vis_g.glsl", SHADER_SOURCE_PATH "cone_vis_p.glsl");
+            m_vctxVis.vctxVisShader = createVsGsPsShader("VctxVisShader", SHADER_SOURCE_PATH "vctx_vis_v.glsl", SHADER_SOURCE_PATH "vctx_vis_g.glsl", SHADER_SOURCE_PATH "vctx_vis_p.glsl");
 
             // debug ssbo
             glCreateBuffers(1, &m_vctxVis.ssbo);
             glNamedBufferData(m_vctxVis.ssbo, sizeof(VctxVis::DebugBuffer), &m_vctxVis.debugConeBuffer, GL_DYNAMIC_COPY);
-            glShaderStorageBlockBinding(m_vctxVis.prepShader->m_programId, 0, (i32)GlobalBufferBindings::kCount);
-            GLuint index = glGetProgramResourceIndex(m_vctVisShader->m_programId, GL_SHADER_STORAGE_BLOCK, "ConeTraceDebugData");
-            glShaderStorageBlockBinding(m_vctVisShader->m_programId, index, (i32)GlobalBufferBindings::kCount);
 
-            // global vctx ssao
-            glCreateBuffers(1, &m_vctxSsbo);
-            glNamedBufferData(m_vctxSsbo, sizeof(VctxGpuData), &m_vctxGpuData, GL_DYNAMIC_COPY);
+            struct IndirectDrawArgs
+            {
+                GLuint first;
+                GLuint count;
+            };
+            glCreateBuffers(1, &m_vctxVis.idbo);
+            glNamedBufferData(m_vctxVis.idbo, sizeof(IndirectDrawArgs), nullptr, GL_DYNAMIC_COPY);
         }
 
         {
@@ -622,45 +636,84 @@ namespace Cyan
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, gBufferBinding(VctxGlobalData), m_vctxSsbo);
     }
 
-    void Renderer::visualizeVct(Scene* scene)
+    void Renderer::visualizeVoxelGrid()
     {
         glDisable(GL_CULL_FACE);
+        {
+            m_ctx->setRenderTarget(m_voxelVisRenderTarget, { 0 });
+            m_voxelVisRenderTarget->clear({ 0 });
+            m_ctx->setViewport({0u, 0u, m_voxelVisRenderTarget->width, m_voxelVisRenderTarget->height});
 
-        // pass 0: visualize scene voxel grid
+            m_ctx->setShader(m_voxelVisShader);
+            m_voxelVisMatl->set("activeMip", m_vctxVis.activeMip);
+            m_voxelVisMatl->bind();
 
-        m_ctx->setRenderTarget(m_voxelVisRenderTarget, { 0 });
-        m_voxelVisRenderTarget->clear({ 0 });
-        m_ctx->setViewport({0u, 0u, m_voxelVisRenderTarget->width, m_voxelVisRenderTarget->height});
-
-        m_ctx->setShader(m_voxelVisShader);
-        m_voxelVisMatl->set("activeMip", m_vctxVis.activeMip);
-        m_voxelVisMatl->bind();
-
-        m_ctx->setPrimitiveType(PrimitiveType::Points);
-        u32 currRes = m_sceneVoxelGrid.resolution / pow(2, m_vctxVis.activeMip);
-        m_ctx->drawIndexAuto(currRes * currRes * currRes);
-
-        // pass 1: fill debug data
-        // compute pass to fill in buffers
-        m_ctx->setShader(m_vctxVis.prepShader);
-        glNamedBufferSubData(m_vctxVis.ssbo, 0, sizeof(VctxVis::DebugBuffer), &m_vctxVis.debugConeBuffer);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, m_vctxVis.ssboBinding, m_vctxVis.ssbo);
-        m_vctxVis.prepShader->setUniformVec3("debugRayOrigin", &m_vctxVis.debugRayOrigin.x);
-        glDispatchCompute(1, 1, 1);
-        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-        // read back data from gpu
-        glGetNamedBufferSubData(m_vctxVis.ssbo, 0, sizeof(VctxVis::DebugBuffer), &m_vctxVis.debugConeBuffer);
-
-        // pass 2: visualize debug data
-        m_ctx->setShader(m_vctVisShader);
-        m_vctVisMatl->set("debugRayOrigin", &m_vctxVis.debugRayOrigin.x);
-        m_vctVisMatl->set("boost", &m_vctxVis.boost);
-        m_vctVisMatl->bind();
-
-        m_ctx->drawIndexAuto(m_vctxVis.debugConeBuffer.numCubes);
+            m_ctx->setPrimitiveType(PrimitiveType::Points);
+            u32 currRes = m_sceneVoxelGrid.resolution / pow(2, m_vctxVis.activeMip);
+            m_ctx->drawIndexAuto(currRes * currRes * currRes);
+        }
         m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
-
         glEnable(GL_CULL_FACE);
+    }
+
+    // todo: perform voxel cone trace in half res
+    void Renderer::visualizeVctxAo()
+    {
+        m_ctx->setRenderTarget(m_vctxVis.renderTarget, { 0 });
+        m_ctx->setViewport({ 0u, 0u, m_vctxVis.renderTarget->width, m_vctxVis.renderTarget->height });
+        m_ctx->setShader(m_vctxVis.vctxVisShader);
+        m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
+        m_ctx->drawIndexAuto(6u);
+    }
+
+    void Renderer::visualizeConeTrace()
+    {
+        // debug vis for voxel cone tracing
+        auto sceneDepthTexture = m_opts.enableAA ? m_sceneDepthTextureSSAA : m_sceneDepthTexture;
+        auto sceneNormalTexture = m_opts.enableAA ? m_sceneNormalTextureSSAA : m_sceneNormalTexture;
+
+        // pass 0: run a compute pass to fill debug cone data and visualize cone directions
+        m_ctx->setShader(m_vctxVis.coneVisComputeShader);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, m_vctxVis.ssboBinding, m_vctxVis.ssbo);
+
+        enum class SsboBindings
+        {
+            kIndirectDraw = 0,
+            kConeData
+        };
+
+        auto index = glGetProgramResourceIndex(m_vctxVis.coneVisComputeShader->handle, GL_SHADER_STORAGE_BLOCK, "");
+        glShaderStorageBlockBinding(m_vctxVis.coneVisComputeShader->handle, index, (u32)SsboBindings::kIndirectDraw);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)SsboBindings::kIndirectDraw, m_vctxVis.idbo);
+
+        index = glGetProgramResourceIndex(m_vctxVis.coneVisComputeShader->handle, GL_SHADER_STORAGE_BLOCK, "");
+        glShaderStorageBlockBinding(m_vctxVis.coneVisComputeShader->handle, index, (u32)SsboBindings::kConeData);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)SsboBindings::kConeData, m_vctxVis.ssbo);
+
+        // write cone data to ssbo 
+        glDispatchCompute(1, 1, 1);
+
+        // pass1 1: sample ao using vctx and and visualize traced cones
+        m_ctx->setRenderTarget(m_vctxVis.renderTarget, { 0 });
+        m_ctx->setViewport({ 0, 0, m_vctxVis.renderTarget->width, m_vctxVis.renderTarget->height });
+        m_ctx->setShader(m_vctxVis.coneVisDrawShader);
+
+        enum class TexBindings
+        {
+            kSceneDepth = 0,
+            kSceneNormal
+        };
+
+        m_vctxVis.coneVisDrawShader->setUniformVec2("debugScreenPos", &m_vctxVis.debugScreenPos.x);
+        m_vctxVis.coneVisDrawShader->setUniform1i("sceneDepthTexture", (i32)TexBindings::kSceneDepth);
+        m_vctxVis.coneVisDrawShader->setUniform1i("sceneNormalTexture", (i32)TexBindings::kSceneNormal);
+        glBindTextureUnit((u32)TexBindings::kSceneDepth, sceneDepthTexture->handle);
+        glBindTextureUnit((u32)TexBindings::kSceneNormal, sceneNormalTexture->handle);
+
+        // indirect draw to launch vs/gs
+        glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_vctxVis.idbo);
+        glDrawArraysIndirect(GL_POINTS, 0);
+        m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
     }
 
     void Renderer::drawEntity(Entity* entity) 
@@ -716,7 +769,7 @@ namespace Cyan
             {
                 // revoxelizing the scene every frame is causing flickering in the volume texture
                 voxelizeScene(scene);
-                visualizeVct(scene);
+                visualizeVoxelGrid();
             }
             if (m_opts.enableSSAO)
             {
@@ -970,7 +1023,6 @@ namespace Cyan
             m_ctx->drawIndexAuto(s_quad.m_vertexArray->numVerts());
 
             m_ctx->setDepthControl(Cyan::DepthControl::kEnable);
-            // glFinish();
         };
 
         auto upscale = [this](Texture* dst, Texture* src, Texture* blend, RenderTarget* renderTarget, u32 stageIndex) {
@@ -993,7 +1045,6 @@ namespace Cyan
             m_ctx->drawIndexAuto(s_quad.m_vertexArray->numVerts());
 
             m_ctx->setDepthControl(Cyan::DepthControl::kEnable);
-            // glFinish();
         };
 
         // user have to make sure that renderTarget is compatible with 'dst', 'src', and 'scratch'
@@ -1027,7 +1078,6 @@ namespace Cyan
                 m_ctx->setVertexArray(s_quad.m_vertexArray);
                 m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
                 m_ctx->drawIndexAuto(s_quad.m_vertexArray->numVerts());
-                // glFinish();
             }
 
             // vertical pass
@@ -1048,7 +1098,6 @@ namespace Cyan
                 m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
                 m_ctx->setVertexArray(s_quad.m_vertexArray);
                 m_ctx->drawIndexAuto(s_quad.m_vertexArray->numVerts());
-                // glFinish();
             }
             m_ctx->setDepthControl(Cyan::DepthControl::kEnable);
         };
@@ -1069,7 +1118,6 @@ namespace Cyan
         m_ctx->setVertexArray(s_quad.m_vertexArray);
         m_ctx->drawIndexAuto(s_quad.m_vertexArray->numVerts());
         m_ctx->setDepthControl(Cyan::DepthControl::kEnable);
-        // glFinish();
 
         // downsample
         i32 kernelRadii[6] = { 3, 4, 6, 7, 8, 9};
@@ -1222,32 +1270,8 @@ namespace Cyan
     {
         // renderer internal debug draw calls
         {
-            // debug vis for voxel cone tracing
-            auto sceneDepthTexture = m_opts.enableAA ? m_sceneDepthTextureSSAA : m_sceneDepthTexture;
-            auto sceneNormalTexture = m_opts.enableAA ? m_sceneNormalTextureSSAA : m_sceneNormalTexture;
- 
-            // pass 0: fill debug cone data and visualize cone directions
-            m_ctx->setRenderTarget(m_vctxVis.renderTarget, { 0 });
-            m_ctx->setViewport({ 0, 0, renderTarget->width, renderTarget->height });
-            m_ctx->setShader(m_vctxDebugShader);
-
-            enum class TexBindings
-            {
-                kSceneDepth = 0,
-                kSceneNormal
-            };
-
-            m_vctxDebugShader->setUniformVec2("debugScreenPos", &m_vctxVis.debugScreenPos.x);
-            m_vctxDebugShader->setUniform1i("sceneDepthTexture", (i32)TexBindings::kSceneDepth);
-            m_vctxDebugShader->setUniform1i("sceneNormalTexture", (i32)TexBindings::kSceneNormal);
-            glBindTextureUnit((u32)TexBindings::kSceneDepth, sceneDepthTexture->handle);
-            glBindTextureUnit((u32)TexBindings::kSceneNormal, sceneNormalTexture->handle);
-            m_ctx->setPrimitiveType(PrimitiveType::Points);
-            m_ctx->drawIndexAuto(5u);
-            m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
-
-            // pass1 1: sample ao using vctx and visualize traced cones
-
+            visualizeConeTrace();
+            visualizeVctxAo();
         }
 
         // external debug draw calls defined by the application

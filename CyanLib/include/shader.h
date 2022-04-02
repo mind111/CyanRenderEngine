@@ -105,5 +105,5 @@ public:
     std::string m_name;
     ShaderFileInfo m_vertSrcInfo;
     ShaderFileInfo m_fragSrcInfo;
-    GLuint m_programId;
+    GLuint handle;
 };

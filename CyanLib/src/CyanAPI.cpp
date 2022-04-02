@@ -421,7 +421,7 @@ namespace Cyan
         material->m_dataFieldsFlag = 0u;
         material->m_lit = false;
 
-        GLuint programId = material->m_shader->m_programId;
+        GLuint programId = material->m_shader->handle;
         GLsizei numActiveUniforms;
         glGetProgramiv(programId, GL_ACTIVE_UNIFORMS, &numActiveUniforms);
         GLint nameMaxLen;

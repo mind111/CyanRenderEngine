@@ -23,18 +23,23 @@ extern float quadVerts[24];
 
 namespace Cyan
 {
+    template<typename T>
     struct ShaderStorageBuffer
     {
-        GLuint ssbo = -1;
-    };
+        std::string blockName;
+        GLuint handle = -1;
+        GLuint staticBinding = -1;
+        T data;
 
-    // todo: maybe implement this ...?
-    struct DrawTask
-    {
-        RenderTarget* renderTarget;
-        Viewport viewport;
-        Shader* shader;
-        std::function<void()> callback;
+        void bind()
+        {
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, staticBinding, handle);
+        }
+
+        void updateGfxResource(u32 offset, u32 size)
+        {
+            glNamedBufferSubData(handle, 0, sizeof(T), &data);
+        }
     };
 
     // foward declarations
@@ -308,9 +313,15 @@ namespace Cyan
             i32 activeMip = 0u;
 
             GLuint ssbo;
+            GLuint idbo;
             const static i32 ssboBinding = (i32)GlobalBufferBindings::kCount;
-            const static u32 kMaxNumCubes = 20u;
-            Shader* prepShader;
+            const static u32 kMaxNumCubes = 1024u;
+
+            Shader* coneVisDrawShader;
+            Shader* coneVisComputeShader;
+            Shader* vctxVisShader;
+
+            RenderTarget* renderTarget;
 
             struct DebugBuffer
             {
@@ -326,7 +337,6 @@ namespace Cyan
                 ConeCube cubes[kMaxNumCubes];
             } debugConeBuffer;
 
-            RenderTarget* renderTarget;
         } m_vctxVis;
 
         struct VctxGpuData
@@ -349,15 +359,11 @@ namespace Cyan
         MaterialInstance* m_voxelizeMatl;
         Shader* m_voxelVisShader;
         MaterialInstance* m_voxelVisMatl;
-        Shader* m_vctVisShader;
-        MaterialInstance* m_vctVisMatl;
         RenderTarget* m_voxelizeRenderTarget;
         Texture* m_voxelizeColorTexture;
         RenderTarget* m_voxelVisRenderTarget;
         Texture* m_voxelVisColorTexture;
-        // todo: implement this
         Shader* m_filterVoxelGridShader;
-        Shader* m_vctxDebugShader;
 
         /*
         * Voxelize a given scene
@@ -367,7 +373,9 @@ namespace Cyan
         /*
         * Visualization to help debug voxel cone tracing
         */
-        void visualizeVct(Scene* scene);
+        void visualizeVoxelGrid();
+        void visualizeVctxAo();
+        void visualizeConeTrace();
 
         GLuint m_lumHistogramShader;
         GLuint m_lumHistogramProgram;

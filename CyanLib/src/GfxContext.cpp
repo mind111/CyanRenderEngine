@@ -37,7 +37,7 @@ namespace Cyan
         else
         {
             if ((!m_shader) || 
-            (m_shader && (_shader->m_programId != m_shader->m_programId)))
+            (m_shader && (_shader->handle != m_shader->handle)))
             {
                 m_shader = _shader;
                 m_shader->bind();

@@ -508,28 +508,28 @@
     <None Include="..\shader\voxel_vis_p.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\vct_vis_g.glsl">
+    <None Include="..\shader\cone_vis_g.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\vct_vis_p.glsl">
+    <None Include="..\shader\cone_vis_p.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\vct_vis_v.glsl">
+    <None Include="..\shader\cone_vis_v.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\vct_vis_c.glsl">
+    <None Include="..\shader\cone_vis_c.glsl">
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\vctx_filter_c.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\vctx_debug_g.glsl">
+    <None Include="..\shader\vctx_vis_g.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\vctx_debug_p.glsl">
+    <None Include="..\shader\vctx_vis_p.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\vctx_debug_v.glsl">
+    <None Include="..\shader\vctx_vis_v.glsl">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

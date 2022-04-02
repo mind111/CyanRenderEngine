@@ -24,6 +24,12 @@ layout(std430) buffer ConeTraceDebugData
 	ConeCube cubes[];
 } debugConeBuffer;
 
+layout(std430) buffer IndirectDrawArgs
+{
+    uint first; 
+    uint count;
+} indirectDrawBuffer;
+
 //- voxel cone tracing
 layout(std430, binding = 4) buffer VoxelGridData
 {
@@ -39,6 +45,28 @@ layout (binding = 10) uniform sampler3D sceneVoxelGridAlbedo;
 layout (binding = 11) uniform sampler3D sceneVoxelGridNormal;
 layout (binding = 12) uniform sampler3D sceneVoxelGridRadiance;
 
+mat3 tbn(vec3 n)
+{
+    vec3 up = abs(n.y) < 0.98f ? vec3(0.f, 1.f, 0.f) : vec3(0.f, 0.f, 1.f);
+    vec3 right = cross(n, up);
+    vec3 forward = cross(n, right);
+    return mat3(
+        right,
+        forward,
+        n
+    );
+}
+
+bool isInsideBound(vec3 texCoord)
+{
+	if ((texCoord.x < 0.f || texCoord.x > 1.f) || (texCoord.y < 0.f || texCoord.y > 1.f) ||
+		(texCoord.z < 0.f || texCoord.z > 1.f))
+	{
+		return false;
+	}
+    return true;
+}
+
 vec3 getVoxelGridCoord(vec3 p)
 {
     ivec3 voxelGridRes = textureSize(sceneVoxelGridAlbedo, 0);
@@ -52,78 +80,9 @@ vec3 getVoxelGridCoord(vec3 p)
     return dd / voxelGridDim;
 }
 
-bool isInsideBound(vec3 texCoord)
-{
-	if ((texCoord.x < 0.f || texCoord.x > 1.f) || (texCoord.y < 0.f || texCoord.y > 1.f) ||
-		(texCoord.z < 0.f || texCoord.z > 1.f))
-	{
-		return false;
-	}
-    return true;
-}
-
-vec3 encodeHDR(vec3 color)
-{
-	return color / (color + vec3(1.f));
-}
-
 vec3 decodeHDR(vec3 color)
 {
     return color / (vec3(1.f) - color);
-}
-
-void debugCone60(vec3 p, vec3 rd)
-{
-    float alpha = 0.f;
-    float occ = 0.f;
-    vec3 accRadiance = vec3(0.f);
-    vec3 accAlbedo = vec3(0.f);
-
-    vec3 q = p;
-	vec3 texCoord = getVoxelGridCoord(q);
-    float traced = 0.f;
-    float tan30 = tan(pi / 12.f);
-    int numSteps = 0;
-
-    while (alpha < 0.95f && isInsideBound(texCoord))
-    {
-        float coneDiameter = 2.f * traced * tan30;
-        float mip = log2(max(coneDiameter / sceneVoxelGrid.voxelSize, 1.f));
-        float scale = pow(4.f, int(mip));
-
-		vec4 albedo = textureLod(sceneVoxelGridAlbedo, texCoord, mip);
-        vec4 radiance = textureLod(sceneVoxelGridRadiance, texCoord, mip);
-        radiance.rgb = decodeHDR(radiance.rgb);
-
-        float opacity = albedo.a;
-
-        // this is necessary for correcting the "darkness" caused by auto generated mipmap included empty voxels in the average
-        albedo *= scale;
-        albedo /= albedo.a;
-        radiance *= scale;
-        radiance /= radiance.a;
-
-		// emission-absorption model front to back blending
-        // todo: integrated value is too dark
-		occ += (1.f - alpha) * opacity;
-        accAlbedo += (1.f - alpha) * albedo.rgb;
-        accRadiance += (1.f - alpha) * radiance.rgb;
-		alpha += (1.f - alpha) * opacity;
-
-        // write cube data to buffer
-        float sampleVoxelSize = sceneVoxelGrid.voxelSize * pow(2.f, floor(mip));
-        debugConeBuffer.cubes[numSteps].center = q;
-        debugConeBuffer.cubes[numSteps].size = sampleVoxelSize;
-        debugConeBuffer.cubes[numSteps].color = vec4(radiance.rgb, 1.f);
-        numSteps++;
-
-        // marching along the ray
-        float stepSize = sampleVoxelSize;
-		q += rd * stepSize;
-        traced += stepSize;
-        texCoord = getVoxelGridCoord(q);
-    }
-	debugConeBuffer.numCubes = numSteps;
 }
 
 struct ConeTraceRecord
@@ -132,7 +91,7 @@ struct ConeTraceRecord
     float occ;
 };
 
-ConeTraceRecord cone60(vec3 p, vec3 rd)
+ConeTraceRecord traceCone(vec3 p, vec3 rd, float halfAngle)
 {
     float alpha = 0.f;
     float occ = 0.f;
@@ -142,12 +101,12 @@ ConeTraceRecord cone60(vec3 p, vec3 rd)
     vec3 q = p;
 	vec3 texCoord = getVoxelGridCoord(q);
     float traced = 0.f;
-    float tan30 = tan(pi / 12.f);
+    float tanHalfAngle = tan(halfAngle);
     int numSteps = 0;
 
     while (alpha < 0.95f && isInsideBound(texCoord))
     {
-        float coneDiameter = 2.f * traced * tan30;
+        float coneDiameter = 2.f * traced * tanHalfAngle;
         float mip = log2(max(coneDiameter / sceneVoxelGrid.voxelSize, 1.f));
         float scale = pow(4.f, int(mip));
 
@@ -165,7 +124,7 @@ ConeTraceRecord cone60(vec3 p, vec3 rd)
 
 		// emission-absorption model front to back blending
         // todo: integrated value is too dark
-		occ += (1.f - alpha) * opacity;
+		occ = alpha * occ + (1.f - alpha) * opacity * 2.f;
         accAlbedo += (1.f - alpha) * albedo.rgb;
         accRadiance += (1.f - alpha) * radiance.rgb;
 		alpha += (1.f - alpha) * opacity;
@@ -180,10 +139,59 @@ ConeTraceRecord cone60(vec3 p, vec3 rd)
         traced += stepSize;
         texCoord = getVoxelGridCoord(q);
     }
+	float atten = 1.f / (1.f + traced);
     return ConeTraceRecord(accRadiance, occ);
+}
+
+vec3 generateHemisphereSample(vec3 n, float theta, float phi)
+{
+	vec3 localDir = {
+		sin(theta) * cos(phi),
+		sin(theta) * sin(phi),
+		cos(theta)
+	};
+	return tbn(n) * localDir;
+}
+
+ConeTraceRecord coneTraceHemisphere(vec3 p, vec3 n, int numTheta, int numPhi)
+{
+    // offset to next voxel in normal direction
+    p += n * 2.0f * sceneVoxelGrid.voxelSize;
+
+    vec3 radiance = vec3(0.f);
+    float occ = 0.f;
+    mat3 tbn = tbn(n);
+    // compute half angle based on number of samples
+    float halfAngle = .25f * pi / numTheta;
+    float dTheta = .5f * pi / numTheta;
+    float dPhi = 2.f * pi / numPhi;
+
+    // the sample in normal direction
+	vec3 dir = generateHemisphereSample(n, 0, 0);
+	ConeTraceRecord record = traceCone(p, dir, halfAngle);
+	occ += record.occ;
+	radiance += record.radiance;
+
+    for (int i = 0; i < numPhi; ++i)
+    {
+        for (int j = 0; j < numTheta; ++j)
+        {
+            float theta = (float(j) + .5f) * dTheta;
+            float phi = (float(i) + .5f) * dPhi;
+            dir = generateHemisphereSample(n, theta, phi);
+			ConeTraceRecord record = traceCone(p, dir, halfAngle);
+			occ += record.occ * max(dot(n, dir), 0.f);
+			radiance += record.radiance;
+        }
+    }
+    radiance /= (numTheta * numPhi + 1);
+    occ /= (numTheta * numPhi + 1);
+    return ConeTraceRecord(radiance, 1.f - min(occ, 1.f));
 }
 
 void main()
 {
-    debugCone60(debugRayOrigin, vec3(0.f, 0.f, -1.f));
+    // fill in indirect draw buffer
+    indirectDrawBuffer.first = 0;
+    indirectDrawBuffer.count = 0;
 }

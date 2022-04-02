@@ -43,6 +43,11 @@ mat3 tbn(vec3 n)
     );
 }
 
+vec3 decodeHDR(vec3 color)
+{
+    return color / (vec3(1.f) - color);
+}
+
 vec3 screenToWorld(vec3 pp, mat4 invView, mat4 invProjection) {
     vec4 p = invProjection * vec4(pp, 1.f);
     p /= p.w;
@@ -51,6 +56,16 @@ vec3 screenToWorld(vec3 pp, mat4 invView, mat4 invProjection) {
     p = invView * p;
     return p.xyz;
 }
+
+const float quadVerts[18] = {
+	-1.f, -1.f, 0.f, 
+	 1.f,  1.f, 1.f,
+	-1.f,  1.f, 0.f,
+
+	-1.f, -1.f, 0.f,
+	 1.f, -1.f, 1.f,
+	 1.f,  1.f, 1.f
+};
 
 void main()
 {
@@ -61,5 +76,5 @@ void main()
 
     vsOut.p = debugWorldPos;
     vsOut.dir = tbn(n) * normalize(debugDirections[gl_VertexID]);
-    gl_Position = vec4(debugWorldPos, 1.f);
+    gl_Position = vec4(quadVerts, 1.f);
 }
