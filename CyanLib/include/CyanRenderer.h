@@ -194,6 +194,7 @@ namespace Cyan
             bool enableAA = true;
             bool enableSunShadow = true;
             bool enableSSAO = true;
+            bool enableVctx = true;
             bool enableBloom = true;
             bool regenVoxelGridMipmap = true;
             f32  exposure = 1.f;
@@ -243,6 +244,9 @@ namespace Cyan
             VoxelGridAlbedo = (i32)SunShadow + 4,
             VoxelGridNormal,
             VoxelGridRadiance,
+            VctxOcclusion,
+            VctxIrradiance,
+            VctxReflection,
             kCount
         };
 
@@ -280,7 +284,6 @@ namespace Cyan
         } gInstanceTransforms;
 
         // voxel cone tracing
-        // todo: fix number of mipmaps, something like 5 should be enough
         struct VoxelGrid
         {
             const u32 resolution = 128u;
@@ -292,6 +295,30 @@ namespace Cyan
             glm::vec3 localOrigin;
             f32 voxelSize;
         } m_sceneVoxelGrid;
+
+        struct Vctx
+        {
+            struct opts
+            {
+                // offset for ray origin
+                f32 offset = 2.f;         
+                // scale used to scale opacity's contribution to occlusion
+                f32 occlusionScale = 1.5f; 
+            } opts;
+
+            enum class ColorBuffers
+            {
+                kOcclusion = 0,
+                kIrradiance,
+                kReflection
+            };
+
+            RenderTarget* renderTarget = nullptr;
+            Shader* shader = nullptr;
+            Texture* occlusion = nullptr;
+            Texture* irradiance = nullptr;
+            Texture* reflection = nullptr;
+        } m_vctx;
 
         struct VctxVis
         {
@@ -305,23 +332,18 @@ namespace Cyan
             } mode = Mode::kAlbedo;
 
             // help visualize a traced cone
-            f32 boost = 1.f;
-            glm::vec3 debugRayOrigin = glm::vec3(-4.f, 2.f, 0.f);
-            glm::vec3 debugRayDir = glm::vec3(-1.f, 0.f, 0.f);
             glm::vec2 debugScreenPos = glm::vec2(0.f);
-
             i32 activeMip = 0u;
-
-            GLuint ssbo;
-            GLuint idbo;
+            GLuint ssbo = -1;
+            GLuint idbo = -1;
             const static i32 ssboBinding = (i32)GlobalBufferBindings::kCount;
             const static u32 kMaxNumCubes = 1024u;
 
-            Shader* coneVisDrawShader;
-            Shader* coneVisComputeShader;
-            Shader* vctxVisShader;
+            Shader* coneVisDrawShader = nullptr;
+            Shader* coneVisComputeShader = nullptr;
+            Shader* vctxVisShader = nullptr;
 
-            RenderTarget* renderTarget;
+            RenderTarget* renderTarget = nullptr;
 
             struct DebugBuffer
             {
@@ -334,9 +356,8 @@ namespace Cyan
 
                 i32 numCubes = 0;
                 glm::vec3 padding;
-                ConeCube cubes[kMaxNumCubes];
+                ConeCube cubes[kMaxNumCubes] = { };
             } debugConeBuffer;
-
         } m_vctxVis;
 
         struct VctxGpuData
@@ -369,12 +390,12 @@ namespace Cyan
         * Voxelize a given scene
         */
         void voxelizeScene(Scene* scene);
+        void renderVctx();
 
         /*
         * Visualization to help debug voxel cone tracing
         */
         void visualizeVoxelGrid();
-        void visualizeVctxAo();
         void visualizeConeTrace();
 
         GLuint m_lumHistogramShader;

@@ -207,7 +207,7 @@ namespace Cyan
         auto ctx = Cyan::getCurrentGfxCtx();
         // bind textures
         // todo: this is hard-coded for now
-        u32 textureUnit = 13;
+        u32 textureUnit = 16;
         for (u32 s = 0; s < m_template->m_numSamplers; ++s)
         {
             if (m_bindings[s].m_tex)

@@ -523,13 +523,10 @@
     <None Include="..\shader\vctx_filter_c.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\vctx_vis_g.glsl">
+    <None Include="..\shader\vctx_p.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\vctx_vis_p.glsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\shader\vctx_vis_v.glsl">
+    <None Include="..\shader\vctx_v.glsl">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

@@ -48,9 +48,9 @@ void main()
 	vec4 albedo = textureLod(sceneVoxelGridAlbedo, texCoords, activeMip);
 	vec4 radiance = textureLod(sceneVoxelGridRadiance, texCoords, activeMip);
 
+	float scale = pow(4.f, activeMip);
 	if ((sceneVoxelGrid.visMode & kVisAlbedo) != 0)
 	{
-		float scale = pow(4.f, activeMip);
 		albedo *= scale;
 		vsOut.voxelColor = albedo.a > 0.f ? albedo / albedo.a : vec4(0.f);
 	}
@@ -59,7 +59,9 @@ void main()
 	}
 	else if ((sceneVoxelGrid.visMode & kVisRadiance) != 0)
 	{
-		vsOut.voxelColor = vec4(decodeHDR(radiance.rgb), radiance.a);
+		radiance.rgb = decodeHDR(radiance.rgb);
+		radiance *= scale;
+		vsOut.voxelColor = radiance.a > 0.f ? radiance / radiance.a : vec4(0.f);
 	}
 	else if ((sceneVoxelGrid.visMode & kVisOpacity) != 0)
 	{

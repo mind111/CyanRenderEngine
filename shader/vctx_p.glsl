@@ -1,20 +1,20 @@
 #version 450 core
-/*
-* This shader is used to generate debug visualization data for the following graphics pass to debug render
-* the cone trace 
-*/
-
-layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
 #define pi 3.1415926
 
-// output buffer
-struct ConeCube
-{
-	vec3 center;
-	float size;
-    vec4 color;
-};
+layout (location = 0) out vec3 vctxOcclusion;
+layout (location = 1) out vec3 vctxIrradiance; 
+layout (location = 2) out vec3 vctxReflection;
+
+uniform float occlusionScale;
+uniform float vctxOffset;
+uniform vec2 renderSize;
+
+layout (binding = 10) uniform sampler3D sceneVoxelGridAlbedo;
+layout (binding = 11) uniform sampler3D sceneVoxelGridNormal;
+layout (binding = 12) uniform sampler3D sceneVoxelGridRadiance;
+uniform sampler2D sceneDepthTexture;
+uniform sampler2D sceneNormalTexture;
 
 layout(std430, binding = 0) buffer GlobalDrawData
 {
@@ -28,20 +28,6 @@ layout(std430, binding = 0) buffer GlobalDrawData
     float dummy;
 } gDrawData;
 
-layout(std430) buffer ConeTraceDebugData
-{
-    int numCubes;
-    vec3 padding;
-    vec4 coneDir[5];
-	ConeCube cubes[];
-} debugConeBuffer;
-
-layout(std430) buffer IndirectDrawArgs
-{
-    uint first; 
-    uint count;
-} indirectDrawBuffer;
-
 //- voxel cone tracing
 layout(std430, binding = 4) buffer VoxelGridData
 {
@@ -50,17 +36,6 @@ layout(std430, binding = 4) buffer VoxelGridData
     int visMode;
     vec3 padding;
 } sceneVoxelGrid;
-
-uniform sampler2D sceneDepthTexture;
-uniform sampler2D sceneNormalTexture;
-layout (binding = 10) uniform sampler3D sceneVoxelGridAlbedo;
-layout (binding = 11) uniform sampler3D sceneVoxelGridNormal;
-layout (binding = 12) uniform sampler3D sceneVoxelGridRadiance;
-
-uniform float vctxOffset;
-uniform float occlusionScale;
-uniform vec2 debugScreenPos;
-uniform vec2 renderSize;
 
 mat3 tbn(vec3 n)
 {
@@ -124,14 +99,13 @@ float generateRandomRotation(vec2 seed)
     return random(seed) * 2.f * pi;
 }
 
-struct DebugTraceResult
+struct TraceResult
 {
     vec3 radiance;
     float occ;
-    int numSteps;
 };
 
-DebugTraceResult traceCone(vec3 p, vec3 rd, float halfAngle)
+TraceResult traceCone(vec3 p, vec3 rd, float halfAngle)
 {
     float alpha = 0.f;
     float occ = 0.f;
@@ -170,9 +144,6 @@ DebugTraceResult traceCone(vec3 p, vec3 rd, float halfAngle)
 
         // write cube data to buffer
         float sampleVoxelSize = sceneVoxelGrid.voxelSize * pow(2.f, floor(mip));
-        debugConeBuffer.cubes[numSteps].center = q;
-        debugConeBuffer.cubes[numSteps].size = sampleVoxelSize;
-        debugConeBuffer.cubes[numSteps].color = vec4(accRadiance, 1.f);
         numSteps++;
 
         // marching along the ray
@@ -181,13 +152,11 @@ DebugTraceResult traceCone(vec3 p, vec3 rd, float halfAngle)
         traced += stepSize;
         texCoord = getVoxelGridCoord(q);
     }
-    return DebugTraceResult(accRadiance, occ, numSteps);
+    return TraceResult(accRadiance, occ);
 }
 
-DebugTraceResult sampleIrradianceAndOcclusion(vec3 p, vec3 n, int numTheta, int numPhi)
+TraceResult sampleIrradianceAndOcclusion(vec3 p, vec3 n, int numTheta, int numPhi)
 {
-    int totalNumSteps = 0;
-
     // offset to next voxel in normal direction
     p += n * vctxOffset * sceneVoxelGrid.voxelSize;
 
@@ -201,26 +170,25 @@ DebugTraceResult sampleIrradianceAndOcclusion(vec3 p, vec3 n, int numTheta, int 
 
     // the sample in normal direction
 	vec3 dir = generateHemisphereSample(n, 0.f, 0.f);
-	DebugTraceResult record = traceCone(p, dir, halfAngle);
+	TraceResult record = traceCone(p, dir, halfAngle);
 	occ += record.occ;
 	radiance += record.radiance;
-    totalNumSteps += record.numSteps;
 
     for (int i = 0; i < numPhi; ++i)
     {
         for (int j = 0; j < numTheta; ++j)
         {
             float theta = (float(j) + .5f) * dTheta;
-            float phi = (float(i) + .5f) * dPhi + generateRandomRotation(debugScreenPos * renderSize);
+            float phi = (float(i) + .5f) * dPhi + generateRandomRotation(gl_FragCoord.xy);
             vec3 dir = generateHemisphereSample(n, theta, phi);
-			DebugTraceResult record = traceCone(p, dir, halfAngle);
+			TraceResult record = traceCone(p, dir, halfAngle);
 			occ += record.occ;
 			radiance += record.radiance;
         }
     }
     radiance /= (numTheta * numPhi + 1);
     occ /= (numTheta * numPhi + 1);
-    return DebugTraceResult(radiance, 1.f - min(occ, 1.f), totalNumSteps);
+    return TraceResult(radiance, 1.f - min(occ, 1.f));
 }
 
 vec3 screenToWorld(vec3 pp, mat4 invView, mat4 invProjection) {
@@ -234,15 +202,13 @@ vec3 screenToWorld(vec3 pp, mat4 invView, mat4 invProjection) {
 
 void main()
 {
-    vec2 texCoord = debugScreenPos * .5f + .5f;
+    vec2 texCoord = gl_FragCoord.xy / renderSize;
     float depth = texture(sceneDepthTexture, texCoord).r * 2.f - 1.f;
     vec3 worldPos = screenToWorld(vec3(texCoord * 2.f - 1.f, depth), inverse(gDrawData.view), inverse(gDrawData.projection));
     vec3 n = normalize(texture(sceneNormalTexture, texCoord).rgb * 2.f - 1.f);
 
-    DebugTraceResult result = sampleIrradianceAndOcclusion(worldPos, n, 3, 3);
-    debugConeBuffer.numCubes = result.numSteps;
+    TraceResult result = sampleIrradianceAndOcclusion(worldPos, n, 3, 3);
 
-    // fill in indirect draw buffer
-    indirectDrawBuffer.first = 0;
-    indirectDrawBuffer.count = result.numSteps;
+    vctxOcclusion = vec3(result.occ);
+    vctxIrradiance = result.radiance;
 }

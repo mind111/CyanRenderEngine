@@ -83,8 +83,6 @@ namespace Cyan
         gDrawDataBuffer(-1),
         m_bloomOutTexture(nullptr)
     {
-            // m_vctVisShader = createVsGsPsShader("VctVisShader", SHADER_SOURCE_PATH "vct_vis_v.glsl", SHADER_SOURCE_PATH "vct_vis_g.glsl", SHADER_SOURCE_PATH "vct_vis_p.glsl");
-            // m_vctVisMatl = createMaterial(m_vctVisShader)->createInstance();
         if (!m_renderer)
         {
             m_renderer = this;
@@ -344,47 +342,63 @@ namespace Cyan
             m_voxelVisRenderTarget = createRenderTarget(visSpec.width, visSpec.height);
             m_voxelVisRenderTarget->setColorBuffer(m_voxelVisColorTexture, 0u);
 
-            TextureSpec voxelDataSpec = { };
-            voxelDataSpec.width = m_sceneVoxelGrid.resolution;
-            voxelDataSpec.height = m_sceneVoxelGrid.resolution;
-            voxelDataSpec.depth = m_sceneVoxelGrid.resolution;
-            voxelDataSpec.type = Texture::Type::TEX_3D;
-            voxelDataSpec.dataType = Texture::DataType::UNSIGNED_INT;
-            voxelDataSpec.format = Texture::ColorFormat::R8G8B8A8;
-            voxelDataSpec.min = Texture::Filter::MIPMAP_LINEAR; 
-            voxelDataSpec.mag = Texture::Filter::NEAREST;
-            voxelDataSpec.r = Texture::Wrap::CLAMP_TO_EDGE;
-            voxelDataSpec.s = Texture::Wrap::CLAMP_TO_EDGE;
-            voxelDataSpec.t = Texture::Wrap::CLAMP_TO_EDGE;
-            m_sceneVoxelGrid.normal = textureManager->createTexture3D("VoxelGridNormal", voxelDataSpec);
-            m_sceneVoxelGrid.emission = textureManager->createTexture3D("VoxelGridEmission", voxelDataSpec);
+            {
+                TextureSpec voxelDataSpec = { };
+                voxelDataSpec.width = m_sceneVoxelGrid.resolution;
+                voxelDataSpec.height = m_sceneVoxelGrid.resolution;
+                voxelDataSpec.depth = m_sceneVoxelGrid.resolution;
+                voxelDataSpec.type = Texture::Type::TEX_3D;
+                voxelDataSpec.dataType = Texture::DataType::UNSIGNED_INT;
+                voxelDataSpec.format = Texture::ColorFormat::R8G8B8A8;
+                voxelDataSpec.min = Texture::Filter::MIPMAP_LINEAR; 
+                voxelDataSpec.mag = Texture::Filter::NEAREST;
+                voxelDataSpec.r = Texture::Wrap::CLAMP_TO_EDGE;
+                voxelDataSpec.s = Texture::Wrap::CLAMP_TO_EDGE;
+                voxelDataSpec.t = Texture::Wrap::CLAMP_TO_EDGE;
+                m_sceneVoxelGrid.normal = textureManager->createTexture3D("VoxelGridNormal", voxelDataSpec);
+                m_sceneVoxelGrid.emission = textureManager->createTexture3D("VoxelGridEmission", voxelDataSpec);
 
-            voxelDataSpec.numMips = std::log2(m_sceneVoxelGrid.resolution) + 1;
-            m_sceneVoxelGrid.albedo = textureManager->createTexture3D("VoxelGridAlbedo", voxelDataSpec);
-            m_sceneVoxelGrid.radiance = textureManager->createTexture3D("VoxelGridRadiance", voxelDataSpec);
+                voxelDataSpec.numMips = std::log2(m_sceneVoxelGrid.resolution) + 1;
+                m_sceneVoxelGrid.albedo = textureManager->createTexture3D("VoxelGridAlbedo", voxelDataSpec);
+                m_sceneVoxelGrid.radiance = textureManager->createTexture3D("VoxelGridRadiance", voxelDataSpec);
 
-            m_voxelizeShader = createVsGsPsShader("VoxelizeShader", SHADER_SOURCE_PATH "voxelize_v.glsl", SHADER_SOURCE_PATH "voxelize_g.glsl", SHADER_SOURCE_PATH "voxelize_p.glsl");
-            m_voxelizeMatl = createMaterial(m_voxelizeShader)->createInstance(); 
-            m_voxelVisShader = createVsGsPsShader("VoxelVisShader", SHADER_SOURCE_PATH "voxel_vis_v.glsl", SHADER_SOURCE_PATH "voxel_vis_g.glsl", SHADER_SOURCE_PATH "voxel_vis_p.glsl");
-            m_voxelVisMatl = createMaterial(m_voxelVisShader)->createInstance();
-            m_filterVoxelGridShader = createCsShader("VctxFilterShader", SHADER_SOURCE_PATH "vctx_filter_c.glsl");
+                m_voxelizeShader = createVsGsPsShader("VoxelizeShader", SHADER_SOURCE_PATH "voxelize_v.glsl", SHADER_SOURCE_PATH "voxelize_g.glsl", SHADER_SOURCE_PATH "voxelize_p.glsl");
+                m_voxelizeMatl = createMaterial(m_voxelizeShader)->createInstance(); 
+                m_voxelVisShader = createVsGsPsShader("VoxelVisShader", SHADER_SOURCE_PATH "voxel_vis_v.glsl", SHADER_SOURCE_PATH "voxel_vis_g.glsl", SHADER_SOURCE_PATH "voxel_vis_p.glsl");
+                m_voxelVisMatl = createMaterial(m_voxelVisShader)->createInstance();
+                m_filterVoxelGridShader = createCsShader("VctxFilterShader", SHADER_SOURCE_PATH "vctx_filter_c.glsl");
+            }
 
-            TextureSpec spec = { };
-            spec.width = 1280;
-            spec.height = 720;
-            spec.type = Texture::Type::TEX_2D;
-            spec.dataType = Texture::DataType::Float;
-            spec.format = Texture::ColorFormat::R16G16B16;
-            spec.min = Texture::Filter::LINEAR; 
-            spec.mag = Texture::Filter::LINEAR;
-            spec.numMips = 1;
-            m_vctxVis.renderTarget = createRenderTarget(spec.width, spec.width);
-            auto coneVisTexture = textureManager->createTexture("ConeVisTexture", spec);
-            m_vctxVis.renderTarget->setColorBuffer(coneVisTexture, 0);
+            {
+                using ColorBuffers = Vctx::ColorBuffers;
+
+                TextureSpec spec = { };
+                spec.width = 1280;
+                spec.height = 720;
+                spec.type = Texture::Type::TEX_2D;
+                spec.dataType = Texture::DataType::Float;
+                spec.format = Texture::ColorFormat::R16G16B16;
+                spec.min = Texture::Filter::LINEAR; 
+                spec.mag = Texture::Filter::LINEAR;
+
+                m_vctx.occlusion = textureManager->createTexture("VctxOcclusion", spec);
+                m_vctx.irradiance = textureManager->createTexture("VctxIrradiance", spec);
+                m_vctx.reflection = textureManager->createTexture("VctxReflection", spec);
+
+                m_vctx.renderTarget = createRenderTarget(spec.width, spec.height);
+                m_vctx.renderTarget->setColorBuffer(m_vctx.occlusion, (u32)ColorBuffers::kOcclusion);
+                m_vctx.renderTarget->setColorBuffer(m_vctx.irradiance,(u32)ColorBuffers::kIrradiance);
+                m_vctx.renderTarget->setColorBuffer(m_vctx.reflection,(u32)ColorBuffers::kReflection);
+
+                m_vctx.shader = createShader("VctxShader", SHADER_SOURCE_PATH "vctx_v.glsl", SHADER_SOURCE_PATH "vctx_p.glsl");
+            }
 
             m_vctxVis.coneVisComputeShader = createCsShader("ConeVisComputeShader", SHADER_SOURCE_PATH "cone_vis_c.glsl");
             m_vctxVis.coneVisDrawShader = createVsGsPsShader("ConeVisGraphicsShader", SHADER_SOURCE_PATH "cone_vis_v.glsl", SHADER_SOURCE_PATH "cone_vis_g.glsl", SHADER_SOURCE_PATH "cone_vis_p.glsl");
-            m_vctxVis.vctxVisShader = createVsGsPsShader("VctxVisShader", SHADER_SOURCE_PATH "vctx_vis_v.glsl", SHADER_SOURCE_PATH "vctx_vis_g.glsl", SHADER_SOURCE_PATH "vctx_vis_p.glsl");
+
+            // global ssbo holding vctx data
+            glCreateBuffers(1, &m_vctxSsbo);
+            glNamedBufferData(m_vctxSsbo, sizeof(VctxGpuData), &m_vctxGpuData, GL_DYNAMIC_DRAW);
 
             // debug ssbo
             glCreateBuffers(1, &m_vctxVis.ssbo);
@@ -656,16 +670,6 @@ namespace Cyan
         glEnable(GL_CULL_FACE);
     }
 
-    // todo: perform voxel cone trace in half res
-    void Renderer::visualizeVctxAo()
-    {
-        m_ctx->setRenderTarget(m_vctxVis.renderTarget, { 0 });
-        m_ctx->setViewport({ 0u, 0u, m_vctxVis.renderTarget->width, m_vctxVis.renderTarget->height });
-        m_ctx->setShader(m_vctxVis.vctxVisShader);
-        m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
-        m_ctx->drawIndexAuto(6u);
-    }
-
     void Renderer::visualizeConeTrace()
     {
         // debug vis for voxel cone tracing
@@ -674,11 +678,10 @@ namespace Cyan
 
         // pass 0: run a compute pass to fill debug cone data and visualize cone directions
         m_ctx->setShader(m_vctxVis.coneVisComputeShader);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, m_vctxVis.ssboBinding, m_vctxVis.ssbo);
 
         enum class SsboBindings
         {
-            kIndirectDraw = 0,
+            kIndirectDraw = 5,
             kConeData
         };
 
@@ -690,25 +693,25 @@ namespace Cyan
         glShaderStorageBlockBinding(m_vctxVis.coneVisComputeShader->handle, index, (u32)SsboBindings::kConeData);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)SsboBindings::kConeData, m_vctxVis.ssbo);
 
-        // write cone data to ssbo 
-        glDispatchCompute(1, 1, 1);
-
-        // pass1 1: sample ao using vctx and and visualize traced cones
-        m_ctx->setRenderTarget(m_vctxVis.renderTarget, { 0 });
-        m_ctx->setViewport({ 0, 0, m_vctxVis.renderTarget->width, m_vctxVis.renderTarget->height });
-        m_ctx->setShader(m_vctxVis.coneVisDrawShader);
-
         enum class TexBindings
         {
             kSceneDepth = 0,
             kSceneNormal
         };
 
-        m_vctxVis.coneVisDrawShader->setUniformVec2("debugScreenPos", &m_vctxVis.debugScreenPos.x);
-        m_vctxVis.coneVisDrawShader->setUniform1i("sceneDepthTexture", (i32)TexBindings::kSceneDepth);
-        m_vctxVis.coneVisDrawShader->setUniform1i("sceneNormalTexture", (i32)TexBindings::kSceneNormal);
+        m_vctxVis.coneVisComputeShader->setUniformVec2("debugScreenPos", &m_vctxVis.debugScreenPos.x);
+        m_vctxVis.coneVisComputeShader->setUniform1i("sceneDepthTexture", (i32)TexBindings::kSceneDepth);
+        m_vctxVis.coneVisComputeShader->setUniform1i("sceneNormalTexture", (i32)TexBindings::kSceneNormal);
         glBindTextureUnit((u32)TexBindings::kSceneDepth, sceneDepthTexture->handle);
         glBindTextureUnit((u32)TexBindings::kSceneNormal, sceneNormalTexture->handle);
+
+        // write cone data to ssbo 
+        glDispatchCompute(1, 1, 1);
+
+        // pass1 1: sample ao using vctx and and visualize traced cones
+        m_ctx->setRenderTarget(m_voxelVisRenderTarget, { 0 });
+        m_ctx->setViewport({ 0, 0, m_voxelVisRenderTarget->width, m_voxelVisRenderTarget->height });
+        m_ctx->setShader(m_vctxVis.coneVisDrawShader);
 
         // indirect draw to launch vs/gs
         glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_vctxVis.idbo);
@@ -716,7 +719,7 @@ namespace Cyan
         m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
     }
 
-    void Renderer::drawEntity(Entity* entity) 
+    void Renderer::drawEntity(Entity* entity)
     {
         std::queue<SceneNode*> nodes;
         nodes.push(entity->m_sceneRoot);
@@ -767,9 +770,8 @@ namespace Cyan
             }
             // generate vctx data
             {
-                // revoxelizing the scene every frame is causing flickering in the volume texture
+                // todo: revoxelizing the scene every frame is causing flickering in the volume texture
                 voxelizeScene(scene);
-                visualizeVoxelGrid();
             }
             if (m_opts.enableSSAO)
             {
@@ -777,6 +779,11 @@ namespace Cyan
                 renderSceneDepthNormal(scene);
                 // ssao pass
                 ssao(scene->getActiveCamera());
+            }
+            if (m_opts.enableVctx)
+            {
+                // voxel cone tracing pass
+                renderVctx();
             }
             // main scene pass
             renderScene(scene);
@@ -875,7 +882,7 @@ namespace Cyan
         gLighting.reflectionProbe = scene->m_reflectionProbe;
 
         // shared BRDF lookup texture used in split sum approximation for image based lighting
-        glBindTextureUnit(2, ReflectionProbe::getBRDFLookupTexture()->handle);
+        glBindTextureUnit(gTexBinding(BRDFLookupTexture), ReflectionProbe::getBRDFLookupTexture()->handle);
 
         // skybox
         if (gLighting.skybox)
@@ -1183,7 +1190,7 @@ namespace Cyan
 
         // draw built-in widgets used for configure the renderer
         ImGuiWindowFlags flags = ImGuiWindowFlags_None | ImGuiWindowFlags_NoResize;
-        ImGui::SetNextWindowSize(ImVec2(320.f, 240.f));
+        ImGui::SetNextWindowSize(ImVec2(500.f, 900.f));
         ImGui::SetNextWindowPos(ImVec2(430.f, 30.f));
         ImGui::SetNextWindowBgAlpha(0.5f);
         ImGui::Begin("VCTX", nullptr, flags);
@@ -1197,13 +1204,24 @@ namespace Cyan
             ImGui::Text("Mip "); ImGui::SameLine();
             ImGui::SliderInt("##Mip", &m_vctxVis.activeMip, 0, log2(m_sceneVoxelGrid.resolution));
 
-            ImGui::Text("DebugRo "); ImGui::SameLine();
-            float v[3] = { m_vctxVis.debugRayOrigin.x, m_vctxVis.debugRayOrigin.y, m_vctxVis.debugRayOrigin.z };
-            ImGui::SliderFloat3("##DebugRo", v, -10.f, 10.f, "%.2f");
-            m_vctxVis.debugRayOrigin = glm::vec3(v[0], v[1], v[2]);
+            ImGui::Text("Offset "); ImGui::SameLine();
+            ImGui::SliderFloat("##Offset", &m_vctx.opts.offset, 0.f, 5.f, "%.2f");
 
-            ImGui::Text("Boost "); ImGui::SameLine();
-            ImGui::SliderFloat("##Boost", &m_vctxVis.boost, 1.f, 100.f, "%.2f");
+            ImGui::Text("Ao Scale "); ImGui::SameLine();
+            ImGui::SliderFloat("##Ao Scale", &m_vctx.opts.occlusionScale, 1.f, 5.f, "%.2f");
+
+            ImGui::Separator();
+            ImVec2 visSize(480, 270);
+            ImGui::Text("VoxelGrid Vis "); 
+            ImGui::Image((ImTextureID)m_voxelVisColorTexture->handle, visSize, ImVec2(0, 1), ImVec2(1, 0));
+
+            ImGui::Separator();
+            ImGui::Text("Vctx Occlusion");
+            ImGui::Image((ImTextureID)m_vctx.occlusion->handle, visSize, ImVec2(0, 1), ImVec2(1, 0));
+
+            ImGui::Separator();
+            ImGui::Text("Vctx Irradiance");
+            ImGui::Image((ImTextureID)m_vctx.irradiance->handle, visSize, ImVec2(0, 1), ImVec2(1, 0));
         }
         ImGui::End();
 
@@ -1266,12 +1284,46 @@ namespace Cyan
         m_opts.enableSSAO = true;
     }
 
+    void Renderer::renderVctx()
+    {
+        using ColorBuffers = Vctx::ColorBuffers;
+
+        m_ctx->setRenderTarget(m_vctx.renderTarget, { (i32)ColorBuffers::kOcclusion, (i32)ColorBuffers::kIrradiance, (i32)ColorBuffers::kReflection });
+        m_ctx->setViewport({ 0u, 0u, m_vctx.renderTarget->width, m_vctx.renderTarget->height });
+        m_ctx->setShader(m_vctx.shader);
+
+        enum class TexBindings
+        {
+            kDepth = 0,
+            kNormal
+        };
+        glm::vec2 renderSize = glm::vec2(m_vctx.renderTarget->width, m_vctx.renderTarget->height);
+        m_vctx.shader->setUniformVec2("renderSize", &renderSize.x);
+        m_vctx.shader->setUniform1i("sceneDepthTexture", (i32)TexBindings::kDepth);
+        m_vctx.shader->setUniform1i("sceneNormalTexture", (i32)TexBindings::kNormal);
+        m_vctx.shader->setUniform1f("vctxOffset", m_vctx.opts.offset);
+        m_vctx.shader->setUniform1f("occlusionScale", m_vctx.opts.occlusionScale);
+        auto depthTexture = m_opts.enableAA ? m_sceneDepthTextureSSAA : m_sceneDepthTexture;
+        auto normalTexture = m_opts.enableAA ? m_sceneNormalTextureSSAA : m_sceneNormalTexture;
+        glBindTextureUnit((u32)TexBindings::kDepth, depthTexture->handle);
+        glBindTextureUnit((u32)TexBindings::kNormal, normalTexture->handle);
+        m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
+        m_ctx->setDepthControl(DepthControl::kDisable);
+        m_ctx->drawIndexAuto(6u);
+        m_ctx->setDepthControl(DepthControl::kEnable);
+
+        // bind textures for rendering
+        glBindTextureUnit(gTexBinding(VctxOcclusion), m_vctx.occlusion->handle);
+        glBindTextureUnit(gTexBinding(VctxIrradiance), m_vctx.irradiance->handle);
+        glBindTextureUnit(gTexBinding(VctxReflection), m_vctx.reflection->handle);
+    }
+
     void Renderer::renderDebugObjects(const std::function<void()>& externDebugRender)
     {
         // renderer internal debug draw calls
         {
-            visualizeConeTrace();
-            visualizeVctxAo();
+            visualizeVoxelGrid();
+            // visualizeConeTrace();
         }
 
         // external debug draw calls defined by the application

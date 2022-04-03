@@ -136,9 +136,8 @@
     <None Include="..\shader\shader_dir_shadow.vs" />
     <None Include="..\shader\shader_downsample.fs" />
     <None Include="..\shader\shader_downsample.vs" />
-    <None Include="..\shader\vctx_vis_g.glsl" />
-    <None Include="..\shader\vctx_vis_p.glsl" />
-    <None Include="..\shader\vctx_vis_v.glsl" />
+    <None Include="..\shader\vctx_p.glsl" />
+    <None Include="..\shader\vctx_v.glsl" />
     <None Include="..\shader\vctx_filter_c.glsl" />
     <None Include="..\shader\cone_vis_c.glsl" />
     <None Include="..\shader\cone_vis_g.glsl" />
