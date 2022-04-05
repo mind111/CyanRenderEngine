@@ -474,4 +474,9 @@ namespace Cyan
         spec.s = Texture::Wrap::CLAMP_TO_EDGE;
         return createTexture(name, spec);
     }
+
+    void copyTexture(Texture* dst, Texture* src)
+    {
+
+    }
 }

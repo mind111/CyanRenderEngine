@@ -95,6 +95,12 @@ public:
     Cyan::ReflectionProbe* createReflectionProbe(Cyan::Texture* srcCubemapTexture);
     Cyan::ReflectionProbe* createReflectionProbe(Scene* scene, const glm::vec3& pos, const glm::uvec2& sceneCaptureRes);
 
+    /*
+    * Return world position hit by a ray construct using uv coordinates on camera's image plane.
+    * 'uv' should be in [-1, 1]
+    */
+    glm::vec3 queryWorldPositionFromCamera(Scene* scene, const glm::vec2& uv);
+
 private:
     static SceneManager*     s_sceneManager;
 };

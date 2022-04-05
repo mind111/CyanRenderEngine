@@ -85,7 +85,7 @@ namespace Cyan
 
         void renderScene(Scene* scene);
         void renderSceneDepthNormal(Scene* scene);
-        void renderDebugObjects(const std::function<void()>& externDebugRender = [](){ });
+        void renderDebugObjects(Scene* scene, const std::function<void()>& externDebugRender = [](){ });
 
         /*
         * Render provided scene into a light probe
@@ -332,17 +332,20 @@ namespace Cyan
             } mode = Mode::kAlbedo;
 
             // help visualize a traced cone
-            glm::vec2 debugScreenPos = glm::vec2(0.f);
             i32 activeMip = 0u;
             GLuint ssbo = -1;
             GLuint idbo = -1;
-            const static i32 ssboBinding = (i32)GlobalBufferBindings::kCount;
             const static u32 kMaxNumCubes = 1024u;
-
+            glm::vec2 debugScreenPos = glm::vec2(-0.56f, 0.32f);
+            bool debugScreenPosMoved = false;
+            bool cachedTexInitialized = false;
+            glm::mat4 cachedView = glm::mat4(1.f);
+            glm::mat4 cachedProjection = glm::mat4(1.f);
             Shader* coneVisDrawShader = nullptr;
             Shader* coneVisComputeShader = nullptr;
             Shader* vctxVisShader = nullptr;
-
+            Texture* cachedSceneDepth = nullptr;
+            Texture* cachedSceneNormal = nullptr;
             RenderTarget* renderTarget = nullptr;
 
             struct DebugBuffer
@@ -358,6 +361,7 @@ namespace Cyan
                 glm::vec3 padding;
                 ConeCube cubes[kMaxNumCubes] = { };
             } debugConeBuffer;
+
         } m_vctxVis;
 
         struct VctxGpuData
@@ -396,7 +400,7 @@ namespace Cyan
         * Visualization to help debug voxel cone tracing
         */
         void visualizeVoxelGrid();
-        void visualizeConeTrace();
+        void visualizeConeTrace(Scene* scene);
 
         GLuint m_lumHistogramShader;
         GLuint m_lumHistogramProgram;

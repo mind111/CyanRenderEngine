@@ -128,9 +128,6 @@ void Line2D::draw()
     ctx->drawIndexAuto(2);
     ctx->setPrimitiveType(Cyan::PrimitiveType::TriangleList);
     ctx->setDepthControl(Cyan::DepthControl::kEnable);
-    // glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-    // glDrawArrays(GL_LINE, 0, 2);
-    // glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 Quad::Quad()

@@ -13,16 +13,16 @@ struct ConeCube
     vec4 color;
 };
 
-layout(std430) buffer ConeDebugData
+layout(std430) buffer ConeTraceDebugData
 {
     int numCubes;
     vec3 padding;
 	ConeCube cubes[];
-} debugConeData;
+} debugConeBuffer;
 
 void main()
 {
-	vsOut.size = debugConeData.cubes[gl_VertexID].size;
-	vsOut.color = debugConeData.cubes[gl_VertexID].color.rgb;
-	gl_Position = vec4(debugConeData.cubes[gl_VertexID].center, 1.f);
+	vsOut.size = debugConeBuffer.cubes[gl_VertexID].size;
+	vsOut.color = debugConeBuffer.cubes[gl_VertexID].color.rgb;
+	gl_Position = vec4(debugConeBuffer.cubes[gl_VertexID].center, 1.f);
 }

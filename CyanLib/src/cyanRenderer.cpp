@@ -19,6 +19,7 @@
 #include "Material.h"
 #include "MathUtils.h"
 #include "CyanUI.h"
+#include "Ray.h"
 
 #define DRAW_SSAO_DEBUG_VIS 0
 
@@ -396,19 +397,34 @@ namespace Cyan
             m_vctxVis.coneVisComputeShader = createCsShader("ConeVisComputeShader", SHADER_SOURCE_PATH "cone_vis_c.glsl");
             m_vctxVis.coneVisDrawShader = createVsGsPsShader("ConeVisGraphicsShader", SHADER_SOURCE_PATH "cone_vis_v.glsl", SHADER_SOURCE_PATH "cone_vis_g.glsl", SHADER_SOURCE_PATH "cone_vis_p.glsl");
 
+            TextureSpec depthNormSpec = { };
+            depthNormSpec.type = Texture::Type::TEX_2D;
+            depthNormSpec.format = Texture::ColorFormat::R32G32B32; 
+            depthNormSpec.dataType = Texture::DataType::Float;
+            depthNormSpec.width = m_SSAAWidth;
+            depthNormSpec.height = m_SSAAHeight;
+            depthNormSpec.min = Texture::Filter::LINEAR;
+            depthNormSpec.mag = Texture::Filter::LINEAR;
+            depthNormSpec.s = Texture::Wrap::CLAMP_TO_EDGE;
+            depthNormSpec.t = Texture::Wrap::CLAMP_TO_EDGE;
+            depthNormSpec.r = Texture::Wrap::CLAMP_TO_EDGE;
+            m_vctxVis.cachedSceneDepth = textureManager->createTexture("CachedSceneDepth", depthNormSpec);
+            m_vctxVis.cachedSceneNormal = textureManager->createTexture("CachedSceneNormal", depthNormSpec);
+
             // global ssbo holding vctx data
             glCreateBuffers(1, &m_vctxSsbo);
             glNamedBufferData(m_vctxSsbo, sizeof(VctxGpuData), &m_vctxGpuData, GL_DYNAMIC_DRAW);
-
-            // debug ssbo
-            glCreateBuffers(1, &m_vctxVis.ssbo);
-            glNamedBufferData(m_vctxVis.ssbo, sizeof(VctxVis::DebugBuffer), &m_vctxVis.debugConeBuffer, GL_DYNAMIC_COPY);
 
             struct IndirectDrawArgs
             {
                 GLuint first;
                 GLuint count;
             };
+
+            // debug ssbo
+            glCreateBuffers(1, &m_vctxVis.ssbo);
+            glNamedBufferData(m_vctxVis.ssbo, sizeof(VctxVis::DebugBuffer), &m_vctxVis.debugConeBuffer, GL_DYNAMIC_COPY);
+
             glCreateBuffers(1, &m_vctxVis.idbo);
             glNamedBufferData(m_vctxVis.idbo, sizeof(IndirectDrawArgs), nullptr, GL_DYNAMIC_COPY);
         }
@@ -670,12 +686,38 @@ namespace Cyan
         glEnable(GL_CULL_FACE);
     }
 
-    void Renderer::visualizeConeTrace()
+    void Renderer::visualizeConeTrace(Scene* scene)
     {
         // debug vis for voxel cone tracing
         auto sceneDepthTexture = m_opts.enableAA ? m_sceneDepthTextureSSAA : m_sceneDepthTexture;
         auto sceneNormalTexture = m_opts.enableAA ? m_sceneNormalTextureSSAA : m_sceneNormalTexture;
+#if 1
+        if (!m_vctxVis.cachedTexInitialized || m_vctxVis.debugScreenPosMoved)
+        {
+            if (m_vctxVis.cachedSceneDepth->width == sceneDepthTexture->width && m_vctxVis.cachedSceneDepth->height == sceneDepthTexture->height &&
+                m_vctxVis.cachedSceneNormal->width == sceneNormalTexture->width && m_vctxVis.cachedSceneNormal->height == sceneNormalTexture->height)
+            {
+                // update cached snapshot of scene depth/normal by copying texture data
+                glCopyImageSubData(sceneDepthTexture->handle, GL_TEXTURE_2D, 0, 0, 0, 0, 
+                    m_vctxVis.cachedSceneDepth->handle, GL_TEXTURE_2D, 0, 0, 0, 0, sceneDepthTexture->width, sceneDepthTexture->height, 1);
+                glCopyImageSubData(sceneNormalTexture->handle, GL_TEXTURE_2D, 0, 0, 0, 0, 
+                    m_vctxVis.cachedSceneNormal->handle, GL_TEXTURE_2D, 0, 0, 0, 0, sceneNormalTexture->width, sceneNormalTexture->height, 1);
 
+
+                m_vctxVis.cachedView = m_globalDrawData.view;
+                m_vctxVis.cachedProjection = m_globalDrawData.projection;
+
+                if (!m_vctxVis.cachedTexInitialized)
+                {
+                    m_vctxVis.cachedTexInitialized = true;
+                }
+            }
+            else
+            {
+                cyanError("Invalid texture copying operation due to mismatched texture dimensions!");
+            }
+        }
+#endif
         // pass 0: run a compute pass to fill debug cone data and visualize cone directions
         m_ctx->setShader(m_vctxVis.coneVisComputeShader);
 
@@ -685,11 +727,11 @@ namespace Cyan
             kConeData
         };
 
-        auto index = glGetProgramResourceIndex(m_vctxVis.coneVisComputeShader->handle, GL_SHADER_STORAGE_BLOCK, "");
+        auto index = glGetProgramResourceIndex(m_vctxVis.coneVisComputeShader->handle, GL_SHADER_STORAGE_BLOCK, "IndirectDrawArgs");
         glShaderStorageBlockBinding(m_vctxVis.coneVisComputeShader->handle, index, (u32)SsboBindings::kIndirectDraw);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)SsboBindings::kIndirectDraw, m_vctxVis.idbo);
 
-        index = glGetProgramResourceIndex(m_vctxVis.coneVisComputeShader->handle, GL_SHADER_STORAGE_BLOCK, "");
+        index = glGetProgramResourceIndex(m_vctxVis.coneVisComputeShader->handle, GL_SHADER_STORAGE_BLOCK, "ConeTraceDebugData");
         glShaderStorageBlockBinding(m_vctxVis.coneVisComputeShader->handle, index, (u32)SsboBindings::kConeData);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)SsboBindings::kConeData, m_vctxVis.ssbo);
 
@@ -700,23 +742,47 @@ namespace Cyan
         };
 
         m_vctxVis.coneVisComputeShader->setUniformVec2("debugScreenPos", &m_vctxVis.debugScreenPos.x);
+        m_vctxVis.coneVisComputeShader->setUniformMat4f("cachedView", &m_vctxVis.cachedView[0][0]);
+        m_vctxVis.coneVisComputeShader->setUniformMat4f("cachedProjection", &m_vctxVis.cachedProjection[0][0]);
+        glm::vec2 renderSize = glm::vec2(m_voxelVisRenderTarget->width, m_voxelVisRenderTarget->height);
+        m_vctxVis.coneVisComputeShader->setUniformVec2("renderSize", &renderSize.x);
         m_vctxVis.coneVisComputeShader->setUniform1i("sceneDepthTexture", (i32)TexBindings::kSceneDepth);
         m_vctxVis.coneVisComputeShader->setUniform1i("sceneNormalTexture", (i32)TexBindings::kSceneNormal);
-        glBindTextureUnit((u32)TexBindings::kSceneDepth, sceneDepthTexture->handle);
-        glBindTextureUnit((u32)TexBindings::kSceneNormal, sceneNormalTexture->handle);
+        m_vctxVis.coneVisComputeShader->setUniform1f("vctxOffset", m_vctx.opts.offset);
+        glBindTextureUnit((u32)TexBindings::kSceneDepth, m_vctxVis.cachedSceneDepth->handle);
+        glBindTextureUnit((u32)TexBindings::kSceneNormal, m_vctxVis.cachedSceneNormal->handle);
 
-        // write cone data to ssbo 
         glDispatchCompute(1, 1, 1);
 
-        // pass1 1: sample ao using vctx and and visualize traced cones
+        // sync
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+        // visualize traced cones
         m_ctx->setRenderTarget(m_voxelVisRenderTarget, { 0 });
         m_ctx->setViewport({ 0, 0, m_voxelVisRenderTarget->width, m_voxelVisRenderTarget->height });
         m_ctx->setShader(m_vctxVis.coneVisDrawShader);
 
+#if 0
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_COMMAND_BARRIER_BIT);
         // indirect draw to launch vs/gs
         glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_vctxVis.idbo);
         glDrawArraysIndirect(GL_POINTS, 0);
+#else
+        index = glGetProgramResourceIndex(m_vctxVis.coneVisDrawShader->handle, GL_SHADER_STORAGE_BLOCK, "ConeTraceDebugData");
+        glShaderStorageBlockBinding(m_vctxVis.coneVisDrawShader->handle, index, (u32)SsboBindings::kConeData);
+
+        struct IndirectDrawArgs
+        {
+            GLuint first;
+            GLuint count;
+        } command;
+        glGetNamedBufferSubData(m_vctxVis.idbo, 0, sizeof(IndirectDrawArgs), &command);
+        m_ctx->setPrimitiveType(PrimitiveType::Points);
+        glDisable(GL_CULL_FACE);
+        m_ctx->drawIndexAuto(command.count);
+#endif
         m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
+        glEnable(GL_CULL_FACE);
     }
 
     void Renderer::drawEntity(Entity* entity)
@@ -788,7 +854,7 @@ namespace Cyan
             // main scene pass
             renderScene(scene);
             // debug object pass
-            renderDebugObjects(externDebugRender);
+            renderDebugObjects(scene, externDebugRender);
             // post processing
             {
                 // reset state
@@ -1210,6 +1276,11 @@ namespace Cyan
             ImGui::Text("Ao Scale "); ImGui::SameLine();
             ImGui::SliderFloat("##Ao Scale", &m_vctx.opts.occlusionScale, 1.f, 5.f, "%.2f");
 
+            ImGui::Text("Debug ScreenPos"); ImGui::SameLine();
+            f32 v[2] = { m_vctxVis.debugScreenPos.x, m_vctxVis.debugScreenPos.y };
+            m_vctxVis.debugScreenPosMoved = ImGui::SliderFloat2("##Debug ScreenPos", v, -1.f, 1.f, "%.2f");
+            m_vctxVis.debugScreenPos = glm::vec2(v[0], v[1]);
+
             ImGui::Separator();
             ImVec2 visSize(480, 270);
             ImGui::Text("VoxelGrid Vis "); 
@@ -1318,12 +1389,12 @@ namespace Cyan
         glBindTextureUnit(gTexBinding(VctxReflection), m_vctx.reflection->handle);
     }
 
-    void Renderer::renderDebugObjects(const std::function<void()>& externDebugRender)
+    void Renderer::renderDebugObjects(Scene* scene, const std::function<void()>& externDebugRender)
     {
         // renderer internal debug draw calls
         {
             visualizeVoxelGrid();
-            // visualizeConeTrace();
+            visualizeConeTrace(scene);
         }
 
         // external debug draw calls defined by the application

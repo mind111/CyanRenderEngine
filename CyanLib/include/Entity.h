@@ -21,9 +21,10 @@ enum EntityProperty
     BakeInProbes = 6 << 1,
 };
 
-enum EntityFilter
+enum class EntityFilter
 {
-    BakeInLightMap = 0
+    BakeInLightMap = 0,
+    kAll
 };
 
 void transformRayToObjectSpace(glm::vec3& ro, glm::vec3& rd, glm::mat4& transform);

@@ -133,3 +133,4 @@ struct BoundingBox3f
     void update();
     float intersectRay(const glm::vec3& ro, const glm::vec3& rd);
 };
+

@@ -132,13 +132,12 @@ TraceResult traceCone(vec3 p, vec3 rd, float halfAngle)
 
         // this is necessary for correcting the "darkness" caused by auto generated mipmap included empty voxels in the average
         albedo *= scale;
-        albedo /= albedo.a;
+        albedo /= albedo.a > 0.f ? albedo.a : 1.f;
         radiance *= scale;
-        radiance /= radiance.a;
+        radiance /= radiance.a > 0.f ? radiance.a : 1.f;
 
 		// emission-absorption model front to back blending
 		occ += (1.f - alpha) * opacity * occlusionScale;
-        accAlbedo += (1.f - alpha) * albedo.rgb;
         accRadiance += (1.f - alpha) * radiance.rgb;
 		alpha += (1.f - alpha) * opacity;
 
@@ -164,7 +163,8 @@ TraceResult sampleIrradianceAndOcclusion(vec3 p, vec3 n, int numTheta, int numPh
     float occ = 0.f;
     mat3 tbn = tbn(n);
     // compute half angle based on number of samples
-    float halfAngle = .25f * pi / numTheta;
+    // float halfAngle = .25f * pi / numTheta;
+    float halfAngle = pi / 6.f;
     float dTheta = .5f * pi / numTheta;
     float dPhi = 2.f * pi / numPhi;
 

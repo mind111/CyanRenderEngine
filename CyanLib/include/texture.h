@@ -100,7 +100,6 @@ namespace Cyan
         void*      data;
     };
 
-    // TODO: implement following systems
     class TextureManager
     {
     public:
@@ -110,13 +109,14 @@ namespace Cyan
         u32 getNumTextures();
         Texture* getTexture(const char* name);
         void addTexture(Texture* texture);
-        Texture* createTexture(const char* _name, TextureSpec spec);
-        Texture* createTextureHDR(const char* _name, TextureSpec spec);
-        Texture* createTexture(const char* _name, const char* _file, TextureSpec& spec);
-        Texture* createTextureHDR(const char* _name, const char* _file, TextureSpec& spec);
+        Texture* createTexture(const char* name, TextureSpec spec);
+        Texture* createTextureHDR(const char* name, TextureSpec spec);
+        Texture* createTexture(const char* name, const char* file, TextureSpec& spec);
+        Texture* createTextureHDR(const char* name, const char* file, TextureSpec& spec);
         Texture* createTexture3D(const char* name, TextureSpec spec);
         Texture* createArrayTexture2D(const char* name, TextureSpec& spec);
         Texture* createDepthTexture(const char* name, u32 width, u32 height);
+        void copyTexture(Texture* dst, Texture* src);
 
         static std::vector<Texture*> s_textures;
         static TextureManager* m_singleton;

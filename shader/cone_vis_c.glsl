@@ -1,4 +1,4 @@
-#version 450 core
+﻿#version 450 core
 /*
 * This shader is used to generate debug visualization data for the following graphics pass to debug render
 * the cone trace 
@@ -32,7 +32,6 @@ layout(std430) buffer ConeTraceDebugData
 {
     int numCubes;
     vec3 padding;
-    vec4 coneDir[5];
 	ConeCube cubes[];
 } debugConeBuffer;
 
@@ -61,6 +60,8 @@ uniform float vctxOffset;
 uniform float occlusionScale;
 uniform vec2 debugScreenPos;
 uniform vec2 renderSize;
+uniform mat4 cachedView;
+uniform mat4 cachedProjection;
 
 mat3 tbn(vec3 n)
 {
@@ -131,7 +132,7 @@ struct DebugTraceResult
     int numSteps;
 };
 
-DebugTraceResult traceCone(vec3 p, vec3 rd, float halfAngle)
+DebugTraceResult traceCone(vec3 p, vec3 rd, float halfAngle, inout int totalNumSteps)
 {
     float alpha = 0.f;
     float occ = 0.f;
@@ -142,9 +143,8 @@ DebugTraceResult traceCone(vec3 p, vec3 rd, float halfAngle)
 	vec3 texCoord = getVoxelGridCoord(q);
     float traced = 0.f;
     float tanHalfAngle = tan(halfAngle);
-    int numSteps = 0;
 
-    while (alpha < 0.95f && isInsideBound(texCoord))
+    while (alpha < 0.5 && isInsideBound(texCoord))
     {
         float coneDiameter = 2.f * traced * tanHalfAngle;
         float mip = log2(max(coneDiameter / sceneVoxelGrid.voxelSize, 1.f));
@@ -158,9 +158,9 @@ DebugTraceResult traceCone(vec3 p, vec3 rd, float halfAngle)
 
         // this is necessary for correcting the "darkness" caused by auto generated mipmap included empty voxels in the average
         albedo *= scale;
-        albedo /= albedo.a;
+        albedo /= albedo.a > 0.f ? albedo.a : 1.f;
         radiance *= scale;
-        radiance /= radiance.a;
+        radiance /= radiance.a > 0.f ? radiance.a : 1.f;
 
 		// emission-absorption model front to back blending
 		occ += (1.f - alpha) * opacity * occlusionScale;
@@ -170,10 +170,10 @@ DebugTraceResult traceCone(vec3 p, vec3 rd, float halfAngle)
 
         // write cube data to buffer
         float sampleVoxelSize = sceneVoxelGrid.voxelSize * pow(2.f, floor(mip));
-        debugConeBuffer.cubes[numSteps].center = q;
-        debugConeBuffer.cubes[numSteps].size = sampleVoxelSize;
-        debugConeBuffer.cubes[numSteps].color = vec4(accRadiance, 1.f);
-        numSteps++;
+        debugConeBuffer.cubes[totalNumSteps].center = q;
+        debugConeBuffer.cubes[totalNumSteps].size = sampleVoxelSize;
+        debugConeBuffer.cubes[totalNumSteps].color = vec4(accRadiance, 1.f);
+        totalNumSteps++;
 
         // marching along the ray
         float stepSize = sampleVoxelSize;
@@ -181,7 +181,7 @@ DebugTraceResult traceCone(vec3 p, vec3 rd, float halfAngle)
         traced += stepSize;
         texCoord = getVoxelGridCoord(q);
     }
-    return DebugTraceResult(accRadiance, occ, numSteps);
+    return DebugTraceResult(accRadiance, occ, totalNumSteps);
 }
 
 DebugTraceResult sampleIrradianceAndOcclusion(vec3 p, vec3 n, int numTheta, int numPhi)
@@ -201,11 +201,9 @@ DebugTraceResult sampleIrradianceAndOcclusion(vec3 p, vec3 n, int numTheta, int 
 
     // the sample in normal direction
 	vec3 dir = generateHemisphereSample(n, 0.f, 0.f);
-	DebugTraceResult record = traceCone(p, dir, halfAngle);
+	DebugTraceResult record = traceCone(p, dir, halfAngle, totalNumSteps);
 	occ += record.occ;
 	radiance += record.radiance;
-    totalNumSteps += record.numSteps;
-
     for (int i = 0; i < numPhi; ++i)
     {
         for (int j = 0; j < numTheta; ++j)
@@ -213,7 +211,7 @@ DebugTraceResult sampleIrradianceAndOcclusion(vec3 p, vec3 n, int numTheta, int 
             float theta = (float(j) + .5f) * dTheta;
             float phi = (float(i) + .5f) * dPhi + generateRandomRotation(debugScreenPos * renderSize);
             vec3 dir = generateHemisphereSample(n, theta, phi);
-			DebugTraceResult record = traceCone(p, dir, halfAngle);
+			DebugTraceResult record = traceCone(p, dir, halfAngle, totalNumSteps);
 			occ += record.occ;
 			radiance += record.radiance;
         }
@@ -236,7 +234,7 @@ void main()
 {
     vec2 texCoord = debugScreenPos * .5f + .5f;
     float depth = texture(sceneDepthTexture, texCoord).r * 2.f - 1.f;
-    vec3 worldPos = screenToWorld(vec3(texCoord * 2.f - 1.f, depth), inverse(gDrawData.view), inverse(gDrawData.projection));
+    vec3 worldPos = screenToWorld(vec3(texCoord * 2.f - 1.f, depth), inverse(cachedView), inverse(cachedProjection));
     vec3 n = normalize(texture(sceneNormalTexture, texCoord).rgb * 2.f - 1.f);
 
     DebugTraceResult result = sampleIrradianceAndOcclusion(worldPos, n, 3, 3);

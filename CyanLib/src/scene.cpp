@@ -22,6 +22,8 @@ RayCastInfo Scene::castRay(glm::vec3& ro, glm::vec3& rd, EntityFilter filter, bo
         bool flag = true;
         switch (filter)
         {
+            case EntityFilter::kAll:
+                break;
             case EntityFilter::BakeInLightMap:
                 flag = entity->m_static;
                 break;
@@ -285,4 +287,14 @@ Cyan::ReflectionProbe* SceneManager::createReflectionProbe(Cyan::Texture* srcCub
 Cyan::ReflectionProbe* SceneManager::createReflectionProbe(Scene* scene, const glm::vec3& pos, const glm::uvec2& sceneCaptureRes)
 {
     return new Cyan::ReflectionProbe(scene, pos, sceneCaptureRes);
+}
+
+glm::vec3 SceneManager::queryWorldPositionFromCamera(Scene* scene, const glm::vec2& uv)
+{
+    // generate a ray
+    const auto& camera = scene->getActiveCamera();
+    glm::vec3 ro = camera.position;
+    glm::vec3 rd = glm::normalize(uv.x * camera.right + uv.y * camera.up + camera.n * camera.forward);
+    auto hit = scene->castRay(ro, rd, EntityFilter::kAll, true);
+    return ro + hit.t * rd;
 }

@@ -6,6 +6,7 @@
 #include "Texture.h"
 #include "MathUtils.h"
 #include "CyanAPI.h"
+#include "Ray.h"
 
 /* 
     * todo: (Feature) integrate intel's open image denoiser
@@ -91,6 +92,7 @@ namespace Cyan
         return {ro, rd};
     }
 
+#if 0
     // hit need to be in object space
     glm::vec3 computeBaryCoord(Triangle& tri, glm::vec3& hitPosObjectSpace)
     {
@@ -117,6 +119,7 @@ namespace Cyan
         auto tri = mesh->getTriangle(rayHit.smIndex, rayHit.triIndex);
         return computeBaryCoord(tri, hitPosObjectSpace);
     }
+#endif
 
     // TODO: bilinear texture filtering
     glm::vec3 texelFetch(Texture* texture, glm::vec3& texCoord)
@@ -145,6 +148,7 @@ namespace Cyan
         return nullptr;
     }
 
+#if 0
     // return surface normal at ray hit in world space
     glm::vec3 getSurfaceNormal(RayCastInfo& rayHit, glm::vec3& baryCoord)
     {
@@ -160,7 +164,7 @@ namespace Cyan
         normal = vec4ToVec3(glm::inverse(glm::transpose(worldTransformMatrix)) * glm::vec4(normal, 0.f));
         return glm::normalize(normal);
     }
-
+#endif
     PathTracer* PathTracer::m_singleton = nullptr;
     std::atomic<u32> PathTracer::progressCounter(0u);
 
