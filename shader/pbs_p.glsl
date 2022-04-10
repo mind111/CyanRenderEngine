@@ -28,9 +28,10 @@ layout (binding = 6) uniform sampler2D shadowCascades[4];
 layout (binding = 10) uniform sampler3D sceneVoxelGridAlbedo;
 layout (binding = 11) uniform sampler3D sceneVoxelGridNormal;
 layout (binding = 12) uniform sampler3D sceneVoxelGridRadiance;
-layout (binding = 13) uniform sampler2D vctxOcclusion;
-layout (binding = 14) uniform sampler2D vctxIrradiance;
-layout (binding = 15) uniform sampler2D vctxReflection;
+layout (binding = 13) uniform sampler3D sceneVoxelGridOpacity;
+layout (binding = 14) uniform sampler2D vctxOcclusion;
+layout (binding = 15) uniform sampler2D vctxIrradiance;
+layout (binding = 16) uniform sampler2D vctxReflection;
 
 //- sun shadow
 float cascadeIntervals[4] = {0.1f, 0.3f, 0.6f, 1.0f};

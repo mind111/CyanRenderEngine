@@ -187,6 +187,7 @@
     <None Include="..\shader\shader_upsample.fs" />
     <None Include="..\shader\shader_upsample.vs" />
     <None Include="..\shader\voxelize_g.glsl" />
+    <None Include="..\shader\voxelize_resolve_c.glsl" />
     <None Include="..\shader\voxelize_v.glsl" />
     <None Include="..\shader\sky_irradiance_c.glsl" />
     <None Include="..\shader\voxel_vis_g.glsl" />

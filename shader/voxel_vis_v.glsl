@@ -10,6 +10,7 @@ const int kVisAlbedo = 1 << 0;
 const int kVisOpacity = 1 << 1;
 const int kVisRadiance = 1 << 2;
 const int kVisNormal = 1 << 3;
+const int kVisSSOpacity = 1 << 4;
 
 //- voxel cone tracing
 layout(std430, binding = 4) buffer VoxelGridData
@@ -23,6 +24,7 @@ layout(std430, binding = 4) buffer VoxelGridData
 layout (binding = 10) uniform sampler3D sceneVoxelGridAlbedo;
 layout (binding = 11) uniform sampler3D sceneVoxelGridNormal;
 layout (binding = 12) uniform sampler3D sceneVoxelGridRadiance;
+layout (binding = 13) uniform sampler3D sceneVoxelGridOpacity;
 
 uniform int activeMip;
 
@@ -47,8 +49,9 @@ void main()
 	vec3 texCoords = (vec3(x, y, z) + .5f) / vec3(voxelGridDim);
 	vec4 albedo = textureLod(sceneVoxelGridAlbedo, texCoords, activeMip);
 	vec4 radiance = textureLod(sceneVoxelGridRadiance, texCoords, activeMip);
+	float opacitySS = textureLod(sceneVoxelGridOpacity, texCoords, activeMip).r;
 
-	float scale = pow(4.f, activeMip);
+	float scale = pow(8.f, activeMip);
 	if ((sceneVoxelGrid.visMode & kVisAlbedo) != 0)
 	{
 		albedo *= scale;
@@ -66,6 +69,10 @@ void main()
 	else if ((sceneVoxelGrid.visMode & kVisOpacity) != 0)
 	{
 		vsOut.voxelColor = vec4(albedo.a);
+	}
+	else if ((sceneVoxelGrid.visMode & kVisSSOpacity) != 0)
+	{
+		vsOut.voxelColor = vec4(vec3(opacitySS), 1.f);
 	}
 	if (vsOut.voxelColor.a > 0.f)
 		gl_Position = vec4(x, y, z, 1.f);

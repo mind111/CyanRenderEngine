@@ -529,5 +529,8 @@
     <None Include="..\shader\vctx_v.glsl">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="..\shader\voxelize_resolve_c.glsl">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

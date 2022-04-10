@@ -281,6 +281,7 @@ namespace Cyan
         texture->height = spec.height;
         texture->depth = spec.depth;
         texture->type = spec.type;
+        texture->dataType = spec.dataType;
         texture->format = spec.format;
         texture->minFilter = spec.min;
         texture->magFilter = spec.mag;
@@ -293,7 +294,17 @@ namespace Cyan
 
         glCreateTextures(GL_TEXTURE_3D, 1, &texture->handle);
         glBindTexture(GL_TEXTURE_3D, texture->handle);
-        glTexImage3D(GL_TEXTURE_3D, 0, specGL.m_internalFormatGL, spec.width, spec.height, spec.depth, 0, specGL.m_dataFormatGL, GL_UNSIGNED_INT, 0);
+        switch (texture->dataType)
+        {
+        case Texture::DataType::UNSIGNED_INT:
+            glTexImage3D(GL_TEXTURE_3D, 0, specGL.m_internalFormatGL, spec.width, spec.height, spec.depth, 0, specGL.m_dataFormatGL, GL_UNSIGNED_INT, 0);
+            break;
+        case Texture::DataType::Float:
+            glTexImage3D(GL_TEXTURE_3D, 0, specGL.m_internalFormatGL, spec.width, spec.height, spec.depth, 0, specGL.m_dataFormatGL, GL_FLOAT, 0);
+            break;
+        default:
+            cyanError("Undefined texture data format!");
+        }
         if (spec.numMips > 1u)
         {
             glGenerateMipmap(GL_TEXTURE_3D);

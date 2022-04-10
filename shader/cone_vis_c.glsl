@@ -165,7 +165,8 @@ DebugTraceResult traceCone(vec3 p, vec3 rd, float halfAngle, inout int totalNumS
 		// emission-absorption model front to back blending
 		occ += (1.f - alpha) * opacity * occlusionScale;
         accAlbedo += (1.f - alpha) * albedo.rgb;
-        accRadiance += (1.f - alpha) * radiance.rgb;
+        // accRadiance = accRadiance * alpha + (1.f - alpha) * radiance.rgb;
+        accRadiance = alpha * accRadiance + (1.f - alpha) * radiance.rgb;
 		alpha += (1.f - alpha) * opacity;
 
         // write cube data to buffer
@@ -195,7 +196,11 @@ DebugTraceResult sampleIrradianceAndOcclusion(vec3 p, vec3 n, int numTheta, int 
     float occ = 0.f;
     mat3 tbn = tbn(n);
     // compute half angle based on number of samples
+#if 0
     float halfAngle = .25f * pi / numTheta;
+#else
+    float halfAngle = pi / 6.f;
+#endif
     float dTheta = .5f * pi / numTheta;
     float dPhi = 2.f * pi / numPhi;
 
@@ -237,7 +242,7 @@ void main()
     vec3 worldPos = screenToWorld(vec3(texCoord * 2.f - 1.f, depth), inverse(cachedView), inverse(cachedProjection));
     vec3 n = normalize(texture(sceneNormalTexture, texCoord).rgb * 2.f - 1.f);
 
-    DebugTraceResult result = sampleIrradianceAndOcclusion(worldPos, n, 3, 3);
+    DebugTraceResult result = sampleIrradianceAndOcclusion(worldPos, n, 0, 0);
     debugConeBuffer.numCubes = result.numSteps;
 
     // fill in indirect draw buffer

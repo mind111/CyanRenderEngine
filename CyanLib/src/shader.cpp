@@ -336,6 +336,6 @@ GLint Shader::getUniformLocation(const char* name)
     }
 
     // TODO: Debug message
-    printf("Uniform: %s cannot be found in shader progam: %d\n", name, handle);
+    // printf("Uniform: %s cannot be found in shader progam: %d\n", name, handle);
     return -1;
 }

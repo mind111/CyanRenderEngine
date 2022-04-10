@@ -1,9 +1,11 @@
 #version 450 core
+#extension GL_NV_shader_atomic_float : require
 
 layout(binding = 0, r32ui) uniform coherent volatile uimage3D voxelGridAlbedo;
 layout(binding = 1, r32ui) uniform coherent volatile uimage3D voxelGridNormal;
 layout(binding = 2, r32ui) uniform coherent volatile uimage3D voxelGridEmission;
 layout(binding = 3, r32ui) uniform coherent volatile uimage3D voxelGridRadiance;
+layout(binding = 4, r32f)  uniform image3D voxelGridOpacity;
 
 //- sun shadow
 layout (binding = 6) uniform sampler2D   shadowCascades[4];
@@ -53,6 +55,11 @@ layout(std430, binding = 2) buffer pointLightsData
 {
     PointLight lights[];
 } pointLightsBuffer;
+
+layout(std430) buffer opacityData
+{
+    int opacityMask[];
+} opacityBuffer;
 
 uniform uint matlFlag;
 uniform vec4 flatColor;
@@ -231,10 +238,11 @@ void main()
     ivec3 voxelGridDim = imageSize(voxelGridAlbedo);
 
     // compute which voxel current fragment corresponds to
+    // this coordinates computation doesn't care about whether we are doing super-sampling or not
     vec4 texCoords = orthoProjection(vec4(psIn.fragmentWorldPos, 1.f), aabbMin.x, aabbMax.x, aabbMin.y, aabbMax.y, aabbMax.z, aabbMin.z);
-    vec3 normalizedTexCoords = vec3((texCoords.xy + vec2(1.f)) * .5f, texCoords.z);
+    vec3 normalizedTexCoords = vec3((texCoords.xy + 1.f) * .5f, texCoords.z);
     normalizedTexCoords = normalizedTexCoords * voxelGridDim;
-    ivec3 texCoordsi = ivec3(normalizedTexCoords.x, normalizedTexCoords.y, normalizedTexCoords.z);
+    ivec3 texCoordsi = ivec3(normalizedTexCoords);
 
     // TODO: gamma correct from sRGB to linear
     vec3 albedo = flatColor.rgb; 
@@ -250,7 +258,12 @@ void main()
     imageAtomicAddVec4(voxelGridAlbedo, texCoordsi, vec4(albedo, 1.0f));
     // normal
     imageAtomicAddVec4(voxelGridNormal, texCoordsi, vec4(ncolor, 1.0f));
-    // TODO: emission
+    // todo: emission
+    // todo: combine opacity & emission into a r32 volume texture
+    // super-sampled opactiy
+    imageAtomicAdd(voxelGridOpacity, texCoordsi, (1.f / 64.f));
+	// ivec3 texCoordsiSS = ivec3(normalizedTexCoords * voxelGridDim * 4);
+    // opacityBuffer.opacityMask[texCoordsiSS.x * texCoordsiSS.y * texCoordsiSS.z + texCoordsiSS.y * texCoordsiSS.x + texCoordsiSS.x] = 1;
 
     // inject direct lighting into voxels
     vec3 radiance = vec3(0.f);

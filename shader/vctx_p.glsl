@@ -8,6 +8,7 @@ layout (location = 2) out vec3 vctxReflection;
 
 uniform float occlusionScale;
 uniform float vctxOffset;
+uniform float indirectScale;
 uniform vec2 renderSize;
 
 layout (binding = 10) uniform sampler3D sceneVoxelGridAlbedo;
@@ -122,7 +123,7 @@ TraceResult traceCone(vec3 p, vec3 rd, float halfAngle)
     {
         float coneDiameter = 2.f * traced * tanHalfAngle;
         float mip = log2(max(coneDiameter / sceneVoxelGrid.voxelSize, 1.f));
-        float scale = pow(4.f, int(mip));
+        float scale = pow(8.f, floor(mip));
 
 		vec4 albedo = textureLod(sceneVoxelGridAlbedo, texCoord, mip);
         vec4 radiance = textureLod(sceneVoxelGridRadiance, texCoord, mip);
@@ -138,7 +139,7 @@ TraceResult traceCone(vec3 p, vec3 rd, float halfAngle)
 
 		// emission-absorption model front to back blending
 		occ += (1.f - alpha) * opacity * occlusionScale;
-        accRadiance += (1.f - alpha) * radiance.rgb;
+        accRadiance = alpha * accRadiance + (1.f - alpha) * radiance.rgb * indirectScale;
 		alpha += (1.f - alpha) * opacity;
 
         // write cube data to buffer
@@ -154,13 +155,18 @@ TraceResult traceCone(vec3 p, vec3 rd, float halfAngle)
     return TraceResult(accRadiance, occ);
 }
 
+// todo: want to achieve fuzzy far field occlusion or sky occlusion, right now dynamic occlusion looks pretty much just like ssao
+// todo: have a dedicated opacity texture ...? store super sampled opacity in each voxel of the finalized volume texture
+// todo: add a control for cone aperture
 TraceResult sampleIrradianceAndOcclusion(vec3 p, vec3 n, int numTheta, int numPhi)
 {
     // offset to next voxel in normal direction
     p += n * vctxOffset * sceneVoxelGrid.voxelSize;
+    float occlusion = 0.f;
 
     vec3 radiance = vec3(0.f);
     float occ = 0.f;
+    float vis = 0.f;
     mat3 tbn = tbn(n);
     // compute half angle based on number of samples
     // float halfAngle = .25f * pi / numTheta;
@@ -182,13 +188,15 @@ TraceResult sampleIrradianceAndOcclusion(vec3 p, vec3 n, int numTheta, int numPh
             float phi = (float(i) + .5f) * dPhi + generateRandomRotation(gl_FragCoord.xy);
             vec3 dir = generateHemisphereSample(n, theta, phi);
 			TraceResult record = traceCone(p, dir, halfAngle);
-			occ += record.occ;
-			radiance += record.radiance;
+			occ += record.occ * max(dot(dir, n), 0.f);
+            occlusion += record.occ > 0.6f ? 1.f : 0.f;
+			radiance += record.radiance * max(dot(dir, n), 0.f);
         }
     }
     radiance /= (numTheta * numPhi + 1);
     occ /= (numTheta * numPhi + 1);
-    return TraceResult(radiance, 1.f - min(occ, 1.f));
+    occlusion /= (numTheta * numPhi + 1);
+    return TraceResult(radiance, 1.f - occlusion);
 }
 
 vec3 screenToWorld(vec3 pp, mat4 invView, mat4 invProjection) {
@@ -207,7 +215,7 @@ void main()
     vec3 worldPos = screenToWorld(vec3(texCoord * 2.f - 1.f, depth), inverse(gDrawData.view), inverse(gDrawData.projection));
     vec3 n = normalize(texture(sceneNormalTexture, texCoord).rgb * 2.f - 1.f);
 
-    TraceResult result = sampleIrradianceAndOcclusion(worldPos, n, 3, 3);
+    TraceResult result = sampleIrradianceAndOcclusion(worldPos, n, 2, 6);
 
     vctxOcclusion = vec3(result.occ);
     vctxIrradiance = result.radiance;
