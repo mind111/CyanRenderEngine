@@ -244,6 +244,7 @@ namespace Cyan
             VoxelGridAlbedo = (i32)SunShadow + 4,
             VoxelGridNormal,
             VoxelGridRadiance,
+            VoxelGridOpacity,
             VctxOcclusion,
             VctxIrradiance,
             VctxReflection,
@@ -287,11 +288,11 @@ namespace Cyan
         struct VoxelGrid
         {
             const u32 resolution = 128u;
-            // const u32 maxNumMips = 4u;
             Texture* albedo;
             Texture* normal;
             Texture* emission;
             Texture* radiance;
+            Texture* opacity;
             glm::vec3 localOrigin;
             f32 voxelSize;
         } m_sceneVoxelGrid;
@@ -304,6 +305,9 @@ namespace Cyan
                 f32 offset = 2.f;         
                 // scale used to scale opacity's contribution to occlusion
                 f32 occlusionScale = 1.5f; 
+                // indirect lighting scale
+                f32 indirectScale = 1.f;
+                bool superSampled = true;
             } opts;
 
             enum class ColorBuffers
@@ -314,7 +318,8 @@ namespace Cyan
             };
 
             RenderTarget* renderTarget = nullptr;
-            Shader* shader = nullptr;
+            Shader* renderShader = nullptr;
+            Shader* resolveShader = nullptr;
             Texture* occlusion = nullptr;
             Texture* irradiance = nullptr;
             Texture* reflection = nullptr;

@@ -391,7 +391,8 @@ namespace Cyan
                 m_vctx.renderTarget->setColorBuffer(m_vctx.irradiance,(u32)ColorBuffers::kIrradiance);
                 m_vctx.renderTarget->setColorBuffer(m_vctx.reflection,(u32)ColorBuffers::kReflection);
 
-                m_vctx.shader = createShader("VctxShader", SHADER_SOURCE_PATH "vctx_v.glsl", SHADER_SOURCE_PATH "vctx_p.glsl");
+                m_vctx.renderShader = createShader("VctxShader", SHADER_SOURCE_PATH "vctx_v.glsl", SHADER_SOURCE_PATH "vctx_p.glsl");
+                m_vctx.resolveShader = createCsShader("VoxelizeResolveShader", SHADER_SOURCE_PATH "voxelize_resolve_c.glsl");
             }
 
             m_vctxVis.coneVisComputeShader = createCsShader("ConeVisComputeShader", SHADER_SOURCE_PATH "cone_vis_c.glsl");
@@ -1276,6 +1277,9 @@ namespace Cyan
             ImGui::Text("Ao Scale "); ImGui::SameLine();
             ImGui::SliderFloat("##Ao Scale", &m_vctx.opts.occlusionScale, 1.f, 5.f, "%.2f");
 
+            ImGui::Text("Indirect Scale "); ImGui::SameLine();
+            ImGui::SliderFloat("##Indirect Scale", &m_vctx.opts.indirectScale, 1.f, 5.f, "%.2f");
+
             ImGui::Text("Debug ScreenPos"); ImGui::SameLine();
             f32 v[2] = { m_vctxVis.debugScreenPos.x, m_vctxVis.debugScreenPos.y };
             m_vctxVis.debugScreenPosMoved = ImGui::SliderFloat2("##Debug ScreenPos", v, -1.f, 1.f, "%.2f");
@@ -1361,7 +1365,7 @@ namespace Cyan
 
         m_ctx->setRenderTarget(m_vctx.renderTarget, { (i32)ColorBuffers::kOcclusion, (i32)ColorBuffers::kIrradiance, (i32)ColorBuffers::kReflection });
         m_ctx->setViewport({ 0u, 0u, m_vctx.renderTarget->width, m_vctx.renderTarget->height });
-        m_ctx->setShader(m_vctx.shader);
+        m_ctx->setShader(m_vctx.renderShader);
 
         enum class TexBindings
         {
@@ -1369,11 +1373,12 @@ namespace Cyan
             kNormal
         };
         glm::vec2 renderSize = glm::vec2(m_vctx.renderTarget->width, m_vctx.renderTarget->height);
-        m_vctx.shader->setUniformVec2("renderSize", &renderSize.x);
-        m_vctx.shader->setUniform1i("sceneDepthTexture", (i32)TexBindings::kDepth);
-        m_vctx.shader->setUniform1i("sceneNormalTexture", (i32)TexBindings::kNormal);
-        m_vctx.shader->setUniform1f("vctxOffset", m_vctx.opts.offset);
-        m_vctx.shader->setUniform1f("occlusionScale", m_vctx.opts.occlusionScale);
+        m_vctx.renderShader->setUniformVec2("renderSize", &renderSize.x);
+        m_vctx.renderShader->setUniform1i("sceneDepthTexture", (i32)TexBindings::kDepth);
+        m_vctx.renderShader->setUniform1i("sceneNormalTexture", (i32)TexBindings::kNormal);
+        m_vctx.renderShader->setUniform1f("vctxOffset", m_vctx.opts.offset);
+        m_vctx.renderShader->setUniform1f("occlusionScale", m_vctx.opts.occlusionScale);
+        m_vctx.renderShader->setUniform1f("indirectScale", m_vctx.opts.indirectScale);
         auto depthTexture = m_opts.enableAA ? m_sceneDepthTextureSSAA : m_sceneDepthTexture;
         auto normalTexture = m_opts.enableAA ? m_sceneNormalTextureSSAA : m_sceneNormalTexture;
         glBindTextureUnit((u32)TexBindings::kDepth, depthTexture->handle);
