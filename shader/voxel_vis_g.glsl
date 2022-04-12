@@ -15,7 +15,7 @@ in VsOut
     vec4 voxelColor;
 } gsIn[];
 
-out vec3 voxelColor;
+out vec4 voxelColor;
 
 //- buffers
 layout(std430, binding = 0) buffer GlobalDrawData
@@ -109,7 +109,7 @@ void main()
 					float y = cubeVertices[(triIndex * 3 + v) * 3 + 1];
 					float z = cubeVertices[(triIndex * 3 + v) * 3 + 2];
 					gl_Position = gDrawData.projection * gDrawData.view * vec4(gsIn[0].voxelCenterPos + vec3(x, y, z) * .5f * sceneVoxelGrid.voxelSize * pow(2.f, activeMip), 1.f);
-					voxelColor = gsIn[0].voxelColor.rgb;
+					voxelColor = gsIn[0].voxelColor;
 					EmitVertex();
 				}
 				EndPrimitive();

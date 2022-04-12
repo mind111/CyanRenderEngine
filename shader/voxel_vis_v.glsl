@@ -49,7 +49,7 @@ void main()
 	vec3 texCoords = (vec3(x, y, z) + .5f) / vec3(voxelGridDim);
 	vec4 albedo = textureLod(sceneVoxelGridAlbedo, texCoords, activeMip);
 	vec4 radiance = textureLod(sceneVoxelGridRadiance, texCoords, activeMip);
-	float opacitySS = textureLod(sceneVoxelGridOpacity, texCoords, activeMip).r;
+	vec4 opacitySS = textureLod(sceneVoxelGridOpacity, texCoords, activeMip);
 
 	float scale = pow(8.f, activeMip);
 	if ((sceneVoxelGrid.visMode & kVisAlbedo) != 0)
@@ -72,10 +72,13 @@ void main()
 	}
 	else if ((sceneVoxelGrid.visMode & kVisSSOpacity) != 0)
 	{
-		vsOut.voxelColor = vec4(vec3(opacitySS), 1.f);
+		vsOut.voxelColor = opacitySS;
 	}
 	if (vsOut.voxelColor.a > 0.f)
+	{
+		vsOut.voxelColor.a = 1.f;
 		gl_Position = vec4(x, y, z, 1.f);
+	}
 	else
 		gl_Position = vec4(x, y, z, 0.f);
 }

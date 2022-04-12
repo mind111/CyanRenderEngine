@@ -211,7 +211,6 @@ namespace Cyan
 
         // ssao
         {
-            m_freezeDebugLines = false;
             TextureSpec spec = { };
             spec.width = m_windowWidth;
             spec.height = m_windowHeight;
@@ -228,7 +227,6 @@ namespace Cyan
             m_ssaoRenderTarget->setColorBuffer(m_ssaoTexture, 0u);
             m_ssaoShader = createShader("SSAOShader", SHADER_SOURCE_PATH "shader_ao.vs", SHADER_SOURCE_PATH "shader_ao.fs");
             m_ssaoMatl = createMaterial(m_ssaoShader)->createInstance();
-            m_ssaoDebugVisBuffer = createRegularBuffer(sizeof(SSAODebugVisData));
 
             m_ssaoDebugVisLines.normal.init();
             m_ssaoDebugVisLines.normal.setColor(glm::vec4(0.f, 0.f, 1.f, 1.f));
@@ -363,6 +361,10 @@ namespace Cyan
                 m_sceneVoxelGrid.albedo = textureManager->createTexture3D("VoxelGridAlbedo", voxelDataSpec);
                 m_sceneVoxelGrid.radiance = textureManager->createTexture3D("VoxelGridRadiance", voxelDataSpec);
 
+                voxelDataSpec.dataType = Texture::DataType::Float;
+                voxelDataSpec.format = Texture::ColorFormat::R32F;
+                m_sceneVoxelGrid.opacity = textureManager->createTexture3D("VoxelGridOpacity", voxelDataSpec);
+
                 m_voxelizeShader = createVsGsPsShader("VoxelizeShader", SHADER_SOURCE_PATH "voxelize_v.glsl", SHADER_SOURCE_PATH "voxelize_g.glsl", SHADER_SOURCE_PATH "voxelize_p.glsl");
                 m_voxelizeMatl = createMaterial(m_voxelizeShader)->createInstance(); 
                 m_voxelVisShader = createVsGsPsShader("VoxelVisShader", SHADER_SOURCE_PATH "voxel_vis_v.glsl", SHADER_SOURCE_PATH "voxel_vis_g.glsl", SHADER_SOURCE_PATH "voxel_vis_p.glsl");
@@ -391,8 +393,33 @@ namespace Cyan
                 m_vctx.renderTarget->setColorBuffer(m_vctx.irradiance,(u32)ColorBuffers::kIrradiance);
                 m_vctx.renderTarget->setColorBuffer(m_vctx.reflection,(u32)ColorBuffers::kReflection);
 
+                TextureSpec voxelizeSSSpec = { };
+                voxelizeSSSpec.width = m_sceneVoxelGrid.resolution * m_vctx.ssaaRes;
+                voxelizeSSSpec.height = m_sceneVoxelGrid.resolution * m_vctx.ssaaRes;
+                voxelizeSSSpec.type = Texture::Type::TEX_2D;
+                voxelizeSSSpec.dataType = Texture::DataType::Float;
+                voxelizeSSSpec.format = Texture::ColorFormat::R16G16B16;
+                voxelizeSSSpec.min = Texture::Filter::LINEAR; 
+                voxelizeSSSpec.mag = Texture::Filter::LINEAR;
+                Texture* voxelizeSSColorbuffer = textureManager->createTexture("VoxelizeSS", voxelizeSSSpec);
+                m_vctx.ssRenderTarget = createRenderTarget(m_sceneVoxelGrid.resolution * m_vctx.ssaaRes, m_sceneVoxelGrid.resolution * m_vctx.ssaaRes);
+                m_vctx.ssRenderTarget->setColorBuffer(voxelizeSSColorbuffer, 0);
+
                 m_vctx.renderShader = createShader("VctxShader", SHADER_SOURCE_PATH "vctx_v.glsl", SHADER_SOURCE_PATH "vctx_p.glsl");
                 m_vctx.resolveShader = createCsShader("VoxelizeResolveShader", SHADER_SOURCE_PATH "voxelize_resolve_c.glsl");
+
+                // opacity mask buffer
+                glCreateBuffers(1, &m_vctx.opacityMaskSsbo);
+                i32 buffSize = sizeof(i32) * pow(m_sceneVoxelGrid.resolution * m_vctx.ssaaRes, 3);
+                glNamedBufferData(m_vctx.opacityMaskSsbo, buffSize, nullptr, GL_DYNAMIC_COPY);
+                m_vctx.debugOpacityMaskBuffer = new i32[pow(m_sceneVoxelGrid.resolution * m_vctx.ssaaRes, 3)];
+
+                glCreateBuffers(1, &m_vctx.debugTexcoordBuffer);
+                buffSize = sizeof(glm::ivec4) * pow(m_sceneVoxelGrid.resolution * m_vctx.ssaaRes, 3);
+                glNamedBufferData(m_vctx.debugTexcoordBuffer, buffSize, nullptr, GL_DYNAMIC_COPY);
+
+                glCreateBuffers(1, &m_vctx.atomicCounter);
+                glNamedBufferData(m_vctx.atomicCounter, sizeof(GLuint), nullptr, GL_DYNAMIC_COPY);
             }
 
             m_vctxVis.coneVisComputeShader = createCsShader("ConeVisComputeShader", SHADER_SOURCE_PATH "cone_vis_c.glsl");
@@ -523,10 +550,12 @@ namespace Cyan
         glClearTexImage(m_sceneVoxelGrid.albedo->handle, 0, GL_RGBA, GL_UNSIGNED_INT, 0);
         glClearTexImage(m_sceneVoxelGrid.normal->handle, 0, GL_RGBA, GL_UNSIGNED_INT, 0);
         glClearTexImage(m_sceneVoxelGrid.radiance->handle, 0, GL_RGBA, GL_UNSIGNED_INT, 0);
+        glClearTexImage(m_sceneVoxelGrid.opacity->handle, 0, GL_R, GL_FLOAT, 0);
 
-        m_ctx->setRenderTarget(m_voxelizeRenderTarget, { 0 });
-        m_voxelizeRenderTarget->clear({ 0 });
-        m_ctx->setViewport({ 0, 0, m_sceneVoxelGrid.resolution, m_sceneVoxelGrid.resolution });
+        auto renderTarget = m_vctx.opts.superSampled ? m_vctx.ssRenderTarget : m_voxelizeRenderTarget;
+        m_ctx->setRenderTarget(renderTarget, { 0 });
+        renderTarget->clear({ 0 });
+        m_ctx->setViewport({ 0, 0, renderTarget->width, renderTarget->height });
         m_ctx->setDepthControl(DepthControl::kDisable);
         glEnable(GL_NV_conservative_raster);
         glDisable(GL_CULL_FACE);
@@ -539,13 +568,33 @@ namespace Cyan
             kAlbedo = 0,
             kNormal,
             kEmission,
-            kRadiance
+            kRadiance,
+            kOpacity
         };
         // bind 3D volume texture to image units
         glBindImageTexture(static_cast<u32>(ImageBindings::kAlbedo), m_sceneVoxelGrid.albedo->handle, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
         glBindImageTexture(static_cast<u32>(ImageBindings::kNormal), m_sceneVoxelGrid.normal->handle, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
         glBindImageTexture(static_cast<u32>(ImageBindings::kRadiance), m_sceneVoxelGrid.radiance->handle, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+        glBindImageTexture(static_cast<u32>(ImageBindings::kOpacity), m_sceneVoxelGrid.opacity->handle, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32F);
+        if (m_vctx.opts.superSampled)
+        {
+            enum class SsboBindings
+            {
+                kOpacityMask = (i32)GlobalBufferBindings::kCount,
+                kDebugTexcoord
+            };
+            auto index = glGetProgramResourceIndex(m_voxelizeShader->handle, GL_SHADER_STORAGE_BLOCK, "OpacityData");
+            glShaderStorageBlockBinding(m_voxelizeShader->handle, index, (u32)SsboBindings::kOpacityMask);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)SsboBindings::kOpacityMask, m_vctx.opacityMaskSsbo);
+            f32 clear = 0.f;
+            glClearNamedBufferData(m_vctx.opacityMaskSsbo, GL_R32F, GL_R, GL_FLOAT, &clear);
 
+            index = glGetProgramResourceIndex(m_voxelizeShader->handle, GL_SHADER_STORAGE_BLOCK, "TexcoordData");
+            glShaderStorageBlockBinding(m_voxelizeShader->handle, index, (u32)SsboBindings::kDebugTexcoord);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)SsboBindings::kDebugTexcoord, m_vctx.debugTexcoordBuffer);
+
+            glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, m_vctx.atomicCounter);
+        }
         enum class Steps
         {
             kXAxis = 0,
@@ -619,6 +668,36 @@ namespace Cyan
         glEnable(GL_CULL_FACE);
         glDisable(GL_NV_conservative_raster);
 
+        // compute pass for resovling super sampled scene opacity
+        if (m_vctx.opts.superSampled)
+        {
+#if 0
+            // read back debug cpu data
+            i32 count = pow(m_sceneVoxelGrid.resolution * 4, 3);
+            glGetNamedBufferSubData(m_vctx.opacityMaskSsbo, 0, sizeof(i32) * pow(m_sceneVoxelGrid.resolution * 4, 3), m_vctx.debugOpacityMaskBuffer);
+            u32 debugCount = 0;
+            for (i32 ii = 0; ii < count; ++ii)
+            {
+                if (m_vctx.debugOpacityMaskBuffer[ii] != 0)
+                {
+                    debugCount++;
+                }
+            }
+            printf("%d number of occupied sub-voxels\n", debugCount);
+#endif
+            glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+            enum class SsboBindings
+            {
+                kOpacityMask = (i32)GlobalBufferBindings::kCount,
+            };
+            auto index = glGetProgramResourceIndex(m_vctx.resolveShader->handle, GL_SHADER_STORAGE_BLOCK, "OpacityData");
+            glShaderStorageBlockBinding(m_vctx.resolveShader->handle, index, (u32)SsboBindings::kOpacityMask);
+            m_ctx->setShader(m_vctx.resolveShader);
+            // glDispatchCompute(m_sceneVoxelGrid.resolution, m_sceneVoxelGrid.resolution, m_sceneVoxelGrid.resolution);
+            glDispatchCompute(2, 1, 1);
+            glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+        }
+
         if (m_opts.regenVoxelGridMipmap)
         {
             glGenerateTextureMipmap(m_sceneVoxelGrid.albedo->handle);
@@ -656,6 +735,7 @@ namespace Cyan
         glBindTextureUnit(gTexBinding(VoxelGridAlbedo), m_sceneVoxelGrid.albedo->handle);
         glBindTextureUnit(gTexBinding(VoxelGridNormal), m_sceneVoxelGrid.normal->handle);
         glBindTextureUnit(gTexBinding(VoxelGridRadiance), m_sceneVoxelGrid.radiance->handle);
+        glBindTextureUnit(gTexBinding(VoxelGridOpacity), m_sceneVoxelGrid.opacity->handle);
 
         // update buffer data
         glm::vec3 pmin, pmax;
@@ -681,7 +761,9 @@ namespace Cyan
 
             m_ctx->setPrimitiveType(PrimitiveType::Points);
             u32 currRes = m_sceneVoxelGrid.resolution / pow(2, m_vctxVis.activeMip);
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
             m_ctx->drawIndexAuto(currRes * currRes * currRes);
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         }
         m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
         glEnable(GL_CULL_FACE);
@@ -692,7 +774,6 @@ namespace Cyan
         // debug vis for voxel cone tracing
         auto sceneDepthTexture = m_opts.enableAA ? m_sceneDepthTextureSSAA : m_sceneDepthTexture;
         auto sceneNormalTexture = m_opts.enableAA ? m_sceneNormalTextureSSAA : m_sceneNormalTexture;
-#if 1
         if (!m_vctxVis.cachedTexInitialized || m_vctxVis.debugScreenPosMoved)
         {
             if (m_vctxVis.cachedSceneDepth->width == sceneDepthTexture->width && m_vctxVis.cachedSceneDepth->height == sceneDepthTexture->height &&
@@ -718,7 +799,7 @@ namespace Cyan
                 cyanError("Invalid texture copying operation due to mismatched texture dimensions!");
             }
         }
-#endif
+
         // pass 0: run a compute pass to fill debug cone data and visualize cone directions
         m_ctx->setShader(m_vctxVis.coneVisComputeShader);
 
@@ -1067,7 +1148,6 @@ namespace Cyan
         m_ssaoMatl->set("cameraPos", &camera.position.x);
         m_ssaoMatl->set("view", &camera.view[0]);
         m_ssaoMatl->set("projection", &camera.projection[0]);
-        m_ssaoMatl->bindBuffer("DebugVisData", m_ssaoDebugVisBuffer);
         m_ssaoMatl->bind();
 
         m_ctx->setVertexArray(s_quad.m_vertexArray);

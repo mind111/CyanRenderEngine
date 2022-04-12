@@ -56,10 +56,17 @@ layout(std430, binding = 2) buffer pointLightsData
     PointLight lights[];
 } pointLightsBuffer;
 
-layout(std430) buffer opacityData
+layout(std430) buffer OpacityData
 {
-    int opacityMask[];
+    int masks[];
 } opacityBuffer;
+
+layout(std430) buffer TexcoordData
+{
+    ivec4 coords[];
+};
+
+layout(binding = 0, offset = 0) uniform atomic_uint counter;
 
 uniform uint matlFlag;
 uniform vec4 flatColor;
@@ -233,6 +240,23 @@ float isInShadow(float bias)
     return shadow;
 }
 
+void writeOpacityMask(uvec3 texCoordi, uvec3 gridDim, uint superSampleScale)
+{
+    texCoordi *= superSampleScale;
+    uvec3 dim = gridDim * superSampleScale;
+	for(uint i = 0; i < 4; ++i)
+	{
+		for (uint j = 0; j < 4; ++j)
+		{
+			for (uint k = 0; k < 4; ++k)
+			{
+                uvec3 coord = texCoordi + uvec3(k, j, i);
+				opacityBuffer.masks[dim.x * dim.y * coord.z + dim.x * coord.y + coord.x] = 1;
+			}
+		}
+	}
+}
+
 void main()
 {
     ivec3 voxelGridDim = imageSize(voxelGridAlbedo);
@@ -241,8 +265,7 @@ void main()
     // this coordinates computation doesn't care about whether we are doing super-sampling or not
     vec4 texCoords = orthoProjection(vec4(psIn.fragmentWorldPos, 1.f), aabbMin.x, aabbMax.x, aabbMin.y, aabbMax.y, aabbMax.z, aabbMin.z);
     vec3 normalizedTexCoords = vec3((texCoords.xy + 1.f) * .5f, texCoords.z);
-    normalizedTexCoords = normalizedTexCoords * voxelGridDim;
-    ivec3 texCoordsi = ivec3(normalizedTexCoords);
+    ivec3 texCoordsi = ivec3(normalizedTexCoords * voxelGridDim);
 
     // TODO: gamma correct from sRGB to linear
     vec3 albedo = flatColor.rgb; 
@@ -261,9 +284,28 @@ void main()
     // todo: emission
     // todo: combine opacity & emission into a r32 volume texture
     // super-sampled opactiy
+#if 0
     imageAtomicAdd(voxelGridOpacity, texCoordsi, (1.f / 64.f));
-	// ivec3 texCoordsiSS = ivec3(normalizedTexCoords * voxelGridDim * 4);
-    // opacityBuffer.opacityMask[texCoordsiSS.x * texCoordsiSS.y * texCoordsiSS.z + texCoordsiSS.y * texCoordsiSS.x + texCoordsiSS.x] = 1;
+#else
+    // debugging
+    writeOpacityMask(uvec3(0, 0, 0), voxelGridDim, 4);
+    writeOpacityMask(uvec3(1, 0, 0), voxelGridDim, 4);
+#if 0
+    writeOpacityMask(uvec3(2, 0, 0), voxelGridDim, 4);
+    writeOpacityMask(uvec3(3, 0, 0), voxelGridDim, 4);
+    writeOpacityMask(uvec3(0, 1, 1), voxelGridDim, 4);
+    writeOpacityMask(uvec3(1, 1, 1), voxelGridDim, 4);
+    writeOpacityMask(uvec3(2, 1, 1), voxelGridDim, 4);
+    writeOpacityMask(uvec3(3, 1, 1), voxelGridDim, 4);
+#endif
+/*
+	ivec3 texCoordsiSS = ivec3(vec3((texCoords.xy + 1.f) * .5f, texCoords.z) * voxelGridDim * 4);
+    int ssDim = (voxelGridDim.x * 4);
+    opacityBuffer.masks[ssDim * ssDim * texCoordsiSS.z + ssDim * texCoordsiSS.y + texCoordsiSS.x] = 1;
+    uint index = atomicCounterIncrement(counter);
+    coords[index] = ivec4(texCoordsiSS, 1);
+*/
+#endif
 
     // inject direct lighting into voxels
     vec3 radiance = vec3(0.f);

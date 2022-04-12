@@ -1,27 +1,41 @@
 #version 450 core
+#extension GL_NV_shader_atomic_float : require
 
 layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
 layout (std430) buffer OpacityData
 {
-	int opacityMasks[];
+	int masks[];
 } opacityBuffer;
 
 layout(binding = 4, r32f) uniform image3D voxelGridOpacity;
 
+uint getFlattendIndex(uvec3 texCoord, uvec3 dim)
+{
+	return texCoord.z * dim.x * dim.y + texCoord.y * dim.x + texCoord.x;
+}
+
 void main()
 {
-	const uint superSamplingDim = 4;
-	uint numSubSamples = superSamplingDim * superSamplingDim * superSamplingDim;
-	uint start = (gl_WorkGroupID.x * gl_WorkGroupID.y * gl_WorkGroupID.z + gl_WorkGroupID.x * gl_WorkGroupID.y + gl_WorkGroupID.x) * numSubSamples;
-	uint end = start + numSubSamples;
+	const uint superSamplingScale = 4;
+	//uvec3 superSampledVoxelDim = gl_WorkGroupSize * superSamplingScale;
+	uvec3 superSampledVoxelDim = uvec3(8) * superSamplingScale;
+	uvec3 superSampledTexCoord = gl_WorkGroupID * superSamplingScale;
+
 	float opacity = 0.f;
-	for (uint i = start; i < end; ++i)
+	for(uint i = 0; i < superSamplingScale; ++i)
 	{
-		opacity += opacityBuffer.opacityMasks[i] * 1.f;
+		for (uint j = 0; j < superSamplingScale; ++j)
+		{
+			for (uint k = 0; k < superSamplingScale; ++k)
+			{
+				opacity += float(opacityBuffer.masks[getFlattendIndex(superSampledTexCoord + uvec3(k, j, i), superSampledVoxelDim)]) * 1.f;
+			}
+		}
 	}
-	opacity /= numSubSamples;
+	// opacity /= pow(superSamplingScale, 3.f);
 
 	// write to image
-	imageStore(voxelGridOpacity, ivec3(gl_WorkGroupID), vec4(opacity));
+	if (opacity > 0.f)
+		imageStore(voxelGridOpacity, ivec3(gl_WorkGroupID), vec4(opacity, 0.f, 0.f, 1.f));
 }

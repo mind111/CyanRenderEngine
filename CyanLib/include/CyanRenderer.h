@@ -117,20 +117,6 @@ namespace Cyan
         Texture* m_ssaoTexture;
         Shader* m_ssaoShader;
         MaterialInstance* m_ssaoMatl;
-        struct SSAODebugVisData
-        {
-            glm::vec4 samplePointWS;
-            glm::vec4 normal;
-            glm::vec4 wo;
-            glm::vec4 sliceDir;
-            glm::vec4 projectedNormal;
-            glm::vec4 sampleVec[16];
-            glm::vec4 intermSamplePoints[48];
-            int numSampleLines;
-            int numSamplePoints;
-        } m_ssaoDebugVisData;
-        RegularBuffer* m_ssaoDebugVisBuffer;
-        bool m_freezeDebugLines;
 
         struct SSAODebugLines
         {
@@ -287,7 +273,8 @@ namespace Cyan
         // voxel cone tracing
         struct VoxelGrid
         {
-            const u32 resolution = 128u;
+            // const u32 resolution = 128u;
+            const u32 resolution = 8u;
             Texture* albedo;
             Texture* normal;
             Texture* emission;
@@ -317,12 +304,18 @@ namespace Cyan
                 kReflection
             };
 
+            const u32 ssaaRes = 4u;
             RenderTarget* renderTarget = nullptr;
+            RenderTarget* ssRenderTarget = nullptr;
             Shader* renderShader = nullptr;
             Shader* resolveShader = nullptr;
             Texture* occlusion = nullptr;
             Texture* irradiance = nullptr;
             Texture* reflection = nullptr;
+            GLuint opacityMaskSsbo = -1;
+            i32* debugOpacityMaskBuffer = nullptr;
+            GLuint debugTexcoordBuffer = -1;
+            GLuint atomicCounter = -1;
         } m_vctx;
 
         struct VctxVis
@@ -333,6 +326,7 @@ namespace Cyan
                 kOpacity,
                 kRadiance,
                 kNormal,
+                kOpacitySS,
                 kCount
             } mode = Mode::kAlbedo;
 
@@ -383,6 +377,7 @@ namespace Cyan
             "opacity",
             "radiance",
             "normal",
+            "opacitySS"
         };
 
         Shader* m_voxelizeShader;
