@@ -240,7 +240,7 @@ float isInShadow(float bias)
     return shadow;
 }
 
-void writeOpacityMask(uvec3 texCoordi, uvec3 gridDim, uint superSampleScale)
+void debugWriteOpacityMask(uvec3 texCoordi, uvec3 gridDim, uint superSampleScale)
 {
     texCoordi *= superSampleScale;
     uvec3 dim = gridDim * superSampleScale;
@@ -255,6 +255,12 @@ void writeOpacityMask(uvec3 texCoordi, uvec3 gridDim, uint superSampleScale)
 			}
 		}
 	}
+}
+
+void writeOpacityMask(uvec3 texCoordi, uvec3 gridDim, uint superSampleScale)
+{
+    uvec3 dim = gridDim * superSampleScale;
+	opacityBuffer.masks[dim.x * dim.y * texCoordi.z + dim.x * texCoordi.y + texCoordi.x] = 1;
 }
 
 void main()
@@ -287,24 +293,8 @@ void main()
 #if 0
     imageAtomicAdd(voxelGridOpacity, texCoordsi, (1.f / 64.f));
 #else
-    // debugging
-    writeOpacityMask(uvec3(0, 0, 0), voxelGridDim, 4);
-    writeOpacityMask(uvec3(1, 0, 0), voxelGridDim, 4);
-#if 0
-    writeOpacityMask(uvec3(2, 0, 0), voxelGridDim, 4);
-    writeOpacityMask(uvec3(3, 0, 0), voxelGridDim, 4);
-    writeOpacityMask(uvec3(0, 1, 1), voxelGridDim, 4);
-    writeOpacityMask(uvec3(1, 1, 1), voxelGridDim, 4);
-    writeOpacityMask(uvec3(2, 1, 1), voxelGridDim, 4);
-    writeOpacityMask(uvec3(3, 1, 1), voxelGridDim, 4);
-#endif
-/*
 	ivec3 texCoordsiSS = ivec3(vec3((texCoords.xy + 1.f) * .5f, texCoords.z) * voxelGridDim * 4);
-    int ssDim = (voxelGridDim.x * 4);
-    opacityBuffer.masks[ssDim * ssDim * texCoordsiSS.z + ssDim * texCoordsiSS.y + texCoordsiSS.x] = 1;
-    uint index = atomicCounterIncrement(counter);
-    coords[index] = ivec4(texCoordsiSS, 1);
-*/
+    writeOpacityMask(texCoordsiSS, voxelGridDim, 4);
 #endif
 
     // inject direct lighting into voxels

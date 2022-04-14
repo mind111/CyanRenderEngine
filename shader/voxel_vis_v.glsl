@@ -1,4 +1,4 @@
-#version 450 core
+﻿#version 450 core
 
 out VsOut
 {
@@ -72,11 +72,13 @@ void main()
 	}
 	else if ((sceneVoxelGrid.visMode & kVisSSOpacity) != 0)
 	{
-		vsOut.voxelColor = opacitySS;
+		float opacity = opacitySS.r * scale;
+		opacity /= (albedo.a > 0.f) ? (albedo.a * scale) : 1.f;
+		vsOut.voxelColor = opacitySS.r > 0.f ? vec4(vec3(opacity.r), 1.f) : vec4(0.f);
 	}
+
 	if (vsOut.voxelColor.a > 0.f)
 	{
-		vsOut.voxelColor.a = 1.f;
 		gl_Position = vec4(x, y, z, 1.f);
 	}
 	else

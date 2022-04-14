@@ -18,8 +18,7 @@ uint getFlattendIndex(uvec3 texCoord, uvec3 dim)
 void main()
 {
 	const uint superSamplingScale = 4;
-	//uvec3 superSampledVoxelDim = gl_WorkGroupSize * superSamplingScale;
-	uvec3 superSampledVoxelDim = uvec3(8) * superSamplingScale;
+	uvec3 superSampledVoxelDim = uvec3(gl_NumWorkGroups) * superSamplingScale;
 	uvec3 superSampledTexCoord = gl_WorkGroupID * superSamplingScale;
 
 	float opacity = 0.f;
@@ -33,7 +32,7 @@ void main()
 			}
 		}
 	}
-	// opacity /= pow(superSamplingScale, 3.f);
+	opacity /= pow(superSamplingScale, 3.f);
 
 	// write to image
 	if (opacity > 0.f)

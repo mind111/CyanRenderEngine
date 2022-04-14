@@ -273,13 +273,14 @@ namespace Cyan
         // voxel cone tracing
         struct VoxelGrid
         {
-            // const u32 resolution = 128u;
-            const u32 resolution = 8u;
-            Texture* albedo;
-            Texture* normal;
-            Texture* emission;
-            Texture* radiance;
-            Texture* opacity;
+            // todo: for some reason settings this to 128 crashes RenderDoc every time
+            const u32 resolution = 128u;
+            // const u32 resolution = 8u;
+            Texture* albedo = nullptr;
+            Texture* normal = nullptr;
+            Texture* emission = nullptr;
+            Texture* radiance = nullptr;
+            Texture* opacity = nullptr;
             glm::vec3 localOrigin;
             f32 voxelSize;
         } m_sceneVoxelGrid;
@@ -289,12 +290,16 @@ namespace Cyan
             struct opts
             {
                 // offset for ray origin
-                f32 offset = 2.f;         
+                f32 coneOffset = 2.f;         
+                // toggle on/off super sampled scene opacity
+                f32 useSuperSampledOpacity = 1.f;
                 // scale used to scale opacity's contribution to occlusion
                 f32 occlusionScale = 1.5f; 
+                // scale the opacity of each voxel or filtered voxel
+                f32 opacityScale = 1.f;
                 // indirect lighting scale
                 f32 indirectScale = 1.f;
-                bool superSampled = true;
+                // bool superSampled = true;
             } opts;
 
             enum class ColorBuffers

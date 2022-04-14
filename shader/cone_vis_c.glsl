@@ -55,6 +55,7 @@ uniform sampler2D sceneNormalTexture;
 layout (binding = 10) uniform sampler3D sceneVoxelGridAlbedo;
 layout (binding = 11) uniform sampler3D sceneVoxelGridNormal;
 layout (binding = 12) uniform sampler3D sceneVoxelGridRadiance;
+layout (binding = 13) uniform sampler3D sceneVoxelGridOpacity;
 
 uniform float vctxOffset;
 uniform float occlusionScale;
@@ -152,6 +153,7 @@ DebugTraceResult traceCone(vec3 p, vec3 rd, float halfAngle, inout int totalNumS
 
 		vec4 albedo = textureLod(sceneVoxelGridAlbedo, texCoord, mip);
         vec4 radiance = textureLod(sceneVoxelGridRadiance, texCoord, mip);
+        float opacitySS = textureLod(sceneVoxelGridOpacity, texCoord, mip).r;
         radiance.rgb = decodeHDR(radiance.rgb);
 
         float opacity = albedo.a;
@@ -161,6 +163,9 @@ DebugTraceResult traceCone(vec3 p, vec3 rd, float halfAngle, inout int totalNumS
         albedo /= albedo.a > 0.f ? albedo.a : 1.f;
         radiance *= scale;
         radiance /= radiance.a > 0.f ? radiance.a : 1.f;
+        opacitySS *= scale;
+        opacitySS /= albedo.a > 0.f ? (albedo.a * scale) : 1.f;
+        opacity = opacitySS;
 
 		// emission-absorption model front to back blending
 		occ += (1.f - alpha) * opacity * occlusionScale;
@@ -173,7 +178,8 @@ DebugTraceResult traceCone(vec3 p, vec3 rd, float halfAngle, inout int totalNumS
         float sampleVoxelSize = sceneVoxelGrid.voxelSize * pow(2.f, floor(mip));
         debugConeBuffer.cubes[totalNumSteps].center = q;
         debugConeBuffer.cubes[totalNumSteps].size = sampleVoxelSize;
-        debugConeBuffer.cubes[totalNumSteps].color = vec4(accRadiance, 1.f);
+        // debugConeBuffer.cubes[totalNumSteps].color = vec4(accRadiance, 1.f);
+        debugConeBuffer.cubes[totalNumSteps].color = vec4(vec3(occ), 1.f);
         totalNumSteps++;
 
         // marching along the ray
@@ -199,7 +205,7 @@ DebugTraceResult sampleIrradianceAndOcclusion(vec3 p, vec3 n, int numTheta, int 
 #if 0
     float halfAngle = .25f * pi / numTheta;
 #else
-    float halfAngle = pi / 6.f;
+    float halfAngle = pi / 12.f;
 #endif
     float dTheta = .5f * pi / numTheta;
     float dPhi = 2.f * pi / numPhi;

@@ -11,9 +11,19 @@ uniform float vctxOffset;
 uniform float indirectScale;
 uniform vec2 renderSize;
 
+uniform struct VctxOptions
+{
+    float coneOffset;
+    float useSuperSampledOpacity;
+    float occlusionScale;
+    float opacityScale;
+    float indirectScale;
+} opts;
+
 layout (binding = 10) uniform sampler3D sceneVoxelGridAlbedo;
 layout (binding = 11) uniform sampler3D sceneVoxelGridNormal;
 layout (binding = 12) uniform sampler3D sceneVoxelGridRadiance;
+layout (binding = 13) uniform sampler3D sceneVoxelGridOpacity;
 uniform sampler2D sceneDepthTexture;
 uniform sampler2D sceneNormalTexture;
 
@@ -127,6 +137,7 @@ TraceResult traceCone(vec3 p, vec3 rd, float halfAngle)
 
 		vec4 albedo = textureLod(sceneVoxelGridAlbedo, texCoord, mip);
         vec4 radiance = textureLod(sceneVoxelGridRadiance, texCoord, mip);
+        float opacitySS = textureLod(sceneVoxelGridOpacity, texCoord, mip).r;
         radiance.rgb = decodeHDR(radiance.rgb);
 
         float opacity = albedo.a;
@@ -136,11 +147,20 @@ TraceResult traceCone(vec3 p, vec3 rd, float halfAngle)
         albedo /= albedo.a > 0.f ? albedo.a : 1.f;
         radiance *= scale;
         radiance /= radiance.a > 0.f ? radiance.a : 1.f;
+        opacitySS *= scale;
+        opacitySS /= (albedo.a > 0.f) ? (albedo.a * scale) : 1.f;
+        // opacity = opacitySS;
 
 		// emission-absorption model front to back blending
-		occ += (1.f - alpha) * opacity * occlusionScale;
+#if 0
+		occ = alpha * occ + (1.f - alpha) * opacity * occlusionScale;
         accRadiance = alpha * accRadiance + (1.f - alpha) * radiance.rgb * indirectScale;
 		alpha += (1.f - alpha) * opacity;
+#else
+		occ += (1.f - alpha) * opacity * occlusionScale;
+        accRadiance += (1.f - alpha) * radiance.rgb * indirectScale;
+		alpha += (1.f - alpha) * opacity;
+#endif
 
         // write cube data to buffer
         float sampleVoxelSize = sceneVoxelGrid.voxelSize * pow(2.f, floor(mip));
@@ -170,7 +190,7 @@ TraceResult sampleIrradianceAndOcclusion(vec3 p, vec3 n, int numTheta, int numPh
     mat3 tbn = tbn(n);
     // compute half angle based on number of samples
     // float halfAngle = .25f * pi / numTheta;
-    float halfAngle = pi / 6.f;
+    float halfAngle = pi / 12.f;
     float dTheta = .5f * pi / numTheta;
     float dPhi = 2.f * pi / numPhi;
 
@@ -189,7 +209,8 @@ TraceResult sampleIrradianceAndOcclusion(vec3 p, vec3 n, int numTheta, int numPh
             vec3 dir = generateHemisphereSample(n, theta, phi);
 			TraceResult record = traceCone(p, dir, halfAngle);
 			occ += record.occ * max(dot(dir, n), 0.f);
-            occlusion += record.occ > 0.6f ? 1.f : 0.f;
+            // this alt occlusion looks much better!!
+            occlusion += smoothstep(-0.8f, 1.f, sqrt(record.occ));
 			radiance += record.radiance * max(dot(dir, n), 0.f);
         }
     }
@@ -215,7 +236,7 @@ void main()
     vec3 worldPos = screenToWorld(vec3(texCoord * 2.f - 1.f, depth), inverse(gDrawData.view), inverse(gDrawData.projection));
     vec3 n = normalize(texture(sceneNormalTexture, texCoord).rgb * 2.f - 1.f);
 
-    TraceResult result = sampleIrradianceAndOcclusion(worldPos, n, 2, 6);
+    TraceResult result = sampleIrradianceAndOcclusion(worldPos, n, 4, 6);
 
     vctxOcclusion = vec3(result.occ);
     vctxIrradiance = result.radiance;

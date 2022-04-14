@@ -552,7 +552,7 @@ namespace Cyan
         glClearTexImage(m_sceneVoxelGrid.radiance->handle, 0, GL_RGBA, GL_UNSIGNED_INT, 0);
         glClearTexImage(m_sceneVoxelGrid.opacity->handle, 0, GL_R, GL_FLOAT, 0);
 
-        auto renderTarget = m_vctx.opts.superSampled ? m_vctx.ssRenderTarget : m_voxelizeRenderTarget;
+        auto renderTarget = m_vctx.opts.useSuperSampledOpacity > 0.f ? m_vctx.ssRenderTarget : m_voxelizeRenderTarget;
         m_ctx->setRenderTarget(renderTarget, { 0 });
         renderTarget->clear({ 0 });
         m_ctx->setViewport({ 0, 0, renderTarget->width, renderTarget->height });
@@ -576,7 +576,7 @@ namespace Cyan
         glBindImageTexture(static_cast<u32>(ImageBindings::kNormal), m_sceneVoxelGrid.normal->handle, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
         glBindImageTexture(static_cast<u32>(ImageBindings::kRadiance), m_sceneVoxelGrid.radiance->handle, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
         glBindImageTexture(static_cast<u32>(ImageBindings::kOpacity), m_sceneVoxelGrid.opacity->handle, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32F);
-        if (m_vctx.opts.superSampled)
+        if (m_vctx.opts.useSuperSampledOpacity > 0.f)
         {
             enum class SsboBindings
             {
@@ -669,7 +669,7 @@ namespace Cyan
         glDisable(GL_NV_conservative_raster);
 
         // compute pass for resovling super sampled scene opacity
-        if (m_vctx.opts.superSampled)
+        if (m_vctx.opts.useSuperSampledOpacity > 0.f)
         {
 #if 0
             // read back debug cpu data
@@ -693,8 +693,7 @@ namespace Cyan
             auto index = glGetProgramResourceIndex(m_vctx.resolveShader->handle, GL_SHADER_STORAGE_BLOCK, "OpacityData");
             glShaderStorageBlockBinding(m_vctx.resolveShader->handle, index, (u32)SsboBindings::kOpacityMask);
             m_ctx->setShader(m_vctx.resolveShader);
-            // glDispatchCompute(m_sceneVoxelGrid.resolution, m_sceneVoxelGrid.resolution, m_sceneVoxelGrid.resolution);
-            glDispatchCompute(2, 1, 1);
+            glDispatchCompute(m_sceneVoxelGrid.resolution, m_sceneVoxelGrid.resolution, m_sceneVoxelGrid.resolution);
             glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
         }
 
@@ -702,6 +701,7 @@ namespace Cyan
         {
             glGenerateTextureMipmap(m_sceneVoxelGrid.albedo->handle);
             glGenerateTextureMipmap(m_sceneVoxelGrid.radiance->handle);
+            glGenerateTextureMipmap(m_sceneVoxelGrid.opacity->handle);
         }
         // manually filter & down-sample to generate mipmap with anisotropic voxels
         else
@@ -761,9 +761,7 @@ namespace Cyan
 
             m_ctx->setPrimitiveType(PrimitiveType::Points);
             u32 currRes = m_sceneVoxelGrid.resolution / pow(2, m_vctxVis.activeMip);
-            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
             m_ctx->drawIndexAuto(currRes * currRes * currRes);
-            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         }
         m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
         glEnable(GL_CULL_FACE);
@@ -830,7 +828,8 @@ namespace Cyan
         m_vctxVis.coneVisComputeShader->setUniformVec2("renderSize", &renderSize.x);
         m_vctxVis.coneVisComputeShader->setUniform1i("sceneDepthTexture", (i32)TexBindings::kSceneDepth);
         m_vctxVis.coneVisComputeShader->setUniform1i("sceneNormalTexture", (i32)TexBindings::kSceneNormal);
-        m_vctxVis.coneVisComputeShader->setUniform1f("vctxOffset", m_vctx.opts.offset);
+        m_vctxVis.coneVisComputeShader->setUniform1f("occlusionScale", m_vctx.opts.occlusionScale);
+        m_vctxVis.coneVisComputeShader->setUniformVec2("renderSize", &renderSize.x);
         glBindTextureUnit((u32)TexBindings::kSceneDepth, m_vctxVis.cachedSceneDepth->handle);
         glBindTextureUnit((u32)TexBindings::kSceneNormal, m_vctxVis.cachedSceneNormal->handle);
 
@@ -1352,7 +1351,7 @@ namespace Cyan
             ImGui::SliderInt("##Mip", &m_vctxVis.activeMip, 0, log2(m_sceneVoxelGrid.resolution));
 
             ImGui::Text("Offset "); ImGui::SameLine();
-            ImGui::SliderFloat("##Offset", &m_vctx.opts.offset, 0.f, 5.f, "%.2f");
+            ImGui::SliderFloat("##Offset", &m_vctx.opts.coneOffset, 0.f, 5.f, "%.2f");
 
             ImGui::Text("Ao Scale "); ImGui::SameLine();
             ImGui::SliderFloat("##Ao Scale", &m_vctx.opts.occlusionScale, 1.f, 5.f, "%.2f");
@@ -1456,7 +1455,7 @@ namespace Cyan
         m_vctx.renderShader->setUniformVec2("renderSize", &renderSize.x);
         m_vctx.renderShader->setUniform1i("sceneDepthTexture", (i32)TexBindings::kDepth);
         m_vctx.renderShader->setUniform1i("sceneNormalTexture", (i32)TexBindings::kNormal);
-        m_vctx.renderShader->setUniform1f("vctxOffset", m_vctx.opts.offset);
+        m_vctx.renderShader->setUniform1f("vctxOffset", m_vctx.opts.coneOffset);
         m_vctx.renderShader->setUniform1f("occlusionScale", m_vctx.opts.occlusionScale);
         m_vctx.renderShader->setUniform1f("indirectScale", m_vctx.opts.indirectScale);
         auto depthTexture = m_opts.enableAA ? m_sceneDepthTextureSSAA : m_sceneDepthTexture;
