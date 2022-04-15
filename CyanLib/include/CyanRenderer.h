@@ -182,7 +182,7 @@ namespace Cyan
             bool enableSSAO = true;
             bool enableVctx = true;
             bool enableBloom = true;
-            bool regenVoxelGridMipmap = true;
+            bool autoFilterVoxelGrid = true;
             f32  exposure = 1.f;
             f32 bloomIntensity = 0.7f;
         } m_opts;
@@ -315,6 +315,7 @@ namespace Cyan
                 Shader* voxelizeShader = nullptr;
                 Shader* filterVoxelGridShader = nullptr;
                 MaterialInstance* matl = nullptr;
+                GLuint opacityMaskSsbo = -1;
             } voxelizer;
 
             struct Visualizer
@@ -387,7 +388,6 @@ namespace Cyan
             Texture* occlusion = nullptr;
             Texture* irradiance = nullptr;
             Texture* reflection = nullptr;
-            GLuint opacityMaskSsbo = -1;
         } m_vctx;
 
         struct VctxGpuData

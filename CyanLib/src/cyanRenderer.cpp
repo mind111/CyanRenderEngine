@@ -154,6 +154,11 @@ namespace Cyan
         voxelizeShader = createVsGsPsShader("VoxelizeShader", SHADER_SOURCE_PATH "voxelize_v.glsl", SHADER_SOURCE_PATH "voxelize_g.glsl", SHADER_SOURCE_PATH "voxelize_p.glsl");
         matl = createMaterial(voxelizeShader)->createInstance(); 
         filterVoxelGridShader = createCsShader("VctxFilterShader", SHADER_SOURCE_PATH "vctx_filter_c.glsl");
+
+    // opacity mask buffer
+    glCreateBuffers(1, &opacityMaskSsbo);
+    i32 buffSize = sizeof(i32) * pow(resolution *ssaaRes, 3);
+    glNamedBufferData(opacityMaskSsbo, buffSize, nullptr, GL_DYNAMIC_COPY);
     }
 
     void Renderer::Vctx::Visualizer::init()
@@ -450,10 +455,6 @@ namespace Cyan
                 m_vctx.renderShader = createShader("VctxShader", SHADER_SOURCE_PATH "vctx_v.glsl", SHADER_SOURCE_PATH "vctx_p.glsl");
                 m_vctx.resolveShader = createCsShader("VoxelizeResolveShader", SHADER_SOURCE_PATH "voxelize_resolve_c.glsl");
 
-                // opacity mask buffer
-                glCreateBuffers(1, &m_vctx.opacityMaskSsbo);
-                i32 buffSize = sizeof(i32) * pow(m_sceneVoxelGrid.resolution * m_vctx.ssaaRes, 3);
-                glNamedBufferData(m_vctx.opacityMaskSsbo, buffSize, nullptr, GL_DYNAMIC_COPY);
             }
 
             // global ssbo holding vctx data
@@ -534,7 +535,7 @@ namespace Cyan
         }
     }
 
-    void sceneVoxelGridAABB(const BoundingBox3f& aabb, glm::vec3& pmin, glm::vec3& pmax)
+    void calcSceneVoxelGridAABB(const BoundingBox3f& aabb, glm::vec3& pmin, glm::vec3& pmax)
     {
         pmin = aabb.pmin;
         pmax = aabb.pmax;
@@ -591,9 +592,9 @@ namespace Cyan
             };
             auto index = glGetProgramResourceIndex(voxelizer.voxelizeShader->handle, GL_SHADER_STORAGE_BLOCK, "OpacityData");
             glShaderStorageBlockBinding(voxelizer.voxelizeShader->handle, index, (u32)SsboBindings::kOpacityMask);
-            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)SsboBindings::kOpacityMask, m_vctx.opacityMaskSsbo);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)SsboBindings::kOpacityMask, voxelizer.opacityMaskSsbo);
             f32 clear = 0.f;
-            glClearNamedBufferData(m_vctx.opacityMaskSsbo, GL_R32F, GL_R, GL_FLOAT, &clear);
+            glClearNamedBufferData(voxelizer.opacityMaskSsbo, GL_R32F, GL_R, GL_FLOAT, &clear);
         }
         enum class Steps
         {
@@ -605,7 +606,7 @@ namespace Cyan
 
         // get a cube shape aabb enclosing the scene
         glm::vec3 pmin, pmax;
-        sceneVoxelGridAABB(scene->aabb, pmin, pmax);
+        calcSceneVoxelGridAABB(scene->aabb, pmin, pmax);
 
         for (i32 axis = (i32)Steps::kXAxis; axis < (i32)Steps::kCount; ++axis)
         {
@@ -683,7 +684,7 @@ namespace Cyan
             glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
         }
 
-        if (m_opts.regenVoxelGridMipmap)
+        if (m_opts.autoFilterVoxelGrid)
         {
             glGenerateTextureMipmap(m_sceneVoxelGrid.albedo->handle);
             glGenerateTextureMipmap(m_sceneVoxelGrid.radiance->handle);
@@ -725,7 +726,7 @@ namespace Cyan
 
         // update buffer data
         glm::vec3 pmin, pmax;
-        sceneVoxelGridAABB(scene->aabb, pmin, pmax);
+        calcSceneVoxelGridAABB(scene->aabb, pmin, pmax);
         m_vctxGpuData.localOrigin = glm::vec3(pmin.x, pmin.y, pmax.z);
         m_vctxGpuData.voxelSize = (pmax.x - pmin.x) / (f32)m_sceneVoxelGrid.resolution;
         m_vctxGpuData.visMode = 1 << static_cast<i32>(m_vctx.visualizer.mode);
