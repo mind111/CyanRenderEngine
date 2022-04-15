@@ -317,6 +317,63 @@ namespace Cyan
                 MaterialInstance* matl = nullptr;
             } voxelizer;
 
+            struct Visualizer
+            {
+                void init();
+
+                enum class Mode
+                {
+                    kAlbedo = 0,
+                    kOpacity,
+                    kRadiance,
+                    kNormal,
+                    kOpacitySS,
+                    kCount
+                } mode = Mode::kAlbedo;
+
+                const char* vctxVisModeNames[(u32)Mode::kCount] = { 
+                    "albedo",
+                    "opacity",
+                    "radiance",
+                    "normal",
+                    "opacitySS"
+                };
+
+                // help visualize a traced cone
+                i32 activeMip = 0u;
+                GLuint ssbo = -1;
+                GLuint idbo = -1;
+                const static u32 kMaxNumCubes = 1024u;
+                glm::vec2 debugScreenPos = glm::vec2(-0.56f, 0.32f);
+                bool debugScreenPosMoved = false;
+                bool cachedTexInitialized = false;
+                glm::mat4 cachedView = glm::mat4(1.f);
+                glm::mat4 cachedProjection = glm::mat4(1.f);
+                Shader* coneVisDrawShader = nullptr;
+                Shader* coneVisComputeShader = nullptr;
+                Texture* cachedSceneDepth = nullptr;
+                Texture* cachedSceneNormal = nullptr;
+
+                Shader* voxelGridVisShader = nullptr;
+                MaterialInstance* voxelGridVisMatl = nullptr;
+                RenderTarget* renderTarget = nullptr;
+                Texture* colorBuffer = nullptr;
+
+                struct DebugBuffer
+                {
+                    struct ConeCube
+                    {
+                        glm::vec3 center;
+                        f32 size;
+                        glm::vec4 color;
+                    };
+
+                    i32 numCubes = 0;
+                    glm::vec3 padding;
+                    ConeCube cubes[kMaxNumCubes] = { };
+                } debugConeBuffer;
+            } visualizer;
+
             enum class ColorBuffers
             {
                 kOcclusion = 0,
@@ -336,51 +393,6 @@ namespace Cyan
             GLuint atomicCounter = -1;
         } m_vctx;
 
-        struct VctxVis
-        {
-            enum class Mode
-            {
-                kAlbedo = 0,
-                kOpacity,
-                kRadiance,
-                kNormal,
-                kOpacitySS,
-                kCount
-            } mode = Mode::kAlbedo;
-
-            // help visualize a traced cone
-            i32 activeMip = 0u;
-            GLuint ssbo = -1;
-            GLuint idbo = -1;
-            const static u32 kMaxNumCubes = 1024u;
-            glm::vec2 debugScreenPos = glm::vec2(-0.56f, 0.32f);
-            bool debugScreenPosMoved = false;
-            bool cachedTexInitialized = false;
-            glm::mat4 cachedView = glm::mat4(1.f);
-            glm::mat4 cachedProjection = glm::mat4(1.f);
-            Shader* coneVisDrawShader = nullptr;
-            Shader* coneVisComputeShader = nullptr;
-            Shader* vctxVisShader = nullptr;
-            Texture* cachedSceneDepth = nullptr;
-            Texture* cachedSceneNormal = nullptr;
-            RenderTarget* renderTarget = nullptr;
-
-            struct DebugBuffer
-            {
-                struct ConeCube
-                {
-                    glm::vec3 center;
-                    f32 size;
-                    glm::vec4 color;
-                };
-
-                i32 numCubes = 0;
-                glm::vec3 padding;
-                ConeCube cubes[kMaxNumCubes] = { };
-            } debugConeBuffer;
-
-        } m_vctxVis;
-
         struct VctxGpuData
         {
             glm::vec3 localOrigin;
@@ -389,19 +401,6 @@ namespace Cyan
             glm::vec3 padding;
         } m_vctxGpuData;
         GLuint m_vctxSsbo;
-
-        const char* vctxVisModeNames[(u32)VctxVis::Mode::kCount] = { 
-            "albedo",
-            "opacity",
-            "radiance",
-            "normal",
-            "opacitySS"
-        };
-
-        Shader* m_voxelVisShader;
-        MaterialInstance* m_voxelVisMatl;
-        RenderTarget* m_voxelVisRenderTarget;
-        Texture* m_voxelVisColorTexture;
 
         /*
         * Voxelize a given scene

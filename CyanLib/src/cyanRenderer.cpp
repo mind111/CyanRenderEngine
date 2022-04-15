@@ -156,6 +156,55 @@ namespace Cyan
         filterVoxelGridShader = createCsShader("VctxFilterShader", SHADER_SOURCE_PATH "vctx_filter_c.glsl");
     }
 
+    void Renderer::Vctx::Visualizer::init()
+    {
+        auto textureManager = TextureManager::getSingletonPtr();
+
+        TextureSpec visSpec = { };
+        visSpec.width = 1280;
+        visSpec.height = 720;
+        visSpec.type = Texture::Type::TEX_2D;
+        visSpec.dataType = Texture::DataType::Float;
+        visSpec.format = Texture::ColorFormat::R16G16B16;
+        visSpec.min = Texture::Filter::LINEAR; 
+        visSpec.mag = Texture::Filter::LINEAR;
+        visSpec.numMips = 1;
+        colorBuffer = textureManager->createTexture("VoxelVis", visSpec);
+        renderTarget = createRenderTarget(visSpec.width, visSpec.height);
+        renderTarget->setColorBuffer(colorBuffer, 0u);
+        voxelGridVisShader = createVsGsPsShader("VoxelVisShader", SHADER_SOURCE_PATH "voxel_vis_v.glsl", SHADER_SOURCE_PATH "voxel_vis_g.glsl", SHADER_SOURCE_PATH "voxel_vis_p.glsl");
+        voxelGridVisMatl = createMaterial(voxelGridVisShader)->createInstance();
+        coneVisComputeShader = createCsShader("ConeVisComputeShader", SHADER_SOURCE_PATH "cone_vis_c.glsl");
+        coneVisDrawShader = createVsGsPsShader("ConeVisGraphicsShader", SHADER_SOURCE_PATH "cone_vis_v.glsl", SHADER_SOURCE_PATH "cone_vis_g.glsl", SHADER_SOURCE_PATH "cone_vis_p.glsl");
+
+        TextureSpec depthNormSpec = { };
+        depthNormSpec.type = Texture::Type::TEX_2D;
+        depthNormSpec.format = Texture::ColorFormat::R32G32B32; 
+        depthNormSpec.dataType = Texture::DataType::Float;
+        depthNormSpec.width = 1280 * 2u;
+        depthNormSpec.height = 720 * 2u;
+        depthNormSpec.min = Texture::Filter::LINEAR;
+        depthNormSpec.mag = Texture::Filter::LINEAR;
+        depthNormSpec.s = Texture::Wrap::CLAMP_TO_EDGE;
+        depthNormSpec.t = Texture::Wrap::CLAMP_TO_EDGE;
+        depthNormSpec.r = Texture::Wrap::CLAMP_TO_EDGE;
+        cachedSceneDepth = textureManager->createTexture("CachedSceneDepth", depthNormSpec);
+        cachedSceneNormal = textureManager->createTexture("CachedSceneNormal", depthNormSpec);
+
+        struct IndirectDrawArgs
+        {
+            GLuint first;
+            GLuint count;
+        };
+
+        // debug ssbo
+        glCreateBuffers(1, &ssbo);
+        glNamedBufferData(ssbo, sizeof(DebugBuffer), &debugConeBuffer, GL_DYNAMIC_COPY);
+
+        glCreateBuffers(1, &idbo);
+        glNamedBufferData(idbo, sizeof(IndirectDrawArgs), nullptr, GL_DYNAMIC_COPY);
+    }
+
     void Renderer::initialize(GLFWwindow* window, glm::vec2 windowSize)
     {
         m_ctx = getCurrentGfxCtx();
@@ -350,19 +399,7 @@ namespace Cyan
         // voxel cone tracing
         {
             m_vctx.voxelizer.init(m_sceneVoxelGrid.resolution);
-
-            TextureSpec visSpec = { };
-            visSpec.width = 1280;
-            visSpec.height = 720;
-            visSpec.type = Texture::Type::TEX_2D;
-            visSpec.dataType = Texture::DataType::Float;
-            visSpec.format = Texture::ColorFormat::R16G16B16;
-            visSpec.min = Texture::Filter::LINEAR; 
-            visSpec.mag = Texture::Filter::LINEAR;
-            visSpec.numMips = 1;
-            m_voxelVisColorTexture = textureManager->createTexture("VoxelVis", visSpec);
-            m_voxelVisRenderTarget = createRenderTarget(visSpec.width, visSpec.height);
-            m_voxelVisRenderTarget->setColorBuffer(m_voxelVisColorTexture, 0u);
+            m_vctx.visualizer.init();
 
             {
                 TextureSpec voxelDataSpec = { };
@@ -387,9 +424,6 @@ namespace Cyan
                 voxelDataSpec.dataType = Texture::DataType::Float;
                 voxelDataSpec.format = Texture::ColorFormat::R32F;
                 m_sceneVoxelGrid.opacity = textureManager->createTexture3D("VoxelGridOpacity", voxelDataSpec);
-
-                m_voxelVisShader = createVsGsPsShader("VoxelVisShader", SHADER_SOURCE_PATH "voxel_vis_v.glsl", SHADER_SOURCE_PATH "voxel_vis_g.glsl", SHADER_SOURCE_PATH "voxel_vis_p.glsl");
-                m_voxelVisMatl = createMaterial(m_voxelVisShader)->createInstance();
             }
 
             {
@@ -413,7 +447,6 @@ namespace Cyan
                 m_vctx.renderTarget->setColorBuffer(m_vctx.irradiance,(u32)ColorBuffers::kIrradiance);
                 m_vctx.renderTarget->setColorBuffer(m_vctx.reflection,(u32)ColorBuffers::kReflection);
 
-
                 m_vctx.renderShader = createShader("VctxShader", SHADER_SOURCE_PATH "vctx_v.glsl", SHADER_SOURCE_PATH "vctx_p.glsl");
                 m_vctx.resolveShader = createCsShader("VoxelizeResolveShader", SHADER_SOURCE_PATH "voxelize_resolve_c.glsl");
 
@@ -431,39 +464,9 @@ namespace Cyan
                 glNamedBufferData(m_vctx.atomicCounter, sizeof(GLuint), nullptr, GL_DYNAMIC_COPY);
             }
 
-            m_vctxVis.coneVisComputeShader = createCsShader("ConeVisComputeShader", SHADER_SOURCE_PATH "cone_vis_c.glsl");
-            m_vctxVis.coneVisDrawShader = createVsGsPsShader("ConeVisGraphicsShader", SHADER_SOURCE_PATH "cone_vis_v.glsl", SHADER_SOURCE_PATH "cone_vis_g.glsl", SHADER_SOURCE_PATH "cone_vis_p.glsl");
-
-            TextureSpec depthNormSpec = { };
-            depthNormSpec.type = Texture::Type::TEX_2D;
-            depthNormSpec.format = Texture::ColorFormat::R32G32B32; 
-            depthNormSpec.dataType = Texture::DataType::Float;
-            depthNormSpec.width = m_SSAAWidth;
-            depthNormSpec.height = m_SSAAHeight;
-            depthNormSpec.min = Texture::Filter::LINEAR;
-            depthNormSpec.mag = Texture::Filter::LINEAR;
-            depthNormSpec.s = Texture::Wrap::CLAMP_TO_EDGE;
-            depthNormSpec.t = Texture::Wrap::CLAMP_TO_EDGE;
-            depthNormSpec.r = Texture::Wrap::CLAMP_TO_EDGE;
-            m_vctxVis.cachedSceneDepth = textureManager->createTexture("CachedSceneDepth", depthNormSpec);
-            m_vctxVis.cachedSceneNormal = textureManager->createTexture("CachedSceneNormal", depthNormSpec);
-
             // global ssbo holding vctx data
             glCreateBuffers(1, &m_vctxSsbo);
             glNamedBufferData(m_vctxSsbo, sizeof(VctxGpuData), &m_vctxGpuData, GL_DYNAMIC_DRAW);
-
-            struct IndirectDrawArgs
-            {
-                GLuint first;
-                GLuint count;
-            };
-
-            // debug ssbo
-            glCreateBuffers(1, &m_vctxVis.ssbo);
-            glNamedBufferData(m_vctxVis.ssbo, sizeof(VctxVis::DebugBuffer), &m_vctxVis.debugConeBuffer, GL_DYNAMIC_COPY);
-
-            glCreateBuffers(1, &m_vctxVis.idbo);
-            glNamedBufferData(m_vctxVis.idbo, sizeof(IndirectDrawArgs), nullptr, GL_DYNAMIC_COPY);
         }
 
         {
@@ -555,7 +558,7 @@ namespace Cyan
 
     void Renderer::voxelizeScene(Scene* scene)
     {
-        auto voxelizer = m_vctx.voxelizer;
+        auto& voxelizer = m_vctx.voxelizer;
 
         // clear voxel grid textures
         glClearTexImage(m_sceneVoxelGrid.albedo->handle, 0, GL_RGBA, GL_UNSIGNED_INT, 0);
@@ -753,7 +756,7 @@ namespace Cyan
         sceneVoxelGridAABB(scene->aabb, pmin, pmax);
         m_vctxGpuData.localOrigin = glm::vec3(pmin.x, pmin.y, pmax.z);
         m_vctxGpuData.voxelSize = (pmax.x - pmin.x) / (f32)m_sceneVoxelGrid.resolution;
-        m_vctxGpuData.visMode = 1 << static_cast<i32>(m_vctxVis.mode);
+        m_vctxGpuData.visMode = 1 << static_cast<i32>(m_vctx.visualizer.mode);
         glNamedBufferSubData(m_vctxSsbo, 0, sizeof(VctxGpuData), &m_vctxGpuData);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, gBufferBinding(VctxGlobalData), m_vctxSsbo);
     }
@@ -762,16 +765,16 @@ namespace Cyan
     {
         glDisable(GL_CULL_FACE);
         {
-            m_ctx->setRenderTarget(m_voxelVisRenderTarget, { 0 });
-            m_voxelVisRenderTarget->clear({ 0 });
-            m_ctx->setViewport({0u, 0u, m_voxelVisRenderTarget->width, m_voxelVisRenderTarget->height});
+            m_ctx->setRenderTarget(m_vctx.visualizer.renderTarget, { 0 });
+            m_vctx.visualizer.renderTarget->clear({ 0 });
+            m_ctx->setViewport({0u, 0u, m_vctx.visualizer.renderTarget->width, m_vctx.visualizer.renderTarget->height});
 
-            m_ctx->setShader(m_voxelVisShader);
-            m_voxelVisMatl->set("activeMip", m_vctxVis.activeMip);
-            m_voxelVisMatl->bind();
+            m_ctx->setShader(m_vctx.visualizer.voxelGridVisShader);
+            m_vctx.visualizer.voxelGridVisMatl->set("activeMip", m_vctx.visualizer.activeMip);
+            m_vctx.visualizer.voxelGridVisMatl->bind();
 
             m_ctx->setPrimitiveType(PrimitiveType::Points);
-            u32 currRes = m_sceneVoxelGrid.resolution / pow(2, m_vctxVis.activeMip);
+            u32 currRes = m_sceneVoxelGrid.resolution / pow(2, m_vctx.visualizer.activeMip);
             m_ctx->drawIndexAuto(currRes * currRes * currRes);
         }
         m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
@@ -780,27 +783,29 @@ namespace Cyan
 
     void Renderer::visualizeConeTrace(Scene* scene)
     {
+        auto& visualizer = m_vctx.visualizer;
+
         // debug vis for voxel cone tracing
         auto sceneDepthTexture = m_opts.enableAA ? m_sceneDepthTextureSSAA : m_sceneDepthTexture;
         auto sceneNormalTexture = m_opts.enableAA ? m_sceneNormalTextureSSAA : m_sceneNormalTexture;
-        if (!m_vctxVis.cachedTexInitialized || m_vctxVis.debugScreenPosMoved)
+        if (!visualizer.cachedTexInitialized || visualizer.debugScreenPosMoved)
         {
-            if (m_vctxVis.cachedSceneDepth->width == sceneDepthTexture->width && m_vctxVis.cachedSceneDepth->height == sceneDepthTexture->height &&
-                m_vctxVis.cachedSceneNormal->width == sceneNormalTexture->width && m_vctxVis.cachedSceneNormal->height == sceneNormalTexture->height)
+            if (visualizer.cachedSceneDepth->width == sceneDepthTexture->width && visualizer.cachedSceneDepth->height == sceneDepthTexture->height &&
+                visualizer.cachedSceneNormal->width == sceneNormalTexture->width && visualizer.cachedSceneNormal->height == sceneNormalTexture->height)
             {
                 // update cached snapshot of scene depth/normal by copying texture data
                 glCopyImageSubData(sceneDepthTexture->handle, GL_TEXTURE_2D, 0, 0, 0, 0, 
-                    m_vctxVis.cachedSceneDepth->handle, GL_TEXTURE_2D, 0, 0, 0, 0, sceneDepthTexture->width, sceneDepthTexture->height, 1);
+                    visualizer.cachedSceneDepth->handle, GL_TEXTURE_2D, 0, 0, 0, 0, sceneDepthTexture->width, sceneDepthTexture->height, 1);
                 glCopyImageSubData(sceneNormalTexture->handle, GL_TEXTURE_2D, 0, 0, 0, 0, 
-                    m_vctxVis.cachedSceneNormal->handle, GL_TEXTURE_2D, 0, 0, 0, 0, sceneNormalTexture->width, sceneNormalTexture->height, 1);
+                    visualizer.cachedSceneNormal->handle, GL_TEXTURE_2D, 0, 0, 0, 0, sceneNormalTexture->width, sceneNormalTexture->height, 1);
 
 
-                m_vctxVis.cachedView = m_globalDrawData.view;
-                m_vctxVis.cachedProjection = m_globalDrawData.projection;
+                visualizer.cachedView = m_globalDrawData.view;
+                visualizer.cachedProjection = m_globalDrawData.projection;
 
-                if (!m_vctxVis.cachedTexInitialized)
+                if (!visualizer.cachedTexInitialized)
                 {
-                    m_vctxVis.cachedTexInitialized = true;
+                    visualizer.cachedTexInitialized = true;
                 }
             }
             else
@@ -810,7 +815,7 @@ namespace Cyan
         }
 
         // pass 0: run a compute pass to fill debug cone data and visualize cone directions
-        m_ctx->setShader(m_vctxVis.coneVisComputeShader);
+        m_ctx->setShader(visualizer.coneVisComputeShader);
 
         enum class SsboBindings
         {
@@ -818,13 +823,13 @@ namespace Cyan
             kConeData
         };
 
-        auto index = glGetProgramResourceIndex(m_vctxVis.coneVisComputeShader->handle, GL_SHADER_STORAGE_BLOCK, "IndirectDrawArgs");
-        glShaderStorageBlockBinding(m_vctxVis.coneVisComputeShader->handle, index, (u32)SsboBindings::kIndirectDraw);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)SsboBindings::kIndirectDraw, m_vctxVis.idbo);
+        auto index = glGetProgramResourceIndex(visualizer.coneVisComputeShader->handle, GL_SHADER_STORAGE_BLOCK, "IndirectDrawArgs");
+        glShaderStorageBlockBinding(visualizer.coneVisComputeShader->handle, index, (u32)SsboBindings::kIndirectDraw);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)SsboBindings::kIndirectDraw, visualizer.idbo);
 
-        index = glGetProgramResourceIndex(m_vctxVis.coneVisComputeShader->handle, GL_SHADER_STORAGE_BLOCK, "ConeTraceDebugData");
-        glShaderStorageBlockBinding(m_vctxVis.coneVisComputeShader->handle, index, (u32)SsboBindings::kConeData);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)SsboBindings::kConeData, m_vctxVis.ssbo);
+        index = glGetProgramResourceIndex(visualizer.coneVisComputeShader->handle, GL_SHADER_STORAGE_BLOCK, "ConeTraceDebugData");
+        glShaderStorageBlockBinding(visualizer.coneVisComputeShader->handle, index, (u32)SsboBindings::kConeData);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)SsboBindings::kConeData, visualizer.ssbo);
 
         enum class TexBindings
         {
@@ -832,17 +837,17 @@ namespace Cyan
             kSceneNormal
         };
 
-        m_vctxVis.coneVisComputeShader->setUniformVec2("debugScreenPos", &m_vctxVis.debugScreenPos.x);
-        m_vctxVis.coneVisComputeShader->setUniformMat4f("cachedView", &m_vctxVis.cachedView[0][0]);
-        m_vctxVis.coneVisComputeShader->setUniformMat4f("cachedProjection", &m_vctxVis.cachedProjection[0][0]);
-        glm::vec2 renderSize = glm::vec2(m_voxelVisRenderTarget->width, m_voxelVisRenderTarget->height);
-        m_vctxVis.coneVisComputeShader->setUniformVec2("renderSize", &renderSize.x);
-        m_vctxVis.coneVisComputeShader->setUniform1i("sceneDepthTexture", (i32)TexBindings::kSceneDepth);
-        m_vctxVis.coneVisComputeShader->setUniform1i("sceneNormalTexture", (i32)TexBindings::kSceneNormal);
-        m_vctxVis.coneVisComputeShader->setUniform1f("occlusionScale", m_vctx.opts.occlusionScale);
-        m_vctxVis.coneVisComputeShader->setUniformVec2("renderSize", &renderSize.x);
-        glBindTextureUnit((u32)TexBindings::kSceneDepth, m_vctxVis.cachedSceneDepth->handle);
-        glBindTextureUnit((u32)TexBindings::kSceneNormal, m_vctxVis.cachedSceneNormal->handle);
+        visualizer.coneVisComputeShader->setUniformVec2("debugScreenPos", &visualizer.debugScreenPos.x);
+        visualizer.coneVisComputeShader->setUniformMat4f("cachedView", &visualizer.cachedView[0][0]);
+        visualizer.coneVisComputeShader->setUniformMat4f("cachedProjection", &visualizer.cachedProjection[0][0]);
+        glm::vec2 renderSize = glm::vec2(visualizer.renderTarget->width, visualizer.renderTarget->height);
+        visualizer.coneVisComputeShader->setUniformVec2("renderSize", &renderSize.x);
+        visualizer.coneVisComputeShader->setUniform1i("sceneDepthTexture", (i32)TexBindings::kSceneDepth);
+        visualizer.coneVisComputeShader->setUniform1i("sceneNormalTexture", (i32)TexBindings::kSceneNormal);
+        visualizer.coneVisComputeShader->setUniform1f("occlusionScale", m_vctx.opts.occlusionScale);
+        visualizer.coneVisComputeShader->setUniformVec2("renderSize", &renderSize.x);
+        glBindTextureUnit((u32)TexBindings::kSceneDepth, m_vctx.visualizer.cachedSceneDepth->handle);
+        glBindTextureUnit((u32)TexBindings::kSceneNormal, m_vctx.visualizer.cachedSceneNormal->handle);
 
         glDispatchCompute(1, 1, 1);
 
@@ -850,9 +855,9 @@ namespace Cyan
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
         // visualize traced cones
-        m_ctx->setRenderTarget(m_voxelVisRenderTarget, { 0 });
-        m_ctx->setViewport({ 0, 0, m_voxelVisRenderTarget->width, m_voxelVisRenderTarget->height });
-        m_ctx->setShader(m_vctxVis.coneVisDrawShader);
+        m_ctx->setRenderTarget(m_vctx.visualizer.renderTarget, { 0 });
+        m_ctx->setViewport({ 0, 0, m_vctx.visualizer.renderTarget->width, m_vctx.visualizer.renderTarget->height });
+        m_ctx->setShader(visualizer.coneVisDrawShader);
 
 #if 0
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_COMMAND_BARRIER_BIT);
@@ -860,15 +865,15 @@ namespace Cyan
         glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_vctxVis.idbo);
         glDrawArraysIndirect(GL_POINTS, 0);
 #else
-        index = glGetProgramResourceIndex(m_vctxVis.coneVisDrawShader->handle, GL_SHADER_STORAGE_BLOCK, "ConeTraceDebugData");
-        glShaderStorageBlockBinding(m_vctxVis.coneVisDrawShader->handle, index, (u32)SsboBindings::kConeData);
+        index = glGetProgramResourceIndex(visualizer.coneVisDrawShader->handle, GL_SHADER_STORAGE_BLOCK, "ConeTraceDebugData");
+        glShaderStorageBlockBinding(visualizer.coneVisDrawShader->handle, index, (u32)SsboBindings::kConeData);
 
         struct IndirectDrawArgs
         {
             GLuint first;
             GLuint count;
         } command;
-        glGetNamedBufferSubData(m_vctxVis.idbo, 0, sizeof(IndirectDrawArgs), &command);
+        glGetNamedBufferSubData(visualizer.idbo, 0, sizeof(IndirectDrawArgs), &command);
         m_ctx->setPrimitiveType(PrimitiveType::Points);
         glDisable(GL_CULL_FACE);
         m_ctx->drawIndexAuto(command.count);
@@ -1356,10 +1361,10 @@ namespace Cyan
             ImGui::AlignTextToFramePadding();
 
             ImGui::Text("VisMode "); ImGui::SameLine();
-            ImGui::Combo("##VisMode", reinterpret_cast<i32*>(&m_vctxVis.mode), vctxVisModeNames, (u32)VctxVis::Mode::kCount);
+            ImGui::Combo("##VisMode", reinterpret_cast<i32*>(&m_vctx.visualizer.mode), m_vctx.visualizer.vctxVisModeNames, (u32)Vctx::Visualizer::Mode::kCount);
 
             ImGui::Text("Mip "); ImGui::SameLine();
-            ImGui::SliderInt("##Mip", &m_vctxVis.activeMip, 0, log2(m_sceneVoxelGrid.resolution));
+            ImGui::SliderInt("##Mip", &m_vctx.visualizer.activeMip, 0, log2(m_sceneVoxelGrid.resolution));
 
             ImGui::Text("Offset "); ImGui::SameLine();
             ImGui::SliderFloat("##Offset", &m_vctx.opts.coneOffset, 0.f, 5.f, "%.2f");
@@ -1371,14 +1376,14 @@ namespace Cyan
             ImGui::SliderFloat("##Indirect Scale", &m_vctx.opts.indirectScale, 1.f, 5.f, "%.2f");
 
             ImGui::Text("Debug ScreenPos"); ImGui::SameLine();
-            f32 v[2] = { m_vctxVis.debugScreenPos.x, m_vctxVis.debugScreenPos.y };
-            m_vctxVis.debugScreenPosMoved = ImGui::SliderFloat2("##Debug ScreenPos", v, -1.f, 1.f, "%.2f");
-            m_vctxVis.debugScreenPos = glm::vec2(v[0], v[1]);
+            f32 v[2] = { m_vctx.visualizer.debugScreenPos.x, m_vctx.visualizer.debugScreenPos.y };
+            m_vctx.visualizer.debugScreenPosMoved = ImGui::SliderFloat2("##Debug ScreenPos", v, -1.f, 1.f, "%.2f");
+            m_vctx.visualizer.debugScreenPos = glm::vec2(v[0], v[1]);
 
             ImGui::Separator();
             ImVec2 visSize(480, 270);
             ImGui::Text("VoxelGrid Vis "); 
-            ImGui::Image((ImTextureID)m_voxelVisColorTexture->handle, visSize, ImVec2(0, 1), ImVec2(1, 0));
+            ImGui::Image((ImTextureID)m_vctx.visualizer.colorBuffer->handle, visSize, ImVec2(0, 1), ImVec2(1, 0));
 
             ImGui::Separator();
             ImGui::Text("Vctx Occlusion");

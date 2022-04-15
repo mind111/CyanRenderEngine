@@ -812,7 +812,6 @@ void DemoApp::drawDebugWindows()
                 buildDebugView("SceneDepth",  renderer->m_sceneDepthTextureSSAA);
                 buildDebugView("SceneNormal", renderer->m_sceneNormalTextureSSAA);
                 buildDebugView("SceneGTAO",   renderer->m_ssaoTexture);
-                buildDebugView("SceneVoxelized", renderer->m_voxelVisColorTexture);
                 ImGui::EndTabItem();
             }
             ImGui::EndTabBar();
