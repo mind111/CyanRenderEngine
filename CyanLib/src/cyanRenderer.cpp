@@ -123,6 +123,39 @@ namespace Cyan
         ShaderUtil::checkShaderLinkage(m_lumHistogramProgram);
     }
 
+    void Renderer::Vctx::Voxelizer::init(u32 resolution)
+    {
+        auto textureManager = TextureManager::getSingletonPtr();
+
+        TextureSpec voxelizeSpec = { };
+        voxelizeSpec.width = resolution;
+        voxelizeSpec.height = resolution;
+        voxelizeSpec.type = Texture::Type::TEX_2D;
+        voxelizeSpec.dataType = Texture::DataType::Float;
+        voxelizeSpec.format = Texture::ColorFormat::R16G16B16;
+        voxelizeSpec.min = Texture::Filter::LINEAR; 
+        voxelizeSpec.mag = Texture::Filter::LINEAR;
+
+        TextureSpec voxelizeSSSpec = { };
+        voxelizeSSSpec.width = resolution * ssaaRes;
+        voxelizeSSSpec.height = resolution * ssaaRes;
+        voxelizeSSSpec.type = Texture::Type::TEX_2D;
+        voxelizeSSSpec.dataType = Texture::DataType::Float;
+        voxelizeSSSpec.format = Texture::ColorFormat::R16G16B16;
+        voxelizeSSSpec.min = Texture::Filter::LINEAR; 
+        voxelizeSSSpec.mag = Texture::Filter::LINEAR;
+        Texture* voxelizeSSColorbuffer = textureManager->createTexture("VoxelizeSS", voxelizeSSSpec);
+        ssRenderTarget = createRenderTarget(resolution * ssaaRes, resolution * ssaaRes);
+        ssRenderTarget->setColorBuffer(voxelizeSSColorbuffer, 0);
+
+        colorBuffer = textureManager->createTexture("VoxelizeDebug", voxelizeSpec);
+        renderTarget = createRenderTarget(resolution, resolution);
+        renderTarget->setColorBuffer(colorBuffer, 0);
+        voxelizeShader = createVsGsPsShader("VoxelizeShader", SHADER_SOURCE_PATH "voxelize_v.glsl", SHADER_SOURCE_PATH "voxelize_g.glsl", SHADER_SOURCE_PATH "voxelize_p.glsl");
+        matl = createMaterial(voxelizeShader)->createInstance(); 
+        filterVoxelGridShader = createCsShader("VctxFilterShader", SHADER_SOURCE_PATH "vctx_filter_c.glsl");
+    }
+
     void Renderer::initialize(GLFWwindow* window, glm::vec2 windowSize)
     {
         m_ctx = getCurrentGfxCtx();
@@ -316,17 +349,7 @@ namespace Cyan
 
         // voxel cone tracing
         {
-            TextureSpec voxelizeSpec = { };
-            voxelizeSpec.width = m_sceneVoxelGrid.resolution;
-            voxelizeSpec.height = m_sceneVoxelGrid.resolution;
-            voxelizeSpec.type = Texture::Type::TEX_2D;
-            voxelizeSpec.dataType = Texture::DataType::Float;
-            voxelizeSpec.format = Texture::ColorFormat::R16G16B16;
-            voxelizeSpec.min = Texture::Filter::LINEAR; 
-            voxelizeSpec.mag = Texture::Filter::LINEAR;
-            m_voxelizeColorTexture = textureManager->createTexture("VoxelizeDebug", voxelizeSpec);
-            m_voxelizeRenderTarget = createRenderTarget(m_sceneVoxelGrid.resolution, m_sceneVoxelGrid.resolution);
-            m_voxelizeRenderTarget->setColorBuffer(m_voxelizeColorTexture, 0);
+            m_vctx.voxelizer.init(m_sceneVoxelGrid.resolution);
 
             TextureSpec visSpec = { };
             visSpec.width = 1280;
@@ -365,11 +388,8 @@ namespace Cyan
                 voxelDataSpec.format = Texture::ColorFormat::R32F;
                 m_sceneVoxelGrid.opacity = textureManager->createTexture3D("VoxelGridOpacity", voxelDataSpec);
 
-                m_voxelizeShader = createVsGsPsShader("VoxelizeShader", SHADER_SOURCE_PATH "voxelize_v.glsl", SHADER_SOURCE_PATH "voxelize_g.glsl", SHADER_SOURCE_PATH "voxelize_p.glsl");
-                m_voxelizeMatl = createMaterial(m_voxelizeShader)->createInstance(); 
                 m_voxelVisShader = createVsGsPsShader("VoxelVisShader", SHADER_SOURCE_PATH "voxel_vis_v.glsl", SHADER_SOURCE_PATH "voxel_vis_g.glsl", SHADER_SOURCE_PATH "voxel_vis_p.glsl");
                 m_voxelVisMatl = createMaterial(m_voxelVisShader)->createInstance();
-                m_filterVoxelGridShader = createCsShader("VctxFilterShader", SHADER_SOURCE_PATH "vctx_filter_c.glsl");
             }
 
             {
@@ -393,17 +413,6 @@ namespace Cyan
                 m_vctx.renderTarget->setColorBuffer(m_vctx.irradiance,(u32)ColorBuffers::kIrradiance);
                 m_vctx.renderTarget->setColorBuffer(m_vctx.reflection,(u32)ColorBuffers::kReflection);
 
-                TextureSpec voxelizeSSSpec = { };
-                voxelizeSSSpec.width = m_sceneVoxelGrid.resolution * m_vctx.ssaaRes;
-                voxelizeSSSpec.height = m_sceneVoxelGrid.resolution * m_vctx.ssaaRes;
-                voxelizeSSSpec.type = Texture::Type::TEX_2D;
-                voxelizeSSSpec.dataType = Texture::DataType::Float;
-                voxelizeSSSpec.format = Texture::ColorFormat::R16G16B16;
-                voxelizeSSSpec.min = Texture::Filter::LINEAR; 
-                voxelizeSSSpec.mag = Texture::Filter::LINEAR;
-                Texture* voxelizeSSColorbuffer = textureManager->createTexture("VoxelizeSS", voxelizeSSSpec);
-                m_vctx.ssRenderTarget = createRenderTarget(m_sceneVoxelGrid.resolution * m_vctx.ssaaRes, m_sceneVoxelGrid.resolution * m_vctx.ssaaRes);
-                m_vctx.ssRenderTarget->setColorBuffer(voxelizeSSColorbuffer, 0);
 
                 m_vctx.renderShader = createShader("VctxShader", SHADER_SOURCE_PATH "vctx_v.glsl", SHADER_SOURCE_PATH "vctx_p.glsl");
                 m_vctx.resolveShader = createCsShader("VoxelizeResolveShader", SHADER_SOURCE_PATH "voxelize_resolve_c.glsl");
@@ -546,13 +555,15 @@ namespace Cyan
 
     void Renderer::voxelizeScene(Scene* scene)
     {
+        auto voxelizer = m_vctx.voxelizer;
+
         // clear voxel grid textures
         glClearTexImage(m_sceneVoxelGrid.albedo->handle, 0, GL_RGBA, GL_UNSIGNED_INT, 0);
         glClearTexImage(m_sceneVoxelGrid.normal->handle, 0, GL_RGBA, GL_UNSIGNED_INT, 0);
         glClearTexImage(m_sceneVoxelGrid.radiance->handle, 0, GL_RGBA, GL_UNSIGNED_INT, 0);
         glClearTexImage(m_sceneVoxelGrid.opacity->handle, 0, GL_R, GL_FLOAT, 0);
 
-        auto renderTarget = m_vctx.opts.useSuperSampledOpacity > 0.f ? m_vctx.ssRenderTarget : m_voxelizeRenderTarget;
+        auto renderTarget = m_vctx.opts.useSuperSampledOpacity > 0.f ? m_vctx.voxelizer.ssRenderTarget : m_vctx.voxelizer.renderTarget;
         m_ctx->setRenderTarget(renderTarget, { 0 });
         renderTarget->clear({ 0 });
         m_ctx->setViewport({ 0, 0, renderTarget->width, renderTarget->height });
@@ -560,7 +571,7 @@ namespace Cyan
         glEnable(GL_NV_conservative_raster);
         glDisable(GL_CULL_FACE);
 
-        m_ctx->setShader(m_voxelizeShader);
+        m_ctx->setShader(m_vctx.voxelizer.voxelizeShader);
         m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
 
         enum class ImageBindings
@@ -583,14 +594,14 @@ namespace Cyan
                 kOpacityMask = (i32)GlobalBufferBindings::kCount,
                 kDebugTexcoord
             };
-            auto index = glGetProgramResourceIndex(m_voxelizeShader->handle, GL_SHADER_STORAGE_BLOCK, "OpacityData");
-            glShaderStorageBlockBinding(m_voxelizeShader->handle, index, (u32)SsboBindings::kOpacityMask);
+            auto index = glGetProgramResourceIndex(voxelizer.voxelizeShader->handle, GL_SHADER_STORAGE_BLOCK, "OpacityData");
+            glShaderStorageBlockBinding(voxelizer.voxelizeShader->handle, index, (u32)SsboBindings::kOpacityMask);
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)SsboBindings::kOpacityMask, m_vctx.opacityMaskSsbo);
             f32 clear = 0.f;
             glClearNamedBufferData(m_vctx.opacityMaskSsbo, GL_R32F, GL_R, GL_FLOAT, &clear);
 
-            index = glGetProgramResourceIndex(m_voxelizeShader->handle, GL_SHADER_STORAGE_BLOCK, "TexcoordData");
-            glShaderStorageBlockBinding(m_voxelizeShader->handle, index, (u32)SsboBindings::kDebugTexcoord);
+            index = glGetProgramResourceIndex(voxelizer.voxelizeShader->handle, GL_SHADER_STORAGE_BLOCK, "TexcoordData");
+            glShaderStorageBlockBinding(voxelizer.voxelizeShader->handle, index, (u32)SsboBindings::kDebugTexcoord);
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)SsboBindings::kDebugTexcoord, m_vctx.debugTexcoordBuffer);
 
             glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, m_vctx.atomicCounter);
@@ -611,14 +622,14 @@ namespace Cyan
         {
             for (u32 i = 0; i < scene->entities.size(); ++i)
             {
-                executeOnEntity(scene->entities[i], [this, pmin, pmax, axis](SceneNode* node) {
+                executeOnEntity(scene->entities[i], [this, voxelizer, pmin, pmax, axis](SceneNode* node) {
                     if (MeshInstance* meshInstance = node->getAttachedMesh())
                     {
                         glm::mat4 model = node->getWorldTransform().toMatrix();
-                        m_voxelizeMatl->set("model", &model[0]);
-                        m_voxelizeMatl->set("aabbMin", &pmin.x);
-                        m_voxelizeMatl->set("aabbMax", &pmax.x);
-                        m_voxelizeMatl->set("axis", (u32)axis);
+                        voxelizer.matl->set("model", &model[0]);
+                        voxelizer.matl->set("aabbMin", &pmin.x);
+                        voxelizer.matl->set("aabbMax", &pmax.x);
+                        voxelizer.matl->set("axis", (u32)axis);
 
                         for (u32 i = 0; i < meshInstance->m_mesh->numSubMeshes(); ++i)
                         {
@@ -627,8 +638,8 @@ namespace Cyan
                             MaterialInstance* smMatl = meshInstance->getMaterial(i);
                             Texture* albedo = smMatl->getTexture("diffuseMaps[0]");
                             Texture* normal = smMatl->getTexture("normalMap");
-                            m_voxelizeMatl->bindTexture("albedoTexture", albedo);
-                            m_voxelizeMatl->bindTexture("normalTexture", normal);
+                            voxelizer.matl->bindTexture("albedoTexture", albedo);
+                            voxelizer.matl->bindTexture("normalTexture", normal);
                             if (albedo)
                             {
                                 matlFlag |= StandardPbrMaterial::Flags::kHasDiffuseMap;
@@ -636,7 +647,7 @@ namespace Cyan
                             else
                             {
                                 glm::vec4 flatColor = smMatl->getVec4("uMatlData.flatColor");
-                                m_voxelizeMatl->set("flatColor", &flatColor.x);
+                                voxelizer.matl->set("flatColor", &flatColor.x);
                             }
                             if (normal)
                             {
@@ -646,8 +657,8 @@ namespace Cyan
                             {
 
                             }
-                            m_voxelizeMatl->set("matlFlag", matlFlag);
-                            m_voxelizeMatl->bind();
+                            voxelizer.matl->set("matlFlag", matlFlag);
+                            voxelizer.matl->bind();
 
                             m_ctx->setVertexArray(sm->m_vertexArray);
                             if (sm->m_vertexArray->hasIndexBuffer())
@@ -706,18 +717,18 @@ namespace Cyan
         // manually filter & down-sample to generate mipmap with anisotropic voxels
         else
         {
-            m_ctx->setShader(m_filterVoxelGridShader);
+            m_ctx->setShader(voxelizer.filterVoxelGridShader);
 
             const i32 kNumDownsample = 1u;
             for (i32 i = 0; i < kNumDownsample; ++i)
             {
                 i32 textureUnit = (i32)GlobalTextureBindings::kCount;
                 glm::ivec3 currGridDim = glm::ivec3(m_sceneVoxelGrid.resolution) / (i32)pow(2, i+1);
-                m_filterVoxelGridShader->setUniform1i("srcMip", i);
-                m_filterVoxelGridShader->setUniform1i("srcAlbedo", textureUnit);
+                voxelizer.filterVoxelGridShader->setUniform1i("srcMip", i);
+                voxelizer.filterVoxelGridShader->setUniform1i("srcAlbedo", textureUnit);
                 glBindTextureUnit(textureUnit++, m_sceneVoxelGrid.albedo->handle);
 
-                m_filterVoxelGridShader->setUniform1i("dstAlbedo", textureUnit);
+                voxelizer.filterVoxelGridShader->setUniform1i("dstAlbedo", textureUnit);
                 glBindImageTexture(textureUnit++, m_sceneVoxelGrid.albedo->handle, i+1, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
                 glDispatchCompute(currGridDim.x, currGridDim.y, currGridDim.z);
             }

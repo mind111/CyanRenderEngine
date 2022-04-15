@@ -287,7 +287,9 @@ namespace Cyan
 
         struct Vctx
         {
-            struct opts
+            static const u32 ssaaRes = 4u;
+
+            struct Opts
             {
                 // offset for ray origin
                 f32 coneOffset = 2.f;         
@@ -302,6 +304,19 @@ namespace Cyan
                 // bool superSampled = true;
             } opts;
 
+            struct Voxelizer
+            {
+                void init(u32 resolution);
+
+                RenderTarget* renderTarget = nullptr;
+                // super sampled render target
+                RenderTarget* ssRenderTarget = nullptr;
+                Texture* colorBuffer = nullptr;
+                Shader* voxelizeShader = nullptr;
+                Shader* filterVoxelGridShader = nullptr;
+                MaterialInstance* matl = nullptr;
+            } voxelizer;
+
             enum class ColorBuffers
             {
                 kOcclusion = 0,
@@ -309,9 +324,7 @@ namespace Cyan
                 kReflection
             };
 
-            const u32 ssaaRes = 4u;
             RenderTarget* renderTarget = nullptr;
-            RenderTarget* ssRenderTarget = nullptr;
             Shader* renderShader = nullptr;
             Shader* resolveShader = nullptr;
             Texture* occlusion = nullptr;
@@ -385,15 +398,10 @@ namespace Cyan
             "opacitySS"
         };
 
-        Shader* m_voxelizeShader;
-        MaterialInstance* m_voxelizeMatl;
         Shader* m_voxelVisShader;
         MaterialInstance* m_voxelVisMatl;
-        RenderTarget* m_voxelizeRenderTarget;
-        Texture* m_voxelizeColorTexture;
         RenderTarget* m_voxelVisRenderTarget;
         Texture* m_voxelVisColorTexture;
-        Shader* m_filterVoxelGridShader;
 
         /*
         * Voxelize a given scene

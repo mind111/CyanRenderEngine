@@ -168,6 +168,9 @@
     <ClInclude Include="PostProcess.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\VoxelConeTracing.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Asset.cpp">
@@ -291,6 +294,9 @@
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
     <ClCompile Include="src\Ray.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\VoxelConeTracing.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
   </ItemGroup>

@@ -59,6 +59,7 @@
     <ClInclude Include="include\Utils.h" />
     <ClInclude Include="include\VertexArray.h" />
     <ClInclude Include="include\VertexBuffer.h" />
+    <ClInclude Include="include\VoxelConeTracing.h" />
     <ClInclude Include="include\Window.h" />
     <ClInclude Include="PostProcess.h" />
     <ClInclude Include="src\ImGuizmo\ImGuizmo.h" />
@@ -112,6 +113,7 @@
     <ClCompile Include="src\Utils.cpp" />
     <ClCompile Include="src\VertexArray.cpp" />
     <ClCompile Include="src\VertexBuffer.cpp" />
+    <ClCompile Include="src\VoxelConeTracing.cpp" />
     <ClCompile Include="src\Window.cpp" />
   </ItemGroup>
   <ItemGroup>
