@@ -388,9 +388,6 @@ namespace Cyan
             Texture* irradiance = nullptr;
             Texture* reflection = nullptr;
             GLuint opacityMaskSsbo = -1;
-            i32* debugOpacityMaskBuffer = nullptr;
-            GLuint debugTexcoordBuffer = -1;
-            GLuint atomicCounter = -1;
         } m_vctx;
 
         struct VctxGpuData

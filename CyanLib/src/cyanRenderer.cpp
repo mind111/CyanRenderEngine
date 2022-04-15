@@ -454,14 +454,6 @@ namespace Cyan
                 glCreateBuffers(1, &m_vctx.opacityMaskSsbo);
                 i32 buffSize = sizeof(i32) * pow(m_sceneVoxelGrid.resolution * m_vctx.ssaaRes, 3);
                 glNamedBufferData(m_vctx.opacityMaskSsbo, buffSize, nullptr, GL_DYNAMIC_COPY);
-                m_vctx.debugOpacityMaskBuffer = new i32[pow(m_sceneVoxelGrid.resolution * m_vctx.ssaaRes, 3)];
-
-                glCreateBuffers(1, &m_vctx.debugTexcoordBuffer);
-                buffSize = sizeof(glm::ivec4) * pow(m_sceneVoxelGrid.resolution * m_vctx.ssaaRes, 3);
-                glNamedBufferData(m_vctx.debugTexcoordBuffer, buffSize, nullptr, GL_DYNAMIC_COPY);
-
-                glCreateBuffers(1, &m_vctx.atomicCounter);
-                glNamedBufferData(m_vctx.atomicCounter, sizeof(GLuint), nullptr, GL_DYNAMIC_COPY);
             }
 
             // global ssbo holding vctx data
@@ -602,12 +594,6 @@ namespace Cyan
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)SsboBindings::kOpacityMask, m_vctx.opacityMaskSsbo);
             f32 clear = 0.f;
             glClearNamedBufferData(m_vctx.opacityMaskSsbo, GL_R32F, GL_R, GL_FLOAT, &clear);
-
-            index = glGetProgramResourceIndex(voxelizer.voxelizeShader->handle, GL_SHADER_STORAGE_BLOCK, "TexcoordData");
-            glShaderStorageBlockBinding(voxelizer.voxelizeShader->handle, index, (u32)SsboBindings::kDebugTexcoord);
-            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)SsboBindings::kDebugTexcoord, m_vctx.debugTexcoordBuffer);
-
-            glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, m_vctx.atomicCounter);
         }
         enum class Steps
         {
@@ -685,20 +671,6 @@ namespace Cyan
         // compute pass for resovling super sampled scene opacity
         if (m_vctx.opts.useSuperSampledOpacity > 0.f)
         {
-#if 0
-            // read back debug cpu data
-            i32 count = pow(m_sceneVoxelGrid.resolution * 4, 3);
-            glGetNamedBufferSubData(m_vctx.opacityMaskSsbo, 0, sizeof(i32) * pow(m_sceneVoxelGrid.resolution * 4, 3), m_vctx.debugOpacityMaskBuffer);
-            u32 debugCount = 0;
-            for (i32 ii = 0; ii < count; ++ii)
-            {
-                if (m_vctx.debugOpacityMaskBuffer[ii] != 0)
-                {
-                    debugCount++;
-                }
-            }
-            printf("%d number of occupied sub-voxels\n", debugCount);
-#endif
             glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
             enum class SsboBindings
             {
