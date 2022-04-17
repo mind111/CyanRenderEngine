@@ -6,9 +6,6 @@ layout (location = 0) out vec3 vctxOcclusion;
 layout (location = 1) out vec3 vctxIrradiance; 
 layout (location = 2) out vec3 vctxReflection;
 
-uniform float occlusionScale;
-uniform float vctxOffset;
-uniform float indirectScale;
 uniform vec2 renderSize;
 
 uniform struct VctxOptions
@@ -129,7 +126,7 @@ TraceResult traceCone(vec3 p, vec3 rd, float halfAngle)
     float tanHalfAngle = tan(halfAngle);
     int numSteps = 0;
 
-    while (alpha < 0.95f && isInsideBound(texCoord))
+    while (alpha < 1.f && isInsideBound(texCoord))
     {
         float coneDiameter = 2.f * traced * tanHalfAngle;
         float mip = log2(max(coneDiameter / sceneVoxelGrid.voxelSize, 1.f));
@@ -138,27 +135,29 @@ TraceResult traceCone(vec3 p, vec3 rd, float halfAngle)
 		vec4 albedo = textureLod(sceneVoxelGridAlbedo, texCoord, mip);
         vec4 radiance = textureLod(sceneVoxelGridRadiance, texCoord, mip);
         float opacitySS = textureLod(sceneVoxelGridOpacity, texCoord, mip).r;
-        radiance.rgb = decodeHDR(radiance.rgb);
 
-        float opacity = albedo.a;
+        float opacity = albedo.a * opts.opacityScale;
 
         // this is necessary for correcting the "darkness" caused by auto generated mipmap included empty voxels in the average
         albedo *= scale;
-        albedo /= albedo.a > 0.f ? albedo.a : 1.f;
+        albedo = albedo.a > 0.f ? (albedo / albedo.a) : vec4(0.f);
+
         radiance *= scale;
-        radiance /= radiance.a > 0.f ? radiance.a : 1.f;
+        radiance = radiance.a > 0.f ? (radiance / radiance.a) : vec4(0.f);
+        radiance.rgb = decodeHDR(radiance.rgb);
+
         opacitySS *= scale;
-        opacitySS /= (albedo.a > 0.f) ? (albedo.a * scale) : 1.f;
-        // opacity = opacitySS;
+        opacitySS = (albedo.a > 0.f) ? opacitySS / (albedo.a * scale) : 0.f;
+        opacity = opacitySS * opts.opacityScale;
 
 		// emission-absorption model front to back blending
 #if 0
-		occ = alpha * occ + (1.f - alpha) * opacity * occlusionScale;
-        accRadiance = alpha * accRadiance + (1.f - alpha) * radiance.rgb * indirectScale;
+		occ = alpha * occ + (1.f - alpha) * opacity * opts.occlusionScale;
+        accRadiance = alpha * accRadiance + (1.f - alpha) * radiance.rgb * opts.indirectScale;
 		alpha += (1.f - alpha) * opacity;
 #else
-		occ += (1.f - alpha) * opacity * occlusionScale;
-        accRadiance += (1.f - alpha) * radiance.rgb * indirectScale;
+		occ += (1.f - alpha) * opacity * opts.occlusionScale;
+        accRadiance += (1.f - alpha) * radiance.rgb * opts.indirectScale;
 		alpha += (1.f - alpha) * opacity;
 #endif
 
@@ -181,7 +180,7 @@ TraceResult traceCone(vec3 p, vec3 rd, float halfAngle)
 TraceResult sampleIrradianceAndOcclusion(vec3 p, vec3 n, int numTheta, int numPhi)
 {
     // offset to next voxel in normal direction
-    p += n * vctxOffset * sceneVoxelGrid.voxelSize;
+    p += n * opts.coneOffset * sceneVoxelGrid.voxelSize;
     float occlusion = 0.f;
 
     vec3 radiance = vec3(0.f);
@@ -190,7 +189,7 @@ TraceResult sampleIrradianceAndOcclusion(vec3 p, vec3 n, int numTheta, int numPh
     mat3 tbn = tbn(n);
     // compute half angle based on number of samples
     // float halfAngle = .25f * pi / numTheta;
-    float halfAngle = pi / 12.f;
+    float halfAngle = pi / 6.f;
     float dTheta = .5f * pi / numTheta;
     float dPhi = 2.f * pi / numPhi;
 
@@ -236,7 +235,7 @@ void main()
     vec3 worldPos = screenToWorld(vec3(texCoord * 2.f - 1.f, depth), inverse(gDrawData.view), inverse(gDrawData.projection));
     vec3 n = normalize(texture(sceneNormalTexture, texCoord).rgb * 2.f - 1.f);
 
-    TraceResult result = sampleIrradianceAndOcclusion(worldPos, n, 4, 6);
+    TraceResult result = sampleIrradianceAndOcclusion(worldPos, n, 3, 6);
 
     vctxOcclusion = vec3(result.occ);
     vctxIrradiance = result.radiance;

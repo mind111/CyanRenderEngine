@@ -660,9 +660,8 @@ void main()
     color += directLighting(renderParams);
     // image-based-lighting
     color += indirectLighting(renderParams) * occ;
-    // baked lighting
-	vec3 bakedLighting = (uMatlData.flags & kUseLightMap) != 0u ? texture(lightMap, uv1).rgb : vec3(0.f);
-    color += bakedLighting * albedo.rgb * occ;
+    // cone traced indirect lighting
+    color += texture(vctxIrradiance, gl_FragCoord.xy / vec2(2560.f, 1440.f)).rgb * albedo.rgb * occ;
 #else
     color += directLighting(renderParams);
     // image-based-lighting

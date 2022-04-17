@@ -314,10 +314,9 @@ void main()
     {
 
     }
-    // encode hdr radiance value
-    radiance /= radiance + vec3(1.f);
+	// encode hdr radiance value
+	radiance /= (radiance + vec3(1.f));
     // diffusely reflected radiance
     imageAtomicAddVec4(voxelGridRadiance, texCoordsi, vec4(radiance, 1.0f));
-
     debugColor = vec4(albedo, 1.f);
 }

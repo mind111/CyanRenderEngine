@@ -57,12 +57,19 @@ layout (binding = 11) uniform sampler3D sceneVoxelGridNormal;
 layout (binding = 12) uniform sampler3D sceneVoxelGridRadiance;
 layout (binding = 13) uniform sampler3D sceneVoxelGridOpacity;
 
-uniform float vctxOffset;
-uniform float occlusionScale;
 uniform vec2 debugScreenPos;
 uniform vec2 renderSize;
 uniform mat4 cachedView;
 uniform mat4 cachedProjection;
+
+uniform struct VctxOptions
+{
+    float coneOffset;
+    float useSuperSampledOpacity;
+    float occlusionScale;
+    float opacityScale;
+    float indirectScale;
+} opts;
 
 mat3 tbn(vec3 n)
 {
@@ -144,43 +151,47 @@ DebugTraceResult traceCone(vec3 p, vec3 rd, float halfAngle, inout int totalNumS
 	vec3 texCoord = getVoxelGridCoord(q);
     float traced = 0.f;
     float tanHalfAngle = tan(halfAngle);
+    int numSteps = 0;
 
-    while (alpha < 0.5 && isInsideBound(texCoord))
+    while (numSteps < 4 && alpha < 1.0f && isInsideBound(texCoord))
     {
         float coneDiameter = 2.f * traced * tanHalfAngle;
         float mip = log2(max(coneDiameter / sceneVoxelGrid.voxelSize, 1.f));
-        float scale = pow(4.f, int(mip));
+        float scale = pow(8.f, int(mip));
 
 		vec4 albedo = textureLod(sceneVoxelGridAlbedo, texCoord, mip);
         vec4 radiance = textureLod(sceneVoxelGridRadiance, texCoord, mip);
         float opacitySS = textureLod(sceneVoxelGridOpacity, texCoord, mip).r;
-        radiance.rgb = decodeHDR(radiance.rgb);
 
         float opacity = albedo.a;
 
         // this is necessary for correcting the "darkness" caused by auto generated mipmap included empty voxels in the average
         albedo *= scale;
-        albedo /= albedo.a > 0.f ? albedo.a : 1.f;
+        albedo = albedo.a > 0.f ? (albedo / albedo.a) : vec4(0.f);
+
         radiance *= scale;
-        radiance /= radiance.a > 0.f ? radiance.a : 1.f;
+        radiance = radiance.a > 0.f ? (radiance / radiance.a) : vec4(0.f);
+        radiance.rgb = decodeHDR(radiance.rgb);
+        radiance /= mip;
+
         opacitySS *= scale;
-        opacitySS /= albedo.a > 0.f ? (albedo.a * scale) : 1.f;
-        opacity = opacitySS;
+        opacitySS = (albedo.a > 0.f) ? opacitySS / (albedo.a * scale) : 0.f;
+        opacity = opacitySS * opts.opacityScale;
 
 		// emission-absorption model front to back blending
-		occ += (1.f - alpha) * opacity * occlusionScale;
+		occ += (1.f - alpha) * opacity * opts.occlusionScale;
         accAlbedo += (1.f - alpha) * albedo.rgb;
-        // accRadiance = accRadiance * alpha + (1.f - alpha) * radiance.rgb;
-        accRadiance = alpha * accRadiance + (1.f - alpha) * radiance.rgb;
+        accRadiance += (1.f - alpha) * radiance.rgb;
 		alpha += (1.f - alpha) * opacity;
 
         // write cube data to buffer
         float sampleVoxelSize = sceneVoxelGrid.voxelSize * pow(2.f, floor(mip));
         debugConeBuffer.cubes[totalNumSteps].center = q;
         debugConeBuffer.cubes[totalNumSteps].size = sampleVoxelSize;
-        // debugConeBuffer.cubes[totalNumSteps].color = vec4(accRadiance, 1.f);
-        debugConeBuffer.cubes[totalNumSteps].color = vec4(vec3(occ), 1.f);
+        debugConeBuffer.cubes[totalNumSteps].color = vec4(radiance.rgb, 1.f);
+        // debugConeBuffer.cubes[totalNumSteps].color = vec4(vec3(occ), 1.f);
         totalNumSteps++;
+        numSteps++;
 
         // marching along the ray
         float stepSize = sampleVoxelSize;
@@ -196,7 +207,7 @@ DebugTraceResult sampleIrradianceAndOcclusion(vec3 p, vec3 n, int numTheta, int 
     int totalNumSteps = 0;
 
     // offset to next voxel in normal direction
-    p += n * vctxOffset * sceneVoxelGrid.voxelSize;
+    p += n * opts.coneOffset * sceneVoxelGrid.voxelSize;
 
     vec3 radiance = vec3(0.f);
     float occ = 0.f;
@@ -205,7 +216,7 @@ DebugTraceResult sampleIrradianceAndOcclusion(vec3 p, vec3 n, int numTheta, int 
 #if 0
     float halfAngle = .25f * pi / numTheta;
 #else
-    float halfAngle = pi / 12.f;
+    float halfAngle = pi / 6.f;
 #endif
     float dTheta = .5f * pi / numTheta;
     float dPhi = 2.f * pi / numPhi;

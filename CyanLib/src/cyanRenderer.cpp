@@ -817,7 +817,8 @@ namespace Cyan
         visualizer.coneVisComputeShader->setUniformVec2("renderSize", &renderSize.x);
         visualizer.coneVisComputeShader->setUniform1i("sceneDepthTexture", (i32)TexBindings::kSceneDepth);
         visualizer.coneVisComputeShader->setUniform1i("sceneNormalTexture", (i32)TexBindings::kSceneNormal);
-        visualizer.coneVisComputeShader->setUniform1f("occlusionScale", m_vctx.opts.occlusionScale);
+        visualizer.coneVisComputeShader->setUniform1f("opts.occlusionScale", m_vctx.opts.occlusionScale);
+        visualizer.coneVisComputeShader->setUniform1f("opts.coneOffset", m_vctx.opts.coneOffset);
         visualizer.coneVisComputeShader->setUniformVec2("renderSize", &renderSize.x);
         glBindTextureUnit((u32)TexBindings::kSceneDepth, m_vctx.visualizer.cachedSceneDepth->handle);
         glBindTextureUnit((u32)TexBindings::kSceneNormal, m_vctx.visualizer.cachedSceneNormal->handle);
@@ -1342,6 +1343,9 @@ namespace Cyan
             ImGui::Text("Offset "); ImGui::SameLine();
             ImGui::SliderFloat("##Offset", &m_vctx.opts.coneOffset, 0.f, 5.f, "%.2f");
 
+            ImGui::Text("Opacity Scale "); ImGui::SameLine();
+            ImGui::SliderFloat("##Opacity Scale", &m_vctx.opts.opacityScale, 1.f, 5.f, "%.2f");
+
             ImGui::Text("Ao Scale "); ImGui::SameLine();
             ImGui::SliderFloat("##Ao Scale", &m_vctx.opts.occlusionScale, 1.f, 5.f, "%.2f");
 
@@ -1444,9 +1448,10 @@ namespace Cyan
         m_vctx.renderShader->setUniformVec2("renderSize", &renderSize.x);
         m_vctx.renderShader->setUniform1i("sceneDepthTexture", (i32)TexBindings::kDepth);
         m_vctx.renderShader->setUniform1i("sceneNormalTexture", (i32)TexBindings::kNormal);
-        m_vctx.renderShader->setUniform1f("vctxOffset", m_vctx.opts.coneOffset);
-        m_vctx.renderShader->setUniform1f("occlusionScale", m_vctx.opts.occlusionScale);
-        m_vctx.renderShader->setUniform1f("indirectScale", m_vctx.opts.indirectScale);
+        m_vctx.renderShader->setUniform1f("opts.coneOffset", m_vctx.opts.coneOffset);
+        m_vctx.renderShader->setUniform1f("opts.occlusionScale", m_vctx.opts.occlusionScale);
+        m_vctx.renderShader->setUniform1f("opts.indirectScale", m_vctx.opts.indirectScale);
+        m_vctx.renderShader->setUniform1f("opts.opacityScale", m_vctx.opts.opacityScale);
         auto depthTexture = m_opts.enableAA ? m_sceneDepthTextureSSAA : m_sceneDepthTexture;
         auto normalTexture = m_opts.enableAA ? m_sceneNormalTextureSSAA : m_sceneNormalTexture;
         glBindTextureUnit((u32)TexBindings::kDepth, depthTexture->handle);
