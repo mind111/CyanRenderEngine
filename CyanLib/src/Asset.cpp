@@ -25,7 +25,6 @@ struct ObjMesh
     u32                    materialId;
 };
 
-
 bool operator==(const ObjVertex& lhs, const ObjVertex& rhs)
 {
     return (lhs.position == rhs.position) 

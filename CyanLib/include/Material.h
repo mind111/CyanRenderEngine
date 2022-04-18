@@ -156,6 +156,17 @@ namespace Cyan
 
 namespace Cyan
 {
+    struct Lightmap
+    {
+        enum class Quality
+        {
+            kLow = 0,
+            kHigh
+        } quality;
+
+        Texture* atlas = nullptr;
+    };
+
     // basically, all types of materials used in the engine right now
     struct ConstantColorMaterial
     {
@@ -232,6 +243,6 @@ namespace Cyan
     template <class BaseMaterialType>
     struct LightMappedMaterial : public BaseMaterialType
     {
-        Texture* lightmap = nullptr;
+        Lightmap lightmap;
     };
 };

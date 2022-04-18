@@ -29,6 +29,7 @@ namespace Cyan
         {}
     };
 
+    // todo: split ray tracing required geometry data from this class
     struct Mesh
     {
         void onFinishLoading();
@@ -104,6 +105,22 @@ namespace Cyan
         glm::vec2 m_extent;
         Vertex m_verts[6];
         VertexArray* m_vertexArray;
+    };
+}
+
+namespace Exp
+{
+    template <typename GeomType>
+    struct Mesh
+    {
+        template <typename GeomType>
+        struct Submesh
+        {
+            VertexArray* va;
+        };
+
+        std::string name;
+        std::vector<Submesh<GeomType>> submeshes;
     };
 }
 
