@@ -117,3 +117,11 @@ struct MeshBinaryDescriptor
 };
 
 extern float cubeVertices[108];
+
+// experiementing with architecture ideas
+template <class Polygon, class Material>
+class Mesh
+{
+
+};
+

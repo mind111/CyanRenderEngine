@@ -153,3 +153,85 @@ namespace Cyan
         MaterialInstance* m_materialInstance;
     };
 }
+
+namespace Cyan
+{
+    // basically, all types of materials used in the engine right now
+    struct ConstantColorMaterial
+    {
+        glm::vec3 uniformColor;
+    };
+
+    struct PBRMaterial
+    {
+        enum class Props : u8
+        {
+            kAlbedo = (1 << 0),
+            kNormal = (1 << 1),
+            kEmission = (1 << 2),
+            kRoughness = (1 << 3),
+            kMetallic = (1 << 4),
+            kMetallicRoughness = (1 << 5),
+        };
+
+        u32 flags = 0x0;
+        Texture* albedo = nullptr;
+        Texture* normal = nullptr;
+        Texture* emission = nullptr;
+        Texture* roughness = nullptr;
+        Texture* metallic = nullptr;
+        Texture* metallicRoughness = nullptr;
+        f32 kRoughness = 0.f;
+        f32 kMetallic = 0.f;
+        glm::vec3 kAlbedo = glm::vec3(0.f);
+
+        template <typename P, typename T>
+        T* get()
+        {
+            switch (P)
+            {
+            case Props::kAlbedo:
+                if (flags & (u8)Props::kAlbedo != 0)
+                    return albedo;
+                else
+                    return kAlbedo;
+            case Props::kNormal:
+                if (flags & (u8)Props::kNormal != 0)
+                    return normal;
+                else
+                    return nullptr;
+            case Props::kRoughness:
+                if (flags & (u8)Props::kRoughness != 0)
+                    return roughness;
+                else
+                    return kRoughness;
+            case Props::kMetallic:
+                if (flags & (u8)Props::kMetallic != 0)
+                    return metallic;
+                else
+                    return kMetallic;
+            case Props::kMetallicRoughness:
+                if (flags & (u8)Props::kMetallicRoughness != 0)
+                    return metallicRoughness;
+                else
+                    return nullptr;
+            default:
+                cyanError("Undefined material property!")
+                break;
+            }
+        }
+    };
+
+    template <class BaseMaterialType>
+    struct EmissiveMaterial : public BaseMaterialType
+    {
+        Texture* Emission = nullptr;
+        f32 kEmission = 1.f;
+    };
+
+    template <class BaseMaterialType>
+    struct LightMappedMaterial : public BaseMaterialType
+    {
+        Texture* lightmap = nullptr;
+    };
+};

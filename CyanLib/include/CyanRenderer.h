@@ -180,7 +180,7 @@ namespace Cyan
             bool enableAA = true;
             bool enableSunShadow = true;
             bool enableSSAO = true;
-            bool enableVctx = true;
+            bool enableVctx = false;
             bool enableBloom = true;
             bool autoFilterVoxelGrid = true;
             f32  exposure = 1.f;

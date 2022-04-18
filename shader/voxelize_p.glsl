@@ -121,11 +121,30 @@ vec3 decodeHDR(vec3 color)
     return color / (vec3(1.f) - color);
 }
 
+// macro equivalent of the function below
+#define IMAGE_ATOMIC_ADD_VEC4(volumeTexture, coord, v)                                                    \
+{                                                                                                         \
+    uint prev = 0;                                                                                        \
+    vec4 partialSum = v;                                                                                  \
+    uint partialSumui = convertVec4ToRGBA8(partialSum);                                                   \
+    uint currentVal = imageAtomicCompSwap(volumeTexture, coord, prev, partialSumui);                  \
+    while(currentVal != prev)                                                                             \
+    {                                                                                                     \
+        prev = currentVal;                                                                                \
+        vec4 valVec4 = convertRGBA8ToVec4(currentVal);                                                    \
+        partialSum = vec4(valVec4.xyz * valVec4.w, valVec4.w) + v;                                        \
+        partialSum.xyz /= partialSum.w;                                                                   \
+        currentVal = imageAtomicCompSwap(volumeTexture, coord, prev, convertVec4ToRGBA8(partialSum)); \
+    }                                                                                                     \
+}                                                                                                         \
+
+// for some unknown reasons, the following function signature doesn't compile anymore
+#if 0
 // atomicAdd emulation listed in https://www.seas.upenn.edu/~pcozzi/OpenGLInsights/OpenGLInsights-SparseVoxelization.pdf
 /*
     @vec4 v: must be noramlized to [0.f, 1.f]
 */
-void imageAtomicAddVec4(layout(r32ui) coherent volatile uimage3D volumeTexture, ivec3 texCoords, vec4 v)
+void imageAtomicAddVec4(layout(r32ui) uimage3D volumeTexture, ivec3 texCoords, vec4 v)
 {
     uint prev = 0;
     vec4 partialSum = v;
@@ -141,6 +160,7 @@ void imageAtomicAddVec4(layout(r32ui) coherent volatile uimage3D volumeTexture, 
         currentVal = imageAtomicCompSwap(volumeTexture, texCoords, prev, convertVec4ToRGBA8(partialSum));
     }
 }
+#endif
 
 //- sun shadow (duplicated from pbs_p.glsl)
 float cascadeIntervals[4] = {0.1f, 0.3f, 0.6f, 1.0f};
@@ -274,31 +294,31 @@ void main()
     ivec3 texCoordsi = ivec3(normalizedTexCoords * voxelGridDim);
 
     // TODO: gamma correct from sRGB to linear
-    vec3 albedo = flatColor.rgb; 
+    vec4 albedo = vec4(flatColor.rgb, 1.f); 
     if ((matlFlag & kHasDiffuseMap) != 0)
     {
-		albedo = texture(albedoTexture, psIn.texCoords).rgb;
+		albedo.rgb = texture(albedoTexture, psIn.texCoords).rgb;
 	}
     // convert normal to [0.0, 1.0] for visualizing;
-    vec3 ncolor = (normalize(psIn.normal) + vec3(1.f)) * 0.5f; 
+    vec4 ncolor = vec4((normalize(psIn.normal) + vec3(1.f)) * 0.5f, 1.f); 
 
     // accumulate relevant data into voxel fragment
     // albedo
-    imageAtomicAddVec4(voxelGridAlbedo, texCoordsi, vec4(albedo, 1.0f));
+    // imageAtomicAddVec4(voxelGridAlbedo, texCoordsi, vec4(albedo, 1.0f));
+    IMAGE_ATOMIC_ADD_VEC4(voxelGridAlbedo, texCoordsi, albedo)
+
     // normal
-    imageAtomicAddVec4(voxelGridNormal, texCoordsi, vec4(ncolor, 1.0f));
+    // imageAtomicAddVec4(voxelGridNormal, texCoordsi, vec4(ncolor, 1.0f));
+    // IMAGE_ATOMIC_ADD_VEC4(voxelGridNormal, texCoordsi, ncolor)
+
     // todo: emission
     // todo: combine opacity & emission into a r32 volume texture
     // super-sampled opactiy
-#if 0
-    imageAtomicAdd(voxelGridOpacity, texCoordsi, (1.f / 64.f));
-#else
 	ivec3 texCoordsiSS = ivec3(vec3((texCoords.xy + 1.f) * .5f, texCoords.z) * voxelGridDim * 4);
     writeOpacityMask(texCoordsiSS, voxelGridDim, 4);
-#endif
 
     // inject direct lighting into voxels
-    vec3 radiance = vec3(0.f);
+    vec4 radiance = vec4(0.f, 0.f, 0.f, 1.f);
     // direct sun light
     for (int i = 0; i < gDrawData.numDirLights; ++i)
     {
@@ -308,15 +328,18 @@ void main()
         float shadowBias = constantBias() + slopeBasedBias(n, l);
         // sun shadow
         float shadow = isInShadow(shadowBias);
-		radiance += shadow * dirLightsBuffer.lights[i].color.rgb * dirLightsBuffer.lights[i].color.a * albedo * ndotl;
+		radiance.rgb += shadow * dirLightsBuffer.lights[i].color.rgb * dirLightsBuffer.lights[i].color.a * albedo.rgb * ndotl;
     }
     // todo: direct sky light
     {
 
     }
 	// encode hdr radiance value
-	radiance /= (radiance + vec3(1.f));
+	radiance.rgb /= (radiance.rgb + vec3(1.f));
+
     // diffusely reflected radiance
-    imageAtomicAddVec4(voxelGridRadiance, texCoordsi, vec4(radiance, 1.0f));
-    debugColor = vec4(albedo, 1.f);
+    // imageAtomicAddVec4(voxelGridRadiance, texCoordsi, vec4(radiance, 1.0f));
+    IMAGE_ATOMIC_ADD_VEC4(voxelGridRadiance, texCoordsi, radiance)
+
+    debugColor = albedo;
 }
