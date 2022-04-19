@@ -9,23 +9,7 @@
 #include "Texture.h"
 #include "CyanAPI.h"
 
-struct ObjVertex
-{
-    glm::vec3 position;
-    glm::vec3 normal;
-    glm::vec4 tangent;
-    glm::vec2 texCoord;
-    glm::vec2 texCoord1;
-};
-
-struct ObjMesh
-{
-    std::vector<ObjVertex> vertices;
-    std::vector<u32>       indices;
-    u32                    materialId;
-};
-
-bool operator==(const ObjVertex& lhs, const ObjVertex& rhs)
+bool operator==(const Vertex& lhs, const Vertex& rhs)
 {
     return (lhs.position == rhs.position) 
         && (lhs.normal == rhs.normal) 
@@ -34,9 +18,9 @@ bool operator==(const ObjVertex& lhs, const ObjVertex& rhs)
 
 namespace std {
     template<> 
-    struct hash<ObjVertex> 
+    struct hash<Vertex> 
     {
-        size_t operator()(ObjVertex const& vertex) const 
+        size_t operator()(Vertex const& vertex) const 
         {
             size_t a = hash<glm::vec3>()(vertex.position); 
             size_t b = hash<glm::vec3>()(vertex.normal); 
@@ -147,7 +131,7 @@ namespace Cyan
         return result;
     }
 
-    void addSubMeshToLightMap(xatlas::Atlas* atlas, std::vector<ObjVertex>& vertices, std::vector<u32>& indices)
+    void addSubMeshToLightMap(xatlas::Atlas* atlas, std::vector<Vertex>& vertices, std::vector<u32>& indices)
     {
         xatlas::SetPrint(Print, true);
 
@@ -155,11 +139,11 @@ namespace Cyan
         xatlas::MeshDecl meshDecl;
         meshDecl.vertexCount = vertices.size();
         meshDecl.vertexPositionData = &vertices[0].position.x;
-        meshDecl.vertexPositionStride = sizeof(ObjVertex);
+        meshDecl.vertexPositionStride = sizeof(Vertex);
         meshDecl.vertexNormalData = &vertices[0].normal.x;
-        meshDecl.vertexNormalStride = sizeof(ObjVertex);
+        meshDecl.vertexNormalStride = sizeof(Vertex);
         meshDecl.vertexUvData = &vertices[0].texCoord.x;
-        meshDecl.vertexUvStride = sizeof(ObjVertex);
+        meshDecl.vertexUvStride = sizeof(Vertex);
         meshDecl.indexCount = (u32)indices.size();
         meshDecl.indexData = indices.data();
         meshDecl.indexFormat = xatlas::IndexFormat::UInt32;
@@ -169,7 +153,7 @@ namespace Cyan
             cyanError("Error adding mesh");
     }
 
-    void computeTangent(std::vector<ObjVertex>& vertices, u32 face[3])
+    void computeTangent(std::vector<Vertex>& vertices, u32 face[3])
     {
         auto& v0 = vertices[face[0]];
         auto& v1 = vertices[face[1]];
@@ -225,14 +209,14 @@ namespace Cyan
             objMatl.kRoughness = materials[i].roughness;
         }
 
-        std::vector<ObjMesh*> objMeshes;
+        std::vector<TriMesh*> objMeshes;
         // submeshes
         for (u32 s = 0; s < shapes.size(); ++s)
         {
 #if CYAN_DEBUG
             cyanInfo("shape[%d].name = %s", s, shapes[s].name.c_str());
 #endif
-            ObjMesh* objMesh = new ObjMesh;
+            TriMesh* objMesh = new TriMesh;
             objMeshes.push_back(objMesh);
             Mesh::SubMesh* subMesh = new Mesh::SubMesh;
             mesh->m_subMeshes.push_back(subMesh);
@@ -240,10 +224,10 @@ namespace Cyan
             // load tri mesh
             if (shapes[s].mesh.indices.size() > 0)
             {
-                std::vector<ObjVertex>& vertices = objMesh->vertices;
+                std::vector<Vertex>& vertices = objMesh->vertices;
                 std::vector<u32>& indices = objMesh->indices;
                 indices.resize(shapes[s].mesh.indices.size());
-                std::unordered_map<ObjVertex, u32> uniqueVerticesMap;
+                std::unordered_map<Vertex, u32> uniqueVerticesMap;
                 u32 numUniqueVertices = 0;
 
                 // assume that one submesh can only have one material
@@ -254,7 +238,7 @@ namespace Cyan
                 // load triangles
                 for (u32 f = 0; f < shapes[s].mesh.indices.size() / 3; ++f)
                 {
-                    ObjVertex vertex = { };
+                    Vertex vertex = { };
                     u32 face[3] = { };
 
                     for (u32 v = 0; v < 3; ++v)
@@ -314,16 +298,16 @@ namespace Cyan
             // load lines
             if (shapes[s].lines.indices.size() > 0)
             {
-                std::vector<ObjVertex>& vertices = objMesh->vertices;
+                std::vector<Vertex>& vertices = objMesh->vertices;
                 vertices.resize(shapes[s].lines.num_line_vertices.size());
                 std::vector<u32>& indices = objMesh->indices;
                 indices.resize(shapes[s].lines.indices.size());
-                std::unordered_map<ObjVertex, u32> uniqueVerticesMap;
+                std::unordered_map<Vertex, u32> uniqueVerticesMap;
                 u32 numUniqueVertices = 0;
 
                 for (u32 l = 0; l < shapes[s].lines.indices.size() / 2; ++l)
                 {
-                    ObjVertex vertex = { };
+                    Vertex vertex = { };
                     for (u32 v = 0; v < 2; ++v)
                     {
                         tinyobj::index_t index = shapes[s].lines.indices[l * 2 + v];
@@ -371,7 +355,7 @@ namespace Cyan
 
             for (u32 sm = 0; sm < objMeshes.size(); ++sm)
             {
-                std::vector<ObjVertex> packedVertices(atlas->meshes[sm].vertexCount);
+                std::vector<Vertex> packedVertices(atlas->meshes[sm].vertexCount);
                 std::vector<u32>       packedIndices(atlas->meshes[sm].indexCount);
                 for (u32 v = 0; v < atlas->meshes[sm].vertexCount; ++v)
                 {
@@ -388,11 +372,11 @@ namespace Cyan
             xatlas::Destroy(atlas);
         }
 
-        u32 strideInBytes = sizeof(ObjVertex);
+        u32 strideInBytes = sizeof(Vertex);
         for (u32 sm = 0; sm < mesh->m_subMeshes.size(); ++sm)
         {
-            ObjMesh* objMesh = objMeshes[sm];
-            auto vb = Cyan::createVertexBuffer(objMesh->vertices.data(), sizeof(ObjVertex) * objMesh->vertices.size(), strideInBytes, objMesh->indices.size());
+            TriMesh* objMesh = objMeshes[sm];
+            auto vb = Cyan::createVertexBuffer(objMesh->vertices.data(), sizeof(Vertex) * objMesh->vertices.size(), strideInBytes, objMesh->indices.size());
             u32 offset = 0;
             vb->addVertexAttrib({ VertexAttrib::DataType::Float, 3, strideInBytes, offset});
             offset += 3 * sizeof(f32);

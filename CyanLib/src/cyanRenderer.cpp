@@ -1110,7 +1110,7 @@ namespace Cyan
         {
             scene->m_skybox->render();
         }
-        // draw entitiess
+        // draw entities
         for (u32 i = 0; i < scene->entities.size(); ++i)
         {
             if (scene->entities[i]->m_visible)

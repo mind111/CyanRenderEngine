@@ -15,6 +15,52 @@ struct Scene;
 
 namespace Cyan
 {
+    template <typename GeomType>
+    struct Mesh
+    {
+        template <typename GeomType>
+        struct Submesh
+        {
+            GeomType geometry;
+            VertexArray* va;
+        };
+
+        std::string name;
+        std::vector<Submesh<GeomType>> submeshes;
+    };
+
+    template <typename GeomType, typename MaterialType>
+    struct Renderable
+    {
+        Mesh::Submesh<GeomType>* mesh;
+        MaterialInstance<MaterialType>* matl;
+    };
+
+    template <typename GeomType, typename MaterialType>
+    struct MeshInstance
+    {
+        struct Renderable
+        {
+            Mesh::Submesh<GeomType>* submesh;
+            MaterialInstance<MaterialType> matl;
+        };
+
+        std::vector<Renderable> renderables;
+    };
+
+    template <typename GeomType, typename MaterialType>
+    struct SceneComponent
+    {
+        MeshInstance<GeomType, MaterialType>* meshInstance;
+    }
+
+    template <typename GeomType, typename MaterialType>
+    void createSceneNode(Mesh<GeomType> mesh, )
+    {
+
+    }
+
+#if 0
     struct MeshInstance;
 
     struct MeshRayHit
@@ -86,6 +132,7 @@ namespace Cyan
         BoundingBox3f& getAABB();
         struct LightMap* m_lightMap;
     };
+#endif
 
     struct QuadMesh
     {
@@ -108,22 +155,6 @@ namespace Cyan
     };
 }
 
-namespace Exp
-{
-    template <typename GeomType>
-    struct Mesh
-    {
-        template <typename GeomType>
-        struct Submesh
-        {
-            VertexArray* va;
-        };
-
-        std::string name;
-        std::vector<Submesh<GeomType>> submeshes;
-    };
-}
-
 // TODO: implement serialization
 struct MeshBinaryDescriptor
 {
@@ -134,11 +165,3 @@ struct MeshBinaryDescriptor
 };
 
 extern float cubeVertices[108];
-
-// experiementing with architecture ideas
-template <class Polygon, class Material>
-class Mesh
-{
-
-};
-

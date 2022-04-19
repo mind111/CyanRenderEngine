@@ -32,6 +32,10 @@ struct Scene
     std::vector<glm::mat4>                  g_localTransformMatrices;
     std::vector<glm::mat4>                  g_globalTransformMatrices;
     std::vector<Cyan::Material>             g_materials;
+
+    // materials
+    std::vector<Cyan::Material*> materials;
+
     std::vector<Cyan::MaterialInstance>     g_materialInstances;
     std::vector<Cyan::Mesh>                 g_meshes;
     std::vector<Cyan::Texture>              g_textures;
@@ -90,6 +94,17 @@ public:
         return scene->entities.size() > 0 ? scene->entities.size() : 0;
     }
 
+    // material
+    template <typename MaterialType>
+    MaterialType* createMaterial(const char* name)
+    {
+        // todo: do some book keeping at some point
+        MaterialType* material = new MaterialType;
+        material->name = std::string(name);
+        return material;
+    }
+
+    // light probes
     Cyan::IrradianceProbe* createIrradianceProbe(Cyan::Texture* srcCubemapTexture, const glm::uvec2& irradianceRes);
     Cyan::IrradianceProbe* createIrradianceProbe(Scene* scene, const glm::vec3& pos, const glm::uvec2& sceneCaptureRes, const glm::uvec2& irradianceRes);
     Cyan::ReflectionProbe* createReflectionProbe(Cyan::Texture* srcCubemapTexture);
