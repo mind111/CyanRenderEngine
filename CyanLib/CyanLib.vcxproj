@@ -26,6 +26,7 @@
   <ItemGroup>
     <ClInclude Include="include\Allocator.h" />
     <ClInclude Include="include\Asset.h" />
+    <ClInclude Include="include\AssetFactory.h" />
     <ClInclude Include="include\BVH.h" />
     <ClInclude Include="include\Camera.h" />
     <ClInclude Include="include\Common.h" />

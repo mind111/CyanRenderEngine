@@ -42,6 +42,33 @@ struct ShaderSource
     const char* csSrc; // compute shader
 };
 
+// todo: implement this!
+struct ShaderMetaData
+{
+    void init(Shader* shader) { }
+
+    struct UniformMetaData
+    {
+        enum class Type
+        {
+            kInt = 0,
+            kUint,
+            kFloat,
+            kVec2,
+            kVec3,
+            kVec4,
+            kMat4,
+            kSampler2D,
+            kSampler3D
+        };
+
+        i32 location = -1;
+        i32 elementCount = 1;
+    };
+
+    std::map<std::string, UniformMetaData> uniformMap;
+};
+
 class Shader
 {
 public:
@@ -82,6 +109,12 @@ public:
     void setUniform(Uniform* _uniform);
     void setUniform(Uniform* _uniform, i32 _value);
     void setUniform(Uniform* _uniform, f32 _value);
+
+    void setUniform(const char* name, f32 value) { }
+    void setUniform(const char* name, i32 value) { }
+    void setUniform(const char* name, u32 value) { }
+    void setUniform(const char* name, f32* value) { }
+
     void setUniform1i(const char* name, GLint data);
     void setUniform1ui(const char* name, GLuint data);
     void setUniform1f(const char* name, GLfloat data);

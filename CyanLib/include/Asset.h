@@ -14,12 +14,18 @@
 #include "Scene.h"
 #include "Mesh.h"
 #include "CyanAPI.h"
+#include "AssetFactory.h"
 
 namespace Cyan
 {
+    // todo: make this a singleton
     class AssetManager
     {
     public:
+        AssetManager();
+        ~AssetManager() { };
+        static AssetManager* get() { return singletonPtr; }
+
         struct LoadedNode
         {
             SceneNode* m_sceneNode;
@@ -43,5 +49,83 @@ namespace Cyan
         void* m_gltfLoader;
         tinygltf::TinyGLTF m_loader;
         std::vector<SceneNode*> m_nodes;
+        static AssetManager* singletonPtr;
+
+        // asset tables
+        std::unordered_map<std::string, Asset*> m_meshMap;
+        std::unordered_map<std::string, BaseMaterial*> m_materialMap;
+
+        std::unordered_map<u32, AssetFactory*> m_meshFactoryMap;
+        std::unordered_map<u32, AssetFactory*> m_materialFactoryMap;
+
+        /*
+        * allow concrete mesh type to register their according mesh factory
+        */
+        void registerMeshFactory(u32 meshTypeId, AssetFactory* meshFactory)
+        {
+            auto entry = m_meshFactoryMap.find(meshTypeId);
+            if (entry != m_meshFactoryMap.end())
+            {
+                cyanError("MeshType with id %u is already registered", meshTypeId);
+            }
+            m_meshFactoryMap.insert(meshTypeId, meshFactory);
+        }
+
+        template <typename T>
+        Mesh::Submesh<T>* createSubmesh(const std::vector<decltype(T::Vertex)>& vertices, const std::vector<u32>& indices)
+        {
+            Mesh::Submesh<T>* sm = new Submesh(vertices, indices);
+            return sm;
+        }
+
+        /*
+        * create geometry data first, and then pass in to create a mesh
+        */
+        Mesh* createMesh(const char* name, const std::vector<BaseSubmesh*>& submeshes)
+        {
+            // allocate mesh object using concrete factory method
+            AssetFactory* factory = m_meshFactoryMap->find((u32)Geometry::getTypeEnum());
+            Mesh<Geometry>* mesh = static_cast<Mesh<Geometry>*>(factory->create());
+            mesh->name = std::string(name);
+            mesh->submeshes = std::move(submeshes);
+
+            // register mesh object into the asset table
+            m_meshMap.insert(mesh->name, mesh);
+            return mesh;
+        }
+
+        template <typename MaterialType>
+        MaterialType* createMaterial(const char* name)
+        {
+            MaterialType* material = new MaterialType(name);
+            m_materialMap.insert(std::string(name), material);
+            return material;
+        }
+
+        // getters
+        template <typename T>
+        Mesh* getAsset(const char* meshName) 
+        { 
+            const auto& entry = m_meshMap.find(std::string(meshName));
+            if (entry == m_meshMap.end())
+            {
+                return nullptr;
+            }
+            return entry->second;
+        }
+
+        template <typename T>
+        Material<T>* getAsset(const char* assetName) 
+        { 
+            auto entry = m_materialMap.find(std::string(matlName));
+            if (Material<T>::getAssetTypeIdentifier() == entry->second->getAssetTypeIdentifier())
+            {
+                return static_cast<Material<T>*>(entry->second);
+            }
+            else
+            {
+                CYAN_ASSERT(0, "Asset type error")
+            }
+        }
     };
 }

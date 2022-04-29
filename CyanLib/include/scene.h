@@ -7,6 +7,7 @@
 #include "Camera.h"
 #include "Texture.h"
 #include "Light.h"
+#include "Mesh.h"
 #include "Material.h"
 #include "LightProbe.h"
 #include "SkyBox.h"
@@ -26,19 +27,16 @@ struct Scene
     SceneNode*                              g_sceneRoot;
     u32                                     m_numSceneNodes;
     std::vector<SceneNode>                  g_sceneNodes;
-    std::vector<Cyan::StandardPbrMaterial*> m_materials;
     std::vector<Transform>                  g_localTransforms;
     std::vector<Transform>                  g_globalTransforms;
     std::vector<glm::mat4>                  g_localTransformMatrices;
     std::vector<glm::mat4>                  g_globalTransformMatrices;
-    std::vector<Cyan::Material>             g_materials;
 
-    // materials
-    std::vector<Cyan::Material*> materials;
-
-    std::vector<Cyan::MaterialInstance>     g_materialInstances;
-    std::vector<Cyan::Mesh>                 g_meshes;
+    // todo: these resources should be managed by SceneManager instead, only mesh and material instances need to be managed by scene
     std::vector<Cyan::Texture>              g_textures;
+
+    std::vector<Cyan::MeshInstance<Cyan::Triangles>> triMeshInstances;
+
     // lighting
     std::vector<PointLight>                 pointLights;
     std::vector<DirectionalLight>           dLights;
@@ -94,14 +92,18 @@ public:
         return scene->entities.size() > 0 ? scene->entities.size() : 0;
     }
 
-    // material
+    // mesh instance
+    template <typename Geometry>
+    Cyan::MeshInstance<Geometry>* createMeshInstance(Scene* scene, const char* meshName)
+    {
+
+    }
+
+    // material instance
     template <typename MaterialType>
     MaterialType* createMaterial(const char* name)
     {
-        // todo: do some book keeping at some point
-        MaterialType* material = new MaterialType;
-        material->name = std::string(name);
-        return material;
+        return new MaterialType(name);
     }
 
     // light probes

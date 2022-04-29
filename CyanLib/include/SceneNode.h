@@ -36,6 +36,7 @@ struct SceneNode
     Transform m_worldTransform;
     // mesh component 
     Cyan::MeshInstance* m_meshInstance;
+    MeshInstance<>
     bool m_hasAABB;
     void setParent(SceneNode* parent);
     void attach(SceneNode* child);
@@ -59,3 +60,12 @@ struct SceneNode
     Cyan::MeshInstance* getAttachedMesh() { return m_meshInstance; }
     SceneNode* find(const char* name);
 };
+
+namespace
+{
+    template <typename Geometry>
+    struct MeshNode : SceneNode
+    {
+        MeshInstance<Geometry>
+    };
+}

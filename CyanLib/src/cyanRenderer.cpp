@@ -535,6 +535,25 @@ namespace Cyan
         }
     }
 
+    void Renderer::drawMeshInstance0(MeshInstance* meshInst, i32 transformIndex)
+    {
+        for (u32 i = 0; i < meshInst->numSubmeshes(); ++i)
+        {
+            Material* matl = meshInst->getMaterial(i);
+            Shader* shader = matl->getShader();
+            m_ctx->setShader(shader);
+            shader->setUniform1i("transformIndex", transformIndex);
+            matl->bind();
+            auto va = meshInst->getVertexArray(i);
+            m_ctx->setVertexArray(va);
+            m_ctx->setPrimitiveType(meshInst->getPrimitiveType());
+            if (va->hasIndexBuffer())
+                m_ctx->drawIndex(meshInst->numIndices(i));
+            else
+                m_ctx->drawIndexAuto(meshInst->numVerts(i));
+        }
+    }
+
     void calcSceneVoxelGridAABB(const BoundingBox3f& aabb, glm::vec3& pmin, glm::vec3& pmax)
     {
         pmin = aabb.pmin;
@@ -868,6 +887,11 @@ namespace Cyan
                 drawMeshInstance(node->m_meshInstance, node->globalTransform);
             for (u32 i = 0; i < node->m_child.size(); ++i)
                 nodes.push(node->m_child[i]);
+        }
+
+        if (auto meshInst = node->getAttachedMesh())
+        {
+            drawMeshInstance(meshInst, node->globalTransform);
         }
     }
 

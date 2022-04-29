@@ -2,6 +2,54 @@
 
 #include "Common.h"
 
+namespace Cyan
+{
+    /*
+    * allocator using built-in heap allocation through "new" operator
+    */
+    template <typename T>
+    class DefaultHeapAllocator
+    {
+    public:
+
+        DefaultHeapAllocator() = default;
+        ~DefaultHeapAllocator() { }
+
+        // todo: this should be able to take in arguments to passed to T's constructor
+        T* alloc()
+        {
+            return new T();
+        }
+    private:
+    };
+
+    template <typename T, u32 kMaxNumObjects>
+    class PoolAllocator
+    {
+    public:
+
+        PoolAllocator()
+        {
+            m_pool.resize(kMaxNumAllocations);
+        }
+
+        T* alloc()
+        {
+            // todo: figure out what to do if we reach the amount of objects that we can allocate
+            if (numAllocated >= kMaxNumAllocations)
+            {
+                return nullptr;
+            }
+            return &m_pool[numAllocated++];
+        }
+
+    private:
+        static const u32 kMaxNumAllocations = kMaxNumObjects;
+        u32 numAllocated = 0;
+        std::vector<T> m_pool;
+    };
+}
+
 // no fragmentation within the memory managed by a StackAllocator
 struct StackAllocator
 {

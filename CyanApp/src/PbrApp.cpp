@@ -237,12 +237,18 @@ void DemoApp::initDemoScene00()
     m_scenes[Scenes::Demo_Scene_00] = sceneManager->createScene("demo_scene_00", "C:\\dev\\cyanRenderEngine\\scene\\demo_scene_00.json");
     Scene* demoScene00 = m_scenes[Scenes::Demo_Scene_00];
 
+    using PBR = Cyan::PBRMaterial;
+    auto assetManager = Cyan::AssetManager::get();
+    PBR* defaultMatl = assetManager->createMaterial<PBR>("DefaultMatl");
+    defaultMatl->kRoughness = .8f;
+    defaultMatl->kMetallic = .02f;
+/*
     Cyan::PbrMaterialParam params = { };
     params.flatBaseColor = glm::vec4(1.f);
     params.kRoughness = .8f;
     params.kMetallic = .02f;
     Cyan::StandardPbrMaterial* defaultMatl = createStandardPbrMatlInstance(demoScene00, params, false);
-
+*/
     // helmet
     {
         createHelmetInstance(demoScene00);
@@ -253,25 +259,25 @@ void DemoApp::initDemoScene00()
     }
     // bunnies
     {
-        Cyan::PbrMaterialParam params = { };
         Entity* bunny0 = sceneManager->getEntity(demoScene00, "Bunny0");
         Entity* bunny1 = sceneManager->getEntity(demoScene00, "Bunny1");
-        params.flatBaseColor = glm::vec4(0.855, 0.647, 0.125f, 1.f);
-        params.kRoughness = 0.1f;
-        params.kMetallic = 1.0f;
 
-        auto bunnyMatl = createStandardPbrMatlInstance(demoScene00, params, bunny0->m_static);
+        auto bunnyMatl = assetManager->createMaterial<PBR>("BunnyMatl");
+        bunnyMatl->kAlbedo = glm::vec3(0.855, 0.647, 0.125f);
+        bunnyMatl->kRoughness = .1f;
+        bunnyMatl->kMetallic = 1.0f;
+
         bunny0->setMaterial("BunnyMesh", -1, bunnyMatl);
         bunny1->setMaterial("BunnyMesh", -1, bunnyMatl);
     }
     // man
     {
-        Cyan::PbrMaterialParam params = { };
         Entity* man = sceneManager->getEntity(demoScene00, "Man");
-        params.flatBaseColor = glm::vec4(0.855, 0.855, 0.855, 1.f);
-        params.kRoughness = 0.3f;
-        params.kMetallic = 0.3f;
-        auto manMatl = createStandardPbrMatlInstance(demoScene00, params, man->m_static);
+        auto manMatl = assetManager->createMaterial<PBR>("ManMatl");
+        manMatl->kAlbedo = glm::vec3(0.855, 0.855, 0.855);
+        manMatl->kRoughness = .3f;
+        manMatl->kMetallic = .3f;
+
         man->setMaterial("ManMesh", -1, manMatl);
     }
     // lighting
@@ -298,6 +304,30 @@ void DemoApp::initDemoScene00()
         glm::vec3 gold(1.f, 0.843f, 0.f);
         glm::vec3 chrome(1.f);
         glm::vec3 plastic(0.061f, 0.757f, 0.800f);
+
+        PBR* shaderBallMatls[2][4] = { };
+        shaderBallMatls[0][0] = assetManager->createMaterial<PBR>("ShaderBallGold");
+        shaderBallMatls[0][0]->kRoughness = 0.02f;
+        shaderBallMatls[0][0]->kMetallic = 0.05f;
+/*
+        matlParams[0][3].kRoughness = .02f;
+        matlParams[0][3].kMetallic = 0.05f;
+        matlParams[0][3].kSpecular = 1.f;
+        matlParams[1][0].flatBaseColor = glm::vec4(gold, 1.f);
+        matlParams[1][0].roughness = textureManager->getTexture("imperfection_grunge");
+        matlParams[1][0].kMetallic = 0.95f;
+        matlParams[1][1].baseColor = textureManager->getTexture("green_marble_albedo");
+        matlParams[1][1].roughness = textureManager->getTexture("green_marble_roughness");
+        matlParams[1][1].kMetallic = 0.01f;
+        matlParams[1][2].baseColor = textureManager->getTexture("white_marble_albedo");
+        matlParams[1][2].roughness = textureManager->getTexture("white_marble_roughness");
+        matlParams[1][2].kMetallic = 0.01f;
+        matlParams[1][3].baseColor = textureManager->getTexture("brick_albedo");
+        matlParams[1][3].roughness = textureManager->getTexture("brick_roughness");
+        matlParams[1][3].normal = textureManager->getTexture("brick_nm");
+        matlParams[1][3].kMetallic = 0.01f;
+        matlParams[1][3].kSpecular = 0.01f;
+
         Cyan::PbrMaterialParam matlParams[2][4] = { };
         matlParams[0][0].flatBaseColor = glm::vec4(gold, 1.f);
         matlParams[0][0].kRoughness = .1f;
@@ -326,7 +356,8 @@ void DemoApp::initDemoScene00()
         matlParams[1][3].normal = textureManager->getTexture("brick_nm");
         matlParams[1][3].kMetallic = 0.01f;
         matlParams[1][3].kSpecular = 0.01f;
-
+*/
+        using namespace Cyan;
         for (u32 j = 0; j < 2; ++j)
         {
             for (u32 i = 0; i < 4; ++i)
@@ -341,9 +372,12 @@ void DemoApp::initDemoScene00()
                 Transform transform = { };
                 transform.m_translate = gridLowerLeft + posOffset;
                 transform.m_scale = glm::vec3(.003f);
-                auto meshNode = sceneManager->createSceneNode(demoScene00, meshNodeName, transform, Cyan::getMesh("shaderball_mesh"));
+                // auto meshNode = sceneManager->createSceneNode(demoScene00, meshNodeName, transform, Cyan::getMesh("shaderball_mesh"));
+                auto meshNode = sceneManager->createMeshNode<Cyan::Triangles>(demoScene00, meshNodeName, transform, assetManager->get<Mesh<Triangles>>("shaderball_mesh"));
+
                 shaderBall->attachSceneNode(meshNode);
-                auto matl = createStandardPbrMatlInstance(demoScene00, matlParams[j][i], shaderBall->m_static);
+                // auto matl = createStandardPbrMatlInstance(demoScene00, matlParams[j][i], shaderBall->m_static);
+
                 shaderBall->setMaterial(meshNodeName, -1, defaultMatl);
                 shaderBall->setMaterial(meshNodeName, 0, matl);
                 shaderBall->setMaterial(meshNodeName, 1, matl);
@@ -422,7 +456,10 @@ void DemoApp::initDemoScene00()
         params.hasBakedLighting = 1.f;
         params.usePrototypeTexture = 1.f;
         params.lightMap = planeNode->m_meshInstance->m_lightMap->m_texAltas;
-        auto planeMatl = createStandardPbrMatlInstance(demoScene00, params, room->m_static);
+
+        auto planeMatl = assetManager->createMaterial<Cyan::LightMappedMaterial<PBR>>("RoomMaterial");
+
+        // auto planeMatl = createStandardPbrMatlInstance(demoScene00, params, room->m_static);
         room->setMaterial("PlaneMesh", -1, planeMatl);
         sceneManager->updateSceneGraph(demoScene00);
 #endif

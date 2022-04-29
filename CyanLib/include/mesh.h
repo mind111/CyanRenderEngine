@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <map>
+#include <array>
 #include "glew.h"
 
 #include "MathUtils.h"
@@ -10,55 +11,114 @@
 #include "Transform.h"
 #include "Geometry.h"
 #include "BVH.h"
+#include "AssetFactory.h"
 
 struct Scene;
 
 namespace Cyan
 {
-    template <typename GeomType>
-    struct Mesh
+    // submesh interface
+    struct BaseSubmesh
     {
-        template <typename GeomType>
-        struct Submesh
+
+    };
+
+    // todo: should we allow mesh that contains different type of submeshes ...?
+    struct Mesh : public Asset
+    {
+        template <typename Geometry>
+        struct Submesh : public BaseSubmesh
         {
-            GeomType geometry;
+            Submesh(std::vector<Geometry::Vertex>& vertices, const std::vector<u32>& indices)
+            {
+                geometry.vertices = std::move(vertices);
+                geometry.indices = std::move(indices);
+
+                init();
+            }
+
+            Submesh(const Geometry& srcGeom)
+            {
+                // transfer geometry data
+
+                init();
+            }
+
+            u32 numVertices() { return geometry.numVertices(); }
+            u32 numIndices() { return geometry.numIndices(); }
+
+        private:
+            /*
+            * init vertex buffer and vertex array
+            */
+            void init()
+            {
+
+            }
+
+            Geometry geometry;
             VertexArray* va;
         };
 
+        Mesh() = default;
+        Mesh(const char* meshName, std::vector<BaseSubmesh*>& submeshes)
+            : name(meshName) 
+        { 
+            submeshes = std::move(submeshes);
+        }
+
+        virtual std::string getAssetTypeIdentifier() override { return typeIdentifier; }
+        static std::string getAssetTypeIdentifier() { return typeIdentifier; }
+
+        u32 numSubmeshes() { return submeshes.size(); }
+
         std::string name;
-        std::vector<Submesh<GeomType>> submeshes;
+        std::vector<BaseSubmesh*> submeshes;
+        u32 refCount = 0;
     };
 
-    template <typename GeomType, typename MaterialType>
-    struct Renderable
-    {
-        Mesh::Submesh<GeomType>* mesh;
-        MaterialInstance<MaterialType>* matl;
-    };
-
-    template <typename GeomType, typename MaterialType>
     struct MeshInstance
     {
-        struct Renderable
-        {
-            Mesh::Submesh<GeomType>* submesh;
-            MaterialInstance<MaterialType> matl;
-        };
+        Mesh* mesh = nullptr;
+        std::vector<BaseMaterial*> materials;
 
-        std::vector<Renderable> renderables;
+        MeshInstance(Mesh* base)
+            : mesh(base)
+        {
+            materials.resize(base->numSubmeshes());
+        }
+
+        void setMaterial(BaseMaterial* matl, u32 index)
+        {
+            materials[index] = matl;
+        }
     };
 
-    template <typename GeomType, typename MaterialType>
-    struct SceneComponent
+    /*
+    * As of right now, only allows mesh creation, so each newly create mesh will get a linearly increasing index from the
+    * pool
+    */
+    /*
+    * todo: can turn this into a pool allocator
+    */
+    template <typename Geometry>
+    class SubmeshFactory : public AssetFactory
     {
-        MeshInstance<GeomType, MaterialType>* meshInstance;
-    }
+    public:
 
-    template <typename GeomType, typename MaterialType>
-    void createSceneNode(Mesh<GeomType> mesh, )
-    {
+        SubmeshFactory();
 
-    }
+        virtual Asset* create() override
+        {
+            return &m_pool[numAllocated++];
+        }
+
+        static const u32 kMaxNumAllocations = 1024u;
+        u32 numAllocated = 0u;
+        std::vector<Mesh::Submesh<Geometry>> m_pool;
+    private:
+        static SubmeshFactory<Geometry>* singleton;
+    };
 
 #if 0
     struct MeshInstance;
@@ -133,26 +193,6 @@ namespace Cyan
         struct LightMap* m_lightMap;
     };
 #endif
-
-    struct QuadMesh
-    {
-        struct Vertex
-        {
-            glm::vec3 position;
-            glm::vec2 texCoords;
-        };
-
-        QuadMesh() {};
-        QuadMesh(glm::vec2 center, glm::vec2 extent);
-        ~QuadMesh() {}
-
-        void init(glm::vec2 center, glm::vec2 extent);
-
-        glm::vec2 m_center;
-        glm::vec2 m_extent;
-        Vertex m_verts[6];
-        VertexArray* m_vertexArray;
-    };
 }
 
 // TODO: implement serialization

@@ -47,6 +47,8 @@
         printf("\n");           \
     }                           \
 
+#define TO_STRING(x) #x
+
 // TODO: Is this macro safe ...?
 #define Min(a, b) ((a < b) ? a : b)
 #define Max(a, b) ((a > b) ? a : b)

@@ -6,6 +6,7 @@
 #include "Uniform.h"
 #include "Shader.h"
 #include "Texture.h"
+#include "AssetFactory.h"
 
 #define CYAN_MAX_NUM_SAMPLERS 32
 #define CYAN_MAX_NUM_BUFFERS 16
@@ -42,7 +43,7 @@ namespace Cyan
         f32       kRoughness;
         f32       kMetalness;
     };
-
+#if 0
     struct Material
     {
         // determine if this material type contains what kind of data
@@ -152,10 +153,60 @@ namespace Cyan
         static Material*    m_standardPbrMatl;
         MaterialInstance* m_materialInstance;
     };
+#endif
 }
 
 namespace Cyan
 {
+    struct ShadingParameter
+    {
+        virtual void bindToShader(Shader* shader) = 0;
+    };
+
+    struct ConstantColor : public ShadingParameter
+    {
+        glm::vec3 constantColor = glm::vec3(0.85f, 0.85, 0.7f);
+
+        virtual void bindToShader(Shader* shader)
+        {
+            shader->setUniformVec3("constantColor", &constantColor.x);
+        }
+    };
+
+    struct PBR : public ShadingParameter
+    {
+        u32 flags = 0x0;
+        Texture* albedo = nullptr;
+        Texture* normal = nullptr;
+        Texture* emission = nullptr;
+        Texture* roughness = nullptr;
+        Texture* metallic = nullptr;
+        Texture* metallicRoughness = nullptr;
+        f32 kRoughness = 0.6f;
+        f32 kMetallic = 0.2f;
+        glm::vec3 kAlbedo = glm::vec3(0.85f, 0.85, 0.7f);
+
+        // todo: is there a way to nicely abstract binding each member field, if we can do reflection, then we 
+        // can loop through each member field and call shader->setUniform() on each field
+        virtual void bindToShader(Shader* shader) override
+        {
+            shader->setUniform1f("kRoughness", kRoughness);
+            shader->setUniform1f("kMetallic", kMetallic);
+        }
+    };
+
+    template<typename BaseShadingParameter>
+    struct Emissive : BaseShadingParameter
+    {
+        Texture* emissive = nullptr;
+        float kEmissive = 1.f;
+
+        virtual void bindToShader(Shader* shader) override
+        {
+
+        }
+    };
+
     struct Lightmap
     {
         enum class Quality
@@ -167,82 +218,63 @@ namespace Cyan
         Texture* atlas = nullptr;
     };
 
-    // basically, all types of materials used in the engine right now
-    struct ConstantColorMaterial
+    template <typename BaseShadingParameter>
+    struct Lightmapped : public BaseShadingParameter
     {
-        glm::vec3 uniformColor;
-    };
+        Lightmap lightmap;
 
-    struct PBRMaterial
-    {
-        enum class Props : u8
+        virtual void bindToShader(Shader* shader)
         {
-            kAlbedo = (1 << 0),
-            kNormal = (1 << 1),
-            kEmission = (1 << 2),
-            kRoughness = (1 << 3),
-            kMetallic = (1 << 4),
-            kMetallicRoughness = (1 << 5),
-        };
 
-        u32 flags = 0x0;
-        Texture* albedo = nullptr;
-        Texture* normal = nullptr;
-        Texture* emission = nullptr;
-        Texture* roughness = nullptr;
-        Texture* metallic = nullptr;
-        Texture* metallicRoughness = nullptr;
-        f32 kRoughness = 0.f;
-        f32 kMetallic = 0.f;
-        glm::vec3 kAlbedo = glm::vec3(0.f);
-
-        template <typename P, typename T>
-        T* get()
-        {
-            switch (P)
-            {
-            case Props::kAlbedo:
-                if (flags & (u8)Props::kAlbedo != 0)
-                    return albedo;
-                else
-                    return kAlbedo;
-            case Props::kNormal:
-                if (flags & (u8)Props::kNormal != 0)
-                    return normal;
-                else
-                    return nullptr;
-            case Props::kRoughness:
-                if (flags & (u8)Props::kRoughness != 0)
-                    return roughness;
-                else
-                    return kRoughness;
-            case Props::kMetallic:
-                if (flags & (u8)Props::kMetallic != 0)
-                    return metallic;
-                else
-                    return kMetallic;
-            case Props::kMetallicRoughness:
-                if (flags & (u8)Props::kMetallicRoughness != 0)
-                    return metallicRoughness;
-                else
-                    return nullptr;
-            default:
-                cyanError("Undefined material property!")
-                break;
-            }
         }
     };
 
-    template <class BaseMaterialType>
-    struct EmissiveMaterial : public BaseMaterialType
+    struct BaseMaterial : public Asset
     {
-        Texture* Emission = nullptr;
-        f32 kEmission = 1.f;
+        enum class Type
+        {
+            kPBR = 0,
+            kConstantColor,
+            kLightmappedPBR,
+            kEmissivePBR,
+            kEmissiveConstantColor
+        };
+
+        BaseMaterial(const char* instanceName)
+            : name(instanceName)
+        { }
+
+        virtual std::string getAssetTypeIdentifier() override { return std::string("BaseMaterial"); }
+        virtual void bind() = 0;
+
+        // instance name
+        std::string name;
+        static std::string shaderName;
+        static Shader* shader;
     };
 
-    template <class BaseMaterialType>
-    struct LightMappedMaterial : public BaseMaterialType
+    template <typename ShadingParameter>
+    struct Material : public BaseMaterial
     {
-        Lightmap lightmap;
+        Material(const char* instanceName)
+            : BaseMaterial(instanceName)
+        {
+
+        }
+
+        ShadingParameter parameter;
+
+        virtual std::string getAssetTypeIdentifier() override { return typeIdentifier; }
+        static std::string getAssetTypeIdentifier() { return typeIdentifier; }
+
+        virtual void bind() override
+        {
+            ShadingParameter::bind(shader);
+        }
     };
+
+    typedef Material<PBR> PBRMatl;
+    typedef Material<Lightmapped<PBR>> LightmappedPBRMatl;
+    typedef Material<Emissive<PBR>> EmissivePBRMatl;
+    typedef Material<ConstantColor> ConstantColorMatl;
 };

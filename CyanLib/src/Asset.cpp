@@ -9,7 +9,7 @@
 #include "Texture.h"
 #include "CyanAPI.h"
 
-bool operator==(const Vertex& lhs, const Vertex& rhs)
+bool operator==(const Cyan::Vertex& lhs, const Cyan::Vertex& rhs)
 {
     return (lhs.position == rhs.position) 
         && (lhs.normal == rhs.normal) 
@@ -18,9 +18,9 @@ bool operator==(const Vertex& lhs, const Vertex& rhs)
 
 namespace std {
     template<> 
-    struct hash<Vertex> 
+    struct hash<Cyan::Vertex> 
     {
-        size_t operator()(Vertex const& vertex) const 
+        size_t operator()(Cyan::Vertex const& vertex) const 
         {
             size_t a = hash<glm::vec3>()(vertex.position); 
             size_t b = hash<glm::vec3>()(vertex.normal); 
@@ -68,6 +68,16 @@ void from_json(const nlohmann::json& j, Camera& c)
 
 namespace Cyan
 {
+
+    AssetManager* AssetManager::singletonPtr = nullptr;
+    AssetManager::AssetManager()
+    {
+        if (!singletonPtr)
+        {
+            singletonPtr = this;
+        }
+    }
+
     void AssetManager::loadTextures(nlohmann::basic_json<std::map>& textureInfoList)
     {
         using Cyan::Texture;
@@ -89,14 +99,16 @@ namespace Cyan
             spec.s = Texture::Wrap::NONE;
             spec.t = Texture::Wrap::NONE;
             spec.r = Texture::Wrap::NONE;
+            Texture* texture = nullptr;
             if (dynamicRange == "ldr")
             {
-                textureManager->createTexture(name.c_str(), filename.c_str(), spec);
+                texture = textureManager->createTexture(name.c_str(), filename.c_str(), spec);
             }
             else if (dynamicRange == "hdr")
             {
-                textureManager->createTextureHDR(name.c_str(), filename.c_str(), spec);
+                texture = textureManager->createTextureHDR(name.c_str(), filename.c_str(), spec);
             }
+            m_textureMap.insert(std::string(name), texture);
         }
     }
 
@@ -725,16 +737,30 @@ namespace Cyan
     }
 
     Cyan::Mesh* AssetManager::loadGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh) {
-        using Cyan::Mesh;
-        Mesh* mesh = new Mesh;
+
+        Mesh* mesh = createMesh(gltfMesh.name.c_str());
         mesh->m_name = gltfMesh.name;
         mesh->m_bvh = nullptr;
+
+        std::vector<BaseSubmesh*> submeshes;
 
         // primitives (submeshes)
         for (u32 i = 0u; i < (u32)gltfMesh.primitives.size(); ++i)
         {
-            Mesh::SubMesh* subMesh = new Mesh::SubMesh;
             tinygltf::Primitive primitive = gltfMesh.primitives[i];
+            std::vector<Triangles::Vertex> vertices;
+            std::vector<u32> indices;
+            // fill vertex and index buffer
+
+            // initialize submesh
+            switch (primitive.mode)
+            {
+            case TINYGLTF_MODE_TRIANGLES:
+                createSubmesh<Triangles>();
+                break;
+            }
+
+#if 0
             u32 numVertices = 0u, numIndices = 0u;
             // Convert data for each vertex attributes into raw buffer
             u32 strideInBytes = 0u;
@@ -780,6 +806,7 @@ namespace Cyan
             // shader_pbr
             std::sort(sortedAttribs.begin(), sortedAttribs.end());
             f32* vertexDataBuffer = reinterpret_cast<f32*>(new u8[strideInBytes * numVertices]); 
+
             u32 totalBytes = 0u;
             u32 offset = 0u;
             std::vector<VertexAttrib> vertexAttribs;
@@ -866,6 +893,7 @@ namespace Cyan
                 delete[] indexDataBuffer;
             }
             mesh->m_subMeshes.push_back(subMesh);
+#endif
         } // primitive (submesh)
         mesh->m_normalization = glm::mat4(1.0);
         mesh->m_shouldNormalize = false;
@@ -912,5 +940,10 @@ namespace Cyan
         SceneNode* parentNode = sceneManager->createSceneNode(scene, name, transform, nullptr);
         loadGltfNode(scene, model, nullptr, parentNode, rootNode, 0);
         return parentNode;
+    }
+
+    template <typename T>
+    Material<T>* AssetManager::getAsset(const char* matlName)
+    {
     }
 }

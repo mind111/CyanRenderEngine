@@ -171,6 +171,9 @@
     <ClInclude Include="include\VoxelConeTracing.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\AssetFactory.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Asset.cpp">

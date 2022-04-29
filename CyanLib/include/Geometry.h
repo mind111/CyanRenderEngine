@@ -7,6 +7,87 @@
 #include "Shader.h"
 #include "Material.h"
 
+namespace Cyan
+{
+    // todo: use this as a base class
+    struct Geometry
+    {
+        enum class Type
+        {
+            kTriangles = 0,
+            kQuads,
+            kPointCloud,
+            kLines,
+        };
+    };
+
+    struct Triangles : public Geometry
+    {
+        static Type getTypeEnum() { return Type::kTriangles; }
+        u32 numVertices() { return vertices.size(); }
+        u32 numIndices() { return indices.size(); }
+
+        struct Vertex
+        {
+            glm::vec3 pos;
+            glm::vec3 normal;
+            glm::vec4 tangent;
+            glm::vec2 texCoord0;
+            glm::vec2 texCoord1;
+        };
+
+        std::vector<Vertex> vertices;
+        std::vector<u32> indices;
+    };
+
+    struct PointCloud : public Geometry
+    {
+        static Type getTypeEnum() { return Type::kPointCloud; }
+        u32 numVertices() { return vertices.size(); }
+        u32 numIndices() { return indices.size(); }
+
+        struct Vertex
+        {
+            glm::vec3 pos;
+        };
+
+        std::vector<Vertex> vertices;
+        std::vector<u32> indices;
+    };
+
+    struct Quads : public Geometry
+    {
+        static Type getTypeEnum() { return Type::kQuads; }
+        u32 numVertices() { return vertices.size(); }
+        u32 numIndices() { return indices.size(); }
+
+        struct Vertex
+        {
+            glm::vec3 pos;
+            glm::vec3 normal;
+            glm::vec3 texCoord;
+        };
+
+        std::vector<Vertex> vertices;
+        std::vector<u32> indices;
+    };
+
+    struct Lines : public Geometry
+    {
+        static Type getTypeEnum() { return Type::kLines; }
+        u32 numVertices() { return vertices.size(); }
+        u32 numIndices() { return indices.size(); }
+
+        struct Vertex
+        {
+            glm::vec3 pos;
+        };
+
+        std::vector<Vertex> vertices;
+        std::vector<u32> indices;
+    };
+}
+
 struct PointGroup
 {
     PointGroup(u32 size);
@@ -74,14 +155,6 @@ struct Quad
     ~Quad();
     void init(glm::vec2 pos, float width, float height);
     void draw();
-};
-
-struct Vertex
-{
-    glm::vec4 position;
-    glm::vec3 normal;
-    glm::vec3 tangent;
-    glm::vec2 texCoord;
 };
 
 struct Triangle
