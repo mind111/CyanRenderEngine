@@ -736,6 +736,127 @@ namespace Cyan
         return sceneNode;
     }
 
+    template <typename T>
+    void loadVerticesAndIndices(const tinygltf::Model& model, const tinygltf::Primitive& primitive, std::vector<typename T::Vertex>& vertices, std::vector<u32>& indices)
+    {
+         vertices.resize(model.accessors[primitive.attributes.begin()->second].count);
+
+        // fill vertices
+        for (auto itr = primitive.attributes.begin(); itr != primitive.attributes.end(); ++itr)
+        {
+            tinygltf::Accessor accessor = model.accessors[itr->second];
+            tinygltf::BufferView bufferView = model.bufferViews[accessor.bufferView];
+            tinygltf::Buffer buffer = model.buffers[bufferView.buffer];
+
+            if (itr->first.compare("POSITION") == 0 && (T::Vertex::getFlags() && VertexAttribFlag::kPosition != 0))
+            {
+                // sanity checks (assume that position can only be vec3)
+                CYAN_ASSERT(accessor.type == TINYGLTF_TYPE_VEC3, "Position attributes in format other than Vec3 is not allowed")
+
+                for (u32 v = 0; v < vertices.size(); ++v)
+                {
+                    f32* src = reinterpret_cast<f32*>(buffer.data.data() + (accessor.byteOffset + bufferView.byteOffset));
+                    vertices[v].pos = glm::vec3(src[v * 3], src[v * 3 + 1], src[v * 3 + 2]);
+                }
+            }
+            else if (itr->first.compare("NORMAL") == 0 && (T::Vertex::getFlags() && VertexAttribFlag::kNormal != 0))
+            {
+                // sanity checks (assume that normal can only be vec3)
+                CYAN_ASSERT(accessor.type == TINYGLTF_TYPE_VEC3, "Normal attributes in format other than Vec3 is not allowed")
+
+                for (u32 v = 0; v < vertices.size(); ++v)
+                {
+                    f32* src = reinterpret_cast<f32*>(buffer.data.data() + (accessor.byteOffset + bufferView.byteOffset));
+                    vertices[v].normal = glm::vec3(src[v * 3], src[v * 3 + 1], src[v * 3 + 2]);
+                }
+            }
+            else if (itr->first.compare("TANGENT") == 0 && (T::Vertex::getFlags() && VertexAttribFlag::kTangents != 0))
+            {
+                // sanity checks (assume that tangent can only be in vec4)
+                CYAN_ASSERT(accessor.type == TINYGLTF_TYPE_VEC4, "Position attributes in format other than Vec4 is not allowed")
+
+                for (u32 v = 0; v < vertices.size(); ++v)
+                {
+                    f32* src = reinterpret_cast<f32*>(buffer.data.data() + (accessor.byteOffset + bufferView.byteOffset));
+                    vertices[v].tangent = glm::vec4(src[v * 4], src[v * 4 + 1], src[v * 4 + 2], src[v * 4 + 3]);
+                }
+            }
+            else if (itr->first.find("TEXCOORD") == 0 && (T::Vertex::getFlags() && VertexAttribFlag::kTexcoord != 0))
+            {
+                // sanity checks (assume that texcoord can only be in vec2)
+                CYAN_ASSERT(accessor.type == TINYGLTF_TYPE_VEC2, "TexCoord attributes in format other than Vec2 is not allowed")
+                u32 texCoordIndex = 0;
+                sscanf_s(itr->first.c_str(), "TEXCOORD_%u", &texCoordIndex);
+                switch (texCoordIndex)
+                {
+                case 0:
+                {
+                    for (u32 v = 0; v < vertices.size(); ++v)
+                    {
+                        f32* src = reinterpret_cast<f32*>(buffer.data.data() + (accessor.byteOffset + bufferView.byteOffset));
+                        vertices[v].texCoord0 = glm::vec2(src[v * 2], src[v * 2 + 1]);
+                    }
+                } break;
+                case 1:
+                {
+
+                    for (u32 v = 0; v < vertices.size(); ++v)
+                    {
+                        f32* src = reinterpret_cast<f32*>(buffer.data.data() + (accessor.byteOffset + bufferView.byteOffset));
+                        vertices[v].texCoord1 = glm::vec2(src[v * 2], src[v * 2 + 1]);
+                    }
+                } break;
+                default:
+                    break;
+                }
+            }
+        }
+
+        // fill indices 
+        if (primitive.indices >= 0)
+        {
+            auto& accessor = model.accessors[primitive.indices];
+            u32 numIndices = accessor.count;
+            CYAN_ASSERT(numIndices % 3 == 0, "Invalid index count for triangle mesh")
+            indices.resize(numIndices);
+            tinygltf::BufferView bufferView = model.bufferViews[accessor.bufferView];
+            tinygltf::Buffer buffer = model.buffers[bufferView.buffer];
+            u32 srcIndexSize = tinygltf::GetComponentSizeInBytes(accessor.componentType);
+            switch (srcIndexSize)
+            {
+            case 1:
+                for (u32 i = 0; i < numIndices; ++i)
+                {
+                    u8 index = buffer.data[accessor.byteOffset + bufferView.byteOffset + srcIndexSize * i];
+                    indices.push_back(index);
+                }
+                break;
+            case 2:
+                for (u32 i = 0; i < numIndices; ++i)
+                {
+                    u8 byte0 = buffer.data[accessor.byteOffset + bufferView.byteOffset + srcIndexSize * i + 0];
+                    u8 byte1 = buffer.data[accessor.byteOffset + bufferView.byteOffset + srcIndexSize * i + 1];
+                    u32 index = (byte1 << 8) | byte0;
+                    indices.push_back(index);
+                }
+                break;
+            case 4:
+                for (u32 i = 0; i < numIndices; ++i)
+                {
+                    u8 byte0 = buffer.data[accessor.byteOffset + bufferView.byteOffset + srcIndexSize * i + 0];
+                    u8 byte1 = buffer.data[accessor.byteOffset + bufferView.byteOffset + srcIndexSize * i + 1];
+                    u8 byte2 = buffer.data[accessor.byteOffset + bufferView.byteOffset + srcIndexSize * i + 2];
+                    u8 byte3 = buffer.data[accessor.byteOffset + bufferView.byteOffset + srcIndexSize * i + 3];
+                    u32 index = (byte3 << 24) | (byte2 << 16) | (byte1 << 8) | byte0;
+                    indices.push_back(index);
+                }
+                break;
+            default:
+                break;
+            }
+        }
+    }
+
     Cyan::Mesh* AssetManager::loadGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh) {
 
         Mesh* mesh = createMesh(gltfMesh.name.c_str());
@@ -748,15 +869,150 @@ namespace Cyan
         for (u32 i = 0u; i < (u32)gltfMesh.primitives.size(); ++i)
         {
             tinygltf::Primitive primitive = gltfMesh.primitives[i];
-            std::vector<Triangles::Vertex> vertices;
-            std::vector<u32> indices;
-            // fill vertex and index buffer
 
-            // initialize submesh
             switch (primitive.mode)
             {
             case TINYGLTF_MODE_TRIANGLES:
-                createSubmesh<Triangles>();
+            {
+                std::vector<Triangles::Vertex> vertices;
+                std::vector<u32> indices;
+                vertices.resize(model.accessors[primitive.attributes.begin()->second].count);
+
+                // fill vertices
+                for (auto itr = primitive.attributes.begin(); itr != primitive.attributes.end(); ++itr)
+                {
+                    tinygltf::Accessor accessor = model.accessors[itr->second];
+                    tinygltf::BufferView bufferView = model.bufferViews[accessor.bufferView];
+                    tinygltf::Buffer buffer = model.buffers[bufferView.buffer];
+
+                    if (itr->first.compare("POSITION") == 0)
+                    {
+                        // sanity checks (assume that position can only be vec3)
+                        CYAN_ASSERT(accessor.type == TINYGLTF_TYPE_VEC3, "Position attributes in format other than Vec3 is not allowed")
+
+                        for (u32 v = 0; v < vertices.size(); ++v)
+                        {
+                            f32* src = reinterpret_cast<f32*>(buffer.data.data() + (accessor.byteOffset + bufferView.byteOffset));
+                            vertices[v].pos = glm::vec3(src[v * 3], src[v * 3 + 1], src[v * 3 + 2]);
+                        }
+                    }
+                    else if (itr->first.compare("NORMAL") == 0)
+                    {
+                        // sanity checks (assume that normal can only be vec3)
+                        CYAN_ASSERT(accessor.type == TINYGLTF_TYPE_VEC3, "Normal attributes in format other than Vec3 is not allowed")
+
+                        for (u32 v = 0; v < vertices.size(); ++v)
+                        {
+                            f32* src = reinterpret_cast<f32*>(buffer.data.data() + (accessor.byteOffset + bufferView.byteOffset));
+                            vertices[v].normal = glm::vec3(src[v * 3], src[v * 3 + 1], src[v * 3 + 2]);
+                        }
+                    }
+                    else if (itr->first.compare("TANGENT") == 0)
+                    {
+                        // sanity checks (assume that tangent can only be in vec4)
+                        CYAN_ASSERT(accessor.type == TINYGLTF_TYPE_VEC4, "Position attributes in format other than Vec4 is not allowed")
+
+                        for (u32 v = 0; v < vertices.size(); ++v)
+                        {
+                            f32* src = reinterpret_cast<f32*>(buffer.data.data() + (accessor.byteOffset + bufferView.byteOffset));
+                            vertices[v].tangent = glm::vec4(src[v * 4], src[v * 4 + 1], src[v * 4 + 2], src[v * 4 + 3]);
+                        }
+                    }
+                    else if (itr->first.find("TEXCOORD") == 0)
+                    {
+                        // sanity checks (assume that texcoord can only be in vec2)
+                        CYAN_ASSERT(accessor.type == TINYGLTF_TYPE_VEC2, "TexCoord attributes in format other than Vec2 is not allowed")
+                        u32 texCoordIndex = 0;
+                        sscanf_s(itr->first.c_str(), "TEXCOORD_%u", &texCoordIndex);
+                        switch (texCoordIndex)
+                        {
+                        case 0:
+                        {
+                            for (u32 v = 0; v < vertices.size(); ++v)
+                            {
+                                f32* src = reinterpret_cast<f32*>(buffer.data.data() + (accessor.byteOffset + bufferView.byteOffset));
+                                vertices[v].texCoord0 = glm::vec2(src[v * 2], src[v * 2 + 1]);
+                            }
+                        } break;
+                        case 1:
+                        {
+
+                            for (u32 v = 0; v < vertices.size(); ++v)
+                            {
+                                f32* src = reinterpret_cast<f32*>(buffer.data.data() + (accessor.byteOffset + bufferView.byteOffset));
+                                vertices[v].texCoord1 = glm::vec2(src[v * 2], src[v * 2 + 1]);
+                            }
+                        } break;
+                        default:
+                            break;
+                        }
+                    }
+                }
+
+                // fill indices 
+                if (primitive.indices >= 0)
+                {
+                    auto& accessor = model.accessors[primitive.indices];
+                    u32 numIndices = accessor.count;
+                    CYAN_ASSERT(numIndices % 3 == 0, "Invalid index count for triangle mesh")
+                    indices.resize(numIndices);
+                    tinygltf::BufferView bufferView = model.bufferViews[accessor.bufferView];
+                    tinygltf::Buffer buffer = model.buffers[bufferView.buffer];
+                    u32 srcIndexSize = tinygltf::GetComponentSizeInBytes(accessor.componentType);
+                    switch (srcIndexSize)
+                    {
+                    case 1:
+                        for (u32 i = 0; i < numIndices; ++i)
+                        {
+                            u8 index = buffer.data[accessor.byteOffset + bufferView.byteOffset + srcIndexSize * i];
+                            indices.push_back(index);
+                        }
+                        break;
+                    case 2:
+                        for (u32 i = 0; i < numIndices; ++i)
+                        {
+                            u8 byte0 = buffer.data[accessor.byteOffset + bufferView.byteOffset + srcIndexSize * i + 0];
+                            u8 byte1 = buffer.data[accessor.byteOffset + bufferView.byteOffset + srcIndexSize * i + 1];
+                            u32 index = (byte1 << 8) | byte0;
+                            indices.push_back(index);
+                        }
+                        break;
+                    case 4:
+                        for (u32 i = 0; i < numIndices; ++i)
+                        {
+                            u8 byte0 = buffer.data[accessor.byteOffset + bufferView.byteOffset + srcIndexSize * i + 0];
+                            u8 byte1 = buffer.data[accessor.byteOffset + bufferView.byteOffset + srcIndexSize * i + 1];
+                            u8 byte2 = buffer.data[accessor.byteOffset + bufferView.byteOffset + srcIndexSize * i + 2];
+                            u8 byte3 = buffer.data[accessor.byteOffset + bufferView.byteOffset + srcIndexSize * i + 3];
+                            u32 index = (byte3 << 24) | (byte2 << 16) | (byte1 << 8) | byte0;
+                            indices.push_back(index);
+                        }
+                        break;
+                    default:
+                        break;
+                    }
+                    /*
+                    // FIXME: type is hard-coded to u32 for now
+                    u32* indexDataBuffer = new u32[numIndices];
+                    void* srcDataAddress = reinterpret_cast<void*>(&buffer.data[accessor.byteOffset + bufferView.byteOffset]);
+                    memcpy(indexDataBuffer, srcDataAddress, numIndices * indexSize);
+                    glCreateBuffers(1, &subMesh->m_vertexArray->m_ibo);
+                    glBindVertexArray(subMesh->m_vertexArray->m_vao);
+                    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, subMesh->m_vertexArray->m_ibo);
+                    glNamedBufferData(subMesh->m_vertexArray->m_ibo, numIndices * indexSize,
+                        reinterpret_cast<const void*>(indexDataBuffer), GL_STATIC_DRAW);
+                    glBindVertexArray(0);
+                    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+                    subMesh->m_vertexArray->m_numIndices = numIndices;
+                    subMesh->m_numIndices = numIndices;
+                    // load cpu mesh data
+                    u32 numFaces = numIndices / 3;
+                    */
+                }
+
+                submeshes.push_back(createSubmesh<Triangles>(vertices, indices));
+            } break;
+            default:
                 break;
             }
 

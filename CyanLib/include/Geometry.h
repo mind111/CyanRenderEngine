@@ -9,7 +9,15 @@
 
 namespace Cyan
 {
-    // todo: use this as a base class
+    enum class VertexAttribFlags
+    {
+        kHasPosition = (1 << 0),
+        kHasNormal = (1 << 1),
+        kHasTangent = (1 << 2),
+        kHasTexCoord0 = (1 << 3),
+        kHasTexCoord1 = (1 << 4)
+    };
+
     struct Geometry
     {
         enum class Type
@@ -34,6 +42,15 @@ namespace Cyan
             glm::vec4 tangent;
             glm::vec2 texCoord0;
             glm::vec2 texCoord1;
+
+            static u8 getFlags()
+            {
+                return ((u8)VertexAttribFlags::kHasPosition
+                    | (u8)VertexAttribFlags::kHasNormal
+                    | (u8)VertexAttribFlags::kHasTangent
+                    | (u8)VertexAttribFlags::kHasTexCoord0
+                    | (u8)VertexAttribFlags::kHasTexCoord1);
+            }
         };
 
         std::vector<Vertex> vertices;
@@ -49,6 +66,11 @@ namespace Cyan
         struct Vertex
         {
             glm::vec3 pos;
+
+            static u8 getFlags()
+            {
+                return ((u8)VertexAttribFlags::kHasPosition);
+            }
         };
 
         std::vector<Vertex> vertices;
@@ -66,6 +88,13 @@ namespace Cyan
             glm::vec3 pos;
             glm::vec3 normal;
             glm::vec3 texCoord;
+
+            static u8 getFlags()
+            {
+                return ((u8)VertexAttribFlags::kHasPosition
+                    | (u8)VertexAttribFlags::kHasNormal
+                    | (u8)VertexAttribFlags::kHasTexCoord0);
+            }
         };
 
         std::vector<Vertex> vertices;
@@ -81,6 +110,11 @@ namespace Cyan
         struct Vertex
         {
             glm::vec3 pos;
+
+            static u8 getFlags()
+            {
+                return ((u8)VertexAttribFlags::kHasPosition);
+            }
         };
 
         std::vector<Vertex> vertices;

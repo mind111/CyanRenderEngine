@@ -52,27 +52,11 @@ namespace Cyan
         static AssetManager* singletonPtr;
 
         // asset tables
-        std::unordered_map<std::string, Asset*> m_meshMap;
+        std::unordered_map<std::string, Mesh*> m_meshMap;
         std::unordered_map<std::string, BaseMaterial*> m_materialMap;
 
-        std::unordered_map<u32, AssetFactory*> m_meshFactoryMap;
-        std::unordered_map<u32, AssetFactory*> m_materialFactoryMap;
-
-        /*
-        * allow concrete mesh type to register their according mesh factory
-        */
-        void registerMeshFactory(u32 meshTypeId, AssetFactory* meshFactory)
-        {
-            auto entry = m_meshFactoryMap.find(meshTypeId);
-            if (entry != m_meshFactoryMap.end())
-            {
-                cyanError("MeshType with id %u is already registered", meshTypeId);
-            }
-            m_meshFactoryMap.insert(meshTypeId, meshFactory);
-        }
-
         template <typename T>
-        Mesh::Submesh<T>* createSubmesh(const std::vector<decltype(T::Vertex)>& vertices, const std::vector<u32>& indices)
+        Mesh::Submesh<T>* createSubmesh(const std::vector<typename T::Vertex>& vertices, const std::vector<u32>& indices)
         {
             Mesh::Submesh<T>* sm = new Submesh(vertices, indices);
             return sm;
@@ -83,12 +67,7 @@ namespace Cyan
         */
         Mesh* createMesh(const char* name, const std::vector<BaseSubmesh*>& submeshes)
         {
-            // allocate mesh object using concrete factory method
-            AssetFactory* factory = m_meshFactoryMap->find((u32)Geometry::getTypeEnum());
-            Mesh<Geometry>* mesh = static_cast<Mesh<Geometry>*>(factory->create());
-            mesh->name = std::string(name);
-            mesh->submeshes = std::move(submeshes);
-
+            Mesh* mesh = new Mesh(name, submeshes);
             // register mesh object into the asset table
             m_meshMap.insert(mesh->name, mesh);
             return mesh;

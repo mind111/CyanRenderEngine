@@ -7,43 +7,6 @@
 
 namespace Cyan
 {
-    std::string Mesh<Triangles>::typeIdentifier = "TriMesh";
-    std::string Mesh<Lines>::typeIdentifier = "LineMesh";
-    std::string Mesh<Quads>::typeIdentifier = "QuadMesh";
-    std::string Mesh<PointCloud>::typeIdentifier = "PointCloudMesh";
-
-    // global singleton factories
-    static SubmeshFactory<Triangles> triMeshFactory;
-    static SubmeshFactory<Quads> triMeshFactory;
-    static SubmeshFactory<Lines> triMeshFactory;
-    static SubmeshFactory<PointGroup> triMeshFactory;
-
-    SubmeshFactory<Triangles>* SubmeshFactory<Triangles>::singleton = nullptr;
-    SubmeshFactory<Quads>* SubmeshFactory<Quads>::singleton = nullptr;
-    SubmeshFactory<Lines>* SubmeshFactory<Lines>::singleton = nullptr;
-    SubmeshFactory<PointCloud>* SubmeshFactory<PointCloud>::singleton = nullptr;
-
-
-    template <typename Geometry>
-    SubmeshFactory<Geometry>::SubmeshFactory()
-        : numAllocated(0u) 
-    {
-        if (!singleton)
-        {
-            singleton = this;
-            AssetManager::get()->registerMeshFactory((u32)Geometry::getTypeEnum(), this);
-            m_pool.resize(maxMeshCount);
-        }
-        else
-        {
-            cyanError("Attempted to create multiple instances of MeshFactory is not allowed")
-        }
-    }
-
-    template SubmeshFactory<Triangles>::SubmeshFactory();
-    template SubmeshFactory<Lines>::SubmeshFactory();
-    template SubmeshFactory<Quads>::SubmeshFactory();
-    template SubmeshFactory<PointCloud>::SubmeshFactory();
 
 #if 0
     void Mesh::onFinishLoading()

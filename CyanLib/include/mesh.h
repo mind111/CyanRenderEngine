@@ -29,7 +29,7 @@ namespace Cyan
         template <typename Geometry>
         struct Submesh : public BaseSubmesh
         {
-            Submesh(std::vector<Geometry::Vertex>& vertices, const std::vector<u32>& indices)
+            Submesh(const std::vector<Geometry::Vertex>& vertices, const std::vector<u32>& indices)
             {
                 geometry.vertices = std::move(vertices);
                 geometry.indices = std::move(indices);
@@ -61,10 +61,10 @@ namespace Cyan
         };
 
         Mesh() = default;
-        Mesh(const char* meshName, std::vector<BaseSubmesh*>& submeshes)
+        Mesh(const char* meshName, const std::vector<BaseSubmesh*>& srcSubmeshes)
             : name(meshName) 
         { 
-            submeshes = std::move(submeshes);
+            submeshes = std::move(srcSubmeshes);
         }
 
         virtual std::string getAssetTypeIdentifier() override { return typeIdentifier; }
@@ -74,7 +74,6 @@ namespace Cyan
 
         std::string name;
         std::vector<BaseSubmesh*> submeshes;
-        u32 refCount = 0;
     };
 
     struct MeshInstance
@@ -92,32 +91,6 @@ namespace Cyan
         {
             materials[index] = matl;
         }
-    };
-
-    /*
-    * As of right now, only allows mesh creation, so each newly create mesh will get a linearly increasing index from the
-    * pool
-    */
-    /*
-    * todo: can turn this into a pool allocator
-    */
-    template <typename Geometry>
-    class SubmeshFactory : public AssetFactory
-    {
-    public:
-
-        SubmeshFactory();
-
-        virtual Asset* create() override
-        {
-            return &m_pool[numAllocated++];
-        }
-
-        static const u32 kMaxNumAllocations = 1024u;
-        u32 numAllocated = 0u;
-        std::vector<Mesh::Submesh<Geometry>> m_pool;
-    private:
-        static SubmeshFactory<Geometry>* singleton;
     };
 
 #if 0
