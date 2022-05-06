@@ -95,7 +95,7 @@ namespace Cyan
         Viewport m_viewport;
         GLenum m_primitiveType;
         VertexArray* m_vertexArray;
-        GLuint m_vao;
+        GLuint vao;
         GLuint m_fbo;
     };
 }

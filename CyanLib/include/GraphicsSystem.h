@@ -28,8 +28,8 @@ namespace Cyan
         SceneManager* m_sceneManager;
         TextureManager* m_textureManager;
         AssetManager* m_assetManager;
-        LightMapManager* m_lightMapManager;
-        PathTracer*      m_pathTracer;
+        // LightMapManager* m_lightMapManager;
+        // PathTracer*      m_pathTracer;
         Renderer*     m_renderer;
         static GraphicsSystem* m_singleton;
     };

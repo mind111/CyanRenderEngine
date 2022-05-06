@@ -8,6 +8,7 @@
 #include "glew.h"
 
 #include "Uniform.h"
+#include "Texture.h"
 
 #define SHADER_SOURCE_PATH "../../shader/"
 
@@ -45,7 +46,7 @@ struct ShaderSource
 // todo: implement this!
 struct ShaderMetaData
 {
-    void init(Shader* shader) { }
+    void init(struct Shader* shader) { }
 
     struct UniformMetaData
     {
@@ -115,13 +116,14 @@ public:
     void setUniform(const char* name, u32 value) { }
     void setUniform(const char* name, f32* value) { }
 
-    void setUniform1i(const char* name, GLint data);
-    void setUniform1ui(const char* name, GLuint data);
-    void setUniform1f(const char* name, GLfloat data);
-    void setUniformVec2(const char* name, GLfloat* data);
-    void setUniformVec3(const char* name, GLfloat* vecData);
-    void setUniformVec4(const char* name, GLfloat* vecData);
-    void setUniformMat4f(const char* name, GLfloat* matData);
+    Shader& setTexture(const char* samplerName, Cyan::Texture* texture) { return *this; }
+    Shader& setUniform1i(const char* name, GLint data);
+    Shader& setUniform1ui(const char* name, GLuint data);
+    Shader& setUniform1f(const char* name, GLfloat data);
+    Shader& setUniformVec2(const char* name, const GLfloat* data);
+    Shader& setUniformVec3(const char* name, const GLfloat* vecData);
+    Shader& setUniformVec4(const char* name, const GLfloat* vecData);
+    Shader& setUniformMat4(const char* name, const GLfloat* matData);
 
     GLint getUniformLocation(const char* _name);
 

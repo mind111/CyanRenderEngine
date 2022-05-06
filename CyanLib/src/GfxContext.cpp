@@ -12,7 +12,7 @@ namespace Cyan
         m_window = nullptr;
         m_shader = nullptr;
         m_primitiveType = -1;
-        m_vao = 0;
+        vao = 0;
         m_fbo = 0;
     }
 
@@ -126,17 +126,17 @@ namespace Cyan
         glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
     }
 
-    void GfxContext::setVertexArray(VertexArray* array)
+    void GfxContext::setVertexArray(VertexArray* va)
     {
-        if (!array) {
+        if (!va) {
             m_vertexArray = nullptr;
-            this->m_vao = 0u; 
-            glBindVertexArray(this->m_vao);
+            this->vao = 0u; 
+            glBindVertexArray(this->vao);
             return;
         }
-        this->m_vao = array->m_vao; 
-        glBindVertexArray(array->m_vao);
-        m_vertexArray = array;
+        this->vao = va->getGLObject(); 
+        glBindVertexArray(va->getGLObject());
+        m_vertexArray = va;
     }
 
     void GfxContext::setPrimitiveType(PrimitiveType _type)

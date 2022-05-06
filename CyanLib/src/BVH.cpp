@@ -4,6 +4,7 @@
 
 namespace Cyan
 {
+#if 0
     MeshBVH::MeshBVH(Mesh* mesh) 
         : m_owner(mesh), root(nullptr), numNodes(0)
     { 
@@ -268,4 +269,5 @@ namespace Cyan
         }
         return false;
     }
+#endif
 }

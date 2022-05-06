@@ -34,8 +34,7 @@ struct Scene
 
     // todo: these resources should be managed by SceneManager instead, only mesh and material instances need to be managed by scene
     std::vector<Cyan::Texture>              g_textures;
-
-    std::vector<Cyan::MeshInstance<Cyan::Triangles>> triMeshInstances;
+    std::vector<Cyan::MeshInstance>         meshInstances;
 
     // lighting
     std::vector<PointLight>                 pointLights;
@@ -44,7 +43,7 @@ struct Scene
     Cyan::IrradianceProbe*                  m_irradianceProbe;
     Cyan::ReflectionProbe*                  m_reflectionProbe;
     // aabb
-    BoundingBox3f                           aabb;
+    BoundingBox3D                           aabb;
 
     Camera& getActiveCamera()
     {
@@ -58,8 +57,13 @@ struct Scene
 
     RayCastInfo   castRay(glm::vec3& ro, glm::vec3& rd, EntityFilter filter, bool debugPrint=false);
     bool          castVisibilityRay(const glm::vec3& ro, glm::vec3& rd, EntityFilter filter);
-    void          addStandardPbrMaterial(Cyan::StandardPbrMaterial* matl);
-    BoundingBox3f getBoundingBox();
+    // BoundingBox3D getBoundingBox();
+};
+
+struct RayTracingScene
+{
+    // todo: triangles
+    // todo: materials
 };
 
 class SceneManager {
@@ -72,7 +76,8 @@ public:
     void       createPointLight(Scene* scene, glm::vec3 color, glm::vec3 position, float intensity);
     u32        allocSceneNode(Scene* scene);
     Scene*     createScene(const char* file, const char* name);
-    SceneNode* createSceneNode(Scene* scene, const char* name, Transform transform, Cyan::Mesh* mesh, bool hasAABB=true);
+    SceneNode* createSceneNode(Scene* scene, const char* name, Transform transform);
+    MeshNode* createMeshNode(Scene* scene, Transform transform, Cyan::Mesh* mesh);
     Entity*    createEntity(Scene* scene, const char* entityName, Transform transform, bool isStatic, Entity* parent=nullptr);
     Entity*    getEntity(Scene* scene, u32 id) 
     {
@@ -93,11 +98,8 @@ public:
     }
 
     // mesh instance
-    template <typename Geometry>
-    Cyan::MeshInstance<Geometry>* createMeshInstance(Scene* scene, const char* meshName)
-    {
-
-    }
+    Cyan::MeshInstance* createMeshInstance(Scene* scene, Cyan::Mesh* mesh);
+    Cyan::MeshInstance* createMeshInstance(Scene* scene, const char* meshName);
 
     // material instance
     template <typename MaterialType>
@@ -120,4 +122,6 @@ public:
 
 private:
     static SceneManager*     s_sceneManager;
+    SceneNodeFactory<Cyan::PoolAllocator<SceneNode, 1024>> m_sceneNodeFactory;
+    MeshNodeFactory<Cyan::PoolAllocator<MeshNode, 1024>> m_meshNodeFactory;
 };

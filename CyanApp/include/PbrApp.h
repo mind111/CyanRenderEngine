@@ -41,7 +41,6 @@ public:
     // tick
     void update();
     void updateScene(Scene* scene);
-    void updateMaterialData(Cyan::StandardPbrMaterial* matl);
     void debugIrradianceCache();
 
     // camera control
@@ -67,8 +66,6 @@ public:
     void initDemoScene00();
     void initSponzaScene();
 
-    // material
-    Cyan::StandardPbrMaterial* createStandardPbrMatlInstance(Scene* scene, Cyan::PbrMaterialParam params, bool isStatic);
     // manual custom entity creation
     void createHelmetInstance(Scene* scene);
 
@@ -85,7 +82,7 @@ public:
 
     u32                          m_currentScene;
     u32                          m_currentDebugView;
-    std::vector<Line>            m_debugLines;
+    // std::vector<Line>            m_debugLines;
 private:
     float m_sampleVertex[(64 + 1) * 4 * 2] = { };
     bool bRunning;
@@ -103,6 +100,6 @@ private:
     float m_indirectLightingSlider;
 
     // debug parameters
-    Line m_debugRay;
+    // Line m_debugRay;
     Cyan::GraphicsSystem* m_graphicsSystem;
 };

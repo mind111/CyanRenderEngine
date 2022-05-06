@@ -7,20 +7,21 @@ void SceneNode::setParent(SceneNode* parent)
     m_parent = parent;
 }
 
-void SceneNode::attach(SceneNode* child)
+void SceneNode::attachChild(SceneNode* child)
 {
     m_child.push_back(child);
     child->setParent(this);
     child->onAttach();
 }
 
-void SceneNode::attachIndirect(SceneNode* child)
+void SceneNode::attachIndirectChild(SceneNode* child)
 {
     m_indirectChild.push_back(child);
     child->setParent(this);
     child->onAttach();
 }
 
+#if 0
 void SceneNode::onAttach()
 {
     markChanged();
@@ -35,17 +36,7 @@ void SceneNode::markUnchanged()
 {
     needUpdate = false;
 }
-
-void SceneNode::detach()
-{
-    m_parent = nullptr;
-    onDetach();
-}
-
-void SceneNode::onDetach()
-{
-    markChanged();
-}
+#endif
 
 const Transform& SceneNode::getLocalTransform()
 {
@@ -57,12 +48,12 @@ const Transform& SceneNode::getWorldTransform()
     return m_scene->g_globalTransforms[globalTransform];
 }
 
-const glm::mat4& SceneNode::getLocalMatrix()
+const glm::mat4& SceneNode::getLocalTransformMatrix()
 {
     return m_scene->g_localTransformMatrices[localTransform];
 }
 
-const glm::mat4& SceneNode::getWorldMatrix()
+const glm::mat4& SceneNode::getWorldTransformMatrix()
 {
     return m_scene->g_globalTransformMatrices[globalTransform];
 }

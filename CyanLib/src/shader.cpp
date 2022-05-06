@@ -260,7 +260,7 @@ void Shader::setUniform(Uniform* _uniform)
             setUniformVec4(name, (float*)_uniform->m_valuePtr);
             break;
         case Uniform::Type::u_mat4:
-            setUniformMat4f(name, (float*)_uniform->m_valuePtr);
+            setUniformMat4(name, (float*)_uniform->m_valuePtr);
             break;
         case Uniform::Type::u_sampler2D:
             setUniform1i(name, *(int*)_uniform->m_valuePtr);
@@ -290,33 +290,40 @@ void Shader::setUniform(Uniform* _uniform, f32 _value)
     setUniform1i(_uniform->m_name, _value);
 }
 
-void Shader::setUniform1i(const char* name, GLint data) {
+Shader& Shader::setUniform1i(const char* name, GLint data) {
     SHADER_GUARD_SET_UNIFORM(name, glProgramUniform1i, handle, data);
+    return *this;
 }
 
-void Shader::setUniform1ui(const char* name, GLuint data) {
+Shader& Shader::setUniform1ui(const char* name, GLuint data) {
     SHADER_GUARD_SET_UNIFORM(name, glProgramUniform1ui, handle, data);
+    return *this;
 }
 
-void Shader::setUniform1f(const char* name, GLfloat data) {
+Shader& Shader::setUniform1f(const char* name, GLfloat data) {
     SHADER_GUARD_SET_UNIFORM(name, glProgramUniform1f, handle, data);
+    return *this;
 }
 
-void Shader::setUniformVec2(const char* name, GLfloat* v)
+Shader& Shader::setUniformVec2(const char* name, const GLfloat* v)
 {
     SHADER_GUARD_SET_UNIFORM(name, glProgramUniform2fv, handle, 1, v);
+    return *this;
 }
 
-void Shader::setUniformVec3(const char* name, GLfloat* vecData) {
+Shader& Shader::setUniformVec3(const char* name, const GLfloat* vecData) {
     SHADER_GUARD_SET_UNIFORM(name, glProgramUniform3fv, handle, 1, vecData);
+    return *this;
 }
 
-void Shader::setUniformVec4(const char* name, GLfloat* vecData) {
+Shader& Shader::setUniformVec4(const char* name, const GLfloat* vecData) {
     SHADER_GUARD_SET_UNIFORM(name, glProgramUniform4fv, handle, 1, vecData);
+    return *this;
 }
 
-void Shader::setUniformMat4f(const char* name, GLfloat* matData) {
+Shader& Shader::setUniformMat4(const char* name, const GLfloat* matData) {
     SHADER_GUARD_SET_UNIFORM(name, glProgramUniformMatrix4fv, handle, 1, GL_FALSE, matData);
+    return *this;
 }
 
 GLint Shader::getUniformLocation(const char* name)

@@ -18,6 +18,9 @@ namespace Cyan
         kHasTexCoord1 = (1 << 4)
     };
 
+    /* Note:
+    * maybe it's even better to just pull Vertex struct out and make it template to allow it to be more flexible ...?
+    */
     struct Geometry
     {
         enum class Type
@@ -32,8 +35,8 @@ namespace Cyan
     struct Triangles : public Geometry
     {
         static Type getTypeEnum() { return Type::kTriangles; }
-        u32 numVertices() { return vertices.size(); }
-        u32 numIndices() { return indices.size(); }
+        u32 numVertices() { return (u32)vertices.size(); }
+        u32 numIndices() { return (u32)indices.size(); }
 
         struct Vertex
         {
@@ -87,7 +90,7 @@ namespace Cyan
         {
             glm::vec3 pos;
             glm::vec3 normal;
-            glm::vec3 texCoord;
+            glm::vec2 texCoord;
 
             static u8 getFlags()
             {
@@ -122,6 +125,7 @@ namespace Cyan
     };
 }
 
+#if 0
 struct PointGroup
 {
     PointGroup(u32 size);
@@ -154,7 +158,7 @@ struct Line
 
     glm::vec3 m_vertices[2];
     Cyan::MaterialInstance* matl;
-    GLuint m_vbo, m_vao;
+    GLuint vbo, vao;
 };
 
 struct Line2D
@@ -171,7 +175,7 @@ struct Line2D
 
     glm::vec3 m_vertices[2];
     glm::vec4 m_color;
-    GLuint m_vbo;
+    GLuint vbo;
     VertexArray* m_vertexArray;
     Cyan::MaterialInstance* matl;
 };
@@ -181,8 +185,8 @@ struct Quad
     glm::vec2 m_pos; // [-1.f, 1.f]
     float w, h;      // [0.f, 2.f]
     glm::vec2 m_vertices[6];
-    GLuint m_vao;
-    GLuint m_vbo;
+    GLuint vao;
+    GLuint vbo;
     Cyan::MaterialInstance* matl;
 
     Quad();
@@ -190,6 +194,7 @@ struct Quad
     void init(glm::vec2 pos, float width, float height);
     void draw();
 };
+#endif
 
 struct Triangle
 {
@@ -200,32 +205,38 @@ struct Triangle
 // SoA data oriented triangle mesh meant for imrpoving ray tracing procedure
 struct TriangleArray 
 {
-    std::vector<glm::vec3> m_positionArray;
-    std::vector<glm::vec3> m_normalArray;
-    std::vector<glm::vec3> m_tangentArray;
-    std::vector<glm::vec3> m_texCoordArray;
+    std::vector<glm::vec3> positions;
+    std::vector<glm::vec3> normals;
+    std::vector<glm::vec3> tangents;
+    std::vector<glm::vec3> texCoords;
     u32 m_numVerts;
 };
 
-struct BoundingBox3f
+struct BoundingBox3D
 {
     // in object space
     glm::vec4 pmin;
     glm::vec4 pmax;
 
+#if 0
+
+    Cyan::Mesh* mesh = nullptr;
+    Cyan::Mesh* meshInst = nullptr;
+    Cyan::Material<Cyan::ConstantColorMatl>* matl = nullptr;
     // debug rendering
     glm::vec3 vertices[8];
     glm::vec3 color;
     struct VertexArray* vertexArray;
     static Shader* shader;
     Cyan::MaterialInstance* matl;
+#endif
 
-    BoundingBox3f();
+    BoundingBox3D();
 
     void init();
 
-    void draw(glm::mat4& mvp);
-    void bound(const BoundingBox3f& aabb);
+    // void draw(glm::mat4& mvp);
+    void bound(const BoundingBox3D& aabb);
     void bound(const glm::vec3& v3);
     void bound(const glm::vec4& v4);
     void bound(const Triangle& tri);
@@ -237,7 +248,7 @@ struct BoundingBox3f
     /*
     * Recompute and udpate bounds and vertex data
     */
-    void update();
+    // void update();
     float intersectRay(const glm::vec3& ro, const glm::vec3& rd);
 };
 

@@ -54,7 +54,6 @@ namespace Cyan
 
     // each material type share same handle as its according shader 
     static Shader* m_shaders[kMaxNumShaders];
-    static Material* m_materialTypes[kMaxNumMaterialTypes];
 
     static u32 m_numSceneNodes = 0u;
 
@@ -122,53 +121,19 @@ namespace Cyan
         return buffer;
     }
 
-    VertexBuffer* createVertexBuffer(void* data, u32 sizeInBytes, u32 strideInBytes, u32 numVerts)
+    VertexBuffer* createVertexBuffer(void* data, u32 sizeInBytes, VertexSpec&& vertexSpec)
     {
-        VertexBuffer* vb = new VertexBuffer;
-        u32 offset = 0;
-        vb->m_data = new char[sizeInBytes];
-        vb->m_sizeInBytes = sizeInBytes;
-        vb->m_strideInBytes = strideInBytes;
-        vb->m_numVerts = numVerts;
-        // let vertex buffer owns a copy of the raw vertex data
-        memcpy(vb->m_data, data, vb->m_sizeInBytes);
-        glCreateBuffers(1, &vb->m_vbo);
-        glNamedBufferData(vb->m_vbo, sizeInBytes, vb->m_data, GL_STATIC_DRAW);
+        VertexBuffer* vb = new VertexBuffer(data, sizeInBytes, std::move(vertexSpec));
         return vb;
     }
 
-    VertexArray* createVertexArray(VertexBuffer* vb)
-    {
-        VertexArray* vertexArray = new VertexArray;
-        glCreateVertexArrays(1, &vertexArray->m_vao);
-        vertexArray->m_vertexBuffer = vb;
-        vertexArray->m_ibo = static_cast<u32>(-1);
-        vertexArray->m_numIndices = static_cast<u32>(-1);
-        return vertexArray;
-    }
-
-    void addMesh(Mesh* mesh) {
-        s_meshes.push_back(mesh);
-    }
-
+#if 0
     Mesh* createMesh(const char* name, std::string& file, bool normalize, bool generateLightMapUv)
     {
         auto assetManager = GraphicsSystem::getSingletonPtr()->getAssetManager(); 
         return assetManager->loadMesh(file, name, normalize, generateLightMapUv);
     }
-
-    Mesh* getMesh(const char* _name)
-    {
-        if (_name)
-        {
-            for (auto mesh : s_meshes)
-            {
-                if (strcmp(mesh->m_name.c_str(), _name) == 0)
-                    return mesh; 
-            }
-        }
-        return 0;
-    }
+#endif
 
     Shader* createVsGsPsShader(const char* name, const char* vsSrc, const char* gsSrc, const char* fsSrc)
     {
@@ -342,7 +307,7 @@ namespace Cyan
         if (handle > kMaxNumUniforms) return nullptr;
         return s_uniforms[handle];
     }
-
+#if 0
     UniformBuffer* createUniformBuffer(u32 sizeInBytes)
     {
         UniformBuffer* buffer = (UniformBuffer*)s_allocator->alloc(sizeof(UniformBuffer));
@@ -364,7 +329,7 @@ namespace Cyan
         _material->bindUniform(uniform);
         return uniform;
     }
-
+#endif
     Uniform::Type glToCyanType(GLenum glType)
     {
         switch (glType)
@@ -402,7 +367,7 @@ namespace Cyan
                 return Uniform::Type::u_undefined;
         }
     }
-
+#if 0
     Material* createMaterial(Shader* _shader)
     {
         auto itr = s_shaderRegistry.find(_shader->m_name);
@@ -491,6 +456,7 @@ namespace Cyan
         material->finalize();
         return material;
     }
+#endif
 
     #define CYAN_CHECK_UNIFORM(uniform)                                                          \
         std::string key(uniform->m_name);                                                        \
@@ -551,24 +517,7 @@ namespace Cyan
 
     namespace Toolkit
     {
-        Mesh* createCubeMesh(const char* _name)
-        {
-            Mesh* cubeMesh = new Mesh;
-            Mesh::SubMesh* subMesh = new Mesh::SubMesh;
-            cubeMesh->m_name = _name;
-            subMesh->m_numVerts = sizeof(cubeVertices) / sizeof(f32) / 3;
-            subMesh->m_vertexArray = createVertexArray(createVertexBuffer(cubeVertices, sizeof(cubeVertices), 3 * sizeof(f32), subMesh->m_numVerts));
-            subMesh->m_vertexArray->m_vertexBuffer->m_vertexAttribs.push_back({VertexAttrib::DataType::Float, 3, 3 * sizeof(f32), 0 });
-            subMesh->m_vertexArray->init();
-            subMesh->m_triangles.m_numVerts = 0;
-
-            cubeMesh->m_subMeshes.push_back(subMesh);
-            cubeMesh->m_normalization = glm::mat4(1.f);
-            computeAABB(cubeMesh);
-            s_meshes.push_back(cubeMesh);
-            return cubeMesh;
-        }
-
+#if 0
         void computeAABB(Mesh* mesh)
         {
             auto findMin = [](float* vertexData, u32 numVerts, i32 vertexSize, i32 offset) {
@@ -596,15 +545,15 @@ namespace Cyan
             for (auto sm : mesh->m_subMeshes)
             {
                 u32 vertexSize = 0; 
-                for (auto attrib : sm->m_vertexArray->m_vertexBuffer->m_vertexAttribs)
+                for (auto attrib : sm->m_vertexArray->vb->attributes)
                     vertexSize += attrib.m_size;
 
-                float xMin = findMin((float*)sm->m_vertexArray->m_vertexBuffer->m_data, sm->m_numVerts, vertexSize, 0);
-                float yMin = findMin((float*)sm->m_vertexArray->m_vertexBuffer->m_data, sm->m_numVerts, vertexSize, 1);
-                float zMin = findMin((float*)sm->m_vertexArray->m_vertexBuffer->m_data, sm->m_numVerts, vertexSize, 2);
-                float xMax = findMax((float*)sm->m_vertexArray->m_vertexBuffer->m_data, sm->m_numVerts, vertexSize, 0);
-                float yMax = findMax((float*)sm->m_vertexArray->m_vertexBuffer->m_data, sm->m_numVerts, vertexSize, 1);
-                float zMax = findMax((float*)sm->m_vertexArray->m_vertexBuffer->m_data, sm->m_numVerts, vertexSize, 2);
+                float xMin = findMin((float*)sm->m_vertexArray->vb->m_data, sm->m_numVerts, vertexSize, 0);
+                float yMin = findMin((float*)sm->m_vertexArray->vb->m_data, sm->m_numVerts, vertexSize, 1);
+                float zMin = findMin((float*)sm->m_vertexArray->vb->m_data, sm->m_numVerts, vertexSize, 2);
+                float xMax = findMax((float*)sm->m_vertexArray->vb->m_data, sm->m_numVerts, vertexSize, 0);
+                float yMax = findMax((float*)sm->m_vertexArray->vb->m_data, sm->m_numVerts, vertexSize, 1);
+                float zMax = findMax((float*)sm->m_vertexArray->vb->m_data, sm->m_numVerts, vertexSize, 2);
                 meshXMin = Min(meshXMin, xMin);
                 meshYMin = Min(meshYMin, yMin);
                 meshZMin = Min(meshZMin, zMin);
@@ -645,7 +594,7 @@ namespace Cyan
             }
             return glm::mat4(1.f);
         }
-
+#endif
 #if 0
         // Load equirectangular map into a cubemap
         Texture* loadEquirectangularMap(const char* _name, const char* _file, bool _hdr)
@@ -1085,89 +1034,5 @@ namespace Cyan
 
             return texture;
         }
-    } // Toolkit
-
-    namespace AssetGen
-    {
-        Mesh* createTerrain(float extendX, float extendY)
-        {
-            // TODO: determine texture tiling automatically 
-
-            // texture tiling every 10 meters  
-            const f32 textureTileThreshold = 4.f; 
-
-            struct Vertex
-            {
-                glm::vec3 m_position;
-                glm::vec3 m_normal;
-                glm::vec3 m_tangent;
-                glm::vec2 m_uv;
-            };
-
-            std::vector<Vertex> vertices;
-            // each tile is a 1m x 1m squre
-            float tileXInMeters = 1.f;
-            float tileYInMeters = 1.f;
-            glm::vec2 offsets[6] = {
-                {0.f, 0.f},
-                {1.f, 0.f},
-                {1.f, 1.f},
-                {1.f, 1.f},
-                {0.f, 1.f},
-                {0.f, 0.f}
-            };
-            // coordinates are initially in terrain space, where x goes right, y goes forward, z goes up,
-            glm::vec2 deltaUv(1.f / extendX, 1.f / extendY);
-            for (float x = 0.f; x < extendX; ++x)
-            {
-                for (float y = 0; y < extendY; ++y)
-                {
-                    Vertex tileVerts[6];
-                    for (u32 v = 0u; v < 6u; ++v)
-                    {
-                        // position
-                        tileVerts[v].m_position.x = (x + offsets[v].x) * tileXInMeters;
-                        tileVerts[v].m_position.y = 0.f;
-                        tileVerts[v].m_position.z = extendY - (y + offsets[v].y) * tileYInMeters;
-                        // normal
-                        tileVerts[v].m_normal = glm::vec3(0.f, 1.f, 0.f);
-                        // tangent
-                        tileVerts[v].m_tangent = glm::vec3(0.f, 0.f, 1.f);
-                        vertices.push_back(tileVerts[v]);
-                        // uv
-                        tileVerts[v].m_uv = glm::vec2(x, y) + offsets[v];
-                        tileVerts[v].m_uv /= textureTileThreshold;
-                    }
-                }
-            }
-            // center the mesh to (0, 0, 0) in object space
-            for (auto& vertex : vertices)
-            {
-                glm::vec3 translate(-extendX * .5f, 0.f, -extendY * .5f);
-                vertex.m_position += translate;
-            }
-            // create mesh
-            Mesh* mesh = new Mesh;
-            mesh->m_name = std::string("TerrainMesh");
-            Mesh::SubMesh* subMesh = new Cyan::Mesh::SubMesh;
-            subMesh->m_numVerts = (u32)vertices.size();
-            u32 stride = sizeof(Vertex);
-            u32 offset = 0;
-            VertexBuffer* vb = Cyan::createVertexBuffer(vertices.data(), subMesh->m_numVerts * sizeof(Vertex), stride, subMesh->m_numVerts);
-            vb->m_vertexAttribs.push_back({ VertexAttrib::DataType::Float, 3, stride, offset });
-            offset += sizeof(glm::vec3);
-            vb->m_vertexAttribs.push_back({ VertexAttrib::DataType::Float, 3, stride, offset });
-            offset += sizeof(glm::vec3);
-            vb->m_vertexAttribs.push_back({ VertexAttrib::DataType::Float, 3, stride, offset });
-            offset += sizeof(glm::vec3);
-            vb->m_vertexAttribs.push_back({ VertexAttrib::DataType::Float, 2, stride, offset });
-            offset += sizeof(glm::vec2);
-            subMesh->m_vertexArray = Cyan::createVertexArray(vb);
-            subMesh->m_vertexArray->init();
-            mesh->m_subMeshes.push_back(subMesh);
-            mesh->m_normalization = glm::mat4(1.f);
-            addMesh(mesh);
-            return mesh;
-        }
-    }; // namespace AssetGen
+    } // Toolkitn
 } // Cyan

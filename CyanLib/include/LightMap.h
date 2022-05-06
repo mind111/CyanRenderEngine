@@ -9,6 +9,7 @@
 #include "Shader.h"
 namespace Cyan
 {
+#if 0
     // alignment
     struct LightMapTexelData
     {
@@ -61,4 +62,5 @@ namespace Cyan
     private:
         static LightMapManager* m_singleton;
     };
+#endif
 }

@@ -67,6 +67,7 @@ f32 transformHitFromObjectToWorldSpace(glm::vec3& objectSpaceHit, glm::mat4& tra
     return t;
 }
 
+#if 0
 // this intersection procedure does not need to find closest intersection, it 
 // only returns whether there is a occlusion or not
 bool Entity::castVisibilityRay(const glm::vec3& ro, const glm::vec3& rd, const glm::mat4& modelView)
@@ -80,7 +81,7 @@ bool Entity::castVisibilityRay(const glm::vec3& ro, const glm::vec3& rd, const g
         if (node->m_meshInstance)
         {
             glm::mat4 modelView = node->m_worldTransform.toMatrix();
-            BoundingBox3f aabb = node->m_meshInstance->getAABB();
+            BoundingBox3D aabb = node->m_meshInstance->getAABB();
 
             // transform the ray into object space
             glm::vec3 roObjectSpace = ro;
@@ -91,7 +92,7 @@ bool Entity::castVisibilityRay(const glm::vec3& ro, const glm::vec3& rd, const g
             if (aabb.intersectRay(roObjectSpace, rdObjectSpace) > 0.f)
             {
                 // do ray triangle intersectiont test
-                Cyan::Mesh* mesh = node->m_meshInstance->m_mesh;
+                Cyan::Mesh* mesh = node->m_meshInstance->mesh;
                 if (mesh->bruteForceVisibilityRay(roObjectSpace, rdObjectSpace))
                     return true; 
             }
@@ -115,7 +116,7 @@ RayCastInfo Entity::intersectRay(const glm::vec3& ro, const glm::vec3& rd, const
         if (node->m_meshInstance)
         {
             glm::mat4 modelView = view * node->m_worldTransform.toMatrix();
-            BoundingBox3f aabb = node->m_meshInstance->getAABB();
+            BoundingBox3D aabb = node->m_meshInstance->getAABB();
 
             // transform the ray into object space
             glm::vec3 roObjectSpace = ro;
@@ -155,6 +156,7 @@ RayCastInfo Entity::intersectRay(const glm::vec3& ro, const glm::vec3& rd, const
 
     return globalRayHit;
 }
+#endif
 
 // merely sets the parent entity, it's not this method's responsibility to trigger
 // any logic relates to parent change
@@ -286,6 +288,7 @@ void Entity::updateWorldTransform()
     }
 }
 
+#if 0
 void Entity::setMaterial(const char* nodeName, i32 subMeshIndex, Cyan::MaterialInstance* matl)
 {
     if (subMeshIndex >= 0)
@@ -309,3 +312,4 @@ void Entity::setMaterial(const char* nodeName, i32 subMeshIndex, Cyan::StandardP
             sceneNode->m_meshInstance->setMaterial(sm, matl->m_materialInstance);
     }
 }
+#endif

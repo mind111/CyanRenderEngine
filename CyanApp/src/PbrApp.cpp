@@ -195,6 +195,7 @@ bool DemoApp::mouseOverUI()
     return (m_mouseCursorX < 400.f && m_mouseCursorX > 0.f && m_mouseCursorY < 720.f && m_mouseCursorY > 0.f);
 }
 
+#if 0
 Cyan::StandardPbrMaterial* DemoApp::createStandardPbrMatlInstance(Scene* scene, Cyan::PbrMaterialParam params, bool isStatic)
 {
     if (isStatic)
@@ -211,11 +212,13 @@ Cyan::StandardPbrMaterial* DemoApp::createStandardPbrMatlInstance(Scene* scene, 
     scene->addStandardPbrMaterial(matl);
     return matl;
 }
+#endif
 
 void DemoApp::createHelmetInstance(Scene* scene)
 {
     auto textureManager = m_graphicsSystem->getTextureManager();
     auto sceneManager = SceneManager::getSingletonPtr();
+#if 0
     // helmet
     {
         Cyan::PbrMaterialParam params = { };
@@ -227,6 +230,7 @@ void DemoApp::createHelmetInstance(Scene* scene)
         Entity* helmet = sceneManager->getEntity(scene, "DamagedHelmet");
         helmet->setMaterial("HelmetMesh", 0, helmetMatl);
     }
+#endif
 }
 
 void DemoApp::initDemoScene00()
@@ -237,11 +241,11 @@ void DemoApp::initDemoScene00()
     m_scenes[Scenes::Demo_Scene_00] = sceneManager->createScene("demo_scene_00", "C:\\dev\\cyanRenderEngine\\scene\\demo_scene_00.json");
     Scene* demoScene00 = m_scenes[Scenes::Demo_Scene_00];
 
-    using PBR = Cyan::PBRMaterial;
+    using PBR = Cyan::PBRMatl;
     auto assetManager = Cyan::AssetManager::get();
     PBR* defaultMatl = assetManager->createMaterial<PBR>("DefaultMatl");
-    defaultMatl->kRoughness = .8f;
-    defaultMatl->kMetallic = .02f;
+    defaultMatl->parameter.kRoughness = .8f;
+    defaultMatl->parameter.kMetallic = .02f;
 /*
     Cyan::PbrMaterialParam params = { };
     params.flatBaseColor = glm::vec4(1.f);
@@ -253,9 +257,11 @@ void DemoApp::initDemoScene00()
     {
         createHelmetInstance(demoScene00);
         auto helmet = sceneManager->getEntity(demoScene00, "DamagedHelmet");
-        auto helmetMesh = helmet->getSceneNode("HelmetMesh")->m_meshInstance->m_mesh;
+        auto helmetMesh = helmet->getSceneNode("HelmetMesh")->m_meshInstance->parent;
+#if 0
         helmetMesh->m_bvh = new Cyan::MeshBVH(helmetMesh);
         helmetMesh->m_bvh->build();
+#endif
     }
     // bunnies
     {
@@ -263,9 +269,9 @@ void DemoApp::initDemoScene00()
         Entity* bunny1 = sceneManager->getEntity(demoScene00, "Bunny1");
 
         auto bunnyMatl = assetManager->createMaterial<PBR>("BunnyMatl");
-        bunnyMatl->kAlbedo = glm::vec3(0.855, 0.647, 0.125f);
-        bunnyMatl->kRoughness = .1f;
-        bunnyMatl->kMetallic = 1.0f;
+        bunnyMatl->parameter.kAlbedo = glm::vec3(0.855, 0.647, 0.125f);
+        bunnyMatl->parameter.kRoughness = .1f;
+        bunnyMatl->parameter.kMetallic = 1.0f;
 
         bunny0->setMaterial("BunnyMesh", -1, bunnyMatl);
         bunny1->setMaterial("BunnyMesh", -1, bunnyMatl);
@@ -274,9 +280,9 @@ void DemoApp::initDemoScene00()
     {
         Entity* man = sceneManager->getEntity(demoScene00, "Man");
         auto manMatl = assetManager->createMaterial<PBR>("ManMatl");
-        manMatl->kAlbedo = glm::vec3(0.855, 0.855, 0.855);
-        manMatl->kRoughness = .3f;
-        manMatl->kMetallic = .3f;
+        manMatl->parameter.kAlbedo = glm::vec3(0.855, 0.855, 0.855);
+        manMatl->parameter.kRoughness = .3f;
+        manMatl->parameter.kMetallic = .3f;
 
         man->setMaterial("ManMesh", -1, manMatl);
     }
@@ -307,8 +313,8 @@ void DemoApp::initDemoScene00()
 
         PBR* shaderBallMatls[2][4] = { };
         shaderBallMatls[0][0] = assetManager->createMaterial<PBR>("ShaderBallGold");
-        shaderBallMatls[0][0]->kRoughness = 0.02f;
-        shaderBallMatls[0][0]->kMetallic = 0.05f;
+        shaderBallMatls[0][0]->parameter.kRoughness = 0.02f;
+        shaderBallMatls[0][0]->parameter.kMetallic = 0.05f;
 /*
         matlParams[0][3].kRoughness = .02f;
         matlParams[0][3].kMetallic = 0.05f;
@@ -373,7 +379,7 @@ void DemoApp::initDemoScene00()
                 transform.m_translate = gridLowerLeft + posOffset;
                 transform.m_scale = glm::vec3(.003f);
                 // auto meshNode = sceneManager->createSceneNode(demoScene00, meshNodeName, transform, Cyan::getMesh("shaderball_mesh"));
-                auto meshNode = sceneManager->createMeshNode<Cyan::Triangles>(demoScene00, meshNodeName, transform, assetManager->get<Mesh<Triangles>>("shaderball_mesh"));
+                auto meshNode = sceneManager->createMeshNode(demoScene00, transform, assetManager->getAsset<Mesh>("shaderball_mesh"));
 
                 shaderBall->attachSceneNode(meshNode);
                 // auto matl = createStandardPbrMatlInstance(demoScene00, matlParams[j][i], shaderBall->m_static);
@@ -477,10 +483,11 @@ void DemoApp::initSponzaScene()
 
     Entity* sponza = sceneManager->getEntity(sponzaScene, "Sponza");
     auto sponzaNode = sponza->getSceneNode("SponzaMesh");
-    Cyan::Mesh* sponzaMesh = sponzaNode->m_meshInstance->m_mesh;
+    Cyan::Mesh* sponzaMesh = sponzaNode->m_meshInstance->parent;
+#if 0
     sponzaMesh->m_bvh = new Cyan::MeshBVH(sponzaMesh);
     sponzaMesh->m_bvh->build();
-
+#endif
     // lighting
     glm::vec3 sunDir = glm::normalize(glm::vec3(0.0f, 1.0f, 0.0f));
     sceneManager->createDirectionalLight(sponzaScene, glm::vec3(1.0f, 0.9, 0.7f), sunDir, 3.6f);
@@ -1078,7 +1085,7 @@ void DemoApp::debugIrradianceCache()
         debugShader->setUniformVec4("color", &color.r);
         for (u32 sm = 0; sm < cubeMesh->m_subMeshes.size(); ++sm)
         {
-            debugShader->setUniformMat4f("mvp", &mvp[0][0]);
+            debugShader->setUniformMat4("mvp", &mvp[0][0]);
             renderer->drawMesh(cubeMesh);
         }
     };
@@ -1101,7 +1108,7 @@ void DemoApp::debugIrradianceCache()
         debugShader->setUniformVec4("color", &color.r);
         for (u32 sm = 0; sm < circleMesh->m_subMeshes.size(); ++sm)
         {
-            debugShader->setUniformMat4f("mvp", &mvp[0][0]);
+            debugShader->setUniformMat4("mvp", &mvp[0][0]);
             renderer->drawMesh(circleMesh);
         }
     };

@@ -2,6 +2,7 @@
 
 namespace Cyan
 {
+#if 0
     // hit need to be in object space
     glm::vec3 computeBaryCoord(Triangle& tri, glm::vec3& hitPosObjectSpace)
     {
@@ -24,24 +25,25 @@ namespace Cyan
         // convert world space hit back to object space
         glm::vec3 hitPosObjectSpace = vec4ToVec3(glm::inverse(worldTransformMatrix) * glm::vec4(hitPosition, 1.f));
 
-        auto mesh = rayHit.m_node->m_meshInstance->m_mesh;
-        auto tri = mesh->getTriangle(rayHit.smIndex, rayHit.triIndex);
+        auto parent = rayHit.m_node->m_meshInstance->m_mesh;
+        auto tri = parent->getTriangle(rayHit.smIndex, rayHit.triIndex);
         return computeBaryCoord(tri, hitPosObjectSpace);
     }
 
     // return surface normal at ray hit in world space
     glm::vec3 getSurfaceNormal(RayCastInfo& rayHit, glm::vec3& baryCoord)
     {
-        auto mesh = rayHit.m_node->m_meshInstance->m_mesh;
-        auto sm = mesh->m_subMeshes[rayHit.smIndex];
+        auto parent = rayHit.m_node->m_meshInstance->m_mesh;
+        auto sm = parent->m_subMeshes[rayHit.smIndex];
         u32 vertexOffset = rayHit.triIndex * 3;
-        glm::vec3 normal = baryCoord.x * sm->m_triangles.m_normalArray[vertexOffset]
-            + baryCoord.y * sm->m_triangles.m_normalArray[vertexOffset + 1]
-            + baryCoord.z * sm->m_triangles.m_normalArray[vertexOffset + 2];
+        glm::vec3 normal = baryCoord.x * sm->m_triangles.normals[vertexOffset]
+            + baryCoord.y * sm->m_triangles.normals[vertexOffset + 1]
+            + baryCoord.z * sm->m_triangles.normals[vertexOffset + 2];
         normal = glm::normalize(normal);
         // convert normal back to world space
         auto worldTransformMatrix = rayHit.m_node->getWorldTransform().toMatrix();
         normal = vec4ToVec3(glm::inverse(glm::transpose(worldTransformMatrix)) * glm::vec4(normal, 0.f));
         return glm::normalize(normal);
     }
+#endif
 }

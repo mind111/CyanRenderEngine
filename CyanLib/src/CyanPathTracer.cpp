@@ -32,6 +32,7 @@
 
 namespace Cyan
 {
+#if 0
     f32 saturate(f32 val);
     Ray generateRay(const glm::uvec2& pixelCoord, Camera& camera, const glm::uvec2& screenDim);
     glm::vec3 computeBaryCoord(Triangle& tri, glm::vec3& hitPosObjectSpace);
@@ -155,9 +156,9 @@ namespace Cyan
         auto mesh = rayHit.m_node->m_meshInstance->m_mesh;
         auto sm = mesh->m_subMeshes[rayHit.smIndex];
         u32 vertexOffset = rayHit.triIndex * 3;
-        glm::vec3 normal = baryCoord.x * sm->m_triangles.m_normalArray[vertexOffset]
-            + baryCoord.y * sm->m_triangles.m_normalArray[vertexOffset + 1]
-            + baryCoord.z * sm->m_triangles.m_normalArray[vertexOffset + 2];
+        glm::vec3 normal = baryCoord.x * sm->m_triangles.normals[vertexOffset]
+            + baryCoord.y * sm->m_triangles.normals[vertexOffset + 1]
+            + baryCoord.z * sm->m_triangles.normals[vertexOffset + 2];
         normal = glm::normalize(normal);
         // convert normal back to world space
         auto worldTransformMatrix = rayHit.m_node->getWorldTransform().toMatrix();
@@ -318,9 +319,9 @@ namespace Cyan
         u32 vertexOffset = hit.triIndex * 3;
         // normal
         {
-            props.normal = baryCoord.x * sm->m_triangles.m_normalArray[vertexOffset]
-                        + baryCoord.y * sm->m_triangles.m_normalArray[vertexOffset + 1]
-                        + baryCoord.z * sm->m_triangles.m_normalArray[vertexOffset + 2];
+            props.normal = baryCoord.x * sm->m_triangles.normals[vertexOffset]
+                        + baryCoord.y * sm->m_triangles.normals[vertexOffset + 1]
+                        + baryCoord.z * sm->m_triangles.normals[vertexOffset + 2];
             props.normal = glm::normalize(props.normal);
             // convert normal back to world space
             auto worldTransformMatrix = hit.m_node->getWorldTransform().toMatrix();
@@ -349,7 +350,7 @@ namespace Cyan
         for (u32 i = 0; i < m_staticMeshNodes.size(); ++i)
         {
             glm::mat4 model = m_staticMeshNodes[i]->getWorldMatrix();
-            BoundingBox3f aabb = m_staticMeshNodes[i]->m_meshInstance->getAABB();
+            BoundingBox3D aabb = m_staticMeshNodes[i]->m_meshInstance->getAABB();
 
             // transform the ray into object space
             glm::vec3 roObjectSpace = ro;
@@ -1397,14 +1398,14 @@ namespace Cyan
 
     void IrradianceCache::init(std::vector<SceneNode*>& nodes)
     {
-        BoundingBox3f aabb;
+        BoundingBox3D aabb;
         for (u32 i = 0; i < nodes.size(); ++i)
         {
             if (nodes[i]->m_meshInstance)
             {
                 auto& objectSpaceAABB = nodes[i]->m_meshInstance->getAABB();
                 glm::mat4 model = nodes[i]->getWorldTransform().toMatrix();
-                BoundingBox3f worldSpaceAABB;
+                BoundingBox3D worldSpaceAABB;
                 worldSpaceAABB.pmin = model * objectSpaceAABB.pmin;
                 worldSpaceAABB.pmax = model * objectSpaceAABB.pmax;
                 aabb.bound(worldSpaceAABB);
@@ -1434,4 +1435,5 @@ namespace Cyan
         m_octree->insert(newRecord, m_numRecords++);
         return newRecord;
     }
+#endif
 };

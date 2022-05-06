@@ -3,6 +3,7 @@
 #include "CyanRenderer.h"
 #include "CyanAPI.h"
 #include "Scene.h"
+#include "Asset.h"
 
 namespace Cyan
 {
@@ -67,7 +68,7 @@ namespace Cyan
         {
             s_CubemapSkyShader = createShader("SkyDomeShader", SHADER_SOURCE_PATH "skybox_v.glsl", SHADER_SOURCE_PATH "skybox_p.glsl");
         }
-        m_renderSkyMatl = createMaterial(s_CubemapSkyShader)->createInstance();
+        // m_renderSkyMatl = createMaterial(s_CubemapSkyShader)->createInstance();
     }
 
     void Skybox::build()
@@ -86,10 +87,11 @@ namespace Cyan
                 RenderTarget* renderTarget = createRenderTarget(m_srcCubemapTexture->width, m_srcCubemapTexture->height);
                 renderTarget->setColorBuffer(m_srcCubemapTexture, 0u);
                 Shader* shader = createShader("RenderToCubemapShader", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl");
-                auto    matl = createMaterial(shader)->createInstance();
-                Mesh* cubeMesh = Cyan::getMesh("CubeMesh");
+                // auto    matl = createMaterial(shader)->createInstance();
+                Mesh* cubeMesh = AssetManager::getAsset<Mesh>("UnitCubeMesh");
                 ctx->setShader(shader);
-                matl->bindTexture("srcImageTexture", m_srcHDRITexture);
+                // matl->bindTexture("srcImageTexture", m_srcHDRITexture);
+                shader->setTexture("srcImageTexture", m_srcHDRITexture);
                 for (u32 f = 0; f < 6u; f++)
                 {
                     // Update view matrix
@@ -97,8 +99,10 @@ namespace Cyan
                     camera.worldUp = LightProbeCameras::worldUps[f];
                     camera.update();
 
-                    matl->set("projection", &camera.projection);
-                    matl->set("view", &camera.view);
+                    // matl->set("projection", &camera.projection);
+                    // matl->set("view", &camera.view);
+                    shader->setUniformMat4("projection", &camera.projection[0].x);
+                    shader->setUniformMat4("view", &camera.view[0].x);
                     ctx->setDepthControl(DepthControl::kDisable);
                     ctx->setRenderTarget(renderTarget, { (i32)f });
                     ctx->setViewport({ 0, 0, renderTarget->width, renderTarget->height});
@@ -140,8 +144,11 @@ namespace Cyan
         case kUseHDRI:
             {
                 ctx->setShader(s_CubemapSkyShader);
+#if 0
                 m_renderSkyMatl->bindTexture("skyDomeTexture", m_srcCubemapTexture);
                 m_renderSkyMatl->bind();
+#endif
+                s_CubemapSkyShader->setTexture("skyDomeTexture", m_srcCubemapTexture);
                 ctx->drawIndexAuto(36);
             }
             break;

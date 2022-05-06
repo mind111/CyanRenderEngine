@@ -6,12 +6,13 @@
 
 namespace Cyan 
 {
+#if 0
     struct BVHNode
     {
         struct Mesh*    m_mesh;
         BVHNode*        m_leftChild;
         BVHNode*        m_rightChild;
-        BoundingBox3f   m_aabb;
+        BoundingBox3D   m_aabb;
         i32             m_submeshIndex;
         i32             m_triangleIndex;
 
@@ -52,4 +53,5 @@ namespace Cyan
 
     BVHNode* buildMeshBVH(struct Mesh* mesh);
     void buildBVH(struct Mesh* mesh, std::vector<BVHNode*>& leafNodes, u32 start, u32 end, BVHNode* parent);
+#endif
 }

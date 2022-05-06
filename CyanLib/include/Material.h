@@ -160,6 +160,18 @@ namespace Cyan
 {
     struct ShadingParameter
     {
+        enum class Flags
+        {
+            kHasRoughnessMap         = 1 << 0,
+            kHasMetallicMap          = 1 << 1,
+            kHasMetallicRoughnessMap = 1 << 2,
+            kHasOcclusionMap         = 1 << 3,
+            kHasDiffuseMap           = 1 << 4,
+            kHasNormalMap            = 1 << 5,
+            kUsePrototypeTexture     = 1 << 6,
+            kUseLightMap             = 1 << 7             
+        };
+
         virtual void bindToShader(Shader* shader) = 0;
     };
 
@@ -175,16 +187,35 @@ namespace Cyan
 
     struct PBR : public ShadingParameter
     {
-        u32 flags = 0x0;
-        Texture* albedo = nullptr;
-        Texture* normal = nullptr;
-        Texture* emission = nullptr;
-        Texture* roughness = nullptr;
-        Texture* metallic = nullptr;
-        Texture* metallicRoughness = nullptr;
-        f32 kRoughness = 0.6f;
-        f32 kMetallic = 0.2f;
-        glm::vec3 kAlbedo = glm::vec3(0.85f, 0.85, 0.7f);
+        virtual u32 getFlags()
+        {
+            u32 flags = 0u;
+            if (albedo)
+            {
+                flags |= (u32)Flags::kHasDiffuseMap;
+            }
+            if (normal)
+            {
+                flags |= (u32)Flags::kHasNormalMap;
+            }
+            if (roughness)
+            {
+                flags |= (u32)Flags::kHasRoughnessMap;
+            }
+            if (metallic)
+            {
+                flags |= (u32)Flags::kHasMetallicMap;
+            }
+            if (metallicRoughness)
+            {
+                flags |= (u32)Flags::kHasMetallicRoughnessMap;
+            }
+            if (occlusion)
+            {
+                flags |= (u32)Flags::kHasOcclusionMap;
+            }
+            return flags;
+        }
 
         // todo: is there a way to nicely abstract binding each member field, if we can do reflection, then we 
         // can loop through each member field and call shader->setUniform() on each field
@@ -193,18 +224,29 @@ namespace Cyan
             shader->setUniform1f("kRoughness", kRoughness);
             shader->setUniform1f("kMetallic", kMetallic);
         }
+
+        u32 flags = 0x0;
+        Texture* albedo = nullptr;
+        Texture* normal = nullptr;
+        Texture* roughness = nullptr;
+        Texture* metallic = nullptr;
+        Texture* metallicRoughness = nullptr;
+        Texture* occlusion = nullptr;
+        f32 kRoughness = 0.6f;
+        f32 kMetallic = 0.2f;
+        glm::vec3 kAlbedo = glm::vec3(0.85f, 0.85, 0.7f);
     };
 
     template<typename BaseShadingParameter>
     struct Emissive : BaseShadingParameter
     {
-        Texture* emissive = nullptr;
-        float kEmissive = 1.f;
-
         virtual void bindToShader(Shader* shader) override
         {
 
         }
+
+        Texture* emissive = nullptr;
+        float kEmissive = 1.f;
     };
 
     struct Lightmap
@@ -221,12 +263,12 @@ namespace Cyan
     template <typename BaseShadingParameter>
     struct Lightmapped : public BaseShadingParameter
     {
-        Lightmap lightmap;
-
         virtual void bindToShader(Shader* shader)
         {
 
         }
+
+        Lightmap lightmap;
     };
 
     struct BaseMaterial : public Asset
@@ -244,13 +286,12 @@ namespace Cyan
             : name(instanceName)
         { }
 
-        virtual std::string getAssetTypeIdentifier() override { return std::string("BaseMaterial"); }
-        virtual void bind() = 0;
+        virtual Shader* getShader() = 0;
+        virtual std::string getAssetObjectTypeDesc() override { return std::string("BaseMaterial"); }
+        virtual void bindToShader() = 0;
 
         // instance name
         std::string name;
-        static std::string shaderName;
-        static Shader* shader;
     };
 
     template <typename ShadingParameter>
@@ -262,15 +303,18 @@ namespace Cyan
 
         }
 
-        ShadingParameter parameter;
+        virtual std::string getAssetObjectTypeDesc() override { return typeDesc; }
+        static std::string getAssetClassTypeDesc() { return typeDesc; }
+        virtual Shader* getShader() override { return shader; }
 
-        virtual std::string getAssetTypeIdentifier() override { return typeIdentifier; }
-        static std::string getAssetTypeIdentifier() { return typeIdentifier; }
-
-        virtual void bind() override
+        virtual void bindToShader() override
         {
-            ShadingParameter::bind(shader);
+            parameter.bindToShader(shader);
         }
+
+        static Shader* shader;
+        static std::string typeDesc;
+        ShadingParameter parameter;
     };
 
     typedef Material<PBR> PBRMatl;

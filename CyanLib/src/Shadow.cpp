@@ -5,7 +5,7 @@
 namespace Cyan
 {
     ShadowmapManager::ShadowmapManager()
-        : m_sunShadowShader(nullptr), m_pointShadowShader(nullptr), m_sunShadowMatl(nullptr)
+        : m_sunShadowShader(nullptr), m_pointShadowShader(nullptr)//, m_sunShadowMatl(nullptr)
     {
         initialize();
     }
@@ -14,7 +14,7 @@ namespace Cyan
     {
         // TODO: depth buffer creation coupled with render target creation
         m_sunShadowShader = createShader("DirShadowShader", "../../shader/shader_dir_shadow.vs", "../../shader/shader_dir_shadow.fs");
-        m_sunShadowMatl = createMaterial(m_sunShadowShader)->createInstance();
+        // m_sunShadowMatl = createMaterial(m_sunShadowShader)->createInstance();
     }
     
     void ShadowmapManager::finalize()
@@ -49,14 +49,15 @@ namespace Cyan
             vsmSpec.mag = Texture::Filter::LINEAR;
             vsmSpec.r = Texture::Wrap::CLAMP_TO_EDGE;
             vsmSpec.s = Texture::Wrap::CLAMP_TO_EDGE;
-
+#if 0
             for (auto& line : cascade.frustumLines)
             {
                 line.init();
                 line.setColor(frustumColor);
-                cascade.basicShadowmap.shadowmap = textureManager->createTexture("Shadowmap", spec);
-                cascade.vsm.shadowmap = textureManager->createTexture("vsm", vsmSpec);
             }
+#endif
+            cascade.basicShadowmap.shadowmap = textureManager->createTexture("Shadowmap", spec);
+            cascade.vsm.shadowmap = textureManager->createTexture("vsm", vsmSpec);
             cascade.aabb.init();
         };
 
@@ -128,6 +129,7 @@ namespace Cyan
         glm::vec4 fdv4 = view * glm::vec4(fd, 1.f);
 
         // set debug line verts
+#if 0
         cascade.frustumLines[0].setVertices(na, nb);
         cascade.frustumLines[1].setVertices(nb, nc);
         cascade.frustumLines[2].setVertices(nc, nd);
@@ -140,8 +142,9 @@ namespace Cyan
         cascade.frustumLines[9].setVertices(nb, fb);
         cascade.frustumLines[10].setVertices(nc, fc);
         cascade.frustumLines[11].setVertices(nd, fd);
+#endif
 
-        BoundingBox3f& aabb = cascade.aabb;
+        BoundingBox3D& aabb = cascade.aabb;
         aabb.reset();
         aabb.bound(nav4);
         aabb.bound(nbv4);
@@ -161,7 +164,7 @@ namespace Cyan
         mid = glm::floor(mid);
         aabb.pmin = glm::vec4(mid - glm::vec3(fixedProjRadius), 1.f);
         aabb.pmax = glm::vec4(mid + glm::vec3(fixedProjRadius), 1.f);
-        aabb.update();
+        // aabb.update();
     }
 
     void ShadowmapManager::render(CascadedShadowmap& csm, Scene* scene, const DirectionalLight& sunLight, const std::vector<Entity*>& shadowCasters)
@@ -218,11 +221,16 @@ namespace Cyan
             renderer->executeOnEntity(shadowCasters[i], [this, ctx, renderer, cascade, lightView](SceneNode* node) {
                 if (node->m_meshInstance)
                 {
+#if 0
                     m_sunShadowMatl->set("transformIndex", node->globalTransform);
                     m_sunShadowMatl->set("sunLightView", &lightView[0][0]);
                     m_sunShadowMatl->set("sunLightProjection", &cascade.lightProjection[0][0]);
                     m_sunShadowMatl->bind();
-                    renderer->drawMesh(node->m_meshInstance->m_mesh);
+#endif
+                    m_sunShadowShader->setUniform1i("transformIndex", node->globalTransform)
+                                     .setUniformMat4("sunLightView", &lightView[0][0])
+                                     .setUniformMat4("sunLightProjection", &cascade.lightProjection[0][0]);
+                    renderer->drawMesh(node->m_meshInstance->parent);
                 }
             });
         }

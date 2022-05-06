@@ -9,22 +9,16 @@
 #include "Texture.h"
 #include "CyanAPI.h"
 
-bool operator==(const Cyan::Vertex& lhs, const Cyan::Vertex& rhs)
-{
-    return (lhs.position == rhs.position) 
-        && (lhs.normal == rhs.normal) 
-        && (lhs.texCoord == rhs.texCoord);
-}
-
 namespace std {
     template<> 
-    struct hash<Cyan::Vertex> 
+    struct hash<Cyan::Triangles::Vertex> 
     {
-        size_t operator()(Cyan::Vertex const& vertex) const 
+        size_t operator()(const Cyan::Triangles::Vertex& vertex) const 
         {
-            size_t a = hash<glm::vec3>()(vertex.position); 
+            size_t a = hash<glm::vec3>()(vertex.pos); 
             size_t b = hash<glm::vec3>()(vertex.normal); 
-            size_t c = hash<glm::vec2>()(vertex.texCoord); 
+            size_t c = hash<glm::vec2>()(vertex.texCoord0);
+            size_t d = hash<glm::vec2>()(vertex.texCoord1); 
             return (a ^ (b << 1)) ^ (c << 1);
         }
     };
@@ -68,13 +62,22 @@ void from_json(const nlohmann::json& j, Camera& c)
 
 namespace Cyan
 {
+    bool operator==(const Triangles::Vertex& lhs, const Triangles::Vertex& rhs)
+    {
+        // todo: maybe use memcmp() here instead ..?
+        // bit equivalence
+        return (lhs.pos == rhs.pos)
+            && (lhs.normal == rhs.normal)
+            && (lhs.tangent == rhs.tangent)
+            && (lhs.texCoord0 == rhs.texCoord0);
+    }
 
-    AssetManager* AssetManager::singletonPtr = nullptr;
+    AssetManager* AssetManager::singleton = nullptr;
     AssetManager::AssetManager()
     {
-        if (!singletonPtr)
+        if (!singleton)
         {
-            singletonPtr = this;
+            singleton = this;
         }
     }
 
@@ -108,7 +111,7 @@ namespace Cyan
             {
                 texture = textureManager->createTextureHDR(name.c_str(), filename.c_str(), spec);
             }
-            m_textureMap.insert(std::string(name), texture);
+            m_textureMap.insert({ name, texture });
         }
     }
 
@@ -143,19 +146,18 @@ namespace Cyan
         return result;
     }
 
-    void addSubMeshToLightMap(xatlas::Atlas* atlas, std::vector<Vertex>& vertices, std::vector<u32>& indices)
+#if 0
+    void addSubmeshToLightmap(xatlas::Atlas* atlas, const std::vector<Triangles::Vertex>& vertices, const std::vector<u32>& indices)
     {
         xatlas::SetPrint(Print, true);
-
-        // Add meshes to atlas.
         xatlas::MeshDecl meshDecl;
         meshDecl.vertexCount = vertices.size();
-        meshDecl.vertexPositionData = &vertices[0].position.x;
-        meshDecl.vertexPositionStride = sizeof(Vertex);
+        meshDecl.vertexPositionData = &vertices[0].pos.x;
+        meshDecl.vertexPositionStride = sizeof(Triangles::Vertex);
         meshDecl.vertexNormalData = &vertices[0].normal.x;
-        meshDecl.vertexNormalStride = sizeof(Vertex);
-        meshDecl.vertexUvData = &vertices[0].texCoord.x;
-        meshDecl.vertexUvStride = sizeof(Vertex);
+        meshDecl.vertexNormalStride = sizeof(Triangles::Vertex);
+        meshDecl.vertexUvData = &vertices[0].texCoord0.x;
+        meshDecl.vertexUvStride = sizeof(Triangles::Vertex);
         meshDecl.indexCount = (u32)indices.size();
         meshDecl.indexData = indices.data();
         meshDecl.indexFormat = xatlas::IndexFormat::UInt32;
@@ -164,16 +166,17 @@ namespace Cyan
         if (error != xatlas::AddMeshError::Success) 
             cyanError("Error adding mesh");
     }
+#endif
 
-    void computeTangent(std::vector<Vertex>& vertices, u32 face[3])
+    void calculateTangent(std::vector<Triangles::Vertex>& vertices, u32 face[3])
     {
         auto& v0 = vertices[face[0]];
         auto& v1 = vertices[face[1]];
         auto& v2 = vertices[face[2]];
-        glm::vec3 v0v1 = v1.position - v0.position;
-        glm::vec3 v0v2 = v2.position - v0.position;
-        glm::vec2 deltaUv0 = v1.texCoord - v0.texCoord;
-        glm::vec2 deltaUv1 = v2.texCoord - v0.texCoord;
+        glm::vec3 v0v1 = v1.pos - v0.pos;
+        glm::vec3 v0v2 = v2.pos - v0.pos;
+        glm::vec2 deltaUv0 = v1.texCoord0 - v0.texCoord0;
+        glm::vec2 deltaUv1 = v2.texCoord0 - v0.texCoord0;
         f32 tx = (deltaUv1.y * v0v1.x - deltaUv0.y * v0v2.x) / (deltaUv0.x * deltaUv1.y - deltaUv1.x * deltaUv0.y);
         f32 ty = (deltaUv1.y * v0v1.y - deltaUv0.y * v0v2.y) / (deltaUv0.x * deltaUv1.y - deltaUv1.x * deltaUv0.y);
         f32 tz = (deltaUv1.y * v0v1.z - deltaUv0.y * v0v2.z) / (deltaUv0.x * deltaUv1.y - deltaUv1.x * deltaUv0.y);
@@ -184,24 +187,34 @@ namespace Cyan
         v2.tangent = glm::vec4(tangent, 1.f);
     }
 
-    void loadObjTriMesh()
-    {
-
-    }
-
-    void loadObjLineMesh()
-    {
-
-    }
-
     // treat all the meshes inside one obj file as submeshes
-    Mesh* AssetManager::loadObj(const char* baseDir, const char* filename, bool bGenerateLightMapUv)
+    std::vector<BaseSubmesh*> AssetManager::loadObj(const char* baseDir, const char* filename, bool bGenerateLightMapUv)
     {
         tinyobj::attrib_t attrib;
         std::vector<tinyobj::shape_t> shapes;
         std::vector<tinyobj::material_t> materials;
         std::string warn;
         std::string err;
+
+        auto addSubmeshToLightmap = [](xatlas::Atlas* atlas, const std::vector<Triangles::Vertex>& vertices, const std::vector<u32>& indices) {
+            xatlas::SetPrint(Print, true);
+            xatlas::MeshDecl meshDecl;
+            meshDecl.vertexCount = vertices.size();
+            meshDecl.vertexPositionData = &vertices[0].pos.x;
+            meshDecl.vertexPositionStride = sizeof(Triangles::Vertex);
+            meshDecl.vertexNormalData = &vertices[0].normal.x;
+            meshDecl.vertexNormalStride = sizeof(Triangles::Vertex);
+            meshDecl.vertexUvData = &vertices[0].texCoord0.x;
+            meshDecl.vertexUvStride = sizeof(Triangles::Vertex);
+            meshDecl.indexCount = (u32)indices.size();
+            meshDecl.indexData = indices.data();
+            meshDecl.indexFormat = xatlas::IndexFormat::UInt32;
+
+            xatlas::AddMeshError error = xatlas::AddMesh(atlas, meshDecl);
+            if (error != xatlas::AddMeshError::Success) 
+                cyanError("Error adding mesh");
+        };
+
         bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filename, baseDir);
         if (!ret)
         {
@@ -209,48 +222,30 @@ namespace Cyan
             cyanError("Warnings: %s               ", warn.c_str());
             cyanError("Errors:   %s               ", err.c_str());
         }
-
-        Mesh* mesh = new Mesh;
-        for (u32 i = 0; i < materials.size(); ++i)
-        {
-            mesh->m_objMaterials.emplace_back();
-            auto& objMatl = mesh->m_objMaterials.back();
-            objMatl.diffuse = glm::vec3{ materials[i].diffuse[0], materials[i].diffuse[1], materials[i].diffuse[2] };
-            objMatl.specular = glm::vec3{ materials[i].specular[0], materials[i].specular[2], materials[i].specular[3] };
-            objMatl.kMetalness = materials[i].metallic;
-            objMatl.kRoughness = materials[i].roughness;
-        }
-
-        std::vector<TriMesh*> objMeshes;
-        // submeshes
+        auto atlas = xatlas::Create();
+        std::vector<BaseSubmesh*> submeshes;
         for (u32 s = 0; s < shapes.size(); ++s)
         {
-#if CYAN_DEBUG
-            cyanInfo("shape[%d].name = %s", s, shapes[s].name.c_str());
-#endif
-            TriMesh* objMesh = new TriMesh;
-            objMeshes.push_back(objMesh);
-            Mesh::SubMesh* subMesh = new Mesh::SubMesh;
-            mesh->m_subMeshes.push_back(subMesh);
-
-            // load tri mesh
+            // load triangle mesh
             if (shapes[s].mesh.indices.size() > 0)
             {
-                std::vector<Vertex>& vertices = objMesh->vertices;
-                std::vector<u32>& indices = objMesh->indices;
-                indices.resize(shapes[s].mesh.indices.size());
-                std::unordered_map<Vertex, u32> uniqueVerticesMap;
+                std::vector<Triangles::Vertex> vertices;
+                std::vector<u32> indices(shapes[s].mesh.indices.size());
+
+                std::unordered_map<Triangles::Vertex, u32> uniqueVerticesMap;
                 u32 numUniqueVertices = 0;
 
                 // assume that one submesh can only have one material
+                /*
                 if (shapes[s].mesh.material_ids.size() > 0)
                 {
                     subMesh->m_materialIdx = shapes[s].mesh.material_ids[0];
                 }
+                */
                 // load triangles
                 for (u32 f = 0; f < shapes[s].mesh.indices.size() / 3; ++f)
                 {
-                    Vertex vertex = { };
+                    Triangles::Vertex vertex = { };
                     u32 face[3] = { };
 
                     for (u32 v = 0; v < 3; ++v)
@@ -260,7 +255,7 @@ namespace Cyan
                         f32 vx = attrib.vertices[index.vertex_index * 3 + 0];
                         f32 vy = attrib.vertices[index.vertex_index * 3 + 1];
                         f32 vz = attrib.vertices[index.vertex_index * 3 + 2];
-                        vertex.position = glm::vec3(vx, vy, vz);
+                        vertex.pos = glm::vec3(vx, vy, vz);
                         // normal
                         if (index.normal_index >= 0)
                         {
@@ -276,10 +271,10 @@ namespace Cyan
                         {
                             f32 tx = attrib.texcoords[index.texcoord_index * 2 + 0];
                             f32 ty = attrib.texcoords[index.texcoord_index * 2 + 1];
-                            vertex.texCoord = glm::vec2(tx, ty);
+                            vertex.texCoord0 = glm::vec2(tx, ty);
                         }
                         else
-                            vertex.texCoord = glm::vec2(0.f);
+                            vertex.texCoord0 = glm::vec2(0.f);
 
                         // deduplicate vertices
                         auto iter = uniqueVerticesMap.find(vertex);
@@ -296,64 +291,45 @@ namespace Cyan
                             indices[f * 3 + v] = reuseIndex;
                             face[v] = reuseIndex;
                         }
-
-                        subMesh->m_triangles.m_positionArray.push_back(vertex.position);
-                        subMesh->m_triangles.m_normalArray.push_back(vertex.normal);
-                        subMesh->m_triangles.m_texCoordArray.push_back(glm::vec3(vertex.texCoord, 0.f));
                     }
 
                     // compute face tangent
-                    computeTangent(vertices, face);
+                    calculateTangent(vertices, face);
+                }
+
+                if (bGenerateLightMapUv)
+                {
+                    addSubmeshToLightmap(atlas, vertices, indices);
                 }
             } 
-            // todo: this loading code is extremely buggy!!! 
             // load lines
-            if (shapes[s].lines.indices.size() > 0)
+            else if (shapes[s].lines.indices.size() > 0)
             {
-                std::vector<Vertex>& vertices = objMesh->vertices;
+                std::vector<Lines::Vertex> vertices;
+                std::vector<u32> indices;
                 vertices.resize(shapes[s].lines.num_line_vertices.size());
-                std::vector<u32>& indices = objMesh->indices;
                 indices.resize(shapes[s].lines.indices.size());
-                std::unordered_map<Vertex, u32> uniqueVerticesMap;
-                u32 numUniqueVertices = 0;
 
                 for (u32 l = 0; l < shapes[s].lines.indices.size() / 2; ++l)
                 {
-                    Vertex vertex = { };
+                    Lines::Vertex vertex = { };
                     for (u32 v = 0; v < 2; ++v)
                     {
                         tinyobj::index_t index = shapes[s].lines.indices[l * 2 + v];
                         f32 vx = attrib.vertices[index.vertex_index * 3 + 0];
                         f32 vy = attrib.vertices[index.vertex_index * 3 + 1];
                         f32 vz = attrib.vertices[index.vertex_index * 3 + 2];
-                        vertex.position = glm::vec3(vx, vy, vz);
+                        vertex.pos = glm::vec3(vx, vy, vz);
                         vertices[index.vertex_index] = vertex;
                         indices[l * 2 + v] = index.vertex_index;
-#if 0
-                        // deduplicate vertices
-                        auto iter = uniqueVerticesMap.find(vertex);
-                        if (iter == uniqueVerticesMap.end())
-                        {
-                            uniqueVerticesMap[vertex] = numUniqueVertices;
-                            vertices.push_back(vertex);
-                            indices[l * 2 + v] = numUniqueVertices++;
-                        }
-                        else
-                        {
-                            u32 reuseIndex = iter->second;
-                            indices[l * 2 + v] = reuseIndex;
-                        }
-#endif
                     }
                 }
             }
         }
 
+        // generating lightmap uv if requested
         if (bGenerateLightMapUv)
         {
-            auto atlas = xatlas::Create();
-            for (auto objMesh : objMeshes)
-                addSubMeshToLightMap(atlas, objMesh->vertices, objMesh->indices);
             // atlas now holds results of packing
             xatlas::PackOptions packOptions = { };
             packOptions.bruteForce = true;
@@ -361,64 +337,43 @@ namespace Cyan
             packOptions.resolution = 1024;
 
             xatlas::Generate(atlas, xatlas::ChartOptions{}, packOptions);
-            CYAN_ASSERT(atlas->meshCount == objMeshes.size(), "# Submeshes and # of meshes in atlas doesn't match!");
-            mesh->m_lightMapWidth = atlas->width;
-            mesh->m_lightMapHeight = atlas->height;
+            CYAN_ASSERT(atlas->meshCount == submeshes.size(), "# Submeshes and # of meshes in atlas doesn't match!");
 
-            for (u32 sm = 0; sm < objMeshes.size(); ++sm)
+            for (u32 i = 0; i < submeshes.size(); ++i)
             {
-                std::vector<Vertex> packedVertices(atlas->meshes[sm].vertexCount);
-                std::vector<u32>       packedIndices(atlas->meshes[sm].indexCount);
-                for (u32 v = 0; v < atlas->meshes[sm].vertexCount; ++v)
+                // it's safe to do this cast here as we are sure that all the submeshes are of type Triangles
+                auto sm = static_cast<Mesh::Submesh<Triangles>*>(submeshes[i]);
+                auto origVertices = sm->getVertices();
+                std::vector<Triangles::Vertex> packedVertices(atlas->meshes[i].vertexCount);
+                std::vector<u32>       packedIndices(atlas->meshes[i].indexCount);
+                for (u32 v = 0; v < atlas->meshes[i].vertexCount; ++v)
                 {
-                    xatlas::Vertex atlasVertex = atlas->meshes[sm].vertexArray[v];
-                    packedVertices[v] = objMeshes[sm]->vertices[atlasVertex.xref];
+                    xatlas::Vertex atlasVertex = atlas->meshes[i].vertexArray[v];
+                    packedVertices[v] = origVertices[atlasVertex.xref];
                     packedVertices[v].texCoord1.x = atlasVertex.uv[0] / atlas->width;
                     packedVertices[v].texCoord1.y = atlasVertex.uv[1] / atlas->height;
                 }
-                for (u32 i = 0; i < atlas->meshes[sm].indexCount; ++i)
-                    packedIndices[i] = atlas->meshes[sm].indexArray[i];
-                objMeshes[sm]->vertices.swap(packedVertices);
-                objMeshes[sm]->indices.swap(packedIndices);
+                for (u32 i = 0; i < atlas->meshes[i].indexCount; ++i)
+                {
+                    packedIndices[i] = atlas->meshes[i].indexArray[i];
+                }
+
+                sm->setGeometryData(packedVertices, packedIndices);
             }
-            xatlas::Destroy(atlas);
         }
-
-        u32 strideInBytes = sizeof(Vertex);
-        for (u32 sm = 0; sm < mesh->m_subMeshes.size(); ++sm)
+        xatlas::Destroy(atlas);
+        return std::move(submeshes);
+#if 0
+        for (u32 i = 0; i < materials.size(); ++i)
         {
-            TriMesh* objMesh = objMeshes[sm];
-            auto vb = Cyan::createVertexBuffer(objMesh->vertices.data(), sizeof(Vertex) * objMesh->vertices.size(), strideInBytes, objMesh->indices.size());
-            u32 offset = 0;
-            vb->addVertexAttrib({ VertexAttrib::DataType::Float, 3, strideInBytes, offset});
-            offset += 3 * sizeof(f32);
-            vb->addVertexAttrib({ VertexAttrib::DataType::Float, 3, strideInBytes, offset});
-            offset += 3 * sizeof(f32);
-            vb->addVertexAttrib({ VertexAttrib::DataType::Float, 4, strideInBytes, offset});
-            offset += 4 * sizeof(f32);
-            vb->addVertexAttrib({ VertexAttrib::DataType::Float, 2, strideInBytes, offset});
-            offset += 2 * sizeof(f32);
-            vb->addVertexAttrib({ VertexAttrib::DataType::Float, 2, strideInBytes, offset});
-            offset += 2 * sizeof(f32);
-            mesh->m_subMeshes[sm]->m_vertexArray = Cyan::createVertexArray(vb);
-            mesh->m_subMeshes[sm]->m_vertexArray->init();
-            mesh->m_subMeshes[sm]->m_numVerts = objMesh->vertices.size();
-            mesh->m_subMeshes[sm]->m_numIndices = objMesh->indices.size();
-            mesh->m_subMeshes[sm]->m_triangles.m_numVerts = objMesh->indices.size();
-            // create index buffer
-            glCreateBuffers(1, &mesh->m_subMeshes[sm]->m_vertexArray->m_ibo);
-            glBindVertexArray(mesh->m_subMeshes[sm]->m_vertexArray->m_vao);
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->m_subMeshes[sm]->m_vertexArray->m_ibo);
-            glNamedBufferData(mesh->m_subMeshes[sm]->m_vertexArray->m_ibo, objMesh->indices.size() * sizeof(u32), objMesh->indices.data(), GL_STATIC_DRAW);
-            glBindVertexArray(0);
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-            mesh->m_subMeshes[sm]->m_vertexArray->m_numIndices = objMesh->indices.size();
+            mesh->m_objMaterials.emplace_back();
+            auto& objMatl = mesh->m_objMaterials.back();
+            objMatl.diffuse = glm::vec3{ materials[i].diffuse[0], materials[i].diffuse[1], materials[i].diffuse[2] };
+            objMatl.specular = glm::vec3{ materials[i].specular[0], materials[i].specular[2], materials[i].specular[3] };
+            objMatl.kMetalness = materials[i].metallic;
+            objMatl.kRoughness = materials[i].roughness;
         }
-
-        // release resources
-        for (auto objMesh : objMeshes)
-            delete objMesh;
-        return mesh;
+#endif
     }
 
     Mesh* AssetManager::loadMesh(std::string& path, const char* name, bool normalize, bool generateLightMapUv)
@@ -431,21 +386,19 @@ namespace Cyan
         found = path.find_last_of('/');
         std::string baseDir = path.substr(0, found);
 
-        Mesh* mesh = nullptr;
+        Mesh* parent = nullptr;
         if (extension == ".obj")
         {
             cyanInfo("Loading .obj file %s", path.c_str());
-            mesh = loadObj(baseDir.c_str(), path.c_str(), generateLightMapUv);
+            std::vector<BaseSubmesh*> submeshes = std::move(loadObj(baseDir.c_str(), path.c_str(), generateLightMapUv));
+            parent = createMesh(name, submeshes);
         }
         else
             cyanError("Unsupported mesh file format %s", extension.c_str());
 
-        // Store the xform for normalizing object space mesh coordinates
-        mesh->m_name = name;
-        mesh->m_bvh  = nullptr;
-        mesh->m_shouldNormalize = normalize;
-        mesh->onFinishLoading();
-        return mesh;
+        // todo: (handle converting mesh data for raster pipeline to ray tracing pipeline)
+        // mesh->m_bvh  = nullptr;
+        return parent;
     }
 
     void AssetManager::loadMeshes(Scene* scene, nlohmann::basic_json<std::map>& meshInfoList)
@@ -459,8 +412,7 @@ namespace Cyan
             meshInfo.at("normalize").get_to(normalize);
             meshInfo.at("generateLightMapUv").get_to(generateLightMapUv);
 
-            auto mesh = loadMesh(path, name.c_str(), normalize, generateLightMapUv);
-            Cyan::addMesh(mesh);
+            loadMesh(path, name.c_str(), normalize, generateLightMapUv);
         }
     }
 
@@ -485,9 +437,8 @@ namespace Cyan
                 continue;
             }
             std::string meshName = nodeInfo.at("mesh");
-            Cyan::Mesh* mesh = nullptr;
-            mesh = Cyan::getMesh(meshName.c_str());
-            SceneNode* node = sceneManager->createSceneNode(scene, nodeName.c_str(), transform, mesh); 
+            Mesh* parent = getAsset<Mesh>(meshName.c_str());
+            SceneNode* node = sceneManager->createSceneNode(scene, nodeName.c_str(), transform, parent); 
             m_nodes.push_back(node);
         }
         // second pass to setup the hierarchy
@@ -684,7 +635,7 @@ namespace Cyan
         else 
             sprintf_s(sceneNodeName, "%s", node.name.c_str());
 
-        Cyan::Mesh* mesh = hasMesh ? Cyan::getMesh(meshName) : nullptr;
+        Mesh* mesh = hasMesh ? getAsset<Mesh>(meshName) : nullptr;
         SceneNode* sceneNode = sceneManager->createSceneNode(scene, sceneNodeName, localTransform, mesh);
         if (parentSceneNode)
             parentSceneNode->attach(sceneNode);
@@ -696,12 +647,12 @@ namespace Cyan
             for (u32 sm = 0u; sm < gltfMesh.primitives.size(); ++sm) 
             {
                 auto& primitive = gltfMesh.primitives[sm];
-                Cyan::StandardPbrMaterial* matl = nullptr;
+                PBRMatl* matl = nullptr;
+                matl = createMaterial<PBRMatl>("haha");
                 if (primitive.material > -1) 
                 {
                     auto& gltfMaterial = model.materials[primitive.material];
                     auto pbr = gltfMaterial.pbrMetallicRoughness;
-                    PbrMaterialParam params = { };
                     auto getTexture = [&](i32 imageIndex) 
                     {
                         Cyan::Texture* texture = nullptr;
@@ -713,21 +664,12 @@ namespace Cyan
                         return texture;
                     };
 
-                    params.baseColor = getTexture(pbr.baseColorTexture.index);
-                    params.normal = getTexture(gltfMaterial.normalTexture.index);
-                    params.metallicRoughness = getTexture(pbr.metallicRoughnessTexture.index);
-                    params.occlusion = getTexture(gltfMaterial.occlusionTexture.index);
-                    params.indirectDiffuseScale = 1.f;
-                    params.indirectSpecularScale = 1.f;
-                    matl = new StandardPbrMaterial(params);
-                    meshInstance->m_matls[sm] = matl->m_materialInstance;
+                    matl->parameter.albedo = getTexture(pbr.baseColorTexture.index);
+                    matl->parameter.normal = getTexture(gltfMaterial.normalTexture.index);
+                    matl->parameter.metallicRoughness = getTexture(pbr.metallicRoughnessTexture.index);
+                    matl->parameter.occlusion = getTexture(gltfMaterial.occlusionTexture.index);
                 }
-                else
-                {
-                    matl = new StandardPbrMaterial;
-                    meshInstance->m_matls[sm] = matl->m_materialInstance;
-                }
-                scene->addStandardPbrMaterial(matl);
+                meshInstance->materials[sm] = matl;
             }
         }
         // recurse to load all the children
@@ -857,11 +799,8 @@ namespace Cyan
         }
     }
 
-    Cyan::Mesh* AssetManager::loadGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh) {
-
-        Mesh* mesh = createMesh(gltfMesh.name.c_str());
-        mesh->m_name = gltfMesh.name;
-        mesh->m_bvh = nullptr;
+    Cyan::Mesh* AssetManager::loadGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh) 
+    {
 
         std::vector<BaseSubmesh*> submeshes;
 
@@ -991,170 +930,23 @@ namespace Cyan
                     default:
                         break;
                     }
-                    /*
-                    // FIXME: type is hard-coded to u32 for now
-                    u32* indexDataBuffer = new u32[numIndices];
-                    void* srcDataAddress = reinterpret_cast<void*>(&buffer.data[accessor.byteOffset + bufferView.byteOffset]);
-                    memcpy(indexDataBuffer, srcDataAddress, numIndices * indexSize);
-                    glCreateBuffers(1, &subMesh->m_vertexArray->m_ibo);
-                    glBindVertexArray(subMesh->m_vertexArray->m_vao);
-                    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, subMesh->m_vertexArray->m_ibo);
-                    glNamedBufferData(subMesh->m_vertexArray->m_ibo, numIndices * indexSize,
-                        reinterpret_cast<const void*>(indexDataBuffer), GL_STATIC_DRAW);
-                    glBindVertexArray(0);
-                    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-                    subMesh->m_vertexArray->m_numIndices = numIndices;
-                    subMesh->m_numIndices = numIndices;
-                    // load cpu mesh data
-                    u32 numFaces = numIndices / 3;
-                    */
                 }
 
                 submeshes.push_back(createSubmesh<Triangles>(vertices, indices));
             } break;
+            case TINYGLTF_MODE_LINE:
+            case TINYGLTF_MODE_POINTS:
+            case TINYGLTF_MODE_LINE_STRIP:
+            case TINYGLTF_MODE_TRIANGLE_STRIP:
             default:
                 break;
             }
-
-#if 0
-            u32 numVertices = 0u, numIndices = 0u;
-            // Convert data for each vertex attributes into raw buffer
-            u32 strideInBytes = 0u;
-            auto incrementVertexStride = [&](auto& attribute) {
-                tinygltf::Accessor accessor = model.accessors[attribute.second];
-                if (numVertices > 0u)
-                {
-                    CYAN_ASSERT(numVertices == accessor.count, "Mismatch vertex count among vertex attributes")
-                }
-                else
-                    numVertices = accessor.count;
-                strideInBytes += tinygltf::GetComponentSizeInBytes(accessor.componentType) * tinygltf::GetNumComponentsInType(accessor.type);
-            };
-            struct SortAttribute
-            {
-                std::string name;
-                u32 key;
-                bool operator<(SortAttribute& rhs)
-                {
-                    return key < rhs.key;
-                }
-            };
-            std::vector<SortAttribute> sortedAttribs; 
-            for (auto& attrib : primitive.attributes)
-            {
-                if (attrib.first.compare("POSITION") == 0) {
-                    incrementVertexStride(attrib);
-                    sortedAttribs.push_back({attrib.first, 0u});
-                } else if (attrib.first.compare("NORMAL") == 0) {
-                    incrementVertexStride(attrib);
-                    sortedAttribs.push_back({attrib.first, 1u});
-                } else if (attrib.first.compare("TANGENT") == 0) {
-                    incrementVertexStride(attrib);
-                    sortedAttribs.push_back({attrib.first, 2u});
-                } else if (attrib.first.find("TEXCOORD") == 0) {
-                    incrementVertexStride(attrib);
-                    u32 texCoordIndex = 0u;
-                    sscanf_s(attrib.first.c_str(),"TEXCOORD_%u", &texCoordIndex);
-                    sortedAttribs.push_back({attrib.first, texCoordIndex + 3u});
-                }
-            }
-            // sort the attributes in an order that is compatible with the bindings order in 
-            // shader_pbr
-            std::sort(sortedAttribs.begin(), sortedAttribs.end());
-            f32* vertexDataBuffer = reinterpret_cast<f32*>(new u8[strideInBytes * numVertices]); 
-
-            u32 totalBytes = 0u;
-            u32 offset = 0u;
-            std::vector<VertexAttrib> vertexAttribs;
-            // vertices
-            // reorganize the attribute data to interleave them in the buffer
-            for (auto& entry : sortedAttribs)
-            {
-                const auto& attrib = primitive.attributes.find(entry.name);
-                tinygltf::Accessor accessor = model.accessors[attrib->second];
-                tinygltf::BufferView bufferView = model.bufferViews[accessor.bufferView];
-                tinygltf::Buffer buffer = model.buffers[bufferView.buffer];
-                u8* srcStart = &buffer.data[accessor.byteOffset + bufferView.byteOffset];
-                u8* dstStart = reinterpret_cast<u8*>(vertexDataBuffer) + offset;
-                u32 sizeToCopy = tinygltf::GetComponentSizeInBytes(accessor.componentType) * tinygltf::GetNumComponentsInType(accessor.type);
-                u32 numComponents = tinygltf::GetNumComponentsInType(accessor.type);
-                for (u32 v = 0; v < numVertices; ++v)
-                {
-                    void* srcDataAddress = reinterpret_cast<void*>(srcStart + v * bufferView.byteStride);
-                    void* dstDataAddress = reinterpret_cast<void*>(dstStart + (u64)(v * strideInBytes)); 
-                    memcpy(dstDataAddress, srcDataAddress, sizeToCopy);
-                    // TODO: Do this in a not so hacky way 
-                    // flip the y-component of texcoord
-                    if (entry.name.find("TEXCOORD") == 0) {
-                        float* data = reinterpret_cast<float*>(dstDataAddress);
-                        data[1] = 1.f - data[1];
-                    }
-                    totalBytes += sizeToCopy;
-                }
-                // FIXME: type is hard-coded to float for now
-                vertexAttribs.push_back({
-                    VertexAttrib::DataType::Float,
-                    static_cast<u32>(tinygltf::GetNumComponentsInType(accessor.type)),
-                    strideInBytes,
-                    offset
-                });
-                offset += sizeToCopy;
-            }
-            CYAN_ASSERT(totalBytes == strideInBytes * numVertices, "mismatched buffer size")
-            VertexBuffer* vb = Cyan::createVertexBuffer(reinterpret_cast<void*>(vertexDataBuffer), strideInBytes * numVertices, strideInBytes, numVertices);
-            vb->m_vertexAttribs = vertexAttribs;
-            subMesh->m_vertexArray = Cyan::createVertexArray(vb);
-            subMesh->m_vertexArray->init();
-            subMesh->m_numVerts = numVertices;
-            // indices
-            if (primitive.indices >= 0)
-            {
-                auto& accessor = model.accessors[primitive.indices];
-                numIndices = accessor.count;
-                tinygltf::BufferView bufferView = model.bufferViews[accessor.bufferView];
-                tinygltf::Buffer buffer = model.buffers[bufferView.buffer];
-                u32 indexSize = tinygltf::GetComponentSizeInBytes(accessor.componentType);
-                // FIXME: type is hard-coded to u32 for now
-                u32* indexDataBuffer  = new u32[numIndices];
-                void* srcDataAddress = reinterpret_cast<void*>(&buffer.data[accessor.byteOffset + bufferView.byteOffset]);
-                memcpy(indexDataBuffer, srcDataAddress, numIndices * indexSize);
-                glCreateBuffers(1, &subMesh->m_vertexArray->m_ibo);
-                glBindVertexArray(subMesh->m_vertexArray->m_vao);
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, subMesh->m_vertexArray->m_ibo);
-                glNamedBufferData(subMesh->m_vertexArray->m_ibo, numIndices * indexSize,
-                                    reinterpret_cast<const void*>(indexDataBuffer), GL_STATIC_DRAW);
-                glBindVertexArray(0);
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-                subMesh->m_vertexArray->m_numIndices = numIndices;
-                subMesh->m_numIndices = numIndices;
-                // load cpu mesh data
-                u32 numFaces = numIndices / 3;
-                CYAN_ASSERT(numIndices % 3 == 0, "Given gltf mesh has invalid index buffer!");
-#if 0
-                for (u32 f = 0; f < numFaces; ++f)
-                {
-                    for (u32 v = 0; v < 3; ++v)
-                    {
-                        u32 offset = strideInBytes * indexDataBuffer[f * 3 + v];
-                        f32* srcDataAddress = (f32*)((u8*)vertexDataBuffer + offset);
-                        subMesh->m_triangles.m_positionArray.emplace_back(srcDataAddress[0], srcDataAddress[1], srcDataAddress[2]);
-                        subMesh->m_triangles.m_normalArray.emplace_back(srcDataAddress[3], srcDataAddress[4], srcDataAddress[5]);
-                        subMesh->m_triangles.m_tangentArray.emplace_back(srcDataAddress[6], srcDataAddress[7], srcDataAddress[8]);
-                        subMesh->m_triangles.m_texCoordArray.emplace_back(srcDataAddress[10], srcDataAddress[11], 0.f);
-                    }
-                }
-                subMesh->m_triangles.m_numVerts = numIndices;
-#endif
-                delete[] vertexDataBuffer;
-                delete[] indexDataBuffer;
-            }
-            mesh->m_subMeshes.push_back(subMesh);
-#endif
         } // primitive (submesh)
-        mesh->m_normalization = glm::mat4(1.0);
-        mesh->m_shouldNormalize = false;
-        mesh->onFinishLoading();
-        return mesh;
+
+        Mesh* parent = createMesh(gltfMesh.name.c_str(), submeshes);
+        // todo: (handle converting mesh data for raster pipeline to ray tracing pipeline)
+        // mesh->m_bvh = nullptr;
+        return parent;
     }
 
     void AssetManager::loadGltfTextures(const char* nodeName, tinygltf::Model& model) {
@@ -1181,8 +973,7 @@ namespace Cyan
         // load meshes
         for (auto& gltfMesh : model.meshes)
         {
-            Mesh* mesh = loadGltfMesh(model, gltfMesh);
-            Cyan::addMesh(mesh);
+            Mesh* parent = loadGltfMesh(model, gltfMesh);
         }
         // todo: Handle multiple root nodes
         // assuming that there is only one root node for defaultScene
@@ -1191,15 +982,10 @@ namespace Cyan
         if (rootNode.mesh > 0)
         {
             tinygltf::Mesh gltfMesh = model.meshes[rootNode.mesh];
-            rootNodeMesh = Cyan::getMesh(gltfMesh.name.c_str());
+            rootNodeMesh = getAsset<Mesh>(gltfMesh.name.c_str());
         }
         SceneNode* parentNode = sceneManager->createSceneNode(scene, name, transform, nullptr);
         loadGltfNode(scene, model, nullptr, parentNode, rootNode, 0);
         return parentNode;
-    }
-
-    template <typename T>
-    Material<T>* AssetManager::getAsset(const char* matlName)
-    {
     }
 }

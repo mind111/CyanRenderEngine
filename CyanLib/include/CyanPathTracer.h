@@ -6,6 +6,7 @@
 
 namespace Cyan 
 {
+#if 0
     struct IrradianceRecord;
 
     glm::vec3 computeBaryCoord(Triangle& tri, glm::vec3& hitPosObjectSpace);
@@ -164,7 +165,7 @@ namespace Cyan
 
         struct DebugData
         {
-            std::vector<BoundingBox3f> octreeBoundingBoxes;
+            std::vector<BoundingBox3D> octreeBoundingBoxes;
             std::vector<Ray> debugHemisphereSamples;
             std::vector<glm::vec3> translationalGradients;
             glm::vec3 pos;
@@ -196,4 +197,5 @@ namespace Cyan
         static std::atomic<u32>  progressCounter;
         static PathTracer*       m_singleton;
     };
+#endif
 }

@@ -119,8 +119,7 @@ namespace Cyan
     void* alloc(u32 sizeInBytes);
 
     // Buffers
-    VertexArray*  createVertexArray(VertexBuffer* vb);
-    VertexBuffer* createVertexBuffer(void* _data, u32 _sizeInBytes, u32 strideInBytes, u32 _numVerts);
+    VertexBuffer* createVertexBuffer(void* data, u32 sizeInBytes, VertexSpec&& vertexSpec);
     RegularBuffer* createRegularBuffer(u32 totalSize);
 
     /* Texture */
@@ -147,17 +146,13 @@ namespace Cyan
     void setUniform(Uniform* _uniform, void* _valuePtr);
     void setUniform(Uniform* _uniform, u32 _value);
     void setUniform(Uniform* _uniform, float _value);
-    Uniform* createShaderUniform(Shader* _shader, const char* _name, Uniform::Type _type);
-    Uniform* createMaterialUniform(Material* _material, const char* _name, Uniform::Type _type);
+//    Uniform* createShaderUniform(Shader* _shader, const char* _name, Uniform::Type _type);
+//    Uniform* createMaterialUniform(Material* _material, const char* _name, Uniform::Type _type);
     UniformHandle getUniformHandle(const char* name);
     Uniform* getUniform(UniformHandle handle);
-      
-    Material* createMaterial(Shader* _shader);
 
-    /* Mesh */
-    void addMesh(Mesh* mesh);
-    Mesh* createMesh(const char* name, std::string& file, bool normalize);
-    Mesh* getMesh(const char* _name);
+//    Material* createMaterial(Shader* _shader);
+
     struct TriangleIndex
     {
         u32 submeshIndex;
@@ -269,9 +264,9 @@ namespace Cyan
 
         //-
         // Mesh related
-        void computeAABB(Mesh* mesh);
+        void computeAABB(Mesh* parent);
         Mesh* createCubeMesh(const char* _name);
-        glm::mat4 computeMeshNormalization(Mesh* mesh);
+        glm::mat4 computeMeshNormalization(Mesh* parent);
 
     }; // namespace Toolkit
 

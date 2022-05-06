@@ -1,12 +1,14 @@
+#include "stb_image.h"
+
 #include "LightProbe.h"
 #include "RenderTarget.h"
 #include "CyanAPI.h"
 #include "CyanRenderer.h"
-#include "stb_image.h"
+#include "Asset.h"
 
 namespace Cyan
 {
-    Mesh*          s_cubeMesh                                  = nullptr;
+    Mesh*          unitCubeMesh                                = nullptr;
     Shader*        s_debugRenderShader                         = nullptr;
     Texture*       ReflectionProbe::s_BRDFLookupTexture        = nullptr;
     Shader*        IrradianceProbe::s_convolveIrradianceShader = nullptr;
@@ -53,8 +55,8 @@ namespace Cyan
     LightProbe::LightProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& resolution)
         : scene(scene), position(p), resolution(resolution), debugSphereMesh(nullptr), sceneCapture(nullptr), debugRenderMatl(nullptr)
     {
-        debugSphereMesh = getMesh("sphere_mesh")->createInstance(scene);
-        debugRenderMatl = createMaterial(getRenderProbeShader())->createInstance();
+        // debugSphereMesh = AssetManager::getAsset<Mesh>("sphere_mesh")->createInstance(scene);
+        // debugRenderMatl = createMaterial(getRenderProbeShader())->createInstance();
 
         initialize();
     }
@@ -78,16 +80,22 @@ namespace Cyan
         sceneCapture = textureManager->createTextureHDR("SceneCapture", spec);
 
         // shared cube mesh
-        if (!s_cubeMesh)
+        if (!unitCubeMesh)
         {
-            auto created = (getMesh("CubeMesh") != nullptr);
-            if (!created)
+            auto assetManager = AssetManager::get();
+            unitCubeMesh = assetManager->getAsset<Mesh>("UnitCubeMesh");
+            if (!unitCubeMesh)
             {
-                s_cubeMesh = Cyan::Toolkit::createCubeMesh("CubeMesh");
-            }
-            else
-            {
-                s_cubeMesh = getMesh("CubeMesh");
+                u32 numVertices = sizeof(cubeVertices) / sizeof(f32);
+                std::vector<BaseSubmesh*> submeshes;
+                std::vector<Triangles::Vertex> vertices(numVertices);
+                std::vector<u32> indices(numVertices);
+                for (u32 v = 0; v < numVertices; ++v)
+                {
+                    vertices[v].pos = glm::vec3(cubeVertices[v * 3 + 0], cubeVertices[v * 3 + 1], cubeVertices[v * 3 + 2]);
+                    indices[v] = v;
+                }
+                submeshes.push_back(assetManager->createSubmesh<Triangles>(vertices, indices));
             }
         }
     }
@@ -147,7 +155,7 @@ namespace Cyan
         {
             s_convolveIrradianceShader = createShader("ConvolveIrradianceShader", SHADER_SOURCE_PATH "convolve_diffuse_v.glsl", SHADER_SOURCE_PATH "convolve_diffuse_p.glsl");
         }
-        m_convolveIrradianceMatl = createMaterial(s_convolveIrradianceShader)->createInstance();
+        // m_convolveIrradianceMatl = createMaterial(s_convolveIrradianceShader)->createInstance();
     }
 
     void IrradianceProbe::convolve()
@@ -171,11 +179,16 @@ namespace Cyan
                 camera.lookAt = LightProbeCameras::cameraFacingDirections[f];
                 camera.worldUp = LightProbeCameras::worldUps[f];
                 camera.update();
-
+#if 0
                 m_convolveIrradianceMatl->set("view", &camera.view[0]);
                 m_convolveIrradianceMatl->set("projection", &camera.projection[0]);
                 m_convolveIrradianceMatl->bindTexture("srcCubemapTexture", sceneCapture);
-                m_convolveIrradianceMatl->bind();
+                m_convolveIrradianceMatl->bindToShader();
+#endif
+                s_convolveIrradianceShader->setUniformMat4("view", &camera.view[0].x)
+                                        .setUniformMat4("projection", &camera.projection[0].x)
+                                        .setTexture("srcCubemapTexture", sceneCapture);
+
                 ctx->drawIndexAuto(36u);
             }
             ctx->setDepthControl(DepthControl::kEnable);
@@ -237,7 +250,7 @@ namespace Cyan
         {
             s_convolveReflectionShader = createShader("ConvolveReflectionShader", SHADER_SOURCE_PATH "convolve_specular_v.glsl", SHADER_SOURCE_PATH "convolve_specular_p.glsl");
         }
-        m_convolveReflectionMatl = createMaterial(s_convolveReflectionShader)->createInstance();
+        // m_convolveReflectionMatl = createMaterial(s_convolveReflectionShader)->createInstance();
 
         // generate shared BRDF lookup texture
         if (!s_BRDFLookupTexture)
@@ -333,11 +346,16 @@ namespace Cyan
                     camera.worldUp = LightProbeCameras::worldUps[f];
                     camera.update();
 
-                    m_convolveReflectionMatl->set("projection", &camera.projection[0]);
+                    s_convolveReflectionShader->setUniformMat4("projection", &camera.projection[0].x)
+                                            .setUniformMat4("view", &camera.view[0].x)
+                                            .setUniform1f("roughness", mip * (1.f / (kNumMips - 1)))
+                                            .setTexture("envmapSampler", sceneCapture);
+                    /*
                     m_convolveReflectionMatl->set("view", &camera.view[0]);
                     m_convolveReflectionMatl->set("roughness", mip * (1.f / (kNumMips - 1)));
                     m_convolveReflectionMatl->bindTexture("envmapSampler", sceneCapture);
-                    m_convolveReflectionMatl->bind();
+                    m_convolveReflectionMatl->bindToShader();
+                    */
                     ctx->drawIndexAuto(36);
                 }
             }

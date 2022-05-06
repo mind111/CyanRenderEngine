@@ -14,6 +14,7 @@
 
 namespace Cyan
 {
+#if 0
     std::atomic<u32> LightMapManager::progressCounter(0u);
 
     void LightMap::setPixel(u32 px, u32 py, glm::vec3& color)
@@ -78,7 +79,7 @@ namespace Cyan
     {
         glDisable(GL_CULL_FACE);
         LightMap* lightMap = node->m_meshInstance->m_lightMap;
-        Mesh* mesh = node->m_meshInstance->m_mesh;
+        Mesh* parent = node->m_meshInstance->m_mesh;
         // raster the lightmap using gpu
         u32 maxNumTexels = lightMap->m_texAltas->height * lightMap->m_texAltas->width;
         {
@@ -126,13 +127,13 @@ namespace Cyan
                 glm::vec3 offset = passes[pass] * uvOffset;
                 m_lightMapMatl->set("pass", (f32)pass);
                 m_lightMapMatl->set("uvOffset", &offset.x);
-                m_lightMapMatl->bind();
-                for (u32 sm = 0; sm < mesh->m_subMeshes.size(); ++sm)
+                m_lightMapMatl->bindToShader();
+                for (u32 sm = 0; sm < parent->m_subMeshes.size(); ++sm)
                 {
                     auto ctx = getCurrentGfxCtx();
                     auto renderer = Renderer::getSingletonPtr();
-                    ctx->setVertexArray(mesh->m_subMeshes[sm]->m_vertexArray);
-                    ctx->drawIndex(mesh->m_subMeshes[sm]->m_numIndices);
+                    ctx->setVertexArray(parent->m_subMeshes[sm]->m_vertexArray);
+                    ctx->drawIndex(parent->m_subMeshes[sm]->m_numIndices);
                 }
             }
             glDisable(GL_NV_conservative_raster);
@@ -191,7 +192,7 @@ namespace Cyan
         glDisable(GL_CULL_FACE);
         LightMap* lightMap = node->m_meshInstance->m_lightMap;
         CYAN_ASSERT(lightMap->superSampledTex, "SuperSampled texture is not created for lightMap");
-        Mesh* mesh = node->m_meshInstance->m_mesh;
+        Mesh* parent = node->m_meshInstance->m_mesh;
         // raster the lightmap using gpu
         u32 maxNumTexels = lightMap->superSampledTex->width * lightMap->superSampledTex->height;
         {
@@ -239,13 +240,13 @@ namespace Cyan
                 glm::vec3 offset = passes[pass] * uvOffset * (f32)kNumSubPixelSamples;
                 m_lightMapMatl->set("pass", (f32)pass);
                 m_lightMapMatl->set("uvOffset", &offset.x);
-                m_lightMapMatl->bind();
-                for (u32 sm = 0; sm < mesh->m_subMeshes.size(); ++sm)
+                m_lightMapMatl->bindToShader();
+                for (u32 sm = 0; sm < parent->m_subMeshes.size(); ++sm)
                 {
                     auto ctx = getCurrentGfxCtx();
                     auto renderer = Renderer::getSingletonPtr();
-                    ctx->setVertexArray(mesh->m_subMeshes[sm]->m_vertexArray);
-                    ctx->drawIndex(mesh->m_subMeshes[sm]->m_numIndices);
+                    ctx->setVertexArray(parent->m_subMeshes[sm]->m_vertexArray);
+                    ctx->drawIndex(parent->m_subMeshes[sm]->m_numIndices);
                 }
             }
             glDisable(GL_NV_conservative_raster);
@@ -417,7 +418,7 @@ namespace Cyan
     void LightMapManager::createLightMapForMeshInstance(Scene* scene, SceneNode* node)
     {
         MeshInstance* meshInstance = node->m_meshInstance;         
-        Mesh*         mesh =  meshInstance->m_mesh;
+        Mesh*         parent =  meshInstance->m_mesh;
         CYAN_ASSERT(!meshInstance->m_lightMap, "lightMap is not properly initialized to nullptr");
         meshInstance->m_lightMap = new LightMap{ };
         meshInstance->m_lightMap->m_owner = node;
@@ -476,5 +477,7 @@ namespace Cyan
 #else
         renderMeshInstanceToLightMap(node, saveImage);
 #endif
+
     }
+#endif
 }

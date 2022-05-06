@@ -5,25 +5,32 @@
 // TODO: only supports interleaved buffer for now
 struct VertexArray
 {
-    void init();
-    u32 numVerts()
+    VertexArray(VertexBuffer* srcVb, std::vector<u32>* indices=nullptr)
+        : vb(srcVb), ibo(-1), vao(-1)
     {
-        return m_vertexBuffer->m_numVerts;
+        init(indices);
     }
 
-    void addVertexAttribute()
+    // u32 numVerts() { return vb->m_numVerts; }
+    bool hasIndexBuffer() { return ibo != (u32)-1; }
+    GLuint getGLObject() { return vao; }
+    void release() 
     {
-
+        vb->release();
+        delete vb;
+        glDeleteBuffers(1, &ibo);
+        glDeleteBuffers(1, &vao);
     }
 
-    bool hasIndexBuffer()
-    {
-        return m_ibo != (u32)-1;
-    }
+private:
+    void init(std::vector<u32>* indices);
 
-    VertexBuffer* m_vertexBuffer;
-    u32           m_numIndices;
-    GLuint        m_ibo;
-    GLuint        m_vao;
-    std::vector<u32> m_indices;
+    VertexBuffer* vb;
+    GLuint        ibo;
+    GLuint        vao;
 };
+
+namespace Cyan
+{
+    VertexArray* createVertexArray(VertexBuffer* vb, std::vector<u32>* indices);
+}

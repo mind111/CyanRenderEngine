@@ -71,11 +71,7 @@ bool Scene::castVisibilityRay(const glm::vec3& ro, glm::vec3& rd, EntityFilter f
     return false;
 }
 
-void Scene::addStandardPbrMaterial(Cyan::StandardPbrMaterial* matl)
-{
-    m_materials.push_back(matl);
-}
-
+#if 0
 BoundingBox3f Scene::getBoundingBox()
 {
     BoundingBox3f aabb = { };
@@ -98,6 +94,7 @@ BoundingBox3f Scene::getBoundingBox()
     }
     return aabb;
 }
+#endif
 
 SceneManager* SceneManager::s_sceneManager = 0u;
 
@@ -159,8 +156,9 @@ Scene* SceneManager::createScene(const char* name, const char* file)
     return scene;
 }
 
-SceneNode* SceneManager::createSceneNode(Scene* scene, const char* name, Transform transform, Cyan::Mesh* mesh, bool hasAABB)
+SceneNode* SceneManager::createSceneNode(Scene* scene, const char* name, Transform transform)
 {
+    return m_sceneNode
     u32 handle              = allocSceneNode(scene);
     SceneNode& newNode      = scene->g_sceneNodes[handle];
     newNode.m_scene = scene;
@@ -168,23 +166,22 @@ SceneNode* SceneManager::createSceneNode(Scene* scene, const char* name, Transfo
     strcpy(newNode.m_name, name);
     newNode.localTransform  = handle;
     newNode.globalTransform = handle;
-    newNode.m_hasAABB = hasAABB;
-    newNode.needUpdate = false;
     scene->g_localTransforms[handle]  = transform;
     scene->g_globalTransforms[handle] = Transform();
     scene->g_localTransformMatrices[handle]  = transform.toMatrix();
     scene->g_globalTransformMatrices[handle] = glm::mat4(1.f);
+#if 0
     if (mesh)
     {
-        newNode.m_meshInstance = mesh->createInstance(scene);
-        if (mesh->m_shouldNormalize)
-        {
-            glm::mat4 localTransformMat = newNode.m_localTransform.toMatrix() * mesh->m_normalization;
-            newNode.setLocalTransform(localTransformMat);
-            scene->g_localTransformMatrices[newNode.localTransform] *= mesh->m_normalization;
-        }
+        newNode.m_meshInstance = createMeshInstance(scene, mesh);
     }
+#endif
     return &newNode;
+}
+
+MeshNode* SceneManager::createMeshNode(Scene* scene, Transform transform, Cyan::Mesh* mesh)
+{
+
 }
 
 void SceneManager::createDirectionalLight(Scene* scene, glm::vec3 color, glm::vec3 direction, float intensity)
@@ -206,15 +203,15 @@ void SceneManager::createPointLight(Scene* scene, glm::vec3 color, glm::vec3 pos
     transform.m_translate = glm::vec3(position);
     transform.m_scale = glm::vec3(0.1f);
     Entity* entity = createEntity(scene, nameBuff, Transform(), false); 
-    Cyan::Mesh* sphereMesh = Cyan::getMesh("sphere_mesh");
+    Cyan::Mesh* sphereMesh = Cyan::AssetManager::getAsset<Cyan::Mesh>("sphere_mesh");
     CYAN_ASSERT(sphereMesh, "sphere_mesh does not exist")
     SceneNode* meshNode = SceneManager::getSingletonPtr()->createSceneNode(scene, "LightMesh", transform, sphereMesh); 
-    entity->m_sceneRoot->attach(meshNode);
+    entity->m_sceneRoot->attachChild(meshNode);
     Shader* pointLightShader = Cyan::createShader("PointLightShader", "../../shader/shader_light.vs", "../../shader/shader_light.fs");
-    Cyan::MaterialInstance* matl = Cyan::createMaterial(pointLightShader)->createInstance();
-    meshNode->m_meshInstance->setMaterial(0, matl);
+    // Cyan::MaterialInstance* matl = Cyan::createMaterial(pointLightShader)->createInstance();
+    // meshNode->m_meshInstance->setMaterial(0, matl);
     glm::vec4 u_color = glm::vec4(color, intensity);
-    matl->set("color", &u_color.x);
+    // matl->set("color", &u_color.x);
 
     PointLight light(entity, glm::vec4(color, intensity), glm::vec4(position, 1.f));
     scene->pointLights.push_back(light);
@@ -256,17 +253,15 @@ void SceneManager::updateSceneGraph(Scene* scene)
             {
                 nodes.push(child);
             }
-            if (Cyan::MeshInstance* mesh = node->getAttachedMesh())
+            if (Cyan::MeshInstance* meshInst = node->getAttachedMesh())
             {
-                BoundingBox3f meshAABB = mesh->getAABB();
                 glm::mat4 model = node->getWorldTransform().toMatrix();
-                meshAABB.pmin = model * meshAABB.pmin;
-                meshAABB.pmax = model * meshAABB.pmax;
-                scene->aabb.bound(meshAABB);
+                BoundingBox3D aabb = meshInst->getAABB(model);
+                scene->aabb.bound(aabb);
             }
         }
     }
-    scene->aabb.update();
+    // scene->aabb.update();
 }
 
 Cyan::IrradianceProbe* SceneManager::createIrradianceProbe(Cyan::Texture* srcCubemapTexture, const glm::uvec2& irradianceRes)
@@ -297,4 +292,20 @@ glm::vec3 SceneManager::queryWorldPositionFromCamera(Scene* scene, const glm::ve
     glm::vec3 rd = glm::normalize(uv.x * camera.right + uv.y * camera.up + camera.n * camera.forward);
     auto hit = scene->castRay(ro, rd, EntityFilter::kAll, true);
     return ro + hit.t * rd;
+}
+
+Cyan::MeshInstance* SceneManager::createMeshInstance(Scene* scene, Cyan::Mesh* mesh)
+{
+    return new Cyan::MeshInstance(mesh);
+}
+
+Cyan::MeshInstance* SceneManager::createMeshInstance(Scene* scene, const char* meshName)
+{
+    auto assetManager = Cyan::AssetManager::get();
+    auto mesh = assetManager->getAsset<Cyan::Mesh>(meshName);
+    if (!mesh)
+    {
+        return nullptr;
+    }
+    return new Cyan::MeshInstance(mesh);
 }

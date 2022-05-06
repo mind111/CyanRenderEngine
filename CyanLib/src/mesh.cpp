@@ -7,6 +7,20 @@
 
 namespace Cyan
 {
+    std::string Mesh::typeDesc = std::string("Mesh");
+
+    /*
+    * calculate mesh's aabb on initialization
+    */
+    void Mesh::init()
+    {
+        for (u32 i = 0; i < numSubmeshes(); ++i)
+        {
+            BaseSubmesh* sm = submeshes[i];
+            aabb.bound(submeshes[i]->getMin());
+            aabb.bound(submeshes[i]->getMax());
+        }
+    }
 
 #if 0
     void Mesh::onFinishLoading()
@@ -33,9 +47,9 @@ namespace Cyan
             for (u32 j = 0; j < numTriangles; ++j)
             {
                 Triangle tri = {
-                    sm->m_triangles.m_positionArray[j * 3],
-                    sm->m_triangles.m_positionArray[j * 3 + 1],
-                    sm->m_triangles.m_positionArray[j * 3 + 2]
+                    sm->m_triangles.positions[j * 3],
+                    sm->m_triangles.positions[j * 3 + 1],
+                    sm->m_triangles.positions[j * 3 + 2]
                 };
 
                 float currentHit = tri.intersectRay(objectSpaceRo, objectSpaceRd); 
@@ -61,9 +75,9 @@ namespace Cyan
             for (u32 j = 0; j < numTriangles; ++j)
             {
                 Triangle tri = {
-                    sm->m_triangles.m_positionArray[j * 3],
-                    sm->m_triangles.m_positionArray[j * 3 + 1],
-                    sm->m_triangles.m_positionArray[j * 3 + 2]
+                    sm->m_triangles.positions[j * 3],
+                    sm->m_triangles.positions[j * 3 + 1],
+                    sm->m_triangles.positions[j * 3 + 2]
                 };
 
                 float currentHit = tri.intersectRay(objectSpaceRo, objectSpaceRd); 
@@ -159,7 +173,7 @@ namespace Cyan
         m_matls[index] = matl;
     }
 
-    BoundingBox3f& MeshInstance::getAABB()
+    BoundingBox3D& MeshInstance::getAABB()
     {
         return m_mesh->m_aabb;
     }

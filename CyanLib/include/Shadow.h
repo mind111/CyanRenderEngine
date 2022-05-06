@@ -28,8 +28,8 @@ namespace Cyan
     {
         f32 n;
         f32 f;
-        BoundingBox3f aabb;
-        ::Line frustumLines[12];
+        BoundingBox3D aabb;
+        // ::Line frustumLines[12];
         glm::mat4 lightProjection;
         BasicShadowmap basicShadowmap;
         VarianceShadowmap vsm;
@@ -69,6 +69,6 @@ namespace Cyan
 
         Shader* m_sunShadowShader;
         Shader* m_pointShadowShader;
-        MaterialInstance* m_sunShadowMatl;
+        // MaterialInstance* m_sunShadowMatl;
     };
 }

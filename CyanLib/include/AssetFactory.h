@@ -6,8 +6,8 @@ namespace Cyan
 {
     struct Asset
     {
-        static std::string typeIdentifier;
-        virtual std::string getAssetTypeIdentifier() = 0;
+        virtual std::string getAssetObjectTypeDesc() = 0;
+        static std::string getAssetClassTypeDesc() { return std::string("BaseAsset"); }
 
         // todo: implement the following
         virtual void serialize() { }

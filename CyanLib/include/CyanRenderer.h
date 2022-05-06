@@ -61,7 +61,6 @@ namespace Cyan
         GfxContext* getGfxCtx() { return m_ctx; };
         StackAllocator& getAllocator();
         Texture* getColorOutTexture();
-        QuadMesh* getQuadMesh();
 
 // shadow
         ShadowmapManager m_shadowmapManager;
@@ -99,11 +98,12 @@ namespace Cyan
         void flip();
 
         void drawEntity(Entity* entity);
-        void drawMesh(Mesh* mesh);
+        void drawSubmesh(BaseSubmesh* submesh, const std::function<void()>& onDrawSubmeshLambda = [](){ });
+        void drawMesh(Mesh* parent);
         /*
         * Draw a mesh without transform using same type of material for all its submeshes.
         */
-        void drawMesh(Mesh* mesh, MaterialInstance* matl, RenderTarget* dstRenderTarget, const std::initializer_list<i32>& drawBuffers, const Viewport& viewport);
+        void drawMesh(Mesh* parent, BaseMaterial* matl, RenderTarget* dstRenderTarget, const std::initializer_list<i32>& drawBuffers, const Viewport& viewport);
 
         /* 
         * Draw an instanced mesh with transform that allows different types of materials for each submeshes.
@@ -117,16 +117,6 @@ namespace Cyan
         Texture* m_ssaoTexture;
         Shader* m_ssaoShader;
         MaterialInstance* m_ssaoMatl;
-
-        struct SSAODebugLines
-        {
-            ::Line normal;
-            ::Line projectedNormal;
-            ::Line wo;
-            ::Line sliceDir;
-            ::Line samples[16];
-        } m_ssaoDebugVisLines;
-        PointGroup m_ssaoSamplePoints;
 
         void ssao(Camera& camera);
 
@@ -172,7 +162,7 @@ namespace Cyan
         void updateSunShadow(const CascadedShadowmap& csm);
         void updateVctxData(Scene* scene);
 //
-        BoundingBox3f computeSceneAABB(Scene* scene);
+        BoundingBox3D computeSceneAABB(Scene* scene);
         void executeOnEntity(Entity* e, const std::function<void(SceneNode*)>& func);
 
         struct Options
