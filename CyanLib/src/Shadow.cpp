@@ -26,7 +26,7 @@ namespace Cyan
     {
         csm.depthRenderTarget = createDepthRenderTarget(resolution.x, resolution.y);
 
-        auto textureManager = TextureManager::getSingletonPtr();
+        auto textureManager = TextureManager::get();
         auto initCascade = [this, textureManager, csm](ShadowCascade& cascade, const glm::vec4& frustumColor) {
             TextureSpec spec = { };
             spec.width = csm.depthRenderTarget->width;
@@ -203,7 +203,7 @@ namespace Cyan
         auto aabb = cascade.aabb;
         glm::mat4 lightProjection = glm::orthoLH(aabb.pmin.x, aabb.pmax.x, aabb.pmin.y, aabb.pmax.y, aabb.pmax.z, aabb.pmin.z);
         cascade.lightProjection = lightProjection;
-        auto renderer = Renderer::getSingletonPtr();
+        auto renderer = Renderer::get();
         auto ctx = renderer->getGfxCtx();
 
         csm.depthRenderTarget->setDepthBuffer(cascade.basicShadowmap.shadowmap);
@@ -219,7 +219,7 @@ namespace Cyan
         for (u32 i = 0; i < shadowCasters.size(); i++)
         {
             renderer->executeOnEntity(shadowCasters[i], [this, ctx, renderer, cascade, lightView](SceneNode* node) {
-                if (node->m_meshInstance)
+                if (auto meshInst = node->getAttachedMesh())
                 {
 #if 0
                     m_sunShadowMatl->set("transformIndex", node->globalTransform);
@@ -230,7 +230,7 @@ namespace Cyan
                     m_sunShadowShader->setUniform1i("transformIndex", node->globalTransform)
                                      .setUniformMat4("sunLightView", &lightView[0][0])
                                      .setUniformMat4("sunLightProjection", &cascade.lightProjection[0][0]);
-                    renderer->drawMesh(node->m_meshInstance->parent);
+                    renderer->drawMesh(meshInst->parent);
                 }
             });
         }

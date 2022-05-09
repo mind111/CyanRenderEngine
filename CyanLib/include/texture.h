@@ -105,7 +105,7 @@ namespace Cyan
     public:
         TextureManager();
         ~TextureManager() { }
-        static TextureManager* getSingletonPtr();
+        static TextureManager* get();
         u32 getNumTextures();
         Texture* getTexture(const char* name);
         void addTexture(Texture* texture);

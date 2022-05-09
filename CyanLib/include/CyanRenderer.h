@@ -51,7 +51,7 @@ namespace Cyan
         explicit Renderer(GLFWwindow* window, const glm::vec2& windowSize);
         ~Renderer() {}
 
-        static Renderer* getSingletonPtr();
+        static Renderer* get();
 
         void initialize(GLFWwindow* window, glm::vec2 viewportSize);
         void finalize();

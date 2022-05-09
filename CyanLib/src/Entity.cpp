@@ -14,11 +14,11 @@ Entity::Entity(Scene* scene, const char* name, u32 id, Transform t, Entity* pare
         char buff[64];
         sprintf(buff, "Entity%u", m_entityId);
     }
-    m_sceneRoot = SceneManager::getSingletonPtr()->createSceneNode(scene, "DefaultSceneRoot", t, nullptr);
+    m_sceneRoot = SceneManager::get()->createSceneNode(scene, "DefaultSceneRoot", t);
     m_sceneRoot->m_owner = this;
     if (parent)
     {
-        parent->attach(this);
+        parent->attachChild(this);
     }
 }
 
@@ -37,11 +37,11 @@ void Entity::attachSceneNode(SceneNode* child, const char* parentName)
     if (parentName)
     {
         SceneNode* parent = m_sceneRoot->find(parentName);
-        parent->attach(child);
+        parent->attachChild(child);
     }
     else
     {
-        m_sceneRoot->attach(child);
+        m_sceneRoot->attachChild(child);
     }
     child->m_owner = this;
 }
@@ -165,8 +165,8 @@ void Entity::setParent(Entity* parent)
     m_parent = parent;
 }
 
-// attach a new child Entity
-void Entity::attach(Entity* child)
+// attachChild a new child Entity
+void Entity::attachChild(Entity* child)
 {
     child->setParent(this);
     m_child.push_back(child);
@@ -175,7 +175,7 @@ void Entity::attach(Entity* child)
 
 void Entity::onAttach()
 {
-    m_parent->m_sceneRoot->attachIndirect(m_sceneRoot);
+    m_parent->m_sceneRoot->attachIndirectChild(m_sceneRoot);
 }
 
 // detach from current parent
@@ -225,7 +225,6 @@ Transform& Entity::getLocalTransform()
 void Entity::setLocalTransform(const Transform& transform)
 {
     m_sceneRoot->m_localTransform = transform;
-    m_sceneRoot->markChanged();
 }
 
 Transform& Entity::getWorldTransform()
@@ -274,7 +273,6 @@ void Entity::updateWorldTransform()
     if (m_parent)
     {
         // m_sceneRoot->m_worldTransform.fromMatrix(m_parent->m_sceneRoot->m_worldTransform.toMatrix() * m_sceneRoot->m_localTransform.toMatrix());
-        m_sceneRoot->markChanged();
 /*
         for (auto child : m_child)
         {
@@ -288,28 +286,21 @@ void Entity::updateWorldTransform()
     }
 }
 
-#if 0
-void Entity::setMaterial(const char* nodeName, i32 subMeshIndex, Cyan::MaterialInstance* matl)
+void Entity::setMaterial(const char* meshNodeName, i32 submeshIndex, Cyan::BaseMaterial* matl)
 {
-    if (subMeshIndex >= 0)
-        getSceneNode(nodeName)->m_meshInstance->setMaterial(subMeshIndex, matl);
+    SceneNode* sceneNode = getSceneNode(meshNodeName);
+    if (!sceneNode) return;
+    if (submeshIndex >= 0)
+    {
+        auto meshInst = sceneNode->getAttachedMesh();
+        meshInst->setMaterial(matl, submeshIndex);
+    }
     else
     {
-        SceneNode* sceneNode = getSceneNode(nodeName);
-        for (u32 sm = 0; sm < sceneNode->m_meshInstance->m_mesh->numSubMeshes(); ++sm)
-            sceneNode->m_meshInstance->setMaterial(sm, matl);
+        auto meshInst = sceneNode->getAttachedMesh();
+        for (u32 sm = 0; sm < meshInst->parent->numSubmeshes(); ++sm)
+        {
+            meshInst->setMaterial(matl, sm);
+        }
     }
 }
-
-void Entity::setMaterial(const char* nodeName, i32 subMeshIndex, Cyan::StandardPbrMaterial* matl)
-{
-    if (subMeshIndex >= 0)
-        getSceneNode(nodeName)->m_meshInstance->setMaterial(subMeshIndex, matl->m_materialInstance);
-    else
-    {
-        SceneNode* sceneNode = getSceneNode(nodeName);
-        for (u32 sm = 0; sm < sceneNode->m_meshInstance->m_mesh->numSubMeshes(); ++sm)
-            sceneNode->m_meshInstance->setMaterial(sm, matl->m_materialInstance);
-    }
-}
-#endif

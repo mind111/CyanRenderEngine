@@ -38,58 +38,29 @@ struct SceneNode
     void setParent(SceneNode* parent);
     void attachChild(SceneNode* child);
     void attachIndirectChild(SceneNode* child);
+    void onAttachTo();
+
+    virtual Cyan::MeshInstance* getAttachedMesh() { return nullptr; }
+
 #if 0
-    void onAttach();
     void markChanged();
     void markUnchanged();
     void updateWorldTransform();
 #endif
+
     const Transform& getLocalTransform();
     const Transform& getWorldTransform();
     const glm::mat4& getLocalTransformMatrix();
     const glm::mat4& getWorldTransformMatrix();
-    void             setLocalTransform(const Transform& mat);
-    void             setWorldTransform(const Transform& mat);
-    void             setLocalMatrix(const glm::mat4& mat);
-    void             setWorldMatrix(const glm::mat4& mat);
 
-    // Cyan::MeshInstance* getAttachedMesh() { return m_meshInstance; }
     SceneNode* find(const char* name);
 };
 
 struct MeshNode : public SceneNode
 {
     Cyan::MeshInstance* meshInst = nullptr;
-};
 
-template <typename Allocator>
-class SceneNodeFactory
-{
-public:
-    SceneNodeFactory() = default;
-
-    SceneNode* create()
-    {
-        SceneNode* node = allocator.alloc();
-        return node;
-    }
-private:
-    Allocator allocator;
-};
-
-template <typename Allocator>
-class MeshNodeFactory
-{
-public:
-    MeshNodeFactory() = default;
-
-    MeshNode* create()
-    {
-        MeshNode* node = allocator.alloc();
-        return node;
-    }
-private:
-    Allocator allocator;
+    virtual Cyan::MeshInstance* getAttachedMesh() { return meshInst; }
 };
 
 namespace Cyan

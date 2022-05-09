@@ -2,8 +2,10 @@
 
 #include <vector>
 #include <queue>
+#include <stack>
 #include "glm.hpp"
 
+#include "Allocator.h"
 #include "Camera.h"
 #include "Texture.h"
 #include "Light.h"
@@ -26,11 +28,13 @@ struct Scene
     // data
     SceneNode*                              g_sceneRoot;
     u32                                     m_numSceneNodes;
-    std::vector<SceneNode>                  g_sceneNodes;
-    std::vector<Transform>                  g_localTransforms;
-    std::vector<Transform>                  g_globalTransforms;
-    std::vector<glm::mat4>                  g_localTransformMatrices;
-    std::vector<glm::mat4>                  g_globalTransformMatrices;
+    std::vector<SceneNode*> sceneNodes;
+    Cyan::ObjectPool<SceneNode, 1024> sceneNodePool;
+    Cyan::ObjectPool<MeshNode, 1024> meshNodePool;
+    Cyan::ObjectPool<Transform, 1024> localTransformPool;
+    Cyan::ObjectPool<Transform, 1024> globalTransformPool;
+    Cyan::ObjectPool<glm::mat4, 1024> localTransformMatrixPool;
+    Cyan::ObjectPool<glm::mat4, 1024> globalTransformMatrixPool;
 
     // todo: these resources should be managed by SceneManager instead, only mesh and material instances need to be managed by scene
     std::vector<Cyan::Texture>              g_textures;
@@ -60,16 +64,11 @@ struct Scene
     // BoundingBox3D getBoundingBox();
 };
 
-struct RayTracingScene
+class SceneManager 
 {
-    // todo: triangles
-    // todo: materials
-};
-
-class SceneManager {
 public:
     SceneManager();
-    static SceneManager* getSingletonPtr();
+    static SceneManager* get();
     u32        allocEntityId();
     void       updateSceneGraph(Scene* scene);
     void       createDirectionalLight(Scene* scene, glm::vec3 color, glm::vec3 direction, float intensity);
@@ -121,7 +120,5 @@ public:
     glm::vec3 queryWorldPositionFromCamera(Scene* scene, const glm::vec2& uv);
 
 private:
-    static SceneManager*     s_sceneManager;
-    SceneNodeFactory<Cyan::PoolAllocator<SceneNode, 1024>> m_sceneNodeFactory;
-    MeshNodeFactory<Cyan::PoolAllocator<MeshNode, 1024>> m_meshNodeFactory;
+    static SceneManager* s_sceneManager;
 };

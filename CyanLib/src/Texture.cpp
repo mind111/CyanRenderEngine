@@ -202,7 +202,7 @@ namespace Cyan
         glBindTexture(specGL.m_typeGL, 0);
     }
 
-    TextureManager* TextureManager::getSingletonPtr()
+    TextureManager* TextureManager::get()
     {
         return m_singleton;
     }

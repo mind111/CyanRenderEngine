@@ -18,7 +18,7 @@
 
 namespace Cyan
 {
-    // todo: make this a singleton
+    // todo: differentiate import...() from load...(), import refers to importing raw scene data, load refers to loading serialized binary
     class AssetManager
     {
     public:
@@ -89,12 +89,10 @@ namespace Cyan
         static Mesh* getAsset<Mesh>(const char* meshName) 
         { 
             const auto& entry = singleton->m_meshMap.find(std::string(meshName));
-#if 0
             if (entry == singleton->m_meshMap.end())
             {
                 return nullptr;
             }
-#endif
             return entry->second;
         }
 

@@ -76,7 +76,7 @@ namespace Cyan
         }
     }
 
-    Renderer* Renderer::getSingletonPtr()
+    Renderer* Renderer::get()
     {
         return m_renderer;
     }
@@ -106,7 +106,7 @@ namespace Cyan
 
     void Renderer::Vctx::Voxelizer::init(u32 resolution)
     {
-        auto textureManager = TextureManager::getSingletonPtr();
+        auto textureManager = TextureManager::get();
 
         TextureSpec voxelizeSpec = { };
         voxelizeSpec.width = resolution;
@@ -144,7 +144,7 @@ namespace Cyan
 
     void Renderer::Vctx::Visualizer::init()
     {
-        auto textureManager = TextureManager::getSingletonPtr();
+        auto textureManager = TextureManager::get();
 
         TextureSpec visSpec = { };
         visSpec.width = 1280;
@@ -241,7 +241,7 @@ namespace Cyan
         // create shaders
         initShaders();
 
-        auto textureManager = TextureManager::getSingletonPtr();
+        auto textureManager = TextureManager::get();
         // scene render targets
         {
             enum class ColorBuffers
@@ -459,7 +459,6 @@ namespace Cyan
 
                 m_vctx.renderShader = createShader("VctxShader", SHADER_SOURCE_PATH "vctx_v.glsl", SHADER_SOURCE_PATH "vctx_p.glsl");
                 m_vctx.resolveShader = createCsShader("VoxelizeResolveShader", SHADER_SOURCE_PATH "voxelize_resolve_c.glsl");
-
             }
 
             // global ssbo holding vctx data
@@ -869,8 +868,8 @@ namespace Cyan
         {
             auto node = nodes.front();
             nodes.pop();
-            if (node->m_meshInstance)
-                drawMeshInstance(node->m_meshInstance, node->globalTransform);
+            if (auto meshInst = node->getAttachedMesh())
+                drawMeshInstance(meshInst, node->globalTransform);
             for (u32 i = 0; i < node->m_child.size(); ++i)
                 nodes.push(node->m_child[i]);
         }
@@ -996,9 +995,10 @@ namespace Cyan
 
     void Renderer::updateTransforms(Scene* scene)
     {
-        if (sizeofVector(scene->g_globalTransforms) > gInstanceTransforms.kBufferSize)
+        const std::vector<glm::mat4>& matrices = scene->globalTransformMatrixPool.getObjects();
+        if (sizeofVector(matrices) > gInstanceTransforms.kBufferSize)
             cyanError("Gpu global transform SBO overflow!");
-        glNamedBufferSubData(gInstanceTransforms.SBO, 0, sizeofVector(scene->g_globalTransformMatrices), scene->g_globalTransformMatrices.data());
+        glNamedBufferSubData(gInstanceTransforms.SBO, 0, sizeofVector(matrices), matrices.data());
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)GlobalBufferBindings::GlobalTransforms, gInstanceTransforms.SBO);
     }
 
@@ -1093,10 +1093,10 @@ namespace Cyan
             if (entity->m_includeInGBufferPass && entity->m_visible)
             {
                 executeOnEntity(entity, [this](SceneNode* node) { 
-                    if (node->m_meshInstance)
+                    if (auto meshInst = node->getAttachedMesh())
                     {
                         m_sceneDepthNormalShader->setUniform1i("transformIndex", node->globalTransform);
-                        drawMesh(node->m_meshInstance->parent);
+                        drawMesh(meshInst->parent);
                     }
                 });
             }
@@ -1122,8 +1122,8 @@ namespace Cyan
             {
                 executeOnEntity(scene->entities[i], 
                     [this](SceneNode* node) {
-                        if (node->m_meshInstance)
-                            drawMeshInstance(node->m_meshInstance, node->globalTransform);
+                        if (auto meshInst = node->getAttachedMesh())
+                            drawMeshInstance(meshInst, node->globalTransform);
                     });
             }
         }

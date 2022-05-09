@@ -76,7 +76,7 @@ namespace Cyan
         spec.r = Texture::Wrap::CLAMP_TO_EDGE;
         spec.numMips = 1u;
         spec.data = 0;
-        auto textureManager = TextureManager::getSingletonPtr();
+        auto textureManager = TextureManager::get();
         sceneCapture = textureManager->createTextureHDR("SceneCapture", spec);
 
         // shared cube mesh
@@ -108,7 +108,7 @@ namespace Cyan
         auto renderTarget = createRenderTarget(sceneCapture->width, sceneCapture->height);
         {
             renderTarget->setColorBuffer(sceneCapture, 0u);
-            Renderer::getSingletonPtr()->renderSceneToLightProbe(scene, this, renderTarget);
+            Renderer::get()->renderSceneToLightProbe(scene, this, renderTarget);
         }
         // release resources
         glDeleteFramebuffers(1, &renderTarget->fbo);
@@ -147,8 +147,8 @@ namespace Cyan
         spec.r = Texture::Wrap::CLAMP_TO_EDGE;
         spec.numMips = 1u;
         spec.data = nullptr;
-        auto textureManager = TextureManager::getSingletonPtr();
-        auto sceneManager = SceneManager::getSingletonPtr();
+        auto textureManager = TextureManager::get();
+        auto sceneManager = SceneManager::get();
         m_convolvedIrradianceTexture = textureManager->createTextureHDR("IrradianceProbe", spec);
 
         if (!s_convolveIrradianceShader)
@@ -243,7 +243,7 @@ namespace Cyan
         spec.r = Texture::Wrap::CLAMP_TO_EDGE;
         spec.numMips = kNumMips;
         spec.data = nullptr;
-        auto textureManager = TextureManager::getSingletonPtr();
+        auto textureManager = TextureManager::get();
         m_convolvedReflectionTexture = textureManager->createTextureHDR("ConvolvedReflectionProbe", spec);
 
         if (!s_convolveReflectionShader)
@@ -276,7 +276,7 @@ namespace Cyan
         spec.t = Texture::Wrap::CLAMP_TO_EDGE;
         spec.r = Texture::Wrap::CLAMP_TO_EDGE;
         spec.data = nullptr;
-        auto textureManager = TextureManager::getSingletonPtr();
+        auto textureManager = TextureManager::get();
         Texture* outTexture = textureManager->createTextureHDR("BRDFLUT", spec); 
         Shader* shader = createShader("IntegrateBRDFShader", "../../shader/shader_integrate_brdf.vs", "../../shader/shader_integrate_brdf.fs");
         RenderTarget* rt = createRenderTarget(kTexWidth, kTexWidth);

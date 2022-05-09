@@ -85,7 +85,7 @@ namespace Cyan
     {
         using Cyan::Texture;
         using Cyan::TextureSpec;
-        auto textureManager = Cyan::TextureManager::getSingletonPtr();
+        auto textureManager = Cyan::TextureManager::get();
 
         for (auto textureInfo : textureInfoList) 
         {
@@ -297,6 +297,8 @@ namespace Cyan
                     calculateTangent(vertices, face);
                 }
 
+                submeshes.push_back(createSubmesh<Triangles>(vertices, indices));
+
                 if (bGenerateLightMapUv)
                 {
                     addSubmeshToLightmap(atlas, vertices, indices);
@@ -353,9 +355,9 @@ namespace Cyan
                     packedVertices[v].texCoord1.x = atlasVertex.uv[0] / atlas->width;
                     packedVertices[v].texCoord1.y = atlasVertex.uv[1] / atlas->height;
                 }
-                for (u32 i = 0; i < atlas->meshes[i].indexCount; ++i)
+                for (u32 ii = 0; ii < atlas->meshes[i].indexCount; ++ii)
                 {
-                    packedIndices[i] = atlas->meshes[i].indexArray[i];
+                    packedIndices[ii] = atlas->meshes[i].indexArray[ii];
                 }
 
                 sm->setGeometryData(packedVertices, packedIndices);
@@ -419,7 +421,7 @@ namespace Cyan
     void AssetManager::loadNodes(Scene* scene, nlohmann::basic_json<std::map>& nodeInfoList)
     {
         Cyan::Toolkit::ScopedTimer timer("loadNodes()", true);
-        auto sceneManager = SceneManager::getSingletonPtr();
+        auto sceneManager = SceneManager::get();
         for (auto nodeInfo : nodeInfoList)
         {
             u32 index = nodeInfo.at("index");
@@ -438,7 +440,7 @@ namespace Cyan
             }
             std::string meshName = nodeInfo.at("mesh");
             Mesh* parent = getAsset<Mesh>(meshName.c_str());
-            SceneNode* node = sceneManager->createSceneNode(scene, nodeName.c_str(), transform, parent); 
+            SceneNode* node = sceneManager->createMeshNode(scene, transform, parent); 
             m_nodes.push_back(node);
         }
         // second pass to setup the hierarchy
@@ -449,7 +451,7 @@ namespace Cyan
             for (auto child : childNodes)
             {
                 SceneNode* childNode = m_nodes[child];
-                m_nodes[index]->attach(childNode);
+                m_nodes[index]->attachChild(childNode);
             }
         }
     }
@@ -463,7 +465,7 @@ namespace Cyan
             entityInfo.at("name").get_to(entityName);
             auto xformInfo = entityInfo.at("xform");
             Transform xform = entityInfo.at("xform").get<Transform>();
-            Entity* entity = SceneManager::getSingletonPtr()->createEntity(scene, entityName.c_str(), xform, entityInfo.at("static"));
+            Entity* entity = SceneManager::get()->createEntity(scene, entityName.c_str(), xform, entityInfo.at("static"));
             auto sceneNodes = entityInfo.at("nodes");
             for (auto node : sceneNodes)
                 entity->attachSceneNode(m_nodes[node]);
@@ -505,7 +507,7 @@ namespace Cyan
 
     Cyan::Texture* AssetManager::loadGltfTexture(const char* nodeName, tinygltf::Model& model, i32 index) {
         using Cyan::Texture;
-        auto textureManager = Cyan::TextureManager::getSingletonPtr();
+        auto textureManager = Cyan::TextureManager::get();
         Texture* texture = nullptr;
         if (index > -1) {
             auto gltfTexture = model.textures[index];
@@ -592,8 +594,8 @@ namespace Cyan
     // TODO: Normalize mesh scale
     SceneNode* AssetManager::loadGltfNode(Scene* scene, tinygltf::Model& model, tinygltf::Node* parent, 
                         SceneNode* parentSceneNode, tinygltf::Node& node, u32 numNodes) {
-        auto textureManager = Cyan::TextureManager::getSingletonPtr();
-        auto sceneManager = SceneManager::getSingletonPtr();
+        auto textureManager = Cyan::TextureManager::get();
+        auto sceneManager = SceneManager::get();
         bool hasMesh = (node.mesh > -1);
         bool hasSkin = (node.skin > -1);
         bool hasMatrix = !node.matrix.empty();
@@ -634,14 +636,21 @@ namespace Cyan
             sprintf_s(sceneNodeName, "Node%u", numNodes);
         else 
             sprintf_s(sceneNodeName, "%s", node.name.c_str());
-
-        Mesh* mesh = hasMesh ? getAsset<Mesh>(meshName) : nullptr;
-        SceneNode* sceneNode = sceneManager->createSceneNode(scene, sceneNodeName, localTransform, mesh);
+        
+        SceneNode* sceneNode = nullptr;
+        if (hasMesh)
+        {
+            Mesh* mesh = getAsset<Mesh>(meshName);
+            sceneNode = sceneManager->createMeshNode(scene, localTransform, mesh);
+        }
+        else
+        {
+            sceneNode = sceneManager->createSceneNode(scene, sceneNodeName, localTransform);
+        }
         if (parentSceneNode)
-            parentSceneNode->attach(sceneNode);
+            parentSceneNode->attachChild(sceneNode);
         // bind material
-        Cyan::MeshInstance* meshInstance = sceneNode->m_meshInstance;
-        if (meshInstance)
+        if (auto meshInstance = sceneNode->getAttachedMesh())
         {
             auto& gltfMesh = model.meshes[node.mesh];
             for (u32 sm = 0u; sm < gltfMesh.primitives.size(); ++sm) 
@@ -961,7 +970,7 @@ namespace Cyan
         using Cyan::Mesh;
         tinygltf::Model model;
         std::string warn, err;
-        auto sceneManager = SceneManager::getSingletonPtr();
+        auto sceneManager = SceneManager::get();
         if (!m_loader.LoadASCIIFromFile(&model, &err, &warn, std::string(filename)))
         {
             std::cout << warn << std::endl;
@@ -984,7 +993,7 @@ namespace Cyan
             tinygltf::Mesh gltfMesh = model.meshes[rootNode.mesh];
             rootNodeMesh = getAsset<Mesh>(gltfMesh.name.c_str());
         }
-        SceneNode* parentNode = sceneManager->createSceneNode(scene, name, transform, nullptr);
+        SceneNode* parentNode = sceneManager->createSceneNode(scene, name, transform);
         loadGltfNode(scene, model, nullptr, parentNode, rootNode, 0);
         return parentNode;
     }

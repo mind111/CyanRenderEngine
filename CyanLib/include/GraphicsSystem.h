@@ -16,7 +16,7 @@ namespace Cyan
         GraphicsSystem(GLFWwindow* window, const glm::vec2& windowSize);
         ~GraphicsSystem() { }
 
-        static GraphicsSystem* getSingletonPtr();
+        static GraphicsSystem* get();
         Renderer* getRenderer();
         TextureManager* getTextureManager();
         AssetManager* getAssetManager();

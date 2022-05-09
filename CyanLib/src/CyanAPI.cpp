@@ -91,14 +91,6 @@ namespace Cyan
         return s_shaderHandleAllocator.alloc();
     }
 
-    SceneNode* allocSceneNode()
-    {
-        CYAN_ASSERT(m_numSceneNodes < kMaxNumSceneNodes, "Too many scene nodes created!!")
-        s_sceneNodes[m_numSceneNodes].m_parent = nullptr;
-        s_sceneNodes[m_numSceneNodes].m_meshInstance = nullptr;
-        return &s_sceneNodes[m_numSceneNodes++]; 
-    }
-
     void shutDown()
     {
         delete s_gfxc;
@@ -130,7 +122,7 @@ namespace Cyan
 #if 0
     Mesh* createMesh(const char* name, std::string& file, bool normalize, bool generateLightMapUv)
     {
-        auto assetManager = GraphicsSystem::getSingletonPtr()->getAssetManager(); 
+        auto assetManager = GraphicsSystem::get()->getAssetManager(); 
         return assetManager->loadMesh(file, name, normalize, generateLightMapUv);
     }
 #endif
@@ -599,7 +591,7 @@ namespace Cyan
         // Load equirectangular map into a cubemap
         Texture* loadEquirectangularMap(const char* _name, const char* _file, bool _hdr)
         {
-            auto textureManager = TextureManager::getSingletonPtr();
+            auto textureManager = TextureManager::get();
             const u32 kViewportWidth = 1024;
             const u32 kViewportHeight = 1024;
             Camera camera = { };
@@ -709,7 +701,7 @@ namespace Cyan
 
         Texture* prefilterEnvMapDiffuse(const char* _name, Texture* envMap)
         {
-            auto textureManager = TextureManager::getSingletonPtr();
+            auto textureManager = TextureManager::get();
             const u32 kViewportWidth = 128u;
             const u32 kViewportHeight = 128u;
             Camera camera = { };
@@ -806,7 +798,7 @@ namespace Cyan
         Texture* prefilterEnvmapSpecular(Texture* envMap)
         {
             CYAN_ASSERT(envMap->m_type == Texture::Type::TEX_CUBEMAP, "Cannot prefilter a non-cubemap texture")
-            auto textureManager = TextureManager::getSingletonPtr();
+            auto textureManager = TextureManager::get();
             Texture* prefilteredEnvMap;
             // HDR
             TextureSpec spec;
@@ -914,7 +906,7 @@ namespace Cyan
         // integrate brdf for specular IBL
         Texture* generateBrdfLUT()
         {
-            auto textureManager = TextureManager::getSingletonPtr();
+            auto textureManager = TextureManager::get();
 
             const u32 kTexWidth = 512u;
             const u32 kTexHeight = 512u;
@@ -975,7 +967,7 @@ namespace Cyan
         // create a flat color albedo map via fragment shader
         Texture* createFlatColorTexture(const char* name, u32 width, u32 height, glm::vec4 color)
         {
-            auto textureManager = TextureManager::getSingletonPtr();
+            auto textureManager = TextureManager::get();
             TextureSpec spec = { };
             spec.type = Texture::Type::TEX_2D;
             spec.format = Texture::ColorFormat::R8G8B8A8;

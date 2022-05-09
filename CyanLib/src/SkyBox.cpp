@@ -13,7 +13,7 @@ namespace Cyan
     Skybox::Skybox(const char* srcImagePath, const glm::vec2& resolution, const SkyboxConfig& cfg)
         : m_cfg(cfg), m_srcHDRITexture(nullptr), m_diffuseProbe(nullptr), m_specularProbe(nullptr), m_srcCubemapTexture(nullptr), m_renderSkyMatl(nullptr)
     {
-        auto textureManager = TextureManager::getSingletonPtr();
+        auto textureManager = TextureManager::get();
         switch (m_cfg)
         {
         case kUseHDRI: 
@@ -51,7 +51,7 @@ namespace Cyan
             break;
         }
 
-        auto sceneManager = SceneManager::getSingletonPtr();
+        auto sceneManager = SceneManager::get();
         m_diffuseProbe = sceneManager->createIrradianceProbe(m_srcCubemapTexture, glm::uvec2(64u));
         m_specularProbe = sceneManager->createReflectionProbe(m_srcCubemapTexture);
         
@@ -74,7 +74,7 @@ namespace Cyan
     void Skybox::build()
     {
         auto ctx = getCurrentGfxCtx();
-        auto renderer = Renderer::getSingletonPtr();
+        auto renderer = Renderer::get();
         Camera camera = { };
         camera.position = glm::vec3(0.f);
         camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 

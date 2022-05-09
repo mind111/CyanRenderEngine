@@ -182,7 +182,7 @@ namespace Cyan
             u32 bytesPerPixel = sizeof(float) * 3;
             u32 numPixels = numPixelsInX * numPixelsInY;
             m_pixels = (float*)new char[(u64)(bytesPerPixel * numPixels)];
-            auto textureManager = TextureManager::getSingletonPtr();
+            auto textureManager = TextureManager::get();
             TextureSpec spec = { };
             spec.type = Texture::Type::TEX_2D;
             spec.width = numPixelsInX;
@@ -200,7 +200,7 @@ namespace Cyan
             cyanError("Multiple instances are created for PathTracer!");
     }
 
-    PathTracer* PathTracer::getSingletonPtr()
+    PathTracer* PathTracer::get()
     {
         return m_singleton;
     }
@@ -349,7 +349,7 @@ namespace Cyan
 
         for (u32 i = 0; i < m_staticMeshNodes.size(); ++i)
         {
-            glm::mat4 model = m_staticMeshNodes[i]->getWorldMatrix();
+            glm::mat4 model = m_staticMeshNodes[i]->getWorldTransformMatrix();
             BoundingBox3D aabb = m_staticMeshNodes[i]->m_meshInstance->getAABB();
 
             // transform the ray into object space

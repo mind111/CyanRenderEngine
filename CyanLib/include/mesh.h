@@ -50,8 +50,8 @@ namespace Cyan
             virtual u32 numVertices() override { return geometry.numVertices(); }
             virtual u32 numIndices() override { return geometry.numIndices(); }
             virtual VertexArray* getVertexArray() { return va; }
-            const typename std::vector<typename Geometry::Vertex>::iterator& getVertices() { return geometry.vertices.begin(); }
-            const std::vector<u32>::iterator& getIndices() { return geometry.indices.begin(); }
+            const std::vector<typename Geometry::Vertex>& getVertices() { return geometry.vertices; }
+            const std::vector<u32>& getIndices() { return geometry.indices; }
             void setGeometryData(std::vector<typename Geometry::Vertex>& vertices, const std::vector<u32>& indices)
             {
                 geometry.vertices = vertices;
@@ -90,15 +90,15 @@ namespace Cyan
                 }
                 if (flags && (u8)VertexAttribFlags::kHasTangent)
                 {
-                    vertexSpec.addAttribute({ "TANGENT", 3, 0 });
+                    vertexSpec.addAttribute({ "TANGENT", 4, 0 });
                 }
                 if (flags && (u8)VertexAttribFlags::kHasTexCoord0)
                 {
-                    vertexSpec.addAttribute({ "TEXCOORD0", 3, 0 });
+                    vertexSpec.addAttribute({ "TEXCOORD0", 2, 0 });
                 }
                 if (flags && (u8)VertexAttribFlags::kHasTexCoord1)
                 {
-                    vertexSpec.addAttribute({ "TEXCOORD1", 3, 0 });
+                    vertexSpec.addAttribute({ "TEXCOORD1", 2, 0 });
                 }
                 auto vb = createVertexBuffer(geometry.vertices.data(), sizeof(Geometry::Vertex) * geometry.vertices.size(), std::move(vertexSpec));
                 va = createVertexArray(vb, &geometry.indices);
@@ -179,8 +179,39 @@ namespace Cyan
 
     struct RayTracingMesh
     {
-        TriangleArray triangles;
-        BVH
+        struct Submesh
+        {
+            TriangleArray triangles;
+        };
+
+        std::vector<Submesh> submeshes;
+
+        // bvh
+    };
+
+    struct RayTracingMeshInstance
+    {
+        u32 parent;
+        std::vector<u32> materialIndex;
+        glm::mat4 worldTransformMatrix;
+    };
+
+    struct RayTracingMaterial
+    {
+
+    };
+
+    struct RayTracingScene
+    {
+        RayTracingScene(Scene* scene)
+        {
+
+        }
+
+        std::vector<RayTracingMesh> meshes;
+        std::vector<RayTracingMeshInstance> meshInstances;
+        std::vector<RayTracingMaterial> materials;
+        // todo: lighting data
     };
 
 #if 0

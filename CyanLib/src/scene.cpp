@@ -33,11 +33,13 @@ RayCastInfo Scene::castRay(glm::vec3& ro, glm::vec3& rd, EntityFilter filter, bo
 
         if (flag)
         {
+#if 0
             auto traceInfo = entity->intersectRay(ro, rd, glm::mat4(1.f)); 
             if (traceInfo.t > 0.f && traceInfo < closestHit)
             {
                 closestHit = traceInfo;
             }
+#endif
         }
     }
     if (debugPrint)
@@ -64,8 +66,10 @@ bool Scene::castVisibilityRay(const glm::vec3& ro, glm::vec3& rd, EntityFilter f
 
         if (flag)
         {
+#if 0
             if (entity->castVisibilityRay(ro, rd, glm::mat4(1.f)))
                 return true; 
+#endif
         }
     }
     return false;
@@ -109,7 +113,7 @@ SceneManager::SceneManager()
     }
 }
 
-SceneManager* SceneManager::getSingletonPtr()
+SceneManager* SceneManager::get()
 {
     return s_sceneManager;
 }
@@ -139,18 +143,12 @@ Scene* SceneManager::createScene(const char* name, const char* file)
     Cyan::Toolkit::GpuTimer loadSceneTimer("createScene()", true);
     Scene* scene = new Scene;
     scene->m_name = std::string(name);
-    scene->g_sceneNodes.resize(Scene::kMaxNumSceneNodes);
-    scene->g_localTransforms.resize(Scene::kMaxNumSceneNodes);
-    scene->g_globalTransforms.resize(Scene::kMaxNumSceneNodes);
-    scene->g_localTransformMatrices.resize(Scene::kMaxNumSceneNodes);
-    scene->g_globalTransformMatrices.resize(Scene::kMaxNumSceneNodes);
-    scene->m_numSceneNodes = 0;
 
     scene->m_rootEntity = nullptr;
-    scene->m_rootEntity = SceneManager::getSingletonPtr()->createEntity(scene, "Root", Transform(), true);
+    scene->m_rootEntity = SceneManager::get()->createEntity(scene, "Root", Transform(), true);
     scene->g_sceneRoot = scene->m_rootEntity->m_sceneRoot;
     scene->aabb.init();
-    auto assetManager = Cyan::GraphicsSystem::getSingletonPtr()->getAssetManager(); 
+    auto assetManager = Cyan::GraphicsSystem::get()->getAssetManager(); 
     assetManager->loadScene(scene, file);
     loadSceneTimer.end();
     return scene;
@@ -158,30 +156,48 @@ Scene* SceneManager::createScene(const char* name, const char* file)
 
 SceneNode* SceneManager::createSceneNode(Scene* scene, const char* name, Transform transform)
 {
-    return m_sceneNode
-    u32 handle              = allocSceneNode(scene);
-    SceneNode& newNode      = scene->g_sceneNodes[handle];
-    newNode.m_scene = scene;
+    SceneNode* sceneNode = scene->sceneNodePool.alloc();
+    
+    Transform* localTransform = scene->localTransformPool.alloc();
+    *localTransform = transform;
+    auto localTransformMatrix = scene->localTransformMatrixPool.alloc();
+    *localTransformMatrix = transform.toMatrix();
+    sceneNode->localTransform = scene->localTransformPool.getObjectIndex(localTransform);
+
+    Transform* globalTransfom = scene->globalTransformPool.alloc();
+    *globalTransfom = Transform();
+    auto globalTransformMatrix = scene->globalTransformMatrixPool.alloc();
+    *globalTransformMatrix = glm::mat4(1.f);
+    sceneNode->globalTransform = scene->globalTransformPool.getObjectIndex(globalTransfom);
+
+    sceneNode->m_scene = scene;
     CYAN_ASSERT(strlen(name) < 128, "SceneNode name %s is too long!", name);
-    strcpy(newNode.m_name, name);
-    newNode.localTransform  = handle;
-    newNode.globalTransform = handle;
-    scene->g_localTransforms[handle]  = transform;
-    scene->g_globalTransforms[handle] = Transform();
-    scene->g_localTransformMatrices[handle]  = transform.toMatrix();
-    scene->g_globalTransformMatrices[handle] = glm::mat4(1.f);
-#if 0
-    if (mesh)
-    {
-        newNode.m_meshInstance = createMeshInstance(scene, mesh);
-    }
-#endif
-    return &newNode;
+    strcpy(sceneNode->m_name, name);
+    scene->sceneNodes.push_back(sceneNode);
+    return sceneNode;
 }
 
 MeshNode* SceneManager::createMeshNode(Scene* scene, Transform transform, Cyan::Mesh* mesh)
 {
+    MeshNode* meshNode = scene->meshNodePool.alloc();
+    
+    Transform* localTransform = scene->localTransformPool.alloc();
+    *localTransform = transform;
+    auto localTransformMatrix = scene->localTransformMatrixPool.alloc();
+    *localTransformMatrix = transform.toMatrix();
+    meshNode->localTransform = scene->localTransformPool.getObjectIndex(localTransform);
 
+    Transform* globalTransfom = scene->globalTransformPool.alloc();
+    *globalTransfom = Transform();
+    auto globalTransformMatrix = scene->globalTransformMatrixPool.alloc();
+    *globalTransformMatrix = glm::mat4(1.f);
+    meshNode->globalTransform = scene->globalTransformPool.getObjectIndex(globalTransfom);
+
+    meshNode->m_scene = scene;
+    strcpy(meshNode->m_name, mesh->name.c_str());
+    meshNode->meshInst = createMeshInstance(scene, mesh);
+    scene->sceneNodes.push_back(meshNode);
+    return meshNode;
 }
 
 void SceneManager::createDirectionalLight(Scene* scene, glm::vec3 color, glm::vec3 direction, float intensity)
@@ -205,7 +221,7 @@ void SceneManager::createPointLight(Scene* scene, glm::vec3 color, glm::vec3 pos
     Entity* entity = createEntity(scene, nameBuff, Transform(), false); 
     Cyan::Mesh* sphereMesh = Cyan::AssetManager::getAsset<Cyan::Mesh>("sphere_mesh");
     CYAN_ASSERT(sphereMesh, "sphere_mesh does not exist")
-    SceneNode* meshNode = SceneManager::getSingletonPtr()->createSceneNode(scene, "LightMesh", transform, sphereMesh); 
+    SceneNode* meshNode = SceneManager::get()->createMeshNode(scene, transform, sphereMesh); 
     entity->m_sceneRoot->attachChild(meshNode);
     Shader* pointLightShader = Cyan::createShader("PointLightShader", "../../shader/shader_light.vs", "../../shader/shader_light.fs");
     // Cyan::MaterialInstance* matl = Cyan::createMaterial(pointLightShader)->createInstance();
@@ -227,8 +243,11 @@ void SceneManager::updateSceneGraph(Scene* scene)
         nodes.pop();
         if (node->m_parent)
         {
-            scene->g_globalTransformMatrices[node->globalTransform] = scene->g_globalTransformMatrices[node->m_parent->globalTransform] * scene->g_localTransformMatrices[node->localTransform];
-            scene->g_globalTransforms[node->globalTransform].fromMatrix(scene->g_globalTransformMatrices[node->globalTransform]);
+            glm::mat4& parentGlobalMatrix = scene->globalTransformMatrixPool.getObject(node->m_parent->globalTransform);
+            glm::mat4& globalMatrix = scene->globalTransformMatrixPool.getObject(node->globalTransform);
+            glm::mat4& localMatrix = scene->localTransformMatrixPool.getObject(node->localTransform);
+            globalMatrix = parentGlobalMatrix * localMatrix;
+            scene->globalTransformPool.getObject(node->globalTransform).fromMatrix(globalMatrix);
         }
         for (u32 i = 0; i < node->m_child.size(); ++i)
         {

@@ -63,7 +63,7 @@ namespace Cyan
             cyanError("Creating multiple instances of LightMapManager");
     }
     
-    LightMapManager* LightMapManager::getSingletonPtr()
+    LightMapManager* LightMapManager::get()
     {
         return m_singleton;
     }
@@ -131,7 +131,7 @@ namespace Cyan
                 for (u32 sm = 0; sm < parent->m_subMeshes.size(); ++sm)
                 {
                     auto ctx = getCurrentGfxCtx();
-                    auto renderer = Renderer::getSingletonPtr();
+                    auto renderer = Renderer::get();
                     ctx->setVertexArray(parent->m_subMeshes[sm]->m_vertexArray);
                     ctx->drawIndex(parent->m_subMeshes[sm]->m_numIndices);
                 }
@@ -244,7 +244,7 @@ namespace Cyan
                 for (u32 sm = 0; sm < parent->m_subMeshes.size(); ++sm)
                 {
                     auto ctx = getCurrentGfxCtx();
-                    auto renderer = Renderer::getSingletonPtr();
+                    auto renderer = Renderer::get();
                     ctx->setVertexArray(parent->m_subMeshes[sm]->m_vertexArray);
                     ctx->drawIndex(parent->m_subMeshes[sm]->m_numIndices);
                 }
@@ -318,7 +318,7 @@ namespace Cyan
     void LightMapManager::bakeSingleThread(LightMap* lightMap, u32 overlappedTexelCount)
     {
         const f32 EPSILON = 0.001f;
-        PathTracer* pathTracer = PathTracer::getSingletonPtr();
+        PathTracer* pathTracer = PathTracer::get();
         u32 numBakedTexels = 0;
         for (u32 y = 0; y < lightMap->m_texAltas->height; ++y)
         {
@@ -346,7 +346,7 @@ namespace Cyan
     void LightMapManager::bakeWorker(LightMap* lightMap, std::vector<u32>& texelIndices, u32 start, u32 end, u32 overlappedTexelCount)
     {
         const f32 EPSILON = 0.0001f;
-        PathTracer* pathTracer = PathTracer::getSingletonPtr();
+        PathTracer* pathTracer = PathTracer::get();
         for (u32 i = start; i < end; ++i)
         {
             u32 index = texelIndices[i];
@@ -425,7 +425,7 @@ namespace Cyan
         LightMap* lightMap = meshInstance->m_lightMap;
         {
             lightMap->m_owner = node;
-            auto textureManager = TextureManager::getSingletonPtr();
+            auto textureManager = TextureManager::get();
             TextureSpec spec  = { };
             spec.width    = meshInstance->m_mesh->m_lightMapWidth;
             spec.height   = meshInstance->m_mesh->m_lightMapHeight;
@@ -468,7 +468,7 @@ namespace Cyan
 
     void LightMapManager::bakeLightMap(Scene* scene, SceneNode* node, bool saveImage)
     {
-        PathTracer* pathTracer = PathTracer::getSingletonPtr();
+        PathTracer* pathTracer = PathTracer::get();
         if (scene != pathTracer->m_scene)
             pathTracer->setScene(scene);
         createLightMapForMeshInstance(scene, node);

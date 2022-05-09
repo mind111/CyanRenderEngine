@@ -59,8 +59,8 @@ struct Node
         return nodeToRemove;
     }
 
-    // attach a new child
-    virtual void attach(Node* child)
+    // attachChild a new child
+    virtual void attachChild(Node* child)
     {
         child->m_parent = this;
         m_child.push_back(child);

@@ -101,7 +101,7 @@ namespace Cyan
 
         PathTracer();
 
-        static PathTracer* getSingletonPtr();
+        static PathTracer* get();
         Texture*    getRenderOutput();
         TriMaterial& getHitMaterial(RayCastInfo& hit);
         void      setPixel(u32 px, u32 py, const glm::vec3& color);

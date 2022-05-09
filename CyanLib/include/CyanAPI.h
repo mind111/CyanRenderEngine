@@ -159,13 +159,6 @@ namespace Cyan
         u32 triangleIndex;
     };
 
-    /* Scene */
-    SceneNode* allocSceneNode();
-
-    /* voxel cone tracing */
-    void voxelizeScene();
-    void voxelizeMesh();
-
     namespace Toolkit
     {
         /*

@@ -29,7 +29,7 @@ namespace Cyan
         glLineWidth(4.f);
     }
 
-    GraphicsSystem* GraphicsSystem::getSingletonPtr()
+    GraphicsSystem* GraphicsSystem::get()
     {
         return m_singleton;
     }

@@ -1,5 +1,8 @@
 #pragma once
 
+#include <unordered_map>
+#include <stack>
+
 #include "Common.h"
 
 namespace Cyan
@@ -23,14 +26,15 @@ namespace Cyan
     private:
     };
 
+    // todo: this should take in / forward the arguments for constructing an object
     template <typename T, u32 kMaxNumObjects>
-    class PoolAllocator
+    class ObjectPool
     {
     public:
 
-        PoolAllocator()
+        ObjectPool()
         {
-            m_pool.resize(kMaxNumAllocations);
+            m_objects.resize(kMaxNumAllocations);
         }
 
         T* alloc()
@@ -40,13 +44,60 @@ namespace Cyan
             {
                 return nullptr;
             }
-            return &m_pool[numAllocated++];
+            if (!freeObjectList.empty())
+            {
+                u32 reused = freeObjectList.top();
+                freeObjectList.pop();
+                T* newObject = &m_objects[reused];
+                numAllocated += 1;
+                return newObject;
+            }
+            u32 allocatedIndex = numAllocated;
+            T* newObject = &m_objects[numAllocated++];
+            allocationMap.insert({ newObject, allocatedIndex });
+            return newObject;
+        }
+
+        void free(T* allocated)
+        {
+            auto entry = allocationMap.find(allocated);
+            if (entry != allocationMap.end())
+            {
+                freeObjectList.push(entry->second);
+                allocationMap.erase(allocated);
+                numAllocated -= 1;
+            }
+
+            // error:
+            cyanError("Trying to free an object that is not allocated")
+        }
+
+        T& getObject(u32 index)
+        {
+            return m_objects[index];
+        }
+
+        i32 getObjectIndex(T* objectPtr)
+        {
+            auto entry = allocationMap.find(objectPtr);
+            if (entry == allocationMap.end())
+            {
+                return -1;
+            }
+            return entry->second;
+        }
+
+        const std::vector<T>& getObjects()
+        {
+            return m_objects;
         }
 
     private:
         static const u32 kMaxNumAllocations = kMaxNumObjects;
+        std::unordered_map<T*, u32> allocationMap;
+        std::stack<u32> freeObjectList;
         u32 numAllocated = 0;
-        std::vector<T> m_pool;
+        std::vector<T> m_objects;
     };
 }
 

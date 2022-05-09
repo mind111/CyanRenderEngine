@@ -56,13 +56,13 @@ struct Entity
     SceneNode* getSceneRoot();
     SceneNode* getSceneNode(const char* name);
     void attachSceneNode(SceneNode* child, const char* parentName=nullptr);
-    bool castVisibilityRay(const glm::vec3& ro, const glm::vec3& rd, const glm::mat4& modelView);
-    struct RayCastInfo intersectRay(const glm::vec3& ro, const glm::vec3& rd, const glm::mat4& view);
+    // bool castVisibilityRay(const glm::vec3& ro, const glm::vec3& rd, const glm::mat4& modelView);
+    // struct RayCastInfo intersectRay(const glm::vec3& ro, const glm::vec3& rd, const glm::mat4& view);
     // merely sets the parent entity, it's not this method's responsibility to trigger
     // any logic relates to parent change
     void setParent(Entity* parent);
-    // attach a new child Entity
-    void attach(Entity* child);
+    // attachChild a new child Entity
+    void attachChild(Entity* child);
     void onAttach();
     // detach from current parent
     void detach();
@@ -81,7 +81,7 @@ struct Entity
     void applyWorldTranslation(const glm::vec3 trans);
     void applyWorldScale(const glm::vec3 scale);
     void updateWorldTransform();
-    void setMaterial(const char* nodeName, i32 subMeshIndex, Cyan::MaterialInstance* matl);
+    void setMaterial(const char* meshNodeName, i32 submeshIndex, Cyan::BaseMaterial* matl);
 };
 
 struct RayCastInfo

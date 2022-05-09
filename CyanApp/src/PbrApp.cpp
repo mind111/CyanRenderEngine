@@ -217,7 +217,7 @@ Cyan::StandardPbrMaterial* DemoApp::createStandardPbrMatlInstance(Scene* scene, 
 void DemoApp::createHelmetInstance(Scene* scene)
 {
     auto textureManager = m_graphicsSystem->getTextureManager();
-    auto sceneManager = SceneManager::getSingletonPtr();
+    auto sceneManager = SceneManager::get();
 #if 0
     // helmet
     {
@@ -237,7 +237,7 @@ void DemoApp::initDemoScene00()
 {
     Cyan::Toolkit::GpuTimer timer("initDemoScene00()", true);
     auto textureManager = m_graphicsSystem->getTextureManager();
-    auto sceneManager = SceneManager::getSingletonPtr();
+    auto sceneManager = SceneManager::get();
     m_scenes[Scenes::Demo_Scene_00] = sceneManager->createScene("demo_scene_00", "C:\\dev\\cyanRenderEngine\\scene\\demo_scene_00.json");
     Scene* demoScene00 = m_scenes[Scenes::Demo_Scene_00];
 
@@ -246,18 +246,11 @@ void DemoApp::initDemoScene00()
     PBR* defaultMatl = assetManager->createMaterial<PBR>("DefaultMatl");
     defaultMatl->parameter.kRoughness = .8f;
     defaultMatl->parameter.kMetallic = .02f;
-/*
-    Cyan::PbrMaterialParam params = { };
-    params.flatBaseColor = glm::vec4(1.f);
-    params.kRoughness = .8f;
-    params.kMetallic = .02f;
-    Cyan::StandardPbrMaterial* defaultMatl = createStandardPbrMatlInstance(demoScene00, params, false);
-*/
     // helmet
     {
         createHelmetInstance(demoScene00);
         auto helmet = sceneManager->getEntity(demoScene00, "DamagedHelmet");
-        auto helmetMesh = helmet->getSceneNode("HelmetMesh")->m_meshInstance->parent;
+        auto helmetMesh = helmet->getSceneNode("helmet_mesh")->getAttachedMesh()->parent;
 #if 0
         helmetMesh->m_bvh = new Cyan::MeshBVH(helmetMesh);
         helmetMesh->m_bvh->build();
@@ -273,8 +266,8 @@ void DemoApp::initDemoScene00()
         bunnyMatl->parameter.kRoughness = .1f;
         bunnyMatl->parameter.kMetallic = 1.0f;
 
-        bunny0->setMaterial("BunnyMesh", -1, bunnyMatl);
-        bunny1->setMaterial("BunnyMesh", -1, bunnyMatl);
+        bunny0->setMaterial("bunny_mesh", -1, bunnyMatl);
+        bunny1->setMaterial("bunny_mesh", -1, bunnyMatl);
     }
     // man
     {
@@ -284,7 +277,7 @@ void DemoApp::initDemoScene00()
         manMatl->parameter.kRoughness = .3f;
         manMatl->parameter.kMetallic = .3f;
 
-        man->setMaterial("ManMesh", -1, manMatl);
+        man->setMaterial("man_mesh", -1, manMatl);
     }
     // lighting
     // todo: refactor lights, decouple them from Entity
@@ -378,21 +371,21 @@ void DemoApp::initDemoScene00()
                 Transform transform = { };
                 transform.m_translate = gridLowerLeft + posOffset;
                 transform.m_scale = glm::vec3(.003f);
-                // auto meshNode = sceneManager->createSceneNode(demoScene00, meshNodeName, transform, Cyan::getMesh("shaderball_mesh"));
                 auto meshNode = sceneManager->createMeshNode(demoScene00, transform, assetManager->getAsset<Mesh>("shaderball_mesh"));
-
                 shaderBall->attachSceneNode(meshNode);
-                // auto matl = createStandardPbrMatlInstance(demoScene00, matlParams[j][i], shaderBall->m_static);
-
                 shaderBall->setMaterial(meshNodeName, -1, defaultMatl);
-                shaderBall->setMaterial(meshNodeName, 0, matl);
-                shaderBall->setMaterial(meshNodeName, 1, matl);
-                shaderBall->setMaterial(meshNodeName, 5, matl);
+                shaderBall->setMaterial(meshNodeName, 0, defaultMatl);
+                shaderBall->setMaterial(meshNodeName, 1, defaultMatl);
+                shaderBall->setMaterial(meshNodeName, 5, defaultMatl);
             }
         }
     }
     // room
     {
+        Entity* room = sceneManager->getEntity(demoScene00, "Room");
+        room->setMaterial("room_mesh", -1, defaultMatl);
+        room->setMaterial("plane_mesh", -1, defaultMatl);
+#if 0
         Entity* room = sceneManager->getEntity(demoScene00, "Room");
         auto roomNode = room->getSceneNode("RoomMesh");
         auto planeNode = room->getSceneNode("PlaneMesh");
@@ -400,6 +393,7 @@ void DemoApp::initDemoScene00()
         Cyan::Mesh* planeMesh = planeNode->m_meshInstance->m_mesh;
         roomMesh->m_bvh = new Cyan::MeshBVH(roomMesh);
         roomMesh->m_bvh->build();
+#endif
 
 #if REBAKE_LIGHTMAP
         // default matl param
@@ -425,7 +419,7 @@ void DemoApp::initDemoScene00()
         room->setMaterial("PlaneMesh", -1, planeMatl);
 
         // bake lightmap
-        auto lightMapManager = Cyan::LightMapManager::getSingletonPtr();
+        auto lightMapManager = Cyan::LightMapManager::get();
         lightMapManager->bakeLightMap(m_scenes[Scenes::Demo_Scene_00], roomNode, true);
         lightMapManager->bakeLightMap(m_scenes[Scenes::Demo_Scene_00], planeNode, true);
 
@@ -441,7 +435,8 @@ void DemoApp::initDemoScene00()
         }
 #else
         // directly use baked lightmap
-        auto lightMapManager = Cyan::LightMapManager::getSingletonPtr();
+#if 0
+        auto lightMapManager = Cyan::LightMapManager::get();
         lightMapManager->createLightMapFromTexture(roomNode, textureManager->getTexture("RoomMesh_lightmap"));
         lightMapManager->createLightMapFromTexture(planeNode, textureManager->getTexture("PlaneMesh_lightmap"));
         for (u32 sm = 0; sm < roomMesh->numSubMeshes(); ++sm)
@@ -469,6 +464,7 @@ void DemoApp::initDemoScene00()
         room->setMaterial("PlaneMesh", -1, planeMatl);
         sceneManager->updateSceneGraph(demoScene00);
 #endif
+#endif
     }
     timer.end();
 }
@@ -476,14 +472,14 @@ void DemoApp::initDemoScene00()
 void DemoApp::initSponzaScene()
 {
     Cyan::Toolkit::GpuTimer timer("initSponzaScene()", true);
-    auto sceneManager = SceneManager::getSingletonPtr();
+    auto sceneManager = SceneManager::get();
     m_scenes[Scenes::Sponza_Scene] = sceneManager->createScene("sponza_scene", "C:\\dev\\cyanRenderEngine\\scene\\sponza_scene.json");
     Scene* sponzaScene = m_scenes[Scenes::Sponza_Scene];
     m_currentScene = static_cast<u32>(Scenes::Sponza_Scene);
 
     Entity* sponza = sceneManager->getEntity(sponzaScene, "Sponza");
     auto sponzaNode = sponza->getSceneNode("SponzaMesh");
-    Cyan::Mesh* sponzaMesh = sponzaNode->m_meshInstance->parent;
+    Cyan::Mesh* sponzaMesh = sponzaNode->getAttachedMesh()->parent;
 #if 0
     sponzaMesh->m_bvh = new Cyan::MeshBVH(sponzaMesh);
     sponzaMesh->m_bvh->build();
@@ -510,7 +506,7 @@ void DemoApp::initialize(int appWindowWidth, int appWindowHeight, glm::vec2 scen
     gEngine->registerMouseScrollWheelCallback(&Demo::mouseScrollWheelCallback);
     gEngine->registerKeyCallback(&Demo::keyCallback);
 
-    m_graphicsSystem = Cyan::GraphicsSystem::getSingletonPtr();
+    m_graphicsSystem = Cyan::GraphicsSystem::get();
 
     // physically-based shading shader
     Cyan::createShader("PBSShader", SHADER_SOURCE_PATH "pbs_v.glsl", SHADER_SOURCE_PATH "pbs_p.glsl");
@@ -553,16 +549,6 @@ void DemoApp::initialize(int appWindowWidth, int appWindowHeight, glm::vec2 scen
     timer.end();
 }
 
-void DemoApp::updateMaterialData(Cyan::StandardPbrMaterial* matl)
-{
-    // per material instance lighting params
-    matl->m_materialInstance->set("directDiffuseScale", m_directDiffuseSlider);
-    matl->m_materialInstance->set("directSpecularScale", m_directSpecularSlider);
-    // global lighting parameters
-    matl->m_materialInstance->set("gLighting.indirectDiffuseScale", m_indirectDiffuseSlider);
-    matl->m_materialInstance->set("gLighting.indirectSpecularScale", m_indirectSpecularSlider);
-}
-
 void DemoApp::precompute()
 {
     // build lighting
@@ -571,13 +557,13 @@ void DemoApp::precompute()
     m_scenes[Scenes::Demo_Scene_00]->m_reflectionProbe->build();
 #endif
 #ifdef SCENE_SPONZA
-    auto pathTracer = Cyan::PathTracer::getSingletonPtr();
+    auto pathTracer = Cyan::PathTracer::get();
     pathTracer->setScene(m_scenes[Sponza_Scene]);
     pathTracer->run(m_scenes[Sponza_Scene]->getActiveCamera());
 #endif
 #if 0
 #ifdef SCENE_DEMO_00
-    auto pathTracer = Cyan::PathTracer::getSingletonPtr();
+    auto pathTracer = Cyan::PathTracer::get();
     pathTracer->setScene(m_scenes[Demo_Scene_00]);
     pathTracer->run(m_scenes[Demo_Scene_00]->getActiveCamera());
     pathTracer->fillIrradianceCacheDebugData(m_scenes[Demo_Scene_00]->getActiveCamera());
@@ -645,9 +631,7 @@ RayCastInfo DemoApp::castMouseRay(const glm::vec2& currentViewportPos, const glm
     q /= q.w;
     glm::vec3 rd = glm::normalize(glm::vec3(q.x, q.y, q.z));
     // in view space
-    m_debugRay.setVertices(glm::vec3(0.f, 0.f, -0.2f), glm::vec3(rd * 20.0f));
     glm::mat4 viewInverse = glm::inverse(camera.view);
-    // m_debugRay.setModel(viewInverse);
 
     glm::vec3 ro = glm::vec3(0.f);
 
@@ -658,12 +642,14 @@ RayCastInfo DemoApp::castMouseRay(const glm::vec2& currentViewportPos, const glm
     {
         if (entity->m_visible && entity->m_selectable)
         {
+#if 0
             RayCastInfo traceInfo = entity->intersectRay(ro, rd, camera.view); 
             if (traceInfo.t > 0.f && traceInfo < closestHit)
             {
                 closestHit = traceInfo;
                 printf("Cast a ray from mouse that hits %s \n", traceInfo.m_node->m_name);
             }
+#endif
         }
     }
     glm::vec3 worldHit = computeMouseHitWorldSpacePos(camera, rd, closestHit);
@@ -677,10 +663,7 @@ void DemoApp::updateScene(Scene* scene)
     u32 camIdx = 0u;
     Camera& camera = m_scenes[m_currentScene]->cameras[camIdx];
     camera.update();
-    // update material parameters
-    for (auto matl : m_scenes[m_currentScene]->m_materials)
-        updateMaterialData(matl);
-    SceneManager::getSingletonPtr()->updateSceneGraph(m_scenes[m_currentScene]);
+    SceneManager::get()->updateSceneGraph(m_scenes[m_currentScene]);
 }
 
 void DemoApp::update()
@@ -804,7 +787,7 @@ void DemoApp::drawDebugWindows()
             {
                 // textures
                 {
-                    auto textureManager = Cyan::TextureManager::getSingletonPtr();
+                    auto textureManager = Cyan::TextureManager::get();
                     i32 currentItem = 0;
                     u32 numTextures = textureManager->getNumTextures();
                     std::vector<const char*> textureNames(numTextures);
@@ -820,7 +803,7 @@ void DemoApp::drawDebugWindows()
             }
             if (ImGui::BeginTabItem("Debug"))
             {
-                auto renderer = Cyan::Renderer::getSingletonPtr();
+                auto renderer = Cyan::Renderer::get();
                 u32 numDebugViews = 0;
                 auto buildDebugView = [&](const char* viewName, Cyan::Texture* texture, u32 width=320, u32 height=180, bool flip = true)
                 {
@@ -847,11 +830,11 @@ void DemoApp::drawDebugWindows()
                     ImGui::Separator();
                     numDebugViews++;
                 };
-                buildDebugView("PathTracing", Cyan::PathTracer::getSingletonPtr()->getRenderOutput());
+                // buildDebugView("PathTracing", Cyan::PathTracer::get()->getRenderOutput());
 #ifdef SCENE_DEMO_00
-                Entity* room = SceneManager::getSingletonPtr()->getSingletonPtr()->getEntity(m_scenes[Demo_Scene_00], "Room");
+                Entity* room = SceneManager::get()->get()->getEntity(m_scenes[Demo_Scene_00], "Room");
                 SceneNode* sceneNode = room->getSceneNode("RoomMesh");
-                buildDebugView("LightMap", sceneNode->m_meshInstance->m_lightMap->m_texAltas, 320u, 320u);
+                // buildDebugView("LightMap", sceneNode->m_meshInstance->m_lightMap->m_texAltas, 320u, 320u);
 #endif
                 buildDebugView("SceneDepth",  renderer->m_sceneDepthTextureSSAA);
                 buildDebugView("SceneNormal", renderer->m_sceneNormalTextureSSAA);
@@ -870,7 +853,7 @@ void DemoApp::drawStats()
     {
         ImGui::Text("Frame time:                   %.2f ms", m_lastFrameDurationInMs);
         ImGui::Text("Number of entities:           %d", m_scenes[m_currentScene]->entities.size());
-        ImGui::Checkbox("4x Super Sampling", &Cyan::Renderer::getSingletonPtr()->m_opts.enableAA);
+        ImGui::Checkbox("4x Super Sampling", &Cyan::Renderer::get()->m_opts.enableAA);
     }
 }
 
@@ -907,7 +890,7 @@ void DemoApp::drawLightingWidgets()
                                 | ImGuiTreeNodeFlags_OpenOnDoubleClick 
                                 | ImGuiTreeNodeFlags_SpanAvailWidth 
                                 | ImGuiTreeNodeFlags_DefaultOpen;
-    auto sceneManager = SceneManager::getSingletonPtr();
+    auto sceneManager = SceneManager::get();
     // directional Lights
     if (ImGui::TreeNodeEx("Sun Light", baseFlags))
     {
@@ -980,6 +963,7 @@ void DemoApp::drawSceneViewport()
         }
         ImGui::Image(reinterpret_cast<void*>((intptr_t)activeDebugViewTexture->handle), ImVec2(max.x - min.x, max.y - min.y), ImVec2(0, 1), ImVec2(1, 0));
 
+#if 0
         // TODO: refactor ray picking and gizmos 
         // TODO: when clicking on some objects (meshes) in the scene, the gizmo will be rendered not at the 
         // center of the mesh, this may seem incorrect at first glance but it's actually expected because some parts of the mesh
@@ -1003,6 +987,7 @@ void DemoApp::drawSceneViewport()
                 m_selectedNode->setLocalTransform(delta * m_selectedNode->getLocalTransform().toMatrix());
             }
         }
+#endif
     }
     Cyan::UI::endWindow();
     ImGui::PopStyleVar();
@@ -1062,12 +1047,13 @@ void DemoApp::drawRenderSettings()
 
 void DemoApp::debugIrradianceCache()
 {
-    auto pathTracer = Cyan::PathTracer::getSingletonPtr();
-    auto renderer = Cyan::Renderer::getSingletonPtr();
+    // auto pathTracer = Cyan::PathTracer::get();
+    auto renderer = Cyan::Renderer::get();
+    auto assetManager = Cyan::AssetManager::get();
     auto ctx = Cyan::getCurrentGfxCtx();
     ctx->setPrimitiveType(Cyan::PrimitiveType::TriangleList);
-    auto cubeMesh = Cyan::getMesh("CubeMesh");
-    auto circleMesh = Cyan::getMesh("circle_mesh");
+    auto cubeMesh = assetManager->getAsset<Cyan::Mesh>("CubeMesh");
+    auto circleMesh = assetManager->getAsset<Cyan::Mesh>("circle_mesh");
     auto debugShader = Cyan::getShader("DebugShadingShader");
     Camera& camera = m_scenes[m_currentScene]->getActiveCamera();
     glm::mat4 vp = camera.projection * camera.view;
@@ -1083,7 +1069,7 @@ void DemoApp::debugIrradianceCache()
         transform.m_scale = scale;
         glm::mat4 mvp = vp * transform.toMatrix();
         debugShader->setUniformVec4("color", &color.r);
-        for (u32 sm = 0; sm < cubeMesh->m_subMeshes.size(); ++sm)
+        for (u32 sm = 0; sm < cubeMesh->numSubmeshes(); ++sm)
         {
             debugShader->setUniformMat4("mvp", &mvp[0][0]);
             renderer->drawMesh(cubeMesh);
@@ -1106,7 +1092,7 @@ void DemoApp::debugIrradianceCache()
         m = glm::scale(m, glm::vec3(scale));
         glm::mat4 mvp = vp * m;
         debugShader->setUniformVec4("color", &color.r);
-        for (u32 sm = 0; sm < circleMesh->m_subMeshes.size(); ++sm)
+        for (u32 sm = 0; sm < circleMesh->numSubmeshes(); ++sm)
         {
             debugShader->setUniformMat4("mvp", &mvp[0][0]);
             renderer->drawMesh(circleMesh);
@@ -1126,18 +1112,18 @@ void DemoApp::debugIrradianceCache()
             debugDrawCube(record.position, glm::vec3(record.r * .02f), color1);
         }
 #endif
-#if 1
+#if 0
         // visualize translational gradients
         for (u32 i = 0; i < m_debugLines.size(); ++i)
         {
             m_debugLines[i].draw(vp);
         }
-#endif
         // visualize octree
         for (u32 i = 0; i < pathTracer->m_debugData.octreeBoundingBoxes.size(); ++i)
         {
             pathTracer->m_debugData.octreeBoundingBoxes[i].draw(vp);
         }
+#endif
     }
     glEnable(GL_CULL_FACE);
 }
