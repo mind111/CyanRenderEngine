@@ -49,7 +49,7 @@ void PointGroup::draw(glm::mat4& mvp)
     auto ctx = Cyan::getCurrentGfxCtx();
     ctx->setShader(m_shader);
     matl->set("mvp", &mvp[0]);
-    matl->bindToShader();
+    matl->bindForDraw();
     ctx->setVertexArray(m_vertexArray);
     ctx->setPrimitiveType(Cyan::PrimitiveType::Points);
     ctx->drawIndexAuto(m_vertexArray->numVerts());
@@ -89,7 +89,7 @@ void Line::draw(glm::mat4& mvp)
     auto ctx = Cyan::getCurrentGfxCtx();
     ctx->setShader(matl->m_template->m_shader);
     matl->set("mvp", &mvp[0]);
-    matl->bindToShader();
+    matl->bindForDraw();
     glBindVertexArray(vao);
     glDrawArrays(GL_LINES, 0, 2);
     glBindVertexArray(0);
@@ -123,7 +123,7 @@ void Line2D::draw()
     ctx->setDepthControl(Cyan::DepthControl::kDisable);
     ctx->setShader(matl->m_template->m_shader);
     matl->set("color", &m_color.r);
-    matl->bindToShader();
+    matl->bindForDraw();
     ctx->setVertexArray(m_vertexArray);
     ctx->setPrimitiveType(Cyan::PrimitiveType::Line);
     ctx->drawIndexAuto(2);
@@ -172,7 +172,7 @@ void Quad::init(glm::vec2 pos, float width, float height)
 void Quad::draw()
 {
     Cyan::getCurrentGfxCtx()->setShader(matl->m_template->m_shader);
-    matl->bindToShader();
+    matl->bindForDraw();
     glBindVertexArray(vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glBindVertexArray(0);
@@ -240,7 +240,7 @@ void BoundingBox3D::draw(glm::mat4& mvp)
     ctx->setShader(shader);
     matl->set("color", &color.r);
     matl->set("mvp", &mvp[0]);
-    matl->bindToShader();
+    matl->bindForDraw();
 
     ctx->setPrimitiveType(Cyan::PrimitiveType::Line);
     ctx->setVertexArray(vertexArray);

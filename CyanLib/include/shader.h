@@ -142,3 +142,9 @@ public:
     ShaderFileInfo m_fragSrcInfo;
     GLuint handle;
 };
+
+class ShaderManager
+{
+    ShaderManager();
+    void initialize();
+};

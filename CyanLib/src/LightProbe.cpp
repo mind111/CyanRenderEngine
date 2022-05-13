@@ -183,7 +183,7 @@ namespace Cyan
                 m_convolveIrradianceMatl->set("view", &camera.view[0]);
                 m_convolveIrradianceMatl->set("projection", &camera.projection[0]);
                 m_convolveIrradianceMatl->bindTexture("srcCubemapTexture", sceneCapture);
-                m_convolveIrradianceMatl->bindToShader();
+                m_convolveIrradianceMatl->bindForDraw();
 #endif
                 s_convolveIrradianceShader->setUniformMat4("view", &camera.view[0].x)
                                         .setUniformMat4("projection", &camera.projection[0].x)
@@ -354,7 +354,7 @@ namespace Cyan
                     m_convolveReflectionMatl->set("view", &camera.view[0]);
                     m_convolveReflectionMatl->set("roughness", mip * (1.f / (kNumMips - 1)));
                     m_convolveReflectionMatl->bindTexture("envmapSampler", sceneCapture);
-                    m_convolveReflectionMatl->bindToShader();
+                    m_convolveReflectionMatl->bindForDraw();
                     */
                     ctx->drawIndexAuto(36);
                 }

@@ -1054,7 +1054,7 @@ void DemoApp::debugIrradianceCache()
     ctx->setPrimitiveType(Cyan::PrimitiveType::TriangleList);
     auto cubeMesh = assetManager->getAsset<Cyan::Mesh>("CubeMesh");
     auto circleMesh = assetManager->getAsset<Cyan::Mesh>("circle_mesh");
-    auto debugShader = Cyan::getShader("DebugShadingShader");
+    auto debugShader = Cyan::getMaterialShader("DebugShadingShader");
     Camera& camera = m_scenes[m_currentScene]->getActiveCamera();
     glm::mat4 vp = camera.projection * camera.view;
     glm::vec4 color0(1.f, 1.f, 1.f, 1.f);

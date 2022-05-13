@@ -14,16 +14,6 @@
 
 class CyanApp;
 
-struct MemoryArena
-{
-
-};
-
-class MemoryManager
-{
-
-};
-
 struct WindowConfig
 {
     int width;
@@ -35,13 +25,15 @@ typedef void MouseButtonCallback(int, int);
 typedef void MouseScrollWheelCallback(double, double);
 typedef void KeyCallback(i32, i32);
 
-class CyanEngine
+class Engine
 {
 public:
-    CyanEngine();
-    ~CyanEngine() { }
+    Engine();
+    ~Engine() { }
 
     void initialize(WindowConfig windowConfig, glm::vec2 viewportPos, glm::vec2 renderSize);
+    void update();
+    void render();
     void finalize();
 
     /* Gui */

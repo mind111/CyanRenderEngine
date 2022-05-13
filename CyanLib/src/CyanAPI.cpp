@@ -155,7 +155,7 @@ namespace Cyan
         return shader;
     }
 
-    Shader* getShader(const char* name)
+    Shader* getMaterialShader(const char* name)
     {
         auto itr = s_shaderRegistry.find(std::string(name));
         if (itr != s_shaderRegistry.end())

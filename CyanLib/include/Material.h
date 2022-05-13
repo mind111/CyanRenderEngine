@@ -91,7 +91,7 @@ namespace Cyan
         f32 getF32(const char* attribute);
         u32 getAttributeOffset(const char* attribute);
         u32 getAttributeOffset(UniformHandle handle);
-        Shader* getShader()
+        Shader* getMaterialShader()
         {
             return m_template->m_shader;
         }
@@ -172,14 +172,14 @@ namespace Cyan
             kUseLightMap             = 1 << 7             
         };
 
-        virtual void bindToShader(Shader* shader) = 0;
+        virtual void bindForDraw(Shader* shader) = 0;
     };
 
     struct ConstantColor : public ShadingParameter
     {
         glm::vec3 constantColor = glm::vec3(0.85f, 0.85, 0.7f);
 
-        virtual void bindToShader(Shader* shader)
+        virtual void bindForDraw(Shader* shader)
         {
             shader->setUniformVec3("constantColor", &constantColor.x);
         }
@@ -219,7 +219,7 @@ namespace Cyan
 
         // todo: is there a way to nicely abstract binding each member field, if we can do reflection, then we 
         // can loop through each member field and call shader->setUniform() on each field
-        virtual void bindToShader(Shader* shader) override
+        virtual void bindForDraw(Shader* shader) override
         {
             shader->setUniform1f("kRoughness", kRoughness);
             shader->setUniform1f("kMetallic", kMetallic);
@@ -240,7 +240,7 @@ namespace Cyan
     template<typename BaseShadingParameter>
     struct Emissive : BaseShadingParameter
     {
-        virtual void bindToShader(Shader* shader) override
+        virtual void bindForDraw(Shader* shader) override
         {
 
         }
@@ -263,7 +263,7 @@ namespace Cyan
     template <typename BaseShadingParameter>
     struct Lightmapped : public BaseShadingParameter
     {
-        virtual void bindToShader(Shader* shader)
+        virtual void bindForDraw(Shader* shader)
         {
 
         }
@@ -286,13 +286,16 @@ namespace Cyan
             : name(instanceName)
         { }
 
-        virtual Shader* getShader() = 0;
+        virtual Shader* getMaterialShader() = 0;
         virtual std::string getAssetObjectTypeDesc() override { return std::string("BaseMaterial"); }
-        virtual void bindToShader() = 0;
+        virtual void bindForDraw() = 0;
 
         // instance name
         std::string name;
     };
+
+    // helper function that handles the mapping between material type to their according shaders
+    static Shader* initMaterialShader(std::string materialTypeDesc);
 
     template <typename ShadingParameter>
     struct Material : public BaseMaterial
@@ -300,16 +303,19 @@ namespace Cyan
         Material(const char* instanceName)
             : BaseMaterial(instanceName)
         {
-
+            if (!shader)
+            {
+                shader = initMaterialShader(typeDesc);
+            }
         }
 
         virtual std::string getAssetObjectTypeDesc() override { return typeDesc; }
         static std::string getAssetClassTypeDesc() { return typeDesc; }
-        virtual Shader* getShader() override { return shader; }
+        virtual Shader* getMaterialShader() override { return shader; }
 
-        virtual void bindToShader() override
+        virtual void bindForDraw() override
         {
-            parameter.bindToShader(shader);
+            parameter.bindForDraw(shader);
         }
 
         static Shader* shader;

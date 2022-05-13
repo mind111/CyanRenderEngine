@@ -519,8 +519,8 @@ namespace Cyan
 
     void Renderer::drawMesh(Mesh* parent, BaseMaterial* matl, RenderTarget* dstRenderTarget, const std::initializer_list<i32>& drawBuffers, const Viewport& viewport)
     {
-        m_ctx->setShader(matl->getShader());
-        matl->bindToShader();
+        m_ctx->setShader(matl->getMaterialShader());
+        matl->bindForDraw();
         m_ctx->setRenderTarget(dstRenderTarget, drawBuffers);
         m_ctx->setViewport(viewport);
         drawMesh(parent);
@@ -533,10 +533,10 @@ namespace Cyan
         {
             drawSubmesh(parent->submeshes[i], [this, i, transformIndex, meshInstance]() {
                 BaseMaterial* matl = meshInstance->materials[i];
-                Shader* shader = matl->getShader();
+                Shader* shader = matl->getMaterialShader();
                 m_ctx->setShader(shader);
                 shader->setUniform1i("transformIndex", transformIndex);
-                matl->bindToShader();
+                matl->bindForDraw();
                 m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
             });
         }
@@ -748,7 +748,7 @@ namespace Cyan
             m_ctx->setShader(m_vctx.visualizer.voxelGridVisShader);
             m_vctx.visualizer.voxelGridVisShader->setUniform1i("activeMip", m_vctx.visualizer.activeMip);
             // m_vctx.visualizer.voxelGridVisMatl->set("activeMip", m_vctx.visualizer.activeMip);
-            // m_vctx.visualizer.voxelGridVisMatl->bindToShader();
+            // m_vctx.visualizer.voxelGridVisMatl->bindForDraw();
 
             m_ctx->setPrimitiveType(PrimitiveType::Points);
             u32 currRes = m_sceneVoxelGrid.resolution / pow(2, m_vctx.visualizer.activeMip);
@@ -1143,7 +1143,7 @@ namespace Cyan
         m_ssaoMatl->set("cameraPos", &camera.position.x);
         m_ssaoMatl->set("view", &camera.view[0]);
         m_ssaoMatl->set("projection", &camera.projection[0]);
-        m_ssaoMatl->bindToShader();
+        m_ssaoMatl->bindForDraw();
         */
         m_ssaoShader->setTexture("normalTexture", m_opts.enableAA ? m_sceneNormalTextureSSAA : m_sceneNormalTexture);
         m_ssaoShader->setTexture("depthTexture", m_opts.enableAA ? m_sceneDepthTextureSSAA : m_sceneDepthTexture);
@@ -1170,7 +1170,7 @@ namespace Cyan
 
             m_ctx->setShader(m_bloomDsShader);
             // m_bloomDsMatl->bindTexture("srcImage", src);
-            // m_bloomDsMatl->bindToShader();
+            // m_bloomDsMatl->bindForDraw();
             m_bloomDsShader->setTexture("srcImage", src);
             drawMesh(fullscreenQuad);
             /*
@@ -1196,7 +1196,7 @@ namespace Cyan
             m_bloomUsMatl->bindTexture("srcImage", src);
             m_bloomUsMatl->bindTexture("blendImage", blend);
             m_bloomUsMatl->set("stageIndex", stageIndex);
-            m_bloomUsMatl->bindToShader();
+            m_bloomUsMatl->bindForDraw();
 #endif
             m_ctx->setShader(m_bloomUsShader);
             m_bloomDsShader->setTexture("srcImage", src)
@@ -1235,7 +1235,7 @@ namespace Cyan
                 m_gaussianBlurMatl->set("horizontal", 1.0f);
                 m_gaussianBlurMatl->set("kernelIndex", kernelIndex);
                 m_gaussianBlurMatl->set("radius", radius);
-                m_gaussianBlurMatl->bindToShader();
+                m_gaussianBlurMatl->bindForDraw();
 #endif
                 m_gaussianBlurShader->setTexture("srcTexture", src)
                                     .setUniform1f("horizontal", 1.f)
@@ -1260,7 +1260,7 @@ namespace Cyan
                 m_gaussianBlurMatl->set("horizontal", 0.f);
                 m_gaussianBlurMatl->set("kernelIndex", kernelIndex);
                 m_gaussianBlurMatl->set("radius", radius);
-                m_gaussianBlurMatl->bindToShader();
+                m_gaussianBlurMatl->bindForDraw();
 #endif
                 m_gaussianBlurShader->setTexture("srcTexture", src)
                                     .setUniform1f("horizontal", 1.f)
@@ -1280,7 +1280,7 @@ namespace Cyan
         m_bloomSetupRenderTarget->clear({ 0u });
 #if 0 
         m_bloomSetupMatl->bindTexture("srcTexture", src);
-        m_bloomSetupMatl->bindToShader();
+        m_bloomSetupMatl->bindForDraw();
 #endif
         m_bloomSetupShader->setTexture("srcTexture", src);
 
@@ -1327,7 +1327,7 @@ namespace Cyan
         m_compositeMatl->set("bloomInstensity", m_opts.bloomIntensity);
         m_compositeMatl->bindTexture("bloomOutTexture", m_bloomOutTexture);
         m_compositeMatl->bindTexture("sceneColorTexture", m_opts.enableAA ? m_sceneColorTextureSSAA : m_sceneColorTexture);
-        m_compositeMatl->bindToShader();
+        m_compositeMatl->bindForDraw();
 #endif
         m_compositeShader->setUniform1f("exposure", m_opts.exposure)
             .setUniform1f("bloom", m_opts.enableBloom ? 1.f : 0.f)

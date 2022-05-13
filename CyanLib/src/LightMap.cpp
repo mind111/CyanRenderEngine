@@ -127,7 +127,7 @@ namespace Cyan
                 glm::vec3 offset = passes[pass] * uvOffset;
                 m_lightMapMatl->set("pass", (f32)pass);
                 m_lightMapMatl->set("uvOffset", &offset.x);
-                m_lightMapMatl->bindToShader();
+                m_lightMapMatl->bindForDraw();
                 for (u32 sm = 0; sm < parent->m_subMeshes.size(); ++sm)
                 {
                     auto ctx = getCurrentGfxCtx();
@@ -240,7 +240,7 @@ namespace Cyan
                 glm::vec3 offset = passes[pass] * uvOffset * (f32)kNumSubPixelSamples;
                 m_lightMapMatl->set("pass", (f32)pass);
                 m_lightMapMatl->set("uvOffset", &offset.x);
-                m_lightMapMatl->bindToShader();
+                m_lightMapMatl->bindForDraw();
                 for (u32 sm = 0; sm < parent->m_subMeshes.size(); ++sm)
                 {
                     auto ctx = getCurrentGfxCtx();

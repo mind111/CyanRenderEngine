@@ -53,6 +53,7 @@ namespace Cyan
         // asset tables
         std::unordered_map<std::string, Texture*> m_textureMap;
         std::unordered_map<std::string, Mesh*> m_meshMap;
+        // material instances
         std::unordered_map<std::string, BaseMaterial*> m_materialMap;
 
         template <typename T>
@@ -96,7 +97,6 @@ namespace Cyan
             return entry->second;
         }
 
-        /*
         // todo: this maybe problematic
         template <template <typename> typename M, typename T>
         static M<T>* getAsset(const char* matlName) 
@@ -108,6 +108,5 @@ namespace Cyan
             }
             return static_cast<M<T>*>(entry->second);
         }
-        */
     };
 }

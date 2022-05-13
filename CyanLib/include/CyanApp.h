@@ -2,19 +2,29 @@
 
 #include "Common.h"
 #include "CyanEngine.h" 
+#include "Scene.h"
 
-class CyanApp
+namespace Cyan
 {
-public:
-    CyanApp() { gEngine =  new CyanEngine(); }
-    ~CyanApp() { }
+    class CyanApp
+    {
+    public:
+        CyanApp();
+        virtual ~CyanApp() { }
 
-    virtual void initialize(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewportPos, glm::vec2 renderSize) = 0;
+        void initialize();
+        void finalize();
+        void update();
+        void render();
+        void run();
 
-    virtual void run() = 0;
-    virtual void render() = 0;
-    virtual void shutDown() = 0;
+        virtual void initialize(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewportPos, glm::vec2 renderSize) = 0;
 
-protected:
-    CyanEngine* gEngine;
-};
+        virtual void run() = 0;
+        virtual void render() = 0;
+        virtual void shutDown() = 0;
+
+    protected:
+        CyanEngine* gEngine;
+    };
+}

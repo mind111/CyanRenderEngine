@@ -132,7 +132,7 @@ namespace Cyan
     RenderTarget* createDepthRenderTarget(u32 width, u32 height);
 
     /* Shader */
-    Shader* getShader(const char* name);
+    Shader* getMaterialShader(const char* name);
     Shader* createShader(const char* name, const char* vertSrc, const char* fragSrc);
     Shader* createCsShader(const char* name, const char* csSrc);
     Shader* createVsGsPsShader(const char* name, const char* vsSrcFile, const char* fsSrcFile, const char* gsSrcFile);
