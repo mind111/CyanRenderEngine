@@ -37,9 +37,11 @@
     <ClInclude Include="include\CyanRenderer.h" />
     <ClInclude Include="include\CyanUI.h" />
     <ClInclude Include="include\Entity.h" />
+    <ClInclude Include="include\Event.h" />
     <ClInclude Include="include\Geometry.h" />
     <ClInclude Include="include\GfxContext.h" />
     <ClInclude Include="include\GraphicsSystem.h" />
+    <ClInclude Include="include\IOSystem.h" />
     <ClInclude Include="include\Light.h" />
     <ClInclude Include="include\LightMap.h" />
     <ClInclude Include="include\LightProbe.h" />
@@ -54,6 +56,7 @@
     <ClInclude Include="include\Shader.h" />
     <ClInclude Include="include\Shadow.h" />
     <ClInclude Include="include\SkyBox.h" />
+    <ClInclude Include="include\System.h" />
     <ClInclude Include="include\Texture.h" />
     <ClInclude Include="include\Transform.h" />
     <ClInclude Include="include\Uniform.h" />
@@ -96,6 +99,7 @@
     <ClCompile Include="src\imgui\imgui_impl_opengl3.cpp" />
     <ClCompile Include="src\imgui\imgui_tables.cpp" />
     <ClCompile Include="src\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="src\IOSystem.cpp" />
     <ClCompile Include="src\LightMap.cpp" />
     <ClCompile Include="src\LightProbe.cpp" />
     <ClCompile Include="src\Material.cpp" />

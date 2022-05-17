@@ -81,7 +81,7 @@ struct Entity
     void applyWorldTranslation(const glm::vec3 trans);
     void applyWorldScale(const glm::vec3 scale);
     void updateWorldTransform();
-    void setMaterial(const char* meshNodeName, i32 submeshIndex, Cyan::BaseMaterial* matl);
+    void setMaterial(const char* meshNodeName, i32 submeshIndex, Cyan::IMaterial* matl);
 };
 
 struct RayCastInfo

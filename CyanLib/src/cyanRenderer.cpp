@@ -44,18 +44,16 @@ bool fileWasModified(const char* fileName, FILETIME* writeTime)
 
 namespace Cyan
 {
+    Renderer* Renderer::singleton = nullptr;
     static Mesh* fullscreenQuad = nullptr;
 
-    // static singleton pointer will be set to 0 before main() get called
-    Renderer* Renderer::m_renderer = 0;
-
-    Renderer::Renderer(GLFWwindow* window, const glm::vec2& windowSize)
+    Renderer::Renderer(u32 windowWidth, u32 windowHeight)
         : m_frameAllocator(1024u * 1024u),  // 1 megabytes
         m_ctx(nullptr),
-        m_windowWidth(windowSize.x),
-        m_windowHeight(windowSize.y),
-        m_SSAAWidth(2u * windowSize.x),
-        m_SSAAHeight(2u * windowSize.y),
+        m_windowWidth(windowWidth),
+        m_windowHeight(windowHeight),
+        m_SSAAWidth(2u * m_windowWidth),
+        m_SSAAHeight(2u * m_windowHeight),
         m_sceneColorTexture(nullptr),
         m_sceneColorRenderTarget(nullptr),
         m_sceneColorTextureSSAA(nullptr),
@@ -65,10 +63,10 @@ namespace Cyan
         gDrawDataBuffer(-1),
         m_bloomOutTexture(nullptr)
     {
-        if (!m_renderer)
+        if (!singleton)
         {
-            m_renderer = this;
-            m_renderer->initialize(window, windowSize);
+            singleton = this;
+            singleton->initialize();
         }
         else
         {
@@ -78,7 +76,7 @@ namespace Cyan
 
     Renderer* Renderer::get()
     {
-        return m_renderer;
+        return singleton;
     }
 
     StackAllocator& Renderer::getAllocator()
@@ -191,7 +189,7 @@ namespace Cyan
         glNamedBufferData(idbo, sizeof(IndirectDrawArgs), nullptr, GL_DYNAMIC_COPY);
     }
 
-    void Renderer::initialize(GLFWwindow* window, glm::vec2 windowSize)
+    void Renderer::initialize()
     {
         m_ctx = getCurrentGfxCtx();
         // m_ssaoSamplePoints.setColor(glm::vec4(0.f, 1.f, 1.f, 1.f));
@@ -341,10 +339,10 @@ namespace Cyan
 
         // bloom
         {
-            m_bloomSetupRenderTarget = createRenderTarget(windowSize.x, windowSize.y);
+            m_bloomSetupRenderTarget = createRenderTarget(m_windowWidth, m_windowHeight);
             TextureSpec spec = { };
-            spec.width = windowSize.x;
-            spec.height = windowSize.y;
+            spec.width = m_windowWidth;
+            spec.height = m_windowHeight;
             spec.type = Texture::Type::TEX_2D;
             spec.format = Texture::ColorFormat::R16G16B16A16; 
             spec.dataType = Texture::DataType::Float;
@@ -478,9 +476,6 @@ namespace Cyan
         }
 
         // todo: load global glsl definitions and save them in a map <path, content>
-
-        // ui
-        UI::initialize(window);
     }
 
     void Renderer::finalize()
@@ -517,7 +512,7 @@ namespace Cyan
         }
     }
 
-    void Renderer::drawMesh(Mesh* parent, BaseMaterial* matl, RenderTarget* dstRenderTarget, const std::initializer_list<i32>& drawBuffers, const Viewport& viewport)
+    void Renderer::drawMesh(Mesh* parent, IMaterial* matl, RenderTarget* dstRenderTarget, const std::initializer_list<i32>& drawBuffers, const Viewport& viewport)
     {
         m_ctx->setShader(matl->getMaterialShader());
         matl->bindForDraw();
@@ -532,7 +527,7 @@ namespace Cyan
         for (u32 i = 0; i < parent->numSubmeshes(); ++i)
         {
             drawSubmesh(parent->submeshes[i], [this, i, transformIndex, meshInstance]() {
-                BaseMaterial* matl = meshInstance->materials[i];
+                IMaterial* matl = meshInstance->materials[i];
                 Shader* shader = matl->getMaterialShader();
                 m_ctx->setShader(shader);
                 shader->setUniform1i("transformIndex", transformIndex);

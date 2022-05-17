@@ -68,7 +68,7 @@ namespace Cyan
         u32 m_numMeshes;
         u32 m_numTextures;
     };
-
+#if 0
     struct LinearAllocator
     {
         void* m_data;
@@ -92,7 +92,7 @@ namespace Cyan
             return address;
         }
     };
-
+#endif
     enum VertexAttribFlag
     {
         kPosition = 0x1,
@@ -112,11 +112,12 @@ namespace Cyan
 
     GfxContext* getCurrentGfxCtx();
 
+#if 0
     /* Memory */
     LinearAllocator* getAllocator();
     #define CYAN_ALLOC(size)  Cyan::alloc(size)
-
     void* alloc(u32 sizeInBytes);
+#endif
 
     // Buffers
     VertexBuffer* createVertexBuffer(void* data, u32 sizeInBytes, VertexSpec&& vertexSpec);
@@ -141,8 +142,10 @@ namespace Cyan
     void setBuffer(RegularBuffer* _buffer, void* data, u32 _sizeInBytes);
 
     /* Uniform */
+#if 0
     Uniform* createUniform(const char* _name, Uniform::Type _type);
     UniformBuffer* createUniformBuffer(u32 sizeInBytes=1024);
+#endif
     void setUniform(Uniform* _uniform, void* _valuePtr);
     void setUniform(Uniform* _uniform, u32 _value);
     void setUniform(Uniform* _uniform, float _value);

@@ -6,6 +6,7 @@
 #include "LightMap.h"
 #include "CyanPathTracer.h"
 #include "CyanRenderer.h"
+#include "GfxContext.h"
 
 namespace Cyan
 {
@@ -13,24 +14,26 @@ namespace Cyan
     {
     public:
 
-        GraphicsSystem(GLFWwindow* window, const glm::vec2& windowSize);
+        GraphicsSystem(u32 windowWidth, u32 windowHeight);
         ~GraphicsSystem() { }
 
         static GraphicsSystem* get();
+        GLFWwindow* getAppWindow() { return m_glfwWindow; }
         Renderer* getRenderer();
         TextureManager* getTextureManager();
         AssetManager* getAssetManager();
         void initialize();
 
     private:
-        GLFWwindow* m_window;
-        glm::vec2 m_windowSize; 
-        SceneManager* m_sceneManager;
-        TextureManager* m_textureManager;
-        AssetManager* m_assetManager;
+        static GraphicsSystem* m_singleton;
+        SceneManager* m_sceneManager = nullptr;
+        TextureManager* m_textureManager = nullptr;
+        AssetManager* m_assetManager = nullptr;
+        WindowManager* m_windowManager = nullptr;
+        Renderer*     m_renderer = nullptr;
         // LightMapManager* m_lightMapManager;
         // PathTracer*      m_pathTracer;
-        Renderer*     m_renderer;
-        static GraphicsSystem* m_singleton;
+        GLFWwindow* m_glfwWindow = nullptr;
+        glm::uvec2 m_windowDimension; 
     };
 }

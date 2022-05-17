@@ -733,6 +733,7 @@ void DemoApp::drawEntityPanel()
 
 void DemoApp::drawDebugWindows()
 {
+#if 0
     auto renderer = m_graphicsSystem->getRenderer();
     auto ctx = Cyan::getCurrentGfxCtx();
     ctx->setRenderTarget(nullptr, {});
@@ -846,6 +847,7 @@ void DemoApp::drawDebugWindows()
     }
     ImGui::PopFont();
     Cyan::UI::endWindow();
+#endif
 }
 
 void DemoApp::drawStats()

@@ -54,7 +54,7 @@ namespace Cyan
         std::unordered_map<std::string, Texture*> m_textureMap;
         std::unordered_map<std::string, Mesh*> m_meshMap;
         // material instances
-        std::unordered_map<std::string, BaseMaterial*> m_materialMap;
+        std::unordered_map<std::string, IMaterial*> m_materialMap;
 
         template <typename T>
         Mesh::Submesh<T>* createSubmesh(const std::vector<typename T::Vertex>& vertices, const std::vector<u32>& indices)

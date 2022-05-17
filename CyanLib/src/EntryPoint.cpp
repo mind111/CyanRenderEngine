@@ -5,9 +5,14 @@
 
 int main(int argc, char* argv[]) {
 
-    std::cout << "---- Hello Cyan! ----" << std::endl;
-    DemoApp* app = new DemoApp();
-
+    cyanInfo("Initializing ... ")
+    DemoApp* app = new DemoApp(1280, 720);
+    app->initialize();
+    app->run();
+    app->finalize();
+    delete app;
+    return 0;
+/*
     glm::vec2 sceneRenderSize(1280.f, 720.f);
     glm::vec2 debugViewportSize(400.f, 720.f);
     f32 windowWidth = sceneRenderSize.x + debugViewportSize.x;
@@ -16,6 +21,5 @@ int main(int argc, char* argv[]) {
     app->run();
     app->shutDown();
     delete app;
-
-    return 0;
+*/
 }

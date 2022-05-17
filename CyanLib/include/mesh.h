@@ -143,7 +143,7 @@ namespace Cyan
     struct MeshInstance
     {
         Mesh* parent = nullptr;
-        std::vector<BaseMaterial*> materials;
+        std::vector<IMaterial*> materials;
 
         MeshInstance(Mesh* base)
             : parent(base)
@@ -162,7 +162,7 @@ namespace Cyan
             return static_cast<T*>(materials[index]);
         }
 
-        void setMaterial(BaseMaterial* matl, u32 index)
+        void setMaterial(IMaterial* matl, u32 index)
         {
             materials[index] = matl;
         }

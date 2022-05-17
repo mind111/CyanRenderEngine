@@ -99,6 +99,49 @@ namespace Cyan
         u32 numAllocated = 0;
         std::vector<T> m_objects;
     };
+
+    /*
+    * Linear allocator that uses placement new
+    */
+    class LinearAllocator
+    {
+    public:
+        LinearAllocator(u32 inSize)
+            : sizeInBytes(inSize)
+        {
+            memory = new u8[sizeInBytes];
+        }
+
+        ~LinearAllocator() 
+        { 
+            delete[] memory;
+        }
+
+        template <typename T, typename ... Args>
+        T* alloc(Args... args)
+        {
+            if (pos + sizeof(T) <= sizeInBytes)
+            {
+                // placement new
+                T* newObject = new (&memory[pos]) T(args...);
+                pos += sizeof(T);
+                return newObject;
+            }
+
+            cyanError("LinearAllocator out of memory")
+            return nullptr;
+        }
+
+        void reset()
+        {
+            pos = 0u;
+        }
+
+    private:
+        u32 sizeInBytes = 0u;
+        u32 pos = 0u;
+        u8* memory = nullptr;
+    };
 }
 
 // no fragmentation within the memory managed by a StackAllocator

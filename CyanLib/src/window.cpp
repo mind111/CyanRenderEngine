@@ -2,10 +2,10 @@
 
 WindowManager windowManager;
 
-void WindowManager::mousePosCallBack(GLFWwindow* window, double xPos, double yPos) {
+void WindowManager::mousePosCallBack(GLFWwindow* window, double cursorX, double cursorY) {
     Window* pWindow = (Window*)glfwGetWindowUserPointer(window);
-    pWindow->lastX = xPos;
-    pWindow->lastY = yPos;
+    pWindow->lastX = cursorX;
+    pWindow->lastY = cursorY;
 }
 
 void WindowManager::mouseButtonCallBack(GLFWwindow* window, int button, int action, int mods) {

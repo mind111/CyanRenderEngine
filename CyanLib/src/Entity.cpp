@@ -286,7 +286,7 @@ void Entity::updateWorldTransform()
     }
 }
 
-void Entity::setMaterial(const char* meshNodeName, i32 submeshIndex, Cyan::BaseMaterial* matl)
+void Entity::setMaterial(const char* meshNodeName, i32 submeshIndex, Cyan::IMaterial* matl)
 {
     SceneNode* sceneNode = getSceneNode(meshNodeName);
     if (!sceneNode) return;

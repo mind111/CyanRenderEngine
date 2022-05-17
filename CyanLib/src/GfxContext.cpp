@@ -9,7 +9,7 @@ namespace Cyan
 
     void GfxContext::init()
     {
-        m_window = nullptr;
+        m_glfwWindow = nullptr;
         m_shader = nullptr;
         m_primitiveType = -1;
         vao = 0;
@@ -23,7 +23,7 @@ namespace Cyan
 
     void GfxContext::setWindow(Window* _window)
     {
-        m_window = _window;
+        m_glfwWindow = _window;
         m_viewport = { 0, 0, static_cast<u32>(_window->width), static_cast<u32>(_window->height) };
     }
 
@@ -256,6 +256,6 @@ namespace Cyan
 
     void GfxContext::flip()
     {
-        glfwSwapBuffers(m_window->mpWindow);
+        glfwSwapBuffers(m_glfwWindow->mpWindow);
     }
 }

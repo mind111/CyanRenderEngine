@@ -271,7 +271,7 @@ namespace Cyan
         Lightmap lightmap;
     };
 
-    struct BaseMaterial : public Asset
+    struct IMaterial : public Asset
     {
         enum class Type
         {
@@ -282,7 +282,7 @@ namespace Cyan
             kEmissiveConstantColor
         };
 
-        BaseMaterial(const char* instanceName)
+        IMaterial(const char* instanceName)
             : name(instanceName)
         { }
 
@@ -298,10 +298,10 @@ namespace Cyan
     static Shader* initMaterialShader(std::string materialTypeDesc);
 
     template <typename ShadingParameter>
-    struct Material : public BaseMaterial
+    struct Material : public IMaterial
     {
         Material(const char* instanceName)
-            : BaseMaterial(instanceName)
+            : IMaterial(instanceName)
         {
             if (!shader)
             {

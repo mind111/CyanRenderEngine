@@ -89,7 +89,7 @@ namespace Cyan
         void clear();
         void reset();
 
-        Window* m_window;
+        Window* m_glfwWindow;
         Shader* m_shader;
         RenderTarget* m_currentRenderTarget;
         Viewport m_viewport;

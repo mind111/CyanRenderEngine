@@ -21,7 +21,7 @@ namespace Demo
     void mouseScrollWheelCallback(double xOffset, double yOffset);
 };
 
-class DemoApp : public CyanApp
+class DemoApp : public DefaultApp
 {
 public:
     DemoApp();

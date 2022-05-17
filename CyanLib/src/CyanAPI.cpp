@@ -63,14 +63,17 @@ namespace Cyan
         // Create global graphics context
         s_gfxc = new GfxContext;
         s_gfxc->init();
+#if 0
         s_memory = (void*)(new char[1024 * 1024 * 1024]); // 1GB memory pool
         s_allocator = LinearAllocator::create(s_memory, 1024 * 1024 * 1024);
+#endif
         // reserve 0th item for null handle
         s_uniforms.resize(kMaxNumUniforms + 1);
         s_shaderHandleAllocator.m_nextHandle = 1u;
         s_uniformHandleAllocator.m_nextHandle = 1u;
     }
 
+#if 0
     LinearAllocator* getAllocator()
     {
         return s_allocator;
@@ -80,6 +83,7 @@ namespace Cyan
     {
         return s_allocator->alloc(sizeInBytes);
     }
+#endif
 
     u32 allocUniformHandle()
     {
@@ -257,6 +261,7 @@ namespace Cyan
         return 0;
     }
 
+#if 0
     Uniform* createUniform(const char* name, Uniform::Type type)
     {
         // TODO: build hashkey using name and type
@@ -277,6 +282,7 @@ namespace Cyan
         s_uniformRegistry.insert(std::pair<std::string,u32>(std::string(name), handle));
         return uniform;
     }
+#endif
 
     UniformHandle getUniformHandle(const char* name)
     {
@@ -1005,8 +1011,8 @@ namespace Cyan
             Shader* shader = createShader("FlatColorShader", "../../shader/shader_flat_color.vs", "../../shader/shader_flat_color.fs");
             Texture* texture = textureManager->createTexture(name, spec);
             RenderTarget* rt = createRenderTarget(width, height);
-            Uniform* u_color = createUniform("color", Uniform::Type::u_vec4);
-            setUniform(u_color, &color.r);
+            // Uniform* u_color = createUniform("color", Uniform::Type::u_vec4);
+            // setUniform(u_color, &color.r);
 //            rt->attachColorBuffer(texture);
             rt->setColorBuffer(texture, 0u);
 

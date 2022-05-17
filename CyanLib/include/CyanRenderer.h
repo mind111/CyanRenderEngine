@@ -42,18 +42,18 @@ namespace Cyan
         }
     };
 
-    // foward declarations
+    // forward declarations
     struct RenderTarget;
 
     class Renderer 
     {
     public:
-        explicit Renderer(GLFWwindow* window, const glm::vec2& windowSize);
+        explicit Renderer(u32 windowWidth, u32 windowHeight);
         ~Renderer() {}
 
         static Renderer* get();
 
-        void initialize(GLFWwindow* window, glm::vec2 viewportSize);
+        void initialize();
         void finalize();
 
         void initShaders();
@@ -103,11 +103,13 @@ namespace Cyan
         /*
         * Draw a mesh without transform using same type of material for all its submeshes.
         */
-        void drawMesh(Mesh* parent, BaseMaterial* matl, RenderTarget* dstRenderTarget, const std::initializer_list<i32>& drawBuffers, const Viewport& viewport);
+        void drawMesh(Mesh* parent, IMaterial* matl, RenderTarget* dstRenderTarget, const std::initializer_list<i32>& drawBuffers, const Viewport& viewport);
 
-        /* 
-        * Draw an instanced mesh with transform that allows different types of materials for each submeshes.
-        */
+        /// <summary>
+        /// Draw an instanced mesh with transform that allows different types of materials for each submeshes.
+        /// </summary>
+        /// <param name="meshInstance"> mesh instance to draw </param>
+        /// <param name="transformIndex"> index of transform for 'meshInstance' within the global transform </param>
         void drawMeshInstance(MeshInstance* meshInstance, i32 transformIndex);
 //
 
@@ -408,6 +410,6 @@ namespace Cyan
         Camera m_debugCam;
     private:
         GfxContext* m_ctx;
-        static Renderer* m_renderer;
+        static Renderer* singleton;
     };
 };
