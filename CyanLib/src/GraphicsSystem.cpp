@@ -3,18 +3,18 @@
 
 namespace Cyan
 {
-    GraphicsSystem* GraphicsSystem::m_singleton = 0;
+    GraphicsSystem* GraphicsSystem::singleton = 0;
 
     GraphicsSystem::GraphicsSystem(u32 windowWidth, u32 windowHeight)
         : m_windowDimension({ windowWidth, windowHeight })
     {
-        if (!m_singleton)
+        if (!singleton)
         {
-            m_singleton = this;
-            m_sceneManager = new SceneManager;
-            m_textureManager = new TextureManager;
-            m_assetManager = new AssetManager;
-            m_renderer = new Renderer(windowWidth, windowHeight);
+            singleton = this;
+            m_sceneManager = std::make_unique<SceneManager>();
+            m_textureManager = std::make_unique<TextureManager>();
+            m_assetManager = std::make_unique<AssetManager>();
+            m_renderer = std::make_unique<Renderer>(windowWidth, windowHeight);
             // m_lightMapManager = new LightMapManager;
             // m_pathTracer = new PathTracer;
         }
@@ -48,23 +48,13 @@ namespace Cyan
         UI::initialize(m_glfwWindow);
     }
 
-    GraphicsSystem* GraphicsSystem::get()
+    void GraphicsSystem::finalize()
     {
-        return m_singleton;
+
     }
 
-    Renderer* GraphicsSystem::getRenderer()
+    void GraphicsSystem::update()
     {
-        return m_renderer;
-    }
 
-    TextureManager* GraphicsSystem::getTextureManager()
-    {
-        return m_textureManager;
-    }
-
-    AssetManager* GraphicsSystem::getAssetManager()
-    {
-        return m_assetManager;
     }
 }

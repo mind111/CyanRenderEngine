@@ -169,7 +169,7 @@ namespace Cyan
 
     void ShadowmapManager::render(CascadedShadowmap& csm, Scene* scene, const DirectionalLight& sunLight, const std::vector<Entity*>& shadowCasters)
     {
-        const auto& camera = scene->getActiveCamera();
+        const auto& camera = scene->camera;
         f32 t[4] = { 0.1f, 0.3f, 0.6f, 1.f };
         csm.cascades[0].n = camera.n;
         csm.cascades[0].f = (1.0f - t[0]) * camera.n + t[0] * camera.f;

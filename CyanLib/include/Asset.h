@@ -38,11 +38,11 @@ namespace Cyan
         SceneNode* loadGltf(Scene* scene, const char* filename, const char* name, Transform transform);
         std::vector<BaseSubmesh*> loadObj(const char* baseDir, const char* filename, bool generateLightMapUv);
         Mesh* loadMesh(std::string& path, const char* name, bool normalize, bool generateLightMapUv);
-        void loadScene(Scene* scene, const char* file);
-        void loadNodes(Scene* scene, nlohmann::basic_json<std::map>& nodeInfoList);
-        void loadEntities(Scene* scene, nlohmann::basic_json<std::map>& entityInfoList);
-        void loadTextures(nlohmann::basic_json<std::map>& textureInfoList);
-        void loadMeshes(Scene* scene, nlohmann::basic_json<std::map>& meshInfoList);
+        void importScene(Scene* scene, const char* file);
+        void importSceneNodes(Scene* scene, nlohmann::basic_json<std::map>& nodeInfoList);
+        void importEntities(Scene* scene, nlohmann::basic_json<std::map>& entityInfoList);
+        void importTextures(nlohmann::basic_json<std::map>& textureInfoList);
+        void importMeshes(Scene* scene, nlohmann::basic_json<std::map>& meshInfoList);
 
         void* m_objLoader;
         void* m_gltfLoader;

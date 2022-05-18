@@ -29,12 +29,6 @@ struct RegularBuffer
     GLuint m_ssbo;
 };
 
-struct ShaderFileInfo
-{
-    std::string m_path;
-    FILETIME m_lastWriteTime;
-};
-
 struct ShaderSource
 {
     const char* vsSrc; // vertex shader
@@ -131,20 +125,49 @@ public:
     void buildCsFromSource(const char* csSrcFile);
     void buildVsGsPsFromSource(const char* vsSrcFile, const char* gsSrcFile, const char* fsSrcFile);
 
-    void dynamicRebuild();
-    void getFileWriteTime(ShaderFileInfo& fileInfo);
-    bool fileHasChanged(ShaderFileInfo& fileInfo);
-
     std::map<const char*, int> m_uniformLocationCache;
 
     std::string m_name;
-    ShaderFileInfo m_vertSrcInfo;
-    ShaderFileInfo m_fragSrcInfo;
     GLuint handle;
 };
 
-class ShaderManager
+namespace Cyan
 {
-    ShaderManager();
-    void initialize();
-};
+#if 0
+    struct ShaderSource
+    {
+        std::string vs;
+        std::string gs;
+        std::string ps;
+        std::string cs;
+    };
+
+    Shader* initMaterialShader(std::string materialTypeDesc)
+    {
+        std::unordered_map<std::string, std::string> shaderMap = { 
+            { TO_STRING(PBRMatl), "PBRShader" },
+            { TO_STRING(LightmappedPBRMatl), "PBRShader" },
+            { TO_STRING(EmissivePBRMatl), "PBRShader" },
+            { TO_STRING(ConstantColor), "ConstantColorShader" },
+        };
+
+        auto entry = shaderMap.find(materialTypeDesc);
+        if (entry == shaderMap.end())
+        {
+            return nullptr;
+        }
+    }
+#endif
+
+    class ShaderManager
+    {
+    public:
+        ShaderManager() { }
+
+        void initialize() { }
+        void finalize() { }
+
+        static Shader* getShader(const char* shaderName) { return nullptr; }
+    private:
+    };
+}

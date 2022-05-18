@@ -138,10 +138,9 @@ u32 SceneManager::allocSceneNode(Scene* scene)
     return (scene->m_numSceneNodes++);
 }
 
-Scene* SceneManager::createScene(const char* name, const char* file)
+void SceneManager::importScene(Scene* scene, const char* name, const char* file)
 {
-    Cyan::Toolkit::GpuTimer loadSceneTimer("createScene()", true);
-    Scene* scene = new Scene;
+    Cyan::Toolkit::GpuTimer loadSceneTimer("importScene()", true);
     scene->m_name = std::string(name);
 
     scene->m_rootEntity = nullptr;
@@ -149,9 +148,8 @@ Scene* SceneManager::createScene(const char* name, const char* file)
     scene->g_sceneRoot = scene->m_rootEntity->m_sceneRoot;
     scene->aabb.init();
     auto assetManager = Cyan::GraphicsSystem::get()->getAssetManager(); 
-    assetManager->loadScene(scene, file);
+    assetManager->importScene(scene, file);
     loadSceneTimer.end();
-    return scene;
 }
 
 SceneNode* SceneManager::createSceneNode(Scene* scene, const char* name, Transform transform)
@@ -306,7 +304,7 @@ Cyan::ReflectionProbe* SceneManager::createReflectionProbe(Scene* scene, const g
 glm::vec3 SceneManager::queryWorldPositionFromCamera(Scene* scene, const glm::vec2& uv)
 {
     // generate a ray
-    const auto& camera = scene->getActiveCamera();
+    const auto& camera = scene->camera;
     glm::vec3 ro = camera.position;
     glm::vec3 rd = glm::normalize(uv.x * camera.right + uv.y * camera.up + camera.n * camera.forward);
     auto hit = scene->castRay(ro, rd, EntityFilter::kAll, true);

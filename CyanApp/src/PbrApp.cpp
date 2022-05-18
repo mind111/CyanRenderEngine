@@ -21,14 +21,6 @@
 static float kCameraOrbitSpeed = 0.005f;
 static float kCameraRotateSpeed = 0.005f;
 
-struct CameraControlInputs
-{
-    double mouseCursorDx;
-    double mouseCursorDy;
-    double mouseWheelDx;
-    double mouseWheelDy;
-};
-
 struct CameraCommand
 {
     enum Type
@@ -39,13 +31,10 @@ struct CameraCommand
     };
 
     Type type;
-    CameraControlInputs params;
-};
 
-CameraCommand buildCameraCommand(CameraCommand::Type type, double mouseCursorDx, double mouseCursorDy, double mouseWheelDx, double mouseWheelDy)
-{
-    return CameraCommand{ type, { mouseCursorDx, mouseCursorDy, mouseWheelDx, mouseWheelDy }};
-}
+    glm::dvec2 mouseCursorChange;
+    glm::dvec2 mouseWheelChange;
+};
 
 void DemoApp::dispatchCameraCommand(CameraCommand& command)
 {
@@ -54,13 +43,13 @@ void DemoApp::dispatchCameraCommand(CameraCommand& command)
     {
         case CameraCommand::Type::Orbit:
         {
-            Camera& camera = m_scenes[m_currentScene]->cameras[0];
-            app->orbitCamera(camera, command.params.mouseCursorDx, command.params.mouseCursorDy);
+            Camera& camera = m_scene->camera;
+            app->orbitCamera(camera, command.mouseCursorChange.x, command.mouseCursorChange.y);
         } break;
         case CameraCommand::Type::Zoom:
         {
-            Camera& camera = m_scenes[m_currentScene]->cameras[0];
-            app->zoomCamera(camera, command.params.mouseWheelDx, command.params.mouseWheelDy);
+            Camera& camera = m_scene->camera;
+            app->zoomCamera(camera, command.mouseWheelChange.x, command.mouseWheelChange.y);
         } break;
         default:
             break;
@@ -69,20 +58,6 @@ void DemoApp::dispatchCameraCommand(CameraCommand& command)
 
 namespace Demo
 {
-    void mouseCursorCallback(double cursorX, double cursorY, double deltaX, double deltaY)
-    {
-        DemoApp* app = DemoApp::get();
-        CameraCommand command = { };
-        command.type = CameraCommand::Type::Orbit;
-        command.params.mouseCursorDx = deltaX;
-        command.params.mouseCursorDy = deltaY;
-
-        app->bOrbit ? app->dispatchCameraCommand(command) : app->rotateCamera(deltaX, deltaY);
-
-        app->m_mouseCursorX = cursorX;
-        app->m_mouseCursorY = cursorY;
-    }
-
     void mouseButtonCallback(int button, int action)
     {
         DemoApp* app = DemoApp::get();
@@ -134,8 +109,7 @@ namespace Demo
         {
             CameraCommand command = { };
             command.type = CameraCommand::Type::Zoom;
-            command.params.mouseWheelDx = xOffset;
-            command.params.mouseWheelDy = yOffset;
+            command.mouseWheelChange = glm::dvec2(xOffset, yOffset);
             app->dispatchCameraCommand(command);
         }
     }
@@ -148,10 +122,6 @@ namespace Demo
             // switch camera view
             case GLFW_KEY_P: 
             {
-                if (action == GLFW_PRESS)
-                {
-                    app->switchCamera();
-                }
             } break; 
             default :
             {
@@ -180,12 +150,9 @@ DemoApp* DemoApp::get()
     return nullptr;
 }
 
-DemoApp::DemoApp()
-: bOrbit(false)
+DemoApp::DemoApp(u32 appWindowWidth, u32 appWindowHeight)
+    : DefaultApp(appWindowWidth, appWindowHeight), bOrbit(false)
 {
-    bOrbit = false;
-    gApp = this;
-    m_scenes.resize(Scenes::kCount, nullptr);
     activeDebugViewTexture = nullptr;
     m_currentDebugView = -1;
 }
@@ -216,7 +183,7 @@ Cyan::StandardPbrMaterial* DemoApp::createStandardPbrMatlInstance(Scene* scene, 
 
 void DemoApp::createHelmetInstance(Scene* scene)
 {
-    auto textureManager = m_graphicsSystem->getTextureManager();
+    auto textureManager = Cyan::TextureManager::get();
     auto sceneManager = SceneManager::get();
 #if 0
     // helmet
@@ -236,10 +203,10 @@ void DemoApp::createHelmetInstance(Scene* scene)
 void DemoApp::initDemoScene00()
 {
     Cyan::Toolkit::GpuTimer timer("initDemoScene00()", true);
-    auto textureManager = m_graphicsSystem->getTextureManager();
+    auto textureManager = Cyan::TextureManager::get();
     auto sceneManager = SceneManager::get();
-    m_scenes[Scenes::Demo_Scene_00] = sceneManager->createScene("demo_scene_00", "C:\\dev\\cyanRenderEngine\\scene\\demo_scene_00.json");
-    Scene* demoScene00 = m_scenes[Scenes::Demo_Scene_00];
+    sceneManager->importScene(m_scene.get(), "demo_scene_00", "C:\\dev\\cyanRenderEngine\\scene\\demo_scene_00.json");
+    Scene* demoScene00 = m_scene.get();
 
     using PBR = Cyan::PBRMatl;
     auto assetManager = Cyan::AssetManager::get();
@@ -473,9 +440,8 @@ void DemoApp::initSponzaScene()
 {
     Cyan::Toolkit::GpuTimer timer("initSponzaScene()", true);
     auto sceneManager = SceneManager::get();
-    m_scenes[Scenes::Sponza_Scene] = sceneManager->createScene("sponza_scene", "C:\\dev\\cyanRenderEngine\\scene\\sponza_scene.json");
-    Scene* sponzaScene = m_scenes[Scenes::Sponza_Scene];
-    m_currentScene = static_cast<u32>(Scenes::Sponza_Scene);
+    sceneManager->importScene(m_scene.get(), "sponza_scene", "C:\\dev\\cyanRenderEngine\\scene\\sponza_scene.json");
+    Scene* sponzaScene = m_scene.get();
 
     Entity* sponza = sceneManager->getEntity(sponzaScene, "Sponza");
     auto sponzaNode = sponza->getSceneNode("SponzaMesh");
@@ -493,49 +459,48 @@ void DemoApp::initSponzaScene()
     sponzaScene->m_reflectionProbe = sceneManager->createReflectionProbe(sponzaScene, glm::vec3(0.f, 3.f, 0.f), glm::uvec2(2048u, 2048u));
 }
 
-void DemoApp::initialize(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewportPos, glm::vec2 renderSize)
+// void DemoApp::customInitialize(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewportPos, glm::vec2 renderSize)
+void DemoApp::customInitialize()
 {
-    Cyan::Toolkit::GpuTimer timer("DemoApp::initialize()", true);
+    Cyan::Toolkit::GpuTimer timer("DemoApp::customInitialize()", true);
 
-    bRunning = true;
-    // init engine
-    gEngine->initialize({ appWindowWidth, appWindowHeight }, sceneViewportPos, renderSize);
-    // setup input control
-    gEngine->registerMouseCursorCallback(&Demo::mouseCursorCallback);
-    gEngine->registerMouseButtonCallback(&Demo::mouseButtonCallback);
-    gEngine->registerMouseScrollWheelCallback(&Demo::mouseScrollWheelCallback);
-    gEngine->registerKeyCallback(&Demo::keyCallback);
+    // setup user input control
+    auto IOSystem = gEngine->getIOSystem();
+    IOSystem->addIOEventListener<Cyan::MouseCursorEvent>([this, IOSystem](f64 xPos, f64 yPos) {
+        CameraCommand command = { };
+        command.type = CameraCommand::Type::Orbit;
+        command.mouseCursorChange = IOSystem->getMouseCursorChange();
+        bOrbit ? dispatchCameraCommand(command) : rotateCamera(command.mouseCursorChange.x, command.mouseCursorChange.y);
+    });
 
-    m_graphicsSystem = Cyan::GraphicsSystem::get();
+    IOSystem->addIOEventListener<Cyan::MouseButtonEvent>([](i32 button, i32 action) {
+
+    });
+
+    IOSystem->addIOEventListener<Cyan::MouseWheelEvent>([](f64 xOffset, f64 yOffset) {
+
+    });
+
+    IOSystem->addIOEventListener<Cyan::KeyEvent>([](i32 key, i32 action) {
+
+    });
 
     // physically-based shading shader
     Cyan::createShader("PBSShader", SHADER_SOURCE_PATH "pbs_v.glsl", SHADER_SOURCE_PATH "pbs_p.glsl");
 
-    auto renderer = m_graphicsSystem->getRenderer();
-    glm::vec2 viewportSize(renderer->m_windowWidth, renderer->m_windowHeight);
-    float aspectRatio = viewportSize.x / viewportSize.y;
-    auto initializeCamera = [&](Scene* scene)
-    {
-        for (auto& camera : scene->cameras)
-        {
-            camera.aspectRatio = aspectRatio;
-            camera.projection = glm::perspective(glm::radians(camera.fov), aspectRatio, camera.n, camera.f);
-        }
-    };
+    auto graphicsSystem = gEngine->getGraphicsSystem();
+    glm::uvec2 viewportSize = graphicsSystem->getAppWindowDimension();
+    float aspectRatio = (float)viewportSize.x / viewportSize.y;
+    Camera& camera = m_scene->camera;
+    camera.aspectRatio = aspectRatio;
+    camera.projection = glm::perspective(glm::radians(camera.fov), aspectRatio, camera.n, camera.f);
 #ifdef SCENE_DEMO_00
     {
         initDemoScene00();
-        initializeCamera(m_scenes[Scenes::Demo_Scene_00]);
-        m_currentScene = Scenes::Demo_Scene_00;
     }
 #endif
 
     // misc
-    bRayCast = false;
-    bPicking = false;
-    m_selectedEntity = nullptr;
-    m_debugViewIndex = 0u;
-    bDisneyReparam = true;
     m_directDiffuseSlider = 1.f;
     m_directSpecularSlider = 1.f;
     m_indirectDiffuseSlider = 1.f;
@@ -545,7 +510,6 @@ void DemoApp::initialize(int appWindowWidth, int appWindowHeight, glm::vec2 scen
 
     // clear color
     Cyan::getCurrentGfxCtx()->setClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.f));
-
     timer.end();
 }
 
@@ -553,8 +517,8 @@ void DemoApp::precompute()
 {
     // build lighting
 #ifdef SCENE_DEMO_00 
-    m_scenes[Scenes::Demo_Scene_00]->m_irradianceProbe->build();
-    m_scenes[Scenes::Demo_Scene_00]->m_reflectionProbe->build();
+    m_scene->m_irradianceProbe->build();
+    m_scene->m_reflectionProbe->build();
 #endif
 #ifdef SCENE_SPONZA
     auto pathTracer = Cyan::PathTracer::get();
@@ -582,29 +546,6 @@ void DemoApp::precompute()
     auto shader = Cyan::createShader("DebugShadingShader", SHADER_SOURCE_PATH "debug_color_vs.glsl", SHADER_SOURCE_PATH "debug_color_fs.glsl");
 }
 
-void DemoApp::run()
-{
-    precompute();
-    while (bRunning)
-    {
-        update();
-        render();
-    }
-}
-
-// rotate p around c using quaternion
-glm::mat4 rotateAroundPoint(glm::vec3 c, glm::vec3 axis, float degree)
-{
-    glm::mat4 result(1.f);
-    result = glm::translate(result, c * -1.f);
-    float theta = glm::radians(degree);
-    glm::quat qRotation(cosf(theta * .5f), glm::normalize(axis) * sinf(theta * .5f));
-    glm::mat4 rotation = glm::toMat4(qRotation);
-    result = rotation * result;
-    result = glm::translate(result, c);
-    return result;
-}
-
 glm::vec3 computeMouseHitWorldSpacePos(Camera& camera, glm::vec3 rd, RayCastInfo hitInfo)
 {
     glm::vec3 viewSpaceHit = hitInfo.t * rd;
@@ -616,14 +557,13 @@ glm::vec3 computeMouseHitWorldSpacePos(Camera& camera, glm::vec3 rd, RayCastInfo
 RayCastInfo DemoApp::castMouseRay(const glm::vec2& currentViewportPos, const glm::vec2& currentViewportSize)
 {
     // convert mouse cursor pos to view space 
-    glm::vec2 viewportPos = gEngine->getSceneViewportPos();
-    double mouseCursorX = m_mouseCursorX - currentViewportPos.x;
-    double mouseCursorY = m_mouseCursorY - currentViewportPos.y;
+    double mouseCursorX = m_mouseCursorX;
+    double mouseCursorY = m_mouseCursorY;
     // NDC space
     glm::vec2 uv(2.0 * mouseCursorX / currentViewportSize.x - 1.0f, 2.0 * (currentViewportSize.y - mouseCursorY) / currentViewportSize.y - 1.0f);
     // homogeneous clip space
     glm::vec4 q = glm::vec4(uv, -0.8, 1.0);
-    Camera& camera = m_scenes[m_currentScene]->getActiveCamera();
+    Camera& camera = m_scene->camera;
     glm::mat4 projInverse = glm::inverse(camera.projection);
     // q.z must be less than zero after this evaluation
     q = projInverse * q;
@@ -638,7 +578,7 @@ RayCastInfo DemoApp::castMouseRay(const glm::vec2& currentViewportPos, const glm
     RayCastInfo closestHit;
 
     // ray intersection test against all the entities in the scene to find the closest intersection
-    for (auto entity : m_scenes[m_currentScene]->entities)
+    for (auto entity : m_scene->entities)
     {
         if (entity->m_visible && entity->m_selectable)
         {
@@ -657,19 +597,13 @@ RayCastInfo DemoApp::castMouseRay(const glm::vec2& currentViewportPos, const glm
     return closestHit;
 }
 
-void DemoApp::updateScene(Scene* scene)
+void DemoApp::customUpdate()
 {
     // update camera
     u32 camIdx = 0u;
-    Camera& camera = m_scenes[m_currentScene]->cameras[camIdx];
+    Camera& camera = m_scene->camera;
     camera.update();
-    SceneManager::get()->updateSceneGraph(m_scenes[m_currentScene]);
-}
-
-void DemoApp::update()
-{
-    gEngine->processInput();
-    updateScene(m_scenes[m_currentScene]);
+    SceneManager::get()->updateSceneGraph(m_scene.get());
 }
 
 void uiDrawSceneNode(SceneNode* node)
@@ -854,7 +788,7 @@ void DemoApp::drawStats()
 {
     {
         ImGui::Text("Frame time:                   %.2f ms", m_lastFrameDurationInMs);
-        ImGui::Text("Number of entities:           %d", m_scenes[m_currentScene]->entities.size());
+        ImGui::Text("Number of entities:           %d", m_scene->entities.size());
         ImGui::Checkbox("4x Super Sampling", &Cyan::Renderer::get()->m_opts.enableAA);
     }
 }
@@ -896,7 +830,7 @@ void DemoApp::drawLightingWidgets()
     // directional Lights
     if (ImGui::TreeNodeEx("Sun Light", baseFlags))
     {
-        for (u32 i = 0; i < m_scenes[m_currentScene]->dLights.size(); ++i)
+        for (u32 i = 0; i < m_scene->dLights.size(); ++i)
         {
             char nameBuf[50];
             sprintf_s(nameBuf, "Sun Light %d", i);
@@ -904,12 +838,12 @@ void DemoApp::drawLightingWidgets()
             {
                 ImGui::Text("Direction:");
                 ImGui::SameLine();
-                ImGui::InputFloat3("##Direction", &m_scenes[m_currentScene]->dLights[i].direction.x);
+                ImGui::InputFloat3("##Direction", &m_scene->dLights[i].direction.x);
                 ImGui::Text("Intensity:");
                 ImGui::SameLine();
-                ImGui::SliderFloat("##Intensity", &m_scenes[m_currentScene]->dLights[i].color.w, 0.f, 100.f, nullptr, 1.0f);
+                ImGui::SliderFloat("##Intensity", &m_scene->dLights[i].color.w, 0.f, 100.f, nullptr, 1.0f);
                 ImGui::Text("Color:");
-                ImGui::ColorPicker3("##Color", &m_scenes[m_currentScene]->dLights[i].color.r);
+                ImGui::ColorPicker3("##Color", &m_scene->dLights[i].color.r);
                 ImGui::TreePop();
             }
         }
@@ -918,7 +852,7 @@ void DemoApp::drawLightingWidgets()
     // point lights
     if (ImGui::TreeNodeEx("Point Lights", baseFlags))
     {
-        for (u32 i = 0; i < m_scenes[m_currentScene]->pointLights.size(); ++i)
+        for (u32 i = 0; i < m_scene->pointLights.size(); ++i)
         {
             char nameBuf[64];
             sprintf_s(nameBuf, "PointLight %d", i);
@@ -926,11 +860,11 @@ void DemoApp::drawLightingWidgets()
             {
                 ImGui::Text("Position:");
                 ImGui::SameLine();
-                ImGui::InputFloat3("##Position", &m_scenes[m_currentScene]->pointLights[i].position.x);
+                ImGui::InputFloat3("##Position", &m_scene->pointLights[i].position.x);
                 ImGui::Text("Intensity:");
-                ImGui::SliderFloat("##Intensity", &m_scenes[m_currentScene]->pointLights[i].color.w, 0.f, 100.f, nullptr, 1.0f);
+                ImGui::SliderFloat("##Intensity", &m_scene->pointLights[i].color.w, 0.f, 100.f, nullptr, 1.0f);
                 ImGui::Text("Color:");
-                ImGui::ColorPicker3("##Color", &m_scenes[m_currentScene]->pointLights[i].color.r);
+                ImGui::ColorPicker3("##Color", &m_scene->pointLights[i].color.r);
                 ImGui::TreePop();
             }
         }
@@ -940,12 +874,12 @@ void DemoApp::drawLightingWidgets()
 
 void DemoApp::drawSceneViewport()
 {
+    auto renderer = Cyan::Renderer::get();
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoCollapse;
-    auto renderer = m_graphicsSystem->getRenderer();
-    ImGui::SetNextWindowSize(ImVec2((f32)renderer->m_windowWidth, (f32)renderer->m_windowHeight));
-    glm::vec2 viewportPos = gEngine->getSceneViewportPos();
-    ImGui::SetNextWindowPos(ImVec2(viewportPos.x, viewportPos.y));
-    ImGui::SetNextWindowContentSize(ImVec2(renderer->m_windowWidth, renderer->m_windowHeight));
+    ImGui::SetNextWindowSize(ImVec2((f32)1280, (f32)720));
+    ImGui::SetNextWindowPos(ImVec2(0.f, 0.f));
+    glm::uvec2 windowDimension = gEngine->getGraphicsSystem()->getAppWindowDimension();
+    ImGui::SetNextWindowContentSize(ImVec2(windowDimension.x, windowDimension.y));
     // disable window padding for this window
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0,0));
     Cyan::UI::beginWindow("Scene Viewport", flags);
@@ -997,7 +931,7 @@ void DemoApp::drawSceneViewport()
 
 void DemoApp::drawRenderSettings()
 {
-    auto renderer = m_graphicsSystem->getRenderer();
+    auto renderer = Cyan::Renderer::get();
     ImGuiTreeNodeFlags baseFlags = ImGuiTreeNodeFlags_OpenOnArrow 
                                 | ImGuiTreeNodeFlags_OpenOnDoubleClick 
                                 | ImGuiTreeNodeFlags_SpanAvailWidth 
@@ -1057,7 +991,7 @@ void DemoApp::debugIrradianceCache()
     auto cubeMesh = assetManager->getAsset<Cyan::Mesh>("CubeMesh");
     auto circleMesh = assetManager->getAsset<Cyan::Mesh>("circle_mesh");
     auto debugShader = Cyan::getMaterialShader("DebugShadingShader");
-    Camera& camera = m_scenes[m_currentScene]->getActiveCamera();
+    Camera& camera = m_scene->camera;
     glm::mat4 vp = camera.projection * camera.view;
     glm::vec4 color0(1.f, 1.f, 1.f, 1.f);
     glm::vec4 color1(0.f, 1.f, 0.f, 1.f);
@@ -1130,14 +1064,14 @@ void DemoApp::debugIrradianceCache()
     glEnable(GL_CULL_FACE);
 }
 
-void DemoApp::render()
+void DemoApp::customRender()
 {
     // frame timer
     Cyan::Toolkit::GpuTimer frameTimer("render()");
     {
-        auto renderer = m_graphicsSystem->getRenderer();
+        auto renderer = Cyan::Renderer::get();
         // scene & debug objects
-        renderer->render(m_scenes[m_currentScene], [this]() {
+        renderer->render(m_scene.get(), [this]() {
             debugIrradianceCache();
         });
         // ui
@@ -1152,11 +1086,9 @@ void DemoApp::render()
     m_lastFrameDurationInMs = frameTimer.m_durationInMs;
 }
 
-void DemoApp::shutDown()
+void DemoApp::customFinalize()
 {
 
-    gEngine->finalize();
-    delete gEngine;
 }
 
 void DemoApp::zoomCamera(Camera& camera, double dx, double dy)
@@ -1178,11 +1110,7 @@ void DemoApp::zoomCamera(Camera& camera, double dx, double dy)
 
 void DemoApp::orbitCamera(Camera& camera, double deltaX, double deltaY)
 {
-    // Camera& camera = m_scenes[m_currentScene]->getActiveCamera();
-    // Note:(Min) limit the camera control to camera 0 for now
-    // Camera& camera = m_scenes[m_currentScene]->cameras[0];
-
-    /* Orbit around where the camera is looking at */
+    // orbit camera
     float phi = deltaX * kCameraOrbitSpeed; 
     float theta = deltaY * kCameraOrbitSpeed;
     glm::vec3 p = camera.position - camera.lookAt;
@@ -1198,10 +1126,4 @@ void DemoApp::orbitCamera(Camera& camera, double deltaX, double deltaY)
 void DemoApp::rotateCamera(double deltaX, double deltaY)
 {
 
-}
-
-void DemoApp::switchCamera()
-{
-    u32 cameraIdx = m_scenes[m_currentScene]->activeCamera;
-    m_scenes[m_currentScene]->activeCamera = (cameraIdx + 1) % 2;
 }

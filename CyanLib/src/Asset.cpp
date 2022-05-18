@@ -81,7 +81,7 @@ namespace Cyan
         }
     }
 
-    void AssetManager::loadTextures(nlohmann::basic_json<std::map>& textureInfoList)
+    void AssetManager::importTextures(nlohmann::basic_json<std::map>& textureInfoList)
     {
         using Cyan::Texture;
         using Cyan::TextureSpec;
@@ -403,7 +403,7 @@ namespace Cyan
         return parent;
     }
 
-    void AssetManager::loadMeshes(Scene* scene, nlohmann::basic_json<std::map>& meshInfoList)
+    void AssetManager::importMeshes(Scene* scene, nlohmann::basic_json<std::map>& meshInfoList)
     {
         for (auto meshInfo : meshInfoList) 
         {
@@ -418,7 +418,7 @@ namespace Cyan
         }
     }
 
-    void AssetManager::loadNodes(Scene* scene, nlohmann::basic_json<std::map>& nodeInfoList)
+    void AssetManager::importSceneNodes(Scene* scene, nlohmann::basic_json<std::map>& nodeInfoList)
     {
         Cyan::Toolkit::ScopedTimer timer("loadNodes()", true);
         auto sceneManager = SceneManager::get();
@@ -456,7 +456,7 @@ namespace Cyan
         }
     }
 
-    void AssetManager::loadEntities(::Scene* scene, nlohmann::basic_json<std::map>& entityInfoList)
+    void AssetManager::importEntities(::Scene* scene, nlohmann::basic_json<std::map>& entityInfoList)
     {
         Cyan::Toolkit::ScopedTimer timer("loadEntities()", true);
         for (auto entityInfo : entityInfoList)
@@ -472,7 +472,7 @@ namespace Cyan
         }
     }
 
-    void AssetManager::loadScene(Scene* scene, const char* file)
+    void AssetManager::importScene(Scene* scene, const char* file)
     {
         nlohmann::json sceneJson;
         std::ifstream sceneFile(file);
@@ -490,19 +490,17 @@ namespace Cyan
         auto nodes = sceneJson["nodes"];
         auto entities = sceneJson["entities"];
 
-        scene->activeCamera = 0u;
-        u32 camIdx = 0u;
         for (auto& camera : cameras) 
         {
-            scene->cameras[camIdx] = camera.get<Camera>();
-            scene->cameras[camIdx].view = glm::mat4(1.f);
-            scene->cameras[camIdx++].update();
+            scene->camera = camera.get<Camera>();
+            scene->camera.view = glm::mat4(1.f);
+            scene->camera.update();
         }
 
-        loadTextures(textureInfoList);
-        loadMeshes(scene, meshInfoList);
-        loadNodes(scene, nodes);
-        loadEntities(scene, entities);
+        importTextures(textureInfoList);
+        importMeshes(scene, meshInfoList);
+        importSceneNodes(scene, nodes);
+        importEntities(scene, entities);
     }
 
     Cyan::Texture* AssetManager::loadGltfTexture(const char* nodeName, tinygltf::Model& model, i32 index) {

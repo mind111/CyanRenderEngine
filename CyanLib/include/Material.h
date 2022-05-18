@@ -294,9 +294,6 @@ namespace Cyan
         std::string name;
     };
 
-    // helper function that handles the mapping between material type to their according shaders
-    static Shader* initMaterialShader(std::string materialTypeDesc);
-
     template <typename ShadingParameter>
     struct Material : public IMaterial
     {
@@ -305,7 +302,7 @@ namespace Cyan
         {
             if (!shader)
             {
-                shader = initMaterialShader(typeDesc);
+                shader = ShaderManager::getShader(typeDesc.c_str());
             }
         }
 

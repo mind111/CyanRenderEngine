@@ -1022,7 +1022,7 @@ namespace Cyan
             gfxc->setShader(shader);
             // gfxc->setRenderTarget(rt, 0);
             gfxc->setRenderTarget(rt, { 0 });
-            gfxc->setUniform(u_color);
+            // gfxc->setUniform(u_color);
             glBindVertexArray(vao);
             gfxc->setDepthControl(Cyan::DepthControl::kDisable);
             glDrawArrays(GL_TRIANGLES, 0, 6);

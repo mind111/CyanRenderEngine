@@ -4,17 +4,19 @@
 #include <queue>
 #include <functional>
 
+#include "mathUtils.h"
+
 #include "Common.h"
 #include "System.h"
 #include "Event.h"
 
+#define CYAN_PRESS GLFW_PRESS
+#define CYAN_RELEASE GLFW_RELEASE
+#define CYAN_MOUSE_BUTTON_RIGHT GLFW_MOUSE_BUTTON_RIGHT
+#define CYAN_MOUSE_BUTTON_LEFT GLFW_MOUSE_BUTTON_LEFT
+
 namespace Cyan
 {
-    typedef void MouseCursorListener(f64, f64, f64, f64);
-    typedef void MouseButtonListener(i32, i32);
-    typedef void MouseWheelListener(f64, f64);
-    typedef void KeyListener(i32, i32);
-
 #if 0
     struct IOEvent
     {
@@ -190,27 +192,30 @@ namespace Cyan
         virtual void finalize() override;
 
         static IOSystem* get() { return singleton; }
+        glm::dvec2 getMouseCursorChange() { return glm::dvec2(m_mouseCursorState.dx, m_mouseCursorState.dy); }
 
-#if 0
-        void enqueIOEvent(const IOEvent& event);
-#else
+        template <typename IOEventType>
+        void addIOEventListener(const typename IOEventType::Handler& handler)
+        {
+            m_IOEventDispatcher->addEventListener<IOEventType>(handler);
+        }
+
         template <typename IOEventType, typename ... Args>
         void enqueIOEvent(Args... args)
         {
-            m_ioEventDispatcher->createAndEnqueEvent<IOEventType>(args...);
+            m_IOEventDispatcher->createAndEnqueEvent<IOEventType>(args...);
         }
-#endif
 
     private:
         struct MouseCursor
         {
-            f64 x = 0.0;
-            f64 y = 0.0;
+            f64 x = -1.0;
+            f64 y = -1.0;
             f64 dx = 0.0;
             f64 dy = 0.0;
         } m_mouseCursorState;
 
-        EventDispatcher* m_ioEventDispatcher = nullptr;
+        EventDispatcher* m_IOEventDispatcher = nullptr;
         static IOSystem* singleton;
     };
 }

@@ -56,12 +56,9 @@ namespace Cyan
 
         void init();
 
-
         //- getters
         RenderTarget* getRenderTarget();
 
-        //-
-        void setWindow(Window* _window);
         //-
         void setShader(Shader* _shader);
         void setUniform(Uniform* _uniform);
@@ -71,12 +68,6 @@ namespace Cyan
         void setBuffer(RegularBuffer* _buffer, u32 binding);
         void setPrimitiveType(PrimitiveType _type);
         void setViewport(Viewport viewport);
-        // TODO: consolidate different version of setRenderTarget() into one version
-        /*
-        void setRenderTarget(RenderTarget* rt, u16 drawBufferIdx); 
-        void setRenderTarget(RenderTarget* renderTarget); 
-        void setRenderTarget(RenderTarget* rt, i32* drawBuffers, u32 numBuffers); 
-        */
         void setRenderTarget(RenderTarget* rt, const std::initializer_list<i32>& drawBuffers);
         void setDepthControl(DepthControl _ctrl);
         void setClearColor(glm::vec4 color);
@@ -89,13 +80,11 @@ namespace Cyan
         void clear();
         void reset();
 
-        Window* m_glfwWindow;
+        GLFWwindow* m_glfwWindow;
         Shader* m_shader;
         RenderTarget* m_currentRenderTarget;
         Viewport m_viewport;
-        GLenum m_primitiveType;
         VertexArray* m_vertexArray;
-        GLuint vao;
-        GLuint m_fbo;
+        GLenum m_primitiveType;
     };
 }

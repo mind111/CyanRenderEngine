@@ -33,14 +33,20 @@ namespace Cyan
         glfwSetKeyCallback(window, keyCallback);
 
         // init event dispatcher
-        m_ioEventDispatcher = new EventDispatcher();
-        m_ioEventDispatcher->registerEventType<MouseButtonEvent>();
-        m_ioEventDispatcher->registerEventType<MouseWheelEvent>();
-        m_ioEventDispatcher->registerEventType<MouseCursorEvent>();
-        m_ioEventDispatcher->registerEventType<KeyEvent>();
+        m_IOEventDispatcher = new EventDispatcher();
+        m_IOEventDispatcher->registerEventType<MouseButtonEvent>();
+        m_IOEventDispatcher->registerEventType<MouseWheelEvent>();
+        m_IOEventDispatcher->registerEventType<MouseCursorEvent>();
+        m_IOEventDispatcher->registerEventType<KeyEvent>();
 
         // hook up event listeners
-        m_ioEventDispatcher->addEventListener<MouseCursorEvent>([this](f64 cursorX, f64 cursorY) { 
+        m_IOEventDispatcher->addEventListener<MouseCursorEvent>([this](f64 cursorX, f64 cursorY) { 
+            if (m_mouseCursorState.x < 0.f || m_mouseCursorState.y < 0.f)
+            {
+                m_mouseCursorState.x = cursorX;
+                m_mouseCursorState.y = cursorY;
+                return;
+            }
             m_mouseCursorState.dx = cursorX - m_mouseCursorState.x;
             m_mouseCursorState.dy = cursorY - m_mouseCursorState.y;
             m_mouseCursorState.x = cursorX;
@@ -52,7 +58,7 @@ namespace Cyan
     {
         glfwPollEvents();
         // process event queue
-        m_ioEventDispatcher->dispatch();
+        m_IOEventDispatcher->dispatch();
     }
     
     void IOSystem::finalize()

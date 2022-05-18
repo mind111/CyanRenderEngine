@@ -9,22 +9,13 @@ namespace Cyan
 
     void GfxContext::init()
     {
-        m_glfwWindow = nullptr;
         m_shader = nullptr;
         m_primitiveType = -1;
-        vao = 0;
-        m_fbo = 0;
     }
 
     RenderTarget* GfxContext::getRenderTarget()
     {
         return m_currentRenderTarget;
-    }
-
-    void GfxContext::setWindow(Window* _window)
-    {
-        m_glfwWindow = _window;
-        m_viewport = { 0, 0, static_cast<u32>(_window->width), static_cast<u32>(_window->height) };
     }
 
     void GfxContext::setShader(Shader* _shader)
@@ -128,15 +119,14 @@ namespace Cyan
 
     void GfxContext::setVertexArray(VertexArray* va)
     {
-        if (!va) {
+        if (!va) 
+        {
             m_vertexArray = nullptr;
-            this->vao = 0u; 
-            glBindVertexArray(this->vao);
+            glBindVertexArray(0);
             return;
         }
-        this->vao = va->getGLObject(); 
-        glBindVertexArray(va->getGLObject());
         m_vertexArray = va;
+        glBindVertexArray(m_vertexArray->getGLObject());
     }
 
     void GfxContext::setPrimitiveType(PrimitiveType _type)
@@ -191,39 +181,6 @@ namespace Cyan
         glDrawBuffers(numBuffers, buffers);
     }
 
-/*
-    void GfxContext::setRenderTarget(RenderTarget* rt, u16 drawBufferIdx) 
-    { 
-        if (!rt)
-        {
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            return;
-        }
-        glBindFramebuffer(GL_FRAMEBUFFER, rt->m_frameBuffer);
-        rt->setDrawBuffer(drawBufferIdx);
-    }
-
-    void GfxContext::setRenderTarget(RenderTarget* rt, i32* drawBuffers, u32 numBuffers)
-    {
-        if (!rt)
-            CYAN_ASSERT(0, "RenderTarget is null!");
-        glBindFramebuffer(GL_FRAMEBUFFER, rt->m_frameBuffer);
-        rt->setDrawBuffers(drawBuffers, numBuffers);
-        rt->bindDrawBuffers();
-    }
-
-    void GfxContext::setRenderTarget(RenderTarget* renderTarget)
-    {
-        if (!renderTarget)
-        {
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            return;
-        }
-        glBindFramebuffer(GL_FRAMEBUFFER, renderTarget->m_frameBuffer);
-        renderTarget->bindDrawBuffers();
-    }
-    */
-
     void GfxContext::setClearColor(glm::vec4 color)
     {
         glClearColor(color.r, color.g, color.b, color.a);
@@ -256,6 +213,6 @@ namespace Cyan
 
     void GfxContext::flip()
     {
-        glfwSwapBuffers(m_glfwWindow->mpWindow);
+        glfwSwapBuffers(m_glfwWindow);
     }
 }

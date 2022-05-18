@@ -21,8 +21,7 @@ struct Scene
     static const u32 kMaxNumSceneNodes = 1024u;
     // identifier
     std::string                             m_name;
-    u32                                     activeCamera;
-    Camera                                  cameras[2];
+    Camera                                  camera;
     Entity*                                 m_rootEntity;
     std::vector<Entity*>                    entities;
     // data
@@ -49,16 +48,6 @@ struct Scene
     // aabb
     BoundingBox3D                           aabb;
 
-    Camera& getActiveCamera()
-    {
-        return cameras[activeCamera];
-    }
-
-    Camera& getCamera(u32 index)
-    {
-        return cameras[index];
-    }
-
     RayCastInfo   castRay(glm::vec3& ro, glm::vec3& rd, EntityFilter filter, bool debugPrint=false);
     bool          castVisibilityRay(const glm::vec3& ro, glm::vec3& rd, EntityFilter filter);
     // BoundingBox3D getBoundingBox();
@@ -74,7 +63,7 @@ public:
     void       createDirectionalLight(Scene* scene, glm::vec3 color, glm::vec3 direction, float intensity);
     void       createPointLight(Scene* scene, glm::vec3 color, glm::vec3 position, float intensity);
     u32        allocSceneNode(Scene* scene);
-    Scene*     createScene(const char* file, const char* name);
+    void importScene(Scene* scene, const char* file, const char* name);
     SceneNode* createSceneNode(Scene* scene, const char* name, Transform transform);
     MeshNode* createMeshNode(Scene* scene, Transform transform, Cyan::Mesh* mesh);
     Entity*    createEntity(Scene* scene, const char* entityName, Transform transform, bool isStatic, Entity* parent=nullptr);

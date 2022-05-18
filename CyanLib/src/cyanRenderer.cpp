@@ -898,7 +898,7 @@ namespace Cyan
         beginRender();
         {
             // update all global data
-            updateFrameGlobalData(scene, scene->cameras[scene->activeCamera]);
+            updateFrameGlobalData(scene, scene->camera);
             // sun shadow pass
             if (m_opts.enableSunShadow)
             {
@@ -914,7 +914,7 @@ namespace Cyan
                 // scene depth & normal pass
                 renderSceneDepthNormal(scene);
                 // ssao pass
-                ssao(scene->getActiveCamera());
+                ssao(scene->camera);
             }
             if (m_opts.enableVctx)
             {

@@ -5,8 +5,8 @@ namespace Cyan
     DefaultApp::DefaultApp(u32 appWindowWidth, u32 appWindowHeight)
         : isRunning(true)
     {
-        gEngine = new Engine(appWindowWidth, appWindowHeight);
-        m_scene = new Scene;
+        gEngine = std::make_unique<Engine>(appWindowWidth, appWindowHeight);
+        m_scene = std::make_unique<Scene>();
     }
 
     void DefaultApp::initialize()

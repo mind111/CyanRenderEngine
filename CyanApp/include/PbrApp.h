@@ -21,26 +21,21 @@ namespace Demo
     void mouseScrollWheelCallback(double xOffset, double yOffset);
 };
 
-class DemoApp : public DefaultApp
+class DemoApp : public Cyan::DefaultApp
 {
 public:
-    DemoApp();
+    DemoApp(u32 appWindowWidth, u32 appWindowHeight);
     ~DemoApp() { }
-    virtual void initialize(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewportPos, glm::vec2 renderSize) override;
 
     static DemoApp* get();
 
-    virtual void render() override;
-    virtual void run() override;
-    virtual void shutDown() override;
-    void buildFrame();
+    virtual void customInitialize() override;
+    virtual void customFinalize() override;
+    virtual void customUpdate() override;
+    virtual void customRender() override;
 
     // precomputation
     void precompute();
-
-    // tick
-    void update();
-    void updateScene(Scene* scene);
     void debugIrradianceCache();
 
     // camera control
@@ -48,7 +43,6 @@ public:
     void orbitCamera(Camera& camera, double deltaX, double deltaY);
     void zoomCamera(Camera& camera, double dx, double dy);
     void rotateCamera(double deltaX, double deltaY);
-    void switchCamera();
     bool mouseOverUI();
 
     // main scene viewport
@@ -78,15 +72,8 @@ public:
     double                       m_mouseCursorX, m_mouseCursorY;
 
     Cyan::Texture*               activeDebugViewTexture;
-    std::vector<Scene*>          m_scenes;
-
-    u32                          m_currentScene;
     u32                          m_currentDebugView;
-    // std::vector<Line>            m_debugLines;
 private:
-    float m_sampleVertex[(64 + 1) * 4 * 2] = { };
-    bool bRunning;
-
     Entity* m_selectedEntity;
     SceneNode* m_selectedNode;
     u32 m_debugViewIndex;
@@ -98,8 +85,4 @@ private:
     float m_indirectSpecularSlider;
     float m_directLightingSlider;
     float m_indirectLightingSlider;
-
-    // debug parameters
-    // Line m_debugRay;
-    Cyan::GraphicsSystem* m_graphicsSystem;
 };

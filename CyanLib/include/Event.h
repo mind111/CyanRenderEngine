@@ -16,7 +16,7 @@ namespace Cyan
     struct IEvent
     {
         virtual ~IEvent() { }
-        virtual std::string getTypeDesc() { }
+        virtual std::string getTypeDesc() = 0;
     };
 
     /*
@@ -74,7 +74,7 @@ namespace Cyan
             auto entry = listenerMap.find(ConcreteEventType::getTypeDescStatic());
             if (entry != listenerMap.end())
             {
-                const auto& listenerList = *entry->second;
+                auto& listenerList = entry->second;
                 listenerList.push_back(ConcreteEventType::createListener(handler));
             }
         }

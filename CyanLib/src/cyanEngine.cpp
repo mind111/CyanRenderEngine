@@ -24,8 +24,8 @@ namespace Cyan
         if (!singleton)
         {
             singleton = this;
-            m_graphicsSystem = new GraphicsSystem(windowWidth, windowHeight);
-            m_IOSystem = new IOSystem;
+            m_graphicsSystem = std::make_unique<GraphicsSystem>(windowWidth, windowHeight);
+            m_IOSystem = std::make_unique<IOSystem>();
         }
         else
         {
@@ -45,101 +45,21 @@ namespace Cyan
             // m_graphicsSystem = new Cyan::GraphicsSystem(m_glfwWindow.mpWindow, glm::vec2(m_renderSize.x, m_renderSize.y));
             // Cyan::getCurrentGfxCtx()->setWindow(&m_glfwWindow);
         }
-        // init member variables
-        {
-            cursorX = -1.0;
-            cursorY = -1.0;
-            cursorDeltaX = 0.0;
-            cursorDeltaY = 0.0;
-        }
+    }
+    
+    void Engine::update()
+    {
+        m_IOSystem->update();
     }
 
-    void mouseButtonFunc(GLFWwindow* window, int button, int action, int mods)
+    void Engine::render()
     {
-        Engine* gEngine = (Engine*)glfwGetWindowUserPointer(window);
-        gEngine->processMouseButtonInput(button, action);
-    }
 
-    // TODO: Think more about whether we need this or not
-    // This can happen whenever the mouse move, so multiple times per frame
-    void cursorPosFunc(GLFWwindow* window, double cursorX, double cursorY)
-    {
-        Engine* gEngine = (Engine*)glfwGetWindowUserPointer(window);
-        /* This will only be triggered when mouse cursor is within the application window */
-        gEngine->updateMouseCursorPosition(cursorX, cursorY);
-    }
-
-    void mouseScrollFunc(GLFWwindow* window, double xOffset, double yOffset)
-    {
-        Engine* gEngine = (Engine*)glfwGetWindowUserPointer(window);
-        gEngine->processMouseScroll(xOffset, yOffset);
-    }
-
-    void keyFunc(GLFWwindow* window, i32 key, i32 scancode, i32 action, i32 mods)
-    {
-        Engine* gEngine = (Engine*)glfwGetWindowUserPointer(window);
-        gEngine->processKey(key, action);
     }
 
     void Engine::finalize()
     {
-        m_graphicsSystem->getRenderer()->finalize();
-    }
-
-    void Engine::registerKeyCallback(KeyCallback* callback)
-    {
-        keyCallback = callback;
-    }
-
-    void Engine::registerMouseCursorCallback(MouseCursorCallback* callback)
-    {
-        mouseCursorCallback = callback;
-    }
-
-    void Engine::registerMouseButtonCallback(MouseButtonCallback* callback)
-    {
-        mouseButtonCallbacks.push_back(callback);
-    }
-
-    void Engine::registerMouseScrollWheelCallback(MouseScrollWheelCallback* callback)
-    {
-        mouseScrollCallback = callback;
-    }
-
-    void Engine::updateMouseCursorPosition(double x, double y)
-    {
-        // First time the cursor callback happens
-        if (cursorX < 0.0 || cursorY < 0.0)
-        {
-            cursorX = x;
-            cursorY = y;
-        }
-
-        cursorDeltaX = x - cursorX;
-        cursorDeltaY = y - cursorY;
-        cursorX = x;
-        cursorY = y;
-
-        // As of right now, only update camera rotation
-        mouseCursorCallback(cursorX, cursorY, cursorDeltaX, cursorDeltaY);
-    }
-
-    // TODO: Defines CYAN_PRESS, CYAN_RELEASE as wrapper over glfw
-    void Engine::processMouseButtonInput(int button, int action)
-    {
-        for (auto& callback: mouseButtonCallbacks)
-        {
-            callback(button, action);
-        }
-    }
-
-    void Engine::processMouseScroll(double xOffset, double yOffset)
-    {
-        mouseScrollCallback(xOffset, yOffset);
-    }
-
-    void Engine::processKey(i32 key, i32 action)
-    {
-        keyCallback(key, action);
+        m_IOSystem->finalize();
+        m_graphicsSystem->finalize();
     }
 }
