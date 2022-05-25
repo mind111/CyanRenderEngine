@@ -16,7 +16,7 @@ namespace Cyan
     {
         for (u32 i = 0; i < numSubmeshes(); ++i)
         {
-            BaseSubmesh* sm = submeshes[i];
+            ISubmesh* sm = submeshes[i];
             aabb.bound(submeshes[i]->getMin());
             aabb.bound(submeshes[i]->getMax());
         }

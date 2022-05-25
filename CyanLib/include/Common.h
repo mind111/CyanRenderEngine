@@ -89,3 +89,30 @@ T* treeBFS(T* node, const char* name)
     return nullptr;
 }
 
+namespace Cyan
+{
+    template <typename T>
+    class Singleton
+    {
+    public:
+        Singleton() 
+        {
+            if (!singleton)
+            {
+                // downcast to derived type
+                singleton = static_cast<T*>(this);
+            }
+        }
+
+        Singleton(const Singleton& s) = delete;
+
+        static T* get()
+        { 
+            return singleton; 
+        }
+
+    protected:
+        static T* singleton;
+    };
+}
+

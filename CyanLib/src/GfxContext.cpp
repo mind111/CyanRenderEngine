@@ -4,46 +4,23 @@
 
 namespace Cyan
 {
-    /* Global graphics context */
-    static GfxContext* s_gfxc = nullptr;
+    GfxContext* Singleton<GfxContext>::singleton = nullptr;
 
-    void GfxContext::init()
+    void GfxContext::setShader(Shader* shader)
     {
-        m_shader = nullptr;
-        m_primitiveType = -1;
-    }
-
-    RenderTarget* GfxContext::getRenderTarget()
-    {
-        return m_currentRenderTarget;
-    }
-
-    void GfxContext::setShader(Shader* _shader)
-    {
-        if (!_shader)
+        if (!shader)
         {
             m_shader->unbind();
             m_shader = nullptr;
         }
         else
         {
-            if ((!m_shader) || 
-            (m_shader && (_shader->handle != m_shader->handle)))
+            if ((!m_shader) || (m_shader && (shader->getGpuResource() != m_shader->getGpuResource())))
             {
-                m_shader = _shader;
+                m_shader = shader;
                 m_shader->bind();
             }
         }
-    }
-
-    void GfxContext::setUniform(Uniform* _uniform)
-    {
-        m_shader->setUniform(_uniform);
-    }
-
-    void GfxContext::setSampler(Uniform* _sampler, u32 binding)
-    {
-        m_shader->setUniform(_sampler, (i32)binding);
     }
 
     void GfxContext::setCullFace(FrontFace frontFace, FaceCull faceToCull)
@@ -121,12 +98,12 @@ namespace Cyan
     {
         if (!va) 
         {
-            m_vertexArray = nullptr;
+            m_va = nullptr;
             glBindVertexArray(0);
             return;
         }
-        m_vertexArray = va;
-        glBindVertexArray(m_vertexArray->getGLObject());
+        m_va = va;
+        glBindVertexArray(m_va->getGLObject());
     }
 
     void GfxContext::setPrimitiveType(PrimitiveType _type)

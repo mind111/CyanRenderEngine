@@ -3,6 +3,8 @@
 #include <vector>
 #include <queue>
 #include <stack>
+#include <memory>
+
 #include "glm.hpp"
 
 #include "Allocator.h"
@@ -16,6 +18,11 @@
 
 struct Scene 
 {
+    Scene() 
+    { 
+        // create a default empty scene
+    }
+
     static const u32 kMaxNumPointLights = 20u;
     static const u32 kMaxNumDirLights   = 20u;
     static const u32 kMaxNumSceneNodes = 1024u;
@@ -35,9 +42,7 @@ struct Scene
     Cyan::ObjectPool<glm::mat4, 1024> localTransformMatrixPool;
     Cyan::ObjectPool<glm::mat4, 1024> globalTransformMatrixPool;
 
-    // todo: these resources should be managed by SceneManager instead, only mesh and material instances need to be managed by scene
-    std::vector<Cyan::Texture>              g_textures;
-    std::vector<Cyan::MeshInstance>         meshInstances;
+    std::vector<std::shared_ptr<Cyan::MeshInstance>> meshInstances;
 
     // lighting
     std::vector<PointLight>                 pointLights;
@@ -63,11 +68,11 @@ public:
     void       createDirectionalLight(Scene* scene, glm::vec3 color, glm::vec3 direction, float intensity);
     void       createPointLight(Scene* scene, glm::vec3 color, glm::vec3 position, float intensity);
     u32        allocSceneNode(Scene* scene);
-    void importScene(Scene* scene, const char* file, const char* name);
+    std::shared_ptr<Scene> importScene(const char* file, const char* name);
     SceneNode* createSceneNode(Scene* scene, const char* name, Transform transform);
     MeshNode* createMeshNode(Scene* scene, Transform transform, Cyan::Mesh* mesh);
     Entity*    createEntity(Scene* scene, const char* entityName, Transform transform, bool isStatic, Entity* parent=nullptr);
-    Entity*    getEntity(Scene* scene, u32 id) 
+    Entity*    getEntity(Scene* scene, u32 id)
     {
         return scene->entities[id];
     }

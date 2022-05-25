@@ -32,6 +32,7 @@
     <ClInclude Include="include\Common.h" />
     <ClInclude Include="include\CyanAPI.h" />
     <ClInclude Include="include\CyanApp.h" />
+    <ClInclude Include="include\CyanCore.h" />
     <ClInclude Include="include\CyanEngine.h" />
     <ClInclude Include="include\CyanPathTracer.h" />
     <ClInclude Include="include\CyanRenderer.h" />

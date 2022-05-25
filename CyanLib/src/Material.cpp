@@ -4,6 +4,12 @@
 
 namespace Cyan
 {
+    IMaterial::MaterialShaderMap IMaterial::materialShaderMap = {
+        { TO_STRING(ConstantColorMatl), "PBRShader" },
+        { TO_STRING(PBRMatl), "PBRShader " },
+        { TO_STRING(LightmappedPBRMatl), "LightmappedPBRShader" }
+    };
+
     std::string Material<ConstantColor>::typeDesc = std::string(TO_STRING(ConstantColorMatl));
     Shader* ConstantColorMatl::shader = nullptr;
 

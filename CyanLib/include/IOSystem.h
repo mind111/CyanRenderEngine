@@ -17,27 +17,6 @@
 
 namespace Cyan
 {
-#if 0
-    struct IOEvent
-    {
-        enum class Type
-        {
-            kMouseCursor = 0,
-            kMouseButton,
-            kMouseWheel,
-            kKey,
-            kCount
-        } type = Type::kCount;
-
-        i32 key = -1;
-        i32 button = -1;
-        i32 action = -1;
-        f64 cursorX = 0.0;
-        f64 cursorY = 0.0;
-        f64 xOffset = 0.0;
-        f64 yOffset = 0.0;
-    };
-#endif
     struct IOEvent : public IEvent
     {
         virtual std::string getTypeDesc() override { return "IOEvent"; }
@@ -182,7 +161,7 @@ namespace Cyan
         i32 action;
     };
 
-    class IOSystem : public System
+    class IOSystem : public System, public Singleton<IOSystem>
     {
     public:
         IOSystem();
@@ -191,7 +170,6 @@ namespace Cyan
         virtual void update() override;
         virtual void finalize() override;
 
-        static IOSystem* get() { return singleton; }
         glm::dvec2 getMouseCursorChange() { return glm::dvec2(m_mouseCursorState.dx, m_mouseCursorState.dy); }
 
         template <typename IOEventType>
@@ -216,6 +194,5 @@ namespace Cyan
         } m_mouseCursorState;
 
         EventDispatcher* m_IOEventDispatcher = nullptr;
-        static IOSystem* singleton;
     };
 }

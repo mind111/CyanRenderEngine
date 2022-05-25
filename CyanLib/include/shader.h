@@ -2,8 +2,9 @@
 
 #include "Windows.h"
 
+#include <memory>
 #include <vector>
-#include <map>
+#include <unordered_map>
 
 #include "glew.h"
 
@@ -11,13 +12,6 @@
 #include "Texture.h"
 
 #define SHADER_SOURCE_PATH "../../shader/"
-
-namespace ShaderUtil
-{
-    void checkShaderCompilation(GLuint shader);
-    void checkShaderLinkage(GLuint shader);
-    const char* readShaderFile(const char* filename);
-}
 
 // Shader storage buffer
 struct RegularBuffer
@@ -29,145 +23,114 @@ struct RegularBuffer
     GLuint m_ssbo;
 };
 
-struct ShaderSource
+namespace Cyan
 {
-    const char* vsSrc; // vertex shader
-    const char* fsSrc; // fragment shader
-    const char* gsSrc; // geometry shader
-    const char* csSrc; // compute shader
-};
-
-// todo: implement this!
-struct ShaderMetaData
-{
-    void init(struct Shader* shader) { }
-
-    struct UniformMetaData
+    struct ShaderSource
     {
         enum class Type
         {
-            kInt = 0,
-            kUint,
-            kFloat,
-            kVec2,
-            kVec3,
-            kVec4,
-            kMat4,
-            kSampler2D,
-            kSampler3D
-        };
+            kVsPs = 0,
+            kVsGsPs,
+            kCs
+        } type;
 
-        i32 location = -1;
-        i32 elementCount = 1;
+        const char* vsFilePath = nullptr;
+        const char* psFilePath = nullptr;
+        const char* gsFilePath = nullptr;
+        const char* csFilePath = nullptr;
+        const char* name;
     };
 
-    std::map<std::string, UniformMetaData> uniformMap;
-};
+    using ShaderType = ShaderSource::Type;
 
-class Shader
-{
-public:
-    enum Type
-    {
-        VsPs = 0,
-        VsGsPs,
-        Cs,
-        Invalid
-    };
-
-    Shader();
-    ~Shader() {}
-
-    void init(ShaderSource shaderSrc, Type shaderType)
-    {
-        switch (shaderType)
-        {
-            case VsPs:
-            {
-                buildVsPsFromSource(shaderSrc.vsSrc, shaderSrc.fsSrc);
-            } break;
-            case VsGsPs:
-            {
-                buildVsGsPsFromSource(shaderSrc.vsSrc, shaderSrc.gsSrc, shaderSrc.fsSrc);
-            } break;
-            case Cs:
-            {
-                buildCsFromSource(shaderSrc.csSrc);
-            } break;
-        }
-    }
-
-    void bind();
-    void unbind();
-    void deleteProgram();
-
-    void setUniform(Uniform* _uniform);
-    void setUniform(Uniform* _uniform, i32 _value);
-    void setUniform(Uniform* _uniform, f32 _value);
-
-    void setUniform(const char* name, f32 value) { }
-    void setUniform(const char* name, i32 value) { }
-    void setUniform(const char* name, u32 value) { }
-    void setUniform(const char* name, f32* value) { }
-
-    Shader& setTexture(const char* samplerName, Cyan::Texture* texture) { return *this; }
-    Shader& setUniform1i(const char* name, GLint data);
-    Shader& setUniform1ui(const char* name, GLuint data);
-    Shader& setUniform1f(const char* name, GLfloat data);
-    Shader& setUniformVec2(const char* name, const GLfloat* data);
-    Shader& setUniformVec3(const char* name, const GLfloat* vecData);
-    Shader& setUniformVec4(const char* name, const GLfloat* vecData);
-    Shader& setUniformMat4(const char* name, const GLfloat* matData);
-
-    GLint getUniformLocation(const char* _name);
-
-    void buildVsPsFromSource(const char* vertSrc, const char* fragSrc);
-    void buildCsFromSource(const char* csSrcFile);
-    void buildVsGsPsFromSource(const char* vsSrcFile, const char* gsSrcFile, const char* fsSrcFile);
-
-    std::map<const char*, int> m_uniformLocationCache;
-
-    std::string m_name;
-    GLuint handle;
-};
-
-namespace Cyan
-{
-#if 0
-    struct ShaderSource
-    {
-        std::string vs;
-        std::string gs;
-        std::string ps;
-        std::string cs;
-    };
-
-    Shader* initMaterialShader(std::string materialTypeDesc)
-    {
-        std::unordered_map<std::string, std::string> shaderMap = { 
-            { TO_STRING(PBRMatl), "PBRShader" },
-            { TO_STRING(LightmappedPBRMatl), "PBRShader" },
-            { TO_STRING(EmissivePBRMatl), "PBRShader" },
-            { TO_STRING(ConstantColor), "ConstantColorShader" },
-        };
-
-        auto entry = shaderMap.find(materialTypeDesc);
-        if (entry == shaderMap.end())
-        {
-            return nullptr;
-        }
-    }
-#endif
-
-    class ShaderManager
+    class Shader : public GpuResource
     {
     public:
-        ShaderManager() { }
+        struct UniformMetaData
+        {
+            enum class Type
+            {
+                kInt,
+                kUint,
+                kFloat,
+                kVec2,
+                kVec3,
+                kVec4,
+                kMat4,
+                kSampler2D,
+                kSampler2DArray,
+                kSampler3D,
+                kSamplerCube,
+                kSamplerShadow,
+                kImage3D,
+                kImageUI3D,
+                kAtomicUint,
+                kCount
+            } type;
+            std::string name;
+            i32 location;
+        };
 
-        void initialize() { }
+        Shader(const ShaderSource& shaderSource);
+
+        i32 getUniformLocation(const char* name);
+
+        void bind();
+        void unbind();
+
+        // todo: do type checking to make sure type of 'data' matches uniform type defined in shader
+        Shader& setUniform(const char* name, u32 data);
+        Shader& setUniform(const char* name, i32 data);
+        Shader& setUniform(const char* name, f32 data);
+        Shader& setUniform(const char* name, const glm::vec2& data);
+        Shader& setUniform(const char* name, const glm::vec3& data);
+        Shader& setUniform(const char* name, const glm::vec4& data);
+        Shader& setUniform(const char* name, const glm::mat4& data);
+
+        Shader& setTexture(const char* samplerName, Texture* texture);
+        Shader& setTextureBindings(struct GfxContext* ctx);
+        
+        // submit data to gpu
+        void commit(GfxContext* ctx)
+        {
+            setTextureBindings(ctx);
+        }
+
+    private:
+        void build();
+        void buildVsPs();
+        void buildVsGsPs();
+        void buildCs();
+
+        // do shader introspection to initialize all the meta data
+        void init();
+
+        // std::unordered_map<const char*, u32> uniformLocationMap;
+        std::unordered_map<const char*, Texture*> samplerBindingMap;
+        std::unordered_map<const char*, UniformMetaData> uniformMetaDataMap;
+        ShaderSource source;
+        GLuint program;
+    };
+
+    class ShaderManager : public Singleton<ShaderManager>
+    {
+    public:
+        using ShaderSourceMap = std::unordered_map<const char*, ShaderSource>;
+        using ShaderMap = std::unordered_map<const char*, std::unique_ptr<Shader>>;
+
+        ShaderManager() 
+            : Singleton()
+        { }
+
+        void initialize();
         void finalize() { }
 
-        static Shader* getShader(const char* shaderName) { return nullptr; }
+        static Shader* createShader(const ShaderSource& shaderSourceMetaData);
+
+        static Shader* getShader(const char* shaderName);
+
     private:
+        static ShaderSourceMap m_shaderSourceMap;
+        static ShaderMap m_shaderMap;
     };
 }

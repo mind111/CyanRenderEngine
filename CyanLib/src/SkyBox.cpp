@@ -11,7 +11,7 @@ namespace Cyan
     Shader* Skybox::s_proceduralSkyShader = nullptr;
 
     Skybox::Skybox(const char* srcImagePath, const glm::vec2& resolution, const SkyboxConfig& cfg)
-        : m_cfg(cfg), m_srcHDRITexture(nullptr), m_diffuseProbe(nullptr), m_specularProbe(nullptr), m_srcCubemapTexture(nullptr), m_renderSkyMatl(nullptr)
+        : m_cfg(cfg), m_srcHDRITexture(nullptr), m_diffuseProbe(nullptr), m_specularProbe(nullptr), m_srcCubemapTexture(nullptr)
     {
         auto textureManager = TextureManager::get();
         switch (m_cfg)
@@ -62,13 +62,12 @@ namespace Cyan
     {
         if (!s_proceduralSkyShader)
         {
-            s_proceduralSkyShader = createShader("SDFSkyShader", SHADER_SOURCE_PATH "sky_sdf_v.glsl", SHADER_SOURCE_PATH "sky_sdf_p.glsl");
+            s_proceduralSkyShader = ShaderManager::createShader({ ShaderType::kVsPs, "SDFSkyShader", SHADER_SOURCE_PATH "sky_sdf_v.glsl", SHADER_SOURCE_PATH "sky_sdf_p.glsl" });
         }
         if (!s_CubemapSkyShader)
         {
-            s_CubemapSkyShader = createShader("SkyDomeShader", SHADER_SOURCE_PATH "skybox_v.glsl", SHADER_SOURCE_PATH "skybox_p.glsl");
+            s_CubemapSkyShader = ShaderManager::createShader({ ShaderType::kVsPs, "SkyDomeShader", SHADER_SOURCE_PATH "skybox_v.glsl", SHADER_SOURCE_PATH "skybox_p.glsl" });
         }
-        // m_renderSkyMatl = createMaterial(s_CubemapSkyShader)->createInstance();
     }
 
     void Skybox::build()
@@ -86,11 +85,9 @@ namespace Cyan
             {
                 RenderTarget* renderTarget = createRenderTarget(m_srcCubemapTexture->width, m_srcCubemapTexture->height);
                 renderTarget->setColorBuffer(m_srcCubemapTexture, 0u);
-                Shader* shader = createShader("RenderToCubemapShader", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl");
-                // auto    matl = createMaterial(shader)->createInstance();
+                Shader* shader = ShaderManager::createShader({ ShaderType::kVsPs, "RenderToCubemapShader", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl" });
                 Mesh* cubeMesh = AssetManager::getAsset<Mesh>("UnitCubeMesh");
                 ctx->setShader(shader);
-                // matl->bindTexture("srcImageTexture", m_srcHDRITexture);
                 shader->setTexture("srcImageTexture", m_srcHDRITexture);
                 for (u32 f = 0; f < 6u; f++)
                 {
@@ -99,10 +96,10 @@ namespace Cyan
                     camera.worldUp = LightProbeCameras::worldUps[f];
                     camera.update();
 
-                    // matl->set("projection", &camera.projection);
-                    // matl->set("view", &camera.view);
-                    shader->setUniformMat4("projection", &camera.projection[0].x);
-                    shader->setUniformMat4("view", &camera.view[0].x);
+                    shader->setUniform("projection", camera.projection);
+                    shader->setUniform("view", camera.view);
+                    shader->commit(ctx);
+
                     ctx->setDepthControl(DepthControl::kDisable);
                     ctx->setRenderTarget(renderTarget, { (i32)f });
                     ctx->setViewport({ 0, 0, renderTarget->width, renderTarget->height});

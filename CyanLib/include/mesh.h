@@ -18,7 +18,7 @@ struct Scene;
 namespace Cyan
 {
     // submesh interface
-    struct BaseSubmesh
+    struct ISubmesh
     {
         virtual u32 numVertices() = 0;
         virtual u32 numIndices() = 0;
@@ -30,7 +30,7 @@ namespace Cyan
     struct Mesh : public Asset
     {
         template <typename Geometry>
-        struct Submesh : public BaseSubmesh
+        struct Submesh : public ISubmesh
         {
             Submesh(const std::vector<typename Geometry::Vertex>& vertices, const std::vector<u32>& indices)
             {
@@ -122,22 +122,26 @@ namespace Cyan
         };
 
         Mesh() = default;
-        Mesh(const char* meshName, const std::vector<BaseSubmesh*>& srcSubmeshes)
+        Mesh(const char* meshName, const std::vector<ISubmesh*>& srcSubmeshes)
             : name(meshName) 
         { 
             submeshes = std::move(srcSubmeshes);
         }
-
+        
+        // Asset interface
         virtual std::string getAssetObjectTypeDesc() override { return typeDesc; }
         static std::string getAssetClassTypeDesc() { return typeDesc; }
+
+        ISubmesh* getSubmesh(u32 index) { return submeshes[index]; }
         const BoundingBox3D& getAABB() { return aabb; }
         u32 numSubmeshes() { return submeshes.size(); }
         void init();
+
         
         static std::string typeDesc;
         std::string name;
         BoundingBox3D aabb;
-        std::vector<BaseSubmesh*> submeshes;
+        std::vector<ISubmesh*> submeshes;
     };
 
     struct MeshInstance
@@ -154,12 +158,28 @@ namespace Cyan
         template <typename T>
         T* getMaterial(u32 index)
         {
-            // type check
-            if (T::getAssetClassTypeDesc() != materials[index]->getAssetObjectTypeDesc())
+            if (materials[index])
             {
-                return nullptr;
+                // type check
+                if (T::getAssetClassTypeDesc() != materials[index]->getAssetObjectTypeDesc())
+                {
+                    return nullptr;
+                }
             }
             return static_cast<T*>(materials[index]);
+        }
+
+        IMaterial* getMaterial(u32 index)
+        {
+            return materials[index];
+        }
+
+        void setMaterial(IMaterial* matl)
+        {
+            for (u32 i = 0; i < parent->numSubmeshes(); ++i)
+            {
+                setMaterial(matl, i);
+            }
         }
 
         void setMaterial(IMaterial* matl, u32 index)

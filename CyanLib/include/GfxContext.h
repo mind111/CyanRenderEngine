@@ -22,7 +22,7 @@ namespace Cyan
         u32 m_height;
     };
 
-    enum PrimitiveType
+    enum class PrimitiveType
     {
         TriangleList = 0,
         Line,
@@ -30,61 +30,112 @@ namespace Cyan
         Points
     };
 
-    enum FrontFace
+    enum class FrontFace
     {
         ClockWise = 0,
         CounterClockWise
     };
 
-    enum FaceCull
+    enum class FaceCull
     {
         Front = 0,
         Back
     };
 
-    enum DepthControl
+    enum class DepthControl
     {
         kDisable = 0,
-        kEnable = 1
+        kEnable,
+        kCount
     };
 
-    class GfxContext
+    class GfxContext : public Singleton<GfxContext>
     {
     public:
-        GfxContext() { }
+        GfxContext(GLFWwindow* window) 
+            : m_glfwWindow(window)
+        { }
         ~GfxContext() { }
 
-        void init();
-
-        //- getters
-        RenderTarget* getRenderTarget();
-
-        //-
-        void setShader(Shader* _shader);
-        void setUniform(Uniform* _uniform);
-        void setSampler(Uniform* _sampler, u32 binding);
-        void setTexture(Texture* _texture, u32 binding);
-        void setVertexArray(VertexArray* _array);
-        void setBuffer(RegularBuffer* _buffer, u32 binding);
-        void setPrimitiveType(PrimitiveType _type);
+        void setShader(Shader* shader);
+        void setTexture(Texture* texture, u32 binding);
+        void setVertexArray(VertexArray* array);
+        void setBuffer(RegularBuffer* buffer, u32 binding);
+        void setPrimitiveType(PrimitiveType type);
         void setViewport(Viewport viewport);
         void setRenderTarget(RenderTarget* rt, const std::initializer_list<i32>& drawBuffers);
-        void setDepthControl(DepthControl _ctrl);
+        void setDepthControl(DepthControl ctrl);
         void setClearColor(glm::vec4 color);
         void setCullFace(FrontFace frontFace, FaceCull faceToCull);
-        //-
-        void drawIndexAuto(u32 _numVerts, u32 _offset=0);
+
+        // textures that uses global binding points
+        i32 setPersistentTexture(Texture* texture, u32 binding)
+        {
+            if (texture)
+            {
+                textureUnits[binding] = 1;
+                glBindTextureUnit(binding, texture->getGpuResource());
+            }
+            else
+            {
+                textureUnits[binding] = 0;
+                glBindTextureUnit(binding, 0);
+            }
+        }
+
+        // textures that uses different binding points from draw to draw
+        i32 setTransientTexture(Texture* texture) 
+        {
+            i32 availableTextureUnit = -1;
+            if (texture)
+            {
+                for (u32 i = 0; i < kMaxNumTextureUnits; ++i)
+                {
+                    if (textureUnits[i] == 0)
+                    {
+                        availableTextureUnit = i;
+                        break;
+                    }
+                }
+                if (availableTextureUnit >= 0)
+                {
+                    glBindTextureUnit(availableTextureUnit, texture->getGpuResource());
+                }
+                else
+                {
+                    cyanError("No available transient texture binding units")
+                }
+            }
+            return availableTextureUnit;
+        }
+
+        void setUniform(Shader* shader, const char* uniformName, f32 data)
+        {
+            i32 location = shader->getUniformLocation(uniformName);
+            if (location >= 0)
+            {
+                glProgramUniform1f(shader->getGpuResource(), location, data);
+            }
+        }
+
+        void drawIndexAuto(u32 numVerts, u32 offset=0);
         void drawIndex(u32 numIndices);
-        //-
+
         void flip();
         void clear();
         void reset();
 
+    private:
+        static constexpr u32 kMaxNumTextureUnits = 32u;
+        // bit vector for texture unit bindings
+        std::array<u32, kMaxNumTextureUnits> textureUnits;
+
         GLFWwindow* m_glfwWindow;
         Shader* m_shader;
-        RenderTarget* m_currentRenderTarget;
+        RenderTarget* m_renderTarget;
         Viewport m_viewport;
-        VertexArray* m_vertexArray;
+        VertexArray* m_va;
         GLenum m_primitiveType;
+        u32 transientTextureUnit;
     };
 }

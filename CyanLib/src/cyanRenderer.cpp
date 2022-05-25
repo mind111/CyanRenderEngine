@@ -24,32 +24,14 @@
 
 #define DRAW_SSAO_DEBUG_VIS 0
 
-bool fileWasModified(const char* fileName, FILETIME* writeTime)
-{
-    FILETIME lastWriteTime;
-    HANDLE hFile = CreateFileA(fileName, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, nullptr);
-    // If the file is being written to then CreatFile will return a invalid handle.
-    if (hFile != INVALID_HANDLE_VALUE)
-    {
-        GetFileTime(hFile, 0, 0, &lastWriteTime);
-        CloseHandle(hFile);
-        if (CompareFileTime(&lastWriteTime, writeTime) > 0)
-        {
-            *writeTime = lastWriteTime;
-            return true;
-        }
-    }
-    return false;
-}
-
 namespace Cyan
 {
-    Renderer* Renderer::singleton = nullptr;
+    Renderer* Singleton<Renderer>::singleton = nullptr;
     static Mesh* fullscreenQuad = nullptr;
 
-    Renderer::Renderer(u32 windowWidth, u32 windowHeight)
-        : m_frameAllocator(1024u * 1024u),  // 1 megabytes
-        m_ctx(nullptr),
+    Renderer::Renderer(GfxContext* ctx, u32 windowWidth, u32 windowHeight)
+        : Singleton<Renderer>(), 
+        m_ctx(ctx),
         m_windowWidth(windowWidth),
         m_windowHeight(windowHeight),
         m_SSAAWidth(2u * m_windowWidth),
@@ -63,43 +45,12 @@ namespace Cyan
         gDrawDataBuffer(-1),
         m_bloomOutTexture(nullptr)
     {
-        if (!singleton)
-        {
-            singleton = this;
-            singleton->initialize();
-        }
-        else
-        {
-            CYAN_ASSERT(0, "There should be only one instance of Renderer")
-        }
-    }
 
-    Renderer* Renderer::get()
-    {
-        return singleton;
-    }
-
-    StackAllocator& Renderer::getAllocator()
-    {
-        return m_frameAllocator;
     }
 
     Texture* Renderer::getColorOutTexture()
     {
         return m_finalColorTexture;
-    }
-
-    void Renderer::initShaders()
-    {
-        m_lumHistogramShader = glCreateShader(GL_COMPUTE_SHADER);
-        const char* src = ShaderUtil::readShaderFile( SHADER_SOURCE_PATH "shader_lumin_histogram_c.glsl");
-        glShaderSource(m_lumHistogramShader, 1, &src, nullptr);
-        glCompileShader(m_lumHistogramShader);
-        ShaderUtil::checkShaderCompilation(m_lumHistogramShader);
-        m_lumHistogramProgram = glCreateProgram();
-        glAttachShader(m_lumHistogramProgram, m_lumHistogramShader);
-        glLinkProgram(m_lumHistogramProgram);
-        ShaderUtil::checkShaderLinkage(m_lumHistogramProgram);
     }
 
     void Renderer::Vctx::Voxelizer::init(u32 resolution)
@@ -130,9 +81,9 @@ namespace Cyan
         colorBuffer = textureManager->createTexture("VoxelizeDebug", voxelizeSpec);
         renderTarget = createRenderTarget(resolution, resolution);
         renderTarget->setColorBuffer(colorBuffer, 0);
-        voxelizeShader = createVsGsPsShader("VoxelizeShader", SHADER_SOURCE_PATH "voxelize_v.glsl", SHADER_SOURCE_PATH "voxelize_g.glsl", SHADER_SOURCE_PATH "voxelize_p.glsl");
-        // matl = createMaterial(voxelizeShader)->createInstance(); 
-        filterVoxelGridShader = createCsShader("VctxFilterShader", SHADER_SOURCE_PATH "vctx_filter_c.glsl");
+        voxelizeShader = ShaderManager::createShader({ ShaderType::kVsGsPs, "VoxelizeShader", SHADER_SOURCE_PATH "voxelize_v.glsl", SHADER_SOURCE_PATH "voxelize_p.glsl", SHADER_SOURCE_PATH "voxelize_g.glsl" });
+        // material = createMaterial(voxelizeShader)->createInstance(); 
+        filterVoxelGridShader = ShaderManager::createShader({ ShaderType::kCs, "VctxFilterShader", SHADER_SOURCE_PATH "vctx_filter_c.glsl" });
 
         // opacity mask buffer
         glCreateBuffers(1, &opacityMaskSsbo);
@@ -156,10 +107,10 @@ namespace Cyan
         colorBuffer = textureManager->createTexture("VoxelVis", visSpec);
         renderTarget = createRenderTarget(visSpec.width, visSpec.height);
         renderTarget->setColorBuffer(colorBuffer, 0u);
-        voxelGridVisShader = createVsGsPsShader("VoxelVisShader", SHADER_SOURCE_PATH "voxel_vis_v.glsl", SHADER_SOURCE_PATH "voxel_vis_g.glsl", SHADER_SOURCE_PATH "voxel_vis_p.glsl");
+        voxelGridVisShader = ShaderManager::createShader({ ShaderType::kVsGsPs, "VoxelVisShader", SHADER_SOURCE_PATH "voxel_vis_v.glsl", SHADER_SOURCE_PATH "voxel_vis_p.glsl", SHADER_SOURCE_PATH "voxel_vis_g.glsl" });
         // voxelGridVisMatl = createMaterial(voxelGridVisShader)->createInstance();
-        coneVisComputeShader = createCsShader("ConeVisComputeShader", SHADER_SOURCE_PATH "cone_vis_c.glsl");
-        coneVisDrawShader = createVsGsPsShader("ConeVisGraphicsShader", SHADER_SOURCE_PATH "cone_vis_v.glsl", SHADER_SOURCE_PATH "cone_vis_g.glsl", SHADER_SOURCE_PATH "cone_vis_p.glsl");
+        coneVisComputeShader = ShaderManager::createShader({ ShaderType::kCs, "ConeVisComputeShader", nullptr, nullptr, nullptr, SHADER_SOURCE_PATH "cone_vis_c.glsl" });
+        coneVisDrawShader = ShaderManager::createShader({ ShaderType::kVsGsPs, "ConeVisGraphicsShader", SHADER_SOURCE_PATH "cone_vis_v.glsl", SHADER_SOURCE_PATH "cone_vis_p.glsl", SHADER_SOURCE_PATH "cone_vis_g.glsl" });
 
         TextureSpec depthNormSpec = { };
         depthNormSpec.type = Texture::Type::TEX_2D;
@@ -191,7 +142,6 @@ namespace Cyan
 
     void Renderer::initialize()
     {
-        m_ctx = getCurrentGfxCtx();
         // m_ssaoSamplePoints.setColor(glm::vec4(0.f, 1.f, 1.f, 1.f));
 
         // initialize per frame shader draw data
@@ -217,7 +167,7 @@ namespace Cyan
             };
 
             auto assetManager = AssetManager::get();
-            std::vector<BaseSubmesh*> submeshes;
+            std::vector<ISubmesh*> submeshes;
             std::vector<Triangles::Vertex> vertices(6);
             vertices[0].pos = glm::vec3(-1.f, -1.f, 0.f); vertices[0].texCoord0 = glm::vec2(0.f, 0.f);
             vertices[1].pos = glm::vec3( 1.f,  1.f, 0.f); vertices[1].texCoord0 = glm::vec2(1.f, 1.f);
@@ -231,13 +181,11 @@ namespace Cyan
         }
 
         // shadow
-        m_shadowmapManager.initShadowmap(m_csm, glm::uvec2(4096u, 4096u));
+        m_rasterDirectShadowManager->initialize();
+        m_rasterDirectShadowManager->initShadowmap(m_csm, glm::uvec2(4096u, 4096u));
 
         // set back-face culling
         m_ctx->setCullFace(FrontFace::CounterClockWise, FaceCull::Back);
-
-        // create shaders
-        initShaders();
 
         auto textureManager = TextureManager::get();
         // scene render targets
@@ -295,7 +243,7 @@ namespace Cyan
             m_sceneDepthTexture = textureManager->createTextureHDR("SceneDepthTexture", depthNormSpec);
             m_sceneColorRenderTarget->setColorBuffer(m_sceneDepthTexture, static_cast<u32>(ColorBuffers::kDepth));
             m_sceneColorRenderTarget->setColorBuffer(m_sceneNormalTexture, static_cast<u32>(ColorBuffers::kNormal));
-            m_sceneDepthNormalShader = createShader("SceneDepthNormalShader", SHADER_SOURCE_PATH "scene_depth_normal_v.glsl", SHADER_SOURCE_PATH "scene_depth_normal_p.glsl");
+            m_sceneDepthNormalShader = ShaderManager::createShader({ ShaderType::kVsPs, "SceneDepthNormalShader", SHADER_SOURCE_PATH "scene_depth_normal_v.glsl", SHADER_SOURCE_PATH "scene_depth_normal_p.glsl" });
         }
 
         // ssao
@@ -314,27 +262,7 @@ namespace Cyan
             m_ssaoRenderTarget = createRenderTarget(spec.width, spec.height);
             m_ssaoTexture = textureManager->createTextureHDR("SSAOTexture", spec);
             m_ssaoRenderTarget->setColorBuffer(m_ssaoTexture, 0u);
-            m_ssaoShader = createShader("SSAOShader", SHADER_SOURCE_PATH "shader_ao.vs", SHADER_SOURCE_PATH "shader_ao.fs");
-            // m_ssaoMatl = createMaterial(m_ssaoShader)->createInstance();
-#if 0
-            m_ssaoDebugVisLines.normal.init();
-            m_ssaoDebugVisLines.normal.setColor(glm::vec4(0.f, 0.f, 1.f, 1.f));
-
-            m_ssaoDebugVisLines.projectedNormal.init();
-            m_ssaoDebugVisLines.projectedNormal.setColor(glm::vec4(1.f, 1.f, 0.f, 1.f));
-
-            m_ssaoDebugVisLines.wo.init();
-            m_ssaoDebugVisLines.wo.setColor(glm::vec4(1.f, 0.f, 1.f, 1.f));
-
-            m_ssaoDebugVisLines.sliceDir.init();
-            m_ssaoDebugVisLines.sliceDir.setColor(glm::vec4(1.f, 1.f, 1.f, 1.f));
-
-            for (int i = 0; i < ARRAY_COUNT(m_ssaoDebugVisLines.samples); ++i)
-            {
-                m_ssaoDebugVisLines.samples[i].init();
-                m_ssaoDebugVisLines.samples[i].setColor(glm::vec4(1.f, 0.f, 0.f, 1.f));
-            }
-#endif
+            m_ssaoShader = ShaderManager::createShader({ ShaderType::kVsPs, "SSAOShader", SHADER_SOURCE_PATH "shader_ao.vs", SHADER_SOURCE_PATH "shader_ao.fs" });
         }
 
         // bloom
@@ -352,14 +280,10 @@ namespace Cyan
             spec.t = Texture::Wrap::CLAMP_TO_EDGE;
             spec.r = Texture::Wrap::CLAMP_TO_EDGE;
             m_bloomSetupRenderTarget->setColorBuffer(textureManager->createTexture("BloomSetupTexture", spec), 0);
-            m_bloomSetupShader = createShader("BloomSetupShader", SHADER_SOURCE_PATH "shader_bloom_preprocess.vs", SHADER_SOURCE_PATH "shader_bloom_preprocess.fs");
-            // m_bloomSetupMatl = createMaterial(m_bloomSetupShader)->createInstance();
-            m_bloomDsShader = createShader("BloomDownSampleShader", SHADER_SOURCE_PATH "shader_downsample.vs", SHADER_SOURCE_PATH "shader_downsample.fs");
-            // m_bloomDsMatl = createMaterial(m_bloomDsShader)->createInstance();
-            m_bloomUsShader = createShader("UpSampleShader", SHADER_SOURCE_PATH "shader_upsample.vs", SHADER_SOURCE_PATH "shader_upsample.fs");
-            // m_bloomUsMatl = createMaterial(m_bloomUsShader)->createInstance();
-            m_gaussianBlurShader = createShader("GaussianBlurShader", SHADER_SOURCE_PATH "shader_gaussian_blur.vs", SHADER_SOURCE_PATH "shader_gaussian_blur.fs");
-            // m_gaussianBlurMatl = createMaterial(m_gaussianBlurShader)->createInstance();
+            m_bloomSetupShader = ShaderManager::createShader({ ShaderType::kVsPs, "BloomSetupShader", SHADER_SOURCE_PATH "shader_bloom_preprocess.vs", SHADER_SOURCE_PATH "shader_bloom_preprocess.fs" });
+            m_bloomDsShader = ShaderManager::createShader({ ShaderType::kVsPs, "BloomDownSampleShader", SHADER_SOURCE_PATH "shader_downsample.vs", SHADER_SOURCE_PATH "shader_downsample.fs" });
+            m_bloomUsShader = ShaderManager::createShader({ ShaderType::kVsPs, "UpSampleShader", SHADER_SOURCE_PATH "shader_upsample.vs", SHADER_SOURCE_PATH "shader_upsample.fs" });
+            m_gaussianBlurShader = ShaderManager::createShader({ ShaderType::kVsPs, "GaussianBlurShader", SHADER_SOURCE_PATH "shader_gaussian_blur.vs", SHADER_SOURCE_PATH "shader_gaussian_blur.fs" });
 
             u32 numBloomTextures = 0u;
             auto initBloomBuffers = [&](u32 index, TextureSpec& spec) {
@@ -400,7 +324,7 @@ namespace Cyan
             m_compositeColorTexture = textureManager->createTextureHDR("CompositeColorTexture", colorSpec);
             m_compositeRenderTarget = createRenderTarget(colorSpec.width, colorSpec.height);
             m_compositeRenderTarget->setColorBuffer(m_compositeColorTexture, 0u);
-            m_compositeShader = createShader("CompositeShader", SHADER_SOURCE_PATH "composite_v.glsl", SHADER_SOURCE_PATH "composite_p.glsl");
+            m_compositeShader = ShaderManager::createShader({ ShaderType::kVsPs, "CompositeShader", SHADER_SOURCE_PATH "composite_v.glsl", SHADER_SOURCE_PATH "composite_p.glsl" });
             // m_compositeMatl = createMaterial(m_compositeShader)->createInstance();
         }
 
@@ -443,7 +367,7 @@ namespace Cyan
                 spec.type = Texture::Type::TEX_2D;
                 spec.dataType = Texture::DataType::Float;
                 spec.format = Texture::ColorFormat::R16G16B16;
-                spec.min = Texture::Filter::LINEAR; 
+                spec.min = Texture::Filter::LINEAR;
                 spec.mag = Texture::Filter::LINEAR;
 
                 m_vctx.occlusion = textureManager->createTexture("VctxOcclusion", spec);
@@ -452,27 +376,16 @@ namespace Cyan
 
                 m_vctx.renderTarget = createRenderTarget(spec.width, spec.height);
                 m_vctx.renderTarget->setColorBuffer(m_vctx.occlusion, (u32)ColorBuffers::kOcclusion);
-                m_vctx.renderTarget->setColorBuffer(m_vctx.irradiance,(u32)ColorBuffers::kIrradiance);
-                m_vctx.renderTarget->setColorBuffer(m_vctx.reflection,(u32)ColorBuffers::kReflection);
+                m_vctx.renderTarget->setColorBuffer(m_vctx.irradiance, (u32)ColorBuffers::kIrradiance);
+                m_vctx.renderTarget->setColorBuffer(m_vctx.reflection, (u32)ColorBuffers::kReflection);
 
-                m_vctx.renderShader = createShader("VctxShader", SHADER_SOURCE_PATH "vctx_v.glsl", SHADER_SOURCE_PATH "vctx_p.glsl");
-                m_vctx.resolveShader = createCsShader("VoxelizeResolveShader", SHADER_SOURCE_PATH "voxelize_resolve_c.glsl");
+                m_vctx.renderShader = ShaderManager::createShader({ ShaderType::kVsPs, "VctxShader", SHADER_SOURCE_PATH "vctx_v.glsl", SHADER_SOURCE_PATH "vctx_p.glsl" });
+                m_vctx.resolveShader = ShaderManager::createShader({ ShaderType::kCs, "VoxelizeResolveShader", SHADER_SOURCE_PATH "voxelize_resolve_c.glsl" });
             }
 
             // global ssbo holding vctx data
             glCreateBuffers(1, &m_vctxSsbo);
             glNamedBufferData(m_vctxSsbo, sizeof(VctxGpuData), &m_vctxGpuData, GL_DYNAMIC_DRAW);
-        }
-
-        {
-            // misc
-            m_debugCam.position = glm::vec3(0.f, 50.f, 0.f);
-            m_debugCam.lookAt = glm::vec3(0.f);
-            m_debugCam.fov = 50.f;
-            m_debugCam.n = 0.1f;
-            m_debugCam.f = 100.f;
-            m_debugCam.projection = glm::perspective(m_debugCam.fov, 16.f/9.f, m_debugCam.n, m_debugCam.f);
-            m_debugCam.update();
         }
 
         // todo: load global glsl definitions and save them in a map <path, content>
@@ -486,7 +399,7 @@ namespace Cyan
         ImGui::DestroyContext();
     }
 
-    void Renderer::drawSubmesh(BaseSubmesh* submesh, const std::function<void()>& onDrawSubmeshLambda)
+    void Renderer::drawSubmesh(ISubmesh* submesh, const std::function<void()>& onDrawSubmeshLambda)
     {
         // do whatever necessary is required to setup current draw call
         // set render targets, viewport, bind materials, set shader parameters and so on
@@ -504,36 +417,58 @@ namespace Cyan
         }
     }
 
-    void Renderer::drawMesh(Mesh* parent)
+    void Renderer::drawMesh(Mesh* mesh)
     {
-        for (u32 sm = 0; sm < parent->numSubmeshes(); ++sm)
+        for (u32 sm = 0; sm < mesh->numSubmeshes(); ++sm)
         {
-            drawSubmesh(parent->submeshes[sm]);
+            drawSubmesh(mesh->submeshes[sm]);
         }
     }
 
     void Renderer::drawMesh(Mesh* parent, IMaterial* matl, RenderTarget* dstRenderTarget, const std::initializer_list<i32>& drawBuffers, const Viewport& viewport)
     {
         m_ctx->setShader(matl->getMaterialShader());
-        matl->bindForDraw();
+        matl->setShaderParameters();
         m_ctx->setRenderTarget(dstRenderTarget, drawBuffers);
         m_ctx->setViewport(viewport);
         drawMesh(parent);
     }
 
-    void Renderer::drawMeshInstance(MeshInstance* meshInstance, i32 transformIndex)
+    void Renderer::drawMeshInstance(RenderTarget* renderTarget, Viewport viewport, GfxPipelineState pipelineState, MeshInstance* meshInstance, i32 transformIndex)
     {
         Mesh* parent = meshInstance->parent;
         for (u32 i = 0; i < parent->numSubmeshes(); ++i)
         {
+#if 0
             drawSubmesh(parent->submeshes[i], [this, i, transformIndex, meshInstance]() {
-                IMaterial* matl = meshInstance->materials[i];
-                Shader* shader = matl->getMaterialShader();
-                m_ctx->setShader(shader);
-                shader->setUniform1i("transformIndex", transformIndex);
-                matl->bindForDraw();
-                m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
+                IMaterial* material = meshInstance->getMaterial(i);
+                if (material)
+                {
+                    material->setShaderParameters();
+                    Shader* shader = material->getMaterialShader();
+                    shader->setUniform("transformIndex", transformIndex);
+                    shader->commit(m_ctx);
+
+                    m_ctx->setShader(shader);
+                    m_ctx->setPrimitiveType(PrimitiveMode::TriangleList);
+                }
             });
+#endif
+            IMaterial* material = meshInstance->getMaterial(i);
+            if (material)
+            {
+                RenderTask task = { };
+                task.renderTarget = renderTarget;
+                task.viewport = viewport;
+                task.shader = material->getMaterialShader();
+                task.preDrawLambda = [this, transformIndex, material](Shader* shader) {
+                    material->setShaderParameters();
+                    shader->setUniform("transformIndex", transformIndex);
+                    shader->commit(m_ctx);
+                };
+
+                submitRenderTask(std::move(task));
+            }
         }
     }
 
@@ -570,7 +505,7 @@ namespace Cyan
         glDisable(GL_CULL_FACE);
 
         m_ctx->setShader(m_vctx.voxelizer.voxelizeShader);
-        m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
+        m_ctx->setPrimitiveType(PrimitiveMode::TriangleList);
 
         enum class ImageBindings
         {
@@ -592,8 +527,8 @@ namespace Cyan
                 kOpacityMask = (i32)GlobalBufferBindings::kCount,
                 kDebugTexcoord
             };
-            auto index = glGetProgramResourceIndex(voxelizer.voxelizeShader->handle, GL_SHADER_STORAGE_BLOCK, "OpacityData");
-            glShaderStorageBlockBinding(voxelizer.voxelizeShader->handle, index, (u32)SsboBindings::kOpacityMask);
+            auto index = glGetProgramResourceIndex(voxelizer.voxelizeShader->getGpuResource(), GL_SHADER_STORAGE_BLOCK, "OpacityData");
+            glShaderStorageBlockBinding(voxelizer.voxelizeShader->getGpuResource(), index, (u32)SsboBindings::kOpacityMask);
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)SsboBindings::kOpacityMask, voxelizer.opacityMaskSsbo);
             f32 clear = 0.f;
             glClearNamedBufferData(voxelizer.opacityMaskSsbo, GL_R32F, GL_R, GL_FLOAT, &clear);
@@ -618,44 +553,47 @@ namespace Cyan
                     if (MeshInstance* meshInstance = node->getAttachedMesh())
                     {
                         glm::mat4 model = node->getWorldTransform().toMatrix();
-                        voxelizer.voxelizeShader->setUniformMat4("model", &model[0].x)
-                                                .setUniformVec3("aabbMin", &pmin.x)
-                                                .setUniformVec3("aabbMax", &pmax.x)
-                                                .setUniform1ui("axis", (u32)axis);
+                        voxelizer.voxelizeShader->setUniform("model", model)
+                                                .setUniform("aabbMin", pmin)
+                                                .setUniform("aabbMax", pmax)
+                                                .setUniform("axis", (u32)axis);
 
                         for (u32 i = 0; i < meshInstance->parent->numSubmeshes(); ++i)
                         {
                             u32 matlFlag = 0u;
                             auto sm = meshInstance->parent->submeshes[i];
                             PBRMatl* matl = meshInstance->getMaterial<PBRMatl>(i);
-                            Texture* albedo = matl->parameter.albedo;
-                            Texture* normal = matl->parameter.normal;
+                            if (matl)
+                            {
+                                Texture* albedo = matl->parameter.albedo;
+                                Texture* normal = matl->parameter.normal;
 
-                            // voxelizer.matl->bindTexture("albedoTexture", albedo);
-                            // voxelizer.matl->bindTexture("normalTexture", normal);
-                            voxelizer.voxelizeShader->setTexture("albedoTexture", albedo)
-                                                    .setTexture("normalTexture", normal);
-                            /*
-                            if (albedo)
-                            {
-                                matlFlag |= StandardPbrMaterial::Flags::kHasDiffuseMap;
-                            }
-                            else
-                            {
-                                glm::vec4 flatColor = glm::vec4(matl->parameter.kAlbedo, 1.f);
-                                voxelizer.voxelizeShader->setUniformVec4("flatColor", &flatColor.x);
-                            }
-                            if (normal)
-                            {
-                                matlFlag |= StandardPbrMaterial::Flags::kHasNormalMap;
-                            }
-                            else
-                            {
+                                // voxelizer.material->bindTexture("albedoTexture", albedo);
+                                // voxelizer.material->bindTexture("normalTexture", normal);
+                                voxelizer.voxelizeShader->setTexture("albedoTexture", albedo)
+                                                        .setTexture("normalTexture", normal);
+                                /*
+                                if (albedo)
+                                {
+                                    matlFlag |= StandardPbrMaterial::Flags::kHasDiffuseMap;
+                                }
+                                else
+                                {
+                                    glm::vec4 flatColor = glm::vec4(material->parameter.kAlbedo, 1.f);
+                                    voxelizer.voxelizeShader->setUniformVec4("flatColor", &flatColor.x);
+                                }
+                                if (normal)
+                                {
+                                    matlFlag |= StandardPbrMaterial::Flags::kHasNormalMap;
+                                }
+                                else
+                                {
 
+                                }
+                                */
+                                u32 flags = matl->parameter.getFlags();
+                                voxelizer.voxelizeShader->setUniform("matlFlag", matlFlag);
                             }
-                            */
-                            u32 flags = matl->parameter.getFlags();
-                            voxelizer.voxelizeShader->setUniform1ui("matlFlag", matlFlag);
                             drawSubmesh(sm);
                         }
                     }
@@ -675,8 +613,8 @@ namespace Cyan
             {
                 kOpacityMask = (i32)GlobalBufferBindings::kCount,
             };
-            auto index = glGetProgramResourceIndex(m_vctx.resolveShader->handle, GL_SHADER_STORAGE_BLOCK, "OpacityData");
-            glShaderStorageBlockBinding(m_vctx.resolveShader->handle, index, (u32)SsboBindings::kOpacityMask);
+            auto index = glGetProgramResourceIndex(m_vctx.resolveShader->getGpuResource(), GL_SHADER_STORAGE_BLOCK, "OpacityData");
+            glShaderStorageBlockBinding(m_vctx.resolveShader->getGpuResource(), index, (u32)SsboBindings::kOpacityMask);
             m_ctx->setShader(m_vctx.resolveShader);
             glDispatchCompute(m_sceneVoxelGrid.resolution, m_sceneVoxelGrid.resolution, m_sceneVoxelGrid.resolution);
             glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
@@ -698,11 +636,11 @@ namespace Cyan
             {
                 i32 textureUnit = (i32)GlobalTextureBindings::kCount;
                 glm::ivec3 currGridDim = glm::ivec3(m_sceneVoxelGrid.resolution) / (i32)pow(2, i+1);
-                voxelizer.filterVoxelGridShader->setUniform1i("srcMip", i);
-                voxelizer.filterVoxelGridShader->setUniform1i("srcAlbedo", textureUnit);
+                voxelizer.filterVoxelGridShader->setUniform("srcMip", i);
+                voxelizer.filterVoxelGridShader->setUniform("srcAlbedo", textureUnit);
                 glBindTextureUnit(textureUnit++, m_sceneVoxelGrid.albedo->handle);
 
-                voxelizer.filterVoxelGridShader->setUniform1i("dstAlbedo", textureUnit);
+                voxelizer.filterVoxelGridShader->setUniform("dstAlbedo", textureUnit);
                 glBindImageTexture(textureUnit++, m_sceneVoxelGrid.albedo->handle, i+1, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
                 glDispatchCompute(currGridDim.x, currGridDim.y, currGridDim.z);
             }
@@ -741,15 +679,15 @@ namespace Cyan
             m_ctx->setViewport({0u, 0u, m_vctx.visualizer.renderTarget->width, m_vctx.visualizer.renderTarget->height});
 
             m_ctx->setShader(m_vctx.visualizer.voxelGridVisShader);
-            m_vctx.visualizer.voxelGridVisShader->setUniform1i("activeMip", m_vctx.visualizer.activeMip);
+            m_vctx.visualizer.voxelGridVisShader->setUniform("activeMip", m_vctx.visualizer.activeMip);
             // m_vctx.visualizer.voxelGridVisMatl->set("activeMip", m_vctx.visualizer.activeMip);
-            // m_vctx.visualizer.voxelGridVisMatl->bindForDraw();
+            // m_vctx.visualizer.voxelGridVisMatl->setShaderParameters();
 
-            m_ctx->setPrimitiveType(PrimitiveType::Points);
+            m_ctx->setPrimitiveType(PrimitiveMode::Points);
             u32 currRes = m_sceneVoxelGrid.resolution / pow(2, m_vctx.visualizer.activeMip);
             m_ctx->drawIndexAuto(currRes * currRes * currRes);
         }
-        m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
+        m_ctx->setPrimitiveType(PrimitiveMode::TriangleList);
         glEnable(GL_CULL_FACE);
     }
 
@@ -795,12 +733,12 @@ namespace Cyan
             kConeData
         };
 
-        auto index = glGetProgramResourceIndex(visualizer.coneVisComputeShader->handle, GL_SHADER_STORAGE_BLOCK, "IndirectDrawArgs");
-        glShaderStorageBlockBinding(visualizer.coneVisComputeShader->handle, index, (u32)SsboBindings::kIndirectDraw);
+        auto index = glGetProgramResourceIndex(visualizer.coneVisComputeShader->getGpuResource(), GL_SHADER_STORAGE_BLOCK, "IndirectDrawArgs");
+        glShaderStorageBlockBinding(visualizer.coneVisComputeShader->getGpuResource(), index, (u32)SsboBindings::kIndirectDraw);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)SsboBindings::kIndirectDraw, visualizer.idbo);
 
-        index = glGetProgramResourceIndex(visualizer.coneVisComputeShader->handle, GL_SHADER_STORAGE_BLOCK, "ConeTraceDebugData");
-        glShaderStorageBlockBinding(visualizer.coneVisComputeShader->handle, index, (u32)SsboBindings::kConeData);
+        index = glGetProgramResourceIndex(visualizer.coneVisComputeShader->getGpuResource(), GL_SHADER_STORAGE_BLOCK, "ConeTraceDebugData");
+        glShaderStorageBlockBinding(visualizer.coneVisComputeShader->getGpuResource(), index, (u32)SsboBindings::kConeData);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)SsboBindings::kConeData, visualizer.ssbo);
 
         enum class TexBindings
@@ -809,16 +747,15 @@ namespace Cyan
             kSceneNormal
         };
 
-        visualizer.coneVisComputeShader->setUniformVec2("debugScreenPos", &visualizer.debugScreenPos.x);
-        visualizer.coneVisComputeShader->setUniformMat4("cachedView", &visualizer.cachedView[0][0]);
-        visualizer.coneVisComputeShader->setUniformMat4("cachedProjection", &visualizer.cachedProjection[0][0]);
+        visualizer.coneVisComputeShader->setUniform("debugScreenPos", visualizer.debugScreenPos);
+        visualizer.coneVisComputeShader->setUniform("cachedView", visualizer.cachedView);
+        visualizer.coneVisComputeShader->setUniform("cachedProjection", visualizer.cachedProjection);
         glm::vec2 renderSize = glm::vec2(visualizer.renderTarget->width, visualizer.renderTarget->height);
-        visualizer.coneVisComputeShader->setUniformVec2("renderSize", &renderSize.x);
-        visualizer.coneVisComputeShader->setUniform1i("sceneDepthTexture", (i32)TexBindings::kSceneDepth);
-        visualizer.coneVisComputeShader->setUniform1i("sceneNormalTexture", (i32)TexBindings::kSceneNormal);
-        visualizer.coneVisComputeShader->setUniform1f("opts.occlusionScale", m_vctx.opts.occlusionScale);
-        visualizer.coneVisComputeShader->setUniform1f("opts.coneOffset", m_vctx.opts.coneOffset);
-        visualizer.coneVisComputeShader->setUniformVec2("renderSize", &renderSize.x);
+        visualizer.coneVisComputeShader->setUniform("renderSize", renderSize);
+        visualizer.coneVisComputeShader->setUniform("sceneDepthTexture", (i32)TexBindings::kSceneDepth);
+        visualizer.coneVisComputeShader->setUniform("sceneNormalTexture", (i32)TexBindings::kSceneNormal);
+        visualizer.coneVisComputeShader->setUniform("opts.occlusionScale", m_vctx.opts.occlusionScale);
+        visualizer.coneVisComputeShader->setUniform("opts.coneOffset", m_vctx.opts.coneOffset);
         glBindTextureUnit((u32)TexBindings::kSceneDepth, m_vctx.visualizer.cachedSceneDepth->handle);
         glBindTextureUnit((u32)TexBindings::kSceneNormal, m_vctx.visualizer.cachedSceneNormal->handle);
 
@@ -838,8 +775,8 @@ namespace Cyan
         glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_vctxVis.idbo);
         glDrawArraysIndirect(GL_POINTS, 0);
 #else
-        index = glGetProgramResourceIndex(visualizer.coneVisDrawShader->handle, GL_SHADER_STORAGE_BLOCK, "ConeTraceDebugData");
-        glShaderStorageBlockBinding(visualizer.coneVisDrawShader->handle, index, (u32)SsboBindings::kConeData);
+        index = glGetProgramResourceIndex(visualizer.coneVisDrawShader->getGpuResource(), GL_SHADER_STORAGE_BLOCK, "ConeTraceDebugData");
+        glShaderStorageBlockBinding(visualizer.coneVisDrawShader->getGpuResource(), index, (u32)SsboBindings::kConeData);
 
         struct IndirectDrawArgs
         {
@@ -847,15 +784,15 @@ namespace Cyan
             GLuint count;
         } command;
         glGetNamedBufferSubData(visualizer.idbo, 0, sizeof(IndirectDrawArgs), &command);
-        m_ctx->setPrimitiveType(PrimitiveType::Points);
+        m_ctx->setPrimitiveType(PrimitiveMode::Points);
         glDisable(GL_CULL_FACE);
         m_ctx->drawIndexAuto(command.count);
 #endif
-        m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
+        m_ctx->setPrimitiveType(PrimitiveMode::TriangleList);
         glEnable(GL_CULL_FACE);
     }
 
-    void Renderer::drawEntity(Entity* entity)
+    void Renderer::drawEntity(RenderTarget* renderTarget, Viewport viewport, GfxPipelineState pipelineState, Entity* entity)
     {
         std::queue<SceneNode*> nodes;
         nodes.push(entity->m_sceneRoot);
@@ -864,9 +801,74 @@ namespace Cyan
             auto node = nodes.front();
             nodes.pop();
             if (auto meshInst = node->getAttachedMesh())
-                drawMeshInstance(meshInst, node->globalTransform);
+                drawMeshInstance(renderTarget, viewport, pipelineState, meshInst, node->globalTransform);
             for (u32 i = 0; i < node->m_child.size(); ++i)
                 nodes.push(node->m_child[i]);
+        }
+    }
+
+    void Renderer::submitMesh(RenderTarget* renderTarget, Viewport viewport, GfxPipelineState pipelineState, Mesh* mesh, Shader* shader, const std::function<void(Shader* shader)>& perMeshLambda)
+    {
+        for (u32 i = 0; i < mesh->numSubmeshes(); ++i)
+        {
+            RenderTask task = { };
+            task.renderTarget = renderTarget;
+            task.viewport = viewport;
+            task.shader = shader;
+            task.submesh = mesh->getSubmesh(i);
+            task.preDrawLambda = perMeshLambda;
+
+            submitRenderTask(std::move(task));
+        }
+    }
+
+    void Renderer::submitMaterialMesh(RenderTarget* renderTarget, Viewport viewport, GfxPipelineState pipelineState, Mesh* mesh, IMaterial* material, const std::function<void(Shader* shader)>& perMeshLambda)
+    {
+        if (material)
+        {
+            material->setShaderParameters();
+            Shader* shader = material->getMaterialShader();
+            perMeshLambda(shader);
+            shader->commit(m_ctx);
+
+            for (u32 i = 0; i < mesh->numSubmeshes(); ++i)
+            {
+                RenderTask task = { };
+                task.renderTarget = renderTarget;
+                task.viewport = viewport;
+                task.shader = shader;
+                task.submesh = mesh->getSubmesh(i);
+                task.preDrawLambda = [](Shader* shader) { };
+
+                submitRenderTask(std::move(task));
+            }
+        }
+    }
+
+    void Renderer::submitRenderTask(RenderTask&& task)
+    {
+        m_ctx->setRenderTarget(task.renderTarget, {});
+        m_ctx->setViewport(task.viewport);
+
+        // configure shader state
+        task.preDrawLambda(task.shader);
+        task.shader->commit(m_ctx);
+        m_ctx->setShader(task.shader);
+
+        // configure misc state
+        m_ctx->setDepthControl(task.pipelineState.depth);
+        m_ctx->setPrimitiveType(task.pipelineState.primitiveMode);
+
+        // kick off the draw call
+        auto va = task.submesh->getVertexArray();
+        m_ctx->setVertexArray(va);
+        if (va->hasIndexBuffer())
+        {
+            m_ctx->drawIndex(task.submesh->numIndices());
+        }
+        else
+        {
+            m_ctx->drawIndexAuto(task.submesh->numVertices());
         }
     }
 
@@ -885,16 +887,31 @@ namespace Cyan
     */
     void Renderer::beginRender()
     {
+        // todo: broadcast beginRender event 
+
         // clear default render target
         m_ctx->setRenderTarget(nullptr, { });
         m_ctx->clear();
-
-        // clear per frame allocator
-        m_frameAllocator.reset();
     }
 
     void Renderer::render(Scene* scene, const std::function<void()>& externDebugRender)
     {
+        //-------------------------------------------------------------------
+        /*
+        * What composes a frame in Cyan ? 
+        * pre main scene pass
+            * render shadow maps for all the shadow casting light sources
+            * render depth & normal pass
+            * render effects that are dependent on depth & normal pass
+            * voxel cone tracing preparation
+        * main scene pass 
+            * render the scene
+        * post-processing pass
+            * bloom
+            * tone mapping
+        */
+        //-------------------------------------------------------------------
+
         beginRender();
         {
             // update all global data
@@ -938,17 +955,12 @@ namespace Cyan
                 composite();
             }
         }
-        endRender();
     }
 
     void Renderer::endRender()
     {
         // reset render target
         m_ctx->setRenderTarget(nullptr, {});
-    }
-
-    void Renderer::flip()
-    {
         m_ctx->flip();
     }
 
@@ -1019,7 +1031,10 @@ namespace Cyan
         gLighting.reflectionProbe = scene->m_reflectionProbe;
 
         // shared BRDF lookup texture used in split sum approximation for image based lighting
-        glBindTextureUnit(gTexBinding(BRDFLookupTexture), ReflectionProbe::getBRDFLookupTexture()->handle);
+        if (Texture* BRDFLookupTexture = ReflectionProbe::getBRDFLookupTexture())
+        {
+            glBindTextureUnit(gTexBinding(BRDFLookupTexture), BRDFLookupTexture->handle);
+        }
 
         // skybox
         if (gLighting.skybox)
@@ -1058,7 +1073,7 @@ namespace Cyan
     void Renderer::renderSunShadow(Scene* scene, const std::vector<Entity*>& shadowCasters)
     {
         auto& sunLight = scene->dLights[0];
-        m_shadowmapManager.render(m_csm, scene, sunLight, shadowCasters);
+        m_rasterDirectShadowManager->render(m_csm, scene, sunLight, shadowCasters);
         updateSunShadow(m_csm);
     }
 
@@ -1090,7 +1105,7 @@ namespace Cyan
                 executeOnEntity(entity, [this](SceneNode* node) { 
                     if (auto meshInst = node->getAttachedMesh())
                     {
-                        m_sceneDepthNormalShader->setUniform1i("transformIndex", node->globalTransform);
+                        m_sceneDepthNormalShader->setUniform("transformIndex", node->globalTransform);
                         drawMesh(meshInst->parent);
                     }
                 });
@@ -1138,13 +1153,13 @@ namespace Cyan
         m_ssaoMatl->set("cameraPos", &camera.position.x);
         m_ssaoMatl->set("view", &camera.view[0]);
         m_ssaoMatl->set("projection", &camera.projection[0]);
-        m_ssaoMatl->bindForDraw();
+        m_ssaoMatl->setShaderParameters();
         */
         m_ssaoShader->setTexture("normalTexture", m_opts.enableAA ? m_sceneNormalTextureSSAA : m_sceneNormalTexture);
         m_ssaoShader->setTexture("depthTexture", m_opts.enableAA ? m_sceneDepthTextureSSAA : m_sceneDepthTexture);
-        m_ssaoShader->setUniformVec3("cameraPos", &camera.position.x)
-                    .setUniformMat4("view", &camera.view[0].x)
-                    .setUniformMat4("projection", &camera.projection[0].x);
+        m_ssaoShader->setUniform("cameraPos", camera.position)
+                    .setUniform("view", camera.view)
+                    .setUniform("projection", camera.projection);
         drawMesh(fullscreenQuad);
         m_ctx->setDepthControl(DepthControl::kEnable);
     }
@@ -1165,13 +1180,13 @@ namespace Cyan
 
             m_ctx->setShader(m_bloomDsShader);
             // m_bloomDsMatl->bindTexture("srcImage", src);
-            // m_bloomDsMatl->bindForDraw();
+            // m_bloomDsMatl->setShaderParameters();
             m_bloomDsShader->setTexture("srcImage", src);
             drawMesh(fullscreenQuad);
             /*
-            m_ctx->setVertexArray(s_quad.m_vertexArray);
-            m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
-            m_ctx->drawIndexAuto(s_quad.m_vertexArray->numVerts());
+            m_ctx->setVertexArray(s_quad.m_va);
+            m_ctx->setPrimitiveType(PrimitiveMode::TriangleList);
+            m_ctx->drawIndexAuto(s_quad.m_va->numVerts());
             */
 
             m_ctx->setDepthControl(Cyan::DepthControl::kEnable);
@@ -1196,7 +1211,7 @@ namespace Cyan
             m_ctx->setShader(m_bloomUsShader);
             m_bloomDsShader->setTexture("srcImage", src)
                 .setTexture("blendImage", blend)
-                .setUniform1i("stageIndex", stageIndex);
+                .setUniform("stageIndex", stageIndex);
 
             drawMesh(fullscreenQuad);
             m_ctx->setDepthControl(Cyan::DepthControl::kEnable);
@@ -1233,9 +1248,9 @@ namespace Cyan
                 m_gaussianBlurMatl->bindForDraw();
 #endif
                 m_gaussianBlurShader->setTexture("srcTexture", src)
-                                    .setUniform1f("horizontal", 1.f)
-                                    .setUniform1i("kernelIndex", kernelIndex)
-                                    .setUniform1f("radius", radius);
+                                    .setUniform("horizontal", 1.f)
+                                    .setUniform("kernelIndex", kernelIndex)
+                                    .setUniform("radius", radius);
 
                 drawMesh(fullscreenQuad);
             }
@@ -1258,9 +1273,9 @@ namespace Cyan
                 m_gaussianBlurMatl->bindForDraw();
 #endif
                 m_gaussianBlurShader->setTexture("srcTexture", src)
-                                    .setUniform1f("horizontal", 1.f)
-                                    .setUniform1i("kernelIndex", kernelIndex)
-                                    .setUniform1f("radius", radius);
+                                    .setUniform("horizontal", 1.f)
+                                    .setUniform("kernelIndex", kernelIndex)
+                                    .setUniform("radius", radius);
                 drawMesh(fullscreenQuad);
             }
             m_ctx->setDepthControl(Cyan::DepthControl::kEnable);
@@ -1280,7 +1295,7 @@ namespace Cyan
         m_bloomSetupShader->setTexture("srcTexture", src);
 
         m_ctx->setDepthControl(Cyan::DepthControl::kDisable);
-        m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
+        m_ctx->setPrimitiveType(PrimitiveMode::TriangleList);
         drawMesh(fullscreenQuad);
         m_ctx->setDepthControl(Cyan::DepthControl::kEnable);
 
@@ -1324,14 +1339,14 @@ namespace Cyan
         m_compositeMatl->bindTexture("sceneColorTexture", m_opts.enableAA ? m_sceneColorTextureSSAA : m_sceneColorTexture);
         m_compositeMatl->bindForDraw();
 #endif
-        m_compositeShader->setUniform1f("exposure", m_opts.exposure)
-            .setUniform1f("bloom", m_opts.enableBloom ? 1.f : 0.f)
-            .setUniform1f("bloomIntensity", m_opts.bloomIntensity)
+        m_compositeShader->setUniform("exposure", m_opts.exposure)
+            .setUniform("bloom", m_opts.enableBloom ? 1.f : 0.f)
+            .setUniform("bloomIntensity", m_opts.bloomIntensity)
             .setTexture("bloomOutTexture", m_bloomOutTexture)
             .setTexture("sceneColorTexture", m_opts.enableAA ? m_sceneColorTextureSSAA : m_sceneColorTexture);
 
         m_ctx->setDepthControl(DepthControl::kDisable);
-        m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
+        m_ctx->setPrimitiveType(PrimitiveMode::TriangleList);
         drawMesh(fullscreenQuad);
         m_ctx->setDepthControl(DepthControl::kEnable);
 
@@ -1359,7 +1374,7 @@ namespace Cyan
         ImGui::SetNextWindowBgAlpha(0.5f);
         ImGui::Begin("VCTX", nullptr, flags);
         {
-            // controls for VCTX
+            // pipelineState for VCTX
             ImGui::AlignTextToFramePadding();
 
             ImGui::Text("VisMode "); ImGui::SameLine();
@@ -1432,7 +1447,8 @@ namespace Cyan
         camera.f = 100.f;
         camera.fov = glm::radians(90.f);
 
-        m_ctx->setViewport({ 0u, 0u, probe->sceneCapture->width, probe->sceneCapture->height });
+        // m_ctx->setViewport({ 0u, 0u, probe->sceneCapture->width, probe->sceneCapture->height });
+
         for (u32 f = 0; f < (sizeof(LightProbeCameras::cameraFacingDirections)/sizeof(LightProbeCameras::cameraFacingDirections[0])); ++f)
         {
             m_ctx->setRenderTarget(renderTarget, { (i32)f, -1, -1, -1 });
@@ -1452,7 +1468,7 @@ namespace Cyan
             // draw entities 
             for (u32 i = 0; i < staticObjects.size(); ++i)
             {
-                drawEntity(staticObjects[i]);
+                drawEntity(renderTarget, { 0u, 0u, probe->sceneCapture->width, probe->sceneCapture->height }, GfxPipelineState(), staticObjects[i]);
             }
         }
 
@@ -1473,18 +1489,18 @@ namespace Cyan
             kNormal
         };
         glm::vec2 renderSize = glm::vec2(m_vctx.renderTarget->width, m_vctx.renderTarget->height);
-        m_vctx.renderShader->setUniformVec2("renderSize", &renderSize.x);
-        m_vctx.renderShader->setUniform1i("sceneDepthTexture", (i32)TexBindings::kDepth);
-        m_vctx.renderShader->setUniform1i("sceneNormalTexture", (i32)TexBindings::kNormal);
-        m_vctx.renderShader->setUniform1f("opts.coneOffset", m_vctx.opts.coneOffset);
-        m_vctx.renderShader->setUniform1f("opts.occlusionScale", m_vctx.opts.occlusionScale);
-        m_vctx.renderShader->setUniform1f("opts.indirectScale", m_vctx.opts.indirectScale);
-        m_vctx.renderShader->setUniform1f("opts.opacityScale", m_vctx.opts.opacityScale);
+        m_vctx.renderShader->setUniform("renderSize", renderSize);
+        m_vctx.renderShader->setUniform("sceneDepthTexture", (i32)TexBindings::kDepth);
+        m_vctx.renderShader->setUniform("sceneNormalTexture", (i32)TexBindings::kNormal);
+        m_vctx.renderShader->setUniform("opts.coneOffset", m_vctx.opts.coneOffset);
+        m_vctx.renderShader->setUniform("opts.occlusionScale", m_vctx.opts.occlusionScale);
+        m_vctx.renderShader->setUniform("opts.indirectScale", m_vctx.opts.indirectScale);
+        m_vctx.renderShader->setUniform("opts.opacityScale", m_vctx.opts.opacityScale);
         auto depthTexture = m_opts.enableAA ? m_sceneDepthTextureSSAA : m_sceneDepthTexture;
         auto normalTexture = m_opts.enableAA ? m_sceneNormalTextureSSAA : m_sceneNormalTexture;
         glBindTextureUnit((u32)TexBindings::kDepth, depthTexture->handle);
         glBindTextureUnit((u32)TexBindings::kNormal, normalTexture->handle);
-        m_ctx->setPrimitiveType(PrimitiveType::TriangleList);
+        m_ctx->setPrimitiveType(PrimitiveMode::TriangleList);
         m_ctx->setDepthControl(DepthControl::kDisable);
         m_ctx->drawIndexAuto(6u);
         m_ctx->setDepthControl(DepthControl::kEnable);

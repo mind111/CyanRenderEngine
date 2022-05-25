@@ -11,8 +11,6 @@
 
 namespace Cyan
 {
-    // todo: this design requries new() operator for creating IEvent instances, so probably need to use a
-    // transient allocator with a placement new
     struct IEvent
     {
         virtual ~IEvent() { }
@@ -116,7 +114,7 @@ namespace Cyan
                 event->~IEvent();
             }
 
-            // reset allocator as we processed for the event
+            // reset allocator as we processed all the event
             allocator->reset();
         }
 

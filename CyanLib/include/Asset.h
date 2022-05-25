@@ -24,6 +24,12 @@ namespace Cyan
     public:
         AssetManager();
         ~AssetManager() { };
+
+        void initialize()
+        {
+            m_defaultMaterial = createMaterial<PBRMatl>("DefaultMaterial");
+        }
+
         static AssetManager* get() { return singleton; }
 
         struct LoadedNode
@@ -31,30 +37,19 @@ namespace Cyan
             SceneNode* m_sceneNode;
             std::vector<u32> m_child;
         };
+
         Cyan::Texture* loadGltfTexture(const char* nodeName, tinygltf::Model& model, i32 index);
         SceneNode* loadGltfNode(Scene* scene, tinygltf::Model& model, tinygltf::Node* parent, SceneNode* parentSceneNode, tinygltf::Node& node, u32 numNodes);
         Mesh* loadGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh); 
         void loadGltfTextures(const char* nodeName, tinygltf::Model& model);
         SceneNode* loadGltf(Scene* scene, const char* filename, const char* name, Transform transform);
-        std::vector<BaseSubmesh*> loadObj(const char* baseDir, const char* filename, bool generateLightMapUv);
+        std::vector<ISubmesh*> loadObj(const char* baseDir, const char* filename, bool generateLightMapUv);
         Mesh* loadMesh(std::string& path, const char* name, bool normalize, bool generateLightMapUv);
         void importScene(Scene* scene, const char* file);
         void importSceneNodes(Scene* scene, nlohmann::basic_json<std::map>& nodeInfoList);
         void importEntities(Scene* scene, nlohmann::basic_json<std::map>& entityInfoList);
         void importTextures(nlohmann::basic_json<std::map>& textureInfoList);
         void importMeshes(Scene* scene, nlohmann::basic_json<std::map>& meshInfoList);
-
-        void* m_objLoader;
-        void* m_gltfLoader;
-        tinygltf::TinyGLTF m_loader;
-        std::vector<SceneNode*> m_nodes;
-        static AssetManager* singleton;
-
-        // asset tables
-        std::unordered_map<std::string, Texture*> m_textureMap;
-        std::unordered_map<std::string, Mesh*> m_meshMap;
-        // material instances
-        std::unordered_map<std::string, IMaterial*> m_materialMap;
 
         template <typename T>
         Mesh::Submesh<T>* createSubmesh(const std::vector<typename T::Vertex>& vertices, const std::vector<u32>& indices)
@@ -66,7 +61,7 @@ namespace Cyan
         /*
         * create geometry data first, and then pass in to create a mesh
         */
-        Mesh* createMesh(const char* name, const std::vector<BaseSubmesh*>& submeshes)
+        Mesh* createMesh(const char* name, const std::vector<ISubmesh*>& submeshes)
         {
             Mesh* parent = new Mesh(name, submeshes);
             // register mesh object into the asset table
@@ -83,6 +78,11 @@ namespace Cyan
         }
 
         // getters
+        static IMaterial* getDefaultMaterial()
+        {
+            return singleton->m_defaultMaterial;
+        }
+
         template <typename T>
         static T* getAsset(const char* assetName);
 
@@ -108,5 +108,21 @@ namespace Cyan
             }
             return static_cast<M<T>*>(entry->second);
         }
+
+    private:
+        void* m_objLoader;
+        void* m_gltfLoader;
+        tinygltf::TinyGLTF m_loader;
+        std::vector<SceneNode*> m_nodes;
+        static AssetManager* singleton;
+
+        // asset tables
+        std::unordered_map<std::string, std::unique_ptr<Scene>> m_sceneMap;
+        std::unordered_map<std::string, Texture*> m_textureMap;
+        std::unordered_map<std::string, Mesh*> m_meshMap;
+
+        // material instances
+        PBRMatl* m_defaultMaterial = nullptr;
+        std::unordered_map<std::string, IMaterial*> m_materialMap;
     };
 }

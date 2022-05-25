@@ -35,26 +35,41 @@ namespace Cyan
 
     void Engine::initialize()
     {
-        // todo: this function should instead call System::initialize() in order to initialize subsystems
         m_graphicsSystem->initialize();
         m_IOSystem->initialize();
 
-        // setup graphics system 
-        {
-            // Cyan::init();
-            // m_graphicsSystem = new Cyan::GraphicsSystem(m_glfwWindow.mpWindow, glm::vec2(m_renderSize.x, m_renderSize.y));
-            // Cyan::getCurrentGfxCtx()->setWindow(&m_glfwWindow);
-        }
+        m_renderer = m_graphicsSystem->getRenderer();
     }
     
     void Engine::update()
     {
         m_IOSystem->update();
+        m_graphicsSystem->setScene(m_scene);
+        m_graphicsSystem->update();
+    }
+
+    void Engine::beginRender()
+    {
+        if (m_renderer)
+        {
+            m_renderer->beginRender();
+        }
     }
 
     void Engine::render()
     {
+        if (m_renderer)
+        {
+            m_renderer->render(m_scene.get());
+        }
+    }
 
+    void Engine::endRender()
+    {
+        if (m_renderer)
+        {
+            m_renderer->endRender();
+        }
     }
 
     void Engine::finalize()

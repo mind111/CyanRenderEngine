@@ -183,6 +183,9 @@
     <ClInclude Include="include\Event.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\CyanCore.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Asset.cpp">

@@ -188,7 +188,7 @@ namespace Cyan
     }
 
     // treat all the meshes inside one obj file as submeshes
-    std::vector<BaseSubmesh*> AssetManager::loadObj(const char* baseDir, const char* filename, bool bGenerateLightMapUv)
+    std::vector<ISubmesh*> AssetManager::loadObj(const char* baseDir, const char* filename, bool bGenerateLightMapUv)
     {
         tinyobj::attrib_t attrib;
         std::vector<tinyobj::shape_t> shapes;
@@ -223,7 +223,7 @@ namespace Cyan
             cyanError("Errors:   %s               ", err.c_str());
         }
         auto atlas = xatlas::Create();
-        std::vector<BaseSubmesh*> submeshes;
+        std::vector<ISubmesh*> submeshes;
         for (u32 s = 0; s < shapes.size(); ++s)
         {
             // load triangle mesh
@@ -392,7 +392,7 @@ namespace Cyan
         if (extension == ".obj")
         {
             cyanInfo("Loading .obj file %s", path.c_str());
-            std::vector<BaseSubmesh*> submeshes = std::move(loadObj(baseDir.c_str(), path.c_str(), generateLightMapUv));
+            std::vector<ISubmesh*> submeshes = std::move(loadObj(baseDir.c_str(), path.c_str(), generateLightMapUv));
             parent = createMesh(name, submeshes);
         }
         else
@@ -809,7 +809,7 @@ namespace Cyan
     Cyan::Mesh* AssetManager::loadGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh) 
     {
 
-        std::vector<BaseSubmesh*> submeshes;
+        std::vector<ISubmesh*> submeshes;
 
         // primitives (submeshes)
         for (u32 i = 0u; i < (u32)gltfMesh.primitives.size(); ++i)

@@ -21,15 +21,25 @@ namespace Cyan
         IOSystem* getIOSystem() { return m_IOSystem.get(); }
         GraphicsSystem* getGraphicsSystem() { return m_graphicsSystem.get(); }
 
+        void setScene(std::shared_ptr<Scene> scene) { m_scene = scene; }
+
         // main interface
         void initialize();
         void finalize();
         void update();
         void render();
+        void beginRender();
+        void endRender();
 
     private:
         static Engine* singleton;
+
+        // systems
         std::unique_ptr<IOSystem> m_IOSystem;
         std::unique_ptr<GraphicsSystem> m_graphicsSystem;
+
+        // active scene
+        std::shared_ptr<Scene> m_scene;
+        Renderer* m_renderer = nullptr;
     };
 }

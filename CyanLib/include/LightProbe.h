@@ -22,7 +22,6 @@ namespace Cyan
         glm::vec2            resolution;
         Texture*             sceneCapture;
         MeshInstance*        debugSphereMesh;
-        MaterialInstance*    debugRenderMatl;
     };
 
     struct IrradianceProbe : public LightProbe
@@ -45,7 +44,6 @@ namespace Cyan
 
         glm::vec2         m_irradianceTextureRes;
         Texture*          m_convolvedIrradianceTexture;
-        MaterialInstance* m_convolveIrradianceMatl;
     };
 
     struct IrradianceVolume
@@ -81,7 +79,6 @@ namespace Cyan
         static Shader*       s_convolveReflectionShader;
 
         Texture*             m_convolvedReflectionTexture;
-        MaterialInstance*    m_convolveReflectionMatl;
     };
 
     namespace LightProbeCameras

@@ -6,7 +6,6 @@ namespace Cyan
         : isRunning(true)
     {
         gEngine = std::make_unique<Engine>(appWindowWidth, appWindowHeight);
-        m_scene = std::make_unique<Scene>();
     }
 
     void DefaultApp::initialize()
@@ -23,14 +22,17 @@ namespace Cyan
 
     void DefaultApp::update()
     {
+        gEngine->setScene(m_scene);
         gEngine->update();
         customUpdate();
     }
 
     void DefaultApp::render()
     {
+        gEngine->beginRender();
         gEngine->render();
         customRender();
+        gEngine->endRender();
     }
    
     void DefaultApp::run()

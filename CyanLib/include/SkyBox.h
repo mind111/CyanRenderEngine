@@ -12,7 +12,7 @@ namespace Cyan
     };
 
     // todo: decouple skylight from skybox, skylight can be a stand-alone thing
-    struct Skybox 
+    struct Skybox
     {
         Skybox(const char* srcImagePath, const glm::vec2& resolution, const SkyboxConfig& cfg);
         ~Skybox() { }
@@ -37,15 +37,14 @@ namespace Cyan
             return m_specularProbe->m_convolvedReflectionTexture;
         }
 
-        static Shader*   s_CubemapSkyShader;
-        static Shader*   s_proceduralSkyShader;
+        static Shader* s_CubemapSkyShader;
+        static Shader* s_proceduralSkyShader;
 
         SkyboxConfig     m_cfg;
-        Texture*         m_srcHDRITexture;
-        Texture*         m_srcCubemapTexture;
+        Texture* m_srcHDRITexture;
+        Texture* m_srcCubemapTexture;
         IrradianceProbe* m_diffuseProbe;
         ReflectionProbe* m_specularProbe;
-        MaterialInstance* m_renderSkyMatl;
     };
 
     struct HosekSkyDome

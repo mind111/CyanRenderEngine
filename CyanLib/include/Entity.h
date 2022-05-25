@@ -52,6 +52,8 @@ struct Entity
     bool m_includeInGBufferPass;
 
     Entity(struct Scene* scene, const char* name, u32 id, Transform t, Entity* parent, bool isStatic);
+
+    virtual void update() { }
  
     SceneNode* getSceneRoot();
     SceneNode* getSceneNode(const char* name);

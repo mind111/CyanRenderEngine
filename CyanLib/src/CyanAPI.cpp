@@ -47,7 +47,6 @@ namespace Cyan
 
     static std::vector<Uniform*> s_uniforms;
     static std::unordered_map<std::string, u32> s_uniformRegistry;
-    static std::unordered_map<std::string, u32> s_shaderRegistry;
 
     static HandleAllocator s_uniformHandleAllocator = { };
     static HandleAllocator s_shaderHandleAllocator = { };
@@ -59,10 +58,6 @@ namespace Cyan
 
     void init()
     {
-        CYAN_ASSERT(!s_gfxc, "Graphics context was already initialized");
-        // Create global graphics context
-        s_gfxc = new GfxContext;
-        s_gfxc->init();
 #if 0
         s_memory = (void*)(new char[1024 * 1024 * 1024]); // 1GB memory pool
         s_allocator = LinearAllocator::create(s_memory, 1024 * 1024 * 1024);
@@ -130,95 +125,6 @@ namespace Cyan
         return assetManager->loadMesh(file, name, normalize, generateLightMapUv);
     }
 #endif
-
-    Shader* createVsGsPsShader(const char* name, const char* vsSrc, const char* gsSrc, const char* fsSrc)
-    {
-        using ShaderEntry = std::pair<std::string, u32>;
-
-        ShaderSource src = {0};
-        src.vsSrc = vsSrc;
-        src.gsSrc = gsSrc;
-        src.fsSrc = fsSrc;
-
-        // found a existing shader
-        auto itr = s_shaderRegistry.find(std::string(name));
-        if (itr != s_shaderRegistry.end())
-        {
-            return m_shaders[itr->second];
-        }
-
-        // TODO: Memory management
-        u32 handle = ALLOC_HANDLE(Shader)
-        CYAN_ASSERT(handle < kMaxNumShaders,  "Too many shader created!!!")
-        m_shaders[handle] = new Shader();
-        Shader* shader = m_shaders[handle];
-        shader->m_name = std::string(name);
-        s_shaderRegistry.insert(ShaderEntry(shader->m_name, handle));
-        cyanInfo("Building VsGsPs shader: %s", name);
-        shader->init(src, Shader::Type::VsGsPs);
-        return shader;
-    }
-
-    Shader* getMaterialShader(const char* name)
-    {
-        auto itr = s_shaderRegistry.find(std::string(name));
-        if (itr != s_shaderRegistry.end())
-        {
-            return m_shaders[itr->second]; 
-        }
-        return nullptr;
-    }
-
-    u32 findShader(const char* name)
-    {
-        auto itr = s_shaderRegistry.find(std::string(name));
-        if (itr != s_shaderRegistry.end())
-        {
-            return itr->second;
-        }
-        return 0u;
-    }
-
-    Shader* createShader(const char* name, const char* vertSrc, const char* fragSrc)
-    {
-        using ShaderEntry = std::pair<std::string, u32>;
-        // found a existing shader
-        if (u32 foundShader = findShader(name))
-        {
-            return m_shaders[foundShader];
-        }
-
-        // TODO: Memory management
-        u32 handle = ALLOC_HANDLE(Shader)
-        CYAN_ASSERT(handle < kMaxNumShaders,  "Too many shader created!!!")
-        m_shaders[handle] = new Shader();
-        Shader* shader = m_shaders[handle];
-        shader->m_name = std::string(name);
-        s_shaderRegistry.insert(ShaderEntry(shader->m_name, handle));
-        cyanInfo("Building VsPs shader: %s", name);
-        shader->buildVsPsFromSource(vertSrc, fragSrc);
-        return shader;
-    }
-
-    Shader* createCsShader(const char* name, const char* csSrc)
-    {
-        using ShaderEntry = std::pair<std::string, u32>;
-        // found a existing shader
-        if (u32 foundShader = findShader(name))
-        {
-            return m_shaders[foundShader];
-        }
-        cyanInfo("Building compute shader: %s", name);
-        // TODO: Memory management
-        u32 handle = ALLOC_HANDLE(Shader)
-        CYAN_ASSERT(handle < kMaxNumShaders,  "Too many shader created!!!")
-        m_shaders[handle] = new Shader();
-        Shader* shader = m_shaders[handle];
-        shader->m_name = std::string(name);
-        s_shaderRegistry.insert(ShaderEntry(shader->m_name, handle));
-        shader->buildCsFromSource(csSrc);
-        return shader;
-    }
 
     RenderTarget* createRenderTarget(u32 width, u32 height)
     {
@@ -970,67 +876,5 @@ namespace Cyan
         }
 #endif
 
-        // create a flat color albedo map via fragment shader
-        Texture* createFlatColorTexture(const char* name, u32 width, u32 height, glm::vec4 color)
-        {
-            auto textureManager = TextureManager::get();
-            TextureSpec spec = { };
-            spec.type = Texture::Type::TEX_2D;
-            spec.format = Texture::ColorFormat::R8G8B8A8;
-            spec.dataType = Texture::DataType::UNSIGNED_BYTE;
-            spec.width = width;
-            spec.numMips = 1u;
-            spec.height = height;
-            spec.min = Texture::Filter::LINEAR;
-            spec.mag = Texture::Filter::LINEAR;
-            spec.s = Texture::Wrap::NONE;
-            spec.t = Texture::Wrap::NONE;
-            spec.r = Texture::Wrap::NONE;
-            spec.data = nullptr;
-            f32 verts[] = {
-                -1.f,  1.f, 0.f, 0.f,  1.f,
-                -1.f, -1.f, 0.f, 0.f,  0.f,
-                 1.f, -1.f, 0.f, 1.f,  0.f,
-                -1.f,  1.f, 0.f, 0.f,  1.f,
-                 1.f, -1.f, 0.f, 1.f,  0.f,
-                 1.f,  1.f, 0.f, 1.f,  1.f
-            };
-            GLuint vbo, vao;
-            glCreateBuffers(1, &vbo);
-            glCreateVertexArrays(1, &vao);
-            glBindVertexArray(vao);
-            glNamedBufferData(vbo, sizeof(verts), verts, GL_STATIC_DRAW);
-            glBindBuffer(GL_ARRAY_BUFFER, vbo);
-            glEnableVertexArrayAttrib(vao, 0);
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), 0);
-            glEnableVertexArrayAttrib(vao, 1);
-            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (const void*)(3 * sizeof(f32)));
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
-            glBindVertexArray(0);
-
-            Shader* shader = createShader("FlatColorShader", "../../shader/shader_flat_color.vs", "../../shader/shader_flat_color.fs");
-            Texture* texture = textureManager->createTexture(name, spec);
-            RenderTarget* rt = createRenderTarget(width, height);
-            // Uniform* u_color = createUniform("color", Uniform::Type::u_vec4);
-            // setUniform(u_color, &color.r);
-//            rt->attachColorBuffer(texture);
-            rt->setColorBuffer(texture, 0u);
-
-            auto gfxc = getCurrentGfxCtx();
-            Viewport origViewport = gfxc->m_viewport;
-            gfxc->setViewport({ 0u, 0u, texture->width, texture->height });
-            gfxc->setShader(shader);
-            // gfxc->setRenderTarget(rt, 0);
-            gfxc->setRenderTarget(rt, { 0 });
-            // gfxc->setUniform(u_color);
-            glBindVertexArray(vao);
-            gfxc->setDepthControl(Cyan::DepthControl::kDisable);
-            glDrawArrays(GL_TRIANGLES, 0, 6);
-            gfxc->setDepthControl(Cyan::DepthControl::kEnable);
-            gfxc->setViewport(origViewport);
-            gfxc->reset();
-
-            return texture;
-        }
-    } // Toolkitn
+    } // Toolkit
 } // Cyan

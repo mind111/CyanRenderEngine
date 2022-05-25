@@ -4,25 +4,25 @@
 
 namespace Cyan
 {
-    ShadowmapManager::ShadowmapManager()
+    RasterDirectShadowManager::RasterDirectShadowManager()
         : m_sunShadowShader(nullptr), m_pointShadowShader(nullptr)//, m_sunShadowMatl(nullptr)
     {
-        initialize();
+
     }
 
-    void ShadowmapManager::initialize()
+    void RasterDirectShadowManager::initialize()
     {
         // TODO: depth buffer creation coupled with render target creation
-        m_sunShadowShader = createShader("DirShadowShader", "../../shader/shader_dir_shadow.vs", "../../shader/shader_dir_shadow.fs");
+        m_sunShadowShader = ShaderManager::createShader({ ShaderType::kVsPs, "DirShadowShader", "../../shader/shader_dir_shadow.vs", "../../shader/shader_dir_shadow.fs" });
         // m_sunShadowMatl = createMaterial(m_sunShadowShader)->createInstance();
     }
     
-    void ShadowmapManager::finalize()
+    void RasterDirectShadowManager::finalize()
     {
 
     }
 
-    void ShadowmapManager::initShadowmap(CascadedShadowmap& csm, const glm::uvec2& resolution)
+    void RasterDirectShadowManager::initShadowmap(CascadedShadowmap& csm, const glm::uvec2& resolution)
     {
         csm.depthRenderTarget = createDepthRenderTarget(resolution.x, resolution.y);
 
@@ -82,7 +82,7 @@ namespace Cyan
         }
     }
 
-    void ShadowmapManager::updateShadowCascade(ShadowCascade& cascade, const Camera& camera, const glm::mat4& view)
+    void RasterDirectShadowManager::updateShadowCascade(ShadowCascade& cascade, const Camera& camera, const glm::mat4& view)
     {
         f32 N = fabs(cascade.n);
         f32 F = fabs(cascade.f);
@@ -167,7 +167,7 @@ namespace Cyan
         // aabb.update();
     }
 
-    void ShadowmapManager::render(CascadedShadowmap& csm, Scene* scene, const DirectionalLight& sunLight, const std::vector<Entity*>& shadowCasters)
+    void RasterDirectShadowManager::render(CascadedShadowmap& csm, Scene* scene, const DirectionalLight& sunLight, const std::vector<Entity*>& shadowCasters)
     {
         const auto& camera = scene->camera;
         f32 t[4] = { 0.1f, 0.3f, 0.6f, 1.f };
@@ -197,7 +197,8 @@ namespace Cyan
         }
     }
 
-    void ShadowmapManager::pcfShadow(CascadedShadowmap& csm, u32& cascadeIndex, Scene* scene, const glm::mat4& lightView, const std::vector<Entity*>& shadowCasters)
+    // todo: try to reduce custom rendering code that directly uses m_ctx
+    void RasterDirectShadowManager::pcfShadow(CascadedShadowmap& csm, u32& cascadeIndex, Scene* scene, const glm::mat4& lightView, const std::vector<Entity*>& shadowCasters)
     {
         auto& cascade = csm.cascades[cascadeIndex];
         auto aabb = cascade.aabb;
@@ -227,16 +228,16 @@ namespace Cyan
                     m_sunShadowMatl->set("sunLightProjection", &cascade.lightProjection[0][0]);
                     m_sunShadowMatl->bind();
 #endif
-                    m_sunShadowShader->setUniform1i("transformIndex", node->globalTransform)
-                                     .setUniformMat4("sunLightView", &lightView[0][0])
-                                     .setUniformMat4("sunLightProjection", &cascade.lightProjection[0][0]);
+                    m_sunShadowShader->setUniform("transformIndex", node->globalTransform)
+                                     .setUniform("sunLightView", lightView)
+                                     .setUniform("sunLightProjection", cascade.lightProjection);
                     renderer->drawMesh(meshInst->parent);
                 }
             });
         }
     }
 
-    void ShadowmapManager::vsmShadow()
+    void RasterDirectShadowManager::vsmShadow()
     {
 
     }

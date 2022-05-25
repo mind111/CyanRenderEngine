@@ -5,11 +5,12 @@
 #include "glew.h"
 
 #include "Common.h"
+#include "CyanCore.h"
 
 namespace Cyan
 {
-    // TODO: how to handled texture name?
-    struct Texture
+    // TODO: how to handle texture name?
+    struct Texture : public GpuResource
     {
         enum Type
         {

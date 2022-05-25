@@ -45,25 +45,47 @@ namespace Cyan
     // forward declarations
     struct RenderTarget;
 
-    class Renderer 
+    struct GfxPipelineState
+    {
+        DepthControl depth = DepthControl::kEnable;
+        PrimitiveMode primitiveMode = PrimitiveMode::TriangleList;
+    };
+
+    struct RenderTask
+    {
+        RenderTarget* renderTarget = nullptr;
+        Viewport viewport = { };
+        ISubmesh* submesh = nullptr;
+        Shader* shader = nullptr;
+        GfxPipelineState pipelineState;
+        std::function<void(Shader* shader)> preDrawLambda = [](Shader* shader) { };
+    };
+
+    struct MeshRenderTask : public RenderTask
+    {
+        Mesh* mesh = nullptr;
+        IMaterial* material = nullptr;
+    };
+
+    struct MaterialMeshRenderTask : public MeshRenderTask
+    {
+
+    };
+
+    class Renderer : public Singleton<Renderer>
     {
     public:
-        explicit Renderer(u32 windowWidth, u32 windowHeight);
+        explicit Renderer(GfxContext* ctx, u32 windowWidth, u32 windowHeight);
         ~Renderer() {}
-
-        static Renderer* get();
 
         void initialize();
         void finalize();
 
-        void initShaders();
-
         GfxContext* getGfxCtx() { return m_ctx; };
-        StackAllocator& getAllocator();
         Texture* getColorOutTexture();
 
 // shadow
-        ShadowmapManager m_shadowmapManager;
+        std::unique_ptr<RasterDirectShadowManager> m_rasterDirectShadowManager;
         CascadedShadowmap m_csm;
 //
 
@@ -85,7 +107,6 @@ namespace Cyan
         void renderScene(Scene* scene);
         void renderSceneDepthNormal(Scene* scene);
         void renderDebugObjects(Scene* scene, const std::function<void()>& externDebugRender = [](){ });
-
         /*
         * Render provided scene into a light probe
         */
@@ -95,22 +116,26 @@ namespace Cyan
         * Render ui widgets given a custom callback defined in an application
         */
         void renderUI(const std::function<void()>& callback);
-        void flip();
 
-        void drawEntity(Entity* entity);
-        void drawSubmesh(BaseSubmesh* submesh, const std::function<void()>& onDrawSubmeshLambda = [](){ });
+        void drawEntity(RenderTarget* renderTarget, Viewport viewport, GfxPipelineState pipelineState, Entity* entity);
+        void drawSubmesh(ISubmesh* submesh, const std::function<void()>& onDrawSubmeshLambda = [](){ });
         void drawMesh(Mesh* parent);
-        /*
-        * Draw a mesh without transform using same type of material for all its submeshes.
-        */
-        void drawMesh(Mesh* parent, IMaterial* matl, RenderTarget* dstRenderTarget, const std::initializer_list<i32>& drawBuffers, const Viewport& viewport);
+        void drawMeshInstance(RenderTarget* renderTarget, Viewport viewport, GfxPipelineState pipelineState, MeshInstance* meshInstance, i32 transformIndex);
 
-        /// <summary>
-        /// Draw an instanced mesh with transform that allows different types of materials for each submeshes.
-        /// </summary>
-        /// <param name="meshInstance"> mesh instance to draw </param>
-        /// <param name="transformIndex"> index of transform for 'meshInstance' within the global transform </param>
-        void drawMeshInstance(MeshInstance* meshInstance, i32 transformIndex);
+        /**
+        * Draw a mesh without material
+        */
+        void submitMesh(RenderTarget* renderTarget, Viewport viewport, GfxPipelineState pipelineState, Mesh* mesh, Shader* shader, const std::function<void(Shader* shader)>& preDrawLambda);
+
+        /**
+        * Draw a mesh using same material for all its submesh
+        */
+        void submitMaterialMesh(RenderTarget* renderTarget, Viewport viewport, GfxPipelineState pipelineState, Mesh* mesh, IMaterial* material, const std::function<void(Shader* shader)>& preDrawLambda);
+
+        /**
+        * Submit a submesh; right now the execution is not deferred
+        */
+        void submitRenderTask(RenderTask&& task);
 //
 
 // post-processing
@@ -118,20 +143,15 @@ namespace Cyan
         RenderTarget* m_ssaoRenderTarget;
         Texture* m_ssaoTexture;
         Shader* m_ssaoShader;
-        MaterialInstance* m_ssaoMatl;
 
         void ssao(Camera& camera);
 
         // bloom
         static constexpr u32 kNumBloomPasses = 6u;
         Shader* m_bloomSetupShader;
-        MaterialInstance* m_bloomSetupMatl;
         Shader* m_bloomDsShader;
-        MaterialInstance* m_bloomDsMatl;
         Shader* m_bloomUsShader;
-        MaterialInstance* m_bloomUsMatl;
         Shader* m_gaussianBlurShader;
-        MaterialInstance* m_gaussianBlurMatl;
         RenderTarget* m_bloomSetupRenderTarget;
         // bloom chain intermediate buffers
         struct BloomRenderTarget
@@ -148,7 +168,6 @@ namespace Cyan
 
         // final composite
         Shader* m_compositeShader;
-        MaterialInstance* m_compositeMatl;
         Texture* m_compositeColorTexture;
         RenderTarget* m_compositeRenderTarget;
         /*
@@ -178,9 +197,6 @@ namespace Cyan
             f32  exposure = 1.f;
             f32 bloomIntensity = 0.7f;
         } m_opts;
-
-        // allocators
-        StackAllocator m_frameAllocator;
 
         u32           m_windowWidth, m_windowHeight;
         u32           m_SSAAWidth, m_SSAAHeight;
@@ -306,7 +322,6 @@ namespace Cyan
                 Texture* colorBuffer = nullptr;
                 Shader* voxelizeShader = nullptr;
                 Shader* filterVoxelGridShader = nullptr;
-                MaterialInstance* matl = nullptr;
                 GLuint opacityMaskSsbo = -1;
             } voxelizer;
 
@@ -348,7 +363,6 @@ namespace Cyan
                 Texture* cachedSceneNormal = nullptr;
 
                 Shader* voxelGridVisShader = nullptr;
-                MaterialInstance* voxelGridVisMatl = nullptr;
                 RenderTarget* renderTarget = nullptr;
                 Texture* colorBuffer = nullptr;
 
@@ -406,10 +420,7 @@ namespace Cyan
         GLuint m_lumHistogramShader;
         GLuint m_lumHistogramProgram;
 
-        // for debugging CSM
-        Camera m_debugCam;
     private:
         GfxContext* m_ctx;
-        static Renderer* singleton;
     };
 };

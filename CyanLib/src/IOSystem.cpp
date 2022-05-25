@@ -8,17 +8,11 @@ namespace Cyan
     static void mouseCursorCallback(GLFWwindow* window, f64 cursorX, f64 cursorY);
     static void keyCallback(GLFWwindow* window, i32 key, i32 scancode, i32 action, i32 mods);
 
-    IOSystem* IOSystem::singleton = nullptr;
+    IOSystem* Singleton<IOSystem>::singleton = nullptr;
     IOSystem::IOSystem()
+        : Singleton<IOSystem>()
     {
-        if (!singleton)
-        {
-            singleton = this;
-        }
-        else
-        {
-            CYAN_ASSERT(0, "Attempted to instantiate multiple instances of IOSystem")
-        }
+
     }
 
     void IOSystem::initialize()

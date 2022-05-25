@@ -19,10 +19,10 @@ layout (location = 3) out vec3 radialDistance;
 //- samplers
 layout (binding = 0) uniform samplerCube skyboxDiffuse;
 layout (binding = 1) uniform samplerCube skyboxSpecular;
-layout (binding = 2) uniform sampler2D   BRDFLookupTexture;
+layout (binding = 2) uniform sampler2D BRDFLookupTexture;
 layout (binding = 3) uniform samplerCube irradianceProbe;
 layout (binding = 4) uniform samplerCube localReflectionProbe;
-layout (binding = 5) uniform sampler2D   ssaoTex;
+layout (binding = 5) uniform sampler2D ssaoTex;
 layout (binding = 6) uniform sampler2D shadowCascades[4];
 
 layout (binding = 10) uniform sampler3D sceneVoxelGridAlbedo;

@@ -21,87 +21,9 @@
 static float kCameraOrbitSpeed = 0.005f;
 static float kCameraRotateSpeed = 0.005f;
 
-struct CameraCommand
-{
-    enum Type
-    {
-        Orbit = 0,
-        Zoom,
-        Undefined
-    };
-
-    Type type;
-
-    glm::dvec2 mouseCursorChange;
-    glm::dvec2 mouseWheelChange;
-};
-
-void DemoApp::dispatchCameraCommand(CameraCommand& command)
-{
-    DemoApp* app = DemoApp::get();
-    switch(command.type)
-    {
-        case CameraCommand::Type::Orbit:
-        {
-            Camera& camera = m_scene->camera;
-            app->orbitCamera(camera, command.mouseCursorChange.x, command.mouseCursorChange.y);
-        } break;
-        case CameraCommand::Type::Zoom:
-        {
-            Camera& camera = m_scene->camera;
-            app->zoomCamera(camera, command.mouseWheelChange.x, command.mouseWheelChange.y);
-        } break;
-        default:
-            break;
-    }
-}
-
+#if 0
 namespace Demo
 {
-    void mouseButtonCallback(int button, int action)
-    {
-        DemoApp* app = DemoApp::get();
-        switch(button)
-        {
-            case CYAN_MOUSE_BUTTON_LEFT:
-            {
-                if (action == CYAN_PRESS)
-                {
-#if MOUSE_PICKING
-                    if (!app->mouseOverUI())
-                    {
-                        app->bRayCast = true;
-                    }
-#endif
-                }
-                else if (action == CYAN_RELEASE)
-                {
-                    if (!app->mouseOverUI())
-                    {
-                        app->bRayCast = false;
-                    }
-                }
-                break;
-            }
-            case CYAN_MOUSE_BUTTON_RIGHT:
-            {
-                if (action == CYAN_PRESS)
-                {
-                    app->bOrbit = true;
-                }
-                else if (action == CYAN_RELEASE)
-                {
-                    app->bOrbit = false;
-                }
-                break;
-            }
-            default:
-            {
-                break;
-            }
-        }
-    }
-
     void mouseScrollWheelCallback(double xOffset, double yOffset)
     {
         DemoApp* app = DemoApp::get();
@@ -116,39 +38,12 @@ namespace Demo
 
     void keyCallback(i32 key, i32 action)
     {
-        DemoApp* app = DemoApp::get();
-        switch (key)
-        {
-            // switch camera view
-            case GLFW_KEY_P: 
-            {
-            } break; 
-            default :
-            {
 
-            }
-        }
     }
 }
+#endif
 
 #define SCENE_DEMO_00
-//#define SCENE_SPONZA
-
-enum Scenes
-{
-    Demo_Scene_00 = 0,
-    Sponza_Scene,
-    kCount
-};
-
-static DemoApp* gApp = nullptr;
-
-DemoApp* DemoApp::get()
-{
-    if (gApp)
-        return gApp;
-    return nullptr;
-}
 
 DemoApp::DemoApp(u32 appWindowWidth, u32 appWindowHeight)
     : DefaultApp(appWindowWidth, appWindowHeight), bOrbit(false)
@@ -162,60 +57,29 @@ bool DemoApp::mouseOverUI()
     return (m_mouseCursorX < 400.f && m_mouseCursorX > 0.f && m_mouseCursorY < 720.f && m_mouseCursorY > 0.f);
 }
 
-#if 0
-Cyan::StandardPbrMaterial* DemoApp::createStandardPbrMatlInstance(Scene* scene, Cyan::PbrMaterialParam params, bool isStatic)
-{
-    if (isStatic)
-    {
-        params.indirectDiffuseScale = 0.f;
-        params.indirectSpecularScale = 0.f;
-    }
-    else
-    {
-        params.indirectDiffuseScale = 1.f;
-        params.indirectSpecularScale = 1.f;
-    }
-    Cyan::StandardPbrMaterial* matl = new Cyan::StandardPbrMaterial(params);
-    scene->addStandardPbrMaterial(matl);
-    return matl;
-}
-#endif
-
-void DemoApp::createHelmetInstance(Scene* scene)
-{
-    auto textureManager = Cyan::TextureManager::get();
-    auto sceneManager = SceneManager::get();
-#if 0
-    // helmet
-    {
-        Cyan::PbrMaterialParam params = { };
-        params.baseColor = textureManager->getTexture("helmet_diffuse");
-        params.normal = textureManager->getTexture("helmet_nm");
-        params.metallicRoughness = textureManager->getTexture("helmet_roughness");
-        params.occlusion = textureManager->getTexture("helmet_ao");
-        auto helmetMatl = createStandardPbrMatlInstance(scene, params, false);
-        Entity* helmet = sceneManager->getEntity(scene, "DamagedHelmet");
-        helmet->setMaterial("HelmetMesh", 0, helmetMatl);
-    }
-#endif
-}
-
-void DemoApp::initDemoScene00()
+void DemoApp::setupScene()
 {
     Cyan::Toolkit::GpuTimer timer("initDemoScene00()", true);
-    auto textureManager = Cyan::TextureManager::get();
+
     auto sceneManager = SceneManager::get();
-    sceneManager->importScene(m_scene.get(), "demo_scene_00", "C:\\dev\\cyanRenderEngine\\scene\\demo_scene_00.json");
+    m_scene = sceneManager->importScene("demo_scene_00", "C:\\dev\\cyanRenderEngine\\scene\\demo_scene_00.json");
+
+    auto graphicsSystem = gEngine->getGraphicsSystem();
+    glm::uvec2 viewportSize = graphicsSystem->getAppWindowDimension();
+    float aspectRatio = (float)viewportSize.x / viewportSize.y;
+    Camera& camera = m_scene->camera;
+    camera.aspectRatio = aspectRatio;
+    camera.projection = glm::perspective(glm::radians(camera.fov), aspectRatio, camera.n, camera.f);
+
+    auto textureManager = Cyan::TextureManager::get();
     Scene* demoScene00 = m_scene.get();
 
     using PBR = Cyan::PBRMatl;
     auto assetManager = Cyan::AssetManager::get();
     PBR* defaultMatl = assetManager->createMaterial<PBR>("DefaultMatl");
-    defaultMatl->parameter.kRoughness = .8f;
-    defaultMatl->parameter.kMetallic = .02f;
+
     // helmet
     {
-        createHelmetInstance(demoScene00);
         auto helmet = sceneManager->getEntity(demoScene00, "DamagedHelmet");
         auto helmetMesh = helmet->getSceneNode("helmet_mesh")->getAttachedMesh()->parent;
 #if 0
@@ -254,12 +118,14 @@ void DemoApp::initDemoScene00()
         sceneManager->createDirectionalLight(demoScene00, glm::vec3(1.0f, 0.9, 0.7f), sunDir, 3.6f);
 
         // skybox
+#if 0
         demoScene00->m_skybox = new Cyan::Skybox(nullptr, glm::uvec2(1024u), Cyan::SkyboxConfig::kUseProcedural);
         demoScene00->m_skybox->build();
 
         // light probes
         demoScene00->m_irradianceProbe = sceneManager->createIrradianceProbe(demoScene00, glm::vec3(0.f, 2.f, 0.f), glm::uvec2(512u, 512u), glm::uvec2(64u, 64u));
         demoScene00->m_reflectionProbe = sceneManager->createReflectionProbe(demoScene00, glm::vec3(0.f, 3.f, 0.f), glm::uvec2(2048u, 2048u));
+#endif
     }
 
     // grid of shader ball on the table
@@ -436,80 +302,51 @@ void DemoApp::initDemoScene00()
     timer.end();
 }
 
-void DemoApp::initSponzaScene()
-{
-    Cyan::Toolkit::GpuTimer timer("initSponzaScene()", true);
-    auto sceneManager = SceneManager::get();
-    sceneManager->importScene(m_scene.get(), "sponza_scene", "C:\\dev\\cyanRenderEngine\\scene\\sponza_scene.json");
-    Scene* sponzaScene = m_scene.get();
-
-    Entity* sponza = sceneManager->getEntity(sponzaScene, "Sponza");
-    auto sponzaNode = sponza->getSceneNode("SponzaMesh");
-    Cyan::Mesh* sponzaMesh = sponzaNode->getAttachedMesh()->parent;
-#if 0
-    sponzaMesh->m_bvh = new Cyan::MeshBVH(sponzaMesh);
-    sponzaMesh->m_bvh->build();
-#endif
-    // lighting
-    glm::vec3 sunDir = glm::normalize(glm::vec3(0.0f, 1.0f, 0.0f));
-    sceneManager->createDirectionalLight(sponzaScene, glm::vec3(1.0f, 0.9, 0.7f), sunDir, 3.6f);
-
-    // light probes
-    sponzaScene->m_irradianceProbe = sceneManager->createIrradianceProbe(sponzaScene, glm::vec3(0.f, 2.f, 0.f), glm::uvec2(512u, 512u), glm::uvec2(64u, 64u));
-    sponzaScene->m_reflectionProbe = sceneManager->createReflectionProbe(sponzaScene, glm::vec3(0.f, 3.f, 0.f), glm::uvec2(2048u, 2048u));
-}
-
-// void DemoApp::customInitialize(int appWindowWidth, int appWindowHeight, glm::vec2 sceneViewportPos, glm::vec2 renderSize)
 void DemoApp::customInitialize()
 {
     Cyan::Toolkit::GpuTimer timer("DemoApp::customInitialize()", true);
-
-    // setup user input control
-    auto IOSystem = gEngine->getIOSystem();
-    IOSystem->addIOEventListener<Cyan::MouseCursorEvent>([this, IOSystem](f64 xPos, f64 yPos) {
-        CameraCommand command = { };
-        command.type = CameraCommand::Type::Orbit;
-        command.mouseCursorChange = IOSystem->getMouseCursorChange();
-        bOrbit ? dispatchCameraCommand(command) : rotateCamera(command.mouseCursorChange.x, command.mouseCursorChange.y);
-    });
-
-    IOSystem->addIOEventListener<Cyan::MouseButtonEvent>([](i32 button, i32 action) {
-
-    });
-
-    IOSystem->addIOEventListener<Cyan::MouseWheelEvent>([](f64 xOffset, f64 yOffset) {
-
-    });
-
-    IOSystem->addIOEventListener<Cyan::KeyEvent>([](i32 key, i32 action) {
-
-    });
-
-    // physically-based shading shader
-    Cyan::createShader("PBSShader", SHADER_SOURCE_PATH "pbs_v.glsl", SHADER_SOURCE_PATH "pbs_p.glsl");
-
-    auto graphicsSystem = gEngine->getGraphicsSystem();
-    glm::uvec2 viewportSize = graphicsSystem->getAppWindowDimension();
-    float aspectRatio = (float)viewportSize.x / viewportSize.y;
-    Camera& camera = m_scene->camera;
-    camera.aspectRatio = aspectRatio;
-    camera.projection = glm::perspective(glm::radians(camera.fov), aspectRatio, camera.n, camera.f);
-#ifdef SCENE_DEMO_00
     {
-        initDemoScene00();
+        // setup user input control
+        auto IOSystem = gEngine->getIOSystem();
+        IOSystem->addIOEventListener<Cyan::MouseCursorEvent>([this, IOSystem](f64 xPos, f64 yPos) {
+            glm::dvec2 mouseCursorChange = IOSystem->getMouseCursorChange();
+            if (bOrbit)
+            {
+                orbitCamera(m_scene->camera, mouseCursorChange.x, mouseCursorChange.y);
+            }
+        });
+
+        IOSystem->addIOEventListener<Cyan::MouseButtonEvent>([this](i32 button, i32 action) {
+            switch(button)
+            {
+                case CYAN_MOUSE_BUTTON_RIGHT:
+                {
+                    if (action == CYAN_PRESS)
+                    {
+                        bOrbit = true;
+                    }
+                    else if (action == CYAN_RELEASE)
+                    {
+                        bOrbit = false;
+                    }
+                    break;
+                }
+                default:
+                    break;
+            }
+        });
+
+        IOSystem->addIOEventListener<Cyan::MouseWheelEvent>([this](f64 xOffset, f64 yOffset) {
+
+        });
+
+        IOSystem->addIOEventListener<Cyan::KeyEvent>([](i32 key, i32 action) {
+
+        });
+
+        // setup scene
+        setupScene();
     }
-#endif
-
-    // misc
-    m_directDiffuseSlider = 1.f;
-    m_directSpecularSlider = 1.f;
-    m_indirectDiffuseSlider = 1.f;
-    m_indirectSpecularSlider = 4.0f;
-    m_directLightingSlider = 1.f;
-    m_indirectLightingSlider = 0.f;
-
-    // clear color
-    Cyan::getCurrentGfxCtx()->setClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 1.f));
     timer.end();
 }
 
@@ -543,442 +380,11 @@ void DemoApp::precompute()
     }
 #endif
 #endif
-    auto shader = Cyan::createShader("DebugShadingShader", SHADER_SOURCE_PATH "debug_color_vs.glsl", SHADER_SOURCE_PATH "debug_color_fs.glsl");
-}
-
-glm::vec3 computeMouseHitWorldSpacePos(Camera& camera, glm::vec3 rd, RayCastInfo hitInfo)
-{
-    glm::vec3 viewSpaceHit = hitInfo.t * rd;
-    glm::mat4 invViewMat = glm::inverse(camera.view);
-    glm::vec4 worldSpacePosV4 = invViewMat * glm::vec4(viewSpaceHit, 1.f);
-    return glm::vec3(worldSpacePosV4.x, worldSpacePosV4.y, worldSpacePosV4.z);
-};
-
-RayCastInfo DemoApp::castMouseRay(const glm::vec2& currentViewportPos, const glm::vec2& currentViewportSize)
-{
-    // convert mouse cursor pos to view space 
-    double mouseCursorX = m_mouseCursorX;
-    double mouseCursorY = m_mouseCursorY;
-    // NDC space
-    glm::vec2 uv(2.0 * mouseCursorX / currentViewportSize.x - 1.0f, 2.0 * (currentViewportSize.y - mouseCursorY) / currentViewportSize.y - 1.0f);
-    // homogeneous clip space
-    glm::vec4 q = glm::vec4(uv, -0.8, 1.0);
-    Camera& camera = m_scene->camera;
-    glm::mat4 projInverse = glm::inverse(camera.projection);
-    // q.z must be less than zero after this evaluation
-    q = projInverse * q;
-    // view space
-    q /= q.w;
-    glm::vec3 rd = glm::normalize(glm::vec3(q.x, q.y, q.z));
-    // in view space
-    glm::mat4 viewInverse = glm::inverse(camera.view);
-
-    glm::vec3 ro = glm::vec3(0.f);
-
-    RayCastInfo closestHit;
-
-    // ray intersection test against all the entities in the scene to find the closest intersection
-    for (auto entity : m_scene->entities)
-    {
-        if (entity->m_visible && entity->m_selectable)
-        {
-#if 0
-            RayCastInfo traceInfo = entity->intersectRay(ro, rd, camera.view); 
-            if (traceInfo.t > 0.f && traceInfo < closestHit)
-            {
-                closestHit = traceInfo;
-                printf("Cast a ray from mouse that hits %s \n", traceInfo.m_node->m_name);
-            }
-#endif
-        }
-    }
-    glm::vec3 worldHit = computeMouseHitWorldSpacePos(camera, rd, closestHit);
-    printf("Mouse hit world at (%.2f, %.2f, %.2f) \n", worldHit.x, worldHit.y, worldHit.z);
-    return closestHit;
 }
 
 void DemoApp::customUpdate()
 {
-    // update camera
-    u32 camIdx = 0u;
-    Camera& camera = m_scene->camera;
-    camera.update();
-    SceneManager::get()->updateSceneGraph(m_scene.get());
-}
 
-void uiDrawSceneNode(SceneNode* node)
-{
-    ImGuiTreeNodeFlags baseFlags = ImGuiTreeNodeFlags_OpenOnArrow 
-                                | ImGuiTreeNodeFlags_OpenOnDoubleClick 
-                                | ImGuiTreeNodeFlags_SpanAvailWidth 
-                                | ImGuiTreeNodeFlags_DefaultOpen;
-    if (node)
-    {
-        if (node->m_child.size() > 0)
-        {
-            if (ImGui::TreeNodeEx(node->m_name, baseFlags))
-            {
-                for (auto child : node->m_child)
-                {
-                    uiDrawSceneNode(child);
-                }
-                ImGui::TreePop();
-            }
-        }
-        else
-        {
-            ImGuiTreeNodeFlags nodeFlags = baseFlags | ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
-            ImGui::TreeNodeEx(node->m_name, nodeFlags);
-        }
-    }
-};
-
-void DemoApp::drawEntityPanel()
-{
-    ImGuiTreeNodeFlags baseFlags = ImGuiTreeNodeFlags_OpenOnArrow 
-                                | ImGuiTreeNodeFlags_OpenOnDoubleClick 
-                                | ImGuiTreeNodeFlags_SpanAvailWidth 
-                                | ImGuiTreeNodeFlags_DefaultOpen;
-    // transform panel
-    if (ImGui::TreeNodeEx("Transform", baseFlags))
-    {
-        Transform transform = m_selectedEntity->getWorldTransform();
-        ImGui::Text("Translation");
-        ImGui::SameLine();
-        ImGui::InputFloat3("##Translation", &transform.m_translate.x);
-        ImGui::Text("Rotation");
-        ImGui::SameLine();
-        ImGui::InputFloat4("##Rotation",  &transform.m_qRot.x);
-        ImGui::Text("Scale");
-        ImGui::SameLine();
-        ImGui::InputFloat3("##Scale", &transform.m_scale.x);
-        ImGui::TreePop();
-    }
-    ImGui::Separator();
-
-    // scene component panel
-    if (ImGui::TreeNodeEx("SceneComponent", baseFlags))
-    {
-        SceneNode* root = m_selectedEntity->m_sceneRoot;
-        uiDrawSceneNode(root);
-        ImGui::TreePop();
-    }
-}
-
-void DemoApp::drawDebugWindows()
-{
-#if 0
-    auto renderer = m_graphicsSystem->getRenderer();
-    auto ctx = Cyan::getCurrentGfxCtx();
-    ctx->setRenderTarget(nullptr, {});
-
-    // configure window pos and size
-    ImVec2 debugWindowSize(gEngine->getWindow().width - renderer->m_windowWidth, 
-                           gEngine->getWindow().height);
-    ImGui::SetNextWindowPos(ImVec2(0, 0));
-    ImGui::SetNextWindowSize(debugWindowSize);
-    ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-    Cyan::UI::beginWindow("Editor", windowFlags);
-    ImGui::PushFont(Cyan::UI::gFont);
-    {
-        // multiple tabs
-        ImGuiTabBarFlags tabFlags = ImGuiTabBarFlags_Reorderable;
-        if (ImGui::BeginTabBar("MyTabBar", tabFlags))
-        {
-            if (ImGui::BeginTabItem("Scene"))
-            {
-                {
-                    drawStats();
-                    ImGui::Separator();
-                }
-                {
-                    Camera& camera = m_scenes[m_currentScene]->getActiveCamera();
-                    ImGui::Text("Camera");
-                    ImGui::Indent();
-                    ImGui::Text("Position: %.2f, %.2f, %.2f", camera.position.x, camera.position.y, camera.position.z);
-                    ImGui::Text("Look at:  %.2f, %.2f, %.2f", camera.lookAt.x, camera.lookAt.y, camera.lookAt.z);
-                    ImGui::Unindent();
-                    ImGui::Separator();
-                }
-                {
-                    uiDrawEntityGraph(m_scenes[m_currentScene]->m_rootEntity);
-                    ImGui::Separator();
-                }
-                if (m_selectedEntity)
-                {
-                    drawEntityPanel();
-                    ImGui::Separator();
-                }
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("Lighting"))
-            {
-                drawLightingWidgets();
-                ImGui::Separator();
-                drawRenderSettings();
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("Assets"))
-            {
-                // textures
-                {
-                    auto textureManager = Cyan::TextureManager::get();
-                    i32 currentItem = 0;
-                    u32 numTextures = textureManager->getNumTextures();
-                    std::vector<const char*> textureNames(numTextures);
-                    std::vector<Cyan::Texture*>& textures = textureManager->s_textures;
-                    for (u32 i = 0; i < numTextures; ++i)
-                        textureNames[i] = textures[i]->name.c_str();
-                    ImGui::Text("Textures");
-                    ImGui::Text("Number of textures: %u", numTextures);
-                    ImGui::ListBox("##Textures", &currentItem, textureNames.data(), textureNames.size());
-                    ImGui::Separator();
-                }
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("Debug"))
-            {
-                auto renderer = Cyan::Renderer::get();
-                u32 numDebugViews = 0;
-                auto buildDebugView = [&](const char* viewName, Cyan::Texture* texture, u32 width=320, u32 height=180, bool flip = true)
-                {
-                    ImGui::Text(viewName);
-                    if (flip)
-                        ImGui::Image((ImTextureID)texture->handle, ImVec2(width, height), ImVec2(0, 1), ImVec2(1, 0));
-                    else
-                        ImGui::Image((ImTextureID)texture->handle, ImVec2(width, height));
-                    char buttonName[64];
-                    sprintf_s(buttonName, "Focus on view##%s", viewName);
-                    if (ImGui::Button(buttonName))
-                    {
-                        if (m_currentDebugView == numDebugViews)
-                        {
-                            activeDebugViewTexture = nullptr;
-                            m_currentDebugView = -1;
-                        }
-                        else
-                        {
-                            m_currentDebugView = numDebugViews;
-                            activeDebugViewTexture = texture;
-                        }
-                    }
-                    ImGui::Separator();
-                    numDebugViews++;
-                };
-                // buildDebugView("PathTracing", Cyan::PathTracer::get()->getRenderOutput());
-#ifdef SCENE_DEMO_00
-                Entity* room = SceneManager::get()->get()->getEntity(m_scenes[Demo_Scene_00], "Room");
-                SceneNode* sceneNode = room->getSceneNode("RoomMesh");
-                // buildDebugView("LightMap", sceneNode->m_meshInstance->m_lightMap->m_texAltas, 320u, 320u);
-#endif
-                buildDebugView("SceneDepth",  renderer->m_sceneDepthTextureSSAA);
-                buildDebugView("SceneNormal", renderer->m_sceneNormalTextureSSAA);
-                buildDebugView("SceneGTAO",   renderer->m_ssaoTexture);
-                ImGui::EndTabItem();
-            }
-            ImGui::EndTabBar();
-        }
-    }
-    ImGui::PopFont();
-    Cyan::UI::endWindow();
-#endif
-}
-
-void DemoApp::drawStats()
-{
-    {
-        ImGui::Text("Frame time:                   %.2f ms", m_lastFrameDurationInMs);
-        ImGui::Text("Number of entities:           %d", m_scene->entities.size());
-        ImGui::Checkbox("4x Super Sampling", &Cyan::Renderer::get()->m_opts.enableAA);
-    }
-}
-
-void DemoApp::uiDrawEntityGraph(Entity* entity) 
-{
-    ImGuiTreeNodeFlags baseFlags = ImGuiTreeNodeFlags_OpenOnArrow 
-                                | ImGuiTreeNodeFlags_OpenOnDoubleClick 
-                                | ImGuiTreeNodeFlags_SpanAvailWidth 
-                                | ImGuiTreeNodeFlags_DefaultOpen;
-    char* label = entity->m_name;
-    if (m_selectedEntity && strcmp(entity->m_name, m_selectedEntity->m_name) == 0u)
-    {
-        baseFlags |= ImGuiTreeNodeFlags_Selected;
-    }
-    if (entity->m_child.size() > 0)
-    {
-        if (ImGui::TreeNodeEx(label, baseFlags))
-        {
-            for (auto* child : entity->m_child)
-            {
-                uiDrawEntityGraph(child);
-            }
-            ImGui::TreePop();
-        }
-    } else {
-        ImGuiTreeNodeFlags nodeFlags = baseFlags | ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
-        ImGui::TreeNodeEx(label, nodeFlags);
-    }
-}
-
-void DemoApp::drawLightingWidgets()
-{
-    ImGuiTreeNodeFlags baseFlags = ImGuiTreeNodeFlags_OpenOnArrow 
-                                | ImGuiTreeNodeFlags_OpenOnDoubleClick 
-                                | ImGuiTreeNodeFlags_SpanAvailWidth 
-                                | ImGuiTreeNodeFlags_DefaultOpen;
-    auto sceneManager = SceneManager::get();
-    // directional Lights
-    if (ImGui::TreeNodeEx("Sun Light", baseFlags))
-    {
-        for (u32 i = 0; i < m_scene->dLights.size(); ++i)
-        {
-            char nameBuf[50];
-            sprintf_s(nameBuf, "Sun Light %d", i);
-            if (ImGui::TreeNode(nameBuf))
-            {
-                ImGui::Text("Direction:");
-                ImGui::SameLine();
-                ImGui::InputFloat3("##Direction", &m_scene->dLights[i].direction.x);
-                ImGui::Text("Intensity:");
-                ImGui::SameLine();
-                ImGui::SliderFloat("##Intensity", &m_scene->dLights[i].color.w, 0.f, 100.f, nullptr, 1.0f);
-                ImGui::Text("Color:");
-                ImGui::ColorPicker3("##Color", &m_scene->dLights[i].color.r);
-                ImGui::TreePop();
-            }
-        }
-        ImGui::TreePop();
-    }
-    // point lights
-    if (ImGui::TreeNodeEx("Point Lights", baseFlags))
-    {
-        for (u32 i = 0; i < m_scene->pointLights.size(); ++i)
-        {
-            char nameBuf[64];
-            sprintf_s(nameBuf, "PointLight %d", i);
-            if (ImGui::TreeNode(nameBuf))
-            {
-                ImGui::Text("Position:");
-                ImGui::SameLine();
-                ImGui::InputFloat3("##Position", &m_scene->pointLights[i].position.x);
-                ImGui::Text("Intensity:");
-                ImGui::SliderFloat("##Intensity", &m_scene->pointLights[i].color.w, 0.f, 100.f, nullptr, 1.0f);
-                ImGui::Text("Color:");
-                ImGui::ColorPicker3("##Color", &m_scene->pointLights[i].color.r);
-                ImGui::TreePop();
-            }
-        }
-        ImGui::TreePop();
-    }
-}
-
-void DemoApp::drawSceneViewport()
-{
-    auto renderer = Cyan::Renderer::get();
-    ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoCollapse;
-    ImGui::SetNextWindowSize(ImVec2((f32)1280, (f32)720));
-    ImGui::SetNextWindowPos(ImVec2(0.f, 0.f));
-    glm::uvec2 windowDimension = gEngine->getGraphicsSystem()->getAppWindowDimension();
-    ImGui::SetNextWindowContentSize(ImVec2(windowDimension.x, windowDimension.y));
-    // disable window padding for this window
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0,0));
-    Cyan::UI::beginWindow("Scene Viewport", flags);
-    {
-        // fit the renderer viewport to ImGUi window size
-        ImVec2 min = ImGui::GetWindowContentRegionMin();
-        ImVec2 max = ImGui::GetWindowContentRegionMax();
-        ImVec2 windowPos = ImGui::GetWindowPos();
-        ImVec2 a(windowPos.x + min.x, windowPos.y + min.y);
-        ImVec2 windowSize = ImGui::GetWindowSize();
-        ImVec2 b(windowPos.x + windowSize.x - 1, windowPos.y + windowSize.y - 1);
-
-        // blit final render output texture to current ImGui window
-        if (!activeDebugViewTexture)
-        {
-            activeDebugViewTexture = renderer->getColorOutTexture();
-        }
-        ImGui::Image(reinterpret_cast<void*>((intptr_t)activeDebugViewTexture->handle), ImVec2(max.x - min.x, max.y - min.y), ImVec2(0, 1), ImVec2(1, 0));
-
-#if 0
-        // TODO: refactor ray picking and gizmos 
-        // TODO: when clicking on some objects (meshes) in the scene, the gizmo will be rendered not at the 
-        // center of the mesh, this may seem incorrect at first glance but it's actually expected because some parts of the mesh
-        // is offseted from the center of the mesh's transform. The gizmo is always rendered at the mesh's object space origin. In
-        // some cases, the mesh may not overlap the origin or centered at the origin in object space in the first place, so it's expected
-        // that the gizmo seems "detached" from the mesh itself.
-        if (m_selectedEntity)
-        {
-            ImGuizmo::SetOrthographic(false);
-            ImGuizmo::SetDrawlist(ImGui::GetForegroundDrawList());
-            ImGuizmo::SetRect(ImGui::GetWindowPos().x, ImGui::GetWindowPos().y, ImGui::GetWindowWidth(), ImGui::GetWindowHeight());
-
-            glm::mat4 transformMatrix = m_selectedNode->getWorldTransform().toMatrix();
-            glm::mat4 delta(1.0f);
-            Camera& camera = m_scenes[m_currentScene]->getActiveCamera();
-            if (ImGuizmo::Manipulate(&camera.view[0][0], 
-                                &camera.projection[0][0],
-                                ImGuizmo::TRANSLATE, ImGuizmo::LOCAL, &transformMatrix[0][0], &delta[0][0]))
-            {
-                // apply the change in transform (delta) to local transform
-                m_selectedNode->setLocalTransform(delta * m_selectedNode->getLocalTransform().toMatrix());
-            }
-        }
-#endif
-    }
-    Cyan::UI::endWindow();
-    ImGui::PopStyleVar();
-}
-
-void DemoApp::drawRenderSettings()
-{
-    auto renderer = Cyan::Renderer::get();
-    ImGuiTreeNodeFlags baseFlags = ImGuiTreeNodeFlags_OpenOnArrow 
-                                | ImGuiTreeNodeFlags_OpenOnDoubleClick 
-                                | ImGuiTreeNodeFlags_SpanAvailWidth 
-                                | ImGuiTreeNodeFlags_DefaultOpen;
-    // ibl controls
-    if (ImGui::TreeNodeEx("Lighting", baseFlags))
-    {
-        if (ImGui::TreeNodeEx("Direct lighting", baseFlags))
-        {
-            ImGui::Text("Diffuse");
-            ImGui::SameLine();
-            ImGui::SliderFloat("##Diffuse", &m_directDiffuseSlider, 0.f, 1.f, "%.2f");
-            ImGui::Text("Specular");
-            ImGui::SameLine();
-            ImGui::SliderFloat("##Specular", &m_directSpecularSlider, 0.f, 1.f, "%.2f");
-            ImGui::TreePop();
-        }
-        if (ImGui::TreeNodeEx("Indirect lighting", baseFlags))
-        {
-            ImGui::Text("Diffuse");
-            ImGui::SameLine();
-            ImGui::SliderFloat("##IndirectDiffuse", &m_indirectDiffuseSlider, 0.f, 20.f, "%.2f");
-            ImGui::Text("Specular");
-            ImGui::SameLine();
-            ImGui::SliderFloat("##IndirectSpecular", &m_indirectSpecularSlider, 0.f, 20.f, "%.2f");
-            ImGui::TreePop();
-        }
-        ImGui::TreePop();
-    }
-    if (ImGui::TreeNodeEx("Light Probes", baseFlags))
-    {
-        ImGui::Separator();
-        ImGui::TreePop();
-    }
-    if (ImGui::TreeNodeEx("Post-Processing", baseFlags))
-    {
-        // bloom settings
-        ImGui::Text("Bloom");
-        ImGui::SameLine();
-        ImGui::Checkbox("##Enabled", &renderer->m_opts.enableBloom); 
-
-        // exposure settings
-        ImGui::Text("Exposure");
-        ImGui::SameLine();
-        ImGui::SliderFloat("##Exposure", &renderer->m_opts.exposure, 0.f, 10.f, "%.2f");
-        ImGui::TreePop();
-    }
 }
 
 void DemoApp::debugIrradianceCache()
@@ -990,7 +396,7 @@ void DemoApp::debugIrradianceCache()
     ctx->setPrimitiveType(Cyan::PrimitiveType::TriangleList);
     auto cubeMesh = assetManager->getAsset<Cyan::Mesh>("CubeMesh");
     auto circleMesh = assetManager->getAsset<Cyan::Mesh>("circle_mesh");
-    auto debugShader = Cyan::getMaterialShader("DebugShadingShader");
+    auto debugShader = Cyan::ShaderManager::getShader("DebugShadingShader");
     Camera& camera = m_scene->camera;
     glm::mat4 vp = camera.projection * camera.view;
     glm::vec4 color0(1.f, 1.f, 1.f, 1.f);
@@ -1004,10 +410,10 @@ void DemoApp::debugIrradianceCache()
         transform.m_translate = pos;
         transform.m_scale = scale;
         glm::mat4 mvp = vp * transform.toMatrix();
-        debugShader->setUniformVec4("color", &color.r);
+        debugShader->setUniform("color", color);
         for (u32 sm = 0; sm < cubeMesh->numSubmeshes(); ++sm)
         {
-            debugShader->setUniformMat4("mvp", &mvp[0][0]);
+            debugShader->setUniform("mvp", mvp);
             renderer->drawMesh(cubeMesh);
         }
     };
@@ -1027,10 +433,10 @@ void DemoApp::debugIrradianceCache()
         m *= rotation;
         m = glm::scale(m, glm::vec3(scale));
         glm::mat4 mvp = vp * m;
-        debugShader->setUniformVec4("color", &color.r);
+        debugShader->setUniform("color", color);
         for (u32 sm = 0; sm < circleMesh->numSubmeshes(); ++sm)
         {
-            debugShader->setUniformMat4("mvp", &mvp[0][0]);
+            debugShader->setUniform("mvp", mvp);
             renderer->drawMesh(circleMesh);
         }
     };
@@ -1066,6 +472,11 @@ void DemoApp::debugIrradianceCache()
 
 void DemoApp::customRender()
 {
+#if 0
+    debugIrradianceCache();
+    drawSceneViewport();
+    drawDebugWindows();
+
     // frame timer
     Cyan::Toolkit::GpuTimer frameTimer("render()");
     {
@@ -1084,6 +495,7 @@ void DemoApp::customRender()
     }
     frameTimer.end();
     m_lastFrameDurationInMs = frameTimer.m_durationInMs;
+#endif
 }
 
 void DemoApp::customFinalize()

@@ -123,20 +123,9 @@ namespace Cyan
     VertexBuffer* createVertexBuffer(void* data, u32 sizeInBytes, VertexSpec&& vertexSpec);
     RegularBuffer* createRegularBuffer(u32 totalSize);
 
-    /* Texture */
-    void     addTexture(Texture* texture);
-    Texture* getTexture(const char* _name);
-    u32      getNumTextures();
-
     /* RenderTarget */
     RenderTarget* createRenderTarget(u32 _width, u32 _height);
     RenderTarget* createDepthRenderTarget(u32 width, u32 height);
-
-    /* Shader */
-    Shader* getMaterialShader(const char* name);
-    Shader* createShader(const char* name, const char* vertSrc, const char* fragSrc);
-    Shader* createCsShader(const char* name, const char* csSrc);
-    Shader* createVsGsPsShader(const char* name, const char* vsSrcFile, const char* fsSrcFile, const char* gsSrcFile);
 
     /* Buffer */
     void setBuffer(RegularBuffer* _buffer, void* data, u32 _sizeInBytes);
@@ -153,8 +142,6 @@ namespace Cyan
 //    Uniform* createMaterialUniform(Material* _material, const char* _name, Uniform::Type _type);
     UniformHandle getUniformHandle(const char* name);
     Uniform* getUniform(UniformHandle handle);
-
-//    Material* createMaterial(Shader* _shader);
 
     struct TriangleIndex
     {

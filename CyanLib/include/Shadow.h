@@ -44,11 +44,11 @@ namespace Cyan
         RenderTarget* depthRenderTarget = nullptr;
     };
 
-    class ShadowmapManager
+    class RasterDirectShadowManager
     {
     public:
-        ShadowmapManager();
-        ~ShadowmapManager() { };
+        RasterDirectShadowManager();
+        ~RasterDirectShadowManager() { };
 
         void initialize();
         void finalize();

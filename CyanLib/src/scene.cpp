@@ -138,18 +138,20 @@ u32 SceneManager::allocSceneNode(Scene* scene)
     return (scene->m_numSceneNodes++);
 }
 
-void SceneManager::importScene(Scene* scene, const char* name, const char* file)
+std::shared_ptr<Scene> SceneManager::importScene(const char* name, const char* file)
 {
     Cyan::Toolkit::GpuTimer loadSceneTimer("importScene()", true);
+    std::shared_ptr<Scene> scene = std::make_shared<Scene>();
     scene->m_name = std::string(name);
 
     scene->m_rootEntity = nullptr;
-    scene->m_rootEntity = SceneManager::get()->createEntity(scene, "Root", Transform(), true);
+    scene->m_rootEntity = SceneManager::get()->createEntity(scene.get(), "Root", Transform(), true);
     scene->g_sceneRoot = scene->m_rootEntity->m_sceneRoot;
     scene->aabb.init();
     auto assetManager = Cyan::GraphicsSystem::get()->getAssetManager(); 
-    assetManager->importScene(scene, file);
+    assetManager->importScene(scene.get(), file);
     loadSceneTimer.end();
+    return scene;
 }
 
 SceneNode* SceneManager::createSceneNode(Scene* scene, const char* name, Transform transform)
@@ -221,7 +223,7 @@ void SceneManager::createPointLight(Scene* scene, glm::vec3 color, glm::vec3 pos
     CYAN_ASSERT(sphereMesh, "sphere_mesh does not exist")
     SceneNode* meshNode = SceneManager::get()->createMeshNode(scene, transform, sphereMesh); 
     entity->m_sceneRoot->attachChild(meshNode);
-    Shader* pointLightShader = Cyan::createShader("PointLightShader", "../../shader/shader_light.vs", "../../shader/shader_light.fs");
+    Cyan::Shader* pointLightShader = Cyan::ShaderManager::createShader({ Cyan::ShaderType::kVsPs, "PointLightShader", "../../shader/shader_light.vs", "../../shader/shader_light.fs" });
     // Cyan::MaterialInstance* matl = Cyan::createMaterial(pointLightShader)->createInstance();
     // meshNode->m_meshInstance->setMaterial(0, matl);
     glm::vec4 u_color = glm::vec4(color, intensity);
@@ -313,7 +315,12 @@ glm::vec3 SceneManager::queryWorldPositionFromCamera(Scene* scene, const glm::ve
 
 Cyan::MeshInstance* SceneManager::createMeshInstance(Scene* scene, Cyan::Mesh* mesh)
 {
-    return new Cyan::MeshInstance(mesh);
+    scene->meshInstances.emplace_back();
+    auto& meshInst = scene->meshInstances.back();
+    meshInst = std::make_shared<Cyan::MeshInstance>(mesh);
+    // attach a default material to all submeshes
+    meshInst->setMaterial(Cyan::AssetManager::getDefaultMaterial());
+    return meshInst.get();
 }
 
 Cyan::MeshInstance* SceneManager::createMeshInstance(Scene* scene, const char* meshName)
@@ -324,5 +331,5 @@ Cyan::MeshInstance* SceneManager::createMeshInstance(Scene* scene, const char* m
     {
         return nullptr;
     }
-    return new Cyan::MeshInstance(mesh);
+    return createMeshInstance(scene, mesh);
 }

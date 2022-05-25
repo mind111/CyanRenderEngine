@@ -27,12 +27,12 @@ public:
     DemoApp(u32 appWindowWidth, u32 appWindowHeight);
     ~DemoApp() { }
 
-    static DemoApp* get();
-
     virtual void customInitialize() override;
     virtual void customFinalize() override;
     virtual void customUpdate() override;
     virtual void customRender() override;
+
+    void setupScene();
 
     // precomputation
     void precompute();
@@ -45,23 +45,8 @@ public:
     void rotateCamera(double deltaX, double deltaY);
     bool mouseOverUI();
 
-    // main scene viewport
-    void drawSceneViewport(); 
-    // ui
-    void drawStats();
-    void drawEntityPanel();
-    void drawDebugWindows();
-    void drawLightingWidgets();
-    void drawRenderSettings();
-    void uiDrawEntityGraph(Entity* entity) ;
     RayCastInfo castMouseRay(const glm::vec2& currentViewportPos, const glm::vec2& currentViewportSize);
 
-    // manual scene initialization
-    void initDemoScene00();
-    void initSponzaScene();
-
-    // manual custom entity creation
-    void createHelmetInstance(Scene* scene);
 
     friend void Demo::mouseScrollWheelCallback(double xOffset, double yOffset);
 
@@ -78,11 +63,4 @@ private:
     SceneNode* m_selectedNode;
     u32 m_debugViewIndex;
     double m_lastFrameDurationInMs;
-    bool bDisneyReparam;
-    float m_directDiffuseSlider;
-    float m_directSpecularSlider;
-    float m_indirectDiffuseSlider;
-    float m_indirectSpecularSlider;
-    float m_directLightingSlider;
-    float m_indirectLightingSlider;
 };
