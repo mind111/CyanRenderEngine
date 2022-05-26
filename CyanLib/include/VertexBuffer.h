@@ -8,6 +8,16 @@
 
 struct VertexAttribute
 {
+    enum class Type
+    {
+        kPosition = 0,
+        kNormal,
+        kTangent, 
+        kTexCoord0,
+        kTexCoord1,
+        kCount
+    };
+
     std::string name;
     u32 numComponent;
     u32 offset;

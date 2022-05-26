@@ -80,23 +80,23 @@ namespace Cyan
                 VertexSpec vertexSpec;
 
                 u8 flags = Geometry::Vertex::getFlags();
-                if (flags && (u8)VertexAttribFlags::kHasPosition)
+                if (flags & VertexAttribFlag_kPosition)
                 {
                     vertexSpec.addAttribute({ "POSITION", 3, 0 });
                 }
-                if (flags && (u8)VertexAttribFlags::kHasNormal)
+                if (flags & VertexAttribFlag_kNormal)
                 {
                     vertexSpec.addAttribute({ "NORMAL", 3, 0 });
                 }
-                if (flags && (u8)VertexAttribFlags::kHasTangent)
+                if (flags & VertexAttribFlag_kTangent)
                 {
                     vertexSpec.addAttribute({ "TANGENT", 4, 0 });
                 }
-                if (flags && (u8)VertexAttribFlags::kHasTexCoord0)
+                if (flags & VertexAttribFlag_kTexCoord0)
                 {
                     vertexSpec.addAttribute({ "TEXCOORD0", 2, 0 });
                 }
-                if (flags && (u8)VertexAttribFlags::kHasTexCoord1)
+                if (flags && VertexAttribFlag_kTexCoord1)
                 {
                     vertexSpec.addAttribute({ "TEXCOORD1", 2, 0 });
                 }

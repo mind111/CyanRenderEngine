@@ -72,7 +72,6 @@ namespace Cyan
 
     void Skybox::build()
     {
-        auto ctx = getCurrentGfxCtx();
         auto renderer = Renderer::get();
         Camera camera = { };
         camera.position = glm::vec3(0.f);
@@ -87,8 +86,6 @@ namespace Cyan
                 renderTarget->setColorBuffer(m_srcCubemapTexture, 0u);
                 Shader* shader = ShaderManager::createShader({ ShaderType::kVsPs, "RenderToCubemapShader", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl" });
                 Mesh* cubeMesh = AssetManager::getAsset<Mesh>("UnitCubeMesh");
-                ctx->setShader(shader);
-                shader->setTexture("srcImageTexture", m_srcHDRITexture);
                 for (u32 f = 0; f < 6u; f++)
                 {
                     // Update view matrix
@@ -96,17 +93,21 @@ namespace Cyan
                     camera.worldUp = LightProbeCameras::worldUps[f];
                     camera.update();
 
-                    shader->setUniform("projection", camera.projection);
-                    shader->setUniform("view", camera.view);
-                    shader->commit(ctx);
-
-                    ctx->setDepthControl(DepthControl::kDisable);
-                    ctx->setRenderTarget(renderTarget, { (i32)f });
-                    ctx->setViewport({ 0, 0, renderTarget->width, renderTarget->height});
-                    ctx->setPrimitiveType(PrimitiveType::TriangleList);
-                    renderer->drawMesh(cubeMesh);
+                    GfxPipelineState pipelineState;
+                    pipelineState.depth = DepthControl::kDisable;
+                    renderer->submitMesh(
+                        renderTarget,
+                        { (i32)f },
+                        { 0, 0, renderTarget->width, renderTarget->height},
+                        pipelineState,
+                        cubeMesh,
+                        shader,
+                        [this, camera](RenderTarget* renderTarget, Shader* shader) {
+                            shader->setTexture("srcImageTexture", m_srcHDRITexture);
+                            shader->setUniform("projection", camera.projection);
+                            shader->setUniform("view", camera.view);
+                        });
                 }
-                ctx->setDepthControl(DepthControl::kEnable);
                 // release one-time resources
                 glDeleteFramebuffers(1, &renderTarget->fbo);
                 delete renderTarget;
@@ -135,17 +136,14 @@ namespace Cyan
 
     void Skybox::render()
     {
-        auto ctx = getCurrentGfxCtx();
+        auto ctx = GfxContext::get();
         switch (m_cfg)
         {
         case kUseHDRI:
             {
                 ctx->setShader(s_CubemapSkyShader);
-#if 0
-                m_renderSkyMatl->bindTexture("skyDomeTexture", m_srcCubemapTexture);
-                m_renderSkyMatl->bind();
-#endif
                 s_CubemapSkyShader->setTexture("skyDomeTexture", m_srcCubemapTexture);
+                s_CubemapSkyShader->commit(ctx);
                 ctx->drawIndexAuto(36);
             }
             break;

@@ -75,31 +75,6 @@ bool Scene::castVisibilityRay(const glm::vec3& ro, glm::vec3& rd, EntityFilter f
     return false;
 }
 
-#if 0
-BoundingBox3f Scene::getBoundingBox()
-{
-    BoundingBox3f aabb = { };
-    for (u32 i = 0; i < entities.size(); ++i)
-    {
-        std::queue<SceneNode*> nodes;
-
-        auto sceneRoot = entities[i]->m_sceneRoot;
-        nodes.push(sceneRoot);
-
-        while (!nodes.empty())
-        {
-            auto node = nodes.front();
-            nodes.pop();
-            if (node->m_meshInstance)
-                aabb.bound(node->m_meshInstance->getAABB());
-            for (u32 i = 0; i < node->m_child.size(); ++i)
-                nodes.push(node->m_child[i]);
-        }
-    }
-    return aabb;
-}
-#endif
-
 SceneManager* SceneManager::s_sceneManager = 0u;
 
 SceneManager::SceneManager()
@@ -134,7 +109,7 @@ Entity* SceneManager::createEntity(Scene* scene, const char* entityName, Transfo
 
 u32 SceneManager::allocSceneNode(Scene* scene)
 {
-    CYAN_ASSERT(scene->m_numSceneNodes < Scene::kMaxNumSceneNodes, "Too many scene nodes created!");
+    CYAN_ASSERT(scene->m_numSceneNodes < Scene::kMaxNumSceneComponents, "Too many scene nodes created!");
     return (scene->m_numSceneNodes++);
 }
 
@@ -154,9 +129,9 @@ std::shared_ptr<Scene> SceneManager::importScene(const char* name, const char* f
     return scene;
 }
 
-SceneNode* SceneManager::createSceneNode(Scene* scene, const char* name, Transform transform)
+SceneComponent* SceneManager::createSceneNode(Scene* scene, const char* name, Transform transform)
 {
-    SceneNode* sceneNode = scene->sceneNodePool.alloc();
+    SceneComponent* sceneNode = scene->sceneComponentPool.alloc();
     
     Transform* localTransform = scene->localTransformPool.alloc();
     *localTransform = transform;
@@ -177,9 +152,9 @@ SceneNode* SceneManager::createSceneNode(Scene* scene, const char* name, Transfo
     return sceneNode;
 }
 
-MeshNode* SceneManager::createMeshNode(Scene* scene, Transform transform, Cyan::Mesh* mesh)
+MeshComponent* SceneManager::createMeshNode(Scene* scene, Transform transform, Cyan::Mesh* mesh)
 {
-    MeshNode* meshNode = scene->meshNodePool.alloc();
+    MeshComponent* meshNode = scene->meshComponentPool.alloc();
     
     Transform* localTransform = scene->localTransformPool.alloc();
     *localTransform = transform;
@@ -202,7 +177,7 @@ MeshNode* SceneManager::createMeshNode(Scene* scene, Transform transform, Cyan::
 
 void SceneManager::createDirectionalLight(Scene* scene, glm::vec3 color, glm::vec3 direction, float intensity)
 {
-    CYAN_ASSERT(scene->dLights.size() < Scene::kMaxNumDirLights, "Too many directional lights created.")
+    CYAN_ASSERT(scene->dLights.size() < Scene::kMaxNumDirectionalLights, "Too many directional lights created.")
     char nameBuff[64];
     sprintf_s(nameBuff, "DirLight%u", (u32)scene->dLights.size());
     Entity* entity = createEntity(scene, nameBuff, Transform(), true); 
@@ -221,7 +196,7 @@ void SceneManager::createPointLight(Scene* scene, glm::vec3 color, glm::vec3 pos
     Entity* entity = createEntity(scene, nameBuff, Transform(), false); 
     Cyan::Mesh* sphereMesh = Cyan::AssetManager::getAsset<Cyan::Mesh>("sphere_mesh");
     CYAN_ASSERT(sphereMesh, "sphere_mesh does not exist")
-    SceneNode* meshNode = SceneManager::get()->createMeshNode(scene, transform, sphereMesh); 
+    SceneComponent* meshNode = SceneManager::get()->createMeshNode(scene, transform, sphereMesh); 
     entity->m_sceneRoot->attachChild(meshNode);
     Cyan::Shader* pointLightShader = Cyan::ShaderManager::createShader({ Cyan::ShaderType::kVsPs, "PointLightShader", "../../shader/shader_light.vs", "../../shader/shader_light.fs" });
     // Cyan::MaterialInstance* matl = Cyan::createMaterial(pointLightShader)->createInstance();
@@ -235,7 +210,7 @@ void SceneManager::createPointLight(Scene* scene, glm::vec3 color, glm::vec3 pos
 
 void SceneManager::updateSceneGraph(Scene* scene)
 {
-    std::queue<SceneNode*> nodes;
+    std::queue<SceneComponent*> nodes;
     nodes.push(scene->g_sceneRoot);
     while (!nodes.empty())
     {
@@ -262,11 +237,11 @@ void SceneManager::updateSceneGraph(Scene* scene)
     // update scene's bounding box in world space
     for (auto entity : scene->entities)
     {
-        std::queue<SceneNode*> nodes;
+        std::queue<SceneComponent*> nodes;
         nodes.push(entity->m_sceneRoot);
         while (!nodes.empty())
         {
-            SceneNode* node = nodes.front();
+            SceneComponent* node = nodes.front();
             nodes.pop();
             for (auto child : node->m_child)
             {

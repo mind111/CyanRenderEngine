@@ -15,41 +15,16 @@
 
 namespace Cyan
 {
-    class MeshManager
-    {
-
-    };
-
-    struct HandleAllocator
-    {
-        u32 m_nextHandle;
-        u32 m_numAllocated;
-
-        u32 alloc()
-        {
-            u32 handle = m_nextHandle;
-            m_nextHandle += 1;
-            m_numAllocated += 1;
-            return handle;
-        }
-    };
-
     static const u32 kMaxNumUniforms = 256;
     static const u32 kMaxNumShaders = 64;
     static const u32 kMaxNumMaterialTypes = 64;
-    static const u32 kMaxNumSceneNodes = 100000;
+    static const u32 kMaxNumSceneComponents = 100000;
 
     static std::vector<Mesh*> s_meshes;
-    static SceneNode s_sceneNodes[kMaxNumSceneNodes] = { };
+    static SceneComponent s_sceneNodes[kMaxNumSceneComponents] = { };
     static GfxContext* s_gfxc = nullptr;
     static void* s_memory = nullptr;
     static LinearAllocator* s_allocator = nullptr;
-
-    static std::vector<Uniform*> s_uniforms;
-    static std::unordered_map<std::string, u32> s_uniformRegistry;
-
-    static HandleAllocator s_uniformHandleAllocator = { };
-    static HandleAllocator s_shaderHandleAllocator = { };
 
     // each material type share same handle as its according shader 
     static Shader* m_shaders[kMaxNumShaders];
@@ -58,48 +33,16 @@ namespace Cyan
 
     void init()
     {
-#if 0
-        s_memory = (void*)(new char[1024 * 1024 * 1024]); // 1GB memory pool
-        s_allocator = LinearAllocator::create(s_memory, 1024 * 1024 * 1024);
-#endif
-        // reserve 0th item for null handle
-        s_uniforms.resize(kMaxNumUniforms + 1);
-        s_shaderHandleAllocator.m_nextHandle = 1u;
-        s_uniformHandleAllocator.m_nextHandle = 1u;
+
     }
 
 #if 0
-    LinearAllocator* getAllocator()
-    {
-        return s_allocator;
-    }
-
-    void* alloc(u32 sizeInBytes)
-    {
-        return s_allocator->alloc(sizeInBytes);
-    }
-#endif
-
-    u32 allocUniformHandle()
-    {
-        return s_uniformHandleAllocator.alloc();
-    }
-
-    u32 allocShaderHandle()
-    {
-        return s_shaderHandleAllocator.alloc();
-    }
-
-    void shutDown()
-    {
-        delete s_gfxc;
-    }
-
     GfxContext* getCurrentGfxCtx()
     {
         CYAN_ASSERT(s_gfxc, "Graphics context was not initialized!");
         return s_gfxc;
     }
+#endif
 
     RegularBuffer* createRegularBuffer(u32 totalSizeInBytes)
     {
@@ -117,14 +60,6 @@ namespace Cyan
         VertexBuffer* vb = new VertexBuffer(data, sizeInBytes, std::move(vertexSpec));
         return vb;
     }
-
-#if 0
-    Mesh* createMesh(const char* name, std::string& file, bool normalize, bool generateLightMapUv)
-    {
-        auto assetManager = GraphicsSystem::get()->getAssetManager(); 
-        return assetManager->loadMesh(file, name, normalize, generateLightMapUv);
-    }
-#endif
 
     RenderTarget* createRenderTarget(u32 width, u32 height)
     {
@@ -155,262 +90,6 @@ namespace Cyan
         rt->height = height;
         glCreateFramebuffers(1, &rt->fbo);
         return rt;
-    }
-
-    u32 findUniform(const char* name)
-    {
-        auto itr = s_uniformRegistry.find(std::string(name));
-        if (itr != s_uniformRegistry.end())
-        {
-            return itr->second; 
-        }
-        return 0;
-    }
-
-#if 0
-    Uniform* createUniform(const char* name, Uniform::Type type)
-    {
-        // TODO: build hashkey using name and type
-        if (u32 foundHandle = findUniform(name)) 
-        {
-            return s_uniforms[foundHandle];
-        }
-
-        u32 handle = ALLOC_HANDLE(Uniform)
-        // allocate from global uniform buffer
-        Uniform* uniform = (Uniform*)s_allocator->alloc(sizeof(Uniform));
-        s_uniforms.insert(s_uniforms.begin() + handle, uniform);
-        uniform->m_type = type;
-        strcpy(uniform->m_name, name);
-        u32 size = uniform->getSize();
-        uniform->m_valuePtr = s_allocator->alloc(size);
-        memset((u8*)uniform->m_valuePtr, 0x0, size);
-        s_uniformRegistry.insert(std::pair<std::string,u32>(std::string(name), handle));
-        return uniform;
-    }
-#endif
-
-    UniformHandle getUniformHandle(const char* name)
-    {
-        std::string key(name);
-        auto itr = s_uniformRegistry.find(key);
-        if (itr != s_uniformRegistry.end())
-        {
-            return itr->second;
-        }
-        else
-        {
-            // printf("[Warning] Unknown uniform with name %s\n", name);
-        }
-        return (UniformHandle)-1;
-    }
-
-    Uniform* getUniform(UniformHandle handle)
-    {
-        // CYAN_ASSERT(handle < kMaxNumUniforms, "Uniform handle %u out of bound", handle)
-        if (handle > kMaxNumUniforms) return nullptr;
-        return s_uniforms[handle];
-    }
-#if 0
-    UniformBuffer* createUniformBuffer(u32 sizeInBytes)
-    {
-        UniformBuffer* buffer = (UniformBuffer*)s_allocator->alloc(sizeof(UniformBuffer));
-        buffer->m_size = sizeInBytes;
-        buffer->m_pos = 0;
-        buffer->m_data = s_allocator->alloc(sizeInBytes);
-        return buffer;
-    }
-
-    Uniform* createShaderUniform(Shader* _shader, const char* _name, Uniform::Type _type)
-    {
-        Uniform* uniform = createUniform(_name, _type);
-        return uniform;
-    }
-
-    Uniform* createMaterialUniform(Material* _material, const char* _name, Uniform::Type _type)
-    {
-        Uniform* uniform = createUniform(_name, _type);
-        _material->bindUniform(uniform);
-        return uniform;
-    }
-#endif
-    Uniform::Type glToCyanType(GLenum glType)
-    {
-        switch (glType)
-        {
-            case GL_SAMPLER_2D:
-                return Uniform::Type::u_sampler2D;
-            case GL_SAMPLER_2D_ARRAY:
-                return Uniform::Type::u_sampler2DArray;
-            case GL_SAMPLER_3D:
-                return Uniform::Type::u_sampler3D;
-            case GL_SAMPLER_2D_SHADOW:
-                return Uniform::Type::u_sampler2DShadow;
-            case GL_SAMPLER_CUBE:
-                return Uniform::Type::u_samplerCube;
-            case GL_IMAGE_3D:
-                return Uniform::Type::u_image3D;
-            case GL_UNSIGNED_INT_IMAGE_3D:
-                return Uniform::Type::u_uimage3D;
-            case GL_UNSIGNED_INT:
-                return Uniform::Type::u_uint;
-            case GL_UNSIGNED_INT_ATOMIC_COUNTER:
-                return Uniform::Type::u_atomic_uint;
-            case GL_INT:
-                return Uniform::Type::u_int;
-            case GL_FLOAT:
-                return Uniform::Type::u_float;
-            case GL_FLOAT_MAT4:
-                return Uniform::Type::u_mat4;
-            case GL_FLOAT_VEC3:
-                return Uniform::Type::u_vec3;
-            case GL_FLOAT_VEC4:
-                return Uniform::Type::u_vec4;
-            default:
-                printf("[ERROR]: Unhandled GL type when converting GL types to Cyan types \n");
-                return Uniform::Type::u_undefined;
-        }
-    }
-#if 0
-    Material* createMaterial(Shader* _shader)
-    {
-        auto itr = s_shaderRegistry.find(_shader->m_name);
-        CYAN_ASSERT(itr != s_shaderRegistry.end(), "Trying to create a Material type from an unregistered shader")
-        if (m_materialTypes[itr->second])
-        {
-            return m_materialTypes[itr->second];
-        }
-        u32 handle = itr->second; 
-        m_materialTypes[handle] = new Material;
-        Material* material = m_materialTypes[handle];
-        material->m_shader = _shader;
-        material->m_bufferSize = 0u; // at least need to contain UniformBuffer::End
-        material->m_numSamplers = 0u;
-        material->m_numBuffers = 0u;
-        material->m_dataFieldsFlag = 0u;
-        material->m_lit = false;
-
-        GLuint programId = material->m_shader->handle;
-        GLsizei numActiveUniforms;
-        glGetProgramiv(programId, GL_ACTIVE_UNIFORMS, &numActiveUniforms);
-        GLint nameMaxLen;
-        glGetProgramiv(programId, GL_ACTIVE_UNIFORM_MAX_LENGTH, &nameMaxLen);
-        char* name = (char*)_malloca(nameMaxLen + 1);
-        GLenum type;
-        GLint num;
-        for (u32 i = 0; i < numActiveUniforms; ++i)
-        {
-            glGetActiveUniform(programId, i, nameMaxLen, nullptr, &num, &type, name);
-            if (nameMaxLen > 2 && name[0] == 's' && name[1] == '_')
-            {
-                // skipping predefined uniforms such as model, view, projection
-                continue;
-            }
-            // TODO: this is obviously not optimal
-            // TODO: how to determine if a material is lit or not
-            if ((strcmp(name, "numPointLights") == 0) || 
-                (strcmp(name, "numDirLights") == 0))
-            {
-                material->m_dataFieldsFlag |= (1 << Material::DataFields::Lit);
-            }
-            if (strcmp(name, "irradianceDiffuse") == 0)
-            {
-                material->m_dataFieldsFlag |= (1 << Material::DataFields::Probe);
-            }
-            for (u32 ii = 0; ii < num; ++ii)
-            {
-                // change the name for each array entry
-                if (ii > 0)
-                {
-                    char* token = strtok(name, "[");
-                    char suffix[5] = "[%u]";
-                    char* format = strcat(token, suffix);
-                    sprintf(name, format, ii);
-                }
-                Uniform::Type cyanType = glToCyanType(type);
-                switch (cyanType)
-                {
-                    case Uniform::Type::u_sampler2D:
-                    case Uniform::Type::u_sampler2DArray:
-                    case Uniform::Type::u_samplerCube:
-                    case Uniform::Type::u_image3D:   
-                    case Uniform::Type::u_uimage3D:
-                    case Uniform::Type::u_sampler3D:
-                    case Uniform::Type::u_sampler2DShadow:
-                        material->bindSampler(createUniform(name, cyanType));
-                        break;
-                    default:
-                        createMaterialUniform(material, name, cyanType);
-                        break;
-                }
-            }
-        }
-        // buffers ubo/ssbo
-        i32 numActiveBlocks = 0, maxBlockNameLength = 0;
-        glGetProgramInterfaceiv(programId, GL_SHADER_STORAGE_BLOCK, GL_ACTIVE_RESOURCES, &numActiveBlocks);
-        glGetProgramInterfaceiv(programId, GL_SHADER_STORAGE_BLOCK, GL_MAX_NAME_LENGTH, &maxBlockNameLength);
-        char* blockName = (char*)_alloca(maxBlockNameLength + 1);
-        for (u32 i = 0; i < numActiveBlocks; ++i)
-        {
-            i32 length = 0;
-            glGetProgramResourceName(programId, GL_SHADER_STORAGE_BLOCK, i, maxBlockNameLength + 1, &length, blockName);
-            material->m_bufferBlocks[i] = std::string(blockName);
-        }
-        material->m_numBuffers = numActiveBlocks;
-        material->finalize();
-        return material;
-    }
-#endif
-
-    #define CYAN_CHECK_UNIFORM(uniform)                                                          \
-        std::string key(uniform->m_name);                                                        \
-        auto itr = s_uniformRegistry.find(key);                                                 \
-        CYAN_ASSERT(itr != s_uniformRegistry.end(), "Cannot find uniform %s", uniform->m_name); \
-
-    // Notes(Min): for variables that are allocated from stack, we need to call ctx->setUniform
-    //             before the variable goes out of scope
-    void setUniform(Uniform* _uniform, void* _valuePtr)
-    {
-        CYAN_CHECK_UNIFORM(_uniform)
-
-        u32 size = _uniform->getSize();
-        u32 handle = itr->second; 
-        // // write uniform handle
-        // m_uniformBuffer->write((void*)&handle, sizeof(u32));
-        // // write data
-        // m_uniformBuffer->write(_valuePtr, size);
-
-        memcpy(_uniform->m_valuePtr, _valuePtr, size);
-    }
-
-    void setUniform(Uniform* _uniform, u32 _value)
-    {
-        CYAN_CHECK_UNIFORM(_uniform)
-
-        u32 handle = itr->second; 
-        // int type in glsl is 32bits
-        CYAN_ASSERT(_uniform->m_type == Uniform::Type::u_int, "mismatced uniform type, expecting unsigned int")
-        // // write uniform handle
-        // m_uniformBuffer->write(handle);
-        // // write data 
-        // m_uniformBuffer->write((void*)&_value, sizeof(u32));
-
-        u32* ptr = static_cast<u32*>(_uniform->m_valuePtr); 
-        *(u32*)(_uniform->m_valuePtr) = _value;
-    }
-
-    void setUniform(Uniform* _uniform, float _value)
-    {
-        CYAN_CHECK_UNIFORM(_uniform)
-
-        u32 handle = itr->second; 
-        // // write uniform handle
-        // m_uniformBuffer->write(handle);
-        // // write data 
-        // m_uniformBuffer->write((void*)&_value, sizeof(f32));
-
-        CYAN_ASSERT(_uniform->m_type == Uniform::Type::u_float, "mismatched uniform type, expecting float")
-        *(f32*)(_uniform->m_valuePtr) = _value;
     }
 
     void setBuffer(RegularBuffer* _buffer, void* _data, u32 sizeToUpload)

@@ -9,14 +9,11 @@
 
 namespace Cyan
 {
-    enum class VertexAttribFlags
-    {
-        kHasPosition = (1 << 0),
-        kHasNormal = (1 << 1),
-        kHasTangent = (1 << 2),
-        kHasTexCoord0 = (1 << 3),
-        kHasTexCoord1 = (1 << 4)
-    };
+#define VertexAttribFlag_kPosition (u8)VertexAttribute::Type::kPosition << 1
+#define VertexAttribFlag_kNormal (u8)VertexAttribute::Type::kNormal << 1
+#define VertexAttribFlag_kTangent (u8)VertexAttribute::Type::kTangent << 1
+#define VertexAttribFlag_kTexCoord0 (u8)VertexAttribute::Type::kTexCoord0 << 1
+#define VertexAttribFlag_kTexCoord1 (u8)VertexAttribute::Type::kTexCoord1 << 1
 
     /* Note:
     * maybe it's even better to just pull Vertex struct out and make it template to allow it to be more flexible ...?
@@ -48,11 +45,11 @@ namespace Cyan
 
             static u8 getFlags()
             {
-                return ((u8)VertexAttribFlags::kHasPosition
-                    | (u8)VertexAttribFlags::kHasNormal
-                    | (u8)VertexAttribFlags::kHasTangent
-                    | (u8)VertexAttribFlags::kHasTexCoord0
-                    | (u8)VertexAttribFlags::kHasTexCoord1);
+                return (VertexAttribFlag_kPosition
+                    | VertexAttribFlag_kNormal
+                    | VertexAttribFlag_kTangent 
+                    | VertexAttribFlag_kTexCoord0 
+                    | VertexAttribFlag_kTexCoord1);
             }
         };
 
@@ -72,7 +69,7 @@ namespace Cyan
 
             static u8 getFlags()
             {
-                return ((u8)VertexAttribFlags::kHasPosition);
+                return VertexAttribFlag_kPosition;
             }
         };
 
@@ -94,9 +91,9 @@ namespace Cyan
 
             static u8 getFlags()
             {
-                return ((u8)VertexAttribFlags::kHasPosition
-                    | (u8)VertexAttribFlags::kHasNormal
-                    | (u8)VertexAttribFlags::kHasTexCoord0);
+                return (VertexAttribFlag_kPosition
+                    | VertexAttribFlag_kNormal
+                    | VertexAttribFlag_kTexCoord0);
             }
         };
 
@@ -116,7 +113,7 @@ namespace Cyan
 
             static u8 getFlags()
             {
-                return ((u8)VertexAttribFlags::kHasPosition);
+                return VertexAttribFlag_kPosition;
             }
         };
 
@@ -125,84 +122,13 @@ namespace Cyan
     };
 }
 
-#if 0
-struct PointGroup
-{
-    PointGroup(u32 size);
-    void push(glm::vec3& position);
-    void draw(glm::mat4& mvp);
-    void reset();
-    void clear();
-    void setColor(const glm::vec4& color);
-
-    struct Point
-    {
-        glm::vec3 m_position;
-    };
-
-    std::vector<Point> m_points;
-    u32 kMaxNumPoints;
-    u32 m_numPoints;
-    Shader* m_shader;
-    Cyan::MaterialInstance* matl;
-    VertexArray* m_vertexArray;
-};
-
-// todo: line segment rendered using a cylinder mesh
-struct Line
-{
-    void init();
-    Line& setVertices(glm::vec3 v0, glm::vec3 v1);
-    Line& setColor(glm::vec4 color);
-    void draw(glm::mat4& mvp);
-
-    glm::vec3 m_vertices[2];
-    Cyan::MaterialInstance* matl;
-    GLuint vbo, vao;
-};
-
-struct Line2D
-{
-    Line2D(const glm::vec3& v0, const glm::vec3& v1) 
-        : m_vertices{ v0, v1 }
-    {
-        init();
-    }
-    void init();
-    void setVerts(glm::vec3& v0, glm::vec3& v1);
-    void setColor(const glm::vec4& color);
-    void draw();
-
-    glm::vec3 m_vertices[2];
-    glm::vec4 m_color;
-    GLuint vbo;
-    VertexArray* m_vertexArray;
-    Cyan::MaterialInstance* matl;
-};
-
-struct Quad
-{
-    glm::vec2 m_pos; // [-1.f, 1.f]
-    float w, h;      // [0.f, 2.f]
-    glm::vec2 m_vertices[6];
-    GLuint vao;
-    GLuint vbo;
-    Cyan::MaterialInstance* matl;
-
-    Quad();
-    ~Quad();
-    void init(glm::vec2 pos, float width, float height);
-    void draw();
-};
-#endif
-
 struct Triangle
 {
     glm::vec3 m_vertices[3];
     float intersectRay(const glm::vec3& ro, const glm::vec3& rd);
 };
 
-// SoA data oriented triangle mesh meant for imrpoving ray tracing procedure
+// SoA data oriented triangle mesh meant for improving ray tracing procedure
 struct TriangleArray 
 {
     std::vector<glm::vec3> positions;
@@ -217,19 +143,6 @@ struct BoundingBox3D
     // in object space
     glm::vec4 pmin;
     glm::vec4 pmax;
-
-#if 0
-
-    Cyan::Mesh* mesh = nullptr;
-    Cyan::Mesh* meshInst = nullptr;
-    Cyan::Material<Cyan::ConstantColorMatl>* matl = nullptr;
-    // debug rendering
-    glm::vec3 vertices[8];
-    glm::vec3 color;
-    struct VertexArray* vertexArray;
-    static Shader* shader;
-    Cyan::MaterialInstance* matl;
-#endif
 
     BoundingBox3D();
 

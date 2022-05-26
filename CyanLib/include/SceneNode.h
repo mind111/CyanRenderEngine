@@ -17,7 +17,7 @@ enum SceneNodeFlag
     NeedUpdate = 2 << 1,
 };
 
-struct SceneNode
+struct SceneComponent
 {
     // owner
     struct Entity* m_owner; 
@@ -25,9 +25,9 @@ struct SceneNode
     // identifier
     char m_name[kSceneNodeNameMaxLen];
     // node hierarchy
-    SceneNode* m_parent;
-    std::vector<SceneNode*> m_child;
-    std::vector<SceneNode*> m_indirectChild;
+    SceneComponent* m_parent;
+    std::vector<SceneComponent*> m_child;
+    std::vector<SceneComponent*> m_indirectChild;
     // transform component
     u32       localTransform;
     u32       globalTransform;
@@ -35,9 +35,9 @@ struct SceneNode
     Transform m_worldTransform;
     // mesh component 
     // Cyan::MeshInstance* m_meshInstance;
-    void setParent(SceneNode* parent);
-    void attachChild(SceneNode* child);
-    void attachIndirectChild(SceneNode* child);
+    void setParent(SceneComponent* parent);
+    void attachChild(SceneComponent* child);
+    void attachIndirectChild(SceneComponent* child);
     void onAttachTo();
 
     virtual Cyan::MeshInstance* getAttachedMesh() { return nullptr; }
@@ -53,10 +53,10 @@ struct SceneNode
     const glm::mat4& getLocalTransformMatrix();
     const glm::mat4& getWorldTransformMatrix();
 
-    SceneNode* find(const char* name);
+    SceneComponent* find(const char* name);
 };
 
-struct MeshNode : public SceneNode
+struct MeshComponent : public SceneComponent
 {
     Cyan::MeshInstance* meshInst = nullptr;
 
@@ -65,21 +65,5 @@ struct MeshNode : public SceneNode
 
 namespace Cyan
 {
-    // todo: are these good ...?
-    struct Component
-    {
-        Component* parent;
-        std::vector<Component>* child;
-    };
 
-    struct SceneComponent : Component
-    {
-        u32       localTransform;
-        u32       globalTransform;
-    };
-    
-    struct StaticMeshComponent : SceneComponent
-    {
-        MeshInstance* meshInst;
-    };
 }

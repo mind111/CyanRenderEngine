@@ -17,11 +17,13 @@ namespace Cyan
         Skybox(const char* srcImagePath, const glm::vec2& resolution, const SkyboxConfig& cfg);
         ~Skybox() { }
         void initialize();
-        /* brief:
+
+        /** 
         * Build a sky dome used for rendering.
         */
         void build();
-        /* brief:
+
+        /** 
         * Build a SkyLight from a sky dome.
         */
         void buildSkyLight();

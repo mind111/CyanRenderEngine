@@ -42,6 +42,31 @@ namespace Cyan
         }
     };
 
+    struct SceneView
+    {
+        Camera camera;
+        RenderTarget* renderTarget;
+        std::initializer_list<i32> drawBuffers;
+        Viewport viewport;
+        std::vector<Entity*> entities;
+    };
+
+    // scene that contains renderable data
+    struct RenderableScene
+    {
+        Skybox* skybox;
+        std::vector<MeshInstance*> meshInstances;
+
+        // convert Scene to a renderable scene
+        void buildFromScene(Scene* scene)
+        {
+            for (auto entity : scene->entities)
+            {
+
+            }
+        }
+    };
+
     // forward declarations
     struct RenderTarget;
 
@@ -51,25 +76,20 @@ namespace Cyan
         PrimitiveMode primitiveMode = PrimitiveMode::TriangleList;
     };
 
+    /**
+    * Encapsulate a mesh draw call, `renderTarget` should be configured to correct state, such as binding color buffers, and clearing
+    * color buffers while `drawBuffers` for this draw call will be passed in.
+    */
+    using RenderSetupLambda = std::function<void(RenderTarget* renderTarget, Shader* shader)>;
     struct RenderTask
     {
         RenderTarget* renderTarget = nullptr;
+        std::initializer_list<i32> drawBuffers;
         Viewport viewport = { };
         ISubmesh* submesh = nullptr;
         Shader* shader = nullptr;
         GfxPipelineState pipelineState;
-        std::function<void(Shader* shader)> preDrawLambda = [](Shader* shader) { };
-    };
-
-    struct MeshRenderTask : public RenderTask
-    {
-        Mesh* mesh = nullptr;
-        IMaterial* material = nullptr;
-    };
-
-    struct MaterialMeshRenderTask : public MeshRenderTask
-    {
-
+        RenderSetupLambda renderSetupLambda = [](RenderTarget* renderTarget, Shader* shader) { };
     };
 
     class Renderer : public Singleton<Renderer>
@@ -103,7 +123,6 @@ namespace Cyan
         * Render a directional shadow map for the sun in 'scene'
         */
         void renderSunShadow(Scene* scene, const std::vector<Entity*>& shaodwCasters);
-
         void renderScene(Scene* scene);
         void renderSceneDepthNormal(Scene* scene);
         void renderDebugObjects(Scene* scene, const std::function<void()>& externDebugRender = [](){ });
@@ -117,20 +136,23 @@ namespace Cyan
         */
         void renderUI(const std::function<void()>& callback);
 
-        void drawEntity(RenderTarget* renderTarget, Viewport viewport, GfxPipelineState pipelineState, Entity* entity);
-        void drawSubmesh(ISubmesh* submesh, const std::function<void()>& onDrawSubmeshLambda = [](){ });
-        void drawMesh(Mesh* parent);
-        void drawMeshInstance(RenderTarget* renderTarget, Viewport viewport, GfxPipelineState pipelineState, MeshInstance* meshInstance, i32 transformIndex);
+        void drawEntity(RenderTarget* renderTarget, std::initializer_list<i32>&& drawBuffers, Viewport viewport, GfxPipelineState pipelineState, Entity* entity);
+        void drawMeshInstance(RenderTarget* renderTarget, std::initializer_list<i32>&& drawBuffers, Viewport viewport, GfxPipelineState pipelineState, MeshInstance* meshInstance, i32 transformIndex);
 
         /**
         * Draw a mesh without material
         */
-        void submitMesh(RenderTarget* renderTarget, Viewport viewport, GfxPipelineState pipelineState, Mesh* mesh, Shader* shader, const std::function<void(Shader* shader)>& preDrawLambda);
+        void submitMesh(RenderTarget* renderTarget, std::initializer_list<i32>&& drawBuffers, Viewport viewport, GfxPipelineState pipelineState, Mesh* mesh, Shader* shader, const RenderSetupLambda& renderSetupLambda);
 
         /**
         * Draw a mesh using same material for all its submesh
         */
-        void submitMaterialMesh(RenderTarget* renderTarget, Viewport viewport, GfxPipelineState pipelineState, Mesh* mesh, IMaterial* material, const std::function<void(Shader* shader)>& preDrawLambda);
+        void submitMaterialMesh(RenderTarget* renderTarget, std::initializer_list<i32>&& drawBuffers, Viewport viewport, GfxPipelineState pipelineState, Mesh* mesh, IMaterial* material, const RenderSetupLambda& renderSetupLambda);
+
+        /**
+        * 
+        */
+        void submitFullScreenPass(RenderTarget* renderTarget, std::initializer_list<i32>&& drawBuffers, Shader* shader, const RenderSetupLambda& renderSetupLambda);
 
         /**
         * Submit a submesh; right now the execution is not deferred
@@ -184,7 +206,7 @@ namespace Cyan
         void updateVctxData(Scene* scene);
 //
         BoundingBox3D computeSceneAABB(Scene* scene);
-        void executeOnEntity(Entity* e, const std::function<void(SceneNode*)>& func);
+        void executeOnEntity(Entity* e, const std::function<void(SceneComponent*)>& func);
 
         struct Options
         {
@@ -273,9 +295,9 @@ namespace Cyan
 
         struct GlobalTransforms
         {
-            const u32 kMaxNumTransforms = Scene::kMaxNumSceneNodes;
+            const u32 kMaxNumTransforms = Scene::kMaxNumSceneComponents;
             const u32 kBufferSize       = kMaxNumTransforms * sizeof(glm::mat4);
-            GLuint SBO;
+            GLuint sbo;
         } gInstanceTransforms;
 
         // voxel cone tracing
@@ -421,6 +443,7 @@ namespace Cyan
         GLuint m_lumHistogramProgram;
 
     private:
+        RenderableScene m_renderableScene;
         GfxContext* m_ctx;
     };
 };

@@ -60,7 +60,6 @@
     <ClInclude Include="include\System.h" />
     <ClInclude Include="include\Texture.h" />
     <ClInclude Include="include\Transform.h" />
-    <ClInclude Include="include\Uniform.h" />
     <ClInclude Include="include\Utils.h" />
     <ClInclude Include="include\VertexArray.h" />
     <ClInclude Include="include\VertexBuffer.h" />
@@ -115,7 +114,6 @@
     <ClCompile Include="src\SkyBox.cpp" />
     <ClCompile Include="src\Texture.cpp" />
     <ClCompile Include="src\todos.cpp" />
-    <ClCompile Include="src\Uniform.cpp" />
     <ClCompile Include="src\Utils.cpp" />
     <ClCompile Include="src\VertexArray.cpp" />
     <ClCompile Include="src\VertexBuffer.cpp" />

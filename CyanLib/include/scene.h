@@ -23,20 +23,21 @@ struct Scene
         // create a default empty scene
     }
 
+    static const u32 kMaxNumDirectionalLights = 1u;
     static const u32 kMaxNumPointLights = 20u;
-    static const u32 kMaxNumDirLights   = 20u;
-    static const u32 kMaxNumSceneNodes = 1024u;
+    static const u32 kMaxNumSceneComponents = 1024u;
+
     // identifier
     std::string                             m_name;
     Camera                                  camera;
     Entity*                                 m_rootEntity;
     std::vector<Entity*>                    entities;
     // data
-    SceneNode*                              g_sceneRoot;
+    SceneComponent*                              g_sceneRoot;
     u32                                     m_numSceneNodes;
-    std::vector<SceneNode*> sceneNodes;
-    Cyan::ObjectPool<SceneNode, 1024> sceneNodePool;
-    Cyan::ObjectPool<MeshNode, 1024> meshNodePool;
+    std::vector<SceneComponent*> sceneNodes;
+    Cyan::ObjectPool<SceneComponent, 1024> sceneComponentPool;
+    Cyan::ObjectPool<MeshComponent, 1024> meshComponentPool;
     Cyan::ObjectPool<Transform, 1024> localTransformPool;
     Cyan::ObjectPool<Transform, 1024> globalTransformPool;
     Cyan::ObjectPool<glm::mat4, 1024> localTransformMatrixPool;
@@ -55,7 +56,6 @@ struct Scene
 
     RayCastInfo   castRay(glm::vec3& ro, glm::vec3& rd, EntityFilter filter, bool debugPrint=false);
     bool          castVisibilityRay(const glm::vec3& ro, glm::vec3& rd, EntityFilter filter);
-    // BoundingBox3D getBoundingBox();
 };
 
 class SceneManager 
@@ -69,8 +69,8 @@ public:
     void       createPointLight(Scene* scene, glm::vec3 color, glm::vec3 position, float intensity);
     u32        allocSceneNode(Scene* scene);
     std::shared_ptr<Scene> importScene(const char* file, const char* name);
-    SceneNode* createSceneNode(Scene* scene, const char* name, Transform transform);
-    MeshNode* createMeshNode(Scene* scene, Transform transform, Cyan::Mesh* mesh);
+    SceneComponent* createSceneNode(Scene* scene, const char* name, Transform transform);
+    MeshComponent* createMeshNode(Scene* scene, Transform transform, Cyan::Mesh* mesh);
     Entity*    createEntity(Scene* scene, const char* entityName, Transform transform, bool isStatic, Entity* parent=nullptr);
     Entity*    getEntity(Scene* scene, u32 id)
     {
@@ -116,3 +116,18 @@ public:
 private:
     static SceneManager* s_sceneManager;
 };
+
+namespace Cyan
+{
+#if 0
+    struct ILight
+    {
+        glm::vec4 color;
+    };
+
+    struct DirectionalLight : public ILight
+    {
+        glm::vec3 direction;
+    };
+#endif
+}

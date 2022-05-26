@@ -30,6 +30,13 @@ enum class EntityFilter
 void transformRayToObjectSpace(glm::vec3& ro, glm::vec3& rd, glm::mat4& transform);
 f32  transformHitFromObjectToWorldSpace(glm::vec3& objectSpaceHit, glm::mat4& transform, const glm::vec3& roWorldSpace, const glm::vec3& rdWorldSpace);
 
+
+#define EntityFlag_kStatic Entity::Mobility::kStatic << 1
+#define EntityFlag_kDynamic Entity::Mobility::kDynamic << 1
+#define EntityFlag_kVisible Entity::Visibility::kVisible << 1
+#define EntityFlag_kCastShadow Entity::Lighting::kCastShadow << 1
+
+// forward declare
 // entity
 /* 
     * every entity has to have a transform component, entity's transform component is represented by
@@ -37,11 +44,30 @@ f32  transformHitFromObjectToWorldSpace(glm::vec3& objectSpaceHit, glm::mat4& tr
 */
 struct Entity
 {
+    enum class Mobility
+    {
+        kStatic = 0,
+        kDynamic,
+        kCount
+    };
+
+    enum class Visibility
+    {
+        kVisible = (u32)Mobility::kCount,
+        kCount
+    };
+    
+    enum class Lighting
+    {
+        kCastShadow = (u32)Visibility::kCount,
+        kCount
+    };
+
     char m_name[kEntityNameMaxLen];
     uint32_t m_entityId;
     Entity* m_parent;
     std::vector<Entity*> m_child;
-    SceneNode* m_sceneRoot;
+    SceneComponent* m_sceneRoot;
 
     // flags
     u32 m_properties;
@@ -55,9 +81,9 @@ struct Entity
 
     virtual void update() { }
  
-    SceneNode* getSceneRoot();
-    SceneNode* getSceneNode(const char* name);
-    void attachSceneNode(SceneNode* child, const char* parentName=nullptr);
+    SceneComponent* getSceneRoot();
+    SceneComponent* getSceneNode(const char* name);
+    void attachSceneNode(SceneComponent* child, const char* parentName=nullptr);
     // bool castVisibilityRay(const glm::vec3& ro, const glm::vec3& rd, const glm::mat4& modelView);
     // struct RayCastInfo intersectRay(const glm::vec3& ro, const glm::vec3& rd, const glm::mat4& view);
     // merely sets the parent entity, it's not this method's responsibility to trigger
@@ -88,7 +114,7 @@ struct Entity
 
 struct RayCastInfo
 {
-    SceneNode* m_node;
+    SceneComponent* m_node;
     i32        smIndex;
     i32        triIndex;
     f32        t;

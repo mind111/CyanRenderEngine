@@ -34,15 +34,15 @@ namespace Cyan
 
         struct LoadedNode
         {
-            SceneNode* m_sceneNode;
+            SceneComponent* m_sceneNode;
             std::vector<u32> m_child;
         };
 
         Cyan::Texture* loadGltfTexture(const char* nodeName, tinygltf::Model& model, i32 index);
-        SceneNode* loadGltfNode(Scene* scene, tinygltf::Model& model, tinygltf::Node* parent, SceneNode* parentSceneNode, tinygltf::Node& node, u32 numNodes);
+        SceneComponent* loadGltfNode(Scene* scene, tinygltf::Model& model, tinygltf::Node* parent, SceneComponent* parentSceneNode, tinygltf::Node& node, u32 numNodes);
         Mesh* loadGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh); 
         void loadGltfTextures(const char* nodeName, tinygltf::Model& model);
-        SceneNode* loadGltf(Scene* scene, const char* filename, const char* name, Transform transform);
+        SceneComponent* loadGltf(Scene* scene, const char* filename, const char* name, Transform transform);
         std::vector<ISubmesh*> loadObj(const char* baseDir, const char* filename, bool generateLightMapUv);
         Mesh* loadMesh(std::string& path, const char* name, bool normalize, bool generateLightMapUv);
         void importScene(Scene* scene, const char* file);
@@ -113,7 +113,7 @@ namespace Cyan
         void* m_objLoader;
         void* m_gltfLoader;
         tinygltf::TinyGLTF m_loader;
-        std::vector<SceneNode*> m_nodes;
+        std::vector<SceneComponent*> m_nodes;
         static AssetManager* singleton;
 
         // asset tables

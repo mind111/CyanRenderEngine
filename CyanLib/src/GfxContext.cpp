@@ -106,20 +106,20 @@ namespace Cyan
         glBindVertexArray(m_va->getGLObject());
     }
 
-    void GfxContext::setPrimitiveType(PrimitiveType _type)
+    void GfxContext::setPrimitiveType(PrimitiveMode _type)
     {
         switch (_type)
         {
-            case PrimitiveType::TriangleList:
+            case PrimitiveMode::TriangleList:
                 m_primitiveType = GL_TRIANGLES;
                 break;
-            case PrimitiveType::LineStrip:
+            case PrimitiveMode::LineStrip:
                 m_primitiveType = GL_LINE_STRIP;
                 break;
-            case PrimitiveType::Line:
+            case PrimitiveMode::Line:
                 m_primitiveType = GL_LINES;
                 break;
-            case PrimitiveType::Points:
+            case PrimitiveMode::Points:
                 m_primitiveType = GL_POINTS;
                 break;
             default:

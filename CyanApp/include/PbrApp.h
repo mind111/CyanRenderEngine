@@ -36,7 +36,6 @@ public:
 
     // precomputation
     void precompute();
-    void debugIrradianceCache();
 
     // camera control
     void dispatchCameraCommand(struct CameraCommand& command);
@@ -60,7 +59,7 @@ public:
     u32                          m_currentDebugView;
 private:
     Entity* m_selectedEntity;
-    SceneNode* m_selectedNode;
+    SceneComponent* m_selectedNode;
     u32 m_debugViewIndex;
     double m_lastFrameDurationInMs;
 };

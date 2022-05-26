@@ -22,7 +22,7 @@ namespace Cyan
         u32 m_height;
     };
 
-    enum class PrimitiveType
+    enum class PrimitiveMode
     {
         TriangleList = 0,
         Line,
@@ -61,7 +61,7 @@ namespace Cyan
         void setTexture(Texture* texture, u32 binding);
         void setVertexArray(VertexArray* array);
         void setBuffer(RegularBuffer* buffer, u32 binding);
-        void setPrimitiveType(PrimitiveType type);
+        void setPrimitiveType(PrimitiveMode type);
         void setViewport(Viewport viewport);
         void setRenderTarget(RenderTarget* rt, const std::initializer_list<i32>& drawBuffers);
         void setDepthControl(DepthControl ctrl);
@@ -69,7 +69,7 @@ namespace Cyan
         void setCullFace(FrontFace frontFace, FaceCull faceToCull);
 
         // textures that uses global binding points
-        i32 setPersistentTexture(Texture* texture, u32 binding)
+        void setPersistentTexture(Texture* texture, u32 binding)
         {
             if (texture)
             {

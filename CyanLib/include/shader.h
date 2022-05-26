@@ -34,11 +34,11 @@ namespace Cyan
             kCs
         } type;
 
+        const char* name = nullptr;
         const char* vsFilePath = nullptr;
         const char* psFilePath = nullptr;
         const char* gsFilePath = nullptr;
         const char* csFilePath = nullptr;
-        const char* name;
     };
 
     using ShaderType = ShaderSource::Type;

@@ -22,21 +22,21 @@ Entity::Entity(Scene* scene, const char* name, u32 id, Transform t, Entity* pare
     }
 }
 
-SceneNode* Entity::getSceneRoot()
+SceneComponent* Entity::getSceneRoot()
 {
     return m_sceneRoot;
 }
 
-SceneNode* Entity::getSceneNode(const char* name)
+SceneComponent* Entity::getSceneNode(const char* name)
 {
     return m_sceneRoot->find(name);
 }
 
-void Entity::attachSceneNode(SceneNode* child, const char* parentName)
+void Entity::attachSceneNode(SceneComponent* child, const char* parentName)
 {
     if (parentName)
     {
-        SceneNode* parent = m_sceneRoot->find(parentName);
+        SceneComponent* parent = m_sceneRoot->find(parentName);
         parent->attachChild(child);
     }
     else
@@ -288,7 +288,7 @@ void Entity::updateWorldTransform()
 
 void Entity::setMaterial(const char* meshNodeName, i32 submeshIndex, Cyan::IMaterial* matl)
 {
-    SceneNode* sceneNode = getSceneNode(meshNodeName);
+    SceneComponent* sceneNode = getSceneNode(meshNodeName);
     if (!sceneNode) return;
     if (submeshIndex >= 0)
     {

@@ -2,26 +2,26 @@
 #include "SceneNode.h"
 #include "Entity.h"
 
-void SceneNode::setParent(SceneNode* parent)
+void SceneComponent::setParent(SceneComponent* parent)
 {
     m_parent = parent;
 }
 
-void SceneNode::attachChild(SceneNode* child)
+void SceneComponent::attachChild(SceneComponent* child)
 {
     m_child.push_back(child);
     child->setParent(this);
     child->onAttachTo();
 }
 
-void SceneNode::attachIndirectChild(SceneNode* child)
+void SceneComponent::attachIndirectChild(SceneComponent* child)
 {
     m_indirectChild.push_back(child);
     child->setParent(this);
     child->onAttachTo();
 }
 
-void SceneNode::onAttachTo()
+void SceneComponent::onAttachTo()
 {
 
 }
@@ -38,22 +38,22 @@ void SceneNode::markUnchanged()
 }
 #endif
 
-const Transform& SceneNode::getLocalTransform()
+const Transform& SceneComponent::getLocalTransform()
 {
     return m_scene->localTransformPool.getObject(localTransform);
 }
 
-const Transform& SceneNode::getWorldTransform()
+const Transform& SceneComponent::getWorldTransform()
 {
     return m_scene->globalTransformPool.getObject(globalTransform);
 }
 
-const glm::mat4& SceneNode::getLocalTransformMatrix()
+const glm::mat4& SceneComponent::getLocalTransformMatrix()
 {
     return m_scene->localTransformMatrixPool.getObject(localTransform);
 }
 
-const glm::mat4& SceneNode::getWorldTransformMatrix()
+const glm::mat4& SceneComponent::getWorldTransformMatrix()
 {
     return m_scene->globalTransformMatrixPool.getObject(globalTransform);
 }
@@ -78,7 +78,7 @@ void SceneNode::updateWorldTransform()
 }
 #endif
 
-SceneNode* SceneNode::find(const char* name)
+SceneComponent* SceneComponent::find(const char* name)
 {
-    return treeBFS<SceneNode>(this, name);
+    return treeBFS<SceneComponent>(this, name);
 }

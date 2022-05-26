@@ -155,7 +155,6 @@ namespace Cyan
         {
             s_convolveIrradianceShader = ShaderManager::createShader({ ShaderType::kVsPs, "ConvolveIrradianceShader", SHADER_SOURCE_PATH "convolve_diffuse_v.glsl", SHADER_SOURCE_PATH "convolve_diffuse_p.glsl" });
         }
-        // m_convolveIrradianceMatl = createMaterial(s_convolveIrradianceShader)->createInstance();
     }
 
     void IrradianceProbe::convolve()
@@ -163,7 +162,6 @@ namespace Cyan
         Toolkit::GpuTimer timer("ConvolveIrradianceTimer");
         auto renderer = Renderer::get();
 
-        auto ctx = Cyan::getCurrentGfxCtx();
         Camera camera = { };
         // camera set to probe's location
         camera.position = glm::vec3(0.f);
@@ -171,36 +169,28 @@ namespace Cyan
         auto renderTarget = createRenderTarget(m_irradianceTextureRes.x, m_irradianceTextureRes.y);
         renderTarget->setColorBuffer(m_convolvedIrradianceTexture, 0u);
         {
-            ctx->setShader(s_convolveIrradianceShader);
-            ctx->setViewport({0u, 0u, renderTarget->width, renderTarget->height});
-            ctx->setDepthControl(DepthControl::kDisable);
             for (u32 f = 0; f < 6u; ++f)
             {
-                ctx->setRenderTarget(renderTarget, { (i32)f });
-
                 camera.lookAt = LightProbeCameras::cameraFacingDirections[f];
                 camera.worldUp = LightProbeCameras::worldUps[f];
                 camera.update();
 
-                s_convolveIrradianceShader->setUniform("view", camera.view)
-                                        .setUniform("projection", camera.projection)
-                                        .setTexture("srcCubemapTexture", sceneCapture);
-
-                s_convolveIrradianceShader->commit(ctx);
-
-                ctx->drawIndexAuto(36u);
-
                 GfxPipelineState pipelineState;
                 pipelineState.depth = DepthControl::kDisable;
 
-                renderer->submitMesh(renderTarget, { 0u, 0u, renderTarget->width, renderTarget->height }, pipelineState, unitCubeMesh, s_convolveIrradianceShader, [this, camera](Shader* shader) {
-                    shader->setUniform("view", camera.view)
-                        .setUniform("projection", camera.projection)
-                        .setTexture("srcCubemapTexture", sceneCapture);
-                });
+                renderer->submitMesh(
+                    renderTarget,
+                    { (i32)f },
+                    { 0u, 0u, renderTarget->width, renderTarget->height }, 
+                    pipelineState, 
+                    unitCubeMesh, 
+                    s_convolveIrradianceShader,
+                    [this, camera](RenderTarget* renderTarget, Shader* shader) {
+                        shader->setUniform("view", camera.view)
+                            .setUniform("projection", camera.projection)
+                            .setTexture("srcCubemapTexture", sceneCapture);
+                    });
             }
-
-            ctx->setDepthControl(DepthControl::kEnable);
             timer.end();
         }
         // release resources
@@ -259,7 +249,6 @@ namespace Cyan
         {
             s_convolveReflectionShader = ShaderManager::createShader({ ShaderType::kVsPs, "ConvolveReflectionShader", SHADER_SOURCE_PATH "convolve_specular_v.glsl", SHADER_SOURCE_PATH "convolve_specular_p.glsl" });
         }
-        // m_convolveReflectionMatl = createMaterial(s_convolveReflectionShader)->createInstance();
 
         // generate shared BRDF lookup texture
         if (!s_BRDFLookupTexture)
@@ -287,47 +276,29 @@ namespace Cyan
         spec.data = nullptr;
         auto textureManager = TextureManager::get();
         Texture* outTexture = textureManager->createTextureHDR("BRDFLUT", spec); 
-        Shader* shader = ShaderManager::createShader({ ShaderType::kVsPs, "IntegrateBRDFShader", "../../shader/shader_integrate_brdf.vs", "../../shader/shader_integrate_brdf.fs" });
-        RenderTarget* rt = createRenderTarget(kTexWidth, kTexWidth);
-        rt->setColorBuffer(outTexture, 0u);
-        f32 verts[] = {
-            -1.f,  1.f, 0.f, 0.f,  1.f,
-            -1.f, -1.f, 0.f, 0.f,  0.f,
-             1.f, -1.f, 0.f, 1.f,  0.f,
-            -1.f,  1.f, 0.f, 0.f,  1.f,
-             1.f, -1.f, 0.f, 1.f,  0.f,
-             1.f,  1.f, 0.f, 1.f,  1.f
-        };
-        GLuint vbo, vao;
-        glCreateBuffers(1, &vbo);
-        glCreateVertexArrays(1, &vao);
-        glBindVertexArray(vao);
-        glNamedBufferData(vbo, sizeof(verts), verts, GL_STATIC_DRAW);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glEnableVertexArrayAttrib(vao, 0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), 0);
-        glEnableVertexArrayAttrib(vao, 1);
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (const void*)(3 * sizeof(f32)));
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glBindVertexArray(0);
+        Shader* shader = ShaderManager::createShader({ ShaderType::kVsPs, "IntegrateBRDFShader", SHADER_SOURCE_PATH "shader_integrate_brdf.vs", SHADER_SOURCE_PATH "shader_integrate_brdf.fs" });
+        RenderTarget* renderTarget = createRenderTarget(kTexWidth, kTexWidth);
+        renderTarget->setColorBuffer(outTexture, 0u);
 
-        auto ctx = getCurrentGfxCtx();
-        ctx->setRenderTarget(rt, { 0 });
-        ctx->setViewport({ 0, 0, kTexWidth, kTexHeight } );
-        ctx->setShader(shader);
-        glBindVertexArray(vao);
-        ctx->setDepthControl(Cyan::DepthControl::kDisable);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-        ctx->setDepthControl(Cyan::DepthControl::kEnable);
-        ctx->reset();
-        glDeleteFramebuffers(1, &rt->fbo);
-        glDeleteBuffers(1, &vbo);
-        glDeleteVertexArrays(1, &vao);
+        auto renderer = Renderer::get();
+        GfxPipelineState pipelineState;
+        pipelineState.depth = DepthControl::kDisable;
+        renderer->submitFullScreenPass(
+            renderTarget,
+            { 0u },
+            shader,
+            [](RenderTarget* renderTarget, Shader* shader) {
+
+            });
+
+        glDeleteFramebuffers(1, &renderTarget->fbo);
+        delete renderTarget;
         return outTexture;
     }
 
     void ReflectionProbe::convolve()
     {
+        auto renderer = Renderer::get();
         Camera camera = { };
         // camera set to probe's location
         camera.position = glm::vec3(0.f);
@@ -335,37 +306,37 @@ namespace Cyan
         camera.n = 0.1f;
         camera.f = 100.f;
         camera.fov = glm::radians(90.f);
-        auto ctx = getCurrentGfxCtx();
         u32 kNumMips = 11;
         u32 mipWidth = sceneCapture->width; 
         u32 mipHeight = sceneCapture->height;
-        ctx->setDepthControl(DepthControl::kDisable);
-        ctx->setShader(s_convolveReflectionShader);
+
         for (u32 mip = 0; mip < kNumMips; ++mip)
         {
             auto renderTarget = createRenderTarget(mipWidth, mipHeight);
             renderTarget->setColorBuffer(m_convolvedReflectionTexture, 0u, mip);
-            ctx->setViewport({ 0u, 0u, renderTarget->width, renderTarget->height });
             {
                 for (u32 f = 0; f < 6u; f++)
                 {
-                    ctx->setRenderTarget(renderTarget, { (i32)f });
 
                     camera.lookAt = LightProbeCameras::cameraFacingDirections[f];
                     camera.worldUp = LightProbeCameras::worldUps[f];
                     camera.update();
 
-                    s_convolveReflectionShader->setUniform("projection", camera.projection)
-                                            .setUniform("view", camera.view)
-                                            .setUniform("roughness", mip * (1.f / (kNumMips - 1)))
-                                            .setTexture("envmapSampler", sceneCapture);
-                    /*
-                    m_convolveReflectionMatl->set("view", &camera.view[0]);
-                    m_convolveReflectionMatl->set("roughness", mip * (1.f / (kNumMips - 1)));
-                    m_convolveReflectionMatl->bindTexture("envmapSampler", sceneCapture);
-                    m_convolveReflectionMatl->setShaderParameters();
-                    */
-                    ctx->drawIndexAuto(36);
+                    GfxPipelineState pipelineState;
+                    pipelineState.depth = DepthControl::kDisable;
+                    renderer->submitMesh(
+                        renderTarget,
+                        { (i32)f },
+                        { 0u, 0u, renderTarget->width, renderTarget->height }, 
+                        pipelineState, 
+                        unitCubeMesh, 
+                        s_convolveReflectionShader,
+                        [this, camera, mip, kNumMips](RenderTarget* renderTarget, Shader* shader) {
+                            shader->setUniform("projection", camera.projection)
+                                    .setUniform("view", camera.view)
+                                    .setUniform("roughness", mip * (1.f / (kNumMips - 1)))
+                                    .setTexture("envmapSampler", sceneCapture);
+                        });
                 }
             }
             glDeleteFramebuffers(1, &renderTarget->fbo);
@@ -374,7 +345,6 @@ namespace Cyan
             mipWidth /= 2u;
             mipHeight /= 2u;
         }
-        ctx->setDepthControl(DepthControl::kEnable);
     }
 
     void ReflectionProbe::build()

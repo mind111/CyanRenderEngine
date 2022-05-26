@@ -387,93 +387,9 @@ void DemoApp::customUpdate()
 
 }
 
-void DemoApp::debugIrradianceCache()
-{
-    // auto pathTracer = Cyan::PathTracer::get();
-    auto renderer = Cyan::Renderer::get();
-    auto assetManager = Cyan::AssetManager::get();
-    auto ctx = Cyan::getCurrentGfxCtx();
-    ctx->setPrimitiveType(Cyan::PrimitiveType::TriangleList);
-    auto cubeMesh = assetManager->getAsset<Cyan::Mesh>("CubeMesh");
-    auto circleMesh = assetManager->getAsset<Cyan::Mesh>("circle_mesh");
-    auto debugShader = Cyan::ShaderManager::getShader("DebugShadingShader");
-    Camera& camera = m_scene->camera;
-    glm::mat4 vp = camera.projection * camera.view;
-    glm::vec4 color0(1.f, 1.f, 1.f, 1.f);
-    glm::vec4 color1(0.f, 1.f, 0.f, 1.f);
-    glm::vec4 color2(0.f, 0.f, 1.f, 1.f);
-
-    auto debugDrawCube = [&](const glm::vec3& pos, const glm::vec3& scale, glm::vec4& color) {
-        ctx->setShader(debugShader);
-        ctx->setPrimitiveType(Cyan::PrimitiveType::TriangleList);
-        Transform transform;
-        transform.m_translate = pos;
-        transform.m_scale = scale;
-        glm::mat4 mvp = vp * transform.toMatrix();
-        debugShader->setUniform("color", color);
-        for (u32 sm = 0; sm < cubeMesh->numSubmeshes(); ++sm)
-        {
-            debugShader->setUniform("mvp", mvp);
-            renderer->drawMesh(cubeMesh);
-        }
-    };
-
-    auto debugDrawCircle = [&](const glm::vec3& pos, const glm::vec3& n, const glm::vec3& scale, glm::vec4& color) {
-        ctx->setShader(debugShader);
-        ctx->setPrimitiveType(Cyan::PrimitiveType::Line);
-        glm::mat3 tangentFrame = Cyan::tangentToWorld(n);
-        glm::mat4 rotation = { 
-            glm::vec4(tangentFrame[0], 0.f),
-            glm::vec4(tangentFrame[2], 0.f),
-            glm::vec4(tangentFrame[1], 0.f),
-            glm::vec4(0.f, 0.f, 0.f, 1.f)
-        };
-        glm::mat4 m(1.f);
-        m = glm::translate(m, pos);
-        m *= rotation;
-        m = glm::scale(m, glm::vec3(scale));
-        glm::mat4 mvp = vp * m;
-        debugShader->setUniform("color", color);
-        for (u32 sm = 0; sm < circleMesh->numSubmeshes(); ++sm)
-        {
-            debugShader->setUniform("mvp", mvp);
-            renderer->drawMesh(circleMesh);
-        }
-    };
-
-    glDisable(GL_CULL_FACE);
-    {
-#if 0
-        // visualize irradiance records
-        u32 start = pathTracer->m_irradianceCache->m_numRecords * .0f;
-        u32 end = pathTracer->m_irradianceCache->m_numRecords * 1.f;
-        for (u32 i = start; i < end; ++i)
-        {
-            auto& record = pathTracer->m_irradianceCache->m_records[i];
-            debugDrawCircle(record.position, record.normal, glm::vec3(record.r), color0);
-            debugDrawCube(record.position, glm::vec3(record.r * .02f), color1);
-        }
-#endif
-#if 0
-        // visualize translational gradients
-        for (u32 i = 0; i < m_debugLines.size(); ++i)
-        {
-            m_debugLines[i].draw(vp);
-        }
-        // visualize octree
-        for (u32 i = 0; i < pathTracer->m_debugData.octreeBoundingBoxes.size(); ++i)
-        {
-            pathTracer->m_debugData.octreeBoundingBoxes[i].draw(vp);
-        }
-#endif
-    }
-    glEnable(GL_CULL_FACE);
-}
-
 void DemoApp::customRender()
 {
 #if 0
-    debugIrradianceCache();
     drawSceneViewport();
     drawDebugWindows();
 

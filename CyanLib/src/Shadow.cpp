@@ -5,16 +5,14 @@
 namespace Cyan
 {
     RasterDirectShadowManager::RasterDirectShadowManager()
-        : m_sunShadowShader(nullptr), m_pointShadowShader(nullptr)//, m_sunShadowMatl(nullptr)
+        : m_sunShadowShader(nullptr), m_pointShadowShader(nullptr)
     {
 
     }
 
     void RasterDirectShadowManager::initialize()
     {
-        // TODO: depth buffer creation coupled with render target creation
-        m_sunShadowShader = ShaderManager::createShader({ ShaderType::kVsPs, "DirShadowShader", "../../shader/shader_dir_shadow.vs", "../../shader/shader_dir_shadow.fs" });
-        // m_sunShadowMatl = createMaterial(m_sunShadowShader)->createInstance();
+        m_sunShadowShader = ShaderManager::createShader({ ShaderType::kVsPs, "DirShadowShader", SHADER_SOURCE_PATH "shader_dir_shadow.vs", SHADER_SOURCE_PATH "shader_dir_shadow.fs" });
     }
     
     void RasterDirectShadowManager::finalize()
@@ -204,34 +202,28 @@ namespace Cyan
         auto aabb = cascade.aabb;
         glm::mat4 lightProjection = glm::orthoLH(aabb.pmin.x, aabb.pmax.x, aabb.pmin.y, aabb.pmax.y, aabb.pmax.z, aabb.pmin.z);
         cascade.lightProjection = lightProjection;
+
         auto renderer = Renderer::get();
-        auto ctx = renderer->getGfxCtx();
-
         csm.depthRenderTarget->setDepthBuffer(cascade.basicShadowmap.shadowmap);
-        ctx->setViewport({ 0u, 0u, csm.depthRenderTarget->width, csm.depthRenderTarget->height });
-        ctx->setRenderTarget(csm.depthRenderTarget, { 0 });
-        // need to clear depth to 1.0f
-        ctx->setClearColor(glm::vec4(1.f));
-        glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-        ctx->setClearColor(glm::vec4(0.f));
+        csm.depthRenderTarget->clear({});
 
-        ctx->setShader(m_sunShadowShader);
-        ctx->setPrimitiveType(PrimitiveType::TriangleList);
         for (u32 i = 0; i < shadowCasters.size(); i++)
         {
-            renderer->executeOnEntity(shadowCasters[i], [this, ctx, renderer, cascade, lightView](SceneNode* node) {
+            renderer->executeOnEntity(shadowCasters[i], [this, renderer, cascade, lightView, &csm](SceneComponent* node) {
                 if (auto meshInst = node->getAttachedMesh())
                 {
-#if 0
-                    m_sunShadowMatl->set("transformIndex", node->globalTransform);
-                    m_sunShadowMatl->set("sunLightView", &lightView[0][0]);
-                    m_sunShadowMatl->set("sunLightProjection", &cascade.lightProjection[0][0]);
-                    m_sunShadowMatl->bind();
-#endif
-                    m_sunShadowShader->setUniform("transformIndex", node->globalTransform)
+                    renderer->submitMesh(
+                        csm.depthRenderTarget, 
+                        { 0 },
+                        { 0u, 0u, csm.depthRenderTarget->width, csm.depthRenderTarget->height },
+                        GfxPipelineState(),
+                        meshInst->parent,
+                        m_sunShadowShader,
+                        [node, lightView, cascade](RenderTarget* renderTarget, Shader* shader) {
+                            shader->setUniform("transformIndex", node->globalTransform)
                                      .setUniform("sunLightView", lightView)
                                      .setUniform("sunLightProjection", cascade.lightProjection);
-                    renderer->drawMesh(meshInst->parent);
+                        });
                 }
             });
         }

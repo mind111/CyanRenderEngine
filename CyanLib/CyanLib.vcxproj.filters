@@ -117,9 +117,6 @@
     <ClInclude Include="include\Transform.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\Uniform.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\Utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -258,9 +255,6 @@
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
     <ClCompile Include="src\todos.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Uniform.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
     <ClCompile Include="src\Utils.cpp">

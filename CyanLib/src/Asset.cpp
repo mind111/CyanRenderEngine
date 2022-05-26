@@ -431,7 +431,7 @@ namespace Cyan
             if (nodeInfo.find("file") != nodeInfo.end())
             {
                 std::string nodeFile = nodeInfo.at("file");
-                SceneNode* node = nullptr; 
+                SceneComponent* node = nullptr; 
                 if (nodeFile.find(".gltf") != std::string::npos) {
                     node = loadGltf(scene, nodeFile.c_str(), nodeName.c_str(), transform);
                 }
@@ -440,7 +440,7 @@ namespace Cyan
             }
             std::string meshName = nodeInfo.at("mesh");
             Mesh* parent = getAsset<Mesh>(meshName.c_str());
-            SceneNode* node = sceneManager->createMeshNode(scene, transform, parent); 
+            SceneComponent* node = sceneManager->createMeshNode(scene, transform, parent); 
             m_nodes.push_back(node);
         }
         // second pass to setup the hierarchy
@@ -450,7 +450,7 @@ namespace Cyan
             std::vector<u32> childNodes = nodeInfo.at("child");
             for (auto child : childNodes)
             {
-                SceneNode* childNode = m_nodes[child];
+                SceneComponent* childNode = m_nodes[child];
                 m_nodes[index]->attachChild(childNode);
             }
         }
@@ -590,8 +590,8 @@ namespace Cyan
     }
 
     // TODO: Normalize mesh scale
-    SceneNode* AssetManager::loadGltfNode(Scene* scene, tinygltf::Model& model, tinygltf::Node* parent, 
-                        SceneNode* parentSceneNode, tinygltf::Node& node, u32 numNodes) {
+    SceneComponent* AssetManager::loadGltfNode(Scene* scene, tinygltf::Model& model, tinygltf::Node* parent, 
+                        SceneComponent* parentSceneNode, tinygltf::Node& node, u32 numNodes) {
         auto textureManager = Cyan::TextureManager::get();
         auto sceneManager = SceneManager::get();
         bool hasMesh = (node.mesh > -1);
@@ -627,7 +627,7 @@ namespace Cyan
             }
         }
 
-        // create a SceneNode for this node
+        // create a SceneComponent for this node
         char sceneNodeName[128];
         CYAN_ASSERT(node.name.size() < kEntityNameMaxLen, "Entity name too long !!")
         if (node.name.empty())
@@ -635,7 +635,7 @@ namespace Cyan
         else 
             sprintf_s(sceneNodeName, "%s", node.name.c_str());
         
-        SceneNode* sceneNode = nullptr;
+        SceneComponent* sceneNode = nullptr;
         if (hasMesh)
         {
             Mesh* mesh = getAsset<Mesh>(meshName);
@@ -697,7 +697,7 @@ namespace Cyan
             tinygltf::BufferView bufferView = model.bufferViews[accessor.bufferView];
             tinygltf::Buffer buffer = model.buffers[bufferView.buffer];
 
-            if (itr->first.compare("POSITION") == 0 && (T::Vertex::getFlags() && VertexAttribFlag::kPosition != 0))
+            if (itr->first.compare("POSITION") == 0 && (T::Vertex::getFlags() && VertexAttribFlag_kPosition != 0))
             {
                 // sanity checks (assume that position can only be vec3)
                 CYAN_ASSERT(accessor.type == TINYGLTF_TYPE_VEC3, "Position attributes in format other than Vec3 is not allowed")
@@ -708,7 +708,7 @@ namespace Cyan
                     vertices[v].pos = glm::vec3(src[v * 3], src[v * 3 + 1], src[v * 3 + 2]);
                 }
             }
-            else if (itr->first.compare("NORMAL") == 0 && (T::Vertex::getFlags() && VertexAttribFlag::kNormal != 0))
+            else if (itr->first.compare("NORMAL") == 0 && (T::Vertex::getFlags() && VertexAttribFlag_kNormal != 0))
             {
                 // sanity checks (assume that normal can only be vec3)
                 CYAN_ASSERT(accessor.type == TINYGLTF_TYPE_VEC3, "Normal attributes in format other than Vec3 is not allowed")
@@ -719,7 +719,7 @@ namespace Cyan
                     vertices[v].normal = glm::vec3(src[v * 3], src[v * 3 + 1], src[v * 3 + 2]);
                 }
             }
-            else if (itr->first.compare("TANGENT") == 0 && (T::Vertex::getFlags() && VertexAttribFlag::kTangents != 0))
+            else if (itr->first.compare("TANGENT") == 0 && (T::Vertex::getFlags() && VertexAttribFlag_kTangent != 0))
             {
                 // sanity checks (assume that tangent can only be in vec4)
                 CYAN_ASSERT(accessor.type == TINYGLTF_TYPE_VEC4, "Position attributes in format other than Vec4 is not allowed")
@@ -730,7 +730,7 @@ namespace Cyan
                     vertices[v].tangent = glm::vec4(src[v * 4], src[v * 4 + 1], src[v * 4 + 2], src[v * 4 + 3]);
                 }
             }
-            else if (itr->first.find("TEXCOORD") == 0 && (T::Vertex::getFlags() && VertexAttribFlag::kTexcoord != 0))
+            else if (itr->first.find("TEXCOORD") == 0 && (T::Vertex::getFlags() && VertexAttribFlag_kTexCoord0 != 0))
             {
                 // sanity checks (assume that texcoord can only be in vec2)
                 CYAN_ASSERT(accessor.type == TINYGLTF_TYPE_VEC2, "TexCoord attributes in format other than Vec2 is not allowed")
@@ -963,7 +963,7 @@ namespace Cyan
         }
     }
 
-    SceneNode* AssetManager::loadGltf(Scene* scene, const char* filename, const char* name, Transform transform)
+    SceneComponent* AssetManager::loadGltf(Scene* scene, const char* filename, const char* name, Transform transform)
     {
         using Cyan::Mesh;
         tinygltf::Model model;
@@ -991,7 +991,7 @@ namespace Cyan
             tinygltf::Mesh gltfMesh = model.meshes[rootNode.mesh];
             rootNodeMesh = getAsset<Mesh>(gltfMesh.name.c_str());
         }
-        SceneNode* parentNode = sceneManager->createSceneNode(scene, name, transform);
+        SceneComponent* parentNode = sceneManager->createSceneNode(scene, name, transform);
         loadGltfNode(scene, model, nullptr, parentNode, rootNode, 0);
         return parentNode;
     }

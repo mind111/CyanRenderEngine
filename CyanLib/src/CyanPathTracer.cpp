@@ -12,7 +12,7 @@
     * todo: (Feature) integrate intel's open image denoiser
 */
 
-// irradiance caching controls
+// irradiance caching pipelineState
 #define DEBUG_IC
 #if 1
     #define USE_IC
