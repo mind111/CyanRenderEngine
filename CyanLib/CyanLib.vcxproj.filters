@@ -189,6 +189,9 @@
     <ClInclude Include="include\RenderableScene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\ShaderStorageBuffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Asset.cpp">

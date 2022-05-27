@@ -94,7 +94,7 @@ T* treeBFS(T* node, const char* name)
 namespace Cyan
 {
     template <typename T>
-    u32 sizeofVector(const std::vector<T>& vec)
+    u32 sizeOfVector(const std::vector<T>& vec)
     {
         if (vec.size() == 0)
         {

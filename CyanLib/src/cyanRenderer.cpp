@@ -852,7 +852,7 @@ namespace Cyan
         beginRender();
         {
             // update all global data
-            updateFrameGlobalData(scene, scene->camera);
+            // updateFrameGlobalData(scene, scene->camera);
 
             // sun shadow pass
             if (m_settings.enableSunShadow)
@@ -907,91 +907,6 @@ namespace Cyan
         // reset render target
         m_ctx->setRenderTarget(nullptr, {});
         m_ctx->flip();
-    }
-
-    // Data that needs to be updated on frame start, such as transforms, and lighting
-    void Renderer::updateFrameGlobalData(Scene* scene, const Camera& camera)
-    {
-#if 0
-        // bind global draw data
-        m_globalDrawData.view = camera.view;
-        m_globalDrawData.projection = camera.projection;
-        m_globalDrawData.numPointLights = (i32)scene->pointLights.size();
-        m_globalDrawData.numDirLights = (i32)scene->dLights.size();
-        m_globalDrawData.ssao = m_settings.enableSSAO ? 1.f : 0.f;
-
-        updateTransforms(scene);
-        // bind lighting data
-        updateLighting(scene);
-
-        // bind global textures
-        m_ctx->setPersistentTexture(m_ssaoTexture, gTexBinding(SSAO));
-
-        // upload data to gpu
-        glNamedBufferSubData(gDrawDataBuffer, 0, sizeof(GlobalDrawData), &m_globalDrawData);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, static_cast<u32>(SceneBuffersBindings::DrawData), gDrawDataBuffer);
-#endif
-    }
-
-    void Renderer::updateTransforms(Scene* scene)
-    {
-#if 0
-        const std::vector<glm::mat4>& matrices = scene->globalTransformMatrixPool.getObjects();
-        if (sizeofVector(matrices) > gInstanceTransforms.kBufferSize)
-        {
-            cyanError("Gpu global transform SBO overflow!");
-        }
-        glNamedBufferSubData(gInstanceTransforms.sbo, 0, sizeofVector(matrices), matrices.data());
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)SceneBuffersBindings::GlobalTransforms, gInstanceTransforms.sbo);
-#endif
-    }
-
-    void Renderer::updateLighting(Scene* scene)
-    {
-#if 0
-        gLighting.dirLights.clear();
-        gLighting.pointLights.clear();
-        for (u32 i = 0; i < scene->dLights.size(); ++i)
-        {
-            scene->dLights[i].update();
-            gLighting.dirLights.emplace_back(scene->dLights[i].getData());
-        }
-        for (u32 i = 0; i < scene->pointLights.size(); ++i)
-        {
-            scene->pointLights[i].update();
-            gLighting.pointLights.emplace_back(scene->pointLights[i].getData());
-        }
-        glNamedBufferSubData(gLighting.dirLightSBO, 0, sizeofVector(gLighting.dirLights), gLighting.dirLights.data());
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, gLighting.dirLightSBO);
-        glNamedBufferSubData(gLighting.pointLightsSBO, 0, sizeofVector(gLighting.pointLights), gLighting.pointLights.data());
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, gLighting.pointLightsSBO);
-        gLighting.irradianceProbe = scene->m_irradianceProbe;
-        gLighting.reflectionProbe = scene->m_reflectionProbe;
-
-        // shared BRDF lookup texture used in split sum approximation for image based lighting
-        if (Texture* BRDFLookupTexture = ReflectionProbe::getBRDFLookupTexture())
-        {
-            m_ctx->setPersistentTexture(BRDFLookupTexture, gTexBinding(BRDFLookupTexture));
-        }
-
-        // skybox
-        if (gLighting.skybox)
-        {
-            m_ctx->setPersistentTexture(gLighting.skybox->getDiffueTexture(), 0);
-            m_ctx->setPersistentTexture(gLighting.skybox->getSpecularTexture(), 1);
-        }
-
-        // additional light probes
-        if (gLighting.irradianceProbe)
-        {
-            m_ctx->setPersistentTexture(gLighting.irradianceProbe->m_convolvedIrradianceTexture, 3);
-        }
-
-        if (gLighting.reflectionProbe)
-        {
-            m_ctx->setPersistentTexture(gLighting.reflectionProbe->m_convolvedReflectionTexture, 4);
-        }
-#endif
     }
 
     void Renderer::updateSunShadow(const CascadedShadowmap& csm)
@@ -1325,7 +1240,7 @@ namespace Cyan
     // todo: refactor this, this should really just be renderScene()
     void Renderer::renderSceneToLightProbe(Scene* scene, LightProbe* probe, RenderTarget* renderTarget)
     {
-        updateTransforms(scene);
+        // updateTransforms(scene);
 
         // only capture static objects
         std::vector<Entity*> staticObjects;
@@ -1357,7 +1272,7 @@ namespace Cyan
             camera.worldUp = LightProbeCameras::worldUps[f];
             camera.update();
 
-            updateFrameGlobalData(scene, camera);
+            // updateFrameGlobalData(scene, camera);
             // draw skybox
             if (scene->m_skybox)
             {

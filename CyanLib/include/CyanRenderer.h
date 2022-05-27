@@ -18,25 +18,6 @@
 
 namespace Cyan
 {
-    template<typename T>
-    struct ShaderStorageBuffer
-    {
-        std::string blockName;
-        GLuint handle = -1;
-        GLuint staticBinding = -1;
-        T data;
-
-        void bind()
-        {
-            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, staticBinding, handle);
-        }
-
-        void updateGfxResource(u32 offset, u32 size)
-        {
-            glNamedBufferSubData(handle, 0, sizeof(T), &data);
-        }
-    };
-
     struct SceneView
     {
         Camera camera = { };
@@ -222,9 +203,6 @@ namespace Cyan
 //
 
 // per frame data
-        void updateFrameGlobalData(Scene* scene, const Camera& camara);
-        void updateTransforms(Scene* scene);
-        void updateLighting(Scene* scene);
         void updateSunShadow(const CascadedShadowmap& csm);
         void updateVctxData(Scene* scene);
 //

@@ -57,6 +57,7 @@
     <ClInclude Include="include\Scene.h" />
     <ClInclude Include="include\SceneNode.h" />
     <ClInclude Include="include\Shader.h" />
+    <ClInclude Include="include\ShaderStorageBuffer.h" />
     <ClInclude Include="include\Shadow.h" />
     <ClInclude Include="include\SkyBox.h" />
     <ClInclude Include="include\System.h" />

@@ -4,6 +4,7 @@
 #include "Mesh.h"
 #include "Light.h"
 #include "LightProbe.h"
+#include "ShaderStorageBuffer.h"
 
 struct Scene;
 
@@ -35,29 +36,30 @@ namespace Cyan
             i32 numPointLights;
             f32 ssao;
             f32 dummy;
-        } view;
-        GLuint viewSsbo = -1;
+        };
+
+        using ViewSsbo = ShaderStorageBuffer<f32, ViewData>;
+        using DirectionalLightSsbo = ShaderStorageBuffer<DirLightGpuData>;
+        using PointLightSsbo = ShaderStorageBuffer<PointLightGpuData>;
+        using TransformSsbo = ShaderStorageBuffer<glm::mat4>;
+
+        // view
+        std::unique_ptr<ViewSsbo> viewSsboPtr = nullptr;
 
         // lighting
         Skybox* skybox = nullptr;
         IrradianceProbe* irradianceProbe = nullptr;
         ReflectionProbe* reflectionProbe = nullptr;
-        std::vector<DirLightGpuData>   directionalLights;
-        std::vector<PointLightGpuData> pointLights;
-        GLuint directionalLightSbo = -1;
-        GLuint pointLightSbo = -1;
+        std::unique_ptr<DirectionalLightSsbo> directionalLightSsboPtr = nullptr;
+        std::unique_ptr<PointLightSsbo> pointLightSsboPtr = nullptr;
 
         // mesh instances
         std::vector<MeshInstance*> meshInstances;
-        std::vector<glm::mat4> worldTransformMatrices;
-        GLuint worldTransformMatrixSbo = -1;
+        std::unique_ptr<TransformSsbo> transformSsboPtr;
 
         RenderableScene(Scene* scene, const SceneView& sceneView);
         ~RenderableScene()
-        {
-            GLuint buffers[4] = { viewSsbo, worldTransformMatrixSbo, directionalLightSbo, pointLightSbo };
-            glDeleteBuffers(4, buffers);
-        }
+        { }
 
         /**
         * Submit rendering data to global gpu buffers

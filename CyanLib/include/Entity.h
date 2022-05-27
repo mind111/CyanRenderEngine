@@ -134,11 +134,5 @@ struct RayCastInfo
 
 namespace Cyan
 {
-#if 0
-    template<typename ComponentType>
-    void visitEntity(Entity* e, const std::function<void(ComponentType*)>& func);
-
-    template <>
-#endif
     void visitEntity(Entity* e, const std::function<void(SceneComponent*)>& func);
 }
