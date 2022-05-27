@@ -16,11 +16,6 @@
 #include "Geometry.h"
 #include "Shadow.h"
 
-#define gTexBinding(x) static_cast<u32>(GlobalTextureBindings##::##x)
-#define gBufferBinding(x) static_cast<u32>(GlobalBufferBindings##::##x)
-
-extern float quadVerts[24];
-
 namespace Cyan
 {
     template<typename T>
@@ -44,27 +39,55 @@ namespace Cyan
 
     struct SceneView
     {
-        Camera camera;
-        RenderTarget* renderTarget;
+        Camera camera = { };
+        RenderTarget* renderTarget = nullptr;
         std::initializer_list<i32> drawBuffers;
-        Viewport viewport;
+        Viewport viewport = { };
         std::vector<Entity*> entities;
-    };
 
-    // scene that contains renderable data
-    struct RenderableScene
-    {
-        Skybox* skybox;
-        std::vector<MeshInstance*> meshInstances;
-
-        // convert Scene to a renderable scene
-        void buildFromScene(Scene* scene)
+        SceneView(Scene* scene, const Camera& inCamera, RenderTarget* inRenderTarget , std::initializer_list<i32>&& inDrawBuffers, Viewport inViewport, u32 flags)
+            : camera(inCamera),
+            renderTarget(inRenderTarget),
+            viewport(inViewport),
+            drawBuffers(inDrawBuffers)
         {
             for (auto entity : scene->entities)
             {
-
+                if ((entity->getFlags() & flags) == flags)
+                {
+                    entities.push_back(entity);
+                }
             }
         }
+    };
+
+    enum class SceneBufferBindings
+    {
+        kViewData = 0,
+        DirLightData,
+        PointLightsData,
+        TransformMatrices,
+        VctxGlobalData,
+        kCount
+    };
+
+    enum class SceneTextureBindings
+    {
+        SkyboxDiffuse = 0,
+        SkyboxSpecular,
+        BRDFLookupTexture,
+        IrradianceProbe,
+        ReflectionProbe,
+        SSAO,
+        SunShadow,
+        VoxelGridAlbedo = (i32)SunShadow + 4,
+        VoxelGridNormal,
+        VoxelGridRadiance,
+        VoxelGridOpacity,
+        VctxOcclusion,
+        VctxIrradiance,
+        VctxReflection,
+        kCount
     };
 
     // forward declarations
@@ -123,8 +146,8 @@ namespace Cyan
         * Render a directional shadow map for the sun in 'scene'
         */
         void renderSunShadow(Scene* scene, const std::vector<Entity*>& shaodwCasters);
-        void renderScene(Scene* scene);
-        void renderSceneDepthNormal(Scene* scene);
+        void renderScene(Scene* scene, const SceneView& sceneView);
+        void renderSceneDepthNormal(Scene* scene, const SceneView& sceneView);
         void renderDebugObjects(Scene* scene, const std::function<void()>& externDebugRender = [](){ });
         /*
         * Render provided scene into a light probe
@@ -206,9 +229,8 @@ namespace Cyan
         void updateVctxData(Scene* scene);
 //
         BoundingBox3D computeSceneAABB(Scene* scene);
-        void executeOnEntity(Entity* e, const std::function<void(SceneComponent*)>& func);
 
-        struct Options
+        struct Settings
         {
             bool enableAA = true;
             bool enableSunShadow = true;
@@ -218,7 +240,7 @@ namespace Cyan
             bool autoFilterVoxelGrid = true;
             f32  exposure = 1.f;
             f32 bloomIntensity = 0.7f;
-        } m_opts;
+        } m_settings;
 
         u32           m_windowWidth, m_windowHeight;
         u32           m_SSAAWidth, m_SSAAHeight;
@@ -238,35 +260,7 @@ namespace Cyan
 
         Texture*      m_finalColorTexture;
 
-        enum class GlobalBufferBindings
-        {
-            DrawData     = 0,
-            DirLightData,
-            PointLightsData,
-            GlobalTransforms,
-            VctxGlobalData,
-            kCount
-        };
-
-        enum class GlobalTextureBindings
-        {
-            SkyboxDiffuse = 0,
-            SkyboxSpecular,
-            BRDFLookupTexture,
-            IrradianceProbe,
-            ReflectionProbe,
-            SSAO,
-            SunShadow,
-            VoxelGridAlbedo = (i32)SunShadow + 4,
-            VoxelGridNormal,
-            VoxelGridRadiance,
-            VoxelGridOpacity,
-            VctxOcclusion,
-            VctxIrradiance,
-            VctxReflection,
-            kCount
-        };
-
+#if 0
         struct GlobalDrawData
         {
             glm::mat4 view;
@@ -299,6 +293,7 @@ namespace Cyan
             const u32 kBufferSize       = kMaxNumTransforms * sizeof(glm::mat4);
             GLuint sbo;
         } gInstanceTransforms;
+#endif
 
         // voxel cone tracing
         struct VoxelGrid
@@ -443,7 +438,6 @@ namespace Cyan
         GLuint m_lumHistogramProgram;
 
     private:
-        RenderableScene m_renderableScene;
         GfxContext* m_ctx;
     };
 };

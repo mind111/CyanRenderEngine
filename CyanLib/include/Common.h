@@ -48,6 +48,8 @@
     }                           \
 
 #define TO_STRING(x) #x
+#define SIZE_OF_VECTOR(x) (x.empty() ? 0 : x.size() * sizeof(x[0]))
+
 
 // TODO: Is this macro safe ...?
 #define Min(a, b) ((a < b) ? a : b)
@@ -91,6 +93,16 @@ T* treeBFS(T* node, const char* name)
 
 namespace Cyan
 {
+    template <typename T>
+    u32 sizeofVector(const std::vector<T>& vec)
+    {
+        if (vec.size() == 0)
+        {
+            return 0;
+        }
+        return sizeof(vec[0]) * (u32)vec.size();
+    }
+
     template <typename T>
     class Singleton
     {

@@ -119,15 +119,4 @@ private:
 
 namespace Cyan
 {
-#if 0
-    struct ILight
-    {
-        glm::vec4 color;
-    };
-
-    struct DirectionalLight : public ILight
-    {
-        glm::vec3 direction;
-    };
-#endif
 }

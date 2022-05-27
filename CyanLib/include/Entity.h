@@ -1,6 +1,7 @@
 #pragma once
 
 #include <queue>
+#include <functional>
 
 #include "glm.hpp"
 #include "gtc/matrix_transform.hpp"
@@ -31,10 +32,10 @@ void transformRayToObjectSpace(glm::vec3& ro, glm::vec3& rd, glm::mat4& transfor
 f32  transformHitFromObjectToWorldSpace(glm::vec3& objectSpaceHit, glm::mat4& transform, const glm::vec3& roWorldSpace, const glm::vec3& rdWorldSpace);
 
 
-#define EntityFlag_kStatic Entity::Mobility::kStatic << 1
-#define EntityFlag_kDynamic Entity::Mobility::kDynamic << 1
-#define EntityFlag_kVisible Entity::Visibility::kVisible << 1
-#define EntityFlag_kCastShadow Entity::Lighting::kCastShadow << 1
+#define EntityFlag_kStatic (u32)Entity::Mobility::kStatic << 1
+#define EntityFlag_kDynamic (u32)Entity::Mobility::kDynamic << 1
+#define EntityFlag_kVisible (u32)Entity::Visibility::kVisible << 1
+#define EntityFlag_kCastShadow (u32)Entity::Lighting::kCastShadow << 1
 
 // forward declare
 // entity
@@ -70,7 +71,7 @@ struct Entity
     SceneComponent* m_sceneRoot;
 
     // flags
-    u32 m_properties;
+    u32 flags;
     bool m_lit;
     bool m_static;
     bool m_visible;
@@ -80,7 +81,8 @@ struct Entity
     Entity(struct Scene* scene, const char* name, u32 id, Transform t, Entity* parent, bool isStatic);
 
     virtual void update() { }
- 
+
+    u32 getFlags() { return flags; }
     SceneComponent* getSceneRoot();
     SceneComponent* getSceneNode(const char* name);
     void attachSceneNode(SceneComponent* child, const char* parentName=nullptr);
@@ -129,3 +131,14 @@ struct RayCastInfo
         return t < rhs.t;
     }
 };
+
+namespace Cyan
+{
+#if 0
+    template<typename ComponentType>
+    void visitEntity(Entity* e, const std::function<void(ComponentType*)>& func);
+
+    template <>
+#endif
+    void visitEntity(Entity* e, const std::function<void(SceneComponent*)>& func);
+}

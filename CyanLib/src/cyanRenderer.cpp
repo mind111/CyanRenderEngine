@@ -21,6 +21,7 @@
 #include "MathUtils.h"
 #include "CyanUI.h"
 #include "Ray.h"
+#include "RenderableScene.h"
 
 #define DRAW_SSAO_DEBUG_VIS 0
 
@@ -40,9 +41,9 @@ namespace Cyan
         m_sceneColorRenderTarget(nullptr),
         m_sceneColorTextureSSAA(nullptr),
         m_sceneColorRTSSAA(nullptr),
-        m_globalDrawData{ },
-        gLighting { }, 
-        gDrawDataBuffer(-1),
+        // m_globalDrawData{ },
+        // gLighting { }, 
+        // gDrawDataBuffer(-1),
         m_bloomOutTexture(nullptr)
     {
         m_rasterDirectShadowManager = std::make_unique<RasterDirectShadowManager>();
@@ -141,18 +142,6 @@ namespace Cyan
 
     void Renderer::initialize()
     {
-        // m_ssaoSamplePoints.setColor(glm::vec4(0.f, 1.f, 1.f, 1.f));
-
-        // initialize per frame shader draw data
-        glCreateBuffers(1, &gDrawDataBuffer);
-        glNamedBufferData(gDrawDataBuffer, sizeof(GlobalDrawData), &m_globalDrawData, GL_DYNAMIC_DRAW);
-        glCreateBuffers(1, &gLighting.dirLightSBO);
-        glNamedBufferData(gLighting.dirLightSBO, gLighting.kDynamicLightBufferSize, nullptr, GL_DYNAMIC_DRAW);
-        glCreateBuffers(1, &gLighting.pointLightsSBO);
-        glNamedBufferData(gLighting.pointLightsSBO, gLighting.kDynamicLightBufferSize, nullptr, GL_DYNAMIC_DRAW);
-        glCreateBuffers(1, &gInstanceTransforms.sbo);
-        glNamedBufferData(gInstanceTransforms.sbo, gInstanceTransforms.kBufferSize, nullptr, GL_DYNAMIC_DRAW);
-
         // shared global quad mesh
         {
             float quadVerts[24] = {
@@ -462,7 +451,7 @@ namespace Cyan
         {
             enum class SsboBindings
             {
-                kOpacityMask = (i32)GlobalBufferBindings::kCount,
+                kOpacityMask = (i32)SceneBufferBindings::kCount,
                 kDebugTexcoord
             };
             auto index = glGetProgramResourceIndex(voxelizer.voxelizeShader->getGpuResource(), GL_SHADER_STORAGE_BLOCK, "OpacityData");
@@ -493,7 +482,7 @@ namespace Cyan
         {
             for (u32 i = 0; i < scene->entities.size(); ++i)
             {
-                executeOnEntity(scene->entities[i], [this, voxelizer, pmin, pmax, axis, renderTarget](SceneComponent* node) {
+                visitEntity(scene->entities[i], [this, voxelizer, pmin, pmax, axis, renderTarget](SceneComponent* node) {
                     if (MeshInstance* meshInstance = node->getAttachedMesh())
                     {
                         for (u32 i = 0; i < meshInstance->parent->numSubmeshes(); ++i)
@@ -544,7 +533,7 @@ namespace Cyan
             glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
             enum class SsboBindings
             {
-                kOpacityMask = (i32)GlobalBufferBindings::kCount,
+                kOpacityMask = (i32)SceneBufferBindings::kCount,
             };
             auto index = glGetProgramResourceIndex(m_vctx.resolveShader->getGpuResource(), GL_SHADER_STORAGE_BLOCK, "OpacityData");
             glShaderStorageBlockBinding(m_vctx.resolveShader->getGpuResource(), index, (u32)SsboBindings::kOpacityMask);
@@ -553,7 +542,7 @@ namespace Cyan
             glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
         }
 
-        if (m_opts.autoFilterVoxelGrid)
+        if (m_settings.autoFilterVoxelGrid)
         {
             glGenerateTextureMipmap(m_sceneVoxelGrid.albedo->handle);
             glGenerateTextureMipmap(m_sceneVoxelGrid.radiance->handle);
@@ -567,7 +556,7 @@ namespace Cyan
             const i32 kNumDownsample = 1u;
             for (i32 i = 0; i < kNumDownsample; ++i)
             {
-                i32 textureUnit = (i32)GlobalTextureBindings::kCount;
+                i32 textureUnit = (i32)SceneTextureBindings::kCount;
                 glm::ivec3 currGridDim = glm::ivec3(m_sceneVoxelGrid.resolution) / (i32)pow(2, i+1);
                 voxelizer.filterVoxelGridShader->setUniform("srcMip", i);
                 voxelizer.filterVoxelGridShader->setUniform("srcAlbedo", textureUnit);
@@ -588,10 +577,10 @@ namespace Cyan
     void Renderer::updateVctxData(Scene* scene)
     {
         // bind textures
-        glBindTextureUnit(gTexBinding(VoxelGridAlbedo), m_sceneVoxelGrid.albedo->handle);
-        glBindTextureUnit(gTexBinding(VoxelGridNormal), m_sceneVoxelGrid.normal->handle);
-        glBindTextureUnit(gTexBinding(VoxelGridRadiance), m_sceneVoxelGrid.radiance->handle);
-        glBindTextureUnit(gTexBinding(VoxelGridOpacity), m_sceneVoxelGrid.opacity->handle);
+        glBindTextureUnit((u32)SceneTextureBindings::VoxelGridAlbedo, m_sceneVoxelGrid.albedo->getGpuResource());
+        glBindTextureUnit((u32)SceneTextureBindings::VoxelGridNormal, m_sceneVoxelGrid.normal->getGpuResource());
+        glBindTextureUnit((u32)SceneTextureBindings::VoxelGridRadiance, m_sceneVoxelGrid.radiance->getGpuResource());
+        glBindTextureUnit((u32)SceneTextureBindings::VoxelGridOpacity, m_sceneVoxelGrid.opacity->getGpuResource());
 
         // update buffer data
         glm::vec3 pmin, pmax;
@@ -600,7 +589,7 @@ namespace Cyan
         m_vctxGpuData.voxelSize = (pmax.x - pmin.x) / (f32)m_sceneVoxelGrid.resolution;
         m_vctxGpuData.visMode = 1 << static_cast<i32>(m_vctx.visualizer.mode);
         glNamedBufferSubData(m_vctxSsbo, 0, sizeof(VctxGpuData), &m_vctxGpuData);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, gBufferBinding(VctxGlobalData), m_vctxSsbo);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)SceneBufferBindings::VctxGlobalData, m_vctxSsbo);
     }
 
     void Renderer::visualizeVoxelGrid()
@@ -629,8 +618,8 @@ namespace Cyan
         auto& visualizer = m_vctx.visualizer;
 
         // debug vis for voxel cone tracing
-        auto sceneDepthTexture = m_opts.enableAA ? m_sceneDepthTextureSSAA : m_sceneDepthTexture;
-        auto sceneNormalTexture = m_opts.enableAA ? m_sceneNormalTextureSSAA : m_sceneNormalTexture;
+        auto sceneDepthTexture = m_settings.enableAA ? m_sceneDepthTextureSSAA : m_sceneDepthTexture;
+        auto sceneNormalTexture = m_settings.enableAA ? m_sceneNormalTextureSSAA : m_sceneNormalTexture;
         if (!visualizer.cachedTexInitialized || visualizer.debugScreenPosMoved)
         {
             if (visualizer.cachedSceneDepth->width == sceneDepthTexture->width && visualizer.cachedSceneDepth->height == sceneDepthTexture->height &&
@@ -643,8 +632,8 @@ namespace Cyan
                     visualizer.cachedSceneNormal->handle, GL_TEXTURE_2D, 0, 0, 0, 0, sceneNormalTexture->width, sceneNormalTexture->height, 1);
 
 
-                visualizer.cachedView = m_globalDrawData.view;
-                visualizer.cachedProjection = m_globalDrawData.projection;
+        //        visualizer.cachedView = m_globalDrawData.view;
+        //       visualizer.cachedProjection = m_globalDrawData.projection;
 
                 if (!visualizer.cachedTexInitialized)
                 {
@@ -827,16 +816,6 @@ namespace Cyan
         }
     }
 
-    template <typename T>
-    u32 sizeofVector(const std::vector<T>& vec)
-    {
-        if (vec.size() == 0)
-        {
-            return 0;
-        }
-        return sizeof(vec[0]) * (u32)vec.size();
-    }
-
     /*
         * render passes should be pushed after call to beginRender() 
     */
@@ -867,10 +846,8 @@ namespace Cyan
         */
         //-------------------------------------------------------------------
 
-        /**
-        * todo: convert Scene to RenderableScene if cached RenderableScene is outdated
-        */
-        m_renderableScene.buildFromScene(scene);
+        auto renderTarget = m_settings.enableAA ? m_sceneColorRTSSAA : m_sceneColorRenderTarget;
+        SceneView sceneView(scene, scene->camera, renderTarget, { }, { 0u, 0u,  renderTarget->width, renderTarget->height }, EntityFlag_kVisible);
 
         beginRender();
         {
@@ -878,20 +855,20 @@ namespace Cyan
             updateFrameGlobalData(scene, scene->camera);
 
             // sun shadow pass
-            if (m_opts.enableSunShadow)
+            if (m_settings.enableSunShadow)
             {
                 renderSunShadow(scene, scene->entities);
             }
 
             // scene depth & normal pass
-            bool depthNormalPrepassRequired = (m_opts.enableSSAO || m_opts.enableVctx);
+            bool depthNormalPrepassRequired = (m_settings.enableSSAO || m_settings.enableVctx);
             if (depthNormalPrepassRequired)
             {
-                renderSceneDepthNormal(scene);
+                renderSceneDepthNormal(scene, sceneView);
             }
 
             // voxel cone tracing pass
-            if (m_opts.enableVctx)
+            if (m_settings.enableVctx)
             {
                 // todo: revoxelizing the scene every frame is causing flickering in the volume texture
                 voxelizeScene(scene);
@@ -899,13 +876,13 @@ namespace Cyan
             }
 
             // ssao pass
-            if (m_opts.enableSSAO)
+            if (m_settings.enableSSAO)
             {
                 ssao(scene->camera);
             }
 
             // main scene pass
-            renderScene(scene);
+            renderScene(scene, sceneView);
 
             // debug object pass
             renderDebugObjects(scene, externDebugRender);
@@ -914,9 +891,9 @@ namespace Cyan
             {
                 // reset state
                 m_bloomOutTexture = nullptr;
-                m_finalColorTexture = m_opts.enableAA ? m_sceneColorTextureSSAA : m_sceneColorTexture;
+                m_finalColorTexture = m_settings.enableAA ? m_sceneColorTextureSSAA : m_sceneColorTexture;
 
-                if (m_opts.enableBloom)
+                if (m_settings.enableBloom)
                 {
                     bloom();
                 }
@@ -932,29 +909,16 @@ namespace Cyan
         m_ctx->flip();
     }
 
-    void Renderer::executeOnEntity(Entity* e, const std::function<void(SceneComponent*)>& func)
-    {
-        std::queue<SceneComponent*> nodes;
-        nodes.push(e->m_sceneRoot);
-        while (!nodes.empty())
-        {
-            auto node = nodes.front();
-            nodes.pop();
-            func(node);
-            for (u32 i = 0; i < (u32)node->m_child.size(); ++i)
-                nodes.push(node->m_child[i]);
-        }
-    }
-
     // Data that needs to be updated on frame start, such as transforms, and lighting
     void Renderer::updateFrameGlobalData(Scene* scene, const Camera& camera)
     {
+#if 0
         // bind global draw data
         m_globalDrawData.view = camera.view;
         m_globalDrawData.projection = camera.projection;
         m_globalDrawData.numPointLights = (i32)scene->pointLights.size();
         m_globalDrawData.numDirLights = (i32)scene->dLights.size();
-        m_globalDrawData.ssao = m_opts.enableSSAO ? 1.f : 0.f;
+        m_globalDrawData.ssao = m_settings.enableSSAO ? 1.f : 0.f;
 
         updateTransforms(scene);
         // bind lighting data
@@ -965,22 +929,26 @@ namespace Cyan
 
         // upload data to gpu
         glNamedBufferSubData(gDrawDataBuffer, 0, sizeof(GlobalDrawData), &m_globalDrawData);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, static_cast<u32>(GlobalBufferBindings::DrawData), gDrawDataBuffer);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, static_cast<u32>(SceneBuffersBindings::DrawData), gDrawDataBuffer);
+#endif
     }
 
     void Renderer::updateTransforms(Scene* scene)
     {
+#if 0
         const std::vector<glm::mat4>& matrices = scene->globalTransformMatrixPool.getObjects();
         if (sizeofVector(matrices) > gInstanceTransforms.kBufferSize)
         {
             cyanError("Gpu global transform SBO overflow!");
         }
         glNamedBufferSubData(gInstanceTransforms.sbo, 0, sizeofVector(matrices), matrices.data());
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)GlobalBufferBindings::GlobalTransforms, gInstanceTransforms.sbo);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)SceneBuffersBindings::GlobalTransforms, gInstanceTransforms.sbo);
+#endif
     }
 
     void Renderer::updateLighting(Scene* scene)
     {
+#if 0
         gLighting.dirLights.clear();
         gLighting.pointLights.clear();
         for (u32 i = 0; i < scene->dLights.size(); ++i)
@@ -1023,13 +991,15 @@ namespace Cyan
         {
             m_ctx->setPersistentTexture(gLighting.reflectionProbe->m_convolvedReflectionTexture, 4);
         }
+#endif
     }
 
     void Renderer::updateSunShadow(const CascadedShadowmap& csm)
     {
+#if 0
         m_globalDrawData.sunLightView   = csm.lightView;
         // bind sun light shadow map for this frame
-        u32 textureUnitOffset = gTexBinding(SunShadow);
+        u32 textureUnitOffset = (u32)SceneTextureBindings::SunShadow;
         for (u32 i = 0; i < CascadedShadowmap::kNumCascades; ++i)
         {
             m_globalDrawData.sunShadowProjections[i] = csm.cascades[i].lightProjection;
@@ -1041,7 +1011,8 @@ namespace Cyan
 
         // upload data to gpu
         glNamedBufferSubData(gDrawDataBuffer, 0, sizeof(GlobalDrawData), &m_globalDrawData);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, static_cast<u32>(GlobalBufferBindings::DrawData), gDrawDataBuffer);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, static_cast<u32>(SceneBufferBindings::kViewData), gDrawDataBuffer);
+#endif
     }
 
     void Renderer::renderSunShadow(Scene* scene, const std::vector<Entity*>& shadowCasters)
@@ -1051,7 +1022,7 @@ namespace Cyan
         updateSunShadow(m_csm);
     }
 
-    void Renderer::renderSceneDepthNormal(Scene* scene)
+    void Renderer::renderSceneDepthNormal(Scene* scene, const SceneView& sceneView)
     {
         enum class ColorBuffers
         {
@@ -1065,7 +1036,7 @@ namespace Cyan
             kNormal
         };
 
-        auto renderTarget = m_opts.enableAA ? m_sceneColorRTSSAA : m_sceneColorRenderTarget;
+        auto renderTarget = m_settings.enableAA ? m_sceneColorRTSSAA : m_sceneColorRenderTarget;
         renderTarget->clear({ static_cast<i32>(DrawBuffers::kDepth) }, glm::vec4(1.f));
         renderTarget->clear({ static_cast<i32>(DrawBuffers::kNormal) });
 
@@ -1074,7 +1045,7 @@ namespace Cyan
             auto entity = scene->entities[e];
             if (entity->m_includeInGBufferPass && entity->m_visible)
             {
-                executeOnEntity(entity, [this, renderTarget](SceneComponent* sceneComponent) { 
+                visitEntity(entity, [this, renderTarget](SceneComponent* sceneComponent) { 
                     if (auto meshInst = sceneComponent->getAttachedMesh())
                     {
                         submitMesh(
@@ -1093,30 +1064,31 @@ namespace Cyan
         }
     }
 
-    void Renderer::renderScene(Scene* scene)
+    void Renderer::renderScene(Scene* scene, const SceneView& sceneView)
     {
-        // draw skybox
-        if (scene->m_skybox)
+        RenderableScene renderableScene(scene, sceneView);
+        renderableScene.submitSceneData(m_ctx);
+
+        // render skybox
+        if (renderableScene.skybox)
         {
-            scene->m_skybox->render();
+            renderableScene.skybox->render();
         }
 
-        auto renderTarget = m_opts.enableAA ? m_sceneColorRTSSAA : m_sceneColorRenderTarget;
+        auto renderTarget = m_settings.enableAA ? m_sceneColorRTSSAA : m_sceneColorRenderTarget;
         renderTarget->clear({ 0 });
 
-        // draw entities
-        for (u32 i = 0; i < scene->entities.size(); ++i)
+        u32 transformIndex = 0u;
+        for (auto meshInst : renderableScene.meshInstances)
         {
-            if (scene->entities[i]->m_visible)
-            {
-                executeOnEntity(scene->entities[i], 
-                    [this, renderTarget](SceneComponent* node) {
-                        if (auto meshInst = node->getAttachedMesh())
-                        {
-                            drawMeshInstance(renderTarget, { 0 }, { 0u, 0u, renderTarget->width, renderTarget->height }, GfxPipelineState(), meshInst, node->globalTransform);
-                        }
-                    });
-            }
+            drawMeshInstance(
+                sceneView.renderTarget, 
+                std::move(const_cast<SceneView&>(sceneView).drawBuffers), 
+                sceneView.viewport, 
+                GfxPipelineState(), 
+                meshInst, 
+                transformIndex++
+            );
         }
     }
 
@@ -1128,8 +1100,8 @@ namespace Cyan
             m_ssaoShader, 
             [this, camera](RenderTarget* renderTarget, Shader* shader) {
                 renderTarget->clear({ 0 }, glm::vec4(1.f));
-                shader->setTexture("normalTexture", m_opts.enableAA ? m_sceneNormalTextureSSAA : m_sceneNormalTexture)
-                    .setTexture("depthTexture", m_opts.enableAA ? m_sceneDepthTextureSSAA : m_sceneDepthTexture)
+                shader->setTexture("normalTexture", m_settings.enableAA ? m_sceneNormalTextureSSAA : m_sceneNormalTexture)
+                    .setTexture("depthTexture", m_settings.enableAA ? m_sceneDepthTextureSSAA : m_sceneDepthTexture)
                     .setUniform("cameraPos", camera.position)
                     .setUniform("view", camera.view)
                     .setUniform("projection", camera.projection);
@@ -1229,7 +1201,7 @@ namespace Cyan
             }
         };
 
-        auto* src = m_opts.enableAA ? m_sceneColorTextureSSAA : m_sceneColorTexture;
+        auto* src = m_settings.enableAA ? m_sceneColorTextureSSAA : m_sceneColorTexture;
 
         // bloom setup pass
         submitFullScreenPass(
@@ -1273,11 +1245,11 @@ namespace Cyan
             { 0u },
             m_compositeShader,
             [this](RenderTarget* renderTarget, Shader* shader) {
-                shader->setUniform("exposure", m_opts.exposure)
-                    .setUniform("bloom", m_opts.enableBloom ? 1.f : 0.f)
-                    .setUniform("bloomIntensity", m_opts.bloomIntensity)
+                shader->setUniform("exposure", m_settings.exposure)
+                    .setUniform("bloom", m_settings.enableBloom ? 1.f : 0.f)
+                    .setUniform("bloomIntensity", m_settings.bloomIntensity)
                     .setTexture("bloomOutTexture", m_bloomOutTexture)
-                    .setTexture("sceneColorTexture", m_opts.enableAA ? m_sceneColorTextureSSAA : m_sceneColorTexture);
+                    .setTexture("sceneColorTexture", m_settings.enableAA ? m_sceneColorTextureSSAA : m_sceneColorTexture);
             });
 
         m_finalColorTexture = m_compositeColorTexture;
@@ -1369,7 +1341,7 @@ namespace Cyan
         renderSunShadow(scene, staticObjects);
 
         // turn off ssao
-        m_opts.enableSSAO = false;
+        m_settings.enableSSAO = false;
 
         // render scene into each face of the cubemap
         Camera camera = { };
@@ -1404,7 +1376,7 @@ namespace Cyan
             }
         }
 
-        m_opts.enableSSAO = true;
+        m_settings.enableSSAO = true;
     }
 
     void Renderer::renderVctx()
@@ -1428,8 +1400,8 @@ namespace Cyan
         m_vctx.renderShader->setUniform("opts.occlusionScale", m_vctx.opts.occlusionScale);
         m_vctx.renderShader->setUniform("opts.indirectScale", m_vctx.opts.indirectScale);
         m_vctx.renderShader->setUniform("opts.opacityScale", m_vctx.opts.opacityScale);
-        auto depthTexture = m_opts.enableAA ? m_sceneDepthTextureSSAA : m_sceneDepthTexture;
-        auto normalTexture = m_opts.enableAA ? m_sceneNormalTextureSSAA : m_sceneNormalTexture;
+        auto depthTexture = m_settings.enableAA ? m_sceneDepthTextureSSAA : m_sceneDepthTexture;
+        auto normalTexture = m_settings.enableAA ? m_sceneNormalTextureSSAA : m_sceneNormalTexture;
         glBindTextureUnit((u32)TexBindings::kDepth, depthTexture->handle);
         glBindTextureUnit((u32)TexBindings::kNormal, normalTexture->handle);
         m_ctx->setPrimitiveType(PrimitiveMode::TriangleList);
@@ -1438,9 +1410,9 @@ namespace Cyan
         m_ctx->setDepthControl(DepthControl::kEnable);
 
         // bind textures for rendering
-        glBindTextureUnit(gTexBinding(VctxOcclusion), m_vctx.occlusion->handle);
-        glBindTextureUnit(gTexBinding(VctxIrradiance), m_vctx.irradiance->handle);
-        glBindTextureUnit(gTexBinding(VctxReflection), m_vctx.reflection->handle);
+        glBindTextureUnit((u32)SceneTextureBindings::VctxOcclusion, m_vctx.occlusion->handle);
+        glBindTextureUnit((u32)SceneTextureBindings::VctxIrradiance, m_vctx.irradiance->handle);
+        glBindTextureUnit((u32)SceneTextureBindings::VctxReflection, m_vctx.reflection->handle);
     }
 
     void Renderer::renderDebugObjects(Scene* scene, const std::function<void()>& externDebugRender)

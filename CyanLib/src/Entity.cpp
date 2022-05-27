@@ -304,3 +304,24 @@ void Entity::setMaterial(const char* meshNodeName, i32 submeshIndex, Cyan::IMate
         }
     }
 }
+
+namespace Cyan
+{
+    void visitEntity(Entity* e, const std::function<void(SceneComponent*)>& func)
+    {
+        std::queue<SceneComponent*> sceneComponents;
+        sceneComponents.push(e->m_sceneRoot);
+        while (!sceneComponents.empty())
+        {
+            auto sceneComponent = sceneComponents.front();
+            sceneComponents.pop();
+
+            func(sceneComponent);
+
+            for (u32 i = 0; i < (u32)sceneComponent->m_child.size(); ++i)
+            {
+                sceneComponents.push(sceneComponent->m_child[i]);
+            }
+        }
+    }
+}

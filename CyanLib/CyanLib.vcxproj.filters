@@ -183,6 +183,12 @@
     <ClInclude Include="include\CyanCore.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\Component.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\RenderableScene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Asset.cpp">
@@ -310,6 +316,9 @@
     </ClCompile>
     <ClCompile Include="src\IOSystem.cpp">
       <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\RenderableScene.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

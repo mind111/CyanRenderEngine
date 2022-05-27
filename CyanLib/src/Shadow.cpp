@@ -209,7 +209,7 @@ namespace Cyan
 
         for (u32 i = 0; i < shadowCasters.size(); i++)
         {
-            renderer->executeOnEntity(shadowCasters[i], [this, renderer, cascade, lightView, &csm](SceneComponent* node) {
+            visitEntity(shadowCasters[i], [this, renderer, cascade, lightView, &csm](SceneComponent* node) {
                 if (auto meshInst = node->getAttachedMesh())
                 {
                     renderer->submitMesh(

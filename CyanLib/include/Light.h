@@ -1,6 +1,7 @@
 #pragma once
 
 #include "glm.hpp"
+#include "Component.h"
 
 #include "Entity.h"
 #include "Texture.h"
@@ -72,3 +73,13 @@ struct PointLight : public Light
         return {color, position};
     }
 }; 
+
+namespace Cyan
+{
+#if 0
+    struct DirectionalLightComponent : public Component
+    {
+        DirectionalLight directionalLight;
+    };
+#endif
+}
