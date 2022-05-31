@@ -6,13 +6,13 @@ namespace Cyan
     std::vector<Texture*> TextureManager::s_textures;
     TextureManager* TextureManager::m_singleton = 0;
 
-    static GLenum convertTexFilter(Texture::Filter filter)
+    static GLenum convertTexFilter(Texture::Filtering filter)
     {
         switch(filter)
         {
-            case Texture::Filter::LINEAR:
+            case Texture::Filtering::LINEAR:
                 return GL_LINEAR;
-            case Texture::Filter::MIPMAP_LINEAR:
+            case Texture::Filtering::MIPMAP_LINEAR:
                 return GL_LINEAR_MIPMAP_LINEAR;
             default:
                 break;
@@ -115,14 +115,14 @@ namespace Cyan
            }
        };
          
-       auto convertTexFilter = [](Texture::Filter filter) {
+       auto convertTexFilter = [](Texture::Filtering filter) {
             switch(filter)
             {
-                case Texture::Filter::LINEAR:
+                case Texture::Filtering::LINEAR:
                     return GL_LINEAR;
-                case Texture::Filter::MIPMAP_LINEAR:
+                case Texture::Filtering::MIPMAP_LINEAR:
                     return GL_LINEAR_MIPMAP_LINEAR;
-                case Texture::Filter::NEAREST:
+                case Texture::Filtering::NEAREST:
                     return GL_NEAREST;
                 default:
                     CYAN_ASSERT(0, "Undefined texture filter parameter.")
@@ -157,7 +157,7 @@ namespace Cyan
         // linear mipmap filtering
         if (spec.numMips > 1u)
         {
-            specGL.m_minGL = convertTexFilter(Texture::Filter::MIPMAP_LINEAR);
+            specGL.m_minGL = convertTexFilter(Texture::Filtering::MIPMAP_LINEAR);
         }
         // wraps
         auto wrapS = convertTexWrap(spec.s);
@@ -479,8 +479,8 @@ namespace Cyan
         spec.format = Texture::ColorFormat::D24S8; // 32 bits
         spec.type = Texture::Type::TEX_2D;
         spec.dataType = Texture::DataType::UNSIGNED_INT_24_8;
-        spec.min = Texture::Filter::NEAREST;
-        spec.mag = Texture::Filter::NEAREST;
+        spec.min = Texture::Filtering::NEAREST;
+        spec.mag = Texture::Filtering::NEAREST;
         spec.r = Texture::Wrap::CLAMP_TO_EDGE;
         spec.s = Texture::Wrap::CLAMP_TO_EDGE;
         return createTexture(name, spec);

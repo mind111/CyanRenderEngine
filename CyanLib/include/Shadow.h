@@ -1,13 +1,14 @@
 #pragma once
 
 #include "glm.hpp"
-
 #include "Shader.h"
-#include "Scene.h"
 #include "RenderTarget.h"
 
 namespace Cyan
 {
+    struct Renderer;
+    struct DirectionalLight;
+
     enum ShadowTechnique
     {
         kPCF_Shadow = 0,   
@@ -28,7 +29,7 @@ namespace Cyan
     {
         f32 n;
         f32 f;
-        BoundingBox3D aabb;
+        ::BoundingBox3D aabb;
         // ::Line frustumLines[12];
         glm::mat4 lightProjection;
         BasicShadowmap basicShadowmap;
@@ -70,5 +71,33 @@ namespace Cyan
         Shader* m_sunShadowShader;
         Shader* m_pointShadowShader;
         // MaterialInstance* m_sunShadowMatl;
+    };
+
+    struct IDirectionalShadowmap
+    {
+        enum class Quality
+        {
+            kLow,
+            kMedium,
+            kHigh
+        } quality;
+
+        virtual void render(const Scene& scene, Renderer& renderer) { }
+
+        IDirectionalShadowmap()
+            : quality(Quality::kHigh)
+        { }
+
+        // virtual destructor for derived
+        ~IDirectionalShadowmap() { }
+    };
+
+    struct CSM : public IDirectionalShadowmap
+    {
+        virtual void render(const Scene& scene, Renderer& renderer) override;
+
+        CSM(const DirectionalLight& inDirectionalLight);
+    private:
+        Texture* shadowmap = nullptr;
     };
 }

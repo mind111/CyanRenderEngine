@@ -24,6 +24,7 @@ namespace Cyan
         };
 
         virtual void setShaderParameters(Shader* shader) = 0;
+        virtual bool lit() = 0;
     };
 
     struct ConstantColor : public MaterialParameter
@@ -33,6 +34,11 @@ namespace Cyan
         virtual void setShaderParameters(Shader* shader)
         {
             shader->setUniform("constantColor", constantColor);
+        }
+        
+        virtual bool lit() override
+        {
+            return false;
         }
     };
 
@@ -88,6 +94,11 @@ namespace Cyan
             shader->setUniform("M_kRoughness", kRoughness);
             shader->setUniform("M_kMetallic", kMetallic);
             shader->setUniform("M_kAlbedo", kAlbedo);
+        }
+
+        virtual bool lit() override
+        {
+            return true;
         }
 
         u32 flags = 0x0;
@@ -159,7 +170,8 @@ namespace Cyan
         virtual Shader* getMaterialShader() = 0;
         static std::string getAssetClassTypeDesc() { return std::string("IMaterial"); }
         virtual std::string getAssetObjectTypeDesc() override { return std::string("IMaterial"); }
-        virtual void setShaderParameters() = 0;
+        virtual void setShaderMaterialParameters() = 0;
+        virtual bool lit() = 0;
 
         // material shader map
         static MaterialShaderMap materialShaderMap;
@@ -188,8 +200,9 @@ namespace Cyan
         virtual std::string getAssetObjectTypeDesc() override { return typeDesc; }
         static std::string getAssetClassTypeDesc() { return typeDesc; }
         virtual Shader* getMaterialShader() override { return shader; }
+        virtual bool lit() override { return parameter.lit(); }
 
-        virtual void setShaderParameters() override
+        virtual void setShaderMaterialParameters() override
         {
             parameter.setShaderParameters(shader);
         }

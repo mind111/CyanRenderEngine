@@ -5,11 +5,10 @@
 
 namespace Cyan
 {
-    RenderableScene::RenderableScene(Scene* scene, const SceneView& sceneView)
+    RenderableScene::RenderableScene(const Scene& scene, const SceneView& sceneView)
     {
         viewSsboPtr = std::make_unique<ViewSsbo>();
         transformSsboPtr = std::make_unique<TransformSsbo>(256);
-        directionalLightSsboPtr = std::make_unique<DirectionalLightSsbo>(1);
         pointLightSsboPtr = std::make_unique<PointLightSsbo>(20);
 
         // build list of mesh instances and transforms
@@ -28,22 +27,24 @@ namespace Cyan
 
         // build view data
         ViewSsbo& viewSsbo = *(viewSsboPtr.get());
-        SET_SSBO_STATIC_MEMBER(viewSsbo, view, scene->camera.view);
-        SET_SSBO_STATIC_MEMBER(viewSsbo, projection, scene->camera.projection);
-        SET_SSBO_STATIC_MEMBER(viewSsbo, numDirLights, scene->dLights.size());
-        SET_SSBO_STATIC_MEMBER(viewSsbo, numPointLights, scene->pointLights.size());
+        SET_SSBO_STATIC_MEMBER(viewSsbo, view, scene.camera.view);
+        SET_SSBO_STATIC_MEMBER(viewSsbo, projection, scene.camera.projection);
+#if 0
+        SET_SSBO_STATIC_MEMBER(viewSsbo, numDirLights, scene.dLights.size());
+        SET_SSBO_STATIC_MEMBER(viewSsbo, numPointLights, scene.pointLights.size());
+#endif
 
         // build lighting data
-        skybox = scene->m_skybox;
-        irradianceProbe = scene->m_irradianceProbe;
-        reflectionProbe = scene->m_reflectionProbe;
+        skybox = scene.m_skybox;
+        irradianceProbe = scene.m_irradianceProbe;
+        reflectionProbe = scene.m_reflectionProbe;
 
-        DirectionalLightSsbo directionalLightSsbo = *(directionalLightSsboPtr.get());
         PointLightSsbo pointLightSsbo = *(pointLightSsboPtr.get());
 
-        for (u32 i = 0; i < scene->dLights.size(); ++i)
+#if 0
+        for (u32 i = 0; i < scene.dLights.size(); ++i)
         {
-            scene->dLights[i].update();
+            scene.dLights[i].update();
             SET_SSBO_DYNAMIC_ELEMENT(directionalLightSsbo, i, scene->dLights[i].getData());
         }
         for (u32 i = 0; i < scene->pointLights.size(); ++i)
@@ -51,9 +52,8 @@ namespace Cyan
             scene->pointLights[i].update();
             SET_SSBO_DYNAMIC_ELEMENT(pointLightSsbo, i, scene->pointLights[i].getData());
         }
-
+#endif
         viewSsbo.update();
-        directionalLightSsbo.update();
         pointLightSsbo.update();
     }
 
@@ -62,10 +62,10 @@ namespace Cyan
     */
     void RenderableScene::submitSceneData(GfxContext* ctx)
     {
+
         // bind global ssbo
         viewSsboPtr->bind((u32)SceneSsboBindings::kViewData);
         transformSsboPtr->bind((u32)SceneSsboBindings::TransformMatrices);
-        directionalLightSsboPtr->bind((u32)SceneSsboBindings::DirLightData);
         pointLightSsboPtr->bind((u32)SceneSsboBindings::PointLightsData);
 
         // shared BRDF lookup texture used in split sum approximation for image based lighting

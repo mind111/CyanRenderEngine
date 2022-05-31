@@ -39,7 +39,6 @@ namespace Cyan
         };
 
         using ViewSsbo = ShaderStorageBuffer<StaticSsboStruct<ViewData>>;
-        using DirectionalLightSsbo = ShaderStorageBuffer<DynamicSsboStruct<DirLightGpuData>>;
         using PointLightSsbo = ShaderStorageBuffer<DynamicSsboStruct<PointLightGpuData>>;
         using TransformSsbo = ShaderStorageBuffer<DynamicSsboStruct<glm::mat4>>;
 
@@ -50,14 +49,13 @@ namespace Cyan
         Skybox* skybox = nullptr;
         IrradianceProbe* irradianceProbe = nullptr;
         ReflectionProbe* reflectionProbe = nullptr;
-        std::unique_ptr<DirectionalLightSsbo> directionalLightSsboPtr = nullptr;
         std::unique_ptr<PointLightSsbo> pointLightSsboPtr = nullptr;
 
         // mesh instances
         std::vector<MeshInstance*> meshInstances;
         std::unique_ptr<TransformSsbo> transformSsboPtr;
 
-        RenderableScene(Scene* scene, const SceneView& sceneView);
+        RenderableScene(const Scene& scene, const SceneView& sceneView);
         ~RenderableScene()
         { }
 

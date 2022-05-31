@@ -23,8 +23,8 @@ namespace Cyan
     RegularBuffer* createRegularBuffer(u32 totalSize);
 
     /* RenderTarget */
-    RenderTarget* createRenderTarget(u32 _width, u32 _height);
-    RenderTarget* createDepthRenderTarget(u32 width, u32 height);
+    RenderTarget* createRenderTarget(u32 width, u32 height);
+    RenderTarget* createDepthOnlyRenderTarget(u32 width, u32 height);
 
     /* Buffer */
     void setBuffer(RegularBuffer* _buffer, void* data, u32 _sizeInBytes);

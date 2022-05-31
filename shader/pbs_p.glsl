@@ -48,6 +48,14 @@ struct PointLight
     vec4 position;
 };
 
+uniform struct DirectionalLight
+{
+    vec4 diretion;
+    vec4 color;
+    float castShadow;
+    sampler2D shadowmap;
+} directionalLights[1];
+
 //- buffers
 layout(std430, binding = 0) buffer GlobalDrawData
 {

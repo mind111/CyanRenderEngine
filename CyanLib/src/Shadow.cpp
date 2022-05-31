@@ -1,6 +1,9 @@
 #include "Shadow.h"
+#include "Scene.h"
 #include "CyanAPI.h"
 #include "CyanRenderer.h"
+#include "RenderableScene.h"
+#include "DirectionalLight.h"
 
 namespace Cyan
 {
@@ -22,7 +25,7 @@ namespace Cyan
 
     void RasterDirectShadowManager::initShadowmap(NewCascadedShadowmap& csm, const glm::uvec2& resolution)
     {
-        csm.depthRenderTarget = createDepthRenderTarget(resolution.x, resolution.y);
+        csm.depthRenderTarget = createDepthOnlyRenderTarget(resolution.x, resolution.y);
 
         auto textureManager = TextureManager::get();
         auto initCascade = [this, textureManager, csm](ShadowCascade& cascade, const glm::vec4& frustumColor) {
@@ -167,6 +170,7 @@ namespace Cyan
 
     void RasterDirectShadowManager::render(NewCascadedShadowmap& csm, Scene* scene, const DirectionalLight& sunLight, const std::vector<Entity*>& shadowCasters)
     {
+#if 0
         const auto& camera = scene->camera;
         f32 t[4] = { 0.1f, 0.3f, 0.6f, 1.f };
         csm.cascades[0].n = camera.n;
@@ -193,6 +197,7 @@ namespace Cyan
         default:
             break;
         }
+#endif
     }
 
     // todo: try to reduce custom rendering code that directly uses m_ctx
@@ -233,5 +238,48 @@ namespace Cyan
     void RasterDirectShadowManager::vsmShadow()
     {
 
+    }
+
+    CSM::CSM(const DirectionalLight& inDirectionalLight)
+        : IDirectionalShadowmap()
+    {
+        u32 width = 0u, height = 0u;
+        switch (inDirectionalLight.shadowQuality)
+        {
+        case DirectionalLight::ShadowQuality::kLow:
+        case DirectionalLight::ShadowQuality::kMedium:
+        case DirectionalLight::ShadowQuality::kHigh:
+        {
+            width = 4096;
+            height = 4096;
+        } break;
+        default:
+            break;
+        }
+
+        // create depth texture
+        auto textureManager = TextureManager::get();
+        char textureName[64] = { };
+        sprintf_s(textureName, "CSM_depth_texture_%ux%u", width, height);
+        shadowmap = textureManager->createDepthTexture(textureName, width, height);
+    }
+  
+
+    // todo: think about how to create/destroy transient gpu resources such as texture and render target
+    void CSM::render(const Scene& scene, Renderer& renderer)
+    {
+        // create render target
+        auto depthRenderTarget = createDepthOnlyRenderTarget(shadowmap->width, shadowmap->height);
+        depthRenderTarget->setDepthBuffer(shadowmap);
+
+        // todo: camera should be orthographic
+        SceneView sceneView(scene, scene.camera, depthRenderTarget, { }, { 0u, 0u, depthRenderTarget->width, depthRenderTarget->height }, EntityFlag_kVisible | EntityFlag_kCastShadow);
+        RenderableScene renderableScene(scene, sceneView);
+
+        // render
+        renderer.renderSceneDepthOnly(renderableScene, sceneView);
+
+        // release resources
+        glDeleteFramebuffers(1, &depthRenderTarget->fbo);
     }
 }

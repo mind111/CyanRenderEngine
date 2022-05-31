@@ -29,13 +29,13 @@ namespace Cyan
         Viewport viewport = { };
         std::vector<Entity*> entities;
 
-        SceneView(Scene* scene, const Camera& inCamera, RenderTarget* inRenderTarget , std::initializer_list<RenderTargetDrawBuffer>&& inDrawBuffers, Viewport inViewport, u32 flags)
+        SceneView(const Scene& scene, const Camera& inCamera, RenderTarget* inRenderTarget , std::initializer_list<RenderTargetDrawBuffer>&& inDrawBuffers, Viewport inViewport, u32 flags)
             : camera(inCamera),
             renderTarget(inRenderTarget),
             viewport(inViewport),
             drawBuffers(inDrawBuffers)
         {
-            for (auto entity : scene->entities)
+            for (auto entity : scene.entities)
             {
                 if ((entity->getFlags() & flags) == flags)
                 {
@@ -139,15 +139,14 @@ namespace Cyan
         * Render a directional shadow map for the sun in 'scene'
         */
         void renderSunShadow(Scene* scene, const std::vector<Entity*>& shadowCasters);
-        void renderScene(Scene* scene, const SceneView& sceneView);
-        void renderSceneDepthNormal(Scene* scene, const SceneView& sceneView);
+        void renderScene(RenderableScene& renderableScene, const SceneView& sceneView);
+        void renderSceneMeshOnly(RenderableScene& renderableScene, const SceneView& sceneView, Shader* shader);
+        void renderSceneDepthNormal(RenderableScene& renderableScene, const SceneView& sceneView);
+        void renderSceneDepthOnly(RenderableScene& renderableScene, const SceneView& sceneView);
         void renderDebugObjects(Scene* scene, const std::function<void()>& externDebugRender = [](){ });
 
         // todo: implement the following functions
-        void renderPrepasses() { }
         void renderShadow(RenderableScene* renderableScene);
-        void rendeMainScene() { }
-        void renderPostProcessing() { }
 
         /*
         * Render provided scene into a light probe
@@ -159,8 +158,8 @@ namespace Cyan
         */
         void renderUI(const std::function<void()>& callback);
 
-        void drawEntity(RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, Entity* entity);
-        void drawMeshInstance(RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, MeshInstance* meshInstance, i32 transformIndex);
+        void drawEntity(RenderableScene& renderableScene, RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, Entity* entity);
+        void drawMeshInstance(RenderableScene& renderableScene, RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, MeshInstance* meshInstance, i32 transformIndex);
 
         /**
         * Draw a mesh without material
@@ -181,6 +180,8 @@ namespace Cyan
         * Submit a submesh; right now the execution is not deferred
         */
         void submitRenderTask(RenderTask&& task);
+
+        void setShaderLightingParameters(const RenderableScene& renderableScene, Shader* shader);
 //
 
 // post-processing

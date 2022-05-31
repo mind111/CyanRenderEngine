@@ -64,8 +64,8 @@ namespace Cyan
         voxelizeSpec.type = Texture::Type::TEX_2D;
         voxelizeSpec.dataType = Texture::DataType::Float;
         voxelizeSpec.format = Texture::ColorFormat::R16G16B16;
-        voxelizeSpec.min = Texture::Filter::LINEAR; 
-        voxelizeSpec.mag = Texture::Filter::LINEAR;
+        voxelizeSpec.min = Texture::Filtering::LINEAR; 
+        voxelizeSpec.mag = Texture::Filtering::LINEAR;
 
         TextureSpec voxelizeSSSpec = { };
         voxelizeSSSpec.width = resolution * ssaaRes;
@@ -73,8 +73,8 @@ namespace Cyan
         voxelizeSSSpec.type = Texture::Type::TEX_2D;
         voxelizeSSSpec.dataType = Texture::DataType::Float;
         voxelizeSSSpec.format = Texture::ColorFormat::R16G16B16;
-        voxelizeSSSpec.min = Texture::Filter::LINEAR; 
-        voxelizeSSSpec.mag = Texture::Filter::LINEAR;
+        voxelizeSSSpec.min = Texture::Filtering::LINEAR; 
+        voxelizeSSSpec.mag = Texture::Filtering::LINEAR;
         Texture* voxelizeSSColorbuffer = textureManager->createTexture("VoxelizeSS", voxelizeSSSpec);
         ssRenderTarget = createRenderTarget(resolution * ssaaRes, resolution * ssaaRes);
         ssRenderTarget->setColorBuffer(voxelizeSSColorbuffer, 0);
@@ -101,8 +101,8 @@ namespace Cyan
         visSpec.type = Texture::Type::TEX_2D;
         visSpec.dataType = Texture::DataType::Float;
         visSpec.format = Texture::ColorFormat::R16G16B16;
-        visSpec.min = Texture::Filter::LINEAR; 
-        visSpec.mag = Texture::Filter::LINEAR;
+        visSpec.min = Texture::Filtering::LINEAR; 
+        visSpec.mag = Texture::Filtering::LINEAR;
         visSpec.numMips = 1;
         colorBuffer = textureManager->createTexture("VoxelVis", visSpec);
         renderTarget = createRenderTarget(visSpec.width, visSpec.height);
@@ -118,8 +118,8 @@ namespace Cyan
         depthNormSpec.dataType = Texture::DataType::Float;
         depthNormSpec.width = 1280 * 2u;
         depthNormSpec.height = 720 * 2u;
-        depthNormSpec.min = Texture::Filter::LINEAR;
-        depthNormSpec.mag = Texture::Filter::LINEAR;
+        depthNormSpec.min = Texture::Filtering::LINEAR;
+        depthNormSpec.mag = Texture::Filtering::LINEAR;
         depthNormSpec.s = Texture::Wrap::CLAMP_TO_EDGE;
         depthNormSpec.t = Texture::Wrap::CLAMP_TO_EDGE;
         depthNormSpec.r = Texture::Wrap::CLAMP_TO_EDGE;
@@ -192,8 +192,8 @@ namespace Cyan
             colorSpec.dataType = Texture::DataType::Float;
             colorSpec.width = m_SSAAWidth;
             colorSpec.height = m_SSAAHeight;
-            colorSpec.min = Texture::Filter::LINEAR;
-            colorSpec.mag = Texture::Filter::LINEAR;
+            colorSpec.min = Texture::Filtering::LINEAR;
+            colorSpec.mag = Texture::Filtering::LINEAR;
             colorSpec.s = Texture::Wrap::CLAMP_TO_EDGE;
             colorSpec.t = Texture::Wrap::CLAMP_TO_EDGE;
             colorSpec.r = Texture::Wrap::CLAMP_TO_EDGE;
@@ -215,8 +215,8 @@ namespace Cyan
             depthNormSpec.dataType = Texture::DataType::Float;
             depthNormSpec.width = m_SSAAWidth;
             depthNormSpec.height = m_SSAAHeight;
-            depthNormSpec.min = Texture::Filter::LINEAR;
-            depthNormSpec.mag = Texture::Filter::LINEAR;
+            depthNormSpec.min = Texture::Filtering::LINEAR;
+            depthNormSpec.mag = Texture::Filtering::LINEAR;
             depthNormSpec.s = Texture::Wrap::CLAMP_TO_EDGE;
             depthNormSpec.t = Texture::Wrap::CLAMP_TO_EDGE;
             depthNormSpec.r = Texture::Wrap::CLAMP_TO_EDGE;
@@ -242,8 +242,8 @@ namespace Cyan
             spec.type = Texture::Type::TEX_2D;
             spec.format = Texture::ColorFormat::R16G16B16; 
             spec.dataType = Texture::DataType::Float;
-            spec.min = Texture::Filter::LINEAR;
-            spec.mag = Texture::Filter::LINEAR;
+            spec.min = Texture::Filtering::LINEAR;
+            spec.mag = Texture::Filtering::LINEAR;
             spec.s = Texture::Wrap::CLAMP_TO_EDGE;
             spec.t = Texture::Wrap::CLAMP_TO_EDGE;
             spec.r = Texture::Wrap::CLAMP_TO_EDGE;
@@ -262,8 +262,8 @@ namespace Cyan
             spec.type = Texture::Type::TEX_2D;
             spec.format = Texture::ColorFormat::R16G16B16A16; 
             spec.dataType = Texture::DataType::Float;
-            spec.min = Texture::Filter::LINEAR;
-            spec.mag = Texture::Filter::LINEAR;
+            spec.min = Texture::Filtering::LINEAR;
+            spec.mag = Texture::Filtering::LINEAR;
             spec.s = Texture::Wrap::CLAMP_TO_EDGE;
             spec.t = Texture::Wrap::CLAMP_TO_EDGE;
             spec.r = Texture::Wrap::CLAMP_TO_EDGE;
@@ -304,8 +304,8 @@ namespace Cyan
             colorSpec.dataType = Texture::DataType::Float;
             colorSpec.width = m_windowWidth;
             colorSpec.height = m_windowHeight;
-            colorSpec.min = Texture::Filter::LINEAR;
-            colorSpec.mag = Texture::Filter::LINEAR;
+            colorSpec.min = Texture::Filtering::LINEAR;
+            colorSpec.mag = Texture::Filtering::LINEAR;
             colorSpec.s = Texture::Wrap::CLAMP_TO_EDGE;
             colorSpec.t = Texture::Wrap::CLAMP_TO_EDGE;
             colorSpec.r = Texture::Wrap::CLAMP_TO_EDGE;
@@ -329,8 +329,8 @@ namespace Cyan
                 voxelDataSpec.type = Texture::Type::TEX_3D;
                 voxelDataSpec.dataType = Texture::DataType::UNSIGNED_INT;
                 voxelDataSpec.format = Texture::ColorFormat::R8G8B8A8;
-                voxelDataSpec.min = Texture::Filter::MIPMAP_LINEAR; 
-                voxelDataSpec.mag = Texture::Filter::NEAREST;
+                voxelDataSpec.min = Texture::Filtering::MIPMAP_LINEAR; 
+                voxelDataSpec.mag = Texture::Filtering::NEAREST;
                 voxelDataSpec.r = Texture::Wrap::CLAMP_TO_EDGE;
                 voxelDataSpec.s = Texture::Wrap::CLAMP_TO_EDGE;
                 voxelDataSpec.t = Texture::Wrap::CLAMP_TO_EDGE;
@@ -355,8 +355,8 @@ namespace Cyan
                 spec.type = Texture::Type::TEX_2D;
                 spec.dataType = Texture::DataType::Float;
                 spec.format = Texture::ColorFormat::R16G16B16;
-                spec.min = Texture::Filter::LINEAR;
-                spec.mag = Texture::Filter::LINEAR;
+                spec.min = Texture::Filtering::LINEAR;
+                spec.mag = Texture::Filtering::LINEAR;
 
                 m_vctx.occlusion = textureManager->createTexture("VctxOcclusion", spec);
                 m_vctx.irradiance = textureManager->createTexture("VctxIrradiance", spec);
@@ -387,7 +387,12 @@ namespace Cyan
         ImGui::DestroyContext();
     }
 
-    void Renderer::drawMeshInstance(RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, MeshInstance* meshInstance, i32 transformIndex)
+    void Renderer::setShaderLightingParameters(const RenderableScene& renderableScene, Shader* shader)
+    {
+
+    }
+
+    void Renderer::drawMeshInstance(RenderableScene& renderableScene, RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, MeshInstance* meshInstance, i32 transformIndex)
     {
         Mesh* parent = meshInstance->parent;
         for (u32 i = 0; i < parent->numSubmeshes(); ++i)
@@ -397,11 +402,15 @@ namespace Cyan
             {
                 RenderTask task = { };
                 task.renderTarget = renderTarget;
-                task.drawBuffers = std::move(drawBuffers);
+                task.drawBuffers = drawBuffers;
                 task.viewport = viewport;
                 task.shader = material->getMaterialShader();
-                task.renderSetupLambda = [this, transformIndex, material](RenderTarget* renderTarget, Shader* shader) {
-                    material->setShaderParameters();
+                task.renderSetupLambda = [this, &renderableScene, transformIndex, material](RenderTarget* renderTarget, Shader* shader) {
+                    material->setShaderMaterialParameters();
+                    if (material->lit())
+                    {
+                        setShaderLightingParameters(renderableScene, shader);
+                    }
                     shader->setUniform("transformIndex", transformIndex);
                 };
 
@@ -630,7 +639,7 @@ namespace Cyan
                     visualizer.cachedSceneNormal->handle, GL_TEXTURE_2D, 0, 0, 0, 0, sceneNormalTexture->width, sceneNormalTexture->height, 1);
 
 
-        //        visualizer.cachedView = m_globalDrawData.view;
+        //       visualizer.cachedView = m_globalDrawData.view;
         //       visualizer.cachedProjection = m_globalDrawData.projection;
 
                 if (!visualizer.cachedTexInitialized)
@@ -712,7 +721,7 @@ namespace Cyan
         glEnable(GL_CULL_FACE);
     }
 
-    void Renderer::drawEntity(RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, Entity* entity)
+    void Renderer::drawEntity(RenderableScene& renderableScene, RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, Entity* entity)
     {
         std::queue<SceneComponent*> nodes;
         nodes.push(entity->m_sceneRoot);
@@ -722,7 +731,7 @@ namespace Cyan
             nodes.pop();
             if (auto meshInst = node->getAttachedMesh())
             {
-                drawMeshInstance(renderTarget, drawBuffers, clearRenderTarget, viewport, pipelineState, meshInst, node->globalTransform);
+                drawMeshInstance(renderableScene, renderTarget, drawBuffers, clearRenderTarget, viewport, pipelineState, meshInst, node->globalTransform);
             }
             for (u32 i = 0; i < node->m_child.size(); ++i)
             {
@@ -753,7 +762,7 @@ namespace Cyan
     {
         if (material)
         {
-            material->setShaderParameters();
+            material->setShaderMaterialParameters();
             Shader* shader = material->getMaterialShader();
             perMeshSetupLambda(renderTarget, shader);
 
@@ -852,7 +861,9 @@ namespace Cyan
         //-------------------------------------------------------------------
 
         auto renderTarget = m_settings.enableAA ? m_sceneColorRTSSAA : m_sceneColorRenderTarget;
-        SceneView sceneView(scene, scene->camera, renderTarget, { }, { 0u, 0u,  renderTarget->width, renderTarget->height }, EntityFlag_kVisible);
+        SceneView sceneView(*scene, scene->camera, renderTarget, { }, { 0u, 0u,  renderTarget->width, renderTarget->height }, EntityFlag_kVisible);
+        // convert Scene instance to RenderableScene instance for rendering
+        RenderableScene renderableScene(*scene, sceneView);
 
         beginRender();
         {
@@ -880,7 +891,7 @@ namespace Cyan
                     RenderTargetDrawBuffer{ (i32)(SceneColorBuffers::kDepth), glm::vec4(1.f) },
                     RenderTargetDrawBuffer{ (i32)(SceneColorBuffers::kNormal) }
                 };
-                renderSceneDepthNormal(scene, sceneView);
+                renderSceneDepthNormal(renderableScene, sceneView);
             }
 
             // voxel cone tracing pass
@@ -903,7 +914,7 @@ namespace Cyan
             sceneView.drawBuffers = {
                 RenderTargetDrawBuffer{ (i32)(SceneColorBuffers::kSceneColor) }
             };
-            renderScene(scene, sceneView);
+            renderScene(renderableScene, sceneView);
 
             // debug object pass
             renderDebugObjects(scene, externDebugRender);
@@ -953,9 +964,11 @@ namespace Cyan
 
     void Renderer::renderSunShadow(Scene* scene, const std::vector<Entity*>& shadowCasters)
     {
+#if 0
         auto& sunLight = scene->dLights[0];
         m_rasterDirectShadowManager->render(m_csm, scene, sunLight, shadowCasters);
         updateSunShadow(m_csm);
+#endif
     }
 
     void Renderer::renderShadow(RenderableScene* renderableScene)
@@ -963,48 +976,72 @@ namespace Cyan
         // iterate through directional light and render their shadowmap
     }
 
-    void Renderer::renderSceneDepthNormal(Scene* scene, const SceneView& sceneView)
+    void Renderer::renderSceneMeshOnly(RenderableScene& renderableScene, const SceneView& sceneView, Shader* shader)
     {
-        enum class ColorBuffers
-        {
-            kColor = 0,
-            kDepth,
-            kNormal
-        };
-        enum class DrawBuffers
-        {
-            kDepth = 0,
-            kNormal
-        };
+        renderableScene.submitSceneData(m_ctx);
 
-        for (u32 e = 0; e < (u32)scene->entities.size(); ++e)
+        u32 transformIndex = 0u;
+        for (auto& meshInst : renderableScene.meshInstances)
         {
-            auto entity = scene->entities[e];
-            if (entity->m_includeInGBufferPass && entity->m_visible)
-            {
-                visitEntity(entity, [this, &sceneView](SceneComponent* sceneComponent) { 
-                    if (auto meshInst = sceneComponent->getAttachedMesh())
-                    {
-                        submitMesh(
-                            sceneView.renderTarget, // renderTarget
-                            sceneView.drawBuffers,
-                            false,
-                            { 0u, 0u, sceneView.renderTarget->width, sceneView.renderTarget->height }, // viewport
-                            GfxPipelineState(), // pipeline state
-                            meshInst->parent, // mesh
-                            m_sceneDepthNormalShader, // shader
-                            [sceneComponent](RenderTarget* renderTarget, Shader* shader) { // renderSetupLambda
-                                shader->setUniform("transformIndex", sceneComponent->globalTransform);
-                            });
-                    }
+            submitMesh(
+                sceneView.renderTarget, // renderTarget
+                sceneView.drawBuffers,
+                false,
+                { 0u, 0u, sceneView.renderTarget->width, sceneView.renderTarget->height }, // viewport
+                GfxPipelineState(), // pipeline state
+                meshInst->parent, // mesh
+                shader, // shader
+                [&transformIndex](RenderTarget* renderTarget, Shader* shader) { // renderSetupLambda
+                    shader->setUniform("transformIndex", transformIndex++);
                 });
-            }
         }
     }
 
-    void Renderer::renderScene(Scene* scene, const SceneView& sceneView)
+    // todo: refactor this and 
+    void Renderer::renderSceneDepthOnly(RenderableScene& renderableScene, const SceneView& sceneView)
     {
-        RenderableScene renderableScene(scene, sceneView);
+        renderableScene.submitSceneData(m_ctx);
+
+        u32 transformIndex = 0u;
+        for (auto& meshInst : renderableScene.meshInstances)
+        {
+            submitMesh(
+                sceneView.renderTarget, // renderTarget
+                sceneView.drawBuffers,
+                false,
+                { 0u, 0u, sceneView.renderTarget->width, sceneView.renderTarget->height }, // viewport
+                GfxPipelineState(), // pipeline state
+                meshInst->parent, // mesh
+                m_sceneDepthNormalShader, // shader
+                [&transformIndex](RenderTarget* renderTarget, Shader* shader) { // renderSetupLambda
+                    shader->setUniform("transformIndex", transformIndex++);
+                });
+        }
+    }
+
+    void Renderer::renderSceneDepthNormal(RenderableScene& renderableScene, const SceneView& sceneView)
+    {
+        renderableScene.submitSceneData(m_ctx);
+
+        u32 transformIndex = 0u;
+        for (auto& meshInst : renderableScene.meshInstances)
+        {
+            submitMesh(
+                sceneView.renderTarget, // renderTarget
+                sceneView.drawBuffers,
+                false,
+                { 0u, 0u, sceneView.renderTarget->width, sceneView.renderTarget->height }, // viewport
+                GfxPipelineState(), // pipeline state
+                meshInst->parent, // mesh
+                m_sceneDepthNormalShader, // shader
+                [&transformIndex](RenderTarget* renderTarget, Shader* shader) { // renderSetupLambda
+                    shader->setUniform("transformIndex", transformIndex++);
+                });
+        }
+    }
+
+    void Renderer::renderScene(RenderableScene& renderableScene, const SceneView& sceneView)
+    {
         renderableScene.submitSceneData(m_ctx);
 
         // render skybox
@@ -1018,8 +1055,9 @@ namespace Cyan
         for (auto meshInst : renderableScene.meshInstances)
         {
             drawMeshInstance(
+                renderableScene,
                 sceneView.renderTarget, 
-                std::move(const_cast<SceneView&>(sceneView).drawBuffers), 
+                sceneView.drawBuffers, 
                 false,
                 sceneView.viewport, 
                 GfxPipelineState(), 
@@ -1261,6 +1299,7 @@ namespace Cyan
     // todo: refactor this, this should really just be renderScene()
     void Renderer::renderSceneToLightProbe(Scene* scene, LightProbe* probe, RenderTarget* renderTarget)
     {
+#if 0 
         // updateTransforms(scene);
 
         // only capture static objects
@@ -1314,6 +1353,7 @@ namespace Cyan
         }
 
         m_settings.enableSSAO = true;
+#endif
     }
 
     void Renderer::renderVctx()

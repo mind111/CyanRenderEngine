@@ -18,6 +18,7 @@ struct Light
     virtual void update() = 0;
 };
 
+#if 0
 struct DirLightGpuData
 {
     glm::vec4 m_color;
@@ -48,6 +49,7 @@ struct DirectionalLight : public Light
         return {color, direction};
     }
 };
+#endif
 
 struct PointLightGpuData
 {
@@ -76,10 +78,4 @@ struct PointLight : public Light
 
 namespace Cyan
 {
-#if 0
-    struct DirectionalLightComponent : public Component
-    {
-        DirectionalLight directionalLight;
-    };
-#endif
 }

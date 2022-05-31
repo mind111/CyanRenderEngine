@@ -177,12 +177,14 @@ MeshComponent* SceneManager::createMeshNode(Scene* scene, Transform transform, C
 
 void SceneManager::createDirectionalLight(Scene* scene, glm::vec3 color, glm::vec3 direction, float intensity)
 {
+#if 0
     CYAN_ASSERT(scene->dLights.size() < Scene::kMaxNumDirectionalLights, "Too many directional lights created.")
     char nameBuff[64];
     sprintf_s(nameBuff, "DirLight%u", (u32)scene->dLights.size());
-    Entity* entity = createEntity(scene, nameBuff, Transform(), true); 
+    Entity* entity = createEntity(scene, nameBuff, Transform(), true);
     DirectionalLight light(entity, glm::vec4(color, intensity), glm::vec4(direction, 0.f));
     scene->dLights.push_back(light);
+#endif
 }
 
 void SceneManager::createPointLight(Scene* scene, glm::vec3 color, glm::vec3 position, float intensity)

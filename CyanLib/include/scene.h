@@ -15,6 +15,7 @@
 #include "Material.h"
 #include "LightProbe.h"
 #include "SkyBox.h"
+#include "DirectionalLight.h"
 
 struct Scene 
 {
@@ -47,7 +48,7 @@ struct Scene
 
     // lighting
     std::vector<PointLight>                 pointLights;
-    std::vector<DirectionalLight>           dLights;
+    Cyan::DirectionalLight                  directionalLight;
     Cyan::Skybox*                           m_skybox;
     Cyan::IrradianceProbe*                  m_irradianceProbe;
     Cyan::ReflectionProbe*                  m_reflectionProbe;

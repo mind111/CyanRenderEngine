@@ -20,7 +20,7 @@ namespace Cyan
             TEX_CUBEMAP
         };
 
-        enum Filter
+        enum Filtering
         {
             LINEAR = 0,
             NEAREST,
@@ -60,8 +60,8 @@ namespace Cyan
         void* data;
         ColorFormat format;
         DataType dataType;
-        Filter minFilter;
-        Filter magFilter;
+        Filtering minFilter;
+        Filtering magFilter;
         Wrap wrapS;
         Wrap wrapT;
         Wrap wrapR;
@@ -93,12 +93,12 @@ namespace Cyan
         u32 numMips;
         Texture::ColorFormat format;
         Texture::DataType dataType;
-        Texture::Filter min;
-        Texture::Filter mag;
+        Texture::Filtering min;
+        Texture::Filtering mag;
         Texture::Wrap s;
         Texture::Wrap t;
         Texture::Wrap r;
-        void*      data;
+        void* data;
     };
 
     class TextureManager

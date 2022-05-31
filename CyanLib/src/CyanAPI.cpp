@@ -83,7 +83,7 @@ namespace Cyan
     }
 
     // depth only render target
-    RenderTarget* createDepthRenderTarget(u32 width, u32 height)
+    RenderTarget* createDepthOnlyRenderTarget(u32 width, u32 height)
     {
         RenderTarget* rt = new RenderTarget();
         rt->width = width;
