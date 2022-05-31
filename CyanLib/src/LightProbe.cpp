@@ -180,7 +180,8 @@ namespace Cyan
 
                 renderer->submitMesh(
                     renderTarget,
-                    { (i32)f },
+                    { { (i32)f } },
+                    false,
                     { 0u, 0u, renderTarget->width, renderTarget->height }, 
                     pipelineState, 
                     unitCubeMesh, 
@@ -285,7 +286,7 @@ namespace Cyan
         pipelineState.depth = DepthControl::kDisable;
         renderer->submitFullScreenPass(
             renderTarget,
-            { 0u },
+            { { 0u } },
             shader,
             [](RenderTarget* renderTarget, Shader* shader) {
 
@@ -326,7 +327,8 @@ namespace Cyan
                     pipelineState.depth = DepthControl::kDisable;
                     renderer->submitMesh(
                         renderTarget,
-                        { (i32)f },
+                        { { (i32)f } },
+                        false,
                         { 0u, 0u, renderTarget->width, renderTarget->height }, 
                         pipelineState, 
                         unitCubeMesh, 

@@ -63,7 +63,7 @@ namespace Cyan
         void setBuffer(RegularBuffer* buffer, u32 binding);
         void setPrimitiveType(PrimitiveMode type);
         void setViewport(Viewport viewport);
-        void setRenderTarget(RenderTarget* rt, const std::initializer_list<i32>& drawBuffers);
+        void setRenderTarget(RenderTarget* rt, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers);
         void setDepthControl(DepthControl ctrl);
         void setClearColor(glm::vec4 color);
         void setCullFace(FrontFace frontFace, FaceCull faceToCull);

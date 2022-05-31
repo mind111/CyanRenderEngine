@@ -8,7 +8,7 @@ namespace Cyan
     RenderableScene::RenderableScene(Scene* scene, const SceneView& sceneView)
     {
         viewSsboPtr = std::make_unique<ViewSsbo>();
-        transformSsboPtr = std::make_unique<TransformSsbo>();
+        transformSsboPtr = std::make_unique<TransformSsbo>(256);
         directionalLightSsboPtr = std::make_unique<DirectionalLightSsbo>(1);
         pointLightSsboPtr = std::make_unique<PointLightSsbo>(20);
 
@@ -63,10 +63,10 @@ namespace Cyan
     void RenderableScene::submitSceneData(GfxContext* ctx)
     {
         // bind global ssbo
-        viewSsboPtr->bind((u32)SceneBufferBindings::kViewData);
-        transformSsboPtr->bind((u32)SceneBufferBindings::TransformMatrices);
-        directionalLightSsboPtr->bind((u32)SceneBufferBindings::DirLightData);
-        pointLightSsboPtr->bind((u32)SceneBufferBindings::PointLightsData);
+        viewSsboPtr->bind((u32)SceneSsboBindings::kViewData);
+        transformSsboPtr->bind((u32)SceneSsboBindings::TransformMatrices);
+        directionalLightSsboPtr->bind((u32)SceneSsboBindings::DirLightData);
+        pointLightSsboPtr->bind((u32)SceneSsboBindings::PointLightsData);
 
         // shared BRDF lookup texture used in split sum approximation for image based lighting
         if (Texture* BRDFLookupTexture = ReflectionProbe::getBRDFLookupTexture())

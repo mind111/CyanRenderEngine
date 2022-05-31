@@ -35,7 +35,7 @@ namespace Cyan
         VarianceShadowmap vsm;
     };
 
-    struct CascadedShadowmap
+    struct NewCascadedShadowmap
     {
         static const u32 kNumCascades = 4u;
         ShadowCascade   cascades[kNumCascades];
@@ -55,7 +55,7 @@ namespace Cyan
         /*
         * Create resources for a shadowmap
         */
-        void initShadowmap(CascadedShadowmap& csm, const glm::uvec2& resolution);
+        void initShadowmap(NewCascadedShadowmap& csm, const glm::uvec2& resolution);
         /*
         * Update cascade data
         */
@@ -63,8 +63,8 @@ namespace Cyan
         /*
         * Draw shadow map
         */
-        void render(CascadedShadowmap& csm, Scene* scene, const DirectionalLight& sunLight, const std::vector<Entity*>& shadowCasters);
-        void pcfShadow(CascadedShadowmap& csm, u32& cascadeIndex, Scene* scene, const glm::mat4& lightView, const std::vector<Entity*>& shadowCasters);
+        void render(NewCascadedShadowmap& csm, Scene* scene, const DirectionalLight& sunLight, const std::vector<Entity*>& shadowCasters);
+        void pcfShadow(NewCascadedShadowmap& csm, u32& cascadeIndex, Scene* scene, const glm::mat4& lightView, const std::vector<Entity*>& shadowCasters);
         void vsmShadow();
 
         Shader* m_sunShadowShader;

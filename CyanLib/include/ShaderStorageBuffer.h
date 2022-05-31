@@ -12,26 +12,21 @@ namespace Cyan
 {
     struct IShaderStorageBufferStruct
     {
-        virtual void* getStaticChunkData() = 0;
-        virtual void* getDynamicChunkData() = 0;
-        virtual u32 getStaticChunkSizeInBytes() = 0;
-        virtual u32 getDynamicChunkSizeInBytes() = 0;
-        virtual u32 getSizeInBytes() = 0;
+        virtual void reserveDynamicChunk(u32 numElements) { }
+        virtual bool hasDynamicChunk() { return false; }
+        virtual void* getStaticChunkData() { return nullptr; }
+        virtual void* getDynamicChunkData() { return nullptr; }
+        virtual u32 getStaticChunkSizeInBytes() { return 0; }
+        virtual u32 getDynamicChunkSizeInBytes() { return 0; };
+        virtual u32 getSizeInBytes() { return getStaticChunkSizeInBytes() + getDynamicChunkSizeInBytes(); }
     };
 
     template <typename StaticType>
     struct StaticSsboStruct : public IShaderStorageBufferStruct
     {
-        static StaticType staticChunk;
-
         virtual void* getStaticChunkData() override
         {
             return reinterpret_cast<void*>(&staticChunk);
-        }
-
-        virtual void* getDynamicChunkData() override
-        {
-            return nullptr;
         }
 
         virtual u32 getStaticChunkSizeInBytes() override
@@ -39,21 +34,43 @@ namespace Cyan
             return sizeof(StaticType);
         }
 
-        virtual u32 getDynamicChunkSizeInBytes() override
-        {
-            return 0;
-        }
-
-        virtual u32 getSizeInBytes() override
-        {
-            return getStaticChunkSizeInBytes() + getDynamicChunkSizeInBytes();
-        }
+        StaticType staticChunk;
     };
 
     template <typename DynamicType>
-    struct DyanmicSsboStruct : public IShaderStorageBufferStruct
+    struct DynamicSsboStruct : public IShaderStorageBufferStruct
     {
-        static StaticType staticChunk;
+        virtual bool hasDynamicChunk() override
+        {
+            return true;
+        }
+
+        virtual void* getDynamicChunkData() override
+        {
+            return dynamicArray.data();
+        }
+
+        virtual u32 getDynamicChunkSizeInBytes() override
+        {
+            return sizeOfVector(dynamicArray);
+        }
+
+        std::vector<DynamicType> dynamicArray;
+    };
+
+#if 0
+    template <typename StaticType, typename DynamicType>
+    struct CompoundSsboStruct : public IShaderStorageBufferStruct
+    {       
+        virtual void reserveDynamicChunk(u32 numElements) 
+        { 
+            dynamicArray.reserve(numElements);
+        }
+
+        virtual bool hasDynamicChunk() override
+        {
+            return true;
+        }
 
         virtual void* getStaticChunkData() override
         {
@@ -62,7 +79,7 @@ namespace Cyan
 
         virtual void* getDynamicChunkData() override
         {
-            return nullptr;
+            return dynamicArray.data();
         }
 
         virtual u32 getStaticChunkSizeInBytes() override
@@ -72,7 +89,44 @@ namespace Cyan
 
         virtual u32 getDynamicChunkSizeInBytes() override
         {
-            return 0;
+            return sizeOfVector(dynamicArray);
+        }
+
+        virtual u32 getSizeInBytes() override
+        {
+            return getStaticChunkSizeInBytes() + getDynamicChunkSizeInBytes();
+        }
+
+        static StaticType staticChunk;
+        static std::vector<DynamicType> dynamicArray;
+    };
+#else
+    template <typename StaticType, typename DynamicType>
+    struct CompoundSsboStruct : public StaticSsboStruct<StaticType>, public DynamicSsboStruct<DynamicType>
+    {
+        virtual bool hasDynamicChunk() override
+        {
+            return DynamicSsboStruct<DynamicType>::hasDynamicChunk();
+        }
+
+        virtual void* getStaticChunkData() override
+        {
+            return StaticSsboStruct<StaticType>::getStaticChunkData();
+        }
+
+        virtual void* getDynamicChunkData() override
+        {
+            return DynamicSsboStruct<DynamicType>::getDynamicChunkData();
+        }
+
+        virtual u32 getStaticChunkSizeInBytes() override
+        {
+            return StaticSsboStruct<StaticType>::getSizeInBytes();
+        }
+
+        virtual u32 getDynamicChunkSizeInBytes() override
+        {
+            return DynamicSsboStruct<DynamicType>::getSizeInBytes();
         }
 
         virtual u32 getSizeInBytes() override
@@ -80,13 +134,13 @@ namespace Cyan
             return getStaticChunkSizeInBytes() + getDynamicChunkSizeInBytes();
         }
     };
+#endif
 
-    template <typename SsboStructType, typename StaticType = void>
+    template <typename SsboStructType>
     struct ShaderStorageBuffer : public GpuResource
     {
-        ShaderStorageBuffer(u32 numDynamicArrayElemenents = 0)
+        ShaderStorageBuffer(u32 numElements = 0)
         {
-            ssboStruct.dynamicArray.reserve(numDynamicArrayElemenents);
             sizeInBytes = ssboStruct.getSizeInBytes();
 
             glCreateBuffers(1, &glResource);
@@ -139,36 +193,7 @@ namespace Cyan
             }
         }
 
-        struct SsboStruct : public IShaderStorageBufferStruct
-        {
-            static StaticType staticChunk;
-            static std::vector<DynamicType> dynamicArray;
-
-            virtual void* getStaticChunkData() override
-            {
-                return reinterpret_cast<void*>(&staticChunk);
-            }
-
-            virtual void* getDynamicChunkData() override
-            {
-                return dynamicArray.data();
-            }
-
-            virtual u32 getStaticChunkSizeInBytes() override
-            {
-                return sizeof(StaticType);
-            }
-
-            virtual u32 getDynamicChunkSizeInBytes() override
-            {
-                return sizeOfVector(dynamicArray);
-            }
-
-            virtual u32 getSizeInBytes() override
-            {
-                return getStaticChunkSizeInBytes() + getDynamicChunkSizeInBytes();
-            }
-        } ssboStruct;
+        SsboStructType ssboStruct;
         u32 sizeInBytes = 0;
         i32 bufferBindingUnit = -1;
     };

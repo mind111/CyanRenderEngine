@@ -9,12 +9,18 @@
 
 namespace Cyan
 {
+    struct RenderTargetDrawBuffer
+    {
+        i32 binding = -1;
+        glm::vec4 clearColor = glm::vec4(0.f, 0.f, 0.f, 1.f);
+    };
+
     struct RenderTarget
     {
         Texture* getColorBuffer(u32 index);
         void setColorBuffer(Texture* texture, u32 index, u32 mip = 0u);
         void setDepthBuffer(Texture* texture);
-        void clear(const std::initializer_list<i32>& buffers, glm::vec4 clearColor = glm::vec4(0.f, 0.f, 0.f, 1.f), f32 clearDepth = 1.f);
+        void clear(const std::initializer_list<RenderTargetDrawBuffer>& buffers, f32 clearDepth = 1.f);
         bool validate();
 
         u32 width, height;

@@ -53,12 +53,13 @@ namespace Cyan
         depthBuffer = texture;
     }
 
-    void RenderTarget::clear(const std::initializer_list<i32>& buffers, glm::vec4 clearColor, f32 clearDepth)
+    void RenderTarget::clear(const std::initializer_list<RenderTargetDrawBuffer>& buffers, f32 clearDepth)
     {
         // clear specified color buffer
         for (i32 i = 0; i < buffers.size(); ++i)
         {
-            glClearNamedFramebufferfv(fbo, GL_COLOR, *(buffers.begin() + i), &clearColor.x);
+            RenderTargetDrawBuffer& drawBuffer = const_cast<RenderTargetDrawBuffer&>(*(buffers.begin() + i));
+            glClearNamedFramebufferfv(fbo, GL_COLOR, drawBuffer.binding, &drawBuffer.clearColor.x);
         }
         // clear depth buffer
         glClearNamedFramebufferfv(fbo, GL_DEPTH, 0, &clearDepth);

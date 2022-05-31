@@ -20,7 +20,7 @@ namespace Cyan
 
     }
 
-    void RasterDirectShadowManager::initShadowmap(CascadedShadowmap& csm, const glm::uvec2& resolution)
+    void RasterDirectShadowManager::initShadowmap(NewCascadedShadowmap& csm, const glm::uvec2& resolution)
     {
         csm.depthRenderTarget = createDepthRenderTarget(resolution.x, resolution.y);
 
@@ -59,7 +59,7 @@ namespace Cyan
             cascade.aabb.init();
         };
 
-        for (u32 i = 0; i < CascadedShadowmap::kNumCascades; ++i)
+        for (u32 i = 0; i < NewCascadedShadowmap::kNumCascades; ++i)
         {
             ShadowCascade& cascade = csm.cascades[i];
             switch (i)
@@ -165,13 +165,13 @@ namespace Cyan
         // aabb.update();
     }
 
-    void RasterDirectShadowManager::render(CascadedShadowmap& csm, Scene* scene, const DirectionalLight& sunLight, const std::vector<Entity*>& shadowCasters)
+    void RasterDirectShadowManager::render(NewCascadedShadowmap& csm, Scene* scene, const DirectionalLight& sunLight, const std::vector<Entity*>& shadowCasters)
     {
         const auto& camera = scene->camera;
         f32 t[4] = { 0.1f, 0.3f, 0.6f, 1.f };
         csm.cascades[0].n = camera.n;
         csm.cascades[0].f = (1.0f - t[0]) * camera.n + t[0] * camera.f;
-        for (u32 i = 1u; i < CascadedShadowmap::kNumCascades; ++i)
+        for (u32 i = 1u; i < NewCascadedShadowmap::kNumCascades; ++i)
         {
             csm.cascades[i].n = csm.cascades[i-1].f;
             csm.cascades[i].f = (1.f - t[i]) * camera.n + t[i] * camera.f;
@@ -181,7 +181,7 @@ namespace Cyan
         switch (csm.technique)
         {
         case kPCF_Shadow:
-            for (u32 i = 0u; i < CascadedShadowmap::kNumCascades; ++i)
+            for (u32 i = 0u; i < NewCascadedShadowmap::kNumCascades; ++i)
             {
                 updateShadowCascade(csm.cascades[i], camera, csm.lightView);
                 pcfShadow(csm, i, scene, csm.lightView, shadowCasters);
@@ -196,7 +196,7 @@ namespace Cyan
     }
 
     // todo: try to reduce custom rendering code that directly uses m_ctx
-    void RasterDirectShadowManager::pcfShadow(CascadedShadowmap& csm, u32& cascadeIndex, Scene* scene, const glm::mat4& lightView, const std::vector<Entity*>& shadowCasters)
+    void RasterDirectShadowManager::pcfShadow(NewCascadedShadowmap& csm, u32& cascadeIndex, Scene* scene, const glm::mat4& lightView, const std::vector<Entity*>& shadowCasters)
     {
         auto& cascade = csm.cascades[cascadeIndex];
         auto aabb = cascade.aabb;
@@ -214,7 +214,8 @@ namespace Cyan
                 {
                     renderer->submitMesh(
                         csm.depthRenderTarget, 
-                        { 0 },
+                        { { 0 } },
+                        false,
                         { 0u, 0u, csm.depthRenderTarget->width, csm.depthRenderTarget->height },
                         GfxPipelineState(),
                         meshInst->parent,

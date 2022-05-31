@@ -57,9 +57,20 @@ bool DemoApp::mouseOverUI()
     return (m_mouseCursorX < 400.f && m_mouseCursorX > 0.f && m_mouseCursorY < 720.f && m_mouseCursorY > 0.f);
 }
 
+#include "ShaderStorageBuffer.h"
 void DemoApp::setupScene()
 {
     Cyan::Toolkit::GpuTimer timer("initDemoScene00()", true);
+
+    struct TestStruct
+    {
+        glm::vec4 member0;
+        glm::vec4 member1;
+    };
+
+    // testing out ShaderStorageBuffer's implementation here
+    Cyan::ShaderStorageBuffer<Cyan::StaticSsboStruct<TestStruct>> ssbo;
+    ssbo.update();
 
     auto sceneManager = SceneManager::get();
     m_scene = sceneManager->importScene("demo_scene_00", "C:\\dev\\cyanRenderEngine\\scene\\demo_scene_00.json");

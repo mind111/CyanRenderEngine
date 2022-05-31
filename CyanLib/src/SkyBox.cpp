@@ -97,7 +97,8 @@ namespace Cyan
                     pipelineState.depth = DepthControl::kDisable;
                     renderer->submitMesh(
                         renderTarget,
-                        { (i32)f },
+                        { { (i32)f } },
+                        false,
                         { 0, 0, renderTarget->width, renderTarget->height},
                         pipelineState,
                         cubeMesh,

@@ -38,6 +38,7 @@
     <ClInclude Include="include\CyanPathTracer.h" />
     <ClInclude Include="include\CyanRenderer.h" />
     <ClInclude Include="include\CyanUI.h" />
+    <ClInclude Include="include\DirectionalLight.h" />
     <ClInclude Include="include\Entity.h" />
     <ClInclude Include="include\Event.h" />
     <ClInclude Include="include\Geometry.h" />
@@ -89,6 +90,7 @@
     <ClCompile Include="src\CyanPathTracer.cpp" />
     <ClCompile Include="src\CyanRenderer.cpp" />
     <ClCompile Include="src\CyanUI.cpp" />
+    <ClCompile Include="src\DirectionalLight.cpp" />
     <ClCompile Include="src\Entity.cpp" />
     <ClCompile Include="src\EntryPoint.cpp" />
     <ClCompile Include="src\Geometry.cpp" />

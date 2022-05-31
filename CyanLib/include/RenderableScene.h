@@ -38,10 +38,10 @@ namespace Cyan
             f32 dummy;
         };
 
-        using ViewSsbo = ShaderStorageBuffer<f32, ViewData>;
-        using DirectionalLightSsbo = ShaderStorageBuffer<DirLightGpuData>;
-        using PointLightSsbo = ShaderStorageBuffer<PointLightGpuData>;
-        using TransformSsbo = ShaderStorageBuffer<glm::mat4>;
+        using ViewSsbo = ShaderStorageBuffer<StaticSsboStruct<ViewData>>;
+        using DirectionalLightSsbo = ShaderStorageBuffer<DynamicSsboStruct<DirLightGpuData>>;
+        using PointLightSsbo = ShaderStorageBuffer<DynamicSsboStruct<PointLightGpuData>>;
+        using TransformSsbo = ShaderStorageBuffer<DynamicSsboStruct<glm::mat4>>;
 
         // view
         std::unique_ptr<ViewSsbo> viewSsboPtr = nullptr;

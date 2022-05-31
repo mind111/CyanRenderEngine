@@ -133,7 +133,7 @@ namespace Cyan
         glViewport(viewport.m_x, viewport.m_y, viewport.m_width, viewport.m_height);
     }
 
-    void GfxContext::setRenderTarget(RenderTarget* rt, const std::initializer_list<i32>& drawBuffers)
+    void GfxContext::setRenderTarget(RenderTarget* rt, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers)
     {
         if (!rt)
         {
@@ -144,10 +144,10 @@ namespace Cyan
         i32 numBuffers = drawBuffers.size();
         for (i32 i = 0; i < numBuffers; ++i)
         {
-            i32 val = *(drawBuffers.begin() + i);
-            if (val > -1)
+            const RenderTargetDrawBuffer& drawBuffer = *(drawBuffers.begin() + i);
+            if (drawBuffer.binding > -1)
             {
-                buffers[i] = GL_COLOR_ATTACHMENT0 + val;
+                buffers[i] = GL_COLOR_ATTACHMENT0 + drawBuffer.binding;
             }
             else
             {

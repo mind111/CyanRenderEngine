@@ -387,7 +387,7 @@ namespace Cyan
         ImGui::DestroyContext();
     }
 
-    void Renderer::drawMeshInstance(RenderTarget* renderTarget, std::initializer_list<i32>&& drawBuffers, Viewport viewport, GfxPipelineState pipelineState, MeshInstance* meshInstance, i32 transformIndex)
+    void Renderer::drawMeshInstance(RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, MeshInstance* meshInstance, i32 transformIndex)
     {
         Mesh* parent = meshInstance->parent;
         for (u32 i = 0; i < parent->numSubmeshes(); ++i)
@@ -451,7 +451,7 @@ namespace Cyan
         {
             enum class SsboBindings
             {
-                kOpacityMask = (i32)SceneBufferBindings::kCount,
+                kOpacityMask = (i32)SceneSsboBindings::kCount,
                 kDebugTexcoord
             };
             auto index = glGetProgramResourceIndex(voxelizer.voxelizeShader->getGpuResource(), GL_SHADER_STORAGE_BLOCK, "OpacityData");
@@ -474,7 +474,7 @@ namespace Cyan
 
 
         auto renderTarget = m_vctx.opts.useSuperSampledOpacity > 0.f ? m_vctx.voxelizer.ssRenderTarget : m_vctx.voxelizer.renderTarget;
-        renderTarget->clear({ 0 });
+        renderTarget->clear({ { 0 } });
         glEnable(GL_NV_conservative_raster);
         glDisable(GL_CULL_FACE);
 
@@ -491,7 +491,7 @@ namespace Cyan
 
                             RenderTask task = { };
                             task.renderTarget = renderTarget;
-                            task.drawBuffers = { 0 };
+                            task.drawBuffers = { { 0 } };
                             task.viewport = { 0u, 0u, renderTarget->width, renderTarget->height };
                             GfxPipelineState pipelineState;
                             pipelineState.depth = DepthControl::kDisable;
@@ -533,7 +533,7 @@ namespace Cyan
             glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
             enum class SsboBindings
             {
-                kOpacityMask = (i32)SceneBufferBindings::kCount,
+                kOpacityMask = (i32)SceneSsboBindings::kCount,
             };
             auto index = glGetProgramResourceIndex(m_vctx.resolveShader->getGpuResource(), GL_SHADER_STORAGE_BLOCK, "OpacityData");
             glShaderStorageBlockBinding(m_vctx.resolveShader->getGpuResource(), index, (u32)SsboBindings::kOpacityMask);
@@ -589,23 +589,21 @@ namespace Cyan
         m_vctxGpuData.voxelSize = (pmax.x - pmin.x) / (f32)m_sceneVoxelGrid.resolution;
         m_vctxGpuData.visMode = 1 << static_cast<i32>(m_vctx.visualizer.mode);
         glNamedBufferSubData(m_vctxSsbo, 0, sizeof(VctxGpuData), &m_vctxGpuData);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)SceneBufferBindings::VctxGlobalData, m_vctxSsbo);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)SceneSsboBindings::VctxGlobalData, m_vctxSsbo);
     }
 
     void Renderer::visualizeVoxelGrid()
     {
         glDisable(GL_CULL_FACE);
         {
-            m_ctx->setRenderTarget(m_vctx.visualizer.renderTarget, { 0 });
-            m_vctx.visualizer.renderTarget->clear({ 0 });
+            m_ctx->setRenderTarget(m_vctx.visualizer.renderTarget, { RenderTargetDrawBuffer{ 0 } });
+            m_vctx.visualizer.renderTarget->clear({ RenderTargetDrawBuffer{ 0 } });
             m_ctx->setViewport({0u, 0u, m_vctx.visualizer.renderTarget->width, m_vctx.visualizer.renderTarget->height});
 
             m_ctx->setShader(m_vctx.visualizer.voxelGridVisShader);
             m_vctx.visualizer.voxelGridVisShader->setUniform("activeMip", m_vctx.visualizer.activeMip);
-            // m_vctx.visualizer.voxelGridVisMatl->set("activeMip", m_vctx.visualizer.activeMip);
-            // m_vctx.visualizer.voxelGridVisMatl->setShaderParameters();
-
             m_ctx->setPrimitiveType(PrimitiveMode::Points);
+
             u32 currRes = m_sceneVoxelGrid.resolution / pow(2, m_vctx.visualizer.activeMip);
             m_ctx->drawIndexAuto(currRes * currRes * currRes);
         }
@@ -687,7 +685,7 @@ namespace Cyan
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
         // visualize traced cones
-        m_ctx->setRenderTarget(m_vctx.visualizer.renderTarget, { 0 });
+        m_ctx->setRenderTarget(m_vctx.visualizer.renderTarget, { RenderTargetDrawBuffer{ 0 } });
         m_ctx->setViewport({ 0, 0, m_vctx.visualizer.renderTarget->width, m_vctx.visualizer.renderTarget->height });
         m_ctx->setShader(visualizer.coneVisDrawShader);
 
@@ -714,7 +712,7 @@ namespace Cyan
         glEnable(GL_CULL_FACE);
     }
 
-    void Renderer::drawEntity(RenderTarget* renderTarget, std::initializer_list<i32>&& drawBuffers, Viewport viewport, GfxPipelineState pipelineState, Entity* entity)
+    void Renderer::drawEntity(RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, Entity* entity)
     {
         std::queue<SceneComponent*> nodes;
         nodes.push(entity->m_sceneRoot);
@@ -724,7 +722,7 @@ namespace Cyan
             nodes.pop();
             if (auto meshInst = node->getAttachedMesh())
             {
-                drawMeshInstance(renderTarget, std::move(drawBuffers), viewport, pipelineState, meshInst, node->globalTransform);
+                drawMeshInstance(renderTarget, drawBuffers, clearRenderTarget, viewport, pipelineState, meshInst, node->globalTransform);
             }
             for (u32 i = 0; i < node->m_child.size(); ++i)
             {
@@ -733,7 +731,7 @@ namespace Cyan
         }
     }
 
-    void Renderer::submitMesh(RenderTarget* renderTarget, std::initializer_list<i32>&& drawBuffers, Viewport viewport, GfxPipelineState pipelineState, Mesh* mesh, Shader* shader, const RenderSetupLambda& perMeshSetupLambda)
+    void Renderer::submitMesh(RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, Mesh* mesh, Shader* shader, const RenderSetupLambda& perMeshSetupLambda)
     {
         perMeshSetupLambda(renderTarget, shader);
 
@@ -741,7 +739,8 @@ namespace Cyan
         {
             RenderTask task = { };
             task.renderTarget = renderTarget;
-            task.drawBuffers = std::move(drawBuffers);
+            task.drawBuffers = drawBuffers;
+            task.clearRenderTarget = clearRenderTarget;
             task.viewport = viewport;
             task.shader = shader;
             task.submesh = mesh->getSubmesh(i);
@@ -750,7 +749,7 @@ namespace Cyan
         }
     }
 
-    void Renderer::submitMaterialMesh(RenderTarget* renderTarget, std::initializer_list<i32>&& drawBuffers, Viewport viewport, GfxPipelineState pipelineState, Mesh* mesh, IMaterial* material, const RenderSetupLambda& perMeshSetupLambda)
+    void Renderer::submitMaterialMesh(RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, Mesh* mesh, IMaterial* material, const RenderSetupLambda& perMeshSetupLambda)
     {
         if (material)
         {
@@ -762,7 +761,8 @@ namespace Cyan
             {
                 RenderTask task = { };
                 task.renderTarget = renderTarget;
-                task.drawBuffers = std::move(drawBuffers);
+                task.drawBuffers = drawBuffers;
+                task.clearRenderTarget = clearRenderTarget;
                 task.viewport = viewport;
                 task.shader = shader;
                 task.submesh = mesh->getSubmesh(i);
@@ -772,14 +772,15 @@ namespace Cyan
         }
     }
 
-    void Renderer::submitFullScreenPass(RenderTarget* renderTarget, std::initializer_list<i32>&& drawBuffers, Shader* shader, const RenderSetupLambda& renderSetupLambda)
+    void Renderer::submitFullScreenPass(RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, Shader* shader, RenderSetupLambda&& renderSetupLambda)
     {
         GfxPipelineState pipelineState;
         pipelineState.depth = DepthControl::kDisable;
 
         submitMesh(
             renderTarget,
-            std::move(drawBuffers),
+            drawBuffers,
+            false,
             { 0, 0, renderTarget->width, renderTarget->height },
             pipelineState,
             fullscreenQuad,
@@ -791,6 +792,10 @@ namespace Cyan
     void Renderer::submitRenderTask(RenderTask&& task)
     {
         m_ctx->setRenderTarget(task.renderTarget, task.drawBuffers);
+        if (task.clearRenderTarget)
+        {
+            task.renderTarget->clear(task.drawBuffers);
+        }
         m_ctx->setViewport(task.viewport);
 
         task.shader->commit(m_ctx);
@@ -854,16 +859,27 @@ namespace Cyan
             // update all global data
             // updateFrameGlobalData(scene, scene->camera);
 
-            // sun shadow pass
+            // direct shadow pass
             if (m_settings.enableSunShadow)
             {
                 renderSunShadow(scene, scene->entities);
             }
 
+            struct DrawBuffer
+            {
+                i32 binding;
+                glm::vec4 clearColor = glm::vec4(0.f, 0.f, 0.f, 1.f);
+                glm::vec4 clearDepth = glm::vec4(0.f, 0.f, 0.f, 1.f);
+            };
+
             // scene depth & normal pass
             bool depthNormalPrepassRequired = (m_settings.enableSSAO || m_settings.enableVctx);
             if (depthNormalPrepassRequired)
             {
+                sceneView.drawBuffers = {
+                    RenderTargetDrawBuffer{ (i32)(SceneColorBuffers::kDepth), glm::vec4(1.f) },
+                    RenderTargetDrawBuffer{ (i32)(SceneColorBuffers::kNormal) }
+                };
                 renderSceneDepthNormal(scene, sceneView);
             }
 
@@ -878,10 +894,15 @@ namespace Cyan
             // ssao pass
             if (m_settings.enableSSAO)
             {
-                ssao(scene->camera);
+                Texture* sceneDepthTexture = m_settings.enableAA ? m_sceneDepthTextureSSAA : m_sceneDepthTexture;
+                Texture* sceneNormalTexture = m_settings.enableAA ? m_sceneNormalTextureSSAA : m_sceneNormalTexture;
+                ssao(sceneView, sceneDepthTexture, sceneNormalTexture);
             }
 
             // main scene pass
+            sceneView.drawBuffers = {
+                RenderTargetDrawBuffer{ (i32)(SceneColorBuffers::kSceneColor) }
+            };
             renderScene(scene, sceneView);
 
             // debug object pass
@@ -909,7 +930,7 @@ namespace Cyan
         m_ctx->flip();
     }
 
-    void Renderer::updateSunShadow(const CascadedShadowmap& csm)
+    void Renderer::updateSunShadow(const NewCascadedShadowmap& csm)
     {
 #if 0
         m_globalDrawData.sunLightView   = csm.lightView;
@@ -937,6 +958,11 @@ namespace Cyan
         updateSunShadow(m_csm);
     }
 
+    void Renderer::renderShadow(RenderableScene* renderableScene)
+    {
+        // iterate through directional light and render their shadowmap
+    }
+
     void Renderer::renderSceneDepthNormal(Scene* scene, const SceneView& sceneView)
     {
         enum class ColorBuffers
@@ -951,22 +977,19 @@ namespace Cyan
             kNormal
         };
 
-        auto renderTarget = m_settings.enableAA ? m_sceneColorRTSSAA : m_sceneColorRenderTarget;
-        renderTarget->clear({ static_cast<i32>(DrawBuffers::kDepth) }, glm::vec4(1.f));
-        renderTarget->clear({ static_cast<i32>(DrawBuffers::kNormal) });
-
         for (u32 e = 0; e < (u32)scene->entities.size(); ++e)
         {
             auto entity = scene->entities[e];
             if (entity->m_includeInGBufferPass && entity->m_visible)
             {
-                visitEntity(entity, [this, renderTarget](SceneComponent* sceneComponent) { 
+                visitEntity(entity, [this, &sceneView](SceneComponent* sceneComponent) { 
                     if (auto meshInst = sceneComponent->getAttachedMesh())
                     {
                         submitMesh(
-                            renderTarget, // renderTarget
-                            { static_cast<i32>(ColorBuffers::kDepth), static_cast<i32>(ColorBuffers::kNormal) }, // drawBuffers
-                            { 0u, 0u, renderTarget->width, renderTarget->height }, // viewport
+                            sceneView.renderTarget, // renderTarget
+                            sceneView.drawBuffers,
+                            false,
+                            { 0u, 0u, sceneView.renderTarget->width, sceneView.renderTarget->height }, // viewport
                             GfxPipelineState(), // pipeline state
                             meshInst->parent, // mesh
                             m_sceneDepthNormalShader, // shader
@@ -990,15 +1013,14 @@ namespace Cyan
             renderableScene.skybox->render();
         }
 
-        auto renderTarget = m_settings.enableAA ? m_sceneColorRTSSAA : m_sceneColorRenderTarget;
-        renderTarget->clear({ 0 });
-
+        // render mesh instances
         u32 transformIndex = 0u;
         for (auto meshInst : renderableScene.meshInstances)
         {
             drawMeshInstance(
                 sceneView.renderTarget, 
                 std::move(const_cast<SceneView&>(sceneView).drawBuffers), 
+                false,
                 sceneView.viewport, 
                 GfxPipelineState(), 
                 meshInst, 
@@ -1007,19 +1029,18 @@ namespace Cyan
         }
     }
 
-    void Renderer::ssao(Camera& camera)
+    void Renderer::ssao(const SceneView& sceneView, Texture* sceneDepthTexture, Texture* sceneNormalTexture)
     {
         submitFullScreenPass(
-            m_ssaoRenderTarget, 
-            { 0 }, 
+            sceneView.renderTarget,
+            const_cast<std::initializer_list<RenderTargetDrawBuffer>&&>(sceneView.drawBuffers),
             m_ssaoShader, 
-            [this, camera](RenderTarget* renderTarget, Shader* shader) {
-                renderTarget->clear({ 0 }, glm::vec4(1.f));
-                shader->setTexture("normalTexture", m_settings.enableAA ? m_sceneNormalTextureSSAA : m_sceneNormalTexture)
-                    .setTexture("depthTexture", m_settings.enableAA ? m_sceneDepthTextureSSAA : m_sceneDepthTexture)
-                    .setUniform("cameraPos", camera.position)
-                    .setUniform("view", camera.view)
-                    .setUniform("projection", camera.projection);
+            [this, sceneDepthTexture, sceneNormalTexture, &sceneView](RenderTarget* renderTarget, Shader* shader) {
+                shader->setTexture("normalTexture", sceneNormalTexture)
+                    .setTexture("depthTexture", sceneDepthTexture)
+                    .setUniform("cameraPos", sceneView.camera.position)
+                    .setUniform("view", sceneView.camera.view)
+                    .setUniform("projection", sceneView.camera.projection);
             });
     }
 
@@ -1035,7 +1056,7 @@ namespace Cyan
             renderTarget->setColorBuffer(dst, static_cast<u32>(ColorBuffer::kDst));
             submitFullScreenPass(
                 renderTarget, 
-                { static_cast<u32>(ColorBuffer::kDst) },
+                { { (i32)ColorBuffer::kDst } },
                 m_bloomDsShader, 
                 [this, src](RenderTarget* renderTarget, Shader* shader) {
                     shader->setTexture("srcImage", src);
@@ -1051,7 +1072,7 @@ namespace Cyan
             renderTarget->setColorBuffer(dst, static_cast<u32>(ColorBuffer::kDst));
             submitFullScreenPass(
                 renderTarget, 
-                { static_cast<u32>(ColorBuffer::kDst) },
+                { { (i32)ColorBuffer::kDst } },
                 m_bloomUsShader, 
                 [this, src, blend, stageIndex](RenderTarget* renderTarget, Shader* shader) {
                     shader->setTexture("srcImage", src)
@@ -1081,7 +1102,7 @@ namespace Cyan
             {
                 submitFullScreenPass(
                     renderTarget, 
-                    { static_cast<u32>(ColorBuffer::kScratch) },
+                    { { static_cast<u32>(ColorBuffer::kScratch) } },
                     m_gaussianBlurShader, 
                     [this, src, kernelIndex, radius](RenderTarget* renderTarget, Shader* shader) {
                         m_gaussianBlurShader->setTexture("srcTexture", src)
@@ -1093,14 +1114,14 @@ namespace Cyan
 
             // vertical pass
             {
-                std::initializer_list<i32> drawBuffers;
+                std::initializer_list<RenderTargetDrawBuffer> drawBuffers;
                 if (dst)
                 {
-                    drawBuffers = { static_cast<i32>(ColorBuffer::kDst) };
+                    drawBuffers = { { (i32)ColorBuffer::kDst } };
                 }
                 else
                 {
-                    drawBuffers = { static_cast<i32>(ColorBuffer::kSrc) };
+                    drawBuffers = { { (i32)ColorBuffer::kSrc } };
                 }
 
                 submitFullScreenPass(
@@ -1121,7 +1142,7 @@ namespace Cyan
         // bloom setup pass
         submitFullScreenPass(
             m_bloomSetupRenderTarget, 
-            { 0u },
+            { { 0u } },
             m_bloomSetupShader, 
             [this, src](RenderTarget* renderTarget, Shader* shader) {
                 shader->setTexture("srcTexture", src);
@@ -1157,7 +1178,7 @@ namespace Cyan
     {
         submitFullScreenPass(
             m_compositeRenderTarget,
-            { 0u },
+            { { 0 } },
             m_compositeShader,
             [this](RenderTarget* renderTarget, Shader* shader) {
                 shader->setUniform("exposure", m_settings.exposure)
@@ -1278,13 +1299,14 @@ namespace Cyan
             {
                 scene->m_skybox->render();
             }
-            renderTarget->clear({ (i32)f });
+            renderTarget->clear({ { (i32)f } });
             // draw entities 
             for (u32 i = 0; i < staticObjects.size(); ++i)
             {
                 drawEntity(
-                    renderTarget, 
-                    { (i32)f, -1, -1, -1 },
+                    renderTarget,
+                    { { (i32)f}, {}, {}, {} },
+                    false,
                     { 0u, 0u, probe->sceneCapture->width, probe->sceneCapture->height }, 
                     GfxPipelineState(), 
                     staticObjects[i]);
@@ -1298,7 +1320,11 @@ namespace Cyan
     {
         using ColorBuffers = Vctx::ColorBuffers;
 
-        m_ctx->setRenderTarget(m_vctx.renderTarget, { (i32)ColorBuffers::kOcclusion, (i32)ColorBuffers::kIrradiance, (i32)ColorBuffers::kReflection });
+        m_ctx->setRenderTarget(m_vctx.renderTarget, { 
+            { (i32)ColorBuffers::kOcclusion },
+            { (i32)ColorBuffers::kIrradiance }, 
+            { (i32)ColorBuffers::kReflection }
+            });
         m_ctx->setViewport({ 0u, 0u, m_vctx.renderTarget->width, m_vctx.renderTarget->height });
         m_ctx->setShader(m_vctx.renderShader);
 
