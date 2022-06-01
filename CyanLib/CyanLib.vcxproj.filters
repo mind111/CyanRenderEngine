@@ -33,7 +33,7 @@
     <ClInclude Include="include\Allocator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\Asset.h">
+    <ClInclude Include="include\AssetManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\BVH.h">
@@ -168,9 +168,6 @@
     <ClInclude Include="include\VoxelConeTracing.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\AssetFactory.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\IOSystem.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -195,9 +192,12 @@
     <ClInclude Include="include\DirectionalLight.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\Asset.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\Asset.cpp">
+    <ClCompile Include="src\AssetManager.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
     <ClCompile Include="src\BVH.cpp">
@@ -323,11 +323,11 @@
     <ClCompile Include="src\IOSystem.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
-    <ClCompile Include="src\RenderableScene.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\DirectionalLight.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\RenderableScene.cpp">
+      <Filter>Source Files\Internal</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

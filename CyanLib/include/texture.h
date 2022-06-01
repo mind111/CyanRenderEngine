@@ -12,7 +12,7 @@ namespace Cyan
     // TODO: how to handle texture name?
     struct Texture : public GpuResource
     {
-        enum Type
+        enum class Type
         {
             TEX_2D = 0,
             TEX_2D_ARRAY,
@@ -20,20 +20,20 @@ namespace Cyan
             TEX_CUBEMAP
         };
 
-        enum Filtering
+        enum class Filtering
         {
             LINEAR = 0,
             NEAREST,
             MIPMAP_LINEAR,
         };
 
-        enum Wrap
+        enum class Wrap
         {
             CLAMP_TO_EDGE = 0,
             NONE
         };
         
-        enum ColorFormat
+        enum class ColorFormat
         {
             R16F = 0,
             R32F,
@@ -48,7 +48,7 @@ namespace Cyan
             D24S8
         };
 
-        enum DataType
+        enum class DataType
         {
             UNSIGNED_BYTE,
             UNSIGNED_INT,
@@ -70,20 +70,6 @@ namespace Cyan
         u32 height;
         u32 depth;
         GLuint handle;
-
-        u32 getSizeInBytes()
-        {
-            u32 bpp = 0u;
-            switch(format)
-            {
-                case R16G16B16:
-                    break;
-                case R8G8B8:
-                    break;
-                default:
-                    break;
-            }
-        }
     };
 
     struct TextureSpec

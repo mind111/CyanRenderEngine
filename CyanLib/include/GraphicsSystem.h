@@ -5,7 +5,7 @@
 #include "System.h"
 #include "Scene.h"
 #include "Texture.h"
-#include "Asset.h"
+#include "AssetManager.h"
 #include "LightMap.h"
 #include "CyanPathTracer.h"
 #include "CyanRenderer.h"

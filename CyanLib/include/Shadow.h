@@ -3,6 +3,11 @@
 #include "glm.hpp"
 #include "Shader.h"
 #include "RenderTarget.h"
+#include "Geometry.h"
+
+struct Camera;
+struct Scene;
+struct Entity;
 
 namespace Cyan
 {
@@ -29,7 +34,7 @@ namespace Cyan
     {
         f32 n;
         f32 f;
-        ::BoundingBox3D aabb;
+        BoundingBox3D aabb;
         // ::Line frustumLines[12];
         glm::mat4 lightProjection;
         BasicShadowmap basicShadowmap;

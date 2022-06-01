@@ -15,7 +15,7 @@
 #include "ImGuizmo/ImGuizmo.h"
 
 #include "Common.h"
-#include "Asset.h"
+#include "AssetManager.h"
 #include "CyanRenderer.h"
 #include "Material.h"
 #include "MathUtils.h"

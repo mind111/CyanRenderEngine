@@ -11,7 +11,7 @@
 #include "Transform.h"
 #include "Geometry.h"
 #include "BVH.h"
-#include "AssetFactory.h"
+#include "Asset.h"
 
 struct Scene;
 

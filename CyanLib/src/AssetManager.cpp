@@ -5,7 +5,7 @@
 #include "tiny_obj_loader.h"
 #include "xatlas.h"
 
-#include "Asset.h"
+#include "AssetManager.h"
 #include "Texture.h"
 #include "CyanAPI.h"
 
@@ -97,8 +97,8 @@ namespace Cyan
             TextureSpec spec = { };
             spec.type = Texture::Type::TEX_2D;
             spec.numMips = numMips;
-            spec.min = Texture::Filter::LINEAR;
-            spec.mag = Texture::Filter::LINEAR;
+            spec.min = Texture::Filtering::LINEAR;
+            spec.mag = Texture::Filtering::LINEAR;
             spec.s = Texture::Wrap::NONE;
             spec.t = Texture::Wrap::NONE;
             spec.r = Texture::Wrap::NONE;
@@ -559,8 +559,8 @@ namespace Cyan
                     break;
                 }
             }
-            spec.min = Texture::Filter::LINEAR;
-            spec.mag = Texture::Filter::LINEAR;
+            spec.min = Texture::Filtering::LINEAR;
+            spec.mag = Texture::Filtering::LINEAR;
             spec.numMips = 11;
             spec.data = reinterpret_cast<void*>(image.image.data());
             u32 nameLen = (u32)strlen(image.uri.c_str());

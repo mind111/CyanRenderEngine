@@ -5,10 +5,12 @@
 
 #include "Shader.h"
 #include "Texture.h"
-#include "AssetFactory.h"
+#include "Asset.h"
 
 namespace Cyan
 {
+    struct IAsset;
+
     struct MaterialParameter
     {
         enum class Flags

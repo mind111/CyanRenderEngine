@@ -4,6 +4,7 @@
 #include "CyanRenderer.h"
 #include "RenderableScene.h"
 #include "DirectionalLight.h"
+#include "AssetManager.h"
 
 namespace Cyan
 {
@@ -34,8 +35,8 @@ namespace Cyan
             spec.height = csm.depthRenderTarget->height;
             spec.format = Texture::ColorFormat::D24S8; // 32 bits
             spec.type = Texture::Type::TEX_2D;
-            spec.min = Texture::Filter::NEAREST;
-            spec.mag = Texture::Filter::NEAREST;
+            spec.min = Texture::Filtering::NEAREST;
+            spec.mag = Texture::Filtering::NEAREST;
             spec.dataType = Texture::DataType::UNSIGNED_INT_24_8;
             spec.r = Texture::Wrap::CLAMP_TO_EDGE;
             spec.s = Texture::Wrap::CLAMP_TO_EDGE;
@@ -46,8 +47,8 @@ namespace Cyan
             vsmSpec.format = Texture::ColorFormat::R32G32F;
             vsmSpec.type = Texture::Type::TEX_2D;
             vsmSpec.dataType = Texture::DataType::Float;
-            vsmSpec.min = Texture::Filter::LINEAR;
-            vsmSpec.mag = Texture::Filter::LINEAR;
+            vsmSpec.min = Texture::Filtering::LINEAR;
+            vsmSpec.mag = Texture::Filtering::LINEAR;
             vsmSpec.r = Texture::Wrap::CLAMP_TO_EDGE;
             vsmSpec.s = Texture::Wrap::CLAMP_TO_EDGE;
 #if 0
@@ -258,12 +259,12 @@ namespace Cyan
         }
 
         // create depth texture
-        auto textureManager = TextureManager::get();
+        // auto textureManager = TextureManager::get();
         char textureName[64] = { };
         sprintf_s(textureName, "CSM_depth_texture_%ux%u", width, height);
-        shadowmap = textureManager->createDepthTexture(textureName, width, height);
+        // shadowmap = textureManager->createDepthTexture(textureName, width, height);
+        // shadowmap = AssetManager::createDepthTexture(textureName, width, height);
     }
-  
 
     // todo: think about how to create/destroy transient gpu resources such as texture and render target
     void CSM::render(const Scene& scene, Renderer& renderer)

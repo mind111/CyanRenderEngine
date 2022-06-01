@@ -3,11 +3,11 @@
 #include "CyanRenderer.h"
 #include "CyanAPI.h"
 #include "Scene.h"
-#include "Asset.h"
+#include "AssetManager.h"
 
 namespace Cyan
 {
-    Shader* Skybox::s_CubemapSkyShader     = nullptr;
+    Shader* Skybox::s_CubemapSkyShader = nullptr;
     Shader* Skybox::s_proceduralSkyShader = nullptr;
 
     Skybox::Skybox(const char* srcImagePath, const glm::vec2& resolution, const SkyboxConfig& cfg)
@@ -21,8 +21,8 @@ namespace Cyan
                 TextureSpec srcSpec = { };
                 srcSpec.type = Texture::Type::TEX_2D;
                 srcSpec.dataType = Texture::DataType::Float;
-                srcSpec.min = Texture::Filter::LINEAR;
-                srcSpec.mag = Texture::Filter::LINEAR;
+                srcSpec.min = Texture::Filtering::LINEAR;
+                srcSpec.mag = Texture::Filtering::LINEAR;
                 srcSpec.s = Texture::Wrap::NONE;
                 srcSpec.t = Texture::Wrap::NONE;
                 srcSpec.r = Texture::Wrap::NONE;
@@ -38,8 +38,8 @@ namespace Cyan
                 dstSpec.width = resolution.x;
                 dstSpec.height = resolution.y;
                 dstSpec.dataType = Texture::DataType::Float;
-                dstSpec.min = Texture::Filter::LINEAR;
-                dstSpec.mag = Texture::Filter::LINEAR;
+                dstSpec.min = Texture::Filtering::LINEAR;
+                dstSpec.mag = Texture::Filtering::LINEAR;
                 dstSpec.s = Texture::Wrap::CLAMP_TO_EDGE;
                 dstSpec.t = Texture::Wrap::CLAMP_TO_EDGE;
                 dstSpec.r = Texture::Wrap::CLAMP_TO_EDGE;

@@ -15,11 +15,11 @@ namespace Cyan
         }
         switch (texture->type)
         {
-        case Texture::TEX_2D:
+        case Texture::Type::TEX_2D:
             glNamedFramebufferTexture2DEXT(fbo, GL_COLOR_ATTACHMENT0 + index, GL_TEXTURE_2D, texture->handle, mip);
             colorBuffers[index] = texture;
             break;
-        case Texture::TEX_CUBEMAP:
+        case Texture::Type::TEX_CUBEMAP:
         {
             const u32 numFaces = 6u;
             if (index + numFaces - 1u > 7u)

@@ -26,7 +26,7 @@
   <ItemGroup>
     <ClInclude Include="include\Allocator.h" />
     <ClInclude Include="include\Asset.h" />
-    <ClInclude Include="include\AssetFactory.h" />
+    <ClInclude Include="include\AssetManager.h" />
     <ClInclude Include="include\BVH.h" />
     <ClInclude Include="include\Camera.h" />
     <ClInclude Include="include\Common.h" />
@@ -81,7 +81,7 @@
     <ClInclude Include="src\imgui\imstb_truetype.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\Asset.cpp" />
+    <ClCompile Include="src\AssetManager.cpp" />
     <ClCompile Include="src\BVH.cpp" />
     <ClCompile Include="src\Camera.cpp" />
     <ClCompile Include="src\CyanAPI.cpp" />

@@ -4,7 +4,7 @@
 #include "RenderTarget.h"
 #include "CyanAPI.h"
 #include "CyanRenderer.h"
-#include "Asset.h"
+#include "AssetManager.h"
 
 namespace Cyan
 {
@@ -68,9 +68,9 @@ namespace Cyan
         spec.height = resolution.y;
         spec.type = Texture::Type::TEX_CUBEMAP;
         spec.format = Texture::ColorFormat::R16G16B16;
-        spec.dataType =  Texture::Float;
-        spec.min = Texture::Filter::LINEAR;
-        spec.mag = Texture::Filter::LINEAR;
+        spec.dataType =  Texture::DataType::Float;
+        spec.min = Texture::Filtering::LINEAR;
+        spec.mag = Texture::Filtering::LINEAR;
         spec.s = Texture::Wrap::CLAMP_TO_EDGE;
         spec.t = Texture::Wrap::CLAMP_TO_EDGE;
         spec.r = Texture::Wrap::CLAMP_TO_EDGE;
@@ -139,9 +139,9 @@ namespace Cyan
         spec.height = m_irradianceTextureRes.y;
         spec.type = Texture::Type::TEX_CUBEMAP;
         spec.format = Texture::ColorFormat::R16G16B16;
-        spec.dataType =  Texture::Float;
-        spec.min = Texture::Filter::LINEAR;
-        spec.mag = Texture::Filter::LINEAR;
+        spec.dataType =  Texture::DataType::Float;
+        spec.min = Texture::Filtering::LINEAR;
+        spec.mag = Texture::Filtering::LINEAR;
         spec.s = Texture::Wrap::CLAMP_TO_EDGE;
         spec.t = Texture::Wrap::CLAMP_TO_EDGE;
         spec.r = Texture::Wrap::CLAMP_TO_EDGE;
@@ -235,9 +235,9 @@ namespace Cyan
         spec.height = resolution.y;
         spec.type = Texture::Type::TEX_CUBEMAP;
         spec.format = Texture::ColorFormat::R16G16B16;
-        spec.dataType = Texture::Float;
-        spec.min = Texture::Filter::MIPMAP_LINEAR;
-        spec.mag = Texture::Filter::LINEAR;
+        spec.dataType = Texture::DataType::Float;
+        spec.min = Texture::Filtering::MIPMAP_LINEAR;
+        spec.mag = Texture::Filtering::LINEAR;
         spec.s = Texture::Wrap::CLAMP_TO_EDGE;
         spec.t = Texture::Wrap::CLAMP_TO_EDGE;
         spec.r = Texture::Wrap::CLAMP_TO_EDGE;
@@ -269,8 +269,8 @@ namespace Cyan
         spec.numMips = 1u;
         spec.width = kTexWidth;
         spec.height = kTexHeight;
-        spec.min = Texture::Filter::LINEAR;
-        spec.mag = Texture::Filter::LINEAR;
+        spec.min = Texture::Filtering::LINEAR;
+        spec.mag = Texture::Filtering::LINEAR;
         spec.s = Texture::Wrap::CLAMP_TO_EDGE;
         spec.t = Texture::Wrap::CLAMP_TO_EDGE;
         spec.r = Texture::Wrap::CLAMP_TO_EDGE;
