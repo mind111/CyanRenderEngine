@@ -260,7 +260,7 @@ void SceneManager::updateSceneGraph(Scene* scene)
     // scene->aabb.update();
 }
 
-Cyan::IrradianceProbe* SceneManager::createIrradianceProbe(Cyan::Texture* srcCubemapTexture, const glm::uvec2& irradianceRes)
+Cyan::IrradianceProbe* SceneManager::createIrradianceProbe(Cyan::TextureRenderable* srcCubemapTexture, const glm::uvec2& irradianceRes)
 {
     return new Cyan::IrradianceProbe(srcCubemapTexture, irradianceRes);
 }
@@ -270,7 +270,7 @@ Cyan::IrradianceProbe* SceneManager::createIrradianceProbe(Scene* scene, const g
     return new Cyan::IrradianceProbe(scene, pos, sceneCaptureRes, irradianceResolution);
 }
 
-Cyan::ReflectionProbe* SceneManager::createReflectionProbe(Cyan::Texture* srcCubemapTexture)
+Cyan::ReflectionProbe* SceneManager::createReflectionProbe(Cyan::TextureRenderable* srcCubemapTexture)
 {
     return new Cyan::ReflectionProbe(srcCubemapTexture);
 }

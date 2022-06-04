@@ -2,10 +2,11 @@
 
 #include "Scene.h"
 #include "CyanRenderer.h"
+#include "LightComponent.h"
 
 namespace Cyan
 {
-    RenderableScene::RenderableScene(const Scene& scene, const SceneView& sceneView)
+    SceneRenderable::SceneRenderable(const Scene& scene, const SceneView& sceneView, LinearAllocator& allocator)
     {
         viewSsboPtr = std::make_unique<ViewSsbo>();
         transformSsboPtr = std::make_unique<TransformSsbo>(256);
@@ -29,10 +30,6 @@ namespace Cyan
         ViewSsbo& viewSsbo = *(viewSsboPtr.get());
         SET_SSBO_STATIC_MEMBER(viewSsbo, view, scene.camera.view);
         SET_SSBO_STATIC_MEMBER(viewSsbo, projection, scene.camera.projection);
-#if 0
-        SET_SSBO_STATIC_MEMBER(viewSsbo, numDirLights, scene.dLights.size());
-        SET_SSBO_STATIC_MEMBER(viewSsbo, numPointLights, scene.pointLights.size());
-#endif
 
         // build lighting data
         skybox = scene.m_skybox;
@@ -41,12 +38,20 @@ namespace Cyan
 
         PointLightSsbo pointLightSsbo = *(pointLightSsboPtr.get());
 
-#if 0
-        for (u32 i = 0; i < scene.dLights.size(); ++i)
+        // todo: experiment with the following design
+        // build a list of lights in the scene
+        for (auto entity : scene.entities)
         {
-            scene.dLights[i].update();
-            SET_SSBO_DYNAMIC_ELEMENT(directionalLightSsbo, i, scene->dLights[i].getData());
+            auto lightComponents = entity->getComponent<ILightComponent>();
+            if (!lightComponents.empty())
+            {
+                for (auto lightComponent : lightComponents)
+                {
+                    lights.push_back(lightComponent->buildRenderableLight(allocator));
+                }
+            }
         }
+#if 0
         for (u32 i = 0; i < scene->pointLights.size(); ++i)
         {
             scene->pointLights[i].update();
@@ -60,7 +65,7 @@ namespace Cyan
     /**
     * Submit rendering data to global gpu buffers
     */
-    void RenderableScene::submitSceneData(GfxContext* ctx)
+    void SceneRenderable::submitSceneData(GfxContext* ctx)
     {
 
         // bind global ssbo
@@ -69,7 +74,7 @@ namespace Cyan
         pointLightSsboPtr->bind((u32)SceneSsboBindings::PointLightsData);
 
         // shared BRDF lookup texture used in split sum approximation for image based lighting
-        if (Texture* BRDFLookupTexture = ReflectionProbe::getBRDFLookupTexture())
+        if (TextureRenderable* BRDFLookupTexture = ReflectionProbe::getBRDFLookupTexture())
         {
             ctx->setPersistentTexture(BRDFLookupTexture, (u32)SceneTextureBindings::BRDFLookupTexture);
         }

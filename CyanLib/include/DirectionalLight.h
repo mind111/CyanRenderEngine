@@ -1,14 +1,12 @@
 #pragma once
 
 #include "Entity.h"
-#include "texture.h"
+#include "Texture.h"
 #include "Component.h"
 #include "Shadow.h"
 
 namespace Cyan
 {
-    struct Renderer;
-
     struct DirectionalLight
     {
         enum class ShadowQuality
@@ -27,53 +25,18 @@ namespace Cyan
         } implemenation = Implementation::kCSM;
 
         glm::vec3 direction;
-        glm::vec4 color;
+        glm::vec4 colorAndIntensity;
         bool bCastShadow = false;
     };
 
-    struct DirectionalLightComponent : public Component
+#if 0
+    struct DirectionalLightEntity : public Entity
     {
-        virtual void update() override { }
-        virtual void render() override { }
+        DirectionalLightEntity()
+            : Entity()
+        {
 
-        void getDirection() { }
-        void getColor() { }
-
-        void setDirection() { }
-        void setColor() { }
-
-        static const char* tag;
-
-    private:
-        DirectionalLight light;
-    };
-
-    struct DirectionalLightRenderable
-    {
-        std::unique_ptr<IDirectionalShadowmap> shadowmapPtr = nullptr;
-
-        DirectionalLightRenderable(const DirectionalLight& inDirectionalLight) 
-            : direction(glm::vec4(inDirectionalLight.direction, 0.f)), color(inDirectionalLight.color), bCastShadow(inDirectionalLight.bCastShadow)
-        { 
-            // create shadowmap
-            if (bCastShadow)
-            {
-                switch (inDirectionalLight.implemenation)
-                {
-                case DirectionalLight::Implementation::kCSM:
-                    shadowmapPtr = std::make_unique<CSM>(inDirectionalLight);
-                    break;
-                case DirectionalLight::Implementation::kVSM:
-                    break;
-                default:
-                    break;
-                }
-            }
         }
-
-    private:
-        bool bCastShadow = false;
-        glm::vec4 direction;
-        glm::vec4 color;
     };
+#endif
 }

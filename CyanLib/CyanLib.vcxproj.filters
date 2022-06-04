@@ -195,6 +195,15 @@
     <ClInclude Include="include\Asset.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\LightRenderable.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\LightComponent.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\PointLight.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\AssetManager.cpp">
@@ -328,6 +337,9 @@
     </ClCompile>
     <ClCompile Include="src\RenderableScene.cpp">
       <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\LightComponent.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -566,6 +578,9 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\voxelize_resolve_c.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\lights.glsl">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

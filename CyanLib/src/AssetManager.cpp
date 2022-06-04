@@ -83,7 +83,7 @@ namespace Cyan
 
     void AssetManager::importTextures(nlohmann::basic_json<std::map>& textureInfoList)
     {
-        using Cyan::Texture;
+        using Cyan::TextureRenderable;
         using Cyan::TextureSpec;
         auto textureManager = Cyan::TextureManager::get();
 
@@ -95,14 +95,14 @@ namespace Cyan
             u32 numMips = textureInfo.at("numMips").get<u32>();
             
             TextureSpec spec = { };
-            spec.type = Texture::Type::TEX_2D;
+            spec.type = TextureRenderable::Type::TEX_2D;
             spec.numMips = numMips;
-            spec.min = Texture::Filtering::LINEAR;
-            spec.mag = Texture::Filtering::LINEAR;
-            spec.s = Texture::Wrap::NONE;
-            spec.t = Texture::Wrap::NONE;
-            spec.r = Texture::Wrap::NONE;
-            Texture* texture = nullptr;
+            spec.min = TextureRenderable::Filtering::LINEAR;
+            spec.mag = TextureRenderable::Filtering::LINEAR;
+            spec.s = TextureRenderable::Wrap::NONE;
+            spec.t = TextureRenderable::Wrap::NONE;
+            spec.r = TextureRenderable::Wrap::NONE;
+            TextureRenderable* texture = nullptr;
             if (dynamicRange == "ldr")
             {
                 texture = textureManager->createTexture(name.c_str(), filename.c_str(), spec);
@@ -503,16 +503,16 @@ namespace Cyan
         importEntities(scene, entities);
     }
 
-    Cyan::Texture* AssetManager::loadGltfTexture(const char* nodeName, tinygltf::Model& model, i32 index) {
-        using Cyan::Texture;
+    Cyan::TextureRenderable* AssetManager::loadGltfTexture(const char* nodeName, tinygltf::Model& model, i32 index) {
+        using Cyan::TextureRenderable;
         auto textureManager = Cyan::TextureManager::get();
-        Texture* texture = nullptr;
+        TextureRenderable* texture = nullptr;
         if (index > -1) {
             auto gltfTexture = model.textures[index];
             auto image = model.images[gltfTexture.source];
             u32 sizeInBytes = image.image.size();
             Cyan::TextureSpec spec = { };
-            spec.type = Texture::Type::TEX_2D;
+            spec.type = TextureRenderable::Type::TEX_2D;
             spec.width = image.width;
             spec.height = image.height;
             switch (image.component) {
@@ -520,36 +520,36 @@ namespace Cyan
                 {
                     if (image.bits == 8) 
                     {
-                        spec.format = Cyan::Texture::ColorFormat::R8G8B8;
-                        spec.dataType = Texture::DataType::UNSIGNED_BYTE;
+                        spec.format = Cyan::TextureRenderable::ColorFormat::R8G8B8;
+                        spec.dataType = TextureRenderable::DataType::UNSIGNED_BYTE;
                     } 
                     else if (image.bits == 16) 
                     {
-                        spec.format = Cyan::Texture::ColorFormat::R16G16B16;
-                        spec.dataType = Texture::DataType::Float;
+                        spec.format = Cyan::TextureRenderable::ColorFormat::R16G16B16;
+                        spec.dataType = TextureRenderable::DataType::Float;
                     } 
                     else if (image.bits == 32) 
                     {
-                        spec.format = Cyan::Texture::ColorFormat::R32G32B32;
-                        spec.dataType = Texture::DataType::Float;
+                        spec.format = Cyan::TextureRenderable::ColorFormat::R32G32B32;
+                        spec.dataType = TextureRenderable::DataType::Float;
                     } 
                     break;
                 }
                 case 4: {
                     if (image.bits == 8) 
                     {
-                        spec.format = Cyan::Texture::ColorFormat::R8G8B8A8;
-                        spec.dataType = Texture::DataType::UNSIGNED_BYTE;
+                        spec.format = Cyan::TextureRenderable::ColorFormat::R8G8B8A8;
+                        spec.dataType = TextureRenderable::DataType::UNSIGNED_BYTE;
                     } 
                     else if (image.bits == 16) 
                     {
-                        spec.format = Cyan::Texture::ColorFormat::R16G16B16A16;
-                        spec.dataType = Texture::DataType::Float;
+                        spec.format = Cyan::TextureRenderable::ColorFormat::R16G16B16A16;
+                        spec.dataType = TextureRenderable::DataType::Float;
                     } 
                     else if (image.bits == 32) 
                     {
-                        spec.format = Cyan::Texture::ColorFormat::R32G32B32A32;
-                        spec.dataType = Texture::DataType::Float;
+                        spec.format = Cyan::TextureRenderable::ColorFormat::R32G32B32A32;
+                        spec.dataType = TextureRenderable::DataType::Float;
                     } 
                     break;
                 }
@@ -559,8 +559,8 @@ namespace Cyan
                     break;
                 }
             }
-            spec.min = Texture::Filtering::LINEAR;
-            spec.mag = Texture::Filtering::LINEAR;
+            spec.min = TextureRenderable::Filtering::LINEAR;
+            spec.mag = TextureRenderable::Filtering::LINEAR;
             spec.numMips = 11;
             spec.data = reinterpret_cast<void*>(image.image.data());
             u32 nameLen = (u32)strlen(image.uri.c_str());
@@ -568,16 +568,16 @@ namespace Cyan
             char name[128];
             sprintf(name, "%s", image.uri.c_str());
             switch (spec.format) {
-                case Texture::ColorFormat::R8G8B8:
-                case Texture::ColorFormat::R8G8B8A8: 
+                case TextureRenderable::ColorFormat::R8G8B8:
+                case TextureRenderable::ColorFormat::R8G8B8A8: 
                 {
                     texture = textureManager->createTexture(name, spec);
                     break;
                 }
-                case Texture::ColorFormat::R16G16B16:
-                case Texture::ColorFormat::R16G16B16A16: 
-                case Texture::ColorFormat::R32G32B32:
-                case Texture::ColorFormat::R32G32B32A32:
+                case TextureRenderable::ColorFormat::R16G16B16:
+                case TextureRenderable::ColorFormat::R16G16B16A16: 
+                case TextureRenderable::ColorFormat::R32G32B32:
+                case TextureRenderable::ColorFormat::R32G32B32A32:
                 {
                     texture = textureManager->createTextureHDR(name, spec);
                     break;
@@ -662,7 +662,7 @@ namespace Cyan
                     auto pbr = gltfMaterial.pbrMetallicRoughness;
                     auto getTexture = [&](i32 imageIndex) 
                     {
-                        Cyan::Texture* texture = nullptr;
+                        Cyan::TextureRenderable* texture = nullptr;
                         if (imageIndex > -1) 
                         {
                             auto& image = model.images[imageIndex];
@@ -957,7 +957,7 @@ namespace Cyan
     }
 
     void AssetManager::loadGltfTextures(const char* nodeName, tinygltf::Model& model) {
-        using Cyan::Texture;
+        using Cyan::TextureRenderable;
         for (u32 t = 0u; t < model.textures.size(); ++t) {
             loadGltfTexture(nodeName, model, t);
         }

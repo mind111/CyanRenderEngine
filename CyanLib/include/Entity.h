@@ -8,6 +8,7 @@
 #include "Node.h"
 #include "SceneNode.h"
 #include "Geometry.h"
+#include "Component.h"
 
 #define kEntityNameMaxLen 128u
 
@@ -112,6 +113,31 @@ struct Entity
     void applyWorldScale(const glm::vec3 scale);
     void updateWorldTransform();
     void setMaterial(const char* meshNodeName, i32 submeshIndex, Cyan::IMaterial* matl);
+
+    // e->getComponent<ILightComponent>();
+    template <typename ComponentType>
+    std::vector<ComponentType*> getComponent()
+    {
+        std::vector<ComponentType*> foundComponents;
+        for (auto component : components)
+        {
+            // todo: how bad is this dynamic_cast ...?
+            if (ComponentType* foundComponent = dynamic_cast<ComponentType*>(component))
+            {
+                foundComponents.push_back(foundComponent);
+            }
+        }
+        // avoid costly vector copy when return by value ...?
+        return std::move(foundComponents);
+    }
+
+    void addComponent(Cyan::Component* component)
+    {
+        components.push_back(component);
+    }
+
+private:
+    std::vector<Cyan::Component*> components;
 };
 
 struct RayCastInfo

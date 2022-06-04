@@ -103,9 +103,9 @@ public:
     }
 
     // light probes
-    Cyan::IrradianceProbe* createIrradianceProbe(Cyan::Texture* srcCubemapTexture, const glm::uvec2& irradianceRes);
+    Cyan::IrradianceProbe* createIrradianceProbe(Cyan::TextureRenderable* srcCubemapTexture, const glm::uvec2& irradianceRes);
     Cyan::IrradianceProbe* createIrradianceProbe(Scene* scene, const glm::vec3& pos, const glm::uvec2& sceneCaptureRes, const glm::uvec2& irradianceRes);
-    Cyan::ReflectionProbe* createReflectionProbe(Cyan::Texture* srcCubemapTexture);
+    Cyan::ReflectionProbe* createReflectionProbe(Cyan::TextureRenderable* srcCubemapTexture);
     Cyan::ReflectionProbe* createReflectionProbe(Scene* scene, const glm::vec3& pos, const glm::uvec2& sceneCaptureRes);
 
     /*

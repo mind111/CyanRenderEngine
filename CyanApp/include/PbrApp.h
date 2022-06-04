@@ -55,7 +55,7 @@ public:
     bool                         bPicking;
     double                       m_mouseCursorX, m_mouseCursorY;
 
-    Cyan::Texture*               activeDebugViewTexture;
+    Cyan::TextureRenderable*               activeDebugViewTexture;
     u32                          m_currentDebugView;
 private:
     Entity* m_selectedEntity;

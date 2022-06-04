@@ -19,13 +19,13 @@ namespace Cyan
         case kUseHDRI: 
             {
                 TextureSpec srcSpec = { };
-                srcSpec.type = Texture::Type::TEX_2D;
-                srcSpec.dataType = Texture::DataType::Float;
-                srcSpec.min = Texture::Filtering::LINEAR;
-                srcSpec.mag = Texture::Filtering::LINEAR;
-                srcSpec.s = Texture::Wrap::NONE;
-                srcSpec.t = Texture::Wrap::NONE;
-                srcSpec.r = Texture::Wrap::NONE;
+                srcSpec.type = TextureRenderable::Type::TEX_2D;
+                srcSpec.dataType = TextureRenderable::DataType::Float;
+                srcSpec.min = TextureRenderable::Filtering::LINEAR;
+                srcSpec.mag = TextureRenderable::Filtering::LINEAR;
+                srcSpec.s = TextureRenderable::Wrap::NONE;
+                srcSpec.t = TextureRenderable::Wrap::NONE;
+                srcSpec.r = TextureRenderable::Wrap::NONE;
                 srcSpec.numMips = 1u;
                 srcSpec.data = nullptr;
                 m_srcHDRITexture = textureManager->createTextureHDR("HDRITexture", srcImagePath, srcSpec);
@@ -34,15 +34,15 @@ namespace Cyan
         default:
             {
                 TextureSpec dstSpec = { };
-                dstSpec.type = Texture::Type::TEX_CUBEMAP;
+                dstSpec.type = TextureRenderable::Type::TEX_CUBEMAP;
                 dstSpec.width = resolution.x;
                 dstSpec.height = resolution.y;
-                dstSpec.dataType = Texture::DataType::Float;
-                dstSpec.min = Texture::Filtering::LINEAR;
-                dstSpec.mag = Texture::Filtering::LINEAR;
-                dstSpec.s = Texture::Wrap::CLAMP_TO_EDGE;
-                dstSpec.t = Texture::Wrap::CLAMP_TO_EDGE;
-                dstSpec.r = Texture::Wrap::CLAMP_TO_EDGE;
+                dstSpec.dataType = TextureRenderable::DataType::Float;
+                dstSpec.min = TextureRenderable::Filtering::LINEAR;
+                dstSpec.mag = TextureRenderable::Filtering::LINEAR;
+                dstSpec.s = TextureRenderable::Wrap::CLAMP_TO_EDGE;
+                dstSpec.t = TextureRenderable::Wrap::CLAMP_TO_EDGE;
+                dstSpec.r = TextureRenderable::Wrap::CLAMP_TO_EDGE;
                 dstSpec.numMips = 1u;
                 dstSpec.data = nullptr;
                 m_srcCubemapTexture = textureManager->createTextureHDR("SkyBoxTexture", dstSpec);

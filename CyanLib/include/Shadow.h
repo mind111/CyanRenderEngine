@@ -22,12 +22,12 @@ namespace Cyan
 
     struct BasicShadowmap
     {
-        Cyan::Texture* shadowmap;
+        Cyan::TextureRenderable* shadowmap;
     };
 
     struct VarianceShadowmap
     {
-        Cyan::Texture* shadowmap;
+        Cyan::TextureRenderable* shadowmap;
     };
 
     struct ShadowCascade
@@ -103,6 +103,6 @@ namespace Cyan
 
         CSM(const DirectionalLight& inDirectionalLight);
     private:
-        Texture* shadowmap = nullptr;
+        TextureRenderable* shadowmap = nullptr;
     };
 }

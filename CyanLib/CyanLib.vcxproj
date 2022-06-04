@@ -46,13 +46,16 @@
     <ClInclude Include="include\GraphicsSystem.h" />
     <ClInclude Include="include\IOSystem.h" />
     <ClInclude Include="include\Light.h" />
+    <ClInclude Include="include\LightComponent.h" />
     <ClInclude Include="include\LightMap.h" />
     <ClInclude Include="include\LightProbe.h" />
+    <ClInclude Include="include\LightRenderable.h" />
     <ClInclude Include="include\Material.h" />
     <ClInclude Include="include\MathUtils.h" />
     <ClInclude Include="include\Mesh.h" />
     <ClInclude Include="include\Node.h" />
     <ClInclude Include="include\Plane.h" />
+    <ClInclude Include="include\PointLight.h" />
     <ClInclude Include="include\RenderableScene.h" />
     <ClInclude Include="include\RenderTarget.h" />
     <ClInclude Include="include\Scene.h" />
@@ -105,6 +108,7 @@
     <ClCompile Include="src\imgui\imgui_tables.cpp" />
     <ClCompile Include="src\imgui\imgui_widgets.cpp" />
     <ClCompile Include="src\IOSystem.cpp" />
+    <ClCompile Include="src\LightComponent.cpp" />
     <ClCompile Include="src\LightMap.cpp" />
     <ClCompile Include="src\LightProbe.cpp" />
     <ClCompile Include="src\Material.cpp" />
@@ -130,6 +134,7 @@
     <None Include="..\shader\debug_color_fs.glsl" />
     <None Include="..\shader\debug_color_vs.glsl" />
     <None Include="..\shader\global_buffers.glsl" />
+    <None Include="..\shader\lights.glsl" />
     <None Include="..\shader\scene_depth_normal_p.glsl" />
     <None Include="..\shader\scene_depth_normal_v.glsl" />
     <None Include="..\shader\shader_ao.fs" />

@@ -37,7 +37,7 @@ namespace Cyan
             std::vector<u32> m_child;
         };
 
-        Cyan::Texture* loadGltfTexture(const char* nodeName, tinygltf::Model& model, i32 index);
+        Cyan::TextureRenderable* loadGltfTexture(const char* nodeName, tinygltf::Model& model, i32 index);
         SceneComponent* loadGltfNode(Scene* scene, tinygltf::Model& model, tinygltf::Node* parent, SceneComponent* parentSceneNode, tinygltf::Node& node, u32 numNodes);
         Mesh* loadGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh); 
         void loadGltfTextures(const char* nodeName, tinygltf::Model& model);
@@ -68,9 +68,32 @@ namespace Cyan
             return parent;
         }
 
-        Texture* createTexture(const char* name)
+        /**
+        * Creating textures; `name` must be unique
+        */
+        static TextureRenderable* createTexture2D(const char* name, const TextureRenderable::Spec& spec)
         {
 
+        }
+
+        static TextureRenderable* createTexture3D(const char* name, const TextureRenderable::Spec& spec)
+        {
+
+        }
+
+        static TextureRenderable* createTextureCube(const char* name, const TextureRenderable::Spec& spec)
+        {
+
+        }
+
+        static TextureRenderable* createTexture2DArray(const char* name, const TextureRenderable::Spec& spec)
+        {
+
+        }
+
+        static TextureRenderable* createDepthTexture(const char* name, u32 width, u32 height)
+        {
+            return nullptr;
         }
 
         template <typename MaterialType>
@@ -122,7 +145,7 @@ namespace Cyan
 
         // asset tables
         std::unordered_map<std::string, std::unique_ptr<Scene>> m_sceneMap;
-        std::unordered_map<std::string, Texture*> m_textureMap;
+        std::unordered_map<std::string, TextureRenderable*> m_textureMap;
         std::unordered_map<std::string, Mesh*> m_meshMap;
 
         // material instances

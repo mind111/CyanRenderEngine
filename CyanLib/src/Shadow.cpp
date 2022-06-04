@@ -33,24 +33,24 @@ namespace Cyan
             TextureSpec spec = { };
             spec.width = csm.depthRenderTarget->width;
             spec.height = csm.depthRenderTarget->height;
-            spec.format = Texture::ColorFormat::D24S8; // 32 bits
-            spec.type = Texture::Type::TEX_2D;
-            spec.min = Texture::Filtering::NEAREST;
-            spec.mag = Texture::Filtering::NEAREST;
-            spec.dataType = Texture::DataType::UNSIGNED_INT_24_8;
-            spec.r = Texture::Wrap::CLAMP_TO_EDGE;
-            spec.s = Texture::Wrap::CLAMP_TO_EDGE;
+            spec.format = TextureRenderable::ColorFormat::D24S8; // 32 bits
+            spec.type = TextureRenderable::Type::TEX_2D;
+            spec.min = TextureRenderable::Filtering::NEAREST;
+            spec.mag = TextureRenderable::Filtering::NEAREST;
+            spec.dataType = TextureRenderable::DataType::UNSIGNED_INT_24_8;
+            spec.r = TextureRenderable::Wrap::CLAMP_TO_EDGE;
+            spec.s = TextureRenderable::Wrap::CLAMP_TO_EDGE;
 
             TextureSpec vsmSpec = { };
             vsmSpec.width = csm.depthRenderTarget->width;
             vsmSpec.height = csm.depthRenderTarget->height;
-            vsmSpec.format = Texture::ColorFormat::R32G32F;
-            vsmSpec.type = Texture::Type::TEX_2D;
-            vsmSpec.dataType = Texture::DataType::Float;
-            vsmSpec.min = Texture::Filtering::LINEAR;
-            vsmSpec.mag = Texture::Filtering::LINEAR;
-            vsmSpec.r = Texture::Wrap::CLAMP_TO_EDGE;
-            vsmSpec.s = Texture::Wrap::CLAMP_TO_EDGE;
+            vsmSpec.format = TextureRenderable::ColorFormat::R32G32F;
+            vsmSpec.type = TextureRenderable::Type::TEX_2D;
+            vsmSpec.dataType = TextureRenderable::DataType::Float;
+            vsmSpec.min = TextureRenderable::Filtering::LINEAR;
+            vsmSpec.mag = TextureRenderable::Filtering::LINEAR;
+            vsmSpec.r = TextureRenderable::Wrap::CLAMP_TO_EDGE;
+            vsmSpec.s = TextureRenderable::Wrap::CLAMP_TO_EDGE;
 #if 0
             for (auto& line : cascade.frustumLines)
             {
@@ -259,11 +259,9 @@ namespace Cyan
         }
 
         // create depth texture
-        // auto textureManager = TextureManager::get();
         char textureName[64] = { };
         sprintf_s(textureName, "CSM_depth_texture_%ux%u", width, height);
-        // shadowmap = textureManager->createDepthTexture(textureName, width, height);
-        // shadowmap = AssetManager::createDepthTexture(textureName, width, height);
+        shadowmap = AssetManager::createDepthTexture(textureName, width, height);
     }
 
     // todo: think about how to create/destroy transient gpu resources such as texture and render target
@@ -275,7 +273,7 @@ namespace Cyan
 
         // todo: camera should be orthographic
         SceneView sceneView(scene, scene.camera, depthRenderTarget, { }, { 0u, 0u, depthRenderTarget->width, depthRenderTarget->height }, EntityFlag_kVisible | EntityFlag_kCastShadow);
-        RenderableScene renderableScene(scene, sceneView);
+        SceneRenderable renderableScene(scene, sceneView, renderer.getFrameAllocator());
 
         // render
         renderer.renderSceneDepthOnly(renderableScene, sceneView);

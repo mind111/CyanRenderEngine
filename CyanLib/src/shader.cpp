@@ -316,7 +316,7 @@ namespace Cyan
         SET_UNIFORM(glProgramUniformMatrix4fv, 1, false, &data[0][0])
     }
 
-    Shader& Shader::setTexture(const char* samplerName, Texture* texture)
+    Shader& Shader::setTexture(const char* samplerName, TextureRenderable* texture)
     {
         const auto& entry = samplerBindingMap.find(samplerName);
         if (entry == samplerBindingMap.end())
@@ -335,7 +335,7 @@ namespace Cyan
         for (auto entry : samplerBindingMap)
         {
             const char* sampler = entry.first;
-            Texture* texture = entry.second;
+            TextureRenderable* texture = entry.second;
             i32 binding = ctx->setTransientTexture(texture);
             setUniform(sampler, binding);
         }

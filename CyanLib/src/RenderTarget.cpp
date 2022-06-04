@@ -2,12 +2,12 @@
 
 namespace Cyan
 {
-    Texture* RenderTarget::getColorBuffer(u32 index)
+    TextureRenderable* RenderTarget::getColorBuffer(u32 index)
     {
         return colorBuffers[index];
     }
 
-    void RenderTarget::setColorBuffer(Texture* texture, u32 index, u32 mip)
+    void RenderTarget::setColorBuffer(TextureRenderable* texture, u32 index, u32 mip)
     {
         if (index > 7)
         {
@@ -15,11 +15,11 @@ namespace Cyan
         }
         switch (texture->type)
         {
-        case Texture::Type::TEX_2D:
+        case TextureRenderable::Type::TEX_2D:
             glNamedFramebufferTexture2DEXT(fbo, GL_COLOR_ATTACHMENT0 + index, GL_TEXTURE_2D, texture->handle, mip);
             colorBuffers[index] = texture;
             break;
-        case Texture::Type::TEX_CUBEMAP:
+        case TextureRenderable::Type::TEX_CUBEMAP:
         {
             const u32 numFaces = 6u;
             if (index + numFaces - 1u > 7u)
@@ -41,7 +41,7 @@ namespace Cyan
         }
     }
 
-    void RenderTarget::setDepthBuffer(Texture* texture)
+    void RenderTarget::setDepthBuffer(TextureRenderable* texture)
     {
         if (texture->width != width || texture->height != height)
         {

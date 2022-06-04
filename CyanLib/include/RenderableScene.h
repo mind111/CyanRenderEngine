@@ -5,6 +5,8 @@
 #include "Light.h"
 #include "LightProbe.h"
 #include "ShaderStorageBuffer.h"
+#include "DirectionalLight.h"
+#include "LightRenderable.h"
 
 struct Scene;
 
@@ -12,6 +14,7 @@ namespace Cyan
 {
     struct Skybox;
     struct SceneView;
+    struct LinearAllocator;
 
     /**
     * A Scene representation that only contains renderable data.
@@ -23,7 +26,7 @@ namespace Cyan
     *         * instance transforms
     *         * (todo) material buffers
     */
-    struct RenderableScene
+    struct SceneRenderable
     {
         // view data
         struct ViewData
@@ -45,18 +48,19 @@ namespace Cyan
         // view
         std::unique_ptr<ViewSsbo> viewSsboPtr = nullptr;
 
-        // lighting
-        Skybox* skybox = nullptr;
-        IrradianceProbe* irradianceProbe = nullptr;
-        ReflectionProbe* reflectionProbe = nullptr;
-        std::unique_ptr<PointLightSsbo> pointLightSsboPtr = nullptr;
-
         // mesh instances
         std::vector<MeshInstance*> meshInstances;
         std::unique_ptr<TransformSsbo> transformSsboPtr;
 
-        RenderableScene(const Scene& scene, const SceneView& sceneView);
-        ~RenderableScene()
+        // lights
+        Skybox* skybox = nullptr;
+        std::vector<ILightRenderable*> lights;
+        IrradianceProbe* irradianceProbe = nullptr;
+        ReflectionProbe* reflectionProbe = nullptr;
+        std::unique_ptr<PointLightSsbo> pointLightSsboPtr = nullptr;
+
+        SceneRenderable(const Scene& scene, const SceneView& sceneView, LinearAllocator& allocator);
+        ~SceneRenderable()
         { }
 
         /**
