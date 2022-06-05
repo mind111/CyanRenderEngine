@@ -17,19 +17,29 @@ namespace Cyan
 
     struct RenderTarget
     {
-        TextureRenderable* getColorBuffer(u32 index);
-        void setColorBuffer(TextureRenderable* texture, u32 index, u32 mip = 0u);
-        void setDepthBuffer(TextureRenderable* texture);
+        ~RenderTarget()
+        {
+            if (fbo >= 0)
+            {
+                glDeleteFramebuffers(1, &fbo);
+            }
+            if (rbo >= 0)
+            {
+                glDeleteRenderbuffers(1, &rbo);
+            }
+        }
+
+        ITextureRenderable* getColorBuffer(u32 index);
+        void setColorBuffer(Texture2DRenderable* texture, u32 index, u32 mip = 0u);
+        void setColorBuffer(TextureCubeRenderable* texture, u32 index, u32 mip = 0u);
+        void setDepthBuffer(DepthTexture* texture);
         void clear(const std::initializer_list<RenderTargetDrawBuffer>& buffers, f32 clearDepth = 1.f);
         bool validate();
 
         u32 width, height;
-        // gl frame buffer object
-        GLuint fbo;
-        // gl render buffer object
-        GLuint rbo;
-        // draw buffers
-        Cyan::TextureRenderable* colorBuffers[8];
-        Cyan::TextureRenderable* depthBuffer;
+        Cyan::ITextureRenderable* colorBuffers[8] = { 0 };
+        Cyan::DepthTexture* depthBuffer = nullptr;
+        GLuint fbo = -1;
+        GLuint rbo = -1;
     };
 }

@@ -87,7 +87,7 @@ namespace Cyan
         Shader& setUniform(const char* name, const glm::vec4& data);
         Shader& setUniform(const char* name, const glm::mat4& data);
 
-        Shader& setTexture(const char* samplerName, TextureRenderable* texture);
+        Shader& setTexture(const char* samplerName, ITextureRenderable* texture);
         Shader& setTextureBindings(struct GfxContext* ctx);
         
         // submit data to gpu
@@ -106,7 +106,7 @@ namespace Cyan
         void init();
 
         // std::unordered_map<const char*, u32> uniformLocationMap;
-        std::unordered_map<const char*, TextureRenderable*> samplerBindingMap;
+        std::unordered_map<const char*, ITextureRenderable*> samplerBindingMap;
         std::unordered_map<const char*, UniformMetaData> uniformMetaDataMap;
         ShaderSource source;
         GLuint program;

@@ -189,7 +189,7 @@ float saturate(float k)
     return clamp(k, 0.f, 1.f);
 }
 
-float VanDerCorput(uint n, uint base)
+float VanDerCorput(uint n, uint sbase)
 {
     float invBase = 1.0 / float(base);
     float denom   = 1.0;

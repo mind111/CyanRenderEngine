@@ -118,7 +118,7 @@ namespace Cyan
         void finalize();
 
         GfxContext* getGfxCtx() { return m_ctx; };
-        TextureRenderable* getColorOutTexture();
+        Texture2DRenderable* getColorOutTexture();
         LinearAllocator& getFrameAllocator() { return m_frameAllocator; }
 
 // shadow
@@ -147,7 +147,7 @@ namespace Cyan
         void renderDebugObjects(Scene* scene, const std::function<void()>& externDebugRender = [](){ });
 
         // todo: implement the following functions
-        void renderShadow(SceneRenderable* renderableScene);
+        void renderShadow(SceneRenderable& sceneRenderable);
 
         /*
         * Render provided scene into a light probe
@@ -188,10 +188,10 @@ namespace Cyan
 // post-processing
         // ssao
         RenderTarget* m_ssaoRenderTarget;
-        TextureRenderable* m_ssaoTexture;
+        Texture2DRenderable* m_ssaoTexture;
         Shader* m_ssaoShader;
 
-        void ssao(const SceneView& sceneView, TextureRenderable* sceneDepthTexture, TextureRenderable* sceneNormalTexture);
+        void ssao(const SceneView& sceneView, Texture2DRenderable* sceneDepthTexture, Texture2DRenderable* sceneNormalTexture);
 
         // bloom
         static constexpr u32 kNumBloomPasses = 6u;
@@ -204,18 +204,18 @@ namespace Cyan
         struct BloomRenderTarget
         {
             RenderTarget* renderTarget;
-            TextureRenderable* src;
-            TextureRenderable* scratch;
+            Texture2DRenderable* src;
+            Texture2DRenderable* scratch;
         };
         BloomRenderTarget m_bloomDsTargets[kNumBloomPasses];
         BloomRenderTarget m_bloomUsTargets[kNumBloomPasses];
-        TextureRenderable* m_bloomOutTexture;
+        Texture2DRenderable* m_bloomOutTexture;
 
         void bloom();
 
         // final composite
         Shader* m_compositeShader;
-        TextureRenderable* m_compositeColorTexture;
+        Texture2DRenderable* m_compositeColorTexture;
         RenderTarget* m_compositeRenderTarget;
         /*
         * Compositing and resolving to final output color texture. Applying bloom, tone mapping, and gamma correction.
@@ -245,54 +245,18 @@ namespace Cyan
         u32           m_SSAAWidth, m_SSAAHeight;
 
         // normal hdr scene color texture 
-        TextureRenderable*      m_sceneColorTexture;
-        TextureRenderable*      m_sceneNormalTexture;
-        TextureRenderable*      m_sceneDepthTexture;
+        Texture2DRenderable* m_sceneColorTexture;
+        Texture2DRenderable* m_sceneNormalTexture;
+        Texture2DRenderable* m_sceneDepthTexture;
         RenderTarget* m_sceneColorRenderTarget;
 
         // hdr super sampling color buffer
-        TextureRenderable*      m_sceneColorTextureSSAA;
-        TextureRenderable*      m_sceneNormalTextureSSAA;
+        Texture2DRenderable* m_sceneColorTextureSSAA;
+        Texture2DRenderable* m_sceneNormalTextureSSAA;
         RenderTarget* m_sceneColorRTSSAA;
-        TextureRenderable*      m_sceneDepthTextureSSAA;
-        Shader*       m_sceneDepthNormalShader;
-
-        TextureRenderable*      m_finalColorTexture;
-
-#if 0
-        struct GlobalDrawData
-        {
-            glm::mat4 view;
-            glm::mat4 projection;
-            glm::mat4 sunLightView;
-            glm::mat4 sunShadowProjections[4];
-            i32       numDirLights;
-            i32       numPointLights;
-            f32       ssao;
-            f32       dummy;
-        } m_globalDrawData;
-        GLuint gDrawDataBuffer;
-
-        struct Lighting
-        {
-            const u32                      kDynamicLightBufferSize = 1024;
-            CascadedShadowmap              sunLightShadowmap;
-            std::vector<PointLightGpuData> pointLights;
-            std::vector<DirLightGpuData>   dirLights;
-            GLuint                         dirLightSBO;
-            GLuint                         pointLightsSBO;
-            Skybox*                        skybox;
-            IrradianceProbe*               irradianceProbe;
-            ReflectionProbe*               reflectionProbe;
-        } gLighting;
-
-        struct GlobalTransforms
-        {
-            const u32 kMaxNumTransforms = Scene::kMaxNumSceneComponents;
-            const u32 kBufferSize       = kMaxNumTransforms * sizeof(glm::mat4);
-            GLuint sbo;
-        } gInstanceTransforms;
-#endif
+        Texture2DRenderable* m_sceneDepthTextureSSAA;
+        Shader* m_sceneDepthNormalShader;
+        Texture2DRenderable* m_finalColorTexture;
 
         // voxel cone tracing
         struct VoxelGrid
@@ -300,11 +264,11 @@ namespace Cyan
             // todo: for some reason settings this to 128 crashes RenderDoc every time
             const u32 resolution = 128u;
             // const u32 resolution = 8u;
-            TextureRenderable* albedo = nullptr;
-            TextureRenderable* normal = nullptr;
-            TextureRenderable* emission = nullptr;
-            TextureRenderable* radiance = nullptr;
-            TextureRenderable* opacity = nullptr;
+            Texture3DRenderable* albedo = nullptr;
+            Texture3DRenderable* normal = nullptr;
+            Texture3DRenderable* emission = nullptr;
+            Texture3DRenderable* radiance = nullptr;
+            Texture3DRenderable* opacity = nullptr;
             glm::vec3 localOrigin;
             f32 voxelSize;
         } m_sceneVoxelGrid;
@@ -335,7 +299,7 @@ namespace Cyan
                 RenderTarget* renderTarget = nullptr;
                 // super sampled render target
                 RenderTarget* ssRenderTarget = nullptr;
-                TextureRenderable* colorBuffer = nullptr;
+                Texture2DRenderable* colorBuffer = nullptr;
                 Shader* voxelizeShader = nullptr;
                 Shader* filterVoxelGridShader = nullptr;
                 GLuint opacityMaskSsbo = -1;
@@ -375,12 +339,12 @@ namespace Cyan
                 glm::mat4 cachedProjection = glm::mat4(1.f);
                 Shader* coneVisDrawShader = nullptr;
                 Shader* coneVisComputeShader = nullptr;
-                TextureRenderable* cachedSceneDepth = nullptr;
-                TextureRenderable* cachedSceneNormal = nullptr;
+                Texture2DRenderable* cachedSceneDepth = nullptr;
+                Texture2DRenderable* cachedSceneNormal = nullptr;
 
                 Shader* voxelGridVisShader = nullptr;
                 RenderTarget* renderTarget = nullptr;
-                TextureRenderable* colorBuffer = nullptr;
+                Texture2DRenderable* colorBuffer = nullptr;
 
                 struct DebugBuffer
                 {
@@ -407,9 +371,9 @@ namespace Cyan
             RenderTarget* renderTarget = nullptr;
             Shader* renderShader = nullptr;
             Shader* resolveShader = nullptr;
-            TextureRenderable* occlusion = nullptr;
-            TextureRenderable* irradiance = nullptr;
-            TextureRenderable* reflection = nullptr;
+            Texture2DRenderable* occlusion = nullptr;
+            Texture2DRenderable* irradiance = nullptr;
+            Texture2DRenderable* reflection = nullptr;
         } m_vctx;
 
         struct VctxGpuData

@@ -44,22 +44,21 @@ public:
     void rotateCamera(double deltaX, double deltaY);
     bool mouseOverUI();
 
-    RayCastInfo castMouseRay(const glm::vec2& currentViewportPos, const glm::vec2& currentViewportSize);
-
+    Cyan::RayCastInfo castMouseRay(const glm::vec2& currentViewportPos, const glm::vec2& currentViewportSize);
 
     friend void Demo::mouseScrollWheelCallback(double xOffset, double yOffset);
 
-    bool                         bOrbit;
-    bool                         bRayCast;
-    RayCastInfo                  m_mouseRayHitInfo;
-    bool                         bPicking;
-    double                       m_mouseCursorX, m_mouseCursorY;
+    bool bOrbit;
+    bool bRayCast;
+    Cyan::RayCastInfo m_mouseRayHitInfo;
+    bool bPicking;
+    double m_mouseCursorX, m_mouseCursorY;
 
-    Cyan::TextureRenderable*               activeDebugViewTexture;
+    Cyan::Texture2DRenderable* activeDebugViewTexture;
     u32                          m_currentDebugView;
 private:
-    Entity* m_selectedEntity;
-    SceneComponent* m_selectedNode;
+    Cyan::Entity* m_selectedEntity;
+    Cyan::SceneComponent* m_selectedNode;
     u32 m_debugViewIndex;
     double m_lastFrameDurationInMs;
 };

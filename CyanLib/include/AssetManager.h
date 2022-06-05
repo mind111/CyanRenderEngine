@@ -37,7 +37,7 @@ namespace Cyan
             std::vector<u32> m_child;
         };
 
-        Cyan::TextureRenderable* loadGltfTexture(const char* nodeName, tinygltf::Model& model, i32 index);
+        Cyan::Texture2DRenderable* loadGltfTexture(const char* nodeName, tinygltf::Model& model, i32 index);
         SceneComponent* loadGltfNode(Scene* scene, tinygltf::Model& model, tinygltf::Node* parent, SceneComponent* parentSceneNode, tinygltf::Node& node, u32 numNodes);
         Mesh* loadGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh); 
         void loadGltfTextures(const char* nodeName, tinygltf::Model& model);
@@ -69,29 +69,40 @@ namespace Cyan
         }
 
         /**
-        * Creating textures; `name` must be unique
+        * Creating a texture from scratch; `name` must be unique
         */
-        static TextureRenderable* createTexture2D(const char* name, const TextureRenderable::Spec& spec)
+        static Texture2DRenderable* createTexture2D(const char* name, const ITextureRenderable::Spec& spec, ITextureRenderable::Parameter parameter=ITextureRenderable::Parameter{ })
         {
-
+            Texture2DRenderable* texture = new Texture2DRenderable(name, spec, parameter);
+            return texture;
         }
 
-        static TextureRenderable* createTexture3D(const char* name, const TextureRenderable::Spec& spec)
+        static Texture3DRenderable* createTexture3D(const char* name, const ITextureRenderable::Spec& spec, ITextureRenderable::Parameter parameter=ITextureRenderable::Parameter{ })
         {
-
+            Texture3DRenderable* texture = new Texture3DRenderable(name, spec, parameter);
+            return texture;
         }
 
-        static TextureRenderable* createTextureCube(const char* name, const TextureRenderable::Spec& spec)
+        static TextureCubeRenderable* createTextureCube(const char* name, const ITextureRenderable::Spec& spec, ITextureRenderable::Parameter parameter=ITextureRenderable::Parameter{ })
         {
-
+            TextureCubeRenderable* texture = new TextureCubeRenderable(name, spec, parameter);
+            return texture;
         }
 
-        static TextureRenderable* createTexture2DArray(const char* name, const TextureRenderable::Spec& spec)
+        static DepthTexture* createDepthTexture(const char* name, u32 width, u32 height)
         {
-
+            DepthTexture* texture = getAsset<DepthTexture>(name);
+            if (!texture)
+            {
+                DepthTexture* texture = new DepthTexture(name, width, height);
+            }
+            return texture;
         }
 
-        static TextureRenderable* createDepthTexture(const char* name, u32 width, u32 height)
+        /**
+        * Importing texture from an image file
+        */
+        static Texture2DRenderable* importTexture2D(const char* name, const char* imageFilePath, ITextureRenderable::Spec& spec, ITextureRenderable::Parameter parameter=ITextureRenderable::Parameter{ })
         {
             return nullptr;
         }
@@ -124,6 +135,50 @@ namespace Cyan
             return entry->second;
         }
 
+        template<>
+        static Texture2DRenderable* getAsset<Texture2DRenderable>(const char* textureName)
+        {
+            const auto& entry = singleton->m_textureMap.find(textureName);
+            if (entry == singleton->m_textureMap.end())
+            {
+                return nullptr;
+            }
+            return dynamic_cast<Texture2DRenderable*>(entry->second);
+        }
+
+        template<>
+        static DepthTexture* getAsset<DepthTexture>(const char* textureName)
+        {
+            const auto& entry = singleton->m_textureMap.find(textureName);
+            if (entry == singleton->m_textureMap.end())
+            {
+                return nullptr;
+            }
+            return dynamic_cast<DepthTexture*>(entry->second);
+        }
+
+        template<>
+        static Texture3DRenderable* getAsset<Texture3DRenderable>(const char* textureName)
+        {
+            const auto& entry = singleton->m_textureMap.find(textureName);
+            if (entry == singleton->m_textureMap.end())
+            {
+                return nullptr;
+            }
+            return dynamic_cast<Texture3DRenderable*>(entry->second);
+        }
+        
+        template<>
+        static TextureCubeRenderable* getAsset<TextureCubeRenderable>(const char* textureName)
+        {
+            const auto& entry = singleton->m_textureMap.find(textureName);
+            if (entry == singleton->m_textureMap.end())
+            {
+                return nullptr;
+            }
+            return dynamic_cast<TextureCubeRenderable*>(entry->second);
+        }
+
         // todo: this maybe problematic
         template <template <typename> typename M, typename T>
         static M<T>* getAsset(const char* matlName) 
@@ -145,7 +200,7 @@ namespace Cyan
 
         // asset tables
         std::unordered_map<std::string, std::unique_ptr<Scene>> m_sceneMap;
-        std::unordered_map<std::string, TextureRenderable*> m_textureMap;
+        std::unordered_map<const char*, ITextureRenderable*> m_textureMap;
         std::unordered_map<std::string, Mesh*> m_meshMap;
 
         // material instances

@@ -47,37 +47,28 @@ namespace Cyan
         m_rasterDirectShadowManager = std::make_unique<RasterDirectShadowManager>();
     }
 
-    TextureRenderable* Renderer::getColorOutTexture()
+    Texture2DRenderable* Renderer::getColorOutTexture()
     {
         return m_finalColorTexture;
     }
 
     void Renderer::Vctx::Voxelizer::init(u32 resolution)
     {
-        auto textureManager = TextureManager::get();
-
-        TextureSpec voxelizeSpec = { };
+        ITextureRenderable::Spec voxelizeSpec = { };
         voxelizeSpec.width = resolution;
         voxelizeSpec.height = resolution;
-        voxelizeSpec.type = TextureRenderable::Type::TEX_2D;
-        voxelizeSpec.dataType = TextureRenderable::DataType::Float;
-        voxelizeSpec.format = TextureRenderable::ColorFormat::R16G16B16;
-        voxelizeSpec.min = TextureRenderable::Filtering::LINEAR; 
-        voxelizeSpec.mag = TextureRenderable::Filtering::LINEAR;
+        voxelizeSpec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R16G16B16;
 
-        TextureSpec voxelizeSSSpec = { };
-        voxelizeSSSpec.width = resolution * ssaaRes;
-        voxelizeSSSpec.height = resolution * ssaaRes;
-        voxelizeSSSpec.type = TextureRenderable::Type::TEX_2D;
-        voxelizeSSSpec.dataType = TextureRenderable::DataType::Float;
-        voxelizeSSSpec.format = TextureRenderable::ColorFormat::R16G16B16;
-        voxelizeSSSpec.min = TextureRenderable::Filtering::LINEAR; 
-        voxelizeSSSpec.mag = TextureRenderable::Filtering::LINEAR;
-        TextureRenderable* voxelizeSSColorbuffer = textureManager->createTexture("VoxelizeSS", voxelizeSSSpec);
+        ITextureRenderable::Spec voxelizeSuperSampledSpec = { };
+        voxelizeSuperSampledSpec.width = resolution * ssaaRes;
+        voxelizeSuperSampledSpec.height = resolution * ssaaRes;
+        voxelizeSuperSampledSpec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R16G16B16;
+        Texture2DRenderable* voxelizeSSColorbuffer = AssetManager::createTexture2D("VoxelizeSS", voxelizeSuperSampledSpec);
+
         ssRenderTarget = createRenderTarget(resolution * ssaaRes, resolution * ssaaRes);
         ssRenderTarget->setColorBuffer(voxelizeSSColorbuffer, 0);
 
-        colorBuffer = textureManager->createTexture("VoxelizeDebug", voxelizeSpec);
+        colorBuffer = AssetManager::createTexture2D("VoxelizeDebug", voxelizeSpec);
         renderTarget = createRenderTarget(resolution, resolution);
         renderTarget->setColorBuffer(colorBuffer, 0);
         voxelizeShader = ShaderManager::createShader({ ShaderType::kVsGsPs, "VoxelizeShader", SHADER_SOURCE_PATH "voxelize_v.glsl", SHADER_SOURCE_PATH "voxelize_p.glsl", SHADER_SOURCE_PATH "voxelize_g.glsl" });
@@ -91,38 +82,24 @@ namespace Cyan
 
     void Renderer::Vctx::Visualizer::init()
     {
-        auto textureManager = TextureManager::get();
-
-        TextureSpec visSpec = { };
+        ITextureRenderable::Spec visSpec = { };
         visSpec.width = 1280;
         visSpec.height = 720;
-        visSpec.type = TextureRenderable::Type::TEX_2D;
-        visSpec.dataType = TextureRenderable::DataType::Float;
-        visSpec.format = TextureRenderable::ColorFormat::R16G16B16;
-        visSpec.min = TextureRenderable::Filtering::LINEAR; 
-        visSpec.mag = TextureRenderable::Filtering::LINEAR;
-        visSpec.numMips = 1;
-        colorBuffer = textureManager->createTexture("VoxelVis", visSpec);
+        visSpec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R16G16B16;
+
+        colorBuffer = AssetManager::createTexture2D("VoxelVis", visSpec);
         renderTarget = createRenderTarget(visSpec.width, visSpec.height);
         renderTarget->setColorBuffer(colorBuffer, 0u);
         voxelGridVisShader = ShaderManager::createShader({ ShaderType::kVsGsPs, "VoxelVisShader", SHADER_SOURCE_PATH "voxel_vis_v.glsl", SHADER_SOURCE_PATH "voxel_vis_p.glsl", SHADER_SOURCE_PATH "voxel_vis_g.glsl" });
-        // voxelGridVisMatl = createMaterial(voxelGridVisShader)->createInstance();
         coneVisComputeShader = ShaderManager::createShader({ ShaderType::kCs, "ConeVisComputeShader", nullptr, nullptr, nullptr, SHADER_SOURCE_PATH "cone_vis_c.glsl" });
         coneVisDrawShader = ShaderManager::createShader({ ShaderType::kVsGsPs, "ConeVisGraphicsShader", SHADER_SOURCE_PATH "cone_vis_v.glsl", SHADER_SOURCE_PATH "cone_vis_p.glsl", SHADER_SOURCE_PATH "cone_vis_g.glsl" });
 
-        TextureSpec depthNormSpec = { };
-        depthNormSpec.type = TextureRenderable::Type::TEX_2D;
-        depthNormSpec.format = TextureRenderable::ColorFormat::R32G32B32; 
-        depthNormSpec.dataType = TextureRenderable::DataType::Float;
-        depthNormSpec.width = 1280 * 2u;
-        depthNormSpec.height = 720 * 2u;
-        depthNormSpec.min = TextureRenderable::Filtering::LINEAR;
-        depthNormSpec.mag = TextureRenderable::Filtering::LINEAR;
-        depthNormSpec.s = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-        depthNormSpec.t = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-        depthNormSpec.r = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-        cachedSceneDepth = textureManager->createTexture("CachedSceneDepth", depthNormSpec);
-        cachedSceneNormal = textureManager->createTexture("CachedSceneNormal", depthNormSpec);
+        ITextureRenderable::Spec depthNormSpec = { };
+        depthNormSpec.width = 1280 * 2;
+        depthNormSpec.height = 720 * 2;
+        depthNormSpec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R32G32B32;
+        cachedSceneDepth = AssetManager::createTexture2D("CachedSceneDepth", depthNormSpec);
+        cachedSceneNormal = AssetManager::createTexture2D("CachedSceneNormal", depthNormSpec);
 
         struct IndirectDrawArgs
         {
@@ -173,7 +150,6 @@ namespace Cyan
         // set back-face culling
         m_ctx->setCullFace(FrontFace::CounterClockWise, FaceCull::Back);
 
-        auto textureManager = TextureManager::get();
         // scene render targets
         {
             enum class ColorBuffers
@@ -184,49 +160,36 @@ namespace Cyan
             };
 
             // 4x super sampled buffers 
-            TextureSpec colorSpec = { };
-            colorSpec.type = TextureRenderable::Type::TEX_2D;
-            colorSpec.format = TextureRenderable::ColorFormat::R16G16B16A16;
-            colorSpec.dataType = TextureRenderable::DataType::Float;
-            colorSpec.width = m_SSAAWidth;
-            colorSpec.height = m_SSAAHeight;
-            colorSpec.min = TextureRenderable::Filtering::LINEAR;
-            colorSpec.mag = TextureRenderable::Filtering::LINEAR;
-            colorSpec.s = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-            colorSpec.t = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-            colorSpec.r = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-            m_sceneColorTextureSSAA = textureManager->createTextureHDR("SceneColorTexSSAA", colorSpec);
+            ITextureRenderable::Spec sceneColorTextureSpec = { };
+            sceneColorTextureSpec.width = m_SSAAWidth;
+            sceneColorTextureSpec.height = m_SSAAHeight;
+            sceneColorTextureSpec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R32G32B32;
+            m_sceneColorTextureSSAA = AssetManager::createTexture2D("SceneColorTexSSAA", sceneColorTextureSpec);
             m_sceneColorRTSSAA = createRenderTarget(m_SSAAWidth, m_SSAAHeight);
             m_sceneColorRTSSAA->setColorBuffer(m_sceneColorTextureSSAA, static_cast<u32>(ColorBuffers::kColor));
 
             // non-aa buffers
-            colorSpec.width = m_windowWidth;
-            colorSpec.height = m_windowHeight;
-            m_sceneColorTexture = textureManager->createTextureHDR("SceneColorTexture", colorSpec);
+            sceneColorTextureSpec.width = m_windowWidth;
+            sceneColorTextureSpec.height = m_windowHeight;
+            m_sceneColorTexture = AssetManager::createTexture2D("SceneColorTexture", sceneColorTextureSpec);
             m_sceneColorRenderTarget = createRenderTarget(m_windowWidth, m_windowHeight);
             m_sceneColorRenderTarget->setColorBuffer(m_sceneColorTexture, static_cast<u32>(ColorBuffers::kColor));
 
             // todo: it seems using rgb16f leads to precision issue when building ssao
-            TextureSpec depthNormSpec = { };
-            depthNormSpec.type = TextureRenderable::Type::TEX_2D;
-            depthNormSpec.format = TextureRenderable::ColorFormat::R32G32B32; 
-            depthNormSpec.dataType = TextureRenderable::DataType::Float;
-            depthNormSpec.width = m_SSAAWidth;
-            depthNormSpec.height = m_SSAAHeight;
-            depthNormSpec.min = TextureRenderable::Filtering::LINEAR;
-            depthNormSpec.mag = TextureRenderable::Filtering::LINEAR;
-            depthNormSpec.s = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-            depthNormSpec.t = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-            depthNormSpec.r = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-            m_sceneDepthTextureSSAA = textureManager->createTextureHDR("SceneDepthTexSSAA", depthNormSpec);
-            m_sceneNormalTextureSSAA = textureManager->createTextureHDR("SceneNormalTextureSSAA", depthNormSpec);
+            ITextureRenderable::Spec sceneDepthNormalTextureSpec = { };
+            sceneDepthNormalTextureSpec.width = m_SSAAWidth;
+            sceneDepthNormalTextureSpec.height = m_SSAAHeight;
+            sceneDepthNormalTextureSpec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R32G32B32;
+
+            m_sceneDepthTextureSSAA = AssetManager::createTexture2D("SceneDepthTexSSAA", sceneDepthNormalTextureSpec);
+            m_sceneNormalTextureSSAA = AssetManager::createTexture2D("SceneNormalTextureSSAA", sceneDepthNormalTextureSpec);
             m_sceneColorRTSSAA->setColorBuffer(m_sceneDepthTextureSSAA, static_cast<u32>(ColorBuffers::kDepth));
             m_sceneColorRTSSAA->setColorBuffer(m_sceneNormalTextureSSAA, static_cast<u32>(ColorBuffers::kNormal));
 
-            depthNormSpec.width = m_windowWidth;
-            depthNormSpec.height = m_windowHeight;
-            m_sceneNormalTexture = textureManager->createTextureHDR("SceneNormalTexture", depthNormSpec);
-            m_sceneDepthTexture = textureManager->createTextureHDR("SceneDepthTexture", depthNormSpec);
+            sceneDepthNormalTextureSpec.width = m_windowWidth;
+            sceneDepthNormalTextureSpec.height = m_windowHeight;
+            m_sceneNormalTexture = AssetManager::createTexture2D("SceneNormalTexture", sceneDepthNormalTextureSpec);
+            m_sceneDepthTexture = AssetManager::createTexture2D("SceneDepthTexture", sceneDepthNormalTextureSpec);
             m_sceneColorRenderTarget->setColorBuffer(m_sceneDepthTexture, static_cast<u32>(ColorBuffers::kDepth));
             m_sceneColorRenderTarget->setColorBuffer(m_sceneNormalTexture, static_cast<u32>(ColorBuffers::kNormal));
             m_sceneDepthNormalShader = ShaderManager::createShader({ ShaderType::kVsPs, "SceneDepthNormalShader", SHADER_SOURCE_PATH "scene_depth_normal_v.glsl", SHADER_SOURCE_PATH "scene_depth_normal_p.glsl" });
@@ -234,19 +197,13 @@ namespace Cyan
 
         // ssao
         {
-            TextureSpec spec = { };
+            ITextureRenderable::Spec spec = { };
             spec.width = m_windowWidth;
             spec.height = m_windowHeight;
-            spec.type = TextureRenderable::Type::TEX_2D;
-            spec.format = TextureRenderable::ColorFormat::R16G16B16; 
-            spec.dataType = TextureRenderable::DataType::Float;
-            spec.min = TextureRenderable::Filtering::LINEAR;
-            spec.mag = TextureRenderable::Filtering::LINEAR;
-            spec.s = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-            spec.t = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-            spec.r = TextureRenderable::Wrap::CLAMP_TO_EDGE;
+            spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R16G16B16;
+
             m_ssaoRenderTarget = createRenderTarget(spec.width, spec.height);
-            m_ssaoTexture = textureManager->createTextureHDR("SSAOTexture", spec);
+            m_ssaoTexture = AssetManager::createTexture2D("SSAOTexture", spec);
             m_ssaoRenderTarget->setColorBuffer(m_ssaoTexture, 0u);
             m_ssaoShader = ShaderManager::createShader({ ShaderType::kVsPs, "SSAOShader", SHADER_SOURCE_PATH "shader_ao.vs", SHADER_SOURCE_PATH "shader_ao.fs" });
         }
@@ -254,64 +211,51 @@ namespace Cyan
         // bloom
         {
             m_bloomSetupRenderTarget = createRenderTarget(m_windowWidth, m_windowHeight);
-            TextureSpec spec = { };
+            ITextureRenderable::Spec spec = { };
             spec.width = m_windowWidth;
             spec.height = m_windowHeight;
-            spec.type = TextureRenderable::Type::TEX_2D;
-            spec.format = TextureRenderable::ColorFormat::R16G16B16A16; 
-            spec.dataType = TextureRenderable::DataType::Float;
-            spec.min = TextureRenderable::Filtering::LINEAR;
-            spec.mag = TextureRenderable::Filtering::LINEAR;
-            spec.s = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-            spec.t = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-            spec.r = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-            m_bloomSetupRenderTarget->setColorBuffer(textureManager->createTexture("BloomSetupTexture", spec), 0);
+            spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R16G16B16A16;
+            ITextureRenderable::Parameter parameter = { };
+
+            m_bloomSetupRenderTarget->setColorBuffer(AssetManager::createTexture2D("BloomSetupTexture", spec), 0);
             m_bloomSetupShader = ShaderManager::createShader({ ShaderType::kVsPs, "BloomSetupShader", SHADER_SOURCE_PATH "shader_bloom_preprocess.vs", SHADER_SOURCE_PATH "shader_bloom_preprocess.fs" });
             m_bloomDsShader = ShaderManager::createShader({ ShaderType::kVsPs, "BloomDownSampleShader", SHADER_SOURCE_PATH "shader_downsample.vs", SHADER_SOURCE_PATH "shader_downsample.fs" });
             m_bloomUsShader = ShaderManager::createShader({ ShaderType::kVsPs, "UpSampleShader", SHADER_SOURCE_PATH "shader_upsample.vs", SHADER_SOURCE_PATH "shader_upsample.fs" });
             m_gaussianBlurShader = ShaderManager::createShader({ ShaderType::kVsPs, "GaussianBlurShader", SHADER_SOURCE_PATH "shader_gaussian_blur.vs", SHADER_SOURCE_PATH "shader_gaussian_blur.fs" });
 
             u32 numBloomTextures = 0u;
-            auto initBloomBuffers = [&](u32 index, TextureSpec& spec) {
+            auto initBloomBuffers = [&](u32 index, ITextureRenderable::Spec& spec, const ITextureRenderable::Parameter& parameter) {
                 m_bloomDsTargets[index].renderTarget = createRenderTarget(spec.width, spec.height);
                 char buff[64];
                 sprintf_s(buff, "BloomTexture%u", numBloomTextures++);
-                m_bloomDsTargets[index].src = textureManager->createTextureHDR(buff, spec);
+                m_bloomDsTargets[index].src = AssetManager::createTexture2D(buff, spec, parameter);
                 sprintf_s(buff, "BloomTexture%u", numBloomTextures++);
-                m_bloomDsTargets[index].scratch = textureManager->createTextureHDR(buff, spec);
+                m_bloomDsTargets[index].scratch = AssetManager::createTexture2D(buff, spec, parameter);
 
                 m_bloomUsTargets[index].renderTarget = createRenderTarget(spec.width, spec.height);
                 sprintf_s(buff, "BloomTexture%u", numBloomTextures++);
-                m_bloomUsTargets[index].src = textureManager->createTextureHDR(buff, spec);
+                m_bloomUsTargets[index].src = AssetManager::createTexture2D(buff, spec, parameter);
                 sprintf_s(buff, "BloomTexture%u", numBloomTextures++);
-                m_bloomUsTargets[index].scratch = textureManager->createTextureHDR(buff, spec);
+                m_bloomUsTargets[index].scratch = AssetManager::createTexture2D(buff, spec, parameter);
                 spec.width /= 2;
                 spec.height /= 2;
             };
 
             for (u32 i = 0u; i < kNumBloomPasses; ++i) {
-                initBloomBuffers(i, spec);
+                initBloomBuffers(i, spec, parameter);
             }
         }
 
         // composite
         {
-            TextureSpec colorSpec = { };
-            colorSpec.type = TextureRenderable::Type::TEX_2D;
-            colorSpec.format = TextureRenderable::ColorFormat::R16G16B16A16;
-            colorSpec.dataType = TextureRenderable::DataType::Float;
-            colorSpec.width = m_windowWidth;
-            colorSpec.height = m_windowHeight;
-            colorSpec.min = TextureRenderable::Filtering::LINEAR;
-            colorSpec.mag = TextureRenderable::Filtering::LINEAR;
-            colorSpec.s = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-            colorSpec.t = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-            colorSpec.r = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-            m_compositeColorTexture = textureManager->createTextureHDR("CompositeColorTexture", colorSpec);
-            m_compositeRenderTarget = createRenderTarget(colorSpec.width, colorSpec.height);
+            ITextureRenderable::Spec spec = { };
+            spec.width = m_windowWidth;
+            spec.height = m_windowHeight;
+            spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R16G16B16A16;
+            m_compositeColorTexture = AssetManager::createTexture2D("CompositeColorTexture", spec);
+            m_compositeRenderTarget = createRenderTarget(m_compositeColorTexture->width, m_compositeColorTexture->height);
             m_compositeRenderTarget->setColorBuffer(m_compositeColorTexture, 0u);
             m_compositeShader = ShaderManager::createShader({ ShaderType::kVsPs, "CompositeShader", SHADER_SOURCE_PATH "composite_v.glsl", SHADER_SOURCE_PATH "composite_p.glsl" });
-            // m_compositeMatl = createMaterial(m_compositeShader)->createInstance();
         }
 
         // voxel cone tracing
@@ -320,45 +264,36 @@ namespace Cyan
             m_vctx.visualizer.init();
 
             {
-                TextureSpec voxelDataSpec = { };
-                voxelDataSpec.width = m_sceneVoxelGrid.resolution;
-                voxelDataSpec.height = m_sceneVoxelGrid.resolution;
-                voxelDataSpec.depth = m_sceneVoxelGrid.resolution;
-                voxelDataSpec.type = TextureRenderable::Type::TEX_3D;
-                voxelDataSpec.dataType = TextureRenderable::DataType::UNSIGNED_INT;
-                voxelDataSpec.format = TextureRenderable::ColorFormat::R8G8B8A8;
-                voxelDataSpec.min = TextureRenderable::Filtering::MIPMAP_LINEAR; 
-                voxelDataSpec.mag = TextureRenderable::Filtering::NEAREST;
-                voxelDataSpec.r = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-                voxelDataSpec.s = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-                voxelDataSpec.t = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-                m_sceneVoxelGrid.normal = textureManager->createTexture3D("VoxelGridNormal", voxelDataSpec);
-                m_sceneVoxelGrid.emission = textureManager->createTexture3D("VoxelGridEmission", voxelDataSpec);
+                ITextureRenderable::Spec spec = { };
+                spec.width = m_sceneVoxelGrid.resolution;
+                spec.height = m_sceneVoxelGrid.resolution;
+                spec.depth = m_sceneVoxelGrid.resolution;
+                spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R8G8B8A8;
+                ITextureRenderable::Parameter parameter = { };
+                parameter.minificationFilter = ITextureRenderable::Parameter::Filtering::MIPMAP_LINEAR;
+                parameter.magnificationFilter = ITextureRenderable::Parameter::Filtering::NEAREST;
+                m_sceneVoxelGrid.normal = AssetManager::createTexture3D("VoxelGridNormal", spec, parameter);
+                m_sceneVoxelGrid.emission = AssetManager::createTexture3D("VoxelGridEmission", spec, parameter);
 
-                voxelDataSpec.numMips = std::log2(m_sceneVoxelGrid.resolution) + 1;
-                m_sceneVoxelGrid.albedo = textureManager->createTexture3D("VoxelGridAlbedo", voxelDataSpec);
-                m_sceneVoxelGrid.radiance = textureManager->createTexture3D("VoxelGridRadiance", voxelDataSpec);
+                spec.numMips = std::log2(m_sceneVoxelGrid.resolution) + 1;
+                m_sceneVoxelGrid.albedo = AssetManager::createTexture3D("VoxelGridAlbedo", spec, parameter);
+                m_sceneVoxelGrid.radiance = AssetManager::createTexture3D("VoxelGridRadiance", spec, parameter);
 
-                voxelDataSpec.dataType = TextureRenderable::DataType::Float;
-                voxelDataSpec.format = TextureRenderable::ColorFormat::R32F;
-                m_sceneVoxelGrid.opacity = textureManager->createTexture3D("VoxelGridOpacity", voxelDataSpec);
+                spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R32F;
+                m_sceneVoxelGrid.opacity = AssetManager::createTexture3D("VoxelGridOpacity", spec, parameter);
             }
 
             {
                 using ColorBuffers = Vctx::ColorBuffers;
 
-                TextureSpec spec = { };
+                ITextureRenderable::Spec spec = { };
                 spec.width = 1280;
                 spec.height = 720;
-                spec.type = TextureRenderable::Type::TEX_2D;
-                spec.dataType = TextureRenderable::DataType::Float;
-                spec.format = TextureRenderable::ColorFormat::R16G16B16;
-                spec.min = TextureRenderable::Filtering::LINEAR;
-                spec.mag = TextureRenderable::Filtering::LINEAR;
+                spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R16G16B16;
 
-                m_vctx.occlusion = textureManager->createTexture("VctxOcclusion", spec);
-                m_vctx.irradiance = textureManager->createTexture("VctxIrradiance", spec);
-                m_vctx.reflection = textureManager->createTexture("VctxReflection", spec);
+                m_vctx.occlusion = AssetManager::createTexture2D("VctxOcclusion", spec);
+                m_vctx.irradiance = AssetManager::createTexture2D("VctxIrradiance", spec);
+                m_vctx.reflection = AssetManager::createTexture2D("VctxReflection", spec);
 
                 m_vctx.renderTarget = createRenderTarget(spec.width, spec.height);
                 m_vctx.renderTarget->setColorBuffer(m_vctx.occlusion, (u32)ColorBuffers::kOcclusion);
@@ -389,7 +324,7 @@ namespace Cyan
     {
         for (auto light : sceneRenderable.lights)
         {
-            light->setLightShaderParameter(shader);
+            light->setShaderParameters(shader);
         }
     }
 
@@ -439,10 +374,10 @@ namespace Cyan
         auto& voxelizer = m_vctx.voxelizer;
 
         // clear voxel grid textures
-        glClearTexImage(m_sceneVoxelGrid.albedo->handle, 0, GL_RGBA, GL_UNSIGNED_INT, 0);
-        glClearTexImage(m_sceneVoxelGrid.normal->handle, 0, GL_RGBA, GL_UNSIGNED_INT, 0);
-        glClearTexImage(m_sceneVoxelGrid.radiance->handle, 0, GL_RGBA, GL_UNSIGNED_INT, 0);
-        glClearTexImage(m_sceneVoxelGrid.opacity->handle, 0, GL_R, GL_FLOAT, 0);
+        glClearTexImage(m_sceneVoxelGrid.albedo->getGpuResource(), 0, GL_RGBA, GL_UNSIGNED_INT, 0);
+        glClearTexImage(m_sceneVoxelGrid.normal->getGpuResource(), 0, GL_RGBA, GL_UNSIGNED_INT, 0);
+        glClearTexImage(m_sceneVoxelGrid.radiance->getGpuResource(), 0, GL_RGBA, GL_UNSIGNED_INT, 0);
+        glClearTexImage(m_sceneVoxelGrid.opacity->getGpuResource(), 0, GL_R, GL_FLOAT, 0);
 
         enum class ImageBindings
         {
@@ -453,10 +388,10 @@ namespace Cyan
             kOpacity
         };
         // bind 3D volume texture to image units
-        glBindImageTexture(static_cast<u32>(ImageBindings::kAlbedo), m_sceneVoxelGrid.albedo->handle, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
-        glBindImageTexture(static_cast<u32>(ImageBindings::kNormal), m_sceneVoxelGrid.normal->handle, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
-        glBindImageTexture(static_cast<u32>(ImageBindings::kRadiance), m_sceneVoxelGrid.radiance->handle, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
-        glBindImageTexture(static_cast<u32>(ImageBindings::kOpacity), m_sceneVoxelGrid.opacity->handle, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32F);
+        glBindImageTexture(static_cast<u32>(ImageBindings::kAlbedo), m_sceneVoxelGrid.albedo->getGpuResource(), 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+        glBindImageTexture(static_cast<u32>(ImageBindings::kNormal), m_sceneVoxelGrid.normal->getGpuResource(), 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+        glBindImageTexture(static_cast<u32>(ImageBindings::kRadiance), m_sceneVoxelGrid.radiance->getGpuResource(), 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+        glBindImageTexture(static_cast<u32>(ImageBindings::kOpacity), m_sceneVoxelGrid.opacity->getGpuResource(), 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32F);
         if (m_vctx.opts.useSuperSampledOpacity > 0.f)
         {
             enum class SsboBindings
@@ -518,8 +453,8 @@ namespace Cyan
                                 PBRMatl* matl = meshInstance->getMaterial<PBRMatl>(i);
                                 if (matl)
                                 {
-                                    TextureRenderable* albedo = matl->parameter.albedo;
-                                    TextureRenderable* normal = matl->parameter.normal;
+                                    Texture2DRenderable* albedo = matl->parameter.albedo;
+                                    Texture2DRenderable* normal = matl->parameter.normal;
                                     voxelizer.voxelizeShader->setTexture("albedoTexture", albedo)
                                                             .setTexture("normalTexture", normal);
                                     u32 flags = matl->parameter.getFlags();
@@ -554,9 +489,9 @@ namespace Cyan
 
         if (m_settings.autoFilterVoxelGrid)
         {
-            glGenerateTextureMipmap(m_sceneVoxelGrid.albedo->handle);
-            glGenerateTextureMipmap(m_sceneVoxelGrid.radiance->handle);
-            glGenerateTextureMipmap(m_sceneVoxelGrid.opacity->handle);
+            glGenerateTextureMipmap(m_sceneVoxelGrid.albedo->getGpuResource());
+            glGenerateTextureMipmap(m_sceneVoxelGrid.radiance->getGpuResource());
+            glGenerateTextureMipmap(m_sceneVoxelGrid.opacity->getGpuResource());
         }
         // manually filter & down-sample to generate mipmap with anisotropic voxels
         else
@@ -570,10 +505,10 @@ namespace Cyan
                 glm::ivec3 currGridDim = glm::ivec3(m_sceneVoxelGrid.resolution) / (i32)pow(2, i+1);
                 voxelizer.filterVoxelGridShader->setUniform("srcMip", i);
                 voxelizer.filterVoxelGridShader->setUniform("srcAlbedo", textureUnit);
-                glBindTextureUnit(textureUnit++, m_sceneVoxelGrid.albedo->handle);
+                glBindTextureUnit(textureUnit++, m_sceneVoxelGrid.albedo->getGpuResource());
 
                 voxelizer.filterVoxelGridShader->setUniform("dstAlbedo", textureUnit);
-                glBindImageTexture(textureUnit++, m_sceneVoxelGrid.albedo->handle, i+1, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
+                glBindImageTexture(textureUnit++, m_sceneVoxelGrid.albedo->getGpuResource(), i+1, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
                 glDispatchCompute(currGridDim.x, currGridDim.y, currGridDim.z);
             }
         }
@@ -634,10 +569,10 @@ namespace Cyan
                 visualizer.cachedSceneNormal->width == sceneNormalTexture->width && visualizer.cachedSceneNormal->height == sceneNormalTexture->height)
             {
                 // update cached snapshot of scene depth/normal by copying texture data
-                glCopyImageSubData(sceneDepthTexture->handle, GL_TEXTURE_2D, 0, 0, 0, 0, 
-                    visualizer.cachedSceneDepth->handle, GL_TEXTURE_2D, 0, 0, 0, 0, sceneDepthTexture->width, sceneDepthTexture->height, 1);
-                glCopyImageSubData(sceneNormalTexture->handle, GL_TEXTURE_2D, 0, 0, 0, 0, 
-                    visualizer.cachedSceneNormal->handle, GL_TEXTURE_2D, 0, 0, 0, 0, sceneNormalTexture->width, sceneNormalTexture->height, 1);
+                glCopyImageSubData(sceneDepthTexture->getGpuResource(), GL_TEXTURE_2D, 0, 0, 0, 0, 
+                    visualizer.cachedSceneDepth->getGpuResource(), GL_TEXTURE_2D, 0, 0, 0, 0, sceneDepthTexture->width, sceneDepthTexture->height, 1);
+                glCopyImageSubData(sceneNormalTexture->getGpuResource(), GL_TEXTURE_2D, 0, 0, 0, 0, 
+                    visualizer.cachedSceneNormal->getGpuResource(), GL_TEXTURE_2D, 0, 0, 0, 0, sceneNormalTexture->width, sceneNormalTexture->height, 1);
 
 
         //       visualizer.cachedView = m_globalDrawData.view;
@@ -686,8 +621,8 @@ namespace Cyan
         visualizer.coneVisComputeShader->setUniform("sceneNormalTexture", (i32)TexBindings::kSceneNormal);
         visualizer.coneVisComputeShader->setUniform("opts.occlusionScale", m_vctx.opts.occlusionScale);
         visualizer.coneVisComputeShader->setUniform("opts.coneOffset", m_vctx.opts.coneOffset);
-        glBindTextureUnit((u32)TexBindings::kSceneDepth, m_vctx.visualizer.cachedSceneDepth->handle);
-        glBindTextureUnit((u32)TexBindings::kSceneNormal, m_vctx.visualizer.cachedSceneNormal->handle);
+        glBindTextureUnit((u32)TexBindings::kSceneDepth, m_vctx.visualizer.cachedSceneDepth->getGpuResource());
+        glBindTextureUnit((u32)TexBindings::kSceneNormal, m_vctx.visualizer.cachedSceneNormal->getGpuResource());
 
         glDispatchCompute(1, 1, 1);
 
@@ -867,18 +802,11 @@ namespace Cyan
         auto renderTarget = m_settings.enableAA ? m_sceneColorRTSSAA : m_sceneColorRenderTarget;
         SceneView sceneView(*scene, scene->camera, renderTarget, { }, { 0u, 0u,  renderTarget->width, renderTarget->height }, EntityFlag_kVisible);
         // convert Scene instance to RenderableScene instance for rendering
-        SceneRenderable renderableScene(*scene, sceneView, m_frameAllocator);
+        SceneRenderable sceneRenderable(scene, sceneView, m_frameAllocator);
 
         beginRender();
         {
-            // update all global data
-            // updateFrameGlobalData(scene, scene->camera);
-
-            // direct shadow pass
-            if (m_settings.enableSunShadow)
-            {
-                renderSunShadow(scene, scene->entities);
-            }
+            renderShadow(sceneRenderable);
 
             struct DrawBuffer
             {
@@ -895,7 +823,7 @@ namespace Cyan
                     RenderTargetDrawBuffer{ (i32)(SceneColorBuffers::kDepth), glm::vec4(1.f) },
                     RenderTargetDrawBuffer{ (i32)(SceneColorBuffers::kNormal) }
                 };
-                renderSceneDepthNormal(renderableScene, sceneView);
+                renderSceneDepthNormal(sceneRenderable, sceneView);
             }
 
             // voxel cone tracing pass
@@ -909,8 +837,8 @@ namespace Cyan
             // ssao pass
             if (m_settings.enableSSAO)
             {
-                TextureRenderable* sceneDepthTexture = m_settings.enableAA ? m_sceneDepthTextureSSAA : m_sceneDepthTexture;
-                TextureRenderable* sceneNormalTexture = m_settings.enableAA ? m_sceneNormalTextureSSAA : m_sceneNormalTexture;
+                Texture2DRenderable* sceneDepthTexture = m_settings.enableAA ? m_sceneDepthTextureSSAA : m_sceneDepthTexture;
+                Texture2DRenderable* sceneNormalTexture = m_settings.enableAA ? m_sceneNormalTextureSSAA : m_sceneNormalTexture;
                 ssao(sceneView, sceneDepthTexture, sceneNormalTexture);
             }
 
@@ -918,7 +846,7 @@ namespace Cyan
             sceneView.drawBuffers = {
                 RenderTargetDrawBuffer{ (i32)(SceneColorBuffers::kSceneColor) }
             };
-            renderScene(renderableScene, sceneView);
+            renderScene(sceneRenderable, sceneView);
 
             // debug object pass
             renderDebugObjects(scene, externDebugRender);
@@ -936,6 +864,7 @@ namespace Cyan
                 composite();
             }
         }
+        endRender();
     }
 
     void Renderer::endRender()
@@ -975,17 +904,20 @@ namespace Cyan
 #endif
     }
 
-    void Renderer::renderShadow(SceneRenderable* renderableScene)
+    void Renderer::renderShadow(SceneRenderable& sceneRenderable)
     {
-        // iterate through directional light and render their shadowmap
+        for (auto light : sceneRenderable.lights)
+        {
+            light->renderShadow(*(sceneRenderable.scene), *this);
+        }
     }
 
-    void Renderer::renderSceneMeshOnly(SceneRenderable& renderableScene, const SceneView& sceneView, Shader* shader)
+    void Renderer::renderSceneMeshOnly(SceneRenderable& sceneRenderable, const SceneView& sceneView, Shader* shader)
     {
-        renderableScene.submitSceneData(m_ctx);
+        sceneRenderable.submitSceneData(m_ctx);
 
         u32 transformIndex = 0u;
-        for (auto& meshInst : renderableScene.meshInstances)
+        for (auto& meshInst : sceneRenderable.meshInstances)
         {
             submitMesh(
                 sceneView.renderTarget, // renderTarget
@@ -1002,12 +934,12 @@ namespace Cyan
     }
 
     // todo: refactor this and 
-    void Renderer::renderSceneDepthOnly(SceneRenderable& renderableScene, const SceneView& sceneView)
+    void Renderer::renderSceneDepthOnly(SceneRenderable& sceneRenderable, const SceneView& sceneView)
     {
-        renderableScene.submitSceneData(m_ctx);
+        sceneRenderable.submitSceneData(m_ctx);
 
         u32 transformIndex = 0u;
-        for (auto& meshInst : renderableScene.meshInstances)
+        for (auto& meshInst : sceneRenderable.meshInstances)
         {
             submitMesh(
                 sceneView.renderTarget, // renderTarget
@@ -1044,22 +976,22 @@ namespace Cyan
         }
     }
 
-    void Renderer::renderScene(SceneRenderable& renderableScene, const SceneView& sceneView)
+    void Renderer::renderScene(SceneRenderable& sceneRenderable, const SceneView& sceneView)
     {
-        renderableScene.submitSceneData(m_ctx);
+        sceneRenderable.submitSceneData(m_ctx);
 
         // render skybox
-        if (renderableScene.skybox)
+        if (sceneRenderable.skybox)
         {
-            renderableScene.skybox->render();
+            sceneRenderable.skybox->render();
         }
 
         // render mesh instances
         u32 transformIndex = 0u;
-        for (auto meshInst : renderableScene.meshInstances)
+        for (auto meshInst : sceneRenderable.meshInstances)
         {
             drawMeshInstance(
-                renderableScene,
+                sceneRenderable,
                 sceneView.renderTarget, 
                 sceneView.drawBuffers, 
                 false,
@@ -1071,7 +1003,7 @@ namespace Cyan
         }
     }
 
-    void Renderer::ssao(const SceneView& sceneView, TextureRenderable* sceneDepthTexture, TextureRenderable* sceneNormalTexture)
+    void Renderer::ssao(const SceneView& sceneView, Texture2DRenderable* sceneDepthTexture, Texture2DRenderable* sceneNormalTexture)
     {
         submitFullScreenPass(
             sceneView.renderTarget,
@@ -1089,11 +1021,16 @@ namespace Cyan
     void Renderer::bloom()
     {
         // be aware that these functions modify 'renderTarget''s state
-        auto downsample = [this](TextureRenderable* dst, TextureRenderable* src, RenderTarget* renderTarget) {
+        auto downsample = [this](Texture2DRenderable* dst, Texture2DRenderable* src, RenderTarget* renderTarget) {
             enum class ColorBuffer
             {
                 kDst = 0
             };
+
+            if (!dst || !src)
+            {
+                return;
+            }
 
             renderTarget->setColorBuffer(dst, static_cast<u32>(ColorBuffer::kDst));
             submitFullScreenPass(
@@ -1105,13 +1042,19 @@ namespace Cyan
                 });
         };
 
-        auto upscale = [this](TextureRenderable* dst, TextureRenderable* src, TextureRenderable* blend, RenderTarget* renderTarget, u32 stageIndex) {
+        auto upscale = [this](Texture2DRenderable* dst, Texture2DRenderable* src, Texture2DRenderable* blend, RenderTarget* renderTarget, u32 stageIndex) {
             enum class ColorBuffer
             {
                 kDst = 0
             };
 
+            if (!dst || !src)
+            {
+                return;
+            }
+
             renderTarget->setColorBuffer(dst, static_cast<u32>(ColorBuffer::kDst));
+
             submitFullScreenPass(
                 renderTarget, 
                 { { (i32)ColorBuffer::kDst } },
@@ -1124,7 +1067,7 @@ namespace Cyan
         };
 
         // user have to make sure that renderTarget is compatible with 'dst', 'src', and 'scratch'
-        auto gaussianBlur = [this](TextureRenderable* dst, TextureRenderable* src, TextureRenderable* scratch, RenderTarget* renderTarget, i32 kernelIndex, i32 radius) {
+        auto gaussianBlur = [this](Texture2DRenderable* dst, Texture2DRenderable* src, Texture2DRenderable* scratch, RenderTarget* renderTarget, i32 kernelIndex, i32 radius) {
 
             enum class ColorBuffer
             {
@@ -1192,7 +1135,7 @@ namespace Cyan
 
         // downsample
         i32 kernelRadii[6] = { 3, 4, 6, 7, 8, 9};
-        downsample(m_bloomDsTargets[0].src, m_bloomSetupRenderTarget->getColorBuffer(0u), m_bloomDsTargets[0].renderTarget);
+        downsample(m_bloomDsTargets[0].src, dynamic_cast<Texture2DRenderable*>(m_bloomSetupRenderTarget->getColorBuffer(0u)), m_bloomDsTargets[0].renderTarget);
         gaussianBlur(nullptr, m_bloomDsTargets[0].src, m_bloomDsTargets[0].scratch, m_bloomDsTargets[0].renderTarget, 0, kernelRadii[0]);
         for (u32 i = 0u; i < kNumBloomPasses - 1; ++i) 
         {
@@ -1283,15 +1226,15 @@ namespace Cyan
             ImGui::Separator();
             ImVec2 visSize(480, 270);
             ImGui::Text("VoxelGrid Vis "); 
-            ImGui::Image((ImTextureID)m_vctx.visualizer.colorBuffer->handle, visSize, ImVec2(0, 1), ImVec2(1, 0));
+            ImGui::Image((ImTextureID)m_vctx.visualizer.colorBuffer->getGpuResource(), visSize, ImVec2(0, 1), ImVec2(1, 0));
 
             ImGui::Separator();
             ImGui::Text("Vctx Occlusion");
-            ImGui::Image((ImTextureID)m_vctx.occlusion->handle, visSize, ImVec2(0, 1), ImVec2(1, 0));
+            ImGui::Image((ImTextureID)m_vctx.occlusion->getGpuResource(), visSize, ImVec2(0, 1), ImVec2(1, 0));
 
             ImGui::Separator();
             ImGui::Text("Vctx Irradiance");
-            ImGui::Image((ImTextureID)m_vctx.irradiance->handle, visSize, ImVec2(0, 1), ImVec2(1, 0));
+            ImGui::Image((ImTextureID)m_vctx.irradiance->getGpuResource(), visSize, ImVec2(0, 1), ImVec2(1, 0));
         }
         ImGui::End();
 
@@ -1387,17 +1330,17 @@ namespace Cyan
         m_vctx.renderShader->setUniform("opts.opacityScale", m_vctx.opts.opacityScale);
         auto depthTexture = m_settings.enableAA ? m_sceneDepthTextureSSAA : m_sceneDepthTexture;
         auto normalTexture = m_settings.enableAA ? m_sceneNormalTextureSSAA : m_sceneNormalTexture;
-        glBindTextureUnit((u32)TexBindings::kDepth, depthTexture->handle);
-        glBindTextureUnit((u32)TexBindings::kNormal, normalTexture->handle);
+        glBindTextureUnit((u32)TexBindings::kDepth, depthTexture->getGpuResource());
+        glBindTextureUnit((u32)TexBindings::kNormal, normalTexture->getGpuResource());
         m_ctx->setPrimitiveType(PrimitiveMode::TriangleList);
         m_ctx->setDepthControl(DepthControl::kDisable);
         m_ctx->drawIndexAuto(6u);
         m_ctx->setDepthControl(DepthControl::kEnable);
 
         // bind textures for rendering
-        glBindTextureUnit((u32)SceneTextureBindings::VctxOcclusion, m_vctx.occlusion->handle);
-        glBindTextureUnit((u32)SceneTextureBindings::VctxIrradiance, m_vctx.irradiance->handle);
-        glBindTextureUnit((u32)SceneTextureBindings::VctxReflection, m_vctx.reflection->handle);
+        glBindTextureUnit((u32)SceneTextureBindings::VctxOcclusion, m_vctx.occlusion->getGpuResource());
+        glBindTextureUnit((u32)SceneTextureBindings::VctxIrradiance, m_vctx.irradiance->getGpuResource());
+        glBindTextureUnit((u32)SceneTextureBindings::VctxReflection, m_vctx.reflection->getGpuResource());
     }
 
     void Renderer::renderDebugObjects(Scene* scene, const std::function<void()>& externDebugRender)

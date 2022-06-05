@@ -8,12 +8,12 @@
 
 namespace Cyan
 {
-    Mesh*          unitCubeMesh                                = nullptr;
-    Shader*        s_debugRenderShader                         = nullptr;
-    TextureRenderable*       ReflectionProbe::s_BRDFLookupTexture        = nullptr;
-    Shader*        IrradianceProbe::s_convolveIrradianceShader = nullptr;
-    Shader*        ReflectionProbe::s_convolveReflectionShader = nullptr;
-    RegularBuffer* IrradianceProbe::m_rayBuffers               = nullptr;
+    Mesh* unitCubeMesh = nullptr;
+    Shader* s_debugRenderShader = nullptr;
+    Texture2DRenderable* ReflectionProbe::s_BRDFLookupTexture = nullptr;
+    Shader* IrradianceProbe::s_convolveIrradianceShader = nullptr;
+    Shader* ReflectionProbe::s_convolveReflectionShader = nullptr;
+    RegularBuffer* IrradianceProbe::m_rayBuffers = nullptr;
 
     namespace LightProbeCameras
     {
@@ -45,8 +45,8 @@ namespace Cyan
         return s_debugRenderShader;
     }
 
-    LightProbe::LightProbe(TextureRenderable* srcCubemapTexture)
-        : scene(nullptr), position(glm::vec3(0.f)), resolution(glm::uvec2(srcCubemapTexture->width, srcCubemapTexture->height)), 
+    LightProbe::LightProbe(TextureCubeRenderable* srcCubemapTexture)
+        : scene(nullptr), position(glm::vec3(0.f)), resolution(glm::uvec2(srcCubemapTexture->resolution, srcCubemapTexture->resolution)), 
         debugSphereMesh(nullptr), sceneCapture(srcCubemapTexture)
     {
 
@@ -56,28 +56,17 @@ namespace Cyan
         : scene(scene), position(p), resolution(resolution), debugSphereMesh(nullptr), sceneCapture(nullptr)
     {
         // debugSphereMesh = AssetManager::getAsset<Mesh>("sphere_mesh")->createInstance(scene);
-        // debugRenderMatl = createMaterial(getRenderProbeShader())->createInstance();
 
         initialize();
     }
 
     void LightProbe::initialize()
     {
-        TextureSpec spec = { };
+        ITextureRenderable::Spec spec = { };
         spec.width = resolution.x;
-        spec.height = resolution.y;
-        spec.type = TextureRenderable::Type::TEX_CUBEMAP;
-        spec.format = TextureRenderable::ColorFormat::R16G16B16;
-        spec.dataType =  TextureRenderable::DataType::Float;
-        spec.min = TextureRenderable::Filtering::LINEAR;
-        spec.mag = TextureRenderable::Filtering::LINEAR;
-        spec.s = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-        spec.t = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-        spec.r = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-        spec.numMips = 1u;
-        spec.data = 0;
-        auto textureManager = TextureManager::get();
-        sceneCapture = textureManager->createTextureHDR("SceneCapture", spec);
+        spec.type = ITextureRenderable::Spec::Type::kTexCube;
+        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R16G16B16;
+        sceneCapture = AssetManager::createTextureCube("SceneCapture", spec);
 
         // shared cube mesh
         if (!unitCubeMesh)
@@ -105,7 +94,7 @@ namespace Cyan
         CYAN_ASSERT(scene, "Attempt to call LightProbe::captureScene() while scene is NULL!");
 
         // create render target
-        auto renderTarget = createRenderTarget(sceneCapture->width, sceneCapture->height);
+        auto renderTarget = createRenderTarget(sceneCapture->resolution, sceneCapture->resolution);
         {
             renderTarget->setColorBuffer(sceneCapture, 0u);
             Renderer::get()->renderSceneToLightProbe(scene, this, renderTarget);
@@ -120,7 +109,7 @@ namespace Cyan
 
     }
 
-    IrradianceProbe::IrradianceProbe(TextureRenderable* srcCubemapTexture, const glm::uvec2& irradianceRes)
+    IrradianceProbe::IrradianceProbe(TextureCubeRenderable* srcCubemapTexture, const glm::uvec2& irradianceRes)
         : LightProbe(srcCubemapTexture), m_irradianceTextureRes(irradianceRes)
     {
         initialize();
@@ -134,22 +123,11 @@ namespace Cyan
 
     void IrradianceProbe::initialize()
     {
-        TextureSpec spec = { };
+        ITextureRenderable::Spec spec = { };
         spec.width = m_irradianceTextureRes.x;
-        spec.height = m_irradianceTextureRes.y;
-        spec.type = TextureRenderable::Type::TEX_CUBEMAP;
-        spec.format = TextureRenderable::ColorFormat::R16G16B16;
-        spec.dataType =  TextureRenderable::DataType::Float;
-        spec.min = TextureRenderable::Filtering::LINEAR;
-        spec.mag = TextureRenderable::Filtering::LINEAR;
-        spec.s = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-        spec.t = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-        spec.r = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-        spec.numMips = 1u;
-        spec.data = nullptr;
-        auto textureManager = TextureManager::get();
-        auto sceneManager = SceneManager::get();
-        m_convolvedIrradianceTexture = textureManager->createTextureHDR("IrradianceProbe", spec);
+        spec.type = ITextureRenderable::Spec::Type::kTexCube;
+        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R16G16B16;
+        m_convolvedIrradianceTexture = AssetManager::createTextureCube("IrradianceProbe", spec);
 
         if (!s_convolveIrradianceShader)
         {
@@ -215,7 +193,7 @@ namespace Cyan
 
     }
 
-    ReflectionProbe::ReflectionProbe(TextureRenderable* srcCubemapTexture)
+    ReflectionProbe::ReflectionProbe(TextureCubeRenderable* srcCubemapTexture)
         : LightProbe(srcCubemapTexture)
     {
         initialize();
@@ -230,21 +208,13 @@ namespace Cyan
     void ReflectionProbe::initialize()
     {
         // convolved radiance texture
-        TextureSpec spec = { };
+        ITextureRenderable::Spec spec = { };
         spec.width = resolution.x;
-        spec.height = resolution.y;
-        spec.type = TextureRenderable::Type::TEX_CUBEMAP;
-        spec.format = TextureRenderable::ColorFormat::R16G16B16;
-        spec.dataType = TextureRenderable::DataType::Float;
-        spec.min = TextureRenderable::Filtering::MIPMAP_LINEAR;
-        spec.mag = TextureRenderable::Filtering::LINEAR;
-        spec.s = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-        spec.t = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-        spec.r = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-        spec.numMips = kNumMips;
-        spec.data = nullptr;
-        auto textureManager = TextureManager::get();
-        m_convolvedReflectionTexture = textureManager->createTextureHDR("ConvolvedReflectionProbe", spec);
+        spec.type = ITextureRenderable::Spec::Type::kTexCube;
+        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R16G16B16;
+        ITextureRenderable::Parameter parameter = { };
+        parameter.minificationFilter = ITextureRenderable::Parameter::Filtering::MIPMAP_LINEAR;
+        m_convolvedReflectionTexture = AssetManager::createTextureCube("IrradianceProbe", spec, parameter);
 
         if (!s_convolveReflectionShader)
         {
@@ -258,27 +228,16 @@ namespace Cyan
         }
     }
 
-    TextureRenderable* ReflectionProbe::buildBRDFLookupTexture()
+    Texture2DRenderable* ReflectionProbe::buildBRDFLookupTexture()
     {
-        const u32 kTexWidth = 512u;
-        const u32 kTexHeight = 512u;
-        TextureSpec spec = { };
-        spec.type = TextureRenderable::Type::TEX_2D;
-        spec.format = TextureRenderable::ColorFormat::R16G16B16A16;
-        spec.dataType = TextureRenderable::DataType::Float;
-        spec.numMips = 1u;
-        spec.width = kTexWidth;
-        spec.height = kTexHeight;
-        spec.min = TextureRenderable::Filtering::LINEAR;
-        spec.mag = TextureRenderable::Filtering::LINEAR;
-        spec.s = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-        spec.t = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-        spec.r = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-        spec.data = nullptr;
-        auto textureManager = TextureManager::get();
-        TextureRenderable* outTexture = textureManager->createTextureHDR("BRDFLUT", spec); 
+        ITextureRenderable::Spec spec = { };
+        spec.width = 512u;
+        spec.height = 512u;
+        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R16G16B16A16;
+        Texture2DRenderable* outTexture = AssetManager::createTexture2D("BRDFLUT", spec);
+
         Shader* shader = ShaderManager::createShader({ ShaderType::kVsPs, "IntegrateBRDFShader", SHADER_SOURCE_PATH "shader_integrate_brdf.vs", SHADER_SOURCE_PATH "shader_integrate_brdf.fs" });
-        RenderTarget* renderTarget = createRenderTarget(kTexWidth, kTexWidth);
+        RenderTarget* renderTarget = createRenderTarget(outTexture->width, outTexture->height);
         renderTarget->setColorBuffer(outTexture, 0u);
 
         auto renderer = Renderer::get();
@@ -308,8 +267,8 @@ namespace Cyan
         camera.f = 100.f;
         camera.fov = glm::radians(90.f);
         u32 kNumMips = 11;
-        u32 mipWidth = sceneCapture->width; 
-        u32 mipHeight = sceneCapture->height;
+        u32 mipWidth = sceneCapture->resolution; 
+        u32 mipHeight = sceneCapture->resolution;
 
         for (u32 mip = 0; mip < kNumMips; ++mip)
         {

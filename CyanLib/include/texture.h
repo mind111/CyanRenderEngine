@@ -10,77 +10,24 @@
 
 namespace Cyan
 {
-#if 0
-    // TODO: how to handle texture name?
-    struct TextureRenderable : public GpuResource
-    {
-        enum class Type
-        {
-            TEX_2D = 0,
-            TEX_2D_ARRAY,
-            TEX_3D,
-            TEX_CUBEMAP
-        };
-
-        enum class Filtering
-        {
-            LINEAR = 0,
-            NEAREST,
-            MIPMAP_LINEAR,
-        };
-
-        enum class Wrap
-        {
-            CLAMP_TO_EDGE = 0,
-            NONE
-        };
-        
-        enum class ColorFormat
-        {
-            R16F = 0,
-            R32F,
-            R32G32F,
-            Lum32F,
-            R8G8B8,
-            R16G16B16,
-            R8G8B8A8,
-            R16G16B16A16,
-            R32G32B32,
-            R32G32B32A32,
-            D24S8
-        };
-
-        enum class DataType
-        {
-            UNSIGNED_BYTE,
-            UNSIGNED_INT,
-            UNSIGNED_INT_24_8,
-            Float,
-        };
-
-        std::string name;
-        void* data;
-        ColorFormat format;
-        DataType dataType;
-        Filtering minFilter;
-        Filtering magFilter;
-        Wrap wrapS;
-        Wrap wrapT;
-        Wrap wrapR;
-        Type type;
-        u32 width;
-        u32 height;
-        u32 depth;
-        GLuint handle;
-    };
-#endif
     struct ITextureRenderable : public Asset, public GpuResource
     {
+        virtual std::string getAssetObjectTypeDesc() override
+        {
+            return std::string("ITextureRenderable");
+        }
+
+        static std::string getAssetClassTypeDesc() 
+        { 
+            return std::string("ITextureRenderable"); 
+        }
+
         struct Spec
         {
             enum class Type
             {
                 kTex2D,
+                kDepthTex,
                 kTex3D,
                 kTexCube,
                 kCount
@@ -102,10 +49,10 @@ namespace Cyan
                 kInvalid
             };
 
-            u32 width = 0;
-            u32 height = 0;
-            u32 depth = 0;
-            u32 numMips = 0;
+            u32 width = 1;
+            u32 height = 1;
+            u32 depth = 1;
+            u32 numMips = 1;
             Type type = Type::kCount;
             PixelFormat pixelFormat = PixelFormat::kInvalid;
             u8* pixelData = nullptr;
@@ -133,6 +80,8 @@ namespace Cyan
             Wrap wrap_t = Wrap::CLAMP_TO_EDGE;
         };
 
+        virtual Spec getTextureSpec() = 0;
+
         ITextureRenderable(const char* inName, const Spec& inSpec, Parameter inParams = Parameter{ })
             : GpuResource(),
             name(inName),
@@ -143,6 +92,8 @@ namespace Cyan
         {
 
         }
+
+        virtual ~ITextureRenderable() { }
 
         struct GLPixelFormat
         {
@@ -249,6 +200,29 @@ namespace Cyan
 
     struct Texture2DRenderable : public ITextureRenderable
     {
+        virtual std::string getAssetObjectTypeDesc() override
+        {
+            return std::string("Texture2DRenderable");
+        }
+
+        static std::string getAssetClassTypeDesc() 
+        { 
+            return std::string("Texture2DRenderable"); 
+        }
+
+        virtual Spec getTextureSpec() override
+        {
+            return Spec {
+                width, /* width */
+                height, /* height */
+                1, /* depth */
+                numMips, /* numMips */
+                Spec::Type::kTex2D, /* texture type */
+                pixelFormat, /* pixel format */
+                pixelData /* pixel data */
+            };
+        }
+
         Texture2DRenderable(const char* inName, const Spec& inSpec, Parameter inParams = Parameter{ })
             : ITextureRenderable(inName, inSpec, inParams),
             width(inSpec.width),
@@ -272,8 +246,76 @@ namespace Cyan
         u32 height;
     };
 
+    struct DepthTexture : public Texture2DRenderable
+    {
+        /* Asset interface */
+        virtual std::string getAssetObjectTypeDesc() override
+        {
+            return std::string("DepthTexture");
+        }
+
+        static std::string getAssetClassTypeDesc() 
+        { 
+            return std::string("DepthTexture"); 
+        }
+
+        /* ITextureRenderable interface */
+        virtual Spec getTextureSpec() override
+        {
+            return Spec {
+                width, /* width */
+                height, /* height */
+                1, /* depth */
+                numMips, /* numMips */
+                Spec::Type::kDepthTex, /* texture type */
+                pixelFormat, /* pixel format */
+                pixelData /* pixel data */
+            };
+        }
+
+        DepthTexture(const char* name, u32 width, u32 height)
+            : Texture2DRenderable(
+                name,
+                Spec {
+                    width, /* width */
+                    height, /* height */
+                    1, /* depth */
+                    1, /* numMips */
+                    Spec::Type::kTex2D, /* texture type */
+                    Spec::PixelFormat::D24S8, /* pixel format */
+                    nullptr /* pixel data */
+                }
+            )
+        { }
+    };
+
     struct Texture3DRenderable : public ITextureRenderable
     {
+        /* Asset interface */
+        virtual std::string getAssetObjectTypeDesc() override
+        {
+            return std::string("Texture3DRenderable");
+        }
+
+        static std::string getAssetClassTypeDesc() 
+        { 
+            return std::string("Texture3DRenderable"); 
+        }
+
+        /* ITextureRenderable interface */
+        virtual Spec getTextureSpec() override
+        {
+            return Spec {
+                width, /* width */
+                height, /* height */
+                depth, /* depth */
+                numMips, /* numMips */
+                Spec::Type::kTex3D, /* texture type */
+                pixelFormat, /* pixel format */
+                pixelData /* pixel data */
+            };
+        }
+
         Texture3DRenderable(const char* inName, const Spec& inSpec, Parameter inParams = Parameter{ })
             : ITextureRenderable(inName, inSpec, inParams),
             width(inSpec.width),
@@ -301,6 +343,31 @@ namespace Cyan
 
     struct TextureCubeRenderable : public ITextureRenderable
     {
+        /* Asset interface */
+        virtual std::string getAssetObjectTypeDesc() override
+        {
+            return std::string("TextureCubeRenderable");
+        }
+
+        static std::string getAssetClassTypeDesc() 
+        { 
+            return std::string("TextureCubeRenderable"); 
+        }
+
+        /* ITextureRenderable interface */
+        virtual Spec getTextureSpec() override
+        {
+            return Spec {
+                resolution, /* width */
+                resolution, /* height */
+                1, /* depth */
+                numMips, /* numMips */
+                Spec::Type::kTexCube, /* texture type */
+                pixelFormat, /* pixel format */
+                pixelData /* pixel data */
+            };
+        }
+
         TextureCubeRenderable(const char* inName, const Spec& inSpec, Parameter inParams = Parameter{ })
             : ITextureRenderable(inName, inSpec, inParams),
             resolution(inSpec.width)
@@ -323,42 +390,5 @@ namespace Cyan
         }
 
         u32 resolution;
-    };
-
-    struct TextureSpec
-    {
-        TextureRenderable::Type type;
-        u32 width, height, depth;
-        u32 numMips;
-        TextureRenderable::ColorFormat format;
-        TextureRenderable::DataType dataType;
-        TextureRenderable::Filtering min;
-        TextureRenderable::Filtering mag;
-        TextureRenderable::Wrap s;
-        TextureRenderable::Wrap t;
-        TextureRenderable::Wrap r;
-        void* data;
-    };
-
-    class TextureManager
-    {
-    public:
-        TextureManager();
-        ~TextureManager() { }
-        static TextureManager* get();
-        u32 getNumTextures();
-        TextureRenderable* getTexture(const char* name);
-        void addTexture(TextureRenderable* texture);
-        TextureRenderable* createTexture(const char* name, TextureSpec spec);
-        TextureRenderable* createTextureHDR(const char* name, TextureSpec spec);
-        TextureRenderable* createTexture(const char* name, const char* file, TextureSpec& spec);
-        TextureRenderable* createTextureHDR(const char* name, const char* file, TextureSpec& spec);
-        TextureRenderable* createTexture3D(const char* name, TextureSpec spec);
-        TextureRenderable* createArrayTexture2D(const char* name, TextureSpec& spec);
-        TextureRenderable* createDepthTexture(const char* name, u32 width, u32 height);
-        void copyTexture(TextureRenderable* dst, TextureRenderable* src);
-
-        static std::vector<TextureRenderable*> s_textures;
-        static TextureManager* m_singleton;
     };
 }

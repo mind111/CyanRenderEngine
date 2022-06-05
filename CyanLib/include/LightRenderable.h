@@ -4,11 +4,16 @@
 #include "DirectionalLight.h"
 #include "Shader.h"
 
+struct Scene;
+
 namespace Cyan
 {
+    struct Renderer;
+
     struct ILightRenderable
     {
-        virtual void setLightShaderParameter(Shader* shader) = 0;
+        virtual void renderShadow(const Scene& scene, Renderer& renderer) { }
+        virtual void setShaderParameters(Shader* shader) = 0;
     };
 
     /**
@@ -16,6 +21,19 @@ namespace Cyan
     */
     struct DirectionalLightRenderable : public ILightRenderable
     {
+        /* ILightRenderable interface */
+        virtual void renderShadow(const Scene& scene, Renderer& renderer) override
+        {
+            shadowmapPtr->render(scene, renderer);
+        }
+
+        virtual void setShaderParameters(Shader* shader) override
+        {
+            shader->setUniform("sceneLights.directionalLight.direction", direction);
+            shader->setUniform("sceneLights.directionalLight.colorAndIntensity", colorAndIntensity);
+            shadowmapPtr->setShaderParameters(shader);
+        }
+
         DirectionalLightRenderable(const DirectionalLight& inDirectionalLight) 
             : direction(glm::vec4(inDirectionalLight.direction, 0.f)), colorAndIntensity(inDirectionalLight.colorAndIntensity), bCastShadow(inDirectionalLight.bCastShadow)
         { 
@@ -25,7 +43,7 @@ namespace Cyan
                 switch (inDirectionalLight.implemenation)
                 {
                 case DirectionalLight::Implementation::kCSM:
-                    shadowmapPtr = std::make_unique<CSM>(inDirectionalLight);
+                    shadowmapPtr = std::make_unique<CascadedShadowmap>(inDirectionalLight);
                     break;
                 case DirectionalLight::Implementation::kVSM:
                     break;
@@ -33,13 +51,6 @@ namespace Cyan
                     break;
                 }
             }
-        }
-
-        virtual void setLightShaderParameter(Shader* shader) override
-        {
-            shader->setUniform("sceneLights.directionalLight.direction", direction);
-            shader->setUniform("sceneLights.directionalLight.colorAndIntensity", colorAndIntensity);
-            // todo: how to bind shadowmap textures
         }
 
     private:

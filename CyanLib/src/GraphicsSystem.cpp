@@ -29,7 +29,6 @@ namespace Cyan
 
         m_ctx = std::make_unique<GfxContext>(m_glfwWindow);
         m_sceneManager = std::make_unique<SceneManager>();
-        m_textureManager = std::make_unique<TextureManager>();
         m_assetManager = std::make_unique<AssetManager>();
         m_shaderManager = std::make_unique<ShaderManager>();
         m_renderer = std::make_unique<Renderer>(m_ctx.get(), windowWidth, windowHeight);

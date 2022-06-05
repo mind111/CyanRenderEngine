@@ -29,13 +29,12 @@ namespace Cyan
         Renderer* getRenderer() { return m_renderer.get(); }
         SceneManager* getSceneManager() { return m_sceneManager.get(); }
         AssetManager* getAssetManager() { return m_assetManager.get(); }
-        TextureManager* getTextureManager() { return m_textureManager.get(); }
+        // TextureManager* getTextureManager() { return m_textureManager.get(); }
 
         void setScene(std::shared_ptr<Scene> scene) { m_scene = scene; }
 
     private:
         std::unique_ptr<SceneManager> m_sceneManager;
-        std::unique_ptr<TextureManager> m_textureManager;
         std::unique_ptr<AssetManager> m_assetManager;
         std::unique_ptr<Renderer> m_renderer;
         std::unique_ptr<ShaderManager> m_shaderManager;

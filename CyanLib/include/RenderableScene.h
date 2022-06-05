@@ -8,10 +8,9 @@
 #include "DirectionalLight.h"
 #include "LightRenderable.h"
 
-struct Scene;
-
 namespace Cyan
 {
+    struct Scene;
     struct Skybox;
     struct SceneView;
     struct LinearAllocator;
@@ -42,8 +41,19 @@ namespace Cyan
         };
 
         using ViewSsbo = ShaderStorageBuffer<StaticSsboStruct<ViewData>>;
-        using PointLightSsbo = ShaderStorageBuffer<DynamicSsboStruct<PointLightGpuData>>;
         using TransformSsbo = ShaderStorageBuffer<DynamicSsboStruct<glm::mat4>>;
+
+        SceneRenderable(const Scene* scene, const SceneView& sceneView, LinearAllocator& allocator);
+        ~SceneRenderable()
+        { }
+
+        /**
+        * Submit rendering data to global gpu buffers
+        */
+        void submitSceneData(GfxContext* ctx);
+
+        // scene reference
+        const Scene* scene = nullptr;
 
         // view
         std::unique_ptr<ViewSsbo> viewSsboPtr = nullptr;
@@ -57,15 +67,5 @@ namespace Cyan
         std::vector<ILightRenderable*> lights;
         IrradianceProbe* irradianceProbe = nullptr;
         ReflectionProbe* reflectionProbe = nullptr;
-        std::unique_ptr<PointLightSsbo> pointLightSsboPtr = nullptr;
-
-        SceneRenderable(const Scene& scene, const SceneView& sceneView, LinearAllocator& allocator);
-        ~SceneRenderable()
-        { }
-
-        /**
-        * Submit rendering data to global gpu buffers
-        */
-        void submitSceneData(GfxContext* ctx);
     };
 }

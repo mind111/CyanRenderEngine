@@ -6,13 +6,13 @@
 #include "Geometry.h"
 
 struct Camera;
-struct Scene;
-struct Entity;
 
 namespace Cyan
 {
     struct Renderer;
     struct DirectionalLight;
+    struct Scene;
+    struct Entity;
 
     enum ShadowTechnique
     {
@@ -22,12 +22,12 @@ namespace Cyan
 
     struct BasicShadowmap
     {
-        Cyan::TextureRenderable* shadowmap;
+        Cyan::DepthTexture* shadowmap;
     };
 
     struct VarianceShadowmap
     {
-        Cyan::TextureRenderable* shadowmap;
+        Cyan::Texture2DRenderable* shadowmap;
     };
 
     struct ShadowCascade
@@ -75,7 +75,6 @@ namespace Cyan
 
         Shader* m_sunShadowShader;
         Shader* m_pointShadowShader;
-        // MaterialInstance* m_sunShadowMatl;
     };
 
     struct IDirectionalShadowmap
@@ -88,6 +87,7 @@ namespace Cyan
         } quality;
 
         virtual void render(const Scene& scene, Renderer& renderer) { }
+        virtual void setShaderParameters(Shader* shader) { }
 
         IDirectionalShadowmap()
             : quality(Quality::kHigh)
@@ -97,12 +97,28 @@ namespace Cyan
         ~IDirectionalShadowmap() { }
     };
 
-    struct CSM : public IDirectionalShadowmap
+    struct CascadedShadowmap : public IDirectionalShadowmap
     {
+        /* IDirectionalShadowmap interface */
         virtual void render(const Scene& scene, Renderer& renderer) override;
+        virtual void setShaderParameters(Shader* shader) override;
 
-        CSM(const DirectionalLight& inDirectionalLight);
+        static constexpr u32 kNumCascades = 4u;
+        struct Cascade
+        {
+            f32 n;
+            f32 f;
+            BoundingBox3D aabb;
+            glm::mat4 lightProjection;
+            DepthTexture* shadowmap = nullptr;
+        } cascades[kNumCascades];
+
+        CascadedShadowmap(const DirectionalLight& inDirectionalLight);
+
     private:
-        TextureRenderable* shadowmap = nullptr;
+        void updateCascades(const Camera& camera);
+        void calcCascadeAABB(Cascade& cascade, const Camera& camera);
+
+        glm::vec3 lightDirection;
     };
 }

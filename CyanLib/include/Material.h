@@ -104,12 +104,12 @@ namespace Cyan
         }
 
         u32 flags = 0x0;
-        TextureRenderable* albedo = nullptr;
-        TextureRenderable* normal = nullptr;
-        TextureRenderable* roughness = nullptr;
-        TextureRenderable* metallic = nullptr;
-        TextureRenderable* metallicRoughness = nullptr;
-        TextureRenderable* occlusion = nullptr;
+        Texture2DRenderable* albedo = nullptr;
+        Texture2DRenderable* normal = nullptr;
+        Texture2DRenderable* roughness = nullptr;
+        Texture2DRenderable* metallic = nullptr;
+        Texture2DRenderable* metallicRoughness = nullptr;
+        Texture2DRenderable* occlusion = nullptr;
         f32 kRoughness = 0.6f;
         f32 kMetallic = 0.2f;
         glm::vec3 kAlbedo = glm::vec3(0.85f, 0.85, 0.7f);
@@ -125,7 +125,7 @@ namespace Cyan
             shader->setUniform("M_kEmissive", kEmissive);
         }
 
-        TextureRenderable* emissive = nullptr;
+        Texture2DRenderable* emissive = nullptr;
         float kEmissive = 1.f;
     };
 
@@ -137,7 +137,7 @@ namespace Cyan
             kHigh
         } quality;
 
-        TextureRenderable* atlas = nullptr;
+        Texture2DRenderable* atlas = nullptr;
     };
 
     template <typename BaseMaterialParameter>

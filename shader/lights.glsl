@@ -5,12 +5,26 @@
 */
 
 #define MAX_NUM_POINT_LIGHTS 32
+#define NUM_SHADOW_CASCADES 4
+
+uniform struct ShadowCasacade
+{
+	float n;
+	float f;
+	mat4 lightProjection;
+	sampler2D shadowmap;
+};
+
+uniform struct CascadedShadowmap
+{
+	ShadowCasacade cascades[NUM_SHADOW_CASCADES];
+};
 
 uniform struct DirectionalLight
 {
 	vec3 direction;
 	vec4 colorAndIntensity;
-	sampler2D shadowmap;
+	CascadedShadowmap csm;
 };
 
 uniform struct PointLight

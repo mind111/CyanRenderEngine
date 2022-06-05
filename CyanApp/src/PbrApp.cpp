@@ -72,7 +72,7 @@ void DemoApp::setupScene()
     Cyan::ShaderStorageBuffer<Cyan::StaticSsboStruct<TestStruct>> ssbo;
     ssbo.update();
 
-    auto sceneManager = SceneManager::get();
+    auto sceneManager = Cyan::SceneManager::get();
     m_scene = sceneManager->importScene("demo_scene_00", "C:\\dev\\cyanRenderEngine\\scene\\demo_scene_00.json");
 
     auto graphicsSystem = gEngine->getGraphicsSystem();
@@ -82,8 +82,7 @@ void DemoApp::setupScene()
     camera.aspectRatio = aspectRatio;
     camera.projection = glm::perspective(glm::radians(camera.fov), aspectRatio, camera.n, camera.f);
 
-    auto textureManager = Cyan::TextureManager::get();
-    Scene* demoScene00 = m_scene.get();
+    Cyan::Scene* demoScene00 = m_scene.get();
 
     using PBR = Cyan::PBRMatl;
     auto assetManager = Cyan::AssetManager::get();
@@ -100,8 +99,8 @@ void DemoApp::setupScene()
     }
     // bunnies
     {
-        Entity* bunny0 = sceneManager->getEntity(demoScene00, "Bunny0");
-        Entity* bunny1 = sceneManager->getEntity(demoScene00, "Bunny1");
+        Cyan::Entity* bunny0 = sceneManager->getEntity(demoScene00, "Bunny0");
+        Cyan::Entity* bunny1 = sceneManager->getEntity(demoScene00, "Bunny1");
 
         auto bunnyMatl = assetManager->createMaterial<PBR>("BunnyMatl");
         bunnyMatl->parameter.kAlbedo = glm::vec3(0.855, 0.647, 0.125f);
@@ -113,7 +112,7 @@ void DemoApp::setupScene()
     }
     // man
     {
-        Entity* man = sceneManager->getEntity(demoScene00, "Man");
+        Cyan::Entity* man = sceneManager->getEntity(demoScene00, "Man");
         auto manMatl = assetManager->createMaterial<PBR>("ManMatl");
         manMatl->parameter.kAlbedo = glm::vec3(0.855, 0.855, 0.855);
         manMatl->parameter.kRoughness = .3f;
@@ -152,55 +151,6 @@ void DemoApp::setupScene()
         shaderBallMatls[0][0] = assetManager->createMaterial<PBR>("ShaderBallGold");
         shaderBallMatls[0][0]->parameter.kRoughness = 0.02f;
         shaderBallMatls[0][0]->parameter.kMetallic = 0.05f;
-/*
-        matlParams[0][3].kRoughness = .02f;
-        matlParams[0][3].kMetallic = 0.05f;
-        matlParams[0][3].kSpecular = 1.f;
-        matlParams[1][0].flatBaseColor = glm::vec4(gold, 1.f);
-        matlParams[1][0].roughness = textureManager->getTexture("imperfection_grunge");
-        matlParams[1][0].kMetallic = 0.95f;
-        matlParams[1][1].baseColor = textureManager->getTexture("green_marble_albedo");
-        matlParams[1][1].roughness = textureManager->getTexture("green_marble_roughness");
-        matlParams[1][1].kMetallic = 0.01f;
-        matlParams[1][2].baseColor = textureManager->getTexture("white_marble_albedo");
-        matlParams[1][2].roughness = textureManager->getTexture("white_marble_roughness");
-        matlParams[1][2].kMetallic = 0.01f;
-        matlParams[1][3].baseColor = textureManager->getTexture("brick_albedo");
-        matlParams[1][3].roughness = textureManager->getTexture("brick_roughness");
-        matlParams[1][3].normal = textureManager->getTexture("brick_nm");
-        matlParams[1][3].kMetallic = 0.01f;
-        matlParams[1][3].kSpecular = 0.01f;
-
-        Cyan::PbrMaterialParam matlParams[2][4] = { };
-        matlParams[0][0].flatBaseColor = glm::vec4(gold, 1.f);
-        matlParams[0][0].kRoughness = .1f;
-        matlParams[0][0].kMetallic = 0.999f;
-        matlParams[0][1].flatBaseColor = glm::vec4(silver, 1.f);
-        matlParams[0][1].kRoughness = .02f;
-        matlParams[0][1].kMetallic = 1.0;
-        matlParams[0][2].flatBaseColor = glm::vec4(chrome, 1.f);
-        matlParams[0][2].kRoughness = .3f;
-        matlParams[0][2].kMetallic = 0.999f;
-        matlParams[0][3].flatBaseColor = glm::vec4(plastic, 1.f);
-        matlParams[0][3].kRoughness = .02f;
-        matlParams[0][3].kMetallic = 0.05f;
-        matlParams[0][3].kSpecular = 1.f;
-        matlParams[1][0].flatBaseColor = glm::vec4(gold, 1.f);
-        matlParams[1][0].roughness = textureManager->getTexture("imperfection_grunge");
-        matlParams[1][0].kMetallic = 0.95f;
-        matlParams[1][1].baseColor = textureManager->getTexture("green_marble_albedo");
-        matlParams[1][1].roughness = textureManager->getTexture("green_marble_roughness");
-        matlParams[1][1].kMetallic = 0.01f;
-        matlParams[1][2].baseColor = textureManager->getTexture("white_marble_albedo");
-        matlParams[1][2].roughness = textureManager->getTexture("white_marble_roughness");
-        matlParams[1][2].kMetallic = 0.01f;
-        matlParams[1][3].baseColor = textureManager->getTexture("brick_albedo");
-        matlParams[1][3].roughness = textureManager->getTexture("brick_roughness");
-        matlParams[1][3].normal = textureManager->getTexture("brick_nm");
-        matlParams[1][3].kMetallic = 0.01f;
-        matlParams[1][3].kSpecular = 0.01f;
-*/
-        using namespace Cyan;
         for (u32 j = 0; j < 2; ++j)
         {
             for (u32 i = 0; i < 4; ++i)
@@ -215,7 +165,7 @@ void DemoApp::setupScene()
                 Transform transform = { };
                 transform.m_translate = gridLowerLeft + posOffset;
                 transform.m_scale = glm::vec3(.003f);
-                auto meshNode = sceneManager->createMeshNode(demoScene00, transform, assetManager->getAsset<Mesh>("shaderball_mesh"));
+                auto meshNode = sceneManager->createMeshNode(demoScene00, transform, assetManager->getAsset<Cyan::Mesh>("shaderball_mesh"));
                 shaderBall->attachSceneNode(meshNode);
                 shaderBall->setMaterial(meshNodeName, -1, defaultMatl);
                 shaderBall->setMaterial(meshNodeName, 0, defaultMatl);
@@ -226,7 +176,7 @@ void DemoApp::setupScene()
     }
     // room
     {
-        Entity* room = sceneManager->getEntity(demoScene00, "Room");
+        Cyan::Entity* room = sceneManager->getEntity(demoScene00, "Room");
         room->setMaterial("room_mesh", -1, defaultMatl);
         room->setMaterial("plane_mesh", -1, defaultMatl);
 #if 0

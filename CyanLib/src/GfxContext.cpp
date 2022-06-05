@@ -64,16 +64,16 @@ namespace Cyan
         }
     }
 
-    void GfxContext::setTexture(TextureRenderable* _texture, u32 binding)
+    void GfxContext::setTexture(ITextureRenderable* texture, u32 binding)
     {
         // reset a texture unit
-        if (!_texture)
+        if (!texture)
         {
             glBindTextureUnit(binding, 0);
         }
         else
         {
-            glBindTextureUnit(binding, _texture->handle);
+            glBindTextureUnit(binding, texture->getGpuResource());
         }
     }
 

@@ -13,40 +13,20 @@ namespace Cyan
     Skybox::Skybox(const char* srcImagePath, const glm::vec2& resolution, const SkyboxConfig& cfg)
         : m_cfg(cfg), m_srcHDRITexture(nullptr), m_diffuseProbe(nullptr), m_specularProbe(nullptr), m_srcCubemapTexture(nullptr)
     {
-        auto textureManager = TextureManager::get();
         switch (m_cfg)
         {
         case kUseHDRI: 
             {
-                TextureSpec srcSpec = { };
-                srcSpec.type = TextureRenderable::Type::TEX_2D;
-                srcSpec.dataType = TextureRenderable::DataType::Float;
-                srcSpec.min = TextureRenderable::Filtering::LINEAR;
-                srcSpec.mag = TextureRenderable::Filtering::LINEAR;
-                srcSpec.s = TextureRenderable::Wrap::NONE;
-                srcSpec.t = TextureRenderable::Wrap::NONE;
-                srcSpec.r = TextureRenderable::Wrap::NONE;
-                srcSpec.numMips = 1u;
-                srcSpec.data = nullptr;
-                m_srcHDRITexture = textureManager->createTextureHDR("HDRITexture", srcImagePath, srcSpec);
+                ITextureRenderable::Spec spec = { };
+                AssetManager::importTexture2D("HDRITexture", srcImagePath, spec);
             }
         case kUseProcedural:
         default:
             {
-                TextureSpec dstSpec = { };
-                dstSpec.type = TextureRenderable::Type::TEX_CUBEMAP;
-                dstSpec.width = resolution.x;
-                dstSpec.height = resolution.y;
-                dstSpec.dataType = TextureRenderable::DataType::Float;
-                dstSpec.min = TextureRenderable::Filtering::LINEAR;
-                dstSpec.mag = TextureRenderable::Filtering::LINEAR;
-                dstSpec.s = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-                dstSpec.t = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-                dstSpec.r = TextureRenderable::Wrap::CLAMP_TO_EDGE;
-                dstSpec.numMips = 1u;
-                dstSpec.data = nullptr;
-                m_srcCubemapTexture = textureManager->createTextureHDR("SkyBoxTexture", dstSpec);
-
+                ITextureRenderable::Spec spec = { };
+                spec.width = resolution.x;
+                spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R16G16B16;
+                m_srcCubemapTexture = AssetManager::createTextureCube("SkyboxTexture", spec);
             }
             break;
         }
@@ -82,7 +62,7 @@ namespace Cyan
         case kUseHDRI:
             // step 1: create a cubemap texture from a src equirectangular image
             {
-                RenderTarget* renderTarget = createRenderTarget(m_srcCubemapTexture->width, m_srcCubemapTexture->height);
+                RenderTarget* renderTarget = createRenderTarget(m_srcCubemapTexture->resolution, m_srcCubemapTexture->resolution);
                 renderTarget->setColorBuffer(m_srcCubemapTexture, 0u);
                 Shader* shader = ShaderManager::createShader({ ShaderType::kVsPs, "RenderToCubemapShader", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl" });
                 Mesh* cubeMesh = AssetManager::getAsset<Mesh>("UnitCubeMesh");

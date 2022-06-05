@@ -58,7 +58,7 @@ namespace Cyan
         ~GfxContext() { }
 
         void setShader(Shader* shader);
-        void setTexture(TextureRenderable* texture, u32 binding);
+        void setTexture(ITextureRenderable* texture, u32 binding);
         void setVertexArray(VertexArray* array);
         void setBuffer(RegularBuffer* buffer, u32 binding);
         void setPrimitiveType(PrimitiveMode type);
@@ -69,7 +69,7 @@ namespace Cyan
         void setCullFace(FrontFace frontFace, FaceCull faceToCull);
 
         // textures that uses global binding points
-        void setPersistentTexture(TextureRenderable* texture, u32 binding)
+        void setPersistentTexture(ITextureRenderable* texture, u32 binding)
         {
             if (texture)
             {
@@ -84,7 +84,7 @@ namespace Cyan
         }
 
         // textures that uses different binding points from draw to draw
-        i32 setTransientTexture(TextureRenderable* texture) 
+        i32 setTransientTexture(ITextureRenderable* texture) 
         {
             i32 availableTextureUnit = -1;
             if (texture)

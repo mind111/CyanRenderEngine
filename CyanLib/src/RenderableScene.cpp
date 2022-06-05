@@ -6,11 +6,11 @@
 
 namespace Cyan
 {
-    SceneRenderable::SceneRenderable(const Scene& scene, const SceneView& sceneView, LinearAllocator& allocator)
+    SceneRenderable::SceneRenderable(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator)
+        : scene(inScene)
     {
         viewSsboPtr = std::make_unique<ViewSsbo>();
         transformSsboPtr = std::make_unique<TransformSsbo>(256);
-        pointLightSsboPtr = std::make_unique<PointLightSsbo>(20);
 
         // build list of mesh instances and transforms
         for (auto entity : sceneView.entities)
@@ -28,19 +28,17 @@ namespace Cyan
 
         // build view data
         ViewSsbo& viewSsbo = *(viewSsboPtr.get());
-        SET_SSBO_STATIC_MEMBER(viewSsbo, view, scene.camera.view);
-        SET_SSBO_STATIC_MEMBER(viewSsbo, projection, scene.camera.projection);
+        SET_SSBO_STATIC_MEMBER(viewSsbo, view, scene->camera.view);
+        SET_SSBO_STATIC_MEMBER(viewSsbo, projection, scene->camera.projection);
 
         // build lighting data
-        skybox = scene.m_skybox;
-        irradianceProbe = scene.m_irradianceProbe;
-        reflectionProbe = scene.m_reflectionProbe;
-
-        PointLightSsbo pointLightSsbo = *(pointLightSsboPtr.get());
+        skybox = scene->m_skybox;
+        irradianceProbe = scene->m_irradianceProbe;
+        reflectionProbe = scene->m_reflectionProbe;
 
         // todo: experiment with the following design
         // build a list of lights in the scene
-        for (auto entity : scene.entities)
+        for (auto entity : scene->entities)
         {
             auto lightComponents = entity->getComponent<ILightComponent>();
             if (!lightComponents.empty())
@@ -59,7 +57,6 @@ namespace Cyan
         }
 #endif
         viewSsbo.update();
-        pointLightSsbo.update();
     }
 
     /**
@@ -71,10 +68,9 @@ namespace Cyan
         // bind global ssbo
         viewSsboPtr->bind((u32)SceneSsboBindings::kViewData);
         transformSsboPtr->bind((u32)SceneSsboBindings::TransformMatrices);
-        pointLightSsboPtr->bind((u32)SceneSsboBindings::PointLightsData);
 
         // shared BRDF lookup texture used in split sum approximation for image based lighting
-        if (TextureRenderable* BRDFLookupTexture = ReflectionProbe::getBRDFLookupTexture())
+        if (Texture2DRenderable* BRDFLookupTexture = ReflectionProbe::getBRDFLookupTexture())
         {
             ctx->setPersistentTexture(BRDFLookupTexture, (u32)SceneTextureBindings::BRDFLookupTexture);
         }

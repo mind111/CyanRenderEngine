@@ -7,14 +7,14 @@
 #include "Shader.h"
 #include "Material.h"
 
-namespace Cyan
-{
 #define VertexAttribFlag_kPosition (u8)VertexAttribute::Type::kPosition << 1
 #define VertexAttribFlag_kNormal (u8)VertexAttribute::Type::kNormal << 1
 #define VertexAttribFlag_kTangent (u8)VertexAttribute::Type::kTangent << 1
 #define VertexAttribFlag_kTexCoord0 (u8)VertexAttribute::Type::kTexCoord0 << 1
 #define VertexAttribFlag_kTexCoord1 (u8)VertexAttribute::Type::kTexCoord1 << 1
 
+namespace Cyan
+{
     /* Note:
     * maybe it's even better to just pull Vertex struct out and make it template to allow it to be more flexible ...?
     */

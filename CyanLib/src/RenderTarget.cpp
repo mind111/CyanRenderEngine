@@ -2,53 +2,52 @@
 
 namespace Cyan
 {
-    TextureRenderable* RenderTarget::getColorBuffer(u32 index)
+    ITextureRenderable* RenderTarget::getColorBuffer(u32 index)
     {
         return colorBuffers[index];
     }
 
-    void RenderTarget::setColorBuffer(TextureRenderable* texture, u32 index, u32 mip)
+    void RenderTarget::setColorBuffer(Texture2DRenderable* texture, u32 index, u32 mip)
+    {
+        if (index > 7)
+        {
+            cyanError("Drawbuffer index out of bound!");
+            return;
+        }
+        glNamedFramebufferTexture2DEXT(fbo, GL_COLOR_ATTACHMENT0 + index, GL_TEXTURE_2D, texture->getGpuResource(), mip);
+        colorBuffers[index] = texture;
+    }
+
+    void RenderTarget::setColorBuffer(TextureCubeRenderable* texture, u32 index, u32 mip)
     {
         if (index > 7)
         {
             cyanError("Drawbuffer index out of bound!");
         }
-        switch (texture->type)
+
+        const u32 numFaces = 6u;
+        if (index + numFaces - 1u > 7u)
         {
-        case TextureRenderable::Type::TEX_2D:
-            glNamedFramebufferTexture2DEXT(fbo, GL_COLOR_ATTACHMENT0 + index, GL_TEXTURE_2D, texture->handle, mip);
-            colorBuffers[index] = texture;
-            break;
-        case TextureRenderable::Type::TEX_CUBEMAP:
-        {
-            const u32 numFaces = 6u;
-            if (index + numFaces - 1u > 7u)
-            {
-                cyanError("Too many drawbuffers bind to a framebuffer object!");
-            }
-            else
-            {
-                for (i32 f = 0; f < numFaces; ++f)
-                {
-                    glNamedFramebufferTexture2DEXT(fbo, GL_COLOR_ATTACHMENT0 + (index + f), GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, texture->handle, mip);
-                    colorBuffers[index + f] = texture;
-                }
-            }
-            break;
+            cyanError("Too many drawbuffers bind to a framebuffer object!");
         }
-        default:
-            break;
+        else
+        {
+            for (i32 f = 0; f < numFaces; ++f)
+            {
+                glNamedFramebufferTexture2DEXT(fbo, GL_COLOR_ATTACHMENT0 + (index + f), GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, texture->getGpuResource(), mip);
+                colorBuffers[index + f] = static_cast<ITextureRenderable*>(texture);
+            }
         }
     }
 
-    void RenderTarget::setDepthBuffer(TextureRenderable* texture)
+    void RenderTarget::setDepthBuffer(DepthTexture* texture)
     {
         if (texture->width != width || texture->height != height)
         {
             CYAN_ASSERT(0, "Mismatched render target and depth buffer dimension!") 
         }
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, texture->handle, 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, texture->getGpuResource(), 0);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         depthBuffer = texture;
     }

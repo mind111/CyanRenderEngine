@@ -29,12 +29,12 @@ namespace Cyan
         void buildSkyLight();
         void render();
 
-        TextureRenderable* getDiffueTexture()
+        TextureCubeRenderable* getDiffueTexture()
         {
             return m_diffuseProbe->m_convolvedIrradianceTexture;
         }
 
-        TextureRenderable* getSpecularTexture()
+        TextureCubeRenderable* getSpecularTexture()
         {
             return m_specularProbe->m_convolvedReflectionTexture;
         }
@@ -43,8 +43,8 @@ namespace Cyan
         static Shader* s_proceduralSkyShader;
 
         SkyboxConfig     m_cfg;
-        TextureRenderable* m_srcHDRITexture;
-        TextureRenderable* m_srcCubemapTexture;
+        Texture2DRenderable* m_srcHDRITexture;
+        TextureCubeRenderable* m_srcCubemapTexture;
         IrradianceProbe* m_diffuseProbe;
         ReflectionProbe* m_specularProbe;
     };
