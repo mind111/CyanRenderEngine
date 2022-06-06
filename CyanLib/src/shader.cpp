@@ -332,7 +332,7 @@ namespace Cyan
 
     Shader& Shader::setTextureBindings(GfxContext* ctx)
     {
-        for (auto entry : samplerBindingMap)
+        for (const auto& entry : samplerBindingMap)
         {
             const char* sampler = entry.first;
             ITextureRenderable* texture = entry.second;
@@ -387,7 +387,7 @@ namespace Cyan
 
     Shader* ShaderManager::getShader(const char* shaderName)
     {
-        auto entry = m_shaderMap.find(shaderName);
+        auto entry = m_shaderMap.find(std::string(shaderName));
         if (entry == m_shaderMap.end())
         {
             return nullptr;

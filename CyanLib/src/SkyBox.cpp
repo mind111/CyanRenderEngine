@@ -10,7 +10,7 @@ namespace Cyan
     Shader* Skybox::s_CubemapSkyShader = nullptr;
     Shader* Skybox::s_proceduralSkyShader = nullptr;
 
-    Skybox::Skybox(const char* srcImagePath, const glm::vec2& resolution, const SkyboxConfig& cfg)
+    Skybox::Skybox(Scene* scene, const char* srcImagePath, const glm::vec2& resolution, const SkyboxConfig& cfg)
         : m_cfg(cfg), m_srcHDRITexture(nullptr), m_diffuseProbe(nullptr), m_specularProbe(nullptr), m_srcCubemapTexture(nullptr)
     {
         switch (m_cfg)
@@ -31,9 +31,8 @@ namespace Cyan
             break;
         }
 
-        auto sceneManager = SceneManager::get();
-        m_diffuseProbe = sceneManager->createIrradianceProbe(m_srcCubemapTexture, glm::uvec2(64u));
-        m_specularProbe = sceneManager->createReflectionProbe(m_srcCubemapTexture);
+        m_diffuseProbe = scene->createIrradianceProbe(m_srcCubemapTexture, glm::uvec2(64u));
+        m_specularProbe = scene->createReflectionProbe(m_srcCubemapTexture);
         
         initialize();
     }

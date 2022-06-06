@@ -30,7 +30,7 @@ namespace Cyan
         SceneComponent* find(const char* name);
 
         // owner
-        Entity* m_owner;
+        Entity* owner;
         Scene* m_scene;
         // identifier
         char m_name[kSceneNodeNameMaxLen];

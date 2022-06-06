@@ -424,7 +424,7 @@ namespace Cyan
             }
             std::string meshName = nodeInfo.at("mesh");
             Mesh* parent = getAsset<Mesh>(meshName.c_str());
-            SceneComponent* node = sceneManager->createMeshNode(scene, transform, parent); 
+            SceneComponent* node = scene->createMeshComponent(transform, parent); 
             m_nodes.push_back(node);
         }
         // second pass to setup the hierarchy
@@ -449,10 +449,22 @@ namespace Cyan
             entityInfo.at("name").get_to(entityName);
             auto xformInfo = entityInfo.at("xform");
             Transform xform = entityInfo.at("xform").get<Transform>();
-            Entity* entity = SceneManager::get()->createEntity(scene, entityName.c_str(), xform, entityInfo.at("static"));
+            bool isStatic = entityInfo.at("static");
+            u32 properties = (EntityFlag_kVisible | EntityFlag_kCastShadow);
+            if (isStatic)
+            {
+                properties |= EntityFlag_kStatic;
+            }
+            else
+            {
+                properties |= EntityFlag_kDynamic;
+            }
+            Entity* entity = scene->createEntity(entityName.c_str(), xform, nullptr, properties);
             auto sceneNodes = entityInfo.at("nodes");
             for (auto node : sceneNodes)
-                entity->attachSceneNode(m_nodes[node]);
+            {
+                entity->attachSceneComponent(m_nodes[node]);
+            }
         }
     }
 
@@ -548,7 +560,7 @@ namespace Cyan
 
     // TODO: Normalize mesh scale
     SceneComponent* AssetManager::loadGltfNode(Scene* scene, tinygltf::Model& model, tinygltf::Node* parent, 
-                        SceneComponent* parentSceneNode, tinygltf::Node& node, u32 numNodes) {
+                        SceneComponent* parentSceneComponent, tinygltf::Node& node, u32 numNodes) {
         auto sceneManager = SceneManager::get();
         bool hasMesh = (node.mesh > -1);
         bool hasSkin = (node.skin > -1);
@@ -591,20 +603,20 @@ namespace Cyan
         else 
             sprintf_s(sceneNodeName, "%s", node.name.c_str());
         
-        SceneComponent* sceneNode = nullptr;
+        SceneComponent* sceneComponent = nullptr;
         if (hasMesh)
         {
             Mesh* mesh = getAsset<Mesh>(meshName);
-            sceneNode = sceneManager->createMeshNode(scene, localTransform, mesh);
+            sceneComponent = scene->createMeshComponent(localTransform, mesh);
         }
         else
         {
-            sceneNode = sceneManager->createSceneNode(scene, sceneNodeName, localTransform);
+            sceneComponent = scene->createSceneComponent(sceneNodeName, localTransform);
         }
-        if (parentSceneNode)
-            parentSceneNode->attachChild(sceneNode);
+        if (parentSceneComponent)
+            parentSceneComponent->attachChild(sceneComponent);
         // bind material
-        if (auto meshInstance = sceneNode->getAttachedMesh())
+        if (auto meshInstance = sceneComponent->getAttachedMesh())
         {
             auto& gltfMesh = model.meshes[node.mesh];
             for (u32 sm = 0u; sm < gltfMesh.primitives.size(); ++sm) 
@@ -640,8 +652,8 @@ namespace Cyan
         }
         // recurse to load all the children
         for (auto& child : node.children) 
-            loadGltfNode(scene, model, &node, sceneNode, model.nodes[child], ++numNodes);
-        return sceneNode;
+            loadGltfNode(scene, model, &node, sceneComponent, model.nodes[child], ++numNodes);
+        return sceneComponent;
     }
 
     template <typename T>
@@ -949,7 +961,7 @@ namespace Cyan
             tinygltf::Mesh gltfMesh = model.meshes[rootNode.mesh];
             rootNodeMesh = getAsset<Mesh>(gltfMesh.name.c_str());
         }
-        SceneComponent* parentNode = sceneManager->createSceneNode(scene, name, transform);
+        SceneComponent* parentNode = scene->createSceneComponent(name, transform);
         loadGltfNode(scene, model, nullptr, parentNode, rootNode, 0);
         return parentNode;
     }

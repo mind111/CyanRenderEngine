@@ -427,7 +427,7 @@ namespace Cyan
         {
             for (u32 i = 0; i < scene->entities.size(); ++i)
             {
-                visitEntity(scene->entities[i], [this, voxelizer, pmin, pmax, axis, renderTarget](SceneComponent* node) {
+                scene->entities[i]->visit([this, voxelizer, pmin, pmax, axis, renderTarget](SceneComponent* node) {
                     if (MeshInstance* meshInstance = node->getAttachedMesh())
                     {
                         for (u32 i = 0; i < meshInstance->parent->numSubmeshes(); ++i)
@@ -660,7 +660,7 @@ namespace Cyan
     void Renderer::drawEntity(SceneRenderable& renderableScene, RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, Entity* entity)
     {
         std::queue<SceneComponent*> nodes;
-        nodes.push(entity->m_sceneRoot);
+        nodes.push(entity->getRootSceneComponent());
         while (!nodes.empty())
         {
             auto node = nodes.front();

@@ -94,7 +94,7 @@ namespace Cyan
             DepthTexture* texture = getAsset<DepthTexture>(name);
             if (!texture)
             {
-                DepthTexture* texture = new DepthTexture(name, width, height);
+                texture = new DepthTexture(name, width, height);
             }
             return texture;
         }

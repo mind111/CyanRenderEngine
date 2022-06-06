@@ -5,48 +5,140 @@
 
 namespace Cyan
 {
-    Entity::Entity(Scene* scene, const char* name, u32 id, Transform t, Entity* parent, bool isStatic)
-        : m_entityId(id), m_static(isStatic), m_includeInGBufferPass(true), m_visible(true), m_selectable(true)
+    Entity::Entity(Scene* scene, const char* inName, const Transform& t, Entity* inParent, u32 inProperties)
+        : name(inName),
+        parent(inParent),
+        properties(inProperties)
     {
-        if (name)
-        {
-            CYAN_ASSERT(strlen(name) < kEntityNameMaxLen, "Entity name too long !!")
-                strcpy(m_name, name);
-        }
-        else {
-            char buff[64];
-            sprintf(buff, "Entity%u", m_entityId);
-        }
-        m_sceneRoot = SceneManager::get()->createSceneNode(scene, "DefaultSceneRoot", t);
-        m_sceneRoot->m_owner = this;
+        rootSceneComponent = scene->createSceneComponent("SceneRoot", t);
+        rootSceneComponent->owner = this;
         if (parent)
         {
             parent->attachChild(this);
         }
     }
 
-    SceneComponent* Entity::getSceneRoot()
+    SceneComponent* Entity::getRootSceneComponent()
     {
-        return m_sceneRoot;
+        return rootSceneComponent;
     }
 
-    SceneComponent* Entity::getSceneNode(const char* name)
+    SceneComponent* Entity::getSceneComponent(const char* name)
     {
-        return m_sceneRoot->find(name);
+        return rootSceneComponent->find(name);
     }
 
-    void Entity::attachSceneNode(SceneComponent* child, const char* parentName)
+    void Entity::attachSceneComponent(SceneComponent* child, const char* parentName)
     {
         if (parentName)
         {
-            SceneComponent* parent = m_sceneRoot->find(parentName);
+            SceneComponent* parent = rootSceneComponent->find(parentName);
             parent->attachChild(child);
         }
         else
         {
-            m_sceneRoot->attachChild(child);
+            rootSceneComponent->attachChild(child);
         }
-        child->m_owner = this;
+        child->owner = this;
+    }
+
+    // merely sets the parent entity, it's not this method's responsibility to trigger
+    // any logic relates to parent change
+    void Entity::setParent(Entity* inParent)
+    {
+        parent = inParent;
+    }
+
+    void Entity::attachChild(Entity* child)
+    {
+        child->setParent(this);
+        childs.push_back(child);
+        child->onAttach();
+    }
+
+    void Entity::onAttach()
+    {
+        parent->rootSceneComponent->attachIndirectChild(rootSceneComponent);
+    }
+
+    void Entity::visit(const std::function<void(SceneComponent*)>& func)
+    {
+        std::queue<SceneComponent*> sceneComponents;
+        sceneComponents.push(getRootSceneComponent());
+        while (!sceneComponents.empty())
+        {
+            auto sceneComponent = sceneComponents.front();
+            sceneComponents.pop();
+
+            func(sceneComponent);
+
+            for (u32 i = 0; i < (u32)sceneComponent->m_child.size(); ++i)
+            {
+                sceneComponents.push(sceneComponent->m_child[i]);
+            }
+        }
+    }
+
+    i32 Entity::getChildIndex(const char* name)
+    {
+        i32 index = -1;
+        for (i32 i = 0; i < childs.size(); ++i)
+        {
+            if (strcmp(childs[i]->name.c_str(), name) == 0)
+            {
+                index = i;
+                break;
+            }
+        }
+        return index;
+    }
+
+    const Transform& Entity::getLocalTransform()
+    {
+        return rootSceneComponent->getLocalTransform();
+    }
+
+    const Transform& Entity::getWorldTransform()
+    {
+        return rootSceneComponent->getWorldTransform();
+    }
+
+    const glm::vec3& Entity::getWorldPosition()
+    {
+        return rootSceneComponent->getWorldTransform().m_translate;
+    }
+
+    void Entity::setLocalTransform(const Transform& transform)
+    {
+        rootSceneComponent->m_localTransform = transform;
+    }
+
+    void Entity::setMaterial(const char* meshComponentName, i32 submeshIndex, Cyan::IMaterial* matl)
+    {
+        SceneComponent* sceneComponent = getSceneComponent(meshComponentName);
+        if (!sceneComponent)
+        {
+            return;
+        }
+        if (submeshIndex >= 0)
+        {
+            auto meshInst = sceneComponent->getAttachedMesh();
+            if (meshInst)
+            {
+                meshInst->setMaterial(matl, submeshIndex);
+            }
+        }
+        else
+        {
+            auto meshInst = sceneComponent->getAttachedMesh();
+            if (meshInst)
+            {
+                for (u32 sm = 0; sm < meshInst->parent->numSubmeshes(); ++sm)
+                {
+                    meshInst->setMaterial(matl, sm);
+                }
+            }
+        }
     }
 
     void transformRayToObjectSpace(glm::vec3& ro, glm::vec3& rd, glm::mat4& transform)
@@ -161,171 +253,4 @@ namespace Cyan
     }
 #endif
 
-    // merely sets the parent entity, it's not this method's responsibility to trigger
-    // any logic relates to parent change
-    void Entity::setParent(Entity* parent)
-    {
-        m_parent = parent;
-    }
-
-    // attachChild a new child Entity
-    void Entity::attachChild(Entity* child)
-    {
-        child->setParent(this);
-        m_child.push_back(child);
-        child->onAttach();
-    }
-
-    void Entity::onAttach()
-    {
-        m_parent->m_sceneRoot->attachIndirectChild(m_sceneRoot);
-    }
-
-    // detach from current parent
-    void Entity::detach()
-    {
-        onDetach();
-        setParent(nullptr);
-    }
-
-    i32 Entity::getChildIndex(const char* name)
-    {
-        i32 index = -1;
-        for (i32 i = 0; i < m_child.size(); ++i)
-        {
-            if (strcmp(m_child[i]->m_name, name) == 0)
-            {
-                index = i;
-                break;
-            }
-        }
-        return index;
-    }
-
-    void Entity::onDetach()
-    {
-        m_parent->removeChild(m_name);
-        m_sceneRoot->setParent(nullptr);
-    }
-
-    void Entity::removeChild(const char* name)
-    {
-        m_child.erase(m_child.begin() + getChildIndex(name));
-    }
-
-    Entity* Entity::detachChild(const char* name)
-    {
-        Entity* child = treeBFS<Entity>(this, name);
-        child->detach();
-        return child;
-    }
-
-    Transform& Entity::getLocalTransform()
-    {
-        return m_sceneRoot->m_localTransform;
-    }
-
-    void Entity::setLocalTransform(const Transform& transform)
-    {
-        m_sceneRoot->m_localTransform = transform;
-    }
-
-    Transform& Entity::getWorldTransform()
-    {
-        return m_sceneRoot->m_worldTransform;
-    }
-
-    glm::vec3& Entity::getWorldPosition()
-    {
-        return m_sceneRoot->m_worldTransform.m_translate;
-    }
-
-    // transform locally
-    void Entity::applyLocalTransform(Transform& transform)
-    {
-        m_sceneRoot->m_localTransform.m_qRot *= transform.m_qRot;
-        m_sceneRoot->m_localTransform.m_translate += transform.m_translate;
-        m_sceneRoot->m_localTransform.m_scale *= transform.m_scale;
-        updateWorldTransform();
-    }
-
-    void Entity::applyWorldRotation(const glm::mat4& rot)
-    {
-        Transform& transform = getWorldTransform();
-        transform.fromMatrix(rot * transform.toMatrix());
-    }
-
-    void Entity::applyWorldRotation(const glm::quat& rot)
-    {
-        Transform& transform = getWorldTransform();
-        transform.m_qRot *= rot;
-    }
-
-    void Entity::applyWorldTranslation(const glm::vec3 trans)
-    {
-
-    }
-
-    void Entity::applyWorldScale(const glm::vec3 scale)
-    {
-
-    }
-
-    void Entity::updateWorldTransform()
-    {
-        if (m_parent)
-        {
-            // m_sceneRoot->m_worldTransform.fromMatrix(m_parent->m_sceneRoot->m_worldTransform.toMatrix() * m_sceneRoot->m_localTransform.toMatrix());
-    /*
-            for (auto child : m_child)
-            {
-                child->updateWorldTransform();
-            }
-    */
-        }
-        else
-        {
-            m_sceneRoot->m_worldTransform = m_sceneRoot->m_localTransform;
-        }
-    }
-
-    void Entity::setMaterial(const char* meshNodeName, i32 submeshIndex, Cyan::IMaterial* matl)
-    {
-        SceneComponent* sceneNode = getSceneNode(meshNodeName);
-        if (!sceneNode) return;
-        if (submeshIndex >= 0)
-        {
-            auto meshInst = sceneNode->getAttachedMesh();
-            meshInst->setMaterial(matl, submeshIndex);
-        }
-        else
-        {
-            auto meshInst = sceneNode->getAttachedMesh();
-            for (u32 sm = 0; sm < meshInst->parent->numSubmeshes(); ++sm)
-            {
-                meshInst->setMaterial(matl, sm);
-            }
-        }
-    }
-}
-
-namespace Cyan
-{
-    void visitEntity(Entity* e, const std::function<void(SceneComponent*)>& func)
-    {
-        std::queue<SceneComponent*> sceneComponents;
-        sceneComponents.push(e->m_sceneRoot);
-        while (!sceneComponents.empty())
-        {
-            auto sceneComponent = sceneComponents.front();
-            sceneComponents.pop();
-
-            func(sceneComponent);
-
-            for (u32 i = 0; i < (u32)sceneComponent->m_child.size(); ++i)
-            {
-                sceneComponents.push(sceneComponent->m_child[i]);
-            }
-        }
-    }
 }

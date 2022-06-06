@@ -115,8 +115,8 @@ namespace Cyan
     class ShaderManager : public Singleton<ShaderManager>
     {
     public:
-        using ShaderSourceMap = std::unordered_map<const char*, ShaderSource>;
-        using ShaderMap = std::unordered_map<const char*, std::unique_ptr<Shader>>;
+        using ShaderSourceMap = std::unordered_map<std::string, ShaderSource>;
+        using ShaderMap = std::unordered_map<std::string, std::unique_ptr<Shader>>;
 
         ShaderManager() 
             : Singleton()

@@ -9,6 +9,6 @@ namespace Cyan
     {
         virtual void update() { }
         virtual void render() { }
-        virtual std::string getTag() { return std::string("Component"); }
+        virtual const char* getTag() { return "Component"; }
     };
 }

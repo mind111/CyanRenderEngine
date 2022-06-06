@@ -14,194 +14,30 @@
 
 namespace Cyan
 {
-    // ray cast in world space
-    RayCastInfo Scene::castRay(glm::vec3& ro, glm::vec3& rd, EntityFilter filter, bool debugPrint)
+    Scene::Scene(const char* inSceneName)
+        : name(inSceneName)
     {
-        RayCastInfo closestHit;
-        for (u32 i = 0; i < entities.size(); ++i)
-        {
-            auto entity = entities[i];
-            bool flag = true;
-            switch (filter)
-            {
-            case EntityFilter::kAll:
-                break;
-            case EntityFilter::BakeInLightMap:
-                flag = entity->m_static;
-                break;
-            default:
-                printf("Unknown entity filter! \n");
-            };
-
-            if (flag)
-            {
-#if 0
-                auto traceInfo = entity->intersectRay(ro, rd, glm::mat4(1.f));
-                if (traceInfo.t > 0.f && traceInfo < closestHit)
-                {
-                    closestHit = traceInfo;
-                }
-#endif
-            }
-        }
-        if (debugPrint)
-            printf("Cast a ray from mouse that hits %s \n", closestHit.m_node->m_name);
-
-        if (closestHit.smIndex < 0 || closestHit.triIndex < 0)
-            closestHit.t = -1.f;
-        return closestHit;
+        rootEntity = createEntity("Root", Transform());
+        aabb.init();
     }
 
-    bool Scene::castVisibilityRay(const glm::vec3& ro, glm::vec3& rd, EntityFilter filter)
+    void Scene::update()
     {
-        for (auto entity : entities)
-        {
-            bool flag = true;
-            switch (filter)
-            {
-            case EntityFilter::BakeInLightMap:
-                flag = entity->m_static;
-                break;
-            default:
-                printf("Unknown entity filter! \n");
-            };
+        camera.update();
 
-            if (flag)
-            {
-#if 0
-                if (entity->castVisibilityRay(ro, rd, glm::mat4(1.f)))
-                    return true;
-#endif
-            }
-        }
-        return false;
-    }
-
-    SceneManager* SceneManager::s_sceneManager = 0u;
-
-    SceneManager::SceneManager()
-    {
-        if (!s_sceneManager)
-        {
-            s_sceneManager = this;
-        }
-        else {
-            CYAN_ASSERT(0, "There should be only one instance of SceneManager")
-        }
-    }
-
-    SceneManager* SceneManager::get()
-    {
-        return s_sceneManager;
-    }
-
-    Entity* SceneManager::createEntity(Scene* scene, const char* entityName, Transform transform, bool isStatic, Entity* parent)
-    {
-        // id
-        u32 id = allocEntityId(scene);
-        Entity* parentEntity = parent;
-        if (id != 0 && !parent)
-        {
-            parentEntity = scene->m_rootEntity;
-        }
-        Entity* newEntity = new Entity(scene, entityName, id, transform, parentEntity, isStatic);
-        scene->entities.push_back(newEntity);
-        return newEntity;
-    }
-
-    u32 SceneManager::allocSceneNode(Scene* scene)
-    {
-        CYAN_ASSERT(scene->m_numSceneNodes < Scene::kMaxNumSceneComponents, "Too many scene nodes created!");
-        return (scene->m_numSceneNodes++);
-    }
-
-    std::shared_ptr<Scene> SceneManager::importScene(const char* name, const char* file)
-    {
-        Cyan::Toolkit::GpuTimer loadSceneTimer("importScene()", true);
-        std::shared_ptr<Scene> scene = std::make_shared<Scene>();
-        scene->m_name = std::string(name);
-
-        scene->m_rootEntity = nullptr;
-        scene->m_rootEntity = SceneManager::get()->createEntity(scene.get(), "Root", Transform(), true);
-        scene->g_sceneRoot = scene->m_rootEntity->m_sceneRoot;
-        scene->aabb.init();
-        auto assetManager = Cyan::GraphicsSystem::get()->getAssetManager();
-        assetManager->importScene(scene.get(), file);
-        loadSceneTimer.end();
-        return scene;
-    }
-
-    SceneComponent* SceneManager::createSceneNode(Scene* scene, const char* name, Transform transform)
-    {
-        SceneComponent* sceneNode = scene->sceneComponentPool.alloc();
-
-        Transform* localTransform = scene->localTransformPool.alloc();
-        *localTransform = transform;
-        auto localTransformMatrix = scene->localTransformMatrixPool.alloc();
-        *localTransformMatrix = transform.toMatrix();
-        sceneNode->localTransform = scene->localTransformPool.getObjectIndex(localTransform);
-
-        Transform* globalTransfom = scene->globalTransformPool.alloc();
-        *globalTransfom = Transform();
-        auto globalTransformMatrix = scene->globalTransformMatrixPool.alloc();
-        *globalTransformMatrix = glm::mat4(1.f);
-        sceneNode->globalTransform = scene->globalTransformPool.getObjectIndex(globalTransfom);
-
-        sceneNode->m_scene = scene;
-        CYAN_ASSERT(strlen(name) < 128, "SceneNode name %s is too long!", name);
-        strcpy(sceneNode->m_name, name);
-        scene->sceneNodes.push_back(sceneNode);
-        return sceneNode;
-    }
-
-    MeshComponent* SceneManager::createMeshNode(Scene* scene, Transform transform, Cyan::Mesh* mesh)
-    {
-        MeshComponent* meshNode = scene->meshComponentPool.alloc();
-
-        Transform* localTransform = scene->localTransformPool.alloc();
-        *localTransform = transform;
-        auto localTransformMatrix = scene->localTransformMatrixPool.alloc();
-        *localTransformMatrix = transform.toMatrix();
-        meshNode->localTransform = scene->localTransformPool.getObjectIndex(localTransform);
-
-        Transform* globalTransfom = scene->globalTransformPool.alloc();
-        *globalTransfom = Transform();
-        auto globalTransformMatrix = scene->globalTransformMatrixPool.alloc();
-        *globalTransformMatrix = glm::mat4(1.f);
-        meshNode->globalTransform = scene->globalTransformPool.getObjectIndex(globalTransfom);
-
-        meshNode->m_scene = scene;
-        strcpy(meshNode->m_name, mesh->name.c_str());
-        meshNode->meshInst = createMeshInstance(scene, mesh);
-        scene->sceneNodes.push_back(meshNode);
-        return meshNode;
-    }
-
-    void SceneManager::createDirectionalLight(Scene* scene, glm::vec3 color, glm::vec3 direction, float intensity)
-    {
-
-    }
-
-    void SceneManager::createPointLight(Scene* scene, glm::vec3 color, glm::vec3 position, float intensity)
-    {
-
-    }
-
-    void SceneManager::updateSceneGraph(Scene* scene)
-    {
         std::queue<SceneComponent*> nodes;
-        nodes.push(scene->g_sceneRoot);
+        nodes.push(rootEntity->getRootSceneComponent());
         while (!nodes.empty())
         {
             auto node = nodes.front();
             nodes.pop();
             if (node->m_parent)
             {
-                glm::mat4& parentGlobalMatrix = scene->globalTransformMatrixPool.getObject(node->m_parent->globalTransform);
-                glm::mat4& globalMatrix = scene->globalTransformMatrixPool.getObject(node->globalTransform);
-                glm::mat4& localMatrix = scene->localTransformMatrixPool.getObject(node->localTransform);
+                glm::mat4& parentGlobalMatrix = globalTransformMatrixPool.getObject(node->m_parent->globalTransform);
+                glm::mat4& globalMatrix = globalTransformMatrixPool.getObject(node->globalTransform);
+                glm::mat4& localMatrix = localTransformMatrixPool.getObject(node->localTransform);
                 globalMatrix = parentGlobalMatrix * localMatrix;
-                scene->globalTransformPool.getObject(node->globalTransform).fromMatrix(globalMatrix);
+                globalTransformPool.getObject(node->globalTransform).fromMatrix(globalMatrix);
             }
             for (u32 i = 0; i < node->m_child.size(); ++i)
             {
@@ -214,10 +50,10 @@ namespace Cyan
         }
 
         // update scene's bounding box in world space
-        for (auto entity : scene->entities)
+        for (auto entity : entities)
         {
             std::queue<SceneComponent*> nodes;
-            nodes.push(entity->m_sceneRoot);
+            nodes.push(entity->getRootSceneComponent());
             while (!nodes.empty())
             {
                 SceneComponent* node = nodes.front();
@@ -230,54 +66,123 @@ namespace Cyan
                 {
                     glm::mat4 model = node->getWorldTransform().toMatrix();
                     BoundingBox3D aabb = meshInst->getAABB(model);
-                    scene->aabb.bound(aabb);
+                    aabb.bound(aabb);
                 }
             }
         }
-        // scene->aabb.update();
     }
 
-    Cyan::IrradianceProbe* SceneManager::createIrradianceProbe(Cyan::TextureCubeRenderable* srcCubemapTexture, const glm::uvec2& irradianceRes)
+    SceneComponent* Scene::createSceneComponent(const char* name, Transform transform)
     {
-        return new Cyan::IrradianceProbe(srcCubemapTexture, irradianceRes);
+        SceneComponent* sceneComponent = sceneComponentPool.alloc();
+
+        Transform* localTransform = localTransformPool.alloc();
+        *localTransform = transform;
+        auto localTransformMatrix = localTransformMatrixPool.alloc();
+        *localTransformMatrix = transform.toMatrix();
+        sceneComponent->localTransform = localTransformPool.getObjectIndex(localTransform);
+
+        Transform* globalTransfom = globalTransformPool.alloc();
+        *globalTransfom = Transform();
+        auto globalTransformMatrix = globalTransformMatrixPool.alloc();
+        *globalTransformMatrix = glm::mat4(1.f);
+        sceneComponent->globalTransform = globalTransformPool.getObjectIndex(globalTransfom);
+
+        sceneComponent->m_scene = this;
+        CYAN_ASSERT(strlen(name) < 128, "SceneNode name %s is too long!", name);
+        strcpy(sceneComponent->m_name, name);
+        sceneComponents.push_back(sceneComponent);
+        return sceneComponent;
     }
 
-    Cyan::IrradianceProbe* SceneManager::createIrradianceProbe(Scene* scene, const glm::vec3& pos, const glm::uvec2& sceneCaptureRes, const glm::uvec2& irradianceResolution)
+    MeshComponent* Scene::createMeshComponent(Transform transform, Cyan::Mesh* mesh)
     {
-        return new Cyan::IrradianceProbe(scene, pos, sceneCaptureRes, irradianceResolution);
+        MeshComponent* meshComponent = meshComponentPool.alloc();
+
+        Transform* localTransform = localTransformPool.alloc();
+        *localTransform = transform;
+        auto localTransformMatrix = localTransformMatrixPool.alloc();
+        *localTransformMatrix = transform.toMatrix();
+        meshComponent->localTransform = localTransformPool.getObjectIndex(localTransform);
+
+        Transform* globalTransfom = globalTransformPool.alloc();
+        *globalTransfom = Transform();
+        auto globalTransformMatrix = globalTransformMatrixPool.alloc();
+        *globalTransformMatrix = glm::mat4(1.f);
+        meshComponent->globalTransform = globalTransformPool.getObjectIndex(globalTransfom);
+
+        meshComponent->m_scene = this;
+        strcpy(meshComponent->m_name, mesh->name.c_str());
+        meshComponent->meshInst = createMeshInstance(mesh);
+        sceneComponents.push_back(meshComponent);
+        return meshComponent;
     }
 
-    Cyan::ReflectionProbe* SceneManager::createReflectionProbe(Cyan::TextureCubeRenderable* srcCubemapTexture)
+    Entity* Scene::createEntity(const char* name, const Transform& transform, Entity* inParent, u32 properties)
     {
-        return new Cyan::ReflectionProbe(srcCubemapTexture);
+        Entity* entity = nullptr;
+        if (!inParent)
+        {
+            // creating root entity
+            if (!rootEntity)
+            {
+                entity = new Entity(this, "Root", Transform{ }, nullptr, properties);
+            }
+            else
+            {
+                entity = new Entity(this, name, transform, rootEntity, properties);
+            }
+        }
+        else
+        {
+            entity = new Entity(this, name, transform, inParent, properties);
+        }
+        entities.push_back(entity);
+        return entity;
     }
 
-    Cyan::ReflectionProbe* SceneManager::createReflectionProbe(Scene* scene, const glm::vec3& pos, const glm::uvec2& sceneCaptureRes)
+    void Scene::createDirectionalLight(const char* name, const glm::vec3& direction, const glm::vec4& colorAndIntensity)
     {
-        return new Cyan::ReflectionProbe(scene, pos, sceneCaptureRes);
+        DirectionalLightEntity* directionalLight = new DirectionalLightEntity(this, name, Transform(), nullptr, direction, colorAndIntensity, true);
+        entities.push_back(directionalLight);
     }
 
-    glm::vec3 SceneManager::queryWorldPositionFromCamera(Scene* scene, const glm::vec2& uv)
+    void Scene::createPointLight(const char* name, const glm::vec3 position, const glm::vec4& colorAndIntensity)
     {
-        // generate a ray
-        const auto& camera = scene->camera;
-        glm::vec3 ro = camera.position;
-        glm::vec3 rd = glm::normalize(uv.x * camera.right + uv.y * camera.up + camera.n * camera.forward);
-        auto hit = scene->castRay(ro, rd, EntityFilter::kAll, true);
-        return ro + hit.t * rd;
+
     }
 
-    Cyan::MeshInstance* SceneManager::createMeshInstance(Scene* scene, Cyan::Mesh* mesh)
+    IrradianceProbe* Scene::createIrradianceProbe(Cyan::TextureCubeRenderable* srcCubemapTexture, const glm::uvec2& irradianceRes)
     {
-        scene->meshInstances.emplace_back();
-        auto& meshInst = scene->meshInstances.back();
-        meshInst = std::make_shared<Cyan::MeshInstance>(mesh);
+        return new IrradianceProbe(srcCubemapTexture, irradianceRes);
+    }
+
+    IrradianceProbe* Scene::createIrradianceProbe(const glm::vec3& pos, const glm::uvec2& sceneCaptureRes, const glm::uvec2& irradianceResolution)
+    {
+        return new IrradianceProbe(this, pos, sceneCaptureRes, irradianceResolution);
+    }
+
+    ReflectionProbe* Scene::createReflectionProbe(Cyan::TextureCubeRenderable* srcCubemapTexture)
+    {
+        return new ReflectionProbe(srcCubemapTexture);
+    }
+
+    ReflectionProbe* Scene::createReflectionProbe(const glm::vec3& pos, const glm::uvec2& sceneCaptureRes)
+    {
+        return new ReflectionProbe(this, pos, sceneCaptureRes);
+    }
+
+    MeshInstance* Scene::createMeshInstance(Cyan::Mesh* mesh)
+    {
+        meshInstances.emplace_back();
+        auto& meshInst = meshInstances.back();
+        meshInst = std::make_shared<MeshInstance>(mesh);
         // attach a default material to all submeshes
         meshInst->setMaterial(Cyan::AssetManager::getDefaultMaterial());
         return meshInst.get();
     }
 
-    Cyan::MeshInstance* SceneManager::createMeshInstance(Scene* scene, const char* meshName)
+    Cyan::MeshInstance* Scene::createMeshInstance(const char* meshName)
     {
         auto assetManager = Cyan::AssetManager::get();
         auto mesh = assetManager->getAsset<Cyan::Mesh>(meshName);
@@ -285,6 +190,22 @@ namespace Cyan
         {
             return nullptr;
         }
-        return createMeshInstance(scene, mesh);
+        return createMeshInstance(mesh);
+    }
+
+    SceneManager* Singleton<SceneManager>::singleton = nullptr;
+
+    SceneManager::SceneManager()
+        : Singleton<SceneManager>()
+    { }
+
+    std::shared_ptr<Scene> SceneManager::importScene(const char* name, const char* filePath)
+    {
+        Cyan::Toolkit::GpuTimer loadSceneTimer("SceneManager::importScene()", true);
+        std::shared_ptr<Scene> scene = std::make_shared<Scene>(name);
+        auto assetManager = Cyan::GraphicsSystem::get()->getAssetManager();
+        assetManager->importScene(scene.get(), filePath);
+        loadSceneTimer.end();
+        return scene;
     }
 }

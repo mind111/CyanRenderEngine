@@ -38,9 +38,10 @@ namespace Cyan
 
     void GraphicsSystem::initialize()
     {
+        // todo: specify dependencies between modules, for example, ShaderManager needs to be initialized before AssetManager
         // initialize managers
-        m_assetManager->initialize();
         m_shaderManager->initialize();
+        m_assetManager->initialize();
         m_renderer->initialize();
 
         // ui
@@ -54,18 +55,9 @@ namespace Cyan
 
     void GraphicsSystem::update()
     {
-        Scene* scene = m_scene.get();
-        if (scene)
+        if (m_scene)
         {
-            // update camera
-            // todo: camera should be an entity and contains it's own simulation logic
-            scene->camera.update();
-
-            // update scene graph
-            m_sceneManager->updateSceneGraph(scene);
-
-            // (optional) update lighting
-            // (optional) update material instance data
+            m_scene->update();
         }
     }
 }

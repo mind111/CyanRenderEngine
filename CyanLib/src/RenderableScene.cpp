@@ -17,7 +17,7 @@ namespace Cyan
         {
             TransformSsbo& transformSsbo = *(transformSsboPtr.get());
 
-            visitEntity(entity, [this, &transformSsbo](SceneComponent* sceneComp) {
+            entity->visit([this, &transformSsbo](SceneComponent* sceneComp) {
                     if (auto meshInst = sceneComp->getAttachedMesh())
                     {
                         meshInstances.push_back(meshInst);
@@ -32,9 +32,9 @@ namespace Cyan
         SET_SSBO_STATIC_MEMBER(viewSsbo, projection, scene->camera.projection);
 
         // build lighting data
-        skybox = scene->m_skybox;
-        irradianceProbe = scene->m_irradianceProbe;
-        reflectionProbe = scene->m_reflectionProbe;
+        skybox = scene->skybox;
+        irradianceProbe = scene->irradianceProbe;
+        reflectionProbe = scene->reflectionProbe;
 
         // todo: experiment with the following design
         // build a list of lights in the scene

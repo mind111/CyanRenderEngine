@@ -14,7 +14,7 @@ namespace Cyan
     // todo: decouple skylight from skybox, skylight can be a stand-alone thing
     struct Skybox
     {
-        Skybox(const char* srcImagePath, const glm::vec2& resolution, const SkyboxConfig& cfg);
+        Skybox(Scene* scene, const char* srcImagePath, const glm::vec2& resolution, const SkyboxConfig& cfg);
         ~Skybox() { }
         void initialize();
 

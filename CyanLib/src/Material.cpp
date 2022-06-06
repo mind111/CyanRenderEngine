@@ -6,7 +6,7 @@ namespace Cyan
 {
     IMaterial::MaterialShaderMap IMaterial::materialShaderMap = {
         { TO_STRING(ConstantColorMatl), "PBRShader" },
-        { TO_STRING(PBRMatl), "PBRShader " },
+        { TO_STRING(PBRMatl), "PBRShader" },
         { TO_STRING(LightmappedPBRMatl), "LightmappedPBRShader" }
     };
 

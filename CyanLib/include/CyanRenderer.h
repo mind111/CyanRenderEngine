@@ -37,7 +37,7 @@ namespace Cyan
         {
             for (auto entity : scene.entities)
             {
-                if ((entity->getFlags() & flags) == flags)
+                if ((entity->getProperties() & flags) == flags)
                 {
                     entities.push_back(entity);
                 }

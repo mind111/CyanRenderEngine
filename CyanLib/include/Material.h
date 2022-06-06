@@ -153,7 +153,7 @@ namespace Cyan
 
     struct IMaterial : public Asset
     {
-        using MaterialShaderMap = std::unordered_map<const char*, const char*>;
+        using MaterialShaderMap = std::unordered_map<std::string, const char*>;
 
         enum class Type
         {
@@ -190,11 +190,10 @@ namespace Cyan
         {
             if (!shader)
             {
-                auto entry = materialShaderMap.find(typeDesc.c_str());
+                auto entry = materialShaderMap.find(typeDesc);
                 if (entry != materialShaderMap.end())
                 {
-                    const char* shaderName = entry->second;
-                    shader = ShaderManager::getShader(shaderName);
+                    shader = ShaderManager::getShader(entry->second);
                 }
             }
         }

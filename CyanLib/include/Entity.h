@@ -12,30 +12,8 @@
 
 #define kEntityNameMaxLen 128u
 
-namespace Cyan
-{
-
-}
-enum EntityProperty
-{
-    kLit = 0 << 1,
-    kVisible = 1 << 1,
-    kStatic = 2 << 1,
-    kSelectable = 3 << 1,
-    kIncludeInGBufferPass = 4 << 1,
-    kCastShadow = 5 << 1,
-    BakeInProbes = 6 << 1,
-};
-
-enum class EntityFilter
-{
-    BakeInLightMap = 0,
-    kAll
-};
-
 void transformRayToObjectSpace(glm::vec3& ro, glm::vec3& rd, glm::mat4& transform);
 f32  transformHitFromObjectToWorldSpace(glm::vec3& objectSpaceHit, glm::mat4& transform, const glm::vec3& roWorldSpace, const glm::vec3& rdWorldSpace);
-
 
 #define EntityFlag_kStatic (u32)Entity::Mobility::kStatic << 1
 #define EntityFlag_kDynamic (u32)Entity::Mobility::kDynamic << 1
@@ -44,11 +22,9 @@ f32  transformHitFromObjectToWorldSpace(glm::vec3& objectSpaceHit, glm::mat4& tr
 
 namespace Cyan
 {
-    // forward declare
-    // entity
-    /* 
-        * every entity has to have a transform component, entity's transform component is represented by
-        m_sceneRoot's transform.
+    /** 
+    * every entity has to have a transform component, entity's transform component is represented by
+    'rootSceneComponent's transform.
     */
     struct Entity
     {
@@ -71,54 +47,35 @@ namespace Cyan
             kCount
         };
 
-        char m_name[kEntityNameMaxLen];
-        uint32_t m_entityId;
-        Entity* m_parent;
-        std::vector<Entity*> m_child;
-        SceneComponent* m_sceneRoot;
-
-        // flags
-        u32 flags;
-        bool m_lit;
-        bool m_static;
-        bool m_visible;
-        bool m_selectable;
-        bool m_includeInGBufferPass;
-
-        Entity(struct Scene* scene, const char* name, u32 id, Transform t, Entity* parent, bool isStatic);
+        Entity(Scene* scene, const char* inName, const Transform& t, Entity* inParent = nullptr, u32 inProperties = (EntityFlag_kDynamic | EntityFlag_kVisible | EntityFlag_kCastShadow));
+        virtual ~Entity() { }
 
         virtual void update() { }
 
-        u32 getFlags() { return flags; }
-        SceneComponent* getSceneRoot();
-        SceneComponent* getSceneNode(const char* name);
-        void attachSceneNode(SceneComponent* child, const char* parentName=nullptr);
+        u32 getProperties() { return properties; }
+        SceneComponent* getRootSceneComponent();
+        SceneComponent* getSceneComponent(const char* name);
+        void attachSceneComponent(SceneComponent* inChild, const char* parent=nullptr);
+
         // bool castVisibilityRay(const glm::vec3& ro, const glm::vec3& rd, const glm::mat4& modelView);
         // struct RayCastInfo intersectRay(const glm::vec3& ro, const glm::vec3& rd, const glm::mat4& view);
-        // merely sets the parent entity, it's not this method's responsibility to trigger
-        // any logic relates to parent change
-        void setParent(Entity* parent);
-        // attachChild a new child Entity
+
         void attachChild(Entity* child);
         void onAttach();
-        // detach from current parent
-        void detach();
+
+        // visitor
+        void visit(const std::function<void(SceneComponent*)>& func);
+
+        // getters
         i32 getChildIndex(const char* name);
-        void onDetach();
-        void removeChild(const char* name);
-        Entity* detachChild(const char* name);
-        Transform& getLocalTransform();
+        const Transform& getLocalTransform();
+        const Transform& getWorldTransform();
+        const glm::vec3& getWorldPosition();
+
+        // setters
+        void setParent(Entity* parent);
         void setLocalTransform(const Transform& transform);
-        Transform& getWorldTransform();
-        glm::vec3& getWorldPosition();
-        // transform locally
-        void applyLocalTransform(Transform& transform);
-        void applyWorldRotation(const glm::mat4& rot);
-        void applyWorldRotation(const glm::quat& rot);
-        void applyWorldTranslation(const glm::vec3 trans);
-        void applyWorldScale(const glm::vec3 scale);
-        void updateWorldTransform();
-        void setMaterial(const char* meshNodeName, i32 submeshIndex, Cyan::IMaterial* matl);
+        void setMaterial(const char* meshComponentName, i32 submeshIndex, Cyan::IMaterial* matl);
 
         // e->getComponent<ILightComponent>();
         template <typename ComponentType>
@@ -142,7 +99,13 @@ namespace Cyan
             components.push_back(component);
         }
 
+        std::string name;
+        Entity* parent;
+
     private:
+        std::vector<Entity*> childs;
+        SceneComponent* rootSceneComponent;
+        u32 properties;
         std::vector<Cyan::Component*> components;
     };
 
@@ -163,6 +126,4 @@ namespace Cyan
             return t < rhs.t;
         }
     };
-
-    void visitEntity(Entity* e, const std::function<void(SceneComponent*)>& func);
 }
