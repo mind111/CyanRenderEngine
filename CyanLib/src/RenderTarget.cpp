@@ -2,6 +2,32 @@
 
 namespace Cyan
 {
+    RenderTarget* RenderTarget::defaultRenderTarget = nullptr;
+
+    RenderTarget* RenderTarget::getDefaultRenderTarget(u32 width, u32 height)
+    { 
+        if (!defaultRenderTarget)
+        {
+            defaultRenderTarget = new RenderTarget();
+            defaultRenderTarget->width = width;
+            defaultRenderTarget->height = height;
+            defaultRenderTarget->fbo = 0;
+        }
+        else
+        {
+            if (width != defaultRenderTarget->width || height != defaultRenderTarget->height)
+            {
+                delete defaultRenderTarget;
+
+                defaultRenderTarget = new RenderTarget();
+                defaultRenderTarget->width = width;
+                defaultRenderTarget->height = height;
+                defaultRenderTarget->fbo = 0;
+            }
+        }
+        return defaultRenderTarget;
+    }
+    
     ITextureRenderable* RenderTarget::getColorBuffer(u32 index)
     {
         return colorBuffers[index];

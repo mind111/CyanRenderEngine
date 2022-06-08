@@ -12,6 +12,8 @@ namespace Cyan
 
     struct ILightRenderable
     {
+        virtual ~ILightRenderable() { }
+
         virtual void renderShadow(const Scene& scene, Renderer& renderer) { }
         virtual void setShaderParameters(Shader* shader) = 0;
     };
@@ -51,6 +53,11 @@ namespace Cyan
                     break;
                 }
             }
+        }
+
+        ~DirectionalLightRenderable()
+        {
+
         }
 
     private:

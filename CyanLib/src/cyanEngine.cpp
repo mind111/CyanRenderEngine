@@ -48,27 +48,11 @@ namespace Cyan
         m_graphicsSystem->update();
     }
 
-    void Engine::beginRender()
-    {
-        if (m_renderer)
-        {
-            m_renderer->beginRender();
-        }
-    }
-
     void Engine::render()
     {
         if (m_renderer)
         {
             m_renderer->render(m_scene.get());
-        }
-    }
-
-    void Engine::endRender()
-    {
-        if (m_renderer)
-        {
-            m_renderer->endRender();
         }
     }
 

@@ -32,8 +32,6 @@ namespace Cyan
         void finalize();
         void update();
         void render();
-        void beginRender();
-        void endRender();
 
     private:
         static Engine* singleton;

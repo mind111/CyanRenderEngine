@@ -7,10 +7,6 @@ layout(std430, binding = 0) buffer GlobalDrawData
 {
     mat4  view;
     mat4  projection;
-	mat4  sunLightView;
-	mat4  sunShadowProjections[4];
-    int   numDirLights;
-    int   numPointLights;
     float m_ssao;
     float dummy;
 } gDrawData;
@@ -30,5 +26,6 @@ void main()
     normalWorld = (inverse(transpose(model)) * vec4(vNormal, 0.f)).xyz;
     // todo: handedness of tangent
     tangentWorld = normalize((model * vec4(vTangent.xyz, 0.f)).xyz);
-    gl_Position = gDrawData.projection * gDrawData.view * model * vec4(vPos, 1.f);
+    // gl_Position = gDrawData.projection * gDrawData.view * model * vec4(vPos, 1.f);
+    gl_Position = vec4(vPos, 1.f);
 }

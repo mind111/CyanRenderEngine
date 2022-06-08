@@ -26,7 +26,7 @@ namespace Cyan
                 ITextureRenderable::Spec spec = { };
                 spec.width = resolution.x;
                 spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R16G16B16;
-                m_srcCubemapTexture = AssetManager::createTextureCube("SkyboxTexture", spec);
+                // m_srcCubemapTexture = AssetManager::createTextureCube("SkyboxTexture", spec);
             }
             break;
         }

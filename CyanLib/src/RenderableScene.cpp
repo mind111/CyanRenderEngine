@@ -9,35 +9,40 @@ namespace Cyan
     SceneRenderable::SceneRenderable(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator)
         : scene(inScene)
     {
+#if 1
         viewSsboPtr = std::make_unique<ViewSsbo>();
         transformSsboPtr = std::make_unique<TransformSsbo>(256);
-
+#endif
         // build list of mesh instances and transforms
         for (auto entity : sceneView.entities)
         {
             TransformSsbo& transformSsbo = *(transformSsboPtr.get());
-
             entity->visit([this, &transformSsbo](SceneComponent* sceneComp) {
                     if (auto meshInst = sceneComp->getAttachedMesh())
                     {
                         meshInstances.push_back(meshInst);
+#if 1
                         ADD_SSBO_DYNAMIC_ELEMENT(transformSsbo, sceneComp->getWorldTransformMatrix());
+#endif
                     }
                 });
         }
 
+#if 1
         // build view data
         ViewSsbo& viewSsbo = *(viewSsboPtr.get());
         SET_SSBO_STATIC_MEMBER(viewSsbo, view, scene->camera.view);
         SET_SSBO_STATIC_MEMBER(viewSsbo, projection, scene->camera.projection);
+#endif
 
         // build lighting data
         skybox = scene->skybox;
         irradianceProbe = scene->irradianceProbe;
         reflectionProbe = scene->reflectionProbe;
 
-        // todo: experiment with the following design
+        // todo: this following code is causing memory leak
         // build a list of lights in the scene
+#if 1
         for (auto entity : scene->entities)
         {
             auto lightComponents = entity->getComponent<ILightComponent>();
@@ -45,18 +50,24 @@ namespace Cyan
             {
                 for (auto lightComponent : lightComponents)
                 {
-                    lights.push_back(lightComponent->buildRenderableLight(allocator));
+                    /* note:
+                        using a custom deleter since `allocator` used in this case is using placement new, need to explicitly invoke
+                        destructor to avoid memory leaking as the object being constructed using placement new might heap allocate its members.
+                        Thus, need to invoke destructor to make sure those heap allocated members are released, no need to free memory since the allocator's
+                        memory will be reset and reused each frame.
+                    */
+                    lights.push_back(std::shared_ptr<ILightRenderable>(lightComponent->buildRenderableLight(allocator), [](ILightRenderable* lightToDelete) { 
+                            lightToDelete->~ILightRenderable();
+                        })
+                    );
                 }
             }
         }
-#if 0
-        for (u32 i = 0; i < scene->pointLights.size(); ++i)
-        {
-            scene->pointLights[i].update();
-            SET_SSBO_DYNAMIC_ELEMENT(pointLightSsbo, i, scene->pointLights[i].getData());
-        }
 #endif
-        viewSsbo.update();
+#if 1
+        viewSsboPtr->update();
+        transformSsboPtr->update();
+#endif
     }
 
     /**
@@ -64,7 +75,6 @@ namespace Cyan
     */
     void SceneRenderable::submitSceneData(GfxContext* ctx)
     {
-
         // bind global ssbo
         viewSsboPtr->bind((u32)SceneSsboBindings::kViewData);
         transformSsboPtr->bind((u32)SceneSsboBindings::TransformMatrices);

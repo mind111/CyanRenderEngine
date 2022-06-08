@@ -79,24 +79,35 @@ namespace Cyan
 
         static Texture3DRenderable* createTexture3D(const char* name, const ITextureRenderable::Spec& spec, ITextureRenderable::Parameter parameter=ITextureRenderable::Parameter{ })
         {
-            Texture3DRenderable* texture = new Texture3DRenderable(name, spec, parameter);
-            return texture;
+            Texture3DRenderable* outTexture = getAsset<Texture3DRenderable>(name);
+            if (!outTexture)
+            {
+                Texture3DRenderable* outTexture = new Texture3DRenderable(name, spec, parameter);
+                singleton->m_textureMap.insert({ name, outTexture });
+            }
+            return outTexture;
         }
 
         static TextureCubeRenderable* createTextureCube(const char* name, const ITextureRenderable::Spec& spec, ITextureRenderable::Parameter parameter=ITextureRenderable::Parameter{ })
         {
-            TextureCubeRenderable* texture = new TextureCubeRenderable(name, spec, parameter);
-            return texture;
+            TextureCubeRenderable* outTexture = getAsset<TextureCubeRenderable>(name);
+            if (!outTexture)
+            {
+                TextureCubeRenderable* outTexture = new TextureCubeRenderable(name, spec, parameter);
+                singleton->m_textureMap.insert({ name, outTexture });
+            }
+            return outTexture;
         }
 
         static DepthTexture* createDepthTexture(const char* name, u32 width, u32 height)
         {
-            DepthTexture* texture = getAsset<DepthTexture>(name);
-            if (!texture)
+            DepthTexture* outTexture = getAsset<DepthTexture>(name);
+            if (!outTexture)
             {
-                texture = new DepthTexture(name, width, height);
+                outTexture = new DepthTexture(name, width, height);
+                singleton->m_textureMap.insert({ name, outTexture });
             }
-            return texture;
+            return outTexture;
         }
 
         /**
@@ -200,7 +211,7 @@ namespace Cyan
 
         // asset tables
         std::unordered_map<std::string, std::unique_ptr<Scene>> m_sceneMap;
-        std::unordered_map<const char*, ITextureRenderable*> m_textureMap;
+        std::unordered_map<std::string, ITextureRenderable*> m_textureMap;
         std::unordered_map<std::string, Mesh*> m_meshMap;
 
         // material instances

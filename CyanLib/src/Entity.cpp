@@ -120,23 +120,26 @@ namespace Cyan
         {
             return;
         }
-        if (submeshIndex >= 0)
+        auto meshInst = sceneComponent->getAttachedMesh();
+        if (meshInst)
         {
-            auto meshInst = sceneComponent->getAttachedMesh();
-            if (meshInst)
-            {
-                meshInst->setMaterial(matl, submeshIndex);
-            }
+            meshInst->setMaterial(matl, submeshIndex);
         }
-        else
+    }
+
+    void Entity::setMaterial(const char* meshComponentName, Cyan::IMaterial* matl)
+    {
+        SceneComponent* sceneComponent = getSceneComponent(meshComponentName);
+        if (!sceneComponent)
         {
-            auto meshInst = sceneComponent->getAttachedMesh();
-            if (meshInst)
+            return;
+        }
+        auto meshInst = sceneComponent->getAttachedMesh();
+        if (meshInst)
+        {
+            for (u32 sm = 0; sm < meshInst->parent->numSubmeshes(); ++sm)
             {
-                for (u32 sm = 0; sm < meshInst->parent->numSubmeshes(); ++sm)
-                {
-                    meshInst->setMaterial(matl, sm);
-                }
+                meshInst->setMaterial(matl, sm);
             }
         }
     }

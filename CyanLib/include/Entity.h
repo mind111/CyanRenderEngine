@@ -15,10 +15,10 @@
 void transformRayToObjectSpace(glm::vec3& ro, glm::vec3& rd, glm::mat4& transform);
 f32  transformHitFromObjectToWorldSpace(glm::vec3& objectSpaceHit, glm::mat4& transform, const glm::vec3& roWorldSpace, const glm::vec3& rdWorldSpace);
 
-#define EntityFlag_kStatic (u32)Entity::Mobility::kStatic << 1
-#define EntityFlag_kDynamic (u32)Entity::Mobility::kDynamic << 1
-#define EntityFlag_kVisible (u32)Entity::Visibility::kVisible << 1
-#define EntityFlag_kCastShadow (u32)Entity::Lighting::kCastShadow << 1
+#define EntityFlag_kStatic 1 << (u32)Entity::Mobility::kStatic 
+#define EntityFlag_kDynamic 1 << (u32)Entity::Mobility::kDynamic
+#define EntityFlag_kVisible 1 << (u32)Entity::Visibility::kVisible
+#define EntityFlag_kCastShadow 1 << (u32)Entity::Lighting::kCastShadow
 
 namespace Cyan
 {
@@ -75,6 +75,7 @@ namespace Cyan
         // setters
         void setParent(Entity* parent);
         void setLocalTransform(const Transform& transform);
+        void setMaterial(const char* meshComponentName, Cyan::IMaterial* matl);
         void setMaterial(const char* meshComponentName, i32 submeshIndex, Cyan::IMaterial* matl);
 
         // e->getComponent<ILightComponent>();
@@ -91,7 +92,7 @@ namespace Cyan
                 }
             }
             // avoid costly vector copy when return by value ...?
-            return std::move(foundComponents);
+            return foundComponents;
         }
 
         void addComponent(Cyan::Component* component)

@@ -42,9 +42,7 @@ namespace Cyan
         // PathTracer*      m_pathTracer;
 
         std::unique_ptr<GfxContext> m_ctx;
-
         std::shared_ptr<Scene> m_scene;
-
         GLFWwindow* m_glfwWindow = nullptr;
         glm::uvec2 m_windowDimension; 
     };

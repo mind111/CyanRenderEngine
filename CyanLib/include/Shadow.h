@@ -110,7 +110,7 @@ namespace Cyan
             f32 f;
             BoundingBox3D aabb;
             glm::mat4 lightProjection;
-            DepthTexture* shadowmap = nullptr;
+            std::unique_ptr<DepthTexture> depthTexturePtr = nullptr;
         } cascades[kNumCascades];
 
         CascadedShadowmap(const DirectionalLight& inDirectionalLight);

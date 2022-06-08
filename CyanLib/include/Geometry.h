@@ -7,11 +7,11 @@
 #include "Shader.h"
 #include "Material.h"
 
-#define VertexAttribFlag_kPosition (u8)VertexAttribute::Type::kPosition << 1
-#define VertexAttribFlag_kNormal (u8)VertexAttribute::Type::kNormal << 1
-#define VertexAttribFlag_kTangent (u8)VertexAttribute::Type::kTangent << 1
-#define VertexAttribFlag_kTexCoord0 (u8)VertexAttribute::Type::kTexCoord0 << 1
-#define VertexAttribFlag_kTexCoord1 (u8)VertexAttribute::Type::kTexCoord1 << 1
+#define VertexAttribFlag_kPosition 1 << (u8)VertexAttribute::Type::kPosition
+#define VertexAttribFlag_kNormal  1 << (u8)VertexAttribute::Type::kNormal
+#define VertexAttribFlag_kTangent 1 << (u8)VertexAttribute::Type::kTangent
+#define VertexAttribFlag_kTexCoord0 1 << (u8)VertexAttribute::Type::kTexCoord0
+#define VertexAttribFlag_kTexCoord1 1 << (u8)VertexAttribute::Type::kTexCoord1
 
 namespace Cyan
 {

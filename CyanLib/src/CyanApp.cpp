@@ -29,10 +29,8 @@ namespace Cyan
 
     void DefaultApp::render()
     {
-        gEngine->beginRender();
         gEngine->render();
         customRender();
-        gEngine->endRender();
     }
    
     void DefaultApp::run()

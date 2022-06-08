@@ -144,8 +144,10 @@ namespace Cyan
         }
 
         // shadow
+        /*
         m_rasterDirectShadowManager->initialize();
         m_rasterDirectShadowManager->initShadowmap(m_csm, glm::uvec2(4096u, 4096u));
+        */
 
         // set back-face culling
         m_ctx->setCullFace(FrontFace::CounterClockWise, FaceCull::Back);
@@ -272,15 +274,15 @@ namespace Cyan
                 ITextureRenderable::Parameter parameter = { };
                 parameter.minificationFilter = ITextureRenderable::Parameter::Filtering::MIPMAP_LINEAR;
                 parameter.magnificationFilter = ITextureRenderable::Parameter::Filtering::NEAREST;
-                m_sceneVoxelGrid.normal = AssetManager::createTexture3D("VoxelGridNormal", spec, parameter);
-                m_sceneVoxelGrid.emission = AssetManager::createTexture3D("VoxelGridEmission", spec, parameter);
+                // m_sceneVoxelGrid.normal = AssetManager::createTexture3D("VoxelGridNormal", spec, parameter);
+                // m_sceneVoxelGrid.emission = AssetManager::createTexture3D("VoxelGridEmission", spec, parameter);
 
                 spec.numMips = std::log2(m_sceneVoxelGrid.resolution) + 1;
-                m_sceneVoxelGrid.albedo = AssetManager::createTexture3D("VoxelGridAlbedo", spec, parameter);
-                m_sceneVoxelGrid.radiance = AssetManager::createTexture3D("VoxelGridRadiance", spec, parameter);
+                // m_sceneVoxelGrid.albedo = AssetManager::createTexture3D("VoxelGridAlbedo", spec, parameter);
+                // m_sceneVoxelGrid.radiance = AssetManager::createTexture3D("VoxelGridRadiance", spec, parameter);
 
                 spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R32F;
-                m_sceneVoxelGrid.opacity = AssetManager::createTexture3D("VoxelGridOpacity", spec, parameter);
+                // m_sceneVoxelGrid.opacity = AssetManager::createTexture3D("VoxelGridOpacity", spec, parameter);
             }
 
             {
@@ -339,8 +341,10 @@ namespace Cyan
                 RenderTask task = { };
                 task.renderTarget = renderTarget;
                 task.drawBuffers = drawBuffers;
+                task.clearRenderTarget = clearRenderTarget;
                 task.viewport = viewport;
                 task.shader = material->getMaterialShader();
+                task.submesh = parent->getSubmesh(i);
                 task.renderSetupLambda = [this, &sceneRenderable, transformIndex, material](RenderTarget* renderTarget, Shader* shader) {
                     material->setShaderMaterialParameters();
                     if (material->lit())
@@ -360,8 +364,8 @@ namespace Cyan
         pmin = aabb.pmin;
         pmax = aabb.pmax;
         glm::vec3 center = (pmin + pmax) * .5f;
-        f32 len = max(pmax.x - pmin.x, pmax.y - pmin.y);
-        len = max(len, pmax.z - pmin.z);
+        f32 len = std::max<float>(pmax.x - pmin.x, pmax.y - pmin.y);
+        len = std::max<float>(len, pmax.z - pmin.z);
         pmin = center - glm::vec3(len) * .5f;
         pmax = center + glm::vec3(len) * .5f;
         // shrink the size of AABB to gain some resolution for now
@@ -687,6 +691,7 @@ namespace Cyan
             task.drawBuffers = drawBuffers;
             task.clearRenderTarget = clearRenderTarget;
             task.viewport = viewport;
+            task.pipelineState = pipelineState;
             task.shader = shader;
             task.submesh = mesh->getSubmesh(i);
 
@@ -799,15 +804,16 @@ namespace Cyan
         */
         //-------------------------------------------------------------------
 
-        auto renderTarget = m_settings.enableAA ? m_sceneColorRTSSAA : m_sceneColorRenderTarget;
-        SceneView sceneView(*scene, scene->camera, renderTarget, { }, { 0u, 0u,  renderTarget->width, renderTarget->height }, EntityFlag_kVisible);
-        // convert Scene instance to RenderableScene instance for rendering
-        SceneRenderable sceneRenderable(scene, sceneView, m_frameAllocator);
-
         beginRender();
         {
+            auto renderTarget = m_settings.enableAA ? m_sceneColorRTSSAA : m_sceneColorRenderTarget;
+            SceneView sceneView(*scene, scene->camera, renderTarget, { }, { 0u, 0u,  renderTarget->width, renderTarget->height }, EntityFlag_kVisible);
+            // convert Scene instance to RenderableScene instance for rendering
+            SceneRenderable sceneRenderable(scene, sceneView, m_frameAllocator);
+#if 0
             renderShadow(sceneRenderable);
-
+#endif
+#if 0
             struct DrawBuffer
             {
                 i32 binding;
@@ -826,12 +832,14 @@ namespace Cyan
                 renderSceneDepthNormal(sceneRenderable, sceneView);
             }
 
+#endif
+#if 0
             // voxel cone tracing pass
             if (m_settings.enableVctx)
             {
                 // todo: revoxelizing the scene every frame is causing flickering in the volume texture
-                voxelizeScene(scene);
-                renderVctx();
+                // voxelizeScene(scene);
+                // renderVctx();
             }
 
             // ssao pass
@@ -863,49 +871,37 @@ namespace Cyan
                 }
                 composite();
             }
+#endif
         }
         endRender();
     }
 
     void Renderer::endRender()
     {
-        // reset render target
-        m_ctx->setRenderTarget(nullptr, {});
+        Shader* fullscreenBlitShader = ShaderManager::createShader({
+            ShaderSource::Type::kVsPs, 
+            "BlitQuadShader", 
+            SHADER_SOURCE_PATH "blit_v.glsl",
+            SHADER_SOURCE_PATH "blit_p.glsl"
+            });
+
+        // final blit to default framebuffer
+        submitFullScreenPass(
+            // RenderTarget::getDefaultRenderTarget(m_finalColorTexture->width, m_finalColorTexture->height),
+            RenderTarget::getDefaultRenderTarget(1280, 720),
+            { { 0u } },
+            fullscreenBlitShader,
+            [this](RenderTarget* renderTarget, Shader* shader) {
+                shader->setTexture("srcTexture", m_finalColorTexture);
+            });
+
         m_ctx->flip();
-    }
-
-    void Renderer::updateSunShadow(const NewCascadedShadowmap& csm)
-    {
-#if 0
-        m_globalDrawData.sunLightView   = csm.lightView;
-        // bind sun light shadow map for this frame
-        u32 textureUnitOffset = (u32)SceneTextureBindings::SunShadow;
-        for (u32 i = 0; i < CascadedShadowmap::kNumCascades; ++i)
-        {
-            m_globalDrawData.sunShadowProjections[i] = csm.cascades[i].lightProjection;
-            if (csm.technique == kVariance_Shadow)
-                glBindTextureUnit(textureUnitOffset + i, csm.cascades[i].vsm.shadowmap->handle);
-            else if (csm.technique == kPCF_Shadow)
-                glBindTextureUnit(textureUnitOffset + i, csm.cascades[i].basicShadowmap.shadowmap->handle);
-        }
-
-        // upload data to gpu
-        glNamedBufferSubData(gDrawDataBuffer, 0, sizeof(GlobalDrawData), &m_globalDrawData);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, static_cast<u32>(SceneBufferBindings::kViewData), gDrawDataBuffer);
-#endif
-    }
-
-    void Renderer::renderSunShadow(Scene* scene, const std::vector<Entity*>& shadowCasters)
-    {
-#if 0
-        auto& sunLight = scene->dLights[0];
-        m_rasterDirectShadowManager->render(m_csm, scene, sunLight, shadowCasters);
-        updateSunShadow(m_csm);
-#endif
     }
 
     void Renderer::renderShadow(SceneRenderable& sceneRenderable)
     {
+        sceneRenderable.submitSceneData(m_ctx);
+
         for (auto light : sceneRenderable.lights)
         {
             light->renderShadow(*(sceneRenderable.scene), *this);
@@ -927,9 +923,10 @@ namespace Cyan
                 GfxPipelineState(), // pipeline state
                 meshInst->parent, // mesh
                 shader, // shader
-                [&transformIndex](RenderTarget* renderTarget, Shader* shader) { // renderSetupLambda
-                    shader->setUniform("transformIndex", transformIndex++);
+                [transformIndex](RenderTarget* renderTarget, Shader* shader) { // renderSetupLambda
+                    shader->setUniform("transformIndex", (i32)transformIndex);
                 });
+            transformIndex++;
         }
     }
 
@@ -949,29 +946,35 @@ namespace Cyan
                 GfxPipelineState(), // pipeline state
                 meshInst->parent, // mesh
                 m_sceneDepthNormalShader, // shader
-                [&transformIndex](RenderTarget* renderTarget, Shader* shader) { // renderSetupLambda
-                    shader->setUniform("transformIndex", transformIndex++);
+                [transformIndex](RenderTarget* renderTarget, Shader* shader) { // renderSetupLambda
+                    shader->setUniform("transformIndex", (i32)transformIndex);
                 });
+            transformIndex++;
         }
     }
 
     void Renderer::renderSceneDepthNormal(SceneRenderable& renderableScene, const SceneView& sceneView)
     {
+        sceneView.renderTarget->clear(sceneView.drawBuffers);
+
         renderableScene.submitSceneData(m_ctx);
+        auto pipelineState = GfxPipelineState();
+        pipelineState.depth = DepthControl::kDisable;
 
         u32 transformIndex = 0u;
         for (auto& meshInst : renderableScene.meshInstances)
         {
             submitMesh(
                 sceneView.renderTarget, // renderTarget
-                sceneView.drawBuffers,
-                false,
+                sceneView.drawBuffers, // draw buffers
+                false, // clear render target
                 { 0u, 0u, sceneView.renderTarget->width, sceneView.renderTarget->height }, // viewport
-                GfxPipelineState(), // pipeline state
+                // GfxPipelineState(), // pipeline state
+                pipelineState,
                 meshInst->parent, // mesh
                 m_sceneDepthNormalShader, // shader
                 [&transformIndex](RenderTarget* renderTarget, Shader* shader) { // renderSetupLambda
-                    shader->setUniform("transformIndex", transformIndex++);
+                    shader->setUniform("transformIndex", (i32)transformIndex++);
                 });
         }
     }

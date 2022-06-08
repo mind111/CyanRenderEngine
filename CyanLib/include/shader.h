@@ -106,8 +106,8 @@ namespace Cyan
         void init();
 
         // std::unordered_map<const char*, u32> uniformLocationMap;
-        std::unordered_map<const char*, ITextureRenderable*> samplerBindingMap;
-        std::unordered_map<const char*, UniformMetaData> uniformMetaDataMap;
+        std::unordered_map<std::string, ITextureRenderable*> samplerBindingMap;
+        std::unordered_map<std::string, UniformMetaData> uniformMetaDataMap;
         ShaderSource source;
         GLuint program;
     };

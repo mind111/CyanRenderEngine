@@ -11,6 +11,13 @@ namespace Cyan
     {
         /* Component interface */
         virtual const char* getTag() override { return  "ILightComponent"; }
+
+        // todo: abstract away what type of allocator is used.
+        /* note:
+        * buildRenderableLight(IAllocator* allocator) should not care about what kind of allocator is used and how the memory is allocated. It's 
+        * the owner of `this` ILightRenderable object's job to correctly handle releasing resources. For example, the owner of this ILightRenderable instance
+        * should be responsible for invoking ~ILightRenderable explicitly if this is constructed using placement new operator.
+        */
         virtual ILightRenderable* buildRenderableLight(LinearAllocator& allocator) = 0;
     };
 

@@ -32,12 +32,8 @@ namespace Cyan
         {
             glm::mat4 view;
             glm::mat4 projection;
-            glm::mat4 sunLightView;
-            glm::mat4 sunShadowProjections[4];
-            i32 numDirLights;
-            i32 numPointLights;
             f32 ssao;
-            f32 dummy;
+            glm::vec3 dummy;
         };
 
         using ViewSsbo = ShaderStorageBuffer<StaticSsboStruct<ViewData>>;
@@ -60,11 +56,11 @@ namespace Cyan
 
         // mesh instances
         std::vector<MeshInstance*> meshInstances;
-        std::unique_ptr<TransformSsbo> transformSsboPtr;
+        std::unique_ptr<TransformSsbo> transformSsboPtr = nullptr;
 
         // lights
         Skybox* skybox = nullptr;
-        std::vector<ILightRenderable*> lights;
+        std::vector<std::shared_ptr<ILightRenderable>> lights;
         IrradianceProbe* irradianceProbe = nullptr;
         ReflectionProbe* reflectionProbe = nullptr;
     };

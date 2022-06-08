@@ -96,8 +96,8 @@ void DemoApp::setupScene()
         bunnyMatl->parameter.kRoughness = .1f;
         bunnyMatl->parameter.kMetallic = 1.0f;
 
-        bunny0->setMaterial("bunny_mesh", -1, bunnyMatl);
-        bunny1->setMaterial("bunny_mesh", -1, bunnyMatl);
+        bunny0->setMaterial("bunny_mesh", bunnyMatl);
+        bunny1->setMaterial("bunny_mesh", bunnyMatl);
     }
     // man
     {
@@ -107,7 +107,7 @@ void DemoApp::setupScene()
         manMatl->parameter.kRoughness = .3f;
         manMatl->parameter.kMetallic = .3f;
 
-        man->setMaterial("man_mesh", -1, manMatl);
+        man->setMaterial("man_mesh", manMatl);
     }
     // lighting
     {
@@ -155,7 +155,7 @@ void DemoApp::setupScene()
                 transform.m_scale = glm::vec3(.003f);
                 auto meshComponent = demoScene00->createMeshComponent(transform, assetManager->getAsset<Cyan::Mesh>("shaderball_mesh"));
                 shaderBall->attachSceneComponent(meshComponent);
-                shaderBall->setMaterial(meshComponentName, -1, defaultMatl);
+                shaderBall->setMaterial(meshComponentName, defaultMatl);
                 shaderBall->setMaterial(meshComponentName, 0, defaultMatl);
                 shaderBall->setMaterial(meshComponentName, 1, defaultMatl);
                 shaderBall->setMaterial(meshComponentName, 5, defaultMatl);
@@ -165,8 +165,8 @@ void DemoApp::setupScene()
     // room
     {
         Cyan::Entity* room = demoScene00->getEntity("Room");
-        room->setMaterial("room_mesh", -1, defaultMatl);
-        room->setMaterial("plane_mesh", -1, defaultMatl);
+        room->setMaterial("room_mesh", defaultMatl);
+        room->setMaterial("plane_mesh", defaultMatl);
 #if 0
         Entity* room = sceneManager->getEntity(demoScene00, "Room");
         auto roomNode = room->getSceneNode("RoomMesh");

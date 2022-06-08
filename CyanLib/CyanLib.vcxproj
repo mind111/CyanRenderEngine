@@ -199,8 +199,8 @@
     <None Include="..\shader\sky_sdf_p.glsl" />
     <None Include="..\shader\sky_sdf_v.glsl" />
     <None Include="..\shader\shader_test.glsl" />
-    <None Include="..\shader\shader_textured_quad.fs" />
-    <None Include="..\shader\shader_textured_quad.vs" />
+    <None Include="..\shader\blit_p.glsl" />
+    <None Include="..\shader\blit_v.glsl" />
     <None Include="..\shader\shader_upsample.fs" />
     <None Include="..\shader\shader_upsample.vs" />
     <None Include="..\shader\voxelize_g.glsl" />

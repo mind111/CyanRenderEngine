@@ -29,6 +29,7 @@ namespace Cyan
             }
         }
 
+        static RenderTarget* getDefaultRenderTarget(u32 width, u32 height);
         ITextureRenderable* getColorBuffer(u32 index);
         void setColorBuffer(Texture2DRenderable* texture, u32 index, u32 mip = 0u);
         void setColorBuffer(TextureCubeRenderable* texture, u32 index, u32 mip = 0u);
@@ -36,6 +37,7 @@ namespace Cyan
         void clear(const std::initializer_list<RenderTargetDrawBuffer>& buffers, f32 clearDepth = 1.f);
         bool validate();
 
+        static RenderTarget* defaultRenderTarget;
         u32 width, height;
         Cyan::ITextureRenderable* colorBuffers[8] = { 0 };
         Cyan::DepthTexture* depthBuffer = nullptr;

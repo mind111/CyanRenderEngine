@@ -89,11 +89,16 @@ namespace Cyan
             parameter(inParams),
             numMips(inSpec.numMips),
             pixelData(inSpec.pixelData)
-        {
+        { }
 
+        virtual ~ITextureRenderable() 
+        { 
+            glDeleteTextures(1, &glResource);
+            if (pixelData)
+            {
+                delete[] pixelData;
+            }
         }
-
-        virtual ~ITextureRenderable() { }
 
         struct GLPixelFormat
         {
@@ -108,47 +113,47 @@ namespace Cyan
             switch (inPixelFormat)
             {
             case Spec::PixelFormat::Lum32F:
-                glPixelFormat.internalFormat = GL_LUMINANCE;
-                glPixelFormat.format = GL_LUMINANCE8;
-                glPixelFormat.type = GL_UNSIGNED_BYTE;
+                glPixelFormat.internalFormat = GL_LUMINANCE8;
+                glPixelFormat.format = GL_LUMINANCE;
+                glPixelFormat.type = GL_FLOAT;
                 break;
             case Spec::PixelFormat::R16F:
-                glPixelFormat.internalFormat = GL_R;
-                glPixelFormat.format = GL_R16F;
+                glPixelFormat.internalFormat = GL_R16F;
+                glPixelFormat.format = GL_R;
                 glPixelFormat.type = GL_FLOAT;
                 break;
             case Spec::PixelFormat::R32F:
-                glPixelFormat.internalFormat = GL_R;
-                glPixelFormat.format = GL_R32F;
+                glPixelFormat.internalFormat = GL_R32F;
+                glPixelFormat.format = GL_R;
                 glPixelFormat.type = GL_FLOAT;
                 break;
             case Spec::PixelFormat::D24S8:
-                glPixelFormat.internalFormat = GL_DEPTH_STENCIL;
-                glPixelFormat.format = GL_DEPTH24_STENCIL8;
+                glPixelFormat.internalFormat = GL_DEPTH24_STENCIL8;
+                glPixelFormat.format = GL_DEPTH_STENCIL;
                 glPixelFormat.type = GL_UNSIGNED_INT_24_8;
                 break;
             case Spec::PixelFormat::R8G8B8:
-                glPixelFormat.internalFormat = GL_RGB;
-                glPixelFormat.format = GL_RGB8UI;
+                glPixelFormat.internalFormat = GL_RGB8;
+                glPixelFormat.format = GL_RGB;
                 glPixelFormat.type = GL_UNSIGNED_BYTE;
             case Spec::PixelFormat::R16G16B16:
-                glPixelFormat.internalFormat = GL_RGB;
-                glPixelFormat.format = GL_RGB16F;
+                glPixelFormat.internalFormat = GL_RGB16F;
+                glPixelFormat.format = GL_RGB;
                 glPixelFormat.type = GL_FLOAT;
                 break;
             case Spec::PixelFormat::R32G32B32:
-                glPixelFormat.internalFormat = GL_RGB;
-                glPixelFormat.format = GL_RGB32F;
+                glPixelFormat.internalFormat = GL_RGB32F;
+                glPixelFormat.format = GL_RGB;
                 glPixelFormat.type = GL_FLOAT;
                 break;
             case Spec::PixelFormat::R8G8B8A8:
-                glPixelFormat.internalFormat = GL_RGBA;
-                glPixelFormat.format = GL_RGBA8;
+                glPixelFormat.internalFormat = GL_RGBA8;
+                glPixelFormat.format = GL_RGBA;
                 glPixelFormat.type = GL_UNSIGNED_BYTE;
                 break;
             case Spec::PixelFormat::R32G32B32A32:
-                glPixelFormat.internalFormat = GL_RGBA;
-                glPixelFormat.format = GL_RGBA32F;
+                glPixelFormat.internalFormat = GL_RGBA32F;
+                glPixelFormat.format = GL_RGBA;
                 glPixelFormat.type = GL_FLOAT;
                 break;
             default:
@@ -242,6 +247,11 @@ namespace Cyan
             }
         }
 
+        ~Texture2DRenderable()
+        {
+            ITextureRenderable::~ITextureRenderable();
+        }
+
         u32 width;
         u32 height;
     };
@@ -287,6 +297,11 @@ namespace Cyan
                 }
             )
         { }
+
+        ~DepthTexture()
+        {
+            ITextureRenderable::~ITextureRenderable();
+        }
     };
 
     struct Texture3DRenderable : public ITextureRenderable
@@ -334,6 +349,11 @@ namespace Cyan
             {
                 glGenerateTextureMipmap(getGpuResource());
             }
+        }
+
+        ~Texture3DRenderable()
+        {
+            ITextureRenderable::~ITextureRenderable();
         }
 
         u32 width;
@@ -387,6 +407,11 @@ namespace Cyan
             {
                 glGenerateTextureMipmap(getGpuResource());
             }
+        }
+
+        ~TextureCubeRenderable()
+        {
+            ITextureRenderable::~ITextureRenderable();
         }
 
         u32 resolution;

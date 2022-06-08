@@ -253,7 +253,7 @@ namespace Cyan
         {
             char depthTextureName[64] = { };
             sprintf_s(depthTextureName, "CascadedShadowmap.cascades[%d]_%dx%d", i, width, height);
-            cascades[i].shadowmap = AssetManager::createDepthTexture(depthTextureName, width, height);
+            cascades[i].depthTexturePtr = std::unique_ptr<DepthTexture>(AssetManager::createDepthTexture(depthTextureName, width, height));
         }
     }
 
@@ -263,17 +263,17 @@ namespace Cyan
         updateCascades(scene.camera);
 
         // create render target
-        std::unique_ptr<RenderTarget> depthRenderTargetPtr(createDepthOnlyRenderTarget(cascades[0].shadowmap->width, cascades[0].shadowmap->height));
+        std::unique_ptr<RenderTarget> depthRenderTargetPtr(createDepthOnlyRenderTarget(cascades[0].depthTexturePtr->width, cascades[0].depthTexturePtr->height));
         for (u32 i = 0; i < kNumCascades; ++i)
         {
-            depthRenderTargetPtr->setDepthBuffer(cascades[i].shadowmap);
+            depthRenderTargetPtr->setDepthBuffer(cascades[i].depthTexturePtr.get());
 
             // todo: this is just a temporary hack camera should be orthographic
             Camera camera = { };
             camera.view = glm::lookAt(glm::vec3(0.f), -lightDirection, glm::vec3(0.f, 1.f, 0.f));
             camera.projection = glm::orthoLH(cascades[i].aabb.pmin.x, cascades[i].aabb.pmax.x, cascades[i].aabb.pmin.y, cascades[i].aabb.pmax.y, cascades[i].aabb.pmax.z, cascades[i].aabb.pmin.z);
             cascades[i].lightProjection = camera.projection;
-            SceneView sceneView(scene, camera, depthRenderTargetPtr.get(), { }, { 0u, 0u, depthRenderTargetPtr->width, depthRenderTargetPtr->height }, EntityFlag_kVisible | EntityFlag_kCastShadow);
+            SceneView sceneView(scene, camera, depthRenderTargetPtr.get(), { { 0u } }, { 0u, 0u, depthRenderTargetPtr->width, depthRenderTargetPtr->height }, EntityFlag_kVisible | EntityFlag_kCastShadow);
             SceneRenderable renderableScene(&scene, sceneView, renderer.getFrameAllocator());
 
             // render
@@ -298,7 +298,7 @@ namespace Cyan
             shader->setUniform(nearClippingPlaneName, cascades[i].n);
             shader->setUniform(farClippingPlaneName, cascades[i].f);
             shader->setUniform(projectionMatrixName, cascades[i].lightProjection);
-            shader->setTexture(samplerName, cascades[i].shadowmap);
+            shader->setTexture(samplerName, cascades[i].depthTexturePtr.get());
         }
     }
 

@@ -265,7 +265,7 @@ namespace Cyan
 
 #define SET_UNIFORM(func, ...)               \
     i32 location = getUniformLocation(name); \
-    if (location > 0)                        \
+    if (location >= 0)                       \
     {                                        \
         func(program, location, __VA_ARGS__);\
     }                                        \
@@ -293,7 +293,13 @@ namespace Cyan
 
     Shader& Shader::setUniform(const char* name, i32 data)
     {
-        SET_UNIFORM(glProgramUniform1i, data)
+        // SET_UNIFORM(glProgramUniform1i, data)
+        i32 location = getUniformLocation(name);
+        if (location >= 0)
+        {
+            glProgramUniform1i(program, location, data);
+        }
+        return *this;
     }
 
     Shader& Shader::setUniform(const char* name, const glm::vec2& data)
@@ -334,7 +340,7 @@ namespace Cyan
     {
         for (const auto& entry : samplerBindingMap)
         {
-            const char* sampler = entry.first;
+            const char* sampler = entry.first.c_str();
             ITextureRenderable* texture = entry.second;
             i32 binding = ctx->setTransientTexture(texture);
             setUniform(sampler, binding);
@@ -373,6 +379,7 @@ namespace Cyan
         { "LightMapShader",           { ShaderSource::Type::kVsPs, "LightMapShader", SHADER_SOURCE_PATH "shader_lightmap.vs", SHADER_SOURCE_PATH  "shader_lightmap.fs" } },
         { "VoxelizeResolveShader",    { ShaderSource::Type::kCs,   "VoxelizeResolveShader", nullptr, nullptr, nullptr, SHADER_SOURCE_PATH "voxelize_resolve_c.glsl" } },
         { "DebugShadingShader",       { ShaderSource::Type::kVsPs, "DebugShadingShader", SHADER_SOURCE_PATH "debug_color_vs.glsl", SHADER_SOURCE_PATH "debug_color_fs.glsl" } },
+        { "BlitQuadShader",           { ShaderSource::Type::kVsPs, "BlitQuadShader", SHADER_SOURCE_PATH "blit_v.glsl", SHADER_SOURCE_PATH "blit_p.glsl" } }
     };
 
     ShaderManager::ShaderMap ShaderManager::m_shaderMap;

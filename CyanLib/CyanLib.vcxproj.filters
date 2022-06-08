@@ -514,10 +514,10 @@
     <None Include="..\shader\shader_test.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_textured_quad.fs">
+    <None Include="..\shader\blit_p.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_textured_quad.vs">
+    <None Include="..\shader\blit_v.glsl">
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\shader_upsample.fs">

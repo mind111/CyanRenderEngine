@@ -2,7 +2,7 @@
 
 #include "VertexBuffer.h"
 
-// TODO: only supports interleaved buffer for now
+// todo: only supports interleaved buffer for now
 struct VertexArray
 {
     VertexArray(VertexBuffer* srcVb, std::vector<u32>* indices=nullptr)

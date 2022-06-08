@@ -139,7 +139,6 @@ namespace Cyan
         * 
         * Render a directional shadow map for the sun in 'scene'
         */
-        void renderSunShadow(Scene* scene, const std::vector<Entity*>& shadowCasters);
         void renderScene(SceneRenderable& renderableScene, const SceneView& sceneView);
         void renderSceneMeshOnly(SceneRenderable& renderableScene, const SceneView& sceneView, Shader* shader);
         void renderSceneDepthNormal(SceneRenderable& renderableScene, const SceneView& sceneView);
@@ -224,7 +223,6 @@ namespace Cyan
 //
 
 // per frame data
-        void updateSunShadow(const NewCascadedShadowmap& csm);
         void updateVctxData(Scene* scene);
 //
         BoundingBox3D computeSceneAABB(Scene* scene);
