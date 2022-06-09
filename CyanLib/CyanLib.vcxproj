@@ -149,8 +149,8 @@
     <None Include="..\shader\shader_bloom_preprocess.vs" />
     <None Include="..\shader\convolve_diffuse_p.glsl" />
     <None Include="..\shader\convolve_diffuse_v.glsl" />
-    <None Include="..\shader\shader_dir_shadow.fs" />
-    <None Include="..\shader\shader_dir_shadow.vs" />
+    <None Include="..\shader\depth_only_p.glsl" />
+    <None Include="..\shader\depth_only_v.glsl" />
     <None Include="..\shader\shader_downsample.fs" />
     <None Include="..\shader\shader_downsample.vs" />
     <None Include="..\shader\vctx_p.glsl" />

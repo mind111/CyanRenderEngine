@@ -8,19 +8,8 @@ namespace Cyan
 
     void GfxContext::setShader(Shader* shader)
     {
-        if (!shader)
-        {
-            m_shader->unbind();
-            m_shader = nullptr;
-        }
-        else
-        {
-            if ((!m_shader) || (m_shader && (shader->getGpuResource() != m_shader->getGpuResource())))
-            {
-                m_shader = shader;
-                m_shader->bind();
-            }
-        }
+        m_shader = shader;
+        shader->bind();
     }
 
     void GfxContext::setCullFace(FrontFace frontFace, FaceCull faceToCull)

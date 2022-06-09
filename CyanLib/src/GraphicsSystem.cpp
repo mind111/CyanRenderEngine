@@ -14,7 +14,7 @@ namespace Cyan
         {
             cyanError("Error initializing glfw")
         }
-        m_glfwWindow = glfwCreateWindow(m_windowDimension.x, m_windowDimension.y, "CyanEngine", nullptr, nullptr);
+        m_glfwWindow = glfwCreateWindow(m_windowDimension.x, m_windowDimension.y, "Cyan", nullptr, nullptr);
         glfwMakeContextCurrent(m_glfwWindow);
 
         // configure gl context

@@ -121,11 +121,6 @@ namespace Cyan
         Texture2DRenderable* getColorOutTexture();
         LinearAllocator& getFrameAllocator() { return m_frameAllocator; }
 
-// shadow
-        std::unique_ptr<RasterDirectShadowManager> m_rasterDirectShadowManager;
-        NewCascadedShadowmap m_csm;
-//
-
 // rendering
         void beginRender();
         void render(Scene* scene, const std::function<void()>& externDebugRender = [](){ });

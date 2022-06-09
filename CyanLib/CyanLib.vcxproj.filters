@@ -388,10 +388,10 @@
     <None Include="..\shader\convolve_diffuse_v.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_dir_shadow.fs">
+    <None Include="..\shader\depth_only_p.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_dir_shadow.vs">
+    <None Include="..\shader\depth_only_v.glsl">
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\shader_downsample.fs">

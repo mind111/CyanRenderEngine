@@ -1,6 +1,6 @@
 #version 450 core
 layout(location = 0) out vec2 moments; 
-in vec3 vPosCS;
+in vec4 vPosCS;
 void main()
 {
     float depth = vPosCS.z * .5f + .5f; 

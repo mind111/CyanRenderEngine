@@ -31,8 +31,8 @@ namespace Cyan
 #if 1
         // build view data
         ViewSsbo& viewSsbo = *(viewSsboPtr.get());
-        SET_SSBO_STATIC_MEMBER(viewSsbo, view, scene->camera.view);
-        SET_SSBO_STATIC_MEMBER(viewSsbo, projection, scene->camera.projection);
+        SET_SSBO_STATIC_MEMBER(viewSsbo, view, sceneView.camera.view);
+        SET_SSBO_STATIC_MEMBER(viewSsbo, projection, sceneView.camera.projection);
 #endif
 
         // build lighting data

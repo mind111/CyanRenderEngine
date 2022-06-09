@@ -93,6 +93,7 @@ namespace Cyan
                 {
                     if (textureUnits[i] == 0)
                     {
+                        textureUnits[i] = 1;
                         availableTextureUnit = i;
                         break;
                     }
@@ -107,6 +108,14 @@ namespace Cyan
                 }
             }
             return availableTextureUnit;
+        }
+
+        void clearTransientTextureBindings()
+        {
+            for (u32 i = 0; i < kMaxNumTextureUnits; ++i)
+            {
+                textureUnits[i] = 0;
+            }
         }
 
         void setUniform(Shader* shader, const char* uniformName, f32 data)

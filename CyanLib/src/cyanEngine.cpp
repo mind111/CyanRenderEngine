@@ -6,6 +6,7 @@
 #include "imgui/imgui_impl_glfw.h"
 #include "imgui/imgui_impl_opengl3.h"
 
+#include "Common.h"
 #include "cyanRenderer.h"
 #include "window.h"
 #include "Shader.h"
@@ -43,6 +44,14 @@ namespace Cyan
     
     void Engine::update()
     {
+        // todo: gather frame statistics
+
+        // update window title
+        static u32 numFrames = 0u;
+        char windowTitle[64] = { };
+        sprintf_s(windowTitle, "Cyan | Frame: %d | FPS: %.2f", numFrames++, 60.0f);
+        glfwSetWindowTitle(m_graphicsSystem->getAppWindow(), windowTitle);
+
         m_IOSystem->update();
         m_graphicsSystem->setScene(m_scene);
         m_graphicsSystem->update();

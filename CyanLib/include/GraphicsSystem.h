@@ -13,6 +13,8 @@
 
 namespace Cyan
 {
+    // todo: implement WindowManager to manage window related operations, and GraphicsSystem should be the owner of the 
+    // WindowManager
     class GraphicsSystem : public System, public Singleton<GraphicsSystem>
     {
     public:

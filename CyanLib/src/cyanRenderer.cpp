@@ -44,7 +44,7 @@ namespace Cyan
         m_bloomOutTexture(nullptr),
         m_frameAllocator(1024 * 1024 * 32) // 32MB frame allocator 
     {
-        m_rasterDirectShadowManager = std::make_unique<RasterDirectShadowManager>();
+
     }
 
     Texture2DRenderable* Renderer::getColorOutTexture()
@@ -769,6 +769,7 @@ namespace Cyan
         {
             m_ctx->drawIndexAuto(task.submesh->numVertices());
         }
+        m_ctx->clearTransientTextureBindings();
     }
 
     /*
@@ -810,16 +811,8 @@ namespace Cyan
             SceneView sceneView(*scene, scene->camera, renderTarget, { }, { 0u, 0u,  renderTarget->width, renderTarget->height }, EntityFlag_kVisible);
             // convert Scene instance to RenderableScene instance for rendering
             SceneRenderable sceneRenderable(scene, sceneView, m_frameAllocator);
-#if 0
+
             renderShadow(sceneRenderable);
-#endif
-#if 0
-            struct DrawBuffer
-            {
-                i32 binding;
-                glm::vec4 clearColor = glm::vec4(0.f, 0.f, 0.f, 1.f);
-                glm::vec4 clearDepth = glm::vec4(0.f, 0.f, 0.f, 1.f);
-            };
 
             // scene depth & normal pass
             bool depthNormalPrepassRequired = (m_settings.enableSSAO || m_settings.enableVctx);
@@ -831,8 +824,6 @@ namespace Cyan
                 };
                 renderSceneDepthNormal(sceneRenderable, sceneView);
             }
-
-#endif
 #if 0
             // voxel cone tracing pass
             if (m_settings.enableVctx)
@@ -841,15 +832,20 @@ namespace Cyan
                 // voxelizeScene(scene);
                 // renderVctx();
             }
+#endif
 
             // ssao pass
             if (m_settings.enableSSAO)
             {
                 Texture2DRenderable* sceneDepthTexture = m_settings.enableAA ? m_sceneDepthTextureSSAA : m_sceneDepthTexture;
                 Texture2DRenderable* sceneNormalTexture = m_settings.enableAA ? m_sceneNormalTextureSSAA : m_sceneNormalTexture;
+                sceneView.renderTarget = m_ssaoRenderTarget;
+                sceneView.drawBuffers = {
+                    { 0u }
+                };
                 ssao(sceneView, sceneDepthTexture, sceneNormalTexture);
             }
-
+#if 0
             // main scene pass
             sceneView.drawBuffers = {
                 RenderTargetDrawBuffer{ (i32)(SceneColorBuffers::kSceneColor) }
@@ -935,6 +931,12 @@ namespace Cyan
     {
         sceneRenderable.submitSceneData(m_ctx);
 
+        Shader* depthOnlyShader = ShaderManager::createShader({ 
+            ShaderSource::Type::kVsPs, 
+            "DepthOnlyShader", 
+            SHADER_SOURCE_PATH "depth_only_v.glsl", 
+            SHADER_SOURCE_PATH "depth_only_p.glsl",
+            });
         u32 transformIndex = 0u;
         for (auto& meshInst : sceneRenderable.meshInstances)
         {
@@ -943,9 +945,9 @@ namespace Cyan
                 sceneView.drawBuffers,
                 false,
                 { 0u, 0u, sceneView.renderTarget->width, sceneView.renderTarget->height }, // viewport
-                GfxPipelineState(), // pipeline state
-                meshInst->parent, // mesh
-                m_sceneDepthNormalShader, // shader
+                GfxPipelineState(), /* pipeline state */
+                meshInst->parent, /* mesh */
+                depthOnlyShader, /* shader */
                 [transformIndex](RenderTarget* renderTarget, Shader* shader) { // renderSetupLambda
                     shader->setUniform("transformIndex", (i32)transformIndex);
                 });
@@ -958,8 +960,6 @@ namespace Cyan
         sceneView.renderTarget->clear(sceneView.drawBuffers);
 
         renderableScene.submitSceneData(m_ctx);
-        auto pipelineState = GfxPipelineState();
-        pipelineState.depth = DepthControl::kDisable;
 
         u32 transformIndex = 0u;
         for (auto& meshInst : renderableScene.meshInstances)
@@ -969,8 +969,7 @@ namespace Cyan
                 sceneView.drawBuffers, // draw buffers
                 false, // clear render target
                 { 0u, 0u, sceneView.renderTarget->width, sceneView.renderTarget->height }, // viewport
-                // GfxPipelineState(), // pipeline state
-                pipelineState,
+                GfxPipelineState(), // pipeline state
                 meshInst->parent, // mesh
                 m_sceneDepthNormalShader, // shader
                 [&transformIndex](RenderTarget* renderTarget, Shader* shader) { // renderSetupLambda
