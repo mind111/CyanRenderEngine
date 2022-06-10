@@ -339,6 +339,9 @@
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
     <ClCompile Include="src\LightComponent.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\LightRenderable.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -661,25 +661,6 @@ namespace Cyan
         glEnable(GL_CULL_FACE);
     }
 
-    void Renderer::drawEntity(SceneRenderable& renderableScene, RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, Entity* entity)
-    {
-        std::queue<SceneComponent*> nodes;
-        nodes.push(entity->getRootSceneComponent());
-        while (!nodes.empty())
-        {
-            auto node = nodes.front();
-            nodes.pop();
-            if (auto meshInst = node->getAttachedMesh())
-            {
-                drawMeshInstance(renderableScene, renderTarget, drawBuffers, clearRenderTarget, viewport, pipelineState, meshInst, node->globalTransform);
-            }
-            for (u32 i = 0; i < node->m_child.size(); ++i)
-            {
-                nodes.push(node->m_child[i]);
-            }
-        }
-    }
-
     void Renderer::submitMesh(RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, Mesh* mesh, Shader* shader, const RenderSetupLambda& perMeshSetupLambda)
     {
         perMeshSetupLambda(renderTarget, shader);

@@ -17,39 +17,39 @@ out vec4 shadowPos;
 out vec3 fragmentPos;
 out vec3 fragmentPosWS;
 
-layout(std430, binding = 0) buffer GlobalDrawData
+#define VIEW_SSBO_BINDING 0
+#define TRANSFORM_SSBO_BINDING 3
+
+layout(std430, binding = VIEW_SSBO_BINDING) buffer ViewShaderStorageBuffer
 {
     mat4  view;
     mat4  projection;
-	mat4  sunLightView;
-	mat4  sunShadowProjections[4];
-    int   numDirLights;
-    int   numPointLights;
     float m_ssao;
     float dummy;
-} gDrawData;
+} viewSsbo;
 
-layout(std430, binding = 3) buffer InstanceTransformData
+layout(std430, binding = TRANSFORM_SSBO_BINDING) buffer TransformShaderStorageBuffer
 {
     mat4 models[];
-} gInstanceTransforms;
+} transformSsbo;
+
 uniform int transformIndex;
 
 void main() {
-    mat4 model = gInstanceTransforms.models[transformIndex];
-    fragmentPos = (gDrawData.view * model * vec4(vertexPos, 1.f)).xyz; 
+    mat4 model = transformSsbo.models[transformIndex];
+    fragmentPos = (viewSsbo.view * model * vec4(vertexPos, 1.f)).xyz; 
     fragmentPosWS = (model * vec4(vertexPos, 1.f)).xyz;
-    gl_Position = gDrawData.projection * gDrawData.view * model * vec4(vertexPos, 1.0f);
+    gl_Position = viewSsbo.projection * viewSsbo.view * model * vec4(vertexPos, 1.0f);
     mat4 normalTransformWorld = transpose(inverse(model));
     wn = (normalTransformWorld * vec4(vertexNormal, 0.f)).xyz;
-    mat4 normalTransform = transpose(inverse(gDrawData.view * model)); 
+    mat4 normalTransform = transpose(inverse(viewSsbo.view * model)); 
     // Transform normals to camera space
     n = (normalTransform * vec4(vertexNormal, 0.f)).xyz;
     n = normalize(n);
     // the w-component of input vertex tangent indicate the handedness of the tangent frame 
     vec3 vt = vertexTangent.xyz * vertexTangent.w;
     // Transform tangents to camera space
-    t = (gDrawData.view * model * vec4(vt, 0.f)).xyz;
+    t = (viewSsbo.view * model * vec4(vt, 0.f)).xyz;
     t = normalize(t);
     uv = textureUv_0;
     uv1 = textureUv_1;

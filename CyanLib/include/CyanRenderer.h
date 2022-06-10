@@ -126,14 +126,6 @@ namespace Cyan
         void render(Scene* scene, const std::function<void()>& externDebugRender = [](){ });
         void endRender();
 
-        /*
-        * TODO: min/max depth for each cascade to help shrink the orthographic projection size
-        * TODO: blend between cascades to alleviate artifact when transitioning between cascades
-        * TODO: better shadow biasing; normal bias and receiver geometry bias
-        * TODO: distribution based shadow mapping methods: VSM, ESM etc.
-        * 
-        * Render a directional shadow map for the sun in 'scene'
-        */
         void renderScene(SceneRenderable& renderableScene, const SceneView& sceneView);
         void renderSceneMeshOnly(SceneRenderable& renderableScene, const SceneView& sceneView, Shader* shader);
         void renderSceneDepthNormal(SceneRenderable& renderableScene, const SceneView& sceneView);
@@ -153,7 +145,6 @@ namespace Cyan
         */
         void renderUI(const std::function<void()>& callback);
 
-        void drawEntity(SceneRenderable& renderableScene, RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, Entity* entity);
         void drawMeshInstance(SceneRenderable& renderableScene, RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, MeshInstance* meshInstance, i32 transformIndex);
 
         /**

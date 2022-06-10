@@ -8,59 +8,130 @@
 
 namespace Cyan
 {
-    CascadedShadowmap::CascadedShadowmap(const DirectionalLight& inDirectionalLight)
-        : IDirectionalShadowmap(), lightDirection(inDirectionalLight.direction)
+    IDirectionalShadowmap::IDirectionalShadowmap(const DirectionalLight& inDirectionalLight)
+        : quality(Quality::kHigh), lightDirection(inDirectionalLight.direction)
     {
-        u32 width = 0u, height = 0u;
         switch (inDirectionalLight.shadowQuality)
         {
         case DirectionalLight::ShadowQuality::kLow:
         case DirectionalLight::ShadowQuality::kMedium:
         case DirectionalLight::ShadowQuality::kHigh:
         {
-            width = 4096;
-            height = 4096;
+            resolution.x = 4096;
+            resolution.y = 4096;
         } break;
         default:
             break;
         }
+    }
 
+    BoundingBox3D IDirectionalShadowmap::calcLightSpaceAABB(const glm::vec3& inLightDirection, const BoundingBox3D& worldSpaceAABB)
+    {
+        // derive the 8 vertices of the aabb from pmin and pmax
+        // d -- c
+        // |    |
+        // a -- b
+        // f stands for front while b stands for back
+        f32 width = worldSpaceAABB.pmax.x - worldSpaceAABB.pmin.x;
+        f32 height = worldSpaceAABB.pmax.y - worldSpaceAABB.pmin.y;
+        f32 depth = worldSpaceAABB.pmax.z - worldSpaceAABB.pmin.z;
+        glm::vec3 fa = vec4ToVec3(worldSpaceAABB.pmax) + glm::vec3(-width, -height, 0.f);
+        glm::vec3 fb = vec4ToVec3(worldSpaceAABB.pmax) + glm::vec3(0.f, -height, 0.f);
+        glm::vec3 fc = vec4ToVec3(worldSpaceAABB.pmax);
+        glm::vec3 fd = vec4ToVec3(worldSpaceAABB.pmax) + glm::vec3(-width, 0.f, 0.f);
+
+        glm::vec3 ba = fa + glm::vec3(0.f, 0.f, -depth);
+        glm::vec3 bb = fb + glm::vec3(0.f, 0.f, -depth);
+        glm::vec3 bc = fc + glm::vec3(0.f, 0.f, -depth);
+        glm::vec3 bd = fd + glm::vec3(0.f, 0.f, -depth);
+
+        glm::mat4 lightSpaceView = glm::lookAt(glm::vec3(0.f), -inLightDirection, glm::vec3(0.f, 1.f, 0.f));
+        BoundingBox3D lightSpaceAABB = { };
+        lightSpaceAABB.bound(lightSpaceView * glm::vec4(fa, 1.f));
+        lightSpaceAABB.bound(lightSpaceView * glm::vec4(fb, 1.f));
+        lightSpaceAABB.bound(lightSpaceView * glm::vec4(fc, 1.f));
+        lightSpaceAABB.bound(lightSpaceView * glm::vec4(fd, 1.f));
+        lightSpaceAABB.bound(lightSpaceView * glm::vec4(ba, 1.f));
+        lightSpaceAABB.bound(lightSpaceView * glm::vec4(bb, 1.f));
+        lightSpaceAABB.bound(lightSpaceView * glm::vec4(bc, 1.f));
+        lightSpaceAABB.bound(lightSpaceView * glm::vec4(bd, 1.f));
+        return lightSpaceAABB;
+    }
+
+    DirectionalShadowmap::DirectionalShadowmap(const DirectionalLight& inDirectionalLight)
+        : IDirectionalShadowmap(inDirectionalLight)
+    {
+        char depthTextureName[64] = { };
+        sprintf_s(depthTextureName, "DirectionalShadowmapTexture_%dx%d", resolution.x, resolution.y);
+        depthTexturePtr = std::unique_ptr<DepthTexture>(AssetManager::createDepthTexture(depthTextureName, resolution.x, resolution.y));
+    }
+
+    void DirectionalShadowmap::render(const Scene& scene, const BoundingBox3D& worldSpaceAABB, Renderer& renderer)
+    {
+        // create render target
+        std::unique_ptr<RenderTarget> depthRenderTargetPtr(createDepthOnlyRenderTarget(depthTexturePtr->width, depthTexturePtr->height));
+        depthRenderTargetPtr->setDepthBuffer(depthTexturePtr.get());
+        depthRenderTargetPtr->clear({ { 0u } });
+
+        Camera camera = { };
+        camera.view = glm::lookAt(glm::vec3(0.f), -lightDirection, glm::vec3(0.f, 1.f, 0.f));
+        // convert world space aabb to light space
+        BoundingBox3D lightSpaceAABB = calcLightSpaceAABB(lightDirection, worldSpaceAABB);
+        lightSpaceProjection = glm::orthoLH(lightSpaceAABB.pmin.x, lightSpaceAABB.pmax.x, lightSpaceAABB.pmin.y, lightSpaceAABB.pmax.y, lightSpaceAABB.pmax.z, lightSpaceAABB.pmin.z);;
+        camera.projection = lightSpaceProjection;
+
+        SceneView sceneView(scene, camera, depthRenderTargetPtr.get(), { { 0u } }, { 0u, 0u, depthRenderTargetPtr->width, depthRenderTargetPtr->height }, EntityFlag_kVisible | EntityFlag_kCastShadow);
+        SceneRenderable renderableScene(&scene, sceneView, renderer.getFrameAllocator());
+
+        renderer.renderSceneDepthOnly(renderableScene, sceneView);
+    }
+
+    void DirectionalShadowmap::setShaderParameters(Shader* shader)
+    {
+
+    }
+
+    VarianceShadowmap::VarianceShadowmap(const DirectionalLight& inDirectionalLight)
+        : IDirectionalShadowmap(inDirectionalLight)
+    {
+        // create depth texture
+        {
+            char depthTextureName[64] = { };
+            sprintf_s(depthTextureName, "VarianceShadowmapDepthTexture_%dx%d", resolution.x, resolution.y);
+            depthTexturePtr = std::unique_ptr<DepthTexture>(AssetManager::createDepthTexture(depthTextureName, resolution.x, resolution.y));
+        }
+
+        // create depth squared texture
+        {
+            char depthSquaredTextureName[64] = { };
+            sprintf_s(depthSquaredTextureName, "VarianceShadowmapDepthSquaredTexture_%dx%d", resolution.x, resolution.y);
+            depthSquaredTexturePtr = std::unique_ptr<DepthTexture>(AssetManager::createDepthTexture(depthSquaredTextureName, resolution.x, resolution.y));
+        }
+    }
+
+    CascadedShadowmap::CascadedShadowmap(const DirectionalLight& inDirectionalLight)
+        : IDirectionalShadowmap(inDirectionalLight)
+    {
         // initialize cascades' shadowmap
         for (u32 i = 0; i < kNumCascades; ++i)
         {
-            char depthTextureName[64] = { };
-            sprintf_s(depthTextureName, "CascadedShadowmap.cascades[%d]_%dx%d", i, width, height);
-            cascades[i].depthTexturePtr = std::unique_ptr<DepthTexture>(AssetManager::createDepthTexture(depthTextureName, width, height));
+            cascades[i].shadowmapPtr = std::make_unique<DirectionalShadowmap>(inDirectionalLight);
         }
     }
 
     // todo: think about how to efficiently create/destroy transient gpu resources such as texture and render target
-    void CascadedShadowmap::render(const Scene& scene, Renderer& renderer)
+    void CascadedShadowmap::render(const Scene& scene, const BoundingBox3D& aabb, Renderer& renderer)
     {
         updateCascades(scene.camera);
-
-        // create render target
-        std::unique_ptr<RenderTarget> depthRenderTargetPtr(createDepthOnlyRenderTarget(cascades[0].depthTexturePtr->width, cascades[0].depthTexturePtr->height));
         for (u32 i = 0; i < kNumCascades; ++i)
         {
-            depthRenderTargetPtr->setDepthBuffer(cascades[i].depthTexturePtr.get());
-            depthRenderTargetPtr->clear({ { 0u } });
-
-            // todo: this is just a temporary hack camera should be orthographic
-            Camera camera = { };
-            camera.view = glm::lookAt(glm::vec3(0.f), -lightDirection, glm::vec3(0.f, 1.f, 0.f));
-            camera.projection = glm::orthoLH(cascades[i].aabb.pmin.x, cascades[i].aabb.pmax.x, cascades[i].aabb.pmin.y, cascades[i].aabb.pmax.y, cascades[i].aabb.pmax.z, cascades[i].aabb.pmin.z);
-            cascades[i].lightProjection = camera.projection;
-            SceneView sceneView(scene, camera, depthRenderTargetPtr.get(), { { 0u } }, { 0u, 0u, depthRenderTargetPtr->width, depthRenderTargetPtr->height }, EntityFlag_kVisible | EntityFlag_kCastShadow);
-            SceneRenderable renderableScene(&scene, sceneView, renderer.getFrameAllocator());
-
-            // render
-            renderer.renderSceneDepthOnly(renderableScene, sceneView);
+            cascades[i].shadowmapPtr->render(scene, cascades[i].worldSpaceAABB, renderer);
         }
     }
 
     void CascadedShadowmap::setShaderParameters(Shader* shader)
     {
+#if 0
         for (u32 i = 0; i < kNumCascades; ++i)
         {
             char samplerName[64] = { };
@@ -75,9 +146,10 @@ namespace Cyan
 
             shader->setUniform(nearClippingPlaneName, cascades[i].n);
             shader->setUniform(farClippingPlaneName, cascades[i].f);
-            shader->setUniform(projectionMatrixName, cascades[i].lightProjection);
-            shader->setTexture(samplerName, cascades[i].depthTexturePtr.get());
+            shader->setUniform(projectionMatrixName, cascades[i].shadowmapPtr->getLightProjection());
+            shader->setTexture(samplerName, cascades[i].shadowmapPtr->getDepth);
         }
+#endif
     }
 
     void CascadedShadowmap::updateCascades(const Camera& camera)
@@ -88,7 +160,7 @@ namespace Cyan
         cascades[0].f = (1.0f - t[0]) * camera.n + t[0] * camera.f;
         for (u32 i = 1u; i < kNumCascades; ++i)
         {
-            cascades[i].n = cascades[i-1].f;
+            cascades[i].n = cascades[i - 1].f;
             cascades[i].f = (1.f - t[i]) * camera.n + t[i] * camera.f;
         }
 
@@ -101,24 +173,22 @@ namespace Cyan
 
     void CascadedShadowmap::calcCascadeAABB(Cascade& cascade, const Camera& camera)
     {
-        glm::mat4 lightView = glm::lookAt(glm::vec3(0.f), -lightDirection, glm::vec3(0.f, 1.f, 0.f));
-
         f32 N = fabs(cascade.n);
         f32 F = fabs(cascade.f);
 
         static f32 fixedProjRadius = 0.f;
-        
+
         /** note
-            scale in z axis to enclose a bigger range in z, since occluder in another 
+            scale in z axis to enclose a bigger range in z, since occluder in another
             frusta might cast shadow on current frusta!! stabilize the projection matrix in xy-plane
         */
-        if ((F-N) > 2.f * F * glm::tan(glm::radians(camera.fov)) * camera.aspectRatio)
+        if ((F - N) > 2.f * F * glm::tan(glm::radians(camera.fov)) * camera.aspectRatio)
         {
-           fixedProjRadius = 0.5f * (F-N) * 1.2f;
+            fixedProjRadius = 0.5f * (F - N) * 1.2f;
         }
         else
         {
-           fixedProjRadius = F * glm::tan(glm::radians(camera.fov)) * camera.aspectRatio * 1.2f;
+            fixedProjRadius = F * glm::tan(glm::radians(camera.fov)) * camera.aspectRatio * 1.2f;
         }
 
         f32 dn = N * glm::tan(glm::radians(camera.fov));
@@ -131,34 +201,24 @@ namespace Cyan
         glm::vec3 nc = nb + camera.up * 2.f * dn;
         glm::vec3 nd = na + camera.up * 2.f * dn;
 
-        glm::vec4 nav4 = lightView * glm::vec4(na, 1.f);
-        glm::vec4 nbv4 = lightView * glm::vec4(nb, 1.f);
-        glm::vec4 ncv4 = lightView * glm::vec4(nc, 1.f);
-        glm::vec4 ndv4 = lightView * glm::vec4(nd, 1.f);
-
         f32 df = F * glm::tan(glm::radians(camera.fov));
         glm::vec3 cpf = glm::normalize(camera.lookAt - camera.position) * F;
-        glm::vec3 caf = cpf + -camera.up * df + -camera.right * df  * camera.aspectRatio;
+        glm::vec3 caf = cpf + -camera.up * df + -camera.right * df * camera.aspectRatio;
 
         glm::vec3 fa = camera.position + caf;
         glm::vec3 fb = fa + camera.right * 2.f * df * camera.aspectRatio;
         glm::vec3 fc = fb + camera.up * 2.f * df;
         glm::vec3 fd = fa + camera.up * 2.f * df;
-        glm::vec4 fav4 = lightView * glm::vec4(fa, 1.f);
-        glm::vec4 fbv4 = lightView * glm::vec4(fb, 1.f);
-        glm::vec4 fcv4 = lightView * glm::vec4(fc, 1.f);
-        glm::vec4 fdv4 = lightView * glm::vec4(fd, 1.f);
 
-        BoundingBox3D& aabb = cascade.aabb;
-        aabb.reset();
-        aabb.bound(nav4);
-        aabb.bound(nbv4);
-        aabb.bound(ncv4);
-        aabb.bound(ndv4);
-        aabb.bound(fav4);
-        aabb.bound(fbv4);
-        aabb.bound(fcv4);
-        aabb.bound(fdv4);
+        BoundingBox3D aabb = { };
+        aabb.bound(na);
+        aabb.bound(nb);
+        aabb.bound(nc);
+        aabb.bound(nd);
+        aabb.bound(fa);
+        aabb.bound(fb);
+        aabb.bound(fc);
+        aabb.bound(fd);
 
         // TODO: improve this procedure for fixing the projection size 
         f32 midX = .5f * (aabb.pmin.x + aabb.pmax.x);
@@ -169,5 +229,7 @@ namespace Cyan
         mid = glm::floor(mid);
         aabb.pmin = glm::vec4(mid - glm::vec3(fixedProjRadius), 1.f);
         aabb.pmax = glm::vec4(mid + glm::vec3(fixedProjRadius), 1.f);
+
+        cascade.worldSpaceAABB = aabb;
     }
 }

@@ -18,7 +18,6 @@ namespace Cyan
         : name(inSceneName)
     {
         rootEntity = createEntity("Root", Transform());
-        aabb.init();
     }
 
     void Scene::update()

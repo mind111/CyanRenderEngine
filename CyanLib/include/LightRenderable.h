@@ -4,10 +4,9 @@
 #include "DirectionalLight.h"
 #include "Shader.h"
 
-struct Scene;
-
 namespace Cyan
 {
+    struct Scene;
     struct Renderer;
 
     struct ILightRenderable
@@ -24,11 +23,7 @@ namespace Cyan
     struct DirectionalLightRenderable : public ILightRenderable
     {
         /* ILightRenderable interface */
-        virtual void renderShadow(const Scene& scene, Renderer& renderer) override
-        {
-            shadowmapPtr->render(scene, renderer);
-        }
-
+        virtual void renderShadow(const Scene& scene, Renderer& renderer) override;
         virtual void setShaderParameters(Shader* shader) override
         {
             shader->setUniform("sceneLights.directionalLight.direction", direction);

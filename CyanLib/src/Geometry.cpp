@@ -195,91 +195,16 @@ u32 indices[24] = {
 
 #endif
 
-// Shader* BoundingBox3D::shader = nullptr;
-
 BoundingBox3D::BoundingBox3D()
 {
     pmin = glm::vec4(FLT_MAX, FLT_MAX, FLT_MAX, 1.0f);
     pmax = glm::vec4(-FLT_MAX, -FLT_MAX, -FLT_MAX, 1.0f);
-#if 0
-    vertexArray = nullptr;
-    if (!shader)
-    {
-        shader = Cyan::createShader("LineShader", SHADER_SOURCE_PATH "shader_line.vs", SHADER_SOURCE_PATH "shader_line.fs");
-    }
-#endif
 }
-
-// setup for debug rendering
-void BoundingBox3D::init()
-{
-#if 0
-    auto vb = Cyan::createVertexBuffer(reinterpret_cast<void*>(vertices), sizeof(vertices), sizeof(glm::vec3), 8u);
-    vb->attributes.push_back({
-        VertexAttribute::DataType::Float, 3, sizeof(glm::vec3), 0u
-    });
-    vertexArray = Cyan::createVertexArray(vb);
-    glCreateBuffers(1, &vertexArray->ibo);
-    glBindVertexArray(vertexArray->vao);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertexArray->ibo);
-    glNamedBufferData(vertexArray->ibo, sizeof(indices),
-                        reinterpret_cast<const void*>(indices), GL_STATIC_DRAW);
-    glBindVertexArray(0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-    vertexArray->init();
-    matl = Cyan::createMaterial(shader)->createInstance();
-    color = glm::vec3(1.0, 0.8, 0.f);
-#endif
-}
-
-
-#if 0
-void BoundingBox3D::draw(glm::mat4& mvp)
-{
-    auto ctx = Cyan::getCurrentGfxCtx();
-    ctx->setShader(shader);
-    matl->set("color", &color.r);
-    matl->set("mvp", &mvp[0]);
-    matl->bindForDraw();
-
-    ctx->setPrimitiveType(Cyan::PrimitiveType::Line);
-    ctx->setVertexArray(vertexArray);
-    ctx->drawIndex(sizeof(indices) / sizeof(u32));
-}
-
-void BoundingBox3D::update()
-{
-    glm::vec3 pMin = Cyan::vec4ToVec3(pmin);
-    glm::vec3 pMax = Cyan::vec4ToVec3(pmax);
-    glm::vec3 dim = pMax - pMin;
-
-    // update vertices
-    vertices[0] = pMin;
-    vertices[1] = vertices[0] + glm::vec3(dim.x, 0.f, 0.f);
-    vertices[2] = vertices[1] + glm::vec3(0.f, dim.y, 0.f);
-    vertices[3] = vertices[2] + glm::vec3(-dim.x, 0.f, 0.f);
-
-    // dim.z < 0 becasue m_pMin.z > 0 while m_pMax.z < 0 
-    vertices[4] = vertices[1] + glm::vec3(0.f, 0.f, dim.z);
-    vertices[5] = vertices[2] + glm::vec3(0.f, 0.f, dim.z);
-    vertices[6] = vertices[3] + glm::vec3(0.f, 0.f, dim.z);
-    vertices[7] = vertices[0] + glm::vec3(0.f, 0.f, dim.z);
-
-    glNamedBufferSubData(vertexArray->vb->vbo, 0, sizeof(vertices), vertices);
-}
-#endif
 
 void BoundingBox3D::reset()
 {
     pmin = glm::vec4(FLT_MAX, FLT_MAX, FLT_MAX, 1.0f);
     pmax = glm::vec4(-FLT_MAX, -FLT_MAX, -FLT_MAX, 1.0f);
-#if 0
-    for (u32 i = 0; i < 8; ++i)
-    {
-        vertices[i] = glm::vec3(0.f);
-    }
-    glNamedBufferSubData(vertexArray->vb->vbo, 0, sizeof(vertices), vertices);
-#endif
 }
 
 void BoundingBox3D::bound(const BoundingBox3D& aabb) 

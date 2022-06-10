@@ -146,13 +146,11 @@ struct BoundingBox3D
 
     BoundingBox3D();
 
-    void init();
-
-    // void draw(glm::mat4& mvp);
     void bound(const BoundingBox3D& aabb);
     void bound(const glm::vec3& v3);
     void bound(const glm::vec4& v4);
     void bound(const Triangle& tri);
+
     /*
     * Reset bounds and vertex data
     */

@@ -111,6 +111,7 @@
     <ClCompile Include="src\LightComponent.cpp" />
     <ClCompile Include="src\LightMap.cpp" />
     <ClCompile Include="src\LightProbe.cpp" />
+    <ClCompile Include="src\LightRenderable.cpp" />
     <ClCompile Include="src\Material.cpp" />
     <ClCompile Include="src\MathUtils.cpp" />
     <ClCompile Include="src\Mesh.cpp" />

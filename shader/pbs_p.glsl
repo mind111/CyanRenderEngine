@@ -33,29 +33,6 @@ layout (binding = 14) uniform sampler2D vctxOcclusion;
 layout (binding = 15) uniform sampler2D vctxIrradiance;
 layout (binding = 16) uniform sampler2D vctxReflection;
 
-//- sun shadow
-float cascadeIntervals[4] = {0.1f, 0.3f, 0.6f, 1.0f};
-
-struct DirLight
-{
-    vec4 color;
-    vec4 direction;
-};
-
-struct PointLight
-{
-    vec4 color;
-    vec4 position;
-};
-
-uniform struct DirectionalLight
-{
-    vec4 diretion;
-    vec4 color;
-    float castShadow;
-    sampler2D shadowmap;
-} directionalLights[1];
-
 //- buffers
 layout(std430, binding = 0) buffer GlobalDrawData
 {
@@ -69,16 +46,6 @@ layout(std430, binding = 0) buffer GlobalDrawData
     float dummy;
 } gDrawData;
 
-layout(std430, binding = 1) buffer dirLightsData
-{
-    DirLight lights[];
-} dirLightsBuffer;
-
-layout(std430, binding = 2) buffer pointLightsData
-{
-    PointLight lights[];
-} pointLightsBuffer;
-
 //- voxel cone tracing
 layout(std430, binding = 4) buffer VoxelGridData
 {
@@ -91,6 +58,7 @@ layout(std430, binding = 4) buffer VoxelGridData
 // constants
 #define pi 3.14159265359
 #define SlopeBasedBias 1
+
 const uint kHasRoughnessMap         = 1 << 0;
 const uint kHasMetallicMap          = 1 << 1;
 const uint kHasMetallicRoughnessMap = 1 << 2;
@@ -99,6 +67,20 @@ const uint kHasDiffuseMap           = 1 << 4;
 const uint kHasNormalMap            = 1 << 5;
 const uint kUsePrototypeTexture     = 1 << 6;
 const uint kUseLightMap             = 1 << 7;            
+
+uniform struct MaterialParameter_PBR
+{
+	int M_flags;
+	sampler2D M_albedo;
+	sampler2D M_normal;
+	sampler2D M_roughness;
+	sampler2D M_metallic;
+	sampler2D M_metallicRoughness;
+	sampler2D M_occlusion;
+	float M_kRoughness;
+	float M_kMetallic;
+	vec3 M_kAlbedo;
+};
 
 // global lighting settings
 uniform struct Lighting
