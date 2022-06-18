@@ -7,12 +7,7 @@
 #define MAX_NUM_POINT_LIGHTS 32
 #define NUM_SHADOW_CASCADES 4
 
-uniform struct DirectionalShadowmap
-{
-	mat4 lightSpaceProjection;
-	sampler2D depthTexture;
-};
-
+#ifdef VARIANCE_SHADOWMAP
 uniform struct VarianceShadowmap
 {
 	mat4 lightSpaceProjection;
@@ -24,8 +19,24 @@ uniform struct Cascade
 {
 	float n;
 	float f;
+	VarianceShadowmap shadowmap;
+};
+#endif
+
+#ifndef VARIANCE_SHADOWMAP
+uniform struct DirectionalShadowmap
+{
+	mat4 lightSpaceProjection;
+	sampler2D depthTexture;
+};
+
+uniform struct Cascade
+{
+	float n;
+	float f;
 	DirectionalShadowmap shadowmap;
 };
+#endif
 
 uniform struct CascadedShadowmap
 {
@@ -36,6 +47,7 @@ uniform struct DirectionalLight
 {
 	vec3 direction;
 	vec4 colorAndIntensity;
+    mat4 lightSpaceView;
 	CascadedShadowmap csm;
 };
 
@@ -46,10 +58,16 @@ uniform struct PointLight
 	samplerCube shadowmap;
 };
 
+uniform struct SkyLight
+{
+	samplerCube irradiance;
+	samplerCube reflection;
+};
+
 uniform struct SceneLights
 {
+	SkyLight skyLight;
 	DirectionalLight directionalLight;
 	PointLight pointLights[MAX_NUM_POINT_LIGHTS];
 } sceneLights;
-
 

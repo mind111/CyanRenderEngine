@@ -1,21 +1,16 @@
 #version 450 core
 
-#define VCTX 1
+in vec3 inViewSpacePosition;
+in vec3 inWorldSpacePosition;
+in vec3 inViewSpaceNormal;
+in vec3 inWorldSpaceNormal;
+in vec3 inViewSpaceTangent;
+in vec2 texCoord0;
+in vec2 texCoord1;
 
-in vec3 n;
-in vec3 wn;
-in vec3 t;
-in vec2 uv;
-in vec2 uv1;
-in vec3 fragmentPos;
-in vec3 fragmentPosWS;
-in vec4 shadowPos;
+out vec3 outColor;
 
-layout (location = 0) out vec4 fragColor;
-layout (location = 1) out vec3 fragmentNormal; 
-layout (location = 2) out vec3 fragmentDepth;
-layout (location = 3) out vec3 radialDistance;
-
+#if 0
 //- samplers
 layout (binding = 0) uniform samplerCube skyboxDiffuse;
 layout (binding = 1) uniform samplerCube skyboxSpecular;
@@ -32,20 +27,23 @@ layout (binding = 13) uniform sampler3D sceneVoxelGridOpacity;
 layout (binding = 14) uniform sampler2D vctxOcclusion;
 layout (binding = 15) uniform sampler2D vctxIrradiance;
 layout (binding = 16) uniform sampler2D vctxReflection;
+#endif
 
-//- buffers
-layout(std430, binding = 0) buffer GlobalDrawData
+// constants
+#define pi 3.14159265359
+#define SLOPE_BASED_BIAS 1
+#define VIEW_SSBO_BINDING 0
+#define VARIANCE_SHADOWMAP 0
+
+layout(std430, binding = VIEW_SSBO_BINDING) buffer ViewShaderStorageBuffer
 {
     mat4  view;
     mat4  projection;
-	mat4  sunLightView;
-	mat4  sunShadowProjections[4];
-    int   numDirLights;
-    int   numPointLights;
-    float m_ssao;
+    float ssao;
     float dummy;
-} gDrawData;
+} viewSsbo;
 
+#if 0
 //- voxel cone tracing
 layout(std430, binding = 4) buffer VoxelGridData
 {
@@ -55,10 +53,174 @@ layout(std430, binding = 4) buffer VoxelGridData
     vec3 padding;
 } sceneVoxelGrid;
 
-// constants
-#define pi 3.14159265359
-#define SlopeBasedBias 1
+//================================= "lights.glsl" =========================================
+#define MAX_NUM_POINT_LIGHTS 32
+#define NUM_SHADOW_CASCADES 4
 
+#if VARIANCE_SHADOWMAP
+uniform struct VarianceShadowmap
+{
+	mat4 lightSpaceProjection;
+	sampler2D depthTexture;
+	sampler2D depthSpuaredTexture;
+};
+
+uniform struct Cascade
+{
+	float n;
+	float f;
+	VarianceShadowmap shadowmap;
+};
+#else
+// todo: since these following structs are declared to be uniform, they has to be instantiated on declaration, which is kind of 
+// inconvenient, is there any better ways to store a texture as a struct member in glsl?
+uniform struct DirectionalShadowmap
+{
+	mat4 lightSpaceProjection;
+	sampler2D depthTexture;
+} directionalShadowmap;
+
+uniform struct Cascade
+{
+	float n;
+	float f;
+	DirectionalShadowmap shadowmap;
+} cascade;
+#endif
+
+uniform struct CascadedShadowmap
+{
+	Cascade cascades[NUM_SHADOW_CASCADES];
+} csm;
+
+uniform struct DirectionalLight
+{
+	vec3 direction;
+	vec4 colorAndIntensity;
+    mat4 lightSpaceView;
+	CascadedShadowmap csm;
+} directionalLight;
+
+uniform struct PointLight
+{
+	vec3 position;
+	vec4 colorAndIntensity;
+	samplerCube shadowmap;
+} pointLight;
+
+uniform struct SkyLight
+{
+	samplerCube irradiance;
+	samplerCube reflection;
+} skyLight;
+
+uniform struct SceneLights
+{
+	SkyLight skyLight;
+	DirectionalLight directionalLight;
+	PointLight pointLights[MAX_NUM_POINT_LIGHTS];
+} sceneLights;
+
+float slopeBasedBias(vec3 n, vec3 l)
+{
+    float cosAlpha = max(dot(n, l), 0.f);
+    float tanAlpha = tan(acos(cosAlpha));
+    float bias = clamp(tanAlpha * 0.0001f, 0.f, 1.f);
+    return bias;
+}
+
+float constantBias()
+{
+    return 0.0025f;
+}
+
+/**
+	determine which cascade to sample from
+*/
+int calcCascadeIndex(in vec3 viewSpacePosition)
+{
+    float cascadeBoundries[4] = { 0.1f, 0.3f, 0.6f, 1.0f };
+    float t = (abs(viewSpacePosition.z) - 0.5f) / (100.f - 0.5f);
+    int cascadeIndex = 0;
+    for (int i = 0; i < 4; ++i)
+    {
+        if (t < cascadeBoundries[i])
+        {
+            cascadeIndex = i;
+            break;
+        }
+    }
+    return cascadeIndex;
+}
+
+float PCFShadow(vec3 worldSpacePosition, vec3 normal, in DirectionalLight directionalLight)
+{
+	float shadow = 0.0f;
+    vec2 texelOffset = vec2(1.f) / textureSize(directionalLight.csm.cascades[0].shadowmap.depthTexture, 0);
+    vec4 lightSpacePosition = directionalLight.csm.cascades[0].shadowmap.lightSpaceProjection * directionalLight.lightSpaceView * vec4(worldSpacePosition, 1.f);
+    float depth = lightSpacePosition.z * .5f + .5f;
+    vec2 uv = lightSpacePosition.xy * .5f + .5f;
+
+    const int kernelRadius = 2;
+    // 5 x 5 filter kernel
+    float kernel[25] = {
+        0.04, 0.04, 0.04, 0.04, 0.04,
+        0.04, 0.04, 0.04, 0.04, 0.04,
+        0.04, 0.04, 0.04, 0.04, 0.04,
+        0.04, 0.04, 0.04, 0.04, 0.04,
+        0.04, 0.04, 0.04, 0.04, 0.04
+    };
+
+    for (int i = -kernelRadius; i <= kernelRadius; ++i)
+    {
+        for (int j = -kernelRadius; j <= kernelRadius; ++j)
+        {
+            vec2 offset = vec2(i, j) * texelOffset;
+            vec2 texCoord = uv + offset;
+            if (texCoord.x < 0.f || texCoord.x > 1.f || texCoord.y < 0.f || texCoord.y > 1.f) 
+            {
+                continue;
+			}
+#if SLOPE_BASED_BIAS
+			float bias = constantBias() + slopeBasedBias(normal, directionalLight.direction);
+#else
+			float bias = constantBias();
+#endif
+            float shadowSample = texture(directionalLight.csm.cascades[0].shadowmap.depthTexture, texCoord).r < (depth - bias) ? 0.f : 1.f;
+            shadow += shadowSample * kernel[(i + kernelRadius) * 5 + (j + kernelRadius)];
+        }
+    }
+    return shadow;
+}
+
+// todo: the shadow is almost too soft!
+/** note:
+    objects that are closer to the near clipping plane for each frusta in CSM doesn't show such 
+    artifact, which infers that when t decreases, the Chebychev inequility increases. Don't know why this happens!
+*/
+float varianceShadow(vec2 shadowTexCoord, float fragmentDepth, int cascadeOffset)
+{
+    float shadow = 1.f;
+    float firstMoment = texture(shadowCascades[cascadeOffset], shadowTexCoord).r;
+    if (firstMoment <= fragmentDepth)
+    {
+        float t = fragmentDepth;
+        float secondMoment = texture(shadowCascades[cascadeOffset], shadowTexCoord).g;
+        // use second and first moment to compute variance
+        float variance = max(secondMoment - firstMoment * firstMoment, 0.0001f);
+        //he Chebycv visibility test
+        shadow = variance / (variance + (t - firstMoment) * (t - firstMoment));
+    }
+    return shadow;
+}
+
+float calcDirectionalShadow(vec3 worldPosition, vec3 normal, in DirectionalLight directionalLight)
+{
+    return PCFShadow(worldPosition, normal, directionalLight);
+}
+//==========================================================================
+
+//=============== material.glsl =================================================
 const uint kHasRoughnessMap         = 1 << 0;
 const uint kHasMetallicMap          = 1 << 1;
 const uint kHasMetallicRoughnessMap = 1 << 2;
@@ -68,7 +230,10 @@ const uint kHasNormalMap            = 1 << 5;
 const uint kUsePrototypeTexture     = 1 << 6;
 const uint kUseLightMap             = 1 << 7;            
 
-uniform struct MaterialParameter_PBR
+/**
+	mirror's pbr material definition on application side
+*/
+uniform struct MaterialInput
 {
 	int M_flags;
 	sampler2D M_albedo;
@@ -80,47 +245,20 @@ uniform struct MaterialParameter_PBR
 	float M_kRoughness;
 	float M_kMetallic;
 	vec3 M_kAlbedo;
+} materialInput;
+
+/**
+	material parameters processed and converted from application side material definition 
+*/
+struct MaterialParameters
+{
+	vec3 albedo;
+	vec3 normal;
+	float roughness;
+	float metallic;
+	float occlusion;
 };
 
-// global lighting settings
-uniform struct Lighting
-{
-    float       indirectDiffuseScale;
-    float       indirectSpecularScale;
-	float       directLightingScale;
-	float       indirectLightingScale;
-	float       diffuseScale;
-    float       specularScale;
-} gLighting;
-
-// per instance material data
-uniform struct MaterialInstanceData
-{
-	uint  flags;
-	float useSkybox;
-	float directDiffuseScale;
-	float directSpecularScale;
-	float indirectDiffuseScale;
-	float indirectSpecularScale;
-	// control incident specular amount .5 by default
-	float uniformSpecular;
-	float uniformRoughness;
-	float uniformMetallic;
-	vec4  flatColor;
-} uMatlData;
-
-//- samplers
-uniform sampler2D diffuseMaps[2];
-uniform sampler2D emissionMaps[2];
-uniform sampler2D normalMap;
-uniform sampler2D roughnessMap;
-uniform sampler2D metalnessMap;
-uniform sampler2D metallicRoughnessMap;
-uniform sampler2D aoMap;
-uniform sampler2D lightMap;
-
-//- debug switches
-uniform float disneyReparam;
 vec4 tangentSpaceToViewSpace(vec3 tn, vec3 vn, vec3 t) 
 {
     mat4 tbn;
@@ -134,6 +272,66 @@ vec4 tangentSpaceToViewSpace(vec3 tn, vec3 vn, vec3 t)
     return tbn * vec4(tn, 0.0f);
 }
 
+MaterialParameters getMaterialParameters(vec3 worldSpaceNormal, vec3 worldSpaceTangent, vec2 texCoord)
+{
+	MaterialParameters materialParameters;
+
+    if ((materialInput.M_flags & kHasNormalMap) != 0u)
+    {
+        vec3 tn = texture(materialInput.M_normal, texCoord).xyz;
+        // Convert from [0, 1] to [-1.0, 1.0] and renomalize if texture filtering changes the length
+        tn = normalize(tn * 2.f - vec3(1.f));
+        // Covert normal from tangent frame to camera space
+        materialParameters.normal = tangentSpaceToViewSpace(tn, worldSpaceNormal, worldSpaceTangent).xyz;
+    }
+
+    materialParameters.albedo = materialInput.M_kAlbedo;
+    if ((materialInput.M_flags & kHasDiffuseMap) != 0u)
+    {
+        materialParameters.albedo = texture(materialInput.M_albedo, texCoord).rgb;
+		// from sRGB to linear space if using a texture
+		materialParameters.albedo = vec3(pow(materialParameters.albedo.r, 2.2f), pow(materialParameters.albedo.g, 2.2f), pow(materialParameters.albedo.b, 2.2f));
+    }
+
+    // According to gltf-2.0 spec, metal is sampled from b, roughness is sampled from g
+    float roughness = materialInput.M_kRoughness, metallic = materialInput.M_kMetallic;
+    if ((materialInput.M_flags & kHasMetallicRoughnessMap) != 0u)
+    {
+        vec2 metallicRoughness = texture(materialInput.M_metallicRoughness, texCoord).gb;
+        roughness = metallicRoughness.x;
+        roughness = roughness * roughness;
+        metallic = metallicRoughness.y; 
+    }
+    else if ((materialInput.M_flags & kHasRoughnessMap) != 0u)
+    {
+        roughness = texture(materialInput.M_roughness, texCoord).r;
+        roughness = roughness * roughness;
+        metallic = materialInput.M_kMetallic;
+    } 
+    else
+    {
+        roughness = materialInput.M_kRoughness;
+        metallic = materialInput.M_kMetallic;
+    }
+    materialParameters.roughness = roughness;
+    materialParameters.metallic = metallic;
+
+    materialParameters.occlusion = 1.f;
+    if ((materialInput.M_flags & kHasOcclusionMap) != 0)
+    {
+        materialParameters.occlusion = texture(materialInput.M_occlusion, texCoord).r;
+		materialParameters.occlusion = pow(materialParameters.occlusion, 3.0f);
+    }
+
+	return materialParameters;
+}
+//===============================================================================
+
+uniform sampler2D ssaoTexture;
+
+//- samplers
+uniform sampler2D lightMap;
+
 mat3 tbn(vec3 n)
 {
     vec3 up = abs(n.y) < 0.98f ? vec3(0.f, 1.f, 0.f) : vec3(0.f, 0.f, 1.f);
@@ -146,47 +344,9 @@ mat3 tbn(vec3 n)
     );
 }
 
-// Generate a sample direction in tangent space and output world space direction
-vec3 generateSample(vec3 n, float theta, float phi)
-{
-    float x = sin(theta) * sin(phi);
-    float y = sin(theta) * cos(phi);
-    float z = cos(theta);
-    vec3 s = vec3(x, y, z);
-    // Prevent the case where n is  (0.f, 1.f, 0.f)
-    vec3 up = abs(n.x) > 0.f ? vec3(0.f, 1.f, 0.f) : vec3(0.f, 0.f, 1.f);
-    vec3 xAxis = cross(up, n);
-    vec3 yAxis = cross(n, xAxis);
-    vec3 zAxis = n;
-    mat3 toWorldSpace = {
-        xAxis,
-        yAxis,
-        zAxis
-    };
-    return normalize(toWorldSpace * s);
-}
-
 float saturate(float k)
 {
     return clamp(k, 0.f, 1.f);
-}
-
-float VanDerCorput(uint n, uint sbase)
-{
-    float invBase = 1.0 / float(base);
-    float denom   = 1.0;
-    float result  = 0.0;
-    for(uint i = 0u; i < 32u; ++i)
-    {
-        if(n > 0u)
-        {
-            denom   = mod(float(n), 2.0);
-            result += denom * invBase;
-            invBase = invBase / 2.0;
-            n       = uint(float(n) / 2.0);
-        }
-    }
-    return result;
 }
 
 vec3 gammaCorrection(vec3 inColor, float gamma)
@@ -198,9 +358,7 @@ vec3 gammaCorrection(vec3 inColor, float gamma)
 // Using Disney's parameterization of alpha_g = roughness * roughness
 float GGX(float roughness, float ndoth) 
 {
-    float alpha = roughness;
-    if (disneyReparam > .5f)
-        alpha *= alpha;
+    float alpha = roughness * roughness;
     float alpha2 = alpha * alpha;
     float result = alpha2;
     float denom = ndoth * ndoth * (alpha2 - 1.f) + 1.f;
@@ -228,9 +386,7 @@ vec3 fresnel(vec3 f0, vec3 n, vec3 v)
 */
 float ggxSmithLambda(vec3 v, vec3 h, float roughness)
 {
-    float alpha = roughness;
-    if (disneyReparam > .5f)
-        alpha *= roughness;
+    float alpha = roughness * roughness;
     float alpha2 = alpha * alpha;
     float hdotv = saturate(dot(h, v));
     float hdotv2 = max(0.001f, hdotv * hdotv);
@@ -256,9 +412,7 @@ float ggxSmithG1(vec3 v, vec3 h, vec3 n, float roughness)
 {
     float ndotv = dot(n, v); 
     float hdotv = dot(h, v); 
-    float alpha = roughness;
-    if (disneyReparam > .5f)
-        alpha *= roughness;
+    float alpha = roughness * roughness;
     float alpha2 = alpha * alpha;
     float tangentTheta2 = (1 - ndotv * ndotv) / max(0.001f, (ndotv * ndotv));
     return 2.f / (1.f + sqrt(1.f + alpha2 * tangentTheta2));
@@ -270,19 +424,19 @@ float ggxSmithG2Ex(vec3 v, vec3 l, vec3 n, float roughness)
     return ggxSmithG1(v, h, n, roughness) * ggxSmithG1(l, h, n, roughness);
 }
 
-/*
+/**
     * microfacet diffuse brdf
 */
-vec3 diffuseBrdf(vec3 baseColor)
+vec3 LambertBRDF(vec3 baseColor)
 {
     return baseColor / pi;
 }
 
-/*
+/**
     * microfacet specular brdf 
     * A brdf fr(i, o, n) 
 */
-vec3 specularBrdf(vec3 wi, vec3 wo, vec3 n, float roughness, vec3 f0)
+vec3 CookTorranceBRDF(vec3 wi, vec3 wo, vec3 n, float roughness, vec3 f0)
 {
     float ndotv = saturate(dot(n, wo));
     float ndotl = saturate(dot(n, wi));
@@ -295,373 +449,86 @@ vec3 specularBrdf(vec3 wi, vec3 wo, vec3 n, float roughness, vec3 f0)
     // TODO: the max() operator here actually affects how strong the specular highlight is
     // near grazing angle. Using a small value like 0.0001 will have pretty bad shading alias. However,
     // is using 0.1 here corret though. Need to reference other implementation. 
-    vec3 brdf = D * F * G / max((4.f * ndotv * ndotl), 0.01f);
-    return brdf;
+    return D * F * G / max((4.f * ndotv * ndotl), 0.01f);
 }
 
-struct RenderParams
-{
-    vec3 baseColor;
-    vec3 f0;
-    float roughness;
-    float metallic;
-    vec3 n;
-    vec3 wn;
-    vec3 v;
-    vec3 l;
-    vec3 li;
-    float ao;
-    float shadow;
-};
-
-/*
-    * render equation:
-    *    fr(i, o, n) * Li * cos(i, n)
+/**
+    f0 is specular reflectance
 */
-vec3 render(RenderParams params)
+vec3 calcF0(MaterialParameters materialParameters)
 {
-    vec3 h = normalize(params.v + params.l);
-    float ndotl = max(0.f, dot(params.n, params.l));
-    vec3 F = fresnel(params.f0, params.n, params.v);
-    vec3 kDiffuse = mix(vec3(1.f) - F, vec3(0.0f), params.metallic);
-    vec3 diffuse = kDiffuse * diffuseBrdf(params.baseColor) * ndotl;
-    vec3 specular = specularBrdf(params.l, params.v, params.n, params.roughness, params.f0) * ndotl * uMatlData.uniformSpecular;
-    return (uMatlData.directDiffuseScale * diffuse * params.ao + uMatlData.directSpecularScale * specular) * params.li * params.shadow;
+    return mix(vec3(0.04f), materialParameters.albedo, materialParameters.metallic);
 }
 
-struct CascadeOffset
+vec3 calcDirectionalLight(DirectionalLight directionalLight, MaterialParameters materialParameters, vec3 worldSpacePosition)
 {
-    int cascadeIndex;
-    float blend;
-};
-
-float receiverPlaneBias()
-{
-    return 0.f;
+    vec3 radiance = vec3(0.f);
+    float ndotl = max(dot(materialParameters.normal, directionalLight.direction), 0.f);
+    // diffuse
+    radiance += LambertBRDF(materialParameters.albedo) * directionalLight.colorAndIntensity.rgb * directionalLight.colorAndIntensity.a * ndotl;
+    // specular
+    vec3 viewSpacePosition = (viewSsbo.view * vec4(worldSpacePosition, 1.f)).xyz;
+    vec3 viewDirection = normalize(-viewSpacePosition);
+    vec3 f0 = calcF0(materialParameters);
+    radiance += CookTorranceBRDF(directionalLight.direction, viewDirection, materialParameters.normal, materialParameters.roughness, f0);
+    // shadow
+    radiance *= calcDirectionalShadow(worldSpacePosition, materialParameters.normal, directionalLight);
+    return radiance;
 }
 
-float hash(float seed)
+vec3 calcPointLight()
 {
-    return fract(sin(seed)*43758.5453);
+    vec3 radiance = vec3(0.f);
+    return radiance;
 }
 
-vec2 poissonDisk[16] = {
-    vec2(0.0f, 0.0f),
-    vec2(-0.12898344341433365f, 0.9899081724466391f),
-    vec2(-0.7115630380482f, -0.6717652762445723f),
-    vec2(0.6255420751877646f, -0.7741921036894567f),
-    vec2(-0.9653999739403848f, 0.17530587149228552f),
-    vec2(0.691113976301551f, 0.48119973139480177f),
-    vec2(-0.12851139927537647f, -0.8524433003534433f),
-    vec2(0.700006000568444f, -0.13805444726084157f),
-    vec2(-0.6867220937521193f, 0.7085933588034541f),
-    vec2(0.18691668662800787f, 0.556766808404342f),
-    vec2(-0.5556202365712988f, -0.1203899610980727f),
-    vec2(0.29886693084172145f, -0.36678829985203076f),
-    vec2(-0.2658487878579549f, 0.3613299173396298f),
-    vec2(-0.17434662620121177f, -0.3966607071496744f),
-    vec2(-0.914892182165179f, -0.3337933798935767f),
-    vec2(0.2756462889571648f, 0.9568473655028747f)
-};
-
-vec2 poissonSample(uint index)
+vec3 calcSkyLight(SkyLight skyLight, MaterialParameters materialParameters, vec3 worldSpacePosition)
 {
-    float theta = hash(dot(gl_FragCoord.xy, vec2(12.9898,78.233))) * 2.f * pi;
-    mat2 rot = { 
-        { cos(theta), sin(theta) },
-        {-sin(theta), cos(theta) }
-    };
-    return (rot * vec2(1.f, 0.f)) * poissonDisk[index];
-}
-
-CascadeOffset computeCascadeIndex()
-{
-    // determine which cascade to sample
-    float t = (abs(fragmentPos.z) - 0.5f) / (100.f - 0.5f);
-    int cascadeIndex = 0;
-    float blend = 1.f;
-    for (int i = 0; i < 4; ++i)
-    {
-        if (t < cascadeIntervals[i])
-        {
-            cascadeIndex = i;
-            if (i > 0)
-            {
-                float cascadeRelDepth = (t - cascadeIntervals[i-1]) / (cascadeIntervals[i] - cascadeIntervals[i-1]); 
-                cascadeRelDepth = clamp(cascadeRelDepth, 0.f, 0.2f);
-                blend = cascadeRelDepth * 5.f;
-            }
-            break;
-        }
-    }
-    return CascadeOffset(cascadeIndex, blend);
-}
-
-// TODO: improve shadow biasing, normal bias and receiver plane bias...?
-// TODO: add a manual depth bias for each dir light maybe...?
-// TODO: proper blending between cascades
-#define GAUSSIAN_KERNEL 1
-float PCFShadow(CascadeOffset cascadeOffset, float bias)
-{
-    float shadow = 1.f;
-
-    // clip uv used to sample the shadow map 
-    vec2 texelOffset = vec2(1.f) / textureSize(shadowCascades[cascadeOffset.cascadeIndex], 0);
-    // compute shadowmap uv
-    vec4 lightViewFragPos = gDrawData.sunShadowProjections[cascadeOffset.cascadeIndex] * gDrawData.sunLightView * vec4(fragmentPosWS, 1.f);
-    vec2 shadowTexCoord = floor((lightViewFragPos.xy * .5f + .5f) * textureSize(shadowCascades[cascadeOffset.cascadeIndex], 0)) + .5f; 
-    shadowTexCoord /= textureSize(shadowCascades[cascadeOffset.cascadeIndex], 0);
-
-    // bring depth into [0, 1] from [-1, 1]
-    float fragmentDepth = lightViewFragPos.z * 0.5f + .5f;
-
-    const int kernelRadius = 2;
-    // 5 x 5 filter kernel
-#if GAUSSIAN_KERNEL
-    float gaussianKernel[25] = { 
-        1.f, 4.f,   7.f, 4.f, 1.f,
-        4.f, 16.f, 26.f, 16.f, 4.f,
-        7.f, 26.f, 41.f, 26.f, 7.f,
-        4.f, 16.f, 26.f, 16.f, 4.f,
-        1.f, 4.f,   7.f, 4.f, 1.f
-    };
-#else
-    float kernel[25] = {
-        0.04, 0.04, 0.04, 0.04, 0.04,
-        0.04, 0.04, 0.04, 0.04, 0.04,
-        0.04, 0.04, 0.04, 0.04, 0.04,
-        0.04, 0.04, 0.04, 0.04, 0.04,
-        0.04, 0.04, 0.04, 0.04, 0.04
-    };
-#endif
-    float convolved = 0.f;
-    for (int i = -kernelRadius; i <= kernelRadius; ++i)
-    {
-        for (int j = -kernelRadius; j <= kernelRadius; ++j)
-        {
-            vec2 offset = vec2(i, j) * texelOffset;
-            vec2 sampleTexCoord = shadowTexCoord + offset;
-            if (sampleTexCoord.x < 0.f 
-                || sampleTexCoord.x > 1.f 
-                || sampleTexCoord.y < 0.f 
-                || sampleTexCoord.y > 1.f) 
-                continue;
-
-            float depthTest = texture(shadowCascades[cascadeOffset.cascadeIndex], sampleTexCoord).r < (fragmentDepth - bias) ? 0.f : 1.f;
-#if GAUSSIAN_KERNEL
-            convolved += depthTest * (gaussianKernel[(i + kernelRadius) * 5 + (j + kernelRadius)] * (1.f / 273.f));
-#else
-            convolved += depthTest * kernel[(i + kernelRadius) * 5 + (j + kernelRaius)];
-#endif
-        }
-    }
-    shadow = convolved;
-    return shadow;
-}
-
-// TODO: the shadow is almost too soft!
-/* 
-    Note(Min): objects that are closer to the near clipping plane for each frusta in CSM doesn't show such 
-    artifact, which infers that when t decreases, the Chebychev inequility increases. Don't know why this happens!
-*/
-float varianceShadow(vec2 shadowTexCoord, float fragmentDepth, int cascadeOffset)
-{
-    float shadow = 1.f;
-    float firstMoment = texture(shadowCascades[cascadeOffset], shadowTexCoord).r;
-    if (firstMoment <= fragmentDepth)
-    {
-        float t = fragmentDepth;
-        float secondMoment = texture(shadowCascades[cascadeOffset], shadowTexCoord).g;
-        // use second and first moment to compute variance
-        float variance = max(secondMoment - firstMoment * firstMoment, 0.0001f);
-        //he Chebycv visibility test
-        shadow = variance / (variance + (t - firstMoment) * (t - firstMoment));
-    }
-    return shadow;
-}
-
-#define PCF_SHADOW   1
-#define VSM_SHADOW   0
-
-float slopeBasedBias(vec3 n, vec3 l)
-{
-    float cosAlpha = max(dot(n, l), 0.f);
-    float tanAlpha = tan(acos(cosAlpha));
-    float bias = clamp(tanAlpha * 0.0001f, 0.f, 1.f);
-    return bias;
-}
-
-float constantBias()
-{
-    return 0.0025f;
-}
-
-float isInShadow(float bias)
-{
-    float shadow = 1.f;
-    // determine which cascade to sample
-    CascadeOffset cascadeOffset = computeCascadeIndex();
-#if PCF_SHADOW
-        shadow = PCFShadow(cascadeOffset, bias);
-#endif
-#if VSM_SHADOW
-    shadow = varianceShadow(shadowTexCoord, fragmentDepth, cascadeOffset);
-#endif
-    return shadow;
-}
-
-vec3 directLighting(RenderParams renderParams)
-{
-    vec3 color = vec3(0.f);
-    for (int i = 0; i < gDrawData.numPointLights; i++)
-    {
-        vec4 lightPos = gDrawData.view * pointLightsBuffer.lights[i].position;
-        float distance = length(lightPos.xyz - fragmentPos);
-        float attenuation = 1.f / (1.0f + 0.7 * distance + 1.8 * distance * distance);
-        renderParams.l = normalize(lightPos.xyz - fragmentPos);
-        renderParams.li = pointLightsBuffer.lights[i].color.rgb * pointLightsBuffer.lights[i].color.w * attenuation;
-        color += render(renderParams);
-    }
-    for (int i = 0; i < gDrawData.numDirLights; i++)
-    {
-        vec4 worldFragPos = inverse(gDrawData.view) * vec4(fragmentPos, 1.f);
-        vec4 lightDir = gDrawData.view * (dirLightsBuffer.lights[i].direction);
-        renderParams.l = normalize(lightDir.xyz);
-        renderParams.li = dirLightsBuffer.lights[i].color.rgb * dirLightsBuffer.lights[i].color.w;
-#if SlopeBasedBias
-        float shadowBias = constantBias() + slopeBasedBias(renderParams.n, renderParams.l);
-#else
-        float shadowBias = constantBias();
-#endif
-        renderParams.shadow = isInShadow(shadowBias);
-        color += render(renderParams);
-    }
-    return color;
-}
-
-vec3 indirectLighting(RenderParams params)
-{
-    vec3 color = vec3(0.f);
-
-    vec3 F = fresnel(params.f0, params.n, params.v); 
-    vec3 kDiffuse = mix(vec3(1.f) - F, vec3(0.f), params.metallic);
-
-    // diffuse irradiance
-    vec3 irradiance = (uMatlData.useSkybox > .5f) ? texture(skyboxDiffuse, params.wn).rgb : texture(irradianceProbe, params.wn).rgb;
-    vec3 diffuse = kDiffuse * gLighting.indirectDiffuseScale * params.baseColor * irradiance * pow(params.ao, 5.f);
-
-    // specular radiance
-    float ndotv = saturate(dot(params.n, params.v));
-    vec3 r = -reflect(params.v, params.n);
-    mat4 view = gDrawData.view;
+    vec3 radiance = vec3(0.f);
+    // irradiance
+    radiance += LambertBRDF(materialParameters.albedo) * texture(skyLight.irradiance, materialParameters.normal).rgb;
+    // reflection
+    vec3 viewSpacePosition = (viewSsbo.view * vec4(worldSpacePosition, 1.f)).xyz;
+    vec3 viewDirection = normalize(-viewSpacePosition);
+    vec3 reflectionDirection = -reflect(viewDirection, materialParameters.normal);
+    float ndotv = max(dot(materialParameters.normal, viewDirection), 0.f);
+    mat4 view = viewSsbo.view;
     view[3] = vec4(0.f, 0.f, 0.f, 1.f);
-    vec3 rr = (inverse(view) * vec4(r, 0.f)).xyz;
-    vec3 convolvedRadiance = uMatlData.useSkybox > .5f ? textureLod(skyboxSpecular, rr, params.roughness * 10.f).rgb : textureLod(localReflectionProbe, rr, params.roughness * 10.f).rgb;
-    vec3 BRDF = texture(BRDFLookupTexture, vec2(params.roughness, ndotv)).rgb; 
-    vec3 specular = (gLighting.indirectSpecularScale * convolvedRadiance * uMatlData.uniformSpecular) * (params.f0 * BRDF.r + BRDF.g);
-    color += uMatlData.indirectDiffuseScale * diffuse + uMatlData.indirectSpecularScale * specular;
-
-    return color;
+    // transform the reflection vector back to world space
+    vec3 worldSpaceReflectionDirection = (inverse(view) * vec4(reflectionDirection, 0.f)).xyz;
+    vec3 BRDF = texture(BRDFLookupTexture, vec2(materialParameters.roughness, ndotv)).rgb; 
+    vec3 f0 = calcF0(materialParameters);
+    vec3 incidentRadiance = textureLod(skyboxSpecular, worldSpaceReflectionDirection, materialParameters.roughness * 10.f).rgb;
+    radiance += incidentRadiance * (f0 * BRDF.r + BRDF.g);
+    // todo: skylight occlusion
+    float ssao = 1.f;
+    if (viewSsbo.ssao > .5f)
+    {
+		vec2 screenTexCoord = gl_FragCoord.xy *.5f / vec2(textureSize(ssaoTex, 0));
+		ssao = texture(ssaoTexture, screenTexCoord).r;
+    }
+    radiance *= ssao;
+    return radiance;
 }
 
-vec3 prototypeGridTexture(vec3 worldPos)
+vec3 calcLighting(SceneLights sceneLights, MaterialParameters materialParameters, vec3 worldSpacePosition)
 {
-    float coef = (abs(worldPos.x - round(worldPos.x)) < 0.01f) || (abs(worldPos.z - round(worldPos.z)) < 0.01f) ? .2f : 1.f;
-    vec3 color = uMatlData.flatColor.rgb * coef;
-    return color;
+    vec3 radiance = vec3(0.f);
+    radiance += calcDirectionalLight(sceneLights.directionalLight, materialParameters, worldSpacePosition);
+    radiance += calcSkyLight(sceneLights.skyLight, materialParameters, worldSpacePosition);
+    return radiance;
 }
-
-vec3 defaultAlbedo(vec3 worldPos, vec2 texCoord)
-{
-    vec3 color = uMatlData.flatColor.rgb;
-    color = ((uMatlData.flags & kUsePrototypeTexture) != 0u) ? prototypeGridTexture(worldPos) : color;
-    return color;
-}
-
-void main() 
-{
-    vec3 normal = normalize(n);
-    vec3 tangent = normalize(t);
-    vec3 worldSpaceNormal = normalize(wn);
-
-    if ((uMatlData.flags & kHasNormalMap) != 0u)
-    {
-        vec3 tn = texture(normalMap, uv).xyz;
-        // Convert from [0, 1] to [-1.0, 1.0] and renomalize if texture filtering changes the length
-        tn = normalize(tn * 2.f - vec3(1.f));
-        // Covert normal from tangent frame to camera space
-        normal = tangentSpaceToViewSpace(tn, normal, tangent).xyz;
-    }
-
-    /* Texture mapping */
-    vec4 albedo = (uMatlData.flags & kHasDiffuseMap) != 0u ? texture(diffuseMaps[0], uv) : vec4(defaultAlbedo(fragmentPosWS, uv), 1.f);
-    // from sRGB to linear space if using a texture
-    albedo.rgb = vec3(pow(albedo.r, 2.2f), pow(albedo.g, 2.2f), pow(albedo.b, 2.2f));
-
-    // According to gltf-2.0 spec, metal is sampled from b, roughness is sampled from g
-    float roughness, metallic;
-    if ((uMatlData.flags & kHasMetallicRoughnessMap) != 0u)
-    {
-        roughness = texture(metallicRoughnessMap, uv).g;
-        roughness = roughness * roughness;
-        metallic = texture(metallicRoughnessMap, uv).b; 
-    }
-    else if ((uMatlData.flags & kHasRoughnessMap) != 0u)
-    {
-        roughness = texture(roughnessMap, uv).r;
-        roughness = roughness * roughness;
-        metallic = uMatlData.uniformMetallic;
-    } 
-    else
-    {
-        roughness = uMatlData.uniformRoughness;
-        metallic = uMatlData.uniformMetallic;
-    }
-    // Determine the specular color
-    // sqrt() because I want to make specular color has stronger tint
-    vec3 f0 = mix(vec3(0.04f), albedo.rgb, metallic);
-    float ao = (uMatlData.flags & kHasOcclusionMap) != 0u ? texture(aoMap, uv).r : 1.0f;
-    ao = pow(ao, 3.0f);
-
-    vec3 viewDir = normalize(-fragmentPos); 
-
-    RenderParams renderParams = {
-        albedo.rgb,
-        f0,
-        roughness,
-        metallic,
-        normal,
-        worldSpaceNormal,
-        viewDir,
-        vec3(0.f),
-        vec3(0.f),
-        ao,
-        1.0
-    };
-
-    vec2 screenTexCoord = gl_FragCoord.xy *.5f / vec2(textureSize(ssaoTex, 0));
-    float ssao = gDrawData.m_ssao > .5f ? texture(ssaoTex, screenTexCoord).r : 1.f;
-
-    vec3 color = vec3(0.f);
-#if VCTX
-    // sky occlusion
-    float occ = min(texture(vctxOcclusion, gl_FragCoord.xy / vec2(2560.f, 1440.f)).r, ssao);
-    // direct lighting
-    color += directLighting(renderParams);
-    // image-based-lighting
-    color += indirectLighting(renderParams) * occ;
-    // cone traced indirect lighting
-    color += texture(vctxIrradiance, gl_FragCoord.xy / vec2(2560.f, 1440.f)).rgb * albedo.rgb * occ;
-#else
-    color += directLighting(renderParams);
-    // image-based-lighting
-    color += indirectLighting(renderParams) * ssao;
-    // baked lighting
-	vec3 bakedLighting = (uMatlData.flags & kUseLightMap) != 0u ? texture(lightMap, uv1).rgb : vec3(0.f);
-    color += bakedLighting * albedo.rgb * ssao;
 #endif
-
-    // write linear color to HDR Framebuffer
-    fragColor = vec4(color, 1.0f);
-    radialDistance = vec3(length(fragmentPos));
+void main()
+{
+    vec3 viewSpaceTangent = normalize(inViewSpaceTangent);
+    vec3 worldSpaceNormal = normalize(inWorldSpaceNormal);
+#if 0
+    // todo: transform tangent back to world space
+    MaterialParameters materialParameters = getMaterialParameters(worldSpaceNormal, viewSpaceTangent, texCoord0);
+    vec3 outRadiance = calcLighting(sceneLights, materialParameters, inWorldSpacePosition);
+#endif
+    // output linear color
+    // outColor = vec4(outRadiance, 1.0f);
+    outColor = vec3(0., 0., 1.);
 }

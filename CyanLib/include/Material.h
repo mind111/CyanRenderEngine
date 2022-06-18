@@ -21,12 +21,11 @@ namespace Cyan
             kHasOcclusionMap         = 1 << 3,
             kHasDiffuseMap           = 1 << 4,
             kHasNormalMap            = 1 << 5,
-            kUsePrototypeTexture     = 1 << 6,
             kUseLightMap             = 1 << 7             
         };
 
         virtual void setShaderParameters(Shader* shader) = 0;
-        virtual bool lit() = 0;
+        virtual bool isLit() = 0;
     };
 
     struct ConstantColor : public MaterialParameter
@@ -38,7 +37,7 @@ namespace Cyan
             shader->setUniform("constantColor", constantColor);
         }
         
-        virtual bool lit() override
+        virtual bool isLit() override
         {
             return false;
         }
@@ -98,7 +97,7 @@ namespace Cyan
             shader->setUniform("M_kAlbedo", kAlbedo);
         }
 
-        virtual bool lit() override
+        virtual bool isLit() override
         {
             return true;
         }
@@ -173,7 +172,7 @@ namespace Cyan
         static std::string getAssetClassTypeDesc() { return std::string("IMaterial"); }
         virtual std::string getAssetObjectTypeDesc() override { return std::string("IMaterial"); }
         virtual void setShaderMaterialParameters() = 0;
-        virtual bool lit() = 0;
+        virtual bool isLit() = 0;
 
         // material shader map
         static MaterialShaderMap materialShaderMap;
@@ -201,7 +200,7 @@ namespace Cyan
         virtual std::string getAssetObjectTypeDesc() override { return typeDesc; }
         static std::string getAssetClassTypeDesc() { return typeDesc; }
         virtual Shader* getMaterialShader() override { return shader; }
-        virtual bool lit() override { return parameter.lit(); }
+        virtual bool isLit() override { return parameter.isLit(); }
 
         virtual void setShaderMaterialParameters() override
         {

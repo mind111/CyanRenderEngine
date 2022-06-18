@@ -24,7 +24,7 @@ namespace Cyan
         void build();
 
         /** 
-        * Build a SkyLight from a sky dome.
+        * Build a SkyLight from this sky dome.
         */
         void buildSkyLight();
         void render();

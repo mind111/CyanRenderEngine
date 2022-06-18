@@ -347,7 +347,7 @@ namespace Cyan
                 task.submesh = parent->getSubmesh(i);
                 task.renderSetupLambda = [this, &sceneRenderable, transformIndex, material](RenderTarget* renderTarget, Shader* shader) {
                     material->setShaderMaterialParameters();
-                    if (material->lit())
+                    if (material->isLit())
                     {
                         setShaderLightingParameters(sceneRenderable, shader);
                     }
@@ -814,7 +814,6 @@ namespace Cyan
                 // renderVctx();
             }
 #endif
-
             // ssao pass
             if (m_settings.enableSSAO)
             {
@@ -826,13 +825,15 @@ namespace Cyan
                 };
                 ssao(sceneView, sceneDepthTexture, sceneNormalTexture);
             }
-#if 0
+
             // main scene pass
+            sceneView.renderTarget = renderTarget;
             sceneView.drawBuffers = {
                 RenderTargetDrawBuffer{ (i32)(SceneColorBuffers::kSceneColor) }
             };
             renderScene(sceneRenderable, sceneView);
 
+#if 0
             // debug object pass
             renderDebugObjects(scene, externDebugRender);
 

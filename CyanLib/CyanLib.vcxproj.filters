@@ -28,6 +28,9 @@
     <Filter Include="Shaders">
       <UniqueIdentifier>{076b0f35-28e5-45d0-ba3c-e908fa947e32}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\Common">
+      <UniqueIdentifier>{9868cac1-e0d1-4672-96e6-e9278e098cfc}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Allocator.h">
@@ -544,9 +547,6 @@
     <None Include="..\shader\debug_color_vs.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\global_buffers.glsl">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="..\shader\voxelize_p.glsl">
       <Filter>Shaders</Filter>
     </None>
@@ -583,8 +583,17 @@
     <None Include="..\shader\voxelize_resolve_c.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\lights.glsl">
-      <Filter>Shaders</Filter>
+    <None Include="..\shader\global_buffers.glsl">
+      <Filter>Shaders\Common</Filter>
+    </None>
+    <None Include="..\shader\light_definitions.glsl">
+      <Filter>Shaders\Common</Filter>
+    </None>
+    <None Include="..\shader\material.glsl">
+      <Filter>Shaders\Common</Filter>
+    </None>
+    <None Include="..\shader\calculate_light.glsl">
+      <Filter>Shaders\Common</Filter>
     </None>
   </ItemGroup>
 </Project>

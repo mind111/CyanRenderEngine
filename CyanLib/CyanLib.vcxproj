@@ -132,10 +132,12 @@
     <ClCompile Include="src\Window.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\shader\calculate_light.glsl" />
     <None Include="..\shader\debug_color_fs.glsl" />
     <None Include="..\shader\debug_color_vs.glsl" />
     <None Include="..\shader\global_buffers.glsl" />
-    <None Include="..\shader\lights.glsl" />
+    <None Include="..\shader\light_definitions.glsl" />
+    <None Include="..\shader\material.glsl" />
     <None Include="..\shader\scene_depth_normal_p.glsl" />
     <None Include="..\shader\scene_depth_normal_v.glsl" />
     <None Include="..\shader\shader_ao.fs" />
