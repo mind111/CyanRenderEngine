@@ -8,6 +8,10 @@
 #include "CyanCore.h"
 #include "Asset.h"
 
+// convenience macros
+#define WM_CLAMP ITextureRenderer
+#define WM_Wrap ITextureR
+
 namespace Cyan
 {
     struct ITextureRenderable : public Asset, public GpuResource
@@ -67,33 +71,45 @@ namespace Cyan
                 MIPMAP_LINEAR,
             };
 
-            enum class Wrap
+            enum class WrapMode
             {
                 CLAMP_TO_EDGE = 0,
+                WRAP,
                 NONE
             };
 
             Filtering minificationFilter = Filtering::LINEAR;
             Filtering magnificationFilter = Filtering::LINEAR;
-            Wrap wrap_s = Wrap::CLAMP_TO_EDGE;
-            Wrap wrap_r = Wrap::CLAMP_TO_EDGE;
-            Wrap wrap_t = Wrap::CLAMP_TO_EDGE;
+            WrapMode wrap_s = WrapMode::CLAMP_TO_EDGE;
+            WrapMode wrap_r = WrapMode::CLAMP_TO_EDGE;
+            WrapMode wrap_t = WrapMode::CLAMP_TO_EDGE;
         };
 
         virtual Spec getTextureSpec() = 0;
 
         ITextureRenderable(const char* inName, const Spec& inSpec, Parameter inParams = Parameter{ })
             : GpuResource(),
-            name(inName),
             pixelFormat(inSpec.pixelFormat),
             parameter(inParams),
             numMips(inSpec.numMips),
             pixelData(inSpec.pixelData)
-        { }
+        { 
+            u32 nameLen = strlen(inName) + 1;
+            if (nameLen <= 1)
+            {
+                cyanError("Invalid texture name length.");
+            }
+            name = new char[nameLen];
+            strcpy_s(name, sizeof(char) * nameLen, inName);
+        }
 
         virtual ~ITextureRenderable() 
         { 
             glDeleteTextures(1, &glResource);
+            if (name)
+            {
+                delete[] name;
+            }
             if (pixelData)
             {
                 delete[] pixelData;
@@ -136,6 +152,7 @@ namespace Cyan
                 glPixelFormat.internalFormat = GL_RGB8;
                 glPixelFormat.format = GL_RGB;
                 glPixelFormat.type = GL_UNSIGNED_BYTE;
+                break;
             case Spec::PixelFormat::R16G16B16:
                 glPixelFormat.internalFormat = GL_RGB16F;
                 glPixelFormat.format = GL_RGB;
@@ -178,12 +195,12 @@ namespace Cyan
                 }
             };
 
-            auto translateWrap = [](const Parameter::Wrap wrap) {
+            auto translateWrap = [](const Parameter::WrapMode wrap) {
                 switch (wrap)
                 {
-                case Parameter::Wrap::CLAMP_TO_EDGE:
+                case Parameter::WrapMode::CLAMP_TO_EDGE:
                     return GL_CLAMP_TO_EDGE;
-                case Parameter::Wrap::NONE:
+                case Parameter::WrapMode::NONE:
                 default:
                     return GL_REPEAT;
                 }
@@ -196,7 +213,7 @@ namespace Cyan
             glTextureParameteri(textureObject, GL_TEXTURE_WRAP_R, translateWrap(parameter.wrap_r));
         }
 
-        const char* name = nullptr;
+        char* name = nullptr;
         Spec::PixelFormat pixelFormat = Spec::PixelFormat::kInvalid;
         Parameter parameter = { };
         u32 numMips = 0;

@@ -1,16 +1,17 @@
 #version 450 core
 
-in vec3 inViewSpacePosition;
-in vec3 inWorldSpacePosition;
-in vec3 inViewSpaceNormal;
-in vec3 inWorldSpaceNormal;
-in vec3 inViewSpaceTangent;
-in vec2 texCoord0;
-in vec2 texCoord1;
+in VSOutput
+{
+	vec3 viewSpacePosition;
+	vec3 worldSpacePosition;
+	vec3 worldSpaceNormal;
+	vec3 viewSpaceTangent;
+	vec2 texCoord0;
+	vec2 texCoord1;
+} psIn;
 
 out vec3 outColor;
 
-#if 0
 //- samplers
 layout (binding = 0) uniform samplerCube skyboxDiffuse;
 layout (binding = 1) uniform samplerCube skyboxSpecular;
@@ -18,8 +19,8 @@ layout (binding = 2) uniform sampler2D BRDFLookupTexture;
 layout (binding = 3) uniform samplerCube irradianceProbe;
 layout (binding = 4) uniform samplerCube localReflectionProbe;
 layout (binding = 5) uniform sampler2D ssaoTex;
-layout (binding = 6) uniform sampler2D shadowCascades[4];
 
+#if 0
 layout (binding = 10) uniform sampler3D sceneVoxelGridAlbedo;
 layout (binding = 11) uniform sampler3D sceneVoxelGridNormal;
 layout (binding = 12) uniform sampler3D sceneVoxelGridRadiance;
@@ -39,7 +40,7 @@ layout(std430, binding = VIEW_SSBO_BINDING) buffer ViewShaderStorageBuffer
 {
     mat4  view;
     mat4  projection;
-    float ssao;
+    float m_ssao;
     float dummy;
 } viewSsbo;
 
@@ -52,6 +53,7 @@ layout(std430, binding = 4) buffer VoxelGridData
     int visMode;
     vec3 padding;
 } sceneVoxelGrid;
+#endif
 
 //================================= "lights.glsl" =========================================
 #define MAX_NUM_POINT_LIGHTS 32
@@ -95,7 +97,7 @@ uniform struct CascadedShadowmap
 
 uniform struct DirectionalLight
 {
-	vec3 direction;
+	vec4 direction;
 	vec4 colorAndIntensity;
     mat4 lightSpaceView;
 	CascadedShadowmap csm;
@@ -116,9 +118,9 @@ uniform struct SkyLight
 
 uniform struct SceneLights
 {
-	SkyLight skyLight;
+	// SkyLight skyLight;
 	DirectionalLight directionalLight;
-	PointLight pointLights[MAX_NUM_POINT_LIGHTS];
+	// PointLight pointLights[MAX_NUM_POINT_LIGHTS];
 } sceneLights;
 
 float slopeBasedBias(vec3 n, vec3 l)
@@ -139,12 +141,10 @@ float constantBias()
 */
 int calcCascadeIndex(in vec3 viewSpacePosition)
 {
-    float cascadeBoundries[4] = { 0.1f, 0.3f, 0.6f, 1.0f };
-    float t = (abs(viewSpacePosition.z) - 0.5f) / (100.f - 0.5f);
     int cascadeIndex = 0;
     for (int i = 0; i < 4; ++i)
     {
-        if (t < cascadeBoundries[i])
+        if (viewSpacePosition.z < sceneLights.directionalLight.csm.cascades[i].f)
         {
             cascadeIndex = i;
             break;
@@ -157,7 +157,9 @@ float PCFShadow(vec3 worldSpacePosition, vec3 normal, in DirectionalLight direct
 {
 	float shadow = 0.0f;
     vec2 texelOffset = vec2(1.f) / textureSize(directionalLight.csm.cascades[0].shadowmap.depthTexture, 0);
-    vec4 lightSpacePosition = directionalLight.csm.cascades[0].shadowmap.lightSpaceProjection * directionalLight.lightSpaceView * vec4(worldSpacePosition, 1.f);
+    vec3 viewSpacePosition = (viewSsbo.view * vec4(worldSpacePosition, 1.f)).xyz;
+    int cascadeIndex = calcCascadeIndex(viewSpacePosition);
+    vec4 lightSpacePosition = directionalLight.csm.cascades[cascadeIndex].shadowmap.lightSpaceProjection * directionalLight.lightSpaceView * vec4(worldSpacePosition, 1.f);
     float depth = lightSpacePosition.z * .5f + .5f;
     vec2 uv = lightSpacePosition.xy * .5f + .5f;
 
@@ -182,11 +184,11 @@ float PCFShadow(vec3 worldSpacePosition, vec3 normal, in DirectionalLight direct
                 continue;
 			}
 #if SLOPE_BASED_BIAS
-			float bias = constantBias() + slopeBasedBias(normal, directionalLight.direction);
+			float bias = constantBias() + slopeBasedBias(normal, directionalLight.direction.xyz);
 #else
 			float bias = constantBias();
 #endif
-            float shadowSample = texture(directionalLight.csm.cascades[0].shadowmap.depthTexture, texCoord).r < (depth - bias) ? 0.f : 1.f;
+            float shadowSample = texture(directionalLight.csm.cascades[cascadeIndex].shadowmap.depthTexture, texCoord).r < (depth - bias) ? 0.f : 1.f;
             shadow += shadowSample * kernel[(i + kernelRadius) * 5 + (j + kernelRadius)];
         }
     }
@@ -198,6 +200,7 @@ float PCFShadow(vec3 worldSpacePosition, vec3 normal, in DirectionalLight direct
     objects that are closer to the near clipping plane for each frusta in CSM doesn't show such 
     artifact, which infers that when t decreases, the Chebychev inequility increases. Don't know why this happens!
 */
+#if 0
 float varianceShadow(vec2 shadowTexCoord, float fragmentDepth, int cascadeOffset)
 {
     float shadow = 1.f;
@@ -213,6 +216,7 @@ float varianceShadow(vec2 shadowTexCoord, float fragmentDepth, int cascadeOffset
     }
     return shadow;
 }
+#endif
 
 float calcDirectionalShadow(vec3 worldPosition, vec3 normal, in DirectionalLight directionalLight)
 {
@@ -235,7 +239,7 @@ const uint kUseLightMap             = 1 << 7;
 */
 uniform struct MaterialInput
 {
-	int M_flags;
+	uint M_flags;
 	sampler2D M_albedo;
 	sampler2D M_normal;
 	sampler2D M_roughness;
@@ -276,6 +280,7 @@ MaterialParameters getMaterialParameters(vec3 worldSpaceNormal, vec3 worldSpaceT
 {
 	MaterialParameters materialParameters;
 
+    materialParameters.normal = worldSpaceNormal;
     if ((materialInput.M_flags & kHasNormalMap) != 0u)
     {
         vec3 tn = texture(materialInput.M_normal, texCoord).xyz;
@@ -329,9 +334,6 @@ MaterialParameters getMaterialParameters(vec3 worldSpaceNormal, vec3 worldSpaceT
 
 uniform sampler2D ssaoTexture;
 
-//- samplers
-uniform sampler2D lightMap;
-
 mat3 tbn(vec3 n)
 {
     vec3 up = abs(n.y) < 0.98f ? vec3(0.f, 1.f, 0.f) : vec3(0.f, 0.f, 1.f);
@@ -347,11 +349,6 @@ mat3 tbn(vec3 n)
 float saturate(float k)
 {
     return clamp(k, 0.f, 1.f);
-}
-
-vec3 gammaCorrection(vec3 inColor, float gamma)
-{
-    return vec3(pow(inColor.r, gamma), pow(inColor.g, gamma), pow(inColor.b, gamma));
 }
 
 // Taking the formula from the GGX paper and simplify to avoid computing tangent
@@ -460,17 +457,18 @@ vec3 calcF0(MaterialParameters materialParameters)
     return mix(vec3(0.04f), materialParameters.albedo, materialParameters.metallic);
 }
 
-vec3 calcDirectionalLight(DirectionalLight directionalLight, MaterialParameters materialParameters, vec3 worldSpacePosition)
+vec3 calcDirectionalLight(in DirectionalLight directionalLight, MaterialParameters materialParameters, vec3 worldSpacePosition)
 {
     vec3 radiance = vec3(0.f);
-    float ndotl = max(dot(materialParameters.normal, directionalLight.direction), 0.f);
+    float ndotl = max(dot(materialParameters.normal, directionalLight.direction.xyz), 0.f);
     // diffuse
+    // todo: for some mysterious reason, this line is causing issue
     radiance += LambertBRDF(materialParameters.albedo) * directionalLight.colorAndIntensity.rgb * directionalLight.colorAndIntensity.a * ndotl;
     // specular
     vec3 viewSpacePosition = (viewSsbo.view * vec4(worldSpacePosition, 1.f)).xyz;
     vec3 viewDirection = normalize(-viewSpacePosition);
     vec3 f0 = calcF0(materialParameters);
-    radiance += CookTorranceBRDF(directionalLight.direction, viewDirection, materialParameters.normal, materialParameters.roughness, f0);
+    // radiance += CookTorranceBRDF(directionalLight.direction.xyz, viewDirection, materialParameters.normal, materialParameters.roughness, f0);
     // shadow
     radiance *= calcDirectionalShadow(worldSpacePosition, materialParameters.normal, directionalLight);
     return radiance;
@@ -482,6 +480,7 @@ vec3 calcPointLight()
     return radiance;
 }
 
+#if 0
 vec3 calcSkyLight(SkyLight skyLight, MaterialParameters materialParameters, vec3 worldSpacePosition)
 {
     vec3 radiance = vec3(0.f);
@@ -502,7 +501,7 @@ vec3 calcSkyLight(SkyLight skyLight, MaterialParameters materialParameters, vec3
     radiance += incidentRadiance * (f0 * BRDF.r + BRDF.g);
     // todo: skylight occlusion
     float ssao = 1.f;
-    if (viewSsbo.ssao > .5f)
+    if (viewSsbo.m_ssao > .5f)
     {
 		vec2 screenTexCoord = gl_FragCoord.xy *.5f / vec2(textureSize(ssaoTex, 0));
 		ssao = texture(ssaoTexture, screenTexCoord).r;
@@ -510,25 +509,78 @@ vec3 calcSkyLight(SkyLight skyLight, MaterialParameters materialParameters, vec3
     radiance *= ssao;
     return radiance;
 }
+#endif
 
-vec3 calcLighting(SceneLights sceneLights, MaterialParameters materialParameters, vec3 worldSpacePosition)
+vec3 calcLighting(SceneLights sceneLights, in MaterialParameters materialParameters, vec3 worldSpacePosition)
 {
     vec3 radiance = vec3(0.f);
     radiance += calcDirectionalLight(sceneLights.directionalLight, materialParameters, worldSpacePosition);
-    radiance += calcSkyLight(sceneLights.skyLight, materialParameters, worldSpacePosition);
+    // radiance += calcSkyLight(sceneLights.skyLight, materialParameters, worldSpacePosition);
     return radiance;
 }
-#endif
+
+float calcLuminance(in vec3 inLinearColor)
+{   
+    return 0.2126 * inLinearColor.r + 0.7152 * inLinearColor.g + 0.0722 * inLinearColor.b;
+}
+
+vec3 ReinhardTonemapping(in vec3 inLinearColor, float whitePointLuminance)
+{
+    float luminance = calcLuminance(inLinearColor);
+    vec3 color = inLinearColor / luminance;
+    float numerator = luminance * (1. + luminance / (whitePointLuminance * whitePointLuminance));
+    float remappedLuminance = numerator / (1.f + luminance);
+    return color * remappedLuminance;
+}
+
+vec3 gammaCorrection(in vec3 inLinearColor, float gamma)
+{
+	return vec3(pow(inLinearColor.r, gamma), pow(inLinearColor.g, gamma), pow(inLinearColor.b, gamma));
+}
+
+/** note:
+    taken from https://github.com/TheRealMJP/BakingLab/blob/master/BakingLab/ACES.hlsl 
+*/
+// sRGB => XYZ => D65_2_D60 => AP1 => RRT_SAT
+const mat3 ACESInputMat =
+{
+    {0.59719, 0.35458, 0.04823},
+    {0.07600, 0.90834, 0.01566},
+    {0.02840, 0.13383, 0.83777}
+};
+
+// ODT_SAT => XYZ => D60_2_D65 => sRGB
+const mat3 ACESOutputMat =
+{
+    { 1.60475, -0.53108, -0.07367},
+    {-0.10208,  1.10813, -0.00605},
+    {-0.00327, -0.07276,  1.07602}
+};
+
+vec3 RRTAndODTFit(vec3 v)
+{
+    vec3 a = v * (v + 0.0245786f) - 0.000090537f;
+    vec3 b = v * (0.983729f * v + 0.4329510f) + 0.238081f;
+    return a / b;
+}
+
+vec3 ACESFitted(vec3 color)
+{
+    color = transpose(ACESInputMat) * color;
+    // Apply RRT and ODT
+    color = RRTAndODTFit(color);
+    color = transpose(ACESOutputMat) * color;
+    // Clamp to [0, 1]
+    color = clamp(color, vec3(0.), vec3(1.));
+    return color;
+}
+
 void main()
 {
-    vec3 viewSpaceTangent = normalize(inViewSpaceTangent);
-    vec3 worldSpaceNormal = normalize(inWorldSpaceNormal);
-#if 0
+    vec3 viewSpaceTangent = normalize(psIn.viewSpaceTangent);
+    vec3 worldSpaceNormal = normalize(psIn.worldSpaceNormal);
     // todo: transform tangent back to world space
-    MaterialParameters materialParameters = getMaterialParameters(worldSpaceNormal, viewSpaceTangent, texCoord0);
-    vec3 outRadiance = calcLighting(sceneLights, materialParameters, inWorldSpacePosition);
-#endif
-    // output linear color
-    // outColor = vec4(outRadiance, 1.0f);
-    outColor = vec3(0., 0., 1.);
+    MaterialParameters materialParameters = getMaterialParameters(worldSpaceNormal, viewSpaceTangent, psIn.texCoord0);
+    outColor = calcDirectionalLight(sceneLights.directionalLight, materialParameters, psIn.worldSpacePosition);
+    outColor = ACESFitted(gammaCorrection(outColor, 1.0 / 2.2));
 }

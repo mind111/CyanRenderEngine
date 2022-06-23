@@ -79,9 +79,16 @@ void DemoApp::setupScene()
 
     // helmet
     {
+        auto helmetMatl = assetManager->createMaterial<PBR>("HelmetMatl");
+        helmetMatl->parameter.albedo = Cyan::AssetManager::getAsset<Cyan::Texture2DRenderable>("helmet_diffuse");
+        helmetMatl->parameter.normal = Cyan::AssetManager::getAsset<Cyan::Texture2DRenderable>("helmet_nm");
+        helmetMatl->parameter.occlusion = Cyan::AssetManager::getAsset<Cyan::Texture2DRenderable>("helmet_ao");
+        helmetMatl->parameter.metallicRoughness = Cyan::AssetManager::getAsset<Cyan::Texture2DRenderable>("helmet_roughness");
+
         auto helmet = demoScene00->getEntity("DamagedHelmet");
-        auto helmetMesh = helmet->getSceneComponent("helmet_mesh")->getAttachedMesh()->parent;
+        helmet->setMaterial("helmet_mesh", helmetMatl);
 #if 0
+        auto helmetMesh = helmet->getSceneComponent("helmet_mesh")->getAttachedMesh()->parent;
         helmetMesh->m_bvh = new Cyan::MeshBVH(helmetMesh);
         helmetMesh->m_bvh->build();
 #endif
@@ -112,8 +119,11 @@ void DemoApp::setupScene()
     // lighting
     {
         // sun light
-        glm::vec3 sunDir = glm::normalize(glm::vec3(1.0f, 0.5f, 1.8f));
-        demoScene00->createDirectionalLight("SunLight", glm::vec3(1.0f, 0.9, 0.7f), glm::vec4(sunDir, 3.6f));
+        /** note
+            * 40 seems to be a good baseline for midday sun light
+        */
+        glm::vec4 sunColorAndIntensity(0.99, .98, 0.82, 40.0);
+        demoScene00->createDirectionalLight("SunLight", /*direction=*/glm::vec3(1.0f, 0.9, 0.7f), /*colorAndIntensity=*/sunColorAndIntensity);
 
         // skybox
 #if 0

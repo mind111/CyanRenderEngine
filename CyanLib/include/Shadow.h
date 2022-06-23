@@ -31,7 +31,7 @@ namespace Cyan
         * 'worldSpaceAABB` is an AABB in world space bounds the volume that need to be shadowmapped, mainly to help defining the light space projection matrix
         */
         virtual void render(const Scene& scene, const BoundingBox3D& worldSpaceAABB, Renderer& renderer) { }
-        virtual void setShaderParameters(Shader* shader) { }
+        virtual void setShaderParameters(Shader* shader, const char* uniformNamePrefix) { }
         static BoundingBox3D calcLightSpaceAABB(const glm::vec3& lightDireciton, const BoundingBox3D& worldSpaceAABB);
 
         IDirectionalShadowmap(const DirectionalLight& inDirectionalLight);
@@ -52,9 +52,9 @@ namespace Cyan
     struct DirectionalShadowmap : public IDirectionalShadowmap
     {
         virtual void render(const Scene& scene, const BoundingBox3D& worldSpaceAABB, Renderer& renderer) override;
-        virtual void setShaderParameters(Shader* shader) override;
+        virtual void setShaderParameters(Shader* shader, const char* uniformNamePrefix) override;
 
-        DirectionalShadowmap(const DirectionalLight& inDirectionalLight);
+        DirectionalShadowmap(const DirectionalLight& inDirectionalLight, const char* depthTextureNamePrefix=nullptr);
 
     private:
         glm::mat4 lightSpaceProjection;
@@ -67,11 +67,12 @@ namespace Cyan
     struct VarianceShadowmap : public IDirectionalShadowmap
     {
         virtual void render(const Scene& scene, const BoundingBox3D& worldSpaceAABB, Renderer& renderer) override { }
-        virtual void setShaderParameters(Shader* shader) { }
+        virtual void setShaderParameters(Shader* shader, const char* uniformNamePrefix) override { }
 
         VarianceShadowmap(const DirectionalLight& inDirectionalLight);
 
     private:
+        glm::mat4 lightSpaceProjection;
         std::unique_ptr<DepthTexture> depthTexturePtr = nullptr;
         std::unique_ptr<DepthTexture> depthSquaredTexturePtr = nullptr;
     };
@@ -80,15 +81,17 @@ namespace Cyan
     {
         /* IDirectionalShadowmap interface */
         virtual void render(const Scene& scene, const BoundingBox3D& worldSpaceAABB, Renderer& renderer) override;
-        virtual void setShaderParameters(Shader* shader) override;
+        virtual void setShaderParameters(Shader* shader, const char* uniformNamePrefix) override;
 
+        static constexpr f32 cascadeBoundries[5] = { 0.0f, 0.1f, 0.3f, 0.6f, 1.0f };
         static constexpr u32 kNumCascades = 4u;
         struct Cascade
         {
+            // 'n' and 'f' are measured in distance from the camera
             f32 n;
             f32 f;
             BoundingBox3D worldSpaceAABB;
-            std::unique_ptr<DirectionalShadowmap> shadowmapPtr;
+            std::unique_ptr<IDirectionalShadowmap> shadowmapPtr;
         } cascades[kNumCascades];
 
         CascadedShadowmap(const DirectionalLight& inDirectionalLight);

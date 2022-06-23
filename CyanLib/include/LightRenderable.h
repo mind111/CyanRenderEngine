@@ -28,7 +28,9 @@ namespace Cyan
         {
             shader->setUniform("sceneLights.directionalLight.direction", direction);
             shader->setUniform("sceneLights.directionalLight.colorAndIntensity", colorAndIntensity);
-            shadowmapPtr->setShaderParameters(shader);
+            glm::mat4 lightSpaceView = glm::lookAt(glm::vec3(0.f), -vec4ToVec3(direction), glm::vec3(0.f, 1.f, 0.f));
+            shader->setUniform("sceneLights.directionalLight.lightSpaceView", lightSpaceView);
+            shadowmapPtr->setShaderParameters(shader, "sceneLights.directionalLight");
         }
 
         DirectionalLightRenderable(const DirectionalLight& inDirectionalLight) 
@@ -39,10 +41,12 @@ namespace Cyan
             {
                 switch (inDirectionalLight.implemenation)
                 {
-                case DirectionalLight::Implementation::kCSM:
+                case DirectionalLight::Implementation::kCSM_Basic:
                     shadowmapPtr = std::make_unique<CascadedShadowmap>(inDirectionalLight);
                     break;
-                case DirectionalLight::Implementation::kVSM:
+                case DirectionalLight::Implementation::kBasic:
+                    break;
+                case DirectionalLight::Implementation::kVarianceShadowmap:
                     break;
                 default:
                     break;

@@ -94,7 +94,17 @@ namespace Cyan
             ITextureRenderable::Spec spec = { };
             spec.numMips = numMips;
             Texture2DRenderable* texture = nullptr;
-            texture = importTexture2D(name.c_str(), filename.c_str(), spec);
+            texture = importTexture2D(
+                name.c_str(), 
+                filename.c_str(), 
+                spec,
+                ITextureRenderable::Parameter { 
+                    ITextureRenderable::Parameter::Filtering::LINEAR,
+                    ITextureRenderable::Parameter::Filtering::LINEAR,
+                    ITextureRenderable::Parameter::WrapMode::WRAP,
+                    ITextureRenderable::Parameter::WrapMode::WRAP,
+                    ITextureRenderable::Parameter::WrapMode::WRAP
+                });
             m_textureMap.insert({ name.c_str(), texture });
         }
     }

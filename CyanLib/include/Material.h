@@ -44,11 +44,6 @@ namespace Cyan
     };
 
     // todo: is there a way to have this struct generate reflection data ...? probably have to use macro
-    // for example
-    // attribute 0 : name, type, data
-    // attribute 1 : name, type, data
-    // attribute 2 : name, type, data
-    // attribute 3 : name, type, data
     struct PBR : public MaterialParameter
     {
         virtual u32 getFlags()
@@ -85,16 +80,16 @@ namespace Cyan
         // can loop through each member field and call shader->setUniform() on each field
         virtual void setShaderParameters(Shader* shader) override
         {
-            shader->setUniform("M_flags", flags);
-            shader->setTexture("M_albedo", albedo);
-            shader->setTexture("M_normal", normal);
-            shader->setTexture("M_roughness", roughness);
-            shader->setTexture("M_metallic", metallic);
-            shader->setTexture("M_metallicRoughness", metallicRoughness);
-            shader->setTexture("M_occlusion", occlusion);
-            shader->setUniform("M_kRoughness", kRoughness);
-            shader->setUniform("M_kMetallic", kMetallic);
-            shader->setUniform("M_kAlbedo", kAlbedo);
+            shader->setUniform("materialInput.M_flags", getFlags());
+            shader->setTexture("materialInput.M_albedo", albedo);
+            shader->setTexture("materialInput.M_normal", normal);
+            shader->setTexture("materialInput.M_roughness", roughness);
+            shader->setTexture("materialInput.M_metallic", metallic);
+            shader->setTexture("materialInput.M_metallicRoughness", metallicRoughness);
+            shader->setTexture("materialInput.M_occlusion", occlusion);
+            shader->setUniform("materialInput.M_kRoughness", kRoughness);
+            shader->setUniform("materialInput.M_kMetallic", kMetallic);
+            shader->setUniform("materialInput.M_kAlbedo", kAlbedo);
         }
 
         virtual bool isLit() override
@@ -102,16 +97,15 @@ namespace Cyan
             return true;
         }
 
-        u32 flags = 0x0;
         Texture2DRenderable* albedo = nullptr;
         Texture2DRenderable* normal = nullptr;
         Texture2DRenderable* roughness = nullptr;
         Texture2DRenderable* metallic = nullptr;
         Texture2DRenderable* metallicRoughness = nullptr;
         Texture2DRenderable* occlusion = nullptr;
-        f32 kRoughness = 0.6f;
-        f32 kMetallic = 0.2f;
-        glm::vec3 kAlbedo = glm::vec3(0.85f, 0.85, 0.7f);
+        f32 kRoughness = 0.8f;
+        f32 kMetallic = 0.1f;
+        glm::vec3 kAlbedo = glm::vec3(1.0, 1.0, 1.0);
     };
 
     template<typename BaseMaterialParameter>

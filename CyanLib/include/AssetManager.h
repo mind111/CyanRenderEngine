@@ -115,7 +115,22 @@ namespace Cyan
         */
         static Texture2DRenderable* importTexture2D(const char* name, const char* imageFilePath, ITextureRenderable::Spec& spec, ITextureRenderable::Parameter parameter=ITextureRenderable::Parameter{ })
         {
-            return nullptr;
+            int width, height, numChannels;
+            stbi_set_flip_vertically_on_load(1);
+            // todo: do I need to distinguish between ldr and hdr pixel format format and use stbi_load/stbi_loadf accordingly?
+            spec.pixelData = reinterpret_cast<u8*>(stbi_load(imageFilePath, &width, &height, &numChannels, 0));
+            // todo: pixel format is hard coded for now
+            if (numChannels == 3)
+            {
+                spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R8G8B8;
+            }
+            else if (numChannels == 4)
+            {
+                spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R8G8B8A8;
+            }
+            spec.width = width;
+            spec.height = height;
+            return createTexture2D(name, spec, parameter);
         }
 
         template <typename MaterialType>

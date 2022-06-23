@@ -39,14 +39,30 @@ namespace Cyan
             : directionalLight(direction, colorAndIntensity, bCastShadow)
         { }
 
-        void getDirection() { }
-        void getColor() { }
+        const glm::vec3& getDirection() { return directionalLight.direction; }
+        const glm::vec4& getColorAndIntensity() { return directionalLight.colorAndIntensity; }
 
-        void setDirection() { }
-        void setColor() { }
+        void setDirection(const glm::vec3& inDirection) { directionalLight.direction = inDirection; }
+        void setColorAndIntensity(const glm::vec4& inColorAndIntensity) { directionalLight.colorAndIntensity = inColorAndIntensity; }
 
     private:
         DirectionalLight directionalLight = DirectionalLight();
+    };
+
+    struct SkyLightComponent : public ILightComponent
+    {
+        /* Component interface */
+        virtual void update() override { }
+        virtual void render() override { }
+        virtual const char* getTag() override { return "SkyLightComponent"; }
+
+        /* LightComponent interface */
+        virtual ILightRenderable* buildRenderableLight(LinearAllocator& allocator) override 
+        { 
+            return nullptr;
+        }
+    private:
+
     };
 
     struct PointLightComponent : public ILightComponent

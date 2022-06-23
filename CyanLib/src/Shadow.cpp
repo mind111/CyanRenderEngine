@@ -58,12 +58,17 @@ namespace Cyan
         return lightSpaceAABB;
     }
 
-    DirectionalShadowmap::DirectionalShadowmap(const DirectionalLight& inDirectionalLight)
+    DirectionalShadowmap::DirectionalShadowmap(const DirectionalLight& inDirectionalLight, const char* depthTextureNamePrefix)
         : IDirectionalShadowmap(inDirectionalLight)
     {
-        char depthTextureName[64] = { };
-        sprintf_s(depthTextureName, "DirectionalShadowmapTexture_%dx%d", resolution.x, resolution.y);
-        depthTexturePtr = std::unique_ptr<DepthTexture>(AssetManager::createDepthTexture(depthTextureName, resolution.x, resolution.y));
+        char depthTextureBuffer[64] = { };
+        sprintf_s(depthTextureBuffer, "DirectionalShadowmapTexture_%dx%d", resolution.x, resolution.y);
+        std::string depthTextureName(depthTextureBuffer);
+        if (depthTextureNamePrefix)
+        {
+            depthTextureName = std::string(depthTextureNamePrefix) + depthTextureName;
+        }
+        depthTexturePtr = std::unique_ptr<DepthTexture>(AssetManager::createDepthTexture(depthTextureName.c_str(), resolution.x, resolution.y));
     }
 
     void DirectionalShadowmap::render(const Scene& scene, const BoundingBox3D& worldSpaceAABB, Renderer& renderer)
@@ -86,9 +91,11 @@ namespace Cyan
         renderer.renderSceneDepthOnly(renderableScene, sceneView);
     }
 
-    void DirectionalShadowmap::setShaderParameters(Shader* shader)
+    void DirectionalShadowmap::setShaderParameters(Shader* shader, const char* uniformNamePrefix)
     {
-
+        std::string inPrefix(uniformNamePrefix);
+        shader->setUniform((inPrefix + ".shadowmap.lightSpaceProjection").c_str(), lightSpaceProjection);
+        shader->setTexture((inPrefix + ".shadowmap.depthTexture").c_str(), depthTexturePtr.get());
     }
 
     VarianceShadowmap::VarianceShadowmap(const DirectionalLight& inDirectionalLight)
@@ -112,10 +119,22 @@ namespace Cyan
     CascadedShadowmap::CascadedShadowmap(const DirectionalLight& inDirectionalLight)
         : IDirectionalShadowmap(inDirectionalLight)
     {
-        // initialize cascades' shadowmap
+        // initialize cascades
         for (u32 i = 0; i < kNumCascades; ++i)
         {
-            cascades[i].shadowmapPtr = std::make_unique<DirectionalShadowmap>(inDirectionalLight);
+            char shadowmapNameBuffer[64] = { };
+            sprintf_s(shadowmapNameBuffer, "CSM_%d_", i);
+            cascades[i].n = cascadeBoundries[i];
+            cascades[i].f = cascadeBoundries[i + 1];
+            switch (inDirectionalLight.implemenation)
+            {
+            case DirectionalLight::Implementation::kCSM_Basic:
+                cascades[i].shadowmapPtr = std::make_unique<DirectionalShadowmap>(inDirectionalLight, shadowmapNameBuffer);
+                break;
+            case DirectionalLight::Implementation::kCSM_VarianceShadowmap:
+                cascades[i].shadowmapPtr = std::make_unique<VarianceShadowmap>(inDirectionalLight);
+                break;
+            }
         }
     }
 
@@ -129,39 +148,35 @@ namespace Cyan
         }
     }
 
-    void CascadedShadowmap::setShaderParameters(Shader* shader)
+    void CascadedShadowmap::setShaderParameters(Shader* shader, const char* uniformNamePrefix)
     {
-#if 0
+        std::string inPrefix(uniformNamePrefix);
         for (u32 i = 0; i < kNumCascades; ++i)
         {
-            char samplerName[64] = { };
-            char projectionMatrixName[64] = { };
-            char nearClippingPlaneName[64] = { };
-            char farClippingPlaneName[64] = { };
+            char cascadePrefixBuffer[64] = { };
+            sprintf_s(cascadePrefixBuffer, ".csm.cascades[%d]", i);
+            std::string cascadePrefixStr(cascadePrefixBuffer);
+            std::string nearClippingPlaneName = inPrefix + cascadePrefixStr + std::string(".n");
+            std::string farClippingPlaneName = inPrefix + cascadePrefixStr + std::string(".f");
+            shader->setUniform(nearClippingPlaneName.c_str(), cascades[i].n);
+            shader->setUniform(farClippingPlaneName.c_str(), cascades[i].f);
 
-            sprintf_s(samplerName, "csm.cascades[%d].shadowmap", i);
-            sprintf_s(projectionMatrixName, "csm.cascades[%d].lightProjection", i);
-            sprintf_s(nearClippingPlaneName, "csm.cascades[%d].n", i);
-            sprintf_s(farClippingPlaneName, "csm.cascades[%d].f", i);
-
-            shader->setUniform(nearClippingPlaneName, cascades[i].n);
-            shader->setUniform(farClippingPlaneName, cascades[i].f);
-            shader->setUniform(projectionMatrixName, cascades[i].shadowmapPtr->getLightProjection());
-            shader->setTexture(samplerName, cascades[i].shadowmapPtr->getDepth);
+            std::string csmPrefix = inPrefix + cascadePrefixStr;
+            cascades[i].shadowmapPtr->setShaderParameters(shader, csmPrefix.c_str());
         }
-#endif
     }
 
     void CascadedShadowmap::updateCascades(const Camera& camera)
     {
         // calculate cascade's near and far clipping plane
-        f32 t[4] = { 0.1f, 0.3f, 0.6f, 1.f };
-        cascades[0].n = camera.n;
-        cascades[0].f = (1.0f - t[0]) * camera.n + t[0] * camera.f;
-        for (u32 i = 1u; i < kNumCascades; ++i)
+        // f32 t[4] = { 0.1f, 0.3f, 0.6f, 1.f };
+        // cascades[0].n = camera.n;
+        // cascades[0].f = (1.0f - t[0]) * camera.n + t[0] * camera.f;
+        for (u32 i = 0u; i < kNumCascades; ++i)
         {
-            cascades[i].n = cascades[i - 1].f;
-            cascades[i].f = (1.f - t[i]) * camera.n + t[i] * camera.f;
+            cascades[i].n = camera.n + cascadeBoundries[i] * (camera.f - camera.n);
+            cascades[i].f = camera.n + cascadeBoundries[i + 1] * (camera.f - camera.n);
+            // cascades[i].f = (1.f - t[i]) * camera.n + t[i] * camera.f;
         }
 
         // calculate cascade's aabb

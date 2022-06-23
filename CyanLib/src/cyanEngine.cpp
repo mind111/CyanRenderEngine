@@ -55,6 +55,12 @@ namespace Cyan
         m_IOSystem->update();
         m_graphicsSystem->setScene(m_scene);
         m_graphicsSystem->update();
+
+        // tick
+        for (auto entity : m_scene->entities)
+        {
+            entity->update();
+        }
     }
 
     void Engine::render()

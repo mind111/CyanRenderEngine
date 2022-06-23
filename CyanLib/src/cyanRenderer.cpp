@@ -322,14 +322,6 @@ namespace Cyan
         ImGui::DestroyContext();
     }
 
-    void Renderer::setShaderLightingParameters(const SceneRenderable& sceneRenderable, Shader* shader)
-    {
-        for (auto light : sceneRenderable.lights)
-        {
-            light->setShaderParameters(shader);
-        }
-    }
-
     void Renderer::drawMeshInstance(SceneRenderable& sceneRenderable, RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, MeshInstance* meshInstance, i32 transformIndex)
     {
         Mesh* parent = meshInstance->parent;
@@ -349,7 +341,10 @@ namespace Cyan
                     material->setShaderMaterialParameters();
                     if (material->isLit())
                     {
-                        setShaderLightingParameters(sceneRenderable, shader);
+                        for (auto light : sceneRenderable.lights)
+                        {
+                            light->setShaderParameters(shader);
+                        }
                     }
                     shader->setUniform("transformIndex", transformIndex);
                 };
@@ -722,6 +717,7 @@ namespace Cyan
 
     void Renderer::submitRenderTask(RenderTask&& task)
     {
+        // set render target
         m_ctx->setRenderTarget(task.renderTarget, task.drawBuffers);
         if (task.clearRenderTarget)
         {
@@ -729,15 +725,16 @@ namespace Cyan
         }
         m_ctx->setViewport(task.viewport);
 
-        task.shader->commit(m_ctx);
+        // set shader
         m_ctx->setShader(task.shader);
 
-        // configure misc state
+        // set graphics pipeline state
         m_ctx->setDepthControl(task.pipelineState.depth);
         m_ctx->setPrimitiveType(task.pipelineState.primitiveMode);
 
         // pre-draw setup
         task.renderSetupLambda(task.renderTarget, task.shader);
+        task.shader->commit(m_ctx);
 
         // kick off the draw call
         auto va = task.submesh->getVertexArray();
@@ -858,7 +855,7 @@ namespace Cyan
     {
         Shader* fullscreenBlitShader = ShaderManager::createShader({
             ShaderSource::Type::kVsPs, 
-            "BlitQuadShader", 
+            "BlitQuadShader",
             SHADER_SOURCE_PATH "blit_v.glsl",
             SHADER_SOURCE_PATH "blit_p.glsl"
             });
@@ -870,8 +867,12 @@ namespace Cyan
             { { 0u } },
             fullscreenBlitShader,
             [this](RenderTarget* renderTarget, Shader* shader) {
-                shader->setTexture("srcTexture", m_finalColorTexture);
+                // shader->setTexture("srcTexture", m_finalColorTexture);
+                shader->setTexture("srcTexture", m_sceneColorTextureSSAA);
             });
+
+        // render UI widgets
+        renderUI();
 
         m_ctx->flip();
     }
@@ -1160,7 +1161,12 @@ namespace Cyan
         m_finalColorTexture = m_compositeColorTexture;
     }
     
-    void Renderer::renderUI(const std::function<void()>& callback)
+    void Renderer::addUIRenderCommand(const std::function<void()>& UIRenderCommand)
+    {
+        m_UIRenderCommandQueue.push(UIRenderCommand);
+    }
+
+    void Renderer::renderUI()
     {
         // set to default render target
         m_ctx->setRenderTarget(nullptr, { });
@@ -1171,8 +1177,18 @@ namespace Cyan
         ImGui::NewFrame();
         ImGuizmo::BeginFrame();
 
-        // draw widgets defined in app
-        callback();
+        while (!m_UIRenderCommandQueue.empty())
+        {
+            const auto& command = m_UIRenderCommandQueue.front();
+            command();
+            m_UIRenderCommandQueue.pop();
+        }
+
+#if 0
+        ImGuiWindowFlags flags = ImGuiWindowFlags_None | ImGuiWindowFlags_NoResize;
+        ImGui::SetNextWindowSize(ImVec2(200.f, 400.f));
+        ImGui::SetNextWindowPos(ImVec2(30.f, 30.f));
+        ImGui::SetNextWindowBgAlpha(0.5f);
 
         // draw built-in widgets used for configure the renderer
         ImGuiWindowFlags flags = ImGuiWindowFlags_None | ImGuiWindowFlags_NoResize;
@@ -1221,6 +1237,7 @@ namespace Cyan
             ImGui::Image((ImTextureID)m_vctx.irradiance->getGpuResource(), visSize, ImVec2(0, 1), ImVec2(1, 0));
         }
         ImGui::End();
+#endif
 
         // end imgui
         ImGui::Render();

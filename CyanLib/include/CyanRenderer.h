@@ -111,6 +111,8 @@ namespace Cyan
     class Renderer : public Singleton<Renderer>
     {
     public:
+        using UIRenderCommand = std::function<void()>;
+
         explicit Renderer(GfxContext* ctx, u32 windowWidth, u32 windowHeight);
         ~Renderer() {}
 
@@ -140,10 +142,12 @@ namespace Cyan
         */
         void renderSceneToLightProbe(Scene* scene, LightProbe* probe, RenderTarget* renderTarget);
 
+        void addUIRenderCommand(const std::function<void()>& UIRenderCommand);
+
         /*
         * Render ui widgets given a custom callback defined in an application
         */
-        void renderUI(const std::function<void()>& callback);
+        void renderUI();
 
         void drawMeshInstance(SceneRenderable& renderableScene, RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, MeshInstance* meshInstance, i32 transformIndex);
 
@@ -166,8 +170,6 @@ namespace Cyan
         * Submit a submesh; right now the execution is not deferred
         */
         void submitRenderTask(RenderTask&& task);
-
-        void setShaderLightingParameters(const SceneRenderable& renderableScene, Shader* shader);
 //
 
 // post-processing
@@ -387,5 +389,6 @@ namespace Cyan
     private:
         GfxContext* m_ctx;
         LinearAllocator m_frameAllocator;
+        std::queue<UIRenderCommand> m_UIRenderCommandQueue;
     };
 };

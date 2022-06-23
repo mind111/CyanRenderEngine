@@ -21,27 +21,39 @@ namespace Cyan
 
         enum class Implementation
         {
-            kCSM,
-            kVSM,
+            kBasic,
+            kVarianceShadowmap,
+            kCSM_Basic,
+            kCSM_VarianceShadowmap,
             kCount
-        } implemenation = Implementation::kCSM;
+        } implemenation = Implementation::kCSM_Basic;
 
         DirectionalLight() { }
         DirectionalLight(const glm::vec3& inDirection, const glm::vec4& inColorAndIntensity, bool inCastShadow)
-            : direction(inDirection), colorAndIntensity(inColorAndIntensity), bCastShadow(inCastShadow)
-        { }
+            : direction(glm::normalize(inDirection)), colorAndIntensity(inColorAndIntensity), bCastShadow(inCastShadow)
+        { 
+            /** note:
+                assuming that input illuminance is specified in lux, and remap 90000 lux (illuminance in normal direction of a midday sun) to 1 intensity unit.
+            */
+#if 0
+            const float luxToIntensity = 1.0 / 90000.0;
+            colorAndIntensity.w *= luxToIntensity;
+#endif
+        }
 
         glm::vec3 direction = glm::normalize(glm::vec3(1.f, 1.f, 1.f));
         glm::vec4 colorAndIntensity = glm::vec4(1.f, 0.7f, 0.9f, 1.f);
-        bool bCastShadow = false;
+        bool bCastShadow = true;
     };
 
     struct DirectionalLightEntity : public Entity
     {
         /* Entity interface */
-        virtual void update() override { }
+        virtual void update() override;
 
         DirectionalLightEntity(Scene* scene, const char* inName, const Transform& t, Entity* inParent);
         DirectionalLightEntity(Scene* scene, const char* inName, const Transform& t, Entity* inParenat, const glm::vec3& direction, const glm::vec4& colorAndIntensity, bool bCastShadow);
+    private:
+        std::unique_ptr<DirectionalLightComponent> directionalLightComponentPtr = nullptr;
     };
 }

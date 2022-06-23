@@ -87,9 +87,6 @@
     <ClInclude Include="include\LightProbe.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\Material.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\MathUtils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -205,6 +202,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\PointLight.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Material.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\SkyLight.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -594,6 +597,12 @@
     </None>
     <None Include="..\shader\calculate_light.glsl">
       <Filter>Shaders\Common</Filter>
+    </None>
+    <None Include="..\shader\test_pbs_v.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\test_pbs_p.glsl">
+      <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
 </Project>
