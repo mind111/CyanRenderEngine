@@ -44,7 +44,6 @@ namespace Cyan
         m_bloomOutTexture(nullptr),
         m_frameAllocator(1024 * 1024 * 32) // 32MB frame allocator 
     {
-
     }
 
     Texture2DRenderable* Renderer::getColorOutTexture()
@@ -312,6 +311,15 @@ namespace Cyan
         }
 
         // todo: load global glsl definitions and save them in a map <path, content>
+
+        // taa
+        for (i32 i = 0; i < ARRAY_COUNT(TAAJitterVectors); ++i)
+        {
+            TAAJitterVectors[i].x = (f32)std::rand() / RAND_MAX;
+            TAAJitterVectors[i].y = (f32)std::rand() / RAND_MAX;
+            TAAJitterVectors[i] = TAAJitterVectors[i] * 2.0f - glm::vec2(1.0f);
+            TAAJitterVectors[i] *= 0.5f / 1440.f;
+        }
     }
 
     void Renderer::finalize()
@@ -471,7 +479,7 @@ namespace Cyan
         glEnable(GL_CULL_FACE);
         glDisable(GL_NV_conservative_raster);
 
-        // compute pass for resovling super sampled scene opacity
+        // compute pass for resolving super sampled scene opacity
         if (m_vctx.opts.useSuperSampledOpacity > 0.f)
         {
             glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
@@ -785,8 +793,16 @@ namespace Cyan
 
         beginRender();
         {
+            Camera camera = scene->camera;
+            if (m_settings.enableTAA)
+            {
+                // jitter the projection matrix
+                camera.projection[2][0] += -TAAJitterVectors[m_numFrames % ARRAY_COUNT(TAAJitterVectors)].x;
+                camera.projection[2][1] += -TAAJitterVectors[m_numFrames % ARRAY_COUNT(TAAJitterVectors)].y;
+            }
+
             auto renderTarget = m_settings.enableAA ? m_sceneColorRTSSAA : m_sceneColorRenderTarget;
-            SceneView sceneView(*scene, scene->camera, renderTarget, { }, { 0u, 0u,  renderTarget->width, renderTarget->height }, EntityFlag_kVisible);
+            SceneView sceneView(*scene, camera, renderTarget, { }, { 0u, 0u,  renderTarget->width, renderTarget->height }, EntityFlag_kVisible);
             // convert Scene instance to RenderableScene instance for rendering
             SceneRenderable sceneRenderable(scene, sceneView, m_frameAllocator);
 
@@ -830,6 +846,10 @@ namespace Cyan
             };
             renderScene(sceneRenderable, sceneView);
 
+            if (m_settings.enableAA)
+            {
+                taa();
+            }
 #if 0
             // debug object pass
             renderDebugObjects(scene, externDebugRender);
@@ -868,13 +888,14 @@ namespace Cyan
             fullscreenBlitShader,
             [this](RenderTarget* renderTarget, Shader* shader) {
                 // shader->setTexture("srcTexture", m_finalColorTexture);
-                shader->setTexture("srcTexture", m_sceneColorTextureSSAA);
+                // shader->setTexture("srcTexture", m_sceneColorTextureSSAA);
+                shader->setTexture("srcTexture", m_TAAOutput);
             });
-
         // render UI widgets
         renderUI();
-
         m_ctx->flip();
+
+        m_numFrames++;
     }
 
     void Renderer::renderShadow(SceneRenderable& sceneRenderable)
@@ -941,7 +962,6 @@ namespace Cyan
     void Renderer::renderSceneDepthNormal(SceneRenderable& renderableScene, const SceneView& sceneView)
     {
         sceneView.renderTarget->clear(sceneView.drawBuffers);
-
         renderableScene.submitSceneData(m_ctx);
 
         u32 transformIndex = 0u;
@@ -955,7 +975,7 @@ namespace Cyan
                 GfxPipelineState(), // pipeline state
                 meshInst->parent, // mesh
                 m_sceneDepthNormalShader, // shader
-                [&transformIndex](RenderTarget* renderTarget, Shader* shader) { // renderSetupLambda
+                [&transformIndex, this](RenderTarget* renderTarget, Shader* shader) { // renderSetupLambda
                     shader->setUniform("transformIndex", (i32)transformIndex++);
                 });
         }
@@ -963,6 +983,12 @@ namespace Cyan
 
     void Renderer::renderScene(SceneRenderable& sceneRenderable, const SceneView& sceneView)
     {
+        // todo: seperate clearing color buffers from clearing depth buffer
+        bool depthNormalPrepassRequired = (m_settings.enableSSAO || m_settings.enableVctx);
+        if (!depthNormalPrepassRequired)
+        {
+            sceneView.renderTarget->clear(sceneView.drawBuffers);
+        }
         sceneRenderable.submitSceneData(m_ctx);
 
         // render skybox
@@ -980,7 +1006,7 @@ namespace Cyan
                 sceneView.renderTarget, 
                 sceneView.drawBuffers, 
                 false,
-                sceneView.viewport, 
+                sceneView.viewport,
                 GfxPipelineState(), 
                 meshInst, 
                 transformIndex++
@@ -1142,6 +1168,35 @@ namespace Cyan
         }
 
         m_bloomOutTexture = m_bloomUsTargets[0].src;
+    }
+
+    void Renderer::taa()
+    {
+        if (!m_TAAPingPongRenderTarget[0])
+        {
+            m_TAAPingPongRenderTarget[0] = createRenderTarget(m_sceneColorTextureSSAA->width, m_sceneColorTextureSSAA->height);
+            m_TAAPingPongRenderTarget[1] = createRenderTarget(m_sceneColorTextureSSAA->width, m_sceneColorTextureSSAA->height);
+            ITextureRenderable::Spec spec = m_sceneColorTextureSSAA->getTextureSpec();
+            m_TAAPingPongTextures[0] = AssetManager::createTexture2D("TAAPingTexture", spec);
+            m_TAAPingPongTextures[1] = AssetManager::createTexture2D("TAAPongTexture", spec);
+            m_TAAPingPongRenderTarget[0]->setColorBuffer(m_TAAPingPongTextures[0], 0);
+            m_TAAPingPongRenderTarget[1]->setColorBuffer(m_TAAPingPongTextures[1], 0);
+        }
+
+        Shader* TAAShader = ShaderManager::createShader({ ShaderType::kVsPs, "TAAShader", SHADER_SOURCE_PATH "taa_v.glsl", SHADER_SOURCE_PATH "taa_p.glsl" });
+        u32 src = max((m_numFrames - 1), 0u) % 2;
+        u32 dst = m_numFrames % 2;
+        submitFullScreenPass(
+            m_TAAPingPongRenderTarget[dst],
+            { { 0 } },
+            TAAShader,
+            [this, src](RenderTarget* renderTarget, Shader* shader) {
+                shader->setUniform("numFrames", m_numFrames);
+                shader->setTexture("currentColorTexture", m_sceneColorTextureSSAA);
+                shader->setTexture("accumulatedColorTexture", m_TAAPingPongTextures[src]);
+            }
+        );
+        m_TAAOutput = m_TAAPingPongTextures[dst];
     }
 
     void Renderer::composite()

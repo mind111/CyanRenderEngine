@@ -173,6 +173,14 @@ namespace Cyan
 //
 
 // post-processing
+        // taa
+        glm::vec2 TAAJitterVectors[16] = { };
+        glm::mat4 m_originalProjection = glm::mat4(1.f);
+        Texture2DRenderable* m_TAAOutput = nullptr;
+        RenderTarget* m_TAAPingPongRenderTarget[2] = { 0 };
+        Texture2DRenderable* m_TAAPingPongTextures[2] = { 0 };
+        void taa();
+
         // ssao
         RenderTarget* m_ssaoRenderTarget;
         Texture2DRenderable* m_ssaoTexture;
@@ -218,8 +226,9 @@ namespace Cyan
         struct Settings
         {
             bool enableAA = true;
+            bool enableTAA = true;
             bool enableSunShadow = true;
-            bool enableSSAO = true;
+            bool enableSSAO = false;
             bool enableVctx = false;
             bool enableBloom = true;
             bool autoFilterVoxelGrid = true;
@@ -388,6 +397,7 @@ namespace Cyan
 
     private:
         GfxContext* m_ctx;
+        u32 m_numFrames = 0u;
         LinearAllocator m_frameAllocator;
         std::queue<UIRenderCommand> m_UIRenderCommandQueue;
     };

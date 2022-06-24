@@ -44,7 +44,6 @@ vec3 transformNormal(in vec3 normal, mat4 transform)
 
 void main() {
     mat4 model = transformSsbo.models[transformIndex];
-
     vsOut.viewSpacePosition = (viewSsbo.view * model * vec4(vertexPos, 1.f)).xyz; 
     vsOut.worldSpacePosition = (model * vec4(vertexPos, 1.f)).xyz;
     gl_Position = viewSsbo.projection * viewSsbo.view * model * vec4(vertexPos, 1.0f);

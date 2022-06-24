@@ -6,6 +6,9 @@ layout (location = 2) in vec4 vTangent;
 #define VIEW_SSBO_BINDING 0
 #define TRANSFORM_SSBO_BINDING 3
 
+out vec3 normalWorld;
+out vec3 tangentWorld;
+
 layout(std430, binding = VIEW_SSBO_BINDING) buffer ViewShaderStorageBuffer
 {
     mat4  view;
@@ -20,8 +23,6 @@ layout(std430, binding = TRANSFORM_SSBO_BINDING) buffer TransformShaderStorageBu
 } transformSsbo;
 
 uniform int transformIndex;
-out vec3 normalWorld;
-out vec3 tangentWorld;
 
 void main()
 {

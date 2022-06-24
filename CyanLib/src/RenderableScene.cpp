@@ -64,10 +64,8 @@ namespace Cyan
             }
         }
 #endif
-#if 1
         viewSsboPtr->update();
         transformSsboPtr->update();
-#endif
     }
 
     /**
