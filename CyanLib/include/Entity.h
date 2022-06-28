@@ -51,6 +51,8 @@ namespace Cyan
         virtual ~Entity() { }
 
         virtual void update() { }
+        virtual const char* getTypeDesc() { return "Entity"; }
+        virtual void renderUIWidgets() { }
 
         u32 getProperties() { return properties; }
         SceneComponent* getRootSceneComponent();
@@ -71,6 +73,7 @@ namespace Cyan
         const Transform& getLocalTransform();
         const Transform& getWorldTransform();
         const glm::vec3& getWorldPosition();
+        const glm::mat4& getWorldTransformMatrix() { return rootSceneComponent->getWorldTransformMatrix(); }
 
         // setters
         void setParent(Entity* parent);
@@ -102,9 +105,9 @@ namespace Cyan
 
         std::string name;
         Entity* parent;
+        std::vector<Entity*> childs;
 
     private:
-        std::vector<Entity*> childs;
         SceneComponent* rootSceneComponent;
         u32 properties;
         std::vector<Cyan::Component*> components;

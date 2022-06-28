@@ -2,7 +2,7 @@
     "cameras": [
         {
             "name": "main_camera",
-            "position": [0.0, 3.2, 14.0],
+            "position": [0.0, 3.2, 8.0],
             "lookAt": [-0.0, 1.0, -1.0],
             "worldUp": [0.0, 1.0, 0.0],
             "fov": 45.0,

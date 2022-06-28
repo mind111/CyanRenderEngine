@@ -1,5 +1,7 @@
 #pragma once
 
+#include <iostream>
+
 #include "Common.h"
 #include <cmath>
 #include "glm.hpp"
@@ -27,6 +29,7 @@ namespace Cyan
     glm::vec3 uniformSampleHemisphere(glm::vec3& n);
     glm::vec3 cosineWeightedSampleHemisphere(glm::vec3& n);
     glm::vec3 stratifiedCosineWeightedSampleHemiSphere(glm::vec3& normal, f32 j, f32 k, f32 M, f32 N);
+    glm::vec2 halton23(u32 index);
 
     // vector math
     inline f32 dot(const glm::vec3& v0, const glm::vec3& v1)

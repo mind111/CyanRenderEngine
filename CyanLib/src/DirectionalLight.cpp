@@ -23,20 +23,25 @@ namespace Cyan
 
     void DirectionalLightEntity::update()
     {
-        auto renderer = Renderer::get();
-        renderer->addUIRenderCommand([this]() {
-            ImGuiWindowFlags flags = ImGuiWindowFlags_None | ImGuiWindowFlags_NoResize;
-            ImGui::SetNextWindowBgAlpha(0.5f);
-            ImGui::SetNextWindowPos(ImVec2(10, 10));
-            ImGui::SetNextWindowSize(ImVec2(270, 400));
-            ImGui::Begin("DirectionalLight", nullptr, flags);
-            {
-                glm::vec4 colorAndIntensity = directionalLightComponentPtr->getColorAndIntensity();
-                ImGui::Text("Intensity"); ImGui::SameLine();
-                ImGui::SliderFloat("##Intensity", &colorAndIntensity.w, 0.f, 100.f);
-                directionalLightComponentPtr->setColorAndIntensity(colorAndIntensity);
-            }
-            ImGui::End();
-        });
+    }
+
+    void DirectionalLightEntity::renderUIWidgets()
+    {
+        if (ImGui::CollapsingHeader("DirectionalLight", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            glm::vec4 colorAndIntensity = directionalLightComponentPtr->getColorAndIntensity();
+            // color
+            ImGui::Text("Color"); ImGui::SameLine();
+            f32 color[3] = { colorAndIntensity.x, colorAndIntensity.y, colorAndIntensity.z };
+            ImGui::ColorPicker3("##Color", color);
+            colorAndIntensity.r = color[0];
+            colorAndIntensity.g = color[1];
+            colorAndIntensity.b = color[2];
+
+            // intensity
+            ImGui::Text("Intensity"); ImGui::SameLine();
+            ImGui::SliderFloat("##Intensity", &colorAndIntensity.w, 0.f, 100.f);
+            directionalLightComponentPtr->setColorAndIntensity(colorAndIntensity);
+        }
     }
 }

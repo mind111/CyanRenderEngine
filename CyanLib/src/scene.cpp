@@ -38,9 +38,9 @@ namespace Cyan
                 globalMatrix = parentGlobalMatrix * localMatrix;
                 globalTransformPool.getObject(node->globalTransform).fromMatrix(globalMatrix);
             }
-            for (u32 i = 0; i < node->m_child.size(); ++i)
+            for (u32 i = 0; i < node->childs.size(); ++i)
             {
-                nodes.push(node->m_child[i]);
+                nodes.push(node->childs[i]);
             }
             for (u32 i = 0; i < node->m_indirectChild.size(); ++i)
             {
@@ -57,7 +57,7 @@ namespace Cyan
             {
                 SceneComponent* node = nodes.front();
                 nodes.pop();
-                for (auto child : node->m_child)
+                for (auto child : node->childs)
                 {
                     nodes.push(child);
                 }
@@ -94,7 +94,7 @@ namespace Cyan
         return sceneComponent;
     }
 
-    MeshComponent* Scene::createMeshComponent(Transform transform, Cyan::Mesh* mesh)
+    MeshComponent* Scene::createMeshComponent(Cyan::Mesh* mesh, Transform transform)
     {
         MeshComponent* meshComponent = meshComponentPool.alloc();
 
@@ -119,25 +119,16 @@ namespace Cyan
 
     Entity* Scene::createEntity(const char* name, const Transform& transform, Entity* inParent, u32 properties)
     {
-        Entity* entity = nullptr;
-        if (!inParent)
-        {
-            // creating root entity
-            if (!rootEntity)
-            {
-                entity = new Entity(this, "Root", Transform{ }, nullptr, properties);
-            }
-            else
-            {
-                entity = new Entity(this, name, transform, rootEntity, properties);
-            }
-        }
-        else
-        {
-            entity = new Entity(this, name, transform, inParent, properties);
-        }
+        Entity* entity = new Entity(this, name, transform, inParent, properties);
         entities.push_back(entity);
         return entity;
+    }
+
+    StaticMeshEntity* Scene::createStaticMeshEntity(const char* name, const Transform& transform, Mesh* inMesh, Entity* inParent, u32 properties)
+    {
+        auto staticMeshEntity = new StaticMeshEntity(this, name, transform, inMesh, inParent, properties);
+        entities.push_back(staticMeshEntity);
+        return staticMeshEntity;
     }
 
     void Scene::createDirectionalLight(const char* name, const glm::vec3& direction, const glm::vec4& colorAndIntensity)
@@ -177,7 +168,7 @@ namespace Cyan
         auto& meshInst = meshInstances.back();
         meshInst = std::make_shared<MeshInstance>(mesh);
         // attach a default material to all submeshes
-        meshInst->setMaterial(Cyan::AssetManager::getDefaultMaterial());
+        meshInst->setMaterial(AssetManager::getAsset<IMaterial>("DefaultMaterial"));
         return meshInst.get();
     }
 

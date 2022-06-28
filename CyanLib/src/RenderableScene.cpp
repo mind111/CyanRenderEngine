@@ -17,12 +17,20 @@ namespace Cyan
         for (auto entity : sceneView.entities)
         {
             TransformSsbo& transformSsbo = *(transformSsboPtr.get());
+#if 1
+            if (auto staticMeshEntity = dynamic_cast<StaticMeshEntity*>(entity))
+            {
+                meshInstances.push_back(staticMeshEntity->getMeshInstance());
+                ADD_SSBO_DYNAMIC_ELEMENT(transformSsbo, staticMeshEntity->getWorldTransformMatrix());
+            }
+#else
             entity->visit([this, &transformSsbo](SceneComponent* sceneComp) {
                     if (auto meshInst = sceneComp->getAttachedMesh())
                     {
                         meshInstances.push_back(meshInst);
 #if 1
                         ADD_SSBO_DYNAMIC_ELEMENT(transformSsbo, sceneComp->getWorldTransformMatrix());
+#endif
 #endif
                     }
                 });

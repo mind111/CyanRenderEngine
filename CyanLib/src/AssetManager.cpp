@@ -105,7 +105,6 @@ namespace Cyan
                     ITextureRenderable::Parameter::WrapMode::WRAP,
                     ITextureRenderable::Parameter::WrapMode::WRAP
                 });
-            m_textureMap.insert({ name.c_str(), texture });
         }
     }
 
@@ -434,7 +433,7 @@ namespace Cyan
             }
             std::string meshName = nodeInfo.at("mesh");
             Mesh* parent = getAsset<Mesh>(meshName.c_str());
-            SceneComponent* node = scene->createMeshComponent(transform, parent); 
+            SceneComponent* node = scene->createMeshComponent(parent, transform); 
             m_nodes.push_back(node);
         }
         // second pass to setup the hierarchy
@@ -568,7 +567,6 @@ namespace Cyan
         return texture;
     }
 
-    // TODO: Normalize mesh scale
     SceneComponent* AssetManager::loadGltfNode(Scene* scene, tinygltf::Model& model, tinygltf::Node* parent, 
                         SceneComponent* parentSceneComponent, tinygltf::Node& node, u32 numNodes) {
         auto sceneManager = SceneManager::get();
@@ -617,14 +615,16 @@ namespace Cyan
         if (hasMesh)
         {
             Mesh* mesh = getAsset<Mesh>(meshName);
-            sceneComponent = scene->createMeshComponent(localTransform, mesh);
+            sceneComponent = scene->createMeshComponent(mesh, localTransform);
         }
         else
         {
             sceneComponent = scene->createSceneComponent(sceneNodeName, localTransform);
         }
         if (parentSceneComponent)
+        {
             parentSceneComponent->attachChild(sceneComponent);
+        }
         // bind material
         if (auto meshInstance = sceneComponent->getAttachedMesh())
         {

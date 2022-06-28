@@ -21,12 +21,47 @@ namespace Cyan
     class AssetManager
     {
     public:
+
+        struct DefaultTextures
+        {
+            Texture2DRenderable* checkerDark = nullptr;
+            Texture2DRenderable* checkerOrange = nullptr;
+            Texture2DRenderable* gridDark = nullptr;
+            Texture2DRenderable* gridOrange = nullptr;
+        } m_defaultTextures;
+
         AssetManager();
         ~AssetManager() { };
 
         void initialize()
         {
-            m_defaultMaterial = createMaterial<PBRMatl>("DefaultMaterial");
+            /**
+                initialize default geometries and shapes
+            */ 
+            // cube
+            // sphere
+            // cylinder
+
+            /**
+                initialize default textures
+            */ 
+#define DEFAULT_TEXTURE_FOLDER "../../asset/textures/defaults/"
+            ITextureRenderable::Spec spec = { };
+            spec.numMips = 1u;
+            ITextureRenderable::Parameter parameter = { };
+            parameter.wrap_r = ITextureRenderable::Parameter::WrapMode::WRAP;
+            parameter.wrap_s = ITextureRenderable::Parameter::WrapMode::WRAP;
+            parameter.wrap_t = ITextureRenderable::Parameter::WrapMode::WRAP;
+            m_defaultTextures.checkerDark = importTexture2D("default_checker_dark", DEFAULT_TEXTURE_FOLDER "checker_dark.png", spec, parameter);
+            m_defaultTextures.checkerOrange = importTexture2D("default_checker_orange", DEFAULT_TEXTURE_FOLDER "checker_orange.png", spec, parameter);
+            m_defaultTextures.gridDark = importTexture2D("default_grid_dark", DEFAULT_TEXTURE_FOLDER "grid_dark.png", spec, parameter);
+            m_defaultTextures.gridOrange = importTexture2D("default_grid_orange", DEFAULT_TEXTURE_FOLDER "grid_orange.png", spec, parameter);
+#undef DEFAULT_TEXTURE_FOLDER
+
+            /**
+                initialize the default material 
+            */ 
+            createMaterial<PBRMatl>("DefaultMaterial");
         }
 
         static AssetManager* get() { return singleton; }
@@ -50,31 +85,18 @@ namespace Cyan
         void importTextures(nlohmann::basic_json<std::map>& textureInfoList);
         void importMeshes(Scene* scene, nlohmann::basic_json<std::map>& meshInfoList);
 
-        template <typename T>
-        Mesh::Submesh<T>* createSubmesh(const std::vector<typename T::Vertex>& vertices, const std::vector<u32>& indices)
-        {
-            Mesh::Submesh<T>* sm = new Mesh::Submesh<T>(vertices, indices);
-            return sm;
-        }
-
-        /*
-        * create geometry data first, and then pass in to create a mesh
-        */
-        Mesh* createMesh(const char* name, const std::vector<ISubmesh*>& submeshes)
-        {
-            Mesh* parent = new Mesh(name, submeshes);
-            // register mesh object into the asset table
-            m_meshMap.insert({ parent->name, parent });
-            return parent;
-        }
-
         /**
         * Creating a texture from scratch; `name` must be unique
         */
         static Texture2DRenderable* createTexture2D(const char* name, const ITextureRenderable::Spec& spec, ITextureRenderable::Parameter parameter=ITextureRenderable::Parameter{ })
         {
-            Texture2DRenderable* texture = new Texture2DRenderable(name, spec, parameter);
-            return texture;
+            Texture2DRenderable* outTexture = getAsset<Texture2DRenderable>(name);
+            if (!outTexture)
+            {
+                outTexture = new Texture2DRenderable(name, spec, parameter);
+                singleton->m_textureMap.insert({ name, outTexture });
+            }
+            return outTexture;
         }
 
         static Texture3DRenderable* createTexture3D(const char* name, const ITextureRenderable::Spec& spec, ITextureRenderable::Parameter parameter=ITextureRenderable::Parameter{ })
@@ -134,19 +156,14 @@ namespace Cyan
         }
 
         template <typename MaterialType>
-        MaterialType* createMaterial(const char* name)
+        static MaterialType* createMaterial(const char* name)
         {
             MaterialType* material = new MaterialType(name);
-            m_materialMap.insert({ std::string(name), material });
+            singleton->m_materialMap.insert({ std::string(name), material });
             return material;
         }
 
         // getters
-        static IMaterial* getDefaultMaterial()
-        {
-            return singleton->m_defaultMaterial;
-        }
-
         template <typename T>
         static T* getAsset(const char* assetName);
 
@@ -205,16 +222,33 @@ namespace Cyan
             return dynamic_cast<TextureCubeRenderable*>(entry->second);
         }
 
-        // todo: this maybe problematic
-        template <template <typename> typename M, typename T>
-        static M<T>* getAsset(const char* matlName) 
-        { 
+        template <>
+        static IMaterial* getAsset<IMaterial>(const char* matlName)
+        {
             auto entry = singleton->m_materialMap.find(std::string(matlName));
-            if (M<T>::getAssetClassTypeDesc() != entry->second->getAssetObjectTypeDesc())
+            if (entry != singleton->m_materialMap.end())
             {
-                return nullptr;
+                return entry->second;
             }
-            return static_cast<M<T>*>(entry->second);
+            return nullptr;
+        }
+
+        template <typename T>
+        static Mesh::Submesh<T>* createSubmesh(const std::vector<typename T::Vertex>& vertices, const std::vector<u32>& indices)
+        {
+            Mesh::Submesh<T>* sm = new Mesh::Submesh<T>(vertices, indices);
+            return sm;
+        }
+
+        /*
+        * create geometry data first, and then pass in to create a mesh
+        */
+        static Mesh* createMesh(const char* name, const std::vector<ISubmesh*>& submeshes)
+        {
+            Mesh* parent = new Mesh(name, submeshes);
+            // register mesh object into the asset table
+            singleton->m_meshMap.insert({ parent->name, parent });
+            return parent;
         }
 
     private:
@@ -230,7 +264,6 @@ namespace Cyan
         std::unordered_map<std::string, Mesh*> m_meshMap;
 
         // material instances
-        PBRMatl* m_defaultMaterial = nullptr;
         std::unordered_map<std::string, IMaterial*> m_materialMap;
     };
 }

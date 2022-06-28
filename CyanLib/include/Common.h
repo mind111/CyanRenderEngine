@@ -83,7 +83,7 @@ T* treeBFS(T* node, const char* name)
         {
             return node;
         }
-        for (T* child : node->m_child)
+        for (T* child : node->childs)
         {
             queue.push(child);
         }

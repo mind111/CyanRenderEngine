@@ -8,6 +8,7 @@ in VSOutput
 out vec4 outColor;
 
 uniform uint numFrames;
+uniform float sampleWeight;
 uniform sampler2D oldestColorTexture;
 uniform sampler2D currentColorTexture;
 uniform sampler2D accumulatedColorTexture;
@@ -15,6 +16,7 @@ uniform sampler2D accumulatedColorTexture;
 void main()
 {
 	vec3 currentColor = texture(currentColorTexture, psIn.texCoord).rgb;
+	// vec3 currentColor = texture(currentColorTexture, psIn.texCoord).rgb * sampleWeight;
 	vec3 accumulatedColor = texture(accumulatedColorTexture, psIn.texCoord).rgb;
 #if 0
 	outColor = vec4((accumulatedColor * numFrames + currentColor) / (numFrames + 1), 1.f);

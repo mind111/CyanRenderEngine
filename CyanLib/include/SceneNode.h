@@ -7,6 +7,7 @@
 #include "Node.h"
 #include "Transform.h"
 #include "Mesh.h" 
+#include "Component.h"
 
 #define kSceneNodeNameMaxLen 128u
 
@@ -15,8 +16,12 @@ namespace Cyan
     struct Scene;
     struct Entity;
 
-    struct SceneComponent
+    struct SceneComponent : public Component
     {
+        /* Component interface */
+        virtual const char* getTag() { return "SceneComponent"; }
+
+        /* SceneComponent interface */
         virtual Cyan::MeshInstance* getAttachedMesh() { return nullptr; }
 
         void setParent(SceneComponent* parent);
@@ -36,7 +41,7 @@ namespace Cyan
         char m_name[kSceneNodeNameMaxLen];
         // node hierarchy
         SceneComponent* m_parent;
-        std::vector<SceneComponent*> m_child;
+        std::vector<SceneComponent*> childs;
         std::vector<SceneComponent*> m_indirectChild;
         // transform component
         u32       localTransform;
@@ -49,6 +54,9 @@ namespace Cyan
     {
         /* SceneComponent interface */
         virtual Cyan::MeshInstance* getAttachedMesh() { return meshInst; }
+
+        void setMaterial(IMaterial* material);
+        void setMaterial(IMaterial* material, u32 submeshIndex);
 
         Cyan::MeshInstance* meshInst = nullptr;
     };

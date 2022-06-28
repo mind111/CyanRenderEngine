@@ -11,7 +11,7 @@ namespace Cyan
 
     void SceneComponent::attachChild(SceneComponent* child)
     {
-        m_child.push_back(child);
+        childs.push_back(child);
         child->setParent(this);
         child->onAttachTo();
     }
@@ -71,5 +71,15 @@ namespace Cyan
     SceneComponent* SceneComponent::find(const char* name)
     {
         return treeBFS<SceneComponent>(this, name);
+    }
+
+    void MeshComponent::setMaterial(IMaterial* material)
+    {
+        meshInst->setMaterial(material);
+    }
+
+    void MeshComponent::setMaterial(IMaterial* material, u32 submeshIndex)
+    {
+        meshInst->setMaterial(material, submeshIndex);
     }
 }

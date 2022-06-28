@@ -59,6 +59,8 @@ bool DemoApp::mouseOverUI()
 
 void DemoApp::setupScene()
 {
+    using namespace Cyan;
+
     Cyan::Toolkit::GpuTimer timer("initDemoScene00()", true);
 
     auto sceneManager = Cyan::SceneManager::get();
@@ -73,49 +75,6 @@ void DemoApp::setupScene()
 
     Cyan::Scene* demoScene00 = m_scene.get();
 
-    using PBR = Cyan::PBRMatl;
-    auto assetManager = Cyan::AssetManager::get();
-    PBR* defaultMatl = assetManager->createMaterial<PBR>("DefaultMatl");
-
-    // helmet
-    {
-        auto helmetMatl = assetManager->createMaterial<PBR>("HelmetMatl");
-        helmetMatl->parameter.albedo = Cyan::AssetManager::getAsset<Cyan::Texture2DRenderable>("helmet_diffuse");
-        helmetMatl->parameter.normal = Cyan::AssetManager::getAsset<Cyan::Texture2DRenderable>("helmet_nm");
-        helmetMatl->parameter.occlusion = Cyan::AssetManager::getAsset<Cyan::Texture2DRenderable>("helmet_ao");
-        helmetMatl->parameter.metallicRoughness = Cyan::AssetManager::getAsset<Cyan::Texture2DRenderable>("helmet_roughness");
-
-        auto helmet = demoScene00->getEntity("DamagedHelmet");
-        helmet->setMaterial("helmet_mesh", helmetMatl);
-#if 0
-        auto helmetMesh = helmet->getSceneComponent("helmet_mesh")->getAttachedMesh()->parent;
-        helmetMesh->m_bvh = new Cyan::MeshBVH(helmetMesh);
-        helmetMesh->m_bvh->build();
-#endif
-    }
-    // bunnies
-    {
-        Cyan::Entity* bunny0 = demoScene00->getEntity("Bunny0");
-        Cyan::Entity* bunny1 = demoScene00->getEntity("Bunny1");
-
-        auto bunnyMatl = assetManager->createMaterial<PBR>("BunnyMatl");
-        bunnyMatl->parameter.kAlbedo = glm::vec3(0.855, 0.647, 0.125f);
-        bunnyMatl->parameter.kRoughness = .1f;
-        bunnyMatl->parameter.kMetallic = 1.0f;
-
-        bunny0->setMaterial("bunny_mesh", bunnyMatl);
-        bunny1->setMaterial("bunny_mesh", bunnyMatl);
-    }
-    // man
-    {
-        Cyan::Entity* man = demoScene00->getEntity("Man");
-        auto manMatl = assetManager->createMaterial<PBR>("ManMatl");
-        manMatl->parameter.kAlbedo = glm::vec3(0.855, 0.855, 0.855);
-        manMatl->parameter.kRoughness = .3f;
-        manMatl->parameter.kMetallic = .3f;
-
-        man->setMaterial("man_mesh", manMatl);
-    }
     // lighting
     {
         // sun light
@@ -136,6 +95,48 @@ void DemoApp::setupScene()
 #endif
     }
 
+#if 1
+    using PBR = Cyan::PBRMatl;
+    // helmet
+    {
+        auto helmetMatl = AssetManager::createMaterial<PBR>("helmet_matl");
+        helmetMatl->parameter.albedo = Cyan::AssetManager::getAsset<Cyan::Texture2DRenderable>("helmet_diffuse");
+        helmetMatl->parameter.normal = AssetManager::getAsset<Cyan::Texture2DRenderable>("helmet_nm");
+        helmetMatl->parameter.occlusion = AssetManager::getAsset<Cyan::Texture2DRenderable>("helmet_ao");
+        helmetMatl->parameter.metallicRoughness = AssetManager::getAsset<Cyan::Texture2DRenderable>("helmet_roughness");
+
+        auto helmet = demoScene00->getEntity("DamagedHelmet");
+        helmet->setMaterial("helmet_mesh", helmetMatl);
+#if 0
+        auto helmetMesh = helmet->getSceneComponent("helmet_mesh")->getAttachedMesh()->parent;
+        helmetMesh->m_bvh = new Cyan::MeshBVH(helmetMesh);
+        helmetMesh->m_bvh->build();
+#endif
+    }
+    // bunnies
+    {
+        Entity* bunny0 = demoScene00->getEntity("Bunny0");
+        Entity* bunny1 = demoScene00->getEntity("Bunny1");
+
+        auto bunnyMatl = AssetManager::createMaterial<PBR>("BunnyMatl");
+        bunnyMatl->parameter.kAlbedo = glm::vec3(0.855, 0.647, 0.125f);
+        bunnyMatl->parameter.kRoughness = .1f;
+        bunnyMatl->parameter.kMetallic = 1.0f;
+
+        bunny0->setMaterial("bunny_mesh", bunnyMatl);
+        bunny1->setMaterial("bunny_mesh", bunnyMatl);
+    }
+    // man
+    {
+        Cyan::Entity* man = demoScene00->getEntity("Man");
+        auto manMatl = AssetManager::createMaterial<PBR>("ManMatl");
+        manMatl->parameter.kAlbedo = glm::vec3(0.855, 0.855, 0.855);
+        manMatl->parameter.kRoughness = .3f;
+        manMatl->parameter.kMetallic = .3f;
+
+        man->setMaterial("man_mesh", manMatl);
+    }
+
     // grid of shader ball on the table
     {
         glm::vec3 gridLowerLeft(-2.1581, 1.1629, 2.5421);
@@ -145,8 +146,10 @@ void DemoApp::setupScene()
         glm::vec3 chrome(1.f);
         glm::vec3 plastic(0.061f, 0.757f, 0.800f);
 
+        auto shaderBallMesh = AssetManager::getAsset<Mesh>("shaderball_mesh");
         PBR* shaderBallMatls[2][4] = { };
-        shaderBallMatls[0][0] = assetManager->createMaterial<PBR>("ShaderBallGold");
+        shaderBallMatls[0][0] = AssetManager::createMaterial<PBR>("ShaderBallGold");
+        shaderBallMatls[0][0]->parameter.albedo = AssetManager::getAsset<Texture2DRenderable>("default_checker_dark");
         shaderBallMatls[0][0]->parameter.kRoughness = 0.02f;
         shaderBallMatls[0][0]->parameter.kMetallic = 0.05f;
         for (u32 j = 0; j < 2; ++j)
@@ -154,33 +157,23 @@ void DemoApp::setupScene()
             for (u32 i = 0; i < 4; ++i)
             {
                 char entityName[32];
-                char meshComponentName[32];
                 sprintf_s(entityName, "ShaderBall%u", j * 4 + i);
-                sprintf_s(meshComponentName, "ShaderBall%u", j * 4 + i);
-                auto shaderBall = demoScene00->createEntity(entityName, Transform{});
-
                 glm::vec3 posOffset = glm::vec3(1.3f * (f32)i, 0.f, -1.5f * (f32)j);
                 Transform transform = { };
                 transform.m_translate = gridLowerLeft + posOffset;
                 transform.m_scale = glm::vec3(.003f);
-                auto meshComponent = demoScene00->createMeshComponent(transform, assetManager->getAsset<Cyan::Mesh>("shaderball_mesh"));
-                shaderBall->attachSceneComponent(meshComponent);
-                shaderBall->setMaterial(meshComponentName, defaultMatl);
-                shaderBall->setMaterial(meshComponentName, 0, defaultMatl);
-                shaderBall->setMaterial(meshComponentName, 1, defaultMatl);
-                shaderBall->setMaterial(meshComponentName, 5, defaultMatl);
+                auto shaderBall = demoScene00->createStaticMeshEntity(entityName, transform, shaderBallMesh);
+                shaderBall->setMaterial(shaderBallMatls[0][0]);
             }
         }
     }
+#endif
     // room
     {
+#if 0
         Cyan::Entity* room = demoScene00->getEntity("Room");
         room->setMaterial("room_mesh", defaultMatl);
         room->setMaterial("plane_mesh", defaultMatl);
-#if 0
-        Entity* room = sceneManager->getEntity(demoScene00, "Room");
-        auto roomNode = room->getSceneNode("RoomMesh");
-        auto planeNode = room->getSceneNode("PlaneMesh");
         Cyan::Mesh* roomMesh = roomNode->m_meshInstance->m_mesh;
         Cyan::Mesh* planeMesh = planeNode->m_meshInstance->m_mesh;
         roomMesh->m_bvh = new Cyan::MeshBVH(roomMesh);

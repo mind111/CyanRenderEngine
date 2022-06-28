@@ -175,6 +175,7 @@ namespace Cyan
 // post-processing
         // taa
         glm::vec2 TAAJitterVectors[16] = { };
+        f32 reconstructionWeights[16] = { };
         glm::mat4 m_originalProjection = glm::mat4(1.f);
         Texture2DRenderable* m_TAAOutput = nullptr;
         RenderTarget* m_TAAPingPongRenderTarget[2] = { 0 };

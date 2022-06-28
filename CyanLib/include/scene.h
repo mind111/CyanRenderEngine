@@ -16,6 +16,7 @@
 #include "LightProbe.h"
 #include "SkyBox.h"
 #include "DirectionalLight.h"
+#include "StaticMeshEntity.h"
 
 namespace Cyan
 {
@@ -27,8 +28,10 @@ namespace Cyan
 
         // entities
         Entity* createEntity(const char* name, const Transform& transform, Entity* inParent = nullptr, u32 properties = (EntityFlag_kDynamic | EntityFlag_kVisible | EntityFlag_kCastShadow));
+        StaticMeshEntity* createStaticMeshEntity(const char* name, const Transform& transform, Mesh* inMesh, Entity* inParent = nullptr, u32 properties = (EntityFlag_kDynamic | EntityFlag_kVisible | EntityFlag_kCastShadow));
+        // scene component
         SceneComponent* createSceneComponent(const char* name, Transform transform);
-        MeshComponent* createMeshComponent(Transform transform, Cyan::Mesh* mesh);
+        MeshComponent* createMeshComponent(Mesh* mesh, Transform transform);
         // mesh instance
         Cyan::MeshInstance* createMeshInstance(Cyan::Mesh* mesh);
         Cyan::MeshInstance* createMeshInstance(const char* meshName);

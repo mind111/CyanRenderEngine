@@ -12,6 +12,14 @@ namespace Cyan
     {
         rootSceneComponent = scene->createSceneComponent("SceneRoot", t);
         rootSceneComponent->owner = this;
+        if (scene->rootEntity)
+        {
+            parent = scene->rootEntity;
+        }
+        else
+        {
+            scene->rootEntity = this;
+        }
         if (parent)
         {
             parent->attachChild(this);
@@ -72,9 +80,9 @@ namespace Cyan
 
             func(sceneComponent);
 
-            for (u32 i = 0; i < (u32)sceneComponent->m_child.size(); ++i)
+            for (u32 i = 0; i < (u32)sceneComponent->childs.size(); ++i)
             {
-                sceneComponents.push(sceneComponent->m_child[i]);
+                sceneComponents.push(sceneComponent->childs[i]);
             }
         }
     }

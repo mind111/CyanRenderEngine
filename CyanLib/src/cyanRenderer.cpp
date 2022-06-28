@@ -315,9 +315,14 @@ namespace Cyan
         // taa
         for (i32 i = 0; i < ARRAY_COUNT(TAAJitterVectors); ++i)
         {
+#if 0
             TAAJitterVectors[i].x = (f32)std::rand() / RAND_MAX;
             TAAJitterVectors[i].y = (f32)std::rand() / RAND_MAX;
+#else
+            TAAJitterVectors[i] = halton23(i);
+#endif
             TAAJitterVectors[i] = TAAJitterVectors[i] * 2.0f - glm::vec2(1.0f);
+            reconstructionWeights[i] = glm::exp(-2.29 * (TAAJitterVectors[i].x * TAAJitterVectors[i].x + TAAJitterVectors[i].y * TAAJitterVectors[i].y));
             TAAJitterVectors[i] *= 0.5f / 1440.f;
         }
     }
@@ -794,6 +799,7 @@ namespace Cyan
         beginRender();
         {
             Camera camera = scene->camera;
+
             if (m_settings.enableTAA)
             {
                 // jitter the projection matrix
@@ -1192,6 +1198,7 @@ namespace Cyan
             TAAShader,
             [this, src](RenderTarget* renderTarget, Shader* shader) {
                 shader->setUniform("numFrames", m_numFrames);
+                shader->setUniform("sampleWeight", reconstructionWeights[m_numFrames % ARRAY_COUNT(TAAJitterVectors)]);
                 shader->setTexture("currentColorTexture", m_sceneColorTextureSSAA);
                 shader->setTexture("accumulatedColorTexture", m_TAAPingPongTextures[src]);
             }

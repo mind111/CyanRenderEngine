@@ -459,7 +459,7 @@ vec3 calcF0(MaterialParameters materialParameters)
 
 vec3 calcDirectionalLight(in DirectionalLight directionalLight, MaterialParameters materialParameters, vec3 worldSpacePosition)
 {
-    vec3 radiance = vec3(0.f);
+    vec3 radiance;
     float ndotl = max(dot(materialParameters.normal, directionalLight.direction.xyz), 0.f);
     // diffuse
     // todo: for some mysterious reason, this line is causing issue
@@ -514,6 +514,11 @@ vec3 calcSkyLight(SkyLight skyLight, MaterialParameters materialParameters, vec3
 vec3 calcLighting(SceneLights sceneLights, in MaterialParameters materialParameters, vec3 worldSpacePosition)
 {
     vec3 radiance = vec3(0.f);
+    // ambient light
+    float falloffY = exp(-0.2 * worldSpacePosition.y);
+    radiance += vec3(.1) * falloffY * max(materialParameters.normal.y, 0.) * materialParameters.albedo;
+    radiance += vec3(.1) * max(materialParameters.normal.z, 0.) * materialParameters.albedo;
+    // sun light
     radiance += calcDirectionalLight(sceneLights.directionalLight, materialParameters, worldSpacePosition);
     // radiance += calcSkyLight(sceneLights.skyLight, materialParameters, worldSpacePosition);
     return radiance;
@@ -581,6 +586,7 @@ void main()
     vec3 worldSpaceNormal = normalize(psIn.worldSpaceNormal);
     // todo: transform tangent back to world space
     MaterialParameters materialParameters = getMaterialParameters(worldSpaceNormal, viewSpaceTangent, psIn.texCoord0);
-    outColor = calcDirectionalLight(sceneLights.directionalLight, materialParameters, psIn.worldSpacePosition);
+    // outColor = calcDirectionalLight(sceneLights.directionalLight, materialParameters, psIn.worldSpacePosition);
+    outColor = calcLighting(sceneLights, materialParameters, psIn.worldSpacePosition);
     outColor = ACESFitted(gammaCorrection(outColor, 1.0 / 2.2));
 }

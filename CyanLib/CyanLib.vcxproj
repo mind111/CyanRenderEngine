@@ -65,6 +65,7 @@
     <ClInclude Include="include\Shadow.h" />
     <ClInclude Include="include\SkyBox.h" />
     <ClInclude Include="include\SkyLight.h" />
+    <ClInclude Include="include\StaticMeshEntity.h" />
     <ClInclude Include="include\System.h" />
     <ClInclude Include="include\Texture.h" />
     <ClInclude Include="include\Transform.h" />
@@ -124,6 +125,7 @@
     <ClCompile Include="src\Shader.cpp" />
     <ClCompile Include="src\Shadow.cpp" />
     <ClCompile Include="src\SkyBox.cpp" />
+    <ClCompile Include="src\StaticMeshEntity.cpp" />
     <ClCompile Include="src\Texture.cpp" />
     <ClCompile Include="src\todos.cpp" />
     <ClCompile Include="src\Utils.cpp" />
