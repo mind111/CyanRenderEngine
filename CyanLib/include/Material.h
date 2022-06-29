@@ -6,6 +6,8 @@
 #include "Shader.h"
 #include "Texture.h"
 #include "Asset.h"
+#include "CyanUI.h"
+// #include "AssetManager.h"
 
 namespace Cyan
 {
@@ -24,6 +26,7 @@ namespace Cyan
             kUseLightMap             = 1 << 7             
         };
 
+        virtual void renderUI() { };
         virtual void setShaderParameters(Shader* shader) = 0;
         virtual bool isLit() = 0;
     };
@@ -74,6 +77,52 @@ namespace Cyan
                 flags |= (u32)Flags::kHasOcclusionMap;
             }
             return flags;
+        }
+
+        virtual void renderUI() override 
+        { 
+            auto renderTextureCombo = [](const char* label, ITextureRenderable* previewTexture, const std::vector<ITextureRenderable*>& textures)
+            {
+                ImGui::Text(label + 2); ImGui::SameLine();
+                const char* preview = "";
+                if (previewTexture)
+                {
+                    preview = previewTexture->name;
+                }
+                if (ImGui::BeginCombo(label, preview))
+                {
+                    u32 selectedIndex = 0u;
+                    for (int n = 0; n < textures.size(); n++)
+                    {
+                        const bool isSelected = (selectedIndex == n);
+                        if (ImGui::Selectable(textures[n]->name, isSelected))
+                        {
+                            selectedIndex = n;
+                        }
+
+                        if (isSelected)
+                            ImGui::SetItemDefaultFocus();
+                    }
+                    ImGui::EndCombo();
+                }
+            };
+
+            std::vector<ITextureRenderable*> textures;
+            renderTextureCombo("##BaseColor", albedo, textures);
+            renderTextureCombo("##Normal", normal, textures);
+            renderTextureCombo("##Roughness", roughness, textures);
+            renderTextureCombo("##Metallic", metallic, textures);
+            renderTextureCombo("##MetallicRoughness", metallicRoughness, textures);
+            renderTextureCombo("##occlusion", occlusion, textures);
+            ImGui::Text("kRoughness"); ImGui::SameLine();
+            ImGui::SliderFloat("##kRoughness", &kRoughness, 0.f, 1.f);
+            ImGui::Text("kMetallic"); ImGui::SameLine();
+            ImGui::SliderFloat("##kMetallic", &kMetallic, 0.f, 1.f);
+            f32 color[3] = { kAlbedo.r, kAlbedo.g, kAlbedo.b };
+            ImGui::ColorPicker3("kAlbedo", color);
+            kAlbedo.r = color[0];
+            kAlbedo.g = color[1];
+            kAlbedo.b = color[2];
         }
 
         // todo: is there a way to nicely abstract binding each member field, if we can do reflection, then we 
@@ -162,6 +211,7 @@ namespace Cyan
         { 
         }
 
+        virtual void renderUI() { };
         virtual Shader* getMaterialShader() = 0;
         static std::string getAssetClassTypeDesc() { return std::string("IMaterial"); }
         virtual std::string getAssetObjectTypeDesc() override { return std::string("IMaterial"); }
@@ -191,6 +241,7 @@ namespace Cyan
             }
         }
 
+        virtual void renderUI() override { parameter.renderUI(); };
         virtual std::string getAssetObjectTypeDesc() override { return typeDesc; }
         static std::string getAssetClassTypeDesc() { return typeDesc; }
         virtual Shader* getMaterialShader() override { return shader; }

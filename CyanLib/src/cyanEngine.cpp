@@ -61,11 +61,12 @@ namespace Cyan
         */ 
         m_renderer->addUIRenderCommand([this]() {
             ImGuiWindowFlags flags = ImGuiWindowFlags_None;
+            ImGui::SetNextWindowPos(ImVec2(5, 5));
+            ImGui::SetNextWindowSize(ImVec2(360, 700));
             ImGui::Begin("Cyan", nullptr, flags);
             {
                 ImGui::BeginChild("##SceneView", ImVec2(0, 0), true);
                 static ImGuiTableFlags flags =
-                    // ImGuiTableFlags_BordersOuterH
                      ImGuiTableFlags_Resizable
                     | ImGuiTableFlags_RowBg
                     | ImGuiTableFlags_NoBordersInBody;
@@ -202,7 +203,7 @@ namespace Cyan
                                             ImGui::TableNextColumn();
                                             if (!component->childs.empty())
                                             {
-                                                bool open = ImGui::TreeNodeEx(component->m_name, ImGuiTreeNodeFlags_SpanFullWidth);
+                                                bool open = ImGui::TreeNodeEx(component->name.c_str(), ImGuiTreeNodeFlags_SpanFullWidth);
                                                 ImGui::TableNextColumn();
                                                 ImGui::TextColored(ImVec4(1.0, 1.0, 1.0, 0.2), "SceneComponent");
                                                 if (open)
@@ -216,7 +217,7 @@ namespace Cyan
                                             }
                                             else
                                             {
-                                                bool open = ImGui::TreeNodeEx(component->m_name, ImGuiTreeNodeFlags_Leaf);
+                                                bool open = ImGui::TreeNodeEx(component->name.c_str(), ImGuiTreeNodeFlags_Leaf);
                                                 ImGui::TableNextColumn();
                                                 ImGui::TextColored(ImVec4(1.0, 1.0, 1.0, 0.2), "SceneComponent");
                                                 if (open)
@@ -265,7 +266,7 @@ namespace Cyan
                             /**
                             * Entity's custom data section
                             */
-                            highlightedEntity->renderUIWidgets();
+                            highlightedEntity->renderUI();
 
                             ImGui::EndTabItem();
                         }

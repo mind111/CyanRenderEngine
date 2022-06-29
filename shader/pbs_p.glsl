@@ -514,10 +514,11 @@ vec3 calcSkyLight(SkyLight skyLight, MaterialParameters materialParameters, vec3
 vec3 calcLighting(SceneLights sceneLights, in MaterialParameters materialParameters, vec3 worldSpacePosition)
 {
     vec3 radiance = vec3(0.f);
-    // ambient light
-    float falloffY = exp(-0.2 * worldSpacePosition.y);
-    radiance += vec3(.1) * falloffY * max(materialParameters.normal.y, 0.) * materialParameters.albedo;
-    radiance += vec3(.1) * max(materialParameters.normal.z, 0.) * materialParameters.albedo;
+
+    // ambient light using flat shading
+    float ndotl = dot(materialParameters.normal, normalize(-psIn.viewSpacePosition)) * .5 + .5f;
+    radiance += vec3(0.15, 0.3, 0.5) * exp(0.1 * -length(psIn.viewSpacePosition)) * ndotl * materialParameters.albedo;
+
     // sun light
     radiance += calcDirectionalLight(sceneLights.directionalLight, materialParameters, worldSpacePosition);
     // radiance += calcSkyLight(sceneLights.skyLight, materialParameters, worldSpacePosition);

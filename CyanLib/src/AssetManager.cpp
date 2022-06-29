@@ -81,7 +81,7 @@ namespace Cyan
         }
     }
 
-    void AssetManager::importTextures(nlohmann::basic_json<std::map>& textureInfoList)
+    void AssetManager::importTextures(const nlohmann::basic_json<std::map>& textureInfoList)
     {
         using Cyan::Texture2DRenderable;
         for (auto textureInfo : textureInfoList) 
@@ -371,7 +371,7 @@ namespace Cyan
 #endif
     }
 
-    Mesh* AssetManager::loadMesh(std::string& path, const char* name, bool normalize, bool generateLightMapUv)
+    Mesh* AssetManager::importMesh(Scene* scene, std::string& path, const char* name, bool normalize, bool generateLightMapUv)
     {
         Cyan::Toolkit::ScopedTimer meshTimer(name, true);
 
@@ -388,15 +388,20 @@ namespace Cyan
             std::vector<ISubmesh*> submeshes = std::move(loadObj(baseDir.c_str(), path.c_str(), generateLightMapUv));
             parent = createMesh(name, submeshes);
         }
+        else if (extension == ".gltf")
+        {
+            cyanInfo("Loading .gltf file %s", path.c_str());
+            importGltf(scene, path.c_str(), name);
+        }
         else
             cyanError("Unsupported mesh file format %s", extension.c_str());
 
-        // todo: (handle converting mesh data for raster pipeline to ray tracing pipeline)
+        // todo: (handle converting mesh data from raster pipeline to ray tracing pipeline)
         // mesh->m_bvh  = nullptr;
         return parent;
     }
 
-    void AssetManager::importMeshes(Scene* scene, nlohmann::basic_json<std::map>& meshInfoList)
+    void AssetManager::importMeshes(Scene* scene, const nlohmann::basic_json<std::map>& meshInfoList)
     {
         for (auto meshInfo : meshInfoList) 
         {
@@ -407,57 +412,22 @@ namespace Cyan
             meshInfo.at("normalize").get_to(normalize);
             meshInfo.at("generateLightMapUv").get_to(generateLightMapUv);
 
-            loadMesh(path, name.c_str(), normalize, generateLightMapUv);
+            importMesh(scene, path, name.c_str(), normalize, generateLightMapUv);
         }
     }
 
-    void AssetManager::importSceneNodes(Scene* scene, nlohmann::basic_json<std::map>& nodeInfoList)
+    void AssetManager::importEntities(Scene* scene, const nlohmann::basic_json<std::map>& entityInfoList)
     {
-        Cyan::Toolkit::ScopedTimer timer("loadNodes()", true);
-        auto sceneManager = SceneManager::get();
-        for (auto nodeInfo : nodeInfoList)
-        {
-            u32 index = nodeInfo.at("index");
-            std::string nodeName = nodeInfo.at("name");
-            auto xformInfo = nodeInfo.at("xform");
-            Transform transform = nodeInfo.at("xform").get<Transform>();
-            if (nodeInfo.find("file") != nodeInfo.end())
-            {
-                std::string nodeFile = nodeInfo.at("file");
-                SceneComponent* node = nullptr; 
-                if (nodeFile.find(".gltf") != std::string::npos) {
-                    node = loadGltf(scene, nodeFile.c_str(), nodeName.c_str(), transform);
-                }
-                m_nodes.push_back(node);
-                continue;
-            }
-            std::string meshName = nodeInfo.at("mesh");
-            Mesh* parent = getAsset<Mesh>(meshName.c_str());
-            SceneComponent* node = scene->createMeshComponent(parent, transform); 
-            m_nodes.push_back(node);
-        }
-        // second pass to setup the hierarchy
-        for (auto nodeInfo : nodeInfoList)
-        {
-            u32 index = nodeInfo.at("index");
-            std::vector<u32> childNodes = nodeInfo.at("child");
-            for (auto child : childNodes)
-            {
-                SceneComponent* childNode = m_nodes[child];
-                m_nodes[index]->attachChild(childNode);
-            }
-        }
-    }
-
-    void AssetManager::importEntities(Scene* scene, nlohmann::basic_json<std::map>& entityInfoList)
-    {
-        Cyan::Toolkit::ScopedTimer timer("loadEntities()", true);
+        Cyan::Toolkit::ScopedTimer timer("importEntities()", true);
         for (auto entityInfo : entityInfoList)
         {
+            // name
             std::string entityName;
             entityInfo.at("name").get_to(entityName);
+            // transform
             auto xformInfo = entityInfo.at("xform");
             Transform xform = entityInfo.at("xform").get<Transform>();
+            // properties
             bool isStatic = entityInfo.at("static");
             u32 properties = (EntityFlag_kVisible | EntityFlag_kCastShadow);
             if (isStatic)
@@ -468,11 +438,39 @@ namespace Cyan
             {
                 properties |= EntityFlag_kDynamic;
             }
-            Entity* entity = scene->createEntity(entityName.c_str(), xform, nullptr, properties);
-            auto sceneNodes = entityInfo.at("nodes");
-            for (auto node : sceneNodes)
+            // mesh
+            std::string meshName;
+            auto meshInfo = entityInfo.at("mesh");
+            meshInfo.get_to(meshName);
+            if (meshName != "None")
             {
-                entity->attachSceneComponent(m_nodes[node]);
+                Mesh* mesh = getAsset<Mesh>(meshName.c_str());
+                if (mesh)
+                {
+                    scene->createStaticMeshEntity(entityName.c_str(), xform, mesh, nullptr, properties);
+                }
+                else
+                {
+                    cyanError("Mesh with name %s does not exist", meshName.c_str());
+                }
+            }
+            else
+            {
+                Entity* entity = scene->createEntity(entityName.c_str(), xform, nullptr, properties);
+                const auto& childInfoList = entityInfo.at("childs");
+                for (const auto& childInfo : childInfoList)
+                {
+                    std::string childName;
+                    childInfo.get_to(childName);
+                    if (Entity* child = scene->getEntity(childName.c_str()))
+                    {
+                        entity->attachChild(child);
+                    }
+                    else
+                    {
+                        cyanError("Entity with name %s does not exist", childName.c_str());
+                    }
+                }
             }
         }
     }
@@ -489,11 +487,10 @@ namespace Cyan
         {
             std::cerr << e.what() << std::endl;
         }
-        auto cameras = sceneJson["cameras"];
-        auto meshInfoList = sceneJson["meshes"];
-        auto textureInfoList = sceneJson["textures"];
-        auto nodes = sceneJson["nodes"];
-        auto entities = sceneJson["entities"];
+        const auto& cameras = sceneJson["cameras"];
+        const auto& meshInfoList = sceneJson["meshes"];
+        const auto& textureInfoList = sceneJson["textures"];
+        const auto& entities = sceneJson["entities"];
 
         for (auto& camera : cameras) 
         {
@@ -504,11 +501,10 @@ namespace Cyan
 
         importTextures(textureInfoList);
         importMeshes(scene, meshInfoList);
-        importSceneNodes(scene, nodes);
         importEntities(scene, entities);
     }
 
-    Cyan::Texture2DRenderable* AssetManager::loadGltfTexture(const char* nodeName, tinygltf::Model& model, i32 index) {
+    Cyan::Texture2DRenderable* AssetManager::importGltfTexture(const char* nodeName, tinygltf::Model& model, i32 index) {
         using Cyan::Texture2DRenderable;
         Texture2DRenderable* texture = nullptr;
         if (index > -1) {
@@ -567,15 +563,14 @@ namespace Cyan
         return texture;
     }
 
-    SceneComponent* AssetManager::loadGltfNode(Scene* scene, tinygltf::Model& model, tinygltf::Node* parent, 
-                        SceneComponent* parentSceneComponent, tinygltf::Node& node, u32 numNodes) {
+    void AssetManager::importGltfNode(Scene* scene, tinygltf::Model& model, Entity* parent, tinygltf::Node& node) 
+    {
         auto sceneManager = SceneManager::get();
         bool hasMesh = (node.mesh > -1);
         bool hasSkin = (node.skin > -1);
         bool hasMatrix = !node.matrix.empty();
-        bool hasTransformComponent = (!node.rotation.empty() || !node.translation.empty() ||
-                                    !node.scale.empty());
-        bool hasTransform = (hasMatrix || hasTransformComponent);
+        bool hasTransform = ((!node.rotation.empty() || !node.translation.empty() ||
+                                    !node.scale.empty()) || hasMatrix);
         const char* meshName = hasMesh ? model.meshes[node.mesh].name.c_str() : nullptr;
         Transform localTransform;
         if (hasMatrix) 
@@ -589,7 +584,7 @@ namespace Cyan
             // convert matrix to local transform
             localTransform.fromMatrix(matrix);
         } 
-        else if (hasTransformComponent) 
+        else if (hasTransform) 
         {
             if (!node.translation.empty()) {
                 localTransform.m_translate = glm::vec3(node.translation[0], node.translation[1], node.translation[2]);
@@ -603,31 +598,23 @@ namespace Cyan
             }
         }
 
-        // create a SceneComponent for this node
-        char sceneNodeName[128];
+        // a node in gltf corresponds to an entity in Cyan
+        static u32 numAnonymousNodes = 0u;
+        char entityName[128];
         CYAN_ASSERT(node.name.size() < kEntityNameMaxLen, "Entity name too long !!")
         if (node.name.empty())
-            sprintf_s(sceneNodeName, "Node%u", numNodes);
+            sprintf_s(entityName, "Node%u", numAnonymousNodes++);
         else 
-            sprintf_s(sceneNodeName, "%s", node.name.c_str());
+            sprintf_s(entityName, "%s", node.name.c_str());
         
-        SceneComponent* sceneComponent = nullptr;
+        Entity* entity = nullptr;
         if (hasMesh)
         {
             Mesh* mesh = getAsset<Mesh>(meshName);
-            sceneComponent = scene->createMeshComponent(mesh, localTransform);
-        }
-        else
-        {
-            sceneComponent = scene->createSceneComponent(sceneNodeName, localTransform);
-        }
-        if (parentSceneComponent)
-        {
-            parentSceneComponent->attachChild(sceneComponent);
-        }
-        // bind material
-        if (auto meshInstance = sceneComponent->getAttachedMesh())
-        {
+            auto staticMeshEntity = scene->createStaticMeshEntity(meshName, localTransform, mesh, parent);
+            entity = staticMeshEntity;
+
+            // setup material
             auto& gltfMesh = model.meshes[node.mesh];
             for (u32 sm = 0u; sm < gltfMesh.primitives.size(); ++sm) 
             {
@@ -656,14 +643,18 @@ namespace Cyan
                     matl->parameter.metallicRoughness = getTexture(pbr.metallicRoughnessTexture.index);
                     matl->parameter.occlusion = getTexture(gltfMaterial.occlusionTexture.index);
                 }
-
-                meshInstance->materials[sm] = matl;
+                staticMeshEntity->setMaterial(matl, sm);
             }
         }
+        else
+        {
+            entity = scene->createEntity(entityName, localTransform, parent);
+        }
         // recurse to load all the children
-        for (auto& child : node.children) 
-            loadGltfNode(scene, model, &node, sceneComponent, model.nodes[child], ++numNodes);
-        return sceneComponent;
+        for (auto& child : node.children)
+        {
+            importGltfNode(scene, model, entity, model.nodes[child]);
+        }
     }
 
     template <typename T>
@@ -787,7 +778,7 @@ namespace Cyan
         }
     }
 
-    Cyan::Mesh* AssetManager::loadGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh) 
+    Cyan::Mesh* AssetManager::importGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh) 
     {
 
         std::vector<ISubmesh*> submeshes;
@@ -858,7 +849,10 @@ namespace Cyan
                             for (u32 v = 0; v < vertices.size(); ++v)
                             {
                                 f32* src = reinterpret_cast<f32*>(buffer.data.data() + (accessor.byteOffset + bufferView.byteOffset));
-                                vertices[v].texCoord0 = glm::vec2(src[v * 2], src[v * 2 + 1]);
+                                /** Note:
+                                * textureUv.y is filped here
+                                */
+                                vertices[v].texCoord0 = glm::vec2(src[v * 2], 1.0 - src[v * 2 + 1]);
                             }
                         } break;
                         case 1:
@@ -937,13 +931,13 @@ namespace Cyan
         return parent;
     }
 
-    void AssetManager::loadGltfTextures(const char* nodeName, tinygltf::Model& model) {
+    void AssetManager::importGltfTextures(const char* nodeName, tinygltf::Model& model) {
         for (u32 t = 0u; t < model.textures.size(); ++t) {
-            loadGltfTexture(nodeName, model, t);
+            importGltfTexture(nodeName, model, t);
         }
     }
 
-    SceneComponent* AssetManager::loadGltf(Scene* scene, const char* filename, const char* name, Transform transform)
+    void AssetManager::importGltf(Scene* scene, const char* filename, const char* name)
     {
         using Cyan::Mesh;
         tinygltf::Model model;
@@ -955,24 +949,16 @@ namespace Cyan
             std::cout << err << std::endl;
         }
         tinygltf::Scene& gltfScene = model.scenes[model.defaultScene];
-        // load textures
-        loadGltfTextures(name, model);
-        // load meshes
+        // import textures
+        importGltfTextures(name, model);
+        // import meshes
         for (auto& gltfMesh : model.meshes)
         {
-            Mesh* parent = loadGltfMesh(model, gltfMesh);
+            importGltfMesh(model, gltfMesh);
         }
-        // todo: Handle multiple root nodes
-        // assuming that there is only one root node for defaultScene
-        tinygltf::Node rootNode = model.nodes[gltfScene.nodes[0]];
-        Cyan::Mesh* rootNodeMesh = nullptr;
-        if (rootNode.mesh > 0)
-        {
-            tinygltf::Mesh gltfMesh = model.meshes[rootNode.mesh];
-            rootNodeMesh = getAsset<Mesh>(gltfMesh.name.c_str());
-        }
-        SceneComponent* parentNode = scene->createSceneComponent(name, transform);
-        loadGltfNode(scene, model, nullptr, parentNode, rootNode, 0);
-        return parentNode;
+        // rename the root node to 'name'
+        model.nodes[gltfScene.nodes[0]].name = std::string(name);
+        // import gltf nodes
+        importGltfNode(scene, model, nullptr, model.nodes[gltfScene.nodes[0]]);
     }
 }

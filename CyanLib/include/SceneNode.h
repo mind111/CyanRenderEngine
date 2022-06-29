@@ -24,10 +24,13 @@ namespace Cyan
         /* SceneComponent interface */
         virtual Cyan::MeshInstance* getAttachedMesh() { return nullptr; }
 
-        void setParent(SceneComponent* parent);
-        void attachChild(SceneComponent* child);
-        void attachIndirectChild(SceneComponent* child);
-        void onAttachTo();
+        void attachChild(SceneComponent* inChild);
+        void attachIndirectChild(SceneComponent* inChild);
+        void onAttachTo(SceneComponent* inParent);
+        void removeChild(SceneComponent* inChild);
+        void removeIndirectChild(SceneComponent* inChild);
+        void onBeingRemoved();
+
         const Transform& getLocalTransform();
         const Transform& getWorldTransform();
         const glm::mat4& getLocalTransformMatrix();
@@ -38,11 +41,11 @@ namespace Cyan
         Entity* owner;
         Scene* m_scene;
         // identifier
-        char m_name[kSceneNodeNameMaxLen];
+        std::string name;
         // node hierarchy
-        SceneComponent* m_parent;
+        SceneComponent* parent;
         std::vector<SceneComponent*> childs;
-        std::vector<SceneComponent*> m_indirectChild;
+        std::vector<SceneComponent*> indirectChilds;
         // transform component
         u32       localTransform;
         u32       globalTransform;

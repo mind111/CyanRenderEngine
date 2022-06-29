@@ -79,7 +79,7 @@ T* treeBFS(T* node, const char* name)
     {
         T* node = queue.front();
         queue.pop();
-        if (strcmp(name, node->m_name) == 0)
+        if (node->name == name)
         {
             return node;
         }

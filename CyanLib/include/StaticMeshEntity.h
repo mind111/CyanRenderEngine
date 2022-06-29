@@ -14,7 +14,7 @@ namespace Cyan
         /* Entity interface */
         virtual void update() override { }
         virtual const char* getTypeDesc() override { return "StaticMeshEntity"; }
-        virtual void renderUIWidgets() override;
+        virtual void renderUI() override;
 
         StaticMeshEntity(
             Scene* scene,

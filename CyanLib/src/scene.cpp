@@ -30,9 +30,9 @@ namespace Cyan
         {
             auto node = nodes.front();
             nodes.pop();
-            if (node->m_parent)
+            if (node->parent)
             {
-                glm::mat4& parentGlobalMatrix = globalTransformMatrixPool.getObject(node->m_parent->globalTransform);
+                glm::mat4& parentGlobalMatrix = globalTransformMatrixPool.getObject(node->parent->globalTransform);
                 glm::mat4& globalMatrix = globalTransformMatrixPool.getObject(node->globalTransform);
                 glm::mat4& localMatrix = localTransformMatrixPool.getObject(node->localTransform);
                 globalMatrix = parentGlobalMatrix * localMatrix;
@@ -42,9 +42,9 @@ namespace Cyan
             {
                 nodes.push(node->childs[i]);
             }
-            for (u32 i = 0; i < node->m_indirectChild.size(); ++i)
+            for (u32 i = 0; i < node->indirectChilds.size(); ++i)
             {
-                nodes.push(node->m_indirectChild[i]);
+                nodes.push(node->indirectChilds[i]);
             }
         }
 
@@ -88,8 +88,7 @@ namespace Cyan
         sceneComponent->globalTransform = globalTransformPool.getObjectIndex(globalTransfom);
 
         sceneComponent->m_scene = this;
-        CYAN_ASSERT(strlen(name) < 128, "SceneNode name %s is too long!", name);
-        strcpy(sceneComponent->m_name, name);
+        sceneComponent->name = name;
         sceneComponents.push_back(sceneComponent);
         return sceneComponent;
     }
@@ -111,7 +110,7 @@ namespace Cyan
         meshComponent->globalTransform = globalTransformPool.getObjectIndex(globalTransfom);
 
         meshComponent->m_scene = this;
-        strcpy(meshComponent->m_name, mesh->name.c_str());
+        meshComponent->name = mesh->name;
         meshComponent->meshInst = createMeshInstance(mesh);
         sceneComponents.push_back(meshComponent);
         return meshComponent;

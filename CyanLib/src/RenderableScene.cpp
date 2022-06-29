@@ -31,9 +31,9 @@ namespace Cyan
 #if 1
                         ADD_SSBO_DYNAMIC_ELEMENT(transformSsbo, sceneComp->getWorldTransformMatrix());
 #endif
-#endif
                     }
                 });
+#endif
         }
 
 #if 1

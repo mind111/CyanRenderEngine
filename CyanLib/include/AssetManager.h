@@ -17,6 +17,8 @@
 
 namespace Cyan
 {
+    struct IMaterial;
+
     // todo: differentiate import...() from load...(), import refers to importing raw scene data, load refers to loading serialized binary
     class AssetManager
     {
@@ -72,18 +74,17 @@ namespace Cyan
             std::vector<u32> m_child;
         };
 
-        Cyan::Texture2DRenderable* loadGltfTexture(const char* nodeName, tinygltf::Model& model, i32 index);
-        SceneComponent* loadGltfNode(Scene* scene, tinygltf::Model& model, tinygltf::Node* parent, SceneComponent* parentSceneNode, tinygltf::Node& node, u32 numNodes);
-        Mesh* loadGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh); 
-        void loadGltfTextures(const char* nodeName, tinygltf::Model& model);
-        SceneComponent* loadGltf(Scene* scene, const char* filename, const char* name, Transform transform);
+        Cyan::Texture2DRenderable* importGltfTexture(const char* nodeName, tinygltf::Model& model, i32 index);
+        void importGltfNode(Scene* scene, tinygltf::Model& model, Entity* parent, tinygltf::Node& node);
+        Mesh* importGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh); 
+        void importGltfTextures(const char* nodeName, tinygltf::Model& model);
+        void importGltf(Scene* scene, const char* filename, const char* name);
         std::vector<ISubmesh*> loadObj(const char* baseDir, const char* filename, bool generateLightMapUv);
-        Mesh* loadMesh(std::string& path, const char* name, bool normalize, bool generateLightMapUv);
+        Mesh* importMesh(Scene* scene, std::string& path, const char* name, bool normalize, bool generateLightMapUv);
         void importScene(Scene* scene, const char* file);
-        void importSceneNodes(Scene* scene, nlohmann::basic_json<std::map>& nodeInfoList);
-        void importEntities(Scene* scene, nlohmann::basic_json<std::map>& entityInfoList);
-        void importTextures(nlohmann::basic_json<std::map>& textureInfoList);
-        void importMeshes(Scene* scene, nlohmann::basic_json<std::map>& meshInfoList);
+        void importEntities(Scene* scene, const nlohmann::basic_json<std::map>& entityInfoList);
+        void importTextures(const nlohmann::basic_json<std::map>& textureInfoList);
+        void importMeshes(Scene* scene, const nlohmann::basic_json<std::map>& meshInfoList);
 
         /**
         * Creating a texture from scratch; `name` must be unique
@@ -94,7 +95,9 @@ namespace Cyan
             if (!outTexture)
             {
                 outTexture = new Texture2DRenderable(name, spec, parameter);
-                singleton->m_textureMap.insert({ name, outTexture });
+                // singleton->m_textureMap.insert({ name, outTexture });
+                // singleton->m_textures.push_back(outTexture);
+                singleton->addTexture(outTexture);
             }
             return outTexture;
         }
@@ -105,7 +108,9 @@ namespace Cyan
             if (!outTexture)
             {
                 Texture3DRenderable* outTexture = new Texture3DRenderable(name, spec, parameter);
-                singleton->m_textureMap.insert({ name, outTexture });
+                // singleton->m_textureMap.insert({ name, outTexture });
+                // singleton->m_textures.push_back(outTexture);
+                singleton->addTexture(outTexture);
             }
             return outTexture;
         }
@@ -116,7 +121,9 @@ namespace Cyan
             if (!outTexture)
             {
                 TextureCubeRenderable* outTexture = new TextureCubeRenderable(name, spec, parameter);
-                singleton->m_textureMap.insert({ name, outTexture });
+                // singleton->m_textureMap.insert({ name, outTexture });
+                // singleton->m_textures.push_back(outTexture);
+                singleton->addTexture(outTexture);
             }
             return outTexture;
         }
@@ -127,7 +134,8 @@ namespace Cyan
             if (!outTexture)
             {
                 outTexture = new DepthTexture(name, width, height);
-                singleton->m_textureMap.insert({ name, outTexture });
+                // singleton->m_textureMap.insert({ name, outTexture });
+                singleton->addTexture(outTexture);
             }
             return outTexture;
         }
@@ -233,6 +241,11 @@ namespace Cyan
             return nullptr;
         }
 
+        static const std::vector<ITextureRenderable*>& getTextures()
+        {
+            return singleton->m_textures;
+        }
+
         template <typename T>
         static Mesh::Submesh<T>* createSubmesh(const std::vector<typename T::Vertex>& vertices, const std::vector<u32>& indices)
         {
@@ -252,13 +265,27 @@ namespace Cyan
         }
 
     private:
+
+        /**
+        * Adding a texture into the asset data base
+        */
+        void addTexture(ITextureRenderable* inTexture)
+        {
+            singleton->m_textureMap.insert({ inTexture->name, inTexture });
+            singleton->m_textures.push_back(inTexture);
+        }
+
         void* m_objLoader;
         void* m_gltfLoader;
         tinygltf::TinyGLTF m_loader;
-        std::vector<SceneComponent*> m_nodes;
+        // std::vector<SceneComponent*> m_nodes;
         static AssetManager* singleton;
 
-        // asset tables
+        // asset arrays for efficient iterating
+        std::vector<Mesh*> m_meshes;
+        std::vector<ITextureRenderable*> m_textures;
+
+        // asset tables for efficient lookup
         std::unordered_map<std::string, std::unique_ptr<Scene>> m_sceneMap;
         std::unordered_map<std::string, ITextureRenderable*> m_textureMap;
         std::unordered_map<std::string, Mesh*> m_meshMap;

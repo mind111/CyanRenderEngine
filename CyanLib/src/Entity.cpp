@@ -12,13 +12,16 @@ namespace Cyan
     {
         rootSceneComponent = scene->createSceneComponent("SceneRoot", t);
         rootSceneComponent->owner = this;
-        if (scene->rootEntity)
+        if (!parent)
         {
-            parent = scene->rootEntity;
-        }
-        else
-        {
-            scene->rootEntity = this;
+            if (scene->rootEntity)
+            {
+                parent = scene->rootEntity;
+            }
+            else
+            {
+                scene->rootEntity = this;
+            }
         }
         if (parent)
         {
@@ -50,23 +53,49 @@ namespace Cyan
         child->owner = this;
     }
 
-    // merely sets the parent entity, it's not this method's responsibility to trigger
-    // any logic relates to parent change
-    void Entity::setParent(Entity* inParent)
-    {
-        parent = inParent;
-    }
-
     void Entity::attachChild(Entity* child)
     {
-        child->setParent(this);
+        child->onAttachTo(this);
         childs.push_back(child);
-        child->onAttach();
     }
 
-    void Entity::onAttach()
+    void Entity::onAttachTo(Entity* inParent)
     {
+        /** Note:
+        * if 'this' entity already has a parent, need to notify the parent to move 'this' from its list of
+        * childs
+        */
+        if (parent)
+        {
+            parent->removeChild(this);
+        }
+        parent = inParent;
         parent->rootSceneComponent->attachIndirectChild(rootSceneComponent);
+    }
+
+    void Entity::removeChild(Entity* inChild)
+    {
+        i32 found = -1;
+        i32 index = 0;
+        for (i32 i = 0; i < childs.size(); ++i)
+        {
+            if (childs[i]->name == inChild->name)
+            {
+                found = index;
+                break;
+            }
+        }
+        if (found >= 0)
+        {
+            childs[found]->onBeingRemoved();
+            childs.erase(childs.begin() + found);
+        }
+    }
+
+    void Entity::onBeingRemoved()
+    {
+        parent->rootSceneComponent->removeIndirectChild(rootSceneComponent);
+        parent = nullptr;
     }
 
     void Entity::visit(const std::function<void(SceneComponent*)>& func)

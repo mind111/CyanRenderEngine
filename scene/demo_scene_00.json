@@ -72,6 +72,24 @@
             "path": "../../asset/demo_scene/man.obj",
             "normalize": false,
             "generateLightMapUv": false
+        },
+        {
+            "name": "robot_mesh",
+            "path": "../../asset/metal_gear_mk/scene.gltf",
+            "normalize": false,
+            "generateLightMapUv": false
+        },
+        {
+            "name": "knight_mesh",
+            "path": "../../asset/medieval_knight/scene.gltf",
+            "normalize": false,
+            "generateLightMapUv": false
+        },
+        {
+            "name": "gundam_mesh",
+            "path": "../../asset/rx78/scene.gltf",
+            "normalize": false,
+            "generateLightMapUv": false
         }
     ],
 
@@ -190,227 +208,114 @@
     ],
 
     "materials": [],
-    "nodes": [
+
+    "entities": [
         {
-            "index": 0,
-            "name": "HelmetMesh",
+            "name": "DamagedHelmet",
             "mesh": "helmet_mesh",
             "xform": {
                 "translation": [-5.7998, 1.5099, 2.329],
                 "rotation": [90.0, 0, 1, 0],
                 "scale": [0.247, 0.247, 0.247]
             },
-            "child": []
+            "childs": [],
+            "static": false
         },
 
         {
-            "index": 1,
-            "name": "RoomMesh",
+            "name": "Room",
             "mesh": "room_mesh",
             "xform": {
                 "translation": [0.0, 0.0, 0.0],
                 "rotation": [0.0, 0, 1, 0],
-                "scale": [1.0, 1.0, 1.0]
+                "scale": [1.00, 1.00, 1.00]
             },
-            "child": []
+            "childs": [],
+            "static": true
         },
 
         {
-            "index": 2,
-            "name": "PlaneMesh",
+            "name": "Plane",
             "mesh": "plane_mesh",
             "xform": {
                 "translation": [0.0, 0.0, 0.0],
                 "rotation": [0.0, 0, 1, 0],
-                "scale": [1.0, 1.0, 1.0]
+                "scale": [1.00, 1.00, 1.00]
             },
-            "child": []
+            "childs": [],
+            "static": true
         },
 
         {
-            "index": 3,
-            "name": "BunnyMesh",
-            "mesh": "bunny_mesh",
+            "name": "Bunny0",
+            "mesh":  "bunny_mesh",
             "xform": {
                 "translation": [-5.7952, 1.2793, -0.022686],
                 "rotation": [0.0, 0, 1, 0],
                 "scale": [0.388, 0.388, 0.388]
             },
-            "child": []
+            "childs": [],
+            "static": false
         },
 
         {
-            "index": 4,
-            "name": "BunnyMesh",
-            "mesh": "bunny_mesh",
+            "name": "Bunny1",
+            "mesh":  "bunny_mesh",
             "xform": {
                 "translation": [-5.7952, 1.2793, -2.6587],
                 "rotation": [0.0, 0, 1, 0],
                 "scale": [0.388, 0.388, 0.388]
             },
-            "child": []
+            "childs": [],
+            "static": false
         },
 
         {
-            "index": 5,
-            "name": "ManMesh",
+            "name": "Man",
             "mesh": "man_mesh",
             "xform": {
                 "translation": [-4.5761, 0.24115, 0.0],
                 "rotation": [0.0, 0, 1, 0],
                 "scale": [1.00, 1.00, 1.00]
             },
-            "child": []
+            "childs": [],
+            "static": false
         },
 
         {
-            "index": 6,
-            "name": "RobotMesh",
-            "file": "../../asset/metal_gear_mk/scene.gltf",
+            "name": "Mk2",
+            "mesh": "None",
             "xform": {
                 "translation": [-4.5761, 0.24115, -3.0],
                 "rotation": [90.0, 0, 1, 0],
                 "scale": [0.285, 0.285, 0.285]
             },
-            "child": []
+            "childs": ["robot_mesh"],
+            "static": false
         },
 
         {
-            "index": 7,
-            "name": "KnightMesh",
-            "file": "../../asset/medieval_knight/scene.gltf",
+            "name": "Knight",
+            "mesh": "None",
             "xform": {
                 "translation": [-1.5761, 0.24115, -3.0],
                 "rotation": [0.0, 0, 1, 0],
                 "scale": [0.01, 0.01, 0.01]
             },
-            "child": []
-        },
-
-        {
-            "index": 8,
-            "name": "GundamMesh",
-            "file": "../../asset/rx78/scene.gltf",
-            "xform": {
-                "translation": [5.3159, 0.10916, -2.0],
-                "rotation": [-30.0, 0, 1, 0],
-                "scale": [0.346, 0.346, 0.346]
-            },
-            "child": []
-        },
-
-        {
-            "index": 9,
-            "name": "BuildingMesh",
-            "mesh": "building_mesh",
-            "xform": {
-                "translation": [0.0, 0.0, 0.0],
-                "rotation": [0.0, 0, 1, 0],
-                "scale": [1.0, 1.0, 1.0]
-            },
-            "child": []
-        },
-
-        {
-            "index": 10,
-            "name": "TowerMesh",
-            "mesh": "tower_mesh",
-            "xform": {
-                "translation": [0.0, 0.0, 0.0],
-                "rotation": [0.0, 0, 1, 0],
-                "scale": [1.0, 1.0, 1.0]
-            },
-            "child": []
-        }
-    ],
-
-    "entities": [
-        {
-            "name": "DamagedHelmet",
-            "xform": {
-                "translation": [0.0, 0.0, 0.0],
-                "rotation": [0.0, 0, 1, 0],
-                "scale": [1.0, 1.0, 1.0]
-            },
-            "static": false,
-            "nodes": [ 0 ]
-        },
-
-        {
-            "name": "Room",
-            "xform": {
-                "translation": [0.0, 0.0, 0.0],
-                "rotation": [0.0, 0, 1, 0],
-                "scale": [1.00, 1.00, 1.00]
-            },
-            "static": true,
-            "nodes": [ 1, 2]
-        },
-
-        {
-            "name": "Bunny0",
-            "xform": {
-                "translation": [0.0, 0.0, 0.0],
-                "rotation": [0.0, 0, 1, 0],
-                "scale": [1.00, 1.00, 1.00]
-            },
-            "static": false,
-            "nodes": [ 3 ]
-        },
-
-        {
-            "name": "Bunny1",
-            "xform": {
-                "translation": [0.0, 0.0, 0.0],
-                "rotation": [0.0, 0, 1, 0],
-                "scale": [1.00, 1.00, 1.00]
-            },
-            "static": false,
-            "nodes": [ 4 ]
-        },
-
-        {
-            "name": "Man",
-            "xform": {
-                "translation": [0.0, 0.0, 0.0],
-                "rotation": [0.0, 0, 1, 0],
-                "scale": [1.00, 1.00, 1.00]
-            },
-            "static": false,
-            "nodes": [ 5 ]
-        },
-
-        {
-            "name": "Mk2",
-            "xform": {
-              "translation": [ 0.0, 0.0, 0.0 ],
-              "rotation": [ 0.0, 0, 1, 0 ],
-              "scale": [ 1.00, 1.00, 1.00 ]
-            },
-            "static": false,
-            "nodes": [ 6 ]
-        },
-
-        {
-            "name": "Knight",
-            "xform": {
-              "translation": [ 0.0, 0.0, 0.0 ],
-              "rotation": [ 0.0, 0, 1, 0 ],
-              "scale": [ 1.00, 1.00, 1.00 ]
-            },
-            "static": false,
-            "nodes": [ 7 ]
+            "childs": ["knight_mesh"],
+            "static": false
         },
 
         {
             "name": "Gundam",
+            "mesh": "None",
             "xform": {
-              "translation": [ 0.0, 0.0, 0.0 ],
-              "rotation": [ 0.0, 0, 1, 0 ],
-              "scale": [ 1.00, 1.00, 1.00 ]
+              "translation": [5.3159, 0.10916, -2.0],
+              "rotation": [-30.0, 0, 1, 0],
+              "scale": [0.346, 0.346, 0.346]
             },
-            "static": false,
-            "nodes": [ 8 ]
+            "childs": ["gundam_mesh"],
+            "static": false
         }
     ]
 }

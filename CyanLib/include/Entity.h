@@ -52,7 +52,7 @@ namespace Cyan
 
         virtual void update() { }
         virtual const char* getTypeDesc() { return "Entity"; }
-        virtual void renderUIWidgets() { }
+        virtual void renderUI() { }
 
         u32 getProperties() { return properties; }
         SceneComponent* getRootSceneComponent();
@@ -63,7 +63,9 @@ namespace Cyan
         // struct RayCastInfo intersectRay(const glm::vec3& ro, const glm::vec3& rd, const glm::mat4& view);
 
         void attachChild(Entity* child);
-        void onAttach();
+        void onAttachTo(Entity* inParent);
+        void removeChild(Entity* child);
+        void onBeingRemoved();
 
         // visitor
         void visit(const std::function<void(SceneComponent*)>& func);
@@ -76,7 +78,6 @@ namespace Cyan
         const glm::mat4& getWorldTransformMatrix() { return rootSceneComponent->getWorldTransformMatrix(); }
 
         // setters
-        void setParent(Entity* parent);
         void setLocalTransform(const Transform& transform);
         void setMaterial(const char* meshComponentName, Cyan::IMaterial* matl);
         void setMaterial(const char* meshComponentName, i32 submeshIndex, Cyan::IMaterial* matl);

@@ -4,28 +4,68 @@
 
 namespace Cyan
 {
-    void SceneComponent::setParent(SceneComponent* parent)
-    {
-        m_parent = parent;
-    }
-
     void SceneComponent::attachChild(SceneComponent* child)
     {
+        child->onAttachTo(this);
         childs.push_back(child);
-        child->setParent(this);
-        child->onAttachTo();
     }
 
-    void SceneComponent::attachIndirectChild(SceneComponent* child)
+    void SceneComponent::attachIndirectChild(SceneComponent* inChild)
     {
-        m_indirectChild.push_back(child);
-        child->setParent(this);
-        child->onAttachTo();
+        inChild->onAttachTo(this);
+        indirectChilds.push_back(inChild);
     }
 
-    void SceneComponent::onAttachTo()
+    void SceneComponent::onAttachTo(SceneComponent* inParent)
     {
+        if (parent)
+        {
+            parent->removeChild(this);
+        }
+        parent = inParent;
+    }
 
+    void SceneComponent::removeChild(SceneComponent* inChild)
+    {
+        i32 found = -1;
+        i32 index = 0;
+        for (i32 i = 0; i < childs.size(); ++i)
+        {
+            if (childs[i]->name == inChild->name)
+            {
+                found = index;
+                break;
+            }
+        }
+        if (found >= 0)
+        {
+            childs[found]->onBeingRemoved();
+            childs.erase(childs.begin() + found);
+        }
+    }
+
+    void SceneComponent::removeIndirectChild(SceneComponent* inChild)
+    {
+        i32 found = -1;
+        i32 index = 0;
+        for (i32 i = 0; i < indirectChilds.size(); ++i)
+        {
+            if (indirectChilds[i]->name == inChild->name)
+            {
+                found = index;
+                break;
+            }
+        }
+        if (found >= 0)
+        {
+            indirectChilds[found]->onBeingRemoved();
+            indirectChilds.erase(indirectChilds.begin() + found);
+        }
+    }
+
+    void SceneComponent::onBeingRemoved()
+    {
+        parent = nullptr;
     }
 
     const Transform& SceneComponent::getLocalTransform()

@@ -25,7 +25,7 @@ namespace Cyan
     {
     }
 
-    void DirectionalLightEntity::renderUIWidgets()
+    void DirectionalLightEntity::renderUI()
     {
         if (ImGui::CollapsingHeader("DirectionalLight", ImGuiTreeNodeFlags_DefaultOpen))
         {
