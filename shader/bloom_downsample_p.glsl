@@ -1,19 +1,17 @@
 #version 450 core
 
-in vec2 uv;
+in VSOutput
+{
+	vec2 texCoord0;
+} psIn;
+uniform sampler2D srcImage;
 
 out vec4 fragcolor;
 
-uniform sampler2D srcImage;
-
-float hash(vec2 st) {
-    return fract(sin(dot(st.xy, vec2(12.9898,78.233)))*43758.5453123);
-}
-
 // reference: http://www.iryoku.com/next-generation-post-processing-in-call-of-duty-advanced-warfare
-vec3 sampleCustom13TapFilter() {
+vec3 sampleCustom13TapFilter(vec2 uv) {
     vec2 uvOffset = 1.f / textureSize(srcImage, 0);
-    // handmade 13 blinear fetches filter
+    // 13 bilinear taps
     vec3 A = texture(srcImage, uv + vec2(-uvOffset.x,  uvOffset.y)).rgb; 
     vec3 B = texture(srcImage, uv + vec2( uvOffset.x,  uvOffset.y)).rgb; 
     vec3 C = texture(srcImage, uv + vec2(-uvOffset.x, -uvOffset.y)).rgb;
@@ -48,6 +46,6 @@ vec3 sampleCustom13TapFilter() {
 
 void main()
 {
-    vec3 color = sampleCustom13TapFilter();
+    vec3 color = sampleCustom13TapFilter(psIn.texCoord0);
     fragcolor = vec4(color, 1.f);
 }

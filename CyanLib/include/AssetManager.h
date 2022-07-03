@@ -13,12 +13,11 @@
 #include "Texture.h"
 #include "Scene.h"
 #include "Mesh.h"
+#include "Material.h"
 #include "CyanAPI.h"
 
 namespace Cyan
 {
-    struct IMaterial;
-
     // todo: differentiate import...() from load...(), import refers to importing raw scene data, load refers to loading serialized binary
     class AssetManager
     {
@@ -63,7 +62,7 @@ namespace Cyan
             /**
                 initialize the default material 
             */ 
-            createMaterial<PBRMatl>("DefaultMaterial");
+            createMaterial<PBRMaterial>("DefaultMaterial");
         }
 
         static AssetManager* get() { return singleton; }
@@ -95,8 +94,6 @@ namespace Cyan
             if (!outTexture)
             {
                 outTexture = new Texture2DRenderable(name, spec, parameter);
-                // singleton->m_textureMap.insert({ name, outTexture });
-                // singleton->m_textures.push_back(outTexture);
                 singleton->addTexture(outTexture);
             }
             return outTexture;
@@ -108,8 +105,6 @@ namespace Cyan
             if (!outTexture)
             {
                 Texture3DRenderable* outTexture = new Texture3DRenderable(name, spec, parameter);
-                // singleton->m_textureMap.insert({ name, outTexture });
-                // singleton->m_textures.push_back(outTexture);
                 singleton->addTexture(outTexture);
             }
             return outTexture;
@@ -121,8 +116,6 @@ namespace Cyan
             if (!outTexture)
             {
                 TextureCubeRenderable* outTexture = new TextureCubeRenderable(name, spec, parameter);
-                // singleton->m_textureMap.insert({ name, outTexture });
-                // singleton->m_textures.push_back(outTexture);
                 singleton->addTexture(outTexture);
             }
             return outTexture;
@@ -134,7 +127,6 @@ namespace Cyan
             if (!outTexture)
             {
                 outTexture = new DepthTexture(name, width, height);
-                // singleton->m_textureMap.insert({ name, outTexture });
                 singleton->addTexture(outTexture);
             }
             return outTexture;

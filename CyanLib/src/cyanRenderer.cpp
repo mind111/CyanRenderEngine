@@ -142,12 +142,6 @@ namespace Cyan
             fullscreenQuad = assetManager->createMesh("FullScreenQuadMesh", submeshes);
         }
 
-        // shadow
-        /*
-        m_rasterDirectShadowManager->initialize();
-        m_rasterDirectShadowManager->initShadowmap(m_csm, glm::uvec2(4096u, 4096u));
-        */
-
         // set back-face culling
         m_ctx->setCullFace(FrontFace::CounterClockWise, FaceCull::Back);
 
@@ -215,14 +209,10 @@ namespace Cyan
             ITextureRenderable::Spec spec = { };
             spec.width = m_windowWidth;
             spec.height = m_windowHeight;
-            spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R16G16B16A16;
+            spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R16G16B16;
             ITextureRenderable::Parameter parameter = { };
 
             m_bloomSetupRenderTarget->setColorBuffer(AssetManager::createTexture2D("BloomSetupTexture", spec), 0);
-            m_bloomSetupShader = ShaderManager::createShader({ ShaderType::kVsPs, "BloomSetupShader", SHADER_SOURCE_PATH "shader_bloom_preprocess.vs", SHADER_SOURCE_PATH "shader_bloom_preprocess.fs" });
-            m_bloomDsShader = ShaderManager::createShader({ ShaderType::kVsPs, "BloomDownSampleShader", SHADER_SOURCE_PATH "shader_downsample.vs", SHADER_SOURCE_PATH "shader_downsample.fs" });
-            m_bloomUsShader = ShaderManager::createShader({ ShaderType::kVsPs, "UpSampleShader", SHADER_SOURCE_PATH "shader_upsample.vs", SHADER_SOURCE_PATH "shader_upsample.fs" });
-            m_gaussianBlurShader = ShaderManager::createShader({ ShaderType::kVsPs, "GaussianBlurShader", SHADER_SOURCE_PATH "shader_gaussian_blur.vs", SHADER_SOURCE_PATH "shader_gaussian_blur.fs" });
 
             u32 numBloomTextures = 0u;
             auto initBloomBuffers = [&](u32 index, ITextureRenderable::Spec& spec, const ITextureRenderable::Parameter& parameter) {
@@ -462,7 +452,7 @@ namespace Cyan
                                         .setUniform("aabbMax", pmax)
                                         .setUniform("axis", (u32)axis);
 
-                                PBRMatl* matl = meshInstance->getMaterial<PBRMatl>(i);
+                                PBRMaterial* matl = meshInstance->getMaterial<PBRMaterial>(i);
                                 if (matl)
                                 {
                                     Texture2DRenderable* albedo = matl->parameter.albedo;
@@ -852,13 +842,13 @@ namespace Cyan
             };
             renderScene(sceneRenderable, sceneView);
 
-            if (m_settings.enableAA)
+            if (m_settings.enableTAA)
             {
                 taa();
             }
-#if 0
+#if 1
             // debug object pass
-            renderDebugObjects(scene, externDebugRender);
+            // renderDebugObjects(scene, externDebugRender);
 
             // post processing
             {
@@ -893,9 +883,9 @@ namespace Cyan
             { { 0u } },
             fullscreenBlitShader,
             [this](RenderTarget* renderTarget, Shader* shader) {
-                // shader->setTexture("srcTexture", m_finalColorTexture);
+                shader->setTexture("srcTexture", m_finalColorTexture);
                 // shader->setTexture("srcTexture", m_sceneColorTextureSSAA);
-                shader->setTexture("srcTexture", m_TAAOutput);
+                // shader->setTexture("srcTexture", m_TAAOutput);
             });
         // render UI widgets
         renderUI();
@@ -1039,6 +1029,7 @@ namespace Cyan
     {
         // be aware that these functions modify 'renderTarget''s state
         auto downsample = [this](Texture2DRenderable* dst, Texture2DRenderable* src, RenderTarget* renderTarget) {
+            Shader* bloomDownsampleShader = ShaderManager::createShader({ ShaderType::kVsPs, "BloomDownsampleShader", SHADER_SOURCE_PATH "bloom_downsample_v.glsl", SHADER_SOURCE_PATH "bloom_downsample_p.glsl" });
             enum class ColorBuffer
             {
                 kDst = 0
@@ -1053,13 +1044,14 @@ namespace Cyan
             submitFullScreenPass(
                 renderTarget, 
                 { { (i32)ColorBuffer::kDst } },
-                m_bloomDsShader, 
+                bloomDownsampleShader, 
                 [this, src](RenderTarget* renderTarget, Shader* shader) {
                     shader->setTexture("srcImage", src);
                 });
         };
 
         auto upscale = [this](Texture2DRenderable* dst, Texture2DRenderable* src, Texture2DRenderable* blend, RenderTarget* renderTarget, u32 stageIndex) {
+            Shader* bloomUpscaleShader = ShaderManager::createShader({ ShaderType::kVsPs, "BloomUpscaleShader", SHADER_SOURCE_PATH "bloom_upscale_v.glsl", SHADER_SOURCE_PATH "bloom_upscale_p.glsl" });
             enum class ColorBuffer
             {
                 kDst = 0
@@ -1075,7 +1067,7 @@ namespace Cyan
             submitFullScreenPass(
                 renderTarget, 
                 { { (i32)ColorBuffer::kDst } },
-                m_bloomUsShader, 
+                bloomUpscaleShader, 
                 [this, src, blend, stageIndex](RenderTarget* renderTarget, Shader* shader) {
                     shader->setTexture("srcImage", src)
                         .setTexture("blendImage", blend)
@@ -1086,6 +1078,7 @@ namespace Cyan
         // user have to make sure that renderTarget is compatible with 'dst', 'src', and 'scratch'
         auto gaussianBlur = [this](Texture2DRenderable* dst, Texture2DRenderable* src, Texture2DRenderable* scratch, RenderTarget* renderTarget, i32 kernelIndex, i32 radius) {
 
+            Shader* gaussianBlurShader = ShaderManager::createShader({ ShaderType::kVsPs, "GaussianBlurShader", SHADER_SOURCE_PATH "gaussian_blur_v.glsl", SHADER_SOURCE_PATH "gaussian_blur_p.glsl" });
             enum class ColorBuffer
             {
                 kSrc = 0,
@@ -1105,9 +1098,9 @@ namespace Cyan
                 submitFullScreenPass(
                     renderTarget, 
                     { { static_cast<u32>(ColorBuffer::kScratch) } },
-                    m_gaussianBlurShader, 
+                    gaussianBlurShader, 
                     [this, src, kernelIndex, radius](RenderTarget* renderTarget, Shader* shader) {
-                        m_gaussianBlurShader->setTexture("srcTexture", src)
+                        shader->setTexture("srcTexture", src)
                                             .setUniform("horizontal", 1.f)
                                             .setUniform("kernelIndex", kernelIndex)
                                             .setUniform("radius", radius);
@@ -1129,7 +1122,7 @@ namespace Cyan
                 submitFullScreenPass(
                     renderTarget, 
                     std::move(drawBuffers),
-                    m_gaussianBlurShader, 
+                    gaussianBlurShader, 
                     [this, scratch, kernelIndex, radius](RenderTarget* renderTarget, Shader* shader) {
                         shader->setTexture("srcTexture", scratch)
                                 .setUniform("horizontal", 0.f)
@@ -1139,13 +1132,18 @@ namespace Cyan
             }
         };
 
+        // m_bloomSetupShader = ShaderManager::createShader({ ShaderType::kVsPs, "BloomSetupShader", SHADER_SOURCE_PATH "shader_bloom_preprocess.vs", SHADER_SOURCE_PATH "shader_bloom_preprocess.fs" });
+        // m_bloomDsShader = ShaderManager::createShader({ ShaderType::kVsPs, "BloomDownsampleShader", SHADER_SOURCE_PATH "shader_downsample.vs", SHADER_SOURCE_PATH "shader_downsample.fs" });
+        // m_bloomUsShader = ShaderManager::createShader({ ShaderType::kVsPs, "UpSampleShader", SHADER_SOURCE_PATH "shader_upsample.vs", SHADER_SOURCE_PATH "shader_upsample.fs" });
+        // m_gaussianBlurShader = ShaderManager::createShader({ ShaderType::kVsPs, "GaussianBlurShader", SHADER_SOURCE_PATH "shader_gaussian_blur.vs", SHADER_SOURCE_PATH "shader_gaussian_blur.fs" });
+        Shader* bloomSetupShader = ShaderManager::createShader({ ShaderType::kVsPs, "BloomSetupShader", SHADER_SOURCE_PATH "bloom_setup_v.glsl", SHADER_SOURCE_PATH "bloom_setup_p.glsl" });
         auto* src = m_settings.enableAA ? m_sceneColorTextureSSAA : m_sceneColorTexture;
 
         // bloom setup pass
         submitFullScreenPass(
             m_bloomSetupRenderTarget, 
             { { 0u } },
-            m_bloomSetupShader, 
+            bloomSetupShader, 
             [this, src](RenderTarget* renderTarget, Shader* shader) {
                 shader->setTexture("srcTexture", src);
             });
@@ -1174,6 +1172,14 @@ namespace Cyan
         }
 
         m_bloomOutTexture = m_bloomUsTargets[0].src;
+    }
+
+    void Renderer::localToneMapping()
+    {
+        // step 0: build 3 fusion candidates using 3 different exposure settings
+        // step 1: build lightness map of each fusion candidate
+        // step 2: build fusion weight map and a according Gaussian pyramid
+        // step 3: build Laplacian pyramid for each fusion candidate
     }
 
     void Renderer::taa()
@@ -1221,6 +1227,75 @@ namespace Cyan
             });
 
         m_finalColorTexture = m_compositeColorTexture;
+    }
+
+    void Renderer::gaussianBlur(Texture2DRenderable* inTexture, Texture2DRenderable* outTexture, u32 kernelRadius)
+    {
+        struct GaussianKernel
+        {
+            GaussianKernel(u32 inRadius, u32 inMean, u32 inSigma, LinearAllocator& allocator)
+                : radius(inRadius), mean(inMean), sigma(inSigma)
+            {
+                u32 kernelSize = radius;
+                // todo: allocate weights from stack or frame allocator instead
+                weights = new f32[kernelSize];
+
+                // calculate kernel weights
+                const f32 step = 0.25f;
+                for (u32 i = 0; i < kernelSize; ++i)
+                {
+                    f32 x = (f32)i * step;
+                    weights[i] = calcWeight(x);
+                }
+            };
+
+            ~GaussianKernel()
+            {
+                delete[] weights;
+            }
+
+            f32 calcWeight(f32 x)
+            {
+                return glm::exp(-.5f  * pow(x / sigma, 2.0));
+            }
+
+            u32 radius = 0u;
+            f32 mean = 0.f;
+            f32 sigma = 0.5f;
+            f32* weights = nullptr;
+        };
+
+        // setup
+        bool applyBlurInPlace = (outTexture == nullptr);
+        std::unique_ptr<GaussianKernel> gaussianKernel = std::make_unique<GaussianKernel>(6u, 0.f, 0.5f, m_frameAllocator);
+        std::unique_ptr<RenderTarget> renderTarget = nullptr;
+        if (applyBlurInPlace)
+        {
+             renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(inTexture->width, inTexture->height));
+        }
+        else
+        {
+            renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(inTexture->width, inTexture->height));
+        }
+
+        RenderTexture2D* outTextureH = createRenderTexture2D("GaussianBlurOuputH", inTexture->getTextureSpec());
+        RenderPass pass;
+
+        auto outTextureH = createRenderTexture2D(inTexture->getTextureSpec());
+        renderTarget->setColorBuffer(outTexture, 0);
+        Shader* gaussianBlurShader = ShaderManager::createShader({ ShaderType::kVsPs, "GaussianBlurShader", SHADER_SOURCE_PATH "gaussian_blur_v.glsl", SHADER_SOURCE_PATH "gaussian_blur_p.glsl" });
+
+        // horizontal pass
+        submitFullScreenPass(
+            renderTarget.get(),
+            { { 0 } },
+            gaussianBlurShader,
+            [](RenderTarget* renderTarget, Shader* shader) {
+
+            }
+        );
+
+        // vertical pass
     }
     
     void Renderer::addUIRenderCommand(const std::function<void()>& UIRenderCommand)

@@ -31,6 +31,15 @@
     <Filter Include="Shaders\Common">
       <UniqueIdentifier>{9868cac1-e0d1-4672-96e6-e9278e098cfc}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\Shading">
+      <UniqueIdentifier>{0d1b30bc-8bcd-41ae-a26b-d4cefbee7168}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\PostProcessing">
+      <UniqueIdentifier>{1a1e1d8c-6c60-4991-ada7-081f4435164d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\PostProcessing\Bloom">
+      <UniqueIdentifier>{3271b481-a0c6-4efc-a9e5-96ac9ee3dbdc}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Allocator.h">
@@ -213,6 +222,9 @@
     <ClInclude Include="include\StaticMeshEntity.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\MaterialEditor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\AssetManager.cpp">
@@ -356,16 +368,13 @@
     <ClCompile Include="src\StaticMeshEntity.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
+    <ClCompile Include="src\MaterialEditor.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\ImGuizmo\LICENSE">
       <Filter>Source Files\External\ImGuizmo</Filter>
-    </None>
-    <None Include="..\shader\scene_depth_normal_p.glsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\shader\scene_depth_normal_v.glsl">
-      <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\shader_ao.fs">
       <Filter>Shaders</Filter>
@@ -379,40 +388,16 @@
     <None Include="..\shader\shader_blinn_phong.vs">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\composite_p.glsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\shader\composite_v.glsl">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="..\shader\shader_bloom.fs">
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\shader_bloom.vs">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_bloom_preprocess.fs">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\shader\shader_bloom_preprocess.vs">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="..\shader\convolve_diffuse_p.glsl">
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\convolve_diffuse_v.glsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\shader\depth_only_p.glsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\shader\depth_only_v.glsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\shader\shader_downsample.fs">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\shader\shader_downsample.vs">
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\skybox_p.glsl">
@@ -425,12 +410,6 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\shader_flat_color.vs">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\shader\shader_gaussian_blur.fs">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\shader\shader_gaussian_blur.vs">
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\render_to_cubemap_p.glsl">
@@ -484,12 +463,6 @@
     <None Include="..\shader\shader_oct_mapping.vs">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\pbs_p.glsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\shader\pbs_v.glsl">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="..\shader\convolve_specular_p.glsl">
       <Filter>Shaders</Filter>
     </None>
@@ -527,18 +500,6 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\shader_test.glsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\shader\blit_p.glsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\shader\blit_v.glsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\shader\shader_upsample.fs">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\shader\shader_upsample.vs">
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\voxelize_g.glsl">
@@ -609,6 +570,60 @@
     </None>
     <None Include="..\shader\test_pbs_p.glsl">
       <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\bloom_upscale_v.glsl">
+      <Filter>Shaders\PostProcessing\Bloom</Filter>
+    </None>
+    <None Include="..\shader\bloom_upscale_p.glsl">
+      <Filter>Shaders\PostProcessing\Bloom</Filter>
+    </None>
+    <None Include="..\shader\bloom_downsample_v.glsl">
+      <Filter>Shaders\PostProcessing\Bloom</Filter>
+    </None>
+    <None Include="..\shader\bloom_setup_p.glsl">
+      <Filter>Shaders\PostProcessing\Bloom</Filter>
+    </None>
+    <None Include="..\shader\bloom_setup_v.glsl">
+      <Filter>Shaders\PostProcessing\Bloom</Filter>
+    </None>
+    <None Include="..\shader\bloom_downsample_p.glsl">
+      <Filter>Shaders\PostProcessing\Bloom</Filter>
+    </None>
+    <None Include="..\shader\pbs_v.glsl">
+      <Filter>Shaders\Shading</Filter>
+    </None>
+    <None Include="..\shader\pbs_p.glsl">
+      <Filter>Shaders\Shading</Filter>
+    </None>
+    <None Include="..\shader\blit_p.glsl">
+      <Filter>Shaders\PostProcessing</Filter>
+    </None>
+    <None Include="..\shader\blit_v.glsl">
+      <Filter>Shaders\PostProcessing</Filter>
+    </None>
+    <None Include="..\shader\composite_p.glsl">
+      <Filter>Shaders\PostProcessing</Filter>
+    </None>
+    <None Include="..\shader\composite_v.glsl">
+      <Filter>Shaders\PostProcessing</Filter>
+    </None>
+    <None Include="..\shader\scene_depth_normal_p.glsl">
+      <Filter>Shaders\Shading</Filter>
+    </None>
+    <None Include="..\shader\scene_depth_normal_v.glsl">
+      <Filter>Shaders\Shading</Filter>
+    </None>
+    <None Include="..\shader\depth_only_v.glsl">
+      <Filter>Shaders\Shading</Filter>
+    </None>
+    <None Include="..\shader\depth_only_p.glsl">
+      <Filter>Shaders\Shading</Filter>
+    </None>
+    <None Include="..\shader\gaussian_blur_v.glsl">
+      <Filter>Shaders\PostProcessing</Filter>
+    </None>
+    <None Include="..\shader\gaussian_blur_p.glsl">
+      <Filter>Shaders\PostProcessing</Filter>
     </None>
   </ItemGroup>
 </Project>

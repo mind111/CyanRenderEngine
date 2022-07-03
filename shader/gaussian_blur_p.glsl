@@ -1,12 +1,15 @@
 #version 450 core
 
-in vec2 uv;
+in VSOutput
+{
+	vec2 texCoord0;
+} psIn;
+uniform sampler2D srcTexture;
 
 layout(location = 0) out vec4 fragColor; 
 layout(location = 1) out float singleChannelColor; 
 
 uniform float horizontal;
-uniform sampler2D srcTexture; 
 uniform int kernelIndex;
 uniform int radius;
 
@@ -24,14 +27,14 @@ float kernels[6][9] = {
 void main()
 {
     vec2 uvOffset = 1.f / textureSize(srcTexture, 0);
-    vec3 result = texture(srcTexture, uv).rgb * kernels[kernelIndex][0];
+    vec3 result = texture(srcTexture, psIn.texCoord0).rgb * kernels[kernelIndex][0];
     if (horizontal > .5f)
     {
         // horizontal pass
         for (int i = 1; i < radius; ++i)
         {
-            result += texture(srcTexture, uv + vec2(i * uvOffset.x, 0.f)).rgb * kernels[kernelIndex][i];
-            result += texture(srcTexture, uv - vec2(i * uvOffset.x, 0.f)).rgb * kernels[kernelIndex][i];
+            result += texture(srcTexture, psIn.texCoord0 + vec2(i * uvOffset.x, 0.f)).rgb * kernels[kernelIndex][i];
+            result += texture(srcTexture, psIn.texCoord0 - vec2(i * uvOffset.x, 0.f)).rgb * kernels[kernelIndex][i];
         }
     }
     else
@@ -39,8 +42,8 @@ void main()
         // vertical pass
         for (int i = 1; i < radius; ++i)
         {
-            result += texture(srcTexture, uv + vec2(0.f, i * uvOffset.y)).rgb * kernels[kernelIndex][i];
-            result += texture(srcTexture, uv - vec2(0.f, i * uvOffset.y)).rgb * kernels[kernelIndex][i];
+            result += texture(srcTexture, psIn.texCoord0 + vec2(0.f, i * uvOffset.y)).rgb * kernels[kernelIndex][i];
+            result += texture(srcTexture, psIn.texCoord0 - vec2(0.f, i * uvOffset.y)).rgb * kernels[kernelIndex][i];
         }
     }
     fragColor = vec4(result, 1.f);

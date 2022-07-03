@@ -1,5 +1,6 @@
 #pragma once
 
+#include <glm/glm.hpp>
 #include <vector>
 #include <unordered_map>
 
@@ -7,7 +8,6 @@
 #include "Texture.h"
 #include "Asset.h"
 #include "CyanUI.h"
-// #include "AssetManager.h"
 
 namespace Cyan
 {
@@ -79,51 +79,7 @@ namespace Cyan
             return flags;
         }
 
-        virtual void renderUI() override 
-        { 
-            auto renderTextureCombo = [](const char* label, ITextureRenderable* previewTexture, const std::vector<ITextureRenderable*>& textures)
-            {
-                ImGui::Text(label + 2); ImGui::SameLine();
-                const char* preview = "";
-                if (previewTexture)
-                {
-                    preview = previewTexture->name;
-                }
-                if (ImGui::BeginCombo(label, preview))
-                {
-                    u32 selectedIndex = 0u;
-                    for (int n = 0; n < textures.size(); n++)
-                    {
-                        const bool isSelected = (selectedIndex == n);
-                        if (ImGui::Selectable(textures[n]->name, isSelected))
-                        {
-                            selectedIndex = n;
-                        }
-
-                        if (isSelected)
-                            ImGui::SetItemDefaultFocus();
-                    }
-                    ImGui::EndCombo();
-                }
-            };
-
-            std::vector<ITextureRenderable*> textures;
-            renderTextureCombo("##BaseColor", albedo, textures);
-            renderTextureCombo("##Normal", normal, textures);
-            renderTextureCombo("##Roughness", roughness, textures);
-            renderTextureCombo("##Metallic", metallic, textures);
-            renderTextureCombo("##MetallicRoughness", metallicRoughness, textures);
-            renderTextureCombo("##occlusion", occlusion, textures);
-            ImGui::Text("kRoughness"); ImGui::SameLine();
-            ImGui::SliderFloat("##kRoughness", &kRoughness, 0.f, 1.f);
-            ImGui::Text("kMetallic"); ImGui::SameLine();
-            ImGui::SliderFloat("##kMetallic", &kMetallic, 0.f, 1.f);
-            f32 color[3] = { kAlbedo.r, kAlbedo.g, kAlbedo.b };
-            ImGui::ColorPicker3("kAlbedo", color);
-            kAlbedo.r = color[0];
-            kAlbedo.g = color[1];
-            kAlbedo.b = color[2];
-        }
+        virtual void renderUI() override;
 
         // todo: is there a way to nicely abstract binding each member field, if we can do reflection, then we 
         // can loop through each member field and call shader->setUniform() on each field
@@ -257,7 +213,7 @@ namespace Cyan
         MaterialParameter parameter;
     };
 
-    typedef Material<PBR> PBRMatl;
+    typedef Material<PBR> PBRMaterial;
     typedef Material<Lightmapped<PBR>> LightmappedPBRMatl;
     typedef Material<Emissive<PBR>> EmissivePBRMatl;
     typedef Material<ConstantColor> ConstantColorMatl;

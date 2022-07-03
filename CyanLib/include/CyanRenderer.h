@@ -91,6 +91,9 @@ namespace Cyan
         PrimitiveMode primitiveMode = PrimitiveMode::TriangleList;
     };
 
+    struct RenderResource;
+    struct RenderTexture2D;
+
     /**
     * Encapsulate a mesh draw call, `renderTarget` should be configured to correct state, such as binding color buffers, and clearing
     * color buffers while `drawBuffers` for this draw call will be passed in.
@@ -106,6 +109,19 @@ namespace Cyan
         Shader* shader = nullptr;
         GfxPipelineState pipelineState;
         RenderSetupLambda renderSetupLambda = [](RenderTarget* renderTarget, Shader* shader) { };
+        std::initializer_list<RenderResource*> inputs = { };
+    };
+
+    struct RenderResource
+    {
+        const char* tag = nullptr;
+        u32 refCount = 0;
+    };
+
+    struct RenderTexture2D : public RenderResource
+    {
+        ITextureRenderable::Spec spec;
+        Texture2DRenderable* texture;
     };
 
     class Renderer : public Singleton<Renderer>
@@ -122,6 +138,17 @@ namespace Cyan
         GfxContext* getGfxCtx() { return m_ctx; };
         Texture2DRenderable* getColorOutTexture();
         LinearAllocator& getFrameAllocator() { return m_frameAllocator; }
+
+// resource management
+        std::vector<RenderTexture2D*> unusedRenderTextures;
+        RenderTexture2D* createRenderTexture2D(const ITextureRenderable::Spec& inSpec) 
+        {
+            // search for a reusable render texture
+
+            // found one
+
+            // create a new one
+        }
 
 // rendering
         void beginRender();
@@ -173,6 +200,9 @@ namespace Cyan
 //
 
 // post-processing
+        // gaussian blur
+        void gaussianBlur(Texture2DRenderable* inTexture, Texture2DRenderable* outTexture, u32 kernelRadius);
+
         // taa
         glm::vec2 TAAJitterVectors[16] = { };
         f32 reconstructionWeights[16] = { };
@@ -191,10 +221,6 @@ namespace Cyan
 
         // bloom
         static constexpr u32 kNumBloomPasses = 6u;
-        Shader* m_bloomSetupShader;
-        Shader* m_bloomDsShader;
-        Shader* m_bloomUsShader;
-        Shader* m_gaussianBlurShader;
         RenderTarget* m_bloomSetupRenderTarget;
         // bloom chain intermediate buffers
         struct BloomRenderTarget
@@ -208,6 +234,13 @@ namespace Cyan
         Texture2DRenderable* m_bloomOutTexture;
 
         void bloom();
+
+        /**
+        * Local tonemapping using "Exposure Fusion"
+        * https://bartwronski.com/2022/02/28/exposure-fusion-local-tonemapping-for-real-time-rendering/
+        * https://mericam.github.io/papers/exposure_fusion_reduced.pdf 
+        */
+        void localToneMapping();
 
         // final composite
         Shader* m_compositeShader;
@@ -227,7 +260,7 @@ namespace Cyan
         struct Settings
         {
             bool enableAA = true;
-            bool enableTAA = true;
+            bool enableTAA = false;
             bool enableSunShadow = true;
             bool enableSSAO = false;
             bool enableVctx = false;

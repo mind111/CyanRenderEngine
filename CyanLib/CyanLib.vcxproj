@@ -51,6 +51,7 @@
     <ClInclude Include="include\LightProbe.h" />
     <ClInclude Include="include\LightRenderable.h" />
     <ClInclude Include="include\Material.h" />
+    <ClInclude Include="include\MaterialEditor.h" />
     <ClInclude Include="include\MathUtils.h" />
     <ClInclude Include="include\Mesh.h" />
     <ClInclude Include="include\Node.h" />
@@ -115,6 +116,7 @@
     <ClCompile Include="src\LightProbe.cpp" />
     <ClCompile Include="src\LightRenderable.cpp" />
     <ClCompile Include="src\Material.cpp" />
+    <ClCompile Include="src\MaterialEditor.cpp" />
     <ClCompile Include="src\MathUtils.cpp" />
     <ClCompile Include="src\Mesh.cpp" />
     <ClCompile Include="src\Ray.cpp" />
@@ -151,14 +153,15 @@
     <None Include="..\shader\composite_v.glsl" />
     <None Include="..\shader\shader_bloom.fs" />
     <None Include="..\shader\shader_bloom.vs" />
-    <None Include="..\shader\shader_bloom_preprocess.fs" />
-    <None Include="..\shader\shader_bloom_preprocess.vs" />
+    <None Include="..\shader\bloom_setup_p.glsl" />
+    <None Include="..\shader\bloom_setup_v.glsl" />
     <None Include="..\shader\convolve_diffuse_p.glsl" />
     <None Include="..\shader\convolve_diffuse_v.glsl" />
     <None Include="..\shader\depth_only_p.glsl" />
     <None Include="..\shader\depth_only_v.glsl" />
-    <None Include="..\shader\shader_downsample.fs" />
-    <None Include="..\shader\shader_downsample.vs" />
+    <None Include="..\shader\bloom_downsample_p.glsl" />
+    <None Include="..\shader\bloom_downsample_v.glsl" />
+    <None Include="..\shader\bloom_upscale_v.glsl" />
     <None Include="..\shader\test_pbs_p.glsl" />
     <None Include="..\shader\test_pbs_v.glsl" />
     <None Include="..\shader\vctx_p.glsl" />
@@ -173,8 +176,8 @@
     <None Include="..\shader\skybox_v.glsl" />
     <None Include="..\shader\shader_flat_color.fs" />
     <None Include="..\shader\shader_flat_color.vs" />
-    <None Include="..\shader\shader_gaussian_blur.fs" />
-    <None Include="..\shader\shader_gaussian_blur.vs" />
+    <None Include="..\shader\gaussian_blur_p.glsl" />
+    <None Include="..\shader\gaussian_blur_v.glsl" />
     <None Include="..\shader\render_to_cubemap_p.glsl" />
     <None Include="..\shader\render_to_cubemap_v.glsl" />
     <None Include="..\shader\shader_grid_texture.fs" />
@@ -209,8 +212,7 @@
     <None Include="..\shader\shader_test.glsl" />
     <None Include="..\shader\blit_p.glsl" />
     <None Include="..\shader\blit_v.glsl" />
-    <None Include="..\shader\shader_upsample.fs" />
-    <None Include="..\shader\shader_upsample.vs" />
+    <None Include="..\shader\bloom_upscale_p.glsl" />
     <None Include="..\shader\voxelize_g.glsl" />
     <None Include="..\shader\voxelize_resolve_c.glsl" />
     <None Include="..\shader\voxelize_v.glsl" />

@@ -96,7 +96,7 @@ void DemoApp::setupScene()
     }
 
 #if 1
-    using PBR = Cyan::PBRMatl;
+    using PBR = Cyan::PBRMaterial;
     // helmet
     {
         auto helmetMatl = AssetManager::createMaterial<PBR>("helmet_matl");

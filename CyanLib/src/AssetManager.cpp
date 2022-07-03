@@ -618,7 +618,7 @@ namespace Cyan
             auto& gltfMesh = model.meshes[node.mesh];
             for (u32 sm = 0u; sm < gltfMesh.primitives.size(); ++sm) 
             {
-                PBRMatl* matl = nullptr;
+                PBRMaterial* matl = nullptr;
 
                 auto& primitive = gltfMesh.primitives[sm];
                 if (primitive.material > -1) 
@@ -637,7 +637,7 @@ namespace Cyan
                     auto& gltfMaterial = model.materials[primitive.material];
                     auto pbr = gltfMaterial.pbrMetallicRoughness;
 
-                    matl = createMaterial<PBRMatl>(gltfMaterial.name.c_str());
+                    matl = createMaterial<PBRMaterial>(gltfMaterial.name.c_str());
                     matl->parameter.albedo = getTexture(pbr.baseColorTexture.index);
                     matl->parameter.normal = getTexture(gltfMaterial.normalTexture.index);
                     matl->parameter.metallicRoughness = getTexture(pbr.metallicRoughnessTexture.index);

@@ -517,7 +517,7 @@ vec3 calcLighting(SceneLights sceneLights, in MaterialParameters materialParamet
 
     // ambient light using flat shading
     float ndotl = dot(materialParameters.normal, normalize(-psIn.viewSpacePosition)) * .5 + .5f;
-    radiance += vec3(0.15, 0.3, 0.5) * exp(0.1 * -length(psIn.viewSpacePosition)) * ndotl * materialParameters.albedo;
+    radiance += vec3(0.15, 0.3, 0.5) * exp(0.01 * -length(psIn.viewSpacePosition)) * ndotl * materialParameters.albedo;
 
     // sun light
     radiance += calcDirectionalLight(sceneLights.directionalLight, materialParameters, worldSpacePosition);
@@ -528,6 +528,11 @@ vec3 calcLighting(SceneLights sceneLights, in MaterialParameters materialParamet
 float calcLuminance(in vec3 inLinearColor)
 {   
     return 0.2126 * inLinearColor.r + 0.7152 * inLinearColor.g + 0.0722 * inLinearColor.b;
+}
+
+vec3 adjustExposure(vec3 inLinearColor)
+{
+    return vec3(0.f);
 }
 
 vec3 ReinhardTonemapping(in vec3 inLinearColor, float whitePointLuminance)
@@ -587,7 +592,12 @@ void main()
     vec3 worldSpaceNormal = normalize(psIn.worldSpaceNormal);
     // todo: transform tangent back to world space
     MaterialParameters materialParameters = getMaterialParameters(worldSpaceNormal, viewSpaceTangent, psIn.texCoord0);
-    // outColor = calcDirectionalLight(sceneLights.directionalLight, materialParameters, psIn.worldSpacePosition);
     outColor = calcLighting(sceneLights, materialParameters, psIn.worldSpacePosition);
+#if 1
     outColor = ACESFitted(gammaCorrection(outColor, 1.0 / 2.2));
+#else
+	vec3 toneTint = vec3(1.);
+    outColor = vec3(smoothstep(0., toneTint.r, outColor.r), smoothstep(0., toneTint.g, outColor.g), smoothstep(0., toneTint.b, outColor.b));
+    outColor = gammaCorrection(outColor, 1.0 / 2.2);
+#endif
 }

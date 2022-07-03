@@ -117,14 +117,15 @@ namespace Cyan
             delete[] memory;
         }
 
-        template <typename T, typename ... Args>
+        template <typename T, u32 numElements = 1, typename ... Args>
         T* alloc(Args... args)
         {
-            if (pos + sizeof(T) <= sizeInBytes)
+            u32 sizeInBytesToAllocate = numElements * sizeof(T);
+            if (pos + sizeInBytesToAllocate <= sizeInBytes)
             {
                 // placement new
-                T* newObject = new (&memory[pos]) T(args...);
-                pos += sizeof(T);
+                T* newObject = new (&memory[pos]) T[numElements](args...);
+                pos += sizeInBytesToAllocate;
                 return newObject;
             }
 

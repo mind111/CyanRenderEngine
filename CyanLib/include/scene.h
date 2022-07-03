@@ -20,6 +20,8 @@
 
 namespace Cyan
 {
+    struct SceneComponent;
+
     struct Scene 
     {
         Scene(const char* sceneName);
@@ -35,6 +37,8 @@ namespace Cyan
         // mesh instance
         Cyan::MeshInstance* createMeshInstance(Cyan::Mesh* mesh);
         Cyan::MeshInstance* createMeshInstance(const char* meshName);
+        // camera
+
         // lights
         void createDirectionalLight(const char* name, const glm::vec3& direction, const glm::vec4& colorAndIntensity);
         void createPointLight(const char* name, const glm::vec3 position, const glm::vec4& colorAndIntensity);
