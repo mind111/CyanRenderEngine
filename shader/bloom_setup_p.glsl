@@ -21,7 +21,6 @@ void main()
     // non-thresholded bloom
     if (lumin > 0.0f)
     {
-        // inspired by UE4
         float bloomScale = clamp(lumin, 0.0, 1.0);
         // boost the constrast
         outColor = vec4(bloomScale * inColor, 1.f);

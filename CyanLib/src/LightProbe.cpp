@@ -65,7 +65,7 @@ namespace Cyan
         ITextureRenderable::Spec spec = { };
         spec.width = resolution.x;
         spec.type = ITextureRenderable::Spec::Type::kTexCube;
-        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R16G16B16;
+        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGB16F;
         // sceneCapture = AssetManager::createTextureCube("SceneCapture", spec);
 
         // shared cube mesh
@@ -126,7 +126,7 @@ namespace Cyan
         ITextureRenderable::Spec spec = { };
         spec.width = m_irradianceTextureRes.x;
         spec.type = ITextureRenderable::Spec::Type::kTexCube;
-        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R16G16B16;
+        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGB16F;
         // m_convolvedIrradianceTexture = AssetManager::createTextureCube("IrradianceProbe", spec);
 
         if (!s_convolveIrradianceShader)
@@ -211,7 +211,7 @@ namespace Cyan
         ITextureRenderable::Spec spec = { };
         spec.width = resolution.x;
         spec.type = ITextureRenderable::Spec::Type::kTexCube;
-        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R16G16B16;
+        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGB16F;
         ITextureRenderable::Parameter parameter = { };
         parameter.minificationFilter = ITextureRenderable::Parameter::Filtering::MIPMAP_LINEAR;
         // m_convolvedReflectionTexture = AssetManager::createTextureCube("IrradianceProbe", spec, parameter);

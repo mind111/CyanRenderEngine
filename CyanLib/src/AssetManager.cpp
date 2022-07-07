@@ -523,11 +523,11 @@ namespace Cyan
                     } 
                     else if (image.bits == 16) 
                     {
-                        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R16G16B16;
+                        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGB16F;
                     } 
                     else if (image.bits == 32) 
                     {
-                        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R32G32B32;
+                        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGB32F;
                     } 
                     break;
                 }

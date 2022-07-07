@@ -8,9 +8,24 @@
 #include "CyanCore.h"
 #include "Asset.h"
 
-// convenience macros
-#define WM_CLAMP ITextureRenderer
-#define WM_Wrap ITextureR
+/**
+* convenience macros
+*/
+#define TEX_2D Cyan::ITextureRenderable::Spec::Type::kTex2D
+#define TEX_DEPTH Cyan::ITextureRenderable::Spec::Type::kDepthTex
+#define TEX_3D Cyan::ITextureRenderable::Spec::Type::kTex3D
+#define TEX_CUBE Cyan::ITextureRenderable::Spec::Type::kTexCube
+
+// WM stands for "wrap mode"
+#define WM_CLAMP Cyan::ITextureRenderable::Parameter::WrapMode::CLAMP_TO_EDGE
+#define WM_WRAP Cyan::ITextureRenderable::Parameter::WrapMode::WRAP
+// FM stands for "filter mode"
+#define FM_POINT Cyan::ITextureRenderable::Parameter::Filtering::NEAREST
+#define FM_BILINEAR Cyan::ITextureRenderable::Parameter::Filtering::LINEAR
+#define FM_MIPMAP_LINEAR Cyan::ITextureRenderable::Parameter::Filtering::MIPMAP_LINEAR
+// PF stands for "pixel format" 
+#define PF_RGB16F Cyan::ITextureRenderable::Spec::PixelFormat::RGB16F
+#define PF_RGB32F Cyan::ITextureRenderable::Spec::PixelFormat::RGB32F
 
 namespace Cyan
 {
@@ -45,13 +60,17 @@ namespace Cyan
                 R32G32F,
                 R8G8B8,
                 D24S8,
-                R16G16B16,
-                R32G32B32,
+                RGB16F,
+                RGB32F,
                 R8G8B8A8,
                 R16G16B16A16,
                 R32G32B32A32,
                 kInvalid
             };
+
+            bool operator==(const Spec& rhs) {
+                return (type == rhs.type) && (width == rhs.width) && (height == rhs.height) && (pixelFormat == rhs.pixelFormat);
+            }
 
             u32 width = 1;
             u32 height = 1;
@@ -153,12 +172,12 @@ namespace Cyan
                 glPixelFormat.format = GL_RGB;
                 glPixelFormat.type = GL_UNSIGNED_BYTE;
                 break;
-            case Spec::PixelFormat::R16G16B16:
+            case Spec::PixelFormat::RGB16F:
                 glPixelFormat.internalFormat = GL_RGB16F;
                 glPixelFormat.format = GL_RGB;
                 glPixelFormat.type = GL_FLOAT;
                 break;
-            case Spec::PixelFormat::R32G32B32:
+            case Spec::PixelFormat::RGB32F:
                 glPixelFormat.internalFormat = GL_RGB32F;
                 glPixelFormat.format = GL_RGB;
                 glPixelFormat.type = GL_FLOAT;

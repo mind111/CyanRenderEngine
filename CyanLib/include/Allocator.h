@@ -123,10 +123,14 @@ namespace Cyan
             u32 sizeInBytesToAllocate = numElements * sizeof(T);
             if (pos + sizeInBytesToAllocate <= sizeInBytes)
             {
-                // placement new
-                T* newObject = new (&memory[pos]) T[numElements](args...);
+                T* objects = reinterpret_cast<T*>(&memory[pos]);
+                for (u32 i = 0; i < numElements; ++i)
+                {
+                    // placement new
+                    new (objects + i) T(args...);
+                }
                 pos += sizeInBytesToAllocate;
-                return newObject;
+                return objects;
             }
 
             cyanError("LinearAllocator out of memory")

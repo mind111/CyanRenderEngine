@@ -81,6 +81,10 @@ namespace Cyan
     */
     void SceneRenderable::submitSceneData(GfxContext* ctx)
     {
+        // todo: avoid repetively submit redundant data
+        {
+
+        }
         // bind global ssbo
         viewSsboPtr->bind((u32)SceneSsboBindings::kViewData);
         transformSsboPtr->bind((u32)SceneSsboBindings::TransformMatrices);

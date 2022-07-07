@@ -13,8 +13,6 @@ out VSOutput
 	vec2 texCoord0;
 } vsOut;
 
-out vec2 uv;
-
 void main() {
     vsOut.texCoord0 = textureUv_0;
     gl_Position = vec4(vertexPos, 1.0f);
