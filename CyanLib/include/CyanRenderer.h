@@ -211,7 +211,8 @@ namespace Cyan
             Texture2DRenderable* createTexture2DTransient(const char* name, const ITextureRenderable::Spec& inSpec)
             {
                 Texture2DRenderable* outTexture = new Texture2DRenderable(name, inSpec);
-                transientTextures.insert({ std::string(name), outTexture });
+                // transientTextures.insert({ std::string(name), outTexture });
+                textures.push_back(outTexture);
                 return outTexture;
             }
 
@@ -223,6 +224,7 @@ namespace Cyan
 
             std::vector<ITextureRenderable*> reusableTextures;
 
+            std::vector<ITextureRenderable*> textures;
             std::unordered_map<std::string, ITextureRenderable*> transientTextures;
         } transientResourceManager;
 
@@ -372,7 +374,7 @@ namespace Cyan
 
 // post-processing
         // gaussian blur
-        RenderTexture2D* gaussianBlur(RenderTexture2D* inTexture, u32 kernelRadius);
+        RenderTexture2D* gaussianBlur(RenderTexture2D* inTexture, u32 inRadius, f32 inSigma);
 
         // taa
         glm::vec2 TAAJitterVectors[16] = { };

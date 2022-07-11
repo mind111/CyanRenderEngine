@@ -40,6 +40,9 @@
     <Filter Include="Shaders\PostProcessing\Bloom">
       <UniqueIdentifier>{3271b481-a0c6-4efc-a9e5-96ac9ee3dbdc}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\PostProcessing\TAA">
+      <UniqueIdentifier>{561e66a7-5b9d-48e6-b1a9-8fbf19836474}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Allocator.h">
@@ -388,12 +391,6 @@
     <None Include="..\shader\shader_blinn_phong.vs">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_bloom.fs">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\shader\shader_bloom.vs">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="..\shader\convolve_diffuse_p.glsl">
       <Filter>Shaders</Filter>
     </None>
@@ -624,6 +621,12 @@
     </None>
     <None Include="..\shader\gaussian_blur_p.glsl">
       <Filter>Shaders\PostProcessing</Filter>
+    </None>
+    <None Include="..\shader\taa_p.glsl">
+      <Filter>Shaders\PostProcessing\TAA</Filter>
+    </None>
+    <None Include="..\shader\taa_v.glsl">
+      <Filter>Shaders\PostProcessing\TAA</Filter>
     </None>
   </ItemGroup>
 </Project>

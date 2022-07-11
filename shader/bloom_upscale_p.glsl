@@ -14,7 +14,7 @@ void main()
 {
     vec3 upscaledColor = texture(srcTexture, psIn.texCoord0).rgb;
     vec3 blendColor = texture(blendTexture, psIn.texCoord0).rgb;
-#if 0
+#if 1
     // linear blending
     outColor = vec4(mix(upscaledColor, blendColor, 0.5f), 1.f);
 #else

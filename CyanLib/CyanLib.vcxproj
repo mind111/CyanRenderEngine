@@ -151,8 +151,6 @@
     <None Include="..\shader\shader_blinn_phong.vs" />
     <None Include="..\shader\composite_p.glsl" />
     <None Include="..\shader\composite_v.glsl" />
-    <None Include="..\shader\shader_bloom.fs" />
-    <None Include="..\shader\shader_bloom.vs" />
     <None Include="..\shader\bloom_setup_p.glsl" />
     <None Include="..\shader\bloom_setup_v.glsl" />
     <None Include="..\shader\convolve_diffuse_p.glsl" />
@@ -162,6 +160,8 @@
     <None Include="..\shader\bloom_downsample_p.glsl" />
     <None Include="..\shader\bloom_downsample_v.glsl" />
     <None Include="..\shader\bloom_upscale_v.glsl" />
+    <None Include="..\shader\taa_p.glsl" />
+    <None Include="..\shader\taa_v.glsl" />
     <None Include="..\shader\test_pbs_p.glsl" />
     <None Include="..\shader\test_pbs_v.glsl" />
     <None Include="..\shader\vctx_p.glsl" />

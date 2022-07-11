@@ -84,9 +84,11 @@ void main()
 {
     const float bloomIntensity = .7f;
     vec3 linearColor = texture(sceneColorTexture, psIn.texCoord0).rgb;
+    // boost contrast
+    linearColor *= calcLuminance(linearColor);
     if (enableBloom > 0.5f)
     {
-        linearColor = mix(linearColor, texture(bloomColorTexture, psIn.texCoord0).rgb, bloomIntensity);
+        linearColor = mix(linearColor, texture(bloomColorTexture, psIn.texCoord0).rgb, .5);
     }
     // tone mapping
     vec3 tonemappedColor = ACESFitted(gammaCorrection(exposure * linearColor, 1.f / 2.2f));

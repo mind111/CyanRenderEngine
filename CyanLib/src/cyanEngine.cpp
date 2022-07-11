@@ -76,12 +76,12 @@ namespace Cyan
                 */
                 struct EntityTable
                 {
-                    EntityTable(Entity* inEntity) : root(inEntity) { }
+                    EntityTable(Scene* inScene, Entity* inEntity) : scene(inScene), root(inEntity) { }
 
                     void render()
                     {
                         Entity* highlightedEntity = nullptr;
-                        ImGui::TextUnformatted("Scene");
+                        ImGui::Text(scene->name.c_str());
                         if (ImGui::BeginTable("##SceneTable", 2, flags, ImVec2(ImGui::GetWindowContentRegionWidth(), 100.f)))
                         {
                             ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_NoHide);
@@ -143,11 +143,13 @@ namespace Cyan
                         }
                     }
 
+                    Scene* scene = nullptr;
                     Entity* root = nullptr;
                     Entity* highlightedEntity = nullptr;
                 }; 
 
-                static EntityTable entityTable(m_scene->rootEntity);
+                // todo: if we want to support changing active scene dynamically, then this cannot be static 
+                static EntityTable entityTable(m_scene.get(), m_scene->rootEntity);
                 auto highlightedEntity = entityTable.highlightedEntity;
                 if (ImGui::CollapsingHeader("Scene Layout", ImGuiTreeNodeFlags_DefaultOpen))
                 {

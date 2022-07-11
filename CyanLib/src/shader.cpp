@@ -167,17 +167,28 @@ namespace Cyan
             GLenum type; i32 num;
             glGetActiveUniform(program, i, nameMaxLen, nullptr, &num, &type, name);
             UniformMetaData uniformMetaData = { };
-            for (u32 ii = 1; ii < num; ++ii)
+            if (num > 1)
             {
-                char* token = strtok(name, "[");
-                char suffix[5] = "[%u]";
-                char* format = strcat(token, suffix);
-                sprintf(name, format, ii);
+                for (u32 ii = 0; ii < num; ++ii)
+                {
+                    char* token = strtok(name, "[");
+                    char suffix[5] = "[%u]";
+                    char* format = strcat(token, suffix);
+                    sprintf(name, format, ii);
+
+                    uniformMetaData.type = translate(type);
+                    uniformMetaData.name = std::string(name);
+                    uniformMetaData.location = glGetUniformLocation(program, name);
+                    uniformMetaDataMap.insert({ uniformMetaData.name.c_str(), uniformMetaData });
+                }
             }
-            uniformMetaData.type = translate(type);
-            uniformMetaData.name = std::string(name);
-            uniformMetaData.location = glGetUniformLocation(program, name);
-            uniformMetaDataMap.insert({ uniformMetaData.name.c_str(), uniformMetaData });
+            else
+            {
+                uniformMetaData.type = translate(type);
+                uniformMetaData.name = std::string(name);
+                uniformMetaData.location = glGetUniformLocation(program, name);
+                uniformMetaDataMap.insert({ uniformMetaData.name.c_str(), uniformMetaData });
+            }
         }
     }
 

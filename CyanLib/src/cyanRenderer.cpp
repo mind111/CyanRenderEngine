@@ -1000,7 +1000,7 @@ namespace Cyan
                     renderTarget->setColorBuffer(downsampleChain[output]->getTexture(), 0);
 
                     submitFullScreenPass(
-                        renderTarget.get(), 
+                        renderTarget.get(),
                         { { 0 } },
                         downsampleShader, 
                         [downsampleChain, input](RenderTarget* renderTarget, Shader* shader) {
@@ -1015,62 +1015,7 @@ namespace Cyan
 
     RenderTexture2D* Renderer::bloom(RenderTexture2D* inTexture)
     {
-        // user have to make sure that renderTarget is compatible with 'dst', 'src', and 'scratch'
-        auto gaussianBlur = [this](Texture2DRenderable* dst, Texture2DRenderable* src, Texture2DRenderable* scratch, RenderTarget* renderTarget, i32 kernelIndex, i32 radius) {
-
-            Shader* gaussianBlurShader = ShaderManager::createShader({ ShaderType::kVsPs, "GaussianBlurShader", SHADER_SOURCE_PATH "gaussian_blur_v.glsl", SHADER_SOURCE_PATH "gaussian_blur_p.glsl" });
-            enum class ColorBuffer
-            {
-                kSrc = 0,
-                kScratch,
-                kDst
-            };
-
-            renderTarget->setColorBuffer(src, static_cast<u32>(ColorBuffer::kSrc));
-            renderTarget->setColorBuffer(scratch, static_cast<u32>(ColorBuffer::kScratch));
-            if (dst)
-            {
-                renderTarget->setColorBuffer(dst, static_cast<u32>(ColorBuffer::kDst));
-            }
-
-            // horizontal pass (blur 'src' into 'scratch')
-            {
-                submitFullScreenPass(
-                    renderTarget, 
-                    { { static_cast<u32>(ColorBuffer::kScratch) } },
-                    gaussianBlurShader, 
-                    [this, src, kernelIndex, radius](RenderTarget* renderTarget, Shader* shader) {
-                        shader->setTexture("srcTexture", src)
-                                            .setUniform("horizontal", 1.f)
-                                            .setUniform("kernelIndex", kernelIndex)
-                                            .setUniform("radius", radius);
-                    });
-            }
-
-            // vertical pass
-            {
-                std::initializer_list<RenderTargetDrawBuffer> drawBuffers;
-                if (dst)
-                {
-                    drawBuffers = { { (i32)ColorBuffer::kDst } };
-                }
-                else
-                {
-                    drawBuffers = { { (i32)ColorBuffer::kSrc } };
-                }
-
-                submitFullScreenPass(
-                    renderTarget, 
-                    std::move(drawBuffers),
-                    gaussianBlurShader, 
-                    [this, scratch, kernelIndex, radius](RenderTarget* renderTarget, Shader* shader) {
-                        shader->setTexture("srcTexture", scratch)
-                                .setUniform("horizontal", 0.f)
-                                .setUniform("kernelIndex", kernelIndex)
-                                .setUniform("radius", radius);
-                    });
-            }
-        };
+        const u32 numDownsamplePasses = 6u;
 
         // bloom setup pass
         struct BloomSetupPassData
@@ -1106,72 +1051,50 @@ namespace Cyan
         );
 
         // downsample
-        DownsampleChain downsampleChain = downsample(bloomSetupPassData.output, 6);
+        DownsampleChain downsampleChain = downsample(bloomSetupPassData.output, numDownsamplePasses);
 
-        // upscale and composite
-        std::vector<RenderTexture2D*> upscaleChain(downsampleChain.stages.size() - 1);
-        for (u32 i = downsampleChain.stages.size() - 1; i > 0; --i)
+        const u32 kMinGaussianKernelRadius = 2u;
+        std::vector<RenderTexture2D*> upscaleChain(downsampleChain.stages.size());
+        upscaleChain[0] = downsampleChain.stages[downsampleChain.stages.size() - 1];
+        for (u32 i = downsampleChain.stages.size() - 1, input = 0; i > 0; --i, ++input)
         {
-            u32 input = i;
-            u32 output = i - 1;
+            u32 output = input + 1;
+            u32 blend = i - 1;
 
-            ITextureRenderable::Spec spec = downsampleChain.stages[input]->spec;
+            // Gaussian blur pass
+            downsampleChain.stages[blend] = gaussianBlur(downsampleChain.stages[blend], i, (f32)i * .5f);
+
+            // upscale & blend pass
+            ITextureRenderable::Spec spec = upscaleChain[input]->spec;
             spec.width *= 2;
             spec.height *= 2;
-
-            RenderTexture2D* upscaled = upscaleChain[output] = m_renderQueue.createTexture2D("Upscaled", spec);
+            upscaleChain[output] = m_renderQueue.createTexture2D("Upscaled", spec);
             m_renderQueue.addPass(
                 "Upscale",
-                [downsampleChain, upscaled, input](RenderQueue& renderQueue, RenderPass* pass) {
-                    pass->addInput(downsampleChain.stages[input]);
-                    pass->addOutput(upscaled);
+                [downsampleChain, &upscaleChain, input, blend, output](RenderQueue& renderQueue, RenderPass* pass) {
+                    pass->addInput(downsampleChain.stages[blend]);
+                    pass->addInput(upscaleChain[input]);
+                    pass->addOutput(upscaleChain[output]);
                 },
-                [this, downsampleChain, input, upscaled]() {
+                [this, downsampleChain, blend, upscaleChain, input, output]() {
                     Shader* upscaleShader = ShaderManager::createShader({ ShaderType::kVsPs, "BloomUpscaleShader", SHADER_SOURCE_PATH "bloom_upscale_v.glsl", SHADER_SOURCE_PATH "bloom_upscale_p.glsl" });
-                    std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(upscaled->spec.width, upscaled->spec.height));
-                    renderTarget->setColorBuffer(upscaled->getTexture(), 0);
+                    auto upscaledOutput = upscaleChain[output];
+                    std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(upscaledOutput->spec.width, upscaledOutput->spec.height));
+                    renderTarget->setColorBuffer(upscaleChain[output]->getTexture(), 0);
 
                     submitFullScreenPass(
                         renderTarget.get(),
                         { { 0u } },
                         upscaleShader,
-                        [this, downsampleChain, input](RenderTarget* renderTarget, Shader* shader) {
-                            u32 blend = input - 1;
-                            shader->setTexture("srcTexture", downsampleChain.stages[input]->getTexture())
+                        [this, downsampleChain, upscaleChain, input, blend](RenderTarget* renderTarget, Shader* shader) {
+                            shader->setTexture("srcTexture", upscaleChain[input]->getTexture())
                                 .setTexture("blendTexture", downsampleChain.stages[blend]->getTexture());
                         });
                 }
             );
-
-            // todo: gaussian blur
-        }
-#if 0
-        // downsample
-        i32 kernelRadii[6] = { 3, 4, 6, 7, 8, 9};
-        downsample(m_bloomDsTargets[0].src, dynamic_cast<Texture2DRenderable*>(m_bloomSetupRenderTarget->getColorBuffer(0u)), m_bloomDsTargets[0].renderTarget);
-        gaussianBlur(nullptr, m_bloomDsTargets[0].src, m_bloomDsTargets[0].scratch, m_bloomDsTargets[0].renderTarget, 0, kernelRadii[0]);
-        for (u32 i = 0u; i < kNumBloomPasses - 1; ++i) 
-        {
-            downsample(m_bloomDsTargets[i+1].src, m_bloomDsTargets[i].src, m_bloomDsTargets[i+1].renderTarget);
-            gaussianBlur(nullptr, m_bloomDsTargets[i+1].src, m_bloomDsTargets[i+1].scratch, m_bloomDsTargets[i+1].renderTarget, (i32)(i+1), kernelRadii[i+1]);
         }
 
-        // upscale
-        u32 start = kNumBloomPasses - 2, end = 0;
-        upscale(m_bloomUsTargets[start].src, m_bloomDsTargets[kNumBloomPasses - 1].src, nullptr, m_bloomUsTargets[start].renderTarget, 0u);
-        gaussianBlur(nullptr, m_bloomDsTargets[start].src, m_bloomDsTargets[start].scratch, m_bloomDsTargets[start].renderTarget, start, kernelRadii[start]);
-
-        // final output will be written to m_bloomUsTarget[0].src
-        for (u32 i = start; i > end ; --i) 
-        {
-            u32 srcIndex = i, dstIndex = i - 1;
-            upscale(m_bloomUsTargets[dstIndex].src, m_bloomUsTargets[srcIndex].src, m_bloomDsTargets[dstIndex].src, m_bloomUsTargets[dstIndex].renderTarget, start - i + 1u);
-            gaussianBlur(nullptr, m_bloomUsTargets[dstIndex].src, m_bloomUsTargets[dstIndex].scratch, m_bloomUsTargets[dstIndex].renderTarget, (i32)(dstIndex), kernelRadii[dstIndex]);
-        }
-
-        m_bloomOutTexture = m_bloomUsTargets[0].src;
-#endif
-        return upscaleChain[0];
+        return upscaleChain[upscaleChain.size() - 1];
     }
 
     void Renderer::localToneMapping()
@@ -1248,23 +1171,35 @@ namespace Cyan
         return compositeOutput;
     }
 
-    RenderTexture2D* Renderer::gaussianBlur(RenderTexture2D* inTexture, u32 kernelRadius)
+    RenderTexture2D* Renderer::gaussianBlur(RenderTexture2D* inTexture, u32 inRadius, f32 inSigma)
     {
+        static const u32 kMaxkernelRadius = 10;
+        static const u32 kMinKernelRadius = 2;
+
         struct GaussianKernel
         {
-            GaussianKernel(u32 inRadius, u32 inMean, u32 inSigma, LinearAllocator& allocator)
-                : radius(inRadius), mean(inMean), sigma(inSigma)
+            GaussianKernel(u32 inRadius, f32 inSigma, LinearAllocator& allocator)
+                : radius(max(kMinKernelRadius, min(inRadius, kMaxkernelRadius))), sigma(inSigma)
             {
                 u32 kernelSize = radius;
                 // todo: allocate weights from stack or frame allocator instead
-                weights = new f32[kernelSize];
+                weights = new f32[kMaxkernelRadius];
 
                 // calculate kernel weights
-                const f32 step = 0.25f;
+                f32 totalWeight = 0.f;
+                const f32 step = 1.f;
                 for (u32 i = 0; i < kernelSize; ++i)
                 {
                     f32 x = (f32)i * step;
                     weights[i] = calcWeight(x);
+                    totalWeight += weights[i];
+                }
+
+                // normalize the weights
+                totalWeight = totalWeight * 2.f - weights[0];
+                for (u32 i = 0; i < kernelSize; ++i)
+                {
+                    weights[i] /= totalWeight;
                 }
             };
 
@@ -1275,7 +1210,8 @@ namespace Cyan
 
             f32 calcWeight(f32 x)
             {
-                return glm::exp(-.5f  * pow(x / sigma, 2.0));
+                f32 coef = 1.f / (sigma * glm::sqrt(2.0f * M_PI));
+                return coef * glm::exp(-.5f  * pow(x / sigma, 2.0));
             }
 
             u32 radius = 0u;
@@ -1292,19 +1228,29 @@ namespace Cyan
                 pass->addInput(inTexture);
                 pass->addOutput(outTextureH);
             },
-            [inTexture, outTextureH, this]() {
+            [inTexture, outTextureH, inRadius, inSigma, this]() {
                 Shader* gaussianBlurShader = ShaderManager::createShader({ ShaderType::kVsPs, "GaussianBlurShader", SHADER_SOURCE_PATH "gaussian_blur_v.glsl", SHADER_SOURCE_PATH "gaussian_blur_p.glsl" });
 
                 auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(outTextureH->spec.width, outTextureH->spec.height));
                 renderTarget->setColorBuffer(outTextureH->getTexture(), 0);
+
+                GaussianKernel kernel(inRadius, inSigma, m_frameAllocator);
 
                 // execute
                 submitFullScreenPass(
                     renderTarget.get(),
                     { { 0 } },
                     gaussianBlurShader,
-                    [inTexture](RenderTarget* renderTarget, Shader* shader) {
+                    [inTexture, &kernel](RenderTarget* renderTarget, Shader* shader) {
                         shader->setTexture("srcTexture", inTexture->getTexture());
+                        shader->setUniform("kernelRadius", kernel.radius);
+                        shader->setUniform("pass", 1.f);
+                        for (u32 i = 0; i < kMaxkernelRadius; ++i)
+                        {
+                            char name[32] = { };
+                            sprintf_s(name, "weights[%d]", i);
+                            shader->setUniform(name, kernel.weights[i]);
+                        }
                     }
                 );
             }
@@ -1317,19 +1263,29 @@ namespace Cyan
                 pass->addInput(outTextureH);
                 pass->addOutput(outTextureV);
             },
-            [this, outTextureH, outTextureV]() {
+            [this, outTextureH, outTextureV, inRadius, inSigma]() {
                 Shader* gaussianBlurShader = ShaderManager::createShader({ ShaderType::kVsPs, "GaussianBlurShader", SHADER_SOURCE_PATH "gaussian_blur_v.glsl", SHADER_SOURCE_PATH "gaussian_blur_p.glsl" });
 
                 auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(outTextureV->spec.width, outTextureV->spec.height));
                 renderTarget->setColorBuffer(outTextureV->getTexture(), 0);
+
+                GaussianKernel kernel(inRadius, inSigma, m_frameAllocator);
 
                 // execute
                 submitFullScreenPass(
                     renderTarget.get(),
                     { { 0 } },
                     gaussianBlurShader,
-                    [outTextureH](RenderTarget* renderTarget, Shader* shader) {
+                    [outTextureH, &kernel](RenderTarget* renderTarget, Shader* shader) {
                         shader->setTexture("srcTexture", outTextureH->getTexture());
+                        shader->setUniform("kernelRadius", kernel.radius);
+                        shader->setUniform("pass", 0.f);
+                        for (u32 i = 0; i < kMaxkernelRadius; ++i)
+                        {
+                            char name[32] = { };
+                            sprintf_s(name, "weights[%d]", i);
+                            shader->setUniform(name, kernel.weights[i]);
+                        }
                     }
                 );
             });

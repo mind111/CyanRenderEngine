@@ -23,6 +23,6 @@ void main()
     {
         float bloomScale = clamp(lumin, 0.0, 1.0);
         // boost the constrast
-        outColor = vec4(bloomScale * inColor, 1.f);
+        outColor = vec4(bloomScale * inColor * 1.0f, 1.f);
     }
 }
