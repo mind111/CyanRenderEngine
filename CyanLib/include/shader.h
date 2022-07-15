@@ -11,7 +11,7 @@
 #include "Uniform.h"
 #include "Texture.h"
 
-#define SHADER_SOURCE_PATH "../../shader/"
+#define SHADER_SOURCE_PATH "C:/dev/cyanRenderEngine/shader/"
 
 // Shader storage buffer
 struct RegularBuffer

@@ -220,7 +220,7 @@ namespace Cyan
         ImGui::DestroyContext();
     }
 
-    void Renderer::drawMeshInstance(SceneRenderable& sceneRenderable, RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, MeshInstance* meshInstance, i32 transformIndex)
+    void Renderer::drawMeshInstance(RenderableScene& sceneRenderable, RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, MeshInstance* meshInstance, i32 transformIndex)
     {
         Mesh* parent = meshInstance->parent;
         for (u32 i = 0; i < parent->numSubmeshes(); ++i)
@@ -695,7 +695,7 @@ namespace Cyan
             glm::uvec2 renderResolution = m_settings.enableAA ? glm::uvec2(m_SSAAWidth, m_SSAAHeight) : glm::uvec2(m_windowWidth, m_windowHeight);
             SceneView sceneView(*scene, camera, nullptr, { }, { 0u, 0u,  renderResolution.x, renderResolution.y }, EntityFlag_kVisible);
             // convert Scene instance to RenderableScene instance for rendering
-            SceneRenderable sceneRenderable(scene, sceneView, m_frameAllocator);
+            RenderableScene sceneRenderable(scene, sceneView, m_frameAllocator);
 
             renderShadow(sceneRenderable);
 
@@ -793,7 +793,7 @@ namespace Cyan
         m_numFrames++;
     }
 
-    void Renderer::renderShadow(SceneRenderable& sceneRenderable)
+    void Renderer::renderShadow(RenderableScene& sceneRenderable)
     {
         sceneRenderable.submitSceneData(m_ctx);
 
@@ -803,7 +803,7 @@ namespace Cyan
         }
     }
 
-    void Renderer::renderSceneMeshOnly(SceneRenderable& sceneRenderable, const SceneView& sceneView, Shader* shader)
+    void Renderer::renderSceneMeshOnly(RenderableScene& sceneRenderable, const SceneView& sceneView, Shader* shader)
     {
         sceneRenderable.submitSceneData(m_ctx);
 
@@ -826,7 +826,7 @@ namespace Cyan
     }
 
     // todo: refactor this and 
-    void Renderer::renderSceneDepthOnly(SceneRenderable& sceneRenderable, const SceneView& sceneView)
+    void Renderer::renderSceneDepthOnly(RenderableScene& sceneRenderable, const SceneView& sceneView)
     {
         sceneRenderable.submitSceneData(m_ctx);
 
@@ -854,7 +854,7 @@ namespace Cyan
         }
     }
 
-    Renderer::ScenePrepassOutput Renderer::renderSceneDepthNormal(SceneRenderable& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution)
+    Renderer::ScenePrepassOutput Renderer::renderSceneDepthNormal(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution)
     {
         ITextureRenderable::Spec spec = { };
         spec.type = TEX_2D;
@@ -897,7 +897,7 @@ namespace Cyan
         return { depthTexture, normalTexture};
     }
 
-    RenderTexture2D* Renderer::renderScene(SceneRenderable& sceneRenderable, const SceneView& sceneView, const glm::uvec2& outputResolution)
+    RenderTexture2D* Renderer::renderScene(RenderableScene& sceneRenderable, const SceneView& sceneView, const glm::uvec2& outputResolution)
     {
         ITextureRenderable::Spec spec = { };
         spec.type = TEX_2D;
@@ -1142,14 +1142,17 @@ namespace Cyan
         spec.height = outputResolution.y;
         RenderTexture2D* compositeOutput = m_renderQueue.createTexture2D("CompositedColorOutput", spec);
 
+        // add a reconstruction pass using Gaussian filter
+        auto filteredSceneColor = gaussianBlur(inSceneColor, 3u, 2.0f);
+
         m_renderQueue.addPass(
             "CompositePass",
-            [inSceneColor, inBloomColor, compositeOutput](RenderQueue& renderQueue, RenderPass* pass) {
-                pass->addInput(inSceneColor);
+            [filteredSceneColor, inBloomColor, compositeOutput](RenderQueue& renderQueue, RenderPass* pass) {
+                pass->addInput(filteredSceneColor);
                 pass->addInput(inBloomColor);
                 pass->addOutput(compositeOutput);
             },
-            [this, inSceneColor, inBloomColor, compositeOutput]() {
+            [this, filteredSceneColor, inBloomColor, compositeOutput]() {
                 Shader* compositeShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "CompositeShader", SHADER_SOURCE_PATH "composite_v.glsl", SHADER_SOURCE_PATH "composite_p.glsl" });
                 auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(compositeOutput->spec.width, compositeOutput->spec.height));
                 renderTarget->setColorBuffer(compositeOutput->getTexture(), 0);
@@ -1158,16 +1161,15 @@ namespace Cyan
                     renderTarget.get(),
                     { { 0 } },
                     compositeShader,
-                    [this, inBloomColor, inSceneColor](RenderTarget* renderTarget, Shader* shader) {
+                    [this, inBloomColor, filteredSceneColor](RenderTarget* renderTarget, Shader* shader) {
                         shader->setUniform("exposure", m_settings.exposure)
                             .setUniform("enableBloom", m_settings.enableBloom ? 1.f : 0.f)
                             .setUniform("bloomIntensity", m_settings.bloomIntensity)
                             .setTexture("bloomColorTexture", inBloomColor->getTexture())
-                            .setTexture("sceneColorTexture", inSceneColor->getTexture());
+                            .setTexture("sceneColorTexture", filteredSceneColor->getTexture());
                     });
             }
         );
-
         return compositeOutput;
     }
 
@@ -1195,7 +1197,15 @@ namespace Cyan
                     totalWeight += weights[i];
                 }
 
-                // normalize the weights
+                // tweak the weights so that the boundry sample weight goes to 0
+                f32 correction = calcWeight(step * kernelSize);
+                for (u32 i = 0; i < kernelSize; ++i)
+                {
+                    weights[i] -= correction;
+                    totalWeight -= correction;
+                }
+
+                // normalize the weights to 1
                 totalWeight = totalWeight * 2.f - weights[0];
                 for (u32 i = 0; i < kernelSize; ++i)
                 {

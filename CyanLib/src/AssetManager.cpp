@@ -181,7 +181,7 @@ namespace Cyan
     }
 
     // treat all the meshes inside one obj file as submeshes
-    std::vector<ISubmesh*> AssetManager::loadObj(const char* baseDir, const char* filename, bool bGenerateLightMapUv)
+    std::vector<ISubmesh*> AssetManager::importObj(const char* baseDir, const char* filename, bool bGenerateLightMapUv)
     {
         tinyobj::attrib_t attrib;
         std::vector<tinyobj::shape_t> shapes;
@@ -385,7 +385,7 @@ namespace Cyan
         if (extension == ".obj")
         {
             cyanInfo("Loading .obj file %s", path.c_str());
-            std::vector<ISubmesh*> submeshes = std::move(loadObj(baseDir.c_str(), path.c_str(), generateLightMapUv));
+            std::vector<ISubmesh*> submeshes = std::move(importObj(baseDir.c_str(), path.c_str(), generateLightMapUv));
             parent = createMesh(name, submeshes);
         }
         else if (extension == ".gltf")
@@ -638,9 +638,25 @@ namespace Cyan
                     auto pbr = gltfMaterial.pbrMetallicRoughness;
 
                     matl = createMaterial<PBRMaterial>(gltfMaterial.name.c_str());
-                    matl->parameter.albedo = getTexture(pbr.baseColorTexture.index);
+                    if (pbr.baseColorTexture.index > -1)
+                    {
+                        matl->parameter.albedo = getTexture(pbr.baseColorTexture.index);
+                    }
+                    else
+                    {
+                        CYAN_ASSERT(pbr.baseColorFactor.size() == 4, "gltf PBR material baseColorFactor is not vec4")
+                        matl->parameter.kAlbedo = glm::vec3(pbr.baseColorFactor[0], pbr.baseColorFactor[1], pbr.baseColorFactor[2]);
+                    }
                     matl->parameter.normal = getTexture(gltfMaterial.normalTexture.index);
-                    matl->parameter.metallicRoughness = getTexture(pbr.metallicRoughnessTexture.index);
+                    if (pbr.metallicRoughnessTexture.index > -1)
+                    {
+                        matl->parameter.metallicRoughness = getTexture(pbr.metallicRoughnessTexture.index);
+                    }
+                    else
+                    {
+                        matl->parameter.kRoughness = pbr.roughnessFactor;
+                        matl->parameter.kMetallic = pbr.metallicFactor;
+                    }
                     matl->parameter.occlusion = getTexture(gltfMaterial.occlusionTexture.index);
                 }
                 staticMeshEntity->setMaterial(matl, sm);
@@ -943,22 +959,30 @@ namespace Cyan
         tinygltf::Model model;
         std::string warn, err;
         auto sceneManager = SceneManager::get();
-        if (!m_loader.LoadASCIIFromFile(&model, &err, &warn, std::string(filename)))
+        if (!singleton->m_gltfImporter.LoadASCIIFromFile(&model, &err, &warn, std::string(filename)))
         {
             std::cout << warn << std::endl;
             std::cout << err << std::endl;
         }
         tinygltf::Scene& gltfScene = model.scenes[model.defaultScene];
         // import textures
-        importGltfTextures(name, model);
+        singleton->importGltfTextures(name, model);
         // import meshes
         for (auto& gltfMesh : model.meshes)
         {
-            importGltfMesh(model, gltfMesh);
+            singleton->importGltfMesh(model, gltfMesh);
         }
-        // rename the root node to 'name'
-        model.nodes[gltfScene.nodes[0]].name = std::string(name);
+
+        Entity* rootEntity = nullptr;
+        // if a input 'name' is provided, that means all the nodes imported from this gltf file should be bundled by this 'rootEntity'
+        if (name)
+        {
+            rootEntity = scene->createEntity(name, Transform());
+        }
         // import gltf nodes
-        importGltfNode(scene, model, nullptr, model.nodes[gltfScene.nodes[0]]);
+        for (u32 i = 0; i < gltfScene.nodes.size(); ++i)
+        {
+            singleton->importGltfNode(scene, model, rootEntity, model.nodes[gltfScene.nodes[i]]);
+        }
     }
 }

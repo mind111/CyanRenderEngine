@@ -17,10 +17,6 @@
 #define REBAKE_LIGHTMAP 0
 #define MOUSE_PICKING   1
 
-// In radians per pixel 
-static float kCameraOrbitSpeed = 0.005f;
-static float kCameraRotateSpeed = 0.005f;
-
 #if 0
 namespace Demo
 {
@@ -81,7 +77,7 @@ void DemoApp::setupScene()
         /** note
             * 40 seems to be a good baseline for midday sun light
         */
-        glm::vec4 sunColorAndIntensity(0.99, .98, 0.82, 40.0);
+        glm::vec4 sunColorAndIntensity(0.99, .98, 0.82, 25.0);
         demoScene00->createDirectionalLight("SunLight", /*direction=*/glm::vec3(1.0f, 0.9, 0.7f), /*colorAndIntensity=*/sunColorAndIntensity);
 
         // skybox
@@ -258,44 +254,6 @@ void DemoApp::customInitialize()
 {
     Cyan::Toolkit::GpuTimer timer("DemoApp::customInitialize()", true);
     {
-        // setup user input control
-        auto IOSystem = gEngine->getIOSystem();
-        IOSystem->addIOEventListener<Cyan::MouseCursorEvent>([this, IOSystem](f64 xPos, f64 yPos) {
-            glm::dvec2 mouseCursorChange = IOSystem->getMouseCursorChange();
-            if (bOrbit)
-            {
-                orbitCamera(m_scene->camera, mouseCursorChange.x, mouseCursorChange.y);
-            }
-        });
-
-        IOSystem->addIOEventListener<Cyan::MouseButtonEvent>([this](i32 button, i32 action) {
-            switch(button)
-            {
-                case CYAN_MOUSE_BUTTON_RIGHT:
-                {
-                    if (action == CYAN_PRESS)
-                    {
-                        bOrbit = true;
-                    }
-                    else if (action == CYAN_RELEASE)
-                    {
-                        bOrbit = false;
-                    }
-                    break;
-                }
-                default:
-                    break;
-            }
-        });
-
-        IOSystem->addIOEventListener<Cyan::MouseWheelEvent>([this](f64 xOffset, f64 yOffset) {
-
-        });
-
-        IOSystem->addIOEventListener<Cyan::KeyEvent>([](i32 key, i32 action) {
-
-        });
-
         // setup scene
         setupScene();
     }
@@ -341,29 +299,7 @@ void DemoApp::customUpdate()
 
 void DemoApp::customRender()
 {
-#if 0
-    drawSceneViewport();
-    drawDebugWindows();
 
-    // frame timer
-    Cyan::Toolkit::GpuTimer frameTimer("render()");
-    {
-        auto renderer = Cyan::Renderer::get();
-        // scene & debug objects
-        renderer->render(m_scene.get(), [this]() {
-            debugIrradianceCache();
-        });
-        // ui
-        renderer->renderUI([this]() {
-            drawSceneViewport();
-            drawDebugWindows();
-        });
-        // request flip
-        renderer->flip();
-    }
-    frameTimer.end();
-    m_lastFrameDurationInMs = frameTimer.m_durationInMs;
-#endif
 }
 
 void DemoApp::customFinalize()
@@ -371,39 +307,13 @@ void DemoApp::customFinalize()
 
 }
 
-void DemoApp::zoomCamera(Camera& camera, double dx, double dy)
+// entry point
+int main()
 {
-    const f32 speed = 0.3f;
-    // translate the camera along its lookAt direciton
-    glm::vec3 translation = camera.forward * (float)(speed * dy);
-    glm::vec3 v1 = glm::normalize(camera.position + translation - camera.lookAt); 
-    // TODO: debug this
-    if (glm::dot(v1, camera.forward) >= 0.f)
-    {
-        camera.position = camera.lookAt - 0.001f * camera.forward;
-    }
-    else
-    {
-        camera.position += translation;
-    }
-}
-
-void DemoApp::orbitCamera(Camera& camera, double deltaX, double deltaY)
-{
-    // orbit camera
-    float phi = deltaX * kCameraOrbitSpeed; 
-    float theta = deltaY * kCameraOrbitSpeed;
-    glm::vec3 p = camera.position - camera.lookAt;
-    glm::quat quat(cos(.5f * -phi), sin(.5f * -phi) * camera.up);
-    quat = glm::rotate(quat, -theta, camera.right);
-    glm::mat4 model(1.f);
-    model = glm::translate(model, camera.lookAt);
-    glm::mat4 rot = glm::toMat4(quat);
-    glm::vec4 pPrime = rot * glm::vec4(p, 1.f);
-    camera.position = glm::vec3(pPrime.x, pPrime.y, pPrime.z) + camera.lookAt;
-}
-
-void DemoApp::rotateCamera(double deltaX, double deltaY)
-{
-
+    DemoApp* app = new DemoApp(1280, 720);
+    app->initialize();
+    app->run();
+    app->finalize();
+    delete app;
+    return 0;
 }

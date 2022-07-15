@@ -88,7 +88,9 @@ namespace Cyan
         SceneView sceneView(scene, camera, depthRenderTargetPtr.get(), { { 0u } }, { 0u, 0u, depthRenderTargetPtr->width, depthRenderTargetPtr->height }, EntityFlag_kVisible | EntityFlag_kCastShadow);
         SceneRenderable renderableScene(&scene, sceneView, renderer.getFrameAllocator());
 
+        // glDisable(GL_CULL_FACE);
         renderer.renderSceneDepthOnly(renderableScene, sceneView);
+        // glEnable(GL_CULL_FACE);
     }
 
     void DirectionalShadowmap::setShaderParameters(Shader* shader, const char* uniformNamePrefix)

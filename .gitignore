@@ -4,5 +4,7 @@ asset/
 x64/
 CyanApp/x64
 CyanLib/x64
+IrradianceCaching/x64
+IrradianceCaching/imgui.ini
 ExternalLib/include/glm
 ExternalLib/x64

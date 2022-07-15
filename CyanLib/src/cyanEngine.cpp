@@ -40,6 +40,50 @@ namespace Cyan
         m_IOSystem->initialize();
 
         m_renderer = m_graphicsSystem->getRenderer();
+
+        // setup default I/O controls 
+        m_IOSystem->addIOEventListener<Cyan::MouseCursorEvent>([this](f64 xPos, f64 yPos) {
+            glm::dvec2 mouseCursorChange = m_IOSystem->getMouseCursorChange();
+            if (m_IOSystem->isMouseRightButtonDown())
+            {
+                // In radians per pixel 
+                const float kCameraOrbitSpeed = 0.005f;
+                const float kCameraRotateSpeed = 0.005f;
+                // todo: do the correct trigonometry to covert distance traveled in screen space into angle of camera rotation
+                float phi = mouseCursorChange.x * kCameraOrbitSpeed; 
+                float theta = mouseCursorChange.y * kCameraOrbitSpeed;
+                m_scene->camera->orbit(phi, theta);
+            }
+        });
+
+        m_IOSystem->addIOEventListener<Cyan::MouseButtonEvent>([this](i32 button, i32 action) {
+            switch(button)
+            {
+                case CYAN_MOUSE_BUTTON_RIGHT:
+                {
+                    if (action == CYAN_PRESS)
+                    {
+                        m_IOSystem->mouseRightButtonDown();
+                    }
+                    else if (action == CYAN_RELEASE)
+                    {
+                        m_IOSystem->mouseRightButtonUp();
+                    }
+                    break;
+                }
+                default:
+                    break;
+            }
+        });
+
+        m_IOSystem->addIOEventListener<Cyan::MouseWheelEvent>([this](f64 xOffset, f64 yOffset) {
+            const f32 speed = 0.3f;
+            m_scene->camera->zoom(speed * yOffset);
+        });
+
+        m_IOSystem->addIOEventListener<Cyan::KeyEvent>([](i32 key, i32 action) {
+
+        });
     }
     
     void Engine::update()

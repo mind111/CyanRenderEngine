@@ -41,7 +41,7 @@ namespace Cyan
             virtual void notify(IEvent* event)
             {
                 // todo: would this string comparison be too slow ...?
-                if (event->getTypeDesc().compare("MouseButtontEvent") == 0)
+                if (event->getTypeDesc().compare("MouseButtonEvent") == 0)
                 {
                     MouseButtonEvent* mouseButtonEvent = static_cast<MouseButtonEvent*>(event);
                     callback(mouseButtonEvent->button, mouseButtonEvent->action);
@@ -164,13 +164,21 @@ namespace Cyan
     class IOSystem : public System, public Singleton<IOSystem>
     {
     public:
+
         IOSystem();
 
         virtual void initialize() override;
         virtual void update() override;
         virtual void finalize() override;
 
+        // getters
         glm::dvec2 getMouseCursorChange() { return glm::dvec2(m_mouseCursorState.dx, m_mouseCursorState.dy); }
+        bool isMouseLeftButtonDown() { return m_mouseButtonState.isLeftButtonDown; }
+        bool isMouseRightButtonDown() { return m_mouseButtonState.isRightButtonDown; }
+
+        // setters
+        void mouseRightButtonDown() { m_mouseButtonState.isRightButtonDown = true; }
+        void mouseRightButtonUp() { m_mouseButtonState.isRightButtonDown = false; }
 
         template <typename IOEventType>
         void addIOEventListener(const typename IOEventType::Handler& handler)
@@ -192,6 +200,12 @@ namespace Cyan
             f64 dx = 0.0;
             f64 dy = 0.0;
         } m_mouseCursorState;
+
+        struct MouseButtonState
+        {
+            bool isLeftButtonDown = false;
+            bool isRightButtonDown = false;
+        } m_mouseButtonState;
 
         EventDispatcher* m_IOEventDispatcher = nullptr;
     };

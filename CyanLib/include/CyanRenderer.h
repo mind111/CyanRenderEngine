@@ -19,21 +19,14 @@
 
 namespace Cyan
 {
-    struct SceneRenderable;
+    struct RenderableScene;
 
     struct SceneView
     {
-        Camera camera = { };
-        RenderTarget* renderTarget = nullptr;
-        std::initializer_list<RenderTargetDrawBuffer> drawBuffers;
-        Viewport viewport = { };
+        ICamera* camera = nullptr;
         std::vector<Entity*> entities;
 
-        SceneView(const Scene& scene, const Camera& inCamera, RenderTarget* inRenderTarget , std::initializer_list<RenderTargetDrawBuffer>&& inDrawBuffers, Viewport inViewport, u32 flags)
-            : camera(inCamera),
-            renderTarget(inRenderTarget),
-            viewport(inViewport),
-            drawBuffers(inDrawBuffers)
+        SceneView(const Scene& scene, ICamera* inCamera, u32 flags)
         {
             for (auto entity : scene.entities)
             {
@@ -322,8 +315,8 @@ namespace Cyan
         void renderToScreen(RenderTexture2D* inTexture);
         void endRender();
 
-        RenderTexture2D* renderScene(SceneRenderable& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
-        void renderSceneMeshOnly(SceneRenderable& renderableScene, const SceneView& sceneView, Shader* shader);
+        RenderTexture2D* renderScene(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
+        void renderSceneMeshOnly(RenderableScene& renderableScene, const SceneView& sceneView, Shader* shader);
 
         struct ScenePrepassOutput
         {
@@ -331,11 +324,11 @@ namespace Cyan
             RenderTexture2D* normalTexture;
         };
 
-        ScenePrepassOutput renderSceneDepthNormal(SceneRenderable& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
-        void renderSceneDepthOnly(SceneRenderable& renderableScene, const SceneView& sceneView);
+        ScenePrepassOutput renderSceneDepthNormal(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
+        void renderSceneDepthOnly(RenderableScene& renderableScene, const SceneView& sceneView);
         void renderDebugObjects(Scene* scene, const std::function<void()>& externDebugRender = [](){ });
 
-        void renderShadow(SceneRenderable& sceneRenderable);
+        void renderShadow(RenderableScene& sceneRenderable);
 
         /*
         * Render provided scene into a light probe
@@ -349,7 +342,7 @@ namespace Cyan
         */
         void renderUI();
 
-        void drawMeshInstance(SceneRenderable& renderableScene, RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, MeshInstance* meshInstance, i32 transformIndex);
+        void drawMeshInstance(RenderableScene& renderableScene, RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, MeshInstance* meshInstance, i32 transformIndex);
 
         /**
         * Draw a mesh without material

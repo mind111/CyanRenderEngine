@@ -6,42 +6,32 @@
 
 namespace Cyan
 {
-    SceneRenderable::SceneRenderable(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator)
+    RenderableScene::RenderableScene(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator)
         : scene(inScene)
     {
-#if 1
         viewSsboPtr = std::make_unique<ViewSsbo>();
         transformSsboPtr = std::make_unique<TransformSsbo>(256);
-#endif
+        TransformSsbo& transformSsbo = *(transformSsboPtr.get());
+
         // build list of mesh instances and transforms
         for (auto entity : sceneView.entities)
         {
-            TransformSsbo& transformSsbo = *(transformSsboPtr.get());
-#if 1
-            if (auto staticMeshEntity = dynamic_cast<StaticMeshEntity*>(entity))
+            if (auto camera = dynamic_cast<CameraEntity*>(entity))
             {
-                meshInstances.push_back(staticMeshEntity->getMeshInstance());
-                ADD_SSBO_DYNAMIC_ELEMENT(transformSsbo, staticMeshEntity->getWorldTransformMatrix());
+                this->camera = camera->getCamera();
             }
-#else
-            entity->visit([this, &transformSsbo](SceneComponent* sceneComp) {
-                    if (auto meshInst = sceneComp->getAttachedMesh())
-                    {
-                        meshInstances.push_back(meshInst);
-#if 1
-                        ADD_SSBO_DYNAMIC_ELEMENT(transformSsbo, sceneComp->getWorldTransformMatrix());
-#endif
-                    }
-                });
-#endif
+            // static meshes
+            else if (auto staticMesh = dynamic_cast<StaticMeshEntity*>(entity))
+            {
+                meshInstances.push_back(staticMesh->getMeshInstance());
+                ADD_SSBO_DYNAMIC_ELEMENT(transformSsbo, staticMesh->getWorldTransformMatrix());
+            }
         }
 
-#if 1
         // build view data
         ViewSsbo& viewSsbo = *(viewSsboPtr.get());
-        SET_SSBO_STATIC_MEMBER(viewSsbo, view, sceneView.camera.view);
-        SET_SSBO_STATIC_MEMBER(viewSsbo, projection, sceneView.camera.projection);
-#endif
+        SET_SSBO_STATIC_MEMBER(viewSsbo, view, camera->view());
+        SET_SSBO_STATIC_MEMBER(viewSsbo, projection, camera->projection());
 
         // build lighting data
         skybox = scene->skybox;
@@ -50,7 +40,6 @@ namespace Cyan
 
         // todo: this following code is causing memory leak
         // build a list of lights in the scene
-#if 1
         for (auto entity : scene->entities)
         {
             auto lightComponents = entity->getComponent<ILightComponent>();
@@ -71,7 +60,6 @@ namespace Cyan
                 }
             }
         }
-#endif
         viewSsboPtr->update();
         transformSsboPtr->update();
     }
@@ -79,7 +67,7 @@ namespace Cyan
     /**
     * Submit rendering data to global gpu buffers
     */
-    void SceneRenderable::submitSceneData(GfxContext* ctx)
+    void RenderableScene::submitSceneData(GfxContext* ctx)
     {
         // todo: avoid repetively submit redundant data
         {

@@ -38,10 +38,6 @@ public:
     void precompute();
 
     // camera control
-    void dispatchCameraCommand(struct CameraCommand& command);
-    void orbitCamera(Camera& camera, double deltaX, double deltaY);
-    void zoomCamera(Camera& camera, double dx, double dy);
-    void rotateCamera(double deltaX, double deltaY);
     bool mouseOverUI();
 
     Cyan::RayCastInfo castMouseRay(const glm::vec2& currentViewportPos, const glm::vec2& currentViewportSize);

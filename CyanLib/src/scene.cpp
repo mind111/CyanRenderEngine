@@ -18,11 +18,23 @@ namespace Cyan
         : name(inSceneName)
     {
         rootEntity = createEntity("Root", Transform());
+        activeCamera = std::unique_ptr<CameraEntity>(createPerspectiveCamera(
+            /*name=*/"Camera",
+            /*transform=*/Transform {
+                glm::vec3(0.f, 3.2f, 8.f)
+            },
+            /*inLookAt=*/glm::vec3(0., 1., -1.),
+            /*inWorldUp=*/glm::vec3(0.f, 1.f, 0.f),
+            /*inFov=*/45.f,
+            .5f,
+            150.f,
+            1280.f / 720.f
+        ));
     }
 
     void Scene::update()
     {
-        camera.update();
+        activeCamera->update();
 
         std::queue<SceneComponent*> nodes;
         nodes.push(rootEntity->getRootSceneComponent());
@@ -125,15 +137,23 @@ namespace Cyan
 
     StaticMeshEntity* Scene::createStaticMeshEntity(const char* name, const Transform& transform, Mesh* inMesh, Entity* inParent, u32 properties)
     {
-        auto staticMeshEntity = new StaticMeshEntity(this, name, transform, inMesh, inParent, properties);
-        entities.push_back(staticMeshEntity);
-        return staticMeshEntity;
+        auto staticMesh = new StaticMeshEntity(this, name, transform, inMesh, inParent, properties);
+        entities.push_back(staticMesh);
+        return staticMesh;
     }
 
-    void Scene::createDirectionalLight(const char* name, const glm::vec3& direction, const glm::vec4& colorAndIntensity)
+    CameraEntity* Scene::createPerspectiveCamera(const char* name, const Transform& transform, const glm::vec3& inLookAt, const glm::vec3& inWorldUp, f32 inFov, f32 inN, f32 inF, f32 inAspectRatio, Entity* inParent = nullptr, u32 properties = (EntityFlag_kDynamic))
+    {
+        auto camera = new CameraEntity(this, name, transform, inLookAt, inWorldUp, inFov, inN, inF, inAspectRatio, inParent, properties);
+        entities.push_back(camera);
+        return camera;
+    }
+
+    DirectionalLightEntity* Scene::createDirectionalLight(const char* name, const glm::vec3& direction, const glm::vec4& colorAndIntensity)
     {
         DirectionalLightEntity* directionalLight = new DirectionalLightEntity(this, name, Transform(), nullptr, direction, colorAndIntensity, true);
         entities.push_back(directionalLight);
+        return directionalLight;
     }
 
     void Scene::createPointLight(const char* name, const glm::vec3 position, const glm::vec4& colorAndIntensity)
@@ -192,7 +212,7 @@ namespace Cyan
     {
         Cyan::Toolkit::GpuTimer loadSceneTimer("SceneManager::importScene()", true);
         std::shared_ptr<Scene> scene = std::make_shared<Scene>(name);
-        auto assetManager = Cyan::GraphicsSystem::get()->getAssetManager();
+        auto assetManager = AssetManager::get();
         assetManager->importScene(scene.get(), filePath);
         loadSceneTimer.end();
         return scene;

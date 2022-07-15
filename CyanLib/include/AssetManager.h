@@ -67,22 +67,24 @@ namespace Cyan
 
         static AssetManager* get() { return singleton; }
 
+#if 0
         struct LoadedNode
         {
             SceneComponent* m_sceneNode;
             std::vector<u32> m_child;
         };
+#endif
 
-        Cyan::Texture2DRenderable* importGltfTexture(const char* nodeName, tinygltf::Model& model, i32 index);
         void importGltfNode(Scene* scene, tinygltf::Model& model, Entity* parent, tinygltf::Node& node);
         Mesh* importGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh); 
+        Cyan::Texture2DRenderable* importGltfTexture(const char* nodeName, tinygltf::Model& model, i32 index);
         void importGltfTextures(const char* nodeName, tinygltf::Model& model);
-        void importGltf(Scene* scene, const char* filename, const char* name);
-        std::vector<ISubmesh*> loadObj(const char* baseDir, const char* filename, bool generateLightMapUv);
-        Mesh* importMesh(Scene* scene, std::string& path, const char* name, bool normalize, bool generateLightMapUv);
+        static void importGltf(Scene* scene, const char* filename, const char* name=nullptr);
+        std::vector<ISubmesh*> importObj(const char* baseDir, const char* filename, bool generateLightMapUv);
         void importScene(Scene* scene, const char* file);
         void importEntities(Scene* scene, const nlohmann::basic_json<std::map>& entityInfoList);
         void importTextures(const nlohmann::basic_json<std::map>& textureInfoList);
+        Mesh* importMesh(Scene* scene, std::string& path, const char* name, bool normalize, bool generateLightMapUv);
         void importMeshes(Scene* scene, const nlohmann::basic_json<std::map>& meshInfoList);
 
         /**
@@ -269,8 +271,7 @@ namespace Cyan
 
         void* m_objLoader;
         void* m_gltfLoader;
-        tinygltf::TinyGLTF m_loader;
-        // std::vector<SceneComponent*> m_nodes;
+        tinygltf::TinyGLTF m_gltfImporter;
         static AssetManager* singleton;
 
         // asset arrays for efficient iterating

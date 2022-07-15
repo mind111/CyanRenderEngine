@@ -25,7 +25,7 @@ namespace Cyan
     *         * instance transforms
     *         * (todo) material buffers
     */
-    struct SceneRenderable
+    struct RenderableScene
     {
         // view data
         struct ViewData
@@ -39,8 +39,8 @@ namespace Cyan
         using ViewSsbo = ShaderStorageBuffer<StaticSsboStruct<ViewData>>;
         using TransformSsbo = ShaderStorageBuffer<DynamicSsboStruct<glm::mat4>>;
 
-        SceneRenderable(const Scene* scene, const SceneView& sceneView, LinearAllocator& allocator);
-        ~SceneRenderable()
+        RenderableScene(const Scene* scene, const SceneView& sceneView, LinearAllocator& allocator);
+        ~RenderableScene()
         { }
 
         /**
@@ -53,6 +53,9 @@ namespace Cyan
 
         // view
         std::unique_ptr<ViewSsbo> viewSsboPtr = nullptr;
+
+        // camera
+        ICamera* camera = nullptr;
 
         // mesh instances
         std::vector<MeshInstance*> meshInstances;

@@ -35,17 +35,18 @@ namespace Cyan
         SceneComponent* createSceneComponent(const char* name, Transform transform);
         MeshComponent* createMeshComponent(Mesh* mesh, Transform transform);
         // mesh instance
-        Cyan::MeshInstance* createMeshInstance(Cyan::Mesh* mesh);
-        Cyan::MeshInstance* createMeshInstance(const char* meshName);
+        MeshInstance* createMeshInstance(Cyan::Mesh* mesh);
+        MeshInstance* createMeshInstance(const char* meshName);
         // camera
+        CameraEntity* createPerspectiveCamera(const char* name, const Transform& transform, const glm::vec3& inLookAt, const glm::vec3& inWorldUp, f32 inFov, f32 inN, f32 inF, f32 inAspectRatio, Entity* inParent = nullptr, u32 properties = (EntityFlag_kDynamic));
 
         // lights
-        void createDirectionalLight(const char* name, const glm::vec3& direction, const glm::vec4& colorAndIntensity);
+        DirectionalLightEntity* createDirectionalLight(const char* name, const glm::vec3& direction, const glm::vec4& colorAndIntensity);
         void createPointLight(const char* name, const glm::vec3 position, const glm::vec4& colorAndIntensity);
-        Cyan::IrradianceProbe* createIrradianceProbe(Cyan::TextureCubeRenderable* srcCubemapTexture, const glm::uvec2& irradianceRes);
-        Cyan::IrradianceProbe* createIrradianceProbe(const glm::vec3& pos, const glm::uvec2& sceneCaptureRes, const glm::uvec2& irradianceRes);
-        Cyan::ReflectionProbe* createReflectionProbe(Cyan::TextureCubeRenderable* srcCubemapTexture);
-        Cyan::ReflectionProbe* createReflectionProbe(const glm::vec3& pos, const glm::uvec2& sceneCaptureRes);
+        IrradianceProbe* createIrradianceProbe(Cyan::TextureCubeRenderable* srcCubemapTexture, const glm::uvec2& irradianceRes);
+        IrradianceProbe* createIrradianceProbe(const glm::vec3& pos, const glm::uvec2& sceneCaptureRes, const glm::uvec2& irradianceRes);
+        ReflectionProbe* createReflectionProbe(Cyan::TextureCubeRenderable* srcCubemapTexture);
+        ReflectionProbe* createReflectionProbe(const glm::vec3& pos, const glm::uvec2& sceneCaptureRes);
 
         // getters
         Entity* getEntity(u32 index) { return entities[index]; }
@@ -64,10 +65,16 @@ namespace Cyan
         static const u32 kMaxNumSceneComponents = 1024u;
 
         std::string name;
-        Camera camera;
         BoundingBox3D aabb;
         Entity* rootEntity = nullptr;
         std::vector<Entity*> entities;
+
+        /**
+        * Currently active camera that will be used to render the scene, a scene can potentially
+        * has multiple cameras but only one will be active at any moment.
+        */
+        std::unique_ptr<CameraEntity> camera = nullptr;
+
         std::vector<std::shared_ptr<MeshInstance>> meshInstances;
         std::vector<SceneComponent*> sceneComponents;
 
