@@ -33,7 +33,7 @@ namespace Cyan
             : direction(glm::normalize(inDirection)), colorAndIntensity(inColorAndIntensity), bCastShadow(inCastShadow)
         { 
             /** note:
-                assuming that input illuminance is specified in lux, and remap 90000 lux (illuminance in normal direction of a midday sun) to 1 intensity unit.
+                assuming that input illuminance is specified in lux, and remap 90000 lux (illuminance in normal direction of a midday sun) to x intensity unit.
             */
 #if 0
             const float luxToIntensity = 1.0 / 90000.0;
@@ -58,4 +58,7 @@ namespace Cyan
     private:
         std::unique_ptr<DirectionalLightComponent> directionalLightComponentPtr = nullptr;
     };
+
+    // helper function for converting world space AABB to light's view space
+    BoundingBox3D calcLightSpaceAABB(const glm::vec3& inLightDirection, const BoundingBox3D& worldSpaceAABB);
 }

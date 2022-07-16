@@ -14,11 +14,11 @@
 
 namespace Cyan
 {
-    Scene::Scene(const char* inSceneName)
+    Scene::Scene(const char* inSceneName, f32 cameraAspectRatio)
         : name(inSceneName)
     {
         rootEntity = createEntity("Root", Transform());
-        activeCamera = std::unique_ptr<CameraEntity>(createPerspectiveCamera(
+        camera = std::unique_ptr<CameraEntity>(createPerspectiveCamera(
             /*name=*/"Camera",
             /*transform=*/Transform {
                 glm::vec3(0.f, 3.2f, 8.f)
@@ -27,14 +27,14 @@ namespace Cyan
             /*inWorldUp=*/glm::vec3(0.f, 1.f, 0.f),
             /*inFov=*/45.f,
             .5f,
-            150.f,
-            1280.f / 720.f
+            50.f,
+            cameraAspectRatio
         ));
     }
 
     void Scene::update()
     {
-        activeCamera->update();
+        camera->update();
 
         std::queue<SceneComponent*> nodes;
         nodes.push(rootEntity->getRootSceneComponent());
@@ -142,7 +142,7 @@ namespace Cyan
         return staticMesh;
     }
 
-    CameraEntity* Scene::createPerspectiveCamera(const char* name, const Transform& transform, const glm::vec3& inLookAt, const glm::vec3& inWorldUp, f32 inFov, f32 inN, f32 inF, f32 inAspectRatio, Entity* inParent = nullptr, u32 properties = (EntityFlag_kDynamic))
+    CameraEntity* Scene::createPerspectiveCamera(const char* name, const Transform& transform, const glm::vec3& inLookAt, const glm::vec3& inWorldUp, f32 inFov, f32 inN, f32 inF, f32 inAspectRatio, Entity* inParent, u32 properties)
     {
         auto camera = new CameraEntity(this, name, transform, inLookAt, inWorldUp, inFov, inN, inF, inAspectRatio, inParent, properties);
         entities.push_back(camera);
@@ -210,11 +210,14 @@ namespace Cyan
 
     std::shared_ptr<Scene> SceneManager::importScene(const char* name, const char* filePath)
     {
+#if 0
         Cyan::Toolkit::GpuTimer loadSceneTimer("SceneManager::importScene()", true);
         std::shared_ptr<Scene> scene = std::make_shared<Scene>(name);
         auto assetManager = AssetManager::get();
         assetManager->importScene(scene.get(), filePath);
         loadSceneTimer.end();
         return scene;
+#endif
+        return nullptr;
     }
 }

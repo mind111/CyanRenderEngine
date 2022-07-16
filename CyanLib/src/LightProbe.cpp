@@ -140,19 +140,11 @@ namespace Cyan
         Toolkit::GpuTimer timer("ConvolveIrradianceTimer");
         auto renderer = Renderer::get();
 
-        Camera camera = { };
-        // camera set to probe's location
-        camera.position = glm::vec3(0.f);
-        camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
         auto renderTarget = createRenderTarget(m_irradianceTextureRes.x, m_irradianceTextureRes.y);
         renderTarget->setColorBuffer(m_convolvedIrradianceTexture, 0u);
         {
             for (u32 f = 0; f < 6u; ++f)
             {
-                camera.lookAt = LightProbeCameras::cameraFacingDirections[f];
-                camera.worldUp = LightProbeCameras::worldUps[f];
-                camera.update();
-
                 GfxPipelineState pipelineState;
                 pipelineState.depth = DepthControl::kDisable;
 
@@ -162,11 +154,21 @@ namespace Cyan
                     false,
                     { 0u, 0u, renderTarget->width, renderTarget->height }, 
                     pipelineState, 
-                    unitCubeMesh, 
+                    unitCubeMesh,
                     s_convolveIrradianceShader,
-                    [this, camera](RenderTarget* renderTarget, Shader* shader) {
-                        shader->setUniform("view", camera.view)
-                            .setUniform("projection", camera.projection)
+                    [this, f](RenderTarget* renderTarget, Shader* shader) {
+                        // Update view matrix
+                        PerspectiveCamera camera(
+                            glm::vec3(0.f),
+                            LightProbeCameras::cameraFacingDirections[f],
+                            LightProbeCameras::worldUps[f],
+                            glm::radians(90.f),
+                            0.1f,
+                            100.f,
+                            1.0f
+                        );
+                        shader->setUniform("view", camera.view())
+                            .setUniform("projection", camera.projection())
                             .setTexture("srcCubemapTexture", sceneCapture);
                     });
             }
@@ -259,13 +261,6 @@ namespace Cyan
     void ReflectionProbe::convolve()
     {
         auto renderer = Renderer::get();
-        Camera camera = { };
-        // camera set to probe's location
-        camera.position = glm::vec3(0.f);
-        camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
-        camera.n = 0.1f;
-        camera.f = 100.f;
-        camera.fov = glm::radians(90.f);
         u32 kNumMips = 11;
         u32 mipWidth = sceneCapture->resolution; 
         u32 mipHeight = sceneCapture->resolution;
@@ -277,11 +272,6 @@ namespace Cyan
             {
                 for (u32 f = 0; f < 6u; f++)
                 {
-
-                    camera.lookAt = LightProbeCameras::cameraFacingDirections[f];
-                    camera.worldUp = LightProbeCameras::worldUps[f];
-                    camera.update();
-
                     GfxPipelineState pipelineState;
                     pipelineState.depth = DepthControl::kDisable;
                     renderer->submitMesh(
@@ -292,9 +282,20 @@ namespace Cyan
                         pipelineState, 
                         unitCubeMesh, 
                         s_convolveReflectionShader,
-                        [this, camera, mip, kNumMips](RenderTarget* renderTarget, Shader* shader) {
-                            shader->setUniform("projection", camera.projection)
-                                    .setUniform("view", camera.view)
+                        [this, f, mip, kNumMips](RenderTarget* renderTarget, Shader* shader) {
+                            // Update view matrix
+                            PerspectiveCamera camera(
+                                glm::vec3(0.f),
+                                LightProbeCameras::cameraFacingDirections[f],
+                                LightProbeCameras::worldUps[f],
+                                glm::radians(90.f),
+                                0.1f,
+                                100.f,
+                                1.0f
+                            );
+
+                            shader->setUniform("projection", camera.projection())
+                                    .setUniform("view", camera.view())
                                     .setUniform("roughness", mip * (1.f / (kNumMips - 1)))
                                     .setTexture("envmapSampler", sceneCapture);
                         });

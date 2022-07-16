@@ -61,14 +61,6 @@ void DemoApp::setupScene()
 
     auto sceneManager = Cyan::SceneManager::get();
     m_scene = sceneManager->importScene("demo_scene_00", "C:\\dev\\cyanRenderEngine\\scene\\demo_scene_00.json");
-
-    auto graphicsSystem = gEngine->getGraphicsSystem();
-    glm::uvec2 viewportSize = graphicsSystem->getAppWindowDimension();
-    float aspectRatio = (float)viewportSize.x / viewportSize.y;
-    Camera& camera = m_scene->camera;
-    camera.aspectRatio = aspectRatio;
-    camera.projection = glm::perspective(glm::radians(camera.fov), aspectRatio, camera.n, camera.f);
-
     Cyan::Scene* demoScene00 = m_scene.get();
 
     // lighting

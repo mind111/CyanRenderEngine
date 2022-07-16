@@ -52,9 +52,6 @@ namespace Cyan
     void Skybox::build()
     {
         auto renderer = Renderer::get();
-        Camera camera = { };
-        camera.position = glm::vec3(0.f);
-        camera.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.f); 
 
         switch (m_cfg)
         {
@@ -67,11 +64,6 @@ namespace Cyan
                 Mesh* cubeMesh = AssetManager::getAsset<Mesh>("UnitCubeMesh");
                 for (u32 f = 0; f < 6u; f++)
                 {
-                    // Update view matrix
-                    camera.lookAt = LightProbeCameras::cameraFacingDirections[f];
-                    camera.worldUp = LightProbeCameras::worldUps[f];
-                    camera.update();
-
                     GfxPipelineState pipelineState;
                     pipelineState.depth = DepthControl::kDisable;
                     renderer->submitMesh(
@@ -82,10 +74,20 @@ namespace Cyan
                         pipelineState,
                         cubeMesh,
                         shader,
-                        [this, camera](RenderTarget* renderTarget, Shader* shader) {
+                        [this, f](RenderTarget* renderTarget, Shader* shader) {
+                            // Update view matrix
+                            PerspectiveCamera camera(
+                                glm::vec3(0.f),
+                                LightProbeCameras::cameraFacingDirections[f],
+                                LightProbeCameras::worldUps[f],
+                                glm::radians(90.f),
+                                0.1f,
+                                100.f,
+                                1.0f
+                            );
                             shader->setTexture("srcImageTexture", m_srcHDRITexture);
-                            shader->setUniform("projection", camera.projection);
-                            shader->setUniform("view", camera.view);
+                            shader->setUniform("projection", camera.projection());
+                            shader->setUniform("view", camera.view());
                         });
                 }
                 // release one-time resources

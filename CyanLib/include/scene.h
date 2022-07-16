@@ -24,7 +24,7 @@ namespace Cyan
 
     struct Scene 
     {
-        Scene(const char* sceneName);
+        Scene(const char* sceneName, f32 cameraAspectRatio);
 
         void update();
 

@@ -5,8 +5,6 @@
 #include "Light.h"
 #include "LightProbe.h"
 #include "ShaderStorageBuffer.h"
-#include "DirectionalLight.h"
-#include "LightRenderable.h"
 
 namespace Cyan
 {
@@ -14,6 +12,15 @@ namespace Cyan
     struct Skybox;
     struct SceneView;
     struct LinearAllocator;
+    struct ICamera;
+    struct GfxContext;
+    struct ILightRenderable;
+
+    struct RenderableCamera
+    {
+        glm::mat4 view;
+        glm::mat4 projection;
+    };
 
     /**
     * A Scene representation that only contains renderable data.
@@ -39,27 +46,33 @@ namespace Cyan
         using ViewSsbo = ShaderStorageBuffer<StaticSsboStruct<ViewData>>;
         using TransformSsbo = ShaderStorageBuffer<DynamicSsboStruct<glm::mat4>>;
 
-        RenderableScene(const Scene* scene, const SceneView& sceneView, LinearAllocator& allocator);
+        RenderableScene(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator);
         ~RenderableScene()
         { }
+
+        void setView(const glm::mat4& view) 
+        {
+            camera.view = view;
+        }
+        void setProjection(const glm::mat4& projection) 
+        {
+            camera.projection = projection;
+        }
 
         /**
         * Submit rendering data to global gpu buffers
         */
-        void submitSceneData(GfxContext* ctx);
-
-        // scene reference
-        const Scene* scene = nullptr;
+        void submitSceneData(GfxContext* ctx) const;
 
         // view
-        std::unique_ptr<ViewSsbo> viewSsboPtr = nullptr;
+        std::shared_ptr<ViewSsbo> viewSsboPtr = nullptr;
 
         // camera
-        ICamera* camera = nullptr;
+        RenderableCamera camera;
 
         // mesh instances
         std::vector<MeshInstance*> meshInstances;
-        std::unique_ptr<TransformSsbo> transformSsboPtr = nullptr;
+        std::shared_ptr<TransformSsbo> transformSsboPtr = nullptr;
 
         // lights
         Skybox* skybox = nullptr;

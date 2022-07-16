@@ -3,14 +3,6 @@
 #include "gtc/matrix_transform.hpp"
 #include "camera.h"
 
-void Camera::update()
-{
-    forward = glm::normalize(lookAt - position);
-    right = glm::normalize(glm::cross(forward, worldUp));
-    up = glm::normalize(glm::cross(right, forward));
-    view = glm::lookAt(position, lookAt, worldUp);
-}
-
 namespace Cyan
 {
     void CameraEntity::move()
@@ -42,7 +34,6 @@ namespace Cyan
         glm::vec3 forward = camera->forward();
         glm::vec3 translation = forward * distance;
         glm::vec3 v1 = glm::normalize(camera->position + translation - camera->lookAt); 
-        // TODO: debug this
         if (glm::dot(v1, forward) >= 0.f)
         {
             camera->position = camera->lookAt - 0.001f * forward;

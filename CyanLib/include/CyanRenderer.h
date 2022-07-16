@@ -27,6 +27,7 @@ namespace Cyan
         std::vector<Entity*> entities;
 
         SceneView(const Scene& scene, ICamera* inCamera, u32 flags)
+            : camera(inCamera)
         {
             for (auto entity : scene.entities)
             {
@@ -133,11 +134,17 @@ namespace Cyan
             : RenderResource(inTag), spec(inSpec)
         { }
 
+        RenderTexture2D(Texture2DRenderable* inTexture)
+            : RenderTexture2D(inTexture->name, inTexture->getTextureSpec())
+        { 
+            texture = inTexture;
+        }
+
         virtual void createResource(RenderQueue& renderQueue) override;
 
         ITextureRenderable::Spec spec = { };
         Texture2DRenderable* texture = nullptr;
-        Texture2DRenderable* getTexture() { return texture; }
+        Texture2DRenderable* getTextureResource() { return texture; }
     };
 
     struct RenderPass
@@ -212,7 +219,7 @@ namespace Cyan
             void recycle(RenderResource* resource)
             {
                 if (auto renderTexture2D = dynamic_cast<RenderTexture2D*>(resource))
-                    reusableTextures.push_back(renderTexture2D->getTexture());
+                    reusableTextures.push_back(renderTexture2D->getTextureResource());
             }
 
             std::vector<ITextureRenderable*> reusableTextures;
@@ -232,6 +239,11 @@ namespace Cyan
         RenderTexture2D* createTexture2D(const char* name, const ITextureRenderable::Spec& inSpec) 
         { 
             return allocator->alloc<RenderTexture2D>(name, inSpec);
+        }
+
+        RenderTexture2D* registerTexture2D(Texture2DRenderable* inTexture)
+        {
+            return allocator->alloc<RenderTexture2D>(inTexture);
         }
 
         /**
@@ -308,6 +320,7 @@ namespace Cyan
 
         GfxContext* getGfxCtx() { return m_ctx; };
         LinearAllocator& getFrameAllocator() { return m_frameAllocator; }
+        RenderQueue& getRenderQueue() { return m_renderQueue; }
 
 // rendering
         void beginRender();
@@ -315,8 +328,8 @@ namespace Cyan
         void renderToScreen(RenderTexture2D* inTexture);
         void endRender();
 
-        RenderTexture2D* renderScene(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
-        void renderSceneMeshOnly(RenderableScene& renderableScene, const SceneView& sceneView, Shader* shader);
+        RenderTexture2D* renderScene(const RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
+        void renderSceneMeshOnly(const RenderableScene& sceneRenderable, RenderTexture2D* outTexture, Shader* shader);
 
         struct ScenePrepassOutput
         {
@@ -324,11 +337,12 @@ namespace Cyan
             RenderTexture2D* normalTexture;
         };
 
-        ScenePrepassOutput renderSceneDepthNormal(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
-        void renderSceneDepthOnly(RenderableScene& renderableScene, const SceneView& sceneView);
+        ScenePrepassOutput renderSceneDepthNormal(const RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
+        void renderSceneDepthOnly(const RenderableScene& renderableScene, RenderTexture2D* outDepthTexture);
         void renderDebugObjects(Scene* scene, const std::function<void()>& externDebugRender = [](){ });
 
-        void renderShadow(RenderableScene& sceneRenderable);
+        /* Shadow */
+        void renderShadow(const Scene& scene, const RenderableScene& renderableScene);
 
         /*
         * Render provided scene into a light probe
@@ -342,7 +356,7 @@ namespace Cyan
         */
         void renderUI();
 
-        void drawMeshInstance(RenderableScene& renderableScene, RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, MeshInstance* meshInstance, i32 transformIndex);
+        void drawMeshInstance(const RenderableScene& renderableScene, RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, MeshInstance* meshInstance, i32 transformIndex);
 
         /**
         * Draw a mesh without material

@@ -3,15 +3,18 @@
 #include "glm.hpp"
 #include "Shader.h"
 #include "RenderTarget.h"
+#include "RenderableScene.h"
 #include "Geometry.h"
-
-struct Camera;
 
 namespace Cyan
 {
+    struct Camera;
+    struct PerspectiveCamera;
+    struct OrthographicCamera;
     struct Renderer;
     struct DirectionalLight;
     struct Scene;
+    struct RenderableScene;
     struct Entity;
 
     struct IDirectionalShadowmap
@@ -28,11 +31,10 @@ namespace Cyan
             that can be directly sampled to determine the shadow coefficient each pixel during scene lighting pass.
         */
         /**
-        * 'worldSpaceAABB` is an AABB in world space bounds the volume that need to be shadowmapped, mainly to help defining the light space projection matrix
+        * 'worldSpaceAABB` is an AABB in world space bounding the volume that need to be shadow mapped, mainly to help defining the light space projection matrix
         */
-        virtual void render(const Scene& scene, const BoundingBox3D& worldSpaceAABB, Renderer& renderer) { }
+        virtual void render(ICamera* inCamera, const Scene& scene, RenderableScene renderableScene, Renderer& renderer) { }
         virtual void setShaderParameters(Shader* shader, const char* uniformNamePrefix) { }
-        static BoundingBox3D calcLightSpaceAABB(const glm::vec3& lightDireciton, const BoundingBox3D& worldSpaceAABB);
 
         IDirectionalShadowmap(const DirectionalLight& inDirectionalLight);
         // virtual destructor for derived
@@ -51,7 +53,8 @@ namespace Cyan
     */
     struct DirectionalShadowmap : public IDirectionalShadowmap
     {
-        virtual void render(const Scene& scene, const BoundingBox3D& worldSpaceAABB, Renderer& renderer) override;
+        // virtual void render(RenderableScene& renderableScene, const BoundingBox3D& aabb, Renderer& renderer);
+        virtual void render(ICamera* inCamera, const Scene& scene, RenderableScene renderableScene, Renderer& renderer) override;
         virtual void setShaderParameters(Shader* shader, const char* uniformNamePrefix) override;
 
         DirectionalShadowmap(const DirectionalLight& inDirectionalLight, const char* depthTextureNamePrefix=nullptr);
@@ -66,7 +69,7 @@ namespace Cyan
     */
     struct VarianceShadowmap : public IDirectionalShadowmap
     {
-        virtual void render(const Scene& scene, const BoundingBox3D& worldSpaceAABB, Renderer& renderer) override { }
+        virtual void render(ICamera* inCamera, const Scene& scene, RenderableScene renderableScene, Renderer& renderer) override { }
         virtual void setShaderParameters(Shader* shader, const char* uniformNamePrefix) override { }
 
         VarianceShadowmap(const DirectionalLight& inDirectionalLight);
@@ -80,7 +83,7 @@ namespace Cyan
     struct CascadedShadowmap : public IDirectionalShadowmap
     {
         /* IDirectionalShadowmap interface */
-        virtual void render(const Scene& scene, const BoundingBox3D& worldSpaceAABB, Renderer& renderer) override;
+        virtual void render(ICamera* inCamera, const Scene& scene, RenderableScene renderableScene, Renderer& renderer) override;
         virtual void setShaderParameters(Shader* shader, const char* uniformNamePrefix) override;
 
         static constexpr f32 cascadeBoundries[5] = { 0.0f, 0.1f, 0.3f, 0.6f, 1.0f };
@@ -97,7 +100,7 @@ namespace Cyan
         CascadedShadowmap(const DirectionalLight& inDirectionalLight);
 
     private:
-        void updateCascades(const Camera& camera);
-        void calcCascadeAABB(Cascade& cascade, const Camera& camera);
+        void updateCascades(PerspectiveCamera& camera);
+        void calcCascadeAABB(Cascade& cascade, PerspectiveCamera& camera);
     };
 }

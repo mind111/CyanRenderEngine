@@ -15,35 +15,7 @@ public:
     virtual void customInitialize() override
     {
         using namespace Cyan;
-        m_scene = std::make_shared<Cyan::Scene>("SimpleScene");
         AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/CornellBox.gltf", "CornellBox");
-
-        // camera
-#if 1
-        m_scene->createPerspectiveCamera(
-            /*name=*/"Camera",
-            /*transform=*/Transform {
-                glm::vec3(0.f, 3.2f, 8.f)
-            },
-            /*inLookAt=*/glm::vec3(0., 1., -1.),
-            /*inWorldUp=*/glm::vec3(0.f, 1.f, 0.f),
-            /*inFov=*/45.f,
-            .5f,
-            150.f,
-            1280.f / 720.f
-        );
-#else
-        m_scene->camera = { };
-        m_scene->camera.position = glm::vec3(0.0, 3.2, 8.0);
-        m_scene->camera.lookAt = glm::vec3(0.0, 1.0, -1.0);
-        m_scene->camera.worldUp = glm::vec3(0.0, 1.0, 0.0);
-        m_scene->camera.fov = 45.f;
-        m_scene->camera.n = .5f;
-        m_scene->camera.f = 150.f;
-        m_scene->camera.projection = glm::perspective(m_scene->camera.fov, 1280.f / 720.f, m_scene->camera.n, m_scene->camera.f);
-#endif
-        // m_scene->createSunLight();
-
         // sun light
         m_scene->createDirectionalLight("SunLight", glm::vec3(1.f), glm::vec4(1.f, 1.f, 1.f, 30.f));
     }

@@ -24,6 +24,7 @@ namespace Cyan
         virtual void customFinalize() = 0;
 
     protected:
+        glm::uvec2 m_appWindowDimension;
         bool isRunning = false;
         std::unique_ptr<Engine> gEngine;
 

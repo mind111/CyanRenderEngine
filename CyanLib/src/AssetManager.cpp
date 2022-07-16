@@ -50,16 +50,6 @@ void from_json(const nlohmann::json& j, Transform& t)
     t.m_scale = j.at("scale").get<glm::vec3>();
 }
 
-void from_json(const nlohmann::json& j, Camera& c) 
-{
-    c.position = j.at("position").get<glm::vec3>();
-    c.lookAt = j.at("lookAt").get<glm::vec3>();
-    c.worldUp = j.at("worldUp").get<glm::vec3>();
-    j.at("fov").get_to(c.fov);
-    j.at("z_far").get_to(c.f);
-    j.at("z_near").get_to(c.n);
-}
-
 namespace Cyan
 {
     bool operator==(const Triangles::Vertex& lhs, const Triangles::Vertex& rhs)
@@ -491,13 +481,6 @@ namespace Cyan
         const auto& meshInfoList = sceneJson["meshes"];
         const auto& textureInfoList = sceneJson["textures"];
         const auto& entities = sceneJson["entities"];
-
-        for (auto& camera : cameras) 
-        {
-            scene->camera = camera.get<Camera>();
-            scene->camera.view = glm::mat4(1.f);
-            scene->camera.update();
-        }
 
         importTextures(textureInfoList);
         importMeshes(scene, meshInfoList);

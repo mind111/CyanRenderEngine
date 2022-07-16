@@ -1,46 +1,21 @@
 #include "RenderableScene.h"
 
+#include "Camera.h"
 #include "Scene.h"
 #include "CyanRenderer.h"
 #include "LightComponent.h"
+#include "LightRenderable.h"
 
 namespace Cyan
 {
     RenderableScene::RenderableScene(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator)
-        : scene(inScene)
+        : camera{ sceneView.camera->view(), sceneView.camera->projection() }
     {
-        viewSsboPtr = std::make_unique<ViewSsbo>();
-        transformSsboPtr = std::make_unique<TransformSsbo>(256);
+        transformSsboPtr = std::make_shared<TransformSsbo>(256);
         TransformSsbo& transformSsbo = *(transformSsboPtr.get());
 
-        // build list of mesh instances and transforms
+        // build list of mesh instances, transforms, and lights
         for (auto entity : sceneView.entities)
-        {
-            if (auto camera = dynamic_cast<CameraEntity*>(entity))
-            {
-                this->camera = camera->getCamera();
-            }
-            // static meshes
-            else if (auto staticMesh = dynamic_cast<StaticMeshEntity*>(entity))
-            {
-                meshInstances.push_back(staticMesh->getMeshInstance());
-                ADD_SSBO_DYNAMIC_ELEMENT(transformSsbo, staticMesh->getWorldTransformMatrix());
-            }
-        }
-
-        // build view data
-        ViewSsbo& viewSsbo = *(viewSsboPtr.get());
-        SET_SSBO_STATIC_MEMBER(viewSsbo, view, camera->view());
-        SET_SSBO_STATIC_MEMBER(viewSsbo, projection, camera->projection());
-
-        // build lighting data
-        skybox = scene->skybox;
-        irradianceProbe = scene->irradianceProbe;
-        reflectionProbe = scene->reflectionProbe;
-
-        // todo: this following code is causing memory leak
-        // build a list of lights in the scene
-        for (auto entity : scene->entities)
         {
             auto lightComponents = entity->getComponent<ILightComponent>();
             if (!lightComponents.empty())
@@ -59,21 +34,43 @@ namespace Cyan
                     );
                 }
             }
+
+            // static meshes
+            if (auto staticMesh = dynamic_cast<StaticMeshEntity*>(entity))
+            {
+                meshInstances.push_back(staticMesh->getMeshInstance());
+                ADD_SSBO_DYNAMIC_ELEMENT(transformSsbo, staticMesh->getWorldTransformMatrix());
+            }
         }
-        viewSsboPtr->update();
-        transformSsboPtr->update();
+
+        // build view data
+        viewSsboPtr = std::make_shared<ViewSsbo>();
+        ViewSsbo& viewSsbo = *(viewSsboPtr.get());
+        SET_SSBO_STATIC_MEMBER(viewSsbo, view, camera.view);
+        SET_SSBO_STATIC_MEMBER(viewSsbo, projection, camera.projection);
+
+        // build lighting data
+        skybox = inScene->skybox;
+        irradianceProbe = inScene->irradianceProbe;
+        reflectionProbe = inScene->reflectionProbe;
     }
 
     /**
     * Submit rendering data to global gpu buffers
     */
-    void RenderableScene::submitSceneData(GfxContext* ctx)
+    void RenderableScene::submitSceneData(GfxContext* ctx) const
     {
-        // todo: avoid repetively submit redundant data
+        // todo: avoid repetitively submit redundant data
         {
 
         }
+
         // bind global ssbo
+        ViewSsbo& viewSsbo = *(viewSsboPtr.get());
+        SET_SSBO_STATIC_MEMBER(viewSsbo, view, camera.view);
+        SET_SSBO_STATIC_MEMBER(viewSsbo, projection, camera.projection);
+        viewSsboPtr->update();
+        transformSsboPtr->update();
         viewSsboPtr->bind((u32)SceneSsboBindings::kViewData);
         transformSsboPtr->bind((u32)SceneSsboBindings::TransformMatrices);
 
