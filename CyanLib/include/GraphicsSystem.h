@@ -7,7 +7,7 @@
 #include "Texture.h"
 #include "AssetManager.h"
 #include "LightMap.h"
-#include "CyanPathTracer.h"
+#include "RayTracer.h"
 #include "CyanRenderer.h"
 #include "GfxContext.h"
 

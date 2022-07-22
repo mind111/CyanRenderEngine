@@ -1,16 +1,4 @@
 {
-    "cameras": [
-        {
-            "name": "main_camera",
-            "position": [0.0, 3.2, 8.0],
-            "lookAt": [-0.0, 1.0, -1.0],
-            "worldUp": [0.0, 1.0, 0.0],
-            "fov": 45.0,
-            "z_near": 0.5,
-            "z_far": 150.0
-        }
-    ],
-
     "meshes": [
         {
             "name": "room_mesh",

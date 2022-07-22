@@ -85,6 +85,265 @@ namespace Cyan
 
         });
     }
+
+    static void drawSceneTab(Scene* scene)
+    {
+        ImGui::BeginChild("##SceneView", ImVec2(0, 0), true);
+        {
+            static ImGuiTableFlags flags =
+                 ImGuiTableFlags_Resizable
+                | ImGuiTableFlags_RowBg
+                | ImGuiTableFlags_NoBordersInBody;
+
+            /**
+            * Scene outline widget
+            */
+            struct EntityTable
+            {
+                EntityTable(Scene* inScene, Entity* inEntity) : scene(inScene), root(inEntity) { }
+
+                void render()
+                {
+                    Entity* highlightedEntity = nullptr;
+                    ImGui::Text(scene->name.c_str());
+                    if (ImGui::BeginTable("##SceneTable", 2, flags, ImVec2(ImGui::GetWindowContentRegionWidth(), 100.f)))
+                    {
+                        ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_NoHide);
+                        ImGui::TableSetupColumn("Type");
+                        ImGui::TableHeadersRow();
+
+                        renderEntity(root);
+
+                        ImGui::EndTable();
+                    }
+                }
+
+                void renderEntity(Entity* entity)
+                {
+                    if (entity)
+                    {
+                        ImGui::TableNextRow();
+                        ImGui::TableNextColumn();
+
+                        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_OpenOnArrow;
+                        if (highlightedEntity && (highlightedEntity->name == entity->name))
+                        {
+                            flags |= ImGuiTreeNodeFlags_Selected;
+                        }
+
+                        if (!entity->childs.empty())
+                        {
+                            bool open = ImGui::TreeNodeEx(entity->name.c_str(), flags);
+                            if (ImGui::IsItemClicked())
+                            {
+                                highlightedEntity = entity;
+                            }
+                            ImGui::TableNextColumn();
+                            ImGui::TextColored(ImVec4(1.0, 1.0, 1.0, 0.2), entity->getTypeDesc());
+                            if (open)
+                            {
+                                for (auto child : entity->childs)
+                                {
+                                    renderEntity(child);
+                                }
+                                ImGui::TreePop();
+                            }
+                        }
+                        else
+                        {
+                            flags |= ImGuiTreeNodeFlags_Leaf;
+                            bool open = ImGui::TreeNodeEx(entity->name.c_str(), flags);
+                            if (ImGui::IsItemClicked())
+                            {
+                                highlightedEntity = entity;
+                            }
+                            ImGui::TableNextColumn();
+                            ImGui::TextColored(ImVec4(1.0, 1.0, 1.0, 0.2), entity->getTypeDesc());
+                            if (open)
+                            {
+                                ImGui::TreePop();
+                            }
+                        }
+                    }
+                }
+
+                Scene* scene = nullptr;
+                Entity* root = nullptr;
+                Entity* highlightedEntity = nullptr;
+            }; 
+
+            // todo: if we want to support changing active scene dynamically, then this cannot be static 
+            static EntityTable entityTable(scene, scene->rootEntity);
+            auto highlightedEntity = entityTable.highlightedEntity;
+            if (ImGui::CollapsingHeader("Scene Layout", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                entityTable.render();
+            }
+
+            if (highlightedEntity)
+            {
+                ImGui::BeginTabBar("##Tabs");
+                {
+                    /**
+                    * Entity's details tab
+                    */
+                    if (ImGui::BeginTabItem("Details"))
+                    {
+                        /**
+                        * SceneComponent section
+                        */
+                        if (ImGui::CollapsingHeader("SceneComponent", ImGuiTreeNodeFlags_DefaultOpen))
+                        {
+                            struct SceneComponentTable
+                            {
+                                SceneComponentTable(Entity* inOwner) : owner(inOwner) { }
+
+                                void setOwnerEntity(Entity* inOwner)
+                                {
+                                    owner = inOwner;
+                                }
+
+                                SceneComponent* render()
+                                {
+                                    SceneComponent* highlightedComponent = nullptr;
+                                    ImGui::Text("%s", owner->name.c_str());
+                                    if (ImGui::BeginTable("##SceneComponentTable", 2, flags, ImVec2(ImGui::GetWindowContentRegionWidth(), 100.f)))
+                                    {
+                                        ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_NoHide);
+                                        ImGui::TableSetupColumn("Type");
+                                        ImGui::TableHeadersRow();
+
+                                        highlightedComponent = renderComponent(owner->getRootSceneComponent());
+
+                                        ImGui::EndTable();
+                                    }
+                                    return highlightedComponent;
+                                }
+
+                                static SceneComponent* renderComponent(SceneComponent* component)
+                                {
+                                    SceneComponent* highlightedComponent = nullptr;
+                                    if (component)
+                                    {
+                                        ImGui::TableNextRow();
+                                        ImGui::TableNextColumn();
+                                        if (!component->childs.empty())
+                                        {
+                                            bool open = ImGui::TreeNodeEx(component->name.c_str(), ImGuiTreeNodeFlags_SpanFullWidth);
+                                            ImGui::TableNextColumn();
+                                            ImGui::TextColored(ImVec4(1.0, 1.0, 1.0, 0.2), "SceneComponent");
+                                            if (open)
+                                            {
+                                                for (auto child : component->childs)
+                                                {
+                                                    renderComponent(child);
+                                                }
+                                                ImGui::TreePop();
+                                            }
+                                        }
+                                        else
+                                        {
+                                            bool open = ImGui::TreeNodeEx(component->name.c_str(), ImGuiTreeNodeFlags_Leaf);
+                                            ImGui::TableNextColumn();
+                                            ImGui::TextColored(ImVec4(1.0, 1.0, 1.0, 0.2), "SceneComponent");
+                                            if (open)
+                                            {
+                                                ImGui::TreePop();
+                                            }
+                                        }
+                                    }
+                                    return highlightedComponent;
+                                }
+
+                                Entity* owner = nullptr;
+                            };
+                            static SceneComponentTable sceneComponentTable(highlightedEntity);
+                            sceneComponentTable.setOwnerEntity(highlightedEntity);
+                            sceneComponentTable.render();
+                        }
+
+                        /**
+                        * Transform data section
+                        */
+                        if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
+                        {
+                            ImGui::TextUnformatted("Position"); ImGui::SameLine();
+                            glm::vec3 worldPosition = highlightedEntity->getWorldPosition();
+                            f32 position[3] = {
+                                worldPosition.x,
+                                worldPosition.y,
+                                worldPosition.z
+                            };
+                            f32 rotation[3] = {
+                                0.f, 0.f, 0.f
+                            };
+                            ImGui::InputFloat3("##Position", position);
+                            f32 scale[3] = {
+                                1.f, 1.f, 1.f
+                            };
+                            ImGui::TextUnformatted("Rotation"); ImGui::SameLine();
+                            ImGui::InputFloat3("##Rotation", rotation);
+                            ImGui::SetNextItemWidth(ImGui::CalcTextSize("Rotation").x);
+                            ImGui::TextUnformatted("Scale"); ImGui::SameLine();
+                            ImGui::InputFloat3("##Scale", scale);
+                            ImGui::Separator();
+                        }
+
+                        /**
+                        * Entity's custom data section
+                        */
+                        highlightedEntity->renderUI();
+
+                        ImGui::EndTabItem();
+                    }
+                }
+                ImGui::EndTabBar();
+            }
+        }
+        ImGui::EndChild();
+    }
+
+    static void drawTODOList()
+    {
+        ImGui::SetNextWindowBgAlpha(0.15f); // Transparent background
+        ImVec2 overlaySize(200.f, ImGui::GetTextLineHeight() * 10.f);
+        ImGui::SetNextWindowPos(ImVec2(1280.f - (overlaySize.x + 2.f), 5));
+        ImGui::SetNextWindowSize(overlaySize);
+        ImGuiWindowFlags windowFlags = 
+            ImGuiWindowFlags_NoDecoration 
+            | ImGuiWindowFlags_AlwaysAutoResize 
+            | ImGuiWindowFlags_NoSavedSettings
+            | ImGuiWindowFlags_NoFocusOnAppearing 
+            | ImGuiWindowFlags_NoNav;
+
+        if (ImGui::Begin("##TODOs", 0, windowFlags))
+        {
+            ImGui::TextColored(ImColor(1.f, 0.5f, 0.5f, 1.f), "TODOs");
+            ImGui::BulletText("Irradiance Caching");
+            ImGui::BulletText("Exposure Fusion");
+            ImGui::BulletText("Auto White Balancing");
+            ImGui::BulletText("Physically Based SkyDome");
+            ImGui::BulletText("Fix Skybox");
+            ImGui::BulletText("Fix SkyLight");
+            ImGui::BulletText("Emissive Material");
+        }
+        ImGui::End();
+    }
+
+    static void drawRenderingTab(Renderer* renderer)
+    {
+        ImGui::BeginChild("##Rendering Settings", ImVec2(0, 0), true);
+        {
+            if (ImGui::CollapsingHeader("Post Processing", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::TextUnformatted("Color Tempreture"); ImGui::SameLine();
+                // todo: render a color tempreture slider image and blit to ImGui
+                // ImGui::Image((void*)1, ImVec2(ImGui::GetContentRegionAvailWidth(), ImGui::GetTextLineHeight())); ImGui::SameLine();
+                ImGui::SliderFloat("##Color Tempreture", &renderer->m_settings.colorTempreture, 1000.f, 10000.f, "%.2f");
+            }
+        }
+        ImGui::EndChild();
+    }
     
     void Engine::update()
     {
@@ -107,219 +366,24 @@ namespace Cyan
             ImGuiWindowFlags flags = ImGuiWindowFlags_None;
             ImGui::SetNextWindowPos(ImVec2(5, 5));
             ImGui::SetNextWindowSize(ImVec2(360, 700));
+
             ImGui::Begin("Cyan", nullptr, flags);
             {
-                ImGui::BeginChild("##SceneView", ImVec2(0, 0), true);
-                static ImGuiTableFlags flags =
-                     ImGuiTableFlags_Resizable
-                    | ImGuiTableFlags_RowBg
-                    | ImGuiTableFlags_NoBordersInBody;
-
-                /**
-                * Scene outline widget
-                */
-                struct EntityTable
+                drawTODOList();
+                ImGui::BeginTabBar("##Views");
                 {
-                    EntityTable(Scene* inScene, Entity* inEntity) : scene(inScene), root(inEntity) { }
-
-                    void render()
+                    if (ImGui::BeginTabItem("Scene"))
                     {
-                        Entity* highlightedEntity = nullptr;
-                        ImGui::Text(scene->name.c_str());
-                        if (ImGui::BeginTable("##SceneTable", 2, flags, ImVec2(ImGui::GetWindowContentRegionWidth(), 100.f)))
-                        {
-                            ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_NoHide);
-                            ImGui::TableSetupColumn("Type");
-                            ImGui::TableHeadersRow();
-
-                            renderEntity(root);
-
-                            ImGui::EndTable();
-                        }
+                        drawSceneTab(m_scene.get());
+                        ImGui::EndTabItem();
                     }
-
-                    void renderEntity(Entity* entity)
+                    if (ImGui::BeginTabItem("Rendering"))
                     {
-                        if (entity)
-                        {
-                            ImGui::TableNextRow();
-                            ImGui::TableNextColumn();
-
-                            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_OpenOnArrow;
-                            if (highlightedEntity && (highlightedEntity->name == entity->name))
-                            {
-                                flags |= ImGuiTreeNodeFlags_Selected;
-                            }
-
-                            if (!entity->childs.empty())
-                            {
-                                bool open = ImGui::TreeNodeEx(entity->name.c_str(), flags);
-                                if (ImGui::IsItemClicked())
-                                {
-                                    highlightedEntity = entity;
-                                }
-                                ImGui::TableNextColumn();
-                                ImGui::TextColored(ImVec4(1.0, 1.0, 1.0, 0.2), entity->getTypeDesc());
-                                if (open)
-                                {
-                                    for (auto child : entity->childs)
-                                    {
-                                        renderEntity(child);
-                                    }
-                                    ImGui::TreePop();
-                                }
-                            }
-                            else
-                            {
-                                flags |= ImGuiTreeNodeFlags_Leaf;
-                                bool open = ImGui::TreeNodeEx(entity->name.c_str(), flags);
-                                if (ImGui::IsItemClicked())
-                                {
-                                    highlightedEntity = entity;
-                                }
-                                ImGui::TableNextColumn();
-                                ImGui::TextColored(ImVec4(1.0, 1.0, 1.0, 0.2), entity->getTypeDesc());
-                                if (open)
-                                {
-                                    ImGui::TreePop();
-                                }
-                            }
-                        }
-                    }
-
-                    Scene* scene = nullptr;
-                    Entity* root = nullptr;
-                    Entity* highlightedEntity = nullptr;
-                }; 
-
-                // todo: if we want to support changing active scene dynamically, then this cannot be static 
-                static EntityTable entityTable(m_scene.get(), m_scene->rootEntity);
-                auto highlightedEntity = entityTable.highlightedEntity;
-                if (ImGui::CollapsingHeader("Scene Layout", ImGuiTreeNodeFlags_DefaultOpen))
-                {
-                    entityTable.render();
-                }
-
-                if (highlightedEntity)
-                {
-                    ImGui::BeginTabBar("##Tabs");
-                    {
-                        /**
-                        * Entity's details tab
-                        */
-                        if (ImGui::BeginTabItem("Details"))
-                        {
-                            /**
-                            * SceneComponent section
-                            */
-                            if (ImGui::CollapsingHeader("SceneComponent", ImGuiTreeNodeFlags_DefaultOpen))
-                            {
-                                struct SceneComponentTable
-                                {
-                                    SceneComponentTable(Entity* inOwner) : owner(inOwner) { }
-
-                                    void setOwnerEntity(Entity* inOwner)
-                                    {
-                                        owner = inOwner;
-                                    }
-
-                                    SceneComponent* render()
-                                    {
-                                        SceneComponent* highlightedComponent = nullptr;
-                                        ImGui::Text("%s", owner->name.c_str());
-                                        if (ImGui::BeginTable("##SceneComponentTable", 2, flags, ImVec2(ImGui::GetWindowContentRegionWidth(), 100.f)))
-                                        {
-                                            ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_NoHide);
-                                            ImGui::TableSetupColumn("Type");
-                                            ImGui::TableHeadersRow();
-
-                                            highlightedComponent = renderComponent(owner->getRootSceneComponent());
-
-                                            ImGui::EndTable();
-                                        }
-                                        return highlightedComponent;
-                                    }
-
-                                    static SceneComponent* renderComponent(SceneComponent* component)
-                                    {
-                                        SceneComponent* highlightedComponent = nullptr;
-                                        if (component)
-                                        {
-                                            ImGui::TableNextRow();
-                                            ImGui::TableNextColumn();
-                                            if (!component->childs.empty())
-                                            {
-                                                bool open = ImGui::TreeNodeEx(component->name.c_str(), ImGuiTreeNodeFlags_SpanFullWidth);
-                                                ImGui::TableNextColumn();
-                                                ImGui::TextColored(ImVec4(1.0, 1.0, 1.0, 0.2), "SceneComponent");
-                                                if (open)
-                                                {
-                                                    for (auto child : component->childs)
-                                                    {
-                                                        renderComponent(child);
-                                                    }
-                                                    ImGui::TreePop();
-                                                }
-                                            }
-                                            else
-                                            {
-                                                bool open = ImGui::TreeNodeEx(component->name.c_str(), ImGuiTreeNodeFlags_Leaf);
-                                                ImGui::TableNextColumn();
-                                                ImGui::TextColored(ImVec4(1.0, 1.0, 1.0, 0.2), "SceneComponent");
-                                                if (open)
-                                                {
-                                                    ImGui::TreePop();
-                                                }
-                                            }
-                                        }
-                                        return highlightedComponent;
-                                    }
-
-                                    Entity* owner = nullptr;
-                                };
-                                static SceneComponentTable sceneComponentTable(highlightedEntity);
-                                sceneComponentTable.setOwnerEntity(highlightedEntity);
-                                sceneComponentTable.render();
-                            }
-
-                            /**
-                            * Transform data section
-                            */
-                            if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
-                            {
-                                ImGui::TextUnformatted("Position"); ImGui::SameLine();
-                                glm::vec3 worldPosition = highlightedEntity->getWorldPosition();
-                                f32 position[3] = {
-                                    worldPosition.x,
-                                    worldPosition.y,
-                                    worldPosition.z
-                                };
-                                f32 rotation[3] = {
-                                    0.f, 0.f, 0.f
-                                };
-                                ImGui::InputFloat3("##Position", position);
-                                f32 scale[3] = {
-                                    1.f, 1.f, 1.f
-                                };
-                                ImGui::TextUnformatted("Rotation"); ImGui::SameLine();
-                                ImGui::InputFloat3("##Rotation", rotation);
-                                ImGui::SetNextItemWidth(ImGui::CalcTextSize("Rotation").x);
-                                ImGui::TextUnformatted("Scale"); ImGui::SameLine();
-                                ImGui::InputFloat3("##Scale", scale);
-                                ImGui::Separator();
-                            }
-
-                            /**
-                            * Entity's custom data section
-                            */
-                            highlightedEntity->renderUI();
-
-                            ImGui::EndTabItem();
-                        }
+                        drawRenderingTab(m_graphicsSystem->getRenderer());
+                        ImGui::EndTabItem();
                     }
                     ImGui::EndTabBar();
                 }
-                ImGui::EndChild();
             }
             ImGui::End();
         });

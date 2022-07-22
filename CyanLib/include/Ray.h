@@ -1,7 +1,5 @@
 #pragma once
 
-#include "Entity.h"
-
 namespace Cyan
 {
 #if 0

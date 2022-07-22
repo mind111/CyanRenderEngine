@@ -11,6 +11,12 @@ namespace Cyan
             IMGUI_CHECKVERSION();
             ImGui::CreateContext();
             ImGui::StyleColorsDark();
+            ImGui::GetStyle().WindowRounding = 0.0f;
+            ImGui::GetStyle().ChildRounding = 0.0f;
+            ImGui::GetStyle().FrameRounding = 0.0f;
+            ImGui::GetStyle().GrabRounding = 0.0f;
+            ImGui::GetStyle().PopupRounding = 0.0f;
+            ImGui::GetStyle().ScrollbarRounding = 0.0f;
 
             ImGui_ImplGlfw_InitForOpenGL(window, true);
             ImGui_ImplOpenGL3_Init(nullptr);

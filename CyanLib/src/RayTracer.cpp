@@ -2,11 +2,11 @@
 #include <queue>
 #include <atomic>
 
-#include "CyanPathTracer.h"
+#include "Ray.h"
+#include "RayTracer.h"
 #include "Texture.h"
 #include "MathUtils.h"
 #include "CyanAPI.h"
-#include "Ray.h"
 
 /* 
     * todo: (Feature) integrate intel's open image denoiser
@@ -28,10 +28,155 @@
 #endif
 
 // Is 2mm of an offset too large..?
-#define EPSILON              0.002f
+// #define EPSILON              0.002f
 
 namespace Cyan
 {
+    static glm::vec3 shade(const RayTracingScene& rtxScene, const RayHit& hit);
+
+    // taken from https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
+    static f32 intersect(const Ray& ray, const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2)
+    {
+        const float EPSILON = 0.0000001;
+        glm::vec3 edge1 = v1 - v0;
+        glm::vec3 edge2 = v2 - v0;
+        glm::vec3 h, s, q;
+        float a,f,u,v;
+        h = glm::cross(ray.rd, edge2);
+        // a = glm::dot(edge1, h);
+        a = edge1.x * h.x + edge1.y * h.y + edge1.z * h.z;
+        if (fabs(a) < EPSILON)
+        {
+            return -1.0f;
+        }
+        f = 1.0f / a;
+        s = ray.ro - v0;
+        // u = f * dot(s, h);
+        u = f * (s.x*h.x + s.y*h.y + s.z*h.z);
+        if (u < 0.0 || u > 1.0)
+        {
+            return -1.0;
+        }
+        q = glm::cross(s, edge1);
+        v = f * (ray.rd.x*q.x + ray.rd.y*q.y + ray.rd.z*q.z);
+        if (v < 0.0 || u + v > 1.0)
+        {
+            return -1.0;
+        }
+        float t = f * glm::dot(edge2, q);
+        // hit
+        if (t > EPSILON)
+        {
+            return t;
+        }
+        return -1.0f;
+    }
+
+    static Ray generateRay(const PerspectiveCamera& camera, const glm::vec2& pixelCoords)
+    {
+        glm::vec2 uv = pixelCoords * 2.f - 1.f;
+        uv.x *= camera.aspectRatio;
+        f32 h = camera.n * glm::tan(glm::radians(.5f * camera.fov));
+        glm::vec3 ro = camera.position;
+        glm::vec3 rd = normalize(
+              camera.forward() * camera.n
+            + camera.right() * uv.x * h
+            + camera.up() * uv.y * h);
+        return Ray{ ro, rd };
+    }
+
+    void RayTracer::renderScene(const RayTracingScene& rtxScene, const PerspectiveCamera& camera, Image& outImage, const std::function<void()>& finishCallback)
+    {
+        onRenderStart(outImage);
+        {
+            for (u32 y = 0; y < outImage.size.y; ++y)
+            {
+                for (u32 x = 0; x < outImage.size.x; ++x)
+                {
+                    glm::vec2 pixelCoords((f32)x / outImage.size.x, (f32)y / outImage.size.y);
+                    Ray ray = generateRay(camera, pixelCoords);
+                    RayHit hit = trace(rtxScene, ray);
+
+                    if (hit.tri >= 0)
+                    {
+                        outImage.setPixel(glm::uvec2(x, y), shade(rtxScene, hit));
+                    }
+
+                    m_renderTracker.progress = (f32)(y * outImage.size.x + x) / (outImage.size.x * outImage.size.y);
+                }
+            }
+        }
+        onRenderFinish(finishCallback);
+    }
+
+    RayHit RayTracer::trace(const RayTracingScene& rtxScene, const Ray& ray)
+    {
+        f32 closestT = FLT_MAX;
+        i32 hitTri = -1;
+        i32 material = -1;
+
+        // brute force tracing
+        {
+            for (u32 tri = 0; tri < rtxScene.surfaces.numTriangles(); ++tri)
+            {
+                f32 t = intersect(
+                    ray,
+                    rtxScene.surfaces.positions[tri * 3 + 0],
+                    rtxScene.surfaces.positions[tri * 3 + 1],
+                    rtxScene.surfaces.positions[tri * 3 + 2]
+                );
+
+                if (t > 0.f && t < closestT)
+                {
+                    closestT = t;
+                    hitTri = tri;
+                    material = rtxScene.surfaces.materials[tri];
+                }
+            }
+        }
+        // bvh tracing
+        {
+
+        }
+
+        return RayHit{ closestT, hitTri, material };
+    }
+
+    glm::vec3 calcBarycentricCoords(const glm::vec3& p, const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2)
+    {
+        f32 totalArea = glm::length(glm::cross(v1 - v0, v2 - v0));
+
+        f32 w = glm::length(glm::cross(v1 - v0, p - v0)) / totalArea;
+        f32 v = glm::length(glm::cross(v2 - v0, p - v0)) / totalArea;
+        f32 u = 1.f - v - w;
+        return glm::vec3(u, v, w);
+    }
+
+    static glm::vec3 shade(const RayTracingScene& rtxScene, const RayHit& hit)
+    {
+        glm::vec3 outRadiance(0.f);
+        const auto& material = rtxScene.materials[hit.material];
+#if 0 
+        glm::vec3 barycentrics = calcBarycentricCoords();
+        glm::vec3 n = barycentricLerp(
+            barycentrics, 
+            rtxScene.surfaces.positions[hit.tri * 3 + 0],
+            rtxScene.surfaces.positions[hit.tri * 3 + 1],
+            rtxScene.surfaces.positions[hit.tri * 3 + 2]
+        );
+#else
+        glm::vec3 n = glm::normalize(
+            rtxScene.surfaces.normals[hit.tri * 3 + 0]
+          + rtxScene.surfaces.normals[hit.tri * 3 + 1]
+          + rtxScene.surfaces.normals[hit.tri * 3 + 2]
+        );
+        f32 ndotl = max(glm::dot(n, glm::vec3(1.f, 0.f, 0.f)), 0.f);
+        outRadiance += glm::vec3(0.2) * material.albedo;
+        outRadiance += ndotl * glm::vec3(1.f) * material.albedo;
+#endif
+        return outRadiance;
+    }
+
 #if 0
     f32 saturate(f32 val);
     Ray generateRay(const glm::uvec2& pixelCoord, Camera& camera, const glm::uvec2& screenDim);

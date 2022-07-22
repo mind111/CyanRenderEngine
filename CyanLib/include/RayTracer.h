@@ -3,9 +3,102 @@
 #include <functional>
 
 #include "scene.h"
+#include "RayTracingScene.h"
 
 namespace Cyan 
 {
+    struct Ray
+    {
+        glm::vec3 ro; 
+        glm::vec3 rd;
+    };
+
+    struct RayHit
+    {
+        f32 t;
+        i32 tri;
+        i32 material;
+    };
+
+    struct Image
+    {
+        Image(const glm::uvec2& inImageSize)
+            : size(inImageSize)
+        {
+            u32 numPixels = inImageSize.x * inImageSize.y;
+            pixels.resize(numPixels);
+        }
+
+        void setPixel(const glm::uvec2& coords, const glm::vec3& color) 
+        { 
+            u32 index = coords.y * size.x + coords.x;
+            if (index < pixels.size())
+            {
+                pixels[index] = color;
+            }
+        }
+
+        void clear()
+        {
+            for (auto& pixel : pixels)
+            {
+                pixel = glm::vec3(0.f);
+            }
+        }
+
+        glm::uvec2 size;
+        std::vector<glm::vec3> pixels;
+    };
+
+    glm::vec3 calcBarycentricCoords(const glm::vec3& p, const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2);
+
+    // utility functions
+    template <typename T>
+    T barycentricLerp(const T& interpolants0, const T& interpolants1, const T& interpolants2, const glm::vec3& barycentrics)
+    {
+
+    }
+
+    class RayTracer
+    {
+    public:
+        struct RenderTracker
+        {
+            const Image* outImage = nullptr;
+            f32 progress = 0.f;
+
+            void reset()
+            {
+                outImage = nullptr;
+                progress = 0.f;
+            }
+        };
+
+        RayTracer() { }
+        bool busy() { return isBusy; }
+        f32 getProgress() { return m_renderTracker.progress; }
+
+        void renderScene(const RayTracingScene& rtxScene, const PerspectiveCamera& camera, Image& outImage, const std::function<void()>& finishCallback);
+        RayHit trace(const RayTracingScene& rtxScene, const Ray& ray);
+    private:
+
+        void onRenderStart(Image& outImage) 
+        {
+            isBusy = true;
+            m_renderTracker.outImage = &outImage;
+        }
+
+        void onRenderFinish(const std::function<void()>& callback) 
+        { 
+            isBusy = false;
+            m_renderTracker.reset();
+            callback();
+        }
+
+        RenderTracker m_renderTracker = { };
+        bool isBusy = false;
+    };
+
 #if 0
     struct IrradianceRecord;
 

@@ -24,6 +24,13 @@ namespace Cyan
 
     struct Scene 
     {
+        struct GlobalGeometryData
+        {
+            std::unordered_map<std::string, u32> meshMap;
+            std::vector<Triangles::Vertex> vertices;
+            std::vector<u32> indices;
+        } globalGeometries;
+
         Scene(const char* sceneName, f32 cameraAspectRatio);
 
         void update();
@@ -62,7 +69,7 @@ namespace Cyan
 
         static const u32 kMaxNumDirectionalLights = 1u;
         static const u32 kMaxNumPointLights = 32u;
-        static const u32 kMaxNumSceneComponents = 1024u;
+        static const u32 kMaxNumSceneComponents = 2048u;
 
         std::string name;
         BoundingBox3D aabb;

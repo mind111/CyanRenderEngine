@@ -108,9 +108,11 @@ namespace Cyan
         Texture2DRenderable* metallic = nullptr;
         Texture2DRenderable* metallicRoughness = nullptr;
         Texture2DRenderable* occlusion = nullptr;
+
+        glm::vec3 kAlbedo = glm::vec3(0.94f);
+        glm::vec3 kEmissive = glm::vec3(1.f);
         f32 kRoughness = 0.8f;
         f32 kMetallic = 0.1f;
-        glm::vec3 kAlbedo = glm::vec3(1.0, 1.0, 1.0);
     };
 
     template<typename BaseMaterialParameter>

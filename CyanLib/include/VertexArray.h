@@ -11,7 +11,6 @@ struct VertexArray
         init(indices);
     }
 
-    // u32 numVerts() { return vb->m_numVerts; }
     bool hasIndexBuffer() { return ibo != (u32)-1; }
     GLuint getGLObject() { return vao; }
     void release() 

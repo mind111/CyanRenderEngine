@@ -477,7 +477,7 @@ namespace Cyan
         {
             std::cerr << e.what() << std::endl;
         }
-        const auto& cameras = sceneJson["cameras"];
+
         const auto& meshInfoList = sceneJson["meshes"];
         const auto& textureInfoList = sceneJson["textures"];
         const auto& entities = sceneJson["entities"];
@@ -609,7 +609,7 @@ namespace Cyan
                     auto getTexture = [&](i32 imageIndex) 
                     {
                         Cyan::Texture2DRenderable* texture = nullptr;
-                        if (imageIndex > -1) 
+                        if (imageIndex > -1 && imageIndex < model.images.size()) 
                         {
                             auto& image = model.images[imageIndex];
                             texture = getAsset<Texture2DRenderable>(image.uri.c_str());
@@ -641,6 +641,7 @@ namespace Cyan
                         matl->parameter.kMetallic = pbr.metallicFactor;
                     }
                     matl->parameter.occlusion = getTexture(gltfMaterial.occlusionTexture.index);
+                    matl->parameter.kEmissive = glm::vec3(gltfMaterial.emissiveFactor[0], gltfMaterial.emissiveFactor[1], gltfMaterial.emissiveFactor[2]);
                 }
                 staticMeshEntity->setMaterial(matl, sm);
             }

@@ -23,7 +23,6 @@ namespace Cyan
     struct DirectionalLightRenderable : public ILightRenderable
     {
         /* ILightRenderable interface */
-        // virtual void renderShadow(RenderableScene& renderableScene, Renderer& renderer) override;
         virtual void renderShadow(const Scene& scene, const RenderableScene& renderableScene, Renderer& renderer) override;
         virtual void setShaderParameters(Shader* shader) override
         {

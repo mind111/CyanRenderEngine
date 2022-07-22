@@ -43,15 +43,21 @@
     <Filter Include="Shaders\PostProcessing\TAA">
       <UniqueIdentifier>{561e66a7-5b9d-48e6-b1a9-8fbf19836474}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Internal\RayTracing">
+      <UniqueIdentifier>{2c5eaadd-1f4a-4d53-bac9-9b413e9acd0f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\RayTracing">
+      <UniqueIdentifier>{620f595e-005c-44c3-a194-31e081eb826f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\RayTracing">
+      <UniqueIdentifier>{6326aa54-289e-43cd-b6b1-b0326925ff8f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Allocator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\AssetManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\BVH.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\Camera.h">
@@ -67,9 +73,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\CyanEngine.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\CyanPathTracer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\CyanRenderer.h">
@@ -228,12 +231,18 @@
     <ClInclude Include="include\MaterialEditor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\RayTracingScene.h">
+      <Filter>Header Files\RayTracing</Filter>
+    </ClInclude>
+    <ClInclude Include="include\BVH.h">
+      <Filter>Header Files\RayTracing</Filter>
+    </ClInclude>
+    <ClInclude Include="include\RayTracer.h">
+      <Filter>Header Files\RayTracing</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\AssetManager.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\BVH.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
     <ClCompile Include="src\Camera.cpp">
@@ -246,9 +255,6 @@
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
     <ClCompile Include="src\CyanEngine.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\CyanPathTracer.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
     <ClCompile Include="src\CyanRenderer.cpp">
@@ -347,9 +353,6 @@
     <ClCompile Include="src\Shadow.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
-    <ClCompile Include="src\Ray.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
     <ClCompile Include="src\VoxelConeTracing.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
@@ -373,6 +376,18 @@
     </ClCompile>
     <ClCompile Include="src\LightRenderable.cpp">
       <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\RayTracingScene.cpp">
+      <Filter>Source Files\Internal\RayTracing</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Ray.cpp">
+      <Filter>Source Files\Internal\RayTracing</Filter>
+    </ClCompile>
+    <ClCompile Include="src\BVH.cpp">
+      <Filter>Source Files\Internal\RayTracing</Filter>
+    </ClCompile>
+    <ClCompile Include="src\RayTracer.cpp">
+      <Filter>Source Files\Internal\RayTracing</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -627,6 +642,12 @@
     </None>
     <None Include="..\shader\taa_v.glsl">
       <Filter>Shaders\PostProcessing\TAA</Filter>
+    </None>
+    <None Include="..\shader\raytracing_v.glsl">
+      <Filter>Shaders\RayTracing</Filter>
+    </None>
+    <None Include="..\shader\raytracing_p.glsl">
+      <Filter>Shaders\RayTracing</Filter>
     </None>
   </ItemGroup>
 </Project>

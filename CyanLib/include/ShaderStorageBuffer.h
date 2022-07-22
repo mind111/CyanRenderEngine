@@ -188,6 +188,7 @@ namespace Cyan
             }
             else
             {
+                u32 dynamicSize = ssboStruct.getDynamicChunkSizeInBytes();
                 // update dynamic members
                 glNamedBufferSubData(getGpuResource(), 0, ssboStruct.getDynamicChunkSizeInBytes(), ssboStruct.getDynamicChunkData());
             }

@@ -48,7 +48,7 @@ namespace Cyan
             */ 
 #define DEFAULT_TEXTURE_FOLDER "../../asset/textures/defaults/"
             ITextureRenderable::Spec spec = { };
-            spec.numMips = 1u;
+            spec.numMips = 11u;
             ITextureRenderable::Parameter parameter = { };
             parameter.wrap_r = ITextureRenderable::Parameter::WrapMode::WRAP;
             parameter.wrap_s = ITextureRenderable::Parameter::WrapMode::WRAP;

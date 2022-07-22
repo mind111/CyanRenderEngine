@@ -23,19 +23,6 @@ namespace Cyan
     }
 
 #if 0
-    void Mesh::onFinishLoading()
-    {
-        Toolkit::GpuTimer timer("Mesh::onFinishLoading()", false);
-        if (m_shouldNormalize)
-            m_normalization = Toolkit::computeMeshNormalization(this);
-        else
-            Toolkit::computeAABB(this);
-#ifdef _DEBUG
-        cyanInfo("%s mesh has %u triangles", m_name.c_str(), numTriangles());
-#endif
-        timer.end();
-    }
-
     MeshRayHit Mesh::bruteForceIntersectRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd)
     {
         MeshRayHit globalHit;
@@ -153,60 +140,6 @@ namespace Cyan
         }
 #endif
         return instance;
-    }
-
-    u32 Mesh::numSubMeshes()
-    {
-        return (u32)m_subMeshes.size();
-    }
-
-    u32 Mesh::numTriangles()
-    {
-        u32 numTriangles = 0;
-        for (u32 sm = 0; sm < m_subMeshes.size(); ++sm)
-            numTriangles += (m_subMeshes[sm]->m_numIndices / 3);
-        return numTriangles;
-    }
-
-    void MeshInstance::setMaterial(u32 index, MaterialInstance* matl)
-    {
-        m_matls[index] = matl;
-    }
-
-    BoundingBox3D& MeshInstance::getAABB()
-    {
-        return m_mesh->m_aabb;
-    }
-
-    QuadMesh::QuadMesh(glm::vec2 center, glm::vec2 extent)
-        : m_center(center), m_extent(extent), m_vertexArray(0)
-    {
-    }
-    void QuadMesh::init(glm::vec2 center, glm::vec2 extent)
-    {
-        m_center = center;
-        m_extent = extent;
-
-        m_verts[0].position = glm::vec3(m_center + glm::vec2(-1.f,  1.f) * m_extent, 0.f);
-        m_verts[1].position = glm::vec3(m_center + glm::vec2(-1.0f, -1.0f) * m_extent, 0.f); 
-        m_verts[2].position = glm::vec3(m_center + glm::vec2( 1.0f, -1.0f) * m_extent, 0.f);
-        m_verts[3].position = glm::vec3(m_center + glm::vec2(-1.0f,  1.0f) * m_extent, 0.f);
-        m_verts[4].position = glm::vec3(m_center + glm::vec2( 1.0f, -1.0f) * m_extent, 0.f);
-        m_verts[5].position = glm::vec3(m_center + glm::vec2( 1.0f,  1.0f) * m_extent, 0.f);
-
-        m_verts[0].texCoords = glm::vec2(0.f, 1.f);
-        m_verts[1].texCoords = glm::vec2(0.f, 0.f); 
-        m_verts[2].texCoords = glm::vec2(1.0f, 0.0f);
-        m_verts[3].texCoords = glm::vec2(0.f, 1.f);
-        m_verts[4].texCoords = glm::vec2(1.f, 0.f);
-        m_verts[5].texCoords = glm::vec2(1.f, 1.f);
-
-        auto vb = createVertexBuffer(m_verts, 6u * sizeof(Vertex), sizeof(Vertex), 6u);
-        vb->addVertexAttrib({VertexAttrib::DataType::Float, 3, sizeof(Vertex), 0u });
-        vb->addVertexAttrib({VertexAttrib::DataType::Float, 2, sizeof(Vertex), sizeof(glm::vec3) });
-        m_vertexArray = createVertexArray(vb);
-        // TODO: refactor how vb interacts with va, vb->finalize() va->onVbFinalize();
-        m_vertexArray->init();
     }
 #endif
 };

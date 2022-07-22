@@ -197,41 +197,9 @@ namespace Cyan
         }
     };
 
-    struct RayTracingMesh
-    {
-        struct Submesh
-        {
-            TriangleArray triangles;
-        };
-
-        std::vector<Submesh> submeshes;
-
-        // bvh
-    };
-
-    struct RayTracingMeshInstance
-    {
-        u32 parent;
-        std::vector<u32> materialIndex;
-        glm::mat4 worldTransformMatrix;
-    };
-
-    struct RayTracingMaterial
+    struct Meshlet
     {
 
-    };
-
-    struct RayTracingScene
-    {
-        RayTracingScene(Scene* scene)
-        {
-
-        }
-
-        std::vector<RayTracingMesh> meshes;
-        std::vector<RayTracingMeshInstance> meshInstances;
-        std::vector<RayTracingMaterial> materials;
-        // todo: lighting data
     };
 
 #if 0

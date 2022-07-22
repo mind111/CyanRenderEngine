@@ -35,7 +35,7 @@
     <ClInclude Include="include\CyanApp.h" />
     <ClInclude Include="include\CyanCore.h" />
     <ClInclude Include="include\CyanEngine.h" />
-    <ClInclude Include="include\CyanPathTracer.h" />
+    <ClInclude Include="include\RayTracer.h" />
     <ClInclude Include="include\CyanRenderer.h" />
     <ClInclude Include="include\CyanUI.h" />
     <ClInclude Include="include\DirectionalLight.h" />
@@ -57,6 +57,7 @@
     <ClInclude Include="include\Node.h" />
     <ClInclude Include="include\Plane.h" />
     <ClInclude Include="include\PointLight.h" />
+    <ClInclude Include="include\RayTracingScene.h" />
     <ClInclude Include="include\RenderableScene.h" />
     <ClInclude Include="include\RenderTarget.h" />
     <ClInclude Include="include\Scene.h" />
@@ -93,7 +94,7 @@
     <ClCompile Include="src\CyanAPI.cpp" />
     <ClCompile Include="src\CyanApp.cpp" />
     <ClCompile Include="src\CyanEngine.cpp" />
-    <ClCompile Include="src\CyanPathTracer.cpp" />
+    <ClCompile Include="src\RayTracer.cpp" />
     <ClCompile Include="src\CyanRenderer.cpp" />
     <ClCompile Include="src\CyanUI.cpp" />
     <ClCompile Include="src\DirectionalLight.cpp" />
@@ -120,6 +121,7 @@
     <ClCompile Include="src\MathUtils.cpp" />
     <ClCompile Include="src\Mesh.cpp" />
     <ClCompile Include="src\Ray.cpp" />
+    <ClCompile Include="src\RayTracingScene.cpp" />
     <ClCompile Include="src\RenderableScene.cpp" />
     <ClCompile Include="src\RenderTarget.cpp" />
     <ClCompile Include="src\Scene.cpp" />
@@ -143,6 +145,8 @@
     <None Include="..\shader\global_buffers.glsl" />
     <None Include="..\shader\light_definitions.glsl" />
     <None Include="..\shader\material.glsl" />
+    <None Include="..\shader\raytracing_p.glsl" />
+    <None Include="..\shader\raytracing_v.glsl" />
     <None Include="..\shader\scene_depth_normal_p.glsl" />
     <None Include="..\shader\scene_depth_normal_v.glsl" />
     <None Include="..\shader\shader_ao.fs" />

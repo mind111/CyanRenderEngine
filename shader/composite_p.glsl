@@ -8,6 +8,7 @@ in VSOutput
 out vec4 outColor;
 
 uniform float exposure;
+uniform float colorTempreture;
 uniform float enableBloom;
 uniform float bloomIntensity;
 
@@ -106,6 +107,6 @@ void main()
     }
     // tone mapping
     vec3 tonemappedColor = ACESFitted(gammaCorrection(exposure * linearColor, 1.f / 2.2f));
-    tonemappedColor *= colorTemperatureToRGB(4000.0f);
+    tonemappedColor *= colorTemperatureToRGB(colorTempreture);
     outColor = vec4(tonemappedColor, 1.f);
 }

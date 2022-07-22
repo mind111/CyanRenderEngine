@@ -9,10 +9,6 @@
 
 /*
     @Refactoring
-    * remove RenderPass, move to a simpler architecture
-    * material rework
-    * maybe try organize all the render tasks for a frame by renderTargets, and then for each renderTargets, organize all the draw calls by shader?
-    * refactor Mesh class and mesh loading code path, and Line class
     * add shader #include to reduce duplicated code in shader
 
     @Precompute GI 
@@ -29,12 +25,6 @@
     @Runtime lighting
     * area light
     * material layering
-*/
-
-/*
-    Bugs
-    * mouse picking gltf-2.0 entities doesn't work
-    * mouse picking issues
 */
 
 /*

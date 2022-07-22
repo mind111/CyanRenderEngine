@@ -27,6 +27,8 @@ namespace Cyan
         glEnable(GL_LINE_SMOOTH);
         glLineWidth(4.f);
 
+        // some important gl constants
+
         m_ctx = std::make_unique<GfxContext>(m_glfwWindow);
         m_sceneManager = std::make_unique<SceneManager>();
         m_assetManager = std::make_unique<AssetManager>();

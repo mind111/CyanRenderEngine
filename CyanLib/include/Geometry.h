@@ -128,16 +128,6 @@ struct Triangle
     float intersectRay(const glm::vec3& ro, const glm::vec3& rd);
 };
 
-// SoA data oriented triangle mesh meant for improving ray tracing procedure
-struct TriangleArray 
-{
-    std::vector<glm::vec3> positions;
-    std::vector<glm::vec3> normals;
-    std::vector<glm::vec3> tangents;
-    std::vector<glm::vec3> texCoords;
-    u32 m_numVerts;
-};
-
 struct BoundingBox3D
 {
     // in object space

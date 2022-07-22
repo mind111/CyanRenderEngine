@@ -6,7 +6,7 @@
 #include "CyanAPI.h"
 #include "RenderTarget.h"
 #include "CyanRenderer.h"
-#include "CyanPathTracer.h"
+#include "RayTracer.h"
 #include "stb_image_write.h"
 
 #define MULTITHREAD_BAKE 1

@@ -329,6 +329,7 @@ namespace Cyan
         void endRender();
 
         RenderTexture2D* renderScene(const RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
+        void rayTracing(struct RayTracingScene& rtxScene, RenderTexture2D* outputBuffer, RenderTexture2D* historyBuffer);
         void renderSceneMeshOnly(const RenderableScene& sceneRenderable, RenderTexture2D* outTexture, Shader* shader);
 
         struct ScenePrepassOutput
@@ -339,7 +340,11 @@ namespace Cyan
 
         ScenePrepassOutput renderSceneDepthNormal(const RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
         void renderSceneDepthOnly(const RenderableScene& renderableScene, RenderTexture2D* outDepthTexture);
-        void renderDebugObjects(Scene* scene, const std::function<void()>& externDebugRender = [](){ });
+
+        /* Debugging utilities */
+        void debugDrawLine(const glm::vec3& v0, const glm::vec3& v1);
+
+        void renderDebugObjects(RenderTexture2D* outTexture);
 
         /* Shadow */
         void renderShadow(const Scene& scene, const RenderableScene& renderableScene);
@@ -430,6 +435,7 @@ namespace Cyan
             bool autoFilterVoxelGrid = true;
             f32  exposure = 1.f;
             f32 bloomIntensity = 0.7f;
+            f32 colorTempreture = 5000.f;
         } m_settings;
 
         u32           m_windowWidth, m_windowHeight;
@@ -597,5 +603,6 @@ namespace Cyan
         LinearAllocator m_frameAllocator;
         std::queue<UIRenderCommand> m_UIRenderCommandQueue;
         RenderQueue m_renderQueue;
+        Texture2DRenderable* m_rtxPingPongBuffer[2] = { 0 };
     };
 };

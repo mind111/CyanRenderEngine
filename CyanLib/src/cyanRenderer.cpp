@@ -24,6 +24,7 @@
 #include "Ray.h"
 #include "RenderableScene.h"
 #include "LightRenderable.h"
+#include "RayTracingScene.h"
 
 #define DRAW_SSAO_DEBUG_VIS 0
 
@@ -211,6 +212,14 @@ namespace Cyan
             reconstructionWeights[i] = glm::exp(-2.29 * (TAAJitterVectors[i].x * TAAJitterVectors[i].x + TAAJitterVectors[i].y * TAAJitterVectors[i].y));
             TAAJitterVectors[i] *= 0.5f / 1440.f;
         }
+
+        ITextureRenderable::Spec spec = { };
+        spec.type = TEX_2D;
+        spec.pixelFormat = PF_RGB16F;
+        spec.width = 2560;
+        spec.height = 1440;
+        m_rtxPingPongBuffer[0] = AssetManager::createTexture2D("RayTracingPingPong_0", spec);
+        m_rtxPingPongBuffer[1] = AssetManager::createTexture2D("RayTracingPingPong_1", spec);
     }
 
     void Renderer::finalize()
@@ -728,16 +737,32 @@ namespace Cyan
                 ssao(sceneView, sceneDepthTexture, sceneNormalTexture, glm::uvec2(1280, 720));
             }
 #endif
-
             // main scene pass
+#if 1
+            RenderTexture2D* sceneColorTexture = nullptr;
+            if (m_numFrames > 0)
+            {
+                auto src = m_renderQueue.registerTexture2D(m_rtxPingPongBuffer[(m_numFrames - 1) % 2]);
+                auto dst = m_renderQueue.registerTexture2D(m_rtxPingPongBuffer[m_numFrames % 2]);
+                RayTracingScene rtxScene(*scene);
+                rayTracing(rtxScene, dst, src);
+                sceneColorTexture = dst;
+            }
+            else
+            {
+                auto dst = m_renderQueue.registerTexture2D(m_rtxPingPongBuffer[m_numFrames % 2]);
+                RayTracingScene rtxScene(*scene);
+                rayTracing(rtxScene, dst, nullptr);
+                sceneColorTexture = dst;
+            }
+#else
             RenderTexture2D* sceneColorTexture = renderScene(renderableScene, sceneView, renderResolution);
+#endif
 
             if (m_settings.enableTAA)
             {
                 taa();
             }
-            // debug object pass
-            // renderDebugObjects(scene, externDebugRender);
 
             // post processing
             RenderTexture2D* bloomOutput = nullptr;
@@ -787,7 +812,6 @@ namespace Cyan
         // render UI widgets
         renderUI();
         m_ctx->flip();
-
         m_numFrames++;
     }
 
@@ -834,7 +858,6 @@ namespace Cyan
         );
     }
 
-    // todo: refactor this and 
     void Renderer::renderSceneDepthOnly(const RenderableScene& renderableScene, RenderTexture2D* outDepthTexture)
     {
         m_renderQueue.addPass(
@@ -919,6 +942,48 @@ namespace Cyan
             });
 
         return { depthTexture, normalTexture};
+    }
+
+    void Renderer::rayTracing(struct RayTracingScene& rtxScene, RenderTexture2D* outputBuffer, RenderTexture2D* historyBuffer)
+    {
+#define POSITION_BUFFER_BINDING 20
+#define NORMAL_BUFFER_BINDING 21
+#define MATERIAL_BUFFER_BINDING 22
+
+        rtxScene.positionSsbo.bind(POSITION_BUFFER_BINDING);
+        rtxScene.normalSsbo.bind(NORMAL_BUFFER_BINDING);
+        rtxScene.materialSsbo.bind(MATERIAL_BUFFER_BINDING);
+        m_renderQueue.addPass(
+            "RayTracingPass",
+            [this, outputBuffer](RenderQueue& renderQueue, RenderPass* pass) {
+                pass->addOutput(outputBuffer);
+            },
+            [this, outputBuffer, &rtxScene, historyBuffer]() { // renderSetupLambda
+                Shader* raytracingShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "RayTracingShader", SHADER_SOURCE_PATH "raytracing_v.glsl", SHADER_SOURCE_PATH "raytracing_p.glsl" });
+                auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(outputBuffer->spec.width, outputBuffer->spec.height));
+                renderTarget->setColorBuffer(outputBuffer->getTextureResource(), 0);
+                submitFullScreenPass(
+                    renderTarget.get(),
+                    { { 0 } },
+                    raytracingShader,
+                    [&rtxScene, this, historyBuffer](RenderTarget* renderTarget, Shader* shader) {
+                        shader->setUniform("numTriangles", (i32)rtxScene.surfaces.numTriangles());
+                        shader->setUniform("outputSize", glm::vec2(renderTarget->width, renderTarget->height));
+                        shader->setUniform("camera.position", rtxScene.camera.position);
+                        shader->setUniform("camera.lookAt", rtxScene.camera.lookAt);
+                        shader->setUniform("camera.forward", rtxScene.camera.forward());
+                        shader->setUniform("camera.up", rtxScene.camera.up());
+                        shader->setUniform("camera.right", rtxScene.camera.right());
+                        shader->setUniform("camera.n", rtxScene.camera.n);
+                        shader->setUniform("camera.f", rtxScene.camera.f);
+                        shader->setUniform("camera.fov", rtxScene.camera.fov);
+                        shader->setUniform("camera.aspectRatio", rtxScene.camera.aspectRatio);
+                        shader->setUniform("numFrames", m_numFrames);
+                        if (historyBuffer)
+                            shader->setTexture("historyBuffer", historyBuffer->getTextureResource());
+                    });
+            }
+        );
     }
 
     RenderTexture2D* Renderer::renderScene(const RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution)
@@ -1190,6 +1255,7 @@ namespace Cyan
                     compositeShader,
                     [this, inBloomColor, filteredSceneColor](RenderTarget* renderTarget, Shader* shader) {
                         shader->setUniform("exposure", m_settings.exposure)
+                            .setUniform("colorTempreture", m_settings.colorTempreture)
                             .setUniform("enableBloom", m_settings.enableBloom ? 1.f : 0.f)
                             .setUniform("bloomIntensity", m_settings.bloomIntensity)
                             .setTexture("bloomColorTexture", inBloomColor->getTextureResource())
@@ -1512,15 +1578,12 @@ namespace Cyan
         glBindTextureUnit((u32)SceneTextureBindings::VctxReflection, m_vctx.reflection->getGpuResource());
     }
 
-    void Renderer::renderDebugObjects(Scene* scene, const std::function<void()>& externDebugRender)
+    void Renderer::debugDrawLine(const glm::vec3& v0, const glm::vec3& v1)
     {
-        // renderer internal debug draw calls
-        {
-            visualizeVoxelGrid();
-            visualizeConeTrace(scene);
-        }
 
-        // external debug draw calls defined by the application
-        externDebugRender();
+    }
+
+    void Renderer::renderDebugObjects(RenderTexture2D* outTexture)
+    {
     }
 }

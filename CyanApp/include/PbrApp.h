@@ -9,7 +9,7 @@
 #include "Geometry.h"
 #include "imgui/imgui.h"
 #include "GfxContext.h"
-#include "CyanPathTracer.h"
+#include "RayTracer.h"
 #include "LightMap.h"
 #include "SkyBox.h"
 

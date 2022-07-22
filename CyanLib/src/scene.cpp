@@ -27,7 +27,7 @@ namespace Cyan
             /*inWorldUp=*/glm::vec3(0.f, 1.f, 0.f),
             /*inFov=*/45.f,
             .5f,
-            50.f,
+            150.f,
             cameraAspectRatio
         ));
     }
