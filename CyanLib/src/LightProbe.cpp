@@ -137,7 +137,7 @@ namespace Cyan
 
     void IrradianceProbe::convolve()
     {
-        Toolkit::GpuTimer timer("ConvolveIrradianceTimer");
+        GpuTimer timer("ConvolveIrradianceTimer");
         auto renderer = Renderer::get();
 
         auto renderTarget = createRenderTarget(m_irradianceTextureRes.x, m_irradianceTextureRes.y);

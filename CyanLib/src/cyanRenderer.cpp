@@ -738,19 +738,18 @@ namespace Cyan
             }
 #endif
             // main scene pass
-#if 1
+#if 0
             RenderTexture2D* sceneColorTexture = nullptr;
+            auto dst = m_renderQueue.registerTexture2D(m_rtxPingPongBuffer[m_numFrames % 2]);
             if (m_numFrames > 0)
             {
                 auto src = m_renderQueue.registerTexture2D(m_rtxPingPongBuffer[(m_numFrames - 1) % 2]);
-                auto dst = m_renderQueue.registerTexture2D(m_rtxPingPongBuffer[m_numFrames % 2]);
                 RayTracingScene rtxScene(*scene);
                 rayTracing(rtxScene, dst, src);
                 sceneColorTexture = dst;
             }
             else
             {
-                auto dst = m_renderQueue.registerTexture2D(m_rtxPingPongBuffer[m_numFrames % 2]);
                 RayTracingScene rtxScene(*scene);
                 rayTracing(rtxScene, dst, nullptr);
                 sceneColorTexture = dst;
@@ -944,7 +943,7 @@ namespace Cyan
         return { depthTexture, normalTexture};
     }
 
-    void Renderer::rayTracing(struct RayTracingScene& rtxScene, RenderTexture2D* outputBuffer, RenderTexture2D* historyBuffer)
+    void Renderer::rayTracing(RayTracingScene& rtxScene, RenderTexture2D* outputBuffer, RenderTexture2D* historyBuffer)
     {
 #define POSITION_BUFFER_BINDING 20
 #define NORMAL_BUFFER_BINDING 21
@@ -958,7 +957,7 @@ namespace Cyan
             [this, outputBuffer](RenderQueue& renderQueue, RenderPass* pass) {
                 pass->addOutput(outputBuffer);
             },
-            [this, outputBuffer, &rtxScene, historyBuffer]() { // renderSetupLambda
+            [this, outputBuffer, rtxScene, historyBuffer]() { // renderSetupLambda
                 Shader* raytracingShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "RayTracingShader", SHADER_SOURCE_PATH "raytracing_v.glsl", SHADER_SOURCE_PATH "raytracing_p.glsl" });
                 auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(outputBuffer->spec.width, outputBuffer->spec.height));
                 renderTarget->setColorBuffer(outputBuffer->getTextureResource(), 0);
@@ -1120,6 +1119,7 @@ namespace Cyan
         spec.width /= 2;
         spec.height /= 2;
         bloomSetupPassData.output = m_renderQueue.createTexture2D("BloomSetupOutput", spec);
+        std::shared_ptr<RenderTarget> renderTarget = std::shared_ptr<RenderTarget>(createRenderTarget(bloomSetupPassData.output->spec.width, bloomSetupPassData.output->spec.height));
 
         m_renderQueue.addPass(
             /*passName=*/"BloomSetupPass",
@@ -1127,9 +1127,9 @@ namespace Cyan
                 pass->addInput(bloomSetupPassData.input);
                 pass->addOutput(bloomSetupPassData.output);
             },
-            [this, bloomSetupPassData]() {
+            [this, bloomSetupPassData, renderTarget]() {
                 Shader* bloomSetupShader = ShaderManager::createShader({ ShaderType::kVsPs, "BloomSetupShader", SHADER_SOURCE_PATH "bloom_setup_v.glsl", SHADER_SOURCE_PATH "bloom_setup_p.glsl" });
-                std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(bloomSetupPassData.output->spec.width, bloomSetupPassData.output->spec.height));
+                // std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(bloomSetupPassData.output->spec.width, bloomSetupPassData.output->spec.height));
                 renderTarget->setColorBuffer(bloomSetupPassData.output->getTextureResource(), 0);
 
                 submitFullScreenPass(
@@ -1158,8 +1158,8 @@ namespace Cyan
 
             // upscale & blend pass
             ITextureRenderable::Spec spec = upscaleChain[input]->spec;
-            spec.width *= 2;
-            spec.height *= 2;
+            spec.width = downsampleChain.stages[blend]->spec.width;
+            spec.height = downsampleChain.stages[blend]->spec.height;
             upscaleChain[output] = m_renderQueue.createTexture2D("Upscaled", spec);
             m_renderQueue.addPass(
                 "Upscale",

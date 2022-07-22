@@ -19,8 +19,11 @@ public:
     virtual void customInitialize() override
     {
         using namespace Cyan;
+#if 0
         AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/cornell_box.gltf", "CornellBox");
-        // AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/shader_balls.gltf", "ShaderBallScene");
+#else
+        AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/shader_balls.gltf", "ShaderBallScene");
+#endif
 
         // sun light
         m_scene->createDirectionalLight("SunLight", glm::vec3(1.f), glm::vec4(1.f, 1.f, 1.f, 60.f));
@@ -28,8 +31,6 @@ public:
 
         // ray tracer
         m_rayTracer = std::make_unique<RayTracer>();
-        // build ray tracing scene
-        m_rtxScene = std::make_unique<RayTracingScene>(*m_scene);
     }
 
     virtual void customFinalize() override

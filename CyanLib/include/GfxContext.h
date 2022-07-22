@@ -52,6 +52,7 @@ namespace Cyan
     class GfxContext : public Singleton<GfxContext>
     {
     public:
+
         GfxContext(GLFWwindow* window) 
             : m_glfwWindow(window)
         { }
@@ -140,10 +141,9 @@ namespace Cyan
         std::array<u32, kMaxNumTextureUnits> textureUnits;
 
         GLFWwindow* m_glfwWindow;
-        Shader* m_shader;
-        RenderTarget* m_renderTarget;
+        Shader* m_shader = nullptr;
         Viewport m_viewport;
-        VertexArray* m_va;
+        VertexArray* m_va = nullptr;
         GLenum m_primitiveType;
         u32 transientTextureUnit;
     };

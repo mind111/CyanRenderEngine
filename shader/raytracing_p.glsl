@@ -290,9 +290,11 @@ void main()
 		vec3 n = calcNormal(hit);
 		outColor = shade(ray, hit, materialSsbo.materials[hit.tri]);
 	}
+	#if 0
 	if (numFrames > 0)
 	{
 		vec3 history = texture(historyBuffer, pixelCoords).rgb;
 		outColor = mix(history, outColor, 0.1f);
 	}
+	#endif
 }

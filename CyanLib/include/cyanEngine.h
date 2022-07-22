@@ -43,5 +43,8 @@ namespace Cyan
         // active scene
         std::shared_ptr<Scene> m_scene;
         Renderer* m_renderer = nullptr;
+
+        // stats
+        f32 renderFrameTime = 0.0f;
     };
 }

@@ -363,7 +363,7 @@ namespace Cyan
 
     Mesh* AssetManager::importMesh(Scene* scene, std::string& path, const char* name, bool normalize, bool generateLightMapUv)
     {
-        Cyan::Toolkit::ScopedTimer meshTimer(name, true);
+        Cyan::ScopedTimer meshTimer(name, true);
 
         // get extension from mesh path
         u32 found = path.find_last_of('.');
@@ -408,7 +408,7 @@ namespace Cyan
 
     void AssetManager::importEntities(Scene* scene, const nlohmann::basic_json<std::map>& entityInfoList)
     {
-        Cyan::Toolkit::ScopedTimer timer("importEntities()", true);
+        Cyan::ScopedTimer timer("importEntities()", true);
         for (auto entityInfo : entityInfoList)
         {
             // name

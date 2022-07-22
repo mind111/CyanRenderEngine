@@ -330,16 +330,21 @@ namespace Cyan
         ImGui::End();
     }
 
-    static void drawRenderingTab(Renderer* renderer)
+    static void drawRenderingTab(Renderer* renderer, f32 renderFrameTime)
     {
         ImGui::BeginChild("##Rendering Settings", ImVec2(0, 0), true);
         {
+            if (ImGui::CollapsingHeader("Stats", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::TextColored(ImVec4(0.f, 1.f, 1.f, 1.f), "Frame Time: %.2f ms", renderFrameTime);
+            }
+
             if (ImGui::CollapsingHeader("Post Processing", ImGuiTreeNodeFlags_DefaultOpen))
             {
-                ImGui::TextUnformatted("Color Tempreture"); ImGui::SameLine();
-                // todo: render a color tempreture slider image and blit to ImGui
+                ImGui::TextUnformatted("Color Temperature"); ImGui::SameLine();
+                // todo: render a color temperature slider image and blit to ImGui
                 // ImGui::Image((void*)1, ImVec2(ImGui::GetContentRegionAvailWidth(), ImGui::GetTextLineHeight())); ImGui::SameLine();
-                ImGui::SliderFloat("##Color Tempreture", &renderer->m_settings.colorTempreture, 1000.f, 10000.f, "%.2f");
+                ImGui::SliderFloat("##Color Temperature", &renderer->m_settings.colorTempreture, 1000.f, 10000.f, "%.2f");
             }
         }
         ImGui::EndChild();
@@ -379,7 +384,7 @@ namespace Cyan
                     }
                     if (ImGui::BeginTabItem("Rendering"))
                     {
-                        drawRenderingTab(m_graphicsSystem->getRenderer());
+                        drawRenderingTab(m_graphicsSystem->getRenderer(), renderFrameTime);
                         ImGui::EndTabItem();
                     }
                     ImGui::EndTabBar();
@@ -399,7 +404,10 @@ namespace Cyan
     {
         if (m_renderer)
         {
+            GpuTimer rendererTimer("Renderer Timer", false);
             m_renderer->render(m_scene.get());
+            rendererTimer.end();
+            renderFrameTime = rendererTimer.getDurationInMS();
         }
     }
 
