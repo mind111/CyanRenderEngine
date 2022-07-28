@@ -8,6 +8,7 @@ in VSOutput
 	vec3 viewSpaceTangent;
 	vec2 texCoord0;
 	vec2 texCoord1;
+    vec3 color;
 } psIn;
 
 out vec3 outColor;
@@ -530,4 +531,5 @@ void main()
     // todo: transform tangent back to world space
     MaterialParameters materialParameters = getMaterialParameters(worldSpaceNormal, viewSpaceTangent, psIn.texCoord0);
     outColor = calcLighting(sceneLights, materialParameters, psIn.worldSpacePosition);
+    outColor = psIn.color;
 }

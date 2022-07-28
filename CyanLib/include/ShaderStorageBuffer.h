@@ -4,9 +4,10 @@
 
 #include "Common.h"
 
-#define SET_SSBO_STATIC_MEMBER(ssboName, memberName, data) ssboName.ssboStruct.staticChunk.memberName = data;
-#define SET_SSBO_DYNAMIC_ELEMENT(ssboName, index, data) ssboName.ssboStruct.dynamicArray[index] = data;
-#define ADD_SSBO_DYNAMIC_ELEMENT(ssboName, data) ssboName.ssboStruct.dynamicArray.push_back(data);
+#define SET_SSBO_MEMBER(ssboName, memberName, data) ssboName.ssboStruct.staticChunk.memberName = data
+#define SET_SSBO_ELEMENT(ssboName, index, data) ssboName.ssboStruct.dynamicArray[index] = data
+#define ADD_SSBO_ELEMENT(ssboName, data) ssboName.ssboStruct.dynamicArray.push_back(data)
+#define GET_SSBO_ELEMENT(ssboName, index) ssboName.ssboStruct.dynamicArray[index]
 
 namespace Cyan
 {
@@ -53,6 +54,18 @@ namespace Cyan
         virtual u32 getDynamicChunkSizeInBytes() override
         {
             return sizeOfVector(dynamicArray);
+        }
+
+        u32 getNumElements() { return dynamicArray.size(); }
+
+        void addElement(const DynamicType& element)
+        {
+            dynamicArray.push_back(element);
+        }
+
+        DynamicType& operator[](u32 index)
+        {
+            return dynamicArray[index];
         }
 
         std::vector<DynamicType> dynamicArray;
@@ -192,6 +205,18 @@ namespace Cyan
                 // update dynamic members
                 glNamedBufferSubData(getGpuResource(), 0, ssboStruct.getDynamicChunkSizeInBytes(), ssboStruct.getDynamicChunkData());
             }
+        }
+
+        u32 getNumElements() { return ssboStruct.getNumElements(); }
+
+        template <typename T>
+        void addElement(const T& element)
+        {
+            return ssboStruct.addElement(element);
+        }
+
+        auto& operator[](u32 index) {
+            return ssboStruct[index];
         }
 
         SsboStructType ssboStruct;

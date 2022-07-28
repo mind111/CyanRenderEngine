@@ -556,7 +556,7 @@ namespace Cyan
                                     !node.scale.empty()) || hasMatrix);
         const char* meshName = hasMesh ? model.meshes[node.mesh].name.c_str() : nullptr;
         Transform localTransform;
-        if (hasMatrix) 
+        if (hasMatrix)
         {
             glm::mat4 matrix = {
                 glm::vec4(node.matrix[0], node.matrix[1], node.matrix[2], node.matrix[3]),     // column 0
@@ -594,7 +594,7 @@ namespace Cyan
         if (hasMesh)
         {
             Mesh* mesh = getAsset<Mesh>(meshName);
-            auto staticMeshEntity = scene->createStaticMeshEntity(meshName, localTransform, mesh, parent);
+            auto staticMeshEntity = scene->createStaticMeshEntity(node.name.c_str(), localTransform, mesh, parent);
             entity = staticMeshEntity;
 
             // setup material
@@ -886,7 +886,7 @@ namespace Cyan
                         for (u32 i = 0; i < numIndices; ++i)
                         {
                             u8 index = buffer.data[accessor.byteOffset + bufferView.byteOffset + srcIndexSize * i];
-                            indices.push_back(index);
+                            indices[i] = index;
                         }
                         break;
                     case 2:
@@ -895,7 +895,7 @@ namespace Cyan
                             u8 byte0 = buffer.data[accessor.byteOffset + bufferView.byteOffset + srcIndexSize * i + 0];
                             u8 byte1 = buffer.data[accessor.byteOffset + bufferView.byteOffset + srcIndexSize * i + 1];
                             u32 index = (byte1 << 8) | byte0;
-                            indices.push_back(index);
+                            indices[i] = index;
                         }
                         break;
                     case 4:
@@ -906,7 +906,7 @@ namespace Cyan
                             u8 byte2 = buffer.data[accessor.byteOffset + bufferView.byteOffset + srcIndexSize * i + 2];
                             u8 byte3 = buffer.data[accessor.byteOffset + bufferView.byteOffset + srcIndexSize * i + 3];
                             u32 index = (byte3 << 24) | (byte2 << 16) | (byte1 << 8) | byte0;
-                            indices.push_back(index);
+                            indices[i] = index;
                         }
                         break;
                     default:

@@ -211,7 +211,6 @@ namespace Cyan
             Texture2DRenderable* createTexture2DTransient(const char* name, const ITextureRenderable::Spec& inSpec)
             {
                 Texture2DRenderable* outTexture = new Texture2DRenderable(name, inSpec);
-                // transientTextures.insert({ std::string(name), outTexture });
                 textures.push_back(outTexture);
                 return outTexture;
             }
@@ -292,6 +291,15 @@ namespace Cyan
                         transientResourceManager.recycle(input);
                     }
                 }
+                // after execute
+                for (auto output : pass->outputs)
+                {
+                    // recycle reusable resources
+                    if (output->refCount == 0)
+                    {
+                        transientResourceManager.recycle(output);
+                    }
+                }
 
                 // explicit invoke destructor to avoid leaking resources
                 pass->~RenderPass();
@@ -324,13 +332,18 @@ namespace Cyan
 
 // rendering
         void beginRender();
-        void render(Scene* scene, const std::function<void()>& externDebugRender = [](){ });
+        void render(Scene* scene);
         void renderToScreen(RenderTexture2D* inTexture);
         void endRender();
 
-        RenderTexture2D* renderScene(const RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
+        RenderTexture2D* renderScene(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
+
+        /**
+        * brief: renderScene() implemented using glMultiDrawIndirect()
+        */
+        RenderTexture2D* renderSceneMultiDraw(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
         void rayTracing(struct RayTracingScene& rtxScene, RenderTexture2D* outputBuffer, RenderTexture2D* historyBuffer);
-        void renderSceneMeshOnly(const RenderableScene& sceneRenderable, RenderTexture2D* outTexture, Shader* shader);
+        void renderSceneMeshOnly(RenderableScene& sceneRenderable, RenderTexture2D* outTexture, Shader* shader);
 
         struct ScenePrepassOutput
         {
@@ -338,8 +351,8 @@ namespace Cyan
             RenderTexture2D* normalTexture;
         };
 
-        ScenePrepassOutput renderSceneDepthNormal(const RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
-        void renderSceneDepthOnly(const RenderableScene& renderableScene, RenderTexture2D* outDepthTexture);
+        ScenePrepassOutput renderSceneDepthNormal(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
+        void renderSceneDepthOnly(RenderableScene& renderableScene, RenderTexture2D* outDepthTexture);
 
         /* Debugging utilities */
         void debugDrawLine(const glm::vec3& v0, const glm::vec3& v1);

@@ -49,6 +49,7 @@ namespace Cyan
                 glm::mat4& localMatrix = localTransformMatrixPool.getObject(node->localTransform);
                 globalMatrix = parentGlobalMatrix * localMatrix;
                 globalTransformPool.getObject(node->globalTransform).fromMatrix(globalMatrix);
+                globalTransformMatrixPool.getObject(node->globalTransform) = globalMatrix;
             }
             for (u32 i = 0; i < node->childs.size(); ++i)
             {

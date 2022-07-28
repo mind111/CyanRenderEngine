@@ -404,10 +404,10 @@ namespace Cyan
     {
         if (m_renderer)
         {
-            GpuTimer rendererTimer("Renderer Timer", false);
+            ScopedTimer rendererTimer("Renderer Timer", false);
             m_renderer->render(m_scene.get());
             rendererTimer.end();
-            renderFrameTime = rendererTimer.getDurationInMS();
+            renderFrameTime = rendererTimer.m_durationInMs;
         }
     }
 

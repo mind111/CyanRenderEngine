@@ -48,7 +48,10 @@ namespace Cyan
 
         RenderableScene(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator);
         ~RenderableScene()
-        { }
+        { 
+            glUnmapNamedBuffer(indirectDrawBuffer.buffer);
+            glDeleteBuffers(1, &indirectDrawBuffer.buffer);
+        }
 
         void setView(const glm::mat4& view) 
         {
@@ -62,7 +65,7 @@ namespace Cyan
         /**
         * Submit rendering data to global gpu buffers
         */
-        void submitSceneData(GfxContext* ctx) const;
+        void submitSceneData(GfxContext* ctx);
 
         // view
         std::shared_ptr<ViewSsbo> viewSsboPtr = nullptr;
@@ -79,5 +82,57 @@ namespace Cyan
         std::vector<std::shared_ptr<ILightRenderable>> lights;
         IrradianceProbe* irradianceProbe = nullptr;
         ReflectionProbe* reflectionProbe = nullptr;
+
+        struct Vertex
+        {
+            glm::vec4 pos;
+            glm::vec4 normal;
+            glm::vec4 tangent;
+            glm::vec4 texCoord;
+        };
+        // unified geometry data
+        ShaderStorageBuffer<DynamicSsboStruct<Vertex>> unifiedVertexBuffer;
+        ShaderStorageBuffer<DynamicSsboStruct<u32>> unifiedIndexBuffer;
+
+        struct IndirecDraw
+        {
+            GLuint buffer = -1;
+            u32 sizeInBytes = 1024 * 1024 * 32;
+            void* data = nullptr;
+        } indirectDrawBuffer;
+
+        struct SubmeshDesc
+        {
+            u32 baseVertex = 0;
+            u32 baseIndex = 0;
+            u32 numVertices = 0;
+            u32 numIndices = 0;
+        };
+        ShaderStorageBuffer<DynamicSsboStruct<SubmeshDesc>> submeshes;
+
+        // todo: implement this
+        struct MaterialDesc
+        {
+            // offsets into the global texture array
+            u32 albedoMap;
+            u32 normalMap;
+            u32 roughnessMap;
+            u32 metallicMap;
+            u32 metallicRoughnessMap;
+            u32 occlusionMap;
+            glm::vec3 albedo;
+        };
+
+        struct InstanceDesc
+        {
+            u32 submesh = 0;
+            u32 material = 0;
+            u32 transform = 0;
+            u32 padding = 0;
+        };
+        ShaderStorageBuffer<DynamicSsboStruct<InstanceDesc>> instances;
+
+        // map sub-draw id to instance id 
+        ShaderStorageBuffer<DynamicSsboStruct<u32>> drawCalls;
     };
 }

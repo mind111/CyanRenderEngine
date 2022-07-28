@@ -673,7 +673,7 @@ namespace Cyan
         m_ctx->clear();
     }
 
-    void Renderer::render(Scene* scene, const std::function<void()>& externDebugRender)
+    void Renderer::render(Scene* scene)
     {
         //-------------------------------------------------------------------
         /*
@@ -693,6 +693,7 @@ namespace Cyan
 
         beginRender();
         {
+#if 1
 #if 0
             Camera camera = scene->camera;
             if (m_settings.enableTAA)
@@ -704,10 +705,12 @@ namespace Cyan
 #endif
 
             glm::uvec2 renderResolution = m_settings.enableAA ? glm::uvec2(m_SSAAWidth, m_SSAAHeight) : glm::uvec2(m_windowWidth, m_windowHeight);
-            SceneView sceneView(*scene, scene->camera->getCamera(), EntityFlag_kVisible);
+            static SceneView sceneView(*scene, scene->camera->getCamera(), EntityFlag_kVisible);
             // convert Scene instance to RenderableScene instance for rendering
-            RenderableScene renderableScene(scene, sceneView, m_frameAllocator);
-
+            static RenderableScene renderableScene(scene, sceneView, m_frameAllocator);
+            renderableScene.setView(scene->camera->view());
+            renderableScene.setProjection(scene->camera->projection());
+#if 0
             renderShadow(*scene, renderableScene);
 
             // scene depth & normal pass
@@ -716,7 +719,7 @@ namespace Cyan
             {
                 renderSceneDepthNormal(renderableScene, sceneView, renderResolution);
             }
-#if 0
+
             // voxel cone tracing pass
             if (m_settings.enableVctx)
             {
@@ -755,7 +758,8 @@ namespace Cyan
                 sceneColorTexture = dst;
             }
 #else
-            RenderTexture2D* sceneColorTexture = renderScene(renderableScene, sceneView, renderResolution);
+            // RenderTexture2D* sceneColorTexture = renderScene(renderableScene, sceneView, renderResolution);
+            RenderTexture2D* sceneColorTexture = renderSceneMultiDraw(renderableScene, sceneView, renderResolution);
 #endif
 
             if (m_settings.enableTAA)
@@ -766,17 +770,16 @@ namespace Cyan
             // post processing
             RenderTexture2D* bloomOutput = nullptr;
             RenderTexture2D* finalColorOutput = nullptr;
+            if (m_settings.enableBloom)
             {
-                if (m_settings.enableBloom)
-                {
-                    bloomOutput = bloom(sceneColorTexture);
-                }
-                finalColorOutput = composite(sceneColorTexture, bloomOutput, glm::uvec2(m_windowWidth, m_windowHeight));
+                bloomOutput = bloom(sceneColorTexture);
             }
+            finalColorOutput = composite(sceneColorTexture, bloomOutput, glm::uvec2(m_windowWidth, m_windowHeight));
             renderToScreen(finalColorOutput);
 
             m_renderQueue.execute();
-        }
+#endif
+        } 
         endRender();
     }
 
@@ -826,14 +829,14 @@ namespace Cyan
         }
     }
 
-    void Renderer::renderSceneMeshOnly(const RenderableScene& sceneRenderable, RenderTexture2D* outTexture, Shader* shader)
+    void Renderer::renderSceneMeshOnly(RenderableScene& sceneRenderable, RenderTexture2D* outTexture, Shader* shader)
     {
         m_renderQueue.addPass(
             "MeshOnlyPass",
             [outTexture](RenderQueue& renderQueue, RenderPass* pass) {
                 pass->addOutput(outTexture);
             },
-            [this, sceneRenderable, outTexture, shader]() {
+            [this, &sceneRenderable, outTexture, shader]() {
                 sceneRenderable.submitSceneData(m_ctx);
 
                 auto renderTarget = createRenderTarget(outTexture->spec.width, outTexture->spec.height);
@@ -857,14 +860,14 @@ namespace Cyan
         );
     }
 
-    void Renderer::renderSceneDepthOnly(const RenderableScene& renderableScene, RenderTexture2D* outDepthTexture)
+    void Renderer::renderSceneDepthOnly(RenderableScene& renderableScene, RenderTexture2D* outDepthTexture)
     {
         m_renderQueue.addPass(
             "DepthOnlyPass",
             [outDepthTexture](RenderQueue& renderQueue, RenderPass* pass) {
                 pass->addOutput(outDepthTexture);
             },
-            [this, renderableScene, outDepthTexture]() {
+            [this, &renderableScene, outDepthTexture]() {
 
                 Shader* depthOnlyShader = ShaderManager::createShader({ 
                     ShaderSource::Type::kVsPs, 
@@ -900,7 +903,7 @@ namespace Cyan
         );
     }
 
-    Renderer::ScenePrepassOutput Renderer::renderSceneDepthNormal(const RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution)
+    Renderer::ScenePrepassOutput Renderer::renderSceneDepthNormal(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution)
     {
         ITextureRenderable::Spec spec = { };
         spec.type = TEX_2D;
@@ -916,7 +919,7 @@ namespace Cyan
                 pass->addOutput(depthTexture);
                 pass->addOutput(normalTexture);
             },
-            [this, depthTexture, normalTexture, renderableScene]() {
+            [this, depthTexture, normalTexture, &renderableScene]() {
                 renderableScene.submitSceneData(m_ctx);
 
                 std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(depthTexture->spec.width, depthTexture->spec.height));
@@ -985,7 +988,7 @@ namespace Cyan
         );
     }
 
-    RenderTexture2D* Renderer::renderScene(const RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution)
+    RenderTexture2D* Renderer::renderScene(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution)
     {
         ITextureRenderable::Spec spec = { };
         spec.type = TEX_2D;
@@ -996,7 +999,7 @@ namespace Cyan
 
         m_renderQueue.addPass(
             "MainScenePass",
-            [outSceneColor, renderableScene](RenderQueue& renderQueue, RenderPass* pass) {
+            [outSceneColor, &renderableScene](RenderQueue& renderQueue, RenderPass* pass) {
                 pass->addOutput(outSceneColor);
             },
             [this, outSceneColor, &renderableScene, &sceneView]() {
@@ -1026,7 +1029,86 @@ namespace Cyan
                     );
                 }
             });
+        return outSceneColor;
+    }
 
+    RenderTexture2D* Renderer::renderSceneMultiDraw(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution)
+    {
+        ITextureRenderable::Spec spec = { };
+        spec.type = TEX_2D;
+        spec.width = outputResolution.x;
+        spec.height = outputResolution.y;
+        spec.pixelFormat = PF_RGB16F;
+        RenderTexture2D* outSceneColor = m_renderQueue.createTexture2D("SceneColor", spec);
+        m_renderQueue.addPass(
+            "MainScenePass",
+            [outSceneColor, &renderableScene](RenderQueue& renderQueue, RenderPass* pass) {
+                pass->addOutput(outSceneColor);
+            },
+            [this, outSceneColor, &renderableScene, &sceneView]() {
+
+                Shader* scenePassShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "ScenePassShader", SHADER_SOURCE_PATH "scene_pass_v.glsl", SHADER_SOURCE_PATH "scene_pass_p.glsl" });
+                std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(outSceneColor->spec.width, outSceneColor->spec.height));
+                renderTarget->setColorBuffer(outSceneColor->getTextureResource(), 0);
+                renderTarget->clear({ { 0 } });
+
+                renderableScene.submitSceneData(m_ctx);
+
+                struct IndirectDrawArrayCommand
+                {
+                    u32  count;
+                    u32  instanceCount;
+                    u32  first;
+                    i32  baseInstance;
+                };
+
+                // build indirect draw commands
+                auto ptr = reinterpret_cast<IndirectDrawArrayCommand*>(renderableScene.indirectDrawBuffer.data);
+#if 0
+                for (u32 i = 0; i < renderableScene.instances.ssboStruct.dynamicArray.size(); ++i) 
+                {
+                    const RenderableScene::InstanceDesc& desc = renderableScene.instances.ssboStruct.dynamicArray[i];
+                    IndirectDrawArrayCommand& command = ptr[i];
+                    command.first = 0;
+                    command.count = renderableScene.submeshes.ssboStruct.dynamicArray[desc.submesh].numIndices;
+                    command.instanceCount = 1;
+                    command.baseInstance = 0;
+                }
+#else
+                for (u32 draw = 0; draw < renderableScene.drawCalls.getNumElements() - 1; ++draw)
+                {
+                    IndirectDrawArrayCommand& command = ptr[draw];
+                    command.first = 0;
+                    u32 instance = renderableScene.drawCalls[draw];
+                    u32 submesh = renderableScene.instances[instance].submesh;
+                    command.count = renderableScene.submeshes[submesh].numIndices;
+                    command.instanceCount = renderableScene.drawCalls[draw + 1] - renderableScene.drawCalls[draw];
+                    command.baseInstance = 0;
+                }
+#endif
+
+                glBindBuffer(GL_DRAW_INDIRECT_BUFFER, renderableScene.indirectDrawBuffer.buffer);
+
+                m_ctx->setShader(scenePassShader);
+                m_ctx->setRenderTarget(renderTarget.get(), { { 0 } });
+                m_ctx->setViewport({ 0, 0, renderTarget->width, renderTarget->height });
+                m_ctx->setDepthControl(DepthControl::kEnable);
+
+                // dispatch multi draw indirect
+                // one sub-drawcall per instance
+                u32 drawCount = (u32)renderableScene.drawCalls.getNumElements() - 1;
+                glMultiDrawArraysIndirect(GL_TRIANGLES, 0, drawCount, 0);
+            });
+#if 1
+        addUIRenderCommand([&renderableScene]() {
+            ImGui::Begin("RenderableScene Buffer Visualization");
+            for (const auto& desc : renderableScene.instances.ssboStruct.dynamicArray)
+            {
+                ImGui::Text("%d", desc.submesh); ImGui::SameLine();
+            }
+            ImGui::End();
+        });
+#endif
         return outSceneColor;
     }
 

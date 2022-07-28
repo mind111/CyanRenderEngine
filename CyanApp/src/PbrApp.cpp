@@ -57,7 +57,7 @@ void DemoApp::setupScene()
 {
     using namespace Cyan;
 
-    Cyan::Toolkit::GpuTimer timer("initDemoScene00()", true);
+    Cyan::GpuTimer timer("initDemoScene00()", true);
 
     auto sceneManager = Cyan::SceneManager::get();
     m_scene = sceneManager->importScene("demo_scene_00", "C:\\dev\\cyanRenderEngine\\scene\\demo_scene_00.json");
@@ -244,7 +244,7 @@ void DemoApp::setupScene()
 
 void DemoApp::customInitialize()
 {
-    Cyan::Toolkit::GpuTimer timer("DemoApp::customInitialize()", true);
+    Cyan::GpuTimer timer("DemoApp::customInitialize()", true);
     {
         // setup scene
         setupScene();

@@ -26,6 +26,7 @@ namespace Cyan
         glDepthFunc(GL_LEQUAL);
         glEnable(GL_LINE_SMOOTH);
         glLineWidth(4.f);
+        glfwSwapInterval(0);
 
         // some important gl constants
 

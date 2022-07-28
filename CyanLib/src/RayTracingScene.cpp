@@ -124,8 +124,8 @@ namespace Cyan
                     surfaces.tangents.push_back(tangentWS);
                     surfaces.texCoords.push_back(submesh.texCoords[v]);
 
-                    ADD_SSBO_DYNAMIC_ELEMENT(positionSsbo, positionWS);
-                    ADD_SSBO_DYNAMIC_ELEMENT(normalSsbo, normalWS);
+                    ADD_SSBO_ELEMENT(positionSsbo, positionWS);
+                    ADD_SSBO_ELEMENT(normalSsbo, normalWS);
 
                     if (v % 3 == 0)
                     {
@@ -135,7 +135,7 @@ namespace Cyan
                         material.emissive = glm::vec4(materials[meshInst.materials[sm]].emissive, 1.f);
                         material.roughness = glm::vec4(materials[meshInst.materials[sm]].roughness);
                         material.metallic = glm::vec4(materials[meshInst.materials[sm]].metallic);
-                        ADD_SSBO_DYNAMIC_ELEMENT(materialSsbo, material);
+                        ADD_SSBO_ELEMENT(materialSsbo, material);
                     }
                 }
             }
