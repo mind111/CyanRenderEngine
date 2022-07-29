@@ -1,5 +1,19 @@
 #version 450 core
 
+#extension GL_NV_bindless_texture : require
+#extension GL_ARB_gpu_shader_int64 : enable 
+
+struct PBRMaterial
+{
+	uint64_t diffuseMap;
+	uint64_t normalMap;
+	uint64_t metallicRoughnessMap;
+	uint64_t occlusionMap;
+	vec4 kAlbedo;
+	vec4 kMetallicRoughness;
+	uvec4 flags;
+};
+
 in VSOutput
 {
 	vec3 viewSpacePosition;
@@ -8,7 +22,8 @@ in VSOutput
 	vec3 viewSpaceTangent;
 	vec2 texCoord0;
 	vec2 texCoord1;
-    vec3 color;
+    vec3 vertexColor;
+    flat PBRMaterial material;
 } psIn;
 
 out vec3 outColor;
@@ -280,50 +295,49 @@ MaterialParameters getMaterialParameters(vec3 worldSpaceNormal, vec3 worldSpaceT
 	MaterialParameters materialParameters;
 
     materialParameters.normal = worldSpaceNormal;
-    if ((materialInput.M_flags & kHasNormalMap) != 0u)
+    if ((psIn.material.flags & kHasDiffuseMap) != 0u)
     {
-        vec3 tn = texture(materialInput.M_normal, texCoord).xyz;
+        sampler2D sampler = sampler2D(psIn.material.normalMap);
+        vec3 tn = texture(sampler, texCoord).xyz;
         // Convert from [0, 1] to [-1.0, 1.0] and renomalize if texture filtering changes the length
         tn = normalize(tn * 2.f - vec3(1.f));
         // Covert normal from tangent frame to camera space
         materialParameters.normal = tangentSpaceToViewSpace(tn, worldSpaceNormal, worldSpaceTangent).xyz;
     }
 
-    materialParameters.albedo = materialInput.M_kAlbedo;
-    if ((materialInput.M_flags & kHasDiffuseMap) != 0u)
+    materialParameters.albedo = psIn.material.kAlbedo.rgb;
+    if ((psIn.material.flags & kHasDiffuseMap) != 0u)
     {
-        materialParameters.albedo = texture(materialInput.M_albedo, texCoord).rgb;
+        sampler2D sampler = sampler2D(psIn.material.diffuseMap);
+        materialParameters.albedo = texture(sampler, texCoord).rgb;
 		// from sRGB to linear space if using a texture
 		materialParameters.albedo = vec3(pow(materialParameters.albedo.r, 2.2f), pow(materialParameters.albedo.g, 2.2f), pow(materialParameters.albedo.b, 2.2f));
     }
 
     // According to gltf-2.0 spec, metal is sampled from b, roughness is sampled from g
-    float roughness = materialInput.M_kRoughness, metallic = materialInput.M_kMetallic;
-    if ((materialInput.M_flags & kHasMetallicRoughnessMap) != 0u)
+    float roughness = psIn.material.kMetallicRoughness.g, metallic = psIn.material.kMetallicRoughness.r;
+    if ((psIn.material.flags & kHasMetallicRoughnessMap) != 0u)
     {
-        vec2 metallicRoughness = texture(materialInput.M_metallicRoughness, texCoord).gb;
+        sampler2D sampler = sampler2D(psIn.material.metallicRoughnessMap);
+        vec2 metallicRoughness = texture(sampler, texCoord).gb;
         roughness = metallicRoughness.x;
         roughness = roughness * roughness;
         metallic = metallicRoughness.y; 
     }
-    else if ((materialInput.M_flags & kHasRoughnessMap) != 0u)
+    else if ((psIn.material.flags & kHasRoughnessMap) != 0u)
     {
         roughness = texture(materialInput.M_roughness, texCoord).r;
         roughness = roughness * roughness;
         metallic = materialInput.M_kMetallic;
     } 
-    else
-    {
-        roughness = materialInput.M_kRoughness;
-        metallic = materialInput.M_kMetallic;
-    }
     materialParameters.roughness = roughness;
     materialParameters.metallic = metallic;
 
     materialParameters.occlusion = 1.f;
-    if ((materialInput.M_flags & kHasOcclusionMap) != 0)
+    if ((psIn.material.flags & kHasOcclusionMap) != 0)
     {
-        materialParameters.occlusion = texture(materialInput.M_occlusion, texCoord).r;
+        sampler2D sampler = sampler2D(psIn.material.occlusionMap);
+        materialParameters.occlusion = texture(sampler, texCoord).r;
 		materialParameters.occlusion = pow(materialParameters.occlusion, 3.0f);
     }
 
@@ -469,7 +483,7 @@ vec3 calcDirectionalLight(in DirectionalLight directionalLight, MaterialParamete
     vec3 f0 = calcF0(materialParameters);
     // radiance += CookTorranceBRDF(directionalLight.direction.xyz, viewDirection, materialParameters.normal, materialParameters.roughness, f0);
     // shadow
-    radiance *= calcDirectionalShadow(worldSpacePosition, materialParameters.normal, directionalLight);
+    // radiance *= calcDirectionalShadow(worldSpacePosition, materialParameters.normal, directionalLight);
     return radiance;
 }
 
@@ -517,7 +531,6 @@ vec3 calcLighting(SceneLights sceneLights, in MaterialParameters materialParamet
     // ambient light using flat shading
     float ndotl = dot(materialParameters.normal, normalize(-psIn.viewSpacePosition)) * .5 + .5f;
     radiance += vec3(0.15, 0.3, 0.5) * exp(0.01 * -length(psIn.viewSpacePosition)) * ndotl * materialParameters.albedo;
-
     // sun light
     radiance += calcDirectionalLight(sceneLights.directionalLight, materialParameters, worldSpacePosition);
     // radiance += calcSkyLight(sceneLights.skyLight, materialParameters, worldSpacePosition);
@@ -531,5 +544,5 @@ void main()
     // todo: transform tangent back to world space
     MaterialParameters materialParameters = getMaterialParameters(worldSpaceNormal, viewSpaceTangent, psIn.texCoord0);
     outColor = calcLighting(sceneLights, materialParameters, psIn.worldSpacePosition);
-    outColor = psIn.color;
+    outColor *= length(psIn.vertexColor);
 }

@@ -1094,6 +1094,11 @@ namespace Cyan
                 m_ctx->setViewport({ 0, 0, renderTarget->width, renderTarget->height });
                 m_ctx->setDepthControl(DepthControl::kEnable);
 
+                for (auto light : renderableScene.lights)
+                {
+                    light->setShaderParameters(scenePassShader);
+                }
+
                 // dispatch multi draw indirect
                 // one sub-drawcall per instance
                 u32 drawCount = (u32)renderableScene.drawCalls.getNumElements() - 1;

@@ -110,19 +110,6 @@ namespace Cyan
         };
         ShaderStorageBuffer<DynamicSsboStruct<SubmeshDesc>> submeshes;
 
-        // todo: implement this
-        struct MaterialDesc
-        {
-            // offsets into the global texture array
-            u32 albedoMap;
-            u32 normalMap;
-            u32 roughnessMap;
-            u32 metallicMap;
-            u32 metallicRoughnessMap;
-            u32 occlusionMap;
-            glm::vec3 albedo;
-        };
-
         struct InstanceDesc
         {
             u32 submesh = 0;
@@ -134,5 +121,17 @@ namespace Cyan
 
         // map sub-draw id to instance id 
         ShaderStorageBuffer<DynamicSsboStruct<u32>> drawCalls;
+
+        struct Material
+        {
+            u64 diffuseMapHandle;
+            u64 normalMapHandle;
+            u64 metallicRoughnessMapHandle;
+            u64 occlusionMapHandle;
+            glm::vec4 kAlbedo;
+            glm::vec4 kMetallicRoughness;
+            glm::uvec4 flags;
+        };
+        ShaderStorageBuffer<DynamicSsboStruct<Material>> materials;
     };
 }

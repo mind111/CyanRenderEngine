@@ -97,6 +97,8 @@ namespace Cyan
             }
         }
 
+        std::unordered_map<std::string, u32> materialMap;
+        std::unordered_map<std::string, u64> textureMap;
         // build instance descriptors
         for (u32 i = 0; i < meshInstances.size(); ++i)
         {
@@ -107,11 +109,79 @@ namespace Cyan
                 baseSubmesh = entry->second;
             for (u32 sm = 0; sm < mesh->numSubmeshes(); ++sm)
             {
-                InstanceDesc desc = { };
+                instances.addElement(InstanceDesc{});
+                auto& desc = instances[instances.getNumElements() - 1];
                 desc.submesh = baseSubmesh + sm;
                 desc.transform = i;
-                desc.material = -1;
-                instances.addElement(desc);
+                desc.material = 0;
+
+                if (auto pbr = dynamic_cast<PBRMaterial*>(meshInstances[i]->getMaterial(sm)))
+                {
+                    auto matlEntry = materialMap.find(pbr->name);
+                    // create a material proxy for each unique material instance
+                    if (matlEntry == materialMap.end())
+                    {
+                        materialMap.insert({ pbr->name, materials.getNumElements() });
+                        desc.material = materials.getNumElements();
+                        materials.addElement(Material{ });
+                        auto& matlProxy = materials[materials.getNumElements() - 1];
+                        matlProxy.flags = glm::uvec4(pbr->parameter.getFlags());
+                        if (auto albedo = pbr->parameter.albedo)
+                        {
+                            auto entry = textureMap.find(albedo->name);
+                            if (entry == textureMap.end())
+                            {
+                                matlProxy.diffuseMapHandle = glGetTextureHandleARB(albedo->getGpuResource());
+                                glMakeTextureHandleResidentARB(matlProxy.diffuseMapHandle);
+                                textureMap.insert({ albedo->name, matlProxy.diffuseMapHandle });
+                            }
+                            else
+                            {
+                                matlProxy.diffuseMapHandle = entry->second;
+                            }
+                        }
+                        else
+                        {
+                            matlProxy.kAlbedo = glm::vec4(pbr->parameter.kAlbedo, 1.f);
+                        }
+                        if (auto normal = pbr->parameter.normal)
+                        {
+                            auto entry = textureMap.find(normal->name);
+                            if (entry == textureMap.end())
+                            {
+                                matlProxy.normalMapHandle = glGetTextureHandleARB(normal->getGpuResource());
+                                glMakeTextureHandleResidentARB(matlProxy.diffuseMapHandle);
+                                textureMap.insert({ normal->name, matlProxy.normalMapHandle });
+                            }
+                            else
+                            {
+                                matlProxy.normalMapHandle = entry->second;
+                            }
+                        }
+                        if (auto metallicRoughness = pbr->parameter.metallicRoughness)
+                        {
+                            auto entry = textureMap.find(metallicRoughness->name);
+                            if (entry == textureMap.end())
+                            {
+                                matlProxy.metallicRoughnessMapHandle = glGetTextureHandleARB(metallicRoughness->getGpuResource());
+                                glMakeTextureHandleResidentARB(matlProxy.diffuseMapHandle);
+                                textureMap.insert({ metallicRoughness->name, matlProxy.metallicRoughnessMapHandle });
+                            }
+                            else
+                            {
+                                matlProxy.metallicRoughnessMapHandle = entry->second;
+                            }
+                        }
+                        else
+                        {
+                            matlProxy.kMetallicRoughness = glm::vec4(pbr->parameter.kMetallic, pbr->parameter.kRoughness, 0.f, 0.f);
+                        }
+                    }
+                    else
+                    {
+                        desc.material = entry->second;
+                    }
+                }
             }
         }
 
@@ -166,10 +236,11 @@ namespace Cyan
 #define VIEW_SSBO_BINDING 0
 #define TRANSFORM_SSBO_BINDING 3
 #define INSTANCE_DESC_BINDING 41
-#define SUBMESH_BUFFER_BINDING 45
-#define VERTEX_BUFFER_BINDING 42
-#define INDEX_BUFFER_BINDING 43
-#define DRAWCALL_BUFFER_BINDING 44
+#define SUBMESH_BUFFER_BINDING 42
+#define VERTEX_BUFFER_BINDING 43
+#define INDEX_BUFFER_BINDING 44
+#define DRAWCALL_BUFFER_BINDING 45
+#define MATERIAL_BUFFER_BINDING 46
 
         // bind global ssbo
         ViewSsbo& viewSsbo = *(viewSsboPtr.get());
@@ -187,6 +258,8 @@ namespace Cyan
         instances.bind(INSTANCE_DESC_BINDING);
         submeshes.update();
         submeshes.bind(SUBMESH_BUFFER_BINDING);
+        materials.update();
+        materials.bind(MATERIAL_BUFFER_BINDING);
         drawCalls.update();
         drawCalls.bind(DRAWCALL_BUFFER_BINDING);
 
