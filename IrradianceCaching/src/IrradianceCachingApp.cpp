@@ -4,7 +4,6 @@
 #include "Scene.h"
 #include "RayTracingScene.h"
 
-// todo: im
 class IrradianceCachingApp : public Cyan::DefaultApp
 {
 public:
@@ -22,12 +21,11 @@ public:
 #if 0
         AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/cornell_box.gltf", "CornellBox");
 #else
-        // AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/shader_balls.glb", "ShaderBallScene");
-        AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/sponza-gltf-pbr/sponza.glb", "ShaderBallScene");
+        AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/shader_balls.glb", "ShaderBallScene");
 #endif
 
         // sun light
-        m_scene->createDirectionalLight("SunLight", glm::vec3(1.f), glm::vec4(1.f, 1.f, 1.f, 5.920f));
+        m_scene->createDirectionalLight("SunLight", glm::vec3(1.f, 1.5f, 2.5f), glm::vec4(1.f, 1.f, 1.f, 5.f));
         m_scene->update();
 
         // ray tracer

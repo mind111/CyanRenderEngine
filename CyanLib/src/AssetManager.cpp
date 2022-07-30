@@ -558,54 +558,57 @@ namespace Cyan
                 CYAN_ASSERT(nameLen < kMaxNameLength, "Texture filename too long!");
                 sprintf(textureName, "%s", image.uri.c_str());
             }
-            const auto& sampler = model.samplers[gltfTexture.sampler];
             ITextureRenderable::Parameter parameter = { };
-            switch (sampler.minFilter)
+            if (gltfTexture.sampler >= 0)
             {
-            case TINYGLTF_TEXTURE_FILTER_LINEAR:
-                parameter.minificationFilter = FM_BILINEAR;
-                break;
-            case TINYGLTF_TEXTURE_FILTER_NEAREST:
-                parameter.minificationFilter = FM_POINT;
-                break;
-            case TINYGLTF_TEXTURE_FILTER_LINEAR_MIPMAP_LINEAR:
-                parameter.minificationFilter = FM_TRILINEAR;
-                break;
-            default:
-                break;
-            }
-            switch (sampler.magFilter)
-            {
-            case TINYGLTF_TEXTURE_FILTER_LINEAR:
-                parameter.magnificationFilter = FM_BILINEAR;
-                break;
-            case TINYGLTF_TEXTURE_FILTER_NEAREST:
-                parameter.magnificationFilter = FM_POINT;
-                break;
-            default:
-                break;
-            }
-            switch (sampler.wrapS)
-            {
-            case TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE:
-                parameter.wrap_s = WM_CLAMP;
-                break;
-            case TINYGLTF_TEXTURE_WRAP_REPEAT:
-                parameter.wrap_s = WM_WRAP;
-                break;
-            default:
-                break;
-            }
-            switch (sampler.wrapT)
-            {
-            case TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE:
-                parameter.wrap_t = WM_CLAMP;
-                break;
-            case TINYGLTF_TEXTURE_WRAP_REPEAT:
-                parameter.wrap_t = WM_WRAP;
-                break;
-            default:
-                break;
+                const auto& sampler = model.samplers[gltfTexture.sampler];
+                switch (sampler.minFilter)
+                {
+                case TINYGLTF_TEXTURE_FILTER_LINEAR:
+                    parameter.minificationFilter = FM_BILINEAR;
+                    break;
+                case TINYGLTF_TEXTURE_FILTER_NEAREST:
+                    parameter.minificationFilter = FM_POINT;
+                    break;
+                case TINYGLTF_TEXTURE_FILTER_LINEAR_MIPMAP_LINEAR:
+                    parameter.minificationFilter = FM_TRILINEAR;
+                    break;
+                default:
+                    break;
+                }
+                switch (sampler.magFilter)
+                {
+                case TINYGLTF_TEXTURE_FILTER_LINEAR:
+                    parameter.magnificationFilter = FM_BILINEAR;
+                    break;
+                case TINYGLTF_TEXTURE_FILTER_NEAREST:
+                    parameter.magnificationFilter = FM_POINT;
+                    break;
+                default:
+                    break;
+                }
+                switch (sampler.wrapS)
+                {
+                case TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE:
+                    parameter.wrap_s = WM_CLAMP;
+                    break;
+                case TINYGLTF_TEXTURE_WRAP_REPEAT:
+                    parameter.wrap_s = WM_WRAP;
+                    break;
+                default:
+                    break;
+                }
+                switch (sampler.wrapT)
+                {
+                case TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE:
+                    parameter.wrap_t = WM_CLAMP;
+                    break;
+                case TINYGLTF_TEXTURE_WRAP_REPEAT:
+                    parameter.wrap_t = WM_WRAP;
+                    break;
+                default:
+                    break;
+                }
             }
             texture = createTexture2D(textureName, spec, parameter);
         }
@@ -668,6 +671,7 @@ namespace Cyan
             for (u32 sm = 0u; sm < gltfMesh.primitives.size(); ++sm) 
             {
                 PBRMaterial* matl = nullptr;
+                std::string matlName;
 
                 auto& primitive = gltfMesh.primitives[sm];
                 if (primitive.material > -1) 
@@ -689,7 +693,6 @@ namespace Cyan
 
                     auto& gltfMaterial = model.materials[primitive.material];
                     auto pbr = gltfMaterial.pbrMetallicRoughness;
-                    std::string matlName;
                     if (gltfMaterial.name.empty())
                     {
                         char buffer[256] = { };
@@ -722,6 +725,11 @@ namespace Cyan
                     }
                     matl->parameter.occlusion = getTexture(gltfMaterial.occlusionTexture.index);
                     matl->parameter.kEmissive = glm::vec3(gltfMaterial.emissiveFactor[0], gltfMaterial.emissiveFactor[1], gltfMaterial.emissiveFactor[2]);
+                }
+                // fallback to cyan's default material
+                else
+                {
+                    matl = createMaterial<PBRMaterial>("DefaultMaterial");
                 }
                 staticMeshEntity->setMaterial(matl, sm);
             }
