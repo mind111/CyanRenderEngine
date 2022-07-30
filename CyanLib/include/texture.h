@@ -22,7 +22,7 @@
 // FM stands for "filter mode"
 #define FM_POINT Cyan::ITextureRenderable::Parameter::Filtering::NEAREST
 #define FM_BILINEAR Cyan::ITextureRenderable::Parameter::Filtering::LINEAR
-#define FM_MIPMAP_LINEAR Cyan::ITextureRenderable::Parameter::Filtering::MIPMAP_LINEAR
+#define FM_TRILINEAR Cyan::ITextureRenderable::Parameter::Filtering::LINEAR_MIPMAP_LINEAR
 // PF stands for "pixel format" 
 #define PF_RGB16F Cyan::ITextureRenderable::Spec::PixelFormat::RGB16F
 #define PF_RGB32F Cyan::ITextureRenderable::Spec::PixelFormat::RGB32F
@@ -87,7 +87,7 @@ namespace Cyan
             {
                 LINEAR = 0,
                 NEAREST,
-                MIPMAP_LINEAR,
+                LINEAR_MIPMAP_LINEAR,
             };
 
             enum class WrapMode
@@ -205,7 +205,7 @@ namespace Cyan
                 {
                 case Parameter::Filtering::LINEAR:
                     return GL_LINEAR;
-                case Parameter::Filtering::MIPMAP_LINEAR:
+                case Parameter::Filtering::LINEAR_MIPMAP_LINEAR:
                     return GL_LINEAR_MIPMAP_LINEAR;
                 case Parameter::Filtering::NEAREST:
                     return GL_NEAREST;

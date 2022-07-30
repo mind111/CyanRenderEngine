@@ -19,7 +19,8 @@ in VSOutput
 	vec3 viewSpacePosition;
 	vec3 worldSpacePosition;
 	vec3 worldSpaceNormal;
-	vec3 viewSpaceTangent;
+	vec3 worldSpaceTangent;
+	flat float tangentSpaceHandedness;
 	vec2 texCoord0;
 	vec2 texCoord1;
     vec3 vertexColor;
@@ -277,32 +278,29 @@ struct MaterialParameters
 	float occlusion;
 };
 
-vec4 tangentSpaceToViewSpace(vec3 tn, vec3 vn, vec3 t) 
+vec4 tangentSpaceToWorldSpace(vec3 tangent, vec3 bitangent, vec3 worldSpaceNormal, vec3 tangentSpaceNormal) 
 {
     mat4 tbn;
-    // apply Gram-Schmidt process
-    t = normalize(t - dot(t, vn) * vn);
-    vec3 b = cross(vn, t);
-    tbn[0] = vec4(t, 0.f);
-    tbn[1] = vec4(b, 0.f);
-    tbn[2] = vec4(vn, 0.f);
+    tbn[0] = vec4(tangent, 0.f);
+    tbn[1] = vec4(bitangent, 0.f);
+    tbn[2] = vec4(worldSpaceNormal, 0.f);
     tbn[3] = vec4(0.f, 0.f, 0.f, 1.f);
-    return tbn * vec4(tn, 0.0f);
+    return tbn * vec4(tangentSpaceNormal, 0.0f);
 }
 
-MaterialParameters getMaterialParameters(vec3 worldSpaceNormal, vec3 worldSpaceTangent, vec2 texCoord)
+MaterialParameters getMaterialParameters(vec3 worldSpaceTangent, vec3 worldSpaceBitangent, vec3 worldSpaceNormal, vec2 texCoord)
 {
 	MaterialParameters materialParameters;
 
     materialParameters.normal = worldSpaceNormal;
-    if ((psIn.material.flags & kHasDiffuseMap) != 0u)
+    if ((psIn.material.flags & kHasNormalMap) != 0u)
     {
         sampler2D sampler = sampler2D(psIn.material.normalMap);
-        vec3 tn = texture(sampler, texCoord).xyz;
-        // Convert from [0, 1] to [-1.0, 1.0] and renomalize if texture filtering changes the length
-        tn = normalize(tn * 2.f - vec3(1.f));
-        // Covert normal from tangent frame to camera space
-        materialParameters.normal = tangentSpaceToViewSpace(tn, worldSpaceNormal, worldSpaceTangent).xyz;
+        vec3 tangentSpaceNormal = texture(sampler, vec2(texCoord.x, texCoord.y)).xyz;
+        // convert from [0, 1] to [-1.0, 1.0] and renomalize if texture filtering changes the length
+        tangentSpaceNormal = normalize(tangentSpaceNormal * 2.f - 1.f);
+        // covert normal from tangent frame to world space
+        materialParameters.normal = normalize(tangentSpaceToWorldSpace(worldSpaceTangent, worldSpaceBitangent, worldSpaceNormal, tangentSpaceNormal).xyz);
     }
 
     materialParameters.albedo = psIn.material.kAlbedo.rgb;
@@ -310,7 +308,7 @@ MaterialParameters getMaterialParameters(vec3 worldSpaceNormal, vec3 worldSpaceT
     {
         sampler2D sampler = sampler2D(psIn.material.diffuseMap);
         materialParameters.albedo = texture(sampler, texCoord).rgb;
-		// from sRGB to linear space if using a texture
+		// convert color from sRGB to linear space if using a texture
 		materialParameters.albedo = vec3(pow(materialParameters.albedo.r, 2.2f), pow(materialParameters.albedo.g, 2.2f), pow(materialParameters.albedo.b, 2.2f));
     }
 
@@ -529,8 +527,8 @@ vec3 calcLighting(SceneLights sceneLights, in MaterialParameters materialParamet
     vec3 radiance = vec3(0.f);
 
     // ambient light using flat shading
-    float ndotl = dot(materialParameters.normal, normalize(-psIn.viewSpacePosition)) * .5 + .5f;
-    radiance += vec3(0.15, 0.3, 0.5) * exp(0.01 * -length(psIn.viewSpacePosition)) * ndotl * materialParameters.albedo;
+    // float ndotl = dot(materialParameters.normal, normalize(-psIn.viewSpacePosition)) * .5 + .5f;
+    // radiance += vec3(0.15, 0.3, 0.5) * exp(0.01 * -length(psIn.viewSpacePosition)) * ndotl * materialParameters.albedo;
     // sun light
     radiance += calcDirectionalLight(sceneLights.directionalLight, materialParameters, worldSpacePosition);
     // radiance += calcSkyLight(sceneLights.skyLight, materialParameters, worldSpacePosition);
@@ -539,10 +537,13 @@ vec3 calcLighting(SceneLights sceneLights, in MaterialParameters materialParamet
 
 void main()
 {
-    vec3 viewSpaceTangent = normalize(psIn.viewSpaceTangent);
+    vec3 worldSpaceTangent = normalize(psIn.worldSpaceTangent);
     vec3 worldSpaceNormal = normalize(psIn.worldSpaceNormal);
+    worldSpaceTangent = normalize(worldSpaceTangent - dot(worldSpaceNormal, worldSpaceTangent) * worldSpaceNormal); 
+    vec3 worldSpaceBitangent = normalize(cross(worldSpaceNormal, worldSpaceTangent)) * psIn.tangentSpaceHandedness;
+
     // todo: transform tangent back to world space
-    MaterialParameters materialParameters = getMaterialParameters(worldSpaceNormal, viewSpaceTangent, psIn.texCoord0);
+    MaterialParameters materialParameters = getMaterialParameters(worldSpaceTangent, worldSpaceBitangent, worldSpaceNormal, psIn.texCoord0);
     outColor = calcLighting(sceneLights, materialParameters, psIn.worldSpacePosition);
-    outColor *= length(psIn.vertexColor);
+    // outColor = materialParameters.normal * .5 + .5;
 }

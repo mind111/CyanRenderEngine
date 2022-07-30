@@ -374,13 +374,18 @@ namespace Cyan
         Mesh* parent = nullptr;
         if (extension == ".obj")
         {
-            cyanInfo("Loading .obj file %s", path.c_str());
+            cyanInfo("Importing .obj file %s", path.c_str());
             std::vector<ISubmesh*> submeshes = std::move(importObj(baseDir.c_str(), path.c_str(), generateLightMapUv));
             parent = createMesh(name, submeshes);
         }
         else if (extension == ".gltf")
         {
-            cyanInfo("Loading .gltf file %s", path.c_str());
+            cyanInfo("Importing .gltf file %s", path.c_str());
+            importGltf(scene, path.c_str(), name);
+        }
+        else if (extension == ".glb")
+        {
+            cyanInfo("Importing .glb file %s", path.c_str());
             importGltf(scene, path.c_str(), name);
         }
         else
@@ -491,7 +496,7 @@ namespace Cyan
         using Cyan::Texture2DRenderable;
         Texture2DRenderable* texture = nullptr;
         if (index > -1) {
-            auto gltfTexture = model.textures[index];
+            const auto& gltfTexture = model.textures[index];
             auto image = model.images[gltfTexture.source];
             u32 sizeInBytes = image.image.size();
             Cyan::ITextureRenderable::Spec spec = { };
@@ -535,13 +540,74 @@ namespace Cyan
                     break;
                 }
             }
-            spec.numMips = 11;
+            spec.numMips = std::log2(min(image.width, image.height)) + 1;
             spec.pixelData = reinterpret_cast<u8*>(image.image.data());
-            u32 nameLen = (u32)strlen(image.uri.c_str());
-            CYAN_ASSERT(nameLen < 128, "Texture filename too long!");
-            char name[128];
-            sprintf(name, "%s", image.uri.c_str());
-            texture = createTexture2D(name, spec);
+            const u32 kMaxNameLength = 256;
+            char textureName[kMaxNameLength];
+            // use image name as texture name
+            if (!image.name.empty())
+            {
+                u32 nameLen = (u32)strlen(image.name.c_str());
+                CYAN_ASSERT(nameLen < kMaxNameLength, "Texture filename too long!");
+                sprintf(textureName, "%s", image.name.c_str());
+            }
+            // use uri as texture name since image name is empty
+            else
+            {
+                u32 nameLen = (u32)strlen(image.uri.c_str());
+                CYAN_ASSERT(nameLen < kMaxNameLength, "Texture filename too long!");
+                sprintf(textureName, "%s", image.uri.c_str());
+            }
+            const auto& sampler = model.samplers[gltfTexture.sampler];
+            ITextureRenderable::Parameter parameter = { };
+            switch (sampler.minFilter)
+            {
+            case TINYGLTF_TEXTURE_FILTER_LINEAR:
+                parameter.minificationFilter = FM_BILINEAR;
+                break;
+            case TINYGLTF_TEXTURE_FILTER_NEAREST:
+                parameter.minificationFilter = FM_POINT;
+                break;
+            case TINYGLTF_TEXTURE_FILTER_LINEAR_MIPMAP_LINEAR:
+                parameter.minificationFilter = FM_TRILINEAR;
+                break;
+            default:
+                break;
+            }
+            switch (sampler.magFilter)
+            {
+            case TINYGLTF_TEXTURE_FILTER_LINEAR:
+                parameter.magnificationFilter = FM_BILINEAR;
+                break;
+            case TINYGLTF_TEXTURE_FILTER_NEAREST:
+                parameter.magnificationFilter = FM_POINT;
+                break;
+            default:
+                break;
+            }
+            switch (sampler.wrapS)
+            {
+            case TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE:
+                parameter.wrap_s = WM_CLAMP;
+                break;
+            case TINYGLTF_TEXTURE_WRAP_REPEAT:
+                parameter.wrap_s = WM_WRAP;
+                break;
+            default:
+                break;
+            }
+            switch (sampler.wrapT)
+            {
+            case TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE:
+                parameter.wrap_t = WM_CLAMP;
+                break;
+            case TINYGLTF_TEXTURE_WRAP_REPEAT:
+                parameter.wrap_t = WM_WRAP;
+                break;
+            default:
+                break;
+            }
+            texture = createTexture2D(textureName, spec, parameter);
         }
         return texture;
     }
@@ -612,15 +678,29 @@ namespace Cyan
                         if (imageIndex > -1 && imageIndex < model.images.size()) 
                         {
                             auto& image = model.images[imageIndex];
-                            texture = getAsset<Texture2DRenderable>(image.uri.c_str());
+                            texture = getAsset<Texture2DRenderable>(image.name.c_str());
+                            if (!texture)
+                            {
+                                texture = getAsset<Texture2DRenderable>(image.uri.c_str());
+                            }
                         }
                         return texture;
                     };
 
                     auto& gltfMaterial = model.materials[primitive.material];
                     auto pbr = gltfMaterial.pbrMetallicRoughness;
-
-                    matl = createMaterial<PBRMaterial>(gltfMaterial.name.c_str());
+                    std::string matlName;
+                    if (gltfMaterial.name.empty())
+                    {
+                        char buffer[256] = { };
+                        sprintf_s(buffer, "material_%d", primitive.material);
+                        matlName = buffer;
+                    }
+                    else
+                    {
+                        matlName = gltfMaterial.name;
+                    }
+                    matl = createMaterial<PBRMaterial>(matlName.c_str());
                     if (pbr.baseColorTexture.index > -1)
                     {
                         matl->parameter.albedo = getTexture(pbr.baseColorTexture.index);
@@ -780,7 +860,9 @@ namespace Cyan
 
     Cyan::Mesh* AssetManager::importGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh) 
     {
-
+        char timerName[64] = { };
+        sprintf_s(timerName, "importing mesh %s", gltfMesh.name.c_str());
+        ScopedTimer timer(timerName, true);
         std::vector<ISubmesh*> submeshes;
 
         // primitives (submeshes)
@@ -828,7 +910,7 @@ namespace Cyan
                     else if (itr->first.compare("TANGENT") == 0)
                     {
                         // sanity checks (assume that tangent can only be in vec4)
-                        CYAN_ASSERT(accessor.type == TINYGLTF_TYPE_VEC4, "Position attributes in format other than Vec4 is not allowed")
+                        CYAN_ASSERT(accessor.type == TINYGLTF_TYPE_VEC4, "Tangent attributes in format other than Vec4 is not allowed")
 
                         for (u32 v = 0; v < vertices.size(); ++v)
                         {
@@ -849,7 +931,7 @@ namespace Cyan
                             for (u32 v = 0; v < vertices.size(); ++v)
                             {
                                 f32* src = reinterpret_cast<f32*>(buffer.data.data() + (accessor.byteOffset + bufferView.byteOffset));
-                                /** Note:
+                                /** note:
                                 * textureUv.y is filped here
                                 */
                                 vertices[v].texCoord0 = glm::vec2(src[v * 2], 1.0 - src[v * 2 + 1]);
@@ -879,6 +961,7 @@ namespace Cyan
                     indices.resize(numIndices);
                     tinygltf::BufferView bufferView = model.bufferViews[accessor.bufferView];
                     tinygltf::Buffer buffer = model.buffers[bufferView.buffer];
+
                     u32 srcIndexSize = tinygltf::GetComponentSizeInBytes(accessor.componentType);
                     switch (srcIndexSize)
                     {
@@ -926,8 +1009,6 @@ namespace Cyan
         } // primitive (submesh)
 
         Mesh* parent = createMesh(gltfMesh.name.c_str(), submeshes);
-        // todo: (handle converting mesh data for raster pipeline to ray tracing pipeline)
-        // mesh->m_bvh = nullptr;
         return parent;
     }
 
@@ -939,15 +1020,39 @@ namespace Cyan
 
     void AssetManager::importGltf(Scene* scene, const char* filename, const char* name)
     {
-        using Cyan::Mesh;
+        u32 filenameLength = strlen(filename) + strlen("Importing gltf ");
+        u32 bufferSize = filenameLength + 1;
+        char* timerName = static_cast<char*>(alloca(bufferSize));
+        sprintf_s(timerName, bufferSize, "Importing gltf %s", filename);
+        ScopedTimer timer(timerName, true);
+
         tinygltf::Model model;
         std::string warn, err;
         auto sceneManager = SceneManager::get();
-        if (!singleton->m_gltfImporter.LoadASCIIFromFile(&model, &err, &warn, std::string(filename)))
+
+        std::string path(filename);
+        u32 found = path.find_last_of('.');
+        std::string extension = path.substr(found, found + 1);
+        found = path.find_last_of('/');
+        std::string baseDir = path.substr(0, found);
+
+        if (extension == ".gltf")
         {
-            std::cout << warn << std::endl;
-            std::cout << err << std::endl;
+            if (!singleton->m_gltfImporter.LoadASCIIFromFile(&model, &err, &warn, std::string(filename)))
+            {
+                std::cout << warn << std::endl;
+                std::cout << err << std::endl;
+            }
         }
+        else if (extension == ".glb")
+        {
+            if (!singleton->m_gltfImporter.LoadBinaryFromFile(&model, &err, &warn, std::string(filename)))
+            {
+                std::cout << warn << std::endl;
+                std::cout << err << std::endl;
+            }
+        }
+
         tinygltf::Scene& gltfScene = model.scenes[model.defaultScene];
         // import textures
         singleton->importGltfTextures(name, model);

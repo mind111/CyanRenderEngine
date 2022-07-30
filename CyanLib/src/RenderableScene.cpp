@@ -99,6 +99,7 @@ namespace Cyan
 
         std::unordered_map<std::string, u32> materialMap;
         std::unordered_map<std::string, u64> textureMap;
+
         // build instance descriptors
         for (u32 i = 0; i < meshInstances.size(); ++i)
         {
@@ -150,7 +151,7 @@ namespace Cyan
                             if (entry == textureMap.end())
                             {
                                 matlProxy.normalMapHandle = glGetTextureHandleARB(normal->getGpuResource());
-                                glMakeTextureHandleResidentARB(matlProxy.diffuseMapHandle);
+                                glMakeTextureHandleResidentARB(matlProxy.normalMapHandle);
                                 textureMap.insert({ normal->name, matlProxy.normalMapHandle });
                             }
                             else
@@ -164,7 +165,7 @@ namespace Cyan
                             if (entry == textureMap.end())
                             {
                                 matlProxy.metallicRoughnessMapHandle = glGetTextureHandleARB(metallicRoughness->getGpuResource());
-                                glMakeTextureHandleResidentARB(matlProxy.diffuseMapHandle);
+                                glMakeTextureHandleResidentARB(matlProxy.metallicRoughnessMapHandle);
                                 textureMap.insert({ metallicRoughness->name, matlProxy.metallicRoughnessMapHandle });
                             }
                             else
@@ -179,7 +180,7 @@ namespace Cyan
                     }
                     else
                     {
-                        desc.material = entry->second;
+                        desc.material = matlEntry->second;
                     }
                 }
             }

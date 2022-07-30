@@ -448,7 +448,7 @@ namespace Cyan
             bool autoFilterVoxelGrid = true;
             f32  exposure = 1.f;
             f32 bloomIntensity = 0.7f;
-            f32 colorTempreture = 5000.f;
+            f32 colorTempreture = 6500.f;
         } m_settings;
 
         u32           m_windowWidth, m_windowHeight;

@@ -215,7 +215,7 @@ namespace Cyan
         spec.type = ITextureRenderable::Spec::Type::kTexCube;
         spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGB16F;
         ITextureRenderable::Parameter parameter = { };
-        parameter.minificationFilter = ITextureRenderable::Parameter::Filtering::MIPMAP_LINEAR;
+        parameter.minificationFilter = ITextureRenderable::Parameter::Filtering::LINEAR_MIPMAP_LINEAR;
         // m_convolvedReflectionTexture = AssetManager::createTextureCube("IrradianceProbe", spec, parameter);
 
         if (!s_convolveReflectionShader)

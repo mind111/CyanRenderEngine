@@ -19,7 +19,8 @@ out VSOutput
 	vec3 viewSpacePosition;
 	vec3 worldSpacePosition;
 	vec3 worldSpaceNormal;
-	vec3 viewSpaceTangent;
+	vec3 worldSpaceTangent;
+	flat float tangentSpaceHandedness;
 	vec2 texCoord0;
 	vec2 texCoord1;
 	vec3 vertexColor;
@@ -114,8 +115,11 @@ void main()
 
 	vsOut.worldSpacePosition = (transformSsbo.models[instance.transform] * vertex.pos).xyz;
 	vsOut.viewSpacePosition = (viewSsbo.view * transformSsbo.models[instance.transform] * vertex.pos).xyz;
-	vsOut.worldSpaceNormal = (inverse(transpose(transformSsbo.models[instance.transform])) * vertex.normal).xyz;
-	vsOut.viewSpaceTangent = (viewSsbo.view * transformSsbo.models[instance.transform] * vertex.tangent).xyz;
+	vsOut.worldSpaceNormal = normalize((inverse(transpose(transformSsbo.models[instance.transform])) * vertex.normal).xyz);
+	vsOut.worldSpaceTangent = normalize((transformSsbo.models[instance.transform] * vec4(vertex.tangent.xyz, 0.f)).xyz);
+	// vsOut.worldSpaceTangent = normalize(vertex.tangent.xyz);
+	vsOut.tangentSpaceHandedness = vertex.tangent.w;
+
 	vsOut.texCoord0 = vertex.texCoord.xy;
 	vsOut.texCoord1 = vertex.texCoord.zw;
 	vsOut.vertexColor = vertex.normal.xyz * .5 + .5;

@@ -277,13 +277,4 @@ namespace Cyan
 #endif
 }
 
-// TODO: implement serialization
-struct MeshBinaryDescriptor
-{
-    u32 version;
-    u32 name;
-    u32 shouldNormalize;
-    u32 numSubMeshes;
-};
-
 extern float cubeVertices[108];

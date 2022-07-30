@@ -158,7 +158,7 @@ namespace Cyan
                 spec.depth = m_sceneVoxelGrid.resolution;
                 spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R8G8B8A8;
                 ITextureRenderable::Parameter parameter = { };
-                parameter.minificationFilter = ITextureRenderable::Parameter::Filtering::MIPMAP_LINEAR;
+                parameter.minificationFilter = ITextureRenderable::Parameter::Filtering::LINEAR_MIPMAP_LINEAR;
                 parameter.magnificationFilter = ITextureRenderable::Parameter::Filtering::NEAREST;
                 // m_sceneVoxelGrid.normal = AssetManager::createTexture3D("VoxelGridNormal", spec, parameter);
                 // m_sceneVoxelGrid.emission = AssetManager::createTexture3D("VoxelGridEmission", spec, parameter);
@@ -690,7 +690,6 @@ namespace Cyan
             * tone mapping
         */
         //-------------------------------------------------------------------
-
         beginRender();
         {
 #if 1
@@ -703,7 +702,6 @@ namespace Cyan
                 camera.projection[2][1] += -TAAJitterVectors[m_numFrames % ARRAY_COUNT(TAAJitterVectors)].y;
             }
 #endif
-
             glm::uvec2 renderResolution = m_settings.enableAA ? glm::uvec2(m_SSAAWidth, m_SSAAHeight) : glm::uvec2(m_windowWidth, m_windowHeight);
             static SceneView sceneView(*scene, scene->camera->getCamera(), EntityFlag_kVisible);
             // convert Scene instance to RenderableScene instance for rendering
@@ -775,7 +773,7 @@ namespace Cyan
                 bloomOutput = bloom(sceneColorTexture);
             }
             finalColorOutput = composite(sceneColorTexture, bloomOutput, glm::uvec2(m_windowWidth, m_windowHeight));
-            renderToScreen(finalColorOutput);
+            renderToScreen(sceneColorTexture);
 
             m_renderQueue.execute();
 #endif
@@ -1024,7 +1022,7 @@ namespace Cyan
                         false,
                         { 0u, 0u, outSceneColor->spec.width, outSceneColor->spec.height },
                         GfxPipelineState(), 
-                        meshInst, 
+                        meshInst,
                         transformIndex++
                     );
                 }
@@ -1064,17 +1062,6 @@ namespace Cyan
 
                 // build indirect draw commands
                 auto ptr = reinterpret_cast<IndirectDrawArrayCommand*>(renderableScene.indirectDrawBuffer.data);
-#if 0
-                for (u32 i = 0; i < renderableScene.instances.ssboStruct.dynamicArray.size(); ++i) 
-                {
-                    const RenderableScene::InstanceDesc& desc = renderableScene.instances.ssboStruct.dynamicArray[i];
-                    IndirectDrawArrayCommand& command = ptr[i];
-                    command.first = 0;
-                    command.count = renderableScene.submeshes.ssboStruct.dynamicArray[desc.submesh].numIndices;
-                    command.instanceCount = 1;
-                    command.baseInstance = 0;
-                }
-#else
                 for (u32 draw = 0; draw < renderableScene.drawCalls.getNumElements() - 1; ++draw)
                 {
                     IndirectDrawArrayCommand& command = ptr[draw];
@@ -1085,7 +1072,6 @@ namespace Cyan
                     command.instanceCount = renderableScene.drawCalls[draw + 1] - renderableScene.drawCalls[draw];
                     command.baseInstance = 0;
                 }
-#endif
 
                 glBindBuffer(GL_DRAW_INDIRECT_BUFFER, renderableScene.indirectDrawBuffer.buffer);
 
