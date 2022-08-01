@@ -5,11 +5,6 @@
 
 namespace Cyan
 {
-    void CameraEntity::move()
-    {
-
-    }
-
     void CameraEntity::orbit(f32 phi, f32 theta)
     {
         ICamera* camera = getCamera();

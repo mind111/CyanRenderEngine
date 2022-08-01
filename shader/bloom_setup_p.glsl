@@ -21,8 +21,8 @@ void main()
     // non-thresholded bloom
     if (lumin > 0.0f)
     {
+        // boost the constrast using luminance
         float bloomScale = clamp(lumin, 0.0, 1.0);
-        // boost the constrast
-        outColor = vec4(bloomScale * inColor * 1.0f, 1.f);
+        outColor = vec4(bloomScale * inColor * 0.04f, 1.f);
     }
 }

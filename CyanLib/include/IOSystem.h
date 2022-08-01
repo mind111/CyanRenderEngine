@@ -144,7 +144,7 @@ namespace Cyan
 
             virtual void notify(IEvent* event)
             {
-                if (event->getTypeDesc().compare("MouseCursorEvent") == 0)
+                if (event->getTypeDesc().compare("KeyEvent") == 0)
                 {
                     KeyEvent* keyEvent = static_cast<KeyEvent*>(event);
                     callback(keyEvent->key, keyEvent->action);

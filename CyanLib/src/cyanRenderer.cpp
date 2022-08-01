@@ -708,6 +708,7 @@ namespace Cyan
             static RenderableScene renderableScene(scene, sceneView, m_frameAllocator);
             renderableScene.setView(scene->camera->view());
             renderableScene.setProjection(scene->camera->projection());
+
 #if 0
             renderShadow(*scene, renderableScene);
 
@@ -768,12 +769,9 @@ namespace Cyan
             // post processing
             RenderTexture2D* bloomOutput = nullptr;
             RenderTexture2D* finalColorOutput = nullptr;
-            if (m_settings.enableBloom)
-            {
-                bloomOutput = bloom(sceneColorTexture);
-            }
+            bloomOutput = bloom(sceneColorTexture);
             finalColorOutput = composite(sceneColorTexture, bloomOutput, glm::uvec2(m_windowWidth, m_windowHeight));
-            renderToScreen(sceneColorTexture);
+            renderToScreen(finalColorOutput);
 
             m_renderQueue.execute();
 #endif
@@ -1308,7 +1306,7 @@ namespace Cyan
         RenderTexture2D* compositeOutput = m_renderQueue.createTexture2D("CompositedColorOutput", spec);
 
         // add a reconstruction pass using Gaussian filter
-        auto filteredSceneColor = gaussianBlur(inSceneColor, 3u, 2.0f);
+        auto filteredSceneColor = gaussianBlur(inSceneColor, 2u, 1.0f);
 
         m_renderQueue.addPass(
             "CompositePass",
@@ -1327,6 +1325,8 @@ namespace Cyan
                     { { 0 } },
                     compositeShader,
                     [this, inBloomColor, filteredSceneColor](RenderTarget* renderTarget, Shader* shader) {
+                        shader->setUniform("enableTonemapping", m_settings.enableTonemapping ? 1.f : 0.f);
+                        shader->setUniform("tonemapOperator", m_settings.tonemapOperator);
                         shader->setUniform("exposure", m_settings.exposure)
                             .setUniform("colorTempreture", m_settings.colorTempreture)
                             .setUniform("enableBloom", m_settings.enableBloom ? 1.f : 0.f)

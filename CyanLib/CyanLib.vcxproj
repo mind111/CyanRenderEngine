@@ -28,7 +28,7 @@
     <ClInclude Include="include\Asset.h" />
     <ClInclude Include="include\AssetManager.h" />
     <ClInclude Include="include\BVH.h" />
-    <ClInclude Include="include\Camera.h" />
+    <ClInclude Include="include\camera.h" />
     <ClInclude Include="include\Common.h" />
     <ClInclude Include="include\Component.h" />
     <ClInclude Include="include\CyanAPI.h" />

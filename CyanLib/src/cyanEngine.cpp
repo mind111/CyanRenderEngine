@@ -81,8 +81,36 @@ namespace Cyan
             m_scene->camera->zoom(speed * yOffset);
         });
 
-        m_IOSystem->addIOEventListener<Cyan::KeyEvent>([](i32 key, i32 action) {
-
+        m_IOSystem->addIOEventListener<Cyan::KeyEvent>([this](i32 key, i32 action) {
+            switch (key)
+            {
+            case GLFW_KEY_W:
+            {
+                if (action == CYAN_PRESS || action == GLFW_REPEAT)
+                    m_scene->camera->moveForward();
+                break;
+            }
+            case GLFW_KEY_A:
+            {
+                if (action == CYAN_PRESS || action == GLFW_REPEAT)
+                    m_scene->camera->moveLeft();
+                break;
+            }
+            case GLFW_KEY_S:
+            {
+                if (action == CYAN_PRESS || action == GLFW_REPEAT)
+                    m_scene->camera->moveBack();
+                break;
+            }
+            case GLFW_KEY_D:
+            {
+                if (action == CYAN_PRESS || action == GLFW_REPEAT)
+                    m_scene->camera->moveRight();
+                break;
+            }
+            default:
+                break;
+            }
         });
     }
 
@@ -319,12 +347,12 @@ namespace Cyan
         if (ImGui::Begin("##TODOs", 0, windowFlags))
         {
             ImGui::TextColored(ImColor(1.f, 0.5f, 0.5f, 1.f), "TODOs");
-            ImGui::BulletText("Irradiance Caching");
-            ImGui::BulletText("Exposure Fusion");
-            ImGui::BulletText("Auto White Balancing");
-            ImGui::BulletText("Physically Based SkyDome");
             ImGui::BulletText("Fix Skybox");
             ImGui::BulletText("Fix SkyLight");
+            ImGui::BulletText("Physically Based SkyDome");
+            ImGui::BulletText("Exposure Fusion");
+            ImGui::BulletText("Auto White Balancing");
+            ImGui::BulletText("Irradiance Caching");
             ImGui::BulletText("Emissive Material");
         }
         ImGui::End();
@@ -345,6 +373,17 @@ namespace Cyan
                 // todo: render a color temperature slider image and blit to ImGui
                 // ImGui::Image((void*)1, ImVec2(ImGui::GetContentRegionAvailWidth(), ImGui::GetTextLineHeight())); ImGui::SameLine();
                 ImGui::SliderFloat("##Color Temperature", &renderer->m_settings.colorTempreture, 1000.f, 10000.f, "%.2f");
+                ImGui::TextUnformatted("Bloom"); ImGui::SameLine();
+                ImGui::Checkbox("##Bloom", &renderer->m_settings.enableBloom);
+                ImGui::TextUnformatted("Tone Mapping"); ImGui::SameLine();
+                ImGui::Checkbox("##Tone Mapping", &renderer->m_settings.enableTonemapping);
+                if (renderer->m_settings.enableTonemapping)
+                {
+                    const char* tonemapOperatorNames[(u32)Renderer::TonemapOperator::kCount] = { "Reinhard", "ACES" };
+                    i32 currentOperator = (i32)renderer->m_settings.tonemapOperator;
+                    ImGui::Combo("Tonemap Operator", &currentOperator, tonemapOperatorNames, (i32)Renderer::TonemapOperator::kCount);
+                    renderer->m_settings.tonemapOperator = (u32)currentOperator;
+                }
             }
         }
         ImGui::EndChild();

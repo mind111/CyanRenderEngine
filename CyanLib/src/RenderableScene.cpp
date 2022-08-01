@@ -127,6 +127,9 @@ namespace Cyan
                         materials.addElement(Material{ });
                         auto& matlProxy = materials[materials.getNumElements() - 1];
                         matlProxy.flags = glm::uvec4(pbr->parameter.getFlags());
+
+                        // albedo
+                        matlProxy.kAlbedo = glm::vec4(pbr->parameter.kAlbedo, 1.f);
                         if (auto albedo = pbr->parameter.albedo)
                         {
                             auto entry = textureMap.find(albedo->name);
@@ -141,10 +144,8 @@ namespace Cyan
                                 matlProxy.diffuseMapHandle = entry->second;
                             }
                         }
-                        else
-                        {
-                            matlProxy.kAlbedo = glm::vec4(pbr->parameter.kAlbedo, 1.f);
-                        }
+
+                        // normal map
                         if (auto normal = pbr->parameter.normal)
                         {
                             auto entry = textureMap.find(normal->name);
@@ -159,6 +160,9 @@ namespace Cyan
                                 matlProxy.normalMapHandle = entry->second;
                             }
                         }
+
+                        // metallicRoughness map
+                        matlProxy.kMetallicRoughness = glm::vec4(pbr->parameter.kMetallic, pbr->parameter.kRoughness, 0.f, 0.f);
                         if (auto metallicRoughness = pbr->parameter.metallicRoughness)
                         {
                             auto entry = textureMap.find(metallicRoughness->name);
@@ -172,10 +176,6 @@ namespace Cyan
                             {
                                 matlProxy.metallicRoughnessMapHandle = entry->second;
                             }
-                        }
-                        else
-                        {
-                            matlProxy.kMetallicRoughness = glm::vec4(pbr->parameter.kMetallic, pbr->parameter.kRoughness, 0.f, 0.f);
                         }
                     }
                     else

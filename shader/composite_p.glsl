@@ -11,6 +11,8 @@ uniform float exposure;
 uniform float colorTempreture;
 uniform float enableBloom;
 uniform float bloomIntensity;
+uniform float enableTonemapping;
+uniform uint tonemapOperator;
 
 uniform sampler2D sceneColorTexture;
 uniform sampler2D bloomColorTexture;
@@ -81,6 +83,15 @@ vec3 ACESFitted(vec3 color)
     return color;
 }
 
+/**
+* linear tonemap operator
+*/
+vec3 linearTonemap()
+{
+    vec3 tonemapped = vec3(0.f);
+    return tonemapped;
+}
+
 /** 
 	* Taken from https://www.shadertoy.com/view/4sc3D7
 */
@@ -99,14 +110,43 @@ void main()
 {
     const float bloomIntensity = .7f;
     vec3 linearColor = texture(sceneColorTexture, psIn.texCoord0).rgb;
-    // boost contrast
-    linearColor *= calcLuminance(linearColor);
+
+    // adjust color tempreture
+    // linearColor *= colorTemperatureToRGB(colorTempreture);
+
+    /** note
+    * random constrast boosting operator
+    */
+    // linearColor *= calcLuminance(linearColor);
+
     if (enableBloom > 0.5f)
     {
-        linearColor = mix(linearColor, texture(bloomColorTexture, psIn.texCoord0).rgb, .5);
+        // linear blending
+       // linearColor = mix(linearColor, texture(bloomColorTexture, psIn.texCoord0).rgb, .5);
+       // additive blending
+       linearColor = linearColor + texture(bloomColorTexture, psIn.texCoord0).rgb;
     }
+
+#define TONEMAPPER_REINHARD 0
+#define TONEMAPPER_ACES 1
+
     // tone mapping
-    vec3 tonemappedColor = ACESFitted(gammaCorrection(exposure * linearColor, 1.f / 2.2f));
-    tonemappedColor *= colorTemperatureToRGB(colorTempreture);
-    outColor = vec4(tonemappedColor, 1.f);
+    if (enableTonemapping > .5f)
+    {
+        vec3 tonemappedColor = vec3(0.f);
+        if (tonemapOperator == TONEMAPPER_ACES)
+        {
+			tonemappedColor = ACESFitted(gammaCorrection(exposure * linearColor, 1.f / 2.2f));
+		}
+        else if (tonemapOperator == TONEMAPPER_REINHARD)
+        {
+			tonemappedColor = ReinhardTonemapping(exposure * linearColor, 100.f);
+			tonemappedColor = gammaCorrection(tonemappedColor, 1.f / 2.2f);
+        }
+		outColor = vec4(tonemappedColor, 1.f);
+	}
+    else
+    {
+        outColor = vec4(gammaCorrection(linearColor, 1.f / 2.2f), 1.f);
+    }
 }

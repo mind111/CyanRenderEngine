@@ -111,6 +111,7 @@ namespace Cyan
         std::unique_ptr<ICamera> cameraPtr;
     };
 
+    // todo: camera's lookAt should be determined from camera's facing direction (forward vector)
     struct CameraEntity : public Entity
     {
         // perspective
@@ -140,7 +141,29 @@ namespace Cyan
         ICamera* getCamera() { return cameraComponentPtr->getCamera(); }
 
         /* Camera movements */
-        void move();
+        void moveForward()
+        { 
+            ICamera* camera = getCamera();
+            getCamera()->position += camera->forward() * 0.1f;
+        }
+
+        void moveLeft()
+        {
+            ICamera* camera = getCamera();
+            getCamera()->position -= camera->right() * 0.1f;
+        }
+        void moveRight()
+        {
+            ICamera* camera = getCamera();
+            getCamera()->position += camera->right() * 0.1f;
+        }
+
+        void moveBack()
+        {
+            ICamera* camera = getCamera();
+            getCamera()->position -= camera->forward() * 0.1f;
+        }
+
         void orbit(f32 phi, f32 theta);
         void rotate();
         void zoom(f32 distance);

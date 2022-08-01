@@ -618,6 +618,7 @@ namespace Cyan
     void AssetManager::importGltfNode(Scene* scene, tinygltf::Model& model, Entity* parent, tinygltf::Node& node) 
     {
         auto sceneManager = SceneManager::get();
+        bool isCamera = (node.camera > -1);
         bool hasMesh = (node.mesh > -1);
         bool hasSkin = (node.skin > -1);
         bool hasMatrix = !node.matrix.empty();
@@ -658,9 +659,32 @@ namespace Cyan
             sprintf_s(entityName, "Node%u", numAnonymousNodes++);
         else 
             sprintf_s(entityName, "%s", node.name.c_str());
-        
+
         Entity* entity = nullptr;
-        if (hasMesh)
+        // todo: import camera & light directly from gltf
+        if (isCamera)
+        {
+#if 0
+            const auto& gltfCamera = model.cameras[node.camera];
+            if (gltfCamera.type == "perspective")
+            {
+                auto camera = scene->createPerspectiveCamera(
+                    node.name.c_str(), 
+                    localTransform, 
+                    ,
+                    glm::vec3(0.f, 1.f, 0.f), 
+                    gltfCamera.perspective.yfov, 
+                    gltfCamera.perspective.znear,
+                    gltfCamera.perspective.zfar,
+                    gltfCamera.perspective.aspectRatio);
+                gltfCamera.perspective.
+            }
+            else if (gltfCamera.type == "orthographic")
+            {
+            }
+#endif
+        }
+        else if (hasMesh)
         {
             Mesh* mesh = getAsset<Mesh>(meshName);
             auto staticMeshEntity = scene->createStaticMeshEntity(node.name.c_str(), localTransform, mesh, parent);
@@ -704,25 +728,12 @@ namespace Cyan
                         matlName = gltfMaterial.name;
                     }
                     matl = createMaterial<PBRMaterial>(matlName.c_str());
-                    if (pbr.baseColorTexture.index > -1)
-                    {
-                        matl->parameter.albedo = getTexture(pbr.baseColorTexture.index);
-                    }
-                    else
-                    {
-                        CYAN_ASSERT(pbr.baseColorFactor.size() == 4, "gltf PBR material baseColorFactor is not vec4")
-                        matl->parameter.kAlbedo = glm::vec3(pbr.baseColorFactor[0], pbr.baseColorFactor[1], pbr.baseColorFactor[2]);
-                    }
+                    matl->parameter.albedo = getTexture(pbr.baseColorTexture.index);
                     matl->parameter.normal = getTexture(gltfMaterial.normalTexture.index);
-                    if (pbr.metallicRoughnessTexture.index > -1)
-                    {
-                        matl->parameter.metallicRoughness = getTexture(pbr.metallicRoughnessTexture.index);
-                    }
-                    else
-                    {
-                        matl->parameter.kRoughness = pbr.roughnessFactor;
-                        matl->parameter.kMetallic = pbr.metallicFactor;
-                    }
+                    matl->parameter.metallicRoughness = getTexture(pbr.metallicRoughnessTexture.index);
+                    matl->parameter.kAlbedo = glm::vec3(pbr.baseColorFactor[0], pbr.baseColorFactor[1], pbr.baseColorFactor[2]);
+                    matl->parameter.kRoughness = pbr.roughnessFactor;
+                    matl->parameter.kMetallic = pbr.metallicFactor;
                     matl->parameter.occlusion = getTexture(gltfMaterial.occlusionTexture.index);
                     matl->parameter.kEmissive = glm::vec3(gltfMaterial.emissiveFactor[0], gltfMaterial.emissiveFactor[1], gltfMaterial.emissiveFactor[2]);
                 }
@@ -1054,6 +1065,7 @@ namespace Cyan
         }
         else if (extension == ".glb")
         {
+            ScopedTimer timer("Import .glb timer", true);
             if (!singleton->m_gltfImporter.LoadBinaryFromFile(&model, &err, &warn, std::string(filename)))
             {
                 std::cout << warn << std::endl;

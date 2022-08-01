@@ -437,6 +437,13 @@ namespace Cyan
 //
         BoundingBox3D computeSceneAABB(Scene* scene);
 
+        enum class TonemapOperator
+        {
+            kReinhard = 0,
+            kACES,
+            kCount
+        };
+
         struct Settings
         {
             bool enableAA = true;
@@ -444,8 +451,10 @@ namespace Cyan
             bool enableSunShadow = true;
             bool enableSSAO = false;
             bool enableVctx = false;
-            bool enableBloom = true;
             bool autoFilterVoxelGrid = true;
+            bool enableBloom = true;
+            bool enableTonemapping = true;
+            u32 tonemapOperator = (u32)TonemapOperator::kACES;
             f32  exposure = 1.f;
             f32 bloomIntensity = 0.7f;
             f32 colorTempreture = 6500.f;
