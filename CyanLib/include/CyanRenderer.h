@@ -338,6 +338,13 @@ namespace Cyan
 
         RenderTexture2D* renderScene(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
 
+        struct IndirecDraw
+        {
+            GLuint buffer = -1;
+            u32 sizeInBytes = 1024 * 1024 * 32;
+            void* data = nullptr;
+        } indirectDrawBuffer;
+
         /**
         * brief: renderScene() implemented using glMultiDrawIndirect()
         */

@@ -220,6 +220,10 @@ namespace Cyan
         spec.height = 1440;
         m_rtxPingPongBuffer[0] = AssetManager::createTexture2D("RayTracingPingPong_0", spec);
         m_rtxPingPongBuffer[1] = AssetManager::createTexture2D("RayTracingPingPong_1", spec);
+
+        glCreateBuffers(1, &indirectDrawBuffer.buffer);
+        glNamedBufferStorage(indirectDrawBuffer.buffer, indirectDrawBuffer.sizeInBytes, nullptr, GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_WRITE_BIT);
+        indirectDrawBuffer.data = glMapNamedBufferRange(indirectDrawBuffer.buffer, 0, indirectDrawBuffer.sizeInBytes, GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_WRITE_BIT);
     }
 
     void Renderer::finalize()
@@ -703,9 +707,9 @@ namespace Cyan
             }
 #endif
             glm::uvec2 renderResolution = m_settings.enableAA ? glm::uvec2(m_SSAAWidth, m_SSAAHeight) : glm::uvec2(m_windowWidth, m_windowHeight);
-            static SceneView sceneView(*scene, scene->camera->getCamera(), EntityFlag_kVisible);
+            SceneView sceneView(*scene, scene->camera->getCamera(), EntityFlag_kVisible);
             // convert Scene instance to RenderableScene instance for rendering
-            static RenderableScene renderableScene(scene, sceneView, m_frameAllocator);
+            RenderableScene renderableScene(scene, sceneView, m_frameAllocator);
             renderableScene.setView(scene->camera->view());
             renderableScene.setProjection(scene->camera->projection());
 
@@ -757,8 +761,8 @@ namespace Cyan
                 sceneColorTexture = dst;
             }
 #else
-            // RenderTexture2D* sceneColorTexture = renderScene(renderableScene, sceneView, renderResolution);
-            RenderTexture2D* sceneColorTexture = renderSceneMultiDraw(renderableScene, sceneView, renderResolution);
+            RenderTexture2D* sceneColorTexture = renderScene(renderableScene, sceneView, renderResolution);
+            // RenderTexture2D* sceneColorTexture = renderSceneMultiDraw(renderableScene, sceneView, renderResolution);
 #endif
 
             if (m_settings.enableTAA)
@@ -1059,19 +1063,19 @@ namespace Cyan
                 };
 
                 // build indirect draw commands
-                auto ptr = reinterpret_cast<IndirectDrawArrayCommand*>(renderableScene.indirectDrawBuffer.data);
+                auto ptr = reinterpret_cast<IndirectDrawArrayCommand*>(indirectDrawBuffer.data);
                 for (u32 draw = 0; draw < renderableScene.drawCalls.getNumElements() - 1; ++draw)
                 {
                     IndirectDrawArrayCommand& command = ptr[draw];
                     command.first = 0;
                     u32 instance = renderableScene.drawCalls[draw];
                     u32 submesh = renderableScene.instances[instance].submesh;
-                    command.count = renderableScene.submeshes[submesh].numIndices;
+                    command.count = RenderableScene::packedGeometry->submeshes[submesh].numIndices;
                     command.instanceCount = renderableScene.drawCalls[draw + 1] - renderableScene.drawCalls[draw];
                     command.baseInstance = 0;
                 }
 
-                glBindBuffer(GL_DRAW_INDIRECT_BUFFER, renderableScene.indirectDrawBuffer.buffer);
+                glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirectDrawBuffer.buffer);
 
                 m_ctx->setShader(scenePassShader);
                 m_ctx->setRenderTarget(renderTarget.get(), { { 0 } });

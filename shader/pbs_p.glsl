@@ -468,7 +468,7 @@ vec3 calcDirectionalLight(in DirectionalLight directionalLight, MaterialParamete
     vec3 f0 = calcF0(materialParameters);
     // radiance += CookTorranceBRDF(directionalLight.direction.xyz, viewDirection, materialParameters.normal, materialParameters.roughness, f0);
     // shadow
-    radiance *= calcDirectionalShadow(worldSpacePosition, materialParameters.normal, directionalLight);
+    // radiance *= calcDirectionalShadow(worldSpacePosition, materialParameters.normal, directionalLight);
     return radiance;
 }
 
@@ -515,7 +515,7 @@ vec3 calcLighting(SceneLights sceneLights, in MaterialParameters materialParamet
 
     // ambient light using flat shading
     float ndotl = dot(materialParameters.normal, normalize(-psIn.viewSpacePosition)) * .5 + .5f;
-    radiance += vec3(0.15, 0.3, 0.5) * exp(0.01 * -length(psIn.viewSpacePosition)) * ndotl * materialParameters.albedo;
+    // radiance += vec3(0.15, 0.3, 0.5) * exp(0.01 * -length(psIn.viewSpacePosition)) * ndotl * materialParameters.albedo;
 
     // sun light
     radiance += calcDirectionalLight(sceneLights.directionalLight, materialParameters, worldSpacePosition);

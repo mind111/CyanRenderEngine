@@ -16,6 +16,35 @@ namespace Cyan
     struct GfxContext;
     struct ILightRenderable;
 
+    struct PackedGeometry
+    {
+        PackedGeometry(const Scene& scene);
+
+        std::vector<Mesh*> meshes;
+        std::unordered_map<std::string, Mesh*> meshMap;
+        std::unordered_map<std::string, u32> submeshMap;
+
+        struct Vertex
+        {
+            glm::vec4 pos;
+            glm::vec4 normal;
+            glm::vec4 tangent;
+            glm::vec4 texCoord;
+        };
+        // unified geometry data
+        ShaderStorageBuffer<DynamicSsboStruct<Vertex>> vertexBuffer;
+        ShaderStorageBuffer<DynamicSsboStruct<u32>> indexBuffer;
+
+        struct SubmeshDesc
+        {
+            u32 baseVertex = 0;
+            u32 baseIndex = 0;
+            u32 numVertices = 0;
+            u32 numIndices = 0;
+        };
+        ShaderStorageBuffer<DynamicSsboStruct<SubmeshDesc>> submeshes;
+    };
+
     struct RenderableCamera
     {
         glm::mat4 view;
@@ -49,8 +78,6 @@ namespace Cyan
         RenderableScene(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator);
         ~RenderableScene()
         { 
-            glUnmapNamedBuffer(indirectDrawBuffer.buffer);
-            glDeleteBuffers(1, &indirectDrawBuffer.buffer);
         }
 
         void setView(const glm::mat4& view) 
@@ -83,33 +110,7 @@ namespace Cyan
         IrradianceProbe* irradianceProbe = nullptr;
         ReflectionProbe* reflectionProbe = nullptr;
 
-        struct Vertex
-        {
-            glm::vec4 pos;
-            glm::vec4 normal;
-            glm::vec4 tangent;
-            glm::vec4 texCoord;
-        };
-        // unified geometry data
-        ShaderStorageBuffer<DynamicSsboStruct<Vertex>> unifiedVertexBuffer;
-        ShaderStorageBuffer<DynamicSsboStruct<u32>> unifiedIndexBuffer;
-
-        struct IndirecDraw
-        {
-            GLuint buffer = -1;
-            u32 sizeInBytes = 1024 * 1024 * 32;
-            void* data = nullptr;
-        } indirectDrawBuffer;
-
-        struct SubmeshDesc
-        {
-            u32 baseVertex = 0;
-            u32 baseIndex = 0;
-            u32 numVertices = 0;
-            u32 numIndices = 0;
-        };
-        ShaderStorageBuffer<DynamicSsboStruct<SubmeshDesc>> submeshes;
-
+        static PackedGeometry* packedGeometry;
         struct InstanceDesc
         {
             u32 submesh = 0;

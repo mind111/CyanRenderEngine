@@ -9,15 +9,78 @@
 
 namespace Cyan
 {
+    PackedGeometry* RenderableScene::packedGeometry = nullptr;
+
+    PackedGeometry::PackedGeometry(const Scene& scene)
+    {
+        for (auto meshInst : scene.meshInstances)
+        {
+            Mesh* mesh = meshInst->parent;
+            auto entry = meshMap.find(mesh->name);
+            if (entry == meshMap.end())
+            {
+                meshMap.insert({ mesh->name, mesh });
+                meshes.push_back(mesh);
+            }
+        }
+
+        // build unified vertex buffer and index buffer
+        for (auto mesh : meshes)
+        {
+            auto entry = submeshMap.find(mesh->name);
+            if (entry == submeshMap.end())
+                submeshMap.insert({ mesh->name, submeshes.ssboStruct.dynamicArray.size()});
+
+            for (u32 i = 0; i < mesh->numSubmeshes(); ++i)
+            {
+                auto sm = mesh->getSubmesh(i);
+                if (auto triSubmesh = dynamic_cast<Mesh::Submesh<Triangles>*>(sm))
+                {
+                    auto& vertices = triSubmesh->getVertices();
+                    auto& indices = triSubmesh->getIndices();
+
+                    submeshes.ssboStruct.dynamicArray.push_back(
+                        {
+                            /*baseVertex=*/(u32)vertexBuffer.ssboStruct.dynamicArray.size(),
+                            /*baseIndex=*/(u32)indexBuffer.ssboStruct.dynamicArray.size(),
+                            /*numVertices=*/(u32)vertices.size(),
+                            /*numIndices=*/(u32)indices.size()
+                        }
+                    );
+
+                    for (u32 v = 0; v < vertices.size(); ++v)
+                    {
+                        vertexBuffer.ssboStruct.dynamicArray.emplace_back();
+                        Vertex& vertex = vertexBuffer.ssboStruct.dynamicArray.back();
+                        vertex.pos = glm::vec4(vertices[v].pos, 1.f);
+                        vertex.normal = glm::vec4(vertices[v].normal, 0.f);
+                        vertex.tangent = vertices[v].tangent;
+                        vertex.texCoord = glm::vec4(vertices[v].texCoord0, vertices[v].texCoord1);
+                    }
+                    for (u32 ii = 0; ii < indices.size(); ++ii)
+                    {
+                        indexBuffer.addElement(indices[ii]);
+                    }
+                }
+            }
+        }
+
+        vertexBuffer.update();
+        indexBuffer.update();
+        submeshes.update();
+    }
+
     RenderableScene::RenderableScene(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator)
         : camera{ sceneView.camera->view(), sceneView.camera->projection() }
     {
         transformSsboPtr = std::make_shared<TransformSsbo>(256);
         TransformSsbo& transformSsbo = *(transformSsboPtr.get());
 
+#if 0
         std::vector<Mesh*> meshes;
         std::unordered_map<std::string, Mesh*> meshMap;
         std::unordered_map<std::string, u32> submeshMap;
+#endif
 
         // build list of mesh instances, transforms, and lights
         for (auto entity : sceneView.entities)
@@ -46,6 +109,7 @@ namespace Cyan
                 meshInstances.push_back(staticMesh->getMeshInstance());
                 glm::mat4 model = staticMesh->getWorldTransformMatrix();
                 transformSsbo.addElement(model);
+#if 0
                 Mesh* mesh = staticMesh->getMeshInstance()->parent;
                 auto entry = meshMap.find(mesh->name);
                 if (entry == meshMap.end())
@@ -53,9 +117,13 @@ namespace Cyan
                     meshMap.insert({ mesh->name, mesh });
                     meshes.push_back(mesh);
                 }
+#endif
             }
         }
 
+        if (!packedGeometry)
+            packedGeometry = new PackedGeometry(*inScene);
+#if 0
         // build unified vertex buffer and index buffer
         for (auto mesh : meshes)
         {
@@ -96,7 +164,7 @@ namespace Cyan
                 }
             }
         }
-
+#endif
         std::unordered_map<std::string, u32> materialMap;
         std::unordered_map<std::string, u64> textureMap;
 
@@ -104,9 +172,9 @@ namespace Cyan
         for (u32 i = 0; i < meshInstances.size(); ++i)
         {
             auto mesh = meshInstances[i]->parent;
-            auto entry = submeshMap.find(mesh->name);
+            auto entry = packedGeometry->submeshMap.find(mesh->name);
             u32 baseSubmesh = 0;
-            if (entry != submeshMap.end())
+            if (entry != packedGeometry->submeshMap.end())
                 baseSubmesh = entry->second;
             for (u32 sm = 0; sm < mesh->numSubmeshes(); ++sm)
             {
@@ -208,10 +276,6 @@ namespace Cyan
         }
         drawCalls.addElement(instances.getNumElements());
 
-        glCreateBuffers(1, &indirectDrawBuffer.buffer);
-        glNamedBufferStorage(indirectDrawBuffer.buffer, indirectDrawBuffer.sizeInBytes, nullptr, GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_WRITE_BIT);
-        indirectDrawBuffer.data = glMapNamedBufferRange(indirectDrawBuffer.buffer, 0, indirectDrawBuffer.sizeInBytes, GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_WRITE_BIT);
-
         // build view data
         viewSsboPtr = std::make_shared<ViewSsbo>();
         ViewSsbo& viewSsbo = *(viewSsboPtr.get());
@@ -243,6 +307,10 @@ namespace Cyan
 #define DRAWCALL_BUFFER_BINDING 45
 #define MATERIAL_BUFFER_BINDING 46
 
+        packedGeometry->vertexBuffer.bind(VERTEX_BUFFER_BINDING);
+        packedGeometry->indexBuffer.bind(INDEX_BUFFER_BINDING);
+        packedGeometry->submeshes.bind(SUBMESH_BUFFER_BINDING);
+
         // bind global ssbo
         ViewSsbo& viewSsbo = *(viewSsboPtr.get());
         SET_SSBO_MEMBER(viewSsbo, view, camera.view);
@@ -251,14 +319,9 @@ namespace Cyan
         viewSsboPtr->bind((u32)SceneSsboBindings::kViewData);
         transformSsboPtr->update();
         transformSsboPtr->bind((u32)SceneSsboBindings::TransformMatrices);
-        unifiedVertexBuffer.update();
-        unifiedVertexBuffer.bind(VERTEX_BUFFER_BINDING);
-        unifiedIndexBuffer.update();
-        unifiedIndexBuffer.bind(INDEX_BUFFER_BINDING);
-        instances.update();
+
+        // instances.update();
         instances.bind(INSTANCE_DESC_BINDING);
-        submeshes.update();
-        submeshes.bind(SUBMESH_BUFFER_BINDING);
         materials.update();
         materials.bind(MATERIAL_BUFFER_BINDING);
         drawCalls.update();
