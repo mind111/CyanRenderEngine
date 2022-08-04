@@ -468,7 +468,7 @@ vec3 calcDirectionalLight(in DirectionalLight directionalLight, MaterialParamete
     vec3 f0 = calcF0(materialParameters);
     // radiance += CookTorranceBRDF(directionalLight.direction.xyz, viewDirection, materialParameters.normal, materialParameters.roughness, f0);
     // shadow
-    // radiance *= calcDirectionalShadow(worldSpacePosition, materialParameters.normal, directionalLight);
+    radiance *= calcDirectionalShadow(worldSpacePosition, materialParameters.normal, directionalLight);
     return radiance;
 }
 

@@ -95,14 +95,14 @@ namespace Cyan
         void submitSceneData(GfxContext* ctx);
 
         // view
-        std::shared_ptr<ViewSsbo> viewSsboPtr = nullptr;
+        ViewSsbo viewSsbo;
 
         // camera
         RenderableCamera camera;
 
         // mesh instances
         std::vector<MeshInstance*> meshInstances;
-        std::shared_ptr<TransformSsbo> transformSsboPtr = nullptr;
+        TransformSsbo transformSsbo;
 
         // lights
         Skybox* skybox = nullptr;

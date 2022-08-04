@@ -73,15 +73,6 @@ namespace Cyan
     RenderableScene::RenderableScene(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator)
         : camera{ sceneView.camera->view(), sceneView.camera->projection() }
     {
-        transformSsboPtr = std::make_shared<TransformSsbo>(256);
-        TransformSsbo& transformSsbo = *(transformSsboPtr.get());
-
-#if 0
-        std::vector<Mesh*> meshes;
-        std::unordered_map<std::string, Mesh*> meshMap;
-        std::unordered_map<std::string, u32> submeshMap;
-#endif
-
         // build list of mesh instances, transforms, and lights
         for (auto entity : sceneView.entities)
         {
@@ -109,65 +100,15 @@ namespace Cyan
                 meshInstances.push_back(staticMesh->getMeshInstance());
                 glm::mat4 model = staticMesh->getWorldTransformMatrix();
                 transformSsbo.addElement(model);
-#if 0
-                Mesh* mesh = staticMesh->getMeshInstance()->parent;
-                auto entry = meshMap.find(mesh->name);
-                if (entry == meshMap.end())
-                {
-                    meshMap.insert({ mesh->name, mesh });
-                    meshes.push_back(mesh);
-                }
-#endif
             }
         }
 
         if (!packedGeometry)
             packedGeometry = new PackedGeometry(*inScene);
-#if 0
-        // build unified vertex buffer and index buffer
-        for (auto mesh : meshes)
-        {
-            auto entry = submeshMap.find(mesh->name);
-            if (entry == submeshMap.end())
-                submeshMap.insert({ mesh->name, submeshes.ssboStruct.dynamicArray.size()});
 
-            for (u32 i = 0; i < mesh->numSubmeshes(); ++i)
-            {
-                auto sm = mesh->getSubmesh(i);
-                if (auto triSubmesh = dynamic_cast<Mesh::Submesh<Triangles>*>(sm))
-                {
-                    auto& vertices = triSubmesh->getVertices();
-                    auto& indices = triSubmesh->getIndices();
-
-                    submeshes.ssboStruct.dynamicArray.push_back(
-                        {
-                            /*baseVertex=*/(u32)unifiedVertexBuffer.ssboStruct.dynamicArray.size(),
-                            /*baseIndex=*/(u32)unifiedIndexBuffer.ssboStruct.dynamicArray.size(),
-                            /*numVertices=*/(u32)vertices.size(),
-                            /*numIndices=*/(u32)indices.size()
-                        }
-                    );
-
-                    for (u32 v = 0; v < vertices.size(); ++v)
-                    {
-                        unifiedVertexBuffer.ssboStruct.dynamicArray.emplace_back();
-                        Vertex& vertex = unifiedVertexBuffer.ssboStruct.dynamicArray.back();
-                        vertex.pos = glm::vec4(vertices[v].pos, 1.f);
-                        vertex.normal = glm::vec4(vertices[v].normal, 0.f);
-                        vertex.tangent = vertices[v].tangent;
-                        vertex.texCoord = glm::vec4(vertices[v].texCoord0, vertices[v].texCoord1);
-                    }
-                    for (u32 ii = 0; ii < indices.size(); ++ii)
-                    {
-                        unifiedIndexBuffer.addElement(indices[ii]);
-                    }
-                }
-            }
-        }
-#endif
         std::unordered_map<std::string, u32> materialMap;
         std::unordered_map<std::string, u64> textureMap;
-
+#if 0
         // build instance descriptors
         for (u32 i = 0; i < meshInstances.size(); ++i)
         {
@@ -275,10 +216,10 @@ namespace Cyan
             prev = instances[i].submesh;
         }
         drawCalls.addElement(instances.getNumElements());
+#endif
+        // instances.addElement(InstanceDesc{ });
 
         // build view data
-        viewSsboPtr = std::make_shared<ViewSsbo>();
-        ViewSsbo& viewSsbo = *(viewSsboPtr.get());
         SET_SSBO_MEMBER(viewSsbo, view, camera.view);
         SET_SSBO_MEMBER(viewSsbo, projection, camera.projection);
 
@@ -312,16 +253,15 @@ namespace Cyan
         packedGeometry->submeshes.bind(SUBMESH_BUFFER_BINDING);
 
         // bind global ssbo
-        ViewSsbo& viewSsbo = *(viewSsboPtr.get());
         SET_SSBO_MEMBER(viewSsbo, view, camera.view);
         SET_SSBO_MEMBER(viewSsbo, projection, camera.projection);
-        viewSsboPtr->update();
-        viewSsboPtr->bind((u32)SceneSsboBindings::kViewData);
-        transformSsboPtr->update();
-        transformSsboPtr->bind((u32)SceneSsboBindings::TransformMatrices);
+        viewSsbo.update();
+        viewSsbo.bind((u32)SceneSsboBindings::kViewData);
+        transformSsbo.update();
+        transformSsbo.bind((u32)SceneSsboBindings::TransformMatrices);
 
         // instances.update();
-        instances.bind(INSTANCE_DESC_BINDING);
+        // instances.bind(INSTANCE_DESC_BINDING);
         materials.update();
         materials.bind(MATERIAL_BUFFER_BINDING);
         drawCalls.update();

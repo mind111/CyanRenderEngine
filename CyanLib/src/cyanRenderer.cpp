@@ -713,8 +713,8 @@ namespace Cyan
             renderableScene.setView(scene->camera->view());
             renderableScene.setProjection(scene->camera->projection());
 
-#if 0
             renderShadow(*scene, renderableScene);
+#if 0
 
             // scene depth & normal pass
             bool depthNormalPrepassRequired = (m_settings.enableSSAO || m_settings.enableVctx);
@@ -827,6 +827,8 @@ namespace Cyan
         {
             light->renderShadow(scene, shadowScene, *this);
         }
+
+        // m_renderQueue.execute();
     }
 
     void Renderer::renderSceneMeshOnly(RenderableScene& sceneRenderable, RenderTexture2D* outTexture, Shader* shader)
@@ -867,7 +869,7 @@ namespace Cyan
             [outDepthTexture](RenderQueue& renderQueue, RenderPass* pass) {
                 pass->addOutput(outDepthTexture);
             },
-            [this, &renderableScene, outDepthTexture]() {
+            [this, renderableScene, outDepthTexture]() mutable {
 
                 Shader* depthOnlyShader = ShaderManager::createShader({ 
                     ShaderSource::Type::kVsPs, 
