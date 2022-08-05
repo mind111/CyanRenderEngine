@@ -196,8 +196,9 @@ namespace Cyan
             {
                 // update static members
                 glNamedBufferSubData(getGpuResource(), 0, ssboStruct.getStaticChunkSizeInBytes(), ssboStruct.getStaticChunkData());
-                // update dynamic members
-                glNamedBufferSubData(getGpuResource(), ssboStruct.getStaticChunkSizeInBytes(), ssboStruct.getDynamicChunkSizeInBytes(), ssboStruct.getDynamicChunkData());
+                if (ssboStruct.getDynamicChunkSizeInBytes() > 0)
+                    // update dynamic members
+                    glNamedBufferSubData(getGpuResource(), ssboStruct.getStaticChunkSizeInBytes(), ssboStruct.getDynamicChunkSizeInBytes(), ssboStruct.getDynamicChunkData());
             }
             else
             {

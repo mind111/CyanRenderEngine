@@ -34,7 +34,7 @@ namespace Cyan
         {
             depthTextureName = std::string(depthTextureNamePrefix) + depthTextureName;
         }
-        depthTexturePtr = std::unique_ptr<DepthTexture>(AssetManager::createDepthTexture(depthTextureName.c_str(), resolution.x, resolution.y));
+        depthTexture = AssetManager::createDepthTexture(depthTextureName.c_str(), resolution.x, resolution.y);
     }
 
     void DirectionalShadowmap::render(ICamera* inCamera, const Scene& scene, RenderableScene& renderableScene, Renderer& renderer)
@@ -45,7 +45,7 @@ namespace Cyan
         lightSpaceProjection = inCamera->projection();
 
         // glDisable(GL_CULL_FACE);
-        auto outDepthTexture = renderer.getRenderQueue().registerTexture2D(depthTexturePtr.get());
+        auto outDepthTexture = renderer.getRenderQueue().registerTexture2D(depthTexture);
         renderer.renderSceneDepthOnly(renderableScene, outDepthTexture);
         // glEnable(GL_CULL_FACE);
     }
@@ -54,7 +54,7 @@ namespace Cyan
     {
         std::string inPrefix(uniformNamePrefix);
         shader->setUniform((inPrefix + ".shadowmap.lightSpaceProjection").c_str(), lightSpaceProjection);
-        shader->setTexture((inPrefix + ".shadowmap.depthTexture").c_str(), depthTexturePtr.get());
+        shader->setTexture((inPrefix + ".shadowmap.depthTexture").c_str(), depthTexture);
     }
 
     VarianceShadowmap::VarianceShadowmap(const DirectionalLight& inDirectionalLight)
@@ -64,14 +64,14 @@ namespace Cyan
         {
             char depthTextureName[64] = { };
             sprintf_s(depthTextureName, "VarianceShadowmapDepthTexture_%dx%d", resolution.x, resolution.y);
-            depthTexturePtr = std::unique_ptr<DepthTexture>(AssetManager::createDepthTexture(depthTextureName, resolution.x, resolution.y));
+            depthTexture = AssetManager::createDepthTexture(depthTextureName, resolution.x, resolution.y);
         }
 
         // create depth squared texture
         {
             char depthSquaredTextureName[64] = { };
             sprintf_s(depthSquaredTextureName, "VarianceShadowmapDepthSquaredTexture_%dx%d", resolution.x, resolution.y);
-            depthSquaredTexturePtr = std::unique_ptr<DepthTexture>(AssetManager::createDepthTexture(depthSquaredTextureName, resolution.x, resolution.y));
+            depthSquaredTexture = AssetManager::createDepthTexture(depthSquaredTextureName, resolution.x, resolution.y);
         }
     }
 

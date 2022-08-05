@@ -38,7 +38,7 @@ namespace Cyan
 
         IDirectionalShadowmap(const DirectionalLight& inDirectionalLight);
         // virtual destructor for derived
-        ~IDirectionalShadowmap() { }
+        virtual ~IDirectionalShadowmap() { }
 
     protected:
         glm::uvec2 resolution;
@@ -61,7 +61,7 @@ namespace Cyan
 
     private:
         glm::mat4 lightSpaceProjection;
-        std::unique_ptr<DepthTexture> depthTexturePtr = nullptr;
+        DepthTexture* depthTexture = nullptr;
     };
 
     /**
@@ -76,8 +76,8 @@ namespace Cyan
 
     private:
         glm::mat4 lightSpaceProjection;
-        std::unique_ptr<DepthTexture> depthTexturePtr = nullptr;
-        std::unique_ptr<DepthTexture> depthSquaredTexturePtr = nullptr;
+        DepthTexture* depthTexture = nullptr;
+        DepthTexture* depthSquaredTexture = nullptr;
     };
 
     struct CascadedShadowmap : public IDirectionalShadowmap

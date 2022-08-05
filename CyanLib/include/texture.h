@@ -128,10 +128,12 @@ namespace Cyan
             if (name)
             {
                 delete[] name;
+                name = nullptr;
             }
             if (pixelData)
             {
                 delete[] pixelData;
+                pixelData = nullptr;
             }
         }
 

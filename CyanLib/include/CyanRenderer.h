@@ -291,6 +291,8 @@ namespace Cyan
                         transientResourceManager.recycle(input);
                     }
                 }
+#if 0
+                // todo: does output resources need to be recycled ...?
                 // after execute
                 for (auto output : pass->outputs)
                 {
@@ -300,6 +302,7 @@ namespace Cyan
                         transientResourceManager.recycle(output);
                     }
                 }
+#endif
 
                 // explicit invoke destructor to avoid leaking resources
                 pass->~RenderPass();

@@ -73,6 +73,12 @@ namespace Cyan
     RenderableScene::RenderableScene(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator)
         : camera{ sceneView.camera->view(), sceneView.camera->projection() }
     {
+        viewSsbo = std::make_shared<ViewSsbo>();
+        transformSsbo = std::make_shared<TransformSsbo>();
+        instances = std::make_shared<InstanceBuffer>();
+        drawCalls = std::make_shared<DrawCallBuffer>();
+        materials = std::make_shared<MaterialBuffer>();
+
         // build list of mesh instances, transforms, and lights
         for (auto entity : sceneView.entities)
         {
@@ -99,7 +105,7 @@ namespace Cyan
             {
                 meshInstances.push_back(staticMesh->getMeshInstance());
                 glm::mat4 model = staticMesh->getWorldTransformMatrix();
-                transformSsbo.addElement(model);
+                transformSsbo->addElement(model);
             }
         }
 
@@ -108,7 +114,7 @@ namespace Cyan
 
         std::unordered_map<std::string, u32> materialMap;
         std::unordered_map<std::string, u64> textureMap;
-#if 0
+
         // build instance descriptors
         for (u32 i = 0; i < meshInstances.size(); ++i)
         {
@@ -119,8 +125,8 @@ namespace Cyan
                 baseSubmesh = entry->second;
             for (u32 sm = 0; sm < mesh->numSubmeshes(); ++sm)
             {
-                instances.addElement(InstanceDesc{});
-                auto& desc = instances[instances.getNumElements() - 1];
+                instances->addElement(InstanceDesc{});
+                auto& desc = (*instances)[instances->getNumElements() - 1];
                 desc.submesh = baseSubmesh + sm;
                 desc.transform = i;
                 desc.material = 0;
@@ -131,10 +137,10 @@ namespace Cyan
                     // create a material proxy for each unique material instance
                     if (matlEntry == materialMap.end())
                     {
-                        materialMap.insert({ pbr->name, materials.getNumElements() });
-                        desc.material = materials.getNumElements();
-                        materials.addElement(Material{ });
-                        auto& matlProxy = materials[materials.getNumElements() - 1];
+                        materialMap.insert({ pbr->name, materials->getNumElements() });
+                        desc.material = materials->getNumElements();
+                        materials->addElement(Material{ });
+                        auto& matlProxy = (*materials)[materials->getNumElements() - 1];
                         matlProxy.flags = glm::uvec4(pbr->parameter.getFlags());
 
                         // albedo
@@ -204,24 +210,22 @@ namespace Cyan
         };
         // todo: this sort maybe too slow at some point 
         // sort the instance buffer to group submesh instances that share the same submesh right next to each other
-        std::sort(instances.ssboStruct.dynamicArray.begin(), instances.ssboStruct.dynamicArray.end(), InstanceDescSortKey());
-        drawCalls.addElement(0);
-        u32 prev = instances[0].submesh;
-        for (u32 i = 1; i < instances.getNumElements(); ++i)
+        std::sort(instances->ssboStruct.dynamicArray.begin(), instances->ssboStruct.dynamicArray.end(), InstanceDescSortKey());
+        drawCalls->addElement(0);
+        u32 prev = (*instances)[0].submesh;
+        for (u32 i = 1; i < instances->getNumElements(); ++i)
         {
-            if (instances.ssboStruct.dynamicArray[i].submesh != prev)
+            if (instances->ssboStruct.dynamicArray[i].submesh != prev)
             {
-                drawCalls.addElement(i);
+                drawCalls->addElement(i);
             }
-            prev = instances[i].submesh;
+            prev = (*instances)[i].submesh;
         }
-        drawCalls.addElement(instances.getNumElements());
-#endif
-        // instances.addElement(InstanceDesc{ });
+        drawCalls->addElement(instances->getNumElements());
 
         // build view data
-        SET_SSBO_MEMBER(viewSsbo, view, camera.view);
-        SET_SSBO_MEMBER(viewSsbo, projection, camera.projection);
+        SET_SSBO_MEMBER((*viewSsbo), view, camera.view);
+        SET_SSBO_MEMBER((*viewSsbo), projection, camera.projection);
 
         // build lighting data
         skybox = inScene->skybox;
@@ -253,19 +257,19 @@ namespace Cyan
         packedGeometry->submeshes.bind(SUBMESH_BUFFER_BINDING);
 
         // bind global ssbo
-        SET_SSBO_MEMBER(viewSsbo, view, camera.view);
-        SET_SSBO_MEMBER(viewSsbo, projection, camera.projection);
-        viewSsbo.update();
-        viewSsbo.bind((u32)SceneSsboBindings::kViewData);
-        transformSsbo.update();
-        transformSsbo.bind((u32)SceneSsboBindings::TransformMatrices);
+        SET_SSBO_MEMBER((*viewSsbo), view, camera.view);
+        SET_SSBO_MEMBER((*viewSsbo), projection, camera.projection);
+        viewSsbo->update();
+        viewSsbo->bind(VIEW_SSBO_BINDING);
+        transformSsbo->update();
+        transformSsbo->bind((u32)SceneSsboBindings::TransformMatrices);
 
-        // instances.update();
-        // instances.bind(INSTANCE_DESC_BINDING);
-        materials.update();
-        materials.bind(MATERIAL_BUFFER_BINDING);
-        drawCalls.update();
-        drawCalls.bind(DRAWCALL_BUFFER_BINDING);
+        instances->update();
+        instances->bind(INSTANCE_DESC_BINDING);
+        materials->update();
+        materials->bind(MATERIAL_BUFFER_BINDING);
+        drawCalls->update();
+        drawCalls->bind(DRAWCALL_BUFFER_BINDING);
 
         // shared BRDF lookup texture used in split sum approximation for image based lighting
         if (Texture2DRenderable* BRDFLookupTexture = ReflectionProbe::getBRDFLookupTexture())

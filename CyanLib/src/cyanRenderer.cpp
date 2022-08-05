@@ -713,7 +713,7 @@ namespace Cyan
             renderableScene.setView(scene->camera->view());
             renderableScene.setProjection(scene->camera->projection());
 
-            renderShadow(*scene, renderableScene);
+//            renderShadow(*scene, renderableScene);
 #if 0
 
             // scene depth & normal pass
@@ -761,8 +761,8 @@ namespace Cyan
                 sceneColorTexture = dst;
             }
 #else
-            RenderTexture2D* sceneColorTexture = renderScene(renderableScene, sceneView, renderResolution);
-            // RenderTexture2D* sceneColorTexture = renderSceneMultiDraw(renderableScene, sceneView, renderResolution);
+            // RenderTexture2D* sceneColorTexture = renderScene(renderableScene, sceneView, renderResolution);
+            RenderTexture2D* sceneColorTexture = renderSceneMultiDraw(renderableScene, sceneView, renderResolution);
 #endif
 
             if (m_settings.enableTAA)
@@ -1066,14 +1066,14 @@ namespace Cyan
 
                 // build indirect draw commands
                 auto ptr = reinterpret_cast<IndirectDrawArrayCommand*>(indirectDrawBuffer.data);
-                for (u32 draw = 0; draw < renderableScene.drawCalls.getNumElements() - 1; ++draw)
+                for (u32 draw = 0; draw < renderableScene.drawCalls->getNumElements() - 1; ++draw)
                 {
                     IndirectDrawArrayCommand& command = ptr[draw];
                     command.first = 0;
-                    u32 instance = renderableScene.drawCalls[draw];
-                    u32 submesh = renderableScene.instances[instance].submesh;
+                    u32 instance = (*renderableScene.drawCalls)[draw];
+                    u32 submesh = (*renderableScene.instances)[instance].submesh;
                     command.count = RenderableScene::packedGeometry->submeshes[submesh].numIndices;
-                    command.instanceCount = renderableScene.drawCalls[draw + 1] - renderableScene.drawCalls[draw];
+                    command.instanceCount = (*renderableScene.drawCalls)[draw + 1] - (*renderableScene.drawCalls)[draw];
                     command.baseInstance = 0;
                 }
 
@@ -1091,13 +1091,13 @@ namespace Cyan
 
                 // dispatch multi draw indirect
                 // one sub-drawcall per instance
-                u32 drawCount = (u32)renderableScene.drawCalls.getNumElements() - 1;
+                u32 drawCount = (u32)renderableScene.drawCalls->getNumElements() - 1;
                 glMultiDrawArraysIndirect(GL_TRIANGLES, 0, drawCount, 0);
             });
 #if 1
         addUIRenderCommand([&renderableScene]() {
             ImGui::Begin("RenderableScene Buffer Visualization");
-            for (const auto& desc : renderableScene.instances.ssboStruct.dynamicArray)
+            for (const auto& desc : renderableScene.instances->ssboStruct.dynamicArray)
             {
                 ImGui::Text("%d", desc.submesh); ImGui::SameLine();
             }

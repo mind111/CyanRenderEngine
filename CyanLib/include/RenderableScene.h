@@ -72,8 +72,30 @@ namespace Cyan
             glm::vec3 dummy;
         };
 
+        struct InstanceDesc
+        {
+            u32 submesh = 0;
+            u32 material = 0;
+            u32 transform = 0;
+            u32 padding = 0;
+        };
+
+        struct Material
+        {
+            u64 diffuseMapHandle;
+            u64 normalMapHandle;
+            u64 metallicRoughnessMapHandle;
+            u64 occlusionMapHandle;
+            glm::vec4 kAlbedo;
+            glm::vec4 kMetallicRoughness;
+            glm::uvec4 flags;
+        };
+
         using ViewSsbo = ShaderStorageBuffer<StaticSsboStruct<ViewData>>;
         using TransformSsbo = ShaderStorageBuffer<DynamicSsboStruct<glm::mat4>>;
+        using InstanceBuffer = ShaderStorageBuffer<DynamicSsboStruct<InstanceDesc>>;
+        using MaterialBuffer = ShaderStorageBuffer<DynamicSsboStruct<Material>>;
+        using DrawCallBuffer = ShaderStorageBuffer<DynamicSsboStruct<u32>>;
 
         RenderableScene(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator);
         ~RenderableScene()
@@ -94,15 +116,12 @@ namespace Cyan
         */
         void submitSceneData(GfxContext* ctx);
 
-        // view
-        ViewSsbo viewSsbo;
 
         // camera
         RenderableCamera camera;
 
         // mesh instances
         std::vector<MeshInstance*> meshInstances;
-        TransformSsbo transformSsbo;
 
         // lights
         Skybox* skybox = nullptr;
@@ -111,28 +130,13 @@ namespace Cyan
         ReflectionProbe* reflectionProbe = nullptr;
 
         static PackedGeometry* packedGeometry;
-        struct InstanceDesc
-        {
-            u32 submesh = 0;
-            u32 material = 0;
-            u32 transform = 0;
-            u32 padding = 0;
-        };
-        ShaderStorageBuffer<DynamicSsboStruct<InstanceDesc>> instances;
 
+        // view
+        std::shared_ptr<ViewSsbo> viewSsbo = nullptr;
+        std::shared_ptr<TransformSsbo> transformSsbo = nullptr;
+        std::shared_ptr<InstanceBuffer> instances = nullptr;
         // map sub-draw id to instance id 
-        ShaderStorageBuffer<DynamicSsboStruct<u32>> drawCalls;
-
-        struct Material
-        {
-            u64 diffuseMapHandle;
-            u64 normalMapHandle;
-            u64 metallicRoughnessMapHandle;
-            u64 occlusionMapHandle;
-            glm::vec4 kAlbedo;
-            glm::vec4 kMetallicRoughness;
-            glm::uvec4 flags;
-        };
-        ShaderStorageBuffer<DynamicSsboStruct<Material>> materials;
+        std::shared_ptr<DrawCallBuffer> drawCalls = nullptr;
+        std::shared_ptr<MaterialBuffer> materials = nullptr;
     };
 }
