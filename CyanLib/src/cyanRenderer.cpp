@@ -744,8 +744,9 @@ namespace Cyan
             }
 #endif
             // main scene pass
-#if 0
+#if 1
             RenderTexture2D* sceneColorTexture = nullptr;
+#if 0
             auto dst = m_renderQueue.registerTexture2D(m_rtxPingPongBuffer[m_numFrames % 2]);
             if (m_numFrames > 0)
             {
@@ -760,6 +761,17 @@ namespace Cyan
                 rayTracing(rtxScene, dst, nullptr);
                 sceneColorTexture = dst;
             }
+#else
+            ITextureRenderable::Spec spec = { };
+            spec.type = TEX_2D;
+            spec.pixelFormat = PF_RGB16F;
+            spec.width = 2560;
+            spec.height = 1440;
+
+            sceneColorTexture = m_renderQueue.createTexture2D("RayTracingOutput", spec);
+            RayTracingScene rtxScene(*scene);
+            rayTracing(rtxScene, sceneColorTexture, nullptr);
+#endif
 #else
             // RenderTexture2D* sceneColorTexture = renderScene(renderableScene, sceneView, renderResolution);
             RenderTexture2D* sceneColorTexture = renderSceneMultiDraw(renderableScene, sceneView, renderResolution);
@@ -962,7 +974,7 @@ namespace Cyan
             [this, outputBuffer](RenderQueue& renderQueue, RenderPass* pass) {
                 pass->addOutput(outputBuffer);
             },
-            [this, outputBuffer, rtxScene, historyBuffer]() { // renderSetupLambda
+            [this, outputBuffer, &rtxScene, historyBuffer]() { // renderSetupLambda
                 Shader* raytracingShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "RayTracingShader", SHADER_SOURCE_PATH "raytracing_v.glsl", SHADER_SOURCE_PATH "raytracing_p.glsl" });
                 auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(outputBuffer->spec.width, outputBuffer->spec.height));
                 renderTarget->setColorBuffer(outputBuffer->getTextureResource(), 0);

@@ -51,6 +51,11 @@ namespace Cyan
         glm::mat4 projection;
     };
 
+    /** todo:
+    * should copying RenderableScene be allowed? if so then basically every ssbo will be shared between the copies and need to be reference counted
+    * to avoid a copy's destructor release shared ssbo, causing all sorts of artifact and weird bugs.
+    */
+
     /**
     * A Scene representation that only contains renderable data.
     *     * this is meant to decouple rendering required scene data from the main Scene class 

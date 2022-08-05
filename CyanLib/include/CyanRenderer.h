@@ -352,6 +352,18 @@ namespace Cyan
         * brief: renderScene() implemented using glMultiDrawIndirect()
         */
         RenderTexture2D* renderSceneMultiDraw(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
+        
+        /**
+        * brief:
+        * screen space irradiance caching r&d
+        */
+        struct ScreenSpaceIrradianceCache
+        {
+            RenderTexture2D* irradiance;
+            RenderTexture2D* r;
+            RenderTexture2D* normal;
+        };
+        RenderTexture2D* buildIrradianceCacheTexture(glm::uvec2 renderResolution);
         void rayTracing(struct RayTracingScene& rtxScene, RenderTexture2D* outputBuffer, RenderTexture2D* historyBuffer);
         void renderSceneMeshOnly(RenderableScene& sceneRenderable, RenderTexture2D* outTexture, Shader* shader);
 

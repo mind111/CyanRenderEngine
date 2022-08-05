@@ -115,6 +115,8 @@ namespace Cyan
         std::unordered_map<std::string, u32> materialMap;
         std::unordered_map<std::string, u64> textureMap;
 
+        // todo: this is temporarily disabled to allow debugging using renderdoc
+#if 0
         // build instance descriptors
         for (u32 i = 0; i < meshInstances.size(); ++i)
         {
@@ -222,6 +224,7 @@ namespace Cyan
             prev = (*instances)[i].submesh;
         }
         drawCalls->addElement(instances->getNumElements());
+#endif
 
         // build view data
         SET_SSBO_MEMBER((*viewSsbo), view, camera.view);

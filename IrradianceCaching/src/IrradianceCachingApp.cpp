@@ -18,7 +18,7 @@ public:
     virtual void customInitialize() override
     {
         using namespace Cyan;
-#if 0
+#if 1
         AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/cornell_box.gltf", "CornellBox");
 #else
         AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/shader_balls.glb", "ShaderBall");
