@@ -92,16 +92,14 @@ namespace Cyan
     void LightProbe::captureScene()
     {
         CYAN_ASSERT(scene, "Attempt to call LightProbe::captureScene() while scene is NULL!");
+        assert(scene);
 
         // create render target
-        auto renderTarget = createRenderTarget(sceneCapture->resolution, sceneCapture->resolution);
+        auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(sceneCapture->resolution, sceneCapture->resolution));
         {
             renderTarget->setColorBuffer(sceneCapture, 0u);
-            Renderer::get()->renderSceneToLightProbe(scene, this, renderTarget);
+            Renderer::get()->renderSceneToLightProbe(scene, this, renderTarget.get());
         }
-        // release resources
-        glDeleteFramebuffers(1, &renderTarget->fbo);
-        delete renderTarget;
     }
 
     void LightProbe::debugRender()
@@ -235,7 +233,7 @@ namespace Cyan
         ITextureRenderable::Spec spec = { };
         spec.width = 512u;
         spec.height = 512u;
-        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R16G16B16A16;
+        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGBA16F;
         Texture2DRenderable* outTexture = AssetManager::createTexture2D("BRDFLUT", spec);
 
         Shader* shader = ShaderManager::createShader({ ShaderType::kVsPs, "IntegrateBRDFShader", SHADER_SOURCE_PATH "shader_integrate_brdf.vs", SHADER_SOURCE_PATH "shader_integrate_brdf.fs" });

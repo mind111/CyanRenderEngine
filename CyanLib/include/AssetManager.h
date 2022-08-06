@@ -16,6 +16,8 @@
 #include "Material.h"
 #include "CyanAPI.h"
 
+#define ASSET_PATH "C:/dev/cyanRenderEngine/asset/"
+
 namespace Cyan
 {
     // todo: differentiate import...() from load...(), import refers to importing raw scene data, load refers to loading serialized binary
@@ -46,17 +48,17 @@ namespace Cyan
             /**
                 initialize default textures
             */ 
-#define DEFAULT_TEXTURE_FOLDER "../../asset/textures/defaults/"
             ITextureRenderable::Spec spec = { };
             spec.numMips = 11u;
             ITextureRenderable::Parameter parameter = { };
+            parameter.minificationFilter = FM_TRILINEAR;
             parameter.wrap_r = ITextureRenderable::Parameter::WrapMode::WRAP;
             parameter.wrap_s = ITextureRenderable::Parameter::WrapMode::WRAP;
             parameter.wrap_t = ITextureRenderable::Parameter::WrapMode::WRAP;
-            m_defaultTextures.checkerDark = importTexture2D("default_checker_dark", DEFAULT_TEXTURE_FOLDER "checker_dark.png", spec, parameter);
-            m_defaultTextures.checkerOrange = importTexture2D("default_checker_orange", DEFAULT_TEXTURE_FOLDER "checker_orange.png", spec, parameter);
-            m_defaultTextures.gridDark = importTexture2D("default_grid_dark", DEFAULT_TEXTURE_FOLDER "grid_dark.png", spec, parameter);
-            m_defaultTextures.gridOrange = importTexture2D("default_grid_orange", DEFAULT_TEXTURE_FOLDER "grid_orange.png", spec, parameter);
+            m_defaultTextures.checkerDark = importTexture2D("default_checker_dark", ASSET_PATH "textures/defaults/checker_dark.png", spec, parameter);
+            m_defaultTextures.checkerOrange = importTexture2D("default_checker_orange", ASSET_PATH "textures/defaults/checker_orange.png", spec, parameter);
+            m_defaultTextures.gridDark = importTexture2D("default_grid_dark", ASSET_PATH "textures/defaults/grid_dark.png", spec, parameter);
+            m_defaultTextures.gridOrange = importTexture2D("default_grid_orange", ASSET_PATH "textures/defaults/grid_orange.png", spec, parameter);
 #undef DEFAULT_TEXTURE_FOLDER
 
             /**
@@ -66,14 +68,6 @@ namespace Cyan
         }
 
         static AssetManager* get() { return singleton; }
-
-#if 0
-        struct LoadedNode
-        {
-            SceneComponent* m_sceneNode;
-            std::vector<u32> m_child;
-        };
-#endif
 
         void importGltfNode(Scene* scene, tinygltf::Model& model, Entity* parent, tinygltf::Node& node);
         Mesh* importGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh); 
@@ -117,7 +111,7 @@ namespace Cyan
             TextureCubeRenderable* outTexture = getAsset<TextureCubeRenderable>(name);
             if (!outTexture)
             {
-                TextureCubeRenderable* outTexture = new TextureCubeRenderable(name, spec, parameter);
+                outTexture = new TextureCubeRenderable(name, spec, parameter);
                 singleton->addTexture(outTexture);
             }
             return outTexture;
@@ -137,23 +131,46 @@ namespace Cyan
         /**
         * Importing texture from an image file
         */
-        static Texture2DRenderable* importTexture2D(const char* name, const char* imageFilePath, ITextureRenderable::Spec& spec, ITextureRenderable::Parameter parameter=ITextureRenderable::Parameter{ })
+        static Texture2DRenderable* importTexture2D(const char* name, const char* filename, ITextureRenderable::Spec& spec, ITextureRenderable::Parameter parameter=ITextureRenderable::Parameter{ })
         {
+            // todo: this is not a robust solutions to this!!! a better way maybe parse the file header to get the true file format
+            // determine whether the given image is ldr or hdr based on file extension
+
+            std::string path(filename);
+            u32 found = path.find_last_of('.');
+            std::string extension = path.substr(found, found + 1);
+
             int width, height, numChannels;
             stbi_set_flip_vertically_on_load(1);
-            // todo: do I need to distinguish between ldr and hdr pixel format format and use stbi_load/stbi_loadf accordingly?
-            spec.pixelData = reinterpret_cast<u8*>(stbi_load(imageFilePath, &width, &height, &numChannels, 0));
-            // todo: pixel format is hard coded for now
-            if (numChannels == 3)
+
+            if (extension == ".hdr")
             {
-                spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R8G8B8;
+                spec.pixelData = reinterpret_cast<u8*>(stbi_loadf(filename, &width, &height, &numChannels, 0));
+                // todo: pixel format is hard coded for now
+                if (numChannels == 3)
+                {
+                    spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGB16F;
+                }
+                else if (numChannels == 4)
+                {
+                    spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGBA16F;
+                }
             }
-            else if (numChannels == 4)
+            else
             {
-                spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R8G8B8A8;
+                spec.pixelData = reinterpret_cast<u8*>(stbi_load(filename, &width, &height, &numChannels, 0));
+                // todo: pixel format is hard coded for now
+                if (numChannels == 3)
+                {
+                    spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R8G8B8;
+                }
+                else if (numChannels == 4)
+                {
+                    spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R8G8B8A8;
+                }
+                spec.width = width;
+                spec.height = height;
             }
-            spec.width = width;
-            spec.height = height;
             return createTexture2D(name, spec, parameter);
         }
 

@@ -27,7 +27,11 @@ public:
 #endif
 
         // sun light
-        m_scene->createDirectionalLight("SunLight", glm::vec3(1.f, 1.5f, 2.5f), glm::vec4(1.f, 0.892f, 0.673f, 8.f));
+        m_scene->createDirectionalLight("SunLight", glm::vec3(1.f, 1.5f, 2.5f), glm::vec4(1.f, 1.f, 1.f, 8.f));
+        // sky light 
+        auto skylight = m_scene->createSkyLight("SkyLight", ASSET_PATH "cubemaps/pisa.hdr");
+        // skylight->build();
+
         m_scene->update();
 
         // ray tracer

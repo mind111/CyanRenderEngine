@@ -63,7 +63,7 @@ namespace Cyan
                 RGB16F,
                 RGB32F,
                 R8G8B8A8,
-                R16G16B16A16,
+                RGBA16F,
                 R32G32B32A32,
                 kInvalid
             };

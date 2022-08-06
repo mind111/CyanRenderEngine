@@ -15,6 +15,7 @@
 #include "Material.h"
 #include "LightProbe.h"
 #include "SkyBox.h"
+#include "SkyLight.h"
 #include "DirectionalLight.h"
 #include "StaticMeshEntity.h"
 
@@ -24,13 +25,6 @@ namespace Cyan
 
     struct Scene 
     {
-        struct GlobalGeometryData
-        {
-            std::unordered_map<std::string, u32> meshMap;
-            std::vector<Triangles::Vertex> vertices;
-            std::vector<u32> indices;
-        } globalGeometries;
-
         Scene(const char* sceneName, f32 cameraAspectRatio);
 
         void update();
@@ -49,6 +43,8 @@ namespace Cyan
 
         // lights
         DirectionalLightEntity* createDirectionalLight(const char* name, const glm::vec3& direction, const glm::vec4& colorAndIntensity);
+        SkyLight* createSkyLight(const char* name, const glm::vec4& colorAndIntensity);
+        SkyLight* createSkyLight(const char* name, const char* srcHDRI);
         void createPointLight(const char* name, const glm::vec3 position, const glm::vec4& colorAndIntensity);
         IrradianceProbe* createIrradianceProbe(Cyan::TextureCubeRenderable* srcCubemapTexture, const glm::uvec2& irradianceRes);
         IrradianceProbe* createIrradianceProbe(const glm::vec3& pos, const glm::uvec2& sceneCaptureRes, const glm::uvec2& irradianceRes);
@@ -86,17 +82,17 @@ namespace Cyan
         std::vector<SceneComponent*> sceneComponents;
 
         // resource pools
-        Cyan::ObjectPool<SceneComponent, kMaxNumSceneComponents> sceneComponentPool;
-        Cyan::ObjectPool<MeshComponent, kMaxNumSceneComponents> meshComponentPool;
-        Cyan::ObjectPool<Transform, kMaxNumSceneComponents> localTransformPool;
-        Cyan::ObjectPool<Transform, kMaxNumSceneComponents> globalTransformPool;
-        Cyan::ObjectPool<glm::mat4, kMaxNumSceneComponents> localTransformMatrixPool;
-        Cyan::ObjectPool<glm::mat4, kMaxNumSceneComponents> globalTransformMatrixPool;
+        ObjectPool<SceneComponent, kMaxNumSceneComponents> sceneComponentPool;
+        ObjectPool<MeshComponent, kMaxNumSceneComponents> meshComponentPool;
+        ObjectPool<Transform, kMaxNumSceneComponents> localTransformPool;
+        ObjectPool<Transform, kMaxNumSceneComponents> globalTransformPool;
+        ObjectPool<glm::mat4, kMaxNumSceneComponents> localTransformMatrixPool;
+        ObjectPool<glm::mat4, kMaxNumSceneComponents> globalTransformMatrixPool;
 
-        Cyan::DirectionalLight directionalLight;
-        Cyan::Skybox* skybox = nullptr;
-        Cyan::IrradianceProbe* irradianceProbe = nullptr;
-        Cyan::ReflectionProbe* reflectionProbe = nullptr;
+        SkyLight* skyLight = nullptr;
+        Skybox* skybox = nullptr;
+        IrradianceProbe* irradianceProbe = nullptr;
+        ReflectionProbe* reflectionProbe = nullptr;
     };
 
     class SceneManager : public Singleton<SceneManager>

@@ -15,7 +15,7 @@ namespace Cyan
     {
         switch (m_cfg)
         {
-        case kUseHDRI: 
+        case kUseHDRI:
             {
                 ITextureRenderable::Spec spec = { };
                 AssetManager::importTexture2D("HDRITexture", srcImagePath, spec);

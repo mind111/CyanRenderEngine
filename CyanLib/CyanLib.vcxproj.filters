@@ -389,6 +389,9 @@
     <ClCompile Include="src\RayTracer.cpp">
       <Filter>Source Files\Internal\RayTracing</Filter>
     </ClCompile>
+    <ClCompile Include="src\SkyLight.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\ImGuizmo\LICENSE">

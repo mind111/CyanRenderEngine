@@ -157,6 +157,26 @@ namespace Cyan
         return directionalLight;
     }
 
+    SkyLight* Scene::createSkyLight(const char* name, const glm::vec4& colorAndIntensity)
+    {
+        if (skyLight)
+        {
+            cyanError("There is already a skylight exist in scene %s", this->name);
+            return nullptr;
+        }
+    }
+
+    SkyLight* Scene::createSkyLight(const char* name, const char* srcHDRI) 
+    { 
+        if (skyLight)
+        {
+            cyanError("There is already a skylight exist in scene %s", this->name);
+            return nullptr;
+        }
+        skyLight = new SkyLight(this, glm::vec4(1.f), srcHDRI);
+        return skyLight;
+    }
+
     void Scene::createPointLight(const char* name, const glm::vec3 position, const glm::vec4& colorAndIntensity)
     {
 

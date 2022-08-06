@@ -477,7 +477,7 @@ namespace Cyan
             bool enableBloom = true;
             bool enableTonemapping = true;
             u32 tonemapOperator = (u32)TonemapOperator::kReinhard;
-            f32  exposure = 1.f;
+            f32  exposure = 10.f;
             f32 bloomIntensity = 0.7f;
             f32 colorTempreture = 6500.f;
         } m_settings;
