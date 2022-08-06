@@ -152,6 +152,8 @@
     <None Include="..\shader\scene_depth_normal_v.glsl" />
     <None Include="..\shader\scene_pass_p.glsl" />
     <None Include="..\shader\scene_pass_v.glsl" />
+    <None Include="..\shader\screenspace_raytracing_v.glsl" />
+    <None Include="..\shader\screenspace_raytracing_p.glsl" />
     <None Include="..\shader\shader_ao.fs" />
     <None Include="..\shader\shader_ao.vs" />
     <None Include="..\shader\shader_blinn_phong.fs" />

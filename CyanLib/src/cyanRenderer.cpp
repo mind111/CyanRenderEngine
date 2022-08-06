@@ -714,14 +714,16 @@ namespace Cyan
             renderableScene.setProjection(scene->camera->projection());
 
             renderShadow(*scene, renderableScene);
-#if 0
 
             // scene depth & normal pass
-            bool depthNormalPrepassRequired = (m_settings.enableSSAO || m_settings.enableVctx);
+            // bool depthNormalPrepassRequired = (m_settings.enableSSAO || m_settings.enableVctx);
+            bool depthNormalPrepassRequired = true;
             if (depthNormalPrepassRequired)
             {
-                renderSceneDepthNormal(renderableScene, sceneView, renderResolution);
+                auto depthPrepassOutput = renderSceneDepthNormal(renderableScene, sceneView, renderResolution);
+                screenSpaceRayTracing(depthPrepassOutput.depthTexture, depthPrepassOutput.normalTexture);
             }
+#if 0
 
             // voxel cone tracing pass
             if (m_settings.enableVctx)
@@ -930,6 +932,8 @@ namespace Cyan
         m_renderQueue.addPass(
             "SceneDepthNormalPass",
             [this, depthTexture, normalTexture](RenderQueue& renderQueue, RenderPass* pass) {
+                pass->addInput(depthTexture);
+                pass->addInput(normalTexture);
                 pass->addOutput(depthTexture);
                 pass->addOutput(normalTexture);
             },
@@ -939,6 +943,13 @@ namespace Cyan
                 std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(depthTexture->spec.width, depthTexture->spec.height));
                 renderTarget->setColorBuffer(depthTexture->getTextureResource(), 0);
                 renderTarget->setColorBuffer(normalTexture->getTextureResource(), 1);
+                GLenum drawBuffers[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+                glNamedFramebufferDrawBuffers(renderTarget->fbo, 2, drawBuffers);
+                renderTarget->clear({ 
+                    { 0, glm::vec4(1.f) },
+                    { 1, glm::vec4(0.f, 0.f, 0.f, 1.f) } 
+                    });
+
                 Shader* sceneDepthNormalShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "SceneDepthNormalShader", SHADER_SOURCE_PATH "scene_depth_normal_v.glsl", SHADER_SOURCE_PATH "scene_depth_normal_p.glsl" });
                 u32 transformIndex = 0u;
                 for (auto& meshInst : renderableScene.meshInstances)
@@ -957,7 +968,54 @@ namespace Cyan
                 }
             });
 
+        addUIRenderCommand([depthTexture, normalTexture](){
+            ImGui::Begin("Texture Viewer");
+            auto depth = depthTexture->getTextureResource();
+            auto normal = normalTexture->getTextureResource();
+            ImGui::Image((ImTextureID)(depth->getGpuResource()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
+            ImGui::Image((ImTextureID)(normal->getGpuResource()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
+            ImGui::End();
+        });
         return { depthTexture, normalTexture};
+    }
+
+    RenderTexture2D* Renderer::screenSpaceRayTracing(RenderTexture2D* sceneDepthTexture, RenderTexture2D* sceneNormalTexture)
+    {
+        RenderTexture2D* output = m_renderQueue.createTexture2D("SSGI", sceneDepthTexture->spec);
+
+        // screen space ao
+        m_renderQueue.addPass(
+            "ScreenSpaceRayTracingPass",
+            [this, output](RenderQueue& renderQueue, RenderPass* pass) {
+                pass->addInput(output);
+                pass->addOutput(output);
+            },
+            [this, output, sceneDepthTexture, sceneNormalTexture]() {
+                std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(output->spec.width, output->spec.height));
+                renderTarget->setColorBuffer(output->getTextureResource(), 0);
+
+                Shader* ssrtShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "ScreenSpaceRayTracingShader", SHADER_SOURCE_PATH "screenspace_raytracing.glsl", SHADER_SOURCE_PATH "screenspace_raytracing.glsl" });
+                submitFullScreenPass(
+                    renderTarget.get(),
+                    { { 0 } },
+                    ssrtShader,
+                    [](RenderTarget* renderTarget, Shader* shader) {
+
+                    });
+            });
+
+        // screen space bent normal
+
+        // screen space diffuse inter-reflection
+
+        // screen space reflection
+
+        addUIRenderCommand([output](){
+            ImGui::Begin("SSGI Viewer");
+            ImGui::Image((ImTextureID)(output->getTextureResource()->getGpuResource()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
+            ImGui::End();
+        });
+        return output;
     }
 
     void Renderer::rayTracing(RayTracingScene& rtxScene, RenderTexture2D* outputBuffer, RenderTexture2D* historyBuffer)
@@ -1106,16 +1164,6 @@ namespace Cyan
                 u32 drawCount = (u32)renderableScene.drawCalls->getNumElements() - 1;
                 glMultiDrawArraysIndirect(GL_TRIANGLES, 0, drawCount, 0);
             });
-#if 1
-        addUIRenderCommand([&renderableScene]() {
-            ImGui::Begin("RenderableScene Buffer Visualization");
-            for (const auto& desc : renderableScene.instances->ssboStruct.dynamicArray)
-            {
-                ImGui::Text("%d", desc.submesh); ImGui::SameLine();
-            }
-            ImGui::End();
-        });
-#endif
         return outSceneColor;
     }
 

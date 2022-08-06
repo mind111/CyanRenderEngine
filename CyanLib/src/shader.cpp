@@ -369,6 +369,7 @@ namespace Cyan
     ShaderManager::ShaderSourceMap ShaderManager::m_shaderSourceMap = {
         { "PBRShader",                { ShaderSource::Type::kVsPs, "PBRShader", SHADER_SOURCE_PATH "pbs_v.glsl", SHADER_SOURCE_PATH "pbs_p.glsl" } },
         { "ScenePassShader",          { ShaderSource::Type::kVsPs, "ScenePassShader", SHADER_SOURCE_PATH "scene_pass_v.glsl", SHADER_SOURCE_PATH "scene_pass_p.glsl" } },
+        { "ScreenSpaceRayTracingShader", { ShaderSource::Type::kVsPs, "ScreenSpaceRayTracingShader", SHADER_SOURCE_PATH "screenspace_raytracing_v.glsl", SHADER_SOURCE_PATH "screenspace_raytracing_p.glsl"} },
         { "LineShader",               { ShaderSource::Type::kVsPs, "LineShader", SHADER_SOURCE_PATH "shader_line.vs", SHADER_SOURCE_PATH "shader_line.fs" } },
         { "RayTracingShader",         { ShaderSource::Type::kVsPs, "RayTracingShader", SHADER_SOURCE_PATH "raytracing_v.glsl", SHADER_SOURCE_PATH "raytracing_p.glsl" } },
         { "SSAOShader",               { ShaderSource::Type::kVsPs, "SSAOShader", SHADER_SOURCE_PATH "shader_ao.vs", SHADER_SOURCE_PATH "shader_ao.fs" } },

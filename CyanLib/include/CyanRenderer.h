@@ -355,15 +355,11 @@ namespace Cyan
         
         /**
         * brief:
-        * screen space irradiance caching r&d
+        * screen space ray tracing
         */
-        struct ScreenSpaceIrradianceCache
-        {
-            RenderTexture2D* irradiance;
-            RenderTexture2D* r;
-            RenderTexture2D* normal;
-        };
-        RenderTexture2D* buildIrradianceCacheTexture(glm::uvec2 renderResolution);
+        RenderTexture2D* screenSpaceRayTracing(RenderTexture2D* sceneDepthTexture, RenderTexture2D* sceneNormalTexture);
+
+
         void rayTracing(struct RayTracingScene& rtxScene, RenderTexture2D* outputBuffer, RenderTexture2D* historyBuffer);
         void renderSceneMeshOnly(RenderableScene& sceneRenderable, RenderTexture2D* outTexture, Shader* shader);
 

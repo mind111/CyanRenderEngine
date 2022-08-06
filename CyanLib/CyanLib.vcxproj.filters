@@ -658,5 +658,11 @@
     <None Include="..\shader\scene_pass_p.glsl">
       <Filter>Shaders\Shading</Filter>
     </None>
+    <None Include="..\shader\screenspace_raytracing_v.glsl">
+      <Filter>Shaders\RayTracing</Filter>
+    </None>
+    <None Include="..\shader\screenspace_raytracing_p.glsl">
+      <Filter>Shaders\RayTracing</Filter>
+    </None>
   </ItemGroup>
 </Project>
