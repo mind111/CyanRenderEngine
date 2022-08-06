@@ -333,6 +333,11 @@ namespace Cyan
         SET_UNIFORM(glProgramUniformMatrix4fv, 1, false, &data[0][0])
     }
 
+    Shader& Shader::setUniform(const char* name, const u64& data)
+    {
+        SET_UNIFORM(glProgramUniformHandleui64ARB, data);
+    }
+
     Shader& Shader::setTexture(const char* samplerName, ITextureRenderable* texture)
     {
         const auto& entry = samplerBindingMap.find(samplerName);

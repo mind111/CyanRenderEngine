@@ -80,6 +80,7 @@ namespace Cyan
 
         // todo: do type checking to make sure type of 'data' matches uniform type defined in shader
         Shader& setUniform(const char* name, u32 data);
+        Shader& setUniform(const char* name, const u64& data);
         Shader& setUniform(const char* name, i32 data);
         Shader& setUniform(const char* name, f32 data);
         Shader& setUniform(const char* name, const glm::vec2& data);

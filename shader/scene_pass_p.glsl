@@ -91,13 +91,13 @@ uniform struct Cascade
 #else
 // todo: since these following structs are declared to be uniform, they has to be instantiated on declaration, which is kind of 
 // inconvenient, is there any better ways to store a texture as a struct member in glsl?
-uniform struct DirectionalShadowmap
+struct DirectionalShadowmap
 {
 	mat4 lightSpaceProjection;
-	sampler2D depthTexture;
+	uint64_t depthTextureHandle;
 } directionalShadowmap;
 
-uniform struct Cascade
+struct Cascade
 {
 	float n;
 	float f;
@@ -105,12 +105,12 @@ uniform struct Cascade
 } cascade;
 #endif
 
-uniform struct CascadedShadowmap
+struct CascadedShadowmap
 {
 	Cascade cascades[NUM_SHADOW_CASCADES];
 } csm;
 
-uniform struct DirectionalLight
+struct DirectionalLight
 {
 	vec4 direction;
 	vec4 colorAndIntensity;
@@ -170,8 +170,9 @@ int calcCascadeIndex(in vec3 viewSpacePosition)
 
 float PCFShadow(vec3 worldSpacePosition, vec3 normal, in DirectionalLight directionalLight)
 {
+    sampler2D sampler = sampler2D(directionalLight.csm.cascades[0].shadowmap.depthTextureHandle);
 	float shadow = 0.0f;
-    vec2 texelOffset = vec2(1.f) / textureSize(directionalLight.csm.cascades[0].shadowmap.depthTexture, 0);
+    vec2 texelOffset = vec2(1.f) / textureSize(sampler, 0);
     vec3 viewSpacePosition = (viewSsbo.view * vec4(worldSpacePosition, 1.f)).xyz;
     int cascadeIndex = calcCascadeIndex(viewSpacePosition);
     vec4 lightSpacePosition = directionalLight.csm.cascades[cascadeIndex].shadowmap.lightSpaceProjection * directionalLight.lightSpaceView * vec4(worldSpacePosition, 1.f);
@@ -203,7 +204,7 @@ float PCFShadow(vec3 worldSpacePosition, vec3 normal, in DirectionalLight direct
 #else
 			float bias = constantBias();
 #endif
-            float shadowSample = texture(directionalLight.csm.cascades[cascadeIndex].shadowmap.depthTexture, texCoord).r < (depth - bias) ? 0.f : 1.f;
+            float shadowSample = texture(sampler, texCoord).r < (depth - bias) ? 0.f : 1.f;
             shadow += shadowSample * kernel[(i + kernelRadius) * 5 + (j + kernelRadius)];
         }
     }
@@ -458,7 +459,7 @@ vec3 calcDirectionalLight(in DirectionalLight directionalLight, MaterialParamete
     radiance += (diffuse + specular) * li * ndotl;
 
     // shadow
-    // radiance *= calcDirectionalShadow(worldSpacePosition, materialParameters.normal, directionalLight);
+    radiance *= calcDirectionalShadow(worldSpacePosition, materialParameters.normal, directionalLight);
     return radiance;
 }
 

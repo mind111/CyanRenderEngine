@@ -373,8 +373,13 @@ namespace Cyan
                 // todo: render a color temperature slider image and blit to ImGui
                 // ImGui::Image((void*)1, ImVec2(ImGui::GetContentRegionAvailWidth(), ImGui::GetTextLineHeight())); ImGui::SameLine();
                 ImGui::SliderFloat("##Color Temperature", &renderer->m_settings.colorTempreture, 1000.f, 10000.f, "%.2f");
+
                 ImGui::TextUnformatted("Bloom"); ImGui::SameLine();
                 ImGui::Checkbox("##Bloom", &renderer->m_settings.enableBloom);
+
+                ImGui::TextUnformatted("Exposure"); ImGui::SameLine();
+                ImGui::SliderFloat("##Exposure", &renderer->m_settings.exposure, 0.f, 100.f);
+
                 ImGui::TextUnformatted("Tone Mapping"); ImGui::SameLine();
                 ImGui::Checkbox("##Tone Mapping", &renderer->m_settings.enableTonemapping);
                 if (renderer->m_settings.enableTonemapping)

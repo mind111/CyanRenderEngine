@@ -713,7 +713,7 @@ namespace Cyan
             renderableScene.setView(scene->camera->view());
             renderableScene.setProjection(scene->camera->projection());
 
-//            renderShadow(*scene, renderableScene);
+            renderShadow(*scene, renderableScene);
 #if 0
 
             // scene depth & normal pass
@@ -744,7 +744,7 @@ namespace Cyan
             }
 #endif
             // main scene pass
-#if 1
+#if 0
             RenderTexture2D* sceneColorTexture = nullptr;
 #if 0
             auto dst = m_renderQueue.registerTexture2D(m_rtxPingPongBuffer[m_numFrames % 2]);

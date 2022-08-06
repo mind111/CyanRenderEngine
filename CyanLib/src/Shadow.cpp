@@ -54,7 +54,14 @@ namespace Cyan
     {
         std::string inPrefix(uniformNamePrefix);
         shader->setUniform((inPrefix + ".shadowmap.lightSpaceProjection").c_str(), lightSpaceProjection);
-        shader->setTexture((inPrefix + ".shadowmap.depthTexture").c_str(), depthTexture);
+        GLboolean isResident = GL_FALSE;
+        GLuint textures[1] = { depthTexture->getGpuResource() };
+        // glAreTexturesResident(1, textures, &isResident);
+        if (glIsTextureHandleResidentARB(depthTexture->glHandle) == GL_FALSE)
+        {
+            glMakeTextureHandleResidentARB(depthTexture->glHandle);
+        }
+        shader->setUniform((inPrefix + ".shadowmap.depthTextureHandle").c_str(), depthTexture->glHandle);
     }
 
     VarianceShadowmap::VarianceShadowmap(const DirectionalLight& inDirectionalLight)

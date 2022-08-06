@@ -239,6 +239,7 @@ namespace Cyan
         Parameter parameter = { };
         u32 numMips = 0;
         u8* pixelData = nullptr;
+        u64 glHandle;
     };
 
     struct Texture2DRenderable : public ITextureRenderable
@@ -283,6 +284,8 @@ namespace Cyan
             {
                 glGenerateTextureMipmap(getGpuResource());
             }
+
+            glHandle = glGetTextureHandleARB(getGpuResource());
         }
 
         ~Texture2DRenderable()
@@ -334,7 +337,9 @@ namespace Cyan
                     nullptr /* pixel data */
                 }
             )
-        { }
+        { 
+            glHandle = glGetTextureHandleARB(getGpuResource());
+        }
 
         ~DepthTexture()
         {

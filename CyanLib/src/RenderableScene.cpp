@@ -115,8 +115,6 @@ namespace Cyan
         std::unordered_map<std::string, u32> materialMap;
         std::unordered_map<std::string, u64> textureMap;
 
-        // todo: this is temporarily disabled to allow debugging using renderdoc
-#if 0
         // build instance descriptors
         for (u32 i = 0; i < meshInstances.size(); ++i)
         {
@@ -152,8 +150,11 @@ namespace Cyan
                             auto entry = textureMap.find(albedo->name);
                             if (entry == textureMap.end())
                             {
-                                matlProxy.diffuseMapHandle = glGetTextureHandleARB(albedo->getGpuResource());
-                                glMakeTextureHandleResidentARB(matlProxy.diffuseMapHandle);
+                                matlProxy.diffuseMapHandle = albedo->glHandle;
+                                if (glIsTextureHandleResidentARB(matlProxy.diffuseMapHandle) == GL_FALSE)
+                                {
+                                    glMakeTextureHandleResidentARB(matlProxy.diffuseMapHandle);
+                                }
                                 textureMap.insert({ albedo->name, matlProxy.diffuseMapHandle });
                             }
                             else
@@ -168,8 +169,11 @@ namespace Cyan
                             auto entry = textureMap.find(normal->name);
                             if (entry == textureMap.end())
                             {
-                                matlProxy.normalMapHandle = glGetTextureHandleARB(normal->getGpuResource());
-                                glMakeTextureHandleResidentARB(matlProxy.normalMapHandle);
+                                matlProxy.normalMapHandle = normal->glHandle;
+                                if (glIsTextureHandleResidentARB(matlProxy.normalMapHandle) == GL_FALSE)
+                                {
+                                    glMakeTextureHandleResidentARB(matlProxy.normalMapHandle);
+                                }
                                 textureMap.insert({ normal->name, matlProxy.normalMapHandle });
                             }
                             else
@@ -185,8 +189,11 @@ namespace Cyan
                             auto entry = textureMap.find(metallicRoughness->name);
                             if (entry == textureMap.end())
                             {
-                                matlProxy.metallicRoughnessMapHandle = glGetTextureHandleARB(metallicRoughness->getGpuResource());
-                                glMakeTextureHandleResidentARB(matlProxy.metallicRoughnessMapHandle);
+                                matlProxy.metallicRoughnessMapHandle = metallicRoughness->glHandle;
+                                if (glIsTextureHandleResidentARB(matlProxy.metallicRoughnessMapHandle) == GL_FALSE)
+                                {
+                                    glMakeTextureHandleResidentARB(matlProxy.metallicRoughnessMapHandle);
+                                }
                                 textureMap.insert({ metallicRoughness->name, matlProxy.metallicRoughnessMapHandle });
                             }
                             else
@@ -224,7 +231,6 @@ namespace Cyan
             prev = (*instances)[i].submesh;
         }
         drawCalls->addElement(instances->getNumElements());
-#endif
 
         // build view data
         SET_SSBO_MEMBER((*viewSsbo), view, camera.view);
