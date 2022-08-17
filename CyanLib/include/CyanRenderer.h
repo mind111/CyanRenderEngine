@@ -341,24 +341,28 @@ namespace Cyan
 
         RenderTexture2D* renderScene(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
 
+        /**
+        * brief:
+        * screen space ray tracing
+        */
+        struct SSGITextures
+        {
+            RenderTexture2D* ao = nullptr;
+            RenderTexture2D* bentNormal = nullptr;
+            RenderTexture2D* irradiance = nullptr;
+        };
+        SSGITextures screenSpaceRayTracing(RenderTexture2D* sceneDepthTexture, RenderTexture2D* sceneNormalTexture);
+
+        /**
+        * brief: renderScene() implemented using glMultiDrawIndirect()
+        */
         struct IndirecDraw
         {
             GLuint buffer = -1;
             u32 sizeInBytes = 1024 * 1024 * 32;
             void* data = nullptr;
         } indirectDrawBuffer;
-
-        /**
-        * brief: renderScene() implemented using glMultiDrawIndirect()
-        */
-        RenderTexture2D* renderSceneMultiDraw(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
-        
-        /**
-        * brief:
-        * screen space ray tracing
-        */
-        RenderTexture2D* screenSpaceRayTracing(RenderTexture2D* sceneDepthTexture, RenderTexture2D* sceneNormalTexture);
-
+        RenderTexture2D* renderSceneMultiDraw(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution, const SSGITextures& SSGIOutput);
 
         void rayTracing(struct RayTracingScene& rtxScene, RenderTexture2D* outputBuffer, RenderTexture2D* historyBuffer);
         void renderSceneMeshOnly(RenderableScene& sceneRenderable, RenderTexture2D* outTexture, Shader* shader);
@@ -472,8 +476,9 @@ namespace Cyan
             bool autoFilterVoxelGrid = true;
             bool enableBloom = true;
             bool enableTonemapping = true;
+            bool useBentNormal = true;
             u32 tonemapOperator = (u32)TonemapOperator::kReinhard;
-            f32  exposure = 10.f;
+            f32  exposure = 1.f;
             f32 bloomIntensity = 0.7f;
             f32 colorTempreture = 6500.f;
         } m_settings;

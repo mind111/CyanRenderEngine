@@ -155,6 +155,8 @@ namespace Cyan
                 {
                     spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGBA16F;
                 }
+                spec.width = width;
+                spec.height = height;
             }
             else
             {

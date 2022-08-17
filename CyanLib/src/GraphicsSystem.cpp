@@ -25,6 +25,7 @@ namespace Cyan
         // configure some gl global states
         glDepthFunc(GL_LEQUAL);
         glEnable(GL_LINE_SMOOTH);
+        glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
         glLineWidth(4.f);
         glfwSwapInterval(0);
 

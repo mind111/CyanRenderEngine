@@ -8,7 +8,6 @@ in vec3 fragmentObjPos;
 out vec4 fragColor;
 
 uniform float roughness;
-uniform float drawSamples;
 
 // HDR envmap
 uniform samplerCube envmapSampler;
@@ -60,34 +59,30 @@ vec3 generateSample(vec3 n, float theta, float phi)
     return normalize(toWorldSpace * s);
 }
 
+/*
 vec3 importanceSampleGGX(vec3 n, float roughness, float rand_u, float rand_v)
 {
     float theta = atan(roughness * sqrt(rand_u) / max(sqrt(1 - rand_u), 0.01));
     float phi = 2 * pi * rand_v;
     return generateSample(n, theta, phi);
 }
+*/
 
-// Watchout for padding if using vec3
-layout(std430, binding = 3) buffer sampleVertexData 
+vec3 importanceSampleGGX(vec3 n, float roughness, float rand_u, float rand_v)
 {
-    vec4 vertices[];
-} sampleVertexBuffer;
-
-void writeSampleDirectionData()
-{
-    int numSamples = 8;
-    // generate samples aroud the hemisphere oriented by a fix normal direction
-    vec3 fixedNormal = normalize(vec3(-0.2f, -0.5f, 0.3f));
-    for (int s = 0; s < numSamples; s++)
-    {
-        vec2 uv = HammersleyNoBitOps(s, numSamples);
-        vec3 h = importanceSampleGGX(fixedNormal, roughness, uv.x, uv.y);
-        sampleVertexBuffer.vertices[s * 2] = vec4(0.f, 0.f, -1.5f, 1.f);
-        sampleVertexBuffer.vertices[s * 2 + 1] = vec4(h + vec3(0.f, 0.f, -1.5f), 1.f);
-    }
-    // Draw a line for the normal
-    sampleVertexBuffer.vertices[numSamples * 2] = vec4(0.f, 0.f, -1.5f, 1.f);
-    sampleVertexBuffer.vertices[numSamples * 2 + 1] = vec4(fixedNormal + vec3(0.f, 0.f, -1.5f), 1.f);
+	float a = roughness * roughness;
+	float phi = 2 * pi * rand_u;
+	float cosTheta = sqrt( (1 - rand_v) / ( 1 + (a*a - 1) * rand_v ) );
+	float sinTheta = sqrt( 1 - cosTheta * cosTheta );
+	vec3 h;
+	h.x = sinTheta * sin( phi );
+	h.y = sinTheta * cos( phi );
+	h.z = cosTheta;
+	vec3 up = abs(n.y) < 0.999 ? vec3(0, 1.f, 0.f) : vec3(0.f, 0, 1.f);
+	vec3 tangentX = normalize( cross( n, up ) );
+	vec3 tangentY = cross( n, tangentX);
+	// tangent to world space
+	return tangentX * h.x + tangentY * h.y + n * h.z;
 }
 
 float GGX(float roughness, float ndoth) 
@@ -113,32 +108,14 @@ void main()
         vec2 uv = HammersleyNoBitOps(s, numSamples);
         vec3 h = importanceSampleGGX(n, roughness, uv.x, uv.y);
         vec3 l = -reflect(viewDir, h);
-        // why not use microfacet normal h here...?
-        float ndotl = dot(n, l);
+        float ndotl = saturate(dot(n, l));
         float ndoth = saturate(dot(n, h));
         float vdoth = saturate(dot(h, viewDir));
         if (ndotl > 0)
         {
-            /*
-                Note: 
-                    compute the importance of current sample, if the importance for 
-                current sample is small, which means more texels should be averaged,
-                which is equivalent to picking a texel from a lower mipmap level.
-            */
-            float D = GGX(roughness, ndoth);
-            float pdf = (D * ndoth) / (4 * vdoth + 0.1f);
-            float resolution = 1024.0; // resolution of source cubemap (per face)
-            float texelSolidAngle  = 4.0 * pi / (6.0 * resolution * resolution);
-            float sampleSolidAngle = 1.0 / (float(numSamples) * pdf + 0.0001);
-            float mipLevel = roughness == 0.0 ? 0.0 : 0.5 * log2(sampleSolidAngle / texelSolidAngle); 
-
-            result += textureLod(envmapSampler, l, mipLevel).rgb * ndotl;
+            result += texture(envmapSampler, l).rgb * ndotl;
             weight += ndotl;
         }
-    }
-    if (drawSamples > .5f)
-    {
-        writeSampleDirectionData();
     }
     // according to Epic's notes, weighted by ndotl produce better visual results
     result /= weight; 

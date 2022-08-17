@@ -1,6 +1,10 @@
 #version 450 core
 
-in vec2 uv;
+in VSOutput
+{
+	vec2 texCoord0;
+} psIn;
+
 out vec4 fragColor;
 
 #define pi 3.14159265359
@@ -29,11 +33,30 @@ vec3 generateSample(vec3 n, float theta, float phi)
     return normalize(toWorldSpace * s);
 }
 
+/*
 vec3 importanceSampleGGX(vec3 n, float roughness, float rand_u, float rand_v)
 {
     float theta = atan(roughness * sqrt(rand_u) / max(sqrt(1 - rand_u), 0.01));
     float phi = 2 * pi * rand_v;
     return generateSample(n, theta, phi);
+}
+*/
+
+vec3 importanceSampleGGX(vec3 n, float roughness, float rand_u, float rand_v)
+{
+	float a = roughness * roughness;
+	float phi = 2 * pi * rand_u;
+	float cosTheta = sqrt( (1 - rand_v) / ( 1 + (a*a - 1) * rand_v ) );
+	float sinTheta = sqrt( 1 - cosTheta * cosTheta );
+	vec3 h;
+	h.x = sinTheta * sin( phi );
+	h.y = sinTheta * cos( phi );
+	h.z = cosTheta;
+	vec3 up = abs(n.y) < 0.999 ? vec3(0, 1.f, 0.f) : vec3(0.f, 0, 1.f);
+	vec3 tangentX = normalize( cross( n, up ) );
+	vec3 tangentY = cross( n, tangentX);
+	// tangent to world space
+	return tangentX * h.x + tangentY * h.y + n * h.z;
 }
 
 float saturate(float k)
@@ -67,6 +90,7 @@ float ggxSmithG2(vec3 v, vec3 l, vec3 h, float roughness)
 /* 
     non-height correlated smith G2
 */
+/*
 float ggxSmithG1(vec3 v, vec3 h, vec3 n, float roughness)
 {
     float ndotv = dot(n, v); 
@@ -81,6 +105,25 @@ float ggxSmithG2Ex(vec3 v, vec3 l, vec3 n, float roughness)
 {
     vec3 h = normalize(v + n);
     return ggxSmithG1(v, h, n, roughness) * ggxSmithG1(l, h, n, roughness);
+}
+*/
+
+float ggxSmithG1(vec3 v, vec3 h, vec3 n, float roughness)
+{
+    float a = roughness * roughness;
+    float k = (a * a) / 2.0;
+    float nom   = saturate(dot(n, v));
+    float denom = saturate(dot(n, v)) * (1.0 - k) + k;
+    return nom / max(denom, 0.1);
+}
+
+// ----------------------------------------------------------------------------
+float ggxSmithG(vec3 n, vec3 v, vec3 l, float roughness)
+{
+    vec3 h = normalize(v + l);
+    float ggx1 = ggxSmithG1(l, h, n, roughness);
+    float ggx2 = ggxSmithG1(v, h, n, roughness);
+    return ggx1 * ggx2;
 }
 
 float VanDerCorput(uint n, uint base)
@@ -108,8 +151,8 @@ vec2 HammersleyNoBitOps(uint i, uint N)
 
 void main()
 {
-    float roughness = uv.x;
-    float ndotv = uv.y; 
+    float ndotv = psIn.texCoord0.x; 
+    float roughness = psIn.texCoord0.y;
     float sinTheta = sqrt(1 - ndotv * ndotv);
     vec3 v = vec3(sinTheta, ndotv, 0.f);
     uint numSamples = 1024u;
@@ -118,21 +161,21 @@ void main()
     float B = 0.f;
     for (uint s = 0; s < numSamples; ++s)
     {
-        vec2 rand_uv =  HammersleyNoBitOps(s, numSamples);
+        vec2 rand_uv = HammersleyNoBitOps(s, numSamples);
         vec3 h = importanceSampleGGX(n, roughness, rand_uv.x, rand_uv.y);
-        vec3 l = -reflect(v, h);
+        vec3 l = normalize(-reflect(v, h));
 
-        float ndotl = dot(n, l);
+        float ndotl = saturate(dot(n, l));
         float ndoth = saturate(dot(n, h));
         float vdoth = saturate(dot(v, h));
 
         if (ndotl > 0.f)
         {
-            float G = ggxSmithG2(v, l, h, roughness);
-            float GVis = G * vdoth / max((ndotv * ndoth), 0.01f);
+            float G = ggxSmithG(n, v, l, roughness);
+            float GVis = G * vdoth / (ndotv * ndoth);
             float a = (1.f - vdoth) * (1.f - vdoth) * (1.f - vdoth) * (1.f - vdoth) * (1.f - vdoth);
-            A += (1.f - a) * GVis; 
-            B += a         * GVis; 
+            A += (1.f - a) * GVis;
+            B += a         * GVis;
         }
     }
     A /= numSamples;

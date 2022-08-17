@@ -191,8 +191,8 @@
     <None Include="..\shader\render_to_cubemap_v.glsl" />
     <None Include="..\shader\shader_grid_texture.fs" />
     <None Include="..\shader\shader_grid_texture.vs" />
-    <None Include="..\shader\shader_integrate_brdf.fs" />
-    <None Include="..\shader\shader_integrate_brdf.vs" />
+    <None Include="..\shader\integrate_BRDF_p.glsl" />
+    <None Include="..\shader\integrate_BRDF_v.glsl" />
     <None Include="..\shader\shader_light.fs" />
     <None Include="..\shader\shader_light.vs" />
     <None Include="..\shader\shader_lightmap.fs" />

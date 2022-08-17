@@ -718,10 +718,11 @@ namespace Cyan
             // scene depth & normal pass
             // bool depthNormalPrepassRequired = (m_settings.enableSSAO || m_settings.enableVctx);
             bool depthNormalPrepassRequired = true;
+            SSGITextures SSGIOutput = { };
             if (depthNormalPrepassRequired)
             {
                 auto depthPrepassOutput = renderSceneDepthNormal(renderableScene, sceneView, renderResolution);
-                screenSpaceRayTracing(depthPrepassOutput.depthTexture, depthPrepassOutput.normalTexture);
+                SSGIOutput = screenSpaceRayTracing(depthPrepassOutput.depthTexture, depthPrepassOutput.normalTexture);
             }
 #if 0
 
@@ -776,7 +777,7 @@ namespace Cyan
 #endif
 #else
             // RenderTexture2D* sceneColorTexture = renderScene(renderableScene, sceneView, renderResolution);
-            RenderTexture2D* sceneColorTexture = renderSceneMultiDraw(renderableScene, sceneView, renderResolution);
+            RenderTexture2D* sceneColorTexture = renderSceneMultiDraw(renderableScene, sceneView, renderResolution, SSGIOutput);
 #endif
 
             if (m_settings.enableTAA)
@@ -979,28 +980,44 @@ namespace Cyan
         return { depthTexture, normalTexture};
     }
 
-    RenderTexture2D* Renderer::screenSpaceRayTracing(RenderTexture2D* sceneDepthTexture, RenderTexture2D* sceneNormalTexture)
+    Renderer::SSGITextures Renderer::screenSpaceRayTracing(RenderTexture2D* sceneDepthTexture, RenderTexture2D* sceneNormalTexture)
     {
-        RenderTexture2D* output = m_renderQueue.createTexture2D("SSGI", sceneDepthTexture->spec);
+        RenderTexture2D* ssao = m_renderQueue.createTexture2D("SSAO", sceneNormalTexture->spec);
+        RenderTexture2D* ssbn = m_renderQueue.createTexture2D("SSBN", sceneNormalTexture->spec);
 
         // screen space ao
         m_renderQueue.addPass(
             "ScreenSpaceRayTracingPass",
-            [this, output](RenderQueue& renderQueue, RenderPass* pass) {
-                pass->addInput(output);
-                pass->addOutput(output);
+            [this, sceneDepthTexture, sceneNormalTexture, ssao, ssbn](RenderQueue& renderQueue, RenderPass* pass) {
+                pass->addInput(sceneDepthTexture);
+                pass->addInput(sceneNormalTexture);
+                pass->addInput(ssao);
+                pass->addInput(ssbn);
+                pass->addOutput(ssao);
+                pass->addOutput(ssbn);
             },
-            [this, output, sceneDepthTexture, sceneNormalTexture]() {
-                std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(output->spec.width, output->spec.height));
-                renderTarget->setColorBuffer(output->getTextureResource(), 0);
+            [this, ssao, ssbn, sceneDepthTexture, sceneNormalTexture]() {
+                std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(ssao->spec.width, ssao->spec.height));
+                renderTarget->setColorBuffer(ssao->getTextureResource(), 0);
+                renderTarget->setColorBuffer(ssbn->getTextureResource(), 1);
+
+                GLenum drawBuffers[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+                glNamedFramebufferDrawBuffers(renderTarget->fbo, 2, drawBuffers);
+                renderTarget->clear({ 
+                    { 0, glm::vec4(0.f, 0.f, 0.f, 1.f) },
+                    { 1, glm::vec4(0.f, 0.f, 0.f, 1.f) },
+                });
 
                 Shader* ssrtShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "ScreenSpaceRayTracingShader", SHADER_SOURCE_PATH "screenspace_raytracing.glsl", SHADER_SOURCE_PATH "screenspace_raytracing.glsl" });
                 submitFullScreenPass(
                     renderTarget.get(),
-                    { { 0 } },
+                    { { 0 }, { 1 } },
                     ssrtShader,
-                    [](RenderTarget* renderTarget, Shader* shader) {
-
+                    [sceneDepthTexture, sceneNormalTexture](RenderTarget* renderTarget, Shader* shader) {
+                        shader->setTexture("depthTexture", sceneDepthTexture->getTextureResource());
+                        shader->setTexture("normalTexture", sceneNormalTexture->getTextureResource());
+                        auto blueNoiseTexture = AssetManager::getAsset<Texture2DRenderable>("BlueNoise_1024x1024");
+                        shader->setTexture("blueNoiseTexture", blueNoiseTexture);
                     });
             });
 
@@ -1010,12 +1027,25 @@ namespace Cyan
 
         // screen space reflection
 
-        addUIRenderCommand([output](){
+        addUIRenderCommand([this, ssao, ssbn](){
             ImGui::Begin("SSGI Viewer");
-            ImGui::Image((ImTextureID)(output->getTextureResource()->getGpuResource()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
+            ImGui::Checkbox("Bent Normal", &m_settings.useBentNormal);
+            enum class Visualization
+            {
+                kAmbientOcclusion,
+                kBentNormal,
+                kCount
+            };
+            static i32 visualization = (i32)Visualization::kAmbientOcclusion;
+            const char* visualizationNames[(i32)Visualization::kCount] = { "Ambient Occlusion", "Bent Normal", };
+            ImGui::Combo("Visualization", &visualization, visualizationNames, (i32)Visualization::kCount);
+            if (visualization == (i32)Visualization::kAmbientOcclusion)
+                ImGui::Image((ImTextureID)(ssao->getTextureResource()->getGpuResource()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
+            if (visualization == (i32)Visualization::kBentNormal)
+                ImGui::Image((ImTextureID)(ssbn->getTextureResource()->getGpuResource()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
             ImGui::End();
         });
-        return output;
+        return { ssao, ssbn };
     }
 
     void Renderer::rayTracing(RayTracingScene& rtxScene, RenderTexture2D* outputBuffer, RenderTexture2D* historyBuffer)
@@ -1104,7 +1134,7 @@ namespace Cyan
         return outSceneColor;
     }
 
-    RenderTexture2D* Renderer::renderSceneMultiDraw(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution)
+    RenderTexture2D* Renderer::renderSceneMultiDraw(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution, const SSGITextures& SSGIOutput)
     {
         ITextureRenderable::Spec spec = { };
         spec.type = TEX_2D;
@@ -1117,7 +1147,7 @@ namespace Cyan
             [outSceneColor, &renderableScene](RenderQueue& renderQueue, RenderPass* pass) {
                 pass->addOutput(outSceneColor);
             },
-            [this, outSceneColor, &renderableScene, &sceneView]() {
+            [this, outSceneColor, &renderableScene, &sceneView, &SSGIOutput]() {
 
                 Shader* scenePassShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "ScenePassShader", SHADER_SOURCE_PATH "scene_pass_v.glsl", SHADER_SOURCE_PATH "scene_pass_p.glsl" });
                 std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(outSceneColor->spec.width, outSceneColor->spec.height));
@@ -1154,16 +1184,55 @@ namespace Cyan
                 m_ctx->setViewport({ 0, 0, renderTarget->width, renderTarget->height });
                 m_ctx->setDepthControl(DepthControl::kEnable);
 
+                if (m_settings.useBentNormal)
+                    scenePassShader->setUniform("useBentNormal", 1.f);
+                else
+                    scenePassShader->setUniform("useBentNormal", 0.f);
+                auto ssao = SSGIOutput.ao->getTextureResource()->glHandle;
+                auto ssbn = SSGIOutput.bentNormal->getTextureResource()->glHandle;
+                if (glIsTextureHandleResidentARB(ssao) == GL_FALSE)
+                {
+                    glMakeTextureHandleResidentARB(ssao);
+                }
+                scenePassShader->setUniform("SSAO", ssao);
+                if (glIsTextureHandleResidentARB(ssbn) == GL_FALSE)
+                {
+                    glMakeTextureHandleResidentARB(ssbn);
+                }
+                scenePassShader->setUniform("SSBN", ssbn);
+
+                // todo: refactor the following
+                // sky light
+                auto BRDFLookupTexture = ReflectionProbe::getBRDFLookupTexture()->glHandle;
+                /* note
+                * seamless cubemap doesn't work with bindless textures that's accessed using a texture handle,
+                * so falling back to normal way of binding textures here.
+                */
+                if (glIsTextureHandleResidentARB(BRDFLookupTexture) == GL_FALSE)
+                {
+                    glMakeTextureHandleResidentARB(BRDFLookupTexture);
+                }
+                scenePassShader->setTexture("sceneLights.skyLight.irradiance", renderableScene.irradianceProbe->m_convolvedIrradianceTexture);
+                scenePassShader->setTexture("sceneLights.skyLight.reflection", renderableScene.reflectionProbe->m_convolvedReflectionTexture);
+                scenePassShader->setUniform("sceneLights.BRDFLookupTexture", BRDFLookupTexture);
+
                 for (auto light : renderableScene.lights)
                 {
                     light->setShaderParameters(scenePassShader);
                 }
+                scenePassShader->commit(m_ctx);
 
                 // dispatch multi draw indirect
                 // one sub-drawcall per instance
                 u32 drawCount = (u32)renderableScene.drawCalls->getNumElements() - 1;
                 glMultiDrawArraysIndirect(GL_TRIANGLES, 0, drawCount, 0);
             });
+
+        addUIRenderCommand([](){
+            ImGui::Begin("Texture Viewer");
+            ImGui::Image((ImTextureID)(ReflectionProbe::getBRDFLookupTexture()->getGpuResource()), ImVec2(270, 270), ImVec2(0, 1), ImVec2(1, 0));
+            ImGui::End();
+        });
         return outSceneColor;
     }
 

@@ -238,8 +238,11 @@ namespace Cyan
 
         // build lighting data
         skybox = inScene->skybox;
-        irradianceProbe = inScene->irradianceProbe;
-        reflectionProbe = inScene->reflectionProbe;
+        if (inScene->skyLight)
+        {
+            irradianceProbe = inScene->skyLight->irradianceProbe.get();
+            reflectionProbe = inScene->skyLight->reflectionProbe.get();
+        }
     }
 
     /**

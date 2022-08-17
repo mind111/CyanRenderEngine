@@ -439,10 +439,10 @@
     <None Include="..\shader\shader_grid_texture.vs">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_integrate_brdf.fs">
+    <None Include="..\shader\integrate_BRDF_p.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_integrate_brdf.vs">
+    <None Include="..\shader\integrate_BRDF_v.glsl">
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\shader_light.fs">

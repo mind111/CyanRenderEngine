@@ -114,11 +114,6 @@ void main()
     // adjust color tempreture
     // linearColor *= colorTemperatureToRGB(colorTempreture);
 
-    /** note
-    * random constrast boosting operator
-    */
-    // linearColor *= calcLuminance(linearColor);
-
     if (enableBloom > 0.5f)
     {
         // linear blending

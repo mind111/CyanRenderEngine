@@ -179,6 +179,11 @@ namespace Cyan
                 glPixelFormat.format = GL_RGB;
                 glPixelFormat.type = GL_FLOAT;
                 break;
+            case Spec::PixelFormat::RGBA16F:
+                glPixelFormat.internalFormat = GL_RGBA16F;
+                glPixelFormat.format = GL_RGBA;
+                glPixelFormat.type = GL_FLOAT;
+                break;
             case Spec::PixelFormat::RGB32F:
                 glPixelFormat.internalFormat = GL_RGB32F;
                 glPixelFormat.format = GL_RGB;
@@ -450,6 +455,8 @@ namespace Cyan
             {
                 glGenerateTextureMipmap(getGpuResource());
             }
+
+            glHandle = glGetTextureHandleARB(getGpuResource());
         }
 
         ~TextureCubeRenderable()

@@ -49,14 +49,13 @@ namespace Cyan
         : scene(nullptr), position(glm::vec3(0.f)), resolution(glm::uvec2(srcCubemapTexture->resolution, srcCubemapTexture->resolution)), 
         debugSphereMesh(nullptr), sceneCapture(srcCubemapTexture)
     {
-
+        initialize();
     }
 
     LightProbe::LightProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& resolution)
         : scene(scene), position(p), resolution(resolution), debugSphereMesh(nullptr), sceneCapture(nullptr)
     {
         // debugSphereMesh = AssetManager::getAsset<Mesh>("sphere_mesh")->createInstance(scene);
-
         initialize();
     }
 
@@ -85,6 +84,7 @@ namespace Cyan
                     indices[v] = v;
                 }
                 submeshes.push_back(assetManager->createSubmesh<Triangles>(vertices, indices));
+                unitCubeMesh = assetManager->createMesh("UnitCubeMesh", submeshes);
             }
         }
     }
@@ -123,9 +123,11 @@ namespace Cyan
     {
         ITextureRenderable::Spec spec = { };
         spec.width = m_irradianceTextureRes.x;
+        spec.height = m_irradianceTextureRes.x;
+        spec.depth = m_irradianceTextureRes.x;
         spec.type = ITextureRenderable::Spec::Type::kTexCube;
         spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGB16F;
-        // m_convolvedIrradianceTexture = AssetManager::createTextureCube("IrradianceProbe", spec);
+        m_convolvedIrradianceTexture = AssetManager::createTextureCube("IrradianceProbe", spec);
 
         if (!s_convolveIrradianceShader)
         {
@@ -135,10 +137,9 @@ namespace Cyan
 
     void IrradianceProbe::convolve()
     {
-        GpuTimer timer("ConvolveIrradianceTimer");
         auto renderer = Renderer::get();
 
-        auto renderTarget = createRenderTarget(m_irradianceTextureRes.x, m_irradianceTextureRes.y);
+        auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(m_irradianceTextureRes.x, m_irradianceTextureRes.y));
         renderTarget->setColorBuffer(m_convolvedIrradianceTexture, 0u);
         {
             for (u32 f = 0; f < 6u; ++f)
@@ -147,7 +148,7 @@ namespace Cyan
                 pipelineState.depth = DepthControl::kDisable;
 
                 renderer->submitMesh(
-                    renderTarget,
+                    renderTarget.get(),
                     { { (i32)f } },
                     false,
                     { 0u, 0u, renderTarget->width, renderTarget->height }, 
@@ -170,11 +171,7 @@ namespace Cyan
                             .setTexture("srcCubemapTexture", sceneCapture);
                     });
             }
-            timer.end();
         }
-        // release resources
-        glDeleteFramebuffers(1, &renderTarget->fbo);
-        delete renderTarget;
     }
 
     void IrradianceProbe::build()
@@ -212,9 +209,10 @@ namespace Cyan
         spec.width = resolution.x;
         spec.type = ITextureRenderable::Spec::Type::kTexCube;
         spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGB16F;
+        spec.numMips = max(1, log2(spec.width) + 1);
         ITextureRenderable::Parameter parameter = { };
         parameter.minificationFilter = ITextureRenderable::Parameter::Filtering::LINEAR_MIPMAP_LINEAR;
-        // m_convolvedReflectionTexture = AssetManager::createTextureCube("IrradianceProbe", spec, parameter);
+        m_convolvedReflectionTexture = AssetManager::createTextureCube("ReflectionProbe", spec, parameter);
 
         if (!s_convolveReflectionShader)
         {
@@ -234,9 +232,14 @@ namespace Cyan
         spec.width = 512u;
         spec.height = 512u;
         spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGBA16F;
-        Texture2DRenderable* outTexture = AssetManager::createTexture2D("BRDFLUT", spec);
+        spec.type = TEX_2D;
+        ITextureRenderable::Parameter params = { };
+        params.wrap_r = WM_CLAMP;
+        params.wrap_s = WM_CLAMP;
+        params.wrap_t = WM_CLAMP;
+        Texture2DRenderable* outTexture = AssetManager::createTexture2D("BRDFLUT", spec, params);
 
-        Shader* shader = ShaderManager::createShader({ ShaderType::kVsPs, "IntegrateBRDFShader", SHADER_SOURCE_PATH "shader_integrate_brdf.vs", SHADER_SOURCE_PATH "shader_integrate_brdf.fs" });
+        Shader* shader = ShaderManager::createShader({ ShaderType::kVsPs, "IntegrateBRDFShader", SHADER_SOURCE_PATH "integrate_BRDF_v.glsl", SHADER_SOURCE_PATH "integrate_BRDF_p.glsl" });
         RenderTarget* renderTarget = createRenderTarget(outTexture->width, outTexture->height);
         renderTarget->setColorBuffer(outTexture, 0u);
 
@@ -259,7 +262,7 @@ namespace Cyan
     void ReflectionProbe::convolve()
     {
         auto renderer = Renderer::get();
-        u32 kNumMips = 11;
+        u32 kNumMips = m_convolvedReflectionTexture->numMips;
         u32 mipWidth = sceneCapture->resolution; 
         u32 mipHeight = sceneCapture->resolution;
 

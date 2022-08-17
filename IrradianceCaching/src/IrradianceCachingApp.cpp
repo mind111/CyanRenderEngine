@@ -25,12 +25,20 @@ public:
         // AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/sponza-gltf-pbr/sponza.glb", "Sponza");
         // AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/ue_archvis.glb", "interior");
 #endif
+        ITextureRenderable::Spec spec = { };
+        ITextureRenderable::Parameter parameter = { };
+        parameter.minificationFilter = FM_POINT;
+        parameter.wrap_r = WM_WRAP;
+        parameter.wrap_s = WM_WRAP;
+        parameter.wrap_t = WM_WRAP;
+        AssetManager::importTexture2D("BlueNoise_1024x1024", ASSET_PATH "textures/noise/LDR_RGBA_0.png", spec, parameter);
+        AssetManager::importTexture2D("BlueNoise_16x16", ASSET_PATH "textures/noise/LDR_LLL1_0.png", spec, parameter);
 
         // sun light
-        m_scene->createDirectionalLight("SunLight", glm::vec3(1.f, 1.5f, 2.5f), glm::vec4(1.f, 1.f, 1.f, 8.f));
+        m_scene->createDirectionalLight("SunLight", glm::vec3(1.f, 1.5f, 2.5f), glm::vec4(1.f, 1.f, 1.f, 11.f));
         // sky light 
         auto skylight = m_scene->createSkyLight("SkyLight", ASSET_PATH "cubemaps/pisa.hdr");
-        // skylight->build();
+        skylight->build();
 
         m_scene->update();
 

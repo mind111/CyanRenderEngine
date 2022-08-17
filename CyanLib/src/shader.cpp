@@ -392,7 +392,7 @@ namespace Cyan
         { "ConvolveIrradianceShader", { ShaderSource::Type::kVsPs, "ConvolveIrradianceShader", SHADER_SOURCE_PATH "convolve_diffuse_v.glsl", SHADER_SOURCE_PATH "convolve_diffuse_p.glsl" } },
         { "ConvolveReflectionShader", { ShaderSource::Type::kVsPs, "ConvolveReflectionShader", SHADER_SOURCE_PATH "convolve_specular_v.glsl", SHADER_SOURCE_PATH "convolve_specular_p.glsl" } },
         { "PointLightShader",         { ShaderSource::Type::kVsPs, "PointLightShader", SHADER_SOURCE_PATH "shader_light.vs", SHADER_SOURCE_PATH "shader_light.fs" } },
-        { "IntegrateBRDFShader",      { ShaderSource::Type::kVsPs, "IntegrateBRDFShader", SHADER_SOURCE_PATH "shader_integrate_brdf.vs", SHADER_SOURCE_PATH  "shader_integrate_brdf.fs" } },
+        { "IntegrateBRDFShader",      { ShaderSource::Type::kVsPs, "IntegrateBRDFShader", SHADER_SOURCE_PATH "integrate_BRDF_v.glsl", SHADER_SOURCE_PATH  "integrate_BRDF_p.glsl" } },
         { "RenderProbeShader",        { ShaderSource::Type::kVsPs, "RenderProbeShader", SHADER_SOURCE_PATH "shader_render_probe.vs", SHADER_SOURCE_PATH  "shader_render_probe.fs"} },
         { "IntegrateBRDFShader",      { ShaderSource::Type::kVsPs, "IntegrateBRDFShader", SHADER_SOURCE_PATH "shader_integrate_brdf.vs", SHADER_SOURCE_PATH  "shader_integrate_brdf.fs" } },
         { "RenderProbeShader",        { ShaderSource::Type::kVsPs, "RenderProbeShader", SHADER_SOURCE_PATH "shader_render_probe.vs", SHADER_SOURCE_PATH  "shader_render_probe.fs" } },
