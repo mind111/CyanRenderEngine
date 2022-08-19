@@ -540,8 +540,8 @@ vec3 calcDirectionalLight(in DirectionalLight directionalLight, MaterialParamete
     vec3 h = normalize(directionalLight.direction.xyz + worldSpaceViewDirection);
     float hdotl = saturate(dot(h, directionalLight.direction.xyz));
     float ndotv = saturate(dot(materialParameters.normal, worldSpaceViewDirection));
-    // vec3 diffuse = mix((1.f - f0), vec3(0.f), materialParameters.metallic) * LambertBRDF(materialParameters.albedo);
-    vec3 diffuse = mix((1.f - f0), vec3(0.f), materialParameters.metallic) * DisneyDiffuseBRDF(hdotl, ndotl, ndotv, materialParameters);
+    vec3 diffuse = mix((1.f - f0), vec3(0.f), materialParameters.metallic) * LambertBRDF(materialParameters.albedo);
+    // vec3 diffuse = mix((1.f - f0), vec3(0.f), materialParameters.metallic) * DisneyDiffuseBRDF(hdotl, ndotl, ndotv, materialParameters);
 
     /** 
     * specular
@@ -616,8 +616,6 @@ void main()
     worldSpaceTangent = normalize(worldSpaceTangent - dot(worldSpaceNormal, worldSpaceTangent) * worldSpaceNormal); 
     vec3 worldSpaceBitangent = normalize(cross(worldSpaceNormal, worldSpaceTangent)) * psIn.tangentSpaceHandedness;
 
-    // todo: transform tangent back to world space
     MaterialParameters materialParameters = getMaterialParameters(worldSpaceTangent, worldSpaceBitangent, worldSpaceNormal, psIn.texCoord0);
     outColor = calcLighting(sceneLights, materialParameters, psIn.worldSpacePosition);
-    // outColor = materialParameters.normal * .5f + .5f;
 }

@@ -290,7 +290,9 @@ namespace Cyan
                 glGenerateTextureMipmap(getGpuResource());
             }
 
+#if BINDLESS_TEXTURE
             glHandle = glGetTextureHandleARB(getGpuResource());
+#endif
         }
 
         ~Texture2DRenderable()
@@ -343,7 +345,9 @@ namespace Cyan
                 }
             )
         { 
+#if BINDLESS_TEXTURE
             glHandle = glGetTextureHandleARB(getGpuResource());
+#endif
         }
 
         ~DepthTexture()
@@ -456,7 +460,9 @@ namespace Cyan
                 glGenerateTextureMipmap(getGpuResource());
             }
 
+#if BINDLESS_TEXTURE
             glHandle = glGetTextureHandleARB(getGpuResource());
+#endif
         }
 
         ~TextureCubeRenderable()

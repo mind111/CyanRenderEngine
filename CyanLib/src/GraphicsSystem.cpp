@@ -26,6 +26,9 @@ namespace Cyan
         glDepthFunc(GL_LEQUAL);
         glEnable(GL_LINE_SMOOTH);
         glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+        glEnable(GL_CULL_FACE);
+        glFrontFace(GL_CCW);
+        glCullFace(GL_BACK);
         glLineWidth(4.f);
         glfwSwapInterval(0);
 

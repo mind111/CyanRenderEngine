@@ -4,6 +4,8 @@
 
 #include "Common.h"
 
+#define BINDLESS_TEXTURE 1
+
 namespace Cyan
 {
     class GpuResource

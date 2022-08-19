@@ -150,11 +150,13 @@ namespace Cyan
                             auto entry = textureMap.find(albedo->name);
                             if (entry == textureMap.end())
                             {
+#if BINDLESS_TEXTURE
                                 matlProxy.diffuseMapHandle = albedo->glHandle;
                                 if (glIsTextureHandleResidentARB(matlProxy.diffuseMapHandle) == GL_FALSE)
                                 {
                                     glMakeTextureHandleResidentARB(matlProxy.diffuseMapHandle);
                                 }
+#endif
                                 textureMap.insert({ albedo->name, matlProxy.diffuseMapHandle });
                             }
                             else
@@ -169,11 +171,13 @@ namespace Cyan
                             auto entry = textureMap.find(normal->name);
                             if (entry == textureMap.end())
                             {
+#if BINDLESS_TEXTURE
                                 matlProxy.normalMapHandle = normal->glHandle;
                                 if (glIsTextureHandleResidentARB(matlProxy.normalMapHandle) == GL_FALSE)
                                 {
                                     glMakeTextureHandleResidentARB(matlProxy.normalMapHandle);
                                 }
+#endif
                                 textureMap.insert({ normal->name, matlProxy.normalMapHandle });
                             }
                             else
@@ -189,11 +193,13 @@ namespace Cyan
                             auto entry = textureMap.find(metallicRoughness->name);
                             if (entry == textureMap.end())
                             {
+#if BINDLESS_TEXTURE
                                 matlProxy.metallicRoughnessMapHandle = metallicRoughness->glHandle;
                                 if (glIsTextureHandleResidentARB(matlProxy.metallicRoughnessMapHandle) == GL_FALSE)
                                 {
                                     glMakeTextureHandleResidentARB(matlProxy.metallicRoughnessMapHandle);
                                 }
+#endif
                                 textureMap.insert({ metallicRoughness->name, matlProxy.metallicRoughnessMapHandle });
                             }
                             else

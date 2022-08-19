@@ -143,9 +143,6 @@ namespace Cyan
             fullscreenQuad = assetManager->createMesh("FullScreenQuadMesh", submeshes);
         }
 
-        // set back-face culling
-        m_ctx->setCullFace(FrontFace::CounterClockWise, FaceCull::Back);
-
         // voxel cone tracing
         {
             m_vctx.voxelizer.init(m_sceneVoxelGrid.resolution);

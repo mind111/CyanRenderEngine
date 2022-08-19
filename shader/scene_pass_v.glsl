@@ -117,7 +117,6 @@ void main()
 	vsOut.viewSpacePosition = (viewSsbo.view * transformSsbo.models[instance.transform] * vertex.pos).xyz;
 	vsOut.worldSpaceNormal = normalize((inverse(transpose(transformSsbo.models[instance.transform])) * vertex.normal).xyz);
 	vsOut.worldSpaceTangent = normalize((transformSsbo.models[instance.transform] * vec4(vertex.tangent.xyz, 0.f)).xyz);
-	// vsOut.worldSpaceTangent = normalize(vertex.tangent.xyz);
 	vsOut.tangentSpaceHandedness = vertex.tangent.w;
 
 	vsOut.texCoord0 = vertex.texCoord.xy;

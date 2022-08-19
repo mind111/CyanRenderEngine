@@ -56,11 +56,12 @@ namespace Cyan
         shader->setUniform((inPrefix + ".shadowmap.lightSpaceProjection").c_str(), lightSpaceProjection);
         GLboolean isResident = GL_FALSE;
         GLuint textures[1] = { depthTexture->getGpuResource() };
-        // glAreTexturesResident(1, textures, &isResident);
+#if BINDLESS_TEXTURE
         if (glIsTextureHandleResidentARB(depthTexture->glHandle) == GL_FALSE)
         {
             glMakeTextureHandleResidentARB(depthTexture->glHandle);
         }
+#endif
         shader->setUniform((inPrefix + ".shadowmap.depthTextureHandle").c_str(), depthTexture->glHandle);
     }
 
