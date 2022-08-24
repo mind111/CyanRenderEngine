@@ -41,6 +41,7 @@ namespace Cyan
 
         m_renderer = m_graphicsSystem->getRenderer();
 
+#if 0
         // setup default I/O controls 
         m_IOSystem->addIOEventListener<Cyan::MouseCursorEvent>([this](f64 xPos, f64 yPos) {
             glm::dvec2 mouseCursorChange = m_IOSystem->getMouseCursorChange();
@@ -112,6 +113,7 @@ namespace Cyan
                 break;
             }
         });
+#endif
     }
 
     static void drawSceneTab(Scene* scene)

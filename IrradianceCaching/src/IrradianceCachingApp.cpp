@@ -18,11 +18,12 @@ public:
     virtual void customInitialize() override
     {
         using namespace Cyan;
-#if 0
+#if 1
         AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/cornell_box.gltf", "CornellBox");
 #else
         AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/shader_balls.glb", "ShaderBall");
         // AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/sponza-gltf-pbr/sponza.glb", "Sponza");
+        // AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/sun_temple/SimplifiedSunTemple.glb", "SimplifiedSunTemple");
         // AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/ue_archvis.glb", "interior");
 #endif
         ITextureRenderable::Spec spec = { };
@@ -35,7 +36,7 @@ public:
         AssetManager::importTexture2D("BlueNoise_16x16", ASSET_PATH "textures/noise/LDR_LLL1_0.png", spec, parameter);
 
         // sun light
-        m_scene->createDirectionalLight("SunLight", glm::vec3(1.f, 1.5f, 2.5f), glm::vec4(1.f, 1.f, 1.f, 11.f));
+        m_scene->createDirectionalLight("SunLight", glm::vec3(1.f, 1.5f, 2.5f), glm::vec4(1.f, 1.f, 1.f, 1.f));
         // sky light 
         auto skylight = m_scene->createSkyLight("SkyLight", ASSET_PATH "cubemaps/pisa.hdr");
         skylight->build();

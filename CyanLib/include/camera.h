@@ -39,7 +39,7 @@ namespace Cyan
         }
 
         PerspectiveCamera()
-            : ICamera(glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 0.f, -2.f), glm::vec3(0.f, 1.f, 0.f)),
+            : ICamera(glm::vec3(0.f, 1.f, -2.f), glm::vec3(0.f, 0.f, -4.f), glm::vec3(0.f, 1.f, 0.f)),
             fov(45.f),
             n(0.5f),
             f(150.f),

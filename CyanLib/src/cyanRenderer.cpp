@@ -27,6 +27,7 @@
 #include "RayTracingScene.h"
 
 #define DRAW_SSAO_DEBUG_VIS 0
+#define GPU_RAYTRACING 1
 
 namespace Cyan
 {
@@ -678,7 +679,7 @@ namespace Cyan
     {
         //-------------------------------------------------------------------
         /*
-        * What composes a frame in Cyan ? 
+        * What composes a frame in Cyan ?
         * pre main scene pass
             * render shadow maps for all the shadow casting light sources
             * render depth & normal pass
@@ -693,16 +694,6 @@ namespace Cyan
         //-------------------------------------------------------------------
         beginRender();
         {
-#if 1
-#if 0
-            Camera camera = scene->camera;
-            if (m_settings.enableTAA)
-            {
-                // jitter the projection matrix
-                camera.projection[2][0] += -TAAJitterVectors[m_numFrames % ARRAY_COUNT(TAAJitterVectors)].x;
-                camera.projection[2][1] += -TAAJitterVectors[m_numFrames % ARRAY_COUNT(TAAJitterVectors)].y;
-            }
-#endif
             glm::uvec2 renderResolution = m_settings.enableAA ? glm::uvec2(m_SSAAWidth, m_SSAAHeight) : glm::uvec2(m_windowWidth, m_windowHeight);
             SceneView sceneView(*scene, scene->camera->getCamera(), EntityFlag_kVisible);
             // convert Scene instance to RenderableScene instance for rendering
@@ -710,6 +701,21 @@ namespace Cyan
             renderableScene.setView(scene->camera->view());
             renderableScene.setProjection(scene->camera->projection());
 
+            // main scene pass
+#if GPU_RAYTRACING
+            RenderTexture2D* sceneColorTexture = nullptr;
+            ITextureRenderable::Spec spec = { };
+            spec.type = TEX_2D;
+            spec.pixelFormat = PF_RGB16F;
+            spec.width = 2560;
+            spec.height = 1440;
+
+            auto depthPrepassOutput = renderSceneDepthNormal(renderableScene, sceneView, renderResolution);
+
+            sceneColorTexture = m_renderQueue.createTexture2D("RayTracingOutput", spec);
+            RayTracingScene rtxScene(*scene);
+            gpuRayTracing(rtxScene, sceneColorTexture, nullptr, depthPrepassOutput.depthTexture, depthPrepassOutput.normalTexture);
+#else
             renderShadow(*scene, renderableScene);
 
             // scene depth & normal pass
@@ -721,8 +727,8 @@ namespace Cyan
                 auto depthPrepassOutput = renderSceneDepthNormal(renderableScene, sceneView, renderResolution);
                 SSGIOutput = screenSpaceRayTracing(depthPrepassOutput.depthTexture, depthPrepassOutput.normalTexture);
             }
-#if 0
 
+            /*
             // voxel cone tracing pass
             if (m_settings.enableVctx)
             {
@@ -742,41 +748,11 @@ namespace Cyan
                 };
                 ssao(sceneView, sceneDepthTexture, sceneNormalTexture, glm::uvec2(1280, 720));
             }
-#endif
-            // main scene pass
-#if 0
-            RenderTexture2D* sceneColorTexture = nullptr;
-#if 0
-            auto dst = m_renderQueue.registerTexture2D(m_rtxPingPongBuffer[m_numFrames % 2]);
-            if (m_numFrames > 0)
-            {
-                auto src = m_renderQueue.registerTexture2D(m_rtxPingPongBuffer[(m_numFrames - 1) % 2]);
-                RayTracingScene rtxScene(*scene);
-                rayTracing(rtxScene, dst, src);
-                sceneColorTexture = dst;
-            }
-            else
-            {
-                RayTracingScene rtxScene(*scene);
-                rayTracing(rtxScene, dst, nullptr);
-                sceneColorTexture = dst;
-            }
-#else
-            ITextureRenderable::Spec spec = { };
-            spec.type = TEX_2D;
-            spec.pixelFormat = PF_RGB16F;
-            spec.width = 2560;
-            spec.height = 1440;
+            */
 
-            sceneColorTexture = m_renderQueue.createTexture2D("RayTracingOutput", spec);
-            RayTracingScene rtxScene(*scene);
-            rayTracing(rtxScene, sceneColorTexture, nullptr);
-#endif
-#else
             // RenderTexture2D* sceneColorTexture = renderScene(renderableScene, sceneView, renderResolution);
             RenderTexture2D* sceneColorTexture = renderSceneMultiDraw(renderableScene, sceneView, renderResolution, SSGIOutput);
 #endif
-
             if (m_settings.enableTAA)
             {
                 taa();
@@ -790,7 +766,6 @@ namespace Cyan
             renderToScreen(finalColorOutput);
 
             m_renderQueue.execute();
-#endif
         } 
         endRender();
     }
@@ -1045,29 +1020,69 @@ namespace Cyan
         return { ssao, ssbn };
     }
 
-    void Renderer::rayTracing(RayTracingScene& rtxScene, RenderTexture2D* outputBuffer, RenderTexture2D* historyBuffer)
+    void Renderer::gpuRayTracing(RayTracingScene& rtxScene, RenderTexture2D* outputBuffer, RenderTexture2D* historyBuffer, RenderTexture2D* sceneDepthBuffer, RenderTexture2D* sceneNormalBuffer)
     {
 #define POSITION_BUFFER_BINDING 20
 #define NORMAL_BUFFER_BINDING 21
 #define MATERIAL_BUFFER_BINDING 22
+        ITextureRenderable::Spec spec = { };
+        spec.width = 2560;
+        spec.height = 1440;
+        spec.type = TEX_2D;
+        spec.pixelFormat = PF_RGB16F;
+
+        ITextureRenderable::Parameter parameter = { };
+        parameter.minificationFilter = FM_POINT;
+        parameter.magnificationFilter = FM_POINT;
+        parameter.wrap_r = WM_CLAMP;
+        parameter.wrap_s = WM_CLAMP;
+        parameter.wrap_t = WM_CLAMP;
+
+        static Texture2DRenderable* temporalReservoirRadiance[2] = {
+            AssetManager::createTexture2D("TemporalReservoirRadiance_0", spec, parameter),
+            AssetManager::createTexture2D("TemporalReservoirRadiance_1", spec, parameter)
+        };
+        static Texture2DRenderable* temporalReservoirDirection[2] = {
+            AssetManager::createTexture2D("TemporalReservoirDirection_0", spec, parameter),
+            AssetManager::createTexture2D("TemporalReservoirDirection_1", spec, parameter)
+        };
+
+        static Texture2DRenderable* temporalReservoirWeightSum[2] = {
+            AssetManager::createTexture2D("TemporalReservoirWeightSum_0", spec, parameter),
+            AssetManager::createTexture2D("TemporalReservoirWeightSum_1", spec, parameter),
+        };
+
+        static Texture2DRenderable* rngOutput = AssetManager::createTexture2D("RngOutputTexture", spec, parameter);
+        static Texture2DRenderable* dbgOutput = AssetManager::createTexture2D("DbgOutputTexture", spec, parameter);
+
+        u32 src = (m_numFrames - 1) % 2;
+        u32 dst = m_numFrames % 2;
 
         rtxScene.positionSsbo.bind(POSITION_BUFFER_BINDING);
         rtxScene.normalSsbo.bind(NORMAL_BUFFER_BINDING);
         rtxScene.materialSsbo.bind(MATERIAL_BUFFER_BINDING);
         m_renderQueue.addPass(
             "RayTracingPass",
-            [this, outputBuffer](RenderQueue& renderQueue, RenderPass* pass) {
+            [this, outputBuffer, sceneDepthBuffer, sceneNormalBuffer](RenderQueue& renderQueue, RenderPass* pass) {
                 pass->addOutput(outputBuffer);
+                pass->addInput(sceneDepthBuffer);
+                pass->addInput(sceneNormalBuffer);
             },
-            [this, outputBuffer, &rtxScene, historyBuffer]() { // renderSetupLambda
+            [this, outputBuffer, &rtxScene, historyBuffer, sceneDepthBuffer, sceneNormalBuffer, src, dst]() { // renderSetupLambda
                 Shader* raytracingShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "RayTracingShader", SHADER_SOURCE_PATH "raytracing_v.glsl", SHADER_SOURCE_PATH "raytracing_p.glsl" });
                 auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(outputBuffer->spec.width, outputBuffer->spec.height));
                 renderTarget->setColorBuffer(outputBuffer->getTextureResource(), 0);
+                renderTarget->setColorBuffer(temporalReservoirRadiance[dst], 1);
+                renderTarget->setColorBuffer(temporalReservoirWeightSum[dst], 2);
+                renderTarget->setColorBuffer(temporalReservoirDirection[dst], 3);
+                renderTarget->setColorBuffer(rngOutput, 4);
+                renderTarget->setColorBuffer(dbgOutput, 5);
+
                 submitFullScreenPass(
                     renderTarget.get(),
-                    { { 0 } },
+                    { { 0 },  { 1 },  { 2 },  { 3 }, { 4 }, { 5 } },
                     raytracingShader,
-                    [&rtxScene, this, historyBuffer](RenderTarget* renderTarget, Shader* shader) {
+                    [&rtxScene, this, historyBuffer, sceneDepthBuffer, sceneNormalBuffer, src](RenderTarget* renderTarget, Shader* shader) {
                         shader->setUniform("numTriangles", (i32)rtxScene.surfaces.numTriangles());
                         shader->setUniform("outputSize", glm::vec2(renderTarget->width, renderTarget->height));
                         shader->setUniform("camera.position", rtxScene.camera.position);
@@ -1080,11 +1095,58 @@ namespace Cyan
                         shader->setUniform("camera.fov", rtxScene.camera.fov);
                         shader->setUniform("camera.aspectRatio", rtxScene.camera.aspectRatio);
                         shader->setUniform("numFrames", m_numFrames);
+                        auto blueNoiseTexture = AssetManager::getAsset<Texture2DRenderable>("BlueNoise_1024x1024");
+                        shader->setTexture("blueNoiseTexture", blueNoiseTexture);
+                        if (m_numFrames > 0)
+                        {
+                            shader->setTexture("temporalReservoirRadiance", temporalReservoirRadiance[src]);
+                            shader->setTexture("temporalReservoirDirection", temporalReservoirDirection[src]);
+                            shader->setTexture("temporalReservoirWeightSum", temporalReservoirWeightSum[src]);
+                        }
                         if (historyBuffer)
                             shader->setTexture("historyBuffer", historyBuffer->getTextureResource());
+                        shader->setTexture("sceneDepthBuffer", sceneDepthBuffer->getTextureResource());
+                        shader->setTexture("sceneNormalBuffer", sceneNormalBuffer->getTextureResource());
                     });
             }
         );
+
+        addUIRenderCommand([dst]() {
+            ImGui::Begin("Gpu Ray Tracing");
+            enum class Visualization
+            {
+                kReservoirRadiance,
+                kReservoirDirection,
+                kReservoirWeightSum,
+                kNoise,
+                kRandomValue,
+                kCount
+            };
+            static i32 visualization = (i32)Visualization::kReservoirWeightSum;
+            const char* visualizationNames[(i32)Visualization::kCount] = { "ReservoirRadiance", "ReservoirDirection", "ReservoirWeightSum", "Noise", "Random Value" };
+            ImGui::Combo("Visualization", &visualization, visualizationNames, (i32)Visualization::kCount);
+            if (visualization == (i32)Visualization::kReservoirRadiance) 
+            {
+                ImGui::Image((ImTextureID)(temporalReservoirRadiance[dst]->getGpuResource()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
+            }
+            if (visualization == (i32)Visualization::kReservoirDirection) 
+            {
+                ImGui::Image((ImTextureID)(temporalReservoirDirection[dst]->getGpuResource()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
+            }
+            if (visualization == (i32)Visualization::kReservoirWeightSum) 
+            {
+                ImGui::Image((ImTextureID)(temporalReservoirWeightSum[dst]->getGpuResource()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
+            }
+            if (visualization == (i32)Visualization::kNoise) 
+            {
+                ImGui::Image((ImTextureID)(rngOutput->getGpuResource()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
+            }
+            if (visualization == (i32)Visualization::kRandomValue) 
+            {
+                ImGui::Image((ImTextureID)(dbgOutput->getGpuResource()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
+            }
+            ImGui::End();
+        });
     }
 
     RenderTexture2D* Renderer::renderScene(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution)

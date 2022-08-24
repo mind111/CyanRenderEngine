@@ -129,7 +129,7 @@ namespace Cyan
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             return;
         }
-        GLenum* buffers = static_cast<GLenum*>(_alloca(sizeof(drawBuffers)));
+        GLenum* buffers = static_cast<GLenum*>(_alloca(drawBuffers.size() * sizeof(GLenum)));
         i32 numBuffers = drawBuffers.size();
         for (i32 i = 0; i < numBuffers; ++i)
         {

@@ -153,8 +153,9 @@ const vec2 BlueNoiseInDisk[64] = vec2[64](
 );
 
 /**
+* using blue noise to do importance sampling hemisphere
 */
-vec3 blueNoiseSampleHemisphere(vec3 n, vec2 uv, float randomRotation)
+vec3 blueNoiseCosWeightedSampleHemisphere(vec3 n, vec2 uv, float randomRotation)
 {
 	// rotate input samples
 	mat2 rotation = {
@@ -193,17 +194,17 @@ void main()
 	vec3 bentNormal = worldSpaceViewDirection;
 	const int numRays = 8;
 	// sample in 2m hemisphere
-	const float sampleRadius = 2.0f;
+	const float sampleRadius = 5.0f;
 	// number of steps to march along the ray
-	const int kMaxNumSteps = 8;
+    // todo: instead of using fixed step size, stratify and jitter step size to eliminate aliasing
+	const int kMaxNumSteps = 40;
     const float stepSize = sampleRadius / float(kMaxNumSteps);
     for (int ray = 0; ray < numRays; ++ray)
     {
-		float fuzzyOcclusion = 1.f;
 		float occluded = 1.f;
 		// vec3 rd = uniformSampleHemisphere(normal, rand(psIn.texCoord0 * vec2(17.9173, 13.3)), rand(psIn.texCoord0.yx * ray));
 		float randomRotation = texture(blueNoiseTexture, gl_FragCoord.xy / float(textureSize(blueNoiseTexture, 0).x)).r * PI * 2.f;
-		vec3 rd = blueNoiseSampleHemisphere(normal, BlueNoiseInDisk[ray], randomRotation);
+		vec3 rd = blueNoiseCosWeightedSampleHemisphere(normal, BlueNoiseInDisk[ray], randomRotation);
 
 		for (int steps = 0; steps < kMaxNumSteps; ++steps)
 		{
@@ -226,21 +227,8 @@ void main()
 			{
 				break;
 			}
-/*
-			// soft occlusion inspired by https://iquilezles.org/articles/rmshadows/
-			vec3 stepWorldPosition = screenToWorld(vec3(screenSpacePosition.xy, stepDepth * 2.f - 1.f), inverse(viewSsbo.view), inverse(viewSsbo.projection));
-			if (screenSpacePosition.z > stepDepth)
-			{
-				fuzzyOcclusion = 0.f;
-			}
-			else 
-			{
-				fuzzyOcclusion = min(fuzzyOcclusion, 2.f * length(worldSpacePosition - stepWorldPosition) / (stepSize * steps));
-			}
-*/
 		}
 
-		// occlusion += fuzzyOcclusion;
 		occlusion += occluded;
 		if (occluded > 0.5f)
 		{

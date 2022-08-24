@@ -1,6 +1,6 @@
 #version 450 core
-out vec3 fDepth;
-out vec3 fNormal;
+layout (location = 0) out vec3 fDepth;
+layout (location = 1) out vec3 fNormal;
 
 in vec3 normalWorld; 
 in vec3 tangentWorld;

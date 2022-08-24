@@ -12,7 +12,19 @@ in VSOutput
 	vec2 texCoord0;
 } psIn;
 
-out vec3 outColor;
+layout (location = 0) out vec3 outColor;
+// ReSTIR
+layout (location = 1) out vec3 outReservoirRadiance;
+layout (location = 2) out vec3 outReservoirWeightSumAndM;
+layout (location = 3) out vec3 outReservoirDirection;
+layout (location = 4) out vec3 outRngOutput;
+layout (location = 5) out vec3 outDebugOutput;
+
+uniform sampler2D temporalReservoirRadiance;
+uniform sampler2D temporalReservoirWeightSum;
+uniform sampler2D temporalReservoirDirection;
+uniform sampler2D sceneDepthBuffer;
+uniform sampler2D sceneNormalBuffer;
 
 layout(std430, binding = POSITION_BUFFER_BINDING) buffer PositionSSBO
 {
@@ -39,8 +51,9 @@ layout(std430, binding = MATERIAL_BUFFER_BINDING) buffer MaterialSSBO
 
 uniform vec2 outputSize;
 uniform int numTriangles;
-uniform int numFrames;
+uniform uint numFrames;
 uniform sampler2D historyBuffer;
+uniform sampler2D blueNoiseTexture;
 
 struct Ray
 {	
@@ -154,8 +167,9 @@ vec3 shade(in Ray ray, in RayHit hit, in Material material)
 {
 	vec3 p = ray.ro + ray.rd * hit.t;
 	vec3 normal = calcNormal(hit);
-	vec3 outRadiance = materialSsbo.materials[hit.material].emissive.rgb;
-	outRadiance += calcDirectLighting(p, normal, material);
+	vec3 outRadiance = vec3(0.f);
+	outRadiance += materialSsbo.materials[hit.material].emissive.rgb;
+	// outRadiance += calcDirectLighting(p, normal, material);
 	outRadiance += calcIndirectLighting(p, normal, material);
 	return outRadiance;
 }
@@ -199,16 +213,108 @@ vec3 uniformSampleHemisphere(vec3 n, float u, float v)
 	return tangentToWorld(n) * localDir; 
 }
 
+/**
+* blue noise samples on a unit disk taken from https://www.shadertoy.com/view/3sfBWs
+*/
+const vec2 BlueNoiseInDisk[64] = vec2[64](
+    vec2(0.478712,0.875764),
+    vec2(-0.337956,-0.793959),
+    vec2(-0.955259,-0.028164),
+    vec2(0.864527,0.325689),
+    vec2(0.209342,-0.395657),
+    vec2(-0.106779,0.672585),
+    vec2(0.156213,0.235113),
+    vec2(-0.413644,-0.082856),
+    vec2(-0.415667,0.323909),
+    vec2(0.141896,-0.939980),
+    vec2(0.954932,-0.182516),
+    vec2(-0.766184,0.410799),
+    vec2(-0.434912,-0.458845),
+    vec2(0.415242,-0.078724),
+    vec2(0.728335,-0.491777),
+    vec2(-0.058086,-0.066401),
+    vec2(0.202990,0.686837),
+    vec2(-0.808362,-0.556402),
+    vec2(0.507386,-0.640839),
+    vec2(-0.723494,-0.229240),
+    vec2(0.489740,0.317826),
+    vec2(-0.622663,0.765301),
+    vec2(-0.010640,0.929347),
+    vec2(0.663146,0.647618),
+    vec2(-0.096674,-0.413835),
+    vec2(0.525945,-0.321063),
+    vec2(-0.122533,0.366019),
+    vec2(0.195235,-0.687983),
+    vec2(-0.563203,0.098748),
+    vec2(0.418563,0.561335),
+    vec2(-0.378595,0.800367),
+    vec2(0.826922,0.001024),
+    vec2(-0.085372,-0.766651),
+    vec2(-0.921920,0.183673),
+    vec2(-0.590008,-0.721799),
+    vec2(0.167751,-0.164393),
+    vec2(0.032961,-0.562530),
+    vec2(0.632900,-0.107059),
+    vec2(-0.464080,0.569669),
+    vec2(-0.173676,-0.958758),
+    vec2(-0.242648,-0.234303),
+    vec2(-0.275362,0.157163),
+    vec2(0.382295,-0.795131),
+    vec2(0.562955,0.115562),
+    vec2(0.190586,0.470121),
+    vec2(0.770764,-0.297576),
+    vec2(0.237281,0.931050),
+    vec2(-0.666642,-0.455871),
+    vec2(-0.905649,-0.298379),
+    vec2(0.339520,0.157829),
+    vec2(0.701438,-0.704100),
+    vec2(-0.062758,0.160346),
+    vec2(-0.220674,0.957141),
+    vec2(0.642692,0.432706),
+    vec2(-0.773390,-0.015272),
+    vec2(-0.671467,0.246880),
+    vec2(0.158051,0.062859),
+    vec2(0.806009,0.527232),
+    vec2(-0.057620,-0.247071),
+    vec2(0.333436,-0.516710),
+    vec2(-0.550658,-0.315773),
+    vec2(-0.652078,0.589846),
+    vec2(0.008818,0.530556),
+    vec2(-0.210004,0.519896) 
+);
+
+/**
+* using blue noise to do importance sampling hemisphere
+* intuitively, I think this maybe really similar to stratified importance sampling the cosine weighted hemisphere if 
+* blue noise produce somewhat evenly distributed samples
+*/
+vec3 blueNoiseCosWeightedSampleHemisphere(vec3 n, vec2 uv, float randomRotation)
+{
+	// rotate input samples
+	mat2 rotation = {
+		{ cos(randomRotation), sin(randomRotation) },
+		{ -sin(randomRotation), cos(randomRotation) }
+	};
+	uv = rotation * uv;
+
+	// project points on a unit disk up to the hemisphere
+	float z = cos(asin(length(uv)));
+	return tangentToWorld(n) * vec3(uv.xy, z);
+}
+
+vec3 LambertianDiffuse(vec3 albedo)
+{
+	return albedo / PI;
+}
+
 vec3 calcIrradiance(vec3 p, vec3 n, in Material material, int numSamples)
 {
-	float minT = 1.f / 0.f;
 	vec3 irradiance = vec3(0.f);
-	float ao = 0.f;
+	float randomRotation = texture(blueNoiseTexture, gl_FragCoord.xy / float(textureSize(blueNoiseTexture, 0).x)).r * PI * 2.f;
 	for (int i = 0; i < numSamples; ++i)
 	{
-		float u = rand(p.xy * float(numSamples));
-		float v = rand(p.zy * float(numSamples));
-		vec3 sampleDir = uniformSampleHemisphere(n, u, v);
+		vec3 sampleDir = blueNoiseCosWeightedSampleHemisphere(n, BlueNoiseInDisk[i], randomRotation);
+
 		Ray ray = Ray(p, sampleDir);
 		RayHit hit = trace(ray);
 		if (hit.tri >= 0)
@@ -216,35 +322,223 @@ vec3 calcIrradiance(vec3 p, vec3 n, in Material material, int numSamples)
 			vec3 hitNormal = calcNormal(hit);
 			if (dot(hitNormal, sampleDir) < 0.f)
 			{
-				if (hit.t < minT)
-					minT = hit.t;
-				float ndotl = max(dot(n, ray.rd), 0.f);
-				if (hit.t < 0.5f)
-					ao += ndotl;
-				irradiance += calcDirectLighting(ray.ro + ray.rd * hit.t, hitNormal, material) * ndotl;
+				// since we are doing cosine weighted importance sampling, the pi term in the Lambertian BRDF and the cosine term are cancelled
+				irradiance += calcDirectLighting(ray.ro + ray.rd * hit.t, hitNormal, materialSsbo.materials[hit.tri]) * material.albedo.rgb;
 			}
 		}
 	}
-	ao /= numSamples;
-	return (irradiance / float(numSamples)) * (1.f - ao);
+	irradiance /= float(numSamples);
+	return irradiance;
 }
 
+float calcLuminance(in vec3 inLinearColor)
+{   
+    return 0.2126 * inLinearColor.r + 0.7152 * inLinearColor.g + 0.0722 * inLinearColor.b;
+}
+
+float random(vec2 uv)
+{
+	return fract(sin(dot(uv, vec2(12.9898,78.233)))*43758.5453123);
+}
+
+/* note: 
+* rand number generator taken from https://www.shadertoy.com/view/4lfcDr
+*/
+uint flat_idx;
+uint seed;
+void encrypt_tea(inout uvec2 arg)
+{
+	uvec4 key = uvec4(0xa341316c, 0xc8013ea4, 0xad90777d, 0x7e95761e);
+	uint v0 = arg[0], v1 = arg[1];
+	uint sum = 0u;
+	uint delta = 0x9e3779b9u;
+
+	for(int i = 0; i < 32; i++) {
+		sum += delta;
+		v0 += ((v1 << 4) + key[0]) ^ (v1 + sum) ^ ((v1 >> 5) + key[1]);
+		v1 += ((v0 << 4) + key[2]) ^ (v0 + sum) ^ ((v0 >> 5) + key[3]);
+	}
+	arg[0] = v0;
+	arg[1] = v1;
+}
+
+vec2 get_random()
+{
+  	uvec2 arg = uvec2(flat_idx, seed++);
+  	encrypt_tea(arg);
+  	return fract(vec2(arg) / vec2(0xffffffffu));
+}
+
+struct Reservoir
+{
+	vec3 radiance;
+	// sum of weights for samples seen by the stream so far
+	float w;
+	// total number of samples in the stream
+	float M;
+	float pdf;
+};
+
+struct Sample
+{
+	vec3 radiance;
+};
+
+void updateReservoir(inout Reservoir reservoir, in Sample inSample, float weight)
+{
+	reservoir.w += weight;
+	reservoir.M += 1.f;
+	if (reservoir.w > 0.f) {
+		float probability = weight / reservoir.w;
+		vec2 rng = get_random();
+		if (rng.x < probability) {
+			reservoir.radiance = inSample.radiance;
+			reservoir.pdf = calcLuminance(inSample.radiance);
+		}
+	}
+}
+
+void mergeReservoir(inout Reservoir merged, in Reservoir candidate) {
+	merged.w += candidate.w;
+	if (merged.w > 0.f) {
+		float probability = candidate.w / merged.w;
+		vec2 rng = get_random();
+		if (rng.x < probability) {
+			merged.radiance = candidate.radiance;
+			merged.M += candidate.M;
+			merged.pdf = calcLuminance(merged.radiance);
+		}
+	}
+}
+
+vec3 ReSTIREstimator(in Reservoir reservoir)
+{
+	if (reservoir.pdf > 0.f && reservoir.M > 0.f) {
+		return reservoir.radiance * (reservoir.w / (reservoir.pdf * reservoir.M));
+	}
+	return vec3(0.f);
+}
+
+/*
+* note: the random number generator is quite important for the robustness of the reservoir updating procedure. Theoretically, if M never gets clamped
+* then every pixel should eventually converge to their "best" sample, since sum of the weight will grow with more processed samples in the stream
+* and the probability for updating a reservoir should keep decreasing. 
+* todo: though majority of the pixels converges, not all pixel converges to their "favourite" sample, need to figure out why.
+*/
+#define CLAMP_M 1
+Reservoir ReSTIR(vec3 p, vec3 n, vec2 texCoord, float randomRotation) {
+	// initialize the reservoir
+	Reservoir reservoir;
+	if (numFrames > 0) {
+		// todo: reproject current pixel back to last frame to find matching pixel using motion vector
+		reservoir.radiance = texture(temporalReservoirRadiance, texCoord).rgb;
+		vec2 wM = texture(temporalReservoirWeightSum, texCoord).rg;
+		reservoir.w = wM.x;
+		reservoir.M = wM.y;
+		reservoir.pdf = calcLuminance(reservoir.radiance);
+	}
+	else {
+		reservoir.radiance = vec3(0.f);
+		reservoir.w = 0.f;
+		reservoir.M = 0.f;
+		reservoir.pdf = 0.f;
+	}
+
+	// clamp M to stop adding new samples into the stream
+	const int kMaxM = 32;
+	if (int(reservoir.M) > kMaxM) {
+		return reservoir;
+	}
+
+	// generate a new sample
+	Sample newSample;
+	newSample.radiance = vec3(0.f);
+	vec2 rng = get_random();
+	vec3 rd = uniformSampleHemisphere(n, rng.x, rng.y);
+	Ray ray = Ray(p, rd);
+	RayHit hit = trace(ray);
+	if (hit.tri >= 0) {
+		vec3 hitNormal = calcNormal(hit);
+		// avoid back face hit
+		if (dot(hitNormal, rd) < 0.f) {
+			newSample.radiance = calcDirectLighting(ray.ro + ray.rd * hit.t, hitNormal, materialSsbo.materials[hit.tri]);
+		}
+	}
+	float srcPdf = 1.f / (2.f * PI);
+	float targetPdf = calcLuminance(newSample.radiance);
+
+	// update the reservoir
+	updateReservoir(reservoir, newSample, targetPdf / srcPdf);
+
+	// reuse temporal neighbors
+	if (numFrames > 0) {
+		// todo: sampling random neighbors
+		vec2 neighbors[4] = { 
+			vec2( 1.f, 0.f),
+			vec2( 0.f, 1.f),
+			vec2(-1.f, 0.f),
+			vec2( 0.f,-1.f),
+		};
+
+		// merge neighbor reservoirs
+		Reservoir merged;
+		merged.radiance = reservoir.radiance;
+		merged.w = reservoir.w;
+		merged.M = reservoir.M;
+
+		for (int i = 0; i < 4; ++i)
+		{
+			vec2 sampleCoord = texCoord + neighbors[i] * 0.05;
+			Reservoir candidate;
+			// todo: address boundry conditions
+			candidate.radiance = texture(temporalReservoirRadiance, sampleCoord).rgb;
+			vec2 wM = texture(temporalReservoirWeightSum, sampleCoord).rg; 
+			candidate.w = wM.x;
+			candidate.M = wM.y;
+
+			// todo: test for geometric similarity
+
+			mergeReservoir(reservoir, candidate);
+		}
+		// todo: do screen space ray march to verify visibility of reused reservoir, if failed, then don't update the reservoir using merged reservoir
+
+		outReservoirRadiance = merged.radiance;
+		outReservoirWeightSumAndM = vec3(merged.w, merged.M, 0.f);
+	}
+
+	// reuse spatial neighbors iteratively
+
+	return reservoir;
+}
+
+#define RAY_BUMP 0.01
 vec3 calcDirectLighting(vec3 p, vec3 n, in Material material)
 {
 	vec3 outRadiance = vec3(0.f);
 	// sun light
-	vec3 lightColor = vec3(1.f) * 30.f;
 	vec3 lightDir = normalize(vec3(1.f));
-	float shadow = traceShadow(Ray(p + n * 0.01, lightDir));
+	vec3 lightColor = vec3(1.f) * 3.f;
+	float shadow = traceShadow(Ray(p + n * RAY_BUMP, lightDir));
 	float ndotl = max(dot(lightDir, n), 0.f);
-	outRadiance += material.albedo.rgb * ndotl * shadow * lightColor;
+	outRadiance += LambertianDiffuse(material.albedo.rgb) * ndotl * shadow * lightColor;
 	return outRadiance;
 }
 
 vec3 calcIndirectLighting(vec3 p, vec3 n, in Material material)
 {
 	vec3 outRadiance = vec3(0.f);
-	outRadiance += calcIrradiance(p + n * 0.01, n, material, 128);
+	vec2 texCoord = gl_FragCoord.xy;
+	float randomRotation = texture(blueNoiseTexture, gl_FragCoord.xy / float(textureSize(blueNoiseTexture, 0).x)).r * PI * 2.f;
+
+	/*
+	* ReSTIR GI for estimating diffuse indirect irradiance
+	*/
+	Reservoir reservoir = ReSTIR(p + n * RAY_BUMP, n, texCoord / vec2(2560.f, 1440.f), randomRotation);
+	outReservoirRadiance = reservoir.radiance;
+	outReservoirWeightSumAndM = vec3(reservoir.w, reservoir.M, 0.f);
+	outRadiance += ReSTIREstimator(reservoir);
+
+	// outRadiance += calcIrradiance(p + n * 0.01, n, material, 1);
 	return outRadiance;
 }
 
@@ -260,8 +554,7 @@ float traceShadow(in Ray shadowRay)
 {
 	// brute force tracing
 	{
-		for (int tri = 0; tri < numTriangles; ++tri)
-		{
+		for (int tri = 0; tri < numTriangles; ++tri) {
 			float t = intersect(
 				shadowRay,
 				positionSsbo.positions[tri * 3 + 0].xyz,
@@ -269,8 +562,7 @@ float traceShadow(in Ray shadowRay)
 				positionSsbo.positions[tri * 3 + 2].xyz
 			);
 
-			if (t > 0.f)
-			{
+			if (t > 0.f) {
 				return 0.f;
 			}
 		}
@@ -278,23 +570,28 @@ float traceShadow(in Ray shadowRay)
 	return 1.f;
 }
 
-void main()
-{
-	outColor = vec3(0.f);
-	vec2 pixelCoords = gl_FragCoord.xy / outputSize;
-	Ray ray = generateRay(pixelCoords);
-	RayHit hit = trace(ray);
-	if (hit.tri >= 0)
-	{
-	    vec3 p = camera.position + hit.t * ray.rd;
-		vec3 n = calcNormal(hit);
-		outColor = shade(ray, hit, materialSsbo.materials[hit.tri]);
+// todo: visualization to help understand the algorithm better!!!!
+void main() {
+	vec2 pixelCoord = (gl_FragCoord.xy / outputSize);
+	outReservoirRadiance = numFrames > 0 ? texture(temporalReservoirRadiance, pixelCoord).rgb : vec3(0.f);
+	outReservoirWeightSumAndM = numFrames > 0 ? texture(temporalReservoirWeightSum, pixelCoord).rgb : vec3(0.f);
+
+	// initialize random number generator state
+	seed = numFrames;
+	if (numFrames % 30 == 0) {
+		flat_idx = uint(floor(gl_FragCoord.y) * 2560 + floor(gl_FragCoord.x));
+
+		outColor = vec3(0.f);
+		vec2 pixelCoords = gl_FragCoord.xy / outputSize;
+		Ray ray = generateRay(pixelCoords);
+		RayHit hit = trace(ray);
+		if (hit.tri >= 0) {
+			vec3 n = calcNormal(hit);
+			if (dot(n, ray.rd) < 0.f) {
+				vec3 p = camera.position + hit.t * ray.rd;
+				outColor = shade(ray, hit, materialSsbo.materials[hit.tri]);
+			}
+		}
 	}
-	#if 0
-	if (numFrames > 0)
-	{
-		vec3 history = texture(historyBuffer, pixelCoords).rgb;
-		outColor = mix(history, outColor, 0.1f);
-	}
-	#endif
+	outColor = outReservoirRadiance;
 }

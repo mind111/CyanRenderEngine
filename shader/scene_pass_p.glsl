@@ -589,7 +589,7 @@ vec3 calcSkyLight(SkyLight skyLight, in MaterialParameters materialParameters, v
     vec3 reflectionDirection = -reflect(worldSpaceViewDirection, materialParameters.normal);
     vec3 BRDF = texture(sampler2D(sceneLights.BRDFLookupTexture), vec2(ndotv, materialParameters.roughness)).rgb; 
     vec3 incidentRadiance = textureLod(samplerCube(skyLight.reflection), reflectionDirection, materialParameters.roughness * 10.f).rgb;
-    radiance += incidentRadiance * (f0 * BRDF.r + BRDF.g);
+    radiance += incidentRadiance * (f0 * BRDF.r + BRDF.g) * ao;
     return radiance;
 }
 
@@ -602,7 +602,7 @@ vec3 calcLighting(SceneLights sceneLights, in MaterialParameters materialParamet
     // radiance += vec3(0.15, 0.3, 0.5) * exp(0.01 * -length(psIn.viewSpacePosition)) * ndotl * materialParameters.albedo;
 
     // sun light
-    radiance += calcDirectionalLight(sceneLights.directionalLight, materialParameters, worldSpacePosition);
+    // radiance += calcDirectionalLight(sceneLights.directionalLight, materialParameters, worldSpacePosition);
     // sky light
     radiance += calcSkyLight(sceneLights.skyLight, materialParameters, worldSpacePosition);
 
