@@ -364,7 +364,7 @@ namespace Cyan
         } indirectDrawBuffer;
         RenderTexture2D* renderSceneMultiDraw(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution, const SSGITextures& SSGIOutput);
 
-        void gpuRayTracing(struct RayTracingScene& rtxScene, RenderTexture2D* outputBuffer, RenderTexture2D* historyBuffer, RenderTexture2D* sceneDepthBuffer, RenderTexture2D* sceneNormalBuffer);
+        void gpuRayTracing(struct RayTracingScene& rtxScene, RenderTexture2D* outputBuffer, RenderTexture2D* sceneDepthBuffer, RenderTexture2D* sceneNormalBuffer);
         void renderSceneMeshOnly(RenderableScene& sceneRenderable, RenderTexture2D* outTexture, Shader* shader);
 
         struct ScenePrepassOutput

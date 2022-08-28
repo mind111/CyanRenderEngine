@@ -18,8 +18,8 @@ namespace Cyan
 
         virtual glm::mat4 projection() = 0;
         glm::vec3 forward() const { return glm::normalize(lookAt - position); }
-        glm::vec3 right() const { return glm::cross(forward(), worldUp); }
-        glm::vec3 up() const { return glm::cross(right(), forward()); }
+        glm::vec3 right() const { return glm::normalize(glm::cross(forward(), worldUp)); }
+        glm::vec3 up() const { return glm::normalize(glm::cross(right(), forward())); }
 
         ICamera(const glm::vec3& inPosition, const glm::vec3& inLookAt, const glm::vec3& inWorldUp)
             : position(inPosition), lookAt(inLookAt), worldUp(inWorldUp)
@@ -35,7 +35,7 @@ namespace Cyan
         /* ICamera interface */
         virtual glm::mat4 projection() override
         {
-            return glm::perspective(fov, aspectRatio, n, f);
+            return glm::perspective(glm::radians(fov), aspectRatio, n, f);
         }
 
         PerspectiveCamera()
