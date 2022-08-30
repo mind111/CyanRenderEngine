@@ -62,6 +62,7 @@ public:
     virtual void customUpdate() override
     {
         using namespace Cyan;
+
         Renderer::get()->addUIRenderCommand([this]() {
             ImGui::Begin("RayTracing");
             {

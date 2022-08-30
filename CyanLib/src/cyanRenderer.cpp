@@ -1044,6 +1044,11 @@ namespace Cyan
             AssetManager::createTexture2D("TemporalReservoirPosition_1", spec, parameter)
         };
 
+        static Texture2DRenderable* temporalReservoirNormal[2] = {
+            AssetManager::createTexture2D("TemporalReservoirNormal_0", spec, parameter),
+            AssetManager::createTexture2D("TemporalReservoirNormal_1", spec, parameter)
+        };
+
         static Texture2DRenderable* temporalReservoirRadiance[2] = {
             AssetManager::createTexture2D("TemporalReservoirRadiance_0", spec, parameter),
             AssetManager::createTexture2D("TemporalReservoirRadiance_1", spec, parameter)
@@ -1064,7 +1069,10 @@ namespace Cyan
             AssetManager::createTexture2D("TemporalReservoirWM_1", spec, parameter),
         };
 
-        static Texture2DRenderable* dbgOutput = AssetManager::createTexture2D("DbgOutputTexture", spec, parameter);
+        static Texture2DRenderable* dbgOutput[2] = {
+            AssetManager::createTexture2D("DbgOutputTexture_0", spec, parameter),
+            AssetManager::createTexture2D("DbgOutputTexture_1", spec, parameter),
+        };
 
         u32 src = (m_numFrames - 1) % 2;
         u32 dst = m_numFrames % 2;
@@ -1084,15 +1092,16 @@ namespace Cyan
                 auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(outputBuffer->spec.width, outputBuffer->spec.height));
                 renderTarget->setColorBuffer(outputBuffer->getTextureResource(), 0);
                 renderTarget->setColorBuffer(temporalReservoirPosition[dst], 1);
-                renderTarget->setColorBuffer(temporalReservoirRadiance[dst], 2);
-                renderTarget->setColorBuffer(temporalReservoirSamplePosition[dst], 3);
-                renderTarget->setColorBuffer(temporalReservoirSampleNormal[dst], 4);
-                renderTarget->setColorBuffer(temporalReservoirWM[dst], 5);
-                renderTarget->setColorBuffer(dbgOutput, 6);
+                renderTarget->setColorBuffer(temporalReservoirNormal[dst], 2);
+                renderTarget->setColorBuffer(temporalReservoirRadiance[dst], 3);
+                renderTarget->setColorBuffer(temporalReservoirSamplePosition[dst], 4);
+                renderTarget->setColorBuffer(temporalReservoirSampleNormal[dst], 5);
+                renderTarget->setColorBuffer(temporalReservoirWM[dst], 6);
+                renderTarget->setColorBuffer(dbgOutput[dst], 7);
 
                 submitFullScreenPass(
                     renderTarget.get(),
-                    { { 0 },  { 1 },  { 2 },  { 3 }, { 4 }, { 5 } },
+                    { { 0 },  { 1 },  { 2 },  { 3 }, { 4 }, { 5 }, { 6 }, { 7 } },
                     raytracingShader,
                     [&rtxScene, this,  sceneDepthBuffer, sceneNormalBuffer, src](RenderTarget* renderTarget, Shader* shader) {
                         shader->setUniform("numTriangles", (i32)rtxScene.surfaces.numTriangles());
@@ -1112,10 +1121,12 @@ namespace Cyan
                         if (m_numFrames > 0)
                         {
                             shader->setTexture("temporalReservoirPosition", temporalReservoirPosition[src]);
+                            shader->setTexture("temporalReservoirNormal", temporalReservoirNormal[src]);
                             shader->setTexture("temporalReservoirRadiance", temporalReservoirRadiance[src]);
                             shader->setTexture("temporalReservoirSamplePosition", temporalReservoirSamplePosition[src]);
                             shader->setTexture("temporalReservoirSampleNormal", temporalReservoirSampleNormal[src]);
                             shader->setTexture("temporalReservoirWM", temporalReservoirWM[src]);
+                            shader->setTexture("debugOutput", dbgOutput[src]);
                         }
                         shader->setTexture("sceneDepthBuffer", sceneDepthBuffer->getTextureResource());
                         shader->setTexture("sceneNormalBuffer", sceneNormalBuffer->getTextureResource());
@@ -1156,7 +1167,7 @@ namespace Cyan
                     ImGui::Image((ImTextureID)(temporalReservoirWM[dst]->getGpuResource()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
                     break;
                 case Visualization::kDebugOutput:
-                    ImGui::Image((ImTextureID)(dbgOutput->getGpuResource()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
+                    ImGui::Image((ImTextureID)(dbgOutput[dst]->getGpuResource()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
                     break;
                 default:
                     break;

@@ -1,5 +1,6 @@
 #version 450 core
 
+#define RAY_BUMP 0.01
 #define PI 3.1415926
 
 #define POSITION_BUFFER_BINDING 20
@@ -15,17 +16,20 @@ in VSOutput
 layout (location = 0) out vec3 outColor;
 // ReSTIR
 layout (location = 1) out vec3 outReservoirPosition;
-layout (location = 2) out vec3 outReservoirRadiance;
-layout (location = 3) out vec3 outReservoirSamplePosition;
-layout (location = 4) out vec3 outReservoirSampleNormal;
-layout (location = 5) out vec3 outReservoirWM;
-layout (location = 6) out vec3 outDebugOutput;
+layout (location = 2) out vec3 outReservoirNormal;
+layout (location = 3) out vec3 outReservoirRadiance;
+layout (location = 4) out vec3 outReservoirSamplePosition;
+layout (location = 5) out vec3 outReservoirSampleNormal;
+layout (location = 6) out vec3 outReservoirWM;
+layout (location = 7) out vec3 outDebugOutput;
 
 uniform sampler2D temporalReservoirPosition;
+uniform sampler2D temporalReservoirNormal;
 uniform sampler2D temporalReservoirRadiance;
 uniform sampler2D temporalReservoirSamplePosition;
 uniform sampler2D temporalReservoirSampleNormal;
 uniform sampler2D temporalReservoirWM;
+uniform sampler2D debugOutput;
 uniform sampler2D sceneDepthBuffer;
 uniform sampler2D sceneNormalBuffer;
 
@@ -400,6 +404,7 @@ void screenSpaceRayMarching(vec2 texCoord, vec3 ro, vec3 rd) {
 struct Reservoir
 {
 	vec3 position;
+	vec3 normal;
 	// position of the indirect sample ray hit
 	vec3 samplePosition;
 	// normal of the indirect sample ray hit
@@ -435,21 +440,63 @@ void updateReservoir(inout Reservoir reservoir, in Sample inSample, float weight
 	}
 }
 
+#define CHECK_VISIBILITY 1
 void mergeReservoir(vec3 p, inout Reservoir merged, in Reservoir candidate) {
+#if CHECK_VISIBILITY
+	// todo: figure out whether the following is correct or not
 	merged.w += candidate.w;
+	merged.M += candidate.M;
+	// visibility check
+	// todo: switch to use a screen space ray march for verify visibility to improve performance
+	if (candidate.w > 0.f) {
+		vec3 ro = merged.position + merged.normal * RAY_BUMP;
+		vec3 rd = normalize(candidate.samplePosition - ro);
+		Ray validateRay = Ray(ro, rd);
+		RayHit validateHit = trace(validateRay); 
+		if (validateHit.tri >= 0) {
+			vec3 hitPos = validateRay.ro + validateHit.t * validateRay.rd;
+			// if candidate's sample is visible to merged
+			if (length(hitPos - candidate.samplePosition) < 0.001) {
+				if (merged.w > 0.f) {
+					float probability = candidate.w / merged.w;
+					vec2 rng = get_random();
+					if (rng.x < probability) {
+						merged.radiance = candidate.radiance;
+						// todo: need to calculate jacobian to account for the fact that the reused neighbor reservoir generates the sample with a different solid angle pdf
+						// todo: verify if the jacobian calculation is implemented correctly!
+						float phi2r = abs(dot(candidate.sampleNormal, normalize(merged.position - candidate.samplePosition)));
+						float phi2q = abs(dot(candidate.sampleNormal, normalize(candidate.position - candidate.samplePosition)));
+						float jacob = (phi2r / phi2q) * dot(candidate.samplePosition - candidate.position, candidate.samplePosition - candidate.position) / max(dot(merged.position - candidate.samplePosition, merged.position - candidate.samplePosition), 0.001);
+						merged.samplePosition = candidate.samplePosition;
+						merged.sampleNormal = candidate.sampleNormal;
+						// merged.pdf = candidate.pdf;
+						merged.pdf = candidate.pdf / jacob;
+						outDebugOutput = vec3(jacob);
+					}
+				}
+			}
+		}
+	}
+#else
+	merged.w += candidate.w;
+	merged.M += candidate.M;
 	if (merged.w > 0.f) {
 		float probability = candidate.w / merged.w;
 		vec2 rng = get_random();
 		if (rng.x < probability) {
 			merged.radiance = candidate.radiance;
-			merged.M += candidate.M;
 			// todo: need to calculate jacobian to account for the fact that the reused neighbor reservoir generates the sample with a different solid angle pdf
-			float phi2q = abs(dot(candidate.sampleNormal, normalize(candidate.position - candidate.samplePosition)));
 			float phi2r = abs(dot(candidate.sampleNormal, normalize(merged.position - candidate.samplePosition)));
-			float jacob = (phi2r / phi2q) * dot(candidate.samplePosition - candidate.position, candidate.samplePosition - candidate.position) / dot(merged.position - candidate.position, merged.position - candidate.position);
-			merged.pdf = calcLuminance(merged.radiance) / jacob;
+			float phi2q = abs(dot(candidate.sampleNormal, normalize(candidate.position - candidate.samplePosition)));
+			float jacob = (phi2r / phi2q) * dot(candidate.samplePosition - candidate.position, candidate.samplePosition - candidate.position) / dot(merged.position - candidate.samplePosition, merged.position - candidate.samplePosition);
+
+			merged.samplePosition = candidate.samplePosition;
+			merged.sampleNormal = candidate.sampleNormal;
+			merged.pdf = candidate.pdf / jacob;
+			outDebugOutput = vec3(jacob);
 		}
 	}
+#endif
 }
 
 vec3 ReSTIREstimator(in Reservoir reservoir) {
@@ -465,6 +512,7 @@ vec3 ReSTIREstimator(in Reservoir reservoir) {
 * and the probability for updating a reservoir should keep decreasing. 
 * todo: though majority of the pixels converges, not all pixel converges to their "favourite" sample, need to figure out why.
 */
+// todo: debug spatiotemporal reuse!!!
 #define CLAMP_M 1
 Reservoir ReSTIR(vec3 p, vec3 n, vec2 texCoord, float randomRotation) {
 	// initialize the reservoir
@@ -472,6 +520,7 @@ Reservoir ReSTIR(vec3 p, vec3 n, vec2 texCoord, float randomRotation) {
 	if (numFrames > 0) {
 		// todo: reproject current pixel back to last frame to find matching pixel using motion vector
 		reservoir.position = texture(temporalReservoirPosition, texCoord).rgb;
+		reservoir.normal = texture(temporalReservoirNormal, texCoord).rgb;
 		reservoir.radiance = texture(temporalReservoirRadiance, texCoord).rgb;
 		reservoir.samplePosition = texture(temporalReservoirSamplePosition, texCoord).rgb;
 		reservoir.sampleNormal = texture(temporalReservoirSampleNormal, texCoord).rgb;
@@ -482,6 +531,7 @@ Reservoir ReSTIR(vec3 p, vec3 n, vec2 texCoord, float randomRotation) {
 	}
 	else {
 		reservoir.position = p;
+		reservoir.normal = n;
 		reservoir.radiance = vec3(0.f);
 		reservoir.samplePosition = vec3(0.f);
 		reservoir.sampleNormal = vec3(0.f);
@@ -491,7 +541,7 @@ Reservoir ReSTIR(vec3 p, vec3 n, vec2 texCoord, float randomRotation) {
 	}
 
 	// clamp M to stop adding new samples into the stream
-	const int kMaxM = 2;
+	const int kMaxM = 32;
 	if (int(reservoir.M) > kMaxM) {
 		return reservoir;
 	}
@@ -524,46 +574,60 @@ Reservoir ReSTIR(vec3 p, vec3 n, vec2 texCoord, float randomRotation) {
 	if (numFrames > 0) {
 		float depth = texture(sceneDepthBuffer, texCoord).r;
 		vec3 normal = texture(sceneNormalBuffer, texCoord).rgb * 2.f - 1.f;
-		// todo: randomize the neighbors and better kernel
-		vec2 neighbors[4] = { 
-			vec2( 1.f, 0.f),
-			vec2( 0.f, 1.f),
-			vec2(-1.f, 0.f),
-			vec2( 0.f,-1.f),
+
+		// todo: animate this random rotation
+		float randomRotationAngle = texture(blueNoiseTexture, gl_FragCoord.xy / textureSize(blueNoiseTexture, 0)).r * (2.f * PI);
+		randomRotation *= get_random().x;
+		mat2 rotation = {
+			{ cos(randomRotationAngle), sin(randomRotationAngle) },
+			{ -sin(randomRotationAngle), cos(randomRotationAngle) }
 		};
 
+		Reservoir merged = reservoir;
+		const int kNumReuseSamples = 8;
+		// todo: adaptively adjust the kernel radius based on scene depth complexity, kernel radius should be small for scene
+		// with large depth complexity while it should be large for scene with low depth complexity
+		// radius of the filter
+		const float kRadius = 0.02;
 		// merge neighbor reservoirs
-		for (int i = 0; i < 1; ++i) {
-			vec2 neighborCoord = texCoord + neighbors[i] * 0.02;
+		for (int i = 0; i < kNumReuseSamples; ++i) {
+			vec2 neighborCoord = texCoord + rotation * BlueNoiseInDisk[i] * kRadius;
 
 			// address boundry condition
 			if (neighborCoord.x < 0.f || neighborCoord.x > 1.f || neighborCoord.y < 0.f || neighborCoord.y > 1.f) {
 				continue;
 			}
 
-			Reservoir candidate;
-			candidate.radiance = texture(temporalReservoirRadiance, neighborCoord).rgb;
-			vec2 wM = texture(temporalReservoirWM, neighborCoord).rg; 
-			candidate.w = wM.x;
-			candidate.M = wM.y;
-
+			// check geometric similarity
 			float neighborDepth = texture(sceneDepthBuffer, neighborCoord).r;
 			vec3 neighborWorldSpacePos = screenToWorld(vec3(texCoord * 2.f - 1.f, neighborDepth * 2.f - 1.f), inverse(viewSsbo.view), inverse(viewSsbo.projection));
 			vec3 neighborNormal = texture(sceneNormalBuffer, neighborCoord).rgb * 2.f - 1.f;
 			float normalDot = clamp(dot(normal, neighborNormal), 0.f, 1.f);
+
 			if ((acos(normalDot) > (0.14 * PI)) || (abs(depth - neighborDepth) > 0.05f)) {
 				continue;
 			}
-			mergeReservoir(p, reservoir, candidate);
-			reservoir.radiance = vec3(1.f, 0.f, 0.f);
+
+			Reservoir candidate;
+			candidate.position = texture(temporalReservoirPosition, neighborCoord).rgb;
+			candidate.normal = texture(temporalReservoirNormal, neighborCoord).rgb;
+			candidate.radiance = texture(temporalReservoirRadiance, neighborCoord).rgb;
+			candidate.samplePosition = texture(temporalReservoirSamplePosition, neighborCoord).rgb;
+			candidate.sampleNormal = texture(temporalReservoirSampleNormal, neighborCoord).rgb;
+			vec2 wM = texture(temporalReservoirWM, neighborCoord).rg; 
+			candidate.w = wM.x;
+			candidate.M = wM.y;
+
+			mergeReservoir(p, merged, candidate);
 		}
-		// todo: check visibility
-		// todo: do screen space ray march to verify visibility of reused reservoir, if failed, then don't update the reservoir using merged reservoir
 
-		// reuse spatial neighbors iteratively
+		reservoir = merged;
 
+		// todo: reuse spatial neighbors iteratively
 	}
+
 	outReservoirPosition = reservoir.position;
+	outReservoirNormal = reservoir.normal;
 	outReservoirRadiance = reservoir.radiance;
 	outReservoirSamplePosition = reservoir.samplePosition;
 	outReservoirSampleNormal = reservoir.sampleNormal;
@@ -571,7 +635,6 @@ Reservoir ReSTIR(vec3 p, vec3 n, vec2 texCoord, float randomRotation) {
 	return reservoir;
 }
 
-#define RAY_BUMP 0.01
 vec3 calcDirectLighting(vec3 p, vec3 n, in Material material) {
 	vec3 outRadiance = vec3(0.f);
 	// sun light
@@ -630,14 +693,16 @@ float traceShadow(in Ray shadowRay)
 void main() {
 	vec2 pixelCoord = (gl_FragCoord.xy / outputSize);
 	outReservoirPosition = numFrames > 0 ? texture(temporalReservoirPosition, pixelCoord).rgb : vec3(0.f);
+	outReservoirNormal = numFrames > 0 ? texture(temporalReservoirNormal, pixelCoord).rgb : vec3(0.f);
 	outReservoirRadiance = numFrames > 0 ? texture(temporalReservoirRadiance, pixelCoord).rgb : vec3(0.f);
 	outReservoirSamplePosition = numFrames > 0 ? texture(temporalReservoirSamplePosition, pixelCoord).rgb : vec3(0.f);
 	outReservoirSampleNormal = numFrames > 0 ? texture(temporalReservoirSampleNormal, pixelCoord).rgb : vec3(0.f);
 	outReservoirWM = numFrames > 0 ? texture(temporalReservoirWM, pixelCoord).rgb : vec3(0.f);
+	outDebugOutput = numFrames > 0 ? texture(debugOutput, pixelCoord).rgb : vec3(0.f);
 
 	// initialize random number generator state
 	seed = numFrames;
-	if (numFrames % 30 == 0) {
+	// if (numFrames % 30 == 0) {
 		flat_idx = uint(floor(gl_FragCoord.y) * 2560 + floor(gl_FragCoord.x));
 
 		outColor = vec3(0.f);
@@ -648,9 +713,8 @@ void main() {
 			if (dot(n, ray.rd) < 0.f) {
 				vec3 p = camera.position + hit.t * ray.rd;
 				outColor = shade(ray, hit, materialSsbo.materials[hit.tri]);
-				outReservoirPosition = numFrames > 0 ? texture(temporalReservoirPosition, pixelCoord).rgb : p;
 			}
 		}
-	}
-	outColor = outReservoirRadiance;
-}
+	// }
+	// outColor = outReservoirRadiance;
+} 
