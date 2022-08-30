@@ -4,7 +4,7 @@
 
 #include "Common.h"
 
-#define BINDLESS_TEXTURE 0
+#define BINDLESS_TEXTURE 1
 
 namespace Cyan
 {

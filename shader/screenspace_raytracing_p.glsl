@@ -197,7 +197,7 @@ void main()
 	const float sampleRadius = 5.0f;
 	// number of steps to march along the ray
     // todo: instead of using fixed step size, stratify and jitter step size to eliminate aliasing
-	const int kMaxNumSteps = 40;
+	const int kMaxNumSteps = 8;
     const float stepSize = sampleRadius / float(kMaxNumSteps);
     for (int ray = 0; ray < numRays; ++ray)
     {

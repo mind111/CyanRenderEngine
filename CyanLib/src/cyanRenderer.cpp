@@ -26,8 +26,7 @@
 #include "LightRenderable.h"
 #include "RayTracingScene.h"
 
-#define DRAW_SSAO_DEBUG_VIS 0
-#define GPU_RAYTRACING 1
+#define GPU_RAYTRACING 0
 
 namespace Cyan
 {

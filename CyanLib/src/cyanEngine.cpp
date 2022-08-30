@@ -41,7 +41,7 @@ namespace Cyan
 
         m_renderer = m_graphicsSystem->getRenderer();
 
-#if 0
+#if 1
         // setup default I/O controls 
         m_IOSystem->addIOEventListener<Cyan::MouseCursorEvent>([this](f64 xPos, f64 yPos) {
             glm::dvec2 mouseCursorChange = m_IOSystem->getMouseCursorChange();

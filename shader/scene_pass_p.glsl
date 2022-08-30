@@ -602,7 +602,7 @@ vec3 calcLighting(SceneLights sceneLights, in MaterialParameters materialParamet
     // radiance += vec3(0.15, 0.3, 0.5) * exp(0.01 * -length(psIn.viewSpacePosition)) * ndotl * materialParameters.albedo;
 
     // sun light
-    // radiance += calcDirectionalLight(sceneLights.directionalLight, materialParameters, worldSpacePosition);
+    radiance += calcDirectionalLight(sceneLights.directionalLight, materialParameters, worldSpacePosition);
     // sky light
     radiance += calcSkyLight(sceneLights.skyLight, materialParameters, worldSpacePosition);
 

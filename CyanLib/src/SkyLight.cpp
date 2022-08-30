@@ -78,7 +78,7 @@ namespace Cyan
                             glm::vec3(0.f),
                             LightProbeCameras::cameraFacingDirections[f],
                             LightProbeCameras::worldUps[f],
-                            glm::radians(90.f),
+                            90.f,
                             0.1f,
                             100.f,
                             1.0f
