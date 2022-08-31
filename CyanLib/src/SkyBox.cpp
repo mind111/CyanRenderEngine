@@ -7,7 +7,7 @@
 
 namespace Cyan
 {
-    Shader* Skybox::s_CubemapSkyShader = nullptr;
+    Shader* Skybox::s_cubemapSkyShader = nullptr;
     Shader* Skybox::s_proceduralSkyShader = nullptr;
 
     Skybox::Skybox(Scene* scene, const char* srcImagePath, const glm::vec2& resolution, const SkyboxConfig& cfg)
@@ -18,6 +18,7 @@ namespace Cyan
         case kUseHDRI:
             {
                 ITextureRenderable::Spec spec = { };
+                spec.type = TEX_2D;
                 AssetManager::importTexture2D("HDRITexture", srcImagePath, spec);
             }
         case kUseProcedural:
@@ -43,9 +44,9 @@ namespace Cyan
         {
             s_proceduralSkyShader = ShaderManager::createShader({ ShaderType::kVsPs, "SDFSkyShader", SHADER_SOURCE_PATH "sky_sdf_v.glsl", SHADER_SOURCE_PATH "sky_sdf_p.glsl" });
         }
-        if (!s_CubemapSkyShader)
+        if (!s_cubemapSkyShader)
         {
-            s_CubemapSkyShader = ShaderManager::createShader({ ShaderType::kVsPs, "SkyDomeShader", SHADER_SOURCE_PATH "skybox_v.glsl", SHADER_SOURCE_PATH "skybox_p.glsl" });
+            s_cubemapSkyShader = ShaderManager::createShader({ ShaderType::kVsPs, "SkyDomeShader", SHADER_SOURCE_PATH "skybox_v.glsl", SHADER_SOURCE_PATH "skybox_p.glsl" });
         }
     }
 
@@ -123,9 +124,9 @@ namespace Cyan
         {
         case kUseHDRI:
             {
-                ctx->setShader(s_CubemapSkyShader);
-                s_CubemapSkyShader->setTexture("skyDomeTexture", m_srcCubemapTexture);
-                s_CubemapSkyShader->commit(ctx);
+                ctx->setShader(s_cubemapSkyShader);
+                s_cubemapSkyShader->setTexture("skyDomeTexture", m_srcCubemapTexture);
+                s_cubemapSkyShader->commit(ctx);
                 ctx->drawIndexAuto(36);
             }
             break;

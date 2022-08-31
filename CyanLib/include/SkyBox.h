@@ -39,7 +39,7 @@ namespace Cyan
             return m_specularProbe->m_convolvedReflectionTexture;
         }
 
-        static Shader* s_CubemapSkyShader;
+        static Shader* s_cubemapSkyShader;
         static Shader* s_proceduralSkyShader;
 
         SkyboxConfig     m_cfg;

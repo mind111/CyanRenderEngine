@@ -749,8 +749,11 @@ namespace Cyan
             }
             */
 
-            // RenderTexture2D* sceneColorTexture = renderScene(renderableScene, sceneView, renderResolution);
+#if BINDLESS_TEXTURE
             RenderTexture2D* sceneColorTexture = renderSceneMultiDraw(renderableScene, sceneView, renderResolution, SSGIOutput);
+#else
+            RenderTexture2D* sceneColorTexture = renderScene(renderableScene, sceneView, renderResolution);
+#endif
 #endif
             if (m_settings.enableTAA)
             {
