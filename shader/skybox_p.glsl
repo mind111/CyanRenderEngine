@@ -1,11 +1,13 @@
 #version 450 core
 
-in vec3 fragmentObjPos;
-// out vec4 fragColor;
-layout (location = 0) out vec4 fragColor;
-layout (location = 1) out vec3 fragmentNormal; 
-layout (location = 2) out vec3 fragmentDepth; 
-uniform samplerCube skyDomeTexture;
+in VSOutput
+{
+	vec3 objectSpacePosition;
+} psIn;
+
+out vec4 outColor;
+layout (location = 0) out vec4 linearColor;
+uniform samplerCube cubemapTexture;
 
 float saturate(float k)
 {
@@ -14,9 +16,7 @@ float saturate(float k)
 
 void main()
 {
-    vec3 d = normalize(fragmentObjPos);
-    vec3 hdrColor = texture(skyDomeTexture, d).rgb;
-    fragColor = vec4(hdrColor, 1.0f);
-    fragmentNormal = vec3(0.f);
-    fragmentDepth = vec3(1.f);
+    vec3 d = normalize(psIn.objectSpacePosition);
+    vec3 linearColor = texture(cubemapTexture, d).rgb;
+    outColor = vec4(linearColor, 1.0f);
 }

@@ -42,14 +42,25 @@ namespace Cyan
         CameraEntity* createPerspectiveCamera(const char* name, const Transform& transform, const glm::vec3& inLookAt, const glm::vec3& inWorldUp, f32 inFov, f32 inN, f32 inF, f32 inAspectRatio, Entity* inParent = nullptr, u32 properties = (EntityFlag_kDynamic));
 
         // lights
+        /**
+        * sun light
+        */
         DirectionalLightEntity* createDirectionalLight(const char* name, const glm::vec3& direction, const glm::vec4& colorAndIntensity);
+
+        /**
+        * sky light
+        */
         SkyLight* createSkyLight(const char* name, const glm::vec4& colorAndIntensity);
         SkyLight* createSkyLight(const char* name, const char* srcHDRI);
+        SkyLight* createSkyLightFromSkybox(Skybox* srcSkybox);
         void createPointLight(const char* name, const glm::vec3 position, const glm::vec4& colorAndIntensity);
         IrradianceProbe* createIrradianceProbe(Cyan::TextureCubeRenderable* srcCubemapTexture, const glm::uvec2& irradianceRes);
         IrradianceProbe* createIrradianceProbe(const glm::vec3& pos, const glm::uvec2& sceneCaptureRes, const glm::uvec2& irradianceRes);
         ReflectionProbe* createReflectionProbe(Cyan::TextureCubeRenderable* srcCubemapTexture);
         ReflectionProbe* createReflectionProbe(const glm::vec3& pos, const glm::uvec2& sceneCaptureRes);
+
+        // skybox
+        Skybox* createSkybox(const char* name, const char* srcHDRIPath, const glm::uvec2& resolution);
 
         // getters
         Entity* getEntity(u32 index) { return entities[index]; }

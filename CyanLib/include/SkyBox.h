@@ -5,48 +5,24 @@
 
 namespace Cyan
 {
-    enum SkyboxConfig
-    {
-        kUseHDRI,
-        kUseProcedural
-    };
-
     // todo: decouple skylight from skybox, skylight can be a stand-alone thing
     struct Skybox
     {
-        Skybox(Scene* scene, const char* srcImagePath, const glm::vec2& resolution, const SkyboxConfig& cfg);
+        Skybox(const char* name, const char* srcHDRIPath, const glm::uvec2& resolution);
+        Skybox(const char* name, TextureCubeRenderable* srcCubemap);
+
         ~Skybox() { }
-        void initialize();
 
-        /** 
-        * Build a sky dome used for rendering.
+        /** note:
+        * this render function assumes that certain scene data such as the global view ssbo is already updated and bound
         */
-        void build();
-
-        /** 
-        * Build a SkyLight from this sky dome.
-        */
-        void buildSkyLight();
-        void render();
-
-        TextureCubeRenderable* getDiffueTexture()
-        {
-            return m_diffuseProbe->m_convolvedIrradianceTexture;
-        }
-
-        TextureCubeRenderable* getSpecularTexture()
-        {
-            return m_specularProbe->m_convolvedReflectionTexture;
-        }
+        void render(RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers);
 
         static Shader* s_cubemapSkyShader;
         static Shader* s_proceduralSkyShader;
 
-        SkyboxConfig     m_cfg;
-        Texture2DRenderable* m_srcHDRITexture;
-        TextureCubeRenderable* m_srcCubemapTexture;
-        IrradianceProbe* m_diffuseProbe;
-        ReflectionProbe* m_specularProbe;
+        Texture2DRenderable* m_srcHDRITexture = nullptr;
+        TextureCubeRenderable* m_cubemapTexture = nullptr;
     };
 
     struct HosekSkyDome

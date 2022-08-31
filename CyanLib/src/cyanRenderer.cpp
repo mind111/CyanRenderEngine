@@ -1199,9 +1199,8 @@ namespace Cyan
 
                 renderableScene.submitSceneData(m_ctx);
                 // render skybox
-                if (renderableScene.skybox)
-                {
-                    renderableScene.skybox->render();
+                if (renderableScene.skybox) { 
+                    renderableScene.skybox->render(renderTarget.get(), { { 0 } });
                 }
                 // render mesh instances
                 u32 transformIndex = 0u;
@@ -1314,6 +1313,11 @@ namespace Cyan
                 // one sub-drawcall per instance
                 u32 drawCount = (u32)renderableScene.drawCalls->getNumElements() - 1;
                 glMultiDrawArraysIndirect(GL_TRIANGLES, 0, drawCount, 0);
+
+                // render skybox
+                if (renderableScene.skybox) {
+                    renderableScene.skybox->render(renderTarget.get(), { { 0 } });
+                }
             });
 
         addUIRenderCommand([](){
@@ -1358,7 +1362,7 @@ namespace Cyan
 
     Renderer::DownsampleChain Renderer::downsample(RenderTexture2D* inTexture, u32 inNumStages)
     {
-        u32 numStages = min(glm::log2(inTexture->spec.width), inNumStages);
+        u32 numStages = Min(glm::log2(inTexture->spec.width), inNumStages);
         //todo: using a vector here is an obvious overkill
         std::vector<RenderTexture2D*> downsampleChain((u64)numStages + 1);
 
@@ -1505,7 +1509,7 @@ namespace Cyan
         }
 
         Shader* TAAShader = ShaderManager::createShader({ ShaderType::kVsPs, "TAAShader", SHADER_SOURCE_PATH "taa_v.glsl", SHADER_SOURCE_PATH "taa_p.glsl" });
-        u32 src = max((m_numFrames - 1), 0u) % 2;
+        u32 src = Max((m_numFrames - 1), 0u) % 2;
         u32 dst = m_numFrames % 2;
         submitFullScreenPass(
             m_TAAPingPongRenderTarget[dst],
@@ -1570,7 +1574,7 @@ namespace Cyan
         struct GaussianKernel
         {
             GaussianKernel(u32 inRadius, f32 inSigma, LinearAllocator& allocator)
-                : radius(max(kMinKernelRadius, min(inRadius, kMaxkernelRadius))), sigma(inSigma)
+                : radius(Max(kMinKernelRadius, Min(inRadius, kMaxkernelRadius))), sigma(inSigma)
             {
                 u32 kernelSize = radius;
                 // todo: allocate weights from stack or frame allocator instead

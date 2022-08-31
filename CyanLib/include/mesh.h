@@ -105,13 +105,13 @@ namespace Cyan
 
                 for (u32 i = 0; i < numVertices(); ++i)
                 {
-                    pmin.x = min(pmin.x, geometry.vertices[i].pos.x);
-                    pmin.y = min(pmin.y, geometry.vertices[i].pos.y);
-                    pmin.z = min(pmin.z, geometry.vertices[i].pos.z);
+                    pmin.x = Min(pmin.x, geometry.vertices[i].pos.x);
+                    pmin.y = Min(pmin.y, geometry.vertices[i].pos.y);
+                    pmin.z = Min(pmin.z, geometry.vertices[i].pos.z);
 
-                    pmax.x = max(pmax.x, geometry.vertices[i].pos.x);
-                    pmax.y = max(pmax.y, geometry.vertices[i].pos.y);
-                    pmax.z = max(pmax.z, geometry.vertices[i].pos.z);
+                    pmax.x = Max(pmax.x, geometry.vertices[i].pos.x);
+                    pmax.y = Max(pmax.y, geometry.vertices[i].pos.y);
+                    pmax.z = Max(pmax.z, geometry.vertices[i].pos.z);
                 }
             }
 

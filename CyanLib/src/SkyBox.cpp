@@ -10,134 +10,86 @@ namespace Cyan
     Shader* Skybox::s_cubemapSkyShader = nullptr;
     Shader* Skybox::s_proceduralSkyShader = nullptr;
 
-    Skybox::Skybox(Scene* scene, const char* srcImagePath, const glm::vec2& resolution, const SkyboxConfig& cfg)
-        : m_cfg(cfg), m_srcHDRITexture(nullptr), m_diffuseProbe(nullptr), m_specularProbe(nullptr), m_srcCubemapTexture(nullptr)
-    {
-        switch (m_cfg)
-        {
-        case kUseHDRI:
-            {
-                ITextureRenderable::Spec spec = { };
-                spec.type = TEX_2D;
-                AssetManager::importTexture2D("HDRITexture", srcImagePath, spec);
-            }
-        case kUseProcedural:
-        default:
-            {
-                ITextureRenderable::Spec spec = { };
-                spec.width = resolution.x;
-                spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGB16F;
-                // m_srcCubemapTexture = AssetManager::createTextureCube("SkyboxTexture", spec);
-            }
-            break;
-        }
-
-        m_diffuseProbe = scene->createIrradianceProbe(m_srcCubemapTexture, glm::uvec2(64u));
-        m_specularProbe = scene->createReflectionProbe(m_srcCubemapTexture);
-        
-        initialize();
-    }
-
-    void Skybox::initialize()
-    {
-        if (!s_proceduralSkyShader)
-        {
+    Skybox::Skybox(const char* name, const char* srcHDRIPath, const glm::uvec2& resolution) {
+        if (!s_proceduralSkyShader) {
             s_proceduralSkyShader = ShaderManager::createShader({ ShaderType::kVsPs, "SDFSkyShader", SHADER_SOURCE_PATH "sky_sdf_v.glsl", SHADER_SOURCE_PATH "sky_sdf_p.glsl" });
         }
-        if (!s_cubemapSkyShader)
-        {
+        if (!s_cubemapSkyShader) {
             s_cubemapSkyShader = ShaderManager::createShader({ ShaderType::kVsPs, "SkyDomeShader", SHADER_SOURCE_PATH "skybox_v.glsl", SHADER_SOURCE_PATH "skybox_p.glsl" });
         }
-    }
 
-    void Skybox::build()
-    {
-        auto renderer = Renderer::get();
+        ITextureRenderable::Spec HDRISpec = { };
+        HDRISpec.type = TEX_2D;
+        m_srcHDRITexture = AssetManager::importTexture2D("HDRITexture", srcHDRIPath, HDRISpec);
 
-        switch (m_cfg)
+        ITextureRenderable::Spec cubemapSpec = { };
+        cubemapSpec.type = TEX_CUBE;
+        cubemapSpec.width = resolution.x;
+        cubemapSpec.height = resolution.x;
+        cubemapSpec.pixelFormat = PF_RGB16F;
+        ITextureRenderable::Parameter cubemapParams = { };
+        cubemapParams.minificationFilter = FM_BILINEAR;
+        cubemapParams.magnificationFilter = FM_BILINEAR;
+        cubemapParams.wrap_r = WM_CLAMP;
+        cubemapParams.wrap_s = WM_CLAMP;
+        cubemapParams.wrap_t = WM_CLAMP;
+
+        m_cubemapTexture = AssetManager::createTextureCube(name, cubemapSpec, cubemapParams);
+
+        // render src equirectangular map into a cubemap
+        auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(m_cubemapTexture->resolution, m_cubemapTexture->resolution));
+        renderTarget->setColorBuffer(m_cubemapTexture, 0u);
+
+        Shader* shader = ShaderManager::createShader({ ShaderType::kVsPs, "RenderToCubemapShader", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl" });
+        Mesh* cubeMesh = AssetManager::getAsset<Mesh>("UnitCubeMesh");
+
+        for (u32 f = 0; f < 6u; f++)
         {
-        case kUseHDRI:
-            // step 1: create a cubemap texture from a src equirectangular image
-            {
-                RenderTarget* renderTarget = createRenderTarget(m_srcCubemapTexture->resolution, m_srcCubemapTexture->resolution);
-                renderTarget->setColorBuffer(m_srcCubemapTexture, 0u);
-                Shader* shader = ShaderManager::createShader({ ShaderType::kVsPs, "RenderToCubemapShader", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl" });
-                Mesh* cubeMesh = AssetManager::getAsset<Mesh>("UnitCubeMesh");
-                for (u32 f = 0; f < 6u; f++)
-                {
-                    GfxPipelineState pipelineState;
-                    pipelineState.depth = DepthControl::kDisable;
-                    renderer->submitMesh(
-                        renderTarget,
-                        { { (i32)f } },
-                        false,
-                        { 0, 0, renderTarget->width, renderTarget->height},
-                        pipelineState,
-                        cubeMesh,
-                        shader,
-                        [this, f](RenderTarget* renderTarget, Shader* shader) {
-                            // Update view matrix
-                            PerspectiveCamera camera(
-                                glm::vec3(0.f),
-                                LightProbeCameras::cameraFacingDirections[f],
-                                LightProbeCameras::worldUps[f],
-                                glm::radians(90.f),
-                                0.1f,
-                                100.f,
-                                1.0f
-                            );
-                            shader->setTexture("srcImageTexture", m_srcHDRITexture);
-                            shader->setUniform("projection", camera.projection());
-                            shader->setUniform("view", camera.view());
-                        });
-                }
-                // release one-time resources
-                glDeleteFramebuffers(1, &renderTarget->fbo);
-                delete renderTarget;
-            }
-            break;
-        // sdf sky is rendered in real-time in contrast to HDRI Skybox that is built by render a src HDRI image
-        // into a cubemap texture
-        case kUseProcedural:
-        default:
-            break;
+            GfxPipelineState pipelineState;
+            pipelineState.depth = DepthControl::kDisable;
+            Renderer::get()->submitMesh(
+                renderTarget.get(),
+                { { (i32)f } },
+                false,
+                { 0, 0, renderTarget->width, renderTarget->height},
+                pipelineState,
+                cubeMesh,
+                shader,
+                [this, f](RenderTarget* renderTarget, Shader* shader) {
+                    PerspectiveCamera camera(
+                        glm::vec3(0.f),
+                        LightProbeCameras::cameraFacingDirections[f],
+                        LightProbeCameras::worldUps[f],
+                        90.f,
+                        0.1f,
+                        100.f,
+                        1.0f
+                    );
+                    shader->setTexture("srcImageTexture", m_srcHDRITexture);
+                    shader->setUniform("projection", camera.projection());
+                    shader->setUniform("view", camera.view());
+                });
         }
     }
 
-    void Skybox::buildSkyLight()
-    {
-        // step 2: convolve src cubemap texture into irradiance map
-        {
-            m_diffuseProbe->buildFromCubemap();
-        }
+    Skybox::Skybox(const char* name, TextureCubeRenderable* srcCubemap) {
 
-        // step 3: convolve src cubemap texture into glossy reflection map
-        {
-            m_specularProbe->buildFromCubemap();
-        }
     }
 
-    void Skybox::render()
+    void Skybox::render(RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers)
     {
-        auto ctx = GfxContext::get();
-        switch (m_cfg)
-        {
-        case kUseHDRI:
-            {
-                ctx->setShader(s_cubemapSkyShader);
-                s_cubemapSkyShader->setTexture("skyDomeTexture", m_srcCubemapTexture);
-                s_cubemapSkyShader->commit(ctx);
-                ctx->drawIndexAuto(36);
-            }
-            break;
-        case kUseProcedural:
-            {
-                ctx->setShader(s_proceduralSkyShader);
-                ctx->drawIndexAuto(36);
-            }
-            break;
-        default:
-            break;
-        }
+        Mesh* cubeMesh = AssetManager::getAsset<Mesh>("UnitCubeMesh");
+
+        Renderer::get()->submitMesh(
+            renderTarget,
+            drawBuffers,
+            false,
+            { 0, 0, renderTarget->width, renderTarget->height },
+            GfxPipelineState(),
+            cubeMesh,
+            s_cubemapSkyShader,
+            [this](RenderTarget* renderTarget, Shader* shader) {
+                shader->setTexture("cubemapTexture", m_cubemapTexture);
+            });
     }
 }

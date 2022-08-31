@@ -1,71 +1,32 @@
 #version 450 core
 
 layout (location = 0) in vec3 vertexPos;
+layout (location = 1) in vec3 vertexNormal;
+layout (location = 2) in vec4 vertexTangent;
+layout (location = 3) in vec2 textureUv_0;
+layout (location = 4) in vec2 textureUv_1;
+layout (location = 5) in vec2 textureUv_2;
+layout (location = 6) in vec2 textureUv_3;
 
-out vec3 fragmentObjPos;
+out VSOutput
+{
+	vec3 objectSpacePosition;
+} vsOut;
 
-layout(std430, binding = 0) buffer GlobalDrawData
+#define VIEW_SSBO_BINDING 0
+layout(std430, binding = VIEW_SSBO_BINDING) buffer ViewShaderStorageBuffer
 {
     mat4  view;
     mat4  projection;
-	mat4  sunLightView;
-	mat4  sunShadowProjections[4];
-    int   numDirLights;
-    int   numPointLights;
     float m_ssao;
     float dummy;
-} gDrawData;
-
-float cubeVertices[] = {
-    -1.0f,  1.0f, -1.0f,
-    -1.0f, -1.0f, -1.0f,
-     1.0f, -1.0f, -1.0f,
-     1.0f, -1.0f, -1.0f,
-     1.0f,  1.0f, -1.0f,
-    -1.0f,  1.0f, -1.0f,
-
-    -1.0f, -1.0f,  1.0f,
-    -1.0f, -1.0f, -1.0f,
-    -1.0f,  1.0f, -1.0f,
-    -1.0f,  1.0f, -1.0f,
-    -1.0f,  1.0f,  1.0f,
-    -1.0f, -1.0f,  1.0f,
-
-     1.0f, -1.0f, -1.0f,
-     1.0f, -1.0f,  1.0f,
-     1.0f,  1.0f,  1.0f,
-     1.0f,  1.0f,  1.0f,
-     1.0f,  1.0f, -1.0f,
-     1.0f, -1.0f, -1.0f,
-
-    -1.0f, -1.0f,  1.0f,
-    -1.0f,  1.0f,  1.0f,
-     1.0f,  1.0f,  1.0f,
-     1.0f,  1.0f,  1.0f,
-     1.0f, -1.0f,  1.0f,
-    -1.0f, -1.0f,  1.0f,
-
-    -1.0f,  1.0f, -1.0f,
-     1.0f,  1.0f, -1.0f,
-     1.0f,  1.0f,  1.0f,
-     1.0f,  1.0f,  1.0f,
-    -1.0f,  1.0f,  1.0f,
-    -1.0f,  1.0f, -1.0f,
-
-    -1.0f, -1.0f, -1.0f,
-    -1.0f, -1.0f,  1.0f,
-     1.0f, -1.0f, -1.0f,
-     1.0f, -1.0f, -1.0f,
-    -1.0f, -1.0f,  1.0f,
-     1.0f, -1.0f,  1.0f
-};
+} viewSsbo;
 
 void main()
 {
-    vec3 vPosition = vec3(cubeVertices[gl_VertexID * 3 + 0], cubeVertices[gl_VertexID * 3 + 1], cubeVertices[gl_VertexID * 3 + 2]);
-    fragmentObjPos = vPosition;
-    mat4 view = gDrawData.view;
+    vsOut.objectSpacePosition = vertexPos;
+    mat4 view = viewSsbo.view;
     // remove translation from view matrix
     view[3] = vec4(0.f, 0.f, 0.f, 1.f);
-    gl_Position = (gDrawData.projection * view * vec4(vPosition, 1.f)).xyww;
+    gl_Position = (viewSsbo.projection * view * vec4(vertexPos, 1.f)).xyww;
 }

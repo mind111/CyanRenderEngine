@@ -33,6 +33,10 @@ namespace Cyan
             Texture2DRenderable* gridOrange = nullptr;
         } m_defaultTextures;
 
+        struct DefaultShapes {
+            Mesh* unitCubeMesh = nullptr;
+        } m_defaultShapes;
+
         AssetManager();
         ~AssetManager() { };
 
@@ -42,11 +46,23 @@ namespace Cyan
                 initialize default geometries and shapes
             */ 
             // cube
+            u32 numVertices = sizeof(cubeVertices) / sizeof(f32);
+            std::vector<ISubmesh*> submeshes;
+            std::vector<Triangles::Vertex> vertices(numVertices);
+            std::vector<u32> indices(numVertices);
+            for (u32 v = 0; v < numVertices; ++v)
+            {
+                vertices[v].pos = glm::vec3(cubeVertices[v * 3 + 0], cubeVertices[v * 3 + 1], cubeVertices[v * 3 + 2]);
+                indices[v] = v;
+            }
+            submeshes.push_back(createSubmesh<Triangles>(vertices, indices));
+            m_defaultShapes.unitCubeMesh = createMesh("UnitCubeMesh", submeshes);
+
             // sphere
             // cylinder
 
             /**
-                initialize default textures
+            *   initialize default textures
             */ 
             ITextureRenderable::Spec spec = { };
             spec.numMips = 11u;

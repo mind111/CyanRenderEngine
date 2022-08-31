@@ -167,6 +167,10 @@ namespace Cyan
         }
     }
 
+    SkyLight* Scene::createSkyLightFromSkybox(Skybox* srcSkybox) {
+        return nullptr;
+    }
+
     SkyLight* Scene::createSkyLight(const char* name, const char* srcHDRI) 
     { 
         if (skyLight)
@@ -176,6 +180,15 @@ namespace Cyan
         }
         skyLight = new SkyLight(this, glm::vec4(1.f), srcHDRI);
         return skyLight;
+    }
+
+    Skybox* Scene::createSkybox(const char* name, const char* srcHDRIPath, const glm::uvec2& resolution) {
+        if (skybox) {
+            cyanError("There is already a skybox exist in scene %s", this->name);
+            return nullptr;
+        }
+        skybox = new Skybox(name, srcHDRIPath, resolution);
+        return skybox;
     }
 
     void Scene::createPointLight(const char* name, const glm::vec3 position, const glm::vec4& colorAndIntensity)

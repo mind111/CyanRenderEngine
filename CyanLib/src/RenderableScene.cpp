@@ -116,27 +116,24 @@ namespace Cyan
         std::unordered_map<std::string, u64> textureMap;
 
         // build instance descriptors
-        for (u32 i = 0; i < meshInstances.size(); ++i)
-        {
+        for (u32 i = 0; i < meshInstances.size(); ++i) {
             auto mesh = meshInstances[i]->parent;
             auto entry = packedGeometry->submeshMap.find(mesh->name);
             u32 baseSubmesh = 0;
-            if (entry != packedGeometry->submeshMap.end())
+            if (entry != packedGeometry->submeshMap.end()) {
                 baseSubmesh = entry->second;
-            for (u32 sm = 0; sm < mesh->numSubmeshes(); ++sm)
-            {
+            }
+            for (u32 sm = 0; sm < mesh->numSubmeshes(); ++sm) {
                 instances->addElement(InstanceDesc{});
                 auto& desc = (*instances)[instances->getNumElements() - 1];
                 desc.submesh = baseSubmesh + sm;
                 desc.transform = i;
                 desc.material = 0;
 
-                if (auto pbr = dynamic_cast<PBRMaterial*>(meshInstances[i]->getMaterial(sm)))
-                {
+                if (auto pbr = dynamic_cast<PBRMaterial*>(meshInstances[i]->getMaterial(sm))) {
                     auto matlEntry = materialMap.find(pbr->name);
                     // create a material proxy for each unique material instance
-                    if (matlEntry == materialMap.end())
-                    {
+                    if (matlEntry == materialMap.end()) {
                         materialMap.insert({ pbr->name, materials->getNumElements() });
                         desc.material = materials->getNumElements();
                         materials->addElement(Material{ });
@@ -145,32 +142,26 @@ namespace Cyan
 
                         // albedo
                         matlProxy.kAlbedo = glm::vec4(pbr->parameter.kAlbedo, 1.f);
-                        if (auto albedo = pbr->parameter.albedo)
-                        {
+                        if (auto albedo = pbr->parameter.albedo) {
                             auto entry = textureMap.find(albedo->name);
-                            if (entry == textureMap.end())
-                            {
+                            if (entry == textureMap.end()) {
 #if BINDLESS_TEXTURE
                                 matlProxy.diffuseMapHandle = albedo->glHandle;
-                                if (glIsTextureHandleResidentARB(matlProxy.diffuseMapHandle) == GL_FALSE)
-                                {
+                                if (glIsTextureHandleResidentARB(matlProxy.diffuseMapHandle) == GL_FALSE) {
                                     glMakeTextureHandleResidentARB(matlProxy.diffuseMapHandle);
                                 }
 #endif
                                 textureMap.insert({ albedo->name, matlProxy.diffuseMapHandle });
                             }
-                            else
-                            {
+                            else {
                                 matlProxy.diffuseMapHandle = entry->second;
                             }
                         }
 
                         // normal map
-                        if (auto normal = pbr->parameter.normal)
-                        {
+                        if (auto normal = pbr->parameter.normal) {
                             auto entry = textureMap.find(normal->name);
-                            if (entry == textureMap.end())
-                            {
+                            if (entry == textureMap.end()) {
 #if BINDLESS_TEXTURE
                                 matlProxy.normalMapHandle = normal->glHandle;
                                 if (glIsTextureHandleResidentARB(matlProxy.normalMapHandle) == GL_FALSE)
@@ -180,8 +171,7 @@ namespace Cyan
 #endif
                                 textureMap.insert({ normal->name, matlProxy.normalMapHandle });
                             }
-                            else
-                            {
+                            else {
                                 matlProxy.normalMapHandle = entry->second;
                             }
                         }
@@ -293,13 +283,6 @@ namespace Cyan
         if (Texture2DRenderable* BRDFLookupTexture = ReflectionProbe::getBRDFLookupTexture())
         {
             ctx->setPersistentTexture(BRDFLookupTexture, (u32)SceneTextureBindings::BRDFLookupTexture);
-        }
-
-        // skybox
-        if (skybox)
-        {
-            ctx->setPersistentTexture(skybox->getDiffueTexture(), 0);
-            ctx->setPersistentTexture(skybox->getSpecularTexture(), 1);
         }
 
         // additional light probes

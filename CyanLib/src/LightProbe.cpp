@@ -8,7 +8,6 @@
 
 namespace Cyan
 {
-    Mesh* unitCubeMesh = nullptr;
     Shader* s_debugRenderShader = nullptr;
     Texture2DRenderable* ReflectionProbe::s_BRDFLookupTexture = nullptr;
     Shader* IrradianceProbe::s_convolveIrradianceShader = nullptr;
@@ -66,27 +65,6 @@ namespace Cyan
         spec.type = ITextureRenderable::Spec::Type::kTexCube;
         spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGB16F;
         // sceneCapture = AssetManager::createTextureCube("SceneCapture", spec);
-
-        // shared cube mesh
-        if (!unitCubeMesh)
-        {
-            auto assetManager = AssetManager::get();
-            unitCubeMesh = assetManager->getAsset<Mesh>("UnitCubeMesh");
-            if (!unitCubeMesh)
-            {
-                u32 numVertices = sizeof(cubeVertices) / sizeof(f32);
-                std::vector<ISubmesh*> submeshes;
-                std::vector<Triangles::Vertex> vertices(numVertices);
-                std::vector<u32> indices(numVertices);
-                for (u32 v = 0; v < numVertices; ++v)
-                {
-                    vertices[v].pos = glm::vec3(cubeVertices[v * 3 + 0], cubeVertices[v * 3 + 1], cubeVertices[v * 3 + 2]);
-                    indices[v] = v;
-                }
-                submeshes.push_back(assetManager->createSubmesh<Triangles>(vertices, indices));
-                unitCubeMesh = assetManager->createMesh("UnitCubeMesh", submeshes);
-            }
-        }
     }
 
     void LightProbe::captureScene()
@@ -153,7 +131,7 @@ namespace Cyan
                     false,
                     { 0u, 0u, renderTarget->width, renderTarget->height }, 
                     pipelineState, 
-                    unitCubeMesh,
+                    AssetManager::getAsset<Mesh>("UnitCubeMesh"),
                     s_convolveIrradianceShader,
                     [this, f](RenderTarget* renderTarget, Shader* shader) {
                         // Update view matrix
@@ -281,7 +259,7 @@ namespace Cyan
                         false,
                         { 0u, 0u, renderTarget->width, renderTarget->height }, 
                         pipelineState, 
-                        unitCubeMesh, 
+                        AssetManager::getAsset<Mesh>("UnitCubeMesh"),
                         s_convolveReflectionShader,
                         [this, f, mip, kNumMips](RenderTarget* renderTarget, Shader* shader) {
                             // Update view matrix
