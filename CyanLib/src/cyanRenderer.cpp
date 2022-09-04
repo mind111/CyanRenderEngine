@@ -958,40 +958,90 @@ namespace Cyan
     {
         RenderTexture2D* ssao = m_renderQueue.createTexture2D("SSAO", sceneNormalTexture->spec);
         RenderTexture2D* ssbn = m_renderQueue.createTexture2D("SSBN", sceneNormalTexture->spec);
+        RenderTexture2D* ssr = m_renderQueue.createTexture2D("SSR", sceneNormalTexture->spec);
+        static f32 kRoughness = .2f;
+        ITextureRenderable::Spec spec = { };
+        spec.type = TEX_2D;
+        spec.width = sceneDepthTexture->spec.width;
+        spec.height = sceneDepthTexture->spec.height;
+        spec.pixelFormat = PF_RGB16F;
+        ITextureRenderable::Parameter parameter = { };
+        parameter.minificationFilter = FM_POINT;
+        parameter.magnificationFilter = FM_POINT;
+        parameter.wrap_r = WM_CLAMP;
+        parameter.wrap_s = WM_CLAMP;
+        parameter.wrap_t = WM_CLAMP;
+        static Texture2DRenderable* temporalSsaoBuffer[2] = {
+            AssetManager::createTexture2D("TemporalSSAO_0", spec, parameter),
+            AssetManager::createTexture2D("TemporalSSAO_1", spec, parameter),
+        };
+        static Texture2DRenderable* temporalSsaoCountBuffer[2] = {
+            AssetManager::createTexture2D("TemporalSSAOSampleCount_0", spec, parameter),
+            AssetManager::createTexture2D("TemporalSSAOSampleCount_1", spec, parameter)
+        };
+
+        u32 src = m_numFrames > 0 ? (m_numFrames - 1) % 2 : 1;
+        u32 dst = m_numFrames % 2;
+        RenderTexture2D* ssaoBuffers[2] = {
+            m_renderQueue.registerTexture2D(temporalSsaoBuffer[0]),
+            m_renderQueue.registerTexture2D(temporalSsaoBuffer[1])
+        };
+        RenderTexture2D* ssaoCountBuffer[2] = {
+            m_renderQueue.registerTexture2D(temporalSsaoCountBuffer[0]),
+            m_renderQueue.registerTexture2D(temporalSsaoCountBuffer[1])
+        };
 
         // screen space ao
         m_renderQueue.addPass(
             "ScreenSpaceRayTracingPass",
-            [this, sceneDepthTexture, sceneNormalTexture, ssao, ssbn](RenderQueue& renderQueue, RenderPass* pass) {
+            [this, sceneDepthTexture, sceneNormalTexture, ssao, ssbn, ssr](RenderQueue& renderQueue, RenderPass* pass) {
                 pass->addInput(sceneDepthTexture);
                 pass->addInput(sceneNormalTexture);
                 pass->addInput(ssao);
                 pass->addInput(ssbn);
+                pass->addInput(ssr);
+
                 pass->addOutput(ssao);
                 pass->addOutput(ssbn);
+                pass->addOutput(ssr);
             },
-            [this, ssao, ssbn, sceneDepthTexture, sceneNormalTexture]() {
+            [this, ssao, src, dst, ssbn, ssr, sceneDepthTexture, sceneNormalTexture]() {
                 std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(ssao->spec.width, ssao->spec.height));
-                renderTarget->setColorBuffer(ssao->getTextureResource(), 0);
+                // renderTarget->setColorBuffer(ssao->getTextureResource(), 0);
+                renderTarget->setColorBuffer(temporalSsaoBuffer[dst], 0);
                 renderTarget->setColorBuffer(ssbn->getTextureResource(), 1);
+                renderTarget->setColorBuffer(ssr->getTextureResource(), 2);
+                renderTarget->setColorBuffer(temporalSsaoCountBuffer[dst], 3);
 
-                GLenum drawBuffers[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
-                glNamedFramebufferDrawBuffers(renderTarget->fbo, 2, drawBuffers);
+                GLenum drawBuffers[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
+                glNamedFramebufferDrawBuffers(renderTarget->fbo, 4, drawBuffers);
                 renderTarget->clear({ 
                     { 0, glm::vec4(0.f, 0.f, 0.f, 1.f) },
                     { 1, glm::vec4(0.f, 0.f, 0.f, 1.f) },
+                    { 2, glm::vec4(0.f, 0.f, 0.f, 1.f) },
+                    { 3, glm::vec4(0.f, 0.f, 0.f, 1.f) },
                 });
 
                 Shader* ssrtShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "ScreenSpaceRayTracingShader", SHADER_SOURCE_PATH "screenspace_raytracing.glsl", SHADER_SOURCE_PATH "screenspace_raytracing.glsl" });
                 submitFullScreenPass(
                     renderTarget.get(),
-                    { { 0 }, { 1 } },
+                    { { 0 }, { 1 }, { 2 }, { 3 } },
                     ssrtShader,
-                    [sceneDepthTexture, sceneNormalTexture](RenderTarget* renderTarget, Shader* shader) {
+                    [this, src, sceneDepthTexture, sceneNormalTexture](RenderTarget* renderTarget, Shader* shader) {
                         shader->setTexture("depthTexture", sceneDepthTexture->getTextureResource());
                         shader->setTexture("normalTexture", sceneNormalTexture->getTextureResource());
                         auto blueNoiseTexture = AssetManager::getAsset<Texture2DRenderable>("BlueNoise_1024x1024");
                         shader->setTexture("blueNoiseTexture", blueNoiseTexture);
+                        // ssao
+                        shader->setUniform("numFrames", m_numFrames);
+                        if (m_numFrames > 0) {
+                            shader->setTexture("temporalSsaoBuffer", temporalSsaoBuffer[src]);
+                            shader->setTexture("temporalSsaoCountBuffer", temporalSsaoCountBuffer[src]);
+                        }
+                        // ssr
+                        shader->setUniform("kRoughness", kRoughness);
+                        auto skybox = AssetManager::getAsset<TextureCubeRenderable>("Skybox");
+                        shader->setTexture("reflectionProbe", skybox);
                     });
             });
 
@@ -1001,25 +1051,33 @@ namespace Cyan
 
         // screen space reflection
 
-        addUIRenderCommand([this, ssao, ssbn](){
+        addUIRenderCommand([this, ssao, ssbn, ssr, dst, ssaoBuffers](){
             ImGui::Begin("SSGI Viewer");
             ImGui::Checkbox("Bent Normal", &m_settings.useBentNormal);
+            ImGui::SliderFloat("kRoughness", &kRoughness, 0.f, 1.f);
             enum class Visualization
             {
                 kAmbientOcclusion,
                 kBentNormal,
+                kReflection,
                 kCount
             };
             static i32 visualization = (i32)Visualization::kAmbientOcclusion;
-            const char* visualizationNames[(i32)Visualization::kCount] = { "Ambient Occlusion", "Bent Normal", };
+            const char* visualizationNames[(i32)Visualization::kCount] = { "Ambient Occlusion", "Bent Normal", "Reflection" };
             ImGui::Combo("Visualization", &visualization, visualizationNames, (i32)Visualization::kCount);
-            if (visualization == (i32)Visualization::kAmbientOcclusion)
-                ImGui::Image((ImTextureID)(ssao->getTextureResource()->getGpuResource()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
-            if (visualization == (i32)Visualization::kBentNormal)
+            if (visualization == (i32)Visualization::kAmbientOcclusion) {
+                // ImGui::Image((ImTextureID)(ssao->getTextureResource()->getGpuResource()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
+                ImGui::Image((ImTextureID)(ssaoBuffers[dst]->getTextureResource()->getGpuResource()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
+            }
+            if (visualization == (i32)Visualization::kBentNormal) {
                 ImGui::Image((ImTextureID)(ssbn->getTextureResource()->getGpuResource()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
+            }
+            if (visualization == (i32)Visualization::kReflection) {
+                ImGui::Image((ImTextureID)(ssr->getTextureResource()->getGpuResource()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
+            }
             ImGui::End();
         });
-        return { ssao, ssbn };
+        return { ssaoBuffers[dst], ssbn };
     }
 
     void Renderer::gpuRayTracing(RayTracingScene& rtxScene, RenderTexture2D* outputBuffer, RenderTexture2D* sceneDepthBuffer, RenderTexture2D* sceneNormalBuffer)

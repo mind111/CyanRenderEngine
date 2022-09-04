@@ -702,9 +702,9 @@ void main() {
 
 	// initialize random number generator state
 	seed = numFrames;
-	// if (numFrames % 30 == 0) {
-		flat_idx = uint(floor(gl_FragCoord.y) * 2560 + floor(gl_FragCoord.x));
+	flat_idx = uint(floor(gl_FragCoord.y) * 2560 + floor(gl_FragCoord.x));
 
+	// if (numFrames % 30 == 0) {
 		outColor = vec3(0.f);
 		Ray ray = generateRay(pixelCoord);
 		RayHit hit = trace(ray);
