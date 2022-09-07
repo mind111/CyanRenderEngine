@@ -369,7 +369,7 @@ namespace Cyan
                 ImGui::TextColored(ImVec4(0.f, 1.f, 1.f, 1.f), "Frame Time: %.2f ms", renderFrameTime);
             }
 
-            if (ImGui::CollapsingHeader("Post Processing", ImGuiTreeNodeFlags_DefaultOpen))
+            if (ImGui::CollapsingHeader("Post Processing"))
             {
                 ImGui::TextUnformatted("Color Temperature"); ImGui::SameLine();
                 // todo: render a color temperature slider image and blit to ImGui

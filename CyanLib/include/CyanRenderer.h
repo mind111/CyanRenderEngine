@@ -376,8 +376,30 @@ namespace Cyan
         ScenePrepassOutput renderSceneDepthNormal(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
         void renderSceneDepthOnly(RenderableScene& renderableScene, RenderTexture2D* outDepthTexture);
 
+        /**
+        * brief: Instant Radiosity implementation
+        */
+        struct VPL {
+            glm::vec4 position;
+            glm::vec4 normal;
+            glm::vec4 flux;
+        };
+
+        GLuint VPLBuffer;
+        GLuint VPLCounter;
+        GLuint depthCubeMap;
+        static const int kMaxNumVPLs = 256;
+        VPL VPLs[256];
+        // VPL shadow
+        GLuint VPLShadowCubemaps[kMaxNumVPLs];
+        Texture2DRenderable* VPLOctShadowMaps[kMaxNumVPLs] = { 0 };
+        void generateVPLs(RenderableScene& renderableScene);
+        void buildVPLShadowMaps();
+        bool bRegenerateVPLs = true;
+
         /* Debugging utilities */
         void debugDrawLine(const glm::vec3& v0, const glm::vec3& v1);
+        void debugDrawSphere(RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection);
 
         void renderDebugObjects(RenderTexture2D* outTexture);
 

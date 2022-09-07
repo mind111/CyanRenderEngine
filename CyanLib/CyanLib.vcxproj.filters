@@ -28,9 +28,6 @@
     <Filter Include="Shaders">
       <UniqueIdentifier>{076b0f35-28e5-45d0-ba3c-e908fa947e32}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Shaders\Common">
-      <UniqueIdentifier>{9868cac1-e0d1-4672-96e6-e9278e098cfc}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Shaders\Shading">
       <UniqueIdentifier>{0d1b30bc-8bcd-41ae-a26b-d4cefbee7168}</UniqueIdentifier>
     </Filter>
@@ -51,6 +48,12 @@
     </Filter>
     <Filter Include="Shaders\RayTracing">
       <UniqueIdentifier>{6326aa54-289e-43cd-b6b1-b0326925ff8f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Common">
+      <UniqueIdentifier>{9868cac1-e0d1-4672-96e6-e9278e098cfc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Shadow">
+      <UniqueIdentifier>{e5b2da65-b986-4625-b55a-eb720c7871ea}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -472,10 +475,10 @@
     <None Include="..\shader\shader_lumin_histogram_c.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_oct_mapping.fs">
+    <None Include="..\shader\oct_mapping_p.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\shader_oct_mapping.vs">
+    <None Include="..\shader\oct_mapping_v.glsl">
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\convolve_specular_p.glsl">
@@ -663,6 +666,24 @@
     </None>
     <None Include="..\shader\screenspace_raytracing_p.glsl">
       <Filter>Shaders\RayTracing</Filter>
+    </None>
+    <None Include="..\shader\generate_vpl_p.glsl">
+      <Filter>Shaders\Shading</Filter>
+    </None>
+    <None Include="..\shader\generate_vpl_v.glsl">
+      <Filter>Shaders\Shading</Filter>
+    </None>
+    <None Include="..\shader\debug_draw_v.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\debug_draw_p.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\point_shadow_v.glsl">
+      <Filter>Shaders\Shadow</Filter>
+    </None>
+    <None Include="..\shader\point_shadow_p.glsl">
+      <Filter>Shaders\Shadow</Filter>
     </None>
   </ItemGroup>
 </Project>

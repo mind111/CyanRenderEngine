@@ -1,11 +1,9 @@
 #version 450 core
-uniform samplerCube radiance;
-uniform samplerCube normal;
-uniform samplerCube radialDepth;
 in vec2 texCoords;
-layout (location = 0) out vec4 fragColor;
-layout (location = 1) out vec3 fragNormal;
-layout (location = 2) out vec3 fragDist;
+
+layout (location = 0) out vec4 outColor;
+
+uniform samplerCube srcCubemap;
 
 // Returns ±1
 vec2 signNotZero(vec2 v) {
@@ -34,9 +32,7 @@ vec3 octDecode(vec2 o) {
 
 void main()
 {
-    vec2 remapUv = texCoords * 2.f - vec2(1.f);
+    vec2 remapUv = texCoords * 2.f - 1.f;
     vec3 octVec = octDecode(remapUv);
-    fragColor = vec4(texture(radiance, octVec).rgb, 1.f);
-    fragNormal = texture(normal, octVec).rgb;
-    fragDist = texture(radialDepth, octVec).rgb;
+    outColor = vec4(texture(srcCubemap, octVec).rgb, 1.f);
 }

@@ -1,0 +1,106 @@
+#version 450 core
+#extension GL_ARB_shader_draw_parameters : enable 
+
+#define VIEW_SSBO_BINDING 0
+#define TRANSFORM_SSBO_BINDING 3
+#define INSTANCE_DESC_BINDING 41
+#define SUBMESH_BUFFER_BINDING 42
+#define VERTEX_BUFFER_BINDING 43
+#define INDEX_BUFFER_BINDING 44
+#define DRAWCALL_BUFFER_BINDING 45
+#define MATERIAL_BUFFER_BINDING 46
+
+out VSOutput
+{
+	vec3 viewSpacePosition;
+	vec3 worldSpacePosition;
+	vec3 worldSpaceNormal;
+	vec3 worldSpaceTangent;
+	flat float tangentSpaceHandedness;
+	vec2 texCoord0;
+	vec2 texCoord1;
+	vec3 vertexColor;
+} vsOut;
+
+layout(std430, binding = VIEW_SSBO_BINDING) buffer ViewShaderStorageBuffer
+{
+    mat4  view;
+    mat4  projection;
+    float m_ssao;
+    float dummy;
+} viewSsbo;
+
+layout(std430, binding = TRANSFORM_SSBO_BINDING) buffer TransformShaderStorageBuffer
+{
+    mat4 models[];
+} transformSsbo;
+
+struct Vertex
+{
+	vec4 pos;
+	vec4 normal;
+	vec4 tangent;
+	vec4 texCoord;
+};
+
+layout(std430, binding = VERTEX_BUFFER_BINDING) buffer VertexBuffer
+{
+	Vertex vertices[];
+} vertexBuffer;
+
+layout(std430, binding = INDEX_BUFFER_BINDING) buffer IndexBuffer
+{
+	uint indices[];
+};
+
+struct InstanceDesc
+{
+	uint submesh;
+	uint material;
+	uint transform;
+	uint padding;
+};
+
+layout(std430, binding = INSTANCE_DESC_BINDING) buffer InstanceSSBO
+{
+	InstanceDesc instanceDescs[]; 
+};
+
+struct SubmeshDesc
+{
+	uint baseVertex;
+	uint baseIndex;
+	uint numVertices;
+	uint numIndices;
+};
+
+layout(std430, binding = SUBMESH_BUFFER_BINDING) buffer SubmeshSSBO
+{
+	SubmeshDesc submeshDescs[];
+};
+
+layout(std430, binding = DRAWCALL_BUFFER_BINDING) buffer DrawCallSSBO
+{
+	uint drawCalls[];
+};
+
+void main()
+{
+	uint instanceIndex = drawCalls[gl_DrawIDARB] + gl_InstanceID;
+	InstanceDesc instance = instanceDescs[instanceIndex];
+	uint baseVertex = submeshDescs[instance.submesh].baseVertex;
+	uint baseIndex = submeshDescs[instance.submesh].baseIndex;
+	uint index = indices[baseIndex + gl_VertexID];
+	Vertex vertex = vertexBuffer.vertices[baseVertex + index];
+	gl_Position = viewSsbo.projection * viewSsbo.view * transformSsbo.models[instance.transform] * vertex.pos;
+
+	vsOut.worldSpacePosition = (transformSsbo.models[instance.transform] * vertex.pos).xyz;
+	vsOut.viewSpacePosition = (viewSsbo.view * transformSsbo.models[instance.transform] * vertex.pos).xyz;
+	vsOut.worldSpaceNormal = normalize((inverse(transpose(transformSsbo.models[instance.transform])) * vertex.normal).xyz);
+	vsOut.worldSpaceTangent = normalize((transformSsbo.models[instance.transform] * vec4(vertex.tangent.xyz, 0.f)).xyz);
+	vsOut.tangentSpaceHandedness = vertex.tangent.w;
+
+	vsOut.texCoord0 = vertex.texCoord.xy;
+	vsOut.texCoord1 = vertex.texCoord.zw;
+	vsOut.vertexColor = vertex.normal.xyz * .5 + .5;
+}

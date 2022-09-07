@@ -35,6 +35,7 @@ namespace Cyan
 
         struct DefaultShapes {
             Mesh* unitCubeMesh = nullptr;
+            Mesh* sphere = nullptr;
         } m_defaultShapes;
 
         AssetManager();
@@ -59,6 +60,8 @@ namespace Cyan
             m_defaultShapes.unitCubeMesh = createMesh("UnitCubeMesh", submeshes);
 
             // sphere
+            m_defaultShapes.sphere = createMesh("Sphere", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/sphere.obj", false));
+
             // cylinder
 
             /**

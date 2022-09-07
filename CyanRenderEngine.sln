@@ -11,7 +11,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CyanLib", "CyanLib\CyanLib.
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CyanBaker", "CyanBaker\CyanBaker.vcxproj", "{AB7C8744-2BD5-4C09-87EA-3E879D302BED}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "IrradianceCaching", "IrradianceCaching\IrradianceCaching.vcxproj", "{3C705FEE-C855-44D6-8EF8-E3D866020DB0}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "IrradianceCachingApp", "IrradianceCaching\IrradianceCaching.vcxproj", "{3C705FEE-C855-44D6-8EF8-E3D866020DB0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

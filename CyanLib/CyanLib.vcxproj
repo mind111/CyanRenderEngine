@@ -143,9 +143,15 @@
     <None Include="..\shader\calculate_light.glsl" />
     <None Include="..\shader\debug_color_fs.glsl" />
     <None Include="..\shader\debug_color_vs.glsl" />
+    <None Include="..\shader\debug_draw_p.glsl" />
+    <None Include="..\shader\debug_draw_v.glsl" />
+    <None Include="..\shader\generate_vpl_p.glsl" />
+    <None Include="..\shader\generate_vpl_v.glsl" />
     <None Include="..\shader\global_buffers.glsl" />
     <None Include="..\shader\light_definitions.glsl" />
     <None Include="..\shader\material.glsl" />
+    <None Include="..\shader\point_shadow_p.glsl" />
+    <None Include="..\shader\point_shadow_v.glsl" />
     <None Include="..\shader\raytracing_p.glsl" />
     <None Include="..\shader\raytracing_v.glsl" />
     <None Include="..\shader\scene_depth_normal_p.glsl" />
@@ -202,8 +208,8 @@
     <None Include="..\shader\shader_line2d.fs" />
     <None Include="..\shader\shader_line2d.vs" />
     <None Include="..\shader\shader_lumin_histogram_c.glsl" />
-    <None Include="..\shader\shader_oct_mapping.fs" />
-    <None Include="..\shader\shader_oct_mapping.vs" />
+    <None Include="..\shader\oct_mapping_p.glsl" />
+    <None Include="..\shader\oct_mapping_v.glsl" />
     <None Include="..\shader\pbs_p.glsl" />
     <None Include="..\shader\pbs_v.glsl" />
     <None Include="..\shader\convolve_specular_p.glsl" />

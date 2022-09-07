@@ -30,6 +30,29 @@
 
 namespace Cyan
 {
+    /*
+    * brief: helper functions for appending to the "Rendering" tab
+    */
+    void appendToRenderingTab(const std::function<void()>& command) {
+        ImGui::Begin("Cyan", nullptr);
+        {
+            ImGui::BeginTabBar("##Views");
+            {
+                if (ImGui::BeginTabItem("Rendering"))
+                {
+                    ImGui::BeginChild("##Rendering Settings", ImVec2(0, 0), true); 
+                    {
+                        command();
+                        ImGui::EndChild();
+                    }
+                    ImGui::EndTabItem();
+                }
+                ImGui::EndTabBar();
+            }
+        }
+        ImGui::End();
+    }
+
     void RenderTexture2D::createResource(RenderQueue& renderQueue)
     { 
         if (!texture)
@@ -221,7 +244,13 @@ namespace Cyan
         glCreateBuffers(1, &indirectDrawBuffer.buffer);
         glNamedBufferStorage(indirectDrawBuffer.buffer, indirectDrawBuffer.sizeInBytes, nullptr, GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_WRITE_BIT);
         indirectDrawBuffer.data = glMapNamedBufferRange(indirectDrawBuffer.buffer, 0, indirectDrawBuffer.sizeInBytes, GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_WRITE_BIT);
-    }
+
+        glCreateBuffers(1, &VPLBuffer);
+        glNamedBufferData(VPLBuffer, kMaxNumVPLs * sizeof(VPL), nullptr, GL_DYNAMIC_COPY);
+        glCreateBuffers(1, &VPLCounter);
+        glNamedBufferData(VPLCounter, sizeof(u32), nullptr, GL_DYNAMIC_COPY);
+    };
+
 
     void Renderer::finalize()
     {
@@ -717,6 +746,12 @@ namespace Cyan
 #else
             renderShadow(*scene, renderableScene);
 
+            // instant radiosity experiements
+            if (bRegenerateVPLs) {
+                generateVPLs(renderableScene);
+                bRegenerateVPLs = false;
+            }
+
             // scene depth & normal pass
             // bool depthNormalPrepassRequired = (m_settings.enableSSAO || m_settings.enableVctx);
             bool depthNormalPrepassRequired = true;
@@ -770,6 +805,224 @@ namespace Cyan
             m_renderQueue.execute();
         } 
         endRender();
+    }
+
+    void Renderer::generateVPLs(RenderableScene& renderableScene) {
+        ITextureRenderable::Spec spec = { };
+        spec.type = TEX_2D;
+        spec.width = 2560;
+        spec.height = 1440;
+        spec.pixelFormat = PF_RGB16F;
+        RenderTexture2D* outSceneColor = m_renderQueue.createTexture2D("SceneColor", spec);
+        m_renderQueue.addPass(
+            "GenerateVPLPass",
+            [renderableScene, outSceneColor](RenderQueue& renderQueue, RenderPass* pass) {
+                pass->addInput(outSceneColor);
+                pass->addOutput(outSceneColor);
+            },
+            [this, outSceneColor, renderableScene]() mutable {
+                Shader* VPLGenerationShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "VPLGenerationShader", SHADER_SOURCE_PATH "generate_vpl_v.glsl", SHADER_SOURCE_PATH "generate_vpl_p.glsl" });
+                std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(outSceneColor->spec.width, outSceneColor->spec.height));
+                renderTarget->setColorBuffer(outSceneColor->getTextureResource(), 0);
+                renderTarget->clear({ { 0 } });
+
+                renderableScene.submitSceneData(m_ctx);
+
+                struct IndirectDrawArrayCommand
+                {
+                    u32  count;
+                    u32  instanceCount;
+                    u32  first;
+                    i32  baseInstance;
+                };
+
+                // build indirect draw commands
+                auto ptr = reinterpret_cast<IndirectDrawArrayCommand*>(indirectDrawBuffer.data);
+                for (u32 draw = 0; draw < renderableScene.drawCalls->getNumElements() - 1; ++draw)
+                {
+                    IndirectDrawArrayCommand& command = ptr[draw];
+                    command.first = 0;
+                    u32 instance = (*renderableScene.drawCalls)[draw];
+                    u32 submesh = (*renderableScene.instances)[instance].submesh;
+                    command.count = RenderableScene::packedGeometry->submeshes[submesh].numIndices;
+                    command.instanceCount = (*renderableScene.drawCalls)[draw + 1] - (*renderableScene.drawCalls)[draw];
+                    command.baseInstance = 0;
+                }
+
+                glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirectDrawBuffer.buffer);
+
+                m_ctx->setShader(VPLGenerationShader);
+                m_ctx->setRenderTarget(renderTarget.get(), { { 0 } });
+                m_ctx->setViewport({ 0, 0, renderTarget->width, renderTarget->height });
+                m_ctx->setDepthControl(DepthControl::kEnable);
+
+                for (auto light : renderableScene.lights)
+                {
+                    light->setShaderParameters(VPLGenerationShader);
+                }
+                VPLGenerationShader->commit(m_ctx);
+
+                // bind VPL atomic counter
+                u32 numGeneratedVPL = 0;
+                glNamedBufferSubData(VPLCounter, 0, sizeof(u32), &numGeneratedVPL);
+                // glBindBufferRange(GL_ATOMIC_COUNTER_BUFFER, 0, VPLCounter, 0, sizeof(u32));
+                glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, VPLCounter);
+                // bind VPL buffer for gpu to write
+                glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 47, VPLBuffer, 0, 256 * sizeof(VPL));
+
+                // dispatch multi draw indirect
+                // one sub-drawcall per instance
+                u32 drawCount = (u32)renderableScene.drawCalls->getNumElements() - 1;
+                glMultiDrawArraysIndirect(GL_TRIANGLES, 0, drawCount, 0);
+
+                // read back VPL data
+                glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+                glGetNamedBufferSubData(VPLBuffer, 0, sizeof(VPL) * kMaxNumVPLs, VPLs);
+
+                // render VPL shadow maps
+                const u32 kVPLShadowResolution = 256;
+                static u32 execCounter = 0;
+                if (execCounter <= 0) {
+                    glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &depthCubeMap);
+                    glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubeMap);
+                    for (i32 i = 0; i < 6; ++i) {
+                        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, kVPLShadowResolution, kVPLShadowResolution, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+                    }
+                    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+                    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+                    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+
+                    ITextureRenderable::Spec spec = { };
+                    spec.type = TEX_2D;
+                    spec.width = 256;
+                    spec.height = 256;
+                    spec.pixelFormat = PF_RGB16F;
+
+                    ITextureRenderable::Parameter params = { };
+                    params.minificationFilter = FM_POINT;
+                    params.magnificationFilter = FM_POINT;
+                    params.wrap_r = WM_CLAMP;
+                    params.wrap_s = WM_CLAMP;
+                    params.wrap_t = WM_CLAMP;
+
+                    octVPLShadow = AssetManager::createTexture2D("OctVPLShadow", spec, params);
+                    execCounter++;
+                }
+
+                // render point shadow
+                // auto depthRenderTarget = std::unique_ptr<RenderTarget>(createDepthOnlyRenderTarget(256, 256));
+                auto renderVPLShadow = [this](RenderableScene& renderableScene, RenderTarget* depthRenderTarget, GLuint cubemap, const VPL& VPL) {
+                    for (i32 pass = 0; pass < 6; ++pass) {
+                        glBindFramebuffer(GL_FRAMEBUFFER, depthRenderTarget->fbo);
+                        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + pass, cubemap, 0);
+                        depthRenderTarget->clear({ { 0 } });
+
+                        Shader* pointShadowShader = ShaderManager::createShader({ ShaderType::kVsPs, "PointShadowShader", SHADER_SOURCE_PATH "point_shadow_v.glsl", SHADER_SOURCE_PATH "point_shadow_p.glsl" });
+
+                        // render mesh instances
+                        i32 transformIndex = 0u;
+                        for (auto meshInst : renderableScene.meshInstances)
+                        {
+                            submitMesh(
+                                depthRenderTarget,
+                                { },
+                                false,
+                                { 0, 0, depthRenderTarget->width, depthRenderTarget->height},
+                                GfxPipelineState(),
+                                meshInst->parent,
+                                pointShadowShader,
+                                [this, VPL, pass, &transformIndex](RenderTarget* renderTarget, Shader* shader) {
+                                    // camera constants
+                                    const f32 fov = 90.f;
+                                    const f32 aspectRatio = 1.f;
+                                    const f32 nearClippingPlane = 0.01;
+                                    const f32 farClippingPlane = 20.f;
+
+                                    // update view matrix
+                                    PerspectiveCamera camera(
+                                        vec4ToVec3(VPL.position),
+                                        LightProbeCameras::cameraFacingDirections[pass],
+                                        LightProbeCameras::worldUps[pass],
+                                        fov,
+                                        nearClippingPlane,
+                                        farClippingPlane,
+                                        aspectRatio
+                                    );
+                                    shader->setUniform("transformIndex", transformIndex);
+                                    shader->setUniform("projection", camera.projection());
+                                    shader->setUniform("view", camera.view());
+                                }
+                            );
+                            transformIndex++;
+                        }
+                    }
+                };
+                
+                auto depthRenderTarget = std::unique_ptr<RenderTarget>(createDepthOnlyRenderTarget(256, 256));
+                renderVPLShadow();
+                /*
+                auto depthRenderTarget = std::unique_ptr<RenderTarget>(createDepthOnlyRenderTarget(256, 256));
+                for (i32 pass = 0; pass < 6; ++pass) {
+                    glBindFramebuffer(GL_FRAMEBUFFER, depthRenderTarget->fbo);
+                    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + pass, depthCubeMap, 0);
+                    depthRenderTarget->clear({ { 0 } });
+
+                    Shader* pointShadowShader = ShaderManager::createShader({ ShaderType::kVsPs, "PointShadowShader", SHADER_SOURCE_PATH "point_shadow_v.glsl", SHADER_SOURCE_PATH "point_shadow_p.glsl" });
+
+                    // render mesh instances
+                    i32 transformIndex = 0u;
+                    for (auto meshInst : renderableScene.meshInstances)
+                    {
+                        submitMesh(
+                            depthRenderTarget.get(),
+                            { },
+                            false,
+                            { 0, 0, depthRenderTarget->width, depthRenderTarget->height},
+                            GfxPipelineState(),
+                            meshInst->parent,
+                            pointShadowShader,
+                            [this, pass, &transformIndex](RenderTarget* renderTarget, Shader* shader) {
+                                // update view matrix
+                                PerspectiveCamera camera(
+                                    glm::vec3(0.f, 0.f, 2.f),
+                                    LightProbeCameras::cameraFacingDirections[pass],
+                                    LightProbeCameras::worldUps[pass],
+                                    90.f,
+                                    0.1f,
+                                    10.f,
+                                    1.0f
+                                );
+                                shader->setUniform("transformIndex", transformIndex);
+                                shader->setUniform("projection", camera.projection());
+                                shader->setUniform("view", camera.view());
+                            }
+                        );
+                        transformIndex++;
+                    }
+                }
+                */
+
+                // project the cubemap into a quad using octahedral mapping
+                auto octMappingRenderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(octVPLShadow->width, octVPLShadow->height));
+                octMappingRenderTarget->setColorBuffer(octVPLShadow, 0);
+                Shader* octMappingShader = ShaderManager::createShader({ ShaderType::kVsPs, "OctMappingShader", SHADER_SOURCE_PATH "oct_mapping_v.glsl", SHADER_SOURCE_PATH "oct_mapping_p.glsl" });
+                submitMesh(
+                    octMappingRenderTarget.get(),
+                    { { 0 } },
+                    true,
+                    { 0, 0, octMappingRenderTarget->width, octMappingRenderTarget->height },
+                    GfxPipelineState(),
+                    fullscreenQuad,
+                    octMappingShader,
+                    [this](RenderTarget* renderTarget, Shader* shader) {
+                        shader->setUniform("srcCubemap", (i32)100);
+                        glBindTextureUnit(100, depthCubeMap);
+                    }
+                );
+            });
     }
 
     void Renderer::renderToScreen(RenderTexture2D* inTexture)
@@ -944,13 +1197,21 @@ namespace Cyan
             });
 
         addUIRenderCommand([depthTexture, normalTexture](){
-            ImGui::Begin("Texture Viewer");
-            auto depth = depthTexture->getTextureResource();
-            auto normal = normalTexture->getTextureResource();
-            ImGui::Image((ImTextureID)(depth->getGpuResource()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
-            ImGui::Image((ImTextureID)(normal->getGpuResource()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
-            ImGui::End();
+            appendToRenderingTab([depthTexture, normalTexture]() {
+                /*
+                ImGui::BeginChild("Debug Texture Viewer");
+                {
+                    ImGui::Text("Debug Texture Viewer");
+                    auto depth = depthTexture->getTextureResource();
+                    auto normal = normalTexture->getTextureResource();
+                    ImGui::Image((ImTextureID)(depth->getGpuResource()), ImVec2(320, 180), ImVec2(0, 1), ImVec2(1, 0));
+                    ImGui::Image((ImTextureID)(normal->getGpuResource()), ImVec2(320, 180), ImVec2(0, 1), ImVec2(1, 0));
+                    ImGui::EndChild();
+                }
+                */
+            });
         });
+
         return { depthTexture, normalTexture};
     }
 
@@ -1051,32 +1312,36 @@ namespace Cyan
 
         // screen space reflection
 
-        addUIRenderCommand([this, ssao, ssbn, ssr, dst, ssaoBuffers](){
-            ImGui::Begin("SSGI Viewer");
-            ImGui::Checkbox("Bent Normal", &m_settings.useBentNormal);
-            ImGui::SliderFloat("kRoughness", &kRoughness, 0.f, 1.f);
-            enum class Visualization
-            {
-                kAmbientOcclusion,
-                kBentNormal,
-                kReflection,
-                kCount
-            };
-            static i32 visualization = (i32)Visualization::kAmbientOcclusion;
-            const char* visualizationNames[(i32)Visualization::kCount] = { "Ambient Occlusion", "Bent Normal", "Reflection" };
-            ImGui::Combo("Visualization", &visualization, visualizationNames, (i32)Visualization::kCount);
-            if (visualization == (i32)Visualization::kAmbientOcclusion) {
-                // ImGui::Image((ImTextureID)(ssao->getTextureResource()->getGpuResource()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
-                ImGui::Image((ImTextureID)(ssaoBuffers[dst]->getTextureResource()->getGpuResource()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
-            }
-            if (visualization == (i32)Visualization::kBentNormal) {
-                ImGui::Image((ImTextureID)(ssbn->getTextureResource()->getGpuResource()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
-            }
-            if (visualization == (i32)Visualization::kReflection) {
-                ImGui::Image((ImTextureID)(ssr->getTextureResource()->getGpuResource()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
-            }
-            ImGui::End();
+        addUIRenderCommand([this, ssao, ssbn, ssr, dst, ssaoBuffers]() {
+            appendToRenderingTab([=]() {
+                if (ImGui::CollapsingHeader("SSGI")) {
+                    ImGui::Checkbox("Bent Normal", &m_settings.useBentNormal);
+                    ImGui::SliderFloat("kRoughness", &kRoughness, 0.f, 1.f);
+                    enum class Visualization
+                    {
+                        kAmbientOcclusion,
+                        kBentNormal,
+                        kReflection,
+                        kCount
+                    };
+                    static i32 visualization = (i32)Visualization::kAmbientOcclusion;
+                    const char* visualizationNames[(i32)Visualization::kCount] = { "Ambient Occlusion", "Bent Normal", "Reflection" };
+                    ImVec2 imageSize(320, 180);
+                    ImGui::Combo("Visualization", &visualization, visualizationNames, (i32)Visualization::kCount);
+                    if (visualization == (i32)Visualization::kAmbientOcclusion) {
+                        // ImGui::Image((ImTextureID)(ssao->getTextureResource()->getGpuResource()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
+                        ImGui::Image((ImTextureID)(ssaoBuffers[dst]->getTextureResource()->getGpuResource()), imageSize, ImVec2(0, 1), ImVec2(1, 0));
+                    }
+                    if (visualization == (i32)Visualization::kBentNormal) {
+                        ImGui::Image((ImTextureID)(ssbn->getTextureResource()->getGpuResource()), imageSize, ImVec2(0, 1), ImVec2(1, 0));
+                    }
+                    if (visualization == (i32)Visualization::kReflection) {
+                        ImGui::Image((ImTextureID)(ssr->getTextureResource()->getGpuResource()), imageSize, ImVec2(0, 1), ImVec2(1, 0));
+                    }
+                }
+            });
         });
+
         return { ssaoBuffers[dst], ssbn };
     }
 
@@ -1376,12 +1641,43 @@ namespace Cyan
                 if (renderableScene.skybox) {
                     renderableScene.skybox->render(renderTarget.get(), { { 0 } });
                 }
+
+#if 1
+                Shader* debugDrawShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "DebugDrawShader", SHADER_SOURCE_PATH "debug_draw_v.glsl", SHADER_SOURCE_PATH "debug_draw_p.glsl" });
+                // debug draw VPLs
+                for (i32 i = 0; i < kMaxNumVPLs; ++i) {
+                    debugDrawSphere(
+                        renderTarget.get(),
+                        { { 0 } },
+                        { 0, 0, renderTarget->width, renderTarget->height },
+                        vec4ToVec3(VPLs[i].position),
+                        glm::vec3(0.02),
+                        renderableScene.camera.view,
+                        renderableScene.camera.projection
+                    );
+                }
+#endif
             });
 
-        addUIRenderCommand([](){
-            ImGui::Begin("Texture Viewer");
-            ImGui::Image((ImTextureID)(ReflectionProbe::getBRDFLookupTexture()->getGpuResource()), ImVec2(270, 270), ImVec2(0, 1), ImVec2(1, 0));
-            ImGui::End();
+        addUIRenderCommand([this](){
+            /*
+            appendToRenderingTab([]() {
+                ImGui::BeginChild("Debug Texture Viewer");
+                {
+                    ImGui::Image((ImTextureID)(ReflectionProbe::getBRDFLookupTexture()->getGpuResource()), ImVec2(270, 270), ImVec2(0, 1), ImVec2(1, 0));
+                    ImGui::EndChild();
+                }
+            });
+            */
+
+            appendToRenderingTab([this]() {
+                    ImGui::CollapsingHeader("Instant Radiosity", ImGuiTreeNodeFlags_DefaultOpen);
+                    ImGui::Text("Num of VPLs: %u", kMaxNumVPLs);
+                    if (ImGui::Button("Regenerate VPLs")) {
+                        bRegenerateVPLs = true;
+                    }
+                    ImGui::Image((ImTextureID)octVPLShadow->getGpuResource(), ImVec2(180, 180), ImVec2(0, 1), ImVec2(1, 0));
+                }); 
         });
         return outSceneColor;
     }
@@ -1934,6 +2230,27 @@ namespace Cyan
         glBindTextureUnit((u32)SceneTextureBindings::VctxOcclusion, m_vctx.occlusion->getGpuResource());
         glBindTextureUnit((u32)SceneTextureBindings::VctxIrradiance, m_vctx.irradiance->getGpuResource());
         glBindTextureUnit((u32)SceneTextureBindings::VctxReflection, m_vctx.reflection->getGpuResource());
+    }
+
+    void Renderer::debugDrawSphere(RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection) {
+        Shader* debugDrawShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "DebugDrawShader", SHADER_SOURCE_PATH "debug_draw_v.glsl", SHADER_SOURCE_PATH "debug_draw_p.glsl" });
+        submitMesh(
+            renderTarget,
+            drawBuffers,
+            false,
+            viewport,
+            GfxPipelineState(),
+            AssetManager::getAsset<Mesh>("Sphere"),
+            debugDrawShader,
+            [this, position, scale, view, projection](RenderTarget* renderTarget, Shader* shader) {
+                glm::mat4 mvp(1.f);
+                mvp = glm::translate(mvp, position);
+                mvp = glm::scale(mvp, scale);
+                mvp = projection * view * mvp;
+                shader->setUniform("mvp", mvp);
+                shader->setUniform("color", glm::vec3(1.f, 0.f, 0.f));
+            }
+        );
     }
 
     void Renderer::debugDrawLine(const glm::vec3& v0, const glm::vec3& v1)
