@@ -685,5 +685,11 @@
     <None Include="..\shader\point_shadow_p.glsl">
       <Filter>Shaders\Shadow</Filter>
     </None>
+    <None Include="..\shader\instant_radiosity_v.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\instant_radiosity_p.glsl">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

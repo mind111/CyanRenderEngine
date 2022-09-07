@@ -148,6 +148,8 @@
     <None Include="..\shader\generate_vpl_p.glsl" />
     <None Include="..\shader\generate_vpl_v.glsl" />
     <None Include="..\shader\global_buffers.glsl" />
+    <None Include="..\shader\instant_radiosity_p.glsl" />
+    <None Include="..\shader\instant_radiosity_v.glsl" />
     <None Include="..\shader\light_definitions.glsl" />
     <None Include="..\shader\material.glsl" />
     <None Include="..\shader\point_shadow_p.glsl" />

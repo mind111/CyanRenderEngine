@@ -388,14 +388,18 @@ namespace Cyan
         GLuint VPLBuffer;
         GLuint VPLCounter;
         GLuint depthCubeMap;
+        static const i32 kVPLShadowResolution = 256;
         static const int kMaxNumVPLs = 256;
-        VPL VPLs[256];
+        VPL VPLs[kMaxNumVPLs];
         // VPL shadow
         GLuint VPLShadowCubemaps[kMaxNumVPLs];
         Texture2DRenderable* VPLOctShadowMaps[kMaxNumVPLs] = { 0 };
+        u64 VPLShadowHandles[kMaxNumVPLs];
+
         void generateVPLs(RenderableScene& renderableScene);
         void buildVPLShadowMaps();
         bool bRegenerateVPLs = true;
+        RenderTexture2D* instantRadiosity(RenderableScene& renderableScene);
 
         /* Debugging utilities */
         void debugDrawLine(const glm::vec3& v0, const glm::vec3& v1);
