@@ -264,8 +264,8 @@ namespace Cyan
 
             ITextureRenderable::Spec spec = { };
             spec.type = TEX_2D;
-            spec.width = kVPLShadowResolution;
-            spec.height = kVPLShadowResolution;
+            spec.width = kOctShadowMapResolution;
+            spec.height = kOctShadowMapResolution;
             spec.pixelFormat = PF_RGB16F;
 
             ITextureRenderable::Parameter params = { };
@@ -282,6 +282,8 @@ namespace Cyan
             VPLShadowHandles[i] = VPLOctShadowMaps[i]->glHandle;
 #endif
         }
+        glCreateBuffers(1, &VPLShadowHandleBuffer);
+        glNamedBufferData(VPLShadowHandleBuffer, sizeof(VPLShadowHandles), VPLShadowHandles, GL_DYNAMIC_COPY);
     };
 
     void Renderer::finalize()
@@ -787,10 +789,11 @@ namespace Cyan
             // bool depthNormalPrepassRequired = (m_settings.enableSSAO || m_settings.enableVctx);
             bool depthNormalPrepassRequired = true;
             SSGITextures SSGIOutput = { };
-            if (depthNormalPrepassRequired)
-            {
+            RenderTexture2D* radiosity = nullptr;
+            if (depthNormalPrepassRequired) {
                 auto depthPrepassOutput = renderSceneDepthNormal(renderableScene, sceneView, renderResolution);
                 SSGIOutput = screenSpaceRayTracing(depthPrepassOutput.depthTexture, depthPrepassOutput.normalTexture);
+                radiosity = instantRadiosity(depthPrepassOutput.depthTexture, depthPrepassOutput.normalTexture);
             }
 
             /*
@@ -829,9 +832,15 @@ namespace Cyan
             // post processing
             RenderTexture2D* bloomOutput = nullptr;
             RenderTexture2D* finalColorOutput = nullptr;
-            bloomOutput = bloom(sceneColorTexture);
-            finalColorOutput = composite(sceneColorTexture, bloomOutput, glm::uvec2(m_windowWidth, m_windowHeight));
-            renderToScreen(finalColorOutput);
+            // todo: bloom pass is buggy! it breaks the crappy transient render resource system
+            // bloomOutput = bloom(sceneColorTexture);
+            // finalColorOutput = composite(sceneColorTexture, bloomOutput, glm::uvec2(m_windowWidth, m_windowHeight));
+            // renderToScreen(finalColorOutput);
+            if (bFullscreenRadiosity) {
+                renderToScreen(radiosity);
+            } else {
+                renderToScreen(sceneColorTexture);
+            }
 
             m_renderQueue.execute();
         } 
@@ -891,6 +900,7 @@ namespace Cyan
                 {
                     light->setShaderParameters(VPLGenerationShader);
                 }
+                VPLGenerationShader->setUniform("kMaxNumVPLs", kMaxNumVPLs);
                 VPLGenerationShader->commit(m_ctx);
 
                 // bind VPL atomic counter
@@ -899,7 +909,7 @@ namespace Cyan
                 // glBindBufferRange(GL_ATOMIC_COUNTER_BUFFER, 0, VPLCounter, 0, sizeof(u32));
                 glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, VPLCounter);
                 // bind VPL buffer for gpu to write
-                glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 47, VPLBuffer, 0, 256 * sizeof(VPL));
+                glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 47, VPLBuffer, 0, kMaxNumVPLs * sizeof(VPL));
 
                 // dispatch multi draw indirect
                 // one sub-drawcall per instance
@@ -912,11 +922,27 @@ namespace Cyan
 
                 // render VPL shadow maps
                 auto renderVPLShadow = [this](i32 VPLIndex, RenderableScene& renderableScene, RenderTarget* depthRenderTarget) {
+                    glDisable(GL_CULL_FACE);
+                    glm::vec3 position = vec4ToVec3(VPLs[VPLIndex].position);
                     // render point shadow map
                     for (i32 pass = 0; pass < 6; ++pass) {
                         glBindFramebuffer(GL_FRAMEBUFFER, depthRenderTarget->fbo);
                         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + pass, VPLShadowCubemaps[VPLIndex], 0);
                         depthRenderTarget->clear({ { 0 } });
+
+                        // update view matrix
+                        glm::vec3 lookAt = position + LightProbeCameras::cameraFacingDirections[pass];
+                        PerspectiveCamera camera(
+                            position,
+                            lookAt,
+                            LightProbeCameras::worldUps[pass],
+                            fov,
+                            nearClippingPlane,
+                            farClippingPlane,
+                            aspectRatio
+                        );
+                        glm::mat4 view = camera.view();
+                        glm::mat4 projection = camera.projection();
 
                         Shader* pointShadowShader = ShaderManager::createShader({ ShaderType::kVsPs, "PointShadowShader", SHADER_SOURCE_PATH "point_shadow_v.glsl", SHADER_SOURCE_PATH "point_shadow_p.glsl" });
 
@@ -932,26 +958,12 @@ namespace Cyan
                                 GfxPipelineState(),
                                 meshInst->parent,
                                 pointShadowShader,
-                                [this, VPLIndex, pass, &transformIndex](RenderTarget* renderTarget, Shader* shader) {
-                                    // camera constants
-                                    const f32 fov = 90.f;
-                                    const f32 aspectRatio = 1.f;
-                                    const f32 nearClippingPlane = 0.01f;
-                                    const f32 farClippingPlane = 5.f;
-
-                                    // update view matrix
-                                    PerspectiveCamera camera(
-                                        vec4ToVec3(VPLs[VPLIndex].position) + vec4ToVec3(VPLs[VPLIndex].normal) * 0.01f,
-                                        LightProbeCameras::cameraFacingDirections[pass],
-                                        LightProbeCameras::worldUps[pass],
-                                        fov,
-                                        nearClippingPlane,
-                                        farClippingPlane,
-                                        aspectRatio
-                                    );
+                                [this, VPLIndex, pass, &transformIndex, view, projection, position](RenderTarget* renderTarget, Shader* shader) {
                                     shader->setUniform("transformIndex", transformIndex);
-                                    shader->setUniform("projection", camera.projection());
-                                    shader->setUniform("view", camera.view());
+                                    shader->setUniform("view", view);
+                                    shader->setUniform("projection", projection);
+                                    shader->setUniform("farClippingPlane", farClippingPlane);
+                                    shader->setUniform("lightPosition", position);
                                 }
                             );
                             transformIndex++;
@@ -962,19 +974,16 @@ namespace Cyan
                     auto octMappingRenderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(VPLOctShadowMaps[VPLIndex]->width, VPLOctShadowMaps[VPLIndex]->height));
                     octMappingRenderTarget->setColorBuffer(VPLOctShadowMaps[VPLIndex], 0);
                     Shader* octMappingShader = ShaderManager::createShader({ ShaderType::kVsPs, "OctMappingShader", SHADER_SOURCE_PATH "oct_mapping_v.glsl", SHADER_SOURCE_PATH "oct_mapping_p.glsl" });
-                    submitMesh(
+                    submitFullScreenPass(
                         octMappingRenderTarget.get(),
                         { { 0 } },
-                        true,
-                        { 0, 0, octMappingRenderTarget->width, octMappingRenderTarget->height },
-                        GfxPipelineState(),
-                        fullscreenQuad,
                         octMappingShader,
                         [this, VPLIndex](RenderTarget* renderTarget, Shader* shader) {
                             shader->setUniform("srcCubemap", (i32)100);
                             glBindTextureUnit(100, VPLShadowCubemaps[VPLIndex]);
                         }
                     );
+                    glEnable(GL_CULL_FACE);
                 };
 
                 auto depthRenderTarget = std::unique_ptr<RenderTarget>(createDepthOnlyRenderTarget(kVPLShadowResolution, kVPLShadowResolution));
@@ -982,6 +991,63 @@ namespace Cyan
                     renderVPLShadow(i, renderableScene, depthRenderTarget.get());
                 }
             });
+    }
+
+    RenderTexture2D* Renderer::instantRadiosity(RenderTexture2D* sceneDepthBuffer, RenderTexture2D* sceneNormalBuffer) {
+        ITextureRenderable::Spec spec = { };
+        spec.type = TEX_2D;
+        spec.width = 1280;
+        spec.height = 720;
+        spec.pixelFormat = PF_RGB16F;
+        // static Texture2DRenderable* radiosity = AssetManager::createTexture2D("InstantRadiostiy", spec);
+        RenderTexture2D* output = m_renderQueue.createTexture2D("InstantRadiosity", spec);
+
+        static i32 activeVPLs = 1;
+        m_renderQueue.addPass(
+            "InstantRadiosityPass",
+            [sceneDepthBuffer, sceneNormalBuffer, output](RenderQueue& renderQueue, RenderPass* pass) {
+                pass->addInput(sceneDepthBuffer);
+                pass->addInput(sceneNormalBuffer);
+                pass->addInput(output);
+                pass->addOutput(output);
+            },
+            [sceneDepthBuffer, sceneNormalBuffer, this, output]() {
+                auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(1280, 720));
+                renderTarget->setColorBuffer(output->getTextureResource(), 0);
+                Shader* shader = ShaderManager::createShader({ ShaderType::kVsPs, "InstantRadiosityShader", SHADER_SOURCE_PATH "instant_radiosity_v.glsl", SHADER_SOURCE_PATH "instant_radiosity_p.glsl" });
+
+                // final blit to default framebuffer
+                submitFullScreenPass(
+                    renderTarget.get(),
+                    { { 0u } },
+                    shader,
+                    [this, sceneDepthBuffer, sceneNormalBuffer](RenderTarget* renderTarget, Shader* shader) {
+                        shader->setTexture("sceneDepthBuffer", sceneDepthBuffer->getTextureResource());
+                        shader->setTexture("sceneNormalBuffer", sceneNormalBuffer->getTextureResource());
+                        shader->setUniform("numVPLs", activeVPLs);
+                        shader->setUniform("outputSize", glm::vec2(1280, 720));
+                        shader->setUniform("shadowCubemap", (i32)101);
+                        shader->setUniform("farClippingPlane", farClippingPlane);
+                        shader->setUniform("indirectVisibility", bIndirectVisibility ? 1.f : .0f);
+                        glBindTextureUnit(101, VPLShadowCubemaps[0]);
+                        for (i32 i = 0; i < kMaxNumVPLs; ++i) {
+                            if (glIsTextureHandleResidentARB(VPLShadowHandles[i]) == GL_FALSE) {
+                                glMakeTextureHandleResidentARB(VPLShadowHandles[i]);
+                            }
+                        }
+                        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 50, VPLShadowHandleBuffer);
+                    });
+            }
+        );
+
+        addUIRenderCommand([this, output]() {
+            appendToRenderingTab([this, output]() {
+                ImGui::Image((ImTextureID)(output->getTextureResource()->getGpuResource()), ImVec2(320, 180), ImVec2(0, 1), ImVec2(1, 0));
+                ImGui::SliderInt("active VPL count", &activeVPLs, 1, kMaxNumVPLs);
+                ImGui::Checkbox("indirect visibility", &bIndirectVisibility);
+                });
+            });
+        return output;
     }
 
     void Renderer::renderToScreen(RenderTexture2D* inTexture)
@@ -1514,6 +1580,7 @@ namespace Cyan
         m_renderQueue.addPass(
             "MainScenePass",
             [outSceneColor, &renderableScene](RenderQueue& renderQueue, RenderPass* pass) {
+                pass->addInput(outSceneColor);
                 pass->addOutput(outSceneColor);
             },
             [this, outSceneColor, &renderableScene, &sceneView, &SSGIOutput]() {
@@ -1604,6 +1671,7 @@ namespace Cyan
 #if 1
                 Shader* debugDrawShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "DebugDrawShader", SHADER_SOURCE_PATH "debug_draw_v.glsl", SHADER_SOURCE_PATH "debug_draw_p.glsl" });
                 // debug draw VPLs
+                // for (i32 i = 0; i < 1; ++i) {
                 for (i32 i = 0; i < kMaxNumVPLs; ++i) {
                     debugDrawSphere(
                         renderTarget.get(),
@@ -1635,6 +1703,7 @@ namespace Cyan
                     if (ImGui::Button("Regenerate VPLs")) {
                         bRegenerateVPLs = true;
                     }
+                    ImGui::Checkbox("Fullscreen", &bFullscreenRadiosity);
                     ImGui::Image((ImTextureID)(VPLOctShadowMaps[0]->getGpuResource()), ImVec2(180, 180), ImVec2(0, 1), ImVec2(1, 0));
                 }); 
         });
@@ -1694,6 +1763,7 @@ namespace Cyan
                 "DownsamplePass__",
                 [downsampleChain, input, output](RenderQueue& renderQueue, RenderPass* pass) {
                     pass->addInput(downsampleChain[input]);
+                    pass->addInput(downsampleChain[output]);
                     pass->addOutput(downsampleChain[output]);
                 },
                 [this, downsampleChain, input, output]() {
@@ -1736,6 +1806,7 @@ namespace Cyan
             /*passName=*/"BloomSetupPass",
             [bloomSetupPassData](RenderQueue& renderQueue, RenderPass* pass) {
                 pass->addInput(bloomSetupPassData.input);
+                pass->addInput(bloomSetupPassData.output);
                 pass->addOutput(bloomSetupPassData.output);
             },
             [this, bloomSetupPassData, renderTarget]() {
@@ -1777,6 +1848,7 @@ namespace Cyan
                 [downsampleChain, &upscaleChain, input, blend, output](RenderQueue& renderQueue, RenderPass* pass) {
                     pass->addInput(downsampleChain.stages[blend]);
                     pass->addInput(upscaleChain[input]);
+                    pass->addInput(upscaleChain[output]);
                     pass->addOutput(upscaleChain[output]);
                 },
                 [this, downsampleChain, blend, upscaleChain, input, output]() {
@@ -1942,6 +2014,7 @@ namespace Cyan
             "GaussianBlurHPass",
             [inTexture, outTextureH](RenderQueue& renderQueue, RenderPass* pass) {
                 pass->addInput(inTexture);
+                pass->addInput(outTextureH);
                 pass->addOutput(outTextureH);
             },
             [inTexture, outTextureH, inRadius, inSigma, this]() {
@@ -1977,6 +2050,7 @@ namespace Cyan
             "GaussianBlurVPass", 
             [outTextureH, outTextureV](RenderQueue& renderQueue, RenderPass* pass) {
                 pass->addInput(outTextureH);
+                pass->addInput(outTextureV);
                 pass->addOutput(outTextureV);
             },
             [this, outTextureH, outTextureV, inRadius, inSigma]() {

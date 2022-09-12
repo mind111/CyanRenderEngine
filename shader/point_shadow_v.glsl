@@ -14,11 +14,14 @@ layout(std430, binding = TRANSFORM_SSBO_BINDING) buffer TransformShaderStorageBu
     mat4 models[];
 } transformSsbo;
 
+out vec3 worldSpacePosition;
+
 uniform int transformIndex; 
 uniform mat4 view;
 uniform mat4 projection;
 
 void main() {
     mat4 model = transformSsbo.models[transformIndex];
+    worldSpacePosition = (model * vec4(vertexPos, 1.f)).xyz;
     gl_Position = projection * view * model * vec4(vertexPos, 1.f);
 }

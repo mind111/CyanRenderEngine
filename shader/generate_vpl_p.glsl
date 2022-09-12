@@ -83,6 +83,8 @@ uniform struct SceneLights
 	// PointLight pointLights[MAX_NUM_POINT_LIGHTS];
 } sceneLights;
 
+uniform int kMaxNumVPLs;
+
 /* note: 
 * rand number generator taken from https://www.shadertoy.com/view/4lfcDr
 */
@@ -147,10 +149,14 @@ void main() {
 		vec2 rng = get_random();
 		if (rng.x < 0.001f) { 
 			uint index = atomicCounterIncrement(numGeneratedVPLs);
-			if (index < 256) {
-				VPLs[index].position = vec4(psIn.worldSpacePosition, 1.f);
-				VPLs[index].normal = vec4(1.f);
-				VPLs[index].flux = vec4(1.f);
+			if (index < kMaxNumVPLs) {
+				vec3 normal = normalize(psIn.worldSpaceNormal);
+				// slightly offset VPL in the normal direction to avoid indirect lighting leaking through thin surfaces
+				VPLs[index].position = vec4(psIn.worldSpacePosition + 0.01 * normal, 1.f);
+				VPLs[index].normal = vec4(normal, 0.f);
+				float ndotl = max(dot(normal, sceneLights.directionalLight.direction.xyz), 0.f);
+				vec3 flux = sceneLights.directionalLight.colorAndIntensity.rgb * sceneLights.directionalLight.colorAndIntensity.a * ndotl;
+				VPLs[index].flux = vec4(flux, 1.f);
 			}
 		}
 	}

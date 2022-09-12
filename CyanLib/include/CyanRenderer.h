@@ -242,7 +242,8 @@ namespace Cyan
 
         RenderTexture2D* registerTexture2D(Texture2DRenderable* inTexture)
         {
-            return allocator->alloc<RenderTexture2D>(inTexture);
+            auto renderTexture = allocator->alloc<RenderTexture2D>(inTexture);
+            return renderTexture;
         }
 
         /**
@@ -388,18 +389,27 @@ namespace Cyan
         GLuint VPLBuffer;
         GLuint VPLCounter;
         GLuint depthCubeMap;
-        static const i32 kVPLShadowResolution = 256;
-        static const int kMaxNumVPLs = 256;
+        static const i32 kVPLShadowResolution = 64;
+        static const i32 kOctShadowMapResolution = 256;
+        static const int kMaxNumVPLs = 1024;
         VPL VPLs[kMaxNumVPLs];
         // VPL shadow
         GLuint VPLShadowCubemaps[kMaxNumVPLs];
         Texture2DRenderable* VPLOctShadowMaps[kMaxNumVPLs] = { 0 };
+        GLuint VPLShadowHandleBuffer;
         u64 VPLShadowHandles[kMaxNumVPLs];
+        // VPL camera projection constants
+        const f32 fov = 90.f;
+        const f32 aspectRatio = 1.f;
+        const f32 nearClippingPlane = 0.005f;
+        const f32 farClippingPlane = 20.f;
+        bool bFullscreenRadiosity = false;
+        bool bIndirectVisibility = true;
 
         void generateVPLs(RenderableScene& renderableScene);
         void buildVPLShadowMaps();
         bool bRegenerateVPLs = true;
-        RenderTexture2D* instantRadiosity(RenderableScene& renderableScene);
+        RenderTexture2D* instantRadiosity(RenderTexture2D* sceneDepthBuffer, RenderTexture2D* sceneNormalBuffer);
 
         /* Debugging utilities */
         void debugDrawLine(const glm::vec3& v0, const glm::vec3& v1);
