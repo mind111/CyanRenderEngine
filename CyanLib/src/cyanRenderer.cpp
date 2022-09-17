@@ -30,29 +30,6 @@
 
 namespace Cyan
 {
-    /*
-    * brief: helper functions for appending to the "Rendering" tab
-    */
-    void appendToRenderingTab(const std::function<void()>& command) {
-        ImGui::Begin("Cyan", nullptr);
-        {
-            ImGui::BeginTabBar("##Views");
-            {
-                if (ImGui::BeginTabItem("Rendering"))
-                {
-                    ImGui::BeginChild("##Rendering Settings", ImVec2(0, 0), true); 
-                    {
-                        command();
-                        ImGui::EndChild();
-                    }
-                    ImGui::EndTabItem();
-                }
-                ImGui::EndTabBar();
-            }
-        }
-        ImGui::End();
-    }
-
     void RenderTexture2D::createResource(RenderQueue& renderQueue)
     { 
         if (!texture)
@@ -60,6 +37,7 @@ namespace Cyan
             texture = renderQueue.createTexture2DInternal(tag, spec);
         }
     }
+
     
     Renderer* Singleton<Renderer>::singleton = nullptr;
     static Mesh* fullscreenQuad = nullptr;
@@ -245,45 +223,7 @@ namespace Cyan
         glNamedBufferStorage(indirectDrawBuffer.buffer, indirectDrawBuffer.sizeInBytes, nullptr, GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_WRITE_BIT);
         indirectDrawBuffer.data = glMapNamedBufferRange(indirectDrawBuffer.buffer, 0, indirectDrawBuffer.sizeInBytes, GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_WRITE_BIT);
 
-        glCreateBuffers(1, &VPLBuffer);
-        glNamedBufferData(VPLBuffer, kMaxNumVPLs * sizeof(VPL), nullptr, GL_DYNAMIC_COPY);
-        glCreateBuffers(1, &VPLCounter);
-        glNamedBufferData(VPLCounter, sizeof(u32), nullptr, GL_DYNAMIC_COPY);
-        glCreateTextures(GL_TEXTURE_CUBE_MAP, kMaxNumVPLs, VPLShadowCubemaps);
-        for (i32 i = 0; i < kMaxNumVPLs; ++i) {
-            glBindTexture(GL_TEXTURE_CUBE_MAP, VPLShadowCubemaps[i]);
-            for (i32 i = 0; i < 6; ++i) {
-                glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, kVPLShadowResolution, kVPLShadowResolution, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
-            }
-            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-            glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-            glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
-
-            ITextureRenderable::Spec spec = { };
-            spec.type = TEX_2D;
-            spec.width = kOctShadowMapResolution;
-            spec.height = kOctShadowMapResolution;
-            spec.pixelFormat = PF_RGB16F;
-
-            ITextureRenderable::Parameter params = { };
-            params.minificationFilter = FM_POINT;
-            params.magnificationFilter = FM_POINT;
-            params.wrap_r = WM_CLAMP;
-            params.wrap_s = WM_CLAMP;
-            params.wrap_t = WM_CLAMP;
-
-            char name[64] = { };
-            sprintf_s(name, "VPLOctShadowMap_%d", i);
-            VPLOctShadowMaps[i] = AssetManager::createTexture2D(name, spec, params);
-#if BINDLESS_TEXTURE
-            VPLShadowHandles[i] = VPLOctShadowMaps[i]->glHandle;
-#endif
-        }
-        glCreateBuffers(1, &VPLShadowHandleBuffer);
-        glNamedBufferData(VPLShadowHandleBuffer, sizeof(VPLShadowHandles), VPLShadowHandles, GL_DYNAMIC_COPY);
+        m_instantRadiosity.initialize();
     };
 
     void Renderer::finalize()
@@ -292,6 +232,26 @@ namespace Cyan
         ImGui_ImplOpenGL3_Shutdown();
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();
+    }
+
+    void Renderer::appendToRenderingTab(const std::function<void()>& command) {
+        ImGui::Begin("Cyan", nullptr);
+        {
+            ImGui::BeginTabBar("##Views");
+            {
+                if (ImGui::BeginTabItem("Rendering"))
+                {
+                    ImGui::BeginChild("##Rendering Settings", ImVec2(0, 0), true); 
+                    {
+                        command();
+                        ImGui::EndChild();
+                    }
+                    ImGui::EndTabItem();
+                }
+                ImGui::EndTabBar();
+            }
+        }
+        ImGui::End();
     }
 
     void Renderer::drawMeshInstance(const RenderableScene& sceneRenderable, RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, MeshInstance* meshInstance, i32 transformIndex)
@@ -777,49 +737,26 @@ namespace Cyan
             RayTracingScene rtxScene(*scene);
             gpuRayTracing(rtxScene, sceneColorTexture, depthPrepassOutput.depthTexture, depthPrepassOutput.normalTexture);
 #else
+            // shadow
             renderShadow(*scene, renderableScene);
 
-            // instant radiosity experiements
-            if (bRegenerateVPLs) {
-                generateVPLs(renderableScene);
-                bRegenerateVPLs = false;
-            }
-
             // scene depth & normal pass
-            // bool depthNormalPrepassRequired = (m_settings.enableSSAO || m_settings.enableVctx);
-            bool depthNormalPrepassRequired = true;
-            SSGITextures SSGIOutput = { };
-            RenderTexture2D* radiosity = nullptr;
-            if (depthNormalPrepassRequired) {
-                auto depthPrepassOutput = renderSceneDepthNormal(renderableScene, sceneView, renderResolution);
-                SSGIOutput = screenSpaceRayTracing(depthPrepassOutput.depthTexture, depthPrepassOutput.normalTexture);
-                radiosity = instantRadiosity(depthPrepassOutput.depthTexture, depthPrepassOutput.normalTexture);
-            }
+            auto depthPrepassOutput = renderSceneDepthNormal(renderableScene, renderResolution);
 
-            /*
-            // voxel cone tracing pass
-            if (m_settings.enableVctx)
-            {
-                // todo: revoxelizing the scene every frame is causing flickering in the volume texture
-                // voxelizeScene(scene);
-                // renderVctx();
-            }
+            // ssgi
+            auto ssgi = screenSpaceRayTracing(depthPrepassOutput.depthTexture, depthPrepassOutput.normalTexture);
 
-            // ssao pass
-            if (m_settings.enableSSAO)
-            {
-                Texture2DRenderable* sceneDepthTexture = m_settings.enableAA ? m_sceneDepthTextureSSAA : m_sceneDepthTexture;
-                Texture2DRenderable* sceneNormalTexture = m_settings.enableAA ? m_sceneNormalTextureSSAA : m_sceneNormalTexture;
-                sceneView.renderTarget = m_ssaoRenderTarget;
-                sceneView.drawBuffers = {
-                    { 0u }
-                };
-                ssao(sceneView, sceneDepthTexture, sceneNormalTexture, glm::uvec2(1280, 720));
-            }
-            */
+            // instant radiosity
+            ITextureRenderable::Spec spec = { };
+            spec.type = TEX_2D;
+            spec.width = 1280;
+            spec.height = 720;
+            spec.pixelFormat = PF_RGB16F;
+            RenderTexture2D* radiosity = m_renderQueue.createTexture2D("InstantRadiosity", spec);
+            m_instantRadiosity.render(this, renderableScene, depthPrepassOutput.depthTexture, depthPrepassOutput.normalTexture, radiosity);
 
 #if BINDLESS_TEXTURE
-            RenderTexture2D* sceneColorTexture = renderSceneMultiDraw(renderableScene, sceneView, renderResolution, SSGIOutput);
+            RenderTexture2D* sceneColorTexture = renderSceneMultiDraw(renderableScene, sceneView, renderResolution, ssgi);
 #else
             RenderTexture2D* sceneColorTexture = renderScene(renderableScene, sceneView, renderResolution);
 #endif
@@ -836,6 +773,7 @@ namespace Cyan
             // bloomOutput = bloom(sceneColorTexture);
             // finalColorOutput = composite(sceneColorTexture, bloomOutput, glm::uvec2(m_windowWidth, m_windowHeight));
             // renderToScreen(finalColorOutput);
+
             if (bFullscreenRadiosity) {
                 renderToScreen(radiosity);
             } else {
@@ -845,209 +783,6 @@ namespace Cyan
             m_renderQueue.execute();
         } 
         endRender();
-    }
-
-    void Renderer::generateVPLs(RenderableScene& renderableScene) {
-        ITextureRenderable::Spec spec = { };
-        spec.type = TEX_2D;
-        spec.width = 2560;
-        spec.height = 1440;
-        spec.pixelFormat = PF_RGB16F;
-        RenderTexture2D* outSceneColor = m_renderQueue.createTexture2D("SceneColor", spec);
-        m_renderQueue.addPass(
-            "GenerateVPLPass",
-            [renderableScene, outSceneColor](RenderQueue& renderQueue, RenderPass* pass) {
-                pass->addInput(outSceneColor);
-                pass->addOutput(outSceneColor);
-            },
-            [this, outSceneColor, renderableScene]() mutable {
-                Shader* VPLGenerationShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "VPLGenerationShader", SHADER_SOURCE_PATH "generate_vpl_v.glsl", SHADER_SOURCE_PATH "generate_vpl_p.glsl" });
-                std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(outSceneColor->spec.width, outSceneColor->spec.height));
-                renderTarget->setColorBuffer(outSceneColor->getTextureResource(), 0);
-                renderTarget->clear({ { 0 } });
-
-                renderableScene.submitSceneData(m_ctx);
-
-                struct IndirectDrawArrayCommand
-                {
-                    u32  count;
-                    u32  instanceCount;
-                    u32  first;
-                    i32  baseInstance;
-                };
-
-                // build indirect draw commands
-                auto ptr = reinterpret_cast<IndirectDrawArrayCommand*>(indirectDrawBuffer.data);
-                for (u32 draw = 0; draw < renderableScene.drawCalls->getNumElements() - 1; ++draw)
-                {
-                    IndirectDrawArrayCommand& command = ptr[draw];
-                    command.first = 0;
-                    u32 instance = (*renderableScene.drawCalls)[draw];
-                    u32 submesh = (*renderableScene.instances)[instance].submesh;
-                    command.count = RenderableScene::packedGeometry->submeshes[submesh].numIndices;
-                    command.instanceCount = (*renderableScene.drawCalls)[draw + 1] - (*renderableScene.drawCalls)[draw];
-                    command.baseInstance = 0;
-                }
-
-                glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirectDrawBuffer.buffer);
-
-                m_ctx->setShader(VPLGenerationShader);
-                m_ctx->setRenderTarget(renderTarget.get(), { { 0 } });
-                m_ctx->setViewport({ 0, 0, renderTarget->width, renderTarget->height });
-                m_ctx->setDepthControl(DepthControl::kEnable);
-
-                for (auto light : renderableScene.lights)
-                {
-                    light->setShaderParameters(VPLGenerationShader);
-                }
-                VPLGenerationShader->setUniform("kMaxNumVPLs", kMaxNumVPLs);
-                VPLGenerationShader->commit(m_ctx);
-
-                // bind VPL atomic counter
-                u32 numGeneratedVPL = 0;
-                glNamedBufferSubData(VPLCounter, 0, sizeof(u32), &numGeneratedVPL);
-                // glBindBufferRange(GL_ATOMIC_COUNTER_BUFFER, 0, VPLCounter, 0, sizeof(u32));
-                glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, VPLCounter);
-                // bind VPL buffer for gpu to write
-                glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 47, VPLBuffer, 0, kMaxNumVPLs * sizeof(VPL));
-
-                // dispatch multi draw indirect
-                // one sub-drawcall per instance
-                u32 drawCount = (u32)renderableScene.drawCalls->getNumElements() - 1;
-                glMultiDrawArraysIndirect(GL_TRIANGLES, 0, drawCount, 0);
-
-                // read back VPL data
-                glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-                glGetNamedBufferSubData(VPLBuffer, 0, sizeof(VPL) * kMaxNumVPLs, VPLs);
-
-                // render VPL shadow maps
-                auto renderVPLShadow = [this](i32 VPLIndex, RenderableScene& renderableScene, RenderTarget* depthRenderTarget) {
-                    glDisable(GL_CULL_FACE);
-                    glm::vec3 position = vec4ToVec3(VPLs[VPLIndex].position);
-                    // render point shadow map
-                    for (i32 pass = 0; pass < 6; ++pass) {
-                        glBindFramebuffer(GL_FRAMEBUFFER, depthRenderTarget->fbo);
-                        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + pass, VPLShadowCubemaps[VPLIndex], 0);
-                        depthRenderTarget->clear({ { 0 } });
-
-                        // update view matrix
-                        glm::vec3 lookAt = position + LightProbeCameras::cameraFacingDirections[pass];
-                        PerspectiveCamera camera(
-                            position,
-                            lookAt,
-                            LightProbeCameras::worldUps[pass],
-                            fov,
-                            nearClippingPlane,
-                            farClippingPlane,
-                            aspectRatio
-                        );
-                        glm::mat4 view = camera.view();
-                        glm::mat4 projection = camera.projection();
-
-                        Shader* pointShadowShader = ShaderManager::createShader({ ShaderType::kVsPs, "PointShadowShader", SHADER_SOURCE_PATH "point_shadow_v.glsl", SHADER_SOURCE_PATH "point_shadow_p.glsl" });
-
-                        // render mesh instances
-                        i32 transformIndex = 0u;
-                        for (auto meshInst : renderableScene.meshInstances)
-                        {
-                            submitMesh(
-                                depthRenderTarget,
-                                { },
-                                false,
-                                { 0, 0, depthRenderTarget->width, depthRenderTarget->height},
-                                GfxPipelineState(),
-                                meshInst->parent,
-                                pointShadowShader,
-                                [this, VPLIndex, pass, &transformIndex, view, projection, position](RenderTarget* renderTarget, Shader* shader) {
-                                    shader->setUniform("transformIndex", transformIndex);
-                                    shader->setUniform("view", view);
-                                    shader->setUniform("projection", projection);
-                                    shader->setUniform("farClippingPlane", farClippingPlane);
-                                    shader->setUniform("lightPosition", position);
-                                }
-                            );
-                            transformIndex++;
-                        }
-                    }
-
-                    // project the cubemap into a quad using octahedral mapping
-                    auto octMappingRenderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(VPLOctShadowMaps[VPLIndex]->width, VPLOctShadowMaps[VPLIndex]->height));
-                    octMappingRenderTarget->setColorBuffer(VPLOctShadowMaps[VPLIndex], 0);
-                    Shader* octMappingShader = ShaderManager::createShader({ ShaderType::kVsPs, "OctMappingShader", SHADER_SOURCE_PATH "oct_mapping_v.glsl", SHADER_SOURCE_PATH "oct_mapping_p.glsl" });
-                    submitFullScreenPass(
-                        octMappingRenderTarget.get(),
-                        { { 0 } },
-                        octMappingShader,
-                        [this, VPLIndex](RenderTarget* renderTarget, Shader* shader) {
-                            shader->setUniform("srcCubemap", (i32)100);
-                            glBindTextureUnit(100, VPLShadowCubemaps[VPLIndex]);
-                        }
-                    );
-                    glEnable(GL_CULL_FACE);
-                };
-
-                auto depthRenderTarget = std::unique_ptr<RenderTarget>(createDepthOnlyRenderTarget(kVPLShadowResolution, kVPLShadowResolution));
-                for (i32 i = 0; i < kMaxNumVPLs; ++i) {
-                    renderVPLShadow(i, renderableScene, depthRenderTarget.get());
-                }
-            });
-    }
-
-    RenderTexture2D* Renderer::instantRadiosity(RenderTexture2D* sceneDepthBuffer, RenderTexture2D* sceneNormalBuffer) {
-        ITextureRenderable::Spec spec = { };
-        spec.type = TEX_2D;
-        spec.width = 1280;
-        spec.height = 720;
-        spec.pixelFormat = PF_RGB16F;
-        // static Texture2DRenderable* radiosity = AssetManager::createTexture2D("InstantRadiostiy", spec);
-        RenderTexture2D* output = m_renderQueue.createTexture2D("InstantRadiosity", spec);
-
-        static i32 activeVPLs = 1;
-        m_renderQueue.addPass(
-            "InstantRadiosityPass",
-            [sceneDepthBuffer, sceneNormalBuffer, output](RenderQueue& renderQueue, RenderPass* pass) {
-                pass->addInput(sceneDepthBuffer);
-                pass->addInput(sceneNormalBuffer);
-                pass->addInput(output);
-                pass->addOutput(output);
-            },
-            [sceneDepthBuffer, sceneNormalBuffer, this, output]() {
-                auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(1280, 720));
-                renderTarget->setColorBuffer(output->getTextureResource(), 0);
-                Shader* shader = ShaderManager::createShader({ ShaderType::kVsPs, "InstantRadiosityShader", SHADER_SOURCE_PATH "instant_radiosity_v.glsl", SHADER_SOURCE_PATH "instant_radiosity_p.glsl" });
-
-                // final blit to default framebuffer
-                submitFullScreenPass(
-                    renderTarget.get(),
-                    { { 0u } },
-                    shader,
-                    [this, sceneDepthBuffer, sceneNormalBuffer](RenderTarget* renderTarget, Shader* shader) {
-                        shader->setTexture("sceneDepthBuffer", sceneDepthBuffer->getTextureResource());
-                        shader->setTexture("sceneNormalBuffer", sceneNormalBuffer->getTextureResource());
-                        shader->setUniform("numVPLs", activeVPLs);
-                        shader->setUniform("outputSize", glm::vec2(1280, 720));
-                        shader->setUniform("shadowCubemap", (i32)101);
-                        shader->setUniform("farClippingPlane", farClippingPlane);
-                        shader->setUniform("indirectVisibility", bIndirectVisibility ? 1.f : .0f);
-                        glBindTextureUnit(101, VPLShadowCubemaps[0]);
-                        for (i32 i = 0; i < kMaxNumVPLs; ++i) {
-                            if (glIsTextureHandleResidentARB(VPLShadowHandles[i]) == GL_FALSE) {
-                                glMakeTextureHandleResidentARB(VPLShadowHandles[i]);
-                            }
-                        }
-                        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 50, VPLShadowHandleBuffer);
-                    });
-            }
-        );
-
-        addUIRenderCommand([this, output]() {
-            appendToRenderingTab([this, output]() {
-                ImGui::Image((ImTextureID)(output->getTextureResource()->getGpuResource()), ImVec2(320, 180), ImVec2(0, 1), ImVec2(1, 0));
-                ImGui::SliderInt("active VPL count", &activeVPLs, 1, kMaxNumVPLs);
-                ImGui::Checkbox("indirect visibility", &bIndirectVisibility);
-                });
-            });
-        return output;
     }
 
     void Renderer::renderToScreen(RenderTexture2D* inTexture)
@@ -1172,7 +907,7 @@ namespace Cyan
         );
     }
 
-    Renderer::ScenePrepassOutput Renderer::renderSceneDepthNormal(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution)
+    Renderer::ScenePrepassOutput Renderer::renderSceneDepthNormal(RenderableScene& renderableScene, const glm::uvec2& outputResolution)
     {
         ITextureRenderable::Spec spec = { };
         spec.type = TEX_2D;
@@ -1221,7 +956,7 @@ namespace Cyan
                 }
             });
 
-        addUIRenderCommand([depthTexture, normalTexture](){
+        addUIRenderCommand([this, depthTexture, normalTexture](){
             appendToRenderingTab([depthTexture, normalTexture]() {
                 /*
                 ImGui::BeginChild("Debug Texture Viewer");
@@ -1569,6 +1304,34 @@ namespace Cyan
         return outSceneColor;
     }
 
+    void Renderer::submitSceneMultiDrawIndirect(RenderableScene& renderableScene) {
+        struct IndirectDrawArrayCommand
+        {
+            u32  count;
+            u32  instanceCount;
+            u32  first;
+            i32  baseInstance;
+        };
+        // build indirect draw commands
+        auto ptr = reinterpret_cast<IndirectDrawArrayCommand*>(indirectDrawBuffer.data);
+        for (u32 draw = 0; draw < renderableScene.drawCalls->getNumElements() - 1; ++draw)
+        {
+            IndirectDrawArrayCommand& command = ptr[draw];
+            command.first = 0;
+            u32 instance = (*renderableScene.drawCalls)[draw];
+            u32 submesh = (*renderableScene.instances)[instance].submesh;
+            command.count = RenderableScene::packedGeometry->submeshes[submesh].numIndices;
+            command.instanceCount = (*renderableScene.drawCalls)[draw + 1] - (*renderableScene.drawCalls)[draw];
+            command.baseInstance = 0;
+        }
+
+        glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirectDrawBuffer.buffer);
+        // dispatch multi draw indirect
+        // one sub-drawcall per instance
+        u32 drawCount = (u32)renderableScene.drawCalls->getNumElements() - 1;
+        glMultiDrawArraysIndirect(GL_TRIANGLES, 0, drawCount, 0);
+    }
+
     RenderTexture2D* Renderer::renderSceneMultiDraw(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution, const SSGITextures& SSGIOutput)
     {
         ITextureRenderable::Spec spec = { };
@@ -1591,29 +1354,6 @@ namespace Cyan
                 renderTarget->clear({ { 0 } });
 
                 renderableScene.submitSceneData(m_ctx);
-
-                struct IndirectDrawArrayCommand
-                {
-                    u32  count;
-                    u32  instanceCount;
-                    u32  first;
-                    i32  baseInstance;
-                };
-
-                // build indirect draw commands
-                auto ptr = reinterpret_cast<IndirectDrawArrayCommand*>(indirectDrawBuffer.data);
-                for (u32 draw = 0; draw < renderableScene.drawCalls->getNumElements() - 1; ++draw)
-                {
-                    IndirectDrawArrayCommand& command = ptr[draw];
-                    command.first = 0;
-                    u32 instance = (*renderableScene.drawCalls)[draw];
-                    u32 submesh = (*renderableScene.instances)[instance].submesh;
-                    command.count = RenderableScene::packedGeometry->submeshes[submesh].numIndices;
-                    command.instanceCount = (*renderableScene.drawCalls)[draw + 1] - (*renderableScene.drawCalls)[draw];
-                    command.baseInstance = 0;
-                }
-
-                glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirectDrawBuffer.buffer);
 
                 m_ctx->setShader(scenePassShader);
                 m_ctx->setRenderTarget(renderTarget.get(), { { 0 } });
@@ -1658,53 +1398,19 @@ namespace Cyan
                 }
                 scenePassShader->commit(m_ctx);
 
-                // dispatch multi draw indirect
-                // one sub-drawcall per instance
-                u32 drawCount = (u32)renderableScene.drawCalls->getNumElements() - 1;
-                glMultiDrawArraysIndirect(GL_TRIANGLES, 0, drawCount, 0);
+                submitSceneMultiDrawIndirect(renderableScene);
 
                 // render skybox
                 if (renderableScene.skybox) {
                     renderableScene.skybox->render(renderTarget.get(), { { 0 } });
                 }
 
-#if 1
-                Shader* debugDrawShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "DebugDrawShader", SHADER_SOURCE_PATH "debug_draw_v.glsl", SHADER_SOURCE_PATH "debug_draw_p.glsl" });
-                // debug draw VPLs
-                // for (i32 i = 0; i < 1; ++i) {
-                for (i32 i = 0; i < kMaxNumVPLs; ++i) {
-                    debugDrawSphere(
-                        renderTarget.get(),
-                        { { 0 } },
-                        { 0, 0, renderTarget->width, renderTarget->height },
-                        vec4ToVec3(VPLs[i].position),
-                        glm::vec3(0.02),
-                        renderableScene.camera.view,
-                        renderableScene.camera.projection
-                    );
-                }
-#endif
+                m_instantRadiosity.visualizeVPLs(this, renderTarget.get(), renderableScene);
             });
 
         addUIRenderCommand([this](){
-            /*
-            appendToRenderingTab([]() {
-                ImGui::BeginChild("Debug Texture Viewer");
-                {
-                    ImGui::Image((ImTextureID)(ReflectionProbe::getBRDFLookupTexture()->getGpuResource()), ImVec2(270, 270), ImVec2(0, 1), ImVec2(1, 0));
-                    ImGui::EndChild();
-                }
-            });
-            */
-
             appendToRenderingTab([this]() {
-                    ImGui::CollapsingHeader("Instant Radiosity", ImGuiTreeNodeFlags_DefaultOpen);
-                    ImGui::Text("Num of VPLs: %u", kMaxNumVPLs);
-                    if (ImGui::Button("Regenerate VPLs")) {
-                        bRegenerateVPLs = true;
-                    }
                     ImGui::Checkbox("Fullscreen", &bFullscreenRadiosity);
-                    ImGui::Image((ImTextureID)(VPLOctShadowMaps[0]->getGpuResource()), ImVec2(180, 180), ImVec2(0, 1), ImVec2(1, 0));
                 }); 
         });
         return outSceneColor;

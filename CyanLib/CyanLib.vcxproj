@@ -35,6 +35,7 @@
     <ClInclude Include="include\CyanApp.h" />
     <ClInclude Include="include\CyanCore.h" />
     <ClInclude Include="include\CyanEngine.h" />
+    <ClInclude Include="include\InstantRadiosity.h" />
     <ClInclude Include="include\RayTracer.h" />
     <ClInclude Include="include\CyanRenderer.h" />
     <ClInclude Include="include\CyanUI.h" />
@@ -94,6 +95,7 @@
     <ClCompile Include="src\CyanAPI.cpp" />
     <ClCompile Include="src\CyanApp.cpp" />
     <ClCompile Include="src\CyanEngine.cpp" />
+    <ClCompile Include="src\InstantRadiosity.cpp" />
     <ClCompile Include="src\RayTracer.cpp" />
     <ClCompile Include="src\CyanRenderer.cpp" />
     <ClCompile Include="src\CyanUI.cpp" />

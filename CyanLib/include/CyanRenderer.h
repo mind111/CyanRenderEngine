@@ -15,7 +15,7 @@
 #include "Entity.h"
 #include "Geometry.h"
 #include "Shadow.h"
-
+#include "InstantRadiosity.h"
 
 namespace Cyan
 {
@@ -319,10 +319,13 @@ namespace Cyan
         std::unordered_map<std::string, RenderPass*> renderPassMap;
     };
 
+
     class Renderer : public Singleton<Renderer>
     {
     public:
         using UIRenderCommand = std::function<void()>;
+
+        friend class InstantRadiosity;
 
         explicit Renderer(GfxContext* ctx, u32 windowWidth, u32 windowHeight);
         ~Renderer() {}
@@ -364,6 +367,7 @@ namespace Cyan
             void* data = nullptr;
         } indirectDrawBuffer;
         RenderTexture2D* renderSceneMultiDraw(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution, const SSGITextures& SSGIOutput);
+        void submitSceneMultiDrawIndirect(RenderableScene& renderableScene);
 
         void gpuRayTracing(struct RayTracingScene& rtxScene, RenderTexture2D* outputBuffer, RenderTexture2D* sceneDepthBuffer, RenderTexture2D* sceneNormalBuffer);
         void renderSceneMeshOnly(RenderableScene& sceneRenderable, RenderTexture2D* outTexture, Shader* shader);
@@ -374,42 +378,11 @@ namespace Cyan
             RenderTexture2D* normalTexture;
         };
 
-        ScenePrepassOutput renderSceneDepthNormal(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
+        ScenePrepassOutput renderSceneDepthNormal(RenderableScene& renderableScene, const glm::uvec2& outputResolution);
         void renderSceneDepthOnly(RenderableScene& renderableScene, RenderTexture2D* outDepthTexture);
 
-        /**
-        * brief: Instant Radiosity implementation
-        */
-        struct VPL {
-            glm::vec4 position;
-            glm::vec4 normal;
-            glm::vec4 flux;
-        };
-
-        GLuint VPLBuffer;
-        GLuint VPLCounter;
-        GLuint depthCubeMap;
-        static const i32 kVPLShadowResolution = 64;
-        static const i32 kOctShadowMapResolution = 256;
-        static const int kMaxNumVPLs = 1024;
-        VPL VPLs[kMaxNumVPLs];
-        // VPL shadow
-        GLuint VPLShadowCubemaps[kMaxNumVPLs];
-        Texture2DRenderable* VPLOctShadowMaps[kMaxNumVPLs] = { 0 };
-        GLuint VPLShadowHandleBuffer;
-        u64 VPLShadowHandles[kMaxNumVPLs];
-        // VPL camera projection constants
-        const f32 fov = 90.f;
-        const f32 aspectRatio = 1.f;
-        const f32 nearClippingPlane = 0.005f;
-        const f32 farClippingPlane = 20.f;
         bool bFullscreenRadiosity = false;
-        bool bIndirectVisibility = true;
-
-        void generateVPLs(RenderableScene& renderableScene);
-        void buildVPLShadowMaps();
-        bool bRegenerateVPLs = true;
-        RenderTexture2D* instantRadiosity(RenderTexture2D* sceneDepthBuffer, RenderTexture2D* sceneNormalBuffer);
+        InstantRadiosity m_instantRadiosity;
 
         /* Debugging utilities */
         void debugDrawLine(const glm::vec3& v0, const glm::vec3& v1);
@@ -426,6 +399,11 @@ namespace Cyan
         void renderSceneToLightProbe(Scene* scene, LightProbe* probe, RenderTarget* renderTarget);
 
         void addUIRenderCommand(const std::function<void()>& UIRenderCommand);
+
+        /*
+        * brief: helper functions for appending to the "Rendering" tab
+        */
+        void appendToRenderingTab(const std::function<void()>& command);
 
         /*
         * Render ui widgets given a custom callback defined in an application

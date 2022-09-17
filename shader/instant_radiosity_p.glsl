@@ -78,19 +78,29 @@ vec3 screenToWorld(vec3 pp, mat4 invView, mat4 invProjection) {
 }
 
 void main() {
+    vec3 debugColor;
     vec2 pixelCoord = gl_FragCoord.xy / outputSize;
     float pixelDepth = texture(sceneDepthBuffer, pixelCoord).r * 2.f - 1.f;
     vec3 pixelNormal = texture(sceneNormalBuffer, pixelCoord).rgb * 2.f - 1.f;
 	vec3 worldSpacePosition = screenToWorld(vec3(pixelCoord * 2.f - 1.f, pixelDepth), inverse(viewSsbo.view), inverse(viewSsbo.projection));
-    vec3 debugColor;
     vec3 irradiance = vec3(0.f);
 	for (int i = 0; i < numVPLs; ++i) {
         vec3 l = normalize(VPLs[i].position.xyz - worldSpacePosition);
         float d = length(VPLs[i].position.xyz - worldSpacePosition);
-        if (indirectVisibility > .5f) { 
-			// shadow test
-			float closestDepth = texture(sampler2D(shadowHandles[i]), octEncode(-l) * .5f + .5f).r * farClippingPlane; 
-			if ((d - 0.05f) < closestDepth) {
+        // only consider contributions from upper hemisphere
+        if (dot(l, pixelNormal) > 0.f) {
+			if (indirectVisibility > .5f) { 
+				// shadow test
+				float closestDepth = texture(sampler2D(shadowHandles[i]), octEncode(-l) * .5f + .5f).r * farClippingPlane; 
+				if ((d - 0.05f) < closestDepth) {
+					// the geometry term
+					float g = max(dot(VPLs[i].normal.xyz, -l), 0.f) * max(dot(pixelNormal, l), 0.f);
+					const float radius = 0.2f;
+					float atten = 2.f * (1.f - d / sqrt(d * d + radius * radius)) / (radius * radius); 
+					vec3 li = VPLs[i].flux.rgb;
+					irradiance += li * g * atten;
+				}
+			} else {
 				// the geometry term
 				float g = max(dot(VPLs[i].normal.xyz, -l), 0.f) * max(dot(pixelNormal, l), 0.f);
 				const float radius = 1.0f;
@@ -98,13 +108,6 @@ void main() {
 				vec3 li = VPLs[i].flux.rgb;
 				irradiance += li * g * atten;
 			}
-		} else {
-			// the geometry term
-			float g = max(dot(VPLs[i].normal.xyz, -l), 0.f) * max(dot(pixelNormal, l), 0.f);
-			const float radius = 1.0f;
-			float atten = 2.f * (1.f - d / sqrt(d * d + radius * radius)) / (radius * radius); 
-			vec3 li = VPLs[i].flux.rgb;
-			irradiance += li * g * atten;
 		}
 	}
     irradiance /= float(numVPLs);

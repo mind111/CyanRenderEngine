@@ -55,6 +55,9 @@
     <Filter Include="Shaders\Shadow">
       <UniqueIdentifier>{e5b2da65-b986-4625-b55a-eb720c7871ea}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Internal\InstantRadiosity">
+      <UniqueIdentifier>{58e7e6e6-f675-49a2-be83-16408004ae31}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Allocator.h">
@@ -243,6 +246,9 @@
     <ClInclude Include="include\RenderableScene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\InstantRadiosity.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\AssetManager.cpp">
@@ -394,6 +400,9 @@
     </ClCompile>
     <ClCompile Include="src\SkyLight.cpp">
       <Filter>Source Files\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\InstantRadiosity.cpp">
+      <Filter>Source Files\Internal\InstantRadiosity</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

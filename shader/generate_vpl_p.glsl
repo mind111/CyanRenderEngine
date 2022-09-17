@@ -145,18 +145,20 @@ void main() {
 	flat_idx = uint(floor(gl_FragCoord.y) * 2560 + floor(gl_FragCoord.x));
 
 	// do shadow test to see if current shaded surface point is directly visible to the light source
-	if (isDirectlyLit(psIn.worldSpacePosition, sceneLights.directionalLight)) {
-		vec2 rng = get_random();
-		if (rng.x < 0.001f) { 
-			uint index = atomicCounterIncrement(numGeneratedVPLs);
-			if (index < kMaxNumVPLs) {
-				vec3 normal = normalize(psIn.worldSpaceNormal);
-				// slightly offset VPL in the normal direction to avoid indirect lighting leaking through thin surfaces
-				VPLs[index].position = vec4(psIn.worldSpacePosition + 0.01 * normal, 1.f);
-				VPLs[index].normal = vec4(normal, 0.f);
-				float ndotl = max(dot(normal, sceneLights.directionalLight.direction.xyz), 0.f);
-				vec3 flux = sceneLights.directionalLight.colorAndIntensity.rgb * sceneLights.directionalLight.colorAndIntensity.a * ndotl;
-				VPLs[index].flux = vec4(flux, 1.f);
+	if (dot(psIn.worldSpaceNormal, sceneLights.directionalLight.direction.xyz) > .1f) {
+		if (isDirectlyLit(psIn.worldSpacePosition, sceneLights.directionalLight)) {
+			vec2 rng = get_random();
+			if (rng.x < 0.001f) { 
+				uint index = atomicCounterIncrement(numGeneratedVPLs);
+				if (index < kMaxNumVPLs) {
+					vec3 normal = normalize(psIn.worldSpaceNormal);
+					// slightly offset VPL in the normal direction to avoid indirect lighting leaking through thin surfaces
+					VPLs[index].position = vec4(psIn.worldSpacePosition + 0.01 * normal, 1.f);
+					VPLs[index].normal = vec4(normal, 0.f);
+					float ndotl = max(dot(normal, sceneLights.directionalLight.direction.xyz), 0.f);
+					vec3 flux = sceneLights.directionalLight.colorAndIntensity.rgb * sceneLights.directionalLight.colorAndIntensity.a * ndotl;
+					VPLs[index].flux = vec4(flux, 1.f);
+				}
 			}
 		}
 	}
