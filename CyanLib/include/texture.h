@@ -57,14 +57,15 @@ namespace Cyan
                 R16F = 0,
                 R32F,
                 Lum32F,
-                R32G32F,
-                R8G8B8,
+                RG16F,
+                RG32F,
+                RGB8,
                 D24S8,
                 RGB16F,
                 RGB32F,
-                R8G8B8A8,
+                RGBA8,
                 RGBA16F,
-                R32G32B32A32,
+                RGBA32,
                 kInvalid
             };
 
@@ -164,12 +165,17 @@ namespace Cyan
                 glPixelFormat.format = GL_R;
                 glPixelFormat.type = GL_FLOAT;
                 break;
+            case Spec::PixelFormat::RG16F:
+                glPixelFormat.internalFormat = GL_RG16F;
+                glPixelFormat.format = GL_RG;
+                glPixelFormat.type = GL_FLOAT;
+                break;
             case Spec::PixelFormat::D24S8:
                 glPixelFormat.internalFormat = GL_DEPTH24_STENCIL8;
                 glPixelFormat.format = GL_DEPTH_STENCIL;
                 glPixelFormat.type = GL_UNSIGNED_INT_24_8;
                 break;
-            case Spec::PixelFormat::R8G8B8:
+            case Spec::PixelFormat::RGB8:
                 glPixelFormat.internalFormat = GL_RGB8;
                 glPixelFormat.format = GL_RGB;
                 glPixelFormat.type = GL_UNSIGNED_BYTE;
@@ -189,12 +195,12 @@ namespace Cyan
                 glPixelFormat.format = GL_RGB;
                 glPixelFormat.type = GL_FLOAT;
                 break;
-            case Spec::PixelFormat::R8G8B8A8:
+            case Spec::PixelFormat::RGBA8:
                 glPixelFormat.internalFormat = GL_RGBA8;
                 glPixelFormat.format = GL_RGBA;
                 glPixelFormat.type = GL_UNSIGNED_BYTE;
                 break;
-            case Spec::PixelFormat::R32G32B32A32:
+            case Spec::PixelFormat::RGBA32:
                 glPixelFormat.internalFormat = GL_RGBA32F;
                 glPixelFormat.format = GL_RGBA;
                 glPixelFormat.type = GL_FLOAT;
@@ -304,7 +310,7 @@ namespace Cyan
         u32 height;
     };
 
-    struct DepthTexture : public Texture2DRenderable
+    struct DepthTexture2D : public Texture2DRenderable
     {
         /* Asset interface */
         virtual std::string getAssetObjectTypeDesc() override
@@ -331,7 +337,7 @@ namespace Cyan
             };
         }
 
-        DepthTexture(const char* name, u32 width, u32 height)
+        DepthTexture2D(const char* name, u32 width, u32 height)
             : Texture2DRenderable(
                 name,
                 Spec {
@@ -350,7 +356,7 @@ namespace Cyan
 #endif
         }
 
-        ~DepthTexture()
+        ~DepthTexture2D()
         {
             ITextureRenderable::~ITextureRenderable();
         }

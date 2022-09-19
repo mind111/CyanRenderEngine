@@ -66,7 +66,7 @@ namespace Cyan
         }
     }
 
-    void RenderTarget::setDepthBuffer(DepthTexture* texture)
+    void RenderTarget::setDepthBuffer(DepthTexture2D* texture)
     {
         if (texture->width != width || texture->height != height)
         {

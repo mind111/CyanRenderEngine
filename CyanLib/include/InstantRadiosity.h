@@ -26,8 +26,16 @@ namespace Cyan {
     private:
         void generateVPLs(Renderer* renderer, RenderableScene& renderableScene, const glm::uvec2& renderResolution);
         void buildVPLShadowMaps(Renderer* renderer, RenderableScene& renderableScene);
+        void buildVPLVSMs(Renderer* renderer, RenderableScene& renderableScene);
         void renderInternal(Renderer* renderer, RenderableScene& renderableScene, RenderTexture2D* output);
         void renderInternal(Renderer* renderer, RenderableScene& renderableScene, RenderTexture2D* sceneDepthBuffer, RenderTexture2D* sceneNormalBuffer, RenderTexture2D* output);
+        void renderUI(Renderer* renderer, RenderTexture2D* output);
+
+        enum class VPLShadowAlgorithm : i32 {
+            kBasic = 0,
+            kVSM,
+            kCount
+        } m_shadowAlgorithm = VPLShadowAlgorithm::kBasic;
 
         struct VPL {
             glm::vec4 position;
@@ -40,14 +48,23 @@ namespace Cyan {
         GLuint depthCubeMap;
         static const i32 kVPLShadowResolution = 64;
         static const i32 kOctShadowMapResolution = 256;
+        i32 activeVPLs = 1;
         static const int kMaxNumVPLs = 1024;
         u32 numGeneratedVPLs = 0;
         VPL VPLs[kMaxNumVPLs];
-        // VPL shadow
+
+        // basic VPL shadow
         GLuint VPLShadowCubemaps[kMaxNumVPLs];
         Texture2DRenderable* VPLOctShadowMaps[kMaxNumVPLs] = { 0 };
-        GLuint VPLShadowHandleBuffer;
         u64 VPLShadowHandles[kMaxNumVPLs];
+        
+        // VPL shadow using vsm
+        GLuint VPLVSMs[kMaxNumVPLs];
+        Texture2DRenderable* VPLOctVSMs[kMaxNumVPLs] = { 0 };
+        u64 VPLVSMHandles[kMaxNumVPLs];
+
+        GLuint VPLShadowHandleBuffer;
+
         // VPL camera projection constants
         const f32 fov = 90.f;
         const f32 aspectRatio = 1.f;

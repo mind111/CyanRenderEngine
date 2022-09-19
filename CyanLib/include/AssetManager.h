@@ -136,12 +136,12 @@ namespace Cyan
             return outTexture;
         }
 
-        static DepthTexture* createDepthTexture(const char* name, u32 width, u32 height)
+        static DepthTexture2D* createDepthTexture(const char* name, u32 width, u32 height)
         {
-            DepthTexture* outTexture = getAsset<DepthTexture>(name);
+            DepthTexture2D* outTexture = getAsset<DepthTexture2D>(name);
             if (!outTexture)
             {
-                outTexture = new DepthTexture(name, width, height);
+                outTexture = new DepthTexture2D(name, width, height);
                 singleton->addTexture(outTexture);
             }
             return outTexture;
@@ -183,11 +183,11 @@ namespace Cyan
                 // todo: pixel format is hard coded for now
                 if (numChannels == 3)
                 {
-                    spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R8G8B8;
+                    spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGB8;
                 }
                 else if (numChannels == 4)
                 {
-                    spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R8G8B8A8;
+                    spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGBA8;
                 }
                 spec.width = width;
                 spec.height = height;
@@ -230,14 +230,14 @@ namespace Cyan
         }
 
         template<>
-        static DepthTexture* getAsset<DepthTexture>(const char* textureName)
+        static DepthTexture2D* getAsset<DepthTexture2D>(const char* textureName)
         {
             const auto& entry = singleton->m_textureMap.find(textureName);
             if (entry == singleton->m_textureMap.end())
             {
                 return nullptr;
             }
-            return dynamic_cast<DepthTexture*>(entry->second);
+            return dynamic_cast<DepthTexture2D*>(entry->second);
         }
 
         template<>

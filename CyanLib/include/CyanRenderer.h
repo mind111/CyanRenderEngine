@@ -436,6 +436,8 @@ namespace Cyan
 // post-processing
         // gaussian blur
         RenderTexture2D* gaussianBlur(RenderTexture2D* inTexture, u32 inRadius, f32 inSigma);
+        void gaussianBlurInPlace(RenderTexture2D* inoutTexture, u32 inRadius, f32 inSigma);
+        void gaussianBlurImmediate(Texture2DRenderable* inoutTexture, u32 inRadius, f32 inSigma);
 
         // taa
         glm::vec2 TAAJitterVectors[16] = { };

@@ -700,5 +700,8 @@
     <None Include="..\shader\instant_radiosity_p.glsl">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="..\shader\point_vsm_shadow_p.glsl">
+      <Filter>Shaders\Shadow</Filter>
+    </None>
   </ItemGroup>
 </Project>

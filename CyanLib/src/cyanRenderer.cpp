@@ -154,7 +154,7 @@ namespace Cyan
                 spec.width = m_sceneVoxelGrid.resolution;
                 spec.height = m_sceneVoxelGrid.resolution;
                 spec.depth = m_sceneVoxelGrid.resolution;
-                spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R8G8B8A8;
+                spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGBA8;
                 ITextureRenderable::Parameter parameter = { };
                 parameter.minificationFilter = ITextureRenderable::Parameter::Filtering::LINEAR_MIPMAP_LINEAR;
                 parameter.magnificationFilter = ITextureRenderable::Parameter::Filtering::NEAREST;
@@ -882,7 +882,7 @@ namespace Cyan
 
                 // create render target
                 std::unique_ptr<RenderTarget> depthRenderTargetPtr(createDepthOnlyRenderTarget(outDepthTexture->spec.width, outDepthTexture->spec.height));
-                depthRenderTargetPtr->setDepthBuffer(reinterpret_cast<DepthTexture*>(outDepthTexture->getTextureResource()));
+                depthRenderTargetPtr->setDepthBuffer(reinterpret_cast<DepthTexture2D*>(outDepthTexture->getTextureResource()));
                 depthRenderTargetPtr->clear({ { 0u } });
 
                 renderableScene.submitSceneData(m_ctx);
@@ -1655,6 +1655,242 @@ namespace Cyan
             }
         );
         return compositeOutput;
+    }
+
+    void Renderer::gaussianBlurInPlace(RenderTexture2D* inoutTexture, u32 inRadius, f32 inSigma) {
+        static const u32 kMaxkernelRadius = 10;
+        static const u32 kMinKernelRadius = 2;
+
+        struct GaussianKernel
+        {
+            GaussianKernel(u32 inRadius, f32 inSigma, LinearAllocator& allocator)
+                : radius(Max(kMinKernelRadius, Min(inRadius, kMaxkernelRadius))), sigma(inSigma)
+            {
+                u32 kernelSize = radius;
+                // todo: allocate weights from stack or frame allocator instead
+                weights = new f32[kMaxkernelRadius];
+
+                // calculate kernel weights
+                f32 totalWeight = 0.f;
+                const f32 step = 1.f;
+                for (u32 i = 0; i < kernelSize; ++i)
+                {
+                    f32 x = (f32)i * step;
+                    weights[i] = calcWeight(x);
+                    totalWeight += weights[i];
+                }
+
+                // tweak the weights so that the boundry sample weight goes to 0
+                f32 correction = calcWeight(step * kernelSize);
+                for (u32 i = 0; i < kernelSize; ++i)
+                {
+                    weights[i] -= correction;
+                    totalWeight -= correction;
+                }
+
+                // normalize the weights to 1
+                totalWeight = totalWeight * 2.f - weights[0];
+                for (u32 i = 0; i < kernelSize; ++i)
+                {
+                    weights[i] /= totalWeight;
+                }
+            };
+
+            ~GaussianKernel()
+            {
+                delete[] weights;
+            }
+
+            f32 calcWeight(f32 x)
+            {
+                f32 coef = 1.f / (sigma * glm::sqrt(2.0f * M_PI));
+                return coef * glm::exp(-.5f  * pow(x / sigma, 2.0));
+            }
+
+            u32 radius = 0u;
+            f32 mean = 0.f;
+            f32 sigma = 0.5f;
+            f32* weights = nullptr;
+        };
+
+        // horizontal pass
+        auto outTextureH = m_renderQueue.createTexture2D("OutGaussianTextureH", inoutTexture->spec);
+        m_renderQueue.addPass(
+            "GaussianBlurHPass",
+            [inoutTexture, outTextureH](RenderQueue& renderQueue, RenderPass* pass) {
+                pass->addInput(inoutTexture);
+                pass->addInput(outTextureH);
+                pass->addOutput(outTextureH);
+            },
+            [inoutTexture, outTextureH, inRadius, inSigma, this]() {
+                Shader* gaussianBlurShader = ShaderManager::createShader({ ShaderType::kVsPs, "GaussianBlurShader", SHADER_SOURCE_PATH "gaussian_blur_v.glsl", SHADER_SOURCE_PATH "gaussian_blur_p.glsl" });
+
+                auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(outTextureH->spec.width, outTextureH->spec.height));
+                renderTarget->setColorBuffer(outTextureH->getTextureResource(), 0);
+
+                GaussianKernel kernel(inRadius, inSigma, m_frameAllocator);
+
+                // execute
+                submitFullScreenPass(
+                    renderTarget.get(),
+                    { { 0 } },
+                    gaussianBlurShader,
+                    [inoutTexture, &kernel](RenderTarget* renderTarget, Shader* shader) {
+                        shader->setTexture("srcTexture", inoutTexture->getTextureResource());
+                        shader->setUniform("kernelRadius", kernel.radius);
+                        shader->setUniform("pass", 1.f);
+                        for (u32 i = 0; i < kMaxkernelRadius; ++i)
+                        {
+                            char name[32] = { };
+                            sprintf_s(name, "weights[%d]", i);
+                            shader->setUniform(name, kernel.weights[i]);
+                        }
+                    }
+                );
+            }
+        );
+
+        m_renderQueue.addPass(
+            "GaussianBlurVPass", 
+            [outTextureH, inoutTexture](RenderQueue& renderQueue, RenderPass* pass) {
+                pass->addInput(outTextureH);
+                pass->addInput(inoutTexture);
+                pass->addOutput(inoutTexture);
+            },
+            [this, outTextureH, inoutTexture, inRadius, inSigma]() {
+                Shader* gaussianBlurShader = ShaderManager::createShader({ ShaderType::kVsPs, "GaussianBlurShader", SHADER_SOURCE_PATH "gaussian_blur_v.glsl", SHADER_SOURCE_PATH "gaussian_blur_p.glsl" });
+
+                auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(inoutTexture->spec.width, inoutTexture->spec.height));
+                renderTarget->setColorBuffer(inoutTexture->getTextureResource(), 0);
+
+                GaussianKernel kernel(inRadius, inSigma, m_frameAllocator);
+
+                // execute
+                submitFullScreenPass(
+                    renderTarget.get(),
+                    { { 0 } },
+                    gaussianBlurShader,
+                    [outTextureH, &kernel](RenderTarget* renderTarget, Shader* shader) {
+                        shader->setTexture("srcTexture", outTextureH->getTextureResource());
+                        shader->setUniform("kernelRadius", kernel.radius);
+                        shader->setUniform("pass", 0.f);
+                        for (u32 i = 0; i < kMaxkernelRadius; ++i)
+                        {
+                            char name[32] = { };
+                            sprintf_s(name, "weights[%d]", i);
+                            shader->setUniform(name, kernel.weights[i]);
+                        }
+                    }
+                );
+            });
+    }
+
+    void Renderer::gaussianBlurImmediate(Texture2DRenderable* inoutTexture, u32 inRadius, f32 inSigma) {
+        static const u32 kMaxkernelRadius = 10;
+        static const u32 kMinKernelRadius = 2;
+
+        struct GaussianKernel
+        {
+            GaussianKernel(u32 inRadius, f32 inSigma, LinearAllocator& allocator)
+                : radius(Max(kMinKernelRadius, Min(inRadius, kMaxkernelRadius))), sigma(inSigma)
+            {
+                u32 kernelSize = radius;
+                // todo: allocate weights from stack or frame allocator instead
+                weights = new f32[kMaxkernelRadius];
+
+                // calculate kernel weights
+                f32 totalWeight = 0.f;
+                const f32 step = 1.f;
+                for (u32 i = 0; i < kernelSize; ++i)
+                {
+                    f32 x = (f32)i * step;
+                    weights[i] = calcWeight(x);
+                    totalWeight += weights[i];
+                }
+
+                // tweak the weights so that the boundry sample weight goes to 0
+                f32 correction = calcWeight(step * kernelSize);
+                for (u32 i = 0; i < kernelSize; ++i)
+                {
+                    weights[i] -= correction;
+                    totalWeight -= correction;
+                }
+
+                // normalize the weights to 1
+                totalWeight = totalWeight * 2.f - weights[0];
+                for (u32 i = 0; i < kernelSize; ++i)
+                {
+                    weights[i] /= totalWeight;
+                }
+            };
+
+            ~GaussianKernel()
+            {
+                delete[] weights;
+            }
+
+            f32 calcWeight(f32 x)
+            {
+                f32 coef = 1.f / (sigma * glm::sqrt(2.0f * M_PI));
+                return coef * glm::exp(-.5f  * pow(x / sigma, 2.0));
+            }
+
+            u32 radius = 0u;
+            f32 mean = 0.f;
+            f32 sigma = 0.5f;
+            f32* weights = nullptr;
+        };
+
+        Shader* gaussianBlurShader = ShaderManager::createShader({ ShaderType::kVsPs, "GaussianBlurShader", SHADER_SOURCE_PATH "gaussian_blur_v.glsl", SHADER_SOURCE_PATH "gaussian_blur_p.glsl" });
+
+        // create scratch buffer for storing intermediate output
+        ITextureRenderable::Parameter params = { };
+        params.wrap_s = WM_CLAMP;
+        params.wrap_r = WM_CLAMP;
+        params.wrap_t = WM_CLAMP;
+        auto scratchBuffer = std::make_shared<Texture2DRenderable>("GaussianBlurH", inoutTexture->getTextureSpec(), params);
+        auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(inoutTexture->width, inoutTexture->height));
+        renderTarget->setColorBuffer(scratchBuffer.get(), 0);
+
+        GaussianKernel kernel(inRadius, inSigma, m_frameAllocator);
+
+        // horizontal pass
+        submitFullScreenPass(
+            renderTarget.get(),
+            { { 0 } },
+            gaussianBlurShader,
+            [inoutTexture, &kernel](RenderTarget* renderTarget, Shader* shader) {
+                shader->setTexture("srcTexture", inoutTexture);
+                shader->setUniform("kernelRadius", kernel.radius);
+                shader->setUniform("pass", 1.f);
+                for (u32 i = 0; i < kMaxkernelRadius; ++i)
+                {
+                    char name[32] = { };
+                    sprintf_s(name, "weights[%d]", i);
+                    shader->setUniform(name, kernel.weights[i]);
+                }
+            }
+        );
+
+        // vertical pass
+        renderTarget->setColorBuffer(inoutTexture, 0);
+        // execute
+        submitFullScreenPass(
+            renderTarget.get(),
+            { { 0 } },
+            gaussianBlurShader,
+            [scratchBuffer, &kernel](RenderTarget* renderTarget, Shader* shader) {
+                shader->setTexture("srcTexture", scratchBuffer.get());
+                shader->setUniform("kernelRadius", kernel.radius);
+                shader->setUniform("pass", 0.f);
+                for (u32 i = 0; i < kMaxkernelRadius; ++i)
+                {
+                    char name[32] = { };
+                    sprintf_s(name, "weights[%d]", i);
+                    shader->setUniform(name, kernel.weights[i]);
+                }
+            }
+        );
     }
 
     RenderTexture2D* Renderer::gaussianBlur(RenderTexture2D* inTexture, u32 inRadius, f32 inSigma)

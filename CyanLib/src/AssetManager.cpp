@@ -507,7 +507,7 @@ namespace Cyan
                 {
                     if (image.bits == 8) 
                     {
-                        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R8G8B8;
+                        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGB8;
                     } 
                     else if (image.bits == 16) 
                     {
@@ -522,7 +522,7 @@ namespace Cyan
                 case 4: {
                     if (image.bits == 8) 
                     {
-                        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R8G8B8A8;
+                        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGBA8;
                     } 
                     else if (image.bits == 16) 
                     {
@@ -530,7 +530,7 @@ namespace Cyan
                     } 
                     else if (image.bits == 32) 
                     {
-                        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::R32G32B32A32;
+                        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGBA32;
                     } 
                     break;
                 }

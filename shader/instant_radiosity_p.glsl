@@ -43,6 +43,9 @@ uniform vec2 outputSize;
 uniform sampler2D sceneDepthBuffer; 
 uniform sampler2D sceneNormalBuffer;
 uniform samplerCube shadowCubemap;
+uniform int shadowAlgorithm;
+#define BASIC_SHADOW 0 
+#define VSM_SHADOW 1 
 
 // Returns ±1
 vec2 signNotZero(vec2 v) {
@@ -77,39 +80,58 @@ vec3 screenToWorld(vec3 pp, mat4 invView, mat4 invProjection) {
     return p.xyz;
 }
 
+float calculateVSMShadow(in sampler2D depthMomentsMap, in vec2 uv, in float sceneDepth) {
+    float shadow = 1.f;
+    float t = sceneDepth / farClippingPlane;
+    vec2 depthMoments = texture(depthMomentsMap, uv).rg;
+	if (t >= depthMoments.r) {
+        float variance = max(depthMoments.g - depthMoments.r * depthMoments.r, 0.0001);
+        shadow = variance / (variance + (sceneDepth - depthMoments.r) * (sceneDepth - depthMoments.r));
+    }
+    return shadow;
+}
+
+float calculateBasicShadow(in sampler2D shadowMap, in vec2 uv, in float sceneDepth) {
+	float shadow = 1.f;
+	float closestDepth = texture(shadowMap, uv).r * farClippingPlane; 
+	if ((sceneDepth - 0.05f) > closestDepth) {
+		shadow = 0.f;
+	}
+	return shadow;
+}
+
 void main() {
     vec3 debugColor;
     vec2 pixelCoord = gl_FragCoord.xy / outputSize;
     float pixelDepth = texture(sceneDepthBuffer, pixelCoord).r * 2.f - 1.f;
     vec3 pixelNormal = texture(sceneNormalBuffer, pixelCoord).rgb * 2.f - 1.f;
 	vec3 worldSpacePosition = screenToWorld(vec3(pixelCoord * 2.f - 1.f, pixelDepth), inverse(viewSsbo.view), inverse(viewSsbo.projection));
+    // virutal spherical light radius for working around shading singularity
+	const float radius = 0.2f;
+
     vec3 irradiance = vec3(0.f);
 	for (int i = 0; i < numVPLs; ++i) {
         vec3 l = normalize(VPLs[i].position.xyz - worldSpacePosition);
         float d = length(VPLs[i].position.xyz - worldSpacePosition);
-        // only consider contributions from upper hemisphere
-        if (dot(l, pixelNormal) > 0.f) {
-			if (indirectVisibility > .5f) { 
-				// shadow test
-				float closestDepth = texture(sampler2D(shadowHandles[i]), octEncode(-l) * .5f + .5f).r * farClippingPlane; 
-				if ((d - 0.05f) < closestDepth) {
-					// the geometry term
-					float g = max(dot(VPLs[i].normal.xyz, -l), 0.f) * max(dot(pixelNormal, l), 0.f);
-					const float radius = 0.2f;
-					float atten = 2.f * (1.f - d / sqrt(d * d + radius * radius)) / (radius * radius); 
-					vec3 li = VPLs[i].flux.rgb;
-					irradiance += li * g * atten;
-				}
-			} else {
-				// the geometry term
-				float g = max(dot(VPLs[i].normal.xyz, -l), 0.f) * max(dot(pixelNormal, l), 0.f);
-				const float radius = 1.0f;
-				float atten = 2.f * (1.f - d / sqrt(d * d + radius * radius)) / (radius * radius); 
-				vec3 li = VPLs[i].flux.rgb;
-				irradiance += li * g * atten;
+		if (indirectVisibility > .5f) { 
+			float shadow = 1.f;
+			if (shadowAlgorithm == BASIC_SHADOW) {
+				shadow = calculateBasicShadow(sampler2D(shadowHandles[i]), octEncode(-l) * .5f + .5f, d);
+			} else if (shadowAlgorithm == VSM_SHADOW) {
+				shadow = calculateVSMShadow(sampler2D(shadowHandles[i]), octEncode(-l) * .5f + .5f, d);
 			}
+			// the geometry term
+			float g = max(dot(VPLs[i].normal.xyz, -l), 0.f) * max(dot(pixelNormal, l), 0.f);
+			float atten = 2.f * (1.f - d / sqrt(d * d + radius * radius)) / (radius * radius); 
+			vec3 li = VPLs[i].flux.rgb / float(numVPLs);
+			irradiance += li * g * atten * shadow;
+		} else {
+			// the geometry term
+			float g = max(dot(VPLs[i].normal.xyz, -l), 0.f) * max(dot(pixelNormal, l), 0.f);
+			float atten = 2.f * (1.f - d / sqrt(d * d + radius * radius)) / (radius * radius); 
+			vec3 li = VPLs[i].flux.rgb / float(numVPLs);
+			irradiance += li * g * atten;
 		}
 	}
-    irradiance /= float(numVPLs);
 	outColor = vec3(irradiance);
 }

@@ -61,7 +61,7 @@ namespace Cyan
 
     private:
         glm::mat4 lightSpaceProjection;
-        DepthTexture* depthTexture = nullptr;
+        DepthTexture2D* depthTexture = nullptr;
     };
 
     /**
@@ -76,8 +76,8 @@ namespace Cyan
 
     private:
         glm::mat4 lightSpaceProjection;
-        DepthTexture* depthTexture = nullptr;
-        DepthTexture* depthSquaredTexture = nullptr;
+        DepthTexture2D* depthTexture = nullptr;
+        DepthTexture2D* depthSquaredTexture = nullptr;
     };
 
     struct CascadedShadowmap : public IDirectionalShadowmap
