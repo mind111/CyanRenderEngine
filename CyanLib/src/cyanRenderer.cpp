@@ -770,14 +770,14 @@ namespace Cyan
             RenderTexture2D* bloomOutput = nullptr;
             RenderTexture2D* finalColorOutput = nullptr;
             // todo: bloom pass is buggy! it breaks the crappy transient render resource system
-            // bloomOutput = bloom(sceneColorTexture);
-            // finalColorOutput = composite(sceneColorTexture, bloomOutput, glm::uvec2(m_windowWidth, m_windowHeight));
-            // renderToScreen(finalColorOutput);
+            bloomOutput = bloom(sceneColorTexture);
+            finalColorOutput = composite(sceneColorTexture, bloomOutput, glm::uvec2(m_windowWidth, m_windowHeight));
 
             if (bFullscreenRadiosity) {
                 renderToScreen(radiosity);
             } else {
-                renderToScreen(sceneColorTexture);
+                // renderToScreen(sceneColorTexture);
+                renderToScreen(finalColorOutput);
             }
 
             m_renderQueue.execute();
