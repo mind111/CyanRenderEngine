@@ -71,6 +71,7 @@ layout(std430, binding = 4) buffer VoxelGridData
 uniform uint64_t SSAO;
 uniform uint64_t SSBN;
 uniform float useBentNormal;
+uniform float useSSAO;
 
 #define MAX_NUM_POINT_LIGHTS 32
 #define NUM_SHADOW_CASCADES 4
@@ -574,16 +575,19 @@ vec3 calcSkyLight(SkyLight skyLight, in MaterialParameters materialParameters, v
 
     // irradiance
     vec2 pixelCoords = gl_FragCoord.xy / vec2(2560.f, 1440.f);
-    vec3 bentNormal = texture(sampler2D(SSBN), pixelCoords).rgb * 2.f - 1.f;
-    float ao = texture(sampler2D(SSAO), pixelCoords).r;
 
     vec3 diffuse = mix((1.f - f0), vec3(0.f), materialParameters.metallic) * DisneyDiffuseBRDF(hdotl, 1.f, ndotv, materialParameters);
     vec3 irradiance;
-    if (useBentNormal > 0.5f)
+    if (useBentNormal > 0.5f) {
+		vec3 bentNormal = texture(sampler2D(SSBN), pixelCoords).rgb * 2.f - 1.f;
 		irradiance = texture(skyLight.irradiance, bentNormal).rgb;
-	else
-        irradiance = texture(skyLight.irradiance, materialParameters.normal).rgb;
-	radiance += diffuse * irradiance * ao;
+	} else {
+        irradiance = texture(skyLight.irradiance, materialParameters.normal).rgb; 
+	}
+    float ao = 1.f;
+    if (useSSAO > .5f) {
+		float ao = texture(sampler2D(SSAO), pixelCoords).r;
+	}
 
     // reflection
     vec3 reflectionDirection = -reflect(worldSpaceViewDirection, materialParameters.normal);

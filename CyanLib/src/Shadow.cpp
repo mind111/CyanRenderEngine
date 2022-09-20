@@ -45,8 +45,7 @@ namespace Cyan
         lightSpaceProjection = inCamera->projection();
 
         // glDisable(GL_CULL_FACE);
-        auto outDepthTexture = renderer.getRenderQueue().registerTexture2D(depthTexture);
-        renderer.renderSceneDepthOnly(renderableScene, outDepthTexture);
+        renderer.renderSceneDepthOnly(renderableScene, depthTexture);
         // glEnable(GL_CULL_FACE);
     }
 

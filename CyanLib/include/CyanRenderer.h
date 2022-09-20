@@ -102,6 +102,7 @@ namespace Cyan
         RenderSetupLambda renderSetupLambda = [](RenderTarget* renderTarget, Shader* shader) { };
     };
 
+#if 0
     struct RenderQueue;
 
     /**
@@ -318,7 +319,7 @@ namespace Cyan
         std::queue<RenderPass*> renderPassQueue;
         std::unordered_map<std::string, RenderPass*> renderPassMap;
     };
-
+#endif
 
     class Renderer : public Singleton<Renderer>
     {
@@ -335,15 +336,15 @@ namespace Cyan
 
         GfxContext* getGfxCtx() { return m_ctx; };
         LinearAllocator& getFrameAllocator() { return m_frameAllocator; }
-        RenderQueue& getRenderQueue() { return m_renderQueue; }
+        // RenderQueue& getRenderQueue() { return m_renderQueue; }
 
 // rendering
         void beginRender();
         void render(Scene* scene);
-        void renderToScreen(RenderTexture2D* inTexture);
+        void renderToScreen(Texture2DRenderable* inTexture);
         void endRender();
 
-        RenderTexture2D* renderScene(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
+        Texture2DRenderable* renderScene(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
 
         /**
         * brief:
@@ -351,11 +352,11 @@ namespace Cyan
         */
         struct SSGITextures
         {
-            RenderTexture2D* ao = nullptr;
-            RenderTexture2D* bentNormal = nullptr;
-            RenderTexture2D* irradiance = nullptr;
+            Texture2DRenderable* ao = nullptr;
+            Texture2DRenderable* bentNormal = nullptr;
+            Texture2DRenderable* irradiance = nullptr;
         };
-        SSGITextures screenSpaceRayTracing(RenderTexture2D* sceneDepthTexture, RenderTexture2D* sceneNormalTexture);
+        SSGITextures screenSpaceRayTracing(Texture2DRenderable* sceneDepthTexture, Texture2DRenderable* sceneNormalTexture, const glm::uvec2& renderResolution);
 
         /**
         * brief: renderScene() implemented using glMultiDrawIndirect()
@@ -366,20 +367,20 @@ namespace Cyan
             u32 sizeInBytes = 1024 * 1024 * 32;
             void* data = nullptr;
         } indirectDrawBuffer;
-        RenderTexture2D* renderSceneMultiDraw(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution, const SSGITextures& SSGIOutput);
+        Texture2DRenderable* renderSceneMultiDraw(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution, const SSGITextures& SSGIOutput);
         void submitSceneMultiDrawIndirect(RenderableScene& renderableScene);
 
+#if 0
         void gpuRayTracing(struct RayTracingScene& rtxScene, RenderTexture2D* outputBuffer, RenderTexture2D* sceneDepthBuffer, RenderTexture2D* sceneNormalBuffer);
-        void renderSceneMeshOnly(RenderableScene& sceneRenderable, RenderTexture2D* outTexture, Shader* shader);
+#endif
+        void renderSceneMeshOnly(RenderableScene& sceneRenderable, RenderTarget* dstRenderTarget, Shader* shader);
 
-        struct ScenePrepassOutput
-        {
-            RenderTexture2D* depthTexture;
-            RenderTexture2D* normalTexture;
+        struct ZPrepassOutput {
+            Texture2DRenderable* depthBuffer;
+            Texture2DRenderable* normalBuffer;
         };
-
-        ScenePrepassOutput renderSceneDepthNormal(RenderableScene& renderableScene, const glm::uvec2& outputResolution);
-        void renderSceneDepthOnly(RenderableScene& renderableScene, RenderTexture2D* outDepthTexture);
+        ZPrepassOutput renderSceneDepthNormal(RenderableScene& renderableScene, const glm::uvec2& outputResolution);
+        void renderSceneDepthOnly(RenderableScene& renderableScene, Texture2DRenderable* outDepthTexture);
 
         bool bFullscreenRadiosity = false;
         InstantRadiosity m_instantRadiosity;
@@ -435,9 +436,7 @@ namespace Cyan
 
 // post-processing
         // gaussian blur
-        RenderTexture2D* gaussianBlur(RenderTexture2D* inTexture, u32 inRadius, f32 inSigma);
-        void gaussianBlurInPlace(RenderTexture2D* inoutTexture, u32 inRadius, f32 inSigma);
-        void gaussianBlurImmediate(Texture2DRenderable* inoutTexture, u32 inRadius, f32 inSigma);
+        void gaussianBlur(Texture2DRenderable* inoutTexture, u32 inRadius, f32 inSigma);
 
         // taa
         glm::vec2 TAAJitterVectors[16] = { };
@@ -447,7 +446,6 @@ namespace Cyan
         RenderTarget* m_TAAPingPongRenderTarget[2] = { 0 };
         Texture2DRenderable* m_TAAPingPongTextures[2] = { 0 };
         void taa();
-        void ssao(const SceneView& sceneView, RenderTexture2D* sceneDepthTexture, RenderTexture2D* sceneNormalTexture, const glm::uvec2& outputResolution);
 
         struct DownsampleChain
         {
@@ -467,7 +465,7 @@ namespace Cyan
         /*
         * Compositing and resolving to final output color texture. Applying bloom, tone mapping, and gamma correction.
         */
-        RenderTexture2D* composite(RenderTexture2D* inSceneColor, RenderTexture2D* inBloomColor, const glm::uvec2& outputResolution);
+        Texture2DRenderable* composite(Texture2DRenderable* inSceneColor, Texture2DRenderable* inBloomColor, const glm::uvec2& outputResolution);
 //
 
 // per frame data
@@ -493,14 +491,15 @@ namespace Cyan
             bool enableBloom = true;
             bool enableTonemapping = true;
             bool useBentNormal = true;
+            bool bPostProcessing = true;
             u32 tonemapOperator = (u32)TonemapOperator::kReinhard;
             f32  exposure = 1.f;
             f32 bloomIntensity = 0.7f;
             f32 colorTempreture = 6500.f;
         } m_settings;
 
-        u32           m_windowWidth, m_windowHeight;
-        u32           m_SSAAWidth, m_SSAAHeight;
+        glm::uvec2 m_windowSize;
+        glm::uvec2 m_offscreenRenderSize;
 
         // normal hdr scene color texture 
         Texture2DRenderable* m_sceneColorTexture;
@@ -663,7 +662,7 @@ namespace Cyan
         u32 m_numFrames = 0u;
         LinearAllocator m_frameAllocator;
         std::queue<UIRenderCommand> m_UIRenderCommandQueue;
-        RenderQueue m_renderQueue;
+        // RenderQueue m_renderQueue;
         Texture2DRenderable* m_rtxPingPongBuffer[2] = { 0 };
     };
 };

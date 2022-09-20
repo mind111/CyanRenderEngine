@@ -102,51 +102,43 @@ namespace Cyan {
         spec.width = renderResolution.x;
         spec.height = renderResolution.y;
         spec.pixelFormat = PF_RGB16F;
-        RenderTexture2D* outColor = renderer->m_renderQueue.createTexture2D("GenerateVPLOutput", spec);
+        static Texture2DRenderable* outColor = new Texture2DRenderable("GenerateVPLOutput", spec);
 
-        renderer->m_renderQueue.addPass(
-            "GenerateVPLPass",
-            [outColor](RenderQueue& renderQueue, RenderPass* pass) {
-                pass->addInput(outColor);
-                pass->addOutput(outColor);
-            },
-            [this, renderer, outColor, renderableScene]() mutable {
-                std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(outColor->spec.width, outColor->spec.height));
-                renderTarget->setColorBuffer(outColor->getTextureResource(), 0);
-                renderTarget->clear({ { 0 } });
+        std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(outColor->width, outColor->height));
+        renderTarget->setColorBuffer(outColor, 0);
+        renderTarget->clear({ { 0 } });
 
-                auto gfxc = renderer->getGfxCtx();
-                renderableScene.submitSceneData(gfxc);
+        auto gfxc = renderer->getGfxCtx();
+        renderableScene.submitSceneData(gfxc);
 
-                Shader* VPLGenerationShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "VPLGenerationShader", SHADER_SOURCE_PATH "generate_vpl_v.glsl", SHADER_SOURCE_PATH "generate_vpl_p.glsl" });
-                gfxc->setShader(VPLGenerationShader);
-                gfxc->setRenderTarget(renderTarget.get(), { { 0 } });
-                gfxc->setViewport({ 0, 0, renderTarget->width, renderTarget->height });
-                gfxc->setDepthControl(DepthControl::kEnable);
+        Shader* VPLGenerationShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "VPLGenerationShader", SHADER_SOURCE_PATH "generate_vpl_v.glsl", SHADER_SOURCE_PATH "generate_vpl_p.glsl" });
+        gfxc->setShader(VPLGenerationShader);
+        gfxc->setRenderTarget(renderTarget.get(), { { 0 } });
+        gfxc->setViewport({ 0, 0, renderTarget->width, renderTarget->height });
+        gfxc->setDepthControl(DepthControl::kEnable);
 
-                for (auto light : renderableScene.lights)
-                {
-                    light->setShaderParameters(VPLGenerationShader);
-                }
-                VPLGenerationShader->setUniform("kMaxNumVPLs", kMaxNumVPLs);
-                VPLGenerationShader->commit(gfxc);
+        for (auto light : renderableScene.lights)
+        {
+            light->setShaderParameters(VPLGenerationShader);
+        }
+        VPLGenerationShader->setUniform("kMaxNumVPLs", kMaxNumVPLs);
+        VPLGenerationShader->commit(gfxc);
 
-                // bind VPL atomic counter
-                numGeneratedVPLs = 0;
-                glNamedBufferSubData(VPLCounter, 0, sizeof(u32), &numGeneratedVPLs);
-                glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, VPLCounter);
-                memset(VPLs, 0, sizeof(VPLs));
-                // bind VPL buffer for gpu to write
-                glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 47, VPLBuffer, 0, sizeof(VPLs));
+        // bind VPL atomic counter
+        numGeneratedVPLs = 0;
+        glNamedBufferSubData(VPLCounter, 0, sizeof(u32), &numGeneratedVPLs);
+        glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, VPLCounter);
+        memset(VPLs, 0, sizeof(VPLs));
+        // bind VPL buffer for gpu to write
+        glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 47, VPLBuffer, 0, sizeof(VPLs));
 
-                renderer->submitSceneMultiDrawIndirect(renderableScene);
+        renderer->submitSceneMultiDrawIndirect(renderableScene);
 
-                // read back VPL data
-                glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_ATOMIC_COUNTER_BARRIER_BIT);
-                glGetNamedBufferSubData(VPLBuffer, 0, sizeof(VPL) * kMaxNumVPLs, VPLs);
-                glGetNamedBufferSubData(VPLCounter, 0, sizeof(u32), &numGeneratedVPLs);
-                numGeneratedVPLs = min(kMaxNumVPLs, numGeneratedVPLs);
-            });
+        // read back VPL data
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_ATOMIC_COUNTER_BARRIER_BIT);
+        glGetNamedBufferSubData(VPLBuffer, 0, sizeof(VPL) * kMaxNumVPLs, VPLs);
+        glGetNamedBufferSubData(VPLCounter, 0, sizeof(u32), &numGeneratedVPLs);
+        numGeneratedVPLs = min(kMaxNumVPLs, numGeneratedVPLs);
     }
 
     void InstantRadiosity::buildVPLVSMs(Renderer* renderer, RenderableScene& renderableScene) {
@@ -216,19 +208,11 @@ namespace Cyan {
             glEnable(GL_CULL_FACE);
         };
 
-        renderer->m_renderQueue.addPass(
-            "BuildVPLShadowPass",
-            [](RenderQueue& renderQueue, RenderPass* pass) {
+        auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(kVPLShadowResolution, kVPLShadowResolution));
+        for (i32 i = 0; i < numGeneratedVPLs; ++i) {
+            renderVPLVSM(i, renderableScene, renderTarget.get());
+        }
 
-            },
-            [this, &renderableScene, renderer, renderVPLVSM]() {
-                auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(kVPLShadowResolution, kVPLShadowResolution));
-                for (i32 i = 0; i < numGeneratedVPLs; ++i) {
-                    renderVPLVSM(i, renderableScene, renderTarget.get());
-                }
-            }
-        );
-        
         // todo: caught a bug when trying to use the following code. because the generateVPL pass' execution is deferred, when we 
         // need to determine how many shadow maps that we need to fitler, numGeneratedVPLs is still 0 here because the code for reading back
         // the value from gpu is not executed yet
@@ -241,19 +225,13 @@ namespace Cyan {
             renderer->gaussianBlurInPlace(vsm, 5.f, 3.f);
         }
         */
-        renderer->m_renderQueue.addPass(
-            "FilterVPLShadowPass",
-            [](RenderQueue& renderQueue, RenderPass* pass) {
-
-            },
-            [this, &renderableScene, renderer]() {
-                for (i32 i = 0; i < numGeneratedVPLs; ++i) {
-                    for (i32 j = 0; j < 5; ++j) {
-                        renderer->gaussianBlurImmediate(VPLOctVSMs[i], 5.f, 3.f);
-                    }
-                }
+#if 0
+        for (i32 i = 0; i < numGeneratedVPLs; ++i) {
+            for (i32 j = 0; j < 5; ++j) {
+                renderer->gaussianBlurImmediate(VPLOctVSMs[i], 5.f, 3.f);
             }
-        );
+        }
+#endif
     }
 
     void InstantRadiosity::buildVPLShadowMaps(Renderer* renderer, RenderableScene& renderableScene) {
@@ -323,126 +301,124 @@ namespace Cyan {
             glEnable(GL_CULL_FACE);
         };
 
-        renderer->m_renderQueue.addPass(
-            "BuildVPLShadowPass",
-            [](RenderQueue& renderQueue, RenderPass* pass) {
-
-            },
-            [this, &renderableScene, renderVPLShadow]() {
-                auto depthRenderTarget = std::unique_ptr<RenderTarget>(createDepthOnlyRenderTarget(kVPLShadowResolution, kVPLShadowResolution));
-                for (i32 i = 0; i < numGeneratedVPLs; ++i) {
-                    renderVPLShadow(i, renderableScene, depthRenderTarget.get());
-                }
-            }
-        );
+        auto depthRenderTarget = std::unique_ptr<RenderTarget>(createDepthOnlyRenderTarget(kVPLShadowResolution, kVPLShadowResolution));
+        for (i32 i = 0; i < numGeneratedVPLs; ++i) {
+            renderVPLShadow(i, renderableScene, depthRenderTarget.get());
+        }
     }
 
-    void InstantRadiosity::renderInternal(Renderer* renderer, RenderableScene& renderableScene, RenderTexture2D* output) {
+    void InstantRadiosity::renderInternal(Renderer* renderer, RenderableScene& renderableScene, Texture2DRenderable* output) {
         // render scene depth normal pass first
-        auto depthPrepassOutput = renderer->renderSceneDepthNormal(renderableScene, glm::uvec2(1280u, 720u));
-        auto sceneDepthBuffer = depthPrepassOutput.depthTexture;
-        auto sceneNormalBuffer = depthPrepassOutput.normalTexture;
-
-        renderInternal(renderer, renderableScene, output);
-    }
-
-    void InstantRadiosity::renderInternal(Renderer* renderer, RenderableScene& renderableScene, RenderTexture2D* sceneDepthBuffer, RenderTexture2D* sceneNormalBuffer, RenderTexture2D* output) {
-        // render radiosity 
-        renderer->m_renderQueue.addPass(
-            "InstantRadiosityPass",
-            [sceneDepthBuffer, sceneNormalBuffer, output](RenderQueue& renderQueue, RenderPass* pass) {
-                pass->addInput(sceneDepthBuffer);
-                pass->addInput(sceneNormalBuffer);
-                pass->addInput(output);
-                pass->addOutput(output);
-            },
-            [renderer, sceneDepthBuffer, sceneNormalBuffer, this, output]() {
-                auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(1280, 720));
-                renderTarget->setColorBuffer(output->getTextureResource(), 0);
-                Shader* shader = ShaderManager::createShader({ ShaderType::kVsPs, "InstantRadiosityShader", SHADER_SOURCE_PATH "instant_radiosity_v.glsl", SHADER_SOURCE_PATH "instant_radiosity_p.glsl" });
-
-                // final blit to default framebuffer
-                renderer->submitFullScreenPass(
-                    renderTarget.get(),
-                    { { 0u } },
-                    shader,
-                    [this, sceneDepthBuffer, sceneNormalBuffer](RenderTarget* renderTarget, Shader* shader) {
-                        shader->setTexture("sceneDepthBuffer", sceneDepthBuffer->getTextureResource());
-                        shader->setTexture("sceneNormalBuffer", sceneNormalBuffer->getTextureResource());
-                        shader->setUniform("numVPLs", activeVPLs);
-                        shader->setUniform("outputSize", glm::vec2(1280, 720));
-                        shader->setUniform("farClippingPlane", farClippingPlane);
-                        shader->setUniform("indirectVisibility", bIndirectVisibility ? 1.f : .0f);
-                        shader->setUniform("shadowAlgorithm", (i32)m_shadowAlgorithm);
-
-                        // bind shadow map texture handles
-                        switch (m_shadowAlgorithm) {
-                        case VPLShadowAlgorithm::kBasic: {
-                            for (i32 i = 0; i < kMaxNumVPLs; ++i) {
-                                if (glIsTextureHandleResidentARB(VPLShadowHandles[i]) == GL_FALSE) {
-                                    glMakeTextureHandleResidentARB(VPLShadowHandles[i]);
-                                }
-                            }
-                            glNamedBufferSubData(VPLShadowHandleBuffer, 0, sizeof(VPLShadowHandles), VPLShadowHandles);
-                            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 50, VPLShadowHandleBuffer);
-                        } break;
-                        case VPLShadowAlgorithm::kVSM: {
-                            for (i32 i = 0; i < kMaxNumVPLs; ++i) {
-                                if (glIsTextureHandleResidentARB(VPLVSMHandles[i]) == GL_FALSE) {
-                                    glMakeTextureHandleResidentARB(VPLVSMHandles[i]);
-                                }
-                            }
-                            glNamedBufferSubData(VPLShadowHandleBuffer, 0, sizeof(VPLVSMHandles), VPLVSMHandles);
-                            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 50, VPLShadowHandleBuffer);
-                        } break;
-                        default:
-                            break;
-                        };
-                    });
-            }
-        );
-    }
-    
-    void InstantRadiosity::render(Renderer* renderer, RenderableScene& renderableScene, RenderTexture2D* output) {
-        const glm::vec2 res(2560, 1440);
-        if (bRegenerateVPLs) {
-            generateVPLs(renderer, renderableScene, res);
-            switch (m_shadowAlgorithm) {
-            case VPLShadowAlgorithm::kBasic:
-                buildVPLShadowMaps(renderer, renderableScene);
-                break;
-            case VPLShadowAlgorithm::kVSM:
-                buildVPLVSMs(renderer, renderableScene);
-                break;
-            default:
-                break;
-            }
-            bRegenerateVPLs = false;
-        }
-
-        renderInternal(renderer, renderableScene, output);
-        renderUI(renderer, output);
-    }
-
-    void InstantRadiosity::render(Renderer* renderer, RenderableScene& renderableScene, RenderTexture2D* sceneDepthBuffer, RenderTexture2D* sceneNormalBuffer, RenderTexture2D* output) {
-        const glm::vec2 res(2560, 1440);
-        if (bRegenerateVPLs) {
-            generateVPLs(renderer, renderableScene, res);
-            switch (m_shadowAlgorithm) {
-            case VPLShadowAlgorithm::kBasic:
-                buildVPLShadowMaps(renderer, renderableScene);
-                break;
-            case VPLShadowAlgorithm::kVSM:
-                buildVPLVSMs(renderer, renderableScene);
-                break;
-            default:
-                break;
-            }
-            bRegenerateVPLs = false;
-        }
+        auto zPrepassOutput = renderer->renderSceneDepthNormal(renderableScene, glm::uvec2(1280u, 720u));
+        auto sceneDepthBuffer = zPrepassOutput.depthBuffer;
+        auto sceneNormalBuffer = zPrepassOutput.normalBuffer;
 
         renderInternal(renderer, renderableScene, sceneDepthBuffer, sceneNormalBuffer, output);
-        renderUI(renderer, output);
+    }
+
+    void InstantRadiosity::renderInternal(Renderer* renderer, RenderableScene& renderableScene, Texture2DRenderable* sceneDepthBuffer, Texture2DRenderable* sceneNormalBuffer, Texture2DRenderable* output) {
+        auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(1280, 720));
+        renderTarget->setColorBuffer(output, 0);
+        Shader* shader = ShaderManager::createShader({ ShaderType::kVsPs, "InstantRadiosityShader", SHADER_SOURCE_PATH "instant_radiosity_v.glsl", SHADER_SOURCE_PATH "instant_radiosity_p.glsl" });
+
+        // final blit to default framebuffer
+        renderer->submitFullScreenPass(
+            renderTarget.get(),
+            { { 0u } },
+            shader,
+            [this, sceneDepthBuffer, sceneNormalBuffer](RenderTarget* renderTarget, Shader* shader) {
+                shader->setTexture("sceneDepthBuffer", sceneDepthBuffer);
+                shader->setTexture("sceneNormalBuffer", sceneNormalBuffer);
+                shader->setUniform("numVPLs", activeVPLs);
+                shader->setUniform("outputSize", glm::vec2(1280, 720));
+                shader->setUniform("farClippingPlane", farClippingPlane);
+                shader->setUniform("indirectVisibility", bIndirectVisibility ? 1.f : .0f);
+                shader->setUniform("shadowAlgorithm", (i32)m_shadowAlgorithm);
+
+                // bind shadow map texture handles
+                switch (m_shadowAlgorithm) {
+                case VPLShadowAlgorithm::kBasic: {
+                    for (i32 i = 0; i < kMaxNumVPLs; ++i) {
+                        if (glIsTextureHandleResidentARB(VPLShadowHandles[i]) == GL_FALSE) {
+                            glMakeTextureHandleResidentARB(VPLShadowHandles[i]);
+                        }
+                    }
+                    glNamedBufferSubData(VPLShadowHandleBuffer, 0, sizeof(VPLShadowHandles), VPLShadowHandles);
+                    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 50, VPLShadowHandleBuffer);
+                } break;
+                case VPLShadowAlgorithm::kVSM: {
+                    for (i32 i = 0; i < kMaxNumVPLs; ++i) {
+                        if (glIsTextureHandleResidentARB(VPLVSMHandles[i]) == GL_FALSE) {
+                            glMakeTextureHandleResidentARB(VPLVSMHandles[i]);
+                        }
+                    }
+                    glNamedBufferSubData(VPLShadowHandleBuffer, 0, sizeof(VPLVSMHandles), VPLVSMHandles);
+                    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 50, VPLShadowHandleBuffer);
+                } break;
+                default:
+                    break;
+                };
+            });
+    }
+    
+    Texture2DRenderable* InstantRadiosity::render(Renderer* renderer, RenderableScene& renderableScene, const glm::uvec2& renderResolution) {
+        ITextureRenderable::Spec spec = { };
+        spec.type = TEX_2D;
+        spec.width = renderResolution.x;
+        spec.height = renderResolution.y;
+        spec.pixelFormat = PF_RGB16F;
+        static Texture2DRenderable* radiosity = new Texture2DRenderable("InstantRadiosity", spec);
+
+        const glm::vec2 res(2560, 1440);
+        if (bRegenerateVPLs) {
+            generateVPLs(renderer, renderableScene, res);
+            switch (m_shadowAlgorithm) {
+            case VPLShadowAlgorithm::kBasic:
+                buildVPLShadowMaps(renderer, renderableScene);
+                break;
+            case VPLShadowAlgorithm::kVSM:
+                buildVPLVSMs(renderer, renderableScene);
+                break;
+            default:
+                break;
+            }
+            bRegenerateVPLs = false;
+        }
+
+        renderInternal(renderer, renderableScene, radiosity);
+        renderUI(renderer, radiosity);
+        
+        return radiosity;
+    }
+
+     Texture2DRenderable* InstantRadiosity::render(Renderer* renderer, RenderableScene& renderableScene, Texture2DRenderable* sceneDepthBuffer, Texture2DRenderable* sceneNormalBuffer, const glm::uvec2& renderResolution) {
+        ITextureRenderable::Spec spec = { };
+        spec.type = TEX_2D;
+        spec.width = renderResolution.x;
+        spec.height = renderResolution.y;
+        spec.pixelFormat = PF_RGB16F;
+        static Texture2DRenderable* radiosity = new Texture2DRenderable("InstantRadiosity", spec);
+
+        const glm::vec2 res(2560, 1440);
+        if (bRegenerateVPLs) {
+            generateVPLs(renderer, renderableScene, res);
+            switch (m_shadowAlgorithm) {
+            case VPLShadowAlgorithm::kBasic:
+                buildVPLShadowMaps(renderer, renderableScene);
+                break;
+            case VPLShadowAlgorithm::kVSM:
+                buildVPLVSMs(renderer, renderableScene);
+                break;
+            default:
+                break;
+            }
+            bRegenerateVPLs = false;
+        }
+
+        renderInternal(renderer, renderableScene, sceneDepthBuffer, sceneNormalBuffer, radiosity);
+        renderUI(renderer, radiosity);
+
+        return radiosity;
     }
 
     void InstantRadiosity::visualizeVPLs(Renderer* renderer, RenderTarget* renderTarget, RenderableScene& renderableScene) {
@@ -461,7 +437,7 @@ namespace Cyan {
         }
     }
 
-    void InstantRadiosity::renderUI(Renderer* renderer, RenderTexture2D* output) {
+    void InstantRadiosity::renderUI(Renderer* renderer, Texture2DRenderable* output) {
         renderer->addUIRenderCommand([this, renderer, output]() {
             renderer->appendToRenderingTab([this, output]() {
                 ImGui::CollapsingHeader("Instant Radiosity", ImGuiTreeNodeFlags_DefaultOpen);
@@ -473,7 +449,7 @@ namespace Cyan {
                 ImVec2 imageSize(320, 180);
                 ImGui::Combo("VPL shadow algorithm", &shadowAlgo, shadowAlgoNames, (i32)VPLShadowAlgorithm::kCount);
                 m_shadowAlgorithm = (VPLShadowAlgorithm)(shadowAlgo);
-                ImGui::Image((ImTextureID)(output->getTextureResource()->getGpuResource()), ImVec2(320, 180), ImVec2(0, 1), ImVec2(1, 0));
+                ImGui::Image((ImTextureID)(output->getGpuResource()), ImVec2(320, 180), ImVec2(0, 1), ImVec2(1, 0));
                 ImGui::SliderInt("active VPL count", &activeVPLs, 1, numGeneratedVPLs);
                 ImGui::Checkbox("indirect visibility", &bIndirectVisibility);
                 ImGui::Text("VPL oct shadow");
