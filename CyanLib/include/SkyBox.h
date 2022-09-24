@@ -16,7 +16,7 @@ namespace Cyan
         /** note:
         * this render function assumes that certain scene data such as the global view ssbo is already updated and bound
         */
-        void render(RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers);
+        void render(RenderTarget* renderTarget);
 
         static Shader* s_cubemapSkyShader;
         static Shader* s_proceduralSkyShader;

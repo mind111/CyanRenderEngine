@@ -33,6 +33,7 @@ namespace Cyan
         ITextureRenderable* getColorBuffer(u32 index);
         void setColorBuffer(Texture2DRenderable* texture, u32 index, u32 mip = 0u);
         void setColorBuffer(TextureCubeRenderable* texture, u32 index, u32 mip = 0u);
+        void setDrawBuffers(const std::initializer_list<i32>& buffers);
         void setDepthBuffer(DepthTexture2D* texture);
         void clear(const std::initializer_list<RenderTargetDrawBuffer>& buffers, f32 clearDepth = 1.f);
         bool validate();

@@ -33,6 +33,27 @@ namespace Cyan
         return colorBuffers[index];
     }
 
+    void RenderTarget::setDrawBuffers(const std::initializer_list<i32>& drawBuffers) {
+        GLenum* buffers = static_cast<GLenum*>(_alloca(drawBuffers.size() * sizeof(GLenum)));
+        i32 numBuffers = drawBuffers.size();
+        for (i32 i = 0; i < numBuffers; ++i)
+        {
+            i32 drawBuffer = *(drawBuffers.begin() + i);
+            if (drawBuffer > -1)
+            {
+                buffers[i] = GL_COLOR_ATTACHMENT0 + drawBuffer;
+            }
+            else
+            {
+                buffers[i] = GL_NONE;
+            }
+
+        }
+        if (numBuffers > 0) {
+            glNamedFramebufferDrawBuffers(fbo, numBuffers, buffers);
+        }
+    }
+
     void RenderTarget::setColorBuffer(Texture2DRenderable* texture, u32 index, u32 mip)
     {
         if (index > 7)

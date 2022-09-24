@@ -43,14 +43,15 @@ namespace Cyan
         Shader* shader = ShaderManager::createShader({ ShaderType::kVsPs, "RenderToCubemapShader", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl" });
         Mesh* cubeMesh = AssetManager::getAsset<Mesh>("UnitCubeMesh");
 
-        for (u32 f = 0; f < 6u; f++)
+        for (i32 f = 0; f < 6u; f++)
         {
+            renderTarget->setDrawBuffers({ f });
+            renderTarget->clear({ { f } });
+
             GfxPipelineState pipelineState;
             pipelineState.depth = DepthControl::kDisable;
             Renderer::get()->submitMesh(
                 renderTarget.get(),
-                { { (i32)f } },
-                false,
                 { 0, 0, renderTarget->width, renderTarget->height},
                 pipelineState,
                 cubeMesh,
@@ -76,14 +77,12 @@ namespace Cyan
 
     }
 
-    void Skybox::render(RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers)
+    void Skybox::render(RenderTarget* renderTarget)
     {
         Mesh* cubeMesh = AssetManager::getAsset<Mesh>("UnitCubeMesh");
 
         Renderer::get()->submitMesh(
             renderTarget,
-            drawBuffers,
-            false,
             { 0, 0, renderTarget->width, renderTarget->height },
             GfxPipelineState(),
             cubeMesh,

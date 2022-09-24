@@ -64,60 +64,11 @@ namespace Cyan
         void setBuffer(RegularBuffer* buffer, u32 binding);
         void setPrimitiveType(PrimitiveMode type);
         void setViewport(Viewport viewport);
+        void setRenderTarget(RenderTarget* renderTarget);
         void setRenderTarget(RenderTarget* rt, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers);
         void setDepthControl(DepthControl ctrl);
         void setClearColor(glm::vec4 color);
         void setCullFace(FrontFace frontFace, FaceCull faceToCull);
-
-        // textures that uses global binding points
-        void setPersistentTexture(ITextureRenderable* texture, u32 binding)
-        {
-            if (texture)
-            {
-                textureUnits[binding] = 1;
-                glBindTextureUnit(binding, texture->getGpuResource());
-            }
-            else
-            {
-                textureUnits[binding] = 0;
-                glBindTextureUnit(binding, 0);
-            }
-        }
-
-        // textures that uses different binding points from draw to draw
-        i32 setTransientTexture(ITextureRenderable* texture) 
-        {
-            i32 availableTextureUnit = -1;
-            if (texture)
-            {
-                for (u32 i = 0; i < kMaxNumTextureUnits; ++i)
-                {
-                    if (textureUnits[i] == 0)
-                    {
-                        textureUnits[i] = 1;
-                        availableTextureUnit = i;
-                        break;
-                    }
-                }
-                if (availableTextureUnit >= 0)
-                {
-                    glBindTextureUnit(availableTextureUnit, texture->getGpuResource());
-                }
-                else
-                {
-                    cyanError("No available transient texture binding units")
-                }
-            }
-            return availableTextureUnit;
-        }
-
-        void clearTransientTextureBindings()
-        {
-            for (u32 i = 0; i < kMaxNumTextureUnits; ++i)
-            {
-                textureUnits[i] = 0;
-            }
-        }
 
         void setUniform(Shader* shader, const char* uniformName, f32 data)
         {

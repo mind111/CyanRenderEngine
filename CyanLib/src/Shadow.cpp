@@ -37,7 +37,7 @@ namespace Cyan
         depthTexture = AssetManager::createDepthTexture(depthTextureName.c_str(), resolution.x, resolution.y);
     }
 
-    void DirectionalShadowmap::render(ICamera* inCamera, const Scene& scene, RenderableScene& renderableScene, Renderer& renderer)
+    void DirectionalShadowmap::render(ICamera* inCamera, const Scene& scene, SceneRenderable& renderableScene, Renderer& renderer)
     {
         renderableScene.camera.view = inCamera->view();
         renderableScene.camera.projection = inCamera->projection();
@@ -104,7 +104,7 @@ namespace Cyan
         }
     }
 
-    void CascadedShadowmap::render(ICamera* inCamera, const Scene& scene, RenderableScene& renderableScene, Renderer& renderer)
+    void CascadedShadowmap::render(ICamera* inCamera, const Scene& scene, SceneRenderable& renderableScene, Renderer& renderer)
     {
         if (auto viewCamera = dynamic_cast<PerspectiveCamera*>(scene.camera->getCamera()))
         {

@@ -19,7 +19,7 @@
 
 namespace Cyan
 {
-    struct RenderableScene;
+    struct SceneRenderable;
 
     struct SceneView
     {
@@ -93,8 +93,6 @@ namespace Cyan
     struct RenderTask
     {
         RenderTarget* renderTarget = nullptr;
-        std::initializer_list<RenderTargetDrawBuffer> drawBuffers;
-        bool clearRenderTarget = true;
         Viewport viewport = { };
         ISubmesh* submesh = nullptr;
         Shader* shader = nullptr;
@@ -102,224 +100,21 @@ namespace Cyan
         RenderSetupLambda renderSetupLambda = [](RenderTarget* renderTarget, Shader* shader) { };
     };
 
-#if 0
-    struct RenderQueue;
-
-    /**
-    * Proxy to concrete rendering resources such as Textures, Buffers. This allows deferred resource allocations
-    */
-    struct RenderResource
-    {
-        RenderResource(const char* inTag)
-            : tag(inTag)
-        {}
-        virtual ~RenderResource() { }
-
-        virtual void createResource(RenderQueue& renderQueue) = 0;
-        void addRef() { refCount++; }
-        void removeRef() 
-        { 
-            refCount--; 
-            if (refCount == 0)
-            {
+    class RenderResourceManager {
+    public:
+        Texture2DRenderable* allocTexture(const char* name, const ITextureRenderable& spec, const ITextureRenderable::Parameter& param) {
+            /*
+            for () {
 
             }
-        }
-        const char* tag = nullptr;
-        u32 refCount = 0;
-    };
-
-    struct RenderTexture2D : public RenderResource
-    {
-        RenderTexture2D(const char* inTag, const ITextureRenderable::Spec& inSpec)
-            : RenderResource(inTag), spec(inSpec)
-        { }
-
-        RenderTexture2D(Texture2DRenderable* inTexture)
-            : RenderTexture2D(inTexture->name, inTexture->getTextureSpec())
-        { 
-            texture = inTexture;
-        }
-
-        virtual void createResource(RenderQueue& renderQueue) override;
-
-        ITextureRenderable::Spec spec = { };
-        Texture2DRenderable* texture = nullptr;
-        Texture2DRenderable* getTextureResource() { return texture; }
-    };
-
-    struct RenderPass
-    {
-        RenderPass(const char* inTag)
-            : tag(inTag)
-        { }
-
-        void addInput(RenderResource* resource) 
-        { 
-            resource->addRef();
-            inputs.push_back(resource);
-        }
-
-        void addOutput(RenderResource* resource) 
-        { 
-            outputs.push_back(resource);
-        }
-
-        const char* tag = nullptr;
-        std::vector<RenderResource*> inputs;
-        std::vector<RenderResource*> outputs;
-        std::function<void()> lambda = []() { };
-    };
-
-    /**
-    * render queue management
-    * todo: eventually convert this to a render graph
-    */
-    struct RenderQueue
-    {
-        // transient resource management
-        struct TransientResourceManager
-        {
-            Texture2DRenderable* createTexture2D(const char* name, const ITextureRenderable::Spec& inSpec) 
-            { 
-                Texture2DRenderable* outTexture = nullptr;
-                i32 index = -1;
-                // find reusable
-                for (u32 i = 0; i < reusableTextures.size(); ++i)
-                {
-                    // check if the specs are compatible
-                    if (reusableTextures[i]->getTextureSpec() == inSpec)
-                    {
-                        outTexture = static_cast<Texture2DRenderable*>(reusableTextures[i]);
-                        index = i;
-                        break;
-                    }
-                }
-                if (outTexture)
-                {
-                    reusableTextures.erase(reusableTextures.begin() + index);
-                }
-                else 
-                {
-                    // if not create new resources
-                    outTexture = createTexture2DTransient(name, inSpec);
-                }
-                return outTexture;
-            };
-
-            /**
             */
-            Texture2DRenderable* createTexture2DTransient(const char* name, const ITextureRenderable::Spec& inSpec)
-            {
-                Texture2DRenderable* outTexture = new Texture2DRenderable(name, inSpec);
-                textures.push_back(outTexture);
-                return outTexture;
-            }
-
-            void recycle(RenderResource* resource)
-            {
-                if (auto renderTexture2D = dynamic_cast<RenderTexture2D*>(resource))
-                    reusableTextures.push_back(renderTexture2D->getTextureResource());
-            }
-
-            std::vector<ITextureRenderable*> reusableTextures;
-
-            std::vector<ITextureRenderable*> textures;
-            std::unordered_map<std::string, ITextureRenderable*> transientTextures;
-        } transientResourceManager;
-
-        RenderQueue()
-        {
-            allocator = std::make_unique<LinearAllocator>(1024 * 1024 * 128);
         }
 
-        /**
-        * create resources proxies
-        */
-        RenderTexture2D* createTexture2D(const char* name, const ITextureRenderable::Spec& inSpec) 
-        { 
-            return allocator->alloc<RenderTexture2D>(name, inSpec);
-        }
-
-        RenderTexture2D* registerTexture2D(Texture2DRenderable* inTexture)
-        {
-            auto renderTexture = allocator->alloc<RenderTexture2D>(inTexture);
-            return renderTexture;
-        }
-
-        /**
-        * create concrete gpu resources
-        */
-        Texture2DRenderable* createTexture2DInternal(const char* name, const ITextureRenderable::Spec& inSpec) 
-        { 
-            Texture2DRenderable* outTexture = transientResourceManager.createTexture2D(name, inSpec);
-            return outTexture;
-        }
-
-        void addPass(const char* passName, const std::function<void(RenderQueue&, RenderPass*)>& setupLambda, const std::function<void()>& executeLambda)
-        {
-            RenderPass* pass = allocator->alloc<RenderPass>(passName);
-            // setup pass input/output
-            setupLambda(*this, pass);
-            pass->lambda = executeLambda;
-            renderPassQueue.push(pass);
-        }
-
-        void compile() { }
-        void execute() 
-        { 
-            while (!renderPassQueue.empty())
-            {
-                auto pass = renderPassQueue.front();
-                /** before execute create concrete gpu resources such as intermediate/output 
-                * textures and buffers
-                */
-                for (auto output : pass->outputs)
-                {
-                    output->createResource(*this);
-                }
-
-                // execute
-                pass->lambda();
-
-                // after execute
-                for (auto input : pass->inputs)
-                {
-                    input->removeRef();
-
-                    // recycle reusable resources
-                    if (input->refCount == 0)
-                    {
-                        transientResourceManager.recycle(input);
-                    }
-                }
-#if 0
-                // todo: does output resources need to be recycled ...?
-                // after execute
-                for (auto output : pass->outputs)
-                {
-                    // recycle reusable resources
-                    if (output->refCount == 0)
-                    {
-                        transientResourceManager.recycle(output);
-                    }
-                }
-#endif
-
-                // explicit invoke destructor to avoid leaking resources
-                pass->~RenderPass();
-                renderPassQueue.pop();
-            }
-
-            allocator->reset();
-        }
-
+        void releaseTexture(Texture2DRenderable* toRecycle);
     private:
-        std::unique_ptr<LinearAllocator> allocator = nullptr;
-        std::queue<RenderPass*> renderPassQueue;
-        std::unordered_map<std::string, RenderPass*> renderPassMap;
+        std::vector<Texture2DRenderable*> reusableTextures;
+        std::unordered_map<std::string, Texture2DRenderable*> textureMap;
     };
-#endif
 
     class Renderer : public Singleton<Renderer>
     {
@@ -336,7 +131,6 @@ namespace Cyan
 
         GfxContext* getGfxCtx() { return m_ctx; };
         LinearAllocator& getFrameAllocator() { return m_frameAllocator; }
-        // RenderQueue& getRenderQueue() { return m_renderQueue; }
 
 // rendering
         void beginRender();
@@ -344,7 +138,7 @@ namespace Cyan
         void renderToScreen(Texture2DRenderable* inTexture);
         void endRender();
 
-        Texture2DRenderable* renderScene(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
+        Texture2DRenderable* renderScene(SceneRenderable& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
 
         /**
         * brief:
@@ -367,32 +161,44 @@ namespace Cyan
             u32 sizeInBytes = 1024 * 1024 * 32;
             void* data = nullptr;
         } indirectDrawBuffer;
-        Texture2DRenderable* renderSceneMultiDraw(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution, const SSGITextures& SSGIOutput);
-        void submitSceneMultiDrawIndirect(RenderableScene& renderableScene);
+        Texture2DRenderable* renderSceneMultiDraw(SceneRenderable& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution, const SSGITextures& SSGIOutput);
+        void submitSceneMultiDrawIndirect(SceneRenderable& renderableScene);
 
+        // radiosity experiements
+        struct RasterCube {
+            glm::vec4 position;
+            glm::vec4 normal;
+        };
+        GLuint rasterCubeBuffer;
+        GLuint rasterCubeCounter;
+        RasterCube* rasterCubes;
+        u32 numFilledRasterCubes = 0u;
 #if 0
         void gpuRayTracing(struct RayTracingScene& rtxScene, RenderTexture2D* outputBuffer, RenderTexture2D* sceneDepthBuffer, RenderTexture2D* sceneNormalBuffer);
 #endif
-        void renderSceneMeshOnly(RenderableScene& sceneRenderable, RenderTarget* dstRenderTarget, Shader* shader);
+        void renderSceneMeshOnly(SceneRenderable& sceneRenderable, RenderTarget* dstRenderTarget, Shader* shader);
 
         struct ZPrepassOutput {
             Texture2DRenderable* depthBuffer;
             Texture2DRenderable* normalBuffer;
         };
-        ZPrepassOutput renderSceneDepthNormal(RenderableScene& renderableScene, const glm::uvec2& outputResolution);
-        void renderSceneDepthOnly(RenderableScene& renderableScene, Texture2DRenderable* outDepthTexture);
+        ZPrepassOutput renderSceneDepthNormal(SceneRenderable& renderableScene, const glm::uvec2& outputResolution);
+        void renderSceneDepthOnly(SceneRenderable& renderableScene, Texture2DRenderable* outDepthTexture);
 
         bool bFullscreenRadiosity = false;
         InstantRadiosity m_instantRadiosity;
 
         /* Debugging utilities */
         void debugDrawLine(const glm::vec3& v0, const glm::vec3& v1);
-        void debugDrawSphere(RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection);
+        void debugDrawSphere(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection);
+        void debugDrawCubeImmediate(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection);
+        void debugDrawCubeBatched(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::vec3& facingDir, const glm::vec4& color, const glm::mat4& view, const glm::mat4& projection);
 
-        void renderDebugObjects(RenderTexture2D* outTexture);
+        // todo: implement this
+        void renderDebugObjects();
 
         /* Shadow */
-        void renderShadow(const Scene& scene, const RenderableScene& renderableScene);
+        void renderShadow(const Scene& scene, const SceneRenderable& renderableScene);
 
         /*
         * Render provided scene into a light probe
@@ -411,22 +217,22 @@ namespace Cyan
         */
         void renderUI();
 
-        void drawMeshInstance(const RenderableScene& renderableScene, RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, MeshInstance* meshInstance, i32 transformIndex);
+        void drawMeshInstance(const SceneRenderable& renderableScene, RenderTarget* renderTarget, Viewport viewport, GfxPipelineState pipelineState, MeshInstance* meshInstance, i32 transformIndex);
 
         /**
         * Draw a mesh without material
         */
-        void submitMesh(RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, Mesh* mesh, Shader* shader, const RenderSetupLambda& renderSetupLambda);
+        void submitMesh(RenderTarget* renderTarget, Viewport viewport, GfxPipelineState pipelineState, Mesh* mesh, Shader* shader, const RenderSetupLambda& renderSetupLambda);
 
         /**
         * Draw a mesh using same material for all its submesh
         */
-        void submitMaterialMesh(RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, bool clearRenderTarget, Viewport viewport, GfxPipelineState pipelineState, Mesh* mesh, IMaterial* material, const RenderSetupLambda& perMeshSetupLambda);
+        void submitMaterialMesh(RenderTarget* renderTarget, Viewport viewport, GfxPipelineState pipelineState, Mesh* mesh, IMaterial* material, const RenderSetupLambda& perMeshSetupLambda);
 
         /**
         * 
         */
-        void submitFullScreenPass(RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers, Shader* shader, RenderSetupLambda&& renderSetupLambda);
+        void submitFullScreenPass(RenderTarget* renderTarget, Shader* shader, RenderSetupLambda&& renderSetupLambda);
 
         /**
         * Submit a submesh; right now the execution is not deferred
@@ -454,6 +260,8 @@ namespace Cyan
         };
         DownsampleChain downsample(RenderTexture2D* inTexture, u32 inNumStages);
         RenderTexture2D* bloom(RenderTexture2D* inTexture);
+
+        Texture2DRenderable* downsample(Texture2DRenderable* inTexture, Texture2DRenderable* outTexture);
 
         /**
         * Local tonemapping using "Exposure Fusion"
@@ -662,7 +470,6 @@ namespace Cyan
         u32 m_numFrames = 0u;
         LinearAllocator m_frameAllocator;
         std::queue<UIRenderCommand> m_UIRenderCommandQueue;
-        // RenderQueue m_renderQueue;
         Texture2DRenderable* m_rtxPingPongBuffer[2] = { 0 };
     };
 };

@@ -81,8 +81,6 @@ namespace Cyan
 
         virtual void renderUI() override;
 
-        // todo: is there a way to nicely abstract binding each member field, if we can do reflection, then we 
-        // can loop through each member field and call shader->setUniform() on each field
         virtual void setShaderParameters(Shader* shader) override
         {
             shader->setUniform("materialInput.M_flags", getFlags());

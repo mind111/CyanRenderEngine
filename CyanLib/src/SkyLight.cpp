@@ -53,41 +53,40 @@ namespace Cyan
 
     void SkyLight::buildCubemap(Texture2DRenderable* srcEquirectMap, TextureCubeRenderable* dstCubemap)
     {
+        auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(dstCubemap->resolution, dstCubemap->resolution));
+        renderTarget->setColorBuffer(dstCubemap, 0u);
+
+        Shader* shader = ShaderManager::createShader({ ShaderType::kVsPs, "RenderToCubemapShader", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl" });
+        Mesh* cubeMesh = AssetManager::getAsset<Mesh>("UnitCubeMesh");
+
+        for (i32 f = 0; f < 6u; f++)
         {
-            auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(dstCubemap->resolution, dstCubemap->resolution));
-            renderTarget->setColorBuffer(dstCubemap, 0u);
+            renderTarget->setDrawBuffers({ f });
+            renderTarget->clear({ { f } });
 
-            Shader* shader = ShaderManager::createShader({ ShaderType::kVsPs, "RenderToCubemapShader", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl" });
-            Mesh* cubeMesh = AssetManager::getAsset<Mesh>("UnitCubeMesh");
-
-            for (u32 f = 0; f < 6u; f++)
-            {
-                GfxPipelineState pipelineState;
-                pipelineState.depth = DepthControl::kDisable;
-                Renderer::get()->submitMesh(
-                    renderTarget.get(),
-                    { { (i32)f } },
-                    false,
-                    { 0, 0, renderTarget->width, renderTarget->height},
-                    pipelineState,
-                    cubeMesh,
-                    shader,
-                    [this, srcEquirectMap, f](RenderTarget* renderTarget, Shader* shader) {
-                        // Update view matrix
-                        PerspectiveCamera camera(
-                            glm::vec3(0.f),
-                            LightProbeCameras::cameraFacingDirections[f],
-                            LightProbeCameras::worldUps[f],
-                            90.f,
-                            0.1f,
-                            100.f,
-                            1.0f
-                        );
-                        shader->setTexture("srcImageTexture", srcEquirectMap);
-                        shader->setUniform("projection", camera.projection());
-                        shader->setUniform("view", camera.view());
-                    });
-            }
+            GfxPipelineState pipelineState;
+            pipelineState.depth = DepthControl::kDisable;
+            Renderer::get()->submitMesh(
+                renderTarget.get(),
+                { 0, 0, renderTarget->width, renderTarget->height},
+                pipelineState,
+                cubeMesh,
+                shader,
+                [this, srcEquirectMap, f](RenderTarget* renderTarget, Shader* shader) {
+                    // Update view matrix
+                    PerspectiveCamera camera(
+                        glm::vec3(0.f),
+                        LightProbeCameras::cameraFacingDirections[f],
+                        LightProbeCameras::worldUps[f],
+                        90.f,
+                        0.1f,
+                        100.f,
+                        1.0f
+                    );
+                    shader->setTexture("srcImageTexture", srcEquirectMap);
+                    shader->setUniform("projection", camera.projection());
+                    shader->setUniform("view", camera.view());
+                });
         }
     }
 }

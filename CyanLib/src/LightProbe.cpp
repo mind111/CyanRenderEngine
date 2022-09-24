@@ -120,15 +120,15 @@ namespace Cyan
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(m_irradianceTextureRes.x, m_irradianceTextureRes.y));
         renderTarget->setColorBuffer(m_convolvedIrradianceTexture, 0u);
         {
-            for (u32 f = 0; f < 6u; ++f)
+            for (i32 f = 0; f < 6u; ++f)
             {
+                renderTarget->setDrawBuffers({ f });
+                renderTarget->clear({ { f } });
+
                 GfxPipelineState pipelineState;
                 pipelineState.depth = DepthControl::kDisable;
-
                 renderer->submitMesh(
                     renderTarget.get(),
-                    { { (i32)f } },
-                    false,
                     { 0u, 0u, renderTarget->width, renderTarget->height }, 
                     pipelineState, 
                     AssetManager::getAsset<Mesh>("UnitCubeMesh"),
@@ -226,7 +226,6 @@ namespace Cyan
         pipelineState.depth = DepthControl::kDisable;
         renderer->submitFullScreenPass(
             renderTarget,
-            { { 0u } },
             shader,
             [](RenderTarget* renderTarget, Shader* shader) {
 
@@ -249,14 +248,14 @@ namespace Cyan
             auto renderTarget = createRenderTarget(mipWidth, mipHeight);
             renderTarget->setColorBuffer(m_convolvedReflectionTexture, 0u, mip);
             {
-                for (u32 f = 0; f < 6u; f++)
+                for (i32 f = 0; f < 6u; f++)
                 {
+                    renderTarget->setDrawBuffers({ f });
+                    renderTarget->clear({ { f } });
                     GfxPipelineState pipelineState;
                     pipelineState.depth = DepthControl::kDisable;
                     renderer->submitMesh(
                         renderTarget,
-                        { { (i32)f } },
-                        false,
                         { 0u, 0u, renderTarget->width, renderTarget->height }, 
                         pipelineState, 
                         AssetManager::getAsset<Mesh>("UnitCubeMesh"),

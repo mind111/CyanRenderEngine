@@ -58,6 +58,9 @@
     <Filter Include="Source Files\Internal\InstantRadiosity">
       <UniqueIdentifier>{58e7e6e6-f675-49a2-be83-16408004ae31}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\DebugDraw">
+      <UniqueIdentifier>{28070b77-2caa-411c-8193-54868e73d1b6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Allocator.h">
@@ -682,12 +685,6 @@
     <None Include="..\shader\generate_vpl_v.glsl">
       <Filter>Shaders\Shading</Filter>
     </None>
-    <None Include="..\shader\debug_draw_v.glsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\shader\debug_draw_p.glsl">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="..\shader\point_shadow_v.glsl">
       <Filter>Shaders\Shadow</Filter>
     </None>
@@ -702,6 +699,21 @@
     </None>
     <None Include="..\shader\point_vsm_shadow_p.glsl">
       <Filter>Shaders\Shadow</Filter>
+    </None>
+    <None Include="..\shader\fill_raster_p.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\debug_draw_p.glsl">
+      <Filter>Shaders\DebugDraw</Filter>
+    </None>
+    <None Include="..\shader\debug_draw_v.glsl">
+      <Filter>Shaders\DebugDraw</Filter>
+    </None>
+    <None Include="..\shader\debug_draw_line_v.glsl">
+      <Filter>Shaders\DebugDraw</Filter>
+    </None>
+    <None Include="..\shader\debug_draw_line_p.glsl">
+      <Filter>Shaders\DebugDraw</Filter>
     </None>
   </ItemGroup>
 </Project>

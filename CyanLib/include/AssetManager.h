@@ -46,8 +46,10 @@ namespace Cyan
             /**
                 initialize default geometries and shapes
             */ 
+            // line
+
             // cube
-            u32 numVertices = sizeof(cubeVertices) / sizeof(f32);
+            u32 numVertices = sizeof(cubeVertices) / sizeof(glm::vec3);
             std::vector<ISubmesh*> submeshes;
             std::vector<Triangles::Vertex> vertices(numVertices);
             std::vector<u32> indices(numVertices);

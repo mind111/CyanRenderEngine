@@ -52,7 +52,7 @@ namespace Cyan
     };
 
     /** todo:
-    * should copying RenderableScene be allowed? if so then basically every ssbo will be shared between the copies and need to be reference counted
+    * should copying SceneRenderable be allowed? if so then basically every ssbo will be shared between the copies and need to be reference counted
     * to avoid a copy's destructor release shared ssbo, causing all sorts of artifact and weird bugs.
     */
 
@@ -64,9 +64,8 @@ namespace Cyan
     *         * camera related view data
     *         * lights
     *         * instance transforms
-    *         * (todo) material buffers
     */
-    struct RenderableScene
+    struct SceneRenderable
     {
         // view data
         struct ViewData
@@ -102,8 +101,8 @@ namespace Cyan
         using MaterialBuffer = ShaderStorageBuffer<DynamicSsboStruct<Material>>;
         using DrawCallBuffer = ShaderStorageBuffer<DynamicSsboStruct<u32>>;
 
-        RenderableScene(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator);
-        ~RenderableScene()
+        SceneRenderable(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator);
+        ~SceneRenderable()
         { 
         }
 

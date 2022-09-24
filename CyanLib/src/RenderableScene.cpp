@@ -9,7 +9,7 @@
 
 namespace Cyan
 {
-    PackedGeometry* RenderableScene::packedGeometry = nullptr;
+    PackedGeometry* SceneRenderable::packedGeometry = nullptr;
 
     PackedGeometry::PackedGeometry(const Scene& scene)
     {
@@ -70,7 +70,7 @@ namespace Cyan
         submeshes.update();
     }
 
-    RenderableScene::RenderableScene(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator)
+    SceneRenderable::SceneRenderable(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator)
         : camera{ sceneView.camera->view(), sceneView.camera->projection() }
     {
         viewSsbo = std::make_shared<ViewSsbo>();
@@ -244,7 +244,7 @@ namespace Cyan
     /**
     * Submit rendering data to global gpu buffers
     */
-    void RenderableScene::submitSceneData(GfxContext* ctx)
+    void SceneRenderable::submitSceneData(GfxContext* ctx)
     {
         // todo: avoid repetitively submit redundant data
         {
@@ -278,21 +278,5 @@ namespace Cyan
         materials->bind(MATERIAL_BUFFER_BINDING);
         drawCalls->update();
         drawCalls->bind(DRAWCALL_BUFFER_BINDING);
-
-        // shared BRDF lookup texture used in split sum approximation for image based lighting
-        if (Texture2DRenderable* BRDFLookupTexture = ReflectionProbe::getBRDFLookupTexture())
-        {
-            ctx->setPersistentTexture(BRDFLookupTexture, (u32)SceneTextureBindings::BRDFLookupTexture);
-        }
-
-        // additional light probes
-        if (irradianceProbe)
-        {
-            ctx->setPersistentTexture(irradianceProbe->m_convolvedIrradianceTexture, 3);
-        }
-        if (reflectionProbe)
-        {
-            ctx->setPersistentTexture(reflectionProbe->m_convolvedReflectionTexture, 4);
-        }
     }
 }

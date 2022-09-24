@@ -122,6 +122,15 @@ namespace Cyan
         glViewport(viewport.m_x, viewport.m_y, viewport.m_width, viewport.m_height);
     }
 
+    void GfxContext::setRenderTarget(RenderTarget* renderTarget) {
+        if (!renderTarget)
+        {
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            return;
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, renderTarget->fbo);
+    }
+
     void GfxContext::setRenderTarget(RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers)
     {
         if (!renderTarget)

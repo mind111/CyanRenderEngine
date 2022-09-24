@@ -96,7 +96,7 @@ namespace Cyan {
         glNamedBufferData(VPLShadowHandleBuffer, sizeof(VPLShadowHandles), VPLShadowHandles, GL_DYNAMIC_COPY);
     }
 
-    void InstantRadiosity::generateVPLs(Renderer* renderer, RenderableScene& renderableScene, const glm::uvec2& renderResolution) {
+    void InstantRadiosity::generateVPLs(Renderer* renderer, SceneRenderable& renderableScene, const glm::uvec2& renderResolution) {
         ITextureRenderable::Spec spec = { };
         spec.type = TEX_2D;
         spec.width = renderResolution.x;
@@ -122,7 +122,6 @@ namespace Cyan {
             light->setShaderParameters(VPLGenerationShader);
         }
         VPLGenerationShader->setUniform("kMaxNumVPLs", kMaxNumVPLs);
-        VPLGenerationShader->commit(gfxc);
 
         // bind VPL atomic counter
         numGeneratedVPLs = 0;
@@ -141,8 +140,8 @@ namespace Cyan {
         numGeneratedVPLs = min(kMaxNumVPLs, numGeneratedVPLs);
     }
 
-    void InstantRadiosity::buildVPLVSMs(Renderer* renderer, RenderableScene& renderableScene) {
-        auto renderVPLVSM = [this, renderer](i32 VPLIndex, RenderableScene& renderableScene, RenderTarget* renderTarget) {
+    void InstantRadiosity::buildVPLVSMs(Renderer* renderer, SceneRenderable& renderableScene) {
+        auto renderVPLVSM = [this, renderer](i32 VPLIndex, SceneRenderable& renderableScene, RenderTarget* renderTarget) {
             glDisable(GL_CULL_FACE);
             glm::vec3 position = vec4ToVec3(VPLs[VPLIndex].position);
             // render point shadow map
@@ -173,8 +172,6 @@ namespace Cyan {
                 {
                     renderer->submitMesh(
                         renderTarget,
-                        { { pass } },
-                        false,
                         { 0, 0, renderTarget->width, renderTarget->height},
                         GfxPipelineState(),
                         meshInst->parent,
@@ -198,7 +195,6 @@ namespace Cyan {
             Shader* octMappingShader = ShaderManager::createShader({ ShaderType::kVsPs, "OctMappingShader", SHADER_SOURCE_PATH "oct_mapping_v.glsl", SHADER_SOURCE_PATH "oct_mapping_p.glsl" });
             renderer->submitFullScreenPass(
                 octMappingRenderTarget.get(),
-                { { 0 } },
                 octMappingShader,
                 [this, VPLIndex](RenderTarget* renderTarget, Shader* shader) {
                     shader->setUniform("srcCubemap", (i32)100);
@@ -234,9 +230,9 @@ namespace Cyan {
 #endif
     }
 
-    void InstantRadiosity::buildVPLShadowMaps(Renderer* renderer, RenderableScene& renderableScene) {
+    void InstantRadiosity::buildVPLShadowMaps(Renderer* renderer, SceneRenderable& renderableScene) {
         // render VPL basic shadow maps
-        auto renderVPLShadow = [this, renderer](i32 VPLIndex, RenderableScene& renderableScene, RenderTarget* depthRenderTarget) {
+        auto renderVPLShadow = [this, renderer](i32 VPLIndex, SceneRenderable& renderableScene, RenderTarget* depthRenderTarget) {
             glDisable(GL_CULL_FACE);
             glm::vec3 position = vec4ToVec3(VPLs[VPLIndex].position);
             // render point shadow map
@@ -267,8 +263,6 @@ namespace Cyan {
                 {
                     renderer->submitMesh(
                         depthRenderTarget,
-                        { { pass } },
-                        false,
                         { 0, 0, depthRenderTarget->width, depthRenderTarget->height},
                         GfxPipelineState(),
                         meshInst->parent,
@@ -291,7 +285,6 @@ namespace Cyan {
             Shader* octMappingShader = ShaderManager::createShader({ ShaderType::kVsPs, "OctMappingShader", SHADER_SOURCE_PATH "oct_mapping_v.glsl", SHADER_SOURCE_PATH "oct_mapping_p.glsl" });
             renderer->submitFullScreenPass(
                 octMappingRenderTarget.get(),
-                { { 0 } },
                 octMappingShader,
                 [this, VPLIndex](RenderTarget* renderTarget, Shader* shader) {
                     shader->setUniform("srcCubemap", (i32)100);
@@ -307,7 +300,7 @@ namespace Cyan {
         }
     }
 
-    void InstantRadiosity::renderInternal(Renderer* renderer, RenderableScene& renderableScene, Texture2DRenderable* output) {
+    void InstantRadiosity::renderInternal(Renderer* renderer, SceneRenderable& renderableScene, Texture2DRenderable* output) {
         // render scene depth normal pass first
         auto zPrepassOutput = renderer->renderSceneDepthNormal(renderableScene, glm::uvec2(1280u, 720u));
         auto sceneDepthBuffer = zPrepassOutput.depthBuffer;
@@ -316,7 +309,7 @@ namespace Cyan {
         renderInternal(renderer, renderableScene, sceneDepthBuffer, sceneNormalBuffer, output);
     }
 
-    void InstantRadiosity::renderInternal(Renderer* renderer, RenderableScene& renderableScene, Texture2DRenderable* sceneDepthBuffer, Texture2DRenderable* sceneNormalBuffer, Texture2DRenderable* output) {
+    void InstantRadiosity::renderInternal(Renderer* renderer, SceneRenderable& renderableScene, Texture2DRenderable* sceneDepthBuffer, Texture2DRenderable* sceneNormalBuffer, Texture2DRenderable* output) {
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(1280, 720));
         renderTarget->setColorBuffer(output, 0);
         Shader* shader = ShaderManager::createShader({ ShaderType::kVsPs, "InstantRadiosityShader", SHADER_SOURCE_PATH "instant_radiosity_v.glsl", SHADER_SOURCE_PATH "instant_radiosity_p.glsl" });
@@ -324,7 +317,6 @@ namespace Cyan {
         // final blit to default framebuffer
         renderer->submitFullScreenPass(
             renderTarget.get(),
-            { { 0u } },
             shader,
             [this, sceneDepthBuffer, sceneNormalBuffer](RenderTarget* renderTarget, Shader* shader) {
                 shader->setTexture("sceneDepthBuffer", sceneDepthBuffer);
@@ -361,7 +353,7 @@ namespace Cyan {
             });
     }
     
-    Texture2DRenderable* InstantRadiosity::render(Renderer* renderer, RenderableScene& renderableScene, const glm::uvec2& renderResolution) {
+    Texture2DRenderable* InstantRadiosity::render(Renderer* renderer, SceneRenderable& renderableScene, const glm::uvec2& renderResolution) {
         ITextureRenderable::Spec spec = { };
         spec.type = TEX_2D;
         spec.width = renderResolution.x;
@@ -391,7 +383,7 @@ namespace Cyan {
         return radiosity;
     }
 
-     Texture2DRenderable* InstantRadiosity::render(Renderer* renderer, RenderableScene& renderableScene, Texture2DRenderable* sceneDepthBuffer, Texture2DRenderable* sceneNormalBuffer, const glm::uvec2& renderResolution) {
+     Texture2DRenderable* InstantRadiosity::render(Renderer* renderer, SceneRenderable& renderableScene, Texture2DRenderable* sceneDepthBuffer, Texture2DRenderable* sceneNormalBuffer, const glm::uvec2& renderResolution) {
         ITextureRenderable::Spec spec = { };
         spec.type = TEX_2D;
         spec.width = renderResolution.x;
@@ -421,13 +413,12 @@ namespace Cyan {
         return radiosity;
     }
 
-    void InstantRadiosity::visualizeVPLs(Renderer* renderer, RenderTarget* renderTarget, RenderableScene& renderableScene) {
+    void InstantRadiosity::visualizeVPLs(Renderer* renderer, RenderTarget* renderTarget, SceneRenderable& renderableScene) {
         Shader* debugDrawShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "DebugDrawShader", SHADER_SOURCE_PATH "debug_draw_v.glsl", SHADER_SOURCE_PATH "debug_draw_p.glsl" });
         // debug draw VPLs
         for (i32 i = 0; i < kMaxNumVPLs; ++i) {
             renderer->debugDrawSphere(
                 renderTarget,
-                { { 0 } },
                 { 0, 0, renderTarget->width, renderTarget->height },
                 vec4ToVec3(VPLs[i].position),
                 glm::vec3(0.02),

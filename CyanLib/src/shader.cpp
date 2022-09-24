@@ -340,26 +340,19 @@ namespace Cyan
 
     Shader& Shader::setTexture(const char* samplerName, ITextureRenderable* texture)
     {
-        const auto& entry = samplerBindingMap.find(samplerName);
-        if (entry == samplerBindingMap.end())
-        {
-            samplerBindingMap.insert({ samplerName, texture });
-        }
-        else
-        {
-            entry->second = texture;
-        }
-        return *this;
-    }
-
-    Shader& Shader::setTextureBindings(GfxContext* ctx)
-    {
-        for (const auto& entry : samplerBindingMap)
-        {
-            const char* sampler = entry.first.c_str();
-            ITextureRenderable* texture = entry.second;
-            i32 binding = ctx->setTransientTexture(texture);
-            setUniform(sampler, binding);
+        if (texture) {
+            const auto& entry = samplerBindingMap.find(samplerName);
+            if (entry == samplerBindingMap.end()) {
+                samplerBindingMap.insert({ samplerName, texture });
+            } else {
+                entry->second = texture;
+            }
+            if (samplerBindingMap.size() >= kMaxNumTextureBindings - 1) {
+                cyanError("Too many textures bound!");
+            }
+            setUniform(samplerName, nextTextureBinding);
+            glBindTextureUnit(nextTextureBinding, texture->getGpuResource());
+            nextTextureBinding = (nextTextureBinding + 1) % kMaxNumTextureBindings;
         }
         return *this;
     }

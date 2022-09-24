@@ -87,15 +87,7 @@ namespace Cyan
         Shader& setUniform(const char* name, const glm::vec3& data);
         Shader& setUniform(const char* name, const glm::vec4& data);
         Shader& setUniform(const char* name, const glm::mat4& data);
-
         Shader& setTexture(const char* samplerName, ITextureRenderable* texture);
-        Shader& setTextureBindings(struct GfxContext* ctx);
-        
-        // submit data to gpu
-        void commit(GfxContext* ctx)
-        {
-            setTextureBindings(ctx);
-        }
 
     private:
         void build();
@@ -106,6 +98,9 @@ namespace Cyan
         // do shader introspection to initialize all the meta data
         void init();
 
+        const u32 kMaxNumTextureBindings = 32;
+        i32 nextTextureBinding = 0u;
+        i32 boundTextures = 0u;
         // std::unordered_map<const char*, u32> uniformLocationMap;
         std::unordered_map<std::string, ITextureRenderable*> samplerBindingMap;
         std::unordered_map<std::string, UniformMetaData> uniformMetaDataMap;

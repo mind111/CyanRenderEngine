@@ -3,6 +3,11 @@
 out vec3 outColor;
 uniform vec3 color;
 
+in VSOutput
+{
+    vec4 color;
+} psIn;
+
 void main() {
-	outColor = color;
+	outColor = psIn.color.rgb;
 }

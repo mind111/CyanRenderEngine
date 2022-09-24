@@ -145,8 +145,11 @@
     <None Include="..\shader\calculate_light.glsl" />
     <None Include="..\shader\debug_color_fs.glsl" />
     <None Include="..\shader\debug_color_vs.glsl" />
+    <None Include="..\shader\debug_draw_line_p.glsl" />
+    <None Include="..\shader\debug_draw_line_v.glsl" />
     <None Include="..\shader\debug_draw_p.glsl" />
     <None Include="..\shader\debug_draw_v.glsl" />
+    <None Include="..\shader\fill_raster_p.glsl" />
     <None Include="..\shader\generate_vpl_p.glsl" />
     <None Include="..\shader\generate_vpl_v.glsl" />
     <None Include="..\shader\global_buffers.glsl" />
