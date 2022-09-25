@@ -677,6 +677,143 @@ namespace Cyan
         m_ctx->clear();
     }
 
+    void Renderer::initializeRasterGI() {
+        static bool bInitialized = false;
+        if (!bInitialized) {
+            maxNumRasterCubes = irradianceAtlasRes.x * irradianceAtlasRes.y;
+            rasterCubes = new RasterCube[maxNumRasterCubes];
+            renderedRasterCubes = new RasterCube[maxNumRasterCubes];
+
+            glCreateBuffers(1, &rasterCubeBuffer);
+            u32 bufferSize = maxNumRasterCubes * sizeof(RasterCube);
+            glNamedBufferData(rasterCubeBuffer, bufferSize, nullptr, GL_DYNAMIC_COPY);
+
+            glCreateBuffers(1, &rasterCubeCounter);
+            glNamedBufferData(rasterCubeCounter, sizeof(u32), nullptr, GL_DYNAMIC_COPY);
+
+            ITextureRenderable::Spec radianceAtlasSpec = { };
+            radianceAtlasSpec.type = TEX_2D;
+            radianceAtlasSpec.width = irradianceAtlasRes.x * microBufferRes;
+            radianceAtlasSpec.height = irradianceAtlasRes.y * microBufferRes;
+            radianceAtlasSpec.pixelFormat = PF_RGB16F;
+            radianceAtlas = new Texture2DRenderable("RadianceAtlas", radianceAtlasSpec);
+            radianceAtlasRenderTarget = createRenderTarget(radianceAtlas->width, radianceAtlas->height);
+            radianceAtlasRenderTarget->setColorBuffer(radianceAtlas, 0);
+
+            /** note - @min:
+            * it seems imageStore() only supports 1,2,4 channels textures, so using rgba16f here
+            */
+            ITextureRenderable::Spec irradianceAtlasSpec = { };
+            irradianceAtlasSpec.type = TEX_2D;
+            irradianceAtlasSpec.width = irradianceAtlasRes.x;
+            irradianceAtlasSpec.height = irradianceAtlasRes.y;
+            irradianceAtlasSpec.pixelFormat = PF_RGBA16F;
+            irradianceAtlas = new Texture2DRenderable("IrradianceAtlas", irradianceAtlasSpec);
+
+            bInitialized = true;
+        }
+    }
+
+    void Renderer::startBuildingRadianceAtlas() {
+        bBuildingRadianceAtlas = true;
+        // clear the radiance atlas
+        glm::vec3 skyColor(0.529f, 0.808f, 0.922f);
+        // radianceAtlasRenderTarget->clear({ { 0, glm::vec4(skyColor, 1.f) } });
+        radianceAtlasRenderTarget->clear({ { 0 } });
+        // make a copy of current placed raster cubes 
+        memcpy(renderedRasterCubes, rasterCubes, sizeof(RasterCube) * maxNumRasterCubes);
+    }
+
+    void Renderer::placeRasterCubes(Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) {
+        u32 rasterCubeBufferSize = sizeof(RasterCube) * maxNumRasterCubes;
+        // clear raster cube buffer
+        memset(rasterCubes, 0x0, rasterCubeBufferSize);
+
+        // todo: how to cache spawned raster cubes and avoid placing duplicated raster cubes
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 52, rasterCubeBuffer);
+
+        auto fillRasterShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "FillRasterShader", SHADER_SOURCE_PATH "blit_v.glsl", SHADER_SOURCE_PATH "fill_raster_p.glsl" });
+        auto fillRasterRenderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(irradianceAtlasRes.x, irradianceAtlasRes.y));
+        submitFullScreenPass(
+            fillRasterRenderTarget.get(),
+            fillRasterShader,
+            [depthBuffer, normalBuffer](RenderTarget* renderTarget, Shader* shader) {
+                shader->setUniform("outputSize", glm::vec2(renderTarget->width, renderTarget->height));
+                shader->setTexture("depthBuffer", depthBuffer);
+                shader->setTexture("normalBuffer", normalBuffer);
+            }
+        );
+
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_ATOMIC_COUNTER_BARRIER_BIT);
+
+        // read back data from gpu
+        glGetNamedBufferSubData(rasterCubeBuffer, 0, rasterCubeBufferSize, rasterCubes);
+    }
+
+    void Renderer::buildOneFrameRadianceAtlas(SceneRenderable& sceneRenderable) {
+        Shader* rasterGIShader = ShaderManager::createShader({ 
+            ShaderSource::Type::kVsPs,
+            "RasterGIShader",
+            SHADER_SOURCE_PATH "raster_gi_final_gather_v.glsl", 
+            SHADER_SOURCE_PATH "raster_gi_final_gather_p.glsl",
+        });
+        m_ctx->setRenderTarget(radianceAtlasRenderTarget);
+        m_ctx->setShader(rasterGIShader);
+        // supposing this only need to be set once
+        for (auto light : sceneRenderable.lights) {
+            light->setShaderParameters(rasterGIShader);
+        }
+
+        bool bBuildingComplete = false;
+        // start rasterizing the raster cubes
+        const i32 perFrameWorkload = 16;
+        for (i32 i = 0; i < perFrameWorkload; ++i) {
+            i32 rasterCubeIndex = (perFrameWorkload * renderedFrames + i);
+            if (rasterCubeIndex < maxNumRasterCubes) {
+                if (renderedRasterCubes[rasterCubeIndex].position.w > 0.f) {
+                    i32 x = rasterCubeIndex % irradianceAtlasRes.x;
+                    i32 y = rasterCubeIndex / irradianceAtlasRes.x;
+                    m_ctx->setViewport({ x * microBufferRes, y * microBufferRes, microBufferRes, microBufferRes });
+                    PerspectiveCamera rasterCam;
+                    rasterCam.f = 32.f;
+                    rasterCam.position = vec4ToVec3(renderedRasterCubes[rasterCubeIndex].position);
+                    rasterCam.lookAt = rasterCam.position + vec4ToVec3(renderedRasterCubes[rasterCubeIndex].normal);
+                    rasterGIShader->setUniform("view", rasterCam.view());
+                    rasterGIShader->setUniform("projection", rasterCam.projection());
+                    rasterGIShader->setUniform("receivingNormal", vec4ToVec3(renderedRasterCubes[rasterCubeIndex].normal));
+                    submitSceneMultiDrawIndirect(sceneRenderable);
+                }
+            }
+            else {
+                bBuildingComplete = true;
+                break;
+            }
+        }
+        if (bBuildingComplete) {
+            renderedFrames = 0;
+            bBuildingRadianceAtlas = false;
+        }
+        else {
+            renderedFrames++;
+        }
+    }
+
+    void Renderer::buildIrradianceAtlas() {
+        Shader* convolveIrradianceShader = ShaderManager::createShader({ 
+            ShaderSource::Type::kCs,
+            "RasterGIConvolveIrradianceShader",
+            nullptr,
+            nullptr,
+            nullptr,
+            SHADER_SOURCE_PATH "raster_gi_convolve_irradiance_c.glsl",
+        });
+        m_ctx->setShader(convolveIrradianceShader);
+        convolveIrradianceShader->setUniform("microBufferRes", microBufferRes);
+        convolveIrradianceShader->setTexture("radianceAtlas", radianceAtlas);
+        glBindImageTexture(0, irradianceAtlas->getGpuResource(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA16F);
+        glDispatchCompute(irradianceAtlasRes.x, irradianceAtlasRes.y, 1);
+    }
+
     void Renderer::render(Scene* scene)
     {
         //-------------------------------------------------------------------
@@ -722,129 +859,43 @@ namespace Cyan
             // shadow
             renderShadow(*scene, sceneRenderable);
             // scene depth & normal pass
-            auto zPrepass = renderSceneDepthNormal(sceneRenderable, renderResolution / 64u);
-            // downsample the depth & normal buffer twice
-            /*
+            auto zPrepass = renderSceneDepthNormal(sceneRenderable, renderResolution);
+
+            // rasterization gi
             {
-                ITextureRenderable::Spec depthSpec = zPrepass.depthBuffer->getTextureSpec();
-                depthSpec.width = renderResolution.x / 2;
-                depthSpec.height = renderResolution.y / 2;
-                static auto halfResDepthBuffer = new Texture2DRenderable("SceneDepth(1/2)", depthSpec);
-
-                ITextureRenderable::Spec normalSpec = zPrepass.normalBuffer->getTextureSpec();
-                normalSpec.width = renderResolution.x / 2;
-                normalSpec.height = renderResolution.y / 2;
-                static auto halfResNormalBuffer = new Texture2DRenderable("SceneNormal(1/2)", normalSpec);
-
-                Shader* downsampleShader = ShaderManager::createShader({ ShaderType::kVsPs, "BloomDownsampleShader", SHADER_SOURCE_PATH "bloom_downsample_v.glsl", SHADER_SOURCE_PATH "bloom_downsample_p.glsl" });
-                std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(depthSpec.width, depthSpec.height));
-                renderTarget->setColorBuffer(halfResDepthBuffer, 0);
-                renderTarget->setColorBuffer(halfResNormalBuffer, 1);
-                renderTarget->setDrawBuffers({ 0, 1 });
-                submitFullScreenPass(
-                    renderTarget.get(),
-                    downsampleShader, 
-                    [zPrepass](RenderTarget* renderTarget, Shader* shader) {
-                        shader->setTexture("srcImage", zPrepass.depthBuffer);
-                    });
-            }
-            */
-            // radiosity
-            {
-                static bool bInitialized = false;
-
-                if (!bInitialized) {
-                    rasterCubes = new RasterCube[zPrepass.depthBuffer->width * zPrepass.depthBuffer->height];
-
-                    glCreateBuffers(1, &rasterCubeBuffer);
-                    u32 bufferSize = zPrepass.depthBuffer->width * zPrepass.depthBuffer->height * sizeof(RasterCube);
-                    glNamedBufferData(rasterCubeBuffer, bufferSize, nullptr, GL_DYNAMIC_COPY);
-
-                    glCreateBuffers(1, &rasterCubeCounter);
-                    glNamedBufferData(rasterCubeCounter, sizeof(u32), nullptr, GL_DYNAMIC_COPY);
-
-                    bInitialized = true;
+                initializeRasterGI();
+                placeRasterCubes(zPrepass.depthBuffer, zPrepass.normalBuffer);
+                if (bBuildingRadianceAtlas) {
+                    buildOneFrameRadianceAtlas(sceneRenderable);
                 }
-
-                numFilledRasterCubes = 0;
-                glNamedBufferSubData(rasterCubeCounter, 0, sizeof(u32), &numFilledRasterCubes);
-                glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 1, rasterCubeCounter);
-                glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 52, rasterCubeBuffer);
-
-                auto fillRasterShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "FillRasterShader", SHADER_SOURCE_PATH "blit_v.glsl", SHADER_SOURCE_PATH "fill_raster_p.glsl" });
-                auto fillRasterRenderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(zPrepass.depthBuffer->width, zPrepass.depthBuffer->height));
-                submitFullScreenPass(
-                    fillRasterRenderTarget.get(),
-                    fillRasterShader,
-                    [zPrepass](RenderTarget* renderTarget, Shader* shader) {
-                        shader->setUniform("outputSize", glm::vec2(renderTarget->width, renderTarget->height));
-                        shader->setTexture("depthBuffer", zPrepass.depthBuffer);
-                        shader->setTexture("normalBuffer", zPrepass.normalBuffer);
-                    }
-                );
-
-                glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_ATOMIC_COUNTER_BARRIER_BIT);
-
-                // read back data from gpu
-                glGetNamedBufferSubData(rasterCubeCounter, 0, sizeof(u32), &numFilledRasterCubes);
-                u32 rasterCubeBufferSize = sizeof(RasterCube) * zPrepass.depthBuffer->width * zPrepass.normalBuffer->height;
-                glGetNamedBufferSubData(rasterCubeBuffer, 0, rasterCubeBufferSize, rasterCubes);
-
-#if 0
-                struct IndirectDrawArrayCommand
-                {
-                    u32  count;
-                    u32  instanceCount;
-                    u32  first;
-                    i32  baseInstance;
-                };
-                // build indirect draw commands
-                auto ptr = reinterpret_cast<IndirectDrawArrayCommand*>(indirectDrawBuffer.data);
-                for (u32 draw = 0; draw < sceneRenderable.drawCalls->getNumElements() - 1; ++draw)
-                {
-                    IndirectDrawArrayCommand& command = ptr[draw];
-                    command.first = 0;
-                    u32 instance = (*sceneRenderable.drawCalls)[draw];
-                    u32 submesh = (*sceneRenderable.instances)[instance].submesh;
-                    command.count = SceneRenderable::packedGeometry->submeshes[submesh].numIndices;
-                    command.instanceCount = (*sceneRenderable.drawCalls)[draw + 1] - (*sceneRenderable.drawCalls)[draw];
-                    command.baseInstance = 0;
-                }
-                glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirectDrawBuffer.buffer);
-
-                glm::uvec2 irradianceBufferRes(zPrepass.depthBuffer->width, zPrepass.depthBuffer->height);
-                const u32 microFramebufferRes = 4;
-                ITextureRenderable::Spec spec = { };
-                spec.type = TEX_2D;
-                spec.width = irradianceBufferRes.x * microFramebufferRes;
-                spec.height = irradianceBufferRes.y * microFramebufferRes;
-                spec.pixelFormat = PF_RGB16F;
-                static Texture2DRenderable* radianceAtlas = new Texture2DRenderable("RadianceAtlas", spec);
-                std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(radianceAtlas->width, radianceAtlas->height));
-                u32 numPixels = irradianceBufferRes.x * irradianceBufferRes.y;
-                m_ctx->setRenderTarget(renderTarget.get());
-                m_ctx->setShader(radiosityShader);
-
-                // build the draw command
-                for (i32 y = 0; y < 1; ++y) {
-                    for (i32 x = 0; x < 1; ++x) { 
-                        m_ctx->setViewport({ x * microFramebufferRes, y * microFramebufferRes, microFramebufferRes, microFramebufferRes });
-                        glMultiDrawArraysIndirect(GL_TRIANGLES, 0, , 0);
-                    }
-                }
-#endif
-            }
-
-            addUIRenderCommand([this, zPrepass]() {
-                appendToRenderingTab(
-                    [this, zPrepass]() {
-                        if (ImGui::CollapsingHeader("Depth Prepass")) {
-                            ImGui::Image((ImTextureID)zPrepass.depthBuffer->getGpuResource(), ImVec2(320, 180), ImVec2(0, 1), ImVec2(1, 0));
-                            ImGui::Image((ImTextureID)zPrepass.normalBuffer->getGpuResource(), ImVec2(320, 180), ImVec2(0, 1), ImVec2(1, 0));
+                buildIrradianceAtlas();
+                addUIRenderCommand([this]() {
+                    appendToRenderingTab([this]() {
+                        if (ImGui::CollapsingHeader("Rasterization GI", ImGuiTreeNodeFlags_DefaultOpen)) {
+                            if (ImGui::Button("build radiance atlas")) {
+                                startBuildingRadianceAtlas();
+                            }
+                            ImGui::Begin("raster gi visualization");
+                            enum class Visualization {
+                                kRadiance = 0,
+                                kIrradiance,
+                                kCount
+                            };
+                            static i32 visualization = (i32)Visualization::kRadiance;
+                            const char* visualizationNames[(i32)Visualization::kCount] = { "Radiance", "Irradiance" };
+                            ImVec2 imageSize(640, 360);
+                            ImGui::Combo("Visualization", &visualization, visualizationNames, (i32)Visualization::kCount);
+                            if (visualization == (i32)Visualization::kRadiance) {
+                                ImGui::Image((ImTextureID)radianceAtlas->getGpuResource(), ImVec2(radianceAtlas->width, radianceAtlas->height), ImVec2(0, 1), ImVec2(1, 0));
+                            }
+                            if (visualization == (i32)Visualization::kIrradiance) {
+                                ImGui::Image((ImTextureID)irradianceAtlas->getGpuResource(), imageSize, ImVec2(0, 1), ImVec2(1, 0));
+                            }
+                            ImGui::End();
                         }
-                    }
-                );
-            });
+                    });
+                });
+            }
 
             // ssgi
             // auto ssgi = screenSpaceRayTracing(zPrepass.depthBuffer, zPrepass.normalBuffer, renderResolution);
@@ -854,7 +905,7 @@ namespace Cyan
 #if BINDLESS_TEXTURE
             auto sceneColor = renderSceneMultiDraw(sceneRenderable, sceneView, renderResolution, { });
 #else
-            auto sceneColor = renderScene(renderableScene, sceneView, renderResolution);
+            auto sceneColor = renderScene(sceneRenderable, sceneView, renderResolution);
 #endif
             if (m_settings.enableTAA)
             {
@@ -885,7 +936,7 @@ namespace Cyan
     void Renderer::renderToScreen(Texture2DRenderable* inTexture)
     {
         Shader* fullscreenBlitShader = ShaderManager::createShader({
-            ShaderSource::Type::kVsPs, 
+            ShaderSource::Type::kVsPs,
             "BlitQuadShader",
             SHADER_SOURCE_PATH "blit_v.glsl",
             SHADER_SOURCE_PATH "blit_p.glsl"
@@ -1007,6 +1058,18 @@ namespace Cyan
                     shader->setUniform("transformIndex", (i32)transformIndex++);
                 });
         }
+
+        addUIRenderCommand([this]() {
+            appendToRenderingTab(
+                [this]() {
+                    if (ImGui::CollapsingHeader("Depth Prepass")) {
+                        ImGui::Image((ImTextureID)sceneDepthBuffer->getGpuResource(), ImVec2(320, 180), ImVec2(0, 1), ImVec2(1, 0));
+                        ImGui::Image((ImTextureID)sceneNormalBuffer->getGpuResource(), ImVec2(320, 180), ImVec2(0, 1), ImVec2(1, 0));
+                    }
+                }
+            );
+        });
+
         return { sceneDepthBuffer, sceneNormalBuffer };
     }
 
@@ -1414,6 +1477,7 @@ namespace Cyan
 
         // m_instantRadiosity.visualizeVPLs(this, renderTarget.get(), sceneRenderable);
 
+#if 0
         // debug visualize raster cube positions
         {
             struct DebugCube {
@@ -1428,11 +1492,16 @@ namespace Cyan
             };
             static ShaderStorageBuffer<DynamicSsboStruct<DebugLine>> debugLines;
 
-            debugCubes.ssboStruct.dynamicArray.resize(numFilledRasterCubes);
-            debugLines.ssboStruct.dynamicArray.resize(numFilledRasterCubes * 2);
-            for (i32 i = 0; i < numFilledRasterCubes; ++i) {
-                // debug raster cube
-                glm::mat4 transform = glm::translate(glm::mat4(1.f), vec4ToVec3(rasterCubes[i].position));
+            // debugCubes.ssboStruct.dynamicArray.clear();
+            debugCubes.ssboStruct.dynamicArray.resize(maxNumRasterCubes);
+            // debugLines.ssboStruct.dynamicArray.clear();
+            debugLines.ssboStruct.dynamicArray.resize(maxNumRasterCubes * 2);
+            for (i32 i = 0; i < maxNumRasterCubes; ++i) {
+                /* note - @min:
+                * if the raster cube at i is not filled, then rasterCubes[i].position should be vec4(0.f, 0.f, 0.f, 0.f);
+                * otherwise the w component will be 1.f, thus using the w component here to help "nullify" rendering some empty raster cubes
+                */
+                glm::mat4 transform = glm::translate(glm::mat4(rasterCubes[i].position.w), vec4ToVec3(rasterCubes[i].position));
                 transform = glm::scale(transform, glm::vec3(0.05));
                 glm::vec3 worldUp = glm::vec3(0.f, 1.f, 0.f);
                 if (rasterCubes[i].normal.y > 0.99) {
@@ -1471,15 +1540,16 @@ namespace Cyan
             m_ctx->setVertexArray(cube->getSubmesh(0)->getVertexArray());
 
             glDisable(GL_CULL_FACE);
-            glDrawArraysInstanced(GL_TRIANGLES, 0, cube->getSubmesh(0)->numVertices(), numFilledRasterCubes);
+            glDrawArraysInstanced(GL_TRIANGLES, 0, cube->getSubmesh(0)->numVertices(), maxNumRasterCubes);
             glEnable(GL_CULL_FACE);
 
             Shader* debugDrawLineShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "DebugDrawLineShader", SHADER_SOURCE_PATH "debug_draw_line_v.glsl", SHADER_SOURCE_PATH "debug_draw_p.glsl" });
             m_ctx->setShader(debugDrawLineShader);
             debugLines.update();
             debugLines.bind(53);
-            glDrawArraysInstanced(GL_LINES, 0, debugLines.ssboStruct.dynamicArray.size(), numFilledRasterCubes);
+            glDrawArraysInstanced(GL_LINES, 0, debugLines.ssboStruct.dynamicArray.size(), maxNumRasterCubes);
         }
+#endif
 
         addUIRenderCommand([this](){
             appendToRenderingTab([this]() {

@@ -160,6 +160,9 @@
     <None Include="..\shader\point_shadow_p.glsl" />
     <None Include="..\shader\point_shadow_v.glsl" />
     <None Include="..\shader\point_vsm_shadow_p.glsl" />
+    <None Include="..\shader\raster_gi_convolve_irradiance_c.glsl" />
+    <None Include="..\shader\raster_gi_final_gather_p.glsl" />
+    <None Include="..\shader\raster_gi_final_gather_v.glsl" />
     <None Include="..\shader\raytracing_p.glsl" />
     <None Include="..\shader\raytracing_v.glsl" />
     <None Include="..\shader\scene_depth_normal_p.glsl" />

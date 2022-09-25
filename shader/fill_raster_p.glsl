@@ -43,8 +43,9 @@ void main() {
     if (depth < 0.99) {
 		vec3 normal = normalize(texture(normalBuffer, pixelCoord).rgb * 2.f - 1.f);
 		vec3 worldSpacePosition = screenToWorld(vec3(pixelCoord * 2.f - 1.f, depth), inverse(viewSsbo.view), inverse(viewSsbo.projection));
-		uint count = atomicCounterIncrement(numFilledRasterCubes);
-		rasterCubes[count].position = vec4(worldSpacePosition, 1.f);
-		rasterCubes[count].normal = vec4(normal, 0.f);
+		// uint count = atomicCounterIncrement(numFilledRasterCubes);
+		int rasterCubeIndex = int(floor(gl_FragCoord.y)) * int(outputSize.x) + int(floor(gl_FragCoord.x));
+		rasterCubes[rasterCubeIndex].position = vec4(worldSpacePosition, 1.f);
+		rasterCubes[rasterCubeIndex].normal = vec4(normal, 0.f);
 	}
 }

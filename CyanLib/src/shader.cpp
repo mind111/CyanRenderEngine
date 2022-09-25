@@ -18,19 +18,19 @@ namespace Cyan
         int compile_result;
         char log[512];
         glGetShaderiv(shader, GL_COMPILE_STATUS, &compile_result);
-        if (!compile_result) {
+        if (compile_result == GL_FALSE) {
             glGetShaderInfoLog(shader, 512, nullptr, log);
             std::cout << log << std::endl;
         }
     }
 
-    static void checkShaderLinkage(GLuint shader) 
+    static void checkProgramLinkage(GLuint program) 
     {
         int link_result;
         char log[512];
-        glGetShaderiv(shader, GL_LINK_STATUS, &link_result);
-        if (!link_result) {
-            glGetShaderInfoLog(shader, 512, nullptr, log);
+        glGetProgramiv(program, GL_LINK_STATUS, &link_result);
+        if (link_result == GL_FALSE) {
+            glGetProgramInfoLog(program, 512, nullptr, log);
             std::cout << log << std::endl;
         }
     }
@@ -211,7 +211,7 @@ namespace Cyan
         glAttachShader(program, vs);
         glAttachShader(program, fs);
         glLinkProgram(program);
-        checkShaderLinkage(program);
+        checkProgramLinkage(program);
         glDeleteShader(vs);
         glDeleteShader(fs);
     }
@@ -241,7 +241,7 @@ namespace Cyan
         glAttachShader(program, gs);
         glAttachShader(program, fs);
         glLinkProgram(program);
-        checkShaderLinkage(program);
+        checkProgramLinkage(program);
         glDeleteShader(vs);
         glDeleteShader(gs);
         glDeleteShader(fs);
@@ -260,7 +260,7 @@ namespace Cyan
         // link
         glAttachShader(program, cs);
         glLinkProgram(program);
-        checkShaderLinkage(program);
+        checkProgramLinkage(program);
         glDeleteShader(cs);
     }
 

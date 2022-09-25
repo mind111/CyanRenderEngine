@@ -25,7 +25,9 @@
 #define FM_TRILINEAR Cyan::ITextureRenderable::Parameter::Filtering::LINEAR_MIPMAP_LINEAR
 // PF stands for "pixel format" 
 #define PF_RGB16F Cyan::ITextureRenderable::Spec::PixelFormat::RGB16F
+#define PF_RGBA16F Cyan::ITextureRenderable::Spec::PixelFormat::RGBA16F
 #define PF_RGB32F Cyan::ITextureRenderable::Spec::PixelFormat::RGB32F
+#define PF_RGBA32F Cyan::ITextureRenderable::Spec::PixelFormat::RGBA32F
 
 namespace Cyan
 {
@@ -65,7 +67,7 @@ namespace Cyan
                 RGB32F,
                 RGBA8,
                 RGBA16F,
-                RGBA32,
+                RGBA32F,
                 kInvalid
             };
 
@@ -200,7 +202,7 @@ namespace Cyan
                 glPixelFormat.format = GL_RGBA;
                 glPixelFormat.type = GL_UNSIGNED_BYTE;
                 break;
-            case Spec::PixelFormat::RGBA32:
+            case Spec::PixelFormat::RGBA32F:
                 glPixelFormat.internalFormat = GL_RGBA32F;
                 glPixelFormat.format = GL_RGBA;
                 glPixelFormat.type = GL_FLOAT;

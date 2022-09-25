@@ -171,8 +171,21 @@ namespace Cyan
         };
         GLuint rasterCubeBuffer;
         GLuint rasterCubeCounter;
-        RasterCube* rasterCubes;
-        u32 numFilledRasterCubes = 0u;
+        RasterCube* rasterCubes = nullptr;
+        RasterCube* renderedRasterCubes = nullptr;
+        bool bBuildingRadianceAtlas = false;
+        u32 renderedFrames = 0u;
+        u32 maxNumRasterCubes = 0u;
+        const u32 microBufferRes = 4;
+        glm::uvec2 irradianceAtlasRes = glm::uvec2(80, 44);
+        RenderTarget* radianceAtlasRenderTarget = nullptr;
+        Texture2DRenderable* radianceAtlas = nullptr;
+        Texture2DRenderable* irradianceAtlas = nullptr;
+        void initializeRasterGI();
+        void placeRasterCubes(Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer);
+        void startBuildingRadianceAtlas();
+        void buildOneFrameRadianceAtlas(SceneRenderable& sceneRenderable);
+        void buildIrradianceAtlas();
 #if 0
         void gpuRayTracing(struct RayTracingScene& rtxScene, RenderTexture2D* outputBuffer, RenderTexture2D* sceneDepthBuffer, RenderTexture2D* sceneNormalBuffer);
 #endif

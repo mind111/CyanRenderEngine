@@ -61,6 +61,9 @@
     <Filter Include="Shaders\DebugDraw">
       <UniqueIdentifier>{28070b77-2caa-411c-8193-54868e73d1b6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\RasterGI">
+      <UniqueIdentifier>{df26b4d4-db6b-4180-8859-e05c35aacd48}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Allocator.h">
@@ -714,6 +717,15 @@
     </None>
     <None Include="..\shader\debug_draw_line_p.glsl">
       <Filter>Shaders\DebugDraw</Filter>
+    </None>
+    <None Include="..\shader\raster_gi_final_gather_v.glsl">
+      <Filter>Shaders\RasterGI</Filter>
+    </None>
+    <None Include="..\shader\raster_gi_final_gather_p.glsl">
+      <Filter>Shaders\RasterGI</Filter>
+    </None>
+    <None Include="..\shader\raster_gi_convolve_irradiance_c.glsl">
+      <Filter>Shaders\RasterGI</Filter>
     </None>
   </ItemGroup>
 </Project>

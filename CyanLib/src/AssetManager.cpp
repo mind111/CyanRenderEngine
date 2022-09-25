@@ -530,7 +530,7 @@ namespace Cyan
                     } 
                     else if (image.bits == 32) 
                     {
-                        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGBA32;
+                        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGBA32F;
                     } 
                     break;
                 }
