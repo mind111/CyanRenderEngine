@@ -302,10 +302,16 @@ namespace Cyan {
 
     void InstantRadiosity::renderInternal(Renderer* renderer, SceneRenderable& renderableScene, Texture2DRenderable* output) {
         // render scene depth normal pass first
-        auto zPrepassOutput = renderer->renderSceneDepthNormal(renderableScene, glm::uvec2(1280u, 720u));
-        auto sceneDepthBuffer = zPrepassOutput.depthBuffer;
-        auto sceneNormalBuffer = zPrepassOutput.normalBuffer;
+        ITextureRenderable::Spec spec = { };
+        spec.type = TEX_2D;
+        spec.width = 1280;
+        spec.height = 720;
+        spec.pixelFormat = PF_RGB32F;
+        static Texture2DRenderable* sceneDepthBuffer = new Texture2DRenderable("IRSceneDepthBuffer", spec);
+        static Texture2DRenderable* sceneNormalBuffer = new Texture2DRenderable("IRSceneNormalBuffer", spec);
+        std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(spec.width, spec.height));
 
+        renderer->renderSceneDepthNormal(renderableScene, renderTarget.get(), sceneDepthBuffer, sceneNormalBuffer);
         renderInternal(renderer, renderableScene, sceneDepthBuffer, sceneNormalBuffer, output);
     }
 

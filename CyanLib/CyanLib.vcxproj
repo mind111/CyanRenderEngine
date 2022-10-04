@@ -36,6 +36,7 @@
     <ClInclude Include="include\CyanCore.h" />
     <ClInclude Include="include\CyanEngine.h" />
     <ClInclude Include="include\InstantRadiosity.h" />
+    <ClInclude Include="include\RasterGI.h" />
     <ClInclude Include="include\RayTracer.h" />
     <ClInclude Include="include\CyanRenderer.h" />
     <ClInclude Include="include\CyanUI.h" />
@@ -96,6 +97,7 @@
     <ClCompile Include="src\CyanApp.cpp" />
     <ClCompile Include="src\CyanEngine.cpp" />
     <ClCompile Include="src\InstantRadiosity.cpp" />
+    <ClCompile Include="src\RasterGI.cpp" />
     <ClCompile Include="src\RayTracer.cpp" />
     <ClCompile Include="src\CyanRenderer.cpp" />
     <ClCompile Include="src\CyanUI.cpp" />
@@ -145,9 +147,13 @@
     <None Include="..\shader\calculate_light.glsl" />
     <None Include="..\shader\debug_color_fs.glsl" />
     <None Include="..\shader\debug_color_vs.glsl" />
+    <None Include="..\shader\debug_draw_immediate_p.glsl" />
+    <None Include="..\shader\debug_draw_immediate_v.glsl" />
     <None Include="..\shader\debug_draw_line_p.glsl" />
     <None Include="..\shader\debug_draw_line_v.glsl" />
     <None Include="..\shader\debug_draw_p.glsl" />
+    <None Include="..\shader\debug_draw_radiance_cube_p.glsl" />
+    <None Include="..\shader\debug_draw_radiance_cube_v.glsl" />
     <None Include="..\shader\debug_draw_v.glsl" />
     <None Include="..\shader\fill_raster_p.glsl" />
     <None Include="..\shader\generate_vpl_p.glsl" />

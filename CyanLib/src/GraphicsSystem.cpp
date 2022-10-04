@@ -29,7 +29,7 @@ namespace Cyan
         glEnable(GL_CULL_FACE);
         glFrontFace(GL_CCW);
         glCullFace(GL_BACK);
-        glLineWidth(4.f);
+        glLineWidth(6.f);
         glfwSwapInterval(0);
 
         // some important gl constants

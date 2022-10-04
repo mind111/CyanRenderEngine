@@ -99,16 +99,32 @@ namespace Cyan
         depthBuffer = texture;
     }
 
-    void RenderTarget::clear(const std::initializer_list<RenderTargetDrawBuffer>& buffers, f32 clearDepth)
+    void RenderTarget::clearDrawBuffer(i32 drawBufferIndex, glm::vec4 clearColor, bool clearDepth, f32 clearDepthValue) {
+        glClearNamedFramebufferfv(fbo, GL_COLOR, drawBufferIndex, &clearColor.x);
+        if (clearDepth) {
+            clearDepthBuffer(clearDepthValue);
+        }
+    }
+
+    void RenderTarget::clearDepthBuffer(f32 clearDepthValue) {
+        // clear depth buffer
+        glClearNamedFramebufferfv(fbo, GL_DEPTH, 0, &clearDepthValue);
+    }
+
+    void RenderTarget::clear(const std::initializer_list<RenderTargetDrawBuffer>& buffers, f32 clearDepthBuffer)
     {
         // clear specified color buffer
         for (i32 i = 0; i < buffers.size(); ++i)
         {
             RenderTargetDrawBuffer& drawBuffer = const_cast<RenderTargetDrawBuffer&>(*(buffers.begin() + i));
+            /** note - @min: the drawBuffer.binding here is used to index into currently bound draw buffers rather
+            * than index into color attachments. for example, passing an index of 0 will refer to first bound draw buffer which
+            * can be an arbitrary color attachment as long as it's bound as the first draw buffer
+            */
             glClearNamedFramebufferfv(fbo, GL_COLOR, drawBuffer.binding, &drawBuffer.clearColor.x);
         }
         // clear depth buffer
-        glClearNamedFramebufferfv(fbo, GL_DEPTH, 0, &clearDepth);
+        glClearNamedFramebufferfv(fbo, GL_DEPTH, 0, &clearDepthBuffer);
     }
 
     bool RenderTarget::validate()

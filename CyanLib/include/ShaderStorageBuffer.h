@@ -4,157 +4,135 @@
 
 #include "Common.h"
 
-#define SET_SSBO_MEMBER(ssboName, memberName, data) ssboName.ssboStruct.staticChunk.memberName = data
-#define SET_SSBO_ELEMENT(ssboName, index, data) ssboName.ssboStruct.dynamicArray[index] = data
-#define ADD_SSBO_ELEMENT(ssboName, data) ssboName.ssboStruct.dynamicArray.push_back(data)
-#define GET_SSBO_ELEMENT(ssboName, index) ssboName.ssboStruct.dynamicArray[index]
+#define SET_SSBO_MEMBER(ssboName, memberName, data) ssboName.data.constants.memberName = data
+#define SET_SSBO_ELEMENT(ssboName, index, data) ssboName.data.array[index] = data
+#define ADD_SSBO_ELEMENT(ssboName, data) ssboName.data.array.push_back(data)
+#define GET_SSBO_ELEMENT(ssboName, index) ssboName.data.array[index]
 
 namespace Cyan
 {
-    struct IShaderStorageBufferStruct
+    struct IShaderStorageBufferData
     {
-        virtual void reserveDynamicChunk(u32 numElements) { }
-        virtual bool hasDynamicChunk() { return false; }
-        virtual void* getStaticChunkData() { return nullptr; }
-        virtual void* getDynamicChunkData() { return nullptr; }
-        virtual u32 getStaticChunkSizeInBytes() { return 0; }
-        virtual u32 getDynamicChunkSizeInBytes() { return 0; };
-        virtual u32 getSizeInBytes() { return getStaticChunkSizeInBytes() + getDynamicChunkSizeInBytes(); }
+        virtual void reserveDynamicData(u32 numElements) { }
+        virtual bool hasDynamicData() { return false; }
+        virtual void* getStaticData() { return nullptr; }
+        virtual void* getDynamicData() { return nullptr; }
+        virtual u32 getStaticDataSizeInBytes() { return 0; }
+        virtual u32 getDynamicDataSizeInBytes() { return 0; };
+        virtual u32 getSizeInBytes() { return getStaticDataSizeInBytes() + getDynamicDataSizeInBytes(); }
     };
 
-    template <typename StaticType>
-    struct StaticSsboStruct : public IShaderStorageBufferStruct
+    template <typename StaticData>
+    struct StaticSsboData : public IShaderStorageBufferData
     {
-        virtual void* getStaticChunkData() override
+        virtual void* getStaticData() override
         {
-            return reinterpret_cast<void*>(&staticChunk);
+            return reinterpret_cast<void*>(&constants);
         }
 
-        virtual u32 getStaticChunkSizeInBytes() override
+        virtual u32 getStaticDataSizeInBytes() override
         {
-            return sizeof(StaticType);
+            return sizeof(StaticData);
         }
 
-        StaticType staticChunk;
+        StaticSsboData()
+            : constants() {
+
+        }
+
+        StaticSsboData(u32 numElements = 0) {
+
+        }
+
+        u32 getNumElements() { return 0; }
+
+        StaticData constants;
     };
 
-    template <typename DynamicType>
-    struct DynamicSsboStruct : public IShaderStorageBufferStruct
+    template <typename DynamicData>
+    struct DynamicSsboData : public IShaderStorageBufferData
     {
-        virtual bool hasDynamicChunk() override
+        virtual bool hasDynamicData() override
         {
             return true;
         }
 
-        virtual void* getDynamicChunkData() override
+        virtual void* getDynamicData() override
         {
-            return dynamicArray.data();
+            return array.data();
         }
 
-        virtual u32 getDynamicChunkSizeInBytes() override
+        virtual u32 getDynamicDataSizeInBytes() override
         {
-            return sizeOfVector(dynamicArray);
+            return sizeOfVector(array);
         }
 
-        u32 getNumElements() { return dynamicArray.size(); }
+        DynamicSsboData(u32 numElements) 
+            : array(numElements) {
 
-        void addElement(const DynamicType& element)
-        {
-            dynamicArray.push_back(element);
         }
 
-        DynamicType& operator[](u32 index)
+        u32 getNumElements() { return array.size(); }
+
+        void addElement(const DynamicData& element)
         {
-            return dynamicArray[index];
+            array.push_back(element);
         }
 
-        std::vector<DynamicType> dynamicArray;
+        DynamicData& operator[](u32 index)
+        {
+            return array[index];
+        }
+
+        std::vector<DynamicData> array;
     };
 
-#if 0
-    template <typename StaticType, typename DynamicType>
-    struct CompoundSsboStruct : public IShaderStorageBufferStruct
-    {       
-        virtual void reserveDynamicChunk(u32 numElements) 
-        { 
-            dynamicArray.reserve(numElements);
-        }
-
-        virtual bool hasDynamicChunk() override
-        {
-            return true;
-        }
-
-        virtual void* getStaticChunkData() override
-        {
-            return reinterpret_cast<void*>(&staticChunk);
-        }
-
-        virtual void* getDynamicChunkData() override
-        {
-            return dynamicArray.data();
-        }
-
-        virtual u32 getStaticChunkSizeInBytes() override
-        {
-            return sizeof(StaticType);
-        }
-
-        virtual u32 getDynamicChunkSizeInBytes() override
-        {
-            return sizeOfVector(dynamicArray);
-        }
-
-        virtual u32 getSizeInBytes() override
-        {
-            return getStaticChunkSizeInBytes() + getDynamicChunkSizeInBytes();
-        }
-
-        static StaticType staticChunk;
-        static std::vector<DynamicType> dynamicArray;
-    };
-#else
-    template <typename StaticType, typename DynamicType>
-    struct CompoundSsboStruct : public StaticSsboStruct<StaticType>, public DynamicSsboStruct<DynamicType>
+    template <typename StaticData, typename DynamicData>
+    struct CompoundSsboData : public StaticSsboData<StaticData>, public DynamicSsboData<DynamicData>
     {
-        virtual bool hasDynamicChunk() override
+        virtual bool hasDynamicData() override
         {
-            return DynamicSsboStruct<DynamicType>::hasDynamicChunk();
+            return DynamicSsboData<DynamicData>::hasDynamicData();
         }
 
-        virtual void* getStaticChunkData() override
+        virtual void* getStaticData() override
         {
-            return StaticSsboStruct<StaticType>::getStaticChunkData();
+            return StaticSsboData<StaticData>::getStaticData();
         }
 
-        virtual void* getDynamicChunkData() override
+        virtual void* getDynamicData() override
         {
-            return DynamicSsboStruct<DynamicType>::getDynamicChunkData();
+            return DynamicSsboData<DynamicData>::getDynamicData();
         }
 
-        virtual u32 getStaticChunkSizeInBytes() override
+        virtual u32 getStaticDataSizeInBytes() override
         {
-            return StaticSsboStruct<StaticType>::getSizeInBytes();
+            return StaticSsboData<StaticData>::getSizeInBytes();
         }
 
-        virtual u32 getDynamicChunkSizeInBytes() override
+        virtual u32 getDynamicDataSizeInBytes() override
         {
-            return DynamicSsboStruct<DynamicType>::getSizeInBytes();
+            return DynamicSsboData<DynamicData>::getSizeInBytes();
         }
 
         virtual u32 getSizeInBytes() override
         {
-            return getStaticChunkSizeInBytes() + getDynamicChunkSizeInBytes();
+            return getStaticDataSizeInBytes() + getDynamicDataSizeInBytes();
+        }
+
+        CompoundSsboData(u32 numElements = 0) 
+            : StaticData(), DynamicData(numElements) {
+
         }
     };
-#endif
 
-    template <typename SsboStructType>
+    template <typename SsboData>
     struct ShaderStorageBuffer : public GpuResource
     {
         ShaderStorageBuffer(u32 numElements = 0)
+            : data(numElements)
         {
-            sizeInBytes = ssboStruct.getSizeInBytes();
+            sizeInBytes = data.getSizeInBytes();
 
             glCreateBuffers(1, &glResource);
             // todo: the hint flag need to be configurable
@@ -181,9 +159,9 @@ namespace Cyan
         void update()
         {
             // if the dynamic array out grow the allocated buffer, need to release old resources and create new ones
-            if (ssboStruct.getSizeInBytes() > sizeInBytes)
+            if (data.getSizeInBytes() > sizeInBytes)
             {
-                sizeInBytes = ssboStruct.getSizeInBytes();
+                sizeInBytes = data.getSizeInBytes();
                 // remove old gpu resources
                 glDeleteBuffers(1, &glResource);
 
@@ -192,35 +170,45 @@ namespace Cyan
                 glNamedBufferData(glResource, sizeInBytes, nullptr, GL_DYNAMIC_DRAW);
             }
 
-            if (ssboStruct.getStaticChunkSizeInBytes() > 0)
+            if (data.getStaticDataSizeInBytes() > 0)
             {
                 // update static members
-                glNamedBufferSubData(getGpuResource(), 0, ssboStruct.getStaticChunkSizeInBytes(), ssboStruct.getStaticChunkData());
-                if (ssboStruct.getDynamicChunkSizeInBytes() > 0)
-                    // update dynamic members
-                    glNamedBufferSubData(getGpuResource(), ssboStruct.getStaticChunkSizeInBytes(), ssboStruct.getDynamicChunkSizeInBytes(), ssboStruct.getDynamicChunkData());
+                glNamedBufferSubData(getGpuResource(), 0, data.getStaticDataSizeInBytes(), data.getStaticData());
             }
-            else
-            {
-                u32 dynamicSize = ssboStruct.getDynamicChunkSizeInBytes();
+            if (data.getDynamicDataSizeInBytes() > 0) {
                 // update dynamic members
-                glNamedBufferSubData(getGpuResource(), 0, ssboStruct.getDynamicChunkSizeInBytes(), ssboStruct.getDynamicChunkData());
+                glNamedBufferSubData(getGpuResource(), data.getStaticDataSizeInBytes(), data.getDynamicDataSizeInBytes(), data.getDynamicData());
             }
         }
 
-        u32 getNumElements() { return ssboStruct.getNumElements(); }
+        u32 getNumElements() { return data.getNumElements(); }
 
         template <typename T>
         void addElement(const T& element)
         {
-            return ssboStruct.addElement(element);
+            return data.addElement(element);
         }
 
         auto& operator[](u32 index) {
-            return ssboStruct[index];
+            return data[index];
         }
 
-        SsboStructType ssboStruct;
+        /**
+        * return a deep copy `this` which possesses same buffer content as `this` but uses
+        */
+        ShaderStorageBuffer<SsboData>* clone() {
+            auto cloned = new ShaderStorageBuffer<SsboData>(data.getNumElements());
+            if (void* staticData = data.getStaticData()) {
+                memcpy(cloned->data.getStaticData(), staticData, data.getStaticDataSizeInBytes());
+            }
+            if (void* dynamicData = data.getDynamicData()) {
+                memcpy(cloned->data.getDynamicData(), dynamicData, data.getDynamicDataSizeInBytes());
+            }
+            cloned->update();
+            return cloned;
+        }
+
+        SsboData data;
         u32 sizeInBytes = 0;
         i32 bufferBindingUnit = -1;
     };

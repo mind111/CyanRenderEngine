@@ -15,6 +15,7 @@ namespace Cyan
 
         virtual void renderShadow(const Scene& scene, SceneRenderable& renderableScene, Renderer& renderer) { }
         virtual void setShaderParameters(Shader* shader) = 0;
+        virtual ILightRenderable* clone() { return nullptr; }
     };
 
     /**
@@ -31,6 +32,9 @@ namespace Cyan
             glm::mat4 lightSpaceView = glm::lookAt(glm::vec3(0.f), -vec4ToVec3(direction), glm::vec3(0.f, 1.f, 0.f));
             shader->setUniform("sceneLights.directionalLight.lightSpaceView", lightSpaceView);
             shadowmapPtr->setShaderParameters(shader, "sceneLights.directionalLight");
+        }
+        virtual ILightRenderable* clone() {
+            return nullptr;
         }
 
         DirectionalLightRenderable(const DirectionalLight& inDirectionalLight) 

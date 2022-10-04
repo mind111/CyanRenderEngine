@@ -16,6 +16,7 @@ struct PBRMaterial
 
 in VSOutput
 {
+    vec3 objectSpacePosition;
 	vec3 viewSpacePosition;
 	vec3 worldSpacePosition;
 	vec3 worldSpaceNormal;
@@ -100,6 +101,11 @@ uniform struct SceneLights
 	DirectionalLight directionalLight;
 	// PointLight pointLights[MAX_NUM_POINT_LIGHTS];
 } sceneLights;
+
+// todo: switch to use global view ssbo later!!!
+uniform mat4 view;
+uniform mat4 projection;
+uniform vec3 receivingNormal;
 
 float slopeBasedBias(vec3 n, vec3 l)
 {
@@ -447,7 +453,7 @@ vec3 DisneyBRDF(vec3 l, vec3 v, MaterialParameters materialParameters)
 {
     vec3 BRDF;
     vec3 h = normalize(l + v);
-    vec3 worldSpaceViewDirection = (inverse(viewSsbo.view) * vec4(normalize(-psIn.viewSpacePosition), 0.f)).xyz;
+    vec3 worldSpaceViewDirection = (inverse(view) * vec4(normalize(-psIn.viewSpacePosition), 0.f)).xyz;
     float ndotv = saturate(dot(materialParameters.normal, worldSpaceViewDirection));
     float ndotl = max(dot(materialParameters.normal, directionalLight.direction.xyz), 0.f);
     float hdotl = saturate(dot(h, directionalLight.direction.xyz));
@@ -466,7 +472,7 @@ vec3 calcDirectionalLight(in DirectionalLight directionalLight, MaterialParamete
 {
     vec3 radiance = vec3(0.f);
     // view direction in world space
-    vec3 worldSpaceViewDirection = (inverse(viewSsbo.view) * vec4(normalize(-psIn.viewSpacePosition), 0.f)).xyz;
+    vec3 worldSpaceViewDirection = (inverse(view) * vec4(normalize(-psIn.viewSpacePosition), 0.f)).xyz;
     float ndotl = max(dot(materialParameters.normal, directionalLight.direction.xyz), 0.f);
     vec3 f0 = calcF0(materialParameters);
     vec3 li = directionalLight.colorAndIntensity.rgb * directionalLight.colorAndIntensity.a;
@@ -484,8 +490,8 @@ vec3 calcDirectionalLight(in DirectionalLight directionalLight, MaterialParamete
     * specular
     */
     vec3 specular = CookTorranceBRDF(directionalLight.direction.xyz, worldSpaceViewDirection, materialParameters.normal, materialParameters.roughness, f0);
-
     radiance += (diffuse + specular) * li * ndotl;
+    // radiance += diffuse * li * ndotl;
 
     // shadow
     radiance *= calcDirectionalShadow(worldSpacePosition, materialParameters.normal, directionalLight);
@@ -506,16 +512,62 @@ vec3 calcLighting(SceneLights sceneLights, in MaterialParameters materialParamet
     return radiance;
 }
 
-uniform vec3 receivingNormal;
+float solidAngleHelper(vec2 st) {
+    return atan(st.x * st.y, sqrt(st.x * st.x + st.y * st.y + 1.f));
+}
 
-void main()
-{
+/** note - @min: 
+* reference: https://www.rorydriscoll.com/2012/01/15/cubemap-texel-solid-angle/
+*/
+// todo: something is wrong with this calculation
+// calculate the solid angle of the pixel being rasterized
+float calcCubemapTexelSolidAngle(vec3 d, float cubemapResolution) {
+    float solidAngle;
+    vec3 dd = abs(d);
+    vec2 texCoord;
+    if (dd.x > dd.y && dd.x > dd.z) {
+        if (d.x > 0.f) {
+            texCoord = vec2(-d.z, d.y) / dd.x;
+        } else {
+            texCoord = vec2(d.z, d.y) / dd.x;
+        }
+    }
+    if (dd.y > dd.x && dd.y > dd.z) {
+        if (d.y > 0.f) {
+            texCoord = vec2(-d.z, -d.x) / dd.y;
+        } else {
+            texCoord = vec2(-d.z, d.x) / dd.y;
+        }
+    }
+    else if (dd.z > dd.y && dd.z > dd.x) {
+		if (d.z > 0.f) {
+			texCoord = vec2(d.x, d.y) / dd.z;
+		} else {
+            texCoord = vec2(-d.x, d.y) / dd.z;
+        }
+    }
+    float texelSize = 2.f / cubemapResolution;
+    // find 4 corners of the pixel
+    vec2 A = floor(texCoord * cubemapResolution * .5f) / (cubemapResolution * .5f);
+    vec2 B = A + vec2(0.f, 1.f) * texelSize;
+    vec2 C = A + vec2(1.f, 0.f) * texelSize;
+    vec2 D = A + vec2(1.f, 1.f) * texelSize;
+    solidAngle = solidAngleHelper(A) + solidAngleHelper(D) - solidAngleHelper(B) - solidAngleHelper(C); /*+ solidAngleHelper(A) - solidAngleHelper(B) - solidAngleHelper(C)*/;
+    return solidAngle;
+}
+
+uniform uint microBufferRes; 
+
+void main() {
     vec3 worldSpaceTangent = normalize(psIn.worldSpaceTangent);
     vec3 worldSpaceNormal = normalize(psIn.worldSpaceNormal);
     worldSpaceTangent = normalize(worldSpaceTangent - dot(worldSpaceNormal, worldSpaceTangent) * worldSpaceNormal); 
     vec3 worldSpaceBitangent = normalize(cross(worldSpaceNormal, worldSpaceTangent)) * psIn.tangentSpaceHandedness;
 
     MaterialParameters materialParameters = getMaterialParameters(worldSpaceTangent, worldSpaceBitangent, worldSpaceNormal, psIn.texCoord0);
-    float ndotl = max(dot(normalize(psIn.viewSpacePosition), receivingNormal), 0.f);
-    outColor = calcLighting(sceneLights, materialParameters, psIn.worldSpacePosition) * ndotl;
+    vec3 pixelDir = (inverse(view) * vec4(normalize(psIn.viewSpacePosition), 0.f)).xyz;
+    float ndotl = max(dot(pixelDir, receivingNormal), 0.f);
+    float solidAngle = calcCubemapTexelSolidAngle(normalize(psIn.viewSpacePosition), float(microBufferRes));
+    outColor = calcLighting(sceneLights, materialParameters, psIn.worldSpacePosition) * ndotl * solidAngle;
+    // outColor = vec3(solidAngle);
 }

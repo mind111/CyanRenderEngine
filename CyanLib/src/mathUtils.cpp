@@ -48,7 +48,7 @@ namespace Cyan
         return tangentToWorld(n) * localDir;
     }
 
-    glm::vec3 uniformSampleHemisphere(glm::vec3& n)
+    glm::vec3 uniformSampleHemisphere(const glm::vec3& n)
     {
         f32 r0 = uniformSampleZeroToOne();
         f32 r1 = uniformSampleZeroToOne();

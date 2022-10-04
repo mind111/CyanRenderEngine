@@ -96,7 +96,6 @@ namespace Cyan
             BoundingBox3D worldSpaceAABB;
             std::unique_ptr<IDirectionalShadowmap> shadowmapPtr;
         } cascades[kNumCascades];
-
         CascadedShadowmap(const DirectionalLight& inDirectionalLight);
 
     private:

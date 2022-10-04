@@ -18,6 +18,7 @@ namespace Cyan
 
     struct PackedGeometry
     {
+        PackedGeometry() {}
         PackedGeometry(const Scene& scene);
 
         std::vector<Mesh*> meshes;
@@ -32,8 +33,8 @@ namespace Cyan
             glm::vec4 texCoord;
         };
         // unified geometry data
-        ShaderStorageBuffer<DynamicSsboStruct<Vertex>> vertexBuffer;
-        ShaderStorageBuffer<DynamicSsboStruct<u32>> indexBuffer;
+        ShaderStorageBuffer<DynamicSsboData<Vertex>> vertexBuffer;
+        ShaderStorageBuffer<DynamicSsboData<u32>> indexBuffer;
 
         struct SubmeshDesc
         {
@@ -42,13 +43,13 @@ namespace Cyan
             u32 numVertices = 0;
             u32 numIndices = 0;
         };
-        ShaderStorageBuffer<DynamicSsboStruct<SubmeshDesc>> submeshes;
+        ShaderStorageBuffer<DynamicSsboData<SubmeshDesc>> submeshes;
     };
 
     struct RenderableCamera
     {
-        glm::mat4 view;
-        glm::mat4 projection;
+        glm::mat4 view = glm::mat4(1.f);
+        glm::mat4 projection = glm::mat4(1.f);
     };
 
     /** todo:
@@ -95,16 +96,18 @@ namespace Cyan
             glm::uvec4 flags;
         };
 
-        using ViewSsbo = ShaderStorageBuffer<StaticSsboStruct<ViewData>>;
-        using TransformSsbo = ShaderStorageBuffer<DynamicSsboStruct<glm::mat4>>;
-        using InstanceBuffer = ShaderStorageBuffer<DynamicSsboStruct<InstanceDesc>>;
-        using MaterialBuffer = ShaderStorageBuffer<DynamicSsboStruct<Material>>;
-        using DrawCallBuffer = ShaderStorageBuffer<DynamicSsboStruct<u32>>;
+        using ViewSsbo = ShaderStorageBuffer<StaticSsboData<ViewData>>;
+        using TransformSsbo = ShaderStorageBuffer<DynamicSsboData<glm::mat4>>;
+        using InstanceBuffer = ShaderStorageBuffer<DynamicSsboData<InstanceDesc>>;
+        using MaterialBuffer = ShaderStorageBuffer<DynamicSsboData<Material>>;
+        using DrawCallBuffer = ShaderStorageBuffer<DynamicSsboData<u32>>;
 
+        SceneRenderable();
+        ~SceneRenderable() { }
         SceneRenderable(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator);
-        ~SceneRenderable()
-        { 
-        }
+        SceneRenderable(const SceneRenderable& scene);
+        SceneRenderable& operator=(const SceneRenderable& src);
+        static void clone(SceneRenderable& dst, const SceneRenderable& src);
 
         void setView(const glm::mat4& view) 
         {
@@ -119,7 +122,6 @@ namespace Cyan
         * Submit rendering data to global gpu buffers
         */
         void submitSceneData(GfxContext* ctx);
-
 
         // camera
         RenderableCamera camera;
@@ -136,11 +138,11 @@ namespace Cyan
         static PackedGeometry* packedGeometry;
 
         // view
-        std::shared_ptr<ViewSsbo> viewSsbo = nullptr;
-        std::shared_ptr<TransformSsbo> transformSsbo = nullptr;
-        std::shared_ptr<InstanceBuffer> instances = nullptr;
+        std::unique_ptr<ViewSsbo> viewSsbo = nullptr;
+        std::unique_ptr<TransformSsbo> transformSsbo = nullptr;
+        std::unique_ptr<InstanceBuffer> instances = nullptr;
         // map sub-draw id to instance id 
-        std::shared_ptr<DrawCallBuffer> drawCalls = nullptr;
-        std::shared_ptr<MaterialBuffer> materials = nullptr;
+        std::unique_ptr<DrawCallBuffer> drawCalls = nullptr;
+        std::unique_ptr<MaterialBuffer> materials = nullptr;
     };
 }

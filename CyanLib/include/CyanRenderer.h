@@ -16,6 +16,7 @@
 #include "Geometry.h"
 #include "Shadow.h"
 #include "InstantRadiosity.h"
+#include "RasterGI.h"
 
 namespace Cyan
 {
@@ -161,31 +162,11 @@ namespace Cyan
             u32 sizeInBytes = 1024 * 1024 * 32;
             void* data = nullptr;
         } indirectDrawBuffer;
-        Texture2DRenderable* renderSceneMultiDraw(SceneRenderable& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution, const SSGITextures& SSGIOutput);
-        void submitSceneMultiDrawIndirect(SceneRenderable& renderableScene);
+        // Texture2DRenderable* renderSceneMultiDraw(SceneRenderable& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution, const SSGITextures& SSGIOutput);
+        void renderSceneMultiDraw(SceneRenderable& renderableScene, RenderTarget* outRenderTarget, const SSGITextures& SSGIOutput);
+        void submitSceneMultiDrawIndirect(const SceneRenderable& renderableScene);
 
-        // radiosity experiements
-        struct RasterCube {
-            glm::vec4 position;
-            glm::vec4 normal;
-        };
-        GLuint rasterCubeBuffer;
-        GLuint rasterCubeCounter;
-        RasterCube* rasterCubes = nullptr;
-        RasterCube* renderedRasterCubes = nullptr;
-        bool bBuildingRadianceAtlas = false;
-        u32 renderedFrames = 0u;
-        u32 maxNumRasterCubes = 0u;
-        const u32 microBufferRes = 4;
-        glm::uvec2 irradianceAtlasRes = glm::uvec2(80, 44);
-        RenderTarget* radianceAtlasRenderTarget = nullptr;
-        Texture2DRenderable* radianceAtlas = nullptr;
-        Texture2DRenderable* irradianceAtlas = nullptr;
-        void initializeRasterGI();
-        void placeRasterCubes(Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer);
-        void startBuildingRadianceAtlas();
-        void buildOneFrameRadianceAtlas(SceneRenderable& sceneRenderable);
-        void buildIrradianceAtlas();
+        std::unique_ptr<RasterGI> m_rasterGI = nullptr;
 #if 0
         void gpuRayTracing(struct RayTracingScene& rtxScene, RenderTexture2D* outputBuffer, RenderTexture2D* sceneDepthBuffer, RenderTexture2D* sceneNormalBuffer);
 #endif
@@ -195,14 +176,15 @@ namespace Cyan
             Texture2DRenderable* depthBuffer;
             Texture2DRenderable* normalBuffer;
         };
-        ZPrepassOutput renderSceneDepthNormal(SceneRenderable& renderableScene, const glm::uvec2& outputResolution);
+        // ZPrepassOutput renderSceneDepthNormal(SceneRenderable& renderableScene, const glm::uvec2& outputResolution);
+        void renderSceneDepthNormal(SceneRenderable& renderableScene, RenderTarget* outRenderTarget, Texture2DRenderable* outDepthBuffer, Texture2DRenderable* outNormalBuffer);
         void renderSceneDepthOnly(SceneRenderable& renderableScene, Texture2DRenderable* outDepthTexture);
 
         bool bFullscreenRadiosity = false;
         InstantRadiosity m_instantRadiosity;
 
         /* Debugging utilities */
-        void debugDrawLine(const glm::vec3& v0, const glm::vec3& v1);
+        void debugDrawLineImmediate(const glm::vec3& v0, const glm::vec3& v1);
         void debugDrawSphere(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection);
         void debugDrawCubeImmediate(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection);
         void debugDrawCubeBatched(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::vec3& facingDir, const glm::vec4& color, const glm::mat4& view, const glm::mat4& projection);
@@ -246,6 +228,7 @@ namespace Cyan
         * 
         */
         void submitFullScreenPass(RenderTarget* renderTarget, Shader* shader, RenderSetupLambda&& renderSetupLambda);
+        void submitScreenQuadPass(RenderTarget* renderTarget, Viewport viewport, Shader* shader, RenderSetupLambda&& renderSetupLambda);
 
         /**
         * Submit a submesh; right now the execution is not deferred

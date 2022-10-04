@@ -47,8 +47,9 @@ namespace Cyan
         : Singleton<Renderer>(), 
         m_ctx(ctx),
         m_windowSize(windowWidth, windowHeight),
-        m_frameAllocator(1024 * 1024 * 32) // 32MB frame allocator 
+        m_frameAllocator(1024 * 1024 * 32) // 32MB frame allocator
     {
+        m_rasterGI = std::make_unique<RasterGI>(this, m_ctx);
     }
 
     void Renderer::Vctx::Voxelizer::init(u32 resolution)
@@ -222,6 +223,7 @@ namespace Cyan
         indirectDrawBuffer.data = glMapNamedBufferRange(indirectDrawBuffer.buffer, 0, indirectDrawBuffer.sizeInBytes, GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_WRITE_BIT);
 
         m_instantRadiosity.initialize();
+        m_rasterGI->initialize();
     };
 
     void Renderer::finalize()
@@ -635,6 +637,20 @@ namespace Cyan
             );
     }
 
+    void Renderer::submitScreenQuadPass(RenderTarget* renderTarget, Viewport viewport, Shader* shader, RenderSetupLambda&& renderSetupLambda) {
+        GfxPipelineState pipelineState;
+        pipelineState.depth = DepthControl::kDisable;
+
+        submitMesh(
+            renderTarget,
+            viewport,
+            pipelineState,
+            fullscreenQuad,
+            shader,
+            std::move(renderSetupLambda)
+            );
+    }
+
     void Renderer::submitRenderTask(RenderTask&& task)
     {
         // set render target assuming that render target is alreay properly setup
@@ -677,143 +693,6 @@ namespace Cyan
         m_ctx->clear();
     }
 
-    void Renderer::initializeRasterGI() {
-        static bool bInitialized = false;
-        if (!bInitialized) {
-            maxNumRasterCubes = irradianceAtlasRes.x * irradianceAtlasRes.y;
-            rasterCubes = new RasterCube[maxNumRasterCubes];
-            renderedRasterCubes = new RasterCube[maxNumRasterCubes];
-
-            glCreateBuffers(1, &rasterCubeBuffer);
-            u32 bufferSize = maxNumRasterCubes * sizeof(RasterCube);
-            glNamedBufferData(rasterCubeBuffer, bufferSize, nullptr, GL_DYNAMIC_COPY);
-
-            glCreateBuffers(1, &rasterCubeCounter);
-            glNamedBufferData(rasterCubeCounter, sizeof(u32), nullptr, GL_DYNAMIC_COPY);
-
-            ITextureRenderable::Spec radianceAtlasSpec = { };
-            radianceAtlasSpec.type = TEX_2D;
-            radianceAtlasSpec.width = irradianceAtlasRes.x * microBufferRes;
-            radianceAtlasSpec.height = irradianceAtlasRes.y * microBufferRes;
-            radianceAtlasSpec.pixelFormat = PF_RGB16F;
-            radianceAtlas = new Texture2DRenderable("RadianceAtlas", radianceAtlasSpec);
-            radianceAtlasRenderTarget = createRenderTarget(radianceAtlas->width, radianceAtlas->height);
-            radianceAtlasRenderTarget->setColorBuffer(radianceAtlas, 0);
-
-            /** note - @min:
-            * it seems imageStore() only supports 1,2,4 channels textures, so using rgba16f here
-            */
-            ITextureRenderable::Spec irradianceAtlasSpec = { };
-            irradianceAtlasSpec.type = TEX_2D;
-            irradianceAtlasSpec.width = irradianceAtlasRes.x;
-            irradianceAtlasSpec.height = irradianceAtlasRes.y;
-            irradianceAtlasSpec.pixelFormat = PF_RGBA16F;
-            irradianceAtlas = new Texture2DRenderable("IrradianceAtlas", irradianceAtlasSpec);
-
-            bInitialized = true;
-        }
-    }
-
-    void Renderer::startBuildingRadianceAtlas() {
-        bBuildingRadianceAtlas = true;
-        // clear the radiance atlas
-        glm::vec3 skyColor(0.529f, 0.808f, 0.922f);
-        // radianceAtlasRenderTarget->clear({ { 0, glm::vec4(skyColor, 1.f) } });
-        radianceAtlasRenderTarget->clear({ { 0 } });
-        // make a copy of current placed raster cubes 
-        memcpy(renderedRasterCubes, rasterCubes, sizeof(RasterCube) * maxNumRasterCubes);
-    }
-
-    void Renderer::placeRasterCubes(Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) {
-        u32 rasterCubeBufferSize = sizeof(RasterCube) * maxNumRasterCubes;
-        // clear raster cube buffer
-        memset(rasterCubes, 0x0, rasterCubeBufferSize);
-
-        // todo: how to cache spawned raster cubes and avoid placing duplicated raster cubes
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 52, rasterCubeBuffer);
-
-        auto fillRasterShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "FillRasterShader", SHADER_SOURCE_PATH "blit_v.glsl", SHADER_SOURCE_PATH "fill_raster_p.glsl" });
-        auto fillRasterRenderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(irradianceAtlasRes.x, irradianceAtlasRes.y));
-        submitFullScreenPass(
-            fillRasterRenderTarget.get(),
-            fillRasterShader,
-            [depthBuffer, normalBuffer](RenderTarget* renderTarget, Shader* shader) {
-                shader->setUniform("outputSize", glm::vec2(renderTarget->width, renderTarget->height));
-                shader->setTexture("depthBuffer", depthBuffer);
-                shader->setTexture("normalBuffer", normalBuffer);
-            }
-        );
-
-        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_ATOMIC_COUNTER_BARRIER_BIT);
-
-        // read back data from gpu
-        glGetNamedBufferSubData(rasterCubeBuffer, 0, rasterCubeBufferSize, rasterCubes);
-    }
-
-    void Renderer::buildOneFrameRadianceAtlas(SceneRenderable& sceneRenderable) {
-        Shader* rasterGIShader = ShaderManager::createShader({ 
-            ShaderSource::Type::kVsPs,
-            "RasterGIShader",
-            SHADER_SOURCE_PATH "raster_gi_final_gather_v.glsl", 
-            SHADER_SOURCE_PATH "raster_gi_final_gather_p.glsl",
-        });
-        m_ctx->setRenderTarget(radianceAtlasRenderTarget);
-        m_ctx->setShader(rasterGIShader);
-        // supposing this only need to be set once
-        for (auto light : sceneRenderable.lights) {
-            light->setShaderParameters(rasterGIShader);
-        }
-
-        bool bBuildingComplete = false;
-        // start rasterizing the raster cubes
-        const i32 perFrameWorkload = 16;
-        for (i32 i = 0; i < perFrameWorkload; ++i) {
-            i32 rasterCubeIndex = (perFrameWorkload * renderedFrames + i);
-            if (rasterCubeIndex < maxNumRasterCubes) {
-                if (renderedRasterCubes[rasterCubeIndex].position.w > 0.f) {
-                    i32 x = rasterCubeIndex % irradianceAtlasRes.x;
-                    i32 y = rasterCubeIndex / irradianceAtlasRes.x;
-                    m_ctx->setViewport({ x * microBufferRes, y * microBufferRes, microBufferRes, microBufferRes });
-                    PerspectiveCamera rasterCam;
-                    rasterCam.f = 32.f;
-                    rasterCam.position = vec4ToVec3(renderedRasterCubes[rasterCubeIndex].position);
-                    rasterCam.lookAt = rasterCam.position + vec4ToVec3(renderedRasterCubes[rasterCubeIndex].normal);
-                    rasterGIShader->setUniform("view", rasterCam.view());
-                    rasterGIShader->setUniform("projection", rasterCam.projection());
-                    rasterGIShader->setUniform("receivingNormal", vec4ToVec3(renderedRasterCubes[rasterCubeIndex].normal));
-                    submitSceneMultiDrawIndirect(sceneRenderable);
-                }
-            }
-            else {
-                bBuildingComplete = true;
-                break;
-            }
-        }
-        if (bBuildingComplete) {
-            renderedFrames = 0;
-            bBuildingRadianceAtlas = false;
-        }
-        else {
-            renderedFrames++;
-        }
-    }
-
-    void Renderer::buildIrradianceAtlas() {
-        Shader* convolveIrradianceShader = ShaderManager::createShader({ 
-            ShaderSource::Type::kCs,
-            "RasterGIConvolveIrradianceShader",
-            nullptr,
-            nullptr,
-            nullptr,
-            SHADER_SOURCE_PATH "raster_gi_convolve_irradiance_c.glsl",
-        });
-        m_ctx->setShader(convolveIrradianceShader);
-        convolveIrradianceShader->setUniform("microBufferRes", microBufferRes);
-        convolveIrradianceShader->setTexture("radianceAtlas", radianceAtlas);
-        glBindImageTexture(0, irradianceAtlas->getGpuResource(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA16F);
-        glDispatchCompute(irradianceAtlasRes.x, irradianceAtlasRes.y, 1);
-    }
-
     void Renderer::render(Scene* scene)
     {
         //-------------------------------------------------------------------
@@ -837,6 +716,8 @@ namespace Cyan
             if (m_settings.enableAA) {
                 renderResolution = m_windowSize * 2u;
             }
+
+            std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(renderResolution.x, renderResolution.y));
             SceneView sceneView(*scene, scene->camera->getCamera(), EntityFlag_kVisible);
             // convert Scene instance to SceneRenderable instance for rendering
             SceneRenderable sceneRenderable(scene, sceneView, m_frameAllocator);
@@ -850,7 +731,7 @@ namespace Cyan
             depthSpec.width = 2560;
             depthSpec.height = 1440;
 
-            auto depthPrepassOutput = renderSceneDepthNormal(sceneRenderable, sceneView, renderResolution);
+            auto depthPrepassOutput = renderSceneDepthNormal(scene, sceneView, renderResolution);
 
             sceneColorTexture = m_renderQueue.createTexture2D("RayTracingOutput", depthSpec);
             RayTracingScene rtxScene(*scene);
@@ -859,39 +740,35 @@ namespace Cyan
             // shadow
             renderShadow(*scene, sceneRenderable);
             // scene depth & normal pass
-            auto zPrepass = renderSceneDepthNormal(sceneRenderable, renderResolution);
+            ITextureRenderable::Spec depthNormalSpec = { };
+            depthNormalSpec.type = TEX_2D;
+            depthNormalSpec.width = renderResolution.x;
+            depthNormalSpec.height = renderResolution.y;
+            depthNormalSpec.pixelFormat = PF_RGB32F;
+            static Texture2DRenderable* sceneDepthBuffer = new Texture2DRenderable("SceneDepthBuffer", depthNormalSpec);
+            static Texture2DRenderable* sceneNormalBuffer = new Texture2DRenderable("SceneNormalBuffer", depthNormalSpec);
+            renderSceneDepthNormal(sceneRenderable, renderTarget.get(), sceneDepthBuffer, sceneNormalBuffer);
 
-            // rasterization gi
+            ITextureRenderable::Spec spec = { };
+            spec.type = TEX_2D;
+            spec.width = renderResolution.x;
+            spec.height = renderResolution.y;
+            spec.pixelFormat = PF_RGB16F;
+            static Texture2DRenderable* sceneColor = new Texture2DRenderable("SceneColor", spec);
+            renderTarget->setColorBuffer(sceneColor, 0);
+            renderTarget->setDrawBuffers({ 0 });
+            renderTarget->clearDrawBuffer(0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+
+            // rasterization based GI
             {
-                initializeRasterGI();
-                placeRasterCubes(zPrepass.depthBuffer, zPrepass.normalBuffer);
-                if (bBuildingRadianceAtlas) {
-                    buildOneFrameRadianceAtlas(sceneRenderable);
-                }
-                buildIrradianceAtlas();
-                addUIRenderCommand([this]() {
-                    appendToRenderingTab([this]() {
+                m_rasterGI->render(renderTarget.get());
+                // m_rasterGI->visualizeRadianceCube(sceneDepthBuffer, sceneNormalBuffer, sceneRenderable, renderTarget.get());
+                addUIRenderCommand([this, sceneRenderable]() {
+                    appendToRenderingTab([this, sceneRenderable]() {
                         if (ImGui::CollapsingHeader("Rasterization GI", ImGuiTreeNodeFlags_DefaultOpen)) {
                             if (ImGui::Button("build radiance atlas")) {
-                                startBuildingRadianceAtlas();
+                                m_rasterGI->setup(sceneRenderable, sceneDepthBuffer, sceneNormalBuffer);
                             }
-                            ImGui::Begin("raster gi visualization");
-                            enum class Visualization {
-                                kRadiance = 0,
-                                kIrradiance,
-                                kCount
-                            };
-                            static i32 visualization = (i32)Visualization::kRadiance;
-                            const char* visualizationNames[(i32)Visualization::kCount] = { "Radiance", "Irradiance" };
-                            ImVec2 imageSize(640, 360);
-                            ImGui::Combo("Visualization", &visualization, visualizationNames, (i32)Visualization::kCount);
-                            if (visualization == (i32)Visualization::kRadiance) {
-                                ImGui::Image((ImTextureID)radianceAtlas->getGpuResource(), ImVec2(radianceAtlas->width, radianceAtlas->height), ImVec2(0, 1), ImVec2(1, 0));
-                            }
-                            if (visualization == (i32)Visualization::kIrradiance) {
-                                ImGui::Image((ImTextureID)irradianceAtlas->getGpuResource(), imageSize, ImVec2(0, 1), ImVec2(1, 0));
-                            }
-                            ImGui::End();
                         }
                     });
                 });
@@ -900,10 +777,10 @@ namespace Cyan
             // ssgi
             // auto ssgi = screenSpaceRayTracing(zPrepass.depthBuffer, zPrepass.normalBuffer, renderResolution);
             // instant radiosity
-            // auto radiosity = m_instantRadiosity.render(this, sceneRenderable, zPrepass.depthBuffer, zPrepass.normalBuffer, renderResolution);
+            // auto radiosity = m_instantRadiosity.render(this, scene, zPrepass.depthBuffer, zPrepass.normalBuffer, renderResolution);
             // main scene pass
 #if BINDLESS_TEXTURE
-            auto sceneColor = renderSceneMultiDraw(sceneRenderable, sceneView, renderResolution, { });
+            renderSceneMultiDraw(sceneRenderable, renderTarget.get(), { });
 #else
             auto sceneColor = renderScene(sceneRenderable, sceneView, renderResolution);
 #endif
@@ -1023,54 +900,39 @@ namespace Cyan
         }
     }
 
-    Renderer::ZPrepassOutput Renderer::renderSceneDepthNormal(SceneRenderable& renderableScene, const glm::uvec2& outputResolution) 
-    {
+    void Renderer::renderSceneDepthNormal(SceneRenderable& renderableScene, RenderTarget* outRenderTarget, Texture2DRenderable* outDepthBuffer, Texture2DRenderable* outNormalBuffer) {
         renderableScene.submitSceneData(m_ctx);
-
-        ITextureRenderable::Spec spec = { };
-        spec.type = TEX_2D;
-        spec.width = outputResolution.x;
-        spec.height = outputResolution.y;
-        spec.pixelFormat = PF_RGB32F;
-        static Texture2DRenderable* sceneDepthBuffer = new Texture2DRenderable("SceneDepthBuffer", spec);
-        static Texture2DRenderable* sceneNormalBuffer = new Texture2DRenderable("SceneNormalBuffer", spec);
-
-        std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(sceneDepthBuffer->width, sceneDepthBuffer->height));
-        renderTarget->setColorBuffer(sceneDepthBuffer, 0);
-        renderTarget->setColorBuffer(sceneNormalBuffer, 1);
-        renderTarget->setDrawBuffers({ 0, 1 });
-        renderTarget->clear({ 
-            { 0, glm::vec4(1.f) },
-            { 1, glm::vec4(0.f, 0.f, 0.f, 1.f) } 
-        });
+        outRenderTarget->setColorBuffer(outDepthBuffer, 0);
+        outRenderTarget->setColorBuffer(outNormalBuffer, 1);
+        outRenderTarget->setDrawBuffers({ 0, 1 });
+        outRenderTarget->clearDrawBuffer(0, glm::vec4(1.f));
+        outRenderTarget->clearDrawBuffer(1, glm::vec4(0.f, 0.f, 0.f, 1.f));
 
         Shader* sceneDepthNormalShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "SceneDepthNormalShader", SHADER_SOURCE_PATH "scene_depth_normal_v.glsl", SHADER_SOURCE_PATH "scene_depth_normal_p.glsl" });
         u32 transformIndex = 0u;
         for (auto& meshInst : renderableScene.meshInstances)
         {
             submitMesh(
-                renderTarget.get(),
-                {0u, 0u, renderTarget->width, renderTarget->height},
+                outRenderTarget,
+                {0u, 0u, outRenderTarget->width, outRenderTarget->height},
                 GfxPipelineState(),
                 meshInst->parent,
-                sceneDepthNormalShader, 
+                sceneDepthNormalShader,
                 [&transformIndex, this](RenderTarget* renderTarget, Shader* shader) {
                     shader->setUniform("transformIndex", (i32)transformIndex++);
                 });
         }
 
-        addUIRenderCommand([this]() {
+        addUIRenderCommand([this, outDepthBuffer, outNormalBuffer]() {
             appendToRenderingTab(
-                [this]() {
+                [this, outDepthBuffer, outNormalBuffer]() {
                     if (ImGui::CollapsingHeader("Depth Prepass")) {
-                        ImGui::Image((ImTextureID)sceneDepthBuffer->getGpuResource(), ImVec2(320, 180), ImVec2(0, 1), ImVec2(1, 0));
-                        ImGui::Image((ImTextureID)sceneNormalBuffer->getGpuResource(), ImVec2(320, 180), ImVec2(0, 1), ImVec2(1, 0));
+                        ImGui::Image((ImTextureID)outDepthBuffer->getGpuResource(), ImVec2(320, 180), ImVec2(0, 1), ImVec2(1, 0));
+                        ImGui::Image((ImTextureID)outNormalBuffer->getGpuResource(), ImVec2(320, 180), ImVec2(0, 1), ImVec2(1, 0));
                     }
                 }
             );
         });
-
-        return { sceneDepthBuffer, sceneNormalBuffer };
     }
 
     Renderer::SSGITextures Renderer::screenSpaceRayTracing(Texture2DRenderable* sceneDepthTexture, Texture2DRenderable* sceneNormalTexture, const glm::uvec2& renderResolution)
@@ -1372,7 +1234,7 @@ namespace Cyan
         return outSceneColor;
     }
 
-    void Renderer::submitSceneMultiDrawIndirect(SceneRenderable& renderableScene) {
+    void Renderer::submitSceneMultiDrawIndirect(const SceneRenderable& renderableScene) {
         struct IndirectDrawArrayCommand
         {
             u32  count;
@@ -1400,6 +1262,82 @@ namespace Cyan
         glMultiDrawArraysIndirect(GL_TRIANGLES, 0, drawCount, 0);
     }
 
+    void Renderer::renderSceneMultiDraw(SceneRenderable& sceneRenderable, RenderTarget* outRenderTarget, const SSGITextures& SSGIOutput) {
+        Shader* scenePassShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "ScenePassShader", SHADER_SOURCE_PATH "scene_pass_v.glsl", SHADER_SOURCE_PATH "scene_pass_p.glsl" });
+        sceneRenderable.submitSceneData(m_ctx);
+
+        m_ctx->setShader(scenePassShader);
+        m_ctx->setRenderTarget(outRenderTarget);
+        m_ctx->setViewport({ 0, 0, outRenderTarget->width, outRenderTarget->height });
+        m_ctx->setDepthControl(DepthControl::kEnable);
+
+        // setup ssao
+        if (SSGIOutput.ao) {
+            auto ssao = SSGIOutput.ao->glHandle;
+            if (glIsTextureHandleResidentARB(ssao) == GL_FALSE)
+            {
+                glMakeTextureHandleResidentARB(ssao);
+            }
+            scenePassShader->setUniform("SSAO", ssao);
+            scenePassShader->setUniform("useSSAO", 1.f);
+        }
+        else {
+            scenePassShader->setUniform("useSSAO", 0.f);
+        }
+
+        // setup ssbn
+        if (SSGIOutput.bentNormal) {
+            if (m_settings.useBentNormal) {
+                auto ssbn = SSGIOutput.bentNormal->glHandle;
+                scenePassShader->setUniform("useBentNormal", 1.f);
+                if (glIsTextureHandleResidentARB(ssbn) == GL_FALSE)
+                {
+                    glMakeTextureHandleResidentARB(ssbn);
+                }
+                scenePassShader->setUniform("SSBN", ssbn);
+            }
+            else {
+                scenePassShader->setUniform("useBentNormal", 0.f);
+            }
+        }
+
+        // todo: refactor the following
+        // sky light
+        auto BRDFLookupTexture = ReflectionProbe::getBRDFLookupTexture()->glHandle;
+        /* note
+        * seamless cubemap doesn't work with bindless textures that's accessed using a texture handle,
+        * so falling back to normal way of binding textures here.
+        */
+        if (glIsTextureHandleResidentARB(BRDFLookupTexture) == GL_FALSE)
+        {
+            glMakeTextureHandleResidentARB(BRDFLookupTexture);
+        }
+        scenePassShader->setTexture("sceneLights.skyLight.irradiance", sceneRenderable.irradianceProbe->m_convolvedIrradianceTexture);
+        scenePassShader->setTexture("sceneLights.skyLight.reflection", sceneRenderable.reflectionProbe->m_convolvedReflectionTexture);
+        scenePassShader->setUniform("sceneLights.BRDFLookupTexture", BRDFLookupTexture);
+
+        for (auto light : sceneRenderable.lights)
+        {
+            light->setShaderParameters(scenePassShader);
+        }
+
+        submitSceneMultiDrawIndirect(sceneRenderable);
+
+        // render skybox
+        if (sceneRenderable.skybox) {
+            sceneRenderable.skybox->render(outRenderTarget);
+        }
+
+        // m_instantRadiosity.visualizeVPLs(this, renderTarget.get(), scene);
+
+        addUIRenderCommand([this]() {
+            appendToRenderingTab([this]() {
+                ImGui::Checkbox("Fullscreen", &bFullscreenRadiosity);
+                });
+            });
+    }
+
+#if 0
     Texture2DRenderable* Renderer::renderSceneMultiDraw(SceneRenderable& sceneRenderable, const SceneView& sceneView, const glm::uvec2& outputResolution, const SSGITextures& SSGIOutput) {
         ITextureRenderable::Spec spec = { };
         spec.type = TEX_2D;
@@ -1475,7 +1413,7 @@ namespace Cyan
             sceneRenderable.skybox->render(renderTarget.get());
         }
 
-        // m_instantRadiosity.visualizeVPLs(this, renderTarget.get(), sceneRenderable);
+        // m_instantRadiosity.visualizeVPLs(this, renderTarget.get(), scene);
 
 #if 0
         // debug visualize raster cube positions
@@ -1492,13 +1430,13 @@ namespace Cyan
             };
             static ShaderStorageBuffer<DynamicSsboStruct<DebugLine>> debugLines;
 
-            // debugCubes.ssboStruct.dynamicArray.clear();
+            // debugCubes.data.array.clear();
             debugCubes.ssboStruct.dynamicArray.resize(maxNumRasterCubes);
-            // debugLines.ssboStruct.dynamicArray.clear();
+            // debugLines.data.array.clear();
             debugLines.ssboStruct.dynamicArray.resize(maxNumRasterCubes * 2);
             for (i32 i = 0; i < maxNumRasterCubes; ++i) {
                 /* note - @min:
-                * if the raster cube at i is not filled, then rasterCubes[i].position should be vec4(0.f, 0.f, 0.f, 0.f);
+                * if the raster cube at i is not filled, then radianceCubes[i].position should be vec4(0.f, 0.f, 0.f, 0.f);
                 * otherwise the w component will be 1.f, thus using the w component here to help "nullify" rendering some empty raster cubes
                 */
                 glm::mat4 transform = glm::translate(glm::mat4(rasterCubes[i].position.w), vec4ToVec3(rasterCubes[i].position));
@@ -1550,6 +1488,98 @@ namespace Cyan
             glDrawArraysInstanced(GL_LINES, 0, debugLines.ssboStruct.dynamicArray.size(), maxNumRasterCubes);
         }
 #endif
+        struct DebugCube {
+            glm::mat4 transform;
+            glm::vec4 color;
+        };
+        static ShaderStorageBuffer<DynamicSsboStruct<DebugCube>> debugCubes;
+
+        struct DebugLine {
+            glm::mat4 transform;
+            glm::vec4 color;
+        };
+        static ShaderStorageBuffer<DynamicSsboStruct<DebugLine>> debugLines;
+
+        i32 numCubes = 1;
+        debugCubes.ssboStruct.dynamicArray.resize(numCubes);
+        // debugLines.data.array.clear();
+        debugLines.ssboStruct.dynamicArray.resize(numCubes * 2 * 3);
+        glm::mat4 transform = glm::translate(glm::mat4(debugRadianceCube.position.w), vec4ToVec3(debugRadianceCube.position));
+        glm::vec3 worldUp = glm::vec3(0.f, 1.f, 0.f);
+        glm::vec3 up = debugRadianceCube.normal;
+        glm::vec3 forward;
+        glm::vec3 right;
+        if (abs(up.y) > 0.98) {
+            worldUp = glm::vec3(0.f, 0.f, -1.f);
+        }
+        right = glm::cross(worldUp, up);
+        forward = glm::cross(up, right);
+        glm::mat4 tangentFrame = {
+            glm::vec4(right, 0.f),
+            glm::vec4(up, 0.f),
+            glm::vec4(-forward, 0.f),
+            glm::vec4(0.f, 0.f, 0.f, 1.f),
+        };
+        transform = transform * tangentFrame;
+        transform = glm::scale(transform, glm::vec3(0.1));
+        debugCubes[0].transform = transform;
+        // debugCubes[i].color = glm::vec4(1.f, 0.8f, 0.5f, 1.f);
+        glm::vec3 normal = vec4ToVec3(debugRadianceCube.normal);
+        debugCubes[0].color = glm::vec4(normal * .5f + .5f, 1.f);
+
+        // todo: visualize debug tangent frame of the radiance cube
+        {
+            // right
+            glm::vec3 v0 = vec4ToVec3(debugRadianceCube.position);
+            glm::vec3 v1 = v0 + debugTangentFrame[0] * 0.2f;
+            glm::mat4 t0 = glm::translate(glm::mat4(1.f), v0);
+            glm::mat4 t1 = glm::translate(glm::mat4(1.f), v1);
+            debugLines[1 * 2 + 0].transform = t0;
+            debugLines[1 * 2 + 0].color = glm::vec4(1.f, 0.f, 0.f, 1.f);
+            debugLines[1 * 2 + 1].transform = t1;
+            debugLines[1 * 2 + 1].color = glm::vec4(1.f, 0.f, 0.f, 1.f);
+        }
+        {
+            // forward
+            glm::vec3 v0 = vec4ToVec3(debugRadianceCube.position);
+            glm::vec3 v1 = v0 + debugTangentFrame[1] * 0.2f;
+            glm::mat4 t0 = glm::translate(glm::mat4(1.f), v0);
+            glm::mat4 t1 = glm::translate(glm::mat4(1.f), v1);
+            debugLines[0 * 2 + 0].transform = t0;
+            debugLines[0 * 2 + 0].color = glm::vec4(0.f, 1.f, 0.f, 1.f);
+            debugLines[0 * 2 + 1].transform = t1;
+            debugLines[0 * 2 + 1].color = glm::vec4(0.f, 1.f, 0.f, 1.f);
+        }
+        {
+            // up
+            glm::vec3 v0 = vec4ToVec3(debugRadianceCube.position);
+            glm::vec3 v1 = v0 + debugTangentFrame[2] * 0.2f;
+            glm::mat4 t0 = glm::translate(glm::mat4(1.f), v0);
+            glm::mat4 t1 = glm::translate(glm::mat4(1.f), v1);
+            debugLines[2 * 2 + 0].transform = t0;
+            debugLines[2 * 2 + 0].color = glm::vec4(0.f, 0.f, 1.f, 1.f);
+            debugLines[2 * 2 + 1].transform = t1;
+            debugLines[2 * 2 + 1].color = glm::vec4(0.f, 0.f, 1.f, 1.f);
+        }
+
+        auto cube = AssetManager::getAsset<Mesh>("UnitCubeMesh");
+        Shader* debugDrawRadianceCubeShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "DebugDrawRadianceCubeShader", SHADER_SOURCE_PATH "debug_draw_radiance_cube_v.glsl", SHADER_SOURCE_PATH "debug_draw_radiance_cube_p.glsl" });
+        m_ctx->setShader(debugDrawRadianceCubeShader);
+        glBindTextureUnit(129, radianceCubemaps[maxNumRasterCubes - 1]);
+        debugDrawRadianceCubeShader->setUniform("debugRadianceCube", 129);
+        debugCubes.update();
+        debugCubes.bind(53);
+        m_ctx->setVertexArray(cube->getSubmesh(0)->getVertexArray());
+
+        glDisable(GL_CULL_FACE);
+        glDrawArraysInstanced(GL_TRIANGLES, 0, cube->getSubmesh(0)->numVertices(), 1);
+        glEnable(GL_CULL_FACE);
+
+        Shader* debugDrawLineShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "DebugDrawLineShader", SHADER_SOURCE_PATH "debug_draw_line_v.glsl", SHADER_SOURCE_PATH "debug_draw_line_p.glsl" });
+        m_ctx->setShader(debugDrawLineShader);
+        debugLines.update();
+        debugLines.bind(53);
+        glDrawArraysInstanced(GL_LINES, 0, debugLines.ssboStruct.dynamicArray.size(), 3);
 
         addUIRenderCommand([this](){
             appendToRenderingTab([this]() {
@@ -1558,6 +1588,7 @@ namespace Cyan
         });
         return outSceneColor;
     }
+#endif
 
     /*
     Texture2DRenderable* Renderer::downsample(Texture2DRenderable* inTexture) {
@@ -2277,7 +2308,7 @@ namespace Cyan
     }
 
     void Renderer::debugDrawCubeImmediate(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection) {
-        Shader* debugDrawShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "DebugDrawShader", SHADER_SOURCE_PATH "debug_draw_v.glsl", SHADER_SOURCE_PATH "debug_draw_p.glsl" });
+        Shader* debugDrawShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "DebugDrawImmediateShader", SHADER_SOURCE_PATH "debug_draw_immediate_v.glsl", SHADER_SOURCE_PATH "debug_draw_immediate_p.glsl" });
         submitMesh(
             renderTarget,
             viewport,
@@ -2299,7 +2330,7 @@ namespace Cyan
 
     }
 
-    void Renderer::debugDrawLine(const glm::vec3& v0, const glm::vec3& v1)
+    void Renderer::debugDrawLineImmediate(const glm::vec3& v0, const glm::vec3& v1)
     {
 
     }

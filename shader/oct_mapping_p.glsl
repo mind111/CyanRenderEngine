@@ -30,9 +30,13 @@ vec3 octDecode(vec2 o) {
     return normalize(v);
 }
 
+uniform vec2 outputResolution;
+
 void main()
 {
     vec2 remapUv = texCoords * 2.f - 1.f;
+
+    // todo: maybe perform filtering here ...?
     vec3 octVec = octDecode(remapUv);
     outColor = vec4(texture(srcCubemap, octVec).rgb, 1.f);
 }

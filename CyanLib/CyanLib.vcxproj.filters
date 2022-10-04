@@ -255,6 +255,9 @@
     <ClInclude Include="include\InstantRadiosity.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\RasterGI.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\AssetManager.cpp">
@@ -409,6 +412,9 @@
     </ClCompile>
     <ClCompile Include="src\InstantRadiosity.cpp">
       <Filter>Source Files\Internal\InstantRadiosity</Filter>
+    </ClCompile>
+    <ClCompile Include="src\RasterGI.cpp">
+      <Filter>Source Files\Internal</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -703,9 +709,6 @@
     <None Include="..\shader\point_vsm_shadow_p.glsl">
       <Filter>Shaders\Shadow</Filter>
     </None>
-    <None Include="..\shader\fill_raster_p.glsl">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="..\shader\debug_draw_p.glsl">
       <Filter>Shaders\DebugDraw</Filter>
     </None>
@@ -725,6 +728,21 @@
       <Filter>Shaders\RasterGI</Filter>
     </None>
     <None Include="..\shader\raster_gi_convolve_irradiance_c.glsl">
+      <Filter>Shaders\RasterGI</Filter>
+    </None>
+    <None Include="..\shader\fill_raster_p.glsl">
+      <Filter>Shaders\RasterGI</Filter>
+    </None>
+    <None Include="..\shader\debug_draw_immediate_v.glsl">
+      <Filter>Shaders\DebugDraw</Filter>
+    </None>
+    <None Include="..\shader\debug_draw_immediate_p.glsl">
+      <Filter>Shaders\DebugDraw</Filter>
+    </None>
+    <None Include="..\shader\debug_draw_radiance_cube_v.glsl">
+      <Filter>Shaders\RasterGI</Filter>
+    </None>
+    <None Include="..\shader\debug_draw_radiance_cube_p.glsl">
       <Filter>Shaders\RasterGI</Filter>
     </None>
   </ItemGroup>

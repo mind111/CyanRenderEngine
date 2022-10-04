@@ -29,7 +29,7 @@ namespace Cyan
         {
             auto entry = submeshMap.find(mesh->name);
             if (entry == submeshMap.end())
-                submeshMap.insert({ mesh->name, submeshes.ssboStruct.dynamicArray.size()});
+                submeshMap.insert({ mesh->name, submeshes.data.array.size()});
 
             for (u32 i = 0; i < mesh->numSubmeshes(); ++i)
             {
@@ -39,10 +39,10 @@ namespace Cyan
                     auto& vertices = triSubmesh->getVertices();
                     auto& indices = triSubmesh->getIndices();
 
-                    submeshes.ssboStruct.dynamicArray.push_back(
+                    submeshes.data.array.push_back(
                         {
-                            /*baseVertex=*/(u32)vertexBuffer.ssboStruct.dynamicArray.size(),
-                            /*baseIndex=*/(u32)indexBuffer.ssboStruct.dynamicArray.size(),
+                            /*baseVertex=*/(u32)vertexBuffer.data.array.size(),
+                            /*baseIndex=*/(u32)indexBuffer.data.array.size(),
                             /*numVertices=*/(u32)vertices.size(),
                             /*numIndices=*/(u32)indices.size()
                         }
@@ -50,8 +50,8 @@ namespace Cyan
 
                     for (u32 v = 0; v < vertices.size(); ++v)
                     {
-                        vertexBuffer.ssboStruct.dynamicArray.emplace_back();
-                        Vertex& vertex = vertexBuffer.ssboStruct.dynamicArray.back();
+                        vertexBuffer.data.array.emplace_back();
+                        Vertex& vertex = vertexBuffer.data.array.back();
                         vertex.pos = glm::vec4(vertices[v].pos, 1.f);
                         vertex.normal = glm::vec4(vertices[v].normal, 0.f);
                         vertex.tangent = vertices[v].tangent;
@@ -70,14 +70,18 @@ namespace Cyan
         submeshes.update();
     }
 
+    SceneRenderable::SceneRenderable() {
+
+    }
+
     SceneRenderable::SceneRenderable(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator)
         : camera{ sceneView.camera->view(), sceneView.camera->projection() }
     {
-        viewSsbo = std::make_shared<ViewSsbo>();
-        transformSsbo = std::make_shared<TransformSsbo>();
-        instances = std::make_shared<InstanceBuffer>();
-        drawCalls = std::make_shared<DrawCallBuffer>();
-        materials = std::make_shared<MaterialBuffer>();
+        viewSsbo = std::make_unique<ViewSsbo>();
+        transformSsbo = std::make_unique<TransformSsbo>();
+        instances = std::make_unique<InstanceBuffer>();
+        drawCalls = std::make_unique<DrawCallBuffer>();
+        materials = std::make_unique<MaterialBuffer>();
 
         // build list of mesh instances, transforms, and lights
         for (auto entity : sceneView.entities)
@@ -215,12 +219,12 @@ namespace Cyan
         };
         // todo: this sort maybe too slow at some point 
         // sort the instance buffer to group submesh instances that share the same submesh right next to each other
-        std::sort(instances->ssboStruct.dynamicArray.begin(), instances->ssboStruct.dynamicArray.end(), InstanceDescSortKey());
+        std::sort(instances->data.array.begin(), instances->data.array.end(), InstanceDescSortKey());
         drawCalls->addElement(0);
         u32 prev = (*instances)[0].submesh;
         for (u32 i = 1; i < instances->getNumElements(); ++i)
         {
-            if (instances->ssboStruct.dynamicArray[i].submesh != prev)
+            if (instances->data.array[i].submesh != prev)
             {
                 drawCalls->addElement(i);
             }
@@ -229,8 +233,8 @@ namespace Cyan
         drawCalls->addElement(instances->getNumElements());
 
         // build view data
-        SET_SSBO_MEMBER((*viewSsbo), view, camera.view);
-        SET_SSBO_MEMBER((*viewSsbo), projection, camera.projection);
+        viewSsbo->data.constants.view = camera.view;
+        viewSsbo->data.constants.projection = camera.projection;
 
         // build lighting data
         skybox = inScene->skybox;
@@ -239,6 +243,38 @@ namespace Cyan
             irradianceProbe = inScene->skyLight->irradianceProbe.get();
             reflectionProbe = inScene->skyLight->reflectionProbe.get();
         }
+    }
+
+    void SceneRenderable::clone(SceneRenderable& dst, const SceneRenderable& src) {
+        dst.camera = src.camera;
+        dst.meshInstances = src.meshInstances;
+        dst.skybox = src.skybox;
+        for (auto light : src.lights) {
+            // todo: as of right now copying lights will be shallow, need to 
+            // actually implement light->clone() later and convert this to a deep copy
+            // dst.lights.push_back(std::shared_ptr<ILightRenderable>(light->clone()));
+            dst.lights.push_back(light);
+        }
+        dst.irradianceProbe = src.irradianceProbe;
+        dst.reflectionProbe = src.reflectionProbe;
+        dst.viewSsbo = std::unique_ptr<ViewSsbo>(src.viewSsbo->clone());
+        dst.transformSsbo = std::unique_ptr<TransformSsbo>(src.transformSsbo->clone());
+        dst.instances = std::unique_ptr<InstanceBuffer>(src.instances->clone());
+        dst.drawCalls = std::unique_ptr<DrawCallBuffer>(src.drawCalls->clone());
+        dst.materials = std::unique_ptr<MaterialBuffer>(src.materials->clone());
+    }
+
+    /**
+    * the copy constructor performs a deep copy instead of simply copying over
+    * pointers / references
+    */
+    SceneRenderable::SceneRenderable(const SceneRenderable& src) {
+        clone(*this, src);
+    }
+
+    SceneRenderable& SceneRenderable::operator=(const SceneRenderable& src) {
+        clone(*this, src);
+        return *this;
     }
 
     /**
@@ -264,9 +300,8 @@ namespace Cyan
         packedGeometry->indexBuffer.bind(INDEX_BUFFER_BINDING);
         packedGeometry->submeshes.bind(SUBMESH_BUFFER_BINDING);
 
-        // bind global ssbo
-        SET_SSBO_MEMBER((*viewSsbo), view, camera.view);
-        SET_SSBO_MEMBER((*viewSsbo), projection, camera.projection);
+        viewSsbo->data.constants.view = camera.view;
+        viewSsbo->data.constants.projection = camera.projection;
         viewSsbo->update();
         viewSsbo->bind(VIEW_SSBO_BINDING);
         transformSsbo->update();

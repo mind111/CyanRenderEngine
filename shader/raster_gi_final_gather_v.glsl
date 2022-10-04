@@ -16,6 +16,7 @@ struct PBRMaterial
 
 out VSOutput
 {
+	vec3 objectSpacePosition;
 	vec3 viewSpacePosition;
 	vec3 worldSpacePosition;
 	vec3 worldSpaceNormal;
@@ -116,8 +117,9 @@ void main()
 	Vertex vertex = vertexBuffer.vertices[baseVertex + index];
 	gl_Position = projection * view * transformSsbo.models[instance.transform] * vertex.pos;
 
+	vsOut.objectSpacePosition = vertex.pos.xyz;
 	vsOut.worldSpacePosition = (transformSsbo.models[instance.transform] * vertex.pos).xyz;
-	vsOut.viewSpacePosition = (viewSsbo.view * transformSsbo.models[instance.transform] * vertex.pos).xyz;
+	vsOut.viewSpacePosition = (view * transformSsbo.models[instance.transform] * vertex.pos).xyz;
 	vsOut.worldSpaceNormal = normalize((inverse(transpose(transformSsbo.models[instance.transform])) * vertex.normal).xyz);
 	vsOut.worldSpaceTangent = normalize((transformSsbo.models[instance.transform] * vec4(vertex.tangent.xyz, 0.f)).xyz);
 	vsOut.tangentSpaceHandedness = vertex.tangent.w;

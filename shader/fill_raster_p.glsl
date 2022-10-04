@@ -8,8 +8,8 @@ in VSOut
 uniform sampler2D depthBuffer;
 uniform sampler2D normalBuffer;
 uniform vec2 outputSize;
-
-layout (binding = 1, offset = 0) uniform atomic_uint numFilledRasterCubes;
+uniform vec2 debugRadianceCubeScreenCoord;
+uniform uint maxNumRadianceCubes;
 
 #define VIEW_SSBO_BINDING 0
 layout(std430, binding = VIEW_SSBO_BINDING) buffer ViewShaderStorageBuffer
@@ -20,13 +20,13 @@ layout(std430, binding = VIEW_SSBO_BINDING) buffer ViewShaderStorageBuffer
     float dummy;
 } viewSsbo;
 
-struct RasterCube {
+struct RadianceCube {
 	vec4 position;
 	vec4 normal;
 };
 
 layout(std430, binding = 52) buffer RasterCubeSSBO {
-    RasterCube rasterCubes[];
+    RadianceCube radianceCubes[];
 };
 
 vec3 screenToWorld(vec3 pp, mat4 invView, mat4 invProjection) {
@@ -40,12 +40,24 @@ vec3 screenToWorld(vec3 pp, mat4 invView, mat4 invProjection) {
 void main() {
 	vec2 pixelCoord = gl_FragCoord.xy / outputSize;
     float depth = texture(depthBuffer, pixelCoord).r * 2.f - 1.f;
+	int radianceCubeIndex = int(floor(gl_FragCoord.y)) * int(outputSize.x) + int(floor(gl_FragCoord.x));
     if (depth < 0.99) {
 		vec3 normal = normalize(texture(normalBuffer, pixelCoord).rgb * 2.f - 1.f);
 		vec3 worldSpacePosition = screenToWorld(vec3(pixelCoord * 2.f - 1.f, depth), inverse(viewSsbo.view), inverse(viewSsbo.projection));
-		// uint count = atomicCounterIncrement(numFilledRasterCubes);
-		int rasterCubeIndex = int(floor(gl_FragCoord.y)) * int(outputSize.x) + int(floor(gl_FragCoord.x));
-		rasterCubes[rasterCubeIndex].position = vec4(worldSpacePosition, 1.f);
-		rasterCubes[rasterCubeIndex].normal = vec4(normal, 0.f);
+		radianceCubes[radianceCubeIndex].position = vec4(worldSpacePosition, 1.f);
+		radianceCubes[radianceCubeIndex].normal = vec4(normal, 0.f);
 	}
+	else {
+		radianceCubes[radianceCubeIndex].position = vec4(0.f);
+		radianceCubes[radianceCubeIndex].normal = vec4(0.f);
+	}
+
+	// debug radiance cube
+    float debugDepth = texture(depthBuffer, debugRadianceCubeScreenCoord).r * 2.f - 1.f;
+    if (debugDepth < 0.99) {
+		vec3 debugNormal = normalize(texture(normalBuffer, debugRadianceCubeScreenCoord).rgb * 2.f - 1.f);
+		vec3 debugWorldSpacePosition = screenToWorld(vec3(debugRadianceCubeScreenCoord * 2.f - 1.f, debugDepth), inverse(viewSsbo.view), inverse(viewSsbo.projection));
+		radianceCubes[maxNumRadianceCubes - 1].position = vec4(debugWorldSpacePosition, 1.f);
+		radianceCubes[maxNumRadianceCubes - 1].normal = vec4(debugNormal, 0.f);
+    }
 }
