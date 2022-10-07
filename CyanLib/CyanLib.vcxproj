@@ -147,6 +147,8 @@
     <None Include="..\shader\calculate_light.glsl" />
     <None Include="..\shader\debug_color_fs.glsl" />
     <None Include="..\shader\debug_color_vs.glsl" />
+    <None Include="..\shader\debug_draw_cubemap_p.glsl" />
+    <None Include="..\shader\debug_draw_cubemap_v.glsl" />
     <None Include="..\shader\debug_draw_immediate_p.glsl" />
     <None Include="..\shader\debug_draw_immediate_v.glsl" />
     <None Include="..\shader\debug_draw_line_p.glsl" />
@@ -167,6 +169,9 @@
     <None Include="..\shader\point_shadow_v.glsl" />
     <None Include="..\shader\point_vsm_shadow_p.glsl" />
     <None Include="..\shader\raster_gi_convolve_irradiance_c.glsl" />
+    <None Include="..\shader\raster_gi_final_gather_multiview_g.glsl" />
+    <None Include="..\shader\raster_gi_final_gather_multiview_p.glsl" />
+    <None Include="..\shader\raster_gi_final_gather_multiview_v.glsl" />
     <None Include="..\shader\raster_gi_final_gather_p.glsl" />
     <None Include="..\shader\raster_gi_final_gather_v.glsl" />
     <None Include="..\shader\raytracing_p.glsl" />

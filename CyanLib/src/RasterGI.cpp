@@ -39,6 +39,22 @@ namespace Cyan {
             }
             debugRadianceCubemap = radianceCubemaps[maxNumRadianceCubes - 1];
 
+            // todo: try to improve performance of basic implementation
+            {
+                ITextureRenderable::Spec spec = { };
+                spec.width = sqrt(perFrameWorkload) * microBufferRes;
+                spec.height = sqrt(perFrameWorkload) * microBufferRes;
+                spec.type = TEX_CUBE;
+                spec.pixelFormat = PF_RGB16F;
+                ITextureRenderable::Parameter params = { };
+                params.minificationFilter = FM_BILINEAR;
+                params.magnificationFilter = FM_BILINEAR;
+                params.wrap_r = WM_CLAMP;
+                params.wrap_s = WM_CLAMP;
+                params.wrap_t = WM_CLAMP;
+                radianceCubemapMultiView = new TextureCubeRenderable("RadianceCubeAtlas", spec, params);
+            }
+
             glCreateBuffers(1, &radianceCubeBuffer);
             u32 bufferSize = maxNumRadianceCubes * sizeof(RadianceCube);
             glNamedBufferData(radianceCubeBuffer, bufferSize, nullptr, GL_DYNAMIC_COPY);
@@ -257,7 +273,6 @@ namespace Cyan {
 
     void RasterGI::progressiveBuildRadianceAtlas(SceneRenderable& scene) {
         bool bBuildingComplete = false;
-        const i32 perFrameWorkload = 8;
         for (i32 i = 0; i < perFrameWorkload; ++i) {
             i32 radianceCubeIndex = (perFrameWorkload * renderedFrames + i);
             if (radianceCubeIndex < maxNumRadianceCubes) {
@@ -302,6 +317,138 @@ namespace Cyan {
         convolveIrradianceShader->setTexture("radianceAtlas", radianceAtlas);
         glBindImageTexture(0, irradianceAtlas->getGpuResource(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA16F);
         glDispatchCompute(irradianceAtlasRes.x, irradianceAtlasRes.y, 1);
+    }
+
+    void RasterGI::sampleRadianceMultiView(const SceneRenderable& scene, u32 startIndex, i32 count) {
+        Shader* shader = ShaderManager::createShader({ 
+            ShaderSource::Type::kVsGsPs,
+            "RasterGIMultiViewShader",
+            SHADER_SOURCE_PATH "raster_gi_final_gather_multiview_v.glsl", 
+            SHADER_SOURCE_PATH "raster_gi_final_gather_multiview_p.glsl",
+            SHADER_SOURCE_PATH "raster_gi_final_gather_multiview_g.glsl", 
+        });
+        // suppose this only need to be set once
+        for (auto light : scene.lights) {
+            light->setShaderParameters(shader);
+        }
+
+        const i32 numFaces = 6;
+        struct IndirectDrawArrayCommand
+        {
+            u32  count;
+            u32  instanceCount;
+            u32  first;
+            i32  baseInstance;
+        };
+        multiViewBuffer.data.array.clear();
+        std::vector<glm::vec4> viewports(perFrameWorkload);
+        static ShaderStorageBuffer<DynamicSsboData<glm::vec4>> hemicubeNormalBuffer(perFrameWorkload);
+        hemicubeNormalBuffer.data.array.clear();
+        hemicubeNormalBuffer.data.array.resize(perFrameWorkload);
+        for (i32 i = 0; i < count; ++i) {
+            const auto& hemicube = radianceCubes[startIndex + i];
+            viewports[i] = { (i % (i32)sqrt(perFrameWorkload)) * microBufferRes, (i / (i32)sqrt(perFrameWorkload)) * microBufferRes, microBufferRes, microBufferRes};
+            hemicubeNormalBuffer[i] = hemicube.normal;
+
+            for (i32 face = 0; face < numFaces; ++face) {
+                // calculate the tangent frame of radiance cube
+                glm::vec3 worldUp = glm::vec3(0.f, 1.f, 0.f);
+                glm::vec3 up = hemicube.normal;
+                if (abs(up.y) > 0.98) {
+                    worldUp = glm::vec3(0.f, 0.f, -1.f);
+                }
+                glm::vec3 right = glm::cross(worldUp, up);
+                glm::vec3 forward = glm::cross(up, right);
+                glm::mat3 tangentFrame = {
+                    right,
+                    up,
+                    -forward
+                };
+                /** note - @min: 
+                * the order of camera facing directions should match the following
+                        {1.f, 0.f, 0.f},   // Right
+                        {-1.f, 0.f, 0.f},  // Left
+                        {0.f, 1.f, 0.f},   // Up
+                        {0.f, -1.f, 0.f},  // Down
+                        {0.f, 0.f, 1.f},   // Front
+                        {0.f, 0.f, -1.f},  // Back
+                */
+                glm::vec3 cameraFacingDirs[] = {
+                    right,
+                    -right,
+                    up,
+                    -up,
+                    -forward,
+                    forward
+                };
+                glm::vec3 lookAtDir = tangentFrame * LightProbeCameras::cameraFacingDirections[face];
+                PerspectiveCamera radianceCubeCam(
+                    glm::vec3(hemicube.position),
+                    glm::vec3(hemicube.position) + lookAtDir,
+                    tangentFrame * LightProbeCameras::worldUps[face],
+                    90.f,
+                    0.01f,
+                    32.f,
+                    1.0f
+                );
+                multiViewBuffer.addElement(radianceCubeCam.view());
+            }
+        }
+
+        multiViewBuffer.update();
+        multiViewBuffer.bind(54);
+        hemicubeNormalBuffer.update();
+        hemicubeNormalBuffer.bind(55);
+        // setup multi view viewports
+        glViewportArrayv(0, perFrameWorkload, (GLfloat*)(viewports.data()));
+
+        auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(radianceCubemapMultiView->resolution, radianceCubemapMultiView->resolution));
+        renderTarget->setColorBuffer(radianceCubemapMultiView, 0);
+        renderTarget->setDrawBuffers({ 0, 1, 2, 3, 4, 5 });
+        for (i32 i = 0; i < 6; ++i) {
+            renderTarget->clearDrawBuffer(i, glm::vec4(0.f, 0.f, 0.f, 1.f));
+        }
+        renderTarget->clearDepthBuffer();
+        m_gfxc->setRenderTarget(renderTarget.get());
+        m_gfxc->setDepthControl(DepthControl::kEnable);
+        m_gfxc->setShader(shader);
+        shader->setUniform("numViews", count);
+        glm::mat4 projection = glm::perspective(90.f, 1.f, 0.01f, 32.f);
+        shader->setUniform("projection", projection);
+        m_renderer->submitSceneMultiDrawIndirect(scene);
+    }
+
+    void RasterGI::progressiveBuildRadianceAtlasMultiView(SceneRenderable& scene) {
+        bool bBuildingComplete = false;
+        if (perFrameWorkload * renderedFrames) {
+
+        }
+        for (i32 i = 0; i < perFrameWorkload; ++i) {
+            i32 radianceCubeIndex = (perFrameWorkload * renderedFrames + i);
+            if (radianceCubeIndex < maxNumRadianceCubes) {
+                if (radianceCubes[radianceCubeIndex].position.w > 0.f) {
+                    i32 x = radianceCubeIndex % irradianceAtlasRes.x;
+                    i32 y = radianceCubeIndex / irradianceAtlasRes.x;
+                    glm::vec2 jitter = halton23(radianceCubeIndex);
+                }
+            }
+            else {
+                bBuildingComplete = true;
+                break;
+            }
+        }
+        if (bBuildingComplete) {
+            renderedFrames = 0;
+            bBuildingRadianceAtlas = false;
+            m_renderer->gaussianBlur(radianceAtlas, 2, 1.f);
+            m_renderer->gaussianBlur(radianceAtlas, 3, 2.f);
+            m_renderer->gaussianBlur(radianceAtlas, 4, 3.f);
+            m_renderer->gaussianBlur(radianceAtlas, 5, 4.f);
+            m_renderer->gaussianBlur(radianceAtlas, 6, 5.f);
+        }
+        else {
+            renderedFrames++;
+        }
     }
 
     /** note - @mind:

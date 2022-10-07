@@ -14,18 +14,16 @@ struct PBRMaterial
 	uvec4 flags;
 };
 
-in VSOutput
+in VertexData
 {
-    vec3 objectSpacePosition;
 	vec3 viewSpacePosition;
 	vec3 worldSpacePosition;
 	vec3 worldSpaceNormal;
 	vec3 worldSpaceTangent;
 	flat float tangentSpaceHandedness;
 	vec2 texCoord0;
-	vec2 texCoord1;
-    vec3 vertexColor;
     flat PBRMaterial material;
+    vec3 hemicubeNormal;
 } psIn;
 
 out vec3 outColor;
@@ -105,7 +103,6 @@ uniform struct SceneLights
 // todo: switch to use global view ssbo later!!!
 uniform mat4 view;
 uniform mat4 projection;
-uniform vec3 receivingNormal;
 
 float slopeBasedBias(vec3 n, vec3 l)
 {
@@ -566,9 +563,11 @@ void main() {
 
     MaterialParameters materialParameters = getMaterialParameters(worldSpaceTangent, worldSpaceBitangent, worldSpaceNormal, psIn.texCoord0);
     vec3 pixelDir = (inverse(view) * vec4(normalize(psIn.viewSpacePosition), 0.f)).xyz;
-    float ndotl = max(dot(pixelDir, receivingNormal), 0.f);
+    float ndotl = max(dot(pixelDir, psIn.hemicubeNormal), 0.f);
     float solidAngle = calcCubemapTexelSolidAngle(normalize(psIn.viewSpacePosition), float(microBufferRes));
-    // outColor = calcLighting(sceneLights, materialParameters, psIn.worldSpacePosition) * ndotl * solidAngle;
     outColor = materialParameters.albedo;
+    // outColor = calcLighting(sceneLights, materialParameters, psIn.worldSpacePosition) * ndotl;
+    // outColor = vec3(psIn.hemicubeNormal * .5f + .5f);
+    // outColor = vec3(1.f);
     // outColor = vec3(solidAngle);
 }

@@ -49,8 +49,10 @@ namespace Cyan {
 
         void placeRadianceCubes(Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer);
         void progressiveBuildRadianceAtlas(SceneRenderable& sceneRenderable);
+        void progressiveBuildRadianceAtlasMultiView(SceneRenderable& scene);
         void buildIrradianceAtlas();
         void sampleRadiance(const RadianceCube& radianceCube, u32 radianceCubeIdx, bool jitter, const SceneRenderable& scene, TextureCubeRenderable* radianceCubemap);
+        void sampleRadianceMultiView(const SceneRenderable& scene, u32 startIndex, i32 count);
         void resampleRadianceCube(TextureCubeRenderable* radianceCubemap, glm::uvec2 index);
         void visualizeRadianceCube(Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer, const SceneRenderable& scene, RenderTarget* outRenderTarget);
         void debugDrawOneRadianceCube(const RadianceCube& radianceCube, TextureCubeRenderable* radianceCubemap, RenderTarget* outRenderTarget);
@@ -66,12 +68,17 @@ namespace Cyan {
 
         const u32 microBufferRes = 12;
         const u32 resampledMicroBufferRes = microBufferRes * 2;
-        glm::uvec2 irradianceAtlasRes = glm::uvec2(160, 90);
+        glm::uvec2 irradianceAtlasRes = glm::uvec2(40, 22);
         TextureCubeRenderable** radianceCubemaps = nullptr;
         RenderTarget* radianceAtlasRenderTarget = nullptr;
         Texture2DRenderable* radianceAtlas = nullptr;
         Texture2DRenderable* positionAtlas = nullptr;
         Texture2DRenderable* irradianceAtlas = nullptr;
+
+        // this number must be pow(x, 2);
+        const i32 perFrameWorkload = 16;
+        ShaderStorageBuffer<DynamicSsboData<glm::mat4>> multiViewBuffer;
+        TextureCubeRenderable* radianceCubemapMultiView = nullptr;
 
         // a debug radiance cube for visualization purpose 
         glm::vec2 debugRadianceCubeScreenCoord = glm::vec2(.5f);

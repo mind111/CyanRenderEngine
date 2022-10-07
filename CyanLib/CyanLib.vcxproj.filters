@@ -745,5 +745,20 @@
     <None Include="..\shader\debug_draw_radiance_cube_p.glsl">
       <Filter>Shaders\RasterGI</Filter>
     </None>
+    <None Include="..\shader\raster_gi_final_gather_multiview_v.glsl">
+      <Filter>Shaders\RasterGI</Filter>
+    </None>
+    <None Include="..\shader\raster_gi_final_gather_multiview_g.glsl">
+      <Filter>Shaders\RasterGI</Filter>
+    </None>
+    <None Include="..\shader\raster_gi_final_gather_multiview_p.glsl">
+      <Filter>Shaders\RasterGI</Filter>
+    </None>
+    <None Include="..\shader\debug_draw_cubemap_v.glsl">
+      <Filter>Shaders\DebugDraw</Filter>
+    </None>
+    <None Include="..\shader\debug_draw_cubemap_p.glsl">
+      <Filter>Shaders\DebugDraw</Filter>
+    </None>
   </ItemGroup>
 </Project>
