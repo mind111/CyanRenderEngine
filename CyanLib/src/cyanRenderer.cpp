@@ -50,7 +50,7 @@ namespace Cyan
         m_windowSize(windowWidth, windowHeight),
         m_frameAllocator(1024 * 1024 * 32) // 32MB frame allocator
     {
-        m_rasterGI = std::make_unique<RasterGI>(this, m_ctx);
+        m_manyViewGI = std::make_unique<ManyViewGI>(this, m_ctx);
     }
 
     void Renderer::Vctx::Voxelizer::init(u32 resolution)
@@ -224,7 +224,7 @@ namespace Cyan
         indirectDrawBuffer.data = glMapNamedBufferRange(indirectDrawBuffer.buffer, 0, indirectDrawBuffer.sizeInBytes, GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_WRITE_BIT);
 
         m_instantRadiosity.initialize();
-        m_rasterGI->initialize();
+        m_manyViewGI->initialize();
     };
 
     void Renderer::finalize()
@@ -760,25 +760,8 @@ namespace Cyan
             renderTarget->setDrawBuffers({ 0 });
             renderTarget->clearDrawBuffer(0, glm::vec4(0.f, 0.f, 0.f, 1.f));
 
-            // rasterization based GI
-            {
-                m_rasterGI->render(renderTarget.get());
-                // m_rasterGI->visualizeRadianceCube(sceneDepthBuffer, sceneNormalBuffer, sceneRenderable, renderTarget.get());
-                m_rasterGI->placeRadianceCubes(sceneDepthBuffer, sceneNormalBuffer);
-                m_rasterGI->sampleRadianceMultiView(sceneRenderable, 0, 16);
-                // m_rasterGI->debugDrawRadianceCubes(renderTarget.get());
-                debugDrawCubemap(m_rasterGI->radianceCubemapMultiView);
-
-                addUIRenderCommand([this, sceneRenderable]() {
-                    appendToRenderingTab([this, sceneRenderable]() {
-                        if (ImGui::CollapsingHeader("Rasterization GI", ImGuiTreeNodeFlags_DefaultOpen)) {
-                            if (ImGui::Button("build radiance atlas")) {
-                                m_rasterGI->setup(sceneRenderable, sceneDepthBuffer, sceneNormalBuffer);
-                            }
-                        }
-                    });
-                });
-            }
+            // many view global illumination
+            m_manyViewGI->run(renderTarget.get(), sceneRenderable, sceneDepthBuffer, sceneNormalBuffer);
 
             // ssgi
             // auto ssgi = screenSpaceRayTracing(zPrepass.depthBuffer, zPrepass.normalBuffer, renderResolution);
@@ -1442,7 +1425,7 @@ namespace Cyan
             debugLines.ssboStruct.dynamicArray.resize(maxNumRasterCubes * 2);
             for (i32 i = 0; i < maxNumRasterCubes; ++i) {
                 /* note - @min:
-                * if the raster cube at i is not filled, then radianceCubes[i].position should be vec4(0.f, 0.f, 0.f, 0.f);
+                * if the raster cube at i is not filled, then hemicubes[i].position should be vec4(0.f, 0.f, 0.f, 0.f);
                 * otherwise the w component will be 1.f, thus using the w component here to help "nullify" rendering some empty raster cubes
                 */
                 glm::mat4 transform = glm::translate(glm::mat4(rasterCubes[i].position.w), vec4ToVec3(rasterCubes[i].position));
@@ -2341,7 +2324,6 @@ namespace Cyan
 
     }
 
-    // todo: implement this
     void Renderer::debugDrawCubemap(TextureCubeRenderable* cubemap) {
         static PerspectiveCamera camera(
             glm::vec3(0.f, 1.f, 2.f),
@@ -2370,7 +2352,7 @@ namespace Cyan
                 SHADER_SOURCE_PATH "debug_draw_cubemap_v.glsl", 
                 SHADER_SOURCE_PATH "debug_draw_cubemap_p.glsl" 
         });
-
+        glDisable(GL_CULL_FACE);
         submitMesh(
             renderTarget.get(),
             {0, 0, renderTarget->width, renderTarget->height },
@@ -2384,6 +2366,86 @@ namespace Cyan
                 shader->setTexture("cubemap", cubemap);
             }
         );
+        glEnable(GL_CULL_FACE);
+
+        // draw the output texture to the cubemap viewer
+        addUIRenderCommand([]() {
+            ImGui::Begin("Debug Viewer"); {
+
+                ImGui::Image((ImTextureID)outTexture->getGpuResource(), ImVec2(320, 180), ImVec2(0, 1), ImVec2(1, 0));
+
+                // todo: implement a proper mouse input mechanism for this viewer
+                // todo: abstract this into a debug viewer widget or something
+                ImVec2 rectMin = ImGui::GetWindowContentRegionMin();
+                ImVec2 rectMax = ImGui::GetWindowContentRegionMax();
+                if (ImGui::IsMouseHoveringRect(rectMin, rectMax)) {
+                    if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
+                        glm::dvec2 mouseCursorChange = IOSystem::get()->getMouseCursorChange();
+                        const f32 C = 0.02f;
+                        f32 phi = mouseCursorChange.x * C;
+                        f32 theta = mouseCursorChange.y * C;
+                        /** note - @min:
+                        * copied from Camera.cpp CameraEntity::orbit();
+                        */
+                        glm::vec3 p = camera.position - camera.lookAt;
+                        glm::quat quat(cos(.5f * -phi), sin(.5f * -phi) * camera.worldUp);
+                        quat = glm::rotate(quat, -theta, camera.right());
+                        glm::mat4 model(1.f);
+                        model = glm::translate(model, camera.lookAt);
+                        glm::mat4 rot = glm::toMat4(quat);
+                        glm::vec4 pPrime = rot * glm::vec4(p, 1.f);
+                        camera.position = glm::vec3(pPrime.x, pPrime.y, pPrime.z) + camera.lookAt;
+                    }
+                }
+            } ImGui::End();
+        });
+    }
+
+    void Renderer::debugDrawCubemap(GLuint cubemap) {
+        static PerspectiveCamera camera(
+            glm::vec3(0.f, 1.f, 2.f),
+            glm::vec3(0.f, 0.f, 0.f),
+            glm::vec3(0.f, 1.f, 0.f),
+            90.f,
+            0.1f,
+            16.f,
+            16.f / 9.f
+        );
+
+        auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(320, 180));
+        ITextureRenderable::Spec spec = { };
+        spec.type = TEX_2D;
+        spec.width = 320;
+        spec.height = 180;
+        spec.pixelFormat = PF_RGB16F;
+
+        static Texture2DRenderable* outTexture = new Texture2DRenderable("CubemapViewerTexture", spec);
+        renderTarget->setColorBuffer(outTexture, 0);
+        renderTarget->clearDrawBuffer(0, glm::vec4(0.2, 0.2, 0.2, 1.f));
+        
+        Shader* shader = ShaderManager::createShader({ 
+                ShaderSource::Type::kVsPs, 
+                "DebugDrawCubemapShader", 
+                SHADER_SOURCE_PATH "debug_draw_cubemap_v.glsl", 
+                SHADER_SOURCE_PATH "debug_draw_cubemap_p.glsl" 
+        });
+        glDisable(GL_CULL_FACE);
+        submitMesh(
+            renderTarget.get(),
+            {0, 0, renderTarget->width, renderTarget->height },
+            GfxPipelineState(),
+            AssetManager::getAsset<Mesh>("UnitCubeMesh"),
+            shader,
+            [cubemap](RenderTarget* renderTarget, Shader* shader) {
+                shader->setUniform("model", glm::mat4(1.f));
+                shader->setUniform("view", camera.view());
+                shader->setUniform("projection", camera.projection());
+                shader->setUniform("cubemap", 128);
+                glBindTextureUnit(128, cubemap);
+                // shader->setTexture("cubemap", cubemap);
+            }
+        );
+        glEnable(GL_CULL_FACE);
 
         // draw the output texture to the cubemap viewer
         addUIRenderCommand([]() {

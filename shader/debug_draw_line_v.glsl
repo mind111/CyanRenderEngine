@@ -6,13 +6,13 @@ out VSOutput
     vec3 objectSpacePosition;
 } vsOut;
 
-struct DebugInstanceData {
+struct InstanceInfo {
     mat4 transform[2];
     vec4 color; 
 };
 
-layout(std430, binding = 53) buffer TransformSSBO {
-    DebugInstanceData instances[];
+layout(std430, binding = 65) buffer InstanceBuffer {
+    InstanceInfo instances[];
 };
 
 layout(std430, binding = 0) buffer ViewShaderStorageBuffer

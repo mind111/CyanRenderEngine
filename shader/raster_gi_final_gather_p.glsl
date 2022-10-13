@@ -552,7 +552,7 @@ float calcCubemapTexelSolidAngle(vec3 d, float cubemapResolution) {
     vec2 B = A + vec2(0.f, 1.f) * texelSize;
     vec2 C = A + vec2(1.f, 0.f) * texelSize;
     vec2 D = A + vec2(1.f, 1.f) * texelSize;
-    solidAngle = solidAngleHelper(A) + solidAngleHelper(D) - solidAngleHelper(B) - solidAngleHelper(C); /*+ solidAngleHelper(A) - solidAngleHelper(B) - solidAngleHelper(C)*/;
+    solidAngle = solidAngleHelper(A) + solidAngleHelper(D) - solidAngleHelper(B) - solidAngleHelper(C);
     return solidAngle;
 }
 
@@ -569,6 +569,7 @@ void main() {
     float ndotl = max(dot(pixelDir, receivingNormal), 0.f);
     float solidAngle = calcCubemapTexelSolidAngle(normalize(psIn.viewSpacePosition), float(microBufferRes));
     // outColor = calcLighting(sceneLights, materialParameters, psIn.worldSpacePosition) * ndotl * solidAngle;
-    outColor = materialParameters.albedo;
+    outColor = calcLighting(sceneLights, materialParameters, psIn.worldSpacePosition) * ndotl;
+    // outColor = materialParameters.albedo;
     // outColor = vec3(solidAngle);
 }

@@ -338,6 +338,10 @@ namespace Cyan
         SET_UNIFORM(glProgramUniformHandleui64ARB, data);
     }
 
+    Shader& Shader::setUniform(const char* name, const glm::ivec2& data) {
+        SET_UNIFORM(glProgramUniform2i, data.x, data.y);
+    }
+
     Shader& Shader::setTexture(const char* samplerName, ITextureRenderable* texture)
     {
         if (texture) {

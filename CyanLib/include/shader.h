@@ -83,6 +83,7 @@ namespace Cyan
         Shader& setUniform(const char* name, const u64& data);
         Shader& setUniform(const char* name, i32 data);
         Shader& setUniform(const char* name, f32 data);
+        Shader& setUniform(const char* name, const glm::ivec2& data);
         Shader& setUniform(const char* name, const glm::vec2& data);
         Shader& setUniform(const char* name, const glm::vec3& data);
         Shader& setUniform(const char* name, const glm::vec4& data);

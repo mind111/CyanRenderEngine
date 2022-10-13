@@ -61,8 +61,11 @@
     <Filter Include="Shaders\DebugDraw">
       <UniqueIdentifier>{28070b77-2caa-411c-8193-54868e73d1b6}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Shaders\RasterGI">
+    <Filter Include="Shaders\ManyViewGI">
       <UniqueIdentifier>{df26b4d4-db6b-4180-8859-e05c35aacd48}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\ManyViewGI\Debug">
+      <UniqueIdentifier>{c88e596c-784a-4e1d-973c-1b2eeed574bf}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -255,7 +258,7 @@
     <ClInclude Include="include\InstantRadiosity.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\RasterGI.h">
+    <ClInclude Include="include\ManyViewGI.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -413,7 +416,7 @@
     <ClCompile Include="src\InstantRadiosity.cpp">
       <Filter>Source Files\Internal\InstantRadiosity</Filter>
     </ClCompile>
-    <ClCompile Include="src\RasterGI.cpp">
+    <ClCompile Include="src\ManyViewGI.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
   </ItemGroup>
@@ -722,16 +725,16 @@
       <Filter>Shaders\DebugDraw</Filter>
     </None>
     <None Include="..\shader\raster_gi_final_gather_v.glsl">
-      <Filter>Shaders\RasterGI</Filter>
+      <Filter>Shaders\ManyViewGI</Filter>
     </None>
     <None Include="..\shader\raster_gi_final_gather_p.glsl">
-      <Filter>Shaders\RasterGI</Filter>
+      <Filter>Shaders\ManyViewGI</Filter>
     </None>
     <None Include="..\shader\raster_gi_convolve_irradiance_c.glsl">
-      <Filter>Shaders\RasterGI</Filter>
+      <Filter>Shaders\ManyViewGI</Filter>
     </None>
     <None Include="..\shader\fill_raster_p.glsl">
-      <Filter>Shaders\RasterGI</Filter>
+      <Filter>Shaders\ManyViewGI</Filter>
     </None>
     <None Include="..\shader\debug_draw_immediate_v.glsl">
       <Filter>Shaders\DebugDraw</Filter>
@@ -739,26 +742,41 @@
     <None Include="..\shader\debug_draw_immediate_p.glsl">
       <Filter>Shaders\DebugDraw</Filter>
     </None>
-    <None Include="..\shader\debug_draw_radiance_cube_v.glsl">
-      <Filter>Shaders\RasterGI</Filter>
-    </None>
-    <None Include="..\shader\debug_draw_radiance_cube_p.glsl">
-      <Filter>Shaders\RasterGI</Filter>
-    </None>
     <None Include="..\shader\raster_gi_final_gather_multiview_v.glsl">
-      <Filter>Shaders\RasterGI</Filter>
+      <Filter>Shaders\ManyViewGI</Filter>
     </None>
     <None Include="..\shader\raster_gi_final_gather_multiview_g.glsl">
-      <Filter>Shaders\RasterGI</Filter>
+      <Filter>Shaders\ManyViewGI</Filter>
     </None>
     <None Include="..\shader\raster_gi_final_gather_multiview_p.glsl">
-      <Filter>Shaders\RasterGI</Filter>
+      <Filter>Shaders\ManyViewGI</Filter>
     </None>
     <None Include="..\shader\debug_draw_cubemap_v.glsl">
       <Filter>Shaders\DebugDraw</Filter>
     </None>
     <None Include="..\shader\debug_draw_cubemap_p.glsl">
       <Filter>Shaders\DebugDraw</Filter>
+    </None>
+    <None Include="..\shader\resample_radiance_multiview_c.glsl">
+      <Filter>Shaders\ManyViewGI</Filter>
+    </None>
+    <None Include="..\shader\debug_draw_radiance_cube_p.glsl">
+      <Filter>Shaders\ManyViewGI\Debug</Filter>
+    </None>
+    <None Include="..\shader\debug_draw_radiance_cube_v.glsl">
+      <Filter>Shaders\ManyViewGI\Debug</Filter>
+    </None>
+    <None Include="..\shader\debug_validate_hemicube_multiview_p.glsl">
+      <Filter>Shaders\ManyViewGI\Debug</Filter>
+    </None>
+    <None Include="..\shader\debug_show_hemicubes_v.glsl">
+      <Filter>Shaders\ManyViewGI\Debug</Filter>
+    </None>
+    <None Include="..\shader\debug_show_hemicubes_p.glsl">
+      <Filter>Shaders\ManyViewGI\Debug</Filter>
+    </None>
+    <None Include="..\shader\manyview_gi_convolve_irradiance_c.glsl">
+      <Filter>Shaders\ManyViewGI</Filter>
     </None>
   </ItemGroup>
 </Project>

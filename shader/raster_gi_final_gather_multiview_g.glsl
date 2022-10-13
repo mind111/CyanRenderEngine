@@ -3,9 +3,13 @@
 #extension GL_ARB_shader_draw_parameters : enable 
 #extension GL_ARB_gpu_shader_int64 : enable 
 
-layout (triangles) in;
-layout(triangle_strip, max_vertices = 3) out;
-layout(invocations = 16) in;
+layout (invocations = 4, triangles) in;
+/** note - @min:
+* each geometry shader invocation corresponds to rendering one triangle to a hemicube,
+* within each invocation, one triangle is rendered to 5 faces of a hemicube, thus invotations = 16,
+* and max_vertices = 18 (3 * 6)
+*/
+layout(triangle_strip, max_vertices = 18) out;
 
 struct PBRMaterial
 {
@@ -37,6 +41,7 @@ out VertexData {
 	vec2 texCoord0;
 	flat PBRMaterial material;
 	vec3 hemicubeNormal;
+	flat mat4 view;
 } gsOut;
 
 out int gl_Layer;
@@ -61,7 +66,6 @@ void main() {
 			if (layer == 3) {
 				continue;
 			}
-
 			mat4 view = views[gl_InvocationID * 6 + layer];
 			for (int v = 0; v < gsIn.length(); ++v) {
 				vec3 viewSpacePosition = (view * vec4(gsIn[v].worldSpacePosition, 1.f)).xyz;
@@ -75,6 +79,7 @@ void main() {
 				gsOut.texCoord0 = gsIn[v].texCoord0;
 				gsOut.material = gsIn[v].material;
 				gsOut.hemicubeNormal = hemicubeNormals[gl_InvocationID].xyz;
+				gsOut.view = view;
 				gl_Layer = layer;
 				gl_ViewportIndex = gl_InvocationID;
 				EmitVertex();

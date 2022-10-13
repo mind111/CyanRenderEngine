@@ -51,13 +51,4 @@ void main() {
 		radianceCubes[radianceCubeIndex].position = vec4(0.f);
 		radianceCubes[radianceCubeIndex].normal = vec4(0.f);
 	}
-
-	// debug radiance cube
-    float debugDepth = texture(depthBuffer, debugRadianceCubeScreenCoord).r * 2.f - 1.f;
-    if (debugDepth < 0.99) {
-		vec3 debugNormal = normalize(texture(normalBuffer, debugRadianceCubeScreenCoord).rgb * 2.f - 1.f);
-		vec3 debugWorldSpacePosition = screenToWorld(vec3(debugRadianceCubeScreenCoord * 2.f - 1.f, debugDepth), inverse(viewSsbo.view), inverse(viewSsbo.projection));
-		radianceCubes[maxNumRadianceCubes - 1].position = vec4(debugWorldSpacePosition, 1.f);
-		radianceCubes[maxNumRadianceCubes - 1].normal = vec4(debugNormal, 0.f);
-    }
 }

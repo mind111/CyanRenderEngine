@@ -36,7 +36,7 @@
     <ClInclude Include="include\CyanCore.h" />
     <ClInclude Include="include\CyanEngine.h" />
     <ClInclude Include="include\InstantRadiosity.h" />
-    <ClInclude Include="include\RasterGI.h" />
+    <ClInclude Include="include\ManyViewGI.h" />
     <ClInclude Include="include\RayTracer.h" />
     <ClInclude Include="include\CyanRenderer.h" />
     <ClInclude Include="include\CyanUI.h" />
@@ -97,7 +97,7 @@
     <ClCompile Include="src\CyanApp.cpp" />
     <ClCompile Include="src\CyanEngine.cpp" />
     <ClCompile Include="src\InstantRadiosity.cpp" />
-    <ClCompile Include="src\RasterGI.cpp" />
+    <ClCompile Include="src\ManyViewGI.cpp" />
     <ClCompile Include="src\RayTracer.cpp" />
     <ClCompile Include="src\CyanRenderer.cpp" />
     <ClCompile Include="src\CyanUI.cpp" />
@@ -157,6 +157,9 @@
     <None Include="..\shader\debug_draw_radiance_cube_p.glsl" />
     <None Include="..\shader\debug_draw_radiance_cube_v.glsl" />
     <None Include="..\shader\debug_draw_v.glsl" />
+    <None Include="..\shader\debug_show_hemicubes_p.glsl" />
+    <None Include="..\shader\debug_show_hemicubes_v.glsl" />
+    <None Include="..\shader\debug_validate_hemicube_multiview_p.glsl" />
     <None Include="..\shader\fill_raster_p.glsl" />
     <None Include="..\shader\generate_vpl_p.glsl" />
     <None Include="..\shader\generate_vpl_v.glsl" />
@@ -164,6 +167,7 @@
     <None Include="..\shader\instant_radiosity_p.glsl" />
     <None Include="..\shader\instant_radiosity_v.glsl" />
     <None Include="..\shader\light_definitions.glsl" />
+    <None Include="..\shader\manyview_gi_convolve_irradiance_c.glsl" />
     <None Include="..\shader\material.glsl" />
     <None Include="..\shader\point_shadow_p.glsl" />
     <None Include="..\shader\point_shadow_v.glsl" />
@@ -176,6 +180,7 @@
     <None Include="..\shader\raster_gi_final_gather_v.glsl" />
     <None Include="..\shader\raytracing_p.glsl" />
     <None Include="..\shader\raytracing_v.glsl" />
+    <None Include="..\shader\resample_radiance_multiview_c.glsl" />
     <None Include="..\shader\scene_depth_normal_p.glsl" />
     <None Include="..\shader\scene_depth_normal_v.glsl" />
     <None Include="..\shader\scene_pass_p.glsl" />

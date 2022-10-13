@@ -16,7 +16,7 @@
 #include "Geometry.h"
 #include "Shadow.h"
 #include "InstantRadiosity.h"
-#include "RasterGI.h"
+#include "ManyViewGI.h"
 
 namespace Cyan
 {
@@ -166,7 +166,7 @@ namespace Cyan
         void renderSceneMultiDraw(SceneRenderable& renderableScene, RenderTarget* outRenderTarget, const SSGITextures& SSGIOutput);
         void submitSceneMultiDrawIndirect(const SceneRenderable& renderableScene);
 
-        std::unique_ptr<RasterGI> m_rasterGI = nullptr;
+        std::unique_ptr<ManyViewGI> m_manyViewGI = nullptr;
 #if 0
         void gpuRayTracing(struct RayTracingScene& rtxScene, RenderTexture2D* outputBuffer, RenderTexture2D* sceneDepthBuffer, RenderTexture2D* sceneNormalBuffer);
 #endif
@@ -189,6 +189,7 @@ namespace Cyan
         void debugDrawCubeImmediate(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection);
         void debugDrawCubeBatched(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::vec3& facingDir, const glm::vec4& color, const glm::mat4& view, const glm::mat4& projection);
         void debugDrawCubemap(TextureCubeRenderable* cubemap);
+        void debugDrawCubemap(GLuint cubemap);
 
         // todo: implement this
         void renderDebugObjects();

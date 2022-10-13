@@ -24,6 +24,7 @@ in VertexData
 	vec2 texCoord0;
     flat PBRMaterial material;
     vec3 hemicubeNormal;
+    mat4 view;
 } psIn;
 
 out vec3 outColor;
@@ -100,8 +101,6 @@ uniform struct SceneLights
 	// PointLight pointLights[MAX_NUM_POINT_LIGHTS];
 } sceneLights;
 
-// todo: switch to use global view ssbo later!!!
-uniform mat4 view;
 uniform mat4 projection;
 
 float slopeBasedBias(vec3 n, vec3 l)
@@ -450,7 +449,7 @@ vec3 DisneyBRDF(vec3 l, vec3 v, MaterialParameters materialParameters)
 {
     vec3 BRDF;
     vec3 h = normalize(l + v);
-    vec3 worldSpaceViewDirection = (inverse(view) * vec4(normalize(-psIn.viewSpacePosition), 0.f)).xyz;
+    vec3 worldSpaceViewDirection = (inverse(psIn.view) * vec4(normalize(-psIn.viewSpacePosition), 0.f)).xyz;
     float ndotv = saturate(dot(materialParameters.normal, worldSpaceViewDirection));
     float ndotl = max(dot(materialParameters.normal, directionalLight.direction.xyz), 0.f);
     float hdotl = saturate(dot(h, directionalLight.direction.xyz));
@@ -469,7 +468,7 @@ vec3 calcDirectionalLight(in DirectionalLight directionalLight, MaterialParamete
 {
     vec3 radiance = vec3(0.f);
     // view direction in world space
-    vec3 worldSpaceViewDirection = (inverse(view) * vec4(normalize(-psIn.viewSpacePosition), 0.f)).xyz;
+    vec3 worldSpaceViewDirection = (inverse(psIn.view) * vec4(normalize(-psIn.viewSpacePosition), 0.f)).xyz;
     float ndotl = max(dot(materialParameters.normal, directionalLight.direction.xyz), 0.f);
     vec3 f0 = calcF0(materialParameters);
     vec3 li = directionalLight.colorAndIntensity.rgb * directionalLight.colorAndIntensity.a;
@@ -562,12 +561,11 @@ void main() {
     vec3 worldSpaceBitangent = normalize(cross(worldSpaceNormal, worldSpaceTangent)) * psIn.tangentSpaceHandedness;
 
     MaterialParameters materialParameters = getMaterialParameters(worldSpaceTangent, worldSpaceBitangent, worldSpaceNormal, psIn.texCoord0);
-    vec3 pixelDir = (inverse(view) * vec4(normalize(psIn.viewSpacePosition), 0.f)).xyz;
+    vec3 pixelDir = (inverse(psIn.view) * vec4(normalize(psIn.viewSpacePosition), 0.f)).xyz;
     float ndotl = max(dot(pixelDir, psIn.hemicubeNormal), 0.f);
     float solidAngle = calcCubemapTexelSolidAngle(normalize(psIn.viewSpacePosition), float(microBufferRes));
     outColor = materialParameters.albedo;
     // outColor = calcLighting(sceneLights, materialParameters, psIn.worldSpacePosition) * ndotl;
     // outColor = vec3(psIn.hemicubeNormal * .5f + .5f);
     // outColor = vec3(1.f);
-    // outColor = vec3(solidAngle);
 }
