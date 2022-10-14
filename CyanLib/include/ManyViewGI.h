@@ -50,12 +50,15 @@ namespace Cyan {
 
         void placeHemicubes(Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer);
         void progressiveBuildRadianceAtlas(SceneRenderable& sceneRenderable);
-        void buildIrradianceAtlas();
         void gatherRadiance(const Hemicube& hemicube, u32 hemicubeIdx, bool jitter, const SceneRenderable& scene, TextureCubeRenderable* radianceCubemap);
         void resampleRadiance(TextureCubeRenderable* radianceCubemap, glm::uvec2 index);
         void convolveIrradiance(const glm::ivec2& hemicubeCoord, TextureCubeRenderable* radianceCubemap);
+        void convolveIrradianceBatched();
         void visualizeHemicubes(RenderTarget* outRenderTarget);
+        void visualizeIrradiance();
         void hierarchicalRefinement();
+
+        Texture2DRenderable* visualizeIrradianceBuffer = nullptr;
 
         bool bShowHemicubes = false;
         GLuint radianceCubeBuffer;

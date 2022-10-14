@@ -86,6 +86,13 @@ namespace Cyan {
             irradianceAtlasSpec.pixelFormat = PF_RGBA16F;
             irradianceAtlas = new Texture2DRenderable("IrradianceAtlas", irradianceAtlasSpec);
 
+            ITextureRenderable::Spec spec = {};
+            spec.type = TEX_2D;
+            spec.width = 1280;
+            spec.height = 720;
+            spec.pixelFormat = PF_RGB16F;
+            visualizeIrradianceBuffer = new Texture2DRenderable("visualizeIrradianceBuffer", spec);
+
             bInitialized = true;
         }
     }
@@ -120,6 +127,7 @@ namespace Cyan {
         if (bShowHemicubes) {
             if (m_scene) {
                 visualizeHemicubes(outRenderTarget);
+                visualizeIrradiance();
             }
         }
 
@@ -148,6 +156,7 @@ namespace Cyan {
                     ImGui::Image((ImTextureID)irradianceAtlas->getGpuResource(), imageSize, ImVec2(0, 1), ImVec2(1, 0));
                 }
                 ImGui::Checkbox("Show hemicubes", &bShowHemicubes);
+                ImGui::Image((ImTextureID)visualizeIrradianceBuffer->getGpuResource(), imageSize, ImVec2(0, 1), ImVec2(1, 0));
             } ImGui::End();
         });
     }
@@ -197,9 +206,9 @@ namespace Cyan {
     void ManyViewGI::gatherRadiance(const Hemicube& radianceCube, u32 radianceCubeIndex, bool jitter, const SceneRenderable& scene, TextureCubeRenderable* radianceCubemap) {
         Shader* rasterGIShader = ShaderManager::createShader({ 
             ShaderSource::Type::kVsPs,
-            "RasterGIShader",
-            SHADER_SOURCE_PATH "raster_gi_final_gather_v.glsl", 
-            SHADER_SOURCE_PATH "raster_gi_final_gather_p.glsl",
+            "ManyViewGIShader",
+            SHADER_SOURCE_PATH "manyview_gi_final_gather_v.glsl", 
+            SHADER_SOURCE_PATH "manyview_gi_final_gather_p.glsl",
         });
         // suppose this only need to be set once
         for (auto light : scene.lights) {
@@ -341,7 +350,7 @@ namespace Cyan {
         }
     }
 
-    void ManyViewGI::buildIrradianceAtlas() {
+    void ManyViewGI::convolveIrradianceBatched() {
         Shader* convolveIrradianceShader = ShaderManager::createShader({ 
             ShaderSource::Type::kCs,
             "RasterGIConvolveIrradianceShader",
@@ -434,6 +443,56 @@ namespace Cyan {
         m_gfxc->setShader(lineShader);
         // draw tangent frames
         glDrawArraysInstanced(GL_LINES, 0, 2, maxNumHemicubes * 3);
+    }
+
+    void ManyViewGI::visualizeIrradiance() {
+        auto disk = AssetManager::getAsset<Mesh>("Disk");
+        auto renderTarget = std::unique_ptr<RenderTarget>(
+            createRenderTarget(visualizeIrradianceBuffer->width, visualizeIrradianceBuffer->height)
+        );
+        static ShaderStorageBuffer<DynamicSsboData<glm::vec2>> irradianceCoordBuffer(maxNumHemicubes);
+        static ShaderStorageBuffer<DynamicSsboData<glm::mat4>> instanceBuffer(maxNumHemicubes);
+        u32 numActiveHemicubes = 0;
+        for (i32 i = 0; i < maxNumHemicubes; ++i) {
+            if (hemicubes[i].position.w > 0.f) {
+                f32 x = (f32)(i % irradianceAtlas->width) / irradianceAtlas->width;
+                f32 y = (f32)(i / irradianceAtlas->width) / irradianceAtlas->height;
+                irradianceCoordBuffer[numActiveHemicubes] = glm::vec2(x, y);
+                glm::mat4 transform = glm::translate(glm::mat4(1.f), vec4ToVec3(hemicubes[i].position));
+                transform = transform * calcHemicubeTangentFrame(hemicubes[i]);
+                transform = glm::scale(transform, glm::vec3(0.1));
+                instanceBuffer[numActiveHemicubes] = transform;
+                numActiveHemicubes++;
+            }
+        }
+        instanceBuffer.update();
+        instanceBuffer.bind(67);
+
+        irradianceCoordBuffer.update();
+        irradianceCoordBuffer.bind(66);
+
+        renderTarget->setColorBuffer(visualizeIrradianceBuffer, 0);
+        renderTarget->setDrawBuffers({ 0 });
+        renderTarget->clearDrawBuffer({ 0 }, glm::vec4(.2f, .2f, .2f, 1.f));
+
+        auto shader = ShaderManager::createShader({ 
+            ShaderSource::Type::kVsPs,
+            "VisualizeIrradianceShader",
+            SHADER_SOURCE_PATH "visualize_irradiance_v.glsl",
+            SHADER_SOURCE_PATH "visualize_irradiance_p.glsl"
+            });
+        m_gfxc->setRenderTarget(renderTarget.get());
+        m_gfxc->setViewport({ 0, 0, renderTarget->width, renderTarget->height });
+        shader->setTexture("irradianceBuffer", irradianceAtlas);
+        m_gfxc->setShader(shader);
+        auto va = disk->getSubmesh(0)->getVertexArray();
+        m_gfxc->setVertexArray(va);
+        if (va->hasIndexBuffer()) {
+            glDrawElementsInstanced(GL_TRIANGLES, disk->getSubmesh(0)->numIndices(), GL_UNSIGNED_INT, 0, numActiveHemicubes);
+        }
+        else {
+            glDrawArraysInstanced(GL_TRIANGLES, 0, disk->getSubmesh(0)->numVertices(), numActiveHemicubes);
+        }
     }
 
     ManyViewGIBatched::ManyViewGIBatched(Renderer* renderer, GfxContext* ctx) 

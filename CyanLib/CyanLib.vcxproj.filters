@@ -724,10 +724,10 @@
     <None Include="..\shader\debug_draw_line_p.glsl">
       <Filter>Shaders\DebugDraw</Filter>
     </None>
-    <None Include="..\shader\raster_gi_final_gather_v.glsl">
+    <None Include="..\shader\manyview_gi_final_gather_v.glsl">
       <Filter>Shaders\ManyViewGI</Filter>
     </None>
-    <None Include="..\shader\raster_gi_final_gather_p.glsl">
+    <None Include="..\shader\manyview_gi_final_gather_p.glsl">
       <Filter>Shaders\ManyViewGI</Filter>
     </None>
     <None Include="..\shader\raster_gi_convolve_irradiance_c.glsl">
@@ -777,6 +777,15 @@
     </None>
     <None Include="..\shader\manyview_gi_convolve_irradiance_c.glsl">
       <Filter>Shaders\ManyViewGI</Filter>
+    </None>
+    <None Include="..\shader\debug_copy_p.glsl">
+      <Filter>Shaders\ManyViewGI\Debug</Filter>
+    </None>
+    <None Include="..\shader\visualize_irradiance_v.glsl">
+      <Filter>Shaders\ManyViewGI\Debug</Filter>
+    </None>
+    <None Include="..\shader\visualize_irradiance_p.glsl">
+      <Filter>Shaders\ManyViewGI\Debug</Filter>
     </None>
   </ItemGroup>
 </Project>

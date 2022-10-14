@@ -36,6 +36,7 @@ namespace Cyan
         struct DefaultShapes {
             Mesh* unitCubeMesh = nullptr;
             Mesh* sphere = nullptr;
+            Mesh* disk = nullptr;
         } m_defaultShapes;
 
         AssetManager();
@@ -65,6 +66,9 @@ namespace Cyan
             m_defaultShapes.sphere = createMesh("Sphere", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/sphere.obj", false));
 
             // cylinder
+
+            // disk
+            m_defaultShapes.disk = createMesh("Disk", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/disk.obj", false));
 
             /**
             *   initialize default textures

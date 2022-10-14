@@ -145,6 +145,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\shader\calculate_light.glsl" />
+    <None Include="..\shader\debug_copy_p.glsl" />
     <None Include="..\shader\debug_color_fs.glsl" />
     <None Include="..\shader\debug_color_vs.glsl" />
     <None Include="..\shader\debug_draw_cubemap_p.glsl" />
@@ -176,8 +177,8 @@
     <None Include="..\shader\raster_gi_final_gather_multiview_g.glsl" />
     <None Include="..\shader\raster_gi_final_gather_multiview_p.glsl" />
     <None Include="..\shader\raster_gi_final_gather_multiview_v.glsl" />
-    <None Include="..\shader\raster_gi_final_gather_p.glsl" />
-    <None Include="..\shader\raster_gi_final_gather_v.glsl" />
+    <None Include="..\shader\manyview_gi_final_gather_p.glsl" />
+    <None Include="..\shader\manyview_gi_final_gather_v.glsl" />
     <None Include="..\shader\raytracing_p.glsl" />
     <None Include="..\shader\raytracing_v.glsl" />
     <None Include="..\shader\resample_radiance_multiview_c.glsl" />
@@ -213,6 +214,8 @@
     <None Include="..\shader\cone_vis_g.glsl" />
     <None Include="..\shader\cone_vis_p.glsl" />
     <None Include="..\shader\cone_vis_v.glsl" />
+    <None Include="..\shader\visualize_irradiance_p.glsl" />
+    <None Include="..\shader\visualize_irradiance_v.glsl" />
     <None Include="..\shader\voxelize_p.glsl" />
     <None Include="..\shader\skybox_p.glsl" />
     <None Include="..\shader\skybox_v.glsl" />
