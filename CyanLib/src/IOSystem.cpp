@@ -48,7 +48,7 @@ namespace Cyan
         });
     }
 
-    void IOSystem::update()
+    void IOSystem::upload()
     {
         glfwPollEvents();
         // process event queue

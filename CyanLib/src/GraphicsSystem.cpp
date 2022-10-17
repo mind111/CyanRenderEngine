@@ -31,6 +31,7 @@ namespace Cyan
         glCullFace(GL_BACK);
         glLineWidth(6.f);
         glfwSwapInterval(0);
+        glEnable(GL_PROGRAM_POINT_SIZE);
 
         // some important gl constants
 
@@ -60,11 +61,11 @@ namespace Cyan
 
     }
 
-    void GraphicsSystem::update()
+    void GraphicsSystem::upload()
     {
         if (m_scene)
         {
-            m_scene->update();
+            m_scene->upload();
         }
     }
 }

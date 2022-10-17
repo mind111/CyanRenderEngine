@@ -5,6 +5,24 @@
 
 namespace Cyan {
 
+    glm::mat4 calcTangentFrame(const glm::vec3& n) {
+        // calculate the tangent frame of the input hemicube
+        glm::vec3 worldUp = glm::vec3(0.f, 1.f, 0.f);
+        glm::vec3 up = n;
+        if (abs(up.y) > 0.98) {
+            worldUp = glm::vec3(0.f, 0.f, -1.f);
+        }
+        glm::vec3 right = glm::cross(worldUp, up);
+        glm::vec3 forward = glm::cross(up, right);
+        glm::mat4 tangentFrame = {
+            glm::vec4(right, 0.f),
+            glm::vec4(up, 0.f),
+            glm::vec4(-forward, 0.f),
+            glm::vec4(0.f, 0.f, 0.f, 1.f),
+        };
+        return tangentFrame;
+    }
+
     glm::mat4 calcHemicubeTangentFrame(const ManyViewGI::Hemicube& hemicube) {
         // calculate the tangent frame of the input hemicube
         glm::vec3 worldUp = glm::vec3(0.f, 1.f, 0.f);
@@ -14,7 +32,6 @@ namespace Cyan {
         }
         glm::vec3 right = glm::cross(worldUp, up);
         glm::vec3 forward = glm::cross(up, right);
-        glm::mat4 transform = glm::translate(glm::mat4(hemicube.position.w), vec4ToVec3(hemicube.position));
         glm::mat4 tangentFrame = {
             glm::vec4(right, 0.f),
             glm::vec4(up, 0.f),
@@ -409,11 +426,11 @@ namespace Cyan {
             }
         }
 
-        instanceBuffer.update();
+        instanceBuffer.upload();
         instanceBuffer.bind(63);
-        cubemapHandleBuffer.update();
+        cubemapHandleBuffer.upload();
         cubemapHandleBuffer.bind(64);
-        lineBuffer.update();
+        lineBuffer.upload();
         lineBuffer.bind(65);
 
         m_gfxc->setRenderTarget(outRenderTarget);
@@ -465,10 +482,10 @@ namespace Cyan {
                 numActiveHemicubes++;
             }
         }
-        instanceBuffer.update();
+        instanceBuffer.upload();
         instanceBuffer.bind(67);
 
-        irradianceCoordBuffer.update();
+        irradianceCoordBuffer.upload();
         irradianceCoordBuffer.bind(66);
 
         renderTarget->setColorBuffer(visualizeIrradianceBuffer, 0);
@@ -643,9 +660,9 @@ namespace Cyan {
             }
         }
 
-        multiViewBuffer.update();
+        multiViewBuffer.upload();
         multiViewBuffer.bind(54);
-        hemicubeNormalBuffer.update();
+        hemicubeNormalBuffer.upload();
         hemicubeNormalBuffer.bind(55);
         // setup multi view viewports
         glViewportArrayv(0, perFrameWorkload, (GLfloat*)(viewports.data()));
@@ -770,7 +787,7 @@ namespace Cyan {
         shader->setTexture("hemicubeMultiView", hemicubeMultiView);
         shader->setUniform("microBufferRes", microBufferRes);
         shader->setUniform("hemicubeIndex", glm::ivec2(index % 4, index / 4));
-        debugCubes.update();
+        debugCubes.upload();
         // todo: refactor ssbo so that no need to manually set binding point anymore
         debugCubes.bind(53);
         m_gfxc->setVertexArray(cube->getSubmesh(0)->getVertexArray());
@@ -780,7 +797,7 @@ namespace Cyan {
 
         Shader* debugDrawLineShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "DebugDrawLineShader", SHADER_SOURCE_PATH "debug_draw_line_v.glsl", SHADER_SOURCE_PATH "debug_draw_line_p.glsl" });
         m_gfxc->setShader(debugDrawLineShader);
-        debugLines.update();
+        debugLines.upload();
         debugLines.bind(53);
         glDrawArraysInstanced(GL_LINES, 0, debugLines.data.array.size(), 3);
     }
@@ -800,12 +817,200 @@ namespace Cyan {
         });
     }
 
-    MicroRenderingGI::MicroRenderingGI(Renderer* renderer, const SceneRenderable& inScene)
-        : m_renderer(renderer) {
-        m_scene = std::make_unique<SceneRenderable>(inScene);
+    MicroRenderingGI::MicroRenderingGI(Renderer* renderer, GfxContext* gfxc)
+        : m_renderer(renderer), m_gfxc(gfxc) {
+
     }
 
-    void MicroRenderingGI::generateWorldSpaceSurfels() {
+    void MicroRenderingGI::initialize() { 
+        if (!bInitialized) {
+            if (!visualizeSurfelBuffer) {
+                ITextureRenderable::Spec spec = {};
+                spec.type = TEX_2D;
+                spec.width = 1280;
+                spec.height = 720;
+                spec.pixelFormat = PF_RGB16F;
+                visualizeSurfelBuffer = new Texture2DRenderable("VisualizeSurfelBuffer", spec);
+            }
+            if (!surfelSceneColor) {
+                ITextureRenderable::Spec spec = {};
+                spec.type = TEX_2D;
+                spec.width = 1280;
+                spec.height = 720;
+                spec.pixelFormat = PF_RGB16F;
+                surfelSceneColor = new Texture2DRenderable("SurfelSceneColor", spec);
+            }
+            bInitialized = true;
+        }
+    }
 
+    void MicroRenderingGI::setup(const SceneRenderable& scene) {
+        m_scene.reset(new SceneRenderable(scene));
+        generateWorldSpaceSurfels();
+    }
+
+    void MicroRenderingGI::run(const SceneRenderable& scene) {
+        static bool bVisualizeSurfels = false;
+        if (bVisualizeSurfels) {
+            if (m_scene) {
+                visualizeSurfels();
+
+                auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(surfelSceneColor->width, surfelSceneColor->height));
+                renderTarget->setColorBuffer(surfelSceneColor, 0);
+                renderTarget->setDrawBuffers({ 0 });
+                renderTarget->clearDrawBuffer(0, glm::vec4(0.2f, .2f, .2f, 1.f));
+                rasterizeSurfelScene(renderTarget.get(), scene.camera.view, scene.camera.projection);
+            }
+        }
+
+        // ui controls
+        m_renderer->addUIRenderCommand([this, scene]() {
+            ImGui::Begin("MicroRendering GI"); {
+                if (ImGui::Button("Setup")) {
+                    setup(scene);
+                }
+                ImGui::Checkbox("Visualize Surfels", &bVisualizeSurfels);
+                ImVec2 imageSize(320, 180);
+                ImGui::Image((ImTextureID)visualizeSurfelBuffer->getGpuResource(), imageSize, ImVec2(0, 1), ImVec2(1, 0));
+                ImGui::Image((ImTextureID)surfelSceneColor->getGpuResource(), imageSize, ImVec2(0, 1), ImVec2(1, 0));
+            } ImGui::End();
+        });
+    }
+
+    // todo: implement this on gpu using geometry shader
+    void MicroRenderingGI::generateWorldSpaceSurfels() {
+        const u32 kMaxNumSurfels = 128 * 128;
+        // fixed the surfel radius at 10 centimeters
+        const f32 surfelRadius = .1f;
+
+        surfels.clear();
+        gpuSurfelBuffer.data.array.clear();
+        // calculate total surface area by summing area of all triangles in the scene
+        for (i32 i = 0; i < m_scene->meshInstances.size(); ++i) {
+            auto meshInst = m_scene->meshInstances[i];
+            auto mesh = meshInst->parent;
+            glm::mat4 transform = (*m_scene->transformSsbo)[i];
+            glm::mat4 normalTransform = glm::inverse(glm::transpose(transform));
+            for (i32 sm = 0; sm < mesh->numSubmeshes(); ++sm) {
+                auto submesh = dynamic_cast<Mesh::Submesh<Triangles>*>(mesh->getSubmesh(sm));
+                if (submesh) {
+                    glm::vec3 albedo(0.f);
+                    auto matl = dynamic_cast<PBRMaterial*>(meshInst->getMaterial(sm));
+                    // todo: figure out how to handle textured material
+                    if (matl) {
+                        albedo = matl->parameter.kAlbedo;
+                    }
+                    const auto& verts = submesh->getVertices();
+                    const auto& indices = submesh->getIndices();
+                    i32 numTriangles = submesh->numIndices() / 3;
+                    for (i32 t = 0; t < numTriangles; ++t) {
+                        const auto& v0 = verts[indices[t * 3 + 0]];
+                        const auto& v1 = verts[indices[t * 3 + 1]];
+                        const auto& v2 = verts[indices[t * 3 + 2]];
+
+                        // transform vertices
+                        glm::vec3 p0 = transform * glm::vec4(v0.pos, 1.f);
+                        glm::vec3 p1 = transform * glm::vec4(v1.pos, 1.f);
+                        glm::vec3 p2 = transform * glm::vec4(v2.pos, 1.f);
+
+                        // transform normal
+                        glm::vec3 n0 = glm::normalize(normalTransform * glm::vec4(v0.normal, 0.f));
+                        glm::vec3 n1 = glm::normalize(normalTransform * glm::vec4(v1.normal, 0.f));
+                        glm::vec3 n2 = glm::normalize(normalTransform * glm::vec4(v2.normal, 0.f));
+
+                        // calculate triangle area
+                        f32 area = .5f * glm::length(glm::cross(p1 - p0, p2 - p0));
+                        // todo: this doesn't work for densely tessellated meshes such as the stanford bunny and dragon meshes
+                        i32 numSurfels = area / (3.1415926f * surfelRadius * surfelRadius);
+                        for (i32 s = 0; s < numSurfels; ++s) {
+                            glm::vec2 st = halton23(s);
+                            // rejection sampling
+                            i32 numRejected = 0;
+                            while (st.x + st.y > 1.f) {
+                                st = halton23(s + numRejected);
+                                numRejected++;
+                            }
+                            f32 w = 1.f - st.x - st.y;
+                            surfels.emplace_back(Surfel{
+                                st.x * p0 + st.y * p1 + w * p2,
+                                glm::normalize(st.x * n0 + st.y * n1 + w * n2),
+                                albedo,
+                            });
+                            gpuSurfelBuffer.addElement(GpuSurfel{
+                                glm::vec4(st.x * p0 + st.y * p1 + w * p2, 1.f),
+                                glm::vec4(glm::normalize(st.x * n0 + st.y * n1 + w * n2), 1.f),
+                                glm::vec4(albedo, 1.f)
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        gpuSurfelBuffer.upload();
+
+        instanceBuffer.data.array.resize(surfels.size());
+        for (i32 i = 0; i < surfels.size(); ++i) {
+            glm::mat4 transform = glm::translate(glm::mat4(1.f), surfels[i].position);
+            transform = transform * calcTangentFrame(surfels[i].normal);
+            instanceBuffer[i].transform = glm::scale(transform, glm::vec3(.1f));
+            instanceBuffer[i].color = glm::vec4(surfels[i].color, 1.f);
+        }
+        instanceBuffer.upload();
+    }
+
+    void MicroRenderingGI::rasterizeSurfelScene(RenderTarget* outRenderTarget, const glm::mat4& view, const glm::mat4& projection) {
+        auto shader = ShaderManager::createShader({
+            ShaderSource::Type::kVsPs,
+            "RasterizeSurfelShader",
+            SHADER_SOURCE_PATH "rasterize_surfels_v.glsl",
+            SHADER_SOURCE_PATH "rasterize_surfels_p.glsl"
+        });
+
+        assert(surfels.size() == gpuSurfelBuffer.getNumElements());
+
+        gpuSurfelBuffer.bind(69);
+
+        m_gfxc->setShader(shader);
+        m_gfxc->setRenderTarget(outRenderTarget);
+        m_gfxc->setViewport({ 0, 0, outRenderTarget->width, outRenderTarget->height });
+        shader->setUniform("outputSize", glm::ivec2(outRenderTarget->width, outRenderTarget->height));
+        shader->setUniform("cameraFov", 90.f);
+        shader->setUniform("cameraN", 0.1f);
+        shader->setUniform("surfelRadius", 0.1f);
+        shader->setUniform("view", view);
+        shader->setUniform("projection", projection);
+        shader->setUniform("receivingNormal", m_scene->camera.view[1]);
+        glDrawArraysInstanced(GL_POINTS, 0, 1, surfels.size());
+    }
+
+    // todo: refactor all debug visualization
+    void MicroRenderingGI::visualizeSurfels() {
+        instanceBuffer.bind(68);
+
+        auto disk = AssetManager::getAsset<Mesh>("Disk");
+        auto renderTarget = std::unique_ptr<RenderTarget>(
+            createRenderTarget(visualizeSurfelBuffer->width, visualizeSurfelBuffer->height)
+        );
+        renderTarget->setColorBuffer(visualizeSurfelBuffer, 0);
+        renderTarget->setDrawBuffers({ 0 });
+        renderTarget->clearDrawBuffer({ 0 }, glm::vec4(.2f, .2f, .2f, 1.f));
+
+        auto shader = ShaderManager::createShader({ 
+            ShaderSource::Type::kVsPs,
+            "VisualizeIrradianceShader",
+            SHADER_SOURCE_PATH "visualize_surfel_v.glsl",
+            SHADER_SOURCE_PATH "visualize_surfel_p.glsl"
+            });
+        m_gfxc->setRenderTarget(renderTarget.get());
+        m_gfxc->setViewport({ 0, 0, renderTarget->width, renderTarget->height });
+        m_gfxc->setShader(shader);
+        auto va = disk->getSubmesh(0)->getVertexArray();
+        m_gfxc->setVertexArray(va);
+        if (va->hasIndexBuffer()) {
+            glDrawElementsInstanced(GL_TRIANGLES, disk->getSubmesh(0)->numIndices(), GL_UNSIGNED_INT, 0, surfels.size());
+        }
+        else {
+            glDrawArraysInstanced(GL_TRIANGLES, 0, disk->getSubmesh(0)->numVertices(), surfels.size());
+        }
     }
 }

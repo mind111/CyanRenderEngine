@@ -30,7 +30,7 @@ namespace Cyan
         // main interface
         void initialize();
         void finalize();
-        void update();
+        void upload();
         void render();
 
     private:

@@ -12,7 +12,7 @@ namespace Cyan
     struct StaticMeshEntity : public Entity
     {
         /* Entity interface */
-        virtual void update() override { }
+        virtual void upload() override { }
         virtual const char* getTypeDesc() override { return "StaticMeshEntity"; }
         virtual void renderUI() override;
 

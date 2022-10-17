@@ -64,7 +64,7 @@ namespace Cyan
                     delete va;
                 }
 
-                // update gpu data
+                // upload gpu data
                 init();
             }
 

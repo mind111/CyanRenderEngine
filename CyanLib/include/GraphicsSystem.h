@@ -24,7 +24,7 @@ namespace Cyan
 
         virtual void initialize() override;
         virtual void finalize() override;
-        virtual void update() override;
+        virtual void upload() override;
 
         GLFWwindow* getAppWindow() { return m_glfwWindow; }
         glm::uvec2 getAppWindowDimension() { return m_windowDimension; }

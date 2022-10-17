@@ -141,8 +141,8 @@ namespace Cyan
             }
         }
 
-        positionSsbo.update();
-        normalSsbo.update();
-        materialSsbo.update();
+        positionSsbo.upload();
+        normalSsbo.upload();
+        materialSsbo.upload();
     }
 }

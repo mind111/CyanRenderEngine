@@ -51,6 +51,7 @@ namespace Cyan
         m_frameAllocator(1024 * 1024 * 32) // 32MB frame allocator
     {
         m_manyViewGI = std::make_unique<ManyViewGI>(this, m_ctx);
+        m_microRenderingGI = std::make_unique<MicroRenderingGI>(this, m_ctx);
     }
 
     void Renderer::Vctx::Voxelizer::init(u32 resolution)
@@ -225,6 +226,7 @@ namespace Cyan
 
         m_instantRadiosity.initialize();
         m_manyViewGI->initialize();
+        m_microRenderingGI->initialize();
     };
 
     void Renderer::finalize()
@@ -455,7 +457,7 @@ namespace Cyan
         glBindTextureUnit((u32)SceneTextureBindings::VoxelGridRadiance, m_sceneVoxelGrid.radiance->getGpuResource());
         glBindTextureUnit((u32)SceneTextureBindings::VoxelGridOpacity, m_sceneVoxelGrid.opacity->getGpuResource());
 
-        // update buffer data
+        // upload buffer data
         glm::vec3 pmin, pmax;
         calcSceneVoxelGridAABB(scene->aabb, pmin, pmax);
         m_vctxGpuData.localOrigin = glm::vec3(pmin.x, pmin.y, pmax.z);
@@ -496,7 +498,7 @@ namespace Cyan
             if (visualizer.cachedSceneDepth->width == sceneDepthTexture->width && visualizer.cachedSceneDepth->height == sceneDepthTexture->height &&
                 visualizer.cachedSceneNormal->width == sceneNormalTexture->width && visualizer.cachedSceneNormal->height == sceneNormalTexture->height)
             {
-                // update cached snapshot of scene depth/normal by copying texture data
+                // upload cached snapshot of scene depth/normal by copying texture data
                 glCopyImageSubData(sceneDepthTexture->getGpuResource(), GL_TEXTURE_2D, 0, 0, 0, 0, 
                     visualizer.cachedSceneDepth->getGpuResource(), GL_TEXTURE_2D, 0, 0, 0, 0, sceneDepthTexture->width, sceneDepthTexture->height, 1);
                 glCopyImageSubData(sceneNormalTexture->getGpuResource(), GL_TEXTURE_2D, 0, 0, 0, 0, 
@@ -761,7 +763,10 @@ namespace Cyan
             renderTarget->clearDrawBuffer(0, glm::vec4(0.f, 0.f, 0.f, 1.f));
 
             // many view global illumination
+#if 0
             m_manyViewGI->run(renderTarget.get(), sceneRenderable, sceneDepthBuffer, sceneNormalBuffer);
+#endif
+            m_microRenderingGI->run(sceneRenderable);
 
             // ssgi
             // auto ssgi = screenSpaceRayTracing(zPrepass.depthBuffer, zPrepass.normalBuffer, renderResolution);

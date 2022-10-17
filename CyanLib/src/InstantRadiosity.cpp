@@ -150,7 +150,7 @@ namespace Cyan {
                 glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + pass, GL_TEXTURE_CUBE_MAP_POSITIVE_X + pass, VPLVSMs[VPLIndex], 0);
                 renderTarget->clear({ { pass, glm::vec4(1.f) } });
 
-                // update view matrix
+                // upload view matrix
                 glm::vec3 lookAt = position + LightProbeCameras::cameraFacingDirections[pass];
                 PerspectiveCamera camera(
                     position,
@@ -241,7 +241,7 @@ namespace Cyan {
                 glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + pass, VPLShadowCubemaps[VPLIndex], 0);
                 depthRenderTarget->clear({ { pass } });
 
-                // update view matrix
+                // upload view matrix
                 glm::vec3 lookAt = position + LightProbeCameras::cameraFacingDirections[pass];
                 PerspectiveCamera camera(
                     position,

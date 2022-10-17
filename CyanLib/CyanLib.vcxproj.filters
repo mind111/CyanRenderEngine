@@ -787,5 +787,17 @@
     <None Include="..\shader\visualize_irradiance_p.glsl">
       <Filter>Shaders\ManyViewGI\Debug</Filter>
     </None>
+    <None Include="..\shader\visualize_surfel_v.glsl">
+      <Filter>Shaders\ManyViewGI\Debug</Filter>
+    </None>
+    <None Include="..\shader\visualize_surfel_p.glsl">
+      <Filter>Shaders\ManyViewGI\Debug</Filter>
+    </None>
+    <None Include="..\shader\rasterize_surfels_v.glsl">
+      <Filter>Shaders\ManyViewGI</Filter>
+    </None>
+    <None Include="..\shader\rasterize_surfels_p.glsl">
+      <Filter>Shaders\ManyViewGI</Filter>
+    </None>
   </ItemGroup>
 </Project>

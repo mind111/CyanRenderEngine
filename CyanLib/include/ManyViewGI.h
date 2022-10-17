@@ -110,19 +110,50 @@ namespace Cyan {
         GLuint hemicubeMultiViewFramebuffer;
     };
 
+
+    struct Surfel {
+        glm::vec3 position;
+        glm::vec3 normal;
+        glm::vec3 color;
+    };
+
+    struct GpuSurfel {
+        glm::vec4 position;
+        glm::vec4 normal;
+        glm::vec4 radiance;
+    };
+
     /** note - @min:
     * An implementation of the paper "Micro-Rendering for Scalable, Parallel Final Gathering"
     */
     class MicroRenderingGI {
     public:
-        MicroRenderingGI(Renderer* renderer, const SceneRenderable& inScene);
+        MicroRenderingGI(Renderer* renderer, GfxContext* gfxc);
         ~MicroRenderingGI() { }
 
+        void initialize();
+        void setup(const SceneRenderable& scene);
+        void run(const SceneRenderable& scene);
+
         void generateWorldSpaceSurfels();
+        void gatherRadiance();
         void buildSurfelBVH() { }
+        void rasterizeSurfelScene(RenderTarget* outRenderTarget, const glm::mat4& view, const glm::mat4& projection);
+        void visualizeSurfels();
 
     private:
         Renderer* m_renderer = nullptr;
+        GfxContext* m_gfxc = nullptr;
         std::unique_ptr<SceneRenderable> m_scene = nullptr;
+        bool bInitialized = false;
+        std::vector<Surfel> surfels;
+        ShaderStorageBuffer<DynamicSsboData<GpuSurfel>> gpuSurfelBuffer;
+        Texture2DRenderable* visualizeSurfelBuffer = nullptr;
+        struct SurfelInstanceInfo {
+            glm::mat4 transform;
+            glm::vec4 color;
+        };
+        ShaderStorageBuffer<DynamicSsboData<SurfelInstanceInfo>> instanceBuffer;
+        Texture2DRenderable* surfelSceneColor = nullptr;
     };
 }

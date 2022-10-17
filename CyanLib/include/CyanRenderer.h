@@ -167,6 +167,7 @@ namespace Cyan
         void submitSceneMultiDrawIndirect(const SceneRenderable& renderableScene);
 
         std::unique_ptr<ManyViewGI> m_manyViewGI = nullptr;
+        std::unique_ptr<MicroRenderingGI> m_microRenderingGI = nullptr;
 #if 0
         void gpuRayTracing(struct RayTracingScene& rtxScene, RenderTexture2D* outputBuffer, RenderTexture2D* sceneDepthBuffer, RenderTexture2D* sceneNormalBuffer);
 #endif

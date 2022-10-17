@@ -396,19 +396,19 @@ namespace Cyan
         ImGui::EndChild();
     }
     
-    void Engine::update()
+    void Engine::upload()
     {
         // todo: gather frame statistics
 
-        // update window title
+        // upload window title
         static u32 numFrames = 0u;
         char windowTitle[64] = { };
         sprintf_s(windowTitle, "Cyan | Frame: %d | FPS: %.2f", numFrames++, 60.0f);
         glfwSetWindowTitle(m_graphicsSystem->getAppWindow(), windowTitle);
 
-        m_IOSystem->update();
+        m_IOSystem->upload();
         m_graphicsSystem->setScene(m_scene);
-        m_graphicsSystem->update();
+        m_graphicsSystem->upload();
 
         /**     
         * render utility widgets(e.g: such as a scene outline window, entity details window)
@@ -442,7 +442,7 @@ namespace Cyan
         // tick
         for (auto entity : m_scene->entities)
         {
-            entity->update();
+            entity->upload();
         }
     }
 

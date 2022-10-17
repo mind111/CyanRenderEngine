@@ -65,9 +65,9 @@ namespace Cyan
             }
         }
 
-        vertexBuffer.update();
-        indexBuffer.update();
-        submeshes.update();
+        vertexBuffer.upload();
+        indexBuffer.upload();
+        submeshes.upload();
     }
 
     SceneRenderable::SceneRenderable() {
@@ -302,16 +302,16 @@ namespace Cyan
 
         viewSsbo->data.constants.view = camera.view;
         viewSsbo->data.constants.projection = camera.projection;
-        viewSsbo->update();
+        viewSsbo->upload();
         viewSsbo->bind(VIEW_SSBO_BINDING);
-        transformSsbo->update();
+        transformSsbo->upload();
         transformSsbo->bind((u32)SceneSsboBindings::TransformMatrices);
 
-        instances->update();
+        instances->upload();
         instances->bind(INSTANCE_DESC_BINDING);
-        materials->update();
+        materials->upload();
         materials->bind(MATERIAL_BUFFER_BINDING);
-        drawCalls->update();
+        drawCalls->upload();
         drawCalls->bind(DRAWCALL_BUFFER_BINDING);
     }
 }

@@ -7399,7 +7399,7 @@ static ImGuiTabItem* ImGui::TabBarScrollingButtons(ImGuiTabBar* tab_bar)
                 tab_to_scroll_to = &tab_bar->Tabs[(target_order >= 0 && target_order < tab_bar->Tabs.Size) ? target_order : selected_order];
 
                 // Cross through buttons
-                // (even if first/last item is a button, return it so we can update the scroll)
+                // (even if first/last item is a button, return it so we can upload the scroll)
                 if (tab_to_scroll_to->Flags & ImGuiTabItemFlags_Button)
                 {
                     target_order += select_dir;

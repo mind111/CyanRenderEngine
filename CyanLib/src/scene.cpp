@@ -33,9 +33,9 @@ namespace Cyan
         ));
     }
 
-    void Scene::update()
+    void Scene::upload()
     {
-        camera->update();
+        camera->upload();
 
         std::queue<SceneComponent*> nodes;
         nodes.push(rootEntity->getRootSceneComponent());
@@ -62,7 +62,7 @@ namespace Cyan
             }
         }
 
-        // update scene's bounding box in world space
+        // upload scene's bounding box in world space
         for (auto entity : entities)
         {
             std::queue<SceneComponent*> nodes;

@@ -168,7 +168,7 @@ namespace Cyan
         IOSystem();
 
         virtual void initialize() override;
-        virtual void update() override;
+        virtual void upload() override;
         virtual void finalize() override;
 
         // getters

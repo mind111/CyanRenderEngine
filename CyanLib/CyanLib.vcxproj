@@ -173,6 +173,8 @@
     <None Include="..\shader\point_shadow_p.glsl" />
     <None Include="..\shader\point_shadow_v.glsl" />
     <None Include="..\shader\point_vsm_shadow_p.glsl" />
+    <None Include="..\shader\rasterize_surfels_p.glsl" />
+    <None Include="..\shader\rasterize_surfels_v.glsl" />
     <None Include="..\shader\raster_gi_convolve_irradiance_c.glsl" />
     <None Include="..\shader\raster_gi_final_gather_multiview_g.glsl" />
     <None Include="..\shader\raster_gi_final_gather_multiview_p.glsl" />
@@ -216,6 +218,8 @@
     <None Include="..\shader\cone_vis_v.glsl" />
     <None Include="..\shader\visualize_irradiance_p.glsl" />
     <None Include="..\shader\visualize_irradiance_v.glsl" />
+    <None Include="..\shader\visualize_surfel_p.glsl" />
+    <None Include="..\shader\visualize_surfel_v.glsl" />
     <None Include="..\shader\voxelize_p.glsl" />
     <None Include="..\shader\skybox_p.glsl" />
     <None Include="..\shader\skybox_v.glsl" />

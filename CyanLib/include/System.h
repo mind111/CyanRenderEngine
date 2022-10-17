@@ -7,7 +7,7 @@ namespace Cyan
         System() = default;
         virtual ~System() { }
         virtual void initialize() = 0;
-        virtual void update() { }
+        virtual void upload() { }
         virtual void finalize() = 0;
     };
 }

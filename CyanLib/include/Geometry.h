@@ -149,7 +149,7 @@ struct BoundingBox3D
     /*
     * Recompute and udpate bounds and vertex data
     */
-    // void update();
+    // void upload();
     float intersectRay(const glm::vec3& ro, const glm::vec3& rd);
 };
 

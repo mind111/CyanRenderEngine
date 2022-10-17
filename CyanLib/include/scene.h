@@ -27,7 +27,7 @@ namespace Cyan
     {
         Scene(const char* sceneName, f32 cameraAspectRatio);
 
-        void update();
+        void upload();
 
         // entities
         Entity* createEntity(const char* name, const Transform& transform, Entity* inParent = nullptr, u32 properties = (EntityFlag_kDynamic | EntityFlag_kVisible | EntityFlag_kCastShadow));

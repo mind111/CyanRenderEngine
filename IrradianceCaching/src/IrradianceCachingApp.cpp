@@ -43,7 +43,7 @@ public:
         auto skylight = m_scene->createSkyLight("SkyLight", ASSET_PATH "cubemaps/pisa.hdr");
         skylight->build();
 
-        m_scene->update();
+        m_scene->upload();
     }
 
     virtual void customFinalize() override

@@ -64,7 +64,7 @@ struct Node
     {
         child->m_parent = this;
         m_child.push_back(child);
-        child->update();
+        child->upload();
     }
 
     virtual void onAttach()
@@ -78,5 +78,5 @@ struct Node
         return m_parent->remove(this->m_name);
     }
 
-    virtual void update() = 0;
+    virtual void upload() = 0;
 };

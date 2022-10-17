@@ -2853,7 +2853,7 @@ static void stbtt__rasterize_sorted_edges(stbtt__bitmap *result, stbtt__edge *e,
          float scan_y = y + 0.5f;
          stbtt__active_edge **step = &active;
 
-         // update all active edges;
+         // upload all active edges;
          // remove all active edges that terminate before the center of this scanline
          while (*step) {
             stbtt__active_edge * z = *step;
@@ -3162,7 +3162,7 @@ static void stbtt__rasterize_sorted_edges(stbtt__bitmap *result, stbtt__edge *e,
       STBTT_memset(scanline , 0, result->w*sizeof(scanline[0]));
       STBTT_memset(scanline2, 0, (result->w+1)*sizeof(scanline[0]));
 
-      // update all active edges;
+      // upload all active edges;
       // remove all active edges that terminate before the top of this scanline
       while (*step) {
          stbtt__active_edge * z = *step;

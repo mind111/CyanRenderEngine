@@ -736,7 +736,7 @@ void ImGui::TableUpdateLayout(ImGuiTable* table)
         if (column->Flags & (ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_WidthAutoResize))
         {
             // Process auto-fit for non-stretched columns
-            // Latch initial size for fixed columns and update it constantly for auto-resizing column (unless clipped!)
+            // Latch initial size for fixed columns and upload it constantly for auto-resizing column (unless clipped!)
             if ((column->AutoFitQueue != 0x00) || ((column->Flags & ImGuiTableColumnFlags_WidthAutoResize) && column->IsVisibleX))
                 column->WidthRequest = column->WidthAuto;
 
@@ -3578,7 +3578,7 @@ void ImGui::NextColumn()
     PopItemWidth();
 
     // Optimization: avoid PopClipRect() + SetCurrentChannel() + PushClipRect()
-    // (which would needlessly attempt to update commands in the wrong channel, then pop or overwrite them),
+    // (which would needlessly attempt to upload commands in the wrong channel, then pop or overwrite them),
     ImGuiOldColumnData* column = &columns->Columns[columns->Current];
     SetWindowClipRectBeforeSetChannel(window, column->ClipRect);
     columns->Splitter.SetCurrentChannel(window->DrawList, columns->Current + 1);

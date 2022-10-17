@@ -24,7 +24,7 @@ namespace Cyan
     struct DirectionalLightComponent : public ILightComponent
     {
         /* Component interface */
-        virtual void update() override { }
+        virtual void upload() override { }
         virtual void render() override { }
         virtual const char* getTag() override { return "DirectionalLightComponent"; }
 
@@ -52,7 +52,7 @@ namespace Cyan
     struct SkyLightComponent : public ILightComponent
     {
         /* Component interface */
-        virtual void update() override { }
+        virtual void upload() override { }
         virtual void render() override { }
         virtual const char* getTag() override { return "SkyLightComponent"; }
 
@@ -68,7 +68,7 @@ namespace Cyan
     struct PointLightComponent : public ILightComponent
     {
         /* Component interface */
-        virtual void update() override { }
+        virtual void upload() override { }
         virtual void render() override { }
         virtual const char* getTag() override { return "PointLightComponent"; }
 

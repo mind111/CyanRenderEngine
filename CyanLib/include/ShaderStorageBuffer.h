@@ -4,11 +4,6 @@
 
 #include "Common.h"
 
-#define SET_SSBO_MEMBER(ssboName, memberName, data) ssboName.data.constants.memberName = data
-#define SET_SSBO_ELEMENT(ssboName, index, data) ssboName.data.array[index] = data
-#define ADD_SSBO_ELEMENT(ssboName, data) ssboName.data.array.push_back(data)
-#define GET_SSBO_ELEMENT(ssboName, index) ssboName.data.array[index]
-
 namespace Cyan
 {
     struct IShaderStorageBufferData
@@ -156,7 +151,7 @@ namespace Cyan
             bufferBindingUnit = -1;
         }
 
-        void update()
+        void upload()
         {
             // if the dynamic array out grow the allocated buffer, need to release old resources and create new ones
             if (data.getSizeInBytes() > sizeInBytes)
@@ -172,11 +167,11 @@ namespace Cyan
 
             if (data.getStaticDataSizeInBytes() > 0)
             {
-                // update static members
+                // upload static members
                 glNamedBufferSubData(getGpuResource(), 0, data.getStaticDataSizeInBytes(), data.getStaticData());
             }
             if (data.getDynamicDataSizeInBytes() > 0) {
-                // update dynamic members
+                // upload dynamic members
                 glNamedBufferSubData(getGpuResource(), data.getStaticDataSizeInBytes(), data.getDynamicDataSizeInBytes(), data.getDynamicData());
             }
         }
@@ -204,7 +199,7 @@ namespace Cyan
             if (void* dynamicData = data.getDynamicData()) {
                 memcpy(cloned->data.getDynamicData(), dynamicData, data.getDynamicDataSizeInBytes());
             }
-            cloned->update();
+            cloned->upload();
             return cloned;
         }
 
@@ -213,3 +208,4 @@ namespace Cyan
         i32 bufferBindingUnit = -1;
     };
 }
+
