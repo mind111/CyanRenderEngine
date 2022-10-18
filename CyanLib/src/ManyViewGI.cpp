@@ -859,7 +859,7 @@ namespace Cyan {
                 renderTarget->setColorBuffer(surfelSceneColor, 0);
                 renderTarget->setDrawBuffers({ 0 });
                 renderTarget->clearDrawBuffer(0, glm::vec4(0.2f, .2f, .2f, 1.f));
-                rasterizeSurfelScene(renderTarget.get(), scene.camera.view, scene.camera.projection);
+                rasterizeSurfelScene(renderTarget.get(), scene.camera);
             }
         }
 
@@ -958,7 +958,7 @@ namespace Cyan {
         instanceBuffer.upload();
     }
 
-    void MicroRenderingGI::rasterizeSurfelScene(RenderTarget* outRenderTarget, const glm::mat4& view, const glm::mat4& projection) {
+    void MicroRenderingGI::rasterizeSurfelScene(RenderTarget* outRenderTarget, const RenderableCamera& camera) {
         auto shader = ShaderManager::createShader({
             ShaderSource::Type::kVsPs,
             "RasterizeSurfelShader",
@@ -974,11 +974,11 @@ namespace Cyan {
         m_gfxc->setRenderTarget(outRenderTarget);
         m_gfxc->setViewport({ 0, 0, outRenderTarget->width, outRenderTarget->height });
         shader->setUniform("outputSize", glm::ivec2(outRenderTarget->width, outRenderTarget->height));
-        shader->setUniform("cameraFov", 90.f);
-        shader->setUniform("cameraN", 0.1f);
+        shader->setUniform("cameraFov", camera.fov);
+        shader->setUniform("cameraN", camera.n);
         shader->setUniform("surfelRadius", 0.1f);
-        shader->setUniform("view", view);
-        shader->setUniform("projection", projection);
+        shader->setUniform("view", camera.view);
+        shader->setUniform("projection", camera.projection);
         shader->setUniform("receivingNormal", m_scene->camera.view[1]);
         glDrawArraysInstanced(GL_POINTS, 0, 1, surfels.size());
     }

@@ -75,8 +75,22 @@ namespace Cyan
     }
 
     SceneRenderable::SceneRenderable(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator)
-        : camera{ sceneView.camera->view(), sceneView.camera->projection() }
     {
+        // todo: make this work with orthographic camera as well
+        PerspectiveCamera* inCamera = dynamic_cast<PerspectiveCamera*>(inScene->camera->getCamera());
+        if (inCamera) {
+            camera.eye = inCamera->position;
+            camera.lookAt = inCamera->lookAt;
+            camera.right = inCamera->right();
+            camera.forward = inCamera->forward();
+            camera.up = inCamera->up();
+            camera.n = inCamera->n;
+            camera.f = inCamera->f;
+            camera.aspect = inCamera->aspectRatio;
+            camera.view = inCamera->view();
+            camera.projection = inCamera->projection();
+        }
+
         viewSsbo = std::make_unique<ViewSsbo>();
         transformSsbo = std::make_unique<TransformSsbo>();
         instances = std::make_unique<InstanceBuffer>();

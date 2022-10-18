@@ -27,7 +27,7 @@ uniform float surfelRadius;
 
 float calcPointSizeApproximate(vec3 viewPosition, in Surfel surfel) {
 	float cosine = max(dot(normalize(viewPosition - surfel.position.xyz), surfel.normal.xyz), 0.f); 
-	// approximate the area of  that
+	// approximate the area of
 	float approxArea = (surfelRadius * surfelRadius * pi) * cosine;
 	float r = sqrt(approxArea / pi);
 	// screen space radius of projected disk

@@ -48,6 +48,12 @@ namespace Cyan
 
     struct RenderableCamera
     {
+        RenderableCamera() {};
+
+        glm::vec3 eye;
+        glm::vec3 lookAt;
+        glm::vec3 right, forward, up;
+        f32 fov, n, f, aspect;
         glm::mat4 view = glm::mat4(1.f);
         glm::mat4 projection = glm::mat4(1.f);
     };

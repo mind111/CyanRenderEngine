@@ -11,12 +11,12 @@ namespace Cyan
 {
     struct ICamera
     {
-        virtual glm::mat4 view() 
+        virtual glm::mat4 view() const
         { 
             return glm::lookAt(position, lookAt, worldUp);
         }
 
-        virtual glm::mat4 projection() = 0;
+        virtual glm::mat4 projection() const = 0;
         glm::vec3 forward() const { return glm::normalize(lookAt - position); }
         glm::vec3 right() const { return glm::normalize(glm::cross(forward(), worldUp)); }
         glm::vec3 up() const { return glm::normalize(glm::cross(right(), forward())); }
@@ -33,7 +33,7 @@ namespace Cyan
     struct PerspectiveCamera : public ICamera
     {
         /* ICamera interface */
-        virtual glm::mat4 projection() override
+        virtual glm::mat4 projection() const override 
         {
             return glm::perspective(glm::radians(fov), aspectRatio, n, f);
         }
@@ -60,7 +60,7 @@ namespace Cyan
     struct OrthographicCamera : public ICamera
     {
         /* ICamera interface */
-        virtual glm::mat4 projection() override
+        virtual glm::mat4 projection() const override
         {
             f32 left = viewVolume.pmin.x;
             f32 right = viewVolume.pmax.x;

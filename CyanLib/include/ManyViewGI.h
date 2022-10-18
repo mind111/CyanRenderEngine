@@ -138,7 +138,7 @@ namespace Cyan {
         void generateWorldSpaceSurfels();
         void gatherRadiance();
         void buildSurfelBVH() { }
-        void rasterizeSurfelScene(RenderTarget* outRenderTarget, const glm::mat4& view, const glm::mat4& projection);
+        void rasterizeSurfelScene(RenderTarget* outRenderTarget, const RenderableCamera& camera);
         void visualizeSurfels();
 
     private:
