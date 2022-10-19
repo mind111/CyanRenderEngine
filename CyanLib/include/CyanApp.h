@@ -14,7 +14,7 @@ namespace Cyan
 
         void initialize();
         void finalize();
-        void upload();
+        void update();
         void render();
         void run();
 

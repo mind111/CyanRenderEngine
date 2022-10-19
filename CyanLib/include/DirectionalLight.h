@@ -49,7 +49,7 @@ namespace Cyan
     struct DirectionalLightEntity : public Entity
     {
         /* Entity interface */
-        virtual void upload() override;
+        virtual void update() override;
         virtual const char* getTypeDesc() override { return "DirectionalLightEntity"; }
         virtual void renderUI() override;
 

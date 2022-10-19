@@ -13,7 +13,7 @@ namespace Cyan
     {
         virtual ~ILightRenderable() { }
 
-        virtual void renderShadow(const Scene& scene, SceneRenderable& renderableScene, Renderer& renderer) { }
+        virtual void renderShadowMaps(const Scene& scene, SceneRenderable& renderableScene, Renderer& renderer) { }
         virtual void setShaderParameters(Shader* shader) = 0;
         virtual ILightRenderable* clone() { return nullptr; }
     };
@@ -24,7 +24,7 @@ namespace Cyan
     struct DirectionalLightRenderable : public ILightRenderable
     {
         /* ILightRenderable interface */
-        virtual void renderShadow(const Scene& scene, SceneRenderable& renderableScene, Renderer& renderer) override;
+        virtual void renderShadowMaps(const Scene& scene, SceneRenderable& renderableScene, Renderer& renderer) override;
         virtual void setShaderParameters(Shader* shader) override
         {
             shader->setUniform("sceneLights.directionalLight.direction", direction);

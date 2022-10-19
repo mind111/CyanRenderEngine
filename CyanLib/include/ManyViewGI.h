@@ -110,7 +110,6 @@ namespace Cyan {
         GLuint hemicubeMultiViewFramebuffer;
     };
 
-
     struct Surfel {
         glm::vec3 position;
         glm::vec3 normal;

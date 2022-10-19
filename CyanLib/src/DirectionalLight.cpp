@@ -21,7 +21,7 @@ namespace Cyan
         addComponent(directionalLightComponentPtr.get());
     }
 
-    void DirectionalLightEntity::upload()
+    void DirectionalLightEntity::update()
     {
     }
 

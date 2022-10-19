@@ -61,11 +61,34 @@ namespace Cyan
 
     }
 
-    void GraphicsSystem::upload()
-    {
-        if (m_scene)
-        {
-            m_scene->upload();
+    void GraphicsSystem::update(Scene* scene) {
+        if (scene) {
+            m_scene = scene;
+        }
+        m_scene->update();
+    }
+
+    void GraphicsSystem::render() {
+        if (m_scene) {
+            // clear default render target
+            m_ctx->setRenderTarget(nullptr, { });
+            m_ctx->clear();
+
+            // todo: properly handle window resize here
+            glm::uvec2 resolution = m_windowDimension;
+            ITextureRenderable::Spec spec = { };
+            spec.width = resolution.x;
+            spec.height = resolution.y;
+            spec.type = TEX_2D;
+            spec.pixelFormat = PF_RGB16F;
+            static Texture2DRenderable* frameOutput = new Texture2DRenderable("FrameOutput", spec);
+
+            SceneView mainSceneView(*m_scene, m_scene->camera->getCamera(), EntityFlag_kVisible, frameOutput, { 0, 0, frameOutput->width, frameOutput->height });
+            m_renderer->render(m_scene, mainSceneView);
+            m_renderer->renderToScreen(mainSceneView.renderTexture);
+            m_renderer->renderUI();
+
+            m_ctx->flip();
         }
     }
 }

@@ -5,7 +5,7 @@
 
 namespace Cyan
 {
-    void DirectionalLightRenderable::renderShadow(const Scene& scene, SceneRenderable& renderableScene, Renderer& renderer)
+    void DirectionalLightRenderable::renderShadowMaps(const Scene& scene, SceneRenderable& renderableScene, Renderer& renderer)
     {
         /**
         * This is a bit clunky but I want to make CSM and vanilla DirectionalShadowMap to support same interface

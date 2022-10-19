@@ -131,7 +131,7 @@ namespace Cyan
         }
 
         /* Entity interface */
-        virtual void upload() override
+        virtual void update() override
         {
 
         }

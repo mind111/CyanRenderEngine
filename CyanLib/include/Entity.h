@@ -50,7 +50,7 @@ namespace Cyan
         Entity(Scene* scene, const char* inName, const Transform& t, Entity* inParent = nullptr, u32 inProperties = (EntityFlag_kDynamic | EntityFlag_kVisible | EntityFlag_kCastShadow));
         virtual ~Entity() { }
 
-        virtual void upload() { }
+        virtual void update() { }
         virtual const char* getTypeDesc() { return "Entity"; }
         virtual void renderUI() { }
 

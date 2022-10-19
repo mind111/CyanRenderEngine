@@ -25,12 +25,10 @@ namespace Cyan
         IOSystem* getIOSystem() { return m_IOSystem.get(); }
         GraphicsSystem* getGraphicsSystem() { return m_graphicsSystem.get(); }
 
-        void setScene(std::shared_ptr<Scene> scene) { m_scene = scene; }
-
         // main interface
         void initialize();
         void finalize();
-        void upload();
+        void update(Scene* scene);
         void render();
 
     private:
@@ -41,8 +39,7 @@ namespace Cyan
         std::unique_ptr<GraphicsSystem> m_graphicsSystem;
 
         // active scene
-        std::shared_ptr<Scene> m_scene;
-        Renderer* m_renderer = nullptr;
+        Scene* m_scene = nullptr;
 
         // stats
         f32 renderFrameTime = 0.0f;

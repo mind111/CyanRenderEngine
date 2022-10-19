@@ -22,10 +22,9 @@ namespace Cyan
         customFinalize();
     }
 
-    void DefaultApp::upload()
+    void DefaultApp::update()
     {
-        gEngine->setScene(m_scene);
-        gEngine->upload();
+        gEngine->update(m_scene.get());
         customUpdate();
     }
 
@@ -39,7 +38,7 @@ namespace Cyan
     {
         while (isRunning)
         {
-            upload();
+            update();
             render();
         }
     }

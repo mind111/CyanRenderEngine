@@ -17,7 +17,6 @@ namespace Cyan
         materials.emplace_back();
         auto defaultMaterial = materials.back();
 
-        SceneView sceneView(scene, scene.camera->getCamera(), EntityFlag_kVisible | EntityFlag_kStatic);
         for (auto entity : scene.entities)
         {
             if (auto staticMesh = dynamic_cast<StaticMeshEntity*>(entity))

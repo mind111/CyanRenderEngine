@@ -50,7 +50,7 @@ namespace Cyan {
     }
 
     ManyViewGI::ManyViewGI(Renderer* renderer, GfxContext* gfxc) 
-    : m_renderer(renderer), m_gfxc(gfxc) {
+        : m_renderer(renderer), m_gfxc(gfxc) {
 
     }
 

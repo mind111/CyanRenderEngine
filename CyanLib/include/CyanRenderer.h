@@ -24,11 +24,8 @@ namespace Cyan
 
     struct SceneView
     {
-        ICamera* camera = nullptr;
-        std::vector<Entity*> entities;
-
-        SceneView(const Scene& scene, ICamera* inCamera, u32 flags)
-            : camera(inCamera)
+        SceneView(const Scene& scene, ICamera* inCamera, u32 flags, Texture2DRenderable* dstRenderTexture, const Viewport& dstViewport)
+            : camera(inCamera), renderTexture(dstRenderTexture), viewport(dstViewport)
         {
             for (auto entity : scene.entities)
             {
@@ -38,6 +35,11 @@ namespace Cyan
                 }
             }
         }
+
+        ICamera* camera = nullptr;
+        Texture2DRenderable* renderTexture = nullptr;
+        Viewport viewport;
+        std::vector<Entity*> entities;
     };
 
     enum class SceneSsboBindings
@@ -135,7 +137,7 @@ namespace Cyan
 
 // rendering
         void beginRender();
-        void render(Scene* scene);
+        void render(Scene* scene, const SceneView& sceneView);
         void renderToScreen(Texture2DRenderable* inTexture);
         void endRender();
 
@@ -163,7 +165,7 @@ namespace Cyan
             void* data = nullptr;
         } indirectDrawBuffer;
         // Texture2DRenderable* renderSceneMultiDraw(SceneRenderable& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution, const SSGITextures& SSGIOutput);
-        void renderSceneMultiDraw(SceneRenderable& renderableScene, RenderTarget* outRenderTarget, const SSGITextures& SSGIOutput);
+        void renderSceneMultiDraw(SceneRenderable& renderableScene, RenderTarget* outRenderTarget, Texture2DRenderable* outSceneColor, const SSGITextures& SSGIOutput);
         void submitSceneMultiDrawIndirect(const SceneRenderable& renderableScene);
 
         std::unique_ptr<ManyViewGI> m_manyViewGI = nullptr;
@@ -196,7 +198,7 @@ namespace Cyan
         void renderDebugObjects();
 
         /* Shadow */
-        void renderShadow(const Scene& scene, const SceneRenderable& renderableScene);
+        void renderShadowMaps(const Scene& scene, const SceneRenderable& renderableScene);
 
         /*
         * Render provided scene into a light probe
@@ -272,7 +274,7 @@ namespace Cyan
         /*
         * Compositing and resolving to final output color texture. Applying bloom, tone mapping, and gamma correction.
         */
-        Texture2DRenderable* composite(Texture2DRenderable* inSceneColor, Texture2DRenderable* inBloomColor, const glm::uvec2& outputResolution);
+        void composite(Texture2DRenderable* composited, Texture2DRenderable* inSceneColor, Texture2DRenderable* inBloomColor, const glm::uvec2& outputResolution);
 //
 
 // per frame data

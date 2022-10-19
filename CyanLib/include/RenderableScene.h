@@ -115,15 +115,6 @@ namespace Cyan
         SceneRenderable& operator=(const SceneRenderable& src);
         static void clone(SceneRenderable& dst, const SceneRenderable& src);
 
-        void setView(const glm::mat4& view) 
-        {
-            camera.view = view;
-        }
-        void setProjection(const glm::mat4& projection) 
-        {
-            camera.projection = projection;
-        }
-
         /**
         * Submit rendering data to global gpu buffers
         */

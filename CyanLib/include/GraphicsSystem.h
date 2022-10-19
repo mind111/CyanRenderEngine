@@ -18,22 +18,23 @@ namespace Cyan
     class GraphicsSystem : public System, public Singleton<GraphicsSystem>
     {
     public:
-
         GraphicsSystem(u32 windowWidth, u32 windowHeight);
         ~GraphicsSystem() { }
 
         virtual void initialize() override;
         virtual void finalize() override;
-        virtual void upload() override;
+        void update(Scene* scene);
+        void render();
 
         GLFWwindow* getAppWindow() { return m_glfwWindow; }
         glm::uvec2 getAppWindowDimension() { return m_windowDimension; }
         Renderer* getRenderer() { return m_renderer.get(); }
         SceneManager* getSceneManager() { return m_sceneManager.get(); }
         AssetManager* getAssetManager() { return m_assetManager.get(); }
-        // TextureManager* getTextureManager() { return m_textureManager.get(); }
 
-        void setScene(std::shared_ptr<Scene> scene) { m_scene = scene; }
+        struct Settings {
+            bool bSuperSampling = true;
+        } m_settings;
 
     private:
         std::unique_ptr<SceneManager> m_sceneManager;
@@ -43,8 +44,10 @@ namespace Cyan
         // LightMapManager* m_lightMapManager;
         // PathTracer*      m_pathTracer;
 
+        // active scene
+        Scene* m_scene = nullptr;
+
         std::unique_ptr<GfxContext> m_ctx;
-        std::shared_ptr<Scene> m_scene;
         GLFWwindow* m_glfwWindow = nullptr;
         glm::uvec2 m_windowDimension; 
     };

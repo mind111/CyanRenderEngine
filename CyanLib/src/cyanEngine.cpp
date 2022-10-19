@@ -39,8 +39,6 @@ namespace Cyan
         m_graphicsSystem->initialize();
         m_IOSystem->initialize();
 
-        m_renderer = m_graphicsSystem->getRenderer();
-
 #if 1
         // setup default I/O controls 
         m_IOSystem->addIOEventListener<Cyan::MouseCursorEvent>([this](f64 xPos, f64 yPos) {
@@ -333,33 +331,6 @@ namespace Cyan
         ImGui::EndChild();
     }
 
-    static void drawTODOList()
-    {
-        ImGui::SetNextWindowBgAlpha(0.15f); // Transparent background
-        ImVec2 overlaySize(200.f, ImGui::GetTextLineHeight() * 10.f);
-        ImGui::SetNextWindowPos(ImVec2(1280.f - (overlaySize.x + 2.f), 5));
-        ImGui::SetNextWindowSize(overlaySize);
-        ImGuiWindowFlags windowFlags = 
-            ImGuiWindowFlags_NoDecoration 
-            | ImGuiWindowFlags_AlwaysAutoResize 
-            | ImGuiWindowFlags_NoSavedSettings
-            | ImGuiWindowFlags_NoFocusOnAppearing 
-            | ImGuiWindowFlags_NoNav;
-
-        if (ImGui::Begin("##TODOs", 0, windowFlags))
-        {
-            ImGui::TextColored(ImColor(1.f, 0.5f, 0.5f, 1.f), "TODOs");
-            ImGui::BulletText("Fix Skybox");
-            ImGui::BulletText("Fix SkyLight");
-            ImGui::BulletText("Physically Based SkyDome");
-            ImGui::BulletText("Exposure Fusion");
-            ImGui::BulletText("Auto White Balancing");
-            ImGui::BulletText("Irradiance Caching");
-            ImGui::BulletText("Emissive Material");
-        }
-        ImGui::End();
-    }
-
     static void drawRenderingTab(Renderer* renderer, f32 renderFrameTime)
     {
         ImGui::BeginChild("##Rendering Settings", ImVec2(0, 0), true);
@@ -396,8 +367,11 @@ namespace Cyan
         ImGui::EndChild();
     }
     
-    void Engine::upload()
-    {
+    void Engine::update(Scene* scene) {
+        // set active scene
+        if (scene) {
+            m_scene = scene;
+        }
         // todo: gather frame statistics
 
         // upload window title
@@ -406,26 +380,40 @@ namespace Cyan
         sprintf_s(windowTitle, "Cyan | Frame: %d | FPS: %.2f", numFrames++, 60.0f);
         glfwSetWindowTitle(m_graphicsSystem->getAppWindow(), windowTitle);
 
-        m_IOSystem->upload();
-        m_graphicsSystem->setScene(m_scene);
-        m_graphicsSystem->upload();
+        m_IOSystem->update();
+        m_graphicsSystem->update(m_scene);
+
+        // tick
+        for (auto entity : m_scene->entities)
+        {
+            entity->update();
+        }
+    }
+
+    void Engine::render()
+    {
+        if (m_graphicsSystem) {
+            ScopedTimer rendererTimer("Renderer Timer", false);
+            m_graphicsSystem->render();
+            rendererTimer.end();
+            renderFrameTime = rendererTimer.m_durationInMs;
+        }
 
         /**     
         * render utility widgets(e.g: such as a scene outline window, entity details window)
         */ 
-        m_renderer->addUIRenderCommand([this]() {
+        m_graphicsSystem->getRenderer()->addUIRenderCommand([this]() {
             ImGuiWindowFlags flags = ImGuiWindowFlags_None;
             ImGui::SetNextWindowPos(ImVec2(5, 5));
             ImGui::SetNextWindowSize(ImVec2(360, 700));
 
             ImGui::Begin("Cyan", nullptr, flags);
             {
-                // drawTODOList();
                 ImGui::BeginTabBar("##Views");
                 {
                     if (ImGui::BeginTabItem("Scene"))
                     {
-                        drawSceneTab(m_scene.get());
+                        drawSceneTab(m_scene);
                         ImGui::EndTabItem();
                     }
                     if (ImGui::BeginTabItem("Rendering"))
@@ -438,23 +426,6 @@ namespace Cyan
             }
             ImGui::End();
         });
-
-        // tick
-        for (auto entity : m_scene->entities)
-        {
-            entity->upload();
-        }
-    }
-
-    void Engine::render()
-    {
-        if (m_renderer)
-        {
-            ScopedTimer rendererTimer("Renderer Timer", false);
-            m_renderer->render(m_scene.get());
-            rendererTimer.end();
-            renderFrameTime = rendererTimer.m_durationInMs;
-        }
     }
 
     void Engine::finalize()

@@ -683,65 +683,28 @@ namespace Cyan
         }
     }
 
-    /*
-        * render passes should be pushed after call to beginRender() 
-    */
     void Renderer::beginRender()
     {
         // reset frame allocator
         m_frameAllocator.reset();
-
-        // clear default render target
-        m_ctx->setRenderTarget(nullptr, { });
-        m_ctx->clear();
     }
 
-    void Renderer::render(Scene* scene)
-    {
-        //-------------------------------------------------------------------
-        /*
-        * What composes a frame in Cyan ?
-        * pre main scene pass
-            * render shadow maps for all the shadow casting light sources
-            * render depth & normal pass
-            * render effects that are dependent on depth & normal pass
-            * voxel cone tracing preparation
-        * main scene pass 
-            * render the scene
-        * post-processing pass
-            * bloom
-            * tone mapping
-        */
-        //-------------------------------------------------------------------
+    void Renderer::render(Scene* scene, const SceneView& sceneView) {
         beginRender();
         {
+            // shared render target for this frame
             glm::uvec2 renderResolution = m_windowSize;
             if (m_settings.enableAA) {
                 renderResolution = m_windowSize * 2u;
             }
-
             std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(renderResolution.x, renderResolution.y));
-            SceneView sceneView(*scene, scene->camera->getCamera(), EntityFlag_kVisible);
+
             // convert Scene instance to SceneRenderable instance for rendering
             SceneRenderable sceneRenderable(scene, sceneView, m_frameAllocator);
-            sceneRenderable.setView(scene->camera->view());
-            sceneRenderable.setProjection(scene->camera->projection());
-/*
-            RenderTexture2D* sceneColorTexture = nullptr;
-            ITextureRenderable::Spec depthSpec = { };
-            depthSpec.type = TEX_2D;
-            depthSpec.pixelFormat = PF_RGB16F;
-            depthSpec.width = 2560;
-            depthSpec.height = 1440;
 
-            auto depthPrepassOutput = renderSceneDepthNormal(scene, sceneView, renderResolution);
-
-            sceneColorTexture = m_renderQueue.createTexture2D("RayTracingOutput", depthSpec);
-            RayTracingScene rtxScene(*scene);
-            gpuRayTracing(rtxScene, sceneColorTexture, depthPrepassOutput.depthTexture, depthPrepassOutput.normalTexture);
-*/
             // shadow
-            renderShadow(*scene, sceneRenderable);
+            renderShadowMaps(*scene, sceneRenderable);
+
             // scene depth & normal pass
             ITextureRenderable::Spec depthNormalSpec = { };
             depthNormalSpec.type = TEX_2D;
@@ -752,53 +715,41 @@ namespace Cyan
             static Texture2DRenderable* sceneNormalBuffer = new Texture2DRenderable("SceneNormalBuffer", depthNormalSpec);
             renderSceneDepthNormal(sceneRenderable, renderTarget.get(), sceneDepthBuffer, sceneNormalBuffer);
 
-            ITextureRenderable::Spec spec = { };
-            spec.type = TEX_2D;
-            spec.width = renderResolution.x;
-            spec.height = renderResolution.y;
-            spec.pixelFormat = PF_RGB16F;
-            static Texture2DRenderable* sceneColor = new Texture2DRenderable("SceneColor", spec);
-            renderTarget->setColorBuffer(sceneColor, 0);
-            renderTarget->setDrawBuffers({ 0 });
-            renderTarget->clearDrawBuffer(0, glm::vec4(0.f, 0.f, 0.f, 1.f));
-
             // many view global illumination
 #if 0
             m_manyViewGI->run(renderTarget.get(), sceneRenderable, sceneDepthBuffer, sceneNormalBuffer);
-#endif
-            m_microRenderingGI->run(sceneRenderable);
-
             // ssgi
             // auto ssgi = screenSpaceRayTracing(zPrepass.depthBuffer, zPrepass.normalBuffer, renderResolution);
             // instant radiosity
             // auto radiosity = m_instantRadiosity.render(this, scene, zPrepass.depthBuffer, zPrepass.normalBuffer, renderResolution);
+#endif
+            m_microRenderingGI->run(sceneRenderable);
+
             // main scene pass
+            ITextureRenderable::Spec spec = { };
+            spec.width = renderTarget->width;
+            spec.height = renderTarget->height;
+            spec.type = TEX_2D;
+            spec.pixelFormat = PF_RGB16F;
+            static Texture2DRenderable* sceneColor = new Texture2DRenderable("SceneColor", spec);
 #if BINDLESS_TEXTURE
-            renderSceneMultiDraw(sceneRenderable, renderTarget.get(), { });
+            renderSceneMultiDraw(sceneRenderable, renderTarget.get(), sceneColor, { });
 #else
             auto sceneColor = renderScene(sceneRenderable, sceneView, renderResolution);
 #endif
-            if (m_settings.enableTAA)
-            {
+            if (m_settings.enableTAA) {
                 taa();
             }
 
             // post processing
             // todo: bloom pass is buggy! it breaks the crappy transient render resource system
             // auto bloom = bloom(sceneColorTexture);
-            Texture2DRenderable* composited = nullptr;
             if (m_settings.bPostProcessing) {
-                composited = composite(sceneColor, nullptr, m_windowSize);
+                composite(sceneView.renderTexture, sceneColor, nullptr, m_windowSize);
             }
+            // todo: blit offscreen color buffer into output render texture
+            else {
 
-            if (bFullscreenRadiosity) {
-                // renderToScreen(radiosity);
-            } else {
-                if (composited) {
-                    renderToScreen(composited);
-                } else {
-                    renderToScreen(sceneColor);
-                }
             }
         } 
         endRender();
@@ -824,21 +775,18 @@ namespace Cyan
 
     void Renderer::endRender()
     {
-        // render UI widgets
-        renderUI();
-        m_ctx->flip();
         m_numFrames++;
     }
 
-    void Renderer::renderShadow(const Scene& scene, const SceneRenderable& renderableScene)
+    void Renderer::renderShadowMaps(const Scene& scene, const SceneRenderable& renderableScene)
     {
         // construct a scene view for all shadow casting lights 
-        SceneView shadowView(scene, scene.camera->getCamera(), EntityFlag_kVisible | EntityFlag_kCastShadow);
+        SceneView shadowView(scene, scene.camera->getCamera(), EntityFlag_kVisible | EntityFlag_kCastShadow, nullptr, { });
         SceneRenderable shadowScene(&scene, shadowView, m_frameAllocator);
 
         for (auto light : renderableScene.lights)
         {
-            light->renderShadow(scene, shadowScene, *this);
+            light->renderShadowMaps(scene, shadowScene, *this);
         }
     }
 
@@ -1256,11 +1204,14 @@ namespace Cyan
         glMultiDrawArraysIndirect(GL_TRIANGLES, 0, drawCount, 0);
     }
 
-    void Renderer::renderSceneMultiDraw(SceneRenderable& sceneRenderable, RenderTarget* outRenderTarget, const SSGITextures& SSGIOutput) {
+    void Renderer::renderSceneMultiDraw(SceneRenderable& sceneRenderable, RenderTarget* outRenderTarget, Texture2DRenderable* outSceneColor, const SSGITextures& SSGIOutput) {
         Shader* scenePassShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "ScenePassShader", SHADER_SOURCE_PATH "scene_pass_v.glsl", SHADER_SOURCE_PATH "scene_pass_p.glsl" });
         sceneRenderable.submitSceneData(m_ctx);
 
         m_ctx->setShader(scenePassShader);
+        outRenderTarget->setColorBuffer(outSceneColor, 0);
+        outRenderTarget->setDrawBuffers({ 0 });
+        outRenderTarget->clearDrawBuffer(0, glm::vec4(0.f, 0.f, 0.f, 1.f));
         m_ctx->setRenderTarget(outRenderTarget);
         m_ctx->setViewport({ 0, 0, outRenderTarget->width, outRenderTarget->height });
         m_ctx->setDepthControl(DepthControl::kEnable);
@@ -1771,14 +1722,8 @@ namespace Cyan
         m_TAAOutput = m_TAAPingPongTextures[dst];
     }
 
-    Texture2DRenderable* Renderer::composite(Texture2DRenderable* inSceneColor, Texture2DRenderable* inBloomColor, const glm::uvec2& outputResolution)
+    void Renderer::composite(Texture2DRenderable* composited,Texture2DRenderable* inSceneColor, Texture2DRenderable* inBloomColor, const glm::uvec2& outputResolution)
     {
-        ITextureRenderable::Spec depthSpec = inSceneColor->getTextureSpec();
-        depthSpec.width = outputResolution.x;
-        depthSpec.height = outputResolution.y;
-
-        static Texture2DRenderable* composited = new Texture2DRenderable("CompositedColorOutput", depthSpec);
-
         // add a reconstruction pass using Gaussian filter
         gaussianBlur(inSceneColor, 2u, 1.0f);
 
@@ -1803,8 +1748,6 @@ namespace Cyan
                     .setTexture("bloomTexture", inBloomColor)
                     .setTexture("sceneColorTexture", inSceneColor);
             });
-
-        return composited;
     }
 
     void Renderer::gaussianBlur(Texture2DRenderable* inoutTexture, u32 inRadius, f32 inSigma) {
