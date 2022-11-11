@@ -29,12 +29,12 @@ namespace Cyan
             pixels.resize(numPixels);
         }
 
-        void setPixel(const glm::uvec2& coords, const glm::vec3& color) 
+        void setPixel(const glm::uvec2& coords, const glm::vec3& albedo) 
         { 
             u32 index = coords.y * size.x + coords.x;
             if (index < pixels.size())
             {
-                pixels[index] = color;
+                pixels[index] = albedo;
             }
         }
 
@@ -165,13 +165,13 @@ namespace Cyan
         glm::vec3 position;
         glm::vec3 normal;
         f32       r;
-        // a gradient vector for each color component R, G, B
+        // a gradient vector for each albedo component R, G, B
         glm::vec3 gradient_r[3];
         glm::vec3 gradient_t[3];
     };
 
     /* @brief:
-    * todo: irradiance gradients
+    * todo: shared gradients
     * todo: neighbor clamping 
     */
     struct IrradianceCache
@@ -220,7 +220,7 @@ namespace Cyan
         */
         glm::vec3 sampleIndirectDiffuse(glm::vec3& ro, glm::vec3& n, u32 numBounces, TriMaterial& matl);
 
-        // irradiance caching
+        // shared caching
         void      fastRenderWorker(u32 start, u32 end, Camera& camera, u32 totalNumRays);
         glm::vec3 fastShadeSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd, TriMaterial& matl);
         void      fastRenderScene(Camera& camera);
@@ -238,16 +238,16 @@ namespace Cyan
         glm::vec3 approximateDiffuseInterreflection(glm::vec3& p, glm::vec3& pn, f32 error);
 
         /*
-        * Fill up an irradiance cache by tracing rays into scene to sample irradiance and cache sampled irradiance into irradiance cache. This pass doesn't
-        * do any shading. Building the irradiance cache in a separate first pass greatly improves quality of the interpolation performed during the shading pass.
-        * This greatly alleviates the interpolation artifacts caused by the fact new irradiance records doesn't affect any irradiance values that were interpolated
+        * Fill up an shared cache by tracing rays into scene to sample shared and cache sampled shared into shared cache. This pass doesn't
+        * do any shading. Building the shared cache in a separate first pass greatly improves quality of the interpolation performed during the shading pass.
+        * This greatly alleviates the interpolation artifacts caused by the fact new shared records doesn't affect any shared values that were interpolated
         * before them.
         */
         void      fillIrradianceCache(const std::vector<Ray>& rays, u32 start, u32 end, Camera& camera);
 
         /*
-        * Sample irradiance at a point on surface using hemi-sphere sampling. This gets called when irradiance caching algorithm failed to find any
-        * cached irradiance records that can be used to interploate to get irradiance at 'p'
+        * Sample shared at a point on surface using hemi-sphere sampling. This gets called when shared caching algorithm failed to find any
+        * cached shared records that can be used to interploate to get shared at 'p'
         */
         const IrradianceRecord& sampleIrradianceRecord(glm::vec3& p, glm::vec3& n);
 

@@ -133,7 +133,7 @@ namespace ImGuizmo
    IMGUI_API bool IsUsing();
 
    // enable/disable the gizmo. Stay in the state until next call to Enable.
-   // gizmo is rendered with gray half transparent color when disabled
+   // gizmo is rendered with gray half transparent albedo when disabled
    IMGUI_API void Enable(bool enable);
 
    // helper functions for manualy editing translation/rotation/scale with an input float
@@ -155,7 +155,7 @@ namespace ImGuizmo
    // default is false
    IMGUI_API void SetOrthographic(bool isOrthographic);
 
-   // Render a cube with face color corresponding to face normal. Usefull for debug/tests
+   // Render a cube with face albedo corresponding to face normal. Usefull for debug/tests
    IMGUI_API void DrawCubes(const float* view, const float* projection, const float* matrices, int matrixCount);
    IMGUI_API void DrawGrid(const float* view, const float* projection, const float* matrix, const float gridSize);
 

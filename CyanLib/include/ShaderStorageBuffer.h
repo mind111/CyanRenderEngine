@@ -3,6 +3,7 @@
 #include "glew.h"
 
 #include "Common.h"
+#include "CyanCore.h"
 
 namespace Cyan
 {

@@ -170,7 +170,7 @@ static const int TABLE_DRAW_CHANNEL_BG1_FROZEN = 1;
 static const int TABLE_DRAW_CHANNEL_UNCLIPPED = 2;                  // When using ImGuiTableFlags_NoClip
 static const float TABLE_BORDER_SIZE                     = 1.0f;    // FIXME-TABLE: Currently hard-coded because of clipping assumptions with outer borders rendering.
 static const float TABLE_RESIZE_SEPARATOR_HALF_THICKNESS = 4.0f;    // Extend outside inner borders.
-static const float TABLE_RESIZE_SEPARATOR_FEEDBACK_TIMER = 0.06f;   // Delay/timer before making the hover feedback (color+cursor) visible because tables/columns tends to be more cramped.
+static const float TABLE_RESIZE_SEPARATOR_FEEDBACK_TIMER = 0.06f;   // Delay/timer before making the hover feedback (albedo+cursor) visible because tables/columns tends to be more cramped.
 
 // Helper
 inline ImGuiTableFlags TableFixFlags(ImGuiTableFlags flags, ImGuiWindow* outer_window)
@@ -1512,7 +1512,7 @@ void ImGui::TableBeginRow(ImGuiTable* table)
     window->DC.PrevLineTextBaseOffset = 0.0f;
     window->DC.CursorMaxPos.y = next_y1;
 
-    // Making the header BG color non-transparent will allow us to overlay it multiple times when handling smooth dragging.
+    // Making the header BG albedo non-transparent will allow us to overlay it multiple times when handling smooth dragging.
     if (table->RowFlags & ImGuiTableRowFlags_Headers)
     {
         TableSetBgColor(ImGuiTableBgTarget_RowBg0, GetColorU32(ImGuiCol_TableHeaderBg));
@@ -1548,7 +1548,7 @@ void ImGui::TableEndRow(ImGuiTable* table)
     const bool is_visible = (bg_y2 >= table->InnerClipRect.Min.y && bg_y1 <= table->InnerClipRect.Max.y);
     if (is_visible)
     {
-        // Decide of background color for the row
+        // Decide of background albedo for the row
         ImU32 bg_col0 = 0;
         ImU32 bg_col1 = 0;
         if (table->RowBgColor[0] != IM_COL32_DISABLE)
@@ -1558,7 +1558,7 @@ void ImGui::TableEndRow(ImGuiTable* table)
         if (table->RowBgColor[1] != IM_COL32_DISABLE)
             bg_col1 = table->RowBgColor[1];
 
-        // Decide of top border color
+        // Decide of top border albedo
         ImU32 border_col = 0;
         const float border_size = TABLE_BORDER_SIZE;
         if (table->CurrentRow > 0 || table->InnerWindow == table->OuterWindow)
@@ -1588,7 +1588,7 @@ void ImGui::TableEndRow(ImGuiTable* table)
                 window->DrawList->AddRectFilled(row_rect.Min, row_rect.Max, bg_col1);
         }
 
-        // Draw cell background color
+        // Draw cell background albedo
         if (draw_cell_bg_color)
         {
             ImGuiTableCellData* cell_data_end = &table->RowCellData[table->RowCellDataCurrent];
@@ -1898,14 +1898,14 @@ int ImGui::TableGetHoveredColumn()
     return (int)table->HoveredColumnBody;
 }
 
-void ImGui::TableSetBgColor(ImGuiTableBgTarget bg_target, ImU32 color, int column_n)
+void ImGui::TableSetBgColor(ImGuiTableBgTarget bg_target, ImU32 albedo, int column_n)
 {
     ImGuiContext& g = *GImGui;
     ImGuiTable* table = g.CurrentTable;
     IM_ASSERT(bg_target != ImGuiTableBgTarget_None);
 
-    if (color == IM_COL32_DISABLE)
-        color = 0;
+    if (albedo == IM_COL32_DISABLE)
+        albedo = 0;
 
     // We cannot draw neither the cell or row background immediately as we don't know the row height at this point in time.
     switch (bg_target)
@@ -1921,7 +1921,7 @@ void ImGui::TableSetBgColor(ImGuiTableBgTarget bg_target, ImU32 color, int colum
         if (table->RowCellDataCurrent < 0 || table->RowCellData[table->RowCellDataCurrent].Column != column_n)
             table->RowCellDataCurrent++;
         ImGuiTableCellData* cell_data = &table->RowCellData[table->RowCellDataCurrent];
-        cell_data->BgColor = color;
+        cell_data->BgColor = albedo;
         cell_data->Column = (ImGuiTableColumnIdx)column_n;
         break;
     }
@@ -1932,7 +1932,7 @@ void ImGui::TableSetBgColor(ImGuiTableBgTarget bg_target, ImU32 color, int colum
             return;
         IM_ASSERT(column_n == -1);
         int bg_idx = (bg_target == ImGuiTableBgTarget_RowBg1) ? 1 : 0;
-        table->RowBgColor[bg_idx] = color;
+        table->RowBgColor[bg_idx] = albedo;
         break;
     }
     default:

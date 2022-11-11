@@ -168,7 +168,7 @@ namespace Cyan
 #else
         bakeSingleThread(lightMap, overlappedTexelCount);
 #endif
-        // write color data back to texture
+        // write albedo data back to texture
         {
             u32 width = lightMap->m_texAltas->width;
             u32 height = lightMap->m_texAltas->height;
@@ -295,7 +295,7 @@ namespace Cyan
                 }
             }
         }
-        // write color data back to texture
+        // write albedo data back to texture
         {
             u32 width = lightMap->m_texAltas->width;
             u32 height = lightMap->m_texAltas->height;

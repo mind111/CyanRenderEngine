@@ -19,7 +19,7 @@ public:
     {
         using namespace Cyan;
 
-        AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/instant_radiosity_scene.glb", "InstantRadiosity");
+        AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/simplified_cyan_toybox.glb", "CyanToybox");
         // AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/shader_balls.glb", "ShaderBall");
         // AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/cornell_box.gltf", "CornellBox");
         // AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/sponza-gltf-pbr/sponza.glb", "Sponza");
@@ -60,52 +60,6 @@ public:
 
     virtual void customUpdate() override
     {
-        using namespace Cyan;
-#if 0
-        Renderer::get()->addUIRenderCommand([this]() {
-            ImGui::Begin("RayTracing");
-            {
-                if (ImGui::CollapsingHeader("Ray Tracer", ImGuiTreeNodeFlags_DefaultOpen))
-                {
-                    if (ImGui::Button("Run"))
-                    {
-                        if (!m_rayTracer->busy())
-                        {
-                            spawnedThreads.push_back(new std::thread([this]() {
-                                PerspectiveCamera* camera = static_cast<PerspectiveCamera*>(m_scene->camera->getCamera());
-                                m_rayTracer->renderScene(*m_rtxScene, *camera, image, [this]() { });
-                            }));
-                        }
-                    }
-                    if (m_rayTracer->busy())
-                    {
-                        ImGui::SameLine();
-                        ImGui::Text("Progress: %.2f\%", m_rayTracer->getProgress() * 100.f);
-                    }
-                    ImGui::Text("Ray Tracing Output"); ImGui::SameLine();
-                    if (ImGui::Button("Clear"))
-                    {
-                        glClearTexImage(rayTracingOutput->getGpuResource(), 0, GL_RGB, GL_FLOAT, nullptr);
-                        image.clear();
-                    }
-                    if (!rayTracingOutput)
-                    {
-                        ITextureRenderable::Spec spec = { };
-                        spec.width = image.size.x;
-                        spec.height = image.size.y;
-                        spec.pixelFormat = PF_RGB16F;
-                        rayTracingOutput = AssetManager::createTexture2D("RayTracingOutput", spec);
-                    }
-                    auto spec = rayTracingOutput->getTextureSpec();
-                    glBindTexture(GL_TEXTURE_2D, rayTracingOutput->getGpuResource());
-                    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, spec.width, spec.height, GL_RGB, GL_FLOAT, image.pixels.data());
-                    glBindTexture(GL_TEXTURE_2D, 0);
-                    ImGui::Image((void*)rayTracingOutput->getGpuResource(), ImVec2(spec.width, spec.height), ImVec2(0.f, 1.f), ImVec2(1.f, 0.f));
-                }
-            }
-            ImGui::End();
-        });
-#endif
     }
 
     virtual void customRender() override

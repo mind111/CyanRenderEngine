@@ -34,8 +34,11 @@ namespace Cyan
         } m_defaultTextures;
 
         struct DefaultShapes {
+            Mesh* quad = nullptr;
             Mesh* unitCubeMesh = nullptr;
             Mesh* sphere = nullptr;
+            Mesh* icosphere = nullptr;
+            Mesh* boundingSphere = nullptr;
             Mesh* disk = nullptr;
         } m_defaultShapes;
 
@@ -61,12 +64,16 @@ namespace Cyan
             }
             submeshes.push_back(createSubmesh<Triangles>(vertices, indices));
             m_defaultShapes.unitCubeMesh = createMesh("UnitCubeMesh", submeshes);
-
+            // quad
+            m_defaultShapes.quad = createMesh("Quad", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/quad.obj", false));
             // sphere
             m_defaultShapes.sphere = createMesh("Sphere", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/sphere.obj", false));
-
+            // icosphere
+            m_defaultShapes.icosphere = createMesh("IcoSphere", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/icosphere.obj", false));
+            // bounding sphere
+            // todo: line mesh doesn't work
+            m_defaultShapes.boundingSphere = createMesh("BoundingSphere", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/bounding_sphere.obj", false));
             // cylinder
-
             // disk
             m_defaultShapes.disk = createMesh("Disk", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/disk.obj", false));
 

@@ -309,6 +309,8 @@ namespace Cyan
                         indices[l * 2 + v] = index.vertex_index;
                     }
                 }
+
+                submeshes.push_back(createSubmesh<Lines>(vertices, indices));
             }
         }
 

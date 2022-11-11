@@ -3,14 +3,16 @@
 #define pi 3.14159265359
 
 struct Surfel {
-	vec4 position;
+	vec4 positionAndRadius;
 	vec4 normal;
-	vec4 color;
+	vec4 albedo;
+	vec4 radiance;
 };
 
 out VSOutput {
 	flat Surfel surfel;
-	flat vec3 viewPosition;
+	flat vec3 viewSpacePosition;
+	flat vec3 viewSpaceNormal;
 	flat float pointSize;
 } vsOut;
 
@@ -23,31 +25,21 @@ uniform mat4 projection;
 uniform float cameraFov;
 uniform float cameraN;
 uniform ivec2 outputSize;
-uniform float surfelRadius;
 
-float calcPointSizeApproximate(vec3 viewPosition, in Surfel surfel) {
-	float cosine = max(dot(normalize(viewPosition - surfel.position.xyz), surfel.normal.xyz), 0.f); 
-	// approximate the area of
-	float approxArea = (surfelRadius * surfelRadius * pi) * cosine;
-	float r = sqrt(approxArea / pi);
-	// screen space radius of projected disk
-	vec3 viewSpacePos = (view * surfel.position).xyz;
-	float rr = r * cameraN / abs(viewSpacePos.z);
+float calcPointSizeApproximate(vec3 viewSpacePosition, in Surfel surfel, float surfelRadius) {
+	float rr = surfelRadius * cameraN / abs(viewSpacePosition.z);
 	// convert world space radius to screen space in units of pixels
 	float pixelSize = 2.f * tan(radians(cameraFov * .5f)) * cameraN / float(outputSize.y);
 	return rr / pixelSize;
 }
 
-// todo: find out how to calculate the exact projected area of a disk onto the image plane using perspective projection
-float calcPointSizeExact(vec3 viewPosition, in Surfel surfel) {
-	return 0.f;
-}
-
 void main() {
-	gl_Position = projection * view * surfels[gl_InstanceID].position;
+	vec4 position = vec4(surfels[gl_InstanceID].positionAndRadius.xyz, 1.f);
+	float radius = surfels[gl_InstanceID].positionAndRadius.w;
+	gl_Position = projection * view * position;
 	vsOut.surfel = surfels[gl_InstanceID];
-	vsOut.viewPosition = view[3].xyz;
-	vsOut.pointSize = calcPointSizeApproximate(vsOut.viewPosition, vsOut.surfel);
-	// gl_PointSize = 10.f;
+	vsOut.viewSpacePosition = (view * position).xyz;
+	vsOut.viewSpaceNormal = (inverse(transpose(view))* surfels[gl_InstanceID].normal).xyz;
+	vsOut.pointSize = calcPointSizeApproximate(vsOut.viewSpacePosition, vsOut.surfel, radius);
 	gl_PointSize = vsOut.pointSize;
 }

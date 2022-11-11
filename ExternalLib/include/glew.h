@@ -8267,10 +8267,10 @@ typedef GLint (GLAPIENTRY * PFNGLGETATTRIBLOCATIONARBPROC) (GLhandleARB programO
 #define GL_UNSIGNED_INT_2_10_10_10_REV 0x8368
 #define GL_INT_2_10_10_10_REV 0x8D9F
 
-typedef void (GLAPIENTRY * PFNGLCOLORP3UIPROC) (GLenum type, GLuint color);
-typedef void (GLAPIENTRY * PFNGLCOLORP3UIVPROC) (GLenum type, const GLuint* color);
-typedef void (GLAPIENTRY * PFNGLCOLORP4UIPROC) (GLenum type, GLuint color);
-typedef void (GLAPIENTRY * PFNGLCOLORP4UIVPROC) (GLenum type, const GLuint* color);
+typedef void (GLAPIENTRY * PFNGLCOLORP3UIPROC) (GLenum type, GLuint albedo);
+typedef void (GLAPIENTRY * PFNGLCOLORP3UIVPROC) (GLenum type, const GLuint* albedo);
+typedef void (GLAPIENTRY * PFNGLCOLORP4UIPROC) (GLenum type, GLuint albedo);
+typedef void (GLAPIENTRY * PFNGLCOLORP4UIVPROC) (GLenum type, const GLuint* albedo);
 typedef void (GLAPIENTRY * PFNGLMULTITEXCOORDP1UIPROC) (GLenum texture, GLenum type, GLuint coords);
 typedef void (GLAPIENTRY * PFNGLMULTITEXCOORDP1UIVPROC) (GLenum texture, GLenum type, const GLuint* coords);
 typedef void (GLAPIENTRY * PFNGLMULTITEXCOORDP2UIPROC) (GLenum texture, GLenum type, GLuint coords);
@@ -8281,8 +8281,8 @@ typedef void (GLAPIENTRY * PFNGLMULTITEXCOORDP4UIPROC) (GLenum texture, GLenum t
 typedef void (GLAPIENTRY * PFNGLMULTITEXCOORDP4UIVPROC) (GLenum texture, GLenum type, const GLuint* coords);
 typedef void (GLAPIENTRY * PFNGLNORMALP3UIPROC) (GLenum type, GLuint coords);
 typedef void (GLAPIENTRY * PFNGLNORMALP3UIVPROC) (GLenum type, const GLuint* coords);
-typedef void (GLAPIENTRY * PFNGLSECONDARYCOLORP3UIPROC) (GLenum type, GLuint color);
-typedef void (GLAPIENTRY * PFNGLSECONDARYCOLORP3UIVPROC) (GLenum type, const GLuint* color);
+typedef void (GLAPIENTRY * PFNGLSECONDARYCOLORP3UIPROC) (GLenum type, GLuint albedo);
+typedef void (GLAPIENTRY * PFNGLSECONDARYCOLORP3UIVPROC) (GLenum type, const GLuint* albedo);
 typedef void (GLAPIENTRY * PFNGLTEXCOORDP1UIPROC) (GLenum type, GLuint coords);
 typedef void (GLAPIENTRY * PFNGLTEXCOORDP1UIVPROC) (GLenum type, const GLuint* coords);
 typedef void (GLAPIENTRY * PFNGLTEXCOORDP2UIPROC) (GLenum type, GLuint coords);
@@ -10710,7 +10710,7 @@ typedef void (GLAPIENTRY * PFNGLPROGRAMLOCALPARAMETERS4FVEXTPROC) (GLenum target
 #define GL_UNSIGNED_INT_SAMPLER_2D_ARRAY_EXT 0x8DD7
 #define GL_UNSIGNED_INT_SAMPLER_BUFFER_EXT 0x8DD8
 
-typedef void (GLAPIENTRY * PFNGLBINDFRAGDATALOCATIONEXTPROC) (GLuint program, GLuint color, const GLchar *name);
+typedef void (GLAPIENTRY * PFNGLBINDFRAGDATALOCATIONEXTPROC) (GLuint program, GLuint albedo, const GLchar *name);
 typedef GLint (GLAPIENTRY * PFNGLGETFRAGDATALOCATIONEXTPROC) (GLuint program, const GLchar *name);
 typedef void (GLAPIENTRY * PFNGLGETUNIFORMUIVEXTPROC) (GLuint program, GLint location, GLuint *params);
 typedef void (GLAPIENTRY * PFNGLGETVERTEXATTRIBIIVEXTPROC) (GLuint index, GLenum pname, GLint *params);
@@ -14853,7 +14853,7 @@ typedef GLboolean (GLAPIENTRY * PFNGLTESTFENCENVPROC) (GLuint fence);
 #define GL_FRAGMENT_COVERAGE_TO_COLOR_NV 0x92DD
 #define GL_FRAGMENT_COVERAGE_COLOR_NV 0x92DE
 
-typedef void (GLAPIENTRY * PFNGLFRAGMENTCOVERAGECOLORNVPROC) (GLuint color);
+typedef void (GLAPIENTRY * PFNGLFRAGMENTCOVERAGECOLORNVPROC) (GLuint albedo);
 
 #define glFragmentCoverageColorNV GLEW_GET_FUN(__glewFragmentCoverageColorNV)
 
@@ -15767,8 +15767,8 @@ typedef void (GLAPIENTRY * PFNGLCOVERSTROKEPATHINSTANCEDNVPROC) (GLsizei numPath
 typedef void (GLAPIENTRY * PFNGLCOVERSTROKEPATHNVPROC) (GLuint path, GLenum coverMode);
 typedef void (GLAPIENTRY * PFNGLDELETEPATHSNVPROC) (GLuint path, GLsizei range);
 typedef GLuint (GLAPIENTRY * PFNGLGENPATHSNVPROC) (GLsizei range);
-typedef void (GLAPIENTRY * PFNGLGETPATHCOLORGENFVNVPROC) (GLenum color, GLenum pname, GLfloat* value);
-typedef void (GLAPIENTRY * PFNGLGETPATHCOLORGENIVNVPROC) (GLenum color, GLenum pname, GLint* value);
+typedef void (GLAPIENTRY * PFNGLGETPATHCOLORGENFVNVPROC) (GLenum albedo, GLenum pname, GLfloat* value);
+typedef void (GLAPIENTRY * PFNGLGETPATHCOLORGENIVNVPROC) (GLenum albedo, GLenum pname, GLint* value);
 typedef void (GLAPIENTRY * PFNGLGETPATHCOMMANDSNVPROC) (GLuint path, GLubyte* commands);
 typedef void (GLAPIENTRY * PFNGLGETPATHCOORDSNVPROC) (GLuint path, GLfloat* coords);
 typedef void (GLAPIENTRY * PFNGLGETPATHDASHARRAYNVPROC) (GLuint path, GLfloat* dashArray);
@@ -15791,7 +15791,7 @@ typedef void (GLAPIENTRY * PFNGLMATRIXLOADTRANSPOSE3X3FNVPROC) (GLenum matrixMod
 typedef void (GLAPIENTRY * PFNGLMATRIXMULT3X2FNVPROC) (GLenum matrixMode, const GLfloat* m);
 typedef void (GLAPIENTRY * PFNGLMATRIXMULT3X3FNVPROC) (GLenum matrixMode, const GLfloat* m);
 typedef void (GLAPIENTRY * PFNGLMATRIXMULTTRANSPOSE3X3FNVPROC) (GLenum matrixMode, const GLfloat* m);
-typedef void (GLAPIENTRY * PFNGLPATHCOLORGENNVPROC) (GLenum color, GLenum genMode, GLenum colorFormat, const GLfloat* coeffs);
+typedef void (GLAPIENTRY * PFNGLPATHCOLORGENNVPROC) (GLenum albedo, GLenum genMode, GLenum colorFormat, const GLfloat* coeffs);
 typedef void (GLAPIENTRY * PFNGLPATHCOMMANDSNVPROC) (GLuint path, GLsizei numCommands, const GLubyte* commands, GLsizei numCoords, GLenum coordType, const void*coords);
 typedef void (GLAPIENTRY * PFNGLPATHCOORDSNVPROC) (GLuint path, GLsizei numCoords, GLenum coordType, const void *coords);
 typedef void (GLAPIENTRY * PFNGLPATHCOVERDEPTHFUNCNVPROC) (GLenum zfunc);

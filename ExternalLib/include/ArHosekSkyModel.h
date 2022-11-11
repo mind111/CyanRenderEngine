@@ -255,15 +255,15 @@ CAVEAT #2: we always use limb darkening data from our own sun to provide this
 CAVEAT #3: you have to provide a value for the solar intensity of the star 
            which illuminates the alien world. For this, please bear in mind  
            that there is very likely a comparatively tight range of absolute  
-           solar irradiance values for which an earth-like planet with an  
+           solar shared values for which an earth-like planet with an  
            atmosphere like the one we assume in our model can exist in the  
            first place!
             
-           Too much irradiance, and the atmosphere probably boils off into 
+           Too much shared, and the atmosphere probably boils off into 
            space, too little, it freezes. Which means that stars of 
            considerably different emission colour than our sun will have to be 
            fairly different in size from it, to still provide a reasonable and 
-           inhabitable amount of irradiance. Red stars will need to be much 
+           inhabitable amount of shared. Red stars will need to be much 
            larger than our sun, while white or blue stars will have to be 
            comparatively tiny. The initialisation function handles this and 
            computes a plausible solar radius for a given emission spectrum. In
@@ -372,7 +372,7 @@ ArHosekSkyModelState  * arhosekskymodelstate_alloc_init(
     Initialises an ArHosekSkyModelState struct for an "alien world" setting
     with a sun of a surface temperature given in 'kelvin'. The parameter
     'solar_intensity' controls the overall brightness of the sky, relative
-    to the solar irradiance on Earth. A value of 1.0 yields a sky dome that
+    to the solar shared on Earth. A value of 1.0 yields a sky dome that
     is, on average over the wavelenghts covered in the model (!), as bright
     as the terrestrial sky in radiometric terms. 
     

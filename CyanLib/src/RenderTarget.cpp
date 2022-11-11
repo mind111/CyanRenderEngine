@@ -113,13 +113,13 @@ namespace Cyan
 
     void RenderTarget::clear(const std::initializer_list<RenderTargetDrawBuffer>& buffers, f32 clearDepthBuffer)
     {
-        // clear specified color buffer
+        // clear specified albedo buffer
         for (i32 i = 0; i < buffers.size(); ++i)
         {
             RenderTargetDrawBuffer& drawBuffer = const_cast<RenderTargetDrawBuffer&>(*(buffers.begin() + i));
             /** note - @min: the drawBuffer.binding here is used to index into currently bound draw buffers rather
-            * than index into color attachments. for example, passing an index of 0 will refer to first bound draw buffer which
-            * can be an arbitrary color attachment as long as it's bound as the first draw buffer
+            * than index into albedo attachments. for example, passing an index of 0 will refer to first bound draw buffer which
+            * can be an arbitrary albedo attachment as long as it's bound as the first draw buffer
             */
             glClearNamedFramebufferfv(fbo, GL_COLOR, drawBuffer.binding, &drawBuffer.clearColor.x);
         }

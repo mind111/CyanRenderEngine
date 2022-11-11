@@ -67,6 +67,15 @@
     <Filter Include="Shaders\ManyViewGI\Debug">
       <UniqueIdentifier>{c88e596c-784a-4e1d-973c-1b2eeed574bf}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\ManyViewGI\SurfelSampler">
+      <UniqueIdentifier>{12785f97-aa5a-4e62-a4be-68aafa77ce20}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Internal\ManyViewGI">
+      <UniqueIdentifier>{cbf53f78-8b36-48a5-8236-f125a500739c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\ManyViewGI">
+      <UniqueIdentifier>{7cba3887-81fc-459e-93e7-7d500436a329}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Allocator.h">
@@ -258,8 +267,14 @@
     <ClInclude Include="include\InstantRadiosity.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\SurfelBSH.h">
+      <Filter>Header Files\ManyViewGI</Filter>
+    </ClInclude>
+    <ClInclude Include="include\SurfelSampler.h">
+      <Filter>Header Files\ManyViewGI</Filter>
+    </ClInclude>
     <ClInclude Include="include\ManyViewGI.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\ManyViewGI</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -417,7 +432,13 @@
       <Filter>Source Files\Internal\InstantRadiosity</Filter>
     </ClCompile>
     <ClCompile Include="src\ManyViewGI.cpp">
-      <Filter>Source Files\Internal</Filter>
+      <Filter>Source Files\Internal\ManyViewGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SurfelBSH.cpp">
+      <Filter>Source Files\Internal\ManyViewGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SurfelSampler.cpp">
+      <Filter>Source Files\Internal\ManyViewGI</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -798,6 +819,27 @@
     </None>
     <None Include="..\shader\rasterize_surfels_p.glsl">
       <Filter>Shaders\ManyViewGI</Filter>
+    </None>
+    <None Include="..\shader\surfel_direct_lighting_c.glsl">
+      <Filter>Shaders\ManyViewGI</Filter>
+    </None>
+    <None Include="..\shader\visualize_surfel_tree_v.glsl">
+      <Filter>Shaders\ManyViewGI\Debug</Filter>
+    </None>
+    <None Include="..\shader\visualize_surfel_tree_p.glsl">
+      <Filter>Shaders\ManyViewGI\Debug</Filter>
+    </None>
+    <None Include="..\shader\debug_draw_sample_points_v.glsl">
+      <Filter>Shaders\ManyViewGI\SurfelSampler</Filter>
+    </None>
+    <None Include="..\shader\debug_draw_sample_points_p.glsl">
+      <Filter>Shaders\ManyViewGI\SurfelSampler</Filter>
+    </None>
+    <None Include="..\shader\debug_draw_grid_v.glsl">
+      <Filter>Shaders\ManyViewGI\SurfelSampler</Filter>
+    </None>
+    <None Include="..\shader\debug_draw_grid_p.glsl">
+      <Filter>Shaders\ManyViewGI\SurfelSampler</Filter>
     </None>
   </ItemGroup>
 </Project>

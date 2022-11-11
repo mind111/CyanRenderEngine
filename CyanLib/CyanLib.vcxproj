@@ -70,6 +70,8 @@
     <ClInclude Include="include\SkyBox.h" />
     <ClInclude Include="include\SkyLight.h" />
     <ClInclude Include="include\StaticMeshEntity.h" />
+    <ClInclude Include="include\SurfelBSH.h" />
+    <ClInclude Include="include\SurfelSampler.h" />
     <ClInclude Include="include\System.h" />
     <ClInclude Include="include\Texture.h" />
     <ClInclude Include="include\Transform.h" />
@@ -135,6 +137,8 @@
     <ClCompile Include="src\SkyBox.cpp" />
     <ClCompile Include="src\SkyLight.cpp" />
     <ClCompile Include="src\StaticMeshEntity.cpp" />
+    <ClCompile Include="src\SurfelBSH.cpp" />
+    <ClCompile Include="src\SurfelSampler.cpp" />
     <ClCompile Include="src\Texture.cpp" />
     <ClCompile Include="src\todos.cpp" />
     <ClCompile Include="src\Utils.cpp" />
@@ -150,6 +154,8 @@
     <None Include="..\shader\debug_color_vs.glsl" />
     <None Include="..\shader\debug_draw_cubemap_p.glsl" />
     <None Include="..\shader\debug_draw_cubemap_v.glsl" />
+    <None Include="..\shader\debug_draw_grid_p.glsl" />
+    <None Include="..\shader\debug_draw_grid_v.glsl" />
     <None Include="..\shader\debug_draw_immediate_p.glsl" />
     <None Include="..\shader\debug_draw_immediate_v.glsl" />
     <None Include="..\shader\debug_draw_line_p.glsl" />
@@ -157,6 +163,8 @@
     <None Include="..\shader\debug_draw_p.glsl" />
     <None Include="..\shader\debug_draw_radiance_cube_p.glsl" />
     <None Include="..\shader\debug_draw_radiance_cube_v.glsl" />
+    <None Include="..\shader\debug_draw_sample_points_p.glsl" />
+    <None Include="..\shader\debug_draw_sample_points_v.glsl" />
     <None Include="..\shader\debug_draw_v.glsl" />
     <None Include="..\shader\debug_show_hemicubes_p.glsl" />
     <None Include="..\shader\debug_show_hemicubes_v.glsl" />
@@ -205,6 +213,7 @@
     <None Include="..\shader\bloom_downsample_p.glsl" />
     <None Include="..\shader\bloom_downsample_v.glsl" />
     <None Include="..\shader\bloom_upscale_v.glsl" />
+    <None Include="..\shader\surfel_direct_lighting_c.glsl" />
     <None Include="..\shader\taa_p.glsl" />
     <None Include="..\shader\taa_v.glsl" />
     <None Include="..\shader\test_pbs_p.glsl" />
@@ -219,6 +228,8 @@
     <None Include="..\shader\visualize_irradiance_p.glsl" />
     <None Include="..\shader\visualize_irradiance_v.glsl" />
     <None Include="..\shader\visualize_surfel_p.glsl" />
+    <None Include="..\shader\visualize_surfel_tree_p.glsl" />
+    <None Include="..\shader\visualize_surfel_tree_v.glsl" />
     <None Include="..\shader\visualize_surfel_v.glsl" />
     <None Include="..\shader\voxelize_p.glsl" />
     <None Include="..\shader\skybox_p.glsl" />

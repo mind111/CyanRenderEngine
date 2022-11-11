@@ -74,10 +74,10 @@ namespace Cyan
         ImGui::SliderFloat("##kRoughness", &kRoughness, 0.f, 1.f);
         ImGui::Text("kMetallic"); ImGui::SameLine();
         ImGui::SliderFloat("##kMetallic", &kMetallic, 0.f, 1.f);
-        f32 color[3] = { kAlbedo.r, kAlbedo.g, kAlbedo.b };
-        ImGui::ColorPicker3("kAlbedo", color);
-        kAlbedo.r = color[0];
-        kAlbedo.g = color[1];
-        kAlbedo.b = color[2];
+        f32 albedo[3] = { kAlbedo.r, kAlbedo.g, kAlbedo.b };
+        ImGui::ColorPicker3("kAlbedo", albedo);
+        kAlbedo.r = albedo[0];
+        kAlbedo.g = albedo[1];
+        kAlbedo.b = albedo[2];
     }
 }

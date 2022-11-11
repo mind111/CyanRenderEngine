@@ -27,7 +27,7 @@ namespace Cyan
         } quality;
 
         /** note:
-            todo: render() function not only will render a shadowmap, it should also render a shadowmask (a scene color texture that only renders shadow) texture 
+            todo: render() function not only will render a shadowmap, it should also render a shadowmask (a scene albedo texture that only renders shadow) texture 
             that can be directly sampled to determine the shadow coefficient each pixel during scene lighting pass.
         */
         /**

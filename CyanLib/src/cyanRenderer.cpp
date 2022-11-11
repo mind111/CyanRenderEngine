@@ -50,8 +50,7 @@ namespace Cyan
         m_windowSize(windowWidth, windowHeight),
         m_frameAllocator(1024 * 1024 * 32) // 32MB frame allocator
     {
-        m_manyViewGI = std::make_unique<ManyViewGI>(this, m_ctx);
-        m_microRenderingGI = std::make_unique<MicroRenderingGI>(this, m_ctx);
+        m_manyViewGI = std::make_unique<MicroRenderingGI>(this, m_ctx);
     }
 
     void Renderer::Vctx::Voxelizer::init(u32 resolution)
@@ -179,12 +178,12 @@ namespace Cyan
                 spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGB16F;
 
                 m_vctx.occlusion = AssetManager::createTexture2D("VctxOcclusion", spec);
-                m_vctx.irradiance = AssetManager::createTexture2D("VctxIrradiance", spec);
+                m_vctx.shared = AssetManager::createTexture2D("VctxIrradiance", spec);
                 m_vctx.reflection = AssetManager::createTexture2D("VctxReflection", spec);
 
                 m_vctx.renderTarget = createRenderTarget(spec.width, spec.height);
                 m_vctx.renderTarget->setColorBuffer(m_vctx.occlusion, (u32)ColorBuffers::kOcclusion);
-                m_vctx.renderTarget->setColorBuffer(m_vctx.irradiance, (u32)ColorBuffers::kIrradiance);
+                m_vctx.renderTarget->setColorBuffer(m_vctx.shared, (u32)ColorBuffers::kIrradiance);
                 m_vctx.renderTarget->setColorBuffer(m_vctx.reflection, (u32)ColorBuffers::kReflection);
 
                 m_vctx.renderShader = ShaderManager::createShader({ ShaderType::kVsPs, "VctxShader", SHADER_SOURCE_PATH "vctx_v.glsl", SHADER_SOURCE_PATH "vctx_p.glsl" });
@@ -226,7 +225,6 @@ namespace Cyan
 
         m_instantRadiosity.initialize();
         m_manyViewGI->initialize();
-        m_microRenderingGI->initialize();
     };
 
     void Renderer::finalize()
@@ -683,6 +681,16 @@ namespace Cyan
         }
     }
 
+    void Renderer::registerVisualization(const std::string& categoryName, Texture2DRenderable* visualization) {
+        auto entry = visualizationMap.find(categoryName);
+        if (entry == visualizationMap.end()) {
+            visualizationMap.insert({ categoryName, { visualization } });
+        }
+        else {
+            entry->second.push_back(visualization);
+        }
+    }
+
     void Renderer::beginRender()
     {
         // reset frame allocator
@@ -715,16 +723,12 @@ namespace Cyan
             static Texture2DRenderable* sceneNormalBuffer = new Texture2DRenderable("SceneNormalBuffer", depthNormalSpec);
             renderSceneDepthNormal(sceneRenderable, renderTarget.get(), sceneDepthBuffer, sceneNormalBuffer);
 
-            // many view global illumination
 #if 0
-            m_manyViewGI->run(renderTarget.get(), sceneRenderable, sceneDepthBuffer, sceneNormalBuffer);
             // ssgi
             // auto ssgi = screenSpaceRayTracing(zPrepass.depthBuffer, zPrepass.normalBuffer, renderResolution);
             // instant radiosity
             // auto radiosity = m_instantRadiosity.render(this, scene, zPrepass.depthBuffer, zPrepass.normalBuffer, renderResolution);
 #endif
-            m_microRenderingGI->run(sceneRenderable);
-
             // main scene pass
             ITextureRenderable::Spec spec = { };
             spec.width = renderTarget->width;
@@ -737,6 +741,9 @@ namespace Cyan
 #else
             auto sceneColor = renderScene(sceneRenderable, sceneView, renderResolution);
 #endif
+            // many view global illumination
+            m_manyViewGI->render(renderTarget.get(), sceneRenderable, sceneDepthBuffer, sceneNormalBuffer);
+
             if (m_settings.enableTAA) {
                 taa();
             }
@@ -747,12 +754,37 @@ namespace Cyan
             if (m_settings.bPostProcessing) {
                 composite(sceneView.renderTexture, sceneColor, nullptr, m_windowSize);
             }
-            // todo: blit offscreen color buffer into output render texture
+            // todo: blit offscreen albedo buffer into output render texture
             else {
 
             }
+
+            if (m_visualization) {
+                visualize(sceneView.renderTexture, m_visualization);
+            }
         } 
         endRender();
+    }
+
+    void Renderer::visualize(Texture2DRenderable* dst, Texture2DRenderable* src) {
+        auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(dst->width, dst->height));
+        renderTarget->setColorBuffer(dst, 0);
+        renderTarget->setDrawBuffers({ 0 });
+        renderTarget->clearDrawBuffer(0, glm::vec4(.0f, .0f, .0f, 1.f));
+
+        Shader* shader = ShaderManager::createShader({
+            ShaderSource::Type::kVsPs,
+            "BlitQuadShader",
+            SHADER_SOURCE_PATH "blit_v.glsl",
+            SHADER_SOURCE_PATH "blit_p.glsl"
+            });
+
+        submitFullScreenPass(
+            renderTarget.get(),
+            shader,
+            [this, src](RenderTarget* renderTarget, Shader* shader) {
+                shader->setTexture("srcTexture", src);
+            });
     }
 
     void Renderer::renderToScreen(Texture2DRenderable* inTexture)
@@ -1272,14 +1304,6 @@ namespace Cyan
         if (sceneRenderable.skybox) {
             sceneRenderable.skybox->render(outRenderTarget);
         }
-
-        // m_instantRadiosity.visualizeVPLs(this, renderTarget.get(), scene);
-
-        addUIRenderCommand([this]() {
-            appendToRenderingTab([this]() {
-                ImGui::Checkbox("Fullscreen", &bFullscreenRadiosity);
-                });
-            });
     }
 
 #if 0
@@ -1401,7 +1425,7 @@ namespace Cyan
                 };
                 transform *= localFrame;
                 debugCubes[i].transform = transform;
-                // debugCubes[i].color = glm::vec4(1.f, 0.8f, 0.5f, 1.f);
+                // debugCubes[i].albedo = glm::vec4(1.f, 0.8f, 0.5f, 1.f);
                 glm::vec3 normal = vec4ToVec3(rasterCubes[i].normal);
                 debugCubes[i].color = glm::vec4(normal * .5f + .5f, 1.f);
 
@@ -1468,7 +1492,7 @@ namespace Cyan
         transform = transform * tangentFrame;
         transform = glm::scale(transform, glm::vec3(0.1));
         debugCubes[0].transform = transform;
-        // debugCubes[i].color = glm::vec4(1.f, 0.8f, 0.5f, 1.f);
+        // debugCubes[i].albedo = glm::vec4(1.f, 0.8f, 0.5f, 1.f);
         glm::vec3 normal = vec4ToVec3(debugRadianceCube.normal);
         debugCubes[0].color = glm::vec4(normal * .5f + .5f, 1.f);
 
@@ -2221,7 +2245,7 @@ namespace Cyan
 
         // bind textures for rendering
         glBindTextureUnit((u32)SceneTextureBindings::VctxOcclusion, m_vctx.occlusion->getGpuResource());
-        glBindTextureUnit((u32)SceneTextureBindings::VctxIrradiance, m_vctx.irradiance->getGpuResource());
+        glBindTextureUnit((u32)SceneTextureBindings::VctxIrradiance, m_vctx.shared->getGpuResource());
         glBindTextureUnit((u32)SceneTextureBindings::VctxReflection, m_vctx.reflection->getGpuResource());
     }
 
@@ -2263,7 +2287,7 @@ namespace Cyan
         );
     }
 
-    void Renderer::debugDrawCubeBatched(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::vec3& facingDir, const glm::vec4& color, const glm::mat4& view, const glm::mat4& projection) {
+    void Renderer::debugDrawCubeBatched(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::vec3& facingDir, const glm::vec4& albedo, const glm::mat4& view, const glm::mat4& projection) {
 
     }
 

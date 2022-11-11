@@ -80,7 +80,7 @@ USAGE:
    is a rectangle of pixels stored from left-to-right, top-to-bottom.
    Each pixel contains 'comp' channels of data stored interleaved with 8-bits
    per channel, in the following order: 1=Y, 2=YA, 3=RGB, 4=RGBA. (Y is
-   monochrome color.) The rectangle is 'w' pixels wide and 'h' pixels tall.
+   monochrome albedo.) The rectangle is 'w' pixels wide and 'h' pixels tall.
    The *data pointer points to the first byte of the top-left-most pixel.
    For PNG, "stride_in_bytes" is the distance in bytes from the first byte of
    a row of pixels to the first byte of the next row of pixels.
@@ -533,7 +533,7 @@ static int stbi_write_tga_core(stbi__write_context *s, int x, int y, int comp, v
 {
    int has_alpha = (comp == 2 || comp == 4);
    int colorbytes = has_alpha ? comp-1 : comp;
-   int format = colorbytes < 2 ? 3 : 2; // 3 color channels (RGB/RGBA) = 2, 1 color channel (Y/YA) = 3
+   int format = colorbytes < 2 ? 3 : 2; // 3 albedo channels (RGB/RGBA) = 2, 1 albedo channel (Y/YA) = 3
 
    if (y < 0 || x < 0)
       return 0;

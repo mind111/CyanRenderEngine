@@ -23,6 +23,7 @@ namespace Cyan
 {
     f32 fabs(f32 value);
     glm::vec3 vec4ToVec3(const glm::vec4& v4);
+    glm::mat4 calcTangentFrame(const glm::vec3& n);
     glm::mat3 tangentToWorld(const glm::vec3& n);
     glm::vec3 sphericalToCartesian(const glm::vec3& n, f32 theta, f32 phi);
     f32 uniformSampleZeroToOne();

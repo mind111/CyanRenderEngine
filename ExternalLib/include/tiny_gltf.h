@@ -428,7 +428,7 @@ TINYGLTF_VALUE_GET(Value::Object, object_value_)
 #pragma clang diagnostic ignored "-Wpadded"
 #endif
 
-/// Agregate object for representing a color
+/// Agregate object for representing a albedo
 using ColorValue = std::array<double, 4>;
 
 // === legacy interface ====
@@ -498,7 +498,7 @@ struct Parameter {
   /// material
   double Factor() const { return number_value; }
 
-  /// Return the color of a material
+  /// Return the albedo of a material
   /// Returned value is only valid if the parameter represent a texture from a
   /// material
   ColorValue ColorFactor() const {
@@ -732,7 +732,7 @@ struct OcclusionTextureInfo {
   int index = -1;   // required
   int texCoord;     // The set index of texture's TEXCOORD attribute used for
                     // texture coordinate mapping.
-  double strength;  // occludedColor = lerp(color, color * <sampled occlusion
+  double strength;  // occludedColor = lerp(albedo, albedo * <sampled occlusion
                     // texture value>, <occlusion strength>)
 
   Value extras;
@@ -1121,7 +1121,7 @@ struct SpotLight {
 
 struct Light {
   std::string name;
-  std::vector<double> color;
+  std::vector<double> albedo;
   double intensity{1.0};
   std::string type;
   double range{0.0};  // 0.0 = inifinite
@@ -1836,7 +1836,7 @@ bool Image::operator==(const Image &other) const {
          this->uri == other.uri && this->width == other.width;
 }
 bool Light::operator==(const Light &other) const {
-  return Equals(this->color, other.color) && this->name == other.name &&
+  return Equals(this->albedo, other.albedo) && this->name == other.name &&
          this->type == other.type;
 }
 bool Material::operator==(const Material &other) const {
@@ -5421,7 +5421,7 @@ static bool ParseLight(Light *light, std::string *err, const json &o,
   }
 
   ParseStringProperty(&light->name, err, o, "name", false);
-  ParseNumberArrayProperty(&light->color, err, o, "color", false);
+  ParseNumberArrayProperty(&light->albedo, err, o, "color", false);
   ParseNumberProperty(&light->range, err, o, "range", false);
   ParseNumberProperty(&light->intensity, err, o, "intensity", false);
   ParseExtensionsProperty(&light->extensions, err, o);
@@ -7110,7 +7110,7 @@ static void SerializeGltfLight(Light &light, json &o) {
   if (light.range > 0.0) {
     SerializeNumberProperty("range", light.range, o);
   }
-  SerializeNumberArrayProperty("color", light.color, o);
+  SerializeNumberArrayProperty("color", light.albedo, o);
   SerializeStringProperty("type", light.type, o);
   if (light.type == "spot") {
     json spot;

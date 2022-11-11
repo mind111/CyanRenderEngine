@@ -30,13 +30,13 @@ namespace Cyan
         if (ImGui::CollapsingHeader("DirectionalLight", ImGuiTreeNodeFlags_DefaultOpen))
         {
             glm::vec4 colorAndIntensity = directionalLightComponentPtr->getColorAndIntensity();
-            // color
+            // albedo
             ImGui::Text("Color"); ImGui::SameLine();
-            f32 color[3] = { colorAndIntensity.x, colorAndIntensity.y, colorAndIntensity.z };
-            ImGui::ColorPicker3("##Color", color);
-            colorAndIntensity.r = color[0];
-            colorAndIntensity.g = color[1];
-            colorAndIntensity.b = color[2];
+            f32 albedo[3] = { colorAndIntensity.x, colorAndIntensity.y, colorAndIntensity.z };
+            ImGui::ColorPicker3("##Color", albedo);
+            colorAndIntensity.r = albedo[0];
+            colorAndIntensity.g = albedo[1];
+            colorAndIntensity.b = albedo[2];
 
             // intensity
             ImGui::Text("Intensity"); ImGui::SameLine();

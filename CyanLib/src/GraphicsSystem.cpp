@@ -10,18 +10,26 @@ namespace Cyan
         m_windowDimension({ windowWidth, windowHeight })
     {
         // create window
-        if (!glfwInit())
+        if (glfwInit() != GLFW_TRUE)
         {
-            cyanError("Error initializing glfw")
+            cyanError("Error initializing glfw!")
+            assert(0);
         }
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
         m_glfwWindow = glfwCreateWindow(m_windowDimension.x, m_windowDimension.y, "Cyan", nullptr, nullptr);
-        glfwMakeContextCurrent(m_glfwWindow);
-
-        // configure gl context
-        if (glewInit())
-        {
-            cyanError("Error initializing glew")
+        if (!m_glfwWindow) {
+            cyanError("Error creating a window!")
+            assert(0);
         }
+        glfwMakeContextCurrent(m_glfwWindow);
+        GLenum glewErr = glewInit();
+        if (glewErr != GLEW_OK)
+        {
+            cyanError("Error initializing glew: %s!", glewGetErrorString(glewErr));
+            assert(0);
+        }
+
         // configure some gl global states
         glDepthFunc(GL_LEQUAL);
         glEnable(GL_LINE_SMOOTH);

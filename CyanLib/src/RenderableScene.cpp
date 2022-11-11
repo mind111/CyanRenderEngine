@@ -86,6 +86,7 @@ namespace Cyan
             camera.up = inCamera->up();
             camera.n = inCamera->n;
             camera.f = inCamera->f;
+            camera.fov = inCamera->fov;
             camera.aspect = inCamera->aspectRatio;
             camera.view = inCamera->view();
             camera.projection = inCamera->projection();

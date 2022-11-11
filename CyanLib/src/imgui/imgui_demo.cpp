@@ -1436,7 +1436,7 @@ static void ShowDemoWindowWidgets()
 
     if (ImGui::TreeNode("Color/Picker Widgets"))
     {
-        static ImVec4 color = ImVec4(114.0f / 255.0f, 144.0f / 255.0f, 154.0f / 255.0f, 200.0f / 255.0f);
+        static ImVec4 albedo = ImVec4(114.0f / 255.0f, 144.0f / 255.0f, 154.0f / 255.0f, 200.0f / 255.0f);
 
         static bool alpha_preview = true;
         static bool alpha_half_preview = false;
@@ -1454,20 +1454,20 @@ static void ShowDemoWindowWidgets()
         ImGui::SameLine(); HelpMarker(
             "Click on the color square to open a color picker.\n"
             "CTRL+click on individual component to input value.\n");
-        ImGui::ColorEdit3("MyColor##1", (float*)&color, misc_flags);
+        ImGui::ColorEdit3("MyColor##1", (float*)&albedo, misc_flags);
 
         ImGui::Text("Color widget HSV with Alpha:");
-        ImGui::ColorEdit4("MyColor##2", (float*)&color, ImGuiColorEditFlags_DisplayHSV | misc_flags);
+        ImGui::ColorEdit4("MyColor##2", (float*)&albedo, ImGuiColorEditFlags_DisplayHSV | misc_flags);
 
         ImGui::Text("Color widget with Float Display:");
-        ImGui::ColorEdit4("MyColor##2f", (float*)&color, ImGuiColorEditFlags_Float | misc_flags);
+        ImGui::ColorEdit4("MyColor##2f", (float*)&albedo, ImGuiColorEditFlags_Float | misc_flags);
 
         ImGui::Text("Color button with Picker:");
         ImGui::SameLine(); HelpMarker(
             "With the ImGuiColorEditFlags_NoInputs flag you can hide all the slider/text inputs.\n"
             "With the ImGuiColorEditFlags_NoLabel flag you can pass a non-empty label which will only "
             "be used for the tooltip and picker popup.");
-        ImGui::ColorEdit4("MyColor##3", (float*)&color, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel | misc_flags);
+        ImGui::ColorEdit4("MyColor##3", (float*)&albedo, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel | misc_flags);
 
         ImGui::Text("Color button with Custom Picker Popup:");
 
@@ -1486,27 +1486,27 @@ static void ShowDemoWindowWidgets()
         }
 
         static ImVec4 backup_color;
-        bool open_popup = ImGui::ColorButton("MyColor##3b", color, misc_flags);
+        bool open_popup = ImGui::ColorButton("MyColor##3b", albedo, misc_flags);
         ImGui::SameLine(0, ImGui::GetStyle().ItemInnerSpacing.x);
         open_popup |= ImGui::Button("Palette");
         if (open_popup)
         {
             ImGui::OpenPopup("mypicker");
-            backup_color = color;
+            backup_color = albedo;
         }
         if (ImGui::BeginPopup("mypicker"))
         {
             ImGui::Text("MY CUSTOM COLOR PICKER WITH AN AMAZING PALETTE!");
             ImGui::Separator();
-            ImGui::ColorPicker4("##picker", (float*)&color, misc_flags | ImGuiColorEditFlags_NoSidePreview | ImGuiColorEditFlags_NoSmallPreview);
+            ImGui::ColorPicker4("##picker", (float*)&albedo, misc_flags | ImGuiColorEditFlags_NoSidePreview | ImGuiColorEditFlags_NoSmallPreview);
             ImGui::SameLine();
 
             ImGui::BeginGroup(); // Lock X position
             ImGui::Text("Current");
-            ImGui::ColorButton("##current", color, ImGuiColorEditFlags_NoPicker | ImGuiColorEditFlags_AlphaPreviewHalf, ImVec2(60, 40));
+            ImGui::ColorButton("##current", albedo, ImGuiColorEditFlags_NoPicker | ImGuiColorEditFlags_AlphaPreviewHalf, ImVec2(60, 40));
             ImGui::Text("Previous");
             if (ImGui::ColorButton("##previous", backup_color, ImGuiColorEditFlags_NoPicker | ImGuiColorEditFlags_AlphaPreviewHalf, ImVec2(60, 40)))
-                color = backup_color;
+                albedo = backup_color;
             ImGui::Separator();
             ImGui::Text("Palette");
             for (int n = 0; n < IM_ARRAYSIZE(saved_palette); n++)
@@ -1517,7 +1517,7 @@ static void ShowDemoWindowWidgets()
 
                 ImGuiColorEditFlags palette_button_flags = ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoPicker | ImGuiColorEditFlags_NoTooltip;
                 if (ImGui::ColorButton("##palette", saved_palette[n], palette_button_flags, ImVec2(20, 20)))
-                    color = ImVec4(saved_palette[n].x, saved_palette[n].y, saved_palette[n].z, color.w); // Preserve alpha!
+                    albedo = ImVec4(saved_palette[n].x, saved_palette[n].y, saved_palette[n].z, albedo.w); // Preserve alpha!
 
                 // Allow user to drop colors into each palette entry. Note that ColorButton() is already a
                 // drag source by default, unless specifying the ImGuiColorEditFlags_NoDragDrop flag.
@@ -1539,7 +1539,7 @@ static void ShowDemoWindowWidgets()
         ImGui::Text("Color button only:");
         static bool no_border = false;
         ImGui::Checkbox("ImGuiColorEditFlags_NoBorder", &no_border);
-        ImGui::ColorButton("MyColor##3c", *(ImVec4*)&color, misc_flags | (no_border ? ImGuiColorEditFlags_NoBorder : 0), ImVec2(80, 80));
+        ImGui::ColorButton("MyColor##3c", *(ImVec4*)&albedo, misc_flags | (no_border ? ImGuiColorEditFlags_NoBorder : 0), ImVec2(80, 80));
 
         ImGui::Text("Color picker:");
         static bool alpha = true;
@@ -1579,7 +1579,7 @@ static void ShowDemoWindowWidgets()
         if (display_mode == 2) flags |= ImGuiColorEditFlags_DisplayRGB;     // Override display mode
         if (display_mode == 3) flags |= ImGuiColorEditFlags_DisplayHSV;
         if (display_mode == 4) flags |= ImGuiColorEditFlags_DisplayHex;
-        ImGui::ColorPicker4("MyColor##4", (float*)&color, flags, ref_color ? &ref_color_v.x : NULL);
+        ImGui::ColorPicker4("MyColor##4", (float*)&albedo, flags, ref_color ? &ref_color_v.x : NULL);
 
         ImGui::Text("Set defaults in code:");
         ImGui::SameLine(); HelpMarker(
@@ -3221,9 +3221,9 @@ static void ShowDemoWindowPopups()
 
             // Testing behavior of widgets stacking their own regular popups over the modal.
             static int item = 1;
-            static float color[4] = { 0.4f, 0.7f, 0.0f, 0.5f };
+            static float albedo[4] = { 0.4f, 0.7f, 0.0f, 0.5f };
             ImGui::Combo("Combo", &item, "aaaa\0bbbb\0cccc\0dddd\0eeee\0\0");
-            ImGui::ColorEdit4("color", color);
+            ImGui::ColorEdit4("color", albedo);
 
             if (ImGui::Button("Add another modal.."))
                 ImGui::OpenPopup("Stacked 2");
@@ -4277,8 +4277,8 @@ static void ShowDemoWindowTables()
             {
                 ImGui::TableNextRow();
 
-                // Demonstrate setting a row background color with 'ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBgX, ...)'
-                // We use a transparent color so we can see the one behind in case our target is RowBg1 and RowBg0 was already targeted by the ImGuiTableFlags_RowBg flag.
+                // Demonstrate setting a row background albedo with 'ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBgX, ...)'
+                // We use a transparent albedo so we can see the one behind in case our target is RowBg1 and RowBg0 was already targeted by the ImGuiTableFlags_RowBg flag.
                 if (row_bg_type != 0)
                 {
                     ImU32 row_bg_color = ImGui::GetColorU32(row_bg_type == 1 ? ImVec4(0.7f, 0.3f, 0.3f, 0.65f) : ImVec4(0.2f + row * 0.1f, 0.2f, 0.2f, 0.65f)); // Flat or Gradient?
@@ -4292,8 +4292,8 @@ static void ShowDemoWindowTables()
                     ImGui::Text("%c%c", 'A' + row, '0' + column);
 
                     // Change background of Cells B1->C2
-                    // Demonstrate setting a cell background color with 'ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, ...)'
-                    // (the CellBg color will be blended over the RowBg and ColumnBg colors)
+                    // Demonstrate setting a cell background albedo with 'ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, ...)'
+                    // (the CellBg albedo will be blended over the RowBg and ColumnBg colors)
                     // We can also pass a column number as a third parameter to TableSetBgColor() and do this outside the column loop.
                     if (row >= 1 && row <= 2 && column >= 1 && column <= 2 && cell_bg_type == 1)
                     {
@@ -6072,7 +6072,7 @@ struct ExampleAppConsole
             ImGui::EndPopup();
         }
 
-        // Display every line as a separate entry so we can change their color or add custom widgets.
+        // Display every line as a separate entry so we can change their albedo or add custom widgets.
         // If you only want raw text you can use ImGui::TextUnformatted(log.begin(), log.end());
         // NB- if you have thousands of entries this approach may be too inefficient and may require user-side clipping
         // to only process visible items. The clipper will automatically measure the height of your first item and then
@@ -6106,13 +6106,13 @@ struct ExampleAppConsole
                 continue;
 
             // Normally you would store more information in your item than just a string.
-            // (e.g. make Items[] an array of structure, store color/type etc.)
-            ImVec4 color;
+            // (e.g. make Items[] an array of structure, store albedo/type etc.)
+            ImVec4 albedo;
             bool has_color = false;
-            if (strstr(item, "[error]"))          { color = ImVec4(1.0f, 0.4f, 0.4f, 1.0f); has_color = true; }
-            else if (strncmp(item, "# ", 2) == 0) { color = ImVec4(1.0f, 0.8f, 0.6f, 1.0f); has_color = true; }
+            if (strstr(item, "[error]"))          { albedo = ImVec4(1.0f, 0.4f, 0.4f, 1.0f); has_color = true; }
+            else if (strncmp(item, "# ", 2) == 0) { albedo = ImVec4(1.0f, 0.8f, 0.6f, 1.0f); has_color = true; }
             if (has_color)
-                ImGui::PushStyleColor(ImGuiCol_Text, color);
+                ImGui::PushStyleColor(ImGuiCol_Text, albedo);
             ImGui::TextUnformatted(item);
             if (has_color)
                 ImGui::PopStyleColor();
@@ -6948,7 +6948,7 @@ static void ShowExampleAppCustomRendering(bool* p_open)
             // Here we demonstrate that this can be replaced by simple offsetting + custom drawing + PushClipRect/PopClipRect() calls.
             // To use a child window instead we could use, e.g:
             //      ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));      // Disable padding
-            //      ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(50, 50, 50, 255));  // Set a background color
+            //      ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(50, 50, 50, 255));  // Set a background albedo
             //      ImGui::BeginChild("canvas", ImVec2(0.0f, 0.0f), true, ImGuiWindowFlags_NoMove);
             //      ImGui::PopStyleColor();
             //      ImGui::PopStyleVar();
@@ -6962,7 +6962,7 @@ static void ShowExampleAppCustomRendering(bool* p_open)
             if (canvas_sz.y < 50.0f) canvas_sz.y = 50.0f;
             ImVec2 canvas_p1 = ImVec2(canvas_p0.x + canvas_sz.x, canvas_p0.y + canvas_sz.y);
 
-            // Draw border and background color
+            // Draw border and background albedo
             ImGuiIO& io = ImGui::GetIO();
             ImDrawList* draw_list = ImGui::GetWindowDrawList();
             draw_list->AddRectFilled(canvas_p0, canvas_p1, IM_COL32(50, 50, 50, 255));
@@ -7067,13 +7067,13 @@ struct MyDocument
     bool        WantClose;  // Set when the document
     ImVec4      Color;      // An arbitrary variable associated to the document
 
-    MyDocument(const char* name, bool open = true, const ImVec4& color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f))
+    MyDocument(const char* name, bool open = true, const ImVec4& albedo = ImVec4(1.0f, 1.0f, 1.0f, 1.0f))
     {
         Name = name;
         Open = OpenPrev = open;
         Dirty = false;
         WantClose = false;
-        Color = color;
+        Color = albedo;
     }
     void DoOpen()       { Open = true; }
     void DoQueueClose() { WantClose = true; }

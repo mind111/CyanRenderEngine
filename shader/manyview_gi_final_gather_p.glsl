@@ -180,9 +180,27 @@ float PCFShadow(vec3 worldSpacePosition, vec3 normal, in DirectionalLight direct
     return shadow;
 }
 
+float calcBasicDirectionalShadow(vec3 worldSpacePosition, vec3 normal, in DirectionalLight directionalLight) {
+    sampler2D sampler = sampler2D(directionalLight.csm.cascades[0].shadowmap.depthTextureHandle);
+	float shadow = 0.0f;
+    vec3 viewSpacePosition = (viewSsbo.view * vec4(worldSpacePosition, 1.f)).xyz;
+    int cascadeIndex = calcCascadeIndex(viewSpacePosition);
+    vec4 lightSpacePosition = directionalLight.csm.cascades[cascadeIndex].shadowmap.lightSpaceProjection * directionalLight.lightSpaceView * vec4(worldSpacePosition, 1.f);
+    float depth = lightSpacePosition.z * .5f + .5f;
+    vec2 uv = lightSpacePosition.xy * .5f + .5f;
+#if SLOPE_BASED_BIAS
+	float bias = constantBias() + slopeBasedBias(normal, directionalLight.direction.xyz);
+#else
+	float bias = constantBias();
+#endif
+	shadow = texture(sampler, uv).r < (depth - bias) ? 0.f : 1.f;
+    return shadow;
+}
+
 float calcDirectionalShadow(vec3 worldPosition, vec3 normal, in DirectionalLight directionalLight)
 {
-    return PCFShadow(worldPosition, normal, directionalLight);
+    // return PCFShadow(worldPosition, normal, directionalLight);
+    return calcBasicDirectionalShadow(worldPosition, normal, directionalLight);
 }
 //==========================================================================
 
@@ -567,9 +585,5 @@ void main() {
     MaterialParameters materialParameters = getMaterialParameters(worldSpaceTangent, worldSpaceBitangent, worldSpaceNormal, psIn.texCoord0);
     vec3 pixelDir = (inverse(view) * vec4(normalize(psIn.viewSpacePosition), 0.f)).xyz;
     float ndotl = max(dot(pixelDir, receivingNormal), 0.f);
-    float solidAngle = calcCubemapTexelSolidAngle(normalize(psIn.viewSpacePosition), float(microBufferRes));
-    // outColor = calcLighting(sceneLights, materialParameters, psIn.worldSpacePosition) * ndotl * solidAngle;
     outColor = calcLighting(sceneLights, materialParameters, psIn.worldSpacePosition) * ndotl;
-    // outColor = materialParameters.albedo;
-    // outColor = vec3(solidAngle);
 }

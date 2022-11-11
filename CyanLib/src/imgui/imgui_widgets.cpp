@@ -4598,7 +4598,7 @@ bool ImGui::ColorEdit3(const char* label, float col[3], ImGuiColorEditFlags flag
 
 // Edit colors components (each component in 0.0f..1.0f range).
 // See enum ImGuiColorEditFlags_ for available options. e.g. Only access 3 floats if ImGuiColorEditFlags_NoAlpha flag is set.
-// With typical options: Left-click on color square to open color picker. Right-click to open option menu. CTRL-Click over input fields to edit them and TAB to go to next item.
+// With typical options: Left-click on albedo square to open albedo picker. Right-click to open option menu. CTRL-Click over input fields to edit them and TAB to go to next item.
 bool ImGui::ColorEdit4(const char* label, float col[4], ImGuiColorEditFlags flags)
 {
     ImGuiWindow* window = GetCurrentWindow();
@@ -4746,7 +4746,7 @@ bool ImGui::ColorEdit4(const char* label, float col[4], ImGuiColorEditFlags flag
         {
             if (!(flags & ImGuiColorEditFlags_NoPicker))
             {
-                // Store current color and open a picker
+                // Store current albedo and open a picker
                 g.ColorPickerRef = col_v4;
                 OpenPopup("picker");
                 SetNextWindowPos(window->DC.LastItemRect.GetBL() + ImVec2(-1, style.ItemSpacing.y));
@@ -4857,8 +4857,8 @@ static void RenderArrowsForVerticalBar(ImDrawList* draw_list, ImVec2 pos, ImVec2
 
 // Note: ColorPicker4() only accesses 3 floats if ImGuiColorEditFlags_NoAlpha flag is set.
 // (In C++ the 'float col[4]' notation for a function argument is equivalent to 'float* col', we only specify a size to facilitate understanding of the code.)
-// FIXME: we adjust the big color square height based on item width, which may cause a flickering feedback loop (if automatic height makes a vertical scrollbar appears, affecting automatic width..)
-// FIXME: this is trying to be aware of style.Alpha but not fully correct. Also, the color wheel will have overlapping glitches with (style.Alpha < 1.0)
+// FIXME: we adjust the big albedo square height based on item width, which may cause a flickering feedback loop (if automatic height makes a vertical scrollbar appears, affecting automatic width..)
+// FIXME: this is trying to be aware of style.Alpha but not fully correct. Also, the albedo wheel will have overlapping glitches with (style.Alpha < 1.0)
 bool ImGui::ColorPicker4(const char* label, float col[4], ImGuiColorEditFlags flags, const float* ref_col)
 {
     ImGuiContext& g = *GImGui;
@@ -5051,7 +5051,7 @@ bool ImGui::ColorPicker4(const char* label, float col[4], ImGuiColorEditFlags fl
         EndGroup();
     }
 
-    // Convert back color to RGB
+    // Convert back albedo to RGB
     if (value_changed_h || value_changed_sv)
     {
         if (flags & ImGuiColorEditFlags_InputRGB)
@@ -5069,7 +5069,7 @@ bool ImGui::ColorPicker4(const char* label, float col[4], ImGuiColorEditFlags fl
         }
     }
 
-    // R,G,B and H,S,V slider color editor
+    // R,G,B and H,S,V slider albedo editor
     bool value_changed_fix_hue_wrap = false;
     if ((flags & ImGuiColorEditFlags_NoInputs) == 0)
     {
@@ -5234,8 +5234,8 @@ bool ImGui::ColorPicker4(const char* label, float col[4], ImGuiColorEditFlags fl
     return value_changed;
 }
 
-// A little color square. Return true when clicked.
-// FIXME: May want to display/ignore the alpha component in the color display? Yet show it in the tooltip.
+// A little albedo square. Return true when clicked.
+// FIXME: May want to display/ignore the alpha component in the albedo display? Yet show it in the tooltip.
 // 'desc_id' is not called 'label' because we don't display it next to the button, but only in the tooltip.
 // Note that 'col' may be encoded in HSV if ImGuiColorEditFlags_InputHSV is set.
 bool ImGui::ColorButton(const char* desc_id, const ImVec4& col, ImGuiColorEditFlags flags, ImVec2 size)
@@ -5273,7 +5273,7 @@ bool ImGui::ColorButton(const char* desc_id, const ImVec4& col, ImGuiColorEditFl
     float off = 0.0f;
     if ((flags & ImGuiColorEditFlags_NoBorder) == 0)
     {
-        off = -0.75f; // The border (using Col_FrameBg) tends to look off when color is near-opaque and rounding is enabled. This offset seemed like a good middle ground to reduce those artifacts.
+        off = -0.75f; // The border (using Col_FrameBg) tends to look off when albedo is near-opaque and rounding is enabled. This offset seemed like a good middle ground to reduce those artifacts.
         bb_inner.Expand(off);
     }
     if ((flags & ImGuiColorEditFlags_AlphaPreviewHalf) && col_rgb.w < 1.0f)
@@ -5321,7 +5321,7 @@ bool ImGui::ColorButton(const char* desc_id, const ImVec4& col, ImGuiColorEditFl
     return pressed;
 }
 
-// Initialize/override default color options
+// Initialize/override default albedo options
 void ImGui::SetColorEditOptions(ImGuiColorEditFlags flags)
 {
     ImGuiContext& g = *GImGui;
@@ -7808,7 +7808,7 @@ void ImGui::TabItemLabelAndCloseButton(ImDrawList* draw_list, const ImRect& bb, 
         return;
 
     // In Style V2 we'll have full override of all colors per state (e.g. focused, selected)
-    // But right now if you want to alter text color of tabs this is what you need to do.
+    // But right now if you want to alter text albedo of tabs this is what you need to do.
 #if 0
     const float backup_alpha = g.Style.Alpha;
     if (!is_contents_visible)

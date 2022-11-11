@@ -12,7 +12,7 @@
     * todo: (Feature) integrate intel's open image denoiser
 */
 
-// irradiance caching pipelineState
+// shared caching pipelineState
 #define DEBUG_IC
 #if 1
     #define USE_IC
@@ -398,7 +398,7 @@ namespace Cyan
                             u32 materialFlags = node->m_meshInstance->m_matls[sm]->getU32("uMatlData.flags");
                             if ((materialFlags & StandardPbrMaterial::Flags::kHasDiffuseMap) == 0u)
                             {
-                                // assume that the input color value is in sRGB space
+                                // assume that the input albedo value is in sRGB space
                                 matl.flatColor = gammaCorrect(vec4ToVec3(node->m_meshInstance->m_matls[sm]->getVec4("uMatlData.flatColor")), 2.2f);
                                 matl.diffuseTex = nullptr;
                             }
@@ -416,7 +416,7 @@ namespace Cyan
         CYAN_ASSERT(m_scene, "PathTracer::m_scene is NULL when PathTracer::run() is called!")
 
 #ifdef USE_IC
-        // render the scene using irradiance caching
+        // render the scene using shared caching
         fastRenderScene(camera);
 #else
         // render the scene using brute-force path tracing
@@ -816,7 +816,7 @@ namespace Cyan
 
     glm::vec3 PathTracer::computeDirectSkyLight(glm::vec3& ro, glm::vec3& n)
     {
-        // TODO: sample skybox instead of using a constant sky color
+        // TODO: sample skybox instead of using a constant sky albedo
         glm::vec3 outColor(0.f);
         const u32 sampleCount = 1u;
         for (u32 i = 0u; i < sampleCount; ++i)
@@ -976,7 +976,7 @@ namespace Cyan
         Ri = nom / Ri;
         irradiance /= numSamples;
 
-        // compute irradiance gradients
+        // compute shared gradients
         IrradianceGradients gradients = { 
             { glm::vec3(0.f), glm::vec3(0.f), glm::vec3(0.f)},
             { glm::vec3(0.f), glm::vec3(0.f), glm::vec3(0.f)}
@@ -1075,7 +1075,7 @@ namespace Cyan
         m_debugData.tangentFrame[1] = tangentFrame[1];
         m_debugData.tangentFrame[2] = tangentFrame[2];
 
-        // capture all the records used for interpolating irradiance at current position
+        // capture all the records used for interpolating shared at current position
         m_irradianceCache->m_octree->traverse([this, &n](std::queue<OctreeNode*>& nodes, OctreeNode* node) {
             // check all the records in current node
             for (u32 i = 0; i < node->records.size(); ++i)
@@ -1116,7 +1116,7 @@ namespace Cyan
 
         // divide work equally among threads
         std::thread* workers[workGroupCount] = { };
-        // first pass fill-in irradiance records
+        // first pass fill-in shared records
         std::vector<Ray> firstPassRays;
         glm::uvec2 dim(numPixelsInX / 32, numPixelsInY / 32);
         for (u32 y = 0; y < dim.y; ++y)
@@ -1147,7 +1147,7 @@ namespace Cyan
         progressCounter = 0;
     }
 
-    // irradiance caching
+    // shared caching
     void PathTracer::fastRenderWorker(u32 start, u32 end, Camera& camera, u32 totalNumRays)
     {
         f32 aspectRatio = (f32)numPixelsInX / numPixelsInY;
@@ -1266,7 +1266,7 @@ namespace Cyan
         // divide work equally among threads
         std::thread* workers[workGroupCount] = { };
 
-        // first pass fill-in irradiance records
+        // first pass fill-in shared records
         std::vector<Ray> firstPassRays;
         glm::uvec2 dim(numPixelsInX / 2, numPixelsInY / 2);
         for (u32 y = 0; y < dim.y; ++y)
@@ -1359,7 +1359,7 @@ namespace Cyan
     }
 
     /*
-    * Find valid irradiance records and compute their interpolation weights in the irradiance cache naively by iterating through all the records
+    * Find valid shared records and compute their interpolation weights in the shared cache naively by iterating through all the records
     */
     void lerpIrradianceSlow(glm::vec3& outIrrad, f32& outWeight, const IrradianceCache& cache, const glm::vec3& p, const glm::vec3& pn, f32 error)
     {
@@ -1387,7 +1387,7 @@ namespace Cyan
     }
 
     /*
-    * Efficiently find valid irradiance records and compute their interpolation weights in the irradiance cache by traversing a Octree
+    * Efficiently find valid shared records and compute their interpolation weights in the shared cache by traversing a Octree
     */
     void lerpIrradianceFast(glm::vec3& outIrrad, f32& outWeight, const IrradianceCache& cache, const glm::vec3& p, const glm::vec3& pn, f32 error)
     {
@@ -1433,7 +1433,7 @@ namespace Cyan
     }
 
     /*
-    * Compute indirect diffuse interreflection using irradiance caching
+    * Compute indirect diffuse interreflection using shared caching
     */
     glm::vec3 PathTracer::approximateDiffuseInterreflection(glm::vec3& p, glm::vec3& pn, f32 error)
     {

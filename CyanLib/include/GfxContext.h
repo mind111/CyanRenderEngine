@@ -67,7 +67,7 @@ namespace Cyan
         void setRenderTarget(RenderTarget* renderTarget);
         void setRenderTarget(RenderTarget* rt, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers);
         void setDepthControl(DepthControl ctrl);
-        void setClearColor(glm::vec4 color);
+        void setClearColor(glm::vec4 albedo);
         void setCullFace(FrontFace frontFace, FaceCull faceToCull);
 
         void setUniform(Shader* shader, const char* uniformName, f32 data)

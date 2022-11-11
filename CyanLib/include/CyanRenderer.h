@@ -89,8 +89,8 @@ namespace Cyan
     };
 
     /**
-    * Encapsulate a mesh draw call, `renderTarget` should be configured to correct state, such as binding color buffers, and clearing
-    * color buffers while `drawBuffers` for this draw call will be passed in.
+    * Encapsulate a mesh draw call, `renderTarget` should be configured to correct state, such as binding albedo buffers, and clearing
+    * albedo buffers while `drawBuffers` for this draw call will be passed in.
     */
     using RenderSetupLambda = std::function<void(RenderTarget* renderTarget, Shader* shader)>;
     struct RenderTask
@@ -141,6 +141,16 @@ namespace Cyan
         void renderToScreen(Texture2DRenderable* inTexture);
         void endRender();
 
+        struct SceneTextures {
+            glm::uvec2 resolution;
+            Texture2DRenderable* depth = nullptr;
+            Texture2DRenderable* normal = nullptr;
+            Texture2DRenderable* color = nullptr;
+
+            void initialize() {}
+            void update() {}
+        } m_sceneTextures;
+
         Texture2DRenderable* renderScene(SceneRenderable& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
 
         /**
@@ -151,7 +161,7 @@ namespace Cyan
         {
             Texture2DRenderable* ao = nullptr;
             Texture2DRenderable* bentNormal = nullptr;
-            Texture2DRenderable* irradiance = nullptr;
+            Texture2DRenderable* shared = nullptr;
         };
         SSGITextures screenSpaceRayTracing(Texture2DRenderable* sceneDepthTexture, Texture2DRenderable* sceneNormalTexture, const glm::uvec2& renderResolution);
 
@@ -169,7 +179,6 @@ namespace Cyan
         void submitSceneMultiDrawIndirect(const SceneRenderable& renderableScene);
 
         std::unique_ptr<ManyViewGI> m_manyViewGI = nullptr;
-        std::unique_ptr<MicroRenderingGI> m_microRenderingGI = nullptr;
 #if 0
         void gpuRayTracing(struct RayTracingScene& rtxScene, RenderTexture2D* outputBuffer, RenderTexture2D* sceneDepthBuffer, RenderTexture2D* sceneNormalBuffer);
 #endif
@@ -190,7 +199,7 @@ namespace Cyan
         void debugDrawLineImmediate(const glm::vec3& v0, const glm::vec3& v1);
         void debugDrawSphere(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection);
         void debugDrawCubeImmediate(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection);
-        void debugDrawCubeBatched(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::vec3& facingDir, const glm::vec4& color, const glm::mat4& view, const glm::mat4& projection);
+        void debugDrawCubeBatched(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::vec3& facingDir, const glm::vec4& albedo, const glm::mat4& view, const glm::mat4& projection);
         void debugDrawCubemap(TextureCubeRenderable* cubemap);
         void debugDrawCubemap(GLuint cubemap);
 
@@ -272,10 +281,15 @@ namespace Cyan
         void localToneMapping();
 
         /*
-        * Compositing and resolving to final output color texture. Applying bloom, tone mapping, and gamma correction.
+        * Compositing and resolving to final output albedo texture. Applying bloom, tone mapping, and gamma correction.
         */
         void composite(Texture2DRenderable* composited, Texture2DRenderable* inSceneColor, Texture2DRenderable* inBloomColor, const glm::uvec2& outputResolution);
 //
+        void setVisualization(Texture2DRenderable* visualization) { m_visualization = visualization; }
+        void visualize(Texture2DRenderable* dst, Texture2DRenderable* src);
+        Texture2DRenderable* m_visualization = nullptr;
+        void registerVisualization(const std::string& categoryName, Texture2DRenderable* visualization);
+        std::unordered_map<std::string, std::vector<Texture2DRenderable*>> visualizationMap;
 
 // per frame data
         void updateVctxData(Scene* scene);
@@ -310,13 +324,13 @@ namespace Cyan
         glm::uvec2 m_windowSize;
         glm::uvec2 m_offscreenRenderSize;
 
-        // normal hdr scene color texture 
+        // normal hdr scene albedo texture 
         Texture2DRenderable* m_sceneColorTexture;
         Texture2DRenderable* m_sceneNormalTexture;
         Texture2DRenderable* m_sceneDepthTexture;
         RenderTarget* m_sceneColorRenderTarget;
 
-        // hdr super sampling color buffer
+        // hdr super sampling albedo buffer
         Texture2DRenderable* m_sceneColorTextureSSAA;
         Texture2DRenderable* m_sceneNormalTextureSSAA;
         RenderTarget* m_sceneColorRTSSAA;
@@ -418,7 +432,7 @@ namespace Cyan
                     {
                         glm::vec3 center;
                         f32 size;
-                        glm::vec4 color;
+                        glm::vec4 albedo;
                     };
 
                     i32 numCubes = 0;
@@ -438,7 +452,7 @@ namespace Cyan
             Shader* renderShader = nullptr;
             Shader* resolveShader = nullptr;
             Texture2DRenderable* occlusion = nullptr;
-            Texture2DRenderable* irradiance = nullptr;
+            Texture2DRenderable* shared = nullptr;
             Texture2DRenderable* reflection = nullptr;
         } m_vctx;
 
@@ -465,12 +479,12 @@ namespace Cyan
 
         GLuint m_lumHistogramShader;
         GLuint m_lumHistogramProgram;
-
     private:
         GfxContext* m_ctx;
         u32 m_numFrames = 0u;
         LinearAllocator m_frameAllocator;
         std::queue<UIRenderCommand> m_UIRenderCommandQueue;
         Texture2DRenderable* m_rtxPingPongBuffer[2] = { 0 };
+        bool bVisualize = false;
     };
 };

@@ -96,7 +96,7 @@ namespace Cyan
                 {
                     vertexSpec.addAttribute({ "TEXCOORD0", 2, 0 });
                 }
-                if (flags && VertexAttribFlag_kTexCoord1)
+                if (flags & VertexAttribFlag_kTexCoord1)
                 {
                     vertexSpec.addAttribute({ "TEXCOORD1", 2, 0 });
                 }

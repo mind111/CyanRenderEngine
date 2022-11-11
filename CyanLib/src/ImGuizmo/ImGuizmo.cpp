@@ -2350,7 +2350,7 @@ namespace ImGuizmo
       {
          float z;
          ImVec2 faceCoordsScreen[4];
-         ImU32 color;
+         ImU32 albedo;
       };
       CubeFace* faces = (CubeFace*)_malloca(sizeof(CubeFace) * matrixCount * 6);
 
@@ -2428,7 +2428,7 @@ namespace ImGuizmo
             {
                cubeFace.faceCoordsScreen[iCoord] = worldToPos(faceCoords[iCoord] * 0.5f * invert, res);
             }
-            cubeFace.color = directionColor[normalIndex] | IM_COL32(0x80, 0x80, 0x80, 0);
+            cubeFace.albedo = directionColor[normalIndex] | IM_COL32(0x80, 0x80, 0x80, 0);
 
             cubeFace.z = centerPositionVP.z / centerPositionVP.w;
             cubeFaceCount++;
@@ -2443,11 +2443,11 @@ namespace ImGuizmo
          }
          return -1;
          });
-      // draw face with lighter color
+      // draw face with lighter albedo
       for (int iFace = 0; iFace < cubeFaceCount; iFace++)
       {
          const CubeFace& cubeFace = faces[iFace];
-         gContext.mDrawList->AddConvexPolyFilled(cubeFace.faceCoordsScreen, 4, cubeFace.color);
+         gContext.mDrawList->AddConvexPolyFilled(cubeFace.faceCoordsScreen, 4, cubeFace.albedo);
       }
 
       _freea(faces);
@@ -2621,7 +2621,7 @@ namespace ImGuizmo
                assert(boxCoordInt < 27);
                boxes[boxCoordInt] |= insidePanel && (!isDraging);
 
-               // draw face with lighter color
+               // draw face with lighter albedo
                if (iPass)
                {
                   gContext.mDrawList->AddConvexPolyFilled(faceCoordsScreen, 4, (directionColor[normalIndex] | IM_COL32(0x80, 0x80, 0x80, 0x80)) | (isInside ? IM_COL32(0x08, 0x08, 0x08, 0) : 0));

@@ -156,9 +156,9 @@ namespace Cyan
         glDrawBuffers(numBuffers, buffers);
     }
 
-    void GfxContext::setClearColor(glm::vec4 color)
+    void GfxContext::setClearColor(glm::vec4 albedo)
     {
-        glClearColor(color.r, color.g, color.b, color.a);
+        glClearColor(albedo.r, albedo.g, albedo.b, albedo.a);
     }
 
     // TODO: Fix this

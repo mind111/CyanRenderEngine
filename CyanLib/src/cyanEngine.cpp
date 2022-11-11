@@ -333,8 +333,46 @@ namespace Cyan
 
     static void drawRenderingTab(Renderer* renderer, f32 renderFrameTime)
     {
-        ImGui::BeginChild("##Rendering Settings", ImVec2(0, 0), true);
+        ImGui::BeginChild("##Rendering Settings", ImVec2(0, 0), true, ImGuiWindowFlags_MenuBar);
         {
+            // rendering main menu
+            if (ImGui::BeginMenuBar()) {
+                if (ImGui::BeginMenu("Options"))
+                {
+                    ImGui::MenuItem("dummy_0", nullptr, false);
+                    ImGui::MenuItem("dummy_1", nullptr, false);
+                    ImGui::MenuItem("dummy_2", nullptr, false);
+                    ImGui::EndMenu();
+                }
+                if (ImGui::BeginMenu("Visualization"))
+                {
+                    static Texture2DRenderable* selectedVis = nullptr;
+                    for (auto categoryEntry : renderer->visualizationMap) {
+                        const std::string& category = categoryEntry.first;
+                        const auto& visualizations = categoryEntry.second;
+                        if (ImGui::BeginMenu(category.c_str())) {
+                            for (auto vis : visualizations) {
+                                bool selected = false;
+                                if (selectedVis) {
+                                    selected = (selectedVis->name == vis->name);
+                                }
+                                if (ImGui::MenuItem(vis->name, nullptr, selected)) {
+                                    if (selected) {
+                                        selectedVis = nullptr;
+                                    }
+                                    else {
+                                        selectedVis = vis;
+                                    }
+                                }
+                            }
+                            ImGui::EndMenu();
+                        }
+                    }
+                    renderer->setVisualization(selectedVis);
+                    ImGui::EndMenu();
+                }
+                ImGui::EndMenuBar();
+            }
             if (ImGui::CollapsingHeader("Stats", ImGuiTreeNodeFlags_DefaultOpen))
             {
                 ImGui::TextColored(ImVec4(0.f, 1.f, 1.f, 1.f), "Frame Time: %.2f ms", renderFrameTime);
@@ -343,7 +381,7 @@ namespace Cyan
             if (ImGui::CollapsingHeader("Post Processing"))
             {
                 ImGui::TextUnformatted("Color Temperature"); ImGui::SameLine();
-                // todo: render a color temperature slider image and blit to ImGui
+                // todo: render a albedo temperature slider image and blit to ImGui
                 // ImGui::Image((void*)1, ImVec2(ImGui::GetContentRegionAvailWidth(), ImGui::GetTextLineHeight())); ImGui::SameLine();
                 ImGui::SliderFloat("##Color Temperature", &renderer->m_settings.colorTempreture, 1000.f, 10000.f, "%.2f");
 

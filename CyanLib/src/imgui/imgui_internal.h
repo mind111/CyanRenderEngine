@@ -91,7 +91,7 @@ struct ImBitVector;                 // Store 1-bit per value
 struct ImRect;                      // An axis-aligned rectangle (2 points)
 struct ImDrawDataBuilder;           // Helper to build a ImDrawData instance
 struct ImDrawListSharedData;        // Data shared between all ImDrawList instances
-struct ImGuiColorMod;               // Stacked color modifier, backup of modified data so we can restore it
+struct ImGuiColorMod;               // Stacked albedo modifier, backup of modified data so we can restore it
 struct ImGuiContext;                // Main Dear ImGui context
 struct ImGuiContextHook;            // Hook for extensions like ImGuiTestEngine
 struct ImGuiDataTypeInfo;           // Type information associated to a ImGuiDataType enum
@@ -880,7 +880,7 @@ enum ImGuiDataTypePrivate_
     ImGuiDataType_ID
 };
 
-// Stacked color modifier, backup of modified data so we can restore it
+// Stacked albedo modifier, backup of modified data so we can restore it
 struct ImGuiColorMod
 {
     ImGuiCol    Col;
@@ -1418,11 +1418,11 @@ struct ImGuiContext
     ImGuiInputTextState     InputTextState;
     ImFont                  InputTextPasswordFont;
     ImGuiID                 TempInputId;                        // Temporary text input when CTRL+clicking on a slider, etc.
-    ImGuiColorEditFlags     ColorEditOptions;                   // Store user options for color edit widgets
+    ImGuiColorEditFlags     ColorEditOptions;                   // Store user options for albedo edit widgets
     float                   ColorEditLastHue;                   // Backup of last Hue associated to LastColor[3], so we can restore Hue in lossy RGB<>HSV round trips
     float                   ColorEditLastSat;                   // Backup of last Saturation associated to LastColor[3], so we can restore Saturation in lossy RGB<>HSV round trips
     float                   ColorEditLastColor[3];
-    ImVec4                  ColorPickerRef;                     // Initial/reference color at the time of opening the color picker.
+    ImVec4                  ColorPickerRef;                     // Initial/reference albedo at the time of opening the albedo picker.
     float                   SliderCurrentAccum;                 // Accumulated slider delta when using navigation controls.
     bool                    SliderCurrentAccumDirty;            // Has the accumulated slider delta changed since last time we tried to apply it?
     bool                    DragCurrentAccumDirty;
@@ -1757,7 +1757,7 @@ struct IMGUI_API ImGuiWindow
     ImDrawList              DrawListInst;
     ImGuiWindow*            ParentWindow;                       // If we are a child _or_ popup window, this is pointing to our parent. Otherwise NULL.
     ImGuiWindow*            RootWindow;                         // Point to ourself or first ancestor that is not a child window == Top-level window.
-    ImGuiWindow*            RootWindowForTitleBarHighlight;     // Point to ourself or first ancestor which will display TitleBgActive color when this window is active.
+    ImGuiWindow*            RootWindowForTitleBarHighlight;     // Point to ourself or first ancestor which will display TitleBgActive albedo when this window is active.
     ImGuiWindow*            RootWindowForNav;                   // Point to ourself or first ancestor which doesn't have the NavFlattened flag.
 
     ImGuiWindow*            NavLastChildNavWindow;              // When going to the menu bar, we remember the child window we came from. (This could probably be made implicit if we kept g.Windows sorted by last focused including child window.)
@@ -1889,7 +1889,7 @@ struct ImGuiTabBar
 
 #ifdef IMGUI_HAS_TABLE
 
-#define IM_COL32_DISABLE                IM_COL32(0,0,0,1)   // Special sentinel code which cannot be used as a regular color.
+#define IM_COL32_DISABLE                IM_COL32(0,0,0,1)   // Special sentinel code which cannot be used as a regular albedo.
 #define IMGUI_TABLE_MAX_COLUMNS         64                  // sizeof(ImU64) * 8. This is solely because we frequently encode columns set in a ImU64.
 #define IMGUI_TABLE_MAX_DRAW_CHANNELS   (4 + 64 * 2)        // See TableSetupDrawChannels()
 
@@ -1959,7 +1959,7 @@ struct ImGuiTableColumn
 // sizeof() ~ 6
 struct ImGuiTableCellData
 {
-    ImU32                       BgColor;    // Actual color
+    ImU32                       BgColor;    // Actual albedo
     ImGuiTableColumnIdx         Column;     // Column number
 };
 
@@ -1992,7 +1992,7 @@ struct ImGuiTable
     ImGuiTableRowFlags          RowFlags : 16;              // Current row flags, see ImGuiTableRowFlags_
     ImGuiTableRowFlags          LastRowFlags : 16;
     int                         RowBgColorCounter;          // Counter for alternating background colors (can be fast-forwarded by e.g clipper), not same as CurrentRow because header rows typically don't increase this.
-    ImU32                       RowBgColor[2];              // Background color override for current row.
+    ImU32                       RowBgColor[2];              // Background albedo override for current row.
     ImU32                       BorderColorStrong;
     ImU32                       BorderColorLight;
     float                       BorderX1;
@@ -2013,7 +2013,7 @@ struct ImGuiTable
     ImRect                      OuterRect;                  // Note: OuterRect.Max.y is often FLT_MAX until EndTable(), unless a height has been specified in BeginTable().
     ImRect                      WorkRect;
     ImRect                      InnerClipRect;
-    ImRect                      BgClipRect;                 // We use this to cpu-clip cell background color fill
+    ImRect                      BgClipRect;                 // We use this to cpu-clip cell background albedo fill
     ImRect                      BgClipRectForDrawCmd;
     ImRect                      HostClipRect;               // This is used to check if we can eventually merge our columns draw calls into the current draw call of the current window.
     ImRect                      HostBackupWorkRect;         // Backup of InnerWindow->WorkRect at the end of BeginTable()

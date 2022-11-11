@@ -33,6 +33,24 @@ namespace Cyan
         return coordFrame;
     }
 
+    glm::mat4 calcTangentFrame(const glm::vec3& n) {
+        // calculate the tangent frame of the input hemicube
+        glm::vec3 worldUp = glm::vec3(0.f, 1.f, 0.f);
+        glm::vec3 up = n;
+        if (abs(up.y) > 0.98) {
+            worldUp = glm::vec3(0.f, 0.f, -1.f);
+        }
+        glm::vec3 right = glm::normalize(glm::cross(worldUp, up));
+        glm::vec3 forward = glm::normalize(glm::cross(up, right));
+        glm::mat4 tangentFrame = {
+            glm::vec4(right, 0.f),
+            glm::vec4(up, 0.f),
+            glm::vec4(-forward, 0.f),
+            glm::vec4(0.f, 0.f, 0.f, 1.f),
+        };
+        return tangentFrame;
+    }
+
     f32 uniformSampleZeroToOne()
     {
         return rand() / (f32)RAND_MAX;
