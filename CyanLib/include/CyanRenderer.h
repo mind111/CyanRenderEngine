@@ -288,8 +288,12 @@ namespace Cyan
         void setVisualization(Texture2DRenderable* visualization) { m_visualization = visualization; }
         void visualize(Texture2DRenderable* dst, Texture2DRenderable* src);
         Texture2DRenderable* m_visualization = nullptr;
-        void registerVisualization(const std::string& categoryName, Texture2DRenderable* visualization);
-        std::unordered_map<std::string, std::vector<Texture2DRenderable*>> visualizationMap;
+        void registerVisualization(const std::string& categoryName, Texture2DRenderable* visualization, bool* toggle=nullptr);
+        struct VisualizationDesc {
+            Texture2DRenderable* texture = nullptr;
+            bool* bSwitch = nullptr;
+        };
+        std::unordered_map<std::string, std::vector<VisualizationDesc>> visualizationMap;
 
 // per frame data
         void updateVctxData(Scene* scene);

@@ -346,29 +346,37 @@ namespace Cyan
                 }
                 if (ImGui::BeginMenu("Visualization"))
                 {
-                    static Texture2DRenderable* selectedVis = nullptr;
+                    static Renderer::VisualizationDesc selectedVis = { };
                     for (auto categoryEntry : renderer->visualizationMap) {
                         const std::string& category = categoryEntry.first;
                         const auto& visualizations = categoryEntry.second;
                         if (ImGui::BeginMenu(category.c_str())) {
                             for (auto vis : visualizations) {
                                 bool selected = false;
-                                if (selectedVis) {
-                                    selected = (selectedVis->name == vis->name);
+                                if (selectedVis.texture) {
+                                    selected = (selectedVis.texture->name == vis.texture->name);
                                 }
-                                if (ImGui::MenuItem(vis->name, nullptr, selected)) {
-                                    if (selected) {
-                                        selectedVis = nullptr;
-                                    }
-                                    else {
-                                        selectedVis = vis;
+                                if (vis.texture) {
+                                    if (ImGui::MenuItem(vis.texture->name, nullptr, selected)) {
+                                        if (selected) {
+                                            if (selectedVis.bSwitch) {
+                                                *selectedVis.bSwitch = false;
+                                            }
+                                            selectedVis = { };
+                                        }
+                                        else {
+                                            selectedVis = vis;
+                                            if (selectedVis.bSwitch) {
+                                                *selectedVis.bSwitch = true;
+                                            }
+                                        }
                                     }
                                 }
                             }
                             ImGui::EndMenu();
                         }
                     }
-                    renderer->setVisualization(selectedVis);
+                    renderer->setVisualization(selectedVis.texture);
                     ImGui::EndMenu();
                 }
                 ImGui::EndMenuBar();

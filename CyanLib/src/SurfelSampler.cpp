@@ -8,7 +8,6 @@
 #include "MathUtils.h"
 #include "CyanRenderer.h"
 #include "AssetManager.h"
-#include "RenderableScene.h"
 
 namespace Cyan {
     static f32 calcSceneSurfaceArea(std::vector<SurfelSampler::Triangle>& outTriangles, const SceneRenderable& inScene) {
@@ -253,7 +252,14 @@ namespace Cyan {
                             break;
                         }
                     }
+                    // todo: can use coverage to attenuate the color / lighting contribution for partially covered surfels  
                     if (bPartiallyCovered) {
+                        outSurfels.push_back(Surfel{
+                                worldSpacePosition,
+                                tn,
+                                tri.albedo,
+                                kTexelRadius * glm::sqrt(2.f)
+                        });
                         samplePoints.push_back(Sample{
                             worldSpacePosition,
                             tn,

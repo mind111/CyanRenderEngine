@@ -41,6 +41,39 @@ namespace Cyan {
         }
     }
 
+    ManyViewGI::Image::Image(const glm::uvec2& inIrradianceRes, const u32 hemicubeRes) 
+        : irradianceRes(inIrradianceRes), radianceAtlasRes(irradianceRes * hemicubeRes) {
+
+    }
+
+    void ManyViewGI::Image::initialize() {
+        if (!bInitialized) {
+            ITextureRenderable::Spec radianceAtlasSpec = { };
+            radianceAtlasSpec.type = TEX_2D;
+            radianceAtlasSpec.width = radianceAtlasRes.x;
+            radianceAtlasSpec.height = radianceAtlasRes.y;
+            radianceAtlasSpec.pixelFormat = PF_RGBA16F;
+            radianceAtlas = new Texture2DRenderable("RadianceAtlas", radianceAtlasSpec);
+
+            /** note - @min:
+            * it seems imageStore() only supports 1,2,4 channels textures, so using rgba16f here
+            */
+            ITextureRenderable::Spec irradianceSpec = { };
+            irradianceSpec.type = TEX_2D;
+            irradianceSpec.width = irradianceRes.x;
+            irradianceSpec.height = irradianceRes.y;
+            irradianceSpec.pixelFormat = PF_RGBA16F;
+            irradiance = new Texture2DRenderable("Irradiance", irradianceSpec);
+        }
+    }
+
+    void ManyViewGI::Image::setup(Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) {
+        // fill hemicubes
+
+        // fill jittered sample directions 
+    }
+
+    TextureCubeRenderable* ManyViewGI::m_sharedRadianceCubemap = nullptr;
     ManyViewGI::ManyViewGI(Renderer* renderer, GfxContext* gfxc) 
         : m_renderer(renderer), m_gfxc(gfxc) {
 
@@ -48,10 +81,31 @@ namespace Cyan {
 
     void ManyViewGI::initialize() {
         if (!bInitialized) {
+            if (!m_sharedRadianceCubemap) {
+                ITextureRenderable::Spec spec = {};
+                spec.width = finalGatherRes;
+                spec.height = finalGatherRes;
+                spec.type = TEX_CUBE;
+                spec.pixelFormat = PF_RGB16F;
+                ITextureRenderable::Parameter params = {};
+                /** note - @mind:
+                * ran into a "incomplete texture" error when setting magnification filter to FM_TRILINEAR
+                */
+                params.minificationFilter = FM_BILINEAR;
+                // todo: based on the rendering output, pay attention to the difference between using point/bilinear sampling
+                params.magnificationFilter = FM_BILINEAR;
+                params.wrap_r = WM_CLAMP;
+                params.wrap_s = WM_CLAMP;
+                params.wrap_t = WM_CLAMP;
+                m_sharedRadianceCubemap = new TextureCubeRenderable("ManyViewGISharedRadianceCubemap", spec);
+            }
+
+            m_image.initialize();
+#if 0
             maxNumHemicubes = irradianceAtlasRes.x * irradianceAtlasRes.y;
             hemicubes.resize(maxNumHemicubes);
-            radianceCubemaps.resize(maxNumHemicubes);
             jitteredSampleDirections.resize(maxNumHemicubes);
+            radianceCubemaps.resize(maxNumHemicubes);
             for (i32 i = 0; i < maxNumHemicubes; ++i) {
                 std::string name = "RadianceCubemap_" + std::to_string(i);
                 ITextureRenderable::Spec spec = {};
@@ -94,6 +148,7 @@ namespace Cyan {
             irradianceAtlasSpec.height = irradianceAtlasRes.y;
             irradianceAtlasSpec.pixelFormat = PF_RGBA16F;
             irradianceAtlas = new Texture2DRenderable("IrradianceAtlas", irradianceAtlasSpec);
+#endif
 
             ITextureRenderable::Spec spec = {};
             spec.type = TEX_2D;
@@ -116,6 +171,8 @@ namespace Cyan {
     // todo: 'scene' here really need to be passed in by value instead of by reference so that the ManyViewGI don't have to 
     // worry about any state changes to the scene that it's working on
     void ManyViewGI::setup(const SceneRenderable& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) {
+        m_image.setup(scene, depthBuffer, normalBuffer);
+
         reset();
         bBuilding = true;
         // copy the scene data
@@ -159,7 +216,7 @@ namespace Cyan {
         if (opts.bVisualizeHemicubes) {
             visualizeHemicubes(visRenderTarget.get());
         }
-        customRender(sceneRenderTarget, visRenderTarget.get());
+        customRender(scene.camera, sceneRenderTarget, visRenderTarget.get());
 
         // ui controls
         m_renderer->addUIRenderCommand([this, scene, depthBuffer, normalBuffer]() {
@@ -181,7 +238,7 @@ namespace Cyan {
         u32 buffSize = sizeof(hemicubes[0]) * hemicubes.size();
         memset(hemicubes.data(), 0x0, buffSize);
 
-        // todo: how to cache spawned raster cubes and avoid placing duplicated raster cubes
+        // todo: how to cache spawned radiance cubes and avoid placing duplicated radiance cubes
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 52, hemicubeBuffer);
 
         auto fillRasterShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "FillRasterShader", SHADER_SOURCE_PATH "blit_v.glsl", SHADER_SOURCE_PATH "fill_raster_p.glsl" });
@@ -511,7 +568,7 @@ namespace Cyan {
         cacheSurfelDirectLighting();
     }
 
-    void PointBasedManyViewGI::customRender(RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) {
+    void PointBasedManyViewGI::customRender(const RenderableCamera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) {
         if (m_scene) {
             if (bVisualizeSurfels) {
                 visualizeSurfels(visRenderTarget);
@@ -707,7 +764,7 @@ namespace Cyan {
     }
 
     MicroRenderingGI::MicroRenderingGI(Renderer* renderer, GfxContext* gfxc)
-        : PointBasedManyViewGI(renderer, gfxc) {
+        : PointBasedManyViewGI(renderer, gfxc), m_softwareMicroBuffer(24) {
 
     }
 
@@ -716,15 +773,17 @@ namespace Cyan {
 
         if (!bInitialized) {
             bInitialized = true;
+            m_renderer->registerVisualization("ManyViewGI", m_surfelBSH.getVisualization(), &bVisualizeSurfelBSH);
+            m_renderer->registerVisualization("ManyViewGI", m_softwareMicroBuffer.getVisualization(), &bVisualizeMicroBuffer);
         }
     }
 
     void MicroRenderingGI::customSetup(const SceneRenderable& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) {
         PointBasedManyViewGI::customSetup(scene, depthBuffer, normalBuffer);
-        m_surfelBSH.build(surfels);
     }
 
     void MicroRenderingGI::generateWorldSpaceSurfels() {
+        m_surfelSampler.sampleFixedNumberSurfels(surfels, *m_scene);
         m_surfelSampler.sampleFixedSizeSurfels(surfels, *m_scene);
         for (const auto& surfel : surfels) {
             surfelBuffer.addElement(
@@ -740,24 +799,378 @@ namespace Cyan {
         m_surfelBSH.build(surfels);
     }
 
-    void MicroRenderingGI::customRender(RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) {
-        PointBasedManyViewGI::customRender(sceneRenderTarget, visRenderTarget);
-        if (bVisualizeSurfelTree) {
+    void MicroRenderingGI::customRender(const RenderableCamera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) {
+        PointBasedManyViewGI::customRender(camera, sceneRenderTarget, visRenderTarget);
+        if (bVisualizeSurfelBSH) {
             m_surfelBSH.visualize(m_gfxc, visRenderTarget);
         }
-        m_surfelSampler.visualize(sceneRenderTarget, m_renderer);
+        if (bVisualizeSurfelSampler) {
+            m_surfelSampler.visualize(sceneRenderTarget, m_renderer);
+        }
+        if (bVisualizeMicroBuffer) {
+            // todo: verify correctness
+            softwareMicroRendering(camera, m_surfelBSH);
+            // todo: implement this once the software version is working
+            // hardwareMicroRendering(m_scene->camera, m_surfelBSH);
+            m_softwareMicroBuffer.visualize(m_renderer, visRenderTarget);
+        }
     }
 
-    void MicroRenderingGI::microRendering(const PerspectiveCamera& camera, SurfelBSH& surfelBSH) {
-        static Texture2DRenderable* microBuffer = nullptr;
-        if (!microBuffer) {
+    SoftwareMicroBuffer::SoftwareMicroBuffer(i32 microBufferRes) 
+     : resolution(microBufferRes)
+        , color(resolution)
+        , depth(resolution)
+        , indices(resolution)
+        , postTraversalBuffer(resolution) {
+        {
             ITextureRenderable::Spec spec = { };
             spec.type = TEX_2D;
-            spec.width = 16;
-            spec.height = 16;
-            spec.pixelFormat = PF_RGBA16F;
-            microBuffer = new Texture2DRenderable("DebugMicroBuffer", spec);
+            spec.width = resolution;
+            spec.height = resolution;
+            spec.pixelFormat = PF_RGB32F;
+            ITextureRenderable::Parameter params = { };
+            params.magnificationFilter = FM_POINT;
+            gpuTexture = new Texture2DRenderable("MicroBuffer", spec, params);
         }
+
+        {
+            ITextureRenderable::Spec spec = { };
+            spec.type = TEX_2D;
+            spec.width = 1280;
+            spec.height = 720;
+            spec.pixelFormat = PF_RGB16F;
+            visualization = new Texture2DRenderable("MicroBufferVis", spec);
+        }
+
+        clear();
+    }
+
+    void SoftwareMicroBuffer::clear() {
+        for (i32 y = 0; y < resolution; ++y) {
+            for (i32 x = 0; x < resolution; ++x) {
+                color[y][x] = glm::vec3(0.1f);
+                depth[y][x] = FLT_MAX;
+                indices[y][x] = -1;
+                postTraversalBuffer[y][x] = -1;
+            }
+        }
+        // glClearTexSubImage(gpuTexture->getGpuResource(), 0, 0, 0, 0, resolution, resolution, 1, GL_RGB, GL_FLOAT, nullptr);
+    }
+
+    bool SoftwareMicroBuffer::isInViewport(const SurfelBSH::Node& node, glm::vec2& outPixelCoord, const glm::mat4& view, const glm::mat4& projection) {
+        glm::vec4 pos = projection * view * glm::vec4(node.center, 1.f);
+        pos /= pos.w;
+        outPixelCoord.x = pos.x * .5f + .5f;
+        outPixelCoord.y = pos.y * .5f + .5f;
+        return (outPixelCoord.x >= 0.f && outPixelCoord.x <= 1.f && outPixelCoord.y >= 0.f && outPixelCoord.y <= 1.f);
+    }
+
+    f32 SoftwareMicroBuffer::solidAngleOfSphere(const glm::vec3& p, const glm::vec3& q, f32 r) {
+        f32 d = glm::length(p - q);
+        if (d >= r) {
+            return 2 * M_PI * (1.f - sqrt(d * d - r * r) / d);
+        }
+        else {
+            return -1.f;
+        }
+    }
+
+    /** note - @min: 
+    * reference: https://www.rorydriscoll.com/2012/01/15/cubemap-texel-solid-angle/
+    */
+    f32 SoftwareMicroBuffer::calcCubemapTexelSolidAngle(const glm::vec3& d, f32 cubemapRes) {
+        auto solidAngleHelper = [](const glm::vec2& st) {
+            return glm::atan(st.x * st.y, sqrt(st.x * st.x + st.y * st.y + 1.f));
+        };
+
+        f32 solidAngle;
+        glm::vec3 dd = abs(d);
+        glm::vec2 texCoord;
+        if (dd.x > dd.y && dd.x > dd.z) {
+            if (d.x > 0.f) {
+                texCoord = glm::vec2(-d.z, d.y) / dd.x;
+            } else {
+                texCoord = glm::vec2(d.z, d.y) / dd.x;
+            }
+        }
+        if (dd.y > dd.x && dd.y > dd.z) {
+            if (d.y > 0.f) {
+                texCoord = glm::vec2(-d.z, -d.x) / dd.y;
+            } else {
+                texCoord = glm::vec2(-d.z, d.x) / dd.y;
+            }
+        }
+        else if (dd.z > dd.y && dd.z > dd.x) {
+            if (d.z > 0.f) {
+                texCoord = glm::vec2(d.x, d.y) / dd.z;
+            } else {
+                texCoord = glm::vec2(-d.x, d.y) / dd.z;
+            }
+        }
+        float texelSize = 2.f / cubemapRes;
+        // find 4 corners of the pixel
+        glm::vec2 A = floor(texCoord * cubemapRes * .5f) / (cubemapRes * .5f);
+        glm::vec2 B = A + glm::vec2(0.f, 1.f) * texelSize;
+        glm::vec2 C = A + glm::vec2(1.f, 0.f) * texelSize;
+        glm::vec2 D = A + glm::vec2(1.f, 1.f) * texelSize;
+        solidAngle = solidAngleHelper(A) + solidAngleHelper(D) - solidAngleHelper(B) - solidAngleHelper(C);
+        return solidAngle;
+    }
+
+    void SoftwareMicroBuffer::traverseBSH(const SurfelBSH& surfelBSH, i32 nodeIndex, const RenderableCamera& camera) {
+        if (nodeIndex < 0) {
+            return;
+        }
+
+        glm::vec3 lightDir = glm::normalize(glm::vec3(1.f, 1.f, 1.f));
+        const SurfelBSH::Node& node = surfelBSH.nodes[nodeIndex];
+        glm::mat4 view = camera.view;
+        glm::mat4 projection = camera.projection;
+        glm::vec3 cameraPos = camera.eye;
+        glm::vec3 v = node.center - cameraPos;
+        f32 dist = length(v);
+        glm::vec2 pixelCoord;
+        
+        if (isInViewport(node, pixelCoord, view, projection)) {
+            i32 x = floor(pixelCoord.x * resolution);
+            i32 y = floor(pixelCoord.y * resolution);
+            // todo: try use other metrics to determine whether higher LOD is necessary such as projected size in screen space
+            f32 nodeSolidAngle = solidAngleOfSphere(cameraPos, node.center, node.radius);
+            f32 pixelSolidAngle = calcCubemapTexelSolidAngle(normalize(v), resolution);
+            /** note:- @min:
+            * if the projected screen space position of a node's center is too far away from the pixel center
+            * then it's likely that this node's footprint touches few neighbor pixels as well. need to address
+            * this kind of pixels either by
+            *   * adding them into post traversal list
+            *   * write it to neighbor pixels that are within a bilinear tap and perform depth test
+            */
+            bool stopRecursion = (nodeSolidAngle >= 0.f && nodeSolidAngle < pixelSolidAngle);
+            if (stopRecursion) {
+                if (dist <= depth[y][x]) {
+                    depth[y][x] = dist;
+                    f32 ndotl = glm::max(glm::dot(glm::normalize(glm::vec3(1.f, 1.f, 1.f)), node.normal), 0.f) * .5f + .5f;
+                    color[y][x] = node.albedo * ndotl;
+#if 0
+                    if (isLeafNode(node)) {
+                        // todo: weird color bug, gb seems to be flipped
+                        microBuffer.color[y][x] = glm::vec3(1.f, 0.f, 0.f);
+                    }
+#endif
+                }
+                return;
+            }
+            else {
+                if (node.isLeaf()) {
+                    if (dist <= depth[y][x]) {
+                        depth[y][x] = dist;
+                        f32 ndotl = glm::max(glm::dot(glm::normalize(glm::vec3(1.f, 1.f, 1.f)), node.normal), 0.f) * .5f + .5f;
+                        color[y][x] = node.albedo * ndotl;
+                        postTraversalBuffer[y][x] = nodeIndex;
+                    }
+                }
+            }
+        }
+        traverseBSH(surfelBSH, node.childs[0], camera);
+        traverseBSH(surfelBSH, node.childs[1], camera);
+    }
+
+    void SoftwareMicroBuffer::raytraceInternal(const glm::vec3& ro, const glm::vec3& rd, const SurfelBSH& surfelBSH, i32 nodeIndex, f32& tmin, i32& hitNode) {
+        const SurfelBSH::Node node = surfelBSH.nodes[nodeIndex];
+#if 1
+        // stop recursion at proper LOD
+        f32 t;
+        if (node.intersect(ro, rd, t)) {
+            if (node.isLeaf()) {
+                if (t <= tmin) {
+                    tmin = t;
+                    hitNode = nodeIndex;
+                }
+                return;
+            }
+            f32 nodeSolidAngle = solidAngleOfSphere(ro, node.center, node.radius);
+            f32 pixelSolidAngle = calcCubemapTexelSolidAngle(rd, resolution);
+            bool bKeepRecursion = (nodeSolidAngle < 0.f || nodeSolidAngle >= pixelSolidAngle);
+            if (bKeepRecursion) {
+                raytraceInternal(ro, rd, surfelBSH, node.childs[0], tmin, hitNode);
+                raytraceInternal(ro, rd, surfelBSH, node.childs[1], tmin, hitNode);
+            }
+            else {
+                tmin = t;
+                hitNode = nodeIndex;
+                return;
+            }
+        }
+#else
+        // brute-force ray tracing
+        f32 t;
+        if (node.intersect(ro, rd, t)) {
+            if (node.isLeaf()) {
+                if (t <= tmin) {
+                    hitNode = nodeIndex;
+                    tmin = t;
+                }
+            }
+            else {
+                raytraceInternal(ro, rd, surfelBSH, node.childs[0], tmin, hitNode);
+                raytraceInternal(ro, rd, surfelBSH, node.childs[1], tmin, hitNode);
+            }
+        }
+#endif
+    }
+
+    void SoftwareMicroBuffer::raytrace(const RenderableCamera& inCamera, const SurfelBSH& surfelBSH) {
+        clear();
+
+        RenderableCamera camera = { };
+        camera.eye = inCamera.eye;
+        camera.lookAt = inCamera.lookAt;
+        camera.right = inCamera.right;
+        camera.forward = inCamera.forward;
+        camera.up = inCamera.up;
+        camera.fov = glm::radians(90.f);
+        camera.aspect = 1.f;
+        camera.n = inCamera.n;
+        camera.f = inCamera.f;
+        camera.view = glm::lookAt(camera.eye, camera.lookAt, glm::vec3(0.f, 1.f, 0.f));
+        camera.projection = glm::perspective(camera.fov, camera.aspect, camera.n, camera.f);
+
+        f32 imagePlaneSize = camera.n;
+        for (i32 y = 0; y < resolution; ++y) {
+            for (i32 x = 0; x < resolution; ++x) {
+                glm::vec2 pixelCoord = glm::vec2(((f32)x + .5f) / resolution, ((f32)y + .5f) / resolution);
+                pixelCoord = pixelCoord * 2.f - 1.f;
+                glm::vec3 ro = camera.eye;
+                glm::vec3 rd = glm::normalize(camera.right * pixelCoord.x * imagePlaneSize + camera.up * pixelCoord.y * imagePlaneSize + camera.n * camera.forward);
+                f32 tmin = FLT_MAX;
+                i32 hitNode = -1;
+                raytraceInternal(ro, rd, surfelBSH, 0, tmin, hitNode);
+                if (hitNode >= 0) {
+                    color[y][x] = surfelBSH.nodes[hitNode].albedo;
+                }
+            }
+        }
+
+        // update texture data using micro buffer
+        if (gpuTexture) {
+            glTextureSubImage2D(gpuTexture->getGpuResource(), 0, 0, 0, resolution, resolution, GL_RGB, GL_FLOAT, color.data());
+        }
+    }
+
+    void SoftwareMicroBuffer::postTraversal(const RenderableCamera& camera, const SurfelBSH& surfelBSH) {
+        postTraversalList.clear();
+        for (i32 y = 0; y < resolution; ++y) {
+            for (i32 x = 0; x < resolution; ++x) {
+                i32 nodeIndex = postTraversalBuffer[y][x];
+                if (nodeIndex >= 0) {
+                    postTraversalList.push_back(surfelBSH.nodes[nodeIndex]);
+                }
+            }
+        }
+
+        f32 imagePlaneSize = camera.n;
+        for (i32 y = 0; y < resolution; ++y) {
+            for (i32 x = 0; x < resolution; ++x) {
+                glm::vec2 pixelCoord = glm::vec2(((f32)x + .5f) / resolution, ((f32)y + .5f) / resolution);
+                pixelCoord = pixelCoord * 2.f - 1.f;
+                glm::vec3 ro = camera.eye;
+                glm::vec3 rd = glm::normalize(camera.right * pixelCoord.x * imagePlaneSize + camera.up * pixelCoord.y * imagePlaneSize + camera.n * camera.forward);
+
+                f32 tmin = FLT_MAX;
+                i32 hitNode = -1;
+                for (i32 i = 0; i < postTraversalList.size(); ++i) {
+                    f32 t;
+                    if (postTraversalList[i].intersect(ro, rd, t)) {
+                        if (t <= tmin) {
+                            tmin = t;
+                            hitNode = i;
+                        }
+                    }
+                }
+                if (hitNode >= 0) {
+                    f32 ndotl = glm::max(glm::dot(glm::normalize(glm::vec3(0.f, 1.f, 0.f)), postTraversalList[hitNode].normal), 0.f) * .5f + .5f;
+                    color[y][x] = postTraversalList[hitNode].albedo * ndotl;
+                    depth[y][x] = glm::length(postTraversalList[hitNode].center - camera.eye);
+                }
+            }
+        }
+    }
+
+    // todo: implement and verify this
+    // todo: view frustum culling
+    // todo: cache lighting at each node
+    void SoftwareMicroBuffer::render(const RenderableCamera& inCamera, const SurfelBSH& surfelBSH) {
+        clear();
+
+        RenderableCamera camera = { };
+        camera.eye = inCamera.eye;
+        camera.lookAt = inCamera.lookAt;
+        camera.right = inCamera.right;
+        camera.forward = inCamera.forward;
+        camera.up = inCamera.up;
+        camera.fov = glm::radians(90.f);
+        camera.aspect = 1.f;
+        camera.n = inCamera.n;
+        camera.f = inCamera.f;
+        camera.view = glm::lookAt(camera.eye, camera.lookAt, glm::vec3(0.f, 1.f, 0.f));
+        camera.projection = glm::perspective(camera.fov, camera.aspect, camera.n, camera.f);
+        traverseBSH(surfelBSH, 0, camera);
+        postTraversal(camera, surfelBSH);
+
+        // update texture data using micro buffer
+        if (gpuTexture) {
+            glTextureSubImage2D(gpuTexture->getGpuResource(), 0, 0, 0, resolution, resolution, GL_RGB, GL_FLOAT, color.data());
+        }
+    }
+
+    void SoftwareMicroBuffer::visualize(Renderer* renderer, RenderTarget* visRenderTarget) {
+        // todo: split the render target into two section
+        struct Region {
+            i32 x, y;
+            i32 width, height;
+        };
+
+        Region regionA = { 0, 0, visRenderTarget->width * .5f, visRenderTarget->height };
+        Region regionB = { regionA.width, 0, visRenderTarget->width * .5f, visRenderTarget->height };
+
+        Viewport viewport = { };
+        glm::uvec2 scaledRes(glm::min(regionA.width * 0.8, regionA.height * 0.8));
+        // try to center the micro buffer in the dst traverseBSH target
+        viewport.m_x = regionA.width * .5f - scaledRes.x * .5f;
+        viewport.m_y = regionA.height * .5f - scaledRes.y * .5f;
+        viewport.m_width = scaledRes.x;
+        viewport.m_height = scaledRes.y;
+
+        auto shader = ShaderManager::createShader({
+            ShaderSource::Type::kVsPs,
+            "VisualizeMicroBufferShader",
+            SHADER_SOURCE_PATH "visualize_micro_buffer_v.glsl", 
+            SHADER_SOURCE_PATH "visualize_micro_buffer_p.glsl", 
+            nullptr,
+            nullptr,
+        });
+        renderer->submitScreenQuadPass(
+            visRenderTarget,
+            viewport,
+            shader,
+            [this, visRenderTarget](RenderTarget* renderTarget, Shader* shader) { 
+                visRenderTarget->setColorBuffer(visualization, 0);
+                visRenderTarget->setDrawBuffers({ 0 });
+                visRenderTarget->clearDrawBuffer(0, glm::vec4(0.1f, 0.1f, 0.1f, 1.f));
+                shader->setTexture("microColorBuffer", gpuTexture);
+                shader->setUniform("microBufferRes", resolution);
+            }
+        );
+    }
+
+    // micro-rendering on cpu
+    void MicroRenderingGI::softwareMicroRendering(const RenderableCamera& inCamera, SurfelBSH& surfelBSH) {
+        m_softwareMicroBuffer.render(inCamera, surfelBSH);
+        // m_softwareMicroBuffer.raytrace(inCamera, surfelBSH);
+    }
+
+    // micro-rendering on gpu
+    void MicroRenderingGI::hardwareMicroRendering(const RenderableCamera& camera, SurfelBSH& surfelBSH) {
+#if 0
         auto shader = ShaderManager::createShader({ 
             ShaderSource::Type::kCs,
             "MicroRenderingShader",
@@ -767,18 +1180,23 @@ namespace Cyan {
             SHADER_SOURCE_PATH "micro_rendering_c.glsl",
         });
         surfelBSH.gpuNodes.bind(64);
-        shader->setUniform("view", camera.view());
-        shader->setUniform("projection", camera.projection());
+        shader->setUniform("view", camera.view);
+        shader->setUniform("projection", camera.projection);
+        glBindImageTexture(1, debugMicroBuffer->getGpuResource(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA16);
+        m_gfxc->setShader(shader);
+        glDispatchCompute(1, 1, 1);
+#endif
     }
 
     void MicroRenderingGI::customUI() {
         PointBasedManyViewGI::customUI();
-        ImGui::Checkbox("Visualize Surfel BSH:", &bVisualizeSurfelTree);
-        if (bVisualizeSurfelTree) {
-            ImGui::Checkbox("Visualize Bounding Spheres:", &m_surfelBSH.bVisualizeBoundingSpheres);
-            ImGui::Checkbox("Visualize Nodes:", &m_surfelBSH.bVisualizeNodes);
+        ImGui::Checkbox("Visualize Surfel BSH", &bVisualizeSurfelBSH);
+        if (bVisualizeSurfelBSH) {
+            ImGui::Checkbox("Visualize Bounding Spheres", &m_surfelBSH.bVisualizeBoundingSpheres);
+            ImGui::Checkbox("Visualize Nodes", &m_surfelBSH.bVisualizeNodes);
             ImGui::Text("Visualize Level");
             ImGui::SliderInt("##Visualize Level", &m_surfelBSH.activeVisLevel, 0, m_surfelBSH.getNumLevels() - 1);
         }
+        ImGui::Checkbox("Visualize Surfel Sampler", &bVisualizeSurfelSampler);
     }
 }

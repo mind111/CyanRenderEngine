@@ -70,6 +70,7 @@
     <ClInclude Include="include\SkyBox.h" />
     <ClInclude Include="include\SkyLight.h" />
     <ClInclude Include="include\StaticMeshEntity.h" />
+    <ClInclude Include="include\Surfel.h" />
     <ClInclude Include="include\SurfelBSH.h" />
     <ClInclude Include="include\SurfelSampler.h" />
     <ClInclude Include="include\System.h" />
@@ -178,6 +179,7 @@
     <None Include="..\shader\light_definitions.glsl" />
     <None Include="..\shader\manyview_gi_convolve_irradiance_c.glsl" />
     <None Include="..\shader\material.glsl" />
+    <None Include="..\shader\micro_rendering_c.glsl" />
     <None Include="..\shader\point_shadow_p.glsl" />
     <None Include="..\shader\point_shadow_v.glsl" />
     <None Include="..\shader\point_vsm_shadow_p.glsl" />
@@ -227,6 +229,8 @@
     <None Include="..\shader\cone_vis_v.glsl" />
     <None Include="..\shader\visualize_irradiance_p.glsl" />
     <None Include="..\shader\visualize_irradiance_v.glsl" />
+    <None Include="..\shader\visualize_micro_buffer_p.glsl" />
+    <None Include="..\shader\visualize_micro_buffer_v.glsl" />
     <None Include="..\shader\visualize_surfel_p.glsl" />
     <None Include="..\shader\visualize_surfel_tree_p.glsl" />
     <None Include="..\shader\visualize_surfel_tree_v.glsl" />

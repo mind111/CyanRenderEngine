@@ -7,6 +7,79 @@
 #include "RenderTarget.h"
 
 namespace Cyan {
+    SurfelBSH::SurfelBSH() {
+        if (!visualization) {
+            ITextureRenderable::Spec spec = { };
+            spec.type = TEX_2D;
+            spec.width = 1280;
+            spec.height = 720;
+            spec.pixelFormat = PF_RGB16F;
+            visualization = new Texture2DRenderable("SurfelBSHVisualization", spec);
+        }
+    }
+
+    bool SurfelBSH::castRayInternal(const glm::vec3& ro, const glm::vec3& rd, const Node& node, RayHit& hit) const {
+        f32 t;
+        bool intersect = node.intersect(ro, rd, t);
+        if (intersect) {
+            if (node.isLeaf()) {
+                if (t < hit.t) {
+                    hit.t = t;
+                    hit.node = node;
+                    return true;
+                }
+                return false;
+            }
+            else {
+                i32 leftChild = node.childs[0];
+                i32 rightChild = node.childs[1];
+                intersect &= (castRayInternal(ro, rd, nodes[leftChild], hit) || castRayInternal(ro, rd, nodes[rightChild], hit));
+            }
+        }
+        return intersect;
+    }
+
+    bool SurfelBSH::castRay(const glm::vec3& ro, const glm::vec3& rd, RayHit& hit) const {
+        return castRayInternal(ro, rd, nodes[0], hit);
+    }
+
+    bool SurfelBSH::Node::intersect(const glm::vec3& ro, const glm::vec3& rd, f32& t) const { 
+        // ray-sphere intersection 
+        f32 t0, t1;
+        glm::vec3 l = ro - center;
+        f32 a = 1.f;
+        f32 b = 2.f * glm::dot(rd, l);
+        f32 c = glm::dot(l, l) - radius * radius;
+        f32 delta = b * b - 4.f * a * c;
+        if (delta < 0.f) {
+            return false;
+        }
+        else if (delta == 0.f) {
+            t0 = t1 = -.5f * b / a;
+        }
+        else {
+            f32 q = (b > 0) ? -0.5 * (b + sqrt(delta)) : -0.5 * (b - sqrt(delta));
+            t0 = q / a;
+            t1 = c / q;
+        }
+        if (t0 > t1) {
+            std::swap(t0, t1);
+        }
+        if (t0 < 0.f) {
+            if (t1 >= 0.f) {
+                t = t1;
+                return true;
+            }
+            return false;
+        }
+        else {
+            t = t0;
+            return true;
+        }
+        // unreachable
+        assert(0);
+    }
+
     void SurfelBSH::Node::build(const std::vector<Surfel>& surfels, u32 surfelIndex) {
         // this node is a child node
         surfelID = surfelIndex;
@@ -35,13 +108,27 @@ namespace Cyan {
         childs[1] = rightChildIndex;
     }
 
+    void SurfelBSH::dfs(i32 nodeIndex, const std::function<void(Node&)>& callback) {
+        if (nodeIndex < 0) {
+            return;
+        }
+        Node& node = nodes[nodeIndex];
+        callback(node);
+        dfs(node.childs[0], callback);
+        dfs(node.childs[1], callback);
+    }
+
     void SurfelBSH::build(const std::vector<Surfel>& inSurfels) {
         surfels = inSurfels;
 
         u32 numSurfels = surfels.size();
         buildInternal(allocNode(), surfels, 0, numSurfels);
         numLevels = levelFirstTraversal(0, -1);
-        // todo: validate built BSH
+        dfs(0, [this](Node& node) {
+            if (node.isLeaf()) {
+                leafNodes.push_back(node);
+            }
+        });
     }
 
     u32 SurfelBSH::allocNode() {
@@ -206,6 +293,10 @@ namespace Cyan {
     }
 
     void SurfelBSH::visualize(GfxContext* gfxc, RenderTarget* dstRenderTarget) {
+        if (nodes.empty()) {
+            return;
+        }
+
         enum class VisMode : u32 {
             kBoundingSphere = 0,
             kAlbedo,
@@ -214,6 +305,8 @@ namespace Cyan {
         };
 
         nodeInstanceBuffer.data.array.clear();
+#if 0
+        // visualize level by level 
         levelFirstTraversal(activeVisLevel, numVisLevels, [this](i32 nodeIndex) {
             glm::mat4 transform(1.f);
             // todo: found a bug here, because some node's normal for some reason becomes 'nan'
@@ -227,8 +320,28 @@ namespace Cyan {
             instanceDesc.debugColor = glm::vec4(1.f, 0.f, 0.f, 1.f);
             nodeInstanceBuffer.addElement(instanceDesc);
         });
+#else
+        // visualize leaf nodes
+        for (const auto& leaf : leafNodes) {
+            glm::mat4 transform(1.f);
+            // todo: found a bug here, because some node's normal for some reason becomes 'nan'
+            glm::mat4 tangentFrame = calcTangentFrame(glm::normalize(leaf.normal));
+            transform = glm::translate(transform, leaf.center);
+            transform = transform * tangentFrame;
+            transform = glm::scale(transform, glm::vec3(leaf.radius));
+            InstanceDesc instanceDesc = { };
+            instanceDesc.transform = transform;
+            instanceDesc.albedo = glm::vec4(leaf.albedo, 1.f);
+            instanceDesc.debugColor = glm::vec4(1.f, 0.f, 0.f, 1.f);
+            nodeInstanceBuffer.addElement(instanceDesc);
+        }
+#endif
         nodeInstanceBuffer.upload();
         nodeInstanceBuffer.bind(72);
+
+        dstRenderTarget->setColorBuffer(visualization, 0);
+        dstRenderTarget->setDrawBuffers({ 0 });
+        dstRenderTarget->clearDrawBuffer(0, glm::vec4(0.1f, 0.1f, 0.1f, 1.f));
         // visualize bounding spheres
         if (bVisualizeBoundingSpheres)
         {

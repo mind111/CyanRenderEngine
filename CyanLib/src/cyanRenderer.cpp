@@ -50,7 +50,7 @@ namespace Cyan
         m_windowSize(windowWidth, windowHeight),
         m_frameAllocator(1024 * 1024 * 32) // 32MB frame allocator
     {
-        m_manyViewGI = std::make_unique<MicroRenderingGI>(this, m_ctx);
+        m_manyViewGI = std::make_unique<ManyViewGI>(this, m_ctx);
     }
 
     void Renderer::Vctx::Voxelizer::init(u32 resolution)
@@ -681,13 +681,13 @@ namespace Cyan
         }
     }
 
-    void Renderer::registerVisualization(const std::string& categoryName, Texture2DRenderable* visualization) {
+    void Renderer::registerVisualization(const std::string& categoryName, Texture2DRenderable* visualization, bool* toggle) {
         auto entry = visualizationMap.find(categoryName);
         if (entry == visualizationMap.end()) {
-            visualizationMap.insert({ categoryName, { visualization } });
+            visualizationMap.insert({ categoryName, { VisualizationDesc{ visualization , toggle } } });
         }
         else {
-            entry->second.push_back(visualization);
+            entry->second.push_back(VisualizationDesc{ visualization, toggle });
         }
     }
 

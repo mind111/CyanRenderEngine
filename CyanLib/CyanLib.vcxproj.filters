@@ -76,6 +76,9 @@
     <Filter Include="Header Files\ManyViewGI">
       <UniqueIdentifier>{7cba3887-81fc-459e-93e7-7d500436a329}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\ManyViewGI\MicroRendering">
+      <UniqueIdentifier>{8d5ba569-fd3a-402a-a488-b89d680904e8}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Allocator.h">
@@ -274,6 +277,9 @@
       <Filter>Header Files\ManyViewGI</Filter>
     </ClInclude>
     <ClInclude Include="include\ManyViewGI.h">
+      <Filter>Header Files\ManyViewGI</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Surfel.h">
       <Filter>Header Files\ManyViewGI</Filter>
     </ClInclude>
   </ItemGroup>
@@ -840,6 +846,15 @@
     </None>
     <None Include="..\shader\debug_draw_grid_p.glsl">
       <Filter>Shaders\ManyViewGI\SurfelSampler</Filter>
+    </None>
+    <None Include="..\shader\micro_rendering_c.glsl">
+      <Filter>Shaders\ManyViewGI\MicroRendering</Filter>
+    </None>
+    <None Include="..\shader\visualize_micro_buffer_v.glsl">
+      <Filter>Shaders\ManyViewGI\MicroRendering</Filter>
+    </None>
+    <None Include="..\shader\visualize_micro_buffer_p.glsl">
+      <Filter>Shaders\ManyViewGI\MicroRendering</Filter>
     </None>
   </ItemGroup>
 </Project>

@@ -4,40 +4,26 @@
 
 #include "Common.h"
 #include "glm/glm.hpp"
+#include "Surfel.h"
 #include "ShaderStorageBuffer.h"
 
 namespace Cyan {
     class GfxContext;
     struct RenderTarget;
-
-    struct Surfel {
-        glm::vec3 position;
-        glm::vec3 normal;
-        glm::vec3 albedo;
-        f32 radius;
-    };
-
-    struct GpuSurfel {
-        glm::vec4 positionAndRadius;
-        glm::vec4 normal;
-        glm::vec4 albedo;
-        glm::vec4 radiance;
-    };
-
-    struct InstanceDesc {
-        glm::mat4 transform;
-        glm::vec4 albedo;
-        glm::vec4 radiance;
-        glm::vec4 debugColor;
-    };
+    struct Texture2DRenderable;
 
     /** 
     * Surfel Bounding Sphere Hierarchy
     */
     struct SurfelBSH {
+        SurfelBSH();
+        ~SurfelBSH() { }
+
         struct Node {
             void build(const std::vector<Surfel>& surfels, u32 surfelIndex);
             void build(const std::vector<Node>& nodes, u32 leftChildIndex, u32 rightChildIndex);
+            bool isLeaf() const { return (childs[0] < 0 && childs[1] < 0); }
+            bool intersect(const glm::vec3& ro, const glm::vec3& rd, f32& t) const;
 
             i32 childs[2] = { -1, -1 };
             glm::vec3 center = glm::vec3(0.f);
@@ -62,17 +48,28 @@ namespace Cyan {
             glm::ivec4 childs;
         };
 
+        struct RayHit {
+            Node node = { };
+            f32 t = FLT_MAX;
+        };
+
         friend class MicroRenderingGI;
 
         virtual void build(const std::vector<Surfel>& inSurfels);
+        Texture2DRenderable* getVisualization() { return visualization; }
+        bool castRay(const glm::vec3& ro, const glm::vec3& rd, RayHit& hit) const;
 
         Node* root = nullptr;
         std::vector<Surfel> surfels;
         std::vector<Node> nodes;
         ShaderStorageBuffer<DynamicSsboData<GpuNode>> gpuNodes;
+        std::vector<Node> leafNodes;
     protected:
+        void dfs(i32 nodeIndex, const std::function<void(Node&)>& callback);
+        bool castRayInternal(const glm::vec3& ro, const glm::vec3& rd, const Node& node, RayHit& hit) const;
         virtual u32 getNumLevels() { return numLevels; }
         ShaderStorageBuffer<DynamicSsboData<InstanceDesc>> nodeInstanceBuffer;
+        Texture2DRenderable* visualization = nullptr;
         i32 activeVisLevel = 0;
         i32 numVisLevels = 1;
         bool bVisualizeBoundingSpheres = true;

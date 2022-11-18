@@ -26,7 +26,6 @@ mat4 projection;
 /** note - @min: 
 * reference: https://www.rorydriscoll.com/2012/01/15/cubemap-texel-solid-angle/
 */
-// todo: something is wrong with this calculation
 // calculate the solid angle of the pixel being rasterized
 float solidAngleHelper(vec2 st) {
     return atan(st.x * st.y, sqrt(st.x * st.x + st.y * st.y + 1.f));

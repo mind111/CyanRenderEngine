@@ -1,10 +1,11 @@
 #pragma once
 
-#include "SurfelBSH.h"
+#include "Surfel.h"
+#include "RenderableScene.h"
 
 namespace Cyan {
-    class SceneRenderable;
     class Renderer;
+    struct RenderTarget;
 
     struct SurfelSampler {
         void sampleRandomSurfels() { }
