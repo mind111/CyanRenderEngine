@@ -178,6 +178,7 @@
     <None Include="..\shader\instant_radiosity_v.glsl" />
     <None Include="..\shader\light_definitions.glsl" />
     <None Include="..\shader\manyview_gi_convolve_irradiance_c.glsl" />
+    <None Include="..\shader\manyview_gi_oct_radiance_c.glsl" />
     <None Include="..\shader\material.glsl" />
     <None Include="..\shader\micro_rendering_c.glsl" />
     <None Include="..\shader\point_shadow_p.glsl" />

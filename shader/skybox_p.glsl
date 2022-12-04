@@ -8,6 +8,7 @@ in VSOutput
 out vec4 outColor;
 layout (location = 0) out vec4 linearColor;
 uniform samplerCube cubemapTexture;
+uniform float mipLevel;
 
 float saturate(float k)
 {
@@ -17,6 +18,6 @@ float saturate(float k)
 void main()
 {
     vec3 d = normalize(psIn.objectSpacePosition);
-    vec3 linearColor = texture(cubemapTexture, d).rgb;
+    vec3 linearColor = textureLod(cubemapTexture, d, mipLevel).rgb;
     outColor = vec4(linearColor, 1.0f);
 }

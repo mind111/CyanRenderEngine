@@ -13,6 +13,7 @@ uniform float enableBloom;
 uniform float bloomIntensity;
 uniform float enableTonemapping;
 uniform uint tonemapOperator;
+uniform float whitePointLuminance;
 
 uniform sampler2D sceneColorTexture;
 uniform sampler2D bloomColorTexture;
@@ -32,11 +33,17 @@ vec3 adjustExposure(vec3 inLinearColor)
     return vec3(0.f);
 }
 
-vec3 ReinhardTonemapping(in vec3 inLinearColor, float whitePointLuminance)
+/** note - @mind:
+* run into an issue where input inLinearColor is (inf, inf, inf), and then the luminance becomes inf
+* leading the division by luminance becoming 0. Should luminance be bound by whitePointLuminance...?
+*/
+#define MAX_RGB 1000.f
+vec3 ReinhardTonemapping(in vec3 inLinearColor, float whitePointLum)
 {
-    float luminance = calcLuminance(inLinearColor);
-    vec3 color = inLinearColor / luminance;
-    float numerator = luminance * (1. + luminance / (whitePointLuminance * whitePointLuminance));
+    vec3 color = vec3(min(MAX_RGB, inLinearColor.r), min(MAX_RGB, inLinearColor.g), min(MAX_RGB, inLinearColor.b));
+    float luminance = calcLuminance(color);
+    color = inLinearColor / luminance;
+    float numerator = luminance * (1. + luminance / (whitePointLum * whitePointLum));
     float remappedLuminance = numerator / (1.f + luminance);
     return color * remappedLuminance;
 }
@@ -135,7 +142,7 @@ void main()
 		}
         else if (tonemapOperator == TONEMAPPER_REINHARD)
         {
-			tonemappedColor = ReinhardTonemapping(exposure * linearColor, 100.f);
+			tonemappedColor = ReinhardTonemapping(exposure * linearColor, whitePointLuminance);
 			tonemappedColor = gammaCorrection(tonemappedColor, 1.f / 2.2f);
         }
 		outColor = vec4(tonemappedColor, 1.f);

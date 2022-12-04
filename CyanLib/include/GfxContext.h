@@ -16,10 +16,10 @@ namespace Cyan
 {
     struct Viewport
     {
-        u32 m_x;
-        u32 m_y;
-        u32 m_width;
-        u32 m_height;
+        u32 x;
+        u32 y;
+        u32 width;
+        u32 height;
     };
 
     enum class PrimitiveMode

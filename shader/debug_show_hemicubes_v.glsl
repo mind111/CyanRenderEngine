@@ -10,14 +10,17 @@ out VSOutput
 {
     flat int instanceID;
     vec3 objectSpacePosition;
+    flat ivec2 atlasTexCoord;
 } vsOut;
 
-struct InstanceInfo {
+struct InstanceDesc {
     mat4 transform;
+    ivec2 atlasTexCoord;
+    ivec2 padding;
 };
 
 layout(std430, binding = 63) buffer InstanceBuffer {
-    InstanceInfo instances[];
+    InstanceDesc instances[];
 };
 
 layout(std430, binding = 0) buffer ViewShaderStorageBuffer
@@ -34,4 +37,5 @@ void main() {
 	gl_Position = mvp * vec4(vertexPos, 1.f);
     vsOut.instanceID = gl_InstanceID;
     vsOut.objectSpacePosition = vertexPos;
+    vsOut.atlasTexCoord = instances[gl_InstanceID].atlasTexCoord;
 }

@@ -22,12 +22,11 @@ namespace Cyan
             /*name=*/"Camera",
             /*transform=*/Transform {
                 glm::vec3(0.f, 3.2f, 8.f)
-                // glm::vec3(0.f, 1.5f, 4.f)
             },
             /*inLookAt=*/glm::vec3(0., 1., -1.),
             /*inWorldUp=*/glm::vec3(0.f, 1.f, 0.f),
             /*inFov=*/45.f,
-            .5f,
+            .1f,
             150.f,
             cameraAspectRatio
         ));

@@ -3,10 +3,12 @@ layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 layout(rgba16f, binding = 0) uniform image2D irradianceAtlas;
 
 #define pi 3.1415926
-uniform ivec2 hemicubeCoord;
-uniform uint microBufferRes;
-uniform uint resampledMicroBufferRes;
+uniform ivec2 texCoord;
+uniform uint finalGatherRes;
+uniform uint radianceRes;
 uniform samplerCube radianceCubemap;
+uniform vec3 hemicubeNormal;
+uniform mat4 hemicubeTangentFrame;
 
 // Returns ±1
 vec2 signNotZero(vec2 v) {
@@ -69,14 +71,21 @@ float calcCubemapTexelSolidAngle(vec3 d, float cubemapResolution) {
 
 void main() {
 	vec3 irradiance = vec3(0.f);
-	for (int i = 0; i < resampledMicroBufferRes; ++i) {
-		for (int j = 0; j < resampledMicroBufferRes; ++j) {
-			vec2 texCoord = vec2(float(j) / float(resampledMicroBufferRes), float(i) / float(resampledMicroBufferRes));
-			vec3 d = octDecode(texCoord * 2.f - 1.f);
-            float solidAngle = calcCubemapTexelSolidAngle(d, microBufferRes);
-			irradiance += texture(radianceCubemap, d).rgb * solidAngle;
+	for (int i = 0; i < radianceRes; ++i) {
+		for (int j = 0; j < radianceRes; ++j) {
+			vec2 pixelCoord = (vec2(float(j), float(i)) + .5f) / radianceRes;
+			vec3 d = octDecode(pixelCoord * 2.f - 1.f);
+            vec3 worldSpaceDir = (hemicubeTangentFrame * vec4(d, 0.f)).xyz;
+            float ndotl = max(dot(worldSpaceDir, hemicubeNormal), 0.f);
+			/** note - @mind:
+			* dividing by finalGatherRes here might not be right here as a texel
+            * in the hemicube doesn't exactly corresponds to one texel in the resampled
+            * radiance atlas, but leave it as is for now
+			*/
+            float solidAngle = calcCubemapTexelSolidAngle(d, finalGatherRes);
+			irradiance += texture(radianceCubemap, d).rgb * ndotl * solidAngle;
 		}
 	}
 	irradiance /= pi;
-	imageStore(irradianceAtlas, ivec2(hemicubeCoord), vec4(irradiance, 1.f));
+	imageStore(irradianceAtlas, ivec2(texCoord), vec4(irradiance, 1.f));
 }

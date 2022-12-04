@@ -856,5 +856,8 @@
     <None Include="..\shader\visualize_micro_buffer_p.glsl">
       <Filter>Shaders\ManyViewGI\MicroRendering</Filter>
     </None>
+    <None Include="..\shader\manyview_gi_oct_radiance_c.glsl">
+      <Filter>Shaders\ManyViewGI</Filter>
+    </None>
   </ItemGroup>
 </Project>

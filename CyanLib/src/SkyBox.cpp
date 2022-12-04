@@ -20,6 +20,7 @@ namespace Cyan
 
         ITextureRenderable::Spec HDRISpec = { };
         HDRISpec.type = TEX_2D;
+        // todo: parse out the name of the HDRI and use that as the texture name 
         m_srcHDRITexture = AssetManager::importTexture2D("HDRITexture", srcHDRIPath, HDRISpec);
 
         ITextureRenderable::Spec cubemapSpec = { };
@@ -28,7 +29,7 @@ namespace Cyan
         cubemapSpec.height = resolution.x;
         cubemapSpec.pixelFormat = PF_RGB16F;
         ITextureRenderable::Parameter cubemapParams = { };
-        cubemapParams.minificationFilter = FM_BILINEAR;
+        cubemapParams.minificationFilter = FM_TRILINEAR;
         cubemapParams.magnificationFilter = FM_BILINEAR;
         cubemapParams.wrap_r = WM_CLAMP;
         cubemapParams.wrap_s = WM_CLAMP;
@@ -71,13 +72,20 @@ namespace Cyan
                     shader->setUniform("view", camera.view());
                 });
         }
+
+        // make sure that the input cubemap resolution is power of 2
+        if (m_cubemapTexture->resolution & (m_cubemapTexture->resolution - 1) != 0) {
+            assert(0);
+        }
+        m_cubemapTexture->numMips = (u32)log2f(m_cubemapTexture->resolution) + 1;
+        glGenerateTextureMipmap(m_cubemapTexture->getGpuResource());
     }
 
     Skybox::Skybox(const char* name, TextureCubeRenderable* srcCubemap) {
 
     }
 
-    void Skybox::render(RenderTarget* renderTarget)
+    void Skybox::render(RenderTarget* renderTarget, f32 mipLevel)
     {
         Mesh* cubeMesh = AssetManager::getAsset<Mesh>("UnitCubeMesh");
 
@@ -87,8 +95,9 @@ namespace Cyan
             GfxPipelineState(),
             cubeMesh,
             s_cubemapSkyShader,
-            [this](RenderTarget* renderTarget, Shader* shader) {
+            [this, mipLevel](RenderTarget* renderTarget, Shader* shader) {
                 shader->setTexture("cubemapTexture", m_cubemapTexture);
+                shader->setUniform("mipLevel", mipLevel);
             });
     }
 }

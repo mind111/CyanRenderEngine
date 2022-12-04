@@ -3,7 +3,7 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include "gtx/hash.hpp"
 #include "tiny_obj_loader.h"
-#include "xatlas.h"
+// #include "xatlas.h"
 
 #include "AssetManager.h"
 #include "Texture.h"
@@ -179,6 +179,7 @@ namespace Cyan
         std::string warn;
         std::string err;
 
+#if 0
         auto addSubmeshToLightmap = [](xatlas::Atlas* atlas, const std::vector<Triangles::Vertex>& vertices, const std::vector<u32>& indices) {
             xatlas::SetPrint(Print, true);
             xatlas::MeshDecl meshDecl;
@@ -197,6 +198,7 @@ namespace Cyan
             if (error != xatlas::AddMeshError::Success) 
                 cyanError("Error adding mesh");
         };
+#endif
 
         bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filename, baseDir);
         if (!ret)
@@ -205,7 +207,7 @@ namespace Cyan
             cyanError("Warnings: %s               ", warn.c_str());
             cyanError("Errors:   %s               ", err.c_str());
         }
-        auto atlas = xatlas::Create();
+        // auto atlas = xatlas::Create();
         std::vector<ISubmesh*> submeshes;
         for (u32 s = 0; s < shapes.size(); ++s)
         {
@@ -284,7 +286,7 @@ namespace Cyan
 
                 if (bGenerateLightMapUv)
                 {
-                    addSubmeshToLightmap(atlas, vertices, indices);
+                    // addSubmeshToLightmap(atlas, vertices, indices);
                 }
             } 
             // load lines
@@ -315,6 +317,7 @@ namespace Cyan
         }
 
         // generating lightmap uv if requested
+#if 0
         if (bGenerateLightMapUv)
         {
             // atlas now holds results of packing
@@ -349,6 +352,7 @@ namespace Cyan
             }
         }
         xatlas::Destroy(atlas);
+#endif
         return std::move(submeshes);
 #if 0
         for (u32 i = 0; i < materials.size(); ++i)

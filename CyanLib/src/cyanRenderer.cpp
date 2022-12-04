@@ -1761,6 +1761,7 @@ namespace Cyan
             [this, inBloomColor, inSceneColor](RenderTarget* renderTarget, Shader* shader) {
                 shader->setUniform("enableTonemapping", m_settings.enableTonemapping ? 1.f : 0.f);
                 shader->setUniform("tonemapOperator", m_settings.tonemapOperator);
+                shader->setUniform("whitePointLuminance", m_settings.whitePointLuminance);
                 if (inBloomColor && m_settings.enableBloom) {
                     shader->setUniform("enableBloom", 1.f);
                 } else {

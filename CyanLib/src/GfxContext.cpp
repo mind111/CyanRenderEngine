@@ -119,7 +119,7 @@ namespace Cyan
     void GfxContext::setViewport(Viewport viewport)
     {
         m_viewport = viewport;
-        glViewport(viewport.m_x, viewport.m_y, viewport.m_width, viewport.m_height);
+        glViewport(viewport.x, viewport.y, viewport.width, viewport.height);
     }
 
     void GfxContext::setRenderTarget(RenderTarget* renderTarget) {

@@ -3,8 +3,6 @@
 layout (location = 0) in vec3 vertexPos;
 layout (location = 1) in vec3 vertexNormal;
 layout (location = 2) in vec4 vertexTangent;
-layout (location = 3) in vec2 textureUv_0;
-layout (location = 4) in vec2 textureUv_1;
 
 out VSOutput {
 	vec3 color;
@@ -21,14 +19,20 @@ layout(std430, binding = 66) buffer IrradianceCoordBuffer {
 	vec2 irradianceCoords[];
 };
 
-layout(std430, binding = 67) buffer InstanceBuffer {
-	mat4 transforms[];
+struct InstanceDesc {
+    mat4 transform;
+    ivec2 atlasTexCoord;
+    ivec2 padding;
+};
+
+layout(std430, binding = 63) buffer InstanceBuffer {
+    InstanceDesc instances[];
 };
 
 uniform sampler2D irradianceBuffer;
 
 void main() {
-    mat4 model = transforms[gl_InstanceID];
+    mat4 model = instances[gl_InstanceID].transform;
     gl_Position = projection * view * model * vec4(vertexPos, 1.f);
-    vsOut.color = texture(irradianceBuffer, irradianceCoords[gl_InstanceID]).rgb;
+    vsOut.color = texture(irradianceBuffer, vec2(instances[gl_InstanceID].atlasTexCoord) / textureSize(irradianceBuffer, 0)).rgb;
 }

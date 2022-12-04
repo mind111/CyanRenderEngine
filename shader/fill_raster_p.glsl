@@ -9,7 +9,6 @@ uniform sampler2D depthBuffer;
 uniform sampler2D normalBuffer;
 uniform vec2 outputSize;
 uniform vec2 debugRadianceCubeScreenCoord;
-uniform uint maxNumRadianceCubes;
 
 #define VIEW_SSBO_BINDING 0
 layout(std430, binding = VIEW_SSBO_BINDING) buffer ViewShaderStorageBuffer

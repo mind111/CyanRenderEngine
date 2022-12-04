@@ -407,6 +407,15 @@ namespace Cyan
                     i32 currentOperator = (i32)renderer->m_settings.tonemapOperator;
                     ImGui::Combo("Tonemap Operator", &currentOperator, tonemapOperatorNames, (i32)Renderer::TonemapOperator::kCount);
                     renderer->m_settings.tonemapOperator = (u32)currentOperator;
+                    switch ((Renderer::TonemapOperator)renderer->m_settings.tonemapOperator) {
+                    case Renderer::TonemapOperator::kReinhard:
+                        ImGui::SliderFloat("White Point Luminance", &renderer->m_settings.whitePointLuminance, 1.f, 200.f, "%.2f");
+                        break;
+                    case Renderer::TonemapOperator::kACES:
+                        break;
+                    default:
+                        break;
+                    }
                 }
             }
         }

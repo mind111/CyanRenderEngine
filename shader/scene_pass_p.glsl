@@ -44,7 +44,7 @@ layout (binding = 16) uniform sampler2D vctxReflection;
 
 // constants
 #define pi 3.14159265359
-#define SLOPE_BASED_BIAS 1
+#define SLOPE_BASED_BIAS 0
 #define VIEW_SSBO_BINDING 0
 #define VARIANCE_SHADOWMAP 0
 
@@ -429,7 +429,7 @@ float ggxSmithG1Ex(vec3 v, vec3 h, vec3 n, float roughness)
 {
     float hdotv = saturate(dot(h, v));
     float ndotv = saturate(dot(n, v));
-    float tanThetaV2 = (1.f - ndotv * ndotv) / max((ndotv * ndotv), 0.1);
+    float tanThetaV2 = (1.f - ndotv * ndotv) / max((ndotv * ndotv), 1e-2);
     // apply Disney' roughness remapping here to reduce "hot" specular, this should only be applied to analytical light sources 
     float a = pow((0.5 + roughness * .5), 2.f);
     return (hdotv / ndotv) > 0.f ? 2.f / (1.f + sqrt(1.f + a * a * tanThetaV2)) : 0.f;
@@ -452,8 +452,8 @@ float ggxSmithG(vec3 n, vec3 v, vec3 l, float roughness)
 /**
     * microfacet diffuse brdf
 */
-vec3 LambertBRDF(vec3 baseColor) {
-    return baseColor / pi;
+float LambertBRDF() {
+    return 1.f / pi;
 }
 
 /**
@@ -472,8 +472,8 @@ vec3 DisneyDiffuseBRDF(float hdotl, float ndotl, float ndotv, MaterialParameters
     float fl = pow((1.f - ndotl), 5.f);
     float fv = pow((1.f - ndotv), 5.f);
     float rr = (2.f * roughness) * (hdotl * hdotl);
-    vec3 diffuseRetrorefl = LambertBRDF(materialParameters.albedo) * rr * (fl + fv + fl * fv * (rr - 1.f));
-    vec3 diffuseReflectance = LambertBRDF(materialParameters.albedo) * (1.f - .5 * fl) * (1.f - .5 * fv) + diffuseRetrorefl;
+    vec3 diffuseRetrorefl = materialParameters.albedo * LambertBRDF() * rr * (fl + fv + fl * fv * (rr - 1.f));
+    vec3 diffuseReflectance = materialParameters.albedo * LambertBRDF() * (1.f - .5 * fl) * (1.f - .5 * fv) + diffuseRetrorefl;
 #endif
     return diffuseReflectance;
 }
@@ -496,7 +496,7 @@ vec3 CookTorranceBRDF(vec3 wi, vec3 wo, vec3 n, float roughness, vec3 f0)
     * near grazing angle. Using a small value like 0.0001 will cause pretty bad shading aliasing.
     * using .1 here to suppress tiny specular highlights from flickering 
     */ 
-    return D * F * G / ((4.f * ndotv * ndotl) + 1e-1);
+    return D * F * G / max((4.f * ndotv * ndotl), 1e-1);
 }
 
 /**
@@ -538,11 +538,14 @@ vec3 calcDirectionalLight(in DirectionalLight directionalLight, MaterialParamete
     /** 
     * diffuse
     */
+    /*
     vec3 h = normalize(directionalLight.direction.xyz + worldSpaceViewDirection);
     float hdotl = saturate(dot(h, directionalLight.direction.xyz));
     float ndotv = saturate(dot(materialParameters.normal, worldSpaceViewDirection));
-    vec3 diffuse = mix((1.f - f0), vec3(0.f), materialParameters.metallic) * LambertBRDF(materialParameters.albedo);
-    // vec3 diffuse = mix((1.f - f0), vec3(0.f), materialParameters.metallic) * DisneyDiffuseBRDF(hdotl, ndotl, ndotv, materialParameters);
+    vec3 diffuse = mix((1.f - f0), vec3(0.f), materialParameters.metallic) * DisneyDiffuseBRDF(hdotl, ndotl, ndotv, materialParameters);
+    */
+    vec3 f = fresnel(f0, materialParameters.normal, worldSpaceViewDirection);
+    vec3 diffuse = mix((1.f - f), vec3(0.f), materialParameters.metallic) * materialParameters.albedo * LambertBRDF();
 
     /** 
     * specular
@@ -562,8 +565,7 @@ vec3 calcPointLight()
     return radiance;
 }
 
-vec3 calcSkyLight(SkyLight skyLight, in MaterialParameters materialParameters, vec3 worldSpacePosition)
-{
+vec3 calcSkyLight(SkyLight skyLight, in MaterialParameters materialParameters, vec3 worldSpacePosition) {
     vec3 radiance = vec3(0.f);
 
     vec3 worldSpaceViewDirection = (inverse(viewSsbo.view) * vec4(normalize(-psIn.viewSpacePosition), 0.0)).xyz;
@@ -573,21 +575,13 @@ vec3 calcSkyLight(SkyLight skyLight, in MaterialParameters materialParameters, v
 
     vec3 f0 = calcF0(materialParameters);
 
-    // irradiance
-    vec2 pixelCoords = gl_FragCoord.xy / vec2(2560.f, 1440.f);
-
-    vec3 diffuse = mix((1.f - f0), vec3(0.f), materialParameters.metallic) * DisneyDiffuseBRDF(hdotl, 1.f, ndotv, materialParameters);
-    vec3 irradiance;
-    if (useBentNormal > 0.5f) {
-		vec3 bentNormal = texture(sampler2D(SSBN), pixelCoords).rgb * 2.f - 1.f;
-		irradiance = texture(skyLight.irradiance, bentNormal).rgb;
-	} else {
-        irradiance = texture(skyLight.irradiance, materialParameters.normal).rgb; 
-	}
     float ao = 1.f;
-    if (useSSAO > .5f) {
-		float ao = texture(sampler2D(SSAO), pixelCoords).r;
-	}
+
+    // irradiance
+    vec3 f = fresnel(f0, materialParameters.normal, worldSpaceViewDirection);
+    vec3 diffuse = mix((1.f - f), vec3(0.f), materialParameters.metallic) * materialParameters.albedo * LambertBRDF();
+    vec3 irradiance = diffuse * texture(skyLight.irradiance, materialParameters.normal).rgb; 
+    radiance += irradiance * ao;
 
     // reflection
     vec3 reflectionDirection = -reflect(worldSpaceViewDirection, materialParameters.normal);

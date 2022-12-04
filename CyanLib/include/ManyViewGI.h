@@ -18,6 +18,15 @@ namespace Cyan {
     struct SceneRenderable;
     struct RenderTarget;
 
+    /** todo: improve rendering quality
+    * add direct skylight 
+    * add direct lighting
+    * noise
+    */ 
+
+    /** todo: improve speed
+    * render to 5 faces in one pass
+    */ 
     class ManyViewGI {
     public:
         struct Hemicube {
@@ -25,31 +34,55 @@ namespace Cyan {
             glm::vec4 normal;
         };
 
-        // generate random directions with in a cone centered around the normal vector
-        struct RandomizedCone {
-            glm::vec3 sample(const glm::vec3& n) {
-                glm::vec2 st = glm::vec2(uniformSampleZeroToOne(), uniformSampleZeroToOne());
-                f32 coneRadius = glm::atan(glm::radians(aperture)) * h;
-                // a point on disk
-                f32 r = sqrt(st.x) * coneRadius;
-                f32 theta = st.y * 2.f * M_PI;
-                // pp is an uniform random point on the bottom of a cone centered at the normal vector in the tangent frame
-                glm::vec3 pp = glm::vec3(glm::vec2(r * cos(theta), r * sin(theta)), 1.f);
-                pp = glm::normalize(pp);
-                // transform pp back to the world space
-                return tangentToWorld(n) * pp;
-            }
-
-            const f32 h = 1.0;
-            const f32 aperture = 5; // in degrees
-        } m_sampler;
-
         struct Image {
-            glm::uvec2 resolution = glm::uvec2(128, 72);
+            Image(const glm::uvec2& resolution, u32 inFinalGatherRes);
+            ~Image() { }
+
+            void initialize();
+            virtual void setup(const SceneRenderable& inScene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer);
+            virtual void clear() { }
+            virtual void render(ManyViewGI* gi);
+
+            void writeRadiance(TextureCubeRenderable* radianceCubemap, const glm::ivec2& texCoord);
+            void writeIrradiance(TextureCubeRenderable* radianceCubemap, const Hemicube& hemicube, const glm::ivec2& texCoord);
+            bool finished() { return nextHemicube >= hemicubes.size(); }
+            void visualizeHemicubes(RenderTarget* dstRenderTarget);
+            void visualizeIrradiance(RenderTarget* dstRenderTarget);
+
+            u32 finalGatherRes;
+            u32 radianceRes;
+            glm::uvec2 irradianceRes;
+            glm::uvec2 radianceAtlasRes;
             Texture2DRenderable* irradiance = nullptr;
-            Texture2DRenderable* radiance = nullptr;
+            Texture2DRenderable* radianceAtlas = nullptr;
+        protected:
+            struct InstanceDesc {
+                glm::mat4 transform;
+                glm::ivec2 atlasTexCoord;
+                glm::ivec2 padding;
+            };
+            ShaderStorageBuffer<DynamicSsboData<InstanceDesc>> hemicubeInstanceBuffer;
+
+            struct Axis {
+                glm::mat4 v0;
+                glm::mat4 v1;
+                glm::vec4 albedo;
+            };
+            ShaderStorageBuffer<DynamicSsboData<Axis>> tangentFrameInstanceBuffer;
+
+            u32 kMaxNumHemicubes = 0;
+            u32 numGeneratedHemicubes = 0;
+            GLuint hemicubeBuffer;
             std::vector<Hemicube> hemicubes;
-        } m_image;
+            std::vector<glm::vec3> jitteredSampleDirections;
+            std::unique_ptr<SceneRenderable> scene;
+        private:
+            void generateHemicubes(Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer);
+            void generateSampleDirections();
+
+            u32 nextHemicube = 0;
+            bool bInitialized = false;
+        };
 
         ManyViewGI(Renderer* renderer, GfxContext* ctx);
         virtual ~ManyViewGI() { }
@@ -58,32 +91,17 @@ namespace Cyan {
         void setup(const SceneRenderable& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer);
         void render(RenderTarget* sceneRenderTarget, const SceneRenderable& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer);
 
-        virtual void customInitialize() { }
+        // extension points
+        virtual void customInitialize();
         virtual void customSetup(const SceneRenderable& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) { }
         virtual void customRender(const RenderableCamera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) { }
-        virtual void customRenderScene(const Hemicube& hemicube, const PerspectiveCamera& camera);
+        virtual void customRenderScene(const SceneRenderable& scene, const Hemicube& hemicube, const PerspectiveCamera& camera);
         virtual void customUI() {}
-        virtual void reset();
 
-        void gatherRadiance(const Hemicube& hemicube, u32 hemicubeIdx, bool jitter, const SceneRenderable& scene, TextureCubeRenderable* radianceCubemap);
-        void placeHemicubes(Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer);
-        void progressiveBuildRadianceAtlas(SceneRenderable& sceneRenderable);
-        void resampleRadiance(TextureCubeRenderable* radianceCubemap, glm::uvec2 index);
-        void convolveIrradiance(const glm::ivec2& hemicubeCoord, TextureCubeRenderable* radianceCubemap);
-        void convolveIrradianceBatched();
-        // visualizations
-        void visualizeHemicubes(RenderTarget* dstRenderTarget);
-        void visualizeIrradiance(RenderTarget* dstRenderTarget);
-
-        // constants
-        const i32 perFrameWorkload = 4;
-        const u32 finalGatherRes = 16;
-        const u32 resampledMicroBufferRes = 24;
-        glm::uvec2 irradianceAtlasRes = glm::uvec2(128, 72);
-        glm::uvec2 radianceAtlasRes = irradianceAtlasRes * resampledMicroBufferRes;
+        TextureCubeRenderable* finalGathering(const Hemicube& hemicube, const SceneRenderable& scene, bool jitter=false, const glm::vec3& jitteredSampleDirection=glm::vec3(0.f));
 
         struct VisualizationBuffers {
-            glm::uvec2 resolution = glm::uvec2(1280, 720);
+            glm::uvec2 resolution = glm::uvec2(640, 360);
             Texture2DRenderable* shared = nullptr;
         } visualizations;
 
@@ -92,36 +110,34 @@ namespace Cyan {
             bool bVisualizeIrradiance = false;
         } opts;
 
-        GLuint hemicubeBuffer = -1;
-        std::vector<Hemicube> hemicubes;
-        std::vector<glm::vec3> jitteredSampleDirections;
-
-        bool bBuilding = false;
-        u32 renderedFrames = 0u;
-        u32 maxNumHemicubes = 0u;
-
-        std::vector<TextureCubeRenderable*> radianceCubemaps;
-        RenderTarget* radianceAtlasRenderTarget = nullptr;
-        Texture2DRenderable* radianceAtlas = nullptr;
-        Texture2DRenderable* irradianceAtlas = nullptr;
+        const u32 kFinalGatherRes = 16;
+        const glm::uvec2 kImageResolution = glm::uvec2(320, 180);
     protected:
+
         Renderer* m_renderer = nullptr;
         GfxContext* m_gfxc = nullptr;
         std::unique_ptr<SceneRenderable> m_scene = nullptr;
+        TextureCubeRenderable* m_sharedRadianceCubemap = nullptr;
+        Image* m_image = nullptr;
     private:
-        static TextureCubeRenderable* m_sharedRadianceCubemap;
         bool bInitialized = false;
     };
 
     class PointBasedManyViewGI : public ManyViewGI {
     public:
+        struct Image : public ManyViewGI::Image {
+            virtual void setup(const SceneRenderable& inScene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) override { }
+        private: 
+            std::vector<Surfel> surfels;
+        };
+
         PointBasedManyViewGI(Renderer* renderer, GfxContext* gfxc);
         ~PointBasedManyViewGI() { }
 
         virtual void customInitialize() override;
         virtual void customSetup(const SceneRenderable& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) override;
         virtual void customRender(const RenderableCamera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) override;
-        virtual void customRenderScene(const Hemicube& hemicube, const PerspectiveCamera& camera) override;
+        virtual void customRenderScene(const SceneRenderable& scene, const Hemicube& hemicube, const PerspectiveCamera& camera) override;
         virtual void customUI() override;
 
         struct Visualizations {

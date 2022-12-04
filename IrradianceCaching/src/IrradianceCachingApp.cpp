@@ -19,12 +19,8 @@ public:
     {
         using namespace Cyan;
 
-        AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/simplified_cyan_toybox.glb", "CyanToybox");
-        // AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/shader_balls.glb", "ShaderBall");
-        // AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/cornell_box.gltf", "CornellBox");
-        // AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/sponza-gltf-pbr/sponza.glb", "Sponza");
-        // AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/ue_archvis.glb", "interior");
-        // AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/sun_temple/SimplifiedSunTemple.glb", "SimplifiedSunTemple");
+        // AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/simplified_cyan_toybox.glb", "CyanToybox");
+        AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/shader_balls.glb", "ShaderBall");
 
         ITextureRenderable::Spec spec = { };
         ITextureRenderable::Parameter parameter = { };
@@ -36,11 +32,11 @@ public:
         AssetManager::importTexture2D("BlueNoise_16x16", ASSET_PATH "textures/noise/LDR_LLL1_0.png", spec, parameter);
 
         // skybox
-        auto skybox = m_scene->createSkybox("Skybox", ASSET_PATH "cubemaps/pisa.hdr", glm::uvec2(1024));
+        auto skybox = m_scene->createSkybox("Skybox", ASSET_PATH "cubemaps/neutral_sky.hdr", glm::uvec2(2048));
         // sun light
-        m_scene->createDirectionalLight("SunLight", glm::vec3(1.f, 1.5f, 2.5f), glm::vec4(1.f, 1.f, 1.f, 11.f));
+        m_scene->createDirectionalLight("SunLight", glm::vec3(1.f, 0.3f, 0.5f), glm::vec4(0.88f, 0.77f, 0.65f, 50.f));
         // sky light 
-        auto skylight = m_scene->createSkyLight("SkyLight", ASSET_PATH "cubemaps/pisa.hdr");
+        auto skylight = m_scene->createSkyLight("SkyLight", ASSET_PATH "cubemaps/neutral_sky.hdr");
         skylight->build();
 
         m_scene->update();
