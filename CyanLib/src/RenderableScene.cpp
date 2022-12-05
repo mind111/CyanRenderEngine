@@ -82,7 +82,7 @@ namespace Cyan
                 auto matlEntry = materialMap.find(pbr->name);
                 // create a material proxy for each unique material instance
                 if (matlEntry == materialMap.end()) {
-                    materialMap.insert({ pbr->name, materials->getNumElements() });
+                    materialMap.insert({ pbr->name, materialBuffer->getNumElements() });
                     Material matlProxy = { };
                     matlProxy.kAlbedo = glm::vec4(pbr->parameter.kAlbedo, 1.f);
                     matlProxy.kMetallicRoughness = glm::vec4(pbr->parameter.kMetallic, pbr->parameter.kRoughness, 0.f, 0.f);
@@ -118,8 +118,8 @@ namespace Cyan
                         }
 #endif
                     }
-                    materials->addElement(matlProxy);
-                    return materials->getNumElements() - 1;
+                    materialBuffer->addElement(matlProxy);
+                    return materialBuffer->getNumElements() - 1;
                 }
                 else
                 {
@@ -129,8 +129,16 @@ namespace Cyan
         }
     }
 
-    SceneRenderable::SceneRenderable(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator)
-    {
+    SceneRenderable::SceneRenderable(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator) {
+        viewBuffer = std::make_unique<ViewBuffer>();
+        transformBuffer = std::make_unique<TransformBuffer>();
+        instanceBuffer = std::make_unique<InstanceBuffer>();
+        drawCallBuffer = std::make_unique<DrawCallBuffer>();
+        materialBuffer = std::make_unique<MaterialBuffer>();
+
+        if (!packedGeometry)
+            packedGeometry = new PackedGeometry(*inScene);
+
         // todo: make this work with orthographic camera as well
         PerspectiveCamera* inCamera = dynamic_cast<PerspectiveCamera*>(inScene->camera->getCamera());
         if (inCamera) {
@@ -146,12 +154,8 @@ namespace Cyan
             camera.view = inCamera->view();
             camera.projection = inCamera->projection();
         }
-
-        viewSsbo = std::make_unique<ViewBuffer>();
-        transformSsbo = std::make_unique<TransformBuffer>();
-        instances = std::make_unique<InstanceBuffer>();
-        drawCalls = std::make_unique<DrawCallBuffer>();
-        materials = std::make_unique<MaterialBuffer>();
+        viewBuffer->data.constants.view = camera.view;
+        viewBuffer->data.constants.projection = camera.projection;
 
         // build list of mesh instances, transforms, and lights
         for (auto entity : sceneView.entities)
@@ -179,15 +183,9 @@ namespace Cyan
             {
                 meshInstances.push_back(staticMesh->getMeshInstance());
                 glm::mat4 model = staticMesh->getWorldTransformMatrix();
-                transformSsbo->addElement(model);
+                transformBuffer->addElement(model);
             }
         }
-
-        if (!packedGeometry)
-            packedGeometry = new PackedGeometry(*inScene);
-
-        // std::unordered_map<std::string, u32> materialMap;
-        // std::unordered_map<std::string, u64> textureMap;
 
         // build instance descriptors
         for (u32 i = 0; i < meshInstances.size(); ++i) {
@@ -203,116 +201,37 @@ namespace Cyan
             }
             for (u32 sm = 0; sm < mesh->numSubmeshes(); ++sm) {
                 InstanceDesc desc = { };
-                // auto& desc = (*instances)[instances->getNumElements() - 1];
                 desc.submesh = baseSubmesh + sm;
                 desc.transform = i;
-#if 1
                 desc.material = getMaterialID(meshInstances[i], sm);
-#else
-                desc.material = 0;
-                if (auto pbr = dynamic_cast<PBRMaterial*>(meshInstances[i]->getMaterial(sm))) {
-                    auto matlEntry = materialMap.find(pbr->name);
-                    // create a material proxy for each unique material instance
-                    if (matlEntry == materialMap.end()) {
-                        materialMap.insert({ pbr->name, materials->getNumElements() });
-                        desc.material = materials->getNumElements();
-                        materials->addElement(Material{ });
-                        auto& matlProxy = (*materials)[materials->getNumElements() - 1];
-                        matlProxy.flags = glm::uvec4(pbr->parameter.getFlags());
+                instanceBuffer->addElement(desc);
+            }
+        }
 
-                        // albedo
-                        matlProxy.kAlbedo = glm::vec4(pbr->parameter.kAlbedo, 1.f);
-                        if (auto albedo = pbr->parameter.albedo) {
-                            auto entry = textureMap.find(albedo->name);
-                            if (entry == textureMap.end()) {
-#if BINDLESS_TEXTURE
-                                matlProxy.diffuseMapHandle = albedo->glHandle;
-                                if (glIsTextureHandleResidentARB(matlProxy.diffuseMapHandle) == GL_FALSE) {
-                                    glMakeTextureHandleResidentARB(matlProxy.diffuseMapHandle);
-                                }
-#endif
-                                textureMap.insert({ albedo->name, matlProxy.diffuseMapHandle });
-                            }
-                            else {
-                                matlProxy.diffuseMapHandle = entry->second;
-                            }
-                        }
-
-                        // normal map
-                        if (auto normal = pbr->parameter.normal) {
-                            auto entry = textureMap.find(normal->name);
-                            if (entry == textureMap.end()) {
-#if BINDLESS_TEXTURE
-                                matlProxy.normalMapHandle = normal->glHandle;
-                                if (glIsTextureHandleResidentARB(matlProxy.normalMapHandle) == GL_FALSE)
-                                {
-                                    glMakeTextureHandleResidentARB(matlProxy.normalMapHandle);
-                                }
-#endif
-                                textureMap.insert({ normal->name, matlProxy.normalMapHandle });
-                            }
-                            else {
-                                matlProxy.normalMapHandle = entry->second;
-                            }
-                        }
-
-                        // metallicRoughness map
-                        matlProxy.kMetallicRoughness = glm::vec4(pbr->parameter.kMetallic, pbr->parameter.kRoughness, 0.f, 0.f);
-                        if (auto metallicRoughness = pbr->parameter.metallicRoughness)
-                        {
-                            auto entry = textureMap.find(metallicRoughness->name);
-                            if (entry == textureMap.end())
-                            {
-#if BINDLESS_TEXTURE
-                                matlProxy.metallicRoughnessMapHandle = metallicRoughness->glHandle;
-                                if (glIsTextureHandleResidentARB(matlProxy.metallicRoughnessMapHandle) == GL_FALSE)
-                                {
-                                    glMakeTextureHandleResidentARB(matlProxy.metallicRoughnessMapHandle);
-                                }
-#endif
-                                textureMap.insert({ metallicRoughness->name, matlProxy.metallicRoughnessMapHandle });
-                            }
-                            else
-                            {
-                                matlProxy.metallicRoughnessMapHandle = entry->second;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        desc.material = matlEntry->second;
-                    }
+        // organize instance descriptors
+        if (instanceBuffer->getNumElements() > 0) {
+            struct InstanceDescSortKey {
+                inline bool operator() (const InstanceDesc& lhs, const InstanceDesc& rhs) {
+                    return (lhs.submesh < rhs.submesh);
                 }
-#endif
-                instances->addElement(desc);
-            }
-        }
+            };
+            // todo: this sort maybe too slow at some point 
+            // sort the instance buffer to group submesh instances that share the same submesh right next to each other
+            std::sort(instanceBuffer->data.array.begin(), instanceBuffer->data.array.end(), InstanceDescSortKey());
 
-        struct InstanceDescSortKey
-        {
-            inline bool operator() (const InstanceDesc& lhs, const InstanceDesc& rhs)
+            // build a buffer to store the instance index for each draw
+            drawCallBuffer->addElement(0);
+            u32 prev = (*instanceBuffer)[0].submesh;
+            for (u32 i = 1; i < instanceBuffer->getNumElements(); ++i)
             {
-                return (lhs.submesh < rhs.submesh);
+                if (instanceBuffer->data.array[i].submesh != prev)
+                {
+                    drawCallBuffer->addElement(i);
+                }
+                prev = (*instanceBuffer)[i].submesh;
             }
-        };
-        // todo: this sort maybe too slow at some point 
-        // sort the instance buffer to group submesh instances that share the same submesh right next to each other
-        std::sort(instances->data.array.begin(), instances->data.array.end(), InstanceDescSortKey());
-        drawCalls->addElement(0);
-        u32 prev = (*instances)[0].submesh;
-        for (u32 i = 1; i < instances->getNumElements(); ++i)
-        {
-            if (instances->data.array[i].submesh != prev)
-            {
-                drawCalls->addElement(i);
-            }
-            prev = (*instances)[i].submesh;
+            drawCallBuffer->addElement(instanceBuffer->getNumElements());
         }
-        drawCalls->addElement(instances->getNumElements());
-
-        // build view data
-        viewSsbo->data.constants.view = camera.view;
-        viewSsbo->data.constants.projection = camera.projection;
 
         // build lighting data
         skybox = inScene->skybox;
@@ -335,11 +254,11 @@ namespace Cyan
         }
         dst.irradianceProbe = src.irradianceProbe;
         dst.reflectionProbe = src.reflectionProbe;
-        dst.viewSsbo = std::unique_ptr<ViewBuffer>(src.viewSsbo->clone());
-        dst.transformSsbo = std::unique_ptr<TransformBuffer>(src.transformSsbo->clone());
-        dst.instances = std::unique_ptr<InstanceBuffer>(src.instances->clone());
-        dst.drawCalls = std::unique_ptr<DrawCallBuffer>(src.drawCalls->clone());
-        dst.materials = std::unique_ptr<MaterialBuffer>(src.materials->clone());
+        dst.viewBuffer = std::unique_ptr<ViewBuffer>(src.viewBuffer->clone());
+        dst.transformBuffer = std::unique_ptr<TransformBuffer>(src.transformBuffer->clone());
+        dst.instanceBuffer = std::unique_ptr<InstanceBuffer>(src.instanceBuffer->clone());
+        dst.drawCallBuffer = std::unique_ptr<DrawCallBuffer>(src.drawCallBuffer->clone());
+        dst.materialBuffer = std::unique_ptr<MaterialBuffer>(src.materialBuffer->clone());
     }
 
     /**
@@ -358,7 +277,7 @@ namespace Cyan
     /**
     * Submit rendering data to global gpu buffers
     */
-    void SceneRenderable::submitSceneData(GfxContext* ctx)
+    void SceneRenderable::upload(GfxContext* ctx)
     {
         // todo: avoid repetitively submit redundant data
         {
@@ -378,18 +297,18 @@ namespace Cyan
         packedGeometry->indexBuffer.bind(INDEX_BUFFER_BINDING);
         packedGeometry->submeshes.bind(SUBMESH_BUFFER_BINDING);
 
-        viewSsbo->data.constants.view = camera.view;
-        viewSsbo->data.constants.projection = camera.projection;
-        viewSsbo->upload();
-        viewSsbo->bind(VIEW_SSBO_BINDING);
-        transformSsbo->upload();
-        transformSsbo->bind((u32)SceneSsboBindings::TransformMatrices);
+        viewBuffer->data.constants.view = camera.view;
+        viewBuffer->data.constants.projection = camera.projection;
+        viewBuffer->upload();
+        viewBuffer->bind(VIEW_SSBO_BINDING);
+        transformBuffer->upload();
+        transformBuffer->bind((u32)SceneSsboBindings::TransformMatrices);
 
-        instances->upload();
-        instances->bind(INSTANCE_DESC_BINDING);
-        materials->upload();
-        materials->bind(MATERIAL_BUFFER_BINDING);
-        drawCalls->upload();
-        drawCalls->bind(DRAWCALL_BUFFER_BINDING);
+        instanceBuffer->upload();
+        instanceBuffer->bind(INSTANCE_DESC_BINDING);
+        materialBuffer->upload();
+        materialBuffer->bind(MATERIAL_BUFFER_BINDING);
+        drawCallBuffer->upload();
+        drawCallBuffer->bind(DRAWCALL_BUFFER_BINDING);
     }
 }

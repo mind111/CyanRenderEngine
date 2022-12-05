@@ -92,7 +92,7 @@ namespace Cyan {
 
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 52, hemicubeBuffer);
 
-        scene->submitSceneData(renderer->getGfxCtx());
+        scene->upload(renderer->getGfxCtx());
 
         auto fillRasterShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "FillRasterShader", SHADER_SOURCE_PATH "blit_v.glsl", SHADER_SOURCE_PATH "fill_raster_p.glsl" });
         auto fillRasterRenderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(irradianceRes.x, irradianceRes.y));
@@ -492,7 +492,7 @@ namespace Cyan {
         cacheSurfelDirectLighting();
     }
 
-    void PointBasedManyViewGI::customRender(const RenderableCamera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) {
+    void PointBasedManyViewGI::customRender(const SceneRenderable::Camera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) {
         if (m_scene) {
             if (bVisualizeSurfels) {
                 visualizeSurfels(visRenderTarget);
@@ -513,7 +513,7 @@ namespace Cyan {
         for (i32 i = 0; i < m_scene->meshInstances.size(); ++i) {
             auto meshInst = m_scene->meshInstances[i];
             auto mesh = meshInst->parent;
-            glm::mat4 transform = (*m_scene->transformSsbo)[i];
+            glm::mat4 transform = (*m_scene->transformBuffer)[i];
             glm::mat4 normalTransform = glm::inverse(glm::transpose(transform));
             for (i32 sm = 0; sm < mesh->numSubmeshes(); ++sm) {
                 auto submesh = dynamic_cast<Mesh::Submesh<Triangles>*>(mesh->getSubmesh(sm));
@@ -600,7 +600,7 @@ namespace Cyan {
         }
     }
 
-    void PointBasedManyViewGI::rasterizeSurfelScene(Texture2DRenderable* outSceneColor, const RenderableCamera& camera) {
+    void PointBasedManyViewGI::rasterizeSurfelScene(Texture2DRenderable* outSceneColor, const SceneRenderable::Camera& camera) {
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(outSceneColor->width, outSceneColor->height));
         renderTarget->setColorBuffer(outSceneColor, 0);
         renderTarget->setDrawBuffers({ 0 });
@@ -723,7 +723,7 @@ namespace Cyan {
         m_surfelBSH.build(surfels);
     }
 
-    void MicroRenderingGI::customRender(const RenderableCamera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) {
+    void MicroRenderingGI::customRender(const SceneRenderable::Camera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) {
         PointBasedManyViewGI::customRender(camera, sceneRenderTarget, visRenderTarget);
         if (bVisualizeSurfelBSH) {
             m_surfelBSH.visualize(m_gfxc, visRenderTarget);
@@ -841,7 +841,7 @@ namespace Cyan {
         return solidAngle;
     }
 
-    void SoftwareMicroBuffer::traverseBSH(const SurfelBSH& surfelBSH, i32 nodeIndex, const RenderableCamera& camera) {
+    void SoftwareMicroBuffer::traverseBSH(const SurfelBSH& surfelBSH, i32 nodeIndex, const SceneRenderable::Camera& camera) {
         if (nodeIndex < 0) {
             return;
         }
@@ -942,10 +942,10 @@ namespace Cyan {
 #endif
     }
 
-    void SoftwareMicroBuffer::raytrace(const RenderableCamera& inCamera, const SurfelBSH& surfelBSH) {
+    void SoftwareMicroBuffer::raytrace(const SceneRenderable::Camera& inCamera, const SurfelBSH& surfelBSH) {
         clear();
 
-        RenderableCamera camera = { };
+        SceneRenderable::Camera camera = { };
         camera.eye = inCamera.eye;
         camera.lookAt = inCamera.lookAt;
         camera.right = inCamera.right;
@@ -980,7 +980,7 @@ namespace Cyan {
         }
     }
 
-    void SoftwareMicroBuffer::postTraversal(const RenderableCamera& camera, const SurfelBSH& surfelBSH) {
+    void SoftwareMicroBuffer::postTraversal(const SceneRenderable::Camera& camera, const SurfelBSH& surfelBSH) {
         postTraversalList.clear();
         for (i32 y = 0; y < resolution; ++y) {
             for (i32 x = 0; x < resolution; ++x) {
@@ -1022,10 +1022,10 @@ namespace Cyan {
     // todo: implement and verify this
     // todo: view frustum culling
     // todo: cache lighting at each node
-    void SoftwareMicroBuffer::render(const RenderableCamera& inCamera, const SurfelBSH& surfelBSH) {
+    void SoftwareMicroBuffer::render(const SceneRenderable::Camera& inCamera, const SurfelBSH& surfelBSH) {
         clear();
 
-        RenderableCamera camera = { };
+        SceneRenderable::Camera camera = { };
         camera.eye = inCamera.eye;
         camera.lookAt = inCamera.lookAt;
         camera.right = inCamera.right;
@@ -1087,13 +1087,13 @@ namespace Cyan {
     }
 
     // micro-rendering on cpu
-    void MicroRenderingGI::softwareMicroRendering(const RenderableCamera& inCamera, SurfelBSH& surfelBSH) {
+    void MicroRenderingGI::softwareMicroRendering(const SceneRenderable::Camera& inCamera, SurfelBSH& surfelBSH) {
         m_softwareMicroBuffer.render(inCamera, surfelBSH);
         // m_softwareMicroBuffer.raytrace(inCamera, surfelBSH);
     }
 
     // micro-rendering on gpu
-    void MicroRenderingGI::hardwareMicroRendering(const RenderableCamera& camera, SurfelBSH& surfelBSH) {
+    void MicroRenderingGI::hardwareMicroRendering(const SceneRenderable::Camera& camera, SurfelBSH& surfelBSH) {
 #if 0
         auto shader = ShaderManager::createShader({ 
             ShaderSource::Type::kCs,

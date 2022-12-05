@@ -46,18 +46,6 @@ namespace Cyan
         ShaderStorageBuffer<DynamicSsboData<SubmeshDesc>> submeshes;
     };
 
-    struct RenderableCamera
-    {
-        RenderableCamera() {};
-
-        glm::vec3 eye;
-        glm::vec3 lookAt;
-        glm::vec3 right, forward, up;
-        f32 fov, n, f, aspect;
-        glm::mat4 view = glm::mat4(1.f);
-        glm::mat4 projection = glm::mat4(1.f);
-    };
-
     /** todo:
     * should copying SceneRenderable be allowed? if so then basically every ssbo will be shared between the copies and need to be reference counted
     * to avoid a copy's destructor release shared ssbo, causing all sorts of artifact and weird bugs.
@@ -65,12 +53,6 @@ namespace Cyan
 
     /**
     * A Scene representation that only contains renderable data.
-    *     * this is meant to decouple rendering required scene data from the main Scene class 
-    *     * hopefully can save the renderer from worrying about non-rendering related data
-    *     * contains a scene's global data in gpu compatible format including
-    *         * camera related view data
-    *         * lights
-    *         * instance transforms
     */
     struct SceneRenderable {
         struct View {
@@ -103,6 +85,8 @@ namespace Cyan
         using MaterialBuffer = ShaderStorageBuffer<DynamicSsboData<Material>>;
         using DrawCallBuffer = ShaderStorageBuffer<DynamicSsboData<u32>>;
 
+        friend class Renderer;
+
         SceneRenderable();
         ~SceneRenderable() { }
         SceneRenderable(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator);
@@ -113,10 +97,18 @@ namespace Cyan
         /**
         * Submit rendering data to global gpu buffers
         */
-        void submitSceneData(GfxContext* ctx);
+        void upload(GfxContext* ctx);
 
         // camera
-        RenderableCamera camera;
+        struct Camera
+        {
+            glm::vec3 eye;
+            glm::vec3 lookAt;
+            glm::vec3 right, forward, up;
+            f32 fov, n, f, aspect;
+            glm::mat4 view = glm::mat4(1.f);
+            glm::mat4 projection = glm::mat4(1.f);
+        } camera;
 
         // mesh instances
         std::vector<MeshInstance*> meshInstances;
@@ -128,14 +120,11 @@ namespace Cyan
         ReflectionProbe* reflectionProbe = nullptr;
 
         static PackedGeometry* packedGeometry;
-
-        // view
-        std::unique_ptr<ViewBuffer> viewSsbo = nullptr;
-        std::unique_ptr<TransformBuffer> transformSsbo = nullptr;
-        std::unique_ptr<InstanceBuffer> instances = nullptr;
-        // map sub-draw id to instance id 
-        std::unique_ptr<DrawCallBuffer> drawCalls = nullptr;
-        std::unique_ptr<MaterialBuffer> materials = nullptr;
+        std::unique_ptr<ViewBuffer> viewBuffer = nullptr;
+        std::unique_ptr<TransformBuffer> transformBuffer = nullptr;
+        std::unique_ptr<InstanceBuffer> instanceBuffer = nullptr;
+        std::unique_ptr<DrawCallBuffer> drawCallBuffer = nullptr;
+        std::unique_ptr<MaterialBuffer> materialBuffer = nullptr;
     private:
         u32 getMaterialID(MeshInstance* meshInstance, u32 submeshIndex);
     };

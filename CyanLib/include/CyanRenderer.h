@@ -174,7 +174,6 @@ namespace Cyan
             u32 sizeInBytes = 1024 * 1024 * 32;
             void* data = nullptr;
         } indirectDrawBuffer;
-        // Texture2DRenderable* renderSceneMultiDraw(SceneRenderable& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution, const SSGITextures& SSGIOutput);
         void renderSceneMultiDraw(SceneRenderable& renderableScene, RenderTarget* outRenderTarget, Texture2DRenderable* outSceneColor, const SSGITextures& SSGIOutput);
         void submitSceneMultiDrawIndirect(const SceneRenderable& renderableScene);
 

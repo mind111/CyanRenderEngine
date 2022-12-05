@@ -94,7 +94,7 @@ namespace Cyan {
         // extension points
         virtual void customInitialize();
         virtual void customSetup(const SceneRenderable& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) { }
-        virtual void customRender(const RenderableCamera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) { }
+        virtual void customRender(const SceneRenderable::Camera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) { }
         virtual void customRenderScene(const SceneRenderable& scene, const Hemicube& hemicube, const PerspectiveCamera& camera);
         virtual void customUI() {}
 
@@ -136,7 +136,7 @@ namespace Cyan {
 
         virtual void customInitialize() override;
         virtual void customSetup(const SceneRenderable& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) override;
-        virtual void customRender(const RenderableCamera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) override;
+        virtual void customRender(const SceneRenderable::Camera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) override;
         virtual void customRenderScene(const SceneRenderable& scene, const Hemicube& hemicube, const PerspectiveCamera& camera) override;
         virtual void customUI() override;
 
@@ -160,7 +160,7 @@ namespace Cyan {
         bool bVisualizeSurfels = false;
 
     private:
-        void rasterizeSurfelScene(Texture2DRenderable* outSceneColor, const RenderableCamera& camera);
+        void rasterizeSurfelScene(Texture2DRenderable* outSceneColor, const SceneRenderable::Camera& camera);
         enum class VisMode : u32 {
             kAlbedo = 0,
             kRadiance,
@@ -183,15 +183,15 @@ namespace Cyan {
         ~SoftwareMicroBuffer() { }
 
         // hybrid render
-        void render(const RenderableCamera& inCamera, const SurfelBSH& surfelBSH);
+        void render(const SceneRenderable::Camera& inCamera, const SurfelBSH& surfelBSH);
         // raytrace render
-        void raytrace(const RenderableCamera& inCamera, const SurfelBSH& surfelBSH);
+        void raytrace(const SceneRenderable::Camera& inCamera, const SurfelBSH& surfelBSH);
         void visualize(Renderer* renderer, RenderTarget* visRenderTarget);
         Texture2DRenderable* getVisualization() { return visualization; }
     private:
         void clear();
-        void traverseBSH(const SurfelBSH& surfelBSH, i32 nodeIndex, const RenderableCamera& camera);
-        void postTraversal(const RenderableCamera& camera, const SurfelBSH& surfelBSH);
+        void traverseBSH(const SurfelBSH& surfelBSH, i32 nodeIndex, const SceneRenderable::Camera& camera);
+        void postTraversal(const SceneRenderable::Camera& camera, const SurfelBSH& surfelBSH);
         void raytraceInternal(const glm::vec3& ro, const glm::vec3& rd, const SurfelBSH& surfelBSH, i32 nodeIndex, f32& tmin, i32& hitNode);
         f32 solidAngleOfSphere(const glm::vec3& p, const glm::vec3& q, f32 r);
         f32 calcCubemapTexelSolidAngle(const glm::vec3& d, f32 cubemapRes);
@@ -245,13 +245,13 @@ namespace Cyan {
 
         virtual void customInitialize() override;
         virtual void customSetup(const SceneRenderable& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) override;
-        virtual void customRender(const RenderableCamera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) override;
+        virtual void customRender(const SceneRenderable::Camera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) override;
         virtual void customUI() override;
 
     private:
         virtual void generateWorldSpaceSurfels() override;
-        void softwareMicroRendering(const RenderableCamera& camera, SurfelBSH& surfelBSH);
-        void hardwareMicroRendering(const RenderableCamera& camera, SurfelBSH& surfelBSH);
+        void softwareMicroRendering(const SceneRenderable::Camera& camera, SurfelBSH& surfelBSH);
+        void hardwareMicroRendering(const SceneRenderable::Camera& camera, SurfelBSH& surfelBSH);
 
         bool bVisualizeSurfelSampler = false;
         bool bVisualizeMicroBuffer = false;

@@ -824,7 +824,7 @@ namespace Cyan
 
     void Renderer::renderSceneMeshOnly(SceneRenderable& sceneRenderable, RenderTarget* dstRenderTarget, Shader* shader)
     {
-        sceneRenderable.submitSceneData(m_ctx);
+        sceneRenderable.upload(m_ctx);
 
         u32 transformIndex = 0u;
         for (auto& meshInst : sceneRenderable.meshInstances)
@@ -856,7 +856,7 @@ namespace Cyan
         depthRenderTargetPtr->setDepthBuffer(reinterpret_cast<DepthTexture2D*>(outDepthTexture));
         depthRenderTargetPtr->clear({ { 0u } });
 
-        renderableScene.submitSceneData(m_ctx);
+        renderableScene.upload(m_ctx);
 
         u32 transformIndex = 0u;
         for (auto& meshInst : renderableScene.meshInstances)
@@ -875,7 +875,7 @@ namespace Cyan
     }
 
     void Renderer::renderSceneDepthNormal(SceneRenderable& renderableScene, RenderTarget* outRenderTarget, Texture2DRenderable* outDepthBuffer, Texture2DRenderable* outNormalBuffer) {
-        renderableScene.submitSceneData(m_ctx);
+        renderableScene.upload(m_ctx);
         outRenderTarget->setColorBuffer(outDepthBuffer, 0);
         outRenderTarget->setColorBuffer(outNormalBuffer, 1);
         outRenderTarget->setDrawBuffers({ 0, 1 });
@@ -1184,7 +1184,7 @@ namespace Cyan
         renderTarget->setColorBuffer(outSceneColor, 0);
         renderTarget->clear({ { 0 } });
 
-        renderableScene.submitSceneData(m_ctx);
+        renderableScene.upload(m_ctx);
 
         // render mesh instances
         u32 transformIndex = 0u;
@@ -1208,7 +1208,7 @@ namespace Cyan
         return outSceneColor;
     }
 
-    void Renderer::submitSceneMultiDrawIndirect(const SceneRenderable& renderableScene) {
+    void Renderer::submitSceneMultiDrawIndirect(const SceneRenderable& scene) {
         struct IndirectDrawArrayCommand
         {
             u32  count;
@@ -1218,27 +1218,27 @@ namespace Cyan
         };
         // build indirect draw commands
         auto ptr = reinterpret_cast<IndirectDrawArrayCommand*>(indirectDrawBuffer.data);
-        for (u32 draw = 0; draw < renderableScene.drawCalls->getNumElements() - 1; ++draw)
+        for (u32 draw = 0; draw < scene.drawCallBuffer->getNumElements() - 1; ++draw)
         {
             IndirectDrawArrayCommand& command = ptr[draw];
             command.first = 0;
-            u32 instance = (*renderableScene.drawCalls)[draw];
-            u32 submesh = (*renderableScene.instances)[instance].submesh;
+            u32 instance = (*scene.drawCallBuffer)[draw];
+            u32 submesh = (*scene.instanceBuffer)[instance].submesh;
             command.count = SceneRenderable::packedGeometry->submeshes[submesh].numIndices;
-            command.instanceCount = (*renderableScene.drawCalls)[draw + 1] - (*renderableScene.drawCalls)[draw];
+            command.instanceCount = (*scene.drawCallBuffer)[draw + 1] - (*scene.drawCallBuffer)[draw];
             command.baseInstance = 0;
         }
 
         glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirectDrawBuffer.buffer);
         // dispatch multi draw indirect
         // one sub-drawcall per instance
-        u32 drawCount = (u32)renderableScene.drawCalls->getNumElements() - 1;
+        u32 drawCount = (u32)scene.drawCallBuffer->getNumElements() - 1;
         glMultiDrawArraysIndirect(GL_TRIANGLES, 0, drawCount, 0);
     }
 
     void Renderer::renderSceneMultiDraw(SceneRenderable& sceneRenderable, RenderTarget* outRenderTarget, Texture2DRenderable* outSceneColor, const SSGITextures& SSGIOutput) {
         Shader* scenePassShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "ScenePassShader", SHADER_SOURCE_PATH "scene_pass_v.glsl", SHADER_SOURCE_PATH "scene_pass_p.glsl" });
-        sceneRenderable.submitSceneData(m_ctx);
+        sceneRenderable.upload(m_ctx);
 
         m_ctx->setShader(scenePassShader);
         outRenderTarget->setColorBuffer(outSceneColor, 0);

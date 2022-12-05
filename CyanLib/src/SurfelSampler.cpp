@@ -15,7 +15,7 @@ namespace Cyan {
         for (i32 i = 0; i < inScene.meshInstances.size(); ++i) {
             auto meshInst = inScene.meshInstances[i];
             auto mesh = meshInst->parent;
-            glm::mat4 transform = (*inScene.transformSsbo)[i];
+            glm::mat4 transform = (*inScene.transformBuffer)[i];
             glm::mat4 normalTransform = glm::inverse(glm::transpose(transform));
             for (i32 sm = 0; sm < mesh->numSubmeshes(); ++sm) {
                 auto submesh = dynamic_cast<Mesh::Submesh<Triangles>*>(mesh->getSubmesh(sm));

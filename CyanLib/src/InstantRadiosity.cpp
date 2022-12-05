@@ -109,7 +109,7 @@ namespace Cyan {
         renderTarget->clear({ { 0 } });
 
         auto gfxc = renderer->getGfxCtx();
-        renderableScene.submitSceneData(gfxc);
+        renderableScene.upload(gfxc);
 
         Shader* VPLGenerationShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "VPLGenerationShader", SHADER_SOURCE_PATH "generate_vpl_v.glsl", SHADER_SOURCE_PATH "generate_vpl_p.glsl" });
         gfxc->setShader(VPLGenerationShader);
