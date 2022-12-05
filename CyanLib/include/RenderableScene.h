@@ -72,27 +72,22 @@ namespace Cyan
     *         * lights
     *         * instance transforms
     */
-    struct SceneRenderable
-    {
-        // view data
-        struct ViewData
-        {
+    struct SceneRenderable {
+        struct View {
             glm::mat4 view;
             glm::mat4 projection;
             f32 ssao;
             glm::vec3 dummy;
         };
 
-        struct InstanceDesc
-        {
+        struct InstanceDesc {
             u32 submesh = 0;
             u32 material = 0;
             u32 transform = 0;
             u32 padding = 0;
         };
 
-        struct Material
-        {
+        struct Material {
             u64 diffuseMapHandle;
             u64 normalMapHandle;
             u64 metallicRoughnessMapHandle;
@@ -102,8 +97,8 @@ namespace Cyan
             glm::uvec4 flags;
         };
 
-        using ViewSsbo = ShaderStorageBuffer<StaticSsboData<ViewData>>;
-        using TransformSsbo = ShaderStorageBuffer<DynamicSsboData<glm::mat4>>;
+        using ViewBuffer = ShaderStorageBuffer<StaticSsboData<View>>;
+        using TransformBuffer = ShaderStorageBuffer<DynamicSsboData<glm::mat4>>;
         using InstanceBuffer = ShaderStorageBuffer<DynamicSsboData<InstanceDesc>>;
         using MaterialBuffer = ShaderStorageBuffer<DynamicSsboData<Material>>;
         using DrawCallBuffer = ShaderStorageBuffer<DynamicSsboData<u32>>;
@@ -135,11 +130,13 @@ namespace Cyan
         static PackedGeometry* packedGeometry;
 
         // view
-        std::unique_ptr<ViewSsbo> viewSsbo = nullptr;
-        std::unique_ptr<TransformSsbo> transformSsbo = nullptr;
+        std::unique_ptr<ViewBuffer> viewSsbo = nullptr;
+        std::unique_ptr<TransformBuffer> transformSsbo = nullptr;
         std::unique_ptr<InstanceBuffer> instances = nullptr;
         // map sub-draw id to instance id 
         std::unique_ptr<DrawCallBuffer> drawCalls = nullptr;
         std::unique_ptr<MaterialBuffer> materials = nullptr;
+    private:
+        u32 getMaterialID(MeshInstance* meshInstance, u32 submeshIndex);
     };
 }

@@ -27,16 +27,16 @@ out VSOutput
 	flat PBRMaterial material;
 } vsOut;
 
-#define VIEW_SSBO_BINDING 0
-#define TRANSFORM_SSBO_BINDING 3
-#define INSTANCE_DESC_BINDING 41
+#define VIEW_BUFFER_BINDING 0
+#define TRANSFORM_BUFFER_BINDING 3
+#define INSTANCE_DESC_BUFFER_BINDING 41
 #define SUBMESH_BUFFER_BINDING 42
 #define VERTEX_BUFFER_BINDING 43
 #define INDEX_BUFFER_BINDING 44
 #define DRAWCALL_BUFFER_BINDING 45
 #define MATERIAL_BUFFER_BINDING 46
 
-layout(std430, binding = VIEW_SSBO_BINDING) buffer ViewShaderStorageBuffer
+layout(std430, binding = VIEW_BUFFER_BINDING) buffer ViewBuffer
 {
     mat4  view;
     mat4  projection;
@@ -44,7 +44,7 @@ layout(std430, binding = VIEW_SSBO_BINDING) buffer ViewShaderStorageBuffer
     float dummy;
 } viewSsbo;
 
-layout(std430, binding = TRANSFORM_SSBO_BINDING) buffer TransformShaderStorageBuffer
+layout(std430, binding = TRANSFORM_BUFFER_BINDING) buffer TransformBuffer
 {
     mat4 models[];
 } transformSsbo;
@@ -75,9 +75,9 @@ struct InstanceDesc
 	uint padding;
 };
 
-layout(std430, binding = INSTANCE_DESC_BINDING) buffer InstanceSSBO
+layout(std430, binding = INSTANCE_DESC_BUFFER_BINDING) buffer InstanceSSBO
 {
-	InstanceDesc instanceDescs[]; 
+	InstanceDesc instanceDescs[];
 };
 
 struct SubmeshDesc

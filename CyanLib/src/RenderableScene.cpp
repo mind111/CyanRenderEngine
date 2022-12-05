@@ -74,6 +74,61 @@ namespace Cyan
 
     }
 
+    u32 SceneRenderable::getMaterialID(MeshInstance* meshInstance, u32 submeshIndex) {
+        std::unordered_map<std::string, u32> materialMap;
+
+        if (meshInstance) {
+            if (auto pbr = dynamic_cast<PBRMaterial*>(meshInstance->getMaterial(submeshIndex))) {
+                auto matlEntry = materialMap.find(pbr->name);
+                // create a material proxy for each unique material instance
+                if (matlEntry == materialMap.end()) {
+                    materialMap.insert({ pbr->name, materials->getNumElements() });
+                    Material matlProxy = { };
+                    matlProxy.kAlbedo = glm::vec4(pbr->parameter.kAlbedo, 1.f);
+                    matlProxy.kMetallicRoughness = glm::vec4(pbr->parameter.kMetallic, pbr->parameter.kRoughness, 0.f, 0.f);
+                    matlProxy.flags = glm::uvec4(pbr->parameter.getFlags());
+
+                    // albedo
+                    if (auto albedo = pbr->parameter.albedo) {
+#if BINDLESS_TEXTURE
+                        matlProxy.diffuseMapHandle = albedo->glHandle;
+                        if (glIsTextureHandleResidentARB(matlProxy.diffuseMapHandle) == GL_FALSE) {
+                            glMakeTextureHandleResidentARB(matlProxy.diffuseMapHandle);
+                        }
+#endif
+                    }
+                    // normal
+                    if (auto normal = pbr->parameter.normal) {
+#if BINDLESS_TEXTURE
+                        matlProxy.normalMapHandle = normal->glHandle;
+                        if (glIsTextureHandleResidentARB(matlProxy.normalMapHandle) == GL_FALSE)
+                        {
+                            glMakeTextureHandleResidentARB(matlProxy.normalMapHandle);
+                        }
+#endif
+                    }
+                    // metallicRoughness
+                    if (auto metallicRoughness = pbr->parameter.metallicRoughness)
+                    {
+#if BINDLESS_TEXTURE
+                        matlProxy.metallicRoughnessMapHandle = metallicRoughness->glHandle;
+                        if (glIsTextureHandleResidentARB(matlProxy.metallicRoughnessMapHandle) == GL_FALSE)
+                        {
+                            glMakeTextureHandleResidentARB(matlProxy.metallicRoughnessMapHandle);
+                        }
+#endif
+                    }
+                    materials->addElement(matlProxy);
+                    return materials->getNumElements() - 1;
+                }
+                else
+                {
+                    return matlEntry->second;
+                }
+            }
+        }
+    }
+
     SceneRenderable::SceneRenderable(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator)
     {
         // todo: make this work with orthographic camera as well
@@ -92,8 +147,8 @@ namespace Cyan
             camera.projection = inCamera->projection();
         }
 
-        viewSsbo = std::make_unique<ViewSsbo>();
-        transformSsbo = std::make_unique<TransformSsbo>();
+        viewSsbo = std::make_unique<ViewBuffer>();
+        transformSsbo = std::make_unique<TransformBuffer>();
         instances = std::make_unique<InstanceBuffer>();
         drawCalls = std::make_unique<DrawCallBuffer>();
         materials = std::make_unique<MaterialBuffer>();
@@ -131,8 +186,8 @@ namespace Cyan
         if (!packedGeometry)
             packedGeometry = new PackedGeometry(*inScene);
 
-        std::unordered_map<std::string, u32> materialMap;
-        std::unordered_map<std::string, u64> textureMap;
+        // std::unordered_map<std::string, u32> materialMap;
+        // std::unordered_map<std::string, u64> textureMap;
 
         // build instance descriptors
         for (u32 i = 0; i < meshInstances.size(); ++i) {
@@ -142,13 +197,19 @@ namespace Cyan
             if (entry != packedGeometry->submeshMap.end()) {
                 baseSubmesh = entry->second;
             }
+            else {
+                cyanError("Failed to find mesh %s in packed geoemtry buffer", mesh->name);
+                assert(0);
+            }
             for (u32 sm = 0; sm < mesh->numSubmeshes(); ++sm) {
-                instances->addElement(InstanceDesc{});
-                auto& desc = (*instances)[instances->getNumElements() - 1];
+                InstanceDesc desc = { };
+                // auto& desc = (*instances)[instances->getNumElements() - 1];
                 desc.submesh = baseSubmesh + sm;
                 desc.transform = i;
+#if 1
+                desc.material = getMaterialID(meshInstances[i], sm);
+#else
                 desc.material = 0;
-
                 if (auto pbr = dynamic_cast<PBRMaterial*>(meshInstances[i]->getMaterial(sm))) {
                     auto matlEntry = materialMap.find(pbr->name);
                     // create a material proxy for each unique material instance
@@ -222,6 +283,8 @@ namespace Cyan
                         desc.material = matlEntry->second;
                     }
                 }
+#endif
+                instances->addElement(desc);
             }
         }
 
@@ -272,8 +335,8 @@ namespace Cyan
         }
         dst.irradianceProbe = src.irradianceProbe;
         dst.reflectionProbe = src.reflectionProbe;
-        dst.viewSsbo = std::unique_ptr<ViewSsbo>(src.viewSsbo->clone());
-        dst.transformSsbo = std::unique_ptr<TransformSsbo>(src.transformSsbo->clone());
+        dst.viewSsbo = std::unique_ptr<ViewBuffer>(src.viewSsbo->clone());
+        dst.transformSsbo = std::unique_ptr<TransformBuffer>(src.transformSsbo->clone());
         dst.instances = std::unique_ptr<InstanceBuffer>(src.instances->clone());
         dst.drawCalls = std::unique_ptr<DrawCallBuffer>(src.drawCalls->clone());
         dst.materials = std::unique_ptr<MaterialBuffer>(src.materials->clone());
