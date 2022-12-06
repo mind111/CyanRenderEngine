@@ -719,8 +719,11 @@ namespace Cyan
             depthNormalSpec.width = renderResolution.x;
             depthNormalSpec.height = renderResolution.y;
             depthNormalSpec.pixelFormat = PF_RGB32F;
-            static Texture2DRenderable* sceneDepthBuffer = new Texture2DRenderable("SceneDepthBuffer", depthNormalSpec);
-            static Texture2DRenderable* sceneNormalBuffer = new Texture2DRenderable("SceneNormalBuffer", depthNormalSpec);
+            ITextureRenderable::Parameter depthNormParams = { };
+            depthNormParams.magnificationFilter = FM_POINT;
+            depthNormParams.minificationFilter = FM_POINT;
+            static Texture2DRenderable* sceneDepthBuffer = new Texture2DRenderable("SceneDepthBuffer", depthNormalSpec, depthNormParams);
+            static Texture2DRenderable* sceneNormalBuffer = new Texture2DRenderable("SceneNormalBuffer", depthNormalSpec, depthNormParams);
             renderSceneDepthNormal(sceneRenderable, renderTarget.get(), sceneDepthBuffer, sceneNormalBuffer);
 
 #if 0
