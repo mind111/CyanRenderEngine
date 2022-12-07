@@ -79,6 +79,12 @@
     <Filter Include="Shaders\ManyViewGI\MicroRendering">
       <UniqueIdentifier>{8d5ba569-fd3a-402a-a488-b89d680904e8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Internal\Lights">
+      <UniqueIdentifier>{94aae55b-0862-4d84-9e1a-c2198ca2978c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Lights">
+      <UniqueIdentifier>{c63cbec4-416c-472c-bc6a-9f8f31c2ee83}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Allocator.h">
@@ -115,9 +121,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\GraphicsSystem.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Light.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\LightMap.h">
@@ -219,19 +222,7 @@
     <ClInclude Include="include\ShaderStorageBuffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\DirectionalLight.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\Asset.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\LightRenderable.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\LightComponent.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\PointLight.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\Material.h">
@@ -281,6 +272,18 @@
     </ClInclude>
     <ClInclude Include="include\Surfel.h">
       <Filter>Header Files\ManyViewGI</Filter>
+    </ClInclude>
+    <ClInclude Include="include\GpuLights.h">
+      <Filter>Header Files\Lights</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Lights.h">
+      <Filter>Header Files\Lights</Filter>
+    </ClInclude>
+    <ClInclude Include="include\LightComponents.h">
+      <Filter>Header Files\Lights</Filter>
+    </ClInclude>
+    <ClInclude Include="include\LightEntities.h">
+      <Filter>Header Files\Lights</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -401,22 +404,13 @@
     <ClCompile Include="src\IOSystem.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
-    <ClCompile Include="src\DirectionalLight.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
     <ClCompile Include="src\RenderableScene.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\LightComponent.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
     <ClCompile Include="src\StaticMeshEntity.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
     <ClCompile Include="src\MaterialEditor.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\LightRenderable.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
     <ClCompile Include="src\RayTracingScene.cpp">
@@ -445,6 +439,15 @@
     </ClCompile>
     <ClCompile Include="src\SurfelSampler.cpp">
       <Filter>Source Files\Internal\ManyViewGI</Filter>
+    </ClCompile>
+    <ClCompile Include="src\LightEntities.cpp">
+      <Filter>Source Files\Internal\Lights</Filter>
+    </ClCompile>
+    <ClCompile Include="src\LightComponents.cpp">
+      <Filter>Source Files\Internal\Lights</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Lights.cpp">
+      <Filter>Source Files\Internal\Lights</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

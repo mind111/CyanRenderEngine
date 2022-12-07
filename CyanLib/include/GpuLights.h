@@ -1,14 +1,45 @@
 #pragma once
 
 #include "Common.h"
-#include "DirectionalLight.h"
 #include "Shader.h"
 
 namespace Cyan
 {
-    struct Scene;
-    struct Renderer;
+#if 1
+    struct GpuDirectionalShadowMap {
+        glm::mat4 lightSpaceProjection;
+        u64 depthMapHandle;
+        glm::vec2 padding;
+    };
 
+    struct GpuLight {
+        glm::vec4 colorAndIntensity;
+    };
+
+    struct GpuDirectionalLight : public GpuLight {
+        glm::vec4 direction;
+    };
+
+    const u32 kNumShadowCascades = 4u;
+    struct GpuCSMDirectionalLight : public GpuDirectionalLight {
+        struct Cascade {
+            GpuDirectionalShadowMap shadowMap;
+            f32 n;
+            f32 f;
+            glm::vec2 padding;
+        };
+
+        Cascade cascades[kNumShadowCascades];
+    };
+
+    struct GpuPointLight : public GpuLight {
+
+    };
+
+    struct GpuSkyLight : public GpuLight {
+
+    };
+#else
     struct ILightRenderable
     {
         virtual ~ILightRenderable() { }
@@ -43,7 +74,7 @@ namespace Cyan
             // create shadowmap
             if (bCastShadow)
             {
-                switch (inDirectionalLight.implemenation)
+                switch (inDirectionalLight.implementation)
                 {
                 case DirectionalLight::Implementation::kCSM_Basic:
                     shadowmapPtr = std::make_unique<CascadedShadowmap>(inDirectionalLight);
@@ -69,4 +100,5 @@ namespace Cyan
         std::unique_ptr<IDirectionalShadowmap> shadowmapPtr = nullptr;
         bool bCastShadow = false;
     };
+#endif
 }

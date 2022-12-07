@@ -2,12 +2,13 @@
 #include "Scene.h"
 #include "CyanAPI.h"
 #include "CyanRenderer.h"
-#include "DirectionalLight.h"
+#include "Lights.h"
 #include "AssetManager.h"
 
 namespace Cyan
 {
-    IDirectionalShadowmap::IDirectionalShadowmap(const DirectionalLight& inDirectionalLight)
+    u32 IDirectionalShadowMap::numDirectionalShadowMaps = 0;
+    IDirectionalShadowMap::IDirectionalShadowMap(const DirectionalLight& inDirectionalLight)
         : quality(Quality::kHigh), lightDirection(inDirectionalLight.direction)
     {
         switch (inDirectionalLight.shadowQuality)
@@ -22,34 +23,32 @@ namespace Cyan
         default:
             break;
         }
+        numDirectionalShadowMaps++;
     }
 
-    DirectionalShadowmap::DirectionalShadowmap(const DirectionalLight& inDirectionalLight, const char* depthTextureNamePrefix)
-        : IDirectionalShadowmap(inDirectionalLight)
-    {
-        char depthTextureBuffer[64] = { };
-        sprintf_s(depthTextureBuffer, "DirectionalShadowmapTexture_%dx%d", resolution.x, resolution.y);
-        std::string depthTextureName(depthTextureBuffer);
-        if (depthTextureNamePrefix)
-        {
-            depthTextureName = std::string(depthTextureNamePrefix) + depthTextureName;
-        }
-        depthTexture = AssetManager::createDepthTexture(depthTextureName.c_str(), resolution.x, resolution.y);
+    DirectionalShadowMap::DirectionalShadowMap(const DirectionalLight& inDirectionalLight)
+        : IDirectionalShadowMap(inDirectionalLight) {
+        char depthTextureName[64] = { };
+        sprintf_s(depthTextureName, "DirectionalShadowmapTexture_%u", IDirectionalShadowMap::numDirectionalShadowMaps);
+        depthTexture = std::unique_ptr<DepthTexture2D>(AssetManager::createDepthTexture(depthTextureName, resolution.x, resolution.y));
     }
 
-    void DirectionalShadowmap::render(ICamera* inCamera, const Scene& scene, SceneRenderable& renderableScene, Renderer& renderer)
-    {
-        renderableScene.camera.view = inCamera->view();
-        renderableScene.camera.projection = inCamera->projection();
+    void DirectionalShadowMap::render(const BoundingBox3D& lightSpaceAABB, SceneRenderable& scene, Renderer* renderer) {
+        OrthographicCamera lightCamera(
+            glm::vec3(0.f),
+            -lightDirection,
+            glm::vec3(0.f, 1.f, 0.f),
+            lightSpaceAABB
+        );
 
-        lightSpaceProjection = inCamera->projection();
+        scene.camera.view = lightCamera.view();
+        scene.camera.projection = lightCamera.projection();
+        lightSpaceProjection = lightCamera.projection();
 
-        // glDisable(GL_CULL_FACE);
-        renderer.renderSceneDepthOnly(renderableScene, depthTexture);
-        // glEnable(GL_CULL_FACE);
+        renderer->renderSceneDepthOnly(scene, depthTexture.get());
     }
 
-    void DirectionalShadowmap::setShaderParameters(Shader* shader, const char* uniformNamePrefix)
+    void DirectionalShadowMap::setShaderParameters(Shader* shader, const char* uniformNamePrefix)
     {
         std::string inPrefix(uniformNamePrefix);
         shader->setUniform((inPrefix + ".shadowmap.lightSpaceProjection").c_str(), lightSpaceProjection);
@@ -64,8 +63,8 @@ namespace Cyan
         shader->setUniform((inPrefix + ".shadowmap.depthTextureHandle").c_str(), depthTexture->glHandle);
     }
 
-    VarianceShadowmap::VarianceShadowmap(const DirectionalLight& inDirectionalLight)
-        : IDirectionalShadowmap(inDirectionalLight)
+    VarianceShadowMap::VarianceShadowMap(const DirectionalLight& inDirectionalLight)
+        : IDirectionalShadowMap(inDirectionalLight)
     {
         // create depth texture
         {
@@ -82,50 +81,29 @@ namespace Cyan
         }
     }
 
-    CascadedShadowmap::CascadedShadowmap(const DirectionalLight& inDirectionalLight)
-        : IDirectionalShadowmap(inDirectionalLight)
+    CascadedShadowMap::CascadedShadowMap(const DirectionalLight& inDirectionalLight)
+        : IDirectionalShadowMap(inDirectionalLight)
     {
         // initialize cascades
-        for (u32 i = 0; i < kNumCascades; ++i)
-        {
-            char shadowmapNameBuffer[64] = { };
-            sprintf_s(shadowmapNameBuffer, "CSM_%d_", i);
+        for (u32 i = 0; i < kNumCascades; ++i) {
+            char shadowMapName[64] = { };
             cascades[i].n = cascadeBoundries[i];
             cascades[i].f = cascadeBoundries[i + 1];
-            switch (inDirectionalLight.implemenation)
-            {
-            case DirectionalLight::Implementation::kCSM_Basic:
-                cascades[i].shadowmapPtr = std::make_unique<DirectionalShadowmap>(inDirectionalLight, shadowmapNameBuffer);
-                break;
-            case DirectionalLight::Implementation::kCSM_VarianceShadowmap:
-                cascades[i].shadowmapPtr = std::make_unique<VarianceShadowmap>(inDirectionalLight);
-                break;
-            }
+            cascades[i].shadowMap = std::make_unique<DirectionalShadowMap>(inDirectionalLight);
         }
     }
 
-    void CascadedShadowmap::render(ICamera* inCamera, const Scene& scene, SceneRenderable& renderableScene, Renderer& renderer)
-    {
-        if (auto viewCamera = dynamic_cast<PerspectiveCamera*>(scene.camera->getCamera()))
-        {
-            // calculate cascades based on camera view frustum
-            updateCascades(*viewCamera);
+    void CascadedShadowMap::render(const BoundingBox3D& lightSpaceAABB, SceneRenderable& scene, Renderer* renderer) {
+        // calculate cascades based on camera view frustum
+        updateCascades(scene.camera);
 
-            for (u32 i = 0; i < kNumCascades; ++i)
-            {
-                BoundingBox3D lightSpaceAABB = calcLightSpaceAABB(lightDirection, cascades[i].worldSpaceAABB);
-                OrthographicCamera camera(
-                    glm::vec3(0.f),
-                    -lightDirection,
-                    glm::vec3(0.f, 1.f, 0.f),
-                    lightSpaceAABB
-                );
-                cascades[i].shadowmapPtr->render(&camera, scene, renderableScene, renderer);
-            }
+        for (u32 i = 0; i < kNumCascades; ++i) {
+            BoundingBox3D cascadeLightSpaceAABB = calcLightSpaceAABB(lightDirection, cascades[i].worldSpaceAABB);
+            cascades[i].shadowMap->render(cascadeLightSpaceAABB, scene, renderer);
         }
     }
 
-    void CascadedShadowmap::setShaderParameters(Shader* shader, const char* uniformNamePrefix)
+    void CascadedShadowMap::setShaderParameters(Shader* shader, const char* uniformNamePrefix)
     {
         std::string inPrefix(uniformNamePrefix);
         for (u32 i = 0; i < kNumCascades; ++i)
@@ -139,12 +117,11 @@ namespace Cyan
             shader->setUniform(farClippingPlaneName.c_str(), cascades[i].f);
 
             std::string csmPrefix = inPrefix + cascadePrefixStr;
-            cascades[i].shadowmapPtr->setShaderParameters(shader, csmPrefix.c_str());
+            cascades[i].shadowMap->setShaderParameters(shader, csmPrefix.c_str());
         }
     }
 
-    void CascadedShadowmap::updateCascades(PerspectiveCamera& camera)
-    {
+    void CascadedShadowMap::updateCascades(const SceneRenderable::Camera& camera) {
         // calculate cascade's near and far clipping plane
         for (u32 i = 0u; i < kNumCascades; ++i)
         {
@@ -159,43 +136,42 @@ namespace Cyan
         }
     }
 
-    void CascadedShadowmap::calcCascadeAABB(Cascade& cascade, PerspectiveCamera& camera)
-    {
+    void CascadedShadowMap::calcCascadeAABB(Cascade& cascade, const SceneRenderable::Camera& camera) {
         f32 N = fabs(cascade.n);
         f32 F = fabs(cascade.f);
         static f32 fixedProjRadius = 0.f;
-        glm::vec3 right = camera.right();
-        glm::vec3 up = camera.up();
+        glm::vec3 right = camera.right;
+        glm::vec3 up = camera.up;
 
         /** note
             scale in z axis to enclose a bigger range in z, since occluder in another
             frusta might cast shadow on current frusta!! stabilize the projection matrix in xy-plane
         */
-        if ((F - N) > 2.f * F * glm::tan(glm::radians(camera.fov)) * camera.aspectRatio)
+        if ((F - N) > 2.f * F * glm::tan(glm::radians(camera.fov)) * camera.aspect)
         {
             fixedProjRadius = 0.5f * (F - N) * 1.2f;
         }
         else
         {
-            fixedProjRadius = F * glm::tan(glm::radians(camera.fov)) * camera.aspectRatio * 1.2f;
+            fixedProjRadius = F * glm::tan(glm::radians(camera.fov)) * camera.aspect * 1.2f;
         }
 
         f32 dn = N * glm::tan(glm::radians(camera.fov));
         // compute lower left corner of near clipping plane
-        glm::vec3 cp = glm::normalize(camera.lookAt - camera.position) * N;
-        glm::vec3 ca = cp + -up * dn + -right * dn * camera.aspectRatio;
+        glm::vec3 cp = glm::normalize(camera.lookAt - camera.eye) * N;
+        glm::vec3 ca = cp + -up * dn + -right * dn * camera.aspect;
 
-        glm::vec3 na = camera.position + ca;
-        glm::vec3 nb = na + right * 2.f * dn * camera.aspectRatio;
+        glm::vec3 na = camera.eye + ca;
+        glm::vec3 nb = na + right * 2.f * dn * camera.aspect;
         glm::vec3 nc = nb + up * 2.f * dn;
         glm::vec3 nd = na + up * 2.f * dn;
 
         f32 df = F * glm::tan(glm::radians(camera.fov));
-        glm::vec3 cpf = glm::normalize(camera.lookAt - camera.position) * F;
-        glm::vec3 caf = cpf + -up * df + -right * df * camera.aspectRatio;
+        glm::vec3 cpf = glm::normalize(camera.lookAt - camera.eye) * F;
+        glm::vec3 caf = cpf + -up * df + -right * df * camera.aspect;
 
-        glm::vec3 fa = camera.position + caf;
-        glm::vec3 fb = fa + right * 2.f * df * camera.aspectRatio;
+        glm::vec3 fa = camera.eye + caf;
+        glm::vec3 fb = fa + right * 2.f * df * camera.aspect;
         glm::vec3 fc = fb + up * 2.f * df;
         glm::vec3 fd = fa + up * 2.f * df;
 

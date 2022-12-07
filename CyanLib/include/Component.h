@@ -7,7 +7,7 @@ namespace Cyan
     // customize the behavior of its component
     struct Component
     {
-        virtual void upload() { }
+        virtual void update() { }
         virtual void render() { }
         virtual const char* getTag() { return "Component"; }
     };

@@ -4,51 +4,33 @@
 * All lit material shader should include this file
 */
 
-#define MAX_NUM_POINT_LIGHTS 32
-#define NUM_SHADOW_CASCADES 4
-
-#ifdef VARIANCE_SHADOWMAP
-uniform struct VarianceShadowmap
-{
+const uint kNumShadowCascades = 4;
+uniform struct DirectionalShadowmap {
 	mat4 lightSpaceProjection;
-	sampler2D depthTexture;
-	sampler2D depthSpuaredTexture;
+	uint64_t depthTextureHandle;
+	vec2 padding;
 };
 
-uniform struct Cascade
-{
+uniform struct Cascade {
 	float n;
 	float f;
-	VarianceShadowmap shadowmap;
-};
-#endif
-
-#ifndef VARIANCE_SHADOWMAP
-uniform struct DirectionalShadowmap
-{
-	mat4 lightSpaceProjection;
-	sampler2D depthTexture;
-};
-
-uniform struct Cascade
-{
-	float n;
-	float f;
+	vec2 padding;
 	DirectionalShadowmap shadowmap;
 };
-#endif
 
-uniform struct CascadedShadowmap
-{
-	Cascade cascades[NUM_SHADOW_CASCADES];
+uniform struct CascadedShadowMap {
+	Cascade cascades[kNumShadowCascades];
 };
 
-uniform struct DirectionalLight
-{
-	vec3 direction;
+uniform struct DirectionalLight {
+	vec4 direction;
 	vec4 colorAndIntensity;
     mat4 lightSpaceView;
-	CascadedShadowmap csm;
+	CascadedShadowMap csm;
+};
+
+layout (std430, binding = 2) buffer DirectionalLightBuffer {
+
 };
 
 uniform struct PointLight

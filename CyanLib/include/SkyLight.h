@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Light.h"
+#include "Lights.h"
 #include "LightProbe.h"
 
 namespace Cyan

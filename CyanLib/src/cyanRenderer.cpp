@@ -23,7 +23,7 @@
 #include "CyanUI.h"
 #include "Ray.h"
 #include "RenderableScene.h"
-#include "LightRenderable.h"
+#include "Lights.h"
 #include "RayTracingScene.h"
 #include "IOSystem.h"
 
@@ -272,10 +272,12 @@ namespace Cyan
                     material->setShaderMaterialParameters();
                     if (material->isLit())
                     {
+                        /*
                         for (auto light : sceneRenderable.lights)
                         {
                             light->setShaderParameters(shader);
                         }
+                        */
                     }
                     shader->setUniform("transformIndex", transformIndex);
                 };
@@ -711,7 +713,9 @@ namespace Cyan
             SceneRenderable sceneRenderable(scene, sceneView, m_frameAllocator);
 
             // shadow
-            renderShadowMaps(*scene, sceneRenderable);
+            SceneView shadowView(*scene, scene->camera->getCamera(), EntityFlag_kVisible | EntityFlag_kCastShadow, nullptr, { });
+            SceneRenderable shadowScene(scene, shadowView, m_frameAllocator);
+            renderShadowMaps(shadowScene);
 
             // scene depth & normal pass
             ITextureRenderable::Spec depthNormalSpec = { };
@@ -813,16 +817,13 @@ namespace Cyan
         m_numFrames++;
     }
 
-    void Renderer::renderShadowMaps(const Scene& scene, const SceneRenderable& renderableScene)
-    {
-        // construct a scene view for all shadow casting lights 
-        SceneView shadowView(scene, scene.camera->getCamera(), EntityFlag_kVisible | EntityFlag_kCastShadow, nullptr, { });
-        SceneRenderable shadowScene(&scene, shadowView, m_frameAllocator);
-
-        for (auto light : renderableScene.lights)
-        {
-            light->renderShadowMaps(scene, shadowScene, *this);
+    void Renderer::renderShadowMaps(SceneRenderable& scene) {
+        for (auto directionalLight : scene.directionalLights) {
+            if (directionalLight->bCastShadow) {
+                directionalLight->renderShadowMap(scene, this);
+            }
         }
+        // todo: point light
     }
 
     void Renderer::renderSceneMeshOnly(SceneRenderable& sceneRenderable, RenderTarget* dstRenderTarget, Shader* shader)
@@ -845,7 +846,7 @@ namespace Cyan
         }
     }
 
-    void Renderer::renderSceneDepthOnly(SceneRenderable& renderableScene, Texture2DRenderable* outDepthTexture)
+    void Renderer::renderSceneDepthOnly(SceneRenderable& scene, Texture2DRenderable* outDepthTexture)
     {
         Shader* depthOnlyShader = ShaderManager::createShader({ 
             ShaderSource::Type::kVsPs, 
@@ -859,10 +860,10 @@ namespace Cyan
         depthRenderTargetPtr->setDepthBuffer(reinterpret_cast<DepthTexture2D*>(outDepthTexture));
         depthRenderTargetPtr->clear({ { 0u } });
 
-        renderableScene.upload(m_ctx);
+        scene.upload(m_ctx);
 
         u32 transformIndex = 0u;
-        for (auto& meshInst : renderableScene.meshInstances)
+        for (auto& meshInst : scene.meshInstances)
         {
             submitMesh(
                 depthRenderTargetPtr.get(),
@@ -1296,10 +1297,12 @@ namespace Cyan
         scenePassShader->setTexture("sceneLights.skyLight.reflection", sceneRenderable.reflectionProbe->m_convolvedReflectionTexture);
         scenePassShader->setUniform("sceneLights.BRDFLookupTexture", BRDFLookupTexture);
 
+        /*
         for (auto light : sceneRenderable.lights)
         {
             light->setShaderParameters(scenePassShader);
         }
+        */
 
         submitSceneMultiDrawIndirect(sceneRenderable);
 

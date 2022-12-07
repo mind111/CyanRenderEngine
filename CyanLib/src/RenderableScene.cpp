@@ -1,11 +1,12 @@
 #include <unordered_map>
 
+#include "Lights.h"
 #include "RenderableScene.h"
 #include "Camera.h"
 #include "Scene.h"
 #include "CyanRenderer.h"
-#include "LightComponent.h"
-#include "LightRenderable.h"
+#include "LightComponents.h"
+#include "GpuLights.h"
 
 namespace Cyan
 {
@@ -135,9 +136,12 @@ namespace Cyan
         instanceBuffer = std::make_unique<InstanceBuffer>();
         drawCallBuffer = std::make_unique<DrawCallBuffer>();
         materialBuffer = std::make_unique<MaterialBuffer>();
+        directionalLightBuffer = std::make_unique<DirectionalLightBuffer>();
 
         if (!packedGeometry)
             packedGeometry = new PackedGeometry(*inScene);
+
+        aabb = inScene->aabb;
 
         // todo: make this work with orthographic camera as well
         PerspectiveCamera* inCamera = dynamic_cast<PerspectiveCamera*>(inScene->camera->getCamera());
@@ -165,16 +169,24 @@ namespace Cyan
             {
                 for (auto lightComponent : lightComponents)
                 {
-                    /* note:
-                        using a custom deleter since `allocator` used in this case is using placement new, need to explicitly invoke
-                        destructor to avoid memory leaking as the object being constructed using placement new might heap allocate its members.
-                        Thus, need to invoke destructor to make sure those heap allocated members are released, no need to free memory since the allocator's
-                        memory will be reset and reused each frame.
-                    */
-                    lights.push_back(std::shared_ptr<ILightRenderable>(lightComponent->buildRenderableLight(allocator), [](ILightRenderable* lightToDelete) { 
-                            lightToDelete->~ILightRenderable();
-                        })
-                    );
+                    if (std::string(lightComponent->getTag()) == std::string("DirectionalLightComponent")) {
+                        auto directionalLightComponent = dynamic_cast<DirectionalLightComponent*>(lightComponent);
+                        assert(directionalLightComponent);
+                        auto directionalLight = directionalLightComponent->directionalLight.get();
+                        if (directionalLight) {
+                            directionalLights.push_back(directionalLight);
+
+                            if (auto csmDirectionalLight = dynamic_cast<CSMDirectionalLight*>(directionalLight)) {
+                                directionalLightBuffer->addElement(csmDirectionalLight->buildGpuLight());
+                            }
+                            else if (auto basicDirectionalLight = dynamic_cast<DirectionalLight*>(directionalLight)) {
+                                assert(0);
+                            }
+                        }
+                    }
+                    else if (std::string(lightComponent->getTag()) == std::string("PointLightComponent")) {
+
+                    }
                 }
             }
 
@@ -243,6 +255,7 @@ namespace Cyan
     }
 
     void SceneRenderable::clone(SceneRenderable& dst, const SceneRenderable& src) {
+        dst.aabb = src.aabb;
         dst.camera = src.camera;
         dst.meshInstances = src.meshInstances;
         dst.skybox = src.skybox;

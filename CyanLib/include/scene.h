@@ -10,13 +10,12 @@
 #include "Allocator.h"
 #include "Camera.h"
 #include "Texture.h"
-#include "Light.h"
+#include "LightEntities.h"
 #include "Mesh.h"
 #include "Material.h"
 #include "LightProbe.h"
 #include "SkyBox.h"
 #include "SkyLight.h"
-#include "DirectionalLight.h"
 #include "StaticMeshEntity.h"
 
 namespace Cyan

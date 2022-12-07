@@ -1,7 +1,7 @@
 
 #include "ManyViewGI.h"
 #include "CyanRenderer.h"
-#include "LightRenderable.h"
+#include "Lights.h"
 #include "AssetManager.h"
 
 namespace Cyan {
@@ -455,10 +455,12 @@ namespace Cyan {
             SHADER_SOURCE_PATH "manyview_gi_final_gather_p.glsl",
         });
 
+        /*
         // suppose this only need to be set once
         for (auto light : scene.lights) {
             light->setShaderParameters(shader);
         }
+        */
 
         m_gfxc->setShader(shader);
         shader->setUniform("view", camera.view());
@@ -589,10 +591,12 @@ namespace Cyan {
 
             surfelBuffer.bind(69);
 
+#if 0
             // suppose this only need to be set once
             for (auto light : m_scene->lights) {
                 light->setShaderParameters(shader);
             }
+#endif
 
             m_gfxc->setShader(shader);
             // each compute thread process one surfel

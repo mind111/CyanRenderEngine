@@ -206,7 +206,7 @@ namespace Cyan
         void renderDebugObjects();
 
         /* Shadow */
-        void renderShadowMaps(const Scene& scene, const SceneRenderable& renderableScene);
+        void renderShadowMaps(SceneRenderable& renderableScene);
 
         /*
         * Render provided scene into a light probe

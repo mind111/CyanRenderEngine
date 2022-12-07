@@ -2,7 +2,7 @@
 
 #include "Common.h"
 #include "Mesh.h"
-#include "Light.h"
+#include "GpuLights.h"
 #include "LightProbe.h"
 #include "ShaderStorageBuffer.h"
 
@@ -15,6 +15,9 @@ namespace Cyan
     struct ICamera;
     struct GfxContext;
     struct ILightRenderable;
+    struct DirectionalLight;
+    struct SkyLight;
+    struct PointLight;
 
     struct PackedGeometry
     {
@@ -84,6 +87,9 @@ namespace Cyan
         using InstanceBuffer = ShaderStorageBuffer<DynamicSsboData<InstanceDesc>>;
         using MaterialBuffer = ShaderStorageBuffer<DynamicSsboData<Material>>;
         using DrawCallBuffer = ShaderStorageBuffer<DynamicSsboData<u32>>;
+        using DirectionalLightBuffer = ShaderStorageBuffer<DynamicSsboData<GpuCSMDirectionalLight>>;
+        using PointLightBuffer = ShaderStorageBuffer<DynamicSsboData<GpuPointLight>>;
+        using SkyLightBuffer = ShaderStorageBuffer<DynamicSsboData<GpuSkyLight>>;
 
         friend class Renderer;
 
@@ -98,6 +104,9 @@ namespace Cyan
         * Submit rendering data to global gpu buffers
         */
         void upload(GfxContext* ctx);
+
+        // bounding box
+        BoundingBox3D aabb;
 
         // camera
         struct Camera
@@ -114,6 +123,11 @@ namespace Cyan
         std::vector<MeshInstance*> meshInstances;
 
         // lights
+        std::vector<DirectionalLight*> directionalLights;
+        std::vector<PointLight*> pointLights;
+        std::vector<SkyLight*> skyLights;
+        std::unique_ptr<DirectionalLightBuffer> directionalLightBuffer = nullptr;
+
         Skybox* skybox = nullptr;
         std::vector<std::shared_ptr<ILightRenderable>> lights;
         IrradianceProbe* irradianceProbe = nullptr;

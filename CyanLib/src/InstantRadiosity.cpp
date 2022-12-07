@@ -9,7 +9,7 @@
 #include "CyanRenderer.h"
 #include "RenderableScene.h"
 #include "AssetManager.h"
-#include "LightRenderable.h"
+#include "Lights.h"
 
 namespace Cyan {
 
@@ -117,10 +117,12 @@ namespace Cyan {
         gfxc->setViewport({ 0, 0, renderTarget->width, renderTarget->height });
         gfxc->setDepthControl(DepthControl::kEnable);
 
+#if 0
         for (auto light : renderableScene.lights)
         {
             light->setShaderParameters(VPLGenerationShader);
         }
+#endif
         VPLGenerationShader->setUniform("kMaxNumVPLs", kMaxNumVPLs);
 
         // bind VPL atomic counter
