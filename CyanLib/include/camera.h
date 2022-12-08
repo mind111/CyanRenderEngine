@@ -81,8 +81,7 @@ namespace Cyan
         BoundingBox3D viewVolume;
     };
 
-    struct CameraComponent : public Component
-    {
+    struct CameraComponent : public Component {
         enum class ProjectionType
         {
             kPerspective,

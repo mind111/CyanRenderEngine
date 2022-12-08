@@ -10,8 +10,7 @@
 
 namespace Cyan
 {
-    struct Light
-    {
+    struct Light {
         Light() { }
         Light(const glm::vec4& inColorAndIntensity) 
         : colorAndIntensity(inColorAndIntensity) {
@@ -26,14 +25,6 @@ namespace Cyan
     };
 
     struct DirectionalLight : public Light {
-        enum class ShadowQuality
-        {
-            kLow,
-            kMedium,
-            kHigh,
-            kInvalid
-        } shadowQuality = ShadowQuality::kHigh;
-
         enum class ShadowMap {
             kBasic = 0,
             kCSM,

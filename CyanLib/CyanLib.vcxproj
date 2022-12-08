@@ -148,7 +148,8 @@
     <ClCompile Include="src\Window.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\shader\calculate_light.glsl" />
+    <None Include="..\shader\lighting.glsl" />
+    <None Include="..\shader\shading_model.glsl" />
     <None Include="..\shader\debug_copy_p.glsl" />
     <None Include="..\shader\debug_color_fs.glsl" />
     <None Include="..\shader\debug_color_vs.glsl" />
@@ -175,7 +176,7 @@
     <None Include="..\shader\global_buffers.glsl" />
     <None Include="..\shader\instant_radiosity_p.glsl" />
     <None Include="..\shader\instant_radiosity_v.glsl" />
-    <None Include="..\shader\light_definitions.glsl" />
+    <None Include="..\shader\lights.glsl" />
     <None Include="..\shader\manyview_gi_convolve_irradiance_c.glsl" />
     <None Include="..\shader\manyview_gi_oct_radiance_c.glsl" />
     <None Include="..\shader\material.glsl" />

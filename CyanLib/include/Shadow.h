@@ -18,13 +18,6 @@ namespace Cyan {
 
     struct IDirectionalShadowMap
     {
-        enum class Quality
-        {
-            kLow,
-            kMedium,
-            kHigh
-        } quality;
-
         virtual void render(const BoundingBox3D& lightSpaceAABB, SceneRenderable& scene, Renderer* renderer) { }
         virtual void setShaderParameters(Shader* shader, const char* uniformNamePrefix) { }
 
@@ -47,8 +40,7 @@ namespace Cyan {
     * todo: blend between cascades to alleviate artifact when transitioning between cascades
     * todo: better shadow biasing; normal bias and receiver geometry bias
     */
-    struct DirectionalShadowMap : public IDirectionalShadowMap
-    {
+    struct DirectionalShadowMap : public IDirectionalShadowMap {
         virtual void render(const BoundingBox3D& likghtSpaceAABB, SceneRenderable& scene, Renderer* renderer) override;
         virtual void setShaderParameters(Shader* shader, const char* uniformNamePrefix) override;
 
@@ -64,8 +56,7 @@ namespace Cyan {
     /**
     * Variance directional shadowmap
     */
-    struct VarianceShadowMap : public IDirectionalShadowMap
-    {
+    struct VarianceShadowMap : public IDirectionalShadowMap {
         virtual void render(const BoundingBox3D& lightSpaceAABB, SceneRenderable& scene, Renderer* renderer) override { }
         virtual void setShaderParameters(Shader* shader, const char* uniformNamePrefix) override { }
 
@@ -80,11 +71,9 @@ namespace Cyan {
         DepthTexture2D* depthSquaredTexture = nullptr;
     };
 
-    struct CascadedShadowMap : public IDirectionalShadowMap
-    {
+    struct CascadedShadowMap : public IDirectionalShadowMap {
         /* IDirectionalShadowmap interface */
         virtual void render(const BoundingBox3D& lightSpaceAABB, SceneRenderable& scene, Renderer* renderer) override;
-        virtual void setShaderParameters(Shader* shader, const char* uniformNamePrefix) override;
 
         static constexpr f32 cascadeBoundries[5] = { 0.0f, 0.1f, 0.3f, 0.6f, 1.0f };
         static constexpr u32 kNumCascades = 4u;

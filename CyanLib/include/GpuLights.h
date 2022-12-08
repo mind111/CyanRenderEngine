@@ -7,6 +7,7 @@ namespace Cyan
 {
 #if 1
     struct GpuDirectionalShadowMap {
+        glm::mat4 lightSpaceView;
         glm::mat4 lightSpaceProjection;
         u64 depthMapHandle;
         glm::vec2 padding;
@@ -23,10 +24,10 @@ namespace Cyan
     const u32 kNumShadowCascades = 4u;
     struct GpuCSMDirectionalLight : public GpuDirectionalLight {
         struct Cascade {
-            GpuDirectionalShadowMap shadowMap;
             f32 n;
             f32 f;
             glm::vec2 padding;
+            GpuDirectionalShadowMap shadowMap;
         };
 
         Cascade cascades[kNumShadowCascades];

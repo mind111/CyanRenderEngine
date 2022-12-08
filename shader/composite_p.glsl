@@ -38,14 +38,17 @@ vec3 adjustExposure(vec3 inLinearColor)
 * leading the division by luminance becoming 0. Should luminance be bound by whitePointLuminance...?
 */
 #define MAX_RGB 1000.f
-vec3 ReinhardTonemapping(in vec3 inLinearColor, float whitePointLum)
-{
+vec3 ReinhardTonemapping(in vec3 inLinearColor, float whitePointLum) {
     vec3 color = vec3(min(MAX_RGB, inLinearColor.r), min(MAX_RGB, inLinearColor.g), min(MAX_RGB, inLinearColor.b));
     float luminance = calcLuminance(color);
     color = inLinearColor / luminance;
     float numerator = luminance * (1. + luminance / (whitePointLum * whitePointLum));
     float remappedLuminance = numerator / (1.f + luminance);
     return color * remappedLuminance;
+}
+
+vec3 simpleReinhard(in vec3 inLinearColor) {
+	return inLinearColor / (inLinearColor + 1.f);
 }
 
 vec3 gammaCorrection(in vec3 inLinearColor, float gamma)
@@ -142,7 +145,8 @@ void main()
 		}
         else if (tonemapOperator == TONEMAPPER_REINHARD)
         {
-			tonemappedColor = ReinhardTonemapping(exposure * linearColor, whitePointLuminance);
+			// tonemappedColor = ReinhardTonemapping(exposure * linearColor, whitePointLuminance);
+			tonemappedColor = simpleReinhard(exposure * linearColor);
 			tonemappedColor = gammaCorrection(tonemappedColor, 1.f / 2.2f);
         }
 		outColor = vec4(tonemappedColor, 1.f);

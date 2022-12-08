@@ -29,24 +29,10 @@ in VSOutput
 
 out vec3 outColor;
 
-//- samplers
-layout (binding = 5) uniform sampler2D ssaoTex;
-
-#if 0
-layout (binding = 10) uniform sampler3D sceneVoxelGridAlbedo;
-layout (binding = 11) uniform sampler3D sceneVoxelGridNormal;
-layout (binding = 12) uniform sampler3D sceneVoxelGridRadiance;
-layout (binding = 13) uniform sampler3D sceneVoxelGridOpacity;
-layout (binding = 14) uniform sampler2D vctxOcclusion;
-layout (binding = 15) uniform sampler2D vctxIrradiance;
-layout (binding = 16) uniform sampler2D vctxReflection;
-#endif
-
 // constants
 #define pi 3.14159265359
 #define SLOPE_BASED_BIAS 0
 #define VIEW_SSBO_BINDING 0
-#define VARIANCE_SHADOWMAP 0
 
 layout(std430, binding = VIEW_SSBO_BINDING) buffer ViewShaderStorageBuffer
 {
@@ -56,90 +42,36 @@ layout(std430, binding = VIEW_SSBO_BINDING) buffer ViewShaderStorageBuffer
     float dummy;
 } viewSsbo;
 
-#if 0
-//- voxel cone tracing
-layout(std430, binding = 4) buffer VoxelGridData
-{
-    vec3 localOrigin;
-    float voxelSize;
-    int visMode;
-    vec3 padding;
-} sceneVoxelGrid;
-#endif
-
 //================================= "lights.glsl" =========================================
-uniform uint64_t SSAO;
-uniform uint64_t SSBN;
-uniform float useBentNormal;
-uniform float useSSAO;
-
-#define MAX_NUM_POINT_LIGHTS 32
-#define NUM_SHADOW_CASCADES 4
-
-#if VARIANCE_SHADOWMAP
-uniform struct VarianceShadowmap
-{
-	mat4 lightSpaceProjection;
-	sampler2D depthTexture;
-	sampler2D depthSpuaredTexture;
-};
-
-uniform struct Cascade
-{
-	float n;
-	float f;
-	VarianceShadowmap shadowmap;
-};
-#else
-// todo: since these following structs are declared to be uniform, they has to be instantiated on declaration, which is kind of 
-// inconvenient, is there any better ways to store a texture as a struct member in glsl?
-struct DirectionalShadowmap
-{
+const uint kNumShadowCascades = 4;
+struct DirectionalShadowMap {
+	mat4 lightSpaceView;
 	mat4 lightSpaceProjection;
 	uint64_t depthTextureHandle;
-} directionalShadowmap;
+	vec2 padding;
+};
 
-struct Cascade
-{
+struct Cascade {
 	float n;
 	float f;
-	DirectionalShadowmap shadowmap;
-} cascade;
-#endif
+	vec2 padding;
+	DirectionalShadowMap shadowMap;
+};
 
-struct CascadedShadowmap
-{
-	Cascade cascades[NUM_SHADOW_CASCADES];
-} csm;
+struct CascadedShadowMap {
+	Cascade cascades[kNumShadowCascades];
+};
 
-struct DirectionalLight
-{
+struct DirectionalLight {
+	vec4 colorAndIntensity;
 	vec4 direction;
-	vec4 colorAndIntensity;
-    mat4 lightSpaceView;
-	CascadedShadowmap csm;
-} directionalLight;
+	CascadedShadowMap csm;
+};
 
-uniform struct PointLight
-{
-	vec3 position;
-	vec4 colorAndIntensity;
-	samplerCube shadowmap;
-} pointLight;
-
-uniform struct SkyLight
-{
-	samplerCube irradiance;
-	samplerCube reflection;
-} skyLightDef;
-
-uniform struct SceneLights
-{
-    uint64_t BRDFLookupTexture;
-	SkyLight skyLight;
-	DirectionalLight directionalLight;
-	// PointLight pointLights[MAX_NUM_POINT_LIGHTS];
-} sceneLights;
+layout (std430, binding = 8) buffer DirectionalLightBuffer {
+	DirectionalLight directionalLights[];
+};
+//========================================================================================
 
 float slopeBasedBias(vec3 n, vec3 l)
 {
@@ -157,12 +89,12 @@ float constantBias()
 /**
 	determine which cascade to sample from
 */
-int calcCascadeIndex(in vec3 viewSpacePosition)
+int calcCascadeIndex(in vec3 viewSpacePosition, in DirectionalLight directionalLight)
 {
     int cascadeIndex = 0;
     for (int i = 0; i < 4; ++i)
     {
-        if (viewSpacePosition.z < sceneLights.directionalLight.csm.cascades[i].f)
+        if (viewSpacePosition.z < directionalLight.csm.cascades[i].f)
         {
             cascadeIndex = i;
             break;
@@ -173,12 +105,14 @@ int calcCascadeIndex(in vec3 viewSpacePosition)
 
 float PCFShadow(vec3 worldSpacePosition, vec3 normal, in DirectionalLight directionalLight)
 {
-    sampler2D sampler = sampler2D(directionalLight.csm.cascades[0].shadowmap.depthTextureHandle);
+    sampler2D sampler = sampler2D(directionalLight.csm.cascades[0].shadowMap.depthTextureHandle);
 	float shadow = 0.0f;
     vec2 texelOffset = vec2(1.f) / textureSize(sampler, 0);
     vec3 viewSpacePosition = (viewSsbo.view * vec4(worldSpacePosition, 1.f)).xyz;
-    int cascadeIndex = calcCascadeIndex(viewSpacePosition);
-    vec4 lightSpacePosition = directionalLight.csm.cascades[cascadeIndex].shadowmap.lightSpaceProjection * directionalLight.lightSpaceView * vec4(worldSpacePosition, 1.f);
+    int cascadeIndex = calcCascadeIndex(viewSpacePosition, directionalLight);
+    vec4 lightSpacePosition = 
+		directionalLight.csm.cascades[cascadeIndex].shadowMap.lightSpaceProjection 
+	  * directionalLight.csm.cascades[cascadeIndex].shadowMap.lightSpaceView * vec4(worldSpacePosition, 1.f);
     float depth = lightSpacePosition.z * .5f + .5f;
     vec2 uv = lightSpacePosition.xy * .5f + .5f;
 
@@ -213,29 +147,6 @@ float PCFShadow(vec3 worldSpacePosition, vec3 normal, in DirectionalLight direct
     }
     return shadow;
 }
-
-// todo: the shadow is almost too soft!
-/** note:
-    objects that are closer to the near clipping plane for each frusta in CSM doesn't show such 
-    artifact, which infers that when t decreases, the Chebychev inequility increases. Don't know why this happens!
-*/
-#if 0
-float varianceShadow(vec2 shadowTexCoord, float fragmentDepth, int cascadeOffset)
-{
-    float shadow = 1.f;
-    float firstMoment = texture(shadowCascades[cascadeOffset], shadowTexCoord).r;
-    if (firstMoment <= fragmentDepth)
-    {
-        float t = fragmentDepth;
-        float secondMoment = texture(shadowCascades[cascadeOffset], shadowTexCoord).g;
-        // use second and first moment to compute variance
-        float variance = max(secondMoment - firstMoment * firstMoment, 0.0001f);
-        //he Chebycv visibility test
-        shadow = variance / (variance + (t - firstMoment) * (t - firstMoment));
-    }
-    return shadow;
-}
-#endif
 
 float calcDirectionalShadow(vec3 worldPosition, vec3 normal, in DirectionalLight directionalLight)
 {
@@ -339,20 +250,6 @@ MaterialParameters getMaterialParameters(vec3 worldSpaceTangent, vec3 worldSpace
 	return materialParameters;
 }
 //===============================================================================
-
-uniform sampler2D ssaoTexture;
-
-mat3 tbn(vec3 n)
-{
-    vec3 up = abs(n.y) < 0.98f ? vec3(0.f, 1.f, 0.f) : vec3(0.f, 0.f, 1.f);
-    vec3 right = cross(n, up);
-    vec3 forward = cross(n, right);
-    return mat3(
-        right,
-        forward,
-        n
-    );
-}
 
 float saturate(float k)
 {
@@ -513,8 +410,8 @@ vec3 DisneyBRDF(vec3 l, vec3 v, MaterialParameters materialParameters)
     vec3 h = normalize(l + v);
     vec3 worldSpaceViewDirection = (inverse(viewSsbo.view) * vec4(normalize(-psIn.viewSpacePosition), 0.f)).xyz;
     float ndotv = saturate(dot(materialParameters.normal, worldSpaceViewDirection));
-    float ndotl = max(dot(materialParameters.normal, directionalLight.direction.xyz), 0.f);
-    float hdotl = saturate(dot(h, directionalLight.direction.xyz));
+    float ndotl = max(dot(materialParameters.normal, l), 0.f);
+    float hdotl = saturate(dot(h, l));
 
     vec3 f0 = calcF0(materialParameters);
     // dialectric
@@ -565,6 +462,7 @@ vec3 calcPointLight()
     return radiance;
 }
 
+#if 0
 vec3 calcSkyLight(SkyLight skyLight, in MaterialParameters materialParameters, vec3 worldSpacePosition) {
     vec3 radiance = vec3(0.f);
 
@@ -588,28 +486,30 @@ vec3 calcSkyLight(SkyLight skyLight, in MaterialParameters materialParameters, v
     vec3 BRDF = texture(sampler2D(sceneLights.BRDFLookupTexture), vec2(ndotv, materialParameters.roughness)).rgb; 
     vec3 incidentRadiance = textureLod(samplerCube(skyLight.reflection), reflectionDirection, materialParameters.roughness * 10.f).rgb;
     radiance += incidentRadiance * (f0 * BRDF.r + BRDF.g) * ao;
-    return radiance;
+    // return radiance;
+    return vec3(.2f);
 }
+#endif
 
-vec3 calcLighting(SceneLights sceneLights, in MaterialParameters materialParameters, vec3 worldSpacePosition)
+vec3 calcLighting(in MaterialParameters materialParameters, vec3 worldSpacePosition)
 {
     vec3 radiance = vec3(0.f);
+    radiance += vec3(.01f) * materialParameters.albedo;
 
     // sun light
-    radiance += calcDirectionalLight(sceneLights.directionalLight, materialParameters, worldSpacePosition);
+    radiance += calcDirectionalLight(directionalLights[0], materialParameters, worldSpacePosition);
     // sky light
-    radiance += calcSkyLight(sceneLights.skyLight, materialParameters, worldSpacePosition);
+    // radiance += calcSkyLight(sceneLights.skyLight, materialParameters, worldSpacePosition);
 
     return radiance;
 }
 
-void main()
-{
+void main() {
     vec3 worldSpaceTangent = normalize(psIn.worldSpaceTangent);
     vec3 worldSpaceNormal = normalize(psIn.worldSpaceNormal);
     worldSpaceTangent = normalize(worldSpaceTangent - dot(worldSpaceNormal, worldSpaceTangent) * worldSpaceNormal); 
     vec3 worldSpaceBitangent = normalize(cross(worldSpaceNormal, worldSpaceTangent)) * psIn.tangentSpaceHandedness;
 
     MaterialParameters materialParameters = getMaterialParameters(worldSpaceTangent, worldSpaceBitangent, worldSpaceNormal, psIn.texCoord0);
-    outColor = calcLighting(sceneLights, materialParameters, psIn.worldSpacePosition);
+    outColor = calcLighting(materialParameters, psIn.worldSpacePosition);
 }

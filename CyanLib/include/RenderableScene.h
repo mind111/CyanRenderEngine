@@ -103,7 +103,7 @@ namespace Cyan
         /**
         * Submit rendering data to global gpu buffers
         */
-        void upload(GfxContext* ctx);
+        void upload();
 
         // bounding box
         BoundingBox3D aabb;
@@ -137,8 +137,8 @@ namespace Cyan
         std::unique_ptr<ViewBuffer> viewBuffer = nullptr;
         std::unique_ptr<TransformBuffer> transformBuffer = nullptr;
         std::unique_ptr<InstanceBuffer> instanceBuffer = nullptr;
-        std::unique_ptr<DrawCallBuffer> drawCallBuffer = nullptr;
         std::unique_ptr<MaterialBuffer> materialBuffer = nullptr;
+        std::unique_ptr<DrawCallBuffer> drawCallBuffer = nullptr;
     private:
         u32 getMaterialID(MeshInstance* meshInstance, u32 submeshIndex);
     };

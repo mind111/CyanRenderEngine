@@ -158,8 +158,6 @@ namespace Cyan
             camera.view = inCamera->view();
             camera.projection = inCamera->projection();
         }
-        viewBuffer->data.constants.view = camera.view;
-        viewBuffer->data.constants.projection = camera.projection;
 
         // build list of mesh instances, transforms, and lights
         for (auto entity : sceneView.entities)
@@ -259,12 +257,6 @@ namespace Cyan
         dst.camera = src.camera;
         dst.meshInstances = src.meshInstances;
         dst.skybox = src.skybox;
-        for (auto light : src.lights) {
-            // todo: as of right now copying lights will be shallow, need to 
-            // actually implement light->clone() later and convert this to a deep copy
-            // dst.lights.push_back(std::shared_ptr<ILightRenderable>(light->clone()));
-            dst.lights.push_back(light);
-        }
         dst.irradianceProbe = src.irradianceProbe;
         dst.reflectionProbe = src.reflectionProbe;
         dst.viewBuffer = std::unique_ptr<ViewBuffer>(src.viewBuffer->clone());
@@ -272,6 +264,8 @@ namespace Cyan
         dst.instanceBuffer = std::unique_ptr<InstanceBuffer>(src.instanceBuffer->clone());
         dst.drawCallBuffer = std::unique_ptr<DrawCallBuffer>(src.drawCallBuffer->clone());
         dst.materialBuffer = std::unique_ptr<MaterialBuffer>(src.materialBuffer->clone());
+        dst.directionalLights = src.directionalLights;
+        dst.directionalLightBuffer = std::unique_ptr<DirectionalLightBuffer>(src.directionalLightBuffer->clone());
     }
 
     /**
@@ -290,38 +284,47 @@ namespace Cyan
     /**
     * Submit rendering data to global gpu buffers
     */
-    void SceneRenderable::upload(GfxContext* ctx)
-    {
-        // todo: avoid repetitively submit redundant data
-        {
-
-        }
-
-#define VIEW_SSBO_BINDING 0
-#define TRANSFORM_SSBO_BINDING 3
-#define INSTANCE_DESC_BINDING 41
-#define SUBMESH_BUFFER_BINDING 42
-#define VERTEX_BUFFER_BINDING 43
-#define INDEX_BUFFER_BINDING 44
-#define DRAWCALL_BUFFER_BINDING 45
-#define MATERIAL_BUFFER_BINDING 46
+    void SceneRenderable::upload() {
+#define VIEW_BUFFER_BINDING 0
+#define TRANSFORM_BUFFER_BINDING 1
+#define INSTANCE_DESC_BUFFER_BINDING 2
+#define SUBMESH_BUFFER_BINDING 3
+#define VERTEX_BUFFER_BINDING 4
+#define INDEX_BUFFER_BINDING 5
+#define DRAWCALL_BUFFER_BINDING 6
+#define MATERIAL_BUFFER_BINDING 7
+#define DIRECTIONALLIGHT_BUFFER_BINDING 8
 
         packedGeometry->vertexBuffer.bind(VERTEX_BUFFER_BINDING);
         packedGeometry->indexBuffer.bind(INDEX_BUFFER_BINDING);
         packedGeometry->submeshes.bind(SUBMESH_BUFFER_BINDING);
 
+        // view
         viewBuffer->data.constants.view = camera.view;
         viewBuffer->data.constants.projection = camera.projection;
         viewBuffer->upload();
-        viewBuffer->bind(VIEW_SSBO_BINDING);
+        viewBuffer->bind(VIEW_BUFFER_BINDING);
+        // transform
         transformBuffer->upload();
-        transformBuffer->bind((u32)SceneSsboBindings::TransformMatrices);
-
+        transformBuffer->bind(TRANSFORM_BUFFER_BINDING);
+        // instance
         instanceBuffer->upload();
-        instanceBuffer->bind(INSTANCE_DESC_BINDING);
+        instanceBuffer->bind(INSTANCE_DESC_BUFFER_BINDING);
+        // material
         materialBuffer->upload();
         materialBuffer->bind(MATERIAL_BUFFER_BINDING);
         drawCallBuffer->upload();
         drawCallBuffer->bind(DRAWCALL_BUFFER_BINDING);
+        // directional lights
+        for (i32 i = 0; i < directionalLightBuffer->getNumElements(); ++i) {
+            for (i32 j = 0; j < CascadedShadowMap::kNumCascades; ++j) {
+                auto handle = (*directionalLightBuffer)[i].cascades[j].shadowMap.depthMapHandle;
+                if (glIsTextureHandleResidentARB(handle) == GL_FALSE) {
+                    glMakeTextureHandleResidentARB(handle);
+                }
+            }
+        }
+        directionalLightBuffer->upload();
+        directionalLightBuffer->bind(DIRECTIONALLIGHT_BUFFER_BINDING);
     }
 }

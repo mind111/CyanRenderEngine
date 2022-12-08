@@ -22,21 +22,24 @@ namespace Cyan
 {
     struct SceneRenderable;
 
-    struct SceneView
-    {
-        SceneView(const Scene& scene, ICamera* inCamera, u32 flags, Texture2DRenderable* dstRenderTexture, const Viewport& dstViewport)
-            : camera(inCamera), renderTexture(dstRenderTexture), viewport(dstViewport)
-        {
-            for (auto entity : scene.entities)
-            {
-                if ((entity->getProperties() & flags) == flags)
-                {
+    struct SceneView {
+        SceneView(
+            const Scene& scene, 
+            const PerspectiveCamera& inCamera, 
+            const std::function<bool(Entity*)>& selector = [](Entity* entity) {
+                return true;
+            },
+            Texture2DRenderable* dstRenderTexture = nullptr, 
+                const Viewport& dstViewport = { })
+            : camera(inCamera), renderTexture(dstRenderTexture), viewport(dstViewport) {
+            for (auto entity : scene.entities) {
+                if (selector(entity)) {
                     entities.push_back(entity);
                 }
             }
         }
 
-        ICamera* camera = nullptr;
+        PerspectiveCamera camera;
         Texture2DRenderable* renderTexture = nullptr;
         Viewport viewport;
         std::vector<Entity*> entities;
@@ -174,7 +177,7 @@ namespace Cyan
             u32 sizeInBytes = 1024 * 1024 * 32;
             void* data = nullptr;
         } indirectDrawBuffer;
-        void renderSceneMultiDraw(SceneRenderable& renderableScene, RenderTarget* outRenderTarget, Texture2DRenderable* outSceneColor, const SSGITextures& SSGIOutput);
+        void renderSceneBatched(SceneRenderable& renderableScene, RenderTarget* outRenderTarget, Texture2DRenderable* outSceneColor, const SSGITextures& SSGIOutput);
         void submitSceneMultiDrawIndirect(const SceneRenderable& renderableScene);
 
         std::unique_ptr<ManyViewGI> m_manyViewGI = nullptr;
@@ -205,8 +208,9 @@ namespace Cyan
         // todo: implement this
         void renderDebugObjects();
 
-        /* Shadow */
-        void renderShadowMaps(SceneRenderable& renderableScene);
+        /** note - @min:
+        */
+        void renderShadowMaps(SceneRenderable& scene);
 
         /*
         * Render provided scene into a light probe

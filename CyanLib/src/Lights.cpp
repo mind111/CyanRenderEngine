@@ -47,9 +47,12 @@ namespace Cyan {
 
     GpuCSMDirectionalLight CSMDirectionalLight::buildGpuLight() {
         GpuCSMDirectionalLight light = { };
+        light.direction = glm::vec4(direction, 0.f);
+        light.colorAndIntensity = colorAndIntensity;
         for (i32 i = 0; i < shadowMap->kNumCascades; ++i) {
             light.cascades[i].n = shadowMap->cascades[i].n;
             light.cascades[i].f = shadowMap->cascades[i].f;
+            light.cascades[i].shadowMap.lightSpaceView = glm::lookAt(glm::vec3(0.f), -direction, glm::vec3(0.f, 1.f, 0.f));
             light.cascades[i].shadowMap.lightSpaceProjection = shadowMap->cascades[i].shadowMap->lightSpaceProjection;
             light.cascades[i].shadowMap.depthMapHandle = shadowMap->cascades[i].shadowMap->depthTexture->glHandle;
         }

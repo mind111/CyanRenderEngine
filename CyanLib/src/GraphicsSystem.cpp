@@ -91,9 +91,17 @@ namespace Cyan
             spec.pixelFormat = PF_RGB16F;
             static Texture2DRenderable* frameOutput = new Texture2DRenderable("FrameOutput", spec);
 
-            SceneView mainSceneView(*m_scene, m_scene->camera->getCamera(), EntityFlag_kVisible, frameOutput, { 0, 0, frameOutput->width, frameOutput->height });
-            m_renderer->render(m_scene, mainSceneView);
-            m_renderer->renderToScreen(mainSceneView.renderTexture);
+            if (auto camera = dynamic_cast<PerspectiveCamera*>(m_scene->camera->getCamera())) {
+                SceneView mainSceneView(*m_scene, *camera,
+                    [](Entity* entity) {
+                        return entity->getProperties() | EntityFlag_kVisible;
+                    },
+                    frameOutput, 
+                    { 0, 0, frameOutput->width, frameOutput->height }
+                );
+                m_renderer->render(m_scene, mainSceneView);
+            }
+            m_renderer->renderToScreen(frameOutput);
             m_renderer->renderUI();
 
             m_ctx->flip();

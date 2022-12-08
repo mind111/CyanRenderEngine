@@ -92,7 +92,7 @@ namespace Cyan {
 
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 52, hemicubeBuffer);
 
-        scene->upload(renderer->getGfxCtx());
+        scene->upload();
 
         auto fillRasterShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "FillRasterShader", SHADER_SOURCE_PATH "blit_v.glsl", SHADER_SOURCE_PATH "fill_raster_p.glsl" });
         auto fillRasterRenderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(irradianceRes.x, irradianceRes.y));
@@ -455,13 +455,6 @@ namespace Cyan {
             SHADER_SOURCE_PATH "manyview_gi_final_gather_p.glsl",
         });
 
-        /*
-        // suppose this only need to be set once
-        for (auto light : scene.lights) {
-            light->setShaderParameters(shader);
-        }
-        */
-
         m_gfxc->setShader(shader);
         shader->setUniform("view", camera.view());
         shader->setUniform("projection", camera.projection());
@@ -590,13 +583,6 @@ namespace Cyan {
             });
 
             surfelBuffer.bind(69);
-
-#if 0
-            // suppose this only need to be set once
-            for (auto light : m_scene->lights) {
-                light->setShaderParameters(shader);
-            }
-#endif
 
             m_gfxc->setShader(shader);
             // each compute thread process one surfel

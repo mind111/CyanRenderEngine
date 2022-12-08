@@ -24,6 +24,7 @@
 #include "Ray.h"
 #include "RenderableScene.h"
 #include "Lights.h"
+#include "LightComponents.h"
 #include "RayTracingScene.h"
 #include "IOSystem.h"
 
@@ -713,9 +714,7 @@ namespace Cyan
             SceneRenderable sceneRenderable(scene, sceneView, m_frameAllocator);
 
             // shadow
-            SceneView shadowView(*scene, scene->camera->getCamera(), EntityFlag_kVisible | EntityFlag_kCastShadow, nullptr, { });
-            SceneRenderable shadowScene(scene, shadowView, m_frameAllocator);
-            renderShadowMaps(shadowScene);
+            renderShadowMaps(sceneRenderable);
 
             // scene depth & normal pass
             ITextureRenderable::Spec depthNormalSpec = { };
@@ -730,12 +729,6 @@ namespace Cyan
             static Texture2DRenderable* sceneNormalBuffer = new Texture2DRenderable("SceneNormalBuffer", depthNormalSpec, depthNormParams);
             renderSceneDepthNormal(sceneRenderable, renderTarget.get(), sceneDepthBuffer, sceneNormalBuffer);
 
-#if 0
-            // ssgi
-            // auto ssgi = screenSpaceRayTracing(zPrepass.depthBuffer, zPrepass.normalBuffer, renderResolution);
-            // instant radiosity
-            // auto radiosity = m_instantRadiosity.render(this, scene, zPrepass.depthBuffer, zPrepass.normalBuffer, renderResolution);
-#endif
             // main scene pass
             ITextureRenderable::Spec spec = { };
             spec.width = renderTarget->width;
@@ -744,19 +737,14 @@ namespace Cyan
             spec.pixelFormat = PF_RGB16F;
             static Texture2DRenderable* sceneColor = new Texture2DRenderable("SceneColor", spec);
 #if BINDLESS_TEXTURE
-            renderSceneMultiDraw(sceneRenderable, renderTarget.get(), sceneColor, { });
+            renderSceneBatched(sceneRenderable, renderTarget.get(), sceneColor, { });
 #else
             auto sceneColor = renderScene(sceneRenderable, sceneView, renderResolution);
 #endif
             // many view global illumination
-            m_manyViewGI->render(renderTarget.get(), sceneRenderable, sceneDepthBuffer, sceneNormalBuffer);
-
-            if (m_settings.enableTAA) {
-                taa();
-            }
+            // m_manyViewGI->render(renderTarget.get(), sceneRenderable, sceneDepthBuffer, sceneNormalBuffer);
 
             // post processing
-            // todo: bloom pass is buggy! it breaks the crappy transient render resource system
             // auto bloom = bloom(sceneColorTexture);
             if (m_settings.bPostProcessing) {
                 composite(sceneView.renderTexture, sceneColor, nullptr, m_windowSize);
@@ -817,10 +805,15 @@ namespace Cyan
         m_numFrames++;
     }
 
-    void Renderer::renderShadowMaps(SceneRenderable& scene) {
-        for (auto directionalLight : scene.directionalLights) {
-            if (directionalLight->bCastShadow) {
-                directionalLight->renderShadowMap(scene, this);
+    void Renderer::renderShadowMaps(SceneRenderable& inScene) {
+        // make a copy
+        SceneRenderable scene(inScene);
+        for (i32 i = 0; i < inScene.directionalLights.size(); ++i) {
+            if (inScene.directionalLights[i]->bCastShadow) {
+                inScene.directionalLights[i]->renderShadowMap(scene, this);
+                if (auto directionalLight = dynamic_cast<CSMDirectionalLight*>(inScene.directionalLights[i])) {
+                    (*inScene.directionalLightBuffer)[i] = directionalLight->buildGpuLight();
+                }
             }
         }
         // todo: point light
@@ -828,7 +821,7 @@ namespace Cyan
 
     void Renderer::renderSceneMeshOnly(SceneRenderable& sceneRenderable, RenderTarget* dstRenderTarget, Shader* shader)
     {
-        sceneRenderable.upload(m_ctx);
+        sceneRenderable.upload();
 
         u32 transformIndex = 0u;
         for (auto& meshInst : sceneRenderable.meshInstances)
@@ -846,8 +839,8 @@ namespace Cyan
         }
     }
 
-    void Renderer::renderSceneDepthOnly(SceneRenderable& scene, Texture2DRenderable* outDepthTexture)
-    {
+    // todo: this pass can be optimized by batching the draw calls
+    void Renderer::renderSceneDepthOnly(SceneRenderable& scene, Texture2DRenderable* outDepthTexture) {
         Shader* depthOnlyShader = ShaderManager::createShader({ 
             ShaderSource::Type::kVsPs, 
             "DepthOnlyShader", 
@@ -856,30 +849,21 @@ namespace Cyan
             });
 
         // create render target
-        std::unique_ptr<RenderTarget> depthRenderTargetPtr(createDepthOnlyRenderTarget(outDepthTexture->width, outDepthTexture->height));
-        depthRenderTargetPtr->setDepthBuffer(reinterpret_cast<DepthTexture2D*>(outDepthTexture));
-        depthRenderTargetPtr->clear({ { 0u } });
+        std::unique_ptr<RenderTarget> depthRenderTarget(createDepthOnlyRenderTarget(outDepthTexture->width, outDepthTexture->height));
+        depthRenderTarget->setDepthBuffer(reinterpret_cast<DepthTexture2D*>(outDepthTexture));
+        depthRenderTarget->clear({ { 0u } });
+        m_ctx->setRenderTarget(depthRenderTarget.get());
+        m_ctx->setViewport({ 0, 0, depthRenderTarget->width, depthRenderTarget->height });
+        m_ctx->setShader(depthOnlyShader);
+        m_ctx->setDepthControl(DepthControl::kEnable);
 
-        scene.upload(m_ctx);
+        scene.upload();
 
-        u32 transformIndex = 0u;
-        for (auto& meshInst : scene.meshInstances)
-        {
-            submitMesh(
-                depthRenderTargetPtr.get(),
-                { 0u, 0u, depthRenderTargetPtr->width, depthRenderTargetPtr->height },
-                GfxPipelineState(),
-                meshInst->parent,
-                depthOnlyShader,
-                [transformIndex](RenderTarget* renderTarget, Shader* shader) {
-                    shader->setUniform("transformIndex", (i32)transformIndex);
-                });
-            transformIndex++;
-        }
+        submitSceneMultiDrawIndirect(scene);
     }
 
-    void Renderer::renderSceneDepthNormal(SceneRenderable& renderableScene, RenderTarget* outRenderTarget, Texture2DRenderable* outDepthBuffer, Texture2DRenderable* outNormalBuffer) {
-        renderableScene.upload(m_ctx);
+    void Renderer::renderSceneDepthNormal(SceneRenderable& scene, RenderTarget* outRenderTarget, Texture2DRenderable* outDepthBuffer, Texture2DRenderable* outNormalBuffer) {
+        // scene.upload();
         outRenderTarget->setColorBuffer(outDepthBuffer, 0);
         outRenderTarget->setColorBuffer(outNormalBuffer, 1);
         outRenderTarget->setDrawBuffers({ 0, 1 });
@@ -888,7 +872,7 @@ namespace Cyan
 
         Shader* sceneDepthNormalShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "SceneDepthNormalShader", SHADER_SOURCE_PATH "scene_depth_normal_v.glsl", SHADER_SOURCE_PATH "scene_depth_normal_p.glsl" });
         u32 transformIndex = 0u;
-        for (auto& meshInst : renderableScene.meshInstances)
+        for (auto& meshInst : scene.meshInstances)
         {
             submitMesh(
                 outRenderTarget,
@@ -1175,8 +1159,7 @@ namespace Cyan
     }
 #endif
 
-    Texture2DRenderable* Renderer::renderScene(SceneRenderable& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution)
-    {
+    Texture2DRenderable* Renderer::renderScene(SceneRenderable& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution) {
         ITextureRenderable::Spec spec = { };
         spec.type = TEX_2D;
         spec.width = outputResolution.x;
@@ -1188,7 +1171,7 @@ namespace Cyan
         renderTarget->setColorBuffer(outSceneColor, 0);
         renderTarget->clear({ { 0 } });
 
-        renderableScene.upload(m_ctx);
+        // renderableScene.upload();
 
         // render mesh instances
         u32 transformIndex = 0u;
@@ -1240,9 +1223,9 @@ namespace Cyan
         glMultiDrawArraysIndirect(GL_TRIANGLES, 0, drawCount, 0);
     }
 
-    void Renderer::renderSceneMultiDraw(SceneRenderable& sceneRenderable, RenderTarget* outRenderTarget, Texture2DRenderable* outSceneColor, const SSGITextures& SSGIOutput) {
+    void Renderer::renderSceneBatched(SceneRenderable& scene, RenderTarget* outRenderTarget, Texture2DRenderable* outSceneColor, const SSGITextures& SSGIOutput) {
         Shader* scenePassShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "ScenePassShader", SHADER_SOURCE_PATH "scene_pass_v.glsl", SHADER_SOURCE_PATH "scene_pass_p.glsl" });
-        sceneRenderable.upload(m_ctx);
+        scene.upload();
 
         m_ctx->setShader(scenePassShader);
         outRenderTarget->setColorBuffer(outSceneColor, 0);
@@ -1293,277 +1276,17 @@ namespace Cyan
         {
             glMakeTextureHandleResidentARB(BRDFLookupTexture);
         }
-        scenePassShader->setTexture("sceneLights.skyLight.irradiance", sceneRenderable.irradianceProbe->m_convolvedIrradianceTexture);
-        scenePassShader->setTexture("sceneLights.skyLight.reflection", sceneRenderable.reflectionProbe->m_convolvedReflectionTexture);
+        scenePassShader->setTexture("sceneLights.skyLight.irradiance", scene.irradianceProbe->m_convolvedIrradianceTexture);
+        scenePassShader->setTexture("sceneLights.skyLight.reflection", scene.reflectionProbe->m_convolvedReflectionTexture);
         scenePassShader->setUniform("sceneLights.BRDFLookupTexture", BRDFLookupTexture);
 
-        /*
-        for (auto light : sceneRenderable.lights)
-        {
-            light->setShaderParameters(scenePassShader);
-        }
-        */
-
-        submitSceneMultiDrawIndirect(sceneRenderable);
+        submitSceneMultiDrawIndirect(scene);
 
         // render skybox
-        if (sceneRenderable.skybox) {
-            sceneRenderable.skybox->render(outRenderTarget);
+        if (scene.skybox) {
+            scene.skybox->render(outRenderTarget);
         }
     }
-
-#if 0
-    Texture2DRenderable* Renderer::renderSceneMultiDraw(SceneRenderable& sceneRenderable, const SceneView& sceneView, const glm::uvec2& outputResolution, const SSGITextures& SSGIOutput) {
-        ITextureRenderable::Spec spec = { };
-        spec.type = TEX_2D;
-        spec.width = outputResolution.x;
-        spec.height = outputResolution.y;
-        spec.pixelFormat = PF_RGB16F;
-        static Texture2DRenderable* outSceneColor = new Texture2DRenderable("SceneColor", spec);
-
-        Shader* scenePassShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "ScenePassShader", SHADER_SOURCE_PATH "scene_pass_v.glsl", SHADER_SOURCE_PATH "scene_pass_p.glsl" });
-        std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(outSceneColor->width, outSceneColor->height));
-        renderTarget->setColorBuffer(outSceneColor, 0);
-        renderTarget->clear({ { 0 } });
-
-        sceneRenderable.submitSceneData(m_ctx);
-
-        m_ctx->setShader(scenePassShader);
-        m_ctx->setRenderTarget(renderTarget.get(), { { 0 } });
-        m_ctx->setViewport({ 0, 0, renderTarget->width, renderTarget->height });
-        m_ctx->setDepthControl(DepthControl::kEnable);
-
-        // setup ssao
-        if (SSGIOutput.ao) {
-            auto ssao = SSGIOutput.ao->glHandle;
-            if (glIsTextureHandleResidentARB(ssao) == GL_FALSE)
-            {
-                glMakeTextureHandleResidentARB(ssao);
-            }
-            scenePassShader->setUniform("SSAO", ssao);
-            scenePassShader->setUniform("useSSAO", 1.f);
-        } else {
-            scenePassShader->setUniform("useSSAO", 0.f);
-        }
-
-        // setup ssbn
-        if (SSGIOutput.bentNormal) {
-            if (m_settings.useBentNormal) {
-                auto ssbn = SSGIOutput.bentNormal->glHandle;
-                scenePassShader->setUniform("useBentNormal", 1.f);
-                if (glIsTextureHandleResidentARB(ssbn) == GL_FALSE)
-                {
-                    glMakeTextureHandleResidentARB(ssbn);
-                }
-                scenePassShader->setUniform("SSBN", ssbn);
-            } else {
-                scenePassShader->setUniform("useBentNormal", 0.f);
-            }
-        }
-
-        // todo: refactor the following
-        // sky light
-        auto BRDFLookupTexture = ReflectionProbe::getBRDFLookupTexture()->glHandle;
-        /* note
-        * seamless cubemap doesn't work with bindless textures that's accessed using a texture handle,
-        * so falling back to normal way of binding textures here.
-        */
-        if (glIsTextureHandleResidentARB(BRDFLookupTexture) == GL_FALSE)
-        {
-            glMakeTextureHandleResidentARB(BRDFLookupTexture);
-        }
-        scenePassShader->setTexture("sceneLights.skyLight.irradiance", sceneRenderable.irradianceProbe->m_convolvedIrradianceTexture);
-        scenePassShader->setTexture("sceneLights.skyLight.reflection", sceneRenderable.reflectionProbe->m_convolvedReflectionTexture);
-        scenePassShader->setUniform("sceneLights.BRDFLookupTexture", BRDFLookupTexture);
-
-        for (auto light : sceneRenderable.lights)
-        {
-            light->setShaderParameters(scenePassShader);
-        }
-
-        submitSceneMultiDrawIndirect(sceneRenderable);
-
-        // render skybox
-        if (sceneRenderable.skybox) {
-            sceneRenderable.skybox->render(renderTarget.get());
-        }
-
-        // m_instantRadiosity.visualizeVPLs(this, renderTarget.get(), scene);
-
-#if 0
-        // debug visualize raster cube positions
-        {
-            struct DebugCube {
-                glm::mat4 transform;
-                glm::vec4 color;
-            };
-            static ShaderStorageBuffer<DynamicSsboStruct<DebugCube>> debugCubes;
-
-            struct DebugLine {
-                glm::mat4 transform;
-                glm::vec4 color;
-            };
-            static ShaderStorageBuffer<DynamicSsboStruct<DebugLine>> debugLines;
-
-            // debugCubes.data.array.clear();
-            debugCubes.ssboStruct.dynamicArray.resize(maxNumRasterCubes);
-            // debugLines.data.array.clear();
-            debugLines.ssboStruct.dynamicArray.resize(maxNumRasterCubes * 2);
-            for (i32 i = 0; i < maxNumRasterCubes; ++i) {
-                /* note - @min:
-                * if the raster cube at i is not filled, then hemicubes[i].position should be vec4(0.f, 0.f, 0.f, 0.f);
-                * otherwise the w component will be 1.f, thus using the w component here to help "nullify" rendering some empty raster cubes
-                */
-                glm::mat4 transform = glm::translate(glm::mat4(rasterCubes[i].position.w), vec4ToVec3(rasterCubes[i].position));
-                transform = glm::scale(transform, glm::vec3(0.05));
-                glm::vec3 worldUp = glm::vec3(0.f, 1.f, 0.f);
-                if (rasterCubes[i].normal.y > 0.99) {
-                    worldUp = glm::vec3(0.f, 0.f, 1.f);
-                }
-                glm::vec3 forward = vec4ToVec3(rasterCubes[i].normal);
-                glm::vec3 right = glm::cross(forward, worldUp);
-                glm::vec3 up = glm::cross(right, forward);
-                glm::mat4 localFrame = {
-                    glm::vec4(right, 0.f),
-                    glm::vec4(forward, 0.f),
-                    glm::vec4(up, 0.f),
-                    glm::vec4(0.f, 0.f, 0.f, 1.f),
-                };
-                transform *= localFrame;
-                debugCubes[i].transform = transform;
-                // debugCubes[i].albedo = glm::vec4(1.f, 0.8f, 0.5f, 1.f);
-                glm::vec3 normal = vec4ToVec3(rasterCubes[i].normal);
-                debugCubes[i].color = glm::vec4(normal * .5f + .5f, 1.f);
-
-                // debug line
-                glm::vec3 v0 = vec4ToVec3(rasterCubes[i].position);
-                glm::vec3 v1 = v0 + vec4ToVec3(rasterCubes[i].normal) * 0.1f;
-                glm::mat4 t0 = glm::translate(glm::mat4(1.f), v0);
-                glm::mat4 t1 = glm::translate(glm::mat4(1.f), v1);
-                debugLines[i * 2 + 0].transform = t0;
-                debugLines[i * 2 + 0].color = glm::vec4(0.f, 0.f, 1.f, 1.f);
-                debugLines[i * 2 + 1].transform = t1;
-                debugLines[i * 2 + 1].color = glm::vec4(0.f, 0.f, 1.f, 1.f);
-            }
-            auto cube = AssetManager::getAsset<Mesh>("UnitCubeMesh");
-            Shader* debugDrawCubeShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "DebugDrawShader", SHADER_SOURCE_PATH "debug_draw_v.glsl", SHADER_SOURCE_PATH "debug_draw_p.glsl" });
-            m_ctx->setShader(debugDrawCubeShader);
-            debugCubes.update();
-            debugCubes.bind(53);
-            m_ctx->setVertexArray(cube->getSubmesh(0)->getVertexArray());
-
-            glDisable(GL_CULL_FACE);
-            glDrawArraysInstanced(GL_TRIANGLES, 0, cube->getSubmesh(0)->numVertices(), maxNumRasterCubes);
-            glEnable(GL_CULL_FACE);
-
-            Shader* debugDrawLineShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "DebugDrawLineShader", SHADER_SOURCE_PATH "debug_draw_line_v.glsl", SHADER_SOURCE_PATH "debug_draw_p.glsl" });
-            m_ctx->setShader(debugDrawLineShader);
-            debugLines.update();
-            debugLines.bind(53);
-            glDrawArraysInstanced(GL_LINES, 0, debugLines.ssboStruct.dynamicArray.size(), maxNumRasterCubes);
-        }
-#endif
-        struct DebugCube {
-            glm::mat4 transform;
-            glm::vec4 color;
-        };
-        static ShaderStorageBuffer<DynamicSsboStruct<DebugCube>> debugCubes;
-
-        struct DebugLine {
-            glm::mat4 transform;
-            glm::vec4 color;
-        };
-        static ShaderStorageBuffer<DynamicSsboStruct<DebugLine>> debugLines;
-
-        i32 numCubes = 1;
-        debugCubes.ssboStruct.dynamicArray.resize(numCubes);
-        // debugLines.data.array.clear();
-        debugLines.ssboStruct.dynamicArray.resize(numCubes * 2 * 3);
-        glm::mat4 transform = glm::translate(glm::mat4(debugRadianceCube.position.w), vec4ToVec3(debugRadianceCube.position));
-        glm::vec3 worldUp = glm::vec3(0.f, 1.f, 0.f);
-        glm::vec3 up = debugRadianceCube.normal;
-        glm::vec3 forward;
-        glm::vec3 right;
-        if (abs(up.y) > 0.98) {
-            worldUp = glm::vec3(0.f, 0.f, -1.f);
-        }
-        right = glm::cross(worldUp, up);
-        forward = glm::cross(up, right);
-        glm::mat4 tangentFrame = {
-            glm::vec4(right, 0.f),
-            glm::vec4(up, 0.f),
-            glm::vec4(-forward, 0.f),
-            glm::vec4(0.f, 0.f, 0.f, 1.f),
-        };
-        transform = transform * tangentFrame;
-        transform = glm::scale(transform, glm::vec3(0.1));
-        debugCubes[0].transform = transform;
-        // debugCubes[i].albedo = glm::vec4(1.f, 0.8f, 0.5f, 1.f);
-        glm::vec3 normal = vec4ToVec3(debugRadianceCube.normal);
-        debugCubes[0].color = glm::vec4(normal * .5f + .5f, 1.f);
-
-        // todo: visualize debug tangent frame of the radiance cube
-        {
-            // right
-            glm::vec3 v0 = vec4ToVec3(debugRadianceCube.position);
-            glm::vec3 v1 = v0 + debugTangentFrame[0] * 0.2f;
-            glm::mat4 t0 = glm::translate(glm::mat4(1.f), v0);
-            glm::mat4 t1 = glm::translate(glm::mat4(1.f), v1);
-            debugLines[1 * 2 + 0].transform = t0;
-            debugLines[1 * 2 + 0].color = glm::vec4(1.f, 0.f, 0.f, 1.f);
-            debugLines[1 * 2 + 1].transform = t1;
-            debugLines[1 * 2 + 1].color = glm::vec4(1.f, 0.f, 0.f, 1.f);
-        }
-        {
-            // forward
-            glm::vec3 v0 = vec4ToVec3(debugRadianceCube.position);
-            glm::vec3 v1 = v0 + debugTangentFrame[1] * 0.2f;
-            glm::mat4 t0 = glm::translate(glm::mat4(1.f), v0);
-            glm::mat4 t1 = glm::translate(glm::mat4(1.f), v1);
-            debugLines[0 * 2 + 0].transform = t0;
-            debugLines[0 * 2 + 0].color = glm::vec4(0.f, 1.f, 0.f, 1.f);
-            debugLines[0 * 2 + 1].transform = t1;
-            debugLines[0 * 2 + 1].color = glm::vec4(0.f, 1.f, 0.f, 1.f);
-        }
-        {
-            // up
-            glm::vec3 v0 = vec4ToVec3(debugRadianceCube.position);
-            glm::vec3 v1 = v0 + debugTangentFrame[2] * 0.2f;
-            glm::mat4 t0 = glm::translate(glm::mat4(1.f), v0);
-            glm::mat4 t1 = glm::translate(glm::mat4(1.f), v1);
-            debugLines[2 * 2 + 0].transform = t0;
-            debugLines[2 * 2 + 0].color = glm::vec4(0.f, 0.f, 1.f, 1.f);
-            debugLines[2 * 2 + 1].transform = t1;
-            debugLines[2 * 2 + 1].color = glm::vec4(0.f, 0.f, 1.f, 1.f);
-        }
-
-        auto cube = AssetManager::getAsset<Mesh>("UnitCubeMesh");
-        Shader* debugDrawRadianceCubeShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "DebugDrawRadianceCubeShader", SHADER_SOURCE_PATH "debug_draw_radiance_cube_v.glsl", SHADER_SOURCE_PATH "debug_draw_radiance_cube_p.glsl" });
-        m_ctx->setShader(debugDrawRadianceCubeShader);
-        glBindTextureUnit(129, radianceCubemaps[maxNumRasterCubes - 1]);
-        debugDrawRadianceCubeShader->setUniform("debugRadianceCube", 129);
-        debugCubes.update();
-        debugCubes.bind(53);
-        m_ctx->setVertexArray(cube->getSubmesh(0)->getVertexArray());
-
-        glDisable(GL_CULL_FACE);
-        glDrawArraysInstanced(GL_TRIANGLES, 0, cube->getSubmesh(0)->numVertices(), 1);
-        glEnable(GL_CULL_FACE);
-
-        Shader* debugDrawLineShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "DebugDrawLineShader", SHADER_SOURCE_PATH "debug_draw_line_v.glsl", SHADER_SOURCE_PATH "debug_draw_line_p.glsl" });
-        m_ctx->setShader(debugDrawLineShader);
-        debugLines.update();
-        debugLines.bind(53);
-        glDrawArraysInstanced(GL_LINES, 0, debugLines.ssboStruct.dynamicArray.size(), 3);
-
-        addUIRenderCommand([this](){
-            appendToRenderingTab([this]() {
-                    ImGui::Checkbox("Fullscreen", &bFullscreenRadiosity);
-                }); 
-        });
-        return outSceneColor;
-    }
-#endif
 
     /*
     Texture2DRenderable* Renderer::downsample(Texture2DRenderable* inTexture) {

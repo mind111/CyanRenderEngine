@@ -628,13 +628,13 @@
     <None Include="..\shader\global_buffers.glsl">
       <Filter>Shaders\Common</Filter>
     </None>
-    <None Include="..\shader\light_definitions.glsl">
+    <None Include="..\shader\lights.glsl">
       <Filter>Shaders\Common</Filter>
     </None>
     <None Include="..\shader\material.glsl">
       <Filter>Shaders\Common</Filter>
     </None>
-    <None Include="..\shader\calculate_light.glsl">
+    <None Include="..\shader\shading_model.glsl">
       <Filter>Shaders\Common</Filter>
     </None>
     <None Include="..\shader\test_pbs_v.glsl">
@@ -861,6 +861,9 @@
     </None>
     <None Include="..\shader\manyview_gi_oct_radiance_c.glsl">
       <Filter>Shaders\ManyViewGI</Filter>
+    </None>
+    <None Include="..\shader\lighting.glsl">
+      <Filter>Shaders\Common</Filter>
     </None>
   </ItemGroup>
 </Project>

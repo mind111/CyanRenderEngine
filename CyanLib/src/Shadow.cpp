@@ -9,20 +9,9 @@ namespace Cyan
 {
     u32 IDirectionalShadowMap::numDirectionalShadowMaps = 0;
     IDirectionalShadowMap::IDirectionalShadowMap(const DirectionalLight& inDirectionalLight)
-        : quality(Quality::kHigh), lightDirection(inDirectionalLight.direction)
-    {
-        switch (inDirectionalLight.shadowQuality)
-        {
-        case DirectionalLight::ShadowQuality::kLow:
-        case DirectionalLight::ShadowQuality::kMedium:
-        case DirectionalLight::ShadowQuality::kHigh:
-        {
-            resolution.x = 4096;
-            resolution.y = 4096;
-        } break;
-        default:
-            break;
-        }
+        : lightDirection(inDirectionalLight.direction) {
+        resolution.x = 4096;
+        resolution.y = 4096;
         numDirectionalShadowMaps++;
     }
 
@@ -52,8 +41,6 @@ namespace Cyan
     {
         std::string inPrefix(uniformNamePrefix);
         shader->setUniform((inPrefix + ".shadowmap.lightSpaceProjection").c_str(), lightSpaceProjection);
-        GLboolean isResident = GL_FALSE;
-        GLuint textures[1] = { depthTexture->getGpuResource() };
 #if BINDLESS_TEXTURE
         if (glIsTextureHandleResidentARB(depthTexture->glHandle) == GL_FALSE)
         {
@@ -103,35 +90,15 @@ namespace Cyan
         }
     }
 
-    void CascadedShadowMap::setShaderParameters(Shader* shader, const char* uniformNamePrefix)
-    {
-        std::string inPrefix(uniformNamePrefix);
-        for (u32 i = 0; i < kNumCascades; ++i)
-        {
-            char cascadePrefixBuffer[64] = { };
-            sprintf_s(cascadePrefixBuffer, ".csm.cascades[%d]", i);
-            std::string cascadePrefixStr(cascadePrefixBuffer);
-            std::string nearClippingPlaneName = inPrefix + cascadePrefixStr + std::string(".n");
-            std::string farClippingPlaneName = inPrefix + cascadePrefixStr + std::string(".f");
-            shader->setUniform(nearClippingPlaneName.c_str(), cascades[i].n);
-            shader->setUniform(farClippingPlaneName.c_str(), cascades[i].f);
-
-            std::string csmPrefix = inPrefix + cascadePrefixStr;
-            cascades[i].shadowMap->setShaderParameters(shader, csmPrefix.c_str());
-        }
-    }
-
     void CascadedShadowMap::updateCascades(const SceneRenderable::Camera& camera) {
         // calculate cascade's near and far clipping plane
-        for (u32 i = 0u; i < kNumCascades; ++i)
-        {
+        for (u32 i = 0u; i < kNumCascades; ++i) {
             cascades[i].n = camera.n + cascadeBoundries[i] * (camera.f - camera.n);
             cascades[i].f = camera.n + cascadeBoundries[i + 1] * (camera.f - camera.n);
         }
 
         // calculate cascade's aabb
-        for (u32 i = 0; i < kNumCascades; ++i)
-        {
+        for (u32 i = 0; i < kNumCascades; ++i) {
             calcCascadeAABB(cascades[i], camera);
         }
     }
