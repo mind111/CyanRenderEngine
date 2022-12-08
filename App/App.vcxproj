@@ -24,7 +24,7 @@
     <ProjectGuid>{3c705fee-c855-44d6-8ef8-e3d866020db0}</ProjectGuid>
     <RootNamespace>IrradianceCaching</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>IrradianceCaching</ProjectName>
+    <ProjectName>App</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -147,7 +147,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\IrradianceCachingApp.cpp" />
+    <ClCompile Include="src\App.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

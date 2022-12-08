@@ -22,8 +22,7 @@ namespace Cyan
 {
     struct SceneComponent;
 
-    struct Scene 
-    {
+    struct Scene {
         Scene(const char* sceneName, f32 cameraAspectRatio);
 
         void update();
@@ -63,8 +62,7 @@ namespace Cyan
 
         // getters
         Entity* getEntity(u32 index) { return entities[index]; }
-        Entity* getEntity(const char* name)
-        {
+        Entity* getEntity(const char* name) {
             for (auto& entity : entities) {
                 if (strcmp(name, entity->name.c_str()) == 0) {
                     return entity;
@@ -101,8 +99,6 @@ namespace Cyan
 
         SkyLight* skyLight = nullptr;
         Skybox* skybox = nullptr;
-        IrradianceProbe* irradianceProbe = nullptr;
-        ReflectionProbe* reflectionProbe = nullptr;
     };
 
     class SceneManager : public Singleton<SceneManager>

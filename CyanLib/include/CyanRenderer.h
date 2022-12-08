@@ -168,15 +168,19 @@ namespace Cyan
         };
         SSGITextures screenSpaceRayTracing(Texture2DRenderable* sceneDepthTexture, Texture2DRenderable* sceneNormalTexture, const glm::uvec2& renderResolution);
 
-        /**
-        * brief: renderScene() implemented using glMultiDrawIndirect()
-        */
-        struct IndirecDraw
+        struct IndirectDrawBuffer
         {
+            IndirectDrawBuffer();
+            ~IndirectDrawBuffer() { }
+
             GLuint buffer = -1;
             u32 sizeInBytes = 1024 * 1024 * 32;
             void* data = nullptr;
         } indirectDrawBuffer;
+
+        /**
+        * brief: renderScene() implemented using glMultiDrawIndirect()
+        */
         void renderSceneBatched(SceneRenderable& renderableScene, RenderTarget* outRenderTarget, Texture2DRenderable* outSceneColor, const SSGITextures& SSGIOutput);
         void submitSceneMultiDrawIndirect(const SceneRenderable& renderableScene);
 

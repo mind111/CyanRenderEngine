@@ -41,9 +41,14 @@ namespace Cyan
         }
     }
 #endif
-    
     Renderer* Singleton<Renderer>::singleton = nullptr;
     static Mesh* fullscreenQuad = nullptr;
+
+    Renderer::IndirectDrawBuffer::IndirectDrawBuffer() {
+        glCreateBuffers(1, &buffer);
+        glNamedBufferStorage(buffer, sizeInBytes, nullptr, GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_WRITE_BIT);
+        data = glMapNamedBufferRange(buffer, 0, sizeInBytes, GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_WRITE_BIT);
+    }
 
     Renderer::Renderer(GfxContext* ctx, u32 windowWidth, u32 windowHeight)
         : Singleton<Renderer>(), 
@@ -117,8 +122,7 @@ namespace Cyan
         glNamedBufferData(idbo, sizeof(IndirectDrawArgs), nullptr, GL_DYNAMIC_COPY);
     }
 
-    void Renderer::initialize()
-    {
+    void Renderer::initialize() {
         // shared global quad mesh
         {
             float quadVerts[24] = {
@@ -219,10 +223,6 @@ namespace Cyan
         spec.height = 1440;
         m_rtxPingPongBuffer[0] = AssetManager::createTexture2D("RayTracingPingPong_0", spec);
         m_rtxPingPongBuffer[1] = AssetManager::createTexture2D("RayTracingPingPong_1", spec);
-
-        glCreateBuffers(1, &indirectDrawBuffer.buffer);
-        glNamedBufferStorage(indirectDrawBuffer.buffer, indirectDrawBuffer.sizeInBytes, nullptr, GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_WRITE_BIT);
-        indirectDrawBuffer.data = glMapNamedBufferRange(indirectDrawBuffer.buffer, 0, indirectDrawBuffer.sizeInBytes, GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_WRITE_BIT);
 
         m_instantRadiosity.initialize();
         m_manyViewGI->initialize();
@@ -1224,9 +1224,9 @@ namespace Cyan
     }
 
     void Renderer::renderSceneBatched(SceneRenderable& scene, RenderTarget* outRenderTarget, Texture2DRenderable* outSceneColor, const SSGITextures& SSGIOutput) {
-        Shader* scenePassShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "ScenePassShader", SHADER_SOURCE_PATH "scene_pass_v.glsl", SHADER_SOURCE_PATH "scene_pass_p.glsl" });
         scene.upload();
 
+        Shader* scenePassShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "ScenePassShader", SHADER_SOURCE_PATH "scene_pass_v.glsl", SHADER_SOURCE_PATH "scene_pass_p.glsl" });
         m_ctx->setShader(scenePassShader);
         outRenderTarget->setColorBuffer(outSceneColor, 0);
         outRenderTarget->setDrawBuffers({ 0 });

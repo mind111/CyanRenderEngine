@@ -18,7 +18,7 @@ namespace Cyan
         // todo: handle object ownership here
         Texture2DRenderable* srcEquirectTexture = nullptr;
         TextureCubeRenderable* srcCubemap = nullptr;
-        std::shared_ptr<IrradianceProbe> irradianceProbe = nullptr;
-        std::shared_ptr<ReflectionProbe> reflectionProbe = nullptr;
+        std::unique_ptr<IrradianceProbe> irradianceProbe = nullptr;
+        std::unique_ptr<ReflectionProbe> reflectionProbe = nullptr;
     };
 }

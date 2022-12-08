@@ -6,8 +6,7 @@ namespace Cyan
 {
     u32 SkyLight::numInstances = 0u;
 
-    SkyLight::SkyLight(Scene* scene, const glm::vec4& colorAndIntensity, const char* srcHDRI)
-    {
+    SkyLight::SkyLight(Scene* scene, const glm::vec4& colorAndIntensity, const char* srcHDRI) {
         if (srcHDRI)
         {
             ITextureRenderable::Spec hdriSpec = { };
@@ -33,8 +32,8 @@ namespace Cyan
             sprintf(cubemapName, "SkyLightCubemap%u", numInstances);
             srcCubemap = AssetManager::createTextureCube(cubemapName, cubemapSpec, cubemapParams);
 
-            irradianceProbe = std::shared_ptr<IrradianceProbe>(scene->createIrradianceProbe(srcCubemap, glm::uvec2(64)));
-            reflectionProbe = std::shared_ptr<ReflectionProbe>(scene->createReflectionProbe(srcCubemap));
+            irradianceProbe = std::unique_ptr<IrradianceProbe>(scene->createIrradianceProbe(srcCubemap, glm::uvec2(64)));
+            reflectionProbe = std::unique_ptr<ReflectionProbe>(scene->createReflectionProbe(srcCubemap));
         }
         else
         {
@@ -44,15 +43,13 @@ namespace Cyan
         numInstances++;
     }
 
-    void SkyLight::build()
-    {
+    void SkyLight::build() {
         buildCubemap(srcEquirectTexture, srcCubemap);
         irradianceProbe->buildFromCubemap();
         reflectionProbe->buildFromCubemap();
     }
 
-    void SkyLight::buildCubemap(Texture2DRenderable* srcEquirectMap, TextureCubeRenderable* dstCubemap)
-    {
+    void SkyLight::buildCubemap(Texture2DRenderable* srcEquirectMap, TextureCubeRenderable* dstCubemap) {
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(dstCubemap->resolution, dstCubemap->resolution));
         renderTarget->setColorBuffer(dstCubemap, 0u);
 
