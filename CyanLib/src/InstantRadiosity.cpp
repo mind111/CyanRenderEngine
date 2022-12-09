@@ -172,7 +172,7 @@ namespace Cyan {
                 i32 transformIndex = 0u;
                 for (auto meshInst : renderableScene.meshInstances)
                 {
-                    renderer->submitMesh(
+                    renderer->drawMesh(
                         renderTarget,
                         { 0, 0, renderTarget->width, renderTarget->height},
                         GfxPipelineState(),
@@ -195,7 +195,7 @@ namespace Cyan {
             octMappingRenderTarget->setColorBuffer(VPLOctVSMs[VPLIndex], 0);
             octMappingRenderTarget->clear({ { 0, glm::vec4(1.f) } });
             Shader* octMappingShader = ShaderManager::createShader({ ShaderType::kVsPs, "OctMappingShader", SHADER_SOURCE_PATH "oct_mapping_v.glsl", SHADER_SOURCE_PATH "oct_mapping_p.glsl" });
-            renderer->submitFullScreenPass(
+            renderer->drawFullscreenQuad(
                 octMappingRenderTarget.get(),
                 octMappingShader,
                 [this, VPLIndex](RenderTarget* renderTarget, Shader* shader) {
@@ -263,7 +263,7 @@ namespace Cyan {
                 i32 transformIndex = 0u;
                 for (auto meshInst : renderableScene.meshInstances)
                 {
-                    renderer->submitMesh(
+                    renderer->drawMesh(
                         depthRenderTarget,
                         { 0, 0, depthRenderTarget->width, depthRenderTarget->height},
                         GfxPipelineState(),
@@ -285,7 +285,7 @@ namespace Cyan {
             auto octMappingRenderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(VPLOctShadowMaps[VPLIndex]->width, VPLOctShadowMaps[VPLIndex]->height));
             octMappingRenderTarget->setColorBuffer(VPLOctShadowMaps[VPLIndex], 0);
             Shader* octMappingShader = ShaderManager::createShader({ ShaderType::kVsPs, "OctMappingShader", SHADER_SOURCE_PATH "oct_mapping_v.glsl", SHADER_SOURCE_PATH "oct_mapping_p.glsl" });
-            renderer->submitFullScreenPass(
+            renderer->drawFullscreenQuad(
                 octMappingRenderTarget.get(),
                 octMappingShader,
                 [this, VPLIndex](RenderTarget* renderTarget, Shader* shader) {
@@ -323,7 +323,7 @@ namespace Cyan {
         Shader* shader = ShaderManager::createShader({ ShaderType::kVsPs, "InstantRadiosityShader", SHADER_SOURCE_PATH "instant_radiosity_v.glsl", SHADER_SOURCE_PATH "instant_radiosity_p.glsl" });
 
         // final blit to default framebuffer
-        renderer->submitFullScreenPass(
+        renderer->drawFullscreenQuad(
             renderTarget.get(),
             shader,
             [this, sceneDepthBuffer, sceneNormalBuffer](RenderTarget* renderTarget, Shader* shader) {

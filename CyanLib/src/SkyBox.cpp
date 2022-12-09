@@ -51,7 +51,7 @@ namespace Cyan
 
             GfxPipelineState pipelineState;
             pipelineState.depth = DepthControl::kDisable;
-            Renderer::get()->submitMesh(
+            Renderer::get()->drawMesh(
                 renderTarget.get(),
                 { 0, 0, renderTarget->width, renderTarget->height},
                 pipelineState,
@@ -89,7 +89,7 @@ namespace Cyan
     {
         Mesh* cubeMesh = AssetManager::getAsset<Mesh>("UnitCubeMesh");
 
-        Renderer::get()->submitMesh(
+        Renderer::get()->drawMesh(
             renderTarget,
             { 0, 0, renderTarget->width, renderTarget->height },
             GfxPipelineState(),

@@ -96,7 +96,7 @@ namespace Cyan {
 
         auto fillRasterShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "FillRasterShader", SHADER_SOURCE_PATH "blit_v.glsl", SHADER_SOURCE_PATH "fill_raster_p.glsl" });
         auto fillRasterRenderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(irradianceRes.x, irradianceRes.y));
-        renderer->submitFullScreenPass(
+        renderer->drawFullscreenQuad(
             fillRasterRenderTarget.get(),
             fillRasterShader,
             [this, depthBuffer, normalBuffer](RenderTarget* renderTarget, Shader* shader) {
@@ -1062,7 +1062,7 @@ namespace Cyan {
             nullptr,
             nullptr,
         });
-        renderer->submitScreenQuadPass(
+        renderer->drawScreenQuad(
             visRenderTarget,
             viewport,
             shader,

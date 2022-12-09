@@ -58,8 +58,7 @@ namespace Cyan
         initialize();
     }
 
-    void LightProbe::initialize()
-    {
+    void LightProbe::initialize() {
         ITextureRenderable::Spec spec = { };
         spec.width = resolution.x;
         spec.type = ITextureRenderable::Spec::Type::kTexCube;
@@ -67,17 +66,14 @@ namespace Cyan
         // sceneCapture = AssetManager::createTextureCube("SceneCapture", spec);
     }
 
-    void LightProbe::captureScene()
-    {
+    void LightProbe::captureScene() {
         CYAN_ASSERT(scene, "Attempt to call LightProbe::captureScene() while scene is NULL!");
         assert(scene);
 
         // create render target
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(sceneCapture->resolution, sceneCapture->resolution));
-        {
-            renderTarget->setColorBuffer(sceneCapture, 0u);
-            Renderer::get()->renderSceneToLightProbe(scene, this, renderTarget.get());
-        }
+        renderTarget->setColorBuffer(sceneCapture, 0u);
+        Renderer::get()->renderSceneToLightProbe(scene, this, renderTarget.get());
     }
 
     void LightProbe::debugRender()
@@ -127,7 +123,7 @@ namespace Cyan
 
                 GfxPipelineState pipelineState;
                 pipelineState.depth = DepthControl::kDisable;
-                renderer->submitMesh(
+                renderer->drawMesh(
                     renderTarget.get(),
                     { 0u, 0u, renderTarget->width, renderTarget->height }, 
                     pipelineState, 
@@ -224,7 +220,7 @@ namespace Cyan
         auto renderer = Renderer::get();
         GfxPipelineState pipelineState;
         pipelineState.depth = DepthControl::kDisable;
-        renderer->submitFullScreenPass(
+        renderer->drawFullscreenQuad(
             renderTarget,
             shader,
             [](RenderTarget* renderTarget, Shader* shader) {
@@ -254,7 +250,7 @@ namespace Cyan
                     renderTarget->clear({ { f } });
                     GfxPipelineState pipelineState;
                     pipelineState.depth = DepthControl::kDisable;
-                    renderer->submitMesh(
+                    renderer->drawMesh(
                         renderTarget,
                         { 0u, 0u, renderTarget->width, renderTarget->height }, 
                         pipelineState, 

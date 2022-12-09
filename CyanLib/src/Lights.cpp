@@ -121,7 +121,7 @@ namespace Cyan {
 
             GfxPipelineState pipelineState;
             pipelineState.depth = DepthControl::kDisable;
-            Renderer::get()->submitMesh(
+            Renderer::get()->drawMesh(
                 renderTarget.get(),
                 { 0, 0, renderTarget->width, renderTarget->height},
                 pipelineState,

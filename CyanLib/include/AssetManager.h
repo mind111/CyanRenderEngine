@@ -21,8 +21,7 @@
 namespace Cyan
 {
     // todo: differentiate import...() from load...(), import refers to importing raw scene data, load refers to loading serialized binary
-    class AssetManager
-    {
+    class AssetManager {
     public:
 
         struct DefaultTextures
@@ -34,6 +33,7 @@ namespace Cyan
         } m_defaultTextures;
 
         struct DefaultShapes {
+            Mesh* fullscreenQuad = nullptr;
             Mesh* quad = nullptr;
             Mesh* unitCubeMesh = nullptr;
             Mesh* sphere = nullptr;
@@ -45,12 +45,36 @@ namespace Cyan
         AssetManager();
         ~AssetManager() { };
 
-        void initialize()
-        {
+        void initialize() {
             /**
                 initialize default geometries and shapes
             */ 
             // line
+
+            // shared global quad mesh
+            {
+                float quadVerts[24] = {
+                    -1.f, -1.f, 0.f, 0.f,
+                     1.f,  1.f, 1.f, 1.f,
+                    -1.f,  1.f, 0.f, 1.f,
+
+                    -1.f, -1.f, 0.f, 0.f,
+                     1.f, -1.f, 1.f, 0.f,
+                     1.f,  1.f, 1.f, 1.f
+                };
+
+                std::vector<ISubmesh*> submeshes;
+                std::vector<Triangles::Vertex> vertices(6);
+                vertices[0].pos = glm::vec3(-1.f, -1.f, 0.f); vertices[0].texCoord0 = glm::vec2(0.f, 0.f);
+                vertices[1].pos = glm::vec3( 1.f,  1.f, 0.f); vertices[1].texCoord0 = glm::vec2(1.f, 1.f);
+                vertices[2].pos = glm::vec3(-1.f,  1.f, 0.f); vertices[2].texCoord0 = glm::vec2(0.f, 1.f);
+                vertices[3].pos = glm::vec3(-1.f, -1.f, 0.f); vertices[3].texCoord0 = glm::vec2(0.f, 0.f);
+                vertices[4].pos = glm::vec3( 1.f, -1.f, 0.f); vertices[4].texCoord0 = glm::vec2(1.f, 0.f);
+                vertices[5].pos = glm::vec3( 1.f,  1.f, 0.f); vertices[5].texCoord0 = glm::vec2(1.f, 1.f);
+                std::vector<u32> indices({ 0, 1, 2, 3, 4, 5 });
+                submeshes.push_back(createSubmesh<Triangles>(vertices, indices));
+                m_defaultShapes.fullscreenQuad = createMesh("FullScreenQuadMesh", submeshes);
+            }
 
             // cube
             u32 numVertices = sizeof(cubeVertices) / sizeof(glm::vec3);
@@ -116,8 +140,7 @@ namespace Cyan
         /**
         * Creating a texture from scratch; `name` must be unique
         */
-        static Texture2DRenderable* createTexture2D(const char* name, const ITextureRenderable::Spec& spec, ITextureRenderable::Parameter parameter=ITextureRenderable::Parameter{ })
-        {
+        static Texture2DRenderable* createTexture2D(const char* name, const ITextureRenderable::Spec& spec, ITextureRenderable::Parameter parameter=ITextureRenderable::Parameter{ }) {
             Texture2DRenderable* outTexture = getAsset<Texture2DRenderable>(name);
             if (!outTexture)
             {
@@ -127,8 +150,7 @@ namespace Cyan
             return outTexture;
         }
 
-        static Texture3DRenderable* createTexture3D(const char* name, const ITextureRenderable::Spec& spec, ITextureRenderable::Parameter parameter=ITextureRenderable::Parameter{ })
-        {
+        static Texture3DRenderable* createTexture3D(const char* name, const ITextureRenderable::Spec& spec, ITextureRenderable::Parameter parameter=ITextureRenderable::Parameter{ }) {
             Texture3DRenderable* outTexture = getAsset<Texture3DRenderable>(name);
             if (!outTexture)
             {
