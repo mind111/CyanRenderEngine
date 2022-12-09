@@ -6,7 +6,7 @@
 
 namespace Cyan {
     class Renderer;
-    struct SceneRenderable;
+    struct RenderableScene;
     struct RenderTexture2D;
     struct Texture2DRenderable;
     struct RenderTarget;
@@ -20,15 +20,15 @@ namespace Cyan {
         ~InstantRadiosity() { }
 
         void initialize();
-        Texture2DRenderable* render(Renderer* renderer, SceneRenderable& renderableScene, const glm::uvec2& renderResolution);
-        Texture2DRenderable* render(Renderer* renderer, SceneRenderable& renderableScene, Texture2DRenderable* sceneDepthBuffer, Texture2DRenderable* sceneNormalBuffer, const glm::uvec2& renderResolution);
-        void visualizeVPLs(Renderer* renderer, RenderTarget* renderTarget, SceneRenderable& renderableScene);
+        Texture2DRenderable* render(Renderer* renderer, RenderableScene& renderableScene, const glm::uvec2& renderResolution);
+        Texture2DRenderable* render(Renderer* renderer, RenderableScene& renderableScene, Texture2DRenderable* sceneDepthBuffer, Texture2DRenderable* sceneNormalBuffer, const glm::uvec2& renderResolution);
+        void visualizeVPLs(Renderer* renderer, RenderTarget* renderTarget, RenderableScene& renderableScene);
     private:
-        void generateVPLs(Renderer* renderer, SceneRenderable& renderableScene, const glm::uvec2& renderResolution);
-        void buildVPLShadowMaps(Renderer* renderer, SceneRenderable& renderableScene);
-        void buildVPLVSMs(Renderer* renderer, SceneRenderable& renderableScene);
-        void renderInternal(Renderer* renderer, SceneRenderable& renderableScene, Texture2DRenderable* output);
-        void renderInternal(Renderer* renderer, SceneRenderable& renderableScene, Texture2DRenderable* sceneDepthBuffer, Texture2DRenderable* sceneNormalBuffer, Texture2DRenderable* output);
+        void generateVPLs(Renderer* renderer, RenderableScene& renderableScene, const glm::uvec2& renderResolution);
+        void buildVPLShadowMaps(Renderer* renderer, RenderableScene& renderableScene);
+        void buildVPLVSMs(Renderer* renderer, RenderableScene& renderableScene);
+        void renderInternal(Renderer* renderer, RenderableScene& renderableScene, Texture2DRenderable* output);
+        void renderInternal(Renderer* renderer, RenderableScene& renderableScene, Texture2DRenderable* sceneDepthBuffer, Texture2DRenderable* sceneNormalBuffer, Texture2DRenderable* output);
         void renderUI(Renderer* renderer, Texture2DRenderable* output);
 
         enum class VPLShadowAlgorithm : i32 {

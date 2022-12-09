@@ -10,7 +10,7 @@
 
 namespace Cyan
 {
-    PackedGeometry* SceneRenderable::packedGeometry = nullptr;
+    PackedGeometry* RenderableScene::packedGeometry = nullptr;
 
     PackedGeometry::PackedGeometry(const Scene& scene)
     {
@@ -71,11 +71,11 @@ namespace Cyan
         submeshes.upload();
     }
 
-    SceneRenderable::SceneRenderable() {
+    RenderableScene::RenderableScene() {
 
     }
 
-    u32 SceneRenderable::getMaterialID(MeshInstance* meshInstance, u32 submeshIndex) {
+    u32 RenderableScene::getMaterialID(MeshInstance* meshInstance, u32 submeshIndex) {
         std::unordered_map<std::string, u32> materialMap;
 
         if (meshInstance) {
@@ -130,7 +130,7 @@ namespace Cyan
         }
     }
 
-    SceneRenderable::SceneRenderable(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator) {
+    RenderableScene::RenderableScene(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator) {
         viewBuffer = std::make_unique<ViewBuffer>();
         transformBuffer = std::make_unique<TransformBuffer>();
         instanceBuffer = std::make_unique<InstanceBuffer>();
@@ -248,7 +248,7 @@ namespace Cyan
         skyLight = inScene->skyLight;
     }
 
-    void SceneRenderable::clone(SceneRenderable& dst, const SceneRenderable& src) {
+    void RenderableScene::clone(RenderableScene& dst, const RenderableScene& src) {
         dst.aabb = src.aabb;
         dst.camera = src.camera;
         dst.meshInstances = src.meshInstances;
@@ -267,11 +267,11 @@ namespace Cyan
     * the copy constructor performs a deep copy instead of simply copying over
     * pointers / references
     */
-    SceneRenderable::SceneRenderable(const SceneRenderable& src) {
+    RenderableScene::RenderableScene(const RenderableScene& src) {
         clone(*this, src);
     }
 
-    SceneRenderable& SceneRenderable::operator=(const SceneRenderable& src) {
+    RenderableScene& RenderableScene::operator=(const RenderableScene& src) {
         clone(*this, src);
         return *this;
     }
@@ -279,7 +279,7 @@ namespace Cyan
     /**
     * Submit rendering data to global gpu buffers
     */
-    void SceneRenderable::upload() {
+    void RenderableScene::upload() {
 #define VIEW_BUFFER_BINDING 0
 #define TRANSFORM_BUFFER_BINDING 1
 #define INSTANCE_DESC_BUFFER_BINDING 2

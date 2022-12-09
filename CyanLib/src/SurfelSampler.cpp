@@ -10,7 +10,7 @@
 #include "AssetManager.h"
 
 namespace Cyan {
-    static f32 calcSceneSurfaceArea(std::vector<SurfelSampler::Triangle>& outTriangles, const SceneRenderable& inScene) {
+    static f32 calcSceneSurfaceArea(std::vector<SurfelSampler::Triangle>& outTriangles, const RenderableScene& inScene) {
         f32 totalArea = 0.f;
         for (i32 i = 0; i < inScene.meshInstances.size(); ++i) {
             auto meshInst = inScene.meshInstances[i];
@@ -60,7 +60,7 @@ namespace Cyan {
         return totalArea;
     }
 
-    void SurfelSampler::sampleFixedNumberSurfels(std::vector<Surfel>& outSurfels, const SceneRenderable& inScene) {
+    void SurfelSampler::sampleFixedNumberSurfels(std::vector<Surfel>& outSurfels, const RenderableScene& inScene) {
         // reset state
         surfelSamples.data.array.clear();
 
@@ -274,7 +274,7 @@ namespace Cyan {
     /** note - @min:
     * instead of fixing the number of surfels, fix the surfel's radius
     */
-    void SurfelSampler::sampleFixedSizeSurfels(std::vector<Surfel>& outSurfels, const SceneRenderable& inScene) {
+    void SurfelSampler::sampleFixedSizeSurfels(std::vector<Surfel>& outSurfels, const RenderableScene& inScene) {
         // reset state
         surfelSamples.data.array.clear();
         instanceBuffer.data.array.clear();

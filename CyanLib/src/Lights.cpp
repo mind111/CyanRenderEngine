@@ -38,12 +38,12 @@ namespace Cyan {
         return lightSpaceAABB;
     }
 
-    void DirectionalLight::renderShadowMap(SceneRenderable& scene, Renderer* renderer) {
+    void DirectionalLight::renderShadowMap(RenderableScene& scene, Renderer* renderer) {
         BoundingBox3D lightSpaceAABB = calcLightSpaceAABB(direction, scene.aabb);
         shadowMap->render(lightSpaceAABB, scene, renderer);
     }
 
-    void CSMDirectionalLight::renderShadowMap(SceneRenderable& scene, Renderer* renderer) {
+    void CSMDirectionalLight::renderShadowMap(RenderableScene& scene, Renderer* renderer) {
         BoundingBox3D lightSpaceAABB = calcLightSpaceAABB(direction, scene.aabb);
         shadowMap->render(lightSpaceAABB, scene, renderer);
     }

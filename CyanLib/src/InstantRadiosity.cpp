@@ -96,7 +96,7 @@ namespace Cyan {
         glNamedBufferData(VPLShadowHandleBuffer, sizeof(VPLShadowHandles), VPLShadowHandles, GL_DYNAMIC_COPY);
     }
 
-    void InstantRadiosity::generateVPLs(Renderer* renderer, SceneRenderable& renderableScene, const glm::uvec2& renderResolution) {
+    void InstantRadiosity::generateVPLs(Renderer* renderer, RenderableScene& renderableScene, const glm::uvec2& renderResolution) {
         ITextureRenderable::Spec spec = { };
         spec.type = TEX_2D;
         spec.width = renderResolution.x;
@@ -142,8 +142,8 @@ namespace Cyan {
         numGeneratedVPLs = min(kMaxNumVPLs, numGeneratedVPLs);
     }
 
-    void InstantRadiosity::buildVPLVSMs(Renderer* renderer, SceneRenderable& renderableScene) {
-        auto renderVPLVSM = [this, renderer](i32 VPLIndex, SceneRenderable& renderableScene, RenderTarget* renderTarget) {
+    void InstantRadiosity::buildVPLVSMs(Renderer* renderer, RenderableScene& renderableScene) {
+        auto renderVPLVSM = [this, renderer](i32 VPLIndex, RenderableScene& renderableScene, RenderTarget* renderTarget) {
             glDisable(GL_CULL_FACE);
             glm::vec3 position = vec4ToVec3(VPLs[VPLIndex].position);
             // render point shadow map
@@ -232,9 +232,9 @@ namespace Cyan {
 #endif
     }
 
-    void InstantRadiosity::buildVPLShadowMaps(Renderer* renderer, SceneRenderable& renderableScene) {
+    void InstantRadiosity::buildVPLShadowMaps(Renderer* renderer, RenderableScene& renderableScene) {
         // render VPL basic shadow maps
-        auto renderVPLShadow = [this, renderer](i32 VPLIndex, SceneRenderable& renderableScene, RenderTarget* depthRenderTarget) {
+        auto renderVPLShadow = [this, renderer](i32 VPLIndex, RenderableScene& renderableScene, RenderTarget* depthRenderTarget) {
             glDisable(GL_CULL_FACE);
             glm::vec3 position = vec4ToVec3(VPLs[VPLIndex].position);
             // render point shadow map
@@ -302,7 +302,7 @@ namespace Cyan {
         }
     }
 
-    void InstantRadiosity::renderInternal(Renderer* renderer, SceneRenderable& renderableScene, Texture2DRenderable* output) {
+    void InstantRadiosity::renderInternal(Renderer* renderer, RenderableScene& renderableScene, Texture2DRenderable* output) {
         // render scene depth normal pass first
         ITextureRenderable::Spec spec = { };
         spec.type = TEX_2D;
@@ -317,7 +317,7 @@ namespace Cyan {
         renderInternal(renderer, renderableScene, sceneDepthBuffer, sceneNormalBuffer, output);
     }
 
-    void InstantRadiosity::renderInternal(Renderer* renderer, SceneRenderable& renderableScene, Texture2DRenderable* sceneDepthBuffer, Texture2DRenderable* sceneNormalBuffer, Texture2DRenderable* output) {
+    void InstantRadiosity::renderInternal(Renderer* renderer, RenderableScene& renderableScene, Texture2DRenderable* sceneDepthBuffer, Texture2DRenderable* sceneNormalBuffer, Texture2DRenderable* output) {
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(1280, 720));
         renderTarget->setColorBuffer(output, 0);
         Shader* shader = ShaderManager::createShader({ ShaderType::kVsPs, "InstantRadiosityShader", SHADER_SOURCE_PATH "instant_radiosity_v.glsl", SHADER_SOURCE_PATH "instant_radiosity_p.glsl" });
@@ -361,7 +361,7 @@ namespace Cyan {
             });
     }
     
-    Texture2DRenderable* InstantRadiosity::render(Renderer* renderer, SceneRenderable& renderableScene, const glm::uvec2& renderResolution) {
+    Texture2DRenderable* InstantRadiosity::render(Renderer* renderer, RenderableScene& renderableScene, const glm::uvec2& renderResolution) {
         ITextureRenderable::Spec spec = { };
         spec.type = TEX_2D;
         spec.width = renderResolution.x;
@@ -391,7 +391,7 @@ namespace Cyan {
         return radiosity;
     }
 
-     Texture2DRenderable* InstantRadiosity::render(Renderer* renderer, SceneRenderable& renderableScene, Texture2DRenderable* sceneDepthBuffer, Texture2DRenderable* sceneNormalBuffer, const glm::uvec2& renderResolution) {
+     Texture2DRenderable* InstantRadiosity::render(Renderer* renderer, RenderableScene& renderableScene, Texture2DRenderable* sceneDepthBuffer, Texture2DRenderable* sceneNormalBuffer, const glm::uvec2& renderResolution) {
         ITextureRenderable::Spec spec = { };
         spec.type = TEX_2D;
         spec.width = renderResolution.x;
@@ -421,7 +421,7 @@ namespace Cyan {
         return radiosity;
     }
 
-    void InstantRadiosity::visualizeVPLs(Renderer* renderer, RenderTarget* renderTarget, SceneRenderable& renderableScene) {
+    void InstantRadiosity::visualizeVPLs(Renderer* renderer, RenderTarget* renderTarget, RenderableScene& renderableScene) {
         Shader* debugDrawShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "DebugDrawShader", SHADER_SOURCE_PATH "debug_draw_v.glsl", SHADER_SOURCE_PATH "debug_draw_p.glsl" });
         // debug draw VPLs
         for (i32 i = 0; i < kMaxNumVPLs; ++i) {

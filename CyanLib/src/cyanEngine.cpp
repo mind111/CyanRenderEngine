@@ -484,9 +484,9 @@ namespace Cyan
         });
     }
 
-    void Engine::finalize()
+    void Engine::deinitialize()
     {
-        m_IOSystem->finalize();
-        m_graphicsSystem->finalize();
+        m_IOSystem->deinitialize();
+        m_graphicsSystem->deinitialize();
     }
 }

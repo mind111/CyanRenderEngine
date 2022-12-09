@@ -15,7 +15,7 @@ namespace Cyan {
     class GfxContext;
     struct Texture2DRenderable;
     struct TextureCubeRenderable;
-    struct SceneRenderable;
+    struct RenderableScene;
     struct RenderTarget;
 
     /** todo: improve rendering quality
@@ -39,7 +39,7 @@ namespace Cyan {
             ~Image() { }
 
             void initialize();
-            virtual void setup(const SceneRenderable& inScene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer);
+            virtual void setup(const RenderableScene& inScene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer);
             virtual void clear() { }
             virtual void render(ManyViewGI* gi);
 
@@ -75,7 +75,7 @@ namespace Cyan {
             GLuint hemicubeBuffer;
             std::vector<Hemicube> hemicubes;
             std::vector<glm::vec3> jitteredSampleDirections;
-            std::unique_ptr<SceneRenderable> scene;
+            std::unique_ptr<RenderableScene> scene;
         private:
             void generateHemicubes(Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer);
             void generateSampleDirections();
@@ -88,17 +88,17 @@ namespace Cyan {
         virtual ~ManyViewGI() { }
 
         void initialize();
-        void setup(const SceneRenderable& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer);
-        void render(RenderTarget* sceneRenderTarget, const SceneRenderable& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer);
+        void setup(const RenderableScene& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer);
+        void render(RenderTarget* sceneRenderTarget, const RenderableScene& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer);
 
         // extension points
         virtual void customInitialize();
-        virtual void customSetup(const SceneRenderable& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) { }
-        virtual void customRender(const SceneRenderable::Camera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) { }
-        virtual void customRenderScene(const SceneRenderable& scene, const Hemicube& hemicube, const PerspectiveCamera& camera);
+        virtual void customSetup(const RenderableScene& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) { }
+        virtual void customRender(const RenderableScene::Camera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) { }
+        virtual void customRenderScene(const RenderableScene& scene, const Hemicube& hemicube, const PerspectiveCamera& camera);
         virtual void customUI() {}
 
-        TextureCubeRenderable* finalGathering(const Hemicube& hemicube, const SceneRenderable& scene, bool jitter=false, const glm::vec3& jitteredSampleDirection=glm::vec3(0.f));
+        TextureCubeRenderable* finalGathering(const Hemicube& hemicube, const RenderableScene& scene, bool jitter=false, const glm::vec3& jitteredSampleDirection=glm::vec3(0.f));
 
         struct VisualizationBuffers {
             glm::uvec2 resolution = glm::uvec2(640, 360);
@@ -116,7 +116,7 @@ namespace Cyan {
 
         Renderer* m_renderer = nullptr;
         GfxContext* m_gfxc = nullptr;
-        std::unique_ptr<SceneRenderable> m_scene = nullptr;
+        std::unique_ptr<RenderableScene> m_scene = nullptr;
         TextureCubeRenderable* m_sharedRadianceCubemap = nullptr;
         Image* m_image = nullptr;
     private:
@@ -126,7 +126,7 @@ namespace Cyan {
     class PointBasedManyViewGI : public ManyViewGI {
     public:
         struct Image : public ManyViewGI::Image {
-            virtual void setup(const SceneRenderable& inScene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) override { }
+            virtual void setup(const RenderableScene& inScene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) override { }
         private: 
             std::vector<Surfel> surfels;
         };
@@ -135,9 +135,9 @@ namespace Cyan {
         ~PointBasedManyViewGI() { }
 
         virtual void customInitialize() override;
-        virtual void customSetup(const SceneRenderable& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) override;
-        virtual void customRender(const SceneRenderable::Camera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) override;
-        virtual void customRenderScene(const SceneRenderable& scene, const Hemicube& hemicube, const PerspectiveCamera& camera) override;
+        virtual void customSetup(const RenderableScene& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) override;
+        virtual void customRender(const RenderableScene::Camera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) override;
+        virtual void customRenderScene(const RenderableScene& scene, const Hemicube& hemicube, const PerspectiveCamera& camera) override;
         virtual void customUI() override;
 
         struct Visualizations {
@@ -160,7 +160,7 @@ namespace Cyan {
         bool bVisualizeSurfels = false;
 
     private:
-        void rasterizeSurfelScene(Texture2DRenderable* outSceneColor, const SceneRenderable::Camera& camera);
+        void rasterizeSurfelScene(Texture2DRenderable* outSceneColor, const RenderableScene::Camera& camera);
         enum class VisMode : u32 {
             kAlbedo = 0,
             kRadiance,
@@ -183,15 +183,15 @@ namespace Cyan {
         ~SoftwareMicroBuffer() { }
 
         // hybrid render
-        void render(const SceneRenderable::Camera& inCamera, const SurfelBSH& surfelBSH);
+        void render(const RenderableScene::Camera& inCamera, const SurfelBSH& surfelBSH);
         // raytrace render
-        void raytrace(const SceneRenderable::Camera& inCamera, const SurfelBSH& surfelBSH);
+        void raytrace(const RenderableScene::Camera& inCamera, const SurfelBSH& surfelBSH);
         void visualize(Renderer* renderer, RenderTarget* visRenderTarget);
         Texture2DRenderable* getVisualization() { return visualization; }
     private:
         void clear();
-        void traverseBSH(const SurfelBSH& surfelBSH, i32 nodeIndex, const SceneRenderable::Camera& camera);
-        void postTraversal(const SceneRenderable::Camera& camera, const SurfelBSH& surfelBSH);
+        void traverseBSH(const SurfelBSH& surfelBSH, i32 nodeIndex, const RenderableScene::Camera& camera);
+        void postTraversal(const RenderableScene::Camera& camera, const SurfelBSH& surfelBSH);
         void raytraceInternal(const glm::vec3& ro, const glm::vec3& rd, const SurfelBSH& surfelBSH, i32 nodeIndex, f32& tmin, i32& hitNode);
         f32 solidAngleOfSphere(const glm::vec3& p, const glm::vec3& q, f32 r);
         f32 calcCubemapTexelSolidAngle(const glm::vec3& d, f32 cubemapRes);
@@ -244,14 +244,14 @@ namespace Cyan {
         ~MicroRenderingGI() { }
 
         virtual void customInitialize() override;
-        virtual void customSetup(const SceneRenderable& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) override;
-        virtual void customRender(const SceneRenderable::Camera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) override;
+        virtual void customSetup(const RenderableScene& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) override;
+        virtual void customRender(const RenderableScene::Camera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) override;
         virtual void customUI() override;
 
     private:
         virtual void generateWorldSpaceSurfels() override;
-        void softwareMicroRendering(const SceneRenderable::Camera& camera, SurfelBSH& surfelBSH);
-        void hardwareMicroRendering(const SceneRenderable::Camera& camera, SurfelBSH& surfelBSH);
+        void softwareMicroRendering(const RenderableScene::Camera& camera, SurfelBSH& surfelBSH);
+        void hardwareMicroRendering(const RenderableScene::Camera& camera, SurfelBSH& surfelBSH);
 
         bool bVisualizeSurfelSampler = false;
         bool bVisualizeMicroBuffer = false;

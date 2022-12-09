@@ -15,11 +15,10 @@
 #include "Material.h"
 #include "LightProbe.h"
 #include "SkyBox.h"
-#include "SkyLight.h"
+#include "Lights.h"
 #include "StaticMeshEntity.h"
 
-namespace Cyan
-{
+namespace Cyan {
     struct SceneComponent;
 
     struct Scene {

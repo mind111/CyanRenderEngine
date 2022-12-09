@@ -55,7 +55,7 @@ namespace Cyan
         m_IOEventDispatcher->dispatch();
     }
     
-    void IOSystem::finalize()
+    void IOSystem::deinitialize()
     {
 
     }

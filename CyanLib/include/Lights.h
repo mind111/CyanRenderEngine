@@ -40,7 +40,7 @@ namespace Cyan
             shadowMap = std::make_unique<DirectionalShadowMap>(*this);
         }
 
-        virtual void renderShadowMap(SceneRenderable& scene, Renderer* renderer);
+        virtual void renderShadowMap(RenderableScene& scene, Renderer* renderer);
 
         glm::vec3 direction = glm::normalize(glm::vec3(1.f, 1.f, 1.f));
         bool bCastShadow = true;
@@ -58,7 +58,7 @@ namespace Cyan
             shadowMap = std::make_shared<CascadedShadowMap>(*this);
         }
 
-        virtual void renderShadowMap(SceneRenderable& scene, Renderer* renderer) override;
+        virtual void renderShadowMap(RenderableScene& scene, Renderer* renderer) override;
 
         GpuCSMDirectionalLight buildGpuLight();
     private:

@@ -50,14 +50,14 @@ namespace Cyan
     };
 
     /** todo:
-    * should copying SceneRenderable be allowed? if so then basically every ssbo will be shared between the copies and need to be reference counted
+    * should copying RenderableScene be allowed? if so then basically every ssbo will be shared between the copies and need to be reference counted
     * to avoid a copy's destructor release shared ssbo, causing all sorts of artifact and weird bugs.
     */
 
     /**
     * A Scene representation that only contains renderable data.
     */
-    struct SceneRenderable {
+    struct RenderableScene {
         struct View {
             glm::mat4 view;
             glm::mat4 projection;
@@ -93,12 +93,12 @@ namespace Cyan
 
         friend class Renderer;
 
-        SceneRenderable();
-        ~SceneRenderable() { }
-        SceneRenderable(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator);
-        SceneRenderable(const SceneRenderable& scene);
-        SceneRenderable& operator=(const SceneRenderable& src);
-        static void clone(SceneRenderable& dst, const SceneRenderable& src);
+        RenderableScene();
+        ~RenderableScene() { }
+        RenderableScene(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator);
+        RenderableScene(const RenderableScene& scene);
+        RenderableScene& operator=(const RenderableScene& src);
+        static void clone(RenderableScene& dst, const RenderableScene& src);
 
         /**
         * Submit rendering data to global gpu buffers

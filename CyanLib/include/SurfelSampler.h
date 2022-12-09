@@ -9,8 +9,8 @@ namespace Cyan {
 
     struct SurfelSampler {
         void sampleRandomSurfels() { }
-        void sampleFixedSizeSurfels(std::vector<Surfel>& outSurfels, const SceneRenderable& inScene);
-        void sampleFixedNumberSurfels(std::vector<Surfel>& outSurfels, const SceneRenderable& inScene);
+        void sampleFixedSizeSurfels(std::vector<Surfel>& outSurfels, const RenderableScene& inScene);
+        void sampleFixedNumberSurfels(std::vector<Surfel>& outSurfels, const RenderableScene& inScene);
         void deduplicate(std::vector<Surfel>& outSurfels);
         void visualize(RenderTarget* dstRenderTarget, Renderer* renderer);
 

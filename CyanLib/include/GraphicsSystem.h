@@ -22,7 +22,7 @@ namespace Cyan
         ~GraphicsSystem() { }
 
         virtual void initialize() override;
-        virtual void finalize() override;
+        virtual void deinitialize() override;
         void update(Scene* scene);
         void render();
 

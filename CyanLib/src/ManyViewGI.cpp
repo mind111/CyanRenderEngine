@@ -233,11 +233,11 @@ namespace Cyan {
     }
 
 
-    void ManyViewGI::Image::setup(const SceneRenderable& inScene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) {
+    void ManyViewGI::Image::setup(const RenderableScene& inScene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) {
         // reset workload
         nextHemicube = 0;
         // update scene
-        scene.reset(new SceneRenderable(inScene));
+        scene.reset(new RenderableScene(inScene));
         // fill hemicubes
         generateHemicubes(depthBuffer, normalBuffer);
         // fill jittered sample directions 
@@ -340,12 +340,12 @@ namespace Cyan {
         }
     }
 
-    void ManyViewGI::setup(const SceneRenderable& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) {
+    void ManyViewGI::setup(const RenderableScene& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) {
         m_image->setup(scene, depthBuffer, normalBuffer);
         customSetup(*m_scene, depthBuffer, normalBuffer);
     }
 
-    void ManyViewGI::render(RenderTarget* sceneRenderTarget, const SceneRenderable& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) {
+    void ManyViewGI::render(RenderTarget* sceneRenderTarget, const RenderableScene& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) {
         m_image->render(this);
 
         auto visRenderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(
@@ -378,7 +378,7 @@ namespace Cyan {
         });
     }
 
-    TextureCubeRenderable* ManyViewGI::finalGathering(const Hemicube& hemicube, const SceneRenderable& scene, bool jitter, const glm::vec3& jitteredSampleDirection) {
+    TextureCubeRenderable* ManyViewGI::finalGathering(const Hemicube& hemicube, const RenderableScene& scene, bool jitter, const glm::vec3& jitteredSampleDirection) {
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(m_sharedRadianceCubemap->resolution, m_sharedRadianceCubemap->resolution));
         renderTarget->setColorBuffer(m_sharedRadianceCubemap, 0);
         m_gfxc->setRenderTarget(renderTarget.get());
@@ -447,7 +447,7 @@ namespace Cyan {
         return m_sharedRadianceCubemap;
     }
 
-    void ManyViewGI::customRenderScene(const SceneRenderable& scene, const Hemicube& hemicube, const PerspectiveCamera& camera) {
+    void ManyViewGI::customRenderScene(const RenderableScene& scene, const Hemicube& hemicube, const PerspectiveCamera& camera) {
         Shader* shader = ShaderManager::createShader({ 
             ShaderSource::Type::kVsPs,
             "ManyViewGIShader",
@@ -482,12 +482,12 @@ namespace Cyan {
         }
     }
 
-    void PointBasedManyViewGI::customSetup(const SceneRenderable& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) {
+    void PointBasedManyViewGI::customSetup(const RenderableScene& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) {
         generateWorldSpaceSurfels();
         cacheSurfelDirectLighting();
     }
 
-    void PointBasedManyViewGI::customRender(const SceneRenderable::Camera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) {
+    void PointBasedManyViewGI::customRender(const RenderableScene::Camera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) {
         if (m_scene) {
             if (bVisualizeSurfels) {
                 visualizeSurfels(visRenderTarget);
@@ -590,7 +590,7 @@ namespace Cyan {
         }
     }
 
-    void PointBasedManyViewGI::rasterizeSurfelScene(Texture2DRenderable* outSceneColor, const SceneRenderable::Camera& camera) {
+    void PointBasedManyViewGI::rasterizeSurfelScene(Texture2DRenderable* outSceneColor, const RenderableScene::Camera& camera) {
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(outSceneColor->width, outSceneColor->height));
         renderTarget->setColorBuffer(outSceneColor, 0);
         renderTarget->setDrawBuffers({ 0 });
@@ -619,7 +619,7 @@ namespace Cyan {
         glDrawArraysInstanced(GL_POINTS, 0, 1, surfels.size());
     }
 
-    void PointBasedManyViewGI::customRenderScene(const SceneRenderable& scene, const Hemicube& hemicube, const PerspectiveCamera& camera) {
+    void PointBasedManyViewGI::customRenderScene(const RenderableScene& scene, const Hemicube& hemicube, const PerspectiveCamera& camera) {
         auto shader = ShaderManager::createShader({
             ShaderSource::Type::kVsPs,
             "RasterizeSurfelShader",
@@ -692,7 +692,7 @@ namespace Cyan {
         }
     }
 
-    void MicroRenderingGI::customSetup(const SceneRenderable& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) {
+    void MicroRenderingGI::customSetup(const RenderableScene& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) {
         PointBasedManyViewGI::customSetup(scene, depthBuffer, normalBuffer);
     }
 
@@ -713,7 +713,7 @@ namespace Cyan {
         m_surfelBSH.build(surfels);
     }
 
-    void MicroRenderingGI::customRender(const SceneRenderable::Camera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) {
+    void MicroRenderingGI::customRender(const RenderableScene::Camera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) {
         PointBasedManyViewGI::customRender(camera, sceneRenderTarget, visRenderTarget);
         if (bVisualizeSurfelBSH) {
             m_surfelBSH.visualize(m_gfxc, visRenderTarget);
@@ -831,7 +831,7 @@ namespace Cyan {
         return solidAngle;
     }
 
-    void SoftwareMicroBuffer::traverseBSH(const SurfelBSH& surfelBSH, i32 nodeIndex, const SceneRenderable::Camera& camera) {
+    void SoftwareMicroBuffer::traverseBSH(const SurfelBSH& surfelBSH, i32 nodeIndex, const RenderableScene::Camera& camera) {
         if (nodeIndex < 0) {
             return;
         }
@@ -932,10 +932,10 @@ namespace Cyan {
 #endif
     }
 
-    void SoftwareMicroBuffer::raytrace(const SceneRenderable::Camera& inCamera, const SurfelBSH& surfelBSH) {
+    void SoftwareMicroBuffer::raytrace(const RenderableScene::Camera& inCamera, const SurfelBSH& surfelBSH) {
         clear();
 
-        SceneRenderable::Camera camera = { };
+        RenderableScene::Camera camera = { };
         camera.eye = inCamera.eye;
         camera.lookAt = inCamera.lookAt;
         camera.right = inCamera.right;
@@ -970,7 +970,7 @@ namespace Cyan {
         }
     }
 
-    void SoftwareMicroBuffer::postTraversal(const SceneRenderable::Camera& camera, const SurfelBSH& surfelBSH) {
+    void SoftwareMicroBuffer::postTraversal(const RenderableScene::Camera& camera, const SurfelBSH& surfelBSH) {
         postTraversalList.clear();
         for (i32 y = 0; y < resolution; ++y) {
             for (i32 x = 0; x < resolution; ++x) {
@@ -1012,10 +1012,10 @@ namespace Cyan {
     // todo: implement and verify this
     // todo: view frustum culling
     // todo: cache lighting at each node
-    void SoftwareMicroBuffer::render(const SceneRenderable::Camera& inCamera, const SurfelBSH& surfelBSH) {
+    void SoftwareMicroBuffer::render(const RenderableScene::Camera& inCamera, const SurfelBSH& surfelBSH) {
         clear();
 
-        SceneRenderable::Camera camera = { };
+        RenderableScene::Camera camera = { };
         camera.eye = inCamera.eye;
         camera.lookAt = inCamera.lookAt;
         camera.right = inCamera.right;
@@ -1077,13 +1077,13 @@ namespace Cyan {
     }
 
     // micro-rendering on cpu
-    void MicroRenderingGI::softwareMicroRendering(const SceneRenderable::Camera& inCamera, SurfelBSH& surfelBSH) {
+    void MicroRenderingGI::softwareMicroRendering(const RenderableScene::Camera& inCamera, SurfelBSH& surfelBSH) {
         m_softwareMicroBuffer.render(inCamera, surfelBSH);
         // m_softwareMicroBuffer.raytrace(inCamera, surfelBSH);
     }
 
     // micro-rendering on gpu
-    void MicroRenderingGI::hardwareMicroRendering(const SceneRenderable::Camera& camera, SurfelBSH& surfelBSH) {
+    void MicroRenderingGI::hardwareMicroRendering(const RenderableScene::Camera& camera, SurfelBSH& surfelBSH) {
 #if 0
         auto shader = ShaderManager::createShader({ 
             ShaderSource::Type::kCs,

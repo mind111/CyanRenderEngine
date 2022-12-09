@@ -13,7 +13,7 @@ namespace Cyan
         virtual ~DefaultApp() { }
 
         void initialize();
-        void finalize();
+        void deinitialize();
         void update();
         void render();
         void run();

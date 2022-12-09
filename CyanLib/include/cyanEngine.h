@@ -27,7 +27,7 @@ namespace Cyan
 
         // main interface
         void initialize();
-        void finalize();
+        void deinitialize();
         void update(Scene* scene);
         void render();
 

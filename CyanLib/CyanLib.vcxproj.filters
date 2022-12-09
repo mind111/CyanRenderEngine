@@ -228,9 +228,6 @@
     <ClInclude Include="include\Material.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\SkyLight.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\StaticMeshEntity.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -410,9 +407,6 @@
     <ClCompile Include="src\StaticMeshEntity.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
-    <ClCompile Include="src\MaterialEditor.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
     <ClCompile Include="src\RayTracingScene.cpp">
       <Filter>Source Files\Internal\RayTracing</Filter>
     </ClCompile>
@@ -424,9 +418,6 @@
     </ClCompile>
     <ClCompile Include="src\RayTracer.cpp">
       <Filter>Source Files\Internal\RayTracing</Filter>
-    </ClCompile>
-    <ClCompile Include="src\SkyLight.cpp">
-      <Filter>Source Files\Internal</Filter>
     </ClCompile>
     <ClCompile Include="src\InstantRadiosity.cpp">
       <Filter>Source Files\Internal\InstantRadiosity</Filter>

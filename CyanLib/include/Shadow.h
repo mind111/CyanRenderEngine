@@ -13,12 +13,12 @@ namespace Cyan {
     struct Renderer;
     struct DirectionalLight;
     struct Scene;
-    struct SceneRenderable;
+    struct RenderableScene;
     struct Entity;
 
     struct IDirectionalShadowMap
     {
-        virtual void render(const BoundingBox3D& lightSpaceAABB, SceneRenderable& scene, Renderer* renderer) { }
+        virtual void render(const BoundingBox3D& lightSpaceAABB, RenderableScene& scene, Renderer* renderer) { }
         virtual void setShaderParameters(Shader* shader, const char* uniformNamePrefix) { }
 
         IDirectionalShadowMap(const DirectionalLight& inDirectionalLight);
@@ -41,7 +41,7 @@ namespace Cyan {
     * todo: better shadow biasing; normal bias and receiver geometry bias
     */
     struct DirectionalShadowMap : public IDirectionalShadowMap {
-        virtual void render(const BoundingBox3D& likghtSpaceAABB, SceneRenderable& scene, Renderer* renderer) override;
+        virtual void render(const BoundingBox3D& likghtSpaceAABB, RenderableScene& scene, Renderer* renderer) override;
         virtual void setShaderParameters(Shader* shader, const char* uniformNamePrefix) override;
 
         DirectionalShadowMap(const DirectionalLight& inDirectionalLight);
@@ -57,7 +57,7 @@ namespace Cyan {
     * Variance directional shadowmap
     */
     struct VarianceShadowMap : public IDirectionalShadowMap {
-        virtual void render(const BoundingBox3D& lightSpaceAABB, SceneRenderable& scene, Renderer* renderer) override { }
+        virtual void render(const BoundingBox3D& lightSpaceAABB, RenderableScene& scene, Renderer* renderer) override { }
         virtual void setShaderParameters(Shader* shader, const char* uniformNamePrefix) override { }
 
         VarianceShadowMap(const DirectionalLight& inDirectionalLight);
@@ -73,7 +73,7 @@ namespace Cyan {
 
     struct CascadedShadowMap : public IDirectionalShadowMap {
         /* IDirectionalShadowmap interface */
-        virtual void render(const BoundingBox3D& lightSpaceAABB, SceneRenderable& scene, Renderer* renderer) override;
+        virtual void render(const BoundingBox3D& lightSpaceAABB, RenderableScene& scene, Renderer* renderer) override;
 
         static constexpr f32 cascadeBoundries[5] = { 0.0f, 0.1f, 0.3f, 0.6f, 1.0f };
         static constexpr u32 kNumCascades = 4u;
@@ -88,7 +88,7 @@ namespace Cyan {
         CascadedShadowMap(const DirectionalLight& inDirectionalLight);
 
     private:
-        void updateCascades(const SceneRenderable::Camera& camera);
-        void calcCascadeAABB(Cascade& cascade, const SceneRenderable::Camera& camera);
+        void updateCascades(const RenderableScene::Camera& camera);
+        void calcCascadeAABB(Cascade& cascade, const RenderableScene::Camera& camera);
     };
 }

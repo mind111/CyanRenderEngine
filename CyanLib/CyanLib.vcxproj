@@ -67,7 +67,6 @@
     <ClInclude Include="include\ShaderStorageBuffer.h" />
     <ClInclude Include="include\Shadow.h" />
     <ClInclude Include="include\SkyBox.h" />
-    <ClInclude Include="include\SkyLight.h" />
     <ClInclude Include="include\StaticMeshEntity.h" />
     <ClInclude Include="include\Surfel.h" />
     <ClInclude Include="include\SurfelBSH.h" />
@@ -123,7 +122,6 @@
     <ClCompile Include="src\LightMap.cpp" />
     <ClCompile Include="src\LightProbe.cpp" />
     <ClCompile Include="src\Material.cpp" />
-    <ClCompile Include="src\MaterialEditor.cpp" />
     <ClCompile Include="src\MathUtils.cpp" />
     <ClCompile Include="src\Mesh.cpp" />
     <ClCompile Include="src\Ray.cpp" />
@@ -135,7 +133,6 @@
     <ClCompile Include="src\Shader.cpp" />
     <ClCompile Include="src\Shadow.cpp" />
     <ClCompile Include="src\SkyBox.cpp" />
-    <ClCompile Include="src\SkyLight.cpp" />
     <ClCompile Include="src\StaticMeshEntity.cpp" />
     <ClCompile Include="src\SurfelBSH.cpp" />
     <ClCompile Include="src\SurfelSampler.cpp" />

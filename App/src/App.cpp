@@ -82,7 +82,7 @@ int main()
     IrradianceCachingApp* app = new IrradianceCachingApp(1280, 720);
     app->initialize();
     app->run();
-    app->finalize();
+    app->deinitialize();
     delete app;
     return 0;
 }

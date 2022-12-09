@@ -120,7 +120,7 @@ namespace Cyan
         { }
 
         void initialize();
-        void finalize() { }
+        void deinitialize() { }
 
         static Shader* createShader(const ShaderSource& shaderSourceMetaData);
 

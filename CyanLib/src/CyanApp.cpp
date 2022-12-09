@@ -16,9 +16,9 @@ namespace Cyan
         customInitialize();
     }
 
-    void DefaultApp::finalize()
+    void DefaultApp::deinitialize()
     {
-        gEngine->finalize();
+        gEngine->deinitialize();
         customFinalize();
     }
 

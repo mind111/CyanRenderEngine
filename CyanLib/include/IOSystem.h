@@ -169,7 +169,7 @@ namespace Cyan
 
         virtual void initialize() override;
         virtual void update() override;
-        virtual void finalize() override;
+        virtual void deinitialize() override;
 
         // getters
         glm::dvec2 getMouseCursorChange() { return glm::dvec2(m_mouseCursorState.dx, m_mouseCursorState.dy); }

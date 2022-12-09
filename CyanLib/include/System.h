@@ -8,6 +8,6 @@ namespace Cyan
         virtual ~System() { }
         virtual void initialize() = 0;
         virtual void update() { };
-        virtual void finalize() = 0;
+        virtual void deinitialize() = 0;
     };
 }

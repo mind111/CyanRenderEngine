@@ -9,8 +9,8 @@
 #include "Asset.h"
 #include "CyanUI.h"
 
-namespace Cyan
-{
+namespace Cyan {
+#if 1
     struct IAsset;
 
     struct MaterialParameter
@@ -217,4 +217,13 @@ namespace Cyan
     typedef Material<Lightmapped<PBR>> LightmappedPBRMatl;
     typedef Material<Emissive<PBR>> EmissivePBRMatl;
     typedef Material<ConstantColor> ConstantColorMatl;
+#else
+    struct Material {
+        Texture2DRenderable* albedo = nullptr;
+        Texture2DRenderable* normal = nullptr;
+        Texture2DRenderable* metallicRoughness = nullptr;
+        Texture2DRenderable* occlusion = nullptr;
+        glm::vec4 albedo = glm::vec4(1.f);
+    };
+#endif
 };

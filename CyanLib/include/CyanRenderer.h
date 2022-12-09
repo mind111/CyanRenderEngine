@@ -20,7 +20,7 @@
 
 namespace Cyan
 {
-    struct SceneRenderable;
+    struct RenderableScene;
 
     struct SceneView {
         SceneView(
@@ -77,7 +77,7 @@ namespace Cyan
         ~Renderer() {}
 
         void initialize();
-        void finalize();
+        void deinitialize();
 
         GfxContext* getGfxCtx() { return m_ctx; };
         LinearAllocator& getFrameAllocator() { return m_frameAllocator; }
@@ -100,19 +100,7 @@ namespace Cyan
             void initialize(const glm::uvec2& inResolution);
         } m_sceneTextures;
 
-        Texture2DRenderable* renderScene(SceneRenderable& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
-
-        /**
-        * brief:
-        * screen space ray tracing
-        */
-        struct SSGITextures
-        {
-            Texture2DRenderable* ao = nullptr;
-            Texture2DRenderable* bentNormal = nullptr;
-            Texture2DRenderable* shared = nullptr;
-        };
-        SSGITextures screenSpaceRayTracing(Texture2DRenderable* sceneDepthTexture, Texture2DRenderable* sceneNormalTexture, const glm::uvec2& renderResolution);
+        Texture2DRenderable* renderScene(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
 
         struct IndirectDrawBuffer
         {
@@ -123,56 +111,30 @@ namespace Cyan
             u32 sizeInBytes = 1024 * 1024 * 32;
             void* data = nullptr;
         } indirectDrawBuffer;
+        void submitSceneMultiDrawIndirect(const RenderableScene& renderableScene);
+
+        struct SSGITextures
+        {
+            Texture2DRenderable* ao = nullptr;
+            Texture2DRenderable* bentNormal = nullptr;
+            Texture2DRenderable* shared = nullptr;
+        };
+        /**
+        * brief:
+        * screen space ray tracing
+        */
+        SSGITextures screenSpaceRayTracing(Texture2DRenderable* sceneDepthTexture, Texture2DRenderable* sceneNormalTexture, const glm::uvec2& renderResolution);
 
         /**
         * brief: renderScene() implemented using glMultiDrawIndirect()
         */
-        void renderSceneBatched(SceneRenderable& renderableScene, RenderTarget* outRenderTarget, Texture2DRenderable* outSceneColor, const SSGITextures& SSGIOutput);
-        void submitSceneMultiDrawIndirect(const SceneRenderable& renderableScene);
-
-        std::unique_ptr<ManyViewGI> m_manyViewGI = nullptr;
-
-        struct ZPrepassOutput {
-            Texture2DRenderable* depthBuffer;
-            Texture2DRenderable* normalBuffer;
-        };
-        void renderSceneDepthNormal(SceneRenderable& renderableScene, RenderTarget* outRenderTarget, Texture2DRenderable* outDepthBuffer, Texture2DRenderable* outNormalBuffer);
-        void renderSceneDepthOnly(SceneRenderable& renderableScene, Texture2DRenderable* outDepthTexture);
-
-        bool bFullscreenRadiosity = false;
-        InstantRadiosity m_instantRadiosity;
-
-        /* Debugging utilities */
-        void debugDrawLineImmediate(const glm::vec3& v0, const glm::vec3& v1);
-        void debugDrawSphere(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection);
-        void debugDrawCubeImmediate(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection);
-        void debugDrawCubeBatched(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::vec3& facingDir, const glm::vec4& albedo, const glm::mat4& view, const glm::mat4& projection);
-        void debugDrawCubemap(TextureCubeRenderable* cubemap);
-        void debugDrawCubemap(GLuint cubemap);
-
-        /** note - @min:
-        */
-        void renderShadowMaps(SceneRenderable& scene);
-
-        /*
-        * Render provided scene into a light probe
-        */
+        void renderSceneBatched(RenderableScene& renderableScene, RenderTarget* outRenderTarget, Texture2DRenderable* outSceneColor, const SSGITextures& SSGIOutput);
+        void renderSceneDepthNormal(RenderableScene& renderableScene, RenderTarget* outRenderTarget, Texture2DRenderable* outDepthBuffer, Texture2DRenderable* outNormalBuffer);
+        void renderSceneDepthOnly(RenderableScene& renderableScene, Texture2DRenderable* outDepthTexture);
+        void renderShadowMaps(RenderableScene& scene);
         void renderSceneToLightProbe(Scene* scene, LightProbe* probe, RenderTarget* renderTarget);
 
-        void addUIRenderCommand(const std::function<void()>& UIRenderCommand);
-
-        /*
-        * brief: helper functions for appending to the "Rendering" tab
-        */
-        void appendToRenderingTab(const std::function<void()>& command);
-
-        /*
-        * Render ui widgets given a custom callback defined in an application
-        */
-        void renderUI();
-
-        void drawMeshInstance(const SceneRenderable& renderableScene, RenderTarget* renderTarget, Viewport viewport, GfxPipelineState pipelineState, MeshInstance* meshInstance, i32 transformIndex);
-
+        void drawMeshInstance(const RenderableScene& renderableScene, RenderTarget* renderTarget, Viewport viewport, GfxPipelineState pipelineState, MeshInstance* meshInstance, i32 transformIndex);
         /**
         * Draw a mesh without material
         */
@@ -188,6 +150,26 @@ namespace Cyan
         * Submit a submesh; right now the execution is not deferred
         */
         void submitRenderTask(RenderTask&& task);
+
+        /* Debugging utilities */
+        void debugDrawLineImmediate(const glm::vec3& v0, const glm::vec3& v1);
+        void debugDrawSphere(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection);
+        void debugDrawCubeImmediate(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection);
+        void debugDrawCubeBatched(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::vec3& facingDir, const glm::vec4& albedo, const glm::mat4& view, const glm::mat4& projection);
+        void debugDrawCubemap(TextureCubeRenderable* cubemap);
+        void debugDrawCubemap(GLuint cubemap);
+
+        void addUIRenderCommand(const std::function<void()>& UIRenderCommand);
+
+        /*
+        * brief: helper functions for appending to the "Rendering" tab
+        */
+        void appendToRenderingTab(const std::function<void()>& command);
+
+        /*
+        * Render ui widgets given a custom callback defined in an application
+        */
+        void renderUI();
 //
 
 // post-processing
@@ -225,8 +207,6 @@ namespace Cyan
         };
         std::unordered_map<std::string, std::vector<VisualizationDesc>> visualizationMap;
 
-        BoundingBox3D computeSceneAABB(Scene* scene);
-
         enum class TonemapOperator {
             kReinhard = 0,
             kACES,
@@ -261,6 +241,7 @@ namespace Cyan
         u32 m_numFrames = 0u;
         LinearAllocator m_frameAllocator;
         std::queue<UIRenderCommand> m_UIRenderCommandQueue;
+        std::unique_ptr<ManyViewGI> m_manyViewGI = nullptr;
         bool bVisualize = false;
     };
 };

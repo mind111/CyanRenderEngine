@@ -64,7 +64,7 @@ namespace Cyan
         UI::initialize(m_glfwWindow);
     }
 
-    void GraphicsSystem::finalize()
+    void GraphicsSystem::deinitialize()
     {
 
     }
