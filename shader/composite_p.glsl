@@ -14,6 +14,7 @@ uniform float bloomIntensity;
 uniform float enableTonemapping;
 uniform uint tonemapOperator;
 uniform float whitePointLuminance;
+uniform float smoothstepWhitePoint;
 
 uniform sampler2D sceneColorTexture;
 uniform sampler2D bloomColorTexture;
@@ -124,29 +125,31 @@ void main()
     // adjust color tempreture
     // linearColor *= colorTemperatureToRGB(colorTempreture);
 
-    if (enableBloom > 0.5f)
-    {
+    if (enableBloom > 0.5f) {
         // linear blending
        // linearColor = mix(linearColor, texture(bloomColorTexture, psIn.texCoord0).rgb, .5);
        // additive blending
        linearColor = linearColor + texture(bloomColorTexture, psIn.texCoord0).rgb;
     }
 
-#define TONEMAPPER_REINHARD 0
-#define TONEMAPPER_ACES 1
-
     // tone mapping
     if (enableTonemapping > .5f)
     {
+#define TONEMAPPER_REINHARD 0
+#define TONEMAPPER_ACES 1
+#define TONEMAPPER_SMOOTHSTEP 2
         vec3 tonemappedColor = vec3(0.f);
         if (tonemapOperator == TONEMAPPER_ACES)
         {
 			tonemappedColor = ACESFitted(gammaCorrection(exposure * linearColor, 1.f / 2.2f));
 		}
-        else if (tonemapOperator == TONEMAPPER_REINHARD)
-        {
+        else if (tonemapOperator == TONEMAPPER_REINHARD) {
 			// tonemappedColor = ReinhardTonemapping(exposure * linearColor, whitePointLuminance);
 			tonemappedColor = simpleReinhard(exposure * linearColor);
+			tonemappedColor = gammaCorrection(tonemappedColor, 1.f / 2.2f);
+        }
+        else if (tonemapOperator == TONEMAPPER_SMOOTHSTEP) {
+            tonemappedColor = smoothstep(0.f, smoothstepWhitePoint, linearColor);
 			tonemappedColor = gammaCorrection(tonemappedColor, 1.f / 2.2f);
         }
 		outColor = vec4(tonemappedColor, 1.f);

@@ -65,6 +65,9 @@ namespace Cyan
         std::shared_ptr<CascadedShadowMap> shadowMap = nullptr;
     };
 
+    // helper function for converting world space AABB to light's view space
+    BoundingBox3D calcLightSpaceAABB(const glm::vec3& inLightDirection, const BoundingBox3D& worldSpaceAABB);
+
     struct PointLight : public Light {
         PointLight() : Light() { }
         PointLight(const glm::vec3& inPosition) 
@@ -74,7 +77,19 @@ namespace Cyan
         glm::vec3 position = glm::vec3(0.f);
     };
 
-    // helper function for converting world space AABB to light's view space
-    BoundingBox3D calcLightSpaceAABB(const glm::vec3& inLightDirection, const BoundingBox3D& worldSpaceAABB);
+    struct SkyLight : public Light {
+        SkyLight(Scene* scene, const glm::vec4& colorAndIntensity, const char* srcHDRI = nullptr);
+        ~SkyLight() { }
 
+        void buildCubemap(Texture2DRenderable* srcEquirectMap, TextureCubeRenderable* dstCubemap);
+        void build();
+
+        static u32 numInstances;
+
+        // todo: handle object ownership here
+        Texture2DRenderable* srcEquirectTexture = nullptr;
+        TextureCubeRenderable* srcCubemap = nullptr;
+        std::unique_ptr<IrradianceProbe> irradianceProbe = nullptr;
+        std::unique_ptr<ReflectionProbe> reflectionProbe = nullptr;
+    };
 }

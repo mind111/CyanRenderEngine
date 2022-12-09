@@ -127,11 +127,10 @@ namespace Cyan
         std::vector<PointLight*> pointLights;
         std::vector<SkyLight*> skyLights;
         std::unique_ptr<DirectionalLightBuffer> directionalLightBuffer = nullptr;
+        SkyLight* skyLight = nullptr;
 
+        // skybox
         Skybox* skybox = nullptr;
-        std::vector<std::shared_ptr<ILightRenderable>> lights;
-        IrradianceProbe* irradianceProbe = nullptr;
-        ReflectionProbe* reflectionProbe = nullptr;
 
         static PackedGeometry* packedGeometry;
         std::unique_ptr<ViewBuffer> viewBuffer = nullptr;

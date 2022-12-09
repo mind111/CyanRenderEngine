@@ -401,9 +401,8 @@ namespace Cyan
 
                 ImGui::TextUnformatted("Tone Mapping"); ImGui::SameLine();
                 ImGui::Checkbox("##Tone Mapping", &renderer->m_settings.enableTonemapping);
-                if (renderer->m_settings.enableTonemapping)
-                {
-                    const char* tonemapOperatorNames[(u32)Renderer::TonemapOperator::kCount] = { "Reinhard", "ACES" };
+                if (renderer->m_settings.enableTonemapping) {
+                    const char* tonemapOperatorNames[(u32)Renderer::TonemapOperator::kCount] = { "Reinhard", "ACES", "Smoothstep" };
                     i32 currentOperator = (i32)renderer->m_settings.tonemapOperator;
                     ImGui::Combo("Tonemap Operator", &currentOperator, tonemapOperatorNames, (i32)Renderer::TonemapOperator::kCount);
                     renderer->m_settings.tonemapOperator = (u32)currentOperator;
@@ -412,6 +411,8 @@ namespace Cyan
                         ImGui::SliderFloat("White Point Luminance", &renderer->m_settings.whitePointLuminance, 1.f, 200.f, "%.2f");
                         break;
                     case Renderer::TonemapOperator::kACES:
+                    case Renderer::TonemapOperator::kSmoothstep:
+                        ImGui::SliderFloat("White Point", &renderer->m_settings.smoothstepWhitePoint, 0.f, 100.f, "%.2f");
                         break;
                     default:
                         break;

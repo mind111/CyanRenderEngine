@@ -30,17 +30,7 @@
 
 #define GPU_RAYTRACING 0
 
-namespace Cyan
-{
-#if 0
-    void RenderTexture2D::createResource(RenderQueue& renderQueue)
-    { 
-        if (!texture)
-        {
-            texture = renderQueue.createTexture2DInternal(tag, spec);
-        }
-    }
-#endif
+namespace Cyan {
     Renderer* Singleton<Renderer>::singleton = nullptr;
     static Mesh* fullscreenQuad = nullptr;
 
@@ -655,9 +645,8 @@ namespace Cyan
             );
     }
 
-    void Renderer::submitRenderTask(RenderTask&& task)
-    {
-        // set render target assuming that render target is alreay properly setup
+    void Renderer::submitRenderTask(RenderTask&& task) {
+        // set render target assuming that render target is already properly setup
         m_ctx->setRenderTarget(task.renderTarget);
         m_ctx->setViewport(task.viewport);
 
@@ -674,12 +663,10 @@ namespace Cyan
         // kick off the draw call
         auto va = task.submesh->getVertexArray();
         m_ctx->setVertexArray(va);
-        if (va->hasIndexBuffer())
-        {
+        if (va->hasIndexBuffer()) {
             m_ctx->drawIndex(task.submesh->numIndices());
         }
-        else
-        {
+        else {
             m_ctx->drawIndexAuto(task.submesh->numVertices());
         }
     }
@@ -1265,20 +1252,18 @@ namespace Cyan
             }
         }
 
-        // todo: refactor the following
         // sky light
-        auto BRDFLookupTexture = ReflectionProbe::getBRDFLookupTexture()->glHandle;
         /* note
         * seamless cubemap doesn't work with bindless textures that's accessed using a texture handle,
         * so falling back to normal way of binding textures here.
         */
-        if (glIsTextureHandleResidentARB(BRDFLookupTexture) == GL_FALSE)
-        {
+        scenePassShader->setTexture("skyLight.irradiance", scene.skyLight->irradianceProbe->m_convolvedIrradianceTexture);
+        scenePassShader->setTexture("skyLight.reflection", scene.skyLight->reflectionProbe->m_convolvedReflectionTexture);
+        auto BRDFLookupTexture = ReflectionProbe::getBRDFLookupTexture()->glHandle;
+        if (glIsTextureHandleResidentARB(BRDFLookupTexture) == GL_FALSE) {
             glMakeTextureHandleResidentARB(BRDFLookupTexture);
         }
-        scenePassShader->setTexture("sceneLights.skyLight.irradiance", scene.irradianceProbe->m_convolvedIrradianceTexture);
-        scenePassShader->setTexture("sceneLights.skyLight.reflection", scene.reflectionProbe->m_convolvedReflectionTexture);
-        scenePassShader->setUniform("sceneLights.BRDFLookupTexture", BRDFLookupTexture);
+        scenePassShader->setUniform("skyLight.BRDFLookupTexture", BRDFLookupTexture);
 
         submitSceneMultiDrawIndirect(scene);
 
@@ -1491,6 +1476,7 @@ namespace Cyan
                 shader->setUniform("enableTonemapping", m_settings.enableTonemapping ? 1.f : 0.f);
                 shader->setUniform("tonemapOperator", m_settings.tonemapOperator);
                 shader->setUniform("whitePointLuminance", m_settings.whitePointLuminance);
+                shader->setUniform("smoothstepWhitePoint", m_settings.smoothstepWhitePoint);
                 if (inBloomColor && m_settings.enableBloom) {
                     shader->setUniform("enableBloom", 1.f);
                 } else {

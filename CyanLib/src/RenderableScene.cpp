@@ -245,25 +245,20 @@ namespace Cyan
 
         // build lighting data
         skybox = inScene->skybox;
-        if (inScene->skyLight)
-        {
-            irradianceProbe = inScene->skyLight->irradianceProbe.get();
-            reflectionProbe = inScene->skyLight->reflectionProbe.get();
-        }
+        skyLight = inScene->skyLight;
     }
 
     void SceneRenderable::clone(SceneRenderable& dst, const SceneRenderable& src) {
         dst.aabb = src.aabb;
         dst.camera = src.camera;
         dst.meshInstances = src.meshInstances;
-        dst.skybox = src.skybox;
-        dst.irradianceProbe = src.irradianceProbe;
-        dst.reflectionProbe = src.reflectionProbe;
         dst.viewBuffer = std::unique_ptr<ViewBuffer>(src.viewBuffer->clone());
         dst.transformBuffer = std::unique_ptr<TransformBuffer>(src.transformBuffer->clone());
         dst.instanceBuffer = std::unique_ptr<InstanceBuffer>(src.instanceBuffer->clone());
         dst.drawCallBuffer = std::unique_ptr<DrawCallBuffer>(src.drawCallBuffer->clone());
         dst.materialBuffer = std::unique_ptr<MaterialBuffer>(src.materialBuffer->clone());
+        dst.skybox = src.skybox;
+        dst.skyLight = src.skyLight;
         dst.directionalLights = src.directionalLights;
         dst.directionalLightBuffer = std::unique_ptr<DirectionalLightBuffer>(src.directionalLightBuffer->clone());
     }

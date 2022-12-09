@@ -32,8 +32,8 @@ layout (std430, binding = 8) buffer DirectionalLightBuffer {
 	DirectionalLight directionalLights[];
 };
 
-uniform struct SkyLight
-{
+uniform struct SkyLight {
+	float intensity;
 	samplerCube irradiance;
 	samplerCube reflection;
-} skyLightDef;
+} skyLight;
