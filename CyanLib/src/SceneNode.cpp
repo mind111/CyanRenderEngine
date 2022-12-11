@@ -108,18 +108,15 @@ namespace Cyan
     }
 #endif
 
-    SceneComponent* SceneComponent::find(const char* name)
-    {
+    SceneComponent* SceneComponent::find(const char* name) {
         return treeBFS<SceneComponent>(this, name);
     }
 
-    void MeshComponent::setMaterial(IMaterial* material)
-    {
+    void MeshComponent::setMaterial(Material* material) {
         meshInst->setMaterial(material);
     }
 
-    void MeshComponent::setMaterial(IMaterial* material, u32 submeshIndex)
-    {
+    void MeshComponent::setMaterial(Material* material, u32 submeshIndex) {
         meshInst->setMaterial(material, submeshIndex);
     }
 }

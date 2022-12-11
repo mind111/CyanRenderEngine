@@ -66,13 +66,11 @@ namespace Cyan
         }
     }
 
-    void StaticMeshEntity::setMaterial(IMaterial* material)
-    {
+    void StaticMeshEntity::setMaterial(Material* material) {
         meshComponentPtr->setMaterial(material);
     }
 
-    void StaticMeshEntity::setMaterial(IMaterial* material, u32 index)
-    {
+    void StaticMeshEntity::setMaterial(Material* material, u32 index) {
         meshComponentPtr->setMaterial(material, index);
     }
 }

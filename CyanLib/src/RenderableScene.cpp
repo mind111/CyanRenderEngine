@@ -12,8 +12,7 @@ namespace Cyan
 {
     PackedGeometry* RenderableScene::packedGeometry = nullptr;
 
-    PackedGeometry::PackedGeometry(const Scene& scene)
-    {
+    PackedGeometry::PackedGeometry(const Scene& scene) {
         for (auto meshInst : scene.meshInstances)
         {
             Mesh* mesh = meshInst->parent;
@@ -79,51 +78,14 @@ namespace Cyan
         std::unordered_map<std::string, u32> materialMap;
 
         if (meshInstance) {
-            if (auto pbr = dynamic_cast<PBRMaterial*>(meshInstance->getMaterial(submeshIndex))) {
-                auto matlEntry = materialMap.find(pbr->name);
-                // create a material proxy for each unique material instance
+            if (auto matl = meshInstance->getMaterial(submeshIndex)) {
+                auto matlEntry = materialMap.find(matl->name);
                 if (matlEntry == materialMap.end()) {
-                    materialMap.insert({ pbr->name, materialBuffer->getNumElements() });
-                    Material matlProxy = { };
-                    matlProxy.kAlbedo = glm::vec4(pbr->parameter.kAlbedo, 1.f);
-                    matlProxy.kMetallicRoughness = glm::vec4(pbr->parameter.kMetallic, pbr->parameter.kRoughness, 0.f, 0.f);
-                    matlProxy.flags = glm::uvec4(pbr->parameter.getFlags());
-
-                    // albedo
-                    if (auto albedo = pbr->parameter.albedo) {
-#if BINDLESS_TEXTURE
-                        matlProxy.diffuseMapHandle = albedo->glHandle;
-                        if (glIsTextureHandleResidentARB(matlProxy.diffuseMapHandle) == GL_FALSE) {
-                            glMakeTextureHandleResidentARB(matlProxy.diffuseMapHandle);
-                        }
-#endif
-                    }
-                    // normal
-                    if (auto normal = pbr->parameter.normal) {
-#if BINDLESS_TEXTURE
-                        matlProxy.normalMapHandle = normal->glHandle;
-                        if (glIsTextureHandleResidentARB(matlProxy.normalMapHandle) == GL_FALSE)
-                        {
-                            glMakeTextureHandleResidentARB(matlProxy.normalMapHandle);
-                        }
-#endif
-                    }
-                    // metallicRoughness
-                    if (auto metallicRoughness = pbr->parameter.metallicRoughness)
-                    {
-#if BINDLESS_TEXTURE
-                        matlProxy.metallicRoughnessMapHandle = metallicRoughness->glHandle;
-                        if (glIsTextureHandleResidentARB(matlProxy.metallicRoughnessMapHandle) == GL_FALSE)
-                        {
-                            glMakeTextureHandleResidentARB(matlProxy.metallicRoughnessMapHandle);
-                        }
-#endif
-                    }
-                    materialBuffer->addElement(matlProxy);
+                    materialMap.insert({ matl->name, materialBuffer->getNumElements() });
+                    materialBuffer->addElement(matl->buildGpuMaterial());
                     return materialBuffer->getNumElements() - 1;
                 }
-                else
-                {
+                else {
                     return matlEntry->second;
                 }
             }

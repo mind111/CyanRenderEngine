@@ -3,19 +3,41 @@
 #extension GL_ARB_shader_draw_parameters : enable 
 #extension GL_ARB_gpu_shader_int64 : enable 
 
-struct PBRMaterial
-{
-	uint64_t diffuseMap;
+/**
+* Shared material definitions
+*/
+const uint kHasAlbedoMap            = 1 << 0;
+const uint kHasNormalMap            = 1 << 1;
+const uint kHasMetallicRoughnessMap = 1 << 2;
+const uint kHasOcclusionMap         = 1 << 3;
+
+/**
+	mirror's the material definition on application side
+    struct GpuMaterial {
+        u64 albedoMap;
+        u64 normalMap;
+        u64 metallicRoughnessMap;
+        u64 occlusionMap;
+        glm::vec4 albedo = glm::vec4(.9f, .9f, .9f, 1.f);
+        f32 metallic = 0.f;
+        f32 roughness = .5f;
+        f32 emissive = 1.f;
+        u32 flag = 0u;
+    };
+*/
+struct MaterialDesc {
+	uint64_t albedoMap;
 	uint64_t normalMap;
 	uint64_t metallicRoughnessMap;
-	uint64_t occlusionMap;
-	vec4 kAlbedo;
-	vec4 kMetallicRoughness;
-	uvec4 flags;
+    uint64_t occlusionMap;
+    vec4 albedo;
+    float metallic;
+    float roughness;
+    float emissive;
+    uint flag;
 };
 
-out VSOutput
-{
+out VSOutput {
 	vec3 viewSpacePosition;
 	vec3 worldSpacePosition;
 	vec3 worldSpaceNormal;
@@ -24,7 +46,7 @@ out VSOutput
 	vec2 texCoord0;
 	vec2 texCoord1;
 	vec3 vertexColor;
-	flat PBRMaterial material;
+	flat MaterialDesc desc;
 } vsOut;
 
 #define VIEW_BUFFER_BINDING 0
@@ -76,31 +98,26 @@ struct InstanceDesc
 	uint padding;
 };
 
-layout(std430, binding = INSTANCE_DESC_BUFFER_BINDING) buffer InstanceSSBO
-{
+layout(std430, binding = INSTANCE_DESC_BUFFER_BINDING) buffer InstanceBuffer {
 	InstanceDesc instanceDescs[];
 };
 
-struct SubmeshDesc
-{
+struct SubmeshDesc {
 	uint baseVertex;
 	uint baseIndex;
 	uint numVertices;
 	uint numIndices;
 };
 
-layout(std430, binding = SUBMESH_BUFFER_BINDING) buffer SubmeshSSBO
-{
+layout(std430, binding = SUBMESH_BUFFER_BINDING) buffer SubmeshBuffer {
 	SubmeshDesc submeshDescs[];
 };
 
-layout(std430, binding = MATERIAL_BUFFER_BINDING) buffer MaterialSSBO
-{
-	PBRMaterial materials[];
+layout(std430, binding = MATERIAL_BUFFER_BINDING) buffer MaterialBuffer {
+	MaterialDesc materialDescs[];
 };
 
-layout(std430, binding = DRAWCALL_BUFFER_BINDING) buffer DrawCallSSBO
-{
+layout(std430, binding = DRAWCALL_BUFFER_BINDING) buffer DrawCallBuffer {
 	uint drawCalls[];
 };
 
@@ -122,5 +139,5 @@ void main() {
 	vsOut.texCoord0 = vertex.texCoord.xy;
 	vsOut.texCoord1 = vertex.texCoord.zw;
 	vsOut.vertexColor = vertex.normal.xyz * .5 + .5;
-	vsOut.material = materials[instance.material];
+	vsOut.desc = materialDescs[instance.material];
 }

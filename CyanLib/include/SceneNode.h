@@ -53,13 +53,12 @@ namespace Cyan
         Transform m_worldTransform;
     };
 
-    struct MeshComponent : public SceneComponent
-    {
+    struct MeshComponent : public SceneComponent {
         /* SceneComponent interface */
         virtual Cyan::MeshInstance* getAttachedMesh() { return meshInst; }
 
-        void setMaterial(IMaterial* material);
-        void setMaterial(IMaterial* material, u32 submeshIndex);
+        void setMaterial(Material* material);
+        void setMaterial(Material* material, u32 submeshIndex);
 
         Cyan::MeshInstance* meshInst = nullptr;
     };

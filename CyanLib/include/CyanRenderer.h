@@ -134,7 +134,6 @@ namespace Cyan
         void renderShadowMaps(RenderableScene& scene);
         void renderSceneToLightProbe(Scene* scene, LightProbe* probe, RenderTarget* renderTarget);
 
-        void drawMeshInstance(const RenderableScene& renderableScene, RenderTarget* renderTarget, Viewport viewport, GfxPipelineState pipelineState, MeshInstance* meshInstance, i32 transformIndex);
         /**
         * Draw a mesh without material
         */

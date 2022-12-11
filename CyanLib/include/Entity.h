@@ -79,8 +79,8 @@ namespace Cyan
 
         // setters
         void setLocalTransform(const Transform& transform);
-        void setMaterial(const char* meshComponentName, Cyan::IMaterial* matl);
-        void setMaterial(const char* meshComponentName, i32 submeshIndex, Cyan::IMaterial* matl);
+        void setMaterial(const char* meshComponentName, Cyan::Material* matl);
+        void setMaterial(const char* meshComponentName, i32 submeshIndex, Cyan::Material* matl);
 
         // e->getComponent<ILightComponent>();
         template <typename ComponentType>

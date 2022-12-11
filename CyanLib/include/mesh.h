@@ -144,137 +144,37 @@ namespace Cyan
         std::vector<ISubmesh*> submeshes;
     };
 
-    struct MeshInstance
-    {
-        Mesh* parent = nullptr;
-        std::vector<IMaterial*> materials;
-
+    struct MeshInstance {
         MeshInstance(Mesh* base)
-            : parent(base)
-        {
+            : parent(base) {
             materials.resize(base->numSubmeshes());
         }
 
-        template <typename T>
-        T* getMaterial(u32 index)
-        {
-            if (materials[index])
-            {
-                // type check
-                if (T::getAssetClassTypeDesc() != materials[index]->getAssetObjectTypeDesc())
-                {
-                    return nullptr;
-                }
-            }
-            return static_cast<T*>(materials[index]);
-        }
-
-        IMaterial* getMaterial(u32 index)
-        {
+        Material* getMaterial(u32 index) {
             return materials[index];
         }
 
-        void setMaterial(IMaterial* matl)
-        {
-            for (u32 i = 0; i < parent->numSubmeshes(); ++i)
-            {
+        void setMaterial(Material* matl) {
+            for (u32 i = 0; i < parent->numSubmeshes(); ++i) {
                 setMaterial(matl, i);
             }
         }
 
-        void setMaterial(IMaterial* matl, u32 index)
-        {
+        void setMaterial(Material* matl, u32 index) {
             materials[index] = matl;
         }
 
-        BoundingBox3D getAABB(const glm::mat4& worldTransform)
-        {
+        BoundingBox3D getAABB(const glm::mat4& worldTransform) {
             BoundingBox3D parentAABB = parent->getAABB();
             BoundingBox3D aabb;
             aabb.bound(worldTransform * parentAABB.pmin);
             aabb.bound(worldTransform * parentAABB.pmax);
             return aabb;
         }
+
+        Mesh* parent = nullptr;
+        std::vector<Material*> materials;
     };
-
-    struct Meshlet
-    {
-
-    };
-
-#if 0
-    struct MeshInstance;
-
-    struct MeshRayHit
-    {
-        struct Mesh* mesh;
-        f32   t;
-        i32   smIndex;
-        i32   triangleIndex;
-
-        MeshRayHit()
-            : mesh(nullptr), t(FLT_MAX), smIndex(-1), triangleIndex(-1)
-        {}
-    };
-
-    // todo: split ray tracing required geometry data from this class
-    struct Mesh
-    {
-        void onFinishLoading();
-        MeshInstance* createInstance(Scene* scene);
-        u32 numSubMeshes();
-        u32 numTriangles();
-        MeshRayHit bruteForceIntersectRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd);
-        MeshRayHit bvhIntersectRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd);
-        MeshRayHit intersectRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd);
-        bool       bruteForceVisibilityRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd);
-        bool       bvhVisibilityRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd);
-        bool       castVisibilityRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd);
-        Triangle getTriangle(u32 smIndex, u32 triIndex) {
-            const auto& sm = m_subMeshes[smIndex];
-            u32 offset = triIndex * 3;
-            return {
-                sm->m_triangles.positions[offset],
-                sm->m_triangles.positions[offset + 1],
-                sm->m_triangles.positions[offset + 2]
-            };
-        }
-
-        struct SubMesh
-        {
-            VertexArray*     m_vertexArray;
-            u32              m_numVerts;
-            u32              m_numIndices;
-            i32              m_materialIdx;
-            TriangleArray    m_triangles;
-        };
-
-        i32         m_lightMapWidth;
-        i32         m_lightMapHeight;
-        std::string m_name;
-        bool        m_shouldNormalize;
-        glm::mat4 m_normalization;
-        std::vector<SubMesh*> m_subMeshes;
-        std::vector<ObjMaterial> m_objMaterials;
-        BoundingBox3D m_aabb;
-        MeshBVH* m_bvh;
-    };
-
-    struct MeshInstance
-    {
-        MaterialInstance* getMaterial(u32 index)
-        {
-            return m_matls[index];
-        }
-        void setMaterial(u32 index, MaterialInstance* matl);
-
-        Mesh* m_mesh;
-        MaterialInstance** m_matls;
-        std::vector<u32>   m_rtMatls;
-        BoundingBox3D& getAABB();
-        struct LightMap* m_lightMap;
-    };
-#endif
 }
 
 extern float cubeVertices[108];

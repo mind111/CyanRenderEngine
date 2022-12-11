@@ -25,16 +25,13 @@ namespace std {
 }
 
 namespace glm {
-    //---- Utilities for loading the scene data from json
-    void from_json(const nlohmann::json& j, glm::vec3& v) 
-    { 
+    void from_json(const nlohmann::json& j, glm::vec3& v) { 
         v.x = j.at(0).get<float>();
         v.y = j.at(1).get<float>();
         v.z = j.at(2).get<float>();
     }
 
-    void from_json(const nlohmann::json& j, glm::vec4& v) 
-    { 
+    void from_json(const nlohmann::json& j, glm::vec4& v)  { 
         v.x = j.at(0).get<float>();
         v.y = j.at(1).get<float>();
         v.z = j.at(2).get<float>();
@@ -42,18 +39,15 @@ namespace glm {
     }
 }
 
-void from_json(const nlohmann::json& j, Transform& t) 
-{
+void from_json(const nlohmann::json& j, Transform& t) {
     t.m_translate = j.at("translation").get<glm::vec3>();
     glm::vec4 rotation = j.at("rotation").get<glm::vec4>();
     t.m_qRot = glm::quat(cos(RADIANS(rotation.x * 0.5f)), sin(RADIANS(rotation.x * 0.5f)) * glm::vec3(rotation.y, rotation.z, rotation.w));
     t.m_scale = j.at("scale").get<glm::vec3>();
 }
 
-namespace Cyan
-{
-    bool operator==(const Triangles::Vertex& lhs, const Triangles::Vertex& rhs)
-    {
+namespace Cyan {
+    bool operator==(const Triangles::Vertex& lhs, const Triangles::Vertex& rhs) {
         // todo: maybe use memcmp() here instead ..?
         // bit equivalence
         return (lhs.pos == rhs.pos)
@@ -63,19 +57,15 @@ namespace Cyan
     }
 
     AssetManager* AssetManager::singleton = nullptr;
-    AssetManager::AssetManager()
-    {
-        if (!singleton)
-        {
+    AssetManager::AssetManager() {
+        if (!singleton) {
             singleton = this;
         }
     }
 
-    void AssetManager::importTextures(const nlohmann::basic_json<std::map>& textureInfoList)
-    {
+    void AssetManager::importTextures(const nlohmann::basic_json<std::map>& textureInfoList) {
         using Cyan::Texture2DRenderable;
-        for (auto textureInfo : textureInfoList) 
-        {
+        for (auto textureInfo : textureInfoList) {
             std::string filename = textureInfo.at("path").get<std::string>();
             std::string name     = textureInfo.at("name").get<std::string>();
             std::string dynamicRange = textureInfo.at("dynamic_range").get<std::string>();
@@ -98,59 +88,6 @@ namespace Cyan
         }
     }
 
-    /*
-    https://github.com/jpcy/xatlas/blob/master/source/examples/example.cpp
-
-    MIT License
-    Copyright (c) 2018-2020 Jonathan Young
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
-    */
-    static int Print(const char *format, ...)
-    {
-        va_list arg;
-        va_start(arg, format);
-        printf("\r"); // Clear progress text.
-        const int result = vprintf(format, arg);
-        va_end(arg);
-        return result;
-    }
-
-#if 0
-    void addSubmeshToLightmap(xatlas::Atlas* atlas, const std::vector<Triangles::Vertex>& vertices, const std::vector<u32>& indices)
-    {
-        xatlas::SetPrint(Print, true);
-        xatlas::MeshDecl meshDecl;
-        meshDecl.vertexCount = vertices.size();
-        meshDecl.vertexPositionData = &vertices[0].pos.x;
-        meshDecl.vertexPositionStride = sizeof(Triangles::Vertex);
-        meshDecl.vertexNormalData = &vertices[0].normal.x;
-        meshDecl.vertexNormalStride = sizeof(Triangles::Vertex);
-        meshDecl.vertexUvData = &vertices[0].texCoord0.x;
-        meshDecl.vertexUvStride = sizeof(Triangles::Vertex);
-        meshDecl.indexCount = (u32)indices.size();
-        meshDecl.indexData = indices.data();
-        meshDecl.indexFormat = xatlas::IndexFormat::UInt32;
-
-        xatlas::AddMeshError error = xatlas::AddMesh(atlas, meshDecl);
-        if (error != xatlas::AddMeshError::Success) 
-            cyanError("Error adding mesh");
-    }
-#endif
-
     void calculateTangent(std::vector<Triangles::Vertex>& vertices, u32 face[3])
     {
         auto& v0 = vertices[face[0]];
@@ -171,34 +108,12 @@ namespace Cyan
     }
 
     // treat all the meshes inside one obj file as submeshes
-    std::vector<ISubmesh*> AssetManager::importObj(const char* baseDir, const char* filename, bool bGenerateLightMapUv)
-    {
+    std::vector<ISubmesh*> AssetManager::importObj(const char* baseDir, const char* filename) {
         tinyobj::attrib_t attrib;
         std::vector<tinyobj::shape_t> shapes;
         std::vector<tinyobj::material_t> materials;
         std::string warn;
         std::string err;
-
-#if 0
-        auto addSubmeshToLightmap = [](xatlas::Atlas* atlas, const std::vector<Triangles::Vertex>& vertices, const std::vector<u32>& indices) {
-            xatlas::SetPrint(Print, true);
-            xatlas::MeshDecl meshDecl;
-            meshDecl.vertexCount = vertices.size();
-            meshDecl.vertexPositionData = &vertices[0].pos.x;
-            meshDecl.vertexPositionStride = sizeof(Triangles::Vertex);
-            meshDecl.vertexNormalData = &vertices[0].normal.x;
-            meshDecl.vertexNormalStride = sizeof(Triangles::Vertex);
-            meshDecl.vertexUvData = &vertices[0].texCoord0.x;
-            meshDecl.vertexUvStride = sizeof(Triangles::Vertex);
-            meshDecl.indexCount = (u32)indices.size();
-            meshDecl.indexData = indices.data();
-            meshDecl.indexFormat = xatlas::IndexFormat::UInt32;
-
-            xatlas::AddMeshError error = xatlas::AddMesh(atlas, meshDecl);
-            if (error != xatlas::AddMeshError::Success) 
-                cyanError("Error adding mesh");
-        };
-#endif
 
         bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filename, baseDir);
         if (!ret)
@@ -207,7 +122,6 @@ namespace Cyan
             cyanError("Warnings: %s               ", warn.c_str());
             cyanError("Errors:   %s               ", err.c_str());
         }
-        // auto atlas = xatlas::Create();
         std::vector<ISubmesh*> submeshes;
         for (u32 s = 0; s < shapes.size(); ++s)
         {
@@ -283,11 +197,6 @@ namespace Cyan
                 }
 
                 submeshes.push_back(createSubmesh<Triangles>(vertices, indices));
-
-                if (bGenerateLightMapUv)
-                {
-                    // addSubmeshToLightmap(atlas, vertices, indices);
-                }
             } 
             // load lines
             else if (shapes[s].lines.indices.size() > 0)
@@ -316,43 +225,6 @@ namespace Cyan
             }
         }
 
-        // generating lightmap uv if requested
-#if 0
-        if (bGenerateLightMapUv)
-        {
-            // atlas now holds results of packing
-            xatlas::PackOptions packOptions = { };
-            packOptions.bruteForce = true;
-            packOptions.padding = 5.f;
-            packOptions.resolution = 1024;
-
-            xatlas::Generate(atlas, xatlas::ChartOptions{}, packOptions);
-            CYAN_ASSERT(atlas->meshCount == submeshes.size(), "# Submeshes and # of meshes in atlas doesn't match!");
-
-            for (u32 i = 0; i < submeshes.size(); ++i)
-            {
-                // it's safe to do this cast here as we are sure that all the submeshes are of type Triangles
-                auto sm = static_cast<Mesh::Submesh<Triangles>*>(submeshes[i]);
-                auto origVertices = sm->getVertices();
-                std::vector<Triangles::Vertex> packedVertices(atlas->meshes[i].vertexCount);
-                std::vector<u32>       packedIndices(atlas->meshes[i].indexCount);
-                for (u32 v = 0; v < atlas->meshes[i].vertexCount; ++v)
-                {
-                    xatlas::Vertex atlasVertex = atlas->meshes[i].vertexArray[v];
-                    packedVertices[v] = origVertices[atlasVertex.xref];
-                    packedVertices[v].texCoord1.x = atlasVertex.uv[0] / atlas->width;
-                    packedVertices[v].texCoord1.y = atlasVertex.uv[1] / atlas->height;
-                }
-                for (u32 ii = 0; ii < atlas->meshes[i].indexCount; ++ii)
-                {
-                    packedIndices[ii] = atlas->meshes[i].indexArray[ii];
-                }
-
-                sm->setGeometryData(packedVertices, packedIndices);
-            }
-        }
-        xatlas::Destroy(atlas);
-#endif
         return std::move(submeshes);
 #if 0
         for (u32 i = 0; i < materials.size(); ++i)
@@ -367,8 +239,7 @@ namespace Cyan
 #endif
     }
 
-    Mesh* AssetManager::importMesh(Scene* scene, std::string& path, const char* name, bool normalize, bool generateLightMapUv)
-    {
+    Mesh* AssetManager::importMesh(Scene* scene, std::string& path, const char* name, bool normalize) {
         Cyan::ScopedTimer meshTimer(name, true);
 
         // get extension from mesh path
@@ -381,7 +252,7 @@ namespace Cyan
         if (extension == ".obj")
         {
             cyanInfo("Importing .obj file %s", path.c_str());
-            std::vector<ISubmesh*> submeshes = std::move(importObj(baseDir.c_str(), path.c_str(), generateLightMapUv));
+            std::vector<ISubmesh*> submeshes = std::move(importObj(baseDir.c_str(), path.c_str()));
             parent = createMesh(name, submeshes);
         }
         else if (extension == ".gltf")
@@ -402,8 +273,7 @@ namespace Cyan
         return parent;
     }
 
-    void AssetManager::importMeshes(Scene* scene, const nlohmann::basic_json<std::map>& meshInfoList)
-    {
+    void AssetManager::importMeshes(Scene* scene, const nlohmann::basic_json<std::map>& meshInfoList) {
         for (auto meshInfo : meshInfoList) 
         {
             std::string path, name;
@@ -413,7 +283,7 @@ namespace Cyan
             meshInfo.at("normalize").get_to(normalize);
             meshInfo.at("generateLightMapUv").get_to(generateLightMapUv);
 
-            importMesh(scene, path, name.c_str(), normalize, generateLightMapUv);
+            importMesh(scene, path, name.c_str(), normalize);
         }
     }
 
@@ -476,16 +346,13 @@ namespace Cyan
         }
     }
 
-    void AssetManager::importScene(Scene* scene, const char* file)
-    {
+    void AssetManager::importScene(Scene* scene, const char* file) {
         nlohmann::json sceneJson;
         std::ifstream sceneFile(file);
-        try
-        {
+        try {
             sceneFile >> sceneJson;
         }
-        catch (std::exception& e) 
-        {
+        catch (std::exception& e) {
             std::cerr << e.what() << std::endl;
         }
 
@@ -632,8 +499,7 @@ namespace Cyan
                                     !node.scale.empty()) || hasMatrix);
         const char* meshName = hasMesh ? model.meshes[node.mesh].name.c_str() : nullptr;
         Transform localTransform;
-        if (hasMatrix)
-        {
+        if (hasMatrix) {
             glm::mat4 matrix = {
                 glm::vec4(node.matrix[0], node.matrix[1], node.matrix[2], node.matrix[3]),     // column 0
                 glm::vec4(node.matrix[4], node.matrix[5], node.matrix[6], node.matrix[7]),     // column 1
@@ -643,8 +509,7 @@ namespace Cyan
             // convert matrix to local transform
             localTransform.fromMatrix(matrix);
         } 
-        else if (hasTransform) 
-        {
+        else if (hasTransform) {
             if (!node.translation.empty()) {
                 localTransform.m_translate = glm::vec3(node.translation[0], node.translation[1], node.translation[2]);
             }
@@ -668,8 +533,7 @@ namespace Cyan
 
         Entity* entity = nullptr;
         // todo: import camera & light directly from gltf
-        if (isCamera)
-        {
+        if (isCamera) {
 #if 0
             const auto& gltfCamera = model.cameras[node.camera];
             if (gltfCamera.type == "perspective")
@@ -690,22 +554,18 @@ namespace Cyan
             }
 #endif
         }
-        else if (hasMesh)
-        {
+        else if (hasMesh) {
             Mesh* mesh = getAsset<Mesh>(meshName);
             auto staticMeshEntity = scene->createStaticMeshEntity(node.name.c_str(), localTransform, mesh, parent);
             entity = staticMeshEntity;
 
             // setup material
             auto& gltfMesh = model.meshes[node.mesh];
-            for (u32 sm = 0u; sm < gltfMesh.primitives.size(); ++sm) 
-            {
-                PBRMaterial* matl = nullptr;
-                std::string matlName;
+            for (u32 sm = 0u; sm < gltfMesh.primitives.size(); ++sm) {
+                std::string matlName("DefaultMaterial");
 
                 auto& primitive = gltfMesh.primitives[sm];
-                if (primitive.material > -1) 
-                {
+                if (primitive.material > -1) {
                     auto getTexture = [&](i32 imageIndex) 
                     {
                         Cyan::Texture2DRenderable* texture = nullptr;
@@ -723,32 +583,28 @@ namespace Cyan
 
                     auto& gltfMaterial = model.materials[primitive.material];
                     auto pbr = gltfMaterial.pbrMetallicRoughness;
-                    if (gltfMaterial.name.empty())
-                    {
-                        char buffer[256] = { };
-                        sprintf_s(buffer, "material_%d", primitive.material);
-                        matlName = buffer;
+                    if (gltfMaterial.name.empty()) {
+                        matlName = std::string("material_%d", primitive.material);
                     }
-                    else
-                    {
+                    else {
                         matlName = gltfMaterial.name;
                     }
-                    matl = createMaterial<PBRMaterial>(matlName.c_str());
-                    matl->parameter.albedo = getTexture(pbr.baseColorTexture.index);
-                    matl->parameter.normal = getTexture(gltfMaterial.normalTexture.index);
-                    matl->parameter.metallicRoughness = getTexture(pbr.metallicRoughnessTexture.index);
-                    matl->parameter.kAlbedo = glm::vec3(pbr.baseColorFactor[0], pbr.baseColorFactor[1], pbr.baseColorFactor[2]);
-                    matl->parameter.kRoughness = pbr.roughnessFactor;
-                    matl->parameter.kMetallic = pbr.metallicFactor;
-                    matl->parameter.occlusion = getTexture(gltfMaterial.occlusionTexture.index);
-                    matl->parameter.kEmissive = glm::vec3(gltfMaterial.emissiveFactor[0], gltfMaterial.emissiveFactor[1], gltfMaterial.emissiveFactor[2]);
+                    Material& matl = createMaterial(matlName.c_str());
+                    matl.albedoMap = getTexture(pbr.baseColorTexture.index);
+                    matl.normalMap = getTexture(gltfMaterial.normalTexture.index);
+                    matl.metallicRoughnessMap = getTexture(pbr.metallicRoughnessTexture.index);
+                    matl.occlusionMap = getTexture(gltfMaterial.occlusionTexture.index);
+                    matl.albedo = glm::vec4(pbr.baseColorFactor[0], pbr.baseColorFactor[1], pbr.baseColorFactor[2], pbr.baseColorFactor[3]);
+                    matl.roughness = pbr.roughnessFactor;
+                    matl.metallic = pbr.metallicFactor;
+                    glm::vec3 emissiveColor(gltfMaterial.emissiveFactor[0], gltfMaterial.emissiveFactor[1], gltfMaterial.emissiveFactor[2]);
+                    f32 emissiveIntensity = glm::length(emissiveColor);
+                    if (emissiveIntensity > 0.f) {
+                        matl.albedo = glm::vec4(glm::normalize(emissiveColor), 1.f);
+                        matl.emissive = emissiveIntensity;
+                    }
                 }
-                // fallback to cyan's default material
-                else
-                {
-                    matl = createMaterial<PBRMaterial>("DefaultMaterial");
-                }
-                staticMeshEntity->setMaterial(matl, sm);
+                staticMeshEntity->setMaterial(getAsset<Material>(matlName.c_str()), sm);
             }
         }
         else
@@ -763,8 +619,7 @@ namespace Cyan
     }
 
     template <typename T>
-    void loadVerticesAndIndices(const tinygltf::Model& model, const tinygltf::Primitive& primitive, std::vector<typename T::Vertex>& vertices, std::vector<u32>& indices)
-    {
+    void loadVerticesAndIndices(const tinygltf::Model& model, const tinygltf::Primitive& primitive, std::vector<typename T::Vertex>& vertices, std::vector<u32>& indices) {
          vertices.resize(model.accessors[primitive.attributes.begin()->second].count);
 
         // fill vertices

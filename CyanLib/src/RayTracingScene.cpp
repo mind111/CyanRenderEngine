@@ -72,23 +72,21 @@ namespace Cyan
                     rtxMeshInst.parent = meshEntry->second;
                 }
 
-                for (u32 i = 0; i < mesh->numSubmeshes(); ++i)
-                {
+                for (u32 i = 0; i < mesh->numSubmeshes(); ++i) {
                     i32 material = 0;
                     // material
-                    if (auto pbrMaterial = dynamic_cast<PBRMaterial*>(meshInst->getMaterial(i)))
-                    {
-                        auto materialEntry = materialMap.find(pbrMaterial->name);
+                    if (auto matl = meshInst->getMaterial(i)) {
+                        auto materialEntry = materialMap.find(matl->name);
                         if (materialEntry == materialMap.end())
                         {
                             materials.emplace_back();
                             RayTracingMaterial& rtxMaterial = materials.back();
-                            rtxMaterial.albedo = pbrMaterial->parameter.kAlbedo;
-                            rtxMaterial.emissive = pbrMaterial->parameter.kEmissive * 100.f;
-                            rtxMaterial.roughness = pbrMaterial->parameter.kRoughness;
-                            rtxMaterial.metallic = pbrMaterial->parameter.kMetallic;
+                            rtxMaterial.albedo = matl->albedo;
+                            rtxMaterial.roughness = matl->roughness;
+                            rtxMaterial.metallic = matl->metallic;
+                            rtxMaterial.emissive = glm::vec3(matl->emissive * 100.f);
 
-                            materialMap.insert({ pbrMaterial->name, materials.size() - 1 });
+                            materialMap.insert({ matl->name, materials.size() - 1 });
                             material = materials.size() - 1;
                         }
                         else

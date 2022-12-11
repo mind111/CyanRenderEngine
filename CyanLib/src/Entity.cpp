@@ -150,7 +150,7 @@ namespace Cyan
         rootSceneComponent->m_localTransform = transform;
     }
 
-    void Entity::setMaterial(const char* meshComponentName, i32 submeshIndex, Cyan::IMaterial* matl)
+    void Entity::setMaterial(const char* meshComponentName, i32 submeshIndex, Cyan::Material* matl)
     {
         SceneComponent* sceneComponent = getSceneComponent(meshComponentName);
         if (!sceneComponent)
@@ -164,7 +164,7 @@ namespace Cyan
         }
     }
 
-    void Entity::setMaterial(const char* meshComponentName, Cyan::IMaterial* matl)
+    void Entity::setMaterial(const char* meshComponentName, Cyan::Material* matl)
     {
         SceneComponent* sceneComponent = getSceneComponent(meshComponentName);
         if (!sceneComponent)

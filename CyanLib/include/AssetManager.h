@@ -89,17 +89,17 @@ namespace Cyan
             submeshes.push_back(createSubmesh<Triangles>(vertices, indices));
             m_defaultShapes.unitCubeMesh = createMesh("UnitCubeMesh", submeshes);
             // quad
-            m_defaultShapes.quad = createMesh("Quad", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/quad.obj", false));
+            m_defaultShapes.quad = createMesh("Quad", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/quad.obj"));
             // sphere
-            m_defaultShapes.sphere = createMesh("Sphere", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/sphere.obj", false));
+            m_defaultShapes.sphere = createMesh("Sphere", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/sphere.obj"));
             // icosphere
-            m_defaultShapes.icosphere = createMesh("IcoSphere", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/icosphere.obj", false));
+            m_defaultShapes.icosphere = createMesh("IcoSphere", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/icosphere.obj"));
             // bounding sphere
             // todo: line mesh doesn't work
-            m_defaultShapes.boundingSphere = createMesh("BoundingSphere", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/bounding_sphere.obj", false));
+            m_defaultShapes.boundingSphere = createMesh("BoundingSphere", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/bounding_sphere.obj"));
             // cylinder
             // disk
-            m_defaultShapes.disk = createMesh("Disk", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/disk.obj", false));
+            m_defaultShapes.disk = createMesh("Disk", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/disk.obj"));
 
             /**
             *   initialize default textures
@@ -120,7 +120,7 @@ namespace Cyan
             /**
                 initialize the default material 
             */ 
-            createMaterial<PBRMaterial>("DefaultMaterial");
+            createMaterial("DefaultMaterial");
         }
 
         static AssetManager* get() { return singleton; }
@@ -130,11 +130,11 @@ namespace Cyan
         Cyan::Texture2DRenderable* importGltfTexture(const char* nodeName, tinygltf::Model& model, i32 index);
         void importGltfTextures(const char* nodeName, tinygltf::Model& model);
         static void importGltf(Scene* scene, const char* filename, const char* name=nullptr);
-        std::vector<ISubmesh*> importObj(const char* baseDir, const char* filename, bool generateLightMapUv);
+        std::vector<ISubmesh*> importObj(const char* baseDir, const char* filename);
         void importScene(Scene* scene, const char* file);
         void importEntities(Scene* scene, const nlohmann::basic_json<std::map>& entityInfoList);
         void importTextures(const nlohmann::basic_json<std::map>& textureInfoList);
-        Mesh* importMesh(Scene* scene, std::string& path, const char* name, bool normalize, bool generateLightMapUv);
+        Mesh* importMesh(Scene* scene, std::string& path, const char* name, bool bNormalize);
         void importMeshes(Scene* scene, const nlohmann::basic_json<std::map>& meshInfoList);
 
         /**
@@ -230,12 +230,15 @@ namespace Cyan
             return createTexture2D(name, spec, parameter);
         }
 
-        template <typename MaterialType>
-        static MaterialType* createMaterial(const char* name)
-        {
-            MaterialType* material = new MaterialType(name);
-            singleton->m_materialMap.insert({ std::string(name), material });
-            return material;
+        static Material& createMaterial(const char* name) {
+            std::string key = std::string(name);
+            auto entry = singleton->m_materialMap.find(key);
+            if (entry == singleton->m_materialMap.end()) {
+                Material matl = { };
+                matl.name = std::string(name);
+                singleton->m_materialMap.insert({ key, matl });
+            }
+            return singleton->m_materialMap[key];
         }
 
         // getters
@@ -243,8 +246,7 @@ namespace Cyan
         static T* getAsset(const char* assetName);
 
         template <>
-        static Mesh* getAsset<Mesh>(const char* meshName) 
-        { 
+        static Mesh* getAsset<Mesh>(const char* meshName) { 
             const auto& entry = singleton->m_meshMap.find(std::string(meshName));
             if (entry == singleton->m_meshMap.end())
             {
@@ -298,12 +300,10 @@ namespace Cyan
         }
 
         template <>
-        static IMaterial* getAsset<IMaterial>(const char* matlName)
-        {
-            auto entry = singleton->m_materialMap.find(std::string(matlName));
-            if (entry != singleton->m_materialMap.end())
-            {
-                return entry->second;
+        static Material* getAsset<Material>(const char* name) {
+            auto entry = singleton->m_materialMap.find(std::string(name));
+            if (entry != singleton->m_materialMap.end()) {
+                return &entry->second;
             }
             return nullptr;
         }
@@ -336,8 +336,7 @@ namespace Cyan
         /**
         * Adding a texture into the asset data base
         */
-        void addTexture(ITextureRenderable* inTexture)
-        {
+        void addTexture(ITextureRenderable* inTexture) {
             singleton->m_textureMap.insert({ inTexture->name, inTexture });
             singleton->m_textures.push_back(inTexture);
         }
@@ -357,6 +356,6 @@ namespace Cyan
         std::unordered_map<std::string, Mesh*> m_meshMap;
 
         // material instances
-        std::unordered_map<std::string, IMaterial*> m_materialMap;
+        std::unordered_map<std::string, Material> m_materialMap;
     };
 }

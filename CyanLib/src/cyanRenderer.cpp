@@ -114,15 +114,17 @@ namespace Cyan {
         ImGui::End();
     }
 
+// todo: fix this code branch at some point
+#if 0
     void Renderer::drawMeshInstance(const RenderableScene& scene, RenderTarget* renderTarget, Viewport viewport, GfxPipelineState pipelineState, MeshInstance* meshInstance, i32 transformIndex) {
         Mesh* parent = meshInstance->parent;
         for (u32 i = 0; i < parent->numSubmeshes(); ++i) {
-            IMaterial* material = meshInstance->getMaterial(i);
+            Material* material = meshInstance->getMaterial(i);
             if (material) {
                 RenderTask task = { };
                 task.renderTarget = renderTarget;
                 task.viewport = viewport;
-                task.shader = material->getMaterialShader();
+                task.shader = material->get();
                 task.submesh = parent->getSubmesh(i);
                 task.renderSetupLambda = [this, &scene, transformIndex, material](RenderTarget* renderTarget, Shader* shader) {
                     material->setShaderMaterialParameters();
@@ -133,6 +135,7 @@ namespace Cyan {
             }
         }
     }
+#endif
 
     void Renderer::drawMesh(RenderTarget* renderTarget, Viewport viewport, GfxPipelineState pipelineState, Mesh* mesh, Shader* shader, const RenderSetupLambda& perMeshSetupLambda) {
         perMeshSetupLambda(renderTarget, shader);
@@ -451,6 +454,7 @@ namespace Cyan {
         return { temporalSsaoBuffer[dst], ssbn };
     }
 
+#if 0
     Texture2DRenderable* Renderer::renderScene(RenderableScene& scene, const SceneView& sceneView, const glm::uvec2& outputResolution) {
         ITextureRenderable::Spec spec = { };
         spec.type = TEX_2D;
@@ -486,6 +490,7 @@ namespace Cyan {
 
         return outSceneColor;
     }
+#endif
 
     void Renderer::submitSceneMultiDrawIndirect(const RenderableScene& scene) {
         struct IndirectDrawArrayCommand

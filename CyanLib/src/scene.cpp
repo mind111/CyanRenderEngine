@@ -200,28 +200,24 @@ namespace Cyan
         return new IrradianceProbe(srcCubemapTexture, irradianceRes);
     }
 
-    IrradianceProbe* Scene::createIrradianceProbe(const glm::vec3& pos, const glm::uvec2& sceneCaptureRes, const glm::uvec2& irradianceResolution)
-    {
+    IrradianceProbe* Scene::createIrradianceProbe(const glm::vec3& pos, const glm::uvec2& sceneCaptureRes, const glm::uvec2& irradianceResolution) {
         return new IrradianceProbe(this, pos, sceneCaptureRes, irradianceResolution);
     }
 
-    ReflectionProbe* Scene::createReflectionProbe(Cyan::TextureCubeRenderable* srcCubemapTexture)
-    {
+    ReflectionProbe* Scene::createReflectionProbe(Cyan::TextureCubeRenderable* srcCubemapTexture) {
         return new ReflectionProbe(srcCubemapTexture);
     }
 
-    ReflectionProbe* Scene::createReflectionProbe(const glm::vec3& pos, const glm::uvec2& sceneCaptureRes)
-    {
+    ReflectionProbe* Scene::createReflectionProbe(const glm::vec3& pos, const glm::uvec2& sceneCaptureRes) {
         return new ReflectionProbe(this, pos, sceneCaptureRes);
     }
 
-    MeshInstance* Scene::createMeshInstance(Cyan::Mesh* mesh)
-    {
+    MeshInstance* Scene::createMeshInstance(Cyan::Mesh* mesh) {
         meshInstances.emplace_back();
         auto& meshInst = meshInstances.back();
         meshInst = std::make_shared<MeshInstance>(mesh);
         // attach a default material to all submeshes
-        meshInst->setMaterial(AssetManager::getAsset<IMaterial>("DefaultMaterial"));
+        meshInst->setMaterial(AssetManager::getAsset<Material>("DefaultMaterial"));
         return meshInst.get();
     }
 

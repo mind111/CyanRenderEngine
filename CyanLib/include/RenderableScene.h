@@ -72,20 +72,10 @@ namespace Cyan
             u32 padding = 0;
         };
 
-        struct Material {
-            u64 diffuseMapHandle;
-            u64 normalMapHandle;
-            u64 metallicRoughnessMapHandle;
-            u64 occlusionMapHandle;
-            glm::vec4 kAlbedo;
-            glm::vec4 kMetallicRoughness;
-            glm::uvec4 flags;
-        };
-
         using ViewBuffer = ShaderStorageBuffer<StaticSsboData<View>>;
         using TransformBuffer = ShaderStorageBuffer<DynamicSsboData<glm::mat4>>;
         using InstanceBuffer = ShaderStorageBuffer<DynamicSsboData<InstanceDesc>>;
-        using MaterialBuffer = ShaderStorageBuffer<DynamicSsboData<Material>>;
+        using MaterialBuffer = ShaderStorageBuffer<DynamicSsboData<GpuMaterial>>;
         using DrawCallBuffer = ShaderStorageBuffer<DynamicSsboData<u32>>;
         using DirectionalLightBuffer = ShaderStorageBuffer<DynamicSsboData<GpuCSMDirectionalLight>>;
         using PointLightBuffer = ShaderStorageBuffer<DynamicSsboData<GpuPointLight>>;

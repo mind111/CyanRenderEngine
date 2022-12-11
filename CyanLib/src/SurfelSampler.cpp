@@ -21,10 +21,10 @@ namespace Cyan {
                 auto submesh = dynamic_cast<Mesh::Submesh<Triangles>*>(mesh->getSubmesh(sm));
                 if (submesh) {
                     glm::vec3 albedo(0.f);
-                    auto matl = dynamic_cast<PBRMaterial*>(meshInst->getMaterial(sm));
+                    auto matl = meshInst->getMaterial(sm);
                     // todo: figure out how to handle textured material
                     if (matl) {
-                        albedo = matl->parameter.kAlbedo;
+                        albedo = matl->albedo;
                     }
                     const auto& verts = submesh->getVertices();
                     const auto& indices = submesh->getIndices();

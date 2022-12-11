@@ -231,9 +231,6 @@
     <ClInclude Include="include\StaticMeshEntity.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\MaterialEditor.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\RayTracingScene.h">
       <Filter>Header Files\RayTracing</Filter>
     </ClInclude>

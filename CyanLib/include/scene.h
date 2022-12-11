@@ -100,8 +100,7 @@ namespace Cyan {
         Skybox* skybox = nullptr;
     };
 
-    class SceneManager : public Singleton<SceneManager>
-    {
+    class SceneManager : public Singleton<SceneManager> {
     public:
         SceneManager();
 
