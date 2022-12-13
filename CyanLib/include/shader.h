@@ -13,22 +13,9 @@
 
 #define SHADER_SOURCE_PATH "C:/dev/cyanRenderEngine/shader/"
 
-// Shader storage buffer
-struct RegularBuffer
-{
-    const void* m_data;
-    u32         m_totalSize;
-    u32         m_sizeToUpload;
-    GLuint m_binding;
-    GLuint m_ssbo;
-};
-
-namespace Cyan
-{
-    struct ShaderSource
-    {
-        enum class Type
-        {
+namespace Cyan {
+    struct ShaderSource {
+        enum class Type {
             kVsPs = 0,
             kVsGsPs,
             kCs
@@ -43,13 +30,10 @@ namespace Cyan
 
     using ShaderType = ShaderSource::Type;
 
-    class Shader : public GpuResource
-    {
+    class Shader : public GpuObject {
     public:
-        struct UniformMetaData
-        {
-            enum class Type
-            {
+        struct UniformDesc {
+            enum class Type {
                 kInt,
                 kUint,
                 kFloat,
@@ -90,6 +74,7 @@ namespace Cyan
         Shader& setUniform(const char* name, const glm::mat4& data);
         Shader& setTexture(const char* samplerName, ITextureRenderable* texture);
 
+        std::string name;
     private:
         void build();
         void buildVsPs();
@@ -99,18 +84,51 @@ namespace Cyan
         // do shader introspection to initialize all the meta data
         void init();
 
+        std::unordered_map<std::string, ITextureRenderable*> samplerBindingMap;
+        std::unordered_map<std::string, UniformDesc> uniformMetaDataMap;
+        std::unordered_map<std::string, u32> shaderStorageBlockMap;
         const u32 kMaxNumTextureBindings = 32;
         i32 nextTextureBinding = 0u;
         i32 boundTextures = 0u;
-        // std::unordered_map<const char*, u32> uniformLocationMap;
-        std::unordered_map<std::string, ITextureRenderable*> samplerBindingMap;
-        std::unordered_map<std::string, UniformMetaData> uniformMetaDataMap;
         ShaderSource source;
-        GLuint program;
+        // GLuint program;
     };
 
-    class ShaderManager : public Singleton<ShaderManager>
-    {
+    class VertexShader : public Shader {
+
+    };
+
+    class PixelShader {
+        std::vector<std::string> includes;
+        std::string src;
+    };
+
+    class PipelineStateObject : public GpuObject {
+
+    };
+
+    class PixelPipeline : public PipelineStateObject {
+        PixelPipeline(const char* vsName, const char* psName) {
+
+        }
+
+        PixelPipeline(VertexShader* vs, PixelShader* ps) {
+
+        }
+
+        VertexShader* vertexShader = nullptr;
+        PixelShader* pixelShader = nullptr;
+    };
+
+    class GeometryPipeline : public Shader {
+
+    };
+    
+    class ComputePipeline : public PipelineStateObject {
+
+    };
+
+    class ShaderManager : public Singleton<ShaderManager> {
     public:
         using ShaderSourceMap = std::unordered_map<std::string, ShaderSource>;
         using ShaderMap = std::unordered_map<std::string, std::unique_ptr<Shader>>;
@@ -123,9 +141,7 @@ namespace Cyan
         void deinitialize() { }
 
         static Shader* createShader(const ShaderSource& shaderSourceMetaData);
-
         static Shader* getShader(const char* shaderName);
-
     private:
         static ShaderSourceMap m_shaderSourceMap;
         static ShaderMap m_shaderMap;

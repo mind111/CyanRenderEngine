@@ -1,5 +1,8 @@
 #pragma once
 
+#include <string>
+#include <unordered_map>
+
 #include "glew.h"
 #include "stb_image.h"
 #include "glm.hpp"
@@ -11,9 +14,9 @@
 #include "VertexArray.h"
 #include "Shader.h"
 #include "Mesh.h"
+#include "ShaderStorageBuffer.h"
 
-namespace Cyan
-{
+namespace Cyan {
     struct Viewport
     {
         u32 x;
@@ -42,17 +45,14 @@ namespace Cyan
         Back
     };
 
-    enum class DepthControl
-    {
+    enum class DepthControl {
         kDisable = 0,
         kEnable,
         kCount
     };
 
-    class GfxContext : public Singleton<GfxContext>
-    {
+    class GfxContext : public Singleton<GfxContext> {
     public:
-
         GfxContext(GLFWwindow* window) 
             : m_glfwWindow(window)
         { }
@@ -60,8 +60,23 @@ namespace Cyan
 
         void setShader(Shader* shader);
         void setTexture(ITextureRenderable* texture, u32 binding);
+
+        template<typename T>
+        void setShaderStorageBuffer(ShaderStorageBuffer<T>* buffer, u32 binding) {
+            auto entry = shaderStorageBufferBindingMap[buffer->name];
+            if (entry) {
+                // gfx context state change: the binding unit of @buffer needs to be updated
+                if (entry->second != binding) {
+                    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding, buffer->getGpuObject());
+                    entry->second = binding;
+                }
+            }
+            else {
+                shaderStorageBufferBindingMap.insert({ buffer->name, binding });
+            }
+        }
+
         void setVertexArray(VertexArray* array);
-        void setBuffer(RegularBuffer* buffer, u32 binding);
         void setPrimitiveType(PrimitiveMode type);
         void setViewport(Viewport viewport);
         void setRenderTarget(RenderTarget* renderTarget);
@@ -70,12 +85,11 @@ namespace Cyan
         void setClearColor(glm::vec4 albedo);
         void setCullFace(FrontFace frontFace, FaceCull faceToCull);
 
-        void setUniform(Shader* shader, const char* uniformName, f32 data)
-        {
+        void setUniform(Shader* shader, const char* uniformName, f32 data) {
             i32 location = shader->getUniformLocation(uniformName);
             if (location >= 0)
             {
-                glProgramUniform1f(shader->getGpuResource(), location, data);
+                glProgramUniform1f(shader->getGpuObject(), location, data);
             }
         }
 
@@ -88,6 +102,7 @@ namespace Cyan
 
     private:
         static constexpr u32 kMaxNumTextureUnits = 32u;
+        static constexpr u32 kMaxNumShaderStorageBufferBindigs = 32u;
         // bit vector for texture unit bindings
         std::array<u32, kMaxNumTextureUnits> textureUnits;
 
@@ -97,5 +112,6 @@ namespace Cyan
         VertexArray* m_va = nullptr;
         GLenum m_primitiveType;
         u32 transientTextureUnit;
+        std::unordered_map<std::string, u32> shaderStorageBufferBindingMap;
     };
 }

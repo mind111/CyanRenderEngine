@@ -23,9 +23,7 @@ namespace Cyan
     // todo: differentiate import...() from load...(), import refers to importing raw scene data, load refers to loading serialized binary
     class AssetManager {
     public:
-
-        struct DefaultTextures
-        {
+        struct DefaultTextures {
             Texture2DRenderable* checkerDark = nullptr;
             Texture2DRenderable* checkerOrange = nullptr;
             Texture2DRenderable* gridDark = nullptr;

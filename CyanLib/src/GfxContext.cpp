@@ -2,14 +2,21 @@
 #include "CyanRenderer.h"
 #include "CyanAPI.h"
 
-namespace Cyan
-{
+namespace Cyan {
     GfxContext* Singleton<GfxContext>::singleton = nullptr;
 
-    void GfxContext::setShader(Shader* shader)
-    {
-        m_shader = shader;
-        shader->bind();
+    void GfxContext::setShader(Shader* shader) {
+        if (shader) {
+            if (m_shader) {
+                if (m_shader->) {
+
+                }
+            }
+            else {
+                m_shader = shader;
+                shader->bind();
+            }
+        }
     }
 
     void GfxContext::setCullFace(FrontFace frontFace, FaceCull faceToCull)
@@ -62,7 +69,7 @@ namespace Cyan
         }
         else
         {
-            glBindTextureUnit(binding, texture->getGpuResource());
+            glBindTextureUnit(binding, texture->getGpuObject());
         }
     }
 

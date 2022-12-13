@@ -6,19 +6,17 @@
 
 #define BINDLESS_TEXTURE 1
 
-namespace Cyan
-{
-    class GpuResource
-    {
+namespace Cyan {
+    class GpuObject {
     public:
-        GpuResource()
-            : glResource(-1) 
+        GpuObject()
+            : glObject(-1) 
         { }
 
-        u32 getGpuResource() const { return glResource; }
-        bool operator==(const GpuResource& rhs) { return glResource == rhs.getGpuResource(); }
+        u32 getGpuObject() const { return glObject; }
+        bool operator==(const GpuObject& rhs) { return glObject == rhs.getGpuObject(); }
 
     protected:
-        GLuint glResource;
+        GLuint glObject;
     };
 }

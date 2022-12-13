@@ -123,37 +123,38 @@ namespace Cyan
     };
 
     template <typename SsboData>
-    struct ShaderStorageBuffer : public GpuResource
-    {
-        ShaderStorageBuffer(u32 numElements = 0)
-            : data(numElements)
-        {
+    struct ShaderStorageBuffer : public GpuResource {
+        ShaderStorageBuffer(const char* bufferBlockName) 
+            : name(bufferBlockName) {
             sizeInBytes = data.getSizeInBytes();
 
             glCreateBuffers(1, &glResource);
-            // todo: the hint flag need to be configurable
             glNamedBufferData(glResource, sizeInBytes, nullptr, GL_DYNAMIC_DRAW);
         }
 
-        ~ShaderStorageBuffer()
-        {
+        ShaderStorageBuffer(const char* bufferBlockName, u32 numElements = 0)
+            : name(bufferBlockName), data(numElements) {
+            sizeInBytes = data.getSizeInBytes();
+
+            glCreateBuffers(1, &glResource);
+            glNamedBufferData(glResource, sizeInBytes, nullptr, GL_DYNAMIC_DRAW);
+        }
+
+        ~ShaderStorageBuffer() {
             glDeleteBuffers(1, &glResource);
         }
 
-        void bind(u32 inBufferBindingUnit)
-        {
+        void bind(u32 inBufferBindingUnit) {
             bufferBindingUnit = (i32)inBufferBindingUnit;
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)bufferBindingUnit, glResource);
         }
 
-        void unbind()
-        {
+        void unbind() {
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, bufferBindingUnit, 0);
             bufferBindingUnit = -1;
         }
 
-        void upload()
-        {
+        void upload() {
             // if the dynamic array out grow the allocated buffer, need to release old resources and create new ones
             if (data.getSizeInBytes() > sizeInBytes)
             {
@@ -204,6 +205,7 @@ namespace Cyan
             return cloned;
         }
 
+        std::string name = std::string("Invalid");
         SsboData data;
         u32 sizeInBytes = 0;
         i32 bufferBindingUnit = -1;

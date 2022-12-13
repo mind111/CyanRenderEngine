@@ -72,9 +72,7 @@ Material getMaterial(in MaterialDesc desc, vec3 worldSpaceNormal, vec3 worldSpac
 
     if ((desc.flag & kHasNormalMap) != 0u) {
         vec3 tangentSpaceNormal = texture(sampler2D(desc.normalMap), texCoord).xyz;
-        // Convert from [0, 1] to [-1.0, 1.0] and renomalize if texture filtering changes the length
         tangentSpaceNormal = normalize(tangentSpaceNormal * 2.f - 1.f);
-        // Covert normal from tangent frame to camera space
         outMaterial.normal = normalize(tangentSpaceToWorldSpace(worldSpaceTangent, worldSpaceBitangent, worldSpaceNormal, tangentSpaceNormal).xyz);
     }
 

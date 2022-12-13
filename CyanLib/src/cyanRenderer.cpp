@@ -438,14 +438,14 @@ namespace Cyan {
                     ImVec2 imageSize(320, 180);
                     ImGui::Combo("Visualization", &visualization, visualizationNames, (i32)Visualization::kCount);
                     if (visualization == (i32)Visualization::kAmbientOcclusion) {
-                        // ImGui::Image((ImTextureID)(ssao->getGpuResource()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
-                        ImGui::Image((ImTextureID)(temporalSsaoBuffer[dst]->getGpuResource()), imageSize, ImVec2(0, 1), ImVec2(1, 0));
+                        // ImGui::Image((ImTextureID)(ssao->getGpuObject()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
+                        ImGui::Image((ImTextureID)(temporalSsaoBuffer[dst]->getGpuObject()), imageSize, ImVec2(0, 1), ImVec2(1, 0));
                     }
                     if (visualization == (i32)Visualization::kBentNormal) {
-                        ImGui::Image((ImTextureID)(ssbn->getGpuResource()), imageSize, ImVec2(0, 1), ImVec2(1, 0));
+                        ImGui::Image((ImTextureID)(ssbn->getGpuObject()), imageSize, ImVec2(0, 1), ImVec2(1, 0));
                     }
                     if (visualization == (i32)Visualization::kReflection) {
-                        ImGui::Image((ImTextureID)(ssr->getGpuResource()), imageSize, ImVec2(0, 1), ImVec2(1, 0));
+                        ImGui::Image((ImTextureID)(ssr->getGpuObject()), imageSize, ImVec2(0, 1), ImVec2(1, 0));
                     }
                 }
             });
@@ -921,7 +921,7 @@ namespace Cyan {
         addUIRenderCommand([]() {
             ImGui::Begin("Debug Viewer"); {
 
-                ImGui::Image((ImTextureID)outTexture->getGpuResource(), ImVec2(320, 180), ImVec2(0, 1), ImVec2(1, 0));
+                ImGui::Image((ImTextureID)outTexture->getGpuObject(), ImVec2(320, 180), ImVec2(0, 1), ImVec2(1, 0));
 
                 // todo: implement a proper mouse input mechanism for this viewer
                 // todo: abstract this into a debug viewer widget or something
@@ -1000,7 +1000,7 @@ namespace Cyan {
         addUIRenderCommand([]() {
             ImGui::Begin("Debug Viewer"); {
 
-                ImGui::Image((ImTextureID)outTexture->getGpuResource(), ImVec2(320, 180), ImVec2(0, 1), ImVec2(1, 0));
+                ImGui::Image((ImTextureID)outTexture->getGpuObject(), ImVec2(320, 180), ImVec2(0, 1), ImVec2(1, 0));
 
                 // todo: implement a proper mouse input mechanism for this viewer
                 // todo: abstract this into a debug viewer widget or something
