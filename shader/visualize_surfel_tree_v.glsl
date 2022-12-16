@@ -24,6 +24,12 @@ layout(std430, binding = 0) buffer ViewBuffer {
     float dummy;
 };
 
+out gl_PerVertex
+{
+	vec4 gl_Position;
+	float gl_PointSize;
+	float gl_ClipDistance[];
+};
 out VSOutput {
 	vec3 color;
 } vsOut;

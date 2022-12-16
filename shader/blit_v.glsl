@@ -6,6 +6,12 @@ layout (location = 2) in vec4 vertexTangent;
 layout (location = 3) in vec2 textureUv_0;
 layout (location = 4) in vec2 textureUv_1;
 
+out gl_PerVertex
+{
+	vec4 gl_Position;
+	float gl_PointSize;
+	float gl_ClipDistance[];
+};
 out VSOut
 {
 	vec2 texCoord0;

@@ -21,15 +21,14 @@ namespace Cyan {
     static void drawSurfels(ShaderStorageBuffer<DynamicSsboData<InstanceDesc>>& surfelInstanceBuffer, Renderer* renderer, GfxContext* gfxc, RenderTarget* dstRenderTarget) {
         surfelInstanceBuffer.bind(68);
         auto disk = AssetManager::getAsset<Mesh>("Disk");
-        auto shader = ShaderManager::createShader({ 
-            ShaderSource::Type::kVsPs,
-            "VisualizeSurfelShader",
-            SHADER_SOURCE_PATH "visualize_surfel_v.glsl",
-            SHADER_SOURCE_PATH "visualize_surfel_p.glsl"
-            });
+        VertexShader* vs = ShaderManager::createShader<VertexShader>("VisualizeSurfelVS", SHADER_SOURCE_PATH "visualize_surfel_v.glsl");
+        PixelShader* ps = ShaderManager::createShader<PixelShader>("VisualizeSurfelPS", SHADER_SOURCE_PATH "visualize_surfel_p.glsl");
+        PixelPipeline* pipeline = ShaderManager::createPixelPipeline("VisualizeSurfel", vs, ps);
+        gfxc->setPixelPipeline(pipeline, [](VertexShader* vs, PixelShader* ps) {
+
+        });
         gfxc->setRenderTarget(dstRenderTarget);
         gfxc->setViewport({ 0, 0, dstRenderTarget->width, dstRenderTarget->height });
-        gfxc->setShader(shader);
         auto va = disk->getSubmesh(0)->getVertexArray();
         gfxc->setVertexArray(va);
         u32 numInstances = surfelInstanceBuffer.getNumElements();
@@ -45,7 +44,10 @@ namespace Cyan {
         : finalGatherRes(inFinalGatherRes)
         , radianceRes(2 * finalGatherRes)
         , irradianceRes(inIrradianceRes)
-        , radianceAtlasRes(irradianceRes * radianceRes) {
+        , radianceAtlasRes(irradianceRes * radianceRes)
+        , hemicubeInstanceBuffer("InstanceBuffer")
+        , tangentFrameInstanceBuffer("InstanceBuffer") 
+    {
         kMaxNumHemicubes = irradianceRes.x * irradianceRes.y;
     }
 
@@ -94,8 +96,12 @@ namespace Cyan {
 
         scene->upload();
 
-        auto fillRasterShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "FillRasterShader", SHADER_SOURCE_PATH "blit_v.glsl", SHADER_SOURCE_PATH "fill_raster_p.glsl" });
+        VertexShader* vs = ShaderManager::createShader<VertexShader>("BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
+        PixelShader* ps = ShaderManager::createShader<PixelShader>("GenerateHemicubePS", SHADER_SOURCE_PATH "fill_raster_p.glsl");
+        auto pipeline = ShaderManager::createPixelPipeline("GenerateHemicube", vs, ps);
+
         auto fillRasterRenderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(irradianceRes.x, irradianceRes.y));
+#if 0 
         renderer->drawFullscreenQuad(
             fillRasterRenderTarget.get(),
             fillRasterShader,
@@ -105,7 +111,7 @@ namespace Cyan {
                 shader->setTexture("normalBuffer", normalBuffer);
             }
         );
-
+#endif
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
         // read back data from gpu
@@ -177,16 +183,16 @@ namespace Cyan {
         gfxc->setRenderTarget(dstRenderTarget);
         gfxc->setDepthControl(DepthControl::kEnable);
         gfxc->setViewport({ 0, 0, dstRenderTarget->width, dstRenderTarget->height });
-        auto shader = ShaderManager::createShader({
-            ShaderSource::Type::kVsPs,
-            "VisualizeHemicubesShader",
-            SHADER_SOURCE_PATH "debug_show_hemicubes_v.glsl",
-            SHADER_SOURCE_PATH "debug_show_hemicubes_p.glsl"
-            });
-        gfxc->setShader(shader);
-        shader->setUniform("finalGatherRes", finalGatherRes);
-        shader->setUniform("radianceRes", radianceRes);
-        shader->setTexture("radianceAtlas", radianceAtlas);
+
+        auto visHemicubeVS = ShaderManager::createShader<VertexShader>("VisualizeHemicubeVS", SHADER_SOURCE_PATH "debug_show_hemicubes_v.glsl");
+        auto visHemicubePS = ShaderManager::createShader<PixelShader>("VisualizeHemicubePS", SHADER_SOURCE_PATH "debug_show_hemicubes_p.glsl");
+        auto visualizeHemicubePipeline = ShaderManager::createPixelPipeline("VisualizeHemicube", visHemicubeVS, visHemicubePS);
+        gfxc->setPixelPipeline(visualizeHemicubePipeline, [this](VertexShader* vs, PixelShader* ps) {
+                ps->setTexture("radianceAtlas", radianceAtlas);
+                ps->setUniform("radianceRes", radianceRes);
+                ps->setUniform("finalGatherRes", finalGatherRes);
+        });
+
         auto cube = AssetManager::getAsset<Mesh>("UnitCubeMesh");
         gfxc->setVertexArray(cube->getSubmesh(0)->getVertexArray());
         glDisable(GL_CULL_FACE);
@@ -195,13 +201,10 @@ namespace Cyan {
         glDrawArraysInstanced(GL_TRIANGLES, 0, cube->getSubmesh(0)->numVertices(), numInstances);
         glEnable(GL_CULL_FACE);
 
-        auto lineShader = ShaderManager::createShader({
-            ShaderSource::Type::kVsPs,
-            "DebugDrawLineShader",
-            SHADER_SOURCE_PATH "debug_draw_line_v.glsl",
-            SHADER_SOURCE_PATH "debug_draw_line_p.glsl"
-            });
-        gfxc->setShader(lineShader);
+        auto drawLineVS = ShaderManager::createShader<VertexShader>("DebugDrawLineVS", SHADER_SOURCE_PATH "debug_draw_line_v.glsl");
+        auto drawLinePS = ShaderManager::createShader<PixelShader>("DebugDrawLinePS", SHADER_SOURCE_PATH "debug_draw_line_p.glsl");
+        auto drawLinePipeline = ShaderManager::createPixelPipeline("DebugDrawLine", drawLineVS, drawLinePS);
+        gfxc->setPixelPipeline(drawLinePipeline, [this](VertexShader* vs, PixelShader* ps) {});
         // draw tangent frames
         glDrawArraysInstanced(GL_LINES, 0, 2, numInstances * 3);
     }
@@ -210,18 +213,17 @@ namespace Cyan {
         auto disk = AssetManager::getAsset<Mesh>("Disk");
         hemicubeInstanceBuffer.bind(63);
 
-        auto shader = ShaderManager::createShader({ 
-            ShaderSource::Type::kVsPs,
-            "VisualizeIrradianceShader",
-            SHADER_SOURCE_PATH "visualize_irradiance_v.glsl",
-            SHADER_SOURCE_PATH "visualize)_irradiance_p.glsl"
-            });
         auto renderer = Renderer::get();
         auto gfxc = renderer->getGfxCtx();
         gfxc->setRenderTarget(dstRenderTarget);
         gfxc->setViewport({ 0, 0, dstRenderTarget->width, dstRenderTarget->height });
-        shader->setTexture("irradianceBuffer", irradiance);
-        gfxc->setShader(shader);
+
+        auto visIrradianceVS = ShaderManager::createShader<VertexShader>("VisualizeIrradianceVS", SHADER_SOURCE_PATH "visualize_irradiance_v.glsl");
+        auto visIrradiancePS = ShaderManager::createShader<PixelShader>("VisualizeIrradiancePS", SHADER_SOURCE_PATH "visualize_irradiance_p.glsl");
+        auto visIrradiancePipeline = ShaderManager::createPixelPipeline("VisualizeIrradiance", visIrradianceVS, visIrradiancePS);
+        gfxc->setPixelPipeline(visIrradiancePipeline, [this](VertexShader* vs, PixelShader* ps) {
+            ps->setTexture("irradianceBuffer", irradiance);
+        });
         auto va = disk->getSubmesh(0)->getVertexArray();
         gfxc->setVertexArray(va);
         if (va->hasIndexBuffer()) {
@@ -247,36 +249,32 @@ namespace Cyan {
     void ManyViewGI::Image::writeRadiance(TextureCubeRenderable* radianceCubemap, const glm::ivec2& texCoord) {
         auto renderer = Renderer::get();
         auto gfxc = renderer->getGfxCtx();
-        Shader* octMappingShader = ShaderManager::createShader({ ShaderType::kVsPs, "OctMappingShader", SHADER_SOURCE_PATH "oct_mapping_v.glsl", SHADER_SOURCE_PATH "oct_mapping_p.glsl" });
-        Shader* shader = ShaderManager::createShader({ ShaderType::kCs, "WriteToRadianceAtlasShader", nullptr, nullptr, nullptr, SHADER_SOURCE_PATH "manyview_gi_oct_radiance_c.glsl" });
-        shader->setTexture("radianceCubemap", radianceCubemap);
-        shader->setUniform("texCoord", texCoord);
-        shader->setUniform("radianceRes", radianceRes);
-        glBindImageTexture(0, radianceAtlas->getGpuResource(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA16F);
-        gfxc->setShader(shader);
+        ComputeShader* cs = ShaderManager::createShader<ComputeShader>("WriteToRadianceAtlasCS", "manyview_gi_oct_radiance_c.glsl");
+        auto pipeline = ShaderManager::createComputePipeline("WriteToRadianceAtlas", cs);
+        gfxc->setComputePipeline(pipeline, [radianceCubemap, texCoord, this](ComputeShader* cs) {
+            cs->setTexture("radianceCubemap", radianceCubemap);
+            cs->setUniform("texCoord", texCoord);
+            cs->setUniform("radianceRes", radianceRes);
+        });
+        glBindImageTexture(0, radianceAtlas->getGpuObject(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA16F);
         glDispatchCompute(radianceRes, radianceRes, 1);
     }
 
     void ManyViewGI::Image::writeIrradiance(TextureCubeRenderable* radianceCubemap, const Hemicube& hemicube, const glm::ivec2& texCoord) {
-        auto shader = ShaderManager::createShader({ 
-            ShaderSource::Type::kCs,
-            "ManyViewGIConvolveIrradianceShader",
-            nullptr,
-            nullptr,
-            nullptr,
-            SHADER_SOURCE_PATH "manyview_gi_convolve_irradiance_c.glsl",
-        });
         auto renderer = Renderer::get();
         auto gfxc = renderer->getGfxCtx();
-        gfxc->setShader(shader);
-        shader->setUniform("texCoord", texCoord);
-        shader->setUniform("finalGatherRes", finalGatherRes);
-        shader->setUniform("radianceRes", radianceRes);
-        shader->setTexture("radianceCubemap", radianceCubemap);
-        shader->setUniform("hemicubeNormal", vec4ToVec3(hemicube.normal));
-        auto tangentFrame = calcTangentFrame(hemicube.normal);
-        shader->setUniform("hemicubeTangentFrame", tangentFrame);
-        glBindImageTexture(0, irradiance->getGpuResource(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA16F);
+        CreateCS(cs, "ManyViewGIConvolveIrradianceCS", "manyview_gi_convovle_irradiance_c.glsl");
+        CreateComputePipeline(pipeline, "ManyViewGIConvolveIrradiance", cs);
+        gfxc->setComputePipeline(pipeline, [texCoord, this, radianceCubemap, hemicube](ComputeShader* cs) {
+            cs->setUniform("texCoord", texCoord);
+            cs->setUniform("finalGatherRes", finalGatherRes);
+            cs->setUniform("radianceRes", radianceRes);
+            cs->setTexture("radianceCubemap", radianceCubemap);
+            cs->setUniform("hemicubeNormal", vec4ToVec3(hemicube.normal));
+            auto tangentFrame = calcTangentFrame(hemicube.normal);
+            cs->setUniform("hemicubeTangentFrame", tangentFrame);
+        });
+        glBindImageTexture(0, irradiance->getGpuObject(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA16F);
         glDispatchCompute(1, 1, 1);
     }
 
@@ -448,29 +446,32 @@ namespace Cyan {
     }
 
     void ManyViewGI::customRenderScene(const RenderableScene& scene, const Hemicube& hemicube, const PerspectiveCamera& camera) {
-        Shader* shader = ShaderManager::createShader({ 
-            ShaderSource::Type::kVsPs,
-            "ManyViewGIShader",
-            SHADER_SOURCE_PATH "manyview_gi_final_gather_v.glsl", 
-            SHADER_SOURCE_PATH "manyview_gi_final_gather_p.glsl",
+        CreateVS(vs, "ManyViewGIVS", "manyview_gi_final_gather_v.glsl");
+        CreatePS(ps, "ManyViewGIPS", "manyview_gi_final_gather_p.glsl");
+        CreatePixelPipeline(pipeline, "ManyViewGI", vs, ps);
+        m_gfxc->setPixelPipeline(pipeline, [camera, hemicube, this](VertexShader* vs, PixelShader* ps) {
+            vs->setUniform("view", camera.view());
+            vs->setUniform("projection", camera.projection());
+            ps->setUniform("receivingNormal", vec4ToVec3(hemicube.normal));
+            ps->setUniform("microBufferRes", kFinalGatherRes);
         });
-
-        m_gfxc->setShader(shader);
-        shader->setUniform("view", camera.view());
-        shader->setUniform("projection", camera.projection());
-        shader->setUniform("receivingNormal", vec4ToVec3(hemicube.normal));
-        shader->setUniform("microBufferRes", kFinalGatherRes);
         m_renderer->submitSceneMultiDrawIndirect(scene);
     }
 
     PointBasedManyViewGI::PointBasedManyViewGI(Renderer* renderer, GfxContext* gfxc)
-        : ManyViewGI(renderer, gfxc) {
+        : ManyViewGI(renderer, gfxc) 
+        , surfelBuffer("SurfelBuffer")
+        , surfelInstanceBuffer("surfelInstanceBuffer")
+    {
 
     }
 
-    void PointBasedManyViewGI::customInitialize() { 
-        if (!bInitialized) {
-            if (!visualizations.rasterizedSurfels) {
+    void PointBasedManyViewGI::customInitialize() 
+    { 
+        if (!bInitialized) 
+        {
+            if (!visualizations.rasterizedSurfels) 
+            {
                 ITextureRenderable::Spec spec = {};
                 spec.type = TEX_2D;
                 spec.width = 16;
@@ -482,7 +483,8 @@ namespace Cyan {
         }
     }
 
-    void PointBasedManyViewGI::customSetup(const RenderableScene& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) {
+    void PointBasedManyViewGI::customSetup(const RenderableScene& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) 
+    {
         generateWorldSpaceSurfels();
         cacheSurfelDirectLighting();
     }
@@ -572,6 +574,7 @@ namespace Cyan {
     }
 
     void PointBasedManyViewGI::cacheSurfelDirectLighting() {
+#if 0
         if (m_scene) {
             auto shader = ShaderManager::createShader({
                 ShaderSource::Type::kCs,
@@ -588,9 +591,11 @@ namespace Cyan {
             // each compute thread process one surfel
             glDispatchCompute(surfels.size(), 1, 1);
         }
+#endif
     }
 
     void PointBasedManyViewGI::rasterizeSurfelScene(Texture2DRenderable* outSceneColor, const RenderableScene::Camera& camera) {
+#if 0
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(outSceneColor->width, outSceneColor->height));
         renderTarget->setColorBuffer(outSceneColor, 0);
         renderTarget->setDrawBuffers({ 0 });
@@ -617,9 +622,12 @@ namespace Cyan {
         shader->setUniform("projection", camera.projection);
         shader->setUniform("receivingNormal", m_scene->camera.view[1]);
         glDrawArraysInstanced(GL_POINTS, 0, 1, surfels.size());
+#endif
     }
 
-    void PointBasedManyViewGI::customRenderScene(const RenderableScene& scene, const Hemicube& hemicube, const PerspectiveCamera& camera) {
+    void PointBasedManyViewGI::customRenderScene(const RenderableScene& scene, const Hemicube& hemicube, const PerspectiveCamera& camera) 
+    {
+#if 0
         auto shader = ShaderManager::createShader({
             ShaderSource::Type::kVsPs,
             "RasterizeSurfelShader",
@@ -639,11 +647,15 @@ namespace Cyan {
         shader->setUniform("hemicubeNormal", vec4ToVec3(hemicube.normal));
         m_gfxc->setShader(shader);
         glDrawArraysInstanced(GL_POINTS, 0, 1, surfels.size());
+#endif
     }
 
-    void PointBasedManyViewGI::updateSurfelInstanceData() {
+    void PointBasedManyViewGI::updateSurfelInstanceData() 
+    {
+#if 0
         surfelInstanceBuffer.data.array.resize(surfels.size());
-        for (i32 i = 0; i < surfels.size(); ++i) {
+        for (i32 i = 0; i < surfels.size(); ++i) 
+        {
             glm::mat4 transform = glm::translate(glm::mat4(1.f), surfels[i].position);
             transform = transform * calcTangentFrame(surfels[i].normal);
             surfelInstanceBuffer[i].transform = glm::scale(transform, glm::vec3(surfels[i].radius));
@@ -652,9 +664,11 @@ namespace Cyan {
             surfelInstanceBuffer[i].debugColor = glm::vec4(1.f, 0.f, 0.f, 1.f);
         }
         surfelInstanceBuffer.upload();
+#endif
     }
 
     void PointBasedManyViewGI::visualizeSurfels(RenderTarget* visRenderTarget) {
+#if 0
         surfelInstanceBuffer.bind(68);
         auto disk = AssetManager::getAsset<Mesh>("Disk");
         auto shader = ShaderManager::createShader({ 
@@ -675,6 +689,7 @@ namespace Cyan {
         else {
             glDrawArraysInstanced(GL_TRIANGLES, 0, disk->getSubmesh(0)->numVertices(), surfelInstanceBuffer.getNumElements());
         }
+#endif
     }
 
     MicroRenderingGI::MicroRenderingGI(Renderer* renderer, GfxContext* gfxc)
@@ -696,12 +711,14 @@ namespace Cyan {
         PointBasedManyViewGI::customSetup(scene, depthBuffer, normalBuffer);
     }
 
-    void MicroRenderingGI::generateWorldSpaceSurfels() {
+    void MicroRenderingGI::generateWorldSpaceSurfels() 
+    {
         m_surfelSampler.sampleFixedNumberSurfels(surfels, *m_scene);
         m_surfelSampler.sampleFixedSizeSurfels(surfels, *m_scene);
-        for (const auto& surfel : surfels) {
+        for (const auto& surfel : surfels) 
+        {
             surfelBuffer.addElement(
-                GpuSurfel{
+                GpuSurfel {
                     glm::vec4(surfel.position, surfel.radius),
                     glm::vec4(surfel.normal, 0.f),
                     glm::vec4(surfel.albedo, 1.f),
@@ -713,15 +730,19 @@ namespace Cyan {
         m_surfelBSH.build(surfels);
     }
 
-    void MicroRenderingGI::customRender(const RenderableScene::Camera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) {
+    void MicroRenderingGI::customRender(const RenderableScene::Camera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) 
+    {
         PointBasedManyViewGI::customRender(camera, sceneRenderTarget, visRenderTarget);
-        if (bVisualizeSurfelBSH) {
+        if (bVisualizeSurfelBSH) 
+        {
             m_surfelBSH.visualize(m_gfxc, visRenderTarget);
         }
-        if (bVisualizeSurfelSampler) {
+        if (bVisualizeSurfelSampler) 
+        {
             m_surfelSampler.visualize(sceneRenderTarget, m_renderer);
         }
-        if (bVisualizeMicroBuffer) {
+        if (bVisualizeMicroBuffer) 
+        {
             // todo: verify correctness
             softwareMicroRendering(camera, m_surfelBSH);
             // todo: implement this once the software version is working
@@ -735,7 +756,8 @@ namespace Cyan {
         , color(resolution)
         , depth(resolution)
         , indices(resolution)
-        , postTraversalBuffer(resolution) {
+        , postTraversalBuffer(resolution) 
+    {
         {
             ITextureRenderable::Spec spec = { };
             spec.type = TEX_2D;
@@ -768,7 +790,7 @@ namespace Cyan {
                 postTraversalBuffer[y][x] = -1;
             }
         }
-        // glClearTexSubImage(gpuTexture->getGpuResource(), 0, 0, 0, 0, resolution, resolution, 1, GL_RGB, GL_FLOAT, nullptr);
+        // glClearTexSubImage(gpuTexture->getGpuObject(), 0, 0, 0, 0, resolution, resolution, 1, GL_RGB, GL_FLOAT, nullptr);
     }
 
     bool SoftwareMicroBuffer::isInViewport(const SurfelBSH::Node& node, glm::vec2& outPixelCoord, const glm::mat4& view, const glm::mat4& projection) {
@@ -966,7 +988,7 @@ namespace Cyan {
 
         // update texture data using micro buffer
         if (gpuTexture) {
-            glTextureSubImage2D(gpuTexture->getGpuResource(), 0, 0, 0, resolution, resolution, GL_RGB, GL_FLOAT, color.data());
+            glTextureSubImage2D(gpuTexture->getGpuObject(), 0, 0, 0, resolution, resolution, GL_RGB, GL_FLOAT, color.data());
         }
     }
 
@@ -1032,7 +1054,7 @@ namespace Cyan {
 
         // update texture data using micro buffer
         if (gpuTexture) {
-            glTextureSubImage2D(gpuTexture->getGpuResource(), 0, 0, 0, resolution, resolution, GL_RGB, GL_FLOAT, color.data());
+            glTextureSubImage2D(gpuTexture->getGpuObject(), 0, 0, 0, resolution, resolution, GL_RGB, GL_FLOAT, color.data());
         }
     }
 
@@ -1054,6 +1076,7 @@ namespace Cyan {
         viewport.width = scaledRes.x;
         viewport.height = scaledRes.y;
 
+#if 0
         auto shader = ShaderManager::createShader({
             ShaderSource::Type::kVsPs,
             "VisualizeMicroBufferShader",
@@ -1062,6 +1085,7 @@ namespace Cyan {
             nullptr,
             nullptr,
         });
+
         renderer->drawScreenQuad(
             visRenderTarget,
             viewport,
@@ -1074,6 +1098,7 @@ namespace Cyan {
                 shader->setUniform("microBufferRes", resolution);
             }
         );
+#endif
     }
 
     // micro-rendering on cpu

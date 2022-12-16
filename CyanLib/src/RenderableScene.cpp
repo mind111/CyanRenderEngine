@@ -12,7 +12,11 @@ namespace Cyan
 {
     PackedGeometry* RenderableScene::packedGeometry = nullptr;
 
-    PackedGeometry::PackedGeometry(const Scene& scene) {
+    PackedGeometry::PackedGeometry(const Scene& scene) 
+        : vertexBuffer("VertexBuffer")
+        , indexBuffer("IndexBuffer") 
+        , submeshes("SubmeshBuffer") 
+    {
         for (auto meshInst : scene.meshInstances)
         {
             Mesh* mesh = meshInst->parent;
@@ -70,7 +74,8 @@ namespace Cyan
         submeshes.upload();
     }
 
-    RenderableScene::RenderableScene() {
+    RenderableScene::RenderableScene() 
+    {
 
     }
 
@@ -93,12 +98,12 @@ namespace Cyan
     }
 
     RenderableScene::RenderableScene(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator) {
-        viewBuffer = std::make_unique<ViewBuffer>();
-        transformBuffer = std::make_unique<TransformBuffer>();
-        instanceBuffer = std::make_unique<InstanceBuffer>();
-        drawCallBuffer = std::make_unique<DrawCallBuffer>();
-        materialBuffer = std::make_unique<MaterialBuffer>();
-        directionalLightBuffer = std::make_unique<DirectionalLightBuffer>();
+        viewBuffer = std::make_unique<ViewBuffer>("ViewBuffer");
+        transformBuffer = std::make_unique<TransformBuffer>("TransformBuffer");
+        instanceBuffer = std::make_unique<InstanceBuffer>("InstanceBuffer");
+        drawCallBuffer = std::make_unique<DrawCallBuffer>("DrawCallBuffer");
+        materialBuffer = std::make_unique<MaterialBuffer>("MaterialBuffer");
+        directionalLightBuffer = std::make_unique<DirectionalLightBuffer>("DirectionalLightBuffer");
 
         if (!packedGeometry)
             packedGeometry = new PackedGeometry(*inScene);
@@ -241,37 +246,30 @@ namespace Cyan
     /**
     * Submit rendering data to global gpu buffers
     */
-    void RenderableScene::upload() {
-#define VIEW_BUFFER_BINDING 0
-#define TRANSFORM_BUFFER_BINDING 1
-#define INSTANCE_DESC_BUFFER_BINDING 2
-#define SUBMESH_BUFFER_BINDING 3
-#define VERTEX_BUFFER_BINDING 4
-#define INDEX_BUFFER_BINDING 5
-#define DRAWCALL_BUFFER_BINDING 6
-#define MATERIAL_BUFFER_BINDING 7
-#define DIRECTIONALLIGHT_BUFFER_BINDING 8
-
-        packedGeometry->vertexBuffer.bind(VERTEX_BUFFER_BINDING);
-        packedGeometry->indexBuffer.bind(INDEX_BUFFER_BINDING);
-        packedGeometry->submeshes.bind(SUBMESH_BUFFER_BINDING);
-
+    void RenderableScene::upload() 
+    {
+        auto gfxc = Renderer::get()->getGfxCtx();
+        gfxc->setShaderStorageBuffer<DynamicSsboData<PackedGeometry::Vertex>>(&packedGeometry->vertexBuffer);
+        gfxc->setShaderStorageBuffer<DynamicSsboData<u32>>(&packedGeometry->indexBuffer);
+        gfxc->setShaderStorageBuffer<DynamicSsboData<PackedGeometry::SubmeshDesc>>(&packedGeometry->submeshes);
         // view
         viewBuffer->data.constants.view = camera.view;
         viewBuffer->data.constants.projection = camera.projection;
         viewBuffer->upload();
-        viewBuffer->bind(VIEW_BUFFER_BINDING);
-        // transform
+        gfxc->setShaderStorageBuffer<StaticSsboData<View>>(viewBuffer.get());
+
         transformBuffer->upload();
-        transformBuffer->bind(TRANSFORM_BUFFER_BINDING);
-        // instance
+        gfxc->setShaderStorageBuffer<DynamicSsboData<glm::mat4>>(transformBuffer.get());
+
         instanceBuffer->upload();
-        instanceBuffer->bind(INSTANCE_DESC_BUFFER_BINDING);
-        // material
+        gfxc->setShaderStorageBuffer<DynamicSsboData<InstanceDesc>>(instanceBuffer.get());
+
         materialBuffer->upload();
-        materialBuffer->bind(MATERIAL_BUFFER_BINDING);
+        gfxc->setShaderStorageBuffer<DynamicSsboData<GpuMaterial>>(materialBuffer.get());
+
         drawCallBuffer->upload();
-        drawCallBuffer->bind(DRAWCALL_BUFFER_BINDING);
+        gfxc->setShaderStorageBuffer<DynamicSsboData<u32>>(drawCallBuffer.get());
+
         // directional lights
         for (i32 i = 0; i < directionalLightBuffer->getNumElements(); ++i) {
             for (i32 j = 0; j < CascadedShadowMap::kNumCascades; ++j) {
@@ -282,6 +280,6 @@ namespace Cyan
             }
         }
         directionalLightBuffer->upload();
-        directionalLightBuffer->bind(DIRECTIONALLIGHT_BUFFER_BINDING);
+        gfxc->setShaderStorageBuffer<DynamicSsboData<GpuCSMDirectionalLight>>(directionalLightBuffer.get());
     }
 }

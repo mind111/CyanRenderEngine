@@ -61,7 +61,7 @@ namespace Cyan
             cyanError("Drawbuffer index out of bound!");
             return;
         }
-        glNamedFramebufferTexture2DEXT(fbo, GL_COLOR_ATTACHMENT0 + index, GL_TEXTURE_2D, texture->getGpuResource(), mip);
+        glNamedFramebufferTexture2DEXT(fbo, GL_COLOR_ATTACHMENT0 + index, GL_TEXTURE_2D, texture->getGpuObject(), mip);
         colorBuffers[index] = texture;
     }
 
@@ -81,7 +81,7 @@ namespace Cyan
         {
             for (i32 f = 0; f < numFaces; ++f)
             {
-                glNamedFramebufferTexture2DEXT(fbo, GL_COLOR_ATTACHMENT0 + (index + f), GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, texture->getGpuResource(), mip);
+                glNamedFramebufferTexture2DEXT(fbo, GL_COLOR_ATTACHMENT0 + (index + f), GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, texture->getGpuObject(), mip);
                 colorBuffers[index + f] = static_cast<ITextureRenderable*>(texture);
             }
         }
@@ -94,7 +94,7 @@ namespace Cyan
             CYAN_ASSERT(0, "Mismatched render target and depth buffer dimension!") 
         }
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, texture->getGpuResource(), 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, texture->getGpuObject(), 0);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         depthBuffer = texture;
     }

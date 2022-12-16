@@ -40,12 +40,12 @@
         printf("\n");           \
     }                           \
 
-#define cyanError(...)          \
-    {                           \
-        printf("[Error] ");     \
-        printf(__VA_ARGS__);    \
-        printf("\n");           \
-    }                           \
+#define cyanError(str, ...)                     \
+    {                                           \
+        printf("\033[1;31m[Error] \033[0m");     \
+        printf(str, __VA_ARGS__);               \
+        printf("\n");                           \
+    }                                           \
 
 #define TO_STRING(x) #x
 #define SIZE_OF_VECTOR(x) (x.empty() ? 0 : x.size() * sizeof(x[0]))

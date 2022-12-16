@@ -10,6 +10,13 @@
 #define DRAWCALL_BUFFER_BINDING 45
 #define MATERIAL_BUFFER_BINDING 46
 
+out gl_PerVertex
+{
+	vec4 gl_Position;
+	float gl_PointSize;
+	float gl_ClipDistance[];
+};
+
 out VSOutput
 {
 	vec3 viewSpacePosition;

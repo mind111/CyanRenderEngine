@@ -2,6 +2,13 @@
 
 layout (location = 0) in vec3 vertexPos;
 
+out gl_PerVertex
+{
+	vec4 gl_Position;
+	float gl_PointSize;
+	float gl_ClipDistance[];
+};
+
 out vec3 fragmentObjPos;
 
 uniform mat4 view;

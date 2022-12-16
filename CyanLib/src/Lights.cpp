@@ -111,11 +111,12 @@ namespace Cyan {
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(dstCubemap->resolution, dstCubemap->resolution));
         renderTarget->setColorBuffer(dstCubemap, 0u);
 
-        Shader* shader = ShaderManager::createShader({ ShaderType::kVsPs, "RenderToCubemapShader", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl" });
+        VertexShader* vs = ShaderManager::createShader<VertexShader>("RenderToCubemapVS", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl");
+        PixelShader* ps = ShaderManager::createShader<PixelShader>("RenderToCubemapPS", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl");
+        PixelPipeline* pipeline = ShaderManager::createPixelPipeline("RenderToCubemap", vs, ps);
         Mesh* cubeMesh = AssetManager::getAsset<Mesh>("UnitCubeMesh");
 
-        for (i32 f = 0; f < 6u; f++)
-        {
+        for (i32 f = 0; f < 6u; f++) {
             renderTarget->setDrawBuffers({ f });
             renderTarget->clear({ { f } });
 
@@ -126,8 +127,8 @@ namespace Cyan {
                 { 0, 0, renderTarget->width, renderTarget->height},
                 pipelineState,
                 cubeMesh,
-                shader,
-                [this, srcEquirectMap, f](RenderTarget* renderTarget, Shader* shader) {
+                pipeline,
+                [this, srcEquirectMap, f](VertexShader* vs, PixelShader* ps) {
                     // Update view matrix
                     PerspectiveCamera camera(
                         glm::vec3(0.f),
@@ -138,9 +139,9 @@ namespace Cyan {
                         100.f,
                         1.0f
                     );
-                    shader->setTexture("srcImageTexture", srcEquirectMap);
-                    shader->setUniform("projection", camera.projection());
-                    shader->setUniform("view", camera.view());
+                    vs->setUniform("projection", camera.projection());
+                    vs->setUniform("view", camera.view());
+                    ps->setTexture("srcImageTexture", srcEquirectMap);
                 });
         }
     }

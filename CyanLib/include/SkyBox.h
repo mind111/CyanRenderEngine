@@ -18,8 +18,8 @@ namespace Cyan
         */
         void render(RenderTarget* renderTarget, f32 mipLevel = 0.f);
 
-        static Shader* s_cubemapSkyShader;
-        static Shader* s_proceduralSkyShader;
+        static PixelPipeline* s_cubemapSkyPipeline;
+        static PixelPipeline* s_proceduralSkyPipeline;
 
         Texture2DRenderable* m_srcHDRITexture = nullptr;
         TextureCubeRenderable* m_cubemapTexture = nullptr;

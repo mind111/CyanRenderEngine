@@ -71,9 +71,9 @@ namespace Cyan
         // flattened big triangle array used to perform the actual tracing
         SurfaceArray surfaces;
 
-        ShaderStorageBuffer<DynamicSsboData<glm::vec4>> positionSsbo;
-        ShaderStorageBuffer<DynamicSsboData<glm::vec4>> normalSsbo;
-        ShaderStorageBuffer<DynamicSsboData<GPURayTracingMaterial>> materialSsbo;
+        ShaderStorageBuffer<DynamicSsboData<glm::vec4>> positionBuffer;
+        ShaderStorageBuffer<DynamicSsboData<glm::vec4>> normalBuffer;
+        ShaderStorageBuffer<DynamicSsboData<GPURayTracingMaterial>> materialBuffer;
 
         // todo: lights
     };

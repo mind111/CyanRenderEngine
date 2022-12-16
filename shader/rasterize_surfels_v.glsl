@@ -9,6 +9,13 @@ struct Surfel {
 	vec4 radiance;
 };
 
+out gl_PerVertex
+{
+	vec4 gl_Position;
+	float gl_PointSize;
+	float gl_ClipDistance[];
+};
+
 out VSOutput {
 	flat Surfel surfel;
 	flat vec3 viewSpacePosition;

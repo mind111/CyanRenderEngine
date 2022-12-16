@@ -2,7 +2,14 @@
 
 layout (location = 0) in vec3 vertexPos;
 
-out vec3 fragmentObjPos;
+out gl_PerVertex
+{
+	vec4 gl_Position;
+	float gl_PointSize;
+	float gl_ClipDistance[];
+};
+
+out vec3 objectSpacePosition;
 
 layout(std430, binding = 0) buffer GlobalDrawData
 {
@@ -63,7 +70,7 @@ float cubeVertices[] = {
 void main() 
 {
     vec3 vPosition = vec3(cubeVertices[gl_VertexID * 3 + 0], cubeVertices[gl_VertexID * 3 + 1], cubeVertices[gl_VertexID * 3 + 2]);
-    fragmentObjPos = vPosition;
+    objectSpacePosition = vPosition;
     mat4 view = gDrawData.view;
     view[3] = vec4(0.f, 0.f, 0.f, 1.f);
     gl_Position = (gDrawData.projection * view * vec4(vPosition, 1.f)).xyww;

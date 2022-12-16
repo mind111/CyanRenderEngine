@@ -14,6 +14,12 @@ struct PBRMaterial
 	uvec4 flags;
 };
 
+out gl_PerVertex
+{
+	vec4 gl_Position;
+	float gl_PointSize;
+	float gl_ClipDistance[];
+};
 out VertexData
 {
 	vec3 viewSpacePosition;

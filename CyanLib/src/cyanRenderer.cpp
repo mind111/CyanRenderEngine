@@ -137,22 +137,22 @@ namespace Cyan {
     }
 #endif
 
-    void Renderer::drawMesh(RenderTarget* renderTarget, Viewport viewport, GfxPipelineState pipelineState, Mesh* mesh, Shader* shader, const RenderSetupLambda& perMeshSetupLambda) {
-        perMeshSetupLambda(renderTarget, shader);
-
-        for (u32 i = 0; i < mesh->numSubmeshes(); ++i) {
+    void Renderer::drawMesh(RenderTarget* renderTarget, Viewport viewport, GfxPipelineState pipelineState, Mesh* mesh, PixelPipeline* pipeline, const RenderSetupLambda& renderSetupLambda) 
+    {
+        for (u32 i = 0; i < mesh->numSubmeshes(); ++i) 
+        {
             RenderTask task = { };
             task.renderTarget = renderTarget;
             task.viewport = viewport;
             task.pipelineState = pipelineState;
-            task.shader = shader;
+            task.pipeline = pipeline;
             task.submesh = mesh->getSubmesh(i);
-
+            task.renderSetupLambda = std::move(renderSetupLambda);
             submitRenderTask(std::move(task));
         }
     }
 
-    void Renderer::drawFullscreenQuad(RenderTarget* renderTarget, Shader* shader, RenderSetupLambda&& renderSetupLambda) {
+    void Renderer::drawFullscreenQuad(RenderTarget* renderTarget, PixelPipeline* pipeline, RenderSetupLambda&& renderSetupLambda) {
         GfxPipelineState pipelineState;
         pipelineState.depth = DepthControl::kDisable;
 
@@ -161,12 +161,12 @@ namespace Cyan {
             { 0, 0, renderTarget->width, renderTarget->height },
             pipelineState,
             AssetManager::getAsset<Mesh>("FullScreenQuadMesh"),
-            shader,
+            pipeline,
             std::move(renderSetupLambda)
             );
     }
 
-    void Renderer::drawScreenQuad(RenderTarget* renderTarget, Viewport viewport, Shader* shader, RenderSetupLambda&& renderSetupLambda) {
+    void Renderer::drawScreenQuad(RenderTarget* renderTarget, Viewport viewport, PixelPipeline* pipeline, RenderSetupLambda&& renderSetupLambda) {
         GfxPipelineState pipelineState;
         pipelineState.depth = DepthControl::kDisable;
 
@@ -175,7 +175,7 @@ namespace Cyan {
             viewport,
             pipelineState,
             AssetManager::getAsset<Mesh>("FullScreenQuadMesh"),
-            shader,
+            pipeline,
             std::move(renderSetupLambda)
             );
     }
@@ -186,22 +186,21 @@ namespace Cyan {
         m_ctx->setViewport(task.viewport);
 
         // set shader
-        m_ctx->setShader(task.shader);
+        m_ctx->setPixelPipeline(task.pipeline, task.renderSetupLambda);
 
         // set graphics pipeline state
         m_ctx->setDepthControl(task.pipelineState.depth);
         m_ctx->setPrimitiveType(task.pipelineState.primitiveMode);
 
-        // pre-draw setup
-        task.renderSetupLambda(task.renderTarget, task.shader);
-
         // kick off the draw call
         auto va = task.submesh->getVertexArray();
         m_ctx->setVertexArray(va);
-        if (va->hasIndexBuffer()) {
+        if (va->hasIndexBuffer()) 
+        {
             m_ctx->drawIndex(task.submesh->numIndices());
         }
-        else {
+        else 
+        {
             m_ctx->drawIndexAuto(task.submesh->numVertices());
         }
     }
@@ -260,42 +259,43 @@ namespace Cyan {
         endRender();
     }
 
-    void Renderer::visualize(Texture2DRenderable* dst, Texture2DRenderable* src) {
+    void Renderer::visualize(Texture2DRenderable* dst, Texture2DRenderable* src) 
+    {
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(dst->width, dst->height));
         renderTarget->setColorBuffer(dst, 0);
         renderTarget->setDrawBuffers({ 0 });
         renderTarget->clearDrawBuffer(0, glm::vec4(.0f, .0f, .0f, 1.f));
 
-        Shader* shader = ShaderManager::createShader({
-            ShaderSource::Type::kVsPs,
-            "BlitQuadShader",
-            SHADER_SOURCE_PATH "blit_v.glsl",
-            SHADER_SOURCE_PATH "blit_p.glsl"
-            });
-
+        CreateVS(vs, "BlitQuadVS", SHADER_SOURCE_PATH "blit_v.glsl");
+        CreatePS(ps, "BlitQuadPS", SHADER_SOURCE_PATH "blit_p.glsl");
+        CreatePixelPipeline(pipeline, "BlitQuad", vs, ps);
         drawFullscreenQuad(
             renderTarget.get(),
-            shader,
-            [this, src](RenderTarget* renderTarget, Shader* shader) {
-                shader->setTexture("srcTexture", src);
+            pipeline,
+            [this, src](VertexShader* vs, PixelShader* ps) {
+                if (ps)
+                {
+                    ps->setTexture("srcTexture", src);
+                }
             });
     }
 
     void Renderer::renderToScreen(Texture2DRenderable* inTexture) {
-        Shader* fullscreenBlitShader = ShaderManager::createShader({
-            ShaderSource::Type::kVsPs,
-            "BlitQuadShader",
-            SHADER_SOURCE_PATH "blit_v.glsl",
-            SHADER_SOURCE_PATH "blit_p.glsl"
-            });
+        CreateVS(vs, "BlitQuadVS", SHADER_SOURCE_PATH "blit_v.glsl");
+        CreatePS(ps, "BlitQuadPS", SHADER_SOURCE_PATH "blit_p.glsl");
+        CreatePixelPipeline(pipeline, "BlitQuad", vs, ps);
 
         // final blit to default framebuffer
         drawFullscreenQuad(
             RenderTarget::getDefaultRenderTarget(m_windowSize.x, m_windowSize.y),
-            fullscreenBlitShader,
-            [this, inTexture](RenderTarget* renderTarget, Shader* shader) {
-                shader->setTexture("srcTexture", inTexture);
-            });
+            pipeline,
+            [this, inTexture](VertexShader* vs, PixelShader* ps) {
+                if (ps)
+                {
+                    ps->setTexture("srcTexture", inTexture);
+                }
+            }
+        );
     }
 
     void Renderer::endRender() {
@@ -316,20 +316,17 @@ namespace Cyan {
         // todo: point light
     }
 
-    void Renderer::renderSceneDepthOnly(RenderableScene& scene, Texture2DRenderable* outDepthTexture) {
-        Shader* depthOnlyShader = ShaderManager::createShader({ 
-            ShaderSource::Type::kVsPs, 
-            "DepthOnlyShader", 
-            SHADER_SOURCE_PATH "depth_only_v.glsl", 
-            SHADER_SOURCE_PATH "depth_only_p.glsl",
-            });
-
+    void Renderer::renderSceneDepthOnly(RenderableScene& scene, Texture2DRenderable* outDepthTexture) 
+    {
         std::unique_ptr<RenderTarget> depthRenderTarget(createDepthOnlyRenderTarget(outDepthTexture->width, outDepthTexture->height));
         depthRenderTarget->setDepthBuffer(reinterpret_cast<DepthTexture2D*>(outDepthTexture));
         depthRenderTarget->clear({ { 0u } });
         m_ctx->setRenderTarget(depthRenderTarget.get());
         m_ctx->setViewport({ 0, 0, depthRenderTarget->width, depthRenderTarget->height });
-        m_ctx->setShader(depthOnlyShader);
+        CreateVS(vs, "DepthOnlyVS", SHADER_SOURCE_PATH "depth_only_v.glsl");
+        CreatePS(ps, "DepthOnlyPS", SHADER_SOURCE_PATH "depth_only_p.glsl");
+        CreatePixelPipeline(pipeline, "DepthOnly", vs, ps);
+        m_ctx->setPixelPipeline(pipeline);
         m_ctx->setDepthControl(DepthControl::kEnable);
         scene.upload();
         submitSceneMultiDrawIndirect(scene);
@@ -342,16 +339,19 @@ namespace Cyan {
         outRenderTarget->clearDrawBuffer(0, glm::vec4(1.f));
         outRenderTarget->clearDrawBuffer(1, glm::vec4(0.f, 0.f, 0.f, 1.f));
 
-        Shader* sceneDepthNormalShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "SceneDepthNormalShader", SHADER_SOURCE_PATH "scene_depth_normal_v.glsl", SHADER_SOURCE_PATH "scene_depth_normal_p.glsl" });
         m_ctx->setRenderTarget(outRenderTarget);
         m_ctx->setViewport({ 0, 0, outRenderTarget->width, outRenderTarget->height });
-        m_ctx->setShader(sceneDepthNormalShader);
+        CreateVS(vs, "SceneDepthNormalVS", SHADER_SOURCE_PATH "scene_depth_normal_v.glsl");
+        CreatePS(ps, "SceneDepthNormalPS", SHADER_SOURCE_PATH "scene_depth_normal_p.glsl");
+        CreatePixelPipeline(pipeline, "SceneDepthNormal", vs, ps);
+        m_ctx->setPixelPipeline(pipeline);
         m_ctx->setDepthControl(DepthControl::kEnable);
         scene.upload();
         submitSceneMultiDrawIndirect(scene);
     }
 
     Renderer::SSGITextures Renderer::screenSpaceRayTracing(Texture2DRenderable* sceneDepthTexture, Texture2DRenderable* sceneNormalTexture, const glm::uvec2& renderResolution) {
+#if 0
         ITextureRenderable::Spec spec = { };
         spec.type = TEX_2D;
         spec.width = renderResolution.x;
@@ -452,6 +452,8 @@ namespace Cyan {
         });
 
         return { temporalSsaoBuffer[dst], ssbn };
+#endif
+        return { nullptr, nullptr };
     }
 
 #if 0
@@ -521,49 +523,51 @@ namespace Cyan {
     }
 
     void Renderer::renderSceneBatched(RenderableScene& scene, RenderTarget* outRenderTarget, Texture2DRenderable* outSceneColor, const SSGITextures& SSGIOutput) {
-        Shader* scenePassShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "ScenePassShader", SHADER_SOURCE_PATH "scene_pass_v.glsl", SHADER_SOURCE_PATH "scene_pass_p.glsl" });
-        // setup ssao
-        if (SSGIOutput.ao) {
-            auto ssao = SSGIOutput.ao->glHandle;
-            if (glIsTextureHandleResidentARB(ssao) == GL_FALSE)
-            {
-                glMakeTextureHandleResidentARB(ssao);
-            }
-            scenePassShader->setUniform("SSAO", ssao);
-            scenePassShader->setUniform("useSSAO", 1.f);
-        }
-        else {
-            scenePassShader->setUniform("useSSAO", 0.f);
-        }
-        // setup ssbn
-        if (SSGIOutput.bentNormal) {
-            if (m_settings.useBentNormal) {
-                auto ssbn = SSGIOutput.bentNormal->glHandle;
-                scenePassShader->setUniform("useBentNormal", 1.f);
-                if (glIsTextureHandleResidentARB(ssbn) == GL_FALSE)
+        CreateVS(vs, "SceneColorPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
+        CreatePS(ps, "SceneColorPassPS", SHADER_SOURCE_PATH "scene_pass_p.glsl");
+        CreatePixelPipeline(pipeline, "SceneColorPass", vs, ps);
+        m_ctx->setPixelPipeline(pipeline, [this, &scene, &SSGIOutput](VertexShader* vs, PixelShader* ps) {
+            // setup ssao
+            if (SSGIOutput.ao) {
+                auto ssao = SSGIOutput.ao->glHandle;
+                if (glIsTextureHandleResidentARB(ssao) == GL_FALSE)
                 {
-                    glMakeTextureHandleResidentARB(ssbn);
+                    glMakeTextureHandleResidentARB(ssao);
                 }
-                scenePassShader->setUniform("SSBN", ssbn);
+                ps->setUniform("SSAO", ssao);
+                ps->setUniform("useSSAO", 1.f);
             }
             else {
-                scenePassShader->setUniform("useBentNormal", 0.f);
+                ps->setUniform("useSSAO", 0.f);
             }
-        }
-
-        // sky light
-        /* note
-        * seamless cubemap doesn't work with bindless textures that's accessed using a texture handle,
-        * so falling back to normal way of binding textures here.
-        */
-        scenePassShader->setTexture("skyLight.irradiance", scene.skyLight->irradianceProbe->m_convolvedIrradianceTexture);
-        scenePassShader->setTexture("skyLight.reflection", scene.skyLight->reflectionProbe->m_convolvedReflectionTexture);
-        auto BRDFLookupTexture = ReflectionProbe::getBRDFLookupTexture()->glHandle;
-        if (glIsTextureHandleResidentARB(BRDFLookupTexture) == GL_FALSE) {
-            glMakeTextureHandleResidentARB(BRDFLookupTexture);
-        }
-        scenePassShader->setUniform("skyLight.BRDFLookupTexture", BRDFLookupTexture);
-        m_ctx->setShader(scenePassShader);
+            // setup ssbn
+            if (SSGIOutput.bentNormal) {
+                if (m_settings.useBentNormal) {
+                    auto ssbn = SSGIOutput.bentNormal->glHandle;
+                    ps->setUniform("useBentNormal", 1.f);
+                    if (glIsTextureHandleResidentARB(ssbn) == GL_FALSE)
+                    {
+                        glMakeTextureHandleResidentARB(ssbn);
+                    }
+                    ps->setUniform("SSBN", ssbn);
+                }
+                else {
+                    ps->setUniform("useBentNormal", 0.f);
+                }
+            }
+            // sky light
+            /* note
+            * seamless cubemap doesn't work with bindless textures that's accessed using a texture handle,
+            * so falling back to normal way of binding textures here.
+            */
+            ps->setTexture("skyLight.irradiance", scene.skyLight->irradianceProbe->m_convolvedIrradianceTexture);
+            ps->setTexture("skyLight.reflection", scene.skyLight->reflectionProbe->m_convolvedReflectionTexture);
+            auto BRDFLookupTexture = ReflectionProbe::getBRDFLookupTexture()->glHandle;
+            if (glIsTextureHandleResidentARB(BRDFLookupTexture) == GL_FALSE) {
+                glMakeTextureHandleResidentARB(BRDFLookupTexture);
+            }
+            ps->setUniform("skyLight.BRDFLookupTexture", BRDFLookupTexture);
+        });
         outRenderTarget->setColorBuffer(outSceneColor, 0);
         outRenderTarget->setDrawBuffers({ 0 });
         outRenderTarget->clearDrawBuffer(0, glm::vec4(0.f, 0.f, 0.f, 1.f), false);
@@ -598,36 +602,32 @@ namespace Cyan {
     }
     */
 
-    void Renderer::localToneMapping() {
-        // step 0: build 3 fusion candidates using 3 different exposure settings
-        // step 1: build lightness map of each fusion candidate
-        // step 2: build fusion weight map and a according Gaussian pyramid
-        // step 3: build Laplacian pyramid for each fusion candidate
-    }
-
-    void Renderer::composite(Texture2DRenderable* composited,Texture2DRenderable* inSceneColor, Texture2DRenderable* inBloomColor, const glm::uvec2& outputResolution) {
+    void Renderer::composite(Texture2DRenderable* composited,Texture2DRenderable* inSceneColor, Texture2DRenderable* inBloomColor, const glm::uvec2& outputResolution) 
+    {
         // add a reconstruction pass using Gaussian filter
         // todo: this pass is so slow!!!!! disabled at the moment
         // gaussianBlur(inSceneColor, 2u, 1.0f);
-
-        Shader* compositeShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "CompositeShader", SHADER_SOURCE_PATH "composite_v.glsl", SHADER_SOURCE_PATH "composite_p.glsl" });
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(composited->width, composited->height));
         renderTarget->setColorBuffer(composited, 0);
 
+        CreateVS(vs, "CompositeVS", SHADER_SOURCE_PATH "composite_v.glsl");
+        CreatePS(ps, "CompositePS", SHADER_SOURCE_PATH "composite_p.glsl");
+        CreatePixelPipeline(pipeline, "Composite", vs, ps);
+
         drawFullscreenQuad(
             renderTarget.get(),
-            compositeShader,
-            [this, inBloomColor, inSceneColor](RenderTarget* renderTarget, Shader* shader) {
-                shader->setUniform("enableTonemapping", m_settings.enableTonemapping ? 1.f : 0.f);
-                shader->setUniform("tonemapOperator", m_settings.tonemapOperator);
-                shader->setUniform("whitePointLuminance", m_settings.whitePointLuminance);
-                shader->setUniform("smoothstepWhitePoint", m_settings.smoothstepWhitePoint);
+            pipeline,
+            [this, inBloomColor, inSceneColor](VertexShader* vs, PixelShader* ps) {
+                ps->setUniform("enableTonemapping", m_settings.enableTonemapping ? 1.f : 0.f);
+                ps->setUniform("tonemapOperator", m_settings.tonemapOperator);
+                ps->setUniform("whitePointLuminance", m_settings.whitePointLuminance);
+                ps->setUniform("smoothstepWhitePoint", m_settings.smoothstepWhitePoint);
                 if (inBloomColor && m_settings.enableBloom) {
-                    shader->setUniform("enableBloom", 1.f);
+                    ps->setUniform("enableBloom", 1.f);
                 } else {
-                    shader->setUniform("enableBloom", 0.f);
+                    ps->setUniform("enableBloom", 0.f);
                 }
-                shader->setUniform("exposure", m_settings.exposure)
+                ps->setUniform("exposure", m_settings.exposure)
                     .setUniform("colorTempreture", m_settings.colorTempreture)
                     .setUniform("bloomIntensity", m_settings.bloomIntensity)
                     .setTexture("bloomTexture", inBloomColor)
@@ -692,7 +692,9 @@ namespace Cyan {
             f32* weights = nullptr;
         };
 
-        Shader* gaussianBlurShader = ShaderManager::createShader({ ShaderType::kVsPs, "GaussianBlurShader", SHADER_SOURCE_PATH "gaussian_blur_v.glsl", SHADER_SOURCE_PATH "gaussian_blur_p.glsl" });
+        CreateVS(vs, "GaussianBlurVS", "gaussian_blur_v.glsl");
+        CreatePS(ps, "GaussianBlurPS", "gaussian_blur_p.glsl");
+        CreatePixelPipeline(pipeline, "GaussianBlur", vs, ps);
 
         // create scratch buffer for storing intermediate output
         ITextureRenderable::Parameter params = { };
@@ -708,35 +710,34 @@ namespace Cyan {
         // horizontal pass
         drawFullscreenQuad(
             renderTarget.get(),
-            gaussianBlurShader,
-            [inoutTexture, &kernel](RenderTarget* renderTarget, Shader* shader) {
-                shader->setTexture("srcTexture", inoutTexture);
-                shader->setUniform("kernelRadius", kernel.radius);
-                shader->setUniform("pass", 1.f);
+            pipeline,
+            [inoutTexture, &kernel](VertexShader* vs, PixelShader* ps) {
+                ps->setTexture("srcTexture", inoutTexture);
+                ps->setUniform("kernelRadius", kernel.radius);
+                ps->setUniform("pass", 1.f);
                 for (u32 i = 0; i < kMaxkernelRadius; ++i)
                 {
                     char name[32] = { };
                     sprintf_s(name, "weights[%d]", i);
-                    shader->setUniform(name, kernel.weights[i]);
+                    ps->setUniform(name, kernel.weights[i]);
                 }
             }
         );
 
         // vertical pass
         renderTarget->setColorBuffer(inoutTexture, 0);
-        // execute
         drawFullscreenQuad(
             renderTarget.get(),
-            gaussianBlurShader,
-            [scratchBuffer, &kernel](RenderTarget* renderTarget, Shader* shader) {
-                shader->setTexture("srcTexture", scratchBuffer.get());
-                shader->setUniform("kernelRadius", kernel.radius);
-                shader->setUniform("pass", 0.f);
+            pipeline,
+            [scratchBuffer, &kernel](VertexShader* vs, PixelShader* ps) {
+                ps->setTexture("srcTexture", scratchBuffer.get());
+                ps->setUniform("kernelRadius", kernel.radius);
+                ps->setUniform("pass", 0.f);
                 for (u32 i = 0; i < kMaxkernelRadius; ++i)
                 {
                     char name[32] = { };
                     sprintf_s(name, "weights[%d]", i);
-                    shader->setUniform(name, kernel.weights[i]);
+                    ps->setUniform(name, kernel.weights[i]);
                 }
             }
         );
@@ -828,39 +829,43 @@ namespace Cyan {
     }
 
     void Renderer::debugDrawSphere(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection) {
-        Shader* debugDrawShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "DebugDrawShader", SHADER_SOURCE_PATH "debug_draw_v.glsl", SHADER_SOURCE_PATH "debug_draw_p.glsl" });
+        CreateVS(vs, "DebugDrawVS", "debug_draw_v.glsl");
+        CreatePS(ps, "DebugDrawPS", "debug_draw_p.glsl");
+        CreatePixelPipeline(pipeline, "DebugDraw", vs, ps);
         drawMesh(
             renderTarget,
             viewport,
             GfxPipelineState(),
             AssetManager::getAsset<Mesh>("Sphere"),
-            debugDrawShader,
-            [this, position, scale, view, projection](RenderTarget* renderTarget, Shader* shader) {
+            pipeline,
+            [this, position, scale, view, projection](VertexShader* vs, PixelShader* ps) {
                 glm::mat4 mvp(1.f);
                 mvp = glm::translate(mvp, position);
                 mvp = glm::scale(mvp, scale);
                 mvp = projection * view * mvp;
-                shader->setUniform("mvp", mvp);
-                shader->setUniform("color", glm::vec3(1.f, 0.f, 0.f));
+                vs->setUniform("mvp", mvp);
+                ps->setUniform("color", glm::vec3(1.f, 0.f, 0.f));
             }
         );
     }
 
     void Renderer::debugDrawCubeImmediate(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection) {
-        Shader* debugDrawShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "DebugDrawImmediateShader", SHADER_SOURCE_PATH "debug_draw_immediate_v.glsl", SHADER_SOURCE_PATH "debug_draw_immediate_p.glsl" });
+        CreateVS(vs, "DebugDrawImmediateVS", "debug_draw_immediate_v.glsl");
+        CreatePS(ps, "DebugDrawImmediatePS", "debug_draw_immediate_p.glsl");
+        CreatePixelPipeline(pipeline, "GaussianBlur", vs, ps);
         drawMesh(
             renderTarget,
             viewport,
             GfxPipelineState(),
             AssetManager::getAsset<Mesh>("UnitCubeMesh"),
-            debugDrawShader,
-            [this, position, scale, view, projection](RenderTarget* renderTarget, Shader* shader) {
+            pipeline,
+            [this, position, scale, view, projection](VertexShader* vs, PixelShader* ps) {
                 glm::mat4 mvp(1.f);
                 mvp = glm::translate(mvp, position);
                 mvp = glm::scale(mvp, scale);
                 mvp = projection * view * mvp;
-                shader->setUniform("mvp", mvp);
-                shader->setUniform("color", glm::vec3(1.f, 0.f, 0.f));
+                vs->setUniform("mvp", mvp);
+                ps->setUniform("color", glm::vec3(1.f, 0.f, 0.f));
             }
         );
     }
@@ -895,24 +900,22 @@ namespace Cyan {
         renderTarget->setColorBuffer(outTexture, 0);
         renderTarget->clearDrawBuffer(0, glm::vec4(0.2, 0.2, 0.2, 1.f));
         
-        Shader* shader = ShaderManager::createShader({ 
-                ShaderSource::Type::kVsPs, 
-                "DebugDrawCubemapShader", 
-                SHADER_SOURCE_PATH "debug_draw_cubemap_v.glsl", 
-                SHADER_SOURCE_PATH "debug_draw_cubemap_p.glsl" 
-        });
+        CreateVS(vs, "DebugDrawCubemapVS", "debug_draw_cubemap_v.glsl");
+        CreatePS(ps, "DebugDrawCubemapPS", "debug_draw_cubemap_p.glsl");
+        CreatePixelPipeline(pipeline, "DebugDrawCubemap", vs, ps);
+
         glDisable(GL_CULL_FACE);
         drawMesh(
             renderTarget.get(),
             {0, 0, renderTarget->width, renderTarget->height },
             GfxPipelineState(),
             AssetManager::getAsset<Mesh>("UnitCubeMesh"),
-            shader,
-            [cubemap](RenderTarget* renderTarget, Shader* shader) {
-                shader->setUniform("model", glm::mat4(1.f));
-                shader->setUniform("view", camera.view());
-                shader->setUniform("projection", camera.projection());
-                shader->setTexture("cubemap", cubemap);
+            pipeline,
+            [cubemap](VertexShader* vs, PixelShader* ps) {
+                vs->setUniform("model", glm::mat4(1.f));
+                vs->setUniform("view", camera.view());
+                vs->setUniform("projection", camera.projection());
+                ps->setTexture("cubemap", cubemap);
             }
         );
         glEnable(GL_CULL_FACE);
@@ -972,24 +975,22 @@ namespace Cyan {
         renderTarget->setColorBuffer(outTexture, 0);
         renderTarget->clearDrawBuffer(0, glm::vec4(0.2, 0.2, 0.2, 1.f));
         
-        Shader* shader = ShaderManager::createShader({ 
-                ShaderSource::Type::kVsPs, 
-                "DebugDrawCubemapShader", 
-                SHADER_SOURCE_PATH "debug_draw_cubemap_v.glsl", 
-                SHADER_SOURCE_PATH "debug_draw_cubemap_p.glsl" 
-        });
+        CreateVS(vs, "DebugDrawCubemapVS", "debug_draw_cubemap_v.glsl");
+        CreatePS(ps, "DebugDrawCubemapPS", "debug_draw_cubemap_p.glsl");
+        CreatePixelPipeline(pipeline, "DebugDrawCubemap", vs, ps);
+
         glDisable(GL_CULL_FACE);
         drawMesh(
             renderTarget.get(),
             {0, 0, renderTarget->width, renderTarget->height },
             GfxPipelineState(),
             AssetManager::getAsset<Mesh>("UnitCubeMesh"),
-            shader,
-            [cubemap](RenderTarget* renderTarget, Shader* shader) {
-                shader->setUniform("model", glm::mat4(1.f));
-                shader->setUniform("view", camera.view());
-                shader->setUniform("projection", camera.projection());
-                shader->setUniform("cubemap", 128);
+            pipeline,
+            [cubemap](VertexShader* vs, PixelShader* ps) {
+                vs->setUniform("model", glm::mat4(1.f));
+                vs->setUniform("view", camera.view());
+                vs->setUniform("projection", camera.projection());
+                ps->setUniform("cubemap", 128);
                 glBindTextureUnit(128, cubemap);
                 // shader->setTexture("cubemap", cubemap);
             }

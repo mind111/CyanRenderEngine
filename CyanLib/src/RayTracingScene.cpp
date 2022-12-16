@@ -4,6 +4,9 @@
 namespace Cyan
 {
     RayTracingScene::RayTracingScene(const Scene& scene)
+        : positionBuffer("PositionBuffer")
+        , normalBuffer("NormalBuffer")
+        , materialBuffer("MaterialBuffer")
     {
         if (auto perspectiveCamera = dynamic_cast<PerspectiveCamera*>(scene.camera->getCamera()))
         {
@@ -121,8 +124,8 @@ namespace Cyan
                     surfaces.tangents.push_back(tangentWS);
                     surfaces.texCoords.push_back(submesh.texCoords[v]);
 
-                    positionSsbo.addElement(positionWS);
-                    normalSsbo.addElement(normalWS);
+                    positionBuffer.addElement(positionWS);
+                    normalBuffer.addElement(normalWS);
 
                     if (v % 3 == 0)
                     {
@@ -132,14 +135,14 @@ namespace Cyan
                         material.emissive = glm::vec4(materials[meshInst.materials[sm]].emissive, 1.f);
                         material.roughness = glm::vec4(materials[meshInst.materials[sm]].roughness);
                         material.metallic = glm::vec4(materials[meshInst.materials[sm]].metallic);
-                        materialSsbo.addElement(material);
+                        materialBuffer.addElement(material);
                     }
                 }
             }
         }
 
-        positionSsbo.upload();
-        normalSsbo.upload();
-        materialSsbo.upload();
+        positionBuffer.upload();
+        normalBuffer.upload();
+        materialBuffer.upload();
     }
 }

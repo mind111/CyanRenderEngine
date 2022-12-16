@@ -3,6 +3,13 @@
 #extension GL_NV_bindless_texture : require
 #extension GL_ARB_gpu_shader_int64 : enable 
 
+// header block, each shader file should only have one header block
+// = begin headers =
+// #include: lights.glsl
+// #include: lighting.glsl
+// #include: materials.glsl
+// = end headers =
+
 const uint kHasAlbedoMap            = 1 << 0;
 const uint kHasNormalMap            = 1 << 1;
 const uint kHasMetallicRoughnessMap = 1 << 2;
@@ -53,7 +60,7 @@ out vec3 outColor;
 #define SLOPE_BASED_BIAS 0
 #define VIEW_SSBO_BINDING 0
 
-layout(std430, binding = VIEW_SSBO_BINDING) buffer ViewShaderStorageBuffer {
+layout(std430, binding = VIEW_SSBO_BINDING) buffer ViewBuffer {
     mat4  view;
     mat4  projection;
     float m_ssao;

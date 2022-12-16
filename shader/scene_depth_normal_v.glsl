@@ -3,50 +3,47 @@
 #extension GL_ARB_shader_draw_parameters : enable 
 #extension GL_ARB_gpu_shader_int64 : enable 
 
-#define VIEW_BUFFER_BINDING 0
-#define TRANSFORM_BUFFER_BINDING 1
-#define INSTANCE_DESC_BUFFER_BINDING 2
-#define SUBMESH_BUFFER_BINDING 3
-#define VERTEX_BUFFER_BINDING 4
-#define INDEX_BUFFER_BINDING 5
-#define DRAWCALL_BUFFER_BINDING 6
-#define MATERIAL_BUFFER_BINDING 7
-#define DIRECTIONALLIGHT_BUFFER_BINDING 8
-
-layout(std430, binding = VIEW_BUFFER_BINDING) buffer ViewBuffer {
+layout(std430) buffer ViewBuffer 
+{
     mat4  view;
     mat4  projection;
     float m_ssao;
     float dummy;
 } viewSsbo;
 
-layout(std430, binding = TRANSFORM_BUFFER_BINDING) buffer TransformBuffer {
+layout(std430) buffer TransformBuffer 
+{
     mat4 models[];
 } transformSsbo;
 
-struct Vertex {
+struct Vertex 
+{
 	vec4 pos;
 	vec4 normal;
 	vec4 tangent;
 	vec4 texCoord;
 };
 
-layout(std430, binding = VERTEX_BUFFER_BINDING) buffer VertexBuffer {
+layout(std430) buffer VertexBuffer 
+{
 	Vertex vertices[];
 } vertexBuffer;
 
-layout(std430, binding = INDEX_BUFFER_BINDING) buffer IndexBuffer {
+layout(std430) buffer IndexBuffer 
+{
 	uint indices[];
 };
 
-struct InstanceDesc {
+struct InstanceDesc 
+{
 	uint submesh;
 	uint material;
 	uint transform;
 	uint padding;
 };
 
-layout(std430, binding = INSTANCE_DESC_BUFFER_BINDING) buffer InstanceSSBO {
+layout(std430) buffer InstanceBuffer 
+{
 	InstanceDesc instanceDescs[];
 };
 
@@ -57,18 +54,27 @@ struct SubmeshDesc {
 	uint numIndices;
 };
 
-layout(std430, binding = SUBMESH_BUFFER_BINDING) buffer SubmeshSSBO {
+layout(std430) buffer SubmeshBuffer 
+{
 	SubmeshDesc submeshDescs[];
 };
 
-layout(std430, binding = DRAWCALL_BUFFER_BINDING) buffer DrawCallSSBO {
+layout(std430) buffer DrawCallBuffer 
+{
 	uint drawCalls[];
 };
 
+out gl_PerVertex
+{
+	vec4 gl_Position;
+	float gl_PointSize;
+	float gl_ClipDistance[];
+};
 out vec3 worldSpaceNormal;
 out vec3 worldSpaceTangent;
 
-void main() {
+void main() 
+{
 	uint instanceIndex = drawCalls[gl_DrawIDARB] + gl_InstanceID;
 	InstanceDesc instance = instanceDescs[instanceIndex];
 	uint baseVertex = submeshDescs[instance.submesh].baseVertex;

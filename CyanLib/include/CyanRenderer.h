@@ -57,14 +57,14 @@ namespace Cyan
     * Encapsulate a mesh draw call, `renderTarget` should be configured to correct state, such as binding albedo buffers, and clearing
     * albedo buffers while `drawBuffers` for this draw call will be passed in.
     */
-    using RenderSetupLambda = std::function<void(RenderTarget* renderTarget, Shader* shader)>;
+    using RenderSetupLambda = std::function<void(VertexShader* vs, PixelShader* ps)>;
     struct RenderTask {
         RenderTarget* renderTarget = nullptr;
         Viewport viewport = { };
         ISubmesh* submesh = nullptr;
-        Shader* shader = nullptr;
+        PixelPipeline* pipeline = nullptr;
         GfxPipelineState pipelineState;
-        RenderSetupLambda renderSetupLambda = [](RenderTarget* renderTarget, Shader* shader) { };
+        RenderSetupLambda renderSetupLambda = [](VertexShader* vs, PixelShader* ps) {};
     };
 
     class Renderer : public Singleton<Renderer> {
@@ -137,13 +137,13 @@ namespace Cyan
         /**
         * Draw a mesh without material
         */
-        void drawMesh(RenderTarget* renderTarget, Viewport viewport, GfxPipelineState pipelineState, Mesh* mesh, Shader* shader, const RenderSetupLambda& renderSetupLambda);
+        void drawMesh(RenderTarget* renderTarget, Viewport viewport, GfxPipelineState pipelineState, Mesh* mesh, PixelPipeline* pipeline, const RenderSetupLambda& renderSetupLambda);
 
         /**
         * 
         */
-        void drawFullscreenQuad(RenderTarget* renderTarget, Shader* shader, RenderSetupLambda&& renderSetupLambda);
-        void drawScreenQuad(RenderTarget* renderTarget, Viewport viewport, Shader* shader, RenderSetupLambda&& renderSetupLambda);
+        void drawFullscreenQuad(RenderTarget* renderTarget, PixelPipeline* pipeline, RenderSetupLambda&& renderSetupLambda);
+        void drawScreenQuad(RenderTarget* renderTarget, Viewport viewport, PixelPipeline* pipeline, RenderSetupLambda&& renderSetupLambda);
 
         /**
         * Submit a submesh; right now the execution is not deferred
@@ -189,7 +189,7 @@ namespace Cyan
         * https://bartwronski.com/2022/02/28/exposure-fusion-local-tonemapping-for-real-time-rendering/
         * https://mericam.github.io/papers/exposure_fusion_reduced.pdf 
         */
-        void localToneMapping();
+        void localToneMapping() { }
 
         /*
         * Compositing and resolving to final output albedo texture. Applying bloom, tone mapping, and gamma correction.

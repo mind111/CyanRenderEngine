@@ -13,8 +13,7 @@
 
 namespace Cyan
 {    
-    static void checkShaderCompilation(GLuint shader) 
-    {
+    static void checkShaderCompilation(GLuint shader) {
         int compile_result;
         char log[512];
         glGetShaderiv(shader, GL_COMPILE_STATUS, &compile_result);
@@ -24,8 +23,7 @@ namespace Cyan
         }
     }
 
-    static void checkProgramLinkage(GLuint program) 
-    {
+    static void checkProgramLinkage(GLuint program) {
         int link_result;
         char log[512];
         glGetProgramiv(program, GL_LINK_STATUS, &link_result);
@@ -35,8 +33,7 @@ namespace Cyan
         }
     }
 
-    static const char* readShaderFile(const char* filename) 
-    {
+    static const char* readShaderFile(const char* filename) {
         // Open file
         std::fstream shader_file(filename);
         std::string src_str;
@@ -92,34 +89,30 @@ namespace Cyan
         )"
     };
 
-    Shader::Shader(const ShaderSource& shaderSource)
-        : source(shaderSource)
+    ShaderSource::ShaderSource(const char* shaderFilePath) 
     {
-        build();
-        init();
-    }
-
-    void Shader::build()
-    {
-        switch (source.type)
+        // open & load the shader source file into @src
+        std::ifstream shaderFile(shaderFilePath);
+        if (shaderFile.is_open()) 
+        { 
+            std::string line;
+            while (std::getline(shaderFile, line)) 
+            {
+                // todo: detect shader includes block
+                src += line;
+                src += '\n';
+            }
+            shaderFile.close();
+        }
+        else 
         {
-        case ShaderSource::Type::kVsPs:
-            buildVsPs();
-            break;
-        case ShaderSource::Type::kVsGsPs:
-            buildVsGsPs();
-            break;
-        case ShaderSource::Type::kCs:
-            buildCs();
-            break;
-        default:
-            break;
+            cyanError("Failed to open shader file %s", shaderFilePath);
         }
     }
 
-    Shader::UniformMetaData::Type translate(GLenum glType)
+    Shader::UniformDesc::Type translate(GLenum glType)
     {
-        using UniformType = Shader::UniformMetaData::Type;
+        using UniformType = Shader::UniformDesc::Type;
 
         switch (glType) 
         {
@@ -156,185 +149,163 @@ namespace Cyan
         }
     }
 
-    void Shader::init()
+    /** Note - @min:
+    * Since the shader class encapsulate a seperable shader program in opengl, try to be more clear
+    * about this function is querying a gl program's info log not a gl shader's info log
+    */
+    bool Shader::getProgramInfoLog(Shader* shader, ShaderInfoLogType type, std::string& output) 
     {
-        i32 numActiveUniforms, nameMaxLen;
-        glGetProgramiv(program, GL_ACTIVE_UNIFORMS, &numActiveUniforms);
-        glGetProgramiv(program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &nameMaxLen);
-        char* name = (char*)alloca(nameMaxLen + 1);
-        for (u32 i = 0; i < numActiveUniforms; ++i)
+        i32 result = GL_TRUE;
+        switch (type) 
         {
-            GLenum type; i32 num;
-            glGetActiveUniform(program, i, nameMaxLen, nullptr, &num, &type, name);
-            UniformMetaData uniformMetaData = { };
-            if (num > 1)
+        case ShaderInfoLogType::kCompile:
+            // querying a gl program's compile status is considered as an invalid operation
+        case ShaderInfoLogType::kLink:
+            glGetProgramiv(shader->getProgram(), GL_LINK_STATUS, &result);
+            break;
+        default:
+            break;
+        }
+        if (result == GL_FALSE) 
+        {
+            i32 infoLogLength = -1;
+            glGetProgramiv(shader->getProgram(), GL_INFO_LOG_LENGTH, &infoLogLength);
+            if (infoLogLength > 0) 
             {
-                for (u32 ii = 0; ii < num; ++ii)
-                {
-                    char* token = strtok(name, "[");
-                    char suffix[5] = "[%u]";
-                    char* format = strcat(token, suffix);
-                    sprintf(name, format, ii);
+                i32 bufferSize = sizeof(char) * infoLogLength;
+                char* infoLog = static_cast<char*>(alloca(bufferSize));
+                glGetProgramInfoLog(shader->getProgram(), bufferSize, &infoLogLength, infoLog);
+                output.assign(infoLog);
+            }
+            return false;
+        }
+        return true;
+    }
 
-                    uniformMetaData.type = translate(type);
-                    uniformMetaData.name = std::string(name);
-                    uniformMetaData.location = glGetUniformLocation(program, name);
-                    uniformMetaDataMap.insert({ uniformMetaData.name.c_str(), uniformMetaData });
+    void Shader::initialize(Shader* shader) {
+        GLuint program = shader->getProgram();
+        // query list of active uniforms
+        i32 activeNumUniforms = -1;
+        glGetProgramInterfaceiv(program, GL_UNIFORM, GL_ACTIVE_RESOURCES, &activeNumUniforms);
+        if (activeNumUniforms > 0) 
+        {
+            i32 maxNameLength = -1;
+            glGetProgramInterfaceiv(program, GL_UNIFORM, GL_MAX_NAME_LENGTH, &maxNameLength);
+            if (maxNameLength > 0)
+            {
+                char* name = static_cast<char*>(alloca(maxNameLength + 1));
+                for (i32 i = 0; i < activeNumUniforms; ++i) {
+                    GLenum type; i32 count;
+                    glGetActiveUniform(program, i, maxNameLength, nullptr, &count, &type, name);
+                    auto translated = translate(type);
+                    if (count > 1) 
+                    {
+                        for (i32 j = 0; j < count; ++j) 
+                        {
+                            char* nextToken;
+                            char* token = strtok_s(name, "[", &nextToken);
+                            char suffix[5] = "[%u]";
+                            char* format = strcat(token, suffix);
+                            sprintf(name, format, i);
+
+                            UniformDesc desc = { };
+                            desc.type = translated;
+                            desc.name = std::string(name);
+                            desc.location = glGetUniformLocation(program, name);
+                            shader->m_uniformMap.insert({ desc.name, desc });
+                            switch (translated) 
+                            {
+                            case UniformDesc::Type::kSampler2D:
+                                shader->m_samplerBindingMap.insert({ desc.name, nullptr });
+                                break;
+                            default:
+                                break;
+                            }
+                        }
+                    }
+                    else 
+                    {
+                        UniformDesc desc = { };
+                        desc.type = translated;
+                        desc.name = std::string(name);
+                        desc.location = glGetUniformLocation(program, name);
+                        shader->m_uniformMap.insert({ desc.name, desc });
+                    }
                 }
             }
-            else
+        }
+        // query list of active shader storage blocks
+        i32 activeNumShaderStorageBlock = -1;
+        glGetProgramInterfaceiv(program, GL_SHADER_STORAGE_BLOCK, GL_ACTIVE_RESOURCES, &activeNumShaderStorageBlock);
+        if (activeNumShaderStorageBlock > 0) 
+        {
+            i32 maxNameLength = -1;
+            glGetProgramInterfaceiv(program, GL_SHADER_STORAGE_BLOCK, GL_MAX_NAME_LENGTH, &maxNameLength);
+            if (maxNameLength > 0)
             {
-                uniformMetaData.type = translate(type);
-                uniformMetaData.name = std::string(name);
-                uniformMetaData.location = glGetUniformLocation(program, name);
-                uniformMetaDataMap.insert({ uniformMetaData.name.c_str(), uniformMetaData });
+                char* name = static_cast<char*>(alloca(maxNameLength + 1));
+                for (i32 i = 0; i < activeNumShaderStorageBlock; ++i) 
+                {
+                    i32 nameLength = -1;
+                    glGetProgramResourceName(program, GL_SHADER_STORAGE_BLOCK, i, maxNameLength, &nameLength, name);
+                    shader->m_shaderStorageBlockMap.insert({ std::string(name), i });
+                }
             }
         }
     }
 
-    void Shader::buildVsPs()
-    {
-        GLuint vs = glCreateShader(GL_VERTEX_SHADER);
-        GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
-        program = glCreateProgram();
-        // load shader source
-        const char* vertShaderSrc = readShaderFile(source.vsFilePath);
-        const char* fragShaderSrc = readShaderFile(source.psFilePath);
-        glShaderSource(vs, 1, &vertShaderSrc, nullptr);
-        glShaderSource(fs, 1, &fragShaderSrc, nullptr);
-        // compile
-        glCompileShader(vs);
-        glCompileShader(fs);
-        checkShaderCompilation(vs);
-        checkShaderCompilation(fs);
-        // link
-        glAttachShader(program, vs);
-        glAttachShader(program, fs);
-        glLinkProgram(program);
-        checkProgramLinkage(program);
-        glDeleteShader(vs);
-        glDeleteShader(fs);
-    }
-
-    void Shader::buildVsGsPs()
-    {
-        const char* vsSrc = readShaderFile(source.vsFilePath);
-        const char* gsSrc = readShaderFile(source.gsFilePath);
-        const char* fsSrc = readShaderFile(source.psFilePath);
-        GLuint vs = glCreateShader(GL_VERTEX_SHADER);
-        GLuint gs = glCreateShader(GL_GEOMETRY_SHADER);
-        GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
-        program = glCreateProgram();
-        // load shader source
-        glShaderSource(vs, 1, &vsSrc, nullptr);
-        glShaderSource(gs, 1, &gsSrc, nullptr);
-        glShaderSource(fs, 1, &fsSrc, nullptr);
-        // compile 
-        glCompileShader(vs);
-        glCompileShader(gs);
-        glCompileShader(fs);
-        checkShaderCompilation(vs);
-        checkShaderCompilation(gs);
-        checkShaderCompilation(fs);
-        // link
-        glAttachShader(program, vs);
-        glAttachShader(program, gs);
-        glAttachShader(program, fs);
-        glLinkProgram(program);
-        checkProgramLinkage(program);
-        glDeleteShader(vs);
-        glDeleteShader(gs);
-        glDeleteShader(fs);
-    }
-
-    void Shader::buildCs()
-    {
-        const char* csSrc = readShaderFile(source.csFilePath);
-        GLuint cs = glCreateShader(GL_COMPUTE_SHADER);
-        program = glCreateProgram();
-        // load shader source
-        glShaderSource(cs, 1, &csSrc, nullptr);
-        // compile
-        glCompileShader(cs);
-        checkShaderCompilation(cs);
-        // link
-        glAttachShader(program, cs);
-        glLinkProgram(program);
-        checkProgramLinkage(program);
-        glDeleteShader(cs);
-    }
-
-    i32 Shader::getUniformLocation(const char* name)
-    {
-        auto entry = uniformMetaDataMap.find(name);
-        if (entry == uniformMetaDataMap.end())
-        {
+    i32 Shader::getUniformLocation(const char* name) {
+        auto entry = m_uniformMap.find(std::string(name));
+        if (entry == m_uniformMap.end()) {
             return -1;
         }
         return entry->second.location;
     }
 
-#define SET_UNIFORM(func, ...)               \
-    i32 location = getUniformLocation(name); \
-    if (location >= 0)                       \
-    {                                        \
-        func(program, location, __VA_ARGS__);\
-    }                                        \
-    return *this;                            \
+#define SET_UNIFORM(func, ...)                \
+    i32 location = getUniformLocation(name);  \
+    if (location >= 0) {                      \
+        func(glObject, location, __VA_ARGS__);\
+    }                                         \
+    return *this;                             \
 
-    void Shader::bind()
-    {
-        glUseProgram(program);
+    void Shader::bind() {
+        glUseProgram(glObject);
     }
 
-    void Shader::unbind()
-    {
+    void Shader::unbind() {
         glUseProgram(0);
     }
 
-    Shader& Shader::setUniform(const char* name, f32 data)
-    {
+    Shader& Shader::setUniform(const char* name, f32 data) {
         SET_UNIFORM(glProgramUniform1f, data)
     }
 
-    Shader& Shader::setUniform(const char* name, u32 data)
-    {
+    Shader& Shader::setUniform(const char* name, u32 data) {
         SET_UNIFORM(glProgramUniform1ui, data)
     }
 
-    Shader& Shader::setUniform(const char* name, i32 data)
-    {
-        // SET_UNIFORM(glProgramUniform1i, data)
-        i32 location = getUniformLocation(name);
-        if (location >= 0)
-        {
-            glProgramUniform1i(program, location, data);
-        }
-        return *this;
+    Shader& Shader::setUniform(const char* name, i32 data) {
+        SET_UNIFORM(glProgramUniform1i, data)
     }
 
-    Shader& Shader::setUniform(const char* name, const glm::vec2& data)
-    {
+    Shader& Shader::setUniform(const char* name, const glm::vec2& data) {
         SET_UNIFORM(glProgramUniform2f, data.x, data.y)
     }
 
-    Shader& Shader::setUniform(const char* name, const glm::vec3& data)
-    {
+    Shader& Shader::setUniform(const char* name, const glm::vec3& data) {
         SET_UNIFORM(glProgramUniform3f, data.x, data.y, data.z)
     }
     
-    Shader& Shader::setUniform(const char* name, const glm::vec4& data)
-    {
+    Shader& Shader::setUniform(const char* name, const glm::vec4& data) {
         SET_UNIFORM(glProgramUniform4f, data.x, data.y, data.z, data.w)
     }
 
-    Shader& Shader::setUniform(const char* name, const glm::mat4& data)
-    {
+    Shader& Shader::setUniform(const char* name, const glm::mat4& data) {
         SET_UNIFORM(glProgramUniformMatrix4fv, 1, false, &data[0][0])
     }
 
-    Shader& Shader::setUniform(const char* name, const u64& data)
-    {
+    Shader& Shader::setUniform(const char* name, const u64& data) {
         SET_UNIFORM(glProgramUniformHandleui64ARB, data);
     }
 
@@ -342,95 +313,123 @@ namespace Cyan
         SET_UNIFORM(glProgramUniform2i, data.x, data.y);
     }
 
-    Shader& Shader::setTexture(const char* samplerName, ITextureRenderable* texture)
-    {
+    Shader& Shader::setTexture(const char* samplerName, ITextureRenderable* texture) {
         if (texture) {
-            const auto& entry = samplerBindingMap.find(samplerName);
-            if (entry == samplerBindingMap.end()) {
-                samplerBindingMap.insert({ samplerName, texture });
-            } else {
-                entry->second = texture;
-            }
-            if (samplerBindingMap.size() >= kMaxNumTextureBindings - 1) {
-                cyanError("Too many textures bound!");
-            }
-            setUniform(samplerName, nextTextureBinding);
-            glBindTextureUnit(nextTextureBinding, texture->getGpuResource());
-            nextTextureBinding = (nextTextureBinding + 1) % kMaxNumTextureBindings;
+            m_samplerBindingMap[std::string(samplerName)] = texture;
         }
         return *this;
     }
 
-    ShaderManager* Singleton<ShaderManager>::singleton = nullptr;
-
-    ShaderManager::ShaderSourceMap ShaderManager::m_shaderSourceMap = {
-        { "PBRShader",                { ShaderSource::Type::kVsPs, "PBRShader", SHADER_SOURCE_PATH "pbs_v.glsl", SHADER_SOURCE_PATH "pbs_p.glsl" } },
-        { "ScenePassShader",          { ShaderSource::Type::kVsPs, "ScenePassShader", SHADER_SOURCE_PATH "scene_pass_v.glsl", SHADER_SOURCE_PATH "scene_pass_p.glsl" } },
-        { "ScreenSpaceRayTracingShader", { ShaderSource::Type::kVsPs, "ScreenSpaceRayTracingShader", SHADER_SOURCE_PATH "screenspace_raytracing_v.glsl", SHADER_SOURCE_PATH "screenspace_raytracing_p.glsl"} },
-        { "LineShader",               { ShaderSource::Type::kVsPs, "LineShader", SHADER_SOURCE_PATH "shader_line.vs", SHADER_SOURCE_PATH "shader_line.fs" } },
-        { "RayTracingShader",         { ShaderSource::Type::kVsPs, "RayTracingShader", SHADER_SOURCE_PATH "raytracing_v.glsl", SHADER_SOURCE_PATH "raytracing_p.glsl" } },
-        { "SSAOShader",               { ShaderSource::Type::kVsPs, "SSAOShader", SHADER_SOURCE_PATH "shader_ao.vs", SHADER_SOURCE_PATH "shader_ao.fs" } },
-        { "ConstantColorShader",      { ShaderSource::Type::kVsPs, "ConstantColorShader", SHADER_SOURCE_PATH "shader_flat_color.vs", SHADER_SOURCE_PATH "shader_flat_color.fs" } },
-        { "BloomSetupShader",         { ShaderSource::Type::kVsPs, "BloomSetupShader", SHADER_SOURCE_PATH "bloom_setup_v.glsl", SHADER_SOURCE_PATH "bloom_setup_p.glsl" } },
-        { "BloomDownSampleShader",    { ShaderSource::Type::kVsPs, "BloomDownsampleShader", SHADER_SOURCE_PATH "bloom_downsample_v.glsl", SHADER_SOURCE_PATH "bloom_downsample_p.glsl" } },
-        { "UpSampleShader",           { ShaderSource::Type::kVsPs, "BloomUpscaleShader", SHADER_SOURCE_PATH "bloom_upscale_v.glsl", SHADER_SOURCE_PATH "bloom_upscale_p.glsl" } },
-        { "GaussianBlurShader",       { ShaderSource::Type::kVsPs, "GaussianBlurShader", SHADER_SOURCE_PATH "gaussian_blur_v.glsl", SHADER_SOURCE_PATH "gaussian_blur_p.glsl" } },
-        { "CompositeShader",          { ShaderSource::Type::kVsPs, "CompositeShader", SHADER_SOURCE_PATH "composite_v.glsl", SHADER_SOURCE_PATH "composite_p.glsl"} },
-        { "VctxShader",               { ShaderSource::Type::kVsPs, "VctxShader", SHADER_SOURCE_PATH "vctx_v.glsl", SHADER_SOURCE_PATH "vctx_p.glsl" } },
-        { "SceneDepthNormalShader",   { ShaderSource::Type::kVsPs, "SceneDepthNormalShader", SHADER_SOURCE_PATH "scene_depth_normal_v.glsl", SHADER_SOURCE_PATH "scene_depth_normal_p.glsl" } },
-        { "DepthOnlyShader",          { ShaderSource::Type::kVsPs, "DepthOnlyShader", SHADER_SOURCE_PATH "depth_only_v.glsl", SHADER_SOURCE_PATH "depth_only_p.glsl" } },
-        { "SSAOShader",               { ShaderSource::Type::kVsPs, "SSAOShader", SHADER_SOURCE_PATH "shader_ao.vs", SHADER_SOURCE_PATH "shader_ao.fs" } },
-        { "SceneDepthNormalShader",   { ShaderSource::Type::kVsPs, "SceneDepthNormalShader" SHADER_SOURCE_PATH "scene_depth_normal_v.glsl", SHADER_SOURCE_PATH "scene_depth_normal_p.glsl" } },
-        { "DebugShadingShader",       { ShaderSource::Type::kVsPs, "DebugShadingShader", SHADER_SOURCE_PATH "debug_color_vs.glsl", SHADER_SOURCE_PATH "debug_color_fs.glsl" } },
-        { "SDFSkyShader",             { ShaderSource::Type::kVsPs, "SDFSkyShader", SHADER_SOURCE_PATH "sky_sdf_v.glsl", SHADER_SOURCE_PATH "sky_sdf_p.glsl" } },
-        { "SkyDomeShader",            { ShaderSource::Type::kVsPs, "SkyDomeShader", SHADER_SOURCE_PATH "skybox_v.glsl", SHADER_SOURCE_PATH "skybox_p.glsl" } },
-        { "RenderToCubemapShader",    { ShaderSource::Type::kVsPs, "RenderToCubemapShader", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl" } },
-        { "ConvolveReflectionShader", { ShaderSource::Type::kVsPs, "ConvolveReflectionShader", SHADER_SOURCE_PATH "convolve_specular_v.glsl", SHADER_SOURCE_PATH "convolve_specular_p.glsl" } },
-        { "ConvolveIrradianceShader", { ShaderSource::Type::kVsPs, "ConvolveIrradianceShader", SHADER_SOURCE_PATH "convolve_diffuse_v.glsl", SHADER_SOURCE_PATH "convolve_diffuse_p.glsl" } },
-        { "ConvolveReflectionShader", { ShaderSource::Type::kVsPs, "ConvolveReflectionShader", SHADER_SOURCE_PATH "convolve_specular_v.glsl", SHADER_SOURCE_PATH "convolve_specular_p.glsl" } },
-        { "PointLightShader",         { ShaderSource::Type::kVsPs, "PointLightShader", SHADER_SOURCE_PATH "shader_light.vs", SHADER_SOURCE_PATH "shader_light.fs" } },
-        { "IntegrateBRDFShader",      { ShaderSource::Type::kVsPs, "IntegrateBRDFShader", SHADER_SOURCE_PATH "integrate_BRDF_v.glsl", SHADER_SOURCE_PATH  "integrate_BRDF_p.glsl" } },
-        { "RenderProbeShader",        { ShaderSource::Type::kVsPs, "RenderProbeShader", SHADER_SOURCE_PATH "shader_render_probe.vs", SHADER_SOURCE_PATH  "shader_render_probe.fs"} },
-        { "IntegrateBRDFShader",      { ShaderSource::Type::kVsPs, "IntegrateBRDFShader", SHADER_SOURCE_PATH "shader_integrate_brdf.vs", SHADER_SOURCE_PATH  "shader_integrate_brdf.fs" } },
-        { "RenderProbeShader",        { ShaderSource::Type::kVsPs, "RenderProbeShader", SHADER_SOURCE_PATH "shader_render_probe.vs", SHADER_SOURCE_PATH  "shader_render_probe.fs" } },
-        { "LightMapShader",           { ShaderSource::Type::kVsPs, "LightMapShader", SHADER_SOURCE_PATH "shader_lightmap.vs", SHADER_SOURCE_PATH  "shader_lightmap.fs" } },
-        { "VoxelizeResolveShader",    { ShaderSource::Type::kCs,   "VoxelizeResolveShader", nullptr, nullptr, nullptr, SHADER_SOURCE_PATH "voxelize_resolve_c.glsl" } },
-        { "DebugShadingShader",       { ShaderSource::Type::kVsPs, "DebugShadingShader", SHADER_SOURCE_PATH "debug_color_vs.glsl", SHADER_SOURCE_PATH "debug_color_fs.glsl" } },
-        { "BlitQuadShader",           { ShaderSource::Type::kVsPs, "BlitQuadShader", SHADER_SOURCE_PATH "blit_v.glsl", SHADER_SOURCE_PATH "blit_p.glsl" } }
-    };
-
-    ShaderManager::ShaderMap ShaderManager::m_shaderMap;
-
-    void ShaderManager::initialize()
-    {
-        for (const auto& entry : m_shaderSourceMap)
-        {
-            createShader(entry.second);
-        }
+    PixelPipeline::PixelPipeline(const char* pipelineName, const char* vsName, const char* psName) 
+        : PipelineStateObject(pipelineName) {
+        m_vertexShader = dynamic_cast<VertexShader*>(ShaderManager::getShader(vsName));
+        m_pixelShader = dynamic_cast<PixelShader*>(ShaderManager::getShader(psName));
+        initialize();
     }
 
-    Shader* ShaderManager::getShader(const char* shaderName)
-    {
-        auto entry = m_shaderMap.find(std::string(shaderName));
-        if (entry == m_shaderMap.end())
-        {
+    PixelPipeline::PixelPipeline(const char* pipelineName, VertexShader* vertexShader, PixelShader* pixelShader) 
+        : PipelineStateObject(pipelineName), m_vertexShader(vertexShader), m_pixelShader(pixelShader) {
+        initialize();
+    }
+
+    bool PixelPipeline::initialize() {
+        bool bSuccess = false;
+        if (m_vertexShader) {
+            glUseProgramStages(glObject, GL_VERTEX_SHADER_BIT, m_vertexShader->getProgram());
+        }
+        else {
+            bSuccess = false;
+        }
+        if (m_pixelShader) {
+            glUseProgramStages(glObject, GL_FRAGMENT_SHADER_BIT, m_pixelShader->getProgram());
+        }
+        else {
+            bSuccess = false;
+        }
+        return bSuccess;
+    }
+
+    GeometryPipeline::GeometryPipeline(const char* pipelineName, const char* vsName, const char* gsName, const char* psName) 
+        : PipelineStateObject(pipelineName) {
+        m_vertexShader = dynamic_cast<VertexShader*>(ShaderManager::getShader(vsName));
+        m_geometryShader = dynamic_cast<GeometryShader*>(ShaderManager::getShader(gsName));
+        m_pixelShader = dynamic_cast<PixelShader*>(ShaderManager::getShader(psName));
+        initialize();
+    }
+
+    GeometryPipeline::GeometryPipeline(const char* pipelineName, VertexShader* vertexShader, GeometryShader* geometryShader, PixelShader* pixelShader) 
+        : PipelineStateObject(pipelineName), m_vertexShader(vertexShader), m_geometryShader(geometryShader), m_pixelShader(pixelShader) {
+        initialize();
+    }
+
+    bool GeometryPipeline::initialize() {
+        glUseProgramStages(glObject, GL_VERTEX_SHADER_BIT, m_vertexShader->getProgram());
+        glUseProgramStages(glObject, GL_GEOMETRY_SHADER, m_geometryShader->getProgram());
+        glUseProgramStages(glObject, GL_FRAGMENT_SHADER_BIT, m_pixelShader->getProgram());
+        return true;
+    }
+
+    ComputePipeline::ComputePipeline(const char* pipelineName, const char* csName) 
+        : PipelineStateObject(pipelineName) {
+    }
+
+    ComputePipeline::ComputePipeline(const char* pipelineName, ComputeShader* computeShader) 
+        : PipelineStateObject(pipelineName), m_computeShader(computeShader) {
+    }
+
+    bool ComputePipeline::initialize() {
+        glUseProgramStages(glObject, GL_COMPUTE_SHADER, m_computeShader->getProgram());
+        return true;
+    }
+
+    ShaderManager::ShaderManager() {
+
+    }
+
+    ShaderManager* Singleton<ShaderManager>::singleton = nullptr;
+    void ShaderManager::initialize() {
+
+    }
+
+    Shader* ShaderManager::getShader(const char* shaderName) {
+        auto entry = singleton->m_shaderMap.find(std::string(shaderName));
+        if (entry == singleton->m_shaderMap.end()) {
             return nullptr;
         }
         return entry->second.get();
     }
 
-    Shader* ShaderManager::createShader(const ShaderSource& shaderSource)
-    {
-        Shader* shader = getShader(shaderSource.name);
-        if (shader)
-        {
-            return shader;
+    PixelPipeline* ShaderManager::createPixelPipeline(const char* pipelineName, VertexShader* vertexShader, PixelShader* pixelShader) {
+        if (pipelineName) {
+            auto entry = singleton->m_pipelineMap.find(std::string(pipelineName));
+            if (entry == singleton->m_pipelineMap.end()) {
+                PixelPipeline* pipeline = new PixelPipeline(pipelineName, vertexShader, pixelShader);
+                singleton->m_pipelineMap.insert({ std::string(pipelineName), std::unique_ptr<PipelineStateObject>(pipeline) });
+                return pipeline;
+            }
+            else {
+                if (PixelPipeline* foundPipeline = dynamic_cast<PixelPipeline*>(entry->second.get())) {
+                    return foundPipeline;
+                }
+            }
         }
+        return nullptr;
+    }
 
-        // create a new shader
-        m_shaderSourceMap.insert({ shaderSource.name, shaderSource });
-        m_shaderMap.insert({ shaderSource.name, std::make_unique<Shader>(shaderSource) });
-
-        return getShader(shaderSource.name);
+    ComputePipeline* ShaderManager::createComputePipeline(const char* pipelineName, ComputeShader* computeShader) {
+        if (pipelineName) {
+            auto entry = singleton->m_pipelineMap.find(std::string(pipelineName));
+            if (entry == singleton->m_pipelineMap.end()) {
+                ComputePipeline* pipeline = new ComputePipeline(pipelineName, computeShader);
+                singleton->m_pipelineMap.insert({ std::string(pipelineName), std::unique_ptr<PipelineStateObject>(pipeline) });
+                return pipeline;
+            }
+            else {
+                if (ComputePipeline* foundPipeline = dynamic_cast<ComputePipeline*>(entry->second.get())) {
+                    return foundPipeline;
+                }
+            }
+        }
+        return nullptr;
     }
 }

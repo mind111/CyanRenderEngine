@@ -31,28 +31,8 @@ namespace Cyan
 
     static u32 m_numSceneNodes = 0u;
 
-    void init()
-    {
+    void init() {
 
-    }
-
-#if 0
-    GfxContext* getCurrentGfxCtx()
-    {
-        CYAN_ASSERT(s_gfxc, "Graphics context was not initialized!");
-        return s_gfxc;
-    }
-#endif
-
-    RegularBuffer* createRegularBuffer(u32 totalSizeInBytes)
-    {
-        RegularBuffer* buffer = new RegularBuffer;
-        buffer->m_totalSize = totalSizeInBytes;
-        buffer->m_sizeToUpload = 0u;
-        buffer->m_data = nullptr;
-        glCreateBuffers(1, &buffer->m_ssbo);
-        glNamedBufferData(buffer->m_ssbo, buffer->m_totalSize, nullptr, GL_DYNAMIC_DRAW);
-        return buffer;
     }
 
     VertexBuffer* createVertexBuffer(void* data, u32 sizeInBytes, VertexSpec&& vertexSpec)
@@ -61,8 +41,7 @@ namespace Cyan
         return vb;
     }
 
-    RenderTarget* createRenderTarget(u32 width, u32 height)
-    {
+    RenderTarget* createRenderTarget(u32 width, u32 height) {
         RenderTarget* rt = new RenderTarget();
         rt->width = width;
         rt->height = height;
@@ -90,12 +69,6 @@ namespace Cyan
         rt->height = height;
         glCreateFramebuffers(1, &rt->fbo);
         return rt;
-    }
-
-    void setBuffer(RegularBuffer* _buffer, void* _data, u32 sizeToUpload)
-    {
-        _buffer->m_data = _data;
-        _buffer->m_sizeToUpload = sizeToUpload;
     }
 
     namespace Toolkit

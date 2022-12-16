@@ -14,6 +14,12 @@ layout(std430, binding = TRANSFORM_SSBO_BINDING) buffer TransformShaderStorageBu
     mat4 models[];
 } transformSsbo;
 
+out gl_PerVertex
+{
+	vec4 gl_Position;
+	float gl_PointSize;
+	float gl_ClipDistance[];
+};
 out vec3 worldSpacePosition;
 
 uniform int transformIndex; 

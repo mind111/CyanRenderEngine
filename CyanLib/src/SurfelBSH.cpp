@@ -7,7 +7,10 @@
 #include "RenderTarget.h"
 
 namespace Cyan {
-    SurfelBSH::SurfelBSH() {
+    SurfelBSH::SurfelBSH() 
+        : gpuNodes("SurfelBSHNodeBuffer")
+        , nodeInstanceBuffer("InstanceBuffer")
+    {
         if (!visualization) {
             ITextureRenderable::Spec spec = { };
             spec.type = TEX_2D;
@@ -338,22 +341,20 @@ namespace Cyan {
 #endif
         nodeInstanceBuffer.upload();
         nodeInstanceBuffer.bind(72);
-
         dstRenderTarget->setColorBuffer(visualization, 0);
         dstRenderTarget->setDrawBuffers({ 0 });
         dstRenderTarget->clearDrawBuffer(0, glm::vec4(0.1f, 0.1f, 0.1f, 1.f));
+        CreateVS(vs, "VisualizeSurfelTreeShader", SHADER_SOURCE_PATH "visualize_surfel_tree_v.glsl");
+        CreatePS(ps, "VisualizeSurfelTreeShader", SHADER_SOURCE_PATH "visualize_surfel_tree_p.glsl");
+        CreatePixelPipeline(pipeline, "VisualizeSurfelTree", vs, ps);
         // visualize bounding spheres
         if (bVisualizeBoundingSpheres)
         {
             Mesh* boundingSphere = AssetManager::getAsset<Mesh>("BoundingSphere");
             auto va = boundingSphere->getSubmesh(0)->getVertexArray();
-            auto shader = ShaderManager::createShader({ 
-                ShaderSource::Type::kVsPs, "VisualizeSurfelTreeShader", 
-                SHADER_SOURCE_PATH "visualize_surfel_tree_v.glsl", 
-                SHADER_SOURCE_PATH "visualize_surfel_tree_p.glsl"
+            gfxc->setPixelPipeline(pipeline, [](VertexShader* vs, PixelShader* ps) {
+                ps->setUniform("visMode", (u32)VisMode::kBoundingSphere);
             });
-            gfxc->setShader(shader);
-            shader->setUniform("visMode", (u32)VisMode::kBoundingSphere);
             gfxc->setRenderTarget(dstRenderTarget);
             gfxc->setViewport({ 0, 0, dstRenderTarget->width, dstRenderTarget->height });
             gfxc->setVertexArray(va);
@@ -369,13 +370,9 @@ namespace Cyan {
         {
             Mesh* disc = AssetManager::getAsset<Mesh>("Disk");
             auto va = disc->getSubmesh(0)->getVertexArray();
-            auto shader = ShaderManager::createShader({ 
-                ShaderSource::Type::kVsPs, "VisualizeSurfelTreeShader", 
-                SHADER_SOURCE_PATH "visualize_surfel_tree_v.glsl", 
-                SHADER_SOURCE_PATH "visualize_surfel_tree_p.glsl"
+            gfxc->setPixelPipeline(pipeline, [](VertexShader* vs, PixelShader* ps) {
+                ps->setUniform("visMode", (u32)VisMode::kAlbedo);
             });
-            gfxc->setShader(shader);
-            shader->setUniform("visMode", (u32)VisMode::kAlbedo);
             gfxc->setRenderTarget(dstRenderTarget);
             gfxc->setViewport({ 0, 0, dstRenderTarget->width, dstRenderTarget->height });
             gfxc->setVertexArray(va);

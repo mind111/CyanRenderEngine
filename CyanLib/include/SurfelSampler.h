@@ -8,6 +8,9 @@ namespace Cyan {
     struct RenderTarget;
 
     struct SurfelSampler {
+        SurfelSampler();
+        ~SurfelSampler() { }
+
         void sampleRandomSurfels() { }
         void sampleFixedSizeSurfels(std::vector<Surfel>& outSurfels, const RenderableScene& inScene);
         void sampleFixedNumberSurfels(std::vector<Surfel>& outSurfels, const RenderableScene& inScene);

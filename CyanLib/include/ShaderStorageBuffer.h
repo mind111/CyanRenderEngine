@@ -123,30 +123,22 @@ namespace Cyan
     };
 
     template <typename SsboData>
-    struct ShaderStorageBuffer : public GpuResource {
-        ShaderStorageBuffer(const char* bufferBlockName) 
-            : name(bufferBlockName) {
-            sizeInBytes = data.getSizeInBytes();
-
-            glCreateBuffers(1, &glResource);
-            glNamedBufferData(glResource, sizeInBytes, nullptr, GL_DYNAMIC_DRAW);
-        }
-
+    struct ShaderStorageBuffer : public GpuObject {
         ShaderStorageBuffer(const char* bufferBlockName, u32 numElements = 0)
             : name(bufferBlockName), data(numElements) {
             sizeInBytes = data.getSizeInBytes();
 
-            glCreateBuffers(1, &glResource);
-            glNamedBufferData(glResource, sizeInBytes, nullptr, GL_DYNAMIC_DRAW);
+            glCreateBuffers(1, &glObject);
+            glNamedBufferData(glObject, sizeInBytes, nullptr, GL_DYNAMIC_DRAW);
         }
 
         ~ShaderStorageBuffer() {
-            glDeleteBuffers(1, &glResource);
+            glDeleteBuffers(1, &glObject);
         }
 
         void bind(u32 inBufferBindingUnit) {
             bufferBindingUnit = (i32)inBufferBindingUnit;
-            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)bufferBindingUnit, glResource);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)bufferBindingUnit, glObject);
         }
 
         void unbind() {
@@ -160,21 +152,21 @@ namespace Cyan
             {
                 sizeInBytes = data.getSizeInBytes();
                 // remove old gpu resources
-                glDeleteBuffers(1, &glResource);
+                glDeleteBuffers(1, &glObject);
 
                 // create new gpu resources
-                glCreateBuffers(1, &glResource);
-                glNamedBufferData(glResource, sizeInBytes, nullptr, GL_DYNAMIC_DRAW);
+                glCreateBuffers(1, &glObject);
+                glNamedBufferData(glObject, sizeInBytes, nullptr, GL_DYNAMIC_DRAW);
             }
 
             if (data.getStaticDataSizeInBytes() > 0)
             {
                 // upload static members
-                glNamedBufferSubData(getGpuResource(), 0, data.getStaticDataSizeInBytes(), data.getStaticData());
+                glNamedBufferSubData(getGpuObject(), 0, data.getStaticDataSizeInBytes(), data.getStaticData());
             }
             if (data.getDynamicDataSizeInBytes() > 0) {
                 // upload dynamic members
-                glNamedBufferSubData(getGpuResource(), data.getStaticDataSizeInBytes(), data.getDynamicDataSizeInBytes(), data.getDynamicData());
+                glNamedBufferSubData(getGpuObject(), data.getStaticDataSizeInBytes(), data.getDynamicDataSizeInBytes(), data.getDynamicData());
             }
         }
 
@@ -194,7 +186,7 @@ namespace Cyan
         * return a deep copy `this` which possesses same buffer content as `this` but uses
         */
         ShaderStorageBuffer<SsboData>* clone() {
-            auto cloned = new ShaderStorageBuffer<SsboData>(data.getNumElements());
+            auto cloned = new ShaderStorageBuffer<SsboData>(this->name.c_str(), data.getNumElements());
             if (void* staticData = data.getStaticData()) {
                 memcpy(cloned->data.getStaticData(), staticData, data.getStaticDataSizeInBytes());
             }

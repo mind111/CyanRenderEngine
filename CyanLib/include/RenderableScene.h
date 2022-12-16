@@ -19,9 +19,8 @@ namespace Cyan
     struct SkyLight;
     struct PointLight;
 
-    struct PackedGeometry
+    struct PackedGeometry 
     {
-        PackedGeometry() {}
         PackedGeometry(const Scene& scene);
 
         std::vector<Mesh*> meshes;
@@ -57,15 +56,18 @@ namespace Cyan
     /**
     * A Scene representation that only contains renderable data.
     */
-    struct RenderableScene {
-        struct View {
+    struct RenderableScene 
+    {
+        struct View 
+        {
             glm::mat4 view;
             glm::mat4 projection;
             f32 ssao;
             glm::vec3 dummy;
         };
 
-        struct InstanceDesc {
+        struct InstanceDesc 
+        {
             u32 submesh = 0;
             u32 material = 0;
             u32 transform = 0;

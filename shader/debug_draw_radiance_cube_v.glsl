@@ -6,6 +6,12 @@ layout (location = 2) in vec4 vertexTangent;
 layout (location = 3) in vec2 textureUv_0;
 layout (location = 4) in vec2 textureUv_1;
 
+out gl_PerVertex
+{
+	vec4 gl_Position;
+	float gl_PointSize;
+	float gl_ClipDistance[];
+};
 out VSOutput
 {
     vec4 color;
@@ -21,7 +27,7 @@ layout(std430, binding = 53) buffer TransformSSBO {
     DebugInstanceData instances[];
 };
 
-layout(std430, binding = 0) buffer ViewShaderStorageBuffer
+layout(std430, binding = 0) buffer ViewBuffer
 {
     mat4  view;
     mat4  projection;

@@ -6,7 +6,7 @@ in VSOutput
 } psIn;
 
 out vec4 outColor;
-layout (location = 0) out vec4 linearColor;
+
 uniform samplerCube cubemapTexture;
 uniform float mipLevel;
 

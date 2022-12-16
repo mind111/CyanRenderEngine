@@ -2,7 +2,7 @@
 
 #define pi 3.14159265359
 
-in vec3 fragmentObjPos;
+in vec3 objectSpacePosition;
 
 out vec4 fragColor;
 
@@ -27,7 +27,7 @@ vec2 sampleEquirectangularMap(vec3 d)
 
 void main()
 {
-    vec3 d = normalize(fragmentObjPos);
+    vec3 d = normalize(objectSpacePosition);
     vec2 uv = sampleEquirectangularMap(d);
     vec3 hdrColor = texture(srcImageTexture, uv).rgb;
     fragColor = vec4(hdrColor, 1.0f);

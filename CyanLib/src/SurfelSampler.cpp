@@ -60,6 +60,13 @@ namespace Cyan {
         return totalArea;
     }
 
+    SurfelSampler::SurfelSampler() 
+        : surfelSamples("SurfelBuffer")
+        , instanceBuffer("InstanceBuffer")
+    {
+
+    }
+
     void SurfelSampler::sampleFixedNumberSurfels(std::vector<Surfel>& outSurfels, const RenderableScene& inScene) {
         // reset state
         surfelSamples.data.array.clear();
@@ -344,13 +351,12 @@ namespace Cyan {
         // visualize sample points
         {
             surfelSamples.bind(80);
-            auto shader = ShaderManager::createShader({ 
-                ShaderSource::Type::kVsPs,
-                "DebugDrawSamplePointsShader",
-                SHADER_SOURCE_PATH "debug_draw_sample_points_v.glsl",
-                SHADER_SOURCE_PATH "debug_draw_sample_points_p.glsl"
-                });
-            gfxc->setShader(shader);
+            CreateVS(vs, "DebugDrawSamplePointVS", SHADER_SOURCE_PATH "debug_draw_sample_points_v.glsl");
+            CreatePS(ps, "DebugDrawSamplePointPS", SHADER_SOURCE_PATH "debug_draw_sample_points_p.glsl");
+            CreatePixelPipeline(pipeline, "DebugDrawSamplePoint", vs, ps);
+            gfxc->setPixelPipeline(pipeline, [](VertexShader* vs, PixelShader* ps) {
+
+            });
             auto sphere = AssetManager::getAsset<Mesh>("Sphere");
             auto sm = sphere->getSubmesh(0);
             auto va = sm->getVertexArray();
@@ -366,13 +372,10 @@ namespace Cyan {
         // visualize grid
         {
             instanceBuffer.bind(81);
-            auto shader = ShaderManager::createShader({ 
-                ShaderSource::Type::kVsPs,
-                "DebugDrawSurfelGridShader",
-                SHADER_SOURCE_PATH "debug_draw_grid_v.glsl",
-                SHADER_SOURCE_PATH "debug_draw_grid_p.glsl"
-                });
-            gfxc->setShader(shader);
+            CreateVS(vs, "DebugDrawSurfelGridVS", SHADER_SOURCE_PATH "debug_draw_grid_v.glsl");
+            CreatePS(ps, "DebugDrawSurfelGridPS", SHADER_SOURCE_PATH "debug_draw_grid_p.glsl");
+            CreatePixelPipeline(pipeline, "DebugDrawSurfelGrid", vs, ps);
+            gfxc->setPixelPipeline(pipeline);
             auto quad = AssetManager::getAsset<Mesh>("Quad");
             auto sm = quad->getSubmesh(0);
             auto va = sm->getVertexArray();

@@ -31,7 +31,7 @@
 
 namespace Cyan
 {
-    struct ITextureRenderable : public Asset, public GpuResource
+    struct ITextureRenderable : public Asset, public GpuObject
     {
         virtual std::string getAssetObjectTypeDesc() override
         {
@@ -110,7 +110,7 @@ namespace Cyan
         virtual Spec getTextureSpec() = 0;
 
         ITextureRenderable(const char* inName, const Spec& inSpec, Parameter inParams = Parameter{ })
-            : GpuResource(),
+            : GpuObject(),
             pixelFormat(inSpec.pixelFormat),
             parameter(inParams),
             numMips(inSpec.numMips),
@@ -127,7 +127,7 @@ namespace Cyan
 
         virtual ~ITextureRenderable() 
         { 
-            glDeleteTextures(1, &glResource);
+            glDeleteTextures(1, &glObject);
             if (name)
             {
                 delete[] name;
@@ -285,21 +285,21 @@ namespace Cyan
             width(inSpec.width),
             height(inSpec.height)
         {
-            glCreateTextures(GL_TEXTURE_2D, 1, &glResource);
-            glBindTexture(GL_TEXTURE_2D, getGpuResource());
+            glCreateTextures(GL_TEXTURE_2D, 1, &glObject);
+            glBindTexture(GL_TEXTURE_2D, getGpuObject());
             auto glPixelFormat = translatePixelFormat(pixelFormat);
             glTexImage2D(GL_TEXTURE_2D, 0, glPixelFormat.internalFormat, width, height, 0, glPixelFormat.format, glPixelFormat.type, pixelData);
             glBindTexture(GL_TEXTURE_2D, 0);
 
-            initializeTextureParameters(getGpuResource(), parameter);
+            initializeTextureParameters(getGpuObject(), parameter);
 
             if (numMips > 1u)
             {
-                glGenerateTextureMipmap(getGpuResource());
+                glGenerateTextureMipmap(getGpuObject());
             }
 
 #if BINDLESS_TEXTURE
-            glHandle = glGetTextureHandleARB(getGpuResource());
+            glHandle = glGetTextureHandleARB(getGpuObject());
 #endif
         }
 
@@ -354,7 +354,7 @@ namespace Cyan
             )
         { 
 #if BINDLESS_TEXTURE
-            glHandle = glGetTextureHandleARB(getGpuResource());
+            glHandle = glGetTextureHandleARB(getGpuObject());
 #endif
         }
 
@@ -397,17 +397,17 @@ namespace Cyan
             height(inSpec.height),
             depth(inSpec.depth)
         {
-            glCreateTextures(GL_TEXTURE_3D, 1, &glResource);
-            glBindTexture(GL_TEXTURE_3D, getGpuResource());
+            glCreateTextures(GL_TEXTURE_3D, 1, &glObject);
+            glBindTexture(GL_TEXTURE_3D, getGpuObject());
             auto glPixelFormat = translatePixelFormat(pixelFormat);
             glTexImage3D(GL_TEXTURE_3D, 0, glPixelFormat.internalFormat, width, height, depth, 0, glPixelFormat.format, glPixelFormat.type, pixelData);
             glBindTexture(GL_TEXTURE_3D, 0);
 
-            initializeTextureParameters(getGpuResource(), parameter);
+            initializeTextureParameters(getGpuObject(), parameter);
 
             if (numMips > 1u)
             {
-                glGenerateTextureMipmap(getGpuResource());
+                glGenerateTextureMipmap(getGpuObject());
             }
         }
 
@@ -452,8 +452,8 @@ namespace Cyan
             : ITextureRenderable(inName, inSpec, inParams),
             resolution(inSpec.width)
         {
-            glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &glResource);
-            glBindTexture(GL_TEXTURE_CUBE_MAP, getGpuResource());
+            glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &glObject);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, getGpuObject());
             auto glPixelFormat = translatePixelFormat(pixelFormat);
             for (i32 f = 0; f < 6; ++f)
             {
@@ -461,15 +461,15 @@ namespace Cyan
             }
             glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 
-            initializeTextureParameters(getGpuResource(), parameter);
+            initializeTextureParameters(getGpuObject(), parameter);
 
             if (numMips > 1u)
             {
-                glGenerateTextureMipmap(getGpuResource());
+                glGenerateTextureMipmap(getGpuObject());
             }
 
 #if BINDLESS_TEXTURE
-            glHandle = glGetTextureHandleARB(getGpuResource());
+            glHandle = glGetTextureHandleARB(getGpuObject());
 #endif
         }
 

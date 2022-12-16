@@ -8,11 +8,9 @@
 
 namespace Cyan
 {
-    Shader* s_debugRenderShader = nullptr;
     Texture2DRenderable* ReflectionProbe::s_BRDFLookupTexture = nullptr;
-    Shader* IrradianceProbe::s_convolveIrradianceShader = nullptr;
-    Shader* ReflectionProbe::s_convolveReflectionShader = nullptr;
-    RegularBuffer* IrradianceProbe::m_rayBuffers = nullptr;
+    PixelPipeline* IrradianceProbe::s_convolveIrradiancePipeline = nullptr;
+    PixelPipeline* ReflectionProbe::s_convolveReflectionPipeline = nullptr;
 
     namespace LightProbeCameras
     {
@@ -33,15 +31,6 @@ namespace Cyan
             {0.f, -1.f, 0.f},   // Forward
             {0.f, -1.f, 0.f},   // Back
         };
-    }
-
-    Shader* getRenderProbeShader()
-    {
-        if (!s_debugRenderShader)
-        {
-            s_debugRenderShader = ShaderManager::createShader({ ShaderType::kVsPs, "RenderProbeShader", "../../shader/shader_render_probe.vs", "../../shader/shader_render_probe.fs" });
-        }
-        return s_debugRenderShader;
     }
 
     LightProbe::LightProbe(TextureCubeRenderable* srcCubemapTexture)
@@ -103,9 +92,11 @@ namespace Cyan
         spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGB16F;
         m_convolvedIrradianceTexture = AssetManager::createTextureCube("IrradianceProbe", spec);
 
-        if (!s_convolveIrradianceShader)
+        if (!s_convolveIrradiancePipeline)
         {
-            s_convolveIrradianceShader = ShaderManager::createShader({ ShaderType::kVsPs, "ConvolveIrradianceShader", SHADER_SOURCE_PATH "convolve_diffuse_v.glsl", SHADER_SOURCE_PATH "convolve_diffuse_p.glsl" });
+            CreateVS(vs, "ConvolveIrradianceVS", SHADER_SOURCE_PATH "convolve_diffuse_v.glsl");
+            CreatePS(ps, "ConvolveIrradiancePS", SHADER_SOURCE_PATH "convolve_diffuse_p.glsl");
+            s_convolveIrradiancePipeline = ShaderManager::createPixelPipeline("ConvolveIrradiance", vs, ps);
         }
     }
 
@@ -128,8 +119,8 @@ namespace Cyan
                     { 0u, 0u, renderTarget->width, renderTarget->height }, 
                     pipelineState, 
                     AssetManager::getAsset<Mesh>("UnitCubeMesh"),
-                    s_convolveIrradianceShader,
-                    [this, f](RenderTarget* renderTarget, Shader* shader) {
+                    s_convolveIrradiancePipeline,
+                    [this, f](VertexShader* vs, PixelShader* ps) {
                         // Update view matrix
                         PerspectiveCamera camera(
                             glm::vec3(0.f),
@@ -140,9 +131,9 @@ namespace Cyan
                             100.f,
                             1.0f
                         );
-                        shader->setUniform("view", camera.view())
-                            .setUniform("projection", camera.projection())
-                            .setTexture("srcCubemapTexture", sceneCapture);
+                        vs->setUniform("view", camera.view())
+                            .setUniform("projection", camera.projection());
+                        ps->setTexture("srcCubemapTexture", sceneCapture);
                     });
             }
         }
@@ -188,9 +179,11 @@ namespace Cyan
         parameter.minificationFilter = ITextureRenderable::Parameter::Filtering::LINEAR_MIPMAP_LINEAR;
         m_convolvedReflectionTexture = AssetManager::createTextureCube("ReflectionProbe", spec, parameter);
 
-        if (!s_convolveReflectionShader)
+        if (!s_convolveReflectionPipeline)
         {
-            s_convolveReflectionShader = ShaderManager::createShader({ ShaderType::kVsPs, "ConvolveReflectionShader", SHADER_SOURCE_PATH "convolve_specular_v.glsl", SHADER_SOURCE_PATH "convolve_specular_p.glsl" });
+            CreateVS(vs, "ConvolveReflectionVS", SHADER_SOURCE_PATH "convolve_specular_v.glsl");
+            CreatePS(ps, "ConvolveReflectionPS", SHADER_SOURCE_PATH "convolve_specular_p.glsl");
+            s_convolveReflectionPipeline = ShaderManager::createPixelPipeline("ConvolveReflection", vs, ps);
         }
 
         // generate shared BRDF lookup texture
@@ -213,17 +206,18 @@ namespace Cyan
         params.wrap_t = WM_CLAMP;
         Texture2DRenderable* outTexture = AssetManager::createTexture2D("BRDFLUT", spec, params);
 
-        Shader* shader = ShaderManager::createShader({ ShaderType::kVsPs, "IntegrateBRDFShader", SHADER_SOURCE_PATH "integrate_BRDF_v.glsl", SHADER_SOURCE_PATH "integrate_BRDF_p.glsl" });
         RenderTarget* renderTarget = createRenderTarget(outTexture->width, outTexture->height);
         renderTarget->setColorBuffer(outTexture, 0u);
-
         auto renderer = Renderer::get();
         GfxPipelineState pipelineState;
         pipelineState.depth = DepthControl::kDisable;
+        CreateVS(vs, "IntegrateBRDFVS", SHADER_SOURCE_PATH "integrate_BRDF_v.glsl");
+        CreatePS(ps, "IntegrateBRDFPS", SHADER_SOURCE_PATH "integrate_BRDF_p.glsl");
+        CreatePixelPipeline(pipeline, "IntegrateBRDF", vs, ps);
         renderer->drawFullscreenQuad(
             renderTarget,
-            shader,
-            [](RenderTarget* renderTarget, Shader* shader) {
+            pipeline,
+            [](VertexShader* vs, PixelShader* ps) {
 
             });
 
@@ -255,8 +249,8 @@ namespace Cyan
                         { 0u, 0u, renderTarget->width, renderTarget->height }, 
                         pipelineState, 
                         AssetManager::getAsset<Mesh>("UnitCubeMesh"),
-                        s_convolveReflectionShader,
-                        [this, f, mip, kNumMips](RenderTarget* renderTarget, Shader* shader) {
+                        s_convolveReflectionPipeline,
+                        [this, f, mip, kNumMips](VertexShader* vs, PixelShader* ps) {
                             // Update view matrix
                             PerspectiveCamera camera(
                                 glm::vec3(0.f),
@@ -268,10 +262,10 @@ namespace Cyan
                                 1.0f
                             );
 
-                            shader->setUniform("projection", camera.projection())
-                                    .setUniform("view", camera.view())
-                                    .setUniform("roughness", mip * (1.f / (kNumMips - 1)))
-                                    .setTexture("envmapSampler", sceneCapture);
+                            vs->setUniform("projection", camera.projection())
+                                .setUniform("view", camera.view());
+                            ps->setUniform("roughness", mip * (1.f / (kNumMips - 1)))
+                                .setTexture("envmapSampler", sceneCapture);
                         });
                 }
             }

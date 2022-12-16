@@ -7,15 +7,19 @@
 
 namespace Cyan
 {
-    Shader* Skybox::s_cubemapSkyShader = nullptr;
-    Shader* Skybox::s_proceduralSkyShader = nullptr;
+    PixelPipeline* Skybox::s_cubemapSkyPipeline = nullptr;
+    PixelPipeline* Skybox::s_proceduralSkyPipeline = nullptr;
 
     Skybox::Skybox(const char* name, const char* srcHDRIPath, const glm::uvec2& resolution) {
-        if (!s_proceduralSkyShader) {
-            s_proceduralSkyShader = ShaderManager::createShader({ ShaderType::kVsPs, "SDFSkyShader", SHADER_SOURCE_PATH "sky_sdf_v.glsl", SHADER_SOURCE_PATH "sky_sdf_p.glsl" });
+        if (!s_proceduralSkyPipeline) {
+            CreateVS(vs, "SDFSkyVS", SHADER_SOURCE_PATH "sky_sdf_v.glsl");
+            CreatePS(ps, "SDFSkyPS", SHADER_SOURCE_PATH "sky_sdf_p.glsl");
+            s_proceduralSkyPipeline = ShaderManager::createPixelPipeline("SDFSky", vs, ps);
         }
-        if (!s_cubemapSkyShader) {
-            s_cubemapSkyShader = ShaderManager::createShader({ ShaderType::kVsPs, "SkyDomeShader", SHADER_SOURCE_PATH "skybox_v.glsl", SHADER_SOURCE_PATH "skybox_p.glsl" });
+        if (!s_cubemapSkyPipeline) {
+            CreateVS(vs, "SkyDomeVS", SHADER_SOURCE_PATH "skybox_v.glsl");
+            CreatePS(ps, "SkyDomePS", SHADER_SOURCE_PATH "skybox_p.glsl");
+            s_cubemapSkyPipeline = ShaderManager::createPixelPipeline("SkyDome", vs, ps);
         }
 
         ITextureRenderable::Spec HDRISpec = { };
@@ -41,7 +45,9 @@ namespace Cyan
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(m_cubemapTexture->resolution, m_cubemapTexture->resolution));
         renderTarget->setColorBuffer(m_cubemapTexture, 0u);
 
-        Shader* shader = ShaderManager::createShader({ ShaderType::kVsPs, "RenderToCubemapShader", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl" });
+        CreateVS(vs, "RenderToCubemapVS", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl");
+        CreatePS(ps, "RenderToCubemapPS", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl");
+        CreatePixelPipeline(pipeline, "RenderToCubemap", vs, ps);
         Mesh* cubeMesh = AssetManager::getAsset<Mesh>("UnitCubeMesh");
 
         for (i32 f = 0; f < 6u; f++)
@@ -56,8 +62,8 @@ namespace Cyan
                 { 0, 0, renderTarget->width, renderTarget->height},
                 pipelineState,
                 cubeMesh,
-                shader,
-                [this, f](RenderTarget* renderTarget, Shader* shader) {
+                pipeline,
+                [this, f](VertexShader* vs, PixelShader* ps) {
                     PerspectiveCamera camera(
                         glm::vec3(0.f),
                         LightProbeCameras::cameraFacingDirections[f],
@@ -67,9 +73,9 @@ namespace Cyan
                         100.f,
                         1.0f
                     );
-                    shader->setTexture("srcImageTexture", m_srcHDRITexture);
-                    shader->setUniform("projection", camera.projection());
-                    shader->setUniform("view", camera.view());
+                    vs->setUniform("projection", camera.projection());
+                    vs->setUniform("view", camera.view());
+                    ps->setTexture("srcImageTexture", m_srcHDRITexture);
                 });
         }
 
@@ -78,7 +84,7 @@ namespace Cyan
             assert(0);
         }
         m_cubemapTexture->numMips = (u32)log2f(m_cubemapTexture->resolution) + 1;
-        glGenerateTextureMipmap(m_cubemapTexture->getGpuResource());
+        glGenerateTextureMipmap(m_cubemapTexture->getGpuObject());
     }
 
     Skybox::Skybox(const char* name, TextureCubeRenderable* srcCubemap) {
@@ -94,10 +100,10 @@ namespace Cyan
             { 0, 0, renderTarget->width, renderTarget->height },
             GfxPipelineState(),
             cubeMesh,
-            s_cubemapSkyShader,
-            [this, mipLevel](RenderTarget* renderTarget, Shader* shader) {
-                shader->setTexture("cubemapTexture", m_cubemapTexture);
-                shader->setUniform("mipLevel", mipLevel);
+            s_cubemapSkyPipeline,
+            [this, mipLevel](VertexShader* vs, PixelShader* ps) {
+                ps->setUniform("mipLevel", mipLevel);
+                ps->setTexture("cubemapTexture", m_cubemapTexture);
             });
     }
 }

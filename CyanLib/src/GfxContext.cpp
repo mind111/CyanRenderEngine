@@ -5,18 +5,97 @@
 namespace Cyan {
     GfxContext* Singleton<GfxContext>::singleton = nullptr;
 
-    void GfxContext::setShader(Shader* shader) {
-        if (shader) {
-            if (m_shader) {
-                if (m_shader->) {
-
+    void GfxContext::setShaderInternal(Shader* shader)
+    {
+        auto bindTextures = [this](Shader* shader) {
+            u32 numUsedBindings = 0u;
+            for (const auto& bindingState : shader->m_samplerBindingMap) {
+                std::string samplerName = bindingState.first;
+                auto texture = bindingState.second;
+                if (texture) {
+                    u32 bindingUnit = m_nextTextureBindingUnit;
+                    if (!m_textureBindingMap.empty())
+                    {
+                        auto entry = m_textureBindingMap.find(texture->name);
+                        if (entry != m_textureBindingMap.end())
+                        {
+                            bindingUnit = entry->second;
+                        }
+                        else {
+                            bindingUnit = m_nextTextureBindingUnit;
+                            m_textureBindingMap.insert({ std::string(texture->name),  bindingUnit });
+                            m_nextTextureBindingUnit = (m_nextTextureBindingUnit + 1) % kMaxNumTextureUnits;
+                            numUsedBindings++;
+                        }
+                    }
+                    else
+                    {
+                        m_textureBindingMap.insert({ std::string(texture->name),  bindingUnit });
+                        m_nextTextureBindingUnit = (m_nextTextureBindingUnit + 1) % kMaxNumTextureUnits;
+                        numUsedBindings++;
+                    }
+                    shader->setUniform(samplerName.c_str(), static_cast<i32>(bindingUnit));
+                    setTexture(texture, bindingUnit);
                 }
             }
-            else {
-                m_shader = shader;
-                shader->bind();
+            return numUsedBindings;
+        };
+
+        auto bindShaderStorageBuffers = [this](Shader* shader) {
+            for (const auto& shaderStorageBlock : shader->m_shaderStorageBlockMap) 
+            {
+                std::string blockName = shaderStorageBlock.first;
+                u32 blockIndex = shaderStorageBlock.second;
+                if (!m_shaderStorageBindingMap.empty())
+                {
+                    auto entry = m_shaderStorageBindingMap.find(blockName);
+                    if (entry == m_shaderStorageBindingMap.end()) {
+                        cyanError("ShaderStorageBuffer %s is not currently bound", blockName.c_str());
+                    }
+                    else {
+                        u32 binding = entry->second;
+                        glShaderStorageBlockBinding(shader->getProgram(), blockIndex, binding);
+                    }
+                }
             }
+        };
+
+        if (shader) 
+        {
+            bindTextures(shader);
+            bindShaderStorageBuffers(shader);
         }
+    }
+
+
+    void GfxContext::setPixelPipeline(PixelPipeline* pixelPipelineObject, const std::function<void(VertexShader*, PixelShader*)>& setupShaders) 
+    {
+        VertexShader* vertexShader = pixelPipelineObject->m_vertexShader;
+        PixelShader* pixelShader = pixelPipelineObject->m_pixelShader;
+        setupShaders(vertexShader, pixelShader);
+        setShaderInternal(vertexShader);
+        setShaderInternal(pixelShader);
+        pixelPipelineObject->bind();
+    }
+
+    void GfxContext::setGeometryPipeline(GeometryPipeline* geometryPipelineObject, const std::function<void(VertexShader*, GeometryShader*, PixelShader*)>& setupShaders) 
+    {
+        VertexShader* vertexShader = geometryPipelineObject->m_vertexShader;
+        GeometryShader* geometryShader = geometryPipelineObject->m_geometryShader;
+        PixelShader* pixelShader = geometryPipelineObject->m_pixelShader;
+        setupShaders(vertexShader, geometryShader, pixelShader);
+        setShaderInternal(vertexShader);
+        setShaderInternal(geometryShader);
+        setShaderInternal(pixelShader);
+        geometryPipelineObject->bind();
+    }
+
+    void GfxContext::setComputePipeline(ComputePipeline* computePipelineObject, const std::function<void(ComputeShader*)>& setupShaders) 
+    {
+        ComputeShader* computeShader = computePipelineObject->m_computeShader;
+        setupShaders(computeShader);
+        setShaderInternal(computeShader);
+        computePipelineObject->bind();
     }
 
     void GfxContext::setCullFace(FrontFace frontFace, FaceCull faceToCull)
@@ -45,9 +124,8 @@ namespace Cyan {
         glCullFace(gl_faceToCull);
     }
 
-    void GfxContext::setDepthControl(DepthControl _ctrl)
-    {
-        switch(_ctrl)
+    void GfxContext::setDepthControl(DepthControl ctrl) {
+        switch(ctrl)
         {
             case DepthControl::kEnable:
                 glEnable(GL_DEPTH_TEST);
@@ -60,8 +138,7 @@ namespace Cyan {
         }
     }
 
-    void GfxContext::setTexture(ITextureRenderable* texture, u32 binding)
-    {
+    void GfxContext::setTexture(ITextureRenderable* texture, u32 binding) {
         // reset a texture unit
         if (!texture)
         {
@@ -73,25 +150,7 @@ namespace Cyan {
         }
     }
 
-    void GfxContext::setBuffer(RegularBuffer* _buffer, u32 binding)
-    {
-        // glBindBuffer(GL_SHADER_STORAGE_BUFFER, _buffer->m_ssbo);
-        // void* baseAddr = glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_WRITE_ONLY);
-        if (!_buffer)
-        {
-            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding, 0);
-            return;
-        }
-
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding, _buffer->m_ssbo);
-        void* baseAddr = glMapNamedBuffer(_buffer->m_ssbo, GL_WRITE_ONLY);
-
-        memcpy(baseAddr, _buffer->m_data, _buffer->m_sizeToUpload);
-        glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
-    }
-
-    void GfxContext::setVertexArray(VertexArray* va)
-    {
+    void GfxContext::setVertexArray(VertexArray* va) {
         if (!va) 
         {
             m_va = nullptr;
@@ -166,16 +225,6 @@ namespace Cyan {
     void GfxContext::setClearColor(glm::vec4 albedo)
     {
         glClearColor(albedo.r, albedo.g, albedo.b, albedo.a);
-    }
-
-    // TODO: Fix this
-    void GfxContext::reset() 
-    {
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glBindVertexArray(0);
-        glBindTexture(GL_TEXTURE_2D, 0);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
-        setShader(nullptr);
     }
 
     void GfxContext::drawIndexAuto(u32 _numVerts, u32 _offset) 

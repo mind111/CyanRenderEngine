@@ -1,5 +1,12 @@
 #version 450 core
 
+out gl_PerVertex
+{
+	vec4 gl_Position;
+	float gl_PointSize;
+	float gl_ClipDistance[];
+};
+
 const float quadVerts[18] = {
 	-1.f, -1.f, 0.f, 
 	 1.f,  1.f, 0.f,

@@ -2,6 +2,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <functional>
 
 #include "glew.h"
 #include "stb_image.h"
@@ -58,21 +59,24 @@ namespace Cyan {
         { }
         ~GfxContext() { }
 
-        void setShader(Shader* shader);
+        void setPixelPipeline(PixelPipeline* pixelPipelineObject, const std::function<void(VertexShader*, PixelShader*)>& setupShaders = [](VertexShader* vs, PixelShader* ps) {});
+        void setGeometryPipeline(GeometryPipeline* geometryPipelineObject, const std::function<void(VertexShader*, GeometryShader*, PixelShader*)>& setupShaders = [](VertexShader*, GeometryShader*, PixelShader*) {});
+        void setComputePipeline(ComputePipeline* computePipelineObject, const std::function<void(ComputeShader*)>& setupShaders);
+
         void setTexture(ITextureRenderable* texture, u32 binding);
 
         template<typename T>
-        void setShaderStorageBuffer(ShaderStorageBuffer<T>* buffer, u32 binding) {
-            auto entry = shaderStorageBufferBindingMap[buffer->name];
-            if (entry) {
-                // gfx context state change: the binding unit of @buffer needs to be updated
-                if (entry->second != binding) {
-                    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding, buffer->getGpuObject());
-                    entry->second = binding;
-                }
+        void setShaderStorageBuffer(ShaderStorageBuffer<T>* buffer) 
+        {
+            auto entry = m_shaderStorageBindingMap.find(buffer->name);
+            if (entry == m_shaderStorageBindingMap.end())  
+            {
+                m_shaderStorageBindingMap[buffer->name] = m_nextShaderStorageBinding;
+                buffer->bind(m_nextShaderStorageBinding++);
             }
-            else {
-                shaderStorageBufferBindingMap.insert({ buffer->name, binding });
+            else 
+            {
+                buffer->bind(entry->second);
             }
         }
 
@@ -98,20 +102,22 @@ namespace Cyan {
 
         void flip();
         void clear();
-        void reset();
 
     private:
+        void setShaderInternal(Shader* shader);
+
         static constexpr u32 kMaxNumTextureUnits = 32u;
-        static constexpr u32 kMaxNumShaderStorageBufferBindigs = 32u;
-        // bit vector for texture unit bindings
-        std::array<u32, kMaxNumTextureUnits> textureUnits;
+        std::unordered_map<std::string, u32> m_textureBindingMap;
+        u32 m_nextTextureBindingUnit = 0u;
+
+        static constexpr u32 kMaxNumShaderStorageBindigs = 32u;
+        std::unordered_map<std::string, u32> m_shaderStorageBindingMap;
+        u32 m_nextShaderStorageBinding = 0u;
 
         GLFWwindow* m_glfwWindow;
         Shader* m_shader = nullptr;
         Viewport m_viewport;
         VertexArray* m_va = nullptr;
         GLenum m_primitiveType;
-        u32 transientTextureUnit;
-        std::unordered_map<std::string, u32> shaderStorageBufferBindingMap;
     };
 }

@@ -111,19 +111,18 @@ namespace Cyan {
         auto gfxc = renderer->getGfxCtx();
         renderableScene.upload();
 
-        Shader* VPLGenerationShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "VPLGenerationShader", SHADER_SOURCE_PATH "generate_vpl_v.glsl", SHADER_SOURCE_PATH "generate_vpl_p.glsl" });
-        gfxc->setShader(VPLGenerationShader);
+        VertexShader* vs = ShaderManager::createShader<VertexShader>("VPLGenerationVS", SHADER_SOURCE_PATH "generate_vpl_v.glsl");
+        PixelShader* ps = ShaderManager::createShader<PixelShader>("VPLGenerationPS", SHADER_SOURCE_PATH "generate_vpl_p.glsl");
+        PixelPipeline* VPLGenerationPipeline = ShaderManager::createPixelPipeline("VPLGeneration", vs, ps);
+
+        gfxc->setPixelPipeline(VPLGenerationPipeline, [](VertexShader* vs, PixelShader* ps) {
+            // todo: having to know which shader owns the uniform is kind of inconvenient
+            ps->setUniform("kMaxNumVPLs", kMaxNumVPLs);
+        });
+
         gfxc->setRenderTarget(renderTarget.get(), { { 0 } });
         gfxc->setViewport({ 0, 0, renderTarget->width, renderTarget->height });
         gfxc->setDepthControl(DepthControl::kEnable);
-
-#if 0
-        for (auto light : renderableScene.lights)
-        {
-            light->setShaderParameters(VPLGenerationShader);
-        }
-#endif
-        VPLGenerationShader->setUniform("kMaxNumVPLs", kMaxNumVPLs);
 
         // bind VPL atomic counter
         numGeneratedVPLs = 0;
@@ -143,6 +142,7 @@ namespace Cyan {
     }
 
     void InstantRadiosity::buildVPLVSMs(Renderer* renderer, RenderableScene& renderableScene) {
+#if 0
         auto renderVPLVSM = [this, renderer](i32 VPLIndex, RenderableScene& renderableScene, RenderTarget* renderTarget) {
             glDisable(GL_CULL_FACE);
             glm::vec3 position = vec4ToVec3(VPLs[VPLIndex].position);
@@ -166,12 +166,13 @@ namespace Cyan {
                 glm::mat4 view = camera.view();
                 glm::mat4 projection = camera.projection();
 
-                Shader* pointShadowShader = ShaderManager::createShader({ ShaderType::kVsPs, "PointVSMShadowShader", SHADER_SOURCE_PATH "point_shadow_v.glsl", SHADER_SOURCE_PATH "point_vsm_shadow_p.glsl" });
+                VertexShader* vs = ShaderManager::createShader<VertexShader>("PointVSMShadowVS", SHADER_SOURCE_PATH "point_shadow_v.glsl");
+                PixelShader* ps = ShaderManager::createShader<PixelShader>("PointVSMShadowPS", SHADER_SOURCE_PATH "point_shadow_p.glsl");
+                PixelPipeline* pipeline = ShaderManager::createPixelPipeline("PointVSMShadow", vs, ps);
 
                 // render mesh instances
                 i32 transformIndex = 0u;
-                for (auto meshInst : renderableScene.meshInstances)
-                {
+                for (auto meshInst : renderableScene.meshInstances) {
                     renderer->drawMesh(
                         renderTarget,
                         { 0, 0, renderTarget->width, renderTarget->height},
@@ -230,9 +231,11 @@ namespace Cyan {
             }
         }
 #endif
+#endif
     }
 
     void InstantRadiosity::buildVPLShadowMaps(Renderer* renderer, RenderableScene& renderableScene) {
+#if 0
         // render VPL basic shadow maps
         auto renderVPLShadow = [this, renderer](i32 VPLIndex, RenderableScene& renderableScene, RenderTarget* depthRenderTarget) {
             glDisable(GL_CULL_FACE);
@@ -300,6 +303,7 @@ namespace Cyan {
         for (i32 i = 0; i < numGeneratedVPLs; ++i) {
             renderVPLShadow(i, renderableScene, depthRenderTarget.get());
         }
+#endif
     }
 
     void InstantRadiosity::renderInternal(Renderer* renderer, RenderableScene& renderableScene, Texture2DRenderable* output) {
@@ -318,6 +322,7 @@ namespace Cyan {
     }
 
     void InstantRadiosity::renderInternal(Renderer* renderer, RenderableScene& renderableScene, Texture2DRenderable* sceneDepthBuffer, Texture2DRenderable* sceneNormalBuffer, Texture2DRenderable* output) {
+#if 0
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(1280, 720));
         renderTarget->setColorBuffer(output, 0);
         Shader* shader = ShaderManager::createShader({ ShaderType::kVsPs, "InstantRadiosityShader", SHADER_SOURCE_PATH "instant_radiosity_v.glsl", SHADER_SOURCE_PATH "instant_radiosity_p.glsl" });
@@ -359,6 +364,7 @@ namespace Cyan {
                     break;
                 };
             });
+#endif
     }
     
     Texture2DRenderable* InstantRadiosity::render(Renderer* renderer, RenderableScene& renderableScene, const glm::uvec2& renderResolution) {
@@ -422,6 +428,7 @@ namespace Cyan {
     }
 
     void InstantRadiosity::visualizeVPLs(Renderer* renderer, RenderTarget* renderTarget, RenderableScene& renderableScene) {
+#if 0
         Shader* debugDrawShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "DebugDrawShader", SHADER_SOURCE_PATH "debug_draw_v.glsl", SHADER_SOURCE_PATH "debug_draw_p.glsl" });
         // debug draw VPLs
         for (i32 i = 0; i < kMaxNumVPLs; ++i) {
@@ -434,9 +441,11 @@ namespace Cyan {
                 renderableScene.camera.projection
             );
         }
+#endif
     }
 
     void InstantRadiosity::renderUI(Renderer* renderer, Texture2DRenderable* output) {
+#if 0
         renderer->addUIRenderCommand([this, renderer, output]() {
             renderer->appendToRenderingTab([this, output]() {
                 ImGui::CollapsingHeader("Instant Radiosity", ImGuiTreeNodeFlags_DefaultOpen);
@@ -448,21 +457,22 @@ namespace Cyan {
                 ImVec2 imageSize(320, 180);
                 ImGui::Combo("VPL shadow algorithm", &shadowAlgo, shadowAlgoNames, (i32)VPLShadowAlgorithm::kCount);
                 m_shadowAlgorithm = (VPLShadowAlgorithm)(shadowAlgo);
-                ImGui::Image((ImTextureID)(output->getGpuResource()), ImVec2(320, 180), ImVec2(0, 1), ImVec2(1, 0));
+                ImGui::Image((ImTextureID)(output->getGpuObject()), ImVec2(320, 180), ImVec2(0, 1), ImVec2(1, 0));
                 ImGui::SliderInt("active VPL count", &activeVPLs, 1, numGeneratedVPLs);
                 ImGui::Checkbox("indirect visibility", &bIndirectVisibility);
                 ImGui::Text("VPL oct shadow");
                 switch (m_shadowAlgorithm) {
                 case VPLShadowAlgorithm::kBasic:
-                    ImGui::Image((ImTextureID)(VPLOctShadowMaps[0]->getGpuResource()), ImVec2(180, 180), ImVec2(0, 1), ImVec2(1, 0));
+                    ImGui::Image((ImTextureID)(VPLOctShadowMaps[0]->getGpuObject()), ImVec2(180, 180), ImVec2(0, 1), ImVec2(1, 0));
                     break;
                 case VPLShadowAlgorithm::kVSM:
-                    ImGui::Image((ImTextureID)(VPLOctVSMs[0]->getGpuResource()), ImVec2(180, 180), ImVec2(0, 1), ImVec2(1, 0));
+                    ImGui::Image((ImTextureID)(VPLOctVSMs[0]->getGpuObject()), ImVec2(180, 180), ImVec2(0, 1), ImVec2(1, 0));
                     break;
                 default:
                     break;
                 };
                 });
             });
+#endif
     }
 }

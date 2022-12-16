@@ -225,7 +225,11 @@ namespace Cyan
                 spec.width = width;
                 spec.height = height;
             }
-            return createTexture2D(name, spec, parameter);
+            if (spec.pixelData)
+            {
+                return createTexture2D(name, spec, parameter);
+            }
+            return nullptr;
         }
 
         static Material& createMaterial(const char* name) {

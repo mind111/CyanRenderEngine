@@ -8,6 +8,13 @@ layout (location = 4) in vec2 textureUv_1;
 layout (location = 5) in vec2 textureUv_2;
 layout (location = 6) in vec2 textureUv_3;
 
+out gl_PerVertex
+{
+	vec4 gl_Position;
+	float gl_PointSize;
+	float gl_ClipDistance[];
+};
+
 out VSOut
 {
 	vec2 texCoord0;

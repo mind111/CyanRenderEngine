@@ -17,6 +17,12 @@ layout(std430, binding = 81) buffer InstanceBuffer {
     InstanceDesc instances[];
 };
 
+out gl_PerVertex
+{
+	vec4 gl_Position;
+	float gl_PointSize;
+	float gl_ClipDistance[];
+};
 out VSOut {
     vec3 color;
 } vsOut;

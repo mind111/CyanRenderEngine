@@ -13,7 +13,8 @@ const uint kHasOcclusionMap         = 1 << 3;
 
 /**
 	mirror's the material definition on application side
-    struct GpuMaterial {
+    struct GpuMaterial 
+	{
         u64 albedoMap;
         u64 normalMap;
         u64 metallicRoughnessMap;
@@ -25,7 +26,8 @@ const uint kHasOcclusionMap         = 1 << 3;
         u32 flag = 0u;
     };
 */
-struct MaterialDesc {
+struct MaterialDesc 
+{
 	uint64_t albedoMap;
 	uint64_t normalMap;
 	uint64_t metallicRoughnessMap;
@@ -35,6 +37,13 @@ struct MaterialDesc {
     float roughness;
     float emissive;
     uint flag;
+};
+
+out gl_PerVertex
+{
+	vec4 gl_Position;
+	float gl_PointSize;
+	float gl_ClipDistance[];
 };
 
 out VSOutput {
@@ -49,17 +58,7 @@ out VSOutput {
 	flat MaterialDesc desc;
 } vsOut;
 
-#define VIEW_BUFFER_BINDING 0
-#define TRANSFORM_BUFFER_BINDING 1
-#define INSTANCE_DESC_BUFFER_BINDING 2
-#define SUBMESH_BUFFER_BINDING 3
-#define VERTEX_BUFFER_BINDING 4
-#define INDEX_BUFFER_BINDING 5
-#define DRAWCALL_BUFFER_BINDING 6
-#define MATERIAL_BUFFER_BINDING 7
-#define DIRECTIONALLIGHT_BUFFER_BINDING 8
-
-layout(std430, binding = VIEW_BUFFER_BINDING) buffer ViewBuffer
+layout(std430) buffer ViewBuffer
 {
     mat4  view;
     mat4  projection;
@@ -67,7 +66,7 @@ layout(std430, binding = VIEW_BUFFER_BINDING) buffer ViewBuffer
     float dummy;
 } viewSsbo;
 
-layout(std430, binding = TRANSFORM_BUFFER_BINDING) buffer TransformBuffer
+layout(std430) buffer TransformBuffer
 {
     mat4 models[];
 } transformSsbo;
@@ -80,12 +79,12 @@ struct Vertex
 	vec4 texCoord;
 };
 
-layout(std430, binding = VERTEX_BUFFER_BINDING) buffer VertexBuffer
+layout(std430) buffer VertexBuffer
 {
 	Vertex vertices[];
 } vertexBuffer;
 
-layout(std430, binding = INDEX_BUFFER_BINDING) buffer IndexBuffer
+layout(std430) buffer IndexBuffer
 {
 	uint indices[];
 };
@@ -98,7 +97,7 @@ struct InstanceDesc
 	uint padding;
 };
 
-layout(std430, binding = INSTANCE_DESC_BUFFER_BINDING) buffer InstanceBuffer {
+layout(std430) buffer InstanceBuffer {
 	InstanceDesc instanceDescs[];
 };
 
@@ -109,15 +108,15 @@ struct SubmeshDesc {
 	uint numIndices;
 };
 
-layout(std430, binding = SUBMESH_BUFFER_BINDING) buffer SubmeshBuffer {
+layout(std430) buffer SubmeshBuffer {
 	SubmeshDesc submeshDescs[];
 };
 
-layout(std430, binding = MATERIAL_BUFFER_BINDING) buffer MaterialBuffer {
+layout(std430) buffer MaterialBuffer {
 	MaterialDesc materialDescs[];
 };
 
-layout(std430, binding = DRAWCALL_BUFFER_BINDING) buffer DrawCallBuffer {
+layout(std430) buffer DrawCallBuffer {
 	uint drawCalls[];
 };
 
