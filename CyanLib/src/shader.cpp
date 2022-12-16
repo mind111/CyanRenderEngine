@@ -13,82 +13,6 @@
 
 namespace Cyan
 {    
-    static void checkShaderCompilation(GLuint shader) {
-        int compile_result;
-        char log[512];
-        glGetShaderiv(shader, GL_COMPILE_STATUS, &compile_result);
-        if (compile_result == GL_FALSE) {
-            glGetShaderInfoLog(shader, 512, nullptr, log);
-            std::cout << log << std::endl;
-        }
-    }
-
-    static void checkProgramLinkage(GLuint program) {
-        int link_result;
-        char log[512];
-        glGetProgramiv(program, GL_LINK_STATUS, &link_result);
-        if (link_result == GL_FALSE) {
-            glGetProgramInfoLog(program, 512, nullptr, log);
-            std::cout << log << std::endl;
-        }
-    }
-
-    static const char* readShaderFile(const char* filename) {
-        // Open file
-        std::fstream shader_file(filename);
-        std::string src_str;
-        const char* shader_src = nullptr;
-        if (shader_file.is_open()) {
-            std::stringstream src_str_stream;
-            std::string line;
-            while (std::getline(shader_file, line)) {
-                src_str_stream << line << "\n";
-            }
-            src_str = src_str_stream.str();
-            // Copy the string over to a char array
-            shader_src = new char[src_str.length() + 1];
-            // + 1 here to include null character
-            std::memcpy((void*)shader_src, src_str.c_str(), src_str.length() + 1);
-        } else {
-            std::cout << "ERROR: Cannot open shader source file!" << std::endl;
-        }
-        // close file
-        shader_file.close();
-        return shader_src;
-    }
-
-    // global shader definitions shared by multiple shaders
-    const char* gCommonMathDefs = {
-        R"(
-            #define PI 3.1415926f
-        )"
-    };
-
-    const char* gDrawDataDef = {
-        R"(
-            layout(std430, binding = 0) buffer GlobalDrawData
-            {
-                mat4  view;
-                mat4  projection;
-                mat4  sunLightView;
-                mat4  sunShadowProjections[4];
-                int   numDirLights;
-                int   numPointLights;
-                float m_ssao;
-                float dummy;
-            } gDrawData;
-        )"
-    };
-
-    const char* gGlobalTransformDef = {
-        R"(
-            layout(std430, binding = 3) buffer InstanceTransformData
-            {
-                mat4 models[];
-            } gInstanceTransforms;
-        )"
-    };
-
     ShaderSource::ShaderSource(const char* shaderFilePath) 
     {
         // open & load the shader source file into @src
@@ -96,9 +20,9 @@ namespace Cyan
         if (shaderFile.is_open()) 
         { 
             std::string line;
+            bool bParsingHeaders = false;
             while (std::getline(shaderFile, line)) 
             {
-                // todo: detect shader includes block
                 src += line;
                 src += '\n';
             }
@@ -277,43 +201,53 @@ namespace Cyan
         glUseProgram(0);
     }
 
-    Shader& Shader::setUniform(const char* name, f32 data) {
+    Shader& Shader::setUniform(const char* name, f32 data) 
+    {
         SET_UNIFORM(glProgramUniform1f, data)
     }
 
-    Shader& Shader::setUniform(const char* name, u32 data) {
+    Shader& Shader::setUniform(const char* name, u32 data) 
+    {
         SET_UNIFORM(glProgramUniform1ui, data)
     }
 
-    Shader& Shader::setUniform(const char* name, i32 data) {
+    Shader& Shader::setUniform(const char* name, i32 data) 
+    {
         SET_UNIFORM(glProgramUniform1i, data)
     }
 
-    Shader& Shader::setUniform(const char* name, const glm::vec2& data) {
+    Shader& Shader::setUniform(const char* name, const glm::vec2& data) 
+    {
         SET_UNIFORM(glProgramUniform2f, data.x, data.y)
     }
 
-    Shader& Shader::setUniform(const char* name, const glm::vec3& data) {
+    Shader& Shader::setUniform(const char* name, const glm::vec3& data) 
+    {
         SET_UNIFORM(glProgramUniform3f, data.x, data.y, data.z)
     }
     
-    Shader& Shader::setUniform(const char* name, const glm::vec4& data) {
+    Shader& Shader::setUniform(const char* name, const glm::vec4& data) 
+    {
         SET_UNIFORM(glProgramUniform4f, data.x, data.y, data.z, data.w)
     }
 
-    Shader& Shader::setUniform(const char* name, const glm::mat4& data) {
+    Shader& Shader::setUniform(const char* name, const glm::mat4& data) 
+    {
         SET_UNIFORM(glProgramUniformMatrix4fv, 1, false, &data[0][0])
     }
 
-    Shader& Shader::setUniform(const char* name, const u64& data) {
+    Shader& Shader::setUniform(const char* name, const u64& data) 
+    {
         SET_UNIFORM(glProgramUniformHandleui64ARB, data);
     }
 
-    Shader& Shader::setUniform(const char* name, const glm::ivec2& data) {
+    Shader& Shader::setUniform(const char* name, const glm::ivec2& data) 
+    {
         SET_UNIFORM(glProgramUniform2i, data.x, data.y);
     }
 
-    Shader& Shader::setTexture(const char* samplerName, ITextureRenderable* texture) {
+    Shader& Shader::setTexture(const char* samplerName, ITextureRenderable* texture) 
+    {
         if (texture) {
             m_samplerBindingMap[std::string(samplerName)] = texture;
         }

@@ -3,18 +3,22 @@
 #extension GL_ARB_shader_draw_parameters : enable 
 #extension GL_ARB_gpu_shader_int64 : enable 
 
+/**
+* scene shader storage buffers
+*/
+
 layout(std430) buffer ViewBuffer 
 {
     mat4  view;
     mat4  projection;
     float m_ssao;
     float dummy;
-} viewSsbo;
+};
 
 layout(std430) buffer TransformBuffer 
 {
-    mat4 models[];
-} transformSsbo;
+    mat4 transforms[];
+};
 
 struct Vertex 
 {
@@ -27,7 +31,7 @@ struct Vertex
 layout(std430) buffer VertexBuffer 
 {
 	Vertex vertices[];
-} vertexBuffer;
+};
 
 layout(std430) buffer IndexBuffer 
 {
@@ -47,7 +51,8 @@ layout(std430) buffer InstanceBuffer
 	InstanceDesc instanceDescs[];
 };
 
-struct SubmeshDesc {
+struct SubmeshDesc 
+{
 	uint baseVertex;
 	uint baseIndex;
 	uint numVertices;
@@ -57,6 +62,37 @@ struct SubmeshDesc {
 layout(std430) buffer SubmeshBuffer 
 {
 	SubmeshDesc submeshDescs[];
+};
+
+/**
+	mirror's the material definition on application side
+    struct GpuMaterial {
+        u64 albedoMap;
+        u64 normalMap;
+        u64 metallicRoughnessMap;
+        u64 occlusionMap;
+        glm::vec4 albedo = glm::vec4(.9f, .9f, .9f, 1.f);
+        f32 metallic = 0.f;
+        f32 roughness = .5f;
+        f32 emissive = 1.f;
+        u32 flag = 0u;
+    };
+*/
+struct MaterialDesc {
+	uint64_t albedoMap;
+	uint64_t normalMap;
+	uint64_t metallicRoughnessMap;
+    uint64_t occlusionMap;
+    vec4 albedo;
+    float metallic;
+    float roughness;
+    float emissive;
+    uint flag;
+};
+
+layout(std430) buffer MaterialBuffer
+{
+	MaterialDesc materialDescs[];
 };
 
 layout(std430) buffer DrawCallBuffer 
@@ -80,9 +116,9 @@ void main()
 	uint baseVertex = submeshDescs[instance.submesh].baseVertex;
 	uint baseIndex = submeshDescs[instance.submesh].baseIndex;
 	uint index = indices[baseIndex + gl_VertexID];
-	Vertex vertex = vertexBuffer.vertices[baseVertex + index];
-	gl_Position = viewSsbo.projection * viewSsbo.view * transformSsbo.models[instance.transform] * vertex.pos;
+	Vertex vertex = vertices[baseVertex + index];
+	gl_Position = projection * view * transforms[instance.transform] * vertex.pos;
 
-	worldSpaceNormal = normalize((inverse(transpose(transformSsbo.models[instance.transform])) * vertex.normal).xyz);
-	worldSpaceTangent = normalize((transformSsbo.models[instance.transform] * vec4(vertex.tangent.xyz, 0.f)).xyz);
+	worldSpaceNormal = normalize((inverse(transpose(transforms[instance.transform])) * vertex.normal).xyz);
+	worldSpaceTangent = normalize((transforms[instance.transform] * vec4(vertex.tangent.xyz, 0.f)).xyz);
 }

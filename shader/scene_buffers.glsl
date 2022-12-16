@@ -1,7 +1,7 @@
 #version 450 core
 
+#extension GL_NV_bindless_texture : require
 #extension GL_ARB_gpu_shader_int64 : enable 
-#extension GL_ARB_shader_draw_parameters : enable 
 
 /**
 * scene shader storage buffers
@@ -100,21 +100,3 @@ layout(std430) buffer DrawCallBuffer
 {
 	uint drawCalls[];
 };
-
-out gl_PerVertex
-{
-	vec4 gl_Position;
-	float gl_PointSize;
-	float gl_ClipDistance[];
-};
-
-void main() 
-{
-	uint instanceIndex = drawCalls[gl_DrawIDARB] + gl_InstanceID;
-	InstanceDesc instance = instanceDescs[instanceIndex];
-	uint baseVertex = submeshDescs[instance.submesh].baseVertex;
-	uint baseIndex = submeshDescs[instance.submesh].baseIndex;
-	uint index = indices[baseIndex + gl_VertexID];
-	Vertex vertex = vertices[baseVertex + index];
-	gl_Position = projection * view * transforms[instance.transform] * vertex.pos;
-}

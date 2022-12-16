@@ -48,7 +48,7 @@ namespace Cyan
     // forward declarations
     struct RenderTarget;
 
-    struct GfxPipelineState {
+    struct GfxPipelineConfig {
         DepthControl depth = DepthControl::kEnable;
         PrimitiveMode primitiveMode = PrimitiveMode::TriangleList;
     };
@@ -63,7 +63,7 @@ namespace Cyan
         Viewport viewport = { };
         ISubmesh* submesh = nullptr;
         PixelPipeline* pipeline = nullptr;
-        GfxPipelineState pipelineState;
+        GfxPipelineConfig config;
         RenderSetupLambda renderSetupLambda = [](VertexShader* vs, PixelShader* ps) {};
     };
 
@@ -133,22 +133,14 @@ namespace Cyan
         void renderSceneDepthOnly(RenderableScene& renderableScene, Texture2DRenderable* outDepthTexture);
         void renderShadowMaps(RenderableScene& scene);
         void renderSceneToLightProbe(Scene* scene, LightProbe* probe, RenderTarget* renderTarget);
-
-        /**
-        * Draw a mesh without material
-        */
-        void drawMesh(RenderTarget* renderTarget, Viewport viewport, GfxPipelineState pipelineState, Mesh* mesh, PixelPipeline* pipeline, const RenderSetupLambda& renderSetupLambda);
-
-        /**
-        * 
-        */
+        void drawMesh(RenderTarget* renderTarget, Viewport viewport, Mesh* mesh, PixelPipeline* pipeline, const RenderSetupLambda& renderSetupLambda, const GfxPipelineConfig& config = GfxPipelineConfig{});
         void drawFullscreenQuad(RenderTarget* renderTarget, PixelPipeline* pipeline, RenderSetupLambda&& renderSetupLambda);
         void drawScreenQuad(RenderTarget* renderTarget, Viewport viewport, PixelPipeline* pipeline, RenderSetupLambda&& renderSetupLambda);
 
         /**
         * Submit a submesh; right now the execution is not deferred
         */
-        void submitRenderTask(RenderTask&& task);
+        void submitRenderTask(const RenderTask& task);
 
         /* Debugging utilities */
         void debugDrawLineImmediate(const glm::vec3& v0, const glm::vec3& v1);

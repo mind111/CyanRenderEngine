@@ -613,7 +613,7 @@
     <None Include="..\shader\voxelize_resolve_c.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\global_buffers.glsl">
+    <None Include="..\shader\scene_buffers.glsl">
       <Filter>Shaders\Common</Filter>
     </None>
     <None Include="..\shader\lights.glsl">

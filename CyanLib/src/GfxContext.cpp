@@ -138,7 +138,8 @@ namespace Cyan {
         }
     }
 
-    void GfxContext::setTexture(ITextureRenderable* texture, u32 binding) {
+    void GfxContext::setTexture(ITextureRenderable* texture, u32 binding) 
+    {
         // reset a texture unit
         if (!texture)
         {
@@ -150,7 +151,8 @@ namespace Cyan {
         }
     }
 
-    void GfxContext::setVertexArray(VertexArray* va) {
+    void GfxContext::setVertexArray(VertexArray* va) 
+    {
         if (!va) 
         {
             m_va = nullptr;
@@ -188,7 +190,8 @@ namespace Cyan {
         glViewport(viewport.x, viewport.y, viewport.width, viewport.height);
     }
 
-    void GfxContext::setRenderTarget(RenderTarget* renderTarget) {
+    void GfxContext::setRenderTarget(RenderTarget* renderTarget) 
+    {
         if (!renderTarget)
         {
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -227,9 +230,9 @@ namespace Cyan {
         glClearColor(albedo.r, albedo.g, albedo.b, albedo.a);
     }
 
-    void GfxContext::drawIndexAuto(u32 _numVerts, u32 _offset) 
+    void GfxContext::drawIndexAuto(u32 numVerts, u32 offset) 
     {
-        glDrawArrays(m_primitiveType, _offset, _numVerts);
+        glDrawArrays(m_primitiveType, offset, numVerts);
     }
 
     void GfxContext::drawIndex(u32 numIndices) 

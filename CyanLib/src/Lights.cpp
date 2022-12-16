@@ -120,12 +120,11 @@ namespace Cyan {
             renderTarget->setDrawBuffers({ f });
             renderTarget->clear({ { f } });
 
-            GfxPipelineState pipelineState;
-            pipelineState.depth = DepthControl::kDisable;
+            GfxPipelineConfig config;
+            config.depth = DepthControl::kDisable;
             Renderer::get()->drawMesh(
                 renderTarget.get(),
-                { 0, 0, renderTarget->width, renderTarget->height},
-                pipelineState,
+                { 0, 0, renderTarget->width, renderTarget->height },
                 cubeMesh,
                 pipeline,
                 [this, srcEquirectMap, f](VertexShader* vs, PixelShader* ps) {
@@ -142,7 +141,9 @@ namespace Cyan {
                     vs->setUniform("projection", camera.projection());
                     vs->setUniform("view", camera.view());
                     ps->setTexture("srcImageTexture", srcEquirectMap);
-                });
+                },
+                config
+           );
         }
     }
 }

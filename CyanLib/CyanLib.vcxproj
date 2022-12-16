@@ -169,7 +169,7 @@
     <None Include="..\shader\fill_raster_p.glsl" />
     <None Include="..\shader\generate_vpl_p.glsl" />
     <None Include="..\shader\generate_vpl_v.glsl" />
-    <None Include="..\shader\global_buffers.glsl" />
+    <None Include="..\shader\scene_buffers.glsl" />
     <None Include="..\shader\instant_radiosity_p.glsl" />
     <None Include="..\shader\instant_radiosity_v.glsl" />
     <None Include="..\shader\lights.glsl" />

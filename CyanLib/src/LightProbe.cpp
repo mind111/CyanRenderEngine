@@ -112,12 +112,11 @@ namespace Cyan
                 renderTarget->setDrawBuffers({ f });
                 renderTarget->clear({ { f } });
 
-                GfxPipelineState pipelineState;
-                pipelineState.depth = DepthControl::kDisable;
+                GfxPipelineConfig config;
+                config.depth = DepthControl::kDisable;
                 renderer->drawMesh(
                     renderTarget.get(),
                     { 0u, 0u, renderTarget->width, renderTarget->height }, 
-                    pipelineState, 
                     AssetManager::getAsset<Mesh>("UnitCubeMesh"),
                     s_convolveIrradiancePipeline,
                     [this, f](VertexShader* vs, PixelShader* ps) {
@@ -134,7 +133,8 @@ namespace Cyan
                         vs->setUniform("view", camera.view())
                             .setUniform("projection", camera.projection());
                         ps->setTexture("srcCubemapTexture", sceneCapture);
-                    });
+                    },
+                    config);
             }
         }
     }
@@ -209,7 +209,7 @@ namespace Cyan
         RenderTarget* renderTarget = createRenderTarget(outTexture->width, outTexture->height);
         renderTarget->setColorBuffer(outTexture, 0u);
         auto renderer = Renderer::get();
-        GfxPipelineState pipelineState;
+        GfxPipelineConfig pipelineState;
         pipelineState.depth = DepthControl::kDisable;
         CreateVS(vs, "IntegrateBRDFVS", SHADER_SOURCE_PATH "integrate_BRDF_v.glsl");
         CreatePS(ps, "IntegrateBRDFPS", SHADER_SOURCE_PATH "integrate_BRDF_p.glsl");
@@ -242,12 +242,11 @@ namespace Cyan
                 {
                     renderTarget->setDrawBuffers({ f });
                     renderTarget->clear({ { f } });
-                    GfxPipelineState pipelineState;
-                    pipelineState.depth = DepthControl::kDisable;
+                    GfxPipelineConfig config;
+                    config.depth = DepthControl::kDisable;
                     renderer->drawMesh(
                         renderTarget,
                         { 0u, 0u, renderTarget->width, renderTarget->height }, 
-                        pipelineState, 
                         AssetManager::getAsset<Mesh>("UnitCubeMesh"),
                         s_convolveReflectionPipeline,
                         [this, f, mip, kNumMips](VertexShader* vs, PixelShader* ps) {
@@ -266,7 +265,8 @@ namespace Cyan
                                 .setUniform("view", camera.view());
                             ps->setUniform("roughness", mip * (1.f / (kNumMips - 1)))
                                 .setTexture("envmapSampler", sceneCapture);
-                        });
+                        },
+                    config);
                 }
             }
             glDeleteFramebuffers(1, &renderTarget->fbo);

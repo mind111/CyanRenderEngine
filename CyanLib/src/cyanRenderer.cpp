@@ -137,50 +137,50 @@ namespace Cyan {
     }
 #endif
 
-    void Renderer::drawMesh(RenderTarget* renderTarget, Viewport viewport, GfxPipelineState pipelineState, Mesh* mesh, PixelPipeline* pipeline, const RenderSetupLambda& renderSetupLambda) 
+    void Renderer::drawMesh(RenderTarget* renderTarget, Viewport viewport, Mesh* mesh, PixelPipeline* pipeline, const RenderSetupLambda& renderSetupLambda, const GfxPipelineConfig& config) 
     {
         for (u32 i = 0; i < mesh->numSubmeshes(); ++i) 
         {
             RenderTask task = { };
             task.renderTarget = renderTarget;
             task.viewport = viewport;
-            task.pipelineState = pipelineState;
+            task.config = config;
             task.pipeline = pipeline;
             task.submesh = mesh->getSubmesh(i);
-            task.renderSetupLambda = std::move(renderSetupLambda);
-            submitRenderTask(std::move(task));
+            task.renderSetupLambda = renderSetupLambda;
+            submitRenderTask(task);
         }
     }
 
     void Renderer::drawFullscreenQuad(RenderTarget* renderTarget, PixelPipeline* pipeline, RenderSetupLambda&& renderSetupLambda) {
-        GfxPipelineState pipelineState;
-        pipelineState.depth = DepthControl::kDisable;
+        GfxPipelineConfig config;
+        config.depth = DepthControl::kDisable;
 
         drawMesh(
             renderTarget,
             { 0, 0, renderTarget->width, renderTarget->height },
-            pipelineState,
             AssetManager::getAsset<Mesh>("FullScreenQuadMesh"),
             pipeline,
-            std::move(renderSetupLambda)
-            );
+            renderSetupLambda,
+            config
+        );
     }
 
     void Renderer::drawScreenQuad(RenderTarget* renderTarget, Viewport viewport, PixelPipeline* pipeline, RenderSetupLambda&& renderSetupLambda) {
-        GfxPipelineState pipelineState;
-        pipelineState.depth = DepthControl::kDisable;
+        GfxPipelineConfig config;
+        config.depth = DepthControl::kDisable;
 
         drawMesh(
             renderTarget,
             viewport,
-            pipelineState,
             AssetManager::getAsset<Mesh>("FullScreenQuadMesh"),
             pipeline,
-            std::move(renderSetupLambda)
-            );
+            renderSetupLambda,
+            config
+        );
     }
 
-    void Renderer::submitRenderTask(RenderTask&& task) {
+    void Renderer::submitRenderTask(const RenderTask& task) {
         // set render target assuming that render target is already properly setup
         m_ctx->setRenderTarget(task.renderTarget);
         m_ctx->setViewport(task.viewport);
@@ -189,8 +189,8 @@ namespace Cyan {
         m_ctx->setPixelPipeline(task.pipeline, task.renderSetupLambda);
 
         // set graphics pipeline state
-        m_ctx->setDepthControl(task.pipelineState.depth);
-        m_ctx->setPrimitiveType(task.pipelineState.primitiveMode);
+        m_ctx->setDepthControl(task.config.depth);
+        m_ctx->setPrimitiveType(task.config.primitiveMode);
 
         // kick off the draw call
         auto va = task.submesh->getVertexArray();
@@ -632,7 +632,8 @@ namespace Cyan {
                     .setUniform("bloomIntensity", m_settings.bloomIntensity)
                     .setTexture("bloomTexture", inBloomColor)
                     .setTexture("sceneColorTexture", inSceneColor);
-            });
+            }
+        );
     }
 
     // todo: this gaussian blur pass is too slow, takes about 2-3ms
@@ -835,7 +836,6 @@ namespace Cyan {
         drawMesh(
             renderTarget,
             viewport,
-            GfxPipelineState(),
             AssetManager::getAsset<Mesh>("Sphere"),
             pipeline,
             [this, position, scale, view, projection](VertexShader* vs, PixelShader* ps) {
@@ -856,7 +856,6 @@ namespace Cyan {
         drawMesh(
             renderTarget,
             viewport,
-            GfxPipelineState(),
             AssetManager::getAsset<Mesh>("UnitCubeMesh"),
             pipeline,
             [this, position, scale, view, projection](VertexShader* vs, PixelShader* ps) {
@@ -908,7 +907,6 @@ namespace Cyan {
         drawMesh(
             renderTarget.get(),
             {0, 0, renderTarget->width, renderTarget->height },
-            GfxPipelineState(),
             AssetManager::getAsset<Mesh>("UnitCubeMesh"),
             pipeline,
             [cubemap](VertexShader* vs, PixelShader* ps) {
@@ -983,7 +981,6 @@ namespace Cyan {
         drawMesh(
             renderTarget.get(),
             {0, 0, renderTarget->width, renderTarget->height },
-            GfxPipelineState(),
             AssetManager::getAsset<Mesh>("UnitCubeMesh"),
             pipeline,
             [cubemap](VertexShader* vs, PixelShader* ps) {
