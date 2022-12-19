@@ -130,7 +130,7 @@ namespace Cyan
                             char* token = strtok_s(name, "[", &nextToken);
                             char suffix[5] = "[%u]";
                             char* format = strcat(token, suffix);
-                            sprintf(name, format, i);
+                            sprintf(name, format, j);
 
                             UniformDesc desc = { };
                             desc.type = translated;

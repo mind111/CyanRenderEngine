@@ -17,7 +17,7 @@ uniform float whitePointLuminance;
 uniform float smoothstepWhitePoint;
 
 uniform sampler2D sceneColorTexture;
-uniform sampler2D bloomColorTexture;
+uniform sampler2D bloomTexture;
 
 float saturate(float k)
 {
@@ -126,10 +126,8 @@ void main()
     // linearColor *= colorTemperatureToRGB(colorTempreture);
 
     if (enableBloom > 0.5f) {
-        // linear blending
-       // linearColor = mix(linearColor, texture(bloomColorTexture, psIn.texCoord0).rgb, .5);
        // additive blending
-       linearColor = linearColor + texture(bloomColorTexture, psIn.texCoord0).rgb;
+       linearColor = linearColor + texture(bloomTexture, psIn.texCoord0).rgb;
     }
 
     // tone mapping

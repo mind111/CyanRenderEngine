@@ -67,9 +67,84 @@ namespace Cyan
         RenderSetupLambda renderSetupLambda = [](VertexShader* vs, PixelShader* ps) {};
     };
 
+    struct CachedTexture2D
+    {
+        CachedTexture2D() = default;
+        CachedTexture2D(const CachedTexture2D& src)
+            : texture(src.texture), refCount(src.refCount)
+        {
+            (*refCount)++;
+        }
+
+        CachedTexture2D(const char* name, const ITextureRenderable::Spec& spec, const ITextureRenderable::Parameter& params = {})
+            : refCount(nullptr), texture(nullptr)
+        {
+            refCount = new u32(1u);
+
+            // search in the texture cache
+            auto entry = cache.find(spec);
+            if (entry == cache.end())
+            {
+                // create a new texture and add it to the cache
+                texture = new Texture2DRenderable(name, spec, params);
+            }
+            else
+            {
+                // recycle a texture and remove it from the cache
+                texture = entry->second;
+                cache.erase(entry);
+            }
+        }
+
+        ~CachedTexture2D()
+        {
+            (*refCount)--;
+            if (*refCount == 0u)
+            {
+                release();
+                delete refCount;
+            }
+        }
+
+        CachedTexture2D& operator=(const CachedTexture2D& src)
+        {
+            refCount = src.refCount;
+            (*refCount)++;
+            texture = src.texture;
+            return *this;
+        }
+
+        Texture2DRenderable* get()
+        {
+            return texture;
+        }
+
+        Texture2DRenderable* operator->()
+        {
+            return texture;
+        }
+
+        u32* refCount = nullptr;
+        Texture2DRenderable* texture = nullptr;
+    private:
+        void release()
+        {
+            cache.insert({ texture->getTextureSpec(), texture });
+            texture = nullptr;
+        }
+        
+        /** Note - @mind:
+         * Using multi-map here because we want to allow duplicates, storing multiple textures having the same
+         * spec. Do note that find() will return an iterator to any instance of key-value pair among all values
+         * associated with that key, so the order of returned values are not guaranteed.
+         */
+        static std::unordered_multimap<ITextureRenderable::Spec, Texture2DRenderable*> cache;
+    };
+
     class Renderer : public Singleton<Renderer> {
     public:
         using UIRenderCommand = std::function<void()>;
+
 
         friend class InstantRadiosity;
 
@@ -88,18 +163,31 @@ namespace Cyan
         void renderToScreen(Texture2DRenderable* inTexture);
         void endRender();
 
-        struct SceneTextures {
+        struct SceneTextures 
+        {
             glm::uvec2 resolution;
             Texture2DRenderable* depth = nullptr;
             Texture2DRenderable* normal = nullptr;
             Texture2DRenderable* color = nullptr;
-            Texture2DRenderable* postProcessed = nullptr;
             RenderTarget* renderTarget = nullptr;
+
             bool bInitialized = false;
 
             void initialize(const glm::uvec2& inResolution);
         } m_sceneTextures;
 
+        struct PostProcessingTextures 
+        {
+            glm::uvec2 resolution;
+            Texture2DRenderable* bloom[5] = { };
+            
+            bool bInitialized = false;
+
+            void initialize();
+        } m_postProcessingTextures;
+
+        // managing creating and recycling render target
+        RenderTarget* createCachedRenderTarget(const char* name, u32 width, u32 height);
         Texture2DRenderable* renderScene(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
 
         struct IndirectDrawBuffer
@@ -167,14 +255,14 @@ namespace Cyan
         // gaussian blur
         void gaussianBlur(Texture2DRenderable* inoutTexture, u32 inRadius, f32 inSigma);
 
-        struct DownsampleChain {
-            std::vector<RenderTexture2D*> stages;
-            u32 numStages;
+        struct ImagePyramid {
+            u32 numLevels;
+            std::vector<Texture2DRenderable*> images;
+            Texture2DRenderable* srcTexture;
         };
-        DownsampleChain downsample(RenderTexture2D* inTexture, u32 inNumStages);
-        RenderTexture2D* bloom(RenderTexture2D* inTexture);
-
-        Texture2DRenderable* downsample(Texture2DRenderable* inTexture, Texture2DRenderable* outTexture);
+        void downsample(Texture2DRenderable* src, Texture2DRenderable* dst);
+        void upscale(Texture2DRenderable* src, Texture2DRenderable* dst);
+        CachedTexture2D bloom(Texture2DRenderable* src);
 
         /**
         * Local tonemapping using "Exposure Fusion"

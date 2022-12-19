@@ -853,5 +853,17 @@
     <None Include="..\shader\lighting.glsl">
       <Filter>Shaders\Common</Filter>
     </None>
+    <None Include="..\shader\downsample_v.glsl">
+      <Filter>Shaders\PostProcessing</Filter>
+    </None>
+    <None Include="..\shader\downsample_p.glsl">
+      <Filter>Shaders\PostProcessing</Filter>
+    </None>
+    <None Include="..\shader\upscale_p.glsl">
+      <Filter>Shaders\PostProcessing</Filter>
+    </None>
+    <None Include="..\shader\upscale_v.glsl">
+      <Filter>Shaders\PostProcessing</Filter>
+    </None>
   </ItemGroup>
 </Project>

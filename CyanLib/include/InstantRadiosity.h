@@ -7,7 +7,6 @@
 namespace Cyan {
     class Renderer;
     struct RenderableScene;
-    struct RenderTexture2D;
     struct Texture2DRenderable;
     struct RenderTarget;
 

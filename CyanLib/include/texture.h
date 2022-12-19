@@ -71,7 +71,8 @@ namespace Cyan
                 kInvalid
             };
 
-            bool operator==(const Spec& rhs) {
+            bool operator==(const Spec& rhs) const
+            {
                 return (type == rhs.type) && (width == rhs.width) && (height == rhs.height) && (pixelFormat == rhs.pixelFormat);
             }
 
@@ -479,5 +480,36 @@ namespace Cyan
         }
 
         u32 resolution;
+    };
+}
+
+// custom hash function for ITextureRenderable::Spec
+namespace std
+{
+    template <>
+    struct hash<Cyan::ITextureRenderable::Spec>
+    {
+        std::size_t operator()(const Cyan::ITextureRenderable::Spec& spec) const
+        {
+            std::string key = std::to_string(spec.width) + 'x' + std::to_string(spec.height);
+            switch (spec.pixelFormat)
+            {
+            case PF_RGB16F:
+                key += "_RGB16F";
+                break;
+            case PF_RGB32F:
+                key += "_RGB32F";
+                break;
+            case PF_RGBA16F:
+                key += "_RGBA16F";
+                break;
+            case PF_RGBA32F:
+                key += "_RGBA32F";
+                break;
+            default:
+                break;
+            }
+            return std::hash<std::string>()(key);
+        }
     };
 }

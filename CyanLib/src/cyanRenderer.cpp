@@ -34,17 +34,20 @@ namespace Cyan {
     Renderer* Singleton<Renderer>::singleton = nullptr;
     static Mesh* fullscreenQuad = nullptr;
 
-    Renderer::IndirectDrawBuffer::IndirectDrawBuffer() {
+    Renderer::IndirectDrawBuffer::IndirectDrawBuffer() 
+    {
         glCreateBuffers(1, &buffer);
         glNamedBufferStorage(buffer, sizeInBytes, nullptr, GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_WRITE_BIT);
         data = glMapNamedBufferRange(buffer, 0, sizeInBytes, GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_WRITE_BIT);
     }
     
-    void Renderer::SceneTextures::initialize(const glm::uvec2& inResolution) {
+    void Renderer::SceneTextures::initialize(const glm::uvec2& inResolution) 
+    {
         if (!bInitialized) {
+            auto renderer = Renderer::get();
             resolution = inResolution;
             // render target
-            renderTarget = createRenderTarget(resolution.x, resolution.y);
+            renderTarget = renderer->createCachedRenderTarget("Scene", resolution.x, resolution.y);
             // scene depth normal buffer
             {
                 ITextureRenderable::Spec spec = { };
@@ -67,6 +70,11 @@ namespace Cyan {
                 spec.pixelFormat = PF_RGB16F;
                 color = new Texture2DRenderable("SceneColor", spec);
             }
+            // bloom textures
+            {
+
+            }
+
             Renderer::get()->registerVisualization(std::string("SceneTextures"), depth);
             Renderer::get()->registerVisualization(std::string("SceneTextures"), normal);
             bInitialized = true;
@@ -92,6 +100,25 @@ namespace Cyan {
         ImGui_ImplOpenGL3_Shutdown();
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();
+    }
+
+    // managing creating and recycling render target
+    RenderTarget* Renderer::createCachedRenderTarget(const char* name, u32 width, u32 height)
+    {
+        static std::unordered_map<std::string, std::unique_ptr<RenderTarget>> renderTargetMap;
+        std::string suffix = '_' + std::to_string(width) + 'x' + std::to_string(height);
+        std::string key = name + suffix;
+        auto entry = renderTargetMap.find(key);
+        if (entry == renderTargetMap.end())
+        {
+            RenderTarget* newRenderTarget = createRenderTarget(width, height);
+            renderTargetMap.insert({ key, std::unique_ptr<RenderTarget>(newRenderTarget)});
+            return newRenderTarget;
+        }
+        else
+        {
+            return entry->second.get();
+        }
     }
 
     void Renderer::appendToRenderingTab(const std::function<void()>& command) {
@@ -243,9 +270,10 @@ namespace Cyan {
             renderSceneBatched(renderableScene, m_sceneTextures.renderTarget, m_sceneTextures.color, { });
 
             // post processing
-            // auto bloom = bloom(m_sceneTextures.color);
-            if (m_settings.bPostProcessing) {
-                composite(sceneView.renderTexture, m_sceneTextures.color, nullptr, m_windowSize);
+            auto bloomTexture = bloom(m_sceneTextures.color);
+            if (m_settings.bPostProcessing) 
+            {
+                composite(sceneView.renderTexture, m_sceneTextures.color, bloomTexture.get(), m_windowSize);
             }
             // todo: blit offscreen albedo buffer into output render texture
             else {
@@ -261,7 +289,7 @@ namespace Cyan {
 
     void Renderer::visualize(Texture2DRenderable* dst, Texture2DRenderable* src) 
     {
-        auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(dst->width, dst->height));
+        auto renderTarget = createCachedRenderTarget("Visualization", dst->width, dst->height);
         renderTarget->setColorBuffer(dst, 0);
         renderTarget->setDrawBuffers({ 0 });
         renderTarget->clearDrawBuffer(0, glm::vec4(.0f, .0f, .0f, 1.f));
@@ -270,7 +298,7 @@ namespace Cyan {
         CreatePS(ps, "BlitQuadPS", SHADER_SOURCE_PATH "blit_p.glsl");
         CreatePixelPipeline(pipeline, "BlitQuad", vs, ps);
         drawFullscreenQuad(
-            renderTarget.get(),
+            renderTarget,
             pipeline,
             [this, src](VertexShader* vs, PixelShader* ps) {
                 if (ps)
@@ -583,31 +611,121 @@ namespace Cyan {
         }
     }
 
-    /*
-    Texture2DRenderable* Renderer::downsample(Texture2DRenderable* inTexture) {
-        Shader* downsampleShader = ShaderManager::createShader({ ShaderType::kVsPs, "BloomDownsampleShader", SHADER_SOURCE_PATH "bloom_downsample_v.glsl", SHADER_SOURCE_PATH "bloom_downsample_p.glsl" });
-        ITextureRenderable::Spec depthSpec = inTexture->getTextureSpec();
-        depthSpec.width = max(1, depthSpec.width / 2);
-        depthSpec.height = max(1, depthSpec.height / 2);
-        auto outTexture = new
-        std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(depthSpec.width, depthSpec.height));
-        renderTarget->setColorBuffer(, 0);
-
-        submitFullScreenPass(
-            renderTarget.get(),
-            downsampleShader, 
-            [inTexture](RenderTarget* renderTarget, Shader* shader) {
-                shader->setTexture("srcImage", inTexture);
-            });
+    void Renderer::downsample(Texture2DRenderable* src, Texture2DRenderable* dst) {
+        auto renderTarget = createCachedRenderTarget("Downsample", dst->width, dst->height);
+        renderTarget->setColorBuffer(dst, 0);
+        CreateVS(vs, "DownsampleVS", SHADER_SOURCE_PATH "downsample_v.glsl");
+        CreatePS(ps, "DownsamplePS", SHADER_SOURCE_PATH "downsample_p.glsl");
+        CreatePixelPipeline(pipeline, "Downsample", vs, ps);
+        drawFullscreenQuad(
+            renderTarget,
+            pipeline, 
+            [src](VertexShader* vs, PixelShader* ps) {
+                ps->setTexture("srcTexture", src);
+            }
+        );
     }
-    */
 
-    void Renderer::composite(Texture2DRenderable* composited,Texture2DRenderable* inSceneColor, Texture2DRenderable* inBloomColor, const glm::uvec2& outputResolution) 
+    void Renderer::upscale(Texture2DRenderable* src, Texture2DRenderable* dst)
     {
-        // add a reconstruction pass using Gaussian filter
-        // todo: this pass is so slow!!!!! disabled at the moment
-        // gaussianBlur(inSceneColor, 2u, 1.0f);
-        auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(composited->width, composited->height));
+        auto renderTarget = createCachedRenderTarget("Upscale", dst->width, dst->height);
+        renderTarget->setColorBuffer(dst, 0);
+        CreateVS(vs, "UpscaleVS", SHADER_SOURCE_PATH "upscale_v.glsl");
+        CreatePS(ps, "UpscalePS", SHADER_SOURCE_PATH "upscale_p.glsl");
+        CreatePixelPipeline(pipeline, "Upscale", vs, ps);
+        drawFullscreenQuad(
+            renderTarget,
+            pipeline, 
+            [src](VertexShader* vs, PixelShader* ps) {
+                ps->setTexture("srcTexture", src);
+            }
+        );
+    }
+
+    std::unordered_multimap<ITextureRenderable::Spec, Texture2DRenderable*> CachedTexture2D::cache;
+
+    CachedTexture2D Renderer::bloom(Texture2DRenderable* src)
+    {
+        // setup pass
+        CachedTexture2D bloomSetupTexture("BloomSetup", src->getTextureSpec());
+        auto renderTarget = createCachedRenderTarget("BloomSetup", bloomSetupTexture->width, bloomSetupTexture->height);
+        renderTarget->setColorBuffer(bloomSetupTexture.get(), 0);
+        CreateVS(vs, "BloomSetupVS", SHADER_SOURCE_PATH "bloom_setup_v.glsl");
+        CreatePS(ps, "BloomSetupPS", SHADER_SOURCE_PATH "bloom_setup_p.glsl");
+        CreatePixelPipeline(pipeline, "BloomSetup", vs, ps);
+        drawFullscreenQuad(
+            renderTarget,
+            pipeline,
+            [src](VertexShader* vs, PixelShader* ps) {
+                ps->setTexture("srcTexture", src);
+            }
+        );
+
+        const i32 numPasses = 5;
+        CachedTexture2D downsamplePyramid[numPasses + 1] = { };
+        // downsample passes
+        {
+            downsamplePyramid[0] = bloomSetupTexture;
+            for (i32 pass = 1; pass <= numPasses; ++pass)
+            { 
+                Texture2DRenderable* src = downsamplePyramid[pass - 1].get();
+                std::string passName("BloomDownsample");
+                passName += '[' + std::to_string(pass) + ']';
+                ITextureRenderable::Spec spec = src->getTextureSpec();
+                spec.width /= 2;
+                spec.height /= 2;
+                if (spec.width == 0u || spec.height == 0u)
+                {
+                    assert(0);
+                }
+                downsamplePyramid[pass] = CachedTexture2D(passName.c_str(), spec);
+                Texture2DRenderable* dst = downsamplePyramid[pass].get();
+                downsample(src, dst);
+            }
+        }
+
+        auto upscaleAndBlend = [this](Texture2DRenderable* src, Texture2DRenderable* blend, Texture2DRenderable* dst) {
+            auto renderTarget = createCachedRenderTarget("BloomUpscale", dst->width, dst->height);
+            renderTarget->setColorBuffer(dst, 0);
+            CreateVS(vs, "BloomUpscaleVS", SHADER_SOURCE_PATH "bloom_upscale_v.glsl");
+            CreatePS(ps, "BloomUpscalePS", SHADER_SOURCE_PATH "bloom_upscale_p.glsl");
+            CreatePixelPipeline(pipeline, "BloomUpscale", vs, ps);
+            drawFullscreenQuad(
+                renderTarget,
+                pipeline,
+                [src, blend](VertexShader* vs, PixelShader* ps) {
+                    ps->setTexture("srcTexture", src);
+                    ps->setTexture("blendTexture", blend);
+                }
+            );
+        };
+
+        CachedTexture2D upscalePyramid[numPasses + 1] = { };
+        upscalePyramid[numPasses] = downsamplePyramid[numPasses];
+        // upscale passes
+        {
+            for (i32 pass = numPasses; pass >= 1; --pass)
+            { 
+                Texture2DRenderable* src = upscalePyramid[pass].get();
+                Texture2DRenderable* blend = downsamplePyramid[pass - 1].get();
+                std::string passName("BloomUpscale");
+                passName += '[' + std::to_string(pass) + ']';
+                ITextureRenderable::Spec spec = src->getTextureSpec();
+                spec.width *= 2;
+                spec.height *= 2;
+                upscalePyramid[pass - 1] = CachedTexture2D(passName.c_str(), spec);
+                Texture2DRenderable* dst = upscalePyramid[pass - 1].get();
+
+                upscaleAndBlend(src, blend, dst);
+                gaussianBlur(dst, pass * 2, 1.f);
+            }
+        }
+        return upscalePyramid[0];
+    }
+
+    void Renderer::composite(Texture2DRenderable* composited, Texture2DRenderable* inSceneColor, Texture2DRenderable* inBloomColor, const glm::uvec2& outputResolution) 
+    {
+        auto renderTarget = createCachedRenderTarget("PostProcessing", composited->width, composited->height);
         renderTarget->setColorBuffer(composited, 0);
 
         CreateVS(vs, "CompositeVS", SHADER_SOURCE_PATH "composite_v.glsl");
@@ -615,7 +733,7 @@ namespace Cyan {
         CreatePixelPipeline(pipeline, "Composite", vs, ps);
 
         drawFullscreenQuad(
-            renderTarget.get(),
+            renderTarget,
             pipeline,
             [this, inBloomColor, inSceneColor](VertexShader* vs, PixelShader* ps) {
                 ps->setUniform("enableTonemapping", m_settings.enableTonemapping ? 1.f : 0.f);
@@ -634,10 +752,12 @@ namespace Cyan {
                     .setTexture("sceneColorTexture", inSceneColor);
             }
         );
+        // add a reconstruction pass using Gaussian filter
+        gaussianBlur(composited, 2u, 1.0f);
     }
 
-    // todo: this gaussian blur pass is too slow, takes about 2-3ms
-    void Renderer::gaussianBlur(Texture2DRenderable* inoutTexture, u32 inRadius, f32 inSigma) {
+    void Renderer::gaussianBlur(Texture2DRenderable* inoutTexture, u32 inRadius, f32 inSigma) 
+    {
         static const u32 kMaxkernelRadius = 10;
         static const u32 kMinKernelRadius = 2;
 
@@ -693,24 +813,27 @@ namespace Cyan {
             f32* weights = nullptr;
         };
 
-        CreateVS(vs, "GaussianBlurVS", "gaussian_blur_v.glsl");
-        CreatePS(ps, "GaussianBlurPS", "gaussian_blur_p.glsl");
+        CreateVS(vs, "GaussianBlurVS", SHADER_SOURCE_PATH "gaussian_blur_v.glsl");
+        CreatePS(ps, "GaussianBlurPS", SHADER_SOURCE_PATH "gaussian_blur_p.glsl");
         CreatePixelPipeline(pipeline, "GaussianBlur", vs, ps);
 
+        auto renderTarget = createCachedRenderTarget("GaussianBlur", inoutTexture->width, inoutTexture->height);
+        renderTarget->setColorBuffer(inoutTexture, 0);
+
         // create scratch buffer for storing intermediate output
-        ITextureRenderable::Parameter params = { };
-        params.wrap_s = WM_CLAMP;
-        params.wrap_r = WM_CLAMP;
-        params.wrap_t = WM_CLAMP;
-        auto scratchBuffer = std::make_shared<Texture2DRenderable>("GaussianBlurH", inoutTexture->getTextureSpec(), params);
-        auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(inoutTexture->width, inoutTexture->height));
-        renderTarget->setColorBuffer(scratchBuffer.get(), 0);
+        std::string name("GaussianBlurScratch");
+        ITextureRenderable::Spec spec = inoutTexture->getTextureSpec();
+        name += '_' + std::to_string(spec.width) + 'x' + std::to_string(spec.height);
+        CachedTexture2D scratchBuffer(name.c_str(), spec);
+        auto scratch = scratchBuffer.get();
+        renderTarget->setColorBuffer(scratch, 1);
 
         GaussianKernel kernel(inRadius, inSigma, m_frameAllocator);
 
         // horizontal pass
+        renderTarget->setDrawBuffers({ 1 });
         drawFullscreenQuad(
-            renderTarget.get(),
+            renderTarget,
             pipeline,
             [inoutTexture, &kernel](VertexShader* vs, PixelShader* ps) {
                 ps->setTexture("srcTexture", inoutTexture);
@@ -726,12 +849,12 @@ namespace Cyan {
         );
 
         // vertical pass
-        renderTarget->setColorBuffer(inoutTexture, 0);
+        renderTarget->setDrawBuffers({ 0 });
         drawFullscreenQuad(
-            renderTarget.get(),
+            renderTarget,
             pipeline,
-            [scratchBuffer, &kernel](VertexShader* vs, PixelShader* ps) {
-                ps->setTexture("srcTexture", scratchBuffer.get());
+            [scratch, &kernel](VertexShader* vs, PixelShader* ps) {
+                ps->setTexture("srcTexture", scratch);
                 ps->setUniform("kernelRadius", kernel.radius);
                 ps->setUniform("pass", 0.f);
                 for (u32 i = 0; i < kMaxkernelRadius; ++i)

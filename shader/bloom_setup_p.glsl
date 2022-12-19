@@ -4,9 +4,9 @@ in VSOutput
 {
 	vec2 texCoord0;
 } psIn;
-uniform sampler2D srcTexture;
-
 out vec4 outColor;
+
+uniform sampler2D srcTexture;
 
 float luminance(vec3 color)
 {
@@ -22,7 +22,7 @@ void main()
     if (lumin > 0.0f)
     {
         // boost the constrast using luminance
-        float bloomScale = clamp(lumin, 0.0, 1.0);
-        outColor = vec4(bloomScale * inColor * 0.01f, 1.f);
+        float bloomScale = smoothstep(0.0, 1.0, lumin);
+        outColor = vec4(bloomScale * bloomScale * inColor * 0.04f, 1.f);
     }
 }

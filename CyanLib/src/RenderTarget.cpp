@@ -71,7 +71,6 @@ namespace Cyan
         {
             cyanError("Drawbuffer index out of bound!");
         }
-
         const u32 numFaces = 6u;
         if (index + numFaces - 1u > 7u)
         {

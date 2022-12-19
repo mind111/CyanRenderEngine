@@ -5,7 +5,6 @@ in VSOutput
 	vec2 texCoord0;
 } psIn;
 uniform sampler2D srcImage;
-
 out vec4 fragcolor;
 
 // reference: http://www.iryoku.com/next-generation-post-processing-in-call-of-duty-advanced-warfare

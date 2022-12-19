@@ -343,7 +343,7 @@ namespace Cyan {
         customSetup(*m_scene, depthBuffer, normalBuffer);
     }
 
-    void ManyViewGI::render(RenderTarget* sceneRenderTarget, const RenderableScene& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) {
+    void ManyViewGI::render(RenderTarget* renderTarget, const RenderableScene& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) {
         m_image->render(this);
 
         auto visRenderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(
@@ -360,7 +360,7 @@ namespace Cyan {
             m_image->visualizeHemicubes(visRenderTarget.get());
         }
 
-        customRender(scene.camera, sceneRenderTarget, visRenderTarget.get());
+        customRender(scene.camera, renderTarget, visRenderTarget.get());
 
         // ui controls
         m_renderer->addUIRenderCommand([this, scene, depthBuffer, normalBuffer]() {
@@ -489,7 +489,7 @@ namespace Cyan {
         cacheSurfelDirectLighting();
     }
 
-    void PointBasedManyViewGI::customRender(const RenderableScene::Camera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) {
+    void PointBasedManyViewGI::customRender(const RenderableScene::Camera& camera, RenderTarget* renderTarget, RenderTarget* visRenderTarget) {
         if (m_scene) {
             if (bVisualizeSurfels) {
                 visualizeSurfels(visRenderTarget);
@@ -730,16 +730,16 @@ namespace Cyan {
         m_surfelBSH.build(surfels);
     }
 
-    void MicroRenderingGI::customRender(const RenderableScene::Camera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) 
+    void MicroRenderingGI::customRender(const RenderableScene::Camera& camera, RenderTarget* renderTarget, RenderTarget* visRenderTarget) 
     {
-        PointBasedManyViewGI::customRender(camera, sceneRenderTarget, visRenderTarget);
+        PointBasedManyViewGI::customRender(camera, renderTarget, visRenderTarget);
         if (bVisualizeSurfelBSH) 
         {
             m_surfelBSH.visualize(m_gfxc, visRenderTarget);
         }
         if (bVisualizeSurfelSampler) 
         {
-            m_surfelSampler.visualize(sceneRenderTarget, m_renderer);
+            m_surfelSampler.visualize(renderTarget, m_renderer);
         }
         if (bVisualizeMicroBuffer) 
         {

@@ -144,6 +144,8 @@
     <ClCompile Include="src\Window.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\shader\downsample_p.glsl" />
+    <None Include="..\shader\downsample_v.glsl" />
     <None Include="..\shader\lighting.glsl" />
     <None Include="..\shader\shading_model.glsl" />
     <None Include="..\shader\debug_copy_p.glsl" />
@@ -217,6 +219,8 @@
     <None Include="..\shader\taa_v.glsl" />
     <None Include="..\shader\test_pbs_p.glsl" />
     <None Include="..\shader\test_pbs_v.glsl" />
+    <None Include="..\shader\upscale_p.glsl" />
+    <None Include="..\shader\upscale_v.glsl" />
     <None Include="..\shader\vctx_p.glsl" />
     <None Include="..\shader\vctx_v.glsl" />
     <None Include="..\shader\vctx_filter_c.glsl" />
