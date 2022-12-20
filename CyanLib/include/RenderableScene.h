@@ -103,6 +103,9 @@ namespace Cyan
         // camera
         struct Camera
         {
+            Camera() = default;
+            Camera(const struct PerspectiveCamera& inCamera);
+
             glm::vec3 eye;
             glm::vec3 lookAt;
             glm::vec3 right, forward, up;

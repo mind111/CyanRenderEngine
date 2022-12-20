@@ -1,10 +1,10 @@
 #version 450 core
 
-layout (location = 0) in vec3 vertexPos;
-layout (location = 1) in vec3 vertexNormal;
-layout (location = 2) in vec4 vertexTangent;
-layout (location = 3) in vec2 textureUv_0;
-layout (location = 4) in vec2 textureUv_1;
+layout (location = 0) in vec3 position;
+layout (location = 1) in vec3 normal;
+layout (location = 2) in vec4 tangent;
+layout (location = 3) in vec2 texCoord0;
+layout (location = 4) in vec2 texCoord1;
 
 out gl_PerVertex
 {
@@ -18,6 +18,6 @@ out VSOut
 } vsOut;
 
 void main() {
-    vsOut.texCoord0 = textureUv_0;
-    gl_Position = vec4(vertexPos, 1.0f);
+    vsOut.texCoord0 = texCoord0;
+    gl_Position = vec4(position, 1.0f);
 }

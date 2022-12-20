@@ -16,19 +16,14 @@ out VSOutput
 	vec3 objectSpacePosition;
 } vsOut;
 
-layout(std430) buffer ViewBuffer
-{
-    mat4  view;
-    mat4  projection;
-    float m_ssao;
-    float dummy;
-} viewSsbo;
+uniform mat4 view;
+uniform mat4 projection;
 
 void main()
 {
     vsOut.objectSpacePosition = position;
-    mat4 view = viewSsbo.view;
+    mat4 adjustedView = view;
     // remove translation from view matrix
-    view[3] = vec4(0.f, 0.f, 0.f, 1.f);
-    gl_Position = (viewSsbo.projection * view * vec4(position, 1.f)).xyww;
+    adjustedView[3] = vec4(0.f, 0.f, 0.f, 1.f);
+    gl_Position = (projection * adjustedView * vec4(position, 1.f)).xyww;
 }

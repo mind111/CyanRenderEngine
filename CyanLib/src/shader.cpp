@@ -305,14 +305,16 @@ namespace Cyan
 
     ComputePipeline::ComputePipeline(const char* pipelineName, const char* csName) 
         : PipelineStateObject(pipelineName) {
+        initialize();
     }
 
     ComputePipeline::ComputePipeline(const char* pipelineName, ComputeShader* computeShader) 
         : PipelineStateObject(pipelineName), m_computeShader(computeShader) {
+        initialize();
     }
 
     bool ComputePipeline::initialize() {
-        glUseProgramStages(glObject, GL_COMPUTE_SHADER, m_computeShader->getProgram());
+        glUseProgramStages(glObject, GL_COMPUTE_SHADER_BIT, m_computeShader->getProgram());
         return true;
     }
 

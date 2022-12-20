@@ -34,7 +34,8 @@ namespace Cyan {
             glm::vec4 normal;
         };
 
-        struct Image {
+        struct Image 
+        {
             Image(const glm::uvec2& resolution, u32 inFinalGatherRes);
             ~Image() { }
 
@@ -46,6 +47,9 @@ namespace Cyan {
             void writeRadiance(TextureCubeRenderable* radianceCubemap, const glm::ivec2& texCoord);
             void writeIrradiance(TextureCubeRenderable* radianceCubemap, const Hemicube& hemicube, const glm::ivec2& texCoord);
             bool finished() { return nextHemicube >= hemicubes.size(); }
+            void compose();
+            void renderDirectLighting();
+            void renderIndirectLighting();
             void visualizeHemicubes(RenderTarget* dstRenderTarget);
             void visualizeIrradiance(RenderTarget* dstRenderTarget);
 
@@ -55,15 +59,25 @@ namespace Cyan {
             glm::uvec2 radianceAtlasRes;
             Texture2DRenderable* irradiance = nullptr;
             Texture2DRenderable* radianceAtlas = nullptr;
+            // "gBuffer"
+            Texture2DRenderable* normal = nullptr;
+            Texture2DRenderable* position = nullptr;
+            Texture2DRenderable* albedo = nullptr;
+            Texture2DRenderable* directLighting = nullptr;
+            Texture2DRenderable* indirectLighting = nullptr;
+            Texture2DRenderable* sceneColor = nullptr;
+            Texture2DRenderable* composed = nullptr;
         protected:
-            struct InstanceDesc {
+            struct InstanceDesc 
+            {
                 glm::mat4 transform;
                 glm::ivec2 atlasTexCoord;
                 glm::ivec2 padding;
             };
             ShaderStorageBuffer<DynamicSsboData<InstanceDesc>> hemicubeInstanceBuffer;
 
-            struct Axis {
+            struct Axis 
+            {
                 glm::mat4 v0;
                 glm::mat4 v1;
                 glm::vec4 albedo;
@@ -95,10 +109,10 @@ namespace Cyan {
         virtual void customInitialize();
         virtual void customSetup(const RenderableScene& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) { }
         virtual void customRender(const RenderableScene::Camera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) { }
-        virtual void customRenderScene(const RenderableScene& scene, const Hemicube& hemicube, const PerspectiveCamera& camera);
+        virtual void customRenderScene(RenderableScene& scene, const Hemicube& hemicube, const PerspectiveCamera& camera);
         virtual void customUI() {}
 
-        TextureCubeRenderable* finalGathering(const Hemicube& hemicube, const RenderableScene& scene, bool jitter=false, const glm::vec3& jitteredSampleDirection=glm::vec3(0.f));
+        TextureCubeRenderable* finalGathering(const Hemicube& hemicube, RenderableScene& scene, bool jitter=false, const glm::vec3& jitteredSampleDirection=glm::vec3(0.f));
 
         struct VisualizationBuffers {
             glm::uvec2 resolution = glm::uvec2(640, 360);
@@ -137,7 +151,7 @@ namespace Cyan {
         virtual void customInitialize() override;
         virtual void customSetup(const RenderableScene& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) override;
         virtual void customRender(const RenderableScene::Camera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) override;
-        virtual void customRenderScene(const RenderableScene& scene, const Hemicube& hemicube, const PerspectiveCamera& camera) override;
+        virtual void customRenderScene(RenderableScene& scene, const Hemicube& hemicube, const PerspectiveCamera& camera) override;
         virtual void customUI() override;
 
         struct Visualizations {

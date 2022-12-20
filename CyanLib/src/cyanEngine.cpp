@@ -385,7 +385,13 @@ namespace Cyan
             {
                 ImGui::TextColored(ImVec4(0.f, 1.f, 1.f, 1.f), "Frame Time: %.2f ms", renderFrameTime);
             }
-
+            if (ImGui::CollapsingHeader("Lighting", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::Text("Direct Lighting");
+                ImGui::Separator();
+                ImGui::Text("Indirect Lighting");
+                ImGui::Checkbox("Many View GI", &renderer->m_settings.bManyViewGIEnabled);
+            }
             if (ImGui::CollapsingHeader("Post Processing"))
             {
                 ImGui::TextUnformatted("Color Temperature"); ImGui::SameLine();

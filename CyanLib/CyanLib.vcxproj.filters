@@ -751,7 +751,7 @@
     <None Include="..\shader\raster_gi_convolve_irradiance_c.glsl">
       <Filter>Shaders\ManyViewGI</Filter>
     </None>
-    <None Include="..\shader\fill_raster_p.glsl">
+    <None Include="..\shader\generate_hemicube_p.glsl">
       <Filter>Shaders\ManyViewGI</Filter>
     </None>
     <None Include="..\shader\debug_draw_immediate_v.glsl">
@@ -864,6 +864,18 @@
     </None>
     <None Include="..\shader\upscale_v.glsl">
       <Filter>Shaders\PostProcessing</Filter>
+    </None>
+    <None Include="..\shader\mvgi_gbuffer_p.glsl">
+      <Filter>Shaders\ManyViewGI</Filter>
+    </None>
+    <None Include="..\shader\mvgi_direct_lighting.glsl">
+      <Filter>Shaders\ManyViewGI</Filter>
+    </None>
+    <None Include="..\shader\mvgi_compose_lighting.glsl">
+      <Filter>Shaders\ManyViewGI</Filter>
+    </None>
+    <None Include="..\shader\mvgi_indirect_lighting.glsl">
+      <Filter>Shaders\ManyViewGI</Filter>
     </None>
   </ItemGroup>
 </Project>

@@ -88,11 +88,13 @@ namespace Cyan
         glGenerateTextureMipmap(m_cubemapTexture->getGpuObject());
     }
 
-    Skybox::Skybox(const char* name, TextureCubeRenderable* srcCubemap) {
+    
+    Skybox::Skybox(const char* name, TextureCubeRenderable* srcCubemap) 
+    {
 
     }
 
-    void Skybox::render(RenderTarget* renderTarget, f32 mipLevel)
+    void Skybox::render(RenderTarget* renderTarget, const glm::mat4& view, const glm::mat4& projection, f32 mipLevel)
     {
         Mesh* cubeMesh = AssetManager::getAsset<Mesh>("UnitCubeMesh");
 
@@ -101,7 +103,9 @@ namespace Cyan
             { 0, 0, renderTarget->width, renderTarget->height },
             cubeMesh,
             s_cubemapSkyPipeline,
-            [this, mipLevel](VertexShader* vs, PixelShader* ps) {
+            [this, mipLevel, view, projection](VertexShader* vs, PixelShader* ps) {
+                vs->setUniform("view", view);
+                vs->setUniform("projection", projection);
                 ps->setUniform("mipLevel", mipLevel);
                 ps->setTexture("cubemapTexture", m_cubemapTexture);
             });

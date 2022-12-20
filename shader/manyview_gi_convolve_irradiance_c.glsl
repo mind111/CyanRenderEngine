@@ -34,7 +34,8 @@ float solidAngleHelper(vec2 st) {
 */
 // todo: something is wrong with this calculation
 // calculate the solid angle of the pixel being rasterized
-float calcCubemapTexelSolidAngle(vec3 d, float cubemapResolution) {
+float calcCubemapTexelSolidAngle(vec3 d, float cubemapResolution) 
+{
     float solidAngle;
     vec3 dd = abs(d);
     vec2 texCoord;
@@ -69,10 +70,13 @@ float calcCubemapTexelSolidAngle(vec3 d, float cubemapResolution) {
     return solidAngle;
 }
 
-void main() {
+void main() 
+{
 	vec3 irradiance = vec3(0.f);
-	for (int i = 0; i < radianceRes; ++i) {
-		for (int j = 0; j < radianceRes; ++j) {
+	for (int i = 0; i < radianceRes; ++i) 
+    {
+		for (int j = 0; j < radianceRes; ++j) 
+        {
 			vec2 pixelCoord = (vec2(float(j), float(i)) + .5f) / radianceRes;
 			vec3 d = octDecode(pixelCoord * 2.f - 1.f);
             vec3 worldSpaceDir = (hemicubeTangentFrame * vec4(d, 0.f)).xyz;

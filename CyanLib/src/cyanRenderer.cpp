@@ -265,7 +265,7 @@ namespace Cyan {
             // prepass
             renderSceneDepthNormal(renderableScene, m_sceneTextures.renderTarget, m_sceneTextures.depth, m_sceneTextures.normal);
             // global illumination
-            // m_manyViewGI->render(m_sceneTextures.renderTarget, renderableScene, m_sceneTexture.depth, m_sceneTextures.color);
+            m_manyViewGI->render(m_sceneTextures.renderTarget, renderableScene, m_sceneTextures.depth, m_sceneTextures.normal);
             // main scene pass
             renderSceneBatched(renderableScene, m_sceneTextures.renderTarget, m_sceneTextures.color, { });
 
@@ -273,7 +273,7 @@ namespace Cyan {
             auto bloomTexture = bloom(m_sceneTextures.color);
             if (m_settings.bPostProcessing) 
             {
-                composite(sceneView.renderTexture, m_sceneTextures.color, bloomTexture.get(), m_windowSize);
+                compose(sceneView.renderTexture, m_sceneTextures.color, bloomTexture.get(), m_windowSize);
             }
             // todo: blit offscreen albedo buffer into output render texture
             else {
@@ -550,7 +550,8 @@ namespace Cyan {
         glMultiDrawArraysIndirect(GL_TRIANGLES, 0, drawCount, 0);
     }
 
-    void Renderer::renderSceneBatched(RenderableScene& scene, RenderTarget* outRenderTarget, Texture2DRenderable* outSceneColor, const SSGITextures& SSGIOutput) {
+    void Renderer::renderSceneBatched(RenderableScene& scene, RenderTarget* outRenderTarget, Texture2DRenderable* outSceneColor, const SSGITextures& SSGIOutput) 
+    {
         CreateVS(vs, "SceneColorPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
         CreatePS(ps, "SceneColorPassPS", SHADER_SOURCE_PATH "scene_pass_p.glsl");
         CreatePixelPipeline(pipeline, "SceneColorPass", vs, ps);
@@ -606,8 +607,9 @@ namespace Cyan {
         submitSceneMultiDrawIndirect(scene);
 
         // render skybox
-        if (scene.skybox) {
-            scene.skybox->render(outRenderTarget);
+        if (scene.skybox) 
+        {
+            scene.skybox->render(outRenderTarget, scene.camera.view, scene.camera.projection);
         }
     }
 
@@ -723,7 +725,7 @@ namespace Cyan {
         return upscalePyramid[0];
     }
 
-    void Renderer::composite(Texture2DRenderable* composited, Texture2DRenderable* inSceneColor, Texture2DRenderable* inBloomColor, const glm::uvec2& outputResolution) 
+    void Renderer::compose(Texture2DRenderable* composited, Texture2DRenderable* inSceneColor, Texture2DRenderable* inBloomColor, const glm::uvec2& outputResolution) 
     {
         auto renderTarget = createCachedRenderTarget("PostProcessing", composited->width, composited->height);
         renderTarget->setColorBuffer(composited, 0);

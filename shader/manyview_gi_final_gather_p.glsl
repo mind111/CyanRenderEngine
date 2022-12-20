@@ -3,20 +3,47 @@
 #extension GL_NV_bindless_texture : require
 #extension GL_ARB_gpu_shader_int64 : enable 
 
-struct PBRMaterial
+// header block, each shader file should only have one header block
+// = begin headers =
+// #include: lights.glsl
+// #include: lighting.glsl
+// #include: materials.glsl
+// = end headers =
+
+const uint kHasAlbedoMap            = 1 << 0;
+const uint kHasNormalMap            = 1 << 1;
+const uint kHasMetallicRoughnessMap = 1 << 2;
+const uint kHasOcclusionMap         = 1 << 3;
+
+/**
+	mirror's the material definition on application side
+    struct GpuMaterial {
+        u64 albedoMap;
+        u64 normalMap;
+        u64 metallicRoughnessMap;
+        u64 occlusionMap;
+        glm::vec4 albedo = glm::vec4(.9f, .9f, .9f, 1.f);
+        f32 metallic = 0.f;
+        f32 roughness = .5f;
+        f32 emissive = 1.f;
+        u32 flag = 0u;
+    };
+*/
+struct MaterialDesc 
 {
-	uint64_t diffuseMap;
+	uint64_t albedoMap;
 	uint64_t normalMap;
 	uint64_t metallicRoughnessMap;
-	uint64_t occlusionMap;
-	vec4 kAlbedo;
-	vec4 kMetallicRoughness;
-	uvec4 flags;
+    uint64_t occlusionMap;
+    vec4 albedo;
+    float metallic;
+    float roughness;
+    float emissive;
+    uint flag;
 };
 
-in VSOutput
+in VSOutput 
 {
-    vec3 objectSpacePosition;
 	vec3 viewSpacePosition;
 	vec3 worldSpacePosition;
 	vec3 worldSpaceNormal;
@@ -25,87 +52,63 @@ in VSOutput
 	vec2 texCoord0;
 	vec2 texCoord1;
     vec3 vertexColor;
-    flat PBRMaterial material;
+    flat MaterialDesc desc;
 } psIn;
 
 out vec3 outColor;
 
 // constants
 #define pi 3.14159265359
-#define SLOPE_BASED_BIAS 1
-#define VIEW_SSBO_BINDING 0
-#define VARIANCE_SHADOWMAP 0
+#define SLOPE_BASED_BIAS 0
 
-layout(std430, binding = VIEW_SSBO_BINDING) buffer ViewShaderStorageBuffer
+layout(std430) buffer ViewBuffer 
 {
     mat4  view;
     mat4  projection;
     float m_ssao;
     float dummy;
-} viewSsbo;
+};
 
 //================================= "lights.glsl" =========================================
-uniform uint64_t SSAO;
-uniform uint64_t SSBN;
-uniform float useBentNormal;
-uniform float useSSAO;
-
-#define MAX_NUM_POINT_LIGHTS 32
-#define NUM_SHADOW_CASCADES 4
-
-// todo: since these following structs are declared to be uniform, they has to be instantiated on declaration, which is kind of 
-// inconvenient, is there any better ways to store a texture as a struct member in glsl?
-struct DirectionalShadowmap
+const uint kNumShadowCascades = 4;
+struct DirectionalShadowMap 
 {
+	mat4 lightSpaceView;
 	mat4 lightSpaceProjection;
 	uint64_t depthTextureHandle;
-} directionalShadowmap;
+	vec2 padding;
+};
 
-struct Cascade
+struct Cascade 
 {
 	float n;
 	float f;
-	DirectionalShadowmap shadowmap;
-} cascade;
+	vec2 padding;
+	DirectionalShadowMap shadowMap;
+};
 
-struct CascadedShadowmap
-{
-	Cascade cascades[NUM_SHADOW_CASCADES];
-} csm;
+struct CascadedShadowMap {
+	Cascade cascades[kNumShadowCascades];
+};
 
-struct DirectionalLight
-{
+struct DirectionalLight {
+	vec4 colorAndIntensity;
 	vec4 direction;
-	vec4 colorAndIntensity;
-    mat4 lightSpaceView;
-	CascadedShadowmap csm;
-} directionalLight;
+	CascadedShadowMap csm;
+};
 
-uniform struct PointLight
+layout (std430) buffer DirectionalLightBuffer 
 {
-	vec3 position;
-	vec4 colorAndIntensity;
-	samplerCube shadowmap;
-} pointLight;
+	DirectionalLight directionalLights[];
+};
 
-uniform struct SkyLight
-{
+uniform struct SkyLight {
+	float intensity;
+    uint64_t BRDFLookupTexture;
 	samplerCube irradiance;
 	samplerCube reflection;
-} skyLightDef;
-
-uniform struct SceneLights
-{
-    uint64_t BRDFLookupTexture;
-	SkyLight skyLight;
-	DirectionalLight directionalLight;
-	// PointLight pointLights[MAX_NUM_POINT_LIGHTS];
-} sceneLights;
-
-// todo: switch to use global view ssbo later!!!
-uniform mat4 view;
-uniform mat4 projection;
-uniform vec3 receivingNormal;
+} skyLight;
+//========================================================================================
 
 float slopeBasedBias(vec3 n, vec3 l)
 {
@@ -123,12 +126,12 @@ float constantBias()
 /**
 	determine which cascade to sample from
 */
-int calcCascadeIndex(in vec3 viewSpacePosition)
+int calcCascadeIndex(in vec3 viewSpacePosition, in DirectionalLight directionalLight)
 {
     int cascadeIndex = 0;
     for (int i = 0; i < 4; ++i)
     {
-        if (viewSpacePosition.z < sceneLights.directionalLight.csm.cascades[i].f)
+        if (viewSpacePosition.z < directionalLight.csm.cascades[i].f)
         {
             cascadeIndex = i;
             break;
@@ -139,12 +142,14 @@ int calcCascadeIndex(in vec3 viewSpacePosition)
 
 float PCFShadow(vec3 worldSpacePosition, vec3 normal, in DirectionalLight directionalLight)
 {
-    sampler2D sampler = sampler2D(directionalLight.csm.cascades[0].shadowmap.depthTextureHandle);
+    sampler2D sampler = sampler2D(directionalLight.csm.cascades[0].shadowMap.depthTextureHandle);
 	float shadow = 0.0f;
     vec2 texelOffset = vec2(1.f) / textureSize(sampler, 0);
-    vec3 viewSpacePosition = (viewSsbo.view * vec4(worldSpacePosition, 1.f)).xyz;
-    int cascadeIndex = calcCascadeIndex(viewSpacePosition);
-    vec4 lightSpacePosition = directionalLight.csm.cascades[cascadeIndex].shadowmap.lightSpaceProjection * directionalLight.lightSpaceView * vec4(worldSpacePosition, 1.f);
+    vec3 viewSpacePosition = (view * vec4(worldSpacePosition, 1.f)).xyz;
+    int cascadeIndex = calcCascadeIndex(viewSpacePosition, directionalLight);
+    vec4 lightSpacePosition = 
+		directionalLight.csm.cascades[cascadeIndex].shadowMap.lightSpaceProjection 
+	  * directionalLight.csm.cascades[cascadeIndex].shadowMap.lightSpaceView * vec4(worldSpacePosition, 1.f);
     float depth = lightSpacePosition.z * .5f + .5f;
     vec2 uv = lightSpacePosition.xy * .5f + .5f;
 
@@ -180,61 +185,17 @@ float PCFShadow(vec3 worldSpacePosition, vec3 normal, in DirectionalLight direct
     return shadow;
 }
 
-float calcBasicDirectionalShadow(vec3 worldSpacePosition, vec3 normal, in DirectionalLight directionalLight) {
-    sampler2D sampler = sampler2D(directionalLight.csm.cascades[0].shadowmap.depthTextureHandle);
-	float shadow = 0.0f;
-    vec3 viewSpacePosition = (viewSsbo.view * vec4(worldSpacePosition, 1.f)).xyz;
-    int cascadeIndex = calcCascadeIndex(viewSpacePosition);
-    vec4 lightSpacePosition = directionalLight.csm.cascades[cascadeIndex].shadowmap.lightSpaceProjection * directionalLight.lightSpaceView * vec4(worldSpacePosition, 1.f);
-    float depth = lightSpacePosition.z * .5f + .5f;
-    vec2 uv = lightSpacePosition.xy * .5f + .5f;
-#if SLOPE_BASED_BIAS
-	float bias = constantBias() + slopeBasedBias(normal, directionalLight.direction.xyz);
-#else
-	float bias = constantBias();
-#endif
-	shadow = texture(sampler, uv).r < (depth - bias) ? 0.f : 1.f;
-    return shadow;
-}
-
 float calcDirectionalShadow(vec3 worldPosition, vec3 normal, in DirectionalLight directionalLight)
 {
-    return calcBasicDirectionalShadow(worldPosition, normal, directionalLight);
+    return PCFShadow(worldPosition, normal, directionalLight);
 }
 //==========================================================================
 
 //=============== material.glsl =================================================
-const uint kHasRoughnessMap         = 1 << 0;
-const uint kHasMetallicMap          = 1 << 1;
-const uint kHasMetallicRoughnessMap = 1 << 2;
-const uint kHasOcclusionMap         = 1 << 3;
-const uint kHasDiffuseMap           = 1 << 4;
-const uint kHasNormalMap            = 1 << 5;
-const uint kUsePrototypeTexture     = 1 << 6;
-const uint kUseLightMap             = 1 << 7;            
-
 /**
-	mirror's pbr material definition on application side
+	material converted from application side material definition 
 */
-uniform struct MaterialInput
-{
-	uint M_flags;
-	sampler2D M_albedo;
-	sampler2D M_normal;
-	sampler2D M_roughness;
-	sampler2D M_metallic;
-	sampler2D M_metallicRoughness;
-	sampler2D M_occlusion;
-	float M_kRoughness;
-	float M_kMetallic;
-	vec3 M_kAlbedo;
-} materialInput;
-
-/**
-	material parameters processed and converted from application side material definition 
-*/
-struct MaterialParameters
-{
+struct Material {
 	vec3 albedo;
 	vec3 normal;
 	float roughness;
@@ -242,77 +203,54 @@ struct MaterialParameters
 	float occlusion;
 };
 
-vec4 tangentSpaceToWorldSpace(vec3 tangent, vec3 bitangent, vec3 worldSpaceNormal, vec3 tangentSpaceNormal) 
-{
+vec4 tangentSpaceToWorldSpace(vec3 tangent, vec3 bitangent, vec3 worldSpaceNormal, vec3 tangentSpaceNormal) {   
     mat4 tbn;
     tbn[0] = vec4(tangent, 0.f);
     tbn[1] = vec4(bitangent, 0.f);
     tbn[2] = vec4(worldSpaceNormal, 0.f);
     tbn[3] = vec4(0.f, 0.f, 0.f, 1.f);
-    return tbn * vec4(tangentSpaceNormal, 0.0f);
+    return tbn * vec4(tangentSpaceNormal, 0.f);
 }
 
-MaterialParameters getMaterialParameters(vec3 worldSpaceTangent, vec3 worldSpaceBitangent, vec3 worldSpaceNormal, vec2 texCoord)
-{
-	MaterialParameters materialParameters;
-
-    materialParameters.normal = worldSpaceNormal;
-    if ((psIn.material.flags & kHasNormalMap) != 0u)
-    {
-        sampler2D sampler = sampler2D(psIn.material.normalMap);
-        vec3 tangentSpaceNormal = texture(sampler, vec2(texCoord.x, texCoord.y)).xyz;
-        // convert from [0, 1] to [-1.0, 1.0] and renomalize if texture filtering changes the length
+Material getMaterial(in MaterialDesc desc, vec3 worldSpaceNormal, vec3 worldSpaceTangent, vec3 worldSpaceBitangent, vec2 texCoord) {
+    Material outMaterial;
+    
+    outMaterial.normal = worldSpaceNormal;
+    if ((desc.flag & kHasNormalMap) != 0u) {
+        vec3 tangentSpaceNormal = texture(sampler2D(desc.normalMap), texCoord).xyz;
+        // Convert from [0, 1] to [-1.0, 1.0] and renomalize if texture filtering changes the length
         tangentSpaceNormal = normalize(tangentSpaceNormal * 2.f - 1.f);
-        // covert normal from tangent frame to world space
-        materialParameters.normal = normalize(tangentSpaceToWorldSpace(worldSpaceTangent, worldSpaceBitangent, worldSpaceNormal, tangentSpaceNormal).xyz);
+        // Covert normal from tangent frame to camera space
+        outMaterial.normal = normalize(tangentSpaceToWorldSpace(worldSpaceTangent, worldSpaceBitangent, worldSpaceNormal, tangentSpaceNormal).xyz);
     }
 
-    materialParameters.albedo = psIn.material.kAlbedo.rgb;
-    if ((psIn.material.flags & kHasDiffuseMap) != 0u)
+    outMaterial.albedo = desc.albedo.rgb;
+    if ((desc.flag & kHasAlbedoMap) != 0u) {
+        outMaterial.albedo = texture(sampler2D(desc.albedoMap), texCoord).rgb;
+		// from sRGB to linear space if using a texture
+		outMaterial.albedo = vec3(pow(outMaterial.albedo.r, 2.2f), pow(outMaterial.albedo.g, 2.2f), pow(outMaterial.albedo.b, 2.2f));
+    }
+
+    // According to gltf-2.0 spec, metal is sampled from b, roughness is sampled from g
+    float roughness = desc.roughness, metallic = desc.metallic;
+    if ((desc.flag & kHasMetallicRoughnessMap) != 0u)
     {
-        sampler2D sampler = sampler2D(psIn.material.diffuseMap);
-        materialParameters.albedo = texture(sampler, texCoord).rgb;
-		// convert color from sRGB to linear space if using a texture
-		materialParameters.albedo = vec3(pow(materialParameters.albedo.r, 2.2f), pow(materialParameters.albedo.g, 2.2f), pow(materialParameters.albedo.b, 2.2f));
+        vec2 metallicRoughness = texture(sampler2D(desc.metallicRoughnessMap), texCoord).gb;
+        roughness = metallicRoughness.x;
+        roughness = roughness * roughness;
+        metallic = metallicRoughness.y; 
     }
+    outMaterial.roughness = roughness;
+    outMaterial.metallic = metallic;
 
-    materialParameters.metallic = psIn.material.kMetallicRoughness.r;
-    materialParameters.roughness = psIn.material.kMetallicRoughness.g; 
-    if ((psIn.material.flags & kHasMetallicRoughnessMap) != 0u)
-    {
-        sampler2D sampler = sampler2D(psIn.material.metallicRoughnessMap);
-		// according to gltf-2.0 spec, metal is sampled from b, roughness is sampled from g
-        vec2 metallicRoughness = texture(sampler, texCoord).gb;
-        materialParameters.roughness *= metallicRoughness.x;
-        materialParameters.metallic *= metallicRoughness.y;
+    outMaterial.occlusion = 1.f;
+    if ((desc.flag & kHasOcclusionMap) != 0u) {
+        outMaterial.occlusion = texture(sampler2D(desc.occlusionMap), texCoord).r;
+		outMaterial.occlusion = pow(outMaterial.occlusion, 3.0f);
     }
-	// materialParameters.roughness = pow(materialParameters.roughness, 2.f);
-
-    materialParameters.occlusion = 1.f;
-    if ((psIn.material.flags & kHasOcclusionMap) != 0)
-    {
-        sampler2D sampler = sampler2D(psIn.material.occlusionMap);
-        materialParameters.occlusion = texture(sampler, texCoord).r;
-		materialParameters.occlusion = pow(materialParameters.occlusion, 3.0f);
-    }
-
-	return materialParameters;
+	return outMaterial;
 }
 //===============================================================================
-
-uniform sampler2D ssaoTexture;
-
-mat3 tbn(vec3 n)
-{
-    vec3 up = abs(n.y) < 0.98f ? vec3(0.f, 1.f, 0.f) : vec3(0.f, 0.f, 1.f);
-    vec3 right = cross(n, up);
-    vec3 forward = cross(n, right);
-    return mat3(
-        right,
-        forward,
-        n
-    );
-}
 
 float saturate(float k)
 {
@@ -331,6 +269,7 @@ float GGX(float roughness, float ndoth)
     return result;
 }
 
+// TODO: implement fresnel that takes roughness into consideration
 vec3 fresnel(vec3 f0, vec3 n, vec3 v)
 {
     float ndotv = saturate(dot(n, v));
@@ -388,7 +327,7 @@ float ggxSmithG1Ex(vec3 v, vec3 h, vec3 n, float roughness)
 {
     float hdotv = saturate(dot(h, v));
     float ndotv = saturate(dot(n, v));
-    float tanThetaV2 = (1.f - ndotv * ndotv) / max((ndotv * ndotv), 0.1);
+    float tanThetaV2 = (1.f - ndotv * ndotv) / max((ndotv * ndotv), 1e-2);
     // apply Disney' roughness remapping here to reduce "hot" specular, this should only be applied to analytical light sources 
     float a = pow((0.5 + roughness * .5), 2.f);
     return (hdotv / ndotv) > 0.f ? 2.f / (1.f + sqrt(1.f + a * a * tanThetaV2)) : 0.f;
@@ -416,28 +355,6 @@ float LambertBRDF() {
 }
 
 /**
-    * brief: Disney's principled diffuse BRDF
-    * increase retro-reflection at grazing angles for rough surface, while decrease diffuse reflectance when surface is smooth as most of the energy is reflected
-    instead of refracted.
-*/
-vec3 DisneyDiffuseBRDF(float hdotl, float ndotl, float ndotv, MaterialParameters materialParameters)
-{
-#if 0
-    float FD90 = 0.5f + 2.f * materialParameters.roughness * (hdotl * hdotl);
-    // vec3 diffuseReflectance = LambertBRDF(materialParameters.albedo) * (1.f + (FD90 - 1.f) * pow((1 - ndotl), 5)) * (1.f + (FD90 - 1.f) * pow((1.f - ndotv), 5));
-    vec3 diffuseReflectance = LambertBRDF(vec3(1.f)) * (1.f + (FD90 - 1.f) * pow((1 - ndotl), 5)) * (1.f + (FD90 - 1.f) * pow((1.f - ndotv), 5));
-#else
-    float roughness = materialParameters.roughness * materialParameters.roughness;
-    float fl = pow((1.f - ndotl), 5.f);
-    float fv = pow((1.f - ndotv), 5.f);
-    float rr = (2.f * roughness) * (hdotl * hdotl);
-    vec3 diffuseRetrorefl = materialParameters.albedo * LambertBRDF() * rr * (fl + fv + fl * fv * (rr - 1.f));
-    vec3 diffuseReflectance = materialParameters.albedo * LambertBRDF() * (1.f - .5 * fl) * (1.f - .5 * fv) + diffuseRetrorefl;
-#endif
-    return diffuseReflectance;
-}
-
-/**
     * microfacet specular brdf 
     * A brdf fr(i, o, n) 
 */
@@ -455,87 +372,92 @@ vec3 CookTorranceBRDF(vec3 wi, vec3 wo, vec3 n, float roughness, vec3 f0)
     * near grazing angle. Using a small value like 0.0001 will cause pretty bad shading aliasing.
     * using .1 here to suppress tiny specular highlights from flickering 
     */ 
-    return D * F * G / ((4.f * ndotv * ndotl) + 1e-1);
+    return D * F * G / max((4.f * ndotv * ndotl), 1e-1);
 }
 
 /**
     f0 is specular reflectance
 */
-vec3 calcF0(MaterialParameters materialParameters)
-{
-    return mix(vec3(0.04f), materialParameters.albedo, materialParameters.metallic);
+vec3 calcF0(in Material material) {
+    return mix(vec3(0.04f), material.albedo, material.metallic);
 }
 
-vec3 DisneyBRDF(vec3 l, vec3 v, MaterialParameters materialParameters)
-{
-    vec3 BRDF;
-    vec3 h = normalize(l + v);
-    vec3 worldSpaceViewDirection = (inverse(view) * vec4(normalize(-psIn.viewSpacePosition), 0.f)).xyz;
-    float ndotv = saturate(dot(materialParameters.normal, worldSpaceViewDirection));
-    float ndotl = max(dot(materialParameters.normal, directionalLight.direction.xyz), 0.f);
-    float hdotl = saturate(dot(h, directionalLight.direction.xyz));
-
-    vec3 f0 = calcF0(materialParameters);
-    // dialectric
-    vec3 dialectric = DisneyDiffuseBRDF(hdotl, ndotl, ndotv, materialParameters);
-    dialectric += CookTorranceBRDF(l, v, materialParameters.normal, materialParameters.roughness, f0);
-    // metallic
-    vec3 metallic = CookTorranceBRDF(l, v, materialParameters.normal, materialParameters.roughness, f0);
-    // lerp between the two
-    return mix(dialectric, metallic, materialParameters.metallic);
-}
-
-vec3 calcDirectionalLight(in DirectionalLight directionalLight, MaterialParameters materialParameters, vec3 worldSpacePosition)
-{
+vec3 calcDirectionalLight(in DirectionalLight directionalLight, in Material material, vec3 worldSpacePosition) {
     vec3 radiance = vec3(0.f);
     // view direction in world space
-    vec3 worldSpaceViewDirection = (inverse(viewSsbo.view) * vec4(normalize(-psIn.viewSpacePosition), 0.f)).xyz;
-    float ndotl = max(dot(materialParameters.normal, directionalLight.direction.xyz), 0.f);
-    vec3 f0 = calcF0(materialParameters);
+    vec3 worldSpaceViewDirection = (inverse(view) * vec4(normalize(-psIn.viewSpacePosition), 0.f)).xyz;
+    float ndotl = max(dot(material.normal, directionalLight.direction.xyz), 0.f);
+    vec3 f0 = calcF0(material);
     vec3 li = directionalLight.colorAndIntensity.rgb * directionalLight.colorAndIntensity.a;
 
     /** 
     * diffuse
     */
-    /*
-    vec3 h = normalize(directionalLight.direction.xyz + worldSpaceViewDirection);
-    float hdotl = saturate(dot(h, directionalLight.direction.xyz));
-    float ndotv = saturate(dot(materialParameters.normal, worldSpaceViewDirection));
-    vec3 diffuse = mix((1.f - f0), vec3(0.f), materialParameters.metallic) * DisneyDiffuseBRDF(hdotl, ndotl, ndotv, materialParameters);
-    */
-    vec3 f = fresnel(f0, materialParameters.normal, worldSpaceViewDirection);
-    vec3 diffuse = mix((1.f - f), vec3(0.f), materialParameters.metallic) * materialParameters.albedo * LambertBRDF();
+    vec3 diffuse = mix(material.albedo, vec3(0.f), material.metallic) * LambertBRDF();
 
     /** 
     * specular
     */
-    vec3 specular = CookTorranceBRDF(directionalLight.direction.xyz, worldSpaceViewDirection, materialParameters.normal, materialParameters.roughness, f0);
+    // todo: this is bugged
+    // vec3 specular = CookTorranceBRDF(directionalLight.direction.xyz, worldSpaceViewDirection, material.normal, material.roughness, f0);
 
-    radiance += (diffuse + specular) * li * ndotl;
+    // radiance += (diffuse + specular) * li * ndotl;
+    radiance = diffuse * li * ndotl;
 
     // shadow
-    radiance *= calcDirectionalShadow(worldSpacePosition, materialParameters.normal, directionalLight);
+    radiance *= calcDirectionalShadow(worldSpacePosition, material.normal, directionalLight);
     return radiance;
 }
 
-vec3 calcLighting(SceneLights sceneLights, in MaterialParameters materialParameters, vec3 worldSpacePosition)
+vec3 calcPointLight()
 {
     vec3 radiance = vec3(0.f);
-    // sun light
-    radiance += calcDirectionalLight(sceneLights.directionalLight, materialParameters, worldSpacePosition);
     return radiance;
 }
 
-uniform uint microBufferRes; 
+vec3 calcSkyLight(SkyLight inSkyLight, in Material material, vec3 worldSpacePosition) {
+    vec3 radiance = vec3(0.f);
 
-void main() {
+    vec3 worldSpaceViewDirection = (inverse(view) * vec4(normalize(-psIn.viewSpacePosition), 0.0)).xyz;
+    float ndotv = saturate(dot(material.normal, worldSpaceViewDirection));
+
+    vec3 f0 = calcF0(material);
+
+    float ao = 1.f;
+
+    // irradiance
+    vec3 diffuse = mix(material.albedo, vec3(0.f), material.metallic);
+    vec3 irradiance = diffuse * texture(skyLight.irradiance, material.normal).rgb; 
+    radiance += irradiance * ao;
+
+    // reflection
+    vec3 reflectionDirection = -reflect(worldSpaceViewDirection, material.normal);
+    vec3 BRDF = texture(sampler2D(inSkyLight.BRDFLookupTexture), vec2(ndotv, material.roughness)).rgb; 
+    vec3 incidentRadiance = textureLod(samplerCube(skyLight.reflection), reflectionDirection, material.roughness * 10.f).rgb;
+    radiance += incidentRadiance * (f0 * BRDF.r + BRDF.g) * ao;
+
+    return radiance;
+}
+
+vec3 calcLighting(in Material material, vec3 worldSpacePosition) 
+{
+    vec3 radiance = vec3(0.f);
+
+    // sun light
+    radiance += calcDirectionalLight(directionalLights[0], material, worldSpacePosition);
+    // sky light
+    // radiance += calcSkyLight(skyLight, material, worldSpacePosition);
+
+    return radiance;
+}
+
+void main() 
+{
     vec3 worldSpaceTangent = normalize(psIn.worldSpaceTangent);
     vec3 worldSpaceNormal = normalize(psIn.worldSpaceNormal);
     worldSpaceTangent = normalize(worldSpaceTangent - dot(worldSpaceNormal, worldSpaceTangent) * worldSpaceNormal); 
     vec3 worldSpaceBitangent = normalize(cross(worldSpaceNormal, worldSpaceTangent)) * psIn.tangentSpaceHandedness;
 
-    MaterialParameters materialParameters = getMaterialParameters(worldSpaceTangent, worldSpaceBitangent, worldSpaceNormal, psIn.texCoord0);
-//    vec3 pixelDir = (inverse(view) * vec4(normalize(psIn.viewSpacePosition), 0.f)).xyz;
-//    float ndotl = max(dot(pixelDir, receivingNormal), 0.f);
-    outColor = calcLighting(sceneLights, materialParameters, psIn.worldSpacePosition);
+    Material material = getMaterial(psIn.desc, worldSpaceNormal, worldSpaceTangent, worldSpaceBitangent, psIn.texCoord0);
+    outColor = calcLighting(material, psIn.worldSpacePosition);
 }

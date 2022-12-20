@@ -3,15 +3,101 @@
 #extension GL_ARB_shader_draw_parameters : enable 
 #extension GL_ARB_gpu_shader_int64 : enable 
 
-struct PBRMaterial
+/**
+* scene shader storage buffers
+*/
+
+layout(std430) buffer ViewBuffer 
 {
-	uint64_t diffuseMap;
+    mat4  view;
+    mat4  projection;
+    float m_ssao;
+    float dummy;
+};
+
+layout(std430) buffer TransformBuffer 
+{
+    mat4 transforms[];
+};
+
+struct Vertex 
+{
+	vec4 pos;
+	vec4 normal;
+	vec4 tangent;
+	vec4 texCoord;
+};
+
+layout(std430) buffer VertexBuffer 
+{
+	Vertex vertices[];
+};
+
+layout(std430) buffer IndexBuffer 
+{
+	uint indices[];
+};
+
+struct InstanceDesc 
+{
+	uint submesh;
+	uint material;
+	uint transform;
+	uint padding;
+};
+
+layout(std430) buffer InstanceBuffer 
+{
+	InstanceDesc instanceDescs[];
+};
+
+struct SubmeshDesc 
+{
+	uint baseVertex;
+	uint baseIndex;
+	uint numVertices;
+	uint numIndices;
+};
+
+layout(std430) buffer SubmeshBuffer 
+{
+	SubmeshDesc submeshDescs[];
+};
+
+/**
+	mirror's the material definition on application side
+    struct GpuMaterial {
+        u64 albedoMap;
+        u64 normalMap;
+        u64 metallicRoughnessMap;
+        u64 occlusionMap;
+        glm::vec4 albedo = glm::vec4(.9f, .9f, .9f, 1.f);
+        f32 metallic = 0.f;
+        f32 roughness = .5f;
+        f32 emissive = 1.f;
+        u32 flag = 0u;
+    };
+*/
+struct MaterialDesc {
+	uint64_t albedoMap;
 	uint64_t normalMap;
 	uint64_t metallicRoughnessMap;
-	uint64_t occlusionMap;
-	vec4 kAlbedo;
-	vec4 kMetallicRoughness;
-	uvec4 flags;
+    uint64_t occlusionMap;
+    vec4 albedo;
+    float metallic;
+    float roughness;
+    float emissive;
+    uint flag;
+};
+
+layout(std430) buffer MaterialBuffer
+{
+	MaterialDesc materialDescs[];
+};
+
+layout(std430) buffer DrawCallBuffer 
+{
+	uint drawCalls[];
 };
 
 out gl_PerVertex
@@ -20,9 +106,9 @@ out gl_PerVertex
 	float gl_PointSize;
 	float gl_ClipDistance[];
 };
-out VSOutput
+
+out VSOutput 
 {
-	vec3 objectSpacePosition;
 	vec3 viewSpacePosition;
 	vec3 worldSpacePosition;
 	vec3 worldSpaceNormal;
@@ -31,107 +117,27 @@ out VSOutput
 	vec2 texCoord0;
 	vec2 texCoord1;
 	vec3 vertexColor;
-	flat PBRMaterial material;
+	flat MaterialDesc desc;
 } vsOut;
 
-#define VIEW_SSBO_BINDING 0
-#define TRANSFORM_SSBO_BINDING 3
-#define INSTANCE_DESC_BINDING 41
-#define SUBMESH_BUFFER_BINDING 42
-#define VERTEX_BUFFER_BINDING 43
-#define INDEX_BUFFER_BINDING 44
-#define DRAWCALL_BUFFER_BINDING 45
-#define MATERIAL_BUFFER_BINDING 46
-
-layout(std430, binding = VIEW_SSBO_BINDING) buffer ViewShaderStorageBuffer
-{
-    mat4  view;
-    mat4  projection;
-    float m_ssao;
-    float dummy;
-} viewSsbo;
-
-layout(std430, binding = TRANSFORM_SSBO_BINDING) buffer TransformShaderStorageBuffer
-{
-    mat4 models[];
-} transformSsbo;
-
-struct Vertex
-{
-	vec4 pos;
-	vec4 normal;
-	vec4 tangent;
-	vec4 texCoord;
-};
-
-layout(std430, binding = VERTEX_BUFFER_BINDING) buffer VertexBuffer
-{
-	Vertex vertices[];
-} vertexBuffer;
-
-layout(std430, binding = INDEX_BUFFER_BINDING) buffer IndexBuffer
-{
-	uint indices[];
-};
-
-struct InstanceDesc
-{
-	uint submesh;
-	uint material;
-	uint transform;
-	uint padding;
-};
-
-layout(std430, binding = INSTANCE_DESC_BINDING) buffer InstanceSSBO
-{
-	InstanceDesc instanceDescs[]; 
-};
-
-struct SubmeshDesc
-{
-	uint baseVertex;
-	uint baseIndex;
-	uint numVertices;
-	uint numIndices;
-};
-
-layout(std430, binding = SUBMESH_BUFFER_BINDING) buffer SubmeshSSBO
-{
-	SubmeshDesc submeshDescs[];
-};
-
-layout(std430, binding = MATERIAL_BUFFER_BINDING) buffer MaterialSSBO
-{
-	PBRMaterial materials[];
-};
-
-layout(std430, binding = DRAWCALL_BUFFER_BINDING) buffer DrawCallSSBO
-{
-	uint drawCalls[];
-};
-
-uniform mat4 view;
-uniform mat4 projection;
-
-void main()
+void main() 
 {
 	uint instanceIndex = drawCalls[gl_DrawIDARB] + gl_InstanceID;
 	InstanceDesc instance = instanceDescs[instanceIndex];
 	uint baseVertex = submeshDescs[instance.submesh].baseVertex;
 	uint baseIndex = submeshDescs[instance.submesh].baseIndex;
 	uint index = indices[baseIndex + gl_VertexID];
-	Vertex vertex = vertexBuffer.vertices[baseVertex + index];
-	gl_Position = projection * view * transformSsbo.models[instance.transform] * vertex.pos;
+	Vertex vertex = vertices[baseVertex + index];
+	gl_Position = projection * view * transforms[instance.transform] * vertex.pos;
 
-	vsOut.objectSpacePosition = vertex.pos.xyz;
-	vsOut.worldSpacePosition = (transformSsbo.models[instance.transform] * vertex.pos).xyz;
-	vsOut.viewSpacePosition = (view * transformSsbo.models[instance.transform] * vertex.pos).xyz;
-	vsOut.worldSpaceNormal = normalize((inverse(transpose(transformSsbo.models[instance.transform])) * vertex.normal).xyz);
-	vsOut.worldSpaceTangent = normalize((transformSsbo.models[instance.transform] * vec4(vertex.tangent.xyz, 0.f)).xyz);
+	vsOut.worldSpacePosition = (transforms[instance.transform] * vertex.pos).xyz;
+	vsOut.viewSpacePosition = (view * transforms[instance.transform] * vertex.pos).xyz;
+	vsOut.worldSpaceNormal = normalize((inverse(transpose(transforms[instance.transform])) * vertex.normal).xyz);
+	vsOut.worldSpaceTangent = normalize((transforms[instance.transform] * vec4(vertex.tangent.xyz, 0.f)).xyz);
 	vsOut.tangentSpaceHandedness = vertex.tangent.w;
 
 	vsOut.texCoord0 = vertex.texCoord.xy;
 	vsOut.texCoord1 = vertex.texCoord.zw;
 	vsOut.vertexColor = vertex.normal.xyz * .5 + .5;
-	vsOut.material = materials[instance.material];
+	vsOut.desc = materialDescs[instance.material];
 }

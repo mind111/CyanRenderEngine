@@ -274,7 +274,7 @@ namespace Cyan
         /*
         * Compositing and resolving to final output albedo texture. Applying bloom, tone mapping, and gamma correction.
         */
-        void composite(Texture2DRenderable* composited, Texture2DRenderable* inSceneColor, Texture2DRenderable* inBloomColor, const glm::uvec2& outputResolution);
+        void compose(Texture2DRenderable* composited, Texture2DRenderable* inSceneColor, Texture2DRenderable* inBloomColor, const glm::uvec2& outputResolution);
 //
         void setVisualization(Texture2DRenderable* visualization) { m_visualization = visualization; }
         void visualize(Texture2DRenderable* dst, Texture2DRenderable* src);
@@ -304,6 +304,7 @@ namespace Cyan
             bool enableTonemapping = true;
             bool useBentNormal = true;
             bool bPostProcessing = true;
+            bool bManyViewGIEnabled = false;
             u32 tonemapOperator = (u32)TonemapOperator::kReinhard;
             f32 whitePointLuminance = 100.f;
             f32 smoothstepWhitePoint = 1.f;

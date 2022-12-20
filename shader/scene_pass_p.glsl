@@ -93,7 +93,7 @@ struct DirectionalLight {
 	CascadedShadowMap csm;
 };
 
-layout (std430, binding = 8) buffer DirectionalLightBuffer {
+layout (std430) buffer DirectionalLightBuffer {
 	DirectionalLight directionalLights[];
 };
 

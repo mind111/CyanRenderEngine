@@ -147,6 +147,10 @@
     <None Include="..\shader\downsample_p.glsl" />
     <None Include="..\shader\downsample_v.glsl" />
     <None Include="..\shader\lighting.glsl" />
+    <None Include="..\shader\mvgi_compose_lighting.glsl" />
+    <None Include="..\shader\mvgi_direct_lighting.glsl" />
+    <None Include="..\shader\mvgi_gbuffer_p.glsl" />
+    <None Include="..\shader\mvgi_indirect_lighting.glsl" />
     <None Include="..\shader\shading_model.glsl" />
     <None Include="..\shader\debug_copy_p.glsl" />
     <None Include="..\shader\debug_color_fs.glsl" />
@@ -168,7 +172,7 @@
     <None Include="..\shader\debug_show_hemicubes_p.glsl" />
     <None Include="..\shader\debug_show_hemicubes_v.glsl" />
     <None Include="..\shader\debug_validate_hemicube_multiview_p.glsl" />
-    <None Include="..\shader\fill_raster_p.glsl" />
+    <None Include="..\shader\generate_hemicube_p.glsl" />
     <None Include="..\shader\generate_vpl_p.glsl" />
     <None Include="..\shader\generate_vpl_v.glsl" />
     <None Include="..\shader\scene_buffers.glsl" />

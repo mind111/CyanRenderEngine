@@ -74,6 +74,21 @@ namespace Cyan
         submeshes.upload();
     }
 
+    RenderableScene::Camera::Camera(const PerspectiveCamera& inCamera)
+    {
+        eye = inCamera.position;
+        lookAt = inCamera.lookAt;
+        right = inCamera.right();
+        forward = inCamera.forward();
+        up = inCamera.up();
+        n = inCamera.n;
+        f = inCamera.f;
+        fov = inCamera.fov;
+        aspect = inCamera.aspectRatio;
+        view = inCamera.view();
+        projection = inCamera.projection();
+    }
+
     RenderableScene::RenderableScene() 
     {
 
@@ -112,19 +127,7 @@ namespace Cyan
 
         // todo: make this work with orthographic camera as well
         PerspectiveCamera* inCamera = dynamic_cast<PerspectiveCamera*>(inScene->camera->getCamera());
-        if (inCamera) {
-            camera.eye = inCamera->position;
-            camera.lookAt = inCamera->lookAt;
-            camera.right = inCamera->right();
-            camera.forward = inCamera->forward();
-            camera.up = inCamera->up();
-            camera.n = inCamera->n;
-            camera.f = inCamera->f;
-            camera.fov = inCamera->fov;
-            camera.aspect = inCamera->aspectRatio;
-            camera.view = inCamera->view();
-            camera.projection = inCamera->projection();
-        }
+        camera = Camera(*inCamera);
 
         // build list of mesh instances, transforms, and lights
         for (auto entity : sceneView.entities)
@@ -215,7 +218,8 @@ namespace Cyan
         skyLight = inScene->skyLight;
     }
 
-    void RenderableScene::clone(RenderableScene& dst, const RenderableScene& src) {
+    void RenderableScene::clone(RenderableScene& dst, const RenderableScene& src) 
+    {
         dst.aabb = src.aabb;
         dst.camera = src.camera;
         dst.meshInstances = src.meshInstances;

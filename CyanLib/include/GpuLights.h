@@ -20,8 +20,10 @@ namespace Cyan {
     };
 
     const u32 kNumShadowCascades = 4u;
-    struct GpuCSMDirectionalLight : public GpuDirectionalLight {
-        struct Cascade {
+    struct GpuCSMDirectionalLight : public GpuDirectionalLight 
+    {
+        struct Cascade 
+        {
             f32 n;
             f32 f;
             glm::vec2 padding;
