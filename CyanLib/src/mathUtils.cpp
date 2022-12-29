@@ -22,7 +22,7 @@ namespace Cyan
 
     glm::mat3 tangentToWorld(const glm::vec3& n)
     {
-        glm::vec3 worldUp = abs(n.y) < 0.95f ? glm::vec3(0.f, 1.f, 0.f) : glm::vec3(0.f, 0.f, 1.f);
+        glm::vec3 worldUp = abs(n.y) < 0.99f ? glm::vec3(0.f, 1.f, 0.f) : glm::vec3(0.f, 0.f, 1.f);
         glm::vec3 right = glm::cross(n, worldUp);
         glm::vec3 forward = glm::cross(n, right);
         glm::mat3 coordFrame = {
@@ -37,7 +37,7 @@ namespace Cyan
         // calculate the tangent frame of the input hemicube
         glm::vec3 worldUp = glm::vec3(0.f, 1.f, 0.f);
         glm::vec3 up = n;
-        if (abs(up.y) > 0.98) {
+        if (abs(up.y) > 0.99) {
             worldUp = glm::vec3(0.f, 0.f, -1.f);
         }
         glm::vec3 right = glm::normalize(glm::cross(worldUp, up));
@@ -510,5 +510,10 @@ namespace Cyan
         result.y = float2[1];
         delete[] float2;
         return result;
+    }
+
+    bool isPowerOf2(u32 value)
+    {
+        return (value & (value - 1)) == 0;
     }
 }

@@ -408,6 +408,12 @@ vec3 calcPointLight()
     return radiance;
 }
 
+uniform uint64_t ssaoTextureHandle;
+uniform float ssaoEnabled;
+uniform uint64_t ssbnTextureHandle;
+uniform float ssbnEnabled;
+uniform vec2 outputSize;
+
 vec3 calcSkyLight(SkyLight inSkyLight, in Material material, vec3 worldSpacePosition) {
     vec3 radiance = vec3(0.f);
 
@@ -417,17 +423,31 @@ vec3 calcSkyLight(SkyLight inSkyLight, in Material material, vec3 worldSpacePosi
     vec3 f0 = calcF0(material);
 
     float ao = 1.f;
+	vec2 texCoord = gl_FragCoord.xy / outputSize;
+    if (ssaoEnabled > .5f)
+    {
+        ao = texture(sampler2D(ssaoTextureHandle), texCoord).r;
+    }
 
     // irradiance
     vec3 diffuse = mix(material.albedo, vec3(0.f), material.metallic);
     vec3 irradiance = diffuse * texture(skyLight.irradiance, material.normal).rgb; 
+    if (ssbnEnabled > .5f)
+    {
+        vec3 bentNormal = normalize(texture(sampler2D(ssbnTextureHandle), texCoord).rgb * 2.f - 1.f);
+		irradiance = diffuse * texture(skyLight.irradiance, bentNormal).rgb; 
+    }
+    else
+    {
+		irradiance = diffuse * texture(skyLight.irradiance, material.normal).rgb; 
+    }
     radiance += irradiance * ao;
 
     // reflection
     vec3 reflectionDirection = -reflect(worldSpaceViewDirection, material.normal);
     vec3 BRDF = texture(sampler2D(inSkyLight.BRDFLookupTexture), vec2(ndotv, material.roughness)).rgb; 
     vec3 incidentRadiance = textureLod(samplerCube(skyLight.reflection), reflectionDirection, material.roughness * 10.f).rgb;
-    radiance += incidentRadiance * (f0 * BRDF.r + BRDF.g) * ao;
+    radiance += incidentRadiance * (f0 * BRDF.r + BRDF.g);
 
     return radiance;
 }
@@ -443,7 +463,8 @@ vec3 calcLighting(in Material material, vec3 worldSpacePosition) {
     return radiance;
 }
 
-void main() {
+void main() 
+{
     vec3 worldSpaceTangent = normalize(psIn.worldSpaceTangent);
     vec3 worldSpaceNormal = normalize(psIn.worldSpaceNormal);
     worldSpaceTangent = normalize(worldSpaceTangent - dot(worldSpaceNormal, worldSpaceTangent) * worldSpaceNormal); 

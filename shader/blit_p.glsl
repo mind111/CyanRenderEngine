@@ -1,15 +1,17 @@
 #version 450 core
 
-in VSOut
+in VSOutput
 {
 	vec2 texCoord0;
 } psIn;
 
-out vec4 fragColor;
+out vec4 outColor;
 
+uniform int mip;
 uniform sampler2D srcTexture;
 
 void main()
 {
-    fragColor = vec4(texture(srcTexture, psIn.texCoord0).rgb, 1.0f);
+	ivec2 texCoord = ivec2(floor(gl_FragCoord.xy));
+    outColor = vec4(textureLod(srcTexture, psIn.texCoord0, mip).rgb, 1.0f);
 }

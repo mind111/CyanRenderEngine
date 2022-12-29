@@ -1,7 +1,6 @@
 #version 450 core
 
 #define PI 3.1415926
-#define FUZZY_OCCLUSION 1
  
 in VSOutput
 {
@@ -10,28 +9,19 @@ in VSOutput
 
 layout (location = 0) out vec3 ssao; 
 layout (location = 1) out vec3 ssbn;
-layout (location = 2) out vec3 ssr;
-layout (location = 3) out vec3 ssaoCount;
 
-#define VIEW_SSBO_BINDING 0
-layout(std430, binding = VIEW_SSBO_BINDING) buffer ViewShaderStorageBuffer
+layout(std430) buffer ViewBuffer
 {
     mat4  view;
     mat4  projection;
     float m_ssao;
     float dummy;
-} viewSsbo;
+};
 
-uniform uint numFrames;
 uniform vec2 outputSize;
-uniform sampler2D radianceTexture;
 uniform sampler2D depthTexture;
 uniform sampler2D normalTexture;
 uniform sampler2D blueNoiseTexture;
-uniform samplerCube reflectionProbe;
-uniform sampler2D temporalSsaoBuffer;
-uniform sampler2D temporalSsaoCountBuffer;
-uniform float kRoughness;
 
 /* note: 
 * rand number generator taken from https://www.shadertoy.com/view/4lfcDr
@@ -76,11 +66,20 @@ vec2 halton (int index)
     return a.zw;
 }
 
-vec3 screenToWorld(vec3 pp, mat4 invView, mat4 invProjection) {
+vec3 screenToWorld(vec3 pp, mat4 invView, mat4 invProjection) 
+{
     vec4 p = invProjection * vec4(pp, 1.f);
     p /= p.w;
     p.w = 1.f;
     p = invView * p;
+    return p.xyz;
+}
+
+vec3 worldToScreen(vec3 pp, mat4 view, mat4 projection)
+{
+    vec4 p = projection * view * vec4(pp, 1.f);
+    p /= p.w;
+    p.z = p.z * .5f + .5f;
     return p.xyz;
 }
 
@@ -90,9 +89,9 @@ float rand(vec2 co){
 
 mat3 tangentToWorld(vec3 n)
 {
-	vec3 worldUp = abs(n.y) < 0.95f ? vec3(0.f, 1.f, 0.f) : vec3(0.f, 0.f, 1.f);
-	vec3 right = cross(n, worldUp);
-	vec3 forward = cross(n, right);
+	vec3 worldUp = abs(n.y) < 0.99f ? vec3(0.f, 1.f, 0.f) : vec3(0.f, 0.f, -1.f);
+	vec3 right = cross(worldUp, n);
+	vec3 forward = cross(right, n);
 	mat3 coordFrame = {
 		right,
 		forward,
@@ -201,256 +200,89 @@ vec3 blueNoiseCosWeightedSampleHemisphere(vec3 n, vec2 uv, float randomRotation)
 	uv = rotation * uv;
 
 	// project points on a unit disk up to the hemisphere
-	float z = cos(asin(length(uv)));
-	return tangentToWorld(n) * vec3(uv.xy, z);
+	float z = sin(acos(length(uv)));
+	return tangentToWorld(n) * normalize(vec3(uv.xy, z));
 }
 
-void rayMarching(vec3 ro, vec3 rd) { 
-
-}
-
-#define AO_USE_INTERMEDIATE_SAMPLES 0
 // todo: improve this by applying spatiotemporal reuse
-void calculateOcclusionAndBentNormal(vec3 p, vec3 n, vec3 worldSpaceViewDirection) {
-    // ray marching
+void calcAmbientOcclusionAndBentNormal(vec3 p, vec3 n, inout float ao, inout vec3 bentNormal) 
+{
 	float occlusion = 0.f;
-    float occ = 0.f;
-	vec3 bentNormal = worldSpaceViewDirection;
-	const int numRays = 4;
-#if AO_USE_INTERMEDIATE_SAMPLES
-    int numSamples = 0;
-#endif
-	// sample in 1m hemisphere (randomize to turn banding into noise)
-	float sampleRadius = 1.f;
-    sampleRadius *= get_random().x;
-	// number of steps to march along the ray
-    // todo: instead of using fixed step size, stratify and jitter step size to eliminate aliasing
+    int numOccludedSamples = 0;
+    int numOccludedRays = 0;
+	const int kNumRays = 8;
 	const int kMaxNumSteps = 8;
-    const float stepSize = sampleRadius / float(kMaxNumSteps);
-    for (int ray = 0; ray < numRays; ++ray)
+	const float kRadius = 1.0f; // 1 meters
+    float maxStepSize = kRadius / kMaxNumSteps;
+    for (int ray = 0; ray < kNumRays; ++ray)
     {
 		float occluded = 1.f;
-		float randomRotation = texture(blueNoiseTexture, gl_FragCoord.xy / float(textureSize(blueNoiseTexture, 0).x)).r * PI * 2.f;
+		float randomRotation = texture(blueNoiseTexture, gl_FragCoord.xy / float(textureSize(blueNoiseTexture, 0).xy)).r * PI * 2.f;
 		vec3 rd = blueNoiseCosWeightedSampleHemisphere(n, BlueNoiseInDisk[ray], randomRotation);
 
 		for (int steps = 0; steps < kMaxNumSteps; ++steps)
 		{
-			vec3 worldSpacePosition = p + rd * (stepSize * steps);
+            float t = float(steps) * maxStepSize + get_random().x * maxStepSize;
+			vec3 worldSpacePosition = p + rd * t;
 			// project to screenspace and do depth comparison
-			vec4 screenSpacePosition = viewSsbo.projection * viewSsbo.view * vec4(worldSpacePosition, 1.f);
+			vec4 screenSpacePosition = projection * view * vec4(worldSpacePosition, 1.f);
 			screenSpacePosition *= (1.f / screenSpacePosition.w);
 			screenSpacePosition.z = screenSpacePosition.z * .5f + .5f;
 
-            // outside of view frustum
-			if (abs(screenSpacePosition.x) <= 1.0f && abs(screenSpacePosition.y) <= 1.0f) {
+            // inside of view frustum
+			if (abs(screenSpacePosition.x) <= 1.0f && abs(screenSpacePosition.y) <= 1.0f) 
+            {
 				float sceneDepth = texture(depthTexture, screenSpacePosition.xy * .5f + .5f).r;
 				if (screenSpacePosition.z >= sceneDepth)
 				{
+                    // this sample ray direction is either occluded or hidden but as an approximation, 
+                    // we treated as occluded
 					occluded = 0.f;
-                    occ += 1.f;
-					break;
+                    numOccludedSamples += 1;
 				}
-#if AO_USE_INTERMEDIATE_SAMPLES
-                else {
-                    // if there is some geometry discovered by the marched ray, treat that as occlusion as long as it's within the uppder hemisphere of current shaded pixel
-                    vec3 sampleWorldSpacePosition = screenToWorld(vec3(screenSpacePosition.xy, sceneDepth * 2.f - 1.f), inverse(viewSsbo.view), inverse(viewSsbo.projection));
-                    if (sceneDepth < 0.99f) {
-                        if (dot(normalize(sampleWorldSpacePosition - p), n) > 0.1f) {
-                            occ += dot(normalize(sampleWorldSpacePosition - p), n);
-                            numSamples++;
-                        }
-                    }
-                }
-#endif 
 			}
-			else {
+			else 
+            {
 				break;
 			}
 		}
-
-		occlusion += occluded;
 		if (occluded > 0.5f)
 		{
 			bentNormal += rd;
 		}
-#if AO_USE_INTERMEDIATE_SAMPLES
-        numSamples++;
-#endif
+        else
+        {
+            numOccludedRays += 1;
+        }
 	}
-	occlusion = occlusion / float(numRays);
-#if AO_USE_INTERMEDIATE_SAMPLES
-    occ = occ / float(numSamples);
-#endif
+    // ao = float(numOccludedSamples) / float(kMaxNumSteps * kNumRays);
+    ao = float(numOccludedRays) / float(kNumRays);
 	bentNormal = normalize(bentNormal);
-#if 0
-	vec3 avgBentNormal = bentNormal / float(numRays);
-	/**
-	* the shorter the averaged bent normal means the more scattered the unoccluded samples, thus the bigger the variance
-	* smaller variance -> visible samples are more focused -> more occlusion 
-	*/
-	float coneAngle = (1.f - max(0.f, 2 * length(avgBentNormal) - 1.f)) * (PI / 2.f);
-	float variance = 1.f - max(0.f, 2 * length(avgBentNormal) - 1.f);
-#endif
-
-#if AO_USE_INTERMEDIATE_SAMPLES
-    ssao = vec3(1.f - occ);
-#else
-	ssao = vec3(occlusion);
-#endif
-	ssbn = bentNormal * .5f + .5f;
 };
 
-void temporalSsao(vec3 p, vec3 n) {
-    float occlusion = 0.f;
-	const int numNewSamples = 1;
-    vec2 pixelCoord = gl_FragCoord.xy / vec2(2560.f, 1440.f);
-    float numAccSamples = numFrames > 0 ? texture(temporalSsaoCountBuffer, pixelCoord).r : 0.f;
-    if (numAccSamples > 8.f) {
-        ssao = vec3(1.f - texture(temporalSsaoBuffer, pixelCoord).r);
-    }
-
-	// sample in 1m hemisphere (randomize to turn banding into noise)
-	float sampleRadius = 1.f;
-    sampleRadius *= get_random().x;
-
-	// number of steps to march along the ray
-    // todo: instead of using fixed step size, stratify and jitter step size to eliminate aliasing
-	const int kMaxNumSteps = 8;
-    const float stepSize = sampleRadius / float(kMaxNumSteps);
-
-    for (int ray = 0; ray < numNewSamples; ++ray) {
-		float randomRotation = texture(blueNoiseTexture, gl_FragCoord.xy / float(textureSize(blueNoiseTexture, 0).x)).r * PI * 2.f;
-		vec3 rd = blueNoiseCosWeightedSampleHemisphere(n, BlueNoiseInDisk[ray], randomRotation);
-
-		for (int steps = 0; steps < kMaxNumSteps; ++steps) {
-			vec3 worldSpacePosition = p + rd * (stepSize * steps);
-			// project to screenspace and do depth comparison
-			vec4 screenSpacePosition = viewSsbo.projection * viewSsbo.view * vec4(worldSpacePosition, 1.f);
-			screenSpacePosition *= (1.f / screenSpacePosition.w);
-			screenSpacePosition.z = screenSpacePosition.z * .5f + .5f;
-
-            // outside of view frustum
-			if (abs(screenSpacePosition.x) <= 1.0f && abs(screenSpacePosition.y) <= 1.0f) {
-				float sceneDepth = texture(depthTexture, screenSpacePosition.xy * .5f + .5f).r;
-				if (screenSpacePosition.z >= sceneDepth) {
-                    occlusion += 1.f;
-					break;
-				}
-			}
-			else {
-				break;
-			}
-		}
-	}
-
-#if 1
-    if (numFrames > 0) { 
-		// reuse temporal neighbors
-		const int kNumReuseNeighbors = 8;
-		const float filterRadius = .1f;
-        vec2 neighbors[4] = { 
-            vec2(1.f, 0.f),
-            vec2(-1.f, 0.f),
-            vec2(0.f, 1.f),
-            vec2(0.f, -1.f)
-        };
-		for (int i = 0; i < 4; ++i) {
-			/*
-			float randomRotation = texture(blueNoiseTexture, gl_FragCoord.xy / float(textureSize(blueNoiseTexture, 0).x)).r * PI * 2.f;
-			mat2 rotation = {
-				{ cos(randomRotation), sin(randomRotation) },
-				{ -sin(randomRotation), cos(randomRotation) }
-			};
-            */
-			vec2 neighborCoord = pixelCoord + neighbors[i] * filterRadius;
-			if (neighborCoord.x < 0.f || neighborCoord.x > 1.f || neighborCoord.y < 0.f || neighborCoord.y > 1.f) {
-				continue;
-			}
-			float occ = texture(temporalSsaoBuffer, neighborCoord).r;
-			float numSamples = texture(temporalSsaoCountBuffer, neighborCoord).r;
-			occlusion += occ * numSamples;
-			// numAccSamples += numSamples;
-		}
-		occlusion /= numAccSamples;
-		ssaoCount = vec3(float(numAccSamples));
-	} else {
-		ssaoCount = vec3(float(numNewSamples));
-    }
-#endif
-	ssao = vec3(1 - occlusion);
-}
-
-vec3 importanceSampleGGX(vec3 n, float roughness, float rand_u, float rand_v) {
-	float a = roughness * roughness;
-	float phi = 2 * PI * rand_u;
-	float cosTheta = sqrt( (1 - rand_v) / ( 1 + (a*a - 1) * rand_v ) );
-	float sinTheta = sqrt( 1 - cosTheta * cosTheta );
-	vec3 h;
-	h.x = sinTheta * sin( phi );
-	h.y = sinTheta * cos( phi );
-	h.z = cosTheta;
-	vec3 up = abs(n.y) < 0.999 ? vec3(0, 1.f, 0.f) : vec3(0.f, 0, 1.f);
-	vec3 tangentX = normalize( cross( n, up ) );
-	vec3 tangentY = cross( n, tangentX);
-	// tangent to world space
-	return tangentX * h.x + tangentY * h.y + n * h.z;
-}
-
-vec3 calculateReflection(vec3 p, vec3 n, vec3 v) {
-    const int kNumSamples = 8;
-    const int kMaxNumSteps = 8;
-    const float kMaxTraceDist = 5.0f;
-    float dt = kMaxTraceDist / float(kMaxNumSteps);
-    vec3 radiance = vec3(0.f);
-    for (int i = 0; i < kNumSamples; ++i) {
-        vec2 randUV = get_random();
-        vec3 h = importanceSampleGGX(n, kRoughness, randUV.x, randUV.y);
-        vec3 l = normalize(-reflect(v, h));
-		vec3 li = texture(reflectionProbe, l).rgb;
-        // ray marching
-        for (int steps = 0; steps < kMaxNumSteps; ++steps) {
-            vec3 q = p + float(steps) * dt * l;
-            vec4 screenSpacePosition = viewSsbo.projection * viewSsbo.view * vec4(q, 1.f);
-            screenSpacePosition /= screenSpacePosition.w;
-            screenSpacePosition.z = screenSpacePosition.z * .5f + .5f;
-
-            if (abs(screenSpacePosition.x) <= 1.f && abs(screenSpacePosition.y) <= 1.f) {
-				float sceneDepth = texture(depthTexture, screenSpacePosition.xy * .5f + .5f).r;
-                // found a hit
-                if (screenSpacePosition.z >= sceneDepth) {
-                    li = vec3(.95, .95, .8);
-                    break;
-                }
-            }
-        }
-		radiance += li * max(dot(n, l), 0.f); 
-    }
-    radiance /= float(kNumSamples);
-    return radiance;
-}
-
-// todo: verify calculated bent normal
-void main() {
+void main() 
+{
     seed = 0;
-    flat_idx = int(floor(gl_FragCoord.y) * 2560.f + floor(gl_FragCoord.x));
+    flat_idx = int(floor(gl_FragCoord.y) * outputSize.x + floor(gl_FragCoord.x));
 
     float depth = texture(depthTexture, psIn.texCoord0).r;
     vec3 normal = texture(normalTexture, psIn.texCoord0).xyz;
     normal = normalize(normal * 2.f - 1.f);
 
-    if (depth > .99f) 
+    if (depth > .9999f) 
 		discard;
 
     vec3 screenSpaceCoord = vec3(psIn.texCoord0 * 2.f - 1.f, depth * 2.f - 1.f);
-    vec3 ro = screenToWorld(screenSpaceCoord, inverse(viewSsbo.view), inverse(viewSsbo.projection));
-	vec3 viewDirection = normalize(-(viewSsbo.view * vec4(ro, 1.f)).xyz);
-	vec3 worldSpaceViewDirection = (inverse(viewSsbo.view) * vec4(viewDirection, 0.f)).xyz;
-	ro += normal * 0.005f;
+    vec3 ro = screenToWorld(screenSpaceCoord, inverse(view), inverse(projection));
+	ro += normal * 0.01f;
+	vec3 viewDirection = normalize(-(view * vec4(ro, 1.f)).xyz);
+	vec3 worldSpaceViewDirection = (inverse(view) * vec4(viewDirection, 0.f)).xyz;
 	
 	// ssao and bent normal
-	calculateOcclusionAndBentNormal(ro, normal, worldSpaceViewDirection);
-    // temporalSsao(ro, normal);
-
-    // ssr
-    // ssr = calculateReflection(ro, normal, worldSpaceViewDirection);
+    float ao = 1.f;
+    vec3 bentNormal = worldSpaceViewDirection;
+	calcAmbientOcclusionAndBentNormal(ro, normal, ao, bentNormal);
+    ao = 1.f - ao;
+    ssao = vec3(ao);
+    ssbn = bentNormal * .5f + .5f;
 }

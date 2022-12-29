@@ -57,9 +57,15 @@ namespace Cyan {
                 spec.pixelFormat = PF_RGB32F;
                 ITextureRenderable::Parameter params = { };
                 params.magnificationFilter = FM_POINT;
-                params.minificationFilter = FM_POINT;
-                depth = new Texture2DRenderable("SceneDepthBuffer", spec, params);
+                params.minificationFilter = FM_BILINEAR;
                 normal = new Texture2DRenderable("SceneNormalBuffer", spec, params);
+
+                // spec.numMips = std::floor(std::log2(min(spec.width, spec.height)));
+                depth = new Texture2DRenderable("SceneDepthBuffer", spec, params);
+            }
+            // Hi-Z
+            {
+                HiZ = new HiZBuffer(depth->getTextureSpec());
             }
             // scene color
             {
@@ -70,16 +76,34 @@ namespace Cyan {
                 spec.pixelFormat = PF_RGB16F;
                 color = new Texture2DRenderable("SceneColor", spec);
             }
-            // bloom textures
+            // indirect lighting
             {
-
+                ITextureRenderable::Spec spec = { };
+                spec.width = resolution.x;
+                spec.height = resolution.y;
+                spec.type = TEX_2D;
+                spec.pixelFormat = PF_RGB16F;
+                ao = new Texture2DRenderable("SSAO", spec);
+                bentNormal = new Texture2DRenderable("SSBN", spec);
             }
 
+            Renderer::get()->registerVisualization(std::string("SceneTextures"), color);
             Renderer::get()->registerVisualization(std::string("SceneTextures"), depth);
+            Renderer::get()->registerVisualization(std::string("SceneTextures"), HiZ->texture.get());
+#if 0
+            Renderer::get()->registerVisualization(std::string("SceneTextures"), HiZ->mips[0].get());
+            Renderer::get()->registerVisualization(std::string("SceneTextures"), HiZ->mips[1].get());
+            Renderer::get()->registerVisualization(std::string("SceneTextures"), HiZ->mips[2].get());
+            Renderer::get()->registerVisualization(std::string("SceneTextures"), HiZ->mips[3].get());
+            Renderer::get()->registerVisualization(std::string("SceneTextures"), HiZ->mips[4].get());
+#endif
             Renderer::get()->registerVisualization(std::string("SceneTextures"), normal);
+            Renderer::get()->registerVisualization(std::string("SceneTextures"), ao);
+            Renderer::get()->registerVisualization(std::string("SceneTextures"), bentNormal);
             bInitialized = true;
         }
-        else if (inResolution != resolution) {
+        else if (inResolution != resolution) 
+        {
         }
     }
 
@@ -179,7 +203,7 @@ namespace Cyan {
         }
     }
 
-    void Renderer::drawFullscreenQuad(RenderTarget* renderTarget, PixelPipeline* pipeline, RenderSetupLambda&& renderSetupLambda) {
+    void Renderer::drawFullscreenQuad(RenderTarget* renderTarget, PixelPipeline* pipeline, const RenderSetupLambda& renderSetupLambda) {
         GfxPipelineConfig config;
         config.depth = DepthControl::kDisable;
 
@@ -235,10 +259,10 @@ namespace Cyan {
     void Renderer::registerVisualization(const std::string& categoryName, Texture2DRenderable* visualization, bool* toggle) {
         auto entry = visualizationMap.find(categoryName);
         if (entry == visualizationMap.end()) {
-            visualizationMap.insert({ categoryName, { VisualizationDesc{ visualization , toggle } } });
+            visualizationMap.insert({ categoryName, { VisualizationDesc{ visualization, 0, toggle } } });
         }
         else {
-            entry->second.push_back(VisualizationDesc{ visualization, toggle });
+            entry->second.push_back(VisualizationDesc{ visualization, 0, toggle });
         }
     }
 
@@ -252,9 +276,6 @@ namespace Cyan {
         {
             // shared render target for this frame
             glm::uvec2 renderResolution = m_windowSize;
-            if (m_settings.enableAA) {
-                renderResolution = m_windowSize * 2u;
-            }
             m_sceneTextures.initialize(renderResolution);
 
             // convert Scene instance to RenderableScene instance for rendering
@@ -265,52 +286,47 @@ namespace Cyan {
             // prepass
             renderSceneDepthNormal(renderableScene, m_sceneTextures.renderTarget, m_sceneTextures.depth, m_sceneTextures.normal);
             // global illumination
-            m_manyViewGI->render(m_sceneTextures.renderTarget, renderableScene, m_sceneTextures.depth, m_sceneTextures.normal);
+            visualizeSSRT(m_sceneTextures.depth, m_sceneTextures.normal);
             // main scene pass
-            renderSceneBatched(renderableScene, m_sceneTextures.renderTarget, m_sceneTextures.color, { });
+            renderSceneBatched(renderableScene, m_sceneTextures.renderTarget, m_sceneTextures.color);
 
             // post processing
-            auto bloomTexture = bloom(m_sceneTextures.color);
             if (m_settings.bPostProcessing) 
             {
+                auto bloomTexture = bloom(m_sceneTextures.color);
                 compose(sceneView.renderTexture, m_sceneTextures.color, bloomTexture.get(), m_windowSize);
             }
-            // todo: blit offscreen albedo buffer into output render texture
-            else {
 
-            }
-
-            if (m_visualization) {
-                visualize(sceneView.renderTexture, m_visualization);
+            if (m_visualization)
+            {
+                visualize(sceneView.renderTexture, m_visualization->texture, m_visualization->activeMip);
             }
         } 
         endRender();
     }
 
-    void Renderer::visualize(Texture2DRenderable* dst, Texture2DRenderable* src) 
+    void Renderer::visualize(Texture2DRenderable* dst, Texture2DRenderable* src, i32 mip) 
     {
         auto renderTarget = createCachedRenderTarget("Visualization", dst->width, dst->height);
         renderTarget->setColorBuffer(dst, 0);
         renderTarget->setDrawBuffers({ 0 });
         renderTarget->clearDrawBuffer(0, glm::vec4(.0f, .0f, .0f, 1.f));
 
-        CreateVS(vs, "BlitQuadVS", SHADER_SOURCE_PATH "blit_v.glsl");
-        CreatePS(ps, "BlitQuadPS", SHADER_SOURCE_PATH "blit_p.glsl");
+        CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
+        CreatePS(ps, "BlitPS", SHADER_SOURCE_PATH "blit_p.glsl");
         CreatePixelPipeline(pipeline, "BlitQuad", vs, ps);
         drawFullscreenQuad(
             renderTarget,
             pipeline,
-            [this, src](VertexShader* vs, PixelShader* ps) {
-                if (ps)
-                {
-                    ps->setTexture("srcTexture", src);
-                }
+            [this, src, mip](VertexShader* vs, PixelShader* ps) {
+                ps->setTexture("srcTexture", src);
+                ps->setUniform("mip", mip);
             });
     }
 
     void Renderer::renderToScreen(Texture2DRenderable* inTexture) {
-        CreateVS(vs, "BlitQuadVS", SHADER_SOURCE_PATH "blit_v.glsl");
-        CreatePS(ps, "BlitQuadPS", SHADER_SOURCE_PATH "blit_p.glsl");
+        CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
+        CreatePS(ps, "BlitPS", SHADER_SOURCE_PATH "blit_p.glsl");
         CreatePixelPipeline(pipeline, "BlitQuad", vs, ps);
 
         // final blit to default framebuffer
@@ -318,15 +334,14 @@ namespace Cyan {
             RenderTarget::getDefaultRenderTarget(m_windowSize.x, m_windowSize.y),
             pipeline,
             [this, inTexture](VertexShader* vs, PixelShader* ps) {
-                if (ps)
-                {
-                    ps->setTexture("srcTexture", inTexture);
-                }
+                ps->setTexture("srcTexture", inTexture);
+                ps->setUniform("mip", (i32)0);
             }
         );
     }
 
-    void Renderer::endRender() {
+    void Renderer::endRender() 
+    {
         m_numFrames++;
     }
 
@@ -378,110 +393,240 @@ namespace Cyan {
         submitSceneMultiDrawIndirect(scene);
     }
 
-    Renderer::SSGITextures Renderer::screenSpaceRayTracing(Texture2DRenderable* sceneDepthTexture, Texture2DRenderable* sceneNormalTexture, const glm::uvec2& renderResolution) {
-#if 0
-        ITextureRenderable::Spec spec = { };
-        spec.type = TEX_2D;
-        spec.width = renderResolution.x;
-        spec.height = renderResolution.y;
-        spec.pixelFormat = PF_RGB16F;
-        ITextureRenderable::Parameter parameter = { };
-        parameter.minificationFilter = FM_POINT;
-        parameter.magnificationFilter = FM_POINT;
-        parameter.wrap_r = WM_CLAMP;
-        parameter.wrap_s = WM_CLAMP;
-        parameter.wrap_t = WM_CLAMP;
-        static Texture2DRenderable* ssao = new Texture2DRenderable("SceneDepthBuffer", spec, parameter);
-        static Texture2DRenderable* ssbn = new Texture2DRenderable("SceneNormalBuffer", spec, parameter);
-        static Texture2DRenderable* ssr = new Texture2DRenderable("SceneNormalBuffer", spec, parameter);
+    HiZBuffer::HiZBuffer(ITextureRenderable::Spec spec)
+    {
+        // for now, we should be using square render target with power of 2 resolution
+        assert(isPowerOf2(spec.width) && isPowerOf2(spec.height));
+        assert(spec.width == spec.height);
+        numMips = std::log2(spec.width) + 1;
+        spec.numMips = numMips;
+        ITextureRenderable::Parameter params = { };
+        params.magnificationFilter = FM_MIPMAP_POINT;
+        params.minificationFilter = FM_MIPMAP_POINT;
+        texture = std::make_unique<Texture2DRenderable>("HiZBuffer", spec, params);
+    }
 
-        static f32 kRoughness = .2f;
-        static Texture2DRenderable* temporalSsaoBuffer[2] = {
-            new Texture2DRenderable("TemporalSSAO_0", spec, parameter),
-            new Texture2DRenderable("TemporalSSAO_1", spec, parameter),
+    void HiZBuffer::build(Texture2DRenderable* srcDepthTexture)
+    {
+        auto renderer = Renderer::get();
+        // copy pass
+        {
+            auto renderTarget = renderer->createCachedRenderTarget("HiZ_Mip[0]", texture->width, texture->height);
+            renderTarget->setColorBuffer(texture.get(), 0, 0);
+            CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
+            CreatePS(ps, "HiZCopyPS", SHADER_SOURCE_PATH "hi_z_copy_p.glsl");
+            CreatePixelPipeline(pipeline, "HiZCopy", vs, ps);
+            renderer->drawFullscreenQuad(
+                renderTarget,
+                pipeline,
+                [srcDepthTexture](VertexShader* vs, PixelShader* ps) {
+                    ps->setTexture("srcDepthTexture", srcDepthTexture);
+                }
+            );
+        }
+        // building pass
+        {
+            CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
+            CreatePS(ps, "BuildHiZPS", SHADER_SOURCE_PATH "build_hi_z_p.glsl");
+            CreatePixelPipeline(pipeline, "BuildHiZ", vs, ps);
+            u32 mipWidth = texture->width;
+            u32 mipHeight = texture->height;
+            for (i32 i = 1; i < numMips; ++i)
+            {
+                mipWidth /= 2u;
+                mipHeight /= 2u;
+                const i32 kMaxNameLen = 128;
+                char name[kMaxNameLen];
+                sprintf_s(name, "HiZ_Pass[%d]", i);
+                auto src = i - 1;
+                auto dst = i;
+                auto renderTarget = renderer->createCachedRenderTarget(name, mipWidth, mipHeight);
+                renderTarget->setColorBuffer(texture.get(), 0, (u32)dst);
+                renderer->drawFullscreenQuad(
+                    renderTarget,
+                    pipeline,
+                    [this, src](VertexShader* vs, PixelShader* ps) {
+                        ps->setUniform("srcMip", src);
+                        ps->setTexture("srcDepthTexture", texture.get());
+                    }
+                );
+            }
+        }
+    }
+
+    void Renderer::visualizeSSRT(Texture2DRenderable* depth, Texture2DRenderable* normal)
+    {
+        // build Hi-Z buffer
+        {
+            m_sceneTextures.HiZ->build(depth);
+        }
+
+        static const i32 kNumDebugIterations = 15;
+        struct DebugTraceData
+        {
+            f32 minDepth;
+            f32 stepDepth;
+            f32 tDepth;
+            f32 tCellBoundry;
+            f32 t;
+            i32 level;
+            i32 iteration;
+            i32 stepCount;
+            glm::vec4 cellBoundry;
+            glm::vec2 cell;
+            glm::vec2 mipSize;
+            glm::vec4 pp;
+            glm::vec4 ro;
+            glm::vec4 rd;
         };
-        static Texture2DRenderable* temporalSsaoCountBuffer[2] = {
-            new Texture2DRenderable("TemporalSSAOSampleCount_0", spec, parameter),
-            new Texture2DRenderable("TemporalSSAOSampleCount_1", spec, parameter),
-        };
+        static ShaderStorageBuffer<DynamicSsboData<DebugTraceData>> debugTraceBuffer("DebugTraceBuffer", kNumDebugIterations);
+        static ShaderStorageBuffer<DynamicSsboData<glm::vec4>> debugRayBuffer("DebugRayBuffer", kNumDebugIterations);
 
-        u32 src = m_numFrames > 0 ? (m_numFrames - 1) % 2 : 1;
-        u32 dst = m_numFrames % 2;
+        // debug trace
+        {
+            CreateCS(cs, "SSRTRayDebugCS", SHADER_SOURCE_PATH "ssrt_ray_debug_c.glsl");
+            CreateComputePipeline(pipeline, "SSRTRayDebug", cs);
+            m_ctx->setShaderStorageBuffer(&debugTraceBuffer);
+            m_ctx->setShaderStorageBuffer(&debugRayBuffer);
+            m_ctx->setComputePipeline(pipeline, [this, depth, normal](ComputeShader* cs) {
+                    cs->setUniform("debugCoord", glm::vec2(0.5f));
+                    cs->setTexture("depthBuffer", depth);
+                    cs->setTexture("normalBuffer", normal);
+                    cs->setTexture("HiZ", m_sceneTextures.HiZ->texture.get());
+                    cs->setUniform("outputSize", glm::vec2(depth->width, depth->height));
+                    cs->setUniform("numLevels", (i32)m_sceneTextures.HiZ->numMips);
+                    cs->setUniform("kMaxNumIterations", kNumDebugIterations);
+                }
+            );
+            glDispatchCompute(1, 1, 1);
+        }
+        // read back data from gpu (slow!!!)
+        {
+            if (!bFixDebugRay)
+            {
+                // read back ray data
+                // log debug trace data
+                memset(debugTraceBuffer.data.array.data(), 0x0, debugTraceBuffer.data.getDynamicDataSizeInBytes());
+                glGetNamedBufferSubData(debugTraceBuffer.getGpuObject(), 0, debugTraceBuffer.data.getDynamicDataSizeInBytes(), debugTraceBuffer.data.array.data());
+                memset(debugRayBuffer.data.array.data(), 0x0, debugRayBuffer.data.getDynamicDataSizeInBytes());
+                glGetNamedBufferSubData(debugRayBuffer.getGpuObject(), 0, debugRayBuffer.data.getSizeInBytes(), debugRayBuffer.data.array.data());
+        #if 0
+                for (i32 i = 0; i < kNumDebugIterations; ++i)
+                {
+                    printf("===== iteration %d ===== \n", debugTraces[i].iteration);
+                    printf("stepDepth: %.5f, minDepth: %.5f \n", debugTraces[i].stepDepth, debugTraces[i].minDepth);
+                    printf("tDepth: %.5f, tCellBoundry: %.5f \n", debugTraces[i].tDepth, debugTraces[i].tCellBoundry);
+                    printf("t: %.5f \n", debugTraces[i].t);
+                    printf("level: %d ", debugTraces[i].level);
+                    printf("mipSize: %dx%d \n", (i32)debugTraces[i].mipSize.x, (i32)debugTraces[i].mipSize.y);
+                    printf("pp: (%.5f, %.5f) \n", debugTraces[i].pp.x, debugTraces[i].pp.y);
+                    printf("cell: (%.5f, %.5f) ", debugTraces[i].cell.x, debugTraces[i].cell.y);
+                    printf("cellBoundry: (l %.5f, r %.5f, b %.5f, t %.5f) \n", debugTraces[i].cellBoundry.x, debugTraces[i].cellBoundry.y, debugTraces[i].cellBoundry.z, debugTraces[i].cellBoundry.w);
+                    printf("stepCount: %d \n", debugTraces[i].stepCount);
+                }
+        #endif
+            }
+        }
+        // draw visualizations
+        {
+            struct Vertex
+            {
+                glm::vec4 position;
+                glm::vec4 color;
+            };
+            static ShaderStorageBuffer<DynamicSsboData<Vertex>> vertexBuffer("VertexBuffer", kNumDebugIterations);
+            memset(vertexBuffer.data.array.data(), 0x0, vertexBuffer.data.getDynamicDataSizeInBytes());
+            u32 numVertices = 0;
+            for (i32 i = 0; i < kNumDebugIterations; ++i)
+            {
+                vertexBuffer[i].position = debugRayBuffer[i];
+                vertexBuffer[i].color = glm::vec4(1.f, 1.f, 1.f, 1.f);
+                if (vertexBuffer[i].position.w > 0.f)
+                {
+                    numVertices += 1;
+                }
+            }
+            vertexBuffer.upload();
+            {
+                CreateVS(vs, "DebugDrawLineVS", SHADER_SOURCE_PATH "debug_draw_line_v.glsl");
+                CreatePS(ps, "DebugDrawLinePS", SHADER_SOURCE_PATH "debug_draw_line_p.glsl");
+                CreatePixelPipeline(pipeline, "DebugDrawLine", vs, ps);
+                m_ctx->setDepthControl(DepthControl::kEnable);
+                m_ctx->setShaderStorageBuffer(&vertexBuffer);
+                m_ctx->setPixelPipeline(pipeline);
+                m_sceneTextures.renderTarget->setColorBuffer(m_sceneTextures.color, 0);
+                m_sceneTextures.renderTarget->setDrawBuffers({ 0 });
+                m_ctx->setRenderTarget(m_sceneTextures.renderTarget);
+                m_ctx->setViewport({ 0, 0, m_sceneTextures.renderTarget->width, m_sceneTextures.renderTarget->height });
+                glDrawArrays(GL_LINES, 0, max((numVertices - 1), 0) * 2);
+            }
+            {
+                CreateVS(vs, "DebugDrawPointVS", SHADER_SOURCE_PATH "debug_draw_point_v.glsl");
+                CreatePS(ps, "DebugDrawLinePS", SHADER_SOURCE_PATH "debug_draw_line_p.glsl");
+                CreatePixelPipeline(pipeline, "DebugDrawPoint", vs, ps);
+                m_ctx->setDepthControl(DepthControl::kEnable);
+                m_ctx->setShaderStorageBuffer(&vertexBuffer);
+                m_ctx->setPixelPipeline(pipeline);
+                m_sceneTextures.renderTarget->setColorBuffer(m_sceneTextures.color, 0);
+                m_sceneTextures.renderTarget->setDrawBuffers({ 0 });
+                m_ctx->setRenderTarget(m_sceneTextures.renderTarget);
+                m_ctx->setViewport({ 0, 0, m_sceneTextures.renderTarget->width, m_sceneTextures.renderTarget->height });
+                glDrawArrays(GL_POINTS, 0, numVertices);
+            }
+            // todo: draw a visualization of the debug trace 
+        }
+    }
 
-        std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(ssao->width, ssao->height));
-        renderTarget->setColorBuffer(ssao, 0);
-        renderTarget->setColorBuffer(temporalSsaoBuffer[dst], 0);
-        renderTarget->setColorBuffer(ssbn, 1);
-        renderTarget->setColorBuffer(ssr, 2);
-        renderTarget->setColorBuffer(temporalSsaoCountBuffer[dst], 3);
-        renderTarget->setDrawBuffers({ 0, 1, 2, 3 });
+    void Renderer::screenSpaceRayTracing(Texture2DRenderable* depth, Texture2DRenderable* normal) 
+    {
+        // build Hi-Z buffer
+        {
+            m_sceneTextures.HiZ->build(depth);
+        }
+        // trace
+        auto renderTarget = createCachedRenderTarget("ScreenSpaceRayTracing", depth->width, depth->height);
+        renderTarget->setColorBuffer(m_sceneTextures.ao, 0);
+        renderTarget->setColorBuffer(m_sceneTextures.bentNormal, 1);
+        renderTarget->setDrawBuffers({ 0, 1, });
         renderTarget->clear({ 
             { 0, glm::vec4(0.f, 0.f, 0.f, 1.f) },
             { 1, glm::vec4(0.f, 0.f, 0.f, 1.f) },
-            { 2, glm::vec4(0.f, 0.f, 0.f, 1.f) },
-            { 3, glm::vec4(0.f, 0.f, 0.f, 1.f) },
         });
-
-        Shader* ssrtShader = ShaderManager::createShader({ ShaderSource::Type::kVsPs, "ScreenSpaceRayTracingShader", SHADER_SOURCE_PATH "screenspace_raytracing.glsl", SHADER_SOURCE_PATH "screenspace_raytracing.glsl" });
+#if 0
+        CreateVS(vs, "ScreenSpaceRayTracingVS", SHADER_SOURCE_PATH "screenspace_raytracing_v.glsl");
+        CreatePS(ps, "ScreenSpaceRayTracingPS", SHADER_SOURCE_PATH "screenspace_raytracing_p.glsl");
+        CreatePixelPipeline(pipeline, "ScreenSpaceRayTracing", vs, ps);
         drawFullscreenQuad(
-            renderTarget.get(),
-            ssrtShader,
-            [this, src, sceneDepthTexture, sceneNormalTexture](RenderTarget* renderTarget, Shader* shader) {
-                shader->setTexture("depthTexture", sceneDepthTexture);
-                shader->setTexture("normalTexture", sceneNormalTexture);
+            renderTarget,
+            pipeline,
+            [this, depth, normal](VertexShader* vs, PixelShader* ps) {
+                ps->setUniform("outputSize", glm::vec2(depth->width, depth->height));
+                ps->setTexture("depthTexture", depth);
+                ps->setTexture("normalTexture", normal);
                 auto blueNoiseTexture = AssetManager::getAsset<Texture2DRenderable>("BlueNoise_1024x1024");
-                shader->setTexture("blueNoiseTexture", blueNoiseTexture);
-                // ssao
-                shader->setUniform("numFrames", m_numFrames);
-                if (m_numFrames > 0) {
-                    shader->setTexture("temporalSsaoBuffer", temporalSsaoBuffer[src]);
-                    shader->setTexture("temporalSsaoCountBuffer", temporalSsaoCountBuffer[src]);
-                }
-                // ssr
-                shader->setUniform("kRoughness", kRoughness);
-                auto skybox = AssetManager::getAsset<TextureCubeRenderable>("Skybox");
-                shader->setTexture("reflectionProbe", skybox);
-            });
-
-        // screen space bent normal
-
-        // screen space diffuse inter-reflection
-
-        // screen space reflection
-
-        addUIRenderCommand([this, dst]() {
-            appendToRenderingTab([=]() {
-                if (ImGui::CollapsingHeader("SSGI")) {
-                    ImGui::Checkbox("Bent Normal", &m_settings.useBentNormal);
-                    ImGui::SliderFloat("kRoughness", &kRoughness, 0.f, 1.f);
-                    enum class Visualization
-                    {
-                        kAmbientOcclusion,
-                        kBentNormal,
-                        kReflection,
-                        kCount
-                    };
-                    static i32 visualization = (i32)Visualization::kAmbientOcclusion;
-                    const char* visualizationNames[(i32)Visualization::kCount] = { "Ambient Occlusion", "Bent Normal", "Reflection" };
-                    ImVec2 imageSize(320, 180);
-                    ImGui::Combo("Visualization", &visualization, visualizationNames, (i32)Visualization::kCount);
-                    if (visualization == (i32)Visualization::kAmbientOcclusion) {
-                        // ImGui::Image((ImTextureID)(ssao->getGpuObject()), ImVec2(480, 270), ImVec2(0, 1), ImVec2(1, 0));
-                        ImGui::Image((ImTextureID)(temporalSsaoBuffer[dst]->getGpuObject()), imageSize, ImVec2(0, 1), ImVec2(1, 0));
-                    }
-                    if (visualization == (i32)Visualization::kBentNormal) {
-                        ImGui::Image((ImTextureID)(ssbn->getGpuObject()), imageSize, ImVec2(0, 1), ImVec2(1, 0));
-                    }
-                    if (visualization == (i32)Visualization::kReflection) {
-                        ImGui::Image((ImTextureID)(ssr->getGpuObject()), imageSize, ImVec2(0, 1), ImVec2(1, 0));
-                    }
-                }
-            });
-        });
-
-        return { temporalSsaoBuffer[dst], ssbn };
+                ps->setTexture("blueNoiseTexture", blueNoiseTexture);
+            }
+        );
+#else
+        static const i32 kMaxNumIterations = 15;
+        CreateVS(vs, "ScreenSpaceRayTracingVS", SHADER_SOURCE_PATH "screenspace_raytracing_v.glsl");
+        CreatePS(ps, "ScreenSpaceRayTracingPS", SHADER_SOURCE_PATH "hierarchical_ssrt_p.glsl");
+        CreatePixelPipeline(pipeline, "ScreenSpaceRayTracing", vs, ps);
+        drawFullscreenQuad(
+            renderTarget,
+            pipeline,
+            [this, depth, normal](VertexShader* vs, PixelShader* ps) {
+                ps->setUniform("outputSize", glm::vec2(depth->width, depth->height));
+                ps->setTexture("depthBuffer", depth);
+                ps->setTexture("normalBuffer", normal);
+                ps->setTexture("HiZ", m_sceneTextures.HiZ->texture.get());
+                ps->setUniform("numLevels", (i32)m_sceneTextures.HiZ->numMips);
+                ps->setUniform("kMaxNumIterations", kMaxNumIterations);
+                auto blueNoiseTexture = AssetManager::getAsset<Texture2DRenderable>("BlueNoise_1024x1024");
+                ps->setTexture("blueNoiseTexture", blueNoiseTexture);
+            }
+        );
 #endif
-        return { nullptr, nullptr };
     }
 
 #if 0
@@ -550,40 +695,50 @@ namespace Cyan {
         glMultiDrawArraysIndirect(GL_TRIANGLES, 0, drawCount, 0);
     }
 
-    void Renderer::renderSceneBatched(RenderableScene& scene, RenderTarget* outRenderTarget, Texture2DRenderable* outSceneColor, const SSGITextures& SSGIOutput) 
+    void Renderer::renderSceneBatched(RenderableScene& scene, RenderTarget* outRenderTarget, Texture2DRenderable* outSceneColor) 
     {
         CreateVS(vs, "SceneColorPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
         CreatePS(ps, "SceneColorPassPS", SHADER_SOURCE_PATH "scene_pass_p.glsl");
         CreatePixelPipeline(pipeline, "SceneColorPass", vs, ps);
-        m_ctx->setPixelPipeline(pipeline, [this, &scene, &SSGIOutput](VertexShader* vs, PixelShader* ps) {
+        m_ctx->setPixelPipeline(pipeline, [this, &scene, outSceneColor](VertexShader* vs, PixelShader* ps) {
+            ps->setUniform("outputSize", glm::vec2(outSceneColor->width, outSceneColor->height));
             // setup ssao
-            if (SSGIOutput.ao) {
-                auto ssao = SSGIOutput.ao->glHandle;
-                if (glIsTextureHandleResidentARB(ssao) == GL_FALSE)
+            if (m_settings.bSSAOEnabled)
+            {
+                if (m_sceneTextures.ao)
                 {
-                    glMakeTextureHandleResidentARB(ssao);
+                    auto ssao = m_sceneTextures.ao->glHandle;
+                    if (glIsTextureHandleResidentARB(ssao) == GL_FALSE)
+                    {
+                        glMakeTextureHandleResidentARB(ssao);
+                    }
+                    ps->setUniform("ssaoTextureHandle", ssao);
+                    ps->setUniform("ssaoEnabled", 1.f);
                 }
-                ps->setUniform("SSAO", ssao);
-                ps->setUniform("useSSAO", 1.f);
             }
-            else {
-                ps->setUniform("useSSAO", 0.f);
+            else
+            {
+                ps->setUniform("ssaoEnabled", 0.f);
             }
-            // setup ssbn
-            if (SSGIOutput.bentNormal) {
-                if (m_settings.useBentNormal) {
-                    auto ssbn = SSGIOutput.bentNormal->glHandle;
-                    ps->setUniform("useBentNormal", 1.f);
+            if (m_settings.bBentNormalEnabled)
+            {
+                // setup ssbn
+                if (m_sceneTextures.bentNormal)
+                {
+                    auto ssbn = m_sceneTextures.bentNormal->glHandle;
                     if (glIsTextureHandleResidentARB(ssbn) == GL_FALSE)
                     {
                         glMakeTextureHandleResidentARB(ssbn);
                     }
-                    ps->setUniform("SSBN", ssbn);
-                }
-                else {
-                    ps->setUniform("useBentNormal", 0.f);
+                    ps->setUniform("ssbnTextureHandle", ssbn);
+                    ps->setUniform("ssbnEnabled", 1.f);
                 }
             }
+            else
+            {
+                ps->setUniform("ssbnEnabled", 0.f);
+            }
+
             // sky light
             /* note
             * seamless cubemap doesn't work with bindless textures that's accessed using a texture handle,
@@ -755,7 +910,7 @@ namespace Cyan {
             }
         );
         // add a reconstruction pass using Gaussian filter
-        gaussianBlur(composited, 2u, 1.0f);
+        gaussianBlur(composited, 3u, 1.0f);
     }
 
     void Renderer::gaussianBlur(Texture2DRenderable* inoutTexture, u32 inRadius, f32 inSigma) 
@@ -914,7 +1069,7 @@ namespace Cyan {
         renderSunShadow(scene, staticObjects);
 
         // turn off ssao(
-        m_settings.enableSSAO = false;
+        m_settings.bSSAOEnabled = false;
 
         // render scene into each face of the cubemap
         Camera camera = { };
@@ -950,7 +1105,7 @@ namespace Cyan {
             }
         }
 
-        m_settings.enableSSAO = true;
+        m_settings.bSSAOEnabled = true;
 #endif
     }
 

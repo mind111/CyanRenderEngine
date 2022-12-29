@@ -5,7 +5,8 @@ layout (location = 1) out vec3 outNormal;
 in vec3 worldSpaceNormal; 
 in vec3 worldSpaceTangent;
 
-void main() {
+void main() 
+{
     outDepth = vec3(gl_FragCoord.z);
     outNormal = normalize(worldSpaceNormal) * .5f + .5f;
 }

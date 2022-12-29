@@ -79,7 +79,7 @@ private:
 // entry point
 int main()
 {
-    IrradianceCachingApp* app = new IrradianceCachingApp(1280, 720);
+    IrradianceCachingApp* app = new IrradianceCachingApp(1024, 1024);
     app->initialize();
     app->run();
     app->deinitialize();

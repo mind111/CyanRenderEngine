@@ -335,6 +335,9 @@ namespace Cyan
     {
         ImGui::BeginChild("##Rendering Settings", ImVec2(0, 0), true, ImGuiWindowFlags_MenuBar);
         {
+            // todo: this pointer is unsafe as it points to an element in a vector which will
+            // likely be changed when the vector is resized.
+            static Renderer::VisualizationDesc* selectedVis = nullptr;
             // rendering main menu
             if (ImGui::BeginMenuBar()) {
                 if (ImGui::BeginMenu("Options"))
@@ -346,28 +349,32 @@ namespace Cyan
                 }
                 if (ImGui::BeginMenu("Visualization"))
                 {
-                    static Renderer::VisualizationDesc selectedVis = { };
-                    for (auto categoryEntry : renderer->visualizationMap) {
+                    for (auto& categoryEntry : renderer->visualizationMap) 
+                    {
                         const std::string& category = categoryEntry.first;
-                        const auto& visualizations = categoryEntry.second;
+                        auto& visualizations = categoryEntry.second;
                         if (ImGui::BeginMenu(category.c_str())) {
-                            for (auto vis : visualizations) {
+                            for (auto& vis : visualizations) {
                                 bool selected = false;
-                                if (selectedVis.texture) {
-                                    selected = (selectedVis.texture->name == vis.texture->name);
+                                if (selectedVis && selectedVis->texture) 
+                                {
+                                    selected = (selectedVis->texture->name == vis.texture->name);
                                 }
                                 if (vis.texture) {
                                     if (ImGui::MenuItem(vis.texture->name, nullptr, selected)) {
                                         if (selected) {
-                                            if (selectedVis.bSwitch) {
-                                                *selectedVis.bSwitch = false;
+                                            if (selectedVis->bSwitch) 
+                                            {
+                                                *(selectedVis->bSwitch) = false;
                                             }
-                                            selectedVis = { };
+                                            selectedVis = nullptr;
                                         }
-                                        else {
-                                            selectedVis = vis;
-                                            if (selectedVis.bSwitch) {
-                                                *selectedVis.bSwitch = true;
+                                        else 
+                                        {
+                                            selectedVis = &vis;
+                                            if (selectedVis->bSwitch) 
+                                            {
+                                                *(selectedVis->bSwitch) = true;
                                             }
                                         }
                                     }
@@ -376,7 +383,6 @@ namespace Cyan
                             ImGui::EndMenu();
                         }
                     }
-                    renderer->setVisualization(selectedVis.texture);
                     ImGui::EndMenu();
                 }
                 ImGui::EndMenuBar();
@@ -390,7 +396,12 @@ namespace Cyan
                 ImGui::Text("Direct Lighting");
                 ImGui::Separator();
                 ImGui::Text("Indirect Lighting");
-                ImGui::Checkbox("Many View GI", &renderer->m_settings.bManyViewGIEnabled);
+                ImGui::Checkbox("Ambient Occlusion", &renderer->m_settings.bSSAOEnabled);
+                ImGui::Checkbox("Bent Normal", &renderer->m_settings.bBentNormalEnabled);
+            }
+            if (ImGui::CollapsingHeader("Screen Space Ray Tracing", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::Checkbox("Fix Debug Ray", &renderer->bFixDebugRay);
             }
             if (ImGui::CollapsingHeader("Post Processing"))
             {
@@ -422,6 +433,19 @@ namespace Cyan
                         break;
                     default:
                         break;
+                    }
+                }
+            }
+            renderer->setVisualization(selectedVis);
+            if (selectedVis)
+            {
+                if (ImGui::CollapsingHeader("Texture Visualization", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    auto texture = selectedVis->texture;
+                    if (texture) 
+                    {
+                        ImGui::Text("%s", texture->name);
+                        ImGui::SliderInt("Active Mip:", &selectedVis->activeMip, 0, texture->numMips - 1);
                     }
                 }
             }

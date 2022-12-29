@@ -12,7 +12,7 @@ out gl_PerVertex
 	float gl_PointSize;
 	float gl_ClipDistance[];
 };
-out VSOut
+out VSOutput
 {
 	vec2 texCoord0;
 } vsOut;

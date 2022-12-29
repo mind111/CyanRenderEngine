@@ -31,12 +31,8 @@ namespace Cyan
             return sizeof(StaticData);
         }
 
-        StaticSsboData()
+        StaticSsboData(u32 numElements)
             : constants() {
-
-        }
-
-        StaticSsboData(u32 numElements = 0) {
 
         }
 
@@ -103,12 +99,12 @@ namespace Cyan
 
         virtual u32 getStaticDataSizeInBytes() override
         {
-            return StaticSsboData<StaticData>::getSizeInBytes();
+            return StaticSsboData<StaticData>::getStaticDataSizeInBytes();
         }
 
         virtual u32 getDynamicDataSizeInBytes() override
         {
-            return DynamicSsboData<DynamicData>::getSizeInBytes();
+            return DynamicSsboData<DynamicData>::getDynamicDataSizeInBytes();
         }
 
         virtual u32 getSizeInBytes() override
@@ -117,7 +113,8 @@ namespace Cyan
         }
 
         CompoundSsboData(u32 numElements = 0) 
-            : StaticData(), DynamicData(numElements) {
+            : StaticSsboData<StaticData>(numElements), DynamicSsboData<DynamicData>(numElements) 
+        {
 
         }
     };
@@ -125,7 +122,8 @@ namespace Cyan
     template <typename SsboData>
     struct ShaderStorageBuffer : public GpuObject {
         ShaderStorageBuffer(const char* bufferBlockName, u32 numElements = 0)
-            : name(bufferBlockName), data(numElements) {
+            : name(bufferBlockName), data(numElements) 
+        {
             sizeInBytes = data.getSizeInBytes();
 
             glCreateBuffers(1, &glObject);

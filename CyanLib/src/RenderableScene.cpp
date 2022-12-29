@@ -253,26 +253,26 @@ namespace Cyan
     void RenderableScene::upload() 
     {
         auto gfxc = Renderer::get()->getGfxCtx();
-        gfxc->setShaderStorageBuffer<DynamicSsboData<PackedGeometry::Vertex>>(&packedGeometry->vertexBuffer);
-        gfxc->setShaderStorageBuffer<DynamicSsboData<u32>>(&packedGeometry->indexBuffer);
-        gfxc->setShaderStorageBuffer<DynamicSsboData<PackedGeometry::SubmeshDesc>>(&packedGeometry->submeshes);
+        gfxc->setShaderStorageBuffer(&packedGeometry->vertexBuffer);
+        gfxc->setShaderStorageBuffer(&packedGeometry->indexBuffer);
+        gfxc->setShaderStorageBuffer(&packedGeometry->submeshes);
         // view
         viewBuffer->data.constants.view = camera.view;
         viewBuffer->data.constants.projection = camera.projection;
         viewBuffer->upload();
-        gfxc->setShaderStorageBuffer<StaticSsboData<View>>(viewBuffer.get());
+        gfxc->setShaderStorageBuffer(viewBuffer.get());
 
         transformBuffer->upload();
-        gfxc->setShaderStorageBuffer<DynamicSsboData<glm::mat4>>(transformBuffer.get());
+        gfxc->setShaderStorageBuffer(transformBuffer.get());
 
         instanceBuffer->upload();
-        gfxc->setShaderStorageBuffer<DynamicSsboData<InstanceDesc>>(instanceBuffer.get());
+        gfxc->setShaderStorageBuffer(instanceBuffer.get());
 
         materialBuffer->upload();
-        gfxc->setShaderStorageBuffer<DynamicSsboData<GpuMaterial>>(materialBuffer.get());
+        gfxc->setShaderStorageBuffer(materialBuffer.get());
 
         drawCallBuffer->upload();
-        gfxc->setShaderStorageBuffer<DynamicSsboData<u32>>(drawCallBuffer.get());
+        gfxc->setShaderStorageBuffer(drawCallBuffer.get());
 
         // directional lights
         for (i32 i = 0; i < directionalLightBuffer->getNumElements(); ++i) {
@@ -284,6 +284,6 @@ namespace Cyan
             }
         }
         directionalLightBuffer->upload();
-        gfxc->setShaderStorageBuffer<DynamicSsboData<GpuCSMDirectionalLight>>(directionalLightBuffer.get());
+        gfxc->setShaderStorageBuffer(directionalLightBuffer.get());
     }
 }

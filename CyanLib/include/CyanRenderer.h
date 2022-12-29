@@ -141,6 +141,17 @@ namespace Cyan
         static std::unordered_multimap<ITextureRenderable::Spec, Texture2DRenderable*> cache;
     };
 
+    struct HiZBuffer
+    {
+        HiZBuffer(ITextureRenderable::Spec spec);
+        ~HiZBuffer() { }
+
+        void build(Texture2DRenderable* srcDepthTexture);
+
+        u32 numMips = 0;
+        std::unique_ptr<Texture2DRenderable> texture;
+    };
+
     class Renderer : public Singleton<Renderer> {
     public:
         using UIRenderCommand = std::function<void()>;
@@ -169,7 +180,10 @@ namespace Cyan
             Texture2DRenderable* depth = nullptr;
             Texture2DRenderable* normal = nullptr;
             Texture2DRenderable* color = nullptr;
+            Texture2DRenderable* ao = nullptr;
+            Texture2DRenderable* bentNormal = nullptr;
             RenderTarget* renderTarget = nullptr;
+            HiZBuffer* HiZ = nullptr;
 
             bool bInitialized = false;
 
@@ -201,28 +215,16 @@ namespace Cyan
         } indirectDrawBuffer;
         void submitSceneMultiDrawIndirect(const RenderableScene& renderableScene);
 
-        struct SSGITextures
-        {
-            Texture2DRenderable* ao = nullptr;
-            Texture2DRenderable* bentNormal = nullptr;
-            Texture2DRenderable* shared = nullptr;
-        };
-        /**
-        * brief:
-        * screen space ray tracing
-        */
-        SSGITextures screenSpaceRayTracing(Texture2DRenderable* sceneDepthTexture, Texture2DRenderable* sceneNormalTexture, const glm::uvec2& renderResolution);
-
-        /**
-        * brief: renderScene() implemented using glMultiDrawIndirect()
-        */
-        void renderSceneBatched(RenderableScene& renderableScene, RenderTarget* outRenderTarget, Texture2DRenderable* outSceneColor, const SSGITextures& SSGIOutput);
+        void renderSceneBatched(RenderableScene& renderableScene, RenderTarget* outRenderTarget, Texture2DRenderable* outSceneColor);
         void renderSceneDepthNormal(RenderableScene& renderableScene, RenderTarget* outRenderTarget, Texture2DRenderable* outDepthBuffer, Texture2DRenderable* outNormalBuffer);
         void renderSceneDepthOnly(RenderableScene& renderableScene, Texture2DRenderable* outDepthTexture);
         void renderShadowMaps(RenderableScene& scene);
+        void screenSpaceRayTracing(Texture2DRenderable* depth, Texture2DRenderable* normal);
+        void visualizeSSRT(Texture2DRenderable* depth, Texture2DRenderable* normal);
+
         void renderSceneToLightProbe(Scene* scene, LightProbe* probe, RenderTarget* renderTarget);
         void drawMesh(RenderTarget* renderTarget, Viewport viewport, Mesh* mesh, PixelPipeline* pipeline, const RenderSetupLambda& renderSetupLambda, const GfxPipelineConfig& config = GfxPipelineConfig{});
-        void drawFullscreenQuad(RenderTarget* renderTarget, PixelPipeline* pipeline, RenderSetupLambda&& renderSetupLambda);
+        void drawFullscreenQuad(RenderTarget* renderTarget, PixelPipeline* pipeline, const RenderSetupLambda& renderSetupLambda);
         void drawScreenQuad(RenderTarget* renderTarget, Viewport viewport, PixelPipeline* pipeline, RenderSetupLambda&& renderSetupLambda);
 
         /**
@@ -276,14 +278,15 @@ namespace Cyan
         */
         void compose(Texture2DRenderable* composited, Texture2DRenderable* inSceneColor, Texture2DRenderable* inBloomColor, const glm::uvec2& outputResolution);
 //
-        void setVisualization(Texture2DRenderable* visualization) { m_visualization = visualization; }
-        void visualize(Texture2DRenderable* dst, Texture2DRenderable* src);
-        Texture2DRenderable* m_visualization = nullptr;
-        void registerVisualization(const std::string& categoryName, Texture2DRenderable* visualization, bool* toggle=nullptr);
         struct VisualizationDesc {
             Texture2DRenderable* texture = nullptr;
+            i32 activeMip = 0;
             bool* bSwitch = nullptr;
         };
+        void setVisualization(VisualizationDesc* desc) { m_visualization = desc; }
+        void visualize(Texture2DRenderable* dst, Texture2DRenderable* src, i32 mip = 0);
+        VisualizationDesc* m_visualization = nullptr;
+        void registerVisualization(const std::string& categoryName, Texture2DRenderable* visualization, bool* toggle=nullptr);
         std::unordered_map<std::string, std::vector<VisualizationDesc>> visualizationMap;
 
         enum class TonemapOperator {
@@ -294,15 +297,11 @@ namespace Cyan
         };
 
         struct Settings {
-            bool enableAA = true;
-            bool enableTAA = false;
             bool enableSunShadow = true;
-            bool enableSSAO = false;
-            bool enableVctx = false;
-            bool autoFilterVoxelGrid = true;
+            bool bSSAOEnabled = true;
+            bool bBentNormalEnabled = true;
             bool enableBloom = true;
             bool enableTonemapping = true;
-            bool useBentNormal = true;
             bool bPostProcessing = true;
             bool bManyViewGIEnabled = false;
             u32 tonemapOperator = (u32)TonemapOperator::kReinhard;
@@ -315,6 +314,7 @@ namespace Cyan
 
         glm::uvec2 m_windowSize;
         glm::uvec2 m_offscreenRenderSize;
+        bool bFixDebugRay = false;
 
     private:
         GfxContext* m_ctx;

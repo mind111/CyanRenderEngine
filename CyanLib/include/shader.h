@@ -185,7 +185,6 @@ namespace Cyan {
         virtual ~PipelineStateObject() {}
 
         void bind() {
-            glUseProgram(0);
             glBindProgramPipeline(glObject);
         }
         

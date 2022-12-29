@@ -877,5 +877,20 @@
     <None Include="..\shader\mvgi_indirect_lighting.glsl">
       <Filter>Shaders\ManyViewGI</Filter>
     </None>
+    <None Include="..\shader\build_hi_z_p.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\hi_z_copy_p.glsl">
+      <Filter>Shaders\RayTracing</Filter>
+    </None>
+    <None Include="..\shader\hierarchical_ssrt_p.glsl">
+      <Filter>Shaders\RayTracing</Filter>
+    </None>
+    <None Include="..\shader\debug_draw_point_v.glsl">
+      <Filter>Shaders\DebugDraw</Filter>
+    </None>
+    <None Include="..\shader\ssrt_ray_debug_c.glsl">
+      <Filter>Shaders\RayTracing</Filter>
+    </None>
   </ItemGroup>
 </Project>

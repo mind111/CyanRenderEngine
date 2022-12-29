@@ -33,7 +33,7 @@ layout(std430) buffer ViewBuffer
 
 void main() 
 {
-    int vertexIndex = gl_VertexID / 2 + gl_VertexID % 2;
-	gl_Position = projection * view * vertices[vertexIndex].position;
-    vsOut.color = vertices[vertexIndex].color;
+	gl_Position = projection * view * vertices[gl_VertexID].position;
+    gl_PointSize = 20.f;
+    vsOut.color = vertices[gl_VertexID].color;
 }

@@ -248,7 +248,8 @@ namespace Cyan
 
     Shader& Shader::setTexture(const char* samplerName, ITextureRenderable* texture) 
     {
-        if (texture) {
+        if (texture) 
+        {
             m_samplerBindingMap[std::string(samplerName)] = texture;
         }
         return *this;
