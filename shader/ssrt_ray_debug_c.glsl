@@ -1,11 +1,16 @@
 #version 450 core
 layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+#define PI 3.1415926
+
 uniform vec2 debugCoord;
 uniform sampler2D depthBuffer;
 uniform sampler2D normalBuffer;
 uniform sampler2D HiZ;
+uniform sampler2D blueNoiseTexture;
 uniform int numLevels;
 uniform int kMaxNumIterations;
+uniform int numRays;
 uniform vec2 outputSize;
 
 layout(std430) buffer ViewBuffer
@@ -16,9 +21,15 @@ layout(std430) buffer ViewBuffer
     float dummy;
 };
 
+struct Point
+{
+    vec4 position;
+    vec4 color;
+};
+
 layout (std430) buffer DebugRayBuffer
 {
-    vec4 pointsAlongRay[];
+    Point pointsAlongRay[];
 };
 
 struct DebugTraceData
@@ -53,7 +64,108 @@ vec3 screenToWorld(vec3 pp, mat4 invView, mat4 invProjection)
     return p.xyz;
 }
 
-bool hierarchicalTrace(in vec3 worldSpaceRO, in vec3 worldSpaceRD, inout float t)
+mat3 tangentToWorld(vec3 n)
+{
+	vec3 worldUp = abs(n.y) < 0.99f ? vec3(0.f, 1.f, 0.f) : vec3(0.f, 0.f, -1.f);
+	vec3 right = cross(worldUp, n);
+	vec3 forward = cross(right, n);
+	mat3 coordFrame = {
+		right,
+		forward,
+		n
+	};
+	return coordFrame;
+}
+
+/**
+* blue noise samples on a unit disk taken from https://www.shadertoy.com/view/3sfBWs
+*/
+const vec2 BlueNoiseInDisk[64] = vec2[64](
+    vec2(0.478712,0.875764),
+    vec2(-0.337956,-0.793959),
+    vec2(-0.955259,-0.028164),
+    vec2(0.864527,0.325689),
+    vec2(0.209342,-0.395657),
+    vec2(-0.106779,0.672585),
+    vec2(0.156213,0.235113),
+    vec2(-0.413644,-0.082856),
+    vec2(-0.415667,0.323909),
+    vec2(0.141896,-0.939980),
+    vec2(0.954932,-0.182516),
+    vec2(-0.766184,0.410799),
+    vec2(-0.434912,-0.458845),
+    vec2(0.415242,-0.078724),
+    vec2(0.728335,-0.491777),
+    vec2(-0.058086,-0.066401),
+    vec2(0.202990,0.686837),
+    vec2(-0.808362,-0.556402),
+    vec2(0.507386,-0.640839),
+    vec2(-0.723494,-0.229240),
+    vec2(0.489740,0.317826),
+    vec2(-0.622663,0.765301),
+    vec2(-0.010640,0.929347),
+    vec2(0.663146,0.647618),
+    vec2(-0.096674,-0.413835),
+    vec2(0.525945,-0.321063),
+    vec2(-0.122533,0.366019),
+    vec2(0.195235,-0.687983),
+    vec2(-0.563203,0.098748),
+    vec2(0.418563,0.561335),
+    vec2(-0.378595,0.800367),
+    vec2(0.826922,0.001024),
+    vec2(-0.085372,-0.766651),
+    vec2(-0.921920,0.183673),
+    vec2(-0.590008,-0.721799),
+    vec2(0.167751,-0.164393),
+    vec2(0.032961,-0.562530),
+    vec2(0.632900,-0.107059),
+    vec2(-0.464080,0.569669),
+    vec2(-0.173676,-0.958758),
+    vec2(-0.242648,-0.234303),
+    vec2(-0.275362,0.157163),
+    vec2(0.382295,-0.795131),
+    vec2(0.562955,0.115562),
+    vec2(0.190586,0.470121),
+    vec2(0.770764,-0.297576),
+    vec2(0.237281,0.931050),
+    vec2(-0.666642,-0.455871),
+    vec2(-0.905649,-0.298379),
+    vec2(0.339520,0.157829),
+    vec2(0.701438,-0.704100),
+    vec2(-0.062758,0.160346),
+    vec2(-0.220674,0.957141),
+    vec2(0.642692,0.432706),
+    vec2(-0.773390,-0.015272),
+    vec2(-0.671467,0.246880),
+    vec2(0.158051,0.062859),
+    vec2(0.806009,0.527232),
+    vec2(-0.057620,-0.247071),
+    vec2(0.333436,-0.516710),
+    vec2(-0.550658,-0.315773),
+    vec2(-0.652078,0.589846),
+    vec2(0.008818,0.530556),
+    vec2(-0.210004,0.519896) 
+);
+
+/**
+* using blue noise to do importance sampling hemisphere
+*/
+vec3 blueNoiseCosWeightedSampleHemisphere(vec3 n, vec2 uv, float randomRotation)
+{
+	// rotate input samples
+	mat2 rotation = {
+		{ cos(randomRotation), sin(randomRotation) },
+		{ -sin(randomRotation), cos(randomRotation) }
+	};
+	uv = rotation * uv;
+
+	// project points on a unit disk up to the hemisphere
+	float z = sin(acos(length(uv)));
+	return tangentToWorld(n) * normalize(vec3(uv.xy, z));
+	// return tangentToWorld(vec3(0.f, 1.f, 0.f)) * normalize(vec3(uv.xy, z));
+}
+
+bool hierarchicalTrace(in vec3 worldSpaceRO, in vec3 worldSpaceRD, inout float t, int rayID)
 {
     bool bHit = false;
 
@@ -84,9 +196,6 @@ bool hierarchicalTrace(in vec3 worldSpaceRO, in vec3 worldSpaceRD, inout float t
 		t = (1.f - screenSpaceRO.z);
     }
 
-    // slightly offset the ray origin in screen space to avoid self intersection
-    t += 0.005;
-
     int level = numLevels - 1;
     int stepCount = 0;
 
@@ -108,8 +217,8 @@ bool hierarchicalTrace(in vec3 worldSpaceRO, in vec3 worldSpaceRD, inout float t
 		debugTraces[i].ro = vec4(ro, 1.f);
 		debugTraces[i].rd = vec4(rd, 0.f);
 
-		// unproject pp back to world space 
-		pointsAlongRay[i] = vec4(0.f);
+		pointsAlongRay[rayID * kMaxNumIterations + i].position = vec4(0.f);
+		pointsAlongRay[rayID * kMaxNumIterations + i].color = vec4(0.f);
 	}
 
     for (int i = 0; i < kMaxNumIterations; ++i)
@@ -186,14 +295,26 @@ bool hierarchicalTrace(in vec3 worldSpaceRO, in vec3 worldSpaceRD, inout float t
 		debugTraces[i].stepCount = stepCount;
 
 		// unproject pp back to world space 
-		pointsAlongRay[stepCount] = vec4(screenToWorld(vec3(pp * 2.f - 1.f), inverse(view), inverse(projection)), 1.f);
+		pointsAlongRay[rayID * kMaxNumIterations + stepCount].position = vec4(screenToWorld(vec3(pp * 2.f - 1.f), inverse(view), inverse(projection)), 1.f);
+		pointsAlongRay[rayID * kMaxNumIterations + stepCount].color = vec4(1.f, 0.f, 0.f, 1.f);
 
 		if (tDepth <= tCellBoundry)
 		{
             // we find a good enough hit
 			if (level == 0)
             {
-                t += tDepth;
+                if (tDepth > 0.f)
+                {
+					t += tDepth;
+					// record the hit point
+					pp = ro + t * rd;
+					pointsAlongRay[rayID * kMaxNumIterations + stepCount + 1].position = vec4(screenToWorld(vec3(pp * 2.f - 1.f), inverse(view), inverse(projection)), 1.f);
+					pointsAlongRay[rayID * kMaxNumIterations + stepCount + 1].color = vec4(0.f, 1.f, 0.f, 1.f);
+                }
+                else 
+                {
+					pointsAlongRay[rayID * kMaxNumIterations + stepCount].color = vec4(0.f, 1.f, 0.f, 1.f);
+                }
                 bHit = true;
                 break;
             }
@@ -213,12 +334,33 @@ bool hierarchicalTrace(in vec3 worldSpaceRO, in vec3 worldSpaceRD, inout float t
     return bHit;
 }
 
+// todo: improve this by applying spatiotemporal reuse
+void calcAmbientOcclusionAndBentNormal(vec3 p, vec3 n, inout float ao, inout vec3 bentNormal) 
+{
+    int numOccludedRays = 0;
+    for (int ray = 0; ray < numRays; ++ray)
+    {
+		float randomRotation = texture(blueNoiseTexture, debugCoord).r * PI * 2.f;
+		vec3 rd = normalize(blueNoiseCosWeightedSampleHemisphere(n, BlueNoiseInDisk[ray], randomRotation));
+
+        float t;
+        bool bHit = hierarchicalTrace(p, rd, t, ray);
+        if (bHit)
+        {
+            numOccludedRays++;
+        }
+	}
+	ao = float(numOccludedRays) / float(numRays);
+};
+
 void main()
 {
 	float depth = texture(depthBuffer, debugCoord).r;
 	vec3 normal = normalize(texture(normalBuffer, debugCoord).rgb * 2.f - 1.f);
     vec3 worldSpaceRO = screenToWorld(vec3(debugCoord, depth) * 2.f - 1.f, inverse(view), inverse(projection));
+    worldSpaceRO += 0.01f * normal;
     vec3 worldSpaceRD = normal;
-    float t;
-    bool bHit = hierarchicalTrace(worldSpaceRO, worldSpaceRD, t);
+    float ao = 1.f;
+    vec3 bentNormal;
+    calcAmbientOcclusionAndBentNormal(worldSpaceRO, normal, ao, bentNormal);
 }

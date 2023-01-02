@@ -1,13 +1,20 @@
 #version 450 core
 
+#define PI 3.1415926
+
 in VSOutput
 {
 	vec2 texCoord0;
 } psIn;
 
+out vec3 ssao;
+out vec3 ssbn;
+
 uniform sampler2D depthBuffer;
 uniform sampler2D normalBuffer;
 uniform sampler2D HiZ;
+uniform sampler2D directLightingBuffer;
+uniform sampler2D blueNoiseTexture;
 uniform int numLevels;
 uniform int kMaxNumIterations;
 uniform vec2 outputSize;
@@ -27,6 +34,13 @@ vec3 screenToWorld(vec3 pp, mat4 invView, mat4 invProjection)
     p.w = 1.f;
     p = invView * p;
     return p.xyz;
+}
+
+vec3 worldToScreen(vec3 pp, in mat4 view, in mat4 projection)
+{
+    vec4 p = projection * view * vec4(pp, 1.f);
+    p /= p.w;
+    return p.xyz * .5f + .5f;
 }
 
 /* note: 
@@ -57,17 +71,44 @@ vec2 get_random()
   	return fract(vec2(arg) / vec2(0xffffffffu));
 }
 
+/* note:
+* todo: my implementation seems to produce banding artifacts while the borrowed version
+* looks right. Haven't figure out why this is the case. Maybe should reference the "raytracing in one
+* weekend" books to look for how the author transform sample vector from local(tangent) space to world space.
+*/
 mat3 tangentToWorld(vec3 n)
 {
 	vec3 worldUp = abs(n.y) < 0.99f ? vec3(0.f, 1.f, 0.f) : vec3(0.f, 0.f, -1.f);
 	vec3 right = cross(worldUp, n);
-	vec3 forward = cross(right, n);
+	vec3 forward = cross(n, right);
 	mat3 coordFrame = {
 		right,
 		forward,
 		n
 	};
 	return coordFrame;
+}
+
+
+/* note: 
+* tangent to world space transform taken from https://www.shadertoy.com/view/4lfcDr
+*/
+mat3 construct_ONB_frisvad(vec3 normal)
+{
+	mat3 ret;
+	ret[2] = normal;
+    // if normal.z == -1.f
+	if(normal.z < -0.999805696) {
+		ret[0] = vec3(0.0, -1.0, 0.0);
+		ret[1] = vec3(-1.0, 0.0, 0.0);
+	}
+	else {
+		float a = 1.0 / (1.0 + normal.z);
+		float b = -normal.x * normal.y * a;
+		ret[0] = vec3(1.0 - normal.x * normal.x * a, b, -normal.x);
+		ret[1] = vec3(b, 1.0 - normal.y * normal.y * a, -normal.y);
+	}
+	return ret;
 }
 
 /**
@@ -154,14 +195,31 @@ vec3 blueNoiseCosWeightedSampleHemisphere(vec3 n, vec2 uv, float randomRotation)
 
 	// project points on a unit disk up to the hemisphere
 	float z = sin(acos(length(uv)));
-	return tangentToWorld(n) * normalize(vec3(uv.xy, z));
+	return construct_ONB_frisvad(n) * normalize(vec3(uv.xy, z));
+}
+
+vec3 sphericalToCartesian(float theta, float phi, vec3 n)
+{
+	vec3 localDir = {
+		sin(theta) * cos(phi),
+		sin(theta) * sin(phi),
+		cos(theta)
+	};
+	return tangentToWorld(n) * localDir;
+}
+
+vec3 uniformSampleHemisphere(vec3 n)
+{
+    vec2 uv = get_random();
+	float theta = acos(uv.x);
+	float phi = 2 * PI * uv.y;
+	return normalize(sphericalToCartesian(theta, phi, n));
 }
 
 bool hierarchicalTrace(in vec3 worldSpaceRO, in vec3 worldSpaceRD, inout float t)
 {
     bool bHit = false;
 
-    // 
     vec4 clipSpaceRO = projection * view * vec4(worldSpaceRO, 1.f);
     clipSpaceRO /= clipSpaceRO.w;
     vec3 screenSpaceRO = clipSpaceRO.xyz * .5f + .5f;
@@ -177,31 +235,32 @@ bool hierarchicalTrace(in vec3 worldSpaceRO, in vec3 worldSpaceRD, inout float t
     rd /= abs(rd.z);
 
     vec3 ro;
-    if (rd.z >= 0.f)
+    float screenSpaceT;
+    if (rd.z > 0.f)
     {
 		ro = screenSpaceRO - rd * screenSpaceRO.z;
-		t = screenSpaceRO.z;
+        screenSpaceT = screenSpaceRO.z;
     }
     else 
     {
 		ro = screenSpaceRO - rd * (1.f - screenSpaceRO.z);
-		t = (1.f - screenSpaceRO.z);
+		screenSpaceT = (1.f - screenSpaceRO.z);
     }
 
-    // slightly offset the ray origin in screen space to avoid self intersection
-    t += 0.005;
+    // slightly offset the ray in screen space to avoid self intersection
+    screenSpaceT += 0.001f;
 
     int level = numLevels - 1;
     for (int i = 0; i < kMaxNumIterations; ++i)
     {
         // ray reached near/far plane and no intersection found
-		if (t > 1.f)
+		if (screenSpaceT >= 1.f)
         {
 			break;
         }
 
         // ray marching 
-		vec3 pp = ro + t * rd;
+		vec3 pp = ro + screenSpaceT * rd;
 
         // ray goes outside of the viewport and no intersection found
         if (pp.x < 0.f || pp.x > 1.f || pp.y < 0.f || pp.y > 1.f)
@@ -254,9 +313,12 @@ bool hierarchicalTrace(in vec3 worldSpaceRO, in vec3 worldSpaceRD, inout float t
 		if (tDepth <= tCellBoundry)
 		{
             // we find a good enough hit
-			if (level == 0)
+			if (level <= 0)
             {
-                t += tDepth;
+                if (tDepth > 0.f)
+                {
+					screenSpaceT += tDepth;
+                }
                 bHit = true;
                 break;
             }
@@ -268,24 +330,77 @@ bool hierarchicalTrace(in vec3 worldSpaceRO, in vec3 worldSpaceRD, inout float t
             // bump the ray a tiny bit to avoid having it landing exactly on the texel boundry at current level
             float rayBump = 0.25f * length(rd.xy) * 1.f / min(textureSize(HiZ, 0).x, textureSize(HiZ, 0).y);
 			// go up a level to perform more coarse trace
-			t += (tCellBoundry + rayBump);
+			screenSpaceT += (tCellBoundry + rayBump);
             level = min(level + 1, numLevels - 1);
 		}
     }
+
+    if (bHit)
+    {
+        vec3 screenSpaceHitPos = ro + screenSpaceT * rd;
+        vec3 worldSpaceHitPos = screenToWorld(screenSpaceHitPos * 2.f - 1.f, inverse(view), inverse(projection));
+        t = length(worldSpaceHitPos - worldSpaceRO);
+    }
     return bHit;
 }
+
+// todo: improve this by applying spatiotemporal reuse
+void calcAmbientOcclusionAndBentNormal(vec3 p, vec3 n, inout float ao, inout vec3 bentNormal) 
+{
+    int numOccludedRays = 0;
+	const int kNumRays = 16;
+    vec3 irradiance = vec3(0.f);
+    for (int ray = 0; ray < kNumRays; ++ray)
+    {
+		float randomRotation = texture(blueNoiseTexture, gl_FragCoord.xy / float(textureSize(blueNoiseTexture, 0).xy)).r * PI * 2.f;
+		vec3 rd = normalize(blueNoiseCosWeightedSampleHemisphere(n, BlueNoiseInDisk[ray], randomRotation));
+
+        float t;
+        bool bHit = hierarchicalTrace(p, rd, t);
+        if (bHit)
+        {
+            numOccludedRays++;
+            // accumulate indirect lighting
+            vec3 worldSpaceHitPos = p + t * rd;
+            // project to screen space and then sample the direct lighting buffer
+            vec3 screenSpaceHitPos = worldToScreen(worldSpaceHitPos, view, projection);
+            vec3 normal = normalize(texture(normalBuffer, screenSpaceHitPos.xy).xyz * 2.f - 1.f);
+            float ndotl = max(dot(normal, rd), 0.f);
+            irradiance += texture(directLightingBuffer, screenSpaceHitPos.xy).rgb * ndotl;
+        }
+        else 
+        {
+			bentNormal += rd;
+        }
+	}
+
+	ao = float(numOccludedRays) / float(kNumRays);
+	bentNormal = normalize(bentNormal);
+    irradiance /= float(kNumRays);
+};
 
 void main()
 {	
     seed = 0;
     flat_idx = int(floor(gl_FragCoord.y) * outputSize.x + floor(gl_FragCoord.x));
 
-	float depth = texture(depthBuffer, psIn.texCoord0).r;
+    float depth = texture(depthBuffer, psIn.texCoord0).r;
+    vec3 normal = texture(normalBuffer, psIn.texCoord0).xyz;
+    normal = normalize(normal * 2.f - 1.f);
+
+    if (depth > .9999f) 
+		discard;
+
     // x, y, z in [0, 1]
     vec3 screenSpaceRO = vec3(psIn.texCoord0, depth);
 	vec3 worldSpaceRO = screenToWorld(vec3(psIn.texCoord0, depth) * 2.f - 1.f, inverse(view), inverse(projection));
-	vec3 normal = normalize(texture(normalBuffer, psIn.texCoord0).rgb * 2.f - 1.f);
-    vec3 worldSpaceRD = normal;
-    float t;
-    bool bHit = hierarchicalTrace(worldSpaceRO, worldSpaceRD, t);
+
+	vec3 viewDirection = normalize(-(view * vec4(worldSpaceRO, 1.f)).xyz);
+	vec3 worldSpaceViewDirection = (inverse(view) * vec4(viewDirection, 0.f)).xyz;
+
+    float ao = 1.f;
+    vec3 bentNormal = worldSpaceViewDirection;
+	calcAmbientOcclusionAndBentNormal(worldSpaceRO, normal, ao, bentNormal);
+    ssao = vec3(1.f - ao);
+    ssbn = bentNormal * .5f + .5f;
 }

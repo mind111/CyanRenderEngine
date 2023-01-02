@@ -48,7 +48,7 @@ namespace Cyan {
             resolution = inResolution;
             // render target
             renderTarget = renderer->createCachedRenderTarget("Scene", resolution.x, resolution.y);
-            // scene depth normal buffer
+            // depth normal buffer
             {
                 ITextureRenderable::Spec spec = { };
                 spec.type = TEX_2D;
@@ -58,14 +58,12 @@ namespace Cyan {
                 ITextureRenderable::Parameter params = { };
                 params.magnificationFilter = FM_POINT;
                 params.minificationFilter = FM_BILINEAR;
-                normal = new Texture2DRenderable("SceneNormalBuffer", spec, params);
-
-                // spec.numMips = std::floor(std::log2(min(spec.width, spec.height)));
-                depth = new Texture2DRenderable("SceneDepthBuffer", spec, params);
+                gBuffer.normal = new Texture2DRenderable("SceneNormalBuffer", spec, params);
+                gBuffer.depth = new Texture2DRenderable("SceneDepthBuffer", spec, params);
             }
             // Hi-Z
             {
-                HiZ = new HiZBuffer(depth->getTextureSpec());
+                HiZ = new HiZBuffer(gBuffer.depth->getTextureSpec());
             }
             // scene color
             {
@@ -76,6 +74,25 @@ namespace Cyan {
                 spec.pixelFormat = PF_RGB16F;
                 color = new Texture2DRenderable("SceneColor", spec);
             }
+            // g-buffer
+            {
+                ITextureRenderable::Spec spec = { };
+                spec.width = resolution.x;
+                spec.height = resolution.y;
+                spec.type = TEX_2D;
+                spec.pixelFormat = PF_RGB16F;
+                gBuffer.albedo = new Texture2DRenderable("SceneAlbedo", spec);
+                gBuffer.metallicRoughness = new Texture2DRenderable("SceneMetallicRoughness", spec);
+            }
+            // direct lighting
+            {
+                ITextureRenderable::Spec spec = { };
+                spec.width = resolution.x;
+                spec.height = resolution.y;
+                spec.type = TEX_2D;
+                spec.pixelFormat = PF_RGB16F;
+                directLighting = new Texture2DRenderable("SceneDirectLighting", spec);
+            }
             // indirect lighting
             {
                 ITextureRenderable::Spec spec = { };
@@ -85,21 +102,19 @@ namespace Cyan {
                 spec.pixelFormat = PF_RGB16F;
                 ao = new Texture2DRenderable("SSAO", spec);
                 bentNormal = new Texture2DRenderable("SSBN", spec);
+                indirectLighting = new Texture2DRenderable("SceneIndirectLighting", spec);
             }
 
             Renderer::get()->registerVisualization(std::string("SceneTextures"), color);
-            Renderer::get()->registerVisualization(std::string("SceneTextures"), depth);
+            Renderer::get()->registerVisualization(std::string("SceneTextures"), gBuffer.albedo);
+            Renderer::get()->registerVisualization(std::string("SceneTextures"), gBuffer.metallicRoughness);
+            Renderer::get()->registerVisualization(std::string("SceneTextures"), gBuffer.depth);
             Renderer::get()->registerVisualization(std::string("SceneTextures"), HiZ->texture.get());
-#if 0
-            Renderer::get()->registerVisualization(std::string("SceneTextures"), HiZ->mips[0].get());
-            Renderer::get()->registerVisualization(std::string("SceneTextures"), HiZ->mips[1].get());
-            Renderer::get()->registerVisualization(std::string("SceneTextures"), HiZ->mips[2].get());
-            Renderer::get()->registerVisualization(std::string("SceneTextures"), HiZ->mips[3].get());
-            Renderer::get()->registerVisualization(std::string("SceneTextures"), HiZ->mips[4].get());
-#endif
-            Renderer::get()->registerVisualization(std::string("SceneTextures"), normal);
+            Renderer::get()->registerVisualization(std::string("SceneTextures"), gBuffer.normal);
+            Renderer::get()->registerVisualization(std::string("SceneTextures"), directLighting);
             Renderer::get()->registerVisualization(std::string("SceneTextures"), ao);
             Renderer::get()->registerVisualization(std::string("SceneTextures"), bentNormal);
+            Renderer::get()->registerVisualization(std::string("SceneTextures"), indirectLighting);
             bInitialized = true;
         }
         else if (inResolution != resolution) 
@@ -271,7 +286,8 @@ namespace Cyan {
         m_frameAllocator.reset();
     }
 
-    void Renderer::render(Scene* scene, const SceneView& sceneView) {
+    void Renderer::render(Scene* scene, const SceneView& sceneView) 
+    {
         beginRender();
         {
             // shared render target for this frame
@@ -283,12 +299,16 @@ namespace Cyan {
 
             // shadow
             renderShadowMaps(renderableScene);
-            // prepass
-            renderSceneDepthNormal(renderableScene, m_sceneTextures.renderTarget, m_sceneTextures.depth, m_sceneTextures.normal);
-            // global illumination
-            visualizeSSRT(m_sceneTextures.depth, m_sceneTextures.normal);
+
+            // depth prepass
+            renderSceneDepthNormal(renderableScene, m_sceneTextures.renderTarget, m_sceneTextures.gBuffer.depth, m_sceneTextures.gBuffer.normal);
+
             // main scene pass
-            renderSceneBatched(renderableScene, m_sceneTextures.renderTarget, m_sceneTextures.color);
+            renderSceneGBuffer(m_sceneTextures.renderTarget, renderableScene, m_sceneTextures.gBuffer);
+            renderSceneLighting(m_sceneTextures.renderTarget, m_sceneTextures.color, renderableScene, m_sceneTextures.gBuffer);
+
+            // draw debug objects if any
+            drawDebugObjects();
 
             // post processing
             if (m_settings.bPostProcessing) 
@@ -359,6 +379,22 @@ namespace Cyan {
         // todo: point light
     }
 
+    void Renderer::renderSceneDepthPrepass(RenderableScene& scene, RenderTarget* outRenderTarget, Texture2DRenderable* outDepthTexture)
+    {
+        outRenderTarget->setColorBuffer(outDepthTexture, 0);
+        outRenderTarget->setDrawBuffers({ 0 });
+        outRenderTarget->clearDrawBuffer(0, glm::vec4(1.f, 1.f, 1.f, 1.f));
+        m_ctx->setRenderTarget(outRenderTarget);
+        m_ctx->setViewport({ 0, 0, outRenderTarget->width, outRenderTarget->height });
+        CreateVS(vs, "SceneDepthPrepassVS", SHADER_SOURCE_PATH "scene_depth_normal_v.glsl");
+        CreatePS(ps, "SceneDepthNormalPS", SHADER_SOURCE_PATH "scene_depth_normal_p.glsl");
+        CreatePixelPipeline(pipeline, "SceneDepthNormal", vs, ps);
+        m_ctx->setPixelPipeline(pipeline);
+        m_ctx->setDepthControl(DepthControl::kEnable);
+        scene.upload();
+        submitSceneMultiDrawIndirect(scene);
+    }
+
     void Renderer::renderSceneDepthOnly(RenderableScene& scene, Texture2DRenderable* outDepthTexture) 
     {
         std::unique_ptr<RenderTarget> depthRenderTarget(createDepthOnlyRenderTarget(outDepthTexture->width, outDepthTexture->height));
@@ -391,6 +427,160 @@ namespace Cyan {
         m_ctx->setDepthControl(DepthControl::kEnable);
         scene.upload();
         submitSceneMultiDrawIndirect(scene);
+    }
+
+    void Renderer::renderSceneGBuffer(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer)
+    {
+        CreateVS(vs, "SceneColorPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
+        CreatePS(ps, "SceneGBufferPassPS", SHADER_SOURCE_PATH "scene_gbuffer_p.glsl");
+        CreatePixelPipeline(pipeline, "SceneGBufferPass", vs, ps);
+        m_ctx->setPixelPipeline(pipeline, [](VertexShader* vs, PixelShader* ps) {
+
+        });
+
+        outRenderTarget->setColorBuffer(gBuffer.albedo, 0);
+        outRenderTarget->setColorBuffer(gBuffer.metallicRoughness, 1);
+        outRenderTarget->setDrawBuffers({ 0, 1 });
+        outRenderTarget->clearDrawBuffer(0, glm::vec4(0.f, 0.f, 0.f, 1.f), false);
+        outRenderTarget->clearDrawBuffer(1, glm::vec4(0.f, 0.f, 0.f, 1.f), false);
+
+        m_ctx->setRenderTarget(outRenderTarget);
+        m_ctx->setViewport({ 0, 0, outRenderTarget->width, outRenderTarget->height });
+        m_ctx->setDepthControl(DepthControl::kEnable);
+        scene.upload();
+        submitSceneMultiDrawIndirect(scene);
+    }
+
+    void Renderer::renderSceneLighting(RenderTarget* outRenderTarget, Texture2DRenderable* outSceneColor, RenderableScene& scene, GBuffer gBuffer)
+    {
+        renderSceneDirectLighting(outRenderTarget, m_sceneTextures.directLighting, scene, m_sceneTextures.gBuffer);
+        renderSceneIndirectLighting(outRenderTarget, m_sceneTextures.indirectLighting, scene, m_sceneTextures.gBuffer);
+
+        CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
+        CreatePS(ps, "SceneLightingPassPS", SHADER_SOURCE_PATH "scene_lighting_p.glsl");
+        CreatePixelPipeline(pipeline, "SceneLightingPass", vs, ps);
+
+        outRenderTarget->setColorBuffer(m_sceneTextures.color, 0);
+        outRenderTarget->setDrawBuffers({ 0 });
+        outRenderTarget->clearDrawBuffer(0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+
+        // combine direct lighting with indirect lighting
+        drawFullscreenQuad(
+            outRenderTarget,
+            pipeline,
+            [this](VertexShader* vs, PixelShader* ps) {
+                ps->setTexture("directLightingTexture", m_sceneTextures.directLighting);
+                ps->setTexture("indirectLightingTexture", m_sceneTextures.indirectLighting);
+            }
+        );
+    }
+
+    void Renderer::renderSceneDirectLighting(RenderTarget* outRenderTarget, Texture2DRenderable* outSceneDirectLighting, RenderableScene& scene, GBuffer gBuffer)
+    {
+        CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
+        CreatePS(ps, "SceneDirectLightingPS", SHADER_SOURCE_PATH "scene_direct_lighting_p.glsl");
+        CreatePixelPipeline(pipeline, "SceneDirectLightingPass", vs, ps);
+
+        outRenderTarget->setColorBuffer(outSceneDirectLighting, 0);
+        outRenderTarget->setDrawBuffers({ 0 });
+        outRenderTarget->clearDrawBuffer({ 0 }, glm::vec4(0.f, 0.f, 0.f, 1.f), false);
+
+        drawFullscreenQuad(outRenderTarget, pipeline, [gBuffer](VertexShader* vs, PixelShader* ps) {
+            ps->setTexture("sceneDepth", gBuffer.depth);
+            ps->setTexture("sceneNormal", gBuffer.normal);
+            ps->setTexture("sceneAlbedo", gBuffer.albedo);
+            ps->setTexture("sceneMetallicRoughness", gBuffer.metallicRoughness);
+        });
+
+        if (scene.skybox)
+        {
+            scene.skybox->render(outRenderTarget, scene.camera.view, scene.camera.projection);
+        }
+    }
+
+    void Renderer::renderSceneIndirectLighting(RenderTarget* outRenderTarget, Texture2DRenderable* outIndirectLighting, RenderableScene& scene, GBuffer gBuffer)
+    {
+        // global illumination
+        // render AO and bent normal, as well as indirect irradiance
+        if (bLegacySSRTEnabled)
+        {
+            legacyScreenSpaceRayTracing(gBuffer.depth, gBuffer.normal);
+        }
+        else
+        {
+            if (bDebugSSRT)
+            {
+                visualizeSSRT(gBuffer.depth, gBuffer.normal);
+            }
+            else
+            {
+                screenSpaceRayTracing(gBuffer.depth, gBuffer.normal);
+            }
+        }
+
+        CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
+        CreatePS(ps, "SceneIndirectLightingPass", SHADER_SOURCE_PATH "scene_indirect_lighting_p.glsl");
+        CreatePixelPipeline(pipeline, "SceneIndirectLightingPass", vs, ps);
+
+        outRenderTarget->setColorBuffer(outIndirectLighting, 0);
+        outRenderTarget->setDrawBuffers({ 0 });
+        outRenderTarget->clearDrawBuffer(0, glm::vec4(0.f, 0.f, 0.f, 1.f), false);
+
+        drawFullscreenQuad(outRenderTarget, pipeline, [this, &scene, gBuffer](VertexShader* vs, PixelShader* ps) {
+            ps->setTexture("sceneDepth", gBuffer.depth);
+            ps->setTexture("sceneNormal", gBuffer.normal);
+            ps->setTexture("sceneAlbedo", gBuffer.albedo);
+            ps->setTexture("sceneMetallicRoughness", gBuffer.metallicRoughness);
+            // setup ssao
+            if (m_settings.bSSAOEnabled)
+            {
+                if (m_sceneTextures.ao)
+                {
+                    auto ssao = m_sceneTextures.ao->glHandle;
+                    if (glIsTextureHandleResidentARB(ssao) == GL_FALSE)
+                    {
+                        glMakeTextureHandleResidentARB(ssao);
+                    }
+                    ps->setUniform("ssaoTextureHandle", ssao);
+                    ps->setUniform("ssaoEnabled", 1.f);
+                }
+            }
+            else
+            {
+                ps->setUniform("ssaoEnabled", 0.f);
+            }
+            if (m_settings.bBentNormalEnabled)
+            {
+                // setup ssbn
+                if (m_sceneTextures.bentNormal)
+                {
+                    auto ssbn = m_sceneTextures.bentNormal->glHandle;
+                    if (glIsTextureHandleResidentARB(ssbn) == GL_FALSE)
+                    {
+                        glMakeTextureHandleResidentARB(ssbn);
+                    }
+                    ps->setUniform("ssbnTextureHandle", ssbn);
+                    ps->setUniform("ssbnEnabled", 1.f);
+                }
+            }
+            else
+            {
+                ps->setUniform("ssbnEnabled", 0.f);
+            }
+
+            // sky light
+            /* note
+            * seamless cubemap doesn't work with bindless textures that's accessed using a texture handle,
+            * so falling back to normal way of binding textures here.
+            */
+            ps->setTexture("skyLight.irradiance", scene.skyLight->irradianceProbe->m_convolvedIrradianceTexture);
+            ps->setTexture("skyLight.reflection", scene.skyLight->reflectionProbe->m_convolvedReflectionTexture);
+            auto BRDFLookupTexture = ReflectionProbe::getBRDFLookupTexture()->glHandle;
+            if (glIsTextureHandleResidentARB(BRDFLookupTexture) == GL_FALSE) {
+                glMakeTextureHandleResidentARB(BRDFLookupTexture);
+            }
+            ps->setUniform("skyLight.BRDFLookupTexture", BRDFLookupTexture);
+        });
     }
 
     HiZBuffer::HiZBuffer(ITextureRenderable::Spec spec)
@@ -461,7 +651,6 @@ namespace Cyan {
             m_sceneTextures.HiZ->build(depth);
         }
 
-        static const i32 kNumDebugIterations = 15;
         struct DebugTraceData
         {
             f32 minDepth;
@@ -479,8 +668,8 @@ namespace Cyan {
             glm::vec4 ro;
             glm::vec4 rd;
         };
-        static ShaderStorageBuffer<DynamicSsboData<DebugTraceData>> debugTraceBuffer("DebugTraceBuffer", kNumDebugIterations);
-        static ShaderStorageBuffer<DynamicSsboData<glm::vec4>> debugRayBuffer("DebugRayBuffer", kNumDebugIterations);
+        static ShaderStorageBuffer<DynamicSsboData<DebugTraceData>> debugTraceBuffer("DebugTraceBuffer", kNumIterations);
+        static ShaderStorageBuffer<DynamicSsboData<Vertex>> debugRayBuffer("DebugRayBuffer", numDebugRays * kNumIterations);
 
         // debug trace
         {
@@ -489,13 +678,16 @@ namespace Cyan {
             m_ctx->setShaderStorageBuffer(&debugTraceBuffer);
             m_ctx->setShaderStorageBuffer(&debugRayBuffer);
             m_ctx->setComputePipeline(pipeline, [this, depth, normal](ComputeShader* cs) {
-                    cs->setUniform("debugCoord", glm::vec2(0.5f));
+                    cs->setUniform("debugCoord", debugCoord);
                     cs->setTexture("depthBuffer", depth);
                     cs->setTexture("normalBuffer", normal);
                     cs->setTexture("HiZ", m_sceneTextures.HiZ->texture.get());
+                    auto blueNoiseTexture = AssetManager::getAsset<Texture2DRenderable>("BlueNoise_1024x1024");
+                    cs->setTexture("blueNoiseTexture", blueNoiseTexture);
                     cs->setUniform("outputSize", glm::vec2(depth->width, depth->height));
                     cs->setUniform("numLevels", (i32)m_sceneTextures.HiZ->numMips);
-                    cs->setUniform("kMaxNumIterations", kNumDebugIterations);
+                    cs->setUniform("kMaxNumIterations", kNumIterations);
+                    cs->setUniform("numRays", numDebugRays);
                 }
             );
             glDispatchCompute(1, 1, 1);
@@ -529,52 +721,177 @@ namespace Cyan {
         }
         // draw visualizations
         {
-            struct Vertex
+            m_sceneTextures.renderTarget->setColorBuffer(m_sceneTextures.color, 0);
+            m_sceneTextures.renderTarget->setDrawBuffers({ 0 });
+            for (i32 ray = 0; ray < numDebugRays; ++ray)
             {
-                glm::vec4 position;
-                glm::vec4 color;
-            };
-            static ShaderStorageBuffer<DynamicSsboData<Vertex>> vertexBuffer("VertexBuffer", kNumDebugIterations);
-            memset(vertexBuffer.data.array.data(), 0x0, vertexBuffer.data.getDynamicDataSizeInBytes());
-            u32 numVertices = 0;
-            for (i32 i = 0; i < kNumDebugIterations; ++i)
-            {
-                vertexBuffer[i].position = debugRayBuffer[i];
-                vertexBuffer[i].color = glm::vec4(1.f, 1.f, 1.f, 1.f);
-                if (vertexBuffer[i].position.w > 0.f)
+                std::vector<Vertex> vertices;
+                for (i32 i = 0; i < kNumIterations; ++i)
                 {
-                    numVertices += 1;
+                    i32 index = ray * kNumIterations + i;
+                    if (debugRayBuffer[index].position.w > 0.f)
+                    {
+                        vertices.push_back(debugRayBuffer[index]);
+                    }
+                }
+                // visualize the debug ray
+                {
+                    drawWorldSpaceLines(m_sceneTextures.renderTarget, vertices);
+                    drawWorldSpacePoints(m_sceneTextures.renderTarget, vertices);
                 }
             }
-            vertexBuffer.upload();
+#if 0
+            // todo: visualize the hierarchical trace 
             {
-                CreateVS(vs, "DebugDrawLineVS", SHADER_SOURCE_PATH "debug_draw_line_v.glsl");
-                CreatePS(ps, "DebugDrawLinePS", SHADER_SOURCE_PATH "debug_draw_line_p.glsl");
-                CreatePixelPipeline(pipeline, "DebugDrawLine", vs, ps);
-                m_ctx->setDepthControl(DepthControl::kEnable);
-                m_ctx->setShaderStorageBuffer(&vertexBuffer);
-                m_ctx->setPixelPipeline(pipeline);
-                m_sceneTextures.renderTarget->setColorBuffer(m_sceneTextures.color, 0);
-                m_sceneTextures.renderTarget->setDrawBuffers({ 0 });
-                m_ctx->setRenderTarget(m_sceneTextures.renderTarget);
-                m_ctx->setViewport({ 0, 0, m_sceneTextures.renderTarget->width, m_sceneTextures.renderTarget->height });
-                glDrawArrays(GL_LINES, 0, max((numVertices - 1), 0) * 2);
+                for (i32 i = 1; i < kNumIterations; ++i)
+                {
+                    // catch the moment when the ray marched a step
+                    if (debugTraceBuffer[i].stepCount > debugTraceBuffer[i - 1].stepCount)
+                    {
+                        i32 level = debugTraceBuffer[i - 1].level;
+                        glm::vec4 cellBoundry = debugTraceBuffer[i - 1].cellBoundry * 2.f - 1.f;
+                        /*
+                          (l, t) ______  (r, t)
+                            |               |
+                            |               |
+                            |               |
+                            |               |
+                          (l, b) ______  (r, b)
+                        */ 
+                        f32 l = cellBoundry.x, r = cellBoundry.y, b = cellBoundry.z, t = cellBoundry.w;
+                        glm::vec4 color = glm::vec4(1.f, 1.f, 0.f, 1.f);
+                        std::vector<Vertex> vertices = {
+                            Vertex{ glm::vec4(l, t, 0.f, 1.f), color },
+                            Vertex{ glm::vec4(r, t, 0.f, 1.f), color },
+                            Vertex{ glm::vec4(r, b, 0.f, 1.f), color },
+                            Vertex{ glm::vec4(l, b, 0.f, 1.f), color },
+                            Vertex{ glm::vec4(l, t, 0.f, 1.f), color }
+                        };
+                        drawScreenSpaceLines(m_sceneTextures.renderTarget, vertices);
+                    }
+                }
             }
-            {
+#endif
+        }
+    }
+
+    // todo: try to defer drawing debug objects till after the post-processing pass
+    void Renderer::drawWorldSpacePoints(RenderTarget* renderTarget, const std::vector<Vertex>& points)
+    {
+        static ShaderStorageBuffer<DynamicSsboData<Vertex>> vertexBuffer("VertexBuffer", 1024);
+
+        debugDrawCalls.push([this, renderTarget, points]() {
+                // setup buffer
+                assert(points.size() < vertexBuffer.getNumElements());
+                u32 numPoints = points.size();
+                // this maybe unsafe
+                memcpy(vertexBuffer.data.array.data(), points.data(), sizeof(Vertex) * points.size());
+                vertexBuffer.upload();
+
+                // draw
                 CreateVS(vs, "DebugDrawPointVS", SHADER_SOURCE_PATH "debug_draw_point_v.glsl");
-                CreatePS(ps, "DebugDrawLinePS", SHADER_SOURCE_PATH "debug_draw_line_p.glsl");
+                CreatePS(ps, "DebugDrawLinePS", SHADER_SOURCE_PATH "debug_draw_line_worldspace_p.glsl");
                 CreatePixelPipeline(pipeline, "DebugDrawPoint", vs, ps);
                 m_ctx->setDepthControl(DepthControl::kEnable);
                 m_ctx->setShaderStorageBuffer(&vertexBuffer);
                 m_ctx->setPixelPipeline(pipeline);
-                m_sceneTextures.renderTarget->setColorBuffer(m_sceneTextures.color, 0);
-                m_sceneTextures.renderTarget->setDrawBuffers({ 0 });
-                m_ctx->setRenderTarget(m_sceneTextures.renderTarget);
-                m_ctx->setViewport({ 0, 0, m_sceneTextures.renderTarget->width, m_sceneTextures.renderTarget->height });
-                glDrawArrays(GL_POINTS, 0, numVertices);
+                m_ctx->setRenderTarget(renderTarget);
+                m_ctx->setViewport({ 0, 0, renderTarget->width, renderTarget->height });
+                glDrawArrays(GL_POINTS, 0, numPoints);
             }
-            // todo: draw a visualization of the debug trace 
+        );
+    }
+
+    void Renderer::drawWorldSpaceLines(RenderTarget* renderTarget, const std::vector<Vertex>& vertices)
+    {
+        static ShaderStorageBuffer<DynamicSsboData<Vertex>> vertexBuffer("VertexBuffer", 1024);
+
+        debugDrawCalls.push([this, renderTarget, vertices]() {
+                // setup buffer
+                u32 numVertices = vertices.size();
+                u32 numLineSegments = max(numVertices - 1, 0);
+                u32 numVerticesToDraw = numLineSegments * 2;
+                assert(vertices.size() < vertexBuffer.getNumElements());
+                // this maybe unsafe
+                memcpy(vertexBuffer.data.array.data(), vertices.data(), sizeof(Vertex) * vertices.size());
+                vertexBuffer.upload();
+
+                // draw
+                CreateVS(vs, "DebugDrawWorldSpaceLineVS", SHADER_SOURCE_PATH "debug_draw_line_worldspace_v.glsl");
+                CreatePS(ps, "DebugDrawWorldSpaceLinePS", SHADER_SOURCE_PATH "debug_draw_line_worldspace_p.glsl");
+                CreatePixelPipeline(pipeline, "DebugDrawLineWorldSpace", vs, ps);
+                m_ctx->setDepthControl(DepthControl::kEnable);
+                m_ctx->setShaderStorageBuffer(&vertexBuffer);
+                m_ctx->setPixelPipeline(pipeline);
+                m_ctx->setRenderTarget(renderTarget);
+                m_ctx->setViewport({ 0, 0, renderTarget->width, renderTarget->height });
+                glDrawArrays(GL_LINES, 0, numVerticesToDraw);
+            }
+        );
+    }
+
+    void Renderer::drawScreenSpaceLines(RenderTarget* renderTarget, const std::vector<Vertex>& vertices)
+    {
+        static ShaderStorageBuffer<DynamicSsboData<Vertex>> vertexBuffer("VertexBuffer", 1024);
+
+        debugDrawCalls.push([this, renderTarget, vertices] {
+                // setup buffer
+                u32 numVertices = vertices.size();
+                u32 numLineSegments = max(numVertices - 1, 0);
+                u32 numVerticesToDraw = numLineSegments * 2;
+                assert(vertices.size() < vertexBuffer.getNumElements());
+                // this maybe unsafe
+                memcpy(vertexBuffer.data.array.data(), vertices.data(), sizeof(Vertex) * vertices.size());
+                vertexBuffer.upload();
+
+                // draw
+                CreateVS(vs, "DebugDrawScreenSpaceLineVS", SHADER_SOURCE_PATH "debug_draw_line_screenspace_v.glsl");
+                CreatePS(ps, "DebugDrawWorldSpaceLinePS", SHADER_SOURCE_PATH "debug_draw_line_worldspace_p.glsl");
+                CreatePixelPipeline(pipeline, "DebugDrawLineScreenSpace", vs, ps);
+                m_ctx->setDepthControl(DepthControl::kDisable);
+                m_ctx->setShaderStorageBuffer(&vertexBuffer);
+                m_ctx->setPixelPipeline(pipeline);
+                m_ctx->setRenderTarget(renderTarget);
+                m_ctx->setViewport({ 0, 0, renderTarget->width, renderTarget->height });
+                glDrawArrays(GL_LINES, 0, numVerticesToDraw);
+            }
+        );
+    }
+
+    void Renderer::drawDebugObjects()
+    {
+        while (!debugDrawCalls.empty())
+        {
+            auto& draw = debugDrawCalls.front();
+            draw();
+            debugDrawCalls.pop();
         }
+    }
+
+    void Renderer::legacyScreenSpaceRayTracing(Texture2DRenderable* depth, Texture2DRenderable* normal)
+    {
+        auto renderTarget = createCachedRenderTarget("ScreenSpaceRayTracing", depth->width, depth->height);
+        renderTarget->setColorBuffer(m_sceneTextures.ao, 0);
+        renderTarget->setColorBuffer(m_sceneTextures.bentNormal, 1);
+        renderTarget->setDrawBuffers({ 0, 1, });
+        renderTarget->clear({ 
+            { 0, glm::vec4(0.f, 0.f, 0.f, 1.f) },
+            { 1, glm::vec4(0.f, 0.f, 0.f, 1.f) },
+        });
+        CreateVS(vs, "ScreenSpaceRayTracingVS", SHADER_SOURCE_PATH "screenspace_raytracing_v.glsl");
+        CreatePS(ps, "LegacySSRTPS", SHADER_SOURCE_PATH "screenspace_raytracing_p.glsl");
+        CreatePixelPipeline(pipeline, "SSRT", vs, ps);
+        drawFullscreenQuad(
+            renderTarget,
+            pipeline,
+            [this, depth, normal](VertexShader* vs, PixelShader* ps) {
+                ps->setUniform("outputSize", glm::vec2(depth->width, depth->height));
+                ps->setTexture("depthTexture", depth);
+                ps->setTexture("normalTexture", normal);
+                auto blueNoiseTexture = AssetManager::getAsset<Texture2DRenderable>("BlueNoise_1024x1024");
+                ps->setTexture("blueNoiseTexture", blueNoiseTexture);
+            }
+        );
     }
 
     void Renderer::screenSpaceRayTracing(Texture2DRenderable* depth, Texture2DRenderable* normal) 
@@ -592,26 +909,9 @@ namespace Cyan {
             { 0, glm::vec4(0.f, 0.f, 0.f, 1.f) },
             { 1, glm::vec4(0.f, 0.f, 0.f, 1.f) },
         });
-#if 0
         CreateVS(vs, "ScreenSpaceRayTracingVS", SHADER_SOURCE_PATH "screenspace_raytracing_v.glsl");
-        CreatePS(ps, "ScreenSpaceRayTracingPS", SHADER_SOURCE_PATH "screenspace_raytracing_p.glsl");
-        CreatePixelPipeline(pipeline, "ScreenSpaceRayTracing", vs, ps);
-        drawFullscreenQuad(
-            renderTarget,
-            pipeline,
-            [this, depth, normal](VertexShader* vs, PixelShader* ps) {
-                ps->setUniform("outputSize", glm::vec2(depth->width, depth->height));
-                ps->setTexture("depthTexture", depth);
-                ps->setTexture("normalTexture", normal);
-                auto blueNoiseTexture = AssetManager::getAsset<Texture2DRenderable>("BlueNoise_1024x1024");
-                ps->setTexture("blueNoiseTexture", blueNoiseTexture);
-            }
-        );
-#else
-        static const i32 kMaxNumIterations = 15;
-        CreateVS(vs, "ScreenSpaceRayTracingVS", SHADER_SOURCE_PATH "screenspace_raytracing_v.glsl");
-        CreatePS(ps, "ScreenSpaceRayTracingPS", SHADER_SOURCE_PATH "hierarchical_ssrt_p.glsl");
-        CreatePixelPipeline(pipeline, "ScreenSpaceRayTracing", vs, ps);
+        CreatePS(ps, "HierarchicalSSRTPS", SHADER_SOURCE_PATH "hierarchical_ssrt_p.glsl");
+        CreatePixelPipeline(pipeline, "HierarchicalSSRT", vs, ps);
         drawFullscreenQuad(
             renderTarget,
             pipeline,
@@ -621,12 +921,11 @@ namespace Cyan {
                 ps->setTexture("normalBuffer", normal);
                 ps->setTexture("HiZ", m_sceneTextures.HiZ->texture.get());
                 ps->setUniform("numLevels", (i32)m_sceneTextures.HiZ->numMips);
-                ps->setUniform("kMaxNumIterations", kMaxNumIterations);
+                ps->setUniform("kMaxNumIterations", kNumIterations);
                 auto blueNoiseTexture = AssetManager::getAsset<Texture2DRenderable>("BlueNoise_1024x1024");
                 ps->setTexture("blueNoiseTexture", blueNoiseTexture);
             }
         );
-#endif
     }
 
 #if 0

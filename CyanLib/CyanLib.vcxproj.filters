@@ -736,10 +736,10 @@
     <None Include="..\shader\debug_draw_v.glsl">
       <Filter>Shaders\DebugDraw</Filter>
     </None>
-    <None Include="..\shader\debug_draw_line_v.glsl">
+    <None Include="..\shader\debug_draw_line_worldspace_v.glsl">
       <Filter>Shaders\DebugDraw</Filter>
     </None>
-    <None Include="..\shader\debug_draw_line_p.glsl">
+    <None Include="..\shader\debug_draw_line_worldspace_p.glsl">
       <Filter>Shaders\DebugDraw</Filter>
     </None>
     <None Include="..\shader\manyview_gi_final_gather_v.glsl">
@@ -891,6 +891,21 @@
     </None>
     <None Include="..\shader\ssrt_ray_debug_c.glsl">
       <Filter>Shaders\RayTracing</Filter>
+    </None>
+    <None Include="..\shader\debug_draw_line_screenspace_v.glsl">
+      <Filter>Shaders\DebugDraw</Filter>
+    </None>
+    <None Include="..\shader\scene_gbuffer_p.glsl">
+      <Filter>Shaders\Shading</Filter>
+    </None>
+    <None Include="..\shader\scene_direct_lighting_p.glsl">
+      <Filter>Shaders\Shading</Filter>
+    </None>
+    <None Include="..\shader\scene_indirect_lighting_p.glsl">
+      <Filter>Shaders\Shading</Filter>
+    </None>
+    <None Include="..\shader\scene_lighting_p.glsl">
+      <Filter>Shaders\Shading</Filter>
     </None>
   </ItemGroup>
 </Project>

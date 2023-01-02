@@ -174,11 +174,21 @@ namespace Cyan
         void renderToScreen(Texture2DRenderable* inTexture);
         void endRender();
 
+        struct GBuffer
+        {
+            Texture2DRenderable* depth = nullptr;
+            // todo: do normal mapping
+            Texture2DRenderable* normal = nullptr;
+            Texture2DRenderable* albedo = nullptr;
+            Texture2DRenderable* metallicRoughness = nullptr;
+        };
+
         struct SceneTextures 
         {
             glm::uvec2 resolution;
-            Texture2DRenderable* depth = nullptr;
-            Texture2DRenderable* normal = nullptr;
+            GBuffer gBuffer;
+            Texture2DRenderable* directLighting = nullptr;
+            Texture2DRenderable* indirectLighting = nullptr;
             Texture2DRenderable* color = nullptr;
             Texture2DRenderable* ao = nullptr;
             Texture2DRenderable* bentNormal = nullptr;
@@ -217,8 +227,20 @@ namespace Cyan
 
         void renderSceneBatched(RenderableScene& renderableScene, RenderTarget* outRenderTarget, Texture2DRenderable* outSceneColor);
         void renderSceneDepthNormal(RenderableScene& renderableScene, RenderTarget* outRenderTarget, Texture2DRenderable* outDepthBuffer, Texture2DRenderable* outNormalBuffer);
+        void renderSceneDepthPrepass(RenderableScene& renderableScene, RenderTarget* outRenderTarget, Texture2DRenderable* outDepthBuffer);
         void renderSceneDepthOnly(RenderableScene& renderableScene, Texture2DRenderable* outDepthTexture);
+        void renderSceneGBuffer(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer);
         void renderShadowMaps(RenderableScene& scene);
+        void renderSceneLighting(RenderTarget* outRenderTarget, Texture2DRenderable* outSceneColor, RenderableScene& scene, GBuffer gBuffer);
+        void renderSceneDirectLighting(RenderTarget* outRenderTarget, Texture2DRenderable* outDirectLighting, RenderableScene& scene, GBuffer gBuffer);
+        void renderSceneIndirectLighting(RenderTarget* outRenderTarget, Texture2DRenderable* outIndirectLighting, RenderableScene& scene, GBuffer gBuffer);
+
+        bool bLegacySSRTEnabled = false;
+        bool bDebugSSRT = true;
+        glm::vec2 debugCoord = glm::vec2(.5f);
+        static const i32 kNumIterations = 64;
+        i32 numDebugRays = 8;
+        void legacyScreenSpaceRayTracing(Texture2DRenderable* depth, Texture2DRenderable* normal);
         void screenSpaceRayTracing(Texture2DRenderable* depth, Texture2DRenderable* normal);
         void visualizeSSRT(Texture2DRenderable* depth, Texture2DRenderable* normal);
 
@@ -226,6 +248,17 @@ namespace Cyan
         void drawMesh(RenderTarget* renderTarget, Viewport viewport, Mesh* mesh, PixelPipeline* pipeline, const RenderSetupLambda& renderSetupLambda, const GfxPipelineConfig& config = GfxPipelineConfig{});
         void drawFullscreenQuad(RenderTarget* renderTarget, PixelPipeline* pipeline, const RenderSetupLambda& renderSetupLambda);
         void drawScreenQuad(RenderTarget* renderTarget, Viewport viewport, PixelPipeline* pipeline, RenderSetupLambda&& renderSetupLambda);
+
+        struct Vertex
+        {
+            glm::vec4 position;
+            glm::vec4 color;
+        };
+        void drawScreenSpaceLines(RenderTarget* renderTarget, const std::vector<Vertex>& vertices);
+        void drawWorldSpaceLines(RenderTarget* renderTarget, const std::vector<Vertex>& vertices);
+        void drawWorldSpacePoints(RenderTarget* renderTarget, const std::vector<Vertex>& points);
+        std::queue<std::function<void(void)>> debugDrawCalls;
+        void drawDebugObjects();
 
         /**
         * Submit a submesh; right now the execution is not deferred

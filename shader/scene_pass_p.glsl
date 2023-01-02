@@ -58,9 +58,9 @@ out vec3 outColor;
 // constants
 #define pi 3.14159265359
 #define SLOPE_BASED_BIAS 0
-#define VIEW_SSBO_BINDING 0
 
-layout(std430, binding = VIEW_SSBO_BINDING) buffer ViewBuffer {
+layout(std430) buffer ViewBuffer 
+{
     mat4  view;
     mat4  projection;
     float m_ssao;
@@ -190,7 +190,8 @@ float calcDirectionalShadow(vec3 worldPosition, vec3 normal, in DirectionalLight
 /**
 	material converted from application side material definition 
 */
-struct Material {
+struct Material 
+{
 	vec3 albedo;
 	vec3 normal;
 	float roughness;

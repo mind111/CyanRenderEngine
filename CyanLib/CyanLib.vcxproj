@@ -145,6 +145,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\shader\build_hi_z_p.glsl" />
+    <None Include="..\shader\debug_draw_line_screenspace_v.glsl" />
     <None Include="..\shader\debug_draw_point_v.glsl" />
     <None Include="..\shader\downsample_p.glsl" />
     <None Include="..\shader\downsample_v.glsl" />
@@ -155,6 +156,10 @@
     <None Include="..\shader\mvgi_direct_lighting.glsl" />
     <None Include="..\shader\mvgi_gbuffer_p.glsl" />
     <None Include="..\shader\mvgi_indirect_lighting.glsl" />
+    <None Include="..\shader\scene_direct_lighting_p.glsl" />
+    <None Include="..\shader\scene_gbuffer_p.glsl" />
+    <None Include="..\shader\scene_indirect_lighting_p.glsl" />
+    <None Include="..\shader\scene_lighting_p.glsl" />
     <None Include="..\shader\shading_model.glsl" />
     <None Include="..\shader\debug_copy_p.glsl" />
     <None Include="..\shader\debug_color_fs.glsl" />
@@ -165,8 +170,8 @@
     <None Include="..\shader\debug_draw_grid_v.glsl" />
     <None Include="..\shader\debug_draw_immediate_p.glsl" />
     <None Include="..\shader\debug_draw_immediate_v.glsl" />
-    <None Include="..\shader\debug_draw_line_p.glsl" />
-    <None Include="..\shader\debug_draw_line_v.glsl" />
+    <None Include="..\shader\debug_draw_line_worldspace_p.glsl" />
+    <None Include="..\shader\debug_draw_line_worldspace_v.glsl" />
     <None Include="..\shader\debug_draw_p.glsl" />
     <None Include="..\shader\debug_draw_radiance_cube_p.glsl" />
     <None Include="..\shader\debug_draw_radiance_cube_v.glsl" />

@@ -401,7 +401,20 @@ namespace Cyan
             }
             if (ImGui::CollapsingHeader("Screen Space Ray Tracing", ImGuiTreeNodeFlags_DefaultOpen))
             {
-                ImGui::Checkbox("Fix Debug Ray", &renderer->bFixDebugRay);
+                ImGui::Checkbox("Debug SSRT", &renderer->bDebugSSRT);
+                if (renderer->bDebugSSRT)
+                {
+                    static f32 debugCoord[2] = { 0.5f , 0.5f };
+                    ImGui::Text("Debug Coord:"); 
+                    ImGui::SameLine();
+                    ImGui::SliderFloat2("##Debug Coord: ", debugCoord, 0.f, 1.f, "%.3f");
+                    renderer->debugCoord = glm::vec2(debugCoord[0], debugCoord[1]);
+                    ImGui::Checkbox("Fix Debug Ray", &renderer->bFixDebugRay);
+                }
+                else
+                {
+                    ImGui::Checkbox("Legacy SSRT", &renderer->bLegacySSRTEnabled);
+                }
             }
             if (ImGui::CollapsingHeader("Post Processing"))
             {
