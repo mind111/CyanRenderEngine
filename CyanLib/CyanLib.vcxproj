@@ -156,6 +156,8 @@
     <None Include="..\shader\mvgi_direct_lighting.glsl" />
     <None Include="..\shader\mvgi_gbuffer_p.glsl" />
     <None Include="..\shader\mvgi_indirect_lighting.glsl" />
+    <None Include="..\shader\scene_depth_prepass_p.glsl" />
+    <None Include="..\shader\scene_depth_prepass_v.glsl" />
     <None Include="..\shader\scene_direct_lighting_p.glsl" />
     <None Include="..\shader\scene_gbuffer_p.glsl" />
     <None Include="..\shader\scene_indirect_lighting_p.glsl" />

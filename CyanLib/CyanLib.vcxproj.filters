@@ -907,5 +907,11 @@
     <None Include="..\shader\scene_lighting_p.glsl">
       <Filter>Shaders\Shading</Filter>
     </None>
+    <None Include="..\shader\scene_depth_prepass_v.glsl">
+      <Filter>Shaders\Shading</Filter>
+    </None>
+    <None Include="..\shader\scene_depth_prepass_p.glsl">
+      <Filter>Shaders\Shading</Filter>
+    </None>
   </ItemGroup>
 </Project>

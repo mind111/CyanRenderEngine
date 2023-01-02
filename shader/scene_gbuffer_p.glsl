@@ -3,8 +3,9 @@
 #extension GL_ARB_shader_draw_parameters : enable 
 #extension GL_ARB_gpu_shader_int64 : enable 
 
-out vec3 outAlbedo;
-out vec3 outMetallicRoughness;
+layout(location = 0) out vec3 outAlbedo;
+layout(location = 1) out vec3 outNormal;
+layout(location = 2) out vec3 outMetallicRoughness;
 
 /**
 	mirror's the material definition on application side
@@ -122,5 +123,6 @@ void main()
     Material material = getMaterial(psIn.desc, worldSpaceNormal, worldSpaceTangent, worldSpaceBitangent, psIn.texCoord0);
 
     outAlbedo = material.albedo;
+    outNormal = material.normal * .5f + .5f;
     outMetallicRoughness = vec3(material.metallic, material.roughness, 0.f);
 }

@@ -177,7 +177,6 @@ namespace Cyan
         struct GBuffer
         {
             Texture2DRenderable* depth = nullptr;
-            // todo: do normal mapping
             Texture2DRenderable* normal = nullptr;
             Texture2DRenderable* albedo = nullptr;
             Texture2DRenderable* metallicRoughness = nullptr;

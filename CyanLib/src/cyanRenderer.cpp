@@ -301,7 +301,7 @@ namespace Cyan {
             renderShadowMaps(renderableScene);
 
             // depth prepass
-            renderSceneDepthNormal(renderableScene, m_sceneTextures.renderTarget, m_sceneTextures.gBuffer.depth, m_sceneTextures.gBuffer.normal);
+            renderSceneDepthPrepass(renderableScene, m_sceneTextures.renderTarget, m_sceneTextures.gBuffer.depth);
 
             // main scene pass
             renderSceneGBuffer(m_sceneTextures.renderTarget, renderableScene, m_sceneTextures.gBuffer);
@@ -386,9 +386,9 @@ namespace Cyan {
         outRenderTarget->clearDrawBuffer(0, glm::vec4(1.f, 1.f, 1.f, 1.f));
         m_ctx->setRenderTarget(outRenderTarget);
         m_ctx->setViewport({ 0, 0, outRenderTarget->width, outRenderTarget->height });
-        CreateVS(vs, "SceneDepthPrepassVS", SHADER_SOURCE_PATH "scene_depth_normal_v.glsl");
-        CreatePS(ps, "SceneDepthNormalPS", SHADER_SOURCE_PATH "scene_depth_normal_p.glsl");
-        CreatePixelPipeline(pipeline, "SceneDepthNormal", vs, ps);
+        CreateVS(vs, "SceneDepthPrepassVS", SHADER_SOURCE_PATH "scene_depth_prepass_v.glsl");
+        CreatePS(ps, "SceneDepthPrepassPS", SHADER_SOURCE_PATH "scene_depth_prepass_p.glsl");
+        CreatePixelPipeline(pipeline, "SceneDepthPrepass", vs, ps);
         m_ctx->setPixelPipeline(pipeline);
         m_ctx->setDepthControl(DepthControl::kEnable);
         scene.upload();
@@ -439,10 +439,12 @@ namespace Cyan {
         });
 
         outRenderTarget->setColorBuffer(gBuffer.albedo, 0);
-        outRenderTarget->setColorBuffer(gBuffer.metallicRoughness, 1);
-        outRenderTarget->setDrawBuffers({ 0, 1 });
+        outRenderTarget->setColorBuffer(gBuffer.normal, 1);
+        outRenderTarget->setColorBuffer(gBuffer.metallicRoughness, 2);
+        outRenderTarget->setDrawBuffers({ 0, 1, 2 });
         outRenderTarget->clearDrawBuffer(0, glm::vec4(0.f, 0.f, 0.f, 1.f), false);
         outRenderTarget->clearDrawBuffer(1, glm::vec4(0.f, 0.f, 0.f, 1.f), false);
+        outRenderTarget->clearDrawBuffer(2, glm::vec4(0.f, 0.f, 0.f, 1.f), false);
 
         m_ctx->setRenderTarget(outRenderTarget);
         m_ctx->setViewport({ 0, 0, outRenderTarget->width, outRenderTarget->height });
