@@ -81,8 +81,8 @@ namespace Cyan {
                 spec.height = resolution.y;
                 spec.type = TEX_2D;
                 spec.pixelFormat = PF_RGB16F;
-                gBuffer.albedo = new Texture2DRenderable("SceneAlbedo", spec);
-                gBuffer.metallicRoughness = new Texture2DRenderable("SceneMetallicRoughness", spec);
+                gBuffer.albedo = new Texture2DRenderable("Albedo", spec);
+                gBuffer.metallicRoughness = new Texture2DRenderable("MetallicRoughness", spec);
             }
             // direct lighting
             {
@@ -91,7 +91,8 @@ namespace Cyan {
                 spec.height = resolution.y;
                 spec.type = TEX_2D;
                 spec.pixelFormat = PF_RGB16F;
-                directLighting = new Texture2DRenderable("SceneDirectLighting", spec);
+                directLighting = new Texture2DRenderable("DirectLighting", spec);
+                directDiffuseLighting = new Texture2DRenderable("DirectDiffuseLighting", spec);
             }
             // indirect lighting
             {
@@ -102,7 +103,8 @@ namespace Cyan {
                 spec.pixelFormat = PF_RGB16F;
                 ao = new Texture2DRenderable("SSAO", spec);
                 bentNormal = new Texture2DRenderable("SSBN", spec);
-                indirectLighting = new Texture2DRenderable("SceneIndirectLighting", spec);
+                indirectLighting = new Texture2DRenderable("IndirectLighting", spec);
+                irradiance = new Texture2DRenderable("Irradiance", spec);
             }
 
             Renderer::get()->registerVisualization(std::string("SceneTextures"), color);
@@ -111,10 +113,12 @@ namespace Cyan {
             Renderer::get()->registerVisualization(std::string("SceneTextures"), gBuffer.depth);
             Renderer::get()->registerVisualization(std::string("SceneTextures"), HiZ->texture.get());
             Renderer::get()->registerVisualization(std::string("SceneTextures"), gBuffer.normal);
+            Renderer::get()->registerVisualization(std::string("SceneTextures"), directDiffuseLighting);
             Renderer::get()->registerVisualization(std::string("SceneTextures"), directLighting);
+            Renderer::get()->registerVisualization(std::string("SceneTextures"), indirectLighting);
             Renderer::get()->registerVisualization(std::string("SceneTextures"), ao);
             Renderer::get()->registerVisualization(std::string("SceneTextures"), bentNormal);
-            Renderer::get()->registerVisualization(std::string("SceneTextures"), indirectLighting);
+            Renderer::get()->registerVisualization(std::string("SceneTextures"), irradiance);
             bInitialized = true;
         }
         else if (inResolution != resolution) 
@@ -484,8 +488,10 @@ namespace Cyan {
         CreatePixelPipeline(pipeline, "SceneDirectLightingPass", vs, ps);
 
         outRenderTarget->setColorBuffer(outSceneDirectLighting, 0);
-        outRenderTarget->setDrawBuffers({ 0 });
+        outRenderTarget->setColorBuffer(m_sceneTextures.directDiffuseLighting, 1);
+        outRenderTarget->setDrawBuffers({ 0, 1 });
         outRenderTarget->clearDrawBuffer({ 0 }, glm::vec4(0.f, 0.f, 0.f, 1.f), false);
+        outRenderTarget->clearDrawBuffer({ 1 }, glm::vec4(0.f, 0.f, 0.f, 1.f), false);
 
         drawFullscreenQuad(outRenderTarget, pipeline, [gBuffer](VertexShader* vs, PixelShader* ps) {
             ps->setTexture("sceneDepth", gBuffer.depth);
@@ -533,6 +539,7 @@ namespace Cyan {
             ps->setTexture("sceneNormal", gBuffer.normal);
             ps->setTexture("sceneAlbedo", gBuffer.albedo);
             ps->setTexture("sceneMetallicRoughness", gBuffer.metallicRoughness);
+            ps->setTexture("indirectIrradiance", m_sceneTextures.irradiance);
             // setup ssao
             if (m_settings.bSSAOEnabled)
             {
@@ -906,10 +913,12 @@ namespace Cyan {
         auto renderTarget = createCachedRenderTarget("ScreenSpaceRayTracing", depth->width, depth->height);
         renderTarget->setColorBuffer(m_sceneTextures.ao, 0);
         renderTarget->setColorBuffer(m_sceneTextures.bentNormal, 1);
-        renderTarget->setDrawBuffers({ 0, 1, });
+        renderTarget->setColorBuffer(m_sceneTextures.irradiance, 2);
+        renderTarget->setDrawBuffers({ 0, 1, 2 });
         renderTarget->clear({ 
             { 0, glm::vec4(0.f, 0.f, 0.f, 1.f) },
             { 1, glm::vec4(0.f, 0.f, 0.f, 1.f) },
+            { 2, glm::vec4(0.f, 0.f, 0.f, 1.f) },
         });
         CreateVS(vs, "ScreenSpaceRayTracingVS", SHADER_SOURCE_PATH "screenspace_raytracing_v.glsl");
         CreatePS(ps, "HierarchicalSSRTPS", SHADER_SOURCE_PATH "hierarchical_ssrt_p.glsl");
@@ -926,6 +935,7 @@ namespace Cyan {
                 ps->setUniform("kMaxNumIterations", kNumIterations);
                 auto blueNoiseTexture = AssetManager::getAsset<Texture2DRenderable>("BlueNoise_1024x1024");
                 ps->setTexture("blueNoiseTexture", blueNoiseTexture);
+                ps->setTexture("directLightingBuffer", m_sceneTextures.directDiffuseLighting);
             }
         );
     }

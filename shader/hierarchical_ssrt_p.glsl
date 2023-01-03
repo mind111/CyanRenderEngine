@@ -7,8 +7,9 @@ in VSOutput
 	vec2 texCoord0;
 } psIn;
 
-out vec3 ssao;
-out vec3 ssbn;
+layout(location = 0) out vec3 ssao;
+layout(location = 1) out vec3 ssbn;
+layout(location = 2) out vec3 outIrradiance;
 
 uniform sampler2D depthBuffer;
 uniform sampler2D normalBuffer;
@@ -205,7 +206,7 @@ vec3 sphericalToCartesian(float theta, float phi, vec3 n)
 		sin(theta) * sin(phi),
 		cos(theta)
 	};
-	return tangentToWorld(n) * localDir;
+	return construct_ONB_frisvad(n) * localDir;
 }
 
 vec3 uniformSampleHemisphere(vec3 n)
@@ -345,15 +346,15 @@ bool hierarchicalTrace(in vec3 worldSpaceRO, in vec3 worldSpaceRD, inout float t
 }
 
 // todo: improve this by applying spatiotemporal reuse
-void calcAmbientOcclusionAndBentNormal(vec3 p, vec3 n, inout float ao, inout vec3 bentNormal) 
+void calcAmbientOcclusionAndBentNormal(vec3 p, vec3 n, inout float ao, inout vec3 bentNormal, inout vec3 irradiance) 
 {
     int numOccludedRays = 0;
 	const int kNumRays = 16;
-    vec3 irradiance = vec3(0.f);
     for (int ray = 0; ray < kNumRays; ++ray)
     {
 		float randomRotation = texture(blueNoiseTexture, gl_FragCoord.xy / float(textureSize(blueNoiseTexture, 0).xy)).r * PI * 2.f;
 		vec3 rd = normalize(blueNoiseCosWeightedSampleHemisphere(n, BlueNoiseInDisk[ray], randomRotation));
+        // vec3 rd = uniformSampleHemisphere(n);
 
         float t;
         bool bHit = hierarchicalTrace(p, rd, t);
@@ -365,8 +366,9 @@ void calcAmbientOcclusionAndBentNormal(vec3 p, vec3 n, inout float ao, inout vec
             // project to screen space and then sample the direct lighting buffer
             vec3 screenSpaceHitPos = worldToScreen(worldSpaceHitPos, view, projection);
             vec3 normal = normalize(texture(normalBuffer, screenSpaceHitPos.xy).xyz * 2.f - 1.f);
-            float ndotl = max(dot(normal, rd), 0.f);
-            irradiance += texture(directLightingBuffer, screenSpaceHitPos.xy).rgb * ndotl;
+            float ndotl0 = max(dot(normal, -rd), 0.f);
+            float ndotl1 = max(dot(n, rd), 0.f);
+            irradiance += texture(directLightingBuffer, screenSpaceHitPos.xy).rgb * ndotl0 * ndotl1;
         }
         else 
         {
@@ -378,6 +380,11 @@ void calcAmbientOcclusionAndBentNormal(vec3 p, vec3 n, inout float ao, inout vec
 	bentNormal = normalize(bentNormal);
     irradiance /= float(kNumRays);
 };
+
+void calcDiffuseGI(inout float ao, inout vec3 bentNormal, inout vec3 irradiance)
+{
+    
+}
 
 void main()
 {	
@@ -400,7 +407,9 @@ void main()
 
     float ao = 1.f;
     vec3 bentNormal = worldSpaceViewDirection;
-	calcAmbientOcclusionAndBentNormal(worldSpaceRO, normal, ao, bentNormal);
+    vec3 irradiance = vec3(0.f);
+	calcAmbientOcclusionAndBentNormal(worldSpaceRO, normal, ao, bentNormal, irradiance);
     ssao = vec3(1.f - ao);
     ssbn = bentNormal * .5f + .5f;
+    outIrradiance = irradiance;
 }

@@ -13,6 +13,7 @@ uniform float ssaoEnabled;
 uniform uint64_t ssaoTextureHandle;
 uniform float ssbnEnabled;
 uniform uint64_t ssbnTextureHandle;
+uniform sampler2D indirectIrradiance;
 
 in VSOutput
 {
@@ -242,4 +243,5 @@ void main()
     material.occlusion = 1.f;
     
     outRadiance = calcSkyLight(skyLight, material, worldSpacePosition);
+    outRadiance += texture(sceneAlbedo, psIn.texCoord0).rgb * texture(indirectIrradiance, psIn.texCoord0).rgb;
 }

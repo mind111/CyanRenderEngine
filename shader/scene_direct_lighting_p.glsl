@@ -9,13 +9,13 @@ in VSOutput
 	vec2 texCoord0;
 } psIn;
 
-out vec3 outRadiance;
+layout (location = 0) out vec3 outRadiance;
+layout (location = 1) out vec3 outDiffuse;
 
 uniform sampler2D sceneDepth;
 uniform sampler2D sceneNormal;
 uniform sampler2D sceneAlbedo;
 uniform sampler2D sceneMetallicRoughness;
-
 
 const uint kNumShadowCascades = 4;
 struct DirectionalShadowMap {
@@ -273,7 +273,7 @@ float calcDirectionalShadow(vec3 worldPosition, vec3 normal, in DirectionalLight
     return PCFShadow(worldPosition, normal, directionalLight);
 }
 
-vec3 calcDirectionalLight(in DirectionalLight directionalLight, in Material material, vec3 worldSpacePosition) 
+vec3 calcDirectionalLight(in DirectionalLight directionalLight, in Material material, vec3 worldSpacePosition, inout vec3 outDiffuseRadiance) 
 {
     vec3 radiance = vec3(0.f);
     // view direction in world space
@@ -296,16 +296,18 @@ vec3 calcDirectionalLight(in DirectionalLight directionalLight, in Material mate
     radiance += (diffuse + specular) * li * ndotl;
 
     // shadow
-    radiance *= calcDirectionalShadow(worldSpacePosition, material.normal, directionalLight);
+    float shadow = calcDirectionalShadow(worldSpacePosition, material.normal, directionalLight);
+
+    radiance *= shadow;
+    outDiffuseRadiance += diffuse * li * ndotl * shadow;
     return radiance;
 }
-
 
 vec3 calcDirectLighting(in Material material, vec3 worldSpacePosition) 
 {
     vec3 radiance = vec3(0.f);
     // sun light
-    radiance += calcDirectionalLight(directionalLights[0], material, worldSpacePosition);
+    radiance += calcDirectionalLight(directionalLights[0], material, worldSpacePosition, outDiffuse);
     return radiance;
 }
 

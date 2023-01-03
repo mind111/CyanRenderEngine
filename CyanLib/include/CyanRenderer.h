@@ -186,11 +186,13 @@ namespace Cyan
         {
             glm::uvec2 resolution;
             GBuffer gBuffer;
+            Texture2DRenderable* directDiffuseLighting = nullptr;
             Texture2DRenderable* directLighting = nullptr;
             Texture2DRenderable* indirectLighting = nullptr;
             Texture2DRenderable* color = nullptr;
             Texture2DRenderable* ao = nullptr;
             Texture2DRenderable* bentNormal = nullptr;
+            Texture2DRenderable* irradiance = nullptr;
             RenderTarget* renderTarget = nullptr;
             HiZBuffer* HiZ = nullptr;
 
@@ -235,7 +237,7 @@ namespace Cyan
         void renderSceneIndirectLighting(RenderTarget* outRenderTarget, Texture2DRenderable* outIndirectLighting, RenderableScene& scene, GBuffer gBuffer);
 
         bool bLegacySSRTEnabled = false;
-        bool bDebugSSRT = true;
+        bool bDebugSSRT = false;
         glm::vec2 debugCoord = glm::vec2(.5f);
         static const i32 kNumIterations = 64;
         i32 numDebugRays = 8;
