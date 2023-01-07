@@ -14,6 +14,7 @@ uniform uint64_t ssaoTextureHandle;
 uniform float ssbnEnabled;
 uniform uint64_t ssbnTextureHandle;
 uniform sampler2D indirectIrradiance;
+uniform float indirectBoost;
 
 in VSOutput
 {
@@ -214,11 +215,12 @@ vec3 calcSkyLight(SkyLight inSkyLight, in Material material, vec3 worldSpacePosi
     }
     radiance += irradiance * ao;
 
+    // todo: improve the specular part
     // reflection
     vec3 reflectionDirection = -reflect(worldSpaceViewDirection, material.normal);
     vec3 BRDF = texture(sampler2D(inSkyLight.BRDFLookupTexture), vec2(ndotv, material.roughness)).rgb; 
     vec3 incidentRadiance = textureLod(samplerCube(skyLight.reflection), reflectionDirection, material.roughness * 10.f).rgb;
-    radiance += incidentRadiance * (f0 * BRDF.r + BRDF.g);
+    // radiance += incidentRadiance * (f0 * BRDF.r + BRDF.g);
 
     return radiance;
 }

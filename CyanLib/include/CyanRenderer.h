@@ -189,6 +189,7 @@ namespace Cyan
             Texture2DRenderable* directDiffuseLighting = nullptr;
             Texture2DRenderable* directLighting = nullptr;
             Texture2DRenderable* indirectLighting = nullptr;
+            Texture2DRenderable* ssgiMirror = nullptr;
             Texture2DRenderable* color = nullptr;
             Texture2DRenderable* ao = nullptr;
             Texture2DRenderable* bentNormal = nullptr;
@@ -200,6 +201,38 @@ namespace Cyan
 
             void initialize(const glm::uvec2& inResolution);
         } m_sceneTextures;
+
+        struct SSGI
+        {
+            struct HitBuffer
+            {
+                HitBuffer(u32 inNumLayers, const glm::uvec2& resolution);
+                ~HitBuffer() { }
+
+                Texture2DArray* position = nullptr;
+                Texture2DArray* normal = nullptr;
+                Texture2DArray* radiance = nullptr;
+                GLuint positionArray;
+                GLuint normalArray;
+                GLuint radianceArray;
+                u32 numLayers;
+            };
+
+            SSGI(Renderer* renderer, const glm::uvec2& inRes);
+            ~SSGI() { };
+
+            // basic brute force hierarchical tracing without spatial ray reuse
+            void render(Texture2DRenderable* outAO, Texture2DRenderable* outBentNormal, Texture2DRenderable* outIrradiance, const GBuffer& gBuffer, HiZBuffer* HiZ, Texture2DRenderable* inDirectDiffuseBuffer);
+            // spatial reuse
+            void renderEx(Texture2DRenderable* outAO, Texture2DRenderable* outBentNormal, Texture2DRenderable* outIrradiance, const GBuffer& gBuffer, HiZBuffer* HiZ, Texture2DRenderable* inDirectDiffuseBuffer);
+            // todo: spatio-temporal reuse
+
+            static const u32 kNumSamples = 8u;
+            static const u32 kNumIterations = 64u;
+            glm::vec2 resolution;
+            HitBuffer hitBuffer;
+            Renderer* renderer = nullptr;
+        } m_ssgi;
 
         struct PostProcessingTextures 
         {
@@ -236,13 +269,11 @@ namespace Cyan
         void renderSceneDirectLighting(RenderTarget* outRenderTarget, Texture2DRenderable* outDirectLighting, RenderableScene& scene, GBuffer gBuffer);
         void renderSceneIndirectLighting(RenderTarget* outRenderTarget, Texture2DRenderable* outIndirectLighting, RenderableScene& scene, GBuffer gBuffer);
 
-        bool bLegacySSRTEnabled = false;
         bool bDebugSSRT = false;
         glm::vec2 debugCoord = glm::vec2(.5f);
         static const i32 kNumIterations = 64;
         i32 numDebugRays = 8;
         void legacyScreenSpaceRayTracing(Texture2DRenderable* depth, Texture2DRenderable* normal);
-        void screenSpaceRayTracing(Texture2DRenderable* depth, Texture2DRenderable* normal);
         void visualizeSSRT(Texture2DRenderable* depth, Texture2DRenderable* normal);
 
         void renderSceneToLightProbe(Scene* scene, LightProbe* probe, RenderTarget* renderTarget);

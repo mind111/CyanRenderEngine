@@ -120,7 +120,7 @@ out VSOutput
 	flat MaterialDesc desc;
 } vsOut;
 
-void main() 
+void main()
 {
 	uint instanceIndex = drawCalls[gl_DrawIDARB] + gl_InstanceID;
 	InstanceDesc instance = instanceDescs[instanceIndex];

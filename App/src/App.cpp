@@ -19,7 +19,6 @@ public:
     {
         using namespace Cyan;
 
-        // AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/simplified_cyan_toybox.glb", "CyanToybox");
         AssetManager::importGltf(m_scene.get(), "C:/dev/cyanRenderEngine/asset/mesh/shader_balls.glb", "ShaderBall");
 
         ITextureRenderable::Spec spec = { };
@@ -34,7 +33,7 @@ public:
         // skybox
         auto skybox = m_scene->createSkybox("Skybox", ASSET_PATH "cubemaps/neutral_sky.hdr", glm::uvec2(2048));
         // sun light
-        m_scene->createDirectionalLight("SunLight", glm::vec3(1.f, 0.3f, 0.5f), glm::vec4(0.88f, 0.77f, 0.65f, 50.f));
+        m_scene->createDirectionalLight("SunLight", glm::vec3(0.3f, 1.3f, 0.5f), glm::vec4(0.88f, 0.77f, 0.65f, 50.f));
         // sky light 
         auto skylight = m_scene->createSkyLight("SkyLight", ASSET_PATH "cubemaps/neutral_sky.hdr");
         skylight->build();

@@ -62,6 +62,7 @@
     <ClInclude Include="include\RenderTarget.h" />
     <ClInclude Include="include\Scene.h" />
     <ClInclude Include="include\SceneNode.h" />
+    <ClInclude Include="include\ScreenSpaceRayTracing.h" />
     <ClInclude Include="include\Shader.h" />
     <ClInclude Include="include\ShaderStorageBuffer.h" />
     <ClInclude Include="include\Shadow.h" />
@@ -129,6 +130,7 @@
     <ClCompile Include="src\RenderTarget.cpp" />
     <ClCompile Include="src\Scene.cpp" />
     <ClCompile Include="src\SceneNode.cpp" />
+    <ClCompile Include="src\ScreenSpaceRayTracing.cpp" />
     <ClCompile Include="src\Shader.cpp" />
     <ClCompile Include="src\Shadow.cpp" />
     <ClCompile Include="src\SkyBox.cpp" />
@@ -149,6 +151,7 @@
     <None Include="..\shader\debug_draw_point_v.glsl" />
     <None Include="..\shader\downsample_p.glsl" />
     <None Include="..\shader\downsample_v.glsl" />
+    <None Include="..\shader\hierarchical_ssrt_ex_p.glsl" />
     <None Include="..\shader\hierarchical_ssrt_p.glsl" />
     <None Include="..\shader\hi_z_copy_p.glsl" />
     <None Include="..\shader\lighting.glsl" />
@@ -229,7 +232,9 @@
     <None Include="..\shader\bloom_downsample_p.glsl" />
     <None Include="..\shader\bloom_downsample_v.glsl" />
     <None Include="..\shader\bloom_upscale_v.glsl" />
+    <None Include="..\shader\ssrt_debug_mirror_p.glsl" />
     <None Include="..\shader\ssrt_ray_debug_c.glsl" />
+    <None Include="..\shader\ssrt_resolve_p.glsl" />
     <None Include="..\shader\surfel_direct_lighting_c.glsl" />
     <None Include="..\shader\taa_p.glsl" />
     <None Include="..\shader\taa_v.glsl" />

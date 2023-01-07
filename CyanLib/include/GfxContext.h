@@ -64,6 +64,8 @@ namespace Cyan {
         void setComputePipeline(ComputePipeline* computePipelineObject, const std::function<void(ComputeShader*)>& setupShaders);
 
         void setTexture(ITextureRenderable* texture, u32 binding);
+        // todo: implement this
+        void setImage(Texture2DArray* textuerArray, u32 binding, u32 layered = true, u32 layer = 0) { }
 
         template<typename T>
         void setShaderStorageBuffer(ShaderStorageBuffer<T>* buffer) 

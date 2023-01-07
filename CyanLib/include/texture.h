@@ -12,6 +12,7 @@
 * convenience macros
 */
 #define TEX_2D Cyan::ITextureRenderable::Spec::Type::kTex2D
+#define TEX_2D_ARRAY Cyan::ITextureRenderable::Spec::Type::kTex2DArray
 #define TEX_DEPTH Cyan::ITextureRenderable::Spec::Type::kDepthTex
 #define TEX_3D Cyan::ITextureRenderable::Spec::Type::kTex3D
 #define TEX_CUBE Cyan::ITextureRenderable::Spec::Type::kTexCube
@@ -49,6 +50,7 @@ namespace Cyan
             enum class Type
             {
                 kTex2D,
+                kTex2DArray,
                 kDepthTex,
                 kTex3D,
                 kTexCube,
@@ -315,6 +317,60 @@ namespace Cyan
 
         u32 width;
         u32 height;
+    };
+
+    struct Texture2DArray : public ITextureRenderable
+    {
+        virtual std::string getAssetObjectTypeDesc() override
+        {
+            return std::string("Texture2DArray");
+        }
+
+        static std::string getAssetClassTypeDesc() 
+        { 
+            return std::string("Texture2DArray"); 
+        }
+
+        virtual Spec getTextureSpec() override
+        {
+            return Spec {
+                width, /* width */
+                height, /* height */
+                depth, /* depth */
+                numMips, /* numMips */
+                Spec::Type::kTex2D, /* texture type */
+                pixelFormat, /* pixel format */
+                pixelData /* pixel data */
+            };
+        }
+
+        Texture2DArray(const char* inName, const Spec& inSpec, Parameter inParams = Parameter{ })
+            : ITextureRenderable(inName, inSpec, inParams),
+            width(inSpec.width),
+            height(inSpec.height),
+            depth(inSpec.depth)
+        {
+            glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &glObject);
+            glBindTexture(GL_TEXTURE_2D_ARRAY, getGpuObject());
+            auto glPixelFormat = translatePixelFormat(pixelFormat);
+            glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, glPixelFormat.internalFormat, width, height, depth, 0, glPixelFormat.format, glPixelFormat.type, pixelData);
+            glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+
+            initializeTextureParameters(getGpuObject(), parameter);
+
+            if (numMips > 1u)
+            {
+                glGenerateTextureMipmap(getGpuObject());
+            }
+
+#if BINDLESS_TEXTURE
+            glHandle = glGetTextureHandleARB(getGpuObject());
+#endif
+        }
+
+        u32 width;
+        u32 height;
+        u32 depth;
     };
 
     struct DepthTexture2D : public Texture2DRenderable

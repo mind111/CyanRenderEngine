@@ -411,10 +411,6 @@ namespace Cyan
                     renderer->debugCoord = glm::vec2(debugCoord[0], debugCoord[1]);
                     ImGui::Checkbox("Fix Debug Ray", &renderer->bFixDebugRay);
                 }
-                else
-                {
-                    ImGui::Checkbox("Legacy SSRT", &renderer->bLegacySSRTEnabled);
-                }
             }
             if (ImGui::CollapsingHeader("Post Processing"))
             {

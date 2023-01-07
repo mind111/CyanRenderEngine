@@ -595,6 +595,7 @@ namespace Cyan {
                 1.0f
             );
             customRenderScene(scene, hemicube, camera);
+#if 0
             if (scene.skybox) 
             {
                 u32 a = scene.skybox->m_cubemapTexture->numMips - 1;
@@ -602,6 +603,7 @@ namespace Cyan {
                 f32 mip = f32(a - b);
                 scene.skybox->render(renderTarget.get(), camera.view(), camera.projection(), mip);
             }
+#endif
         }
         return m_sharedRadianceCubemap;
     }
