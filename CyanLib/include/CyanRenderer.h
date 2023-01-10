@@ -229,6 +229,8 @@ namespace Cyan
 
             static const u32 kNumSamples = 8u;
             static const u32 kNumIterations = 64u;
+            i32 numReuseSamples = 8;
+            f32 reuseKernelRadius = .05f;
             glm::vec2 resolution;
             HitBuffer hitBuffer;
             Renderer* renderer = nullptr;
@@ -365,6 +367,7 @@ namespace Cyan
             bool enableSunShadow = true;
             bool bSSAOEnabled = true;
             bool bBentNormalEnabled = true;
+            bool bIndirectIrradianceEnabled = true;
             bool enableBloom = true;
             bool enableTonemapping = true;
             bool bPostProcessing = true;

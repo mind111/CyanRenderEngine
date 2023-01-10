@@ -98,7 +98,7 @@ Material getMaterial(in MaterialDesc desc, vec3 worldSpaceNormal, vec3 worldSpac
     {
         vec2 metallicRoughness = texture(sampler2D(desc.metallicRoughnessMap), texCoord).gb;
         roughness = metallicRoughness.x;
-        roughness = roughness * roughness;
+        // roughness = roughness * roughness;
         metallic = metallicRoughness.y; 
     }
     outMaterial.roughness = roughness;

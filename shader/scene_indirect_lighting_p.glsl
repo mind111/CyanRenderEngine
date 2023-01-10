@@ -219,11 +219,13 @@ vec3 calcSkyLight(SkyLight inSkyLight, in Material material, vec3 worldSpacePosi
     // reflection
     vec3 reflectionDirection = -reflect(worldSpaceViewDirection, material.normal);
     vec3 BRDF = texture(sampler2D(inSkyLight.BRDFLookupTexture), vec2(ndotv, material.roughness)).rgb; 
-    vec3 incidentRadiance = textureLod(samplerCube(skyLight.reflection), reflectionDirection, material.roughness * 10.f).rgb;
-    // radiance += incidentRadiance * (f0 * BRDF.r + BRDF.g);
+    vec3 incidentRadiance = textureLod(samplerCube(skyLight.reflection), reflectionDirection, material.roughness * log2(textureSize(skyLight.reflection, 0).x)).rgb;
+    radiance += incidentRadiance * (f0 * BRDF.r + BRDF.g);
 
     return radiance;
 }
+
+uniform float indirectIrradianceEnabled;
 
 void main() 
 {
@@ -245,5 +247,8 @@ void main()
     material.occlusion = 1.f;
     
     outRadiance = calcSkyLight(skyLight, material, worldSpacePosition);
-    outRadiance += texture(sceneAlbedo, psIn.texCoord0).rgb * texture(indirectIrradiance, psIn.texCoord0).rgb;
+    if (indirectIrradianceEnabled > 0.f)
+    {
+		outRadiance += texture(sceneAlbedo, psIn.texCoord0).rgb * texture(indirectIrradiance, psIn.texCoord0).rgb;
+	}
 }

@@ -23,14 +23,16 @@ namespace Cyan
     // todo: differentiate import...() from load...(), import refers to importing raw scene data, load refers to loading serialized binary
     class AssetManager {
     public:
-        struct DefaultTextures {
+        struct DefaultTextures 
+        {
             Texture2DRenderable* checkerDark = nullptr;
             Texture2DRenderable* checkerOrange = nullptr;
             Texture2DRenderable* gridDark = nullptr;
             Texture2DRenderable* gridOrange = nullptr;
         } m_defaultTextures;
 
-        struct DefaultShapes {
+        struct DefaultShapes 
+        {
             Mesh* fullscreenQuad = nullptr;
             Mesh* quad = nullptr;
             Mesh* unitCubeMesh = nullptr;
@@ -232,10 +234,12 @@ namespace Cyan
             return nullptr;
         }
 
-        static Material& createMaterial(const char* name) {
+        static Material& createMaterial(const char* name) 
+        {
             std::string key = std::string(name);
             auto entry = singleton->m_materialMap.find(key);
-            if (entry == singleton->m_materialMap.end()) {
+            if (entry == singleton->m_materialMap.end()) 
+            {
                 Material matl = { };
                 matl.name = std::string(name);
                 singleton->m_materialMap.insert({ key, matl });

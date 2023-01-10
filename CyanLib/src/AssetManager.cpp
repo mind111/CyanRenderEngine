@@ -583,10 +583,12 @@ namespace Cyan {
 
                     auto& gltfMaterial = model.materials[primitive.material];
                     auto pbr = gltfMaterial.pbrMetallicRoughness;
-                    if (gltfMaterial.name.empty()) {
-                        matlName = std::string("material_%d", primitive.material);
+                    if (gltfMaterial.name.empty()) 
+                    {
+                        matlName = std::string("material_") + std::to_string(primitive.material);
                     }
-                    else {
+                    else 
+                    {
                         matlName = gltfMaterial.name;
                     }
                     Material& matl = createMaterial(matlName.c_str());
@@ -740,7 +742,7 @@ namespace Cyan {
 
     Cyan::Mesh* AssetManager::importGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh) 
     {
-        char timerName[64] = { };
+        char timerName[128] = { };
         sprintf_s(timerName, "importing mesh %s", gltfMesh.name.c_str());
         ScopedTimer timer(timerName, true);
         std::vector<ISubmesh*> submeshes;

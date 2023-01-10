@@ -398,6 +398,7 @@ namespace Cyan
                 ImGui::Text("Indirect Lighting");
                 ImGui::Checkbox("Ambient Occlusion", &renderer->m_settings.bSSAOEnabled);
                 ImGui::Checkbox("Bent Normal", &renderer->m_settings.bBentNormalEnabled);
+                ImGui::Checkbox("Indirect Irradiance", &renderer->m_settings.bIndirectIrradianceEnabled);
             }
             if (ImGui::CollapsingHeader("Screen Space Ray Tracing", ImGuiTreeNodeFlags_DefaultOpen))
             {
@@ -411,6 +412,13 @@ namespace Cyan
                     renderer->debugCoord = glm::vec2(debugCoord[0], debugCoord[1]);
                     ImGui::Checkbox("Fix Debug Ray", &renderer->bFixDebugRay);
                 }
+                ImGui::Text("Spatial Reuse Kernel Radius:"); 
+                ImGui::SameLine();
+                ImGui::SliderFloat("##Spatial Reuse Kernel Radius:", &renderer->m_ssgi.reuseKernelRadius, 0.f, 1.f);
+
+                ImGui::Text("Spatial Reuse Sample Count:"); 
+                ImGui::SameLine();
+                ImGui::SliderInt("##Spatial Reuse Sample Count:", &renderer->m_ssgi.numReuseSamples, 1, 8);
             }
             if (ImGui::CollapsingHeader("Post Processing"))
             {

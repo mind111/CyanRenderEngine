@@ -55,6 +55,10 @@ namespace Cyan {
                 spec.height = resolution.y;
                 spec.type = TEX_2D;
                 spec.pixelFormat = PF_RGB16F;
+
+                ITextureRenderable::Parameter params = { };
+                params.magnificationFilter = FM_POINT;
+                params.minificationFilter = FM_POINT;
                 color = new Texture2DRenderable("SceneColor", spec);
             }
             // g-buffer
@@ -65,6 +69,7 @@ namespace Cyan {
                     spec.width = resolution.x;
                     spec.height = resolution.y;
                     spec.pixelFormat = PF_RGB32F;
+
                     ITextureRenderable::Parameter params = { };
                     params.magnificationFilter = FM_POINT;
                     params.minificationFilter = FM_POINT;
@@ -77,8 +82,12 @@ namespace Cyan {
                     spec.height = resolution.y;
                     spec.type = TEX_2D;
                     spec.pixelFormat = PF_RGB16F;
-                    gBuffer.albedo = new Texture2DRenderable("Albedo", spec);
-                    gBuffer.metallicRoughness = new Texture2DRenderable("MetallicRoughness", spec);
+
+                    ITextureRenderable::Parameter params = { };
+                    params.magnificationFilter = FM_POINT;
+                    params.minificationFilter = FM_POINT;
+                    gBuffer.albedo = new Texture2DRenderable("Albedo", spec, params);
+                    gBuffer.metallicRoughness = new Texture2DRenderable("MetallicRoughness", spec, params);
                 }
             }
             // Hi-Z
@@ -108,10 +117,15 @@ namespace Cyan {
                 spec.height = resolution.y;
                 spec.type = TEX_2D;
                 spec.pixelFormat = PF_RGB16F;
-                ao = new Texture2DRenderable("SSAO", spec);
-                bentNormal = new Texture2DRenderable("SSBN", spec);
-                indirectLighting = new Texture2DRenderable("IndirectLighting", spec);
-                irradiance = new Texture2DRenderable("Irradiance", spec);
+
+                ITextureRenderable::Parameter params = { };
+                params.magnificationFilter = FM_POINT;
+                params.minificationFilter = FM_POINT;
+
+                ao = new Texture2DRenderable("SSAO", spec, params);
+                bentNormal = new Texture2DRenderable("SSBN", spec, params);
+                indirectLighting = new Texture2DRenderable("IndirectLighting", spec, params);
+                irradiance = new Texture2DRenderable("Irradiance", spec, params);
             }
 
             Renderer::get()->registerVisualization(std::string("SceneTextures"), color);
@@ -524,7 +538,7 @@ namespace Cyan {
         {
             visualizeSSRT(gBuffer.depth, gBuffer.normal);
         }
-        m_ssgi.render(m_sceneTextures.ao, m_sceneTextures.bentNormal, m_sceneTextures.irradiance, m_sceneTextures.gBuffer, m_sceneTextures.HiZ, m_sceneTextures.directDiffuseLighting);
+        m_ssgi.renderEx(m_sceneTextures.ao, m_sceneTextures.bentNormal, m_sceneTextures.irradiance, m_sceneTextures.gBuffer, m_sceneTextures.HiZ, m_sceneTextures.directDiffuseLighting);
 
         CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
         CreatePS(ps, "SceneIndirectLightingPass", SHADER_SOURCE_PATH "scene_indirect_lighting_p.glsl");
@@ -539,43 +553,31 @@ namespace Cyan {
             ps->setTexture("sceneNormal", gBuffer.normal);
             ps->setTexture("sceneAlbedo", gBuffer.albedo);
             ps->setTexture("sceneMetallicRoughness", gBuffer.metallicRoughness);
-            ps->setTexture("indirectIrradiance", m_sceneTextures.irradiance);
             // setup ssao
-            if (m_settings.bSSAOEnabled)
+            if (m_sceneTextures.ao)
             {
-                if (m_sceneTextures.ao)
+                auto ssao = m_sceneTextures.ao->glHandle;
+                if (glIsTextureHandleResidentARB(ssao) == GL_FALSE)
                 {
-                    auto ssao = m_sceneTextures.ao->glHandle;
-                    if (glIsTextureHandleResidentARB(ssao) == GL_FALSE)
-                    {
-                        glMakeTextureHandleResidentARB(ssao);
-                    }
-                    ps->setUniform("ssaoTextureHandle", ssao);
-                    ps->setUniform("ssaoEnabled", 1.f);
+                    glMakeTextureHandleResidentARB(ssao);
                 }
+                ps->setUniform("ssaoTextureHandle", ssao);
             }
-            else
+            ps->setUniform("ssaoEnabled", m_settings.bSSAOEnabled && m_sceneTextures.ao ? 1.f : 0.f);
+            // setup ssbn
+            if (m_sceneTextures.bentNormal)
             {
-                ps->setUniform("ssaoEnabled", 0.f);
-            }
-            if (m_settings.bBentNormalEnabled)
-            {
-                // setup ssbn
-                if (m_sceneTextures.bentNormal)
+                auto ssbn = m_sceneTextures.bentNormal->glHandle;
+                if (glIsTextureHandleResidentARB(ssbn) == GL_FALSE)
                 {
-                    auto ssbn = m_sceneTextures.bentNormal->glHandle;
-                    if (glIsTextureHandleResidentARB(ssbn) == GL_FALSE)
-                    {
-                        glMakeTextureHandleResidentARB(ssbn);
-                    }
-                    ps->setUniform("ssbnTextureHandle", ssbn);
-                    ps->setUniform("ssbnEnabled", 1.f);
+                    glMakeTextureHandleResidentARB(ssbn);
                 }
+                ps->setUniform("ssbnTextureHandle", ssbn);
             }
-            else
-            {
-                ps->setUniform("ssbnEnabled", 0.f);
-            }
+            ps->setUniform("ssbnEnabled", m_settings.bBentNormalEnabled && m_sceneTextures.bentNormal ? 1.f : 0.f);
+            // setup indirect irradiance
+            ps->setTexture("indirectIrradiance", m_sceneTextures.irradiance);
+            ps->setUniform("indirectIrradianceEnabled", m_settings.bIndirectIrradianceEnabled ? 1.f : 0.f);
 
             // sky light
             /* note
@@ -1024,7 +1026,7 @@ namespace Cyan {
                 auto blueNoiseTexture = AssetManager::getAsset<Texture2DRenderable>("BlueNoise_1024x1024");
                 ps->setTexture("blueNoiseTexture", blueNoiseTexture);
                 ps->setTexture("directLightingBuffer", inDirectDiffuseBuffer);
-                ps->setUniform("numSamples", kNumSamples);
+                ps->setUniform("numSamples", (i32)kNumSamples);
 
                 glBindImageTexture(0, hitBuffer.position->getGpuObject(), 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
                 glBindImageTexture(1, hitBuffer.normal->getGpuObject(), 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
@@ -1045,6 +1047,10 @@ namespace Cyan {
                     ps->setTexture("hitPositionBuffer", hitBuffer.position);
                     ps->setTexture("hitNormalBuffer", hitBuffer.normal);
                     ps->setTexture("hitRadianceBuffer", hitBuffer.radiance);
+                    auto blueNoiseTexture = AssetManager::getAsset<Texture2DRenderable>("BlueNoise_1024x1024");
+                    ps->setTexture("blueNoiseTexture", blueNoiseTexture);
+                    ps->setUniform("reuseKernelRadius", reuseKernelRadius);
+                    ps->setUniform("numReuseSamples", numReuseSamples);
                 }
             );
         }
