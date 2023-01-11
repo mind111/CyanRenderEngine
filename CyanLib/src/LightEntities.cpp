@@ -9,15 +9,17 @@
 namespace Cyan
 {
     DirectionalLightEntity::DirectionalLightEntity(Scene* scene, const char* inName, const Transform& t, Entity* inParent)
-        : Entity(scene, inName, t, inParent, EntityFlag_kDynamic | EntityFlag_kVisible) {
-        directionalLightComponent = std::make_unique<DirectionalLightComponent>();
-        addComponent(directionalLightComponent.get());
+        : Entity(scene, inName, t, inParent, EntityFlag_kDynamic | EntityFlag_kVisible) 
+    {
+        directionalLightComponent = std::make_unique<DirectionalLightComponent>(this, "DirectionalLightComponent");
+        attachComponent(directionalLightComponent.get());
     }
     
     DirectionalLightEntity::DirectionalLightEntity(Scene* scene, const char* inName, const Transform& t, Entity* inParent, const glm::vec3& direction, const glm::vec4& colorAndIntensity, bool bCastShadow)
-        : Entity(scene, inName, t, inParent, EntityFlag_kDynamic | EntityFlag_kVisible) {
-        directionalLightComponent = std::make_unique<DirectionalLightComponent>(direction, colorAndIntensity, bCastShadow);
-        addComponent(directionalLightComponent.get());
+        : Entity(scene, inName, t, inParent, EntityFlag_kDynamic | EntityFlag_kVisible) 
+    {
+        directionalLightComponent = std::make_unique<DirectionalLightComponent>(this, "DirectionalLightComponent", direction, colorAndIntensity, bCastShadow);
+        attachComponent(directionalLightComponent.get());
     }
 
     void DirectionalLightEntity::update()

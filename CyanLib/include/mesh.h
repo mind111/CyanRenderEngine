@@ -144,7 +144,8 @@ namespace Cyan
         std::vector<ISubmesh*> submeshes;
     };
 
-    struct MeshInstance {
+    struct MeshInstance 
+    {
         MeshInstance(Mesh* base)
             : parent(base) {
             materials.resize(base->numSubmeshes());

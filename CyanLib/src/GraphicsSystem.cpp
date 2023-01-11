@@ -157,7 +157,6 @@ namespace Cyan
         glDebugMessageCallback(glErrorCallback, nullptr);
 
         m_ctx = std::make_unique<GfxContext>(m_glfwWindow);
-        m_sceneManager = std::make_unique<SceneManager>();
         m_assetManager = std::make_unique<AssetManager>();
         m_shaderManager = std::make_unique<ShaderManager>();
         m_renderer = std::make_unique<Renderer>(m_ctx.get(), windowWidth, windowHeight);
@@ -182,7 +181,8 @@ namespace Cyan
 
     }
 
-    void GraphicsSystem::update(Scene* scene) {
+    void GraphicsSystem::update(Scene* scene) 
+    {
         if (scene) {
             m_scene = scene;
         }
@@ -204,7 +204,7 @@ namespace Cyan
             spec.pixelFormat = PF_RGB16F;
             static Texture2DRenderable* frameOutput = new Texture2DRenderable("FrameOutput", spec);
 
-            if (auto camera = dynamic_cast<PerspectiveCamera*>(m_scene->camera->getCamera())) {
+            if (auto camera = dynamic_cast<PerspectiveCamera*>(m_scene->m_mainCamera->getCamera())) {
                 SceneView mainSceneView(*m_scene, *camera,
                     [](Entity* entity) {
                         return entity->getProperties() | EntityFlag_kVisible;

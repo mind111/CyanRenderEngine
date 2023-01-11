@@ -81,7 +81,8 @@ namespace Cyan
         BoundingBox3D viewVolume;
     };
 
-    struct CameraComponent : public Component {
+    struct CameraComponent : public Component 
+    {
         enum class ProjectionType
         {
             kPerspective,
@@ -89,36 +90,38 @@ namespace Cyan
             kInvalid
         } projectionType = ProjectionType::kPerspective;
 
-        CameraComponent(const glm::vec3& inPosition, const glm::vec3& inLookAt, const glm::vec3& inWorldUp, f32 inFov, f32 inN, f32 inF, f32 inAspectRatio)
-            : projectionType(ProjectionType::kPerspective)
+        CameraComponent(Entity* owner, const char* name, const glm::vec3& inPosition, const glm::vec3& inLookAt, const glm::vec3& inWorldUp, f32 inFov, f32 inN, f32 inF, f32 inAspectRatio)
+            : Component(owner, name), projectionType(ProjectionType::kPerspective)
         {
-            cameraPtr = std::make_unique<PerspectiveCamera>(inPosition, inLookAt, inWorldUp, inFov, inN, inF, inAspectRatio);
+            camera = std::make_unique<PerspectiveCamera>(inPosition, inLookAt, inWorldUp, inFov, inN, inF, inAspectRatio);
         }
 
-        CameraComponent(const glm::vec3& inPosition, const glm::vec3& inLookAt, const glm::vec3& inWorldUp, const BoundingBox3D& inViewAABB)
-            : projectionType(ProjectionType::kOrthographic)
+        CameraComponent(Entity* owner, const char* name, const glm::vec3& inPosition, const glm::vec3& inLookAt, const glm::vec3& inWorldUp, const BoundingBox3D& inViewAABB)
+            : Component(owner, name), projectionType(ProjectionType::kOrthographic)
         {
-            cameraPtr = std::make_unique<OrthographicCamera>(inPosition, inLookAt, inWorldUp, inViewAABB);
+            camera = std::make_unique<OrthographicCamera>(inPosition, inLookAt, inWorldUp, inViewAABB);
         }
 
-        ICamera* getCamera() { return cameraPtr.get(); }
+        ICamera* getCamera() { return camera.get(); }
 
-        const glm::mat4& view() { return cameraPtr->view(); }
-        const glm::mat4& projection() { return cameraPtr->projection(); }
+        const glm::mat4& view() { return camera->view(); }
+        const glm::mat4& projection() { return camera->projection(); }
 
     private:
-        std::unique_ptr<ICamera> cameraPtr;
+        std::unique_ptr<ICamera> camera;
     };
 
     // todo: camera's lookAt should be determined from camera's facing direction (forward vector)
-    struct CameraEntity : public Entity
+    class CameraEntity : public Entity
     {
+    public:
         // perspective
         CameraEntity(Scene* scene, const char* inName, const Transform& t, const glm::vec3& inLookAt, const glm::vec3& inWorldUp,f32 inFov, f32 inN, f32 inF, f32 inAspectRatio, Entity* inParent = nullptr, u32 inProperties = (EntityFlag_kDynamic))
             : Entity(scene, inName, t, inParent, inProperties)
         {
             glm::vec3 position = t.m_translate;
-            cameraComponentPtr = std::make_unique<CameraComponent>(position, inLookAt, inWorldUp, inFov, inN, inF, inAspectRatio);
+            cameraComponent = std::make_unique<CameraComponent>(this, "PerspectiveCameraComponent", position, inLookAt, inWorldUp, inFov, inN, inF, inAspectRatio);
+            attachComponent(cameraComponent.get());
         }
 
         // ortho
@@ -126,7 +129,8 @@ namespace Cyan
             : Entity(scene, inName, t, inParent, inProperties)
         {
             glm::vec3 position = t.m_translate;
-            cameraComponentPtr = std::make_unique<CameraComponent>(position, inLookAt, inWorldUp, inViewAABB);
+            cameraComponent = std::make_unique<CameraComponent>(this, "OrthographicCameraComponent", position, inLookAt, inWorldUp, inViewAABB);
+            attachComponent(cameraComponent.get());
         }
 
         /* Entity interface */
@@ -135,9 +139,9 @@ namespace Cyan
 
         }
 
-        const glm::mat4& view() { return cameraComponentPtr->view(); }
-        const glm::mat4& projection() { return cameraComponentPtr->projection(); }
-        ICamera* getCamera() { return cameraComponentPtr->getCamera(); }
+        const glm::mat4& view() { return cameraComponent->view(); }
+        const glm::mat4& projection() { return cameraComponent->projection(); }
+        ICamera* getCamera() { return cameraComponent->getCamera(); }
 
         /* Camera movements */
         void moveForward()
@@ -168,6 +172,6 @@ namespace Cyan
         void zoom(f32 distance);
 
     private:
-        std::unique_ptr<CameraComponent> cameraComponentPtr = nullptr;
+        std::unique_ptr<CameraComponent> cameraComponent = nullptr;
     };
 }

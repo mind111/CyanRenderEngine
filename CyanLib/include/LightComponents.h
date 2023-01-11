@@ -6,6 +6,12 @@ namespace Cyan
 {
     struct ILightComponent : public Component
     {
+        ILightComponent(Entity* owner, const char* name) 
+            : Component(owner, name)
+        { 
+
+        }
+
         /* Component interface */
         virtual const char* getTag() override { return  "ILightComponent"; }
     };
@@ -17,8 +23,16 @@ namespace Cyan
         virtual void render() override { }
         virtual const char* getTag() override { return "DirectionalLightComponent"; }
 
-        DirectionalLightComponent() { }
-        DirectionalLightComponent(const glm::vec3 direction, const glm::vec4& colorAndIntensity, bool bCastShadow, DirectionalLight::ShadowMap algorithm = DirectionalLight::ShadowMap::kCSM) { 
+        DirectionalLightComponent(Entity* owner, const char* name) 
+            : ILightComponent(owner, name)
+        { 
+
+        }
+
+        DirectionalLightComponent(Entity* owner, const char* name, const glm::vec3 direction, const glm::vec4& colorAndIntensity, bool bCastShadow, DirectionalLight::ShadowMap algorithm = DirectionalLight::ShadowMap::kCSM) 
+            : ILightComponent(owner, name)
+        { 
+
             switch (algorithm) {
             case DirectionalLight::ShadowMap::kBasic:
                 directionalLight = std::make_shared<DirectionalLight>(direction, colorAndIntensity, bCastShadow);
@@ -44,6 +58,12 @@ namespace Cyan
 
     struct SkyLightComponent : public ILightComponent
     {
+        SkyLightComponent(Entity* owner, const char* name)
+            : ILightComponent(owner, name)
+        {
+
+        }
+
         /* Component interface */
         virtual void update() override { }
         virtual void render() override { }
@@ -54,6 +74,12 @@ namespace Cyan
 
     struct PointLightComponent : public ILightComponent
     {
+        PointLightComponent(Entity* owner, const char* name)
+            : ILightComponent(owner, name)
+        {
+
+        }
+
         /* Component interface */
         virtual void update() override { }
         virtual void render() override { }

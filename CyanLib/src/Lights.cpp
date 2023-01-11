@@ -90,8 +90,10 @@ namespace Cyan {
             sprintf(cubemapName, "SkyLightCubemap%u", numInstances);
             srcCubemap = AssetManager::createTextureCube(cubemapName, cubemapSpec, cubemapParams);
 
-            irradianceProbe = std::unique_ptr<IrradianceProbe>(scene->createIrradianceProbe(srcCubemap, glm::uvec2(64)));
-            reflectionProbe = std::unique_ptr<ReflectionProbe>(scene->createReflectionProbe(srcCubemap));
+            // irradianceProbe = std::unique_ptr<IrradianceProbe>(scene->createIrradianceProbe(srcCubemap, glm::uvec2(64)));
+            // reflectionProbe = std::unique_ptr<ReflectionProbe>(scene->createReflectionProbe(srcCubemap));
+            irradianceProbe = std::make_unique<IrradianceProbe>(srcCubemap, glm::uvec2(64));
+            reflectionProbe = std::make_unique<ReflectionProbe>(srcCubemap);
         }
         else
         {

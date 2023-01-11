@@ -51,7 +51,7 @@ namespace Cyan
                 // todo: do the correct trigonometry to covert distance traveled in screen space into angle of camera rotation
                 float phi = mouseCursorChange.x * kCameraOrbitSpeed; 
                 float theta = mouseCursorChange.y * kCameraOrbitSpeed;
-                m_scene->camera->orbit(phi, theta);
+                m_scene->m_mainCamera->orbit(phi, theta);
             }
         });
 
@@ -77,7 +77,7 @@ namespace Cyan
 
         m_IOSystem->addIOEventListener<Cyan::MouseWheelEvent>([this](f64 xOffset, f64 yOffset) {
             const f32 speed = 0.3f;
-            m_scene->camera->zoom(speed * yOffset);
+            m_scene->m_mainCamera->zoom(speed * yOffset);
         });
 
         m_IOSystem->addIOEventListener<Cyan::KeyEvent>([this](i32 key, i32 action) {
@@ -86,25 +86,25 @@ namespace Cyan
             case GLFW_KEY_W:
             {
                 if (action == CYAN_PRESS || action == GLFW_REPEAT)
-                    m_scene->camera->moveForward();
+                    m_scene->m_mainCamera->moveForward();
                 break;
             }
             case GLFW_KEY_A:
             {
                 if (action == CYAN_PRESS || action == GLFW_REPEAT)
-                    m_scene->camera->moveLeft();
+                    m_scene->m_mainCamera->moveLeft();
                 break;
             }
             case GLFW_KEY_S:
             {
                 if (action == CYAN_PRESS || action == GLFW_REPEAT)
-                    m_scene->camera->moveBack();
+                    m_scene->m_mainCamera->moveBack();
                 break;
             }
             case GLFW_KEY_D:
             {
                 if (action == CYAN_PRESS || action == GLFW_REPEAT)
-                    m_scene->camera->moveRight();
+                    m_scene->m_mainCamera->moveRight();
                 break;
             }
             default:
@@ -133,7 +133,7 @@ namespace Cyan
                 void render()
                 {
                     Entity* highlightedEntity = nullptr;
-                    ImGui::Text(scene->name.c_str());
+                    ImGui::Text(scene->m_name.c_str());
                     if (ImGui::BeginTable("##SceneTable", 2, flags, ImVec2(ImGui::GetWindowContentRegionWidth(), 100.f)))
                     {
                         ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_NoHide);
@@ -201,7 +201,7 @@ namespace Cyan
             }; 
 
             // todo: if we want to support changing active scene dynamically, then this cannot be static 
-            static EntityTable entityTable(scene, scene->rootEntity);
+            static EntityTable entityTable(scene, scene->m_rootEntity);
             auto highlightedEntity = entityTable.highlightedEntity;
             if (ImGui::CollapsingHeader("Scene Layout", ImGuiTreeNodeFlags_DefaultOpen))
             {
@@ -231,9 +231,9 @@ namespace Cyan
                                     owner = inOwner;
                                 }
 
-                                SceneComponent* render()
+                                Component* render()
                                 {
-                                    SceneComponent* highlightedComponent = nullptr;
+                                    Component* highlightedComponent = nullptr;
                                     ImGui::Text("%s", owner->name.c_str());
                                     if (ImGui::BeginTable("##SceneComponentTable", 2, flags, ImVec2(ImGui::GetWindowContentRegionWidth(), 100.f)))
                                     {
@@ -248,21 +248,21 @@ namespace Cyan
                                     return highlightedComponent;
                                 }
 
-                                static SceneComponent* renderComponent(SceneComponent* component)
+                                static Component* renderComponent(Component* component)
                                 {
-                                    SceneComponent* highlightedComponent = nullptr;
+                                    Component* highlightedComponent = nullptr;
                                     if (component)
                                     {
                                         ImGui::TableNextRow();
                                         ImGui::TableNextColumn();
-                                        if (!component->childs.empty())
+                                        if (!component->children.empty())
                                         {
                                             bool open = ImGui::TreeNodeEx(component->name.c_str(), ImGuiTreeNodeFlags_SpanFullWidth);
                                             ImGui::TableNextColumn();
                                             ImGui::TextColored(ImVec4(1.0, 1.0, 1.0, 0.2), "SceneComponent");
                                             if (open)
                                             {
-                                                for (auto child : component->childs)
+                                                for (auto child : component->children)
                                                 {
                                                     renderComponent(child);
                                                 }
@@ -487,7 +487,7 @@ namespace Cyan
         m_graphicsSystem->update(m_scene);
 
         // tick
-        for (auto entity : m_scene->entities)
+        for (auto entity : m_scene->m_entities)
         {
             entity->update();
         }

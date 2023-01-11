@@ -4,88 +4,34 @@
 
 namespace Cyan
 {
-    void SceneComponent::attachChild(SceneComponent* child)
+    SceneComponent::SceneComponent(Entity* inOwner, const char* inName, const Transform& inTransform)
+        : Component(inOwner, inName), m_localTransform(inTransform), m_worldTransform()
     {
-        child->onAttachTo(this);
-        childs.push_back(child);
     }
 
-    void SceneComponent::attachIndirectChild(SceneComponent* inChild)
+    SceneComponent::SceneComponent(Entity* inOwner, Component* inParent, const char* inName, const Transform& inTransform)
+        : Component(inOwner, inParent, inName), m_localTransform(inTransform), m_worldTransform()
     {
-        inChild->onAttachTo(this);
-        indirectChilds.push_back(inChild);
-    }
-
-    void SceneComponent::onAttachTo(SceneComponent* inParent)
-    {
-        if (parent)
-        {
-            parent->removeChild(this);
-        }
-        parent = inParent;
-    }
-
-    void SceneComponent::removeChild(SceneComponent* inChild)
-    {
-        i32 found = -1;
-        i32 index = 0;
-        for (i32 i = 0; i < childs.size(); ++i)
-        {
-            if (childs[i]->name == inChild->name)
-            {
-                found = index;
-                break;
-            }
-        }
-        if (found >= 0)
-        {
-            childs[found]->onBeingRemoved();
-            childs.erase(childs.begin() + found);
-        }
-    }
-
-    void SceneComponent::removeIndirectChild(SceneComponent* inChild)
-    {
-        i32 found = -1;
-        i32 index = 0;
-        for (i32 i = 0; i < indirectChilds.size(); ++i)
-        {
-            if (indirectChilds[i]->name == inChild->name)
-            {
-                found = index;
-                break;
-            }
-        }
-        if (found >= 0)
-        {
-            indirectChilds[found]->onBeingRemoved();
-            indirectChilds.erase(indirectChilds.begin() + found);
-        }
-    }
-
-    void SceneComponent::onBeingRemoved()
-    {
-        parent = nullptr;
     }
 
     const Transform& SceneComponent::getLocalTransform()
     {
-        return m_scene->localTransformPool.getObject(localTransform);
+        return m_localTransform;
     }
 
     const Transform& SceneComponent::getWorldTransform()
     {
-        return m_scene->globalTransformPool.getObject(globalTransform);
+        return m_worldTransform;
     }
 
     const glm::mat4& SceneComponent::getLocalTransformMatrix()
     {
-        return m_scene->localTransformMatrixPool.getObject(localTransform);
+        return m_localTransform.toMatrix();
     }
 
     const glm::mat4& SceneComponent::getWorldTransformMatrix()
     {
-        return m_scene->globalTransformMatrixPool.getObject(globalTransform);
+        return m_worldTransform.toMatrix();
     }
 
 #if 0
@@ -107,10 +53,6 @@ namespace Cyan
         }
     }
 #endif
-
-    SceneComponent* SceneComponent::find(const char* name) {
-        return treeBFS<SceneComponent>(this, name);
-    }
 
     void MeshComponent::setMaterial(Material* material) {
         meshInst->setMaterial(material);

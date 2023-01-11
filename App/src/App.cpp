@@ -4,16 +4,16 @@
 #include "Scene.h"
 #include "RayTracingScene.h"
 
-class IrradianceCachingApp : public Cyan::DefaultApp
+class TheGame : public Cyan::DefaultApp
 {
 public:
-    IrradianceCachingApp(u32 appWindowWidth, u32 appWindowHeight)
+    TheGame(u32 appWindowWidth, u32 appWindowHeight)
         : DefaultApp(appWindowWidth, appWindowHeight)
     {
 
     }
 
-    ~IrradianceCachingApp() { }
+    ~TheGame() { }
 
     virtual void customInitialize() override
     {
@@ -80,7 +80,7 @@ private:
 // entry point
 int main()
 {
-    IrradianceCachingApp* app = new IrradianceCachingApp(1024, 1024);
+    TheGame* app = new TheGame(1024, 1024);
     app->initialize();
     app->run();
     app->deinitialize();

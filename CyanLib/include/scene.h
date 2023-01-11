@@ -18,10 +18,13 @@
 #include "Lights.h"
 #include "StaticMeshEntity.h"
 
-namespace Cyan {
+namespace Cyan 
+{
     struct SceneComponent;
 
-    struct Scene {
+    class Scene 
+    {
+    public:
         Scene(const char* sceneName, f32 cameraAspectRatio);
 
         void update();
@@ -30,8 +33,8 @@ namespace Cyan {
         Entity* createEntity(const char* name, const Transform& transform, Entity* inParent = nullptr, u32 properties = (EntityFlag_kDynamic | EntityFlag_kVisible | EntityFlag_kCastShadow));
         StaticMeshEntity* createStaticMeshEntity(const char* name, const Transform& transform, Mesh* inMesh, Entity* inParent = nullptr, u32 properties = (EntityFlag_kDynamic | EntityFlag_kVisible | EntityFlag_kCastShadow));
         // scene component
-        SceneComponent* createSceneComponent(const char* name, Transform transform);
-        MeshComponent* createMeshComponent(Mesh* mesh, Transform transform);
+        // SceneComponent* createSceneComponent(const char* name, Transform transform);
+        // MeshComponent* createMeshComponent(Mesh* mesh, Transform transform);
         // mesh instance
         MeshInstance* createMeshInstance(Cyan::Mesh* mesh);
         MeshInstance* createMeshInstance(const char* meshName);
@@ -39,14 +42,7 @@ namespace Cyan {
         CameraEntity* createPerspectiveCamera(const char* name, const Transform& transform, const glm::vec3& inLookAt, const glm::vec3& inWorldUp, f32 inFov, f32 inN, f32 inF, f32 inAspectRatio, Entity* inParent = nullptr, u32 properties = (EntityFlag_kDynamic));
 
         // lights
-        /**
-        * sun light
-        */
         DirectionalLightEntity* createDirectionalLight(const char* name, const glm::vec3& direction, const glm::vec4& colorAndIntensity);
-
-        /**
-        * sky light
-        */
         SkyLight* createSkyLight(const char* name, const glm::vec4& colorAndIntensity);
         SkyLight* createSkyLight(const char* name, const char* srcHDRI);
         SkyLight* createSkyLightFromSkybox(Skybox* srcSkybox);
@@ -60,9 +56,9 @@ namespace Cyan {
         Skybox* createSkybox(const char* name, const char* srcHDRIPath, const glm::uvec2& resolution);
 
         // getters
-        Entity* getEntity(u32 index) { return entities[index]; }
+        Entity* getEntity(u32 index) { return m_entities[index]; }
         Entity* getEntity(const char* name) {
-            for (auto& entity : entities) {
+            for (auto& entity : m_entities) {
                 if (strcmp(name, entity->name.c_str()) == 0) {
                     return entity;
                 }
@@ -70,20 +66,23 @@ namespace Cyan {
             return nullptr;
         }
 
-        static const u32 kMaxNumDirectionalLights = 1u;
-        static const u32 kMaxNumPointLights = 32u;
-        static const u32 kMaxNumSceneComponents = 2048u;
-
-        std::string name;
-        BoundingBox3D aabb;
-        Entity* rootEntity = nullptr;
-        std::vector<Entity*> entities;
-
+        std::string m_name;
+        BoundingBox3D m_aabb;
         /**
         * Currently active camera that will be used to render the scene, a scene can potentially
         * has multiple cameras but only one will be active at any moment.
         */
-        std::unique_ptr<CameraEntity> camera = nullptr;
+        std::unique_ptr<CameraEntity> m_mainCamera = nullptr;
+        // scene hierarchy
+        Entity* m_rootEntity = nullptr;
+        std::vector<Entity*> m_entities;
+        // todo: implement SkyLightEntity and SkyboxEntity, so that these two can be merged into "m_entities"
+        SkyLight* skyLight = nullptr;
+        Skybox* skybox = nullptr;
+#if 0
+        static const u32 kMaxNumDirectionalLights = 1u;
+        static const u32 kMaxNumPointLights = 32u;
+        static const u32 kMaxNumSceneComponents = 2048u;
 
         std::vector<std::shared_ptr<MeshInstance>> meshInstances;
         std::vector<SceneComponent*> sceneComponents;
@@ -95,17 +94,6 @@ namespace Cyan {
         ObjectPool<Transform, kMaxNumSceneComponents> globalTransformPool;
         ObjectPool<glm::mat4, kMaxNumSceneComponents> localTransformMatrixPool;
         ObjectPool<glm::mat4, kMaxNumSceneComponents> globalTransformMatrixPool;
-
-        SkyLight* skyLight = nullptr;
-        Skybox* skybox = nullptr;
-    };
-
-    class SceneManager : public Singleton<SceneManager> {
-    public:
-        SceneManager();
-
-        std::shared_ptr<Scene> importScene(const char* file, const char* name);
-        std::shared_ptr<Scene> createScene(const char* name) { }
-    private:
+#endif
     };
 }

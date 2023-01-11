@@ -446,6 +446,9 @@
     <ClCompile Include="src\ScreenSpaceRayTracing.cpp">
       <Filter>Source Files\Internal\SSRT</Filter>
     </ClCompile>
+    <ClCompile Include="src\Component.cpp">
+      <Filter>Source Files\Internal</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\ImGuizmo\LICENSE">

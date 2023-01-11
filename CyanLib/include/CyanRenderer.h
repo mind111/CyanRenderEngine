@@ -32,7 +32,7 @@ namespace Cyan
             Texture2DRenderable* dstRenderTexture = nullptr, 
                 const Viewport& dstViewport = { })
             : camera(inCamera), renderTexture(dstRenderTexture), viewport(dstViewport) {
-            for (auto entity : scene.entities) {
+            for (auto entity : scene.m_entities) {
                 if (selector(entity)) {
                     entities.push_back(entity);
                 }

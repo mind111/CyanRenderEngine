@@ -24,6 +24,7 @@ namespace Cyan
 
     void DefaultApp::update()
     {
+        // gEngine->update(m_scene.get());
         gEngine->update(m_scene.get());
         customUpdate();
     }

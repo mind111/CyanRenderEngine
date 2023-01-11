@@ -8,7 +8,6 @@
 #include "VertexBuffer.h"
 #include "Texture.h"
 #include "Shader.h"
-#include "Uniform.h"
 #include "RenderTarget.h"
 #include "Material.h"
 #include "LightProbe.h"

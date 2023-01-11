@@ -94,6 +94,7 @@
     <ClCompile Include="src\AssetManager.cpp" />
     <ClCompile Include="src\BVH.cpp" />
     <ClCompile Include="src\Camera.cpp" />
+    <ClCompile Include="src\Component.cpp" />
     <ClCompile Include="src\CyanAPI.cpp" />
     <ClCompile Include="src\CyanApp.cpp" />
     <ClCompile Include="src\CyanEngine.cpp" />

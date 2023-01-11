@@ -8,9 +8,8 @@ namespace Cyan
     StaticMeshEntity::StaticMeshEntity(Scene* scene, const char* inName, const Transform& t, Mesh* inMesh, Entity* inParent, u32 inProperties)
         : Entity(scene, inName, t, inParent, inProperties)
     {
-        meshComponentPtr = std::unique_ptr<MeshComponent>(scene->createMeshComponent(inMesh, Transform{ }));
-        attachSceneComponent(meshComponentPtr.get());
-        addComponent(meshComponentPtr.get());
+        staticMeshComponent = std::make_unique<MeshComponent>(this, "StaticMeshComponent", Transform{ }, inMesh);
+        attachComponent(staticMeshComponent.get());
     }
 
     void StaticMeshEntity::renderUI()
@@ -20,7 +19,7 @@ namespace Cyan
         */
         if (ImGui::CollapsingHeader("StaticMeshEntity", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            auto meshInst = meshComponentPtr->getAttachedMesh();
+            auto meshInst = staticMeshComponent->getAttachedMesh();
             auto mesh = meshInst->parent;
 
             // todo: mesh thumbnail
@@ -67,10 +66,10 @@ namespace Cyan
     }
 
     void StaticMeshEntity::setMaterial(Material* material) {
-        meshComponentPtr->setMaterial(material);
+        staticMeshComponent->setMaterial(material);
     }
 
     void StaticMeshEntity::setMaterial(Material* material, u32 index) {
-        meshComponentPtr->setMaterial(material, index);
+        staticMeshComponent->setMaterial(material, index);
     }
 }

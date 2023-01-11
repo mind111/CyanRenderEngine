@@ -8,7 +8,7 @@ namespace Cyan
         , normalBuffer("NormalBuffer")
         , materialBuffer("MaterialBuffer")
     {
-        if (auto perspectiveCamera = dynamic_cast<PerspectiveCamera*>(scene.camera->getCamera()))
+        if (auto perspectiveCamera = dynamic_cast<PerspectiveCamera*>(scene.m_mainCamera->getCamera()))
         {
             camera = *perspectiveCamera;
         }
@@ -20,7 +20,7 @@ namespace Cyan
         materials.emplace_back();
         auto defaultMaterial = materials.back();
 
-        for (auto entity : scene.entities)
+        for (auto entity : scene.m_entities)
         {
             if (auto staticMesh = dynamic_cast<StaticMeshEntity*>(entity))
             {

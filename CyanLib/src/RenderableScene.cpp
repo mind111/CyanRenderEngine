@@ -17,14 +17,17 @@ namespace Cyan
         , indexBuffer("IndexBuffer") 
         , submeshes("SubmeshBuffer") 
     {
-        for (auto meshInst : scene.meshInstances)
+        for (auto e : scene.m_entities)
         {
-            Mesh* mesh = meshInst->parent;
-            auto entry = meshMap.find(mesh->name);
-            if (entry == meshMap.end())
+            if (StaticMeshEntity* staticMeshEntity = dynamic_cast<StaticMeshEntity*>(e))
             {
-                meshMap.insert({ mesh->name, mesh });
-                meshes.push_back(mesh);
+                Mesh* mesh = staticMeshEntity->getMeshInstance()->parent;
+                auto entry = meshMap.find(mesh->name);
+                if (entry == meshMap.end())
+                {
+                    meshMap.insert({ mesh->name, mesh });
+                    meshes.push_back(mesh);
+                }
             }
         }
 
@@ -123,10 +126,10 @@ namespace Cyan
         if (!packedGeometry)
             packedGeometry = new PackedGeometry(*inScene);
 
-        aabb = inScene->aabb;
+        aabb = inScene->m_aabb;
 
         // todo: make this work with orthographic camera as well
-        PerspectiveCamera* inCamera = dynamic_cast<PerspectiveCamera*>(inScene->camera->getCamera());
+        PerspectiveCamera* inCamera = dynamic_cast<PerspectiveCamera*>(inScene->m_mainCamera->getCamera());
         camera = Camera(*inCamera);
 
         // build list of mesh instances, transforms, and lights

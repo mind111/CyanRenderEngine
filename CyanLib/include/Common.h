@@ -67,30 +67,6 @@ typedef int      i64;
 typedef float    f32;
 typedef double   f64;
 
-typedef u32      UniformHandle;
-
-// TODO: pass in custom comparator
-template <typename T>
-T* treeBFS(T* node, const char* name)
-{
-    std::queue<T*> queue;
-    queue.push(node);
-    while (!queue.empty())
-    {
-        T* node = queue.front();
-        queue.pop();
-        if (node->name == name)
-        {
-            return node;
-        }
-        for (T* child : node->childs)
-        {
-            queue.push(child);
-        }
-    }
-    return nullptr;
-}
-
 namespace Cyan
 {
     template <typename T>

@@ -6,39 +6,37 @@
 namespace Cyan
 {
     Entity::Entity(Scene* scene, const char* inName, const Transform& t, Entity* inParent, u32 inProperties)
-        : name(inName),
-        parent(inParent),
-        properties(inProperties)
+        : name(inName), parent(nullptr), properties(inProperties)
     {
-        rootSceneComponent = scene->createSceneComponent("SceneRoot", t);
-        rootSceneComponent->owner = this;
-        if (!parent)
+        rootSceneComponent = std::make_unique<SceneComponent>(this, "SceneRoot", t);
+        if (!inParent)
         {
-            if (scene->rootEntity)
+            if (scene->m_rootEntity)
             {
-                parent = scene->rootEntity;
+                scene->m_rootEntity->attach(this);
             }
             else
             {
-                scene->rootEntity = this;
+                scene->m_rootEntity = this;
             }
         }
-        if (parent)
+        else
         {
-            parent->attachChild(this);
+            inParent->attach(this);
         }
     }
 
     SceneComponent* Entity::getRootSceneComponent()
     {
-        return rootSceneComponent;
+        return rootSceneComponent.get();
     }
 
-    SceneComponent* Entity::getSceneComponent(const char* name)
+    Component* Entity::getComponent(const char* name)
     {
         return rootSceneComponent->find(name);
     }
 
+#if 0
     void Entity::attachSceneComponent(SceneComponent* child, const char* parentName)
     {
         if (parentName)
@@ -52,52 +50,68 @@ namespace Cyan
         }
         child->owner = this;
     }
+#endif
 
-    void Entity::attachChild(Entity* child)
+    void Entity::attachComponent(Component* component, const char* parentName)
     {
-        child->onAttachTo(this);
-        childs.push_back(child);
-    }
-
-    void Entity::onAttachTo(Entity* inParent)
-    {
-        /** Note:
-        * if 'this' entity already has a parent, need to notify the parent to move 'this' from its list of
-        * childs
-        */
-        if (parent)
+        if (parentName)
         {
-            parent->removeChild(this);
-        }
-        parent = inParent;
-        parent->rootSceneComponent->attachIndirectChild(rootSceneComponent);
-    }
-
-    void Entity::removeChild(Entity* inChild)
-    {
-        i32 found = -1;
-        i32 index = 0;
-        for (i32 i = 0; i < childs.size(); ++i)
-        {
-            if (childs[i]->name == inChild->name)
+            auto parent = rootSceneComponent->find(parentName);
+            if (parent)
             {
-                found = index;
-                break;
+                parent->attach(component);
+            }
+            else
+            {
+                assert(0);
             }
         }
-        if (found >= 0)
+        else
         {
-            childs[found]->onBeingRemoved();
-            childs.erase(childs.begin() + found);
+            rootSceneComponent->attach(component);
         }
     }
 
-    void Entity::onBeingRemoved()
+    void Entity::attach(Entity* child)
     {
-        parent->rootSceneComponent->removeIndirectChild(rootSceneComponent);
-        parent = nullptr;
+        childs.push_back(child);
+        if (child->parent)
+        {
+            child->parent->detach(child->name.c_str());
+        }
+        child->parent = this;
     }
 
+    void Entity::attachTo(Entity* parent)
+    {
+        parent->attach(this);
+    }
+
+    Entity* Entity::detach(const char* name)
+    {
+        Entity* found = nullptr;
+        if (!childs.empty())
+        {
+            i32 foundAt = -1;
+            for (i32 i = 0; i < childs.size(); ++i)
+            {
+                if (childs[i]->name == name)
+                {
+                    foundAt = i;
+                    found = childs[i];
+                    found->parent = nullptr;
+                    break;
+                }
+            }
+            if (foundAt >= 0)
+            {
+                childs.erase(childs.begin() + foundAt);
+            }
+        }
+        return found;
+    }
+
+#if 0
     void Entity::visit(const std::function<void(SceneComponent*)>& func)
     {
         std::queue<SceneComponent*> sceneComponents;
@@ -115,6 +129,7 @@ namespace Cyan
             }
         }
     }
+#endif
 
     i32 Entity::getChildIndex(const char* name)
     {
@@ -148,37 +163,6 @@ namespace Cyan
     void Entity::setLocalTransform(const Transform& transform)
     {
         rootSceneComponent->m_localTransform = transform;
-    }
-
-    void Entity::setMaterial(const char* meshComponentName, i32 submeshIndex, Cyan::Material* matl)
-    {
-        SceneComponent* sceneComponent = getSceneComponent(meshComponentName);
-        if (!sceneComponent)
-        {
-            return;
-        }
-        auto meshInst = sceneComponent->getAttachedMesh();
-        if (meshInst)
-        {
-            meshInst->setMaterial(matl, submeshIndex);
-        }
-    }
-
-    void Entity::setMaterial(const char* meshComponentName, Cyan::Material* matl)
-    {
-        SceneComponent* sceneComponent = getSceneComponent(meshComponentName);
-        if (!sceneComponent)
-        {
-            return;
-        }
-        auto meshInst = sceneComponent->getAttachedMesh();
-        if (meshInst)
-        {
-            for (u32 sm = 0; sm < meshInst->parent->numSubmeshes(); ++sm)
-            {
-                meshInst->setMaterial(matl, sm);
-            }
-        }
     }
 
     void transformRayToObjectSpace(glm::vec3& ro, glm::vec3& rd, glm::mat4& transform)

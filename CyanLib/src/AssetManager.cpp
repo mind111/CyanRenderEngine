@@ -335,7 +335,7 @@ namespace Cyan {
                     childInfo.get_to(childName);
                     if (Entity* child = scene->getEntity(childName.c_str()))
                     {
-                        entity->attachChild(child);
+                        entity->attach(child);
                     }
                     else
                     {
@@ -490,7 +490,6 @@ namespace Cyan {
 
     void AssetManager::importGltfNode(Scene* scene, tinygltf::Model& model, Entity* parent, tinygltf::Node& node) 
     {
-        auto sceneManager = SceneManager::get();
         bool isCamera = (node.camera > -1);
         bool hasMesh = (node.mesh > -1);
         bool hasSkin = (node.skin > -1);
@@ -910,7 +909,6 @@ namespace Cyan {
 
         tinygltf::Model model;
         std::string warn, err;
-        auto sceneManager = SceneManager::get();
 
         std::string path(filename);
         u32 found = path.find_last_of('.');

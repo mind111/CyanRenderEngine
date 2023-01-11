@@ -29,7 +29,6 @@ namespace Cyan
         GLFWwindow* getAppWindow() { return m_glfwWindow; }
         glm::uvec2 getAppWindowDimension() { return m_windowDimension; }
         Renderer* getRenderer() { return m_renderer.get(); }
-        SceneManager* getSceneManager() { return m_sceneManager.get(); }
         AssetManager* getAssetManager() { return m_assetManager.get(); }
 
         struct Settings {
@@ -37,7 +36,6 @@ namespace Cyan
         } m_settings;
 
     private:
-        std::unique_ptr<SceneManager> m_sceneManager;
         std::unique_ptr<AssetManager> m_assetManager;
         std::unique_ptr<Renderer> m_renderer;
         std::unique_ptr<ShaderManager> m_shaderManager;

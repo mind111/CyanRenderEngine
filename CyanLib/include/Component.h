@@ -1,14 +1,29 @@
 #pragma once
 
+#include <string>
+#include <vector>
+
 namespace Cyan
 {
-    // todo: how to customize a component's behavior? allow different instances of components have different behavior
-    // via binding function pointers directly to component or let entity to customize their upload() function, and it's entity's job to 
-    // customize the behavior of its component
+    struct Entity;
+
     struct Component
     {
+        Component(Entity* inOwner, const char* inName);
+        Component(Entity* inOwner, Component* inParent, const char* inName);
+
         virtual void update() { }
         virtual void render() { }
         virtual const char* getTag() { return "Component"; }
+        virtual Component* find(const char* inName) { return nullptr; }
+
+        virtual void attach(Component* child);
+        virtual void attachTo(Component* parent);
+        virtual Component* detach(const char* inName);
+
+        std::string name;
+        Entity* owner = nullptr;
+        Component* parent = nullptr;
+        std::vector<Component*> children;
     };
 }

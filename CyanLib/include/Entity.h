@@ -22,10 +22,6 @@ f32  transformHitFromObjectToWorldSpace(glm::vec3& objectSpaceHit, glm::mat4& tr
 
 namespace Cyan
 {
-    /** 
-    * every entity has to have a transform component, entity's transform component is represented by
-    'rootSceneComponent's transform.
-    */
     struct Entity
     {
         enum class Mobility
@@ -56,19 +52,23 @@ namespace Cyan
 
         u32 getProperties() { return properties; }
         SceneComponent* getRootSceneComponent();
-        SceneComponent* getSceneComponent(const char* name);
-        void attachSceneComponent(SceneComponent* inChild, const char* parent=nullptr);
+        Component* getComponent(const char* name);
+        // void attachSceneComponent(SceneComponent* inChild, const char* parent=nullptr);
+
+        void attachComponent(Component* component, const char* parentName=nullptr);
+        // todo: implement component detaching
 
         // bool castVisibilityRay(const glm::vec3& ro, const glm::vec3& rd, const glm::mat4& modelView);
         // struct RayCastInfo intersectRay(const glm::vec3& ro, const glm::vec3& rd, const glm::mat4& view);
 
-        void attachChild(Entity* child);
-        void onAttachTo(Entity* inParent);
-        void removeChild(Entity* child);
-        void onBeingRemoved();
+        void attach(Entity* child);
+        void attachTo(Entity* inParent);
+        Entity* detach(const char* name);
 
+#if 0
         // visitor
         void visit(const std::function<void(SceneComponent*)>& func);
+#endif
 
         // getters
         i32 getChildIndex(const char* name);
@@ -79,39 +79,36 @@ namespace Cyan
 
         // setters
         void setLocalTransform(const Transform& transform);
-        void setMaterial(const char* meshComponentName, Cyan::Material* matl);
-        void setMaterial(const char* meshComponentName, i32 submeshIndex, Cyan::Material* matl);
 
-        // e->getComponent<ILightComponent>();
+        // e.g: e->getComponent<ILightComponent>();
         template <typename ComponentType>
         std::vector<ComponentType*> getComponent()
         {
-            std::vector<ComponentType*> foundComponents;
-            for (auto component : components)
+            std::vector<ComponentType*> matchedComponents;
+            std::queue<Component*> q;
+            q.push(rootSceneComponent.get());
+            while (!q.empty())
             {
-                // todo: how bad is this dynamic_cast ...?
-                if (ComponentType* foundComponent = dynamic_cast<ComponentType*>(component))
+                auto c = q.front();
+                q.pop();
+                for (auto child : c->children)
                 {
-                    foundComponents.push_back(foundComponent);
+                    q.push(child);
+                }
+
+                if (ComponentType* matched = dynamic_cast<ComponentType*>(c))
+                {
+                    matchedComponents.push_back(matched);
                 }
             }
-            // avoid costly vector copy when return by value ...?
-            return foundComponents;
-        }
-
-        void addComponent(Cyan::Component* component)
-        {
-            components.push_back(component);
+            return matchedComponents;
         }
 
         std::string name;
         Entity* parent;
         std::vector<Entity*> childs;
-
-    private:
-        SceneComponent* rootSceneComponent;
+        std::unique_ptr<SceneComponent> rootSceneComponent;
         u32 properties;
-        std::vector<Cyan::Component*> components;
     };
 
     struct RayCastInfo

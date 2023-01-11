@@ -4,11 +4,13 @@
 #include "Entity.h"
 #include "SceneNode.h"
 
-namespace Cyan {
+namespace Cyan 
+{
     struct Scene;
     struct Material;
 
-    struct StaticMeshEntity : public Entity {
+    struct StaticMeshEntity : public Entity 
+    {
         /* Entity interface */
         virtual void update() override { }
         virtual const char* getTypeDesc() override { return "StaticMeshEntity"; }
@@ -23,11 +25,11 @@ namespace Cyan {
             u32 inProperties = (EntityFlag_kDynamic | EntityFlag_kVisible | EntityFlag_kCastShadow));
         ~StaticMeshEntity() { }
 
-        MeshInstance* getMeshInstance() { return meshComponentPtr->meshInst; }
+        MeshInstance* getMeshInstance() { return staticMeshComponent->meshInst.get(); }
 
         void setMaterial(Material* material);
         void setMaterial(Material* material, u32 index);
     private:
-        std::unique_ptr<MeshComponent> meshComponentPtr = nullptr;
+        std::unique_ptr<MeshComponent> staticMeshComponent = nullptr;
     };
 }
