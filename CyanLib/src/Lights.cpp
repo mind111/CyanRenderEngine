@@ -3,7 +3,8 @@
 #include "Camera.h"
 #include "Lights.h"
 
-namespace Cyan {
+namespace Cyan 
+{
     // helper function for converting world space AABB to light's view space
     BoundingBox3D calcLightSpaceAABB(const glm::vec3& inLightDirection, const BoundingBox3D& worldSpaceAABB)
     {
@@ -38,17 +39,20 @@ namespace Cyan {
         return lightSpaceAABB;
     }
 
-    void DirectionalLight::renderShadowMap(RenderableScene& scene, Renderer* renderer) {
+    void DirectionalLight::renderShadowMap(RenderableScene& scene, Renderer* renderer) 
+    {
         BoundingBox3D lightSpaceAABB = calcLightSpaceAABB(direction, scene.aabb);
         shadowMap->render(lightSpaceAABB, scene, renderer);
     }
 
-    void CSMDirectionalLight::renderShadowMap(RenderableScene& scene, Renderer* renderer) {
+    void CSMDirectionalLight::renderShadowMap(RenderableScene& scene, Renderer* renderer) 
+    {
         BoundingBox3D lightSpaceAABB = calcLightSpaceAABB(direction, scene.aabb);
         shadowMap->render(lightSpaceAABB, scene, renderer);
     }
 
-    GpuCSMDirectionalLight CSMDirectionalLight::buildGpuLight() {
+    GpuCSMDirectionalLight CSMDirectionalLight::buildGpuLight() 
+    {
         GpuCSMDirectionalLight light = { };
         light.direction = glm::vec4(direction, 0.f);
         light.colorAndIntensity = colorAndIntensity;
@@ -64,7 +68,8 @@ namespace Cyan {
 
     u32 SkyLight::numInstances = 0u;
 
-    SkyLight::SkyLight(Scene* scene, const glm::vec4& colorAndIntensity, const char* srcHDRI) {
+    SkyLight::SkyLight(Scene* scene, const glm::vec4& colorAndIntensity, const char* srcHDRI) 
+    {
         if (srcHDRI)
         {
             ITextureRenderable::Spec hdriSpec = { };

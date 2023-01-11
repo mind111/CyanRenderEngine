@@ -23,15 +23,16 @@ namespace Cyan
 
         virtual void initialize() override;
         virtual void deinitialize() override;
-        void update(Scene* scene);
-        void render();
+        void update();
+        void render(Scene* scene);
 
         GLFWwindow* getAppWindow() { return m_glfwWindow; }
         glm::uvec2 getAppWindowDimension() { return m_windowDimension; }
         Renderer* getRenderer() { return m_renderer.get(); }
         AssetManager* getAssetManager() { return m_assetManager.get(); }
 
-        struct Settings {
+        struct Settings 
+        {
             bool bSuperSampling = true;
         } m_settings;
 
@@ -41,9 +42,6 @@ namespace Cyan
         std::unique_ptr<ShaderManager> m_shaderManager;
         // LightMapManager* m_lightMapManager;
         // PathTracer*      m_pathTracer;
-
-        // active scene
-        Scene* m_scene = nullptr;
 
         std::unique_ptr<GfxContext> m_ctx;
         GLFWwindow* m_glfwWindow = nullptr;

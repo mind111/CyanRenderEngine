@@ -181,16 +181,15 @@ namespace Cyan
 
     }
 
-    void GraphicsSystem::update(Scene* scene) 
+    void GraphicsSystem::update() 
     {
-        if (scene) {
-            m_scene = scene;
-        }
-        m_scene->update();
+
     }
 
-    void GraphicsSystem::render() {
-        if (m_scene) {
+    void GraphicsSystem::render(Scene* scene) 
+    {
+        if (scene) 
+        {
             // clear default render target
             m_ctx->setRenderTarget(nullptr, { });
             m_ctx->clear();
@@ -204,15 +203,15 @@ namespace Cyan
             spec.pixelFormat = PF_RGB16F;
             static Texture2DRenderable* frameOutput = new Texture2DRenderable("FrameOutput", spec);
 
-            if (auto camera = dynamic_cast<PerspectiveCamera*>(m_scene->m_mainCamera->getCamera())) {
-                SceneView mainSceneView(*m_scene, *camera,
+            if (auto camera = dynamic_cast<PerspectiveCamera*>(scene->m_mainCamera->getCamera())) {
+                SceneView mainSceneView(*scene, *camera,
                     [](Entity* entity) {
                         return entity->getProperties() | EntityFlag_kVisible;
                     },
                     frameOutput, 
                     { 0, 0, frameOutput->width, frameOutput->height }
                 );
-                m_renderer->render(m_scene, mainSceneView);
+                m_renderer->render(scene, mainSceneView);
             }
             m_renderer->renderToScreen(frameOutput);
             m_renderer->renderUI();

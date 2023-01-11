@@ -32,6 +32,7 @@ namespace Cyan
         ));
     }
 
+    // todo: optimize this ...
     void Scene::update()
     {
         m_mainCamera->update();
@@ -96,54 +97,7 @@ namespace Cyan
                 }
             }
         }
-
-#if 0
-        // update scene's bounding box in world space
-        for (auto entity : m_entities)
-        {
-            std::queue<SceneComponent*> nodes;
-            nodes.push(entity->getRootSceneComponent());
-            while (!nodes.empty())
-            {
-                SceneComponent* node = nodes.front();
-                nodes.pop();
-                for (auto child : node->childs)
-                {
-                    nodes.push(child);
-                }
-                if (MeshInstance* meshInst = node->getAttachedMesh())
-                {
-                    glm::mat4 model = node->getWorldTransform().toMatrix();
-                    BoundingBox3D aabb = meshInst->getAABB(model);
-                    aabb.bound(aabb);
-                }
-            }
-        }
-#endif
     }
-
-#if 0
-    SceneComponent* Scene::createSceneComponent(const char* name, Transform transform)
-    {
-        SceneComponent* sceneComponent = new SceneComponent;
-        sceneComponent->m_scene = this;
-        sceneComponent->name = name;
-        sceneComponent->m_localTransform = transform;
-        sceneComponent->m_worldTransform = Transform();
-        return sceneComponent;
-    }
-
-    MeshComponent* Scene::createMeshComponent(Cyan::Mesh* mesh, Transform transform)
-    {
-        MeshComponent* meshComponent = new MeshComponent;
-        meshComponent->m_scene = this;
-        meshComponent->name = mesh->name;
-        meshComponent->meshInst = createMeshInstance(mesh);
-        meshComponent->m_localTransform = transform;
-        meshComponent->m_worldTransform = Transform();
-        return meshComponent;
-    }
-#endif
 
     Entity* Scene::createEntity(const char* name, const Transform& transform, Entity* inParent, u32 properties)
     {

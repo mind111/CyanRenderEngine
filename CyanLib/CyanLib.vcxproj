@@ -61,7 +61,7 @@
     <ClInclude Include="include\RenderableScene.h" />
     <ClInclude Include="include\RenderTarget.h" />
     <ClInclude Include="include\Scene.h" />
-    <ClInclude Include="include\SceneNode.h" />
+    <ClInclude Include="include\SceneComponent.h" />
     <ClInclude Include="include\ScreenSpaceRayTracing.h" />
     <ClInclude Include="include\Shader.h" />
     <ClInclude Include="include\ShaderStorageBuffer.h" />
@@ -130,7 +130,7 @@
     <ClCompile Include="src\RenderableScene.cpp" />
     <ClCompile Include="src\RenderTarget.cpp" />
     <ClCompile Include="src\Scene.cpp" />
-    <ClCompile Include="src\SceneNode.cpp" />
+    <ClCompile Include="src\SceneComponent.cpp" />
     <ClCompile Include="src\ScreenSpaceRayTracing.cpp" />
     <ClCompile Include="src\Shader.cpp" />
     <ClCompile Include="src\Shadow.cpp" />

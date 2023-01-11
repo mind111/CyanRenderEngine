@@ -5,7 +5,7 @@
 
 #include "glm.hpp"
 #include "scene.h"
-#include "SceneNode.h"
+#include "SceneComponent.h"
 #include "Shader.h"
 namespace Cyan
 {

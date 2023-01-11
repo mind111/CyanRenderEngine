@@ -1,5 +1,5 @@
 #include "Scene.h"
-#include "SceneNode.h"
+#include "SceneComponent.h"
 #include "Entity.h"
 
 namespace Cyan
@@ -34,31 +34,13 @@ namespace Cyan
         return m_worldTransform.toMatrix();
     }
 
-#if 0
-    // basic depth first traversal
-    void SceneNode::updateWorldTransform()
+    void MeshComponent::setMaterial(Material* material) 
     {
-        if (m_parent)
-        {
-            m_worldTransform.fromMatrix(m_parent->m_worldTransform.toMatrix() * m_localTransform.toMatrix());
-        }
-        else
-        {
-            // this node is a root node
-            m_worldTransform = m_localTransform;
-        }
-        for (auto* child : m_child)
-        {
-            child->updateWorldTransform();
-        }
-    }
-#endif
-
-    void MeshComponent::setMaterial(Material* material) {
         meshInst->setMaterial(material);
     }
 
-    void MeshComponent::setMaterial(Material* material, u32 submeshIndex) {
+    void MeshComponent::setMaterial(Material* material, u32 submeshIndex) 
+    {
         meshInst->setMaterial(material, submeshIndex);
     }
 }

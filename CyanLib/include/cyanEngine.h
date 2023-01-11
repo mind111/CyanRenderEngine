@@ -28,19 +28,14 @@ namespace Cyan
         // main interface
         void initialize();
         void deinitialize();
-        void update(Scene* scene);
-        void render();
+        void update();
+        void render(Scene* scene);
 
     private:
         static Engine* singleton;
-
         // systems
         std::unique_ptr<IOSystem> m_IOSystem;
         std::unique_ptr<GraphicsSystem> m_graphicsSystem;
-
-        // active scene
-        Scene* m_scene = nullptr;
-
         // stats
         f32 renderFrameTime = 0.0f;
     };

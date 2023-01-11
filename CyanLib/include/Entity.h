@@ -6,7 +6,7 @@
 #include "glm.hpp"
 #include "gtc/matrix_transform.hpp"
 #include "Node.h"
-#include "SceneNode.h"
+#include "SceneComponent.h"
 #include "Geometry.h"
 #include "Component.h"
 

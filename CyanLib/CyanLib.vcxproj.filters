@@ -150,7 +150,7 @@
     <ClInclude Include="include\Scene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\SceneNode.h">
+    <ClInclude Include="include\SceneComponent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\Shader.h">
@@ -341,7 +341,7 @@
     <ClCompile Include="src\Scene.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
-    <ClCompile Include="src\SceneNode.cpp">
+    <ClCompile Include="src\SceneComponent.cpp">
       <Filter>Source Files\Internal</Filter>
     </ClCompile>
     <ClCompile Include="src\Shader.cpp">

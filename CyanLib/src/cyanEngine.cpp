@@ -38,80 +38,6 @@ namespace Cyan
     {
         m_graphicsSystem->initialize();
         m_IOSystem->initialize();
-
-#if 1
-        // setup default I/O controls 
-        m_IOSystem->addIOEventListener<Cyan::MouseCursorEvent>([this](f64 xPos, f64 yPos) {
-            glm::dvec2 mouseCursorChange = m_IOSystem->getMouseCursorChange();
-            if (m_IOSystem->isMouseRightButtonDown())
-            {
-                // In radians per pixel 
-                const float kCameraOrbitSpeed = 0.005f;
-                const float kCameraRotateSpeed = 0.005f;
-                // todo: do the correct trigonometry to covert distance traveled in screen space into angle of camera rotation
-                float phi = mouseCursorChange.x * kCameraOrbitSpeed; 
-                float theta = mouseCursorChange.y * kCameraOrbitSpeed;
-                m_scene->m_mainCamera->orbit(phi, theta);
-            }
-        });
-
-        m_IOSystem->addIOEventListener<Cyan::MouseButtonEvent>([this](i32 button, i32 action) {
-            switch(button)
-            {
-                case CYAN_MOUSE_BUTTON_RIGHT:
-                {
-                    if (action == CYAN_PRESS)
-                    {
-                        m_IOSystem->mouseRightButtonDown();
-                    }
-                    else if (action == CYAN_RELEASE)
-                    {
-                        m_IOSystem->mouseRightButtonUp();
-                    }
-                    break;
-                }
-                default:
-                    break;
-            }
-        });
-
-        m_IOSystem->addIOEventListener<Cyan::MouseWheelEvent>([this](f64 xOffset, f64 yOffset) {
-            const f32 speed = 0.3f;
-            m_scene->m_mainCamera->zoom(speed * yOffset);
-        });
-
-        m_IOSystem->addIOEventListener<Cyan::KeyEvent>([this](i32 key, i32 action) {
-            switch (key)
-            {
-            case GLFW_KEY_W:
-            {
-                if (action == CYAN_PRESS || action == GLFW_REPEAT)
-                    m_scene->m_mainCamera->moveForward();
-                break;
-            }
-            case GLFW_KEY_A:
-            {
-                if (action == CYAN_PRESS || action == GLFW_REPEAT)
-                    m_scene->m_mainCamera->moveLeft();
-                break;
-            }
-            case GLFW_KEY_S:
-            {
-                if (action == CYAN_PRESS || action == GLFW_REPEAT)
-                    m_scene->m_mainCamera->moveBack();
-                break;
-            }
-            case GLFW_KEY_D:
-            {
-                if (action == CYAN_PRESS || action == GLFW_REPEAT)
-                    m_scene->m_mainCamera->moveRight();
-                break;
-            }
-            default:
-                break;
-            }
-        });
-#endif
     }
 
     static void drawSceneTab(Scene* scene)
@@ -470,11 +396,8 @@ namespace Cyan
         ImGui::EndChild();
     }
     
-    void Engine::update(Scene* scene) {
-        // set active scene
-        if (scene) {
-            m_scene = scene;
-        }
+    void Engine::update() 
+    {
         // todo: gather frame statistics
 
         // upload window title
@@ -484,20 +407,14 @@ namespace Cyan
         glfwSetWindowTitle(m_graphicsSystem->getAppWindow(), windowTitle);
 
         m_IOSystem->update();
-        m_graphicsSystem->update(m_scene);
-
-        // tick
-        for (auto entity : m_scene->m_entities)
-        {
-            entity->update();
-        }
+        m_graphicsSystem->update();
     }
 
-    void Engine::render()
+    void Engine::render(Scene* scene)
     {
         if (m_graphicsSystem) {
             ScopedTimer rendererTimer("Renderer Timer", false);
-            m_graphicsSystem->render();
+            m_graphicsSystem->render(scene);
             rendererTimer.end();
             renderFrameTime = rendererTimer.m_durationInMs;
         }
@@ -505,7 +422,7 @@ namespace Cyan
         /**     
         * render utility widgets(e.g: such as a scene outline window, entity details window)
         */ 
-        m_graphicsSystem->getRenderer()->addUIRenderCommand([this]() {
+        m_graphicsSystem->getRenderer()->addUIRenderCommand([this, scene]() {
             ImGuiWindowFlags flags = ImGuiWindowFlags_None;
             ImGui::SetNextWindowPos(ImVec2(5, 5));
             ImGui::SetNextWindowSize(ImVec2(360, 700));
@@ -516,7 +433,7 @@ namespace Cyan
                 {
                     if (ImGui::BeginTabItem("Scene"))
                     {
-                        drawSceneTab(m_scene);
+                        drawSceneTab(scene);
                         ImGui::EndTabItem();
                     }
                     if (ImGui::BeginTabItem("Rendering"))

@@ -2,7 +2,7 @@
 
 #include "Mesh.h"
 #include "Entity.h"
-#include "SceneNode.h"
+#include "SceneComponent.h"
 
 namespace Cyan 
 {

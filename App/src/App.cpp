@@ -39,8 +39,6 @@ public:
         // sky light 
         auto skylight = m_scene->createSkyLight("SkyLight", ASSET_PATH "cubemaps/neutral_sky.hdr");
         skylight->build();
-
-        m_scene->update();
     }
 
     virtual void customFinalize() override
@@ -61,12 +59,6 @@ public:
 
     virtual void customRender() override
     {
-
-    }
-
-    void screenSpaceIrradianceCaching()
-    {
-
     }
 
 private:
