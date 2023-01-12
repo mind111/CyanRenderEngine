@@ -1,5 +1,8 @@
-#include "CyanApp.h"
+#include <imgui/imgui.h>
+#include <imgui/imgui_impl_glfw.h>
+#include <imgui/imgui_impl_opengl3.h>
 
+#include "CyanApp.h"
 namespace Cyan
 {
     DefaultApp::DefaultApp(u32 appWindowWidth, u32 appWindowHeight)
@@ -84,6 +87,9 @@ namespace Cyan
                 break;
             }
         });
+
+        // manually install imgui callbacks here per https://github.com/ocornut/imgui/issues/5003
+        ImGui_ImplGlfw_InstallCallbacks(gEngine->getGraphicsSystem()->getAppWindow());
 
         // create a default scene that can be modified or overwritten by custom app
         m_scene = std::make_shared<Scene>("DefaultScene", (f32)m_appWindowDimension.x / m_appWindowDimension.y);

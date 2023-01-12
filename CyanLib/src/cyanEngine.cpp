@@ -427,7 +427,7 @@ namespace Cyan
             ImGui::SetNextWindowPos(ImVec2(5, 5));
             ImGui::SetNextWindowSize(ImVec2(360, 700));
 
-            ImGui::Begin("Cyan", nullptr, flags);
+            ImGui::Begin("Cyan", nullptr, ImGuiWindowFlags_NoCollapse);
             {
                 ImGui::BeginTabBar("##Views");
                 {

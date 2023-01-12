@@ -19,7 +19,6 @@
 #include "CyanRenderer.h"
 #include "Material.h"
 #include "MathUtils.h"
-#include "CyanUI.h"
 #include "Ray.h"
 #include "RenderableScene.h"
 #include "Lights.h"

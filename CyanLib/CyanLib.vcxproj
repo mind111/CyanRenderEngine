@@ -40,7 +40,6 @@
     <ClInclude Include="include\ManyViewGI.h" />
     <ClInclude Include="include\RayTracer.h" />
     <ClInclude Include="include\CyanRenderer.h" />
-    <ClInclude Include="include\CyanUI.h" />
     <ClInclude Include="include\Entity.h" />
     <ClInclude Include="include\Event.h" />
     <ClInclude Include="include\Geometry.h" />
@@ -94,7 +93,6 @@
     <ClCompile Include="src\ManyViewGI.cpp" />
     <ClCompile Include="src\RayTracer.cpp" />
     <ClCompile Include="src\CyanRenderer.cpp" />
-    <ClCompile Include="src\CyanUI.cpp" />
     <ClCompile Include="src\LightEntities.cpp" />
     <ClCompile Include="src\Entity.cpp" />
     <ClCompile Include="src\EntryPoint.cpp" />

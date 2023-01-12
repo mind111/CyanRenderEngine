@@ -7,7 +7,6 @@
 #include "Shader.h"
 #include "Texture.h"
 #include "Asset.h"
-#include "CyanUI.h"
 
 namespace Cyan {
     struct GpuMaterial {

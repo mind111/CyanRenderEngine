@@ -1,10 +1,13 @@
+#include <imgui/imgui.h>
+#include <imgui/imgui_impl_glfw.h>
+#include <imgui/imgui_impl_opengl3.h>
+
 #include "Entity.h"
 #include "LightEntities.h"
 #include "LightComponents.h"
 #include "CyanRenderer.h"
 #include "Scene.h"
 #include "CyanRenderer.h"
-#include "CyanUI.h"
 
 namespace Cyan
 {

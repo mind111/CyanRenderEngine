@@ -1,5 +1,8 @@
+#include <imgui/imgui.h>
+#include <imgui/imgui_impl_glfw.h>
+#include <imgui/imgui_impl_opengl3.h>
+
 #include "GraphicsSystem.h"
-#include "CyanUI.h"
 
 namespace Cyan
 {
@@ -173,7 +176,25 @@ namespace Cyan
         m_renderer->initialize();
 
         // ui
-        UI::initialize(m_glfwWindow);
+        {
+            IMGUI_CHECKVERSION();
+            ImGui::CreateContext();
+            ImGui::StyleColorsDark();
+            ImGui::GetStyle().WindowRounding = 0.0f;
+            ImGui::GetStyle().ChildRounding = 0.0f;
+            ImGui::GetStyle().FrameRounding = 0.0f;
+            ImGui::GetStyle().GrabRounding = 0.0f;
+            ImGui::GetStyle().PopupRounding = 0.0f;
+            ImGui::GetStyle().ScrollbarRounding = 0.0f;
+
+            ImGui_ImplGlfw_InitForOpenGL(m_glfwWindow, false);
+            ImGui_ImplOpenGL3_Init(nullptr);
+
+            // font
+            ImGuiIO& io = ImGui::GetIO();
+            static ImFont* gFont = nullptr;
+            gFont = io.Fonts->AddFontFromFileTTF("C:\\dev\\cyanRenderEngine\\asset\\fonts\\Roboto-Medium.ttf", 14.f);
+        }
     }
 
     void GraphicsSystem::deinitialize()
