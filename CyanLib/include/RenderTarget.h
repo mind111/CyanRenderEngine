@@ -2,8 +2,8 @@
 
 #include <vector>
 
-#include "glew.h"
-#include "glm.hpp"
+#include <glew/glew.h>
+#include <glm/glm.hpp>
 
 #include "Texture.h"
 

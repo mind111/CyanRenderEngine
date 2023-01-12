@@ -3,7 +3,8 @@
 #include <vector>
 #include <atomic>
 
-#include "glm.hpp"
+#include <glm/glm.hpp>
+
 #include "scene.h"
 #include "SceneComponent.h"
 #include "Shader.h"

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Common.h"
-#include "glm/glm.hpp"
+#include <glm/glm.hpp>
 
 namespace Cyan {
     struct Surfel {

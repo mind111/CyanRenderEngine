@@ -2,12 +2,13 @@
 
 #include <iostream>
 
-#include "Common.h"
 #include <cmath>
-#include "glm.hpp"
-#include "gtc/matrix_transform.hpp"
-#include "gtc/type_ptr.hpp"
-#include "mat4x4.hpp"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/mat4x4.hpp>
+
+#include "Common.h"
 
 #define M_PI 3.141592653589793f
 #define INV_PI 0.31830988f

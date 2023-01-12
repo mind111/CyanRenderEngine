@@ -2,9 +2,10 @@
 
 #include <unordered_map>
 
+#include <glm/glm.hpp>
+#include <glew/glew.h>
+
 #include "Common.h"
-#include "glm/glm.hpp"
-#include "glew.h"
 #include "RenderableScene.h"
 #include "camera.h"
 #include "SurfelBSH.h"

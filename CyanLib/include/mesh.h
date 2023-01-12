@@ -2,7 +2,7 @@
 #include <string>
 #include <map>
 #include <array>
-#include "glew.h"
+#include <glew/glew.h>
 
 #include "MathUtils.h"
 #include "VertexBuffer.h"

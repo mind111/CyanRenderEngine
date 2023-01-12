@@ -19,27 +19,34 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\ArHosekSkyModel.h" />
-    <ClInclude Include="include\ArHosekSkyModelData_CIEXYZ.h" />
-    <ClInclude Include="include\ArHosekSkyModelData_RGB.h" />
-    <ClInclude Include="include\ArHosekSkyModelData_Spectral.h" />
-    <ClInclude Include="include\glew.h" />
-    <ClInclude Include="include\glfw3.h" />
-    <ClInclude Include="include\glfw3native.h" />
-    <ClInclude Include="include\json.hpp" />
-    <ClInclude Include="include\stb_image.h" />
-    <ClInclude Include="include\stb_image_write.h" />
-    <ClInclude Include="include\tiny_gltf.h" />
-    <ClInclude Include="include\tiny_obj_loader.h" />
-    <ClInclude Include="include\xatlas.h" />
-    <ClInclude Include="include\xatlas_c.h" />
+    <ClInclude Include="include\glew\glew.h" />
+    <ClInclude Include="include\glfw\glfw3.h" />
+    <ClInclude Include="include\glfw\glfw3native.h" />
+    <ClInclude Include="include\imgui\imconfig.h" />
+    <ClInclude Include="include\imgui\imgui.h" />
+    <ClInclude Include="include\imgui\imgui_impl_glfw.h" />
+    <ClInclude Include="include\imgui\imgui_impl_opengl3.h" />
+    <ClInclude Include="include\imgui\imgui_internal.h" />
+    <ClInclude Include="include\imgui\imstb_rectpack.h" />
+    <ClInclude Include="include\imgui\imstb_textedit.h" />
+    <ClInclude Include="include\imgui\imstb_truetype.h" />
+    <ClInclude Include="include\stbi\stb_image.h" />
+    <ClInclude Include="include\stbi\stb_image_write.h" />
+    <ClInclude Include="include\tiny_gltf\json.hpp" />
+    <ClInclude Include="include\tiny_gltf\tiny_gltf.h" />
+    <ClInclude Include="include\tiny_obj\tiny_obj_loader.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\ArHosekSkyModel.c" />
-    <ClCompile Include="src\stb_image.cpp" />
-    <ClCompile Include="src\tiny_gltf.cc" />
-    <ClCompile Include="src\tiny_obj_loader.cc" />
-    <ClCompile Include="src\xatlas.cpp" />
+    <ClCompile Include="src\imgui\imgui.cpp" />
+    <ClCompile Include="src\imgui\imgui_demo.cpp" />
+    <ClCompile Include="src\imgui\imgui_draw.cpp" />
+    <ClCompile Include="src\imgui\imgui_impl_glfw.cpp" />
+    <ClCompile Include="src\imgui\imgui_impl_opengl3.cpp" />
+    <ClCompile Include="src\imgui\imgui_tables.cpp" />
+    <ClCompile Include="src\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="src\stbi\stb_image.cpp" />
+    <ClCompile Include="src\tiny_gltf\tiny_gltf.cc" />
+    <ClCompile Include="src\tiny_obj\tiny_obj_loader.cc" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -95,15 +102,19 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
+    <IncludePath>C:\dev\cyanRenderEngine\ExternalLib\include\imgui;C:\dev\cyanRenderEngine\ExternalLib\include\glfw;C:\dev\cyanRenderEngine\ExternalLib\include\tiny_gltf;C:\dev\cyanRenderEngine\ExternalLib\include\stbi;C:\dev\cyanRenderEngine\ExternalLib\include\tiny_obj;C:\dev\cyanRenderEngine\ExternalLib\include\glew;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
+    <IncludePath>C:\dev\cyanRenderEngine\ExternalLib\include\imgui;C:\dev\cyanRenderEngine\ExternalLib\include\glfw;C:\dev\cyanRenderEngine\ExternalLib\include\tiny_gltf;C:\dev\cyanRenderEngine\ExternalLib\include\stbi;C:\dev\cyanRenderEngine\ExternalLib\include\tiny_obj;C:\dev\cyanRenderEngine\ExternalLib\include\glew;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
+    <IncludePath>C:\dev\cyanRenderEngine\ExternalLib\include\imgui;C:\dev\cyanRenderEngine\ExternalLib\include\glfw;C:\dev\cyanRenderEngine\ExternalLib\include\tiny_gltf;C:\dev\cyanRenderEngine\ExternalLib\include\stbi;C:\dev\cyanRenderEngine\ExternalLib\include\tiny_obj;C:\dev\cyanRenderEngine\ExternalLib\include\glew;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
+    <IncludePath>C:\dev\cyanRenderEngine\ExternalLib\include\imgui;C:\dev\cyanRenderEngine\ExternalLib\include\glfw;C:\dev\cyanRenderEngine\ExternalLib\include\tiny_gltf;C:\dev\cyanRenderEngine\ExternalLib\include\stbi;C:\dev\cyanRenderEngine\ExternalLib\include\tiny_obj;C:\dev\cyanRenderEngine\ExternalLib\include\glew;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -113,6 +124,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>C:\dev\cyanRenderEngine\ExternalLib\stbi\include;C:\dev\cyanRenderEngine\ExternalLib\glew;C:\dev\cyanRenderEngine\ExternalLib\glfw;C:\dev\cyanRenderEngine\ExternalLib\glm;C:\dev\cyanRenderEngine\ExternalLib\tiny_gltf\include;C:\dev\cyanRenderEngine\ExternalLib\tiny_obj\include;C:\dev\cyanRenderEngine\ExternalLib\imgui\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -130,6 +142,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>C:\dev\cyanRenderEngine\ExternalLib\stbi\include;C:\dev\cyanRenderEngine\ExternalLib\glew;C:\dev\cyanRenderEngine\ExternalLib\glfw;C:\dev\cyanRenderEngine\ExternalLib\glm;C:\dev\cyanRenderEngine\ExternalLib\tiny_gltf\include;C:\dev\cyanRenderEngine\ExternalLib\tiny_obj\include;C:\dev\cyanRenderEngine\ExternalLib\imgui\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -147,7 +160,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>C:\dev\cyanRenderEngine\ExternalLib\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\dev\cyanRenderEngine\ExternalLib\stbi\include;C:\dev\cyanRenderEngine\ExternalLib\glew;C:\dev\cyanRenderEngine\ExternalLib\glfw;C:\dev\cyanRenderEngine\ExternalLib\glm;C:\dev\cyanRenderEngine\ExternalLib\tiny_gltf\include;C:\dev\cyanRenderEngine\ExternalLib\tiny_obj\include;C:\dev\cyanRenderEngine\ExternalLib\imgui\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -169,7 +182,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>C:\dev\cyanRenderEngine\ExternalLib\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\dev\cyanRenderEngine\ExternalLib\stbi\include;C:\dev\cyanRenderEngine\ExternalLib\glew;C:\dev\cyanRenderEngine\ExternalLib\glfw;C:\dev\cyanRenderEngine\ExternalLib\glm;C:\dev\cyanRenderEngine\ExternalLib\tiny_gltf\include;C:\dev\cyanRenderEngine\ExternalLib\tiny_obj\include;C:\dev\cyanRenderEngine\ExternalLib\imgui\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>

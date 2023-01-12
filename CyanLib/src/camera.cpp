@@ -1,6 +1,7 @@
 #include <iostream>
-#include "glfw3.h"
-#include "gtc/matrix_transform.hpp"
+#include <glfw/glfw3.h>
+#include <glm/gtc/matrix_transform.hpp>
+
 #include "camera.h"
 
 namespace Cyan

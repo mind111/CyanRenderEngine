@@ -2,10 +2,10 @@
 #include <unordered_map>
 #include <stack>
 
-#include "tiny_obj_loader.h"
-#include "glm.hpp"
-#include "gtc/matrix_transform.hpp"
-#include "json.hpp"
+#include <tiny_obj/tiny_obj_loader.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <tiny_gltf/json.hpp>
 
 #include "Asset.h"
 #include "CyanAPI.h"

@@ -3,7 +3,7 @@
 #include <fstream>
 #include <sstream>
 
-#include "gtc/type_ptr.hpp"
+#include <glm/gtc/type_ptr.hpp>
 
 #include "CyanAPI.h"
 #include "GfxContext.h"

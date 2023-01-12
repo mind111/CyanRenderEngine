@@ -5,9 +5,9 @@
 #include <map>
 #include <algorithm>
 
-#include "stb_image.h"
-#include "json.hpp"
-#include "tiny_gltf.h"
+#include <stbi/stb_image.h>
+#include <tiny_gltf/json.hpp>
+#include <tiny_gltf/tiny_gltf.h>
 
 #include "Common.h"
 #include "Texture.h"

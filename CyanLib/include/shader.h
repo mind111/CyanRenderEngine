@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <fstream>
 
-#include "glew.h"
+#include <glew/glew.h>
 
 #include "CyanCore.h"
 #include "Texture.h"

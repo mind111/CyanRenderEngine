@@ -1,6 +1,7 @@
 #pragma once
 
-#include "glm.hpp"
+#include <glm/glm.hpp>
+
 #include "Shader.h"
 #include "RenderTarget.h"
 #include "RenderableScene.h"

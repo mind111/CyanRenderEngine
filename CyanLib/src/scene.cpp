@@ -2,10 +2,10 @@
 #include <fstream>
 #include <queue>
 
-#include "json.hpp"
-#include "glm.hpp"
-#include "stb_image.h"
-#include "gtc/matrix_transform.hpp"
+#include <tiny_gltf/json.hpp>
+#include <glm/glm.hpp>
+#include <stbi/stb_image.h>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include "Mesh.h"
 #include "CyanAPI.h"
@@ -167,44 +167,4 @@ namespace Cyan
     {
 
     }
-
-    IrradianceProbe* Scene::createIrradianceProbe(Cyan::TextureCubeRenderable* srcCubemapTexture, const glm::uvec2& irradianceRes)
-    {
-        return new IrradianceProbe(srcCubemapTexture, irradianceRes);
-    }
-
-    IrradianceProbe* Scene::createIrradianceProbe(const glm::vec3& pos, const glm::uvec2& sceneCaptureRes, const glm::uvec2& irradianceResolution) {
-        return new IrradianceProbe(this, pos, sceneCaptureRes, irradianceResolution);
-    }
-
-    ReflectionProbe* Scene::createReflectionProbe(Cyan::TextureCubeRenderable* srcCubemapTexture) {
-        return new ReflectionProbe(srcCubemapTexture);
-    }
-
-    ReflectionProbe* Scene::createReflectionProbe(const glm::vec3& pos, const glm::uvec2& sceneCaptureRes) {
-        return new ReflectionProbe(this, pos, sceneCaptureRes);
-    }
-
-#if 0
-    MeshInstance* Scene::createMeshInstance(Cyan::Mesh* mesh) 
-    {
-        meshInstances.emplace_back();
-        auto& meshInst = meshInstances.back();
-        meshInst = std::make_shared<MeshInstance>(mesh);
-        // attach a default material to all submeshes
-        meshInst->setMaterial(AssetManager::getAsset<Material>("DefaultMaterial"));
-        return meshInst.get();
-    }
-
-    Cyan::MeshInstance* Scene::createMeshInstance(const char* meshName)
-    {
-        auto assetManager = Cyan::AssetManager::get();
-        auto mesh = assetManager->getAsset<Cyan::Mesh>(meshName);
-        if (!mesh)
-        {
-            return nullptr;
-        }
-        return createMeshInstance(mesh);
-    }
-#endif
 }

@@ -1,4 +1,4 @@
-#include "stb_image.h"
+#include <stbi/stb_image.h>
 
 #include "LightProbe.h"
 #include "RenderTarget.h"

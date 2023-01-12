@@ -2,7 +2,7 @@
 #include <string>
 #include <vector>
 
-#include "glew.h"
+#include <glew/glew.h>
 
 #include "Common.h"
 

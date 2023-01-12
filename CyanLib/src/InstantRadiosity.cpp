@@ -1,9 +1,9 @@
 
-#include "glfw3.h"
-#include "gtx/quaternion.hpp"
-#include "glm/gtc/integer.hpp"
-#include "gtc/matrix_transform.hpp"
-#include "gtc/type_ptr.hpp"
+#include <glfw/glfw3.h>
+#include <glm/gtx/quaternion.hpp>
+#include <glm/gtc/integer.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include "InstantRadiosity.h"
 #include "CyanRenderer.h"

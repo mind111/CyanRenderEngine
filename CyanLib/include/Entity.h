@@ -3,8 +3,9 @@
 #include <queue>
 #include <functional>
 
-#include "glm.hpp"
-#include "gtc/matrix_transform.hpp"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 #include "Node.h"
 #include "SceneComponent.h"
 #include "Geometry.h"

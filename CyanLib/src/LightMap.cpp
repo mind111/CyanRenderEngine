@@ -7,7 +7,7 @@
 #include "RenderTarget.h"
 #include "CyanRenderer.h"
 #include "RayTracer.h"
-#include "stb_image_write.h"
+#include <stbi/stb_image_write.h>
 
 #define MULTITHREAD_BAKE 1
 #define SUPER_SAMPLING 1

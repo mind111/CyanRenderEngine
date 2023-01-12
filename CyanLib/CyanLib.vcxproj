@@ -80,15 +80,6 @@
     <ClInclude Include="include\VoxelConeTracing.h" />
     <ClInclude Include="include\Window.h" />
     <ClInclude Include="PostProcess.h" />
-    <ClInclude Include="src\ImGuizmo\ImGuizmo.h" />
-    <ClInclude Include="src\imgui\imconfig.h" />
-    <ClInclude Include="src\imgui\imgui.h" />
-    <ClInclude Include="src\imgui\imgui_impl_glfw.h" />
-    <ClInclude Include="src\imgui\imgui_impl_opengl3.h" />
-    <ClInclude Include="src\imgui\imgui_internal.h" />
-    <ClInclude Include="src\imgui\imstb_rectpack.h" />
-    <ClInclude Include="src\imgui\imstb_textedit.h" />
-    <ClInclude Include="src\imgui\imstb_truetype.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\AssetManager.cpp" />
@@ -110,14 +101,6 @@
     <ClCompile Include="src\Geometry.cpp" />
     <ClCompile Include="src\GfxContext.cpp" />
     <ClCompile Include="src\GraphicsSystem.cpp" />
-    <ClCompile Include="src\ImGuizmo\ImGuizmo.cpp" />
-    <ClCompile Include="src\imgui\imgui.cpp" />
-    <ClCompile Include="src\imgui\imgui_demo.cpp" />
-    <ClCompile Include="src\imgui\imgui_draw.cpp" />
-    <ClCompile Include="src\imgui\imgui_impl_glfw.cpp" />
-    <ClCompile Include="src\imgui\imgui_impl_opengl3.cpp" />
-    <ClCompile Include="src\imgui\imgui_tables.cpp" />
-    <ClCompile Include="src\imgui\imgui_widgets.cpp" />
     <ClCompile Include="src\IOSystem.cpp" />
     <ClCompile Include="src\LightComponents.cpp" />
     <ClCompile Include="src\LightMap.cpp" />
@@ -307,7 +290,6 @@
     <None Include="..\shader\voxel_vis_g.glsl" />
     <None Include="..\shader\voxel_vis_p.glsl" />
     <None Include="..\shader\voxel_vis_v.glsl" />
-    <None Include="src\ImGuizmo\LICENSE" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -381,6 +363,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>C:\dev\cyanRenderEngine\CyanLib\include;C:\dev\cyanRenderEngine\ExternalLib\include;C:\dev\cyanRenderEngine\ExternalLib\include\glew;C:\dev\cyanRenderEngine\ExternalLib\include\imgui;C:\dev\cyanRenderEngine\ExternalLib\include\stbi</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -398,6 +381,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>C:\dev\cyanRenderEngine\CyanLib\include;C:\dev\cyanRenderEngine\ExternalLib\include;C:\dev\cyanRenderEngine\ExternalLib\include\glew;C:\dev\cyanRenderEngine\ExternalLib\include\imgui;C:\dev\cyanRenderEngine\ExternalLib\include\stbi</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -415,7 +399,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>C:\dev\cyanRenderEngine\CyanLib\include;C:\dev\cyanRenderEngine\ExternalLib\include;C:\dev\cyanRenderEngine\ExternalLib\include\glm;C:\dev\cyanRenderEngine\CyanLib\src\ImGuizmo;C:\dev\cyanRenderEngine\CyanLib\src\imgui;C:\dev\cyanRenderEngine\CyanApp\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\dev\cyanRenderEngine\CyanLib\include;C:\dev\cyanRenderEngine\ExternalLib\include;C:\dev\cyanRenderEngine\ExternalLib\include\glew;C:\dev\cyanRenderEngine\ExternalLib\include\imgui;C:\dev\cyanRenderEngine\ExternalLib\include\stbi</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -436,7 +420,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>C:\dev\cyanRenderEngine\CyanLib\include;C:\dev\cyanRenderEngine\ExternalLib\include;C:\dev\cyanRenderEngine\ExternalLib\include\glm;C:\dev\cyanRenderEngine\CyanLib\src\ImGuizmo;C:\dev\cyanRenderEngine\CyanLib\src\imgui;C:\dev\cyanRenderEngine\CyanApp\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\dev\cyanRenderEngine\CyanLib\include;C:\dev\cyanRenderEngine\ExternalLib\include;C:\dev\cyanRenderEngine\ExternalLib\include\glew;C:\dev\cyanRenderEngine\ExternalLib\include\imgui;C:\dev\cyanRenderEngine\ExternalLib\include\stbi</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>

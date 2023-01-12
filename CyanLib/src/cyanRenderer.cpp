@@ -3,17 +3,16 @@
 #include <queue>
 #include <functional>
 
-#include "glfw3.h"
-#include "gtx/quaternion.hpp"
-#include "glm/gtc/integer.hpp"
-#include "gtc/matrix_transform.hpp"
-#include "gtc/type_ptr.hpp"
-#include "json.hpp"
-#include "glm.hpp"
-#include "imgui/imgui.h"
-#include "imgui/imgui_impl_glfw.h"
-#include "imgui/imgui_impl_opengl3.h"
-#include "ImGuizmo/ImGuizmo.h"
+#include <glfw/glfw3.h>
+#include <glm/gtx/quaternion.hpp>
+#include <glm/gtc/integer.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <tiny_gltf/json.hpp>
+#include <glm/glm.hpp>
+#include <imgui/imgui.h>
+#include <imgui/imgui_impl_glfw.h>
+#include <imgui/imgui_impl_opengl3.h>
 
 #include "Common.h"
 #include "AssetManager.h"
@@ -1455,7 +1454,8 @@ namespace Cyan {
         m_UIRenderCommandQueue.push(UIRenderCommand);
     }
 
-    void Renderer::renderUI() {
+    void Renderer::renderUI() 
+    {
         // set to default render target
         m_ctx->setRenderTarget(nullptr, { });
 
@@ -1463,7 +1463,6 @@ namespace Cyan {
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-        ImGuizmo::BeginFrame();
 
         while (!m_UIRenderCommandQueue.empty())
         {

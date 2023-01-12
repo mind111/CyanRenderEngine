@@ -13,72 +13,120 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Header Files\HosekSky">
-      <UniqueIdentifier>{8fc646e8-b13b-4ff6-a4a6-59931232b365}</UniqueIdentifier>
+    <Filter Include="Source Files\ImGui">
+      <UniqueIdentifier>{b7ef5186-6e8c-4ac9-9843-1c28645f6465}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\HosekSky">
-      <UniqueIdentifier>{433db867-4bba-431f-ad27-bbc7a7c5bf67}</UniqueIdentifier>
+    <Filter Include="Header Files\ImGui">
+      <UniqueIdentifier>{deeba7c6-b588-40d8-b64b-9ef4e53423da}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\glfw">
+      <UniqueIdentifier>{0297cbf9-f215-475f-922e-12cec3aca7be}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\glew">
+      <UniqueIdentifier>{68b3936b-0330-4004-8f8a-0d94a90a2152}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\stbi">
+      <UniqueIdentifier>{c38ade06-d151-40e7-8325-27c84f59ac51}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\tiny_gltf">
+      <UniqueIdentifier>{8c5865d5-5775-4415-9d4c-fa81b87b7281}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\tiny_obj">
+      <UniqueIdentifier>{f00e8a87-7684-45b3-99aa-468efbba669d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\glm">
+      <UniqueIdentifier>{20ef35c6-65bc-4a8f-89d3-506b27b1655c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\stbi">
+      <UniqueIdentifier>{cfeffe9e-9ce2-4781-8158-b01f919a3141}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\tiny_gltf">
+      <UniqueIdentifier>{7a26fca0-bde3-427a-9504-91bb60def692}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\tiny_obj">
+      <UniqueIdentifier>{e5ee5a3b-caa0-475b-b2bf-df91aace78ad}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\glfw3native.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="include\glew\glew.h">
+      <Filter>Header Files\glew</Filter>
     </ClInclude>
-    <ClInclude Include="include\json.hpp">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="include\glfw\glfw3.h">
+      <Filter>Header Files\glfw</Filter>
     </ClInclude>
-    <ClInclude Include="include\stb_image.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="include\glfw\glfw3native.h">
+      <Filter>Header Files\glfw</Filter>
     </ClInclude>
-    <ClInclude Include="include\stb_image_write.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="include\imgui\imconfig.h">
+      <Filter>Header Files\ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="include\tiny_gltf.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="include\imgui\imgui.h">
+      <Filter>Header Files\ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="include\tiny_obj_loader.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="include\imgui\imgui_impl_glfw.h">
+      <Filter>Header Files\ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="include\xatlas.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="include\imgui\imgui_impl_opengl3.h">
+      <Filter>Header Files\ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="include\xatlas_c.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="include\imgui\imgui_internal.h">
+      <Filter>Header Files\ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="include\glew.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="include\imgui\imstb_rectpack.h">
+      <Filter>Header Files\ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="include\glfw3.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="include\imgui\imstb_textedit.h">
+      <Filter>Header Files\ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="include\ArHosekSkyModel.h">
-      <Filter>Header Files\HosekSky</Filter>
+    <ClInclude Include="include\imgui\imstb_truetype.h">
+      <Filter>Header Files\ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="include\ArHosekSkyModelData_CIEXYZ.h">
-      <Filter>Header Files\HosekSky</Filter>
+    <ClInclude Include="include\stbi\stb_image.h">
+      <Filter>Header Files\stbi</Filter>
     </ClInclude>
-    <ClInclude Include="include\ArHosekSkyModelData_RGB.h">
-      <Filter>Header Files\HosekSky</Filter>
+    <ClInclude Include="include\stbi\stb_image_write.h">
+      <Filter>Header Files\stbi</Filter>
     </ClInclude>
-    <ClInclude Include="include\ArHosekSkyModelData_Spectral.h">
-      <Filter>Header Files\HosekSky</Filter>
+    <ClInclude Include="include\tiny_gltf\json.hpp">
+      <Filter>Header Files\tiny_gltf</Filter>
+    </ClInclude>
+    <ClInclude Include="include\tiny_gltf\tiny_gltf.h">
+      <Filter>Header Files\tiny_gltf</Filter>
+    </ClInclude>
+    <ClInclude Include="include\tiny_obj\tiny_obj_loader.h">
+      <Filter>Header Files\tiny_obj</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\stb_image.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="src\imgui\imgui.cpp">
+      <Filter>Source Files\ImGui</Filter>
     </ClCompile>
-    <ClCompile Include="src\tiny_gltf.cc">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="src\imgui\imgui_impl_glfw.cpp">
+      <Filter>Source Files\ImGui</Filter>
     </ClCompile>
-    <ClCompile Include="src\tiny_obj_loader.cc">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="src\imgui\imgui_impl_opengl3.cpp">
+      <Filter>Source Files\ImGui</Filter>
     </ClCompile>
-    <ClCompile Include="src\xatlas.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="src\stbi\stb_image.cpp">
+      <Filter>Source Files\stbi</Filter>
     </ClCompile>
-    <ClCompile Include="src\ArHosekSkyModel.c">
-      <Filter>Source Files\HosekSky</Filter>
+    <ClCompile Include="src\tiny_gltf\tiny_gltf.cc">
+      <Filter>Source Files\tiny_gltf</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tiny_obj\tiny_obj_loader.cc">
+      <Filter>Source Files\tiny_obj</Filter>
+    </ClCompile>
+    <ClCompile Include="src\imgui\imgui_demo.cpp">
+      <Filter>Source Files\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\imgui\imgui_draw.cpp">
+      <Filter>Source Files\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\imgui\imgui_tables.cpp">
+      <Filter>Source Files\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="src\imgui\imgui_widgets.cpp">
+      <Filter>Source Files\ImGui</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

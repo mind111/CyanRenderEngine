@@ -1,7 +1,8 @@
+#include <glm/common.hpp>
+
+#include "Mesh.h"
 #include "SurfelBSH.h"
 #include "Geometry.h"
-#include "glm/common.hpp"
-#include "Mesh.h"
 #include "GfxContext.h"
 #include "AssetManager.h"
 #include "RenderTarget.h"

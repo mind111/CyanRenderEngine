@@ -1,7 +1,5 @@
 #pragma once 
 
-#include "imgui/imgui.h"
-
 #include "GraphicsSystem.h"
 #include "IOSystem.h"
 #include "Window.h"

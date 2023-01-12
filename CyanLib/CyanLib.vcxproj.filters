@@ -13,18 +13,6 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Source Files\Internal">
-      <UniqueIdentifier>{ac1a7914-2e18-4049-b778-cc2c974aac25}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\External">
-      <UniqueIdentifier>{2ea109a2-2c68-4994-ad6f-4faf2c7e82b7}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\External\ImGui">
-      <UniqueIdentifier>{2e706d5d-bf13-4e56-9fdb-4ef6a587ba85}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\External\ImGuizmo">
-      <UniqueIdentifier>{2306cbf7-6675-427a-a36d-4fc777a72178}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Shaders">
       <UniqueIdentifier>{076b0f35-28e5-45d0-ba3c-e908fa947e32}</UniqueIdentifier>
     </Filter>
@@ -40,9 +28,6 @@
     <Filter Include="Shaders\PostProcessing\TAA">
       <UniqueIdentifier>{561e66a7-5b9d-48e6-b1a9-8fbf19836474}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\Internal\RayTracing">
-      <UniqueIdentifier>{2c5eaadd-1f4a-4d53-bac9-9b413e9acd0f}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\RayTracing">
       <UniqueIdentifier>{620f595e-005c-44c3-a194-31e081eb826f}</UniqueIdentifier>
     </Filter>
@@ -54,9 +39,6 @@
     </Filter>
     <Filter Include="Shaders\Shadow">
       <UniqueIdentifier>{e5b2da65-b986-4625-b55a-eb720c7871ea}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\Internal\InstantRadiosity">
-      <UniqueIdentifier>{58e7e6e6-f675-49a2-be83-16408004ae31}</UniqueIdentifier>
     </Filter>
     <Filter Include="Shaders\DebugDraw">
       <UniqueIdentifier>{28070b77-2caa-411c-8193-54868e73d1b6}</UniqueIdentifier>
@@ -70,22 +52,28 @@
     <Filter Include="Shaders\ManyViewGI\SurfelSampler">
       <UniqueIdentifier>{12785f97-aa5a-4e62-a4be-68aafa77ce20}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\Internal\ManyViewGI">
-      <UniqueIdentifier>{cbf53f78-8b36-48a5-8236-f125a500739c}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\ManyViewGI">
       <UniqueIdentifier>{7cba3887-81fc-459e-93e7-7d500436a329}</UniqueIdentifier>
     </Filter>
     <Filter Include="Shaders\ManyViewGI\MicroRendering">
       <UniqueIdentifier>{8d5ba569-fd3a-402a-a488-b89d680904e8}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\Internal\Lights">
-      <UniqueIdentifier>{94aae55b-0862-4d84-9e1a-c2198ca2978c}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\Lights">
       <UniqueIdentifier>{c63cbec4-416c-472c-bc6a-9f8f31c2ee83}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\Internal\SSRT">
+    <Filter Include="Source Files\InstantRadiosity">
+      <UniqueIdentifier>{58e7e6e6-f675-49a2-be83-16408004ae31}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Lights">
+      <UniqueIdentifier>{94aae55b-0862-4d84-9e1a-c2198ca2978c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\ManyViewGI">
+      <UniqueIdentifier>{cbf53f78-8b36-48a5-8236-f125a500739c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\RayTracing">
+      <UniqueIdentifier>{2c5eaadd-1f4a-4d53-bac9-9b413e9acd0f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\SSRT">
       <UniqueIdentifier>{7f06b084-7c84-4f75-88ec-5e5f1d52e71b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -170,33 +158,6 @@
     </ClInclude>
     <ClInclude Include="include\Window.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\imgui\imconfig.h">
-      <Filter>Source Files\External\ImGui</Filter>
-    </ClInclude>
-    <ClInclude Include="src\imgui\imgui.h">
-      <Filter>Source Files\External\ImGui</Filter>
-    </ClInclude>
-    <ClInclude Include="src\imgui\imgui_impl_glfw.h">
-      <Filter>Source Files\External\ImGui</Filter>
-    </ClInclude>
-    <ClInclude Include="src\imgui\imgui_impl_opengl3.h">
-      <Filter>Source Files\External\ImGui</Filter>
-    </ClInclude>
-    <ClInclude Include="src\imgui\imgui_internal.h">
-      <Filter>Source Files\External\ImGui</Filter>
-    </ClInclude>
-    <ClInclude Include="src\imgui\imstb_rectpack.h">
-      <Filter>Source Files\External\ImGui</Filter>
-    </ClInclude>
-    <ClInclude Include="src\imgui\imstb_textedit.h">
-      <Filter>Source Files\External\ImGui</Filter>
-    </ClInclude>
-    <ClInclude Include="src\imgui\imstb_truetype.h">
-      <Filter>Source Files\External\ImGui</Filter>
-    </ClInclude>
-    <ClInclude Include="src\ImGuizmo\ImGuizmo.h">
-      <Filter>Source Files\External\ImGuizmo</Filter>
     </ClInclude>
     <ClInclude Include="include\SkyBox.h">
       <Filter>Header Files</Filter>
@@ -283,177 +244,150 @@
       <Filter>Header Files\Lights</Filter>
     </ClInclude>
     <ClInclude Include="include\ScreenSpaceRayTracing.h">
-      <Filter>Source Files\Internal\SSRT</Filter>
+      <Filter>Source Files\SSRT</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\AssetManager.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Camera.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\CyanAPI.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\CyanApp.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\CyanEngine.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\CyanRenderer.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Entity.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\EntryPoint.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Geometry.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\GfxContext.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\GraphicsSystem.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\LightMap.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\LightProbe.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Material.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\MathUtils.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Mesh.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\RenderTarget.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Scene.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\SceneComponent.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Shader.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Texture.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\todos.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Utils.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\VertexArray.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\VertexBuffer.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Window.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\imgui\imgui.cpp">
-      <Filter>Source Files\External\ImGui</Filter>
-    </ClCompile>
-    <ClCompile Include="src\imgui\imgui_demo.cpp">
-      <Filter>Source Files\External\ImGui</Filter>
-    </ClCompile>
-    <ClCompile Include="src\imgui\imgui_draw.cpp">
-      <Filter>Source Files\External\ImGui</Filter>
-    </ClCompile>
-    <ClCompile Include="src\imgui\imgui_impl_glfw.cpp">
-      <Filter>Source Files\External\ImGui</Filter>
-    </ClCompile>
-    <ClCompile Include="src\imgui\imgui_impl_opengl3.cpp">
-      <Filter>Source Files\External\ImGui</Filter>
-    </ClCompile>
-    <ClCompile Include="src\imgui\imgui_tables.cpp">
-      <Filter>Source Files\External\ImGui</Filter>
-    </ClCompile>
-    <ClCompile Include="src\imgui\imgui_widgets.cpp">
-      <Filter>Source Files\External\ImGui</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ImGuizmo\ImGuizmo.cpp">
-      <Filter>Source Files\External\ImGuizmo</Filter>
-    </ClCompile>
-    <ClCompile Include="src\SkyBox.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\CyanUI.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Shadow.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\VoxelConeTracing.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\IOSystem.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\RenderableScene.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="src\StaticMeshEntity.cpp">
-      <Filter>Source Files\Internal</Filter>
-    </ClCompile>
     <ClCompile Include="src\RayTracingScene.cpp">
-      <Filter>Source Files\Internal\RayTracing</Filter>
+      <Filter>Source Files\RayTracing</Filter>
     </ClCompile>
     <ClCompile Include="src\Ray.cpp">
-      <Filter>Source Files\Internal\RayTracing</Filter>
+      <Filter>Source Files\RayTracing</Filter>
     </ClCompile>
     <ClCompile Include="src\BVH.cpp">
-      <Filter>Source Files\Internal\RayTracing</Filter>
+      <Filter>Source Files\RayTracing</Filter>
     </ClCompile>
     <ClCompile Include="src\RayTracer.cpp">
-      <Filter>Source Files\Internal\RayTracing</Filter>
+      <Filter>Source Files\RayTracing</Filter>
     </ClCompile>
     <ClCompile Include="src\InstantRadiosity.cpp">
-      <Filter>Source Files\Internal\InstantRadiosity</Filter>
+      <Filter>Source Files\InstantRadiosity</Filter>
     </ClCompile>
     <ClCompile Include="src\ManyViewGI.cpp">
-      <Filter>Source Files\Internal\ManyViewGI</Filter>
+      <Filter>Source Files\ManyViewGI</Filter>
     </ClCompile>
     <ClCompile Include="src\SurfelBSH.cpp">
-      <Filter>Source Files\Internal\ManyViewGI</Filter>
+      <Filter>Source Files\ManyViewGI</Filter>
     </ClCompile>
     <ClCompile Include="src\SurfelSampler.cpp">
-      <Filter>Source Files\Internal\ManyViewGI</Filter>
+      <Filter>Source Files\ManyViewGI</Filter>
     </ClCompile>
     <ClCompile Include="src\LightEntities.cpp">
-      <Filter>Source Files\Internal\Lights</Filter>
+      <Filter>Source Files\Lights</Filter>
     </ClCompile>
     <ClCompile Include="src\LightComponents.cpp">
-      <Filter>Source Files\Internal\Lights</Filter>
+      <Filter>Source Files\Lights</Filter>
     </ClCompile>
     <ClCompile Include="src\Lights.cpp">
-      <Filter>Source Files\Internal\Lights</Filter>
+      <Filter>Source Files\Lights</Filter>
     </ClCompile>
     <ClCompile Include="src\ScreenSpaceRayTracing.cpp">
-      <Filter>Source Files\Internal\SSRT</Filter>
+      <Filter>Source Files\SSRT</Filter>
+    </ClCompile>
+    <ClCompile Include="src\AssetManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Camera.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Component.cpp">
-      <Filter>Source Files\Internal</Filter>
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CyanAPI.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CyanApp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CyanEngine.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CyanRenderer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CyanUI.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Entity.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\EntryPoint.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Geometry.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GfxContext.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GraphicsSystem.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\IOSystem.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\LightMap.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\LightProbe.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Material.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\MathUtils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Mesh.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\RenderableScene.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\RenderTarget.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Scene.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SceneComponent.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Shader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Shadow.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SkyBox.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\StaticMeshEntity.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Texture.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\todos.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Utils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\VertexArray.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\VertexBuffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\VoxelConeTracing.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Window.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="src\ImGuizmo\LICENSE">
-      <Filter>Source Files\External\ImGuizmo</Filter>
-    </None>
     <None Include="..\shader\shader_ao.fs">
       <Filter>Shaders</Filter>
     </None>

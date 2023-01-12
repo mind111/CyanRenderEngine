@@ -2,7 +2,7 @@
 #include <vector>
 #include <queue>
 
-#include "glm.hpp"
+#include <glm/glm.hpp>
 
 #include "Node.h"
 #include "Transform.h"

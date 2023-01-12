@@ -4,8 +4,8 @@
 #include <map>
 #include <stack>
 
-#include "glew.h"
-#include "stb_image.h"
+#include <glew/glew.h>
+#include <stbi/stb_image.h>
 
 #include "Allocator.h"
 #include "Common.h"

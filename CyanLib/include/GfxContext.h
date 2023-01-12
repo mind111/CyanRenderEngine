@@ -4,9 +4,9 @@
 #include <unordered_map>
 #include <functional>
 
-#include "glew.h"
-#include "stb_image.h"
-#include "glm.hpp"
+#include <glew/glew.h>
+#include <stbi/stb_image.h>
+#include <glm/glm.hpp>
 
 #include "Common.h"
 #include "Window.h"

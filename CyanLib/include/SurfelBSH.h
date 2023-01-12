@@ -2,8 +2,9 @@
 
 #include <functional>
 
+#include <glm/glm.hpp>
+
 #include "Common.h"
-#include "glm/glm.hpp"
 #include "Surfel.h"
 #include "ShaderStorageBuffer.h"
 

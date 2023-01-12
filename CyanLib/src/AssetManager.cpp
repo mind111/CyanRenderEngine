@@ -1,9 +1,8 @@
 #include <fstream>
 
 #define GLM_ENABLE_EXPERIMENTAL
-#include "gtx/hash.hpp"
-#include "tiny_obj_loader.h"
-// #include "xatlas.h"
+#include <glm/gtx/hash.hpp>
+#include <tiny_obj/tiny_obj_loader.h>
 
 #include "AssetManager.h"
 #include "Texture.h"
