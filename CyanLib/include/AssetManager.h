@@ -20,8 +20,23 @@
 
 namespace Cyan
 {
+    class GltfTool
+    {
+        struct ImportSettings
+        {
+            bool bImportMeshes = true;
+            bool bImportMaterials = true;
+            bool bImportNodes = true;
+        };
+
+        void importGltf(Scene* scene, const char* filename, ImportSettings = ImportSettings{ }) { }
+        void importGltfAsync(Scene* scene, const char* filename, ImportSettings = ImportSettings{ }) { }
+        void exportGltf() { }
+    };
+
     // todo: differentiate import...() from load...(), import refers to importing raw scene data, load refers to loading serialized binary
-    class AssetManager {
+    class AssetManager 
+    {
     public:
         struct DefaultTextures 
         {
@@ -29,6 +44,8 @@ namespace Cyan
             Texture2DRenderable* checkerOrange = nullptr;
             Texture2DRenderable* gridDark = nullptr;
             Texture2DRenderable* gridOrange = nullptr;
+            Texture2DRenderable* blueNoise_16x16 = nullptr;
+            Texture2DRenderable* blueNoise_1024x1024 = nullptr;
         } m_defaultTextures;
 
         struct DefaultShapes 
@@ -115,6 +132,18 @@ namespace Cyan
             m_defaultTextures.checkerOrange = importTexture2D("default_checker_orange", ASSET_PATH "textures/defaults/checker_orange.png", spec, parameter);
             m_defaultTextures.gridDark = importTexture2D("default_grid_dark", ASSET_PATH "textures/defaults/grid_dark.png", spec, parameter);
             m_defaultTextures.gridOrange = importTexture2D("default_grid_orange", ASSET_PATH "textures/defaults/grid_orange.png", spec, parameter);
+
+            {
+                ITextureRenderable::Spec spec = { };
+                ITextureRenderable::Parameter parameter = { };
+                parameter.minificationFilter = FM_POINT;
+                parameter.wrap_r = WM_WRAP;
+                parameter.wrap_s = WM_WRAP;
+                parameter.wrap_t = WM_WRAP;
+                m_defaultTextures.blueNoise_16x16 = AssetManager::importTexture2D("BlueNoise_16x16", ASSET_PATH "textures/noise/LDR_LLL1_0.png", spec, parameter);
+                m_defaultTextures.blueNoise_1024x1024 = AssetManager::importTexture2D("BlueNoise_1024x1024", ASSET_PATH "textures/noise/LDR_RGBA_0.png", spec, parameter);
+            }
+
 #undef DEFAULT_TEXTURE_FOLDER
 
             /**
@@ -127,9 +156,11 @@ namespace Cyan
 
         void importGltfNode(Scene* scene, tinygltf::Model& model, Entity* parent, tinygltf::Node& node);
         Mesh* importGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh); 
-        Cyan::Texture2DRenderable* importGltfTexture(const char* nodeName, tinygltf::Model& model, i32 index);
-        void importGltfTextures(const char* nodeName, tinygltf::Model& model);
+        Cyan::Texture2DRenderable* importGltfTexture(tinygltf::Model& model, tinygltf::Texture& gltfTexture);
+        void importGltfTextures(tinygltf::Model& model);
         static void importGltf(Scene* scene, const char* filename, const char* name=nullptr);
+        static void importGltfAsync(Scene* scene, const char* filename);
+        static void importGltfEx(Scene* scene, const char* filename);
         std::vector<ISubmesh*> importObj(const char* baseDir, const char* filename);
         void importScene(Scene* scene, const char* file);
         void importEntities(Scene* scene, const nlohmann::basic_json<std::map>& entityInfoList);
@@ -140,7 +171,8 @@ namespace Cyan
         /**
         * Creating a texture from scratch; `name` must be unique
         */
-        static Texture2DRenderable* createTexture2D(const char* name, const ITextureRenderable::Spec& spec, ITextureRenderable::Parameter parameter=ITextureRenderable::Parameter{ }) {
+        static Texture2DRenderable* createTexture2D(const char* name, const ITextureRenderable::Spec& spec, ITextureRenderable::Parameter parameter=ITextureRenderable::Parameter{ })
+        {
             Texture2DRenderable* outTexture = getAsset<Texture2DRenderable>(name);
             if (!outTexture)
             {
@@ -327,6 +359,17 @@ namespace Cyan
         }
 
         /*
+        * create an empty mesh assuming that it's geometry data will be filled in later
+        */
+        static Mesh* createMesh(const char* name)
+        {
+            Mesh* parent = new Mesh(name);
+            // register mesh object into the asset table
+            singleton->m_meshMap.insert({ parent->name, parent });
+            return parent;
+        }
+
+        /*
         * create geometry data first, and then pass in to create a mesh
         */
         static Mesh* createMesh(const char* name, const std::vector<ISubmesh*>& submeshes)
@@ -342,7 +385,8 @@ namespace Cyan
         /**
         * Adding a texture into the asset data base
         */
-        void addTexture(ITextureRenderable* inTexture) {
+        void addTexture(ITextureRenderable* inTexture) 
+        {
             singleton->m_textureMap.insert({ inTexture->name, inTexture });
             singleton->m_textures.push_back(inTexture);
         }
@@ -360,6 +404,14 @@ namespace Cyan
         std::unordered_map<std::string, std::unique_ptr<Scene>> m_sceneMap;
         std::unordered_map<std::string, ITextureRenderable*> m_textureMap;
         std::unordered_map<std::string, Mesh*> m_meshMap;
+
+        // async loading pending tasks
+        struct PendingMeshImportTask
+        {
+            Mesh* dstMesh;
+            tinygltf::Mesh srcGltfMesh;
+        };
+        std::queue<PendingMeshImportTask> pendingLoadMeshes;
 
         // material instances
         std::unordered_map<std::string, Material> m_materialMap;

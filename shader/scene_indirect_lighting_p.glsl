@@ -202,7 +202,7 @@ vec3 calcSkyLight(SkyLight inSkyLight, in Material material, vec3 worldSpacePosi
     }
 
     // irradiance
-    vec3 diffuse = mix(material.albedo, vec3(0.f), material.metallic);
+    vec3 diffuse = mix(material.albedo, vec3(0.04f), material.metallic);
     vec3 irradiance = diffuse * texture(skyLight.irradiance, material.normal).rgb; 
     if (ssbnEnabled > .5f)
     {
@@ -249,6 +249,7 @@ void main()
     outRadiance = calcSkyLight(skyLight, material, worldSpacePosition);
     if (indirectIrradianceEnabled > 0.f)
     {
-		outRadiance += texture(sceneAlbedo, psIn.texCoord0).rgb * texture(indirectIrradiance, psIn.texCoord0).rgb;
+		vec3 diffuse = mix(material.albedo, vec3(0.04f), material.metallic);
+		outRadiance += diffuse * texture(indirectIrradiance, psIn.texCoord0).rgb;
 	}
 }

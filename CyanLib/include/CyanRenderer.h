@@ -170,7 +170,7 @@ namespace Cyan
 
 // rendering
         void beginRender();
-        void render(Scene* scene, const SceneView& sceneView);
+        void render(Scene* scene, const SceneView& sceneView, const glm::uvec2& renderResolution);
         void renderToScreen(Texture2DRenderable* inTexture);
         void endRender();
 

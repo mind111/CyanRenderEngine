@@ -23,11 +23,15 @@ namespace Cyan
         IOSystem* getIOSystem() { return m_IOSystem.get(); }
         GraphicsSystem* getGraphicsSystem() { return m_graphicsSystem.get(); }
 
+        f32 getFrameElapsedTimeInMs() { return renderFrameTime; }
+
         // main interface
         void initialize();
         void deinitialize();
         void update();
-        void render(Scene* scene);
+        void render(Scene* scene, Texture2DRenderable* sceneRenderingOutput, const std::function<void(Renderer*, Texture2DRenderable*)>& postSceneRenderingCallbackonst = [](Renderer* renderer, Texture2DRenderable* sceneRenderingOutput) {
+            renderer->renderToScreen(sceneRenderingOutput);
+        });
 
     private:
         static Engine* singleton;

@@ -312,12 +312,11 @@ namespace Cyan {
         m_frameAllocator.reset();
     }
 
-    void Renderer::render(Scene* scene, const SceneView& sceneView) 
+    void Renderer::render(Scene* scene, const SceneView& sceneView, const glm::uvec2& renderResolution) 
     {
         beginRender();
         {
             // shared render target for this frame
-            glm::uvec2 renderResolution = m_windowSize;
             m_sceneTextures.initialize(renderResolution);
 
             // convert Scene instance to RenderableScene instance for rendering
@@ -1473,6 +1472,15 @@ namespace Cyan {
         // end imgui
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        ImGuiIO& io = ImGui::GetIO(); (void)io;
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        {
+            GLFWwindow* backup_current_context = glfwGetCurrentContext();
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
+            glfwMakeContextCurrent(backup_current_context);
+        }
     }
 
     // todo: refactor this, this should really just be renderScene()

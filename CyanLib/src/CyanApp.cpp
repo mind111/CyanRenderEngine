@@ -111,7 +111,7 @@ namespace Cyan
 
     void DefaultApp::render()
     {
-        gEngine->render(m_scene.get());
+        gEngine->render(m_scene.get(), m_sceneRenderingOutput);
         customRender();
     }
    

@@ -135,7 +135,7 @@ namespace Cyan
         // build list of mesh instances, transforms, and lights
         for (auto entity : sceneView.entities)
         {
-            auto lightComponents = entity->getComponent<ILightComponent>();
+            auto lightComponents = entity->getComponents<ILightComponent>();
             if (!lightComponents.empty())
             {
                 for (auto lightComponent : lightComponents)

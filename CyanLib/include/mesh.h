@@ -122,6 +122,11 @@ namespace Cyan
         };
 
         Mesh() = default;
+        Mesh(const char* meshName)
+            : name(meshName)
+        {
+
+        }
         Mesh(const char* meshName, const std::vector<ISubmesh*>& srcSubmeshes)
             : name(meshName) 
         { 
@@ -147,16 +152,20 @@ namespace Cyan
     struct MeshInstance 
     {
         MeshInstance(Mesh* base)
-            : parent(base) {
+            : parent(base) 
+        {
             materials.resize(base->numSubmeshes());
         }
 
-        Material* getMaterial(u32 index) {
+        Material* getMaterial(u32 index) 
+        {
             return materials[index];
         }
 
-        void setMaterial(Material* matl) {
-            for (u32 i = 0; i < parent->numSubmeshes(); ++i) {
+        void setMaterial(Material* matl) 
+        {
+            for (u32 i = 0; i < parent->numSubmeshes(); ++i) 
+            {
                 setMaterial(matl, i);
             }
         }

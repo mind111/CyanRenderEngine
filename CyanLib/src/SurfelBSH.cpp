@@ -7,7 +7,8 @@
 #include "AssetManager.h"
 #include "RenderTarget.h"
 
-namespace Cyan {
+namespace Cyan 
+{
     SurfelBSH::SurfelBSH() 
         : gpuNodes("SurfelBSHNodeBuffer")
         , nodeInstanceBuffer("InstanceBuffer")

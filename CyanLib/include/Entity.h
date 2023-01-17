@@ -81,9 +81,9 @@ namespace Cyan
         // setters
         void setLocalTransform(const Transform& transform);
 
-        // e.g: e->getComponent<ILightComponent>();
+        // e.g: e->getComponents<ILightComponent>();
         template <typename ComponentType>
-        std::vector<ComponentType*> getComponent()
+        std::vector<ComponentType*> getComponents()
         {
             std::vector<ComponentType*> matchedComponents;
             std::queue<Component*> q;
@@ -105,6 +105,7 @@ namespace Cyan
             return matchedComponents;
         }
 
+        static u32 count;
         std::string name;
         Entity* parent;
         std::vector<Entity*> childs;

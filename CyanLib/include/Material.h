@@ -9,7 +9,8 @@
 #include "Asset.h"
 
 namespace Cyan {
-    struct GpuMaterial {
+    struct GpuMaterial 
+    {
         u64 albedoMap;
         u64 normalMap;
         u64 metallicRoughnessMap;
@@ -21,7 +22,8 @@ namespace Cyan {
         u32 flag = 0u;
     };
 
-    struct Material {
+    struct Material 
+    {
         enum class Flags : u32 {
             kHasAlbedoMap            = 1 << 0,
             kHasNormalMap            = 1 << 1,

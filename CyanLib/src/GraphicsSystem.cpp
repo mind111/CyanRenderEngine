@@ -179,6 +179,11 @@ namespace Cyan
         {
             IMGUI_CHECKVERSION();
             ImGui::CreateContext();
+
+            ImGuiIO& io = ImGui::GetIO(); (void)io;
+            io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
+            io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+
             ImGui::StyleColorsDark();
             ImGui::GetStyle().WindowRounding = 0.0f;
             ImGui::GetStyle().ChildRounding = 0.0f;
@@ -191,7 +196,6 @@ namespace Cyan
             ImGui_ImplOpenGL3_Init(nullptr);
 
             // font
-            ImGuiIO& io = ImGui::GetIO();
             static ImFont* gFont = nullptr;
             gFont = io.Fonts->AddFontFromFileTTF("C:\\dev\\cyanRenderEngine\\asset\\fonts\\Roboto-Medium.ttf", 14.f);
         }
@@ -207,37 +211,30 @@ namespace Cyan
 
     }
 
-    void GraphicsSystem::render(Scene* scene) 
+    void GraphicsSystem::render(Scene* scene, Texture2DRenderable* sceneRenderingOutput, const std::function<void(Renderer*, Texture2DRenderable*)>& postSceneRenderingCallback)
     {
+        // clear default render target
+        m_ctx->setRenderTarget(nullptr, { });
+        m_ctx->clear();
+        // scene rendering
         if (scene) 
         {
-            // clear default render target
-            m_ctx->setRenderTarget(nullptr, { });
-            m_ctx->clear();
-
-            // todo: properly handle window resize here
-            glm::uvec2 resolution = m_windowDimension;
-            ITextureRenderable::Spec spec = { };
-            spec.width = resolution.x;
-            spec.height = resolution.y;
-            spec.type = TEX_2D;
-            spec.pixelFormat = PF_RGB16F;
-            static Texture2DRenderable* frameOutput = new Texture2DRenderable("FrameOutput", spec);
-
             if (auto camera = dynamic_cast<PerspectiveCamera*>(scene->m_mainCamera->getCamera())) {
                 SceneView mainSceneView(*scene, *camera,
                     [](Entity* entity) {
                         return entity->getProperties() | EntityFlag_kVisible;
                     },
-                    frameOutput, 
-                    { 0, 0, frameOutput->width, frameOutput->height }
+                    sceneRenderingOutput, 
+                    { 0, 0, sceneRenderingOutput->width, sceneRenderingOutput->height }
                 );
-                m_renderer->render(scene, mainSceneView);
+                m_renderer->render(scene, mainSceneView, glm::uvec2(sceneRenderingOutput->width, sceneRenderingOutput->height));
             }
-            m_renderer->renderToScreen(frameOutput);
-            m_renderer->renderUI();
 
-            m_ctx->flip();
+            // post scene rendering
+            postSceneRenderingCallback(m_renderer.get(), sceneRenderingOutput);
         }
+        // UI rendering
+        m_renderer->renderUI();
+        m_ctx->flip();
     }
 }

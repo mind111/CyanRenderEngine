@@ -5,10 +5,22 @@
 
 namespace Cyan
 {
+    u32 Entity::count = 0;
+
     Entity::Entity(Scene* scene, const char* inName, const Transform& t, Entity* inParent, u32 inProperties)
-        : name(inName), parent(nullptr), properties(inProperties)
+        : name(""), parent(nullptr), properties(inProperties)
     {
+        if (inName == nullptr)
+        {
+            name = std::string("Entity") + std::to_string(count++);
+        }
+        else
+        {
+            name = std::string(inName);
+        }
+
         rootSceneComponent = std::make_unique<SceneComponent>(this, "SceneRoot", t);
+
         if (!inParent)
         {
             if (scene->m_rootEntity)

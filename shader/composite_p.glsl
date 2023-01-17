@@ -143,7 +143,7 @@ void main()
 		}
         else if (tonemapOperator == TONEMAPPER_REINHARD) {
 			// tonemappedColor = ReinhardTonemapping(exposure * linearColor, whitePointLuminance);
-			tonemappedColor = simpleReinhard(exposure * linearColor);
+			tonemappedColor = smoothstep(0.f, 1.f, simpleReinhard(exposure * linearColor));
 			tonemappedColor = gammaCorrection(tonemappedColor, 1.f / 2.2f);
         }
         else if (tonemapOperator == TONEMAPPER_SMOOTHSTEP) {
