@@ -573,7 +573,7 @@ namespace Cyan
             {
                 std::string matlName("DefaultMaterial");
 
-#if 0
+#if 1
                 auto& primitive = gltfMesh.primitives[sm];
                 if (primitive.material > -1)
                 {
@@ -835,6 +835,18 @@ namespace Cyan
         return false;
     }
 
+    bool jsonGetFloat(f32& outFloat, const json& o)
+    {
+        if (o.type() == json::value_t::number_float 
+            || o.type() == json::value_t::number_unsigned 
+            || o.type() == json::value_t::number_integer)
+        {
+            o.get_to(outFloat);
+            return true;
+        }
+        return false;
+    }
+
     bool jsonFindAndGetVec3(glm::vec3& outVec3, const json& o, const char* name)
     {
         json_const_iterator itr;
@@ -889,60 +901,12 @@ namespace Cyan
         }
     }
 
-    void parseNode(Scene* scene, Entity* parent, u32 node, const json& nodes)
+    bool jsonFindAndGetFloat(f32& outFloat, const json& o, const char* name)
     {
-        const json& o = nodes[node];
-
-        // @name
-        std::string name;
-        jsonFindAndGetString(name, o, "name");
-        // @transform
-        Transform t;
-        json_const_iterator matrixItr;
-        if (jsonFind(matrixItr, o, "matrix"))
+        json_const_iterator itr;
+        if (jsonFind(itr, o, name))
         {
-            const json& mo = matrixItr.value();
-            if (mo.is_array())
-            {
-                std::array<float, 16> m;
-                mo.get_to(m);
-                glm::mat4 mat = {
-                    glm::vec4(m[0],  m[1],  m[2],  m[3]),     // column 0
-                    glm::vec4(m[4],  m[5],  m[6],  m[7]),     // column 1
-                    glm::vec4(m[8],  m[9],  m[10], m[11]),    // column 2
-                    glm::vec4(m[12], m[13], m[14], m[15])     // column 3
-                };
-                t.fromMatrix(mat);
-            }
-        }
-        else
-        {
-            glm::vec3 scale(1.f); glm::vec4 rotation(0.f, 0.f, 0.f, 1.f); glm::vec3 translation(0.f);
-            // @scale
-            jsonFindAndGetVec3(scale, o, "scale");
-            // @rotation
-            jsonFindAndGetVec4(rotation, o, "rotation");
-            // @translation
-            jsonFindAndGetVec3(translation, o, "translation");
-            t.m_scale = scale;
-            t.m_qRot = glm::quat(rotation.w, glm::vec3(rotation.x, rotation.y, rotation.z));
-            t.m_translate = translation;
-        }
-        // @mesh
-        u32 mesh;
-        bool bHasMesh = jsonFindAndGetUint(mesh, o, "mesh");
-        Entity* e = scene->createEntity(name.c_str(), t, parent);
-
-        // recurse into children nodes
-        std::vector<u32> children;
-        json_const_iterator itr = o.find("children");
-        if (itr != o.end())
-        {
-            itr.value().get_to(children);
-        }
-        for (auto child : children)
-        {
-            parseNode(scene, e, child, nodes);
+            return jsonGetFloat(outFloat, itr.value());
         }
     }
 
@@ -956,9 +920,19 @@ namespace Cyan
 
         struct Node
         {
-            // required
-            std::string name;
             // optional
+            std::string name;
+            i32 mesh = -1;
+            i32 camera = -1;
+            i32 hasMatrix = -1;
+            i32 hasScale = -1;
+            i32 hasRotation = -1;
+            i32 hasTranslation = -1;
+            std::array<f32, 16> matrix;
+            glm::vec3 scale = glm::vec3(1.f);
+            glm::vec4 rotation = glm::vec4(0.f, 0.f, 0.f, 1.f);
+            glm::vec3 translation = glm::vec3(0.f);
+            std::vector<u32> children;
         };
 
         struct Accessor
@@ -1022,6 +996,79 @@ namespace Cyan
             std::string name;
         };
 
+        struct Image
+        {
+            // parsed form json
+            std::string uri;
+            i32 bufferView = -1;
+            std::string mimeType;
+            std::string name;
+            // filled in when raw image data is interpreted using stbi
+            i32 width, height, numChannels;
+            bool bHdr = false;
+            bool b16Bits = false;
+            u8* pixels = nullptr;
+
+            ~Image()
+            {
+                if (pixels)
+                {
+                    stbi_image_free(pixels);
+                }
+            }
+        };
+
+        struct Sampler
+        {
+            enum class Filtering
+            {
+                NEAREST = 9728,
+                LINEAR = 9729,
+                NEAREST_MIPMAP_NEAREST = 9984,
+                LINEAR_MIPMAP_NEAREST = 9985,
+                NEAREST_MIPMAP_LINEAR = 9986,
+                LINEAR_MIPMAP_LINEAR = 9987
+            };
+
+            u32 magFilter = (u32)Filtering::LINEAR;
+            u32 minFilter = (u32)Filtering::LINEAR;
+            u32 wrapS = 10497;
+            u32 wrapT = 10497;
+            std::string name;
+        };
+
+        struct Texture
+        {
+            i32 source = -1;
+            i32 sampler = -1;
+            std::string name;
+        };
+
+        // todo: handle extra fields such as "scale", "strength" etc
+        struct TextureInfo
+        {
+            i32 index = -1;
+            u32 texCoord = 0;
+        };
+
+        struct PbrMetallicRoughness
+        {
+            glm::vec4 baseColorFactor = glm::vec4(1.f, 1.f, 1.f, 1.f);
+            TextureInfo baseColorTexture;
+            f32 metallicFactor = 1.f;
+            f32 roughnessFactor = 1.f;
+            TextureInfo metallicRoughnessTexture;
+        };
+
+        struct Material
+        {
+            std::string name;
+            PbrMetallicRoughness pbrMetallicRoughness;
+            TextureInfo normalTexture;
+            TextureInfo occlusionTexture;
+            TextureInfo emissiveTexture;
+        };
+
         static void from_json(const json& o, Scene& scene)
         {
             jsonFindAndGetString(scene.name, o, "name");
@@ -1032,6 +1079,40 @@ namespace Cyan
                 {
                     jNodes.get_to(scene.nodes);
                 }
+            }
+        }
+
+        static void from_json(const json& o, Node& node)
+        {
+            jsonFindAndGetString(node.name, o, "name");
+            u32 mesh;
+            if (jsonFindAndGetUint(mesh, o, "mesh"))
+            {
+                node.mesh = (i32)mesh;
+            }
+            json matrix;
+            if (jsonFind(matrix, o, "matrix"))
+            {
+                node.hasMatrix = 1;
+                matrix.get_to(node.matrix);
+            }
+            json scale;
+            if (jsonFind(scale, o, "scale"))
+            {
+                node.hasScale = 1;
+                scale.get_to(node.scale);
+            }
+            json rotation;
+            if (jsonFind(rotation, o, "rotation"))
+            {
+                node.hasRotation = 1;
+                rotation.get_to(node.rotation);
+            }
+            json translation;
+            if (jsonFind(translation, o, "translation"))
+            {
+                node.hasTranslation = 1;
+                translation.get_to(node.translation);
             }
         }
 
@@ -1149,6 +1230,104 @@ namespace Cyan
             jsonFindAndGetString(mesh.name, o, "name");
         }
 
+        static void from_json(const json& o, Image& image)
+        {
+            u32 bufferView;
+            if (jsonFindAndGetUint(bufferView, o, "bufferView"))
+            {
+                image.bufferView = (i32)bufferView;
+                if (!jsonFindAndGetString(image.mimeType, o, "mimeType"))
+                {
+                    // todo: issue error
+                }
+            }
+            else
+            {
+                if (!jsonFindAndGetString(image.uri, o, "uri"))
+                {
+                    // todo: issue error
+                }
+            }
+            jsonFindAndGetString(image.name, o, "name");
+        }
+
+        static void from_json(const json& o, Sampler& sampler)
+        {
+            jsonFindAndGetUint(sampler.magFilter, o, "magFilter");
+            jsonFindAndGetUint(sampler.minFilter, o, "minFilter");
+            jsonFindAndGetUint(sampler.wrapS, o, "wrapS");
+            jsonFindAndGetUint(sampler.wrapT, o, "wrapT");
+            jsonFindAndGetString(sampler.name, o, "name");
+        }
+
+        static void from_json(const json& o, Texture& texture)
+        {
+            u32 source;
+            if (jsonFindAndGetUint(source, o, "source"))
+            {
+                texture.source = (i32)source;
+            }
+            u32 sampler;
+            if (jsonFindAndGetUint(sampler, o, "sampler"))
+            {
+                texture.sampler = sampler;
+            }
+            jsonFindAndGetString(texture.name, o, "name");
+        }
+
+        static void from_json(const json& o, TextureInfo& textureInfo)
+        {
+            u32 index;
+            if (!jsonFindAndGetUint(index, o, "index"))
+            {
+                textureInfo.index = (i32)index;
+            }
+            jsonFindAndGetUint(textureInfo.texCoord, o, "texCoord");
+        }
+
+        static void from_json(const json& o, PbrMetallicRoughness& pbrMetallicRoughness)
+        {
+            json jBaseColorTexture;
+            if (jsonFind(jBaseColorTexture, o, "baseColorTexture"))
+            {
+                jBaseColorTexture.get_to(pbrMetallicRoughness.baseColorTexture);
+            }
+            json jMetallicRoughness;
+            if (jsonFind(jMetallicRoughness, o, "metallicRoughnessTexture"))
+            {
+                jMetallicRoughness.get_to(pbrMetallicRoughness.metallicRoughnessTexture);
+            }
+            jsonFindAndGetVec4(pbrMetallicRoughness.baseColorFactor, o, "baseColorFactor");
+            jsonFindAndGetFloat(pbrMetallicRoughness.metallicFactor, o, "metallicFactor");
+            jsonFindAndGetFloat(pbrMetallicRoughness.roughnessFactor, o, "roughnessFactor");
+        }
+
+        static void from_json(const json& o, Material& material)
+        {
+            jsonFindAndGetString(material.name, o, "name");
+            json jPbrMetallicRoughness;
+            if (jsonFind(jPbrMetallicRoughness, o, "pbrMetallicRoughness"))
+            {
+                jPbrMetallicRoughness.get_to(material.pbrMetallicRoughness);
+            }
+            json jNormalTexture;
+            if (jsonFind(jNormalTexture, o, "normalTexture"))
+            {
+                jNormalTexture.get_to(material.normalTexture);
+            }
+            json jOcclusionTexture;
+            if (jsonFind(jOcclusionTexture, o, "occlusionTexture"))
+            {
+                jOcclusionTexture.get_to(material.occlusionTexture);
+            }
+            json jEmissiveTexture;
+            if (jsonFind(jEmissiveTexture, o, "emissiveTexture"))
+            {
+                jEmissiveTexture.get_to(material.emissiveTexture);
+            }
+            // todo: some fields are not loaded
+        }
+
         // abstraction of the parsed json content of a .glb file
         struct Descriptor
         {
@@ -1158,8 +1337,8 @@ namespace Cyan
                 u32 chunkType;
             };
 
-            Descriptor(const char* inFilename, const ChunkDesc& inJsonChunkDesc, const ChunkDesc& inBinaryChunkDesc, u32 binaryChunkOffset, const json& inGltfJsonObject)
-                : filename(inFilename), jsonChunkDesc(inJsonChunkDesc), binaryChunkDesc(inBinaryChunkDesc), o(inGltfJsonObject)
+            Descriptor(const char* inFilename, const ChunkDesc& inJsonChunkDesc, const ChunkDesc& inBinaryChunkDesc, u32 inBinaryChunkOffset, const json& inGltfJsonObject)
+                : filename(inFilename), jsonChunkDesc(inJsonChunkDesc), binaryChunkDesc(inBinaryChunkDesc), binaryChunkOffset(inBinaryChunkOffset), o(inGltfJsonObject)
             {
             }
 
@@ -1167,7 +1346,7 @@ namespace Cyan
             {
             }
 
-            void initialize()
+            bool init()
             {
                 if (!bInitailized)
                 {
@@ -1208,6 +1387,16 @@ namespace Cyan
                     }
 
                     // 3. load all nodes
+                    json jNodes;
+                    if (jsonFind(jNodes, o, "nodes"))
+                    {
+                        u32 numNodes = jNodes.size();
+                        nodes.resize(numNodes);
+                        for (i32 i = 0; i < numNodes; ++i)
+                        {
+                            jNodes[i].get_to(nodes[i]);
+                        }
+                    }
 
                     // 4. load all bufferViews
                     json jBufferViews;
@@ -1256,7 +1445,74 @@ namespace Cyan
                             jMeshes[m].get_to(meshes[m]);
                         }
                     }
+
+                    // 8: load all images
+                    json jImages;
+                    if (jsonFind(jImages, o, "images"))
+                    {
+                        u32 numImages = jImages.size();
+                        images.resize(numImages);
+                        for (i32 i = 0; i < numImages; ++i)
+                        {
+                            jImages[i].get_to(images[i]);
+                            // todo: this is just a hack for dealing with unnamed images
+                            if (images[i].name.empty())
+                            {
+                                std::string prefix(filename);
+                                images[i].name = prefix + "/image_" + std::to_string(i);
+                            }
+                        }
+                    }
+
+                    // 9: load all samplers
+                    json jSamplers;
+                    if (jsonFind(jSamplers, o, "samplers"))
+                    {
+                        u32 numSamplers = jSamplers.size();
+                        samplers.resize(numSamplers);
+                        for (i32 i = 0; i < numSamplers; ++i)
+                        {
+                            jSamplers[i].get_to(samplers[i]);
+                        }
+                    }
+
+                    // 10: load all textures
+                    json jTextures;
+                    if (jsonFind(jTextures, o, "textures"))
+                    {
+                        u32 numTextures = jTextures.size();
+                        textures.resize(numTextures);
+                        for (i32 i = 0; i < numTextures; ++i)
+                        {
+                            jTextures[i].get_to(textures[i]);
+                            // todo: this is just a hack for dealing with unnamed textures
+                            if (textures[i].name.empty())
+                            {
+                                std::string prefix(filename);
+                                textures[i].name = prefix + "/texture_" + std::to_string(i);
+                            }
+                        }
+                    }
+
+                    // 11. load all materials
+                    json jMaterials;
+                    if (jsonFind(jMaterials, o, "materials"))
+                    {
+                        u32 numMaterials = jMaterials.size();
+                        materials.resize(numMaterials);
+                        for (i32 i = 0; i < numMaterials; ++i)
+                        {
+                            jMaterials[i].get_to(materials[i]);
+                            // todo: this is just a hack for dealing with unnamed materials
+                            if (materials[i].name.empty())
+                            {
+                                std::string prefix(filename);
+                                materials[i].name = prefix + "/matl_" + std::to_string(i);
+                            }
+                        }
+                    }
                 }
+                return true;
             }
 
             bool bInitailized = false;
@@ -1273,7 +1529,82 @@ namespace Cyan
             std::vector<Accessor> accessors;
             std::vector<Buffer> buffers;
             std::vector<BufferView> bufferViews;
+            std::vector<Image> images;
+            std::vector<Texture> textures;
+            std::vector<Sampler> samplers;
+            std::vector<Material> materials;
         };
+    }
+
+    void loadNode(Scene* scene, Entity* parent, const gltf::Node& node, const gltf::Descriptor& desc)
+    {
+        // @name
+        std::string name;
+        // @transform
+        Transform t;
+        if (node.hasMatrix >= 0)
+        {
+            const std::array<f32, 16>& m = node.matrix;
+            glm::mat4 mat = {
+                glm::vec4(m[0],  m[1],  m[2],  m[3]),     // column 0
+                glm::vec4(m[4],  m[5],  m[6],  m[7]),     // column 1
+                glm::vec4(m[8],  m[9],  m[10], m[11]),    // column 2
+                glm::vec4(m[12], m[13], m[14], m[15])     // column 3
+            };
+            t.fromMatrix(mat);
+        }
+        else
+        {
+            glm::vec3 scale(1.f); glm::vec4 rotation(0.f, 0.f, 0.f, 1.f); glm::vec3 translation(0.f);
+            // @scale
+            if (node.hasScale >= 0)
+            {
+                scale = node.scale;
+            }
+            // @rotation
+            if (node.hasRotation >= 0)
+            {
+                rotation = node.rotation;
+            }
+            // @translation
+            if (node.hasTranslation >= 0)
+            {
+                translation = node.translation;
+            }
+            t.m_scale = scale;
+            t.m_qRot = glm::quat(rotation.w, glm::vec3(rotation.x, rotation.y, rotation.z));
+            t.m_translate = translation;
+        }
+        // @mesh
+        Entity* e = nullptr;
+        if (node.mesh >= 0)
+        {
+           const gltf::Mesh& gltfMesh = desc.meshes[node.mesh];
+           Mesh* mesh = AssetManager::getAsset<Mesh>(gltfMesh.name.c_str());
+           StaticMeshEntity* staticMeshEntity = scene->createStaticMeshEntity(name.c_str(), t, mesh, parent);
+           staticMeshEntity->setMaterial(AssetManager::getAsset<Material>("DefaultMaterial"));
+           e = staticMeshEntity;
+           for (i32 p = 0; p < gltfMesh.primitives.size(); ++p)
+           {
+               const gltf::Primitive& primitive = gltfMesh.primitives[p];
+               if (primitive.material >= 0)
+               {
+                   const gltf::Material& gltfMatl = desc.materials[primitive.material];
+                   auto matl = AssetManager::getAsset<Material>(gltfMatl.name.c_str());
+                   staticMeshEntity->setMaterial(matl, p);
+               }
+           }
+        }
+        else
+        {
+           e = scene->createEntity(name.c_str(), t, parent);
+        }
+
+        // recurse into children nodes
+        for (auto child : node.children)
+        {
+            loadNode(scene, e, desc.nodes[child], desc);
+        }
     }
 
     // todo: implement this!!!
@@ -1333,531 +1664,348 @@ namespace Cyan
             // parse the json using json.hpp
             json o = nlohmann::json::parse(jsonStr);
             gltf::Descriptor desc(filename, jsonChunkDesc, binaryChunkDesc, binaryChunkOffset, o);
-            // asynchronously stream in the binary chunk ...?
-            struct StreamGltfBinaryTask
+            if (!desc.init())
             {
-                StreamGltfBinaryTask(const gltf::Descriptor& inDesc)
+                cyanError("Failed to load json chunk of %s", filename);
+            }
+
+            struct LoadGltfBinaryTask
+            {
+                LoadGltfBinaryTask(const gltf::Descriptor& inDesc)
                     : desc(inDesc)
                 {
-                }
-
-                void operator()()
-                {
                     // open the file, and start reading from the binary chunk
-                    std::ifstream glb(filename, std::ios::binary);
+                    std::ifstream glb(desc.filename, std::ios::binary);
                     if (glb.is_open())
                     {
-                        glb.seekg(binaryChunkOffset);
-
-                        // 1. load all bufferViews
-                        json jBufferViews;
-                        if (jsonFind(jBufferViews, gltf, "bufferViews"))
-                        {
-                            u32 numBufferViews = jBufferViews.size();
-                            bufferViews.resize(numBufferViews);
-                            for (i32 i = 0; i < numBufferViews; ++i)
-                            {
-                                jBufferViews[i].get_to(bufferViews[i]);
-                            }
-                        }
-                        // 2. load all accessors
-                        json jAccessors;
-                        if (jsonFind(jAccessors, gltf, "accessors"))
-                        {
-                            u32 numAccessors = jAccessors.size();
-                            accessors.resize(numAccessors);
-                            for (i32 i = 0; i < numAccessors; ++i)
-                            {
-                                jAccessors[i].get_to(accessors[i]);
-                            }
-                        }
-                        // 3. load all buffers (for .glb there should be only one buffer)
-                        json jBuffers;
-                        if (jsonFind(jBuffers, gltf, "buffers"))
-                        {
-                            u32 numBuffers = jBuffers.size();
-                            buffers.resize(numBuffers);
-                            for (i32 i = 0; i < numBuffers; ++i)
-                            {
-                                jBuffers[i].get_to(buffers[i]);
-                            }
-                        }
-                        // 4. load the buffer from disk into memory assuming that it all fit
-                        binaryChunk.resize(binaryChunkDesc.chunkLength);
+                        glb.seekg(desc.binaryChunkOffset);
+                        binaryChunk.resize(desc.binaryChunkDesc.chunkLength);
                         // todo: this is a slow operation depending on size of the chunk to read in
-                        glb.read(reinterpret_cast<char*>(binaryChunk.data()), binaryChunkDesc.chunkLength);
-                        // 5. parse mesh data from loaded binary chunk
-                        json jMeshes;
-                        jsonFind(jMeshes, gltf, "meshes");
-                        if (jMeshes.is_array())
-                        {
-                            u32 numMeshes = jMeshes.size();
-                            meshes.resize(numMeshes);
-                            for (i32 m = 0; m < numMeshes; ++m)
-                            {
-                                jMeshes[m].get_to(meshes[m]);
-                                i32 numSubmeshes = meshes[m].primitives.size();
-                                std::vector<ISubmesh*> submeshes(numSubmeshes);
-                                for (i32 sm = 0; sm < numSubmeshes; ++sm)
-                                {
-                                    const gltf::Primitive& p = meshes[m].primitives[sm];
-                                    u32 numVertices = accessors[p.attribute.position].count;
-                                    std::vector<Triangles::Vertex> vertices(numVertices);
-                                    std::vector<u32> indices;
+                        glb.read(reinterpret_cast<char*>(binaryChunk.data()), desc.binaryChunkDesc.chunkLength);
+                    }
+                    bInitialized = glb.is_open();
+                }
 
-                                    // determine whether the vertex attribute is tightly packed or interleaved
-                                    bool bInterleaved = false;
-                                    const gltf::Accessor& a = accessors[p.attribute.position]; 
+                void loadMeshes()
+                {
+                    ScopedTimer timer("loadMeshes()", true);
+                    u32 numMeshes = desc.meshes.size();
+                    for (i32 m = 0; m < numMeshes; ++m)
+                    {
+                        i32 numSubmeshes = desc.meshes[m].primitives.size();
+                        std::vector<ISubmesh*> submeshes(numSubmeshes);
+                        for (i32 sm = 0; sm < numSubmeshes; ++sm)
+                        {
+                            const gltf::Primitive& p = desc.meshes[m].primitives[sm];
+                            u32 numVertices = desc.accessors[p.attribute.position].count;
+                            std::vector<Triangles::Vertex> vertices(numVertices);
+                            std::vector<u32> indices;
+
+                            // determine whether the vertex attribute is tightly packed or interleaved
+                            bool bInterleaved = false;
+                            const gltf::Accessor& a = desc.accessors[p.attribute.position]; 
+                            if (a.bufferView >= 0)
+                            {
+                                const gltf::BufferView& bv = desc.bufferViews[a.bufferView];
+                                if (bv.byteStride > 0)
+                                {
+                                    bInterleaved = true;
+                                }
+                            }
+                            if (bInterleaved)
+                            {
+                                // todo: implement this code path
+                            }
+                            else 
+                            {
+                                glm::vec3* positions = nullptr;
+                                glm::vec3* normals = nullptr;
+                                glm::vec4* tangents = nullptr;
+                                glm::vec2* texCoord0 = nullptr;
+                                // position
+                                {
+                                    const gltf::Accessor& a = desc.accessors[p.attribute.position]; 
+                                    assert(a.type == "VEC3");
                                     if (a.bufferView >= 0)
                                     {
-                                        const gltf::BufferView& bv = bufferViews[a.bufferView];
-                                        if (bv.byteStride > 0)
-                                        {
-                                            bInterleaved = true;
-                                        }
+                                        const gltf::BufferView& bv = desc.bufferViews[a.bufferView];
+                                        u32 offset = a.byteOffset + bv.byteOffset;
+                                        positions = reinterpret_cast<glm::vec3*>(binaryChunk.data() + offset);
                                     }
-                                    if (bInterleaved)
-                                    {
-                                        // todo: implement this code path
-                                    }
-                                    else 
-                                    {
-                                        glm::vec3* positions = nullptr;
-                                        glm::vec3* normals = nullptr;
-                                        glm::vec4* tangents = nullptr;
-                                        glm::vec2* texCoord0 = nullptr;
-                                        // position
-                                        {
-                                            const gltf::Accessor& a = accessors[p.attribute.position]; 
-                                            assert(a.type == "VEC3");
-                                            if (a.bufferView >= 0)
-                                            {
-                                                const gltf::BufferView& bv = bufferViews[a.bufferView];
-                                                u32 offset = a.byteOffset + bv.byteOffset;
-                                                positions = reinterpret_cast<glm::vec3*>(binaryChunk.data() + offset);
-                                            }
-                                        }
-                                        // normal
-                                        {
-                                            const gltf::Accessor& a = accessors[p.attribute.normal]; 
-                                            assert(a.type == "VEC3");
-                                            if (a.bufferView >= 0)
-                                            {
-                                                const gltf::BufferView& bv = bufferViews[a.bufferView];
-                                                u32 offset = a.byteOffset + bv.byteOffset;
-                                                normals = reinterpret_cast<glm::vec3*>(binaryChunk.data() + offset);
-                                            }
-                                        }
-                                        // tangents
-                                        {
-                                            if (p.attribute.tangent >= 0)
-                                            {
-                                                const gltf::Accessor& a = accessors[p.attribute.tangent];
-                                                assert(a.type == "VEC4");
-                                                if (a.bufferView >= 0)
-                                                {
-                                                    const gltf::BufferView& bv = bufferViews[a.bufferView];
-                                                    u32 offset = a.byteOffset + bv.byteOffset;
-                                                    tangents = reinterpret_cast<glm::vec4*>(binaryChunk.data() + offset);
-                                                }
-                                            }
-                                        }
-                                        // texCoord0
-                                        {
-                                            if (p.attribute.texCoord0 >= 0)
-                                            {
-                                                const gltf::Accessor& a = accessors[p.attribute.texCoord0];
-                                                assert(a.type == "VEC2");
-                                                if (a.bufferView >= 0)
-                                                {
-                                                    const gltf::BufferView& bv = bufferViews[a.bufferView];
-                                                    u32 offset = a.byteOffset + bv.byteOffset;
-                                                    texCoord0 = reinterpret_cast<glm::vec2*>(binaryChunk.data() + offset);
-                                                }
-                                            }
-                                        }
-
-                                        // fill vertices
-                                        if (positions) 
-                                        {
-                                            for (i32 v = 0; v < numVertices; ++v)
-                                            {
-                                                vertices[v].pos = positions[v];
-                                            }
-                                        }
-                                        if (normals) 
-                                        {
-                                            for (i32 v = 0; v < numVertices; ++v)
-                                            {
-                                                vertices[v].normal = normals[v];
-                                            }
-                                        }
-                                        if (tangents) 
-                                        {
-                                            for (i32 v = 0; v < numVertices; ++v)
-                                            {
-                                                vertices[v].tangent = tangents[v];
-                                            }
-                                        }
-                                        if (texCoord0) 
-                                        {
-                                            for (i32 v = 0; v < numVertices; ++v)
-                                            {
-                                                vertices[v].texCoord0 = texCoord0[v];
-                                            }
-                                        }
-
-                                        // fill indices
-                                        if (p.indices >= 0)
-                                        {
-                                            const gltf::Accessor& a = accessors[p.indices];
-                                            u32 numIndices = a.count;
-                                            indices.resize(numIndices);
-                                            if (a.bufferView >= 0)
-                                            {
-                                                const gltf::BufferView& bv = bufferViews[a.bufferView];
-                                                // would like to convert any other index data type to u32
-                                                if (a.componentType == 5121)
-                                                {
-                                                    u8* dataAddress = reinterpret_cast<u8*>(binaryChunk.data() + a.byteOffset + bv.byteOffset);
-                                                    for (i32 i = 0; i < numIndices; ++i)
-                                                    {
-                                                        indices[i] = static_cast<u32>(dataAddress[i]);
-                                                    }
-                                                }
-                                                else if (a.componentType == 5123)
-                                                {
-                                                    u16* dataAddress = reinterpret_cast<u16*>(binaryChunk.data() + a.byteOffset + bv.byteOffset);
-                                                    for (i32 i = 0; i < numIndices; ++i)
-                                                    {
-                                                        indices[i] = static_cast<u32>(dataAddress[i]);
-                                                    }
-                                                }
-                                                else if (a.componentType == 5125)
-                                                {
-                                                    u32* dataAddress = reinterpret_cast<u32*>(binaryChunk.data() + a.byteOffset + bv.byteOffset);
-                                                    memcpy(indices.data(), dataAddress, bv.byteLength);
-                                                }
-                                            }
-                                        }
-                                    }
-                                    submeshes[sm] = createSubmesh<Triangles>(vertices, indices);
                                 }
-                                createMesh(meshes[m].name.c_str(), submeshes);
+                                // normal
+                                {
+                                    const gltf::Accessor& a = desc.accessors[p.attribute.normal]; 
+                                    assert(a.type == "VEC3");
+                                    if (a.bufferView >= 0)
+                                    {
+                                        const gltf::BufferView& bv = desc.bufferViews[a.bufferView];
+                                        u32 offset = a.byteOffset + bv.byteOffset;
+                                        normals = reinterpret_cast<glm::vec3*>(binaryChunk.data() + offset);
+                                    }
+                                }
+                                // tangents
+                                {
+                                    if (p.attribute.tangent >= 0)
+                                    {
+                                        const gltf::Accessor& a = desc.accessors[p.attribute.tangent];
+                                        assert(a.type == "VEC4");
+                                        if (a.bufferView >= 0)
+                                        {
+                                            const gltf::BufferView& bv = desc.bufferViews[a.bufferView];
+                                            u32 offset = a.byteOffset + bv.byteOffset;
+                                            tangents = reinterpret_cast<glm::vec4*>(binaryChunk.data() + offset);
+                                        }
+                                    }
+                                }
+                                // texCoord0
+                                {
+                                    if (p.attribute.texCoord0 >= 0)
+                                    {
+                                        const gltf::Accessor& a = desc.accessors[p.attribute.texCoord0];
+                                        assert(a.type == "VEC2");
+                                        if (a.bufferView >= 0)
+                                        {
+                                            const gltf::BufferView& bv = desc.bufferViews[a.bufferView];
+                                            u32 offset = a.byteOffset + bv.byteOffset;
+                                            texCoord0 = reinterpret_cast<glm::vec2*>(binaryChunk.data() + offset);
+                                        }
+                                    }
+                                }
+
+                                // fill vertices
+                                if (positions) 
+                                {
+                                    for (i32 v = 0; v < numVertices; ++v)
+                                    {
+                                        vertices[v].pos = positions[v];
+                                    }
+                                }
+                                if (normals) 
+                                {
+                                    for (i32 v = 0; v < numVertices; ++v)
+                                    {
+                                        vertices[v].normal = normals[v];
+                                    }
+                                }
+                                if (tangents) 
+                                {
+                                    for (i32 v = 0; v < numVertices; ++v)
+                                    {
+                                        vertices[v].tangent = tangents[v];
+                                    }
+                                }
+                                if (texCoord0) 
+                                {
+                                    for (i32 v = 0; v < numVertices; ++v)
+                                    {
+                                        vertices[v].texCoord0 = texCoord0[v];
+                                    }
+                                }
+
+                                // fill indices
+                                if (p.indices >= 0)
+                                {
+                                    const gltf::Accessor& a = desc.accessors[p.indices];
+                                    u32 numIndices = a.count;
+                                    indices.resize(numIndices);
+                                    if (a.bufferView >= 0)
+                                    {
+                                        const gltf::BufferView& bv = desc.bufferViews[a.bufferView];
+                                        // would like to convert any other index data type to u32
+                                        if (a.componentType == 5121)
+                                        {
+                                            u8* dataAddress = reinterpret_cast<u8*>(binaryChunk.data() + a.byteOffset + bv.byteOffset);
+                                            for (i32 i = 0; i < numIndices; ++i)
+                                            {
+                                                indices[i] = static_cast<u32>(dataAddress[i]);
+                                            }
+                                        }
+                                        else if (a.componentType == 5123)
+                                        {
+                                            u16* dataAddress = reinterpret_cast<u16*>(binaryChunk.data() + a.byteOffset + bv.byteOffset);
+                                            for (i32 i = 0; i < numIndices; ++i)
+                                            {
+                                                indices[i] = static_cast<u32>(dataAddress[i]);
+                                            }
+                                        }
+                                        else if (a.componentType == 5125)
+                                        {
+                                            u32* dataAddress = reinterpret_cast<u32*>(binaryChunk.data() + a.byteOffset + bv.byteOffset);
+                                            memcpy(indices.data(), dataAddress, bv.byteLength);
+                                        }
+                                    }
+                                }
                             }
+                            submeshes[sm] = createSubmesh<Triangles>(vertices, indices);
                         }
+                        createMesh(desc.meshes[m].name.c_str(), submeshes);
                     }
                 }
 
-                json gltf;
-                const char* filename = nullptr;
-                ChunkDesc binaryChunkDesc;
-                u32 binaryChunkOffset;
-
-                std::vector<u8> binaryChunk;
-                std::vector<gltf::Buffer> buffers;
-                std::vector<gltf::BufferView> bufferViews;
-                std::vector<gltf::Accessor> accessors;
-                std::vector<gltf::Mesh> meshes;
-            };
-
-            StreamGltfBinaryTask task(gltf, filename, binaryChunkDesc, binaryChunkOffset);
-            task();
-        }
-    }
-#if 0
-                    // 1. parse "scenes"
-                    std::vector<gltf::Scene> scenes;
-                    json jScenes;
-                    if (jsonFind(jScenes, gltf, "scenes"))
+                // todo: this part is extremely slow, how to speed this up ...?
+                void loadTextures()
+                {
+                    ScopedTimer timer("loadTextures()", true);
+                    // 1. load all the images into memory first assuming that it all fit
+                    for (i32 i = 0; i < desc.images.size(); ++i)
                     {
-                        if (jScenes.is_array())
+                        gltf::Image& image = desc.images[i];
+                        i32 bufferView = image.bufferView;
+                        if (bufferView >= 0)
                         {
-                            u32 numScenes = jScenes.size();
-                            scenes.resize(numScenes);
-                            for (i32 i = 0; i < numScenes; ++i)
+                            const gltf::BufferView bv = desc.bufferViews[bufferView];
+                            u8* dataAddress = binaryChunk.data() + bv.byteOffset;
+                            i32 hdr = stbi_is_hdr_from_memory(dataAddress, bv.byteLength);
+                            if (hdr)
                             {
-                                gltf::Scene& scene = scenes[i];
-                                jScenes[i].get_to(scene);
+                                image.bHdr = true;
+                                image.pixels = reinterpret_cast<u8*>(stbi_loadf_from_memory(dataAddress, bv.byteLength, &image.width, &image.height, &image.numChannels, 0));
+                            }
+                            else
+                            {
+                                i32 is16Bit = stbi_is_16_bit_from_memory(dataAddress, bv.byteLength);
+                                if (is16Bit)
+                                {
+                                    image.b16Bits = true;
+                                }
+                                else
+                                {
+                                    image.pixels = stbi_load_from_memory(dataAddress, bv.byteLength, &image.width, &image.height, &image.numChannels, 0);
+                                }
                             }
                         }
                     }
 
-                    // 2. parse root scene 
-                    /** node - @min:
-                    * per gltf-2.0 documentation https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#gltf-basics
-                    * "An additional root-level property, scene (note singular), identifies which of the scenes 
-                    * in the array SHOULD be displayed at load time. When scene is undefined, client 
-                    * implementations MAY delay rendering until a particular scene is requested."
-                    * so basically, "scene" property defines the default scene to render at load time.
-                    */
-                    u32 defaultScene = -1;
-                    json jDefaultScene;
-                    if (jsonFind(jDefaultScene, gltf, "scene"))
+                    // 2. load all textures
+                    for (i32 i = 0; i < desc.textures.size(); ++i)
                     {
-                        if (jDefaultScene.is_number_unsigned())
+                        const gltf::Texture& texture = desc.textures[i];
+                        const gltf::Image& image = desc.images[texture.source];
+                        const gltf::Sampler& sampler = desc.samplers[texture.sampler];
+
+                        ITextureRenderable::Spec spec = { };
+                        spec.type = TEX_2D;
+                        spec.width = image.width;
+                        spec.height = image.height;
+                        if (image.bHdr)
                         {
-                            jDefaultScene.get_to(defaultScene);
+                            switch (image.numChannels)
+                            {
+                            case 3: spec.pixelFormat = PF_RGB32F; break;
+                            case 4: spec.pixelFormat = PF_RGBA32F; break;
+                            default: break;
+                            }
                         }
                         else
                         {
-                            assert(0);
-                        }
-                    }
-
-                    // cache the binary chunk info
-                    ChunkDesc binaryChunkDesc;
-                    glb.read(reinterpret_cast<char*>(&binaryChunkDesc), sizeof(ChunkDesc));
-                    u32 binaryChunkOffset = glb.tellg();
-                    glb.close();
-
-                    // asynchronously stream in the binary chunk ...?
-                    struct StreamGltfBinaryTask
-                    {
-                        StreamGltfBinaryTask(const json& o, const char* inFilename, const ChunkDesc& desc, u32 offset)
-                            : gltf(o), filename(inFilename), binaryChunkDesc(desc), binaryChunkOffset(offset)
-                        {
-                        }
-
-                        void operator()()
-                        {
-                            // open the file, and start reading from the binary chunk
-                            std::ifstream glb(filename, std::ios::binary);
-                            if (glb.is_open())
+                            if (image.b16Bits)
                             {
-                                glb.seekg(binaryChunkOffset);
-
-                                // 1. load all bufferViews
-                                json jBufferViews;
-                                if (jsonFind(jBufferViews, gltf, "bufferViews"))
+                                switch (image.numChannels)
                                 {
-                                    u32 numBufferViews = jBufferViews.size();
-                                    bufferViews.resize(numBufferViews);
-                                    for (i32 i = 0; i < numBufferViews; ++i)
-                                    {
-                                        jBufferViews[i].get_to(bufferViews[i]);
-                                    }
+                                case 3: spec.pixelFormat = PF_RGB16F; break;
+                                case 4: spec.pixelFormat = PF_RGBA16F; break;
+                                default: assert(0); break;
                                 }
-                                // 2. load all accessors
-                                json jAccessors;
-                                if (jsonFind(jAccessors, gltf, "accessors"))
+                            }
+                            else
+                            {
+                                switch (image.numChannels)
                                 {
-                                    u32 numAccessors = jAccessors.size();
-                                    accessors.resize(numAccessors);
-                                    for (i32 i = 0; i < numAccessors; ++i)
-                                    {
-                                        jAccessors[i].get_to(accessors[i]);
-                                    }
-                                }
-                                // 3. load all buffers (for .glb there should be only one buffer)
-                                json jBuffers;
-                                if (jsonFind(jBuffers, gltf, "buffers"))
-                                {
-                                    u32 numBuffers = jBuffers.size();
-                                    buffers.resize(numBuffers);
-                                    for (i32 i = 0; i < numBuffers; ++i)
-                                    {
-                                        jBuffers[i].get_to(buffers[i]);
-                                    }
-                                }
-                                // 4. load the buffer from disk into memory assuming that it all fit
-                                binaryChunk.resize(binaryChunkDesc.chunkLength);
-                                // todo: this is a slow operation depending on size of the chunk to read in
-                                glb.read(reinterpret_cast<char*>(binaryChunk.data()), binaryChunkDesc.chunkLength);
-                                // 5. parse mesh data from loaded binary chunk
-                                json jMeshes;
-                                jsonFind(jMeshes, gltf, "meshes");
-                                if (jMeshes.is_array())
-                                {
-                                    u32 numMeshes = jMeshes.size();
-                                    meshes.resize(numMeshes);
-                                    for (i32 m = 0; m < numMeshes; ++m)
-                                    {
-                                        jMeshes[m].get_to(meshes[m]);
-                                        i32 numSubmeshes = meshes[m].primitives.size();
-                                        std::vector<ISubmesh*> submeshes(numSubmeshes);
-                                        for (i32 sm = 0; sm < numSubmeshes; ++sm)
-                                        {
-                                            const gltf::Primitive& p = meshes[m].primitives[sm];
-                                            u32 numVertices = accessors[p.attribute.position].count;
-                                            std::vector<Triangles::Vertex> vertices(numVertices);
-                                            std::vector<u32> indices;
-
-                                            // determine whether the vertex attribute is tightly packed or interleaved
-                                            bool bInterleaved = false;
-                                            const gltf::Accessor& a = accessors[p.attribute.position]; 
-                                            if (a.bufferView >= 0)
-                                            {
-                                                const gltf::BufferView& bv = bufferViews[a.bufferView];
-                                                if (bv.byteStride > 0)
-                                                {
-                                                    bInterleaved = true;
-                                                }
-                                            }
-                                            if (bInterleaved)
-                                            {
-                                                // todo: implement this code path
-                                            }
-                                            else 
-                                            {
-                                                glm::vec3* positions = nullptr;
-                                                glm::vec3* normals = nullptr;
-                                                glm::vec4* tangents = nullptr;
-                                                glm::vec2* texCoord0 = nullptr;
-                                                // position
-                                                {
-                                                    const gltf::Accessor& a = accessors[p.attribute.position]; 
-                                                    assert(a.type == "VEC3");
-                                                    if (a.bufferView >= 0)
-                                                    {
-                                                        const gltf::BufferView& bv = bufferViews[a.bufferView];
-                                                        u32 offset = a.byteOffset + bv.byteOffset;
-                                                        positions = reinterpret_cast<glm::vec3*>(binaryChunk.data() + offset);
-                                                    }
-                                                }
-                                                // normal
-                                                {
-                                                    const gltf::Accessor& a = accessors[p.attribute.normal]; 
-                                                    assert(a.type == "VEC3");
-                                                    if (a.bufferView >= 0)
-                                                    {
-                                                        const gltf::BufferView& bv = bufferViews[a.bufferView];
-                                                        u32 offset = a.byteOffset + bv.byteOffset;
-                                                        normals = reinterpret_cast<glm::vec3*>(binaryChunk.data() + offset);
-                                                    }
-                                                }
-                                                // tangents
-                                                {
-                                                    if (p.attribute.tangent >= 0)
-                                                    {
-                                                        const gltf::Accessor& a = accessors[p.attribute.tangent];
-                                                        assert(a.type == "VEC4");
-                                                        if (a.bufferView >= 0)
-                                                        {
-                                                            const gltf::BufferView& bv = bufferViews[a.bufferView];
-                                                            u32 offset = a.byteOffset + bv.byteOffset;
-                                                            tangents = reinterpret_cast<glm::vec4*>(binaryChunk.data() + offset);
-                                                        }
-                                                    }
-                                                }
-                                                // texCoord0
-                                                {
-                                                    if (p.attribute.texCoord0 >= 0)
-                                                    {
-                                                        const gltf::Accessor& a = accessors[p.attribute.texCoord0];
-                                                        assert(a.type == "VEC2");
-                                                        if (a.bufferView >= 0)
-                                                        {
-                                                            const gltf::BufferView& bv = bufferViews[a.bufferView];
-                                                            u32 offset = a.byteOffset + bv.byteOffset;
-                                                            texCoord0 = reinterpret_cast<glm::vec2*>(binaryChunk.data() + offset);
-                                                        }
-                                                    }
-                                                }
-
-                                                // fill vertices
-                                                if (positions) 
-                                                {
-                                                    for (i32 v = 0; v < numVertices; ++v)
-                                                    {
-                                                        vertices[v].pos = positions[v];
-                                                    }
-                                                }
-                                                if (normals) 
-                                                {
-                                                    for (i32 v = 0; v < numVertices; ++v)
-                                                    {
-                                                        vertices[v].normal = normals[v];
-                                                    }
-                                                }
-                                                if (tangents) 
-                                                {
-                                                    for (i32 v = 0; v < numVertices; ++v)
-                                                    {
-                                                        vertices[v].tangent = tangents[v];
-                                                    }
-                                                }
-                                                if (texCoord0) 
-                                                {
-                                                    for (i32 v = 0; v < numVertices; ++v)
-                                                    {
-                                                        vertices[v].texCoord0 = texCoord0[v];
-                                                    }
-                                                }
-
-                                                // fill indices
-                                                if (p.indices >= 0)
-                                                {
-                                                    const gltf::Accessor& a = accessors[p.indices];
-                                                    u32 numIndices = a.count;
-                                                    indices.resize(numIndices);
-                                                    if (a.bufferView >= 0)
-                                                    {
-                                                        const gltf::BufferView& bv = bufferViews[a.bufferView];
-                                                        // would like to convert any other index data type to u32
-                                                        if (a.componentType == 5121)
-                                                        {
-                                                            u8* dataAddress = reinterpret_cast<u8*>(binaryChunk.data() + a.byteOffset + bv.byteOffset);
-                                                            for (i32 i = 0; i < numIndices; ++i)
-                                                            {
-                                                                indices[i] = static_cast<u32>(dataAddress[i]);
-                                                            }
-                                                        }
-                                                        else if (a.componentType == 5123)
-                                                        {
-                                                            u16* dataAddress = reinterpret_cast<u16*>(binaryChunk.data() + a.byteOffset + bv.byteOffset);
-                                                            for (i32 i = 0; i < numIndices; ++i)
-                                                            {
-                                                                indices[i] = static_cast<u32>(dataAddress[i]);
-                                                            }
-                                                        }
-                                                        else if (a.componentType == 5125)
-                                                        {
-                                                            u32* dataAddress = reinterpret_cast<u32*>(binaryChunk.data() + a.byteOffset + bv.byteOffset);
-                                                            memcpy(indices.data(), dataAddress, bv.byteLength);
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                            submeshes[sm] = createSubmesh<Triangles>(vertices, indices);
-                                        }
-                                        createMesh(meshes[m].name.c_str(), submeshes);
-                                    }
+                                case 3: spec.pixelFormat = PF_RGB8; break;
+                                case 4: spec.pixelFormat = PF_RGBA8; break;
+                                default: assert(0); break;
                                 }
                             }
                         }
+                        spec.pixelData = image.pixels;
 
-                        json gltf;
-                        const char* filename = nullptr;
-                        ChunkDesc binaryChunkDesc;
-                        u32 binaryChunkOffset;
-
-                        std::vector<Byte> binaryChunk;
-                        std::vector<gltf::Buffer> buffers;
-                        std::vector<gltf::BufferView> bufferViews;
-                        std::vector<gltf::Accessor> accessors;
-                        std::vector<gltf::Mesh> meshes;
-                    };
-
-                    StreamGltfBinaryTask task(gltf, filename, binaryChunkDesc, binaryChunkOffset);
-                    task();
-
-                    json jSceneNodes;
-                    jsonFind(jSceneNodes, gltf, "nodes");
-                    // 3. parse the default "scene" node hierarchy given a set of root nodes
-                    if (defaultScene != -1)
-                    {
-                        gltf::Scene& gltfScene = scenes[defaultScene];
-                        std::vector<u32>& sceneRoots = gltfScene.nodes;
-                        for (u32 root : sceneRoots)
+                        ITextureRenderable::Parameter params;
+                        switch (sampler.magFilter)
                         {
-                            parseNode(scene, nullptr, root, jSceneNodes);
+                        case (u32)gltf::Sampler::Filtering::NEAREST: params.magnificationFilter = FM_POINT; break;
+                        case (u32)gltf::Sampler::Filtering::LINEAR: params.magnificationFilter = FM_BILINEAR; break;
+                        default: assert(0); break;
+                        }
+
+                        switch (sampler.minFilter)
+                        {
+                        case (u32)gltf::Sampler::Filtering::NEAREST: params.minificationFilter = FM_POINT; break;
+                        case (u32)gltf::Sampler::Filtering::LINEAR: params.minificationFilter = FM_BILINEAR; break;
+                        case (u32)gltf::Sampler::Filtering::LINEAR_MIPMAP_LINEAR: 
+                            params.minificationFilter = FM_TRILINEAR; 
+                            spec.numMips = log2(spec.width) + 1;
+                            break;
+                        case (u32)gltf::Sampler::Filtering::LINEAR_MIPMAP_NEAREST:
+                        case (u32)gltf::Sampler::Filtering::NEAREST_MIPMAP_LINEAR: 
+                        case (u32)gltf::Sampler::Filtering::NEAREST_MIPMAP_NEAREST: params.minificationFilter = ITextureRenderable::Parameter::Filtering::NEAREST_MIPMAP_NEAREST; break;
+                        default: assert(0); break;
+                        }
+
+                        AssetManager::createTexture2D(texture.name.c_str(), spec, params);
+                    }
+                }
+
+                void loadMaterials()
+                {
+                    ScopedTimer timer("loadMaterials()", true);
+                    for (i32 i = 0; i < desc.materials.size(); ++i)
+                    {
+                        const gltf::Material& gltfMatl = desc.materials[i];
+                        // todo: this is just a hack, need to come up with a better way to deal with no name assets in gltf
+                        Material& matl = createMaterial(gltfMatl.name.c_str());
+                        matl.albedo = gltfMatl.pbrMetallicRoughness.baseColorFactor;
+                        // matl.roughness = gltfMatl.pbrMetallicRoughness.roughnessFactor;
+                        // matl.metallic = gltfMatl.pbrMetallicRoughness.metallicFactor;
+                        i32 baseColorTextureIndex = gltfMatl.pbrMetallicRoughness.baseColorTexture.index;
+                        if (baseColorTextureIndex >= 0)
+                        {
+                            const gltf::Texture texture = desc.textures[baseColorTextureIndex];
+                            matl.albedoMap = getAsset<Texture2DRenderable>(texture.name.c_str());
+                        }
+
+                        i32 metallicRoughnessIndex = gltfMatl.pbrMetallicRoughness.metallicRoughnessTexture.index;
+                        if (metallicRoughnessIndex >= 0)
+                        {
+                        }
+
+                        i32 normalTextureIndex = gltfMatl.normalTexture.index;
+                        if (normalTextureIndex >= 0)
+                        {
                         }
                     }
-                    else
+                }
+
+                void execute()
+                {
+                    if (bInitialized)
                     {
+                        loadMeshes();
+                        loadTextures();
+                        loadMaterials();
                     }
-#endif
+                }
+
+                bool bInitialized = false;
+                gltf::Descriptor desc;
+                std::vector<u8> binaryChunk;
+            };
+
+            LoadGltfBinaryTask task(desc);
+            task.execute();
+
+            // load scene hierarchy 
+            if (desc.defaultScene >= 0)
+            {
+                const gltf::Scene& gltfScene = desc.scenes[desc.defaultScene];
+                for (i32 i = 0; i < gltfScene.nodes.size(); ++i)
+                {
+                    const gltf::Node& node = desc.nodes[gltfScene.nodes[i]];
+                    loadNode(scene, nullptr, node, desc);
+                }
+            }
+        }
+    }
 
     template <typename T>
     void loadVerticesAndIndices(const tinygltf::Model& model, const tinygltf::Primitive& primitive, std::vector<typename T::Vertex>& vertices, std::vector<u32>& indices) {
@@ -2154,13 +2302,11 @@ namespace Cyan
         }
 
         tinygltf::Scene& gltfScene = model.scenes[model.defaultScene];
-#if 0
         // import textures
         {
             ScopedTimer textureImportTimer("gltf texture import timer", true);
             singleton->importGltfTextures(model);
         }
-#endif
         // import meshes
         {
             ScopedTimer meshImportTimer("gltf mesh import timer", true);

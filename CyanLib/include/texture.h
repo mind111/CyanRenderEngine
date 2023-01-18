@@ -26,6 +26,8 @@
 #define FM_TRILINEAR Cyan::ITextureRenderable::Parameter::Filtering::LINEAR_MIPMAP_LINEAR
 #define FM_MIPMAP_POINT Cyan::ITextureRenderable::Parameter::Filtering::NEAREST_MIPMAP_NEAREST
 // PF stands for "pixel format" 
+#define PF_RGB8 Cyan::ITextureRenderable::Spec::PixelFormat::RGB8
+#define PF_RGBA8 Cyan::ITextureRenderable::Spec::PixelFormat::RGBA8
 #define PF_RGB16F Cyan::ITextureRenderable::Spec::PixelFormat::RGB16F
 #define PF_RGBA16F Cyan::ITextureRenderable::Spec::PixelFormat::RGBA16F
 #define PF_RGB32F Cyan::ITextureRenderable::Spec::PixelFormat::RGB32F
