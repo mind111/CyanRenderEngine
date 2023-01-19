@@ -33,7 +33,7 @@ public:
             m_sceneRenderingOutput = new Texture2DRenderable("FrameOutput", spec);
         }
 
-        static const char* shaderBalls = ASSET_PATH "mesh/shader_ball.glb";
+        static const char* shaderBalls = ASSET_PATH "mesh/shader_balls.glb";
         static const char* sponza = ASSET_PATH "mesh/sponza-gltf-pbr/sponza.glb";
         static const char* sunTemple = ASSET_PATH "mesh/sun_temple/simplified_sun_temple.glb";
 

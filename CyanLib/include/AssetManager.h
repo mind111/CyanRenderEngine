@@ -162,11 +162,6 @@ namespace Cyan
         static void importGltfAsync(Scene* scene, const char* filename);
         static void importGltfEx(Scene* scene, const char* filename);
         std::vector<ISubmesh*> importObj(const char* baseDir, const char* filename);
-        void importScene(Scene* scene, const char* file);
-        void importEntities(Scene* scene, const nlohmann::basic_json<std::map>& entityInfoList);
-        void importTextures(const nlohmann::basic_json<std::map>& textureInfoList);
-        Mesh* importMesh(Scene* scene, std::string& path, const char* name, bool bNormalize);
-        void importMeshes(Scene* scene, const nlohmann::basic_json<std::map>& meshInfoList);
 
         /**
         * Creating a texture from scratch; `name` must be unique

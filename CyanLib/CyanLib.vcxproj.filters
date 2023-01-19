@@ -243,6 +243,9 @@
     <ClInclude Include="include\ScreenSpaceRayTracing.h">
       <Filter>Source Files\SSRT</Filter>
     </ClInclude>
+    <ClInclude Include="include\gltf.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\RayTracingScene.cpp">
@@ -378,6 +381,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Window.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gltf.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

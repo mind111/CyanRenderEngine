@@ -97,7 +97,8 @@ namespace Cyan
 
     }
 
-    u32 RenderableScene::getMaterialID(MeshInstance* meshInstance, u32 submeshIndex) {
+    u32 RenderableScene::getMaterialID(MeshInstance* meshInstance, u32 submeshIndex) 
+    {
         std::unordered_map<std::string, u32> materialMap;
 
         if (meshInstance) {
@@ -115,7 +116,8 @@ namespace Cyan
         }
     }
 
-    RenderableScene::RenderableScene(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator) {
+    RenderableScene::RenderableScene(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator) 
+    {
         viewBuffer = std::make_unique<ViewBuffer>("ViewBuffer");
         transformBuffer = std::make_unique<TransformBuffer>("TransformBuffer");
         instanceBuffer = std::make_unique<InstanceBuffer>("InstanceBuffer");
