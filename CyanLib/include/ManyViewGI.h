@@ -14,8 +14,8 @@
 namespace Cyan {
     class Renderer;
     class GfxContext;
-    struct Texture2DRenderable;
-    struct TextureCubeRenderable;
+    struct Texture2D;
+    struct TextureCube;
     struct RenderableScene;
     struct RenderTarget;
 
@@ -41,12 +41,12 @@ namespace Cyan {
             ~Image() { }
 
             void initialize();
-            virtual void setup(const RenderableScene& inScene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer);
+            virtual void setup(const RenderableScene& inScene, Texture2D* depthBuffer, Texture2D* normalBuffer);
             virtual void clear() { }
             virtual void render(ManyViewGI* gi);
 
-            void writeRadiance(TextureCubeRenderable* radianceCubemap, const glm::ivec2& texCoord);
-            void writeIrradiance(TextureCubeRenderable* radianceCubemap, const Hemicube& hemicube, const glm::ivec2& texCoord);
+            void writeRadiance(TextureCube* radianceCubemap, const glm::ivec2& texCoord);
+            void writeIrradiance(TextureCube* radianceCubemap, const Hemicube& hemicube, const glm::ivec2& texCoord);
             bool finished() { return nextHemicube >= hemicubes.size(); }
             void compose();
             void renderDirectLighting();
@@ -58,16 +58,16 @@ namespace Cyan {
             u32 radianceRes;
             glm::uvec2 irradianceRes;
             glm::uvec2 radianceAtlasRes;
-            Texture2DRenderable* irradiance = nullptr;
-            Texture2DRenderable* radianceAtlas = nullptr;
+            Texture2D* irradiance = nullptr;
+            Texture2D* radianceAtlas = nullptr;
             // "gBuffer"
-            Texture2DRenderable* normal = nullptr;
-            Texture2DRenderable* position = nullptr;
-            Texture2DRenderable* albedo = nullptr;
-            Texture2DRenderable* directLighting = nullptr;
-            Texture2DRenderable* indirectLighting = nullptr;
-            Texture2DRenderable* sceneColor = nullptr;
-            Texture2DRenderable* composed = nullptr;
+            Texture2D* normal = nullptr;
+            Texture2D* position = nullptr;
+            Texture2D* albedo = nullptr;
+            Texture2D* directLighting = nullptr;
+            Texture2D* indirectLighting = nullptr;
+            Texture2D* sceneColor = nullptr;
+            Texture2D* composed = nullptr;
         protected:
             struct InstanceDesc 
             {
@@ -92,7 +92,7 @@ namespace Cyan {
             std::vector<glm::vec3> jitteredSampleDirections;
             std::unique_ptr<RenderableScene> scene;
         private:
-            void generateHemicubes(Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer);
+            void generateHemicubes(Texture2D* depthBuffer, Texture2D* normalBuffer);
             void generateSampleDirections();
 
             u32 nextHemicube = 0;
@@ -103,21 +103,21 @@ namespace Cyan {
         virtual ~ManyViewGI() { }
 
         void initialize();
-        void setup(const RenderableScene& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer);
-        void render(RenderTarget* sceneRenderTarget, const RenderableScene& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer);
+        void setup(const RenderableScene& scene, Texture2D* depthBuffer, Texture2D* normalBuffer);
+        void render(RenderTarget* sceneRenderTarget, const RenderableScene& scene, Texture2D* depthBuffer, Texture2D* normalBuffer);
 
         // extension points
         virtual void customInitialize();
-        virtual void customSetup(const RenderableScene& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) { }
+        virtual void customSetup(const RenderableScene& scene, Texture2D* depthBuffer, Texture2D* normalBuffer) { }
         virtual void customRender(const RenderableScene::Camera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) { }
         virtual void customRenderScene(RenderableScene& scene, const Hemicube& hemicube, const PerspectiveCamera& camera);
         virtual void customUI() {}
 
-        TextureCubeRenderable* finalGathering(const Hemicube& hemicube, RenderableScene& scene, bool jitter=false, const glm::vec3& jitteredSampleDirection=glm::vec3(0.f));
+        TextureCube* finalGathering(const Hemicube& hemicube, RenderableScene& scene, bool jitter=false, const glm::vec3& jitteredSampleDirection=glm::vec3(0.f));
 
         struct VisualizationBuffers {
             glm::uvec2 resolution = glm::uvec2(640, 360);
-            Texture2DRenderable* shared = nullptr;
+            Texture2D* shared = nullptr;
         } visualizations;
 
         struct Opts {
@@ -132,7 +132,7 @@ namespace Cyan {
         Renderer* m_renderer = nullptr;
         GfxContext* m_gfxc = nullptr;
         std::unique_ptr<RenderableScene> m_scene = nullptr;
-        TextureCubeRenderable* m_sharedRadianceCubemap = nullptr;
+        TextureCube* m_sharedRadianceCubemap = nullptr;
         Image* m_image = nullptr;
     private:
         bool bInitialized = false;
@@ -141,7 +141,7 @@ namespace Cyan {
     class PointBasedManyViewGI : public ManyViewGI {
     public:
         struct Image : public ManyViewGI::Image {
-            virtual void setup(const RenderableScene& inScene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) override { }
+            virtual void setup(const RenderableScene& inScene, Texture2D* depthBuffer, Texture2D* normalBuffer) override { }
         private: 
             std::vector<Surfel> surfels;
         };
@@ -150,13 +150,13 @@ namespace Cyan {
         ~PointBasedManyViewGI() { }
 
         virtual void customInitialize() override;
-        virtual void customSetup(const RenderableScene& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) override;
+        virtual void customSetup(const RenderableScene& scene, Texture2D* depthBuffer, Texture2D* normalBuffer) override;
         virtual void customRender(const RenderableScene::Camera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) override;
         virtual void customRenderScene(RenderableScene& scene, const Hemicube& hemicube, const PerspectiveCamera& camera) override;
         virtual void customUI() override;
 
         struct Visualizations {
-            Texture2DRenderable* rasterizedSurfels = nullptr;
+            Texture2D* rasterizedSurfels = nullptr;
         } visualizations;
 
         struct Opts {
@@ -175,7 +175,7 @@ namespace Cyan {
         bool bVisualizeSurfels = false;
 
     private:
-        void rasterizeSurfelScene(Texture2DRenderable* outSceneColor, const RenderableScene::Camera& camera);
+        void rasterizeSurfelScene(Texture2D* outSceneColor, const RenderableScene::Camera& camera);
         enum class VisMode : u32 {
             kAlbedo = 0,
             kRadiance,
@@ -202,7 +202,7 @@ namespace Cyan {
         // raytrace render
         void raytrace(const RenderableScene::Camera& inCamera, const SurfelBSH& surfelBSH);
         void visualize(Renderer* renderer, RenderTarget* visRenderTarget);
-        Texture2DRenderable* getVisualization() { return visualization; }
+        Texture2D* getVisualization() { return visualization; }
     private:
         void clear();
         void traverseBSH(const SurfelBSH& surfelBSH, i32 nodeIndex, const RenderableScene::Camera& camera);
@@ -241,8 +241,8 @@ namespace Cyan {
         Buffer2D<i32> postTraversalBuffer;
         std::vector<SurfelBSH::Node> postTraversalList;
 
-        Texture2DRenderable* gpuTexture = nullptr;
-        Texture2DRenderable* visualization = nullptr;
+        Texture2D* gpuTexture = nullptr;
+        Texture2D* visualization = nullptr;
     };
 
     // todo: implement this!
@@ -259,7 +259,7 @@ namespace Cyan {
         ~MicroRenderingGI() { }
 
         virtual void customInitialize() override;
-        virtual void customSetup(const RenderableScene& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) override;
+        virtual void customSetup(const RenderableScene& scene, Texture2D* depthBuffer, Texture2D* normalBuffer) override;
         virtual void customRender(const RenderableScene::Camera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) override;
         virtual void customUI() override;
 

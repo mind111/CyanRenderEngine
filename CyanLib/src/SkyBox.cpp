@@ -22,17 +22,17 @@ namespace Cyan
             s_cubemapSkyPipeline = ShaderManager::createPixelPipeline("SkyDome", vs, ps);
         }
 
-        ITextureRenderable::Spec HDRISpec = { };
+        ITexture::Spec HDRISpec = { };
         HDRISpec.type = TEX_2D;
         // todo: parse out the name of the HDRI and use that as the texture name 
         m_srcHDRITexture = AssetManager::importTexture2D("HDRITexture", srcHDRIPath, HDRISpec);
 
-        ITextureRenderable::Spec cubemapSpec = { };
+        ITexture::Spec cubemapSpec = { };
         cubemapSpec.type = TEX_CUBE;
         cubemapSpec.width = resolution.x;
         cubemapSpec.height = resolution.x;
         cubemapSpec.pixelFormat = PF_RGB16F;
-        ITextureRenderable::Parameter cubemapParams = { };
+        ITexture::Parameter cubemapParams = { };
         cubemapParams.minificationFilter = FM_TRILINEAR;
         cubemapParams.magnificationFilter = FM_BILINEAR;
         cubemapParams.wrap_r = WM_CLAMP;
@@ -89,7 +89,7 @@ namespace Cyan
     }
 
     
-    Skybox::Skybox(const char* name, TextureCubeRenderable* srcCubemap) 
+    Skybox::Skybox(const char* name, TextureCube* srcCubemap) 
     {
 
     }

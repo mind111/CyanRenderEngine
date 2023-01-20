@@ -210,7 +210,7 @@ namespace Cyan
         private:
             void importMeshes();
             void importTextures();
-            void importTextureAsync();
+            void importTexturesAsync();
             void importMaterials();
             void importNode(Cyan::Scene* outScene, Cyan::Entity* parent, const Node& node);
             void loadJsonChunk();

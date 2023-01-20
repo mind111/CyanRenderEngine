@@ -196,14 +196,14 @@ namespace Cyan
 #endif
     }
 
-    Texture2DRenderable* AssetManager::importGltfTexture(tinygltf::Model& model, tinygltf::Texture& gltfTexture)
+    Texture2D* AssetManager::importGltfTexture(tinygltf::Model& model, tinygltf::Texture& gltfTexture)
     {
-        Texture2DRenderable* texture = nullptr;
+        Texture2D* texture = nullptr;
 
         tinygltf::Image& image = model.images[gltfTexture.source];
         const tinygltf::Sampler& gltfSampler = model.samplers[gltfTexture.sampler];
 
-        Cyan::ITextureRenderable::Spec spec = { };
+        Cyan::ITexture::Spec spec = { };
         spec.width = image.width;
         spec.height = image.height;
         switch (image.component)
@@ -212,30 +212,30 @@ namespace Cyan
         {
             if (image.bits == 8)
             {
-                spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGB8;
+                spec.pixelFormat = ITexture::Spec::PixelFormat::RGB8;
             }
             else if (image.bits == 16)
             {
-                spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGB16F;
+                spec.pixelFormat = ITexture::Spec::PixelFormat::RGB16F;
             }
             else if (image.bits == 32)
             {
-                spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGB32F;
+                spec.pixelFormat = ITexture::Spec::PixelFormat::RGB32F;
             }
             break;
         }
         case 4: {
             if (image.bits == 8)
             {
-                spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGBA8;
+                spec.pixelFormat = ITexture::Spec::PixelFormat::RGBA8;
             }
             else if (image.bits == 16)
             {
-                spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGBA16F;
+                spec.pixelFormat = ITexture::Spec::PixelFormat::RGBA16F;
             }
             else if (image.bits == 32)
             {
-                spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGBA32F;
+                spec.pixelFormat = ITexture::Spec::PixelFormat::RGBA32F;
             }
             break;
         }
@@ -252,7 +252,7 @@ namespace Cyan
         }
         spec.pixelData = reinterpret_cast<u8*>(image.image.data());
 
-        ITextureRenderable::Parameter parameter = { };
+        ITexture::Parameter parameter = { };
         if (gltfTexture.sampler >= 0)
         {
             const auto& sampler = model.samplers[gltfTexture.sampler];
@@ -405,14 +405,14 @@ namespace Cyan
                 {
                     auto getTexture = [&](i32 imageIndex)
                     {
-                        Cyan::Texture2DRenderable* texture = nullptr;
+                        Cyan::Texture2D* texture = nullptr;
                         if (imageIndex > -1 && imageIndex < model.images.size())
                         {
                             auto& image = model.images[imageIndex];
-                            texture = getAsset<Texture2DRenderable>(image.name.c_str());
+                            texture = getAsset<Texture2D>(image.name.c_str());
                             if (!texture)
                             {
-                                texture = getAsset<Texture2DRenderable>(image.uri.c_str());
+                                texture = getAsset<Texture2D>(image.uri.c_str());
                             }
                         }
                         return texture;

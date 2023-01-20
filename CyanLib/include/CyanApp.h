@@ -33,6 +33,6 @@ namespace Cyan
             app only holds reference to currently active scene.
         */ 
         std::shared_ptr<Scene> m_scene;
-        Texture2DRenderable* m_sceneRenderingOutput = nullptr;
+        Texture2D* m_sceneRenderingOutput = nullptr;
     };
 }

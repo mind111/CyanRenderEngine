@@ -10,7 +10,7 @@ namespace Cyan
 {
     struct LightProbe
     {
-        LightProbe(TextureCubeRenderable* srcCubemapTexture);
+        LightProbe(TextureCube* srcCubemapTexture);
         LightProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& resolution);
         ~LightProbe() { }
         virtual void initialize();
@@ -20,12 +20,12 @@ namespace Cyan
         Scene*               scene;
         glm::vec3            position;
         glm::vec2            resolution;
-        TextureCubeRenderable* sceneCapture;
+        TextureCube* sceneCapture;
         MeshInstance*        debugSphereMesh;
     };
 
     struct IrradianceProbe : public LightProbe {
-        IrradianceProbe(TextureCubeRenderable* srcCubemapTexture, const glm::uvec2& irradianceRes);
+        IrradianceProbe(TextureCube* srcCubemapTexture, const glm::uvec2& irradianceRes);
         IrradianceProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& sceneCaptureResolution, const glm::uvec2& irradianceResolution);
         ~IrradianceProbe() { }
         virtual void debugRender() override;
@@ -41,18 +41,18 @@ namespace Cyan
         static const u32 kNumRaysPerHemiSphere = 128u;
 
         glm::vec2 m_irradianceTextureRes;
-        TextureCubeRenderable* m_convolvedIrradianceTexture;
+        TextureCube* m_convolvedIrradianceTexture;
     };
 
     struct ReflectionProbe : public LightProbe
     {
-        ReflectionProbe(TextureCubeRenderable* srcCubemapTexture);
+        ReflectionProbe(TextureCube* srcCubemapTexture);
         ReflectionProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& sceneCaptureResolution);
         ~ReflectionProbe() { }
 
-        static Texture2DRenderable* buildBRDFLookupTexture();
+        static Texture2D* buildBRDFLookupTexture();
 
-        static Texture2DRenderable* getBRDFLookupTexture()
+        static Texture2D* getBRDFLookupTexture()
         {
             return s_BRDFLookupTexture;
         }
@@ -63,11 +63,11 @@ namespace Cyan
         void build();
         void buildFromCubemap();
 
-        static Texture2DRenderable* s_BRDFLookupTexture;
+        static Texture2D* s_BRDFLookupTexture;
         static const u32 kNumMips = 11; 
         static PixelPipeline* s_convolveReflectionPipeline;
 
-        TextureCubeRenderable* m_convolvedReflectionTexture;
+        TextureCube* m_convolvedReflectionTexture;
     };
 
     namespace LightProbeCameras

@@ -62,53 +62,53 @@ namespace Cyan {
             u32 bufferSize = kMaxNumHemicubes * sizeof(Hemicube);
             glNamedBufferData(hemicubeBuffer, bufferSize, nullptr, GL_DYNAMIC_COPY);
 
-            ITextureRenderable::Spec radianceAtlasSpec = { };
+            ITexture::Spec radianceAtlasSpec = { };
             radianceAtlasSpec.type = TEX_2D;
             radianceAtlasSpec.width = radianceAtlasRes.x;
             radianceAtlasSpec.height = radianceAtlasRes.y;
             radianceAtlasSpec.pixelFormat = PF_RGBA16F;
-            ITextureRenderable::Parameter params = { };
+            ITexture::Parameter params = { };
             params.magnificationFilter = FM_POINT;
-            radianceAtlas = new Texture2DRenderable("RadianceAtlas", radianceAtlasSpec, params);
+            radianceAtlas = new Texture2D("RadianceAtlas", radianceAtlasSpec, params);
 
             /** note - @min:
             * it seems imageStore() only supports 1,2,4 channels textures, so using rgba16f here
             */
             {
-                ITextureRenderable::Spec irradianceSpec = { };
+                ITexture::Spec irradianceSpec = { };
                 irradianceSpec.type = TEX_2D;
                 irradianceSpec.width = irradianceRes.x;
                 irradianceSpec.height = irradianceRes.y;
                 irradianceSpec.pixelFormat = PF_RGBA16F;
-                irradiance = new Texture2DRenderable("Irradiance", irradianceSpec);
+                irradiance = new Texture2D("Irradiance", irradianceSpec);
             }
             {
-                ITextureRenderable::Spec spec = { };
+                ITexture::Spec spec = { };
                 spec.type = TEX_2D;
                 spec.width = irradianceRes.x;
                 spec.height = irradianceRes.y;
                 spec.pixelFormat = PF_RGB16F;
-                normal = new Texture2DRenderable("MVGINormal", spec);
-                albedo = new Texture2DRenderable("MVGIAlbedo", spec);
+                normal = new Texture2D("MVGINormal", spec);
+                albedo = new Texture2D("MVGIAlbedo", spec);
             }
             {
-                ITextureRenderable::Spec spec = { };
+                ITexture::Spec spec = { };
                 spec.type = TEX_2D;
                 spec.width = irradianceRes.x;
                 spec.height = irradianceRes.y;
                 spec.pixelFormat = PF_RGBA16F;
-                position = new Texture2DRenderable("MVGIPosition", spec);
+                position = new Texture2D("MVGIPosition", spec);
             }
             {
-                ITextureRenderable::Spec spec = { };
+                ITexture::Spec spec = { };
                 spec.type = TEX_2D;
                 spec.width = irradianceRes.x;
                 spec.height = irradianceRes.y;
                 spec.pixelFormat = PF_RGBA16F;
-                directLighting = new Texture2DRenderable("MVGIDirectLighting", spec);
-                indirectLighting = new Texture2DRenderable("MVGIIndirectLighting", spec);
-                sceneColor = new Texture2DRenderable("MVGISceneColor", spec);
-                composed = new Texture2DRenderable("MVGIComposed", spec);
+                directLighting = new Texture2D("MVGIDirectLighting", spec);
+                indirectLighting = new Texture2D("MVGIIndirectLighting", spec);
+                sceneColor = new Texture2D("MVGISceneColor", spec);
+                composed = new Texture2D("MVGIComposed", spec);
             }
 
             // register visualizations
@@ -131,7 +131,7 @@ namespace Cyan {
     * This pass not only generate hemicubes but also build a "gBuffer" for later use by rendering the scene
     * once and fill out the hemicube ssbo while building other color buffers.
     */
-    void ManyViewGI::Image::generateHemicubes(Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) {
+    void ManyViewGI::Image::generateHemicubes(Texture2D* depthBuffer, Texture2D* normalBuffer) {
         auto renderer = Renderer::get();
 
         scene->upload();
@@ -308,7 +308,7 @@ namespace Cyan {
     }
 
 
-    void ManyViewGI::Image::setup(const RenderableScene& inScene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) 
+    void ManyViewGI::Image::setup(const RenderableScene& inScene, Texture2D* depthBuffer, Texture2D* normalBuffer) 
     {
         // reset workload
         nextHemicube = 0;
@@ -320,7 +320,7 @@ namespace Cyan {
         generateSampleDirections();
     }
 
-    void ManyViewGI::Image::writeRadiance(TextureCubeRenderable* radianceCubemap, const glm::ivec2& texCoord) 
+    void ManyViewGI::Image::writeRadiance(TextureCube* radianceCubemap, const glm::ivec2& texCoord) 
     {
         auto renderer = Renderer::get();
         auto gfxc = renderer->getGfxCtx();
@@ -335,7 +335,7 @@ namespace Cyan {
         glDispatchCompute(radianceRes, radianceRes, 1);
     }
 
-    void ManyViewGI::Image::writeIrradiance(TextureCubeRenderable* radianceCubemap, const Hemicube& hemicube, const glm::ivec2& texCoord) 
+    void ManyViewGI::Image::writeIrradiance(TextureCube* radianceCubemap, const Hemicube& hemicube, const glm::ivec2& texCoord) 
     {
         auto renderer = Renderer::get();
         auto gfxc = renderer->getGfxCtx();
@@ -458,12 +458,12 @@ namespace Cyan {
     {
         if (!bInitialized) {
             if (!m_sharedRadianceCubemap) {
-                ITextureRenderable::Spec spec = {};
+                ITexture::Spec spec = {};
                 spec.width = kFinalGatherRes;
                 spec.height = kFinalGatherRes;
                 spec.type = TEX_CUBE;
                 spec.pixelFormat = PF_RGB16F;
-                ITextureRenderable::Parameter params = {};
+                ITexture::Parameter params = {};
                 /** note - @mind:
                 * ran into a "incomplete texture" error when setting magnification filter to FM_TRILINEAR
                 */
@@ -473,15 +473,15 @@ namespace Cyan {
                 params.wrap_r = WM_CLAMP;
                 params.wrap_s = WM_CLAMP;
                 params.wrap_t = WM_CLAMP;
-                m_sharedRadianceCubemap = new TextureCubeRenderable("ManyViewGISharedRadianceCubemap", spec);
+                m_sharedRadianceCubemap = new TextureCube("ManyViewGISharedRadianceCubemap", spec);
             }
             if (!visualizations.shared) {
-                ITextureRenderable::Spec spec = {};
+                ITexture::Spec spec = {};
                 spec.type = TEX_2D;
                 spec.width = visualizations.resolution.x;
                 spec.height = visualizations.resolution.y;
                 spec.pixelFormat = PF_RGB16F;
-                visualizations.shared = new Texture2DRenderable("ManyViewGIVisualization", spec);
+                visualizations.shared = new Texture2D("ManyViewGIVisualization", spec);
             }
             m_renderer->registerVisualization("ManyViewGI", visualizations.shared);
 
@@ -497,13 +497,13 @@ namespace Cyan {
         }
     }
 
-    void ManyViewGI::setup(const RenderableScene& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) 
+    void ManyViewGI::setup(const RenderableScene& scene, Texture2D* depthBuffer, Texture2D* normalBuffer) 
     {
         m_image->setup(scene, depthBuffer, normalBuffer);
         customSetup(*m_scene, depthBuffer, normalBuffer);
     }
 
-    void ManyViewGI::render(RenderTarget* renderTarget, const RenderableScene& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) {
+    void ManyViewGI::render(RenderTarget* renderTarget, const RenderableScene& scene, Texture2D* depthBuffer, Texture2D* normalBuffer) {
         m_image->render(this);
 
         auto visRenderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(
@@ -536,7 +536,7 @@ namespace Cyan {
         });
     }
 
-    TextureCubeRenderable* ManyViewGI::finalGathering(const Hemicube& hemicube, RenderableScene& scene, bool jitter, const glm::vec3& jitteredSampleDirection) 
+    TextureCube* ManyViewGI::finalGathering(const Hemicube& hemicube, RenderableScene& scene, bool jitter, const glm::vec3& jitteredSampleDirection) 
     {
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(m_sharedRadianceCubemap->resolution, m_sharedRadianceCubemap->resolution));
         renderTarget->setColorBuffer(m_sharedRadianceCubemap, 0);
@@ -638,18 +638,18 @@ namespace Cyan {
         {
             if (!visualizations.rasterizedSurfels) 
             {
-                ITextureRenderable::Spec spec = {};
+                ITexture::Spec spec = {};
                 spec.type = TEX_2D;
                 spec.width = 16;
                 spec.height = 16;
                 spec.pixelFormat = PF_RGB16F;
-                visualizations.rasterizedSurfels = new Texture2DRenderable("RasterizedSurfelScene", spec);
+                visualizations.rasterizedSurfels = new Texture2D("RasterizedSurfelScene", spec);
             }
             bInitialized = true;
         }
     }
 
-    void PointBasedManyViewGI::customSetup(const RenderableScene& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) 
+    void PointBasedManyViewGI::customSetup(const RenderableScene& scene, Texture2D* depthBuffer, Texture2D* normalBuffer) 
     {
         generateWorldSpaceSurfels();
         cacheSurfelDirectLighting();
@@ -760,7 +760,7 @@ namespace Cyan {
 #endif
     }
 
-    void PointBasedManyViewGI::rasterizeSurfelScene(Texture2DRenderable* outSceneColor, const RenderableScene::Camera& camera) {
+    void PointBasedManyViewGI::rasterizeSurfelScene(Texture2D* outSceneColor, const RenderableScene::Camera& camera) {
 #if 0
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(outSceneColor->width, outSceneColor->height));
         renderTarget->setColorBuffer(outSceneColor, 0);
@@ -873,7 +873,7 @@ namespace Cyan {
         }
     }
 
-    void MicroRenderingGI::customSetup(const RenderableScene& scene, Texture2DRenderable* depthBuffer, Texture2DRenderable* normalBuffer) {
+    void MicroRenderingGI::customSetup(const RenderableScene& scene, Texture2D* depthBuffer, Texture2D* normalBuffer) {
         PointBasedManyViewGI::customSetup(scene, depthBuffer, normalBuffer);
     }
 
@@ -925,23 +925,23 @@ namespace Cyan {
         , postTraversalBuffer(resolution) 
     {
         {
-            ITextureRenderable::Spec spec = { };
+            ITexture::Spec spec = { };
             spec.type = TEX_2D;
             spec.width = resolution;
             spec.height = resolution;
             spec.pixelFormat = PF_RGB32F;
-            ITextureRenderable::Parameter params = { };
+            ITexture::Parameter params = { };
             params.magnificationFilter = FM_POINT;
-            gpuTexture = new Texture2DRenderable("MicroBuffer", spec, params);
+            gpuTexture = new Texture2D("MicroBuffer", spec, params);
         }
 
         {
-            ITextureRenderable::Spec spec = { };
+            ITexture::Spec spec = { };
             spec.type = TEX_2D;
             spec.width = 1280;
             spec.height = 720;
             spec.pixelFormat = PF_RGB16F;
-            visualization = new Texture2DRenderable("MicroBufferVis", spec);
+            visualization = new Texture2D("MicroBufferVis", spec);
         }
 
         clear();

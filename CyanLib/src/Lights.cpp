@@ -72,19 +72,19 @@ namespace Cyan
     {
         if (srcHDRI)
         {
-            ITextureRenderable::Spec hdriSpec = { };
+            ITexture::Spec hdriSpec = { };
             std::string filename(srcHDRI);
             u32 found = filename.find_last_of('.');
             std::string imageName = filename.substr(found - 1, found + 1);
             srcEquirectTexture = AssetManager::importTexture2D(imageName.c_str(), srcHDRI, hdriSpec);
 
-            ITextureRenderable::Spec cubemapSpec = { };
+            ITexture::Spec cubemapSpec = { };
             cubemapSpec.type = TEX_CUBE;
             cubemapSpec.width = 1024u;
             cubemapSpec.height = 1024u;
             cubemapSpec.pixelFormat = PF_RGB16F;
             cubemapSpec.numMips = max(log2(cubemapSpec.width), 1);
-            ITextureRenderable::Parameter cubemapParams = { };
+            ITexture::Parameter cubemapParams = { };
             cubemapParams.minificationFilter = FM_BILINEAR;
             cubemapParams.magnificationFilter = FM_BILINEAR;
             cubemapParams.wrap_r = WM_CLAMP;
@@ -112,7 +112,7 @@ namespace Cyan
         reflectionProbe->buildFromCubemap();
     }
 
-    void SkyLight::buildCubemap(Texture2DRenderable* srcEquirectMap, TextureCubeRenderable* dstCubemap) {
+    void SkyLight::buildCubemap(Texture2D* srcEquirectMap, TextureCube* dstCubemap) {
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(dstCubemap->resolution, dstCubemap->resolution));
         renderTarget->setColorBuffer(dstCubemap, 0u);
 

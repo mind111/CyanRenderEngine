@@ -11,40 +11,40 @@
 /**
 * convenience macros
 */
-#define TEX_2D Cyan::ITextureRenderable::Spec::Type::kTex2D
-#define TEX_2D_ARRAY Cyan::ITextureRenderable::Spec::Type::kTex2DArray
-#define TEX_DEPTH Cyan::ITextureRenderable::Spec::Type::kDepthTex
-#define TEX_3D Cyan::ITextureRenderable::Spec::Type::kTex3D
-#define TEX_CUBE Cyan::ITextureRenderable::Spec::Type::kTexCube
+#define TEX_2D Cyan::ITexture::Spec::Type::kTex2D
+#define TEX_2D_ARRAY Cyan::ITexture::Spec::Type::kTex2DArray
+#define TEX_DEPTH Cyan::ITexture::Spec::Type::kDepthTex
+#define TEX_3D Cyan::ITexture::Spec::Type::kTex3D
+#define TEX_CUBE Cyan::ITexture::Spec::Type::kTexCube
 
 // WM stands for "wrap mode"
-#define WM_CLAMP Cyan::ITextureRenderable::Parameter::WrapMode::CLAMP_TO_EDGE
-#define WM_WRAP Cyan::ITextureRenderable::Parameter::WrapMode::WRAP
+#define WM_CLAMP Cyan::ITexture::Parameter::WrapMode::CLAMP_TO_EDGE
+#define WM_WRAP Cyan::ITexture::Parameter::WrapMode::WRAP
 // FM stands for "filter mode"
-#define FM_POINT Cyan::ITextureRenderable::Parameter::Filtering::NEAREST
-#define FM_BILINEAR Cyan::ITextureRenderable::Parameter::Filtering::LINEAR
-#define FM_TRILINEAR Cyan::ITextureRenderable::Parameter::Filtering::LINEAR_MIPMAP_LINEAR
-#define FM_MIPMAP_POINT Cyan::ITextureRenderable::Parameter::Filtering::NEAREST_MIPMAP_NEAREST
+#define FM_POINT Cyan::ITexture::Parameter::Filtering::NEAREST
+#define FM_BILINEAR Cyan::ITexture::Parameter::Filtering::LINEAR
+#define FM_TRILINEAR Cyan::ITexture::Parameter::Filtering::LINEAR_MIPMAP_LINEAR
+#define FM_MIPMAP_POINT Cyan::ITexture::Parameter::Filtering::NEAREST_MIPMAP_NEAREST
 // PF stands for "pixel format" 
-#define PF_RGB8 Cyan::ITextureRenderable::Spec::PixelFormat::RGB8
-#define PF_RGBA8 Cyan::ITextureRenderable::Spec::PixelFormat::RGBA8
-#define PF_RGB16F Cyan::ITextureRenderable::Spec::PixelFormat::RGB16F
-#define PF_RGBA16F Cyan::ITextureRenderable::Spec::PixelFormat::RGBA16F
-#define PF_RGB32F Cyan::ITextureRenderable::Spec::PixelFormat::RGB32F
-#define PF_RGBA32F Cyan::ITextureRenderable::Spec::PixelFormat::RGBA32F
+#define PF_RGB8 Cyan::ITexture::Spec::PixelFormat::RGB8
+#define PF_RGBA8 Cyan::ITexture::Spec::PixelFormat::RGBA8
+#define PF_RGB16F Cyan::ITexture::Spec::PixelFormat::RGB16F
+#define PF_RGBA16F Cyan::ITexture::Spec::PixelFormat::RGBA16F
+#define PF_RGB32F Cyan::ITexture::Spec::PixelFormat::RGB32F
+#define PF_RGBA32F Cyan::ITexture::Spec::PixelFormat::RGBA32F
 
 namespace Cyan
 {
-    struct ITextureRenderable : public Asset, public GpuObject
+    struct ITexture : public Asset, public GpuObject
     {
         virtual std::string getAssetObjectTypeDesc() override
         {
-            return std::string("ITextureRenderable");
+            return std::string("ITexture");
         }
 
         static std::string getAssetClassTypeDesc() 
         { 
-            return std::string("ITextureRenderable"); 
+            return std::string("ITexture"); 
         }
 
         struct Spec
@@ -116,9 +116,9 @@ namespace Cyan
 
         virtual Spec getTextureSpec() = 0;
 
-        ITextureRenderable(const char* inName, const Spec& inSpec, Parameter inParams = Parameter{ });
+        ITexture(const char* inName, const Spec& inSpec, Parameter inParams = Parameter{ });
 
-        virtual ~ITextureRenderable() 
+        virtual ~ITexture() 
         { 
             glDeleteTextures(1, &glObject);
             if (name)
@@ -250,16 +250,28 @@ namespace Cyan
         u64 glHandle;
     };
 
-    struct Texture2DRenderable : public ITextureRenderable
+#if 0
+    struct Image
+    {
+        std::string name;
+        u32 width;
+        u32 height;
+        u32 numChannels;
+        u32 bitsPerChannel;
+        std::shared_ptr<u8> pixels = nullptr;
+    };
+#endif
+
+    struct Texture2D : public ITexture
     {
         virtual std::string getAssetObjectTypeDesc() override
         {
-            return std::string("Texture2DRenderable");
+            return std::string("Texture2D");
         }
 
         static std::string getAssetClassTypeDesc() 
         { 
-            return std::string("Texture2DRenderable"); 
+            return std::string("Texture2D"); 
         }
 
         virtual Spec getTextureSpec() override
@@ -275,17 +287,24 @@ namespace Cyan
             };
         }
 
-        Texture2DRenderable(const char* inName, const Spec& inSpec, Parameter inParams = Parameter{ });
-        ~Texture2DRenderable()
+        Texture2D(const char* inName, const Spec& inSpec, Parameter inParams = Parameter{ });
+        ~Texture2D()
         {
-            ITextureRenderable::~ITextureRenderable();
         }
+
+#if 0
+        void initGpuResource(const Image& srcImage)
+        {
+
+        }
+#endif
 
         u32 width;
         u32 height;
+        bool bInitialized = false;
     };
 
-    struct Texture2DArray : public ITextureRenderable
+    struct Texture2DArray : public ITexture
     {
         virtual std::string getAssetObjectTypeDesc() override
         {
@@ -311,7 +330,7 @@ namespace Cyan
         }
 
         Texture2DArray(const char* inName, const Spec& inSpec, Parameter inParams = Parameter{ })
-            : ITextureRenderable(inName, inSpec, inParams),
+            : ITexture(inName, inSpec, inParams),
             width(inSpec.width),
             height(inSpec.height),
             depth(inSpec.depth)
@@ -339,7 +358,7 @@ namespace Cyan
         u32 depth;
     };
 
-    struct DepthTexture2D : public Texture2DRenderable
+    struct DepthTexture2D : public Texture2D
     {
         /* Asset interface */
         virtual std::string getAssetObjectTypeDesc() override
@@ -352,7 +371,7 @@ namespace Cyan
             return std::string("DepthTexture"); 
         }
 
-        /* ITextureRenderable interface */
+        /* ITexture interface */
         virtual Spec getTextureSpec() override
         {
             return Spec {
@@ -367,7 +386,7 @@ namespace Cyan
         }
 
         DepthTexture2D(const char* name, u32 width, u32 height)
-            : Texture2DRenderable(
+            : Texture2D(
                 name,
                 Spec {
                     width, /* width */
@@ -387,24 +406,24 @@ namespace Cyan
 
         ~DepthTexture2D()
         {
-            ITextureRenderable::~ITextureRenderable();
+            ITexture::~ITexture();
         }
     };
 
-    struct Texture3DRenderable : public ITextureRenderable
+    struct Texture3D : public ITexture
     {
         /* Asset interface */
         virtual std::string getAssetObjectTypeDesc() override
         {
-            return std::string("Texture3DRenderable");
+            return std::string("Texture3D");
         }
 
         static std::string getAssetClassTypeDesc() 
         { 
-            return std::string("Texture3DRenderable"); 
+            return std::string("Texture3D"); 
         }
 
-        /* ITextureRenderable interface */
+        /* ITexture interface */
         virtual Spec getTextureSpec() override
         {
             return Spec {
@@ -418,8 +437,8 @@ namespace Cyan
             };
         }
 
-        Texture3DRenderable(const char* inName, const Spec& inSpec, Parameter inParams = Parameter{ })
-            : ITextureRenderable(inName, inSpec, inParams),
+        Texture3D(const char* inName, const Spec& inSpec, Parameter inParams = Parameter{ })
+            : ITexture(inName, inSpec, inParams),
             width(inSpec.width),
             height(inSpec.height),
             depth(inSpec.depth)
@@ -438,9 +457,9 @@ namespace Cyan
             }
         }
 
-        ~Texture3DRenderable()
+        ~Texture3D()
         {
-            ITextureRenderable::~ITextureRenderable();
+            ITexture::~ITexture();
         }
 
         u32 width;
@@ -448,20 +467,20 @@ namespace Cyan
         u32 depth;
     };
 
-    struct TextureCubeRenderable : public ITextureRenderable
+    struct TextureCube : public ITexture
     {
         /* Asset interface */
         virtual std::string getAssetObjectTypeDesc() override
         {
-            return std::string("TextureCubeRenderable");
+            return std::string("TextureCube");
         }
 
         static std::string getAssetClassTypeDesc() 
         { 
-            return std::string("TextureCubeRenderable"); 
+            return std::string("TextureCube"); 
         }
 
-        /* ITextureRenderable interface */
+        /* ITexture interface */
         virtual Spec getTextureSpec() override
         {
             return Spec {
@@ -475,8 +494,8 @@ namespace Cyan
             };
         }
 
-        TextureCubeRenderable(const char* inName, const Spec& inSpec, Parameter inParams = Parameter{ })
-            : ITextureRenderable(inName, inSpec, inParams),
+        TextureCube(const char* inName, const Spec& inSpec, Parameter inParams = Parameter{ })
+            : ITexture(inName, inSpec, inParams),
             resolution(inSpec.width)
         {
             glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &glObject);
@@ -500,22 +519,22 @@ namespace Cyan
 #endif
         }
 
-        ~TextureCubeRenderable()
+        ~TextureCube()
         {
-            ITextureRenderable::~ITextureRenderable();
+            ITexture::~ITexture();
         }
 
         u32 resolution;
     };
 }
 
-// custom hash function for ITextureRenderable::Spec
+// custom hash function for ITexture::Spec
 namespace std
 {
     template <>
-    struct hash<Cyan::ITextureRenderable::Spec>
+    struct hash<Cyan::ITexture::Spec>
     {
-        std::size_t operator()(const Cyan::ITextureRenderable::Spec& spec) const
+        std::size_t operator()(const Cyan::ITexture::Spec& spec) const
         {
             std::string key = std::to_string(spec.width) + 'x' + std::to_string(spec.height);
             switch (spec.pixelFormat)

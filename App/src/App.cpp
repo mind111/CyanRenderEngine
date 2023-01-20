@@ -25,12 +25,12 @@ public:
 
         {
             glm::uvec2 resolution = gEngine->getGraphicsSystem()->getAppWindowDimension();
-            ITextureRenderable::Spec spec = { };
+            ITexture::Spec spec = { };
             spec.width = resolution.x;
             spec.height = resolution.y;
             spec.type = TEX_2D;
             spec.pixelFormat = PF_RGB16F;
-            m_sceneRenderingOutput = new Texture2DRenderable("FrameOutput", spec);
+            m_sceneRenderingOutput = new Texture2D("FrameOutput", spec);
         }
 
         static const char* shaderBalls = ASSET_PATH "mesh/shader_balls.glb";
@@ -458,7 +458,7 @@ private:
     std::unique_ptr<Cyan::RayTracer> m_rayTracer = nullptr;
     std::vector<std::thread*> spawnedThreads;
     Cyan::Image image = Cyan::Image(glm::uvec2(640, 360));
-    Cyan::Texture2DRenderable* rayTracingOutput = nullptr;
+    Cyan::Texture2D* rayTracingOutput = nullptr;
 };
 
 // entry point

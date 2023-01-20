@@ -29,7 +29,7 @@ namespace Cyan
         void initialize();
         void deinitialize();
         void update();
-        void render(Scene* scene, Texture2DRenderable* sceneRenderingOutput, const std::function<void(Renderer*, Texture2DRenderable*)>& postSceneRenderingCallbackonst = [](Renderer* renderer, Texture2DRenderable* sceneRenderingOutput) {
+        void render(Scene* scene, Texture2D* sceneRenderingOutput, const std::function<void(Renderer*, Texture2D*)>& postSceneRenderingCallbackonst = [](Renderer* renderer, Texture2D* sceneRenderingOutput) {
             renderer->renderToScreen(sceneRenderingOutput);
         });
 

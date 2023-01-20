@@ -81,14 +81,14 @@ namespace Cyan
         SkyLight(Scene* scene, const glm::vec4& colorAndIntensity, const char* srcHDRI = nullptr);
         ~SkyLight() { }
 
-        void buildCubemap(Texture2DRenderable* srcEquirectMap, TextureCubeRenderable* dstCubemap);
+        void buildCubemap(Texture2D* srcEquirectMap, TextureCube* dstCubemap);
         void build();
 
         static u32 numInstances;
 
         // todo: handle object ownership here
-        Texture2DRenderable* srcEquirectTexture = nullptr;
-        TextureCubeRenderable* srcCubemap = nullptr;
+        Texture2D* srcEquirectTexture = nullptr;
+        TextureCube* srcCubemap = nullptr;
         std::unique_ptr<IrradianceProbe> irradianceProbe = nullptr;
         std::unique_ptr<ReflectionProbe> reflectionProbe = nullptr;
     };

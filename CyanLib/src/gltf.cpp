@@ -1,5 +1,7 @@
 #include <string>
 #include <fstream>
+#include <unordered_map>
+#include <thread>
 
 #include "gltf.h"
 #include "stbi/stb_image.h"
@@ -329,7 +331,7 @@ namespace Cyan
                 const gltf::Image& image = images[texture.source];
                 const gltf::Sampler& sampler = samplers[texture.sampler];
 
-                ITextureRenderable::Spec spec = { };
+                ITexture::Spec spec = { };
                 spec.type = TEX_2D;
                 spec.width = image.width;
                 spec.height = image.height;
@@ -365,7 +367,7 @@ namespace Cyan
                 }
                 spec.pixelData = image.pixels;
 
-                ITextureRenderable::Parameter params;
+                ITexture::Parameter params;
                 switch (sampler.magFilter)
                 {
                 case (u32)gltf::Sampler::Filtering::NEAREST: params.magnificationFilter = FM_POINT; break;
@@ -383,7 +385,7 @@ namespace Cyan
                     break;
                 case (u32)gltf::Sampler::Filtering::LINEAR_MIPMAP_NEAREST:
                 case (u32)gltf::Sampler::Filtering::NEAREST_MIPMAP_LINEAR: 
-                case (u32)gltf::Sampler::Filtering::NEAREST_MIPMAP_NEAREST: params.minificationFilter = ITextureRenderable::Parameter::Filtering::NEAREST_MIPMAP_NEAREST; break;
+                case (u32)gltf::Sampler::Filtering::NEAREST_MIPMAP_NEAREST: params.minificationFilter = ITexture::Parameter::Filtering::NEAREST_MIPMAP_NEAREST; break;
                 default: assert(0); break;
                 }
 
@@ -407,8 +409,45 @@ namespace Cyan
             }
         }
 
-        void Glb::importTextureAsync()
+        void Glb::importTexturesAsync()
         {
+            auto loadImagesTask = [this](const Glb& inGlb) {
+                Glb glb(inGlb);
+                for (i32 i = 0; i < glb.images.size(); ++i)
+                {
+                    gltf::Image& image = glb.images[i];
+
+                    // load one image
+                    i32 bufferView = image.bufferView;
+                    if (bufferView >= 0)
+                    {
+                        const gltf::BufferView bv = bufferViews[bufferView];
+                        u8* dataAddress = binaryChunk.data() + bv.byteOffset;
+                        i32 hdr = stbi_is_hdr_from_memory(dataAddress, bv.byteLength);
+                        if (hdr)
+                        {
+                            image.bHdr = true;
+                            image.pixels = reinterpret_cast<u8*>(stbi_loadf_from_memory(dataAddress, bv.byteLength, &image.width, &image.height, &image.numChannels, 0));
+                        }
+                        else
+                        {
+                            i32 is16Bit = stbi_is_16_bit_from_memory(dataAddress, bv.byteLength);
+                            if (is16Bit)
+                            {
+                                image.b16Bits = true;
+                            }
+                            else
+                            {
+                                image.pixels = stbi_load_from_memory(dataAddress, bv.byteLength, &image.width, &image.height, &image.numChannels, 0);
+                            }
+                        }
+                    }
+
+                    // let the main thread know that an image is finished loading
+                }
+            };
+
+            std::thread thread(loadImagesTask, *this);
         }
 
         void Glb::importMaterials()
@@ -426,21 +465,21 @@ namespace Cyan
                 if (baseColorTextureIndex >= 0)
                 {
                     const gltf::Texture texture = textures[baseColorTextureIndex];
-                    matl.albedoMap = AssetManager::getAsset<Texture2DRenderable>(texture.name.c_str());
+                    matl.albedoMap = AssetManager::getAsset<Texture2D>(texture.name.c_str());
                 }
 
                 i32 metallicRoughnessIndex = gltfMatl.pbrMetallicRoughness.metallicRoughnessTexture.index;
                 if (metallicRoughnessIndex >= 0)
                 {
                     const gltf::Texture texture = textures[metallicRoughnessIndex];
-                    matl.metallicRoughnessMap = AssetManager::getAsset<Texture2DRenderable>(texture.name.c_str());
+                    matl.metallicRoughnessMap = AssetManager::getAsset<Texture2D>(texture.name.c_str());
                 }
 
                 i32 normalTextureIndex = gltfMatl.normalTexture.index;
                 if (normalTextureIndex >= 0)
                 {
                     const gltf::Texture texture = textures[normalTextureIndex];
-                    matl.normalMap = AssetManager::getAsset<Texture2DRenderable>(texture.name.c_str());
+                    matl.normalMap = AssetManager::getAsset<Texture2D>(texture.name.c_str());
                 }
             }
         }

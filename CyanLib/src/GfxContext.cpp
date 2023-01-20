@@ -138,7 +138,7 @@ namespace Cyan {
         }
     }
 
-    void GfxContext::setTexture(ITextureRenderable* texture, u32 binding) 
+    void GfxContext::setTexture(ITexture* texture, u32 binding) 
     {
         // reset a texture unit
         if (!texture)

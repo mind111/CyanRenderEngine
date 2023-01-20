@@ -63,7 +63,7 @@ namespace Cyan {
         void setGeometryPipeline(GeometryPipeline* geometryPipelineObject, const std::function<void(VertexShader*, GeometryShader*, PixelShader*)>& setupShaders = [](VertexShader*, GeometryShader*, PixelShader*) {});
         void setComputePipeline(ComputePipeline* computePipelineObject, const std::function<void(ComputeShader*)>& setupShaders);
 
-        void setTexture(ITextureRenderable* texture, u32 binding);
+        void setTexture(ITexture* texture, u32 binding);
         // todo: implement this
         void setImage(Texture2DArray* textuerArray, u32 binding, u32 layered = true, u32 layer = 0) { }
 

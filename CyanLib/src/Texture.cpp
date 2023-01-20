@@ -4,7 +4,7 @@
 
 namespace Cyan
 {
-    ITextureRenderable::ITextureRenderable(const char* inName, const Spec& inSpec, Parameter inParams)
+    ITexture::ITexture(const char* inName, const Spec& inSpec, Parameter inParams)
         : GpuObject(),
         pixelFormat(inSpec.pixelFormat),
         parameter(inParams),
@@ -20,8 +20,8 @@ namespace Cyan
         strcpy_s(name, sizeof(char) * nameLen, inName);
     }
 
-    Texture2DRenderable::Texture2DRenderable(const char* inName, const Spec& inSpec, Parameter inParams)
-        : ITextureRenderable(inName, inSpec, inParams),
+    Texture2D::Texture2D(const char* inName, const Spec& inSpec, Parameter inParams)
+        : ITexture(inName, inSpec, inParams),
         width(inSpec.width),
         height(inSpec.height)
     {

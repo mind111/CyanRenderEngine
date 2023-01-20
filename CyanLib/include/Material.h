@@ -8,7 +8,8 @@
 #include "Texture.h"
 #include "Asset.h"
 
-namespace Cyan {
+namespace Cyan 
+{
     struct GpuMaterial 
     {
         u64 albedoMap;
@@ -35,10 +36,10 @@ namespace Cyan {
         GpuMaterial buildGpuMaterial();
 
         std::string name;
-        Texture2DRenderable* albedoMap = nullptr;
-        Texture2DRenderable* normalMap = nullptr;
-        Texture2DRenderable* metallicRoughnessMap = nullptr;
-        Texture2DRenderable* occlusionMap = nullptr;
+        Texture2D* albedoMap = nullptr;
+        Texture2D* normalMap = nullptr;
+        Texture2D* metallicRoughnessMap = nullptr;
+        Texture2D* occlusionMap = nullptr;
         glm::vec4 albedo = glm::vec4(0.9f, 0.9f, 0.9f, 1.f);
         f32 metallic = 0.f;
         f32 roughness = .5f;

@@ -104,12 +104,12 @@ namespace Cyan
 
             {
                 glm::uvec2 resolution = gEngine->getGraphicsSystem()->getAppWindowDimension();
-                ITextureRenderable::Spec spec = { };
+                ITexture::Spec spec = { };
                 spec.width = 1024;
                 spec.height = 1024;
                 spec.type = TEX_2D;
                 spec.pixelFormat = PF_RGB16F;
-                m_sceneRenderingOutput = new Texture2DRenderable("FrameOutput", spec);
+                m_sceneRenderingOutput = new Texture2D("FrameOutput", spec);
             }
 
             static const char* shaderBalls = ASSET_PATH "mesh/shader_balls.glb";
@@ -117,8 +117,10 @@ namespace Cyan
             static const char* sunTemple = ASSET_PATH "mesh/sun_temple/simplified_sun_temple.glb";
             static const char* ueArchviz = ASSET_PATH "mesh/archviz.glb";
             static const char* cornellBox = ASSET_PATH "mesh/cornell_box.gltf";
+            static const char* diorama = ASSET_PATH "mesh/sd_macross_diorama.glb";
+            static const char* picapica = ASSET_PATH "mesh/pica_pica_scene.glb";
 
-            AssetManager::importGltfEx(m_currentScene.get(), ueArchviz);
+            AssetManager::importGltfEx(m_currentScene.get(), shaderBalls);
 
             // skybox
             auto skybox = m_currentScene->createSkybox("Skybox", ASSET_PATH "cubemaps/neutral_sky.hdr", glm::uvec2(2048));
@@ -392,7 +394,7 @@ namespace Cyan
     private:
         std::unique_ptr<Scene> m_currentScene = nullptr;
         std::unique_ptr<Engine> gEngine = nullptr;
-        Texture2DRenderable* m_sceneRenderingOutput = nullptr;
+        Texture2D* m_sceneRenderingOutput = nullptr;
     };
 }
 

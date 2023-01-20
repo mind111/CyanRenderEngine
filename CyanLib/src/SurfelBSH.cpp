@@ -14,12 +14,12 @@ namespace Cyan
         , nodeInstanceBuffer("InstanceBuffer")
     {
         if (!visualization) {
-            ITextureRenderable::Spec spec = { };
+            ITexture::Spec spec = { };
             spec.type = TEX_2D;
             spec.width = 1280;
             spec.height = 720;
             spec.pixelFormat = PF_RGB16F;
-            visualization = new Texture2DRenderable("SurfelBSHVisualization", spec);
+            visualization = new Texture2D("SurfelBSHVisualization", spec);
         }
     }
 

@@ -37,13 +37,13 @@ namespace Cyan {
             glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
             glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 
-            ITextureRenderable::Spec spec = { };
+            ITexture::Spec spec = { };
             spec.type = TEX_2D;
             spec.width = kOctShadowMapResolution;
             spec.height = kOctShadowMapResolution;
             spec.pixelFormat = PF_RGB16F;
 
-            ITextureRenderable::Parameter params = { };
+            ITexture::Parameter params = { };
             params.minificationFilter = FM_POINT;
             params.magnificationFilter = FM_POINT;
             params.wrap_r = WM_CLAMP;
@@ -72,13 +72,13 @@ namespace Cyan {
             glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
             glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 
-            ITextureRenderable::Spec spec = { };
+            ITexture::Spec spec = { };
             spec.type = TEX_2D;
             spec.width = kOctShadowMapResolution;
             spec.height = kOctShadowMapResolution;
             spec.pixelFormat = PF_RGB16F;
 
-            ITextureRenderable::Parameter params = { };
+            ITexture::Parameter params = { };
             params.minificationFilter = FM_POINT;
             params.magnificationFilter = FM_POINT;
             params.wrap_r = WM_CLAMP;
@@ -97,12 +97,12 @@ namespace Cyan {
     }
 
     void InstantRadiosity::generateVPLs(Renderer* renderer, RenderableScene& renderableScene, const glm::uvec2& renderResolution) {
-        ITextureRenderable::Spec spec = { };
+        ITexture::Spec spec = { };
         spec.type = TEX_2D;
         spec.width = renderResolution.x;
         spec.height = renderResolution.y;
         spec.pixelFormat = PF_RGB16F;
-        static Texture2DRenderable* outColor = new Texture2DRenderable("GenerateVPLOutput", spec);
+        static Texture2D* outColor = new Texture2D("GenerateVPLOutput", spec);
 
         std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(outColor->width, outColor->height));
         renderTarget->setColorBuffer(outColor, 0);
@@ -306,22 +306,22 @@ namespace Cyan {
 #endif
     }
 
-    void InstantRadiosity::renderInternal(Renderer* renderer, RenderableScene& renderableScene, Texture2DRenderable* output) {
+    void InstantRadiosity::renderInternal(Renderer* renderer, RenderableScene& renderableScene, Texture2D* output) {
         // render scene depth normal pass first
-        ITextureRenderable::Spec spec = { };
+        ITexture::Spec spec = { };
         spec.type = TEX_2D;
         spec.width = 1280;
         spec.height = 720;
         spec.pixelFormat = PF_RGB32F;
-        static Texture2DRenderable* sceneDepthBuffer = new Texture2DRenderable("IRSceneDepthBuffer", spec);
-        static Texture2DRenderable* sceneNormalBuffer = new Texture2DRenderable("IRSceneNormalBuffer", spec);
+        static Texture2D* sceneDepthBuffer = new Texture2D("IRSceneDepthBuffer", spec);
+        static Texture2D* sceneNormalBuffer = new Texture2D("IRSceneNormalBuffer", spec);
         std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(spec.width, spec.height));
 
         renderer->renderSceneDepthNormal(renderableScene, renderTarget.get(), sceneDepthBuffer, sceneNormalBuffer);
         renderInternal(renderer, renderableScene, sceneDepthBuffer, sceneNormalBuffer, output);
     }
 
-    void InstantRadiosity::renderInternal(Renderer* renderer, RenderableScene& renderableScene, Texture2DRenderable* sceneDepthBuffer, Texture2DRenderable* sceneNormalBuffer, Texture2DRenderable* output) {
+    void InstantRadiosity::renderInternal(Renderer* renderer, RenderableScene& renderableScene, Texture2D* sceneDepthBuffer, Texture2D* sceneNormalBuffer, Texture2D* output) {
 #if 0
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(1280, 720));
         renderTarget->setColorBuffer(output, 0);
@@ -367,13 +367,13 @@ namespace Cyan {
 #endif
     }
     
-    Texture2DRenderable* InstantRadiosity::render(Renderer* renderer, RenderableScene& renderableScene, const glm::uvec2& renderResolution) {
-        ITextureRenderable::Spec spec = { };
+    Texture2D* InstantRadiosity::render(Renderer* renderer, RenderableScene& renderableScene, const glm::uvec2& renderResolution) {
+        ITexture::Spec spec = { };
         spec.type = TEX_2D;
         spec.width = renderResolution.x;
         spec.height = renderResolution.y;
         spec.pixelFormat = PF_RGB16F;
-        static Texture2DRenderable* radiosity = new Texture2DRenderable("InstantRadiosity", spec);
+        static Texture2D* radiosity = new Texture2D("InstantRadiosity", spec);
 
         const glm::vec2 res(2560, 1440);
         if (bRegenerateVPLs) {
@@ -397,13 +397,13 @@ namespace Cyan {
         return radiosity;
     }
 
-     Texture2DRenderable* InstantRadiosity::render(Renderer* renderer, RenderableScene& renderableScene, Texture2DRenderable* sceneDepthBuffer, Texture2DRenderable* sceneNormalBuffer, const glm::uvec2& renderResolution) {
-        ITextureRenderable::Spec spec = { };
+     Texture2D* InstantRadiosity::render(Renderer* renderer, RenderableScene& renderableScene, Texture2D* sceneDepthBuffer, Texture2D* sceneNormalBuffer, const glm::uvec2& renderResolution) {
+        ITexture::Spec spec = { };
         spec.type = TEX_2D;
         spec.width = renderResolution.x;
         spec.height = renderResolution.y;
         spec.pixelFormat = PF_RGB16F;
-        static Texture2DRenderable* radiosity = new Texture2DRenderable("InstantRadiosity", spec);
+        static Texture2D* radiosity = new Texture2D("InstantRadiosity", spec);
 
         const glm::vec2 res(2560, 1440);
         if (bRegenerateVPLs) {
@@ -444,7 +444,7 @@ namespace Cyan {
 #endif
     }
 
-    void InstantRadiosity::renderUI(Renderer* renderer, Texture2DRenderable* output) {
+    void InstantRadiosity::renderUI(Renderer* renderer, Texture2D* output) {
 #if 0
         renderer->addUIRenderCommand([this, renderer, output]() {
             renderer->appendToRenderingTab([this, output]() {

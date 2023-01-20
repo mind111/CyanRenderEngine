@@ -8,7 +8,7 @@
 
 namespace Cyan
 {
-    Texture2DRenderable* ReflectionProbe::s_BRDFLookupTexture = nullptr;
+    Texture2D* ReflectionProbe::s_BRDFLookupTexture = nullptr;
     PixelPipeline* IrradianceProbe::s_convolveIrradiancePipeline = nullptr;
     PixelPipeline* ReflectionProbe::s_convolveReflectionPipeline = nullptr;
 
@@ -33,7 +33,7 @@ namespace Cyan
         };
     }
 
-    LightProbe::LightProbe(TextureCubeRenderable* srcCubemapTexture)
+    LightProbe::LightProbe(TextureCube* srcCubemapTexture)
         : scene(nullptr), position(glm::vec3(0.f)), resolution(glm::uvec2(srcCubemapTexture->resolution, srcCubemapTexture->resolution)), 
         debugSphereMesh(nullptr), sceneCapture(srcCubemapTexture)
     {
@@ -48,10 +48,10 @@ namespace Cyan
     }
 
     void LightProbe::initialize() {
-        ITextureRenderable::Spec spec = { };
+        ITexture::Spec spec = { };
         spec.width = resolution.x;
-        spec.type = ITextureRenderable::Spec::Type::kTexCube;
-        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGB16F;
+        spec.type = ITexture::Spec::Type::kTexCube;
+        spec.pixelFormat = ITexture::Spec::PixelFormat::RGB16F;
         // sceneCapture = AssetManager::createTextureCube("SceneCapture", spec);
     }
 
@@ -70,7 +70,7 @@ namespace Cyan
 
     }
 
-    IrradianceProbe::IrradianceProbe(TextureCubeRenderable* srcCubemapTexture, const glm::uvec2& irradianceRes)
+    IrradianceProbe::IrradianceProbe(TextureCube* srcCubemapTexture, const glm::uvec2& irradianceRes)
         : LightProbe(srcCubemapTexture), m_irradianceTextureRes(irradianceRes)
     {
         initialize();
@@ -84,12 +84,12 @@ namespace Cyan
 
     void IrradianceProbe::initialize()
     {
-        ITextureRenderable::Spec spec = { };
+        ITexture::Spec spec = { };
         spec.width = m_irradianceTextureRes.x;
         spec.height = m_irradianceTextureRes.x;
         spec.depth = m_irradianceTextureRes.x;
-        spec.type = ITextureRenderable::Spec::Type::kTexCube;
-        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGB16F;
+        spec.type = ITexture::Spec::Type::kTexCube;
+        spec.pixelFormat = ITexture::Spec::PixelFormat::RGB16F;
         m_convolvedIrradianceTexture = AssetManager::createTextureCube("IrradianceProbe", spec);
 
         if (!s_convolveIrradiancePipeline)
@@ -155,7 +155,7 @@ namespace Cyan
 
     }
 
-    ReflectionProbe::ReflectionProbe(TextureCubeRenderable* srcCubemapTexture)
+    ReflectionProbe::ReflectionProbe(TextureCube* srcCubemapTexture)
         : LightProbe(srcCubemapTexture)
     {
         initialize();
@@ -170,13 +170,13 @@ namespace Cyan
     void ReflectionProbe::initialize()
     {
         // convolved radiance texture
-        ITextureRenderable::Spec spec = { };
+        ITexture::Spec spec = { };
         spec.width = resolution.x;
-        spec.type = ITextureRenderable::Spec::Type::kTexCube;
-        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGB16F;
+        spec.type = ITexture::Spec::Type::kTexCube;
+        spec.pixelFormat = ITexture::Spec::PixelFormat::RGB16F;
         spec.numMips = max(1, log2(spec.width) + 1);
-        ITextureRenderable::Parameter parameter = { };
-        parameter.minificationFilter = ITextureRenderable::Parameter::Filtering::LINEAR_MIPMAP_LINEAR;
+        ITexture::Parameter parameter = { };
+        parameter.minificationFilter = ITexture::Parameter::Filtering::LINEAR_MIPMAP_LINEAR;
         m_convolvedReflectionTexture = AssetManager::createTextureCube("ReflectionProbe", spec, parameter);
 
         if (!s_convolveReflectionPipeline)
@@ -193,18 +193,18 @@ namespace Cyan
         }
     }
 
-    Texture2DRenderable* ReflectionProbe::buildBRDFLookupTexture()
+    Texture2D* ReflectionProbe::buildBRDFLookupTexture()
     {
-        ITextureRenderable::Spec spec = { };
+        ITexture::Spec spec = { };
         spec.width = 512u;
         spec.height = 512u;
-        spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGBA16F;
+        spec.pixelFormat = ITexture::Spec::PixelFormat::RGBA16F;
         spec.type = TEX_2D;
-        ITextureRenderable::Parameter params = { };
+        ITexture::Parameter params = { };
         params.wrap_r = WM_CLAMP;
         params.wrap_s = WM_CLAMP;
         params.wrap_t = WM_CLAMP;
-        Texture2DRenderable* outTexture = AssetManager::createTexture2D("BRDFLUT", spec, params);
+        Texture2D* outTexture = AssetManager::createTexture2D("BRDFLUT", spec, params);
 
         RenderTarget* renderTarget = createRenderTarget(outTexture->width, outTexture->height);
         renderTarget->setColorBuffer(outTexture, 0u);

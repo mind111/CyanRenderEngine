@@ -20,32 +20,18 @@
 
 namespace Cyan
 {
-    class GltfTool
-    {
-        struct ImportSettings
-        {
-            bool bImportMeshes = true;
-            bool bImportMaterials = true;
-            bool bImportNodes = true;
-        };
-
-        void importGltf(Scene* scene, const char* filename, ImportSettings = ImportSettings{ }) { }
-        void importGltfAsync(Scene* scene, const char* filename, ImportSettings = ImportSettings{ }) { }
-        void exportGltf() { }
-    };
-
     // todo: differentiate import...() from load...(), import refers to importing raw scene data, load refers to loading serialized binary
     class AssetManager 
     {
     public:
         struct DefaultTextures 
         {
-            Texture2DRenderable* checkerDark = nullptr;
-            Texture2DRenderable* checkerOrange = nullptr;
-            Texture2DRenderable* gridDark = nullptr;
-            Texture2DRenderable* gridOrange = nullptr;
-            Texture2DRenderable* blueNoise_16x16 = nullptr;
-            Texture2DRenderable* blueNoise_1024x1024 = nullptr;
+            Texture2D* checkerDark = nullptr;
+            Texture2D* checkerOrange = nullptr;
+            Texture2D* gridDark = nullptr;
+            Texture2D* gridOrange = nullptr;
+            Texture2D* blueNoise_16x16 = nullptr;
+            Texture2D* blueNoise_1024x1024 = nullptr;
         } m_defaultTextures;
 
         struct DefaultShapes 
@@ -121,21 +107,21 @@ namespace Cyan
             /**
             *   initialize default textures
             */ 
-            ITextureRenderable::Spec spec = { };
+            ITexture::Spec spec = { };
             spec.numMips = 11u;
-            ITextureRenderable::Parameter parameter = { };
+            ITexture::Parameter parameter = { };
             parameter.minificationFilter = FM_TRILINEAR;
-            parameter.wrap_r = ITextureRenderable::Parameter::WrapMode::WRAP;
-            parameter.wrap_s = ITextureRenderable::Parameter::WrapMode::WRAP;
-            parameter.wrap_t = ITextureRenderable::Parameter::WrapMode::WRAP;
+            parameter.wrap_r = ITexture::Parameter::WrapMode::WRAP;
+            parameter.wrap_s = ITexture::Parameter::WrapMode::WRAP;
+            parameter.wrap_t = ITexture::Parameter::WrapMode::WRAP;
             m_defaultTextures.checkerDark = importTexture2D("default_checker_dark", ASSET_PATH "textures/defaults/checker_dark.png", spec, parameter);
             m_defaultTextures.checkerOrange = importTexture2D("default_checker_orange", ASSET_PATH "textures/defaults/checker_orange.png", spec, parameter);
             m_defaultTextures.gridDark = importTexture2D("default_grid_dark", ASSET_PATH "textures/defaults/grid_dark.png", spec, parameter);
             m_defaultTextures.gridOrange = importTexture2D("default_grid_orange", ASSET_PATH "textures/defaults/grid_orange.png", spec, parameter);
 
             {
-                ITextureRenderable::Spec spec = { };
-                ITextureRenderable::Parameter parameter = { };
+                ITexture::Spec spec = { };
+                ITexture::Parameter parameter = { };
                 parameter.minificationFilter = FM_POINT;
                 parameter.wrap_r = WM_WRAP;
                 parameter.wrap_s = WM_WRAP;
@@ -156,9 +142,12 @@ namespace Cyan
 
         void importGltfNode(Scene* scene, tinygltf::Model& model, Entity* parent, tinygltf::Node& node);
         Mesh* importGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh); 
-        Cyan::Texture2DRenderable* importGltfTexture(tinygltf::Model& model, tinygltf::Texture& gltfTexture);
+        Cyan::Texture2D* importGltfTexture(tinygltf::Model& model, tinygltf::Texture& gltfTexture);
         void importGltfTextures(tinygltf::Model& model);
         static void importGltf(Scene* scene, const char* filename, const char* name=nullptr);
+
+        // std::queue<Image> loadedImages;
+        std::unordered_multimap<std::string, Texture2D*> imageDependencyMap;
         static void importGltfAsync(Scene* scene, const char* filename);
         static void importGltfEx(Scene* scene, const char* filename);
         std::vector<ISubmesh*> importObj(const char* baseDir, const char* filename);
@@ -166,33 +155,80 @@ namespace Cyan
         /**
         * Creating a texture from scratch; `name` must be unique
         */
-        static Texture2DRenderable* createTexture2D(const char* name, const ITextureRenderable::Spec& spec, ITextureRenderable::Parameter parameter=ITextureRenderable::Parameter{ })
+        static Texture2D* createTexture2D(const char* name, const ITexture::Spec& spec, ITexture::Parameter parameter=ITexture::Parameter{ })
         {
-            Texture2DRenderable* outTexture = getAsset<Texture2DRenderable>(name);
+            Texture2D* outTexture = getAsset<Texture2D>(name);
             if (!outTexture)
             {
-                outTexture = new Texture2DRenderable(name, spec, parameter);
+                outTexture = new Texture2D(name, spec, parameter);
                 singleton->addTexture(outTexture);
             }
             return outTexture;
         }
 
-        static Texture3DRenderable* createTexture3D(const char* name, const ITextureRenderable::Spec& spec, ITextureRenderable::Parameter parameter=ITextureRenderable::Parameter{ }) {
-            Texture3DRenderable* outTexture = getAsset<Texture3DRenderable>(name);
+#if 0
+        struct TextureLoadingTask
+        {
+            gltf::Glb* src = nullptr;
+            gltf::Image* dstImage;
+            Texture2D* dstTexture;
+
+            void load()
+            {
+                // todo: check if dstImage is already loaded
+                if (dstImage->bufferView >= 0)
+                {
+                    gltf::BufferView& bv = src->bufferViews[dstImage->bufferView];
+                    u8* dataAddress = src->binaryChunk.data() + bv.byteOffset;
+                    i32 hdr = stbi_is_hdr_from_memory(dataAddress, bv.byteLength);
+                    if (hdr)
+                    {
+                        dstImage->bHdr = true;
+                        dstImage->pixels = reinterpret_cast<u8*>(stbi_loadf_from_memory(dataAddress, bv.byteLength, &dstImage->width, &dstImage->height, &dstImage->numChannels, 0));
+                    }
+                    else
+                    {
+                        i32 is16Bit = stbi_is_16_bit_from_memory(dataAddress, bv.byteLength);
+                        if (is16Bit)
+                        {
+                            dstImage->b16Bits = true;
+                        }
+                        else
+                        {
+                            dstImage->pixels = stbi_load_from_memory(dataAddress, bv.byteLength, &dstImage->width, &dstImage->height, &dstImage->numChannels, 0);
+                        }
+                    }
+                }
+            }
+        };
+#endif
+
+        // todo: learn how to implement thread pool that automatically picks up work from the task queue
+        static Texture2D* createTexture2DDeferred(const char* name)
+        {
+            Texture2D* outTexture = getAsset<Texture2D>(name);
             if (!outTexture)
             {
-                Texture3DRenderable* outTexture = new Texture3DRenderable(name, spec, parameter);
+                // add a new texture loading task onto the task queue
+            }
+        }
+
+        static Texture3D* createTexture3D(const char* name, const ITexture::Spec& spec, ITexture::Parameter parameter=ITexture::Parameter{ }) {
+            Texture3D* outTexture = getAsset<Texture3D>(name);
+            if (!outTexture)
+            {
+                Texture3D* outTexture = new Texture3D(name, spec, parameter);
                 singleton->addTexture(outTexture);
             }
             return outTexture;
         }
 
-        static TextureCubeRenderable* createTextureCube(const char* name, const ITextureRenderable::Spec& spec, ITextureRenderable::Parameter parameter=ITextureRenderable::Parameter{ })
+        static TextureCube* createTextureCube(const char* name, const ITexture::Spec& spec, ITexture::Parameter parameter=ITexture::Parameter{ })
         {
-            TextureCubeRenderable* outTexture = getAsset<TextureCubeRenderable>(name);
+            TextureCube* outTexture = getAsset<TextureCube>(name);
             if (!outTexture)
             {
-                outTexture = new TextureCubeRenderable(name, spec, parameter);
+                outTexture = new TextureCube(name, spec, parameter);
                 singleton->addTexture(outTexture);
             }
             return outTexture;
@@ -212,7 +248,7 @@ namespace Cyan
         /**
         * Importing texture from an image file
         */
-        static Texture2DRenderable* importTexture2D(const char* name, const char* filename, ITextureRenderable::Spec& spec, ITextureRenderable::Parameter parameter=ITextureRenderable::Parameter{ })
+        static Texture2D* importTexture2D(const char* name, const char* filename, ITexture::Spec& spec, ITexture::Parameter parameter=ITexture::Parameter{ })
         {
             // todo: this is not a robust solutions to this!!! a better way maybe parse the file header to get the true file format
             // determine whether the given image is ldr or hdr based on file extension
@@ -230,11 +266,11 @@ namespace Cyan
                 // todo: pixel format is hard coded for now
                 if (numChannels == 3)
                 {
-                    spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGB16F;
+                    spec.pixelFormat = ITexture::Spec::PixelFormat::RGB16F;
                 }
                 else if (numChannels == 4)
                 {
-                    spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGBA16F;
+                    spec.pixelFormat = ITexture::Spec::PixelFormat::RGBA16F;
                 }
                 spec.width = width;
                 spec.height = height;
@@ -245,11 +281,11 @@ namespace Cyan
                 // todo: pixel format is hard coded for now
                 if (numChannels == 3)
                 {
-                    spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGB8;
+                    spec.pixelFormat = ITexture::Spec::PixelFormat::RGB8;
                 }
                 else if (numChannels == 4)
                 {
-                    spec.pixelFormat = ITextureRenderable::Spec::PixelFormat::RGBA8;
+                    spec.pixelFormat = ITexture::Spec::PixelFormat::RGBA8;
                 }
                 spec.width = width;
                 spec.height = height;
@@ -289,14 +325,14 @@ namespace Cyan
         }
 
         template<>
-        static Texture2DRenderable* getAsset<Texture2DRenderable>(const char* textureName)
+        static Texture2D* getAsset<Texture2D>(const char* textureName)
         {
             const auto& entry = singleton->m_textureMap.find(textureName);
             if (entry == singleton->m_textureMap.end())
             {
                 return nullptr;
             }
-            return dynamic_cast<Texture2DRenderable*>(entry->second);
+            return dynamic_cast<Texture2D*>(entry->second);
         }
 
         template<>
@@ -311,25 +347,25 @@ namespace Cyan
         }
 
         template<>
-        static Texture3DRenderable* getAsset<Texture3DRenderable>(const char* textureName)
+        static Texture3D* getAsset<Texture3D>(const char* textureName)
         {
             const auto& entry = singleton->m_textureMap.find(textureName);
             if (entry == singleton->m_textureMap.end())
             {
                 return nullptr;
             }
-            return dynamic_cast<Texture3DRenderable*>(entry->second);
+            return dynamic_cast<Texture3D*>(entry->second);
         }
         
         template<>
-        static TextureCubeRenderable* getAsset<TextureCubeRenderable>(const char* textureName)
+        static TextureCube* getAsset<TextureCube>(const char* textureName)
         {
             const auto& entry = singleton->m_textureMap.find(textureName);
             if (entry == singleton->m_textureMap.end())
             {
                 return nullptr;
             }
-            return dynamic_cast<TextureCubeRenderable*>(entry->second);
+            return dynamic_cast<TextureCube*>(entry->second);
         }
 
         template <>
@@ -341,7 +377,7 @@ namespace Cyan
             return nullptr;
         }
 
-        static const std::vector<ITextureRenderable*>& getTextures()
+        static const std::vector<ITexture*>& getTextures()
         {
             return singleton->m_textures;
         }
@@ -380,7 +416,7 @@ namespace Cyan
         /**
         * Adding a texture into the asset data base
         */
-        void addTexture(ITextureRenderable* inTexture) 
+        void addTexture(ITexture* inTexture) 
         {
             singleton->m_textureMap.insert({ inTexture->name, inTexture });
             singleton->m_textures.push_back(inTexture);
@@ -393,11 +429,11 @@ namespace Cyan
 
         // asset arrays for efficient iterating
         std::vector<Mesh*> m_meshes;
-        std::vector<ITextureRenderable*> m_textures;
+        std::vector<ITexture*> m_textures;
 
         // asset tables for efficient lookup
         std::unordered_map<std::string, std::unique_ptr<Scene>> m_sceneMap;
-        std::unordered_map<std::string, ITextureRenderable*> m_textureMap;
+        std::unordered_map<std::string, ITexture*> m_textureMap;
         std::unordered_map<std::string, Mesh*> m_meshMap;
 
         // async loading pending tasks
