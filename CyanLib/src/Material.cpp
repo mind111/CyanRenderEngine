@@ -3,7 +3,8 @@
 #include "Material.h"
 #include "AssetManager.h"
 
-namespace Cyan {
+namespace Cyan 
+{
     void Material::renderUI() {
 
     }

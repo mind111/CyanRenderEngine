@@ -39,7 +39,6 @@ namespace Cyan
         m_graphicsSystem->initialize();
         m_IOSystem->initialize();
     }
-
     
     void Engine::update() 
     {

@@ -581,13 +581,16 @@ namespace Cyan {
             * seamless cubemap doesn't work with bindless textures that's accessed using a texture handle,
             * so falling back to normal way of binding textures here.
             */
-            ps->setTexture("skyLight.irradiance", scene.skyLight->irradianceProbe->m_convolvedIrradianceTexture);
-            ps->setTexture("skyLight.reflection", scene.skyLight->reflectionProbe->m_convolvedReflectionTexture);
-            auto BRDFLookupTexture = ReflectionProbe::getBRDFLookupTexture()->glHandle;
-            if (glIsTextureHandleResidentARB(BRDFLookupTexture) == GL_FALSE) {
-                glMakeTextureHandleResidentARB(BRDFLookupTexture);
+            if (scene.skyLight)
+            {
+                ps->setTexture("skyLight.irradiance", scene.skyLight->irradianceProbe->m_convolvedIrradianceTexture);
+                ps->setTexture("skyLight.reflection", scene.skyLight->reflectionProbe->m_convolvedReflectionTexture);
+                auto BRDFLookupTexture = ReflectionProbe::getBRDFLookupTexture()->glHandle;
+                if (glIsTextureHandleResidentARB(BRDFLookupTexture) == GL_FALSE) {
+                    glMakeTextureHandleResidentARB(BRDFLookupTexture);
+                }
+                ps->setUniform("skyLight.BRDFLookupTexture", BRDFLookupTexture);
             }
-            ps->setUniform("skyLight.BRDFLookupTexture", BRDFLookupTexture);
         });
     }
 
@@ -1101,7 +1104,7 @@ namespace Cyan {
         };
         // build indirect draw commands
         auto ptr = reinterpret_cast<IndirectDrawArrayCommand*>(indirectDrawBuffer.data);
-        for (u32 draw = 0; draw < scene.drawCallBuffer->getNumElements() - 1; ++draw)
+        for (i32 draw = 0; draw < scene.drawCallBuffer->getNumElements() - 1; ++draw)
         {
             IndirectDrawArrayCommand& command = ptr[draw];
             command.first = 0;
@@ -1115,7 +1118,7 @@ namespace Cyan {
         glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirectDrawBuffer.buffer);
         // dispatch multi draw indirect
         // one sub-drawcall per instance
-        u32 drawCount = (u32)scene.drawCallBuffer->getNumElements() - 1;
+        u32 drawCount = max(scene.drawCallBuffer->getNumElements() - 1, 0);
         glMultiDrawArraysIndirect(GL_TRIANGLES, 0, drawCount, 0);
     }
 

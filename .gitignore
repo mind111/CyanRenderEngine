@@ -10,3 +10,6 @@ App/x64
 App/imgui.ini
 ExternalLib/include/glm
 ExternalLib/x64
+TexturePacking/data
+TexturePacking/x64
+TexturePacking/imgui.ini

@@ -73,6 +73,7 @@
     <ClInclude Include="include\SurfelSampler.h" />
     <ClInclude Include="include\System.h" />
     <ClInclude Include="include\Texture.h" />
+    <ClInclude Include="include\TextureAtlas.h" />
     <ClInclude Include="include\Transform.h" />
     <ClInclude Include="include\Utils.h" />
     <ClInclude Include="include\VertexArray.h" />
@@ -122,6 +123,7 @@
     <ClCompile Include="src\SurfelBSH.cpp" />
     <ClCompile Include="src\SurfelSampler.cpp" />
     <ClCompile Include="src\Texture.cpp" />
+    <ClCompile Include="src\TextureAtlas.cpp" />
     <ClCompile Include="src\todos.cpp" />
     <ClCompile Include="src\Utils.cpp" />
     <ClCompile Include="src\VertexArray.cpp" />

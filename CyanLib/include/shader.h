@@ -264,9 +264,9 @@ namespace Cyan {
         PipelineMap m_pipelineMap;
     };
 
-#define CreateVS(vs, shaderName, file) auto vs = ShaderManager::createShader<VertexShader>(shaderName, file);
-#define CreatePS(ps, shaderName, file) auto ps = ShaderManager::createShader<PixelShader>(shaderName, file);
-#define CreateCS(cs, shaderName, file) auto cs = ShaderManager::createShader<ComputeShader>(shaderName, file);
-#define CreatePixelPipeline(pipeline, pipelineName, vs, ps) auto pipeline = ShaderManager::createPixelPipeline(pipelineName, vs, ps);
-#define CreateComputePipeline(pipeline, pipelineName, cs) auto pipeline = ShaderManager::createComputePipeline(pipelineName, cs);
+#define CreateVS(vs, shaderName, file) auto vs = Cyan::ShaderManager::createShader<Cyan::VertexShader>(shaderName, file);
+#define CreatePS(ps, shaderName, file) auto ps = Cyan::ShaderManager::createShader<Cyan::PixelShader>(shaderName, file);
+#define CreateCS(cs, shaderName, file) auto cs = Cyan::ShaderManager::createShader<Cyan::ComputeShader>(shaderName, file);
+#define CreatePixelPipeline(pipeline, pipelineName, vs, ps) auto pipeline = Cyan::ShaderManager::createPixelPipeline(pipelineName, vs, ps);
+#define CreateComputePipeline(pipeline, pipelineName, cs) auto pipeline = Cyan::ShaderManager::createComputePipeline(pipelineName, cs);
 }

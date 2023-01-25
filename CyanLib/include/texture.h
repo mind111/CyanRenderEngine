@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <memory>
 
 #include <glew/glew.h>
 
@@ -26,8 +27,11 @@
 #define FM_TRILINEAR Cyan::ITexture::Parameter::Filtering::LINEAR_MIPMAP_LINEAR
 #define FM_MIPMAP_POINT Cyan::ITexture::Parameter::Filtering::NEAREST_MIPMAP_NEAREST
 // PF stands for "pixel format" 
+#define PF_R8 Cyan::ITexture::Spec::PixelFormat::R8
+#define PF_R8UI Cyan::ITexture::Spec::PixelFormat::R8UI
 #define PF_RGB8 Cyan::ITexture::Spec::PixelFormat::RGB8
 #define PF_RGBA8 Cyan::ITexture::Spec::PixelFormat::RGBA8
+#define PF_R16F Cyan::ITexture::Spec::PixelFormat::R16F
 #define PF_RGB16F Cyan::ITexture::Spec::PixelFormat::RGB16F
 #define PF_RGBA16F Cyan::ITexture::Spec::PixelFormat::RGBA16F
 #define PF_RGB32F Cyan::ITexture::Spec::PixelFormat::RGB32F
@@ -35,6 +39,17 @@
 
 namespace Cyan
 {
+    struct Image
+    {
+        std::string name;
+        i32 width;
+        i32 height;
+        i32 numChannels;
+        i32 bitsPerChannel;
+        std::shared_ptr<u8> pixels = nullptr;
+    };
+
+    // todo: rework Texture classes....!!!
     struct ITexture : public Asset, public GpuObject
     {
         virtual std::string getAssetObjectTypeDesc() override
@@ -61,7 +76,9 @@ namespace Cyan
 
             enum class PixelFormat
             {
-                R16F = 0,
+                R8 = 0,
+                R8UI,
+                R16F,
                 R32F,
                 Lum32F,
                 RG16F,
@@ -117,6 +134,7 @@ namespace Cyan
         virtual Spec getTextureSpec() = 0;
 
         ITexture(const char* inName, const Spec& inSpec, Parameter inParams = Parameter{ });
+        ITexture(const Spec& inSpec, Parameter inParams);
 
         virtual ~ITexture() 
         { 
@@ -145,6 +163,16 @@ namespace Cyan
             GLPixelFormat glPixelFormat = { };
             switch (inPixelFormat)
             {
+            case Spec::PixelFormat::R8:    
+                glPixelFormat.internalFormat = GL_R8I;
+                glPixelFormat.format = GL_RED;
+                glPixelFormat.type = GL_BYTE;
+                break;
+            case Spec::PixelFormat::R8UI:
+                glPixelFormat.internalFormat = GL_R8;
+                glPixelFormat.format = GL_RED;
+                glPixelFormat.type = GL_UNSIGNED_BYTE;
+                break;
             case Spec::PixelFormat::Lum32F:
                 glPixelFormat.internalFormat = GL_LUMINANCE8;
                 glPixelFormat.format = GL_LUMINANCE;
@@ -152,8 +180,8 @@ namespace Cyan
                 break;
             case Spec::PixelFormat::R16F:
                 glPixelFormat.internalFormat = GL_R16F;
-                glPixelFormat.format = GL_R;
-                glPixelFormat.type = GL_FLOAT;
+                glPixelFormat.format = GL_RED;
+                glPixelFormat.type = GL_HALF_FLOAT;
                 break;
             case Spec::PixelFormat::R32F:
                 glPixelFormat.internalFormat = GL_R32F;
@@ -163,7 +191,7 @@ namespace Cyan
             case Spec::PixelFormat::RG16F:
                 glPixelFormat.internalFormat = GL_RG16F;
                 glPixelFormat.format = GL_RG;
-                glPixelFormat.type = GL_FLOAT;
+                glPixelFormat.type = GL_HALF_FLOAT;
                 break;
             case Spec::PixelFormat::D24S8:
                 glPixelFormat.internalFormat = GL_DEPTH24_STENCIL8;
@@ -178,12 +206,12 @@ namespace Cyan
             case Spec::PixelFormat::RGB16F:
                 glPixelFormat.internalFormat = GL_RGB16F;
                 glPixelFormat.format = GL_RGB;
-                glPixelFormat.type = GL_FLOAT;
+                glPixelFormat.type = GL_HALF_FLOAT;
                 break;
             case Spec::PixelFormat::RGBA16F:
                 glPixelFormat.internalFormat = GL_RGBA16F;
                 glPixelFormat.format = GL_RGBA;
-                glPixelFormat.type = GL_FLOAT;
+                glPixelFormat.type = GL_HALF_FLOAT;
                 break;
             case Spec::PixelFormat::RGB32F:
                 glPixelFormat.internalFormat = GL_RGB32F;
@@ -242,6 +270,7 @@ namespace Cyan
             glTextureParameteri(textureObject, GL_TEXTURE_WRAP_R, translateWrap(parameter.wrap_r));
         }
 
+        static u32 count;
         char* name = nullptr;
         Spec::PixelFormat pixelFormat = Spec::PixelFormat::kInvalid;
         Parameter parameter = { };
@@ -249,18 +278,6 @@ namespace Cyan
         u8* pixelData = nullptr;
         u64 glHandle;
     };
-
-#if 0
-    struct Image
-    {
-        std::string name;
-        u32 width;
-        u32 height;
-        u32 numChannels;
-        u32 bitsPerChannel;
-        std::shared_ptr<u8> pixels = nullptr;
-    };
-#endif
 
     struct Texture2D : public ITexture
     {
@@ -288,16 +305,16 @@ namespace Cyan
         }
 
         Texture2D(const char* inName, const Spec& inSpec, Parameter inParams = Parameter{ });
+        Texture2D(const Spec& inSpec, Parameter inParams = Parameter{ });
+        Texture2D(const Image& inImage, Parameter inParams = Parameter{ });
+
         ~Texture2D()
         {
         }
 
-#if 0
         void initGpuResource(const Image& srcImage)
         {
-
         }
-#endif
 
         u32 width;
         u32 height;

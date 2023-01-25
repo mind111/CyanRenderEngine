@@ -111,16 +111,20 @@ namespace Cyan
 
     void DefaultApp::render()
     {
-        gEngine->render(m_scene.get(), m_sceneRenderingOutput);
-        customRender();
+        gEngine->render(m_scene.get(), m_sceneRenderingOutput, [this](Renderer* renderer, Texture2D* sceneRenderingOutput) {
+                customRender(renderer, sceneRenderingOutput);
+            }
+        );
     }
    
     void DefaultApp::run()
     {
+        initialize();
         while (isRunning)
         {
             update();
             render();
         }
+        deinitialize();
     }
 }

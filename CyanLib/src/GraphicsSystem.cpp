@@ -227,7 +227,7 @@ namespace Cyan
                     sceneRenderingOutput, 
                     { 0, 0, sceneRenderingOutput->width, sceneRenderingOutput->height }
                 );
-                m_renderer->render(scene, mainSceneView, glm::uvec2(sceneRenderingOutput->width, sceneRenderingOutput->height));
+                // m_renderer->render(scene, mainSceneView, glm::uvec2(sceneRenderingOutput->width, sceneRenderingOutput->height));
             }
 
             // post scene rendering

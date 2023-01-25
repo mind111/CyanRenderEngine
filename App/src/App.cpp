@@ -422,12 +422,12 @@ public:
         ImGui::EndChild();
     }
 
-    virtual void customRender() override
+    virtual void customRender(Cyan::Renderer* renderer, Cyan::Texture2D* sceneRenderingOutput) override
     {
         /**     
         * render utility widgets(e.g: such as a scene outline window, entity details window)
         */ 
-        gEngine->getGraphicsSystem()->getRenderer()->addUIRenderCommand([this]() {
+        renderer->addUIRenderCommand([this]() {
             ImGuiWindowFlags flags = ImGuiWindowFlags_None;
             ImGui::SetNextWindowPos(ImVec2(5, 5));
             ImGui::SetNextWindowSize(ImVec2(360, 700));
@@ -457,7 +457,6 @@ private:
     std::unique_ptr<Cyan::RayTracingScene> m_rtxScene = nullptr;
     std::unique_ptr<Cyan::RayTracer> m_rayTracer = nullptr;
     std::vector<std::thread*> spawnedThreads;
-    Cyan::Image image = Cyan::Image(glm::uvec2(640, 360));
     Cyan::Texture2D* rayTracingOutput = nullptr;
 };
 
@@ -465,9 +464,7 @@ private:
 int main()
 {
     TheGame* app = new TheGame(1024, 1024);
-    app->initialize();
     app->run();
-    app->deinitialize();
     delete app;
     return 0;
 }

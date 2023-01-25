@@ -18,10 +18,10 @@ namespace Cyan
         void render();
         void run();
 
-        virtual void customInitialize() = 0;
-        virtual void customUpdate() = 0;
-        virtual void customRender() = 0;
-        virtual void customFinalize() = 0;
+        virtual void customInitialize() { }
+        virtual void customUpdate() { } 
+        virtual void customRender(Renderer* renderer, Texture2D* sceneRenderingOutput) { }
+        virtual void customFinalize() { }
 
     protected:
         glm::uvec2 m_appWindowDimension;

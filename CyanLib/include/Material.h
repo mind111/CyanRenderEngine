@@ -3,6 +3,7 @@
 #include <glm/glm.hpp>
 #include <vector>
 #include <unordered_map>
+#include <array>
 
 #include "Shader.h"
 #include "Texture.h"

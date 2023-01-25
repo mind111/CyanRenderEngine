@@ -36,7 +36,7 @@ namespace Cyan
 
         }
 
-        u32 getNumElements() { return 0; }
+        i32 getNumElements() { return 0; }
 
         StaticData constants;
     };
@@ -64,7 +64,7 @@ namespace Cyan
 
         }
 
-        u32 getNumElements() { return array.size(); }
+        i32 getNumElements() { return array.size(); }
 
         void addElement(const DynamicData& element)
         {
@@ -168,7 +168,7 @@ namespace Cyan
             }
         }
 
-        u32 getNumElements() { return data.getNumElements(); }
+        i32 getNumElements() { return data.getNumElements(); }
 
         template <typename T>
         void addElement(const T& element)
@@ -176,7 +176,8 @@ namespace Cyan
             return data.addElement(element);
         }
 
-        auto& operator[](u32 index) {
+        auto& operator[](u32 index) 
+        {
             return data[index];
         }
 

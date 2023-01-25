@@ -4,7 +4,7 @@
 
 #include "Common.h"
 
-#define BINDLESS_TEXTURE 1
+#define BINDLESS_TEXTURE 0
 
 namespace Cyan {
     class GpuObject {

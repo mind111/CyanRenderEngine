@@ -85,7 +85,7 @@ namespace Cyan
         return Ray{ ro, rd };
     }
 
-    void RayTracer::renderScene(const RayTracingScene& rtxScene, const PerspectiveCamera& camera, Image& outImage, const std::function<void()>& finishCallback)
+    void RayTracer::renderScene(const RayTracingScene& rtxScene, const PerspectiveCamera& camera, RTImage& outImage, const std::function<void()>& finishCallback)
     {
         onRenderStart(outImage);
         {

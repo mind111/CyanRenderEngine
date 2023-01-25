@@ -20,9 +20,9 @@ namespace Cyan
         i32 material;
     };
 
-    struct Image
+    struct RTImage
     {
-        Image(const glm::uvec2& inImageSize)
+        RTImage(const glm::uvec2& inImageSize)
             : size(inImageSize)
         {
             u32 numPixels = inImageSize.x * inImageSize.y;
@@ -64,7 +64,7 @@ namespace Cyan
     public:
         struct RenderTracker
         {
-            const Image* outImage = nullptr;
+            const RTImage* outImage = nullptr;
             f32 progress = 0.f;
 
             void reset()
@@ -78,11 +78,11 @@ namespace Cyan
         bool busy() { return isBusy; }
         f32 getProgress() { return m_renderTracker.progress; }
 
-        void renderScene(const RayTracingScene& rtxScene, const PerspectiveCamera& camera, Image& outImage, const std::function<void()>& finishCallback);
+        void renderScene(const RayTracingScene& rtxScene, const PerspectiveCamera& camera, RTImage& outImage, const std::function<void()>& finishCallback);
         RayHit trace(const RayTracingScene& rtxScene, const Ray& ray);
     private:
 
-        void onRenderStart(Image& outImage) 
+        void onRenderStart(RTImage& outImage) 
         {
             isBusy = true;
             m_renderTracker.outImage = &outImage;
