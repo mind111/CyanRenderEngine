@@ -157,7 +157,7 @@ namespace Cyan {
             gfxc->setViewport({ 0, 0, renderTarget->width, renderTarget->height });
             gfxc->setPixelPipeline(pipeline, [](VertexShader* vs, PixelShader* ps) {
             });
-            renderer->submitSceneMultiDrawIndirect(*scene);
+            renderer->multiDrawSceneIndirect(*scene);
         }
         // render a second full screen pass for building hemicube buffers
         {
@@ -621,7 +621,7 @@ namespace Cyan {
         CreatePixelPipeline(pipeline, "ManyViewGI", vs, ps);
         m_gfxc->setPixelPipeline(pipeline, [camera, hemicube, this](VertexShader* vs, PixelShader* ps) {
         });
-        m_renderer->submitSceneMultiDrawIndirect(scene);
+        m_renderer->multiDrawSceneIndirect(scene);
     }
 
     PointBasedManyViewGI::PointBasedManyViewGI(Renderer* renderer, GfxContext* gfxc)

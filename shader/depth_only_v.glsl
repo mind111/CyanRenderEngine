@@ -64,38 +64,6 @@ layout(std430) buffer SubmeshBuffer
 	SubmeshDesc submeshDescs[];
 };
 
-/**
-	mirror's the material definition on application side
-    struct GpuMaterial {
-        u64 albedoMap;
-        u64 normalMap;
-        u64 metallicRoughnessMap;
-        u64 occlusionMap;
-        glm::vec4 albedo = glm::vec4(.9f, .9f, .9f, 1.f);
-        f32 metallic = 0.f;
-        f32 roughness = .5f;
-        f32 emissive = 1.f;
-        u32 flag = 0u;
-    };
-*/
-struct MaterialDesc 
-{
-	uint64_t albedoMap;
-	uint64_t normalMap;
-	uint64_t metallicRoughnessMap;
-    uint64_t occlusionMap;
-    vec4 albedo;
-    float metallic;
-    float roughness;
-    float emissive;
-    uint flag;
-};
-
-layout(std430) buffer MaterialBuffer
-{
-	MaterialDesc materialDescs[];
-};
-
 layout(std430) buffer DrawCallBuffer 
 {
 	uint drawCalls[];

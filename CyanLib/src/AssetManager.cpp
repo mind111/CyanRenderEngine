@@ -38,12 +38,6 @@ namespace Cyan
             && (lhs.texCoord0 == rhs.texCoord0);
     }
 
-    AssetManager* AssetManager::singleton = nullptr;
-    AssetManager::AssetManager() {
-        if (!singleton) {
-            singleton = this;
-        }
-    }
 
     void calculateTangent(std::vector<Triangles::Vertex>& vertices, u32 face[3])
     {
@@ -62,6 +56,38 @@ namespace Cyan
         v0.tangent = glm::vec4(tangent, 1.f);
         v1.tangent = glm::vec4(tangent, 1.f);
         v2.tangent = glm::vec4(tangent, 1.f);
+    }
+
+    AssetManager* Singleton<AssetManager>::singleton = nullptr;
+    AssetManager::AssetManager()
+    {
+        const u32 sizeInPixels = 16 * 1024;
+        for (i32 i = 0; i < (i32)Texture2DAtlas::Format::kCount; ++i)
+        {
+            switch ((Texture2DAtlas::Format)(i)) 
+            {
+            case Texture2DAtlas::Format::kR8:
+                atlases[i] = new Texture2DAtlas(sizeInPixels, PF_R8);
+                break;
+            case Texture2DAtlas::Format::kRGB8:
+                atlases[i] = new Texture2DAtlas(sizeInPixels, PF_RGB8);
+                break;
+            case Texture2DAtlas::Format::kRGBA8:
+                atlases[i] = new Texture2DAtlas(sizeInPixels, PF_RGBA8);
+                break;
+#if 0
+            case Format::kRGB16F:
+                assert(0);
+                break;
+            case Format::kRGBA16F:
+                assert(0);
+                break;
+#endif
+            default: 
+                assert(0);
+                break;
+            }
+        }
     }
 
     // treat all the meshes inside one obj file as submeshes
@@ -794,7 +820,7 @@ namespace Cyan
                 singleton->importGltfMesh(model, gltfMesh);
             }
         }
-        // import gltf nodes
+        // import gltf nodes ...?
         for (u32 i = 0; i < gltfScene.nodes.size(); ++i)
         {
             ScopedTimer entityImportTimer("gltf scene hierarchy import timer", true);

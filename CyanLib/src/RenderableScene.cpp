@@ -7,6 +7,7 @@
 #include "CyanRenderer.h"
 #include "LightComponents.h"
 #include "GpuLights.h"
+#include "AssetManager.h"
 
 namespace Cyan
 {
@@ -97,32 +98,12 @@ namespace Cyan
 
     }
 
-    u32 RenderableScene::getMaterialID(MeshInstance* meshInstance, u32 submeshIndex) 
-    {
-        std::unordered_map<std::string, u32> materialMap;
-
-        if (meshInstance) {
-            if (auto matl = meshInstance->getMaterial(submeshIndex)) {
-                auto matlEntry = materialMap.find(matl->name);
-                if (matlEntry == materialMap.end()) {
-                    materialMap.insert({ matl->name, materialBuffer->getNumElements() });
-                    materialBuffer->addElement(matl->buildGpuMaterial());
-                    return materialBuffer->getNumElements() - 1;
-                }
-                else {
-                    return matlEntry->second;
-                }
-            }
-        }
-    }
-
     RenderableScene::RenderableScene(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator) 
     {
         viewBuffer = std::make_unique<ViewBuffer>("ViewBuffer");
         transformBuffer = std::make_unique<TransformBuffer>("TransformBuffer");
         instanceBuffer = std::make_unique<InstanceBuffer>("InstanceBuffer");
         drawCallBuffer = std::make_unique<DrawCallBuffer>("DrawCallBuffer");
-        materialBuffer = std::make_unique<MaterialBuffer>("MaterialBuffer");
         directionalLightBuffer = std::make_unique<DirectionalLightBuffer>("DirectionalLightBuffer");
 
         if (!packedGeometry)
@@ -146,18 +127,22 @@ namespace Cyan
                         auto directionalLightComponent = dynamic_cast<DirectionalLightComponent*>(lightComponent);
                         assert(directionalLightComponent);
                         auto directionalLight = directionalLightComponent->directionalLight.get();
-                        if (directionalLight) {
+                        if (directionalLight) 
+                        {
                             directionalLights.push_back(directionalLight);
 
-                            if (auto csmDirectionalLight = dynamic_cast<CSMDirectionalLight*>(directionalLight)) {
+                            if (auto csmDirectionalLight = dynamic_cast<CSMDirectionalLight*>(directionalLight)) 
+                            {
                                 directionalLightBuffer->addElement(csmDirectionalLight->buildGpuLight());
                             }
-                            else if (auto basicDirectionalLight = dynamic_cast<DirectionalLight*>(directionalLight)) {
+                            else if (auto basicDirectionalLight = dynamic_cast<DirectionalLight*>(directionalLight)) 
+                            {
                                 assert(0);
                             }
                         }
                     }
-                    else if (std::string(lightComponent->getTag()) == std::string("PointLightComponent")) {
+                    else if (std::string(lightComponent->getTag()) == std::string("PointLightComponent")) 
+                    {
 
                     }
                 }
@@ -173,30 +158,38 @@ namespace Cyan
         }
 
         // build instance descriptors
-        for (u32 i = 0; i < meshInstances.size(); ++i) {
+        u32 materialCount = 0;
+        for (u32 i = 0; i < meshInstances.size(); ++i) 
+        {
             auto mesh = meshInstances[i]->parent;
             auto entry = packedGeometry->submeshMap.find(mesh->name);
             u32 baseSubmesh = 0;
-            if (entry != packedGeometry->submeshMap.end()) {
+            if (entry != packedGeometry->submeshMap.end()) 
+            {
                 baseSubmesh = entry->second;
             }
-            else {
+            else 
+            {
                 cyanError("Failed to find mesh %s in packed geoemtry buffer", mesh->name);
                 assert(0);
             }
-            for (u32 sm = 0; sm < mesh->numSubmeshes(); ++sm) {
+            for (u32 sm = 0; sm < mesh->numSubmeshes(); ++sm) 
+            {
                 InstanceDesc desc = { };
                 desc.submesh = baseSubmesh + sm;
                 desc.transform = i;
-                desc.material = getMaterialID(meshInstances[i], sm);
+                desc.material = materialCount++;
                 instanceBuffer->addElement(desc);
             }
         }
 
         // organize instance descriptors
-        if (instanceBuffer->getNumElements() > 0) {
-            struct InstanceDescSortKey {
-                inline bool operator() (const InstanceDesc& lhs, const InstanceDesc& rhs) {
+        if (instanceBuffer->getNumElements() > 0) 
+        {
+            struct InstanceDescSortKey 
+            {
+                inline bool operator() (const InstanceDesc& lhs, const InstanceDesc& rhs) 
+                {
                     return (lhs.submesh < rhs.submesh);
                 }
             };
@@ -223,32 +216,36 @@ namespace Cyan
         skyLight = inScene->skyLight;
     }
 
-    void RenderableScene::clone(RenderableScene& dst, const RenderableScene& src) 
+    void RenderableScene::clone(const RenderableScene& src) 
     {
-        dst.aabb = src.aabb;
-        dst.camera = src.camera;
-        dst.meshInstances = src.meshInstances;
-        dst.viewBuffer = std::unique_ptr<ViewBuffer>(src.viewBuffer->clone());
-        dst.transformBuffer = std::unique_ptr<TransformBuffer>(src.transformBuffer->clone());
-        dst.instanceBuffer = std::unique_ptr<InstanceBuffer>(src.instanceBuffer->clone());
-        dst.drawCallBuffer = std::unique_ptr<DrawCallBuffer>(src.drawCallBuffer->clone());
-        dst.materialBuffer = std::unique_ptr<MaterialBuffer>(src.materialBuffer->clone());
-        dst.skybox = src.skybox;
-        dst.skyLight = src.skyLight;
-        dst.directionalLights = src.directionalLights;
-        dst.directionalLightBuffer = std::unique_ptr<DirectionalLightBuffer>(src.directionalLightBuffer->clone());
+        aabb = src.aabb;
+        camera = src.camera;
+        meshInstances = src.meshInstances;
+        viewBuffer = std::unique_ptr<ViewBuffer>(src.viewBuffer->clone());
+        transformBuffer = std::unique_ptr<TransformBuffer>(src.transformBuffer->clone());
+        instanceBuffer = std::unique_ptr<InstanceBuffer>(src.instanceBuffer->clone());
+        drawCallBuffer = std::unique_ptr<DrawCallBuffer>(src.drawCallBuffer->clone());
+        skybox = src.skybox;
+        skyLight = src.skyLight;
+        directionalLights = src.directionalLights;
+        directionalLightBuffer = std::unique_ptr<DirectionalLightBuffer>(src.directionalLightBuffer->clone());
+
+        onClone(src);
     }
 
     /**
     * the copy constructor performs a deep copy instead of simply copying over
     * pointers / references
     */
-    RenderableScene::RenderableScene(const RenderableScene& src) {
-        clone(*this, src);
+    RenderableScene::RenderableScene(const RenderableScene& src) 
+    {
+        clone(src);
     }
 
-    RenderableScene& RenderableScene::operator=(const RenderableScene& src) {
-        clone(*this, src);
+
+    RenderableScene& RenderableScene::operator=(const RenderableScene& src) 
+    {
+        clone(src);
         return *this;
     }
 
@@ -273,9 +270,6 @@ namespace Cyan
         instanceBuffer->upload();
         gfxc->setShaderStorageBuffer(instanceBuffer.get());
 
-        materialBuffer->upload();
-        gfxc->setShaderStorageBuffer(materialBuffer.get());
-
         drawCallBuffer->upload();
         gfxc->setShaderStorageBuffer(drawCallBuffer.get());
 
@@ -290,5 +284,99 @@ namespace Cyan
         }
         directionalLightBuffer->upload();
         gfxc->setShaderStorageBuffer(directionalLightBuffer.get());
+
+        onUpload();
+    }
+
+    RenderableSceneBindless::RenderableSceneBindless(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator)
+        : RenderableScene(inScene, sceneView, allocator)
+    {
+        materialBuffer = std::make_unique<MaterialBuffer>("MaterialBuffer");
+        for (i32 i = 0; i < meshInstances.size(); ++i)
+        {
+            auto mesh = meshInstances[i]->parent;
+            for (i32 sm = 0; sm < mesh->numSubmeshes(); ++sm)
+            {
+                Material* matl = meshInstances[i]->getMaterial(sm);
+                materialBuffer->addElement(matl->buildGpuMaterial());
+            }
+        }
+    }
+
+    RenderableSceneBindless::RenderableSceneBindless(const RenderableScene& src)
+    {
+        clone(src);
+    }
+
+    void RenderableSceneBindless::onClone(const RenderableScene& src)
+    {
+        const RenderableSceneBindless* srcPtr = dynamic_cast<const RenderableSceneBindless*>(&src);
+        if (srcPtr)
+        {
+            materialBuffer = std::unique_ptr<MaterialBuffer>(srcPtr->materialBuffer->clone());
+        }
+    }
+
+    void RenderableSceneBindless::onUpload()
+    {
+        auto gfxc = GfxContext::get();
+        materialBuffer->upload();
+        gfxc->setShaderStorageBuffer(materialBuffer.get());
+    }
+
+    RenderableSceneTextureAtlas::RenderableSceneTextureAtlas(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator)
+        : RenderableScene(inScene, sceneView, allocator)
+    {
+        auto assetManager = AssetManager::get();
+
+        subtextureBufferR8 = std::make_unique<SubtextureBuffer>("SubtextureBuffer_R8");
+        subtextureBufferR8->data.array.insert(subtextureBufferR8->data.array.end(), assetManager->atlases[(u32)Texture2DAtlas::Format::kR8]->subtextures.begin(), assetManager->atlases[(u32)Texture2DAtlas::Format::kR8]->subtextures.end());
+        imageTransformBufferR8 = std::make_unique<ImageTransformBuffer>("ImageTransformBuffer_R8");
+        imageTransformBufferR8->data.array.insert(imageTransformBufferR8->data.array.end(), assetManager->atlases[(u32)Texture2DAtlas::Format::kR8]->imageTransforms.begin(), assetManager->atlases[(u32)Texture2DAtlas::Format::kR8]->imageTransforms.end());
+
+        subtextureBufferRGB8 = std::make_unique<SubtextureBuffer>("SubtextureBuffer_RGB8");
+        subtextureBufferRGB8->data.array.insert(subtextureBufferRGB8->data.array.end(), assetManager->atlases[(u32)Texture2DAtlas::Format::kRGB8]->subtextures.begin(), assetManager->atlases[(u32)Texture2DAtlas::Format::kRGB8]->subtextures.end());
+        imageTransformBufferRGB8 = std::make_unique<ImageTransformBuffer>("ImageTransformBuffer_RGB8");
+        imageTransformBufferRGB8->data.array.insert(imageTransformBufferRGB8->data.array.end(), assetManager->atlases[(u32)Texture2DAtlas::Format::kRGB8]->imageTransforms.begin(), assetManager->atlases[(u32)Texture2DAtlas::Format::kRGB8]->imageTransforms.end());
+
+        subtextureBufferRGBA8 = std::make_unique<SubtextureBuffer>("SubtextureBuffer_RGBA8");
+        subtextureBufferRGBA8->data.array.insert(subtextureBufferRGBA8->data.array.end(), assetManager->atlases[(u32)Texture2DAtlas::Format::kRGBA8]->subtextures.begin(), assetManager->atlases[(u32)Texture2DAtlas::Format::kRGBA8]->subtextures.end());
+        imageTransformBufferRGBA8 = std::make_unique<ImageTransformBuffer>("ImageTransformBuffer_RGBA8");
+        imageTransformBufferRGBA8->data.array.insert(imageTransformBufferRGBA8->data.array.end(), assetManager->atlases[(u32)Texture2DAtlas::Format::kRGBA8]->imageTransforms.begin(), assetManager->atlases[(u32)Texture2DAtlas::Format::kRGBA8]->imageTransforms.end());
+    }
+
+    RenderableSceneTextureAtlas::RenderableSceneTextureAtlas(const RenderableScene& src)
+    {
+        clone(src);
+    }
+
+    void RenderableSceneTextureAtlas::onClone(const RenderableScene& src)
+    {
+        const RenderableSceneTextureAtlas* srcPtr = dynamic_cast<const RenderableSceneTextureAtlas*>(&src);
+        if (srcPtr)
+        {
+            // materialBuffer = std::unique_ptr<MaterialBuffer>(srcPtr->materialBuffer->clone());
+        }
+    }
+
+    void RenderableSceneTextureAtlas::onUpload()
+    {
+        auto assetManager = AssetManager::get();
+        auto gfxc = GfxContext::get();
+
+        imageTransformBufferR8->upload();
+        subtextureBufferR8->upload();
+        gfxc->setShaderStorageBuffer(imageTransformBufferR8.get());
+        gfxc->setShaderStorageBuffer(subtextureBufferR8.get());
+
+        imageTransformBufferRGB8->upload();
+        subtextureBufferRGB8->upload();
+        gfxc->setShaderStorageBuffer(imageTransformBufferRGB8.get());
+        gfxc->setShaderStorageBuffer(subtextureBufferRGB8.get());
+
+        imageTransformBufferRGBA8->upload();
+        subtextureBufferRGBA8->upload();
+        gfxc->setShaderStorageBuffer(imageTransformBufferRGBA8.get());
+        gfxc->setShaderStorageBuffer(subtextureBufferRGBA8.get());
     }
 }

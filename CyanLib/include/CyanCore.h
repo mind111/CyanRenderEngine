@@ -4,10 +4,10 @@
 
 #include "Common.h"
 
-#define BINDLESS_TEXTURE 0
-
-namespace Cyan {
-    class GpuObject {
+namespace Cyan 
+{
+    class GpuObject 
+    {
     public:
         GpuObject()
             : glObject(-1) 

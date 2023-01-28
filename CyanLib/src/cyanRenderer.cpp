@@ -28,7 +28,8 @@
 
 #define GPU_RAYTRACING 0
 
-namespace Cyan {
+namespace Cyan 
+{
     Renderer* Singleton<Renderer>::singleton = nullptr;
     static Mesh* fullscreenQuad = nullptr;
 
@@ -147,8 +148,7 @@ namespace Cyan {
     }
 
     Renderer::Renderer(GfxContext* ctx, u32 windowWidth, u32 windowHeight)
-        : Singleton<Renderer>(), 
-        m_ctx(ctx),
+        : m_ctx(ctx),
         m_windowSize(windowWidth, windowHeight),
         m_frameAllocator(1024 * 1024 * 32),
         m_ssgi(this, glm::uvec2(windowWidth, windowHeight))
@@ -244,7 +244,8 @@ namespace Cyan {
         }
     }
 
-    void Renderer::drawFullscreenQuad(RenderTarget* renderTarget, PixelPipeline* pipeline, const RenderSetupLambda& renderSetupLambda) {
+    void Renderer::drawFullscreenQuad(RenderTarget* renderTarget, PixelPipeline* pipeline, const RenderSetupLambda& renderSetupLambda) 
+    {
         GfxPipelineConfig config;
         config.depth = DepthControl::kDisable;
 
@@ -297,17 +298,21 @@ namespace Cyan {
         }
     }
 
-    void Renderer::registerVisualization(const std::string& categoryName, Texture2D* visualization, bool* toggle) {
+    void Renderer::registerVisualization(const std::string& categoryName, Texture2D* visualization, bool* toggle) 
+    {
         auto entry = visualizationMap.find(categoryName);
-        if (entry == visualizationMap.end()) {
+        if (entry == visualizationMap.end()) 
+        {
             visualizationMap.insert({ categoryName, { VisualizationDesc{ visualization, 0, toggle } } });
         }
-        else {
+        else 
+        {
             entry->second.push_back(VisualizationDesc{ visualization, 0, toggle });
         }
     }
 
-    void Renderer::beginRender() {
+    void Renderer::beginRender() 
+    {
         // reset frame allocator
         m_frameAllocator.reset();
     }
@@ -320,7 +325,11 @@ namespace Cyan {
             m_sceneTextures.initialize(renderResolution);
 
             // convert Scene instance to RenderableScene instance for rendering
-            RenderableScene renderableScene(scene, sceneView, m_frameAllocator);
+#if BINDLESS_TEXTURE
+            RenderableSceneBindless renderableScene(scene, sceneView, m_frameAllocator);
+#else
+            RenderableSceneTextureAtlas renderableScene(scene, sceneView, m_frameAllocator);
+#endif
 
             // shadow
             renderShadowMaps(renderableScene);
@@ -329,7 +338,11 @@ namespace Cyan {
             renderSceneDepthPrepass(renderableScene, m_sceneTextures.renderTarget, m_sceneTextures.gBuffer.depth);
 
             // main scene pass
+#if BINDLESS_TEXTURE
             renderSceneGBuffer(m_sceneTextures.renderTarget, renderableScene, m_sceneTextures.gBuffer);
+#else
+            renderSceneGBufferWithTextureAtlas(m_sceneTextures.renderTarget, renderableScene, m_sceneTextures.gBuffer);
+#endif
             renderSceneLighting(m_sceneTextures.renderTarget, m_sceneTextures.color, renderableScene, m_sceneTextures.gBuffer);
             // m_manyViewGI->render(m_sceneTextures.renderTarget, renderableScene, m_sceneTextures.gBuffer.depth, m_sceneTextures.gBuffer.normal);
 
@@ -370,7 +383,8 @@ namespace Cyan {
             });
     }
 
-    void Renderer::renderToScreen(Texture2D* inTexture) {
+    void Renderer::renderToScreen(Texture2D* inTexture)
+    {
         CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
         CreatePS(ps, "BlitPS", SHADER_SOURCE_PATH "blit_p.glsl");
         CreatePixelPipeline(pipeline, "BlitQuad", vs, ps);
@@ -393,7 +407,10 @@ namespace Cyan {
 
     void Renderer::renderShadowMaps(RenderableScene& inScene) {
         // make a copy
-        RenderableScene scene(inScene);
+#if BINDLESS_TEXTURE
+        RenderableSceneBindless scene(inScene);
+#else
+#endif
         for (i32 i = 0; i < inScene.directionalLights.size(); ++i) {
             if (inScene.directionalLights[i]->bCastShadow) {
                 inScene.directionalLights[i]->renderShadowMap(scene, this);
@@ -418,7 +435,7 @@ namespace Cyan {
         m_ctx->setPixelPipeline(pipeline);
         m_ctx->setDepthControl(DepthControl::kEnable);
         scene.upload();
-        submitSceneMultiDrawIndirect(scene);
+        multiDrawSceneIndirect(scene);
     }
 
     void Renderer::renderSceneDepthOnly(RenderableScene& scene, Texture2D* outDepthTexture) 
@@ -431,10 +448,10 @@ namespace Cyan {
         CreateVS(vs, "DepthOnlyVS", SHADER_SOURCE_PATH "depth_only_v.glsl");
         CreatePS(ps, "DepthOnlyPS", SHADER_SOURCE_PATH "depth_only_p.glsl");
         CreatePixelPipeline(pipeline, "DepthOnly", vs, ps);
+        scene.upload();
         m_ctx->setPixelPipeline(pipeline);
         m_ctx->setDepthControl(DepthControl::kEnable);
-        scene.upload();
-        submitSceneMultiDrawIndirect(scene);
+        multiDrawSceneIndirect(scene);
     }
 
     void Renderer::renderSceneDepthNormal(RenderableScene& scene, RenderTarget* outRenderTarget, Texture2D* outDepthBuffer, Texture2D* outNormalBuffer) {
@@ -452,7 +469,7 @@ namespace Cyan {
         m_ctx->setPixelPipeline(pipeline);
         m_ctx->setDepthControl(DepthControl::kEnable);
         scene.upload();
-        submitSceneMultiDrawIndirect(scene);
+        multiDrawSceneIndirect(scene);
     }
 
     void Renderer::renderSceneGBuffer(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer)
@@ -476,7 +493,7 @@ namespace Cyan {
         m_ctx->setViewport({ 0, 0, outRenderTarget->width, outRenderTarget->height });
         m_ctx->setDepthControl(DepthControl::kEnable);
         scene.upload();
-        submitSceneMultiDrawIndirect(scene);
+        multiDrawSceneIndirect(scene);
     }
 
     void Renderer::renderSceneLighting(RenderTarget* outRenderTarget, Texture2D* outSceneColor, RenderableScene& scene, GBuffer gBuffer)
@@ -602,7 +619,7 @@ namespace Cyan {
         numMips = std::log2(spec.width) + 1;
         spec.numMips = numMips;
         ITexture::Parameter params = { };
-        params.magnificationFilter = FM_MIPMAP_POINT;
+        params.magnificationFilter = FM_POINT;
         params.minificationFilter = FM_MIPMAP_POINT;
         texture = std::make_unique<Texture2D>("HiZBuffer", spec, params);
     }
@@ -1094,7 +1111,8 @@ namespace Cyan {
     }
 #endif
 
-    void Renderer::submitSceneMultiDrawIndirect(const RenderableScene& scene) {
+    void Renderer::multiDrawSceneIndirect(const RenderableScene& scene) 
+    {
         struct IndirectDrawArrayCommand
         {
             u32  count;
@@ -1186,13 +1204,36 @@ namespace Cyan {
         m_ctx->setViewport({ 0, 0, outRenderTarget->width, outRenderTarget->height });
         m_ctx->setDepthControl(DepthControl::kEnable);
         scene.upload();
-        submitSceneMultiDrawIndirect(scene);
+        multiDrawSceneIndirect(scene);
 
         // render skybox
         if (scene.skybox) 
         {
             scene.skybox->render(outRenderTarget, scene.camera.view, scene.camera.projection);
         }
+    }
+
+    void Renderer::renderSceneGBufferWithTextureAtlas(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer)
+    {
+        CreateVS(vs, "SceneColorPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
+        CreatePS(ps, "SceneGBufferWithTextureAtlasPassPS", SHADER_SOURCE_PATH "scene_gbuffer_texture_atlas_p.glsl");
+        CreatePixelPipeline(pipeline, "SceneGBufferWithTextureAtlasPass", vs, ps);
+        m_ctx->setPixelPipeline(pipeline, [](VertexShader* vs, PixelShader* ps) {
+        });
+
+        outRenderTarget->setColorBuffer(gBuffer.albedo, 0);
+        outRenderTarget->setColorBuffer(gBuffer.normal, 1);
+        outRenderTarget->setColorBuffer(gBuffer.metallicRoughness, 2);
+        outRenderTarget->setDrawBuffers({ 0, 1, 2 });
+        outRenderTarget->clearDrawBuffer(0, glm::vec4(0.f, 0.f, 0.f, 1.f), false);
+        outRenderTarget->clearDrawBuffer(1, glm::vec4(0.f, 0.f, 0.f, 1.f), false);
+        outRenderTarget->clearDrawBuffer(2, glm::vec4(0.f, 0.f, 0.f, 1.f), false);
+
+        m_ctx->setRenderTarget(outRenderTarget);
+        m_ctx->setViewport({ 0, 0, outRenderTarget->width, outRenderTarget->height });
+        m_ctx->setDepthControl(DepthControl::kEnable);
+        scene.upload();
+        multiDrawSceneIndirect(scene);
     }
 
     void Renderer::downsample(Texture2D* src, Texture2D* dst) {

@@ -120,7 +120,7 @@ namespace Cyan
             static const char* diorama = ASSET_PATH "mesh/sd_macross_diorama.glb";
             static const char* picapica = ASSET_PATH "mesh/pica_pica_scene.glb";
 
-            AssetManager::importGltfEx(m_currentScene.get(), shaderBalls);
+            AssetManager::importGltfEx(m_currentScene.get(), ueArchviz);
 
             // skybox
             auto skybox = m_currentScene->createSkybox("Skybox", ASSET_PATH "cubemaps/neutral_sky.hdr", glm::uvec2(2048));

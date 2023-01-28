@@ -14,7 +14,7 @@ public:
     TexturePackingApp(u32 width, u32 height)
         : DefaultApp(width, height)
     {
-
+        materialManager = std::make_unique<Cyan::MaterialManager>(16 * 1024);
     }
 
     virtual void customInitialize() override
@@ -34,49 +34,19 @@ public:
         {
             std::cout << entry.path() << std::endl;
             std::string filename = entry.path().string();
-            Cyan::Image image;
-            i32 hdr = stbi_is_hdr(filename.c_str());
-            if (hdr)
-            {
-                image.bitsPerChannel = 32;
-                assert(0);
-            }
-            else
-            {
-                i32 is16Bit = stbi_is_16_bit(filename.c_str());
-                if (is16Bit)
-                {
-                    image.pixels = std::shared_ptr<u8>((u8*)stbi_load_16(filename.c_str(), &image.width, &image.height, &image.numChannels, 0));
-                    image.bitsPerChannel = 16;
-                }
-                else
-                {
-                    image.pixels = std::shared_ptr<u8>(stbi_load(filename.c_str(), &image.width, &image.height, &image.numChannels, 0));
-                    image.bitsPerChannel = 8;
-                }
-            }
-            assert(image.width == image.height);
-            assert(Cyan::isPowerOf2(image.width));
-            images.push_back(image);
-        }
-
-        textureAtlas = std::make_unique<Cyan::Texture2DAtlas>(16 * 1024, PF_RGBA8);
-
-        for (i32 i = 0; i < images.size(); ++i)
-        {
-            if (!textureAtlas->pack(images[i]))
-            {
-                printf("Failed to pack image %s \n", images[i].name.c_str());
-            }
+            Cyan::Image image(filename.c_str());
+            materialManager->pack(image);
         }
     }
 
     virtual void customRender(Cyan::Renderer* renderer, Cyan::Texture2D* sceneRenderingOutput) override
     {
         static i32 mipLevel = 0;
+        static i32 index;
         renderer->addUIRenderCommand([this]() {
                 ImGui::Begin("Texture Packing Tool", nullptr);
-                ImGui::SliderInt("mip", &mipLevel, 0, textureAtlas->atlas->numMips);
+                ImGui::SliderInt("index", &index, 0, (i32)Cyan::MaterialManager::Format::kCount - 1);
+                ImGui::SliderInt("mip", &mipLevel, 0, materialManager->atlases[index]->atlas->numMips);
                 ImGui::End();
             }
         );
@@ -88,14 +58,13 @@ public:
         CreatePS(ps, "BlitPS", SHADER_SOURCE_PATH "blit_p.glsl");
         CreatePixelPipeline(pipeline, "BlitQuad", vs, ps);
         renderer->drawFullscreenQuad(renderTarget, pipeline, [this](Cyan::VertexShader* vs, Cyan::PixelShader* ps) {
-            ps->setTexture("srcTexture", textureAtlas->atlas.get());
+            ps->setTexture("srcTexture", materialManager->atlases[index]->atlas.get());
             ps->setUniform("mip", mipLevel);
         });
         renderer->renderToScreen(sceneRenderingOutput);
     }
 
-    std::vector<Cyan::Image> images;
-    std::unique_ptr<Cyan::Texture2DAtlas> textureAtlas = nullptr;
+    std::unique_ptr<Cyan::MaterialManager> materialManager = nullptr;
 };
 
 int main()

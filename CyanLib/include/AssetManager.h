@@ -9,6 +9,7 @@
 #include <tiny_gltf/json.hpp>
 #include <tiny_gltf/tiny_gltf.h>
 
+#include "Singleton.h"
 #include "Common.h"
 #include "Texture.h"
 #include "Scene.h"
@@ -21,7 +22,7 @@
 namespace Cyan
 {
     // todo: differentiate import...() from load...(), import refers to importing raw scene data, load refers to loading serialized binary
-    class AssetManager 
+    class AssetManager : public Singleton<AssetManager> 
     {
     public:
         struct DefaultTextures 
@@ -123,6 +124,7 @@ namespace Cyan
                 ITexture::Spec spec = { };
                 ITexture::Parameter parameter = { };
                 parameter.minificationFilter = FM_POINT;
+                parameter.magnificationFilter = FM_POINT;
                 parameter.wrap_r = WM_WRAP;
                 parameter.wrap_s = WM_WRAP;
                 parameter.wrap_t = WM_WRAP;
@@ -137,8 +139,6 @@ namespace Cyan
             */ 
             createMaterial("DefaultMaterial");
         }
-
-        static AssetManager* get() { return singleton; }
 
         void importGltfNode(Scene* scene, tinygltf::Model& model, Entity* parent, tinygltf::Node& node);
         Mesh* importGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh); 
@@ -259,7 +259,55 @@ namespace Cyan
 
             int width, height, numChannels;
             stbi_set_flip_vertically_on_load(1);
+            i32 isHdr = stbi_is_hdr(filename);
+            if (isHdr)
+            {
+                spec.pixelData = reinterpret_cast<u8*>(stbi_loadf(filename, &width, &height, &numChannels, 0));
+                if (numChannels == 3)
+                {
+                    spec.pixelFormat = ITexture::Spec::PixelFormat::RGB32F;
+                }
+                else if (numChannels == 4)
+                {
+                    spec.pixelFormat = ITexture::Spec::PixelFormat::RGBA32F;
+                }
+                spec.width = width;
+                spec.height = height;
+            }
+            else
+            {
+                i32 is16Bits = stbi_is_16_bit(filename);
+                if (is16Bits)
+                {
+                    spec.pixelData = reinterpret_cast<u8*>(stbi_load_16(filename, &width, &height, &numChannels, 0));
+                    if (numChannels == 3)
+                    {
+                        spec.pixelFormat = ITexture::Spec::PixelFormat::RGB16F;
+                    }
+                    else if (numChannels == 4)
+                    {
+                        spec.pixelFormat = ITexture::Spec::PixelFormat::RGBA16F;
+                    }
+                    spec.width = width;
+                    spec.height = height;
+                }
+                else
+                {
+                    spec.pixelData = reinterpret_cast<u8*>(stbi_load(filename, &width, &height, &numChannels, 0));
+                    if (numChannels == 3)
+                    {
+                        spec.pixelFormat = ITexture::Spec::PixelFormat::RGB8;
+                    }
+                    else if (numChannels == 4)
+                    {
+                        spec.pixelFormat = ITexture::Spec::PixelFormat::RGBA8;
+                    }
+                    spec.width = width;
+                    spec.height = height;
+                }
+            }
 
+#if 0
             if (extension == ".hdr")
             {
                 spec.pixelData = reinterpret_cast<u8*>(stbi_loadf(filename, &width, &height, &numChannels, 0));
@@ -290,6 +338,7 @@ namespace Cyan
                 spec.width = width;
                 spec.height = height;
             }
+#endif
             if (spec.pixelData)
             {
                 return createTexture2D(name, spec, parameter);
@@ -308,6 +357,18 @@ namespace Cyan
                 singleton->m_materialMap.insert({ key, matl });
             }
             return singleton->m_materialMap[key];
+        }
+
+        static MaterialTextureAtlas& createPackedMaterial(const char* name)
+        {
+            auto entry = singleton->m_packedMaterialMap.find(name);
+            if (entry == singleton->m_packedMaterialMap.end()) 
+            {
+                MaterialTextureAtlas matl = { };
+                matl.name = std::string(name);
+                singleton->m_packedMaterialMap.insert({ matl.name, matl});
+            }
+            return singleton->m_packedMaterialMap[name];
         }
 
         // getters
@@ -411,6 +472,88 @@ namespace Cyan
             return parent;
         }
 
+        std::unordered_map<std::string, PackedImageDesc> packedImageMap;
+        std::unordered_map<std::string, PackedTextureDesc> packedTextureMap;
+
+        PackedImageDesc packImage(const Image& inImage)
+        {
+            const auto& entry = packedImageMap.find(inImage.name.c_str());
+            if (entry == packedImageMap.end())
+            {
+                PackedImageDesc outDesc = { -1, -1 };
+                ITexture::Spec::PixelFormat format;
+                switch (inImage.bitsPerChannel)
+                {
+                case 8:
+                    switch (inImage.numChannels)
+                    {
+                    case 1:
+                        format = PF_R8; 
+                        outDesc.atlasIndex = (i32)Texture2DAtlas::Format::kR8;
+                        outDesc.subimageIndex = atlases[(u32)Texture2DAtlas::Format::kR8]->packImage(inImage);
+                        break;
+                    case 3:
+                        format = PF_RGB8; 
+                        outDesc.atlasIndex = (i32)Texture2DAtlas::Format::kRGB8;
+                        outDesc.subimageIndex = atlases[(u32)Texture2DAtlas::Format::kRGB8]->packImage(inImage);
+                        break;
+                    case 4: 
+                        format = PF_RGBA8; 
+                        outDesc.atlasIndex = (i32)Texture2DAtlas::Format::kRGBA8;
+                        outDesc.subimageIndex = atlases[(u32)Texture2DAtlas::Format::kRGBA8]->packImage(inImage);
+                        break;
+                    default: assert(0); break;
+                    }
+                    break;
+                case 16: 
+                case 32: 
+                default: 
+                    assert(0); 
+                    break;
+                }
+                packedImageMap.insert({inImage.name, outDesc });
+            }
+            return packedImageMap[inImage.name];
+        }
+
+        PackedImageDesc getPackedImageDesc(const char* name)
+        {
+            auto entry = packedImageMap.find(name);
+            if (entry != packedImageMap.end())
+            {
+                return entry->second;
+            }
+            return { -1, -1 };
+        }
+
+        void addPackedTexture(const char* packedTextureName, const PackedImageDesc& packedImageDesc, ITexture::Parameter& params)
+        {
+            auto entry = packedTextureMap.find(packedTextureName);
+            if (entry == packedTextureMap.end())
+            {
+                i32 subtextureIndex = atlases[packedImageDesc.atlasIndex]->addSubtexture(packedImageDesc.subimageIndex, params);
+                if (subtextureIndex >= 0)
+                {
+                    packedTextureMap.insert({ packedTextureName, { packedImageDesc.atlasIndex, subtextureIndex } });
+                }
+                else
+                {
+                    assert(0);
+                }
+            }
+        }
+
+        PackedTextureDesc getPackedTextureDesc(const char* name)
+        {
+            auto entry = packedTextureMap.find(name);
+            if (entry != packedTextureMap.end())
+            {
+                return entry->second;
+            }
+            return { -1, -1 };
+        }
+
+        std::array<Texture2DAtlas*, (u32)Texture2DAtlas::Format::kCount> atlases = { nullptr };
     private:
 
         /**
@@ -425,7 +568,6 @@ namespace Cyan
         void* m_objLoader;
         void* m_gltfLoader;
         tinygltf::TinyGLTF m_gltfImporter;
-        static AssetManager* singleton;
 
         // asset arrays for efficient iterating
         std::vector<Mesh*> m_meshes;
@@ -435,16 +577,7 @@ namespace Cyan
         std::unordered_map<std::string, std::unique_ptr<Scene>> m_sceneMap;
         std::unordered_map<std::string, ITexture*> m_textureMap;
         std::unordered_map<std::string, Mesh*> m_meshMap;
-
-        // async loading pending tasks
-        struct PendingMeshImportTask
-        {
-            Mesh* dstMesh;
-            tinygltf::Mesh srcGltfMesh;
-        };
-        std::queue<PendingMeshImportTask> pendingLoadMeshes;
-
-        // material instances
         std::unordered_map<std::string, Material> m_materialMap;
+        std::unordered_map<std::string, MaterialTextureAtlas> m_packedMaterialMap;
     };
 }

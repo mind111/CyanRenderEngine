@@ -129,8 +129,13 @@ namespace Cyan
         void Glb::importAssets()
         {
             importMeshes();
+#if BINDLESS_TEXTURE   
             importTextures();
             importMaterials();
+#else
+            importTexturesToAtlas();
+            importPackedMaterials();
+#endif
         }
 
         void Glb::importMeshes()
@@ -297,8 +302,8 @@ namespace Cyan
             // 1. load all the images into memory first assuming that it all fit
             for (i32 i = 0; i < images.size(); ++i)
             {
-                gltf::Image& image = images[i];
-                i32 bufferView = image.bufferView;
+                gltf::Image& gltfImage = images[i];
+                i32 bufferView = gltfImage.bufferView;
                 if (bufferView >= 0)
                 {
                     const gltf::BufferView bv = bufferViews[bufferView];
@@ -306,21 +311,26 @@ namespace Cyan
                     i32 hdr = stbi_is_hdr_from_memory(dataAddress, bv.byteLength);
                     if (hdr)
                     {
-                        image.bHdr = true;
-                        image.pixels = reinterpret_cast<u8*>(stbi_loadf_from_memory(dataAddress, bv.byteLength, &image.width, &image.height, &image.numChannels, 0));
+                        gltfImage.bHdr = true;
+                        gltfImage.pixels = reinterpret_cast<u8*>(stbi_loadf_from_memory(dataAddress, bv.byteLength, &gltfImage.width, &gltfImage.height, &gltfImage.numChannels, 0));
                     }
                     else
                     {
                         i32 is16Bit = stbi_is_16_bit_from_memory(dataAddress, bv.byteLength);
                         if (is16Bit)
                         {
-                            image.b16Bits = true;
+                            gltfImage.b16Bits = true;
                         }
                         else
                         {
-                            image.pixels = stbi_load_from_memory(dataAddress, bv.byteLength, &image.width, &image.height, &image.numChannels, 0);
+                            gltfImage.pixels = stbi_load_from_memory(dataAddress, bv.byteLength, &gltfImage.width, &gltfImage.height, &gltfImage.numChannels, 0);
                         }
                     }
+                }
+                else
+                {
+                    // for .glb the images are embedded so a bufferView is required
+                    assert(0);
                 }
             }
 
@@ -406,6 +416,134 @@ namespace Cyan
                 }
 
                 AssetManager::createTexture2D(texture.name.c_str(), spec, params);
+            }
+        }
+
+        static void translateSampler(const gltf::Sampler& sampler, ITexture::Parameter& outParams)
+        {
+            switch (sampler.magFilter)
+            {
+            case (u32)gltf::Sampler::Filtering::NEAREST: outParams.magnificationFilter = FM_POINT; break;
+            case (u32)gltf::Sampler::Filtering::LINEAR: outParams.magnificationFilter = FM_BILINEAR; break;
+            default: assert(0); break;
+            }
+
+            switch (sampler.minFilter)
+            {
+            case (u32)gltf::Sampler::Filtering::NEAREST: outParams.minificationFilter = FM_POINT; break;
+            case (u32)gltf::Sampler::Filtering::LINEAR: outParams.minificationFilter = FM_BILINEAR; break;
+            case (u32)gltf::Sampler::Filtering::LINEAR_MIPMAP_LINEAR: 
+                outParams.minificationFilter = FM_TRILINEAR; 
+                break;
+            case (u32)gltf::Sampler::Filtering::LINEAR_MIPMAP_NEAREST:
+            case (u32)gltf::Sampler::Filtering::NEAREST_MIPMAP_LINEAR: 
+            case (u32)gltf::Sampler::Filtering::NEAREST_MIPMAP_NEAREST: 
+                outParams.minificationFilter = ITexture::Parameter::Filtering::NEAREST_MIPMAP_NEAREST; 
+                break;
+            default: assert(0); break;
+            }
+
+            switch (sampler.wrapS)
+            {
+            case (u32)gltf::Sampler::Wrap::CLAMP_TO_EDGE: 
+                outParams.wrap_s = WM_CLAMP; 
+                break;
+            case (u32)gltf::Sampler::Wrap::REPEAT: 
+                outParams.wrap_s = WM_WRAP; 
+                break;
+            case (u32)gltf::Sampler::Wrap::MIRRORED_REPEAT:
+            default: assert(0); break;
+            }
+
+            switch (sampler.wrapT)
+            {
+            case (u32)gltf::Sampler::Wrap::CLAMP_TO_EDGE: 
+                outParams.wrap_t = WM_CLAMP; 
+                break;
+            case (u32)gltf::Sampler::Wrap::REPEAT: 
+                outParams.wrap_t = WM_WRAP; 
+                break;
+            case (u32)gltf::Sampler::Wrap::MIRRORED_REPEAT:
+            default: assert(0); break;
+            }
+        }
+
+        void Glb::importTexturesToAtlas()
+        {
+            auto assetManager = AssetManager::get();
+
+            ScopedTimer timer("loadTextures()", true);
+
+            // 1. load all the images into memory first assuming that it all fit
+            for (i32 i = 0; i < images.size(); ++i)
+            {
+                gltf::Image& gltfImage = images[i];
+                i32 bufferView = gltfImage.bufferView;
+                if (bufferView >= 0)
+                {
+                    const gltf::BufferView bv = bufferViews[bufferView];
+                    u8* dataAddress = binaryChunk.data() + bv.byteOffset;
+                    Cyan::Image image(dataAddress, bv.byteLength, gltfImage.name.c_str());
+                    PackedImageDesc packedImageDesc = assetManager->packImage(image);
+                }
+                else
+                {
+                    // for .glb the images are embedded so a bufferView is required
+                    assert(0);
+                }
+            }
+
+            // 2. load all the textures
+            for (i32 i = 0; i < textures.size(); ++i)
+            {
+                const gltf::Texture& texture = textures[i];
+                gltf::Image& gltfImage = images[texture.source];
+                const gltf::Sampler& sampler = samplers[texture.sampler];
+                PackedImageDesc packedImageDesc = assetManager->getPackedImageDesc(gltfImage.name.c_str());
+                ITexture::Parameter params;
+                translateSampler(sampler, params);
+                assetManager->addPackedTexture(texture.name.c_str(), packedImageDesc, params);
+            }
+        }
+
+        void Glb::importPackedMaterials() 
+        {
+            ScopedTimer timer("importPackedMaterials()", true);
+            auto assetManager = AssetManager::get();
+            for (i32 i = 0; i < materials.size(); ++i)
+            {
+                const gltf::Material& gltfMatl = materials[i];
+                // todo: this is just a hack, need to come up with a better way to deal with no name assets in gltf
+                Cyan::MaterialTextureAtlas& matl = AssetManager::createPackedMaterial(gltfMatl.name.c_str());
+                matl.albedo = gltfMatl.pbrMetallicRoughness.baseColorFactor;
+                matl.roughness = gltfMatl.pbrMetallicRoughness.roughnessFactor;
+                matl.metallic = gltfMatl.pbrMetallicRoughness.metallicFactor;
+                i32 baseColorTextureIndex = gltfMatl.pbrMetallicRoughness.baseColorTexture.index;
+                if (baseColorTextureIndex >= 0)
+                {
+                    const gltf::Texture texture = textures[baseColorTextureIndex];
+                    auto outDesc = assetManager->getPackedTextureDesc(texture.name.c_str());
+                    assert(outDesc.atlasIndex >= 0 && outDesc.subtextureIndex >= 0);
+                    matl.albedoMap = outDesc;
+                }
+
+                i32 metallicRoughnessIndex = gltfMatl.pbrMetallicRoughness.metallicRoughnessTexture.index;
+                if (metallicRoughnessIndex >= 0)
+                {
+                    const gltf::Texture texture = textures[metallicRoughnessIndex];
+                    auto outDesc = assetManager->getPackedTextureDesc(texture.name.c_str());
+                    assert(outDesc.atlasIndex >= 0 && outDesc.subtextureIndex >= 0);
+                    matl.metallicRoughnessMap = outDesc;
+                }
+
+                i32 normalTextureIndex = gltfMatl.normalTexture.index;
+                if (normalTextureIndex >= 0)
+                {
+                    const gltf::Texture texture = textures[normalTextureIndex];
+                    auto outDesc = assetManager->getPackedTextureDesc(texture.name.c_str());
+                    assert(outDesc.atlasIndex >= 0 && outDesc.subtextureIndex >= 0);
+                    matl.normalMap = outDesc;
+                }
             }
         }
 

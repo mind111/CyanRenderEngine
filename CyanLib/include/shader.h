@@ -9,6 +9,7 @@
 
 #include <glew/glew.h>
 
+#include "Singleton.h"
 #include "CyanCore.h"
 #include "Texture.h"
 
@@ -225,12 +226,13 @@ namespace Cyan {
         virtual bool initialize() override;
     };
 
-    class ShaderManager : public Singleton<ShaderManager> {
+    class ShaderManager : public Singleton<ShaderManager>
+    {
     public:
         using ShaderMap = std::unordered_map<std::string, std::unique_ptr<Shader>>;
         using PipelineMap = std::unordered_map<std::string, std::unique_ptr<PipelineStateObject>>;
 
-        ShaderManager();
+        ShaderManager() {}
         ~ShaderManager() {}
 
         void initialize();

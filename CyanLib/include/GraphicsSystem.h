@@ -15,7 +15,7 @@ namespace Cyan
 {
     // todo: implement WindowManager to manage window related operations, and GraphicsSystem should be the owner of the 
     // WindowManager
-    class GraphicsSystem : public System, public Singleton<GraphicsSystem>
+    class GraphicsSystem : public Singleton<GraphicsSystem>, public System
     {
     public:
         GraphicsSystem(u32 windowWidth, u32 windowHeight);
@@ -40,8 +40,6 @@ namespace Cyan
         std::unique_ptr<AssetManager> m_assetManager;
         std::unique_ptr<Renderer> m_renderer;
         std::unique_ptr<ShaderManager> m_shaderManager;
-        // LightMapManager* m_lightMapManager;
-        // PathTracer*      m_pathTracer;
 
         std::unique_ptr<GfxContext> m_ctx;
         GLFWwindow* m_glfwWindow = nullptr;

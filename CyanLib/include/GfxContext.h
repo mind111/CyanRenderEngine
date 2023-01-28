@@ -8,6 +8,7 @@
 #include <stbi/stb_image.h>
 #include <glm/glm.hpp>
 
+#include "Singleton.h"
 #include "Common.h"
 #include "Window.h"
 #include "Texture.h"
@@ -17,7 +18,8 @@
 #include "Mesh.h"
 #include "ShaderStorageBuffer.h"
 
-namespace Cyan {
+namespace Cyan 
+{
     struct Viewport
     {
         u32 x;
@@ -52,7 +54,8 @@ namespace Cyan {
         kCount
     };
 
-    class GfxContext : public Singleton<GfxContext> {
+    class GfxContext : public Singleton<GfxContext> 
+    {
     public:
         GfxContext(GLFWwindow* window) 
             : m_glfwWindow(window)

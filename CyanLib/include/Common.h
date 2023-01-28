@@ -78,29 +78,5 @@ namespace Cyan
         }
         return sizeof(vec[0]) * (u32)vec.size();
     }
-
-    template <typename T>
-    class Singleton
-    {
-    public:
-        Singleton() 
-        {
-            if (!singleton)
-            {
-                // downcast to derived type
-                singleton = static_cast<T*>(this);
-            }
-        }
-
-        Singleton(const Singleton& s) = delete;
-
-        static T* get()
-        { 
-            return singleton; 
-        }
-
-    protected:
-        static T* singleton;
-    };
 }
 

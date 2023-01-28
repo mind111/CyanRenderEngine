@@ -1,7 +1,10 @@
+#pragma once
+
 #include <array>
 
 #include "glm/glm.hpp"
 #include "Texture.h"
+#include "Image.h"
 
 namespace Cyan
 {
@@ -122,19 +125,47 @@ namespace Cyan
         f32 sizeInPixels;
     };
 
+    struct PackedImageDesc
+    {
+        i32 atlasIndex;
+        i32 subimageIndex;
+    };
+
+    struct PackedTextureDesc
+    {
+        i32 atlasIndex = -1;
+        i32 subtextureIndex = -1;
+    };
+
     struct Texture2DAtlas
     {
-        struct Subtexture
+        enum class Format
+        {
+            kR8 = 0,
+            kRGB8,
+            kRGBA8,
+            // kRGB16F,
+            // kRGBA16F,
+            kCount
+        };
+
+        struct ImageTransform
         {
             // texcoord transform
             glm::vec2 scale;
             glm::vec2 translate;
+        };
+
+        struct Subtexture
+        {
+            i32 src;
             // addressing mode
             ITexture::Parameter::WrapMode wrap_s;
             ITexture::Parameter::WrapMode wrap_t;
             // filtering mode
             ITexture::Parameter::Filtering minFilter;
             ITexture::Parameter::Filtering magFilter;
+            glm::vec3 padding; // for ssbo alignment
         };
 
         Texture2DAtlas(u32 inSizeInPixels, const ITexture::Spec::PixelFormat& inFormat)
@@ -158,11 +189,12 @@ namespace Cyan
 
         }
 
-        void init();
-        bool pack(const Image& inImage);
+        i32 packImage(const Image& inImage);
+        i32 addSubtexture(i32 srcImageIndex, const ITexture::Parameter& params);
 
         const u32 maxSubtextureSize = 4096;
         std::vector<Image> images;
+        std::vector<ImageTransform> imageTransforms;
         std::vector<Subtexture> subtextures;
         std::unique_ptr<ImageQuadTree> imageQuadTree;
         std::unique_ptr<Texture2D> atlas = nullptr;

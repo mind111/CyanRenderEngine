@@ -1,9 +1,10 @@
 #include "TextureAtlas.h"
 #include "CyanRenderer.h"
+#include "Image.h"
 
 namespace Cyan
 {
-    static ITexture::Spec createTexture2DSpec(const Cyan::Image& image, bool bGenerateMipmap = false)
+    static ITexture::Spec getImageSpec(const Cyan::Image& image, bool bGenerateMipmap = false)
     {
         Cyan::ITexture::Spec spec = { };
         spec.type = TEX_2D;
@@ -23,7 +24,7 @@ namespace Cyan
         case 8:
             switch (image.numChannels)
             {
-            case 1: spec.pixelFormat = PF_R8UI; break;
+            case 1: spec.pixelFormat = PF_R8; break;
             case 3: spec.pixelFormat = PF_RGB8; break;
             case 4: spec.pixelFormat = PF_RGBA8; break;
             default: assert(0); break;
@@ -52,34 +53,24 @@ namespace Cyan
         return spec;
     }
 
-    void Texture2DAtlas::init() { }
-
-    bool Texture2DAtlas::pack(const Cyan::Image& inImage)
+    i32 Texture2DAtlas::packImage(const Image& inImage)
     {
+        i32 packedImageIndex = -1;
+
         // make sure the image being packed is a power of 2 square shaped image
         assert(inImage.width == inImage.height && Cyan::isPowerOf2(inImage.width) && inImage.width <= maxSubtextureSize);
 
         // todo: make sure the format of incoming texture matches with that of the atlas
-        Cyan::ITexture::Spec spec = createTexture2DSpec(inImage, true);
+        Cyan::ITexture::Spec spec = getImageSpec(inImage, true);
         if (spec.pixelFormat != atlas->getTextureSpec().pixelFormat)
         {
-            printf("Texture format doesn't match, packing failed! \n");
-            return false;
+            assert(0);
         }
 
         images.push_back(inImage);
         ImageQuadTree::Node* node = nullptr;
         if (imageQuadTree->insert(&images.back(), &node))
         {
-            // calculate the texcoord transform for packed texture
-            Subtexture subtexture = { };
-            subtexture.scale = glm::vec2(node->size);
-            subtexture.translate = node->center - node->size * .5f;
-            subtexture.wrap_s = WM_WRAP;
-            subtexture.wrap_t = WM_WRAP;
-            subtexture.minFilter = FM_BILINEAR;
-            subtexture.magFilter = FM_TRILINEAR;
-
             Image& image = images.back();
 
             // convert image to a texture and generate full mipmap chain
@@ -112,10 +103,28 @@ namespace Cyan
                     ps->setUniform("mip", i);
                 });
             }
+            packedImageIndex = images.size() - 1;
         }
         else
         {
             images.pop_back();
         }
+        return packedImageIndex;
+    }
+
+    i32 Texture2DAtlas::addSubtexture(i32 srcImageIndex, const ITexture::Parameter& params)
+    {
+        if (srcImageIndex >= 0)
+        {
+            Subtexture subtexture = { };
+            subtexture.src = srcImageIndex;
+            subtexture.wrap_s = params.wrap_s;
+            subtexture.wrap_t = params.wrap_t;
+            subtexture.minFilter = params.minificationFilter;
+            subtexture.magFilter = params.magnificationFilter;
+            subtextures.push_back(subtexture);
+            return subtextures.size() - 1;
+        }
+        return -1;
     }
 }

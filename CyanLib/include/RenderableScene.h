@@ -48,11 +48,7 @@ namespace Cyan
         ShaderStorageBuffer<DynamicSsboData<SubmeshDesc>> submeshes;
     };
 
-    /** todo:
-    * should copying RenderableScene be allowed? if so then basically every ssbo will be shared between the copies and need to be reference counted
-    * to avoid a copy's destructor release shared ssbo, causing all sorts of artifact and weird bugs.
-    */
-
+    // is it better to define
     /**
     * A Scene representation that only contains renderable data.
     */
@@ -90,12 +86,16 @@ namespace Cyan
         RenderableScene(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator);
         RenderableScene(const RenderableScene& scene);
         RenderableScene& operator=(const RenderableScene& src);
-        static void clone(RenderableScene& dst, const RenderableScene& src);
+
+        virtual void clone(const RenderableScene& src);
+        virtual void onClone(const RenderableScene& src) { }
 
         /**
         * Submit rendering data to global gpu buffers
         */
-        void upload();
+        virtual void upload();
+        // extension point for derived class to do whatever custom behavior they need to
+        virtual void onUpload() { };
 
         // bounding box
         BoundingBox3D aabb;
@@ -131,10 +131,38 @@ namespace Cyan
         std::unique_ptr<ViewBuffer> viewBuffer = nullptr;
         std::unique_ptr<TransformBuffer> transformBuffer = nullptr;
         std::unique_ptr<InstanceBuffer> instanceBuffer = nullptr;
-        std::unique_ptr<MaterialBuffer> materialBuffer = nullptr;
         std::unique_ptr<DrawCallBuffer> drawCallBuffer = nullptr;
+    };
 
-    private:
-        u32 getMaterialID(MeshInstance* meshInstance, u32 submeshIndex);
+    struct RenderableSceneBindless : public RenderableScene
+    {
+        RenderableSceneBindless(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator);
+        RenderableSceneBindless(const RenderableScene& src);
+        ~RenderableSceneBindless() { }
+
+        virtual void onClone(const RenderableScene& src) override;
+        virtual void onUpload() override;
+
+        std::unique_ptr<MaterialBuffer> materialBuffer = nullptr;
+    };
+
+    struct RenderableSceneTextureAtlas : public RenderableScene
+    {
+        RenderableSceneTextureAtlas(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator);
+        RenderableSceneTextureAtlas(const RenderableScene& src);
+        ~RenderableSceneTextureAtlas() { }
+
+        virtual void onClone(const RenderableScene& src) override;
+        virtual void onUpload() override;
+
+        using SubtextureBuffer = ShaderStorageBuffer<DynamicSsboData<Texture2DAtlas::Subtexture>>;
+        using ImageTransformBuffer = ShaderStorageBuffer<DynamicSsboData<Texture2DAtlas::ImageTransform>>;
+
+        std::unique_ptr<SubtextureBuffer> subtextureBufferR8 = nullptr;
+        std::unique_ptr<SubtextureBuffer> subtextureBufferRGB8 = nullptr;
+        std::unique_ptr<SubtextureBuffer> subtextureBufferRGBA8 = nullptr;
+        std::unique_ptr<ImageTransformBuffer> imageTransformBufferR8 = nullptr;
+        std::unique_ptr<ImageTransformBuffer> imageTransformBufferRGB8 = nullptr;
+        std::unique_ptr<ImageTransformBuffer> imageTransformBufferRGBA8 = nullptr;
     };
 }

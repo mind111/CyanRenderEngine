@@ -4,7 +4,6 @@
 
 namespace Cyan {
     GfxContext* Singleton<GfxContext>::singleton = nullptr;
-
     void GfxContext::setShaderInternal(Shader* shader)
     {
         auto bindTextures = [this](Shader* shader) {
@@ -49,10 +48,12 @@ namespace Cyan {
                 if (!m_shaderStorageBindingMap.empty())
                 {
                     auto entry = m_shaderStorageBindingMap.find(blockName);
-                    if (entry == m_shaderStorageBindingMap.end()) {
+                    if (entry == m_shaderStorageBindingMap.end()) 
+                    {
                         cyanError("ShaderStorageBuffer %s is not currently bound", blockName.c_str());
                     }
-                    else {
+                    else 
+                    {
                         u32 binding = entry->second;
                         glShaderStorageBlockBinding(shader->getProgram(), blockIndex, binding);
                     }

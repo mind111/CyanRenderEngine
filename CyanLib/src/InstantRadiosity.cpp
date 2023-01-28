@@ -132,7 +132,7 @@ namespace Cyan {
         // bind VPL buffer for gpu to write
         glBindBufferRange(GL_SHADER_STORAGE_BUFFER, 47, VPLBuffer, 0, sizeof(VPLs));
 
-        renderer->submitSceneMultiDrawIndirect(renderableScene);
+        renderer->multiDrawSceneIndirect(renderableScene);
 
         // read back VPL data
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_ATOMIC_COUNTER_BARRIER_BIT);

@@ -18,20 +18,11 @@
 
 namespace Cyan
 {
-    Engine* Engine::singleton = nullptr;
-
+    Engine* Singleton<Engine>::singleton = nullptr;
     Engine::Engine(u32 windowWidth, u32 windowHeight)
     {
-        if (!singleton)
-        {
-            singleton = this;
-            m_graphicsSystem = std::make_unique<GraphicsSystem>(windowWidth, windowHeight);
-            m_IOSystem = std::make_unique<IOSystem>();
-        }
-        else
-        {
-            CYAN_ASSERT(0, "Attempted to instantiate multiple instances of Engine")
-        }
+        m_graphicsSystem = std::make_unique<GraphicsSystem>(windowWidth, windowHeight);
+        m_IOSystem = std::make_unique<IOSystem>();
     }
 
     void Engine::initialize()

@@ -7,6 +7,7 @@
 #include <glew/glew.h>
 #include <stbi/stb_image.h>
 
+#include "Singleton.h"
 #include "Allocator.h"
 #include "Common.h"
 #include "CyanAPI.h"
@@ -152,14 +153,13 @@ namespace Cyan
         std::unique_ptr<Texture2D> texture;
     };
 
-    class Renderer : public Singleton<Renderer> {
+    class Renderer : public Singleton<Renderer>
+    {
     public:
         using UIRenderCommand = std::function<void()>;
-
-
         friend class InstantRadiosity;
 
-        explicit Renderer(GfxContext* ctx, u32 windowWidth, u32 windowHeight);
+        Renderer(GfxContext* ctx, u32 windowWidth, u32 windowHeight);
         ~Renderer() {}
 
         void initialize();
@@ -259,13 +259,14 @@ namespace Cyan
             u32 sizeInBytes = 1024 * 1024 * 32;
             void* data = nullptr;
         } indirectDrawBuffer;
-        void submitSceneMultiDrawIndirect(const RenderableScene& renderableScene);
+        void multiDrawSceneIndirect(const RenderableScene& renderableScene);
 
         void renderSceneBatched(RenderableScene& renderableScene, RenderTarget* outRenderTarget, Texture2D* outSceneColor);
         void renderSceneDepthNormal(RenderableScene& renderableScene, RenderTarget* outRenderTarget, Texture2D* outDepthBuffer, Texture2D* outNormalBuffer);
         void renderSceneDepthPrepass(RenderableScene& renderableScene, RenderTarget* outRenderTarget, Texture2D* outDepthBuffer);
         void renderSceneDepthOnly(RenderableScene& renderableScene, Texture2D* outDepthTexture);
         void renderSceneGBuffer(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer);
+        void renderSceneGBufferWithTextureAtlas(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer);
         void renderShadowMaps(RenderableScene& scene);
         void renderSceneLighting(RenderTarget* outRenderTarget, Texture2D* outSceneColor, RenderableScene& scene, GBuffer gBuffer);
         void renderSceneDirectLighting(RenderTarget* outRenderTarget, Texture2D* outDirectLighting, RenderableScene& scene, GBuffer gBuffer);

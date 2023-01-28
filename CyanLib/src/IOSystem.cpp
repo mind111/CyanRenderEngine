@@ -10,7 +10,6 @@ namespace Cyan
 
     IOSystem* Singleton<IOSystem>::singleton = nullptr;
     IOSystem::IOSystem()
-        : Singleton<IOSystem>()
     {
 
     }

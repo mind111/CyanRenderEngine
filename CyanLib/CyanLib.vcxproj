@@ -36,6 +36,7 @@
     <ClInclude Include="include\CyanCore.h" />
     <ClInclude Include="include\CyanEngine.h" />
     <ClInclude Include="include\gltf.h" />
+    <ClInclude Include="include\Image.h" />
     <ClInclude Include="include\InstantRadiosity.h" />
     <ClInclude Include="include\LightEntities.h" />
     <ClInclude Include="include\ManyViewGI.h" />
@@ -66,6 +67,7 @@
     <ClInclude Include="include\Shader.h" />
     <ClInclude Include="include\ShaderStorageBuffer.h" />
     <ClInclude Include="include\Shadow.h" />
+    <ClInclude Include="include\Singleton.h" />
     <ClInclude Include="include\SkyBox.h" />
     <ClInclude Include="include\StaticMeshEntity.h" />
     <ClInclude Include="include\Surfel.h" />
@@ -91,6 +93,7 @@
     <ClCompile Include="src\CyanApp.cpp" />
     <ClCompile Include="src\CyanEngine.cpp" />
     <ClCompile Include="src\gltf.cpp" />
+    <ClCompile Include="src\Image.cpp" />
     <ClCompile Include="src\InstantRadiosity.cpp" />
     <ClCompile Include="src\Lights.cpp" />
     <ClCompile Include="src\ManyViewGI.cpp" />
@@ -149,6 +152,7 @@
     <None Include="..\shader\scene_depth_prepass_v.glsl" />
     <None Include="..\shader\scene_direct_lighting_p.glsl" />
     <None Include="..\shader\scene_gbuffer_p.glsl" />
+    <None Include="..\shader\scene_gbuffer_texture_atlas_p.glsl" />
     <None Include="..\shader\scene_indirect_lighting_p.glsl" />
     <None Include="..\shader\scene_lighting_p.glsl" />
     <None Include="..\shader\shading_model.glsl" />

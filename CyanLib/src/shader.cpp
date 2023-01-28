@@ -319,11 +319,8 @@ namespace Cyan
         return true;
     }
 
-    ShaderManager::ShaderManager() {
-
-    }
-
     ShaderManager* Singleton<ShaderManager>::singleton = nullptr;
+
     void ShaderManager::initialize() {
 
     }

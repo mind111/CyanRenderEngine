@@ -11,12 +11,14 @@ namespace Cyan
     PixelPipeline* Skybox::s_proceduralSkyPipeline = nullptr;
 
     Skybox::Skybox(const char* name, const char* srcHDRIPath, const glm::uvec2& resolution) {
-        if (!s_proceduralSkyPipeline) {
+        if (!s_proceduralSkyPipeline) 
+        {
             CreateVS(vs, "SDFSkyVS", SHADER_SOURCE_PATH "sky_sdf_v.glsl");
             CreatePS(ps, "SDFSkyPS", SHADER_SOURCE_PATH "sky_sdf_p.glsl");
             s_proceduralSkyPipeline = ShaderManager::createPixelPipeline("SDFSky", vs, ps);
         }
-        if (!s_cubemapSkyPipeline) {
+        if (!s_cubemapSkyPipeline) 
+        {
             CreateVS(vs, "SkyDomeVS", SHADER_SOURCE_PATH "skybox_v.glsl");
             CreatePS(ps, "SkyDomePS", SHADER_SOURCE_PATH "skybox_p.glsl");
             s_cubemapSkyPipeline = ShaderManager::createPixelPipeline("SkyDome", vs, ps);
@@ -31,6 +33,7 @@ namespace Cyan
         cubemapSpec.type = TEX_CUBE;
         cubemapSpec.width = resolution.x;
         cubemapSpec.height = resolution.x;
+        cubemapSpec.numMips = (u32)log2(resolution.x) + 1;
         cubemapSpec.pixelFormat = PF_RGB16F;
         ITexture::Parameter cubemapParams = { };
         cubemapParams.minificationFilter = FM_TRILINEAR;

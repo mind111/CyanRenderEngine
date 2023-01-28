@@ -249,6 +249,12 @@
     <ClInclude Include="include\TextureAtlas.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\Image.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Singleton.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\RayTracingScene.cpp">
@@ -390,6 +396,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\TextureAtlas.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Image.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -873,6 +882,9 @@
     </None>
     <None Include="..\shader\hierarchical_ssrt_ex_p.glsl">
       <Filter>Shaders\RayTracing</Filter>
+    </None>
+    <None Include="..\shader\scene_gbuffer_texture_atlas_p.glsl">
+      <Filter>Shaders\Shading</Filter>
     </None>
   </ItemGroup>
 </Project>

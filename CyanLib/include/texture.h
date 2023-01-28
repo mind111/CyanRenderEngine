@@ -8,6 +8,9 @@
 #include "Common.h"
 #include "CyanCore.h"
 #include "Asset.h"
+#include "Image.h"
+
+#define BINDLESS_TEXTURE 1
 
 /**
 * convenience macros
@@ -28,7 +31,6 @@
 #define FM_MIPMAP_POINT Cyan::ITexture::Parameter::Filtering::NEAREST_MIPMAP_NEAREST
 // PF stands for "pixel format" 
 #define PF_R8 Cyan::ITexture::Spec::PixelFormat::R8
-#define PF_R8UI Cyan::ITexture::Spec::PixelFormat::R8UI
 #define PF_RGB8 Cyan::ITexture::Spec::PixelFormat::RGB8
 #define PF_RGBA8 Cyan::ITexture::Spec::PixelFormat::RGBA8
 #define PF_R16F Cyan::ITexture::Spec::PixelFormat::R16F
@@ -39,16 +41,6 @@
 
 namespace Cyan
 {
-    struct Image
-    {
-        std::string name;
-        i32 width;
-        i32 height;
-        i32 numChannels;
-        i32 bitsPerChannel;
-        std::shared_ptr<u8> pixels = nullptr;
-    };
-
     // todo: rework Texture classes....!!!
     struct ITexture : public Asset, public GpuObject
     {
@@ -77,7 +69,6 @@ namespace Cyan
             enum class PixelFormat
             {
                 R8 = 0,
-                R8UI,
                 R16F,
                 R32F,
                 Lum32F,
@@ -109,7 +100,7 @@ namespace Cyan
 
         struct Parameter
         {
-            enum class Filtering
+            enum class Filtering : u32
             {
                 LINEAR = 0,
                 NEAREST,
@@ -117,7 +108,7 @@ namespace Cyan
                 NEAREST_MIPMAP_NEAREST
             };
 
-            enum class WrapMode
+            enum class WrapMode : u32
             {
                 CLAMP_TO_EDGE = 0,
                 WRAP,
@@ -163,12 +154,7 @@ namespace Cyan
             GLPixelFormat glPixelFormat = { };
             switch (inPixelFormat)
             {
-            case Spec::PixelFormat::R8:    
-                glPixelFormat.internalFormat = GL_R8I;
-                glPixelFormat.format = GL_RED;
-                glPixelFormat.type = GL_BYTE;
-                break;
-            case Spec::PixelFormat::R8UI:
+            case Spec::PixelFormat::R8:
                 glPixelFormat.internalFormat = GL_R8;
                 glPixelFormat.format = GL_RED;
                 glPixelFormat.type = GL_UNSIGNED_BYTE;
@@ -203,25 +189,27 @@ namespace Cyan
                 glPixelFormat.format = GL_RGB;
                 glPixelFormat.type = GL_UNSIGNED_BYTE;
                 break;
+            case Spec::PixelFormat::RGBA8:
+                glPixelFormat.internalFormat = GL_RGBA8;
+                glPixelFormat.format = GL_RGBA;
+                glPixelFormat.type = GL_UNSIGNED_BYTE;
+                break;
             case Spec::PixelFormat::RGB16F:
                 glPixelFormat.internalFormat = GL_RGB16F;
                 glPixelFormat.format = GL_RGB;
-                glPixelFormat.type = GL_HALF_FLOAT;
+                // todo: should type be GL_FLOAT or GL_HALF_FLOAT, running into issue with GL_HALF_FLOAT so using GL_FLOAT for now
+                glPixelFormat.type = GL_FLOAT;
                 break;
             case Spec::PixelFormat::RGBA16F:
                 glPixelFormat.internalFormat = GL_RGBA16F;
                 glPixelFormat.format = GL_RGBA;
-                glPixelFormat.type = GL_HALF_FLOAT;
+                // todo: should type be GL_FLOAT or GL_HALF_FLOAT, running into issue with GL_HALF_FLOAT so using GL_FLOAT for now
+                glPixelFormat.type = GL_FLOAT;
                 break;
             case Spec::PixelFormat::RGB32F:
                 glPixelFormat.internalFormat = GL_RGB32F;
                 glPixelFormat.format = GL_RGB;
                 glPixelFormat.type = GL_FLOAT;
-                break;
-            case Spec::PixelFormat::RGBA8:
-                glPixelFormat.internalFormat = GL_RGBA8;
-                glPixelFormat.format = GL_RGBA;
-                glPixelFormat.type = GL_UNSIGNED_BYTE;
                 break;
             case Spec::PixelFormat::RGBA32F:
                 glPixelFormat.internalFormat = GL_RGBA32F;
@@ -532,7 +520,7 @@ namespace Cyan
             }
 
 #if BINDLESS_TEXTURE
-            glHandle = glGetTextureHandleARB(getGpuObject());
+            // glHandle = glGetTextureHandleARB(getGpuObject());
 #endif
         }
 

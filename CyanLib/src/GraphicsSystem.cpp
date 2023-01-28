@@ -4,6 +4,16 @@
 
 #include "GraphicsSystem.h"
 
+// A hack to force application uses Nvidia discrete gpu, I'm actually not sure if
+// this is doing anything at all
+#ifdef __cplusplus
+extern "C" {
+#endif
+    _declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
+#ifdef __cplusplus
+}
+#endif
+
 namespace Cyan
 {
     GraphicsSystem* Singleton<GraphicsSystem>::singleton = nullptr;
@@ -119,8 +129,7 @@ namespace Cyan
     }
 
     GraphicsSystem::GraphicsSystem(u32 windowWidth, u32 windowHeight)
-        : Singleton<GraphicsSystem>(),
-        m_windowDimension({ windowWidth, windowHeight })
+        : m_windowDimension({ windowWidth, windowHeight })
     {
         // create window
         if (glfwInit() != GLFW_TRUE)
@@ -132,10 +141,8 @@ namespace Cyan
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
         glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
         m_glfwWindow = glfwCreateWindow(m_windowDimension.x, m_windowDimension.y, "Cyan", nullptr, nullptr);
-        if (!m_glfwWindow) {
-            cyanError("Error creating a window!")
-            assert(0);
-        }
+        assert(m_glfwWindow);
+
         glfwMakeContextCurrent(m_glfwWindow);
         GLenum glewErr = glewInit();
         if (glewErr != GLEW_OK)
@@ -227,7 +234,7 @@ namespace Cyan
                     sceneRenderingOutput, 
                     { 0, 0, sceneRenderingOutput->width, sceneRenderingOutput->height }
                 );
-                // m_renderer->render(scene, mainSceneView, glm::uvec2(sceneRenderingOutput->width, sceneRenderingOutput->height));
+                m_renderer->render(scene, mainSceneView, glm::uvec2(sceneRenderingOutput->width, sceneRenderingOutput->height));
             }
 
             // post scene rendering

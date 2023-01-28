@@ -6,6 +6,7 @@
 
 #include "mathUtils.h"
 
+#include "Singleton.h"
 #include "Common.h"
 #include "System.h"
 #include "Event.h"
@@ -161,11 +162,11 @@ namespace Cyan
         i32 action;
     };
 
-    class IOSystem : public System, public Singleton<IOSystem>
+    class IOSystem : public Singleton<IOSystem>, public System
     {
     public:
-
         IOSystem();
+        ~IOSystem() { };
 
         virtual void initialize() override;
         virtual void update() override;
