@@ -42,18 +42,8 @@
 namespace Cyan
 {
     // todo: rework Texture classes....!!!
-    struct ITexture : public Asset, public GpuObject
+    struct ITexture : public GpuObject
     {
-        virtual std::string getAssetObjectTypeDesc() override
-        {
-            return std::string("ITexture");
-        }
-
-        static std::string getAssetClassTypeDesc() 
-        { 
-            return std::string("ITexture"); 
-        }
-
         struct Spec
         {
             enum class Type
@@ -269,16 +259,6 @@ namespace Cyan
 
     struct Texture2D : public ITexture
     {
-        virtual std::string getAssetObjectTypeDesc() override
-        {
-            return std::string("Texture2D");
-        }
-
-        static std::string getAssetClassTypeDesc() 
-        { 
-            return std::string("Texture2D"); 
-        }
-
         virtual Spec getTextureSpec() override
         {
             return Spec {
@@ -311,16 +291,6 @@ namespace Cyan
 
     struct Texture2DArray : public ITexture
     {
-        virtual std::string getAssetObjectTypeDesc() override
-        {
-            return std::string("Texture2DArray");
-        }
-
-        static std::string getAssetClassTypeDesc() 
-        { 
-            return std::string("Texture2DArray"); 
-        }
-
         virtual Spec getTextureSpec() override
         {
             return Spec {
@@ -365,17 +335,6 @@ namespace Cyan
 
     struct DepthTexture2D : public Texture2D
     {
-        /* Asset interface */
-        virtual std::string getAssetObjectTypeDesc() override
-        {
-            return std::string("DepthTexture");
-        }
-
-        static std::string getAssetClassTypeDesc() 
-        { 
-            return std::string("DepthTexture"); 
-        }
-
         /* ITexture interface */
         virtual Spec getTextureSpec() override
         {
@@ -417,17 +376,6 @@ namespace Cyan
 
     struct Texture3D : public ITexture
     {
-        /* Asset interface */
-        virtual std::string getAssetObjectTypeDesc() override
-        {
-            return std::string("Texture3D");
-        }
-
-        static std::string getAssetClassTypeDesc() 
-        { 
-            return std::string("Texture3D"); 
-        }
-
         /* ITexture interface */
         virtual Spec getTextureSpec() override
         {
@@ -474,17 +422,6 @@ namespace Cyan
 
     struct TextureCube : public ITexture
     {
-        /* Asset interface */
-        virtual std::string getAssetObjectTypeDesc() override
-        {
-            return std::string("TextureCube");
-        }
-
-        static std::string getAssetClassTypeDesc() 
-        { 
-            return std::string("TextureCube"); 
-        }
-
         /* ITexture interface */
         virtual Spec getTextureSpec() override
         {

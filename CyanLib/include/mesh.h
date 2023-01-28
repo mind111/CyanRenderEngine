@@ -27,7 +27,7 @@ namespace Cyan
         virtual VertexArray* getVertexArray() = 0;
     };
 
-    struct Mesh : public Asset
+    struct Mesh
     {
         template <typename Geometry>
         struct Submesh : public ISubmesh
@@ -132,10 +132,6 @@ namespace Cyan
         { 
             submeshes = std::move(srcSubmeshes);
         }
-        
-        // Asset interface
-        virtual std::string getAssetObjectTypeDesc() override { return typeDesc; }
-        static std::string getAssetClassTypeDesc() { return typeDesc; }
 
         ISubmesh* getSubmesh(u32 index) { return submeshes[index]; }
         const BoundingBox3D& getAABB() { return aabb; }
