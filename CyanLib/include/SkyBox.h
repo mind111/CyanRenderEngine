@@ -4,7 +4,6 @@
 
 namespace Cyan
 {
-    // todo: decouple skylight from skybox, skylight can be a stand-alone thing
     struct Skybox
     {
         Skybox(const char* name, const char* srcHDRIPath, const glm::uvec2& resolution);
@@ -21,6 +20,6 @@ namespace Cyan
         static PixelPipeline* s_proceduralSkyPipeline;
 
         Texture2D* m_srcHDRITexture = nullptr;
-        TextureCube* m_cubemapTexture = nullptr;
+        std::unique_ptr<TextureCube> m_cubemapTexture = nullptr;
     };
 }

@@ -9,17 +9,21 @@ namespace Cyan
 {
     u32 IDirectionalShadowMap::numDirectionalShadowMaps = 0;
     IDirectionalShadowMap::IDirectionalShadowMap(const DirectionalLight& inDirectionalLight)
-        : lightDirection(inDirectionalLight.direction) {
+        : lightDirection(inDirectionalLight.direction) 
+    {
         resolution.x = 4096;
         resolution.y = 4096;
         numDirectionalShadowMaps++;
     }
 
     DirectionalShadowMap::DirectionalShadowMap(const DirectionalLight& inDirectionalLight)
-        : IDirectionalShadowMap(inDirectionalLight) {
+        : IDirectionalShadowMap(inDirectionalLight) 
+    {
         char depthTextureName[64] = { };
         sprintf_s(depthTextureName, "DirectionalShadowmapTexture_%u", IDirectionalShadowMap::numDirectionalShadowMaps);
-        depthTexture = std::unique_ptr<DepthTexture2D>(AssetManager::createDepthTexture(depthTextureName, resolution.x, resolution.y));
+        DepthTexture2D::Spec spec(resolution.x, resolution.y, 1);
+        depthTexture = std::make_unique<DepthTexture2D>(depthTextureName, spec);
+        depthTexture->init();
     }
 
     void DirectionalShadowMap::render(const BoundingBox3D& lightSpaceAABB, RenderableScene& scene, Renderer* renderer) {
@@ -57,14 +61,18 @@ namespace Cyan
         {
             char depthTextureName[64] = { };
             sprintf_s(depthTextureName, "VarianceShadowmapDepthTexture_%dx%d", resolution.x, resolution.y);
-            depthTexture = AssetManager::createDepthTexture(depthTextureName, resolution.x, resolution.y);
+            DepthTexture2D::Spec spec(resolution.x, resolution.y, 1);
+            depthTexture = std::make_unique<DepthTexture2D>(depthTextureName, spec);
+            depthTexture->init();
         }
 
         // create depth squared texture
         {
             char depthSquaredTextureName[64] = { };
             sprintf_s(depthSquaredTextureName, "VarianceShadowmapDepthSquaredTexture_%dx%d", resolution.x, resolution.y);
-            depthSquaredTexture = AssetManager::createDepthTexture(depthSquaredTextureName, resolution.x, resolution.y);
+            DepthTexture2D::Spec spec(resolution.x, resolution.y, 1);
+            depthSquaredTexture = std::make_unique<DepthTexture2D>(depthSquaredTextureName, spec);
+            depthSquaredTexture->init();
         }
     }
 

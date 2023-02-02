@@ -6,17 +6,10 @@
 namespace Cyan
 {
     u32 Image::count = 0;
-    Image::Image(const char* srcImageFile, const char* inName)
+    Image::Image(const char* inName, const char* srcImageFile)
         : path(srcImageFile)
     {
-        if (inName)
-        {
-            name = inName;
-        }
-        else
-        {
-            name = "image_" + std::to_string(count);
-        }
+        name = inName;
         i32 hdr = stbi_is_hdr(srcImageFile);
         if (hdr)
         {
@@ -41,16 +34,9 @@ namespace Cyan
         count++;
     }
 
-    Image::Image(u8* mem, u32 sizeInBytes, const char* inName)
+    Image::Image(const char* inName, u8* mem, u32 sizeInBytes)
     {
-        if (inName)
-        {
-            name = inName;
-        }
-        else
-        {
-            name = "image_" + std::to_string(count);
-        }
+        name = inName;
         i32 hdr = stbi_is_hdr_from_memory(mem, sizeInBytes);
         if (hdr)
         {

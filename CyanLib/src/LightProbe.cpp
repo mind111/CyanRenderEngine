@@ -85,7 +85,11 @@ namespace Cyan
     void IrradianceProbe::initialize()
     {
         TextureCube::Spec spec(m_irradianceTextureRes.x, 1, PF_RGB16F);
-        m_convolvedIrradianceTexture = AssetManager::createTextureCube("IrradianceProbe", spec);
+        SamplerCube sampler;
+        sampler.minFilter = FM_BILINEAR;
+        sampler.magFilter = FM_BILINEAR;
+        m_convolvedIrradianceTexture = std::make_unique<TextureCube>("IrradianceProbe", spec, sampler);
+        m_convolvedIrradianceTexture->init();
 
         if (!s_convolveIrradiancePipeline)
         {
@@ -102,7 +106,7 @@ namespace Cyan
         auto renderer = Renderer::get();
 
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(m_irradianceTextureRes.x, m_irradianceTextureRes.y));
-        renderTarget->setColorBuffer(m_convolvedIrradianceTexture, 0u);
+        renderTarget->setColorBuffer(m_convolvedIrradianceTexture.get(), 0u);
         {
             for (i32 f = 0; f < 6u; ++f)
             {
@@ -172,7 +176,8 @@ namespace Cyan
         SamplerCube sampler;
         sampler.minFilter = FM_TRILINEAR;
         sampler.magFilter = FM_BILINEAR;
-        m_convolvedReflectionTexture = AssetManager::createTextureCube("ReflectionProbe", spec, sampler);
+        m_convolvedReflectionTexture = std::make_unique<TextureCube>("ReflectionProbe", spec, sampler);
+        m_convolvedReflectionTexture->init();
 
         if (!s_convolveReflectionPipeline)
         {
@@ -188,11 +193,13 @@ namespace Cyan
         }
     }
 
+    // todo: fix this, 
     Texture2D* ReflectionProbe::buildBRDFLookupTexture()
     {
         Texture2D::Spec spec(512u, 512u, 1, PF_RGBA16F);
         Sampler2D sampler;
-        Texture2D* outTexture = AssetManager::createTexture2D("BRDFLUT", spec, sampler);
+        Texture2D* outTexture = new Texture2D("BRDFLUT", spec, sampler);
+        outTexture->init();
 
         RenderTarget* renderTarget = createRenderTarget(outTexture->width, outTexture->height);
         renderTarget->setColorBuffer(outTexture, 0u);
@@ -224,7 +231,7 @@ namespace Cyan
         for (u32 mip = 0; mip < kNumMips; ++mip)
         {
             auto renderTarget = createRenderTarget(mipWidth, mipHeight);
-            renderTarget->setColorBuffer(m_convolvedReflectionTexture, 0u, mip);
+            renderTarget->setColorBuffer(m_convolvedReflectionTexture.get(), 0u, mip);
             {
                 for (i32 f = 0; f < 6u; f++)
                 {

@@ -398,7 +398,7 @@ namespace Cyan
                 {
                     const gltf::BufferView bv = bufferViews[bufferView];
                     u8* dataAddress = binaryChunk.data() + bv.byteOffset;
-                    Cyan::Image image(dataAddress, bv.byteLength, gltfImage.name.c_str());
+                    Cyan::Image image(gltfImage.name.c_str(), dataAddress, bv.byteLength);
                     PackedImageDesc packedImageDesc = assetManager->packImage(image);
                 }
                 else

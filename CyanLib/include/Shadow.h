@@ -41,7 +41,8 @@ namespace Cyan {
     * todo: blend between cascades to alleviate artifact when transitioning between cascades
     * todo: better shadow biasing; normal bias and receiver geometry bias
     */
-    struct DirectionalShadowMap : public IDirectionalShadowMap {
+    struct DirectionalShadowMap : public IDirectionalShadowMap 
+    {
         virtual void render(const BoundingBox3D& likghtSpaceAABB, RenderableScene& scene, Renderer* renderer) override;
         virtual void setShaderParameters(Shader* shader, const char* uniformNamePrefix) override;
 
@@ -68,8 +69,8 @@ namespace Cyan {
 
     private:
         glm::mat4 lightSpaceProjection;
-        DepthTexture2D* depthTexture = nullptr;
-        DepthTexture2D* depthSquaredTexture = nullptr;
+        std::unique_ptr<DepthTexture2D> depthTexture = nullptr;
+        std::unique_ptr<DepthTexture2D> depthSquaredTexture = nullptr;
     };
 
     struct CascadedShadowMap : public IDirectionalShadowMap {

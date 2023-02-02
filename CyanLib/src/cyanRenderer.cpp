@@ -570,8 +570,8 @@ namespace Cyan
             */
             if (scene.skyLight)
             {
-                ps->setTexture("skyLight.irradiance", scene.skyLight->irradianceProbe->m_convolvedIrradianceTexture);
-                ps->setTexture("skyLight.reflection", scene.skyLight->reflectionProbe->m_convolvedReflectionTexture);
+                ps->setTexture("skyLight.irradiance", scene.skyLight->irradianceProbe->m_convolvedIrradianceTexture.get());
+                ps->setTexture("skyLight.reflection", scene.skyLight->reflectionProbe->m_convolvedReflectionTexture.get());
                 auto BRDFLookupTexture = ReflectionProbe::getBRDFLookupTexture()->glHandle;
                 if (glIsTextureHandleResidentARB(BRDFLookupTexture) == GL_FALSE) {
                     glMakeTextureHandleResidentARB(BRDFLookupTexture);
@@ -1148,8 +1148,8 @@ namespace Cyan
             * seamless cubemap doesn't work with bindless textures that's accessed using a texture handle,
             * so falling back to normal way of binding textures here.
             */
-            ps->setTexture("skyLight.irradiance", scene.skyLight->irradianceProbe->m_convolvedIrradianceTexture);
-            ps->setTexture("skyLight.reflection", scene.skyLight->reflectionProbe->m_convolvedReflectionTexture);
+            ps->setTexture("skyLight.irradiance", scene.skyLight->irradianceProbe->m_convolvedIrradianceTexture.get());
+            ps->setTexture("skyLight.reflection", scene.skyLight->reflectionProbe->m_convolvedReflectionTexture.get());
             auto BRDFLookupTexture = ReflectionProbe::getBRDFLookupTexture()->glHandle;
             if (glIsTextureHandleResidentARB(BRDFLookupTexture) == GL_FALSE) {
                 glMakeTextureHandleResidentARB(BRDFLookupTexture);
@@ -1262,6 +1262,8 @@ namespace Cyan
                 {
                     assert(0);
                 }
+                // todo: need to decouple Sampler from texture!!!
+                // todo: this is a bug here, I shouldn't use point sampling here
                 downsamplePyramid[pass] = CachedTexture2D(passName.c_str(), spec);
                 Texture2D* dst = downsamplePyramid[pass].get();
                 downsample(src, dst);
@@ -1297,6 +1299,8 @@ namespace Cyan
                 Texture2D::Spec spec = src->getSpec();
                 spec.width *= 2;
                 spec.height *= 2;
+                // todo: need to decouple Sampler from texture!!!
+                // todo: this is a bug here, I shouldn't use point sampling here
                 upscalePyramid[pass - 1] = CachedTexture2D(passName.c_str(), spec);
                 Texture2D* dst = upscalePyramid[pass - 1].get();
 

@@ -77,7 +77,8 @@ namespace Cyan
         glm::vec3 position = glm::vec3(0.f);
     };
 
-    struct SkyLight : public Light {
+    struct SkyLight : public Light 
+    {
         SkyLight(Scene* scene, const glm::vec4& colorAndIntensity, const char* srcHDRI = nullptr);
         ~SkyLight() { }
 
@@ -88,7 +89,7 @@ namespace Cyan
 
         // todo: handle object ownership here
         Texture2D* srcEquirectTexture = nullptr;
-        TextureCube* srcCubemap = nullptr;
+        std::unique_ptr<TextureCube> srcCubemap = nullptr;
         std::unique_ptr<IrradianceProbe> irradianceProbe = nullptr;
         std::unique_ptr<ReflectionProbe> reflectionProbe = nullptr;
     };

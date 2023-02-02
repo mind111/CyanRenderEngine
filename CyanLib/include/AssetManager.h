@@ -1,5 +1,6 @@
 #pragma once
 
+
 #include <iostream>
 #include <string>
 #include <map>
@@ -57,11 +58,6 @@ namespace Cyan
         static void importGlb(Scene* scene, const char* filename);
         std::vector<ISubmesh*> importObj(const char* baseDir, const char* filename);
 
-        /**
-        * Creating a texture from scratch; `name` must be unique
-        */
-        static Texture2D* createTexture2D(const char* name, const Texture2D::Spec& spec, const Sampler2D& inSampler = Sampler2D{});
-        static Texture2D* createTexture2D(const char* name, Image* srcImage, bool bGenerateMipmap, const Sampler2D& inSampler = Sampler2D{});
 #if 0
         static Texture3D* createTexture3D(const char* name, const Texture3D::Spec& spec, Texture::Parameter parameter=ITexture::Parameter{ }) {
             Texture3D* outTexture = getAsset<Texture3D>(name);
@@ -73,14 +69,20 @@ namespace Cyan
             return outTexture;
         }
 #endif
-        static TextureCube* createTextureCube(const char* name, const TextureCube::Spec& spec, const SamplerCube& inSampler = SamplerCube{ });
-        static DepthTexture2D* createDepthTexture(const char* name, u32 width, u32 height);
+        /** todo: this part should be refactored as this create...() function should be private
+        * Creating a texture from that's visible and accessible through the AssetManager
+        */
         static Image* importImage(const char* name, const char* filename);
         static Image* importImage(const char* name, u8* mem, u32 sizeInBytes);
+        static Texture2D* createTexture2D(const char* name, Image* srcImage, bool bGenerateMipmap, const Sampler2D& inSampler = Sampler2D{});
         static Texture2D* importTexture2D(const char* textureName, const char* srcImageFile, bool bGenerateMipmap, const Sampler2D& inSampler);
         static Texture2D* importTexture2D(const char* textureName, const char* srcImageName, const char* srcImageFile, bool bGenerateMipmap, const Sampler2D& inSampler);
         static Material& createMaterial(const char* name);
         static MaterialTextureAtlas& createPackedMaterial(const char* name);
+
+        // static TextureCube* createTextureCube(const char* name, const TextureCube::Spec& spec, const SamplerCube& inSampler = SamplerCube{ });
+        // static DepthTexture2D* createDepthTexture(const char* name, u32 width, u32 height);
+        // Texture2D* createTexture2D(const char* name, const Texture2D::Spec& spec, const Sampler2D& inSampler = Sampler2D{});
 
         // getters
         template <typename T>
@@ -280,7 +282,6 @@ namespace Cyan
 
         std::array<Texture2DAtlas*, (u32)Texture2DAtlas::Format::kCount> atlases = { nullptr };
     private:
-
         /**
         * Adding a texture into the asset data base
         */

@@ -29,7 +29,7 @@ namespace Cyan
         Sampler2D sampler;
         sampler.minFilter = FM_BILINEAR;
         sampler.magFilter = FM_BILINEAR;
-        m_srcHDRITexture = AssetManager::importTexture2D("SkyboxHDRITexture", srcHDRIPath, false, sampler);
+        m_srcHDRITexture = AssetManager::importTexture2D("SkyboxHDRI", srcHDRIPath, false, sampler);
 
         u32 numMips = log2(resolution.x) + 1;
         TextureCube::Spec cubemapSpec(resolution.x, numMips, PF_RGB16F);
@@ -39,11 +39,12 @@ namespace Cyan
         samplerCube.wrapS = WM_CLAMP;
         samplerCube.wrapT = WM_CLAMP;
 
-        m_cubemapTexture = AssetManager::createTextureCube(name, cubemapSpec, samplerCube);
+        m_cubemapTexture = std::make_unique<TextureCube>(name, cubemapSpec, samplerCube);
+        m_cubemapTexture->init();
 
         // render src equirectangular map into a cubemap
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(m_cubemapTexture->resolution, m_cubemapTexture->resolution));
-        renderTarget->setColorBuffer(m_cubemapTexture, 0u);
+        renderTarget->setColorBuffer(m_cubemapTexture.get(), 0u);
 
         CreateVS(vs, "RenderToCubemapVS", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl");
         CreatePS(ps, "RenderToCubemapPS", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl");
@@ -107,7 +108,7 @@ namespace Cyan
                 vs->setUniform("view", view);
                 vs->setUniform("projection", projection);
                 ps->setUniform("mipLevel", mipLevel);
-                ps->setTexture("cubemapTexture", m_cubemapTexture);
+                ps->setTexture("cubemapTexture", m_cubemapTexture.get());
             });
     }
 }

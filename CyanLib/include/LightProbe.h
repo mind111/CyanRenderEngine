@@ -41,7 +41,7 @@ namespace Cyan
         static const u32 kNumRaysPerHemiSphere = 128u;
 
         glm::vec2 m_irradianceTextureRes;
-        TextureCube* m_convolvedIrradianceTexture;
+        std::unique_ptr<TextureCube> m_convolvedIrradianceTexture = nullptr;
     };
 
     struct ReflectionProbe : public LightProbe
@@ -67,7 +67,7 @@ namespace Cyan
         static const u32 kNumMips = 11; 
         static PixelPipeline* s_convolveReflectionPipeline;
 
-        TextureCube* m_convolvedReflectionTexture;
+        std::unique_ptr<TextureCube> m_convolvedReflectionTexture = nullptr;
     };
 
     namespace LightProbeCameras

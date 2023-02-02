@@ -87,10 +87,11 @@ namespace Cyan
             SamplerCube sampler;
             char cubemapName[128] = { };
             sprintf(cubemapName, "SkyLightCubemap%u", numInstances);
-            srcCubemap = AssetManager::createTextureCube(cubemapName, cubemapSpec, sampler);
+            srcCubemap = std::make_unique<TextureCube>(cubemapName, cubemapSpec, sampler);
+            srcCubemap->init();
 
-            irradianceProbe = std::make_unique<IrradianceProbe>(srcCubemap, glm::uvec2(64));
-            reflectionProbe = std::make_unique<ReflectionProbe>(srcCubemap);
+            irradianceProbe = std::make_unique<IrradianceProbe>(srcCubemap.get(), glm::uvec2(64));
+            reflectionProbe = std::make_unique<ReflectionProbe>(srcCubemap.get());
         }
         else
         {
@@ -101,7 +102,7 @@ namespace Cyan
     }
 
     void SkyLight::build() {
-        buildCubemap(srcEquirectTexture, srcCubemap);
+        buildCubemap(srcEquirectTexture, srcCubemap.get());
         irradianceProbe->buildFromCubemap();
         reflectionProbe->buildFromCubemap();
     }

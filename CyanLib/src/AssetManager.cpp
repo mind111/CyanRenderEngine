@@ -788,24 +788,25 @@ namespace Cyan
         }
     }
 
-    Texture2D* AssetManager::createTexture2D(const char* name, const Texture2D::Spec& spec, const Sampler2D& inSampler)
-    {
-        Texture2D* outTexture = getAsset<Texture2D>(name);
-        if (!outTexture)
-        {
-            outTexture = new Texture2D(name, spec, inSampler);
-            outTexture->init();
-            singleton->addTexture(outTexture);
-        }
-        return outTexture;
-    }
-
     Texture2D* AssetManager::createTexture2D(const char* name, Image* srcImage, bool bGenerateMipmap, const Sampler2D& inSampler)
     {
         Texture2D* outTexture = getAsset<Texture2D>(name);
         if (!outTexture)
         {
             outTexture = new Texture2D(name, *srcImage, bGenerateMipmap, inSampler);
+            outTexture->init();
+            singleton->addTexture(outTexture);
+        }
+        return outTexture;
+    }
+
+#if 0
+    Texture2D* AssetManager::createTexture2D(const char* name, const Texture2D::Spec& spec, const Sampler2D& inSampler)
+    {
+        Texture2D* outTexture = getAsset<Texture2D>(name);
+        if (!outTexture)
+        {
+            outTexture = new Texture2D(name, spec, inSampler);
             outTexture->init();
             singleton->addTexture(outTexture);
         }
@@ -839,6 +840,7 @@ namespace Cyan
         }
         return outTexture;
     }
+#endif
 
     Image* AssetManager::importImage(const char* name, const char* filename)
     {
@@ -849,14 +851,7 @@ namespace Cyan
         auto entry = singleton->m_imageMap.find(name);
         if (entry == singleton->m_imageMap.end())
         {
-            if (name)
-            {
-                outImage = new Image(filename, name);
-            }
-            else
-            {
-                outImage = new Image(filename);
-            }
+            outImage = new Image(name, filename);
             singleton->m_images.push_back(outImage);
             singleton->m_imageMap.insert({ std::string(name), outImage});
         }
@@ -866,21 +861,18 @@ namespace Cyan
 
     Image* AssetManager::importImage(const char* name, u8* mem, u32 sizeInBytes)
     {
+        assert(name);
+
         Image* outImage = nullptr;
+
         auto entry = singleton->m_imageMap.find(name);
         if (entry == singleton->m_imageMap.end())
         {
-            if (name)
-            {
-                outImage = new Image(mem, sizeInBytes, name);
-            }
-            else
-            {
-                outImage = new Image(mem, sizeInBytes);
-            }
+            outImage = new Image(name, mem, sizeInBytes);
             singleton->m_images.push_back(outImage);
             singleton->m_imageMap.insert({ outImage->name, outImage});
         }
+        outImage = singleton->m_imageMap[std::string(name)];
         return outImage;
     }
 
