@@ -77,7 +77,7 @@ namespace Cyan
             (*refCount)++;
         }
 
-        CachedTexture2D(const char* name, const ITexture::Spec& spec, const ITexture::Parameter& params = {})
+        CachedTexture2D(const char* name, const Texture2D::Spec& spec, const Sampler2D& inSampler = {})
             : refCount(nullptr), texture(nullptr)
         {
             refCount = new u32(1u);
@@ -87,7 +87,8 @@ namespace Cyan
             if (entry == cache.end())
             {
                 // create a new texture and add it to the cache
-                texture = new Texture2D(name, spec, params);
+                texture = new Texture2D(name, spec, inSampler);
+                texture->init();
             }
             else
             {
@@ -130,7 +131,7 @@ namespace Cyan
     private:
         void release()
         {
-            cache.insert({ texture->getTextureSpec(), texture });
+            cache.insert({ texture->getSpec(), texture });
             texture = nullptr;
         }
         
@@ -139,17 +140,16 @@ namespace Cyan
          * spec. Do note that find() will return an iterator to any instance of key-value pair among all values
          * associated with that key, so the order of returned values are not guaranteed.
          */
-        static std::unordered_multimap<ITexture::Spec, Texture2D*> cache;
+        static std::unordered_multimap<Texture2D::Spec, Texture2D*> cache;
     };
 
     struct HiZBuffer
     {
-        HiZBuffer(ITexture::Spec spec);
+        HiZBuffer(const Texture2D::Spec& spec);
         ~HiZBuffer() { }
 
         void build(Texture2D* srcDepthTexture);
 
-        u32 numMips = 0;
         std::unique_ptr<Texture2D> texture;
     };
 
@@ -167,6 +167,8 @@ namespace Cyan
 
         GfxContext* getGfxCtx() { return m_ctx; };
         LinearAllocator& getFrameAllocator() { return m_frameAllocator; }
+
+        Texture2D* createRenderTexture(const char* textureName, const Texture2D::Spec& inSpec, const Sampler2D& inSampler);
 
 // rendering
         void beginRender();
@@ -264,7 +266,7 @@ namespace Cyan
         void renderSceneBatched(RenderableScene& renderableScene, RenderTarget* outRenderTarget, Texture2D* outSceneColor);
         void renderSceneDepthNormal(RenderableScene& renderableScene, RenderTarget* outRenderTarget, Texture2D* outDepthBuffer, Texture2D* outNormalBuffer);
         void renderSceneDepthPrepass(RenderableScene& renderableScene, RenderTarget* outRenderTarget, Texture2D* outDepthBuffer);
-        void renderSceneDepthOnly(RenderableScene& renderableScene, Texture2D* outDepthTexture);
+        void renderSceneDepthOnly(RenderableScene& renderableScene, DepthTexture2D* outDepthTexture);
         void renderSceneGBuffer(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer);
         void renderSceneGBufferWithTextureAtlas(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer);
         void renderShadowMaps(RenderableScene& scene);
@@ -386,11 +388,13 @@ namespace Cyan
         bool bFixDebugRay = false;
 
     private:
+
         GfxContext* m_ctx;
         u32 m_numFrames = 0u;
         LinearAllocator m_frameAllocator;
         std::queue<UIRenderCommand> m_UIRenderCommandQueue;
         std::unique_ptr<ManyViewGI> m_manyViewGI = nullptr;
+        std::vector<Texture2D*> renderTextures;
         bool bVisualize = false;
     };
 };

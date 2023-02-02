@@ -39,92 +39,61 @@ namespace Cyan
         glNamedBufferStorage(buffer, sizeInBytes, nullptr, GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_WRITE_BIT);
         data = glMapNamedBufferRange(buffer, 0, sizeInBytes, GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_WRITE_BIT);
     }
-    
+
+    Texture2D* Renderer::createRenderTexture(const char* textureName, const Texture2D::Spec& inSpec, const Sampler2D& inSampler)
+    {
+        auto outTexture = new Texture2D(textureName, inSpec, inSampler);
+        outTexture->init();
+        renderTextures.push_back(outTexture);
+        return outTexture;
+    }
+
     void Renderer::SceneTextures::initialize(const glm::uvec2& inResolution) 
     {
-        if (!bInitialized) {
+        if (!bInitialized) 
+        {
             auto renderer = Renderer::get();
             resolution = inResolution;
             // render target
             renderTarget = renderer->createCachedRenderTarget("Scene", resolution.x, resolution.y);
             // scene color
+            Sampler2D sampler;
             {
-                ITexture::Spec spec = { };
-                spec.width = resolution.x;
-                spec.height = resolution.y;
-                spec.type = TEX_2D;
-                spec.pixelFormat = PF_RGB16F;
-
-                ITexture::Parameter params = { };
-                params.magnificationFilter = FM_POINT;
-                params.minificationFilter = FM_POINT;
-                color = new Texture2D("SceneColor", spec);
+                Texture2D::Spec spec(resolution.x, resolution.y, 1, PF_RGB16F);
+                color = renderer->createRenderTexture("SceneColor", spec, sampler);
             }
             // g-buffer
             {
                 {
-                    ITexture::Spec spec = { };
-                    spec.type = TEX_2D;
-                    spec.width = resolution.x;
-                    spec.height = resolution.y;
-                    spec.pixelFormat = PF_RGB32F;
-
-                    ITexture::Parameter params = { };
-                    params.magnificationFilter = FM_POINT;
-                    params.minificationFilter = FM_POINT;
-                    gBuffer.normal = new Texture2D("SceneNormalBuffer", spec, params);
-                    gBuffer.depth = new Texture2D("SceneDepthBuffer", spec, params);
+                    Texture2D::Spec spec(resolution.x, resolution.y, 1, PF_RGB32F);
+                    gBuffer.normal = renderer->createRenderTexture("SceneNormalBuffer", spec, sampler);
+                    gBuffer.depth = renderer->createRenderTexture("SceneDepthBuffer", spec, sampler);
                 }
                 {
-                    ITexture::Spec spec = { };
-                    spec.width = resolution.x;
-                    spec.height = resolution.y;
-                    spec.type = TEX_2D;
-                    spec.pixelFormat = PF_RGB16F;
-
-                    ITexture::Parameter params = { };
-                    params.magnificationFilter = FM_POINT;
-                    params.minificationFilter = FM_POINT;
-                    gBuffer.albedo = new Texture2D("Albedo", spec, params);
-                    gBuffer.metallicRoughness = new Texture2D("MetallicRoughness", spec, params);
+                    Texture2D::Spec spec(resolution.x, resolution.y, 1, PF_RGB16F);
+                    gBuffer.albedo = renderer->createRenderTexture("Albedo", spec, sampler);
+                    gBuffer.metallicRoughness = renderer->createRenderTexture("MetallicRoughness", spec, sampler);
                 }
             }
             // Hi-Z
             {
-                HiZ = new HiZBuffer(gBuffer.depth->getTextureSpec());
-                ITexture::Spec spec = { };
-                spec.width = resolution.x;
-                spec.height = resolution.y;
-                spec.type = TEX_2D;
-                spec.pixelFormat = PF_RGB16F;
-                ssgiMirror = new Texture2D("SSRTMirror", spec);
+                HiZ = new HiZBuffer(gBuffer.depth->getSpec());
+                Texture2D::Spec spec(resolution.x, resolution.y, 1, PF_RGB16F);
+                ssgiMirror = renderer->createRenderTexture("SSRTMirror", spec, sampler);
             }
             // direct lighting
             {
-                ITexture::Spec spec = { };
-                spec.width = resolution.x;
-                spec.height = resolution.y;
-                spec.type = TEX_2D;
-                spec.pixelFormat = PF_RGB16F;
-                directLighting = new Texture2D("DirectLighting", spec);
-                directDiffuseLighting = new Texture2D("DirectDiffuseLighting", spec);
+                Texture2D::Spec spec(resolution.x, resolution.y, 1, PF_RGBA16F);
+                directLighting = renderer->createRenderTexture("DirectLighting", spec, sampler);
+                directDiffuseLighting = renderer->createRenderTexture("DirectDiffuseLighting", spec, sampler);
             }
             // indirect lighting
             {
-                ITexture::Spec spec = { };
-                spec.width = resolution.x;
-                spec.height = resolution.y;
-                spec.type = TEX_2D;
-                spec.pixelFormat = PF_RGB16F;
-
-                ITexture::Parameter params = { };
-                params.magnificationFilter = FM_POINT;
-                params.minificationFilter = FM_POINT;
-
-                ao = new Texture2D("SSAO", spec, params);
-                bentNormal = new Texture2D("SSBN", spec, params);
-                indirectLighting = new Texture2D("IndirectLighting", spec, params);
-                irradiance = new Texture2D("Irradiance", spec, params);
+                Texture2D::Spec spec(resolution.x, resolution.y, 1, PF_RGB16F);
+                ao = renderer->createRenderTexture("SSAO", spec, sampler);
+                bentNormal = renderer->createRenderTexture("SSBN", spec, sampler);
+                indirectLighting = renderer->createRenderTexture("IndirectLighting", spec, sampler);
+                irradiance = renderer->createRenderTexture("Irradiance", spec, sampler);
             }
 
             Renderer::get()->registerVisualization(std::string("SceneTextures"), color);
@@ -438,7 +407,7 @@ namespace Cyan
         multiDrawSceneIndirect(scene);
     }
 
-    void Renderer::renderSceneDepthOnly(RenderableScene& scene, Texture2D* outDepthTexture) 
+    void Renderer::renderSceneDepthOnly(RenderableScene& scene, DepthTexture2D* outDepthTexture) 
     {
         std::unique_ptr<RenderTarget> depthRenderTarget(createDepthOnlyRenderTarget(outDepthTexture->width, outDepthTexture->height));
         depthRenderTarget->setDepthBuffer(reinterpret_cast<DepthTexture2D*>(outDepthTexture));
@@ -454,7 +423,8 @@ namespace Cyan
         multiDrawSceneIndirect(scene);
     }
 
-    void Renderer::renderSceneDepthNormal(RenderableScene& scene, RenderTarget* outRenderTarget, Texture2D* outDepthBuffer, Texture2D* outNormalBuffer) {
+    void Renderer::renderSceneDepthNormal(RenderableScene& scene, RenderTarget* outRenderTarget, Texture2D* outDepthBuffer, Texture2D* outNormalBuffer) 
+    {
         outRenderTarget->setColorBuffer(outDepthBuffer, 0);
         outRenderTarget->setColorBuffer(outNormalBuffer, 1);
         outRenderTarget->setDrawBuffers({ 0, 1 });
@@ -611,17 +581,18 @@ namespace Cyan
         });
     }
 
-    HiZBuffer::HiZBuffer(ITexture::Spec spec)
+    HiZBuffer::HiZBuffer(const Texture2D::Spec& inSpec)
     {
         // for now, we should be using square render target with power of 2 resolution
-        assert(isPowerOf2(spec.width) && isPowerOf2(spec.height));
-        assert(spec.width == spec.height);
-        numMips = std::log2(spec.width) + 1;
-        spec.numMips = numMips;
-        ITexture::Parameter params = { };
-        params.magnificationFilter = FM_POINT;
-        params.minificationFilter = FM_MIPMAP_POINT;
-        texture = std::make_unique<Texture2D>("HiZBuffer", spec, params);
+        assert(isPowerOf2(inSpec.width) && isPowerOf2(inSpec.height));
+        assert(inSpec.width == inSpec.height);
+        Texture2D::Spec spec(inSpec);
+        spec.numMips = log2(spec.width) + 1;
+        Sampler2D sampler;
+        sampler.magFilter = FM_POINT;
+        sampler.minFilter = FM_MIPMAP_POINT;
+        auto renderer = Renderer::get();
+        texture = std::unique_ptr<Texture2D>(renderer->createRenderTexture("HiZBuffer", spec, sampler));
     }
 
     void HiZBuffer::build(Texture2D* srcDepthTexture)
@@ -649,7 +620,7 @@ namespace Cyan
             CreatePixelPipeline(pipeline, "BuildHiZ", vs, ps);
             u32 mipWidth = texture->width;
             u32 mipHeight = texture->height;
-            for (i32 i = 1; i < numMips; ++i)
+            for (i32 i = 1; i < texture->numMips; ++i)
             {
                 mipWidth /= 2u;
                 mipHeight /= 2u;
@@ -671,7 +642,6 @@ namespace Cyan
             }
         }
     }
-
 
     void Renderer::visualizeSSRT(Texture2D* depth, Texture2D* normal)
     {
@@ -714,7 +684,7 @@ namespace Cyan
                     auto blueNoiseTexture = AssetManager::getAsset<Texture2D>("BlueNoise_1024x1024");
                     cs->setTexture("blueNoiseTexture", blueNoiseTexture);
                     cs->setUniform("outputSize", glm::vec2(depth->width, depth->height));
-                    cs->setUniform("numLevels", (i32)m_sceneTextures.HiZ->numMips);
+                    cs->setUniform("numLevels", (i32)m_sceneTextures.HiZ->texture->numMips);
                     cs->setUniform("kMaxNumIterations", kNumIterations);
                     cs->setUniform("numRays", numDebugRays);
                 }
@@ -817,7 +787,7 @@ namespace Cyan
                         ps->setTexture("sceneDepth", m_sceneTextures.gBuffer.depth);
                         ps->setTexture("sceneNormal", m_sceneTextures.gBuffer.normal);
                         ps->setTexture("directDiffuseBuffer", m_sceneTextures.gBuffer.normal);
-                        ps->setUniform("numLevels", (i32)m_sceneTextures.HiZ->numMips);
+                        ps->setUniform("numLevels", (i32)m_sceneTextures.HiZ->texture->numMips);
                         ps->setTexture("HiZ", m_sceneTextures.HiZ->texture.get());
                         ps->setUniform("kMaxNumIterations", kNumIterations);
                     }
@@ -948,24 +918,13 @@ namespace Cyan
     Renderer::SSGI::HitBuffer::HitBuffer(u32 inNumLayers, const glm::uvec2& resolution)
         : numLayers(inNumLayers)
     {
-        ITexture::Spec spec = { };
-        spec.type = TEX_2D_ARRAY;
-        spec.width = resolution.x;
-        spec.height = resolution.y;
-        spec.depth = inNumLayers;
-        spec.pixelFormat = PF_RGBA16F;
-        spec.numMips = 1u;
-
-        ITexture::Parameter params = { };
-        params.minificationFilter = FM_POINT;
-        params.magnificationFilter = FM_POINT;
-        params.wrap_r = WM_CLAMP;
-        params.wrap_s = WM_CLAMP;
-        params.wrap_t = WM_CLAMP;
-
-        position = new Texture2DArray("SSRTHitPositionBuffer", spec, params);
-        normal = new Texture2DArray("SSRTHitNormalBuffer", spec, params);
-        radiance = new Texture2DArray("SSRTHitRadianceBuffer", spec, params);
+        Texture2DArray::Spec spec(resolution.x, resolution.y, 1, numLayers, PF_RGBA16F);
+        position = new Texture2DArray("SSRTHitPositionBuffer", spec, Sampler2D());
+        position->init();
+        normal = new Texture2DArray("SSRTHitNormalBuffer", spec, Sampler2D());
+        normal->init();
+        radiance = new Texture2DArray("SSRTHitRadianceBuffer", spec, Sampler2D());
+        radiance->init();
     }
 
     Renderer::SSGI::SSGI(Renderer* inRenderer, const glm::uvec2& inRes)
@@ -1001,7 +960,7 @@ namespace Cyan
                 ps->setTexture("depthBuffer", gBuffer.depth);
                 ps->setTexture("normalBuffer", gBuffer.normal);
                 ps->setTexture("HiZ", HiZ->texture.get());
-                ps->setUniform("numLevels", (i32)HiZ->numMips);
+                ps->setUniform("numLevels", (i32)HiZ->texture->numMips);
                 ps->setUniform("kMaxNumIterations", (i32)kNumIterations);
                 auto blueNoiseTexture = AssetManager::getAsset<Texture2D>("BlueNoise_1024x1024");
                 ps->setTexture("blueNoiseTexture", blueNoiseTexture);
@@ -1038,7 +997,7 @@ namespace Cyan
                 ps->setTexture("depthBuffer", gBuffer.depth);
                 ps->setTexture("normalBuffer", gBuffer.normal);
                 ps->setTexture("HiZ", HiZ->texture.get());
-                ps->setUniform("numLevels", (i32)HiZ->numMips);
+                ps->setUniform("numLevels", (i32)HiZ->texture->numMips);
                 ps->setUniform("kMaxNumIterations", (i32)kNumIterations);
                 auto blueNoiseTexture = AssetManager::getAsset<Texture2D>("BlueNoise_1024x1024");
                 ps->setTexture("blueNoiseTexture", blueNoiseTexture);
@@ -1267,12 +1226,12 @@ namespace Cyan
         );
     }
 
-    std::unordered_multimap<ITexture::Spec, Texture2D*> CachedTexture2D::cache;
+    std::unordered_multimap<Texture2D::Spec, Texture2D*> CachedTexture2D::cache;
 
     CachedTexture2D Renderer::bloom(Texture2D* src)
     {
         // setup pass
-        CachedTexture2D bloomSetupTexture("BloomSetup", src->getTextureSpec());
+        CachedTexture2D bloomSetupTexture("BloomSetup", src->getSpec());
         auto renderTarget = createCachedRenderTarget("BloomSetup", bloomSetupTexture->width, bloomSetupTexture->height);
         renderTarget->setColorBuffer(bloomSetupTexture.get(), 0);
         CreateVS(vs, "BloomSetupVS", SHADER_SOURCE_PATH "bloom_setup_v.glsl");
@@ -1296,7 +1255,7 @@ namespace Cyan
                 Texture2D* src = downsamplePyramid[pass - 1].get();
                 std::string passName("BloomDownsample");
                 passName += '[' + std::to_string(pass) + ']';
-                ITexture::Spec spec = src->getTextureSpec();
+                Texture2D::Spec spec = src->getSpec();
                 spec.width /= 2;
                 spec.height /= 2;
                 if (spec.width == 0u || spec.height == 0u)
@@ -1335,7 +1294,7 @@ namespace Cyan
                 Texture2D* blend = downsamplePyramid[pass - 1].get();
                 std::string passName("BloomUpscale");
                 passName += '[' + std::to_string(pass) + ']';
-                ITexture::Spec spec = src->getTextureSpec();
+                Texture2D::Spec spec = src->getSpec();
                 spec.width *= 2;
                 spec.height *= 2;
                 upscalePyramid[pass - 1] = CachedTexture2D(passName.c_str(), spec);
@@ -1447,7 +1406,7 @@ namespace Cyan
 
         // create scratch buffer for storing intermediate output
         std::string name("GaussianBlurScratch");
-        ITexture::Spec spec = inoutTexture->getTextureSpec();
+        Texture2D::Spec spec = inoutTexture->getSpec();
         name += '_' + std::to_string(spec.width) + 'x' + std::to_string(spec.height);
         CachedTexture2D scratchBuffer(name.c_str(), spec);
         auto scratch = scratchBuffer.get();
@@ -1646,13 +1605,8 @@ namespace Cyan
         );
 
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(320, 180));
-        ITexture::Spec spec = { };
-        spec.type = TEX_2D;
-        spec.width = 320;
-        spec.height = 180;
-        spec.pixelFormat = PF_RGB16F;
-
-        static Texture2D* outTexture = new Texture2D("CubemapViewerTexture", spec);
+        Texture2D::Spec spec(320, 180, 1, PF_RGB16F);
+        static Texture2D* outTexture = createRenderTexture("CubemapViewerTexture", spec, Sampler2D());
         renderTarget->setColorBuffer(outTexture, 0);
         renderTarget->clearDrawBuffer(0, glm::vec4(0.2, 0.2, 0.2, 1.f));
         
@@ -1708,7 +1662,8 @@ namespace Cyan
         });
     }
 
-    void Renderer::debugDrawCubemap(GLuint cubemap) {
+    void Renderer::debugDrawCubemap(GLuint cubemap) 
+    {
         static PerspectiveCamera camera(
             glm::vec3(0.f, 1.f, 2.f),
             glm::vec3(0.f, 0.f, 0.f),
@@ -1720,13 +1675,8 @@ namespace Cyan
         );
 
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(320, 180));
-        ITexture::Spec spec = { };
-        spec.type = TEX_2D;
-        spec.width = 320;
-        spec.height = 180;
-        spec.pixelFormat = PF_RGB16F;
-
-        static Texture2D* outTexture = new Texture2D("CubemapViewerTexture", spec);
+        Texture2D::Spec spec(320, 180, 1, PF_RGB16F);
+        static Texture2D* outTexture = createRenderTexture("CubemapViewerTexture", spec, Sampler2D());
         renderTarget->setColorBuffer(outTexture, 0);
         renderTarget->clearDrawBuffer(0, glm::vec4(0.2, 0.2, 0.2, 1.f));
         

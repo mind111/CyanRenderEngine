@@ -159,28 +159,17 @@ namespace Cyan
         struct Subtexture
         {
             i32 src;
-            // addressing mode
-            ITexture::Parameter::WrapMode wrap_s;
-            ITexture::Parameter::WrapMode wrap_t;
-            // filtering mode
-            ITexture::Parameter::Filtering minFilter;
-            ITexture::Parameter::Filtering magFilter;
-            glm::vec3 padding; // for ssbo alignment
+            Sampler2D sampler;
+            glm::vec3 padding;
         };
 
-        Texture2DAtlas(u32 inSizeInPixels, const ITexture::Spec::PixelFormat& inFormat)
+        Texture2DAtlas(u32 inSizeInPixels, const Texture::Format& inFormat)
         {
-            Cyan::ITexture::Spec spec = { };
-            spec.type = TEX_2D;
-            spec.width = inSizeInPixels;
-            spec.height = inSizeInPixels;
-            spec.pixelFormat = inFormat;
-            spec.numMips = log2(inSizeInPixels) + 1;
-
-            Cyan::ITexture::Parameter params = { };
-            params.magnificationFilter = FM_BILINEAR;
-            params.minificationFilter = FM_TRILINEAR;
-            atlas = std::make_unique<Cyan::Texture2D>(spec, params);
+            Texture2D::Spec spec(inSizeInPixels, inSizeInPixels, log2(inSizeInPixels) + 1, inFormat);
+            Sampler2D sampler = { };
+            sampler.minFilter = FM_TRILINEAR;
+            sampler.magFilter = FM_BILINEAR;
+            atlas = std::make_unique<Cyan::Texture2D>(spec, sampler);
             imageQuadTree = std::make_unique<ImageQuadTree>(atlas->width);
         }
 
@@ -190,7 +179,7 @@ namespace Cyan
         }
 
         i32 packImage(const Image& inImage);
-        i32 addSubtexture(i32 srcImageIndex, const ITexture::Parameter& params);
+        i32 addSubtexture(i32 srcImageIndex, const Sampler2D& inSampler, bool bGenerateMipmap);
 
         const u32 maxSubtextureSize = 4096;
         std::vector<Image> images;

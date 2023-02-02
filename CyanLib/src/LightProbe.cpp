@@ -37,26 +37,26 @@ namespace Cyan
         : scene(nullptr), position(glm::vec3(0.f)), resolution(glm::uvec2(srcCubemapTexture->resolution, srcCubemapTexture->resolution)), 
         debugSphereMesh(nullptr), sceneCapture(srcCubemapTexture)
     {
-        initialize();
+        init();
     }
 
     LightProbe::LightProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& resolution)
         : scene(scene), position(p), resolution(resolution), debugSphereMesh(nullptr), sceneCapture(nullptr)
     {
         // debugSphereMesh = AssetManager::getAsset<Mesh>("sphere_mesh")->createInstance(scene);
-        initialize();
+        init();
     }
 
-    void LightProbe::initialize() {
-        ITexture::Spec spec = { };
-        spec.width = resolution.x;
-        spec.type = ITexture::Spec::Type::kTexCube;
-        spec.pixelFormat = ITexture::Spec::PixelFormat::RGB16F;
-        // sceneCapture = AssetManager::createTextureCube("SceneCapture", spec);
+    void LightProbe::init() 
+    {
+        if (!sceneCapture)
+        {
+            assert(0);
+        }
     }
 
-    void LightProbe::captureScene() {
-        CYAN_ASSERT(scene, "Attempt to call LightProbe::captureScene() while scene is NULL!");
+    void LightProbe::captureScene() 
+    {
         assert(scene);
 
         // create render target
@@ -84,12 +84,7 @@ namespace Cyan
 
     void IrradianceProbe::initialize()
     {
-        ITexture::Spec spec = { };
-        spec.width = m_irradianceTextureRes.x;
-        spec.height = m_irradianceTextureRes.x;
-        spec.depth = m_irradianceTextureRes.x;
-        spec.type = ITexture::Spec::Type::kTexCube;
-        spec.pixelFormat = ITexture::Spec::PixelFormat::RGB16F;
+        TextureCube::Spec spec(m_irradianceTextureRes.x, 1, PF_RGB16F);
         m_convolvedIrradianceTexture = AssetManager::createTextureCube("IrradianceProbe", spec);
 
         if (!s_convolveIrradiancePipeline)
@@ -102,6 +97,8 @@ namespace Cyan
 
     void IrradianceProbe::convolve()
     {
+        assert(sceneCapture);
+
         auto renderer = Renderer::get();
 
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(m_irradianceTextureRes.x, m_irradianceTextureRes.y));
@@ -170,14 +167,12 @@ namespace Cyan
     void ReflectionProbe::initialize()
     {
         // convolved radiance texture
-        ITexture::Spec spec = { };
-        spec.width = resolution.x;
-        spec.type = ITexture::Spec::Type::kTexCube;
-        spec.pixelFormat = ITexture::Spec::PixelFormat::RGB16F;
-        spec.numMips = max(1, log2(spec.width) + 1);
-        ITexture::Parameter parameter = { };
-        parameter.minificationFilter = ITexture::Parameter::Filtering::LINEAR_MIPMAP_LINEAR;
-        m_convolvedReflectionTexture = AssetManager::createTextureCube("ReflectionProbe", spec, parameter);
+        u32 numMips = log2(resolution.x) + 1;
+        TextureCube::Spec spec(resolution.x, numMips, PF_RGB16F);
+        SamplerCube sampler;
+        sampler.minFilter = FM_TRILINEAR;
+        sampler.magFilter = FM_BILINEAR;
+        m_convolvedReflectionTexture = AssetManager::createTextureCube("ReflectionProbe", spec, sampler);
 
         if (!s_convolveReflectionPipeline)
         {
@@ -195,16 +190,9 @@ namespace Cyan
 
     Texture2D* ReflectionProbe::buildBRDFLookupTexture()
     {
-        ITexture::Spec spec = { };
-        spec.width = 512u;
-        spec.height = 512u;
-        spec.pixelFormat = ITexture::Spec::PixelFormat::RGBA16F;
-        spec.type = TEX_2D;
-        ITexture::Parameter params = { };
-        params.wrap_r = WM_CLAMP;
-        params.wrap_s = WM_CLAMP;
-        params.wrap_t = WM_CLAMP;
-        Texture2D* outTexture = AssetManager::createTexture2D("BRDFLUT", spec, params);
+        Texture2D::Spec spec(512u, 512u, 1, PF_RGBA16F);
+        Sampler2D sampler;
+        Texture2D* outTexture = AssetManager::createTexture2D("BRDFLUT", spec, sampler);
 
         RenderTarget* renderTarget = createRenderTarget(outTexture->width, outTexture->height);
         renderTarget->setColorBuffer(outTexture, 0u);

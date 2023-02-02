@@ -13,17 +13,15 @@ namespace Cyan
         : gpuNodes("SurfelBSHNodeBuffer")
         , nodeInstanceBuffer("InstanceBuffer")
     {
-        if (!visualization) {
-            ITexture::Spec spec = { };
-            spec.type = TEX_2D;
-            spec.width = 1280;
-            spec.height = 720;
-            spec.pixelFormat = PF_RGB16F;
+        if (!visualization) 
+        {
+            Texture2D::Spec spec(1280, 720, 1, PF_RGB16F);
             visualization = new Texture2D("SurfelBSHVisualization", spec);
         }
     }
 
-    bool SurfelBSH::castRayInternal(const glm::vec3& ro, const glm::vec3& rd, const Node& node, RayHit& hit) const {
+    bool SurfelBSH::castRayInternal(const glm::vec3& ro, const glm::vec3& rd, const Node& node, RayHit& hit) const 
+    {
         f32 t;
         bool intersect = node.intersect(ro, rd, t);
         if (intersect) {
@@ -44,11 +42,13 @@ namespace Cyan
         return intersect;
     }
 
-    bool SurfelBSH::castRay(const glm::vec3& ro, const glm::vec3& rd, RayHit& hit) const {
+    bool SurfelBSH::castRay(const glm::vec3& ro, const glm::vec3& rd, RayHit& hit) const 
+    {
         return castRayInternal(ro, rd, nodes[0], hit);
     }
 
-    bool SurfelBSH::Node::intersect(const glm::vec3& ro, const glm::vec3& rd, f32& t) const { 
+    bool SurfelBSH::Node::intersect(const glm::vec3& ro, const glm::vec3& rd, f32& t) const 
+    { 
         // ray-sphere intersection 
         f32 t0, t1;
         glm::vec3 l = ro - center;
@@ -85,7 +85,8 @@ namespace Cyan
         assert(0);
     }
 
-    void SurfelBSH::Node::build(const std::vector<Surfel>& surfels, u32 surfelIndex) {
+    void SurfelBSH::Node::build(const std::vector<Surfel>& surfels, u32 surfelIndex) 
+    {
         // this node is a child node
         surfelID = surfelIndex;
         center = surfels[surfelID].position;
@@ -94,7 +95,8 @@ namespace Cyan
         normal = surfels[surfelID].normal;
     }
 
-    void SurfelBSH::Node::build(const std::vector<Node>& nodes, u32 leftChildIndex, u32 rightChildIndex) {
+    void SurfelBSH::Node::build(const std::vector<Node>& nodes, u32 leftChildIndex, u32 rightChildIndex) 
+    {
         const auto& leftChild = nodes[leftChildIndex];
         const auto& rightChild = nodes[rightChildIndex];
         // this node is a internal node
@@ -113,7 +115,8 @@ namespace Cyan
         childs[1] = rightChildIndex;
     }
 
-    void SurfelBSH::dfs(i32 nodeIndex, const std::function<void(Node&)>& callback) {
+    void SurfelBSH::dfs(i32 nodeIndex, const std::function<void(Node&)>& callback) 
+    {
         if (nodeIndex < 0) {
             return;
         }

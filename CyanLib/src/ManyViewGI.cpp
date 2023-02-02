@@ -62,53 +62,33 @@ namespace Cyan {
             u32 bufferSize = kMaxNumHemicubes * sizeof(Hemicube);
             glNamedBufferData(hemicubeBuffer, bufferSize, nullptr, GL_DYNAMIC_COPY);
 
-            ITexture::Spec radianceAtlasSpec = { };
-            radianceAtlasSpec.type = TEX_2D;
-            radianceAtlasSpec.width = radianceAtlasRes.x;
-            radianceAtlasSpec.height = radianceAtlasRes.y;
-            radianceAtlasSpec.pixelFormat = PF_RGBA16F;
-            ITexture::Parameter params = { };
-            params.magnificationFilter = FM_POINT;
-            radianceAtlas = new Texture2D("RadianceAtlas", radianceAtlasSpec, params);
+            Texture2D::Spec radianceAtlasSpec(radianceAtlasRes.x, radianceAtlasRes.y, 1, PF_RGBA16F);
+            Sampler2D sampler;
+            sampler.magFilter = FM_POINT;
+            radianceAtlas = new Texture2D("RadianceAtlas", radianceAtlasSpec, sampler);
 
             /** note - @min:
             * it seems imageStore() only supports 1,2,4 channels textures, so using rgba16f here
             */
             {
-                ITexture::Spec irradianceSpec = { };
-                irradianceSpec.type = TEX_2D;
-                irradianceSpec.width = irradianceRes.x;
-                irradianceSpec.height = irradianceRes.y;
-                irradianceSpec.pixelFormat = PF_RGBA16F;
-                irradiance = new Texture2D("Irradiance", irradianceSpec);
+                Texture2D::Spec irradianceSpec(irradianceRes.x, irradianceRes.y, 1, PF_RGBA16F);
+                irradiance = new Texture2D("Irradiance", irradianceSpec, Sampler2D());
             }
             {
-                ITexture::Spec spec = { };
-                spec.type = TEX_2D;
-                spec.width = irradianceRes.x;
-                spec.height = irradianceRes.y;
-                spec.pixelFormat = PF_RGB16F;
-                normal = new Texture2D("MVGINormal", spec);
-                albedo = new Texture2D("MVGIAlbedo", spec);
+                Texture2D::Spec spec(irradianceRes.x, irradianceRes.y, 1, PF_RGB16F);
+                normal = new Texture2D("MVGINormal", spec, Sampler2D());
+                albedo = new Texture2D("MVGIAlbedo", spec, Sampler2D());
             }
             {
-                ITexture::Spec spec = { };
-                spec.type = TEX_2D;
-                spec.width = irradianceRes.x;
-                spec.height = irradianceRes.y;
-                spec.pixelFormat = PF_RGBA16F;
-                position = new Texture2D("MVGIPosition", spec);
+                Texture2D::Spec spec(irradianceRes.x, irradianceRes.y, 1, PF_RGBA16F);
+                position = new Texture2D("MVGIPosition", spec, Sampler2D());
             }
             {
-                ITexture::Spec spec = { };
-                spec.type = TEX_2D;
-                spec.width = irradianceRes.x;
-                spec.height = irradianceRes.y;
-                spec.pixelFormat = PF_RGBA16F;
-                directLighting = new Texture2D("MVGIDirectLighting", spec);
-                indirectLighting = new Texture2D("MVGIIndirectLighting", spec);
-                sceneColor = new Texture2D("MVGISceneColor", spec);
-                composed = new Texture2D("MVGIComposed", spec);
+                Texture2D::Spec spec(irradianceRes.x, irradianceRes.y, 1, PF_RGBA16F);
+                directLighting = new Texture2D("MVGIDirectLighting", spec, Sampler2D());
+                indirectLighting = new Texture2D("MVGIIndirectLighting", spec, Sampler2D());
+                sceneColor = new Texture2D("MVGISceneColor", spec, Sampler2D());
+                composed = new Texture2D("MVGIComposed", spec, Sampler2D());
             }
 
             // register visualizations
@@ -458,30 +438,16 @@ namespace Cyan {
     {
         if (!bInitialized) {
             if (!m_sharedRadianceCubemap) {
-                ITexture::Spec spec = {};
-                spec.width = kFinalGatherRes;
-                spec.height = kFinalGatherRes;
-                spec.type = TEX_CUBE;
-                spec.pixelFormat = PF_RGB16F;
-                ITexture::Parameter params = {};
+                TextureCube::Spec spec(kFinalGatherRes, 1, PF_RGB16F);
                 /** note - @mind:
                 * ran into a "incomplete texture" error when setting magnification filter to FM_TRILINEAR
                 */
                 // todo: based on the rendering output, pay attention to the difference between using point/bilinear sampling
-                params.minificationFilter = FM_POINT;
-                params.magnificationFilter = FM_POINT;
-                params.wrap_r = WM_CLAMP;
-                params.wrap_s = WM_CLAMP;
-                params.wrap_t = WM_CLAMP;
-                m_sharedRadianceCubemap = new TextureCube("ManyViewGISharedRadianceCubemap", spec);
+                m_sharedRadianceCubemap = new TextureCube("ManyViewGISharedRadianceCubemap", spec, SamplerCube());
             }
             if (!visualizations.shared) {
-                ITexture::Spec spec = {};
-                spec.type = TEX_2D;
-                spec.width = visualizations.resolution.x;
-                spec.height = visualizations.resolution.y;
-                spec.pixelFormat = PF_RGB16F;
-                visualizations.shared = new Texture2D("ManyViewGIVisualization", spec);
+                Texture2D::Spec spec(visualizations.resolution.x, visualizations.resolution.y, 1, PF_RGB16F);
+                visualizations.shared = new Texture2D("ManyViewGIVisualization", spec, Sampler2D());
             }
             m_renderer->registerVisualization("ManyViewGI", visualizations.shared);
 
@@ -638,12 +604,8 @@ namespace Cyan {
         {
             if (!visualizations.rasterizedSurfels) 
             {
-                ITexture::Spec spec = {};
-                spec.type = TEX_2D;
-                spec.width = 16;
-                spec.height = 16;
-                spec.pixelFormat = PF_RGB16F;
-                visualizations.rasterizedSurfels = new Texture2D("RasterizedSurfelScene", spec);
+                Texture2D::Spec spec(16, 16, 1, PF_RGB16F);
+                visualizations.rasterizedSurfels = new Texture2D("RasterizedSurfelScene", spec, Sampler2D());
             }
             bInitialized = true;
         }
@@ -925,22 +887,12 @@ namespace Cyan {
         , postTraversalBuffer(resolution) 
     {
         {
-            ITexture::Spec spec = { };
-            spec.type = TEX_2D;
-            spec.width = resolution;
-            spec.height = resolution;
-            spec.pixelFormat = PF_RGB32F;
-            ITexture::Parameter params = { };
-            params.magnificationFilter = FM_POINT;
-            gpuTexture = new Texture2D("MicroBuffer", spec, params);
+            Texture2D::Spec spec(resolution, resolution, 1, PF_RGB32F);
+            gpuTexture = new Texture2D("MicroBuffer", spec);
         }
 
         {
-            ITexture::Spec spec = { };
-            spec.type = TEX_2D;
-            spec.width = 1280;
-            spec.height = 720;
-            spec.pixelFormat = PF_RGB16F;
+            Texture2D::Spec spec(1280, 720, 1, PF_RGB16F);
             visualization = new Texture2D("MicroBufferVis", spec);
         }
 

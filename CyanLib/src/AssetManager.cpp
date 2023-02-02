@@ -90,6 +90,96 @@ namespace Cyan
         }
     }
 
+    void AssetManager::initialize() 
+    {
+        /**
+            initialize default geometries and shapes
+        */ 
+        // line
+
+        // shared global quad mesh
+        {
+            float quadVerts[24] = {
+                -1.f, -1.f, 0.f, 0.f,
+                 1.f,  1.f, 1.f, 1.f,
+                -1.f,  1.f, 0.f, 1.f,
+
+                -1.f, -1.f, 0.f, 0.f,
+                 1.f, -1.f, 1.f, 0.f,
+                 1.f,  1.f, 1.f, 1.f
+            };
+
+            std::vector<ISubmesh*> submeshes;
+            std::vector<Triangles::Vertex> vertices(6);
+            vertices[0].pos = glm::vec3(-1.f, -1.f, 0.f); vertices[0].texCoord0 = glm::vec2(0.f, 0.f);
+            vertices[1].pos = glm::vec3( 1.f,  1.f, 0.f); vertices[1].texCoord0 = glm::vec2(1.f, 1.f);
+            vertices[2].pos = glm::vec3(-1.f,  1.f, 0.f); vertices[2].texCoord0 = glm::vec2(0.f, 1.f);
+            vertices[3].pos = glm::vec3(-1.f, -1.f, 0.f); vertices[3].texCoord0 = glm::vec2(0.f, 0.f);
+            vertices[4].pos = glm::vec3( 1.f, -1.f, 0.f); vertices[4].texCoord0 = glm::vec2(1.f, 0.f);
+            vertices[5].pos = glm::vec3( 1.f,  1.f, 0.f); vertices[5].texCoord0 = glm::vec2(1.f, 1.f);
+            std::vector<u32> indices({ 0, 1, 2, 3, 4, 5 });
+            submeshes.push_back(createSubmesh<Triangles>(vertices, indices));
+            m_defaultShapes.fullscreenQuad = createMesh("FullScreenQuadMesh", submeshes);
+        }
+
+        // cube
+        u32 numVertices = sizeof(cubeVertices) / sizeof(glm::vec3);
+        std::vector<ISubmesh*> submeshes;
+        std::vector<Triangles::Vertex> vertices(numVertices);
+        std::vector<u32> indices(numVertices);
+        for (u32 v = 0; v < numVertices; ++v)
+        {
+            vertices[v].pos = glm::vec3(cubeVertices[v * 3 + 0], cubeVertices[v * 3 + 1], cubeVertices[v * 3 + 2]);
+            indices[v] = v;
+        }
+        submeshes.push_back(createSubmesh<Triangles>(vertices, indices));
+        m_defaultShapes.unitCubeMesh = createMesh("UnitCubeMesh", submeshes);
+        // quad
+        m_defaultShapes.quad = createMesh("Quad", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/quad.obj"));
+        // sphere
+        m_defaultShapes.sphere = createMesh("Sphere", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/sphere.obj"));
+        // icosphere
+        m_defaultShapes.icosphere = createMesh("IcoSphere", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/icosphere.obj"));
+        // bounding sphere
+        // todo: line mesh doesn't work
+        m_defaultShapes.boundingSphere = createMesh("BoundingSphere", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/bounding_sphere.obj"));
+        // cylinder
+        // disk
+        m_defaultShapes.disk = createMesh("Disk", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/disk.obj"));
+
+        /**
+        *   initialize default textures
+        */ 
+        {
+            Sampler2D sampler = { };
+            sampler.minFilter = FM_TRILINEAR;
+            sampler.magFilter = FM_BILINEAR;
+            sampler.wrapS = Sampler::Addressing::kWrap;
+            sampler.wrapT = Sampler::Addressing::kWrap;
+            m_defaultTextures.checkerDark = importTexture2D("default_checker_dark", ASSET_PATH "textures/defaults/checker_dark.png", true, sampler);
+            m_defaultTextures.checkerOrange = importTexture2D("default_checker_orange", ASSET_PATH "textures/defaults/checker_orange.png", true, sampler);
+            m_defaultTextures.gridDark = importTexture2D("default_grid_dark", ASSET_PATH "textures/defaults/grid_dark.png", true, sampler);
+            m_defaultTextures.gridOrange = importTexture2D("default_grid_orange", ASSET_PATH "textures/defaults/grid_orange.png", true, sampler);
+        }
+        {
+            Sampler2D sampler = { };
+            sampler.minFilter = FM_POINT;
+            sampler.magFilter = FM_POINT;
+            sampler.wrapS = WM_WRAP;
+            sampler.wrapT = WM_WRAP;
+            m_defaultTextures.blueNoise_1024x1024 = AssetManager::importTexture2D("BlueNoise_1024x1024", ASSET_PATH "textures/noise/LDR_RGBA_0.png", false, sampler);
+        }
+
+#undef DEFAULT_TEXTURE_FOLDER
+
+        /**
+            initialize the default material 
+        */ 
+        createMaterial("DefaultMaterial");
+
+        stbi_set_flip_vertically_on_load(1);
+    }
+
     // treat all the meshes inside one obj file as submeshes
     std::vector<ISubmesh*> AssetManager::importObj(const char* baseDir, const char* filename) {
         tinyobj::attrib_t attrib;
@@ -224,124 +314,7 @@ namespace Cyan
 
     Texture2D* AssetManager::importGltfTexture(tinygltf::Model& model, tinygltf::Texture& gltfTexture)
     {
-        Texture2D* texture = nullptr;
-
-        tinygltf::Image& image = model.images[gltfTexture.source];
-        const tinygltf::Sampler& gltfSampler = model.samplers[gltfTexture.sampler];
-
-        Cyan::ITexture::Spec spec = { };
-        spec.width = image.width;
-        spec.height = image.height;
-        switch (image.component)
-        {
-        case 3:
-        {
-            if (image.bits == 8)
-            {
-                spec.pixelFormat = ITexture::Spec::PixelFormat::RGB8;
-            }
-            else if (image.bits == 16)
-            {
-                spec.pixelFormat = ITexture::Spec::PixelFormat::RGB16F;
-            }
-            else if (image.bits == 32)
-            {
-                spec.pixelFormat = ITexture::Spec::PixelFormat::RGB32F;
-            }
-            break;
-        }
-        case 4: {
-            if (image.bits == 8)
-            {
-                spec.pixelFormat = ITexture::Spec::PixelFormat::RGBA8;
-            }
-            else if (image.bits == 16)
-            {
-                spec.pixelFormat = ITexture::Spec::PixelFormat::RGBA16F;
-            }
-            else if (image.bits == 32)
-            {
-                spec.pixelFormat = ITexture::Spec::PixelFormat::RGBA32F;
-            }
-            break;
-        }
-        default:
-        {
-            cyanError("Invalid number of pixel channels when loading gltf image");
-            break;
-        }
-        }
-
-        if (gltfSampler.minFilter == TINYGLTF_TEXTURE_FILTER_LINEAR_MIPMAP_LINEAR)
-        {
-            spec.numMips = std::log2(min(image.width, image.height)) + 1;
-        }
-        spec.pixelData = reinterpret_cast<u8*>(image.image.data());
-
-        ITexture::Parameter parameter = { };
-        if (gltfTexture.sampler >= 0)
-        {
-            const auto& sampler = model.samplers[gltfTexture.sampler];
-            switch (sampler.minFilter)
-            {
-            case TINYGLTF_TEXTURE_FILTER_LINEAR:
-                parameter.minificationFilter = FM_BILINEAR;
-                break;
-            case TINYGLTF_TEXTURE_FILTER_NEAREST:
-                parameter.minificationFilter = FM_POINT;
-                break;
-            case TINYGLTF_TEXTURE_FILTER_LINEAR_MIPMAP_LINEAR:
-                parameter.minificationFilter = FM_TRILINEAR;
-                break;
-            default:
-                break;
-            }
-            switch (sampler.magFilter)
-            {
-            case TINYGLTF_TEXTURE_FILTER_LINEAR:
-                parameter.magnificationFilter = FM_BILINEAR;
-                break;
-            case TINYGLTF_TEXTURE_FILTER_NEAREST:
-                parameter.magnificationFilter = FM_POINT;
-                break;
-            default:
-                break;
-            }
-            switch (sampler.wrapS)
-            {
-            case TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE:
-                parameter.wrap_s = WM_CLAMP;
-                break;
-            case TINYGLTF_TEXTURE_WRAP_REPEAT:
-                parameter.wrap_s = WM_WRAP;
-                break;
-            default:
-                break;
-            }
-            switch (sampler.wrapT)
-            {
-            case TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE:
-                parameter.wrap_t = WM_CLAMP;
-                break;
-            case TINYGLTF_TEXTURE_WRAP_REPEAT:
-                parameter.wrap_t = WM_WRAP;
-                break;
-            default:
-                break;
-            }
-        }
-
-        std::string textureName;
-        if (!gltfTexture.name.empty())
-        {
-            textureName = gltfTexture.name;
-        }
-        else
-        {
-            textureName = std::string(image.name);
-        }
-        texture = createTexture2D(textureName.c_str(), spec, parameter);
-        return texture;
+        return nullptr;
     }
 
     void AssetManager::importGltfNode(Scene* scene, tinygltf::Model& model, Entity* parent, tinygltf::Node& node)
@@ -493,23 +466,16 @@ namespace Cyan
     * first load and parse the json part, 
     * only load in geometry data first, worry about materials later
     */
-    void AssetManager::importGltfEx(Scene* scene, const char* filename)
+    void AssetManager::importGlb(Scene* scene, const char* filename)
     {
         std::string path(filename);
         u32 found = path.find_last_of('.');
         std::string extension = path.substr(found, found + 1);
-        found = path.find_last_of('/');
-        std::string baseDir = path.substr(0, found);
 
-        if (extension == ".gltf")
-        {
-        }
-        else if (extension == ".glb")
-        {
-            ScopedTimer timer("Custom import .glb timer", true);
-            gltf::Glb glb(filename);
-            glb.importScene(scene);
-        }
+        assert(extension == ".glb");
+        ScopedTimer timer("Custom import .glb timer", true);
+        gltf::Glb glb(filename);
+        glb.importScene(scene);
     }
 
     template <typename T>
@@ -795,36 +761,173 @@ namespace Cyan
                 std::cout << warn << std::endl;
                 std::cout << err << std::endl;
             }
+            tinygltf::Scene& gltfScene = model.scenes[model.defaultScene];
+            // import textures
+            {
+                ScopedTimer textureImportTimer("gltf texture import timer", true);
+                singleton->importGltfTextures(model);
+            }
+            // import meshes
+            {
+                ScopedTimer meshImportTimer("gltf mesh import timer", true);
+                for (auto& gltfMesh : model.meshes)
+                {
+                    singleton->importGltfMesh(model, gltfMesh);
+                }
+            }
+            // import gltf nodes ...?
+            for (u32 i = 0; i < gltfScene.nodes.size(); ++i)
+            {
+                ScopedTimer entityImportTimer("gltf scene hierarchy import timer", true);
+                singleton->importGltfNode(scene, model, scene->m_rootEntity, model.nodes[gltfScene.nodes[i]]);
+            }
         }
         else if (extension == ".glb")
         {
-            ScopedTimer timer("Import .glb timer", true);
-            if (!singleton->m_gltfImporter.LoadBinaryFromFile(&model, &err, &warn, std::string(filename)))
-            {
-                std::cout << warn << std::endl;
-                std::cout << err << std::endl;
-            }
+            importGlb(scene, filename);
         }
+    }
 
-        tinygltf::Scene& gltfScene = model.scenes[model.defaultScene];
-        // import textures
+    Texture2D* AssetManager::createTexture2D(const char* name, const Texture2D::Spec& spec, const Sampler2D& inSampler)
+    {
+        Texture2D* outTexture = getAsset<Texture2D>(name);
+        if (!outTexture)
         {
-            ScopedTimer textureImportTimer("gltf texture import timer", true);
-            singleton->importGltfTextures(model);
+            outTexture = new Texture2D(name, spec, inSampler);
+            outTexture->init();
+            singleton->addTexture(outTexture);
         }
-        // import meshes
+        return outTexture;
+    }
+
+    Texture2D* AssetManager::createTexture2D(const char* name, Image* srcImage, bool bGenerateMipmap, const Sampler2D& inSampler)
+    {
+        Texture2D* outTexture = getAsset<Texture2D>(name);
+        if (!outTexture)
         {
-            ScopedTimer meshImportTimer("gltf mesh import timer", true);
-            for (auto& gltfMesh : model.meshes)
+            outTexture = new Texture2D(name, *srcImage, bGenerateMipmap, inSampler);
+            outTexture->init();
+            singleton->addTexture(outTexture);
+        }
+        return outTexture;
+    }
+
+    TextureCube* AssetManager::createTextureCube(const char* name, const TextureCube::Spec& spec, const SamplerCube& inSampler)
+    {
+        TextureCube* outTexture = getAsset<TextureCube>(name);
+        if (!outTexture)
+        {
+            outTexture = new TextureCube(name, spec, inSampler);
+            outTexture->init();
+            singleton->addTexture(outTexture);
+        }
+        return outTexture;
+    }
+
+    DepthTexture2D* AssetManager::createDepthTexture(const char* name, u32 width, u32 height)
+    {
+        DepthTexture2D* outTexture = getAsset<DepthTexture2D>(name);
+        if (!outTexture)
+        {
+            DepthTexture2D::Spec spec(width, height, 1);
+            Sampler2D sampler;
+            sampler.minFilter = FM_POINT;
+            sampler.magFilter = FM_POINT;
+            outTexture = new DepthTexture2D(name, spec, sampler);
+            outTexture->init();
+            singleton->addTexture(outTexture);
+        }
+        return outTexture;
+    }
+
+    Image* AssetManager::importImage(const char* name, const char* filename)
+    {
+        assert(name);
+
+        Image* outImage = nullptr;
+
+        auto entry = singleton->m_imageMap.find(name);
+        if (entry == singleton->m_imageMap.end())
+        {
+            if (name)
             {
-                singleton->importGltfMesh(model, gltfMesh);
+                outImage = new Image(filename, name);
             }
+            else
+            {
+                outImage = new Image(filename);
+            }
+            singleton->m_images.push_back(outImage);
+            singleton->m_imageMap.insert({ std::string(name), outImage});
         }
-        // import gltf nodes ...?
-        for (u32 i = 0; i < gltfScene.nodes.size(); ++i)
+        outImage = singleton->m_imageMap[std::string(name)];
+        return outImage;
+    }
+
+    Image* AssetManager::importImage(const char* name, u8* mem, u32 sizeInBytes)
+    {
+        Image* outImage = nullptr;
+        auto entry = singleton->m_imageMap.find(name);
+        if (entry == singleton->m_imageMap.end())
         {
-            ScopedTimer entityImportTimer("gltf scene hierarchy import timer", true);
-            singleton->importGltfNode(scene, model, scene->m_rootEntity, model.nodes[gltfScene.nodes[i]]);
+            if (name)
+            {
+                outImage = new Image(mem, sizeInBytes, name);
+            }
+            else
+            {
+                outImage = new Image(mem, sizeInBytes);
+            }
+            singleton->m_images.push_back(outImage);
+            singleton->m_imageMap.insert({ outImage->name, outImage});
         }
+        return outImage;
+    }
+
+    Texture2D* AssetManager::importTexture2D(const char* textureName, const char* srcImageFile, bool bGenerateMipmap, const Sampler2D& inSampler)
+    {
+        Texture2D* outTexture = nullptr;
+        Image* image = importImage(srcImageFile, srcImageFile);
+        if (image)
+        {
+            outTexture = createTexture2D(textureName, image, bGenerateMipmap, inSampler);
+        }
+        return outTexture;
+    }
+
+    Texture2D* AssetManager::importTexture2D(const char* textureName, const char* srcImageName, const char* srcImageFile, bool bGenerateMipmap, const Sampler2D& inSampler)
+    {
+        Texture2D* outTexture = nullptr;
+        Image* image = importImage(srcImageName, srcImageFile);
+        if (image)
+        {
+            outTexture = createTexture2D(textureName, image, bGenerateMipmap, inSampler);
+        }
+        return outTexture;
+    }
+
+    Material& AssetManager::createMaterial(const char* name) 
+    {
+        std::string key = std::string(name);
+        auto entry = singleton->m_materialMap.find(key);
+        if (entry == singleton->m_materialMap.end()) 
+        {
+            Material matl = { };
+            matl.name = std::string(name);
+            singleton->m_materialMap.insert({ key, matl });
+        }
+        return singleton->m_materialMap[key];
+    }
+
+    MaterialTextureAtlas& AssetManager::createPackedMaterial(const char* name)
+    {
+        auto entry = singleton->m_packedMaterialMap.find(name);
+        if (entry == singleton->m_packedMaterialMap.end()) 
+        {
+            MaterialTextureAtlas matl = { };
+            matl.name = std::string(name);
+            singleton->m_packedMaterialMap.insert({ matl.name, matl});
+        }
+        return singleton->m_packedMaterialMap[name];
     }
 }

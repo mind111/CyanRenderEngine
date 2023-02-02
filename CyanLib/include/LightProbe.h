@@ -13,7 +13,7 @@ namespace Cyan
         LightProbe(TextureCube* srcCubemapTexture);
         LightProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& resolution);
         ~LightProbe() { }
-        virtual void initialize();
+        virtual void init();
         virtual void captureScene();
         virtual void debugRender();
 

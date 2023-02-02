@@ -28,7 +28,7 @@ namespace Cyan
         return defaultRenderTarget;
     }
     
-    ITexture* RenderTarget::getColorBuffer(u32 index)
+    Texture* RenderTarget::getColorBuffer(u32 index)
     {
         return colorBuffers[index];
     }
@@ -81,7 +81,7 @@ namespace Cyan
             for (i32 f = 0; f < numFaces; ++f)
             {
                 glNamedFramebufferTexture2DEXT(fbo, GL_COLOR_ATTACHMENT0 + (index + f), GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, texture->getGpuObject(), mip);
-                colorBuffers[index + f] = static_cast<ITexture*>(texture);
+                colorBuffers[index + f] = static_cast<Texture*>(texture);
             }
         }
     }

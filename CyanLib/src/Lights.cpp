@@ -72,28 +72,22 @@ namespace Cyan
     {
         if (srcHDRI)
         {
-            ITexture::Spec hdriSpec = { };
             std::string filename(srcHDRI);
             u32 found = filename.find_last_of('.');
             std::string imageName = filename.substr(found - 1, found + 1);
-            srcEquirectTexture = AssetManager::importTexture2D(imageName.c_str(), srcHDRI, hdriSpec);
+            {
+                Sampler2D sampler;
+                sampler.minFilter = FM_BILINEAR;
+                sampler.magFilter = FM_BILINEAR;
+                srcEquirectTexture = AssetManager::importTexture2D(imageName.c_str(), srcHDRI, false, sampler);
+            }
 
-            ITexture::Spec cubemapSpec = { };
-            cubemapSpec.type = TEX_CUBE;
-            cubemapSpec.width = 1024u;
-            cubemapSpec.height = 1024u;
-            cubemapSpec.pixelFormat = PF_RGB16F;
-            cubemapSpec.numMips = max(log2(cubemapSpec.width), 1);
-            ITexture::Parameter cubemapParams = { };
-            cubemapParams.minificationFilter = FM_BILINEAR;
-            cubemapParams.magnificationFilter = FM_BILINEAR;
-            cubemapParams.wrap_r = WM_CLAMP;
-            cubemapParams.wrap_s = WM_CLAMP;
-            cubemapParams.wrap_t = WM_CLAMP;
-
+            u32 numMips = max(log2(1024u), 1) + 1;
+            TextureCube::Spec cubemapSpec(1024u, numMips, PF_RGB16F);
+            SamplerCube sampler;
             char cubemapName[128] = { };
             sprintf(cubemapName, "SkyLightCubemap%u", numInstances);
-            srcCubemap = AssetManager::createTextureCube(cubemapName, cubemapSpec, cubemapParams);
+            srcCubemap = AssetManager::createTextureCube(cubemapName, cubemapSpec, sampler);
 
             irradianceProbe = std::make_unique<IrradianceProbe>(srcCubemap, glm::uvec2(64));
             reflectionProbe = std::make_unique<ReflectionProbe>(srcCubemap);
@@ -112,7 +106,8 @@ namespace Cyan
         reflectionProbe->buildFromCubemap();
     }
 
-    void SkyLight::buildCubemap(Texture2D* srcEquirectMap, TextureCube* dstCubemap) {
+    void SkyLight::buildCubemap(Texture2D* srcEquirectMap, TextureCube* dstCubemap) 
+    {
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(dstCubemap->resolution, dstCubemap->resolution));
         renderTarget->setColorBuffer(dstCubemap, 0u);
 

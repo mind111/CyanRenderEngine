@@ -22,7 +22,6 @@ namespace Cyan
         {
             bitsPerChannel = 32;
             pixels = std::shared_ptr<u8>((u8*)stbi_loadf(srcImageFile, &width, &height, &numChannels, 0));
-            assert(0);
         }
         else
         {
@@ -38,6 +37,7 @@ namespace Cyan
                 bitsPerChannel = 8;
             }
         }
+        assert(pixels);
         count++;
     }
 
@@ -71,6 +71,7 @@ namespace Cyan
                 pixels = std::shared_ptr<u8>((u8*)stbi_load_from_memory(mem, sizeInBytes, &width, &height, &numChannels, 0));
             }
         }
+        assert(pixels);
         count++;
     }
 }

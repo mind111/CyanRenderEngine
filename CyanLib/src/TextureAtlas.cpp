@@ -4,55 +4,6 @@
 
 namespace Cyan
 {
-    static ITexture::Spec getImageSpec(const Cyan::Image& image, bool bGenerateMipmap = false)
-    {
-        Cyan::ITexture::Spec spec = { };
-        spec.type = TEX_2D;
-        spec.width = image.width;
-        spec.height = image.height;
-        spec.pixelData = image.pixels.get();
-        if (bGenerateMipmap)
-        {
-            spec.numMips = log2(glm::min(spec.width, spec.height)) + 1;
-        }
-        else
-        {
-            spec.numMips = 0;
-        }
-        switch (image.bitsPerChannel)
-        {
-        case 8:
-            switch (image.numChannels)
-            {
-            case 1: spec.pixelFormat = PF_R8; break;
-            case 3: spec.pixelFormat = PF_RGB8; break;
-            case 4: spec.pixelFormat = PF_RGBA8; break;
-            default: assert(0); break;
-            }
-            break;
-        case 16:
-            switch (image.numChannels)
-            {
-            case 1: spec.pixelFormat = PF_R16F; break;
-            case 3: spec.pixelFormat = PF_RGB16F; break;
-            case 4: spec.pixelFormat = PF_RGBA16F; break;
-            default: assert(0); break;
-            }
-            break;
-        case 32:
-            switch (image.numChannels)
-            {
-            case 3: spec.pixelFormat = PF_RGB32F; break;
-            case 4: spec.pixelFormat = PF_RGBA32F; break;
-            default: assert(0); break;
-            }
-            break;
-        default:
-            assert(0);
-        }
-        return spec;
-    }
-
     i32 Texture2DAtlas::packImage(const Image& inImage)
     {
         i32 packedImageIndex = -1;
@@ -61,8 +12,8 @@ namespace Cyan
         assert(inImage.width == inImage.height && Cyan::isPowerOf2(inImage.width) && inImage.width <= maxSubtextureSize);
 
         // todo: make sure the format of incoming texture matches with that of the atlas
-        Cyan::ITexture::Spec spec = getImageSpec(inImage, true);
-        if (spec.pixelFormat != atlas->getTextureSpec().pixelFormat)
+        Cyan::Texture2D::Spec spec(inImage);
+        if (spec.format != atlas->getSpec().format)
         {
             assert(0);
         }
@@ -112,16 +63,13 @@ namespace Cyan
         return packedImageIndex;
     }
 
-    i32 Texture2DAtlas::addSubtexture(i32 srcImageIndex, const ITexture::Parameter& params)
+    i32 Texture2DAtlas::addSubtexture(i32 srcImageIndex, const Sampler2D& inSampler, bool bGenerateMipmap)
     {
         if (srcImageIndex >= 0)
         {
             Subtexture subtexture = { };
             subtexture.src = srcImageIndex;
-            subtexture.wrap_s = params.wrap_s;
-            subtexture.wrap_t = params.wrap_t;
-            subtexture.minFilter = params.minificationFilter;
-            subtexture.magFilter = params.magnificationFilter;
+            subtexture.sampler = inSampler;
             subtextures.push_back(subtexture);
             return subtextures.size() - 1;
         }

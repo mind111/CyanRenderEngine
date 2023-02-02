@@ -15,458 +15,382 @@
 /**
 * convenience macros
 */
-#define TEX_2D Cyan::ITexture::Spec::Type::kTex2D
-#define TEX_2D_ARRAY Cyan::ITexture::Spec::Type::kTex2DArray
-#define TEX_DEPTH Cyan::ITexture::Spec::Type::kDepthTex
-#define TEX_3D Cyan::ITexture::Spec::Type::kTex3D
-#define TEX_CUBE Cyan::ITexture::Spec::Type::kTexCube
+#define TEX_2D Cyan::Texture::Type::kTex2D
+#define TEX_2D_ARRAY Cyan::Texture::Type::kTex2DArray
+#define TEX_DEPTH Cyan::Texture::Type::kDepth2D
+#define TEX_3D Cyan::Texture::Type::kTex3D
+#define TEX_CUBE Cyan::Texture::Type::kTexCube
 
 // WM stands for "wrap mode"
-#define WM_CLAMP Cyan::ITexture::Parameter::WrapMode::CLAMP_TO_EDGE
-#define WM_WRAP Cyan::ITexture::Parameter::WrapMode::WRAP
+#define WM_CLAMP Cyan::Sampler::Addressing::kClampToEdge
+#define WM_WRAP Cyan::Sampler::Addressing::kWrap
+
 // FM stands for "filter mode"
-#define FM_POINT Cyan::ITexture::Parameter::Filtering::NEAREST
-#define FM_BILINEAR Cyan::ITexture::Parameter::Filtering::LINEAR
-#define FM_TRILINEAR Cyan::ITexture::Parameter::Filtering::LINEAR_MIPMAP_LINEAR
-#define FM_MIPMAP_POINT Cyan::ITexture::Parameter::Filtering::NEAREST_MIPMAP_NEAREST
+#define FM_POINT Cyan::Sampler::Filtering::kPoint
+#define FM_MIPMAP_POINT Cyan::Sampler::Filtering::kMipmapPoint
+#define FM_BILINEAR Cyan::Sampler::Filtering::kBilinear
+#define FM_TRILINEAR Cyan::Sampler::Filtering::kTrilinear
+
 // PF stands for "pixel format" 
-#define PF_R8 Cyan::ITexture::Spec::PixelFormat::R8
-#define PF_RGB8 Cyan::ITexture::Spec::PixelFormat::RGB8
-#define PF_RGBA8 Cyan::ITexture::Spec::PixelFormat::RGBA8
-#define PF_R16F Cyan::ITexture::Spec::PixelFormat::R16F
-#define PF_RGB16F Cyan::ITexture::Spec::PixelFormat::RGB16F
-#define PF_RGBA16F Cyan::ITexture::Spec::PixelFormat::RGBA16F
-#define PF_RGB32F Cyan::ITexture::Spec::PixelFormat::RGB32F
-#define PF_RGBA32F Cyan::ITexture::Spec::PixelFormat::RGBA32F
+#define PF_R8 Cyan::Texture::Format::kR8
+#define PF_RGB8 Cyan::Texture::Format::kRGB8
+#define PF_RGBA8 Cyan::Texture::Format::kRGBA8
+#define PF_R16F Cyan::Texture::Format::kR16F
+#define PF_RGB16F Cyan::Texture::Format::kRGB16F
+#define PF_RGBA16F Cyan::Texture::Format::kRGBA16F
+#define PF_D24S8 Cyan::Texture::Format::kD24S8
+#define PF_RGB32F Cyan::Texture::Format::kRGB32F
+#define PF_RGBA32F Cyan::Texture::Format::kRGBA32F
 
 namespace Cyan
 {
-    // todo: rework Texture classes....!!!
-    struct ITexture : public GpuObject
+    struct Texture : public GpuObject
     {
+        enum class Type : u32
+        {
+            kTex2D = 0,
+            kDepth2D,
+            kTex2DArray,
+            kTexCube,
+            kTex3D,
+            kCount
+        };
+
+        enum class Format : u32
+        {
+            kR8 = 0,
+            kRGB8,
+            kRGBA8,
+            kRGB16F,
+            kRGBA16F,
+            kD24S8,
+            kRGB32F,
+            kRGBA32F,
+            kCount
+        };
+
         struct Spec
         {
-            enum class Type
+            Spec(Type inType)
+                : type(inType)
             {
-                kTex2D,
-                kTex2DArray,
-                kDepthTex,
-                kTex3D,
-                kTexCube,
-                kCount
-            };
-
-            enum class PixelFormat
-            {
-                R8 = 0,
-                R16F,
-                R32F,
-                Lum32F,
-                RG16F,
-                RG32F,
-                RGB8,
-                D24S8,
-                RGB16F,
-                RGB32F,
-                RGBA8,
-                RGBA16F,
-                RGBA32F,
-                kInvalid
-            };
-
-            bool operator==(const Spec& rhs) const
-            {
-                return (type == rhs.type) && (width == rhs.width) && (height == rhs.height) && (pixelFormat == rhs.pixelFormat);
             }
 
-            u32 width = 1;
-            u32 height = 1;
-            u32 depth = 1;
-            u32 numMips = 1;
+            Spec(Type inType, Format inFormat)
+                : type(inType), format(inFormat)
+            {
+            }
+
             Type type = Type::kCount;
-            PixelFormat pixelFormat = PixelFormat::kInvalid;
-            u8* pixelData = nullptr;
+            Format format = Format::kCount;
         };
 
-        struct Parameter
-        {
-            enum class Filtering : u32
-            {
-                LINEAR = 0,
-                NEAREST,
-                LINEAR_MIPMAP_LINEAR,
-                NEAREST_MIPMAP_NEAREST
-            };
+        virtual bool operator==(const Texture& rhs) const = 0;
 
-            enum class WrapMode : u32
-            {
-                CLAMP_TO_EDGE = 0,
-                WRAP,
-                NONE
-            };
+        Texture(const Format& inFormat);
+        Texture(const char* inName, const Format& inFormat);
+        virtual ~Texture() { }
 
-            Filtering minificationFilter = Filtering::LINEAR;
-            Filtering magnificationFilter = Filtering::LINEAR;
-            WrapMode wrap_s = WrapMode::CLAMP_TO_EDGE;
-            WrapMode wrap_r = WrapMode::CLAMP_TO_EDGE;
-            WrapMode wrap_t = WrapMode::CLAMP_TO_EDGE;
-        };
-
-        virtual Spec getTextureSpec() = 0;
-
-        ITexture(const char* inName, const Spec& inSpec, Parameter inParams = Parameter{ });
-        ITexture(const Spec& inSpec, Parameter inParams);
-
-        virtual ~ITexture() 
-        { 
-            glDeleteTextures(1, &glObject);
-            if (name)
-            {
-                delete[] name;
-                name = nullptr;
-            }
-            if (pixelData)
-            {
-                delete[] pixelData;
-                pixelData = nullptr;
-            }
-        }
-
-        struct GLPixelFormat
-        {
-            GLint internalFormat;
-            GLenum format;
-            GLenum type;
-        };
-
-        static GLPixelFormat translatePixelFormat(const Spec::PixelFormat& inPixelFormat)
-        {
-            GLPixelFormat glPixelFormat = { };
-            switch (inPixelFormat)
-            {
-            case Spec::PixelFormat::R8:
-                glPixelFormat.internalFormat = GL_R8;
-                glPixelFormat.format = GL_RED;
-                glPixelFormat.type = GL_UNSIGNED_BYTE;
-                break;
-            case Spec::PixelFormat::Lum32F:
-                glPixelFormat.internalFormat = GL_LUMINANCE8;
-                glPixelFormat.format = GL_LUMINANCE;
-                glPixelFormat.type = GL_FLOAT;
-                break;
-            case Spec::PixelFormat::R16F:
-                glPixelFormat.internalFormat = GL_R16F;
-                glPixelFormat.format = GL_RED;
-                glPixelFormat.type = GL_HALF_FLOAT;
-                break;
-            case Spec::PixelFormat::R32F:
-                glPixelFormat.internalFormat = GL_R32F;
-                glPixelFormat.format = GL_R;
-                glPixelFormat.type = GL_FLOAT;
-                break;
-            case Spec::PixelFormat::RG16F:
-                glPixelFormat.internalFormat = GL_RG16F;
-                glPixelFormat.format = GL_RG;
-                glPixelFormat.type = GL_HALF_FLOAT;
-                break;
-            case Spec::PixelFormat::D24S8:
-                glPixelFormat.internalFormat = GL_DEPTH24_STENCIL8;
-                glPixelFormat.format = GL_DEPTH_STENCIL;
-                glPixelFormat.type = GL_UNSIGNED_INT_24_8;
-                break;
-            case Spec::PixelFormat::RGB8:
-                glPixelFormat.internalFormat = GL_RGB8;
-                glPixelFormat.format = GL_RGB;
-                glPixelFormat.type = GL_UNSIGNED_BYTE;
-                break;
-            case Spec::PixelFormat::RGBA8:
-                glPixelFormat.internalFormat = GL_RGBA8;
-                glPixelFormat.format = GL_RGBA;
-                glPixelFormat.type = GL_UNSIGNED_BYTE;
-                break;
-            case Spec::PixelFormat::RGB16F:
-                glPixelFormat.internalFormat = GL_RGB16F;
-                glPixelFormat.format = GL_RGB;
-                // todo: should type be GL_FLOAT or GL_HALF_FLOAT, running into issue with GL_HALF_FLOAT so using GL_FLOAT for now
-                glPixelFormat.type = GL_FLOAT;
-                break;
-            case Spec::PixelFormat::RGBA16F:
-                glPixelFormat.internalFormat = GL_RGBA16F;
-                glPixelFormat.format = GL_RGBA;
-                // todo: should type be GL_FLOAT or GL_HALF_FLOAT, running into issue with GL_HALF_FLOAT so using GL_FLOAT for now
-                glPixelFormat.type = GL_FLOAT;
-                break;
-            case Spec::PixelFormat::RGB32F:
-                glPixelFormat.internalFormat = GL_RGB32F;
-                glPixelFormat.format = GL_RGB;
-                glPixelFormat.type = GL_FLOAT;
-                break;
-            case Spec::PixelFormat::RGBA32F:
-                glPixelFormat.internalFormat = GL_RGBA32F;
-                glPixelFormat.format = GL_RGBA;
-                glPixelFormat.type = GL_FLOAT;
-                break;
-            default:
-                break;
-            }
-            return glPixelFormat;
-        }
-
-        static void initializeTextureParameters(GLuint textureObject, const Parameter& parameter)
-        {
-            auto translateFiltering = [](const Parameter::Filtering filtering) {
-                switch (filtering)
-                {
-                case Parameter::Filtering::LINEAR:
-                    return GL_LINEAR;
-                case Parameter::Filtering::LINEAR_MIPMAP_LINEAR:
-                    return GL_LINEAR_MIPMAP_LINEAR;
-                case Parameter::Filtering::NEAREST:
-                    return GL_NEAREST;
-                case Parameter::Filtering::NEAREST_MIPMAP_NEAREST:
-                    return GL_NEAREST_MIPMAP_NEAREST;
-                default:
-                    return GLU_INVALID_VALUE;
-                }
-            };
-
-            auto translateWrap = [](const Parameter::WrapMode wrap) {
-                switch (wrap)
-                {
-                case Parameter::WrapMode::CLAMP_TO_EDGE:
-                    return GL_CLAMP_TO_EDGE;
-                case Parameter::WrapMode::NONE:
-                default:
-                    return GL_REPEAT;
-                }
-            };
-
-            glTextureParameteri(textureObject, GL_TEXTURE_MIN_FILTER, translateFiltering(parameter.minificationFilter));
-            glTextureParameteri(textureObject, GL_TEXTURE_MAG_FILTER, translateFiltering(parameter.magnificationFilter));
-            glTextureParameteri(textureObject, GL_TEXTURE_WRAP_S, translateWrap(parameter.wrap_s));
-            glTextureParameteri(textureObject, GL_TEXTURE_WRAP_T, translateWrap(parameter.wrap_t));
-            glTextureParameteri(textureObject, GL_TEXTURE_WRAP_R, translateWrap(parameter.wrap_r));
-        }
+        virtual void init() = 0;
 
         static u32 count;
-        char* name = nullptr;
-        Spec::PixelFormat pixelFormat = Spec::PixelFormat::kInvalid;
-        Parameter parameter = { };
-        u32 numMips = 0;
-        u8* pixelData = nullptr;
+        std::string name;
+        Format format;
+#if BINDLESS_TEXTURE
         u64 glHandle;
+#endif
     };
 
-    struct Texture2D : public ITexture
+    struct Sampler
     {
-        virtual Spec getTextureSpec() override
+        enum class Addressing
         {
-            return Spec {
-                width, /* width */
-                height, /* height */
-                1, /* depth */
-                numMips, /* numMips */
-                Spec::Type::kTex2D, /* texture type */
-                pixelFormat, /* pixel format */
-                pixelData /* pixel data */
-            };
-        }
+            kClampToEdge = 0,
+            kWrap,
+            kCount
+        };
 
-        Texture2D(const char* inName, const Spec& inSpec, Parameter inParams = Parameter{ });
-        Texture2D(const Spec& inSpec, Parameter inParams = Parameter{ });
-        Texture2D(const Image& inImage, Parameter inParams = Parameter{ });
-
-        ~Texture2D()
+        enum class Filtering
         {
-        }
+            kPoint = 0,
+            kMipmapPoint,
+            kBilinear,
+            kTrilinear,
+            kCount
+        };
 
-        void initGpuResource(const Image& srcImage)
-        {
-        }
+        void init();
 
-        u32 width;
-        u32 height;
         bool bInitialized = false;
     };
 
-    struct Texture2DArray : public ITexture
+    // samplers
+    struct Texture2D;
+    struct Texture2DArray;
+    struct TextureCube;
+
+    struct Sampler2D : public Sampler
     {
-        virtual Spec getTextureSpec() override
+        void init(Texture2D* texture);
+
+        Addressing wrapS = Addressing::kClampToEdge;
+        Addressing wrapT = Addressing::kClampToEdge;
+        Filtering minFilter = Filtering::kPoint;
+        Filtering magFilter = Filtering::kPoint;
+    };
+
+    struct Sampler3D : public Sampler
+    {
+    };
+
+    struct SamplerCube : public Sampler
+    {
+        void init(TextureCube* texture);
+
+        Addressing wrapS = Addressing::kClampToEdge;
+        Addressing wrapT = Addressing::kClampToEdge;
+        Filtering minFilter = Filtering::kPoint;
+        Filtering magFilter = Filtering::kPoint;
+    };
+
+    struct Texture2D : public Texture
+    {
+        struct Spec : public Texture::Spec
         {
-            return Spec {
-                width, /* width */
-                height, /* height */
-                depth, /* depth */
-                numMips, /* numMips */
-                Spec::Type::kTex2D, /* texture type */
-                pixelFormat, /* pixel format */
-                pixelData /* pixel data */
-            };
-        }
-
-        Texture2DArray(const char* inName, const Spec& inSpec, Parameter inParams = Parameter{ })
-            : ITexture(inName, inSpec, inParams),
-            width(inSpec.width),
-            height(inSpec.height),
-            depth(inSpec.depth)
-        {
-            glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &glObject);
-            glBindTexture(GL_TEXTURE_2D_ARRAY, getGpuObject());
-            auto glPixelFormat = translatePixelFormat(pixelFormat);
-            glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, glPixelFormat.internalFormat, width, height, depth, 0, glPixelFormat.format, glPixelFormat.type, pixelData);
-            glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
-
-            initializeTextureParameters(getGpuObject(), parameter);
-
-            if (numMips > 1u)
+            Spec()
+                : Texture::Spec(TEX_2D)
             {
-                glGenerateTextureMipmap(getGpuObject());
             }
 
-#if BINDLESS_TEXTURE
-            glHandle = glGetTextureHandleARB(getGpuObject());
-#endif
+            Spec(const Type& inType)
+                : Texture::Spec(inType)
+            {
+            }
+
+            Spec(const Type& inType, const Format& inFormat)
+                : Texture::Spec(inType, inFormat)
+            {
+            }
+
+            Spec(const Spec& srcSpec)
+                : Texture::Spec(TEX_2D, srcSpec.format), width(srcSpec.width), height(srcSpec.height), numMips(srcSpec.numMips)
+            {
+            }
+
+            Spec(u32 inWidth, u32 inHeight, u32 inNumMips, Texture::Format inFormat)
+                : Texture::Spec(TEX_2D, inFormat), width(inWidth), height(inHeight), numMips(inNumMips)
+            {
+            }
+
+            Spec(const Type& inType, u32 inWidth, u32 inHeight, u32 inNumMips, Texture::Format inFormat)
+                : Texture::Spec(inType, inFormat), width(inWidth), height(inHeight), numMips(inNumMips)
+            {
+            }
+
+            Spec(const Image& inImage, bool bGenerateMipmap = true);
+
+            bool operator==(const Spec& rhs) const
+            {
+                return (rhs.width == width) && (rhs.height == height) && (rhs.numMips == numMips) && (rhs.format == format) && (rhs.type == type);
+            }
+
+            u32 width = 0;
+            u32 height = 0;
+            u32 numMips = 1;
+        };
+
+        Texture2D(const Image& inImage, bool bGenerateMipmap, const Sampler2D& inSampler = {});
+        Texture2D(const char* inName, const Image& inImage, bool bGenerateMipmap, const Sampler2D& inSampler = {});
+        Texture2D(const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
+        Texture2D(const char* inName, const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
+
+        Spec getSpec() const
+        {
+            return Spec(width, height, numMips, format);
         }
 
-        u32 width;
-        u32 height;
-        u32 depth;
+        virtual bool operator==(const Texture& rhs) const override
+        {
+            if (auto ptr = dynamic_cast<const Texture2D*>(&rhs))
+            {
+                return ptr->name == name && ptr->getSpec() == getSpec();
+            }
+            return false;
+        }
+
+        virtual void init() override;
+
+        Image* srcImage = nullptr;
+        Sampler2D sampler;
+        u32 width = 0;
+        u32 height = 0;
+        u32 numMips = 1;
     };
 
     struct DepthTexture2D : public Texture2D
     {
-        /* ITexture interface */
-        virtual Spec getTextureSpec() override
+        struct Spec : public Texture2D::Spec 
         {
-            return Spec {
-                width, /* width */
-                height, /* height */
-                1, /* depth */
-                numMips, /* numMips */
-                Spec::Type::kDepthTex, /* texture type */
-                pixelFormat, /* pixel format */
-                pixelData /* pixel data */
-            };
+            Spec()
+                : Texture2D::Spec(TEX_DEPTH, PF_D24S8)
+            {
+            }
+
+            Spec(const Spec& srcSpec)
+                : Texture2D::Spec(TEX_DEPTH, srcSpec.width, srcSpec.height, srcSpec.numMips, PF_D24S8)
+            {
+            }
+
+            Spec(u32 inWidth, u32 inHeight, u32 inNumMips)
+                : Texture2D::Spec(TEX_DEPTH, inWidth, inHeight, numMips, PF_D24S8)
+            {
+            }
+
+            bool operator==(const Spec& rhs) const
+            {
+                return (rhs.width == width) && (rhs.height == height) && (rhs.numMips == numMips) && (rhs.format == format) && (rhs.type == type);
+            }
+        };
+
+        DepthTexture2D(const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
+        DepthTexture2D(const char* inName, const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
+
+        Spec getSpec() const
+        {
+            return Spec(width, height, numMips);
         }
 
-        DepthTexture2D(const char* name, u32 width, u32 height)
-            : Texture2D(
-                name,
-                Spec {
-                    width, /* width */
-                    height, /* height */
-                    1, /* depth */
-                    1, /* numMips */
-                    Spec::Type::kTex2D, /* texture type */
-                    Spec::PixelFormat::D24S8, /* pixel format */
-                    nullptr /* pixel data */
-                }
-            )
-        { 
-#if BINDLESS_TEXTURE
-            glHandle = glGetTextureHandleARB(getGpuObject());
-#endif
+        virtual bool operator==(const Texture& rhs) const override
+        {
+            if (auto ptr = dynamic_cast<const DepthTexture2D*>(&rhs))
+            {
+                return ptr->name == name && ptr->getSpec() == getSpec();
+            }
+            return false;
         }
 
-        ~DepthTexture2D()
-        {
-            ITexture::~ITexture();
-        }
+        virtual void init() override;
     };
 
-    struct Texture3D : public ITexture
+    struct Texture2DArray : public Texture2D
     {
-        /* ITexture interface */
-        virtual Spec getTextureSpec() override
+        struct Spec : public Texture2D::Spec
         {
-            return Spec {
-                width, /* width */
-                height, /* height */
-                depth, /* depth */
-                numMips, /* numMips */
-                Spec::Type::kTex3D, /* texture type */
-                pixelFormat, /* pixel format */
-                pixelData /* pixel data */
-            };
-        }
-
-        Texture3D(const char* inName, const Spec& inSpec, Parameter inParams = Parameter{ })
-            : ITexture(inName, inSpec, inParams),
-            width(inSpec.width),
-            height(inSpec.height),
-            depth(inSpec.depth)
-        {
-            glCreateTextures(GL_TEXTURE_3D, 1, &glObject);
-            glBindTexture(GL_TEXTURE_3D, getGpuObject());
-            auto glPixelFormat = translatePixelFormat(pixelFormat);
-            glTexImage3D(GL_TEXTURE_3D, 0, glPixelFormat.internalFormat, width, height, depth, 0, glPixelFormat.format, glPixelFormat.type, pixelData);
-            glBindTexture(GL_TEXTURE_3D, 0);
-
-            initializeTextureParameters(getGpuObject(), parameter);
-
-            if (numMips > 1u)
+            Spec()
+                : Texture2D::Spec(TEX_2D_ARRAY)
             {
-                glGenerateTextureMipmap(getGpuObject());
             }
-        }
 
-        ~Texture3D()
+            Spec(const Spec& srcSpec)
+                : Texture2D::Spec(TEX_2D_ARRAY, srcSpec.width, srcSpec.height, srcSpec.numMips, srcSpec.format), numLayers(srcSpec.numLayers)
+            {
+            }
+
+            Spec(u32 inWidth, u32 inHeight, u32 inNumMips, u32 inNumLayers, Texture::Format inFormat)
+                : Texture2D::Spec(TEX_2D_ARRAY, inWidth, inHeight, inNumMips, inFormat), numLayers(inNumLayers)
+            {
+            }
+
+            bool operator==(const Spec& rhs) const
+            {
+                return (rhs.width == width) && (rhs.height == height) && (rhs.numLayers == numLayers) && (rhs.numMips == numMips) && (rhs.format == format) && (rhs.type == type);
+            }
+
+            u32 numLayers = 1;
+        };
+
+        Texture2DArray(const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
+        Texture2DArray(const char* inName, const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
+
+        Spec getSpec() const
         {
-            ITexture::~ITexture();
+            return Spec(width, height, numMips, numLayers, format);
         }
 
-        u32 width;
-        u32 height;
-        u32 depth;
+        virtual bool operator==(const Texture& rhs) const override
+        {
+            if (auto ptr = dynamic_cast<const Texture2DArray*>(&rhs))
+            {
+                return ptr->name == name && ptr->getSpec() == getSpec();
+            }
+            return false;
+        }
+
+        virtual void init() override;
+
+        u32 numLayers = 1;
     };
 
-    struct TextureCube : public ITexture
+#if 0
+    struct Texture3D : public Texture
     {
-        /* ITexture interface */
-        virtual Spec getTextureSpec() override
+        struct Spec : public Texture::Spec
         {
-            return Spec {
-                resolution, /* width */
-                resolution, /* height */
-                1, /* depth */
-                numMips, /* numMips */
-                Spec::Type::kTexCube, /* texture type */
-                pixelFormat, /* pixel format */
-                pixelData /* pixel data */
-            };
-        }
+        };
 
-        TextureCube(const char* inName, const Spec& inSpec, Parameter inParams = Parameter{ })
-            : ITexture(inName, inSpec, inParams),
-            resolution(inSpec.width)
-        {
-            glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &glObject);
-            glBindTexture(GL_TEXTURE_CUBE_MAP, getGpuObject());
-            auto glPixelFormat = translatePixelFormat(pixelFormat);
-            for (i32 f = 0; f < 6; ++f)
-            {
-                glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, 0, glPixelFormat.internalFormat, resolution, resolution, 0, glPixelFormat.format, glPixelFormat.type, nullptr);
-            }
-            glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+        virtual void init();
 
-            initializeTextureParameters(getGpuObject(), parameter);
-
-            if (numMips > 1u)
-            {
-                glGenerateTextureMipmap(getGpuObject());
-            }
-
-#if BINDLESS_TEXTURE
-            // glHandle = glGetTextureHandleARB(getGpuObject());
+        Sampler3D sampler;
+        u32 width = 0;
+        u32 height = 0;
+        u32 depth = 1;
+        u32 numMips = 1;
+    };
 #endif
-        }
 
-        ~TextureCube()
+    struct TextureCube : public Texture
+    {
+        struct Spec : public Texture::Spec
         {
-            ITexture::~ITexture();
+            Spec()
+                : Texture::Spec(TEX_CUBE)
+            {
+
+            }
+
+            Spec(const Spec& srcSpec)
+                : Texture::Spec(TEX_CUBE, srcSpec.format), resolution(srcSpec.resolution), numMips(srcSpec.numMips)
+            {
+
+            }
+
+            Spec(u32 inResolution, u32 inNumMips, Texture::Format inFormat)
+                : Texture::Spec(TEX_CUBE, inFormat), resolution(inResolution), numMips(inNumMips)
+            {
+
+            }
+
+            bool operator==(const Spec& rhs) const
+            {
+                return (rhs.resolution == resolution) && (rhs.numMips == numMips) && (rhs.format == format) && (rhs.type == type);
+            }
+
+            u32 resolution;
+            u32 numMips = 1;
+        };
+
+        TextureCube(const Spec& inSpec, const SamplerCube& inSampler = SamplerCube());
+        TextureCube(const char* name, const Spec& inSpec, const SamplerCube& inSampler = SamplerCube());
+
+        Spec getSpec() const
+        {
+            return Spec(resolution, numMips, format);
         }
 
-        u32 resolution;
+        virtual bool operator==(const Texture& rhs) const override
+        {
+            if (auto ptr = dynamic_cast<const TextureCube*>(&rhs))
+            {
+                return ptr->name == name && ptr->getSpec() == getSpec();
+            }
+            return false;
+        }
+
+        virtual void init() override;
+
+        SamplerCube sampler;
+        u32 resolution = 0;
+        u32 numMips = 1;
     };
 }
 
@@ -474,12 +398,12 @@ namespace Cyan
 namespace std
 {
     template <>
-    struct hash<Cyan::ITexture::Spec>
+    struct hash<Cyan::Texture2D::Spec>
     {
-        std::size_t operator()(const Cyan::ITexture::Spec& spec) const
+        std::size_t operator()(const Cyan::Texture2D::Spec& spec) const
         {
             std::string key = std::to_string(spec.width) + 'x' + std::to_string(spec.height);
-            switch (spec.pixelFormat)
+            switch (spec.format)
             {
             case PF_RGB16F:
                 key += "_RGB16F";

@@ -104,12 +104,9 @@ namespace Cyan
 
             {
                 glm::uvec2 resolution = gEngine->getGraphicsSystem()->getAppWindowDimension();
-                ITexture::Spec spec = { };
-                spec.width = 1024;
-                spec.height = 1024;
-                spec.type = TEX_2D;
-                spec.pixelFormat = PF_RGB16F;
-                m_sceneRenderingOutput = new Texture2D("FrameOutput", spec);
+                Texture2D::Spec spec(1024, 1024, 1, PF_RGB16F);
+                auto renderer = Renderer::get();
+                m_sceneRenderingOutput = renderer->createRenderTexture("FrameOutput", spec, Sampler2D());
             }
 
             static const char* shaderBalls = ASSET_PATH "mesh/shader_balls.glb";
@@ -120,7 +117,7 @@ namespace Cyan
             static const char* diorama = ASSET_PATH "mesh/sd_macross_diorama.glb";
             static const char* picapica = ASSET_PATH "mesh/pica_pica_scene.glb";
 
-            AssetManager::importGltfEx(m_currentScene.get(), ueArchviz);
+            AssetManager::importGltf(m_currentScene.get(), shaderBalls);
 
             // skybox
             auto skybox = m_currentScene->createSkybox("Skybox", ASSET_PATH "cubemaps/neutral_sky.hdr", glm::uvec2(2048));
@@ -281,7 +278,7 @@ namespace Cyan
                                             selected = (selectedVis->texture->name == vis.texture->name);
                                         }
                                         if (vis.texture) {
-                                            if (ImGui::MenuItem(vis.texture->name, nullptr, selected)) {
+                                            if (ImGui::MenuItem(vis.texture->name.c_str(), nullptr, selected)) {
                                                 if (selected) {
                                                     if (selectedVis->bSwitch) 
                                                     {

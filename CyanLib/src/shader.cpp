@@ -246,7 +246,7 @@ namespace Cyan
         SET_UNIFORM(glProgramUniform2i, data.x, data.y);
     }
 
-    Shader& Shader::setTexture(const char* samplerName, ITexture* texture) 
+    Shader& Shader::setTexture(const char* samplerName, Texture* texture) 
     {
         if (texture) 
         {

@@ -294,6 +294,56 @@ namespace Cyan
             }
         }
 
+        static void translateSampler(const gltf::Sampler& sampler, Sampler2D& outSampler, bool& bOutGenerateMipmap)
+        {
+            switch (sampler.magFilter)
+            {
+            case (u32)gltf::Sampler::Filtering::NEAREST: outSampler.magFilter = FM_POINT; break;
+            case (u32)gltf::Sampler::Filtering::LINEAR: outSampler.magFilter = FM_BILINEAR; break;
+            default: assert(0); break;
+            }
+
+            switch (sampler.minFilter)
+            {
+            case (u32)gltf::Sampler::Filtering::NEAREST: outSampler.minFilter = FM_POINT; break;
+            case (u32)gltf::Sampler::Filtering::LINEAR: outSampler.minFilter = FM_BILINEAR; break;
+            case (u32)gltf::Sampler::Filtering::LINEAR_MIPMAP_LINEAR: 
+                outSampler.minFilter = FM_TRILINEAR; 
+                bOutGenerateMipmap = true;
+                break;
+            case (u32)gltf::Sampler::Filtering::LINEAR_MIPMAP_NEAREST:
+            case (u32)gltf::Sampler::Filtering::NEAREST_MIPMAP_LINEAR: 
+            case (u32)gltf::Sampler::Filtering::NEAREST_MIPMAP_NEAREST: 
+                assert(0);
+                break;
+            default: assert(0); break;
+            }
+
+            switch (sampler.wrapS)
+            {
+            case (u32)gltf::Sampler::Wrap::CLAMP_TO_EDGE: 
+                outSampler.wrapS = WM_CLAMP; 
+                break;
+            case (u32)gltf::Sampler::Wrap::REPEAT: 
+                outSampler.wrapS = WM_WRAP; 
+                break;
+            case (u32)gltf::Sampler::Wrap::MIRRORED_REPEAT:
+            default: assert(0); break;
+            }
+
+            switch (sampler.wrapT)
+            {
+            case (u32)gltf::Sampler::Wrap::CLAMP_TO_EDGE: 
+                outSampler.wrapT = WM_CLAMP; 
+                break;
+            case (u32)gltf::Sampler::Wrap::REPEAT: 
+                outSampler.wrapT = WM_WRAP; 
+                break;
+            case (u32)gltf::Sampler::Wrap::MIRRORED_REPEAT:
+            default: assert(0); break;
+            }
+        }
+
         // todo: handle the case for external images
         // todo: track the memory usage during importing
         void Glb::importTextures()
@@ -308,24 +358,7 @@ namespace Cyan
                 {
                     const gltf::BufferView bv = bufferViews[bufferView];
                     u8* dataAddress = binaryChunk.data() + bv.byteOffset;
-                    i32 hdr = stbi_is_hdr_from_memory(dataAddress, bv.byteLength);
-                    if (hdr)
-                    {
-                        gltfImage.bHdr = true;
-                        gltfImage.pixels = reinterpret_cast<u8*>(stbi_loadf_from_memory(dataAddress, bv.byteLength, &gltfImage.width, &gltfImage.height, &gltfImage.numChannels, 0));
-                    }
-                    else
-                    {
-                        i32 is16Bit = stbi_is_16_bit_from_memory(dataAddress, bv.byteLength);
-                        if (is16Bit)
-                        {
-                            gltfImage.b16Bits = true;
-                        }
-                        else
-                        {
-                            gltfImage.pixels = stbi_load_from_memory(dataAddress, bv.byteLength, &gltfImage.width, &gltfImage.height, &gltfImage.numChannels, 0);
-                        }
-                    }
+                    AssetManager::importImage(gltfImage.name.c_str(), dataAddress, bv.byteLength);
                 }
                 else
                 {
@@ -338,133 +371,15 @@ namespace Cyan
             for (i32 i = 0; i < textures.size(); ++i)
             {
                 const gltf::Texture& texture = textures[i];
-                const gltf::Image& image = images[texture.source];
-                const gltf::Sampler& sampler = samplers[texture.sampler];
+                const gltf::Image& gltfImage = images[texture.source];
+                const gltf::Sampler& gltfSampler = samplers[texture.sampler];
 
-                ITexture::Spec spec = { };
-                spec.type = TEX_2D;
-                spec.width = image.width;
-                spec.height = image.height;
-                if (image.bHdr)
-                {
-                    switch (image.numChannels)
-                    {
-                    case 3: spec.pixelFormat = PF_RGB32F; break;
-                    case 4: spec.pixelFormat = PF_RGBA32F; break;
-                    default: break;
-                    }
-                }
-                else
-                {
-                    if (image.b16Bits)
-                    {
-                        switch (image.numChannels)
-                        {
-                        case 3: spec.pixelFormat = PF_RGB16F; break;
-                        case 4: spec.pixelFormat = PF_RGBA16F; break;
-                        default: assert(0); break;
-                        }
-                    }
-                    else
-                    {
-                        switch (image.numChannels)
-                        {
-                        case 3: spec.pixelFormat = PF_RGB8; break;
-                        case 4: spec.pixelFormat = PF_RGBA8; break;
-                        default: assert(0); break;
-                        }
-                    }
-                }
-                spec.pixelData = image.pixels;
+                Cyan::Image* image = AssetManager::getAsset<Cyan::Image>(gltfImage.name.c_str());
 
-                ITexture::Parameter params;
-                switch (sampler.magFilter)
-                {
-                case (u32)gltf::Sampler::Filtering::NEAREST: params.magnificationFilter = FM_POINT; break;
-                case (u32)gltf::Sampler::Filtering::LINEAR: params.magnificationFilter = FM_BILINEAR; break;
-                default: assert(0); break;
-                }
-
-                switch (sampler.minFilter)
-                {
-                case (u32)gltf::Sampler::Filtering::NEAREST: params.minificationFilter = FM_POINT; break;
-                case (u32)gltf::Sampler::Filtering::LINEAR: params.minificationFilter = FM_BILINEAR; break;
-                case (u32)gltf::Sampler::Filtering::LINEAR_MIPMAP_LINEAR: 
-                    params.minificationFilter = FM_TRILINEAR; 
-                    spec.numMips = log2(spec.width) + 1;
-                    break;
-                case (u32)gltf::Sampler::Filtering::LINEAR_MIPMAP_NEAREST:
-                case (u32)gltf::Sampler::Filtering::NEAREST_MIPMAP_LINEAR: 
-                case (u32)gltf::Sampler::Filtering::NEAREST_MIPMAP_NEAREST: params.minificationFilter = ITexture::Parameter::Filtering::NEAREST_MIPMAP_NEAREST; break;
-                default: assert(0); break;
-                }
-
-                switch (sampler.wrapS)
-                {
-                case (u32)gltf::Sampler::Wrap::CLAMP_TO_EDGE: params.wrap_s = WM_CLAMP; break;
-                case (u32)gltf::Sampler::Wrap::REPEAT: params.wrap_s = WM_WRAP; break;
-                case (u32)gltf::Sampler::Wrap::MIRRORED_REPEAT:
-                default: assert(0); break;
-                }
-
-                switch (sampler.wrapT)
-                {
-                case (u32)gltf::Sampler::Wrap::CLAMP_TO_EDGE: params.wrap_t = WM_CLAMP; break;
-                case (u32)gltf::Sampler::Wrap::REPEAT: params.wrap_t = WM_WRAP; break;
-                case (u32)gltf::Sampler::Wrap::MIRRORED_REPEAT:
-                default: assert(0); break;
-                }
-
-                AssetManager::createTexture2D(texture.name.c_str(), spec, params);
-            }
-        }
-
-        static void translateSampler(const gltf::Sampler& sampler, ITexture::Parameter& outParams)
-        {
-            switch (sampler.magFilter)
-            {
-            case (u32)gltf::Sampler::Filtering::NEAREST: outParams.magnificationFilter = FM_POINT; break;
-            case (u32)gltf::Sampler::Filtering::LINEAR: outParams.magnificationFilter = FM_BILINEAR; break;
-            default: assert(0); break;
-            }
-
-            switch (sampler.minFilter)
-            {
-            case (u32)gltf::Sampler::Filtering::NEAREST: outParams.minificationFilter = FM_POINT; break;
-            case (u32)gltf::Sampler::Filtering::LINEAR: outParams.minificationFilter = FM_BILINEAR; break;
-            case (u32)gltf::Sampler::Filtering::LINEAR_MIPMAP_LINEAR: 
-                outParams.minificationFilter = FM_TRILINEAR; 
-                break;
-            case (u32)gltf::Sampler::Filtering::LINEAR_MIPMAP_NEAREST:
-            case (u32)gltf::Sampler::Filtering::NEAREST_MIPMAP_LINEAR: 
-            case (u32)gltf::Sampler::Filtering::NEAREST_MIPMAP_NEAREST: 
-                outParams.minificationFilter = ITexture::Parameter::Filtering::NEAREST_MIPMAP_NEAREST; 
-                break;
-            default: assert(0); break;
-            }
-
-            switch (sampler.wrapS)
-            {
-            case (u32)gltf::Sampler::Wrap::CLAMP_TO_EDGE: 
-                outParams.wrap_s = WM_CLAMP; 
-                break;
-            case (u32)gltf::Sampler::Wrap::REPEAT: 
-                outParams.wrap_s = WM_WRAP; 
-                break;
-            case (u32)gltf::Sampler::Wrap::MIRRORED_REPEAT:
-            default: assert(0); break;
-            }
-
-            switch (sampler.wrapT)
-            {
-            case (u32)gltf::Sampler::Wrap::CLAMP_TO_EDGE: 
-                outParams.wrap_t = WM_CLAMP; 
-                break;
-            case (u32)gltf::Sampler::Wrap::REPEAT: 
-                outParams.wrap_t = WM_WRAP; 
-                break;
-            case (u32)gltf::Sampler::Wrap::MIRRORED_REPEAT:
-            default: assert(0); break;
+                Sampler2D sampler;
+                bool bGenerateMipmap = false;
+                translateSampler(gltfSampler, sampler, bGenerateMipmap);
+                AssetManager::createTexture2D(texture.name.c_str(), image, bGenerateMipmap, sampler);
             }
         }
 
@@ -498,11 +413,12 @@ namespace Cyan
             {
                 const gltf::Texture& texture = textures[i];
                 gltf::Image& gltfImage = images[texture.source];
-                const gltf::Sampler& sampler = samplers[texture.sampler];
+                const gltf::Sampler& gltfSampler = samplers[texture.sampler];
                 PackedImageDesc packedImageDesc = assetManager->getPackedImageDesc(gltfImage.name.c_str());
-                ITexture::Parameter params;
-                translateSampler(sampler, params);
-                assetManager->addPackedTexture(texture.name.c_str(), packedImageDesc, params);
+                Sampler2D sampler;
+                bool bGenerateMipmap;
+                translateSampler(gltfSampler, sampler, bGenerateMipmap);
+                assetManager->addPackedTexture(texture.name.c_str(), packedImageDesc, bGenerateMipmap, sampler);
             }
         }
 

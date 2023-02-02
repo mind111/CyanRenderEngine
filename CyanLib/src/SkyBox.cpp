@@ -10,7 +10,8 @@ namespace Cyan
     PixelPipeline* Skybox::s_cubemapSkyPipeline = nullptr;
     PixelPipeline* Skybox::s_proceduralSkyPipeline = nullptr;
 
-    Skybox::Skybox(const char* name, const char* srcHDRIPath, const glm::uvec2& resolution) {
+    Skybox::Skybox(const char* name, const char* srcHDRIPath, const glm::uvec2& resolution) 
+    {
         if (!s_proceduralSkyPipeline) 
         {
             CreateVS(vs, "SDFSkyVS", SHADER_SOURCE_PATH "sky_sdf_v.glsl");
@@ -24,25 +25,21 @@ namespace Cyan
             s_cubemapSkyPipeline = ShaderManager::createPixelPipeline("SkyDome", vs, ps);
         }
 
-        ITexture::Spec HDRISpec = { };
-        HDRISpec.type = TEX_2D;
         // todo: parse out the name of the HDRI and use that as the texture name 
-        m_srcHDRITexture = AssetManager::importTexture2D("HDRITexture", srcHDRIPath, HDRISpec);
+        Sampler2D sampler;
+        sampler.minFilter = FM_BILINEAR;
+        sampler.magFilter = FM_BILINEAR;
+        m_srcHDRITexture = AssetManager::importTexture2D("SkyboxHDRITexture", srcHDRIPath, false, sampler);
 
-        ITexture::Spec cubemapSpec = { };
-        cubemapSpec.type = TEX_CUBE;
-        cubemapSpec.width = resolution.x;
-        cubemapSpec.height = resolution.x;
-        cubemapSpec.numMips = (u32)log2(resolution.x) + 1;
-        cubemapSpec.pixelFormat = PF_RGB16F;
-        ITexture::Parameter cubemapParams = { };
-        cubemapParams.minificationFilter = FM_TRILINEAR;
-        cubemapParams.magnificationFilter = FM_BILINEAR;
-        cubemapParams.wrap_r = WM_CLAMP;
-        cubemapParams.wrap_s = WM_CLAMP;
-        cubemapParams.wrap_t = WM_CLAMP;
+        u32 numMips = log2(resolution.x) + 1;
+        TextureCube::Spec cubemapSpec(resolution.x, numMips, PF_RGB16F);
+        SamplerCube samplerCube;
+        samplerCube.minFilter = FM_TRILINEAR;
+        samplerCube.magFilter = FM_BILINEAR;
+        samplerCube.wrapS = WM_CLAMP;
+        samplerCube.wrapT = WM_CLAMP;
 
-        m_cubemapTexture = AssetManager::createTextureCube(name, cubemapSpec, cubemapParams);
+        m_cubemapTexture = AssetManager::createTextureCube(name, cubemapSpec, samplerCube);
 
         // render src equirectangular map into a cubemap
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(m_cubemapTexture->resolution, m_cubemapTexture->resolution));
