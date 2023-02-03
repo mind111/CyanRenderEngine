@@ -19,12 +19,13 @@ namespace Cyan
     struct SkyLight;
     struct PointLight;
 
+#if 0
     struct PackedGeometry 
     {
         PackedGeometry(const Scene& scene);
 
-        std::vector<Mesh*> meshes;
-        std::unordered_map<std::string, Mesh*> meshMap;
+        std::vector<StaticMesh*> meshes;
+        std::unordered_map<std::string, StaticMesh*> meshMap;
         std::unordered_map<std::string, u32> submeshMap;
 
         struct Vertex
@@ -47,6 +48,7 @@ namespace Cyan
         };
         ShaderStorageBuffer<DynamicSsboData<SubmeshDesc>> submeshes;
     };
+#endif
 
     // is it better to define
     /**
@@ -127,7 +129,7 @@ namespace Cyan
         // skybox
         Skybox* skybox = nullptr;
 
-        static PackedGeometry* packedGeometry;
+        // static PackedGeometry* packedGeometry;
         std::unique_ptr<ViewBuffer> viewBuffer = nullptr;
         std::unique_ptr<TransformBuffer> transformBuffer = nullptr;
         std::unique_ptr<InstanceBuffer> instanceBuffer = nullptr;

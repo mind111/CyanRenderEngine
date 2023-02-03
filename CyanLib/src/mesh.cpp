@@ -1,25 +1,67 @@
 #include "Common.h"
-#include "CyanAPI.h"
 #include "Mesh.h"
-#include "LightMap.h"
-#include "Scene.h"
-#include "Asset.h"
+#include "Geometry.h"
 
 namespace Cyan
 {
-    std::string Mesh::typeDesc = std::string("Mesh");
-
-    /*
-    * calculate mesh's aabb on initialization
-    */
-    void Mesh::init()
+    StaticMesh::Submesh::Submesh(Geometry* inGeometry)
+        : geometry(inGeometry), va(nullptr), index(-1)
     {
-        for (u32 i = 0; i < numSubmeshes(); ++i)
+        Desc desc = { };
+        Geometry::Type type = geometry->getGeometryType();
+        switch (type)
         {
-            ISubmesh* sm = submeshes[i];
-            aabb.bound(submeshes[i]->getMin());
-            aabb.bound(submeshes[i]->getMax());
+        case Geometry::Type::kTriangles:
+            desc.type = (u32)Geometry::Type::kTriangles;
+            desc.vertexOffset = getTriVertexBuffer().getNumElements();
+            desc.numVertices = geometry->numVertices();
+            desc.indexOffset = getTriIndexBuffer().getNumElements();
+            desc.numIndices = geometry->numIndices();
+            break;
+        case Geometry::Type::kPointCloud:
+        case Geometry::Type::kLines:
+        default:
+            assert(0);
         }
+
+        auto& submeshBuffer = getSubmeshBuffer();
+        index = submeshBuffer.getNumElements();
+        submeshBuffer.addElement(desc);
+    }
+
+
+    StaticMesh::SubmeshBuffer& StaticMesh::getSubmeshBuffer()
+    {
+        static SubmeshBuffer s_submeshBuffer("SubmeshBuffer");
+        return s_submeshBuffer;
+    }
+
+    StaticMesh::TriVertexBuffer& StaticMesh::getTriVertexBuffer()
+    {
+        static TriVertexBuffer s_triVertexBuffer("TriVertexBuffer");
+        return s_triVertexBuffer;
+    }
+
+    StaticMesh::TriIndexBuffer& StaticMesh::getTriIndexBuffer()
+    {
+        static TriIndexBuffer s_triIndexBuffer("TriIndexBuffer");
+        return s_triIndexBuffer;
+    }
+
+    StaticMesh::Submesh::Desc StaticMesh::getSubmeshDesc(const StaticMesh::Submesh& submesh)
+    {
+        return getSubmeshBuffer()[submesh.index];
+    }
+
+    // todo: implement this  
+    void StaticMesh::Submesh::init()
+    {
+        va = new VertexArray();
+    }
+
+    void StaticMesh::addSubmesh(Geometry* inGeometry)
+    {
+        submeshes.emplace_back(inGeometry);
     }
 
 #if 0

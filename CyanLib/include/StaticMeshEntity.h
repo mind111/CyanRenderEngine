@@ -20,7 +20,7 @@ namespace Cyan
             Scene* scene,
             const char* inName,
             const Transform& t,
-            Mesh* inMesh,
+            StaticMesh* inMesh,
             Entity* inParent = nullptr, 
             u32 inProperties = (EntityFlag_kDynamic | EntityFlag_kVisible | EntityFlag_kCastShadow));
         ~StaticMeshEntity() { }

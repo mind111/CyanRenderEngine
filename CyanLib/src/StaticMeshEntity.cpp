@@ -8,7 +8,7 @@
 
 namespace Cyan
 {
-    StaticMeshEntity::StaticMeshEntity(Scene* scene, const char* inName, const Transform& t, Mesh* inMesh, Entity* inParent, u32 inProperties)
+    StaticMeshEntity::StaticMeshEntity(Scene* scene, const char* inName, const Transform& t, StaticMesh* inMesh, Entity* inParent, u32 inProperties)
         : Entity(scene, inName, t, inParent, inProperties)
     {
         staticMeshComponent = std::make_unique<MeshComponent>(this, "StaticMeshComponent", Transform{ }, inMesh);
@@ -23,7 +23,7 @@ namespace Cyan
         if (ImGui::CollapsingHeader("StaticMeshEntity", ImGuiTreeNodeFlags_DefaultOpen))
         {
             auto meshInst = staticMeshComponent->getAttachedMesh();
-            auto mesh = meshInst->parent;
+            auto mesh = meshInst->mesh;
 
             // todo: mesh thumbnail
             ImGui::Text("Mesh"); ImGui::SameLine();

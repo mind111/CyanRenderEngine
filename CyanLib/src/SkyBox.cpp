@@ -49,7 +49,7 @@ namespace Cyan
         CreateVS(vs, "RenderToCubemapVS", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl");
         CreatePS(ps, "RenderToCubemapPS", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl");
         CreatePixelPipeline(pipeline, "RenderToCubemap", vs, ps);
-        Mesh* cubeMesh = AssetManager::getAsset<Mesh>("UnitCubeMesh");
+        StaticMesh* cubeMesh = AssetManager::getAsset<StaticMesh>("UnitCubeMesh");
 
         for (i32 f = 0; f < 6u; f++)
         {
@@ -97,7 +97,7 @@ namespace Cyan
 
     void Skybox::render(RenderTarget* renderTarget, const glm::mat4& view, const glm::mat4& projection, f32 mipLevel)
     {
-        Mesh* cubeMesh = AssetManager::getAsset<Mesh>("UnitCubeMesh");
+        StaticMesh* cubeMesh = AssetManager::getAsset<StaticMesh>("UnitCubeMesh");
 
         Renderer::get()->drawMesh(
             renderTarget,

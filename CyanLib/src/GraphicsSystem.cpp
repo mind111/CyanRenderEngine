@@ -226,7 +226,8 @@ namespace Cyan
         // scene rendering
         if (scene) 
         {
-            if (auto camera = dynamic_cast<PerspectiveCamera*>(scene->m_mainCamera->getCamera())) {
+            if (auto camera = dynamic_cast<PerspectiveCamera*>(scene->m_mainCamera->getCamera())) 
+            {
                 SceneView mainSceneView(*scene, *camera,
                     [](Entity* entity) {
                         return entity->getProperties() | EntityFlag_kVisible;

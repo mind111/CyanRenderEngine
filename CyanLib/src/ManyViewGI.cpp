@@ -21,9 +21,10 @@ namespace Cyan {
         return transform;
     }
 
-    static void drawSurfels(ShaderStorageBuffer<DynamicSsboData<InstanceDesc>>& surfelInstanceBuffer, Renderer* renderer, GfxContext* gfxc, RenderTarget* dstRenderTarget) {
+    static void drawSurfels(ShaderStorageBuffer<DynamicSsboData<InstanceDesc>>& surfelInstanceBuffer, Renderer* renderer, GfxContext* gfxc, RenderTarget* dstRenderTarget) 
+    {
         surfelInstanceBuffer.bind(68);
-        auto disk = AssetManager::getAsset<Mesh>("Disk");
+        auto disk = AssetManager::getAsset<StaticMesh>("Disk");
         VertexShader* vs = ShaderManager::createShader<VertexShader>("VisualizeSurfelVS", SHADER_SOURCE_PATH "visualize_surfel_v.glsl");
         PixelShader* ps = ShaderManager::createShader<PixelShader>("VisualizeSurfelPS", SHADER_SOURCE_PATH "visualize_surfel_p.glsl");
         PixelPipeline* pipeline = ShaderManager::createPixelPipeline("VisualizeSurfel", vs, ps);
@@ -32,14 +33,16 @@ namespace Cyan {
         });
         gfxc->setRenderTarget(dstRenderTarget);
         gfxc->setViewport({ 0, 0, dstRenderTarget->width, dstRenderTarget->height });
-        auto va = disk->getSubmesh(0)->getVertexArray();
+        auto va = disk->getSubmesh(0).va;
         gfxc->setVertexArray(va);
         u32 numInstances = surfelInstanceBuffer.getNumElements();
-        if (va->hasIndexBuffer()) {
-            glDrawElementsInstanced(GL_TRIANGLES, disk->getSubmesh(0)->numIndices(), GL_UNSIGNED_INT, 0, numInstances);
+        if (va->hasIndexBuffer()) 
+        {
+            glDrawElementsInstanced(GL_TRIANGLES, disk->getSubmesh(0).numIndices(), GL_UNSIGNED_INT, 0, numInstances);
         }
-        else {
-            glDrawArraysInstanced(GL_TRIANGLES, 0, disk->getSubmesh(0)->numVertices(), numInstances);
+        else 
+        {
+            glDrawArraysInstanced(GL_TRIANGLES, 0, disk->getSubmesh(0).numVertices(), numInstances);
         }
     }
 
@@ -244,12 +247,12 @@ namespace Cyan {
                 ps->setUniform("finalGatherRes", finalGatherRes);
         });
 
-        auto cube = AssetManager::getAsset<Mesh>("UnitCubeMesh");
-        gfxc->setVertexArray(cube->getSubmesh(0)->getVertexArray());
+        auto cube = AssetManager::getAsset<StaticMesh>("UnitCubeMesh");
+        gfxc->setVertexArray(cube->getSubmesh(0).va);
         glDisable(GL_CULL_FACE);
         u32 numInstances = hemicubeInstanceBuffer.getNumElements();
         // draw hemicubes
-        glDrawArraysInstanced(GL_TRIANGLES, 0, cube->getSubmesh(0)->numVertices(), numInstances);
+        glDrawArraysInstanced(GL_TRIANGLES, 0, cube->getSubmesh(0).numVertices(), numInstances);
         glEnable(GL_CULL_FACE);
 
         auto drawLineVS = ShaderManager::createShader<VertexShader>("DebugDrawLineVS", SHADER_SOURCE_PATH "debug_draw_line_v.glsl");
@@ -261,7 +264,7 @@ namespace Cyan {
     }
 
     void ManyViewGI::Image::visualizeIrradiance(RenderTarget* dstRenderTarget) {
-        auto disk = AssetManager::getAsset<Mesh>("Disk");
+        auto disk = AssetManager::getAsset<StaticMesh>("Disk");
         hemicubeInstanceBuffer.bind(63);
 
         auto renderer = Renderer::get();
@@ -275,15 +278,15 @@ namespace Cyan {
         gfxc->setPixelPipeline(visIrradiancePipeline, [this](VertexShader* vs, PixelShader* ps) {
             ps->setTexture("irradianceBuffer", irradiance);
         });
-        auto va = disk->getSubmesh(0)->getVertexArray();
+        auto va = disk->getSubmesh(0).va;
         gfxc->setVertexArray(va);
         if (va->hasIndexBuffer()) 
         {
-            glDrawElementsInstanced(GL_TRIANGLES, disk->getSubmesh(0)->numIndices(), GL_UNSIGNED_INT, 0, hemicubeInstanceBuffer.getNumElements());
+            glDrawElementsInstanced(GL_TRIANGLES, disk->getSubmesh(0).numIndices(), GL_UNSIGNED_INT, 0, hemicubeInstanceBuffer.getNumElements());
         }
         else 
         {
-            glDrawArraysInstanced(GL_TRIANGLES, 0, disk->getSubmesh(0)->numVertices(), hemicubeInstanceBuffer.getNumElements());
+            glDrawArraysInstanced(GL_TRIANGLES, 0, disk->getSubmesh(0).numVertices(), hemicubeInstanceBuffer.getNumElements());
         }
     }
 
@@ -631,27 +634,32 @@ namespace Cyan {
     }
 
     // todo: implement this on gpu using geometry shader
-    void PointBasedManyViewGI::generateWorldSpaceSurfels() {
+    void PointBasedManyViewGI::generateWorldSpaceSurfels() 
+    {
         surfels.clear();
         surfelBuffer.data.array.clear();
         // calculate total surface area by summing area of all triangles in the scene
         for (i32 i = 0; i < m_scene->meshInstances.size(); ++i) {
             auto meshInst = m_scene->meshInstances[i];
-            auto mesh = meshInst->parent;
+            auto mesh = meshInst->mesh;
             glm::mat4 transform = (*m_scene->transformBuffer)[i];
             glm::mat4 normalTransform = glm::inverse(glm::transpose(transform));
-            for (i32 sm = 0; sm < mesh->numSubmeshes(); ++sm) {
-                auto submesh = dynamic_cast<Mesh::Submesh<Triangles>*>(mesh->getSubmesh(sm));
-                if (submesh) {
+            for (i32 sm = 0; sm < mesh->numSubmeshes(); ++sm) 
+            {
+                auto submesh = mesh->getSubmesh(sm);
+                auto geometry = dynamic_cast<Triangles*>(submesh.geometry);
+                if (geometry)
+                {
                     glm::vec3 albedo(0.f);
                     auto matl = meshInst->getMaterial(sm);
                     // todo: figure out how to handle textured material
-                    if (matl) {
+                    if (matl)
+                    {
                         albedo = matl->albedo;
                     }
-                    const auto& verts = submesh->getVertices();
-                    const auto& indices = submesh->getIndices();
-                    i32 numTriangles = submesh->numIndices() / 3;
+                    const auto& verts = geometry->vertices;
+                    const auto& indices = geometry->indices;
+                    i32 numTriangles = geometry->numIndices() / 3;
                     for (i32 t = 0; t < numTriangles; ++t) {
                         const auto& v0 = verts[indices[(u64)t * 3 + 0]];
                         const auto& v1 = verts[indices[(u64)t * 3 + 1]];
@@ -685,13 +693,13 @@ namespace Cyan {
                                 glm::normalize(st.x * n0 + st.y * n1 + w * n2),
                                 albedo,
                                 kSurfelRadius,
-                            });
+                                });
                             surfelBuffer.addElement(GpuSurfel{
                                 glm::vec4(st.x * p0 + st.y * p1 + w * p2, 1.f),
                                 glm::vec4(glm::normalize(st.x * n0 + st.y * n1 + w * n2), 0.f),
                                 glm::vec4(albedo, 1.f),
                                 glm::vec4(0.f, 0.f, 0.f, 1.f)
-                            });
+                                });
                         }
                     }
                 }

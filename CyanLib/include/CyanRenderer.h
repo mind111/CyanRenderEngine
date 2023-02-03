@@ -59,10 +59,11 @@ namespace Cyan
     * albedo buffers while `drawBuffers` for this draw call will be passed in.
     */
     using RenderSetupLambda = std::function<void(VertexShader* vs, PixelShader* ps)>;
-    struct RenderTask {
+    struct RenderTask 
+    {
         RenderTarget* renderTarget = nullptr;
         Viewport viewport = { };
-        ISubmesh* submesh = nullptr;
+        StaticMesh::Submesh submesh;
         PixelPipeline* pipeline = nullptr;
         GfxPipelineConfig config;
         RenderSetupLambda renderSetupLambda = [](VertexShader* vs, PixelShader* ps) {};
@@ -282,7 +283,7 @@ namespace Cyan
         void visualizeSSRT(Texture2D* depth, Texture2D* normal);
 
         void renderSceneToLightProbe(Scene* scene, LightProbe* probe, RenderTarget* renderTarget);
-        void drawMesh(RenderTarget* renderTarget, Viewport viewport, Mesh* mesh, PixelPipeline* pipeline, const RenderSetupLambda& renderSetupLambda, const GfxPipelineConfig& config = GfxPipelineConfig{});
+        void drawMesh(RenderTarget* renderTarget, Viewport viewport, StaticMesh* mesh, PixelPipeline* pipeline, const RenderSetupLambda& renderSetupLambda, const GfxPipelineConfig& config = GfxPipelineConfig{});
         void drawFullscreenQuad(RenderTarget* renderTarget, PixelPipeline* pipeline, const RenderSetupLambda& renderSetupLambda);
         void drawScreenQuad(RenderTarget* renderTarget, Viewport viewport, PixelPipeline* pipeline, RenderSetupLambda&& renderSetupLambda);
 

@@ -27,11 +27,15 @@ namespace Cyan
             kPointCloud,
             kLines,
         };
+
+        virtual Type getGeometryType() = 0;
+        virtual u32 numVertices() = 0;
+        virtual u32 numIndices() = 0;
     };
 
     struct Triangles : public Geometry
     {
-        static Type getTypeEnum() { return Type::kTriangles; }
+        virtual Type getGeometryType() override { return Type::kTriangles; }
         u32 numVertices() { return (u32)vertices.size(); }
         u32 numIndices() { return (u32)indices.size(); }
 
@@ -53,13 +57,16 @@ namespace Cyan
             }
         };
 
+        Triangles() = default;
+        Triangles(const std::vector<Triangles::Vertex>& inVertices, const std::vector<u32>& inIndices);
+
         std::vector<Vertex> vertices;
         std::vector<u32> indices;
     };
 
     struct PointCloud : public Geometry
     {
-        static Type getTypeEnum() { return Type::kPointCloud; }
+        virtual Type getGeometryType() override { return Type::kPointCloud; }
         u32 numVertices() { return vertices.size(); }
         u32 numIndices() { return indices.size(); }
 
@@ -79,7 +86,7 @@ namespace Cyan
 
     struct Quads : public Geometry
     {
-        static Type getTypeEnum() { return Type::kQuads; }
+        virtual Type getGeometryType() override { return Type::kQuads; }
         u32 numVertices() { return vertices.size(); }
         u32 numIndices() { return indices.size(); }
 
@@ -103,7 +110,7 @@ namespace Cyan
 
     struct Lines : public Geometry
     {
-        static Type getTypeEnum() { return Type::kLines; }
+        virtual Type getGeometryType() override { return Type::kLines; }
         u32 numVertices() { return vertices.size(); }
         u32 numIndices() { return indices.size(); }
 
@@ -116,6 +123,9 @@ namespace Cyan
                 return VertexAttribFlag_kPosition;
             }
         };
+
+        Lines() = default;
+        Lines(const std::vector<Vertex>& vertices, const std::vector<u32>& indices);
 
         std::vector<Vertex> vertices;
         std::vector<u32> indices;

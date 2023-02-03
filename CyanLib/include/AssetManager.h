@@ -36,13 +36,13 @@ namespace Cyan
 
         struct DefaultShapes 
         {
-            Mesh* fullscreenQuad = nullptr;
-            Mesh* quad = nullptr;
-            Mesh* unitCubeMesh = nullptr;
-            Mesh* sphere = nullptr;
-            Mesh* icosphere = nullptr;
-            Mesh* boundingSphere = nullptr;
-            Mesh* disk = nullptr;
+            StaticMesh* fullscreenQuad = nullptr;
+            StaticMesh* quad = nullptr;
+            StaticMesh* unitCubeMesh = nullptr;
+            StaticMesh* sphere = nullptr;
+            StaticMesh* icosphere = nullptr;
+            StaticMesh* boundingSphere = nullptr;
+            StaticMesh* disk = nullptr;
         } m_defaultShapes;
 
         AssetManager();
@@ -50,14 +50,12 @@ namespace Cyan
 
         void initialize();
         void importGltfNode(Scene* scene, tinygltf::Model& model, Entity* parent, tinygltf::Node& node);
-        Mesh* importGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh); 
+        StaticMesh* importGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh); 
         Cyan::Texture2D* importGltfTexture(tinygltf::Model& model, tinygltf::Texture& gltfTexture);
         void importGltfTextures(tinygltf::Model& model);
         static void importGltf(Scene* scene, const char* filename, const char* name=nullptr);
         static void importGltfAsync(Scene* scene, const char* filename);
         static void importGlb(Scene* scene, const char* filename);
-        std::vector<ISubmesh*> importObj(const char* baseDir, const char* filename);
-
 #if 0
         static Texture3D* createTexture3D(const char* name, const Texture3D::Spec& spec, Texture::Parameter parameter=ITexture::Parameter{ }) {
             Texture3D* outTexture = getAsset<Texture3D>(name);
@@ -69,27 +67,26 @@ namespace Cyan
             return outTexture;
         }
 #endif
-        /** todo: this part should be refactored as this create...() function should be private
-        * Creating a texture from that's visible and accessible through the AssetManager
-        */
+        // textures
         static Image* importImage(const char* name, const char* filename);
         static Image* importImage(const char* name, u8* mem, u32 sizeInBytes);
         static Texture2D* createTexture2D(const char* name, Image* srcImage, bool bGenerateMipmap, const Sampler2D& inSampler = Sampler2D{});
         static Texture2D* importTexture2D(const char* textureName, const char* srcImageFile, bool bGenerateMipmap, const Sampler2D& inSampler);
         static Texture2D* importTexture2D(const char* textureName, const char* srcImageName, const char* srcImageFile, bool bGenerateMipmap, const Sampler2D& inSampler);
+
+        // meshes
+        static StaticMesh* importWavefrontObj(const char* meshName, const char* baseDir, const char* filename);
+        static StaticMesh* createMesh(const char* name);
+
         static Material& createMaterial(const char* name);
         static MaterialTextureAtlas& createPackedMaterial(const char* name);
-
-        // static TextureCube* createTextureCube(const char* name, const TextureCube::Spec& spec, const SamplerCube& inSampler = SamplerCube{ });
-        // static DepthTexture2D* createDepthTexture(const char* name, u32 width, u32 height);
-        // Texture2D* createTexture2D(const char* name, const Texture2D::Spec& spec, const Sampler2D& inSampler = Sampler2D{});
 
         // getters
         template <typename T>
         static T* getAsset(const char* assetName);
 
         template <>
-        static Mesh* getAsset<Mesh>(const char* meshName) { 
+        static StaticMesh* getAsset<StaticMesh>(const char* meshName) { 
             const auto& entry = singleton->m_meshMap.find(std::string(meshName));
             if (entry == singleton->m_meshMap.end())
             {
@@ -166,35 +163,6 @@ namespace Cyan
         static const std::vector<Texture*>& getTextures()
         {
             return singleton->m_textures;
-        }
-
-        template <typename T>
-        static Mesh::Submesh<T>* createSubmesh(const std::vector<typename T::Vertex>& vertices, const std::vector<u32>& indices)
-        {
-            Mesh::Submesh<T>* sm = new Mesh::Submesh<T>(vertices, indices);
-            return sm;
-        }
-
-        /*
-        * create an empty mesh assuming that it's geometry data will be filled in later
-        */
-        static Mesh* createMesh(const char* name)
-        {
-            Mesh* parent = new Mesh(name);
-            // register mesh object into the asset table
-            singleton->m_meshMap.insert({ parent->name, parent });
-            return parent;
-        }
-
-        /*
-        * create geometry data first, and then pass in to create a mesh
-        */
-        static Mesh* createMesh(const char* name, const std::vector<ISubmesh*>& submeshes)
-        {
-            Mesh* parent = new Mesh(name, submeshes);
-            // register mesh object into the asset table
-            singleton->m_meshMap.insert({ parent->name, parent });
-            return parent;
         }
 
         std::unordered_map<std::string, PackedImageDesc> packedImageMap;
@@ -295,13 +263,13 @@ namespace Cyan
         void* m_gltfLoader;
         tinygltf::TinyGLTF m_gltfImporter;
 
-        std::vector<Mesh*> m_meshes;
+        std::vector<StaticMesh*> m_meshes;
         std::vector<Image*> m_images;
         std::vector<Texture*> m_textures;
 
         // todo: need to switch to use indices at some point
         std::unordered_map<std::string, std::unique_ptr<Scene>> m_sceneMap;
-        std::unordered_map<std::string, Mesh*> m_meshMap;
+        std::unordered_map<std::string, StaticMesh*> m_meshMap;
         std::unordered_map<std::string, Image*> m_imageMap;
         std::unordered_map<std::string, Texture*> m_textureMap;
         std::unordered_map<std::string, Material> m_materialMap;

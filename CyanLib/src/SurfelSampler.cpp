@@ -14,21 +14,23 @@ namespace Cyan {
         f32 totalArea = 0.f;
         for (i32 i = 0; i < inScene.meshInstances.size(); ++i) {
             auto meshInst = inScene.meshInstances[i];
-            auto mesh = meshInst->parent;
+            auto mesh = meshInst->mesh;
             glm::mat4 transform = (*inScene.transformBuffer)[i];
             glm::mat4 normalTransform = glm::inverse(glm::transpose(transform));
             for (i32 sm = 0; sm < mesh->numSubmeshes(); ++sm) {
-                auto submesh = dynamic_cast<Mesh::Submesh<Triangles>*>(mesh->getSubmesh(sm));
-                if (submesh) {
+                auto submesh = mesh->getSubmesh(sm);
+                auto geometry = dynamic_cast<Triangles*>(submesh.geometry);
+                if (geometry) 
+                {
                     glm::vec3 albedo(0.f);
                     auto matl = meshInst->getMaterial(sm);
                     // todo: figure out how to handle textured material
                     if (matl) {
                         albedo = matl->albedo;
                     }
-                    const auto& verts = submesh->getVertices();
-                    const auto& indices = submesh->getIndices();
-                    i32 numTriangles = submesh->numIndices() / 3;
+                    const auto& verts = geometry->vertices;
+                    const auto& indices = geometry->indices;
+                    i32 numTriangles = submesh.numIndices() / 3;
                     for (i32 t = 0; t < numTriangles; ++t) {
                         const auto& v0 = verts[indices[(u64)t * 3 + 0]];
                         const auto& v1 = verts[indices[(u64)t * 3 + 1]];
@@ -357,16 +359,18 @@ namespace Cyan {
             gfxc->setPixelPipeline(pipeline, [](VertexShader* vs, PixelShader* ps) {
 
             });
-            auto sphere = AssetManager::getAsset<Mesh>("Sphere");
+            auto sphere = AssetManager::getAsset<StaticMesh>("Sphere");
             auto sm = sphere->getSubmesh(0);
-            auto va = sm->getVertexArray();
+            auto va = sm.va;
             gfxc->setVertexArray(va);
             i32 instanceCount = surfelSamples.getNumElements();
-            if (va->hasIndexBuffer()) {
-                glDrawElementsInstanced(GL_TRIANGLES, sm->numIndices(), GL_UNSIGNED_INT, nullptr, instanceCount);
+            if (va->hasIndexBuffer()) 
+            {
+                glDrawElementsInstanced(GL_TRIANGLES, sm.numIndices(), GL_UNSIGNED_INT, nullptr, instanceCount);
             }
-            else {
-                glDrawArraysInstanced(GL_TRIANGLES, 0, sm->numVertices(), instanceCount);
+            else 
+            {
+                glDrawArraysInstanced(GL_TRIANGLES, 0, sm.numVertices(), instanceCount);
             }
         }
         // visualize grid
@@ -376,16 +380,18 @@ namespace Cyan {
             CreatePS(ps, "DebugDrawSurfelGridPS", SHADER_SOURCE_PATH "debug_draw_grid_p.glsl");
             CreatePixelPipeline(pipeline, "DebugDrawSurfelGrid", vs, ps);
             gfxc->setPixelPipeline(pipeline);
-            auto quad = AssetManager::getAsset<Mesh>("Quad");
+            auto quad = AssetManager::getAsset<StaticMesh>("Quad");
             auto sm = quad->getSubmesh(0);
-            auto va = sm->getVertexArray();
+            auto va = sm.va;
             gfxc->setVertexArray(va);
             u32 instanceCount = instanceBuffer.getNumElements();
-            if (va->hasIndexBuffer()) {
-                glDrawElementsInstanced(GL_TRIANGLES, sm->numIndices(), GL_UNSIGNED_INT, nullptr, instanceCount);
+            if (va->hasIndexBuffer()) 
+            {
+                glDrawElementsInstanced(GL_TRIANGLES, sm.numIndices(), GL_UNSIGNED_INT, nullptr, instanceCount);
             }
-            else {
-                glDrawArraysInstanced(GL_TRIANGLES, 0, sm->numVertices(), instanceCount);
+            else 
+            {
+                glDrawArraysInstanced(GL_TRIANGLES, 0, sm.numVertices(), instanceCount);
             }
         }
     }

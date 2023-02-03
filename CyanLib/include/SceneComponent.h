@@ -52,7 +52,7 @@ namespace Cyan
 
     struct MeshComponent : public SceneComponent 
     {
-        MeshComponent(Entity* inOwner, const char* inName, const Transform& inTransform, Mesh* inMesh)
+        MeshComponent(Entity* inOwner, const char* inName, const Transform& inTransform, StaticMesh* inMesh)
             : SceneComponent(inOwner, inName, inTransform)
         {
             meshInst = std::make_unique<MeshInstance>(inMesh);

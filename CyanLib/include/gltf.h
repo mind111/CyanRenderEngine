@@ -8,6 +8,7 @@ namespace Cyan
 {
     struct Scene;
     struct Entity;
+    struct Triangles;
 
     namespace gltf
     {
@@ -81,10 +82,23 @@ namespace Cyan
 
         struct Primitive
         {
+            // per gltf-2.0 spec
+            enum class Mode
+            {
+                kPoints = 0,
+                kLines,
+                kLineLoop,
+                kLineStrip,
+                kTriangles,
+                kTriangleStrip,
+                kTriangleFan,
+                kCount
+            };
+            
             Attribute attribute;
             i32 indices = -1;
             i32 material = -1;
-            i32 mode = 4; // per gltf-2.0 spec, 4 corresponds to triangles
+            i32 mode = (i32)Mode::kTriangles; 
         };
 
         struct Mesh
@@ -216,6 +230,8 @@ namespace Cyan
             void importPackedMaterials();
             void importNode(Cyan::Scene* outScene, Cyan::Entity* parent, const Node& node);
             void loadJsonChunk();
+
+            void importTriangles(const gltf::Primitive& p, Triangles& outTriangles);
         };
     }
 }

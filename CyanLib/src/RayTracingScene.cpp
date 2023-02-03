@@ -29,7 +29,7 @@ namespace Cyan
                 rtxMeshInst.worldTransform = staticMesh->getWorldTransformMatrix();
 
                 MeshInstance* meshInst = staticMesh->getMeshInstance();
-                Mesh* mesh = meshInst->parent;
+                StaticMesh* mesh = meshInst->mesh;
                 auto meshEntry = meshMap.find(mesh->name);
                 if (meshEntry == meshMap.end())
                 {
@@ -39,13 +39,15 @@ namespace Cyan
                     // convert geometry data
                     for (u32 i = 0; i < mesh->numSubmeshes(); ++i)
                     {
-                        if (Mesh::Submesh<Triangles>* submesh = dynamic_cast<Mesh::Submesh<Triangles>*>(mesh->getSubmesh(i)))
+                        auto submesh = mesh->getSubmesh(i);
+                        auto triMesh = dynamic_cast<Triangles*>(submesh.geometry);
+                        if (triMesh)
                         {
                             rtxMesh.submeshes.emplace_back();
                             TriangleArray& triangles = rtxMesh.submeshes.back();
 
-                            const auto& vertices = submesh->getVertices();
-                            const auto& indices = submesh->getIndices();
+                            const auto& vertices = triMesh->vertices;
+                            const auto& indices = triMesh->indices;
                             u32 numTriangles = indices.size() / 3;
                             for (u32 f = 0; f < numTriangles; ++f)
                             {

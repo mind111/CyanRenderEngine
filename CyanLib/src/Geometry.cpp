@@ -3,6 +3,22 @@
 #include "VertexArray.h"
 #include "MathUtils.h"
 
+namespace Cyan
+{
+    Triangles::Triangles(const std::vector<Triangles::Vertex>& inVertices, const std::vector<u32>& inIndices)
+        : vertices(inVertices), indices(inIndices)
+    {
+
+    }
+
+    Lines::Lines(const std::vector<Lines::Vertex>& inVertices, const std::vector<u32>& inIndices)
+        : vertices(inVertices), indices(inIndices)
+    {
+
+    }
+
+}
+
 BoundingBox3D::BoundingBox3D()
 {
     pmin = glm::vec4(FLT_MAX, FLT_MAX, FLT_MAX, 1.0f);

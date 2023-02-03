@@ -109,7 +109,7 @@ namespace Cyan
                  1.f,  1.f, 1.f, 1.f
             };
 
-            std::vector<ISubmesh*> submeshes;
+            m_defaultShapes.fullscreenQuad = createMesh("FullScreenQuadMesh");
             std::vector<Triangles::Vertex> vertices(6);
             vertices[0].pos = glm::vec3(-1.f, -1.f, 0.f); vertices[0].texCoord0 = glm::vec2(0.f, 0.f);
             vertices[1].pos = glm::vec3( 1.f,  1.f, 0.f); vertices[1].texCoord0 = glm::vec2(1.f, 1.f);
@@ -118,13 +118,13 @@ namespace Cyan
             vertices[4].pos = glm::vec3( 1.f, -1.f, 0.f); vertices[4].texCoord0 = glm::vec2(1.f, 0.f);
             vertices[5].pos = glm::vec3( 1.f,  1.f, 0.f); vertices[5].texCoord0 = glm::vec2(1.f, 1.f);
             std::vector<u32> indices({ 0, 1, 2, 3, 4, 5 });
-            submeshes.push_back(createSubmesh<Triangles>(vertices, indices));
-            m_defaultShapes.fullscreenQuad = createMesh("FullScreenQuadMesh", submeshes);
+            Triangles* t = new Triangles(vertices, indices);
+            m_defaultShapes.fullscreenQuad->addSubmesh(t);
         }
 
         // cube
+        m_defaultShapes.unitCubeMesh = createMesh("UnitCubeMesh");
         u32 numVertices = sizeof(cubeVertices) / sizeof(glm::vec3);
-        std::vector<ISubmesh*> submeshes;
         std::vector<Triangles::Vertex> vertices(numVertices);
         std::vector<u32> indices(numVertices);
         for (u32 v = 0; v < numVertices; ++v)
@@ -132,21 +132,23 @@ namespace Cyan
             vertices[v].pos = glm::vec3(cubeVertices[v * 3 + 0], cubeVertices[v * 3 + 1], cubeVertices[v * 3 + 2]);
             indices[v] = v;
         }
-        submeshes.push_back(createSubmesh<Triangles>(vertices, indices));
-        m_defaultShapes.unitCubeMesh = createMesh("UnitCubeMesh", submeshes);
+        m_defaultShapes.unitCubeMesh->addSubmesh(new Triangles(vertices, indices));
+
+#if 0
         // quad
-        m_defaultShapes.quad = createMesh("Quad", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/quad.obj"));
+        m_defaultShapes.quad = importWavefrontObj("Quad", ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/quad.obj");
         // sphere
-        m_defaultShapes.sphere = createMesh("Sphere", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/sphere.obj"));
+        m_defaultShapes.sphere = importWavefrontObj("Sphere", ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/sphere.obj");
         // icosphere
-        m_defaultShapes.icosphere = createMesh("IcoSphere", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/icosphere.obj"));
+        m_defaultShapes.icosphere = importWavefrontObj("IcoSphere", ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/icosphere.obj");
         // bounding sphere
         // todo: line mesh doesn't work
-        m_defaultShapes.boundingSphere = createMesh("BoundingSphere", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/bounding_sphere.obj"));
-        // cylinder
+        m_defaultShapes.boundingSphere = importWavefrontObj("BoundingSphere", ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/bounding_sphere.obj");
         // disk
-        m_defaultShapes.disk = createMesh("Disk", importObj(ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/disk.obj"));
-
+        m_defaultShapes.disk = importWavefrontObj("Disk", ASSET_PATH "mesh/default/", ASSET_PATH "mesh/default/disk.obj");
+        // todo: cylinder
+#endif
+ 
         /**
         *   initialize default textures
         */ 
@@ -180,8 +182,25 @@ namespace Cyan
         stbi_set_flip_vertically_on_load(1);
     }
 
+    StaticMesh* AssetManager::createMesh(const char* name)
+    {
+        StaticMesh* outMesh = nullptr;
+        auto entry = singleton->m_meshMap.find(name);
+        if (entry == singleton->m_meshMap.end())
+        {
+            outMesh = new StaticMesh(name);
+            singleton->m_meshMap.insert({ name, outMesh });
+        }
+        else
+        {
+            outMesh = entry->second;
+        }
+        return outMesh;
+    }
+
     // treat all the meshes inside one obj file as submeshes
-    std::vector<ISubmesh*> AssetManager::importObj(const char* baseDir, const char* filename) {
+    StaticMesh* AssetManager::importWavefrontObj(const char* meshName, const char* baseDir, const char* filename) 
+    {
         tinyobj::attrib_t attrib;
         std::vector<tinyobj::shape_t> shapes;
         std::vector<tinyobj::material_t> materials;
@@ -195,7 +214,9 @@ namespace Cyan
             cyanError("Warnings: %s               ", warn.c_str());
             cyanError("Errors:   %s               ", err.c_str());
         }
-        std::vector<ISubmesh*> submeshes;
+
+        StaticMesh* outMesh = createMesh(meshName);
+
         for (u32 s = 0; s < shapes.size(); ++s)
         {
             // load triangle mesh
@@ -207,13 +228,6 @@ namespace Cyan
                 std::unordered_map<Triangles::Vertex, u32> uniqueVerticesMap;
                 u32 numUniqueVertices = 0;
 
-                // assume that one submesh can only have one material
-                /*
-                if (shapes[s].mesh.material_ids.size() > 0)
-                {
-                    subMesh->m_materialIdx = shapes[s].mesh.material_ids[0];
-                }
-                */
                 // load triangles
                 for (u32 f = 0; f < shapes[s].mesh.indices.size() / 3; ++f)
                 {
@@ -269,7 +283,7 @@ namespace Cyan
                     calculateTangent(vertices, face);
                 }
 
-                submeshes.push_back(createSubmesh<Triangles>(vertices, indices));
+                outMesh->addSubmesh(new Triangles(vertices, indices));
             }
             // load lines
             else if (shapes[s].lines.indices.size() > 0)
@@ -294,22 +308,11 @@ namespace Cyan
                     }
                 }
 
-                submeshes.push_back(createSubmesh<Lines>(vertices, indices));
+                outMesh->addSubmesh(new Lines(vertices, indices));
             }
         }
 
-        return std::move(submeshes);
-#if 0
-        for (u32 i = 0; i < materials.size(); ++i)
-        {
-            mesh->m_objMaterials.emplace_back();
-            auto& objMatl = mesh->m_objMaterials.back();
-            objMatl.diffuse = glm::vec3{ materials[i].diffuse[0], materials[i].diffuse[1], materials[i].diffuse[2] };
-            objMatl.specular = glm::vec3{ materials[i].specular[0], materials[i].specular[2], materials[i].specular[3] };
-            objMatl.kMetalness = materials[i].metallic;
-            objMatl.kRoughness = materials[i].roughness;
-        }
-#endif
+        return outMesh;
     }
 
     Texture2D* AssetManager::importGltfTexture(tinygltf::Model& model, tinygltf::Texture& gltfTexture)
@@ -388,7 +391,7 @@ namespace Cyan
 
         if (hasMesh)
         {
-            Mesh* mesh = getAsset<Mesh>(meshName);
+            StaticMesh* mesh = getAsset<StaticMesh>(meshName);
             auto staticMeshEntity = scene->createStaticMeshEntity(entityName, localTransform, mesh, parent);
             entity = staticMeshEntity;
 
@@ -598,9 +601,10 @@ namespace Cyan
         }
     }
 
-    Cyan::Mesh* AssetManager::importGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh) 
+    Cyan::StaticMesh* AssetManager::importGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh) 
     {
-        std::vector<ISubmesh*> submeshes;
+        assert(gltfMesh.name.c_str());
+        StaticMesh* outMesh = createMesh(gltfMesh.name.c_str());
 
         // todo: multi-threading one thread per mesh
         // primitives (submeshes)
@@ -715,7 +719,7 @@ namespace Cyan
                     }
                 }
 
-                submeshes.push_back(createSubmesh<Triangles>(vertices, indices));
+                outMesh->addSubmesh(new Triangles(vertices, indices));
             } break;
             case TINYGLTF_MODE_LINE:
             case TINYGLTF_MODE_POINTS:
@@ -726,8 +730,7 @@ namespace Cyan
             }
         } // primitive (submesh)
 
-        Mesh* parent = createMesh(gltfMesh.name.c_str(), submeshes);
-        return parent;
+        return outMesh;
     }
 
     void AssetManager::importGltfTextures(tinygltf::Model& model) {

@@ -28,6 +28,7 @@ struct Vertex
 	vec4 texCoord;
 };
 
+#if 0
 layout(std430) buffer VertexBuffer 
 {
 	Vertex vertices[];
@@ -37,6 +38,17 @@ layout(std430) buffer IndexBuffer
 {
 	uint indices[];
 };
+#else
+layout(std430) buffer TriVertexBuffer 
+{
+	Vertex vertices[];
+};
+
+layout(std430) buffer TriIndexBuffer 
+{
+	uint indices[];
+};
+#endif
 
 struct InstanceDesc 
 {
@@ -53,10 +65,12 @@ layout(std430) buffer InstanceBuffer
 
 struct SubmeshDesc 
 {
+	uint type;
 	uint baseVertex;
 	uint baseIndex;
 	uint numVertices;
 	uint numIndices;
+	uint padding;
 };
 
 layout(std430) buffer SubmeshBuffer 

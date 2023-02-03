@@ -118,7 +118,7 @@ namespace Cyan
                 renderer->drawMesh(
                     renderTarget.get(),
                     { 0u, 0u, renderTarget->width, renderTarget->height }, 
-                    AssetManager::getAsset<Mesh>("UnitCubeMesh"),
+                    AssetManager::getAsset<StaticMesh>("UnitCubeMesh"),
                     s_convolveIrradiancePipeline,
                     [this, f](VertexShader* vs, PixelShader* ps) {
                         // Update view matrix
@@ -242,7 +242,7 @@ namespace Cyan
                     renderer->drawMesh(
                         renderTarget,
                         { 0u, 0u, renderTarget->width, renderTarget->height }, 
-                        AssetManager::getAsset<Mesh>("UnitCubeMesh"),
+                        AssetManager::getAsset<StaticMesh>("UnitCubeMesh"),
                         s_convolveReflectionPipeline,
                         [this, f, mip, kNumMips](VertexShader* vs, PixelShader* ps) {
                             // Update view matrix

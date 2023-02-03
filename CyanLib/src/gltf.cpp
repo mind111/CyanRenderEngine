@@ -7,6 +7,7 @@
 #include "stbi/stb_image.h"
 #include "Entity.h"
 #include "AssetManager.h"
+#include "Geometry.h"
 
 namespace glm 
 {
@@ -138,159 +139,182 @@ namespace Cyan
 #endif
         }
 
+        void Glb::importTriangles(const gltf::Primitive& p, Triangles& outTriangles)
+        {
+            u32 numVertices = accessors[p.attribute.position].count;
+
+            std::vector<Triangles::Vertex>& vertices = outTriangles.vertices;
+            vertices.resize(numVertices);
+
+            // determine whether the vertex attribute is tightly packed or interleaved
+            bool bInterleaved = false;
+            const gltf::Accessor& a = accessors[p.attribute.position]; 
+            if (a.bufferView >= 0)
+            {
+                const gltf::BufferView& bv = bufferViews[a.bufferView];
+                if (bv.byteStride > 0)
+                {
+                    bInterleaved = true;
+                }
+            }
+            if (bInterleaved)
+            {
+                // todo: implement this code path
+            }
+            else 
+            {
+                glm::vec3* positions = nullptr;
+                glm::vec3* normals = nullptr;
+                glm::vec4* tangents = nullptr;
+                glm::vec2* texCoord0 = nullptr;
+                // position
+                {
+                    const gltf::Accessor& a = accessors[p.attribute.position]; 
+                    assert(a.type == "VEC3");
+                    if (a.bufferView >= 0)
+                    {
+                        const gltf::BufferView& bv = bufferViews[a.bufferView];
+                        u32 offset = a.byteOffset + bv.byteOffset;
+                        positions = reinterpret_cast<glm::vec3*>(binaryChunk.data() + offset);
+                    }
+                }
+                // normal
+                {
+                    const gltf::Accessor& a = accessors[p.attribute.normal]; 
+                    assert(a.type == "VEC3");
+                    if (a.bufferView >= 0)
+                    {
+                        const gltf::BufferView& bv = bufferViews[a.bufferView];
+                        u32 offset = a.byteOffset + bv.byteOffset;
+                        normals = reinterpret_cast<glm::vec3*>(binaryChunk.data() + offset);
+                    }
+                }
+                // tangents
+                {
+                    if (p.attribute.tangent >= 0)
+                    {
+                        const gltf::Accessor& a = accessors[p.attribute.tangent];
+                        assert(a.type == "VEC4");
+                        if (a.bufferView >= 0)
+                        {
+                            const gltf::BufferView& bv = bufferViews[a.bufferView];
+                            u32 offset = a.byteOffset + bv.byteOffset;
+                            tangents = reinterpret_cast<glm::vec4*>(binaryChunk.data() + offset);
+                        }
+                    }
+                }
+                // texCoord0
+                {
+                    if (p.attribute.texCoord0 >= 0)
+                    {
+                        const gltf::Accessor& a = accessors[p.attribute.texCoord0];
+                        assert(a.type == "VEC2");
+                        if (a.bufferView >= 0)
+                        {
+                            const gltf::BufferView& bv = bufferViews[a.bufferView];
+                            u32 offset = a.byteOffset + bv.byteOffset;
+                            texCoord0 = reinterpret_cast<glm::vec2*>(binaryChunk.data() + offset);
+                        }
+                    }
+                }
+
+                // fill vertices
+                if (positions) 
+                {
+                    for (i32 v = 0; v < numVertices; ++v)
+                    {
+                        vertices[v].pos = positions[v];
+                    }
+                }
+                if (normals) 
+                {
+                    for (i32 v = 0; v < numVertices; ++v)
+                    {
+                        vertices[v].normal = normals[v];
+                    }
+                }
+                if (tangents) 
+                {
+                    for (i32 v = 0; v < numVertices; ++v)
+                    {
+                        vertices[v].tangent = tangents[v];
+                    }
+                }
+                if (texCoord0) 
+                {
+                    for (i32 v = 0; v < numVertices; ++v)
+                    {
+                        vertices[v].texCoord0 = glm::vec2(texCoord0[v].x, 1.f - texCoord0[v].y);
+                    }
+                }
+
+                std::vector<u32>& indices = outTriangles.indices;
+                // fill indices
+                if (p.indices >= 0)
+                {
+                    const gltf::Accessor& a = accessors[p.indices];
+                    u32 numIndices = a.count;
+                    indices.resize(numIndices);
+                    if (a.bufferView >= 0)
+                    {
+                        const gltf::BufferView& bv = bufferViews[a.bufferView];
+                        // would like to convert any other index data type to u32
+                        if (a.componentType == 5121)
+                        {
+                            u8* dataAddress = reinterpret_cast<u8*>(binaryChunk.data() + a.byteOffset + bv.byteOffset);
+                            for (i32 i = 0; i < numIndices; ++i)
+                            {
+                                indices[i] = static_cast<u32>(dataAddress[i]);
+                            }
+                        }
+                        else if (a.componentType == 5123)
+                        {
+                            u16* dataAddress = reinterpret_cast<u16*>(binaryChunk.data() + a.byteOffset + bv.byteOffset);
+                            for (i32 i = 0; i < numIndices; ++i)
+                            {
+                                indices[i] = static_cast<u32>(dataAddress[i]);
+                            }
+                        }
+                        else if (a.componentType == 5125)
+                        {
+                            u32* dataAddress = reinterpret_cast<u32*>(binaryChunk.data() + a.byteOffset + bv.byteOffset);
+                            memcpy(indices.data(), dataAddress, bv.byteLength);
+                        }
+                    }
+                }
+            }
+        }
+
         void Glb::importMeshes()
         {
             u32 numMeshes = meshes.size();
             for (i32 m = 0; m < numMeshes; ++m)
             {
+                auto mesh = AssetManager::createMesh(meshes[m].name.c_str());
+                // make sure that we are not re-importing same mesh multiple times
+                assert(mesh->numSubmeshes() == 0);
                 i32 numSubmeshes = meshes[m].primitives.size();
-                std::vector<ISubmesh*> submeshes(numSubmeshes);
                 for (i32 sm = 0; sm < numSubmeshes; ++sm)
                 {
                     const gltf::Primitive& p = meshes[m].primitives[sm];
-                    u32 numVertices = accessors[p.attribute.position].count;
-                    std::vector<Triangles::Vertex> vertices(numVertices);
-                    std::vector<u32> indices;
 
-                    // determine whether the vertex attribute is tightly packed or interleaved
-                    bool bInterleaved = false;
-                    const gltf::Accessor& a = accessors[p.attribute.position]; 
-                    if (a.bufferView >= 0)
+                    Geometry* geometry = nullptr;
+                    switch ((Primitive::Mode)p.mode)
                     {
-                        const gltf::BufferView& bv = bufferViews[a.bufferView];
-                        if (bv.byteStride > 0)
-                        {
-                            bInterleaved = true;
-                        }
+                    case Primitive::Mode::kTriangles: {
+                        // todo: this also needs to be tracked and managed by the AssetManager using some kind of GUID system
+                        geometry = new Triangles();
+                        Triangles* triangles = dynamic_cast<Triangles*>(geometry);
+                        assert(triangles);
+                        importTriangles(p, *triangles);
+                        mesh->addSubmesh(triangles);
+                    } break;
+                    case Primitive::Mode::kLines:
+                    case Primitive::Mode::kPoints:
+                    default:
+                        assert(0);
                     }
-                    if (bInterleaved)
-                    {
-                        // todo: implement this code path
-                    }
-                    else 
-                    {
-                        glm::vec3* positions = nullptr;
-                        glm::vec3* normals = nullptr;
-                        glm::vec4* tangents = nullptr;
-                        glm::vec2* texCoord0 = nullptr;
-                        // position
-                        {
-                            const gltf::Accessor& a = accessors[p.attribute.position]; 
-                            assert(a.type == "VEC3");
-                            if (a.bufferView >= 0)
-                            {
-                                const gltf::BufferView& bv = bufferViews[a.bufferView];
-                                u32 offset = a.byteOffset + bv.byteOffset;
-                                positions = reinterpret_cast<glm::vec3*>(binaryChunk.data() + offset);
-                            }
-                        }
-                        // normal
-                        {
-                            const gltf::Accessor& a = accessors[p.attribute.normal]; 
-                            assert(a.type == "VEC3");
-                            if (a.bufferView >= 0)
-                            {
-                                const gltf::BufferView& bv = bufferViews[a.bufferView];
-                                u32 offset = a.byteOffset + bv.byteOffset;
-                                normals = reinterpret_cast<glm::vec3*>(binaryChunk.data() + offset);
-                            }
-                        }
-                        // tangents
-                        {
-                            if (p.attribute.tangent >= 0)
-                            {
-                                const gltf::Accessor& a = accessors[p.attribute.tangent];
-                                assert(a.type == "VEC4");
-                                if (a.bufferView >= 0)
-                                {
-                                    const gltf::BufferView& bv = bufferViews[a.bufferView];
-                                    u32 offset = a.byteOffset + bv.byteOffset;
-                                    tangents = reinterpret_cast<glm::vec4*>(binaryChunk.data() + offset);
-                                }
-                            }
-                        }
-                        // texCoord0
-                        {
-                            if (p.attribute.texCoord0 >= 0)
-                            {
-                                const gltf::Accessor& a = accessors[p.attribute.texCoord0];
-                                assert(a.type == "VEC2");
-                                if (a.bufferView >= 0)
-                                {
-                                    const gltf::BufferView& bv = bufferViews[a.bufferView];
-                                    u32 offset = a.byteOffset + bv.byteOffset;
-                                    texCoord0 = reinterpret_cast<glm::vec2*>(binaryChunk.data() + offset);
-                                }
-                            }
-                        }
-
-                        // fill vertices
-                        if (positions) 
-                        {
-                            for (i32 v = 0; v < numVertices; ++v)
-                            {
-                                vertices[v].pos = positions[v];
-                            }
-                        }
-                        if (normals) 
-                        {
-                            for (i32 v = 0; v < numVertices; ++v)
-                            {
-                                vertices[v].normal = normals[v];
-                            }
-                        }
-                        if (tangents) 
-                        {
-                            for (i32 v = 0; v < numVertices; ++v)
-                            {
-                                vertices[v].tangent = tangents[v];
-                            }
-                        }
-                        if (texCoord0) 
-                        {
-                            for (i32 v = 0; v < numVertices; ++v)
-                            {
-                                vertices[v].texCoord0 = glm::vec2(texCoord0[v].x, 1.f - texCoord0[v].y);
-                            }
-                        }
-
-                        // fill indices
-                        if (p.indices >= 0)
-                        {
-                            const gltf::Accessor& a = accessors[p.indices];
-                            u32 numIndices = a.count;
-                            indices.resize(numIndices);
-                            if (a.bufferView >= 0)
-                            {
-                                const gltf::BufferView& bv = bufferViews[a.bufferView];
-                                // would like to convert any other index data type to u32
-                                if (a.componentType == 5121)
-                                {
-                                    u8* dataAddress = reinterpret_cast<u8*>(binaryChunk.data() + a.byteOffset + bv.byteOffset);
-                                    for (i32 i = 0; i < numIndices; ++i)
-                                    {
-                                        indices[i] = static_cast<u32>(dataAddress[i]);
-                                    }
-                                }
-                                else if (a.componentType == 5123)
-                                {
-                                    u16* dataAddress = reinterpret_cast<u16*>(binaryChunk.data() + a.byteOffset + bv.byteOffset);
-                                    for (i32 i = 0; i < numIndices; ++i)
-                                    {
-                                        indices[i] = static_cast<u32>(dataAddress[i]);
-                                    }
-                                }
-                                else if (a.componentType == 5125)
-                                {
-                                    u32* dataAddress = reinterpret_cast<u32*>(binaryChunk.data() + a.byteOffset + bv.byteOffset);
-                                    memcpy(indices.data(), dataAddress, bv.byteLength);
-                                }
-                            }
-                        }
-                    }
-                    submeshes[sm] = AssetManager::createSubmesh<Triangles>(vertices, indices);
                 }
-                AssetManager::createMesh(meshes[m].name.c_str(), submeshes);
             }
         }
 
@@ -582,7 +606,7 @@ namespace Cyan
             if (node.mesh >= 0)
             {
                const gltf::Mesh& gltfMesh = meshes[node.mesh];
-               Cyan::Mesh* mesh = AssetManager::getAsset<Cyan::Mesh>(gltfMesh.name.c_str());
+               Cyan::StaticMesh* mesh = AssetManager::getAsset<Cyan::StaticMesh>(gltfMesh.name.c_str());
                StaticMeshEntity* staticMeshEntity = scene->createStaticMeshEntity(name.c_str(), t, mesh, parent);
                staticMeshEntity->setMaterial(AssetManager::getAsset<Cyan::Material>("DefaultMaterial"));
                e = staticMeshEntity;

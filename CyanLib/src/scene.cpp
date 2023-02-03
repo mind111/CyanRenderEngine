@@ -106,7 +106,7 @@ namespace Cyan
         return entity;
     }
 
-    StaticMeshEntity* Scene::createStaticMeshEntity(const char* name, const Transform& transform, Mesh* inMesh, Entity* inParent, u32 properties)
+    StaticMeshEntity* Scene::createStaticMeshEntity(const char* name, const Transform& transform, StaticMesh* inMesh, Entity* inParent, u32 properties)
     {
         auto staticMesh = new StaticMeshEntity(this, name, transform, inMesh, inParent, properties);
         m_entities.push_back(staticMesh);

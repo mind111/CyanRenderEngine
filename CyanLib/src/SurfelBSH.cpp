@@ -355,8 +355,8 @@ namespace Cyan
         // visualize bounding spheres
         if (bVisualizeBoundingSpheres)
         {
-            Mesh* boundingSphere = AssetManager::getAsset<Mesh>("BoundingSphere");
-            auto va = boundingSphere->getSubmesh(0)->getVertexArray();
+            StaticMesh* boundingSphere = AssetManager::getAsset<StaticMesh>("BoundingSphere");
+            auto va = boundingSphere->getSubmesh(0).va;
             gfxc->setPixelPipeline(pipeline, [](VertexShader* vs, PixelShader* ps) {
                 ps->setUniform("visMode", (u32)VisMode::kBoundingSphere);
             });
@@ -364,17 +364,17 @@ namespace Cyan
             gfxc->setViewport({ 0, 0, dstRenderTarget->width, dstRenderTarget->height });
             gfxc->setVertexArray(va);
             if (va->hasIndexBuffer()) {
-                glDrawElementsInstanced(GL_LINES, boundingSphere->getSubmesh(0)->numIndices(), GL_UNSIGNED_INT, 0, nodeInstanceBuffer.getNumElements());
+                glDrawElementsInstanced(GL_LINES, boundingSphere->getSubmesh(0).numIndices(), GL_UNSIGNED_INT, 0, nodeInstanceBuffer.getNumElements());
             }
             else {
-                glDrawArraysInstanced(GL_LINES, 0, boundingSphere->getSubmesh(0)->numVertices(), nodeInstanceBuffer.getNumElements());
+                glDrawArraysInstanced(GL_LINES, 0, boundingSphere->getSubmesh(0).numVertices(), nodeInstanceBuffer.getNumElements());
             }
         }
         // visualize nodes
         if (bVisualizeNodes)
         {
-            Mesh* disc = AssetManager::getAsset<Mesh>("Disk");
-            auto va = disc->getSubmesh(0)->getVertexArray();
+            StaticMesh* disc = AssetManager::getAsset<StaticMesh>("Disk");
+            auto va = disc->getSubmesh(0).va;
             gfxc->setPixelPipeline(pipeline, [](VertexShader* vs, PixelShader* ps) {
                 ps->setUniform("visMode", (u32)VisMode::kAlbedo);
             });
@@ -382,10 +382,10 @@ namespace Cyan
             gfxc->setViewport({ 0, 0, dstRenderTarget->width, dstRenderTarget->height });
             gfxc->setVertexArray(va);
             if (va->hasIndexBuffer()) {
-                glDrawElementsInstanced(GL_TRIANGLES, disc->getSubmesh(0)->numIndices(), GL_UNSIGNED_INT, 0, nodeInstanceBuffer.getNumElements());
+                glDrawElementsInstanced(GL_TRIANGLES, disc->getSubmesh(0).numIndices(), GL_UNSIGNED_INT, 0, nodeInstanceBuffer.getNumElements());
             }
             else {
-                glDrawArraysInstanced(GL_TRIANGLES, 0, disc->getSubmesh(0)->numVertices(), nodeInstanceBuffer.getNumElements());
+                glDrawArraysInstanced(GL_TRIANGLES, 0, disc->getSubmesh(0).numVertices(), nodeInstanceBuffer.getNumElements());
             }
         }
     }

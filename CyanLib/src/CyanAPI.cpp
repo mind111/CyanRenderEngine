@@ -20,7 +20,7 @@ namespace Cyan
     static const u32 kMaxNumMaterialTypes = 64;
     static const u32 kMaxNumSceneComponents = 100000;
 
-    static std::vector<Mesh*> s_meshes;
+    static std::vector<StaticMesh*> s_meshes;
     static GfxContext* s_gfxc = nullptr;
     static void* s_memory = nullptr;
     static LinearAllocator* s_allocator = nullptr;

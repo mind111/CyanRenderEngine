@@ -31,7 +31,7 @@
 namespace Cyan 
 {
     Renderer* Singleton<Renderer>::singleton = nullptr;
-    static Mesh* fullscreenQuad = nullptr;
+    static StaticMesh* fullscreenQuad = nullptr;
 
     Renderer::IndirectDrawBuffer::IndirectDrawBuffer() 
     {
@@ -198,7 +198,7 @@ namespace Cyan
     }
 #endif
 
-    void Renderer::drawMesh(RenderTarget* renderTarget, Viewport viewport, Mesh* mesh, PixelPipeline* pipeline, const RenderSetupLambda& renderSetupLambda, const GfxPipelineConfig& config) 
+    void Renderer::drawMesh(RenderTarget* renderTarget, Viewport viewport, StaticMesh* mesh, PixelPipeline* pipeline, const RenderSetupLambda& renderSetupLambda, const GfxPipelineConfig& config) 
     {
         for (u32 i = 0; i < mesh->numSubmeshes(); ++i) 
         {
@@ -221,7 +221,7 @@ namespace Cyan
         drawMesh(
             renderTarget,
             { 0, 0, renderTarget->width, renderTarget->height },
-            AssetManager::getAsset<Mesh>("FullScreenQuadMesh"),
+            AssetManager::getAsset<StaticMesh>("FullScreenQuadMesh"),
             pipeline,
             renderSetupLambda,
             config
@@ -235,14 +235,15 @@ namespace Cyan
         drawMesh(
             renderTarget,
             viewport,
-            AssetManager::getAsset<Mesh>("FullScreenQuadMesh"),
+            AssetManager::getAsset<StaticMesh>("FullScreenQuadMesh"),
             pipeline,
             renderSetupLambda,
             config
         );
     }
 
-    void Renderer::submitRenderTask(const RenderTask& task) {
+    void Renderer::submitRenderTask(const RenderTask& task) 
+    {
         // set render target assuming that render target is already properly setup
         m_ctx->setRenderTarget(task.renderTarget);
         m_ctx->setViewport(task.viewport);
@@ -255,15 +256,15 @@ namespace Cyan
         m_ctx->setPrimitiveType(task.config.primitiveMode);
 
         // kick off the draw call
-        auto va = task.submesh->getVertexArray();
+        auto va = task.submesh.va;
         m_ctx->setVertexArray(va);
         if (va->hasIndexBuffer()) 
         {
-            m_ctx->drawIndex(task.submesh->numIndices());
+            m_ctx->drawIndex(task.submesh.numIndices());
         }
         else 
         {
-            m_ctx->drawIndexAuto(task.submesh->numVertices());
+            m_ctx->drawIndexAuto(task.submesh.numVertices());
         }
     }
 
@@ -1081,13 +1082,15 @@ namespace Cyan
         };
         // build indirect draw commands
         auto ptr = reinterpret_cast<IndirectDrawArrayCommand*>(indirectDrawBuffer.data);
+        auto& submeshBuffer = StaticMesh::getSubmeshBuffer();
         for (i32 draw = 0; draw < scene.drawCallBuffer->getNumElements() - 1; ++draw)
         {
             IndirectDrawArrayCommand& command = ptr[draw];
             command.first = 0;
             u32 instance = (*scene.drawCallBuffer)[draw];
             u32 submesh = (*scene.instanceBuffer)[instance].submesh;
-            command.count = RenderableScene::packedGeometry->submeshes[submesh].numIndices;
+            // command.count = RenderableScene::packedGeometry->submeshes[submesh].numIndices;
+            command.count = submeshBuffer[submesh].numIndices;
             command.instanceCount = (*scene.drawCallBuffer)[draw + 1] - (*scene.drawCallBuffer)[draw];
             command.baseInstance = 0;
         }
@@ -1556,7 +1559,7 @@ namespace Cyan
         drawMesh(
             renderTarget,
             viewport,
-            AssetManager::getAsset<Mesh>("Sphere"),
+            AssetManager::getAsset<StaticMesh>("Sphere"),
             pipeline,
             [this, position, scale, view, projection](VertexShader* vs, PixelShader* ps) {
                 glm::mat4 mvp(1.f);
@@ -1576,7 +1579,7 @@ namespace Cyan
         drawMesh(
             renderTarget,
             viewport,
-            AssetManager::getAsset<Mesh>("UnitCubeMesh"),
+            AssetManager::getAsset<StaticMesh>("UnitCubeMesh"),
             pipeline,
             [this, position, scale, view, projection](VertexShader* vs, PixelShader* ps) {
                 glm::mat4 mvp(1.f);
@@ -1622,7 +1625,7 @@ namespace Cyan
         drawMesh(
             renderTarget.get(),
             {0, 0, renderTarget->width, renderTarget->height },
-            AssetManager::getAsset<Mesh>("UnitCubeMesh"),
+            AssetManager::getAsset<StaticMesh>("UnitCubeMesh"),
             pipeline,
             [cubemap](VertexShader* vs, PixelShader* ps) {
                 vs->setUniform("model", glm::mat4(1.f));
@@ -1692,7 +1695,7 @@ namespace Cyan
         drawMesh(
             renderTarget.get(),
             {0, 0, renderTarget->width, renderTarget->height },
-            AssetManager::getAsset<Mesh>("UnitCubeMesh"),
+            AssetManager::getAsset<StaticMesh>("UnitCubeMesh"),
             pipeline,
             [cubemap](VertexShader* vs, PixelShader* ps) {
                 vs->setUniform("model", glm::mat4(1.f));

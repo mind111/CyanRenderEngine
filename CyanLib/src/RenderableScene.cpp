@@ -11,6 +11,7 @@
 
 namespace Cyan
 {
+#if 0
     PackedGeometry* RenderableScene::packedGeometry = nullptr;
 
     PackedGeometry::PackedGeometry(const Scene& scene) 
@@ -22,7 +23,7 @@ namespace Cyan
         {
             if (StaticMeshEntity* staticMeshEntity = dynamic_cast<StaticMeshEntity*>(e))
             {
-                Mesh* mesh = staticMeshEntity->getMeshInstance()->parent;
+                StaticMesh* mesh = staticMeshEntity->getMeshInstance()->mesh;
                 auto entry = meshMap.find(mesh->name);
                 if (entry == meshMap.end())
                 {
@@ -42,7 +43,7 @@ namespace Cyan
             for (u32 i = 0; i < mesh->numSubmeshes(); ++i)
             {
                 auto sm = mesh->getSubmesh(i);
-                if (auto triSubmesh = dynamic_cast<Mesh::Submesh<Triangles>*>(sm))
+                if (auto triSubmesh = dynamic_cast<StaticMesh::Submesh<Triangles>*>(sm))
                 {
                     auto& vertices = triSubmesh->getVertices();
                     auto& indices = triSubmesh->getIndices();
@@ -77,6 +78,7 @@ namespace Cyan
         indexBuffer.upload();
         submeshes.upload();
     }
+#endif
 
     RenderableScene::Camera::Camera(const PerspectiveCamera& inCamera)
     {
@@ -106,9 +108,10 @@ namespace Cyan
         drawCallBuffer = std::make_unique<DrawCallBuffer>("DrawCallBuffer");
         directionalLightBuffer = std::make_unique<DirectionalLightBuffer>("DirectionalLightBuffer");
 
+#if 0
         if (!packedGeometry)
             packedGeometry = new PackedGeometry(*inScene);
-
+#endif
         aabb = inScene->m_aabb;
 
         // todo: make this work with orthographic camera as well
@@ -158,10 +161,11 @@ namespace Cyan
         }
 
         // build instance descriptors
+#if 0
         u32 materialCount = 0;
         for (u32 i = 0; i < meshInstances.size(); ++i) 
         {
-            auto mesh = meshInstances[i]->parent;
+            auto mesh = meshInstances[i]->mesh;
             auto entry = packedGeometry->submeshMap.find(mesh->name);
             u32 baseSubmesh = 0;
             if (entry != packedGeometry->submeshMap.end()) 
@@ -182,6 +186,28 @@ namespace Cyan
                 instanceBuffer->addElement(desc);
             }
         }
+#else
+        u32 materialCount = 0;
+        for (u32 i = 0; i < meshInstances.size(); ++i) 
+        {
+            auto mesh = meshInstances[i]->mesh;
+            for (u32 sm = 0; sm < mesh->numSubmeshes(); ++sm) 
+            {
+                auto submesh = mesh->getSubmesh(sm);
+                auto smDesc = StaticMesh::getSubmeshDesc(submesh);
+                // todo: properly handle other types of geometries
+                if (smDesc.type == (i32)Geometry::Type::kTriangles) 
+                {
+                    InstanceDesc desc = { };
+                    desc.submesh = submesh.index;
+                    desc.transform = i;
+                    desc.material = materialCount++;
+                    instanceBuffer->addElement(desc);
+                }
+            }
+        }
+
+#endif
 
         // organize instance descriptors
         if (instanceBuffer->getNumElements() > 0) 
@@ -211,7 +237,6 @@ namespace Cyan
             drawCallBuffer->addElement(instanceBuffer->getNumElements());
         }
 
-        // build lighting data
         skybox = inScene->skybox;
         skyLight = inScene->skyLight;
     }
@@ -255,9 +280,24 @@ namespace Cyan
     void RenderableScene::upload() 
     {
         auto gfxc = Renderer::get()->getGfxCtx();
+#if 0
         gfxc->setShaderStorageBuffer(&packedGeometry->vertexBuffer);
         gfxc->setShaderStorageBuffer(&packedGeometry->indexBuffer);
         gfxc->setShaderStorageBuffer(&packedGeometry->submeshes);
+#else
+        // todo: doing this every frame is kind of redundant, maybe to a message kind of thing here to only trigger update when there is actually an update
+        // to these global buffers?
+        auto& submeshBuffer = StaticMesh::getSubmeshBuffer();
+        submeshBuffer.upload();
+        auto& triVertexBuffer = StaticMesh::getTriVertexBuffer();
+        triVertexBuffer.upload();
+        auto& triIndexBuffer = StaticMesh::getTriIndexBuffer();
+        triIndexBuffer.upload();
+
+        gfxc->setShaderStorageBuffer(&submeshBuffer);
+        gfxc->setShaderStorageBuffer(&triVertexBuffer);
+        gfxc->setShaderStorageBuffer(&triIndexBuffer);
+#endif
         // view
         viewBuffer->data.constants.view = camera.view;
         viewBuffer->data.constants.projection = camera.projection;
@@ -294,7 +334,7 @@ namespace Cyan
         materialBuffer = std::make_unique<MaterialBuffer>("MaterialBuffer");
         for (i32 i = 0; i < meshInstances.size(); ++i)
         {
-            auto mesh = meshInstances[i]->parent;
+            auto mesh = meshInstances[i]->mesh;
             for (i32 sm = 0; sm < mesh->numSubmeshes(); ++sm)
             {
                 Material* matl = meshInstances[i]->getMaterial(sm);

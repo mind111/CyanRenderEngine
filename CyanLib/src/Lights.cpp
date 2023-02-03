@@ -115,7 +115,7 @@ namespace Cyan
         VertexShader* vs = ShaderManager::createShader<VertexShader>("RenderToCubemapVS", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl");
         PixelShader* ps = ShaderManager::createShader<PixelShader>("RenderToCubemapPS", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl");
         PixelPipeline* pipeline = ShaderManager::createPixelPipeline("RenderToCubemap", vs, ps);
-        Mesh* cubeMesh = AssetManager::getAsset<Mesh>("UnitCubeMesh");
+        StaticMesh* cubeMesh = AssetManager::getAsset<StaticMesh>("UnitCubeMesh");
 
         for (i32 f = 0; f < 6u; f++) {
             renderTarget->setDrawBuffers({ f });
