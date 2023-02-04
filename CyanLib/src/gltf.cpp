@@ -290,7 +290,7 @@ namespace Cyan
             u32 numMeshes = meshes.size();
             for (i32 m = 0; m < numMeshes; ++m)
             {
-                auto mesh = AssetManager::createMesh(meshes[m].name.c_str());
+                auto mesh = AssetManager::createStaticMesh(meshes[m].name.c_str());
                 // make sure that we are not re-importing same mesh multiple times
                 assert(mesh->numSubmeshes() == 0);
                 i32 numSubmeshes = meshes[m].primitives.size();

@@ -31,10 +31,10 @@ namespace Cyan
         switch (wrapS)
         {
         case Sampler::Addressing::kClampToEdge:
-            glTextureParameteri(texture->getGpuObject(), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTextureParameteri(texture->getGpuResource(), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
             break;
         case Sampler::Addressing::kWrap:
-            glTextureParameteri(texture->getGpuObject(), GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTextureParameteri(texture->getGpuResource(), GL_TEXTURE_WRAP_S, GL_REPEAT);
             break;
         default:
             assert(0);
@@ -43,10 +43,10 @@ namespace Cyan
         switch (wrapT)
         {
         case Sampler::Addressing::kClampToEdge:
-            glTextureParameteri(texture->getGpuObject(), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glTextureParameteri(texture->getGpuResource(), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
             break;
         case Sampler::Addressing::kWrap:
-            glTextureParameteri(texture->getGpuObject(), GL_TEXTURE_WRAP_T, GL_REPEAT);
+            glTextureParameteri(texture->getGpuResource(), GL_TEXTURE_WRAP_T, GL_REPEAT);
             break;
         default:
             assert(0);
@@ -55,16 +55,16 @@ namespace Cyan
         switch (minFilter)
         {
         case Sampler::Filtering::kPoint:
-            glTextureParameteri(texture->getGpuObject(), GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTextureParameteri(texture->getGpuResource(), GL_TEXTURE_MIN_FILTER, GL_NEAREST);
             break;
         case Sampler::Filtering::kBilinear:
-            glTextureParameteri(texture->getGpuObject(), GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTextureParameteri(texture->getGpuResource(), GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             break;
         case Sampler::Filtering::kTrilinear:
-            glTextureParameteri(texture->getGpuObject(), GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glTextureParameteri(texture->getGpuResource(), GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
             break;
         case Sampler::Filtering::kMipmapPoint:
-            glTextureParameteri(texture->getGpuObject(), GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+            glTextureParameteri(texture->getGpuResource(), GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
             break;
         default:
             assert(0);
@@ -73,10 +73,10 @@ namespace Cyan
         switch (magFilter)
         {
         case Sampler::Filtering::kPoint:
-            glTextureParameteri(texture->getGpuObject(), GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTextureParameteri(texture->getGpuResource(), GL_TEXTURE_MAG_FILTER, GL_NEAREST);
             break;
         case Sampler::Filtering::kBilinear:
-            glTextureParameteri(texture->getGpuObject(), GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTextureParameteri(texture->getGpuResource(), GL_TEXTURE_MAG_FILTER, GL_LINEAR);
             break;
         default:
             assert(0);
@@ -90,10 +90,10 @@ namespace Cyan
         switch (wrapS)
         {
         case Sampler::Addressing::kClampToEdge:
-            glTextureParameteri(texture->getGpuObject(), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTextureParameteri(texture->getGpuResource(), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
             break;
         case Sampler::Addressing::kWrap:
-            glTextureParameteri(texture->getGpuObject(), GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTextureParameteri(texture->getGpuResource(), GL_TEXTURE_WRAP_S, GL_REPEAT);
             break;
         default:
             assert(0);
@@ -102,10 +102,10 @@ namespace Cyan
         switch (wrapT)
         {
         case Sampler::Addressing::kClampToEdge:
-            glTextureParameteri(texture->getGpuObject(), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glTextureParameteri(texture->getGpuResource(), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
             break;
         case Sampler::Addressing::kWrap:
-            glTextureParameteri(texture->getGpuObject(), GL_TEXTURE_WRAP_T, GL_REPEAT);
+            glTextureParameteri(texture->getGpuResource(), GL_TEXTURE_WRAP_T, GL_REPEAT);
             break;
         default:
             assert(0);
@@ -114,13 +114,13 @@ namespace Cyan
         switch (minFilter)
         {
         case Sampler::Filtering::kPoint:
-            glTextureParameteri(texture->getGpuObject(), GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTextureParameteri(texture->getGpuResource(), GL_TEXTURE_MIN_FILTER, GL_NEAREST);
             break;
         case Sampler::Filtering::kBilinear:
-            glTextureParameteri(texture->getGpuObject(), GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTextureParameteri(texture->getGpuResource(), GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             break;
         case Sampler::Filtering::kTrilinear:
-            glTextureParameteri(texture->getGpuObject(), GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glTextureParameteri(texture->getGpuResource(), GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
             break;
         default:
             assert(0);
@@ -129,10 +129,10 @@ namespace Cyan
         switch (magFilter)
         {
         case Sampler::Filtering::kPoint:
-            glTextureParameteri(texture->getGpuObject(), GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTextureParameteri(texture->getGpuResource(), GL_TEXTURE_MAG_FILTER, GL_NEAREST);
             break;
         case Sampler::Filtering::kBilinear:
-            glTextureParameteri(texture->getGpuObject(), GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTextureParameteri(texture->getGpuResource(), GL_TEXTURE_MAG_FILTER, GL_LINEAR);
             break;
         default:
             assert(0);
@@ -278,7 +278,7 @@ namespace Cyan
     void Texture2D::init()
     {
         glCreateTextures(GL_TEXTURE_2D, 1, &glObject);
-        glBindTexture(GL_TEXTURE_2D, getGpuObject());
+        glBindTexture(GL_TEXTURE_2D, getGpuResource());
         auto glPixelFormat = translateTextureFormat(format);
         if (srcImage)
         {
@@ -294,11 +294,11 @@ namespace Cyan
 
         if (numMips > 1)
         {
-            glGenerateTextureMipmap(getGpuObject());
+            glGenerateTextureMipmap(getGpuResource());
         }
 
 #if BINDLESS_TEXTURE
-        glHandle = glGetTextureHandleARB(getGpuObject());
+        glHandle = glGetTextureHandleARB(getGpuResource());
 #endif
     }
 
@@ -317,7 +317,7 @@ namespace Cyan
     void DepthTexture2D::init()
     {
         glCreateTextures(GL_TEXTURE_2D, 1, &glObject);
-        glBindTexture(GL_TEXTURE_2D, getGpuObject());
+        glBindTexture(GL_TEXTURE_2D, getGpuResource());
         auto glPixelFormat = translateTextureFormat(format);
         glTexImage2D(GL_TEXTURE_2D, 0, glPixelFormat.internalFormat, width, height, 0, glPixelFormat.format, glPixelFormat.type, nullptr);
         glBindTexture(GL_TEXTURE_2D, 0);
@@ -325,7 +325,7 @@ namespace Cyan
         sampler.init(this);
 
 #if BINDLESS_TEXTURE
-        glHandle = glGetTextureHandleARB(getGpuObject());
+        glHandle = glGetTextureHandleARB(getGpuResource());
 #endif
     }
 
@@ -344,7 +344,7 @@ namespace Cyan
     void Texture2DArray::init()
     {
         glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &glObject);
-        glBindTexture(GL_TEXTURE_2D_ARRAY, getGpuObject());
+        glBindTexture(GL_TEXTURE_2D_ARRAY, getGpuResource());
         auto glPixelFormat = translateTextureFormat(format);
         glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, glPixelFormat.internalFormat, width, height, numLayers, 0, glPixelFormat.format, glPixelFormat.type, nullptr);
         glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
@@ -353,10 +353,10 @@ namespace Cyan
 
         if (numMips)
         {
-            glGenerateTextureMipmap(getGpuObject());
+            glGenerateTextureMipmap(getGpuResource());
         }
 #if BINDLESS_TEXTURE
-        glHandle = glGetTextureHandleARB(getGpuObject());
+        glHandle = glGetTextureHandleARB(getGpuResource());
 #endif
     }
 
@@ -374,7 +374,7 @@ namespace Cyan
     void TextureCube::init()
     {
         glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &glObject);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, getGpuObject());
+        glBindTexture(GL_TEXTURE_CUBE_MAP, getGpuResource());
         auto glPixelFormat = translateTextureFormat(format);
         for (i32 f = 0; f < 6; ++f)
         {
@@ -386,7 +386,7 @@ namespace Cyan
 
         if (numMips > 1u)
         {
-            glGenerateTextureMipmap(getGpuObject());
+            glGenerateTextureMipmap(getGpuResource());
         }
     }
 

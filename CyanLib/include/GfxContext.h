@@ -98,7 +98,7 @@ namespace Cyan
             i32 location = shader->getUniformLocation(uniformName);
             if (location >= 0)
             {
-                glProgramUniform1f(shader->getGpuObject(), location, data);
+                glProgramUniform1f(shader->getGpuResource(), location, data);
             }
         }
 

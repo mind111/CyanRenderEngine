@@ -37,7 +37,7 @@
     <ClInclude Include="include\CyanEngine.h" />
     <ClInclude Include="include\gltf.h" />
     <ClInclude Include="include\Image.h" />
-    <ClInclude Include="include\InstantRadiosity.h" />
+    <ClInclude Include="include\IndexBuffer.h" />
     <ClInclude Include="include\LightEntities.h" />
     <ClInclude Include="include\ManyViewGI.h" />
     <ClInclude Include="include\RayTracer.h" />
@@ -94,7 +94,7 @@
     <ClCompile Include="src\CyanEngine.cpp" />
     <ClCompile Include="src\gltf.cpp" />
     <ClCompile Include="src\Image.cpp" />
-    <ClCompile Include="src\InstantRadiosity.cpp" />
+    <ClCompile Include="src\IndexBuffer.cpp" />
     <ClCompile Include="src\Lights.cpp" />
     <ClCompile Include="src\ManyViewGI.cpp" />
     <ClCompile Include="src\RayTracer.cpp" />
@@ -149,7 +149,6 @@
     <None Include="..\shader\mvgi_gbuffer_p.glsl" />
     <None Include="..\shader\mvgi_indirect_lighting.glsl" />
     <None Include="..\shader\scene_depth_prepass_p.glsl" />
-    <None Include="..\shader\scene_depth_prepass_v.glsl" />
     <None Include="..\shader\scene_direct_lighting_p.glsl" />
     <None Include="..\shader\scene_gbuffer_p.glsl" />
     <None Include="..\shader\scene_gbuffer_texture_atlas_p.glsl" />
@@ -202,7 +201,6 @@
     <None Include="..\shader\raytracing_v.glsl" />
     <None Include="..\shader\resample_radiance_multiview_c.glsl" />
     <None Include="..\shader\scene_depth_normal_p.glsl" />
-    <None Include="..\shader\scene_depth_normal_v.glsl" />
     <None Include="..\shader\scene_pass_p.glsl" />
     <None Include="..\shader\scene_pass_v.glsl" />
     <None Include="..\shader\screenspace_raytracing_v.glsl" />
@@ -218,7 +216,6 @@
     <None Include="..\shader\convolve_diffuse_p.glsl" />
     <None Include="..\shader\convolve_diffuse_v.glsl" />
     <None Include="..\shader\depth_only_p.glsl" />
-    <None Include="..\shader\depth_only_v.glsl" />
     <None Include="..\shader\bloom_downsample_p.glsl" />
     <None Include="..\shader\bloom_downsample_v.glsl" />
     <None Include="..\shader\bloom_upscale_v.glsl" />

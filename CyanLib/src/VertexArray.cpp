@@ -1,36 +1,73 @@
+#include <cassert>
+
 #include "VertexArray.h"
-
-void VertexArray::init(std::vector<u32>* indices)
-{
-    glCreateVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-
-    // bind vertex buffers to this vao and initialize all vertex attributes
-    glBindBuffer(GL_ARRAY_BUFFER, vb->getGLObject());
-    for (u32 index = 0; index < vb->getNumAttributes(); index++)
-    {
-        const VertexAttribute& attribute = vb->getAttribute(index);
-        glEnableVertexArrayAttrib(vao, index);
-        glVertexAttribPointer(index, attribute.numComponent, GL_FLOAT, false, vb->getStride(), reinterpret_cast<void*>(attribute.offset));
-    }
-
-    // initialize index buffer
-    if (indices)
-    {
-        glCreateBuffers(1, &ibo);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-        glNamedBufferData(ibo, sizeof(u32) * indices->size(), indices->data(), GL_STATIC_DRAW);
-    }
-
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-}
+#include "VertexBuffer.h"
+#include "IndexBuffer.h"
 
 namespace Cyan
 {
-    VertexArray* createVertexArray(VertexBuffer* vb, std::vector<u32>* indices)
+    VertexArray::VertexArray(VertexBuffer* inVertexBuffer, IndexBuffer* inIndexBuffer)
+        : vb(inVertexBuffer), ib(inIndexBuffer)
     {
-        return new VertexArray(vb, indices);
+        glCreateVertexArrays(1, &glObject);
+    }
+
+    VertexArray::~VertexArray()
+    {
+        GLuint arrays[] = { getGpuResource() };
+        glDeleteVertexArrays(1, arrays);
+    }
+
+    void VertexArray::init()
+    {
+        assert(vb);
+        assert(ib);
+
+        bindVertexBuffer(vb);
+        bindIndexBuffer(ib);
+    }
+
+    void VertexArray::bindVertexBuffer(VertexBuffer* inVertexBuffer) 
+    {
+        const auto& spec = inVertexBuffer->spec;
+
+        // only support one vertex buffer for a vertex array for now
+        const u32 vertexBufferBinding = 0u;
+        glVertexArrayVertexBuffer(getGpuResource(), 0, inVertexBuffer->getGpuResource(), vertexBufferBinding, spec.stride);
+
+        u32 attribIndex = 0;
+        for (const auto& attrib : spec.attributes)
+        {
+            glEnableVertexArrayAttrib(getGpuResource(), attribIndex);
+
+            GLint size; GLenum type;
+            switch (attrib.type)
+            {
+            case VertexBuffer::Attribute::Type::kVec2:
+                size = 2;
+                type = GL_FLOAT;
+                break;
+            case VertexBuffer::Attribute::Type::kVec3:
+                size = 3;
+                type = GL_FLOAT;
+                break;
+            case VertexBuffer::Attribute::Type::kVec4:
+                size = 4;
+                type = GL_FLOAT;
+                break;
+            default:
+                assert(0);
+            }
+
+            glVertexArrayAttribFormat(getGpuResource(), attribIndex, size, type, GL_FALSE, attrib.offset);
+            glVertexArrayAttribBinding(getGpuResource(), attribIndex, vertexBufferBinding);
+
+            attribIndex++;
+        }
+    }
+
+    void VertexArray::bindIndexBuffer(IndexBuffer* inIndexBuffer) 
+    {
+        glVertexArrayElementBuffer(getGpuResource(), inIndexBuffer->getGpuResource());
     }
 }

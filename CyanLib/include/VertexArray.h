@@ -1,35 +1,25 @@
 #pragma once
 
-#include "VertexBuffer.h"
-
-// todo: only supports interleaved buffer for now
-struct VertexArray
-{
-    VertexArray(VertexBuffer* srcVb, std::vector<u32>* indices=nullptr)
-        : vb(srcVb), ibo(-1), vao(-1)
-    {
-        init(indices);
-    }
-
-    bool hasIndexBuffer() { return ibo != (u32)-1; }
-    GLuint getGLObject() { return vao; }
-    void release() 
-    {
-        vb->release();
-        delete vb;
-        glDeleteBuffers(1, &ibo);
-        glDeleteBuffers(1, &vao);
-    }
-
-private:
-    void init(std::vector<u32>* indices);
-
-    VertexBuffer* vb;
-    GLuint        ibo;
-    GLuint        vao;
-};
+#include "CyanCore.h"
 
 namespace Cyan
 {
-    VertexArray* createVertexArray(VertexBuffer* vb, std::vector<u32>* indices);
+    struct VertexBuffer;
+    struct IndexBuffer;
+
+    struct VertexArray : public GpuResource
+    {
+        VertexArray() = delete;
+        VertexArray(VertexBuffer* inVertexBuffer, IndexBuffer* inIndexBuffer);
+        ~VertexArray();
+
+        void init();
+
+    private:
+        void bindVertexBuffer(VertexBuffer* inVertexBuffer);
+        void bindIndexBuffer(IndexBuffer* inIndexBuffer);
+
+        VertexBuffer* vb = nullptr;
+        IndexBuffer* ib = nullptr;
+    };
 }

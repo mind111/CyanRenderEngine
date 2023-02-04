@@ -148,20 +148,22 @@ namespace Cyan {
         }
         else
         {
-            glBindTextureUnit(binding, texture->getGpuObject());
+            glBindTextureUnit(binding, texture->getGpuResource());
         }
     }
 
     void GfxContext::setVertexArray(VertexArray* va) 
     {
-        if (!va) 
+        if (va == nullptr) 
         {
             m_va = nullptr;
             glBindVertexArray(0);
-            return;
         }
-        m_va = va;
-        glBindVertexArray(m_va->getGLObject());
+        else
+        {
+            m_va = va;
+            glBindVertexArray(m_va->getGpuResource());
+        }
     }
 
     void GfxContext::setPrimitiveType(PrimitiveMode _type)

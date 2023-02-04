@@ -5,14 +5,13 @@
 #include <glew/glew.h>
 
 #include "MathUtils.h"
-#include "VertexBuffer.h"
-#include "VertexArray.h"
 #include "Material.h"
-#include "Transform.h"
 #include "BVH.h"
-#include "Asset.h"
 #include "ShaderStorageBuffer.h"
 #include "Geometry.h"
+#include "VertexBuffer.h"
+#include "IndexBuffer.h"
+#include "VertexArray.h"
 
 namespace Cyan
 {
@@ -24,12 +23,10 @@ namespace Cyan
         {
             struct Desc
             {
-                u32 type;
                 u32 vertexOffset;
                 u32 numVertices;
                 u32 indexOffset;
                 u32 numIndices;
-                u32 padding;
             };
 
             Submesh() = default;
@@ -40,9 +37,12 @@ namespace Cyan
 
             u32 numVertices() const { return geometry->numVertices(); }
             u32 numIndices() const { return geometry->numIndices(); }
+            VertexArray* getVertexArray() { return va.get(); }
 
             Geometry* geometry = nullptr;
-            VertexArray* va = nullptr;
+            std::shared_ptr<VertexBuffer> vb = nullptr;
+            std::shared_ptr<IndexBuffer> ib = nullptr;
+            std::shared_ptr<VertexArray> va = nullptr;
             i32 index = -1;
         };
 
@@ -53,23 +53,28 @@ namespace Cyan
 
         }
 
-        static Submesh::Desc getSubmeshDesc(const Submesh& submesh);
-        Submesh getSubmesh(u32 index) { return submeshes[index]; }
+        static Submesh::Desc getSubmeshDesc(Submesh* submesh);
+        Submesh* getSubmesh(u32 index) { return &submeshes[index]; }
         void addSubmesh(Geometry* inGeometry);
-        const BoundingBox3D& getAABB() { return aabb; }
         u32 numSubmeshes() { return submeshes.size(); }
 
+        const BoundingBox3D& getAABB() { return aabb; }
+
+        struct Vertex
+        {
+            glm::vec4 pos;
+            glm::vec4 normal;
+            glm::vec4 tangent;
+            glm::vec4 texCoord;
+        };
+
         using SubmeshBuffer = ShaderStorageBuffer<DynamicSsboData<Submesh::Desc>>;
-        using TriVertexBuffer = ShaderStorageBuffer<DynamicSsboData<Triangles::Vertex>>;
-        using TriIndexBuffer = ShaderStorageBuffer<DynamicSsboData<u32>>;
-        using PointVertexBuffer = ShaderStorageBuffer<DynamicSsboData<PointCloud::Vertex>>;
-        using PointIndexBuffer = ShaderStorageBuffer<DynamicSsboData<u32>>;
-        using LineVertexBuffer = ShaderStorageBuffer<DynamicSsboData<Lines::Vertex>>;
-        using LineIndexBuffer = ShaderStorageBuffer<DynamicSsboData<u32>>;
+        using GlobalVertexBuffer = ShaderStorageBuffer<DynamicSsboData<Vertex>>;
+        using GlobalIndexBuffer = ShaderStorageBuffer<DynamicSsboData<u32>>;
 
         static SubmeshBuffer& getSubmeshBuffer();
-        static TriVertexBuffer& getTriVertexBuffer();
-        static TriIndexBuffer& getTriIndexBuffer();
+        static GlobalVertexBuffer& getGlobalVertexBuffer();
+        static GlobalIndexBuffer& getGlobalIndexBuffer();
 
         std::string name;
         BoundingBox3D aabb;

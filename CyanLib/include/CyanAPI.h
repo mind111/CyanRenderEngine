@@ -17,9 +17,6 @@ namespace Cyan
 {
     void init();
 
-    // Buffers
-    VertexBuffer* createVertexBuffer(void* data, u32 sizeInBytes, VertexSpec&& vertexSpec);
-
     /* RenderTarget */
     RenderTarget* createRenderTarget(u32 width, u32 height);
     RenderTarget* createDepthOnlyRenderTarget(u32 width, u32 height);

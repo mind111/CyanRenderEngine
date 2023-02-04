@@ -44,7 +44,7 @@
 
 namespace Cyan
 {
-    struct Texture : public GpuObject
+    struct Texture : public GpuResource
     {
         enum class Type : u32
         {

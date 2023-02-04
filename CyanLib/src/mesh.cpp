@@ -5,19 +5,36 @@
 namespace Cyan
 {
     StaticMesh::Submesh::Submesh(Geometry* inGeometry)
-        : geometry(inGeometry), va(nullptr), index(-1)
+        : geometry(inGeometry), vb(nullptr), ib(nullptr), va(nullptr), index(-1)
     {
+        auto& gVertexBuffer = getGlobalVertexBuffer();
+        auto& gIndexBuffer = getGlobalIndexBuffer();
+
         Desc desc = { };
         Geometry::Type type = geometry->getGeometryType();
         switch (type)
         {
-        case Geometry::Type::kTriangles:
-            desc.type = (u32)Geometry::Type::kTriangles;
-            desc.vertexOffset = getTriVertexBuffer().getNumElements();
+        case Geometry::Type::kTriangles: {
+            desc.vertexOffset = gVertexBuffer.getNumElements();
             desc.numVertices = geometry->numVertices();
-            desc.indexOffset = getTriIndexBuffer().getNumElements();
+            desc.indexOffset = gIndexBuffer.getNumElements();
             desc.numIndices = geometry->numIndices();
-            break;
+
+            // pack the src geometry data into the global vertex/index buffer for static geometries
+            Triangles* triangles = static_cast<Triangles*>(geometry);
+            u32 start = gVertexBuffer.getNumElements();
+            gVertexBuffer.data.array.resize(gVertexBuffer.getNumElements() + geometry->numVertices());
+            const auto& vertices = triangles->vertices;
+            const auto& indices = triangles->indices;
+            for (u32 v = 0; v < triangles->vertices.size(); ++v)
+            {
+                gVertexBuffer[start + v].pos = glm::vec4(vertices[v].pos, 1.f);
+                gVertexBuffer[start + v].normal = glm::vec4(vertices[v].normal, 0.f);
+                gVertexBuffer[start + v].tangent = vertices[v].tangent;
+                gVertexBuffer[start + v].texCoord = glm::vec4(vertices[v].texCoord0, vertices[v].texCoord1);
+            }
+            gIndexBuffer.data.array.insert(gIndexBuffer.data.array.end(), indices.begin(), indices.end());
+        } break;
         case Geometry::Type::kPointCloud:
         case Geometry::Type::kLines:
         default:
@@ -27,8 +44,10 @@ namespace Cyan
         auto& submeshBuffer = getSubmeshBuffer();
         index = submeshBuffer.getNumElements();
         submeshBuffer.addElement(desc);
-    }
 
+        // todo: would like to decouple the resource initialization from the constructor at some point
+        init();
+    }
 
     StaticMesh::SubmeshBuffer& StaticMesh::getSubmeshBuffer()
     {
@@ -36,27 +55,55 @@ namespace Cyan
         return s_submeshBuffer;
     }
 
-    StaticMesh::TriVertexBuffer& StaticMesh::getTriVertexBuffer()
+    StaticMesh::GlobalVertexBuffer& StaticMesh::getGlobalVertexBuffer()
     {
-        static TriVertexBuffer s_triVertexBuffer("TriVertexBuffer");
-        return s_triVertexBuffer;
+        static GlobalVertexBuffer s_vertexBuffer("VertexBuffer");
+        return s_vertexBuffer;
     }
 
-    StaticMesh::TriIndexBuffer& StaticMesh::getTriIndexBuffer()
+    StaticMesh::GlobalIndexBuffer& StaticMesh::getGlobalIndexBuffer()
     {
-        static TriIndexBuffer s_triIndexBuffer("TriIndexBuffer");
-        return s_triIndexBuffer;
+        static GlobalIndexBuffer s_indexBuffer("IndexBuffer");
+        return s_indexBuffer;
     }
 
-    StaticMesh::Submesh::Desc StaticMesh::getSubmeshDesc(const StaticMesh::Submesh& submesh)
+    StaticMesh::Submesh::Desc StaticMesh::getSubmeshDesc(StaticMesh::Submesh* submesh)
     {
-        return getSubmeshBuffer()[submesh.index];
+        return getSubmeshBuffer()[submesh->index];
     }
 
-    // todo: implement this  
     void StaticMesh::Submesh::init()
     {
-        va = new VertexArray();
+        assert(geometry);
+
+        switch (geometry->getGeometryType())
+        {
+        case Geometry::Type::kTriangles: {
+            auto triangles = static_cast<Triangles*>(geometry);
+
+            u32 sizeInBytes = sizeof(triangles->vertices[0]) * triangles->vertices.size();
+            assert(sizeInBytes > 0);
+
+            VertexBuffer::Spec spec;
+            spec.addVertexAttribute("Position", VertexBuffer::Attribute::Type::kVec3);
+            spec.addVertexAttribute("Normal", VertexBuffer::Attribute::Type::kVec3);
+            spec.addVertexAttribute("Tangent", VertexBuffer::Attribute::Type::kVec4);
+            spec.addVertexAttribute("TexCoord0", VertexBuffer::Attribute::Type::kVec2);
+            spec.addVertexAttribute("TexCoord1", VertexBuffer::Attribute::Type::kVec2);
+            vb = std::make_shared<VertexBuffer>(spec, triangles->vertices.data(), sizeInBytes);
+            ib = std::make_shared<IndexBuffer>(triangles->indices);
+            va = std::make_shared<VertexArray>(vb.get(), ib.get());
+            va->init();
+        } break;
+        case Geometry::Type::kLines:
+            // todo: implement this  
+        case Geometry::Type::kPointCloud:
+            // todo: implement this  
+        case Geometry::Type::kQuads:
+            // todo: implement this  
+        default:
+            assert(0);
+        }
     }
 
     void StaticMesh::addSubmesh(Geometry* inGeometry)

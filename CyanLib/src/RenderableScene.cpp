@@ -196,10 +196,11 @@ namespace Cyan
                 auto submesh = mesh->getSubmesh(sm);
                 auto smDesc = StaticMesh::getSubmeshDesc(submesh);
                 // todo: properly handle other types of geometries
-                if (smDesc.type == (i32)Geometry::Type::kTriangles) 
+                // if (smDesc.type == (i32)Geometry::Type::kTriangles) 
+                if (dynamic_cast<Triangles*>(submesh->geometry)) 
                 {
                     InstanceDesc desc = { };
-                    desc.submesh = submesh.index;
+                    desc.submesh = submesh->index;
                     desc.transform = i;
                     desc.material = materialCount++;
                     instanceBuffer->addElement(desc);
@@ -289,14 +290,14 @@ namespace Cyan
         // to these global buffers?
         auto& submeshBuffer = StaticMesh::getSubmeshBuffer();
         submeshBuffer.upload();
-        auto& triVertexBuffer = StaticMesh::getTriVertexBuffer();
-        triVertexBuffer.upload();
-        auto& triIndexBuffer = StaticMesh::getTriIndexBuffer();
-        triIndexBuffer.upload();
+        auto& gVertexBuffer = StaticMesh::getGlobalVertexBuffer();
+        gVertexBuffer.upload();
+        auto& gIndexBuffer = StaticMesh::getGlobalIndexBuffer();
+        gIndexBuffer.upload();
 
         gfxc->setShaderStorageBuffer(&submeshBuffer);
-        gfxc->setShaderStorageBuffer(&triVertexBuffer);
-        gfxc->setShaderStorageBuffer(&triIndexBuffer);
+        gfxc->setShaderStorageBuffer(&gVertexBuffer);
+        gfxc->setShaderStorageBuffer(&gIndexBuffer);
 #endif
         // view
         viewBuffer->data.constants.view = camera.view;

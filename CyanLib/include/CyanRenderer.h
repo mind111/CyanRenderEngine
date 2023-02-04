@@ -63,7 +63,7 @@ namespace Cyan
     {
         RenderTarget* renderTarget = nullptr;
         Viewport viewport = { };
-        StaticMesh::Submesh submesh;
+        StaticMesh::Submesh* submesh = nullptr;
         PixelPipeline* pipeline = nullptr;
         GfxPipelineConfig config;
         RenderSetupLambda renderSetupLambda = [](VertexShader* vs, PixelShader* ps) {};
@@ -265,7 +265,6 @@ namespace Cyan
         void multiDrawSceneIndirect(const RenderableScene& renderableScene);
 
         void renderSceneBatched(RenderableScene& renderableScene, RenderTarget* outRenderTarget, Texture2D* outSceneColor);
-        void renderSceneDepthNormal(RenderableScene& renderableScene, RenderTarget* outRenderTarget, Texture2D* outDepthBuffer, Texture2D* outNormalBuffer);
         void renderSceneDepthPrepass(RenderableScene& renderableScene, RenderTarget* outRenderTarget, Texture2D* outDepthBuffer);
         void renderSceneDepthOnly(RenderableScene& renderableScene, DepthTexture2D* outDepthTexture);
         void renderSceneGBuffer(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer);

@@ -213,9 +213,6 @@
     <ClInclude Include="include\RenderableScene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\InstantRadiosity.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\SurfelBSH.h">
       <Filter>Header Files\ManyViewGI</Filter>
     </ClInclude>
@@ -255,6 +252,9 @@
     <ClInclude Include="include\Singleton.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\IndexBuffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\RayTracingScene.cpp">
@@ -268,9 +268,6 @@
     </ClCompile>
     <ClCompile Include="src\RayTracer.cpp">
       <Filter>Source Files\RayTracing</Filter>
-    </ClCompile>
-    <ClCompile Include="src\InstantRadiosity.cpp">
-      <Filter>Source Files\InstantRadiosity</Filter>
     </ClCompile>
     <ClCompile Include="src\ManyViewGI.cpp">
       <Filter>Source Files\ManyViewGI</Filter>
@@ -399,6 +396,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Image.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\IndexBuffer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -631,12 +631,6 @@
     <None Include="..\shader\scene_depth_normal_p.glsl">
       <Filter>Shaders\Shading</Filter>
     </None>
-    <None Include="..\shader\scene_depth_normal_v.glsl">
-      <Filter>Shaders\Shading</Filter>
-    </None>
-    <None Include="..\shader\depth_only_v.glsl">
-      <Filter>Shaders\Shading</Filter>
-    </None>
     <None Include="..\shader\depth_only_p.glsl">
       <Filter>Shaders\Shading</Filter>
     </None>
@@ -866,9 +860,6 @@
       <Filter>Shaders\Shading</Filter>
     </None>
     <None Include="..\shader\scene_lighting_p.glsl">
-      <Filter>Shaders\Shading</Filter>
-    </None>
-    <None Include="..\shader\scene_depth_prepass_v.glsl">
       <Filter>Shaders\Shading</Filter>
     </None>
     <None Include="..\shader\scene_depth_prepass_p.glsl">

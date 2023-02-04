@@ -109,7 +109,7 @@ namespace Cyan
                  1.f,  1.f, 1.f, 1.f
             };
 
-            m_defaultShapes.fullscreenQuad = createMesh("FullScreenQuadMesh");
+            m_defaultShapes.fullscreenQuad = createStaticMesh("FullScreenQuadMesh");
             std::vector<Triangles::Vertex> vertices(6);
             vertices[0].pos = glm::vec3(-1.f, -1.f, 0.f); vertices[0].texCoord0 = glm::vec2(0.f, 0.f);
             vertices[1].pos = glm::vec3( 1.f,  1.f, 0.f); vertices[1].texCoord0 = glm::vec2(1.f, 1.f);
@@ -123,7 +123,7 @@ namespace Cyan
         }
 
         // cube
-        m_defaultShapes.unitCubeMesh = createMesh("UnitCubeMesh");
+        m_defaultShapes.unitCubeMesh = createStaticMesh("UnitCubeMesh");
         u32 numVertices = sizeof(cubeVertices) / sizeof(glm::vec3);
         std::vector<Triangles::Vertex> vertices(numVertices);
         std::vector<u32> indices(numVertices);
@@ -182,7 +182,7 @@ namespace Cyan
         stbi_set_flip_vertically_on_load(1);
     }
 
-    StaticMesh* AssetManager::createMesh(const char* name)
+    StaticMesh* AssetManager::createStaticMesh(const char* name)
     {
         StaticMesh* outMesh = nullptr;
         auto entry = singleton->m_meshMap.find(name);
@@ -215,7 +215,7 @@ namespace Cyan
             cyanError("Errors:   %s               ", err.c_str());
         }
 
-        StaticMesh* outMesh = createMesh(meshName);
+        StaticMesh* outMesh = createStaticMesh(meshName);
 
         for (u32 s = 0; s < shapes.size(); ++s)
         {
@@ -481,130 +481,10 @@ namespace Cyan
         glb.importScene(scene);
     }
 
-    template <typename T>
-    void loadVerticesAndIndices(const tinygltf::Model& model, const tinygltf::Primitive& primitive, std::vector<typename T::Vertex>& vertices, std::vector<u32>& indices) {
-         vertices.resize(model.accessors[primitive.attributes.begin()->second].count);
-
-        // fill vertices
-        for (auto itr = primitive.attributes.begin(); itr != primitive.attributes.end(); ++itr)
-        {
-            tinygltf::Accessor accessor = model.accessors[itr->second];
-            tinygltf::BufferView bufferView = model.bufferViews[accessor.bufferView];
-            tinygltf::Buffer buffer = model.buffers[bufferView.buffer];
-
-            if (itr->first.compare("POSITION") == 0 && (T::Vertex::getFlags() && VertexAttribFlag_kPosition != 0))
-            {
-                // sanity checks (assume that position can only be vec3)
-                CYAN_ASSERT(accessor.type == TINYGLTF_TYPE_VEC3, "Position attributes in format other than Vec3 is not allowed")
-
-                for (u32 v = 0; v < vertices.size(); ++v)
-                {
-                    f32* src = reinterpret_cast<f32*>(buffer.data.data() + (accessor.byteOffset + bufferView.byteOffset));
-                    vertices[v].pos = glm::vec3(src[v * 3], src[v * 3 + 1], src[v * 3 + 2]);
-                }
-            }
-            else if (itr->first.compare("NORMAL") == 0 && (T::Vertex::getFlags() && VertexAttribFlag_kNormal != 0))
-            {
-                // sanity checks (assume that normal can only be vec3)
-                CYAN_ASSERT(accessor.type == TINYGLTF_TYPE_VEC3, "Normal attributes in format other than Vec3 is not allowed")
-
-                for (u32 v = 0; v < vertices.size(); ++v)
-                {
-                    f32* src = reinterpret_cast<f32*>(buffer.data.data() + (accessor.byteOffset + bufferView.byteOffset));
-                    vertices[v].normal = glm::vec3(src[v * 3], src[v * 3 + 1], src[v * 3 + 2]);
-                }
-            }
-            else if (itr->first.compare("TANGENT") == 0 && (T::Vertex::getFlags() && VertexAttribFlag_kTangent != 0))
-            {
-                // sanity checks (assume that tangent can only be in vec4)
-                CYAN_ASSERT(accessor.type == TINYGLTF_TYPE_VEC4, "Position attributes in format other than Vec4 is not allowed")
-
-                for (u32 v = 0; v < vertices.size(); ++v)
-                {
-                    f32* src = reinterpret_cast<f32*>(buffer.data.data() + (accessor.byteOffset + bufferView.byteOffset));
-                    vertices[v].tangent = glm::vec4(src[v * 4], src[v * 4 + 1], src[v * 4 + 2], src[v * 4 + 3]);
-                }
-            }
-            else if (itr->first.find("TEXCOORD") == 0 && (T::Vertex::getFlags() && VertexAttribFlag_kTexCoord0 != 0))
-            {
-                // sanity checks (assume that texcoord can only be in vec2)
-                CYAN_ASSERT(accessor.type == TINYGLTF_TYPE_VEC2, "TexCoord attributes in format other than Vec2 is not allowed")
-                u32 texCoordIndex = 0;
-                sscanf_s(itr->first.c_str(), "TEXCOORD_%u", &texCoordIndex);
-                switch (texCoordIndex)
-                {
-                case 0:
-                {
-                    for (u32 v = 0; v < vertices.size(); ++v)
-                    {
-                        f32* src = reinterpret_cast<f32*>(buffer.data.data() + (accessor.byteOffset + bufferView.byteOffset));
-                        vertices[v].texCoord0 = glm::vec2(src[v * 2], src[v * 2 + 1]);
-                    }
-                } break;
-                case 1:
-                {
-
-                    for (u32 v = 0; v < vertices.size(); ++v)
-                    {
-                        f32* src = reinterpret_cast<f32*>(buffer.data.data() + (accessor.byteOffset + bufferView.byteOffset));
-                        vertices[v].texCoord1 = glm::vec2(src[v * 2], src[v * 2 + 1]);
-                    }
-                } break;
-                default:
-                    break;
-                }
-            }
-        }
-
-        // fill indices 
-        if (primitive.indices >= 0)
-        {
-            auto& accessor = model.accessors[primitive.indices];
-            u32 numIndices = accessor.count;
-            CYAN_ASSERT(numIndices % 3 == 0, "Invalid index count for triangle mesh")
-            indices.resize(numIndices);
-            tinygltf::BufferView bufferView = model.bufferViews[accessor.bufferView];
-            tinygltf::Buffer buffer = model.buffers[bufferView.buffer];
-            u32 srcIndexSize = tinygltf::GetComponentSizeInBytes(accessor.componentType);
-            switch (srcIndexSize)
-            {
-            case 1:
-                for (u32 i = 0; i < numIndices; ++i)
-                {
-                    u8 index = buffer.data[accessor.byteOffset + bufferView.byteOffset + srcIndexSize * i];
-                    indices.push_back(index);
-                }
-                break;
-            case 2:
-                for (u32 i = 0; i < numIndices; ++i)
-                {
-                    u8 byte0 = buffer.data[accessor.byteOffset + bufferView.byteOffset + srcIndexSize * i + 0];
-                    u8 byte1 = buffer.data[accessor.byteOffset + bufferView.byteOffset + srcIndexSize * i + 1];
-                    u32 index = (byte1 << 8) | byte0;
-                    indices.push_back(index);
-                }
-                break;
-            case 4:
-                for (u32 i = 0; i < numIndices; ++i)
-                {
-                    u8 byte0 = buffer.data[accessor.byteOffset + bufferView.byteOffset + srcIndexSize * i + 0];
-                    u8 byte1 = buffer.data[accessor.byteOffset + bufferView.byteOffset + srcIndexSize * i + 1];
-                    u8 byte2 = buffer.data[accessor.byteOffset + bufferView.byteOffset + srcIndexSize * i + 2];
-                    u8 byte3 = buffer.data[accessor.byteOffset + bufferView.byteOffset + srcIndexSize * i + 3];
-                    u32 index = (byte3 << 24) | (byte2 << 16) | (byte1 << 8) | byte0;
-                    indices.push_back(index);
-                }
-                break;
-            default:
-                break;
-            }
-        }
-    }
-
     Cyan::StaticMesh* AssetManager::importGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh) 
     {
         assert(gltfMesh.name.c_str());
-        StaticMesh* outMesh = createMesh(gltfMesh.name.c_str());
+        StaticMesh* outMesh = createStaticMesh(gltfMesh.name.c_str());
 
         // todo: multi-threading one thread per mesh
         // primitives (submeshes)

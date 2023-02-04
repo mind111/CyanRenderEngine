@@ -256,16 +256,9 @@ namespace Cyan
         m_ctx->setPrimitiveType(task.config.primitiveMode);
 
         // kick off the draw call
-        auto va = task.submesh.va;
+        auto va = task.submesh->getVertexArray();
         m_ctx->setVertexArray(va);
-        if (va->hasIndexBuffer()) 
-        {
-            m_ctx->drawIndex(task.submesh.numIndices());
-        }
-        else 
-        {
-            m_ctx->drawIndexAuto(task.submesh.numVertices());
-        }
+        m_ctx->drawIndex(task.submesh->numIndices());
     }
 
     void Renderer::registerVisualization(const std::string& categoryName, Texture2D* visualization, bool* toggle) 
@@ -399,7 +392,7 @@ namespace Cyan
         outRenderTarget->clearDrawBuffer(0, glm::vec4(1.f, 1.f, 1.f, 1.f));
         m_ctx->setRenderTarget(outRenderTarget);
         m_ctx->setViewport({ 0, 0, outRenderTarget->width, outRenderTarget->height });
-        CreateVS(vs, "SceneDepthPrepassVS", SHADER_SOURCE_PATH "scene_depth_prepass_v.glsl");
+        CreateVS(vs, "SceneGBufferPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
         CreatePS(ps, "SceneDepthPrepassPS", SHADER_SOURCE_PATH "scene_depth_prepass_p.glsl");
         CreatePixelPipeline(pipeline, "SceneDepthPrepass", vs, ps);
         m_ctx->setPixelPipeline(pipeline);
@@ -408,14 +401,14 @@ namespace Cyan
         multiDrawSceneIndirect(scene);
     }
 
-    void Renderer::renderSceneDepthOnly(RenderableScene& scene, DepthTexture2D* outDepthTexture) 
+    void Renderer::renderSceneDepthOnly(RenderableScene& scene, DepthTexture2D* outDepthTexture)
     {
         std::unique_ptr<RenderTarget> depthRenderTarget(createDepthOnlyRenderTarget(outDepthTexture->width, outDepthTexture->height));
         depthRenderTarget->setDepthBuffer(reinterpret_cast<DepthTexture2D*>(outDepthTexture));
         depthRenderTarget->clear({ { 0u } });
         m_ctx->setRenderTarget(depthRenderTarget.get());
         m_ctx->setViewport({ 0, 0, depthRenderTarget->width, depthRenderTarget->height });
-        CreateVS(vs, "DepthOnlyVS", SHADER_SOURCE_PATH "depth_only_v.glsl");
+        CreateVS(vs, "SceneGBufferPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
         CreatePS(ps, "DepthOnlyPS", SHADER_SOURCE_PATH "depth_only_p.glsl");
         CreatePixelPipeline(pipeline, "DepthOnly", vs, ps);
         scene.upload();
@@ -424,28 +417,9 @@ namespace Cyan
         multiDrawSceneIndirect(scene);
     }
 
-    void Renderer::renderSceneDepthNormal(RenderableScene& scene, RenderTarget* outRenderTarget, Texture2D* outDepthBuffer, Texture2D* outNormalBuffer) 
-    {
-        outRenderTarget->setColorBuffer(outDepthBuffer, 0);
-        outRenderTarget->setColorBuffer(outNormalBuffer, 1);
-        outRenderTarget->setDrawBuffers({ 0, 1 });
-        outRenderTarget->clearDrawBuffer(0, glm::vec4(1.f));
-        outRenderTarget->clearDrawBuffer(1, glm::vec4(0.f, 0.f, 0.f, 1.f));
-
-        m_ctx->setRenderTarget(outRenderTarget);
-        m_ctx->setViewport({ 0, 0, outRenderTarget->width, outRenderTarget->height });
-        CreateVS(vs, "SceneDepthNormalVS", SHADER_SOURCE_PATH "scene_depth_normal_v.glsl");
-        CreatePS(ps, "SceneDepthNormalPS", SHADER_SOURCE_PATH "scene_depth_normal_p.glsl");
-        CreatePixelPipeline(pipeline, "SceneDepthNormal", vs, ps);
-        m_ctx->setPixelPipeline(pipeline);
-        m_ctx->setDepthControl(DepthControl::kEnable);
-        scene.upload();
-        multiDrawSceneIndirect(scene);
-    }
-
     void Renderer::renderSceneGBuffer(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer)
     {
-        CreateVS(vs, "SceneColorPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
+        CreateVS(vs, "SceneGBufferPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
         CreatePS(ps, "SceneGBufferPassPS", SHADER_SOURCE_PATH "scene_gbuffer_p.glsl");
         CreatePixelPipeline(pipeline, "SceneGBufferPass", vs, ps);
         m_ctx->setPixelPipeline(pipeline, [](VertexShader* vs, PixelShader* ps) {
@@ -699,9 +673,9 @@ namespace Cyan
                 // read back ray data
                 // log debug trace data
                 memset(debugTraceBuffer.data.array.data(), 0x0, debugTraceBuffer.data.getDynamicDataSizeInBytes());
-                glGetNamedBufferSubData(debugTraceBuffer.getGpuObject(), 0, debugTraceBuffer.data.getDynamicDataSizeInBytes(), debugTraceBuffer.data.array.data());
+                glGetNamedBufferSubData(debugTraceBuffer.getGpuResource(), 0, debugTraceBuffer.data.getDynamicDataSizeInBytes(), debugTraceBuffer.data.array.data());
                 memset(debugRayBuffer.data.array.data(), 0x0, debugRayBuffer.data.getDynamicDataSizeInBytes());
-                glGetNamedBufferSubData(debugRayBuffer.getGpuObject(), 0, debugRayBuffer.data.getSizeInBytes(), debugRayBuffer.data.array.data());
+                glGetNamedBufferSubData(debugRayBuffer.getGpuResource(), 0, debugRayBuffer.data.getSizeInBytes(), debugRayBuffer.data.array.data());
         #if 0
                 for (i32 i = 0; i < kNumDebugIterations; ++i)
                 {
@@ -1005,9 +979,9 @@ namespace Cyan
                 ps->setTexture("directLightingBuffer", inDirectDiffuseBuffer);
                 ps->setUniform("numSamples", (i32)kNumSamples);
 
-                glBindImageTexture(0, hitBuffer.position->getGpuObject(), 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
-                glBindImageTexture(1, hitBuffer.normal->getGpuObject(), 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
-                glBindImageTexture(2, hitBuffer.radiance->getGpuObject(), 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
+                glBindImageTexture(0, hitBuffer.position->getGpuResource(), 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
+                glBindImageTexture(1, hitBuffer.normal->getGpuResource(), 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
+                glBindImageTexture(2, hitBuffer.radiance->getGpuResource(), 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
             }
         );
         // final resolve pass
@@ -1640,7 +1614,7 @@ namespace Cyan
         addUIRenderCommand([]() {
             ImGui::Begin("Debug Viewer"); {
 
-                ImGui::Image((ImTextureID)outTexture->getGpuObject(), ImVec2(320, 180), ImVec2(0, 1), ImVec2(1, 0));
+                ImGui::Image((ImTextureID)outTexture->getGpuResource(), ImVec2(320, 180), ImVec2(0, 1), ImVec2(1, 0));
 
                 // todo: implement a proper mouse input mechanism for this viewer
                 // todo: abstract this into a debug viewer widget or something
@@ -1712,7 +1686,7 @@ namespace Cyan
         addUIRenderCommand([]() {
             ImGui::Begin("Debug Viewer"); {
 
-                ImGui::Image((ImTextureID)outTexture->getGpuObject(), ImVec2(320, 180), ImVec2(0, 1), ImVec2(1, 0));
+                ImGui::Image((ImTextureID)outTexture->getGpuResource(), ImVec2(320, 180), ImVec2(0, 1), ImVec2(1, 0));
 
                 // todo: implement a proper mouse input mechanism for this viewer
                 // todo: abstract this into a debug viewer widget or something

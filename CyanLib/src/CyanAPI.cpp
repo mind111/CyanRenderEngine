@@ -34,12 +34,6 @@ namespace Cyan
 
     }
 
-    VertexBuffer* createVertexBuffer(void* data, u32 sizeInBytes, VertexSpec&& vertexSpec)
-    {
-        VertexBuffer* vb = new VertexBuffer(data, sizeInBytes, std::move(vertexSpec));
-        return vb;
-    }
-
     RenderTarget* createRenderTarget(u32 width, u32 height) {
         RenderTarget* rt = new RenderTarget();
         rt->width = width;

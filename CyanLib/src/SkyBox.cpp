@@ -86,7 +86,7 @@ namespace Cyan
             assert(0);
         }
         m_cubemapTexture->numMips = (u32)log2f(m_cubemapTexture->resolution) + 1;
-        glGenerateTextureMipmap(m_cubemapTexture->getGpuObject());
+        glGenerateTextureMipmap(m_cubemapTexture->getGpuResource());
     }
 
     

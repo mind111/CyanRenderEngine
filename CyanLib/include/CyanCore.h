@@ -6,15 +6,16 @@
 
 namespace Cyan 
 {
-    class GpuObject 
+    class GpuResource 
     {
     public:
-        GpuObject()
+        GpuResource()
             : glObject(-1) 
         { }
 
-        u32 getGpuObject() const { return glObject; }
-        bool operator==(const GpuObject& rhs) { return glObject == rhs.getGpuObject(); }
+        u32 getGpuResource() const { return glObject; }
+        // todo: this operator is not robust as object id can get recycled, so same id doesn't guarantee same object
+        bool operator==(const GpuResource& rhs) { return glObject == rhs.getGpuResource(); }
 
     protected:
         GLuint glObject;

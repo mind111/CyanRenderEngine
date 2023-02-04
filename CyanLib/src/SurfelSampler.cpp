@@ -19,7 +19,7 @@ namespace Cyan {
             glm::mat4 normalTransform = glm::inverse(glm::transpose(transform));
             for (i32 sm = 0; sm < mesh->numSubmeshes(); ++sm) {
                 auto submesh = mesh->getSubmesh(sm);
-                auto geometry = dynamic_cast<Triangles*>(submesh.geometry);
+                auto geometry = dynamic_cast<Triangles*>(submesh->geometry);
                 if (geometry) 
                 {
                     glm::vec3 albedo(0.f);
@@ -30,7 +30,7 @@ namespace Cyan {
                     }
                     const auto& verts = geometry->vertices;
                     const auto& indices = geometry->indices;
-                    i32 numTriangles = submesh.numIndices() / 3;
+                    i32 numTriangles = submesh->numIndices() / 3;
                     for (i32 t = 0; t < numTriangles; ++t) {
                         const auto& v0 = verts[indices[(u64)t * 3 + 0]];
                         const auto& v1 = verts[indices[(u64)t * 3 + 1]];
@@ -345,7 +345,8 @@ namespace Cyan {
         cyanInfo("Deduplicated %d surfels", diff);
     }
 
-    void SurfelSampler::visualize(RenderTarget* dstRenderTarget, Renderer* renderer) {
+    void SurfelSampler::visualize(RenderTarget* dstRenderTarget, Renderer* renderer) 
+    {
         auto gfxc = renderer->getGfxCtx();
         gfxc->setRenderTarget(dstRenderTarget);
         gfxc->setViewport({ 0, 0, dstRenderTarget->width, dstRenderTarget->height });
@@ -361,17 +362,10 @@ namespace Cyan {
             });
             auto sphere = AssetManager::getAsset<StaticMesh>("Sphere");
             auto sm = sphere->getSubmesh(0);
-            auto va = sm.va;
+            auto va = sm->getVertexArray();
             gfxc->setVertexArray(va);
             i32 instanceCount = surfelSamples.getNumElements();
-            if (va->hasIndexBuffer()) 
-            {
-                glDrawElementsInstanced(GL_TRIANGLES, sm.numIndices(), GL_UNSIGNED_INT, nullptr, instanceCount);
-            }
-            else 
-            {
-                glDrawArraysInstanced(GL_TRIANGLES, 0, sm.numVertices(), instanceCount);
-            }
+            glDrawElementsInstanced(GL_TRIANGLES, sm->numIndices(), GL_UNSIGNED_INT, nullptr, instanceCount);
         }
         // visualize grid
         {
@@ -382,17 +376,10 @@ namespace Cyan {
             gfxc->setPixelPipeline(pipeline);
             auto quad = AssetManager::getAsset<StaticMesh>("Quad");
             auto sm = quad->getSubmesh(0);
-            auto va = sm.va;
+            auto va = sm->getVertexArray();
             gfxc->setVertexArray(va);
             u32 instanceCount = instanceBuffer.getNumElements();
-            if (va->hasIndexBuffer()) 
-            {
-                glDrawElementsInstanced(GL_TRIANGLES, sm.numIndices(), GL_UNSIGNED_INT, nullptr, instanceCount);
-            }
-            else 
-            {
-                glDrawArraysInstanced(GL_TRIANGLES, 0, sm.numVertices(), instanceCount);
-            }
+            glDrawElementsInstanced(GL_TRIANGLES, sm->numIndices(), GL_UNSIGNED_INT, nullptr, instanceCount);
         }
     }
 }

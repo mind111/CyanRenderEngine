@@ -31,7 +31,7 @@ namespace Cyan {
         }
     };
 
-    class Shader : public GpuObject {
+    class Shader : public GpuResource {
     public:
         enum class Type {
             kVertex = 0,
@@ -110,7 +110,7 @@ namespace Cyan {
         }
         virtual ~Shader() { }
 
-        GLuint getProgram() { return getGpuObject(); }
+        GLuint getProgram() { return getGpuResource(); }
         void bind();
         void unbind();
 
@@ -177,7 +177,7 @@ namespace Cyan {
         }
     };
 
-    class PipelineStateObject : public GpuObject {
+    class PipelineStateObject : public GpuResource {
     public:
         PipelineStateObject(const char* pipelineName) 
             : m_name(pipelineName) {

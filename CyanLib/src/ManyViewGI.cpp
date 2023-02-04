@@ -33,17 +33,10 @@ namespace Cyan {
         });
         gfxc->setRenderTarget(dstRenderTarget);
         gfxc->setViewport({ 0, 0, dstRenderTarget->width, dstRenderTarget->height });
-        auto va = disk->getSubmesh(0).va;
+        auto va = disk->getSubmesh(0)->getVertexArray();
         gfxc->setVertexArray(va);
         u32 numInstances = surfelInstanceBuffer.getNumElements();
-        if (va->hasIndexBuffer()) 
-        {
-            glDrawElementsInstanced(GL_TRIANGLES, disk->getSubmesh(0).numIndices(), GL_UNSIGNED_INT, 0, numInstances);
-        }
-        else 
-        {
-            glDrawArraysInstanced(GL_TRIANGLES, 0, disk->getSubmesh(0).numVertices(), numInstances);
-        }
+        glDrawElementsInstanced(GL_TRIANGLES, disk->getSubmesh(0)->numIndices(), GL_UNSIGNED_INT, 0, numInstances);
     }
 
     ManyViewGI::Image::Image(const glm::uvec2& inIrradianceRes, u32 inFinalGatherRes) 
@@ -248,11 +241,11 @@ namespace Cyan {
         });
 
         auto cube = AssetManager::getAsset<StaticMesh>("UnitCubeMesh");
-        gfxc->setVertexArray(cube->getSubmesh(0).va);
+        gfxc->setVertexArray(cube->getSubmesh(0)->getVertexArray());
         glDisable(GL_CULL_FACE);
         u32 numInstances = hemicubeInstanceBuffer.getNumElements();
         // draw hemicubes
-        glDrawArraysInstanced(GL_TRIANGLES, 0, cube->getSubmesh(0).numVertices(), numInstances);
+        glDrawArraysInstanced(GL_TRIANGLES, 0, cube->getSubmesh(0)->numVertices(), numInstances);
         glEnable(GL_CULL_FACE);
 
         auto drawLineVS = ShaderManager::createShader<VertexShader>("DebugDrawLineVS", SHADER_SOURCE_PATH "debug_draw_line_v.glsl");
@@ -278,16 +271,9 @@ namespace Cyan {
         gfxc->setPixelPipeline(visIrradiancePipeline, [this](VertexShader* vs, PixelShader* ps) {
             ps->setTexture("irradianceBuffer", irradiance);
         });
-        auto va = disk->getSubmesh(0).va;
+        auto va = disk->getSubmesh(0)->getVertexArray();
         gfxc->setVertexArray(va);
-        if (va->hasIndexBuffer()) 
-        {
-            glDrawElementsInstanced(GL_TRIANGLES, disk->getSubmesh(0).numIndices(), GL_UNSIGNED_INT, 0, hemicubeInstanceBuffer.getNumElements());
-        }
-        else 
-        {
-            glDrawArraysInstanced(GL_TRIANGLES, 0, disk->getSubmesh(0).numVertices(), hemicubeInstanceBuffer.getNumElements());
-        }
+        glDrawElementsInstanced(GL_TRIANGLES, disk->getSubmesh(0)->numIndices(), GL_UNSIGNED_INT, 0, hemicubeInstanceBuffer.getNumElements());
     }
 
 
@@ -314,7 +300,7 @@ namespace Cyan {
             cs->setUniform("texCoord", texCoord);
             cs->setUniform("radianceRes", radianceRes);
         });
-        glBindImageTexture(0, radianceAtlas->getGpuObject(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA16F);
+        glBindImageTexture(0, radianceAtlas->getGpuResource(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA16F);
         glDispatchCompute(radianceRes, radianceRes, 1);
     }
 
@@ -333,7 +319,7 @@ namespace Cyan {
             auto tangentFrame = calcTangentFrame(hemicube.normal);
             cs->setUniform("hemicubeTangentFrame", tangentFrame);
         });
-        glBindImageTexture(0, irradiance->getGpuObject(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA16F);
+        glBindImageTexture(0, irradiance->getGpuResource(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA16F);
         glDispatchCompute(1, 1, 1);
     }
 
@@ -647,7 +633,7 @@ namespace Cyan {
             for (i32 sm = 0; sm < mesh->numSubmeshes(); ++sm) 
             {
                 auto submesh = mesh->getSubmesh(sm);
-                auto geometry = dynamic_cast<Triangles*>(submesh.geometry);
+                auto geometry = dynamic_cast<Triangles*>(submesh->geometry);
                 if (geometry)
                 {
                     glm::vec3 albedo(0.f);
@@ -1114,7 +1100,7 @@ namespace Cyan {
 
         // update texture data using micro buffer
         if (gpuTexture) {
-            glTextureSubImage2D(gpuTexture->getGpuObject(), 0, 0, 0, resolution, resolution, GL_RGB, GL_FLOAT, color.data());
+            glTextureSubImage2D(gpuTexture->getGpuResource(), 0, 0, 0, resolution, resolution, GL_RGB, GL_FLOAT, color.data());
         }
     }
 
@@ -1180,7 +1166,7 @@ namespace Cyan {
 
         // update texture data using micro buffer
         if (gpuTexture) {
-            glTextureSubImage2D(gpuTexture->getGpuObject(), 0, 0, 0, resolution, resolution, GL_RGB, GL_FLOAT, color.data());
+            glTextureSubImage2D(gpuTexture->getGpuResource(), 0, 0, 0, resolution, resolution, GL_RGB, GL_FLOAT, color.data());
         }
     }
 

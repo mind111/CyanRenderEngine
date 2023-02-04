@@ -5,63 +5,38 @@
 #include <glew/glew.h>
 
 #include "Common.h"
+#include "CyanCore.h"
 
-struct VertexAttribute
+namespace Cyan
 {
-    enum class Type
+    struct VertexBuffer : public GpuResource
     {
-        kPosition = 0,
-        kNormal,
-        kTangent, 
-        kTexCoord0,
-        kTexCoord1,
-        kCount
+        struct Attribute
+        {
+            enum class Type
+            {
+                kVec2 = 0,
+                kVec3,
+                kVec4
+            };
+
+            std::string name;
+            Type type;
+            u32 offset;
+        };
+
+        struct Spec
+        {
+            void addVertexAttribute(const char* attribName, VertexBuffer::Attribute::Type attribType);
+
+            u32 stride = 0;
+            std::vector<Attribute> attributes;
+        };
+
+        VertexBuffer() = delete;
+        VertexBuffer(const Spec& inSpec, void* inData, u32 sizeInBytes);
+        ~VertexBuffer() { }
+
+        Spec spec;
     };
-
-    std::string name;
-    u32 numComponent;
-    u32 offset;
-};
-
-struct VertexSpec
-{
-    void addAttribute(VertexAttribute&& attribute)
-    {
-        attribute.offset = stride;
-        stride += attribute.numComponent * sizeof(f32);
-        attributes.push_back(attribute);
-    }
-
-    u32 getStride() { return stride; }
-    u32 getNumAttributes() { return (u32)attributes.size(); }
-    const VertexAttribute& getAttribute(u32 index) { return attributes[index]; }
-
-private:
-    u32 stride = 0u;
-    std::vector<VertexAttribute> attributes;
-};
-
-struct VertexBuffer
-{
-    VertexBuffer(void* data, u32 size, VertexSpec&& srcVertexSpec)
-        : vbo(-1), bufferSize(size)
-    {
-        glCreateBuffers(1, &vbo);
-        glNamedBufferData(vbo, size, data, GL_STATIC_DRAW);
-        vertexSpec = std::move(srcVertexSpec);
-    }
-
-    u32 getStride() { return vertexSpec.getStride(); }
-    u32 getNumAttributes() { return vertexSpec.getNumAttributes(); }
-    const VertexAttribute& getAttribute(u32 index) { return vertexSpec.getAttribute(index); };
-    GLuint getGLObject() { return vbo; }
-    void release()
-    {
-        glDeleteBuffers(1, &vbo);
-    }
-
-private:
-    VertexSpec vertexSpec;
-    u32 bufferSize = 0;
-    GLuint vbo = -1;
-};
+}

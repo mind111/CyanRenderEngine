@@ -120,7 +120,7 @@ namespace Cyan
     };
 
     template <typename SsboData>
-    struct ShaderStorageBuffer : public GpuObject {
+    struct ShaderStorageBuffer : public GpuResource {
         ShaderStorageBuffer(const char* bufferBlockName, u32 numElements = 0)
             : name(bufferBlockName), data(numElements) 
         {
@@ -160,11 +160,11 @@ namespace Cyan
             if (data.getStaticDataSizeInBytes() > 0)
             {
                 // upload static members
-                glNamedBufferSubData(getGpuObject(), 0, data.getStaticDataSizeInBytes(), data.getStaticData());
+                glNamedBufferSubData(getGpuResource(), 0, data.getStaticDataSizeInBytes(), data.getStaticData());
             }
             if (data.getDynamicDataSizeInBytes() > 0) {
                 // upload dynamic members
-                glNamedBufferSubData(getGpuObject(), data.getStaticDataSizeInBytes(), data.getDynamicDataSizeInBytes(), data.getDynamicData());
+                glNamedBufferSubData(getGpuResource(), data.getStaticDataSizeInBytes(), data.getDynamicDataSizeInBytes(), data.getDynamicData());
             }
         }
 

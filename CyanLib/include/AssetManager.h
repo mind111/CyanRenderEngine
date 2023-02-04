@@ -76,7 +76,7 @@ namespace Cyan
 
         // meshes
         static StaticMesh* importWavefrontObj(const char* meshName, const char* baseDir, const char* filename);
-        static StaticMesh* createMesh(const char* name);
+        static StaticMesh* createStaticMesh(const char* name);
 
         static Material& createMaterial(const char* name);
         static MaterialTextureAtlas& createPackedMaterial(const char* name);
