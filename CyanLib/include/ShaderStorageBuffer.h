@@ -130,21 +130,25 @@ namespace Cyan
             glNamedBufferData(glObject, sizeInBytes, nullptr, GL_DYNAMIC_DRAW);
         }
 
-        ~ShaderStorageBuffer() {
+        ~ShaderStorageBuffer() 
+        {
             glDeleteBuffers(1, &glObject);
         }
 
-        void bind(u32 inBufferBindingUnit) {
+        void bind(u32 inBufferBindingUnit) 
+        {
             bufferBindingUnit = (i32)inBufferBindingUnit;
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, (u32)bufferBindingUnit, glObject);
         }
 
-        void unbind() {
+        void unbind() 
+        {
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, bufferBindingUnit, 0);
             bufferBindingUnit = -1;
         }
 
-        void upload() {
+        void upload() 
+        {
             // if the dynamic array out grow the allocated buffer, need to release old resources and create new ones
             if (data.getSizeInBytes() > sizeInBytes)
             {
@@ -162,7 +166,8 @@ namespace Cyan
                 // upload static members
                 glNamedBufferSubData(getGpuResource(), 0, data.getStaticDataSizeInBytes(), data.getStaticData());
             }
-            if (data.getDynamicDataSizeInBytes() > 0) {
+            if (data.getDynamicDataSizeInBytes() > 0) 
+            {
                 // upload dynamic members
                 glNamedBufferSubData(getGpuResource(), data.getStaticDataSizeInBytes(), data.getDynamicDataSizeInBytes(), data.getDynamicData());
             }
@@ -184,7 +189,8 @@ namespace Cyan
         /**
         * return a deep copy `this` which possesses same buffer content as `this` but uses
         */
-        ShaderStorageBuffer<SsboData>* clone() {
+        ShaderStorageBuffer<SsboData>* clone() 
+        {
             auto cloned = new ShaderStorageBuffer<SsboData>(this->name.c_str(), data.getNumElements());
             if (void* staticData = data.getStaticData()) {
                 memcpy(cloned->data.getStaticData(), staticData, data.getStaticDataSizeInBytes());

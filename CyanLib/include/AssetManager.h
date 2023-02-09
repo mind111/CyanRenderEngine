@@ -49,6 +49,8 @@ namespace Cyan
         ~AssetManager() { };
 
         void initialize();
+        static void import(Scene* scene, const char* filename);
+
         void importGltfNode(Scene* scene, tinygltf::Model& model, Entity* parent, tinygltf::Node& node);
         StaticMesh* importGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh); 
         Cyan::Texture2D* importGltfTexture(tinygltf::Model& model, tinygltf::Texture& gltfTexture);
@@ -56,17 +58,7 @@ namespace Cyan
         static void importGltf(Scene* scene, const char* filename, const char* name=nullptr);
         static void importGltfAsync(Scene* scene, const char* filename);
         static void importGlb(Scene* scene, const char* filename);
-#if 0
-        static Texture3D* createTexture3D(const char* name, const Texture3D::Spec& spec, Texture::Parameter parameter=ITexture::Parameter{ }) {
-            Texture3D* outTexture = getAsset<Texture3D>(name);
-            if (!outTexture)
-            {
-                Texture3D* outTexture = new Texture3D(name, spec, parameter);
-                singleton->addTexture(outTexture);
-            }
-            return outTexture;
-        }
-#endif
+
         // textures
         static Image* importImage(const char* name, const char* filename);
         static Image* importImage(const char* name, u8* mem, u32 sizeInBytes);

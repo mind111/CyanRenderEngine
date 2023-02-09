@@ -182,6 +182,24 @@ namespace Cyan
         stbi_set_flip_vertically_on_load(1);
     }
 
+    void AssetManager::import(Scene* scene, const char* filename)
+    {
+        // parse file extension
+        std::string path(filename);
+        u32 found = path.find_last_of('.');
+        std::string extension = path.substr(found, found + 1);
+        if (extension == ".gltf")
+        {
+        }
+        else if (extension == ".glb")
+        {
+            importGlb(scene, filename);
+        }
+        else if (extension == ".obj")
+        {
+        }
+    }
+
     StaticMesh* AssetManager::createStaticMesh(const char* name)
     {
         StaticMesh* outMesh = nullptr;
@@ -471,11 +489,6 @@ namespace Cyan
     */
     void AssetManager::importGlb(Scene* scene, const char* filename)
     {
-        std::string path(filename);
-        u32 found = path.find_last_of('.');
-        std::string extension = path.substr(found, found + 1);
-
-        assert(extension == ".glb");
         ScopedTimer timer("Custom import .glb timer", true);
         gltf::Glb glb(filename);
         glb.importScene(scene);

@@ -11,75 +11,6 @@
 
 namespace Cyan
 {
-#if 0
-    PackedGeometry* RenderableScene::packedGeometry = nullptr;
-
-    PackedGeometry::PackedGeometry(const Scene& scene) 
-        : vertexBuffer("VertexBuffer")
-        , indexBuffer("IndexBuffer") 
-        , submeshes("SubmeshBuffer") 
-    {
-        for (auto e : scene.m_entities)
-        {
-            if (StaticMeshEntity* staticMeshEntity = dynamic_cast<StaticMeshEntity*>(e))
-            {
-                StaticMesh* mesh = staticMeshEntity->getMeshInstance()->mesh;
-                auto entry = meshMap.find(mesh->name);
-                if (entry == meshMap.end())
-                {
-                    meshMap.insert({ mesh->name, mesh });
-                    meshes.push_back(mesh);
-                }
-            }
-        }
-
-        // build unified vertex buffer and index buffer
-        for (auto mesh : meshes)
-        {
-            auto entry = submeshMap.find(mesh->name);
-            if (entry == submeshMap.end())
-                submeshMap.insert({ mesh->name, submeshes.data.array.size()});
-
-            for (u32 i = 0; i < mesh->numSubmeshes(); ++i)
-            {
-                auto sm = mesh->getSubmesh(i);
-                if (auto triSubmesh = dynamic_cast<StaticMesh::Submesh<Triangles>*>(sm))
-                {
-                    auto& vertices = triSubmesh->getVertices();
-                    auto& indices = triSubmesh->getIndices();
-
-                    submeshes.data.array.push_back(
-                        {
-                            /*baseVertex=*/(u32)vertexBuffer.data.array.size(),
-                            /*baseIndex=*/(u32)indexBuffer.data.array.size(),
-                            /*numVertices=*/(u32)vertices.size(),
-                            /*numIndices=*/(u32)indices.size()
-                        }
-                    );
-
-                    for (u32 v = 0; v < vertices.size(); ++v)
-                    {
-                        vertexBuffer.data.array.emplace_back();
-                        Vertex& vertex = vertexBuffer.data.array.back();
-                        vertex.pos = glm::vec4(vertices[v].pos, 1.f);
-                        vertex.normal = glm::vec4(vertices[v].normal, 0.f);
-                        vertex.tangent = vertices[v].tangent;
-                        vertex.texCoord = glm::vec4(vertices[v].texCoord0, vertices[v].texCoord1);
-                    }
-                    for (u32 ii = 0; ii < indices.size(); ++ii)
-                    {
-                        indexBuffer.addElement(indices[ii]);
-                    }
-                }
-            }
-        }
-
-        vertexBuffer.upload();
-        indexBuffer.upload();
-        submeshes.upload();
-    }
-#endif
-
     RenderableScene::Camera::Camera(const PerspectiveCamera& inCamera)
     {
         eye = inCamera.position;
@@ -108,10 +39,6 @@ namespace Cyan
         drawCallBuffer = std::make_unique<DrawCallBuffer>("DrawCallBuffer");
         directionalLightBuffer = std::make_unique<DirectionalLightBuffer>("DirectionalLightBuffer");
 
-#if 0
-        if (!packedGeometry)
-            packedGeometry = new PackedGeometry(*inScene);
-#endif
         aabb = inScene->m_aabb;
 
         // todo: make this work with orthographic camera as well
@@ -161,32 +88,6 @@ namespace Cyan
         }
 
         // build instance descriptors
-#if 0
-        u32 materialCount = 0;
-        for (u32 i = 0; i < meshInstances.size(); ++i) 
-        {
-            auto mesh = meshInstances[i]->mesh;
-            auto entry = packedGeometry->submeshMap.find(mesh->name);
-            u32 baseSubmesh = 0;
-            if (entry != packedGeometry->submeshMap.end()) 
-            {
-                baseSubmesh = entry->second;
-            }
-            else 
-            {
-                cyanError("Failed to find mesh %s in packed geoemtry buffer", mesh->name);
-                assert(0);
-            }
-            for (u32 sm = 0; sm < mesh->numSubmeshes(); ++sm) 
-            {
-                InstanceDesc desc = { };
-                desc.submesh = baseSubmesh + sm;
-                desc.transform = i;
-                desc.material = materialCount++;
-                instanceBuffer->addElement(desc);
-            }
-        }
-#else
         u32 materialCount = 0;
         for (u32 i = 0; i < meshInstances.size(); ++i) 
         {
@@ -196,7 +97,6 @@ namespace Cyan
                 auto submesh = mesh->getSubmesh(sm);
                 auto smDesc = StaticMesh::getSubmeshDesc(submesh);
                 // todo: properly handle other types of geometries
-                // if (smDesc.type == (i32)Geometry::Type::kTriangles) 
                 if (dynamic_cast<Triangles*>(submesh->geometry)) 
                 {
                     InstanceDesc desc = { };
@@ -207,8 +107,6 @@ namespace Cyan
                 }
             }
         }
-
-#endif
 
         // organize instance descriptors
         if (instanceBuffer->getNumElements() > 0) 
@@ -281,11 +179,6 @@ namespace Cyan
     void RenderableScene::upload() 
     {
         auto gfxc = Renderer::get()->getGfxCtx();
-#if 0
-        gfxc->setShaderStorageBuffer(&packedGeometry->vertexBuffer);
-        gfxc->setShaderStorageBuffer(&packedGeometry->indexBuffer);
-        gfxc->setShaderStorageBuffer(&packedGeometry->submeshes);
-#else
         // todo: doing this every frame is kind of redundant, maybe to a message kind of thing here to only trigger update when there is actually an update
         // to these global buffers?
         auto& submeshBuffer = StaticMesh::getSubmeshBuffer();
@@ -298,7 +191,7 @@ namespace Cyan
         gfxc->setShaderStorageBuffer(&submeshBuffer);
         gfxc->setShaderStorageBuffer(&gVertexBuffer);
         gfxc->setShaderStorageBuffer(&gIndexBuffer);
-#endif
+
         // view
         viewBuffer->data.constants.view = camera.view;
         viewBuffer->data.constants.projection = camera.projection;

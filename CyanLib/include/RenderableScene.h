@@ -19,37 +19,6 @@ namespace Cyan
     struct SkyLight;
     struct PointLight;
 
-#if 0
-    struct PackedGeometry 
-    {
-        PackedGeometry(const Scene& scene);
-
-        std::vector<StaticMesh*> meshes;
-        std::unordered_map<std::string, StaticMesh*> meshMap;
-        std::unordered_map<std::string, u32> submeshMap;
-
-        struct Vertex
-        {
-            glm::vec4 pos;
-            glm::vec4 normal;
-            glm::vec4 tangent;
-            glm::vec4 texCoord;
-        };
-        // unified geometry data
-        ShaderStorageBuffer<DynamicSsboData<Vertex>> vertexBuffer;
-        ShaderStorageBuffer<DynamicSsboData<u32>> indexBuffer;
-
-        struct SubmeshDesc
-        {
-            u32 baseVertex = 0;
-            u32 baseIndex = 0;
-            u32 numVertices = 0;
-            u32 numIndices = 0;
-        };
-        ShaderStorageBuffer<DynamicSsboData<SubmeshDesc>> submeshes;
-    };
-#endif
-
     // is it better to define
     /**
     * A Scene representation that only contains renderable data.

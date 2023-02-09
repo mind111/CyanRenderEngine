@@ -27,7 +27,7 @@ namespace Cyan
         u32 flag = 0u;
     };
 
-    struct Material 
+    struct Material
     {
         enum class Flags : u32 {
             kHasAlbedoMap            = 1 << 0,
