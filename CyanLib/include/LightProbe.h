@@ -50,9 +50,9 @@ namespace Cyan
         ReflectionProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& sceneCaptureResolution);
         ~ReflectionProbe() { }
 
-        static Texture2D* buildBRDFLookupTexture();
+        static Texture2DBindless* buildBRDFLookupTexture();
 
-        static Texture2D* getBRDFLookupTexture()
+        static Texture2DBindless* getBRDFLookupTexture()
         {
             return s_BRDFLookupTexture;
         }
@@ -63,7 +63,7 @@ namespace Cyan
         void build();
         void buildFromCubemap();
 
-        static Texture2D* s_BRDFLookupTexture;
+        static Texture2DBindless* s_BRDFLookupTexture;
         static const u32 kNumMips = 11; 
         static PixelPipeline* s_convolveReflectionPipeline;
 

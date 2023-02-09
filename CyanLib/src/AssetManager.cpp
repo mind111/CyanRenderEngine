@@ -423,20 +423,22 @@ namespace Cyan
                 auto& primitive = gltfMesh.primitives[sm];
                 if (primitive.material > -1)
                 {
+#if BINDLESS_TEXTURE
                     auto getTexture = [&](i32 imageIndex)
                     {
-                        Cyan::Texture2D* texture = nullptr;
+                        Cyan::Texture2DBindless* texture = nullptr;
                         if (imageIndex > -1 && imageIndex < model.images.size())
                         {
                             auto& image = model.images[imageIndex];
-                            texture = getAsset<Texture2D>(image.name.c_str());
+                            texture = getAsset<Texture2DBindless>(image.name.c_str());
                             if (!texture)
                             {
-                                texture = getAsset<Texture2D>(image.uri.c_str());
+                                texture = getAsset<Texture2DBindless>(image.uri.c_str());
                             }
                         }
                         return texture;
                     };
+#endif
 
                     auto& gltfMaterial = model.materials[primitive.material];
                     auto pbr = gltfMaterial.pbrMetallicRoughness;
@@ -690,6 +692,18 @@ namespace Cyan
         if (!outTexture)
         {
             outTexture = new Texture2D(name, *srcImage, bGenerateMipmap, inSampler);
+            outTexture->init();
+            singleton->addTexture(outTexture);
+        }
+        return outTexture;
+    }
+
+    Texture2DBindless* AssetManager::createTexture2DBindless(const char* name, Image* srcImage, bool bGenerateMipmap, const Sampler2D& inSampler)
+    {
+        Texture2DBindless* outTexture = getAsset<Texture2DBindless>(name);
+        if (!outTexture)
+        {
+            outTexture = new Texture2DBindless(name, *srcImage, bGenerateMipmap, inSampler);
             outTexture->init();
             singleton->addTexture(outTexture);
         }

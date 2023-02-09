@@ -515,23 +515,13 @@ namespace Cyan
             // setup ssao
             if (m_sceneTextures.ao)
             {
-                auto ssao = m_sceneTextures.ao->glHandle;
-                if (glIsTextureHandleResidentARB(ssao) == GL_FALSE)
-                {
-                    glMakeTextureHandleResidentARB(ssao);
-                }
-                ps->setUniform("ssaoTextureHandle", ssao);
+                ps->setTexture("ssao", m_sceneTextures.ao);
             }
             ps->setUniform("ssaoEnabled", m_settings.bSSAOEnabled && m_sceneTextures.ao ? 1.f : 0.f);
             // setup ssbn
             if (m_sceneTextures.bentNormal)
             {
-                auto ssbn = m_sceneTextures.bentNormal->glHandle;
-                if (glIsTextureHandleResidentARB(ssbn) == GL_FALSE)
-                {
-                    glMakeTextureHandleResidentARB(ssbn);
-                }
-                ps->setUniform("ssbnTextureHandle", ssbn);
+                ps->setTexture("ssbn", m_sceneTextures.bentNormal);
             }
             ps->setUniform("ssbnEnabled", m_settings.bBentNormalEnabled && m_sceneTextures.bentNormal ? 1.f : 0.f);
             // setup indirect irradiance
@@ -1088,12 +1078,7 @@ namespace Cyan
             {
                 if (m_sceneTextures.ao)
                 {
-                    auto ssao = m_sceneTextures.ao->glHandle;
-                    if (glIsTextureHandleResidentARB(ssao) == GL_FALSE)
-                    {
-                        glMakeTextureHandleResidentARB(ssao);
-                    }
-                    ps->setUniform("ssaoTextureHandle", ssao);
+                    ps->setTexture("ssao", m_sceneTextures.ao);
                     ps->setUniform("ssaoEnabled", 1.f);
                 }
             }
@@ -1106,12 +1091,7 @@ namespace Cyan
                 // setup ssbn
                 if (m_sceneTextures.bentNormal)
                 {
-                    auto ssbn = m_sceneTextures.bentNormal->glHandle;
-                    if (glIsTextureHandleResidentARB(ssbn) == GL_FALSE)
-                    {
-                        glMakeTextureHandleResidentARB(ssbn);
-                    }
-                    ps->setUniform("ssbnTextureHandle", ssbn);
+                    ps->setTexture("ssbn", m_sceneTextures.bentNormal);
                     ps->setUniform("ssbnEnabled", 1.f);
                 }
             }

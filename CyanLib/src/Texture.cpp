@@ -296,11 +296,60 @@ namespace Cyan
         {
             glGenerateTextureMipmap(getGpuResource());
         }
+    }
 
+    Texture2DBindless::Texture2DBindless(const Image& inImage, bool bGenerateMipmap, const Sampler2D& inSampler)
+        : Texture2D(inImage, bGenerateMipmap, inSampler)
+    {
+
+    }
+
+    Texture2DBindless::Texture2DBindless(const char* inName, const Image& inImage, bool bGenerateMipmap, const Sampler2D& inSampler)
+        : Texture2D(inName, inImage, bGenerateMipmap, inSampler)
+    {
+
+    }
+
+    Texture2DBindless::Texture2DBindless(const Spec& inSpec, const Sampler2D& inSampler)
+        : Texture2D(inSpec, inSampler)
+    {
+
+    }
+
+    Texture2DBindless::Texture2DBindless(const char* inName, const Spec& inSpec, const Sampler2D& inSampler)
+        : Texture2D(inName, inSpec, inSampler)
+    {
+
+    }
+
+    void Texture2DBindless::init() 
+    {
+        Texture2D::init();
 #if BINDLESS_TEXTURE
         glHandle = glGetTextureHandleARB(getGpuResource());
 #endif
     }
+
+    DepthTexture2DBindless::DepthTexture2DBindless(const Spec& inSpec, const Sampler2D& inSampler)
+        : DepthTexture2D(inSpec, inSampler)
+    {
+
+    }
+
+    DepthTexture2DBindless::DepthTexture2DBindless(const char* inName, const Spec& inSpec, const Sampler2D& inSampler)
+        : DepthTexture2D(inName, inSpec, inSampler)
+    {
+
+    }
+
+    void DepthTexture2DBindless::init()
+    {
+        DepthTexture2D::init();
+#if BINDLESS_TEXTURE
+        glHandle = glGetTextureHandleARB(getGpuResource());
+#endif
+    }
+
 
     DepthTexture2D::DepthTexture2D(const Spec& inSpec, const Sampler2D& inSampler)
         : Texture2D(Texture2D::Spec(inSpec.width, inSpec.height, inSpec.numMips, PF_D24S8), inSampler)
@@ -323,10 +372,6 @@ namespace Cyan
         glBindTexture(GL_TEXTURE_2D, 0);
 
         sampler.init(this);
-
-#if BINDLESS_TEXTURE
-        glHandle = glGetTextureHandleARB(getGpuResource());
-#endif
     }
 
     Texture2DArray::Texture2DArray(const Spec& inSpec, const Sampler2D& inSampler)
@@ -355,9 +400,6 @@ namespace Cyan
         {
             glGenerateTextureMipmap(getGpuResource());
         }
-#if BINDLESS_TEXTURE
-        glHandle = glGetTextureHandleARB(getGpuResource());
-#endif
     }
 
     TextureCube::TextureCube(const Spec& inSpec, const SamplerCube& inSampler)

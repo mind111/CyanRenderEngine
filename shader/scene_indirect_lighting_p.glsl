@@ -9,10 +9,11 @@ uniform sampler2D sceneDepth;
 uniform sampler2D sceneNormal;
 uniform sampler2D sceneAlbedo;
 uniform sampler2D sceneMetallicRoughness;
+
 uniform float ssaoEnabled;
-uniform uint64_t ssaoTextureHandle;
+uniform sampler2D ssao;
 uniform float ssbnEnabled;
-uniform uint64_t ssbnTextureHandle;
+uniform sampler2D ssbn;
 uniform sampler2D indirectIrradiance;
 uniform float indirectBoost;
 
@@ -198,7 +199,7 @@ vec3 calcSkyLight(SkyLight inSkyLight, in Material material, vec3 worldSpacePosi
 	vec2 texCoord = psIn.texCoord0;
     if (ssaoEnabled > .5f)
     {
-        ao = texture(sampler2D(ssaoTextureHandle), texCoord).r;
+        ao = texture(ssao, texCoord).r;
     }
 
     // irradiance
@@ -206,7 +207,7 @@ vec3 calcSkyLight(SkyLight inSkyLight, in Material material, vec3 worldSpacePosi
     vec3 irradiance = diffuse * texture(skyLight.irradiance, material.normal).rgb; 
     if (ssbnEnabled > .5f)
     {
-        vec3 bentNormal = normalize(texture(sampler2D(ssbnTextureHandle), texCoord).rgb * 2.f - 1.f);
+        vec3 bentNormal = normalize(texture(ssbn, texCoord).rgb * 2.f - 1.f);
 		irradiance = diffuse * texture(skyLight.irradiance, bentNormal).rgb; 
     }
     else

@@ -22,7 +22,7 @@ namespace Cyan
         char depthTextureName[64] = { };
         sprintf_s(depthTextureName, "DirectionalShadowmapTexture_%u", IDirectionalShadowMap::numDirectionalShadowMaps);
         DepthTexture2D::Spec spec(resolution.x, resolution.y, 1);
-        depthTexture = std::make_unique<DepthTexture2D>(depthTextureName, spec);
+        depthTexture = std::make_unique<DepthTexture2DBindless>(depthTextureName, spec);
         depthTexture->init();
     }
 

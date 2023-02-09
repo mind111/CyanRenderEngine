@@ -413,7 +413,7 @@ namespace Cyan
                 Sampler2D sampler;
                 bool bGenerateMipmap = false;
                 translateSampler(gltfSampler, sampler, bGenerateMipmap);
-                AssetManager::createTexture2D(texture.name.c_str(), image, bGenerateMipmap, sampler);
+                AssetManager::createTexture2DBindless(texture.name.c_str(), image, bGenerateMipmap, sampler);
             }
         }
 
@@ -553,21 +553,21 @@ namespace Cyan
                 if (baseColorTextureIndex >= 0)
                 {
                     const gltf::Texture texture = textures[baseColorTextureIndex];
-                    matl.albedoMap = AssetManager::getAsset<Texture2D>(texture.name.c_str());
+                    matl.albedoMap = AssetManager::getAsset<Texture2DBindless>(texture.name.c_str());
                 }
 
                 i32 metallicRoughnessIndex = gltfMatl.pbrMetallicRoughness.metallicRoughnessTexture.index;
                 if (metallicRoughnessIndex >= 0)
                 {
                     const gltf::Texture texture = textures[metallicRoughnessIndex];
-                    matl.metallicRoughnessMap = AssetManager::getAsset<Texture2D>(texture.name.c_str());
+                    matl.metallicRoughnessMap = AssetManager::getAsset<Texture2DBindless>(texture.name.c_str());
                 }
 
                 i32 normalTextureIndex = gltfMatl.normalTexture.index;
                 if (normalTextureIndex >= 0)
                 {
                     const gltf::Texture texture = textures[normalTextureIndex];
-                    matl.normalMap = AssetManager::getAsset<Texture2D>(texture.name.c_str());
+                    matl.normalMap = AssetManager::getAsset<Texture2DBindless>(texture.name.c_str());
                 }
             }
         }

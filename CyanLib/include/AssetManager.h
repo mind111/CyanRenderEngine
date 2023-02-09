@@ -63,6 +63,7 @@ namespace Cyan
         static Image* importImage(const char* name, const char* filename);
         static Image* importImage(const char* name, u8* mem, u32 sizeInBytes);
         static Texture2D* createTexture2D(const char* name, Image* srcImage, bool bGenerateMipmap, const Sampler2D& inSampler = Sampler2D{});
+        static Texture2DBindless* createTexture2DBindless(const char* name, Image* srcImage, bool bGenerateMipmap, const Sampler2D& inSampler = Sampler2D{});
         static Texture2D* importTexture2D(const char* textureName, const char* srcImageFile, bool bGenerateMipmap, const Sampler2D& inSampler);
         static Texture2D* importTexture2D(const char* textureName, const char* srcImageName, const char* srcImageFile, bool bGenerateMipmap, const Sampler2D& inSampler);
 
@@ -106,6 +107,17 @@ namespace Cyan
                 return nullptr;
             }
             return dynamic_cast<Texture2D*>(entry->second);
+        }
+
+        template<>
+        static Texture2DBindless* getAsset<Texture2DBindless>(const char* textureName)
+        {
+            const auto& entry = singleton->m_textureMap.find(textureName);
+            if (entry == singleton->m_textureMap.end())
+            {
+                return nullptr;
+            }
+            return dynamic_cast<Texture2DBindless*>(entry->second);
         }
 
         template<>

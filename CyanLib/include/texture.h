@@ -96,9 +96,6 @@ namespace Cyan
         static u32 count;
         std::string name;
         Format format;
-#if BINDLESS_TEXTURE
-        u64 glHandle;
-#endif
     };
 
     struct Sampler
@@ -227,6 +224,20 @@ namespace Cyan
         u32 numMips = 1;
     };
 
+    struct Texture2DBindless : public Texture2D
+    {
+        Texture2DBindless(const Image& inImage, bool bGenerateMipmap, const Sampler2D& inSampler = {});
+        Texture2DBindless(const char* inName, const Image& inImage, bool bGenerateMipmap, const Sampler2D& inSampler = {});
+        Texture2DBindless(const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
+        Texture2DBindless(const char* inName, const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
+
+        virtual void init() override;
+
+#if BINDLESS_TEXTURE
+        u64 glHandle;
+#endif
+    };
+
     struct DepthTexture2D : public Texture2D
     {
         struct Spec : public Texture2D::Spec 
@@ -270,6 +281,18 @@ namespace Cyan
         }
 
         virtual void init() override;
+    };
+
+    struct DepthTexture2DBindless : public DepthTexture2D
+    {
+        DepthTexture2DBindless(const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
+        DepthTexture2DBindless(const char* inName, const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
+
+        virtual void init() override;
+
+#if BINDLESS_TEXTURE
+        u64 glHandle;
+#endif
     };
 
     struct Texture2DArray : public Texture2D

@@ -14,6 +14,7 @@
 
 namespace Cyan 
 {
+#if 1 
     struct GpuMaterial 
     {
         u64 albedoMap;
@@ -40,10 +41,10 @@ namespace Cyan
         GpuMaterial buildGpuMaterial();
 
         std::string name;
-        Texture2D* albedoMap = nullptr;
-        Texture2D* normalMap = nullptr;
-        Texture2D* metallicRoughnessMap = nullptr;
-        Texture2D* occlusionMap = nullptr;
+        Texture2DBindless* albedoMap = nullptr;
+        Texture2DBindless* normalMap = nullptr;
+        Texture2DBindless* metallicRoughnessMap = nullptr;
+        Texture2DBindless* occlusionMap = nullptr;
         glm::vec4 albedo = glm::vec4(0.9f, 0.9f, 0.9f, 1.f);
         f32 metallic = 0.f;
         f32 roughness = .5f;
@@ -85,4 +86,44 @@ namespace Cyan
         f32 roughness = .5f;
         f32 emissive = 1.f;
     };
+#else
+    struct GpuMaterial
+    {
+        u32 albedoMap;
+        u32 normalMap;
+        u32 metallicRoughnessMap;
+        u32 emissiveMap;
+        glm::vec4 albedo;
+        f32 metallic;
+        f32 roughness;
+        f32 emissive;
+        u32 flag;
+    };
+
+    struct Material
+    {
+        glm::vec3 albedo = glm::vec3(.8f);
+        f32 metallic = 0.f;
+        f32 roughness = .5f;
+        u32 flag;
+
+        Material() = default;
+        virtual ~Material() { };
+
+        virtual void buildGpuMaterial() = 0;
+
+        std::string name;
+    };
+
+    // material implementation using bindless texture
+    struct MaterialBindless : public Material
+    {
+    };
+
+    struct MaterialTextureAtlas : public Material
+    {
+
+    };
+
+#endif
 };

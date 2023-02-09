@@ -52,7 +52,7 @@ namespace Cyan {
         }
 
         glm::mat4 lightSpaceProjection;
-        std::unique_ptr<DepthTexture2D> depthTexture = nullptr;
+        std::unique_ptr<DepthTexture2DBindless> depthTexture = nullptr;
     };
 
     /**

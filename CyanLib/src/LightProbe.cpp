@@ -8,7 +8,7 @@
 
 namespace Cyan
 {
-    Texture2D* ReflectionProbe::s_BRDFLookupTexture = nullptr;
+    Texture2DBindless* ReflectionProbe::s_BRDFLookupTexture = nullptr;
     PixelPipeline* IrradianceProbe::s_convolveIrradiancePipeline = nullptr;
     PixelPipeline* ReflectionProbe::s_convolveReflectionPipeline = nullptr;
 
@@ -194,11 +194,11 @@ namespace Cyan
     }
 
     // todo: fix this, 
-    Texture2D* ReflectionProbe::buildBRDFLookupTexture()
+    Texture2DBindless* ReflectionProbe::buildBRDFLookupTexture()
     {
         Texture2D::Spec spec(512u, 512u, 1, PF_RGBA16F);
         Sampler2D sampler;
-        Texture2D* outTexture = new Texture2D("BRDFLUT", spec, sampler);
+        Texture2DBindless* outTexture = new Texture2DBindless("BRDFLUT", spec, sampler);
         outTexture->init();
 
         RenderTarget* renderTarget = createRenderTarget(outTexture->width, outTexture->height);
