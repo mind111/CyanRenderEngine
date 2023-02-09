@@ -71,8 +71,8 @@ namespace Cyan
             }
         }
 
-        Glb::Glb(const char* srcFilename)
-            : filename(srcFilename)
+        Glb::Glb(const char* inFilename)
+            : Asset::ExternalSource(inFilename)
         {
             std::ifstream glb(filename, std::ios_base::binary);
 
@@ -109,6 +109,16 @@ namespace Cyan
                 binaryChunk.resize(binaryChunkDesc.chunkLength);
                 glb.read(reinterpret_cast<char*>(binaryChunk.data()), binaryChunkDesc.chunkLength);
             }
+        }
+
+        void Glb::load()
+        {
+
+        }
+
+        void Glb::unload()
+        {
+
         }
 
         void Glb::importScene(Cyan::Scene* outScene)

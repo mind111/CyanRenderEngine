@@ -4,6 +4,7 @@
 #include <array>
 #include <glew/glew.h>
 
+#include "Asset.h"
 #include "MathUtils.h"
 #include "Material.h"
 #include "BVH.h"

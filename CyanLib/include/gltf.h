@@ -1,8 +1,10 @@
 #pragma once
 
-#include "Common.h"
 #include "glm/glm.hpp"
 #include "tiny_gltf/json.hpp"
+
+#include "Common.h"
+#include "Asset.h"
 
 namespace Cyan
 {
@@ -188,7 +190,7 @@ namespace Cyan
         using json_iterator = nlohmann::json::iterator;
         using json_const_iterator = nlohmann::json::const_iterator;
 
-        struct Glb
+        struct Glb : Asset::ExternalSource
         {
             struct ChunkDesc
             {
@@ -199,11 +201,13 @@ namespace Cyan
             Glb(const char* srcFilename);
             ~Glb() { }
 
+            virtual void load() override;
+            virtual void unload() override;
+
             void importScene(Cyan::Scene* outScene);
             void importAssets();
 
             bool bInitailized = false;
-            const char* filename = nullptr;
             ChunkDesc jsonChunkDesc;
             ChunkDesc binaryChunkDesc;
             u32 binaryChunkOffset;
