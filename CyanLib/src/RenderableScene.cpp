@@ -231,8 +231,8 @@ namespace Cyan
             auto mesh = meshInstances[i]->mesh;
             for (i32 sm = 0; sm < mesh->numSubmeshes(); ++sm)
             {
-                Material* matl = meshInstances[i]->getMaterial(sm);
-                materialBuffer->addElement(matl->buildGpuMaterial());
+                MaterialBindless* matl = static_cast<MaterialBindless*>(meshInstances[i]->getMaterial(sm));
+                materialBuffer->addElement(matl->buildGpuData());
             }
         }
     }

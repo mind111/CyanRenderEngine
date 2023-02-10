@@ -71,8 +71,9 @@ namespace Cyan
         static StaticMesh* importWavefrontObj(const char* meshName, const char* baseDir, const char* filename);
         static StaticMesh* createStaticMesh(const char* name);
 
-        static Material& createMaterial(const char* name);
-        static MaterialTextureAtlas& createPackedMaterial(const char* name);
+        static Material* createMaterial(const char* name);
+        static MaterialBindless* createMaterialBindless(const char* name);
+        static MaterialTextureAtlas* createPackedMaterial(const char* name);
 
         // getters
         template <typename T>
@@ -156,10 +157,11 @@ namespace Cyan
         }
 
         template <>
-        static Material* getAsset<Material>(const char* name) {
+        static Material* getAsset<Material>(const char* name) 
+        {
             auto entry = singleton->m_materialMap.find(std::string(name));
             if (entry != singleton->m_materialMap.end()) {
-                return &entry->second;
+                return entry->second;
             }
             return nullptr;
         }
@@ -170,7 +172,7 @@ namespace Cyan
         }
 
         std::unordered_map<std::string, PackedImageDesc> packedImageMap;
-        std::unordered_map<std::string, PackedTextureDesc> packedTextureMap;
+        std::unordered_map<std::string, SubtextureDesc> packedTextureMap;
 
         PackedImageDesc packImage(const Image& inImage)
         {
@@ -242,7 +244,7 @@ namespace Cyan
             }
         }
 
-        PackedTextureDesc getPackedTextureDesc(const char* name)
+        SubtextureDesc getPackedTextureDesc(const char* name)
         {
             auto entry = packedTextureMap.find(name);
             if (entry != packedTextureMap.end())
@@ -276,7 +278,7 @@ namespace Cyan
         std::unordered_map<std::string, StaticMesh*> m_meshMap;
         std::unordered_map<std::string, Image*> m_imageMap;
         std::unordered_map<std::string, Texture*> m_textureMap;
-        std::unordered_map<std::string, Material> m_materialMap;
+        std::unordered_map<std::string, Material*> m_materialMap;
         std::unordered_map<std::string, MaterialTextureAtlas> m_packedMaterialMap;
     };
 }

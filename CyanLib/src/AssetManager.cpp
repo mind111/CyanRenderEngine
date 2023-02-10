@@ -450,19 +450,20 @@ namespace Cyan
                     {
                         matlName = gltfMaterial.name;
                     }
-                    Material& matl = createMaterial(matlName.c_str());
-                    matl.albedoMap = getTexture(pbr.baseColorTexture.index);
-                    matl.normalMap = getTexture(gltfMaterial.normalTexture.index);
-                    matl.metallicRoughnessMap = getTexture(pbr.metallicRoughnessTexture.index);
-                    matl.occlusionMap = getTexture(gltfMaterial.occlusionTexture.index);
-                    matl.albedo = glm::vec4(pbr.baseColorFactor[0], pbr.baseColorFactor[1], pbr.baseColorFactor[2], pbr.baseColorFactor[3]);
-                    matl.roughness = pbr.roughnessFactor;
-                    matl.metallic = pbr.metallicFactor;
+                    MaterialBindless* matl = createMaterialBindless(matlName.c_str());
+                    matl->albedoMap = getTexture(pbr.baseColorTexture.index);
+                    matl->normalMap = getTexture(gltfMaterial.normalTexture.index);
+                    matl->metallicRoughnessMap = getTexture(pbr.metallicRoughnessTexture.index);
+                    matl->occlusionMap = getTexture(gltfMaterial.occlusionTexture.index);
+                    matl->albedo = glm::vec4(pbr.baseColorFactor[0], pbr.baseColorFactor[1], pbr.baseColorFactor[2], pbr.baseColorFactor[3]);
+                    matl->roughness = pbr.roughnessFactor;
+                    matl->metallic = pbr.metallicFactor;
                     glm::vec3 emissiveColor(gltfMaterial.emissiveFactor[0], gltfMaterial.emissiveFactor[1], gltfMaterial.emissiveFactor[2]);
                     f32 emissiveIntensity = glm::length(emissiveColor);
-                    if (emissiveIntensity > 0.f) {
-                        matl.albedo = glm::vec4(glm::normalize(emissiveColor), 1.f);
-                        matl.emissive = emissiveIntensity;
+                    if (emissiveIntensity > 0.f) 
+                    {
+                        matl->albedo = glm::vec4(glm::normalize(emissiveColor), 1.f);
+                        matl->emissive = emissiveIntensity;
                     }
                 }
 #endif
@@ -808,21 +809,34 @@ namespace Cyan
         return outTexture;
     }
 
-    Material& AssetManager::createMaterial(const char* name) 
+    MaterialBindless* AssetManager::createMaterialBindless(const char* name)
+    {
+        MaterialBindless* outMaterial = nullptr;
+        std::string key = std::string(name);
+        auto entry = singleton->m_materialMap.find(key);
+        if (entry == singleton->m_materialMap.end()) 
+        {
+            outMaterial = new MaterialBindless(name);
+            singleton->m_materialMap.insert({ key, outMaterial });
+        }
+        return outMaterial;
+    }
+
+    Material* AssetManager::createMaterial(const char* name) 
     {
         std::string key = std::string(name);
         auto entry = singleton->m_materialMap.find(key);
         if (entry == singleton->m_materialMap.end()) 
         {
-            Material matl = { };
-            matl.name = std::string(name);
+            Material* matl = new MaterialBindless(name);
             singleton->m_materialMap.insert({ key, matl });
         }
         return singleton->m_materialMap[key];
     }
 
-    MaterialTextureAtlas& AssetManager::createPackedMaterial(const char* name)
+    MaterialTextureAtlas* AssetManager::createPackedMaterial(const char* name)
     {
+#if 0
         auto entry = singleton->m_packedMaterialMap.find(name);
         if (entry == singleton->m_packedMaterialMap.end()) 
         {
@@ -831,5 +845,7 @@ namespace Cyan
             singleton->m_packedMaterialMap.insert({ matl.name, matl});
         }
         return singleton->m_packedMaterialMap[name];
+#endif
+        return nullptr;
     }
 }

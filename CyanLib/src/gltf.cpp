@@ -458,6 +458,7 @@ namespace Cyan
 
         void Glb::importPackedMaterials() 
         {
+#if 0
             ScopedTimer timer("importPackedMaterials()", true);
             auto assetManager = AssetManager::get();
             for (i32 i = 0; i < materials.size(); ++i)
@@ -495,6 +496,7 @@ namespace Cyan
                     matl.normalMap = outDesc;
                 }
             }
+#endif
         }
 
         void Glb::importTexturesAsync()
@@ -545,29 +547,29 @@ namespace Cyan
             {
                 const gltf::Material& gltfMatl = materials[i];
                 // todo: this is just a hack, need to come up with a better way to deal with no name assets in gltf
-                Cyan::Material& matl = AssetManager::createMaterial(gltfMatl.name.c_str());
-                matl.albedo = gltfMatl.pbrMetallicRoughness.baseColorFactor;
-                matl.roughness = gltfMatl.pbrMetallicRoughness.roughnessFactor;
-                matl.metallic = gltfMatl.pbrMetallicRoughness.metallicFactor;
+                Cyan::MaterialBindless* matl = AssetManager::createMaterialBindless(gltfMatl.name.c_str());
+                matl->albedo = gltfMatl.pbrMetallicRoughness.baseColorFactor;
+                matl->roughness = gltfMatl.pbrMetallicRoughness.roughnessFactor;
+                matl->metallic = gltfMatl.pbrMetallicRoughness.metallicFactor;
                 i32 baseColorTextureIndex = gltfMatl.pbrMetallicRoughness.baseColorTexture.index;
                 if (baseColorTextureIndex >= 0)
                 {
                     const gltf::Texture texture = textures[baseColorTextureIndex];
-                    matl.albedoMap = AssetManager::getAsset<Texture2DBindless>(texture.name.c_str());
+                    matl->albedoMap = AssetManager::getAsset<Texture2DBindless>(texture.name.c_str());
                 }
 
                 i32 metallicRoughnessIndex = gltfMatl.pbrMetallicRoughness.metallicRoughnessTexture.index;
                 if (metallicRoughnessIndex >= 0)
                 {
                     const gltf::Texture texture = textures[metallicRoughnessIndex];
-                    matl.metallicRoughnessMap = AssetManager::getAsset<Texture2DBindless>(texture.name.c_str());
+                    matl->metallicRoughnessMap = AssetManager::getAsset<Texture2DBindless>(texture.name.c_str());
                 }
 
                 i32 normalTextureIndex = gltfMatl.normalTexture.index;
                 if (normalTextureIndex >= 0)
                 {
                     const gltf::Texture texture = textures[normalTextureIndex];
-                    matl.normalMap = AssetManager::getAsset<Texture2DBindless>(texture.name.c_str());
+                    matl->normalMap = AssetManager::getAsset<Texture2DBindless>(texture.name.c_str());
                 }
             }
         }

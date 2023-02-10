@@ -80,12 +80,18 @@ layout(std430) buffer SubmeshBuffer
         u32 flag = 0u;
     };
 */
-struct MaterialDesc {
-	uint64_t albedoMap;
-	uint64_t normalMap;
-	uint64_t metallicRoughnessMap;
-    uint64_t occlusionMap;
-    vec4 albedo;
+
+#define TextureHandle uint64_t
+
+struct MaterialDesc
+{
+	TextureHandle albedoMap;
+	TextureHandle normalMap;
+	TextureHandle metallicRoughnessMap;
+	TextureHandle emissiveMap;
+    TextureHandle occlusionMap;
+	TextureHandle padding;
+	vec4 albedo;
     float metallic;
     float roughness;
     float emissive;

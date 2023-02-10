@@ -59,7 +59,6 @@ namespace Cyan
                     {
                         ImGui::Text("Material %d: %s", selected, material->name.c_str());
                         ImGui::Separator();
-                        material->renderUI();
                     }
                     ImGui::EndChild();
                 }

@@ -21,12 +21,16 @@ layout(location = 2) out vec3 outMetallicRoughness;
         u32 flag = 0u;
     };
 */
-struct MaterialDesc {
-	uint64_t albedoMap;
-	uint64_t normalMap;
-	uint64_t metallicRoughnessMap;
-    uint64_t occlusionMap;
-    vec4 albedo;
+#define TextureHandle uint64_t
+struct MaterialDesc
+{
+	TextureHandle albedoMap;
+	TextureHandle normalMap;
+	TextureHandle metallicRoughnessMap;
+	TextureHandle emissiveMap;
+    TextureHandle occlusionMap;
+	TextureHandle padding;
+	vec4 albedo;
     float metallic;
     float roughness;
     float emissive;
@@ -71,7 +75,8 @@ vec4 tangentSpaceToWorldSpace(vec3 tangent, vec3 bitangent, vec3 worldSpaceNorma
     return tbn * vec4(tangentSpaceNormal, 0.f);
 }
 
-Material getMaterial(in MaterialDesc desc, vec3 worldSpaceNormal, vec3 worldSpaceTangent, vec3 worldSpaceBitangent, vec2 texCoord) {
+Material getMaterial(in MaterialDesc desc, vec3 worldSpaceNormal, vec3 worldSpaceTangent, vec3 worldSpaceBitangent, vec2 texCoord) 
+{
     Material outMaterial;
     
     outMaterial.normal = worldSpaceNormal;

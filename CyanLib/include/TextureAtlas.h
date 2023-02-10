@@ -131,7 +131,7 @@ namespace Cyan
         i32 subimageIndex;
     };
 
-    struct PackedTextureDesc
+    struct SubtextureDesc
     {
         i32 atlasIndex = -1;
         i32 subtextureIndex = -1;

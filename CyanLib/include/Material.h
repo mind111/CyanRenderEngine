@@ -14,7 +14,7 @@
 
 namespace Cyan 
 {
-#if 1 
+#if 0 
     struct GpuMaterial 
     {
         u64 albedoMap;
@@ -87,43 +87,89 @@ namespace Cyan
         f32 emissive = 1.f;
     };
 #else
-    struct GpuMaterial
-    {
-        u32 albedoMap;
-        u32 normalMap;
-        u32 metallicRoughnessMap;
-        u32 emissiveMap;
-        glm::vec4 albedo;
-        f32 metallic;
-        f32 roughness;
-        f32 emissive;
-        u32 flag;
-    };
-
     struct Material
     {
-        glm::vec3 albedo = glm::vec3(.8f);
-        f32 metallic = 0.f;
-        f32 roughness = .5f;
-        u32 flag;
+        enum class Flags : u32 
+        {
+            kHasAlbedoMap            = 1 << 0,
+            kHasNormalMap            = 1 << 1,
+            kHasMetallicRoughnessMap = 1 << 2,
+            kHasOcclusionMap         = 1 << 3,
+        };
 
-        Material() = default;
+        Material(const char* inName)
+            : name(inName)
+        {
+
+        }
         virtual ~Material() { };
 
-        virtual void buildGpuMaterial() = 0;
-
         std::string name;
+        glm::vec4 albedo = glm::vec4(.8f, .8f, .8f, 1.f);
+        f32 metallic = 0.f;
+        f32 roughness = .5f;
+        f32 emissive = 0.f;
+        u32 flag;
     };
 
     // material implementation using bindless texture
     struct MaterialBindless : public Material
     {
+        using TextureHandle = u64;
+
+        struct GpuData
+        {
+            TextureHandle albedoMap;
+            TextureHandle normalMap;
+            TextureHandle metallicRoughnessMap;
+            TextureHandle emissiveMap;
+            TextureHandle occlusionMap;
+            TextureHandle padding;
+            glm::vec4 albedo;
+            f32 metallic;
+            f32 roughness;
+            f32 emissive;
+            u32 flag;
+        };
+
+        MaterialBindless(const char* inName)
+            : Material(inName)
+        {
+        }
+
+        GpuData buildGpuData();
+
+        Texture2DBindless* albedoMap = nullptr;
+        Texture2DBindless* normalMap = nullptr;
+        Texture2DBindless* metallicRoughnessMap = nullptr;
+        Texture2DBindless* occlusionMap = nullptr;
+        Texture2DBindless* emissiveMap = nullptr;
     };
 
     struct MaterialTextureAtlas : public Material
     {
+        struct GpuData
+        {
+            SubtextureDesc albedoMap;
+            SubtextureDesc normalMap;
+            SubtextureDesc metallicRoughnessMap;
+            SubtextureDesc emissiveMap;
+            glm::vec4 albedo;
+            f32 metallic;
+            f32 roughness;
+            f32 emissive;
+            u32 flag;
+        };
 
+        GpuData buildGpuData()
+        {
+        }
+
+        SubtextureDesc albedoMap = { };
+        SubtextureDesc normalMap = { };
+        SubtextureDesc metallicRoughnessMap = { };
+        SubtextureDesc occlusionMap = { };
+        SubtextureDesc emissiveMap = { };
     };
-
 #endif
 };

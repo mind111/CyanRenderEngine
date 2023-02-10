@@ -44,7 +44,6 @@ namespace Cyan
         using ViewBuffer = ShaderStorageBuffer<StaticSsboData<View>>;
         using TransformBuffer = ShaderStorageBuffer<DynamicSsboData<glm::mat4>>;
         using InstanceBuffer = ShaderStorageBuffer<DynamicSsboData<InstanceDesc>>;
-        using MaterialBuffer = ShaderStorageBuffer<DynamicSsboData<GpuMaterial>>;
         using DrawCallBuffer = ShaderStorageBuffer<DynamicSsboData<u32>>;
         using DirectionalLightBuffer = ShaderStorageBuffer<DynamicSsboData<GpuCSMDirectionalLight>>;
         using PointLightBuffer = ShaderStorageBuffer<DynamicSsboData<GpuPointLight>>;
@@ -107,6 +106,8 @@ namespace Cyan
 
     struct RenderableSceneBindless : public RenderableScene
     {
+        using MaterialBuffer = ShaderStorageBuffer<DynamicSsboData<MaterialBindless::GpuData>>;
+
         RenderableSceneBindless(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator);
         RenderableSceneBindless(const RenderableScene& src);
         ~RenderableSceneBindless() { }
