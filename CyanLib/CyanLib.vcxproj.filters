@@ -76,12 +76,15 @@
     <Filter Include="Source Files\SSRT">
       <UniqueIdentifier>{7f06b084-7c84-4f75-88ec-5e5f1d52e71b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Asset">
+      <UniqueIdentifier>{2f1d857a-dc73-4ce0-9c9d-f47d02235494}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Asset">
+      <UniqueIdentifier>{4448d2f2-40e8-4902-959f-272739554284}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Allocator.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\AssetManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\Common.h">
@@ -183,9 +186,6 @@
     <ClInclude Include="include\ShaderStorageBuffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\Asset.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\Material.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -255,6 +255,18 @@
     <ClInclude Include="include\IndexBuffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\Asset.h">
+      <Filter>Header Files\Asset</Filter>
+    </ClInclude>
+    <ClInclude Include="include\AssetManager.h">
+      <Filter>Header Files\Asset</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ExternalAssetFile.h">
+      <Filter>Header Files\Asset</Filter>
+    </ClInclude>
+    <ClInclude Include="include\AssetImporter.h">
+      <Filter>Header Files\Asset</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\RayTracingScene.cpp">
@@ -289,9 +301,6 @@
     </ClCompile>
     <ClCompile Include="src\ScreenSpaceRayTracing.cpp">
       <Filter>Source Files\SSRT</Filter>
-    </ClCompile>
-    <ClCompile Include="src\AssetManager.cpp">
-      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Camera.cpp">
       <Filter>Source Files</Filter>
@@ -400,6 +409,12 @@
     </ClCompile>
     <ClCompile Include="src\IndexBuffer.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\AssetManager.cpp">
+      <Filter>Source Files\Asset</Filter>
+    </ClCompile>
+    <ClCompile Include="src\AssetImporter.cpp">
+      <Filter>Source Files\Asset</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

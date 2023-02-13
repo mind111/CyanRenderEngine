@@ -119,7 +119,7 @@ namespace Cyan
             vertices[5].pos = glm::vec3( 1.f,  1.f, 0.f); vertices[5].texCoord0 = glm::vec2(1.f, 1.f);
             std::vector<u32> indices({ 0, 1, 2, 3, 4, 5 });
             Triangles* t = new Triangles(vertices, indices);
-            m_defaultShapes.fullscreenQuad->addSubmesh(t);
+            m_defaultShapes.fullscreenQuad->addSubmeshImmediate(t);
         }
 
         // cube
@@ -132,7 +132,7 @@ namespace Cyan
             vertices[v].pos = glm::vec3(cubeVertices[v * 3 + 0], cubeVertices[v * 3 + 1], cubeVertices[v * 3 + 2]);
             indices[v] = v;
         }
-        m_defaultShapes.unitCubeMesh->addSubmesh(new Triangles(vertices, indices));
+        m_defaultShapes.unitCubeMesh->addSubmeshImmediate(new Triangles(vertices, indices));
 
 #if 0
         // quad
@@ -197,6 +197,47 @@ namespace Cyan
         }
         else if (extension == ".obj")
         {
+        }
+    }
+
+    void AssetManager::onAssetLoaded(Asset* asset)
+    {
+        std::lock_guard<std::mutex> lock(singleton->loadedAssetsMutex);
+        singleton->loadedAssets.push(asset);
+    };
+
+    void AssetManager::onAssetPartiallyLoaded(Asset* asset, const PartialLoadedFunc& func) 
+    {
+        std::lock_guard<std::mutex> lock(singleton->partiallyLoadedAssetsMutex);
+        singleton->partialLoadedTasks.push({ asset, func });
+    }
+
+    void AssetManager::update()
+    {
+        {
+            std::lock_guard<std::mutex> lock(partiallyLoadedAssetsMutex);
+            // todo: auto load balancing
+            const u32 workload = 4;
+            for (i32 i = 0; i < workload; ++i)
+            {
+                if (partialLoadedTasks.size() > 0)
+                {
+                    auto task = partialLoadedTasks.front();
+                    task.func(task.asset);
+                    partialLoadedTasks.pop();
+                }
+            }
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(loadedAssetsMutex);
+            // if there are pending assets
+            if (loadedAssets.size() > 0)
+            {
+                auto asset = loadedAssets.front();
+                asset->onLoaded();
+                loadedAssets.pop();
+            }
         }
     }
 
@@ -301,7 +342,7 @@ namespace Cyan
                     calculateTangent(vertices, face);
                 }
 
-                outMesh->addSubmesh(new Triangles(vertices, indices));
+                outMesh->addSubmeshDeferred(new Triangles(vertices, indices));
             }
             // load lines
             else if (shapes[s].lines.indices.size() > 0)
@@ -326,7 +367,7 @@ namespace Cyan
                     }
                 }
 
-                outMesh->addSubmesh(new Lines(vertices, indices));
+                outMesh->addSubmeshDeferred(new Lines(vertices, indices));
             }
         }
 
@@ -615,7 +656,7 @@ namespace Cyan
                     }
                 }
 
-                outMesh->addSubmesh(new Triangles(vertices, indices));
+                outMesh->addSubmeshDeferred(new Triangles(vertices, indices));
             } break;
             case TINYGLTF_MODE_LINE:
             case TINYGLTF_MODE_POINTS:

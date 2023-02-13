@@ -2,68 +2,44 @@
 
 #include <memory>
 
+#include "Common.h"
+
 namespace Cyan
 {
     struct GUID
     {
         // todo: implement
+        u64 id;
     };
 
     struct Asset
     {
-        struct InternalSource
+        enum class State : u32
         {
-            // todo: implement
+            kUnloaded = 0,
+            kLoaded,
+            kUninitialized,
+            kInitialized,
+            kInvalid
         };
 
-        struct ExternalSource
-        {
-            struct ImportDesc { };
-
-            enum class State
-            {
-                kLoaded = 0,
-                kUnloaded
-            };
-
-            ExternalSource(const char* inFilename)
-                : filename(inFilename), state(State::kUnloaded)
-            {
-            }
-
-            const char* filename = nullptr;
-            State state = State::kUnloaded;
-
-            virtual void load() = 0;
-            virtual void unload() = 0;
-            virtual void import(Asset* outAsset, ImportDesc* inDesc) { }
-        };
-
-        Asset(const char* inName) 
-            : name(inName)
+        Asset(const char* inName)
+            : name(inName), handle(-1), state(State::kUnloaded)
         {
         }
 
-        Asset(std::shared_ptr<ExternalSource> inExternalSource, const char* inName) 
-            : externalSource(inExternalSource), name(inName)
-        {
-        }
+        virtual const char* getAssetTypeName() { return "Asset"; }
 
         virtual ~Asset() { }
-
-        virtual void import() = 0;
-        virtual void reimport() = 0;
-
+        virtual void import() { }
         virtual void load() = 0;
+        virtual void onLoaded() { }
         virtual void unload() = 0;
-        virtual void save() = 0;
-
-        std::shared_ptr<ExternalSource> externalSource = nullptr;
-        std::shared_ptr<ExternalSource::ImportDesc> importDesc = nullptr;
 
         // unique name identifier
         std::string name;
         // unique handle
-        GUID handle;
+        u64 handle;
+        State state = State::kInvalid;
     };
 }

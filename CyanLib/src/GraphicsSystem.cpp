@@ -3,6 +3,8 @@
 #include <imgui/imgui_impl_opengl3.h>
 
 #include "GraphicsSystem.h"
+#include "AssetManager.h"
+#include "AssetImporter.h"
 
 // A hack to force application uses Nvidia discrete gpu, I'm actually not sure if
 // this is doing anything at all
@@ -167,12 +169,16 @@ namespace Cyan
         glDebugMessageCallback(glErrorCallback, nullptr);
 
         m_ctx = std::make_unique<GfxContext>(m_glfwWindow);
+        // todo: refactor asset related stuffs into something like AssetSystem
         m_assetManager = std::make_unique<AssetManager>();
+        m_assetImporter = std::make_unique<AssetImporter>();
         m_shaderManager = std::make_unique<ShaderManager>();
         m_renderer = std::make_unique<Renderer>(m_ctx.get(), windowWidth, windowHeight);
         // m_lightMapManager = new LightMapManager;
         // m_pathTracer = new PathTracer;
-    }
+    } 
+
+    GraphicsSystem::~GraphicsSystem() { }
 
     void GraphicsSystem::initialize()
     {
@@ -215,7 +221,7 @@ namespace Cyan
 
     void GraphicsSystem::update() 
     {
-
+        m_assetManager->update();
     }
 
     void GraphicsSystem::render(Scene* scene, Texture2D* sceneRenderingOutput, const std::function<void(Renderer*, Texture2D*)>& postSceneRenderingCallback)

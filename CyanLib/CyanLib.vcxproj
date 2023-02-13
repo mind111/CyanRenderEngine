@@ -26,6 +26,7 @@
   <ItemGroup>
     <ClInclude Include="include\Allocator.h" />
     <ClInclude Include="include\Asset.h" />
+    <ClInclude Include="include\AssetImporter.h" />
     <ClInclude Include="include\AssetManager.h" />
     <ClInclude Include="include\BVH.h" />
     <ClInclude Include="include\camera.h" />
@@ -35,6 +36,7 @@
     <ClInclude Include="include\CyanApp.h" />
     <ClInclude Include="include\CyanCore.h" />
     <ClInclude Include="include\CyanEngine.h" />
+    <ClInclude Include="include\ExternalAssetFile.h" />
     <ClInclude Include="include\gltf.h" />
     <ClInclude Include="include\Image.h" />
     <ClInclude Include="include\IndexBuffer.h" />
@@ -85,6 +87,7 @@
     <ClInclude Include="PostProcess.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\AssetImporter.cpp" />
     <ClCompile Include="src\AssetManager.cpp" />
     <ClCompile Include="src\BVH.cpp" />
     <ClCompile Include="src\Camera.cpp" />

@@ -5,7 +5,6 @@
 #include "System.h"
 #include "Scene.h"
 #include "Texture.h"
-#include "AssetManager.h"
 #include "LightMap.h"
 #include "RayTracer.h"
 #include "CyanRenderer.h"
@@ -13,13 +12,16 @@
 
 namespace Cyan
 {
+    class AssetManager;
+    class AssetImporter;
+
     // todo: implement WindowManager to manage window related operations, and GraphicsSystem should be the owner of the 
     // WindowManager
     class GraphicsSystem : public Singleton<GraphicsSystem>, public System
     {
     public:
         GraphicsSystem(u32 windowWidth, u32 windowHeight);
-        ~GraphicsSystem() { }
+        ~GraphicsSystem();
 
         virtual void initialize() override;
         virtual void deinitialize() override;
@@ -37,7 +39,8 @@ namespace Cyan
         } m_settings;
 
     private:
-        std::unique_ptr<AssetManager> m_assetManager;
+        std::unique_ptr<AssetManager> m_assetManager = nullptr;
+        std::unique_ptr<AssetImporter> m_assetImporter = nullptr;
         std::unique_ptr<Renderer> m_renderer;
         std::unique_ptr<ShaderManager> m_shaderManager;
 

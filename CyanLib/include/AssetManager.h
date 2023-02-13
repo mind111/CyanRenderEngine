@@ -5,6 +5,8 @@
 #include <string>
 #include <map>
 #include <algorithm>
+#include <mutex>
+#include <thread>
 
 #include <stbi/stb_image.h>
 #include <tiny_gltf/json.hpp>
@@ -24,6 +26,7 @@ namespace Cyan
 {
     class AssetManager : public Singleton<AssetManager> 
     {
+        friend class AssetImporter;
     public:
         struct DefaultTextures 
         {
@@ -49,7 +52,16 @@ namespace Cyan
         ~AssetManager() { };
 
         void initialize();
+        void update();
         static void import(Scene* scene, const char* filename);
+        static void onAssetLoaded(Asset* asset);
+        using PartialLoadedFunc = std::function<void(Asset* asset)>;
+        struct PartialLoadedTask
+        {
+            Asset* asset = nullptr;
+            PartialLoadedFunc func;
+        };
+        static void onAssetPartiallyLoaded(Asset* asset, const PartialLoadedFunc& func);
 
         void importGltfNode(Scene* scene, tinygltf::Model& model, Entity* parent, tinygltf::Node& node);
         StaticMesh* importGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh); 
@@ -280,5 +292,10 @@ namespace Cyan
         std::unordered_map<std::string, Texture*> m_textureMap;
         std::unordered_map<std::string, Material*> m_materialMap;
         std::unordered_map<std::string, MaterialTextureAtlas> m_packedMaterialMap;
+
+        std::mutex loadedAssetsMutex;
+        std::queue<Asset*> loadedAssets;
+        std::mutex partiallyLoadedAssetsMutex;
+        std::queue<PartialLoadedTask> partialLoadedTasks;
     };
 }

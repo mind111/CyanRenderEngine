@@ -6,6 +6,7 @@
 #include "gltf.h"
 #include "stbi/stb_image.h"
 #include "Entity.h"
+#include "ExternalAssetFile.h"
 #include "AssetManager.h"
 #include "Geometry.h"
 
@@ -72,7 +73,11 @@ namespace Cyan
         }
 
         Glb::Glb(const char* inFilename)
-            : Asset::ExternalSource(inFilename)
+            : Gltf(inFilename)
+        {
+        }
+
+        void Glb::load()
         {
             std::ifstream glb(filename, std::ios_base::binary);
 
@@ -111,14 +116,9 @@ namespace Cyan
             }
         }
 
-        void Glb::load()
-        {
-
-        }
-
         void Glb::unload()
         {
-
+            // todo: clear all loaded data
         }
 
         void Glb::importScene(Cyan::Scene* outScene)
@@ -317,7 +317,7 @@ namespace Cyan
                         Triangles* triangles = dynamic_cast<Triangles*>(geometry);
                         assert(triangles);
                         importTriangles(p, *triangles);
-                        mesh->addSubmesh(triangles);
+                        mesh->addSubmeshDeferred(triangles);
                     } break;
                     case Primitive::Mode::kLines:
                     case Primitive::Mode::kPoints:
@@ -740,6 +740,12 @@ namespace Cyan
                 for (i32 m = 0; m < numMeshes; ++m)
                 {
                     jMeshes[m].get_to(meshes[m]);
+                    // todo: this is just a hack for dealing with unnamed images
+                    if (meshes[m].name.empty())
+                    {
+                        std::string prefix(filename);
+                        meshes[m].name = prefix + "/mesh_" + std::to_string(m);
+                    }
                 }
             }
 

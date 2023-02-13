@@ -1,52 +1,14 @@
 #include "Common.h"
 #include "Mesh.h"
 #include "Geometry.h"
+#include "AssetManager.h"
+#include "AssetImporter.h"
 
 namespace Cyan
 {
     StaticMesh::Submesh::Submesh(Geometry* inGeometry)
         : geometry(inGeometry), vb(nullptr), ib(nullptr), va(nullptr), index(-1)
     {
-        auto& gVertexBuffer = getGlobalVertexBuffer();
-        auto& gIndexBuffer = getGlobalIndexBuffer();
-
-        Desc desc = { };
-        Geometry::Type type = geometry->getGeometryType();
-        switch (type)
-        {
-        case Geometry::Type::kTriangles: {
-            desc.vertexOffset = gVertexBuffer.getNumElements();
-            desc.numVertices = geometry->numVertices();
-            desc.indexOffset = gIndexBuffer.getNumElements();
-            desc.numIndices = geometry->numIndices();
-
-            // pack the src geometry data into the global vertex/index buffer for static geometries
-            Triangles* triangles = static_cast<Triangles*>(geometry);
-            u32 start = gVertexBuffer.getNumElements();
-            gVertexBuffer.data.array.resize(gVertexBuffer.getNumElements() + geometry->numVertices());
-            const auto& vertices = triangles->vertices;
-            const auto& indices = triangles->indices;
-            for (u32 v = 0; v < triangles->vertices.size(); ++v)
-            {
-                gVertexBuffer[start + v].pos = glm::vec4(vertices[v].pos, 1.f);
-                gVertexBuffer[start + v].normal = glm::vec4(vertices[v].normal, 0.f);
-                gVertexBuffer[start + v].tangent = vertices[v].tangent;
-                gVertexBuffer[start + v].texCoord = glm::vec4(vertices[v].texCoord0, vertices[v].texCoord1);
-            }
-            gIndexBuffer.data.array.insert(gIndexBuffer.data.array.end(), indices.begin(), indices.end());
-        } break;
-        case Geometry::Type::kPointCloud:
-        case Geometry::Type::kLines:
-        default:
-            assert(0);
-        }
-
-        auto& submeshBuffer = getSubmeshBuffer();
-        index = submeshBuffer.getNumElements();
-        submeshBuffer.addElement(desc);
-
-        // todo: would like to decouple the resource initialization from the constructor at some point
-        init();
     }
 
     StaticMesh::SubmeshBuffer& StaticMesh::getSubmeshBuffer()
@@ -72,43 +34,167 @@ namespace Cyan
         return getSubmeshBuffer()[submesh->index];
     }
 
+    /**
+     *  this function actually initialize rendering related data on Gpu, and it 
+     * makes Gfx API calls, thus requiring a valid GL context, thus need to be executed 
+     * on the main thread.
+     */
     void StaticMesh::Submesh::init()
     {
-        assert(geometry);
-
-        switch (geometry->getGeometryType())
+        if (!bInitialized)
         {
-        case Geometry::Type::kTriangles: {
-            auto triangles = static_cast<Triangles*>(geometry);
+            assert(geometry);
 
-            u32 sizeInBytes = sizeof(triangles->vertices[0]) * triangles->vertices.size();
-            assert(sizeInBytes > 0);
+            // pack geometry data into global vertex / index buffer
+            auto& gVertexBuffer = getGlobalVertexBuffer();
+            auto& gIndexBuffer = getGlobalIndexBuffer();
 
-            VertexBuffer::Spec spec;
-            spec.addVertexAttribute("Position", VertexBuffer::Attribute::Type::kVec3);
-            spec.addVertexAttribute("Normal", VertexBuffer::Attribute::Type::kVec3);
-            spec.addVertexAttribute("Tangent", VertexBuffer::Attribute::Type::kVec4);
-            spec.addVertexAttribute("TexCoord0", VertexBuffer::Attribute::Type::kVec2);
-            spec.addVertexAttribute("TexCoord1", VertexBuffer::Attribute::Type::kVec2);
-            vb = std::make_shared<VertexBuffer>(spec, triangles->vertices.data(), sizeInBytes);
-            ib = std::make_shared<IndexBuffer>(triangles->indices);
-            va = std::make_shared<VertexArray>(vb.get(), ib.get());
-            va->init();
-        } break;
-        case Geometry::Type::kLines:
-            // todo: implement this  
-        case Geometry::Type::kPointCloud:
-            // todo: implement this  
-        case Geometry::Type::kQuads:
-            // todo: implement this  
-        default:
-            assert(0);
+            Desc desc = { };
+            Geometry::Type type = geometry->getGeometryType();
+            switch (type)
+            {
+            case Geometry::Type::kTriangles: {
+                desc.vertexOffset = gVertexBuffer.getNumElements();
+                desc.numVertices = geometry->numVertices();
+                desc.indexOffset = gIndexBuffer.getNumElements();
+                desc.numIndices = geometry->numIndices();
+
+                // pack the src geometry data into the global vertex/index buffer for static geometries
+                Triangles* triangles = static_cast<Triangles*>(geometry);
+                u32 start = gVertexBuffer.getNumElements();
+                gVertexBuffer.data.array.resize(gVertexBuffer.getNumElements() + geometry->numVertices());
+                const auto& vertices = triangles->vertices;
+                const auto& indices = triangles->indices;
+                for (u32 v = 0; v < triangles->vertices.size(); ++v)
+                {
+                    gVertexBuffer[start + v].pos = glm::vec4(vertices[v].pos, 1.f);
+                    gVertexBuffer[start + v].normal = glm::vec4(vertices[v].normal, 0.f);
+                    gVertexBuffer[start + v].tangent = vertices[v].tangent;
+                    gVertexBuffer[start + v].texCoord = glm::vec4(vertices[v].texCoord0, vertices[v].texCoord1);
+                }
+                gIndexBuffer.data.array.insert(gIndexBuffer.data.array.end(), indices.begin(), indices.end());
+            } break;
+            case Geometry::Type::kPointCloud:
+            case Geometry::Type::kLines:
+            default:
+                assert(0);
+            }
+
+            auto& submeshBuffer = getSubmeshBuffer();
+            index = submeshBuffer.getNumElements();
+            submeshBuffer.addElement(desc);
+
+            // todo: this makes the geometry data duplicated on the Gpu end, need to make it choosable whether a submesh should be both packed and initialized seperately
+            // initialize vertex buffer object, index buffer object, and vertex array object
+            switch (geometry->getGeometryType())
+            {
+            case Geometry::Type::kTriangles: {
+                auto triangles = static_cast<Triangles*>(geometry);
+
+                u32 sizeInBytes = sizeof(triangles->vertices[0]) * triangles->vertices.size();
+                assert(sizeInBytes > 0);
+
+                VertexBuffer::Spec spec;
+                spec.addVertexAttribute("Position", VertexBuffer::Attribute::Type::kVec3);
+                spec.addVertexAttribute("Normal", VertexBuffer::Attribute::Type::kVec3);
+                spec.addVertexAttribute("Tangent", VertexBuffer::Attribute::Type::kVec4);
+                spec.addVertexAttribute("TexCoord0", VertexBuffer::Attribute::Type::kVec2);
+                spec.addVertexAttribute("TexCoord1", VertexBuffer::Attribute::Type::kVec2);
+                vb = std::make_shared<VertexBuffer>(spec, triangles->vertices.data(), sizeInBytes);
+                ib = std::make_shared<IndexBuffer>(triangles->indices);
+                va = std::make_shared<VertexArray>(vb.get(), ib.get());
+                va->init();
+            } break;
+            case Geometry::Type::kLines:
+                // todo: implement this  
+            case Geometry::Type::kPointCloud:
+                // todo: implement this  
+            case Geometry::Type::kQuads:
+                // todo: implement this  
+            default:
+                assert(0);
+            }
+
+            bInitialized = true;
         }
     }
 
-    void StaticMesh::addSubmesh(Geometry* inGeometry)
+    void StaticMesh::import()
     {
-        submeshes.emplace_back(inGeometry);
+        AssetImporter::import(this);
+    }
+
+    void StaticMesh::onLoaded()
+    {
+        u32 count = numSubmeshes();
+        for (i32 i = 0; i < count; ++i)
+        {
+            // for thread safety, not using [] operator here, because
+            // another thread maybe calling addSubmesh() right now
+            auto sm = getSubmesh(i);
+            if (!sm->bInitialized)
+            {
+                sm->init();
+            }
+        }
+        state = State::kInitialized;
+    }
+
+    void StaticMesh::addInstance(MeshInstance* inInstance) 
+    { 
+        std::lock_guard<std::mutex> lock(instanceMutex);
+        instances.push_back(inInstance); 
+    }
+
+    StaticMesh::Submesh* StaticMesh::getSubmesh(u32 index)
+    {
+        std::lock_guard<std::mutex> lock(submeshMutex);
+        return submeshes[index].get();
+    }
+
+    u32 StaticMesh::numSubmeshes() 
+    { 
+        std::lock_guard<std::mutex> lock(submeshMutex);
+        return submeshes.size(); 
+    }
+
+    void StaticMesh::addSubmeshDeferred(Geometry* inGeometry)
+    {
+        std::lock_guard<std::mutex> lock(submeshMutex);
+        auto sm = std::make_shared<StaticMesh::Submesh>(inGeometry);
+        submeshes.emplace_back(sm);
+        onSubmeshAddedDeferred(sm.get());
+    }
+
+    void StaticMesh::onSubmeshAddedDeferred(Submesh* submesh)
+    {
+        std::lock_guard<std::mutex> lock(instanceMutex);
+        for (auto inst : instances)
+        {
+            inst->addMaterial(AssetManager::getAsset<Material>("DefaultMaterial"));
+        }
+
+        AssetManager::onAssetPartiallyLoaded(this, [this, submesh](Asset* asset) {
+            submesh->init();
+        });
+    }
+
+    void StaticMesh::addSubmeshImmediate(Geometry* inGeometry)
+    {
+        std::lock_guard<std::mutex> lock(submeshMutex);
+        auto sm = std::make_shared<StaticMesh::Submesh>(inGeometry);
+        submeshes.emplace_back(sm);
+        onSubmeshAddedImmediate(sm.get());
+    }
+
+    void StaticMesh::onSubmeshAddedImmediate(Submesh* submesh)
+    {
+        std::lock_guard<std::mutex> lock(instanceMutex);
+        for (auto inst : instances)
+        {
+            inst->addMaterial(AssetManager::getAsset<Material>("DefaultMaterial"));
+        }
+        submesh->init();
     }
 
 #if 0

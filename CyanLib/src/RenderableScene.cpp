@@ -81,6 +81,7 @@ namespace Cyan
             // static meshes
             if (auto staticMesh = dynamic_cast<StaticMeshEntity*>(entity))
             {
+                auto mesh = staticMesh->getMeshInstance()->mesh;
                 meshInstances.push_back(staticMesh->getMeshInstance());
                 glm::mat4 model = staticMesh->getWorldTransformMatrix();
                 transformBuffer->addElement(model);
@@ -95,15 +96,18 @@ namespace Cyan
             for (u32 sm = 0; sm < mesh->numSubmeshes(); ++sm) 
             {
                 auto submesh = mesh->getSubmesh(sm);
-                auto smDesc = StaticMesh::getSubmeshDesc(submesh);
-                // todo: properly handle other types of geometries
-                if (dynamic_cast<Triangles*>(submesh->geometry)) 
+                if (submesh->bInitialized)
                 {
-                    InstanceDesc desc = { };
-                    desc.submesh = submesh->index;
-                    desc.transform = i;
-                    desc.material = materialCount++;
-                    instanceBuffer->addElement(desc);
+                    auto smDesc = StaticMesh::getSubmeshDesc(submesh);
+                    // todo: properly handle other types of geometries
+                    if (dynamic_cast<Triangles*>(submesh->geometry)) 
+                    {
+                        InstanceDesc desc = { };
+                        desc.submesh = submesh->index;
+                        desc.transform = i;
+                        desc.material = materialCount++;
+                        instanceBuffer->addElement(desc);
+                    }
                 }
             }
         }

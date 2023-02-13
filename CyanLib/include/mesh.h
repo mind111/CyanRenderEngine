@@ -3,6 +3,7 @@
 #include <map>
 #include <array>
 #include <glew/glew.h>
+#include <mutex>
 
 #include "Asset.h"
 #include "MathUtils.h"
@@ -17,8 +18,9 @@
 namespace Cyan
 {
     struct Geometry;
+    struct MeshInstance;
 
-    struct StaticMesh
+    struct StaticMesh : public Asset
     {
         struct Submesh
         {
@@ -45,19 +47,38 @@ namespace Cyan
             std::shared_ptr<IndexBuffer> ib = nullptr;
             std::shared_ptr<VertexArray> va = nullptr;
             i32 index = -1;
+            bool bInitialized = false;
         };
 
         StaticMesh() = default;
         StaticMesh(const char* meshName)
-            : name(meshName)
+            : Asset(meshName)
         {
 
         }
 
+        static const char* getClassName() { return "StaticMesh"; }
+
+        /* Asset interface */
+        virtual const char* getAssetTypeName() override { return getClassName(); }
+        virtual void import() override;
+        virtual void load() override { }
+        virtual void onLoaded() override;
+        virtual void unload() override { }
+
         static Submesh::Desc getSubmeshDesc(Submesh* submesh);
-        Submesh* getSubmesh(u32 index) { return &submeshes[index]; }
-        void addSubmesh(Geometry* inGeometry);
-        u32 numSubmeshes() { return submeshes.size(); }
+        Submesh* getSubmesh(u32 index);
+
+        // add a submesh while deferring the rendering data initialization, mainly meant for async loading
+        // because this function is called on a thread that doesn't have a valid GL context
+        void addSubmeshDeferred(Geometry* inGeometry);
+        void onSubmeshAddedDeferred(Submesh* sm);
+        // add a submesh while immediate initialize rendering data
+        void addSubmeshImmediate(Geometry* inGeometry);
+        void onSubmeshAddedImmediate(Submesh* sm);
+
+        void addInstance(MeshInstance* inInstance);
+        u32 numSubmeshes();
 
         const BoundingBox3D& getAABB() { return aabb; }
 
@@ -79,7 +100,12 @@ namespace Cyan
 
         std::string name;
         BoundingBox3D aabb;
-        std::vector<Submesh> submeshes;
+
+        std::mutex submeshMutex;
+        std::vector<std::shared_ptr<Submesh>> submeshes;
+
+        std::mutex instanceMutex;
+        std::vector<MeshInstance*> instances;
     };
 
     struct MeshInstance 
@@ -87,16 +113,29 @@ namespace Cyan
         MeshInstance(StaticMesh* base)
             : mesh(base) 
         {
+            mesh->addInstance(this);
             materials.resize(base->numSubmeshes());
         }
 
         Material* getMaterial(u32 index) 
         {
-            return materials[index];
+            std::lock_guard<std::mutex> lock(materialsMutex);
+            if (!materials.empty())
+            {
+                return materials[index];
+            }
+            return nullptr;
+        }
+
+        void addMaterial(Material* matl)
+        {
+            std::lock_guard<std::mutex> lock(materialsMutex);
+            materials.push_back(matl);
         }
 
         void setMaterial(Material* matl) 
         {
+            std::lock_guard<std::mutex> lock(materialsMutex);
             for (u32 i = 0; i < mesh->numSubmeshes(); ++i) 
             {
                 setMaterial(matl, i);
@@ -105,6 +144,7 @@ namespace Cyan
 
         void setMaterial(Material* matl, u32 index) 
         {
+            std::lock_guard<std::mutex> lock(materialsMutex);
             materials[index] = matl;
         }
 
@@ -118,6 +158,8 @@ namespace Cyan
         }
 
         StaticMesh* mesh = nullptr;
+
+        std::mutex materialsMutex;
         std::vector<Material*> materials;
     };
 }

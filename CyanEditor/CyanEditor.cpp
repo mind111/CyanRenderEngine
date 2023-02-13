@@ -4,6 +4,8 @@
 #include <imgui/imgui_impl_opengl3.h>
 
 #include "CyanEngine.h"
+#include "AssetImporter.h"
+#include "AssetManager.h"
 
 namespace Cyan
 {
@@ -117,12 +119,12 @@ namespace Cyan
             static const char* diorama = ASSET_PATH "mesh/sd_macross_diorama.glb";
             static const char* picapica = ASSET_PATH "mesh/pica_pica_scene.glb";
 
-            AssetManager::importGltf(m_currentScene.get(), shaderBalls);
+            AssetImporter::importAsync(m_currentScene.get(), shaderBalls);
 
             // skybox
             auto skybox = m_currentScene->createSkybox("Skybox", ASSET_PATH "cubemaps/neutral_sky.hdr", glm::uvec2(2048));
             // sun light
-            m_currentScene->createDirectionalLight("SunLight", glm::vec3(0.3f, 1.3f, 0.5f), glm::vec4(0.88f, 0.77f, 0.65f, 50.f));
+            m_currentScene->createDirectionalLight("SunLight", glm::vec3(0.3f, 1.3f, 0.5f), glm::vec4(0.88f, 0.77f, 0.65f, 30.f));
             // sky light 
             auto skylight = m_currentScene->createSkyLight("SkyLight", ASSET_PATH "cubemaps/neutral_sky.hdr");
             skylight->build();

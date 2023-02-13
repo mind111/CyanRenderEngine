@@ -5,6 +5,7 @@
 
 #include "Common.h"
 #include "Asset.h"
+#include "ExternalAssetFile.h"
 
 namespace Cyan
 {
@@ -190,7 +191,34 @@ namespace Cyan
         using json_iterator = nlohmann::json::iterator;
         using json_const_iterator = nlohmann::json::const_iterator;
 
-        struct Glb : Asset::ExternalSource
+        struct Gltf : public ExternalAssetFile
+        {
+            Gltf(const char* filename) 
+                : ExternalAssetFile(filename)
+            { 
+            }
+
+            virtual void load() override { }
+            virtual void unload() override { }
+
+            virtual void importTriangles(const gltf::Primitive& p, Triangles& outTriangles) { }
+
+            // json object parsed from raw json string
+            json o;
+            u32 defaultScene = -1;
+            std::vector<Scene> scenes;
+            std::vector<Node> nodes;
+            std::vector<Mesh> meshes;
+            std::vector<Accessor> accessors;
+            std::vector<Buffer> buffers;
+            std::vector<BufferView> bufferViews;
+            std::vector<Image> images;
+            std::vector<Texture> textures;
+            std::vector<Sampler> samplers;
+            std::vector<Material> materials;
+        };
+
+        struct Glb : public Gltf
         {
             struct ChunkDesc
             {
@@ -207,24 +235,14 @@ namespace Cyan
             void importScene(Cyan::Scene* outScene);
             void importAssets();
 
+            virtual void importTriangles(const gltf::Primitive& p, Triangles& outTriangles) override;
+
             bool bInitailized = false;
             ChunkDesc jsonChunkDesc;
             ChunkDesc binaryChunkDesc;
             u32 binaryChunkOffset;
             std::vector<u8> binaryChunk;
-            // json object parsed from raw json string
-            json o;
-            u32 defaultScene = -1;
-            std::vector<Scene> scenes;
-            std::vector<Node> nodes;
-            std::vector<Mesh> meshes;
-            std::vector<Accessor> accessors;
-            std::vector<Buffer> buffers;
-            std::vector<BufferView> bufferViews;
-            std::vector<Image> images;
-            std::vector<Texture> textures;
-            std::vector<Sampler> samplers;
-            std::vector<Material> materials;
+
         private:
             void importMeshes();
             void importTextures();
@@ -234,8 +252,6 @@ namespace Cyan
             void importPackedMaterials();
             void importNode(Cyan::Scene* outScene, Cyan::Entity* parent, const Node& node);
             void loadJsonChunk();
-
-            void importTriangles(const gltf::Primitive& p, Triangles& outTriangles);
         };
     }
 }
