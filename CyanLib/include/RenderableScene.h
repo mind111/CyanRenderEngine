@@ -102,6 +102,8 @@ namespace Cyan
         std::unique_ptr<TransformBuffer> transformBuffer = nullptr;
         std::unique_ptr<InstanceBuffer> instanceBuffer = nullptr;
         std::unique_ptr<DrawCallBuffer> drawCallBuffer = nullptr;
+
+        bool bUploaded = false;
     };
 
     struct RenderableSceneBindless : public RenderableScene

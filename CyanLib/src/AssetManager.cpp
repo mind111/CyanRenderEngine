@@ -212,8 +212,29 @@ namespace Cyan
         singleton->partialLoadedTasks.push({ asset, func });
     }
 
+    void AssetManager::deferredInitAsset(Asset* asset, const AssetInitFunc& inFunc)
+    {
+        std::lock_guard<std::mutex> lock(singleton->deferredInitMutex);
+        singleton->m_deferredInitQueue.push({ asset, inFunc });
+    }
+
     void AssetManager::update()
     {
+        const u32 workload = 4;
+        for (i32 i = 0; i < workload; ++i)
+        {
+            std::unique_lock<std::mutex> lock(deferredInitMutex);
+            if (!m_deferredInitQueue.empty())
+            {
+                auto task = m_deferredInitQueue.front();
+                m_deferredInitQueue.pop();
+                lock.unlock();
+
+                // execute
+                task.initFunc(task.asset);
+            }
+        }
+#if 0
         {
             std::lock_guard<std::mutex> lock(partiallyLoadedAssetsMutex);
             // todo: auto load balancing
@@ -239,6 +260,7 @@ namespace Cyan
                 loadedAssets.pop();
             }
         }
+#endif
     }
 
     StaticMesh* AssetManager::createStaticMesh(const char* name)
@@ -372,6 +394,40 @@ namespace Cyan
         }
 
         return outMesh;
+    }
+
+    Image* AssetManager::createImage(const char* name)
+    {
+        assert(name);
+
+        Image* outImage = nullptr;
+
+        auto entry = singleton->m_imageMap.find(name);
+        if (entry == singleton->m_imageMap.end())
+        {
+            outImage = new Image(name);
+            singleton->m_images.push_back(outImage);
+            singleton->m_imageMap.insert({ outImage->name, outImage});
+        }
+        outImage = singleton->m_imageMap[std::string(name)];
+        return outImage;
+    }
+
+    Image* AssetManager::createImage(const char* name, u8* dataAddress, u32 sizeInBytes)
+    {
+        assert(name);
+
+        Image* outImage = nullptr;
+
+        auto entry = singleton->m_imageMap.find(name);
+        if (entry == singleton->m_imageMap.end())
+        {
+            outImage = new Image(name, dataAddress, sizeInBytes);
+            singleton->m_images.push_back(outImage);
+            singleton->m_imageMap.insert({ outImage->name, outImage});
+        }
+        outImage = singleton->m_imageMap[std::string(name)];
+        return outImage;
     }
 
     Texture2D* AssetManager::importGltfTexture(tinygltf::Model& model, tinygltf::Texture& gltfTexture)
@@ -733,7 +789,7 @@ namespace Cyan
         Texture2D* outTexture = getAsset<Texture2D>(name);
         if (!outTexture)
         {
-            outTexture = new Texture2D(name, *srcImage, bGenerateMipmap, inSampler);
+            outTexture = new Texture2D(name, srcImage, bGenerateMipmap, inSampler);
             outTexture->init();
             singleton->addTexture(outTexture);
         }
@@ -745,7 +801,7 @@ namespace Cyan
         Texture2DBindless* outTexture = getAsset<Texture2DBindless>(name);
         if (!outTexture)
         {
-            outTexture = new Texture2DBindless(name, *srcImage, bGenerateMipmap, inSampler);
+            outTexture = new Texture2DBindless(name, srcImage, bGenerateMipmap, inSampler);
             outTexture->init();
             singleton->addTexture(outTexture);
         }

@@ -178,11 +178,11 @@ namespace Cyan
 
         }
 
-        i32 packImage(const Image& inImage);
+        i32 packImage(Image* inImage);
         i32 addSubtexture(i32 srcImageIndex, const Sampler2D& inSampler, bool bGenerateMipmap);
 
         const u32 maxSubtextureSize = 4096;
-        std::vector<Image> images;
+        std::vector<Image*> images;
         std::vector<ImageTransform> imageTransforms;
         std::vector<Subtexture> subtextures;
         std::unique_ptr<ImageQuadTree> imageQuadTree;

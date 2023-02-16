@@ -12,6 +12,7 @@ namespace Cyan
     struct Scene;
     struct Entity;
     struct Triangles;
+    struct Sampler2D;
 
     namespace gltf
     {
@@ -253,5 +254,7 @@ namespace Cyan
             void importNode(Cyan::Scene* outScene, Cyan::Entity* parent, const Node& node);
             void loadJsonChunk();
         };
+
+        void translateSampler(const gltf::Sampler& sampler, Cyan::Sampler2D& outSampler, bool& bOutGenerateMipmap);
     }
 }

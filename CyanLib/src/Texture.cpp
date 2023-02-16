@@ -179,40 +179,72 @@ namespace Cyan
         }
     }
 
-    Texture2D::Texture2D(const Image& inImage, bool bGenerateMipmap, const Sampler2D& inSampler)
-        : Texture(Texture2D::Spec(inImage).format), sampler(inSampler)
+    Texture2D::Texture2D(Image* inImage, bool bGenerateMipmap, const Sampler2D& inSampler)
+        : Texture(Texture2D::Spec(*inImage).format)
+        , Image::Listener(inImage)
+        , srcImage(inImage)
+        , sampler(inSampler) 
     {
-        srcImage = AssetManager::getAsset<Image>(inImage.name.c_str());
         assert(srcImage);
 
-        Texture2D::Spec spec(inImage, bGenerateMipmap);
+        Texture2D::Spec spec(*inImage, bGenerateMipmap);
         width = spec.width;
         height = spec.height;
         numMips = spec.numMips;
     }
 
-    Texture2D::Texture2D(const char* inName, const Image& inImage, bool bGenerateMipmap, const Sampler2D& inSampler)
-        : Texture(inName, Texture2D::Spec(inImage).format), sampler(inSampler)
+    Texture2D::Texture2D(const char* inName, Image* inImage, bool bGenerateMipmap, const Sampler2D& inSampler)
+        : Texture(inName, Texture2D::Spec(*inImage).format)
+        , Image::Listener(inImage)
+        , srcImage(inImage)
+        , sampler(inSampler)
     {
-        srcImage = AssetManager::getAsset<Image>(inImage.name.c_str());
         assert(srcImage);
 
-        Texture2D::Spec spec(inImage, bGenerateMipmap);
+        Texture2D::Spec spec(*inImage, bGenerateMipmap);
         width = spec.width;
         height = spec.height;
         numMips = spec.numMips;
     }
 
     Texture2D::Texture2D(const Spec& inSpec, const Sampler2D& inSampler)
-        : Texture(inSpec.format), sampler(inSampler), width(inSpec.width), height(inSpec.height), numMips(inSpec.numMips)
+        : Texture(inSpec.format)
+        , Image::Listener(nullptr)
+        , sampler(inSampler)
+        , width(inSpec.width)
+        , height(inSpec.height)
+        , numMips(inSpec.numMips)
     {
 
     }
 
     Texture2D::Texture2D(const char* inName, const Spec& inSpec, const Sampler2D& inSampler)
-        : Texture(inName, inSpec.format), sampler(inSampler), width(inSpec.width), height(inSpec.height), numMips(inSpec.numMips)
+        : Texture(inName, inSpec.format)
+        , Image::Listener(nullptr)
+        , sampler(inSampler)
+        , width(inSpec.width)
+        , height(inSpec.height)
+        , numMips(inSpec.numMips)
     {
 
+    }
+   
+    bool Texture2D::operator==(const Image::Listener& rhs)
+    {
+        if (const Texture2D* inListener = dynamic_cast<const Texture2D*>(&rhs))
+        {
+            return name == inListener->name;
+        }
+        return false;
+    }
+
+    void Texture2D::onImageLoaded()
+    {
+        // todo: using this dirty hack for now until I refactor the runtime texture out
+        // from asset textures
+        AssetManager::deferredInitAsset(nullptr, [this](Asset* asset) {
+            init();
+        });
     }
 
     struct GLTextureFormat
@@ -298,13 +330,13 @@ namespace Cyan
         }
     }
 
-    Texture2DBindless::Texture2DBindless(const Image& inImage, bool bGenerateMipmap, const Sampler2D& inSampler)
+    Texture2DBindless::Texture2DBindless(Image* inImage, bool bGenerateMipmap, const Sampler2D& inSampler)
         : Texture2D(inImage, bGenerateMipmap, inSampler)
     {
 
     }
 
-    Texture2DBindless::Texture2DBindless(const char* inName, const Image& inImage, bool bGenerateMipmap, const Sampler2D& inSampler)
+    Texture2DBindless::Texture2DBindless(const char* inName, Image* inImage, bool bGenerateMipmap, const Sampler2D& inSampler)
         : Texture2D(inName, inImage, bGenerateMipmap, inSampler)
     {
 

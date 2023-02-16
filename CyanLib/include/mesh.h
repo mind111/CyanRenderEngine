@@ -135,7 +135,6 @@ namespace Cyan
 
         void setMaterial(Material* matl) 
         {
-            std::lock_guard<std::mutex> lock(materialsMutex);
             for (u32 i = 0; i < mesh->numSubmeshes(); ++i) 
             {
                 setMaterial(matl, i);

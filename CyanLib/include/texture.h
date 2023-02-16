@@ -150,7 +150,9 @@ namespace Cyan
         Filtering magFilter = Filtering::kPoint;
     };
 
-    struct Texture2D : public Texture
+    // todo: decouple texture assets from runtime textures, where they will be used for rendering at runtime, 
+    // while these normal texture class will inherit from Asset, so they can be serialized / de-serialized
+    struct Texture2D : public Texture, Image::Listener
     {
         struct Spec : public Texture::Spec
         {
@@ -196,8 +198,8 @@ namespace Cyan
             u32 numMips = 1;
         };
 
-        Texture2D(const Image& inImage, bool bGenerateMipmap, const Sampler2D& inSampler = {});
-        Texture2D(const char* inName, const Image& inImage, bool bGenerateMipmap, const Sampler2D& inSampler = {});
+        Texture2D(Image* inImage, bool bGenerateMipmap, const Sampler2D& inSampler = {});
+        Texture2D(const char* inName, Image* inImage, bool bGenerateMipmap, const Sampler2D& inSampler = {});
         Texture2D(const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
         Texture2D(const char* inName, const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
 
@@ -217,6 +219,10 @@ namespace Cyan
 
         virtual void init() override;
 
+        /* Image::Listener interface */
+        virtual bool operator==(const Image::Listener& rhs) override;
+        virtual void onImageLoaded() override;
+
         Image* srcImage = nullptr;
         Sampler2D sampler;
         u32 width = 0;
@@ -226,8 +232,8 @@ namespace Cyan
 
     struct Texture2DBindless : public Texture2D
     {
-        Texture2DBindless(const Image& inImage, bool bGenerateMipmap, const Sampler2D& inSampler = {});
-        Texture2DBindless(const char* inName, const Image& inImage, bool bGenerateMipmap, const Sampler2D& inSampler = {});
+        Texture2DBindless(Image* inImage, bool bGenerateMipmap, const Sampler2D& inSampler = {});
+        Texture2DBindless(const char* inName, Image* inImage, bool bGenerateMipmap, const Sampler2D& inSampler = {});
         Texture2DBindless(const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
         Texture2DBindless(const char* inName, const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
 

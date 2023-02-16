@@ -4,15 +4,15 @@
 
 namespace Cyan
 {
-    i32 Texture2DAtlas::packImage(const Image& inImage)
+    i32 Texture2DAtlas::packImage(Image* inImage)
     {
         i32 packedImageIndex = -1;
 
         // make sure the image being packed is a power of 2 square shaped image
-        assert(inImage.width == inImage.height && Cyan::isPowerOf2(inImage.width) && inImage.width <= maxSubtextureSize);
+        assert(inImage->width == inImage->height && Cyan::isPowerOf2(inImage->width) && inImage->width <= maxSubtextureSize);
 
         // todo: make sure the format of incoming texture matches with that of the atlas
-        Cyan::Texture2D::Spec spec(inImage);
+        Cyan::Texture2D::Spec spec(*inImage);
         if (spec.format != atlas->getSpec().format)
         {
             assert(0);
@@ -20,9 +20,9 @@ namespace Cyan
 
         images.push_back(inImage);
         ImageQuadTree::Node* node = nullptr;
-        if (imageQuadTree->insert(&images.back(), &node))
+        if (imageQuadTree->insert(images.back(), &node))
         {
-            Image& image = images.back();
+            Image* image = images.back();
 
             // convert image to a texture and generate full mipmap chain
             std::unique_ptr<Cyan::Texture2D> tempTexture = std::make_unique<Cyan::Texture2D>(spec);

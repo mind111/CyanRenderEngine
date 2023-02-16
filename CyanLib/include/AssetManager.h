@@ -55,6 +55,17 @@ namespace Cyan
         void update();
         static void import(Scene* scene, const char* filename);
         static void onAssetLoaded(Asset* asset);
+
+        using AssetInitFunc = std::function<void(Asset* asset)>;
+        std::mutex deferredInitMutex;
+        struct DeferredInitTask
+        {
+            Asset* asset = nullptr;
+            AssetInitFunc initFunc;
+        };
+        std::queue<DeferredInitTask> m_deferredInitQueue;
+        static void deferredInitAsset(Asset* asset, const AssetInitFunc& inFunc);
+
         using PartialLoadedFunc = std::function<void(Asset* asset)>;
         struct PartialLoadedTask
         {
@@ -82,6 +93,8 @@ namespace Cyan
         // meshes
         static StaticMesh* importWavefrontObj(const char* meshName, const char* baseDir, const char* filename);
         static StaticMesh* createStaticMesh(const char* name);
+        static Image* createImage(const char* name);
+        static Image* createImage(const char* name, u8* dataAddress, u32 sizeInBytes);
 
         static Material* createMaterial(const char* name);
         static MaterialBindless* createMaterialBindless(const char* name);
@@ -186,17 +199,17 @@ namespace Cyan
         std::unordered_map<std::string, PackedImageDesc> packedImageMap;
         std::unordered_map<std::string, SubtextureDesc> packedTextureMap;
 
-        PackedImageDesc packImage(const Image& inImage)
+        PackedImageDesc packImage(Image* inImage)
         {
-            const auto& entry = packedImageMap.find(inImage.name.c_str());
+            const auto& entry = packedImageMap.find(inImage->name.c_str());
             if (entry == packedImageMap.end())
             {
                 PackedImageDesc outDesc = { -1, -1 };
                 Texture::Format format;
-                switch (inImage.bitsPerChannel)
+                switch (inImage->bitsPerChannel)
                 {
                 case 8:
-                    switch (inImage.numChannels)
+                    switch (inImage->numChannels)
                     {
                     case 1:
                         format = PF_R8; 
@@ -222,9 +235,9 @@ namespace Cyan
                     assert(0); 
                     break;
                 }
-                packedImageMap.insert({inImage.name, outDesc });
+                packedImageMap.insert({ inImage->name, outDesc });
             }
-            return packedImageMap[inImage.name];
+            return packedImageMap[inImage->name];
         }
 
         PackedImageDesc getPackedImageDesc(const char* name)

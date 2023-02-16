@@ -182,48 +182,56 @@ namespace Cyan
     */
     void RenderableScene::upload() 
     {
-        auto gfxc = Renderer::get()->getGfxCtx();
-        // todo: doing this every frame is kind of redundant, maybe to a message kind of thing here to only trigger update when there is actually an update
-        // to these global buffers?
-        auto& submeshBuffer = StaticMesh::getSubmeshBuffer();
-        submeshBuffer.upload();
-        auto& gVertexBuffer = StaticMesh::getGlobalVertexBuffer();
-        gVertexBuffer.upload();
-        auto& gIndexBuffer = StaticMesh::getGlobalIndexBuffer();
-        gIndexBuffer.upload();
+        // todo: this is only a simple hack for preventing re-uploading same data go gpu multiple times during a frame, this works if assuming
+        // that RenderableScene is immutable once constructed, or else doing it this way may prevent someone to edit/update a RenderableScene
+        // object's data while that modification is not reflected because of this hack!
+        if (!bUploaded)
+        {
+            auto gfxc = Renderer::get()->getGfxCtx();
+            // todo: doing this every frame is kind of redundant, maybe to a message kind of thing here to only trigger update when there is actually an update
+            // to these global buffers?
+            auto& submeshBuffer = StaticMesh::getSubmeshBuffer();
+            submeshBuffer.upload();
+            auto& gVertexBuffer = StaticMesh::getGlobalVertexBuffer();
+            gVertexBuffer.upload();
+            auto& gIndexBuffer = StaticMesh::getGlobalIndexBuffer();
+            gIndexBuffer.upload();
 
-        gfxc->setShaderStorageBuffer(&submeshBuffer);
-        gfxc->setShaderStorageBuffer(&gVertexBuffer);
-        gfxc->setShaderStorageBuffer(&gIndexBuffer);
+            gfxc->setShaderStorageBuffer(&submeshBuffer);
+            gfxc->setShaderStorageBuffer(&gVertexBuffer);
+            gfxc->setShaderStorageBuffer(&gIndexBuffer);
 
-        // view
-        viewBuffer->data.constants.view = camera.view;
-        viewBuffer->data.constants.projection = camera.projection;
-        viewBuffer->upload();
-        gfxc->setShaderStorageBuffer(viewBuffer.get());
+            // view
+            viewBuffer->data.constants.view = camera.view;
+            viewBuffer->data.constants.projection = camera.projection;
+            viewBuffer->upload();
+            gfxc->setShaderStorageBuffer(viewBuffer.get());
 
-        transformBuffer->upload();
-        gfxc->setShaderStorageBuffer(transformBuffer.get());
+            transformBuffer->upload();
+            gfxc->setShaderStorageBuffer(transformBuffer.get());
 
-        instanceBuffer->upload();
-        gfxc->setShaderStorageBuffer(instanceBuffer.get());
+            instanceBuffer->upload();
+            gfxc->setShaderStorageBuffer(instanceBuffer.get());
 
-        drawCallBuffer->upload();
-        gfxc->setShaderStorageBuffer(drawCallBuffer.get());
+            drawCallBuffer->upload();
+            gfxc->setShaderStorageBuffer(drawCallBuffer.get());
 
-        // directional lights
-        for (i32 i = 0; i < directionalLightBuffer->getNumElements(); ++i) {
-            for (i32 j = 0; j < CascadedShadowMap::kNumCascades; ++j) {
-                auto handle = (*directionalLightBuffer)[i].cascades[j].shadowMap.depthMapHandle;
-                if (glIsTextureHandleResidentARB(handle) == GL_FALSE) {
-                    glMakeTextureHandleResidentARB(handle);
+            // directional lights
+            for (i32 i = 0; i < directionalLightBuffer->getNumElements(); ++i) {
+                for (i32 j = 0; j < CascadedShadowMap::kNumCascades; ++j) {
+                    auto handle = (*directionalLightBuffer)[i].cascades[j].shadowMap.depthMapHandle;
+                    if (glIsTextureHandleResidentARB(handle) == GL_FALSE) {
+                        glMakeTextureHandleResidentARB(handle);
+                    }
                 }
             }
-        }
-        directionalLightBuffer->upload();
-        gfxc->setShaderStorageBuffer(directionalLightBuffer.get());
+            directionalLightBuffer->upload();
+            gfxc->setShaderStorageBuffer(directionalLightBuffer.get());
 
-        onUpload();
+            onUpload();
+
+            bUploaded = true;
+        }
     }
 
     RenderableSceneBindless::RenderableSceneBindless(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator)

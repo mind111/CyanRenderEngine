@@ -328,7 +328,7 @@ namespace Cyan
             }
         }
 
-        static void translateSampler(const gltf::Sampler& sampler, Sampler2D& outSampler, bool& bOutGenerateMipmap)
+        void translateSampler(const gltf::Sampler& sampler, Sampler2D& outSampler, bool& bOutGenerateMipmap)
         {
             switch (sampler.magFilter)
             {
@@ -432,8 +432,8 @@ namespace Cyan
                 {
                     const gltf::BufferView bv = bufferViews[bufferView];
                     u8* dataAddress = binaryChunk.data() + bv.byteOffset;
-                    Cyan::Image image(gltfImage.name.c_str(), dataAddress, bv.byteLength);
-                    PackedImageDesc packedImageDesc = assetManager->packImage(image);
+                    Cyan::Image* outImage = AssetManager::createImage(gltfImage.name.c_str(), dataAddress, bv.byteLength); 
+                    PackedImageDesc packedImageDesc = assetManager->packImage(outImage);
                 }
                 else
                 {

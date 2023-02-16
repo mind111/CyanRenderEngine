@@ -14,6 +14,7 @@ namespace Cyan
         struct Gltf;
         struct Glb;
         struct Mesh;
+        struct Image;
         struct Node;
     }
 
@@ -57,7 +58,8 @@ namespace Cyan
         void import(Asset* outAsset);
 
     private:
-        void importMesh(StaticMesh* outMesh, gltf::Gltf& srcGltf, const gltf::Mesh& srcGltfMesh);
+        void importMesh(StaticMesh* outMesh, gltf::Gltf& gltf, const gltf::Mesh& gltfMesh);
+        void importImage(Image* outImage, gltf::Gltf& gltf, const gltf::Image& gltfImage);
         void importSceneAsync(Scene* outScene, gltf::Gltf& gltf);
         void importSceneNodeAsync(Scene* outScene, gltf::Gltf& gltf, Entity* parent, const gltf::Node& node);
 
