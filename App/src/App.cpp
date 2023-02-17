@@ -23,21 +23,11 @@ public:
     {
         using namespace Cyan;
 
-        {
-            glm::uvec2 resolution = gEngine->getGraphicsSystem()->getAppWindowDimension();
-            ITexture::Spec spec = { };
-            spec.width = resolution.x;
-            spec.height = resolution.y;
-            spec.type = TEX_2D;
-            spec.pixelFormat = PF_RGB16F;
-            m_sceneRenderingOutput = new GfxTexture2D("FrameOutput", spec);
-        }
-
         static const char* shaderBalls = ASSET_PATH "mesh/shader_balls.glb";
         static const char* sponza = ASSET_PATH "mesh/sponza-gltf-pbr/sponza.glb";
         static const char* sunTemple = ASSET_PATH "mesh/sun_temple/simplified_sun_temple.glb";
 
-        AssetManager::importGltf(m_scene.get(), shaderBalls);
+        AssetImporter::importAsync(m_scene.get(), shaderBalls);
 
         // skybox
         auto skybox = m_scene->createSkybox("Skybox", ASSET_PATH "cubemaps/neutral_sky.hdr", glm::uvec2(2048));

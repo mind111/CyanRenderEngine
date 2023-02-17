@@ -176,6 +176,10 @@ namespace Cyan
         m_renderer = std::make_unique<Renderer>(m_ctx.get(), windowWidth, windowHeight);
         // m_lightMapManager = new LightMapManager;
         // m_pathTracer = new PathTracer;
+
+        GfxTexture2D::Spec spec(m_windowDimension.x, m_windowDimension.y, 1, PF_RGB16F);
+        Sampler2D sampler;
+        m_renderingOutput = std::unique_ptr<GfxTexture2D>(GfxTexture2D::create(spec, sampler));
     } 
 
     GraphicsSystem::~GraphicsSystem() { }
@@ -222,6 +226,18 @@ namespace Cyan
     void GraphicsSystem::update() 
     {
         m_assetManager->update();
+    }
+
+    void GraphicsSystem::render(const std::function<void(GfxTexture2D*)>& renderOneFrame) 
+    {
+        // clear default render target
+        m_ctx->setRenderTarget(nullptr, { });
+        m_ctx->clear();
+        
+        renderOneFrame(m_renderingOutput.get());
+        m_renderer->renderToScreen(m_renderingOutput.get());
+
+        m_ctx->flip();
     }
 
     void GraphicsSystem::render(Scene* scene, GfxTexture2D* sceneRenderingOutput, const std::function<void(Renderer*, GfxTexture2D*)>& postSceneRenderingCallback)

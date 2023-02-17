@@ -30,14 +30,18 @@ namespace Cyan
         void initialize();
         void deinitialize();
         void update();
+
+        using RenderFunc = std::function<void(GfxTexture2D* renderingOutput)>;
+        void render(const RenderFunc& renderOneFrame);
+
         void render(Scene* scene, GfxTexture2D* sceneRenderingOutput, const std::function<void(Renderer*, GfxTexture2D*)>& postSceneRenderingCallbackonst = [](Renderer* renderer, GfxTexture2D* sceneRenderingOutput) {
             renderer->renderToScreen(sceneRenderingOutput);
         });
 
     private:
         // systems
-        std::unique_ptr<IOSystem> m_IOSystem;
-        std::unique_ptr<GraphicsSystem> m_graphicsSystem;
+        std::unique_ptr<IOSystem> m_IOSystem = nullptr;
+        std::unique_ptr<GraphicsSystem> m_graphicsSystem = nullptr;
         // stats
         f32 renderFrameTime = 0.0f;
     };

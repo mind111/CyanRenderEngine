@@ -93,6 +93,29 @@ namespace Cyan
 
         // create a default scene that can be modified or overwritten by custom app
         m_scene = std::make_shared<Scene>("DefaultScene", (f32)m_appWindowDimension.x / m_appWindowDimension.y);
+
+        // setup a default rendering lamda which can be overwrittn by child app
+        m_renderOneFrame = [this](GfxTexture2D* renderingOutput) {
+            auto renderer = Renderer::get();
+            // scene rendering
+            if (m_scene) 
+            {
+                if (auto camera = dynamic_cast<PerspectiveCamera*>(m_scene->m_mainCamera->getCamera())) 
+                {
+                    SceneView mainSceneView(*m_scene, *camera,
+                        [](Entity* entity) {
+                            return entity->getProperties() | EntityFlag_kVisible;
+                        },
+                        renderingOutput, 
+                        { 0, 0, renderingOutput->width, renderingOutput->height }
+                    );
+                    renderer->render(m_scene.get(), mainSceneView, glm::uvec2(renderingOutput->width, renderingOutput->height));
+                }
+            }
+            // UI rendering
+            renderer->renderUI();
+        };
+
         customInitialize();
     }
 
@@ -111,10 +134,7 @@ namespace Cyan
 
     void DefaultApp::render()
     {
-        gEngine->render(m_scene.get(), m_sceneRenderingOutput, [this](Renderer* renderer, GfxTexture2D* sceneRenderingOutput) {
-                customRender(renderer, sceneRenderingOutput);
-            }
-        );
+        gEngine->render(m_renderOneFrame);
     }
    
     void DefaultApp::run()
