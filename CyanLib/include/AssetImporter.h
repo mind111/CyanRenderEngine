@@ -30,9 +30,13 @@ namespace Cyan
         static void import(Scene* scene, const char* filename);
         static void importAsync(Scene* scene, const char* filename);
         static void import(Asset* outAsset);
+        static Image* importImageSync(const char* imageName, const char* filename);
+        static Image* importImageAsync(const char* imageName, const char* filename);
 
         void registerAssetSrcFile(Asset* asset, const char* filename);
     private:
+        void importImageInternal(Image* outImage, const char* filename);
+
         std::unique_ptr<GltfImporter> m_gltfImporter = nullptr;
         std::unordered_map<std::string, const char*> m_assetToSrcMap;
     };

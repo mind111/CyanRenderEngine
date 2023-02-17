@@ -66,9 +66,9 @@ namespace Cyan
         void setGeometryPipeline(GeometryPipeline* geometryPipelineObject, const std::function<void(VertexShader*, GeometryShader*, PixelShader*)>& setupShaders = [](VertexShader*, GeometryShader*, PixelShader*) {});
         void setComputePipeline(ComputePipeline* computePipelineObject, const std::function<void(ComputeShader*)>& setupShaders);
 
-        void setTexture(Texture* texture, u32 binding);
+        void setTexture(GfxTexture* texture, u32 binding);
         // todo: implement this
-        void setImage(Texture2DArray* textuerArray, u32 binding, u32 layered = true, u32 layer = 0) { }
+        void setImage(GfxTexture2DArray* textuerArray, u32 binding, u32 layered = true, u32 layer = 0) { }
 
         template<typename T>
         void setShaderStorageBuffer(ShaderStorageBuffer<T>* buffer) 
@@ -112,7 +112,7 @@ namespace Cyan
         void setShaderInternal(Shader* shader);
 
         static constexpr u32 kMaxNumTextureUnits = 32u;
-        std::unordered_map<std::string, u32> m_textureBindingMap;
+        std::unordered_map<u32, u32> m_textureBindingMap;
         u32 m_nextTextureBindingUnit = 0u;
 
         static constexpr u32 kMaxNumShaderStorageBindigs = 32u;

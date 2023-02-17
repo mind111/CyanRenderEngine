@@ -45,7 +45,7 @@ namespace Cyan
         m_graphicsSystem->update();
     }
 
-    void Engine::render(Scene* scene, Texture2D* sceneRenderingOutput, const std::function<void(Renderer*, Texture2D*)>& postSceneRenderingCallback)
+    void Engine::render(Scene* scene, GfxTexture2D* sceneRenderingOutput, const std::function<void(Renderer*, GfxTexture2D*)>& postSceneRenderingCallback)
     {
         if (m_graphicsSystem) 
         {

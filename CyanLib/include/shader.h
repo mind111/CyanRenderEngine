@@ -124,7 +124,7 @@ namespace Cyan {
         Shader& setUniform(const char* name, const glm::vec3& data);
         Shader& setUniform(const char* name, const glm::vec4& data);
         Shader& setUniform(const char* name, const glm::mat4& data);
-        Shader& setTexture(const char* samplerName, Texture* texture);
+        Shader& setTexture(const char* samplerName, GfxTexture* texture);
 
         std::string m_name;
         ShaderSource m_source;
@@ -145,7 +145,7 @@ namespace Cyan {
         i32 getUniformLocation(const char* name);
 
         std::unordered_map<std::string, UniformDesc> m_uniformMap;
-        std::unordered_map<std::string, Texture*> m_samplerBindingMap;
+        std::unordered_map<std::string, GfxTexture*> m_samplerBindingMap;
         std::unordered_map<std::string, u32> m_shaderStorageBlockMap;
     };
 

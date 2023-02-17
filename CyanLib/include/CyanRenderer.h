@@ -30,7 +30,7 @@ namespace Cyan
             const std::function<bool(Entity*)>& selector = [](Entity* entity) {
                 return true;
             },
-            Texture2D* dstRenderTexture = nullptr, 
+            GfxTexture2D* dstRenderTexture = nullptr, 
                 const Viewport& dstViewport = { })
             : camera(inCamera), renderTexture(dstRenderTexture), viewport(dstViewport) {
             for (auto entity : scene.m_entities) {
@@ -41,7 +41,7 @@ namespace Cyan
         }
 
         PerspectiveCamera camera;
-        Texture2D* renderTexture = nullptr;
+        GfxTexture2D* renderTexture = nullptr;
         Viewport viewport;
         std::vector<Entity*> entities;
     };
@@ -78,7 +78,7 @@ namespace Cyan
             (*refCount)++;
         }
 
-        CachedTexture2D(const char* name, const Texture2D::Spec& spec, const Sampler2D& inSampler = {})
+        CachedTexture2D(const char* name, const GfxTexture2D::Spec& spec, const Sampler2D& inSampler = {})
             : refCount(nullptr), texture(nullptr)
         {
             refCount = new u32(1u);
@@ -88,8 +88,7 @@ namespace Cyan
             if (entry == cache.end())
             {
                 // create a new texture and add it to the cache
-                texture = new Texture2D(name, spec, inSampler);
-                texture->init();
+                texture = GfxTexture2D::create(spec, inSampler);
             }
             else
             {
@@ -117,18 +116,18 @@ namespace Cyan
             return *this;
         }
 
-        Texture2D* get()
+        GfxTexture2D* get()
         {
             return texture;
         }
 
-        Texture2D* operator->()
+        GfxTexture2D* operator->()
         {
             return texture;
         }
 
         u32* refCount = nullptr;
-        Texture2D* texture = nullptr;
+        GfxTexture2D* texture = nullptr;
     private:
         void release()
         {
@@ -141,17 +140,17 @@ namespace Cyan
          * spec. Do note that find() will return an iterator to any instance of key-value pair among all values
          * associated with that key, so the order of returned values are not guaranteed.
          */
-        static std::unordered_multimap<Texture2D::Spec, Texture2D*> cache;
+        static std::unordered_multimap<GfxTexture2D::Spec, GfxTexture2D*> cache;
     };
 
     struct HiZBuffer
     {
-        HiZBuffer(const Texture2D::Spec& spec);
+        HiZBuffer(const GfxTexture2D::Spec& spec);
         ~HiZBuffer() { }
 
-        void build(Texture2D* srcDepthTexture);
+        void build(GfxTexture2D* srcDepthTexture);
 
-        std::unique_ptr<Texture2D> texture;
+        std::unique_ptr<GfxTexture2D> texture;
     };
 
     class Renderer : public Singleton<Renderer>
@@ -169,34 +168,34 @@ namespace Cyan
         GfxContext* getGfxCtx() { return m_ctx; };
         LinearAllocator& getFrameAllocator() { return m_frameAllocator; }
 
-        Texture2D* createRenderTexture(const char* textureName, const Texture2D::Spec& inSpec, const Sampler2D& inSampler);
+        GfxTexture2D* createRenderTexture(const char* textureName, const GfxTexture2D::Spec& inSpec, const Sampler2D& inSampler);
 
 // rendering
         void beginRender();
         void render(Scene* scene, const SceneView& sceneView, const glm::uvec2& renderResolution);
-        void renderToScreen(Texture2D* inTexture);
+        void renderToScreen(GfxTexture2D* inTexture);
         void endRender();
 
         struct GBuffer
         {
-            Texture2D* depth = nullptr;
-            Texture2D* normal = nullptr;
-            Texture2D* albedo = nullptr;
-            Texture2D* metallicRoughness = nullptr;
+            GfxTexture2D* depth = nullptr;
+            GfxTexture2D* normal = nullptr;
+            GfxTexture2D* albedo = nullptr;
+            GfxTexture2D* metallicRoughness = nullptr;
         };
 
         struct SceneTextures 
         {
             glm::uvec2 resolution;
             GBuffer gBuffer;
-            Texture2D* directDiffuseLighting = nullptr;
-            Texture2D* directLighting = nullptr;
-            Texture2D* indirectLighting = nullptr;
-            Texture2D* ssgiMirror = nullptr;
-            Texture2D* color = nullptr;
-            Texture2D* ao = nullptr;
-            Texture2D* bentNormal = nullptr;
-            Texture2D* irradiance = nullptr;
+            GfxTexture2D* directDiffuseLighting = nullptr;
+            GfxTexture2D* directLighting = nullptr;
+            GfxTexture2D* indirectLighting = nullptr;
+            GfxTexture2D* ssgiMirror = nullptr;
+            GfxTexture2D* color = nullptr;
+            GfxTexture2D* ao = nullptr;
+            GfxTexture2D* bentNormal = nullptr;
+            GfxTexture2D* irradiance = nullptr;
             RenderTarget* renderTarget = nullptr;
             HiZBuffer* HiZ = nullptr;
 
@@ -212,9 +211,9 @@ namespace Cyan
                 HitBuffer(u32 inNumLayers, const glm::uvec2& resolution);
                 ~HitBuffer() { }
 
-                Texture2DArray* position = nullptr;
-                Texture2DArray* normal = nullptr;
-                Texture2DArray* radiance = nullptr;
+                GfxTexture2DArray* position = nullptr;
+                GfxTexture2DArray* normal = nullptr;
+                GfxTexture2DArray* radiance = nullptr;
                 GLuint positionArray;
                 GLuint normalArray;
                 GLuint radianceArray;
@@ -225,9 +224,9 @@ namespace Cyan
             ~SSGI() { };
 
             // basic brute force hierarchical tracing without spatial ray reuse
-            void render(Texture2D* outAO, Texture2D* outBentNormal, Texture2D* outIrradiance, const GBuffer& gBuffer, HiZBuffer* HiZ, Texture2D* inDirectDiffuseBuffer);
+            void render(GfxTexture2D* outAO, GfxTexture2D* outBentNormal, GfxTexture2D* outIrradiance, const GBuffer& gBuffer, HiZBuffer* HiZ, GfxTexture2D* inDirectDiffuseBuffer);
             // spatial reuse
-            void renderEx(Texture2D* outAO, Texture2D* outBentNormal, Texture2D* outIrradiance, const GBuffer& gBuffer, HiZBuffer* HiZ, Texture2D* inDirectDiffuseBuffer);
+            void renderEx(GfxTexture2D* outAO, GfxTexture2D* outBentNormal, GfxTexture2D* outIrradiance, const GBuffer& gBuffer, HiZBuffer* HiZ, GfxTexture2D* inDirectDiffuseBuffer);
             // todo: spatio-temporal reuse
 
             static const u32 kNumSamples = 8u;
@@ -242,7 +241,7 @@ namespace Cyan
         struct PostProcessingTextures 
         {
             glm::uvec2 resolution;
-            Texture2D* bloom[5] = { };
+            GfxTexture2D* bloom[5] = { };
             
             bool bInitialized = false;
 
@@ -251,7 +250,7 @@ namespace Cyan
 
         // managing creating and recycling render target
         RenderTarget* createCachedRenderTarget(const char* name, u32 width, u32 height);
-        Texture2D* renderScene(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
+        GfxTexture2D* renderScene(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
 
         struct IndirectDrawBuffer
         {
@@ -264,22 +263,22 @@ namespace Cyan
         } indirectDrawBuffer;
         void multiDrawSceneIndirect(const RenderableScene& renderableScene);
 
-        void renderSceneBatched(RenderableScene& renderableScene, RenderTarget* outRenderTarget, Texture2D* outSceneColor);
-        void renderSceneDepthPrepass(RenderableScene& renderableScene, RenderTarget* outRenderTarget, Texture2D* outDepthBuffer);
+        void renderSceneBatched(RenderableScene& renderableScene, RenderTarget* outRenderTarget, GfxTexture2D* outSceneColor);
+        void renderSceneDepthPrepass(RenderableScene& renderableScene, RenderTarget* outRenderTarget, GfxTexture2D* outDepthBuffer);
         void renderSceneDepthOnly(RenderableScene& renderableScene, DepthTexture2D* outDepthTexture);
         void renderSceneGBuffer(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer);
         void renderSceneGBufferWithTextureAtlas(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer);
         void renderShadowMaps(RenderableScene& scene);
-        void renderSceneLighting(RenderTarget* outRenderTarget, Texture2D* outSceneColor, RenderableScene& scene, GBuffer gBuffer);
-        void renderSceneDirectLighting(RenderTarget* outRenderTarget, Texture2D* outDirectLighting, RenderableScene& scene, GBuffer gBuffer);
-        void renderSceneIndirectLighting(RenderTarget* outRenderTarget, Texture2D* outIndirectLighting, RenderableScene& scene, GBuffer gBuffer);
+        void renderSceneLighting(RenderTarget* outRenderTarget, GfxTexture2D* outSceneColor, RenderableScene& scene, GBuffer gBuffer);
+        void renderSceneDirectLighting(RenderTarget* outRenderTarget, GfxTexture2D* outDirectLighting, RenderableScene& scene, GBuffer gBuffer);
+        void renderSceneIndirectLighting(RenderTarget* outRenderTarget, GfxTexture2D* outIndirectLighting, RenderableScene& scene, GBuffer gBuffer);
 
         bool bDebugSSRT = false;
         glm::vec2 debugCoord = glm::vec2(.5f);
         static const i32 kNumIterations = 64;
         i32 numDebugRays = 8;
-        void legacyScreenSpaceRayTracing(Texture2D* depth, Texture2D* normal);
-        void visualizeSSRT(Texture2D* depth, Texture2D* normal);
+        void legacyScreenSpaceRayTracing(GfxTexture2D* depth, GfxTexture2D* normal);
+        void visualizeSSRT(GfxTexture2D* depth, GfxTexture2D* normal);
 
         void renderSceneToLightProbe(Scene* scene, LightProbe* probe, RenderTarget* renderTarget);
         void drawMesh(RenderTarget* renderTarget, Viewport viewport, StaticMesh* mesh, PixelPipeline* pipeline, const RenderSetupLambda& renderSetupLambda, const GfxPipelineConfig& config = GfxPipelineConfig{});
@@ -325,16 +324,16 @@ namespace Cyan
 
 // post-processing
         // gaussian blur
-        void gaussianBlur(Texture2D* inoutTexture, u32 inRadius, f32 inSigma);
+        void gaussianBlur(GfxTexture2D* inoutTexture, u32 inRadius, f32 inSigma);
 
         struct ImagePyramid {
             u32 numLevels;
-            std::vector<Texture2D*> images;
-            Texture2D* srcTexture;
+            std::vector<GfxTexture2D*> images;
+            GfxTexture2D* srcTexture;
         };
-        void downsample(Texture2D* src, Texture2D* dst);
-        void upscale(Texture2D* src, Texture2D* dst);
-        CachedTexture2D bloom(Texture2D* src);
+        void downsample(GfxTexture2D* src, GfxTexture2D* dst);
+        void upscale(GfxTexture2D* src, GfxTexture2D* dst);
+        CachedTexture2D bloom(GfxTexture2D* src);
 
         /**
         * Local tonemapping using "Exposure Fusion"
@@ -346,17 +345,18 @@ namespace Cyan
         /*
         * Compositing and resolving to final output albedo texture. Applying bloom, tone mapping, and gamma correction.
         */
-        void compose(Texture2D* composited, Texture2D* inSceneColor, Texture2D* inBloomColor, const glm::uvec2& outputResolution);
+        void compose(GfxTexture2D* composited, GfxTexture2D* inSceneColor, GfxTexture2D* inBloomColor, const glm::uvec2& outputResolution);
 //
         struct VisualizationDesc {
-            Texture2D* texture = nullptr;
+            std::string name;
+            GfxTexture2D* texture = nullptr;
             i32 activeMip = 0;
             bool* bSwitch = nullptr;
         };
         void setVisualization(VisualizationDesc* desc) { m_visualization = desc; }
-        void visualize(Texture2D* dst, Texture2D* src, i32 mip = 0);
+        void visualize(GfxTexture2D* dst, GfxTexture2D* src, i32 mip = 0);
         VisualizationDesc* m_visualization = nullptr;
-        void registerVisualization(const std::string& categoryName, Texture2D* visualization, bool* toggle=nullptr);
+        void registerVisualization(const std::string& categoryName, const char* visName, GfxTexture2D* visualization, bool* toggle=nullptr);
         std::unordered_map<std::string, std::vector<VisualizationDesc>> visualizationMap;
 
         enum class TonemapOperator {
@@ -394,7 +394,7 @@ namespace Cyan
         LinearAllocator m_frameAllocator;
         std::queue<UIRenderCommand> m_UIRenderCommandQueue;
         std::unique_ptr<ManyViewGI> m_manyViewGI = nullptr;
-        std::vector<Texture2D*> renderTextures;
+        std::vector<GfxTexture2D*> renderTextures;
         bool bVisualize = false;
     };
 };

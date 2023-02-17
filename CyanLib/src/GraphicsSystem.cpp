@@ -224,7 +224,7 @@ namespace Cyan
         m_assetManager->update();
     }
 
-    void GraphicsSystem::render(Scene* scene, Texture2D* sceneRenderingOutput, const std::function<void(Renderer*, Texture2D*)>& postSceneRenderingCallback)
+    void GraphicsSystem::render(Scene* scene, GfxTexture2D* sceneRenderingOutput, const std::function<void(Renderer*, GfxTexture2D*)>& postSceneRenderingCallback)
     {
         // clear default render target
         m_ctx->setRenderTarget(nullptr, { });

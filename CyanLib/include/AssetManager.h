@@ -76,25 +76,27 @@ namespace Cyan
 
         void importGltfNode(Scene* scene, tinygltf::Model& model, Entity* parent, tinygltf::Node& node);
         StaticMesh* importGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh); 
-        Cyan::Texture2D* importGltfTexture(tinygltf::Model& model, tinygltf::Texture& gltfTexture);
+        Cyan::GfxTexture2D* importGltfTexture(tinygltf::Model& model, tinygltf::Texture& gltfTexture);
         void importGltfTextures(tinygltf::Model& model);
         static void importGltf(Scene* scene, const char* filename, const char* name=nullptr);
         static void importGltfAsync(Scene* scene, const char* filename);
         static void importGlb(Scene* scene, const char* filename);
 
         // textures
+        static Image* createImage(const char* name);
+        static Image* createImage(const char* name, u8* dataAddress, u32 sizeInBytes);
         static Image* importImage(const char* name, const char* filename);
         static Image* importImage(const char* name, u8* mem, u32 sizeInBytes);
-        static Texture2D* createTexture2D(const char* name, Image* srcImage, bool bGenerateMipmap, const Sampler2D& inSampler = Sampler2D{});
-        static Texture2DBindless* createTexture2DBindless(const char* name, Image* srcImage, bool bGenerateMipmap, const Sampler2D& inSampler = Sampler2D{});
-        static Texture2D* importTexture2D(const char* textureName, const char* srcImageFile, bool bGenerateMipmap, const Sampler2D& inSampler);
-        static Texture2D* importTexture2D(const char* textureName, const char* srcImageName, const char* srcImageFile, bool bGenerateMipmap, const Sampler2D& inSampler);
+
+        static Texture2D* createTexture2D(const char* name, Image* srcImage, const Sampler2D& inSampler = Sampler2D{});
+        static Texture2DBindless* createTexture2DBindless(const char* name, Image* srcImage, const Sampler2D& inSampler = Sampler2D{});
+
+        static Texture2D* importTexture2D(const char* textureName, const char* srcImageFile, const Sampler2D& inSampler);
+        static Texture2D* importTexture2D(const char* textureName, const char* srcImageName, const char* srcImageFile, const Sampler2D& inSampler);
 
         // meshes
         static StaticMesh* importWavefrontObj(const char* meshName, const char* baseDir, const char* filename);
         static StaticMesh* createStaticMesh(const char* name);
-        static Image* createImage(const char* name);
-        static Image* createImage(const char* name, u8* dataAddress, u32 sizeInBytes);
 
         static Material* createMaterial(const char* name);
         static MaterialBindless* createMaterialBindless(const char* name);
@@ -146,17 +148,6 @@ namespace Cyan
             return dynamic_cast<Texture2DBindless*>(entry->second);
         }
 
-        template<>
-        static DepthTexture2D* getAsset<DepthTexture2D>(const char* textureName)
-        {
-            const auto& entry = singleton->m_textureMap.find(textureName);
-            if (entry == singleton->m_textureMap.end())
-            {
-                return nullptr;
-            }
-            return dynamic_cast<DepthTexture2D*>(entry->second);
-        }
-
 #if 0
         template<>
         static Texture3D* getAsset<Texture3D>(const char* textureName)
@@ -191,7 +182,7 @@ namespace Cyan
             return nullptr;
         }
 
-        static const std::vector<Texture*>& getTextures()
+        static const std::vector<Texture2DBase*>& getTextures()
         {
             return singleton->m_textures;
         }
@@ -205,7 +196,7 @@ namespace Cyan
             if (entry == packedImageMap.end())
             {
                 PackedImageDesc outDesc = { -1, -1 };
-                Texture::Format format;
+                GfxTexture::Format format;
                 switch (inImage->bitsPerChannel)
                 {
                 case 8:
@@ -284,7 +275,7 @@ namespace Cyan
         /**
         * Adding a texture into the asset data base
         */
-        void addTexture(Texture* inTexture) 
+        void addTexture(Texture2DBase* inTexture) 
         {
             singleton->m_textureMap.insert({ inTexture->name, inTexture });
             singleton->m_textures.push_back(inTexture);
@@ -296,13 +287,13 @@ namespace Cyan
 
         std::vector<StaticMesh*> m_meshes;
         std::vector<Image*> m_images;
-        std::vector<Texture*> m_textures;
+        std::vector<Texture2DBase*> m_textures;
 
         // todo: need to switch to use indices at some point
         std::unordered_map<std::string, std::unique_ptr<Scene>> m_sceneMap;
         std::unordered_map<std::string, StaticMesh*> m_meshMap;
         std::unordered_map<std::string, Image*> m_imageMap;
-        std::unordered_map<std::string, Texture*> m_textureMap;
+        std::unordered_map<std::string, Texture2DBase*> m_textureMap;
         std::unordered_map<std::string, Material*> m_materialMap;
         std::unordered_map<std::string, MaterialTextureAtlas> m_packedMaterialMap;
 

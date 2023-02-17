@@ -29,7 +29,7 @@ namespace Cyan
         Sampler2D sampler;
         sampler.minFilter = FM_BILINEAR;
         sampler.magFilter = FM_BILINEAR;
-        m_srcHDRITexture = AssetManager::importTexture2D("SkyboxHDRI", srcHDRIPath, false, sampler);
+        m_srcHDRITexture = AssetManager::importTexture2D("SkyboxHDRI", srcHDRIPath, sampler);
 
         u32 numMips = log2(resolution.x) + 1;
         TextureCube::Spec cubemapSpec(resolution.x, numMips, PF_RGB16F);
@@ -39,8 +39,7 @@ namespace Cyan
         samplerCube.wrapS = WM_CLAMP;
         samplerCube.wrapT = WM_CLAMP;
 
-        m_cubemapTexture = std::make_unique<TextureCube>(name, cubemapSpec, samplerCube);
-        m_cubemapTexture->init();
+        m_cubemapTexture = std::unique_ptr<TextureCube>(TextureCube::create(cubemapSpec, samplerCube));
 
         // render src equirectangular map into a cubemap
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(m_cubemapTexture->resolution, m_cubemapTexture->resolution));
@@ -75,7 +74,7 @@ namespace Cyan
                     );
                     vs->setUniform("projection", camera.projection());
                     vs->setUniform("view", camera.view());
-                    ps->setTexture("srcImageTexture", m_srcHDRITexture);
+                    ps->setTexture("srcImageTexture", m_srcHDRITexture->gfxTexture.get());
                 },
                 config
             );

@@ -12,7 +12,7 @@ namespace Cyan
         assert(inImage->width == inImage->height && Cyan::isPowerOf2(inImage->width) && inImage->width <= maxSubtextureSize);
 
         // todo: make sure the format of incoming texture matches with that of the atlas
-        Cyan::Texture2D::Spec spec(*inImage);
+        Cyan::GfxTexture2D::Spec spec(*inImage);
         if (spec.format != atlas->getSpec().format)
         {
             assert(0);
@@ -25,7 +25,7 @@ namespace Cyan
             Image* image = images.back();
 
             // convert image to a texture and generate full mipmap chain
-            std::unique_ptr<Cyan::Texture2D> tempTexture = std::make_unique<Cyan::Texture2D>(spec);
+            std::unique_ptr<Cyan::GfxTexture2D> tempTexture = std::unique_ptr<Cyan::GfxTexture2D>(Cyan::GfxTexture2D::create(spec));
 
             // copy its texture memory to corresponding place in the atlas using a pass-through shader
             auto renderer = Cyan::Renderer::get();

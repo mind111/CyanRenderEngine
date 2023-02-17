@@ -11,7 +11,7 @@
 namespace Cyan {
     class GfxContext;
     struct RenderTarget;
-    struct Texture2D;
+    struct GfxTexture2D;
 
     /** 
     * Surfel Bounding Sphere Hierarchy
@@ -57,7 +57,7 @@ namespace Cyan {
         friend class MicroRenderingGI;
 
         virtual void build(const std::vector<Surfel>& inSurfels);
-        Texture2D* getVisualization() { return visualization; }
+        GfxTexture2D* getVisualization() { return visualization; }
         bool castRay(const glm::vec3& ro, const glm::vec3& rd, RayHit& hit) const;
 
         Node* root = nullptr;
@@ -70,7 +70,7 @@ namespace Cyan {
         bool castRayInternal(const glm::vec3& ro, const glm::vec3& rd, const Node& node, RayHit& hit) const;
         virtual u32 getNumLevels() { return numLevels; }
         ShaderStorageBuffer<DynamicSsboData<InstanceDesc>> nodeInstanceBuffer;
-        Texture2D* visualization = nullptr;
+        GfxTexture2D* visualization = nullptr;
         i32 activeVisLevel = 0;
         i32 numVisLevels = 1;
         bool bVisualizeBoundingSpheres = true;

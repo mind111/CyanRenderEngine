@@ -7,7 +7,7 @@
 namespace Cyan {
     class Renderer;
     struct RenderableScene;
-    struct Texture2D;
+    struct GfxTexture2D;
     struct RenderTarget;
 
     /**
@@ -19,16 +19,16 @@ namespace Cyan {
         ~InstantRadiosity() { }
 
         void initialize();
-        Texture2D* render(Renderer* renderer, RenderableScene& renderableScene, const glm::uvec2& renderResolution);
-        Texture2D* render(Renderer* renderer, RenderableScene& renderableScene, Texture2D* sceneDepthBuffer, Texture2D* sceneNormalBuffer, const glm::uvec2& renderResolution);
+        GfxTexture2D* render(Renderer* renderer, RenderableScene& renderableScene, const glm::uvec2& renderResolution);
+        GfxTexture2D* render(Renderer* renderer, RenderableScene& renderableScene, GfxTexture2D* sceneDepthBuffer, GfxTexture2D* sceneNormalBuffer, const glm::uvec2& renderResolution);
         void visualizeVPLs(Renderer* renderer, RenderTarget* renderTarget, RenderableScene& renderableScene);
     private:
         void generateVPLs(Renderer* renderer, RenderableScene& renderableScene, const glm::uvec2& renderResolution);
         void buildVPLShadowMaps(Renderer* renderer, RenderableScene& renderableScene);
         void buildVPLVSMs(Renderer* renderer, RenderableScene& renderableScene);
-        void renderInternal(Renderer* renderer, RenderableScene& renderableScene, Texture2D* output);
-        void renderInternal(Renderer* renderer, RenderableScene& renderableScene, Texture2D* sceneDepthBuffer, Texture2D* sceneNormalBuffer, Texture2D* output);
-        void renderUI(Renderer* renderer, Texture2D* output);
+        void renderInternal(Renderer* renderer, RenderableScene& renderableScene, GfxTexture2D* output);
+        void renderInternal(Renderer* renderer, RenderableScene& renderableScene, GfxTexture2D* sceneDepthBuffer, GfxTexture2D* sceneNormalBuffer, GfxTexture2D* output);
+        void renderUI(Renderer* renderer, GfxTexture2D* output);
 
         enum class VPLShadowAlgorithm : i32 {
             kBasic = 0,
@@ -54,12 +54,12 @@ namespace Cyan {
 
         // basic VPL shadow
         GLuint VPLShadowCubemaps[kMaxNumVPLs];
-        Texture2D* VPLOctShadowMaps[kMaxNumVPLs] = { 0 };
+        GfxTexture2D* VPLOctShadowMaps[kMaxNumVPLs] = { 0 };
         u64 VPLShadowHandles[kMaxNumVPLs];
         
         // VPL shadow using vsm
         GLuint VPLVSMs[kMaxNumVPLs];
-        Texture2D* VPLOctVSMs[kMaxNumVPLs] = { 0 };
+        GfxTexture2D* VPLOctVSMs[kMaxNumVPLs] = { 0 };
         u64 VPLVSMHandles[kMaxNumVPLs];
 
         GLuint VPLShadowHandleBuffer;

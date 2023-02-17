@@ -106,7 +106,7 @@ namespace Cyan
 
             {
                 glm::uvec2 resolution = gEngine->getGraphicsSystem()->getAppWindowDimension();
-                Texture2D::Spec spec(1024, 1024, 1, PF_RGB16F);
+                GfxTexture2D::Spec spec(1024, 1024, 1, PF_RGB16F);
                 auto renderer = Renderer::get();
                 m_sceneRenderingOutput = renderer->createRenderTexture("FrameOutput", spec, Sampler2D());
             }
@@ -119,7 +119,7 @@ namespace Cyan
             static const char* diorama = ASSET_PATH "mesh/sd_macross_diorama.glb";
             static const char* picapica = ASSET_PATH "mesh/pica_pica_scene.glb";
 
-            AssetImporter::importAsync(m_currentScene.get(), ueArchviz);
+            AssetImporter::importAsync(m_currentScene.get(), shaderBalls);
 
             // skybox
             auto skybox = m_currentScene->createSkybox("Skybox", ASSET_PATH "cubemaps/neutral_sky.hdr", glm::uvec2(2048));
@@ -277,10 +277,10 @@ namespace Cyan
                                         bool selected = false;
                                         if (selectedVis && selectedVis->texture) 
                                         {
-                                            selected = (selectedVis->texture->name == vis.texture->name);
+                                            selected = (selectedVis->name == vis.name);
                                         }
                                         if (vis.texture) {
-                                            if (ImGui::MenuItem(vis.texture->name.c_str(), nullptr, selected)) {
+                                            if (ImGui::MenuItem(vis.name.c_str(), nullptr, selected)) {
                                                 if (selected) {
                                                     if (selectedVis->bSwitch) 
                                                     {
@@ -380,7 +380,7 @@ namespace Cyan
                             auto texture = selectedVis->texture;
                             if (texture) 
                             {
-                                ImGui::Text("%s", texture->name);
+                                ImGui::Text("%s", selectedVis->name);
                                 ImGui::SliderInt("Active Mip:", &selectedVis->activeMip, 0, texture->numMips - 1);
                             }
                         }
@@ -393,7 +393,7 @@ namespace Cyan
     private:
         std::unique_ptr<Scene> m_currentScene = nullptr;
         std::unique_ptr<Engine> gEngine = nullptr;
-        Texture2D* m_sceneRenderingOutput = nullptr;
+        GfxTexture2D* m_sceneRenderingOutput = nullptr;
     };
 }
 

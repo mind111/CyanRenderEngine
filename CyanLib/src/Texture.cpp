@@ -4,19 +4,23 @@
 
 namespace Cyan
 {
-    u32 Texture::count = 0;
-    Texture::Texture(const Format& inFormat)
+    // u32 GfxTexture::count = 0;
+    GfxTexture::GfxTexture(const Format& inFormat)
         : format(inFormat)
     {
+#if 0
         std::string defaultName("Texture_");
         defaultName += std::to_string(count++);
+#endif
     }
 
-    Texture::Texture(const char* inName, const Format& inFormat)
+#if 0
+    GfxTexture::GfxTexture(const char* inName, const Format& inFormat)
         : name(inName), format(inFormat)
     {
         // todo: need to verify if name collides
     }
+#endif
 
     void Sampler::init()
     {
@@ -24,7 +28,7 @@ namespace Cyan
         bInitialized = true;
     }
 
-    void Sampler2D::init(Texture2D* texture)
+    void Sampler2D::init(GfxTexture2D* texture)
     {
         Sampler::init();
 
@@ -139,8 +143,8 @@ namespace Cyan
         }
     }
 
-    Texture2D::Spec::Spec(const Image& inImage, bool bGenerateMipmap)
-        : Texture::Spec(TEX_2D), width(inImage.width), height(inImage.height)
+    GfxTexture2D::Spec::Spec(const Image& inImage, bool bGenerateMipmap)
+        : GfxTexture::Spec(TEX_2D), width(inImage.width), height(inImage.height)
     {
         switch (inImage.bitsPerChannel)
         {
@@ -179,74 +183,62 @@ namespace Cyan
         }
     }
 
-    Texture2D::Texture2D(Image* inImage, bool bGenerateMipmap, const Sampler2D& inSampler)
-        : Texture(Texture2D::Spec(*inImage).format)
+#if 0
+    GfxTexture2D::GfxTexture2D(Image* inImage, bool bGenerateMipmap, const Sampler2D& inSampler)
+        : GfxTexture(GfxTexture2D::Spec(*inImage).format)
         , Image::Listener(inImage)
         , srcImage(inImage)
         , sampler(inSampler) 
     {
         assert(srcImage);
 
-        Texture2D::Spec spec(*inImage, bGenerateMipmap);
+        GfxTexture2D::Spec spec(*inImage, bGenerateMipmap);
         width = spec.width;
         height = spec.height;
         numMips = spec.numMips;
     }
 
-    Texture2D::Texture2D(const char* inName, Image* inImage, bool bGenerateMipmap, const Sampler2D& inSampler)
-        : Texture(inName, Texture2D::Spec(*inImage).format)
+    GfxTexture2D::GfxTexture2D(const char* inName, Image* inImage, bool bGenerateMipmap, const Sampler2D& inSampler)
+        : GfxTexture(inName, GfxTexture2D::Spec(*inImage).format)
         , Image::Listener(inImage)
         , srcImage(inImage)
         , sampler(inSampler)
     {
         assert(srcImage);
 
-        Texture2D::Spec spec(*inImage, bGenerateMipmap);
-        width = spec.width;
-        height = spec.height;
-        numMips = spec.numMips;
-    }
-
-    Texture2D::Texture2D(const Spec& inSpec, const Sampler2D& inSampler)
-        : Texture(inSpec.format)
-        , Image::Listener(nullptr)
-        , sampler(inSampler)
-        , width(inSpec.width)
-        , height(inSpec.height)
-        , numMips(inSpec.numMips)
-    {
-
-    }
-
-    Texture2D::Texture2D(const char* inName, const Spec& inSpec, const Sampler2D& inSampler)
-        : Texture(inName, inSpec.format)
-        , Image::Listener(nullptr)
-        , sampler(inSampler)
-        , width(inSpec.width)
-        , height(inSpec.height)
-        , numMips(inSpec.numMips)
-    {
-
-    }
-   
-    bool Texture2D::operator==(const Image::Listener& rhs)
-    {
-        if (const Texture2D* inListener = dynamic_cast<const Texture2D*>(&rhs))
+        if (srcImage->state == Asset::State::kLoaded) 
         {
-            return name == inListener->name;
+            GfxTexture2D::Spec spec(*inImage, bGenerateMipmap);
+            width = spec.width;
+            height = spec.height;
+            numMips = spec.numMips;
         }
-        return false;
     }
+#endif
 
-    void Texture2D::onImageLoaded()
+    GfxTexture2D::GfxTexture2D(u8* inPixelData, const Spec& inSpec, const Sampler2D& inSampler)
+        : GfxTexture(inSpec.format), sampler(inSampler), width(inSpec.width), height(inSpec.height), numMips(inSpec.numMips), pixelData(inPixelData)
     {
-        // todo: using this dirty hack for now until I refactor the runtime texture out
-        // from asset textures
-        AssetManager::deferredInitAsset(nullptr, [this](Asset* asset) {
-            init();
-        });
     }
 
+    GfxTexture2D::GfxTexture2D(const Spec& inSpec, const Sampler2D& inSampler)
+        : GfxTexture(inSpec.format), sampler(inSampler), width(inSpec.width), height(inSpec.height), numMips(inSpec.numMips)
+    {
+    }
+
+#if 0
+    GfxTexture2D::GfxTexture2D(const char* inName, const Spec& inSpec, const Sampler2D& inSampler)
+        : GfxTexture(inName, inSpec.format)
+        , Image::Listener(nullptr)
+        , sampler(inSampler)
+        , width(inSpec.width)
+        , height(inSpec.height)
+        , numMips(inSpec.numMips)
+    {
+
+    }
+#endif
+   
     struct GLTextureFormat
     {
         GLint internalFormat;
@@ -254,49 +246,49 @@ namespace Cyan
         GLenum type;
     };
 
-    static GLTextureFormat translateTextureFormat(const Texture::Format& inFormat)
+    static GLTextureFormat translateTextureFormat(const GfxTexture::Format& inFormat)
     {
         GLTextureFormat glTextureFormat = { };
         switch (inFormat)
         {
-        case Texture::Format::kR8:
+        case GfxTexture::Format::kR8:
             glTextureFormat.internalFormat = GL_R8;
             glTextureFormat.format = GL_RED;
             glTextureFormat.type = GL_UNSIGNED_BYTE;
             break;
-        case Texture::Format::kD24S8:
+        case GfxTexture::Format::kD24S8:
             glTextureFormat.internalFormat = GL_DEPTH24_STENCIL8;
             glTextureFormat.format = GL_DEPTH_STENCIL;
             glTextureFormat.type = GL_UNSIGNED_INT_24_8;
             break;
-        case Texture::Format::kRGB8:
+        case GfxTexture::Format::kRGB8:
             glTextureFormat.internalFormat = GL_RGB8;
             glTextureFormat.format = GL_RGB;
             glTextureFormat.type = GL_UNSIGNED_BYTE;
             break;
-        case Texture::Format::kRGBA8:
+        case GfxTexture::Format::kRGBA8:
             glTextureFormat.internalFormat = GL_RGBA8;
             glTextureFormat.format = GL_RGBA;
             glTextureFormat.type = GL_UNSIGNED_BYTE;
             break;
-        case Texture::Format::kRGB16F:
+        case GfxTexture::Format::kRGB16F:
             glTextureFormat.internalFormat = GL_RGB16F;
             glTextureFormat.format = GL_RGB;
             // todo: should type be GL_FLOAT or GL_HALF_FLOAT, running into issue with GL_HALF_FLOAT so using GL_FLOAT for now
             glTextureFormat.type = GL_FLOAT;
             break;
-        case Texture::Format::kRGBA16F:
+        case GfxTexture::Format::kRGBA16F:
             glTextureFormat.internalFormat = GL_RGBA16F;
             glTextureFormat.format = GL_RGBA;
             // todo: should type be GL_FLOAT or GL_HALF_FLOAT, running into issue with GL_HALF_FLOAT so using GL_FLOAT for now
             glTextureFormat.type = GL_FLOAT;
             break;
-        case Texture::Format::kRGB32F:
+        case GfxTexture::Format::kRGB32F:
             glTextureFormat.internalFormat = GL_RGB32F;
             glTextureFormat.format = GL_RGB;
             glTextureFormat.type = GL_FLOAT;
             break;
-        case Texture::Format::kRGBA32F:
+        case GfxTexture::Format::kRGBA32F:
             glTextureFormat.internalFormat = GL_RGBA32F;
             glTextureFormat.format = GL_RGBA;
             glTextureFormat.type = GL_FLOAT;
@@ -307,19 +299,12 @@ namespace Cyan
         return glTextureFormat;
     }
 
-    void Texture2D::init()
+    void GfxTexture2D::init()
     {
         glCreateTextures(GL_TEXTURE_2D, 1, &glObject);
         glBindTexture(GL_TEXTURE_2D, getGpuResource());
         auto glPixelFormat = translateTextureFormat(format);
-        if (srcImage)
-        {
-            glTexImage2D(GL_TEXTURE_2D, 0, glPixelFormat.internalFormat, width, height, 0, glPixelFormat.format, glPixelFormat.type, srcImage->pixels.get());
-        }
-        else
-        {
-            glTexImage2D(GL_TEXTURE_2D, 0, glPixelFormat.internalFormat, width, height, 0, glPixelFormat.format, glPixelFormat.type, nullptr);
-        }
+        glTexImage2D(GL_TEXTURE_2D, 0, glPixelFormat.internalFormat, width, height, 0, glPixelFormat.format, glPixelFormat.type, pixelData);
         glBindTexture(GL_TEXTURE_2D, 0);
 
         sampler.init(this);
@@ -330,33 +315,115 @@ namespace Cyan
         }
     }
 
-    Texture2DBindless::Texture2DBindless(Image* inImage, bool bGenerateMipmap, const Sampler2D& inSampler)
-        : Texture2D(inImage, bGenerateMipmap, inSampler)
+    Texture2DBase::Texture2DBase(const char* inName, Image* inImage, const Sampler2D& inSampler)
+        : Asset(inName)
+        , Image::Listener(inImage)
+        , srcImage(inImage)
+        , sampler(inSampler)
+    {
+        if (srcImage->state == Asset::State::kLoaded)
+        {
+            width = srcImage->width;
+            height = srcImage->height;
+            switch (sampler.minFilter)
+            {
+            case Sampler2D::Filtering::kTrilinear:
+            case Sampler2D::Filtering::kMipmapPoint:
+                numMips = max(1, std::log2(min(srcImage->width, srcImage->height)));
+                break;
+            default:
+                break;
+            }
+        }
+    }
+
+    void Texture2DBase::import()
     {
 
     }
 
-    Texture2DBindless::Texture2DBindless(const char* inName, Image* inImage, bool bGenerateMipmap, const Sampler2D& inSampler)
-        : Texture2D(inName, inImage, bGenerateMipmap, inSampler)
+    void Texture2DBase::load()
     {
 
     }
 
-    Texture2DBindless::Texture2DBindless(const Spec& inSpec, const Sampler2D& inSampler)
-        : Texture2D(inSpec, inSampler)
+    void Texture2DBase::onLoaded()
     {
 
     }
 
-    Texture2DBindless::Texture2DBindless(const char* inName, const Spec& inSpec, const Sampler2D& inSampler)
-        : Texture2D(inName, inSpec, inSampler)
+    void Texture2DBase::unload()
+    {
+    }
+
+    void Texture2DBase::onImageLoaded()
+    {
+        AssetManager::deferredInitAsset(this, [this](Asset* asset) {
+            initGfxResource();
+        });
+    }
+
+    Texture2D::Texture2D(const char* inName, Image* inImage, const Sampler2D& inSampler)
+        : Texture2DBase(inName, inImage, inSampler)
     {
 
     }
 
-    void Texture2DBindless::init() 
+    void Texture2D::initGfxResource()
     {
-        Texture2D::init();
+        GfxTexture2D::Spec spec(*srcImage, (numMips > 1));
+        assert(gfxTexture == nullptr);
+        gfxTexture = std::shared_ptr<GfxTexture2D>(GfxTexture2D::create(srcImage->pixels.get(), spec, sampler));
+    }
+
+#if 0
+    GfxTexture2DBindless::GfxTexture2DBindless(Image* inImage, bool bGenerateMipmap, const Sampler2D& inSampler)
+        : GfxTexture2D(inImage, bGenerateMipmap, inSampler)
+    {
+
+    }
+
+    GfxTexture2DBindless::GfxTexture2DBindless(const char* inName, Image* inImage, bool bGenerateMipmap, const Sampler2D& inSampler)
+        : GfxTexture2D(inName, inImage, bGenerateMipmap, inSampler)
+    {
+
+    }
+#endif
+
+    GfxTexture2DBindless::GfxTexture2DBindless(const Spec& inSpec, const Sampler2D& inSampler)
+        : GfxTexture2D(inSpec, inSampler)
+    {
+    }
+
+    GfxTexture2DBindless::GfxTexture2DBindless(u8* inPixelData, const Spec& inSpec, const Sampler2D& inSampler)
+        : GfxTexture2D(inPixelData, inSpec, inSampler)
+    {
+    }
+
+    Texture2DBindless::Texture2DBindless(const char* inName, Image* inImage, const Sampler2D& inSampler)
+        : Texture2DBase(inName, inImage, inSampler)
+    {
+
+    }
+
+    void Texture2DBindless::initGfxResource()
+    {
+        GfxTexture2D::Spec spec(*srcImage, (numMips > 1));
+        assert(gfxTexture == nullptr);
+        gfxTexture = std::shared_ptr<GfxTexture2DBindless>(GfxTexture2DBindless::create(srcImage->pixels.get(), spec, sampler));
+    }
+
+#if 0
+    GfxTexture2DBindless::GfxTexture2DBindless(const char* inName, const Spec& inSpec, const Sampler2D& inSampler)
+        : GfxTexture2D(inName, inSpec, inSampler)
+    {
+
+    }
+#endif
+
+    void GfxTexture2DBindless::init() 
+    {
+        GfxTexture2D::init();
 #if BINDLESS_TEXTURE
         glHandle = glGetTextureHandleARB(getGpuResource());
 #endif
@@ -365,14 +432,15 @@ namespace Cyan
     DepthTexture2DBindless::DepthTexture2DBindless(const Spec& inSpec, const Sampler2D& inSampler)
         : DepthTexture2D(inSpec, inSampler)
     {
-
     }
 
+#if 0
     DepthTexture2DBindless::DepthTexture2DBindless(const char* inName, const Spec& inSpec, const Sampler2D& inSampler)
         : DepthTexture2D(inName, inSpec, inSampler)
     {
 
     }
+#endif
 
     void DepthTexture2DBindless::init()
     {
@@ -384,16 +452,17 @@ namespace Cyan
 
 
     DepthTexture2D::DepthTexture2D(const Spec& inSpec, const Sampler2D& inSampler)
-        : Texture2D(Texture2D::Spec(inSpec.width, inSpec.height, inSpec.numMips, PF_D24S8), inSampler)
+        : GfxTexture2D(GfxTexture2D::Spec(inSpec.width, inSpec.height, inSpec.numMips, PF_D24S8), inSampler)
     {
-
     }
 
+#if 0
     DepthTexture2D::DepthTexture2D(const char* inName, const Spec& inSpec, const Sampler2D& inSampler)
-        : Texture2D(inName, Texture2D::Spec(inSpec.width, inSpec.height, inSpec.numMips, PF_D24S8), inSampler)
+        : GfxTexture2D(inName, GfxTexture2D::Spec(inSpec.width, inSpec.height, inSpec.numMips, PF_D24S8), inSampler)
     {
 
     }
+#endif
 
     void DepthTexture2D::init()
     {
@@ -406,19 +475,20 @@ namespace Cyan
         sampler.init(this);
     }
 
-    Texture2DArray::Texture2DArray(const Spec& inSpec, const Sampler2D& inSampler)
-        : Texture2D(Texture2D::Spec(inSpec.width, inSpec.height, inSpec.numMips, inSpec.format), inSampler), numLayers(inSpec.numLayers)
+    GfxTexture2DArray::GfxTexture2DArray(const Spec& inSpec, const Sampler2D& inSampler)
+        : GfxTexture2D(GfxTexture2D::Spec(inSpec.width, inSpec.height, inSpec.numMips, inSpec.format), inSampler), numLayers(inSpec.numLayers)
+    {
+    }
+
+#if 0
+    GfxTexture2DArray::GfxTexture2DArray(const char* inName, const Spec& inSpec, const Sampler2D& inSampler)
+        : GfxTexture2D(inName, GfxTexture2D::Spec(inSpec.width, inSpec.height, inSpec.numMips, inSpec.format), inSampler), numLayers(inSpec.numLayers)
     {
 
     }
+#endif
 
-    Texture2DArray::Texture2DArray(const char* inName, const Spec& inSpec, const Sampler2D& inSampler)
-        : Texture2D(inName, Texture2D::Spec(inSpec.width, inSpec.height, inSpec.numMips, inSpec.format), inSampler), numLayers(inSpec.numLayers)
-    {
-
-    }
-
-    void Texture2DArray::init()
+    void GfxTexture2DArray::init()
     {
         glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &glObject);
         glBindTexture(GL_TEXTURE_2D_ARRAY, getGpuResource());
@@ -435,15 +505,16 @@ namespace Cyan
     }
 
     TextureCube::TextureCube(const Spec& inSpec, const SamplerCube& inSampler)
-        : Texture(inSpec.format), resolution(inSpec.resolution), numMips(inSpec.numMips), sampler(inSampler)
+        : GfxTexture(inSpec.format), resolution(inSpec.resolution), numMips(inSpec.numMips), sampler(inSampler)
     {
-
     }
 
+#if 0
     TextureCube::TextureCube(const char* inName, const Spec& inSpec, const SamplerCube& inSampler)
-        : Texture(inName, inSpec.format), resolution(inSpec.resolution), numMips(inSpec.numMips), sampler(inSampler)
+        : GfxTexture(inName, inSpec.format), resolution(inSpec.resolution), numMips(inSpec.numMips), sampler(inSampler)
     {
     }
+#endif
 
     void TextureCube::init()
     {

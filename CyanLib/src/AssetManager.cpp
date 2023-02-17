@@ -7,6 +7,7 @@
 #include <tiny_obj/tiny_obj_loader.h>
 
 #include "AssetManager.h"
+#include "AssetImporter.h"
 #include "Texture.h"
 #include "CyanAPI.h"
 #include "gltf.h"
@@ -158,10 +159,11 @@ namespace Cyan
             sampler.magFilter = FM_BILINEAR;
             sampler.wrapS = Sampler::Addressing::kWrap;
             sampler.wrapT = Sampler::Addressing::kWrap;
-            m_defaultTextures.checkerDark = importTexture2D("default_checker_dark", ASSET_PATH "textures/defaults/checker_dark.png", true, sampler);
-            m_defaultTextures.checkerOrange = importTexture2D("default_checker_orange", ASSET_PATH "textures/defaults/checker_orange.png", true, sampler);
-            m_defaultTextures.gridDark = importTexture2D("default_grid_dark", ASSET_PATH "textures/defaults/grid_dark.png", true, sampler);
-            m_defaultTextures.gridOrange = importTexture2D("default_grid_orange", ASSET_PATH "textures/defaults/grid_orange.png", true, sampler);
+
+            auto checkerDarkImage = AssetImporter::importImageSync("default_checker_dark", ASSET_PATH "textures/defaults/checker_dark.png");
+            m_defaultTextures.checkerDark = createTexture2D("default_checker_dark", checkerDarkImage, sampler);
+            auto gridDarkImage = AssetImporter::importImageSync("default_grid_dark", ASSET_PATH "textures/defaults/grid_dark.png");
+            m_defaultTextures.gridDark = createTexture2D("default_grid_dark", gridDarkImage, sampler);
         }
         {
             Sampler2D sampler = { };
@@ -169,7 +171,8 @@ namespace Cyan
             sampler.magFilter = FM_POINT;
             sampler.wrapS = WM_WRAP;
             sampler.wrapT = WM_WRAP;
-            m_defaultTextures.blueNoise_1024x1024 = AssetManager::importTexture2D("BlueNoise_1024x1024", ASSET_PATH "textures/noise/LDR_RGBA_0.png", false, sampler);
+            auto blueNoiseImage = AssetImporter::importImageSync("BlueNoise_1024x1024", ASSET_PATH "textures/noise/LDR_RGBA_0.png");
+            m_defaultTextures.blueNoise_1024x1024 = createTexture2D("BlueNoise_1024x1024", blueNoiseImage, sampler);
         }
 
 #undef DEFAULT_TEXTURE_FOLDER
@@ -220,6 +223,7 @@ namespace Cyan
 
     void AssetManager::update()
     {
+#if 0
         const u32 workload = 4;
         for (i32 i = 0; i < workload; ++i)
         {
@@ -234,7 +238,7 @@ namespace Cyan
                 task.initFunc(task.asset);
             }
         }
-#if 0
+#else
         {
             std::lock_guard<std::mutex> lock(partiallyLoadedAssetsMutex);
             // todo: auto load balancing
@@ -430,7 +434,7 @@ namespace Cyan
         return outImage;
     }
 
-    Texture2D* AssetManager::importGltfTexture(tinygltf::Model& model, tinygltf::Texture& gltfTexture)
+    GfxTexture2D* AssetManager::importGltfTexture(tinygltf::Model& model, tinygltf::Texture& gltfTexture)
     {
         return nullptr;
     }
@@ -784,37 +788,35 @@ namespace Cyan
         }
     }
 
-    Texture2D* AssetManager::createTexture2D(const char* name, Image* srcImage, bool bGenerateMipmap, const Sampler2D& inSampler)
+    Texture2D* AssetManager::createTexture2D(const char* name, Image* srcImage, const Sampler2D& inSampler)
     {
         Texture2D* outTexture = getAsset<Texture2D>(name);
         if (!outTexture)
         {
-            outTexture = new Texture2D(name, srcImage, bGenerateMipmap, inSampler);
-            outTexture->init();
+            outTexture = new Texture2D(name, srcImage, inSampler);
             singleton->addTexture(outTexture);
         }
         return outTexture;
     }
 
-    Texture2DBindless* AssetManager::createTexture2DBindless(const char* name, Image* srcImage, bool bGenerateMipmap, const Sampler2D& inSampler)
+    Texture2DBindless* AssetManager::createTexture2DBindless(const char* name, Image* srcImage, const Sampler2D& inSampler)
     {
         Texture2DBindless* outTexture = getAsset<Texture2DBindless>(name);
         if (!outTexture)
         {
-            outTexture = new Texture2DBindless(name, srcImage, bGenerateMipmap, inSampler);
-            outTexture->init();
+            outTexture = new Texture2DBindless(name, srcImage, inSampler);
             singleton->addTexture(outTexture);
         }
         return outTexture;
     }
 
 #if 0
-    Texture2D* AssetManager::createTexture2D(const char* name, const Texture2D::Spec& spec, const Sampler2D& inSampler)
+    GfxTexture2D* AssetManager::createTexture2D(const char* name, const GfxTexture2D::Spec& spec, const Sampler2D& inSampler)
     {
-        Texture2D* outTexture = getAsset<Texture2D>(name);
+        GfxTexture2D* outTexture = getAsset<GfxTexture2D>(name);
         if (!outTexture)
         {
-            outTexture = new Texture2D(name, spec, inSampler);
+            outTexture = new GfxTexture2D(name, spec, inSampler);
             outTexture->init();
             singleton->addTexture(outTexture);
         }
@@ -884,24 +886,24 @@ namespace Cyan
         return outImage;
     }
 
-    Texture2D* AssetManager::importTexture2D(const char* textureName, const char* srcImageFile, bool bGenerateMipmap, const Sampler2D& inSampler)
+    Texture2D* AssetManager::importTexture2D(const char* textureName, const char* srcImageFile, const Sampler2D& inSampler)
     {
         Texture2D* outTexture = nullptr;
         Image* image = importImage(srcImageFile, srcImageFile);
         if (image)
         {
-            outTexture = createTexture2D(textureName, image, bGenerateMipmap, inSampler);
+            outTexture = createTexture2D(textureName, image, inSampler);
         }
         return outTexture;
     }
 
-    Texture2D* AssetManager::importTexture2D(const char* textureName, const char* srcImageName, const char* srcImageFile, bool bGenerateMipmap, const Sampler2D& inSampler)
+    Texture2D* AssetManager::importTexture2D(const char* textureName, const char* srcImageName, const char* srcImageFile, const Sampler2D& inSampler)
     {
         Texture2D* outTexture = nullptr;
         Image* image = importImage(srcImageName, srcImageFile);
         if (image)
         {
-            outTexture = createTexture2D(textureName, image, bGenerateMipmap, inSampler);
+            outTexture = createTexture2D(textureName, image, inSampler);
         }
         return outTexture;
     }

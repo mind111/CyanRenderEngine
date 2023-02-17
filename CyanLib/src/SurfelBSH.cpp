@@ -15,8 +15,8 @@ namespace Cyan
     {
         if (!visualization) 
         {
-            Texture2D::Spec spec(1280, 720, 1, PF_RGB16F);
-            visualization = new Texture2D("SurfelBSHVisualization", spec);
+            GfxTexture2D::Spec spec(1280, 720, 1, PF_RGB16F);
+            visualization = GfxTexture2D::create(spec);
         }
     }
 

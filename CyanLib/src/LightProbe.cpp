@@ -8,7 +8,7 @@
 
 namespace Cyan
 {
-    Texture2DBindless* ReflectionProbe::s_BRDFLookupTexture = nullptr;
+    GfxTexture2DBindless* ReflectionProbe::s_BRDFLookupTexture = nullptr;
     PixelPipeline* IrradianceProbe::s_convolveIrradiancePipeline = nullptr;
     PixelPipeline* ReflectionProbe::s_convolveReflectionPipeline = nullptr;
 
@@ -88,8 +88,7 @@ namespace Cyan
         SamplerCube sampler;
         sampler.minFilter = FM_BILINEAR;
         sampler.magFilter = FM_BILINEAR;
-        m_convolvedIrradianceTexture = std::make_unique<TextureCube>("IrradianceProbe", spec, sampler);
-        m_convolvedIrradianceTexture->init();
+        m_convolvedIrradianceTexture = std::unique_ptr<TextureCube>(TextureCube::create(spec, sampler));
 
         if (!s_convolveIrradiancePipeline)
         {
@@ -176,8 +175,7 @@ namespace Cyan
         SamplerCube sampler;
         sampler.minFilter = FM_TRILINEAR;
         sampler.magFilter = FM_BILINEAR;
-        m_convolvedReflectionTexture = std::make_unique<TextureCube>("ReflectionProbe", spec, sampler);
-        m_convolvedReflectionTexture->init();
+        m_convolvedReflectionTexture = std::unique_ptr<TextureCube>(TextureCube::create(spec, sampler));
 
         if (!s_convolveReflectionPipeline)
         {
@@ -194,12 +192,11 @@ namespace Cyan
     }
 
     // todo: fix this, 
-    Texture2DBindless* ReflectionProbe::buildBRDFLookupTexture()
+    GfxTexture2DBindless* ReflectionProbe::buildBRDFLookupTexture()
     {
-        Texture2D::Spec spec(512u, 512u, 1, PF_RGBA16F);
+        GfxTexture2D::Spec spec(512u, 512u, 1, PF_RGBA16F);
         Sampler2D sampler;
-        Texture2DBindless* outTexture = new Texture2DBindless("BRDFLUT", spec, sampler);
-        outTexture->init();
+        GfxTexture2DBindless* outTexture = GfxTexture2DBindless::create(spec, sampler);
 
         RenderTarget* renderTarget = createRenderTarget(outTexture->width, outTexture->height);
         renderTarget->setColorBuffer(outTexture, 0u);

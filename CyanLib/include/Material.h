@@ -41,10 +41,10 @@ namespace Cyan
         GpuMaterial buildGpuMaterial();
 
         std::string name;
-        Texture2DBindless* albedoMap = nullptr;
-        Texture2DBindless* normalMap = nullptr;
-        Texture2DBindless* metallicRoughnessMap = nullptr;
-        Texture2DBindless* occlusionMap = nullptr;
+        GfxTexture2DBindless* albedoMap = nullptr;
+        GfxTexture2DBindless* normalMap = nullptr;
+        GfxTexture2DBindless* metallicRoughnessMap = nullptr;
+        GfxTexture2DBindless* occlusionMap = nullptr;
         glm::vec4 albedo = glm::vec4(0.9f, 0.9f, 0.9f, 1.f);
         f32 metallic = 0.f;
         f32 roughness = .5f;

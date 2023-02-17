@@ -30,7 +30,7 @@ public:
             spec.height = resolution.y;
             spec.type = TEX_2D;
             spec.pixelFormat = PF_RGB16F;
-            m_sceneRenderingOutput = new Texture2D("FrameOutput", spec);
+            m_sceneRenderingOutput = new GfxTexture2D("FrameOutput", spec);
         }
 
         static const char* shaderBalls = ASSET_PATH "mesh/shader_balls.glb";
@@ -422,7 +422,7 @@ public:
         ImGui::EndChild();
     }
 
-    virtual void customRender(Cyan::Renderer* renderer, Cyan::Texture2D* sceneRenderingOutput) override
+    virtual void customRender(Cyan::Renderer* renderer, Cyan::GfxTexture2D* sceneRenderingOutput) override
     {
         /**     
         * render utility widgets(e.g: such as a scene outline window, entity details window)
@@ -457,7 +457,7 @@ private:
     std::unique_ptr<Cyan::RayTracingScene> m_rtxScene = nullptr;
     std::unique_ptr<Cyan::RayTracer> m_rayTracer = nullptr;
     std::vector<std::thread*> spawnedThreads;
-    Cyan::Texture2D* rayTracingOutput = nullptr;
+    Cyan::GfxTexture2D* rayTracingOutput = nullptr;
 };
 
 // entry point

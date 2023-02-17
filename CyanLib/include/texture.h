@@ -15,11 +15,11 @@
 /**
 * convenience macros
 */
-#define TEX_2D Cyan::Texture::Type::kTex2D
-#define TEX_2D_ARRAY Cyan::Texture::Type::kTex2DArray
-#define TEX_DEPTH Cyan::Texture::Type::kDepth2D
-#define TEX_3D Cyan::Texture::Type::kTex3D
-#define TEX_CUBE Cyan::Texture::Type::kTexCube
+#define TEX_2D Cyan::GfxTexture::Type::kTex2D
+#define TEX_2D_ARRAY Cyan::GfxTexture::Type::kTex2DArray
+#define TEX_DEPTH Cyan::GfxTexture::Type::kDepth2D
+#define TEX_3D Cyan::GfxTexture::Type::kTex3D
+#define TEX_CUBE Cyan::GfxTexture::Type::kTexCube
 
 // WM stands for "wrap mode"
 #define WM_CLAMP Cyan::Sampler::Addressing::kClampToEdge
@@ -32,19 +32,22 @@
 #define FM_TRILINEAR Cyan::Sampler::Filtering::kTrilinear
 
 // PF stands for "pixel format" 
-#define PF_R8 Cyan::Texture::Format::kR8
-#define PF_RGB8 Cyan::Texture::Format::kRGB8
-#define PF_RGBA8 Cyan::Texture::Format::kRGBA8
-#define PF_R16F Cyan::Texture::Format::kR16F
-#define PF_RGB16F Cyan::Texture::Format::kRGB16F
-#define PF_RGBA16F Cyan::Texture::Format::kRGBA16F
-#define PF_D24S8 Cyan::Texture::Format::kD24S8
-#define PF_RGB32F Cyan::Texture::Format::kRGB32F
-#define PF_RGBA32F Cyan::Texture::Format::kRGBA32F
+#define PF_R8 Cyan::GfxTexture::Format::kR8
+#define PF_RGB8 Cyan::GfxTexture::Format::kRGB8
+#define PF_RGBA8 Cyan::GfxTexture::Format::kRGBA8
+#define PF_R16F Cyan::GfxTexture::Format::kR16F
+#define PF_RGB16F Cyan::GfxTexture::Format::kRGB16F
+#define PF_RGBA16F Cyan::GfxTexture::Format::kRGBA16F
+#define PF_D24S8 Cyan::GfxTexture::Format::kD24S8
+#define PF_RGB32F Cyan::GfxTexture::Format::kRGB32F
+#define PF_RGBA32F Cyan::GfxTexture::Format::kRGBA32F
 
 namespace Cyan
 {
-    struct Texture : public GpuResource
+    /**
+     * Encapsulate a gl texture
+     */
+    struct GfxTexture : public GpuResource
     {
         enum class Type : u32
         {
@@ -85,17 +88,15 @@ namespace Cyan
             Format format = Format::kCount;
         };
 
-        virtual bool operator==(const Texture& rhs) const = 0;
+        virtual bool operator==(const GfxTexture& rhs) const = 0;
+        virtual ~GfxTexture() { }
 
-        Texture(const Format& inFormat);
-        Texture(const char* inName, const Format& inFormat);
-        virtual ~Texture() { }
-
-        virtual void init() = 0;
-
-        static u32 count;
-        std::string name;
+        // static u32 count;
+        // std::string name;
         Format format;
+    protected:
+        GfxTexture(const Format& inFormat);
+        virtual void init() = 0;
     };
 
     struct Sampler
@@ -122,13 +123,13 @@ namespace Cyan
     };
 
     // samplers
-    struct Texture2D;
-    struct Texture2DArray;
+    struct GfxTexture2D;
+    struct GfxTexture2DArray;
     struct TextureCube;
 
     struct Sampler2D : public Sampler
     {
-        void init(Texture2D* texture);
+        void init(GfxTexture2D* texture);
 
         Addressing wrapS = Addressing::kClampToEdge;
         Addressing wrapT = Addressing::kClampToEdge;
@@ -152,37 +153,37 @@ namespace Cyan
 
     // todo: decouple texture assets from runtime textures, where they will be used for rendering at runtime, 
     // while these normal texture class will inherit from Asset, so they can be serialized / de-serialized
-    struct Texture2D : public Texture, Image::Listener
+    struct GfxTexture2D : public GfxTexture
     {
-        struct Spec : public Texture::Spec
+        struct Spec : public GfxTexture::Spec
         {
             Spec()
-                : Texture::Spec(TEX_2D)
+                : GfxTexture::Spec(TEX_2D)
             {
             }
 
             Spec(const Type& inType)
-                : Texture::Spec(inType)
+                : GfxTexture::Spec(inType)
             {
             }
 
             Spec(const Type& inType, const Format& inFormat)
-                : Texture::Spec(inType, inFormat)
+                : GfxTexture::Spec(inType, inFormat)
             {
             }
 
             Spec(const Spec& srcSpec)
-                : Texture::Spec(TEX_2D, srcSpec.format), width(srcSpec.width), height(srcSpec.height), numMips(srcSpec.numMips)
+                : GfxTexture::Spec(TEX_2D, srcSpec.format), width(srcSpec.width), height(srcSpec.height), numMips(srcSpec.numMips)
             {
             }
 
-            Spec(u32 inWidth, u32 inHeight, u32 inNumMips, Texture::Format inFormat)
-                : Texture::Spec(TEX_2D, inFormat), width(inWidth), height(inHeight), numMips(inNumMips)
+            Spec(u32 inWidth, u32 inHeight, u32 inNumMips, GfxTexture::Format inFormat)
+                : GfxTexture::Spec(TEX_2D, inFormat), width(inWidth), height(inHeight), numMips(inNumMips)
             {
             }
 
-            Spec(const Type& inType, u32 inWidth, u32 inHeight, u32 inNumMips, Texture::Format inFormat)
-                : Texture::Spec(inType, inFormat), width(inWidth), height(inHeight), numMips(inNumMips)
+            Spec(const Type& inType, u32 inWidth, u32 inHeight, u32 inNumMips, GfxTexture::Format inFormat)
+                : GfxTexture::Spec(inType, inFormat), width(inWidth), height(inHeight), numMips(inNumMips)
             {
             }
 
@@ -198,68 +199,151 @@ namespace Cyan
             u32 numMips = 1;
         };
 
-        Texture2D(Image* inImage, bool bGenerateMipmap, const Sampler2D& inSampler = {});
-        Texture2D(const char* inName, Image* inImage, bool bGenerateMipmap, const Sampler2D& inSampler = {});
-        Texture2D(const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
-        Texture2D(const char* inName, const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
+        static GfxTexture2D* create(u8* inPixelData, const Spec& inSpec, const Sampler2D& inSampler = { })
+        {
+            auto outTexture = new GfxTexture2D(inPixelData, inSpec, inSampler);
+            outTexture->init();
+            return outTexture;
+        }
+
+        static GfxTexture2D* create(const Spec& inSpec, const Sampler2D& inSampler = { })
+        {
+            auto outTexture = new GfxTexture2D(inSpec, inSampler);
+            outTexture->init();
+            return outTexture;
+        }
 
         Spec getSpec() const
         {
             return Spec(width, height, numMips, format);
         }
 
-        virtual bool operator==(const Texture& rhs) const override
+        virtual bool operator==(const GfxTexture& rhs) const override
         {
-            if (auto ptr = dynamic_cast<const Texture2D*>(&rhs))
+            if (auto ptr = dynamic_cast<const GfxTexture2D*>(&rhs))
             {
-                return ptr->name == name && ptr->getSpec() == getSpec();
+                return ptr->getSpec() == getSpec();
             }
             return false;
         }
 
-        virtual void init() override;
-
-        /* Image::Listener interface */
-        virtual bool operator==(const Image::Listener& rhs) override;
-        virtual void onImageLoaded() override;
-
-        Image* srcImage = nullptr;
         Sampler2D sampler;
         u32 width = 0;
         u32 height = 0;
         u32 numMips = 1;
+        u8* pixelData = nullptr;
+    protected:
+        /**
+         * Hiding the constructors to force creating these object throught the static create() method, because
+         */
+        GfxTexture2D(u8* inPixelData, const Spec& inSpec, const Sampler2D& inSampler = {});
+        GfxTexture2D(const Spec& inSpec, const Sampler2D& inSampler = {});
+
+        /* GfxTexture interface */
+        virtual void init() override;
     };
 
-    struct Texture2DBindless : public Texture2D
+    struct Texture2DBase : public Asset, Image::Listener 
     {
-        Texture2DBindless(Image* inImage, bool bGenerateMipmap, const Sampler2D& inSampler = {});
-        Texture2DBindless(const char* inName, Image* inImage, bool bGenerateMipmap, const Sampler2D& inSampler = {});
-        Texture2DBindless(const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
-        Texture2DBindless(const char* inName, const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
+        Texture2DBase(const char* inName, Image* inImage, const Sampler2D& inSampler2D);
+        virtual ~Texture2DBase() { }
 
-        virtual void init() override;
+        /* Asset Interface */
+        virtual void import() override;
+        virtual void load() override;
+        virtual void onLoaded() override;
+        virtual void unload() override;
+
+        /* Image::Listener Interface */
+        virtual bool operator==(const Image::Listener& rhs) override
+        {
+            if (const Texture2DBase* texture = dynamic_cast<const Texture2DBase*>(&rhs))
+            {
+                return name == texture->name;
+            }
+            return false;
+        }
+
+        virtual void onImageLoaded() override;
+
+        virtual void initGfxResource() = 0;
+        virtual GfxTexture2D* getGfxResource() = 0;
+
+        Image* srcImage = nullptr;
+        Sampler2D sampler;
+        i32 width = -1;
+        i32 height = -1;
+        i32 numMips = 1;
+    };
+
+    struct Texture2D : public Texture2DBase
+    {
+        Texture2D(const char* inName, Image* inImage, const Sampler2D& inSampler2D);
+        virtual ~Texture2D() { }
+
+        /* Texture2DBase interface */
+        virtual void initGfxResource() override;
+        virtual GfxTexture2D* getGfxResource() override { return gfxTexture.get(); };
+
+        // gfx resource
+        std::shared_ptr<GfxTexture2D> gfxTexture = nullptr;
+    };
+
+    struct GfxTexture2DBindless : public GfxTexture2D
+    {
+        static GfxTexture2DBindless* create(u8* inPixelData, const Spec& inSpec, const Sampler2D& inSampler = Sampler2D())
+        {
+            auto outTexture = new GfxTexture2DBindless(inPixelData, inSpec, inSampler);
+            outTexture->init();
+            return outTexture;
+        }
+
+        static GfxTexture2DBindless* create(const Spec& inSpec, const Sampler2D& inSampler = Sampler2D())
+        {
+            auto outTexture = new GfxTexture2DBindless(inSpec, inSampler);
+            outTexture->init();
+            return outTexture;
+        }
 
 #if BINDLESS_TEXTURE
         u64 glHandle;
 #endif
+    protected:
+        GfxTexture2DBindless(u8* inPixelData, const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
+        GfxTexture2DBindless(const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
+
+        virtual void init() override;
     };
 
-    struct DepthTexture2D : public Texture2D
+    struct Texture2DBindless : public Texture2DBase
     {
-        struct Spec : public Texture2D::Spec 
+        Texture2DBindless(const char* inName, Image* inImage, const Sampler2D& inSampler2D);
+        virtual ~Texture2DBindless() { }
+
+        /* Texture2DBase interface */
+        virtual void initGfxResource() override;
+        virtual GfxTexture2D* getGfxResource() override { return gfxTexture.get(); };
+
+        // gfx resource
+        std::shared_ptr<GfxTexture2DBindless> gfxTexture = nullptr;
+    };
+
+    struct DepthTexture2D : public GfxTexture2D
+    {
+        struct Spec : public GfxTexture2D::Spec 
         {
             Spec()
-                : Texture2D::Spec(TEX_DEPTH, PF_D24S8)
+                : GfxTexture2D::Spec(TEX_DEPTH, PF_D24S8)
             {
             }
 
             Spec(const Spec& srcSpec)
-                : Texture2D::Spec(TEX_DEPTH, srcSpec.width, srcSpec.height, srcSpec.numMips, PF_D24S8)
+                : GfxTexture2D::Spec(TEX_DEPTH, srcSpec.width, srcSpec.height, srcSpec.numMips, PF_D24S8)
             {
             }
 
             Spec(u32 inWidth, u32 inHeight, u32 inNumMips)
-                : Texture2D::Spec(TEX_DEPTH, inWidth, inHeight, numMips, PF_D24S8)
+                : GfxTexture2D::Spec(TEX_DEPTH, inWidth, inHeight, inNumMips, PF_D24S8)
             {
             }
 
@@ -269,54 +353,65 @@ namespace Cyan
             }
         };
 
-        DepthTexture2D(const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
-        DepthTexture2D(const char* inName, const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
+        static DepthTexture2D* create(const Spec& inSpec, const Sampler2D& inSampler = Sampler2D())
+        {
+            auto outTexture = new DepthTexture2D(inSpec, inSampler);
+            outTexture->init();
+            return outTexture;
+        }
 
         Spec getSpec() const
         {
             return Spec(width, height, numMips);
         }
 
-        virtual bool operator==(const Texture& rhs) const override
+        virtual bool operator==(const GfxTexture& rhs) const override
         {
             if (auto ptr = dynamic_cast<const DepthTexture2D*>(&rhs))
             {
-                return ptr->name == name && ptr->getSpec() == getSpec();
+                return ptr->getSpec() == getSpec();
             }
             return false;
         }
+    protected:
+        DepthTexture2D(const DepthTexture2D::Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
 
         virtual void init() override;
     };
 
     struct DepthTexture2DBindless : public DepthTexture2D
     {
-        DepthTexture2DBindless(const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
-        DepthTexture2DBindless(const char* inName, const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
-
-        virtual void init() override;
-
+        static DepthTexture2DBindless* create(const DepthTexture2D::Spec& inSpec, const Sampler2D& inSampler = Sampler2D())
+        {
+            auto outTexture = new DepthTexture2DBindless(inSpec, inSampler);
+            outTexture->init();
+            return outTexture;
+        }
 #if BINDLESS_TEXTURE
         u64 glHandle;
 #endif
+    protected:
+        DepthTexture2DBindless(const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
+        // DepthTexture2DBindless(const char* inName, const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
+        virtual void init() override;
     };
 
-    struct Texture2DArray : public Texture2D
+    struct GfxTexture2DArray : public GfxTexture2D
     {
-        struct Spec : public Texture2D::Spec
+        struct Spec : public GfxTexture2D::Spec
         {
             Spec()
-                : Texture2D::Spec(TEX_2D_ARRAY)
+                : GfxTexture2D::Spec(TEX_2D_ARRAY)
             {
             }
 
             Spec(const Spec& srcSpec)
-                : Texture2D::Spec(TEX_2D_ARRAY, srcSpec.width, srcSpec.height, srcSpec.numMips, srcSpec.format), numLayers(srcSpec.numLayers)
+                : GfxTexture2D::Spec(TEX_2D_ARRAY, srcSpec.width, srcSpec.height, srcSpec.numMips, srcSpec.format), numLayers(srcSpec.numLayers)
             {
             }
 
-            Spec(u32 inWidth, u32 inHeight, u32 inNumMips, u32 inNumLayers, Texture::Format inFormat)
-                : Texture2D::Spec(TEX_2D_ARRAY, inWidth, inHeight, inNumMips, inFormat), numLayers(inNumLayers)
+            Spec(u32 inWidth, u32 inHeight, u32 inNumMips, u32 inNumLayers, GfxTexture::Format inFormat)
+                : GfxTexture2D::Spec(TEX_2D_ARRAY, inWidth, inHeight, inNumMips, inFormat), numLayers(inNumLayers)
             {
             }
 
@@ -328,26 +423,35 @@ namespace Cyan
             u32 numLayers = 1;
         };
 
-        Texture2DArray(const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
-        Texture2DArray(const char* inName, const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
+        static GfxTexture2DArray* create(const GfxTexture2DArray::Spec& inSpec, const Sampler2D& inSampler = Sampler2D())
+        {
+            auto outTexture = new GfxTexture2DArray(inSpec, inSampler);
+            outTexture->init();
+            return outTexture;
+        }
 
         Spec getSpec() const
         {
             return Spec(width, height, numMips, numLayers, format);
         }
 
-        virtual bool operator==(const Texture& rhs) const override
+        virtual bool operator==(const GfxTexture& rhs) const override
         {
-            if (auto ptr = dynamic_cast<const Texture2DArray*>(&rhs))
+            if (auto ptr = dynamic_cast<const GfxTexture2DArray*>(&rhs))
             {
-                return ptr->name == name && ptr->getSpec() == getSpec();
+                return ptr->getSpec() == getSpec();
             }
             return false;
         }
 
+        u32 numLayers = 1;
+
+    protected:
+        /* GfxTexture interface */
         virtual void init() override;
 
-        u32 numLayers = 1;
+        GfxTexture2DArray(const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
+        // GfxTexture2DArray(const char* inName, const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
     };
 
 #if 0
@@ -367,24 +471,24 @@ namespace Cyan
     };
 #endif
 
-    struct TextureCube : public Texture
+    struct TextureCube : public GfxTexture
     {
-        struct Spec : public Texture::Spec
+        struct Spec : public GfxTexture::Spec
         {
             Spec()
-                : Texture::Spec(TEX_CUBE)
+                : GfxTexture::Spec(TEX_CUBE)
             {
 
             }
 
             Spec(const Spec& srcSpec)
-                : Texture::Spec(TEX_CUBE, srcSpec.format), resolution(srcSpec.resolution), numMips(srcSpec.numMips)
+                : GfxTexture::Spec(TEX_CUBE, srcSpec.format), resolution(srcSpec.resolution), numMips(srcSpec.numMips)
             {
 
             }
 
-            Spec(u32 inResolution, u32 inNumMips, Texture::Format inFormat)
-                : Texture::Spec(TEX_CUBE, inFormat), resolution(inResolution), numMips(inNumMips)
+            Spec(u32 inResolution, u32 inNumMips, GfxTexture::Format inFormat)
+                : GfxTexture::Spec(TEX_CUBE, inFormat), resolution(inResolution), numMips(inNumMips)
             {
 
             }
@@ -398,28 +502,36 @@ namespace Cyan
             u32 numMips = 1;
         };
 
-        TextureCube(const Spec& inSpec, const SamplerCube& inSampler = SamplerCube());
-        TextureCube(const char* name, const Spec& inSpec, const SamplerCube& inSampler = SamplerCube());
+        static TextureCube* create(const Spec& inSpec, const SamplerCube& inSampler = SamplerCube())
+        {
+            auto outTexture = new TextureCube(inSpec, inSampler);
+            outTexture->init();
+            return outTexture;
+        }
 
         Spec getSpec() const
         {
             return Spec(resolution, numMips, format);
         }
 
-        virtual bool operator==(const Texture& rhs) const override
+        virtual bool operator==(const GfxTexture& rhs) const override
         {
             if (auto ptr = dynamic_cast<const TextureCube*>(&rhs))
             {
-                return ptr->name == name && ptr->getSpec() == getSpec();
+                return ptr->getSpec() == getSpec();
             }
             return false;
         }
 
-        virtual void init() override;
-
         SamplerCube sampler;
         u32 resolution = 0;
         u32 numMips = 1;
+
+    protected:
+        TextureCube(const Spec& inSpec, const SamplerCube& inSampler = SamplerCube());
+        // TextureCube(const char* name, const Spec& inSpec, const SamplerCube& inSampler = SamplerCube());
+
+        virtual void init() override;
     };
 }
 
@@ -427,9 +539,9 @@ namespace Cyan
 namespace std
 {
     template <>
-    struct hash<Cyan::Texture2D::Spec>
+    struct hash<Cyan::GfxTexture2D::Spec>
     {
-        std::size_t operator()(const Cyan::Texture2D::Spec& spec) const
+        std::size_t operator()(const Cyan::GfxTexture2D::Spec& spec) const
         {
             std::string key = std::to_string(spec.width) + 'x' + std::to_string(spec.height);
             switch (spec.format)

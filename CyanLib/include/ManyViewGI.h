@@ -14,7 +14,7 @@
 namespace Cyan {
     class Renderer;
     class GfxContext;
-    struct Texture2D;
+    struct GfxTexture2D;
     struct TextureCube;
     struct RenderableScene;
     struct RenderTarget;
@@ -41,7 +41,7 @@ namespace Cyan {
             ~Image() { }
 
             void initialize();
-            virtual void setup(const RenderableScene& inScene, Texture2D* depthBuffer, Texture2D* normalBuffer);
+            virtual void setup(const RenderableScene& inScene, GfxTexture2D* depthBuffer, GfxTexture2D* normalBuffer);
             virtual void clear() { }
             virtual void render(ManyViewGI* gi);
 
@@ -58,16 +58,16 @@ namespace Cyan {
             u32 radianceRes;
             glm::uvec2 irradianceRes;
             glm::uvec2 radianceAtlasRes;
-            Texture2D* irradiance = nullptr;
-            Texture2D* radianceAtlas = nullptr;
+            GfxTexture2D* irradiance = nullptr;
+            GfxTexture2D* radianceAtlas = nullptr;
             // "gBuffer"
-            Texture2D* normal = nullptr;
-            Texture2D* position = nullptr;
-            Texture2D* albedo = nullptr;
-            Texture2D* directLighting = nullptr;
-            Texture2D* indirectLighting = nullptr;
-            Texture2D* sceneColor = nullptr;
-            Texture2D* composed = nullptr;
+            GfxTexture2D* normal = nullptr;
+            GfxTexture2D* position = nullptr;
+            GfxTexture2D* albedo = nullptr;
+            GfxTexture2D* directLighting = nullptr;
+            GfxTexture2D* indirectLighting = nullptr;
+            GfxTexture2D* sceneColor = nullptr;
+            GfxTexture2D* composed = nullptr;
         protected:
             struct InstanceDesc 
             {
@@ -92,7 +92,7 @@ namespace Cyan {
             std::vector<glm::vec3> jitteredSampleDirections;
             std::unique_ptr<RenderableScene> scene;
         private:
-            void generateHemicubes(Texture2D* depthBuffer, Texture2D* normalBuffer);
+            void generateHemicubes(GfxTexture2D* depthBuffer, GfxTexture2D* normalBuffer);
             void generateSampleDirections();
 
             u32 nextHemicube = 0;
@@ -103,12 +103,12 @@ namespace Cyan {
         virtual ~ManyViewGI() { }
 
         void initialize();
-        void setup(const RenderableScene& scene, Texture2D* depthBuffer, Texture2D* normalBuffer);
-        void render(RenderTarget* sceneRenderTarget, const RenderableScene& scene, Texture2D* depthBuffer, Texture2D* normalBuffer);
+        void setup(const RenderableScene& scene, GfxTexture2D* depthBuffer, GfxTexture2D* normalBuffer);
+        void render(RenderTarget* sceneRenderTarget, const RenderableScene& scene, GfxTexture2D* depthBuffer, GfxTexture2D* normalBuffer);
 
         // extension points
         virtual void customInitialize();
-        virtual void customSetup(const RenderableScene& scene, Texture2D* depthBuffer, Texture2D* normalBuffer) { }
+        virtual void customSetup(const RenderableScene& scene, GfxTexture2D* depthBuffer, GfxTexture2D* normalBuffer) { }
         virtual void customRender(const RenderableScene::Camera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) { }
         virtual void customRenderScene(RenderableScene& scene, const Hemicube& hemicube, const PerspectiveCamera& camera);
         virtual void customUI() {}
@@ -117,7 +117,7 @@ namespace Cyan {
 
         struct VisualizationBuffers {
             glm::uvec2 resolution = glm::uvec2(640, 360);
-            Texture2D* shared = nullptr;
+            GfxTexture2D* shared = nullptr;
         } visualizations;
 
         struct Opts {
@@ -141,7 +141,7 @@ namespace Cyan {
     class PointBasedManyViewGI : public ManyViewGI {
     public:
         struct Image : public ManyViewGI::Image {
-            virtual void setup(const RenderableScene& inScene, Texture2D* depthBuffer, Texture2D* normalBuffer) override { }
+            virtual void setup(const RenderableScene& inScene, GfxTexture2D* depthBuffer, GfxTexture2D* normalBuffer) override { }
         private: 
             std::vector<Surfel> surfels;
         };
@@ -150,13 +150,13 @@ namespace Cyan {
         ~PointBasedManyViewGI() { }
 
         virtual void customInitialize() override;
-        virtual void customSetup(const RenderableScene& scene, Texture2D* depthBuffer, Texture2D* normalBuffer) override;
+        virtual void customSetup(const RenderableScene& scene, GfxTexture2D* depthBuffer, GfxTexture2D* normalBuffer) override;
         virtual void customRender(const RenderableScene::Camera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) override;
         virtual void customRenderScene(RenderableScene& scene, const Hemicube& hemicube, const PerspectiveCamera& camera) override;
         virtual void customUI() override;
 
         struct Visualizations {
-            Texture2D* rasterizedSurfels = nullptr;
+            GfxTexture2D* rasterizedSurfels = nullptr;
         } visualizations;
 
         struct Opts {
@@ -175,7 +175,7 @@ namespace Cyan {
         bool bVisualizeSurfels = false;
 
     private:
-        void rasterizeSurfelScene(Texture2D* outSceneColor, const RenderableScene::Camera& camera);
+        void rasterizeSurfelScene(GfxTexture2D* outSceneColor, const RenderableScene::Camera& camera);
         enum class VisMode : u32 {
             kAlbedo = 0,
             kRadiance,
@@ -202,7 +202,7 @@ namespace Cyan {
         // raytrace render
         void raytrace(const RenderableScene::Camera& inCamera, const SurfelBSH& surfelBSH);
         void visualize(Renderer* renderer, RenderTarget* visRenderTarget);
-        Texture2D* getVisualization() { return visualization; }
+        GfxTexture2D* getVisualization() { return visualization; }
     private:
         void clear();
         void traverseBSH(const SurfelBSH& surfelBSH, i32 nodeIndex, const RenderableScene::Camera& camera);
@@ -241,8 +241,8 @@ namespace Cyan {
         Buffer2D<i32> postTraversalBuffer;
         std::vector<SurfelBSH::Node> postTraversalList;
 
-        Texture2D* gpuTexture = nullptr;
-        Texture2D* visualization = nullptr;
+        GfxTexture2D* gpuTexture = nullptr;
+        GfxTexture2D* visualization = nullptr;
     };
 
     // todo: implement this!
@@ -259,7 +259,7 @@ namespace Cyan {
         ~MicroRenderingGI() { }
 
         virtual void customInitialize() override;
-        virtual void customSetup(const RenderableScene& scene, Texture2D* depthBuffer, Texture2D* normalBuffer) override;
+        virtual void customSetup(const RenderableScene& scene, GfxTexture2D* depthBuffer, GfxTexture2D* normalBuffer) override;
         virtual void customRender(const RenderableScene::Camera& camera, RenderTarget* sceneRenderTarget, RenderTarget* visRenderTarget) override;
         virtual void customUI() override;
 

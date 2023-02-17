@@ -20,7 +20,7 @@ namespace Cyan
 
         virtual void customInitialize() { }
         virtual void customUpdate() { } 
-        virtual void customRender(Renderer* renderer, Texture2D* sceneRenderingOutput) { }
+        virtual void customRender(Renderer* renderer, GfxTexture2D* sceneRenderingOutput) { }
         virtual void customFinalize() { }
 
     protected:
@@ -33,6 +33,6 @@ namespace Cyan
             app only holds reference to currently active scene.
         */ 
         std::shared_ptr<Scene> m_scene;
-        Texture2D* m_sceneRenderingOutput = nullptr;
+        GfxTexture2D* m_sceneRenderingOutput = nullptr;
     };
 }

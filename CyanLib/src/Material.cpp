@@ -60,7 +60,7 @@ namespace Cyan
         GpuData gpuData = { };
         if (albedoMap != nullptr) 
         {
-            gpuData.albedoMap = albedoMap->glHandle;
+            gpuData.albedoMap = albedoMap->gfxTexture->glHandle;
             gpuData.flag |= (u32)Flags::kHasAlbedoMap;
             if (glIsTextureHandleResidentARB(gpuData.albedoMap) == GL_FALSE) 
             {
@@ -69,7 +69,7 @@ namespace Cyan
         }
         if (normalMap != nullptr)
         {
-            gpuData.normalMap = normalMap->glHandle;
+            gpuData.normalMap = normalMap->gfxTexture->glHandle;
             gpuData.flag |= (u32)Flags::kHasNormalMap;
             if (glIsTextureHandleResidentARB(gpuData.normalMap) == GL_FALSE) 
             {
@@ -78,7 +78,7 @@ namespace Cyan
         }
         if (metallicRoughnessMap != nullptr) 
         {
-            gpuData.metallicRoughnessMap = metallicRoughnessMap->glHandle;
+            gpuData.metallicRoughnessMap = metallicRoughnessMap->gfxTexture->glHandle;
             gpuData.flag |= (u32)Flags::kHasMetallicRoughnessMap;
             if (glIsTextureHandleResidentARB(gpuData.metallicRoughnessMap) == GL_FALSE) 
             {
@@ -87,7 +87,7 @@ namespace Cyan
         }
         if (occlusionMap != nullptr) 
         {
-            gpuData.occlusionMap = occlusionMap->glHandle;
+            gpuData.occlusionMap = occlusionMap->gfxTexture->glHandle;
             gpuData.flag |= (u32)Flags::kHasOcclusionMap;
             if (glIsTextureHandleResidentARB(gpuData.occlusionMap) == GL_FALSE) 
             {

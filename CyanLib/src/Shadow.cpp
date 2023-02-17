@@ -22,8 +22,7 @@ namespace Cyan
         char depthTextureName[64] = { };
         sprintf_s(depthTextureName, "DirectionalShadowmapTexture_%u", IDirectionalShadowMap::numDirectionalShadowMaps);
         DepthTexture2D::Spec spec(resolution.x, resolution.y, 1);
-        depthTexture = std::make_unique<DepthTexture2DBindless>(depthTextureName, spec);
-        depthTexture->init();
+        depthTexture = std::unique_ptr<DepthTexture2DBindless>(DepthTexture2DBindless::create(spec));
     }
 
     void DirectionalShadowMap::render(const BoundingBox3D& lightSpaceAABB, RenderableScene& scene, Renderer* renderer) {
@@ -62,8 +61,7 @@ namespace Cyan
             char depthTextureName[64] = { };
             sprintf_s(depthTextureName, "VarianceShadowmapDepthTexture_%dx%d", resolution.x, resolution.y);
             DepthTexture2D::Spec spec(resolution.x, resolution.y, 1);
-            depthTexture = std::make_unique<DepthTexture2D>(depthTextureName, spec);
-            depthTexture->init();
+            depthTexture = std::unique_ptr<DepthTexture2D>(DepthTexture2D::create(spec));
         }
 
         // create depth squared texture
@@ -71,8 +69,7 @@ namespace Cyan
             char depthSquaredTextureName[64] = { };
             sprintf_s(depthSquaredTextureName, "VarianceShadowmapDepthSquaredTexture_%dx%d", resolution.x, resolution.y);
             DepthTexture2D::Spec spec(resolution.x, resolution.y, 1);
-            depthSquaredTexture = std::make_unique<DepthTexture2D>(depthSquaredTextureName, spec);
-            depthSquaredTexture->init();
+            depthSquaredTexture = std::unique_ptr<DepthTexture2D>(DepthTexture2D::create(spec));
         }
     }
 

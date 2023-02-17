@@ -58,46 +58,46 @@ namespace Cyan {
             u32 bufferSize = kMaxNumHemicubes * sizeof(Hemicube);
             glNamedBufferData(hemicubeBuffer, bufferSize, nullptr, GL_DYNAMIC_COPY);
 
-            Texture2D::Spec radianceAtlasSpec(radianceAtlasRes.x, radianceAtlasRes.y, 1, PF_RGBA16F);
+            GfxTexture2D::Spec radianceAtlasSpec(radianceAtlasRes.x, radianceAtlasRes.y, 1, PF_RGBA16F);
             Sampler2D sampler;
             sampler.magFilter = FM_POINT;
-            radianceAtlas = new Texture2D("RadianceAtlas", radianceAtlasSpec, sampler);
+            radianceAtlas = GfxTexture2D::create(radianceAtlasSpec, sampler);
 
             /** note - @min:
             * it seems imageStore() only supports 1,2,4 channels textures, so using rgba16f here
             */
             {
-                Texture2D::Spec irradianceSpec(irradianceRes.x, irradianceRes.y, 1, PF_RGBA16F);
-                irradiance = new Texture2D("Irradiance", irradianceSpec, Sampler2D());
+                GfxTexture2D::Spec irradianceSpec(irradianceRes.x, irradianceRes.y, 1, PF_RGBA16F);
+                irradiance = GfxTexture2D::create(irradianceSpec, Sampler2D());
             }
             {
-                Texture2D::Spec spec(irradianceRes.x, irradianceRes.y, 1, PF_RGB16F);
-                normal = new Texture2D("MVGINormal", spec, Sampler2D());
-                albedo = new Texture2D("MVGIAlbedo", spec, Sampler2D());
+                GfxTexture2D::Spec spec(irradianceRes.x, irradianceRes.y, 1, PF_RGB16F);
+                normal = GfxTexture2D::create(spec, Sampler2D());
+                albedo = GfxTexture2D::create(spec, Sampler2D());
             }
             {
-                Texture2D::Spec spec(irradianceRes.x, irradianceRes.y, 1, PF_RGBA16F);
-                position = new Texture2D("MVGIPosition", spec, Sampler2D());
+                GfxTexture2D::Spec spec(irradianceRes.x, irradianceRes.y, 1, PF_RGBA16F);
+                position = GfxTexture2D::create(spec, Sampler2D());
             }
             {
-                Texture2D::Spec spec(irradianceRes.x, irradianceRes.y, 1, PF_RGBA16F);
-                directLighting = new Texture2D("MVGIDirectLighting", spec, Sampler2D());
-                indirectLighting = new Texture2D("MVGIIndirectLighting", spec, Sampler2D());
-                sceneColor = new Texture2D("MVGISceneColor", spec, Sampler2D());
-                composed = new Texture2D("MVGIComposed", spec, Sampler2D());
+                GfxTexture2D::Spec spec(irradianceRes.x, irradianceRes.y, 1, PF_RGBA16F);
+                directLighting = GfxTexture2D::create(spec, Sampler2D());
+                indirectLighting = GfxTexture2D::create(spec, Sampler2D());
+                sceneColor = GfxTexture2D::create(spec, Sampler2D());
+                composed = GfxTexture2D::create(spec, Sampler2D());
             }
 
             // register visualizations
             auto renderer = Renderer::get();
-            renderer->registerVisualization("ManyViewGI", radianceAtlas);
-            renderer->registerVisualization("ManyViewGI", irradiance);
-            renderer->registerVisualization("ManyViewGI", position);
-            renderer->registerVisualization("ManyViewGI", normal);
-            renderer->registerVisualization("ManyViewGI", albedo);
-            renderer->registerVisualization("ManyViewGI", directLighting);
-            renderer->registerVisualization("ManyViewGI", indirectLighting);
-            renderer->registerVisualization("ManyViewGI", sceneColor);
-            renderer->registerVisualization("ManyViewGI", composed);
+            renderer->registerVisualization("ManyViewGI", "MVGIRadianceAtlas", radianceAtlas);
+            renderer->registerVisualization("ManyViewGI", "MVGIIrradince", irradiance);
+            renderer->registerVisualization("ManyViewGI", "MVGIPosition", position);
+            renderer->registerVisualization("ManyViewGI", "MVGINormal", normal);
+            renderer->registerVisualization("ManyViewGI", "MVGIAlbedo", albedo);
+            renderer->registerVisualization("ManyViewGI", "MVGIDirectLighting", directLighting);
+            renderer->registerVisualization("ManyViewGI", "MVGIIndirectLighting", indirectLighting);
+            renderer->registerVisualization("ManyViewGI", "MVGISceneColor", sceneColor);
+            renderer->registerVisualization("ManyViewGI", "MVGIComposed", composed);
 
             bInitialized = true;
         }
@@ -107,7 +107,7 @@ namespace Cyan {
     * This pass not only generate hemicubes but also build a "gBuffer" for later use by rendering the scene
     * once and fill out the hemicube ssbo while building other color buffers.
     */
-    void ManyViewGI::Image::generateHemicubes(Texture2D* depthBuffer, Texture2D* normalBuffer) {
+    void ManyViewGI::Image::generateHemicubes(GfxTexture2D* depthBuffer, GfxTexture2D* normalBuffer) {
         auto renderer = Renderer::get();
 
         scene->upload();
@@ -277,7 +277,7 @@ namespace Cyan {
     }
 
 
-    void ManyViewGI::Image::setup(const RenderableScene& inScene, Texture2D* depthBuffer, Texture2D* normalBuffer) 
+    void ManyViewGI::Image::setup(const RenderableScene& inScene, GfxTexture2D* depthBuffer, GfxTexture2D* normalBuffer) 
     {
         // reset workload
         nextHemicube = 0;
@@ -432,13 +432,13 @@ namespace Cyan {
                 * ran into a "incomplete texture" error when setting magnification filter to FM_TRILINEAR
                 */
                 // todo: based on the rendering output, pay attention to the difference between using point/bilinear sampling
-                m_sharedRadianceCubemap = new TextureCube("ManyViewGISharedRadianceCubemap", spec, SamplerCube());
+                m_sharedRadianceCubemap = TextureCube::create(spec, SamplerCube());
             }
             if (!visualizations.shared) {
-                Texture2D::Spec spec(visualizations.resolution.x, visualizations.resolution.y, 1, PF_RGB16F);
-                visualizations.shared = new Texture2D("ManyViewGIVisualization", spec, Sampler2D());
+                GfxTexture2D::Spec spec(visualizations.resolution.x, visualizations.resolution.y, 1, PF_RGB16F);
+                visualizations.shared = GfxTexture2D::create(spec, Sampler2D());
             }
-            m_renderer->registerVisualization("ManyViewGI", visualizations.shared);
+            m_renderer->registerVisualization("ManyViewGI", "Debug", visualizations.shared);
 
             customInitialize();
             bInitialized = true;
@@ -452,13 +452,13 @@ namespace Cyan {
         }
     }
 
-    void ManyViewGI::setup(const RenderableScene& scene, Texture2D* depthBuffer, Texture2D* normalBuffer) 
+    void ManyViewGI::setup(const RenderableScene& scene, GfxTexture2D* depthBuffer, GfxTexture2D* normalBuffer) 
     {
         m_image->setup(scene, depthBuffer, normalBuffer);
         customSetup(*m_scene, depthBuffer, normalBuffer);
     }
 
-    void ManyViewGI::render(RenderTarget* renderTarget, const RenderableScene& scene, Texture2D* depthBuffer, Texture2D* normalBuffer) {
+    void ManyViewGI::render(RenderTarget* renderTarget, const RenderableScene& scene, GfxTexture2D* depthBuffer, GfxTexture2D* normalBuffer) {
         m_image->render(this);
 
         auto visRenderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(
@@ -593,14 +593,14 @@ namespace Cyan {
         {
             if (!visualizations.rasterizedSurfels) 
             {
-                Texture2D::Spec spec(16, 16, 1, PF_RGB16F);
-                visualizations.rasterizedSurfels = new Texture2D("RasterizedSurfelScene", spec, Sampler2D());
+                GfxTexture2D::Spec spec(16, 16, 1, PF_RGB16F);
+                visualizations.rasterizedSurfels = GfxTexture2D::create(spec, Sampler2D());
             }
             bInitialized = true;
         }
     }
 
-    void PointBasedManyViewGI::customSetup(const RenderableScene& scene, Texture2D* depthBuffer, Texture2D* normalBuffer) 
+    void PointBasedManyViewGI::customSetup(const RenderableScene& scene, GfxTexture2D* depthBuffer, GfxTexture2D* normalBuffer) 
     {
         generateWorldSpaceSurfels();
         cacheSurfelDirectLighting();
@@ -716,7 +716,7 @@ namespace Cyan {
 #endif
     }
 
-    void PointBasedManyViewGI::rasterizeSurfelScene(Texture2D* outSceneColor, const RenderableScene::Camera& camera) {
+    void PointBasedManyViewGI::rasterizeSurfelScene(GfxTexture2D* outSceneColor, const RenderableScene::Camera& camera) {
 #if 0
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(outSceneColor->width, outSceneColor->height));
         renderTarget->setColorBuffer(outSceneColor, 0);
@@ -824,12 +824,12 @@ namespace Cyan {
 
         if (!bInitialized) {
             bInitialized = true;
-            m_renderer->registerVisualization("ManyViewGI", m_surfelBSH.getVisualization(), &bVisualizeSurfelBSH);
-            m_renderer->registerVisualization("ManyViewGI", m_softwareMicroBuffer.getVisualization(), &bVisualizeMicroBuffer);
+            m_renderer->registerVisualization("ManyViewGI", "MicroRendering", m_surfelBSH.getVisualization(), &bVisualizeSurfelBSH);
+            m_renderer->registerVisualization("ManyViewGI", "SoftwareMicroBuffer", m_softwareMicroBuffer.getVisualization(), &bVisualizeMicroBuffer);
         }
     }
 
-    void MicroRenderingGI::customSetup(const RenderableScene& scene, Texture2D* depthBuffer, Texture2D* normalBuffer) {
+    void MicroRenderingGI::customSetup(const RenderableScene& scene, GfxTexture2D* depthBuffer, GfxTexture2D* normalBuffer) {
         PointBasedManyViewGI::customSetup(scene, depthBuffer, normalBuffer);
     }
 
@@ -881,13 +881,13 @@ namespace Cyan {
         , postTraversalBuffer(resolution) 
     {
         {
-            Texture2D::Spec spec(resolution, resolution, 1, PF_RGB32F);
-            gpuTexture = new Texture2D("MicroBuffer", spec);
+            GfxTexture2D::Spec spec(resolution, resolution, 1, PF_RGB32F);
+            gpuTexture = GfxTexture2D::create(spec);
         }
 
         {
-            Texture2D::Spec spec(1280, 720, 1, PF_RGB16F);
-            visualization = new Texture2D("MicroBufferVis", spec);
+            GfxTexture2D::Spec spec(1280, 720, 1, PF_RGB16F);
+            visualization = GfxTexture2D::create(spec);
         }
 
         clear();

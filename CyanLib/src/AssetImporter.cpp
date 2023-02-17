@@ -8,16 +8,16 @@
 
 namespace Cyan
 {
-    struct AsyncLoadTask
+    struct AsyncTask
     {
         // todo: learn about move semantic and whether this does save a copy or not
-        AsyncLoadTask(std::function<void()>&& inFunc)
+        AsyncTask(std::function<void()>&& inFunc)
             : loadFunc(std::move(inFunc))
         {
 
         }
 
-        ~AsyncLoadTask() { }
+        ~AsyncTask() { }
 
         void execute()
         {
@@ -45,7 +45,7 @@ namespace Cyan
             }
         }
 
-        void enqueueTask(const AsyncLoadTask& task)
+        void enqueueTask(const AsyncTask& task)
         {
             std::lock_guard<std::mutex> lock(taskQueueMutex);
             taskQueue.push(task);
@@ -58,7 +58,7 @@ namespace Cyan
             {
                 std::unique_lock<std::mutex> lock(taskQueueMutex);
                 wakeCondition.wait(lock, [this]() { return !taskQueue.empty(); });
-                AsyncLoadTask task = taskQueue.front();
+                AsyncTask task = taskQueue.front();
                 taskQueue.pop();
                 lock.unlock();
                 task.execute();
@@ -66,7 +66,7 @@ namespace Cyan
         }
 
         std::mutex taskQueueMutex;
-        std::queue<AsyncLoadTask> taskQueue;
+        std::queue<AsyncTask> taskQueue;
         std::condition_variable wakeCondition;
         std::vector<std::thread> threadPool;
     };
@@ -124,6 +124,62 @@ namespace Cyan
                 singleton->m_gltfImporter->import(outAsset);
             }
         }
+    }
+
+    Image* AssetImporter::importImageSync(const char* imageName, const char* filename)
+    {
+        Image* outImage = AssetManager::getAsset<Image>(imageName);
+        if (outImage == nullptr)
+        {
+            outImage = AssetManager::createImage(imageName);
+            singleton->registerAssetSrcFile(outImage, filename);
+            // import image data immediately
+            singleton->importImageInternal(outImage, filename);
+        }
+        return outImage;
+    }
+
+    Image* AssetImporter::importImageAsync(const char* imageName, const char* filename)
+    {
+        Image* outImage = AssetManager::getAsset<Image>(imageName);
+        if (outImage == nullptr)
+        {
+            outImage = AssetManager::createImage(imageName);
+            singleton->registerAssetSrcFile(outImage, filename);
+
+            AsyncTask task([outImage, filename]() {
+                singleton->importImageInternal(outImage, filename);
+            });
+
+            // async loading image data
+            s_taskManager->enqueueTask(task);
+        }
+        return outImage;
+    }
+
+    void AssetImporter::importImageInternal(Image* outImage, const char* filename)
+    {
+        i32 hdr = stbi_is_hdr(filename);
+        if (hdr)
+        {
+            outImage->bitsPerChannel = 32;
+            outImage->pixels = std::shared_ptr<u8>((u8*)stbi_loadf(filename, &outImage->width, &outImage->height, &outImage->numChannels, 0));
+        }
+        else
+        {
+            i32 is16Bit = stbi_is_16_bit(filename);
+            if (is16Bit)
+            {
+                outImage->pixels = std::shared_ptr<u8>((u8*)stbi_load_16(filename, &outImage->width, &outImage->height, &outImage->numChannels, 0));
+                outImage->bitsPerChannel = 16;
+            }
+            else
+            {
+                outImage->pixels = std::shared_ptr<u8>(stbi_load(filename, &outImage->width, &outImage->height, &outImage->numChannels, 0));
+                outImage->bitsPerChannel = 8;
+            }
+        }
+        assert(outImage->pixels);
     }
 
     void AssetImporter::registerAssetSrcFile(Asset* asset, const char* filename)
@@ -218,6 +274,7 @@ namespace Cyan
                 m_owner->registerAssetSrcFile(mesh, filename);
             }
 
+#if 0
             // lazy import images
             for (i32 i = 0; i < glb->images.size(); ++i)
             {
@@ -242,8 +299,9 @@ namespace Cyan
                 Sampler2D sampler;
                 bool bGenerateMipmap = false;
                 gltf::translateSampler(gltfSampler, sampler, bGenerateMipmap);
-                AssetManager::createTexture2DBindless(texture.name.c_str(), image, bGenerateMipmap, sampler);
+                AssetManager::createTexture2DBindless(texture.name.c_str(), image, sampler);
             }
+#endif
 
             // import materials
 #if 0
@@ -362,7 +420,7 @@ namespace Cyan
                     i32 meshIndex = entry->second;
                     const gltf::Mesh& gltfMesh = mapping->src->meshes[meshIndex];
 
-                    AsyncLoadTask task([this, outMesh, src, &gltfMesh]() {
+                    AsyncTask task([this, outMesh, src, &gltfMesh]() {
                         importMesh(outMesh, *src, gltfMesh);
                     });
 
@@ -378,7 +436,7 @@ namespace Cyan
                     i32 imageIndex = entry->second;
                     const gltf::Image& gltfImage = mapping->src->images[imageIndex];
 
-                    AsyncLoadTask task([this, outImage, src, &gltfImage]() {
+                    AsyncTask task([this, outImage, src, &gltfImage]() {
                         importImage(outImage, *src, gltfImage);
                         outImage->onLoaded();
                     });

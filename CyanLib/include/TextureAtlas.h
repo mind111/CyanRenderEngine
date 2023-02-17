@@ -163,13 +163,13 @@ namespace Cyan
             glm::vec3 padding;
         };
 
-        Texture2DAtlas(u32 inSizeInPixels, const Texture::Format& inFormat)
+        Texture2DAtlas(u32 inSizeInPixels, const GfxTexture::Format& inFormat)
         {
-            Texture2D::Spec spec(inSizeInPixels, inSizeInPixels, log2(inSizeInPixels) + 1, inFormat);
+            GfxTexture2D::Spec spec(inSizeInPixels, inSizeInPixels, log2(inSizeInPixels) + 1, inFormat);
             Sampler2D sampler = { };
             sampler.minFilter = FM_TRILINEAR;
             sampler.magFilter = FM_BILINEAR;
-            atlas = std::make_unique<Cyan::Texture2D>(spec, sampler);
+            atlas = std::unique_ptr<Cyan::GfxTexture2D>(GfxTexture2D::create(spec, sampler));
             imageQuadTree = std::make_unique<ImageQuadTree>(atlas->width);
         }
 
@@ -186,6 +186,6 @@ namespace Cyan
         std::vector<ImageTransform> imageTransforms;
         std::vector<Subtexture> subtextures;
         std::unique_ptr<ImageQuadTree> imageQuadTree;
-        std::unique_ptr<Texture2D> atlas = nullptr;
+        std::unique_ptr<GfxTexture2D> atlas = nullptr;
     };
 }

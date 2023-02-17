@@ -15,21 +15,21 @@ namespace Cyan {
                     u32 bindingUnit = m_nextTextureBindingUnit;
                     if (!m_textureBindingMap.empty())
                     {
-                        auto entry = m_textureBindingMap.find(texture->name);
+                        auto entry = m_textureBindingMap.find(texture->getGpuResource());
                         if (entry != m_textureBindingMap.end())
                         {
                             bindingUnit = entry->second;
                         }
                         else {
                             bindingUnit = m_nextTextureBindingUnit;
-                            m_textureBindingMap.insert({ std::string(texture->name),  bindingUnit });
+                            m_textureBindingMap.insert({ texture->getGpuResource(),  bindingUnit });
                             m_nextTextureBindingUnit = (m_nextTextureBindingUnit + 1) % kMaxNumTextureUnits;
                             numUsedBindings++;
                         }
                     }
                     else
                     {
-                        m_textureBindingMap.insert({ std::string(texture->name),  bindingUnit });
+                        m_textureBindingMap.insert({ texture->getGpuResource(),  bindingUnit});
                         m_nextTextureBindingUnit = (m_nextTextureBindingUnit + 1) % kMaxNumTextureUnits;
                         numUsedBindings++;
                     }
@@ -139,7 +139,7 @@ namespace Cyan {
         }
     }
 
-    void GfxContext::setTexture(Texture* texture, u32 binding) 
+    void GfxContext::setTexture(GfxTexture* texture, u32 binding) 
     {
         // reset a texture unit
         if (!texture)

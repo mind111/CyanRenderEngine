@@ -111,7 +111,7 @@ namespace Cyan
 
     void DefaultApp::render()
     {
-        gEngine->render(m_scene.get(), m_sceneRenderingOutput, [this](Renderer* renderer, Texture2D* sceneRenderingOutput) {
+        gEngine->render(m_scene.get(), m_sceneRenderingOutput, [this](Renderer* renderer, GfxTexture2D* sceneRenderingOutput) {
                 customRender(renderer, sceneRenderingOutput);
             }
         );

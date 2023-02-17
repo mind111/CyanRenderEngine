@@ -79,16 +79,13 @@ namespace Cyan
                 Sampler2D sampler;
                 sampler.minFilter = FM_BILINEAR;
                 sampler.magFilter = FM_BILINEAR;
-                srcEquirectTexture = AssetManager::importTexture2D(imageName.c_str(), srcHDRI, false, sampler);
+                srcEquirectTexture = AssetManager::importTexture2D(imageName.c_str(), srcHDRI, sampler);
             }
 
             u32 numMips = max(log2(1024u), 1) + 1;
             TextureCube::Spec cubemapSpec(1024u, numMips, PF_RGB16F);
             SamplerCube sampler;
-            char cubemapName[128] = { };
-            sprintf(cubemapName, "SkyLightCubemap%u", numInstances);
-            srcCubemap = std::make_unique<TextureCube>(cubemapName, cubemapSpec, sampler);
-            srcCubemap->init();
+            srcCubemap = std::unique_ptr<TextureCube>(TextureCube::create(cubemapSpec, sampler));
 
             irradianceProbe = std::make_unique<IrradianceProbe>(srcCubemap.get(), glm::uvec2(64));
             reflectionProbe = std::make_unique<ReflectionProbe>(srcCubemap.get());
@@ -141,7 +138,7 @@ namespace Cyan
                     );
                     vs->setUniform("projection", camera.projection());
                     vs->setUniform("view", camera.view());
-                    ps->setTexture("srcImageTexture", srcEquirectMap);
+                    ps->setTexture("srcImageTexture", srcEquirectMap->gfxTexture.get());
                 },
                 config
            );

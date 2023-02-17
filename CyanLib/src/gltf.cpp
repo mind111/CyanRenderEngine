@@ -413,7 +413,7 @@ namespace Cyan
                 Sampler2D sampler;
                 bool bGenerateMipmap = false;
                 translateSampler(gltfSampler, sampler, bGenerateMipmap);
-                AssetManager::createTexture2DBindless(texture.name.c_str(), image, bGenerateMipmap, sampler);
+                AssetManager::createTexture2DBindless(texture.name.c_str(), image, sampler);
             }
         }
 
