@@ -203,18 +203,6 @@ namespace Cyan
         }
     }
 
-    void AssetManager::onAssetLoaded(Asset* asset)
-    {
-        std::lock_guard<std::mutex> lock(singleton->loadedAssetsMutex);
-        singleton->loadedAssets.push(asset);
-    };
-
-    void AssetManager::onAssetPartiallyLoaded(Asset* asset, const PartialLoadedFunc& func) 
-    {
-        std::lock_guard<std::mutex> lock(singleton->partiallyLoadedAssetsMutex);
-        singleton->partialLoadedTasks.push({ asset, func });
-    }
-
     void AssetManager::deferredInitAsset(Asset* asset, const AssetInitFunc& inFunc)
     {
         std::lock_guard<std::mutex> lock(singleton->deferredInitMutex);
@@ -223,7 +211,8 @@ namespace Cyan
 
     void AssetManager::update()
     {
-#if 0
+        // todo: fix this
+#if 1
         const u32 workload = 4;
         for (i32 i = 0; i < workload; ++i)
         {

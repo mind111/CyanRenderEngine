@@ -54,7 +54,6 @@ namespace Cyan
         void initialize();
         void update();
         static void import(Scene* scene, const char* filename);
-        static void onAssetLoaded(Asset* asset);
 
         using AssetInitFunc = std::function<void(Asset* asset)>;
         std::mutex deferredInitMutex;
@@ -65,14 +64,6 @@ namespace Cyan
         };
         std::queue<DeferredInitTask> m_deferredInitQueue;
         static void deferredInitAsset(Asset* asset, const AssetInitFunc& inFunc);
-
-        using PartialLoadedFunc = std::function<void(Asset* asset)>;
-        struct PartialLoadedTask
-        {
-            Asset* asset = nullptr;
-            PartialLoadedFunc func;
-        };
-        static void onAssetPartiallyLoaded(Asset* asset, const PartialLoadedFunc& func);
 
         void importGltfNode(Scene* scene, tinygltf::Model& model, Entity* parent, tinygltf::Node& node);
         StaticMesh* importGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh); 
@@ -296,10 +287,5 @@ namespace Cyan
         std::unordered_map<std::string, Texture2DBase*> m_textureMap;
         std::unordered_map<std::string, Material*> m_materialMap;
         std::unordered_map<std::string, MaterialTextureAtlas> m_packedMaterialMap;
-
-        std::mutex loadedAssetsMutex;
-        std::queue<Asset*> loadedAssets;
-        std::mutex partiallyLoadedAssetsMutex;
-        std::queue<PartialLoadedTask> partialLoadedTasks;
     };
 }

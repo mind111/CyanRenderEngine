@@ -174,7 +174,7 @@ namespace Cyan
             inst->addMaterial(AssetManager::getAsset<Material>("DefaultMaterial"));
         }
 
-        AssetManager::onAssetPartiallyLoaded(this, [this, submesh](Asset* asset) {
+        AssetManager::deferredInitAsset(this, [this, submesh](Asset* asset) {
             submesh->init();
         });
     }
