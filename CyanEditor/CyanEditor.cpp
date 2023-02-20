@@ -6,111 +6,20 @@
 #include "CyanEngine.h"
 #include "AssetImporter.h"
 #include "AssetManager.h"
+#include "CyanApp.h"
 
 namespace Cyan
 {
-    class Editor
+    class Editor : public DefaultApp
     {
     public:
         Editor()
+            : DefaultApp(1024, 1024)
         {
-            gEngine = std::make_unique<Engine>(1024, 1024);
-            glm::vec2 windowSize = gEngine->getGraphicsSystem()->getAppWindowDimension();
-            m_currentScene = std::make_unique<Scene>("ShaderBallScene", 1.f);
         }
 
-        ~Editor()
+        virtual void customInitialize() override
         {
-
-        }
-
-        void initialize()
-        {
-            gEngine->initialize();
-
-            // setup default I/O controls 
-            auto IOSystem = gEngine->getIOSystem();
-            IOSystem->addIOEventListener<MouseCursorEvent>([this, IOSystem](f64 xPos, f64 yPos) {
-                glm::dvec2 mouseCursorChange = IOSystem->getMouseCursorChange();
-                if (IOSystem->isMouseRightButtonDown())
-                {
-                    // In radians per pixel 
-                    const float kCameraOrbitSpeed = 0.005f;
-                    const float kCameraRotateSpeed = 0.005f;
-                    // todo: do the correct trigonometry to covert distance traveled in screen space into angle of camera rotation
-                    float phi = mouseCursorChange.x * kCameraOrbitSpeed; 
-                    float theta = mouseCursorChange.y * kCameraOrbitSpeed;
-                    m_currentScene->m_mainCamera->orbit(phi, theta);
-                }
-            });
-
-            IOSystem->addIOEventListener<MouseButtonEvent>([this, IOSystem](i32 button, i32 action) {
-                switch(button)
-                {
-                    case CYAN_MOUSE_BUTTON_RIGHT:
-                    {
-                        if (action == CYAN_PRESS)
-                        {
-                            IOSystem->mouseRightButtonDown();
-                        }
-                        else if (action == CYAN_RELEASE)
-                        {
-                            IOSystem->mouseRightButtonUp();
-                        }
-                        break;
-                    }
-                    default:
-                        break;
-                }
-            });
-
-            IOSystem->addIOEventListener<MouseWheelEvent>([this](f64 xOffset, f64 yOffset) {
-                const f32 speed = 0.3f;
-                m_currentScene->m_mainCamera->zoom(speed * yOffset);
-            });
-
-            IOSystem->addIOEventListener<KeyEvent>([this](i32 key, i32 action) {
-                switch (key)
-                {
-                case GLFW_KEY_W:
-                {
-                    if (action == CYAN_PRESS || action == GLFW_REPEAT)
-                        m_currentScene->m_mainCamera->moveForward();
-                    break;
-                }
-                case GLFW_KEY_A:
-                {
-                    if (action == CYAN_PRESS || action == GLFW_REPEAT)
-                        m_currentScene->m_mainCamera->moveLeft();
-                    break;
-                }
-                case GLFW_KEY_S:
-                {
-                    if (action == CYAN_PRESS || action == GLFW_REPEAT)
-                        m_currentScene->m_mainCamera->moveBack();
-                    break;
-                }
-                case GLFW_KEY_D:
-                {
-                    if (action == CYAN_PRESS || action == GLFW_REPEAT)
-                        m_currentScene->m_mainCamera->moveRight();
-                    break;
-                }
-                default:
-                    break;
-                }
-            });
-
-            // manually install imgui callbacks here per https://github.com/ocornut/imgui/issues/5003
-            ImGui_ImplGlfw_InstallCallbacks(gEngine->getGraphicsSystem()->getAppWindow());
-
-            {
-                glm::uvec2 resolution = gEngine->getGraphicsSystem()->getAppWindowDimension();
-                GfxTexture2D::Spec spec(1024, 1024, 1, PF_RGB16F);
-                auto renderer = Renderer::get();
-                m_sceneRenderingOutput = renderer->createRenderTexture("FrameOutput", spec, Sampler2D());
-            }
-
             static const char* shaderBalls = ASSET_PATH "mesh/shader_balls.glb";
             static const char* sponza = ASSET_PATH "mesh/sponza-gltf-pbr/sponza.glb";
             static const char* sunTemple = ASSET_PATH "mesh/sun_temple/simplified_sun_temple.glb";
@@ -119,41 +28,40 @@ namespace Cyan
             static const char* diorama = ASSET_PATH "mesh/sd_macross_diorama.glb";
             static const char* picapica = ASSET_PATH "mesh/pica_pica_scene.glb";
 
-            AssetImporter::importAsync(m_currentScene.get(), shaderBalls);
+            AssetImporter::importAsync(m_scene.get(), shaderBalls);
 
             // skybox
-            auto skybox = m_currentScene->createSkybox("Skybox", ASSET_PATH "cubemaps/neutral_sky.hdr", glm::uvec2(2048));
+            auto skybox = m_scene->createSkybox("Skybox", ASSET_PATH "cubemaps/neutral_sky.hdr", glm::uvec2(2048));
             // sun light
-            m_currentScene->createDirectionalLight("SunLight", glm::vec3(0.3f, 1.3f, 0.5f), glm::vec4(0.88f, 0.77f, 0.65f, 30.f));
+            m_scene->createDirectionalLight("SunLight", glm::vec3(0.3f, 1.3f, 0.5f), glm::vec4(0.88f, 0.77f, 0.65f, 30.f));
             // sky light 
-            auto skylight = m_currentScene->createSkyLight("SkyLight", ASSET_PATH "cubemaps/neutral_sky.hdr");
+            auto skylight = m_scene->createSkyLight("SkyLight", ASSET_PATH "cubemaps/neutral_sky.hdr");
             skylight->build();
-        }
 
-        void deinitialize()
-        {
+            // overwrite the default rendering lambda
+            m_renderOneFrame = [this](GfxTexture2D* renderingOutput) {
+                auto renderer = Renderer::get();
+                // scene rendering
+                if (m_scene) 
+                {
+                    if (auto camera = dynamic_cast<PerspectiveCamera*>(m_scene->m_mainCamera->getCamera())) 
+                    {
+                        SceneView mainSceneView(*m_scene, *camera,
+                            [](Entity* entity) {
+                                return entity->getProperties() | EntityFlag_kVisible;
+                            },
+                            renderingOutput, 
+                            { 0, 0, renderingOutput->width, renderingOutput->height }
+                        );
+                        renderer->render(m_scene.get(), mainSceneView, glm::uvec2(renderingOutput->width, renderingOutput->height));
+                    }
+                }
 
-        }
+                renderEditorUI();
 
-        void run()
-        {
-            while (1)
-            {
-                update();
-                render();
-            }
-        }
-
-        void update()
-        {
-            gEngine->update();
-            m_currentScene->update();
-        }
-
-        void render()
-        {
-            renderEditorUI();
-            gEngine->render(m_currentScene.get(), m_sceneRenderingOutput);
+                // UI rendering
+                renderer->renderUI();
+            };
         }
 
         void renderEditorUI()
@@ -244,7 +152,7 @@ namespace Cyan
                         Scene* m_scene = nullptr;
                     };
 
-                    static SceneInspectorPanel sceneInspector(m_currentScene.get());
+                    static SceneInspectorPanel sceneInspector(m_scene.get());
                     sceneInspector.render();
                 }
                 ImGui::End();
@@ -389,18 +297,12 @@ namespace Cyan
                 ImGui::End();
             });
         }
-
-    private:
-        std::unique_ptr<Scene> m_currentScene = nullptr;
-        std::unique_ptr<Engine> gEngine = nullptr;
-        GfxTexture2D* m_sceneRenderingOutput = nullptr;
     };
 }
 
 int main()
 {
     std::unique_ptr<Cyan::Editor> editor = std::make_unique<Cyan::Editor>();
-    editor->initialize();
     editor->run();
     return 0;
 }

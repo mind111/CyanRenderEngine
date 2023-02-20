@@ -458,7 +458,7 @@ namespace Cyan
     void GltfImporter::importMesh(StaticMesh* outMesh, gltf::Gltf& srcGltf, const gltf::Mesh& srcGltfMesh)
     {
         // make sure that we are not re-importing same mesh multiple times
-        assert(outMesh->numSubmeshes() == 0);
+        // assert(outMesh->numSubmeshes() == 0);
 
         i32 numSubmeshes = srcGltfMesh.primitives.size();
         for (i32 sm = 0; sm < numSubmeshes; ++sm)

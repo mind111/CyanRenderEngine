@@ -139,6 +139,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\shader\build_hi_z_p.glsl" />
+    <None Include="..\shader\colored_quad_p.glsl" />
     <None Include="..\shader\debug_draw_line_screenspace_v.glsl" />
     <None Include="..\shader\debug_draw_point_v.glsl" />
     <None Include="..\shader\downsample_p.glsl" />

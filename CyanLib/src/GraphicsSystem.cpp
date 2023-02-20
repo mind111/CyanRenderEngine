@@ -194,6 +194,7 @@ namespace Cyan
 
         // ui
         {
+#if 1
             IMGUI_CHECKVERSION();
             ImGui::CreateContext();
 
@@ -214,7 +215,8 @@ namespace Cyan
 
             // font
             static ImFont* gFont = nullptr;
-            gFont = io.Fonts->AddFontFromFileTTF("C:\\dev\\cyanRenderEngine\\asset\\fonts\\Roboto-Medium.ttf", 14.f);
+            gFont = io.Fonts->AddFontFromFileTTF("C:\\dev\\cyanRenderEngine\\asset\\fonts\\Roboto-Medium.ttf", 20.f);
+#endif
         }
     }
 

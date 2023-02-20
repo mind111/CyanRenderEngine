@@ -88,13 +88,10 @@ namespace Cyan
             }
         });
 
-        // manually install imgui callbacks here per https://github.com/ocornut/imgui/issues/5003
-        ImGui_ImplGlfw_InstallCallbacks(gEngine->getGraphicsSystem()->getAppWindow());
-
         // create a default scene that can be modified or overwritten by custom app
         m_scene = std::make_shared<Scene>("DefaultScene", (f32)m_appWindowDimension.x / m_appWindowDimension.y);
 
-        // setup a default rendering lamda which can be overwrittn by child app
+        // setup a default rendering lambda which can be overwritten by child app
         m_renderOneFrame = [this](GfxTexture2D* renderingOutput) {
             auto renderer = Renderer::get();
             // scene rendering

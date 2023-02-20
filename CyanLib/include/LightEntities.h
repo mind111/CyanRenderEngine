@@ -13,6 +13,9 @@ namespace Cyan {
 
         DirectionalLightEntity(Scene* scene, const char* inName, const Transform& t, Entity* inParent);
         DirectionalLightEntity(Scene* scene, const char* inName, const Transform& t, Entity* inParenat, const glm::vec3& direction, const glm::vec4& colorAndIntensity, bool bCastShadow);
+
+        DirectionalLightComponent* getDirectionalLightComponent() { return directionalLightComponent.get(); }
+
     private:
         std::unique_ptr<DirectionalLightComponent> directionalLightComponent = nullptr;
     };

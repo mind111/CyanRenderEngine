@@ -227,7 +227,8 @@ namespace Cyan
         );
     }
 
-    void Renderer::drawScreenQuad(RenderTarget* renderTarget, Viewport viewport, PixelPipeline* pipeline, RenderSetupLambda&& renderSetupLambda) {
+    void Renderer::drawScreenQuad(RenderTarget* renderTarget, Viewport viewport, PixelPipeline* pipeline, RenderSetupLambda&& renderSetupLambda) 
+    {
         GfxPipelineConfig config;
         config.depth = DepthControl::kDisable;
 
@@ -237,6 +238,34 @@ namespace Cyan
             AssetManager::getAsset<StaticMesh>("FullScreenQuadMesh"),
             pipeline,
             renderSetupLambda,
+            config
+        );
+    }
+
+    void Renderer::drawColoredScreenSpaceQuad(RenderTarget* renderTarget, const glm::vec2& screenSpaceMin, const glm::vec2& screenSpaceMax, const glm::vec4& color)
+    {
+        GfxPipelineConfig config;
+        config.depth = DepthControl::kDisable;
+
+        // calc viewport based on quad min and max in screen space
+        Viewport viewport = { };
+        viewport.x = screenSpaceMin.x * renderTarget->width;
+        viewport.y = screenSpaceMin.y * renderTarget->height;
+        viewport.width = (screenSpaceMax.x - screenSpaceMin.x) * renderTarget->width;
+        viewport.height = (screenSpaceMax.y - screenSpaceMin.y) * renderTarget->height;
+
+        CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
+        CreatePS(ps, "ColoredQuadPS", SHADER_SOURCE_PATH "colored_quad_p.glsl");
+        CreatePixelPipeline(pipeline, "ColoredQuad", vs, ps);
+
+        drawMesh(
+            renderTarget,
+            viewport,
+            AssetManager::getAsset<StaticMesh>("FullScreenQuadMesh"),
+            pipeline,
+            [color](VertexShader* vs, PixelShader* ps) {
+                ps->setUniform("color", color);
+            },
             config
         );
     }
@@ -343,6 +372,28 @@ namespace Cyan
                 ps->setTexture("srcTexture", src);
                 ps->setUniform("mip", mip);
             });
+    }
+
+    void Renderer::blitTexture(GfxTexture2D* dst, GfxTexture2D* src)
+    {
+        CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
+        CreatePS(ps, "BlitPS", SHADER_SOURCE_PATH "blit_p.glsl");
+        CreatePixelPipeline(pipeline, "BlitQuad", vs, ps);
+
+        auto renderTarget = createCachedRenderTarget("BlitTexture", dst->width, dst->height);
+        renderTarget->setColorBuffer(dst, 0);
+        renderTarget->setDrawBuffers({ 0 });
+        renderTarget->clearDrawBuffer(0, glm::vec4(.0f, .0f, .0f, 1.f));
+
+        // final blit to default framebuffer
+        drawFullscreenQuad(
+            renderTarget,
+            pipeline,
+            [this, src](VertexShader* vs, PixelShader* ps) {
+                ps->setTexture("srcTexture", src);
+                ps->setUniform("mip", (i32)0);
+            }
+        );
     }
 
     void Renderer::renderToScreen(GfxTexture2D* inTexture)

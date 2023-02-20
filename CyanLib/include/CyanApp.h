@@ -18,9 +18,11 @@ namespace Cyan
         void render();
         void run();
 
+        /**
+         * Allow derived application to overwrite the custom frame rendering function in here
+         */
         virtual void customInitialize() { }
         virtual void customUpdate() { } 
-        virtual void customRender(Renderer* renderer, GfxTexture2D* sceneRenderingOutput) { }
         virtual void customFinalize() { }
 
     protected:

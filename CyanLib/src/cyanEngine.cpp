@@ -45,16 +45,12 @@ namespace Cyan
         m_graphicsSystem->update();
     }
 
-    static Engine::RenderFunc defaultRenderFunc = [](GfxTexture2D* sceneRenderingOutput) {
-
-    };
-
-    void Engine::render(const RenderFunc& renderFunc = defaultRenderFunc)
+    void Engine::render(const RenderFunc& renderOneFrame)
     {
         if (m_graphicsSystem) 
         {
             ScopedTimer rendererTimer("Renderer Timer", false);
-            m_graphicsSystem->render(defaultRenderFunc);
+            m_graphicsSystem->render(renderOneFrame);
             rendererTimer.end();
             renderFrameTime = rendererTimer.m_durationInMs;
         }

@@ -13,3 +13,5 @@ ExternalLib/x64
 TexturePacking/data
 TexturePacking/x64
 TexturePacking/imgui.ini
+CpuRaytracer/x64
+CpuRaytracer/imgui.ini

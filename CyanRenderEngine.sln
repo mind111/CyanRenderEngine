@@ -13,6 +13,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CyanEditor", "CyanEditor\Cy
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TexturePacking", "TexturePacking\TexturePacking.vcxproj", "{05329315-45A2-4F34-B4DE-7C2BBED5DD3C}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CpuRaytracer", "CpuRaytracer\CpuRaytracer.vcxproj", "{7EC12E01-2E00-4D06-8667-03108DD6DA5D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -61,6 +63,14 @@ Global
 		{05329315-45A2-4F34-B4DE-7C2BBED5DD3C}.Release|x64.Build.0 = Release|x64
 		{05329315-45A2-4F34-B4DE-7C2BBED5DD3C}.Release|x86.ActiveCfg = Release|Win32
 		{05329315-45A2-4F34-B4DE-7C2BBED5DD3C}.Release|x86.Build.0 = Release|Win32
+		{7EC12E01-2E00-4D06-8667-03108DD6DA5D}.Debug|x64.ActiveCfg = Debug|x64
+		{7EC12E01-2E00-4D06-8667-03108DD6DA5D}.Debug|x64.Build.0 = Debug|x64
+		{7EC12E01-2E00-4D06-8667-03108DD6DA5D}.Debug|x86.ActiveCfg = Debug|Win32
+		{7EC12E01-2E00-4D06-8667-03108DD6DA5D}.Debug|x86.Build.0 = Debug|Win32
+		{7EC12E01-2E00-4D06-8667-03108DD6DA5D}.Release|x64.ActiveCfg = Release|x64
+		{7EC12E01-2E00-4D06-8667-03108DD6DA5D}.Release|x64.Build.0 = Release|x64
+		{7EC12E01-2E00-4D06-8667-03108DD6DA5D}.Release|x86.ActiveCfg = Release|Win32
+		{7EC12E01-2E00-4D06-8667-03108DD6DA5D}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -892,5 +892,8 @@
     <None Include="..\shader\scene_gbuffer_texture_atlas_p.glsl">
       <Filter>Shaders\Shading</Filter>
     </None>
+    <None Include="..\shader\colored_quad_p.glsl">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>
