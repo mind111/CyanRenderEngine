@@ -88,6 +88,8 @@ namespace Cyan
             }
         });
 
+        ImGui_ImplGlfw_InstallCallbacks(gEngine->getGraphicsSystem()->getAppWindow());
+
         // create a default scene that can be modified or overwritten by custom app
         m_scene = std::make_shared<Scene>("DefaultScene", (f32)m_appWindowDimension.x / m_appWindowDimension.y);
 

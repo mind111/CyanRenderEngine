@@ -203,15 +203,9 @@ namespace Cyan
             io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
 
             ImGui::StyleColorsDark();
-            ImGui::GetStyle().WindowRounding = 0.0f;
-            ImGui::GetStyle().ChildRounding = 0.0f;
-            ImGui::GetStyle().FrameRounding = 0.0f;
-            ImGui::GetStyle().GrabRounding = 0.0f;
-            ImGui::GetStyle().PopupRounding = 0.0f;
-            ImGui::GetStyle().ScrollbarRounding = 0.0f;
 
             ImGui_ImplGlfw_InitForOpenGL(m_glfwWindow, false);
-            ImGui_ImplOpenGL3_Init(nullptr);
+            ImGui_ImplOpenGL3_Init();
 
             // font
             static ImFont* gFont = nullptr;
@@ -237,7 +231,6 @@ namespace Cyan
         m_ctx->clear();
         
         renderOneFrame(m_renderingOutput.get());
-        m_renderer->renderToScreen(m_renderingOutput.get());
 
         m_ctx->flip();
     }

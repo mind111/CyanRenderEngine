@@ -16,10 +16,10 @@
 void transformRayToObjectSpace(glm::vec3& ro, glm::vec3& rd, glm::mat4& transform);
 f32  transformHitFromObjectToWorldSpace(glm::vec3& objectSpaceHit, glm::mat4& transform, const glm::vec3& roWorldSpace, const glm::vec3& rdWorldSpace);
 
-#define EntityFlag_kStatic 1 << (u32)Entity::Mobility::kStatic 
-#define EntityFlag_kDynamic 1 << (u32)Entity::Mobility::kDynamic
-#define EntityFlag_kVisible 1 << (u32)Entity::Visibility::kVisible
-#define EntityFlag_kCastShadow 1 << (u32)Entity::Lighting::kCastShadow
+#define EntityFlag_kStatic 1 << (u32)Cyan::Entity::Mobility::kStatic 
+#define EntityFlag_kDynamic 1 << (u32)Cyan::Entity::Mobility::kDynamic
+#define EntityFlag_kVisible 1 << (u32)Cyan::Entity::Visibility::kVisible
+#define EntityFlag_kCastShadow 1 << (u32)Cyan::Entity::Lighting::kCastShadow
 
 namespace Cyan
 {

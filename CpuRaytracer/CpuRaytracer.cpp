@@ -4,6 +4,9 @@
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_glfw.h>
 #include <imgui/imgui_impl_opengl3.h>
+#include <imgui/imgui_internal.h>
+#include <AssetImporter.h>
+#include <AssetManager.h>
 
 #include "CyanApp.h"
 #include "LightComponents.h"
@@ -377,17 +380,16 @@ namespace Cyan
                         // sanitize start and end
                         glm::ivec2 sanitizedStart, sanitizedEnd;
 
-                        sanitizedStart.x = max(0, start.x);
-                        sanitizedStart.x = min(m_image.width, sanitizedStart.x);
-                        sanitizedStart.y = max(0, start.y);
-                        sanitizedStart.y = min(m_image.height, sanitizedStart.y);
+                        sanitizedStart.x = Max(0, start.x);
+                        sanitizedStart.x = Min(m_image.width, sanitizedStart.x);
+                        sanitizedStart.y = Max(0, start.y);
+                        sanitizedStart.y = Min(m_image.height, sanitizedStart.y);
 
-                        sanitizedEnd.x = max(0, end.x);
-                        sanitizedEnd.x = min(m_image.width, sanitizedEnd.x);
-                        sanitizedEnd.y = max(0, end.y);
-                        sanitizedEnd.y = min(m_image.height, sanitizedEnd.y);
+                        sanitizedEnd.x = Max(0, end.x);
+                        sanitizedEnd.x = Min(m_image.width, sanitizedEnd.x);
+                        sanitizedEnd.y = Max(0, end.y);
+                        sanitizedEnd.y = Min(m_image.height, sanitizedEnd.y);
 
-                        // todo: stop condition seems wrong!!
                         // stop marching if a tile's start goes outside of the image, which means the rendering is finished
                         if (sanitizedEnd.x <= sanitizedStart.x && sanitizedEnd.y <= sanitizedEnd.y)
                         {
@@ -505,24 +507,52 @@ public:
     virtual void customInitialize() override
     {
         // building the scene
+        Cyan::AssetImporter::importAsync(m_scene.get(), ASSET_PATH "mesh/raytracing_test_scene.glb");
+        // sun light
+        m_scene->createDirectionalLight("SunLight", glm::vec3(0.3f, 1.3f, 0.5f), glm::vec4(0.88f, 0.77f, 0.65f, 10.f));
 
         // override rendering lambda
         m_renderOneFrame = [this](Cyan::GfxTexture2D* renderingOutput) {
             auto renderer = Cyan::Renderer::get();
             // normal scene rendering
+            if (m_scene)
+            {
+                if (auto camera = dynamic_cast<Cyan::PerspectiveCamera*>(m_scene->m_mainCamera->getCamera())) 
+                {
+                    Cyan::SceneView mainSceneView(*m_scene, *camera,
+                        [](Cyan::Entity* entity) {
+                            return entity->getProperties() | EntityFlag_kVisible;
+                        },
+                        renderingOutput, 
+                        { 0, 0, renderingOutput->width, renderingOutput->height }
+                    );
+                    renderer->render(m_scene.get(), mainSceneView, glm::uvec2(renderingOutput->width, renderingOutput->height));
+                }
+            }
 
             // render a progress bar and update renderingOutput when a tile has finished rendering
             m_cpuRaytracer->render(m_raytracedOutput.get());
 
             // UI rendering
-            renderRaytracingViewport(m_raytracedOutput.get());
+            renderApp(renderingOutput, m_raytracedOutput.get());
             renderer->renderUI();
         };
     }
-
-    void renderRaytracingViewport(Cyan::GfxTexture2D* raytracedOutput)
+    
+    void renderApp(Cyan::GfxTexture2D* renderingOutput, Cyan::GfxTexture2D* raytracedOutput)
     {
         auto renderer = Cyan::Renderer::get();
+
+        renderer->addUIRenderCommand([this, renderingOutput]() {
+            ImGui::DockSpaceOverViewport();
+            auto flags = ImGuiWindowFlags_NoBackground;
+            ImGui::Begin("App", nullptr, flags);
+            {
+                ImGui::Image((ImTextureID)renderingOutput->getGpuResource(), ImGui::GetContentRegionAvail(), ImVec2(0, 1), ImVec2(1, 0));
+            }
+            ImGui::End();
+        });
+
         renderer->addUIRenderCommand([this, raytracedOutput]() {
             ImGui::Begin("Raytracer Render View", nullptr, ImGuiWindowFlags_NoResize);
             {
@@ -536,12 +566,18 @@ public:
                 totalHeight += ImGui::GetItemRectSize().y;
                 ImGui::Separator();
                 totalHeight += ImGui::GetItemRectSize().y;
-                ImGui::Image((ImTextureID)raytracedOutput->getGpuResource(), ImVec2(raytracedOutput->width, raytracedOutput->height), ImVec2(0, 1), ImVec2(1, 0));
+                ImVec2 imageSize = ImGui::GetContentRegionAvail();
+                ImGui::Image((ImTextureID)raytracedOutput->getGpuResource(), imageSize, ImVec2(0, 1), ImVec2(1, 0));
                 totalHeight += ImGui::GetItemRectSize().y;
                 ImGui::SetWindowSize("Raytracer Render View", ImVec2(1024.f, totalHeight + 30.f));
             }
             ImGui::End();
         });
+    }
+
+    void renderRaytracingViewport(Cyan::GfxTexture2D* raytracedOutput)
+    {
+        auto renderer = Cyan::Renderer::get();
     }
 
 private:
