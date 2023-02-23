@@ -98,7 +98,6 @@ namespace Cyan
         static GlobalVertexBuffer& getGlobalVertexBuffer();
         static GlobalIndexBuffer& getGlobalIndexBuffer();
 
-        std::string name;
         BoundingBox3D aabb;
 
         std::mutex submeshMutex;

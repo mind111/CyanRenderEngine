@@ -25,6 +25,8 @@ namespace Cyan
             glm::vec3 up;
             f32 fov;
             f32 aspect;
+            f32 n;
+            f32 f;
         };
 
         struct RectLight
@@ -69,10 +71,11 @@ namespace Cyan
                 camera.lookAt = inCamera->lookAt;
                 camera.aspect = inCamera->aspectRatio;
                 camera.fov = inCamera->fov;
-                const glm::vec3 worldUp = glm::vec3(1.f);
-                camera.forward = glm::normalize(camera.lookAt - camera.eye);
-                camera.right = glm::cross(camera.forward, worldUp);
-                camera.up = glm::cross(camera.right, camera.forward);
+                camera.forward = inCamera->forward();
+                camera.right = inCamera->right();
+                camera.up = inCamera->up();
+                camera.n = inCamera->n;
+                camera.f = inCamera->f;
             }
 
             // maps a mesh to index in the primitive array
@@ -87,15 +90,18 @@ namespace Cyan
                 {
                     auto meshInstance = staticMeshEntity->getMeshInstance();
                     auto mesh = meshInstance->mesh;
+                    // todo: found a bug here, mesh doesn't have a name
                     auto meshEntry = meshMap.find(mesh->name);
 
                     if (meshEntry == meshMap.end())
                     {
                         i32 basePrimitiveID = primitives.size();
-
                         for (i32 i = 0; i < mesh->numSubmeshes(); ++i)
                         {
                             Instance instance = { };
+                            instance.localToWorld = staticMeshEntity->getWorldTransformMatrix();
+                            instance.primitiveID = basePrimitiveID + i;
+                            instances.push_back(instance);
 
                             auto sm = mesh->getSubmesh(i);
                             if (auto triangles = dynamic_cast<Triangles*>(sm->geometry))
@@ -103,8 +109,8 @@ namespace Cyan
                                 primitives.emplace_back();
 
                                 Primitive& primitive = primitives.back();
-                                primitive.positions.resize(triangles->numVertices() * 3);
-                                primitive.normals.resize(triangles->numVertices() * 3);
+                                primitive.positions.resize(triangles->numVertices());
+                                primitive.normals.resize(triangles->numVertices());
                                 primitive.indices = triangles->indices;
 
                                 // fill in geometry data
@@ -114,30 +120,33 @@ namespace Cyan
                                     primitive.positions[v] = vertex.pos;
                                     primitive.normals[v] = vertex.normal;
                                 }
-
-                                // get material data
-                                Cyan::Material* material = meshInstance->getMaterial(i);
-                                auto materialEntry = materialMap.find(material->name);
-
-                                if (materialEntry != materialMap.end())
-                                {
-                                    instance.materialID = materialEntry->second;
-                                }
-                                else
-                                {
-                                    instance.materialID = materials.size();
-
-                                    materials.emplace_back();
-                                    Material& newMaterial = materials.back();
-                                    newMaterial.albedo = material->albedo;
-                                    newMaterial.roughness = material->roughness;
-                                    newMaterial.metallic = material->metallic;
-                                }
-
-                                instance.primitiveID = basePrimitiveID + i;
                             }
-
+                        }
+                        meshMap.insert({ mesh->name, basePrimitiveID });
+                    }
+                    else
+                    {
+                        u32 basePrimitiveID = meshEntry->second;
+                        for (i32 i = 0; i < mesh->numSubmeshes(); ++i)
+                        {
+                            Instance instance = { };
+                            instance.localToWorld = staticMeshEntity->getWorldTransformMatrix();
+                            instance.primitiveID = basePrimitiveID + i;
                             instances.push_back(instance);
+                        }
+                    }
+
+                    for (i32 i = 0; i < mesh->numSubmeshes(); ++i)
+                    {
+                        auto material = meshInstance->getMaterial(i);
+                        auto materialEntry = materialMap.find(material->name);
+                        if (materialEntry == materialMap.end())
+                        {
+
+                        }
+                        else
+                        {
+
                         }
                     }
                 }
@@ -160,6 +169,7 @@ namespace Cyan
         std::vector<Primitive> primitives;
         std::vector<Material> materials;
         std::vector<Instance> instances;
+        std::vector<glm::mat4> transforms;
     };
 
     class CpuRaytracer
@@ -175,11 +185,12 @@ namespace Cyan
         {
             f32 t;
             i32 instanceID;
+            i32 triangleID;
         };
 
         struct SurfaceAttributes
         {
-            glm::vec2 worldSpacePosition;
+            glm::vec3 worldSpacePosition;
             glm::vec3 worldSpaceNormal;
             glm::vec3 albedo;
             f32 roughness;
@@ -303,7 +314,6 @@ namespace Cyan
 
             if (bRendering)
             {
-                // todo: render a simple progress bar on top of the rendered image as long as the rendering is not finished
                 glm::vec2 outerScale = glm::vec2(.8, .04);
                 glm::vec2 innerScale = outerScale * glm::vec2(.99f, 0.95);
                 glm::vec2 translation = glm::vec2(0.f, -0.8f);
@@ -317,7 +327,7 @@ namespace Cyan
                 f32 progress = renderedPixelCounter / (f32)m_image.numPixels();
 
                 glm::vec2 innerMin = glm::vec2(-1.f * innerScale.x, -1.f * innerScale.y) + translation;
-                glm::vec2 innerMax = glm::vec2( 1.f * innerScale.x * progress, 1.f * innerScale.y) + translation;
+                glm::vec2 innerMax = glm::vec2((-1.f + progress * 2.f) * innerScale.x, 1.f * innerScale.y) + translation;
                 renderer->drawColoredScreenSpaceQuad(m_renderTarget.get(), innerMin * .5f + .5f, innerMax * .5f + .5f, glm::vec4(0.f, 1.f, 0.f, 1.f));
             }
         }
@@ -351,7 +361,7 @@ namespace Cyan
                     kCount
                 };
 
-                std::thread thread([this]() {
+                std::thread thread([this, scene]() {
 
                     const glm::ivec2 marchingDirections[(u32)TileRenderingOrder::kCount] = {
                         glm::ivec2(0, -1),
@@ -402,15 +412,18 @@ namespace Cyan
                         {
                             for (i32 x = sanitizedStart.x; x < sanitizedEnd.x; ++x)
                             {
-#if 0
-                                Ray ray = buildCameraRay(scene.camera, glm::uvec2(x, y));
+#if 1
+                                glm::vec3 sceneColor = glm::vec3(.15f);
+                                Ray ray = buildCameraRay(scene.camera, glm::uvec2(x, y), glm::uvec2(m_image.width, m_image.height));
                                 HitRecord hitRecord = { };
                                 if (trace(ray, scene, hitRecord))
                                 {
                                     SurfaceAttributes sa = { };
-                                    calcSurfaceAttributes(scene, hitRecord, sa);
-                                    glm::vec3 outColor = shade(scene, sa);
+                                    calcSurfaceAttributes(ray, scene, hitRecord, sa);
+                                    sceneColor = shade(scene, sa);
                                 }
+                                glm::vec3 finalColor = postprocess(sceneColor);
+                                m_image.writePixel(glm::ivec2(x, y), finalColor);
 #else // for debugging purpose
                                 // glm::vec2 texCoord = glm::vec2(x, y) / glm::vec2(m_image.width, m_image.height);
                                 glm::vec2 texCoord = (glm::vec2(x, y) - glm::vec2(start)) / glm::vec2(tileSize);
@@ -429,9 +442,6 @@ namespace Cyan
                         std::unique_lock<std::mutex> lock(mutex);
                         m_tileQueue.push(completedTile);
                         lock.unlock();
-
-                        // slow down the rendering
-                        std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
                         // change direction
                         glm::ivec2 direction = marchingDirections[numDirectionSwitches % (u32)TileRenderingOrder::kCount];
@@ -457,26 +467,272 @@ namespace Cyan
         }
 
     private:
-        Ray buildCameraRay(const RaytracingScene::Camera& camera, const glm::uvec2& pixelCoord) { }
+        Ray buildCameraRay(const RaytracingScene::Camera& camera, const glm::uvec2& pixelCoord, const glm::uvec2& imageSize)
+        { 
+            glm::vec2 uv = (glm::vec2(pixelCoord) + .5f) / glm::vec2(imageSize) * 2.f - 1.f;
+            /** note:
+                * I was used to calculate ray direction using camera.right * uv.x + camera.up * uv.y + camera.forward * n as I thought the image plane should be
+                displaced n away from the camera. However, fixing uv while tweaking n is actually changing the fov, leading to rendered image having a mismatched
+                fov compared to rasterized view.
+             */
+            // calculate the distance between image plane and camera given camera fov
+            f32 d = 1.f / glm::tan(glm::radians(camera.fov * .5f));
+            glm::vec3 rd = glm::normalize(camera.right * uv.x + camera.up * uv.y + camera.forward * d);
+            return Ray{ camera.eye, rd };
+        }
 
-        void calcSurfaceAttributes(const RaytracingScene& scene, HitRecord& hitRecord, SurfaceAttributes& outAttribs)
+        glm::vec3 calcBarycentrics(const glm::vec3& p, const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2)
         {
-            // using barycentric coordinates interpolation to get per-pixel surface attributes
+            f32 totalArea = glm::length(glm::cross(v1 - v0, v2 - v0));
+
+            f32 w = glm::length(glm::cross(v1 - v0, p - v0)) / totalArea;
+            f32 v = glm::length(glm::cross(v2 - v0, p - v0)) / totalArea;
+            f32 u = 1.f - v - w;
+            return glm::vec3(u, v, w);
+        }
+
+        void calcSurfaceAttributes(const Ray& ray, const RaytracingScene& scene, HitRecord& hitRecord, SurfaceAttributes& outAttribs)
+        {
+            if (hitRecord.instanceID >= 0)
+            {
+                // using barycentric coordinates interpolation to get per-pixel surface attributes
+                const RaytracingScene::Instance& instance = scene.instances[hitRecord.instanceID];
+                const RaytracingScene::Primitive& primitive = scene.primitives[instance.primitiveID];
+                glm::vec3 p = ray.ro + hitRecord.t * ray.rd;
+                i32 i0 = primitive.indices[hitRecord.triangleID * 3 + 0];
+                i32 i1 = primitive.indices[hitRecord.triangleID * 3 + 1];
+                i32 i2 = primitive.indices[hitRecord.triangleID * 3 + 2];
+                glm::vec3 v0 = primitive.positions[i0];
+                glm::vec3 v1 = primitive.positions[i1];
+                glm::vec3 v2 = primitive.positions[i2];
+                glm::vec3 n0 = primitive.normals[i0];
+                glm::vec3 n1 = primitive.normals[i1];
+                glm::vec3 n2 = primitive.normals[i2];
+                glm::vec3 barycentrics = calcBarycentrics(p, v0, v1, v2);
+                glm::vec3 localPosition = v0 * barycentrics.x + v1 * barycentrics.y + v2 * barycentrics.z;
+                glm::vec3 localNormal = glm::normalize(n0 * barycentrics.x + n1 * barycentrics.y + n2 * barycentrics.z);
+
+                outAttribs.worldSpacePosition = ray.ro + hitRecord.t * ray.rd;
+                outAttribs.worldSpaceNormal = glm::normalize(glm::inverse(glm::transpose(instance.localToWorld)) * glm::vec4(localNormal, 0.f));
+                if (instance.materialID >= 0)
+                {
+                    outAttribs.albedo = scene.materials[instance.materialID].albedo;
+                    outAttribs.metallic = scene.materials[instance.materialID].metallic;
+                    outAttribs.roughness = scene.materials[instance.materialID].roughness;
+                }
+                else
+                {
+                    outAttribs.albedo = glm::vec3(.8f);
+                    outAttribs.metallic = 0.f;
+                    outAttribs.roughness = .5f;
+                }
+            }
+        }
+
+        // taken from https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
+        f32 intersect(const Ray& ray, const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2)
+        {
+            const float EPSILON = 0.0000001;
+            glm::vec3 edge1 = v1 - v0;
+            glm::vec3 edge2 = v2 - v0;
+            glm::vec3 h, s, q;
+            float a,f,u,v;
+            h = glm::cross(ray.rd, edge2);
+            // a = glm::dot(edge1, h);
+            a = edge1.x * h.x + edge1.y * h.y + edge1.z * h.z;
+            if (fabs(a) < EPSILON)
+            {
+                return -1.0f;
+            }
+            f = 1.0f / a;
+            s = ray.ro - v0;
+            // u = f * dot(s, h);
+            u = f * (s.x*h.x + s.y*h.y + s.z*h.z);
+            if (u < 0.0 || u > 1.0)
+            {
+                return -1.0;
+            }
+            q = glm::cross(s, edge1);
+            v = f * (ray.rd.x*q.x + ray.rd.y*q.y + ray.rd.z*q.z);
+            if (v < 0.0 || u + v > 1.0)
+            {
+                return -1.0;
+            }
+            float t = f * glm::dot(edge2, q);
+            // hit
+            if (t > EPSILON)
+            {
+                return t;
+            }
+            return -1.0f;
+        }
+
+        bool traceShadow(const Ray& ray, const RaytracingScene& scene)
+        {
+            bool bAnyHit = false;
+
+            // brute-force tracing for now
+            for (const auto& instance : scene.instances)
+            {
+                // transform ray to object space
+                Ray localRay = { ray.ro, ray.rd };
+                glm::mat4 worldToLocal = glm::inverse(instance.localToWorld);
+                localRay.ro = worldToLocal * glm::vec4(ray.ro, 1.f);
+                localRay.rd = worldToLocal * glm::vec4(ray.rd, 0.f);
+
+                const RaytracingScene::Primitive& p = scene.primitives[instance.primitiveID];
+                assert(p.indices.size() % 3 == 0);
+                u32 numTriangles = p.indices.size() / 3;
+                for (i32 tri = 0; tri < numTriangles; ++tri)
+                {
+                    glm::vec3 v0 = p.positions[p.indices[tri * 3 + 0]];
+                    glm::vec3 v1 = p.positions[p.indices[tri * 3 + 1]];
+                    glm::vec3 v2 = p.positions[p.indices[tri * 3 + 2]];
+                    f32 localT = intersect(localRay, v0, v1, v2);
+                    if (localT >= 0.f)
+                    {
+                        bAnyHit = true;
+                        break;
+                    }
+                }
+            }
+
+            return bAnyHit;
         }
 
         bool trace(const Ray& ray, const RaytracingScene& scene, HitRecord& outHit)
         {
+            outHit.instanceID = -1;
+            outHit.triangleID = -1;
+
+            f32 closestWorldT = FLT_MAX;
+            // brute-force tracing for now
+            i32 instanceID = 0;
+            for (const auto& instance : scene.instances)
+            {
+                // transform ray to object space
+                Ray localRay = { ray.ro, ray.rd };
+                glm::mat4 worldToLocal = glm::inverse(instance.localToWorld);
+                localRay.ro = worldToLocal * glm::vec4(ray.ro, 1.f);
+                localRay.rd = worldToLocal * glm::vec4(ray.rd, 0.f);
+
+                const RaytracingScene::Primitive& p = scene.primitives[instance.primitiveID];
+                assert(p.indices.size() % 3 == 0);
+                u32 numTriangles = p.indices.size() / 3;
+                i32 triangleID = -1;
+                f32 closesLocalT = FLT_MAX;
+                for (i32 tri = 0; tri < numTriangles; ++tri)
+                {
+                    glm::vec3 v0 = p.positions[p.indices[tri * 3 + 0]];
+                    glm::vec3 v1 = p.positions[p.indices[tri * 3 + 1]];
+                    glm::vec3 v2 = p.positions[p.indices[tri * 3 + 2]];
+                    f32 localT = intersect(localRay, v0, v1, v2);
+                    if (localT >= 0.f && localT < closesLocalT)
+                    {
+                        closesLocalT = localT;
+                        triangleID = tri;
+                    }
+                }
+                if (triangleID >= 0)
+                {
+                    // transform closest local hit position back to world space and compared with world space hit position
+                    glm::vec3 localHitPosition = localRay.ro + closesLocalT * localRay.rd;
+                    glm::vec3 worldSpaceHitPos = instance.localToWorld * glm::vec4(localHitPosition, 1.f);
+                    f32 worldT = (worldSpaceHitPos.x - ray.ro.x) / ray.rd.x;
+                    if (worldT < closestWorldT)
+                    {
+                        closestWorldT = worldT;
+
+                        outHit.instanceID = instanceID;
+                        outHit.triangleID = triangleID;
+                        outHit.t = worldT;
+                    }
+                }
+
+                instanceID++;
+            }
+            return outHit.instanceID >= 0;
+        }
+
+#define RAY_BUMP 0.001f
+
+        f32 calcAO(const RaytracingScene& scene, const SurfaceAttributes& attributes)
+        { 
+            const i32 kNumSamples = 16;
+            f32 ao = 0.f;
+            for (i32 i = 0; i < kNumSamples; ++i)
+            {
+                Ray ray = { };
+                ray.ro = attributes.worldSpacePosition + attributes.worldSpaceNormal * RAY_BUMP;
+                ray.rd = cosineWeightedSampleHemisphere(attributes.worldSpaceNormal);
+                ao += traceShadow(ray, scene) ? 0.f : 1.f;
+            }
+            return ao / (f32)kNumSamples;
+        }
+
+        glm::vec3 calcDirectLighting(const RaytracingScene& scene, const SurfaceAttributes& attributes)
+        {
+            glm::vec3 outColor(0.f);
+
+            const auto& sunLight = scene.sunLight;
+            glm::vec3 li = sunLight.color * sunLight.intensity;
+            f32 ndotl = glm::max(glm::dot(sunLight.direction, attributes.worldSpaceNormal), 0.f);
+
+            Ray shadowRay = { };
+            shadowRay.ro = attributes.worldSpacePosition + attributes.worldSpaceNormal * RAY_BUMP;
+            shadowRay.rd = sunLight.direction;
+            f32 shadow = traceShadow(shadowRay, scene) ? 0.f : 1.f;
+            outColor += (li * shadow) * attributes.albedo / glm::pi<f32>() * ndotl;
+
+#if 0
+            const glm::vec3 ambient(0.529f, 0.808f, 0.922f);
+            outColor += ambient * calcAO(scene, attributes);
+#endif
+            // todo: direct skylight using HDR
+
+            return outColor;
+        }
+
+        glm::vec3 calcIndirectLighting(const RaytracingScene& scene, const SurfaceAttributes& attributes)
+        {
+            const i32 kNumDiffuseSamples = 64u;
+
+            glm::vec3 irradiance(0.f);
+            // one diffuse indirect bounce
+            for (i32 i = 0; i < kNumDiffuseSamples; ++i)
+            {
+                Ray ray = { };
+                ray.ro = attributes.worldSpacePosition + attributes.worldSpaceNormal * RAY_BUMP;
+                ray.rd = cosineWeightedSampleHemisphere(attributes.worldSpaceNormal);
+                HitRecord outHit;
+                if (trace(ray, scene, outHit))
+                {
+                    SurfaceAttributes sa;
+                    calcSurfaceAttributes(ray, scene, outHit, sa);
+                    glm::vec3 radiance = calcDirectLighting(scene, sa);
+                    irradiance += radiance;
+                }
+            }
+            irradiance /= (f32)kNumDiffuseSamples;
+            return irradiance;
         }
 
         glm::vec3 shade(const RaytracingScene& scene, const SurfaceAttributes& attributes)
         {
             glm::vec3 sceneColor(0.f);
+            sceneColor += calcDirectLighting(scene, attributes);
+            sceneColor += calcIndirectLighting(scene, attributes);
             return sceneColor;
         }
 
-        glm::vec3 postprocess()
+        glm::vec3 postprocess(const glm::vec3& inColor)
         {
-            glm::vec3 finalColor(0.f);
+            glm::vec3 finalColor = inColor;
+            // simple tonemapping
+            finalColor /= finalColor + 1.f;
+            finalColor = glm::smoothstep(0.f, 1.f, finalColor);
+            // gamma
+            finalColor = glm::vec3(glm::pow(finalColor.x, 0.4545f), glm::pow(finalColor.y, .4545f), glm::pow(finalColor.z, .4545f));
             return finalColor;
         }
 
@@ -509,7 +765,7 @@ public:
         // building the scene
         Cyan::AssetImporter::importAsync(m_scene.get(), ASSET_PATH "mesh/raytracing_test_scene.glb");
         // sun light
-        m_scene->createDirectionalLight("SunLight", glm::vec3(0.3f, 1.3f, 0.5f), glm::vec4(0.88f, 0.77f, 0.65f, 10.f));
+        m_scene->createDirectionalLight("SunLight", glm::vec3(0.8f, 1.3f, 0.5f), glm::vec4(0.88f, 0.77f, 0.65f, 10.f));
 
         // override rendering lambda
         m_renderOneFrame = [this](Cyan::GfxTexture2D* renderingOutput) {

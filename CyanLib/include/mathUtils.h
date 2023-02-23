@@ -29,7 +29,7 @@ namespace Cyan
     glm::vec3 sphericalToCartesian(const glm::vec3& n, f32 theta, f32 phi);
     f32 uniformSampleZeroToOne();
     glm::vec3 uniformSampleHemisphere(const glm::vec3& n);
-    glm::vec3 cosineWeightedSampleHemisphere(glm::vec3& n);
+    glm::vec3 cosineWeightedSampleHemisphere(const glm::vec3& n);
     glm::vec3 stratifiedCosineWeightedSampleHemiSphere(glm::vec3& normal, f32 j, f32 k, f32 M, f32 N);
     glm::vec2 halton23(u32 index);
     bool isPowerOf2(u32 value);

@@ -89,7 +89,7 @@ namespace Cyan
         return glm::vec2(r * cos(theta), r * sin(theta));
     }
 
-    glm::vec3 cosineWeightedSampleHemisphere(glm::vec3& n)
+    glm::vec3 cosineWeightedSampleHemisphere(const glm::vec3& n)
     {
         glm::vec2 pDisk = uniformSampleUnitDisk();
         f32 pz = 1.f - sqrt(pDisk.x * pDisk.x + pDisk.y * pDisk.y);

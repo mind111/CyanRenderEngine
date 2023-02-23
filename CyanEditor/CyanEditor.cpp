@@ -56,10 +56,10 @@ namespace Cyan
                         renderer->render(m_scene.get(), mainSceneView, glm::uvec2(renderingOutput->width, renderingOutput->height));
                     }
                 }
-
-                renderEditorUI();
+                renderer->renderToScreen(renderingOutput);
 
                 // UI rendering
+                renderEditorUI();
                 renderer->renderUI();
             };
         }

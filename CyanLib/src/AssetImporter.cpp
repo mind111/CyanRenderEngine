@@ -264,7 +264,8 @@ namespace Cyan
                 std::string meshName = gltfMesh.name;
                 if (meshName.empty())
                 {
-
+                    std::string prefix(filename);
+                    meshName = prefix + '/' + "mesh_" + std::to_string(i);
                 }
                 // It's better for AssetImporter to manage the mapping between a external gltfMesh and StaticMesh because
                 // this way, Glb doesn't need to be aware of StaticMesh, keep them decoupled. It's the AssetImporter's

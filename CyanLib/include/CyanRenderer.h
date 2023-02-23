@@ -373,7 +373,7 @@ namespace Cyan
             bool bSSAOEnabled = true;
             bool bBentNormalEnabled = true;
             bool bIndirectIrradianceEnabled = true;
-            bool enableBloom = true;
+            bool enableBloom = false;
             bool enableTonemapping = true;
             bool bPostProcessing = true;
             bool bManyViewGIEnabled = false;
