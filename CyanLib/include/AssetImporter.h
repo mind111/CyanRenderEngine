@@ -50,8 +50,6 @@ namespace Cyan
 
             std::unordered_map<std::string, i32> meshMap;
             std::unordered_map<std::string, i32> imageMap;
-            std::unordered_map<std::string, i32> textureMap;
-            std::unordered_map<std::string, i32> materialMap;
         };
 
         GltfImporter(AssetImporter* inOwner);

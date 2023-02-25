@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <atomic>
 
 #include "Common.h"
 
@@ -17,6 +18,7 @@ namespace Cyan
         enum class State : u32
         {
             kUnloaded = 0,
+            kLoading,
             kLoaded,
             kUninitialized,
             kInitialized,
@@ -36,10 +38,13 @@ namespace Cyan
         virtual void onLoaded() { }
         virtual void unload() = 0;
 
+        bool isLoaded() { return state >= State::kLoaded; }
+        bool isInited() { return state == State::kInitialized; }
+
         // unique name identifier
         std::string name;
         // unique handle
         u64 handle;
-        State state = State::kInvalid;
+        std::atomic<State> state = State::kInvalid;
     };
 }

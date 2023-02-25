@@ -100,7 +100,7 @@ namespace Cyan
                 {
                     auto smDesc = StaticMesh::getSubmeshDesc(submesh);
                     // todo: properly handle other types of geometries
-                    if (dynamic_cast<Triangles*>(submesh->geometry)) 
+                    if (dynamic_cast<Triangles*>(submesh->geometry.get())) 
                     {
                         InstanceDesc desc = { };
                         desc.submesh = submesh->index;

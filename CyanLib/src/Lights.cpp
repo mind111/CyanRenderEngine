@@ -1,4 +1,5 @@
 #include "AssetManager.h"
+#include "AssetImporter.h"
 #include "CyanRenderer.h"
 #include "Camera.h"
 #include "Lights.h"
@@ -79,7 +80,9 @@ namespace Cyan
                 Sampler2D sampler;
                 sampler.minFilter = FM_BILINEAR;
                 sampler.magFilter = FM_BILINEAR;
-                srcEquirectTexture = AssetManager::importTexture2D(imageName.c_str(), srcHDRI, sampler);
+                auto HDRIImage = AssetImporter::importImageSync(imageName.c_str(), srcHDRI);
+                // srcEquirectTexture = AssetManager::importTexture2D(imageName.c_str(), srcHDRI, sampler);
+                srcEquirectTexture = AssetManager::createTexture2D(imageName.c_str(), HDRIImage, sampler);
             }
 
             u32 numMips = max(log2(1024u), 1) + 1;

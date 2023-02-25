@@ -13,6 +13,7 @@ namespace Cyan
     struct Entity;
     struct Triangles;
     struct Sampler2D;
+    struct Image;
 
     namespace gltf
     {
@@ -203,6 +204,8 @@ namespace Cyan
             virtual void unload() override { }
 
             virtual void importTriangles(const gltf::Primitive& p, Triangles& outTriangles) { }
+            virtual void importImage(const gltf::Image& gltfImage, Cyan::Image& outImage) { }
+            virtual void importMaterials();
 
             // json object parsed from raw json string
             json o;
@@ -233,10 +236,8 @@ namespace Cyan
             virtual void load() override;
             virtual void unload() override;
 
-            void importScene(Cyan::Scene* outScene);
-            void importAssets();
-
             virtual void importTriangles(const gltf::Primitive& p, Triangles& outTriangles) override;
+            virtual void importImage(const gltf::Image& gltfImage, Cyan::Image& outImage) override;
 
             bool bInitailized = false;
             ChunkDesc jsonChunkDesc;
@@ -245,13 +246,6 @@ namespace Cyan
             std::vector<u8> binaryChunk;
 
         private:
-            void importMeshes();
-            void importTextures();
-            void importTexturesToAtlas();
-            void importTexturesAsync();
-            void importMaterials();
-            void importPackedMaterials();
-            void importNode(Cyan::Scene* outScene, Cyan::Entity* parent, const Node& node);
             void loadJsonChunk();
         };
 

@@ -58,7 +58,7 @@ namespace Cyan
     MaterialBindless::GpuData MaterialBindless::buildGpuData()
     {
         GpuData gpuData = { };
-        if (albedoMap != nullptr) 
+        if (albedoMap != nullptr && albedoMap->isInited()) 
         {
             gpuData.albedoMap = albedoMap->gfxTexture->glHandle;
             gpuData.flag |= (u32)Flags::kHasAlbedoMap;
@@ -67,7 +67,7 @@ namespace Cyan
                 glMakeTextureHandleResidentARB(gpuData.albedoMap);
             }
         }
-        if (normalMap != nullptr)
+        if (normalMap != nullptr && normalMap->isInited())
         {
             gpuData.normalMap = normalMap->gfxTexture->glHandle;
             gpuData.flag |= (u32)Flags::kHasNormalMap;
@@ -76,7 +76,7 @@ namespace Cyan
                 glMakeTextureHandleResidentARB(gpuData.normalMap);
             }
         }
-        if (metallicRoughnessMap != nullptr) 
+        if (metallicRoughnessMap != nullptr && metallicRoughnessMap->isInited()) 
         {
             gpuData.metallicRoughnessMap = metallicRoughnessMap->gfxTexture->glHandle;
             gpuData.flag |= (u32)Flags::kHasMetallicRoughnessMap;
@@ -85,7 +85,7 @@ namespace Cyan
                 glMakeTextureHandleResidentARB(gpuData.metallicRoughnessMap);
             }
         }
-        if (occlusionMap != nullptr) 
+        if (occlusionMap != nullptr && occlusionMap->isInited()) 
         {
             gpuData.occlusionMap = occlusionMap->gfxTexture->glHandle;
             gpuData.flag |= (u32)Flags::kHasOcclusionMap;

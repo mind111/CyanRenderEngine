@@ -272,6 +272,22 @@ namespace Cyan
         return outMesh;
     }
 
+    StaticMesh* AssetManager::createStaticMesh(const char* name, u32 numSubmeshes)
+    {
+        StaticMesh* outMesh = nullptr;
+        auto entry = singleton->m_meshMap.find(name);
+        if (entry == singleton->m_meshMap.end())
+        {
+            outMesh = new StaticMesh(name, numSubmeshes);
+            singleton->m_meshMap.insert({ name, outMesh });
+        }
+        else
+        {
+            outMesh = entry->second;
+        }
+        return outMesh;
+    }
+
     // treat all the meshes inside one obj file as submeshes
     StaticMesh* AssetManager::importWavefrontObj(const char* meshName, const char* baseDir, const char* filename) 
     {
@@ -399,23 +415,6 @@ namespace Cyan
         if (entry == singleton->m_imageMap.end())
         {
             outImage = new Image(name);
-            singleton->m_images.push_back(outImage);
-            singleton->m_imageMap.insert({ outImage->name, outImage});
-        }
-        outImage = singleton->m_imageMap[std::string(name)];
-        return outImage;
-    }
-
-    Image* AssetManager::createImage(const char* name, u8* dataAddress, u32 sizeInBytes)
-    {
-        assert(name);
-
-        Image* outImage = nullptr;
-
-        auto entry = singleton->m_imageMap.find(name);
-        if (entry == singleton->m_imageMap.end())
-        {
-            outImage = new Image(name, dataAddress, sizeInBytes);
             singleton->m_images.push_back(outImage);
             singleton->m_imageMap.insert({ outImage->name, outImage});
         }
@@ -584,7 +583,7 @@ namespace Cyan
     {
         ScopedTimer timer("Custom import .glb timer", true);
         gltf::Glb glb(filename);
-        glb.importScene(scene);
+        // glb.importScene(scene);
     }
 
     Cyan::StaticMesh* AssetManager::importGltfMesh(tinygltf::Model& model, tinygltf::Mesh& gltfMesh) 
@@ -840,62 +839,6 @@ namespace Cyan
         return outTexture;
     }
 #endif
-
-    Image* AssetManager::importImage(const char* name, const char* filename)
-    {
-        assert(name);
-
-        Image* outImage = nullptr;
-
-        auto entry = singleton->m_imageMap.find(name);
-        if (entry == singleton->m_imageMap.end())
-        {
-            outImage = new Image(name, filename);
-            singleton->m_images.push_back(outImage);
-            singleton->m_imageMap.insert({ std::string(name), outImage});
-        }
-        outImage = singleton->m_imageMap[std::string(name)];
-        return outImage;
-    }
-
-    Image* AssetManager::importImage(const char* name, u8* mem, u32 sizeInBytes)
-    {
-        assert(name);
-
-        Image* outImage = nullptr;
-
-        auto entry = singleton->m_imageMap.find(name);
-        if (entry == singleton->m_imageMap.end())
-        {
-            outImage = new Image(name, mem, sizeInBytes);
-            singleton->m_images.push_back(outImage);
-            singleton->m_imageMap.insert({ outImage->name, outImage});
-        }
-        outImage = singleton->m_imageMap[std::string(name)];
-        return outImage;
-    }
-
-    Texture2D* AssetManager::importTexture2D(const char* textureName, const char* srcImageFile, const Sampler2D& inSampler)
-    {
-        Texture2D* outTexture = nullptr;
-        Image* image = importImage(srcImageFile, srcImageFile);
-        if (image)
-        {
-            outTexture = createTexture2D(textureName, image, inSampler);
-        }
-        return outTexture;
-    }
-
-    Texture2D* AssetManager::importTexture2D(const char* textureName, const char* srcImageName, const char* srcImageFile, const Sampler2D& inSampler)
-    {
-        Texture2D* outTexture = nullptr;
-        Image* image = importImage(srcImageName, srcImageFile);
-        if (image)
-        {
-            outTexture = createTexture2D(textureName, image, inSampler);
-        }
-        return outTexture;
-    }
 
     MaterialBindless* AssetManager::createMaterialBindless(const char* name)
     {

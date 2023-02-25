@@ -8,6 +8,7 @@
 #include "Entity.h"
 #include "ExternalAssetFile.h"
 #include "AssetManager.h"
+#include "AssetImporter.h"
 #include "Geometry.h"
 
 namespace glm 
@@ -72,6 +73,39 @@ namespace Cyan
             }
         }
 
+        void Gltf::importMaterials()
+        {
+            ScopedTimer timer("importMaterials()", true);
+            for (i32 i = 0; i < materials.size(); ++i)
+            {
+                const gltf::Material& gltfMatl = materials[i];
+                Cyan::MaterialBindless* matl = AssetManager::createMaterialBindless(gltfMatl.name.c_str());
+                matl->albedo = gltfMatl.pbrMetallicRoughness.baseColorFactor;
+                matl->roughness = gltfMatl.pbrMetallicRoughness.roughnessFactor;
+                matl->metallic = gltfMatl.pbrMetallicRoughness.metallicFactor;
+                i32 baseColorTextureIndex = gltfMatl.pbrMetallicRoughness.baseColorTexture.index;
+                if (baseColorTextureIndex >= 0)
+                {
+                    const gltf::Texture texture = textures[baseColorTextureIndex];
+                    matl->albedoMap = AssetManager::getAsset<Texture2DBindless>(texture.name.c_str());
+                }
+
+                i32 metallicRoughnessIndex = gltfMatl.pbrMetallicRoughness.metallicRoughnessTexture.index;
+                if (metallicRoughnessIndex >= 0)
+                {
+                    const gltf::Texture texture = textures[metallicRoughnessIndex];
+                    matl->metallicRoughnessMap = AssetManager::getAsset<Texture2DBindless>(texture.name.c_str());
+                }
+
+                i32 normalTextureIndex = gltfMatl.normalTexture.index;
+                if (normalTextureIndex >= 0)
+                {
+                    const gltf::Texture texture = textures[normalTextureIndex];
+                    matl->normalMap = AssetManager::getAsset<Texture2DBindless>(texture.name.c_str());
+                }
+            }
+        }
+
         Glb::Glb(const char* inFilename)
             : Gltf(inFilename)
         {
@@ -100,7 +134,7 @@ namespace Cyan
                 glb.read(reinterpret_cast<char*>(&jsonChunkDesc), sizeof(ChunkDesc));
 
                 assert(jsonChunkDesc.chunkType == 0x4E4F534A);
-                std::string jsonStr(" ", jsonChunkDesc.chunkLength);
+                std::string jsonStr(jsonChunkDesc.chunkLength, ' ');
                 glb.read(&jsonStr[0], jsonChunkDesc.chunkLength);
 
                 // parse the json
@@ -121,6 +155,7 @@ namespace Cyan
             // todo: clear all loaded data
         }
 
+#if 0
         void Glb::importScene(Cyan::Scene* outScene)
         {
             importAssets();
@@ -148,7 +183,7 @@ namespace Cyan
             importPackedMaterials();
 #endif
         }
-
+#endif
         void Glb::importTriangles(const gltf::Primitive& p, Triangles& outTriangles)
         {
             u32 numVertices = accessors[p.attribute.position].count;
@@ -295,37 +330,40 @@ namespace Cyan
             }
         }
 
-        void Glb::importMeshes()
+        void Glb::importImage(const gltf::Image& gltfImage, Cyan::Image& outImage)
         {
-            u32 numMeshes = meshes.size();
-            for (i32 m = 0; m < numMeshes; ++m)
+            i32 bufferView = gltfImage.bufferView;
+            // loading image data from a buffer
+            if (bufferView >= 0)
             {
-                auto mesh = AssetManager::createStaticMesh(meshes[m].name.c_str());
-                // make sure that we are not re-importing same mesh multiple times
-                assert(mesh->numSubmeshes() == 0);
-                i32 numSubmeshes = meshes[m].primitives.size();
-                for (i32 sm = 0; sm < numSubmeshes; ++sm)
+                const gltf::BufferView bv = bufferViews[bufferView];
+                u8* dataAddress = binaryChunk.data() + bv.byteOffset;
+                i32 hdr = stbi_is_hdr_from_memory(dataAddress, bv.byteLength);
+                if (hdr)
                 {
-                    const gltf::Primitive& p = meshes[m].primitives[sm];
-
-                    Geometry* geometry = nullptr;
-                    switch ((Primitive::Mode)p.mode)
+                    outImage.bitsPerChannel = 32;
+                    outImage.pixels = std::shared_ptr<u8>(((u8*)stbi_loadf_from_memory(dataAddress, bv.byteLength, &outImage.width, &outImage.height, &outImage.numChannels, 0)));
+                }
+                else
+                {
+                    i32 is16Bit = stbi_is_16_bit_from_memory(dataAddress, bv.byteLength);
+                    if (is16Bit)
                     {
-                    case Primitive::Mode::kTriangles: {
-                        // todo: this also needs to be tracked and managed by the AssetManager using some kind of GUID system
-                        geometry = new Triangles();
-                        Triangles* triangles = dynamic_cast<Triangles*>(geometry);
-                        assert(triangles);
-                        importTriangles(p, *triangles);
-                        mesh->addSubmeshDeferred(triangles);
-                    } break;
-                    case Primitive::Mode::kLines:
-                    case Primitive::Mode::kPoints:
-                    default:
-                        assert(0);
+                        outImage.bitsPerChannel = 16;
+                        outImage.pixels = std::shared_ptr<u8>((u8*)stbi_load_16_from_memory(dataAddress, bv.byteLength, &outImage.width, &outImage.height, &outImage.numChannels, 0));
+                    }
+                    else
+                    {
+                        outImage.bitsPerChannel = 8;
+                        outImage.pixels = std::shared_ptr<u8>((u8*)stbi_load_from_memory(dataAddress, bv.byteLength, &outImage.width, &outImage.height, &outImage.numChannels, 0));
                     }
                 }
             }
+            // todo: loading image data from an uri
+            else
+            {
+            }
+            assert(outImage.pixels);
         }
 
         void translateSampler(const gltf::Sampler& sampler, Sampler2D& outSampler, bool& bOutGenerateMipmap)
@@ -375,273 +413,6 @@ namespace Cyan
                 break;
             case (u32)gltf::Sampler::Wrap::MIRRORED_REPEAT:
             default: assert(0); break;
-            }
-        }
-
-        // todo: handle the case for external images
-        // todo: track the memory usage during importing
-        void Glb::importTextures()
-        { 
-            ScopedTimer timer("loadTextures()", true);
-            // 1. load all the images into memory first assuming that it all fit
-            for (i32 i = 0; i < images.size(); ++i)
-            {
-                gltf::Image& gltfImage = images[i];
-                i32 bufferView = gltfImage.bufferView;
-                if (bufferView >= 0)
-                {
-                    const gltf::BufferView bv = bufferViews[bufferView];
-                    u8* dataAddress = binaryChunk.data() + bv.byteOffset;
-                    AssetManager::importImage(gltfImage.name.c_str(), dataAddress, bv.byteLength);
-                }
-                else
-                {
-                    // for .glb the images are embedded so a bufferView is required
-                    assert(0);
-                }
-            }
-
-            // 2. load all textures
-            for (i32 i = 0; i < textures.size(); ++i)
-            {
-                const gltf::Texture& texture = textures[i];
-                const gltf::Image& gltfImage = images[texture.source];
-                const gltf::Sampler& gltfSampler = samplers[texture.sampler];
-
-                Cyan::Image* image = AssetManager::getAsset<Cyan::Image>(gltfImage.name.c_str());
-
-                Sampler2D sampler;
-                bool bGenerateMipmap = false;
-                translateSampler(gltfSampler, sampler, bGenerateMipmap);
-                AssetManager::createTexture2DBindless(texture.name.c_str(), image, sampler);
-            }
-        }
-
-        void Glb::importTexturesToAtlas()
-        {
-            auto assetManager = AssetManager::get();
-
-            ScopedTimer timer("loadTextures()", true);
-
-            // 1. load all the images into memory first assuming that it all fit
-            for (i32 i = 0; i < images.size(); ++i)
-            {
-                gltf::Image& gltfImage = images[i];
-                i32 bufferView = gltfImage.bufferView;
-                if (bufferView >= 0)
-                {
-                    const gltf::BufferView bv = bufferViews[bufferView];
-                    u8* dataAddress = binaryChunk.data() + bv.byteOffset;
-                    Cyan::Image* outImage = AssetManager::createImage(gltfImage.name.c_str(), dataAddress, bv.byteLength); 
-                    PackedImageDesc packedImageDesc = assetManager->packImage(outImage);
-                }
-                else
-                {
-                    // for .glb the images are embedded so a bufferView is required
-                    assert(0);
-                }
-            }
-
-            // 2. load all the textures
-            for (i32 i = 0; i < textures.size(); ++i)
-            {
-                const gltf::Texture& texture = textures[i];
-                gltf::Image& gltfImage = images[texture.source];
-                const gltf::Sampler& gltfSampler = samplers[texture.sampler];
-                PackedImageDesc packedImageDesc = assetManager->getPackedImageDesc(gltfImage.name.c_str());
-                Sampler2D sampler;
-                bool bGenerateMipmap;
-                translateSampler(gltfSampler, sampler, bGenerateMipmap);
-                assetManager->addPackedTexture(texture.name.c_str(), packedImageDesc, bGenerateMipmap, sampler);
-            }
-        }
-
-        void Glb::importPackedMaterials() 
-        {
-#if 0
-            ScopedTimer timer("importPackedMaterials()", true);
-            auto assetManager = AssetManager::get();
-            for (i32 i = 0; i < materials.size(); ++i)
-            {
-                const gltf::Material& gltfMatl = materials[i];
-                // todo: this is just a hack, need to come up with a better way to deal with no name assets in gltf
-                Cyan::MaterialTextureAtlas& matl = AssetManager::createPackedMaterial(gltfMatl.name.c_str());
-                matl.albedo = gltfMatl.pbrMetallicRoughness.baseColorFactor;
-                matl.roughness = gltfMatl.pbrMetallicRoughness.roughnessFactor;
-                matl.metallic = gltfMatl.pbrMetallicRoughness.metallicFactor;
-                i32 baseColorTextureIndex = gltfMatl.pbrMetallicRoughness.baseColorTexture.index;
-                if (baseColorTextureIndex >= 0)
-                {
-                    const gltf::Texture texture = textures[baseColorTextureIndex];
-                    auto outDesc = assetManager->getPackedTextureDesc(texture.name.c_str());
-                    assert(outDesc.atlasIndex >= 0 && outDesc.subtextureIndex >= 0);
-                    matl.albedoMap = outDesc;
-                }
-
-                i32 metallicRoughnessIndex = gltfMatl.pbrMetallicRoughness.metallicRoughnessTexture.index;
-                if (metallicRoughnessIndex >= 0)
-                {
-                    const gltf::Texture texture = textures[metallicRoughnessIndex];
-                    auto outDesc = assetManager->getPackedTextureDesc(texture.name.c_str());
-                    assert(outDesc.atlasIndex >= 0 && outDesc.subtextureIndex >= 0);
-                    matl.metallicRoughnessMap = outDesc;
-                }
-
-                i32 normalTextureIndex = gltfMatl.normalTexture.index;
-                if (normalTextureIndex >= 0)
-                {
-                    const gltf::Texture texture = textures[normalTextureIndex];
-                    auto outDesc = assetManager->getPackedTextureDesc(texture.name.c_str());
-                    assert(outDesc.atlasIndex >= 0 && outDesc.subtextureIndex >= 0);
-                    matl.normalMap = outDesc;
-                }
-            }
-#endif
-        }
-
-        void Glb::importTexturesAsync()
-        {
-            auto loadImagesTask = [this](const Glb& inGlb) {
-                Glb glb(inGlb);
-                for (i32 i = 0; i < glb.images.size(); ++i)
-                {
-                    gltf::Image& image = glb.images[i];
-
-                    // load one image
-                    i32 bufferView = image.bufferView;
-                    if (bufferView >= 0)
-                    {
-                        const gltf::BufferView bv = bufferViews[bufferView];
-                        u8* dataAddress = binaryChunk.data() + bv.byteOffset;
-                        i32 hdr = stbi_is_hdr_from_memory(dataAddress, bv.byteLength);
-                        if (hdr)
-                        {
-                            image.bHdr = true;
-                            image.pixels = reinterpret_cast<u8*>(stbi_loadf_from_memory(dataAddress, bv.byteLength, &image.width, &image.height, &image.numChannels, 0));
-                        }
-                        else
-                        {
-                            i32 is16Bit = stbi_is_16_bit_from_memory(dataAddress, bv.byteLength);
-                            if (is16Bit)
-                            {
-                                image.b16Bits = true;
-                            }
-                            else
-                            {
-                                image.pixels = stbi_load_from_memory(dataAddress, bv.byteLength, &image.width, &image.height, &image.numChannels, 0);
-                            }
-                        }
-                    }
-
-                    // let the main thread know that an image is finished loading
-                }
-            };
-
-            std::thread thread(loadImagesTask, *this);
-        }
-
-        void Glb::importMaterials()
-        {
-            ScopedTimer timer("importMaterials()", true);
-            for (i32 i = 0; i < materials.size(); ++i)
-            {
-                const gltf::Material& gltfMatl = materials[i];
-                // todo: this is just a hack, need to come up with a better way to deal with no name assets in gltf
-                Cyan::MaterialBindless* matl = AssetManager::createMaterialBindless(gltfMatl.name.c_str());
-                matl->albedo = gltfMatl.pbrMetallicRoughness.baseColorFactor;
-                matl->roughness = gltfMatl.pbrMetallicRoughness.roughnessFactor;
-                matl->metallic = gltfMatl.pbrMetallicRoughness.metallicFactor;
-                i32 baseColorTextureIndex = gltfMatl.pbrMetallicRoughness.baseColorTexture.index;
-                if (baseColorTextureIndex >= 0)
-                {
-                    const gltf::Texture texture = textures[baseColorTextureIndex];
-                    matl->albedoMap = AssetManager::getAsset<Texture2DBindless>(texture.name.c_str());
-                }
-
-                i32 metallicRoughnessIndex = gltfMatl.pbrMetallicRoughness.metallicRoughnessTexture.index;
-                if (metallicRoughnessIndex >= 0)
-                {
-                    const gltf::Texture texture = textures[metallicRoughnessIndex];
-                    matl->metallicRoughnessMap = AssetManager::getAsset<Texture2DBindless>(texture.name.c_str());
-                }
-
-                i32 normalTextureIndex = gltfMatl.normalTexture.index;
-                if (normalTextureIndex >= 0)
-                {
-                    const gltf::Texture texture = textures[normalTextureIndex];
-                    matl->normalMap = AssetManager::getAsset<Texture2DBindless>(texture.name.c_str());
-                }
-            }
-        }
-
-        void Glb::importNode(Cyan::Scene* scene, Cyan::Entity* parent, const Node& node)
-        {
-            // @name
-            std::string name;
-            // @transform
-            Transform t;
-            if (node.hasMatrix >= 0)
-            {
-                const std::array<f32, 16>& m = node.matrix;
-                glm::mat4 mat = {
-                    glm::vec4(m[0],  m[1],  m[2],  m[3]),     // column 0
-                    glm::vec4(m[4],  m[5],  m[6],  m[7]),     // column 1
-                    glm::vec4(m[8],  m[9],  m[10], m[11]),    // column 2
-                    glm::vec4(m[12], m[13], m[14], m[15])     // column 3
-                };
-                t.fromMatrix(mat);
-            }
-            else
-            {
-                glm::vec3 scale(1.f); glm::vec4 rotation(0.f, 0.f, 0.f, 1.f); glm::vec3 translation(0.f);
-                // @scale
-                if (node.hasScale >= 0)
-                {
-                    scale = node.scale;
-                }
-                // @rotation
-                if (node.hasRotation >= 0)
-                {
-                    rotation = node.rotation;
-                }
-                // @translation
-                if (node.hasTranslation >= 0)
-                {
-                    translation = node.translation;
-                }
-                t.m_scale = scale;
-                t.m_qRot = glm::quat(rotation.w, glm::vec3(rotation.x, rotation.y, rotation.z));
-                t.m_translate = translation;
-            }
-            // @mesh
-            Entity* e = nullptr;
-            if (node.mesh >= 0)
-            {
-               const gltf::Mesh& gltfMesh = meshes[node.mesh];
-               Cyan::StaticMesh* mesh = AssetManager::getAsset<Cyan::StaticMesh>(gltfMesh.name.c_str());
-               StaticMeshEntity* staticMeshEntity = scene->createStaticMeshEntity(name.c_str(), t, mesh, parent);
-               staticMeshEntity->setMaterial(AssetManager::getAsset<Cyan::Material>("DefaultMaterial"));
-               e = staticMeshEntity;
-               for (i32 p = 0; p < gltfMesh.primitives.size(); ++p)
-               {
-                   const gltf::Primitive& primitive = gltfMesh.primitives[p];
-                   if (primitive.material >= 0)
-                   {
-                       const gltf::Material& gltfMatl = materials[primitive.material];
-                       auto matl = AssetManager::getAsset<Cyan::Material>(gltfMatl.name.c_str());
-                       staticMeshEntity->setMaterial(matl, p);
-                   }
-               }
-            }
-            else
-            {
-               e = scene->createEntity(name.c_str(), t, parent);
-            }
-
-            // recurse into children nodes
-            for (auto child : node.children)
-            {
-                importNode(scene, e, nodes[child]);
             }
         }
 

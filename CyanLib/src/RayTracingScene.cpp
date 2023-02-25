@@ -40,7 +40,7 @@ namespace Cyan
                     for (u32 i = 0; i < mesh->numSubmeshes(); ++i)
                     {
                         auto submesh = mesh->getSubmesh(i);
-                        auto triMesh = dynamic_cast<Triangles*>(submesh->geometry);
+                        auto triMesh = dynamic_cast<Triangles*>(submesh->geometry.get());
                         if (triMesh)
                         {
                             rtxMesh.submeshes.emplace_back();

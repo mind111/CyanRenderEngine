@@ -18,9 +18,18 @@
 
 namespace Cyan
 {
+    bool isMainThread()
+    {
+        return std::this_thread::get_id() == Engine::getMainThreadID();
+    }
+
     Engine* Singleton<Engine>::singleton = nullptr;
+
     Engine::Engine(u32 windowWidth, u32 windowHeight)
     {
+        // cache main thread id
+        m_mainThreadID = std::this_thread::get_id();
+
         m_graphicsSystem = std::make_unique<GraphicsSystem>(windowWidth, windowHeight);
         m_IOSystem = std::make_unique<IOSystem>();
     }
@@ -51,17 +60,6 @@ namespace Cyan
         {
             ScopedTimer rendererTimer("Renderer Timer", false);
             m_graphicsSystem->render(renderOneFrame);
-            rendererTimer.end();
-            renderFrameTime = rendererTimer.m_durationInMs;
-        }
-    }
-
-    void Engine::render(Scene* scene, GfxTexture2D* sceneRenderingOutput, const std::function<void(Renderer*, GfxTexture2D*)>& postSceneRenderingCallback)
-    {
-        if (m_graphicsSystem) 
-        {
-            ScopedTimer rendererTimer("Renderer Timer", false);
-            m_graphicsSystem->render(scene, sceneRenderingOutput, postSceneRenderingCallback);
             rendererTimer.end();
             renderFrameTime = rendererTimer.m_durationInMs;
         }

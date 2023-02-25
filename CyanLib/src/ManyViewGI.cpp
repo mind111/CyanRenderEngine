@@ -633,7 +633,7 @@ namespace Cyan {
             for (i32 sm = 0; sm < mesh->numSubmeshes(); ++sm) 
             {
                 auto submesh = mesh->getSubmesh(sm);
-                auto geometry = dynamic_cast<Triangles*>(submesh->geometry);
+                auto geometry = dynamic_cast<Triangles*>(submesh->geometry.get());
                 if (geometry)
                 {
                     glm::vec3 albedo(0.f);

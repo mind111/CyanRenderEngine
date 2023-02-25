@@ -1,5 +1,7 @@
 #pragma once 
 
+#include <thread>
+
 #include "GraphicsSystem.h"
 #include "IOSystem.h"
 #include "Window.h"
@@ -13,12 +15,15 @@ class DefaultApp;
 
 namespace Cyan
 {
+    bool isMainThread();
 
     class Engine : public Singleton<Engine>
     {
     public:
         Engine(u32 windowWidth, u32 windowHeight);
         ~Engine() { }
+
+        static std::thread::id getMainThreadID() { assert(singleton); return singleton->m_mainThreadID; }
 
         GLFWwindow* getAppWindow() { return m_graphicsSystem->getAppWindow(); }
         IOSystem* getIOSystem() { return m_IOSystem.get(); }
@@ -34,11 +39,10 @@ namespace Cyan
         using RenderFunc = std::function<void(GfxTexture2D* renderingOutput)>;
         void render(const RenderFunc& renderOneFrame);
 
-        void render(Scene* scene, GfxTexture2D* sceneRenderingOutput, const std::function<void(Renderer*, GfxTexture2D*)>& postSceneRenderingCallbackonst = [](Renderer* renderer, GfxTexture2D* sceneRenderingOutput) {
-            renderer->renderToScreen(sceneRenderingOutput);
-        });
-
     private:
+        // main thread id
+        std::thread::id m_mainThreadID;
+
         // systems
         std::unique_ptr<IOSystem> m_IOSystem = nullptr;
         std::unique_ptr<GraphicsSystem> m_graphicsSystem = nullptr;

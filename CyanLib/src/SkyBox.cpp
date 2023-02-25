@@ -4,6 +4,7 @@
 #include "CyanAPI.h"
 #include "Scene.h"
 #include "AssetManager.h"
+#include "AssetImporter.h"
 
 namespace Cyan
 {
@@ -29,7 +30,9 @@ namespace Cyan
         Sampler2D sampler;
         sampler.minFilter = FM_BILINEAR;
         sampler.magFilter = FM_BILINEAR;
-        m_srcHDRITexture = AssetManager::importTexture2D("SkyboxHDRI", srcHDRIPath, sampler);
+        // m_srcHDRITexture = AssetManager::importTexture2D("SkyboxHDRI", srcHDRIPath, sampler);
+        auto HDRIImage = AssetImporter::importImageSync(srcHDRIPath, srcHDRIPath);
+        m_srcHDRITexture = AssetManager::createTexture2D(name, HDRIImage, sampler);
 
         u32 numMips = log2(resolution.x) + 1;
         TextureCube::Spec cubemapSpec(resolution.x, numMips, PF_RGB16F);

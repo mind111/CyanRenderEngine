@@ -6,8 +6,13 @@
 
 namespace Cyan
 {
-    StaticMesh::Submesh::Submesh(Geometry* inGeometry)
-        : geometry(inGeometry), vb(nullptr), ib(nullptr), va(nullptr), index(-1)
+    StaticMesh::Submesh::Submesh(StaticMesh* inOwner)
+        : owner(inOwner), geometry(nullptr), vb(nullptr), ib(nullptr), va(nullptr), index(-1)
+    {
+    }
+
+    StaticMesh::Submesh::Submesh(StaticMesh* inOwner, std::shared_ptr<Geometry> inGeometry)
+        : owner(inOwner), geometry(inGeometry), vb(nullptr), ib(nullptr), va(nullptr), index(-1)
     {
     }
 
@@ -34,9 +39,19 @@ namespace Cyan
         return getSubmeshBuffer()[submesh->index];
     }
 
+    void StaticMesh::Submesh::setGeometry(std::shared_ptr<Geometry> inGeometry)
+    {
+        assert(geometry == nullptr);
+        geometry = inGeometry;
+
+        AssetManager::deferredInitAsset(owner, [this](Asset* asset) {
+            init();
+        });
+    }
+
     /**
-     *  this function actually initialize rendering related data on Gpu, and it 
-     * makes Gfx API calls, thus requiring a valid GL context, thus need to be executed 
+     *  this function actually initialize rendering related data on Gpu, and it
+     * makes Gfx API calls, thus requiring a valid GL context, thus need to be executed
      * on the main thread.
      */
     void StaticMesh::Submesh::init()
@@ -60,7 +75,7 @@ namespace Cyan
                 desc.numIndices = geometry->numIndices();
 
                 // pack the src geometry data into the global vertex/index buffer for static geometries
-                Triangles* triangles = static_cast<Triangles*>(geometry);
+                Triangles* triangles = static_cast<Triangles*>(geometry.get());
                 u32 start = gVertexBuffer.getNumElements();
                 gVertexBuffer.data.array.resize(gVertexBuffer.getNumElements() + geometry->numVertices());
                 const auto& vertices = triangles->vertices;
@@ -89,7 +104,7 @@ namespace Cyan
             switch (geometry->getGeometryType())
             {
             case Geometry::Type::kTriangles: {
-                auto triangles = static_cast<Triangles*>(geometry);
+                auto triangles = static_cast<Triangles*>(geometry.get());
 
                 u32 sizeInBytes = sizeof(triangles->vertices[0]) * triangles->vertices.size();
                 assert(sizeInBytes > 0);
@@ -117,33 +132,30 @@ namespace Cyan
 
             bInitialized = true;
         }
+        else
+        {
+
+        }
     }
 
     void StaticMesh::import()
     {
-        AssetImporter::import(this);
+        if (state != State::kLoaded && state != State::kLoading)
+        {
+            state = State::kLoading;
+            AssetImporter::import(this);
+        }
     }
 
     void StaticMesh::onLoaded()
     {
-        u32 count = numSubmeshes();
-        for (i32 i = 0; i < count; ++i)
-        {
-            // for thread safety, not using [] operator here, because
-            // another thread maybe calling addSubmesh() right now
-            auto sm = getSubmesh(i);
-            if (!sm->bInitialized)
-            {
-                sm->init();
-            }
-        }
-        state = State::kInitialized;
+        state = State::kLoaded;
     }
 
-    void StaticMesh::addInstance(MeshInstance* inInstance) 
-    { 
+    void StaticMesh::addInstance(MeshInstance* inInstance)
+    {
         std::lock_guard<std::mutex> lock(instanceMutex);
-        instances.push_back(inInstance); 
+        instances.push_back(inInstance);
     }
 
     StaticMesh::Submesh* StaticMesh::getSubmesh(u32 index)
@@ -152,16 +164,16 @@ namespace Cyan
         return submeshes[index].get();
     }
 
-    u32 StaticMesh::numSubmeshes() 
-    { 
+    u32 StaticMesh::numSubmeshes()
+    {
         std::lock_guard<std::mutex> lock(submeshMutex);
-        return submeshes.size(); 
+        return submeshes.size();
     }
 
     void StaticMesh::addSubmeshDeferred(Geometry* inGeometry)
     {
         std::lock_guard<std::mutex> lock(submeshMutex);
-        auto sm = std::make_shared<StaticMesh::Submesh>(inGeometry);
+        auto sm = std::make_shared<StaticMesh::Submesh>(this, std::shared_ptr<Geometry>(inGeometry));
         submeshes.emplace_back(sm);
         onSubmeshAddedDeferred(sm.get());
     }
@@ -171,18 +183,18 @@ namespace Cyan
         std::lock_guard<std::mutex> lock(instanceMutex);
         for (auto inst : instances)
         {
-            inst->addMaterial(AssetManager::getAsset<Material>("DefaultMaterial"));
+            inst->onSubmeshAdded();
         }
 
         AssetManager::deferredInitAsset(this, [this, submesh](Asset* asset) {
             submesh->init();
-        });
+            });
     }
 
     void StaticMesh::addSubmeshImmediate(Geometry* inGeometry)
     {
         std::lock_guard<std::mutex> lock(submeshMutex);
-        auto sm = std::make_shared<StaticMesh::Submesh>(inGeometry);
+        auto sm = std::make_shared<StaticMesh::Submesh>(this, std::shared_ptr<Geometry>(inGeometry));
         submeshes.emplace_back(sm);
         onSubmeshAddedImmediate(sm.get());
     }
@@ -192,132 +204,16 @@ namespace Cyan
         std::lock_guard<std::mutex> lock(instanceMutex);
         for (auto inst : instances)
         {
-            inst->addMaterial(AssetManager::getAsset<Material>("DefaultMaterial"));
+            inst->onSubmeshAdded();
         }
         submesh->init();
     }
 
-#if 0
-    MeshRayHit Mesh::bruteForceIntersectRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd)
+    void MeshInstance::onSubmeshAdded()
     {
-        MeshRayHit globalHit;
-
-        for (u32 i = 0; i < m_subMeshes.size(); ++i)
-        {
-            auto sm = m_subMeshes[i];
-            u32 numTriangles = sm->m_triangles.m_numVerts / 3;
-            for (u32 j = 0; j < numTriangles; ++j)
-            {
-                Triangle tri = {
-                    sm->m_triangles.positions[j * 3],
-                    sm->m_triangles.positions[j * 3 + 1],
-                    sm->m_triangles.positions[j * 3 + 2]
-                };
-
-                float currentHit = tri.intersectRay(objectSpaceRo, objectSpaceRd); 
-                if (currentHit > 0.f && currentHit < globalHit.t)
-                {
-                    globalHit.smIndex = i;
-                    globalHit.triangleIndex = j;
-                    globalHit.t = currentHit;
-                    globalHit.mesh = this;
-                }
-            }
-        }
-
-        return globalHit;
+        addMaterial(AssetManager::getAsset<Material>("DefaultMaterial"));
     }
-
-    bool Mesh::bruteForceVisibilityRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd)
-    {
-        for (u32 i = 0; i < m_subMeshes.size(); ++i)
-        {
-            auto sm = m_subMeshes[i];
-            u32 numTriangles = sm->m_triangles.m_numVerts / 3;
-            for (u32 j = 0; j < numTriangles; ++j)
-            {
-                Triangle tri = {
-                    sm->m_triangles.positions[j * 3],
-                    sm->m_triangles.positions[j * 3 + 1],
-                    sm->m_triangles.positions[j * 3 + 2]
-                };
-
-                float currentHit = tri.intersectRay(objectSpaceRo, objectSpaceRd); 
-                if (currentHit > 0.f)
-                    return true;
-            }
-        }
-        return false;
-    }
-
-    bool Mesh::bvhVisibilityRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd)
-    {
-        auto bvhRoot = m_bvh->root;
-        return bvhRoot->traceVisibility(objectSpaceRo, objectSpaceRd);
-    }
-
-    MeshRayHit Mesh::bvhIntersectRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd)
-    {
-        return m_bvh->trace(objectSpaceRo, objectSpaceRd);
-    }
-
-    MeshRayHit Mesh::intersectRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd)
-    {
-        MeshRayHit meshRayHit;
-        if (m_bvh)
-            meshRayHit = bvhIntersectRay(objectSpaceRo, objectSpaceRd);
-        else
-            meshRayHit = bruteForceIntersectRay(objectSpaceRo, objectSpaceRd);
-        if (meshRayHit.smIndex < 0 || meshRayHit.triangleIndex < 0)
-            meshRayHit.t = -1.f;
-        return meshRayHit; 
-    }
-
-    // coarse binary ray test
-    bool Mesh::castVisibilityRay(glm::vec3& objectSpaceRo, glm::vec3& objectSpaceRd)
-    {
-        if (m_bvh)
-            return bvhVisibilityRay(objectSpaceRo, objectSpaceRd);
-        else
-            return bruteForceVisibilityRay(objectSpaceRo, objectSpaceRd);
-    }
-
-    MeshInstance* Mesh::createInstance(Scene* scene)
-    {
-        MeshInstance* instance = new MeshInstance;
-        instance->m_mesh = this;
-        u32 numSubMeshes = (u32)this->m_subMeshes.size();
-        instance->m_matls = (MaterialInstance**)CYAN_ALLOC(sizeof(MaterialInstance*) * numSubMeshes);
-        instance->m_lightMap = nullptr;
-#if 1
-        // apply obj material defined in the asset
-        if (!m_objMaterials.empty())
-        {
-            for (u32 sm = 0; sm < numSubMeshes; ++sm)
-            {
-                i32 matlIdx = m_subMeshes[sm]->m_materialIdx;
-                if (matlIdx >= 0)
-                {
-                    auto& objMatl = m_objMaterials[matlIdx];
-                    PbrMaterialParam params = { };
-                    params.flatBaseColor = glm::vec4(objMatl.diffuse, 1.f);
-                    // hard-coded default roughness/metallic for obj materials
-                    params.kMetallic = 0.02f;
-                    params.kRoughness = 0.5f;
-                    params.hasBakedLighting = 0.f;
-                    params.indirectDiffuseScale = 1.f;
-                    params.indirectSpecularScale = 1.f;
-                    auto matl = new StandardPbrMaterial(params);
-                    instance->m_matls[sm] = matl->m_materialInstance;
-                    scene->addStandardPbrMaterial(matl);
-                }
-            }
-        }
-#endif
-        return instance;
-    }
-#endif
-};
+}
 
 float cubeVertices[] = {
     -1.0f,  1.0f, -1.0f,

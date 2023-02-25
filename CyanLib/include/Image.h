@@ -37,8 +37,6 @@ namespace Cyan
         };
 
         Image(const char* name);
-        Image(const char* inName, const char* srcImageFile);
-        Image(const char* inName, u8* mem, u32 sizeInBytes);
 
         /* Asset Interface */
         virtual const char* getAssetTypeName() { return "Image"; }

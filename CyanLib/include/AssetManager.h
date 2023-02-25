@@ -75,19 +75,13 @@ namespace Cyan
 
         // textures
         static Image* createImage(const char* name);
-        static Image* createImage(const char* name, u8* dataAddress, u32 sizeInBytes);
-        static Image* importImage(const char* name, const char* filename);
-        static Image* importImage(const char* name, u8* mem, u32 sizeInBytes);
-
         static Texture2D* createTexture2D(const char* name, Image* srcImage, const Sampler2D& inSampler = Sampler2D{});
         static Texture2DBindless* createTexture2DBindless(const char* name, Image* srcImage, const Sampler2D& inSampler = Sampler2D{});
-
-        static Texture2D* importTexture2D(const char* textureName, const char* srcImageFile, const Sampler2D& inSampler);
-        static Texture2D* importTexture2D(const char* textureName, const char* srcImageName, const char* srcImageFile, const Sampler2D& inSampler);
 
         // meshes
         static StaticMesh* importWavefrontObj(const char* meshName, const char* baseDir, const char* filename);
         static StaticMesh* createStaticMesh(const char* name);
+        static StaticMesh* createStaticMesh(const char* name, u32 numSubmeshes);
 
         static Material* createMaterial(const char* name);
         static MaterialBindless* createMaterialBindless(const char* name);

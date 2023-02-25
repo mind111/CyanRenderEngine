@@ -32,8 +32,8 @@ namespace Cyan
                 u32 numIndices;
             };
 
-            Submesh() = default;
-            Submesh(Geometry* inGeometry);
+            Submesh(StaticMesh* inOwner);
+            Submesh(StaticMesh* inOwner, std::shared_ptr<Geometry> inGeometry);
             ~Submesh() { }
 
             void init();
@@ -41,8 +41,10 @@ namespace Cyan
             u32 numVertices() const { return geometry->numVertices(); }
             u32 numIndices() const { return geometry->numIndices(); }
             VertexArray* getVertexArray() { return va.get(); }
+            void setGeometry(std::shared_ptr<Geometry> inGeometry);
 
-            Geometry* geometry = nullptr;
+            StaticMesh* owner = nullptr;
+            std::shared_ptr<Geometry> geometry = nullptr;
             std::shared_ptr<VertexBuffer> vb = nullptr;
             std::shared_ptr<IndexBuffer> ib = nullptr;
             std::shared_ptr<VertexArray> va = nullptr;
@@ -50,11 +52,20 @@ namespace Cyan
             bool bInitialized = false;
         };
 
-        StaticMesh() = default;
         StaticMesh(const char* meshName)
             : Asset(meshName)
         {
 
+        }
+
+        StaticMesh(const char* meshName, u32 numSubmeshes)
+            : Asset(meshName)
+        {
+            for (i32 i = 0; i < numSubmeshes; ++i)
+            {
+                auto sm = std::make_shared<Submesh>(this);
+                submeshes.emplace_back(sm);
+            }
         }
 
         static const char* getClassName() { return "StaticMesh"; }
@@ -110,11 +121,12 @@ namespace Cyan
     struct MeshInstance 
     {
         MeshInstance(StaticMesh* base)
-            : mesh(base) 
+            : mesh(base), materials(base->numSubmeshes())
         {
             mesh->addInstance(this);
-            materials.resize(base->numSubmeshes());
         }
+
+        void onSubmeshAdded();
 
         Material* getMaterial(u32 index) 
         {
