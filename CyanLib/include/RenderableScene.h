@@ -51,9 +51,9 @@ namespace Cyan
 
         friend class Renderer;
 
-        RenderableScene();
+        RenderableScene() = default;
         ~RenderableScene() { }
-        RenderableScene(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator);
+        RenderableScene(const Scene* inScene, const SceneView& sceneView);
         RenderableScene(const RenderableScene& scene);
         RenderableScene& operator=(const RenderableScene& src);
 
@@ -97,7 +97,6 @@ namespace Cyan
         // skybox
         Skybox* skybox = nullptr;
 
-        // static PackedGeometry* packedGeometry;
         std::unique_ptr<ViewBuffer> viewBuffer = nullptr;
         std::unique_ptr<TransformBuffer> transformBuffer = nullptr;
         std::unique_ptr<InstanceBuffer> instanceBuffer = nullptr;
@@ -110,7 +109,7 @@ namespace Cyan
     {
         using MaterialBuffer = ShaderStorageBuffer<DynamicSsboData<MaterialBindless::GpuData>>;
 
-        RenderableSceneBindless(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator);
+        RenderableSceneBindless(const Scene* inScene, const SceneView& sceneView);
         RenderableSceneBindless(const RenderableScene& src);
         ~RenderableSceneBindless() { }
 
@@ -122,7 +121,7 @@ namespace Cyan
 
     struct RenderableSceneTextureAtlas : public RenderableScene
     {
-        RenderableSceneTextureAtlas(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator);
+        RenderableSceneTextureAtlas(const Scene* inScene, const SceneView& sceneView);
         RenderableSceneTextureAtlas(const RenderableScene& src);
         ~RenderableSceneTextureAtlas() { }
 

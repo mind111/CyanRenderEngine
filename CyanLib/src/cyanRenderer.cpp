@@ -310,18 +310,18 @@ namespace Cyan
         m_frameAllocator.reset();
     }
 
-    void Renderer::render(Scene* scene, const SceneView& sceneView, const glm::uvec2& renderResolution) 
+    void Renderer::render(Scene* scene, const SceneView& sceneView) 
     {
         beginRender();
         {
             // shared render target for this frame
-            m_sceneTextures.initialize(renderResolution);
+            m_sceneTextures.initialize(glm::uvec2(sceneView.canvas->width, sceneView.canvas->height));
 
             // convert Scene instance to RenderableScene instance for rendering
 #if BINDLESS_TEXTURE
-            RenderableSceneBindless renderableScene(scene, sceneView, m_frameAllocator);
+            RenderableSceneBindless renderableScene(scene, sceneView);
 #else
-            RenderableSceneTextureAtlas renderableScene(scene, sceneView, m_frameAllocator);
+            RenderableSceneTextureAtlas renderableScene(scene, sceneView);
 #endif
 
             // shadow
@@ -346,12 +346,12 @@ namespace Cyan
             if (m_settings.bPostProcessing) 
             {
                 auto bloomTexture = bloom(m_sceneTextures.color);
-                compose(sceneView.renderTexture, m_sceneTextures.color, bloomTexture.get(), m_windowSize);
+                compose(sceneView.canvas, m_sceneTextures.color, bloomTexture.get(), m_windowSize);
             }
 
             if (m_visualization)
             {
-                visualize(sceneView.renderTexture, m_visualization->texture, m_visualization->activeMip);
+                visualize(sceneView.canvas, m_visualization->texture, m_visualization->activeMip);
             }
         } 
         endRender();

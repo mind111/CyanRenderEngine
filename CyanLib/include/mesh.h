@@ -108,6 +108,7 @@ namespace Cyan
         using GlobalVertexBuffer = ShaderStorageBuffer<DynamicSsboData<Vertex>>;
         using GlobalIndexBuffer = ShaderStorageBuffer<DynamicSsboData<u32>>;
 
+        // todo: consider using a persistently mapped buffer for these global buffers, and stream-in data when necessary?
         static SubmeshBuffer& getSubmeshBuffer();
         static GlobalVertexBuffer& getGlobalVertexBuffer();
         static GlobalIndexBuffer& getGlobalIndexBuffer();

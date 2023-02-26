@@ -131,6 +131,11 @@ namespace Cyan
             }
 
             bInitialized = true;
+
+            // upload data to these three global buffers as they just become out-dated on cpu end
+            gVertexBuffer.upload();
+            gIndexBuffer.upload();
+            submeshBuffer.upload();
         }
         else
         {

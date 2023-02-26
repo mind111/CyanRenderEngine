@@ -26,13 +26,10 @@ namespace Cyan
         projection = inCamera.projection();
     }
 
-    RenderableScene::RenderableScene() 
+    RenderableScene::RenderableScene(const Scene* inScene, const SceneView& sceneView) 
     {
-
-    }
-
-    RenderableScene::RenderableScene(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator) 
-    {
+        // todo: this shouldn't need to be reconstructed every frame, they should only need to be updated when there is any size changes, but maybe they
+        // are not as inefficient as I thought they would be, so opt for destroying and re-creating every frame for now until they cause issues. 
         viewBuffer = std::make_unique<ViewBuffer>("ViewBuffer");
         transformBuffer = std::make_unique<TransformBuffer>("TransformBuffer");
         instanceBuffer = std::make_unique<InstanceBuffer>("InstanceBuffer");
@@ -42,25 +39,34 @@ namespace Cyan
         aabb = inScene->m_aabb;
 
         // todo: make this work with orthographic camera as well
-        PerspectiveCamera* inCamera = dynamic_cast<PerspectiveCamera*>(inScene->m_mainCamera->getCamera());
-        camera = Camera(*inCamera);
+        camera = Camera(sceneView.camera);
 
         // build list of mesh instances, transforms, and lights
-        for (auto entity : sceneView.entities)
+        for (auto entity : inScene->m_entities)
         {
-            auto lightComponents = entity->getComponents<ILightComponent>();
+            // static meshes
+            if (auto staticMesh = dynamic_cast<StaticMeshEntity*>(entity))
+            {
+                auto mesh = staticMesh->getMeshInstance()->mesh;
+                meshInstances.push_back(staticMesh->getMeshInstance());
+                glm::mat4 model = staticMesh->getWorldTransformMatrix();
+                transformBuffer->addElement(model);
+            }
+
+            // lights
+            const auto& lightComponents = entity->getComponents<ILightComponent>();
             if (!lightComponents.empty())
             {
                 for (auto lightComponent : lightComponents)
                 {
-                    if (std::string(lightComponent->getTag()) == std::string("DirectionalLightComponent")) {
-                        auto directionalLightComponent = dynamic_cast<DirectionalLightComponent*>(lightComponent);
-                        assert(directionalLightComponent);
+                    if (std::string(lightComponent->getTag()) == std::string("DirectionalLightComponent")) 
+                    {
+                        auto directionalLightComponent = static_cast<DirectionalLightComponent*>(lightComponent);
                         auto directionalLight = directionalLightComponent->directionalLight.get();
                         if (directionalLight) 
                         {
                             directionalLights.push_back(directionalLight);
-
+                            // todo: this is slightly awkward
                             if (auto csmDirectionalLight = dynamic_cast<CSMDirectionalLight*>(directionalLight)) 
                             {
                                 directionalLightBuffer->addElement(csmDirectionalLight->buildGpuLight());
@@ -77,15 +83,6 @@ namespace Cyan
                     }
                 }
             }
-
-            // static meshes
-            if (auto staticMesh = dynamic_cast<StaticMeshEntity*>(entity))
-            {
-                auto mesh = staticMesh->getMeshInstance()->mesh;
-                meshInstances.push_back(staticMesh->getMeshInstance());
-                glm::mat4 model = staticMesh->getWorldTransformMatrix();
-                transformBuffer->addElement(model);
-            }
         }
 
         // build instance descriptors
@@ -98,7 +95,6 @@ namespace Cyan
                 auto submesh = mesh->getSubmesh(sm);
                 if (submesh->bInitialized)
                 {
-                    auto smDesc = StaticMesh::getSubmeshDesc(submesh);
                     // todo: properly handle other types of geometries
                     if (dynamic_cast<Triangles*>(submesh->geometry.get())) 
                     {
@@ -112,7 +108,8 @@ namespace Cyan
             }
         }
 
-        // organize instance descriptors
+        // todo: need to implement IndirectDrawBuffer and then the following part becomes building that indirect draw buffer
+        // organize instance descriptors and build a drawcall buffer
         if (instanceBuffer->getNumElements() > 0) 
         {
             struct InstanceDescSortKey 
@@ -140,6 +137,7 @@ namespace Cyan
             drawCallBuffer->addElement(instanceBuffer->getNumElements());
         }
 
+        // todo: these two need to be turned into entities
         skybox = inScene->skybox;
         skyLight = inScene->skyLight;
     }
@@ -188,15 +186,10 @@ namespace Cyan
         if (!bUploaded)
         {
             auto gfxc = Renderer::get()->getGfxCtx();
-            // todo: doing this every frame is kind of redundant, maybe to a message kind of thing here to only trigger update when there is actually an update
-            // to these global buffers?
-            auto& submeshBuffer = StaticMesh::getSubmeshBuffer();
-            submeshBuffer.upload();
-            auto& gVertexBuffer = StaticMesh::getGlobalVertexBuffer();
-            gVertexBuffer.upload();
-            auto& gIndexBuffer = StaticMesh::getGlobalIndexBuffer();
-            gIndexBuffer.upload();
 
+            auto& submeshBuffer = StaticMesh::getSubmeshBuffer();
+            auto& gVertexBuffer = StaticMesh::getGlobalVertexBuffer();
+            auto& gIndexBuffer = StaticMesh::getGlobalIndexBuffer();
             gfxc->setShaderStorageBuffer(&submeshBuffer);
             gfxc->setShaderStorageBuffer(&gVertexBuffer);
             gfxc->setShaderStorageBuffer(&gIndexBuffer);
@@ -217,10 +210,13 @@ namespace Cyan
             gfxc->setShaderStorageBuffer(drawCallBuffer.get());
 
             // directional lights
-            for (i32 i = 0; i < directionalLightBuffer->getNumElements(); ++i) {
-                for (i32 j = 0; j < CascadedShadowMap::kNumCascades; ++j) {
+            for (i32 i = 0; i < directionalLightBuffer->getNumElements(); ++i) 
+            {
+                for (i32 j = 0; j < CascadedShadowMap::kNumCascades; ++j) 
+                {
                     auto handle = (*directionalLightBuffer)[i].cascades[j].shadowMap.depthMapHandle;
-                    if (glIsTextureHandleResidentARB(handle) == GL_FALSE) {
+                    if (glIsTextureHandleResidentARB(handle) == GL_FALSE) 
+                    {
                         glMakeTextureHandleResidentARB(handle);
                     }
                 }
@@ -234,8 +230,8 @@ namespace Cyan
         }
     }
 
-    RenderableSceneBindless::RenderableSceneBindless(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator)
-        : RenderableScene(inScene, sceneView, allocator)
+    RenderableSceneBindless::RenderableSceneBindless(const Scene* inScene, const SceneView& sceneView)
+        : RenderableScene(inScene, sceneView)
     {
         materialBuffer = std::make_unique<MaterialBuffer>("MaterialBuffer");
         for (i32 i = 0; i < meshInstances.size(); ++i)
@@ -270,8 +266,8 @@ namespace Cyan
         gfxc->setShaderStorageBuffer(materialBuffer.get());
     }
 
-    RenderableSceneTextureAtlas::RenderableSceneTextureAtlas(const Scene* inScene, const SceneView& sceneView, LinearAllocator& allocator)
-        : RenderableScene(inScene, sceneView, allocator)
+    RenderableSceneTextureAtlas::RenderableSceneTextureAtlas(const Scene* inScene, const SceneView& sceneView)
+        : RenderableScene(inScene, sceneView)
     {
         auto assetManager = AssetManager::get();
 

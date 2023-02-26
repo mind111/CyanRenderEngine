@@ -59,17 +59,9 @@ namespace Cyan
         void attachComponent(Component* component, const char* parentName=nullptr);
         // todo: implement component detaching
 
-        // bool castVisibilityRay(const glm::vec3& ro, const glm::vec3& rd, const glm::mat4& modelView);
-        // struct RayCastInfo intersectRay(const glm::vec3& ro, const glm::vec3& rd, const glm::mat4& view);
-
         void attach(Entity* child);
         void attachTo(Entity* inParent);
         Entity* detach(const char* name);
-
-#if 0
-        // visitor
-        void visit(const std::function<void(SceneComponent*)>& func);
-#endif
 
         // getters
         i32 getChildIndex(const char* name);
