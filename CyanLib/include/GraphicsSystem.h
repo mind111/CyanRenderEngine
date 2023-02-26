@@ -27,7 +27,6 @@ namespace Cyan
         virtual void deinitialize() override;
         void update();
         void render(const std::function<void(GfxTexture2D* renderingOutput)>& renderOneFrame);
-        void render(Scene* scene, GfxTexture2D* frameOutupt, const std::function<void(Renderer*, GfxTexture2D*)>& postSceneRenderingCallback);
 
         GLFWwindow* getAppWindow() { return m_glfwWindow; }
         glm::uvec2 getAppWindowDimension() { return m_windowDimension; }

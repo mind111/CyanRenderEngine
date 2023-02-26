@@ -44,7 +44,7 @@ namespace Cyan
     {
         // todo: gather frame statistics
 
-        // upload window title
+        // update window title
         static u32 numFrames = 0u;
         char windowTitle[64] = { };
         sprintf_s(windowTitle, "Cyan | Frame: %d | FPS: %.2f", numFrames++, 60.0f);

@@ -124,11 +124,13 @@ namespace Cyan
         m_manyViewGI = std::make_unique<ManyViewGI>(this, m_ctx);
     }
 
-    void Renderer::initialize() {
+    void Renderer::initialize() 
+    {
         m_manyViewGI->initialize();
     };
 
-    void Renderer::deinitialize() {
+    void Renderer::deinitialize() 
+    {
         // imgui clean up
         ImGui_ImplOpenGL3_Shutdown();
         ImGui_ImplGlfw_Shutdown();

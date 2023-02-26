@@ -194,7 +194,6 @@ namespace Cyan
 
         // ui
         {
-#if 1
             IMGUI_CHECKVERSION();
             ImGui::CreateContext();
 
@@ -210,7 +209,6 @@ namespace Cyan
             // font
             static ImFont* gFont = nullptr;
             gFont = io.Fonts->AddFontFromFileTTF("C:\\dev\\cyanRenderEngine\\asset\\fonts\\Roboto-Medium.ttf", 20.f);
-#endif
         }
     }
 
@@ -232,34 +230,6 @@ namespace Cyan
         
         renderOneFrame(m_renderingOutput.get());
 
-        m_ctx->flip();
-    }
-
-    void GraphicsSystem::render(Scene* scene, GfxTexture2D* sceneRenderingOutput, const std::function<void(Renderer*, GfxTexture2D*)>& postSceneRenderingCallback)
-    {
-        // clear default render target
-        m_ctx->setRenderTarget(nullptr, { });
-        m_ctx->clear();
-        // scene rendering
-        if (scene) 
-        {
-            if (auto camera = dynamic_cast<PerspectiveCamera*>(scene->m_mainCamera->getCamera())) 
-            {
-                SceneView mainSceneView(*scene, *camera,
-                    [](Entity* entity) {
-                        return entity->getProperties() | EntityFlag_kVisible;
-                    },
-                    sceneRenderingOutput, 
-                    { 0, 0, sceneRenderingOutput->width, sceneRenderingOutput->height }
-                );
-                m_renderer->render(scene, mainSceneView, glm::uvec2(sceneRenderingOutput->width, sceneRenderingOutput->height));
-            }
-
-            // post scene rendering
-            postSceneRenderingCallback(m_renderer.get(), sceneRenderingOutput);
-        }
-        // UI rendering
-        m_renderer->renderUI();
         m_ctx->flip();
     }
 }

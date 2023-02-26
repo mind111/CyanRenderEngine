@@ -154,7 +154,6 @@ namespace Cyan
 
     void StaticMesh::addInstance(MeshInstance* inInstance)
     {
-        std::lock_guard<std::mutex> lock(instanceMutex);
         instances.push_back(inInstance);
     }
 
@@ -168,6 +167,35 @@ namespace Cyan
     {
         std::lock_guard<std::mutex> lock(submeshMutex);
         return submeshes.size();
+    }
+
+    u32 StaticMesh::numInstances()
+    {
+        return instances.size();
+    }
+
+    u32 StaticMesh::numVertices()
+    {
+        u32 totalNumVertices = 0u;
+        u32 numSubmesh = numSubmeshes();
+        for (u32 i = 0; i < numSubmesh; ++i)
+        {
+            auto sm = getSubmesh(i);
+            totalNumVertices += sm->numVertices();
+        }
+        return totalNumVertices;
+    }
+
+    u32 StaticMesh::numIndices()
+    {
+        u32 totalNumIndices = 0u;
+        u32 numSubmesh = numSubmeshes();
+        for (u32 i = 0; i < numSubmesh; ++i)
+        {
+            auto sm = getSubmesh(i);
+            totalNumIndices += sm->numIndices();
+        }
+        return totalNumIndices;
     }
 
     void StaticMesh::addSubmeshDeferred(Geometry* inGeometry)

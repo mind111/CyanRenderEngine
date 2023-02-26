@@ -24,11 +24,10 @@ namespace Cyan
             static const char* sponza = ASSET_PATH "mesh/sponza-gltf-pbr/sponza.glb";
             static const char* sunTemple = ASSET_PATH "mesh/sun_temple/simplified_sun_temple.glb";
             static const char* ueArchviz = ASSET_PATH "mesh/archviz.glb";
-            static const char* cornellBox = ASSET_PATH "mesh/cornell_box.gltf";
             static const char* diorama = ASSET_PATH "mesh/sd_macross_diorama.glb";
             static const char* picapica = ASSET_PATH "mesh/pica_pica_scene.glb";
 
-            AssetImporter::importAsync(m_scene.get(), ueArchviz);
+            AssetImporter::importAsync(m_scene.get(), shaderBalls);
 
             // skybox
             auto skybox = m_scene->createSkybox("Skybox", ASSET_PATH "cubemaps/neutral_sky.hdr", glm::uvec2(2048));

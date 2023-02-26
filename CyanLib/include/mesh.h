@@ -90,6 +90,9 @@ namespace Cyan
 
         void addInstance(MeshInstance* inInstance);
         u32 numSubmeshes();
+        u32 numInstances();
+        u32 numVertices();
+        u32 numIndices();
 
         const BoundingBox3D& getAABB() { return aabb; }
 

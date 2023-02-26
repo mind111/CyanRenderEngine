@@ -23,27 +23,17 @@ namespace Cyan
 {
     struct RenderableScene;
 
-    struct SceneView {
-        SceneView(
-            const Scene& scene, 
-            const PerspectiveCamera& inCamera, 
-            const std::function<bool(Entity*)>& selector = [](Entity* entity) {
-                return true;
-            },
-            GfxTexture2D* dstRenderTexture = nullptr, 
-                const Viewport& dstViewport = { })
-            : camera(inCamera), renderTexture(dstRenderTexture), viewport(dstViewport) {
-            for (auto entity : scene.m_entities) {
-                if (selector(entity)) {
-                    entities.push_back(entity);
-                }
-            }
+    struct SceneView 
+    {
+        SceneView(Scene* inScene, const PerspectiveCamera& inCamera, GfxTexture2D* renderOutput)
+            : viewedScene(inScene), camera(inCamera), canvas(renderOutput)
+        {
+
         }
 
+        Scene* viewedScene = nullptr;
         PerspectiveCamera camera;
-        GfxTexture2D* renderTexture = nullptr;
-        Viewport viewport;
-        std::vector<Entity*> entities;
+        GfxTexture2D* canvas = nullptr;
     };
 
     // forward declarations
@@ -172,7 +162,7 @@ namespace Cyan
 
 // rendering
         void beginRender();
-        void render(Scene* scene, const SceneView& sceneView, const glm::uvec2& renderResolution);
+        void render(Scene* scene, const SceneView& sceneView);
         void renderToScreen(GfxTexture2D* inTexture);
         void endRender();
 

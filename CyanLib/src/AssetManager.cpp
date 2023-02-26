@@ -5,12 +5,16 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/hash.hpp>
 #include <tiny_obj/tiny_obj_loader.h>
+#include <imgui/imgui.h>
+#include <imgui/imgui_impl_glfw.h>
+#include <imgui/imgui_impl_opengl3.h>
 
 #include "AssetManager.h"
 #include "AssetImporter.h"
 #include "Texture.h"
 #include "CyanAPI.h"
 #include "gltf.h"
+#include "CyanRenderer.h"
 
 namespace std 
 {
@@ -211,8 +215,6 @@ namespace Cyan
 
     void AssetManager::update()
     {
-        // todo: fix this
-#if 1
         const u32 workload = 4;
         for (i32 i = 0; i < workload; ++i)
         {
@@ -227,33 +229,81 @@ namespace Cyan
                 task.initFunc(task.asset);
             }
         }
-#else
-        {
-            std::lock_guard<std::mutex> lock(partiallyLoadedAssetsMutex);
-            // todo: auto load balancing
-            const u32 workload = 4;
-            for (i32 i = 0; i < workload; ++i)
+
+        auto renderer = Renderer::get();
+        renderer->addUIRenderCommand([this]() {
+            // render an asset monitor 
+            static bool pOpen = true;
+            ImGui::Begin("Asset Manager", &pOpen, ImGuiWindowFlags_MenuBar);
             {
-                if (partialLoadedTasks.size() > 0)
+                if (ImGui::BeginMenuBar())
                 {
-                    auto task = partialLoadedTasks.front();
-                    task.func(task.asset);
-                    partialLoadedTasks.pop();
+                    if (ImGui::BeginMenu("File"))
+                    {
+                        if (ImGui::MenuItem("Close", "Ctrl+W")) { pOpen = false; }
+                        ImGui::EndMenu();
+                    }
+                    ImGui::EndMenuBar();
+                }
+
+                if (ImGui::BeginTabBar("Asset Tabs"))
+                {
+                    if (ImGui::BeginTabItem("Mesh", nullptr))
+                    {
+                        ImGui::Text("Num of Meshes: %d", m_meshes.size());
+                        ImGui::Separator();
+
+                        // Left
+                        static int selected = 0;
+                        {
+                            ImGui::BeginChild("Mesh List", ImVec2(150, 0), true);
+                            for (int i = 0; i < m_meshes.size(); i++)
+                            {
+                                // FIXME: Good candidate to use ImGuiSelectableFlags_SelectOnNav
+                                char label[128];
+                                sprintf(label, "%s", m_meshes[i]->name.c_str());
+                                if (ImGui::Selectable(label, selected == i))
+                                    selected = i;
+                            }
+                            ImGui::EndChild();
+                        }
+                        ImGui::SameLine();
+
+                        auto mesh = m_meshes[selected];
+                        // Right
+                        ImGui::BeginGroup();
+                        ImGui::BeginChild("item view", ImVec2(0, -ImGui::GetFrameHeightWithSpacing())); // Leave room for 1 line below us
+                        if (ImGui::BeginTabBar("##Tabs", ImGuiTabBarFlags_None))
+                        {
+                            if (ImGui::BeginTabItem("Details"))
+                            {
+                                ImGui::Text("Mesh: %s", mesh->name.c_str());
+                                ImGui::Text("Num of Submeshes: %d", mesh->numSubmeshes());
+                                ImGui::Text("Num of Instances: %d", mesh->numInstances());
+                                ImGui::Text("Num of Vertices: %d", mesh->numVertices());
+                                ImGui::Text("Num of Indices: %d", mesh->numIndices());
+                                ImGui::EndTabItem();
+                            }
+                            ImGui::EndTabBar();
+                        }
+                        ImGui::EndChild();
+                        ImGui::EndGroup();
+
+                        ImGui::EndTabItem();
+                    }
+                    if (ImGui::BeginTabItem("Image"))
+                    {
+                        ImGui::EndTabItem();
+                    }
+                    if (ImGui::BeginTabItem("Texture"))
+                    {
+                        ImGui::EndTabItem();
+                    }
+                    ImGui::EndTabBar();
                 }
             }
-        }
-
-        {
-            std::lock_guard<std::mutex> lock(loadedAssetsMutex);
-            // if there are pending assets
-            if (loadedAssets.size() > 0)
-            {
-                auto asset = loadedAssets.front();
-                asset->onLoaded();
-                loadedAssets.pop();
-            }
-        }
-#endif
+            ImGui::End();
+        });
     }
 
     StaticMesh* AssetManager::createStaticMesh(const char* name)
@@ -264,6 +314,7 @@ namespace Cyan
         {
             outMesh = new StaticMesh(name);
             singleton->m_meshMap.insert({ name, outMesh });
+            singleton->m_meshes.push_back(outMesh);
         }
         else
         {
@@ -280,6 +331,7 @@ namespace Cyan
         {
             outMesh = new StaticMesh(name, numSubmeshes);
             singleton->m_meshMap.insert({ name, outMesh });
+            singleton->m_meshes.push_back(outMesh);
         }
         else
         {
