@@ -313,12 +313,11 @@ namespace Cyan
             // shared render target for this frame
             m_sceneTextures.initialize(glm::uvec2(sceneView.canvas->width, sceneView.canvas->height));
 
-            // convert Scene instance to RenderableScene instance for rendering
-            RenderableScene renderableScene(scene, sceneView);
+            // render shadow maps first 
+            renderShadowMaps(scene);
 
-            // shadow
-            // todo: should simply pass Scene here this function will build RenderableScene for different views accordingly
-            renderShadowMaps(renderableScene);
+            // build scene rendering data
+            RenderableScene renderableScene(scene, sceneView);
 
             // depth prepass
             renderSceneDepthPrepass(renderableScene, m_sceneTextures.renderTarget, m_sceneTextures.gBuffer.depth);
@@ -414,20 +413,14 @@ namespace Cyan
 
     void Renderer::renderShadowMaps(Scene* inScene) 
     {
-        for (auto lightComponent : inScene->m_lightComponents)
+        if (inScene->m_directionalLight)
         {
-            if (auto directionalLightComponent = dynamic_cast<DirectionalLightComponent*>(lightComponent))
-            {
-                if (auto directionalLight = dynamic_cast<CSMDirectionalLight*>(directionalLightComponent->directionalLight.get()))
-                {
-                    if (directionalLight->bCastShadow)
-                    {
-                        directionalLight->renderShadowMap(inScene, this);
-                    }
-                }
-            }
+            inScene->m_directionalLight->getDirectionalLightComponent()->getDirectionalLight()->renderShadowMap(inScene, this);
         }
         // todo: other types of shadow casting lights
+        for (auto lightComponent : inScene->m_lightComponents)
+        {
+        }
     }
 
     void Renderer::renderSceneDepthPrepass(RenderableScene& scene, RenderTarget* outRenderTarget, GfxTexture2D* outDepthTexture)
@@ -446,7 +439,7 @@ namespace Cyan
         m_ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get());
     }
 
-    void Renderer::renderSceneDepthOnly(RenderableScene& scene, DepthTexture2D* outDepthTexture)
+    void Renderer::renderSceneDepthOnly(RenderableScene& scene, GfxDepthTexture2D* outDepthTexture)
     {
         std::unique_ptr<RenderTarget> depthRenderTarget(createDepthOnlyRenderTarget(outDepthTexture->width, outDepthTexture->height));
         depthRenderTarget->setDepthBuffer(outDepthTexture);
@@ -529,7 +522,7 @@ namespace Cyan
 
         if (scene.skybox)
         {
-            scene.skybox->render(outRenderTarget, scene.camera.view, scene.camera.projection);
+            scene.skybox->render(outRenderTarget, scene.view.view, scene.view.projection);
         }
     }
 
@@ -1116,70 +1109,6 @@ namespace Cyan
         u32 drawCount = max(scene.drawCallBuffer->getNumElements() - 1, 0);
         glMultiDrawArraysIndirect(GL_TRIANGLES, 0, drawCount, 0);
 #endif
-    }
-
-    void Renderer::renderSceneBatched(RenderableScene& scene, RenderTarget* outRenderTarget, GfxTexture2D* outSceneColor) 
-    {
-        CreateVS(vs, "SceneColorPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
-        CreatePS(ps, "SceneColorPassPS", SHADER_SOURCE_PATH "scene_pass_p.glsl");
-        CreatePixelPipeline(pipeline, "SceneColorPass", vs, ps);
-        m_ctx->setPixelPipeline(pipeline, [this, &scene, outSceneColor](VertexShader* vs, PixelShader* ps) {
-            ps->setUniform("outputSize", glm::vec2(outSceneColor->width, outSceneColor->height));
-            // setup ssao
-            if (m_settings.bSSAOEnabled)
-            {
-                if (m_sceneTextures.ao)
-                {
-                    ps->setTexture("ssao", m_sceneTextures.ao);
-                    ps->setUniform("ssaoEnabled", 1.f);
-                }
-            }
-            else
-            {
-                ps->setUniform("ssaoEnabled", 0.f);
-            }
-            if (m_settings.bBentNormalEnabled)
-            {
-                // setup ssbn
-                if (m_sceneTextures.bentNormal)
-                {
-                    ps->setTexture("ssbn", m_sceneTextures.bentNormal);
-                    ps->setUniform("ssbnEnabled", 1.f);
-                }
-            }
-            else
-            {
-                ps->setUniform("ssbnEnabled", 0.f);
-            }
-
-            // sky light
-            /* note
-            * seamless cubemap doesn't work with bindless textures that's accessed using a texture handle,
-            * so falling back to normal way of binding textures here.
-            */
-            ps->setTexture("skyLight.irradiance", scene.skyLight->irradianceProbe->m_convolvedIrradianceTexture.get());
-            ps->setTexture("skyLight.reflection", scene.skyLight->reflectionProbe->m_convolvedReflectionTexture.get());
-            auto BRDFLookupTexture = ReflectionProbe::getBRDFLookupTexture()->glHandle;
-            if (glIsTextureHandleResidentARB(BRDFLookupTexture) == GL_FALSE) {
-                glMakeTextureHandleResidentARB(BRDFLookupTexture);
-            }
-            ps->setUniform("skyLight.BRDFLookupTexture", BRDFLookupTexture);
-        });
-        outRenderTarget->setColorBuffer(outSceneColor, 0);
-        outRenderTarget->setDrawBuffers({ 0 });
-        outRenderTarget->clearDrawBuffer(0, glm::vec4(0.f, 0.f, 0.f, 1.f), false);
-        m_ctx->setRenderTarget(outRenderTarget);
-        m_ctx->setViewport({ 0, 0, outRenderTarget->width, outRenderTarget->height });
-        m_ctx->setDepthControl(DepthControl::kEnable);
-
-        scene.bind(m_ctx);
-        m_ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get());
-
-        // render skybox
-        if (scene.skybox) 
-        {
-            scene.skybox->render(outRenderTarget, scene.camera.view, scene.camera.projection);
-        }
     }
 
     void Renderer::renderSceneGBufferWithTextureAtlas(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer)

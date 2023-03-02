@@ -18,39 +18,36 @@ uniform sampler2D sceneAlbedo;
 uniform sampler2D sceneMetallicRoughness;
 
 const uint kNumShadowCascades = 4;
-struct DirectionalShadowMap {
-	mat4 lightSpaceView;
-	mat4 lightSpaceProjection;
-	uint64_t depthTextureHandle;
-	vec2 padding;
-};
-
-struct Cascade {
+struct Cascade 
+{
 	float n;
 	float f;
-	vec2 padding;
-	DirectionalShadowMap shadowMap;
+	uint64_t depthTextureHandle;
+    mat4 lightSpaceProjection;
 };
 
-struct CascadedShadowMap {
+struct DirectionalShadowMap 
+{
+    mat4 lightSpaceView;
 	Cascade cascades[kNumShadowCascades];
 };
 
-struct DirectionalLight {
+struct DirectionalLight 
+{
 	vec4 colorAndIntensity;
 	vec4 direction;
-	CascadedShadowMap csm;
+	DirectionalShadowMap shadowMap;
 };
 
-layout (std430) buffer DirectionalLightBuffer {
-	DirectionalLight directionalLights[];
+layout (std430) buffer DirectionalLightBuffer 
+{
+	DirectionalLight directionalLight;
 };
 
-layout(std430) buffer ViewBuffer {
+layout(std430) buffer ViewBuffer 
+{
     mat4  view;
     mat4  projection;
-    float m_ssao;
-    float dummy;
 };
 
 vec3 screenToWorld(vec3 pp, mat4 invView, mat4 invProjection) 
@@ -214,7 +211,7 @@ int calcCascadeIndex(in vec3 viewSpacePosition, in DirectionalLight directionalL
     int cascadeIndex = 0;
     for (int i = 0; i < 4; ++i)
     {
-        if (viewSpacePosition.z < directionalLight.csm.cascades[i].f)
+        if (viewSpacePosition.z < directionalLight.shadowMap.cascades[i].f)
         {
             cascadeIndex = i;
             break;
@@ -225,14 +222,14 @@ int calcCascadeIndex(in vec3 viewSpacePosition, in DirectionalLight directionalL
 
 float PCFShadow(vec3 worldSpacePosition, vec3 normal, in DirectionalLight directionalLight)
 {
-    sampler2D sampler = sampler2D(directionalLight.csm.cascades[0].shadowMap.depthTextureHandle);
+    sampler2D sampler = sampler2D(directionalLight.shadowMap.cascades[0].depthTextureHandle);
 	float shadow = 0.0f;
     vec2 texelOffset = vec2(1.f) / textureSize(sampler, 0);
     vec3 viewSpacePosition = (view * vec4(worldSpacePosition, 1.f)).xyz;
     int cascadeIndex = calcCascadeIndex(viewSpacePosition, directionalLight);
     vec4 lightSpacePosition = 
-		directionalLight.csm.cascades[cascadeIndex].shadowMap.lightSpaceProjection 
-	  * directionalLight.csm.cascades[cascadeIndex].shadowMap.lightSpaceView * vec4(worldSpacePosition, 1.f);
+		directionalLight.shadowMap.cascades[cascadeIndex].lightSpaceProjection 
+	  * directionalLight.shadowMap.lightSpaceView * vec4(worldSpacePosition, 1.f);
     float depth = lightSpacePosition.z * .5f + .5f;
     vec2 uv = lightSpacePosition.xy * .5f + .5f;
 
@@ -307,7 +304,7 @@ vec3 calcDirectLighting(in Material material, vec3 worldSpacePosition)
 {
     vec3 radiance = vec3(0.f);
     // sun light
-    radiance += calcDirectionalLight(directionalLights[0], material, worldSpacePosition, outDiffuse);
+    radiance += calcDirectionalLight(directionalLight, material, worldSpacePosition, outDiffuse);
     return radiance;
 }
 

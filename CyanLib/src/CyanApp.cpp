@@ -99,11 +99,8 @@ namespace Cyan
             // scene rendering
             if (m_scene) 
             {
-                if (auto camera = dynamic_cast<PerspectiveCamera*>(m_scene->m_mainCamera->getCamera())) 
-                {
-                    SceneView sceneView(m_scene.get(), *camera, renderingOutput);
-                    renderer->render(m_scene.get(), sceneView);
-                }
+                SceneView sceneView(m_scene.get(), m_scene->m_mainCamera->getCamera(), renderingOutput);
+                renderer->render(m_scene.get(), sceneView);
             }
             // UI rendering
             renderer->renderUI();

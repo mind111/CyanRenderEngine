@@ -341,7 +341,8 @@ namespace Cyan
     void GltfImporter::importSceneNodeAsync(Scene* outScene, gltf::Gltf& gltf, Entity* parent, const gltf::Node& node)
     {
         // @name
-        std::string name;
+        std::string name = node.name;
+
         // @transform
         Transform t;
         if (node.hasMatrix >= 0)

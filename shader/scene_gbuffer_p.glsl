@@ -58,7 +58,8 @@ in VSOutput
 /**
 	material converted from application side material definition 
 */
-struct Material {
+struct Material 
+{
 	vec3 albedo;
 	vec3 normal;
 	float roughness;

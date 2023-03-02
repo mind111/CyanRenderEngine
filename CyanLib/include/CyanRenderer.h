@@ -23,14 +23,14 @@ namespace Cyan
 
     struct SceneView 
     {
-        SceneView(Scene* inScene, const PerspectiveCamera& inCamera, GfxTexture2D* renderOutput)
+        SceneView(Scene* inScene, Camera* inCamera, GfxTexture2D* renderOutput)
             : viewedScene(inScene), camera(inCamera), canvas(renderOutput)
         {
 
         }
 
         Scene* viewedScene = nullptr;
-        PerspectiveCamera camera;
+        Camera* camera = nullptr;
         GfxTexture2D* canvas = nullptr;
     };
 
@@ -251,9 +251,8 @@ namespace Cyan
         } indirectDrawBuffer;
         void multiDrawSceneIndirect(const RenderableScene& renderableScene);
 
-        void renderSceneBatched(RenderableScene& renderableScene, RenderTarget* outRenderTarget, GfxTexture2D* outSceneColor);
         void renderSceneDepthPrepass(RenderableScene& renderableScene, RenderTarget* outRenderTarget, GfxTexture2D* outDepthBuffer);
-        void renderSceneDepthOnly(RenderableScene& renderableScene, DepthTexture2D* outDepthTexture);
+        void renderSceneDepthOnly(RenderableScene& renderableScene, GfxDepthTexture2D* outDepthTexture);
         void renderSceneGBuffer(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer);
         void renderSceneGBufferWithTextureAtlas(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer);
         void renderShadowMaps(Scene* inScene);

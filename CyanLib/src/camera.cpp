@@ -8,7 +8,7 @@ namespace Cyan
 {
     void CameraEntity::orbit(f32 phi, f32 theta)
     {
-        ICamera* camera = getCamera();
+        Camera* camera = getCamera();
         glm::vec3 p = camera->position - camera->lookAt;
         glm::quat quat(cos(.5f * -phi), sin(.5f * -phi) * camera->worldUp);
         quat = glm::rotate(quat, -theta, camera->right());
@@ -26,7 +26,7 @@ namespace Cyan
 
     void CameraEntity::zoom(f32 distance)
     {
-        ICamera* camera = getCamera();
+        Camera* camera = getCamera();
         glm::vec3 forward = camera->forward();
         glm::vec3 translation = forward * distance;
         glm::vec3 v1 = glm::normalize(camera->position + translation - camera->lookAt); 

@@ -13,29 +13,17 @@
 
 namespace Cyan
 {
-    RenderableScene::Camera::Camera(const PerspectiveCamera& inCamera)
-    {
-        eye = inCamera.position;
-        lookAt = inCamera.lookAt;
-        right = inCamera.right();
-        forward = inCamera.forward();
-        up = inCamera.up();
-        n = inCamera.n;
-        f = inCamera.f;
-        fov = inCamera.fov;
-        aspect = inCamera.aspectRatio;
-        view = inCamera.view();
-        projection = inCamera.projection();
-    }
-
     RenderableScene::RenderableScene(const Scene* inScene, const SceneView& sceneView)
     {
+        // scene aabb
         aabb = inScene->m_aabb;
 
-        // todo: make this work with orthographic camera as well
-        camera = Camera(sceneView.camera);
+        // view
+        view.view = sceneView.camera->view();
+        view.projection = sceneView.camera->projection();
 
         // todo: cpu side culling can be done here, cull the instances within the scene to view frustum ...?
+
         // build list of mesh instances, transforms
         for (auto staticMesh : inScene->m_staticMeshes)
         {
@@ -45,12 +33,16 @@ namespace Cyan
         }
 
         // build list of lights
+        if (inScene->m_directionalLight)
+        {
+            sunLight = inScene->m_directionalLight->getDirectionalLightComponent()->getDirectionalLight();
+        }
         for (auto lightComponent : inScene->m_lightComponents)
         {
             if (std::string(lightComponent->getTag()) == std::string("DirectionalLightComponent"))
             {
-                auto directionalLightComponent = static_cast<DirectionalLightComponent*>(lightComponent);
-                sunLight = directionalLightComponent->directionalLight.get();
+                // m_lightComponents shouldn't have any directionalLightComponent in it
+                assert(0);
             }
             else if (std::string(lightComponent->getTag()) == std::string("PointLightComponent"))
             {
@@ -69,35 +61,35 @@ namespace Cyan
             auto mesh = meshInstances[i]->mesh;
             for (u32 sm = 0; sm < mesh->numSubmeshes(); ++sm)
             {
-                Instance instance = { };
-                instance.transform = i;
-
                 auto submesh = mesh->getSubmesh(sm);
                 if (submesh->bInitialized)
                 {
+                    Instance instance = { };
+                    instance.transform = i;
+
                     // todo: properly handle other types of geometries
                     if (dynamic_cast<Triangles*>(submesh->geometry.get()))
                     {
                         instance.submesh = submesh->index;
+
+                        // todo: properly handle material
+                        auto material = meshInstances[i]->getMaterial(sm);
+                        auto entry = materialMap.find(material->name);
+                        if (entry != materialMap.end())
+                        {
+                            instance.material = entry->second;
+                        }
+                        else
+                        {
+                            materials.emplace_back(material->buildGpuMaterial());
+                            u32 materialIndex = materials.size() - 1;
+                            materialMap.insert({ material->name, materialIndex });
+                            instance.material = materialIndex;
+                        }
+
+                        instances.push_back(instance);
                     }
                 }
-
-                // todo: properly handle material
-                auto material = meshInstances[i]->getMaterial(sm);
-                auto entry = materialMap.find(material->name);
-                if (entry != materialMap.end())
-                {
-                    instance.material = entry->second;
-                }
-                else
-                {
-                    materials.emplace_back(material->buildGpuMaterial());
-                    u32 materialIndex = materials.size() - 1;
-                    materialMap.insert({ material->name, materialIndex });
-                    instance.material = materialIndex;
-                }
-
-                instances.push_back(instance);
             }
         }
 
@@ -116,7 +108,7 @@ namespace Cyan
             std::sort(instances.begin(), instances.end(), InstanceDescSortKey());
 
             instanceLUT.push_back(0);
-            auto& prev = instances[0];
+            Instance prev = instances[0];
             for (i32 i = 1; i < instances.size(); ++i)
             {
                 if (instances[i].submesh != prev.submesh)
@@ -131,21 +123,29 @@ namespace Cyan
         // create gpu side buffers to host cpu side data
         viewBuffer = std::make_unique<ShaderStorageBuffer>("ViewBuffer", sizeof(View));
         viewBuffer->write(view, 0);
-        if (!instances.empty())
+
+        if (!transforms.empty())
         {
-            assert(transforms.size() == instances.size());
             transformBuffer = std::make_unique<ShaderStorageBuffer>("TransformBuffer", sizeOfVector(transforms));
             transformBuffer->write(transforms, 0);
+        }
+
+        if (!instances.empty())
+        {
             instanceBuffer = std::make_unique<ShaderStorageBuffer>("InstanceBuffer", sizeOfVector(instances));
             instanceBuffer->write(instances, 0);
             instanceLUTBuffer = std::make_unique<ShaderStorageBuffer>("InstanceLUTBuffer", sizeOfVector(instanceLUT));
             instanceLUTBuffer->write(instanceLUT, 0);
         }
-        if (auto csmDirectionalLight = dynamic_cast<CSMDirectionalLight*>(sunLight))
+
+        if (!materials.empty())
         {
-            directionalLightBuffer = std::make_unique<ShaderStorageBuffer>("DirectionalLightBuffer", sizeof(GpuCSMDirectionalLight));
-            directionalLightBuffer->write(csmDirectionalLight->buildGpuLight(), 0);
+            materialBuffer = std::make_unique<ShaderStorageBuffer>("MaterialBuffer", sizeOfVector(materials));
+            materialBuffer->write(materials, 0);
         }
+
+        directionalLightBuffer = std::make_unique<ShaderStorageBuffer>("DirectionalLightBuffer", sizeof(GpuDirectionalLight));
+        directionalLightBuffer->write(sunLight->buildGpuDirectionalLight(), 0);
 
         std::vector<IndirectDrawArrayCommand> indirectDrawCommands;
         for (i32 draw = 0; draw < instanceLUT.size() - 1; ++draw)
@@ -169,7 +169,6 @@ namespace Cyan
     RenderableScene::RenderableScene(const RenderableScene& src)
     {
         aabb = src.aabb;
-        camera = src.camera;
         meshInstances = src.meshInstances;
         skybox = src.skybox;
         skyLight = src.skyLight;
@@ -189,7 +188,6 @@ namespace Cyan
     RenderableScene& RenderableScene::operator=(const RenderableScene& src)
     {
         aabb = src.aabb;
-        camera = src.camera;
         meshInstances = src.meshInstances;
         skybox = src.skybox;
         skyLight = src.skyLight;
@@ -209,12 +207,15 @@ namespace Cyan
 
     void RenderableScene::bind(GfxContext* ctx)
     {
-        // todo: implement this
+        ctx->setShaderStorageBuffer(StaticMesh::getGlobalSubmeshBuffer());
+        ctx->setShaderStorageBuffer(StaticMesh::getGlobalVertexBuffer());
+        ctx->setShaderStorageBuffer(StaticMesh::getGlobalIndexBuffer());
+
         ctx->setShaderStorageBuffer(viewBuffer.get());
         ctx->setShaderStorageBuffer(transformBuffer.get());
         ctx->setShaderStorageBuffer(materialBuffer.get());
         ctx->setShaderStorageBuffer(instanceBuffer.get());
-        ctx->setShaderStorageBuffer(directionalLightBuffer.get());
         ctx->setShaderStorageBuffer(instanceLUTBuffer.get());
+        ctx->setShaderStorageBuffer(directionalLightBuffer.get());
     }
 }

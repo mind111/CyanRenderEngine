@@ -330,7 +330,7 @@ namespace Cyan
         std::shared_ptr<GfxTexture2DBindless> gfxTexture = nullptr;
     };
 
-    struct DepthTexture2D : public GfxTexture2D
+    struct GfxDepthTexture2D : public GfxTexture2D
     {
         struct Spec : public GfxTexture2D::Spec 
         {
@@ -355,9 +355,9 @@ namespace Cyan
             }
         };
 
-        static DepthTexture2D* create(const Spec& inSpec, const Sampler2D& inSampler = Sampler2D())
+        static GfxDepthTexture2D* create(const Spec& inSpec, const Sampler2D& inSampler = Sampler2D())
         {
-            auto outTexture = new DepthTexture2D(inSpec, inSampler);
+            auto outTexture = new GfxDepthTexture2D(inSpec, inSampler);
             outTexture->init();
             return outTexture;
         }
@@ -369,33 +369,38 @@ namespace Cyan
 
         virtual bool operator==(const GfxTexture& rhs) const override
         {
-            if (auto ptr = dynamic_cast<const DepthTexture2D*>(&rhs))
+            if (auto ptr = dynamic_cast<const GfxDepthTexture2D*>(&rhs))
             {
                 return ptr->getSpec() == getSpec();
             }
             return false;
         }
     protected:
-        DepthTexture2D(const DepthTexture2D::Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
+        GfxDepthTexture2D(const GfxDepthTexture2D::Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
 
         virtual void init() override;
     };
 
-    struct DepthTexture2DBindless : public DepthTexture2D
+    struct GfxDepthTexture2DBindless : public GfxDepthTexture2D
     {
-        static DepthTexture2DBindless* create(const DepthTexture2D::Spec& inSpec, const Sampler2D& inSampler = Sampler2D())
+        static GfxDepthTexture2DBindless* create(const GfxDepthTexture2D::Spec& inSpec, const Sampler2D& inSampler = Sampler2D())
         {
-            auto outTexture = new DepthTexture2DBindless(inSpec, inSampler);
+            auto outTexture = new GfxDepthTexture2DBindless(inSpec, inSampler);
             outTexture->init();
             return outTexture;
         }
+
+        u64 getTextureHandle() { return glHandle; }
+        void makeResident();
+
+    protected:
+        GfxDepthTexture2DBindless(const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
+        virtual void init() override;
+
+    private:
 #if BINDLESS_TEXTURE
         u64 glHandle;
 #endif
-    protected:
-        DepthTexture2DBindless(const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
-        // DepthTexture2DBindless(const char* inName, const Spec& inSpec, const Sampler2D& inSampler = Sampler2D());
-        virtual void init() override;
     };
 
     struct GfxTexture2DArray : public GfxTexture2D

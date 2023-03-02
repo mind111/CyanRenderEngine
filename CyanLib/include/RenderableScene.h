@@ -12,7 +12,7 @@ namespace Cyan
     struct Skybox;
     struct SceneView;
     struct LinearAllocator;
-    struct ICamera;
+    struct Camera;
     struct GfxContext;
     struct ILightRenderable;
     struct DirectionalLight;
@@ -119,20 +119,6 @@ namespace Cyan
 
         // bounding box
         BoundingBox3D aabb;
-
-        // camera
-        struct Camera
-        {
-            Camera() = default;
-            Camera(const struct PerspectiveCamera& inCamera);
-
-            glm::vec3 eye;
-            glm::vec3 lookAt;
-            glm::vec3 right, forward, up;
-            f32 fov, n, f, aspect;
-            glm::mat4 view = glm::mat4(1.f);
-            glm::mat4 projection = glm::mat4(1.f);
-        } camera;
 
         // todo: these cpu side things should be maintained/cached in Scene class, this way, no need to 
         // loop through entity array to rebuild them from scratch

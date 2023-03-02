@@ -439,42 +439,20 @@ namespace Cyan
 #endif
     }
 
-    DepthTexture2DBindless::DepthTexture2DBindless(const Spec& inSpec, const Sampler2D& inSampler)
-        : DepthTexture2D(inSpec, inSampler)
-    {
-    }
-
-#if 0
-    DepthTexture2DBindless::DepthTexture2DBindless(const char* inName, const Spec& inSpec, const Sampler2D& inSampler)
-        : DepthTexture2D(inName, inSpec, inSampler)
-    {
-
-    }
-#endif
-
-    void DepthTexture2DBindless::init()
-    {
-        DepthTexture2D::init();
-#if BINDLESS_TEXTURE
-        glHandle = glGetTextureHandleARB(getGpuResource());
-#endif
-    }
-
-
-    DepthTexture2D::DepthTexture2D(const Spec& inSpec, const Sampler2D& inSampler)
+    GfxDepthTexture2D::GfxDepthTexture2D(const Spec& inSpec, const Sampler2D& inSampler)
         : GfxTexture2D(GfxTexture2D::Spec(inSpec.width, inSpec.height, inSpec.numMips, PF_D24S8), inSampler)
     {
     }
 
 #if 0
-    DepthTexture2D::DepthTexture2D(const char* inName, const Spec& inSpec, const Sampler2D& inSampler)
+    GfxDepthTexture2D::GfxDepthTexture2D(const char* inName, const Spec& inSpec, const Sampler2D& inSampler)
         : GfxTexture2D(inName, GfxTexture2D::Spec(inSpec.width, inSpec.height, inSpec.numMips, PF_D24S8), inSampler)
     {
 
     }
 #endif
 
-    void DepthTexture2D::init()
+    void GfxDepthTexture2D::init()
     {
         glCreateTextures(GL_TEXTURE_2D, 1, &glObject);
         glBindTexture(GL_TEXTURE_2D, getGpuResource());
@@ -483,6 +461,35 @@ namespace Cyan
         glBindTexture(GL_TEXTURE_2D, 0);
 
         sampler.init(this);
+    }
+
+    GfxDepthTexture2DBindless::GfxDepthTexture2DBindless(const Spec& inSpec, const Sampler2D& inSampler)
+        : GfxDepthTexture2D(inSpec, inSampler)
+    {
+    }
+
+#if 0
+    GfxDepthTexture2DBindless::GfxDepthTexture2DBindless(const char* inName, const Spec& inSpec, const Sampler2D& inSampler)
+        : GfxDepthTexture2D(inName, inSpec, inSampler)
+    {
+
+    }
+#endif
+
+    void GfxDepthTexture2DBindless::init()
+    {
+        GfxDepthTexture2D::init();
+#if BINDLESS_TEXTURE
+        glHandle = glGetTextureHandleARB(getGpuResource());
+#endif
+    }
+
+    void GfxDepthTexture2DBindless::makeResident()
+    {
+        if (glIsTextureHandleResidentARB(getTextureHandle()) == GL_FALSE)
+        {
+            glMakeTextureHandleResidentARB(getTextureHandle());
+        }
     }
 
     GfxTexture2DArray::GfxTexture2DArray(const Spec& inSpec, const Sampler2D& inSampler)

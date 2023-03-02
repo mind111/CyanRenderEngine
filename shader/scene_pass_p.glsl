@@ -29,7 +29,8 @@ const uint kHasOcclusionMap         = 1 << 3;
         u32 flag = 0u;
     };
 */
-struct MaterialDesc {
+struct MaterialDesc 
+{
 	uint64_t albedoMap;
 	uint64_t normalMap;
 	uint64_t metallicRoughnessMap;
@@ -41,7 +42,8 @@ struct MaterialDesc {
     uint flag;
 };
 
-in VSOutput {
+in VSOutput 
+{
 	vec3 viewSpacePosition;
 	vec3 worldSpacePosition;
 	vec3 worldSpaceNormal;
@@ -50,7 +52,7 @@ in VSOutput {
 	vec2 texCoord0;
 	vec2 texCoord1;
     vec3 vertexColor;
-    flat MaterialDesc desc;
+    flat MaterialDesc materialDesc;
 } psIn;
 
 out vec3 outColor;
@@ -67,32 +69,30 @@ layout(std430) buffer ViewBuffer
 
 //================================= "lights.glsl" =========================================
 const uint kNumShadowCascades = 4;
-struct DirectionalShadowMap {
-	mat4 lightSpaceView;
-	mat4 lightSpaceProjection;
-	uint64_t depthTextureHandle;
-	vec2 padding;
-};
-
-struct Cascade {
+struct Cascade 
+{
 	float n;
 	float f;
-	vec2 padding;
-	DirectionalShadowMap shadowMap;
+	uint64_t depthTextureHandle;
+    mat4 lightSpaceProjection;
 };
 
-struct CascadedShadowMap {
+struct DirectionalShadowMap 
+{
+    mat4 lightSpaceView;
 	Cascade cascades[kNumShadowCascades];
 };
 
-struct DirectionalLight {
+struct DirectionalLight 
+{
 	vec4 colorAndIntensity;
 	vec4 direction;
-	CascadedShadowMap csm;
+	DirectionalShadowMap shadowMap;
 };
 
-layout (std430) buffer DirectionalLightBuffer {
-	DirectionalLight directionalLights[];
+layout (std430) buffer DirectionalLightBuffer 
+{
+	DirectionalLight directionalLights;
 };
 
 uniform struct SkyLight {
@@ -135,7 +135,7 @@ int calcCascadeIndex(in vec3 viewSpacePosition, in DirectionalLight directionalL
 
 float PCFShadow(vec3 worldSpacePosition, vec3 normal, in DirectionalLight directionalLight)
 {
-    sampler2D sampler = sampler2D(directionalLight.csm.cascades[0].shadowMap.depthTextureHandle);
+    sampler2D sampler = sampler2D(directionalLight.cascades[0].depthTextureHandle);
 	float shadow = 0.0f;
     vec2 texelOffset = vec2(1.f) / textureSize(sampler, 0);
     vec3 viewSpacePosition = (viewSsbo.view * vec4(worldSpacePosition, 1.f)).xyz;

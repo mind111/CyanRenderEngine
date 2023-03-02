@@ -80,7 +80,6 @@ layout(std430) buffer SubmeshBuffer
 */
 
 #define TextureHandle uint64_t
-
 struct MaterialDesc
 {
 	TextureHandle albedoMap;
@@ -98,12 +97,12 @@ struct MaterialDesc
 
 layout(std430) buffer MaterialBuffer
 {
-	MaterialDesc materialDescs[];
+	MaterialDesc materials[];
 };
 
-layout(std430) buffer DrawCallBuffer 
+layout(std430) buffer InstanceLUTBuffer 
 {
-	uint drawCalls[];
+	uint instanceLUT[];
 };
 
 out gl_PerVertex
@@ -123,12 +122,12 @@ out VSOutput
 	vec2 texCoord0;
 	vec2 texCoord1;
 	vec3 vertexColor;
-	flat MaterialDesc desc;
+	flat MaterialDesc materialDesc;
 } vsOut;
 
 void main()
 {
-	uint instanceIndex = drawCalls[gl_DrawIDARB] + gl_InstanceID;
+	uint instanceIndex = instanceLUT[gl_DrawIDARB] + gl_InstanceID;
 	InstanceDesc instance = instanceDescs[instanceIndex];
 	uint baseVertex = submeshDescs[instance.submesh].baseVertex;
 	uint baseIndex = submeshDescs[instance.submesh].baseIndex;
@@ -145,5 +144,5 @@ void main()
 	vsOut.texCoord0 = vertex.texCoord.xy;
 	vsOut.texCoord1 = vertex.texCoord.zw;
 	vsOut.vertexColor = vertex.normal.xyz * .5 + .5;
-	vsOut.desc = materialDescs[instance.material];
+	vsOut.materialDesc = materials[instance.material];
 }

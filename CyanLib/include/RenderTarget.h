@@ -34,7 +34,7 @@ namespace Cyan
         void setColorBuffer(GfxTexture2D* texture, u32 index, u32 mip = 0u);
         void setColorBuffer(TextureCube* texture, u32 index, u32 mip = 0u);
         void setDrawBuffers(const std::initializer_list<i32>& buffers);
-        void setDepthBuffer(DepthTexture2D* texture);
+        void setDepthBuffer(GfxDepthTexture2D* texture);
         void clear(const std::initializer_list<RenderTargetDrawBuffer>& buffers, f32 clearDepthBuffer = 1.f);
         void clearDrawBuffer(i32 drawBufferIndex, glm::vec4 clearColor, bool clearDepth = true, f32 clearDepthValue = 1.f);
         void clearDepthBuffer(f32 clearDepthValue = 1.f);
@@ -43,7 +43,7 @@ namespace Cyan
         static RenderTarget* defaultRenderTarget;
         u32 width, height;
         Cyan::GfxTexture* colorBuffers[8] = { 0 };
-        Cyan::DepthTexture2D* depthBuffer = nullptr;
+        Cyan::GfxDepthTexture2D* depthBuffer = nullptr;
         GLuint fbo = -1;
         GLuint rbo = -1;
     };

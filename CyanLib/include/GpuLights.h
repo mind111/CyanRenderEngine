@@ -3,40 +3,41 @@
 #include "Common.h"
 #include "Shader.h"
 
-namespace Cyan {
-    struct GpuDirectionalShadowMap {
-        glm::mat4 lightSpaceView;
-        glm::mat4 lightSpaceProjection;
-        u64 depthMapHandle;
-        glm::vec2 padding;
-    };
-
-    struct GpuLight {
+namespace Cyan 
+{
+    struct GpuLight 
+    {
         glm::vec4 colorAndIntensity;
     };
 
-    struct GpuDirectionalLight : public GpuLight {
-        glm::vec4 direction;
-    };
-
     const u32 kNumShadowCascades = 4u;
-    struct GpuCSMDirectionalLight : public GpuDirectionalLight 
+    struct GpuDirectionalShadowMap 
     {
         struct Cascade 
         {
             f32 n;
             f32 f;
-            glm::vec2 padding;
-            GpuDirectionalShadowMap shadowMap;
+            u64 depthMapHandle;
+            glm::mat4 lightSpaceProjection;
         };
 
+        glm::mat4 lightSpaceView;
         Cascade cascades[kNumShadowCascades];
     };
 
-    struct GpuPointLight : public GpuLight {
+    struct GpuDirectionalLight : public GpuLight 
+    {
+        glm::vec4 direction;
+        GpuDirectionalShadowMap shadowMap;
+    };
+
+    struct GpuPointLight : public GpuLight 
+    {
 
     };
 
-    struct GpuSkyLight : public GpuLight {
+    struct GpuSkyLight : public GpuLight
+    {
+
     };
 }

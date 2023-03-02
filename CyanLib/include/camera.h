@@ -9,7 +9,7 @@
 
 namespace Cyan
 {
-    struct ICamera
+    struct Camera
     {
         virtual glm::mat4 view() const
         { 
@@ -21,7 +21,7 @@ namespace Cyan
         glm::vec3 right() const { return glm::normalize(glm::cross(forward(), worldUp)); }
         glm::vec3 up() const { return glm::normalize(glm::cross(right(), forward())); }
 
-        ICamera(const glm::vec3& inPosition, const glm::vec3& inLookAt, const glm::vec3& inWorldUp)
+        Camera(const glm::vec3& inPosition, const glm::vec3& inLookAt, const glm::vec3& inWorldUp)
             : position(inPosition), lookAt(inLookAt), worldUp(inWorldUp)
         { }
 
@@ -30,7 +30,7 @@ namespace Cyan
         glm::vec3 worldUp;
     };
 
-    struct PerspectiveCamera : public ICamera
+    struct PerspectiveCamera : public Camera
     {
         /* ICamera interface */
         virtual glm::mat4 projection() const override 
@@ -39,7 +39,7 @@ namespace Cyan
         }
 
         PerspectiveCamera()
-            : ICamera(glm::vec3(0.f, 1.f, -2.f), glm::vec3(0.f, 0.f, -4.f), glm::vec3(0.f, 1.f, 0.f)),
+            : Camera(glm::vec3(0.f, 1.f, -2.f), glm::vec3(0.f, 0.f, -4.f), glm::vec3(0.f, 1.f, 0.f)),
             fov(90.f),
             n(0.5f),
             f(128.f),
@@ -49,7 +49,7 @@ namespace Cyan
         }
 
         PerspectiveCamera(const glm::vec3& inPosition, const glm::vec3& inLookAt, const glm::vec3& inWorldUp, f32 inFov, f32 inN, f32 inF, f32 inAspectRatio)
-            : ICamera(inPosition, inLookAt, inWorldUp), fov(inFov), n(inN), f(inF), aspectRatio(inAspectRatio)
+            : Camera(inPosition, inLookAt, inWorldUp), fov(inFov), n(inN), f(inF), aspectRatio(inAspectRatio)
         {
 
         }
@@ -57,7 +57,7 @@ namespace Cyan
         f32 fov, n, f, aspectRatio;
     };
 
-    struct OrthographicCamera : public ICamera
+    struct OrthographicCamera : public Camera
     {
         /* ICamera interface */
         virtual glm::mat4 projection() const override
@@ -72,7 +72,7 @@ namespace Cyan
         }
 
         OrthographicCamera(const glm::vec3& inPosition, const glm::vec3& inLookAt, const glm::vec3& inWorldUp, const BoundingBox3D& inViewAABB)
-            : ICamera(inPosition, inLookAt,  inWorldUp), viewVolume(inViewAABB)
+            : Camera(inPosition, inLookAt,  inWorldUp), viewVolume(inViewAABB)
         {
 
         }
@@ -102,13 +102,13 @@ namespace Cyan
             camera = std::make_unique<OrthographicCamera>(inPosition, inLookAt, inWorldUp, inViewAABB);
         }
 
-        ICamera* getCamera() { return camera.get(); }
+        Camera* getCamera() { return camera.get(); }
 
         const glm::mat4& view() { return camera->view(); }
         const glm::mat4& projection() { return camera->projection(); }
 
     private:
-        std::unique_ptr<ICamera> camera;
+        std::unique_ptr<Camera> camera;
     };
 
     // todo: camera's lookAt should be determined from camera's facing direction (forward vector)
@@ -141,29 +141,29 @@ namespace Cyan
 
         const glm::mat4& view() { return cameraComponent->view(); }
         const glm::mat4& projection() { return cameraComponent->projection(); }
-        ICamera* getCamera() { return cameraComponent->getCamera(); }
+        Camera* getCamera() { return cameraComponent->getCamera(); }
 
         /* Camera movements */
         void moveForward()
         { 
-            ICamera* camera = getCamera();
+            Camera* camera = getCamera();
             getCamera()->position += camera->forward() * 0.1f;
         }
 
         void moveLeft()
         {
-            ICamera* camera = getCamera();
+            Camera* camera = getCamera();
             getCamera()->position -= camera->right() * 0.1f;
         }
         void moveRight()
         {
-            ICamera* camera = getCamera();
+            Camera* camera = getCamera();
             getCamera()->position += camera->right() * 0.1f;
         }
 
         void moveBack()
         {
-            ICamera* camera = getCamera();
+            Camera* camera = getCamera();
             getCamera()->position -= camera->forward() * 0.1f;
         }
 

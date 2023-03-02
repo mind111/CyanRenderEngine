@@ -40,31 +40,18 @@ namespace Cyan
         return lightSpaceAABB;
     }
 
-    void DirectionalLight::renderShadowMap(RenderableScene& scene, Renderer* renderer) 
+    void DirectionalLight::renderShadowMap(Scene* inScene, Renderer* renderer) 
     {
-        BoundingBox3D lightSpaceAABB = calcLightSpaceAABB(direction, scene.aabb);
-        shadowMap->render(lightSpaceAABB, scene, renderer);
+        shadowMap->render(inScene, renderer);
     }
 
-    void CSMDirectionalLight::renderShadowMap(RenderableScene& scene, Renderer* renderer) 
+    GpuDirectionalLight DirectionalLight::buildGpuDirectionalLight()
     {
-        BoundingBox3D lightSpaceAABB = calcLightSpaceAABB(direction, scene.aabb);
-        shadowMap->render(lightSpaceAABB, scene, renderer);
-    }
-
-    GpuCSMDirectionalLight CSMDirectionalLight::buildGpuLight() 
-    {
-        GpuCSMDirectionalLight light = { };
-        light.direction = glm::vec4(direction, 0.f);
-        light.colorAndIntensity = colorAndIntensity;
-        for (i32 i = 0; i < shadowMap->kNumCascades; ++i) {
-            light.cascades[i].n = shadowMap->cascades[i].n;
-            light.cascades[i].f = shadowMap->cascades[i].f;
-            light.cascades[i].shadowMap.lightSpaceView = glm::lookAt(glm::vec3(0.f), -direction, glm::vec3(0.f, 1.f, 0.f));
-            light.cascades[i].shadowMap.lightSpaceProjection = shadowMap->cascades[i].shadowMap->lightSpaceProjection;
-            light.cascades[i].shadowMap.depthMapHandle = shadowMap->cascades[i].shadowMap->depthTexture->glHandle;
-        }
-        return light;
+        GpuDirectionalLight outGpuDirectionalLight = { };
+        outGpuDirectionalLight.colorAndIntensity = glm::vec4(colorAndIntensity);
+        outGpuDirectionalLight.direction = glm::vec4(direction, 0.f);
+        outGpuDirectionalLight.shadowMap = shadowMap->buildGpuDirectionalShadowMap();
+        return outGpuDirectionalLight;
     }
 
     u32 SkyLight::numInstances = 0u;

@@ -29,24 +29,13 @@ namespace Cyan
 
         }
 
-        DirectionalLightComponent(Entity* owner, const char* name, const glm::vec3 direction, const glm::vec4& colorAndIntensity, bool bCastShadow, DirectionalLight::ShadowMap algorithm = DirectionalLight::ShadowMap::kCSM) 
+        DirectionalLightComponent(Entity* owner, const char* name, const glm::vec3 direction, const glm::vec4& colorAndIntensity, bool bCastShadow) 
             : ILightComponent(owner, name)
         { 
-
-            switch (algorithm) {
-            case DirectionalLight::ShadowMap::kBasic:
-                directionalLight = std::make_shared<DirectionalLight>(direction, colorAndIntensity, bCastShadow);
-                break;
-            case DirectionalLight::ShadowMap::kCSM:
-                directionalLight = std::make_shared<CSMDirectionalLight>(direction, colorAndIntensity, bCastShadow);
-                break;
-            case DirectionalLight::ShadowMap::kVSM:
-                break;
-            default:
-                break;
-            }
+            directionalLight = std::make_shared<DirectionalLight>(direction, colorAndIntensity, bCastShadow);
         }
 
+        DirectionalLight* getDirectionalLight() { return directionalLight.get(); }
         const glm::vec3& getDirection() { return directionalLight->direction; }
         const glm::vec4& getColorAndIntensity() { return directionalLight->colorAndIntensity; }
 

@@ -124,10 +124,15 @@ namespace Cyan
 
     DirectionalLightEntity* Scene::createDirectionalLight(const char* name, const glm::vec3& direction, const glm::vec4& colorAndIntensity)
     {
-        DirectionalLightEntity* directionalLight = new DirectionalLightEntity(this, name, Transform(), nullptr, direction, colorAndIntensity, true);
-        m_entities.push_back(directionalLight);
-        m_lightComponents.push_back(directionalLight->getDirectionalLightComponent());
-        return directionalLight;
+        assert(m_directionalLight == nullptr);
+        // only allow one directional light exists in the scene
+        if (m_directionalLight == nullptr)
+        {
+            DirectionalLightEntity* directionalLight = new DirectionalLightEntity(this, name, Transform(), nullptr, direction, colorAndIntensity, true);
+            m_entities.push_back(directionalLight);
+            m_directionalLight = directionalLight;
+            return directionalLight;
+        }
     }
 
     SkyLight* Scene::createSkyLight(const char* name, const glm::vec4& colorAndIntensity)

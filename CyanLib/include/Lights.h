@@ -28,25 +28,14 @@ namespace Cyan
     // todo: a light shouldn't need to care about what kind of shadow rendering technique its shadow map is using.
     struct DirectionalLight : public Light 
     {
-        enum class ShadowMap 
-        {
-            kBasic = 0,
-            kCSM,
-            kVSM,
-        };
-
-        DirectionalLight() : Light() 
-        {
-            shadowMap = std::make_unique<DirectionalShadowMap>(*this);
-        }
-
         DirectionalLight(const glm::vec3& inDirection, const glm::vec4& inColorAndIntensity, bool inCastShadow)
             : Light(inColorAndIntensity), direction(glm::normalize(inDirection)), bCastShadow(inCastShadow) 
         { 
             shadowMap = std::make_unique<DirectionalShadowMap>(*this);
         }
 
-        virtual void renderShadowMap(RenderableScene& scene, Renderer* renderer);
+        virtual void renderShadowMap(Scene* inScene, Renderer* renderer);
+        GpuDirectionalLight buildGpuDirectionalLight();
 
         glm::vec3 direction = glm::normalize(glm::vec3(1.f, 1.f, 1.f));
         bool bCastShadow = true;
@@ -54,7 +43,9 @@ namespace Cyan
         std::shared_ptr<DirectionalShadowMap> shadowMap = nullptr;
     };
 
-    struct CSMDirectionalLight : public DirectionalLight {
+#if 0
+    struct CSMDirectionalLight : public DirectionalLight 
+    {
         CSMDirectionalLight() : DirectionalLight() {
             shadowMap = std::make_shared<CascadedShadowMap>(*this);
         }
@@ -70,14 +61,17 @@ namespace Cyan
     private:
         std::shared_ptr<CascadedShadowMap> shadowMap = nullptr;
     };
+#endif
 
     // helper function for converting world space AABB to light's view space
     BoundingBox3D calcLightSpaceAABB(const glm::vec3& inLightDirection, const BoundingBox3D& worldSpaceAABB);
 
-    struct PointLight : public Light {
+    struct PointLight : public Light 
+    {
         PointLight() : Light() { }
         PointLight(const glm::vec3& inPosition) 
-            : Light(), position(inPosition) { 
+            : Light(), position(inPosition) 
+        { 
         }
 
         glm::vec3 position = glm::vec3(0.f);

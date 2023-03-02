@@ -58,14 +58,19 @@ namespace Cyan
 
         std::string m_name;
         BoundingBox3D m_aabb;
+
         /**
         * Currently active camera that will be used to render the scene, a scene can potentially
         * has multiple cameras but only one will be active at any moment.
         */
         std::unique_ptr<CameraEntity> m_mainCamera = nullptr;
+
         // scene hierarchy
         Entity* m_rootEntity = nullptr;
         std::vector<Entity*> m_entities;
+
+        // lights
+        DirectionalLightEntity* m_directionalLight = nullptr;
         // todo: implement SkyLightEntity and SkyboxEntity, so that these two can be merged into "m_entities"
         SkyLight* skyLight = nullptr;
         Skybox* skybox = nullptr;

@@ -875,16 +875,16 @@ namespace Cyan
         return outTexture;
     }
 
-    DepthTexture2D* AssetManager::createDepthTexture(const char* name, u32 width, u32 height)
+    GfxDepthTexture2D* AssetManager::createDepthTexture(const char* name, u32 width, u32 height)
     {
-        DepthTexture2D* outTexture = getAsset<DepthTexture2D>(name);
+        GfxDepthTexture2D* outTexture = getAsset<GfxDepthTexture2D>(name);
         if (!outTexture)
         {
-            DepthTexture2D::Spec spec(width, height, 1);
+            GfxDepthTexture2D::Spec spec(width, height, 1);
             Sampler2D sampler;
             sampler.minFilter = FM_POINT;
             sampler.magFilter = FM_POINT;
-            outTexture = new DepthTexture2D(name, spec, sampler);
+            outTexture = new GfxDepthTexture2D(name, spec, sampler);
             outTexture->init();
             singleton->addTexture(outTexture);
         }
