@@ -322,7 +322,7 @@ namespace Cyan
             transform = glm::translate(transform, nodes[nodeIndex].center);
             transform = transform * tangentFrame;
             transform = glm::scale(transform, glm::vec3(nodes[nodeIndex].radius));
-            InstanceDesc instanceDesc = { };
+            Instance instanceDesc = { };
             instanceDesc.transform = transform;
             instanceDesc.albedo = glm::vec4(nodes[nodeIndex].albedo, 1.f);
             instanceDesc.debugColor = glm::vec4(1.f, 0.f, 0.f, 1.f);
@@ -337,7 +337,7 @@ namespace Cyan
             transform = glm::translate(transform, leaf.center);
             transform = transform * tangentFrame;
             transform = glm::scale(transform, glm::vec3(leaf.radius));
-            InstanceDesc instanceDesc = { };
+            Instance instanceDesc = { };
             instanceDesc.transform = transform;
             instanceDesc.albedo = glm::vec4(leaf.albedo, 1.f);
             instanceDesc.debugColor = glm::vec4(1.f, 0.f, 0.f, 1.f);

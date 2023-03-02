@@ -21,7 +21,7 @@ namespace Cyan {
         return transform;
     }
 
-    static void drawSurfels(ShaderStorageBuffer<DynamicSsboData<InstanceDesc>>& surfelInstanceBuffer, Renderer* renderer, GfxContext* gfxc, RenderTarget* dstRenderTarget) 
+    static void drawSurfels(ShaderStorageBuffer<DynamicSsboData<Instance>>& surfelInstanceBuffer, Renderer* renderer, GfxContext* gfxc, RenderTarget* dstRenderTarget) 
     {
         surfelInstanceBuffer.bind(68);
         auto disk = AssetManager::getAsset<StaticMesh>("Disk");
@@ -167,7 +167,7 @@ namespace Cyan {
             tangentFrameInstanceBuffer.data.array.clear();
             for (i32 i = 0; i < kMaxNumHemicubes; ++i) {
                 if (hemicubes[i].position.w > 0.f) {
-                    InstanceDesc desc = { };
+                    Instance desc = { };
                     desc.transform = calcHemicubeTransform(hemicubes[i], glm::vec3(0.1f));
                     desc.atlasTexCoord = glm::ivec2(i % irradiance->width, i / irradiance->width);
                     hemicubeInstanceBuffer.addElement(desc);
@@ -233,7 +233,7 @@ namespace Cyan {
         auto visHemicubeVS = ShaderManager::createShader<VertexShader>("VisualizeHemicubeVS", SHADER_SOURCE_PATH "debug_show_hemicubes_v.glsl");
         auto visHemicubePS = ShaderManager::createShader<PixelShader>("VisualizeHemicubePS", SHADER_SOURCE_PATH "debug_show_hemicubes_p.glsl");
         auto visualizeHemicubePipeline = ShaderManager::createPixelPipeline("VisualizeHemicube", visHemicubeVS, visHemicubePS);
-        gfxc->setShaderStorageBuffer<DynamicSsboData<InstanceDesc>>(&hemicubeInstanceBuffer);
+        gfxc->setShaderStorageBuffer<DynamicSsboData<Instance>>(&hemicubeInstanceBuffer);
         gfxc->setPixelPipeline(visualizeHemicubePipeline, [this](VertexShader* vs, PixelShader* ps) {
                 ps->setTexture("radianceAtlas", radianceAtlas);
                 ps->setUniform("radianceRes", radianceRes);

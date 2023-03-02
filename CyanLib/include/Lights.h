@@ -10,7 +10,8 @@
 
 namespace Cyan
 {
-    struct Light {
+    struct Light 
+    {
         Light() { }
         Light(const glm::vec4& inColorAndIntensity) 
         : colorAndIntensity(inColorAndIntensity) {
@@ -24,19 +25,24 @@ namespace Cyan
         glm::vec4 colorAndIntensity = glm::vec4(1.f, 0.7f, 0.9f, 1.f);
     };
 
-    struct DirectionalLight : public Light {
-        enum class ShadowMap {
+    // todo: a light shouldn't need to care about what kind of shadow rendering technique its shadow map is using.
+    struct DirectionalLight : public Light 
+    {
+        enum class ShadowMap 
+        {
             kBasic = 0,
             kCSM,
             kVSM,
         };
 
-        DirectionalLight() : Light() {
+        DirectionalLight() : Light() 
+        {
             shadowMap = std::make_unique<DirectionalShadowMap>(*this);
         }
 
         DirectionalLight(const glm::vec3& inDirection, const glm::vec4& inColorAndIntensity, bool inCastShadow)
-            : Light(inColorAndIntensity), direction(glm::normalize(inDirection)), bCastShadow(inCastShadow) { 
+            : Light(inColorAndIntensity), direction(glm::normalize(inDirection)), bCastShadow(inCastShadow) 
+        { 
             shadowMap = std::make_unique<DirectionalShadowMap>(*this);
         }
 

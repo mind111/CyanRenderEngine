@@ -16,8 +16,6 @@
 #include "Entity.h"
 #include "Geometry.h"
 #include "Shadow.h"
-#include "InstantRadiosity.h"
-#include "ManyViewGI.h"
 
 namespace Cyan
 {
@@ -258,7 +256,7 @@ namespace Cyan
         void renderSceneDepthOnly(RenderableScene& renderableScene, DepthTexture2D* outDepthTexture);
         void renderSceneGBuffer(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer);
         void renderSceneGBufferWithTextureAtlas(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer);
-        void renderShadowMaps(RenderableScene& scene);
+        void renderShadowMaps(Scene* inScene);
         void renderSceneLighting(RenderTarget* outRenderTarget, GfxTexture2D* outSceneColor, RenderableScene& scene, GBuffer gBuffer);
         void renderSceneDirectLighting(RenderTarget* outRenderTarget, GfxTexture2D* outDirectLighting, RenderableScene& scene, GBuffer gBuffer);
         void renderSceneIndirectLighting(RenderTarget* outRenderTarget, GfxTexture2D* outIndirectLighting, RenderableScene& scene, GBuffer gBuffer);
@@ -385,7 +383,6 @@ namespace Cyan
         u32 m_numFrames = 0u;
         LinearAllocator m_frameAllocator;
         std::queue<UIRenderCommand> m_UIRenderCommandQueue;
-        std::unique_ptr<ManyViewGI> m_manyViewGI = nullptr;
         std::vector<GfxTexture2D*> renderTextures;
         bool bVisualize = false;
     };

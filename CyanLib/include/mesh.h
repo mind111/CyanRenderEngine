@@ -104,14 +104,14 @@ namespace Cyan
             glm::vec4 texCoord;
         };
 
-        using SubmeshBuffer = ShaderStorageBuffer<DynamicSsboData<Submesh::Desc>>;
-        using GlobalVertexBuffer = ShaderStorageBuffer<DynamicSsboData<Vertex>>;
-        using GlobalIndexBuffer = ShaderStorageBuffer<DynamicSsboData<u32>>;
+        static std::vector<Submesh::Desc> g_submeshes;
+        static std::vector<Vertex> g_vertices;
+        static std::vector<u32> g_indices;
 
         // todo: consider using a persistently mapped buffer for these global buffers, and stream-in data when necessary?
-        static SubmeshBuffer& getSubmeshBuffer();
-        static GlobalVertexBuffer& getGlobalVertexBuffer();
-        static GlobalIndexBuffer& getGlobalIndexBuffer();
+        static ShaderStorageBuffer* getGlobalSubmeshBuffer();
+        static ShaderStorageBuffer* getGlobalVertexBuffer();
+        static ShaderStorageBuffer* getGlobalIndexBuffer();
 
         BoundingBox3D aabb;
 

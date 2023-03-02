@@ -18,7 +18,7 @@ namespace Cyan {
         glm::vec4 radiance;
     };
 
-    struct InstanceDesc {
+    struct Instance {
         glm::mat4 transform;
         glm::vec4 albedo;
         glm::vec4 radiance;

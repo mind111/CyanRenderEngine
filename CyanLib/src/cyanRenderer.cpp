@@ -19,11 +19,9 @@
 #include "CyanRenderer.h"
 #include "Material.h"
 #include "MathUtils.h"
-#include "Ray.h"
 #include "RenderableScene.h"
 #include "Lights.h"
 #include "LightComponents.h"
-#include "RayTracingScene.h"
 #include "IOSystem.h"
 
 #define GPU_RAYTRACING 0
@@ -121,12 +119,10 @@ namespace Cyan
         m_frameAllocator(1024 * 1024 * 32),
         m_ssgi(this, glm::uvec2(windowWidth, windowHeight))
     {
-        m_manyViewGI = std::make_unique<ManyViewGI>(this, m_ctx);
     }
 
     void Renderer::initialize() 
     {
-        m_manyViewGI->initialize();
     };
 
     void Renderer::deinitialize() 
@@ -318,13 +314,10 @@ namespace Cyan
             m_sceneTextures.initialize(glm::uvec2(sceneView.canvas->width, sceneView.canvas->height));
 
             // convert Scene instance to RenderableScene instance for rendering
-#if BINDLESS_TEXTURE
-            RenderableSceneBindless renderableScene(scene, sceneView);
-#else
-            RenderableSceneTextureAtlas renderableScene(scene, sceneView);
-#endif
+            RenderableScene renderableScene(scene, sceneView);
 
             // shadow
+            // todo: should simply pass Scene here this function will build RenderableScene for different views accordingly
             renderShadowMaps(renderableScene);
 
             // depth prepass
@@ -337,7 +330,6 @@ namespace Cyan
             renderSceneGBufferWithTextureAtlas(m_sceneTextures.renderTarget, renderableScene, m_sceneTextures.gBuffer);
 #endif
             renderSceneLighting(m_sceneTextures.renderTarget, m_sceneTextures.color, renderableScene, m_sceneTextures.gBuffer);
-            // m_manyViewGI->render(m_sceneTextures.renderTarget, renderableScene, m_sceneTextures.gBuffer.depth, m_sceneTextures.gBuffer.normal);
 
             // draw debug objects if any
             drawDebugObjects();
@@ -420,21 +412,22 @@ namespace Cyan
         m_numFrames++;
     }
 
-    void Renderer::renderShadowMaps(RenderableScene& inScene) {
-        // make a copy
-#if BINDLESS_TEXTURE
-        RenderableSceneBindless scene(inScene);
-#else
-#endif
-        for (i32 i = 0; i < inScene.directionalLights.size(); ++i) {
-            if (inScene.directionalLights[i]->bCastShadow) {
-                inScene.directionalLights[i]->renderShadowMap(scene, this);
-                if (auto directionalLight = dynamic_cast<CSMDirectionalLight*>(inScene.directionalLights[i])) {
-                    (*inScene.directionalLightBuffer)[i] = directionalLight->buildGpuLight();
+    void Renderer::renderShadowMaps(Scene* inScene) 
+    {
+        for (auto lightComponent : inScene->m_lightComponents)
+        {
+            if (auto directionalLightComponent = dynamic_cast<DirectionalLightComponent*>(lightComponent))
+            {
+                if (auto directionalLight = dynamic_cast<CSMDirectionalLight*>(directionalLightComponent->directionalLight.get()))
+                {
+                    if (directionalLight->bCastShadow)
+                    {
+                        directionalLight->renderShadowMap(inScene, this);
+                    }
                 }
             }
         }
-        // todo: point light
+        // todo: other types of shadow casting lights
     }
 
     void Renderer::renderSceneDepthPrepass(RenderableScene& scene, RenderTarget* outRenderTarget, GfxTexture2D* outDepthTexture)
@@ -449,8 +442,8 @@ namespace Cyan
         CreatePixelPipeline(pipeline, "SceneDepthPrepass", vs, ps);
         m_ctx->setPixelPipeline(pipeline);
         m_ctx->setDepthControl(DepthControl::kEnable);
-        scene.upload();
-        multiDrawSceneIndirect(scene);
+        scene.bind(m_ctx);
+        m_ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get());
     }
 
     void Renderer::renderSceneDepthOnly(RenderableScene& scene, DepthTexture2D* outDepthTexture)
@@ -463,10 +456,10 @@ namespace Cyan
         CreateVS(vs, "SceneGBufferPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
         CreatePS(ps, "DepthOnlyPS", SHADER_SOURCE_PATH "depth_only_p.glsl");
         CreatePixelPipeline(pipeline, "DepthOnly", vs, ps);
-        scene.upload();
+        scene.bind(m_ctx);
         m_ctx->setPixelPipeline(pipeline);
         m_ctx->setDepthControl(DepthControl::kEnable);
-        multiDrawSceneIndirect(scene);
+        m_ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get());
     }
 
     void Renderer::renderSceneGBuffer(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer)
@@ -474,9 +467,7 @@ namespace Cyan
         CreateVS(vs, "SceneGBufferPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
         CreatePS(ps, "SceneGBufferPassPS", SHADER_SOURCE_PATH "scene_gbuffer_p.glsl");
         CreatePixelPipeline(pipeline, "SceneGBufferPass", vs, ps);
-        m_ctx->setPixelPipeline(pipeline, [](VertexShader* vs, PixelShader* ps) {
-
-        });
+        m_ctx->setPixelPipeline(pipeline);
 
         outRenderTarget->setColorBuffer(gBuffer.albedo, 0);
         outRenderTarget->setColorBuffer(gBuffer.normal, 1);
@@ -489,8 +480,8 @@ namespace Cyan
         m_ctx->setRenderTarget(outRenderTarget);
         m_ctx->setViewport({ 0, 0, outRenderTarget->width, outRenderTarget->height });
         m_ctx->setDepthControl(DepthControl::kEnable);
-        scene.upload();
-        multiDrawSceneIndirect(scene);
+        scene.bind(m_ctx);
+        m_ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get());
     }
 
     void Renderer::renderSceneLighting(RenderTarget* outRenderTarget, GfxTexture2D* outSceneColor, RenderableScene& scene, GBuffer gBuffer)
@@ -684,8 +675,11 @@ namespace Cyan
             glm::vec4 ro;
             glm::vec4 rd;
         };
-        static ShaderStorageBuffer<DynamicSsboData<DebugTraceData>> debugTraceBuffer("DebugTraceBuffer", kNumIterations);
-        static ShaderStorageBuffer<DynamicSsboData<Vertex>> debugRayBuffer("DebugRayBuffer", numDebugRays * kNumIterations);
+
+        static std::vector<DebugTraceData> debugTraces(kNumIterations);
+        static std::vector<Vertex> debugRays(numDebugRays * kNumIterations);
+        static ShaderStorageBuffer debugTraceBuffer("DebugTraceBuffer", sizeOfVector(debugTraces));
+        static ShaderStorageBuffer debugRayBuffer("DebugRayBuffer", sizeOfVector(debugRays));
 
         // debug trace
         {
@@ -714,10 +708,10 @@ namespace Cyan
             {
                 // read back ray data
                 // log debug trace data
-                memset(debugTraceBuffer.data.array.data(), 0x0, debugTraceBuffer.data.getDynamicDataSizeInBytes());
-                glGetNamedBufferSubData(debugTraceBuffer.getGpuResource(), 0, debugTraceBuffer.data.getDynamicDataSizeInBytes(), debugTraceBuffer.data.array.data());
-                memset(debugRayBuffer.data.array.data(), 0x0, debugRayBuffer.data.getDynamicDataSizeInBytes());
-                glGetNamedBufferSubData(debugRayBuffer.getGpuResource(), 0, debugRayBuffer.data.getSizeInBytes(), debugRayBuffer.data.array.data());
+                memset(debugTraces.data(), 0x0, sizeOfVector(debugTraces));
+                debugTraceBuffer.read(debugTraces, 0, sizeOfVector(debugTraces));
+                memset(debugRays.data(), 0x0, sizeOfVector(debugRays));
+                debugRayBuffer.read(debugRays, 0, sizeOfVector(debugRays));
         #if 0
                 for (i32 i = 0; i < kNumDebugIterations; ++i)
                 {
@@ -745,9 +739,9 @@ namespace Cyan
                 for (i32 i = 0; i < kNumIterations; ++i)
                 {
                     i32 index = ray * kNumIterations + i;
-                    if (debugRayBuffer[index].position.w > 0.f)
+                    if (debugRays[index].position.w > 0.f)
                     {
-                        vertices.push_back(debugRayBuffer[index]);
+                        vertices.push_back(debugRays[index]);
                     }
                 }
                 // visualize the debug ray
@@ -816,6 +810,7 @@ namespace Cyan
     // todo: try to defer drawing debug objects till after the post-processing pass
     void Renderer::drawWorldSpacePoints(RenderTarget* renderTarget, const std::vector<Vertex>& points)
     {
+#if 0
         static ShaderStorageBuffer<DynamicSsboData<Vertex>> vertexBuffer("VertexBuffer", 1024);
 
         debugDrawCalls.push([this, renderTarget, points]() {
@@ -838,18 +833,21 @@ namespace Cyan
                 glDrawArrays(GL_POINTS, 0, numPoints);
             }
         );
+#endif
     }
 
     void Renderer::drawWorldSpaceLines(RenderTarget* renderTarget, const std::vector<Vertex>& vertices)
     {
-        static ShaderStorageBuffer<DynamicSsboData<Vertex>> vertexBuffer("VertexBuffer", 1024);
+        const u32 kMaxNumVertices = 1024;
+        static ShaderStorageBuffer vertexBuffer("VertexBuffer", sizeof(Vertex) * kMaxNumVertices);
 
+#if 0
         debugDrawCalls.push([this, renderTarget, vertices]() {
                 // setup buffer
                 u32 numVertices = vertices.size();
                 u32 numLineSegments = max(i32(numVertices - 1), (i32)0);
                 u32 numVerticesToDraw = numLineSegments * 2;
-                assert(vertices.size() < vertexBuffer.getNumElements());
+                assert(vertices.size() < kMaxNumVertices);
                 // this maybe unsafe
                 memcpy(vertexBuffer.data.array.data(), vertices.data(), sizeof(Vertex) * vertices.size());
                 vertexBuffer.upload();
@@ -866,10 +864,12 @@ namespace Cyan
                 glDrawArrays(GL_LINES, 0, numVerticesToDraw);
             }
         );
+#endif
     }
 
     void Renderer::drawScreenSpaceLines(RenderTarget* renderTarget, const std::vector<Vertex>& vertices)
     {
+#if 0
         static ShaderStorageBuffer<DynamicSsboData<Vertex>> vertexBuffer("VertexBuffer", 1024);
 
         debugDrawCalls.push([this, renderTarget, vertices] {
@@ -894,6 +894,7 @@ namespace Cyan
                 glDrawArrays(GL_LINES, 0, numVerticesToDraw);
             }
         );
+#endif
     }
 
     void Renderer::drawDebugObjects()
@@ -1086,6 +1087,7 @@ namespace Cyan
 
     void Renderer::multiDrawSceneIndirect(const RenderableScene& scene) 
     {
+#if 0
         struct IndirectDrawArrayCommand
         {
             u32  count;
@@ -1113,6 +1115,7 @@ namespace Cyan
         // one sub-drawcall per instance
         u32 drawCount = max(scene.drawCallBuffer->getNumElements() - 1, 0);
         glMultiDrawArraysIndirect(GL_TRIANGLES, 0, drawCount, 0);
+#endif
     }
 
     void Renderer::renderSceneBatched(RenderableScene& scene, RenderTarget* outRenderTarget, GfxTexture2D* outSceneColor) 
@@ -1168,8 +1171,9 @@ namespace Cyan
         m_ctx->setRenderTarget(outRenderTarget);
         m_ctx->setViewport({ 0, 0, outRenderTarget->width, outRenderTarget->height });
         m_ctx->setDepthControl(DepthControl::kEnable);
-        scene.upload();
-        multiDrawSceneIndirect(scene);
+
+        scene.bind(m_ctx);
+        m_ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get());
 
         // render skybox
         if (scene.skybox) 
@@ -1197,8 +1201,8 @@ namespace Cyan
         m_ctx->setRenderTarget(outRenderTarget);
         m_ctx->setViewport({ 0, 0, outRenderTarget->width, outRenderTarget->height });
         m_ctx->setDepthControl(DepthControl::kEnable);
-        scene.upload();
-        multiDrawSceneIndirect(scene);
+        scene.bind(m_ctx);
+        m_ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get());
     }
 
     void Renderer::downsample(GfxTexture2D* src, GfxTexture2D* dst) {

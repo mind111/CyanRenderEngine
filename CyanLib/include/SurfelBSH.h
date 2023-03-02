@@ -69,7 +69,7 @@ namespace Cyan {
         void dfs(i32 nodeIndex, const std::function<void(Node&)>& callback);
         bool castRayInternal(const glm::vec3& ro, const glm::vec3& rd, const Node& node, RayHit& hit) const;
         virtual u32 getNumLevels() { return numLevels; }
-        ShaderStorageBuffer<DynamicSsboData<InstanceDesc>> nodeInstanceBuffer;
+        ShaderStorageBuffer<DynamicSsboData<Instance>> nodeInstanceBuffer;
         GfxTexture2D* visualization = nullptr;
         i32 activeVisLevel = 0;
         i32 numVisLevels = 1;
@@ -95,7 +95,7 @@ namespace Cyan {
         std::vector<BSHNode> nodes;
 
     private:
-        ShaderStorageBuffer<DynamicSsboData<InstanceDesc>> nodeInstanceBuffer;
+        ShaderStorageBuffer<DynamicSsboData<Instance>> nodeInstanceBuffer;
         i32 activeVisLevel = 0;
         i32 numVisLevels = 1;
         void buildInternal(i32 parent, std::vector<Surfel>& surfels, u32 start, u32 end);

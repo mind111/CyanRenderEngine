@@ -25,7 +25,8 @@ namespace Cyan
         depthTexture = std::unique_ptr<DepthTexture2DBindless>(DepthTexture2DBindless::create(spec));
     }
 
-    void DirectionalShadowMap::render(const BoundingBox3D& lightSpaceAABB, RenderableScene& scene, Renderer* renderer) {
+    void DirectionalShadowMap::render(const BoundingBox3D& lightSpaceAABB, Scene* inScene, Renderer* renderer) 
+    {
         OrthographicCamera lightCamera(
             glm::vec3(0.f),
             -lightDirection,
@@ -33,8 +34,9 @@ namespace Cyan
             lightSpaceAABB
         );
 
-        scene.camera.view = lightCamera.view();
-        scene.camera.projection = lightCamera.projection();
+        SceneView sceneView(inScene, &lightCamera, depthTexture.get());
+        RenderableScene scene(inScene, sceneView);
+
         lightSpaceProjection = lightCamera.projection();
 
         renderer->renderSceneDepthOnly(scene, depthTexture.get());
@@ -85,17 +87,20 @@ namespace Cyan
         }
     }
 
-    void CascadedShadowMap::render(const BoundingBox3D& lightSpaceAABB, RenderableScene& scene, Renderer* renderer) {
+    void CascadedShadowMap::render(const BoundingBox3D& lightSpaceAABB, RenderableScene& scene, Renderer* renderer) 
+    {
         // calculate cascades based on camera view frustum
         updateCascades(scene.camera);
 
-        for (u32 i = 0; i < kNumCascades; ++i) {
+        for (u32 i = 0; i < kNumCascades; ++i) 
+        {
             BoundingBox3D cascadeLightSpaceAABB = calcLightSpaceAABB(lightDirection, cascades[i].worldSpaceAABB);
             cascades[i].shadowMap->render(cascadeLightSpaceAABB, scene, renderer);
         }
     }
 
-    void CascadedShadowMap::updateCascades(const RenderableScene::Camera& camera) {
+    void CascadedShadowMap::updateCascades(const RenderableScene::Camera& camera) 
+    {
         // calculate cascade's near and far clipping plane
         for (u32 i = 0u; i < kNumCascades; ++i) {
             cascades[i].n = camera.n + cascadeBoundries[i] * (camera.f - camera.n);

@@ -21,6 +21,7 @@
 namespace Cyan 
 {
     struct SceneComponent;
+    struct ILightComponent;
 
     class Scene 
     {
@@ -68,5 +69,9 @@ namespace Cyan
         // todo: implement SkyLightEntity and SkyboxEntity, so that these two can be merged into "m_entities"
         SkyLight* skyLight = nullptr;
         Skybox* skybox = nullptr;
+
+        // rendering related book keeping
+        std::vector<StaticMeshEntity*> m_staticMeshes;
+        std::vector<ILightComponent*> m_lightComponents;
     };
 }

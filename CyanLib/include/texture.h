@@ -324,6 +324,8 @@ namespace Cyan
         virtual void initGfxResource() override;
         virtual GfxTexture2D* getGfxResource() override { return gfxTexture.get(); };
 
+        u64 getTextureHandle() { return gfxTexture->glHandle; }
+
         // gfx resource
         std::shared_ptr<GfxTexture2DBindless> gfxTexture = nullptr;
     };

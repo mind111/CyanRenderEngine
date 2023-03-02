@@ -128,7 +128,7 @@ namespace Cyan {
                         glm::mat4 transform = glm::translate(glm::mat4(1.f), worldSpacePosition + tn * 0.01f);
                         transform = transform * calcTangentFrame(tn);
                         transform = glm::scale(transform, glm::vec3(size * 0.45f / resolution));
-                        instanceBuffer.addElement(InstanceDesc{ transform, glm::vec4(0.f, 1.0f, 1.0f, 1.f) });
+                        instanceBuffer.addElement(Instance{ transform, glm::vec4(0.f, 1.0f, 1.0f, 1.f) });
                     }
 #endif
                 }
@@ -301,14 +301,14 @@ namespace Cyan {
                     glm::mat4 transform = glm::translate(glm::mat4(1.f), sample.p);
                     // transform *= calcTangentFrame(sample.n);
                     transform = glm::scale(transform, glm::vec3(tessellator.kTexelRadius));
-                    surfelSamples.addElement(InstanceDesc{ transform, glm::vec4(sample.color, 1.f)
+                    surfelSamples.addElement(Instance{ transform, glm::vec4(sample.color, 1.f)
                     });
                 }
                 {
                     glm::mat4 transform = glm::translate(glm::mat4(1.f), sample.p + tessellator.tn * 0.01f);
                     transform = transform * calcTangentFrame(tessellator.tn);
                     transform = glm::scale(transform, glm::vec3(tessellator.kTexelRadius));
-                    instanceBuffer.addElement(InstanceDesc{ transform, glm::vec4(0.f, 1.0f, 1.0f, 1.f) });
+                    instanceBuffer.addElement(Instance{ transform, glm::vec4(0.f, 1.0f, 1.0f, 1.f) });
                 }
             }
         }

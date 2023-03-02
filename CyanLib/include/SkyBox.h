@@ -4,6 +4,8 @@
 
 namespace Cyan
 {
+    class PixelPipeline;
+
     struct Skybox
     {
         Skybox(const char* name, const char* srcHDRIPath, const glm::uvec2& resolution);

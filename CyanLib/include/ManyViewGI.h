@@ -69,13 +69,13 @@ namespace Cyan {
             GfxTexture2D* sceneColor = nullptr;
             GfxTexture2D* composed = nullptr;
         protected:
-            struct InstanceDesc 
+            struct Instance 
             {
                 glm::mat4 transform;
                 glm::ivec2 atlasTexCoord;
                 glm::ivec2 padding;
             };
-            ShaderStorageBuffer<DynamicSsboData<InstanceDesc>> hemicubeInstanceBuffer;
+            ShaderStorageBuffer<DynamicSsboData<Instance>> hemicubeInstanceBuffer;
 
             struct Axis 
             {
@@ -171,7 +171,7 @@ namespace Cyan {
 
         std::vector<Surfel> surfels;
         ShaderStorageBuffer<DynamicSsboData<GpuSurfel>> surfelBuffer;
-        ShaderStorageBuffer<DynamicSsboData<InstanceDesc>> surfelInstanceBuffer;
+        ShaderStorageBuffer<DynamicSsboData<Instance>> surfelInstanceBuffer;
         bool bVisualizeSurfels = false;
 
     private:

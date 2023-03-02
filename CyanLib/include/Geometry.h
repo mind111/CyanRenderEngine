@@ -3,9 +3,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include "VertexArray.h"
-#include "Shader.h"
-#include "Material.h"
+#include "Common.h"
 
 namespace Cyan
 {

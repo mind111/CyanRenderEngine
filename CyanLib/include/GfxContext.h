@@ -70,13 +70,12 @@ namespace Cyan
         // todo: implement this
         void setImage(GfxTexture2DArray* textuerArray, u32 binding, u32 layered = true, u32 layer = 0) { }
 
-        template<typename T>
-        void setShaderStorageBuffer(ShaderStorageBuffer<T>* buffer) 
+        void setShaderStorageBuffer(ShaderStorageBuffer* buffer) 
         {
-            auto entry = m_shaderStorageBindingMap.find(buffer->name);
+            auto entry = m_shaderStorageBindingMap.find(buffer->getBlockName());
             if (entry == m_shaderStorageBindingMap.end())  
             {
-                m_shaderStorageBindingMap[buffer->name] = m_nextShaderStorageBinding;
+                m_shaderStorageBindingMap[buffer->getBlockName()] = m_nextShaderStorageBinding;
                 buffer->bind(m_nextShaderStorageBinding++);
             }
             else 
@@ -104,6 +103,7 @@ namespace Cyan
 
         void drawIndexAuto(u32 numVerts, u32 offset=0);
         void drawIndex(u32 numIndices);
+        void multiDrawArrayIndirect(IndirectDrawBuffer* indirectDrawBuffer);
 
         void flip();
         void clear();

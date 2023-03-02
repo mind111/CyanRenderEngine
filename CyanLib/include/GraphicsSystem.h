@@ -6,7 +6,6 @@
 #include "Scene.h"
 #include "Texture.h"
 #include "LightMap.h"
-#include "RayTracer.h"
 #include "CyanRenderer.h"
 #include "GfxContext.h"
 

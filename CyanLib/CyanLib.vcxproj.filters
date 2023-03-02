@@ -114,9 +114,6 @@
     <ClInclude Include="include\GraphicsSystem.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\LightMap.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\LightProbe.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -192,15 +189,6 @@
     <ClInclude Include="include\StaticMeshEntity.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\RayTracingScene.h">
-      <Filter>Header Files\RayTracing</Filter>
-    </ClInclude>
-    <ClInclude Include="include\BVH.h">
-      <Filter>Header Files\RayTracing</Filter>
-    </ClInclude>
-    <ClInclude Include="include\RayTracer.h">
-      <Filter>Header Files\RayTracing</Filter>
-    </ClInclude>
     <ClInclude Include="include\Texture.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -212,18 +200,6 @@
     </ClInclude>
     <ClInclude Include="include\RenderableScene.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\SurfelBSH.h">
-      <Filter>Header Files\ManyViewGI</Filter>
-    </ClInclude>
-    <ClInclude Include="include\SurfelSampler.h">
-      <Filter>Header Files\ManyViewGI</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ManyViewGI.h">
-      <Filter>Header Files\ManyViewGI</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Surfel.h">
-      <Filter>Header Files\ManyViewGI</Filter>
     </ClInclude>
     <ClInclude Include="include\GpuLights.h">
       <Filter>Header Files\Lights</Filter>
@@ -269,27 +245,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\RayTracingScene.cpp">
-      <Filter>Source Files\RayTracing</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Ray.cpp">
-      <Filter>Source Files\RayTracing</Filter>
-    </ClCompile>
-    <ClCompile Include="src\BVH.cpp">
-      <Filter>Source Files\RayTracing</Filter>
-    </ClCompile>
-    <ClCompile Include="src\RayTracer.cpp">
-      <Filter>Source Files\RayTracing</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ManyViewGI.cpp">
-      <Filter>Source Files\ManyViewGI</Filter>
-    </ClCompile>
-    <ClCompile Include="src\SurfelBSH.cpp">
-      <Filter>Source Files\ManyViewGI</Filter>
-    </ClCompile>
-    <ClCompile Include="src\SurfelSampler.cpp">
-      <Filter>Source Files\ManyViewGI</Filter>
-    </ClCompile>
     <ClCompile Include="src\LightEntities.cpp">
       <Filter>Source Files\Lights</Filter>
     </ClCompile>
@@ -336,9 +291,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\IOSystem.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\LightMap.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\LightProbe.cpp">

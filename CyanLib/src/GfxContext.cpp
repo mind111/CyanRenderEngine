@@ -243,6 +243,13 @@ namespace Cyan {
         glDrawElements(m_primitiveType, numIndices, GL_UNSIGNED_INT, reinterpret_cast<const void*>(0));
     }
 
+    void GfxContext::multiDrawArrayIndirect(IndirectDrawBuffer* indirectDrawBuffer)
+    {
+        indirectDrawBuffer->bind();
+        // todo: the offset and stride parameter should be configurable at some point
+        glMultiDrawArraysIndirect(m_primitiveType, 0, indirectDrawBuffer->numDrawcalls(), 0);
+    }
+
     void GfxContext::clear()
     {
         glClearColor(.2f, .2f, .2f, 1.f);

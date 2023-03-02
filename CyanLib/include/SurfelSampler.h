@@ -51,13 +51,13 @@ namespace Cyan {
             glm::vec2 size;
         };
 
-        struct InstanceDesc
+        struct Instance
         {
             glm::mat4 transform;
             glm::vec4 color;
         };
 
-        ShaderStorageBuffer<DynamicSsboData<InstanceDesc>> surfelSamples;
-        ShaderStorageBuffer<DynamicSsboData<InstanceDesc>> instanceBuffer;
+        ShaderStorageBuffer<DynamicSsboData<Instance>> surfelSamples;
+        ShaderStorageBuffer<DynamicSsboData<Instance>> instanceBuffer;
     };
 }

@@ -25,7 +25,7 @@ namespace Cyan
         virtual const char* getTag() { return "SceneComponent"; }
 
         /* SceneComponent interface */
-        virtual Cyan::MeshInstance* getAttachedMesh() { return nullptr; }
+        virtual MeshInstance* getAttachedMesh() { return nullptr; }
 
 #if 0
         void attachChild(SceneComponent* inChild);
@@ -59,7 +59,7 @@ namespace Cyan
         }
 
         /* SceneComponent interface */
-        virtual Cyan::MeshInstance* getAttachedMesh() { return meshInst.get(); }
+        virtual MeshInstance* getAttachedMesh() { return meshInst.get(); }
 
         void setMaterial(Material* material);
         void setMaterial(Material* material, u32 submeshIndex);

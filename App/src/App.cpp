@@ -6,7 +6,6 @@
 
 #include "CyanApp.h"
 #include "Scene.h"
-#include "RayTracingScene.h"
 
 class TheGame : public Cyan::DefaultApp
 {
@@ -444,8 +443,6 @@ public:
     }
 
 private:
-    std::unique_ptr<Cyan::RayTracingScene> m_rtxScene = nullptr;
-    std::unique_ptr<Cyan::RayTracer> m_rayTracer = nullptr;
     std::vector<std::thread*> spawnedThreads;
     Cyan::GfxTexture2D* rayTracingOutput = nullptr;
 };

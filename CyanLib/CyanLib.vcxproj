@@ -28,7 +28,6 @@
     <ClInclude Include="include\Asset.h" />
     <ClInclude Include="include\AssetImporter.h" />
     <ClInclude Include="include\AssetManager.h" />
-    <ClInclude Include="include\BVH.h" />
     <ClInclude Include="include\camera.h" />
     <ClInclude Include="include\Common.h" />
     <ClInclude Include="include\Component.h" />
@@ -41,8 +40,6 @@
     <ClInclude Include="include\Image.h" />
     <ClInclude Include="include\IndexBuffer.h" />
     <ClInclude Include="include\LightEntities.h" />
-    <ClInclude Include="include\ManyViewGI.h" />
-    <ClInclude Include="include\RayTracer.h" />
     <ClInclude Include="include\CyanRenderer.h" />
     <ClInclude Include="include\Entity.h" />
     <ClInclude Include="include\Event.h" />
@@ -52,7 +49,6 @@
     <ClInclude Include="include\IOSystem.h" />
     <ClInclude Include="include\Lights.h" />
     <ClInclude Include="include\LightComponents.h" />
-    <ClInclude Include="include\LightMap.h" />
     <ClInclude Include="include\LightProbe.h" />
     <ClInclude Include="include\GpuLights.h" />
     <ClInclude Include="include\Material.h" />
@@ -60,7 +56,6 @@
     <ClInclude Include="include\Mesh.h" />
     <ClInclude Include="include\Node.h" />
     <ClInclude Include="include\Plane.h" />
-    <ClInclude Include="include\RayTracingScene.h" />
     <ClInclude Include="include\RenderableScene.h" />
     <ClInclude Include="include\RenderTarget.h" />
     <ClInclude Include="include\Scene.h" />
@@ -72,9 +67,6 @@
     <ClInclude Include="include\Singleton.h" />
     <ClInclude Include="include\SkyBox.h" />
     <ClInclude Include="include\StaticMeshEntity.h" />
-    <ClInclude Include="include\Surfel.h" />
-    <ClInclude Include="include\SurfelBSH.h" />
-    <ClInclude Include="include\SurfelSampler.h" />
     <ClInclude Include="include\System.h" />
     <ClInclude Include="include\Texture.h" />
     <ClInclude Include="include\TextureAtlas.h" />
@@ -89,7 +81,6 @@
   <ItemGroup>
     <ClCompile Include="src\AssetImporter.cpp" />
     <ClCompile Include="src\AssetManager.cpp" />
-    <ClCompile Include="src\BVH.cpp" />
     <ClCompile Include="src\Camera.cpp" />
     <ClCompile Include="src\Component.cpp" />
     <ClCompile Include="src\CyanAPI.cpp" />
@@ -99,8 +90,6 @@
     <ClCompile Include="src\Image.cpp" />
     <ClCompile Include="src\IndexBuffer.cpp" />
     <ClCompile Include="src\Lights.cpp" />
-    <ClCompile Include="src\ManyViewGI.cpp" />
-    <ClCompile Include="src\RayTracer.cpp" />
     <ClCompile Include="src\CyanRenderer.cpp" />
     <ClCompile Include="src\LightEntities.cpp" />
     <ClCompile Include="src\Entity.cpp" />
@@ -110,13 +99,10 @@
     <ClCompile Include="src\GraphicsSystem.cpp" />
     <ClCompile Include="src\IOSystem.cpp" />
     <ClCompile Include="src\LightComponents.cpp" />
-    <ClCompile Include="src\LightMap.cpp" />
     <ClCompile Include="src\LightProbe.cpp" />
     <ClCompile Include="src\Material.cpp" />
     <ClCompile Include="src\MathUtils.cpp" />
     <ClCompile Include="src\Mesh.cpp" />
-    <ClCompile Include="src\Ray.cpp" />
-    <ClCompile Include="src\RayTracingScene.cpp" />
     <ClCompile Include="src\RenderableScene.cpp" />
     <ClCompile Include="src\RenderTarget.cpp" />
     <ClCompile Include="src\Scene.cpp" />
@@ -126,8 +112,6 @@
     <ClCompile Include="src\Shadow.cpp" />
     <ClCompile Include="src\SkyBox.cpp" />
     <ClCompile Include="src\StaticMeshEntity.cpp" />
-    <ClCompile Include="src\SurfelBSH.cpp" />
-    <ClCompile Include="src\SurfelSampler.cpp" />
     <ClCompile Include="src\Texture.cpp" />
     <ClCompile Include="src\TextureAtlas.cpp" />
     <ClCompile Include="src\todos.cpp" />

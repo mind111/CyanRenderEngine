@@ -174,8 +174,6 @@ namespace Cyan
         m_assetImporter = std::make_unique<AssetImporter>();
         m_shaderManager = std::make_unique<ShaderManager>();
         m_renderer = std::make_unique<Renderer>(m_ctx.get(), windowWidth, windowHeight);
-        // m_lightMapManager = new LightMapManager;
-        // m_pathTracer = new PathTracer;
 
         GfxTexture2D::Spec spec(m_windowDimension.x, m_windowDimension.y, 1, PF_RGB16F);
         Sampler2D sampler;

@@ -5,6 +5,7 @@
 #include "CyanAPI.h"
 #include "CyanRenderer.h"
 #include "AssetManager.h"
+#include "Shader.h"
 
 namespace Cyan
 {

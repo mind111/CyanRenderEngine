@@ -5,100 +5,49 @@
 
 namespace Cyan 
 {
-#if 0
-    void Material::renderUI() {
-
-    }
-
-    GpuMaterial Material::buildGpuMaterial() {
-        GpuMaterial matl = { };
-        if (albedoMap != nullptr) 
-        {
-            matl.albedoMap = albedoMap->glHandle;
-            matl.flag |= (u32)Flags::kHasAlbedoMap;
-            if (glIsTextureHandleResidentARB(matl.albedoMap) == GL_FALSE) 
-            {
-                glMakeTextureHandleResidentARB(matl.albedoMap);
-            }
-        }
-        if (normalMap != nullptr) 
-        {
-            matl.normalMap = normalMap->glHandle;
-            matl.flag |= (u32)Flags::kHasNormalMap;
-            if (glIsTextureHandleResidentARB(matl.normalMap) == GL_FALSE) 
-            {
-                glMakeTextureHandleResidentARB(matl.normalMap);
-            }
-        }
-        if (metallicRoughnessMap != nullptr) 
-        {
-            matl.metallicRoughnessMap = metallicRoughnessMap->glHandle;
-            matl.flag |= (u32)Flags::kHasMetallicRoughnessMap;
-            if (glIsTextureHandleResidentARB(matl.metallicRoughnessMap) == GL_FALSE) 
-            {
-                glMakeTextureHandleResidentARB(matl.metallicRoughnessMap);
-            }
-        }
-        if (occlusionMap != nullptr) 
-        {
-            matl.occlusionMap = occlusionMap->glHandle;
-            matl.flag |= (u32)Flags::kHasOcclusionMap;
-            if (glIsTextureHandleResidentARB(matl.occlusionMap) == GL_FALSE) 
-            {
-                glMakeTextureHandleResidentARB(matl.occlusionMap);
-            }
-        }
-        matl.albedo = albedo;
-        matl.metallic = metallic;
-        matl.roughness = roughness;
-        matl.emissive = emissive;
-        return matl;
-    }
-#else
-    MaterialBindless::GpuData MaterialBindless::buildGpuData()
+    RenderableScene::Material MaterialBindless::buildGpuMaterial()
     {
-        GpuData gpuData = { };
+        RenderableScene::Material outGpuMaterial = { };
         if (albedoMap != nullptr && albedoMap->isInited()) 
         {
-            gpuData.albedoMap = albedoMap->gfxTexture->glHandle;
-            gpuData.flag |= (u32)Flags::kHasAlbedoMap;
-            if (glIsTextureHandleResidentARB(gpuData.albedoMap) == GL_FALSE) 
+            outGpuMaterial.albedoMap = albedoMap->gfxTexture->glHandle;
+            outGpuMaterial.flag |= (u32)Flags::kHasAlbedoMap;
+            if (glIsTextureHandleResidentARB(outGpuMaterial.albedoMap) == GL_FALSE) 
             {
-                glMakeTextureHandleResidentARB(gpuData.albedoMap);
+                glMakeTextureHandleResidentARB(outGpuMaterial.albedoMap);
             }
         }
         if (normalMap != nullptr && normalMap->isInited())
         {
-            gpuData.normalMap = normalMap->gfxTexture->glHandle;
-            gpuData.flag |= (u32)Flags::kHasNormalMap;
-            if (glIsTextureHandleResidentARB(gpuData.normalMap) == GL_FALSE) 
+            outGpuMaterial.normalMap = normalMap->gfxTexture->glHandle;
+            outGpuMaterial.flag |= (u32)Flags::kHasNormalMap;
+            if (glIsTextureHandleResidentARB(outGpuMaterial.normalMap) == GL_FALSE) 
             {
-                glMakeTextureHandleResidentARB(gpuData.normalMap);
+                glMakeTextureHandleResidentARB(outGpuMaterial.normalMap);
             }
         }
         if (metallicRoughnessMap != nullptr && metallicRoughnessMap->isInited()) 
         {
-            gpuData.metallicRoughnessMap = metallicRoughnessMap->gfxTexture->glHandle;
-            gpuData.flag |= (u32)Flags::kHasMetallicRoughnessMap;
-            if (glIsTextureHandleResidentARB(gpuData.metallicRoughnessMap) == GL_FALSE) 
+            outGpuMaterial.metallicRoughnessMap = metallicRoughnessMap->gfxTexture->glHandle;
+            outGpuMaterial.flag |= (u32)Flags::kHasMetallicRoughnessMap;
+            if (glIsTextureHandleResidentARB(outGpuMaterial.metallicRoughnessMap) == GL_FALSE) 
             {
-                glMakeTextureHandleResidentARB(gpuData.metallicRoughnessMap);
+                glMakeTextureHandleResidentARB(outGpuMaterial.metallicRoughnessMap);
             }
         }
         if (occlusionMap != nullptr && occlusionMap->isInited()) 
         {
-            gpuData.occlusionMap = occlusionMap->gfxTexture->glHandle;
-            gpuData.flag |= (u32)Flags::kHasOcclusionMap;
-            if (glIsTextureHandleResidentARB(gpuData.occlusionMap) == GL_FALSE) 
+            outGpuMaterial.occlusionMap = occlusionMap->gfxTexture->glHandle;
+            outGpuMaterial.flag |= (u32)Flags::kHasOcclusionMap;
+            if (glIsTextureHandleResidentARB(outGpuMaterial.occlusionMap) == GL_FALSE) 
             {
-                glMakeTextureHandleResidentARB(gpuData.occlusionMap);
+                glMakeTextureHandleResidentARB(outGpuMaterial.occlusionMap);
             }
         }
-        gpuData.albedo = albedo;
-        gpuData.metallic = metallic;
-        gpuData.roughness = roughness;
-        gpuData.emissive = emissive;
-        return gpuData;
+        outGpuMaterial.albedo = albedo;
+        outGpuMaterial.metallic = metallic;
+        outGpuMaterial.roughness = roughness;
+        outGpuMaterial.emissive = emissive;
+        return outGpuMaterial;
     }
-#endif
 }

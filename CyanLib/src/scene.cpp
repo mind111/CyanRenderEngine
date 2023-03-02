@@ -11,6 +11,7 @@
 #include "CyanAPI.h"
 #include "Scene.h"
 #include "GraphicsSystem.h"
+#include "LightComponents.h"
 
 namespace Cyan
 {
@@ -110,6 +111,7 @@ namespace Cyan
     {
         auto staticMesh = new StaticMeshEntity(this, name, transform, inMesh, inParent, properties);
         m_entities.push_back(staticMesh);
+        m_staticMeshes.push_back(staticMesh);
         return staticMesh;
     }
 
@@ -124,6 +126,7 @@ namespace Cyan
     {
         DirectionalLightEntity* directionalLight = new DirectionalLightEntity(this, name, Transform(), nullptr, direction, colorAndIntensity, true);
         m_entities.push_back(directionalLight);
+        m_lightComponents.push_back(directionalLight->getDirectionalLightComponent());
         return directionalLight;
     }
 

@@ -1,13 +1,15 @@
 #pragma once
 
 #include "Texture.h"
-#include "Entity.h"
 #include "RenderTarget.h"
 
-struct Scene;
 
 namespace Cyan
 {
+    struct Scene;
+    struct PixelPipeline;
+    struct MeshInstance;
+
     struct LightProbe
     {
         LightProbe(TextureCube* srcCubemapTexture);

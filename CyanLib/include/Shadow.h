@@ -11,7 +11,7 @@ namespace Cyan {
     struct Camera;
     struct PerspectiveCamera;
     struct OrthographicCamera;
-    struct Renderer;
+    class Renderer;
     struct DirectionalLight;
     struct Scene;
     struct RenderableScene;
@@ -19,7 +19,7 @@ namespace Cyan {
 
     struct IDirectionalShadowMap
     {
-        virtual void render(const BoundingBox3D& lightSpaceAABB, RenderableScene& scene, Renderer* renderer) { }
+        virtual void render(const BoundingBox3D& lightSpaceAABB, Scene* scene, Renderer* renderer) { }
         virtual void setShaderParameters(Shader* shader, const char* uniformNamePrefix) { }
 
         IDirectionalShadowMap(const DirectionalLight& inDirectionalLight);
@@ -43,7 +43,7 @@ namespace Cyan {
     */
     struct DirectionalShadowMap : public IDirectionalShadowMap 
     {
-        virtual void render(const BoundingBox3D& likghtSpaceAABB, RenderableScene& scene, Renderer* renderer) override;
+        virtual void render(const BoundingBox3D& likghtSpaceAABB, Scene* inScene, Renderer* renderer) override;
         virtual void setShaderParameters(Shader* shader, const char* uniformNamePrefix) override;
 
         DirectionalShadowMap(const DirectionalLight& inDirectionalLight);

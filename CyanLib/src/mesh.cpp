@@ -6,6 +6,10 @@
 
 namespace Cyan
 {
+    std::vector<StaticMesh::Submesh::Desc> StaticMesh::g_submeshes;
+    std::vector<StaticMesh::Vertex> StaticMesh::g_vertices;
+    std::vector<u32> StaticMesh::g_indices;
+
     StaticMesh::Submesh::Submesh(StaticMesh* inOwner)
         : owner(inOwner), geometry(nullptr), vb(nullptr), ib(nullptr), va(nullptr), index(-1)
     {
@@ -16,27 +20,9 @@ namespace Cyan
     {
     }
 
-    StaticMesh::SubmeshBuffer& StaticMesh::getSubmeshBuffer()
-    {
-        static SubmeshBuffer s_submeshBuffer("SubmeshBuffer");
-        return s_submeshBuffer;
-    }
-
-    StaticMesh::GlobalVertexBuffer& StaticMesh::getGlobalVertexBuffer()
-    {
-        static GlobalVertexBuffer s_vertexBuffer("VertexBuffer");
-        return s_vertexBuffer;
-    }
-
-    StaticMesh::GlobalIndexBuffer& StaticMesh::getGlobalIndexBuffer()
-    {
-        static GlobalIndexBuffer s_indexBuffer("IndexBuffer");
-        return s_indexBuffer;
-    }
-
     StaticMesh::Submesh::Desc StaticMesh::getSubmeshDesc(StaticMesh::Submesh* submesh)
     {
-        return getSubmeshBuffer()[submesh->index];
+        return g_submeshes[submesh->index];
     }
 
     void StaticMesh::Submesh::setGeometry(std::shared_ptr<Geometry> inGeometry)
@@ -60,34 +46,30 @@ namespace Cyan
         {
             assert(geometry);
 
-            // pack geometry data into global vertex / index buffer
-            auto& gVertexBuffer = getGlobalVertexBuffer();
-            auto& gIndexBuffer = getGlobalIndexBuffer();
-
             Desc desc = { };
             Geometry::Type type = geometry->getGeometryType();
             switch (type)
             {
             case Geometry::Type::kTriangles: {
-                desc.vertexOffset = gVertexBuffer.getNumElements();
+                desc.vertexOffset = g_vertices.size();
                 desc.numVertices = geometry->numVertices();
-                desc.indexOffset = gIndexBuffer.getNumElements();
+                desc.indexOffset = g_indices.size();
                 desc.numIndices = geometry->numIndices();
 
                 // pack the src geometry data into the global vertex/index buffer for static geometries
                 Triangles* triangles = static_cast<Triangles*>(geometry.get());
-                u32 start = gVertexBuffer.getNumElements();
-                gVertexBuffer.data.array.resize(gVertexBuffer.getNumElements() + geometry->numVertices());
+                u32 start = g_vertices.size();
+                g_vertices.resize(g_vertices.size() + geometry->numVertices());
                 const auto& vertices = triangles->vertices;
                 const auto& indices = triangles->indices;
                 for (u32 v = 0; v < triangles->vertices.size(); ++v)
                 {
-                    gVertexBuffer[start + v].pos = glm::vec4(vertices[v].pos, 1.f);
-                    gVertexBuffer[start + v].normal = glm::vec4(vertices[v].normal, 0.f);
-                    gVertexBuffer[start + v].tangent = vertices[v].tangent;
-                    gVertexBuffer[start + v].texCoord = glm::vec4(vertices[v].texCoord0, vertices[v].texCoord1);
+                    g_vertices[start + v].pos = glm::vec4(vertices[v].pos, 1.f);
+                    g_vertices[start + v].normal = glm::vec4(vertices[v].normal, 0.f);
+                    g_vertices[start + v].tangent = vertices[v].tangent;
+                    g_vertices[start + v].texCoord = glm::vec4(vertices[v].texCoord0, vertices[v].texCoord1);
                 }
-                gIndexBuffer.data.array.insert(gIndexBuffer.data.array.end(), indices.begin(), indices.end());
+                g_indices.insert(g_indices.end(), indices.begin(), indices.end());
             } break;
             case Geometry::Type::kPointCloud:
             case Geometry::Type::kLines:
@@ -95,9 +77,8 @@ namespace Cyan
                 assert(0);
             }
 
-            auto& submeshBuffer = getSubmeshBuffer();
-            index = submeshBuffer.getNumElements();
-            submeshBuffer.addElement(desc);
+            index = g_submeshes.size();
+            g_submeshes.push_back(desc);
 
             // todo: this makes the geometry data duplicated on the Gpu end, need to make it choosable whether a submesh should be both packed and initialized seperately
             // initialize vertex buffer object, index buffer object, and vertex array object
@@ -132,15 +113,33 @@ namespace Cyan
 
             bInitialized = true;
 
-            // upload data to these three global buffers as they just become out-dated on cpu end
-            gVertexBuffer.upload();
-            gIndexBuffer.upload();
-            submeshBuffer.upload();
+            // upload data to these three global buffers as they just become out-dated on gpu end
+            getGlobalVertexBuffer()->write(g_vertices, 0, sizeOfVector(g_vertices));
+            getGlobalIndexBuffer()->write(g_indices, 0, sizeOfVector(g_indices));
+            getGlobalSubmeshBuffer()->write(g_submeshes, 0, sizeOfVector(g_submeshes));
         }
         else
         {
 
         }
+    }
+
+    ShaderStorageBuffer* StaticMesh::getGlobalSubmeshBuffer()
+    {
+        static std::unique_ptr<ShaderStorageBuffer> g_submeshBuffer = std::make_unique<ShaderStorageBuffer>("SubmeshBuffer", sizeOfVector(g_submeshes));
+        return g_submeshBuffer.get();
+    }
+
+    ShaderStorageBuffer* StaticMesh::getGlobalVertexBuffer()
+    {
+        static std::unique_ptr<ShaderStorageBuffer> g_vertexBuffer = std::make_unique<ShaderStorageBuffer>("VertexBuffer", sizeOfVector(g_vertices));
+        return g_vertexBuffer.get();
+    }
+
+    ShaderStorageBuffer* StaticMesh::getGlobalIndexBuffer()
+    {
+        static std::unique_ptr<ShaderStorageBuffer> g_indexBuffer = std::make_unique<ShaderStorageBuffer>("IndexBuffer", sizeOfVector(g_indices));
+        return g_indexBuffer.get();
     }
 
     void StaticMesh::import()

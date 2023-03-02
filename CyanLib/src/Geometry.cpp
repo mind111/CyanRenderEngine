@@ -1,6 +1,4 @@
 #include "Geometry.h"
-#include "CyanAPI.h"
-#include "VertexArray.h"
 #include "MathUtils.h"
 
 namespace Cyan

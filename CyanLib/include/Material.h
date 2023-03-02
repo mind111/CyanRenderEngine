@@ -11,82 +11,10 @@
 #include "TextureAtlas.h"
 #include "Asset.h"
 #include "Image.h"
+#include "RenderableScene.h"
 
 namespace Cyan 
 {
-#if 0 
-    struct GpuMaterial 
-    {
-        u64 albedoMap;
-        u64 normalMap;
-        u64 metallicRoughnessMap;
-        u64 occlusionMap;
-        glm::vec4 albedo = glm::vec4(.9f, .9f, .9f, 1.f);
-        f32 metallic = 0.f;
-        f32 roughness = .5f;
-        f32 emissive = 1.f;
-        u32 flag = 0u;
-    };
-
-    struct Material
-    {
-        enum class Flags : u32 {
-            kHasAlbedoMap            = 1 << 0,
-            kHasNormalMap            = 1 << 1,
-            kHasMetallicRoughnessMap = 1 << 2,
-            kHasOcclusionMap         = 1 << 3,
-        };
-
-        void renderUI();
-        GpuMaterial buildGpuMaterial();
-
-        std::string name;
-        GfxTexture2DBindless* albedoMap = nullptr;
-        GfxTexture2DBindless* normalMap = nullptr;
-        GfxTexture2DBindless* metallicRoughnessMap = nullptr;
-        GfxTexture2DBindless* occlusionMap = nullptr;
-        glm::vec4 albedo = glm::vec4(0.9f, 0.9f, 0.9f, 1.f);
-        f32 metallic = 0.f;
-        f32 roughness = .5f;
-        f32 emissive = 1.f;
-    };
-
-    struct GpuMaterialTextureAtlas
-    {
-        PackedTextureDesc albedoMap;
-        PackedTextureDesc normalMap;
-        PackedTextureDesc metallicRoughnessMap;
-        PackedTextureDesc occlusionMap;
-        glm::vec4 albedo = glm::vec4(0.9f, 0.9f, 0.9f, 1.f);
-        f32 metallic = 0.f;
-        f32 roughness = .5f;
-        f32 emissive = 1.f;
-        u32 flag;
-    };
-
-    struct MaterialTextureAtlas
-    {
-        enum class Flags : u32 
-        {
-            kHasAlbedoMap            = 1 << 0,
-            kHasNormalMap            = 1 << 1,
-            kHasMetallicRoughnessMap = 1 << 2,
-            kHasOcclusionMap         = 1 << 3,
-        };
-
-        std::string name;
-
-        PackedTextureDesc albedoMap;
-        PackedTextureDesc normalMap;
-        PackedTextureDesc metallicRoughnessMap;
-        PackedTextureDesc occlusionMap;
-
-        glm::vec4 albedo = glm::vec4(0.9f, 0.9f, 0.9f, 1.f);
-        f32 metallic = 0.f;
-        f32 roughness = .5f;
-        f32 emissive = 1.f;
-    };
-#else
     struct Material
     {
         enum class Flags : u32 
@@ -104,6 +32,8 @@ namespace Cyan
         }
         virtual ~Material() { };
 
+        virtual RenderableScene::Material buildGpuMaterial() = 0;
+
         std::string name;
         glm::vec4 albedo = glm::vec4(.8f, .8f, .8f, 1.f);
         f32 metallic = 0.f;
@@ -112,32 +42,16 @@ namespace Cyan
         u32 flag;
     };
 
+    // todo: Even if I implement texture atlas later, material
     // material implementation using bindless texture
     struct MaterialBindless : public Material
     {
-        using TextureHandle = u64;
-
-        struct GpuData
-        {
-            TextureHandle albedoMap;
-            TextureHandle normalMap;
-            TextureHandle metallicRoughnessMap;
-            TextureHandle emissiveMap;
-            TextureHandle occlusionMap;
-            TextureHandle padding;
-            glm::vec4 albedo;
-            f32 metallic;
-            f32 roughness;
-            f32 emissive;
-            u32 flag;
-        };
-
         MaterialBindless(const char* inName)
             : Material(inName)
         {
         }
 
-        GpuData buildGpuData();
+        virtual RenderableScene::Material buildGpuMaterial() override;
 
         Texture2DBindless* albedoMap = nullptr;
         Texture2DBindless* normalMap = nullptr;
@@ -146,8 +60,10 @@ namespace Cyan
         Texture2DBindless* emissiveMap = nullptr;
     };
 
+    // todo: GpuData should be identical to MaterialBindless, SubtextureDesc is two i32, basically can be packed into a u64
     struct MaterialTextureAtlas : public Material
     {
+#if 0
         struct GpuData
         {
             SubtextureDesc albedoMap;
@@ -160,10 +76,14 @@ namespace Cyan
             f32 emissive;
             u32 flag;
         };
-
-        GpuData buildGpuData()
+#endif
+        MaterialTextureAtlas(const char* inName)
+            : Material(inName)
         {
+
         }
+
+        virtual RenderableScene::Material buildGpuMaterial() override { };
 
         SubtextureDesc albedoMap = { };
         SubtextureDesc normalMap = { };
@@ -171,5 +91,4 @@ namespace Cyan
         SubtextureDesc occlusionMap = { };
         SubtextureDesc emissiveMap = { };
     };
-#endif
 };
