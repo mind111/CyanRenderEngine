@@ -30,6 +30,9 @@ namespace Cyan
 {
     Renderer::GBuffer::GBuffer(const glm::uvec2& resolution)
         : depth("SceneGBufferDepth", GfxTexture2D::Spec(resolution.x, resolution.y, 1, PF_RGB32F), Sampler2D())
+        , albedo("SceneGBufferAlbedo", GfxTexture2D::Spec(resolution.x, resolution.y, 1, PF_RGB16F), Sampler2D())
+        , normal("SceneGBufferNormal", GfxTexture2D::Spec(resolution.x, resolution.y, 1, PF_RGB32F), Sampler2D())
+        , metallicRoughness("SceneGBufferMetallicRoughness", GfxTexture2D::Spec(resolution.x, resolution.y, 1, PF_RGB16F), Sampler2D())
     {
 
     }
@@ -73,19 +76,6 @@ namespace Cyan
             GfxTexture2D::Spec spec(resolution.x, resolution.y, 1, PF_RGB16F);
             color = renderer->createRenderTexture("SceneColor", spec, sampler);
         }
-        // g-buffer
-        {
-            {
-                GfxTexture2D::Spec spec(resolution.x, resolution.y, 1, PF_RGB32F);
-                gBuffer.normal = renderer->createRenderTexture("SceneNormalBuffer", spec, sampler);
-                // gBuffer.depth = renderer->createRenderTexture("SceneDepthBuffer", spec, sampler);
-            }
-            {
-                GfxTexture2D::Spec spec(resolution.x, resolution.y, 1, PF_RGB16F);
-                gBuffer.albedo = renderer->createRenderTexture("Albedo", spec, sampler);
-                gBuffer.metallicRoughness = renderer->createRenderTexture("MetallicRoughness", spec, sampler);
-            }
-        }
         // Hi-Z
         {
             HiZ = new HiZBuffer(gBuffer.depth.getGfxTexture2D()->getSpec());
@@ -108,12 +98,12 @@ namespace Cyan
         }
 
         renderer->registerVisualization(std::string("SceneTextures"), "SceneColor", color);
-        renderer->registerVisualization(std::string("SceneTextures"), "SceneAlbedo", gBuffer.albedo);
-        renderer->registerVisualization(std::string("SceneTextures"), "SceneMetallicRoughness", gBuffer.metallicRoughness);
+        renderer->registerVisualization(std::string("SceneTextures"), "SceneAlbedo", gBuffer.albedo.getGfxTexture2D());
+        renderer->registerVisualization(std::string("SceneTextures"), "SceneMetallicRoughness", gBuffer.metallicRoughness.getGfxTexture2D());
         renderer->registerVisualization(std::string("SceneTextures"), "SceneDepth", gBuffer.depth.getGfxTexture2D());
         renderer->registerVisualization(std::string("SceneTextures"), "HiZ", HiZ->texture.get());
         renderer->registerVisualization(std::string("SceneTextures"), "SSGIMirror", ssgiMirror);
-        renderer->registerVisualization(std::string("SceneTextures"), "SceneNormal", gBuffer.normal);
+        renderer->registerVisualization(std::string("SceneTextures"), "SceneNormal", gBuffer.normal.getGfxTexture2D());
         renderer->registerVisualization(std::string("SceneTextures"), "SceneDirectDiffuseLighting", directDiffuseLighting);
         renderer->registerVisualization(std::string("SceneTextures"), "SceneDirectLighting", directLighting);
         renderer->registerVisualization(std::string("SceneTextures"), "SceneIndirectLighting", indirectLighting);
@@ -413,23 +403,6 @@ namespace Cyan
         }
     }
 
-#if 0
-    void Renderer::renderSceneDepthPrepass(RenderableScene& scene, RenderTarget* outRenderTarget, GfxTexture2D* outDepthTexture)
-    {
-        outRenderTarget->setColorBuffer(outDepthTexture, 0);
-        outRenderTarget->setDrawBuffers({ 0 });
-        outRenderTarget->clearDrawBuffer(0, glm::vec4(1.f, 1.f, 1.f, 1.f));
-        m_ctx->setRenderTarget(outRenderTarget);
-        m_ctx->setViewport({ 0, 0, outRenderTarget->width, outRenderTarget->height });
-        CreateVS(vs, "SceneGBufferPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
-        CreatePS(ps, "SceneDepthPrepassPS", SHADER_SOURCE_PATH "scene_depth_prepass_p.glsl");
-        CreatePixelPipeline(pipeline, "SceneDepthPrepass", vs, ps);
-        m_ctx->setPixelPipeline(pipeline);
-        m_ctx->setDepthControl(DepthControl::kEnable);
-        scene.bind(m_ctx);
-        m_ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.getGfxTexture2D());
-    }
-#else
     void Renderer::renderSceneDepthPrepass(const RenderableScene& scene, RenderTarget* outRenderTarget, RenderTexture2D outDepthTexture)
     {
         GfxTexture2D* outGfxDepthTexture = outDepthTexture.getGfxTexture2D();
@@ -449,7 +422,6 @@ namespace Cyan
         m_ctx->setDepthControl(DepthControl::kEnable);
         m_ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get());
     }
-#endif
 
     void Renderer::renderSceneDepthOnly(RenderableScene& scene, GfxDepthTexture2D* outDepthTexture)
     {
@@ -467,19 +439,21 @@ namespace Cyan
         m_ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get());
     }
 
-    void Renderer::renderSceneGBuffer(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer)
+    void Renderer::renderSceneGBuffer(RenderTarget* outRenderTarget, const RenderableScene& scene, GBuffer gBuffer)
     {
         // todo: maybe it's worth moving those shader storage buffer cached in "scene" into each function as a
         // static variable, and every time this function is called, reset the data of those persistent gpu buffers
+
+        scene.bind(m_ctx);
 
         CreateVS(vs, "SceneGBufferPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
         CreatePS(ps, "SceneGBufferPassPS", SHADER_SOURCE_PATH "scene_gbuffer_p.glsl");
         CreatePixelPipeline(pipeline, "SceneGBufferPass", vs, ps);
         m_ctx->setPixelPipeline(pipeline);
 
-        outRenderTarget->setColorBuffer(gBuffer.albedo, 0);
-        outRenderTarget->setColorBuffer(gBuffer.normal, 1);
-        outRenderTarget->setColorBuffer(gBuffer.metallicRoughness, 2);
+        outRenderTarget->setColorBuffer(gBuffer.albedo.getGfxTexture2D(), 0);
+        outRenderTarget->setColorBuffer(gBuffer.normal.getGfxTexture2D(), 1);
+        outRenderTarget->setColorBuffer(gBuffer.metallicRoughness.getGfxTexture2D(), 2);
         outRenderTarget->setDrawBuffers({ 0, 1, 2 });
         outRenderTarget->clearDrawBuffer(0, glm::vec4(0.f, 0.f, 0.f, 1.f), false);
         outRenderTarget->clearDrawBuffer(1, glm::vec4(0.f, 0.f, 0.f, 1.f), false);
@@ -488,7 +462,6 @@ namespace Cyan
         m_ctx->setRenderTarget(outRenderTarget);
         m_ctx->setViewport({ 0, 0, outRenderTarget->width, outRenderTarget->height });
         m_ctx->setDepthControl(DepthControl::kEnable);
-        scene.bind(m_ctx);
         m_ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get());
     }
 
@@ -530,9 +503,9 @@ namespace Cyan
 
         drawFullscreenQuad(outRenderTarget, pipeline, [gBuffer](VertexShader* vs, PixelShader* ps) {
             ps->setTexture("sceneDepth", gBuffer.depth.getGfxTexture2D());
-            ps->setTexture("sceneNormal", gBuffer.normal);
-            ps->setTexture("sceneAlbedo", gBuffer.albedo);
-            ps->setTexture("sceneMetallicRoughness", gBuffer.metallicRoughness);
+            ps->setTexture("sceneNormal", gBuffer.normal.getGfxTexture2D());
+            ps->setTexture("sceneAlbedo", gBuffer.albedo.getGfxTexture2D());
+            ps->setTexture("sceneMetallicRoughness", gBuffer.metallicRoughness.getGfxTexture2D());
         });
 
         if (scene.skybox)
@@ -546,7 +519,7 @@ namespace Cyan
         // render AO and bent normal, as well as indirect irradiance
         if (bDebugSSRT)
         {
-            visualizeSSRT(gBuffer.depth.getGfxTexture2D(), gBuffer.normal);
+            visualizeSSRT(gBuffer.depth.getGfxTexture2D(), gBuffer.normal.getGfxTexture2D());
         }
         m_ssgi.renderEx(m_sceneTextures->ao, m_sceneTextures->bentNormal, m_sceneTextures->irradiance, m_sceneTextures->gBuffer, m_sceneTextures->HiZ, m_sceneTextures->directDiffuseLighting);
 
@@ -560,9 +533,9 @@ namespace Cyan
 
         drawFullscreenQuad(outRenderTarget, pipeline, [this, &scene, gBuffer](VertexShader* vs, PixelShader* ps) {
             ps->setTexture("sceneDepth", gBuffer.depth.getGfxTexture2D());
-            ps->setTexture("sceneNormal", gBuffer.normal);
-            ps->setTexture("sceneAlbedo", gBuffer.albedo);
-            ps->setTexture("sceneMetallicRoughness", gBuffer.metallicRoughness);
+            ps->setTexture("sceneNormal", gBuffer.normal.getGfxTexture2D());
+            ps->setTexture("sceneAlbedo", gBuffer.albedo.getGfxTexture2D());
+            ps->setTexture("sceneMetallicRoughness", gBuffer.metallicRoughness.getGfxTexture2D());
             // setup ssao
             if (m_sceneTextures->ao)
             {
@@ -804,8 +777,8 @@ namespace Cyan
                     pipeline,
                     [this](VertexShader* vs, PixelShader* ps) {
                         ps->setTexture("sceneDepth", m_sceneTextures->gBuffer.depth.getGfxTexture2D());
-                        ps->setTexture("sceneNormal", m_sceneTextures->gBuffer.normal);
-                        ps->setTexture("directDiffuseBuffer", m_sceneTextures->gBuffer.normal);
+                        ps->setTexture("sceneNormal", m_sceneTextures->gBuffer.normal.getGfxTexture2D());
+                        ps->setTexture("directDiffuseBuffer", m_sceneTextures->gBuffer.normal.getGfxTexture2D());
                         ps->setUniform("numLevels", (i32)m_sceneTextures->HiZ->texture->numMips);
                         ps->setTexture("HiZ", m_sceneTextures->HiZ->texture.get());
                         ps->setUniform("kMaxNumIterations", kNumIterations);
@@ -983,7 +956,7 @@ namespace Cyan
             [this, gBuffer, sceneDepth, HiZ, inDirectDiffuseBuffer](VertexShader* vs, PixelShader* ps) {
                 ps->setUniform("outputSize", glm::vec2(sceneDepth->width, sceneDepth->height));
                 ps->setTexture("depthBuffer", sceneDepth);
-                ps->setTexture("normalBuffer", gBuffer.normal);
+                ps->setTexture("normalBuffer", gBuffer.normal.getGfxTexture2D());
                 ps->setTexture("HiZ", HiZ->texture.get());
                 ps->setUniform("numLevels", (i32)HiZ->texture->numMips);
                 ps->setUniform("kMaxNumIterations", (i32)kNumIterations);
@@ -1022,7 +995,7 @@ namespace Cyan
             [this, gBuffer, sceneDepth, HiZ, inDirectDiffuseBuffer](VertexShader* vs, PixelShader* ps) {
                 ps->setUniform("outputSize", glm::vec2(sceneDepth->width, sceneDepth->height));
                 ps->setTexture("depthBuffer", sceneDepth);
-                ps->setTexture("normalBuffer", gBuffer.normal);
+                ps->setTexture("normalBuffer", gBuffer.normal.getGfxTexture2D());
                 ps->setTexture("HiZ", HiZ->texture.get());
                 ps->setUniform("numLevels", (i32)HiZ->texture->numMips);
                 ps->setUniform("kMaxNumIterations", (i32)kNumIterations);
@@ -1046,7 +1019,7 @@ namespace Cyan
                 pipeline,
                 [this, gBuffer](VertexShader* vs, PixelShader* ps) {
                     ps->setTexture("depthBuffer", gBuffer.depth.getGfxTexture2D());
-                    ps->setTexture("normalBuffer", gBuffer.normal);
+                    ps->setTexture("normalBuffer", gBuffer.normal.getGfxTexture2D());
                     ps->setTexture("hitPositionBuffer", hitBuffer.position);
                     ps->setTexture("hitNormalBuffer", hitBuffer.normal);
                     ps->setTexture("hitRadianceBuffer", hitBuffer.radiance);
@@ -1067,9 +1040,9 @@ namespace Cyan
         m_ctx->setPixelPipeline(pipeline, [](VertexShader* vs, PixelShader* ps) {
         });
 
-        outRenderTarget->setColorBuffer(gBuffer.albedo, 0);
-        outRenderTarget->setColorBuffer(gBuffer.normal, 1);
-        outRenderTarget->setColorBuffer(gBuffer.metallicRoughness, 2);
+        outRenderTarget->setColorBuffer(gBuffer.albedo.getGfxTexture2D(), 0);
+        outRenderTarget->setColorBuffer(gBuffer.normal.getGfxTexture2D(), 1);
+        outRenderTarget->setColorBuffer(gBuffer.metallicRoughness.getGfxTexture2D(), 2);
         outRenderTarget->setDrawBuffers({ 0, 1, 2 });
         outRenderTarget->clearDrawBuffer(0, glm::vec4(0.f, 0.f, 0.f, 1.f), false);
         outRenderTarget->clearDrawBuffer(1, glm::vec4(0.f, 0.f, 0.f, 1.f), false);

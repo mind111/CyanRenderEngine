@@ -168,11 +168,10 @@ namespace Cyan
             GBuffer(const glm::uvec2& resolution);
             ~GBuffer() { }
 
-            // GfxTexture2D* depth = nullptr;
             RenderTexture2D depth;
-            GfxTexture2D* normal = nullptr;
-            GfxTexture2D* albedo = nullptr;
-            GfxTexture2D* metallicRoughness = nullptr;
+            RenderTexture2D normal;
+            RenderTexture2D albedo;
+            RenderTexture2D metallicRoughness;
         };
 
         struct SceneTextures
@@ -247,11 +246,9 @@ namespace Cyan
         // managing creating and recycling render target
         RenderTarget* createCachedRenderTarget(const char* name, u32 width, u32 height);
 
-        // void renderSceneDepthPrepass(RenderableScene& renderableScene, RenderTarget* outRenderTarget, GfxTexture2D* outDepthBuffer);
         void renderSceneDepthPrepass(const RenderableScene& renderableScene, RenderTarget* outRenderTarget, RenderTexture2D outDepthBuffer);
-
         void renderSceneDepthOnly(RenderableScene& renderableScene, GfxDepthTexture2D* outDepthTexture);
-        void renderSceneGBuffer(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer);
+        void renderSceneGBuffer(RenderTarget* outRenderTarget, const RenderableScene& scene, GBuffer gBuffer);
         void renderSceneGBufferWithTextureAtlas(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer);
         void renderShadowMaps(Scene* inScene);
         void renderSceneLighting(RenderTarget* outRenderTarget, GfxTexture2D* outSceneColor, RenderableScene& scene, GBuffer gBuffer);
