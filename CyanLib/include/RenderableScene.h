@@ -115,7 +115,7 @@ namespace Cyan
 
         ~RenderableScene() { }
 
-        void bind(GfxContext* ctx);
+        void bind(GfxContext* ctx) const;
 
         // bounding box
         BoundingBox3D aabb;

@@ -148,7 +148,7 @@ namespace Cyan
         // Load equirectangular map into a cubemap
         Texture* loadEquirectangularMap(const char* _name, const char* _file, bool _hdr)
         {
-            auto textureManager = TextureManager::get();
+            auto textureManager = TextureManager::getGfxTexture2D();
             const u32 kViewportWidth = 1024;
             const u32 kViewportHeight = 1024;
             Camera camera = { };
@@ -258,7 +258,7 @@ namespace Cyan
 
         Texture* prefilterEnvMapDiffuse(const char* _name, Texture* envMap)
         {
-            auto textureManager = TextureManager::get();
+            auto textureManager = TextureManager::getGfxTexture2D();
             const u32 kViewportWidth = 128u;
             const u32 kViewportHeight = 128u;
             Camera camera = { };
@@ -355,7 +355,7 @@ namespace Cyan
         Texture* prefilterEnvmapSpecular(Texture* envMap)
         {
             CYAN_ASSERT(envMap->m_type == Texture::Type::TEX_CUBEMAP, "Cannot prefilter a non-cubemap texture")
-            auto textureManager = TextureManager::get();
+            auto textureManager = TextureManager::getGfxTexture2D();
             Texture* prefilteredEnvMap;
             // HDR
             TextureSpec spec;
@@ -463,7 +463,7 @@ namespace Cyan
         // integrate brdf for specular IBL
         Texture* generateBrdfLUT()
         {
-            auto textureManager = TextureManager::get();
+            auto textureManager = TextureManager::getGfxTexture2D();
 
             const u32 kTexWidth = 512u;
             const u32 kTexHeight = 512u;

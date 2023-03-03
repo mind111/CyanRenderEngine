@@ -105,12 +105,7 @@ namespace Cyan
             return *this;
         }
 
-        GfxTexture2D* get()
-        {
-            return texture;
-        }
-
-        GfxTexture2D* operator->()
+        GfxTexture2D* getGfxTexture2D() const
         {
             return texture;
         }
@@ -170,14 +165,22 @@ namespace Cyan
 
         struct GBuffer
         {
-            GfxTexture2D* depth = nullptr;
+            GBuffer(const glm::uvec2& resolution);
+            ~GBuffer() { }
+
+            // GfxTexture2D* depth = nullptr;
+            RenderTexture2D depth;
             GfxTexture2D* normal = nullptr;
             GfxTexture2D* albedo = nullptr;
             GfxTexture2D* metallicRoughness = nullptr;
         };
 
-        struct SceneTextures 
+        struct SceneTextures
         {
+            ~SceneTextures() { }
+
+            static SceneTextures* create(const glm::uvec2& inResolution);
+
             glm::uvec2 resolution;
             GBuffer gBuffer;
             GfxTexture2D* directDiffuseLighting = nullptr;
@@ -191,10 +194,11 @@ namespace Cyan
             RenderTarget* renderTarget = nullptr;
             HiZBuffer* HiZ = nullptr;
 
-            bool bInitialized = false;
-
-            void initialize(const glm::uvec2& inResolution);
-        } m_sceneTextures;
+        private:
+            SceneTextures(const glm::uvec2& inResolution);
+        };
+        
+        SceneTextures* m_sceneTextures = nullptr;
 
         struct SSGI
         {
@@ -243,7 +247,9 @@ namespace Cyan
         // managing creating and recycling render target
         RenderTarget* createCachedRenderTarget(const char* name, u32 width, u32 height);
 
-        void renderSceneDepthPrepass(RenderableScene& renderableScene, RenderTarget* outRenderTarget, GfxTexture2D* outDepthBuffer);
+        // void renderSceneDepthPrepass(RenderableScene& renderableScene, RenderTarget* outRenderTarget, GfxTexture2D* outDepthBuffer);
+        void renderSceneDepthPrepass(const RenderableScene& renderableScene, RenderTarget* outRenderTarget, RenderTexture2D outDepthBuffer);
+
         void renderSceneDepthOnly(RenderableScene& renderableScene, GfxDepthTexture2D* outDepthTexture);
         void renderSceneGBuffer(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer);
         void renderSceneGBufferWithTextureAtlas(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer);

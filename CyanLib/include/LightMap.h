@@ -51,7 +51,7 @@ namespace Cyan
         void bakeSingleThread(LightMap* lightMap, u32 overlappedTexelCount);
         void bakeWorker(LightMap* lightMap, std::vector<u32>& texelIndices, u32 start, u32 end, u32 overlappedTexelCount);
         void bakeMultiThread(LightMap* lightMap, u32 overlappedTexelCount);
-        static LightMapManager* get();
+        static LightMapManager* getGfxTexture2D();
         static std::atomic<u32> progressCounter;
 
         // super sampling sample size

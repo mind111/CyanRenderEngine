@@ -205,7 +205,7 @@ namespace Cyan
         return *this;
     }
 
-    void RenderableScene::bind(GfxContext* ctx)
+    void RenderableScene::bind(GfxContext* ctx) const
     {
         ctx->setShaderStorageBuffer(StaticMesh::getGlobalSubmeshBuffer());
         ctx->setShaderStorageBuffer(StaticMesh::getGlobalVertexBuffer());
