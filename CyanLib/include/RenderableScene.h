@@ -120,25 +120,24 @@ namespace Cyan
         // bounding box
         BoundingBox3D aabb;
 
-        // todo: these cpu side things should be maintained/cached in Scene class, this way, no need to 
-        // loop through entity array to rebuild them from scratch
-        // mesh instances
-        std::vector<MeshInstance*> meshInstances;
-
-        // lights
-        DirectionalLight* sunLight = nullptr;
-        std::vector<PointLight*> pointLights;
-        std::vector<SkyLight*> skyLights;
-        SkyLight* skyLight = nullptr;
-        Skybox* skybox = nullptr;
-
-        // gpu side buffers
+        // view
         View view;
+
+        // instances
+        std::vector<MeshInstance*> meshInstances;
         std::vector<glm::mat4> transforms;
         std::vector<Instance> instances;
         std::vector<Material> materials;
         // use draw call id to get instance id
         std::vector<u32> instanceLUT;
+
+        // lights
+        DirectionalLight* sunLight = nullptr;
+        std::vector<PointLight*> pointLights;
+        SkyLight* skyLight = nullptr;
+        Skybox* skybox = nullptr;
+
+        // gpu side buffers
         std::unique_ptr<ShaderStorageBuffer> viewBuffer = nullptr;
         std::unique_ptr<ShaderStorageBuffer> transformBuffer = nullptr;
         std::unique_ptr<ShaderStorageBuffer> materialBuffer = nullptr;

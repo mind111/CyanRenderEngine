@@ -37,7 +37,8 @@ namespace Cyan
     // forward declarations
     struct RenderTarget;
 
-    struct GfxPipelineConfig {
+    struct GfxPipelineConfig 
+    {
         DepthControl depth = DepthControl::kEnable;
         PrimitiveMode primitiveMode = PrimitiveMode::TriangleList;
     };
@@ -57,17 +58,17 @@ namespace Cyan
         RenderSetupLambda renderSetupLambda = [](VertexShader* vs, PixelShader* ps) {};
     };
 
-    struct CachedTexture2D
+    struct RenderTexture2D
     {
-        CachedTexture2D() = default;
-        CachedTexture2D(const CachedTexture2D& src)
+        RenderTexture2D() = default;
+        RenderTexture2D(const RenderTexture2D& src)
             : texture(src.texture), refCount(src.refCount)
         {
             (*refCount)++;
         }
 
-        CachedTexture2D(const char* name, const GfxTexture2D::Spec& spec, const Sampler2D& inSampler = {})
-            : refCount(nullptr), texture(nullptr)
+        RenderTexture2D(const char* inName, const GfxTexture2D::Spec& spec, const Sampler2D& inSampler = {})
+            : name(inName), refCount(nullptr), texture(nullptr)
         {
             refCount = new u32(1u);
 
@@ -86,7 +87,7 @@ namespace Cyan
             }
         }
 
-        ~CachedTexture2D()
+        ~RenderTexture2D()
         {
             (*refCount)--;
             if (*refCount == 0u)
@@ -96,7 +97,7 @@ namespace Cyan
             }
         }
 
-        CachedTexture2D& operator=(const CachedTexture2D& src)
+        RenderTexture2D& operator=(const RenderTexture2D& src)
         {
             refCount = src.refCount;
             (*refCount)++;
@@ -114,8 +115,8 @@ namespace Cyan
             return texture;
         }
 
-        u32* refCount = nullptr;
-        GfxTexture2D* texture = nullptr;
+        std::string name;
+
     private:
         void release()
         {
@@ -129,6 +130,9 @@ namespace Cyan
          * associated with that key, so the order of returned values are not guaranteed.
          */
         static std::unordered_multimap<GfxTexture2D::Spec, GfxTexture2D*> cache;
+
+        u32* refCount = nullptr;
+        GfxTexture2D* texture = nullptr;
     };
 
     struct HiZBuffer
@@ -238,18 +242,6 @@ namespace Cyan
 
         // managing creating and recycling render target
         RenderTarget* createCachedRenderTarget(const char* name, u32 width, u32 height);
-        GfxTexture2D* renderScene(RenderableScene& renderableScene, const SceneView& sceneView, const glm::uvec2& outputResolution);
-
-        struct IndirectDrawBuffer
-        {
-            IndirectDrawBuffer();
-            ~IndirectDrawBuffer() { }
-
-            GLuint buffer = -1;
-            u32 sizeInBytes = 1024 * 1024 * 32;
-            void* data = nullptr;
-        } indirectDrawBuffer;
-        void multiDrawSceneIndirect(const RenderableScene& renderableScene);
 
         void renderSceneDepthPrepass(RenderableScene& renderableScene, RenderTarget* outRenderTarget, GfxTexture2D* outDepthBuffer);
         void renderSceneDepthOnly(RenderableScene& renderableScene, GfxDepthTexture2D* outDepthTexture);
@@ -301,11 +293,6 @@ namespace Cyan
         void addUIRenderCommand(const std::function<void()>& UIRenderCommand);
 
         /*
-        * brief: helper functions for appending to the "Rendering" tab
-        */
-        void appendToRenderingTab(const std::function<void()>& command);
-
-        /*
         * Render ui widgets given a custom callback defined in an application
         */
         void renderUI();
@@ -322,7 +309,7 @@ namespace Cyan
         };
         void downsample(GfxTexture2D* src, GfxTexture2D* dst);
         void upscale(GfxTexture2D* src, GfxTexture2D* dst);
-        CachedTexture2D bloom(GfxTexture2D* src);
+        RenderTexture2D bloom(GfxTexture2D* src);
 
         /**
         * Local tonemapping using "Exposure Fusion"
@@ -348,14 +335,16 @@ namespace Cyan
         void registerVisualization(const std::string& categoryName, const char* visName, GfxTexture2D* visualization, bool* toggle=nullptr);
         std::unordered_map<std::string, std::vector<VisualizationDesc>> visualizationMap;
 
-        enum class TonemapOperator {
+        enum class TonemapOperator 
+        {
             kReinhard = 0,
             kACES,
             kSmoothstep,
             kCount
         };
 
-        struct Settings {
+        struct Settings 
+        {
             bool enableSunShadow = true;
             bool bSSAOEnabled = true;
             bool bBentNormalEnabled = true;
@@ -375,9 +364,7 @@ namespace Cyan
         glm::uvec2 m_windowSize;
         glm::uvec2 m_offscreenRenderSize;
         bool bFixDebugRay = false;
-
     private:
-
         GfxContext* m_ctx;
         u32 m_numFrames = 0u;
         LinearAllocator m_frameAllocator;

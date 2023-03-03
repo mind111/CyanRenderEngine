@@ -31,13 +31,6 @@ namespace Cyan
     Renderer* Singleton<Renderer>::singleton = nullptr;
     static StaticMesh* fullscreenQuad = nullptr;
 
-    Renderer::IndirectDrawBuffer::IndirectDrawBuffer() 
-    {
-        glCreateBuffers(1, &buffer);
-        glNamedBufferStorage(buffer, sizeInBytes, nullptr, GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_WRITE_BIT);
-        data = glMapNamedBufferRange(buffer, 0, sizeInBytes, GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT | GL_MAP_WRITE_BIT);
-    }
-
     GfxTexture2D* Renderer::createRenderTexture(const char* textureName, const GfxTexture2D::Spec& inSpec, const Sampler2D& inSampler)
     {
         auto outTexture = GfxTexture2D::create(inSpec, inSampler);
@@ -150,26 +143,6 @@ namespace Cyan
         {
             return entry->second.get();
         }
-    }
-
-    void Renderer::appendToRenderingTab(const std::function<void()>& command) {
-        ImGui::Begin("Cyan", nullptr);
-        {
-            ImGui::BeginTabBar("##Views");
-            {
-                if (ImGui::BeginTabItem("Rendering"))
-                {
-                    ImGui::BeginChild("##Rendering Settings", ImVec2(0, 0), true); 
-                    {
-                        command();
-                        ImGui::EndChild();
-                    }
-                    ImGui::EndTabItem();
-                }
-                ImGui::EndTabBar();
-            }
-        }
-        ImGui::End();
     }
 
 // todo: fix this code branch at some point
@@ -457,6 +430,9 @@ namespace Cyan
 
     void Renderer::renderSceneGBuffer(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer)
     {
+        // todo: maybe it's worth moving those shader storage buffer cached in "scene" into each function as a
+        // static variable, and every time this function is called, reset the data of those persistent gpu buffers
+
         CreateVS(vs, "SceneGBufferPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
         CreatePS(ps, "SceneGBufferPassPS", SHADER_SOURCE_PATH "scene_gbuffer_p.glsl");
         CreatePixelPipeline(pipeline, "SceneGBufferPass", vs, ps);
@@ -1040,77 +1016,6 @@ namespace Cyan
         }
     }
 
-#if 0
-    GfxTexture2D* Renderer::renderScene(RenderableScene& scene, const SceneView& sceneView, const glm::uvec2& outputResolution) {
-        ITexture::Spec spec = { };
-        spec.type = TEX_2D;
-        spec.width = outputResolution.x;
-        spec.height = outputResolution.y;
-        spec.pixelFormat = PF_RGB16F;
-        static GfxTexture2D* outSceneColor = new GfxTexture2D("SceneColor", spec);
-
-        std::unique_ptr<RenderTarget> renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(outSceneColor->width, outSceneColor->height));
-        renderTarget->setColorBuffer(outSceneColor, 0);
-        renderTarget->clear({ { 0 } });
-
-        scene.upload();
-
-        // render mesh instances
-        u32 transformIndex = 0u;
-        for (auto meshInst : scene.meshInstances)
-        {
-            drawMeshInstance(
-                scene,
-                renderTarget.get(),
-                { 0u, 0u, outSceneColor->width, outSceneColor->height },
-                GfxPipelineState(), 
-                meshInst,
-                transformIndex++
-            );
-        }
-
-        // render skybox
-        if (scene.skybox) { 
-            scene.skybox->render(renderTarget.get());
-        }
-
-        return outSceneColor;
-    }
-#endif
-
-    void Renderer::multiDrawSceneIndirect(const RenderableScene& scene) 
-    {
-#if 0
-        struct IndirectDrawArrayCommand
-        {
-            u32  count;
-            u32  instanceCount;
-            u32  first;
-            i32  baseInstance;
-        };
-        // build indirect draw commands
-        auto ptr = reinterpret_cast<IndirectDrawArrayCommand*>(indirectDrawBuffer.data);
-        auto& submeshBuffer = StaticMesh::getSubmeshBuffer();
-        for (i32 draw = 0; draw < scene.drawCallBuffer->getNumElements() - 1; ++draw)
-        {
-            IndirectDrawArrayCommand& command = ptr[draw];
-            command.first = 0;
-            u32 instance = (*scene.drawCallBuffer)[draw];
-            u32 submesh = (*scene.instanceBuffer)[instance].submesh;
-            // command.count = RenderableScene::packedGeometry->submeshes[submesh].numIndices;
-            command.count = submeshBuffer[submesh].numIndices;
-            command.instanceCount = (*scene.drawCallBuffer)[draw + 1] - (*scene.drawCallBuffer)[draw];
-            command.baseInstance = 0;
-        }
-
-        glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirectDrawBuffer.buffer);
-        // dispatch multi draw indirect
-        // one sub-drawcall per instance
-        u32 drawCount = max(scene.drawCallBuffer->getNumElements() - 1, 0);
-        glMultiDrawArraysIndirect(GL_TRIANGLES, 0, drawCount, 0);
-#endif
-    }
-
     void Renderer::renderSceneGBufferWithTextureAtlas(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer)
     {
         CreateVS(vs, "SceneColorPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
@@ -1165,12 +1070,12 @@ namespace Cyan
         );
     }
 
-    std::unordered_multimap<GfxTexture2D::Spec, GfxTexture2D*> CachedTexture2D::cache;
+    std::unordered_multimap<GfxTexture2D::Spec, GfxTexture2D*> RenderTexture2D::cache;
 
-    CachedTexture2D Renderer::bloom(GfxTexture2D* src)
+    RenderTexture2D Renderer::bloom(GfxTexture2D* src)
     {
         // setup pass
-        CachedTexture2D bloomSetupTexture("BloomSetup", src->getSpec());
+        RenderTexture2D bloomSetupTexture("BloomSetup", src->getSpec());
         auto renderTarget = createCachedRenderTarget("BloomSetup", bloomSetupTexture->width, bloomSetupTexture->height);
         renderTarget->setColorBuffer(bloomSetupTexture.get(), 0);
         CreateVS(vs, "BloomSetupVS", SHADER_SOURCE_PATH "bloom_setup_v.glsl");
@@ -1185,7 +1090,7 @@ namespace Cyan
         );
 
         const i32 numPasses = 5;
-        CachedTexture2D downsamplePyramid[numPasses + 1] = { };
+        RenderTexture2D downsamplePyramid[numPasses + 1] = { };
         // downsample passes
         {
             downsamplePyramid[0] = bloomSetupTexture;
@@ -1203,7 +1108,7 @@ namespace Cyan
                 }
                 // todo: need to decouple Sampler from texture!!!
                 // todo: this is a bug here, I shouldn't use point sampling here
-                downsamplePyramid[pass] = CachedTexture2D(passName.c_str(), spec);
+                downsamplePyramid[pass] = RenderTexture2D(passName.c_str(), spec);
                 GfxTexture2D* dst = downsamplePyramid[pass].get();
                 downsample(src, dst);
             }
@@ -1225,7 +1130,7 @@ namespace Cyan
             );
         };
 
-        CachedTexture2D upscalePyramid[numPasses + 1] = { };
+        RenderTexture2D upscalePyramid[numPasses + 1] = { };
         upscalePyramid[numPasses] = downsamplePyramid[numPasses];
         // upscale passes
         {
@@ -1240,7 +1145,7 @@ namespace Cyan
                 spec.height *= 2;
                 // todo: need to decouple Sampler from texture!!!
                 // todo: this is a bug here, I shouldn't use point sampling here
-                upscalePyramid[pass - 1] = CachedTexture2D(passName.c_str(), spec);
+                upscalePyramid[pass - 1] = RenderTexture2D(passName.c_str(), spec);
                 GfxTexture2D* dst = upscalePyramid[pass - 1].get();
 
                 upscaleAndBlend(src, blend, dst);
@@ -1351,7 +1256,7 @@ namespace Cyan
         std::string name("GaussianBlurScratch");
         GfxTexture2D::Spec spec = inoutTexture->getSpec();
         name += '_' + std::to_string(spec.width) + 'x' + std::to_string(spec.height);
-        CachedTexture2D scratchBuffer(name.c_str(), spec);
+        RenderTexture2D scratchBuffer(name.c_str(), spec);
         auto scratch = scratchBuffer.get();
         renderTarget->setColorBuffer(scratch, 1);
 
