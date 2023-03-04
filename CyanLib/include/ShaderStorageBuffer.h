@@ -228,7 +228,11 @@ namespace Cyan
             glCopyNamedBufferSubData(src.getGpuResource(), getGpuResource(), 0, 0, src.sizeInBytes);
         }
 
-        ~ShaderStorageBuffer() { }
+        ~ShaderStorageBuffer() 
+        { 
+            GLuint buffers[] = { getGpuResource() };
+            glDeleteBuffers(1, buffers);
+        }
 
         const char* getBlockName() { return blockName.c_str(); }
 

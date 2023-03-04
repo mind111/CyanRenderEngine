@@ -283,6 +283,10 @@ namespace Cyan
                             }
                         }
                     }
+                    if (ImGui::CollapsingHeader("Rendering Resource Usage"))
+                    {
+                        ImGui::Text("Num RenderTexture2D allocated: %u", RenderTexture2D::getNumAllocatedGfxTexture2D());
+                    }
                 }
                 ImGui::End();
             });

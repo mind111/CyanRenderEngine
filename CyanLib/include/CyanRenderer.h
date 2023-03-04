@@ -105,6 +105,8 @@ namespace Cyan
             return *this;
         }
 
+        static u32 getNumAllocatedGfxTexture2D() { return cache.size(); }
+
         GfxTexture2D* getGfxTexture2D() const
         {
             return texture;
@@ -182,14 +184,15 @@ namespace Cyan
 
             glm::uvec2 resolution;
             GBuffer gBuffer;
-            GfxTexture2D* directDiffuseLighting = nullptr;
-            GfxTexture2D* directLighting = nullptr;
-            GfxTexture2D* indirectLighting = nullptr;
-            GfxTexture2D* ssgiMirror = nullptr;
-            GfxTexture2D* color = nullptr;
-            GfxTexture2D* ao = nullptr;
-            GfxTexture2D* bentNormal = nullptr;
-            GfxTexture2D* irradiance = nullptr;
+            RenderTexture2D directLighting;
+            RenderTexture2D directDiffuseLighting;
+            RenderTexture2D indirectLighting;
+            RenderTexture2D color;
+            RenderTexture2D ssgiMirror;
+            RenderTexture2D ao;
+            RenderTexture2D bentNormal;
+            RenderTexture2D irradiance;
+
             RenderTarget* renderTarget = nullptr;
             HiZBuffer* HiZ = nullptr;
 
@@ -219,9 +222,9 @@ namespace Cyan
             ~SSGI() { };
 
             // basic brute force hierarchical tracing without spatial ray reuse
-            void render(GfxTexture2D* outAO, GfxTexture2D* outBentNormal, GfxTexture2D* outIrradiance, const GBuffer& gBuffer, HiZBuffer* HiZ, GfxTexture2D* inDirectDiffuseBuffer);
+            void render(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIrradiance, const GBuffer& gBuffer, HiZBuffer* HiZ, RenderTexture2D inDirectDiffuseBuffer);
             // spatial reuse
-            void renderEx(GfxTexture2D* outAO, GfxTexture2D* outBentNormal, GfxTexture2D* outIrradiance, const GBuffer& gBuffer, HiZBuffer* HiZ, GfxTexture2D* inDirectDiffuseBuffer);
+            void renderEx(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIrradiance, const GBuffer& gBuffer, HiZBuffer* HiZ, RenderTexture2D inDirectDiffuseBuffer);
             // todo: spatio-temporal reuse
 
             static const u32 kNumSamples = 8u;
@@ -246,20 +249,19 @@ namespace Cyan
         // managing creating and recycling render target
         RenderTarget* createCachedRenderTarget(const char* name, u32 width, u32 height);
 
-        void renderSceneDepthPrepass(const RenderableScene& renderableScene, RenderTarget* outRenderTarget, RenderTexture2D outDepthBuffer);
         void renderSceneDepthOnly(RenderableScene& renderableScene, GfxDepthTexture2D* outDepthTexture);
-        void renderSceneGBuffer(RenderTarget* outRenderTarget, const RenderableScene& scene, GBuffer gBuffer);
         void renderSceneGBufferWithTextureAtlas(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer);
         void renderShadowMaps(Scene* inScene);
-        void renderSceneLighting(RenderTarget* outRenderTarget, GfxTexture2D* outSceneColor, RenderableScene& scene, GBuffer gBuffer);
-        void renderSceneDirectLighting(RenderTarget* outRenderTarget, GfxTexture2D* outDirectLighting, RenderableScene& scene, GBuffer gBuffer);
-        void renderSceneIndirectLighting(RenderTarget* outRenderTarget, GfxTexture2D* outIndirectLighting, RenderableScene& scene, GBuffer gBuffer);
+        void renderSceneDepthPrepass(const RenderableScene& renderableScene, RenderTarget* outRenderTarget, RenderTexture2D outDepthBuffer);
+        void renderSceneGBuffer(RenderTarget* outRenderTarget, const RenderableScene& scene, GBuffer gBuffer);
+        void renderSceneLighting(RenderTexture2D outSceneColor, const RenderableScene& scene, GBuffer gBuffer);
+        void renderSceneDirectLighting(RenderTexture2D outDirectLighting, const RenderableScene& scene, GBuffer gBuffer);
+        void renderSceneIndirectLighting(RenderTexture2D outIndirectLighting, const RenderableScene& scene, GBuffer gBuffer);
 
         bool bDebugSSRT = false;
         glm::vec2 debugCoord = glm::vec2(.5f);
         static const i32 kNumIterations = 64;
         i32 numDebugRays = 8;
-        void legacyScreenSpaceRayTracing(GfxTexture2D* depth, GfxTexture2D* normal);
         void visualizeSSRT(GfxTexture2D* depth, GfxTexture2D* normal);
 
         void renderSceneToLightProbe(Scene* scene, LightProbe* probe, RenderTarget* renderTarget);
