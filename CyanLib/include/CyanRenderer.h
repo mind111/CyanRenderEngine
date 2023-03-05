@@ -16,6 +16,8 @@
 #include "Entity.h"
 #include "Geometry.h"
 #include "Shadow.h"
+#include "RenderTexture.h"
+#include "SSGI.h"
 
 namespace Cyan
 {
@@ -58,80 +60,6 @@ namespace Cyan
         RenderSetupLambda renderSetupLambda = [](VertexShader* vs, PixelShader* ps) {};
     };
 
-    struct RenderTexture2D
-    {
-        RenderTexture2D() = default;
-        RenderTexture2D(const RenderTexture2D& src)
-            : texture(src.texture), refCount(src.refCount)
-        {
-            (*refCount)++;
-        }
-
-        RenderTexture2D(const char* inName, const GfxTexture2D::Spec& spec, const Sampler2D& inSampler = {})
-            : name(inName), refCount(nullptr), texture(nullptr)
-        {
-            refCount = new u32(1u);
-
-            // search in the texture cache
-            auto entry = cache.find(spec);
-            if (entry == cache.end())
-            {
-                // create a new texture and add it to the cache
-                texture = GfxTexture2D::create(spec, inSampler);
-            }
-            else
-            {
-                // recycle a texture and remove it from the cache
-                texture = entry->second;
-                cache.erase(entry);
-            }
-        }
-
-        ~RenderTexture2D()
-        {
-            (*refCount)--;
-            if (*refCount == 0u)
-            {
-                release();
-                delete refCount;
-            }
-        }
-
-        RenderTexture2D& operator=(const RenderTexture2D& src)
-        {
-            refCount = src.refCount;
-            (*refCount)++;
-            texture = src.texture;
-            return *this;
-        }
-
-        static u32 getNumAllocatedGfxTexture2D() { return cache.size(); }
-
-        GfxTexture2D* getGfxTexture2D() const
-        {
-            return texture;
-        }
-
-        std::string name;
-
-    private:
-        void release()
-        {
-            cache.insert({ texture->getSpec(), texture });
-            texture = nullptr;
-        }
-        
-        /** Note - @mind:
-         * Using multi-map here because we want to allow duplicates, storing multiple textures having the same
-         * spec. Do note that find() will return an iterator to any instance of key-value pair among all values
-         * associated with that key, so the order of returned values are not guaranteed.
-         */
-        static std::unordered_multimap<GfxTexture2D::Spec, GfxTexture2D*> cache;
-
-        u32* refCount = nullptr;
-        GfxTexture2D* texture = nullptr;
-    };
-
     struct HiZBuffer
     {
         HiZBuffer(const GfxTexture2D::Spec& spec);
@@ -139,7 +67,18 @@ namespace Cyan
 
         void build(GfxTexture2D* srcDepthTexture);
 
-        std::unique_ptr<GfxTexture2D> texture;
+        RenderTexture2D texture;
+    };
+
+    struct GBuffer
+    {
+        GBuffer(const glm::uvec2& resolution);
+        ~GBuffer() { }
+
+        RenderTexture2D depth;
+        RenderTexture2D normal;
+        RenderTexture2D albedo;
+        RenderTexture2D metallicRoughness;
     };
 
     class Renderer : public Singleton<Renderer>
@@ -160,22 +99,6 @@ namespace Cyan
         GfxTexture2D* createRenderTexture(const char* textureName, const GfxTexture2D::Spec& inSpec, const Sampler2D& inSampler);
 
 // rendering
-        void beginRender();
-        void render(Scene* scene, const SceneView& sceneView);
-        void renderToScreen(GfxTexture2D* inTexture);
-        void endRender();
-
-        struct GBuffer
-        {
-            GBuffer(const glm::uvec2& resolution);
-            ~GBuffer() { }
-
-            RenderTexture2D depth;
-            RenderTexture2D normal;
-            RenderTexture2D albedo;
-            RenderTexture2D metallicRoughness;
-        };
-
         struct SceneTextures
         {
             ~SceneTextures() { }
@@ -184,79 +107,38 @@ namespace Cyan
 
             glm::uvec2 resolution;
             GBuffer gBuffer;
+            HiZBuffer HiZ;
             RenderTexture2D directLighting;
             RenderTexture2D directDiffuseLighting;
             RenderTexture2D indirectLighting;
-            RenderTexture2D color;
             RenderTexture2D ssgiMirror;
             RenderTexture2D ao;
             RenderTexture2D bentNormal;
             RenderTexture2D irradiance;
+            RenderTexture2D color;
 
             RenderTarget* renderTarget = nullptr;
-            HiZBuffer* HiZ = nullptr;
 
         private:
             SceneTextures(const glm::uvec2& inResolution);
         };
-        
         SceneTextures* m_sceneTextures = nullptr;
-
-        struct SSGI
-        {
-            struct HitBuffer
-            {
-                HitBuffer(u32 inNumLayers, const glm::uvec2& resolution);
-                ~HitBuffer() { }
-
-                GfxTexture2DArray* position = nullptr;
-                GfxTexture2DArray* normal = nullptr;
-                GfxTexture2DArray* radiance = nullptr;
-                GLuint positionArray;
-                GLuint normalArray;
-                GLuint radianceArray;
-                u32 numLayers;
-            };
-
-            SSGI(Renderer* renderer, const glm::uvec2& inRes);
-            ~SSGI() { };
-
-            // basic brute force hierarchical tracing without spatial ray reuse
-            void render(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIrradiance, const GBuffer& gBuffer, HiZBuffer* HiZ, RenderTexture2D inDirectDiffuseBuffer);
-            // spatial reuse
-            void renderEx(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIrradiance, const GBuffer& gBuffer, HiZBuffer* HiZ, RenderTexture2D inDirectDiffuseBuffer);
-            // todo: spatio-temporal reuse
-
-            static const u32 kNumSamples = 8u;
-            static const u32 kNumIterations = 64u;
-            i32 numReuseSamples = 8;
-            f32 reuseKernelRadius = .05f;
-            glm::vec2 resolution;
-            HitBuffer hitBuffer;
-            Renderer* renderer = nullptr;
-        } m_ssgi;
-
-        struct PostProcessingTextures 
-        {
-            glm::uvec2 resolution;
-            GfxTexture2D* bloom[5] = { };
-            
-            bool bInitialized = false;
-
-            void initialize();
-        } m_postProcessingTextures;
 
         // managing creating and recycling render target
         RenderTarget* createCachedRenderTarget(const char* name, u32 width, u32 height);
 
+        void beginRender();
+        void render(Scene* scene, const SceneView& sceneView);
+        void endRender();
         void renderSceneDepthOnly(RenderableScene& renderableScene, GfxDepthTexture2D* outDepthTexture);
-        void renderSceneGBufferWithTextureAtlas(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer);
         void renderShadowMaps(Scene* inScene);
         void renderSceneDepthPrepass(const RenderableScene& renderableScene, RenderTarget* outRenderTarget, RenderTexture2D outDepthBuffer);
         void renderSceneGBuffer(RenderTarget* outRenderTarget, const RenderableScene& scene, GBuffer gBuffer);
         void renderSceneLighting(RenderTexture2D outSceneColor, const RenderableScene& scene, GBuffer gBuffer);
         void renderSceneDirectLighting(RenderTexture2D outDirectLighting, const RenderableScene& scene, GBuffer gBuffer);
         void renderSceneIndirectLighting(RenderTexture2D outIndirectLighting, const RenderableScene& scene, GBuffer gBuffer);
+        void renderSceneGBufferWithTextureAtlas(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer);
+        void renderToScreen(GfxTexture2D* inTexture);
 
         bool bDebugSSRT = false;
         glm::vec2 debugCoord = glm::vec2(.5f);
@@ -264,7 +146,6 @@ namespace Cyan
         i32 numDebugRays = 8;
         void visualizeSSRT(GfxTexture2D* depth, GfxTexture2D* normal);
 
-        void renderSceneToLightProbe(Scene* scene, LightProbe* probe, RenderTarget* renderTarget);
         void drawMesh(RenderTarget* renderTarget, Viewport viewport, StaticMesh* mesh, PixelPipeline* pipeline, const RenderSetupLambda& renderSetupLambda, const GfxPipelineConfig& config = GfxPipelineConfig{});
         void drawFullscreenQuad(RenderTarget* renderTarget, PixelPipeline* pipeline, const RenderSetupLambda& renderSetupLambda);
         void drawScreenQuad(RenderTarget* renderTarget, Viewport viewport, PixelPipeline* pipeline, RenderSetupLambda&& renderSetupLambda);
@@ -367,11 +248,9 @@ namespace Cyan
         } m_settings;
 
         glm::uvec2 m_windowSize;
-        glm::uvec2 m_offscreenRenderSize;
         bool bFixDebugRay = false;
     private:
         GfxContext* m_ctx;
-        u32 m_numFrames = 0u;
         LinearAllocator m_frameAllocator;
         std::queue<UIRenderCommand> m_UIRenderCommandQueue;
         std::vector<GfxTexture2D*> renderTextures;

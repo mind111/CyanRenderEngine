@@ -60,10 +60,13 @@ namespace Cyan
     {
         assert(scene);
 
+// todo: implement this at some point
+#if 0
         // create render target
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(sceneCapture->resolution, sceneCapture->resolution));
         renderTarget->setColorBuffer(sceneCapture, 0u);
         Renderer::get()->renderSceneToLightProbe(scene, this, renderTarget.get());
+#endif
     }
 
     void LightProbe::debugRender()

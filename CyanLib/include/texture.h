@@ -129,12 +129,17 @@ namespace Cyan
 
     struct Sampler2D : public Sampler
     {
+        Sampler2D(const Sampler::Filtering& inMinFilter = FM_POINT, const Sampler::Filtering& inMagFilter = FM_POINT, const Sampler::Addressing& inWrapS = WM_CLAMP, const Sampler::Addressing& inWrapT = WM_CLAMP) 
+            : minFilter(inMinFilter), magFilter(inMagFilter), wrapS(inWrapS), wrapT(inWrapT)
+        { 
+        }
+
         void init(GfxTexture2D* texture);
 
-        Addressing wrapS = Addressing::kClampToEdge;
-        Addressing wrapT = Addressing::kClampToEdge;
         Filtering minFilter = Filtering::kPoint;
         Filtering magFilter = Filtering::kPoint;
+        Addressing wrapS = Addressing::kClampToEdge;
+        Addressing wrapT = Addressing::kClampToEdge;
     };
 
     struct Sampler3D : public Sampler
@@ -568,6 +573,7 @@ namespace std
             default:
                 break;
             }
+            key += "_" + std::to_string(spec.numMips);
             return std::hash<std::string>()(key);
         }
     };

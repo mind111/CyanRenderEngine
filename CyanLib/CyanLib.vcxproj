@@ -55,9 +55,9 @@
     <ClInclude Include="include\MathUtils.h" />
     <ClInclude Include="include\Mesh.h" />
     <ClInclude Include="include\Node.h" />
-    <ClInclude Include="include\Plane.h" />
     <ClInclude Include="include\RenderableScene.h" />
     <ClInclude Include="include\RenderTarget.h" />
+    <ClInclude Include="include\RenderTexture.h" />
     <ClInclude Include="include\Scene.h" />
     <ClInclude Include="include\SceneComponent.h" />
     <ClInclude Include="include\ScreenSpaceRayTracing.h" />
@@ -66,6 +66,7 @@
     <ClInclude Include="include\Shadow.h" />
     <ClInclude Include="include\Singleton.h" />
     <ClInclude Include="include\SkyBox.h" />
+    <ClInclude Include="include\SSGI.h" />
     <ClInclude Include="include\StaticMeshEntity.h" />
     <ClInclude Include="include\System.h" />
     <ClInclude Include="include\Texture.h" />
@@ -76,7 +77,6 @@
     <ClInclude Include="include\VertexBuffer.h" />
     <ClInclude Include="include\VoxelConeTracing.h" />
     <ClInclude Include="include\Window.h" />
-    <ClInclude Include="PostProcess.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\AssetImporter.cpp" />
@@ -111,6 +111,7 @@
     <ClCompile Include="src\Shader.cpp" />
     <ClCompile Include="src\Shadow.cpp" />
     <ClCompile Include="src\SkyBox.cpp" />
+    <ClCompile Include="src\SSGI.cpp" />
     <ClCompile Include="src\StaticMeshEntity.cpp" />
     <ClCompile Include="src\Texture.cpp" />
     <ClCompile Include="src\TextureAtlas.cpp" />

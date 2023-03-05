@@ -219,6 +219,7 @@ namespace Cyan
                     }
                     if (ImGui::CollapsingHeader("Screen Space Ray Tracing", ImGuiTreeNodeFlags_DefaultOpen))
                     {
+                        auto SSGI = SSGI::get();
                         ImGui::Checkbox("Debug SSRT", &renderer->bDebugSSRT);
                         if (renderer->bDebugSSRT)
                         {
@@ -231,11 +232,11 @@ namespace Cyan
                         }
                         ImGui::Text("Spatial Reuse Kernel Radius:"); 
                         ImGui::SameLine();
-                        ImGui::SliderFloat("##Spatial Reuse Kernel Radius:", &renderer->m_ssgi.reuseKernelRadius, 0.f, 1.f);
+                        ImGui::SliderFloat("##Spatial Reuse Kernel Radius:", &SSGI->reuseKernelRadius, 0.f, 1.f);
 
                         ImGui::Text("Spatial Reuse Sample Count:"); 
                         ImGui::SameLine();
-                        ImGui::SliderInt("##Spatial Reuse Sample Count:", &renderer->m_ssgi.numReuseSamples, 1, 8);
+                        ImGui::SliderInt("##Spatial Reuse Sample Count:", &SSGI->numReuseSamples, 1, 8);
                     }
                     if (ImGui::CollapsingHeader("Post Processing"))
                     {

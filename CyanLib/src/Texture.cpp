@@ -6,23 +6,10 @@
 
 namespace Cyan
 {
-    // u32 GfxTexture::count = 0;
     GfxTexture::GfxTexture(const Format& inFormat)
         : format(inFormat)
     {
-#if 0
-        std::string defaultName("Texture_");
-        defaultName += std::to_string(count++);
-#endif
     }
-
-#if 0
-    GfxTexture::GfxTexture(const char* inName, const Format& inFormat)
-        : name(inName), format(inFormat)
-    {
-        // todo: need to verify if name collides
-    }
-#endif
 
     void Sampler::init()
     {
@@ -83,6 +70,9 @@ namespace Cyan
             break;
         case Sampler::Filtering::kBilinear:
             glTextureParameteri(texture->getGpuResource(), GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            break;
+        case Sampler::Filtering::kMipmapPoint:
+            glTextureParameteri(texture->getGpuResource(), GL_TEXTURE_MAG_FILTER, GL_NEAREST_MIPMAP_NEAREST);
             break;
         default:
             assert(0);
