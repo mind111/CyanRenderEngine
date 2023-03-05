@@ -58,9 +58,9 @@ namespace Cyan
             renderTarget->setDrawBuffers({ f });
             renderTarget->clear({ { f } });
 
-            GfxPipelineConfig config;
+            GfxPipelineState config;
             config.depth = DepthControl::kDisable;
-            Renderer::get()->drawMesh(
+            Renderer::get()->drawStaticMesh(
                 renderTarget.get(),
                 { 0, 0, renderTarget->width, renderTarget->height },
                 cubeMesh,
@@ -101,7 +101,7 @@ namespace Cyan
     {
         StaticMesh* cubeMesh = AssetManager::getAsset<StaticMesh>("UnitCubeMesh");
 
-        Renderer::get()->drawMesh(
+        Renderer::get()->drawStaticMesh(
             renderTarget,
             { 0, 0, renderTarget->width, renderTarget->height },
             cubeMesh,
@@ -111,6 +111,8 @@ namespace Cyan
                 vs->setUniform("projection", projection);
                 ps->setUniform("mipLevel", mipLevel);
                 ps->setTexture("cubemapTexture", m_cubemapTexture.get());
-            });
+            },
+            GfxPipelineState { }
+        );
     }
 }

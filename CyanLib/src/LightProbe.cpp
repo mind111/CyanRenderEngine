@@ -116,9 +116,9 @@ namespace Cyan
                 renderTarget->setDrawBuffers({ f });
                 renderTarget->clear({ { f } });
 
-                GfxPipelineConfig config;
+                GfxPipelineState config;
                 config.depth = DepthControl::kDisable;
-                renderer->drawMesh(
+                renderer->drawStaticMesh(
                     renderTarget.get(),
                     { 0u, 0u, renderTarget->width, renderTarget->height }, 
                     AssetManager::getAsset<StaticMesh>("UnitCubeMesh"),
@@ -205,7 +205,7 @@ namespace Cyan
         RenderTarget* renderTarget = createRenderTarget(outTexture->width, outTexture->height);
         renderTarget->setColorBuffer(outTexture, 0u);
         auto renderer = Renderer::get();
-        GfxPipelineConfig pipelineState;
+        GfxPipelineState pipelineState;
         pipelineState.depth = DepthControl::kDisable;
         CreateVS(vs, "IntegrateBRDFVS", SHADER_SOURCE_PATH "integrate_BRDF_v.glsl");
         CreatePS(ps, "IntegrateBRDFPS", SHADER_SOURCE_PATH "integrate_BRDF_p.glsl");
@@ -238,9 +238,9 @@ namespace Cyan
                 {
                     renderTarget->setDrawBuffers({ f });
                     renderTarget->clear({ { f } });
-                    GfxPipelineConfig config;
+                    GfxPipelineState config;
                     config.depth = DepthControl::kDisable;
-                    renderer->drawMesh(
+                    renderer->drawStaticMesh(
                         renderTarget,
                         { 0u, 0u, renderTarget->width, renderTarget->height }, 
                         AssetManager::getAsset<StaticMesh>("UnitCubeMesh"),

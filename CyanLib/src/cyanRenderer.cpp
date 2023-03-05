@@ -135,13 +135,6 @@ namespace Cyan
         auto renderer = Renderer::get();
         // render target
         renderTarget = renderer->createCachedRenderTarget("Scene", resolution.x, resolution.y);
-        // scene color
-        Sampler2D sampler;
-        // Hi-Z
-        {
-            /// HiZ = new HiZBuffer(gBuffer.depth.getGfxTexture2D()->getSpec());
-            // GfxTexture2D::Spec spec(resolution.x, resolution.y, 1, PF_RGB16F);
-        }
 
         renderer->registerVisualization(std::string("SceneTextures"), "SceneColor", color.getGfxTexture2D());
         renderer->registerVisualization(std::string("SceneTextures"), "SceneAlbedo", gBuffer.albedo.getGfxTexture2D());
@@ -196,55 +189,58 @@ namespace Cyan
         }
     }
 
-    void Renderer::drawMesh(RenderTarget* renderTarget, Viewport viewport, StaticMesh* mesh, PixelPipeline* pipeline, const RenderSetupLambda& renderSetupLambda, const GfxPipelineConfig& config) 
+    void Renderer::drawStaticMesh(RenderTarget* renderTarget, const Viewport& viewport, StaticMesh* mesh, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda, const GfxPipelineState& gfxPipelineState) 
     {
+        // assuming that render target is properly setup already
+        m_ctx->setRenderTarget(renderTarget);
+        m_ctx->setViewport(viewport);
+        m_ctx->setPixelPipeline(pipeline, shaderSetupLambda);
+        m_ctx->setDepthControl(gfxPipelineState.depth);
+        m_ctx->setPrimitiveType(gfxPipelineState.primitiveMode);
+
         for (u32 i = 0; i < mesh->numSubmeshes(); ++i) 
         {
-            RenderTask task = { };
-            task.renderTarget = renderTarget;
-            task.viewport = viewport;
-            task.config = config;
-            task.pipeline = pipeline;
-            task.submesh = mesh->getSubmesh(i);
-            task.renderSetupLambda = renderSetupLambda;
-            submitRenderTask(task);
+            StaticMesh::Submesh* sm = mesh->getSubmesh(i);
+            auto va = sm->getVertexArray();
+            m_ctx->setVertexArray(va);
+            m_ctx->drawIndex(sm->numIndices());
         }
     }
 
-    void Renderer::drawFullscreenQuad(RenderTarget* renderTarget, PixelPipeline* pipeline, const RenderSetupLambda& renderSetupLambda) 
+    void Renderer::drawFullscreenQuad(RenderTarget* renderTarget, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda)
     {
-        GfxPipelineConfig config;
-        config.depth = DepthControl::kDisable;
+        GfxPipelineState gfxPipelineState;
+        gfxPipelineState.depth = DepthControl::kDisable;
 
-        drawMesh(
+        drawStaticMesh(
             renderTarget,
             { 0, 0, renderTarget->width, renderTarget->height },
             AssetManager::getAsset<StaticMesh>("FullScreenQuadMesh"),
             pipeline,
-            renderSetupLambda,
-            config
+            shaderSetupLambda,
+            gfxPipelineState
         );
     }
 
-    void Renderer::drawScreenQuad(RenderTarget* renderTarget, Viewport viewport, PixelPipeline* pipeline, RenderSetupLambda&& renderSetupLambda) 
+    void Renderer::drawScreenQuad(RenderTarget* renderTarget, Viewport viewport, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda)
     {
-        GfxPipelineConfig config;
-        config.depth = DepthControl::kDisable;
+        GfxPipelineState gfxPipelineState = { };
+        gfxPipelineState.depth = DepthControl::kDisable;
 
-        drawMesh(
+        drawStaticMesh(
             renderTarget,
             viewport,
             AssetManager::getAsset<StaticMesh>("FullScreenQuadMesh"),
             pipeline,
-            renderSetupLambda,
-            config
+            shaderSetupLambda,
+            gfxPipelineState
         );
     }
 
     void Renderer::drawColoredScreenSpaceQuad(RenderTarget* renderTarget, const glm::vec2& screenSpaceMin, const glm::vec2& screenSpaceMax, const glm::vec4& color)
     {
-        GfxPipelineConfig config;
-        config.depth = DepthControl::kDisable;
+        GfxPipelineState gfxPipelineState;
+        gfxPipelineState.depth = DepthControl::kDisable;
 
         // calc viewport based on quad min and max in screen space
         Viewport viewport = { };
@@ -257,7 +253,7 @@ namespace Cyan
         CreatePS(ps, "ColoredQuadPS", SHADER_SOURCE_PATH "colored_quad_p.glsl");
         CreatePixelPipeline(pipeline, "ColoredQuad", vs, ps);
 
-        drawMesh(
+        drawStaticMesh(
             renderTarget,
             viewport,
             AssetManager::getAsset<StaticMesh>("FullScreenQuadMesh"),
@@ -265,27 +261,8 @@ namespace Cyan
             [color](VertexShader* vs, PixelShader* ps) {
                 ps->setUniform("color", color);
             },
-            config
+            gfxPipelineState
         );
-    }
-
-    void Renderer::submitRenderTask(const RenderTask& task) 
-    {
-        // set render target assuming that render target is already properly setup
-        m_ctx->setRenderTarget(task.renderTarget);
-        m_ctx->setViewport(task.viewport);
-
-        // set shader
-        m_ctx->setPixelPipeline(task.pipeline, task.renderSetupLambda);
-
-        // set graphics pipeline state
-        m_ctx->setDepthControl(task.config.depth);
-        m_ctx->setPrimitiveType(task.config.primitiveMode);
-
-        // kick off the draw call
-        auto va = task.submesh->getVertexArray();
-        m_ctx->setVertexArray(va);
-        m_ctx->drawIndex(task.submesh->numIndices());
     }
 
     void Renderer::registerVisualization(const std::string& categoryName, const char* visName, GfxTexture2D* visualization, bool* toggle) 
@@ -1180,11 +1157,17 @@ namespace Cyan
         }
     }
 
-    void Renderer::debugDrawSphere(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection) {
+    void Renderer::debugDrawSphere(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection) 
+    {
         CreateVS(vs, "DebugDrawVS", "debug_draw_v.glsl");
         CreatePS(ps, "DebugDrawPS", "debug_draw_p.glsl");
         CreatePixelPipeline(pipeline, "DebugDraw", vs, ps);
-        drawMesh(
+
+        GfxPipelineState gfxPipelineState;
+        gfxPipelineState.depth = DepthControl::kEnable;
+        gfxPipelineState.primitiveMode = PrimitiveMode::TriangleList;
+
+        drawStaticMesh(
             renderTarget,
             viewport,
             AssetManager::getAsset<StaticMesh>("Sphere"),
@@ -1196,7 +1179,8 @@ namespace Cyan
                 mvp = projection * view * mvp;
                 vs->setUniform("mvp", mvp);
                 ps->setUniform("color", glm::vec3(1.f, 0.f, 0.f));
-            }
+            },
+            gfxPipelineState
         );
     }
 
@@ -1204,7 +1188,7 @@ namespace Cyan
         CreateVS(vs, "DebugDrawImmediateVS", "debug_draw_immediate_v.glsl");
         CreatePS(ps, "DebugDrawImmediatePS", "debug_draw_immediate_p.glsl");
         CreatePixelPipeline(pipeline, "GaussianBlur", vs, ps);
-        drawMesh(
+        drawStaticMesh(
             renderTarget,
             viewport,
             AssetManager::getAsset<StaticMesh>("UnitCubeMesh"),
@@ -1216,7 +1200,8 @@ namespace Cyan
                 mvp = projection * view * mvp;
                 vs->setUniform("mvp", mvp);
                 ps->setUniform("color", glm::vec3(1.f, 0.f, 0.f));
-            }
+            },
+            GfxPipelineState { }
         );
     }
 
@@ -1250,7 +1235,7 @@ namespace Cyan
         CreatePixelPipeline(pipeline, "DebugDrawCubemap", vs, ps);
 
         glDisable(GL_CULL_FACE);
-        drawMesh(
+        drawStaticMesh(
             renderTarget.get(),
             {0, 0, renderTarget->width, renderTarget->height },
             AssetManager::getAsset<StaticMesh>("UnitCubeMesh"),
@@ -1260,7 +1245,8 @@ namespace Cyan
                 vs->setUniform("view", camera.view());
                 vs->setUniform("projection", camera.projection());
                 ps->setTexture("cubemap", cubemap);
-            }
+            },
+            GfxPipelineState { }
         );
         glEnable(GL_CULL_FACE);
 
@@ -1320,7 +1306,7 @@ namespace Cyan
         CreatePixelPipeline(pipeline, "DebugDrawCubemap", vs, ps);
 
         glDisable(GL_CULL_FACE);
-        drawMesh(
+        drawStaticMesh(
             renderTarget.get(),
             {0, 0, renderTarget->width, renderTarget->height },
             AssetManager::getAsset<StaticMesh>("UnitCubeMesh"),
@@ -1332,7 +1318,8 @@ namespace Cyan
                 ps->setUniform("cubemap", 128);
                 glBindTextureUnit(128, cubemap);
                 // shader->setTexture("cubemap", cubemap);
-            }
+            },
+            GfxPipelineState { }
         );
         glEnable(GL_CULL_FACE);
 

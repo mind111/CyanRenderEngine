@@ -21,7 +21,9 @@
 
 namespace Cyan
 {
+    // forward declarations
     struct RenderableScene;
+    struct RenderTarget;
 
     struct SceneView 
     {
@@ -34,30 +36,6 @@ namespace Cyan
         Scene* viewedScene = nullptr;
         Camera* camera = nullptr;
         GfxTexture2D* canvas = nullptr;
-    };
-
-    // forward declarations
-    struct RenderTarget;
-
-    struct GfxPipelineConfig 
-    {
-        DepthControl depth = DepthControl::kEnable;
-        PrimitiveMode primitiveMode = PrimitiveMode::TriangleList;
-    };
-
-    /**
-    * Encapsulate a mesh draw call, `renderTarget` should be configured to correct state, such as binding albedo buffers, and clearing
-    * albedo buffers while `drawBuffers` for this draw call will be passed in.
-    */
-    using RenderSetupLambda = std::function<void(VertexShader* vs, PixelShader* ps)>;
-    struct RenderTask 
-    {
-        RenderTarget* renderTarget = nullptr;
-        Viewport viewport = { };
-        StaticMesh::Submesh* submesh = nullptr;
-        PixelPipeline* pipeline = nullptr;
-        GfxPipelineConfig config;
-        RenderSetupLambda renderSetupLambda = [](VertexShader* vs, PixelShader* ps) {};
     };
 
     struct HiZBuffer
@@ -146,12 +124,13 @@ namespace Cyan
         i32 numDebugRays = 8;
         void visualizeSSRT(GfxTexture2D* depth, GfxTexture2D* normal);
 
-        void drawMesh(RenderTarget* renderTarget, Viewport viewport, StaticMesh* mesh, PixelPipeline* pipeline, const RenderSetupLambda& renderSetupLambda, const GfxPipelineConfig& config = GfxPipelineConfig{});
-        void drawFullscreenQuad(RenderTarget* renderTarget, PixelPipeline* pipeline, const RenderSetupLambda& renderSetupLambda);
-        void drawScreenQuad(RenderTarget* renderTarget, Viewport viewport, PixelPipeline* pipeline, RenderSetupLambda&& renderSetupLambda);
+        void drawStaticMesh(RenderTarget* renderTarget, const Viewport& viewport, StaticMesh* mesh, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda, const GfxPipelineState& gfxPipelineState);
+        void drawFullscreenQuad(RenderTarget* renderTarget, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda);
+        void drawScreenQuad(RenderTarget* renderTarget, Viewport viewport, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda);
         void drawColoredScreenSpaceQuad(RenderTarget* renderTarget, const glm::vec2& screenSpaceMin, const glm::vec2& screenSpaceMax, const glm::vec4& color);
         void blitTexture(GfxTexture2D* dst, GfxTexture2D* src);
 
+        /* Debugging utilities */
         struct Vertex
         {
             glm::vec4 position;
@@ -162,13 +141,6 @@ namespace Cyan
         void drawWorldSpacePoints(RenderTarget* renderTarget, const std::vector<Vertex>& points);
         std::queue<std::function<void(void)>> debugDrawCalls;
         void drawDebugObjects();
-
-        /**
-        * Submit a submesh; right now the execution is not deferred
-        */
-        void submitRenderTask(const RenderTask& task);
-
-        /* Debugging utilities */
         void debugDrawLineImmediate(const glm::vec3& v0, const glm::vec3& v1);
         void debugDrawSphere(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection);
         void debugDrawCubeImmediate(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection);

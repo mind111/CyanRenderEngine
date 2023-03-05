@@ -54,6 +54,12 @@ namespace Cyan
         kCount
     };
 
+    struct GfxPipelineState 
+    {
+        DepthControl depth = DepthControl::kEnable;
+        PrimitiveMode primitiveMode = PrimitiveMode::TriangleList;
+    };
+
     class GfxContext : public Singleton<GfxContext> 
     {
     public:

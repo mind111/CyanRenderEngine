@@ -108,9 +108,9 @@ namespace Cyan
             renderTarget->setDrawBuffers({ f });
             renderTarget->clear({ { f } });
 
-            GfxPipelineConfig config;
+            GfxPipelineState config;
             config.depth = DepthControl::kDisable;
-            Renderer::get()->drawMesh(
+            Renderer::get()->drawStaticMesh(
                 renderTarget.get(),
                 { 0, 0, renderTarget->width, renderTarget->height },
                 cubeMesh,
