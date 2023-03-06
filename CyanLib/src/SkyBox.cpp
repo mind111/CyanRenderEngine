@@ -45,8 +45,8 @@ namespace Cyan
         m_cubemapTexture = std::unique_ptr<TextureCube>(TextureCube::create(cubemapSpec, samplerCube));
 
         // render src equirectangular map into a cubemap
-        auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(m_cubemapTexture->resolution, m_cubemapTexture->resolution));
-        renderTarget->setColorBuffer(m_cubemapTexture.get(), 0u);
+        auto framebuffer = std::unique_ptr<Framebuffer>(createFramebuffer(m_cubemapTexture->resolution, m_cubemapTexture->resolution));
+        framebuffer->setColorBuffer(m_cubemapTexture.get(), 0u);
 
         CreateVS(vs, "RenderToCubemapVS", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl");
         CreatePS(ps, "RenderToCubemapPS", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl");
@@ -55,14 +55,14 @@ namespace Cyan
 
         for (i32 f = 0; f < 6u; f++)
         {
-            renderTarget->setDrawBuffers({ f });
-            renderTarget->clear({ { f } });
+            framebuffer->setDrawBuffers({ f });
+            framebuffer->clear({ { f } });
 
             GfxPipelineState config;
             config.depth = DepthControl::kDisable;
             Renderer::get()->drawStaticMesh(
-                renderTarget.get(),
-                { 0, 0, renderTarget->width, renderTarget->height },
+                framebuffer.get(),
+                { 0, 0, framebuffer->width, framebuffer->height },
                 cubeMesh,
                 pipeline,
                 [this, f](VertexShader* vs, PixelShader* ps) {
@@ -97,13 +97,13 @@ namespace Cyan
 
     }
 
-    void Skybox::render(RenderTarget* renderTarget, const glm::mat4& view, const glm::mat4& projection, f32 mipLevel)
+    void Skybox::render(Framebuffer* framebuffer, const glm::mat4& view, const glm::mat4& projection, f32 mipLevel)
     {
         StaticMesh* cubeMesh = AssetManager::getAsset<StaticMesh>("UnitCubeMesh");
 
         Renderer::get()->drawStaticMesh(
-            renderTarget,
-            { 0, 0, renderTarget->width, renderTarget->height },
+            framebuffer,
+            { 0, 0, framebuffer->width, framebuffer->height },
             cubeMesh,
             s_cubemapSkyPipeline,
             [this, mipLevel, view, projection](VertexShader* vs, PixelShader* ps) {

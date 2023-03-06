@@ -34,8 +34,8 @@ namespace Cyan
 
     }
 
-    RenderTarget* createRenderTarget(u32 width, u32 height) {
-        RenderTarget* rt = new RenderTarget();
+    Framebuffer* createFramebuffer(u32 width, u32 height) {
+        Framebuffer* rt = new Framebuffer();
         rt->width = width;
         rt->height = height;
         glCreateFramebuffers(1, &rt->fbo);
@@ -55,9 +55,9 @@ namespace Cyan
     }
 
     // depth only render target
-    RenderTarget* createDepthOnlyRenderTarget(u32 width, u32 height)
+    Framebuffer* createDepthOnlyFramebuffer(u32 width, u32 height)
     {
-        RenderTarget* rt = new RenderTarget();
+        Framebuffer* rt = new Framebuffer();
         rt->width = width;
         rt->height = height;
         glCreateFramebuffers(1, &rt->fbo);
@@ -192,7 +192,7 @@ namespace Cyan
             }
 
             // Create render targets
-            RenderTarget* rt = createRenderTarget(kViewportWidth, kViewportHeight);
+            Framebuffer* rt = createFramebuffer(kViewportWidth, kViewportHeight);
             rt->attachColorBuffer(envmap);
             // Create shaders and uniforms
             Shader* shader = Cyan::createShader("GenCubemapShader", "../../shader/shader_gen_cubemap.vs", "../../shader/shader_gen_cubemap.fs");
@@ -235,7 +235,7 @@ namespace Cyan
                 setUniform(u_projection, &camera.projection);
                 setUniform(u_view, &camera.view);
                 s_gfxc->setDepthControl(DepthControl::kDisable);
-                s_gfxc->setRenderTarget(rt, f);
+                s_gfxc->setFramebuffer(rt, f);
                 // Since we are rendering to a framebuffer, we need to configure the viewport 
                 // to prevent the texture being stretched to fit the framebuffer's dimension
                 s_gfxc->setViewport({ 0, 0, kViewportWidth, kViewportHeight });
@@ -289,7 +289,7 @@ namespace Cyan
                 diffuseIrradianceMap = textureManager->createTexture(envMap->m_name.c_str(), spec);
             }
             // Create render targets
-            RenderTarget* rt = createRenderTarget(kViewportWidth, kViewportHeight);
+            Framebuffer* rt = createFramebuffer(kViewportWidth, kViewportHeight);
             rt->attachColorBuffer(diffuseIrradianceMap);
             // Create shaders and uniforms
             Shader* shader = Cyan::createShader("DiffuseIrradianceShader", "../../shader/shader_diff_irradiance.vs", "../../shader/shader_diff_irradiance.fs");
@@ -333,7 +333,7 @@ namespace Cyan
                 setUniform(u_projection, &camera.projection);
                 setUniform(u_view, &camera.view);
                 s_gfxc->setDepthControl(DepthControl::kDisable);
-                s_gfxc->setRenderTarget(rt, f);
+                s_gfxc->setFramebuffer(rt, f);
                 s_gfxc->setViewport({ 0, 0, kViewportWidth, kViewportHeight });
                 s_gfxc->setShader(shader);
                 s_gfxc->setUniform(u_projection);
@@ -420,10 +420,10 @@ namespace Cyan
             const u32 kNumMips = 10u;
             u32 mipWidth = prefilteredEnvMap->m_width; 
             u32 mipHeight = prefilteredEnvMap->m_height;
-            RenderTarget* rts[kNumMips];;
+            Framebuffer* rts[kNumMips];;
             for (u32 mip = 0; mip < kNumMips; ++mip)
             {
-                rts[mip] = createRenderTarget(mipWidth, mipHeight);
+                rts[mip] = createFramebuffer(mipWidth, mipHeight);
                 rts[mip]->attachColorBuffer(prefilteredEnvMap, mip);
                 s_gfxc->setViewport({ 0u, 0u, mipWidth, mipHeight });
                 for (u32 f = 0; f < 6u; f++)
@@ -436,7 +436,7 @@ namespace Cyan
                     setUniform(u_view, &camera.view);
                     setUniform(u_roughness, mip * (1.f / kNumMips));
                     s_gfxc->setDepthControl(DepthControl::kDisable);
-                    s_gfxc->setRenderTarget(rts[mip], f);
+                    s_gfxc->setFramebuffer(rts[mip], f);
                     s_gfxc->setShader(shader);
                     // uniforms
                     s_gfxc->setUniform(u_projection);
@@ -482,7 +482,7 @@ namespace Cyan
             spec.m_data = nullptr;
             Texture* outputTexture = textureManager->createTextureHDR("integrateBrdf", spec); 
             Shader* shader = createShader("IntegrateBRDFShader", "../../shader/shader_integrate_brdf.vs", "../../shader/shader_integrate_brdf.fs");
-            RenderTarget* rt = createRenderTarget(kTexWidth, kTexWidth);
+            Framebuffer* rt = createFramebuffer(kTexWidth, kTexWidth);
             rt->attachColorBuffer(outputTexture);
             f32 verts[] = {
                 -1.f,  1.f, 0.f, 0.f,  1.f,
@@ -509,7 +509,7 @@ namespace Cyan
             Viewport origViewport = gfxc->m_viewport;
             gfxc->setViewport({ 0, 0, kTexWidth, kTexHeight } );
             gfxc->setShader(shader);
-            gfxc->setRenderTarget(rt, 0);
+            gfxc->setFramebuffer(rt, 0);
             glBindVertexArray(vao);
             gfxc->setDepthControl(Cyan::DepthControl::kDisable);
             glDrawArrays(GL_TRIANGLES, 0, 6);

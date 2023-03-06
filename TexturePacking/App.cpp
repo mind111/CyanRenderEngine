@@ -50,14 +50,14 @@ public:
                 ImGui::End();
             }
         );
-        auto renderTarget= renderer->createCachedRenderTarget("AppCustomRenderTarget", sceneRenderingOutput->width, sceneRenderingOutput->height);
-        renderTarget->setColorBuffer(sceneRenderingOutput, 0);
-        renderTarget->setDrawBuffers({ 0 });
-        renderTarget->clearDrawBuffer(0, glm::vec4(.2f, .2f, .2f, 1.f));
+        auto framebuffer= renderer->createCachedFramebuffer("AppCustomFramebuffer", sceneRenderingOutput->width, sceneRenderingOutput->height);
+        framebuffer->setColorBuffer(sceneRenderingOutput, 0);
+        framebuffer->setDrawBuffers({ 0 });
+        framebuffer->clearDrawBuffer(0, glm::vec4(.2f, .2f, .2f, 1.f));
         CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
         CreatePS(ps, "BlitPS", SHADER_SOURCE_PATH "blit_p.glsl");
         CreatePixelPipeline(pipeline, "BlitQuad", vs, ps);
-        renderer->drawFullscreenQuad(renderTarget, pipeline, [this](Cyan::VertexShader* vs, Cyan::PixelShader* ps) {
+        renderer->drawFullscreenQuad(framebuffer, pipeline, [this](Cyan::VertexShader* vs, Cyan::PixelShader* ps) {
             ps->setTexture("srcTexture", materialManager->atlases[index]->atlas.get());
             ps->setUniform("mip", mipLevel);
         });

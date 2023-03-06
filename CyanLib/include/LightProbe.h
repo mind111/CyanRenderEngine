@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Texture.h"
-#include "RenderTarget.h"
+#include "Framebuffer.h"
 
 
 namespace Cyan

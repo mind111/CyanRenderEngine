@@ -43,12 +43,12 @@ namespace Cyan
 
         // trace
         auto renderer = Renderer::get();
-        auto renderTarget = renderer->createCachedRenderTarget("ScreenSpaceRayTracing", sceneDepth->width, sceneDepth->height);
-        renderTarget->setColorBuffer(outAO.getGfxTexture2D(), 0);
-        renderTarget->setColorBuffer(outBentNormal.getGfxTexture2D(), 1);
-        renderTarget->setColorBuffer(outIrradiance.getGfxTexture2D(), 2);
-        renderTarget->setDrawBuffers({ 0, 1, 2 });
-        renderTarget->clear({ 
+        auto framebuffer = renderer->createCachedFramebuffer("ScreenSpaceRayTracing", sceneDepth->width, sceneDepth->height);
+        framebuffer->setColorBuffer(outAO.getGfxTexture2D(), 0);
+        framebuffer->setColorBuffer(outBentNormal.getGfxTexture2D(), 1);
+        framebuffer->setColorBuffer(outIrradiance.getGfxTexture2D(), 2);
+        framebuffer->setDrawBuffers({ 0, 1, 2 });
+        framebuffer->clear({ 
             { 0, glm::vec4(0.f, 0.f, 0.f, 1.f) },
             { 1, glm::vec4(0.f, 0.f, 0.f, 1.f) },
             { 2, glm::vec4(0.f, 0.f, 0.f, 1.f) },
@@ -57,7 +57,7 @@ namespace Cyan
         CreatePS(ps, "HierarchicalSSRTPS", SHADER_SOURCE_PATH "hierarchical_ssrt_p.glsl");
         CreatePixelPipeline(pipeline, "HierarchicalSSRT", vs, ps);
         renderer->drawFullscreenQuad(
-            renderTarget,
+            framebuffer,
             pipeline,
             [this, gBuffer, sceneDepth, HiZ, inDirectDiffuseBuffer](VertexShader* vs, PixelShader* ps) {
                 ps->setUniform("outputSize", glm::vec2(sceneDepth->width, sceneDepth->height));
@@ -79,12 +79,12 @@ namespace Cyan
 
         // trace
         auto renderer = Renderer::get();
-        auto renderTarget = renderer->createCachedRenderTarget("ScreenSpaceRayTracing", sceneDepth->width, sceneDepth->height);
-        renderTarget->setColorBuffer(outAO.getGfxTexture2D(), 0);
-        renderTarget->setColorBuffer(outBentNormal.getGfxTexture2D(), 1);
-        renderTarget->setColorBuffer(outIrradiance.getGfxTexture2D(), 2);
-        renderTarget->setDrawBuffers({ 0, 1, 2 });
-        renderTarget->clear({ 
+        auto framebuffer = renderer->createCachedFramebuffer("ScreenSpaceRayTracing", sceneDepth->width, sceneDepth->height);
+        framebuffer->setColorBuffer(outAO.getGfxTexture2D(), 0);
+        framebuffer->setColorBuffer(outBentNormal.getGfxTexture2D(), 1);
+        framebuffer->setColorBuffer(outIrradiance.getGfxTexture2D(), 2);
+        framebuffer->setDrawBuffers({ 0, 1, 2 });
+        framebuffer->clear({ 
             { 0, glm::vec4(0.f, 0.f, 0.f, 1.f) },
             { 1, glm::vec4(0.f, 0.f, 0.f, 1.f) },
             { 2, glm::vec4(0.f, 0.f, 0.f, 1.f) },
@@ -93,7 +93,7 @@ namespace Cyan
         CreatePS(ps, "HierarchicalSSRTPS", SHADER_SOURCE_PATH "hierarchical_ssrt_ex_p.glsl");
         CreatePixelPipeline(pipeline, "HierarchicalSSRT", vs, ps);
         renderer->drawFullscreenQuad(
-            renderTarget,
+            framebuffer,
             pipeline,
             [this, gBuffer, sceneDepth, HiZ, inDirectDiffuseBuffer](VertexShader* vs, PixelShader* ps) {
                 ps->setUniform("outputSize", glm::vec2(sceneDepth->width, sceneDepth->height));
@@ -118,7 +118,7 @@ namespace Cyan
             CreatePS(ps, "SSRTResolvePS", SHADER_SOURCE_PATH "ssrt_resolve_p.glsl");
             CreatePixelPipeline(pipeline, "SSRTResolve", vs, ps);
             renderer->drawFullscreenQuad(
-                renderTarget,
+                framebuffer,
                 pipeline,
                 [this, gBuffer](VertexShader* vs, PixelShader* ps) {
                     ps->setTexture("depthBuffer", gBuffer.depth.getGfxTexture2D());

@@ -9,15 +9,20 @@
 
 namespace Cyan
 {
-    struct RenderTargetDrawBuffer
+    struct FramebufferDrawBuffer
     {
         i32 binding = -1;
         glm::vec4 clearColor = glm::vec4(0.f, 0.f, 0.f, 1.f);
     };
 
-    struct RenderTarget
+    struct RenderBuffer : public GpuResource
     {
-        ~RenderTarget()
+
+    };
+
+    struct Framebuffer
+    {
+        ~Framebuffer()
         {
             if (fbo >= 0)
             {
@@ -29,18 +34,18 @@ namespace Cyan
             }
         }
 
-        static RenderTarget* getDefaultRenderTarget(u32 width, u32 height);
+        static Framebuffer* getDefaultFramebuffer(u32 width, u32 height);
         GfxTexture* getColorBuffer(u32 index);
         void setColorBuffer(GfxTexture2D* texture, u32 index, u32 mip = 0u);
         void setColorBuffer(TextureCube* texture, u32 index, u32 mip = 0u);
         void setDrawBuffers(const std::initializer_list<i32>& buffers);
         void setDepthBuffer(GfxDepthTexture2D* texture);
-        void clear(const std::initializer_list<RenderTargetDrawBuffer>& buffers, f32 clearDepthBuffer = 1.f);
+        void clear(const std::initializer_list<FramebufferDrawBuffer>& buffers, f32 clearDepthBuffer = 1.f);
         void clearDrawBuffer(i32 drawBufferIndex, glm::vec4 clearColor, bool clearDepth = true, f32 clearDepthValue = 1.f);
         void clearDepthBuffer(f32 clearDepthValue = 1.f);
         bool validate();
 
-        static RenderTarget* defaultRenderTarget;
+        static Framebuffer* defaultFramebuffer;
         u32 width, height;
         Cyan::GfxTexture* colorBuffers[8] = { 0 };
         Cyan::GfxDepthTexture2D* depthBuffer = nullptr;

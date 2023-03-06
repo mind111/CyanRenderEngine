@@ -3,7 +3,7 @@
 #include <glm/glm.hpp>
 
 #include "Shader.h"
-#include "RenderTarget.h"
+#include "Framebuffer.h"
 #include "RenderableScene.h"
 #include "Geometry.h"
 

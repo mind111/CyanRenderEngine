@@ -260,7 +260,7 @@ namespace Cyan
         {
             GfxTexture2D::Spec spec(1024, 1024, 1, PF_RGB16F);
             m_gpuTexture.reset(GfxTexture2D::create(spec, Sampler2D()));
-            m_renderTarget.reset(createRenderTarget(spec.width, spec.height));
+            m_framebuffer.reset(createFramebuffer(spec.width, spec.height));
         }
 
         ~CpuRaytracer() { }
@@ -274,7 +274,7 @@ namespace Cyan
             {
                 GfxTexture2D::Spec spec(outTexture->width, outTexture->height, 1, PF_RGB16F);
                 m_gpuTexture.reset(GfxTexture2D::create(spec, Sampler2D()));
-                m_renderTarget.reset(createRenderTarget(spec.width, spec.height));
+                m_framebuffer.reset(createFramebuffer(spec.width, spec.height));
             }
 
             auto renderer = Renderer::get();
@@ -305,9 +305,9 @@ namespace Cyan
                 lock.unlock();
             }
 
-            m_renderTarget->setColorBuffer(outTexture, 0);
-            m_renderTarget->setDrawBuffers({ 0 });
-            m_renderTarget->clearDrawBuffer(0, glm::vec4(.0f, .0f, .0f, 1.f));
+            m_framebuffer->setColorBuffer(outTexture, 0);
+            m_framebuffer->setDrawBuffers({ 0 });
+            m_framebuffer->clearDrawBuffer(0, glm::vec4(.0f, .0f, .0f, 1.f));
 
             // blit/copy m_gpuTexture to outTexture
             renderer->blitTexture(outTexture, m_gpuTexture.get());
@@ -321,14 +321,14 @@ namespace Cyan
                 // progress bar background
                 glm::vec2 outerMin = glm::vec2(-1.f * outerScale.x, -1.f * outerScale.y) + translation;
                 glm::vec2 outerMax = glm::vec2( 1.f * outerScale.x,  1.f * outerScale.y) + translation;
-                renderer->drawColoredScreenSpaceQuad(m_renderTarget.get(), outerMin * .5f + .5f, outerMax * .5f + .5f, glm::vec4(1.f));
+                renderer->drawColoredScreenSpaceQuad(m_framebuffer.get(), outerMin * .5f + .5f, outerMax * .5f + .5f, glm::vec4(1.f));
 
                 // actual bar
                 f32 progress = renderedPixelCounter / (f32)m_image.numPixels();
 
                 glm::vec2 innerMin = glm::vec2(-1.f * innerScale.x, -1.f * innerScale.y) + translation;
                 glm::vec2 innerMax = glm::vec2((-1.f + progress * 2.f) * innerScale.x, 1.f * innerScale.y) + translation;
-                renderer->drawColoredScreenSpaceQuad(m_renderTarget.get(), innerMin * .5f + .5f, innerMax * .5f + .5f, glm::vec4(0.f, 1.f, 0.f, 1.f));
+                renderer->drawColoredScreenSpaceQuad(m_framebuffer.get(), innerMin * .5f + .5f, innerMax * .5f + .5f, glm::vec4(0.f, 1.f, 0.f, 1.f));
             }
         }
 
@@ -742,7 +742,7 @@ namespace Cyan
         Image m_image;
         // gpu side copy of m_image
         std::unique_ptr<GfxTexture2D> m_gpuTexture = nullptr;
-        std::unique_ptr<RenderTarget> m_renderTarget = nullptr;
+        std::unique_ptr<Framebuffer> m_framebuffer = nullptr;
         std::atomic<bool> bRendering = false;
     };
 }

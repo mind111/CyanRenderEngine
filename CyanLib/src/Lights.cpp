@@ -96,8 +96,8 @@ namespace Cyan
 
     void SkyLight::buildCubemap(Texture2D* srcEquirectMap, TextureCube* dstCubemap) 
     {
-        auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(dstCubemap->resolution, dstCubemap->resolution));
-        renderTarget->setColorBuffer(dstCubemap, 0u);
+        auto framebuffer = std::unique_ptr<Framebuffer>(createFramebuffer(dstCubemap->resolution, dstCubemap->resolution));
+        framebuffer->setColorBuffer(dstCubemap, 0u);
 
         VertexShader* vs = ShaderManager::createShader<VertexShader>("RenderToCubemapVS", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl");
         PixelShader* ps = ShaderManager::createShader<PixelShader>("RenderToCubemapPS", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl");
@@ -105,14 +105,14 @@ namespace Cyan
         StaticMesh* cubeMesh = AssetManager::getAsset<StaticMesh>("UnitCubeMesh");
 
         for (i32 f = 0; f < 6u; f++) {
-            renderTarget->setDrawBuffers({ f });
-            renderTarget->clear({ { f } });
+            framebuffer->setDrawBuffers({ f });
+            framebuffer->clear({ { f } });
 
             GfxPipelineState config;
             config.depth = DepthControl::kDisable;
             Renderer::get()->drawStaticMesh(
-                renderTarget.get(),
-                { 0, 0, renderTarget->width, renderTarget->height },
+                framebuffer.get(),
+                { 0, 0, framebuffer->width, framebuffer->height },
                 cubeMesh,
                 pipeline,
                 [this, srcEquirectMap, f](VertexShader* vs, PixelShader* ps) {

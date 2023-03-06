@@ -228,9 +228,6 @@
     <ClInclude Include="include\Material.h">
       <Filter>Header Files\Asset</Filter>
     </ClInclude>
-    <ClInclude Include="include\RenderTarget.h">
-      <Filter>Header Files\Rendering</Filter>
-    </ClInclude>
     <ClInclude Include="include\VertexBuffer.h">
       <Filter>Header Files\GfxAPI</Filter>
     </ClInclude>
@@ -248,6 +245,9 @@
     </ClInclude>
     <ClInclude Include="include\SSGI.h">
       <Filter>Header Files\Rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Framebuffer.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -314,9 +314,6 @@
     <ClCompile Include="src\RenderableScene.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\RenderTarget.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\Scene.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -375,6 +372,9 @@
       <Filter>Source Files\Asset</Filter>
     </ClCompile>
     <ClCompile Include="src\SSGI.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Framebuffer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

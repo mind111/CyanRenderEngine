@@ -24,7 +24,7 @@ namespace Cyan
     struct LightMap
     {
         struct SceneNode* m_owner;
-        struct RenderTarget* m_renderTarget;
+        struct RenderTarget* m_framebuffer;
         struct Texture* m_texAltas;
         Texture* superSampledTex;
         Scene*          m_scene;

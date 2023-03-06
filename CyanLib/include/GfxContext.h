@@ -12,7 +12,7 @@
 #include "Common.h"
 #include "Window.h"
 #include "Texture.h"
-#include "RenderTarget.h"
+#include "Framebuffer.h"
 #include "VertexArray.h"
 #include "Shader.h"
 #include "Mesh.h"
@@ -93,8 +93,8 @@ namespace Cyan
         void setVertexArray(VertexArray* array);
         void setPrimitiveType(PrimitiveMode type);
         void setViewport(Viewport viewport);
-        void setRenderTarget(RenderTarget* renderTarget);
-        void setRenderTarget(RenderTarget* rt, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers);
+        void setFramebuffer(Framebuffer* framebuffer);
+        void setFramebuffer(Framebuffer* rt, const std::initializer_list<FramebufferDrawBuffer>& drawBuffers);
         void setDepthControl(DepthControl ctrl);
         void setClearColor(glm::vec4 albedo);
         void setCullFace(FrontFace frontFace, FaceCull faceToCull);

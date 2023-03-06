@@ -223,7 +223,7 @@ namespace Cyan
     void GraphicsSystem::render(const std::function<void(GfxTexture2D*)>& renderOneFrame) 
     {
         // clear default render target
-        m_ctx->setRenderTarget(nullptr, { });
+        m_ctx->setFramebuffer(nullptr, { });
         m_ctx->clear();
         
         renderOneFrame(m_renderingOutput.get());

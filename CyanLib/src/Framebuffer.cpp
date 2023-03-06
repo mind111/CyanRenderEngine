@@ -1,39 +1,39 @@
-#include "RenderTarget.h"
+#include "Framebuffer.h"
 
 namespace Cyan
 {
-    RenderTarget* RenderTarget::defaultRenderTarget = nullptr;
+    Framebuffer* Framebuffer::defaultFramebuffer = nullptr;
 
-    RenderTarget* RenderTarget::getDefaultRenderTarget(u32 width, u32 height)
+    Framebuffer* Framebuffer::getDefaultFramebuffer(u32 width, u32 height)
     { 
-        if (!defaultRenderTarget)
+        if (!defaultFramebuffer)
         {
-            defaultRenderTarget = new RenderTarget();
-            defaultRenderTarget->width = width;
-            defaultRenderTarget->height = height;
-            defaultRenderTarget->fbo = 0;
+            defaultFramebuffer = new Framebuffer();
+            defaultFramebuffer->width = width;
+            defaultFramebuffer->height = height;
+            defaultFramebuffer->fbo = 0;
         }
         else
         {
-            if (width != defaultRenderTarget->width || height != defaultRenderTarget->height)
+            if (width != defaultFramebuffer->width || height != defaultFramebuffer->height)
             {
-                delete defaultRenderTarget;
+                delete defaultFramebuffer;
 
-                defaultRenderTarget = new RenderTarget();
-                defaultRenderTarget->width = width;
-                defaultRenderTarget->height = height;
-                defaultRenderTarget->fbo = 0;
+                defaultFramebuffer = new Framebuffer();
+                defaultFramebuffer->width = width;
+                defaultFramebuffer->height = height;
+                defaultFramebuffer->fbo = 0;
             }
         }
-        return defaultRenderTarget;
+        return defaultFramebuffer;
     }
     
-    GfxTexture* RenderTarget::getColorBuffer(u32 index)
+    GfxTexture* Framebuffer::getColorBuffer(u32 index)
     {
         return colorBuffers[index];
     }
 
-    void RenderTarget::setDrawBuffers(const std::initializer_list<i32>& drawBuffers) {
+    void Framebuffer::setDrawBuffers(const std::initializer_list<i32>& drawBuffers) {
         GLenum* buffers = static_cast<GLenum*>(_alloca(drawBuffers.size() * sizeof(GLenum)));
         i32 numBuffers = drawBuffers.size();
         for (i32 i = 0; i < numBuffers; ++i)
@@ -54,7 +54,7 @@ namespace Cyan
         }
     }
 
-    void RenderTarget::setColorBuffer(GfxTexture2D* texture, u32 index, u32 mip)
+    void Framebuffer::setColorBuffer(GfxTexture2D* texture, u32 index, u32 mip)
     {
         if (index > 7)
         {
@@ -65,7 +65,7 @@ namespace Cyan
         colorBuffers[index] = texture;
     }
 
-    void RenderTarget::setColorBuffer(TextureCube* texture, u32 index, u32 mip)
+    void Framebuffer::setColorBuffer(TextureCube* texture, u32 index, u32 mip)
     {
         if (index > 7)
         {
@@ -86,7 +86,7 @@ namespace Cyan
         }
     }
 
-    void RenderTarget::setDepthBuffer(GfxDepthTexture2D* texture)
+    void Framebuffer::setDepthBuffer(GfxDepthTexture2D* texture)
     {
         if (texture->width != width || texture->height != height)
         {
@@ -98,24 +98,24 @@ namespace Cyan
         depthBuffer = texture;
     }
 
-    void RenderTarget::clearDrawBuffer(i32 drawBufferIndex, glm::vec4 clearColor, bool clearDepth, f32 clearDepthValue) {
+    void Framebuffer::clearDrawBuffer(i32 drawBufferIndex, glm::vec4 clearColor, bool clearDepth, f32 clearDepthValue) {
         glClearNamedFramebufferfv(fbo, GL_COLOR, drawBufferIndex, &clearColor.x);
         if (clearDepth) {
             clearDepthBuffer(clearDepthValue);
         }
     }
 
-    void RenderTarget::clearDepthBuffer(f32 clearDepthValue) {
+    void Framebuffer::clearDepthBuffer(f32 clearDepthValue) {
         // clear depth buffer
         glClearNamedFramebufferfv(fbo, GL_DEPTH, 0, &clearDepthValue);
     }
 
-    void RenderTarget::clear(const std::initializer_list<RenderTargetDrawBuffer>& buffers, f32 clearDepthBuffer)
+    void Framebuffer::clear(const std::initializer_list<FramebufferDrawBuffer>& buffers, f32 clearDepthBuffer)
     {
         // clear specified albedo buffer
         for (i32 i = 0; i < buffers.size(); ++i)
         {
-            RenderTargetDrawBuffer& drawBuffer = const_cast<RenderTargetDrawBuffer&>(*(buffers.begin() + i));
+            FramebufferDrawBuffer& drawBuffer = const_cast<FramebufferDrawBuffer&>(*(buffers.begin() + i));
             /** note - @min: the drawBuffer.binding here is used to index into currently bound draw buffers rather
             * than index into albedo attachments. for example, passing an index of 0 will refer to first bound draw buffer which
             * can be an arbitrary albedo attachment as long as it's bound as the first draw buffer
@@ -126,7 +126,7 @@ namespace Cyan
         glClearNamedFramebufferfv(fbo, GL_DEPTH, 0, &clearDepthBuffer);
     }
 
-    bool RenderTarget::validate()
+    bool Framebuffer::validate()
     {
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)

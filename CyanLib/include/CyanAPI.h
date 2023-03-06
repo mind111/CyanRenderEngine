@@ -8,7 +8,7 @@
 #include "VertexBuffer.h"
 #include "Texture.h"
 #include "Shader.h"
-#include "RenderTarget.h"
+#include "Framebuffer.h"
 #include "Material.h"
 #include "LightProbe.h"
 #include "GfxContext.h"
@@ -17,9 +17,9 @@ namespace Cyan
 {
     void init();
 
-    /* RenderTarget */
-    RenderTarget* createRenderTarget(u32 width, u32 height);
-    RenderTarget* createDepthOnlyRenderTarget(u32 width, u32 height);
+    /* Framebuffer */
+    Framebuffer* createFramebuffer(u32 width, u32 height);
+    Framebuffer* createDepthOnlyFramebuffer(u32 width, u32 height);
 
     struct TriangleIndex
     {

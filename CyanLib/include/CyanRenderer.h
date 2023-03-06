@@ -23,7 +23,7 @@ namespace Cyan
 {
     // forward declarations
     struct RenderableScene;
-    struct RenderTarget;
+    struct Framebuffer;
 
     struct SceneView 
     {
@@ -95,7 +95,7 @@ namespace Cyan
             RenderTexture2D irradiance;
             RenderTexture2D color;
 
-            RenderTarget* renderTarget = nullptr;
+            Framebuffer* framebuffer = nullptr;
 
         private:
             SceneTextures(const glm::uvec2& inResolution);
@@ -103,19 +103,19 @@ namespace Cyan
         SceneTextures* m_sceneTextures = nullptr;
 
         // managing creating and recycling render target
-        RenderTarget* createCachedRenderTarget(const char* name, u32 width, u32 height);
+        Framebuffer* createCachedFramebuffer(const char* name, u32 width, u32 height);
 
         void beginRender();
         void render(Scene* scene, const SceneView& sceneView);
         void endRender();
         void renderSceneDepthOnly(RenderableScene& renderableScene, GfxDepthTexture2D* outDepthTexture);
         void renderShadowMaps(Scene* inScene);
-        void renderSceneDepthPrepass(const RenderableScene& renderableScene, RenderTarget* outRenderTarget, RenderTexture2D outDepthBuffer);
-        void renderSceneGBuffer(RenderTarget* outRenderTarget, const RenderableScene& scene, GBuffer gBuffer);
+        void renderSceneDepthPrepass(const RenderableScene& renderableScene, Framebuffer* outFramebuffer, RenderTexture2D outDepthBuffer);
+        void renderSceneGBuffer(Framebuffer* outFramebuffer, const RenderableScene& scene, GBuffer gBuffer);
         void renderSceneLighting(RenderTexture2D outSceneColor, const RenderableScene& scene, GBuffer gBuffer);
         void renderSceneDirectLighting(RenderTexture2D outDirectLighting, const RenderableScene& scene, GBuffer gBuffer);
         void renderSceneIndirectLighting(RenderTexture2D outIndirectLighting, const RenderableScene& scene, GBuffer gBuffer);
-        void renderSceneGBufferWithTextureAtlas(RenderTarget* outRenderTarget, RenderableScene& scene, GBuffer gBuffer);
+        void renderSceneGBufferWithTextureAtlas(Framebuffer* outFramebuffer, RenderableScene& scene, GBuffer gBuffer);
         void renderToScreen(GfxTexture2D* inTexture);
 
         bool bDebugSSRT = false;
@@ -124,10 +124,10 @@ namespace Cyan
         i32 numDebugRays = 8;
         void visualizeSSRT(GfxTexture2D* depth, GfxTexture2D* normal);
 
-        void drawStaticMesh(RenderTarget* renderTarget, const Viewport& viewport, StaticMesh* mesh, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda, const GfxPipelineState& gfxPipelineState);
-        void drawFullscreenQuad(RenderTarget* renderTarget, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda);
-        void drawScreenQuad(RenderTarget* renderTarget, Viewport viewport, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda);
-        void drawColoredScreenSpaceQuad(RenderTarget* renderTarget, const glm::vec2& screenSpaceMin, const glm::vec2& screenSpaceMax, const glm::vec4& color);
+        void drawStaticMesh(Framebuffer* framebuffer, const Viewport& viewport, StaticMesh* mesh, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda, const GfxPipelineState& gfxPipelineState);
+        void drawFullscreenQuad(Framebuffer* framebuffer, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda);
+        void drawScreenQuad(Framebuffer* framebuffer, Viewport viewport, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda);
+        void drawColoredScreenSpaceQuad(Framebuffer* framebuffer, const glm::vec2& screenSpaceMin, const glm::vec2& screenSpaceMax, const glm::vec4& color);
         void blitTexture(GfxTexture2D* dst, GfxTexture2D* src);
 
         /* Debugging utilities */
@@ -136,15 +136,15 @@ namespace Cyan
             glm::vec4 position;
             glm::vec4 color;
         };
-        void drawScreenSpaceLines(RenderTarget* renderTarget, const std::vector<Vertex>& vertices);
-        void drawWorldSpaceLines(RenderTarget* renderTarget, const std::vector<Vertex>& vertices);
-        void drawWorldSpacePoints(RenderTarget* renderTarget, const std::vector<Vertex>& points);
+        void drawScreenSpaceLines(Framebuffer* framebuffer, const std::vector<Vertex>& vertices);
+        void drawWorldSpaceLines(Framebuffer* framebuffer, const std::vector<Vertex>& vertices);
+        void drawWorldSpacePoints(Framebuffer* framebuffer, const std::vector<Vertex>& points);
         std::queue<std::function<void(void)>> debugDrawCalls;
         void drawDebugObjects();
         void debugDrawLineImmediate(const glm::vec3& v0, const glm::vec3& v1);
-        void debugDrawSphere(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection);
-        void debugDrawCubeImmediate(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection);
-        void debugDrawCubeBatched(RenderTarget* renderTarget, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::vec3& facingDir, const glm::vec4& albedo, const glm::mat4& view, const glm::mat4& projection);
+        void debugDrawSphere(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection);
+        void debugDrawCubeImmediate(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection);
+        void debugDrawCubeBatched(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::vec3& facingDir, const glm::vec4& albedo, const glm::mat4& view, const glm::mat4& projection);
         void debugDrawCubemap(TextureCube* cubemap);
         void debugDrawCubemap(GLuint cubemap);
 

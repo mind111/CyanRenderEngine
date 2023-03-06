@@ -1,7 +1,7 @@
 #include <stbi/stb_image.h>
 
 #include "LightProbe.h"
-#include "RenderTarget.h"
+#include "Framebuffer.h"
 #include "CyanAPI.h"
 #include "CyanRenderer.h"
 #include "AssetManager.h"
@@ -63,9 +63,9 @@ namespace Cyan
 // todo: implement this at some point
 #if 0
         // create render target
-        auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(sceneCapture->resolution, sceneCapture->resolution));
-        renderTarget->setColorBuffer(sceneCapture, 0u);
-        Renderer::get()->renderSceneToLightProbe(scene, this, renderTarget.get());
+        auto framebuffer = std::unique_ptr<Framebuffer>(createFramebuffer(sceneCapture->resolution, sceneCapture->resolution));
+        framebuffer->setColorBuffer(sceneCapture, 0u);
+        Renderer::get()->renderSceneToLightProbe(scene, this, framebuffer.get());
 #endif
     }
 
@@ -108,19 +108,19 @@ namespace Cyan
 
         auto renderer = Renderer::get();
 
-        auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(m_irradianceTextureRes.x, m_irradianceTextureRes.y));
-        renderTarget->setColorBuffer(m_convolvedIrradianceTexture.get(), 0u);
+        auto framebuffer = std::unique_ptr<Framebuffer>(createFramebuffer(m_irradianceTextureRes.x, m_irradianceTextureRes.y));
+        framebuffer->setColorBuffer(m_convolvedIrradianceTexture.get(), 0u);
         {
             for (i32 f = 0; f < 6u; ++f)
             {
-                renderTarget->setDrawBuffers({ f });
-                renderTarget->clear({ { f } });
+                framebuffer->setDrawBuffers({ f });
+                framebuffer->clear({ { f } });
 
                 GfxPipelineState config;
                 config.depth = DepthControl::kDisable;
                 renderer->drawStaticMesh(
-                    renderTarget.get(),
-                    { 0u, 0u, renderTarget->width, renderTarget->height }, 
+                    framebuffer.get(),
+                    { 0u, 0u, framebuffer->width, framebuffer->height }, 
                     AssetManager::getAsset<StaticMesh>("UnitCubeMesh"),
                     s_convolveIrradiancePipeline,
                     [this, f](VertexShader* vs, PixelShader* ps) {
@@ -202,8 +202,8 @@ namespace Cyan
         Sampler2D sampler;
         GfxTexture2DBindless* outTexture = GfxTexture2DBindless::create(spec, sampler);
 
-        RenderTarget* renderTarget = createRenderTarget(outTexture->width, outTexture->height);
-        renderTarget->setColorBuffer(outTexture, 0u);
+        Framebuffer* framebuffer = createFramebuffer(outTexture->width, outTexture->height);
+        framebuffer->setColorBuffer(outTexture, 0u);
         auto renderer = Renderer::get();
         GfxPipelineState pipelineState;
         pipelineState.depth = DepthControl::kDisable;
@@ -211,14 +211,14 @@ namespace Cyan
         CreatePS(ps, "IntegrateBRDFPS", SHADER_SOURCE_PATH "integrate_BRDF_p.glsl");
         CreatePixelPipeline(pipeline, "IntegrateBRDF", vs, ps);
         renderer->drawFullscreenQuad(
-            renderTarget,
+            framebuffer,
             pipeline,
             [](VertexShader* vs, PixelShader* ps) {
 
             });
 
-        glDeleteFramebuffers(1, &renderTarget->fbo);
-        delete renderTarget;
+        glDeleteFramebuffers(1, &framebuffer->fbo);
+        delete framebuffer;
         return outTexture;
     }
 
@@ -231,18 +231,18 @@ namespace Cyan
 
         for (u32 mip = 0; mip < kNumMips; ++mip)
         {
-            auto renderTarget = createRenderTarget(mipWidth, mipHeight);
-            renderTarget->setColorBuffer(m_convolvedReflectionTexture.get(), 0u, mip);
+            auto framebuffer = createFramebuffer(mipWidth, mipHeight);
+            framebuffer->setColorBuffer(m_convolvedReflectionTexture.get(), 0u, mip);
             {
                 for (i32 f = 0; f < 6u; f++)
                 {
-                    renderTarget->setDrawBuffers({ f });
-                    renderTarget->clear({ { f } });
+                    framebuffer->setDrawBuffers({ f });
+                    framebuffer->clear({ { f } });
                     GfxPipelineState config;
                     config.depth = DepthControl::kDisable;
                     renderer->drawStaticMesh(
-                        renderTarget,
-                        { 0u, 0u, renderTarget->width, renderTarget->height }, 
+                        framebuffer,
+                        { 0u, 0u, framebuffer->width, framebuffer->height }, 
                         AssetManager::getAsset<StaticMesh>("UnitCubeMesh"),
                         s_convolveReflectionPipeline,
                         [this, f, mip, kNumMips](VertexShader* vs, PixelShader* ps) {
@@ -265,8 +265,8 @@ namespace Cyan
                     config);
                 }
             }
-            glDeleteFramebuffers(1, &renderTarget->fbo);
-            delete renderTarget;
+            glDeleteFramebuffers(1, &framebuffer->fbo);
+            delete framebuffer;
 
             mipWidth /= 2u;
             mipHeight /= 2u;

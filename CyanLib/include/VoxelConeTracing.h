@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Common.h"
-#include "RenderTarget.h"
+#include "Framebuffer.h"
 #include "Shader.h"
 #include "Material.h"
 

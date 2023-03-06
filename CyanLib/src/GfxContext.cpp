@@ -193,19 +193,19 @@ namespace Cyan {
         glViewport(viewport.x, viewport.y, viewport.width, viewport.height);
     }
 
-    void GfxContext::setRenderTarget(RenderTarget* renderTarget) 
+    void GfxContext::setFramebuffer(Framebuffer* framebuffer) 
     {
-        if (!renderTarget)
+        if (!framebuffer)
         {
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             return;
         }
-        glBindFramebuffer(GL_FRAMEBUFFER, renderTarget->fbo);
+        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer->fbo);
     }
 
-    void GfxContext::setRenderTarget(RenderTarget* renderTarget, const std::initializer_list<RenderTargetDrawBuffer>& drawBuffers)
+    void GfxContext::setFramebuffer(Framebuffer* framebuffer, const std::initializer_list<FramebufferDrawBuffer>& drawBuffers)
     {
-        if (!renderTarget)
+        if (!framebuffer)
         {
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             return;
@@ -214,7 +214,7 @@ namespace Cyan {
         i32 numBuffers = drawBuffers.size();
         for (i32 i = 0; i < numBuffers; ++i)
         {
-            const RenderTargetDrawBuffer& drawBuffer = *(drawBuffers.begin() + i);
+            const FramebufferDrawBuffer& drawBuffer = *(drawBuffers.begin() + i);
             if (drawBuffer.binding > -1)
             {
                 buffers[i] = GL_COLOR_ATTACHMENT0 + drawBuffer.binding;
@@ -224,7 +224,7 @@ namespace Cyan {
                 buffers[i] = GL_NONE;
             }
         }
-        glBindFramebuffer(GL_FRAMEBUFFER, renderTarget->fbo);
+        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer->fbo);
         glDrawBuffers(numBuffers, buffers);
     }
 

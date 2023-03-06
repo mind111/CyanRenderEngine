@@ -56,7 +56,7 @@
     <ClInclude Include="include\Mesh.h" />
     <ClInclude Include="include\Node.h" />
     <ClInclude Include="include\RenderableScene.h" />
-    <ClInclude Include="include\RenderTarget.h" />
+    <ClInclude Include="include\Framebuffer.h" />
     <ClInclude Include="include\RenderTexture.h" />
     <ClInclude Include="include\Scene.h" />
     <ClInclude Include="include\SceneComponent.h" />
@@ -104,7 +104,7 @@
     <ClCompile Include="src\MathUtils.cpp" />
     <ClCompile Include="src\Mesh.cpp" />
     <ClCompile Include="src\RenderableScene.cpp" />
-    <ClCompile Include="src\RenderTarget.cpp" />
+    <ClCompile Include="src\Framebuffer.cpp" />
     <ClCompile Include="src\Scene.cpp" />
     <ClCompile Include="src\SceneComponent.cpp" />
     <ClCompile Include="src\ScreenSpaceRayTracing.cpp" />
