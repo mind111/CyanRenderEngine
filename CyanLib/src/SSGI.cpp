@@ -39,7 +39,7 @@ namespace Cyan
 
     void SSGI::render(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIrradiance, const GBuffer& gBuffer, const HiZBuffer& HiZ, RenderTexture2D inDirectDiffuseBuffer)
     {
-        GfxTexture2D* sceneDepth = gBuffer.depth.getGfxTexture2D();
+        GfxTexture2D* sceneDepth = gBuffer.depth.getGfxDepthTexture2D();
 
         // trace
         auto renderer = Renderer::get();
@@ -48,14 +48,14 @@ namespace Cyan
         framebuffer->setColorBuffer(outBentNormal.getGfxTexture2D(), 1);
         framebuffer->setColorBuffer(outIrradiance.getGfxTexture2D(), 2);
         framebuffer->setDrawBuffers({ 0, 1, 2 });
-        framebuffer->clear({ 
-            { 0, glm::vec4(0.f, 0.f, 0.f, 1.f) },
-            { 1, glm::vec4(0.f, 0.f, 0.f, 1.f) },
-            { 2, glm::vec4(0.f, 0.f, 0.f, 1.f) },
-        });
+        framebuffer->clearDrawBuffer(0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+        framebuffer->clearDrawBuffer(1, glm::vec4(0.f, 0.f, 0.f, 1.f));
+        framebuffer->clearDrawBuffer(2, glm::vec4(0.f, 0.f, 0.f, 1.f));
+
         CreateVS(vs, "ScreenSpaceRayTracingVS", SHADER_SOURCE_PATH "screenspace_raytracing_v.glsl");
         CreatePS(ps, "HierarchicalSSRTPS", SHADER_SOURCE_PATH "hierarchical_ssrt_p.glsl");
         CreatePixelPipeline(pipeline, "HierarchicalSSRT", vs, ps);
+
         renderer->drawFullscreenQuad(
             framebuffer,
             pipeline,
@@ -75,7 +75,7 @@ namespace Cyan
 
     void SSGI::renderEx(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIrradiance, const GBuffer& gBuffer, const HiZBuffer& HiZ, RenderTexture2D inDirectDiffuseBuffer)
     {
-        GfxTexture2D* sceneDepth = gBuffer.depth.getGfxTexture2D();
+        GfxTexture2D* sceneDepth = gBuffer.depth.getGfxDepthTexture2D();
 
         // trace
         auto renderer = Renderer::get();
@@ -84,11 +84,10 @@ namespace Cyan
         framebuffer->setColorBuffer(outBentNormal.getGfxTexture2D(), 1);
         framebuffer->setColorBuffer(outIrradiance.getGfxTexture2D(), 2);
         framebuffer->setDrawBuffers({ 0, 1, 2 });
-        framebuffer->clear({ 
-            { 0, glm::vec4(0.f, 0.f, 0.f, 1.f) },
-            { 1, glm::vec4(0.f, 0.f, 0.f, 1.f) },
-            { 2, glm::vec4(0.f, 0.f, 0.f, 1.f) },
-        });
+        framebuffer->clearDrawBuffer(0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+        framebuffer->clearDrawBuffer(1, glm::vec4(0.f, 0.f, 0.f, 1.f));
+        framebuffer->clearDrawBuffer(2, glm::vec4(0.f, 0.f, 0.f, 1.f));
+
         CreateVS(vs, "ScreenSpaceRayTracingVS", SHADER_SOURCE_PATH "screenspace_raytracing_v.glsl");
         CreatePS(ps, "HierarchicalSSRTPS", SHADER_SOURCE_PATH "hierarchical_ssrt_ex_p.glsl");
         CreatePixelPipeline(pipeline, "HierarchicalSSRT", vs, ps);
@@ -121,7 +120,7 @@ namespace Cyan
                 framebuffer,
                 pipeline,
                 [this, gBuffer](VertexShader* vs, PixelShader* ps) {
-                    ps->setTexture("depthBuffer", gBuffer.depth.getGfxTexture2D());
+                    ps->setTexture("depthBuffer", gBuffer.depth.getGfxDepthTexture2D());
                     ps->setTexture("normalBuffer", gBuffer.normal.getGfxTexture2D());
                     ps->setTexture("hitPositionBuffer", hitBuffer.position);
                     ps->setTexture("hitNormalBuffer", hitBuffer.normal);

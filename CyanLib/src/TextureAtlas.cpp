@@ -40,7 +40,7 @@ namespace Cyan
                 u32 atlasMipWidth = atlas->width / pow(2, i);
                 u32 atlasMipHeight = atlas->height / pow(2, i);
 
-                std::unique_ptr<Framebuffer> framebuffer = std::unique_ptr<Framebuffer>(Cyan::createFramebuffer(atlasMipWidth, atlasMipHeight));
+                std::unique_ptr<Framebuffer> framebuffer = std::unique_ptr<Framebuffer>(Cyan::Framebuffer::create(atlasMipWidth, atlasMipHeight));
                 framebuffer->setColorBuffer(atlas.get(), 0, i);
                 framebuffer->setDrawBuffers({ 0 });
                 Viewport viewport = {

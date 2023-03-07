@@ -2,140 +2,93 @@
 
 namespace Cyan
 {
-    Framebuffer* Framebuffer::defaultFramebuffer = nullptr;
-
-    Framebuffer* Framebuffer::getDefaultFramebuffer(u32 width, u32 height)
-    { 
-        if (!defaultFramebuffer)
-        {
-            defaultFramebuffer = new Framebuffer();
-            defaultFramebuffer->width = width;
-            defaultFramebuffer->height = height;
-            defaultFramebuffer->fbo = 0;
-        }
-        else
-        {
-            if (width != defaultFramebuffer->width || height != defaultFramebuffer->height)
-            {
-                delete defaultFramebuffer;
-
-                defaultFramebuffer = new Framebuffer();
-                defaultFramebuffer->width = width;
-                defaultFramebuffer->height = height;
-                defaultFramebuffer->fbo = 0;
-            }
-        }
-        return defaultFramebuffer;
-    }
-    
-    GfxTexture* Framebuffer::getColorBuffer(u32 index)
+    Framebuffer* Framebuffer::create(u32 inWidth, u32 inHeight)
     {
-        return colorBuffers[index];
-    }
-
-    void Framebuffer::setDrawBuffers(const std::initializer_list<i32>& drawBuffers) {
-        GLenum* buffers = static_cast<GLenum*>(_alloca(drawBuffers.size() * sizeof(GLenum)));
-        i32 numBuffers = drawBuffers.size();
-        for (i32 i = 0; i < numBuffers; ++i)
-        {
-            i32 drawBuffer = *(drawBuffers.begin() + i);
-            if (drawBuffer > -1)
-            {
-                buffers[i] = GL_COLOR_ATTACHMENT0 + drawBuffer;
-            }
-            else
-            {
-                buffers[i] = GL_NONE;
-            }
-
-        }
-        if (numBuffers > 0) {
-            glNamedFramebufferDrawBuffers(fbo, numBuffers, buffers);
-        }
+        return new Framebuffer(inWidth, inHeight);
     }
 
     void Framebuffer::setColorBuffer(GfxTexture2D* texture, u32 index, u32 mip)
     {
-        if (index > 7)
+        if (index < kNumColorbufferBindings)
         {
-            cyanError("Drawbuffer index out of bound!");
-            return;
+            glNamedFramebufferTexture2DEXT(getGpuResource(), GL_COLOR_ATTACHMENT0 + index, GL_TEXTURE_2D, texture->getGpuResource(), mip);
+            colorBuffers[index] = texture;
         }
-        glNamedFramebufferTexture2DEXT(fbo, GL_COLOR_ATTACHMENT0 + index, GL_TEXTURE_2D, texture->getGpuResource(), mip);
-        colorBuffers[index] = texture;
+        else
+        {
+            assert(0);
+        }
     }
 
     void Framebuffer::setColorBuffer(TextureCube* texture, u32 index, u32 mip)
     {
-        if (index > 7)
-        {
-            cyanError("Drawbuffer index out of bound!");
-        }
         const u32 numFaces = 6u;
-        if (index + numFaces - 1u > 7u)
-        {
-            cyanError("Too many drawbuffers bind to a framebuffer object!");
-        }
-        else
+        if ((index + numFaces - 1u) < kNumColorbufferBindings)
         {
             for (i32 f = 0; f < numFaces; ++f)
             {
-                glNamedFramebufferTexture2DEXT(fbo, GL_COLOR_ATTACHMENT0 + (index + f), GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, texture->getGpuResource(), mip);
+                glNamedFramebufferTexture2DEXT(getGpuResource(), GL_COLOR_ATTACHMENT0 + (index + f), GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, texture->getGpuResource(), mip);
                 colorBuffers[index + f] = static_cast<GfxTexture*>(texture);
             }
         }
-    }
-
-    void Framebuffer::setDepthBuffer(GfxDepthTexture2D* texture)
-    {
-        if (texture->width != width || texture->height != height)
+        else
         {
-            CYAN_ASSERT(0, "Mismatched render target and depth buffer dimension!") 
+            assert(0);
         }
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, texture->getGpuResource(), 0);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        depthBuffer = texture;
     }
 
-    void Framebuffer::clearDrawBuffer(i32 drawBufferIndex, glm::vec4 clearColor, bool clearDepth, f32 clearDepthValue) {
-        glClearNamedFramebufferfv(fbo, GL_COLOR, drawBufferIndex, &clearColor.x);
-        if (clearDepth) {
+    void Framebuffer::setDrawBuffers(const std::initializer_list<i32>& colorBufferIndices) 
+    {
+        GLenum* drawBuffers = static_cast<GLenum*>(_alloca(colorBufferIndices.size() * sizeof(GLenum)));
+        i32 numDrawBuffers = colorBufferIndices.size();
+        for (i32 i = 0; i < numDrawBuffers; ++i)
+        {
+            i32 colorBufferIndex = *(colorBufferIndices.begin() + i);
+            if (colorBufferIndex > -1)
+            {
+                drawBuffers[i] = GL_COLOR_ATTACHMENT0 + colorBufferIndex;
+            }
+            else
+            {
+                drawBuffers[i] = GL_NONE;
+            }
+        }
+        if (numDrawBuffers > 0) 
+        {
+            glNamedFramebufferDrawBuffers(getGpuResource(), numDrawBuffers, drawBuffers);
+        }
+    }
+    
+    void Framebuffer::setDepthBuffer(GfxDepthTexture2D* depthTexture)
+    {
+        assert(depthTexture->width == width && depthTexture->height == height);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, getGpuResource());
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, depthTexture->getGpuResource(), 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        depthBuffer = depthTexture;
+    }
+
+    void Framebuffer::clearDrawBuffer(i32 drawBufferIndex, glm::vec4 clearColor, bool clearDepth, f32 clearDepthValue) 
+    {
+        glClearNamedFramebufferfv(getGpuResource(), GL_COLOR, drawBufferIndex, &clearColor.x);
+        if (clearDepth) 
+        {
             clearDepthBuffer(clearDepthValue);
         }
     }
 
-    void Framebuffer::clearDepthBuffer(f32 clearDepthValue) {
-        // clear depth buffer
-        glClearNamedFramebufferfv(fbo, GL_DEPTH, 0, &clearDepthValue);
-    }
-
-    void Framebuffer::clear(const std::initializer_list<FramebufferDrawBuffer>& buffers, f32 clearDepthBuffer)
+    void Framebuffer::clearDepthBuffer(f32 clearDepthValue) 
     {
-        // clear specified albedo buffer
-        for (i32 i = 0; i < buffers.size(); ++i)
-        {
-            FramebufferDrawBuffer& drawBuffer = const_cast<FramebufferDrawBuffer&>(*(buffers.begin() + i));
-            /** note - @min: the drawBuffer.binding here is used to index into currently bound draw buffers rather
-            * than index into albedo attachments. for example, passing an index of 0 will refer to first bound draw buffer which
-            * can be an arbitrary albedo attachment as long as it's bound as the first draw buffer
-            */
-            glClearNamedFramebufferfv(fbo, GL_COLOR, drawBuffer.binding, &drawBuffer.clearColor.x);
-        }
-        // clear depth buffer
-        glClearNamedFramebufferfv(fbo, GL_DEPTH, 0, &clearDepthBuffer);
+        glClearNamedFramebufferfv(getGpuResource(), GL_DEPTH, 0, &clearDepthValue);
     }
 
     bool Framebuffer::validate()
     {
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-        if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-        {
-            printf("ERROR::FRAMEBUFFER:: Framebuffer %d is not complete", fbo);
-            return false;
-        }
+        glBindFramebuffer(GL_FRAMEBUFFER, getGpuResource());
+        assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         return true;
     }
-
 }

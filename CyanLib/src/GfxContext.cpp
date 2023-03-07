@@ -200,7 +200,7 @@ namespace Cyan {
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             return;
         }
-        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer->fbo);
+        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer->getGpuResource());
     }
 
     void GfxContext::setFramebuffer(Framebuffer* framebuffer, const std::initializer_list<FramebufferDrawBuffer>& drawBuffers)
@@ -224,7 +224,7 @@ namespace Cyan {
                 buffers[i] = GL_NONE;
             }
         }
-        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer->fbo);
+        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer->getGpuResource());
         glDrawBuffers(numBuffers, buffers);
     }
 

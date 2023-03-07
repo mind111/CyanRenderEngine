@@ -45,7 +45,7 @@ namespace Cyan
         m_cubemapTexture = std::unique_ptr<TextureCube>(TextureCube::create(cubemapSpec, samplerCube));
 
         // render src equirectangular map into a cubemap
-        auto framebuffer = std::unique_ptr<Framebuffer>(createFramebuffer(m_cubemapTexture->resolution, m_cubemapTexture->resolution));
+        auto framebuffer = std::unique_ptr<Framebuffer>(Framebuffer::create(m_cubemapTexture->resolution, m_cubemapTexture->resolution));
         framebuffer->setColorBuffer(m_cubemapTexture.get(), 0u);
 
         CreateVS(vs, "RenderToCubemapVS", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl");
@@ -56,10 +56,10 @@ namespace Cyan
         for (i32 f = 0; f < 6u; f++)
         {
             framebuffer->setDrawBuffers({ f });
-            framebuffer->clear({ { f } });
+            framebuffer->clearDrawBuffer(f, glm::vec4(0.f, 0.f, 0.f, 1.f));
 
-            GfxPipelineState config;
-            config.depth = DepthControl::kDisable;
+            GfxPipelineState gfxPipelineState;
+            gfxPipelineState.depth = DepthControl::kDisable;
             Renderer::get()->drawStaticMesh(
                 framebuffer.get(),
                 { 0, 0, framebuffer->width, framebuffer->height },
@@ -79,7 +79,7 @@ namespace Cyan
                     vs->setUniform("view", camera.view());
                     ps->setTexture("srcImageTexture", m_srcHDRITexture->gfxTexture.get());
                 },
-                config
+                gfxPipelineState
             );
         }
 

@@ -18,8 +18,10 @@ namespace Cyan
     void init();
 
     /* Framebuffer */
+#if 0
     Framebuffer* createFramebuffer(u32 width, u32 height);
     Framebuffer* createDepthOnlyFramebuffer(u32 width, u32 height);
+#endif
 
     struct TriangleIndex
     {

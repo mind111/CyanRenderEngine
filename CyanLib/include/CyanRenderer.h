@@ -53,7 +53,8 @@ namespace Cyan
         GBuffer(const glm::uvec2& resolution);
         ~GBuffer() { }
 
-        RenderTexture2D depth;
+        // RenderTexture2D depth;
+        RenderDepthTexture2D depth;
         RenderTexture2D normal;
         RenderTexture2D albedo;
         RenderTexture2D metallicRoughness;
@@ -110,7 +111,7 @@ namespace Cyan
         void endRender();
         void renderSceneDepthOnly(RenderableScene& renderableScene, GfxDepthTexture2D* outDepthTexture);
         void renderShadowMaps(Scene* inScene);
-        void renderSceneDepthPrepass(const RenderableScene& renderableScene, Framebuffer* outFramebuffer, RenderTexture2D outDepthBuffer);
+        void renderSceneDepthPrepass(const RenderableScene& renderableScene, Framebuffer* outFramebuffer, RenderDepthTexture2D outDepthBuffer);
         void renderSceneGBuffer(Framebuffer* outFramebuffer, const RenderableScene& scene, GBuffer gBuffer);
         void renderSceneLighting(RenderTexture2D outSceneColor, const RenderableScene& scene, GBuffer gBuffer);
         void renderSceneDirectLighting(RenderTexture2D outDirectLighting, const RenderableScene& scene, GBuffer gBuffer);

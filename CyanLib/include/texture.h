@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <string>
 #include <memory>
 
@@ -547,7 +548,7 @@ namespace Cyan
     };
 }
 
-// custom hash function for ITexture::Spec
+// custom hash function for texture specs
 namespace std
 {
     template <>
@@ -571,7 +572,26 @@ namespace std
                 key += "_RGBA32F";
                 break;
             default:
+                assert(0);
+            }
+            key += "_" + std::to_string(spec.numMips);
+            return std::hash<std::string>()(key);
+        }
+    };
+
+    template <>
+    struct hash<Cyan::GfxDepthTexture2D::Spec>
+    {
+        std::size_t operator()(const Cyan::GfxDepthTexture2D::Spec& spec) const
+        {
+            std::string key = std::to_string(spec.width) + 'x' + std::to_string(spec.height);
+            switch (spec.format)
+            {
+            case PF_D24S8:
+                key += "_D24S8";
                 break;
+            default:
+                assert(0);
             }
             key += "_" + std::to_string(spec.numMips);
             return std::hash<std::string>()(key);

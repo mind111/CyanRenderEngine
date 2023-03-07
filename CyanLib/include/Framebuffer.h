@@ -17,39 +17,63 @@ namespace Cyan
 
     struct RenderBuffer : public GpuResource
     {
+        RenderBuffer(u32 inWidth, u32 inHeight)
+            : width(inWidth), height(inHeight)
+        {
+            glCreateRenderbuffers(1, &glObject);
+            glNamedRenderbufferStorage(getGpuResource(), GL_DEPTH24_STENCIL8, width, height);
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, getGpuResource());
+        }
 
+        ~RenderBuffer() 
+        { 
+            GLuint renderbuffers[] = { getGpuResource() };
+            glDeleteRenderbuffers(1, renderbuffers);
+        }
+
+        u32 width, height;
     };
 
-    struct Framebuffer
+    struct Framebuffer : public GpuResource
     {
         ~Framebuffer()
         {
-            if (fbo >= 0)
-            {
-                glDeleteFramebuffers(1, &fbo);
-            }
-            if (rbo >= 0)
-            {
-                glDeleteRenderbuffers(1, &rbo);
-            }
+            GLuint framebuffers[] = { getGpuResource() };
+            glDeleteFramebuffers(1, framebuffers);
         }
 
-        static Framebuffer* getDefaultFramebuffer(u32 width, u32 height);
-        GfxTexture* getColorBuffer(u32 index);
+        static Framebuffer* create(u32 inWidth, u32 inHeight);
+
+        GfxTexture* getColorBuffer(u32 index) { assert(index < kNumColorbufferBindings); return colorBuffers[index]; }
+        GfxDepthTexture2D* getDepthBuffer() { return depthBuffer; }
+
         void setColorBuffer(GfxTexture2D* texture, u32 index, u32 mip = 0u);
         void setColorBuffer(TextureCube* texture, u32 index, u32 mip = 0u);
         void setDrawBuffers(const std::initializer_list<i32>& buffers);
-        void setDepthBuffer(GfxDepthTexture2D* texture);
-        void clear(const std::initializer_list<FramebufferDrawBuffer>& buffers, f32 clearDepthBuffer = 1.f);
+        void setDepthBuffer(GfxDepthTexture2D* depthTexture);
         void clearDrawBuffer(i32 drawBufferIndex, glm::vec4 clearColor, bool clearDepth = true, f32 clearDepthValue = 1.f);
         void clearDepthBuffer(f32 clearDepthValue = 1.f);
         bool validate();
 
-        static Framebuffer* defaultFramebuffer;
         u32 width, height;
-        Cyan::GfxTexture* colorBuffers[8] = { 0 };
-        Cyan::GfxDepthTexture2D* depthBuffer = nullptr;
-        GLuint fbo = -1;
-        GLuint rbo = -1;
+        GfxDepthTexture2D* depthBuffer = nullptr;
+        std::shared_ptr<RenderBuffer> renderBuffer = nullptr;
+        static constexpr u32 kNumColorbufferBindings = 8;
+        GfxTexture* colorBuffers[kNumColorbufferBindings] = { 0 };
+
+    private:
+        Framebuffer(u32 inWidth, u32 inHeight, GfxDepthTexture2D* inDepthBuffer = nullptr) 
+            : width(inWidth), height(inHeight), depthBuffer(inDepthBuffer)
+        { 
+            glCreateFramebuffers(1, &glObject);
+            if (inDepthBuffer)
+            {
+                setDepthBuffer(inDepthBuffer);
+            }
+            else
+            {
+                renderBuffer = std::make_shared<RenderBuffer>(width, height);
+            }
+        }
     };
 }

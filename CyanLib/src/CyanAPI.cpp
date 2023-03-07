@@ -34,6 +34,7 @@ namespace Cyan
 
     }
 
+#if 0
     Framebuffer* createFramebuffer(u32 width, u32 height) {
         Framebuffer* rt = new Framebuffer();
         rt->width = width;
@@ -63,6 +64,7 @@ namespace Cyan
         glCreateFramebuffers(1, &rt->fbo);
         return rt;
     }
+#endif
 
     namespace Toolkit
     {

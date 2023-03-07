@@ -96,7 +96,7 @@ namespace Cyan
 
     void SkyLight::buildCubemap(Texture2D* srcEquirectMap, TextureCube* dstCubemap) 
     {
-        auto framebuffer = std::unique_ptr<Framebuffer>(createFramebuffer(dstCubemap->resolution, dstCubemap->resolution));
+        auto framebuffer = std::unique_ptr<Framebuffer>(Framebuffer::create(dstCubemap->resolution, dstCubemap->resolution));
         framebuffer->setColorBuffer(dstCubemap, 0u);
 
         VertexShader* vs = ShaderManager::createShader<VertexShader>("RenderToCubemapVS", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl");
@@ -106,7 +106,7 @@ namespace Cyan
 
         for (i32 f = 0; f < 6u; f++) {
             framebuffer->setDrawBuffers({ f });
-            framebuffer->clear({ { f } });
+            framebuffer->clearDepthBuffer();
 
             GfxPipelineState config;
             config.depth = DepthControl::kDisable;
