@@ -117,6 +117,9 @@ namespace Cyan {
         renderTarget->setColorBuffer(normal, 1);
         renderTarget->setColorBuffer(albedo, 2);
         renderTarget->setDrawBuffers({ 0, 1, 2 });
+        Framebuffer->setDrawbuffer(0, 0);
+        Framebuffer->setDrawbuffer(1, 1);
+        Framebuffer->setDrawbuffer(2, 2);
         renderTarget->clearDrawBuffer(0, glm::vec4(0.f, 0.f, 0.f, 0.f));
         renderTarget->clearDrawBuffer(1, glm::vec4(0.f, 0.f, 0.f, 1.f));
         renderTarget->clearDrawBuffer(2, glm::vec4(0.f, 0.f, 0.f, 1.f));

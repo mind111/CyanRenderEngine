@@ -22,7 +22,6 @@ namespace Cyan
         {
             glCreateRenderbuffers(1, &glObject);
             glNamedRenderbufferStorage(getGpuResource(), GL_DEPTH24_STENCIL8, width, height);
-            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, getGpuResource());
         }
 
         ~RenderBuffer() 
@@ -49,23 +48,25 @@ namespace Cyan
 
         void setColorBuffer(GfxTexture2D* texture, u32 index, u32 mip = 0u);
         void setColorBuffer(TextureCube* texture, u32 index, u32 mip = 0u);
-        void setDrawBuffers(const std::initializer_list<i32>& buffers);
         void setDepthBuffer(GfxDepthTexture2D* depthTexture);
+        void setDrawBuffers(const std::initializer_list<i32>& buffers);
         void clearDrawBuffer(i32 drawBufferIndex, glm::vec4 clearColor, bool clearDepth = true, f32 clearDepthValue = 1.f);
         void clearDepthBuffer(f32 clearDepthValue = 1.f);
         bool validate();
+        // reset states of this framebuffer object
+        void reset();
 
         u32 width, height;
-        GfxDepthTexture2D* depthBuffer = nullptr;
-        std::shared_ptr<RenderBuffer> renderBuffer = nullptr;
         static constexpr u32 kNumColorbufferBindings = 8;
+        // framebuffer doesn't own any of its color attachments or depth attachments, it's basically just a container
         GfxTexture* colorBuffers[kNumColorbufferBindings] = { 0 };
-
+        GfxDepthTexture2D* depthBuffer = nullptr;
     private:
-        Framebuffer(u32 inWidth, u32 inHeight, GfxDepthTexture2D* inDepthBuffer = nullptr) 
-            : width(inWidth), height(inHeight), depthBuffer(inDepthBuffer)
+        Framebuffer(u32 inWidth, u32 inHeight) 
+            : width(inWidth), height(inHeight)
         { 
             glCreateFramebuffers(1, &glObject);
+#if 0
             if (inDepthBuffer)
             {
                 setDepthBuffer(inDepthBuffer);
@@ -73,7 +74,9 @@ namespace Cyan
             else
             {
                 renderBuffer = std::make_shared<RenderBuffer>(width, height);
+                glNamedFramebufferRenderbuffer(getGpuResource(), GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, renderBuffer->getGpuResource());
             }
+#endif
         }
     };
 }

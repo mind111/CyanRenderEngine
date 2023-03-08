@@ -172,7 +172,7 @@ namespace Cyan
     }
 
     // managing creating and recycling render target
-    Framebuffer* Renderer::createCachedFramebuffer(const char* name, u32 width, u32 height)
+    Framebuffer* Renderer::createCachedFramebuffer(const char* name, u32 width, u32 height, GfxDepthTexture2D* inDepthTexture)
     {
         static std::unordered_map<std::string, std::shared_ptr<Framebuffer>> framebufferMap;
 
@@ -181,7 +181,7 @@ namespace Cyan
         auto entry = framebufferMap.find(key);
         if (entry == framebufferMap.end())
         {
-            Framebuffer* newFramebuffer = Framebuffer::create(width, height);
+            Framebuffer* newFramebuffer = Framebuffer::create(width, height, inDepthTexture);
             framebufferMap.insert({ key, std::shared_ptr<Framebuffer>(newFramebuffer)});
             return newFramebuffer;
         }
@@ -213,10 +213,21 @@ namespace Cyan
     {
         GfxPipelineState gfxPipelineState;
         gfxPipelineState.depth = DepthControl::kDisable;
-
+        // drawing to the default backbuffer
+        u32 drawWidth, drawHeight;
+        if (framebuffer == nullptr)
+        {
+            drawWidth = m_windowSize.x;
+            drawHeight = m_windowSize.y;
+        }
+        else
+        {
+            drawWidth = framebuffer->width;
+            drawHeight = framebuffer->height;
+        }
         drawStaticMesh(
             framebuffer,
-            { 0, 0, framebuffer->width, framebuffer->height },
+            { 0, 0, drawWidth, drawHeight },
             AssetManager::getAsset<StaticMesh>("FullScreenQuadMesh"),
             pipeline,
             shaderSetupLambda,
@@ -418,7 +429,7 @@ namespace Cyan
             outFramebuffer->setDrawBuffers({ 0 });
             outFramebuffer->clearDrawBuffer(0, glm::vec4(1.f, 1.f, 1.f, 1.f));
 #else
-            auto framebuffer = createCachedFramebuffer("DepthPrepassRenderTarget", outGfxDepthTexture->width, outGfxDepthTexture->height);
+            auto framebuffer = createCachedFramebuffer("DepthPrepassRenderTarget", outGfxDepthTexture->width, outGfxDepthTexture->height, outGfxDepthTexture);
             framebuffer->setDepthBuffer(outGfxDepthTexture);
             framebuffer->clearDepthBuffer();
 #endif

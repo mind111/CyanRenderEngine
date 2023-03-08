@@ -9,15 +9,12 @@ namespace Cyan
 
     void Framebuffer::setColorBuffer(GfxTexture2D* texture, u32 index, u32 mip)
     {
-        if (index < kNumColorbufferBindings)
-        {
-            glNamedFramebufferTexture2DEXT(getGpuResource(), GL_COLOR_ATTACHMENT0 + index, GL_TEXTURE_2D, texture->getGpuResource(), mip);
-            colorBuffers[index] = texture;
-        }
-        else
-        {
-            assert(0);
-        }
+        assert(index < kNumColorbufferBindings);
+        // make sure we are not leaking states
+        assert(colorBuffers[index] == nullptr);
+
+        glNamedFramebufferTexture2DEXT(getGpuResource(), GL_COLOR_ATTACHMENT0 + index, GL_TEXTURE_2D, texture->getGpuResource(), mip);
+        colorBuffers[index] = texture;
     }
 
     void Framebuffer::setColorBuffer(TextureCube* texture, u32 index, u32 mip)
@@ -36,11 +33,23 @@ namespace Cyan
             assert(0);
         }
     }
+    
+    void Framebuffer::setDepthBuffer(GfxDepthTexture2D* depthTexture)
+    {
+        assert(depthTexture->width == width && depthTexture->height == height);
+        assert(depthBuffer == nullptr);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, getGpuResource());
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, depthTexture->getGpuResource(), 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        depthBuffer = depthTexture;
+    }
 
     void Framebuffer::setDrawBuffers(const std::initializer_list<i32>& colorBufferIndices) 
     {
-        GLenum* drawBuffers = static_cast<GLenum*>(_alloca(colorBufferIndices.size() * sizeof(GLenum)));
         i32 numDrawBuffers = colorBufferIndices.size();
+        GLenum* drawBuffers = static_cast<GLenum*>(_malloca(numDrawBuffers * sizeof(GLenum)));
         for (i32 i = 0; i < numDrawBuffers; ++i)
         {
             i32 colorBufferIndex = *(colorBufferIndices.begin() + i);
@@ -57,17 +66,6 @@ namespace Cyan
         {
             glNamedFramebufferDrawBuffers(getGpuResource(), numDrawBuffers, drawBuffers);
         }
-    }
-    
-    void Framebuffer::setDepthBuffer(GfxDepthTexture2D* depthTexture)
-    {
-        assert(depthTexture->width == width && depthTexture->height == height);
-
-        glBindFramebuffer(GL_FRAMEBUFFER, getGpuResource());
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, depthTexture->getGpuResource(), 0);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-        depthBuffer = depthTexture;
     }
 
     void Framebuffer::clearDrawBuffer(i32 drawBufferIndex, glm::vec4 clearColor, bool clearDepth, f32 clearDepthValue) 
@@ -90,5 +88,24 @@ namespace Cyan
         assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         return true;
+    }
+
+    void Framebuffer::reset()
+    {
+        // unbind all color attachments
+        for (i32 i = 0; i < kNumColorbufferBindings; ++i)
+        {
+            if (colorBuffers[i] != nullptr)
+            {
+                colorBuffers[i] = nullptr;
+                glNamedFramebufferTexture2DEXT(getGpuResource(), GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, 0, 0);
+            }
+        }
+        // unbind depth attachment
+        if (depthBuffer)
+        {
+            depthBuffer = nullptr;
+            glNamedFramebufferTexture2DEXT(getGpuResource(), GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
+        }
     }
 }

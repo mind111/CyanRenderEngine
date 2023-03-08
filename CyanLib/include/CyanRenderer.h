@@ -104,7 +104,7 @@ namespace Cyan
         SceneTextures* m_sceneTextures = nullptr;
 
         // managing creating and recycling render target
-        Framebuffer* createCachedFramebuffer(const char* name, u32 width, u32 height);
+        Framebuffer* createCachedFramebuffer(const char* name, u32 width, u32 height, GfxDepthTexture2D* inDepthTexture = nullptr);
 
         void beginRender();
         void render(Scene* scene, const SceneView& sceneView);
