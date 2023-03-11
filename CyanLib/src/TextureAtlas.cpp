@@ -1,6 +1,7 @@
 #include "TextureAtlas.h"
 #include "CyanRenderer.h"
 #include "Image.h"
+#include "RenderPass.h"
 
 namespace Cyan
 {
@@ -40,19 +41,25 @@ namespace Cyan
                 u32 atlasMipWidth = atlas->width / pow(2, i);
                 u32 atlasMipHeight = atlas->height / pow(2, i);
 
-                std::unique_ptr<Framebuffer> framebuffer = std::unique_ptr<Framebuffer>(Cyan::Framebuffer::create(atlasMipWidth, atlasMipHeight));
-                framebuffer->setColorBuffer(atlas.get(), 0, i);
-                framebuffer->setDrawBuffers({ 0 });
                 Viewport viewport = {
                     (node->center.x - node->size * .5f) * atlasMipWidth,
                     (node->center.y - node->size * .5f) * atlasMipHeight,
                     node->size * atlasMipWidth,
                     node->size * atlasMipHeight,
                 };
-                renderer->drawScreenQuad(framebuffer.get(), viewport, pipeline, [&tempTexture, i](Cyan::VertexShader* vs, Cyan::PixelShader* ps) {
-                    ps->setTexture("srcTexture", tempTexture.get());
-                    ps->setUniform("mip", i);
-                });
+
+                renderer->drawScreenQuad(
+                    getFramebufferSize(atlas.get()),
+                    [this, i](RenderPass& pass) {
+                        pass.setRenderTarget(RenderTarget(atlas.get(), i), 0);
+                    },
+                    viewport, 
+                    pipeline, 
+                    [&tempTexture, i](Cyan::VertexShader* vs, Cyan::PixelShader* ps) {
+                        ps->setTexture("srcTexture", tempTexture.get());
+                        ps->setUniform("mip", i);
+                    }
+                );
             }
             packedImageIndex = images.size() - 1;
         }

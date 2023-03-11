@@ -185,7 +185,7 @@ namespace Cyan
     void GraphicsSystem::initialize()
     {
         // todo: specify dependencies between modules, for example, ShaderManager needs to be initialized before AssetManager
-        // initialize managers
+        m_ctx->initialize();
         m_shaderManager->initialize();
         m_assetManager->initialize();
         m_renderer->initialize();
@@ -223,7 +223,7 @@ namespace Cyan
     void GraphicsSystem::render(const std::function<void(GfxTexture2D*)>& renderOneFrame) 
     {
         // clear default render target
-        m_ctx->setFramebuffer(nullptr, { });
+        m_ctx->setFramebuffer(nullptr);
         m_ctx->clear();
         
         renderOneFrame(m_renderingOutput.get());

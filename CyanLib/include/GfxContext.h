@@ -65,14 +65,19 @@ namespace Cyan
     public:
         GfxContext(GLFWwindow* window) 
             : m_glfwWindow(window)
-        { }
+        { 
+        }
         ~GfxContext() { }
+
+        void initialize();
+
+        static glm::uvec2 getDefaultFramebufferSize();
 
         void setPixelPipeline(PixelPipeline* pixelPipelineObject, const std::function<void(VertexShader*, PixelShader*)>& setupShaders = [](VertexShader* vs, PixelShader* ps) {});
         void setGeometryPipeline(GeometryPipeline* geometryPipelineObject, const std::function<void(VertexShader*, GeometryShader*, PixelShader*)>& setupShaders = [](VertexShader*, GeometryShader*, PixelShader*) {});
         void setComputePipeline(ComputePipeline* computePipelineObject, const std::function<void(ComputeShader*)>& setupShaders);
 
-        void setTexture(GfxTexture* texture, u32 binding);
+        void setTexture(GfxTexture* texture, u32 textureUnit);
         // todo: implement this
         void setImage(GfxTexture2DArray* textuerArray, u32 binding, u32 layered = true, u32 layer = 0) { }
 
@@ -94,12 +99,12 @@ namespace Cyan
         void setPrimitiveType(PrimitiveMode type);
         void setViewport(Viewport viewport);
         void setFramebuffer(Framebuffer* framebuffer);
-        void setFramebuffer(Framebuffer* rt, const std::initializer_list<FramebufferDrawBuffer>& drawBuffers);
         void setDepthControl(DepthControl ctrl);
         void setClearColor(glm::vec4 albedo);
         void setCullFace(FrontFace frontFace, FaceCull faceToCull);
 
-        void setUniform(Shader* shader, const char* uniformName, f32 data) {
+        void setUniform(Shader* shader, const char* uniformName, f32 data) 
+        {
             i32 location = shader->getUniformLocation(uniformName);
             if (location >= 0)
             {
@@ -111,24 +116,36 @@ namespace Cyan
         void drawIndex(u32 numIndices);
         void multiDrawArrayIndirect(IndirectDrawBuffer* indirectDrawBuffer);
 
+        void reset();
+
         void flip();
         void clear();
 
+        Framebuffer* createFramebuffer(u32 width, u32 height);
     private:
         void setShaderInternal(Shader* shader);
+        void setProgramPipelineInternal();
+        void resetTextureBindingState();
+        u32 allocTextureUnit();
 
-        static constexpr u32 kMaxNumTextureUnits = 32u;
-        std::unordered_map<u32, u32> m_textureBindingMap;
-        u32 m_nextTextureBindingUnit = 0u;
+        GLFWwindow* m_glfwWindow = nullptr;
 
-        static constexpr u32 kMaxNumShaderStorageBindigs = 32u;
+        Framebuffer* m_framebuffer = nullptr;
+        Viewport m_viewport;
+
+        PixelPipeline* m_pixelPipeline = nullptr;
         std::unordered_map<std::string, u32> m_shaderStorageBindingMap;
         u32 m_nextShaderStorageBinding = 0u;
 
-        GLFWwindow* m_glfwWindow;
-        Shader* m_shader = nullptr;
-        Viewport m_viewport;
-        VertexArray* m_va = nullptr;
-        GLenum m_primitiveType;
+        GfxPipelineState m_gfxPipelineState;
+
+        VertexArray* m_vertexArray = nullptr;
+        glm::vec4 m_clearColor = glm::vec4(.2f, .2f, .2f, 1.f);
+
+        // some hardware constants
+        static i32 kMaxCombinedTextureUnits;
+        static i32 kMaxCombinedShaderStorageBlocks;
+        u32 numUsedTextureUnits = 0;
+        std::vector<GfxTexture*> m_textureBindings;
     };
 }

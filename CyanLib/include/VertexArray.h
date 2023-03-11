@@ -14,6 +14,8 @@ namespace Cyan
         ~VertexArray();
 
         void init();
+        void bind();
+        void unbind();
 
     private:
         void bindVertexBuffer(VertexBuffer* inVertexBuffer);

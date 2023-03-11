@@ -17,6 +17,14 @@ namespace Cyan
         colorBuffers[index] = texture;
     }
 
+    // layer is basically face
+    void Framebuffer::setColorBuffer(TextureCube* texture, u32 index, u32 layer, u32 mip)
+    {
+        glNamedFramebufferTexture2DEXT(getGpuResource(), GL_COLOR_ATTACHMENT0 + index, GL_TEXTURE_CUBE_MAP_POSITIVE_X + layer, texture->getGpuResource(), mip);
+        colorBuffers[index] = texture;
+    }
+
+#if 0
     void Framebuffer::setColorBuffer(TextureCube* texture, u32 index, u32 mip)
     {
         const u32 numFaces = 6u;
@@ -25,7 +33,7 @@ namespace Cyan
             for (i32 f = 0; f < numFaces; ++f)
             {
                 glNamedFramebufferTexture2DEXT(getGpuResource(), GL_COLOR_ATTACHMENT0 + (index + f), GL_TEXTURE_CUBE_MAP_POSITIVE_X + f, texture->getGpuResource(), mip);
-                colorBuffers[index + f] = static_cast<GfxTexture*>(texture);
+                colorBuffers[index + f] = texture;
             }
         }
         else
@@ -33,6 +41,7 @@ namespace Cyan
             assert(0);
         }
     }
+#endif
     
     void Framebuffer::setDepthBuffer(GfxDepthTexture2D* depthTexture)
     {
@@ -46,10 +55,31 @@ namespace Cyan
         depthBuffer = depthTexture;
     }
 
+    void Framebuffer::setDrawBuffers(i32* colorBufferIndices, u32 count)
+    {
+        GLenum* drawBuffers = static_cast<GLenum*>(_alloca(count * sizeof(GLenum)));
+        for (i32 i = 0; i < count; ++i)
+        {
+            i32 colorBufferIndex = colorBufferIndices[i];
+            if (colorBufferIndex > -1)
+            {
+                drawBuffers[i] = GL_COLOR_ATTACHMENT0 + colorBufferIndex;
+            }
+            else
+            {
+                drawBuffers[i] = GL_NONE;
+            }
+        }
+        if (count > 0) 
+        {
+            glNamedFramebufferDrawBuffers(getGpuResource(), count, drawBuffers);
+        }
+    }
+
     void Framebuffer::setDrawBuffers(const std::initializer_list<i32>& colorBufferIndices) 
     {
         i32 numDrawBuffers = colorBufferIndices.size();
-        GLenum* drawBuffers = static_cast<GLenum*>(_malloca(numDrawBuffers * sizeof(GLenum)));
+        GLenum* drawBuffers = static_cast<GLenum*>(_alloca(numDrawBuffers * sizeof(GLenum)));
         for (i32 i = 0; i < numDrawBuffers; ++i)
         {
             i32 colorBufferIndex = *(colorBufferIndices.begin() + i);
@@ -68,13 +98,9 @@ namespace Cyan
         }
     }
 
-    void Framebuffer::clearDrawBuffer(i32 drawBufferIndex, glm::vec4 clearColor, bool clearDepth, f32 clearDepthValue) 
+    void Framebuffer::clearDrawBuffer(i32 drawBufferIndex, glm::vec4 clearColor) 
     {
         glClearNamedFramebufferfv(getGpuResource(), GL_COLOR, drawBufferIndex, &clearColor.x);
-        if (clearDepth) 
-        {
-            clearDepthBuffer(clearDepthValue);
-        }
     }
 
     void Framebuffer::clearDepthBuffer(f32 clearDepthValue) 
@@ -82,10 +108,20 @@ namespace Cyan
         glClearNamedFramebufferfv(getGpuResource(), GL_DEPTH, 0, &clearDepthValue);
     }
 
+    void Framebuffer::bind()
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, getGpuResource());
+    }
+
+    void Framebuffer::unbind()
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+
     bool Framebuffer::validate()
     {
         glBindFramebuffer(GL_FRAMEBUFFER, getGpuResource());
-        assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE);
+        assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         return true;
     }

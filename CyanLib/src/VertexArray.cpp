@@ -70,4 +70,14 @@ namespace Cyan
     {
         glVertexArrayElementBuffer(getGpuResource(), inIndexBuffer->getGpuResource());
     }
+
+    void VertexArray::bind()
+    {
+        glBindVertexArray(getGpuResource());
+    }
+
+    void VertexArray::unbind()
+    {
+        glBindVertexArray(0);
+    }
 }

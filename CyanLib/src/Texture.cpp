@@ -1,14 +1,33 @@
 #include <stbi/stb_image.h>
+
 #include "Texture.h"
 #include "CyanEngine.h"
 #include "AssetManager.h"
-#include <AssetImporter.h>
+#include "AssetImporter.h"
+#include "GfxContext.h"
 
 namespace Cyan
 {
     GfxTexture::GfxTexture(const Format& inFormat)
         : format(inFormat)
     {
+    }
+
+    void GfxTexture::bind(GfxContext* ctx, u32 inTextureUnit)
+    {
+        ctx->setTexture(this, inTextureUnit);
+        textureUnit = inTextureUnit;
+    }
+
+    void GfxTexture::unbind(GfxContext* ctx) 
+    {
+        ctx->setTexture(nullptr, textureUnit);
+        textureUnit = -1;
+    }
+
+    bool GfxTexture::isBound()
+    {
+        return (textureUnit >= 0);
     }
 
     void Sampler::init()

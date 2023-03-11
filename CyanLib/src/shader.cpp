@@ -193,11 +193,13 @@ namespace Cyan
     }                                         \
     return *this;                             \
 
-    void Shader::bind() {
+    void Shader::bind() 
+    {
         glUseProgram(glObject);
     }
 
-    void Shader::unbind() {
+    void Shader::unbind() 
+    {
         glUseProgram(0);
     }
 
@@ -256,14 +258,17 @@ namespace Cyan
     }
 
     PixelPipeline::PixelPipeline(const char* pipelineName, const char* vsName, const char* psName) 
-        : PipelineStateObject(pipelineName) {
+        : ProgramPipeline(pipelineName)
+    {
         m_vertexShader = dynamic_cast<VertexShader*>(ShaderManager::getShader(vsName));
         m_pixelShader = dynamic_cast<PixelShader*>(ShaderManager::getShader(psName));
+
         initialize();
     }
 
     PixelPipeline::PixelPipeline(const char* pipelineName, VertexShader* vertexShader, PixelShader* pixelShader) 
-        : PipelineStateObject(pipelineName), m_vertexShader(vertexShader), m_pixelShader(pixelShader) {
+        : ProgramPipeline(pipelineName), m_vertexShader(vertexShader), m_pixelShader(pixelShader) 
+    {
         initialize();
     }
 
@@ -285,7 +290,7 @@ namespace Cyan
     }
 
     GeometryPipeline::GeometryPipeline(const char* pipelineName, const char* vsName, const char* gsName, const char* psName) 
-        : PipelineStateObject(pipelineName) {
+        : ProgramPipeline(pipelineName) {
         m_vertexShader = dynamic_cast<VertexShader*>(ShaderManager::getShader(vsName));
         m_geometryShader = dynamic_cast<GeometryShader*>(ShaderManager::getShader(gsName));
         m_pixelShader = dynamic_cast<PixelShader*>(ShaderManager::getShader(psName));
@@ -293,7 +298,7 @@ namespace Cyan
     }
 
     GeometryPipeline::GeometryPipeline(const char* pipelineName, VertexShader* vertexShader, GeometryShader* geometryShader, PixelShader* pixelShader) 
-        : PipelineStateObject(pipelineName), m_vertexShader(vertexShader), m_geometryShader(geometryShader), m_pixelShader(pixelShader) {
+        : ProgramPipeline(pipelineName), m_vertexShader(vertexShader), m_geometryShader(geometryShader), m_pixelShader(pixelShader) {
         initialize();
     }
 
@@ -305,12 +310,12 @@ namespace Cyan
     }
 
     ComputePipeline::ComputePipeline(const char* pipelineName, const char* csName) 
-        : PipelineStateObject(pipelineName) {
+        : ProgramPipeline(pipelineName) {
         initialize();
     }
 
     ComputePipeline::ComputePipeline(const char* pipelineName, ComputeShader* computeShader) 
-        : PipelineStateObject(pipelineName), m_computeShader(computeShader) {
+        : ProgramPipeline(pipelineName), m_computeShader(computeShader) {
         initialize();
     }
 
@@ -338,7 +343,7 @@ namespace Cyan
             auto entry = singleton->m_pipelineMap.find(std::string(pipelineName));
             if (entry == singleton->m_pipelineMap.end()) {
                 PixelPipeline* pipeline = new PixelPipeline(pipelineName, vertexShader, pixelShader);
-                singleton->m_pipelineMap.insert({ std::string(pipelineName), std::unique_ptr<PipelineStateObject>(pipeline) });
+                singleton->m_pipelineMap.insert({ std::string(pipelineName), std::unique_ptr<ProgramPipeline>(pipeline) });
                 return pipeline;
             }
             else {
@@ -355,7 +360,7 @@ namespace Cyan
             auto entry = singleton->m_pipelineMap.find(std::string(pipelineName));
             if (entry == singleton->m_pipelineMap.end()) {
                 ComputePipeline* pipeline = new ComputePipeline(pipelineName, computeShader);
-                singleton->m_pipelineMap.insert({ std::string(pipelineName), std::unique_ptr<PipelineStateObject>(pipeline) });
+                singleton->m_pipelineMap.insert({ std::string(pipelineName), std::unique_ptr<ProgramPipeline>(pipeline) });
                 return pipeline;
             }
             else {

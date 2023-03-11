@@ -3,6 +3,7 @@
 #include "CyanRenderer.h"
 #include "Camera.h"
 #include "Lights.h"
+#include "RenderPass.h"
 
 namespace Cyan 
 {
@@ -96,23 +97,25 @@ namespace Cyan
 
     void SkyLight::buildCubemap(Texture2D* srcEquirectMap, TextureCube* dstCubemap) 
     {
+#if 0
         auto framebuffer = std::unique_ptr<Framebuffer>(Framebuffer::create(dstCubemap->resolution, dstCubemap->resolution));
         framebuffer->setColorBuffer(dstCubemap, 0u);
-
+#endif
         VertexShader* vs = ShaderManager::createShader<VertexShader>("RenderToCubemapVS", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl");
         PixelShader* ps = ShaderManager::createShader<PixelShader>("RenderToCubemapPS", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl");
         PixelPipeline* pipeline = ShaderManager::createPixelPipeline("RenderToCubemap", vs, ps);
         StaticMesh* cubeMesh = AssetManager::getAsset<StaticMesh>("UnitCubeMesh");
 
-        for (i32 f = 0; f < 6u; f++) {
-            framebuffer->setDrawBuffers({ f });
-            framebuffer->clearDepthBuffer();
-
-            GfxPipelineState config;
-            config.depth = DepthControl::kDisable;
+        for (i32 f = 0; f < 6u; f++) 
+        {
+            GfxPipelineState gfxPipelineState;
+            gfxPipelineState.depth = DepthControl::kDisable;
             Renderer::get()->drawStaticMesh(
-                framebuffer.get(),
-                { 0, 0, framebuffer->width, framebuffer->height },
+                getFramebufferSize(dstCubemap),
+                [dstCubemap, f](RenderPass& pass) {
+                    pass.setRenderTarget(RenderTarget(dstCubemap, f), 0);
+                },
+                { 0, 0, dstCubemap->resolution, dstCubemap->resolution },
                 cubeMesh,
                 pipeline,
                 [this, srcEquirectMap, f](VertexShader* vs, PixelShader* ps) {
@@ -130,7 +133,7 @@ namespace Cyan
                     vs->setUniform("view", camera.view());
                     ps->setTexture("srcImageTexture", srcEquirectMap->gfxTexture.get());
                 },
-                config
+                gfxPipelineState
            );
         }
     }

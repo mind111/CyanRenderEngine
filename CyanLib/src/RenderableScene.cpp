@@ -10,6 +10,7 @@
 #include "AssetManager.h"
 #include "Mesh.h"
 #include "Material.h"
+#include "VertexArray.h"
 
 namespace Cyan
 {
@@ -160,6 +161,8 @@ namespace Cyan
             indirectDrawCommands.push_back(command);
         }
         indirectDrawBuffer = std::make_unique<IndirectDrawBuffer>(indirectDrawCommands);
+        // todo: this need to be gone at some point 
+        dummyVertexArray = AssetManager::getAsset<StaticMesh>("FullScreenQuadMesh")->getSubmesh(0)->getVertexArray();
     }
 
     /**
@@ -217,5 +220,8 @@ namespace Cyan
         ctx->setShaderStorageBuffer(instanceBuffer.get());
         ctx->setShaderStorageBuffer(instanceLUTBuffer.get());
         ctx->setShaderStorageBuffer(directionalLightBuffer.get());
+
+        // todo: fix this at some point
+        ctx->setVertexArray(dummyVertexArray);
     }
 }

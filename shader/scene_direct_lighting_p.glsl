@@ -321,7 +321,7 @@ void main()
     // setup per pixel material 
     Material material;
     material.albedo = texture(sceneAlbedo, psIn.texCoord0).rgb;
-    material.normal = normalize(texture(sceneNormal, psIn.texCoord0).rgb * 2.f - 1.f);
+    material.normal = normal;
     vec2 metallicRoughness = texture(sceneMetallicRoughness, psIn.texCoord0).rg;
     material.metallic = metallicRoughness.r; 
     material.roughness = metallicRoughness.g; 

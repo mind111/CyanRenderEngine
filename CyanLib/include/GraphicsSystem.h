@@ -43,7 +43,7 @@ namespace Cyan
         std::unique_ptr<Renderer> m_renderer;
         std::unique_ptr<ShaderManager> m_shaderManager;
 
-        std::unique_ptr<GfxContext> m_ctx;
+        std::unique_ptr<GfxContext> m_ctx = nullptr;
         GLFWwindow* m_glfwWindow = nullptr;
         glm::uvec2 m_windowDimension; 
 

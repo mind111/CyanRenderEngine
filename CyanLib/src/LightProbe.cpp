@@ -6,6 +6,7 @@
 #include "CyanRenderer.h"
 #include "AssetManager.h"
 #include "Shader.h"
+#include "RenderPass.h"
 
 namespace Cyan
 {
@@ -105,41 +106,38 @@ namespace Cyan
     void IrradianceProbe::convolve()
     {
         assert(sceneCapture);
-
         auto renderer = Renderer::get();
 
-        auto framebuffer = std::unique_ptr<Framebuffer>(Framebuffer::create(m_irradianceTextureRes.x, m_irradianceTextureRes.y));
-        framebuffer->setColorBuffer(m_convolvedIrradianceTexture.get(), 0u);
+        for (i32 f = 0; f < 6u; ++f)
         {
-            for (i32 f = 0; f < 6u; ++f)
-            {
-                framebuffer->setDrawBuffers({ f });
-                framebuffer->clearDepthBuffer();
+            GfxPipelineState gfxPipelineState;
+            gfxPipelineState.depth = DepthControl::kDisable;
 
-                GfxPipelineState config;
-                config.depth = DepthControl::kDisable;
-                renderer->drawStaticMesh(
-                    framebuffer.get(),
-                    { 0u, 0u, framebuffer->width, framebuffer->height }, 
-                    AssetManager::getAsset<StaticMesh>("UnitCubeMesh"),
-                    s_convolveIrradiancePipeline,
-                    [this, f](VertexShader* vs, PixelShader* ps) {
-                        // Update view matrix
-                        PerspectiveCamera camera(
-                            glm::vec3(0.f),
-                            LightProbeCameras::cameraFacingDirections[f],
-                            LightProbeCameras::worldUps[f],
-                            90.f,
-                            0.1f,
-                            100.f,
-                            1.0f
-                        );
-                        vs->setUniform("view", camera.view())
-                            .setUniform("projection", camera.projection());
-                        ps->setTexture("srcCubemapTexture", sceneCapture);
-                    },
-                    config);
-            }
+            renderer->drawStaticMesh(
+                getFramebufferSize(m_convolvedIrradianceTexture.get()),
+                [this, f](RenderPass& pass) {
+                    pass.setRenderTarget(RenderTarget(m_convolvedIrradianceTexture.get(), f), 0);
+                },
+                { 0u, 0u, (u32)m_convolvedIrradianceTexture->resolution, (u32)m_convolvedIrradianceTexture->resolution }, 
+                AssetManager::getAsset<StaticMesh>("UnitCubeMesh"),
+                s_convolveIrradiancePipeline,
+                [this, f](VertexShader* vs, PixelShader* ps) {
+                    // Update view matrix
+                    PerspectiveCamera camera(
+                        glm::vec3(0.f),
+                        LightProbeCameras::cameraFacingDirections[f],
+                        LightProbeCameras::worldUps[f],
+                        90.f,
+                        0.1f,
+                        100.f,
+                        1.0f
+                    );
+                    vs->setUniform("view", camera.view())
+                        .setUniform("projection", camera.projection());
+                    ps->setTexture("srcCubemapTexture", sceneCapture);
+                },
+                gfxPipelineState
+            );
         }
     }
 
@@ -202,16 +200,18 @@ namespace Cyan
         Sampler2D sampler;
         GfxTexture2DBindless* outTexture = GfxTexture2DBindless::create(spec, sampler);
 
-        std::unique_ptr<Framebuffer> framebuffer = std::unique_ptr<Framebuffer>(Framebuffer::create(outTexture->width, outTexture->height));
-        framebuffer->setColorBuffer(outTexture, 0u);
         auto renderer = Renderer::get();
         GfxPipelineState pipelineState;
         pipelineState.depth = DepthControl::kDisable;
         CreateVS(vs, "IntegrateBRDFVS", SHADER_SOURCE_PATH "integrate_BRDF_v.glsl");
         CreatePS(ps, "IntegrateBRDFPS", SHADER_SOURCE_PATH "integrate_BRDF_p.glsl");
         CreatePixelPipeline(pipeline, "IntegrateBRDF", vs, ps);
+
         renderer->drawFullscreenQuad(
-            framebuffer.get(),
+            getFramebufferSize(outTexture),
+            [outTexture](RenderPass& pass) {
+                pass.setRenderTarget(outTexture, 0);
+            },
             pipeline,
             [](VertexShader* vs, PixelShader* ps) {
 
@@ -229,18 +229,17 @@ namespace Cyan
 
         for (u32 mip = 0; mip < kNumMips; ++mip)
         {
-            std::unique_ptr<Framebuffer> framebuffer = std::unique_ptr<Framebuffer>(Framebuffer::create(mipWidth, mipHeight));
-            framebuffer->setColorBuffer(m_convolvedReflectionTexture.get(), 0u, mip);
             {
                 for (i32 f = 0; f < 6u; f++)
                 {
-                    framebuffer->setDrawBuffers({ f });
-                    framebuffer->clearDepthBuffer();
-                    GfxPipelineState config;
-                    config.depth = DepthControl::kDisable;
+                    GfxPipelineState gfxPipelineState;
+                    gfxPipelineState.depth = DepthControl::kDisable;
                     renderer->drawStaticMesh(
-                        framebuffer.get(),
-                        { 0u, 0u, framebuffer->width, framebuffer->height }, 
+                        glm::uvec2(mipWidth, mipHeight),
+                        [this, f, mip](RenderPass& pass) {
+                            pass.setRenderTarget(RenderTarget(m_convolvedReflectionTexture.get(), f, mip), 0);
+                        },
+                        { 0u, 0u, mipWidth, mipHeight }, 
                         AssetManager::getAsset<StaticMesh>("UnitCubeMesh"),
                         s_convolveReflectionPipeline,
                         [this, f, mip, kNumMips](VertexShader* vs, PixelShader* ps) {
@@ -260,7 +259,7 @@ namespace Cyan
                             ps->setUniform("roughness", mip * (1.f / (kNumMips - 1)))
                                 .setTexture("envmapSampler", sceneCapture);
                         },
-                    config);
+                    gfxPipelineState);
                 }
             }
 

@@ -57,6 +57,7 @@
     <ClInclude Include="include\Node.h" />
     <ClInclude Include="include\RenderableScene.h" />
     <ClInclude Include="include\Framebuffer.h" />
+    <ClInclude Include="include\RenderPass.h" />
     <ClInclude Include="include\RenderTexture.h" />
     <ClInclude Include="include\Scene.h" />
     <ClInclude Include="include\SceneComponent.h" />
@@ -105,6 +106,7 @@
     <ClCompile Include="src\Mesh.cpp" />
     <ClCompile Include="src\RenderableScene.cpp" />
     <ClCompile Include="src\Framebuffer.cpp" />
+    <ClCompile Include="src\RenderPass.cpp" />
     <ClCompile Include="src\RenderTexture.cpp" />
     <ClCompile Include="src\Scene.cpp" />
     <ClCompile Include="src\SceneComponent.cpp" />

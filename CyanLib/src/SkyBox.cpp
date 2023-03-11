@@ -5,6 +5,7 @@
 #include "Scene.h"
 #include "AssetManager.h"
 #include "AssetImporter.h"
+#include "RenderPass.h"
 
 namespace Cyan
 {
@@ -44,10 +45,6 @@ namespace Cyan
 
         m_cubemapTexture = std::unique_ptr<TextureCube>(TextureCube::create(cubemapSpec, samplerCube));
 
-        // render src equirectangular map into a cubemap
-        auto framebuffer = std::unique_ptr<Framebuffer>(Framebuffer::create(m_cubemapTexture->resolution, m_cubemapTexture->resolution));
-        framebuffer->setColorBuffer(m_cubemapTexture.get(), 0u);
-
         CreateVS(vs, "RenderToCubemapVS", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl");
         CreatePS(ps, "RenderToCubemapPS", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl");
         CreatePixelPipeline(pipeline, "RenderToCubemap", vs, ps);
@@ -55,14 +52,14 @@ namespace Cyan
 
         for (i32 f = 0; f < 6u; f++)
         {
-            framebuffer->setDrawBuffers({ f });
-            framebuffer->clearDrawBuffer(f, glm::vec4(0.f, 0.f, 0.f, 1.f));
-
             GfxPipelineState gfxPipelineState;
             gfxPipelineState.depth = DepthControl::kDisable;
             Renderer::get()->drawStaticMesh(
-                framebuffer.get(),
-                { 0, 0, framebuffer->width, framebuffer->height },
+                getFramebufferSize(m_cubemapTexture.get()),
+                [this, f](RenderPass& pass) {
+                    pass.setRenderTarget(RenderTarget(m_cubemapTexture.get(), f), 0);
+                },
+                { 0, 0, m_cubemapTexture->resolution, m_cubemapTexture->resolution },
                 cubeMesh,
                 pipeline,
                 [this, f](VertexShader* vs, PixelShader* ps) {
@@ -84,7 +81,8 @@ namespace Cyan
         }
 
         // make sure that the input cubemap resolution is power of 2
-        if (m_cubemapTexture->resolution & (m_cubemapTexture->resolution - 1) != 0) {
+        if (m_cubemapTexture->resolution & (m_cubemapTexture->resolution - 1) != 0) 
+        {
             assert(0);
         }
         m_cubemapTexture->numMips = (u32)log2f(m_cubemapTexture->resolution) + 1;
@@ -99,10 +97,10 @@ namespace Cyan
 
     void Skybox::render(Framebuffer* framebuffer, const glm::mat4& view, const glm::mat4& projection, f32 mipLevel)
     {
+#if 0
         StaticMesh* cubeMesh = AssetManager::getAsset<StaticMesh>("UnitCubeMesh");
 
         Renderer::get()->drawStaticMesh(
-            framebuffer,
             { 0, 0, framebuffer->width, framebuffer->height },
             cubeMesh,
             s_cubemapSkyPipeline,
@@ -114,5 +112,6 @@ namespace Cyan
             },
             GfxPipelineState { }
         );
+#endif
     }
 }

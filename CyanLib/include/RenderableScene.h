@@ -19,6 +19,7 @@ namespace Cyan
     struct SkyLight;
     struct PointLight;
     struct MeshInstance;
+    struct VertexArray;
 
     struct IndirectDrawArrayCommand
     {
@@ -137,6 +138,8 @@ namespace Cyan
         SkyLight* skyLight = nullptr;
         Skybox* skybox = nullptr;
 
+        // dummy vao to suppress an error during multiDrawIndirect
+        VertexArray* dummyVertexArray = nullptr;
         // gpu side buffers
         std::unique_ptr<ShaderStorageBuffer> viewBuffer = nullptr;
         std::unique_ptr<ShaderStorageBuffer> transformBuffer = nullptr;

@@ -45,6 +45,8 @@
 
 namespace Cyan
 {
+    struct GfxContext;
+
     /**
      * Encapsulate a gl texture
      */
@@ -92,12 +94,16 @@ namespace Cyan
         virtual bool operator==(const GfxTexture& rhs) const = 0;
         virtual ~GfxTexture() { }
 
-        // static u32 count;
-        // std::string name;
+        void bind(GfxContext* ctx, u32 inTextureUnit);
+        void unbind(GfxContext* ctx);
+        bool isBound();
+
         Format format;
     protected:
         GfxTexture(const Format& inFormat);
         virtual void init() = 0;
+
+        i32 textureUnit = -1;
     };
 
     struct Sampler

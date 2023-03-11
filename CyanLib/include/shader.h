@@ -4,6 +4,7 @@
 
 #include <memory>
 #include <vector>
+#include <array>
 #include <unordered_map>
 #include <fstream>
 
@@ -16,8 +17,12 @@
 // todo: this shouldn't be hard coded
 #define SHADER_SOURCE_PATH "C:/dev/cyanRenderEngine/shader/"
 
-namespace Cyan {
-    struct ShaderSource {
+namespace Cyan 
+{
+    class GfxContext;
+
+    struct ShaderSource 
+    {
         ShaderSource(const char* shaderFilePath);
         ~ShaderSource() { }
 
@@ -26,14 +31,17 @@ namespace Cyan {
         // only for debugging purpose
         std::string merged;
 
-        void include(const std::string& header) {
+        void include(const std::string& header) 
+        {
             includes.push_back(header);
         }
     };
 
-    class Shader : public GpuResource {
+    class Shader : public GpuResource 
+    {
     public:
-        enum class Type {
+        enum class Type
+        {
             kVertex = 0,
             kPixel,
             kGeometry,
@@ -41,8 +49,10 @@ namespace Cyan {
             kInvalid
         };
 
-        struct UniformDesc {
-            enum class Type {
+        struct UniformDesc 
+        {
+            enum class Type 
+            {
                 kInt,
                 kUint,
                 kFloat,
@@ -67,10 +77,12 @@ namespace Cyan {
         friend class GfxContext;
 
         Shader(const char* shaderName, const char* shaderFilePath, Type type = Type::kInvalid) 
-            : m_name(shaderName), m_source(shaderFilePath), m_type(type) {
+            : m_name(shaderName), m_source(shaderFilePath), m_type(type) 
+        {
             u32 stringCount = m_source.includes.size() + 1;
             std::vector<const char*> strings{ m_source.src.c_str() };
-            for (const auto& string : m_source.includes) {
+            for (const auto& string : m_source.includes) 
+            {
                 strings.push_back(string.c_str());
             }
 
@@ -103,7 +115,8 @@ namespace Cyan {
                 break;
             }
             std::string linkLog;
-            if (!getProgramInfoLog(this, ShaderInfoLogType::kLink, linkLog)) {
+            if (!getProgramInfoLog(this, ShaderInfoLogType::kLink, linkLog)) 
+            {
                 cyanError("%s", linkLog.c_str());
             }
             Shader::initialize(this);
@@ -130,7 +143,8 @@ namespace Cyan {
         ShaderSource m_source;
         Type m_type = Type::kInvalid;
     protected:
-        enum class ShaderInfoLogType {
+        enum class ShaderInfoLogType 
+        {
             kCompile,
             kLink
         };
@@ -149,44 +163,61 @@ namespace Cyan {
         std::unordered_map<std::string, u32> m_shaderStorageBlockMap;
     };
 
-    class VertexShader : public Shader { 
+    class VertexShader : public Shader 
+    {
     public:
         VertexShader(const char* shaderName, const char* shaderFilePath) 
-            : Shader(shaderName, shaderFilePath, Type::kVertex) {
+            : Shader(shaderName, shaderFilePath, Type::kVertex) 
+        {
         }
     };
 
-    class PixelShader : public Shader { 
+    class PixelShader : public Shader 
+    {
     public:
         PixelShader(const char* shaderName, const char* shaderFilePath) 
-            : Shader(shaderName, shaderFilePath, Type::kPixel) {
+            : Shader(shaderName, shaderFilePath, Type::kPixel) 
+        {
         }
     };
 
-    class GeometryShader : public Shader {
+    class GeometryShader : public Shader 
+    {
     public:
         GeometryShader(const char* shaderName, const char* shaderFilePath) 
-            : Shader(shaderName, shaderFilePath, Type::kGeometry) {
+            : Shader(shaderName, shaderFilePath, Type::kGeometry) 
+        {
         }
     };
 
-    class ComputeShader : public Shader {
+    class ComputeShader : public Shader 
+    {
     public:
         ComputeShader(const char* shaderName, const char* shaderFilePath) 
-            : Shader(shaderName, shaderFilePath, Type::kCompute) {
+            : Shader(shaderName, shaderFilePath, Type::kCompute) 
+        {
         }
     };
 
-    class PipelineStateObject : public GpuResource {
+    // todo: maybe other gfx pipeline states can be encapsulated together with shader...? such as depth test, blending, and bluh bluh bluh
+    class ProgramPipeline : public GpuResource 
+    {
     public:
-        PipelineStateObject(const char* pipelineName) 
-            : m_name(pipelineName) {
+        ProgramPipeline(const char* pipelineName) 
+            : m_name(pipelineName) 
+        {
             glCreateProgramPipelines(1, &glObject);
         }
-        virtual ~PipelineStateObject() {}
+        virtual ~ProgramPipeline() {}
 
-        void bind() {
+        void bind() 
+        {
             glBindProgramPipeline(glObject);
+        }
+
+        void unbind()
+        {
+            glBindProgramPipeline(0);
         }
         
         std::string m_name;
@@ -194,7 +225,43 @@ namespace Cyan {
         virtual bool initialize() { return true; }
     };
 
-    class PixelPipeline : public PipelineStateObject {
+    struct RenderTarget
+    {
+        RenderTarget() = default;
+        RenderTarget(GfxTexture2D* inTexture, u32 inMip = 0, const glm::vec4& inClearColor = glm::vec4(0.f, 0.f, 0.f, 1.f)) 
+            : texture(inTexture), mip(inMip), clearColor(inClearColor)
+        { 
+            if (texture)
+            {
+                width = max(inTexture->width / pow(2, mip), width);
+                height = max(inTexture->height / pow(2, mip), height);
+                assert(width > 0);
+                assert(height > 0);
+            }
+        }
+
+        RenderTarget(TextureCube* inTexture, u32 inLayer, u32 inMip = 0, const glm::vec4& inClearColor = glm::vec4(0.f, 0.f, 0.f, 1.f)) 
+            : texture(inTexture), mip(inMip), layer(inLayer), clearColor(inClearColor)
+        { 
+            if (texture)
+            {
+                width = max(inTexture->resolution / pow(2, mip), width);
+                height = max(inTexture->resolution / pow(2, mip), height);
+                assert(width > 0);
+                assert(height > 0);
+            }
+        }
+
+        GfxTexture* texture = nullptr;
+        u32 width = 1;
+        u32 height = 1;
+        u32 mip = 0;
+        u32 layer = 0; // this is only used if texture is of type GfxTextureCube
+        glm::vec4 clearColor = glm::vec4(0.f, 0.f, 0.f, 1.f);
+    };
+
+    class PixelPipeline : public ProgramPipeline 
+    {
     public:
         PixelPipeline(const char* pipelineName, const char* vsName, const char* psName);
         PixelPipeline(const char* pipelineName, VertexShader* vertexShader, PixelShader* pixelShader);
@@ -205,7 +272,8 @@ namespace Cyan {
         virtual bool initialize() override;
     };
 
-    class GeometryPipeline : public PipelineStateObject {
+    class GeometryPipeline : public ProgramPipeline 
+    {
     public:
         GeometryPipeline(const char* pipelineName, const char* vsName, const char* gsName, const char* psName);
         GeometryPipeline(const char* pipelineName, VertexShader* vertexShader, GeometryShader* geometryShader, PixelShader* pixelShader);
@@ -217,7 +285,8 @@ namespace Cyan {
         virtual bool initialize() override;
     };
     
-    class ComputePipeline : public PipelineStateObject {
+    class ComputePipeline : public ProgramPipeline 
+    {
     public:
         ComputePipeline(const char* pipelineName, const char* csName);
         ComputePipeline(const char* pipelineName, ComputeShader* computeShader);
@@ -230,7 +299,7 @@ namespace Cyan {
     {
     public:
         using ShaderMap = std::unordered_map<std::string, std::unique_ptr<Shader>>;
-        using PipelineMap = std::unordered_map<std::string, std::unique_ptr<PipelineStateObject>>;
+        using PipelineMap = std::unordered_map<std::string, std::unique_ptr<ProgramPipeline>>;
 
         ShaderManager() {}
         ~ShaderManager() {}
@@ -241,16 +310,21 @@ namespace Cyan {
         static Shader* getShader(const char* shaderName);
 
         template <typename ShaderType>
-        static ShaderType* createShader(const char* shaderName, const char* shaderFilePath) {
-            if (shaderName) {
+        static ShaderType* createShader(const char* shaderName, const char* shaderFilePath) 
+        {
+            if (shaderName) 
+            {
                 auto entry = singleton->m_shaderMap.find(std::string(shaderName));
-                if (entry == singleton->m_shaderMap.end()) {
+                if (entry == singleton->m_shaderMap.end()) 
+                {
                     ShaderType* shader = new ShaderType(shaderName, shaderFilePath);
                     singleton->m_shaderMap.insert({ std::string(shaderName), std::unique_ptr<ShaderType>(shader) });
                     return shader;
                 }
-                else {
-                    if (ShaderType* foundShader = dynamic_cast<ShaderType*>(entry->second.get())) {
+                else 
+                {
+                    if (ShaderType* foundShader = dynamic_cast<ShaderType*>(entry->second.get())) 
+                    {
                         return foundShader;
                     }
                 }

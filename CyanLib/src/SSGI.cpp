@@ -1,6 +1,7 @@
 #include "SSGI.h"
 #include "CyanRenderer.h"
 #include "AssetManager.h"
+#include "RenderPass.h"
 
 namespace Cyan
 {
@@ -43,21 +44,18 @@ namespace Cyan
 
         // trace
         auto renderer = Renderer::get();
-        auto framebuffer = renderer->createCachedFramebuffer("ScreenSpaceRayTracing", sceneDepth->width, sceneDepth->height);
-        framebuffer->setColorBuffer(outAO.getGfxTexture2D(), 0);
-        framebuffer->setColorBuffer(outBentNormal.getGfxTexture2D(), 1);
-        framebuffer->setColorBuffer(outIrradiance.getGfxTexture2D(), 2);
-        framebuffer->setDrawBuffers({ 0, 1, 2 });
-        framebuffer->clearDrawBuffer(0, glm::vec4(0.f, 0.f, 0.f, 1.f));
-        framebuffer->clearDrawBuffer(1, glm::vec4(0.f, 0.f, 0.f, 1.f));
-        framebuffer->clearDrawBuffer(2, glm::vec4(0.f, 0.f, 0.f, 1.f));
 
         CreateVS(vs, "ScreenSpaceRayTracingVS", SHADER_SOURCE_PATH "screenspace_raytracing_v.glsl");
         CreatePS(ps, "HierarchicalSSRTPS", SHADER_SOURCE_PATH "hierarchical_ssrt_p.glsl");
         CreatePixelPipeline(pipeline, "HierarchicalSSRT", vs, ps);
 
         renderer->drawFullscreenQuad(
-            framebuffer,
+            getFramebufferSize(outAO.getGfxTexture2D()),
+            [outAO, outBentNormal, outIrradiance](RenderPass& pass) {
+                pass.setRenderTarget(outAO.getGfxTexture2D(), 0);
+                pass.setRenderTarget(outBentNormal.getGfxTexture2D(), 1);
+                pass.setRenderTarget(outIrradiance.getGfxTexture2D(), 2);
+            },
             pipeline,
             [this, gBuffer, sceneDepth, HiZ, inDirectDiffuseBuffer](VertexShader* vs, PixelShader* ps) {
                 ps->setUniform("outputSize", glm::vec2(sceneDepth->width, sceneDepth->height));
@@ -79,20 +77,18 @@ namespace Cyan
 
         // trace
         auto renderer = Renderer::get();
-        auto framebuffer = renderer->createCachedFramebuffer("ScreenSpaceRayTracing", sceneDepth->width, sceneDepth->height);
-        framebuffer->setColorBuffer(outAO.getGfxTexture2D(), 0);
-        framebuffer->setColorBuffer(outBentNormal.getGfxTexture2D(), 1);
-        framebuffer->setColorBuffer(outIrradiance.getGfxTexture2D(), 2);
-        framebuffer->setDrawBuffers({ 0, 1, 2 });
-        framebuffer->clearDrawBuffer(0, glm::vec4(0.f, 0.f, 0.f, 1.f));
-        framebuffer->clearDrawBuffer(1, glm::vec4(0.f, 0.f, 0.f, 1.f));
-        framebuffer->clearDrawBuffer(2, glm::vec4(0.f, 0.f, 0.f, 1.f));
 
         CreateVS(vs, "ScreenSpaceRayTracingVS", SHADER_SOURCE_PATH "screenspace_raytracing_v.glsl");
         CreatePS(ps, "HierarchicalSSRTPS", SHADER_SOURCE_PATH "hierarchical_ssrt_ex_p.glsl");
         CreatePixelPipeline(pipeline, "HierarchicalSSRT", vs, ps);
+
         renderer->drawFullscreenQuad(
-            framebuffer,
+            getFramebufferSize(outAO.getGfxTexture2D()),
+            [outAO, outBentNormal, outIrradiance](RenderPass& pass) {
+                pass.setRenderTarget(outAO.getGfxTexture2D(), 0);
+                pass.setRenderTarget(outBentNormal.getGfxTexture2D(), 1);
+                pass.setRenderTarget(outIrradiance.getGfxTexture2D(), 2);
+            },
             pipeline,
             [this, gBuffer, sceneDepth, HiZ, inDirectDiffuseBuffer](VertexShader* vs, PixelShader* ps) {
                 ps->setUniform("outputSize", glm::vec2(sceneDepth->width, sceneDepth->height));
@@ -116,8 +112,12 @@ namespace Cyan
             CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
             CreatePS(ps, "SSRTResolvePS", SHADER_SOURCE_PATH "ssrt_resolve_p.glsl");
             CreatePixelPipeline(pipeline, "SSRTResolve", vs, ps);
+
             renderer->drawFullscreenQuad(
-                framebuffer,
+                getFramebufferSize(outAO.getGfxTexture2D()),
+                [outAO, outBentNormal, outIrradiance](RenderPass& pass) {
+                    pass.setRenderTarget(outIrradiance.getGfxTexture2D(), 2);
+                },
                 pipeline,
                 [this, gBuffer](VertexShader* vs, PixelShader* ps) {
                     ps->setTexture("depthBuffer", gBuffer.depth.getGfxDepthTexture2D());

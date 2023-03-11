@@ -23,6 +23,7 @@
 #include "Lights.h"
 #include "LightComponents.h"
 #include "IOSystem.h"
+#include "RenderPass.h"
 
 namespace Cyan 
 {
@@ -40,13 +41,14 @@ namespace Cyan
         auto gfxTexture = texture.getGfxTexture2D();
         // copy pass
         {
-            auto framebuffer = renderer->createCachedFramebuffer("HiZ_Mip[0]", gfxTexture->width, gfxTexture->height);
-            framebuffer->setColorBuffer(gfxTexture, 0, 0);
             CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
             CreatePS(ps, "HiZCopyPS", SHADER_SOURCE_PATH "hi_z_copy_p.glsl");
             CreatePixelPipeline(pipeline, "HiZCopy", vs, ps);
             renderer->drawFullscreenQuad(
-                framebuffer,
+                glm::uvec2(gfxTexture->width, gfxTexture->height),
+                [gfxTexture](RenderPass& pass) {
+                    pass.setRenderTarget(RenderTarget(gfxTexture, 0, glm::vec4(1.f)), 0);
+                },
                 pipeline,
                 [srcDepthTexture](VertexShader* vs, PixelShader* ps) {
                     ps->setTexture("srcDepthTexture", srcDepthTexture);
@@ -64,15 +66,13 @@ namespace Cyan
             {
                 mipWidth /= 2u;
                 mipHeight /= 2u;
-                const i32 kMaxNameLen = 128;
-                char name[kMaxNameLen];
-                sprintf_s(name, "HiZ_Pass[%d]", i);
                 auto src = i - 1;
                 auto dst = i;
-                auto framebuffer = renderer->createCachedFramebuffer(name, mipWidth, mipHeight);
-                framebuffer->setColorBuffer(gfxTexture, 0, (u32)dst);
                 renderer->drawFullscreenQuad(
-                    framebuffer,
+                    glm::uvec2(mipWidth, mipHeight),
+                    [gfxTexture, dst](RenderPass& pass) {
+                        pass.setRenderTarget(RenderTarget(gfxTexture, dst), 0);
+                    },
                     pipeline,
                     [this, src, gfxTexture](VertexShader* vs, PixelShader* ps) {
                         ps->setUniform("srcMip", src);
@@ -84,8 +84,7 @@ namespace Cyan
     }
 
     GBuffer::GBuffer(const glm::uvec2& resolution)
-        : // depth("SceneGBufferDepth", GfxTexture2D::Spec(resolution.x, resolution.y, 1, PF_RGB32F), Sampler2D())
-        depth("SceneGBufferDepth", GfxDepthTexture2D::Spec(resolution.x, resolution.y, 1), Sampler2D())
+        : depth("SceneGBufferDepth", GfxDepthTexture2D::Spec(resolution.x, resolution.y, 1), Sampler2D())
         , albedo("SceneGBufferAlbedo", GfxTexture2D::Spec(resolution.x, resolution.y, 1, PF_RGB16F), Sampler2D())
         , normal("SceneGBufferNormal", GfxTexture2D::Spec(resolution.x, resolution.y, 1, PF_RGB32F), Sampler2D())
         , metallicRoughness("SceneGBufferMetallicRoughness", GfxTexture2D::Spec(resolution.x, resolution.y, 1, PF_RGB16F), Sampler2D())
@@ -134,9 +133,6 @@ namespace Cyan
         , color("SceneColor", GfxTexture2D::Spec(inResolution.x, inResolution.y, 1, PF_RGB16F), Sampler2D())
     {
         auto renderer = Renderer::get();
-        // render target
-        framebuffer = renderer->createCachedFramebuffer("Scene", resolution.x, resolution.y);
-
         renderer->registerVisualization(std::string("SceneTextures"), "SceneColor", color.getGfxTexture2D());
         renderer->registerVisualization(std::string("SceneTextures"), "SceneAlbedo", gBuffer.albedo.getGfxTexture2D());
         renderer->registerVisualization(std::string("SceneTextures"), "SceneMetallicRoughness", gBuffer.metallicRoughness.getGfxTexture2D());
@@ -147,7 +143,7 @@ namespace Cyan
         renderer->registerVisualization(std::string("SceneTextures"), "SceneDirectDiffuseLighting", directDiffuseLighting.getGfxTexture2D());
         renderer->registerVisualization(std::string("SceneTextures"), "SceneDirectLighting", directLighting.getGfxTexture2D());
         renderer->registerVisualization(std::string("SceneTextures"), "SceneIndirectLighting", indirectLighting.getGfxTexture2D());
-        renderer->registerVisualization(std::string("SceneTextures"), "SSAO", ao.getGfxTexture2D());
+        renderer->registerVisualization(std::string("SceneTextures"), "AmbientOcclusion", ao.getGfxTexture2D());
         renderer->registerVisualization(std::string("SceneTextures"), "BentNormal", bentNormal.getGfxTexture2D());
         renderer->registerVisualization(std::string("SceneTextures"), "Irradiance", irradiance.getGfxTexture2D());
     }
@@ -171,103 +167,60 @@ namespace Cyan
         ImGui::DestroyContext();
     }
 
-    // managing creating and recycling render target
-    Framebuffer* Renderer::createCachedFramebuffer(const char* name, u32 width, u32 height, GfxDepthTexture2D* inDepthTexture)
+    void Renderer::drawStaticMesh(const glm::uvec2& framebufferSize, const std::function<void(RenderPass&)>& renderTargetSetupLambda, const Viewport& viewport, StaticMesh* mesh, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda, const GfxPipelineState& gfxPipelineState)
     {
-        static std::unordered_map<std::string, std::shared_ptr<Framebuffer>> framebufferMap;
-
-        std::string suffix = '_' + std::to_string(width) + 'x' + std::to_string(height);
-        std::string key = name + suffix;
-        auto entry = framebufferMap.find(key);
-        if (entry == framebufferMap.end())
-        {
-            Framebuffer* newFramebuffer = Framebuffer::create(width, height, inDepthTexture);
-            framebufferMap.insert({ key, std::shared_ptr<Framebuffer>(newFramebuffer)});
-            return newFramebuffer;
-        }
-        else
-        {
-            return entry->second.get();
-        }
+        RenderPass pass(framebufferSize.x, framebufferSize.y);
+        renderTargetSetupLambda(pass);
+        pass.viewport = viewport;
+        pass.gfxPipelineState = gfxPipelineState;
+        pass.pipeline = pipeline;
+        pass.shaderSetupLambda = shaderSetupLambda;
+        pass.drawLambda = [mesh](GfxContext* ctx) {
+            for (u32 i = 0; i < mesh->numSubmeshes(); ++i) 
+            {
+                StaticMesh::Submesh* sm = mesh->getSubmesh(i);
+                auto va = sm->getVertexArray();
+                ctx->setVertexArray(va);
+                ctx->drawIndex(sm->numIndices());
+            }
+        };
+        pass.render(m_ctx);
     }
 
-    void Renderer::drawStaticMesh(Framebuffer* framebuffer, const Viewport& viewport, StaticMesh* mesh, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda, const GfxPipelineState& gfxPipelineState) 
+    void Renderer::drawFullscreenQuad(const glm::uvec2& framebufferSize, const std::function<void(RenderPass&)>& renderTargetSetupLambda, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda)
     {
-        // assuming that render target is properly setup already
-        m_ctx->setFramebuffer(framebuffer);
-        m_ctx->setViewport(viewport);
-        m_ctx->setPixelPipeline(pipeline, shaderSetupLambda);
-        m_ctx->setDepthControl(gfxPipelineState.depth);
-        m_ctx->setPrimitiveType(gfxPipelineState.primitiveMode);
-
-        for (u32 i = 0; i < mesh->numSubmeshes(); ++i) 
-        {
-            StaticMesh::Submesh* sm = mesh->getSubmesh(i);
-            auto va = sm->getVertexArray();
-            m_ctx->setVertexArray(va);
-            m_ctx->drawIndex(sm->numIndices());
-        }
+        Viewport viewport = { 0, 0, framebufferSize.x, framebufferSize.y };
+        GfxPipelineState gfxPipelineState;
+        gfxPipelineState.depth = DepthControl::kDisable;
+        drawStaticMesh(framebufferSize, renderTargetSetupLambda, {0, 0, framebufferSize.x, framebufferSize.y }, AssetManager::getAsset<StaticMesh>("FullScreenQuadMesh"), pipeline, shaderSetupLambda, gfxPipelineState);
     }
 
-    void Renderer::drawFullscreenQuad(Framebuffer* framebuffer, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda)
+    void Renderer::drawScreenQuad(const glm::uvec2& framebufferSize, const std::function<void(RenderPass&)>& renderTargetSetupLambda, const Viewport& viewport, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda)
     {
         GfxPipelineState gfxPipelineState;
         gfxPipelineState.depth = DepthControl::kDisable;
-        // drawing to the default backbuffer
-        u32 drawWidth, drawHeight;
-        if (framebuffer == nullptr)
-        {
-            drawWidth = m_windowSize.x;
-            drawHeight = m_windowSize.y;
-        }
-        else
-        {
-            drawWidth = framebuffer->width;
-            drawHeight = framebuffer->height;
-        }
-        drawStaticMesh(
-            framebuffer,
-            { 0, 0, drawWidth, drawHeight },
-            AssetManager::getAsset<StaticMesh>("FullScreenQuadMesh"),
-            pipeline,
-            shaderSetupLambda,
-            gfxPipelineState
-        );
+        drawStaticMesh(framebufferSize, renderTargetSetupLambda, viewport, AssetManager::getAsset<StaticMesh>("FullScreenQuadMesh"), pipeline, shaderSetupLambda, gfxPipelineState);
     }
 
-    void Renderer::drawScreenQuad(Framebuffer* framebuffer, Viewport viewport, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda)
-    {
-        GfxPipelineState gfxPipelineState = { };
-        gfxPipelineState.depth = DepthControl::kDisable;
-
-        drawStaticMesh(
-            framebuffer,
-            viewport,
-            AssetManager::getAsset<StaticMesh>("FullScreenQuadMesh"),
-            pipeline,
-            shaderSetupLambda,
-            gfxPipelineState
-        );
-    }
-
-    void Renderer::drawColoredScreenSpaceQuad(Framebuffer* framebuffer, const glm::vec2& screenSpaceMin, const glm::vec2& screenSpaceMax, const glm::vec4& color)
+    void Renderer::drawColoredScreenSpaceQuad(GfxTexture2D* outTexture, const glm::vec2& screenSpaceMin, const glm::vec2& screenSpaceMax, const glm::vec4& color)
     {
         GfxPipelineState gfxPipelineState;
         gfxPipelineState.depth = DepthControl::kDisable;
 
         // calc viewport based on quad min and max in screen space
         Viewport viewport = { };
-        viewport.x = screenSpaceMin.x * framebuffer->width;
-        viewport.y = screenSpaceMin.y * framebuffer->height;
-        viewport.width = (screenSpaceMax.x - screenSpaceMin.x) * framebuffer->width;
-        viewport.height = (screenSpaceMax.y - screenSpaceMin.y) * framebuffer->height;
+        viewport.x = screenSpaceMin.x * outTexture->width;
+        viewport.y = screenSpaceMin.y * outTexture->height;
+        viewport.width = (screenSpaceMax.x - screenSpaceMin.x) * outTexture->width;
+        viewport.height = (screenSpaceMax.y - screenSpaceMin.y) * outTexture->height;
 
         CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
         CreatePS(ps, "ColoredQuadPS", SHADER_SOURCE_PATH "colored_quad_p.glsl");
         CreatePixelPipeline(pipeline, "ColoredQuad", vs, ps);
 
-        drawStaticMesh(
-            framebuffer,
+        drawStaticMesh(glm::uvec2(outTexture->width, outTexture->height), [outTexture](RenderPass& pass) {
+                pass.setRenderTarget(outTexture, 0);
+            },
             viewport,
             AssetManager::getAsset<StaticMesh>("FullScreenQuadMesh"),
             pipeline,
@@ -311,14 +264,14 @@ namespace Cyan
             RenderableScene renderableScene(scene, sceneView);
 
             // depth prepass
-            renderSceneDepthPrepass(renderableScene, m_sceneTextures->framebuffer, m_sceneTextures->gBuffer.depth);
+            renderSceneDepthPrepass(renderableScene, m_sceneTextures->gBuffer.depth);
 
             // build Hi-Z buffer
             m_sceneTextures->HiZ.build(m_sceneTextures->gBuffer.depth.getGfxDepthTexture2D());
 
             // main scene pass
 #if BINDLESS_TEXTURE
-            renderSceneGBuffer(m_sceneTextures->framebuffer, renderableScene, m_sceneTextures->gBuffer);
+            renderSceneGBuffer(renderableScene, m_sceneTextures->gBuffer);
 #else
             renderSceneGBufferWithTextureAtlas(m_sceneTextures.framebuffer, renderableScene, m_sceneTextures.gBuffer);
 #endif
@@ -344,16 +297,15 @@ namespace Cyan
 
     void Renderer::visualize(GfxTexture2D* dst, GfxTexture2D* src, i32 mip) 
     {
-        auto framebuffer = createCachedFramebuffer("Visualization", dst->width, dst->height);
-        framebuffer->setColorBuffer(dst, 0);
-        framebuffer->setDrawBuffers({ 0 });
-        framebuffer->clearDrawBuffer(0, glm::vec4(.0f, .0f, .0f, 1.f));
-
         CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
         CreatePS(ps, "BlitPS", SHADER_SOURCE_PATH "blit_p.glsl");
         CreatePixelPipeline(pipeline, "BlitQuad", vs, ps);
+
         drawFullscreenQuad(
-            framebuffer,
+            glm::uvec2(dst->width, dst->height),
+            [dst, mip](RenderPass& pass) {
+                pass.setRenderTarget(RenderTarget(dst, mip), 0);
+            },
             pipeline,
             [this, src, mip](VertexShader* vs, PixelShader* ps) {
                 ps->setTexture("srcTexture", src);
@@ -367,14 +319,12 @@ namespace Cyan
         CreatePS(ps, "BlitPS", SHADER_SOURCE_PATH "blit_p.glsl");
         CreatePixelPipeline(pipeline, "BlitQuad", vs, ps);
 
-        auto framebuffer = createCachedFramebuffer("BlitTexture", dst->width, dst->height);
-        framebuffer->setColorBuffer(dst, 0);
-        framebuffer->setDrawBuffers({ 0 });
-        framebuffer->clearDrawBuffer(0, glm::vec4(.0f, .0f, .0f, 1.f));
-
         // final blit to default framebuffer
         drawFullscreenQuad(
-            framebuffer,
+            glm::uvec2(dst->width, dst->height),
+            [dst](RenderPass& pass) {
+                pass.setRenderTarget(dst, 0);
+            },
             pipeline,
             [this, src](VertexShader* vs, PixelShader* ps) {
                 ps->setTexture("srcTexture", src);
@@ -391,7 +341,9 @@ namespace Cyan
 
         // final blit to default framebuffer
         drawFullscreenQuad(
-            nullptr,
+            glm::uvec2(m_windowSize.x, m_windowSize.y),
+            [](RenderPass& pass) {
+            },
             pipeline,
             [this, inTexture](VertexShader* vs, PixelShader* ps) {
                 ps->setTexture("srcTexture", inTexture);
@@ -416,113 +368,84 @@ namespace Cyan
         }
     }
 
-    void Renderer::renderSceneDepthPrepass(const RenderableScene& scene, Framebuffer* outFramebuffer, /*RenderTexture2D*/ RenderDepthTexture2D outDepthTexture)
+    void Renderer::renderSceneDepthPrepass(const RenderableScene& scene, RenderDepthTexture2D outDepthTexture)
     {
         GfxDepthTexture2D* outGfxDepthTexture = dynamic_cast<GfxDepthTexture2D*>(outDepthTexture.getGfxDepthTexture2D());
-
         if (outGfxDepthTexture)
         {
-            scene.bind(m_ctx);
-
-#if 0
-            outFramebuffer->setColorBuffer(outGfxDepthTexture, 0);
-            outFramebuffer->setDrawBuffers({ 0 });
-            outFramebuffer->clearDrawBuffer(0, glm::vec4(1.f, 1.f, 1.f, 1.f));
-#else
-            auto framebuffer = createCachedFramebuffer("DepthPrepassRenderTarget", outGfxDepthTexture->width, outGfxDepthTexture->height, outGfxDepthTexture);
-            framebuffer->setDepthBuffer(outGfxDepthTexture);
-            framebuffer->clearDepthBuffer();
-#endif
-
-            m_ctx->setFramebuffer(outFramebuffer);
-            m_ctx->setViewport({ 0, 0, outFramebuffer->width, outFramebuffer->height });
+            RenderPass pass(outGfxDepthTexture->width, outGfxDepthTexture->height);
+            pass.viewport = { 0, 0, outGfxDepthTexture->width, outGfxDepthTexture->height };
+            pass.setDepthBuffer(outGfxDepthTexture);
             CreateVS(vs, "SceneGBufferPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
             CreatePS(ps, "SceneDepthPrepassPS", SHADER_SOURCE_PATH "scene_depth_prepass_p.glsl");
             CreatePixelPipeline(pipeline, "SceneDepthPrepass", vs, ps);
-            m_ctx->setPixelPipeline(pipeline);
-            m_ctx->setDepthControl(DepthControl::kEnable);
-            m_ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get());
+            pass.pipeline = pipeline;
+            pass.shaderSetupLambda = [](VertexShader* vs, PixelShader* ps) {};
+            pass.drawLambda = [&scene](GfxContext* ctx) { 
+                scene.bind(ctx);
+                ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get()); 
+            };
+            pass.render(m_ctx);
         }
     }
 
     void Renderer::renderSceneDepthOnly(RenderableScene& scene, GfxDepthTexture2D* outDepthTexture)
     {
-        scene.bind(m_ctx);
-
-        auto framebuffer = createCachedFramebuffer("DepthOnlyFramebuffer", outDepthTexture->width, outDepthTexture->height);
-        framebuffer->setDepthBuffer(outDepthTexture);
-        framebuffer->clearDepthBuffer();
-        m_ctx->setFramebuffer(framebuffer);
-        m_ctx->setViewport({ 0, 0, framebuffer->width, framebuffer->height });
-
+        RenderPass pass(outDepthTexture->width, outDepthTexture->height);
+        pass.viewport = { 0, 0, outDepthTexture->width, outDepthTexture->height };
+        pass.setDepthBuffer(outDepthTexture);
         CreateVS(vs, "SceneGBufferPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
         CreatePS(ps, "DepthOnlyPS", SHADER_SOURCE_PATH "depth_only_p.glsl");
         CreatePixelPipeline(pipeline, "DepthOnly", vs, ps);
-        m_ctx->setPixelPipeline(pipeline);
-
-        m_ctx->setDepthControl(DepthControl::kEnable);
-        m_ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get());
+        pass.pipeline = pipeline;
+        pass.gfxPipelineState.depth = DepthControl::kEnable;
+        pass.shaderSetupLambda = [](VertexShader* vs, PixelShader* ps) { };
+        pass.drawLambda = [&scene](GfxContext* ctx) { 
+            scene.bind(ctx);
+            ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get()); 
+        };
+        pass.render(m_ctx);
     }
 
-    void Renderer::renderSceneGBuffer(Framebuffer* outFramebuffer, const RenderableScene& scene, GBuffer gBuffer)
+    void Renderer::renderSceneGBuffer(const RenderableScene& scene, GBuffer gBuffer)
     {
-        // todo: maybe it's worth moving those shader storage buffer cached in "scene" into each function as a
-        // static variable, and every time this function is called, reset the data of those persistent gpu buffers
-
-        scene.bind(m_ctx);
-
-        CreateVS(vs, "SceneGBufferPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
-        CreatePS(ps, "SceneGBufferPassPS", SHADER_SOURCE_PATH "scene_gbuffer_p.glsl");
-        CreatePixelPipeline(pipeline, "SceneGBufferPass", vs, ps);
-        m_ctx->setPixelPipeline(pipeline);
-
-#if 0
-        outFramebuffer->setColorBuffer(gBuffer.albedo.getGfxTexture2D(), 0);
-        outFramebuffer->setColorBuffer(gBuffer.normal.getGfxTexture2D(), 1);
-        outFramebuffer->setColorBuffer(gBuffer.metallicRoughness.getGfxTexture2D(), 2);
-        outFramebuffer->setDrawBuffers({ 0, 1, 2 });
-        outFramebuffer->clearDrawBuffer(0, glm::vec4(0.f, 0.f, 0.f, 1.f), false);
-        outFramebuffer->clearDrawBuffer(1, glm::vec4(0.f, 0.f, 0.f, 1.f), false);
-        outFramebuffer->clearDrawBuffer(2, glm::vec4(0.f, 0.f, 0.f, 1.f), false);
-#else
         auto albedo = gBuffer.albedo.getGfxTexture2D();
         auto normal = gBuffer.normal.getGfxTexture2D();
         auto metallicRoughness = gBuffer.metallicRoughness.getGfxTexture2D();
-        auto framebuffer = createCachedFramebuffer("GBufferFramebuffer", albedo->width, albedo->height);
-        framebuffer->setColorBuffer(albedo, 0);
-        framebuffer->setColorBuffer(normal, 0);
-        framebuffer->setColorBuffer(metallicRoughness, 0);
-        framebuffer->setDrawBuffers({ 0, 1, 2 });
-        framebuffer->clearDrawBuffer(0, glm::vec4(0.f, 0.f, 0.f, 1.f), false);
-        framebuffer->clearDrawBuffer(1, glm::vec4(0.f, 0.f, 0.f, 1.f), false);
-        framebuffer->clearDrawBuffer(2, glm::vec4(0.f, 0.f, 0.f, 1.f), false);
-        framebuffer->setDepthBuffer(dynamic_cast<GfxDepthTexture2D*>(gBuffer.depth.getGfxDepthTexture2D()));
-#endif
-
-        m_ctx->setFramebuffer(outFramebuffer);
-        m_ctx->setViewport({ 0, 0, outFramebuffer->width, outFramebuffer->height });
-        m_ctx->setDepthControl(DepthControl::kEnable);
-        m_ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get());
+        RenderPass pass(albedo->width, albedo->height);
+        pass.viewport = { 0, 0, albedo->width, albedo->height };
+        pass.setRenderTarget(albedo, 0);
+        pass.setRenderTarget(normal, 1);
+        pass.setRenderTarget(metallicRoughness, 2);
+        pass.setDepthBuffer(gBuffer.depth.getGfxDepthTexture2D());
+        CreateVS(vs, "SceneGBufferPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
+        CreatePS(ps, "SceneGBufferPassPS", SHADER_SOURCE_PATH "scene_gbuffer_p.glsl");
+        CreatePixelPipeline(pipeline, "SceneGBufferPass", vs, ps);
+        pass.pipeline = pipeline;
+        pass.drawLambda = [&scene](GfxContext* ctx) { 
+            // todo: maybe it's worth moving those shader storage buffer cached in "scene" into each function as a
+            // static variable, and every time this function is called, reset the data of those persistent gpu buffers
+            scene.bind(ctx);
+            ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get()); 
+        };
+        pass.render(m_ctx);
     }
 
     void Renderer::renderSceneLighting(RenderTexture2D outSceneColor, const RenderableScene& scene, GBuffer gBuffer)
     {
-        renderSceneDirectLighting(m_sceneTextures->directLighting, scene, m_sceneTextures->gBuffer);
-        renderSceneIndirectLighting(m_sceneTextures->indirectLighting, scene, m_sceneTextures->gBuffer);
+        renderSceneDirectLighting(m_sceneTextures->directLighting, scene, gBuffer);
+        renderSceneIndirectLighting(m_sceneTextures->indirectLighting, scene, gBuffer);
 
         CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
         CreatePS(ps, "SceneLightingPassPS", SHADER_SOURCE_PATH "scene_lighting_p.glsl");
         CreatePixelPipeline(pipeline, "SceneLightingPass", vs, ps);
-
-        auto outSceneColorGfxTexture = outSceneColor.getGfxTexture2D();
-        auto framebuffer = createCachedFramebuffer("SceneLightingFramebuffer", outSceneColorGfxTexture->width, outSceneColorGfxTexture->height);
-        framebuffer->setColorBuffer(m_sceneTextures->color.getGfxTexture2D(), 0);
-        framebuffer->setDrawBuffers({ 0 });
-        framebuffer->clearDrawBuffer(0, glm::vec4(0.f, 0.f, 0.f, 1.f), false);
-
         // combine direct lighting with indirect lighting
+        auto outTexture = outSceneColor.getGfxTexture2D();
         drawFullscreenQuad(
-            framebuffer,
+            glm::uvec2(outTexture->width, outTexture->height),
+            [outTexture](RenderPass& pass) {
+                pass.setRenderTarget(outTexture, 0);
+            },
             pipeline,
             [this](VertexShader* vs, PixelShader* ps) {
                 ps->setTexture("directLightingTexture", m_sceneTextures->directLighting.getGfxTexture2D());
@@ -536,27 +459,27 @@ namespace Cyan
         CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
         CreatePS(ps, "SceneDirectLightingPS", SHADER_SOURCE_PATH "scene_direct_lighting_p.glsl");
         CreatePixelPipeline(pipeline, "SceneDirectLightingPass", vs, ps);
-
-        auto outTexture = outDirectLighting.getGfxTexture2D();
-        // todo: the rendered depth buffer is coupled with this m_sceneTextures->framebuffer, so need to implement proper depth buffer binding/unbinding
-        auto framebuffer = m_sceneTextures->framebuffer;
-        framebuffer->setColorBuffer(outTexture, 0);
-        framebuffer->setColorBuffer(m_sceneTextures->directDiffuseLighting.getGfxTexture2D(), 1);
-        framebuffer->setDrawBuffers({ 0, 1 });
-        framebuffer->clearDrawBuffer({ 0 }, glm::vec4(0.f, 0.f, 0.f, 1.f), false);
-        framebuffer->clearDrawBuffer({ 1 }, glm::vec4(0.f, 0.f, 0.f, 1.f), false);
-
-        drawFullscreenQuad(framebuffer, pipeline, [gBuffer](VertexShader* vs, PixelShader* ps) {
-            ps->setTexture("sceneDepth", gBuffer.depth.getGfxDepthTexture2D());
-            ps->setTexture("sceneNormal", gBuffer.normal.getGfxTexture2D());
-            ps->setTexture("sceneAlbedo", gBuffer.albedo.getGfxTexture2D());
-            ps->setTexture("sceneMetallicRoughness", gBuffer.metallicRoughness.getGfxTexture2D());
-        });
-
+        auto outDirectLightingGfx = outDirectLighting.getGfxTexture2D();
+        drawFullscreenQuad(
+            glm::uvec2(outDirectLightingGfx->width, outDirectLightingGfx->height),
+            [outDirectLightingGfx, this](RenderPass& pass) {
+                pass.setRenderTarget(outDirectLightingGfx, 0);
+                pass.setRenderTarget(RenderTarget(m_sceneTextures->directDiffuseLighting.getGfxTexture2D()), 1);
+            },
+            pipeline, 
+            [gBuffer](VertexShader* vs, PixelShader* ps) {
+                ps->setTexture("sceneDepth", gBuffer.depth.getGfxDepthTexture2D());
+                ps->setTexture("sceneNormal", gBuffer.normal.getGfxTexture2D());
+                ps->setTexture("sceneAlbedo", gBuffer.albedo.getGfxTexture2D());
+                ps->setTexture("sceneMetallicRoughness", gBuffer.metallicRoughness.getGfxTexture2D());
+            }
+        );
+#if 0
         if (scene.skybox)
         {
             scene.skybox->render(m_sceneTextures->framebuffer, scene.view.view, scene.view.projection);
         }
+#endif
     }
 
     void Renderer::renderSceneIndirectLighting(RenderTexture2D outIndirectLighting, const RenderableScene& scene, GBuffer gBuffer)
@@ -576,46 +499,48 @@ namespace Cyan
         CreatePS(ps, "SceneIndirectLightingPass", SHADER_SOURCE_PATH "scene_indirect_lighting_p.glsl");
         CreatePixelPipeline(pipeline, "SceneIndirectLightingPass", vs, ps);
 
-        auto framebuffer = createCachedFramebuffer("SceneIndirectLighting", outTexture->width, outTexture->height);
-        framebuffer->setColorBuffer(outTexture, 0);
-        framebuffer->setDrawBuffers({ 0 });
-        framebuffer->clearDrawBuffer(0, glm::vec4(0.f, 0.f, 0.f, 1.f), false);
+        drawFullscreenQuad(
+            getFramebufferSize(outTexture),
+            [outTexture](RenderPass& pass) {
+                pass.setRenderTarget(outTexture, 0);
+            },
+            pipeline, 
+            [this, &scene, gBuffer](VertexShader* vs, PixelShader* ps) {
+                ps->setTexture("sceneDepth", gBuffer.depth.getGfxDepthTexture2D());
+                ps->setTexture("sceneNormal", gBuffer.normal.getGfxTexture2D());
+                ps->setTexture("sceneAlbedo", gBuffer.albedo.getGfxTexture2D());
+                ps->setTexture("sceneMetallicRoughness", gBuffer.metallicRoughness.getGfxTexture2D());
 
-        drawFullscreenQuad(framebuffer, pipeline, [this, &scene, gBuffer](VertexShader* vs, PixelShader* ps) {
-            ps->setTexture("sceneDepth", gBuffer.depth.getGfxDepthTexture2D());
-            ps->setTexture("sceneNormal", gBuffer.normal.getGfxTexture2D());
-            ps->setTexture("sceneAlbedo", gBuffer.albedo.getGfxTexture2D());
-            ps->setTexture("sceneMetallicRoughness", gBuffer.metallicRoughness.getGfxTexture2D());
+                // setup ssao
+                ps->setTexture("ssao", m_sceneTextures->ao.getGfxTexture2D());
+                ps->setUniform("ssaoEnabled", m_settings.bSSAOEnabled ? 1.f : 0.f);
 
-            // setup ssao
-            ps->setTexture("ssao", m_sceneTextures->ao.getGfxTexture2D());
-            ps->setUniform("ssaoEnabled", m_settings.bSSAOEnabled ? 1.f : 0.f);
+                // setup ssbn
+                ps->setTexture("ssbn", m_sceneTextures->bentNormal.getGfxTexture2D());
+                ps->setUniform("ssbnEnabled", m_settings.bBentNormalEnabled ? 1.f : 0.f);
 
-            // setup ssbn
-            ps->setTexture("ssbn", m_sceneTextures->bentNormal.getGfxTexture2D());
-            ps->setUniform("ssbnEnabled", m_settings.bBentNormalEnabled ? 1.f : 0.f);
+                // setup indirect irradiance
+                ps->setTexture("indirectIrradiance", m_sceneTextures->irradiance.getGfxTexture2D());
+                ps->setUniform("indirectIrradianceEnabled", m_settings.bIndirectIrradianceEnabled ? 1.f : 0.f);
 
-            // setup indirect irradiance
-            ps->setTexture("indirectIrradiance", m_sceneTextures->irradiance.getGfxTexture2D());
-            ps->setUniform("indirectIrradianceEnabled", m_settings.bIndirectIrradianceEnabled ? 1.f : 0.f);
-
-            // sky light
-            /* note
-            * seamless cubemap doesn't work with bindless textures that's accessed using a texture handle,
-            * so falling back to normal way of binding textures here.
-            */
-            if (scene.skyLight)
-            {
-                ps->setTexture("skyLight.irradiance", scene.skyLight->irradianceProbe->m_convolvedIrradianceTexture.get());
-                ps->setTexture("skyLight.reflection", scene.skyLight->reflectionProbe->m_convolvedReflectionTexture.get());
-                auto BRDFLookupTexture = ReflectionProbe::getBRDFLookupTexture()->glHandle;
-                if (glIsTextureHandleResidentARB(BRDFLookupTexture) == GL_FALSE) 
+                // sky light
+                /* note
+                * seamless cubemap doesn't work with bindless textures that's accessed using a texture handle,
+                * so falling back to normal way of binding textures here.
+                */
+                if (scene.skyLight)
                 {
-                    glMakeTextureHandleResidentARB(BRDFLookupTexture);
+                    ps->setTexture("skyLight.irradiance", scene.skyLight->irradianceProbe->m_convolvedIrradianceTexture.get());
+                    ps->setTexture("skyLight.reflection", scene.skyLight->reflectionProbe->m_convolvedReflectionTexture.get());
+                    auto BRDFLookupTexture = ReflectionProbe::getBRDFLookupTexture()->glHandle;
+                    if (glIsTextureHandleResidentARB(BRDFLookupTexture) == GL_FALSE) 
+                    {
+                        glMakeTextureHandleResidentARB(BRDFLookupTexture);
+                    }
+                    ps->setUniform("skyLight.BRDFLookupTexture", BRDFLookupTexture);
                 }
-                ps->setUniform("skyLight.BRDFLookupTexture", BRDFLookupTexture);
             }
-        });
+        );
     }
 
     // todo: move this into SSGI
@@ -699,6 +624,7 @@ namespace Cyan
         }
         // draw visualizations
         {
+#if 0
             // m_sceneTextures.framebuffer->setColorBuffer(m_sceneTextures.color, 0);
             // m_sceneTextures.framebuffer->setDrawBuffers({ 0 });
             for (i32 ray = 0; ray < numDebugRays; ++ray)
@@ -718,7 +644,6 @@ namespace Cyan
                     drawWorldSpacePoints(m_sceneTextures->framebuffer, vertices);
                 }
             }
-#if 0
             // todo: visualize the hierarchical trace 
             {
                 for (i32 i = 1; i < kNumIterations; ++i)
@@ -752,6 +677,7 @@ namespace Cyan
 #endif
             // draw a full screen quad by treating every pixel as a perfect mirror
             {
+#if 0 
                 CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
                 CreatePS(ps, "SSRTDebugMirrorPS", SHADER_SOURCE_PATH "ssrt_debug_mirror_p.glsl");
                 CreatePixelPipeline(pipeline, "SSRTDebugMirror", vs, ps);
@@ -771,6 +697,7 @@ namespace Cyan
                         ps->setUniform("kMaxNumIterations", kNumIterations);
                     }
                 );
+#endif
             }
         }
     }
@@ -877,6 +804,7 @@ namespace Cyan
 
     void Renderer::renderSceneGBufferWithTextureAtlas(Framebuffer* outFramebuffer, RenderableScene& scene, GBuffer gBuffer)
     {
+#if 0
         CreateVS(vs, "SceneColorPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
         CreatePS(ps, "SceneGBufferWithTextureAtlasPassPS", SHADER_SOURCE_PATH "scene_gbuffer_texture_atlas_p.glsl");
         CreatePixelPipeline(pipeline, "SceneGBufferWithTextureAtlasPass", vs, ps);
@@ -896,16 +824,20 @@ namespace Cyan
         m_ctx->setDepthControl(DepthControl::kEnable);
         scene.bind(m_ctx);
         m_ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get());
+#endif
     }
 
-    void Renderer::downsample(GfxTexture2D* src, GfxTexture2D* dst) {
-        auto framebuffer = createCachedFramebuffer("Downsample", dst->width, dst->height);
-        framebuffer->setColorBuffer(dst, 0);
+    void Renderer::downsample(GfxTexture2D* src, GfxTexture2D* dst) 
+    {
         CreateVS(vs, "DownsampleVS", SHADER_SOURCE_PATH "downsample_v.glsl");
         CreatePS(ps, "DownsamplePS", SHADER_SOURCE_PATH "downsample_p.glsl");
         CreatePixelPipeline(pipeline, "Downsample", vs, ps);
+
         drawFullscreenQuad(
-            framebuffer,
+            getFramebufferSize(dst),
+            [dst](RenderPass& pass) {
+                pass.setRenderTarget(dst, 0);
+            },
             pipeline, 
             [src](VertexShader* vs, PixelShader* ps) {
                 ps->setTexture("srcTexture", src);
@@ -915,13 +847,15 @@ namespace Cyan
 
     void Renderer::upscale(GfxTexture2D* src, GfxTexture2D* dst)
     {
-        auto framebuffer = createCachedFramebuffer("Upscale", dst->width, dst->height);
-        framebuffer->setColorBuffer(dst, 0);
         CreateVS(vs, "UpscaleVS", SHADER_SOURCE_PATH "upscale_v.glsl");
         CreatePS(ps, "UpscalePS", SHADER_SOURCE_PATH "upscale_p.glsl");
         CreatePixelPipeline(pipeline, "Upscale", vs, ps);
+
         drawFullscreenQuad(
-            framebuffer,
+            getFramebufferSize(dst),
+            [dst](RenderPass& pass) {
+                pass.setRenderTarget(dst, 0);
+            },
             pipeline, 
             [src](VertexShader* vs, PixelShader* ps) {
                 ps->setTexture("srcTexture", src);
@@ -934,13 +868,16 @@ namespace Cyan
         // setup pass
         RenderTexture2D bloomSetupTexture("BloomSetup", src->getSpec());
         GfxTexture2D* bloomSetupGfxTexture = bloomSetupTexture.getGfxTexture2D();
-        auto framebuffer = createCachedFramebuffer("BloomSetup", bloomSetupGfxTexture->width, bloomSetupGfxTexture->height);
-        framebuffer->setColorBuffer(bloomSetupGfxTexture, 0);
+
         CreateVS(vs, "BloomSetupVS", SHADER_SOURCE_PATH "bloom_setup_v.glsl");
         CreatePS(ps, "BloomSetupPS", SHADER_SOURCE_PATH "bloom_setup_p.glsl");
         CreatePixelPipeline(pipeline, "BloomSetup", vs, ps);
+
         drawFullscreenQuad(
-            framebuffer,
+            getFramebufferSize(bloomSetupGfxTexture),
+            [bloomSetupGfxTexture](RenderPass& pass) {
+                pass.setRenderTarget(bloomSetupGfxTexture, 0);
+            },
             pipeline,
             [src](VertexShader* vs, PixelShader* ps) {
                 ps->setTexture("srcTexture", src);
@@ -973,13 +910,15 @@ namespace Cyan
         }
 
         auto upscaleAndBlend = [this](GfxTexture2D* src, GfxTexture2D* blend, GfxTexture2D* dst) {
-            auto framebuffer = createCachedFramebuffer("BloomUpscale", dst->width, dst->height);
-            framebuffer->setColorBuffer(dst, 0);
             CreateVS(vs, "BloomUpscaleVS", SHADER_SOURCE_PATH "bloom_upscale_v.glsl");
             CreatePS(ps, "BloomUpscalePS", SHADER_SOURCE_PATH "bloom_upscale_p.glsl");
             CreatePixelPipeline(pipeline, "BloomUpscale", vs, ps);
+
             drawFullscreenQuad(
-                framebuffer,
+                getFramebufferSize(dst),
+                [dst](RenderPass& pass) {
+                    pass.setRenderTarget(dst, 0);
+                },
                 pipeline,
                 [src, blend](VertexShader* vs, PixelShader* ps) {
                     ps->setTexture("srcTexture", src);
@@ -1015,15 +954,15 @@ namespace Cyan
 
     void Renderer::compose(GfxTexture2D* composited, GfxTexture2D* inSceneColor, GfxTexture2D* inBloomColor, const glm::uvec2& outputResolution) 
     {
-        auto framebuffer = createCachedFramebuffer("PostProcessing", composited->width, composited->height);
-        framebuffer->setColorBuffer(composited, 0);
-
         CreateVS(vs, "CompositeVS", SHADER_SOURCE_PATH "composite_v.glsl");
         CreatePS(ps, "CompositePS", SHADER_SOURCE_PATH "composite_p.glsl");
         CreatePixelPipeline(pipeline, "Composite", vs, ps);
 
         drawFullscreenQuad(
-            framebuffer,
+            getFramebufferSize(composited),
+            [composited](RenderPass& pass) {
+                pass.setRenderTarget(composited, 0);
+            },
             pipeline,
             [this, inBloomColor, inSceneColor](VertexShader* vs, PixelShader* ps) {
                 ps->setUniform("enableTonemapping", m_settings.enableTonemapping ? 1.f : 0.f);
@@ -1107,23 +1046,21 @@ namespace Cyan
         CreatePS(ps, "GaussianBlurPS", SHADER_SOURCE_PATH "gaussian_blur_p.glsl");
         CreatePixelPipeline(pipeline, "GaussianBlur", vs, ps);
 
-        auto framebuffer = createCachedFramebuffer("GaussianBlur", inoutTexture->width, inoutTexture->height);
-        framebuffer->setColorBuffer(inoutTexture, 0);
-
         // create scratch buffer for storing intermediate output
         std::string name("GaussianBlurScratch");
         GfxTexture2D::Spec spec = inoutTexture->getSpec();
         name += '_' + std::to_string(spec.width) + 'x' + std::to_string(spec.height);
         RenderTexture2D scratchBuffer(name.c_str(), spec);
         auto scratch = scratchBuffer.getGfxTexture2D();
-        framebuffer->setColorBuffer(scratch, 1);
 
         GaussianKernel kernel(inRadius, inSigma, m_frameAllocator);
 
         // horizontal pass
-        framebuffer->setDrawBuffers({ 1 });
         drawFullscreenQuad(
-            framebuffer,
+            getFramebufferSize(scratch),
+            [scratch](RenderPass& pass) {
+                pass.setRenderTarget(scratch, 0);
+            },
             pipeline,
             [inoutTexture, &kernel](VertexShader* vs, PixelShader* ps) {
                 ps->setTexture("srcTexture", inoutTexture);
@@ -1139,9 +1076,11 @@ namespace Cyan
         );
 
         // vertical pass
-        framebuffer->setDrawBuffers({ 0 });
         drawFullscreenQuad(
-            framebuffer,
+            getFramebufferSize(inoutTexture),
+            [inoutTexture](RenderPass& pass) {
+                pass.setRenderTarget(inoutTexture, 0);
+            },
             pipeline,
             [scratch, &kernel](VertexShader* vs, PixelShader* ps) {
                 ps->setTexture("srcTexture", scratch);
@@ -1164,7 +1103,7 @@ namespace Cyan
     void Renderer::renderUI() 
     {
         // set to default render target
-        m_ctx->setFramebuffer(nullptr, { });
+        m_ctx->setFramebuffer(nullptr);
 
         // begin imgui
         ImGui_ImplOpenGL3_NewFrame();
@@ -1194,6 +1133,7 @@ namespace Cyan
 
     void Renderer::debugDrawSphere(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection) 
     {
+#if 0
         CreateVS(vs, "DebugDrawVS", "debug_draw_v.glsl");
         CreatePS(ps, "DebugDrawPS", "debug_draw_p.glsl");
         CreatePixelPipeline(pipeline, "DebugDraw", vs, ps);
@@ -1217,9 +1157,12 @@ namespace Cyan
             },
             gfxPipelineState
         );
+#endif
     }
 
-    void Renderer::debugDrawCubeImmediate(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection) {
+    void Renderer::debugDrawCubeImmediate(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection) 
+    {
+#if 0
         CreateVS(vs, "DebugDrawImmediateVS", "debug_draw_immediate_v.glsl");
         CreatePS(ps, "DebugDrawImmediatePS", "debug_draw_immediate_p.glsl");
         CreatePixelPipeline(pipeline, "GaussianBlur", vs, ps);
@@ -1238,6 +1181,7 @@ namespace Cyan
             },
             GfxPipelineState { }
         );
+#endif
     }
 
     void Renderer::debugDrawCubeBatched(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::vec3& facingDir, const glm::vec4& albedo, const glm::mat4& view, const glm::mat4& projection) {
@@ -1249,6 +1193,7 @@ namespace Cyan
     }
 
     void Renderer::debugDrawCubemap(TextureCube* cubemap) {
+#if 0
         static PerspectiveCamera camera(
             glm::vec3(0.f, 1.f, 2.f),
             glm::vec3(0.f, 0.f, 0.f),
@@ -1316,6 +1261,7 @@ namespace Cyan
                 }
             } ImGui::End();
         });
+#endif
     }
 
     void Renderer::debugDrawCubemap(GLuint cubemap) 
@@ -1330,6 +1276,7 @@ namespace Cyan
             16.f / 9.f
         );
 
+#if 0
         auto framebuffer = createCachedFramebuffer("DebugDrawCubemapFramebuffer", 320, 180);
         GfxTexture2D::Spec spec(320, 180, 1, PF_RGB16F);
         static GfxTexture2D* outTexture = createRenderTexture("CubemapViewerTexture", spec, Sampler2D());
@@ -1389,5 +1336,6 @@ namespace Cyan
                 }
             } ImGui::End();
         });
+#endif
     }
 }

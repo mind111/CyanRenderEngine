@@ -24,6 +24,7 @@ namespace Cyan
     // forward declarations
     struct RenderableScene;
     struct Framebuffer;
+    struct RenderPass;
 
     struct SceneView 
     {
@@ -95,24 +96,18 @@ namespace Cyan
             RenderTexture2D bentNormal;
             RenderTexture2D irradiance;
             RenderTexture2D color;
-
-            Framebuffer* framebuffer = nullptr;
-
         private:
             SceneTextures(const glm::uvec2& inResolution);
         };
         SceneTextures* m_sceneTextures = nullptr;
-
-        // managing creating and recycling render target
-        Framebuffer* createCachedFramebuffer(const char* name, u32 width, u32 height, GfxDepthTexture2D* inDepthTexture = nullptr);
 
         void beginRender();
         void render(Scene* scene, const SceneView& sceneView);
         void endRender();
         void renderSceneDepthOnly(RenderableScene& renderableScene, GfxDepthTexture2D* outDepthTexture);
         void renderShadowMaps(Scene* inScene);
-        void renderSceneDepthPrepass(const RenderableScene& renderableScene, Framebuffer* outFramebuffer, RenderDepthTexture2D outDepthBuffer);
-        void renderSceneGBuffer(Framebuffer* outFramebuffer, const RenderableScene& scene, GBuffer gBuffer);
+        void renderSceneDepthPrepass(const RenderableScene& renderableScene, RenderDepthTexture2D outDepthBuffer);
+        void renderSceneGBuffer(const RenderableScene& scene, GBuffer gBuffer);
         void renderSceneLighting(RenderTexture2D outSceneColor, const RenderableScene& scene, GBuffer gBuffer);
         void renderSceneDirectLighting(RenderTexture2D outDirectLighting, const RenderableScene& scene, GBuffer gBuffer);
         void renderSceneIndirectLighting(RenderTexture2D outIndirectLighting, const RenderableScene& scene, GBuffer gBuffer);
@@ -125,10 +120,10 @@ namespace Cyan
         i32 numDebugRays = 8;
         void visualizeSSRT(GfxTexture2D* depth, GfxTexture2D* normal);
 
-        void drawStaticMesh(Framebuffer* framebuffer, const Viewport& viewport, StaticMesh* mesh, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda, const GfxPipelineState& gfxPipelineState);
-        void drawFullscreenQuad(Framebuffer* framebuffer, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda);
-        void drawScreenQuad(Framebuffer* framebuffer, Viewport viewport, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda);
-        void drawColoredScreenSpaceQuad(Framebuffer* framebuffer, const glm::vec2& screenSpaceMin, const glm::vec2& screenSpaceMax, const glm::vec4& color);
+        void drawStaticMesh(const glm::uvec2& framebufferSize, const std::function<void(RenderPass&)>& renderTargetSetupLambda, const Viewport& viewport, StaticMesh* mesh, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda, const GfxPipelineState& gfxPipelineState);
+        void drawFullscreenQuad(const glm::uvec2& framebufferSize, const std::function<void(RenderPass&)>& renderTargetSetupLambda, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda);
+        void drawScreenQuad(const glm::uvec2& framebufferSize, const std::function<void(RenderPass&)>& renderTargetSetupLamdba, const Viewport& viewport, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda);
+        void drawColoredScreenSpaceQuad(GfxTexture2D* outTexture, const glm::vec2& screenSpaceMin, const glm::vec2& screenSpaceMax, const glm::vec4& color);
         void blitTexture(GfxTexture2D* dst, GfxTexture2D* src);
 
         /* Debugging utilities */
