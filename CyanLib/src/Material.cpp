@@ -5,6 +5,36 @@
 
 namespace Cyan 
 {
+    void MaterialBasic::setShaderParameters(PixelShader* ps)
+    {
+        u32 materialFlag = 0u;
+        if (albedoMap != nullptr && albedoMap->isInited()) 
+        {
+            ps->setTexture("albedoMap", albedoMap->gfxTexture.get());
+            materialFlag |= (u32)Material::Flags::kHasAlbedoMap;
+        }
+        if (normalMap != nullptr && normalMap->isInited())
+        {
+            ps->setTexture("normalMap", normalMap->gfxTexture.get());
+            materialFlag |= (u32)Material::Flags::kHasNormalMap;
+        }
+        if (metallicRoughnessMap != nullptr && metallicRoughnessMap->isInited()) 
+        {
+            ps->setTexture("metallicRoughnessMap", metallicRoughnessMap->gfxTexture.get());
+            materialFlag |= (u32)Material::Flags::kHasMetallicRoughnessMap;
+        }
+        if (occlusionMap != nullptr && occlusionMap->isInited()) 
+        {
+            ps->setTexture("occlusionMap", occlusionMap->gfxTexture.get());
+            materialFlag |= (u32)Material::Flags::kHasOcclusionMap;
+        }
+        ps->setUniform("albedo", albedo);
+        ps->setUniform("metallic", metallic);
+        ps->setUniform("roughness", roughness);
+        ps->setUniform("emissive", emissive);
+        ps->setUniform("materialFlag", materialFlag);
+    }
+
     RenderableScene::Material MaterialBindless::buildGpuMaterial()
     {
         RenderableScene::Material outGpuMaterial = { };

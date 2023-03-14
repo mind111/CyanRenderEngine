@@ -379,10 +379,9 @@ namespace Cyan
             CreateVS(vs, "SceneGBufferPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
             CreatePS(ps, "SceneDepthPrepassPS", SHADER_SOURCE_PATH "scene_depth_prepass_p.glsl");
             CreatePixelPipeline(pipeline, "SceneDepthPrepass", vs, ps);
-            pass.pipeline = pipeline;
-            pass.shaderSetupLambda = [](VertexShader* vs, PixelShader* ps) {};
-            pass.drawLambda = [&scene](GfxContext* ctx) { 
+            pass.drawLambda = [&scene, pipeline](GfxContext* ctx) { 
                 scene.bind(ctx);
+                ctx->setPixelPipeline(pipeline);
                 ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get()); 
             };
             pass.render(m_ctx);
@@ -397,11 +396,10 @@ namespace Cyan
         CreateVS(vs, "SceneGBufferPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
         CreatePS(ps, "DepthOnlyPS", SHADER_SOURCE_PATH "depth_only_p.glsl");
         CreatePixelPipeline(pipeline, "DepthOnly", vs, ps);
-        pass.pipeline = pipeline;
         pass.gfxPipelineState.depth = DepthControl::kEnable;
-        pass.shaderSetupLambda = [](VertexShader* vs, PixelShader* ps) { };
-        pass.drawLambda = [&scene](GfxContext* ctx) { 
+        pass.drawLambda = [&scene, pipeline](GfxContext* ctx) { 
             scene.bind(ctx);
+            ctx->setPixelPipeline(pipeline);
             ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get()); 
         };
         pass.render(m_ctx);
@@ -421,12 +419,87 @@ namespace Cyan
         CreateVS(vs, "SceneGBufferPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
         CreatePS(ps, "SceneGBufferPassPS", SHADER_SOURCE_PATH "scene_gbuffer_p.glsl");
         CreatePixelPipeline(pipeline, "SceneGBufferPass", vs, ps);
-        pass.pipeline = pipeline;
-        pass.drawLambda = [&scene](GfxContext* ctx) { 
+        pass.drawLambda = [&scene, pipeline](GfxContext* ctx) { 
             // todo: maybe it's worth moving those shader storage buffer cached in "scene" into each function as a
             // static variable, and every time this function is called, reset the data of those persistent gpu buffers
             scene.bind(ctx);
+
+            ctx->setPixelPipeline(pipeline);
             ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get()); 
+        };
+        pass.render(m_ctx);
+    }
+
+    void Renderer::renderSceneGBufferBindless(const RenderableScene& scene, GBuffer gBuffer)
+    {
+        struct BindlessMaterial
+        {
+            u64 albedoTextureHandle;
+            u64 normalTextureHandle;
+            u64 metallicRoughnessTextureHandle;
+            u64 occlusionTextureHandle;
+        };
+
+        static std::unordered_map<std::string, i32> bindlessTextureMap;
+        static std::vector<BindlessMaterial> bindlessMaterials;
+
+        auto albedo = gBuffer.albedo.getGfxTexture2D();
+        auto normal = gBuffer.normal.getGfxTexture2D();
+        auto metallicRoughness = gBuffer.metallicRoughness.getGfxTexture2D();
+        RenderPass pass(albedo->width, albedo->height);
+        pass.viewport = { 0, 0, albedo->width, albedo->height };
+        pass.setRenderTarget(albedo, 0);
+        pass.setRenderTarget(normal, 1);
+        pass.setRenderTarget(metallicRoughness, 2);
+        pass.setDepthBuffer(gBuffer.depth.getGfxDepthTexture2D());
+        CreateVS(vs, "SceneGBufferPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
+        CreatePS(ps, "SceneGBufferPassPS", SHADER_SOURCE_PATH "scene_gbuffer_p.glsl");
+        CreatePixelPipeline(pipeline, "SceneGBufferPass", vs, ps);
+        pass.drawLambda = [&scene, pipeline](GfxContext* ctx) { 
+            // todo: maybe it's worth moving those shader storage buffer cached in "scene" into each function as a
+            // static variable, and every time this function is called, reset the data of those persistent gpu buffers
+            scene.bind(ctx);
+
+            ctx->setPixelPipeline(pipeline);
+            ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get()); 
+        };
+        pass.render(m_ctx);
+    }
+
+    // todo: implement this
+    void Renderer::renderSceneGBufferNonBindless(const RenderableScene& scene, GBuffer gBuffer)
+    {
+        auto albedo = gBuffer.albedo.getGfxTexture2D();
+        auto normal = gBuffer.normal.getGfxTexture2D();
+        auto metallicRoughness = gBuffer.metallicRoughness.getGfxTexture2D();
+        RenderPass pass(albedo->width, albedo->height);
+        pass.viewport = { 0, 0, albedo->width, albedo->height };
+        pass.setRenderTarget(albedo, 0);
+        pass.setRenderTarget(normal, 1);
+        pass.setRenderTarget(metallicRoughness, 2);
+        pass.setDepthBuffer(gBuffer.depth.getGfxDepthTexture2D());
+        CreateVS(vs, "SceneNonBindlessGBufferPassVS", SHADER_SOURCE_PATH ".glsl");
+        CreatePS(ps, "SceneNonBindlessGBufferPassPS", SHADER_SOURCE_PATH ".glsl");
+        CreatePixelPipeline(pipeline, "SceneGBufferPass", vs, ps);
+        pass.drawLambda = [&scene, pipeline](GfxContext* ctx) {
+            // bind shared data,
+            auto ps = pipeline->m_pixelShader;
+            for (const auto& meshInstance : scene.meshInstances)
+            {
+                auto mesh = meshInstance->mesh;
+                for (i32 i = 0; i < mesh->numSubmeshes(); ++i)
+                {
+                    // set material data
+                    auto material = meshInstance->getMaterial(i);
+                    // todo: shader should be queried from a material, instead of passing a shader to material
+                    material->setShaderParameters(ps);
+                    ctx->setPixelPipeline(pipeline);
+                    auto sm = mesh->getSubmesh(i);
+                    auto va = sm->getVertexArray();
+                    ctx->setVertexArray(va);
+                    ctx->drawIndex(sm->numIndices());
+                }
+            }
         };
         pass.render(m_ctx);
     }

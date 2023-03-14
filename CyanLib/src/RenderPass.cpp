@@ -97,9 +97,6 @@ namespace Cyan
         ctx->setDepthControl(gfxPipelineState.depth);
         ctx->setPrimitiveType(gfxPipelineState.primitiveMode);
 
-        // setup shader
-        ctx->setPixelPipeline(pipeline, shaderSetupLambda);
-
         // draw
         drawLambda(ctx);
 

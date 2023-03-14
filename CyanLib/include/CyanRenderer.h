@@ -108,10 +108,12 @@ namespace Cyan
         void renderShadowMaps(Scene* inScene);
         void renderSceneDepthPrepass(const RenderableScene& renderableScene, RenderDepthTexture2D outDepthBuffer);
         void renderSceneGBuffer(const RenderableScene& scene, GBuffer gBuffer);
+        void renderSceneGBufferBindless(const RenderableScene& scene, GBuffer gBuffer);
+        void renderSceneGBufferNonBindless(const RenderableScene& scene, GBuffer gBuffer);
+        void renderSceneGBufferWithTextureAtlas(Framebuffer* outFramebuffer, RenderableScene& scene, GBuffer gBuffer);
         void renderSceneLighting(RenderTexture2D outSceneColor, const RenderableScene& scene, GBuffer gBuffer);
         void renderSceneDirectLighting(RenderTexture2D outDirectLighting, const RenderableScene& scene, GBuffer gBuffer);
         void renderSceneIndirectLighting(RenderTexture2D outIndirectLighting, const RenderableScene& scene, GBuffer gBuffer);
-        void renderSceneGBufferWithTextureAtlas(Framebuffer* outFramebuffer, RenderableScene& scene, GBuffer gBuffer);
         void renderToScreen(GfxTexture2D* inTexture);
 
         bool bDebugSSRT = false;
