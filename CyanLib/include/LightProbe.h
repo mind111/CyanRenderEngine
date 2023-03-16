@@ -12,7 +12,7 @@ namespace Cyan
 
     struct LightProbe
     {
-        LightProbe(TextureCube* srcCubemapTexture);
+        LightProbe(GfxTextureCube* srcCubemapTexture);
         LightProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& resolution);
         ~LightProbe() { }
         virtual void init();
@@ -22,12 +22,12 @@ namespace Cyan
         Scene*               scene;
         glm::vec3            position;
         glm::vec2            resolution;
-        TextureCube* sceneCapture;
+        GfxTextureCube* sceneCapture;
         MeshInstance*        debugSphereMesh;
     };
 
     struct IrradianceProbe : public LightProbe {
-        IrradianceProbe(TextureCube* srcCubemapTexture, const glm::uvec2& irradianceRes);
+        IrradianceProbe(GfxTextureCube* srcCubemapTexture, const glm::uvec2& irradianceRes);
         IrradianceProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& sceneCaptureResolution, const glm::uvec2& irradianceResolution);
         ~IrradianceProbe() { }
         virtual void debugRender() override;
@@ -43,18 +43,18 @@ namespace Cyan
         static const u32 kNumRaysPerHemiSphere = 128u;
 
         glm::vec2 m_irradianceTextureRes;
-        std::unique_ptr<TextureCube> m_convolvedIrradianceTexture = nullptr;
+        std::unique_ptr<GfxTextureCube> m_convolvedIrradianceTexture = nullptr;
     };
 
     struct ReflectionProbe : public LightProbe
     {
-        ReflectionProbe(TextureCube* srcCubemapTexture);
+        ReflectionProbe(GfxTextureCube* srcCubemapTexture);
         ReflectionProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& sceneCaptureResolution);
         ~ReflectionProbe() { }
 
-        static GfxTexture2DBindless* buildBRDFLookupTexture();
+        static GfxTexture2D* buildBRDFLookupTexture();
 
-        static GfxTexture2DBindless* getBRDFLookupTexture()
+        static GfxTexture2D* getBRDFLookupTexture()
         {
             return s_BRDFLookupTexture;
         }
@@ -65,11 +65,11 @@ namespace Cyan
         void build();
         void buildFromCubemap();
 
-        static GfxTexture2DBindless* s_BRDFLookupTexture;
+        static GfxTexture2D* s_BRDFLookupTexture;
         static const u32 kNumMips = 11; 
         static PixelPipeline* s_convolveReflectionPipeline;
 
-        std::unique_ptr<TextureCube> m_convolvedReflectionTexture = nullptr;
+        std::unique_ptr<GfxTextureCube> m_convolvedReflectionTexture = nullptr;
     };
 
     namespace LightProbeCameras

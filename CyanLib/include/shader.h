@@ -240,7 +240,7 @@ namespace Cyan
             }
         }
 
-        RenderTarget(TextureCube* inTexture, u32 inLayer, u32 inMip = 0, const glm::vec4& inClearColor = glm::vec4(0.f, 0.f, 0.f, 1.f)) 
+        RenderTarget(GfxTextureCube* inTexture, u32 inLayer, u32 inMip = 0, const glm::vec4& inClearColor = glm::vec4(0.f, 0.f, 0.f, 1.f)) 
             : texture(inTexture), mip(inMip), layer(inLayer), clearColor(inClearColor)
         { 
             if (texture)

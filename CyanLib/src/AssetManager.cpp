@@ -564,22 +564,20 @@ namespace Cyan
                 auto& primitive = gltfMesh.primitives[sm];
                 if (primitive.material > -1)
                 {
-#if BINDLESS_TEXTURE
                     auto getTexture = [&](i32 imageIndex)
                     {
-                        Cyan::Texture2DBindless* texture = nullptr;
+                        Cyan::Texture2D* texture = nullptr;
                         if (imageIndex > -1 && imageIndex < model.images.size())
                         {
                             auto& image = model.images[imageIndex];
-                            texture = getAsset<Texture2DBindless>(image.name.c_str());
+                            texture = getAsset<Texture2D>(image.name.c_str());
                             if (!texture)
                             {
-                                texture = getAsset<Texture2DBindless>(image.uri.c_str());
+                                texture = getAsset<Texture2D>(image.uri.c_str());
                             }
                         }
                         return texture;
                     };
-#endif
 
                     auto& gltfMaterial = model.materials[primitive.material];
                     auto pbr = gltfMaterial.pbrMetallicRoughness;
@@ -591,7 +589,7 @@ namespace Cyan
                     {
                         matlName = gltfMaterial.name;
                     }
-                    MaterialBindless* matl = createMaterialBindless(matlName.c_str());
+                    Material* matl = createMaterial(matlName.c_str());
                     matl->albedoMap = getTexture(pbr.baseColorTexture.index);
                     matl->normalMap = getTexture(gltfMaterial.normalTexture.index);
                     matl->metallicRoughnessMap = getTexture(pbr.metallicRoughnessTexture.index);
@@ -839,96 +837,34 @@ namespace Cyan
         return outTexture;
     }
 
-    Texture2DBindless* AssetManager::createTexture2DBindless(const char* name, Image* srcImage, const Sampler2D& inSampler)
+    Material* AssetManager::createMaterial(const char* name) 
     {
-        Texture2DBindless* outTexture = getAsset<Texture2DBindless>(name);
-        if (!outTexture)
-        {
-            outTexture = new Texture2DBindless(name, srcImage, inSampler);
-            singleton->addTexture(outTexture);
-        }
-        return outTexture;
-    }
-
-#if 0
-    GfxTexture2D* AssetManager::createTexture2D(const char* name, const GfxTexture2D::Spec& spec, const Sampler2D& inSampler)
-    {
-        GfxTexture2D* outTexture = getAsset<GfxTexture2D>(name);
-        if (!outTexture)
-        {
-            outTexture = new GfxTexture2D(name, spec, inSampler);
-            outTexture->init();
-            singleton->addTexture(outTexture);
-        }
-        return outTexture;
-    }
-
-    TextureCube* AssetManager::createTextureCube(const char* name, const TextureCube::Spec& spec, const SamplerCube& inSampler)
-    {
-        TextureCube* outTexture = getAsset<TextureCube>(name);
-        if (!outTexture)
-        {
-            outTexture = new TextureCube(name, spec, inSampler);
-            outTexture->init();
-            singleton->addTexture(outTexture);
-        }
-        return outTexture;
-    }
-
-    GfxDepthTexture2D* AssetManager::createDepthTexture(const char* name, u32 width, u32 height)
-    {
-        GfxDepthTexture2D* outTexture = getAsset<GfxDepthTexture2D>(name);
-        if (!outTexture)
-        {
-            GfxDepthTexture2D::Spec spec(width, height, 1);
-            Sampler2D sampler;
-            sampler.minFilter = FM_POINT;
-            sampler.magFilter = FM_POINT;
-            outTexture = new GfxDepthTexture2D(name, spec, sampler);
-            outTexture->init();
-            singleton->addTexture(outTexture);
-        }
-        return outTexture;
-    }
-#endif
-
-    MaterialBindless* AssetManager::createMaterialBindless(const char* name)
-    {
-        MaterialBindless* outMaterial = nullptr;
+        Material* outMaterial = nullptr;
         std::string key = std::string(name);
+        i32 materialIndex = -1;
         auto entry = singleton->m_materialMap.find(key);
         if (entry == singleton->m_materialMap.end()) 
         {
-            outMaterial = new MaterialBindless(name);
-            singleton->m_materialMap.insert({ key, outMaterial });
+            outMaterial = new Material(name);
+            materialIndex = singleton->m_materials.size();
+            singleton->m_materialMap.insert({ key, materialIndex });
+            singleton->m_materials.push_back(outMaterial);
+        }
+        else
+        {
+            outMaterial = singleton->m_materials[entry->second];
         }
         return outMaterial;
     }
 
-    Material* AssetManager::createMaterial(const char* name) 
+    i32 AssetManager::getMaterialIndex(Material* material)
     {
-        std::string key = std::string(name);
-        auto entry = singleton->m_materialMap.find(key);
-        if (entry == singleton->m_materialMap.end()) 
+        i32 outIndex = -1;
+        auto entry = singleton->m_materialMap.find(material->name);
+        if (entry != singleton->m_materialMap.end())
         {
-            Material* matl = new MaterialBindless(name);
-            singleton->m_materialMap.insert({ key, matl });
+            outIndex = entry->second;
         }
-        return singleton->m_materialMap[key];
-    }
-
-    MaterialTextureAtlas* AssetManager::createPackedMaterial(const char* name)
-    {
-#if 0
-        auto entry = singleton->m_packedMaterialMap.find(name);
-        if (entry == singleton->m_packedMaterialMap.end()) 
-        {
-            MaterialTextureAtlas matl = { };
-            matl.name = std::string(name);
-            singleton->m_packedMaterialMap.insert({ matl.name, matl});
-        }
-        return singleton->m_packedMaterialMap[name];
-#endif
-        return nullptr;
+        return outIndex;
     }
 }

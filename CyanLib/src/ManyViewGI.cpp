@@ -289,7 +289,7 @@ namespace Cyan {
         generateSampleDirections();
     }
 
-    void ManyViewGI::Image::writeRadiance(TextureCube* radianceCubemap, const glm::ivec2& texCoord) 
+    void ManyViewGI::Image::writeRadiance(GfxTextureCube* radianceCubemap, const glm::ivec2& texCoord) 
     {
         auto renderer = Renderer::get();
         auto gfxc = renderer->getGfxCtx();
@@ -304,7 +304,7 @@ namespace Cyan {
         glDispatchCompute(radianceRes, radianceRes, 1);
     }
 
-    void ManyViewGI::Image::writeIrradiance(TextureCube* radianceCubemap, const Hemicube& hemicube, const glm::ivec2& texCoord) 
+    void ManyViewGI::Image::writeIrradiance(GfxTextureCube* radianceCubemap, const Hemicube& hemicube, const glm::ivec2& texCoord) 
     {
         auto renderer = Renderer::get();
         auto gfxc = renderer->getGfxCtx();
@@ -427,12 +427,12 @@ namespace Cyan {
     {
         if (!bInitialized) {
             if (!m_sharedRadianceCubemap) {
-                TextureCube::Spec spec(kFinalGatherRes, 1, PF_RGB16F);
+                GfxTextureCube::Spec spec(kFinalGatherRes, 1, PF_RGB16F);
                 /** note - @mind:
                 * ran into a "incomplete texture" error when setting magnification filter to FM_TRILINEAR
                 */
                 // todo: based on the rendering output, pay attention to the difference between using point/bilinear sampling
-                m_sharedRadianceCubemap = TextureCube::create(spec, SamplerCube());
+                m_sharedRadianceCubemap = GfxTextureCube::create(spec, SamplerCube());
             }
             if (!visualizations.shared) {
                 GfxTexture2D::Spec spec(visualizations.resolution.x, visualizations.resolution.y, 1, PF_RGB16F);
@@ -491,7 +491,7 @@ namespace Cyan {
         });
     }
 
-    TextureCube* ManyViewGI::finalGathering(const Hemicube& hemicube, RenderableScene& scene, bool jitter, const glm::vec3& jitteredSampleDirection) 
+    GfxTextureCube* ManyViewGI::finalGathering(const Hemicube& hemicube, RenderableScene& scene, bool jitter, const glm::vec3& jitteredSampleDirection) 
     {
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(m_sharedRadianceCubemap->resolution, m_sharedRadianceCubemap->resolution));
         renderTarget->setColorBuffer(m_sharedRadianceCubemap, 0);

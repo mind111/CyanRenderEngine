@@ -22,7 +22,7 @@ struct Cascade
 {
 	float n;
 	float f;
-	uint64_t depthTextureHandle;
+	sampler2D depthTexture;
     mat4 lightSpaceProjection;
 };
 
@@ -39,10 +39,7 @@ struct DirectionalLight
 	DirectionalShadowMap shadowMap;
 };
 
-layout (std430) buffer DirectionalLightBuffer 
-{
-	DirectionalLight directionalLight;
-};
+uniform DirectionalLight directionalLight;
 
 layout(std430) buffer ViewBuffer 
 {
@@ -222,9 +219,8 @@ int calcCascadeIndex(in vec3 viewSpacePosition, in DirectionalLight directionalL
 
 float PCFShadow(vec3 worldSpacePosition, vec3 normal, in DirectionalLight directionalLight)
 {
-    sampler2D sampler = sampler2D(directionalLight.shadowMap.cascades[0].depthTextureHandle);
 	float shadow = 0.0f;
-    vec2 texelOffset = vec2(1.f) / textureSize(sampler, 0);
+    vec2 texelOffset = vec2(1.f) / textureSize(directionalLight.shadowMap.cascades[0].depthTexture, 0);
     vec3 viewSpacePosition = (view * vec4(worldSpacePosition, 1.f)).xyz;
     int cascadeIndex = calcCascadeIndex(viewSpacePosition, directionalLight);
     vec4 lightSpacePosition = 
@@ -258,7 +254,7 @@ float PCFShadow(vec3 worldSpacePosition, vec3 normal, in DirectionalLight direct
 #else
 			float bias = constantBias();
 #endif
-            float shadowSample = texture(sampler, texCoord).r < (depth - bias) ? 0.f : 1.f;
+            float shadowSample = texture(directionalLight.shadowMap.cascades[cascadeIndex].depthTexture, texCoord).r < (depth - bias) ? 0.f : 1.f;
             shadow += shadowSample * kernel[(i + kernelRadius) * 5 + (j + kernelRadius)];
         }
     }

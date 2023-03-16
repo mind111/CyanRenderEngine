@@ -36,14 +36,14 @@ namespace Cyan
         m_srcHDRITexture = AssetManager::createTexture2D(name, HDRIImage, sampler);
 
         u32 numMips = log2(resolution.x) + 1;
-        TextureCube::Spec cubemapSpec(resolution.x, numMips, PF_RGB16F);
+        GfxTextureCube::Spec cubemapSpec(resolution.x, numMips, PF_RGB16F);
         SamplerCube samplerCube;
         samplerCube.minFilter = FM_TRILINEAR;
         samplerCube.magFilter = FM_BILINEAR;
         samplerCube.wrapS = WM_CLAMP;
         samplerCube.wrapT = WM_CLAMP;
 
-        m_cubemapTexture = std::unique_ptr<TextureCube>(TextureCube::create(cubemapSpec, samplerCube));
+        m_cubemapTexture = std::unique_ptr<GfxTextureCube>(GfxTextureCube::create(cubemapSpec, samplerCube));
 
         CreateVS(vs, "RenderToCubemapVS", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl");
         CreatePS(ps, "RenderToCubemapPS", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl");
@@ -90,17 +90,20 @@ namespace Cyan
     }
 
     
-    Skybox::Skybox(const char* name, TextureCube* srcCubemap) 
+    Skybox::Skybox(const char* name, GfxTextureCube* srcCubemap) 
     {
 
     }
 
     void Skybox::render(Framebuffer* framebuffer, const glm::mat4& view, const glm::mat4& projection, f32 mipLevel)
     {
-#if 0
         StaticMesh* cubeMesh = AssetManager::getAsset<StaticMesh>("UnitCubeMesh");
 
         Renderer::get()->drawStaticMesh(
+            getFramebufferSize(m_cubemapTexture.get()),
+            []() {
+
+            },
             { 0, 0, framebuffer->width, framebuffer->height },
             cubeMesh,
             s_cubemapSkyPipeline,
@@ -112,6 +115,5 @@ namespace Cyan
             },
             GfxPipelineState { }
         );
-#endif
     }
 }

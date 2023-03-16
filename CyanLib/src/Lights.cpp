@@ -46,13 +46,11 @@ namespace Cyan
         shadowMap->render(inScene, renderer);
     }
 
-    GpuDirectionalLight DirectionalLight::buildGpuDirectionalLight()
+    void DirectionalLight::setShaderParameters(PixelShader* ps)
     {
-        GpuDirectionalLight outGpuDirectionalLight = { };
-        outGpuDirectionalLight.colorAndIntensity = glm::vec4(colorAndIntensity);
-        outGpuDirectionalLight.direction = glm::vec4(direction, 0.f);
-        outGpuDirectionalLight.shadowMap = shadowMap->buildGpuDirectionalShadowMap();
-        return outGpuDirectionalLight;
+        ps->setUniform("directionalLight.colorAndIntensity", colorAndIntensity);
+        ps->setUniform("directionalLight.direction", glm::vec4(direction, 0.f));
+        shadowMap->setShaderParameters(ps);
     }
 
     u32 SkyLight::numInstances = 0u;
@@ -74,9 +72,9 @@ namespace Cyan
             }
 
             u32 numMips = max(log2(1024u), 1) + 1;
-            TextureCube::Spec cubemapSpec(1024u, numMips, PF_RGB16F);
+            GfxTextureCube::Spec cubemapSpec(1024u, numMips, PF_RGB16F);
             SamplerCube sampler;
-            srcCubemap = std::unique_ptr<TextureCube>(TextureCube::create(cubemapSpec, sampler));
+            srcCubemap = std::unique_ptr<GfxTextureCube>(GfxTextureCube::create(cubemapSpec, sampler));
 
             irradianceProbe = std::make_unique<IrradianceProbe>(srcCubemap.get(), glm::uvec2(64));
             reflectionProbe = std::make_unique<ReflectionProbe>(srcCubemap.get());
@@ -95,7 +93,7 @@ namespace Cyan
         reflectionProbe->buildFromCubemap();
     }
 
-    void SkyLight::buildCubemap(Texture2D* srcEquirectMap, TextureCube* dstCubemap) 
+    void SkyLight::buildCubemap(Texture2D* srcEquirectMap, GfxTextureCube* dstCubemap) 
     {
 #if 0
         auto framebuffer = std::unique_ptr<Framebuffer>(Framebuffer::create(dstCubemap->resolution, dstCubemap->resolution));

@@ -47,7 +47,7 @@ namespace Cyan
         GfxDepthTexture2D* getDepthBuffer() { return depthBuffer; }
 
         void setColorBuffer(GfxTexture2D* texture, u32 index, u32 mip = 0u);
-        void setColorBuffer(TextureCube* texture, u32 index, u32 layer, u32 mip = 0);
+        void setColorBuffer(GfxTextureCube* texture, u32 index, u32 layer, u32 mip = 0);
         void setDepthBuffer(GfxDepthTexture2D* depthTexture);
         void setDrawBuffers(i32* colorBufferIndices, u32 count);
         void setDrawBuffers(const std::initializer_list<i32>& buffers);

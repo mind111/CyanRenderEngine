@@ -4,7 +4,7 @@ namespace Cyan
 {
     glm::uvec2 getFramebufferSize(GfxTexture2D* texture) { return glm::uvec2(texture->width, texture->height); }
     glm::uvec2 getFramebufferSize(GfxDepthTexture2D* texture) { return glm::uvec2(texture->width, texture->height); }
-    glm::uvec2 getFramebufferSize(TextureCube* texture) { return glm::uvec2(texture->resolution, texture->resolution); }
+    glm::uvec2 getFramebufferSize(GfxTextureCube* texture) { return glm::uvec2(texture->resolution, texture->resolution); }
 
     void RenderPass::setRenderTarget(const RenderTarget& inRenderTarget, u32 binding)
     {
@@ -49,7 +49,7 @@ namespace Cyan
                 RenderTarget renderTarget = renderTargets[i];
                 if (renderTarget.texture)
                 {
-                    if (auto textureCube = dynamic_cast<TextureCube*>(renderTarget.texture))
+                    if (auto textureCube = dynamic_cast<GfxTextureCube*>(renderTarget.texture))
                     {
                         outFramebuffer->setColorBuffer(textureCube, colorBufferBinding, renderTarget.layer, renderTarget.mip);
                     }

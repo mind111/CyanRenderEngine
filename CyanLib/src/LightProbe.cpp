@@ -10,7 +10,7 @@
 
 namespace Cyan
 {
-    GfxTexture2DBindless* ReflectionProbe::s_BRDFLookupTexture = nullptr;
+    GfxTexture2D* ReflectionProbe::s_BRDFLookupTexture = nullptr;
     PixelPipeline* IrradianceProbe::s_convolveIrradiancePipeline = nullptr;
     PixelPipeline* ReflectionProbe::s_convolveReflectionPipeline = nullptr;
 
@@ -35,7 +35,7 @@ namespace Cyan
         };
     }
 
-    LightProbe::LightProbe(TextureCube* srcCubemapTexture)
+    LightProbe::LightProbe(GfxTextureCube* srcCubemapTexture)
         : scene(nullptr), position(glm::vec3(0.f)), resolution(glm::uvec2(srcCubemapTexture->resolution, srcCubemapTexture->resolution)), 
         debugSphereMesh(nullptr), sceneCapture(srcCubemapTexture)
     {
@@ -75,7 +75,7 @@ namespace Cyan
 
     }
 
-    IrradianceProbe::IrradianceProbe(TextureCube* srcCubemapTexture, const glm::uvec2& irradianceRes)
+    IrradianceProbe::IrradianceProbe(GfxTextureCube* srcCubemapTexture, const glm::uvec2& irradianceRes)
         : LightProbe(srcCubemapTexture), m_irradianceTextureRes(irradianceRes)
     {
         initialize();
@@ -89,11 +89,11 @@ namespace Cyan
 
     void IrradianceProbe::initialize()
     {
-        TextureCube::Spec spec(m_irradianceTextureRes.x, 1, PF_RGB16F);
+        GfxTextureCube::Spec spec(m_irradianceTextureRes.x, 1, PF_RGB16F);
         SamplerCube sampler;
         sampler.minFilter = FM_BILINEAR;
         sampler.magFilter = FM_BILINEAR;
-        m_convolvedIrradianceTexture = std::unique_ptr<TextureCube>(TextureCube::create(spec, sampler));
+        m_convolvedIrradianceTexture = std::unique_ptr<GfxTextureCube>(GfxTextureCube::create(spec, sampler));
 
         if (!s_convolveIrradiancePipeline)
         {
@@ -157,7 +157,7 @@ namespace Cyan
 
     }
 
-    ReflectionProbe::ReflectionProbe(TextureCube* srcCubemapTexture)
+    ReflectionProbe::ReflectionProbe(GfxTextureCube* srcCubemapTexture)
         : LightProbe(srcCubemapTexture)
     {
         initialize();
@@ -173,11 +173,11 @@ namespace Cyan
     {
         // convolved radiance texture
         u32 numMips = log2(resolution.x) + 1;
-        TextureCube::Spec spec(resolution.x, numMips, PF_RGB16F);
+        GfxTextureCube::Spec spec(resolution.x, numMips, PF_RGB16F);
         SamplerCube sampler;
         sampler.minFilter = FM_TRILINEAR;
         sampler.magFilter = FM_BILINEAR;
-        m_convolvedReflectionTexture = std::unique_ptr<TextureCube>(TextureCube::create(spec, sampler));
+        m_convolvedReflectionTexture = std::unique_ptr<GfxTextureCube>(GfxTextureCube::create(spec, sampler));
 
         if (!s_convolveReflectionPipeline)
         {
@@ -194,11 +194,11 @@ namespace Cyan
     }
 
     // todo: fix this, 
-    GfxTexture2DBindless* ReflectionProbe::buildBRDFLookupTexture()
+    GfxTexture2D* ReflectionProbe::buildBRDFLookupTexture()
     {
         GfxTexture2D::Spec spec(512u, 512u, 1, PF_RGBA16F);
         Sampler2D sampler;
-        GfxTexture2DBindless* outTexture = GfxTexture2DBindless::create(spec, sampler);
+        GfxTexture2D* outTexture = GfxTexture2D::create(spec, sampler);
 
         auto renderer = Renderer::get();
         GfxPipelineState pipelineState;

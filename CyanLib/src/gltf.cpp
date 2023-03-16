@@ -79,7 +79,7 @@ namespace Cyan
             for (i32 i = 0; i < materials.size(); ++i)
             {
                 const gltf::Material& gltfMatl = materials[i];
-                Cyan::MaterialBindless* matl = AssetManager::createMaterialBindless(gltfMatl.name.c_str());
+                Cyan::Material* matl = AssetManager::createMaterial(gltfMatl.name.c_str());
                 matl->albedo = gltfMatl.pbrMetallicRoughness.baseColorFactor;
                 matl->roughness = gltfMatl.pbrMetallicRoughness.roughnessFactor;
                 matl->metallic = gltfMatl.pbrMetallicRoughness.metallicFactor;
@@ -87,21 +87,21 @@ namespace Cyan
                 if (baseColorTextureIndex >= 0)
                 {
                     const gltf::Texture texture = textures[baseColorTextureIndex];
-                    matl->albedoMap = AssetManager::getAsset<Texture2DBindless>(texture.name.c_str());
+                    matl->albedoMap = AssetManager::getAsset<Texture2D>(texture.name.c_str());
                 }
 
                 i32 metallicRoughnessIndex = gltfMatl.pbrMetallicRoughness.metallicRoughnessTexture.index;
                 if (metallicRoughnessIndex >= 0)
                 {
                     const gltf::Texture texture = textures[metallicRoughnessIndex];
-                    matl->metallicRoughnessMap = AssetManager::getAsset<Texture2DBindless>(texture.name.c_str());
+                    matl->metallicRoughnessMap = AssetManager::getAsset<Texture2D>(texture.name.c_str());
                 }
 
                 i32 normalTextureIndex = gltfMatl.normalTexture.index;
                 if (normalTextureIndex >= 0)
                 {
                     const gltf::Texture texture = textures[normalTextureIndex];
-                    matl->normalMap = AssetManager::getAsset<Texture2DBindless>(texture.name.c_str());
+                    matl->normalMap = AssetManager::getAsset<Texture2D>(texture.name.c_str());
                 }
             }
         }
@@ -155,35 +155,6 @@ namespace Cyan
             // todo: clear all loaded data
         }
 
-#if 0
-        void Glb::importScene(Cyan::Scene* outScene)
-        {
-            importAssets();
-
-            // load scene hierarchy 
-            if (defaultScene >= 0)
-            {
-                const gltf::Scene& gltfScene = scenes[defaultScene];
-                for (i32 i = 0; i < gltfScene.nodes.size(); ++i)
-                {
-                    const gltf::Node& node = nodes[gltfScene.nodes[i]];
-                    importNode(outScene, nullptr, node);
-                }
-            }
-        }
-
-        void Glb::importAssets()
-        {
-            importMeshes();
-#if BINDLESS_TEXTURE   
-            importTextures();
-            importMaterials();
-#else
-            importTexturesToAtlas();
-            importPackedMaterials();
-#endif
-        }
-#endif
         void Glb::importTriangles(const gltf::Primitive& p, Triangles& outTriangles)
         {
             u32 numVertices = accessors[p.attribute.position].count;

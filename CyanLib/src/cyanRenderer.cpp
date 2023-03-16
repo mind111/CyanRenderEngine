@@ -37,6 +37,8 @@ namespace Cyan
 
     void HiZBuffer::build(GfxTexture2D* srcDepthTexture)
     {
+        glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Build HZB");
+
         auto renderer = Renderer::get();
         auto gfxTexture = texture.getGfxTexture2D();
         // copy pass
@@ -81,6 +83,8 @@ namespace Cyan
                 );
             }
         }
+
+        glPopDebugGroup();
     }
 
     GBuffer::GBuffer(const glm::uvec2& resolution)
@@ -173,9 +177,8 @@ namespace Cyan
         renderTargetSetupLambda(pass);
         pass.viewport = viewport;
         pass.gfxPipelineState = gfxPipelineState;
-        pass.pipeline = pipeline;
-        pass.shaderSetupLambda = shaderSetupLambda;
-        pass.drawLambda = [mesh](GfxContext* ctx) {
+        pass.drawLambda = [mesh, pipeline, &shaderSetupLambda](GfxContext* ctx) {
+            ctx->setPixelPipeline(pipeline, shaderSetupLambda);
             for (u32 i = 0; i < mesh->numSubmeshes(); ++i) 
             {
                 StaticMesh::Submesh* sm = mesh->getSubmesh(i);
@@ -270,10 +273,10 @@ namespace Cyan
             m_sceneTextures->HiZ.build(m_sceneTextures->gBuffer.depth.getGfxDepthTexture2D());
 
             // main scene pass
-#if BINDLESS_TEXTURE
-            renderSceneGBuffer(renderableScene, m_sceneTextures->gBuffer);
+#ifdef BINDLESS_TEXTURE
+            renderSceneGBufferBindless(renderableScene, m_sceneTextures->gBuffer);
 #else
-            renderSceneGBufferWithTextureAtlas(m_sceneTextures.framebuffer, renderableScene, m_sceneTextures.gBuffer);
+            renderSceneGBufferNonBindless(renderableScene, m_sceneTextures->gBuffer);
 #endif
             renderSceneLighting(m_sceneTextures->color, renderableScene, m_sceneTextures->gBuffer);
 
@@ -283,6 +286,8 @@ namespace Cyan
             // post processing
             if (m_settings.bPostProcessing) 
             {
+                GPU_DEBUG_SCOPE(postProcessMarker, "Post Processing");
+
                 auto bloomTexture = bloom(m_sceneTextures->color.getGfxTexture2D());
                 compose(sceneView.canvas, m_sceneTextures->color.getGfxTexture2D(), bloomTexture.getGfxTexture2D(), m_windowSize);
             }
@@ -335,6 +340,8 @@ namespace Cyan
 
     void Renderer::renderToScreen(GfxTexture2D* inTexture)
     {
+        GPU_DEBUG_SCOPE(presentMarker, "Render to Screen");
+
         CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
         CreatePS(ps, "BlitPS", SHADER_SOURCE_PATH "blit_p.glsl");
         CreatePixelPipeline(pipeline, "BlitQuad", vs, ps);
@@ -358,6 +365,8 @@ namespace Cyan
 
     void Renderer::renderShadowMaps(Scene* inScene) 
     {
+        GPU_DEBUG_SCOPE(shadowMapPassMarker, "Build ShadowMap");
+
         if (inScene->m_directionalLight)
         {
             inScene->m_directionalLight->getDirectionalLightComponent()->getDirectionalLight()->renderShadowMap(inScene, this);
@@ -370,13 +379,15 @@ namespace Cyan
 
     void Renderer::renderSceneDepthPrepass(const RenderableScene& scene, RenderDepthTexture2D outDepthTexture)
     {
+        GPU_DEBUG_SCOPE(sceneDepthPrepassMarker, "Scene Depth Prepass");
+
         GfxDepthTexture2D* outGfxDepthTexture = dynamic_cast<GfxDepthTexture2D*>(outDepthTexture.getGfxDepthTexture2D());
         if (outGfxDepthTexture)
         {
             RenderPass pass(outGfxDepthTexture->width, outGfxDepthTexture->height);
             pass.viewport = { 0, 0, outGfxDepthTexture->width, outGfxDepthTexture->height };
             pass.setDepthBuffer(outGfxDepthTexture);
-            CreateVS(vs, "SceneGBufferPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
+            CreateVS(vs, "SceneDepthOnlyVS", SHADER_SOURCE_PATH "scene_depth_only_v.glsl");
             CreatePS(ps, "SceneDepthPrepassPS", SHADER_SOURCE_PATH "scene_depth_prepass_p.glsl");
             CreatePixelPipeline(pipeline, "SceneDepthPrepass", vs, ps);
             pass.drawLambda = [&scene, pipeline](GfxContext* ctx) { 
@@ -390,10 +401,12 @@ namespace Cyan
 
     void Renderer::renderSceneDepthOnly(RenderableScene& scene, GfxDepthTexture2D* outDepthTexture)
     {
+        GPU_DEBUG_SCOPE(sceneDepthPassMarker, "Scene Depth");
+
         RenderPass pass(outDepthTexture->width, outDepthTexture->height);
         pass.viewport = { 0, 0, outDepthTexture->width, outDepthTexture->height };
         pass.setDepthBuffer(outDepthTexture);
-        CreateVS(vs, "SceneGBufferPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
+        CreateVS(vs, "SceneDepthOnlyVS", SHADER_SOURCE_PATH "scene_depth_only_v.glsl");
         CreatePS(ps, "DepthOnlyPS", SHADER_SOURCE_PATH "depth_only_p.glsl");
         CreatePixelPipeline(pipeline, "DepthOnly", vs, ps);
         pass.gfxPipelineState.depth = DepthControl::kEnable;
@@ -405,43 +418,77 @@ namespace Cyan
         pass.render(m_ctx);
     }
 
-    void Renderer::renderSceneGBuffer(const RenderableScene& scene, GBuffer gBuffer)
-    {
-        auto albedo = gBuffer.albedo.getGfxTexture2D();
-        auto normal = gBuffer.normal.getGfxTexture2D();
-        auto metallicRoughness = gBuffer.metallicRoughness.getGfxTexture2D();
-        RenderPass pass(albedo->width, albedo->height);
-        pass.viewport = { 0, 0, albedo->width, albedo->height };
-        pass.setRenderTarget(albedo, 0);
-        pass.setRenderTarget(normal, 1);
-        pass.setRenderTarget(metallicRoughness, 2);
-        pass.setDepthBuffer(gBuffer.depth.getGfxDepthTexture2D());
-        CreateVS(vs, "SceneGBufferPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
-        CreatePS(ps, "SceneGBufferPassPS", SHADER_SOURCE_PATH "scene_gbuffer_p.glsl");
-        CreatePixelPipeline(pipeline, "SceneGBufferPass", vs, ps);
-        pass.drawLambda = [&scene, pipeline](GfxContext* ctx) { 
-            // todo: maybe it's worth moving those shader storage buffer cached in "scene" into each function as a
-            // static variable, and every time this function is called, reset the data of those persistent gpu buffers
-            scene.bind(ctx);
-
-            ctx->setPixelPipeline(pipeline);
-            ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get()); 
-        };
-        pass.render(m_ctx);
-    }
-
+#ifdef BINDLESS_TEXTURE
     void Renderer::renderSceneGBufferBindless(const RenderableScene& scene, GBuffer gBuffer)
     {
+        GPU_DEBUG_SCOPE(sceneGBufferPassMarker, "Scene GBuffer")
+
+        /**
+         * Only this rendering function actually uses bindless texture for rendering. Would like to keep
+         * bindless texture decoupled from Asset, as well as RenderableScene because only the renderer needs
+         * to be aware of it when doing bindless rendering.
+         */
         struct BindlessMaterial
         {
-            u64 albedoTextureHandle;
-            u64 normalTextureHandle;
-            u64 metallicRoughnessTextureHandle;
-            u64 occlusionTextureHandle;
+            TextureHandle albedoMap;
+            TextureHandle normalMap;
+            TextureHandle metallicRoughnessMap;
+            TextureHandle emissiveMap;
+            TextureHandle occlusionMap;
+            glm::vec2 padding;
+            glm::vec4 albedo;
+            f32 metallic;
+            f32 roughness;
+            f32 emissive = 1.f;
+            u32 flag = 0;
         };
 
-        static std::unordered_map<std::string, i32> bindlessTextureMap;
-        static std::vector<BindlessMaterial> bindlessMaterials;
+        auto createBindlessMaterial = [](Material* material) -> BindlessMaterial {
+            BindlessMaterial outBindlessMaterial = { };
+            if (material->albedoMap != nullptr && material->albedoMap->isInited())
+            {
+                auto albedoMap = BindlessTextureHandle::create(material->albedoMap->getGfxResource());
+                albedoMap->makeResident();
+                outBindlessMaterial.albedoMap = albedoMap->getHandle();
+                outBindlessMaterial.flag |= (u32)Material::Flags::kHasAlbedoMap;
+            }
+            if (material->normalMap != nullptr && material->normalMap->isInited())
+            {
+                auto normalMap = BindlessTextureHandle::create(material->normalMap->getGfxResource());
+                normalMap->makeResident();
+                outBindlessMaterial.normalMap = normalMap->getHandle();
+                outBindlessMaterial.flag |= (u32)Material::Flags::kHasNormalMap;
+            }
+            if (material->metallicRoughnessMap != nullptr && material->metallicRoughnessMap->isInited())
+            {
+                auto metallicRoughnessMap = BindlessTextureHandle::create(material->metallicRoughnessMap->getGfxResource());
+                metallicRoughnessMap->makeResident();
+                outBindlessMaterial.metallicRoughnessMap = metallicRoughnessMap->getHandle();
+                outBindlessMaterial.flag |= (u32)Material::Flags::kHasMetallicRoughnessMap;
+            }
+            if (material->occlusionMap != nullptr && material->occlusionMap->isInited())
+            {
+                auto occlusionMap = BindlessTextureHandle::create(material->occlusionMap->getGfxResource());
+                occlusionMap->makeResident();
+                outBindlessMaterial.occlusionMap = occlusionMap->getHandle();
+                outBindlessMaterial.flag |= (u32)Material::Flags::kHasOcclusionMap;
+            }
+            outBindlessMaterial.albedo = material->albedo;
+            outBindlessMaterial.metallic = material->metallic;
+            outBindlessMaterial.roughness = material->roughness;
+            outBindlessMaterial.emissive = material->emissive;
+            return outBindlessMaterial;
+        };
+
+        // convert unique material used by materials to GfxBindlessTexture2Ds and cache them
+        std::vector<BindlessMaterial> bindlessMaterials(scene.materials.size());
+        for (i32 i = 0; i < scene.materials.size(); ++i)
+        {
+            bindlessMaterials[i] = createBindlessMaterial(scene.materials[i]);
+        }
+        static std::unique_ptr<ShaderStorageBuffer> bindlessMaterialBuffer = std::make_unique<ShaderStorageBuffer>("MaterialBuffer", sizeOfVector(bindlessMaterials));
+        // write material data to a ssbo, using a persistent mapped buffer at some point will be ideal if material data gets large at some point
+        bindlessMaterialBuffer->write(bindlessMaterials, 0);
 
         auto albedo = gBuffer.albedo.getGfxTexture2D();
         auto normal = gBuffer.normal.getGfxTexture2D();
@@ -460,15 +507,20 @@ namespace Cyan
             // static variable, and every time this function is called, reset the data of those persistent gpu buffers
             scene.bind(ctx);
 
+            ctx->setShaderStorageBuffer(bindlessMaterialBuffer.get());
+
             ctx->setPixelPipeline(pipeline);
             ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get()); 
         };
         pass.render(m_ctx);
     }
+#endif
 
     // todo: implement this
     void Renderer::renderSceneGBufferNonBindless(const RenderableScene& scene, GBuffer gBuffer)
     {
+        GPU_DEBUG_SCOPE(sceneGBufferPassMarker, "Scene GBuffer")
+
         auto albedo = gBuffer.albedo.getGfxTexture2D();
         auto normal = gBuffer.normal.getGfxTexture2D();
         auto metallicRoughness = gBuffer.metallicRoughness.getGfxTexture2D();
@@ -478,26 +530,36 @@ namespace Cyan
         pass.setRenderTarget(normal, 1);
         pass.setRenderTarget(metallicRoughness, 2);
         pass.setDepthBuffer(gBuffer.depth.getGfxDepthTexture2D());
-        CreateVS(vs, "SceneNonBindlessGBufferPassVS", SHADER_SOURCE_PATH ".glsl");
-        CreatePS(ps, "SceneNonBindlessGBufferPassPS", SHADER_SOURCE_PATH ".glsl");
+        CreateVS(vs, "SceneNonBindlessGBufferPassVS", SHADER_SOURCE_PATH "scene_gbuffer_pass_non_bindless_v.glsl");
+        CreatePS(ps, "SceneNonBindlessGBufferPassPS", SHADER_SOURCE_PATH "scene_gbuffer_pass_non_bindless_p.glsl");
         CreatePixelPipeline(pipeline, "SceneGBufferPass", vs, ps);
         pass.drawLambda = [&scene, pipeline](GfxContext* ctx) {
+            ctx->setShaderStorageBuffer(scene.viewBuffer.get());
+            ctx->setShaderStorageBuffer(scene.transformBuffer.get());
+
             // bind shared data,
+            auto vs = pipeline->m_vertexShader;
             auto ps = pipeline->m_pixelShader;
-            for (const auto& meshInstance : scene.meshInstances)
+            for (i32 i = 0; i < scene.meshInstances.size(); ++i)
             {
+                vs->setUniform("instanceID", i);
+
+                auto meshInstance = scene.meshInstances[i];
                 auto mesh = meshInstance->mesh;
                 for (i32 i = 0; i < mesh->numSubmeshes(); ++i)
                 {
-                    // set material data
-                    auto material = meshInstance->getMaterial(i);
-                    // todo: shader should be queried from a material, instead of passing a shader to material
-                    material->setShaderParameters(ps);
-                    ctx->setPixelPipeline(pipeline);
                     auto sm = mesh->getSubmesh(i);
-                    auto va = sm->getVertexArray();
-                    ctx->setVertexArray(va);
-                    ctx->drawIndex(sm->numIndices());
+                    if (sm->bInitialized)
+                    {
+                        // set material data
+                        auto material = meshInstance->getMaterial(i);
+                        // todo: shader should be queried from a material, instead of passing a shader to material
+                        material->setShaderParameters(ps);
+                        ctx->setPixelPipeline(pipeline);
+                        auto va = sm->getVertexArray();
+                        ctx->setVertexArray(va);
+                        ctx->drawIndex(sm->numIndices());
+                    }
                 }
             }
         };
@@ -506,6 +568,8 @@ namespace Cyan
 
     void Renderer::renderSceneLighting(RenderTexture2D outSceneColor, const RenderableScene& scene, GBuffer gBuffer)
     {
+        GPU_DEBUG_SCOPE(sceneLightingPassMarker, "Scene Lighting");
+
         renderSceneDirectLighting(m_sceneTextures->directLighting, scene, gBuffer);
         renderSceneIndirectLighting(m_sceneTextures->indirectLighting, scene, gBuffer);
 
@@ -529,6 +593,8 @@ namespace Cyan
 
     void Renderer::renderSceneDirectLighting(RenderTexture2D outDirectLighting, const RenderableScene& scene, GBuffer gBuffer)
     {
+        GPU_DEBUG_SCOPE(sceneDirectLightingPassMarker, "Scene Direct");
+
         CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
         CreatePS(ps, "SceneDirectLightingPS", SHADER_SOURCE_PATH "scene_direct_lighting_p.glsl");
         CreatePixelPipeline(pipeline, "SceneDirectLightingPass", vs, ps);
@@ -539,24 +605,27 @@ namespace Cyan
                 pass.setRenderTarget(outDirectLightingGfx, 0);
                 pass.setRenderTarget(RenderTarget(m_sceneTextures->directDiffuseLighting.getGfxTexture2D()), 1);
             },
-            pipeline, 
-            [gBuffer](VertexShader* vs, PixelShader* ps) {
+            pipeline,
+            [gBuffer, &scene](VertexShader* vs, PixelShader* ps) {
+                // directionalLight parameters
+                scene.sunLight->setShaderParameters(ps);
+
                 ps->setTexture("sceneDepth", gBuffer.depth.getGfxDepthTexture2D());
                 ps->setTexture("sceneNormal", gBuffer.normal.getGfxTexture2D());
                 ps->setTexture("sceneAlbedo", gBuffer.albedo.getGfxTexture2D());
                 ps->setTexture("sceneMetallicRoughness", gBuffer.metallicRoughness.getGfxTexture2D());
             }
         );
-#if 0
         if (scene.skybox)
         {
             scene.skybox->render(m_sceneTextures->framebuffer, scene.view.view, scene.view.projection);
         }
-#endif
     }
 
     void Renderer::renderSceneIndirectLighting(RenderTexture2D outIndirectLighting, const RenderableScene& scene, GBuffer gBuffer)
     {
+        GPU_DEBUG_SCOPE(sceneIndirectLightingPassMarker, "Scene Indirect Lighting")
+
         auto outTexture = outIndirectLighting.getGfxTexture2D();
 
         // render AO and bent normal, as well as indirect irradiance
@@ -605,12 +674,7 @@ namespace Cyan
                 {
                     ps->setTexture("skyLight.irradiance", scene.skyLight->irradianceProbe->m_convolvedIrradianceTexture.get());
                     ps->setTexture("skyLight.reflection", scene.skyLight->reflectionProbe->m_convolvedReflectionTexture.get());
-                    auto BRDFLookupTexture = ReflectionProbe::getBRDFLookupTexture()->glHandle;
-                    if (glIsTextureHandleResidentARB(BRDFLookupTexture) == GL_FALSE) 
-                    {
-                        glMakeTextureHandleResidentARB(BRDFLookupTexture);
-                    }
-                    ps->setUniform("skyLight.BRDFLookupTexture", BRDFLookupTexture);
+                    ps->setTexture("skyLight.BRDFLookupTexture", ReflectionProbe::getBRDFLookupTexture());
                 }
             }
         );
@@ -938,6 +1002,8 @@ namespace Cyan
 
     RenderTexture2D Renderer::bloom(GfxTexture2D* src)
     {
+        GPU_DEBUG_SCOPE(bloomPassMarker, "Bloom");
+
         // setup pass
         RenderTexture2D bloomSetupTexture("BloomSetup", src->getSpec());
         GfxTexture2D* bloomSetupGfxTexture = bloomSetupTexture.getGfxTexture2D();
@@ -1175,6 +1241,8 @@ namespace Cyan
 
     void Renderer::renderUI() 
     {
+        GPU_DEBUG_SCOPE(UIPassMarker, "Render UI");
+
         // set to default render target
         m_ctx->setFramebuffer(nullptr);
 
@@ -1265,7 +1333,7 @@ namespace Cyan
 
     }
 
-    void Renderer::debugDrawCubemap(TextureCube* cubemap) {
+    void Renderer::debugDrawCubemap(GfxTextureCube* cubemap) {
 #if 0
         static PerspectiveCamera camera(
             glm::vec3(0.f, 1.f, 2.f),

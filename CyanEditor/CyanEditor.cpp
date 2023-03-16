@@ -27,7 +27,7 @@ namespace Cyan
             static const char* diorama = ASSET_PATH "mesh/sd_macross_diorama.glb";
             static const char* picapica = ASSET_PATH "mesh/pica_pica_scene.glb";
 
-            AssetImporter::importAsync(m_scene.get(), ueArchviz);
+            AssetImporter::importAsync(m_scene.get(), shaderBalls);
 
             // skybox
             auto skybox = m_scene->createSkybox("Skybox", ASSET_PATH "cubemaps/neutral_sky.hdr", glm::uvec2(2048));

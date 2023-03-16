@@ -15,7 +15,7 @@ namespace Cyan {
     class Renderer;
     class GfxContext;
     struct GfxTexture2D;
-    struct TextureCube;
+    struct GfxTextureCube;
     struct RenderableScene;
     struct RenderTarget;
 
@@ -45,8 +45,8 @@ namespace Cyan {
             virtual void clear() { }
             virtual void render(ManyViewGI* gi);
 
-            void writeRadiance(TextureCube* radianceCubemap, const glm::ivec2& texCoord);
-            void writeIrradiance(TextureCube* radianceCubemap, const Hemicube& hemicube, const glm::ivec2& texCoord);
+            void writeRadiance(GfxTextureCube* radianceCubemap, const glm::ivec2& texCoord);
+            void writeIrradiance(GfxTextureCube* radianceCubemap, const Hemicube& hemicube, const glm::ivec2& texCoord);
             bool finished() { return nextHemicube >= hemicubes.size(); }
             void compose();
             void renderDirectLighting();
@@ -113,7 +113,7 @@ namespace Cyan {
         virtual void customRenderScene(RenderableScene& scene, const Hemicube& hemicube, const PerspectiveCamera& camera);
         virtual void customUI() {}
 
-        TextureCube* finalGathering(const Hemicube& hemicube, RenderableScene& scene, bool jitter=false, const glm::vec3& jitteredSampleDirection=glm::vec3(0.f));
+        GfxTextureCube* finalGathering(const Hemicube& hemicube, RenderableScene& scene, bool jitter=false, const glm::vec3& jitteredSampleDirection=glm::vec3(0.f));
 
         struct VisualizationBuffers {
             glm::uvec2 resolution = glm::uvec2(640, 360);
@@ -132,7 +132,7 @@ namespace Cyan {
         Renderer* m_renderer = nullptr;
         GfxContext* m_gfxc = nullptr;
         std::unique_ptr<RenderableScene> m_scene = nullptr;
-        TextureCube* m_sharedRadianceCubemap = nullptr;
+        GfxTextureCube* m_sharedRadianceCubemap = nullptr;
         Image* m_image = nullptr;
     private:
         bool bInitialized = false;

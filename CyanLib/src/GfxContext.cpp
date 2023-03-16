@@ -294,7 +294,6 @@ namespace Cyan
         m_viewport = {};
         m_pixelPipeline->unbind();
         m_pixelPipeline = nullptr;
-        m_nextShaderStorageBinding = 0u;
 
         m_gfxPipelineState = GfxPipelineState { };
 

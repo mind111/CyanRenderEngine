@@ -16,7 +16,7 @@ namespace Cyan
             cascades[i].n = cascadeBoundries[i];
             cascades[i].f = cascadeBoundries[i + 1];
             GfxDepthTexture2D::Spec spec(resolution.x, resolution.y, 1);
-            cascades[i].depthTexture = std::unique_ptr<GfxDepthTexture2DBindless>(GfxDepthTexture2DBindless::create(spec));
+            cascades[i].depthTexture = std::unique_ptr<GfxDepthTexture2D>(GfxDepthTexture2D::create(spec));
         }
     }
 
@@ -123,18 +123,29 @@ namespace Cyan
         }
     }
 
-    GpuDirectionalShadowMap DirectionalShadowMap::buildGpuDirectionalShadowMap()
+    void DirectionalShadowMap::setShaderParameters(PixelShader* ps)
     {
-        GpuDirectionalShadowMap outShadowMap = { };
-        outShadowMap.lightSpaceView = glm::lookAt(glm::vec3(0.f), -lightDirection, glm::vec3(0.f, 1.f, 0.f));
-        for (i32 i = 0; i < kNumCascades; ++i)
-        {
-            outShadowMap.cascades[i].n = cascades[i].n;
-            outShadowMap.cascades[i].f = cascades[i].f;
-            cascades->depthTexture->makeResident();
-            outShadowMap.cascades[i].depthMapHandle = cascades[i].depthTexture->getTextureHandle();
-            outShadowMap.cascades[i].lightSpaceProjection = cascades[i].lightSpaceProjection;
-        }
-        return outShadowMap;
+        glm::mat4 lightSpaceView = glm::lookAt(glm::vec3(0.f), -lightDirection, glm::vec3(0.f, 1.f, 0.f));
+        ps->setUniform("directionalLight.shadowMap.lightSpaceView", lightSpaceView);
+        // 0
+        ps->setUniform("directionalLight.shadowMap.cascades[0].n", cascades[0].n);
+        ps->setUniform("directionalLight.shadowMap.cascades[0].f", cascades[0].f);
+        ps->setUniform("directionalLight.shadowMap.cascades[0].lightSpaceProjection", cascades[0].lightSpaceProjection);
+        ps->setTexture("directionalLight.shadowMap.cascades[0].depthTexture", cascades[0].depthTexture.get());
+        // 1
+        ps->setUniform("directionalLight.shadowMap.cascades[1].n", cascades[1].n);
+        ps->setUniform("directionalLight.shadowMap.cascades[1].f", cascades[1].f);
+        ps->setUniform("directionalLight.shadowMap.cascades[1].lightSpaceProjection", cascades[1].lightSpaceProjection);
+        ps->setTexture("directionalLight.shadowMap.cascades[1].depthTexture", cascades[1].depthTexture.get());
+        // 2
+        ps->setUniform("directionalLight.shadowMap.cascades[2].n", cascades[2].n);
+        ps->setUniform("directionalLight.shadowMap.cascades[2].f", cascades[2].f);
+        ps->setUniform("directionalLight.shadowMap.cascades[2].lightSpaceProjection", cascades[2].lightSpaceProjection);
+        ps->setTexture("directionalLight.shadowMap.cascades[2].depthTexture", cascades[2].depthTexture.get());
+        // 3
+        ps->setUniform("directionalLight.shadowMap.cascades[3].n", cascades[3].n);
+        ps->setUniform("directionalLight.shadowMap.cascades[3].f", cascades[3].f);
+        ps->setUniform("directionalLight.shadowMap.cascades[3].lightSpaceProjection", cascades[3].lightSpaceProjection);
+        ps->setTexture("directionalLight.shadowMap.cascades[3].depthTexture", cascades[3].depthTexture.get());
     }
 }

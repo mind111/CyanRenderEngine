@@ -32,11 +32,12 @@ layout(std430) buffer ViewBuffer
     float dummy;
 };
 
-uniform struct SkyLight {
+uniform struct SkyLight 
+{
 	float intensity;
-    uint64_t BRDFLookupTexture;
 	samplerCube irradiance;
 	samplerCube reflection;
+    sampler2D BRDFLookupTexture;
 } skyLight;
 
 struct Material 
@@ -219,7 +220,7 @@ vec3 calcSkyLight(SkyLight inSkyLight, in Material material, vec3 worldSpacePosi
     // todo: improve the specular part
     // reflection
     vec3 reflectionDirection = -reflect(worldSpaceViewDirection, material.normal);
-    vec3 BRDF = texture(sampler2D(inSkyLight.BRDFLookupTexture), vec2(ndotv, material.roughness)).rgb; 
+    vec3 BRDF = texture(inSkyLight.BRDFLookupTexture, vec2(ndotv, material.roughness)).rgb; 
     vec3 incidentRadiance = textureLod(samplerCube(skyLight.reflection), reflectionDirection, material.roughness * log2(textureSize(skyLight.reflection, 0).x)).rgb;
     radiance += incidentRadiance * (f0 * BRDF.r + BRDF.g);
 

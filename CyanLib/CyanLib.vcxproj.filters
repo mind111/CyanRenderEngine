@@ -252,6 +252,9 @@
     <ClInclude Include="include\RenderPass.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\GfxTexture.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\LightEntities.cpp">
@@ -384,6 +387,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\RenderPass.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GfxTexture.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -864,6 +870,15 @@
     </None>
     <None Include="..\shader\colored_quad_p.glsl">
       <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\scene_depth_only_v.glsl">
+      <Filter>Shaders\Shading</Filter>
+    </None>
+    <None Include="..\shader\scene_gbuffer_pass_non_bindless_v.glsl">
+      <Filter>Shaders\Shading</Filter>
+    </None>
+    <None Include="..\shader\scene_gbuffer_pass_non_bindless_p.glsl">
+      <Filter>Shaders\Shading</Filter>
     </None>
   </ItemGroup>
 </Project>

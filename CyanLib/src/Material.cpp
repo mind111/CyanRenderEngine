@@ -5,79 +5,33 @@
 
 namespace Cyan 
 {
-    void MaterialBasic::setShaderParameters(PixelShader* ps)
+    void Material::setShaderParameters(PixelShader* ps) 
     {
-        u32 materialFlag = 0u;
-        if (albedoMap != nullptr && albedoMap->isInited()) 
+        u32 flag = 0;
+        if (albedoMap != nullptr && albedoMap->isInited())
         {
-            ps->setTexture("albedoMap", albedoMap->gfxTexture.get());
-            materialFlag |= (u32)Material::Flags::kHasAlbedoMap;
+            ps->setTexture("materialDesc.albedoMap", albedoMap->getGfxResource());
+            flag |= (u32)Flags::kHasAlbedoMap;
         }
         if (normalMap != nullptr && normalMap->isInited())
         {
-            ps->setTexture("normalMap", normalMap->gfxTexture.get());
-            materialFlag |= (u32)Material::Flags::kHasNormalMap;
+            ps->setTexture("materialDesc.normalMap", normalMap->getGfxResource());
+            flag |= (u32)Flags::kHasNormalMap;
         }
-        if (metallicRoughnessMap != nullptr && metallicRoughnessMap->isInited()) 
+        if (metallicRoughnessMap != nullptr && metallicRoughnessMap->isInited())
         {
-            ps->setTexture("metallicRoughnessMap", metallicRoughnessMap->gfxTexture.get());
-            materialFlag |= (u32)Material::Flags::kHasMetallicRoughnessMap;
+            ps->setTexture("materialDesc.metallicRoughnessMap", metallicRoughnessMap->getGfxResource());
+            flag |= (u32)Flags::kHasMetallicRoughnessMap;
         }
-        if (occlusionMap != nullptr && occlusionMap->isInited()) 
+        if (occlusionMap != nullptr && occlusionMap->isInited())
         {
-            ps->setTexture("occlusionMap", occlusionMap->gfxTexture.get());
-            materialFlag |= (u32)Material::Flags::kHasOcclusionMap;
+            ps->setTexture("materialDesc.occlusionMap", occlusionMap->getGfxResource());
+            flag |= (u32)Flags::kHasOcclusionMap;
         }
-        ps->setUniform("albedo", albedo);
-        ps->setUniform("metallic", metallic);
-        ps->setUniform("roughness", roughness);
-        ps->setUniform("emissive", emissive);
-        ps->setUniform("materialFlag", materialFlag);
-    }
-
-    RenderableScene::Material MaterialBindless::buildGpuMaterial()
-    {
-        RenderableScene::Material outGpuMaterial = { };
-        if (albedoMap != nullptr && albedoMap->isInited()) 
-        {
-            outGpuMaterial.albedoMap = albedoMap->gfxTexture->glHandle;
-            outGpuMaterial.flag |= (u32)Flags::kHasAlbedoMap;
-            if (glIsTextureHandleResidentARB(outGpuMaterial.albedoMap) == GL_FALSE) 
-            {
-                glMakeTextureHandleResidentARB(outGpuMaterial.albedoMap);
-            }
-        }
-        if (normalMap != nullptr && normalMap->isInited())
-        {
-            outGpuMaterial.normalMap = normalMap->gfxTexture->glHandle;
-            outGpuMaterial.flag |= (u32)Flags::kHasNormalMap;
-            if (glIsTextureHandleResidentARB(outGpuMaterial.normalMap) == GL_FALSE) 
-            {
-                glMakeTextureHandleResidentARB(outGpuMaterial.normalMap);
-            }
-        }
-        if (metallicRoughnessMap != nullptr && metallicRoughnessMap->isInited()) 
-        {
-            outGpuMaterial.metallicRoughnessMap = metallicRoughnessMap->gfxTexture->glHandle;
-            outGpuMaterial.flag |= (u32)Flags::kHasMetallicRoughnessMap;
-            if (glIsTextureHandleResidentARB(outGpuMaterial.metallicRoughnessMap) == GL_FALSE) 
-            {
-                glMakeTextureHandleResidentARB(outGpuMaterial.metallicRoughnessMap);
-            }
-        }
-        if (occlusionMap != nullptr && occlusionMap->isInited()) 
-        {
-            outGpuMaterial.occlusionMap = occlusionMap->gfxTexture->glHandle;
-            outGpuMaterial.flag |= (u32)Flags::kHasOcclusionMap;
-            if (glIsTextureHandleResidentARB(outGpuMaterial.occlusionMap) == GL_FALSE) 
-            {
-                glMakeTextureHandleResidentARB(outGpuMaterial.occlusionMap);
-            }
-        }
-        outGpuMaterial.albedo = albedo;
-        outGpuMaterial.metallic = metallic;
-        outGpuMaterial.roughness = roughness;
-        outGpuMaterial.emissive = emissive;
-        return outGpuMaterial;
+        ps->setUniform("materialDesc.albedo", albedo);
+        ps->setUniform("materialDesc.metallic", metallic);
+        ps->setUniform("materialDesc.roughness", roughness);
+        ps->setUniform("materialDesc.emissive", emissive);
+        ps->setUniform("materialDesc.flag", flag);
     }
 }

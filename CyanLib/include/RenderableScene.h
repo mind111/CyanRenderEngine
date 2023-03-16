@@ -19,6 +19,7 @@ namespace Cyan
     struct SkyLight;
     struct PointLight;
     struct MeshInstance;
+    struct Material;
     struct VertexArray;
 
     struct IndirectDrawArrayCommand
@@ -81,24 +82,6 @@ namespace Cyan
             glm::mat4 projection;
         };
 
-        // todo: regardless of the material implementation, either using bindless texture or texture atlas, their GpuData representation should
-        // be identical
-        using TextureHandle = u64;
-        struct Material
-        {
-            TextureHandle albedoMap;
-            TextureHandle normalMap;
-            TextureHandle metallicRoughnessMap;
-            TextureHandle emissiveMap;
-            TextureHandle occlusionMap;
-            TextureHandle padding;
-            glm::vec4 albedo;
-            f32 metallic;
-            f32 roughness;
-            f32 emissive;
-            u32 flag;
-        };
-
         struct Instance 
         {
             u32 submesh = 0;
@@ -127,8 +110,8 @@ namespace Cyan
         // instances
         std::vector<MeshInstance*> meshInstances;
         std::vector<glm::mat4> transforms;
+        std::vector<Material*> materials;
         std::vector<Instance> instances;
-        std::vector<Material> materials;
         // use draw call id to get instance id
         std::vector<u32> instanceLUT;
 
@@ -143,11 +126,9 @@ namespace Cyan
         // gpu side buffers
         std::unique_ptr<ShaderStorageBuffer> viewBuffer = nullptr;
         std::unique_ptr<ShaderStorageBuffer> transformBuffer = nullptr;
-        std::unique_ptr<ShaderStorageBuffer> materialBuffer = nullptr;
         std::unique_ptr<ShaderStorageBuffer> instanceBuffer = nullptr;
         std::unique_ptr<ShaderStorageBuffer> instanceLUTBuffer = nullptr;
         // todo: convert this to a general light buffer where all light data is stored
-        std::unique_ptr<ShaderStorageBuffer> directionalLightBuffer = nullptr;
         std::unique_ptr<IndirectDrawBuffer> indirectDrawBuffer = nullptr;
     };
 }

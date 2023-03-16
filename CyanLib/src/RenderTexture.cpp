@@ -20,6 +20,10 @@ namespace Cyan
 
     RenderTexture& RenderTexture::operator=(const RenderTexture& src)
     {
+        if (refCount != nullptr)
+        {
+            (*refCount)--;
+        }
         name = src.name;
         refCount = src.refCount;
         (*refCount)++;

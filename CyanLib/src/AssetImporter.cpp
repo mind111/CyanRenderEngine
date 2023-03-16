@@ -311,7 +311,7 @@ namespace Cyan
                 Sampler2D sampler;
                 bool bGenerateMipmap = false;
                 gltf::translateSampler(gltfSampler, sampler, bGenerateMipmap);
-                auto texture = AssetManager::createTexture2DBindless(textureName.c_str(), image, sampler);
+                auto texture = AssetManager::createTexture2D(textureName.c_str(), image, sampler);
                 // async importing
                 texture->import();
             }

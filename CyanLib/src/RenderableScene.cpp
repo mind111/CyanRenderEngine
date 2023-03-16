@@ -25,12 +25,49 @@ namespace Cyan
 
         // todo: cpu side culling can be done here, cull the instances within the scene to view frustum ...?
 
-        // build list of mesh instances, transforms
-        for (auto staticMesh : inScene->m_staticMeshes)
+        std::unordered_map<std::string, i32> materialMap;
+        // build list of mesh instances, transforms, and materials
+        for (i32 i = 0; i < inScene->m_staticMeshes.size(); ++i)
         {
+            auto staticMesh = inScene->m_staticMeshes[i];
             glm::mat4 transformMat = staticMesh->getWorldTransformMatrix();
             transforms.push_back(transformMat);
-            meshInstances.push_back(staticMesh->getMeshInstance());
+            auto meshInstance = staticMesh->getMeshInstance();
+            meshInstances.push_back(meshInstance);
+
+            auto mesh = meshInstance->mesh;
+            for (u32 sm = 0; sm < mesh->numSubmeshes(); ++sm)
+            {
+                auto submesh = mesh->getSubmesh(sm);
+                if (submesh->bInitialized)
+                {
+                    Instance instance = { };
+                    instance.transform = i;
+
+                    // todo: properly handle other types of geometries
+                    if (dynamic_cast<Triangles*>(submesh->geometry.get()))
+                    {
+                        instance.submesh = submesh->index;
+
+                        // todo: properly handle material
+                        auto material = meshInstance->getMaterial(sm);
+                        auto entry = materialMap.find(material->name);
+                        if (entry != materialMap.end())
+                        {
+                            instance.material = entry->second;
+                        }
+                        else
+                        {
+                            u32 materialIndex = materials.size();
+                            materialMap.insert({ material->name, materialIndex });
+                            materials.push_back(material);
+                            instance.material = materialIndex;
+                        }
+
+                        instances.push_back(instance);
+                    }
+                }
+            }
         }
 
         // build list of lights
@@ -54,45 +91,6 @@ namespace Cyan
         // todo: these two need to be turned into entities
         skybox = inScene->skybox;
         skyLight = inScene->skyLight;
-
-        // build instance descriptors
-        std::unordered_map<std::string, i32> materialMap;
-        for (u32 i = 0; i < meshInstances.size(); ++i)
-        {
-            auto mesh = meshInstances[i]->mesh;
-            for (u32 sm = 0; sm < mesh->numSubmeshes(); ++sm)
-            {
-                auto submesh = mesh->getSubmesh(sm);
-                if (submesh->bInitialized)
-                {
-                    Instance instance = { };
-                    instance.transform = i;
-
-                    // todo: properly handle other types of geometries
-                    if (dynamic_cast<Triangles*>(submesh->geometry.get()))
-                    {
-                        instance.submesh = submesh->index;
-
-                        // todo: properly handle material
-                        auto material = meshInstances[i]->getMaterial(sm);
-                        auto entry = materialMap.find(material->name);
-                        if (entry != materialMap.end())
-                        {
-                            instance.material = entry->second;
-                        }
-                        else
-                        {
-                            materials.emplace_back(material->buildGpuMaterial());
-                            u32 materialIndex = materials.size() - 1;
-                            materialMap.insert({ material->name, materialIndex });
-                            instance.material = materialIndex;
-                        }
-
-                        instances.push_back(instance);
-                    }
-                }
-            }
-        }
 
         // build the lookup table that maps draw call index to instance index for each draw
         if (!instances.empty())
@@ -139,15 +137,6 @@ namespace Cyan
             instanceLUTBuffer->write(instanceLUT, 0);
         }
 
-        if (!materials.empty())
-        {
-            materialBuffer = std::make_unique<ShaderStorageBuffer>("MaterialBuffer", sizeOfVector(materials));
-            materialBuffer->write(materials, 0);
-        }
-
-        directionalLightBuffer = std::make_unique<ShaderStorageBuffer>("DirectionalLightBuffer", sizeof(GpuDirectionalLight));
-        directionalLightBuffer->write(sunLight->buildGpuDirectionalLight(), 0);
-
         std::vector<IndirectDrawArrayCommand> indirectDrawCommands;
         for (i32 draw = 0; draw < instanceLUT.size() - 1; ++draw)
         {
@@ -184,7 +173,6 @@ namespace Cyan
         transformBuffer.reset(new ShaderStorageBuffer(*src.transformBuffer));
         instanceBuffer.reset(new ShaderStorageBuffer(*src.instanceBuffer));
         instanceLUTBuffer.reset(new ShaderStorageBuffer(*src.instanceLUTBuffer));
-        directionalLightBuffer.reset(new ShaderStorageBuffer(*src.directionalLightBuffer));
         indirectDrawBuffer.reset(new IndirectDrawBuffer(*src.indirectDrawBuffer));
     }
 
@@ -203,7 +191,6 @@ namespace Cyan
         transformBuffer.reset(new ShaderStorageBuffer(*src.transformBuffer));
         instanceBuffer.reset(new ShaderStorageBuffer(*src.instanceBuffer));
         instanceLUTBuffer.reset(new ShaderStorageBuffer(*src.instanceLUTBuffer));
-        directionalLightBuffer.reset(new ShaderStorageBuffer(*src.directionalLightBuffer));
         indirectDrawBuffer.reset(new IndirectDrawBuffer(*src.indirectDrawBuffer));
         return *this;
     }
@@ -216,10 +203,8 @@ namespace Cyan
 
         ctx->setShaderStorageBuffer(viewBuffer.get());
         ctx->setShaderStorageBuffer(transformBuffer.get());
-        ctx->setShaderStorageBuffer(materialBuffer.get());
         ctx->setShaderStorageBuffer(instanceBuffer.get());
         ctx->setShaderStorageBuffer(instanceLUTBuffer.get());
-        ctx->setShaderStorageBuffer(directionalLightBuffer.get());
 
         // todo: fix this at some point
         ctx->setVertexArray(dummyVertexArray);

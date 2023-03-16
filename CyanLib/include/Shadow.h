@@ -27,7 +27,7 @@ namespace Cyan
             f32 n;
             f32 f;
             BoundingBox3D worldSpaceAABB;
-            std::unique_ptr<GfxDepthTexture2DBindless> depthTexture = nullptr;
+            std::unique_ptr<GfxDepthTexture2D> depthTexture = nullptr;
             glm::mat4 lightSpaceProjection;
         };
 
@@ -36,7 +36,7 @@ namespace Cyan
         DirectionalShadowMap(const DirectionalLight& inDirectionalLight);
         virtual ~DirectionalShadowMap() { }
 
-        GpuDirectionalShadowMap buildGpuDirectionalShadowMap();
+        void setShaderParameters(PixelShader* ps);
 
         static constexpr f32 cascadeBoundries[5] = { 0.0f, 0.1f, 0.3f, 0.6f, 1.0f };
         static constexpr u32 kNumCascades = 4u;

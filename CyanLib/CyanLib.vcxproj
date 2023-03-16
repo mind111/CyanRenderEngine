@@ -36,6 +36,7 @@
     <ClInclude Include="include\CyanCore.h" />
     <ClInclude Include="include\CyanEngine.h" />
     <ClInclude Include="include\ExternalAssetFile.h" />
+    <ClInclude Include="include\GfxTexture.h" />
     <ClInclude Include="include\gltf.h" />
     <ClInclude Include="include\Image.h" />
     <ClInclude Include="include\IndexBuffer.h" />
@@ -87,6 +88,7 @@
     <ClCompile Include="src\CyanAPI.cpp" />
     <ClCompile Include="src\CyanApp.cpp" />
     <ClCompile Include="src\CyanEngine.cpp" />
+    <ClCompile Include="src\GfxTexture.cpp" />
     <ClCompile Include="src\gltf.cpp" />
     <ClCompile Include="src\Image.cpp" />
     <ClCompile Include="src\IndexBuffer.cpp" />
@@ -140,9 +142,12 @@
     <None Include="..\shader\mvgi_direct_lighting.glsl" />
     <None Include="..\shader\mvgi_gbuffer_p.glsl" />
     <None Include="..\shader\mvgi_indirect_lighting.glsl" />
+    <None Include="..\shader\scene_depth_only_v.glsl" />
     <None Include="..\shader\scene_depth_prepass_p.glsl" />
     <None Include="..\shader\scene_direct_lighting_p.glsl" />
     <None Include="..\shader\scene_gbuffer_p.glsl" />
+    <None Include="..\shader\scene_gbuffer_pass_non_bindless_p.glsl" />
+    <None Include="..\shader\scene_gbuffer_pass_non_bindless_v.glsl" />
     <None Include="..\shader\scene_gbuffer_texture_atlas_p.glsl" />
     <None Include="..\shader\scene_indirect_lighting_p.glsl" />
     <None Include="..\shader\scene_lighting_p.glsl" />

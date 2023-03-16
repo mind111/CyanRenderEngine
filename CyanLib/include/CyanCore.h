@@ -21,3 +21,15 @@ namespace Cyan
         GLuint glObject;
     };
 }
+
+namespace std
+{
+    template <>
+    struct hash<Cyan::GpuResource>
+    {
+        std::size_t operator()(const Cyan::GpuResource& gpuResource) const
+        {
+            return std::hash<GLuint>()(gpuResource.getGpuResource());
+        }
+    };
+}

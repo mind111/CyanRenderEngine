@@ -35,7 +35,7 @@ namespace Cyan
         }
 
         virtual void renderShadowMap(Scene* inScene, Renderer* renderer);
-        GpuDirectionalLight buildGpuDirectionalLight();
+        void setShaderParameters(PixelShader* ps);
 
         glm::vec3 direction = glm::normalize(glm::vec3(1.f, 1.f, 1.f));
         bool bCastShadow = true;
@@ -82,14 +82,14 @@ namespace Cyan
         SkyLight(Scene* scene, const glm::vec4& colorAndIntensity, const char* srcHDRI = nullptr);
         ~SkyLight() { }
 
-        void buildCubemap(Texture2D* srcEquirectMap, TextureCube* dstCubemap);
+        void buildCubemap(Texture2D* srcEquirectMap, GfxTextureCube* dstCubemap);
         void build();
 
         static u32 numInstances;
 
         // todo: handle object ownership here
         Texture2D* srcEquirectTexture = nullptr;
-        std::unique_ptr<TextureCube> srcCubemap = nullptr;
+        std::unique_ptr<GfxTextureCube> srcCubemap = nullptr;
         std::unique_ptr<IrradianceProbe> irradianceProbe = nullptr;
         std::unique_ptr<ReflectionProbe> reflectionProbe = nullptr;
     };

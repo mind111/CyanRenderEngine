@@ -18,7 +18,7 @@ namespace Cyan
     }
 
     // layer is basically face
-    void Framebuffer::setColorBuffer(TextureCube* texture, u32 index, u32 layer, u32 mip)
+    void Framebuffer::setColorBuffer(GfxTextureCube* texture, u32 index, u32 layer, u32 mip)
     {
         glNamedFramebufferTexture2DEXT(getGpuResource(), GL_COLOR_ATTACHMENT0 + index, GL_TEXTURE_CUBE_MAP_POSITIVE_X + layer, texture->getGpuResource(), mip);
         colorBuffers[index] = texture;

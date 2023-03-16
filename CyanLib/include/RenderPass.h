@@ -6,7 +6,7 @@ namespace Cyan
 {
     glm::uvec2 getFramebufferSize(GfxTexture2D* texture);
     glm::uvec2 getFramebufferSize(GfxDepthTexture2D* texture);
-    glm::uvec2 getFramebufferSize(TextureCube* texture);
+    glm::uvec2 getFramebufferSize(GfxTextureCube* texture);
 
     /**
      * RenderPass encapsulates the the rendering work that shares the same set of render targets, depth buffer (same framebuffer setup) and graphics pipeline states

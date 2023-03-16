@@ -26,6 +26,24 @@ namespace Cyan
     struct Framebuffer;
     struct RenderPass;
 
+    struct GpuDebugMarker
+    {
+        GpuDebugMarker(const char* inMessage)
+            : message(inMessage)
+        {
+            glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, message);
+        }
+
+        ~GpuDebugMarker()
+        {
+            glPopDebugGroup();
+        }
+
+        const char* message = nullptr;
+    };
+#define GPU_DEBUG_SCOPE(markerVar, markerMsg) GpuDebugMarker markerVar(markerMsg);
+
+
     struct SceneView 
     {
         SceneView(Scene* inScene, Camera* inCamera, GfxTexture2D* renderOutput)
@@ -107,8 +125,9 @@ namespace Cyan
         void renderSceneDepthOnly(RenderableScene& renderableScene, GfxDepthTexture2D* outDepthTexture);
         void renderShadowMaps(Scene* inScene);
         void renderSceneDepthPrepass(const RenderableScene& renderableScene, RenderDepthTexture2D outDepthBuffer);
-        void renderSceneGBuffer(const RenderableScene& scene, GBuffer gBuffer);
+#ifdef BINDLESS_TEXTURE
         void renderSceneGBufferBindless(const RenderableScene& scene, GBuffer gBuffer);
+#endif
         void renderSceneGBufferNonBindless(const RenderableScene& scene, GBuffer gBuffer);
         void renderSceneGBufferWithTextureAtlas(Framebuffer* outFramebuffer, RenderableScene& scene, GBuffer gBuffer);
         void renderSceneLighting(RenderTexture2D outSceneColor, const RenderableScene& scene, GBuffer gBuffer);
@@ -143,7 +162,7 @@ namespace Cyan
         void debugDrawSphere(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection);
         void debugDrawCubeImmediate(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection);
         void debugDrawCubeBatched(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::vec3& facingDir, const glm::vec4& albedo, const glm::mat4& view, const glm::mat4& projection);
-        void debugDrawCubemap(TextureCube* cubemap);
+        void debugDrawCubemap(GfxTextureCube* cubemap);
         void debugDrawCubemap(GLuint cubemap);
 
         void addUIRenderCommand(const std::function<void()>& UIRenderCommand);

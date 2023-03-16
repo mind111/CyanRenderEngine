@@ -9,7 +9,7 @@ namespace Cyan
     struct Skybox
     {
         Skybox(const char* name, const char* srcHDRIPath, const glm::uvec2& resolution);
-        Skybox(const char* name, TextureCube* srcCubemap);
+        Skybox(const char* name, GfxTextureCube* srcCubemap);
 
         ~Skybox() { }
 
@@ -22,6 +22,6 @@ namespace Cyan
         static PixelPipeline* s_proceduralSkyPipeline;
 
         Texture2D* m_srcHDRITexture = nullptr;
-        std::unique_ptr<TextureCube> m_cubemapTexture = nullptr;
+        std::unique_ptr<GfxTextureCube> m_cubemapTexture = nullptr;
     };
 }

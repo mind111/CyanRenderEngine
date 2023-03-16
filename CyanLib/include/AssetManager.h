@@ -76,7 +76,7 @@ namespace Cyan
         // textures
         static Image* createImage(const char* name);
         static Texture2D* createTexture2D(const char* name, Image* srcImage, const Sampler2D& inSampler = Sampler2D{});
-        static Texture2DBindless* createTexture2DBindless(const char* name, Image* srcImage, const Sampler2D& inSampler = Sampler2D{});
+        // static Texture2DBindless* createTexture2DBindless(const char* name, Image* srcImage, const Sampler2D& inSampler = Sampler2D{});
 
         // meshes
         static StaticMesh* importWavefrontObj(const char* meshName, const char* baseDir, const char* filename);
@@ -84,8 +84,9 @@ namespace Cyan
         static StaticMesh* createStaticMesh(const char* name, u32 numSubmeshes);
 
         static Material* createMaterial(const char* name);
-        static MaterialBindless* createMaterialBindless(const char* name);
-        static MaterialTextureAtlas* createPackedMaterial(const char* name);
+        static i32 getMaterialIndex(Material* material);
+        // static MaterialBindless* createMaterialBindless(const char* name);
+        // static MaterialTextureAtlas* createPackedMaterial(const char* name);
 
         // getters
         template <typename T>
@@ -123,46 +124,23 @@ namespace Cyan
         }
 
         template<>
-        static Texture2DBindless* getAsset<Texture2DBindless>(const char* textureName)
+        static GfxTextureCube* getAsset<GfxTextureCube>(const char* textureName)
         {
             const auto& entry = singleton->m_textureMap.find(textureName);
             if (entry == singleton->m_textureMap.end())
             {
                 return nullptr;
             }
-            return dynamic_cast<Texture2DBindless*>(entry->second);
-        }
-
-#if 0
-        template<>
-        static Texture3D* getAsset<Texture3D>(const char* textureName)
-        {
-            const auto& entry = singleton->m_textureMap.find(textureName);
-            if (entry == singleton->m_textureMap.end())
-            {
-                return nullptr;
-            }
-            return dynamic_cast<Texture3D*>(entry->second);
-        }
-#endif
-        
-        template<>
-        static TextureCube* getAsset<TextureCube>(const char* textureName)
-        {
-            const auto& entry = singleton->m_textureMap.find(textureName);
-            if (entry == singleton->m_textureMap.end())
-            {
-                return nullptr;
-            }
-            return dynamic_cast<TextureCube*>(entry->second);
+            return dynamic_cast<GfxTextureCube*>(entry->second);
         }
 
         template <>
         static Material* getAsset<Material>(const char* name) 
         {
             auto entry = singleton->m_materialMap.find(std::string(name));
-            if (entry != singleton->m_materialMap.end()) {
-                return entry->second;
+            if (entry != singleton->m_materialMap.end()) 
+            {
+                return singleton->m_materials[entry->second];
             }
             return nullptr;
         }
@@ -273,13 +251,14 @@ namespace Cyan
         std::vector<StaticMesh*> m_meshes;
         std::vector<Image*> m_images;
         std::vector<Texture2DBase*> m_textures;
+        std::vector<Material*> m_materials;
 
         // todo: need to switch to use indices at some point
         std::unordered_map<std::string, std::unique_ptr<Scene>> m_sceneMap;
         std::unordered_map<std::string, StaticMesh*> m_meshMap;
         std::unordered_map<std::string, Image*> m_imageMap;
         std::unordered_map<std::string, Texture2DBase*> m_textureMap;
-        std::unordered_map<std::string, Material*> m_materialMap;
-        std::unordered_map<std::string, MaterialTextureAtlas> m_packedMaterialMap;
+        std::unordered_map<std::string, u32> m_materialMap;
+        // std::unordered_map<std::string, MaterialTextureAtlas> m_packedMaterialMap;
     };
 }
