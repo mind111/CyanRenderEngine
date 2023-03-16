@@ -6,6 +6,7 @@
 #include "AssetManager.h"
 #include "AssetImporter.h"
 #include "RenderPass.h"
+#include "CyanRenderer.h"
 
 namespace Cyan
 {
@@ -81,10 +82,8 @@ namespace Cyan
         }
 
         // make sure that the input cubemap resolution is power of 2
-        if (m_cubemapTexture->resolution & (m_cubemapTexture->resolution - 1) != 0) 
-        {
-            assert(0);
-        }
+        assert(isPowerOf2(m_cubemapTexture->resolution));
+
         m_cubemapTexture->numMips = (u32)log2f(m_cubemapTexture->resolution) + 1;
         glGenerateTextureMipmap(m_cubemapTexture->getGpuResource());
     }
@@ -95,17 +94,16 @@ namespace Cyan
 
     }
 
-    void Skybox::render(Framebuffer* framebuffer, const glm::mat4& view, const glm::mat4& projection, f32 mipLevel)
+    void Skybox::render(RenderTexture2D colorBuffer, RenderDepthTexture2D depthBuffer, const glm::mat4& view, const glm::mat4& projection, f32 mipLevel)
     {
-        StaticMesh* cubeMesh = AssetManager::getAsset<StaticMesh>("UnitCubeMesh");
-
         Renderer::get()->drawStaticMesh(
-            getFramebufferSize(m_cubemapTexture.get()),
-            []() {
-
+            getFramebufferSize(colorBuffer.getGfxTexture2D()),
+            [this, colorBuffer, depthBuffer](RenderPass& pass) {
+                pass.setRenderTarget(colorBuffer.getGfxTexture2D(), 0, false);
+                pass.setDepthBuffer(depthBuffer.getGfxDepthTexture2D(), false);
             },
-            { 0, 0, framebuffer->width, framebuffer->height },
-            cubeMesh,
+            { 0, 0, colorBuffer.getGfxTexture2D()->width, colorBuffer.getGfxTexture2D()->height },
+            AssetManager::getAsset<StaticMesh>("UnitCubeMesh"),
             s_cubemapSkyPipeline,
             [this, mipLevel, view, projection](VertexShader* vs, PixelShader* ps) {
                 vs->setUniform("view", view);
@@ -113,7 +111,7 @@ namespace Cyan
                 ps->setUniform("mipLevel", mipLevel);
                 ps->setTexture("cubemapTexture", m_cubemapTexture.get());
             },
-            GfxPipelineState { }
+            GfxPipelineState()
         );
     }
 }

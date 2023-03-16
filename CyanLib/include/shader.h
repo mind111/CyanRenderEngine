@@ -225,41 +225,6 @@ namespace Cyan
         virtual bool initialize() { return true; }
     };
 
-    struct RenderTarget
-    {
-        RenderTarget() = default;
-        RenderTarget(GfxTexture2D* inTexture, u32 inMip = 0, const glm::vec4& inClearColor = glm::vec4(0.f, 0.f, 0.f, 1.f)) 
-            : texture(inTexture), mip(inMip), clearColor(inClearColor)
-        { 
-            if (texture)
-            {
-                width = max(inTexture->width / pow(2, mip), width);
-                height = max(inTexture->height / pow(2, mip), height);
-                assert(width > 0);
-                assert(height > 0);
-            }
-        }
-
-        RenderTarget(GfxTextureCube* inTexture, u32 inLayer, u32 inMip = 0, const glm::vec4& inClearColor = glm::vec4(0.f, 0.f, 0.f, 1.f)) 
-            : texture(inTexture), mip(inMip), layer(inLayer), clearColor(inClearColor)
-        { 
-            if (texture)
-            {
-                width = max(inTexture->resolution / pow(2, mip), width);
-                height = max(inTexture->resolution / pow(2, mip), height);
-                assert(width > 0);
-                assert(height > 0);
-            }
-        }
-
-        GfxTexture* texture = nullptr;
-        u32 width = 1;
-        u32 height = 1;
-        u32 mip = 0;
-        u32 layer = 0; // this is only used if texture is of type GfxTextureCube
-        glm::vec4 clearColor = glm::vec4(0.f, 0.f, 0.f, 1.f);
-    };
-
     class PixelPipeline : public ProgramPipeline 
     {
     public:

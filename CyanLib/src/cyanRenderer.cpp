@@ -616,9 +616,10 @@ namespace Cyan
                 ps->setTexture("sceneMetallicRoughness", gBuffer.metallicRoughness.getGfxTexture2D());
             }
         );
+
         if (scene.skybox)
         {
-            scene.skybox->render(m_sceneTextures->framebuffer, scene.view.view, scene.view.projection);
+            scene.skybox->render(m_sceneTextures->directLighting, gBuffer.depth, scene.view.view, scene.view.projection);
         }
     }
 

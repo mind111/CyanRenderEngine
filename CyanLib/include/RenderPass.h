@@ -21,11 +21,11 @@ namespace Cyan
 
         void render(GfxContext* ctx);
 
-        void setRenderTarget(const RenderTarget& inRenderTarget, u32 binding);
-        void setDepthBuffer(GfxDepthTexture2D* inDepthTexture);
+        void setRenderTarget(const RenderTarget& inRenderTarget, u32 binding, bool bClear = true);
+        void setDepthBuffer(GfxDepthTexture2D* inDepthTexture, bool bClear = true);
 
         glm::uvec2 framebufferSize = glm::uvec2(0u);
-        Viewport viewport;
+        Viewport viewport = { };
         // todo: should also allow pipeline to be changed during the execution of drawLambda
         // PixelPipeline* pipeline = nullptr;
         GfxPipelineState gfxPipelineState = { };
@@ -35,6 +35,8 @@ namespace Cyan
         bool hasAnyRenderTargetBound();
 
         RenderTarget renderTargets[8];
+        bool bPendingClearColor[8] = { false, false, false, false, false, false, false, false };
         GfxDepthTexture2D* depthBuffer = nullptr;
+        bool bPendingClearDepth = false;
     };
 }

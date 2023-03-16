@@ -6,17 +6,19 @@ namespace Cyan
     glm::uvec2 getFramebufferSize(GfxDepthTexture2D* texture) { return glm::uvec2(texture->width, texture->height); }
     glm::uvec2 getFramebufferSize(GfxTextureCube* texture) { return glm::uvec2(texture->resolution, texture->resolution); }
 
-    void RenderPass::setRenderTarget(const RenderTarget& inRenderTarget, u32 binding)
+    void RenderPass::setRenderTarget(const RenderTarget& inRenderTarget, u32 binding, bool bClearColor)
     {
         assert(binding < 8);
         assert(inRenderTarget.width == framebufferSize.x && inRenderTarget.height == framebufferSize.y);
         renderTargets[binding] = inRenderTarget;
+        bPendingClearColor[binding] = bClearColor;
     }
 
-    void RenderPass::setDepthBuffer(GfxDepthTexture2D* inDepthTexture)
+    void RenderPass::setDepthBuffer(GfxDepthTexture2D* inDepthTexture, bool bClearDepth)
     {
         assert(inDepthTexture->width == framebufferSize.x && inDepthTexture->height == framebufferSize.y);
         depthBuffer = inDepthTexture;
+        bPendingClearDepth = bClearDepth;
     }
 
     bool RenderPass::hasAnyRenderTargetBound()
@@ -72,14 +74,20 @@ namespace Cyan
             {
                 if (drawBuffers[i] >= 0) 
                 {
-                    outFramebuffer->clearDrawBuffer(i, renderTargets[i].clearColor);
+                    if (bPendingClearColor[i])
+                    {
+                        outFramebuffer->clearDrawBuffer(i, renderTargets[i].clearColor);
+                    }
                 }
             }
             // setup depth buffer
             if (depthBuffer != nullptr)
             {
                 outFramebuffer->setDepthBuffer(depthBuffer);
-                outFramebuffer->clearDepthBuffer();
+                if (bPendingClearDepth)
+                {
+                    outFramebuffer->clearDepthBuffer();
+                }
             }
         }
 
