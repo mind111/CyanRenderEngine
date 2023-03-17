@@ -11,6 +11,7 @@ namespace Cyan
     struct GBuffer;
     struct HiZBuffer;
     struct GfxTexture2DArray;
+    struct RenderableScene;
 
     struct SSGI
     {
@@ -33,7 +34,7 @@ namespace Cyan
         // basic brute force hierarchical tracing without spatial ray reuse
         void render(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIrradiance, const GBuffer& gBuffer, const HiZBuffer& HiZ, RenderTexture2D inDirectDiffuseBuffer);
         // spatial reuse
-        void renderEx(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIrradiance, const GBuffer& gBuffer, const HiZBuffer& HiZ, RenderTexture2D inDirectDiffuseBuffer);
+        void renderEx(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIrradiance, const GBuffer& gBuffer, const RenderableScene& scene, const HiZBuffer& HiZ, RenderTexture2D inDirectDiffuseBuffer);
         // todo: spatio-temporal reuse
 
         static const u32 kNumSamples = 8u;

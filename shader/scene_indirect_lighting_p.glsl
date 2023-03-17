@@ -28,8 +28,6 @@ layout(std430) buffer ViewBuffer
 {
     mat4  view;
     mat4  projection;
-    float m_ssao;
-    float dummy;
 };
 
 uniform struct SkyLight 

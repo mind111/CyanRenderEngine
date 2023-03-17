@@ -13,6 +13,7 @@ namespace Cyan
         glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &kMaxCombinedTextureUnits);
         glGetIntegerv(GL_MAX_COMBINED_SHADER_STORAGE_BLOCKS, &kMaxCombinedShaderStorageBlocks);
         m_textureBindings.resize(kMaxCombinedTextureUnits);
+        m_shaderStorageBindings.resize(kMaxCombinedShaderStorageBlocks);
     }
 
     glm::uvec2 GfxContext::getDefaultFramebufferSize()
@@ -57,22 +58,16 @@ namespace Cyan
         };
 
         auto bindShaderStorageBuffers = [this](Shader* shader) {
-            for (const auto& shaderStorageBlock : shader->m_shaderStorageBlockMap) 
+            for (const auto& shaderStorageBinding : shader->m_shaderStorageBindingMap) 
             {
-                std::string blockName = shaderStorageBlock.first;
-                u32 blockIndex = shaderStorageBlock.second;
-                if (!m_shaderStorageBindingMap.empty())
+                std::string blockName = shaderStorageBinding.first;
+                u32 blockIndex = shaderStorageBinding.second.blockIndex;
+                ShaderStorageBuffer* buffer = shaderStorageBinding.second.buffer;
+                if (buffer != nullptr)
                 {
-                    auto entry = m_shaderStorageBindingMap.find(blockName);
-                    if (entry == m_shaderStorageBindingMap.end()) 
-                    {
-                        cyanError("ShaderStorageBuffer %s is not currently bound", blockName.c_str());
-                    }
-                    else 
-                    {
-                        u32 binding = entry->second;
-                        glShaderStorageBlockBinding(shader->getProgram(), blockIndex, binding);
-                    }
+                    u32 shaderStorageBinding = allocShaderStorageBinding();
+                    glShaderStorageBlockBinding(shader->getGpuResource(), blockIndex, shaderStorageBinding);
+                    buffer->bind(this, shaderStorageBinding);
                 }
             }
         };
@@ -92,6 +87,14 @@ namespace Cyan
         return outTextureUnit;
     }
 
+    u32 GfxContext::allocShaderStorageBinding()
+    {
+        assert(numUsedShaderStorageBindings < kMaxCombinedShaderStorageBlocks);
+        u32 outShaderStorageBinding = numUsedShaderStorageBindings;
+        numUsedShaderStorageBindings++;
+        return outShaderStorageBinding;
+    }
+
     void GfxContext::resetTextureBindingState()
     {
         // reset all previously used texture units to cleanup texture binding state
@@ -103,9 +106,22 @@ namespace Cyan
         numUsedTextureUnits = 0;
     }
 
+    void GfxContext::resetShaderStorageBindingState()
+    {
+        for (u32 i = 0; i < numUsedShaderStorageBindings; ++i)
+        {
+            if (m_shaderStorageBindings[i] != nullptr)
+            {
+                m_shaderStorageBindings[i]->unbind(this);
+            }
+        }
+        numUsedShaderStorageBindings = 0;
+    }
+
     void GfxContext::setProgramPipelineInternal()
     {
         resetTextureBindingState();
+        resetShaderStorageBindingState();
     }
 
     void GfxContext::setPixelPipeline(PixelPipeline* pixelPipelineObject, const std::function<void(VertexShader*, PixelShader*)>& setupShaders) 
@@ -189,6 +205,13 @@ namespace Cyan
         GLuint textureObject = texture == nullptr ? 0 : texture->getGpuResource();
         glBindTextureUnit(textureUnit, textureObject);
         m_textureBindings[textureUnit] = texture;
+    }
+
+    void GfxContext::setShaderStorageBuffer(ShaderStorageBuffer* buffer, u32 binding) 
+    {
+        GLuint shaderStorageObject = buffer == nullptr ? 0 : buffer->getGpuResource();
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding, shaderStorageObject);
+        m_shaderStorageBindings[binding] = buffer;
     }
 
     void GfxContext::setVertexArray(VertexArray* va) 

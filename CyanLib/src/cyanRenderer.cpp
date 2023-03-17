@@ -391,8 +391,18 @@ namespace Cyan
             CreatePS(ps, "SceneDepthPrepassPS", SHADER_SOURCE_PATH "scene_depth_prepass_p.glsl");
             CreatePixelPipeline(pipeline, "SceneDepthPrepass", vs, ps);
             pass.drawLambda = [&scene, pipeline](GfxContext* ctx) { 
-                scene.bind(ctx);
+                auto vs = pipeline->m_vertexShader;
+                vs->setShaderStorageBuffer(StaticMesh::getGlobalSubmeshBuffer());
+                vs->setShaderStorageBuffer(StaticMesh::getGlobalVertexBuffer());
+                vs->setShaderStorageBuffer(StaticMesh::getGlobalIndexBuffer());
+                vs->setShaderStorageBuffer(scene.viewBuffer.get());
+                vs->setShaderStorageBuffer(scene.transformBuffer.get());
+                vs->setShaderStorageBuffer(scene.instanceBuffer.get());
+                vs->setShaderStorageBuffer(scene.instanceLUTBuffer.get());
+
                 ctx->setPixelPipeline(pipeline);
+                // hack: suppress no vertex array bound gl error
+                ctx->setVertexArray(AssetManager::getAsset<StaticMesh>("FullScreenQuadMesh")->getSubmesh(0)->getVertexArray());
                 ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get()); 
             };
             pass.render(m_ctx);
@@ -411,8 +421,18 @@ namespace Cyan
         CreatePixelPipeline(pipeline, "DepthOnly", vs, ps);
         pass.gfxPipelineState.depth = DepthControl::kEnable;
         pass.drawLambda = [&scene, pipeline](GfxContext* ctx) { 
-            scene.bind(ctx);
+            auto vs = pipeline->m_vertexShader;
+            vs->setShaderStorageBuffer(StaticMesh::getGlobalSubmeshBuffer());
+            vs->setShaderStorageBuffer(StaticMesh::getGlobalVertexBuffer());
+            vs->setShaderStorageBuffer(StaticMesh::getGlobalIndexBuffer());
+            vs->setShaderStorageBuffer(scene.viewBuffer.get());
+            vs->setShaderStorageBuffer(scene.transformBuffer.get());
+            vs->setShaderStorageBuffer(scene.instanceBuffer.get());
+            vs->setShaderStorageBuffer(scene.instanceLUTBuffer.get());
+
             ctx->setPixelPipeline(pipeline);
+            // hack: suppress no vertex array bound gl error
+            ctx->setVertexArray(AssetManager::getAsset<StaticMesh>("FullScreenQuadMesh")->getSubmesh(0)->getVertexArray());
             ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get()); 
         };
         pass.render(m_ctx);
@@ -505,11 +525,19 @@ namespace Cyan
         pass.drawLambda = [&scene, pipeline](GfxContext* ctx) { 
             // todo: maybe it's worth moving those shader storage buffer cached in "scene" into each function as a
             // static variable, and every time this function is called, reset the data of those persistent gpu buffers
-            scene.bind(ctx);
-
-            ctx->setShaderStorageBuffer(bindlessMaterialBuffer.get());
+            auto vs = pipeline->m_vertexShader;
+            vs->setShaderStorageBuffer(StaticMesh::getGlobalSubmeshBuffer());
+            vs->setShaderStorageBuffer(StaticMesh::getGlobalVertexBuffer());
+            vs->setShaderStorageBuffer(StaticMesh::getGlobalIndexBuffer());
+            vs->setShaderStorageBuffer(scene.viewBuffer.get());
+            vs->setShaderStorageBuffer(scene.transformBuffer.get());
+            vs->setShaderStorageBuffer(scene.instanceBuffer.get());
+            vs->setShaderStorageBuffer(scene.instanceLUTBuffer.get());
+            vs->setShaderStorageBuffer(bindlessMaterialBuffer.get());
 
             ctx->setPixelPipeline(pipeline);
+            // hack: suppress no vertex array bound gl error
+            ctx->setVertexArray(AssetManager::getAsset<StaticMesh>("FullScreenQuadMesh")->getSubmesh(0)->getVertexArray());
             ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get()); 
         };
         pass.render(m_ctx);
@@ -534,12 +562,12 @@ namespace Cyan
         CreatePS(ps, "SceneNonBindlessGBufferPassPS", SHADER_SOURCE_PATH "scene_gbuffer_pass_non_bindless_p.glsl");
         CreatePixelPipeline(pipeline, "SceneGBufferPass", vs, ps);
         pass.drawLambda = [&scene, pipeline](GfxContext* ctx) {
-            ctx->setShaderStorageBuffer(scene.viewBuffer.get());
-            ctx->setShaderStorageBuffer(scene.transformBuffer.get());
-
             // bind shared data,
             auto vs = pipeline->m_vertexShader;
+            vs->setShaderStorageBuffer(scene.viewBuffer.get());
+            vs->setShaderStorageBuffer(scene.transformBuffer.get());
             auto ps = pipeline->m_pixelShader;
+
             for (i32 i = 0; i < scene.meshInstances.size(); ++i)
             {
                 vs->setUniform("instanceID", i);
@@ -610,6 +638,7 @@ namespace Cyan
                 // directionalLight parameters
                 scene.sunLight->setShaderParameters(ps);
 
+                ps->setShaderStorageBuffer(scene.viewBuffer.get());
                 ps->setTexture("sceneDepth", gBuffer.depth.getGfxDepthTexture2D());
                 ps->setTexture("sceneNormal", gBuffer.normal.getGfxTexture2D());
                 ps->setTexture("sceneAlbedo", gBuffer.albedo.getGfxTexture2D());
@@ -636,7 +665,7 @@ namespace Cyan
         }
 
         auto SSGI = SSGI::create(glm::uvec2(outTexture->width, outTexture->height));
-        SSGI->renderEx(m_sceneTextures->ao, m_sceneTextures->bentNormal, m_sceneTextures->irradiance, m_sceneTextures->gBuffer, m_sceneTextures->HiZ, m_sceneTextures->directDiffuseLighting);
+        SSGI->renderEx(m_sceneTextures->ao, m_sceneTextures->bentNormal, m_sceneTextures->irradiance, m_sceneTextures->gBuffer, scene, m_sceneTextures->HiZ, m_sceneTextures->directDiffuseLighting);
 
         CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
         CreatePS(ps, "SceneIndirectLightingPass", SHADER_SOURCE_PATH "scene_indirect_lighting_p.glsl");
@@ -647,8 +676,9 @@ namespace Cyan
             [outTexture](RenderPass& pass) {
                 pass.setRenderTarget(outTexture, 0);
             },
-            pipeline, 
+            pipeline,
             [this, &scene, gBuffer](VertexShader* vs, PixelShader* ps) {
+                ps->setShaderStorageBuffer(scene.viewBuffer.get());
                 ps->setTexture("sceneDepth", gBuffer.depth.getGfxDepthTexture2D());
                 ps->setTexture("sceneNormal", gBuffer.normal.getGfxTexture2D());
                 ps->setTexture("sceneAlbedo", gBuffer.albedo.getGfxTexture2D());
@@ -716,8 +746,8 @@ namespace Cyan
         {
             CreateCS(cs, "SSRTRayDebugCS", SHADER_SOURCE_PATH "ssrt_ray_debug_c.glsl");
             CreateComputePipeline(pipeline, "SSRTRayDebug", cs);
-            m_ctx->setShaderStorageBuffer(&debugTraceBuffer);
-            m_ctx->setShaderStorageBuffer(&debugRayBuffer);
+            cs->setShaderStorageBuffer(&debugTraceBuffer);
+            cs->setShaderStorageBuffer(&debugRayBuffer);
             m_ctx->setComputePipeline(pipeline, [this, depth, normal](ComputeShader* cs) {
                     cs->setUniform("debugCoord", debugCoord);
                     cs->setTexture("depthBuffer", depth);

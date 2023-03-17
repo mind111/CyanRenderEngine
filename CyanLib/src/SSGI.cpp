@@ -71,7 +71,7 @@ namespace Cyan
         );
     }
 
-    void SSGI::renderEx(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIrradiance, const GBuffer& gBuffer, const HiZBuffer& HiZ, RenderTexture2D inDirectDiffuseBuffer)
+    void SSGI::renderEx(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIrradiance, const GBuffer& gBuffer, const RenderableScene& scene, const HiZBuffer& HiZ, RenderTexture2D inDirectDiffuseBuffer)
     {
         GfxTexture2D* sceneDepth = gBuffer.depth.getGfxDepthTexture2D();
 
@@ -90,7 +90,8 @@ namespace Cyan
                 pass.setRenderTarget(outIrradiance.getGfxTexture2D(), 2);
             },
             pipeline,
-            [this, gBuffer, sceneDepth, HiZ, inDirectDiffuseBuffer](VertexShader* vs, PixelShader* ps) {
+            [this, gBuffer, sceneDepth, HiZ, inDirectDiffuseBuffer, &scene](VertexShader* vs, PixelShader* ps) {
+                ps->setShaderStorageBuffer(scene.viewBuffer.get());
                 ps->setUniform("outputSize", glm::vec2(sceneDepth->width, sceneDepth->height));
                 ps->setTexture("depthBuffer", sceneDepth);
                 ps->setTexture("normalBuffer", gBuffer.normal.getGfxTexture2D());
@@ -119,7 +120,8 @@ namespace Cyan
                     pass.setRenderTarget(outIrradiance.getGfxTexture2D(), 2);
                 },
                 pipeline,
-                [this, gBuffer](VertexShader* vs, PixelShader* ps) {
+                [this, gBuffer, &scene](VertexShader* vs, PixelShader* ps) {
+                    ps->setShaderStorageBuffer(scene.viewBuffer.get());
                     ps->setTexture("depthBuffer", gBuffer.depth.getGfxDepthTexture2D());
                     ps->setTexture("normalBuffer", gBuffer.normal.getGfxTexture2D());
                     ps->setTexture("hitPositionBuffer", hitBuffer.position);

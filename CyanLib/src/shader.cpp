@@ -172,7 +172,8 @@ namespace Cyan
                 {
                     i32 nameLength = -1;
                     glGetProgramResourceName(program, GL_SHADER_STORAGE_BLOCK, i, maxNameLength, &nameLength, name);
-                    shader->m_shaderStorageBlockMap.insert({ std::string(name), i });
+                    ShaderStorageBinding binding = { i, nullptr };
+                    shader->m_shaderStorageBindingMap.insert({ std::string(name), binding });
                 }
             }
         }
@@ -254,6 +255,14 @@ namespace Cyan
         {
             m_samplerBindingMap[std::string(samplerName)] = texture;
         }
+        return *this;
+    }
+
+    Shader& Shader::setShaderStorageBuffer(ShaderStorageBuffer* buffer)
+    {
+        auto entry = m_shaderStorageBindingMap.find(buffer->getBlockName());
+        assert(entry != m_shaderStorageBindingMap.end());
+        entry->second.buffer = buffer;
         return *this;
     }
 

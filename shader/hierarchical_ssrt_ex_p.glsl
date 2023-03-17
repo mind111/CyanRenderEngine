@@ -24,8 +24,6 @@ layout(std430) buffer ViewBuffer
 {
     mat4  view;
     mat4  projection;
-    float m_ssao;
-    float dummy;
 };
 
 vec3 screenToWorld(vec3 pp, mat4 invView, mat4 invProjection) 

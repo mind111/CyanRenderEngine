@@ -80,20 +80,7 @@ namespace Cyan
         void setTexture(GfxTexture* texture, u32 textureUnit);
         // todo: implement this
         void setImage(GfxTexture2DArray* textuerArray, u32 binding, u32 layered = true, u32 layer = 0) { }
-
-        void setShaderStorageBuffer(ShaderStorageBuffer* buffer) 
-        {
-            auto entry = m_shaderStorageBindingMap.find(buffer->getBlockName());
-            if (entry == m_shaderStorageBindingMap.end())  
-            {
-                m_shaderStorageBindingMap[buffer->getBlockName()] = m_nextShaderStorageBinding;
-                buffer->bind(m_nextShaderStorageBinding++);
-            }
-            else 
-            {
-                buffer->bind(entry->second);
-            }
-        }
+        void setShaderStorageBuffer(ShaderStorageBuffer* buffer, u32 binding);
 
         void setVertexArray(VertexArray* array);
         void setPrimitiveType(PrimitiveMode type);
@@ -126,19 +113,15 @@ namespace Cyan
         void setShaderInternal(Shader* shader);
         void setProgramPipelineInternal();
         void resetTextureBindingState();
+        void resetShaderStorageBindingState();
         u32 allocTextureUnit();
+        u32 allocShaderStorageBinding();
 
         GLFWwindow* m_glfwWindow = nullptr;
-
         Framebuffer* m_framebuffer = nullptr;
         Viewport m_viewport;
-
         PixelPipeline* m_pixelPipeline = nullptr;
-        std::unordered_map<std::string, u32> m_shaderStorageBindingMap;
-        u32 m_nextShaderStorageBinding = 0u;
-
         GfxPipelineState m_gfxPipelineState;
-
         VertexArray* m_vertexArray = nullptr;
         glm::vec4 m_clearColor = glm::vec4(.2f, .2f, .2f, 1.f);
 
@@ -147,5 +130,7 @@ namespace Cyan
         static i32 kMaxCombinedShaderStorageBlocks;
         u32 numUsedTextureUnits = 0;
         std::vector<GfxTexture*> m_textureBindings;
+        u32 numUsedShaderStorageBindings = 0;
+        std::vector<ShaderStorageBuffer*> m_shaderStorageBindings;
     };
 }

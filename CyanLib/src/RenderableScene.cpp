@@ -194,19 +194,4 @@ namespace Cyan
         indirectDrawBuffer.reset(new IndirectDrawBuffer(*src.indirectDrawBuffer));
         return *this;
     }
-
-    void RenderableScene::bind(GfxContext* ctx) const
-    {
-        ctx->setShaderStorageBuffer(StaticMesh::getGlobalSubmeshBuffer());
-        ctx->setShaderStorageBuffer(StaticMesh::getGlobalVertexBuffer());
-        ctx->setShaderStorageBuffer(StaticMesh::getGlobalIndexBuffer());
-
-        ctx->setShaderStorageBuffer(viewBuffer.get());
-        ctx->setShaderStorageBuffer(transformBuffer.get());
-        ctx->setShaderStorageBuffer(instanceBuffer.get());
-        ctx->setShaderStorageBuffer(instanceLUTBuffer.get());
-
-        // todo: fix this at some point
-        ctx->setVertexArray(dummyVertexArray);
-    }
 }

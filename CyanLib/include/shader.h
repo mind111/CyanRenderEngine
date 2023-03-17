@@ -20,6 +20,7 @@
 namespace Cyan 
 {
     class GfxContext;
+    struct ShaderStorageBuffer;
 
     struct ShaderSource 
     {
@@ -72,6 +73,12 @@ namespace Cyan
             } type;
             std::string name;
             i32 location;
+        };
+
+        struct ShaderStorageBinding
+        {
+            u32 blockIndex = 0;
+            ShaderStorageBuffer* buffer = nullptr;
         };
 
         friend class GfxContext;
@@ -138,6 +145,7 @@ namespace Cyan
         Shader& setUniform(const char* name, const glm::vec4& data);
         Shader& setUniform(const char* name, const glm::mat4& data);
         Shader& setTexture(const char* samplerName, GfxTexture* texture);
+        Shader& setShaderStorageBuffer(ShaderStorageBuffer* buffer);
 
         std::string m_name;
         ShaderSource m_source;
@@ -160,7 +168,7 @@ namespace Cyan
 
         std::unordered_map<std::string, UniformDesc> m_uniformMap;
         std::unordered_map<std::string, GfxTexture*> m_samplerBindingMap;
-        std::unordered_map<std::string, u32> m_shaderStorageBlockMap;
+        std::unordered_map<std::string, ShaderStorageBinding> m_shaderStorageBindingMap;
     };
 
     class VertexShader : public Shader 
@@ -214,6 +222,7 @@ namespace Cyan
         {
             glBindProgramPipeline(glObject);
         }
+
 
         void unbind()
         {
