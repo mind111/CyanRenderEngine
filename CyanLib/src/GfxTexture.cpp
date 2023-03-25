@@ -234,6 +234,16 @@ namespace Cyan
             glTextureFormat.format = GL_RED;
             glTextureFormat.type = GL_UNSIGNED_BYTE;
             break;
+        case GfxTexture::Format::kR16F:
+            glTextureFormat.internalFormat = GL_R16F;
+            glTextureFormat.format = GL_RED;
+            glTextureFormat.type = GL_FLOAT;
+            break;
+        case GfxTexture::Format::kR32F:
+            glTextureFormat.internalFormat = GL_R32F;
+            glTextureFormat.format = GL_RED;
+            glTextureFormat.type = GL_FLOAT;
+            break;
         case GfxTexture::Format::kD24S8:
             glTextureFormat.internalFormat = GL_DEPTH24_STENCIL8;
             glTextureFormat.format = GL_DEPTH_STENCIL;

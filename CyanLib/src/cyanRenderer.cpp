@@ -126,7 +126,7 @@ namespace Cyan
     Renderer::SceneTextures::SceneTextures(const glm::uvec2& inResolution)
         : resolution(inResolution)
         , gBuffer(inResolution)
-        , HiZ(GfxTexture2D::Spec(gBuffer.depth.getGfxDepthTexture2D()->width, gBuffer.depth.getGfxDepthTexture2D()->height, 1, PF_RGB32F))
+        , HiZ(GfxTexture2D::Spec(gBuffer.depth.getGfxDepthTexture2D()->width, gBuffer.depth.getGfxDepthTexture2D()->height, 1, PF_R32F))
         , directLighting("SceneDirectLighting", GfxTexture2D::Spec(inResolution.x, inResolution.y, 1, PF_RGBA16F), Sampler2D())
         , directDiffuseLighting("SceneDirectDiffuseLighting", GfxTexture2D::Spec(inResolution.x, inResolution.y, 1, PF_RGBA16F), Sampler2D())
         , indirectLighting("SceneIndirectLighting", GfxTexture2D::Spec(inResolution.x, inResolution.y, 1, PF_RGB16F), Sampler2D())
@@ -665,7 +665,7 @@ namespace Cyan
         }
 
         auto SSGI = SSGI::create(glm::uvec2(outTexture->width, outTexture->height));
-        SSGI->renderEx(m_sceneTextures->ao, m_sceneTextures->bentNormal, m_sceneTextures->irradiance, m_sceneTextures->gBuffer, scene, m_sceneTextures->HiZ, m_sceneTextures->directDiffuseLighting);
+        SSGI->render(m_sceneTextures->ao, m_sceneTextures->bentNormal, m_sceneTextures->irradiance, m_sceneTextures->gBuffer, scene, m_sceneTextures->HiZ, m_sceneTextures->directDiffuseLighting);
 
         CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
         CreatePS(ps, "SceneIndirectLightingPass", SHADER_SOURCE_PATH "scene_indirect_lighting_p.glsl");
@@ -847,9 +847,9 @@ namespace Cyan
             {
 #if 0 
                 CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
-                CreatePS(ps, "SSRTDebugMirrorPS", SHADER_SOURCE_PATH "ssrt_debug_mirror_p.glsl");
-                CreatePixelPipeline(pipeline, "SSRTDebugMirror", vs, ps);
-                auto framebuffer = createCachedFramebuffer("SSRTDebugMirror", m_sceneTextures->framebuffer->width, m_sceneTextures->framebuffer->height);
+                CreatePS(ps, "SSRTDebugMirrorPS", SHADER_SOURCE_PATH "ssgi_debug_mirror_p.glsl");
+                CreatePixelPipeline(pipeline, "SSGIDebugMirror", vs, ps);
+                auto framebuffer = createCachedFramebuffer("SSGIDebugMirror", m_sceneTextures->framebuffer->width, m_sceneTextures->framebuffer->height);
                 framebuffer->setColorBuffer(m_sceneTextures->ssgiMirror.getGfxTexture2D(), 0);
                 framebuffer->setDrawBuffers({ 0 });
                 framebuffer->clearDrawBuffer({ 0 }, glm::vec4(0.f, 0.f, 0.f, 1.f), false);

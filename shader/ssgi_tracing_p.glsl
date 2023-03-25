@@ -7,10 +7,6 @@ in VSOutput
 	vec2 texCoord0;
 } psIn;
 
-layout(location = 0) out vec3 ssao;
-layout(location = 1) out vec3 ssbn;
-layout(location = 2) out vec3 outIrradiance;
-
 uniform sampler2D depthBuffer;
 uniform sampler2D normalBuffer;
 uniform sampler2D HiZ;
@@ -248,7 +244,7 @@ bool hierarchicalTrace(in vec3 worldSpaceRO, in vec3 worldSpaceRD, inout float t
 
     // slightly offset the ray in screen space to avoid self intersection
     screenSpaceT += 0.001f;
-
+// todo: review the rest of this tracing procedure
     int level = numLevels - 1;
     for (int i = 0; i < kMaxNumIterations; ++i)
     {
@@ -272,7 +268,7 @@ bool hierarchicalTrace(in vec3 worldSpaceRO, in vec3 worldSpaceRD, inout float t
 		float tDepth;
         if (minDepth <= pp.z)
         {
-            tDepth = minDepth - pp.z;
+            tDepth = (minDepth - pp.z);
         }
         else
         {
@@ -285,15 +281,7 @@ bool hierarchicalTrace(in vec3 worldSpaceRO, in vec3 worldSpaceRD, inout float t
 		vec2 texelSize = 1.f / mipSize;
 		vec2 coord = pp.xy / texelSize;
         vec4 boundry = vec4(floor(coord.x), ceil(coord.x), floor(coord.y), ceil(coord.y));
-        // deal with the edge case where floor() == ceil()
-        if (boundry.x == boundry.y)
-        {
-            boundry.x -= 1.f;
-        }
-        if (boundry.z == boundry.w)
-        {
-            boundry.z -= 1.f;
-        }
+
 		float left = boundry.x * texelSize.x;
 		float right = boundry.y * texelSize.x;
 		float bottom = boundry.z * texelSize.y;
@@ -312,7 +300,7 @@ bool hierarchicalTrace(in vec3 worldSpaceRO, in vec3 worldSpaceRD, inout float t
 		if (tDepth <= tCellBoundry)
 		{
             // we find a good enough hit
-			if (level <= 0)
+			if (level <= 1)
             {
                 if (tDepth > 0.f)
                 {
@@ -348,47 +336,6 @@ layout(rgba16f, binding = 1) uniform image2DArray hitNormalBuffer;
 layout(rgba16f, binding = 2) uniform image2DArray hitRadianceBuffer;
 uniform int numSamples; 
 
- void calcDiffuseGIWithSpatialReuse(vec3 p, vec3 n, inout float ao, inout vec3 bentNormal) 
-{
-    int numOccludedRays = 0;
-    for (int ray = 0; ray < numSamples; ++ray)
-    {
-		ivec3 texCoord = ivec3(ivec2(floor(psIn.texCoord0 * textureSize(depthBuffer, 0).x)), ray);
-        // clear hit buffer
-		imageStore(hitPositionBuffer, texCoord, vec4(0.f));
-		imageStore(hitNormalBuffer, texCoord, vec4(0.f));
-		imageStore(hitRadianceBuffer, texCoord, vec4(0.f));
-
-		float randomRotation = texture(blueNoiseTexture, gl_FragCoord.xy / float(textureSize(blueNoiseTexture, 0).xy)).r * PI * 2.f;
-		vec3 rd = normalize(blueNoiseCosWeightedSampleHemisphere(n, BlueNoiseInDisk[ray], randomRotation));
-        // vec3 rd = uniformSampleHemisphere(n);
-
-        float t;
-        bool bHit = hierarchicalTrace(p, rd, t);
-        if (bHit)
-        {
-            numOccludedRays++;
-            // accumulate indirect lighting
-            vec3 hitPosition = p + t * rd;
-            // project to screen space and then sample the direct lighting buffer
-            vec3 screenSpaceHitPos = worldToScreen(hitPosition, view, projection);
-            vec3 hitNormal = normalize(texture(normalBuffer, screenSpaceHitPos.xy).xyz * 2.f - 1.f);
-			vec3 hitRadiance = texture(directLightingBuffer, screenSpaceHitPos.xy).rgb;
-            // cache the hit data
-            imageStore(hitPositionBuffer, texCoord, vec4(hitPosition, 1.f));
-            imageStore(hitNormalBuffer, texCoord, vec4(hitNormal, 0.f));
-            imageStore(hitRadianceBuffer, texCoord, vec4(hitRadiance, 1.f));
-        }
-        else 
-        {
-			bentNormal += rd;
-        }
-	}
-
-	ao = float(numOccludedRays) / float(numSamples);
-	bentNormal = normalize(bentNormal);
-};
-
 void main()
 {	
     seed = 0;
@@ -407,11 +354,34 @@ void main()
 	vec3 viewDirection = normalize(-(view * vec4(worldSpaceRO, 1.f)).xyz);
 	vec3 worldSpaceViewDirection = (inverse(view) * vec4(viewDirection, 0.f)).xyz;
 
-    float ao = 1.f;
-    vec3 bentNormal = worldSpaceViewDirection;
-    vec3 irradiance = vec3(0.f);
-    calcDiffuseGIWithSpatialReuse(worldSpaceRO, normal, ao, bentNormal);
+    // trace rays
+    for (int ray = 0; ray < numSamples; ++ray)
+    {
+		ivec3 texCoord = ivec3(ivec2(floor(psIn.texCoord0 * textureSize(depthBuffer, 0).x)), ray);
 
-    ssao = vec3(1.f - ao);
-    ssbn = bentNormal * .5f + .5f;
+        // clear hit buffer
+		imageStore(hitPositionBuffer, texCoord, vec4(0.f));
+		imageStore(hitNormalBuffer, texCoord, vec4(0.f));
+		imageStore(hitRadianceBuffer, texCoord, vec4(0.f));
+
+		// float randomRotation = texture(blueNoiseTexture, gl_FragCoord.xy / float(textureSize(blueNoiseTexture, 0).xy)).r * PI * 2.f;
+		// vec3 rd = normalize(blueNoiseCosWeightedSampleHemisphere(normal, BlueNoiseInDisk[ray], randomRotation));
+		vec3 rd = uniformSampleHemisphere(normal);
+
+        float t;
+        bool bHit = hierarchicalTrace(worldSpaceRO, rd, t);
+        if (bHit)
+        {
+            // accumulate indirect lighting
+            vec3 hitPosition = worldSpaceRO + t * rd;
+            // project to screen space and then sample the direct lighting buffer
+            vec3 screenSpaceHitPos = worldToScreen(hitPosition, view, projection);
+            vec3 hitNormal = normalize(texture(normalBuffer, screenSpaceHitPos.xy).xyz * 2.f - 1.f);
+			vec3 hitRadiance = texture(directLightingBuffer, screenSpaceHitPos.xy).rgb;
+            // cache the hit data
+            imageStore(hitPositionBuffer, texCoord, vec4(hitPosition, 1.f));
+            imageStore(hitNormalBuffer, texCoord, vec4(hitNormal, 0.f));
+            imageStore(hitRadianceBuffer, texCoord, vec4(hitRadiance, 1.f));
+        }
+	}
 }

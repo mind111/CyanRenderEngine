@@ -6,6 +6,8 @@ in VSOutput
 	vec2 texCoord0;
 } psIn;
 
+layout(location = 0) out vec3 outAO;
+layout(location = 1) out vec3 outBentNormal;
 layout(location = 2) out vec3 outIrradiance;
 
 uniform sampler2D depthBuffer;
@@ -114,7 +116,6 @@ void main()
 {
 	vec3 textureDim = textureSize(hitPositionBuffer, 0);
 	int numSamples = int(textureDim.z);
-	vec3 irradiance = vec3(0.f);
 
 	float depth = texture(depthBuffer, psIn.texCoord0).r;
 
@@ -125,7 +126,10 @@ void main()
 	vec3 worldSpaceRO = screenToWorld(vec3(psIn.texCoord0, depth) * 2.f - 1.f, inverse(view), inverse(projection));
 	vec3 worldSpaceNormal = normalize(texture(normalBuffer, psIn.texCoord0).rgb * 2.f - 1.f);
 
-    int totalNumSamples = 0;
+    float ao = 0.f;
+    vec3 bentNormal = worldSpaceNormal;
+	vec3 irradiance = vec3(0.f);
+
 	// no reuse first
 	for (int i = 0; i < numSamples; ++i)
 	{
@@ -137,36 +141,42 @@ void main()
 			vec3 hitNormal = texture(hitNormalBuffer, texCoord).rgb;
 			vec3 hitRadiance = texture(hitRadianceBuffer, texCoord).rgb;
 			vec3 rd = normalize(hitPosition.xyz - worldSpaceRO);
+            ao += 1.f;
 			bool bInUpperHemisphere = dot(hitNormal, -rd) > 0.f;
 			if (bInUpperHemisphere)
 			{
 				irradiance += hitRadiance * max(dot(worldSpaceNormal, rd), 0.f);
 			}
 		}
-        totalNumSamples += 1;
+		else
+		{
+			bentNormal += normalize(hitPosition.xyz - worldSpaceRO);
+		}
+	}
 
-        // reuse
-        for (int s = 0; s < numReuseSamples; ++s)
+    int numValidReuseSamples = 0;
+	// reuse
+	for (int s = 0; s < numReuseSamples; ++s)
+	{
+        vec2 offset = BlueNoiseInDisk[s] * reuseKernelRadius;
+		float randomRotation = texture(blueNoiseTexture, gl_FragCoord.xy / float(textureSize(blueNoiseTexture, 0).xy)).r * PI * 2.f;
+		// rotate input samples
+		mat2 rotation = {
+			{ cos(randomRotation), sin(randomRotation) },
+			{ -sin(randomRotation), cos(randomRotation) }
+		};
+		offset = rotation * offset;
+		vec3 sampleCoord = vec3(psIn.texCoord0 + offset, 0);
+
+        if (sampleCoord.x >= 0. && sampleCoord.x <= 1.f && sampleCoord.y >= 0.f && sampleCoord.y <= 1.f)
         {
-            /** note - @min: this random rotation here is not friendly to the texture cache
-            * are there any remedies to this ...?
-            */
-			float randomRotation = texture(blueNoiseTexture, gl_FragCoord.xy / float(textureSize(blueNoiseTexture, 0).xy)).r * PI * 2.f;
-			mat2 rotation = {
-				{ cos(randomRotation), sin(randomRotation) },
-				{ -sin(randomRotation), cos(randomRotation) }
-			};
-            vec3 sampleCoord = vec3(texCoord.xy + rotation * (BlueNoiseInDisk[s] * reuseKernelRadius), i);
-
-            // reject neighbor samples if the depth/normal difference is too big
-            float neighborDepth = texture(depthBuffer, sampleCoord.xy).r;
-            vec3 neighborNormal = normalize(texture(normalBuffer, sampleCoord.xy).rgb * 2.f - 1.f);
-            if (abs(neighborDepth - depth) > 0.01 && dot(neighborNormal, worldSpaceNormal) < 0.8)
-            {
+			// reject neighbor samples if the depth/normal difference is too big
+			float neighborDepth = texture(depthBuffer, sampleCoord.xy).r;
+			vec3 neighborNormal = normalize(texture(normalBuffer, sampleCoord.xy).rgb * 2.f - 1.f);
+			if (abs(neighborDepth - depth) > 0.005 && dot(neighborNormal, worldSpaceNormal) < 0.9)
+			{
 				continue;
-            }
-
-            // todo: deal with the edge case where the kernel taps goes outside of the texture space
+			}
 
 			vec4 hitPosition = texture(hitPositionBuffer, sampleCoord).rgba;
 			if (hitPosition.w > 0.f)
@@ -174,19 +184,22 @@ void main()
 				vec3 hitNormal = texture(hitNormalBuffer, sampleCoord).rgb;
 				vec3 hitRadiance = texture(hitRadianceBuffer, sampleCoord).rgb;
 				vec3 rd = normalize(hitPosition.xyz - worldSpaceRO);
+				ao += 1.f;
 				bool bInUpperHemisphere = dot(hitNormal, -rd) > 0.f;
-				irradiance += bInUpperHemisphere ? hitRadiance * max(dot(worldSpaceNormal, rd), 0.f) : vec3(0.f);
-                /** note - @min:
-                * Only count neighbor rays that found a intersection, not sure if this is correct way of doing this,
-                * but simply counting every neighbor tap as valid will makes the output "darker" as not every neighbor
-                * taps found a hit. This helps preserve the overall brightness of the resulting indirect irradiance
-                * but
-                */
-                totalNumSamples += 1;
+                if (bInUpperHemisphere)
+                {
+					irradiance += hitRadiance * max(dot(worldSpaceNormal, rd), 0.f);
+				}
 			}
+            else
+            {
+				bentNormal += normalize(hitPosition.xyz - worldSpaceRO);
+            }
+            numValidReuseSamples++;
         }
 	}
 
-	// outIrradiance = irradiance / float(numSamples + numSamples * numReuseSamples);
-	outIrradiance = irradiance / float(totalNumSamples);
+    outAO = vec3(1.f - ao / float(numSamples + numValidReuseSamples)); 
+    outBentNormal = normalize(bentNormal / float(numSamples + numValidReuseSamples)) * .5f + .5f; 
+	outIrradiance = irradiance / float(numSamples + numValidReuseSamples);
 }

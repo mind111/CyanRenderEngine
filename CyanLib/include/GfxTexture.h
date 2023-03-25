@@ -33,6 +33,7 @@
 #define PF_RGB8 Cyan::GfxTexture::Format::kRGB8
 #define PF_RGBA8 Cyan::GfxTexture::Format::kRGBA8
 #define PF_R16F Cyan::GfxTexture::Format::kR16F
+#define PF_R32F Cyan::GfxTexture::Format::kR32F
 #define PF_RGB16F Cyan::GfxTexture::Format::kRGB16F
 #define PF_RGBA16F Cyan::GfxTexture::Format::kRGBA16F
 #define PF_D24S8 Cyan::GfxTexture::Format::kD24S8
@@ -64,6 +65,8 @@ namespace Cyan
         enum class Format : u32
         {
             kR8 = 0,
+            kR16F,
+            kR32F,
             kRGB8,
             kRGBA8,
             kRGB16F,
@@ -557,6 +560,12 @@ namespace std
             std::string key = std::to_string(spec.width) + 'x' + std::to_string(spec.height);
             switch (spec.format)
             {
+            case PF_R16F:
+                key += "_R16F";
+                break;
+            case PF_R32F:
+                key += "_R32F";
+                break;
             case PF_RGB16F:
                 key += "_RGB16F";
                 break;

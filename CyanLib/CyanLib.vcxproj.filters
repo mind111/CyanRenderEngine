@@ -174,9 +174,6 @@
     <ClInclude Include="include\LightEntities.h">
       <Filter>Header Files\Lights</Filter>
     </ClInclude>
-    <ClInclude Include="include\ScreenSpaceRayTracing.h">
-      <Filter>Source Files\SSRT</Filter>
-    </ClInclude>
     <ClInclude Include="include\gltf.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -254,6 +251,9 @@
     </ClInclude>
     <ClInclude Include="include\GfxTexture.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ScreenSpaceRayTracing.h">
+      <Filter>Source Files\SSRT</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -832,9 +832,6 @@
     <None Include="..\shader\hi_z_copy_p.glsl">
       <Filter>Shaders\RayTracing</Filter>
     </None>
-    <None Include="..\shader\hierarchical_ssrt_p.glsl">
-      <Filter>Shaders\RayTracing</Filter>
-    </None>
     <None Include="..\shader\debug_draw_point_v.glsl">
       <Filter>Shaders\DebugDraw</Filter>
     </None>
@@ -859,13 +856,13 @@
     <None Include="..\shader\scene_depth_prepass_p.glsl">
       <Filter>Shaders\Shading</Filter>
     </None>
-    <None Include="..\shader\ssrt_debug_mirror_p.glsl">
+    <None Include="..\shader\ssgi_debug_mirror_p.glsl">
       <Filter>Shaders\RayTracing</Filter>
     </None>
-    <None Include="..\shader\ssrt_resolve_p.glsl">
+    <None Include="..\shader\ssgi_resolve_p.glsl">
       <Filter>Shaders\RayTracing</Filter>
     </None>
-    <None Include="..\shader\hierarchical_ssrt_ex_p.glsl">
+    <None Include="..\shader\ssgi_tracing_p.glsl">
       <Filter>Shaders\RayTracing</Filter>
     </None>
     <None Include="..\shader\scene_gbuffer_texture_atlas_p.glsl">
@@ -882,6 +879,9 @@
     </None>
     <None Include="..\shader\scene_gbuffer_pass_non_bindless_p.glsl">
       <Filter>Shaders\Shading</Filter>
+    </None>
+    <None Include="..\shader\ssgi_ao_p.glsl">
+      <Filter>Shaders\RayTracing</Filter>
     </None>
   </ItemGroup>
 </Project>

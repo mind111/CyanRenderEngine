@@ -34,53 +34,22 @@ namespace Cyan
     }
 
     SSGI::SSGI(const glm::uvec2& inRes)
-        : resolution(inRes), hitBuffer(kNumSamples, inRes)
+        : resolution(inRes), hitBuffer(numSamples, inRes)
     {
     }
 
-    void SSGI::render(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIrradiance, const GBuffer& gBuffer, const HiZBuffer& HiZ, RenderTexture2D inDirectDiffuseBuffer)
+    void SSGI::render(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIrradiance, const GBuffer& gBuffer, const RenderableScene& scene, const HiZBuffer& HiZ, RenderTexture2D inDirectDiffuseBuffer)
     {
+        renderAmbientOcclusionAndBentNormal(outAO, outBentNormal, gBuffer, scene);
+#if 0
         GfxTexture2D* sceneDepth = gBuffer.depth.getGfxDepthTexture2D();
 
         // trace
         auto renderer = Renderer::get();
 
         CreateVS(vs, "ScreenSpaceRayTracingVS", SHADER_SOURCE_PATH "screenspace_raytracing_v.glsl");
-        CreatePS(ps, "HierarchicalSSRTPS", SHADER_SOURCE_PATH "hierarchical_ssrt_p.glsl");
-        CreatePixelPipeline(pipeline, "HierarchicalSSRT", vs, ps);
-
-        renderer->drawFullscreenQuad(
-            getFramebufferSize(outAO.getGfxTexture2D()),
-            [outAO, outBentNormal, outIrradiance](RenderPass& pass) {
-                pass.setRenderTarget(outAO.getGfxTexture2D(), 0);
-                pass.setRenderTarget(outBentNormal.getGfxTexture2D(), 1);
-                pass.setRenderTarget(outIrradiance.getGfxTexture2D(), 2);
-            },
-            pipeline,
-            [this, gBuffer, sceneDepth, HiZ, inDirectDiffuseBuffer](VertexShader* vs, PixelShader* ps) {
-                ps->setUniform("outputSize", glm::vec2(sceneDepth->width, sceneDepth->height));
-                ps->setTexture("depthBuffer", sceneDepth);
-                ps->setTexture("normalBuffer", gBuffer.normal.getGfxTexture2D());
-                ps->setTexture("HiZ", HiZ.texture.getGfxTexture2D());
-                ps->setUniform("numLevels", (i32)HiZ.texture.getGfxTexture2D()->numMips);
-                ps->setUniform("kMaxNumIterations", (i32)kNumIterations);
-                auto blueNoiseTexture = AssetManager::getAsset<Texture2D>("BlueNoise_1024x1024");
-                ps->setTexture("blueNoiseTexture", blueNoiseTexture->gfxTexture.get());
-                ps->setTexture("directLightingBuffer", inDirectDiffuseBuffer.getGfxTexture2D());
-            }
-        );
-    }
-
-    void SSGI::renderEx(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIrradiance, const GBuffer& gBuffer, const RenderableScene& scene, const HiZBuffer& HiZ, RenderTexture2D inDirectDiffuseBuffer)
-    {
-        GfxTexture2D* sceneDepth = gBuffer.depth.getGfxDepthTexture2D();
-
-        // trace
-        auto renderer = Renderer::get();
-
-        CreateVS(vs, "ScreenSpaceRayTracingVS", SHADER_SOURCE_PATH "screenspace_raytracing_v.glsl");
-        CreatePS(ps, "HierarchicalSSRTPS", SHADER_SOURCE_PATH "hierarchical_ssrt_ex_p.glsl");
-        CreatePixelPipeline(pipeline, "HierarchicalSSRT", vs, ps);
+        CreatePS(ps, "SSGITracePS", SHADER_SOURCE_PATH "ssgi_tracing_p.glsl");
+        CreatePixelPipeline(pipeline, "SSGITrace", vs, ps);
 
         renderer->drawFullscreenQuad(
             getFramebufferSize(outAO.getGfxTexture2D()),
@@ -97,26 +66,29 @@ namespace Cyan
                 ps->setTexture("normalBuffer", gBuffer.normal.getGfxTexture2D());
                 ps->setTexture("HiZ", HiZ.texture.getGfxTexture2D());
                 ps->setUniform("numLevels", (i32)HiZ.texture.getGfxTexture2D()->numMips);
-                ps->setUniform("kMaxNumIterations", (i32)kNumIterations);
+                ps->setUniform("kMaxNumIterations", (i32)numIterations);
                 auto blueNoiseTexture = AssetManager::getAsset<Texture2D>("BlueNoise_1024x1024");
                 ps->setTexture("blueNoiseTexture", blueNoiseTexture->gfxTexture.get());
                 ps->setTexture("directLightingBuffer", inDirectDiffuseBuffer.getGfxTexture2D());
-                ps->setUniform("numSamples", (i32)kNumSamples);
+                ps->setUniform("numSamples", (i32)numSamples);
 
                 glBindImageTexture(0, hitBuffer.position->getGpuResource(), 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
                 glBindImageTexture(1, hitBuffer.normal->getGpuResource(), 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
                 glBindImageTexture(2, hitBuffer.radiance->getGpuResource(), 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
             }
         );
+
         // final resolve pass
         {
             CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
-            CreatePS(ps, "SSRTResolvePS", SHADER_SOURCE_PATH "ssrt_resolve_p.glsl");
+            CreatePS(ps, "SSGIResolvePS", SHADER_SOURCE_PATH "ssgi_resolve_p.glsl");
             CreatePixelPipeline(pipeline, "SSRTResolve", vs, ps);
 
             renderer->drawFullscreenQuad(
                 getFramebufferSize(outAO.getGfxTexture2D()),
                 [outAO, outBentNormal, outIrradiance](RenderPass& pass) {
+                    pass.setRenderTarget(outAO.getGfxTexture2D(), 0);
+                    pass.setRenderTarget(outBentNormal.getGfxTexture2D(), 1);
                     pass.setRenderTarget(outIrradiance.getGfxTexture2D(), 2);
                 },
                 pipeline,
@@ -134,5 +106,33 @@ namespace Cyan
                 }
             );
         }
+#endif
+    }
+
+    void SSGI::renderAmbientOcclusionAndBentNormal(RenderTexture2D outAO, RenderTexture2D outBentNormal, const GBuffer& gBuffer, const RenderableScene& scene) 
+    {
+        CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
+        CreatePS(ps, "SSGIAmbientOcclusionPS", SHADER_SOURCE_PATH "ssgi_ao_p.glsl");
+        CreatePixelPipeline(pipeline, "SSRTResolve", vs, ps);
+        auto sceneDepth = gBuffer.depth.getGfxDepthTexture2D();
+        auto sceneNormal = gBuffer.normal.getGfxTexture2D();
+        auto renderer = Renderer::get();
+        renderer->drawFullscreenQuad(
+            getFramebufferSize(outAO.getGfxTexture2D()),
+            [outAO](RenderPass& pass) {
+                RenderTarget aoRenderTarget(outAO.getGfxTexture2D(), 0, glm::vec4(1.f, 1.f, 1.f, 1.f));
+                pass.setRenderTarget(aoRenderTarget, 0);
+            },
+            pipeline,
+            [this, gBuffer, sceneDepth, sceneNormal, &scene](VertexShader* vs, PixelShader* ps) {
+                ps->setShaderStorageBuffer(scene.viewBuffer.get());
+                ps->setUniform("outputSize", glm::vec2(sceneDepth->width, sceneDepth->height));
+                ps->setTexture("sceneDepthTexture", sceneDepth);
+                ps->setTexture("sceneNormalTexture", sceneNormal);
+                auto blueNoiseTexture = AssetManager::getAsset<Texture2D>("BlueNoise_1024x1024");
+                ps->setTexture("blueNoiseTexture", blueNoiseTexture->gfxTexture.get());
+                ps->setUniform("numSamples", (i32)numSamples);
+            }
+        );
     }
 }

@@ -135,8 +135,8 @@
     <None Include="..\shader\debug_draw_point_v.glsl" />
     <None Include="..\shader\downsample_p.glsl" />
     <None Include="..\shader\downsample_v.glsl" />
-    <None Include="..\shader\hierarchical_ssrt_ex_p.glsl" />
-    <None Include="..\shader\hierarchical_ssrt_p.glsl" />
+    <None Include="..\shader\ssgi_ao_p.glsl" />
+    <None Include="..\shader\ssgi_tracing_p.glsl" />
     <None Include="..\shader\hi_z_copy_p.glsl" />
     <None Include="..\shader\lighting.glsl" />
     <None Include="..\shader\mvgi_compose_lighting.glsl" />
@@ -217,9 +217,9 @@
     <None Include="..\shader\bloom_downsample_p.glsl" />
     <None Include="..\shader\bloom_downsample_v.glsl" />
     <None Include="..\shader\bloom_upscale_v.glsl" />
-    <None Include="..\shader\ssrt_debug_mirror_p.glsl" />
+    <None Include="..\shader\ssgi_debug_mirror_p.glsl" />
     <None Include="..\shader\ssrt_ray_debug_c.glsl" />
-    <None Include="..\shader\ssrt_resolve_p.glsl" />
+    <None Include="..\shader\ssgi_resolve_p.glsl" />
     <None Include="..\shader\surfel_direct_lighting_c.glsl" />
     <None Include="..\shader\taa_p.glsl" />
     <None Include="..\shader\taa_v.glsl" />
