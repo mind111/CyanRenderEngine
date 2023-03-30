@@ -34,6 +34,8 @@ namespace Cyan
 
         void render(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIrradiance, const GBuffer& gBuffer, const RenderableScene& scene, const HiZBuffer& HiZ, RenderTexture2D inDirectDiffuseBuffer);
 
+        bool bBilateralFiltering = true;
+
         u32 numSamples = 1u;
         const i32 kMaxNumIterations = 64u;
         i32 numIterations = 32u;
@@ -50,6 +52,9 @@ namespace Cyan
         void renderAmbientOcclusionAndBentNormal(RenderTexture2D outAO, RenderTexture2D outBentNormal, const GBuffer& gBuffer, const RenderableScene& scene);
         void renderIndirectIrradiance();
         void renderReflection() { };
+
+        // used for SSAO temporal filtering
+        Texture2D* blueNoiseTextures_16x16[8] = { nullptr };
 
         // only instance
         static std::unique_ptr<SSGI> s_instance;

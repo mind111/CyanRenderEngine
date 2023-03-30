@@ -883,5 +883,11 @@
     <None Include="..\shader\ssgi_ao_p.glsl">
       <Filter>Shaders\RayTracing</Filter>
     </None>
+    <None Include="..\shader\ssgi_ao_resolve_p.glsl">
+      <Filter>Shaders\RayTracing</Filter>
+    </None>
+    <None Include="..\shader\ssgi_ao_temporal_p.glsl">
+      <Filter>Shaders\RayTracing</Filter>
+    </None>
   </ItemGroup>
 </Project>

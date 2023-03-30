@@ -110,6 +110,7 @@ namespace Cyan
             RenderTexture2D directDiffuseLighting;
             RenderTexture2D indirectLighting;
             RenderTexture2D ssgiMirror;
+            RenderTexture2D aoHistory;
             RenderTexture2D ao;
             RenderTexture2D bentNormal;
             RenderTexture2D irradiance;

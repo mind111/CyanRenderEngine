@@ -175,8 +175,12 @@ namespace Cyan
             sampler.magFilter = FM_POINT;
             sampler.wrapS = WM_WRAP;
             sampler.wrapT = WM_WRAP;
-            auto blueNoiseImage = AssetImporter::importImageSync("BlueNoise_1024x1024", ASSET_PATH "textures/noise/LDR_RGBA_0.png");
-            m_defaultTextures.blueNoise_1024x1024 = createTexture2D("BlueNoise_1024x1024", blueNoiseImage, sampler);
+
+            auto blueNoiseImage_128x128 = AssetImporter::importImageSync("BlueNoise_128x128_R", ASSET_PATH "textures/noise/BN_128x128_R.png");
+            m_defaultTextures.blueNoise_128x128_R = createTexture2D("BlueNoise_128x128_R", blueNoiseImage_128x128, sampler);
+
+            auto blueNoiseImage_1024x1024 = AssetImporter::importImageSync("BlueNoise_1024x1024_RGBA", ASSET_PATH "textures/noise/BN_1024x1024_RGBA.png");
+            m_defaultTextures.blueNoise_1024x1024_RGBA = createTexture2D("BlueNoise_1024x1024_RGBA", blueNoiseImage_1024x1024, sampler);
         }
 
 #undef DEFAULT_TEXTURE_FOLDER

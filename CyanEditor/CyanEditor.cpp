@@ -217,9 +217,17 @@ namespace Cyan
                         ImGui::Checkbox("Bent Normal", &renderer->m_settings.bBentNormalEnabled);
                         ImGui::Checkbox("Indirect Irradiance", &renderer->m_settings.bIndirectIrradianceEnabled);
                     }
-                    if (ImGui::CollapsingHeader("Screen Space Ray Tracing", ImGuiTreeNodeFlags_DefaultOpen))
+                    if (ImGui::CollapsingHeader("SSGI", ImGuiTreeNodeFlags_DefaultOpen))
                     {
                         auto SSGI = SSGI::get();
+                        ImGui::Text("Ambient Occlusion");
+                        ImGui::Checkbox("Bilateral Filtering", &SSGI->bBilateralFiltering);
+                        ImGui::Separator();
+                        ImGui::Text("Indirect Irradiance");
+                        ImGui::Separator();
+                        ImGui::Text("Reflection");
+                        ImGui::Separator();
+
                         ImGui::Checkbox("Debug SSRT", &renderer->bDebugSSRT);
                         if (renderer->bDebugSSRT)
                         {

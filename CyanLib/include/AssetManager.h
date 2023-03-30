@@ -34,7 +34,8 @@ namespace Cyan
             Texture2D* checkerOrange = nullptr;
             Texture2D* gridDark = nullptr;
             Texture2D* gridOrange = nullptr;
-            Texture2D* blueNoise_1024x1024 = nullptr;
+            Texture2D* blueNoise_128x128_R = nullptr;
+            Texture2D* blueNoise_1024x1024_RGBA = nullptr;
         } m_defaultTextures;
 
         struct DefaultShapes 
