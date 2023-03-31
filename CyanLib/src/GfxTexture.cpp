@@ -35,6 +35,15 @@ namespace Cyan
         return (textureUnit >= 0);
     }
 
+    i32 GfxTexture::getBindingUnit()
+    {
+        if (isBound())
+        {
+            return textureUnit;
+        }
+        return -1;
+    }
+
 #ifdef BINDLESS_TEXTURE
     void GfxTexture::setBindlessHandle(BindlessTextureHandle* inBindlessHandle)
     {

@@ -66,6 +66,18 @@ namespace Cyan
 
         auto bn16x16_7 = AssetImporter::importImageSync("BlueNoise_16x16_R_7", ASSET_PATH "textures/noise/BN_16x16_R_7.png");
         blueNoiseTextures_16x16[7] = AssetManager::createTexture2D("BlueNoise_16x16_R_7", bn16x16_7, sampler);
+
+        glCreateSamplers(1, &depthBilinearSampler);
+        glSamplerParameteri(depthBilinearSampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glSamplerParameteri(depthBilinearSampler, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glSamplerParameteri(depthBilinearSampler, GL_TEXTURE_WRAP_S, GL_CLAMP);
+        glSamplerParameteri(depthBilinearSampler, GL_TEXTURE_WRAP_T, GL_CLAMP);
+
+        glCreateSamplers(1, &SSAOHistoryBilinearSampler);
+        glSamplerParameteri(SSAOHistoryBilinearSampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glSamplerParameteri(SSAOHistoryBilinearSampler, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glSamplerParameteri(SSAOHistoryBilinearSampler, GL_TEXTURE_WRAP_S, GL_CLAMP);
+        glSamplerParameteri(SSAOHistoryBilinearSampler, GL_TEXTURE_WRAP_T, GL_CLAMP);
     }
 
     void SSGI::render(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIrradiance, const GBuffer& gBuffer, const RenderableScene& scene, const HiZBuffer& HiZ, RenderTexture2D inDirectDiffuseBuffer)
@@ -139,15 +151,32 @@ namespace Cyan
 #endif
     }
 
+    // todo: take pixel velocity into consideration when doing reprojection
+    // todo: consider changes in pixel neighborhood when reusing cache sample, changes in neighborhood pixels means SSAO value can change even there is a cache hit
+    // todo: adaptive convergence-aware spatial filtering (helps smooth out low sample count pixels under motion)
+    // todo: the image quality still has room for improvements
+    /**
+     * References:
+        - Practical Realtime Strategies for Accurate Indirect Occlusion https://iryoku.com/downloads/Practical-Realtime-Strategies-for-Accurate-Indirect-Occlusion.pdf
+        - A Spatial and Temporal Coherence Framework for Real-Time Graphics 
+        - High-Quality Screen-Space Ambient Occlusion using Temporal Coherence https://publik.tuwien.ac.at/files/PubDat_191582.pdf
+     */
     void SSGI::renderAmbientOcclusionAndBentNormal(RenderTexture2D outAO, RenderTexture2D outBentNormal, const GBuffer& gBuffer, const RenderableScene& scene) 
     {
+        static i32 frameCount = 0;
+        static glm::mat4 prevFrameView(1.f);
+        static glm::mat4 prevFrameProjection(1.f);
+        GfxTexture2D::Spec depthSpec(gBuffer.depth.getGfxDepthTexture2D()->width, gBuffer.depth.getGfxDepthTexture2D()->height, 1, PF_R32F);
+        static RenderTexture2D prevSceneDepth("PrevFrameSceneDepthTexture", depthSpec);
+        static RenderTexture2D AOHistoryBuffer("AOHistory", outAO.getGfxTexture2D()->getSpec());
+
         auto sceneDepth = gBuffer.depth.getGfxDepthTexture2D();
         auto sceneNormal = gBuffer.normal.getGfxTexture2D();
         auto renderer = Renderer::get();
 
-        static RenderTexture2D AOHistoryBuffer("AOHistory", outAO.getGfxTexture2D()->getSpec());
-        RenderTexture2D temporalPassOutput("TemporalAOOutput", outAO.getGfxTexture2D()->getSpec());
-        static i32 frameCount = 0;
+        auto outAOGfxTexture = outAO.getGfxTexture2D();
+        GfxTexture2D::Spec aoSpec(outAOGfxTexture->width, outAOGfxTexture->height, 1, PF_RGBA16F);
+        RenderTexture2D temporalPassOutput("TemporalAOOutput", aoSpec);
 
         // taking 1 new ao sample per pixel and does temporal filtering 
         {
@@ -170,7 +199,6 @@ namespace Cyan
                     ps->setTexture("sceneDepthTexture", sceneDepth);
                     ps->setTexture("sceneNormalTexture", sceneNormal);
 
-                    ps->setTexture("AOHistoryBuffer", AOHistoryBuffer.getGfxTexture2D());
                     ps->setTexture("blueNoiseTextures_16x16_R[0]", blueNoiseTextures_16x16[0]->getGfxResource());
                     ps->setTexture("blueNoiseTextures_16x16_R[1]", blueNoiseTextures_16x16[1]->getGfxResource());
                     ps->setTexture("blueNoiseTextures_16x16_R[2]", blueNoiseTextures_16x16[2]->getGfxResource());
@@ -185,15 +213,34 @@ namespace Cyan
 
                     ps->setUniform("numSamples", (i32)numSamples);
                     ps->setUniform("frameCount", frameCount);
+
+                    if (frameCount > 0)
+                    {
+                        ps->setUniform("prevFrameView", prevFrameView);
+                        ps->setUniform("prevFrameProjection", prevFrameProjection);
+
+                        glBindSampler(32, depthBilinearSampler);
+                        ps->setUniform("prevFrameSceneDepthTexture", 32);
+                        glBindTextureUnit(32, prevSceneDepth.getGfxTexture2D()->getGpuResource());
+
+                        glBindSampler(33, SSAOHistoryBilinearSampler);
+                        ps->setUniform("AOHistoryBuffer", 33);
+                        glBindTextureUnit(33, AOHistoryBuffer.getGfxTexture2D()->getGpuResource());
+
+                        // ps->setTexture("prevFrameSceneDepthTexture", prevSceneDepth);
+                        ps->setTexture("AOHistoryBuffer", AOHistoryBuffer.getGfxTexture2D());
+                    }
                 }
             );
 
+            prevFrameView = scene.view.view;
+            prevFrameProjection = scene.view.projection;
             renderer->blitTexture(AOHistoryBuffer.getGfxTexture2D(), temporalPassOutput.getGfxTexture2D());
+            renderer->blitTexture(prevSceneDepth.getGfxTexture2D(), sceneDepth);
         }
 
-        if (bBilateralFiltering)
+        // bilateral filtering
         {
-            // bilateral filtering
             GPU_DEBUG_SCOPE(SSAOSpatialFilteringPassMarker, "SSAO Bilateral Filtering");
 
             CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");

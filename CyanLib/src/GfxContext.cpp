@@ -100,8 +100,10 @@ namespace Cyan
         // reset all previously used texture units to cleanup texture binding state
         for (u32 i = 0; i < numUsedTextureUnits; ++i)
         {
-            assert(m_textureBindings[i] != nullptr);
-            m_textureBindings[i]->unbind(this);
+            if (m_textureBindings[i] != nullptr)
+            {
+                m_textureBindings[i]->unbind(this);
+            }
         }
         numUsedTextureUnits = 0;
     }

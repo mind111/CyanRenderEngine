@@ -99,6 +99,7 @@ namespace Cyan
         void bind(GfxContext* ctx, u32 inTextureUnit);
         void unbind(GfxContext* ctx);
         bool isBound();
+        i32 getBindingUnit();
 #ifdef BINDLESS_TEXTURE
         void setBindlessHandle(BindlessTextureHandle* inBindlessHandle);
 #endif

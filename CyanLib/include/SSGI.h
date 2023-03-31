@@ -54,6 +54,8 @@ namespace Cyan
         void renderReflection() { };
 
         // used for SSAO temporal filtering
+        GLuint depthBilinearSampler = -1;
+        GLuint SSAOHistoryBilinearSampler = -1;
         Texture2D* blueNoiseTextures_16x16[8] = { nullptr };
 
         // only instance
