@@ -80,9 +80,9 @@ namespace Cyan
         glSamplerParameteri(SSAOHistoryBilinearSampler, GL_TEXTURE_WRAP_T, GL_CLAMP);
     }
 
-    void SSGI::render(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIrradiance, const GBuffer& gBuffer, const RenderableScene& scene, const HiZBuffer& HiZ, RenderTexture2D inDirectDiffuseBuffer)
+    void SSGI::render(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIndirectIrradiance, const GBuffer& gBuffer, const RenderableScene& scene, const HiZBuffer& HiZ, RenderTexture2D inDirectDiffuseBuffer)
     {
-        renderAmbientOcclusionAndBentNormal(outAO, outBentNormal, gBuffer, scene);
+        renderAOAndIndirectIrradiance(outAO, outBentNormal, outIndirectIrradiance, gBuffer, inDirectDiffuseBuffer, scene);
 #if 0
         GfxTexture2D* sceneDepth = gBuffer.depth.getGfxDepthTexture2D();
 
@@ -161,7 +161,7 @@ namespace Cyan
         - A Spatial and Temporal Coherence Framework for Real-Time Graphics 
         - High-Quality Screen-Space Ambient Occlusion using Temporal Coherence https://publik.tuwien.ac.at/files/PubDat_191582.pdf
      */
-    void SSGI::renderAmbientOcclusionAndBentNormal(RenderTexture2D outAO, RenderTexture2D outBentNormal, const GBuffer& gBuffer, const RenderableScene& scene) 
+    void SSGI::renderAOAndIndirectIrradiance(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIndirectIrradiance, const GBuffer& gBuffer, RenderTexture2D inDirectDiffuseBuffer, const RenderableScene& scene) 
     {
         static i32 frameCount = 0;
         static glm::mat4 prevFrameView(1.f);
@@ -175,8 +175,10 @@ namespace Cyan
         auto renderer = Renderer::get();
 
         auto outAOGfxTexture = outAO.getGfxTexture2D();
-        GfxTexture2D::Spec aoSpec(outAOGfxTexture->width, outAOGfxTexture->height, 1, PF_RGBA16F);
-        RenderTexture2D temporalPassOutput("TemporalAOOutput", aoSpec);
+        glm::uvec2 outputSize(outAOGfxTexture->width, outAOGfxTexture->height);
+        GfxTexture2D::Spec aoSpec(outputSize.x, outputSize.y, 1, PF_RGBA16F);
+
+        RenderTexture2D AOSamplingPassOutput("AOSamplingPassOutput", aoSpec);
 
         // taking 1 new ao sample per pixel and does temporal filtering 
         {
@@ -188,8 +190,8 @@ namespace Cyan
 
             renderer->drawFullscreenQuad(
                 getFramebufferSize(outAO.getGfxTexture2D()),
-                [temporalPassOutput](RenderPass& pass) {
-                    RenderTarget aoRenderTarget(temporalPassOutput.getGfxTexture2D(), 0, glm::vec4(1.f, 1.f, 1.f, 1.f));
+                [AOSamplingPassOutput](RenderPass& pass) {
+                    RenderTarget aoRenderTarget(AOSamplingPassOutput.getGfxTexture2D(), 0, glm::vec4(1.f, 1.f, 1.f, 1.f));
                     pass.setRenderTarget(aoRenderTarget, 0);
                 },
                 pipeline,
@@ -235,8 +237,38 @@ namespace Cyan
 
             prevFrameView = scene.view.view;
             prevFrameProjection = scene.view.projection;
-            renderer->blitTexture(AOHistoryBuffer.getGfxTexture2D(), temporalPassOutput.getGfxTexture2D());
+            renderer->blitTexture(AOHistoryBuffer.getGfxTexture2D(), AOSamplingPassOutput.getGfxTexture2D());
             renderer->blitTexture(prevSceneDepth.getGfxTexture2D(), sceneDepth);
+        }
+
+        // indirect irradiance pass using horizon based approach
+        {
+            GPU_DEBUG_SCOPE(IndirectIrradiancePassMarker, "SSGI Indirect Irradiance");
+
+            GfxTexture2D::Spec indirectIrradianceSpec(outputSize.x, outputSize.y, 1, PF_RGB16F);
+
+            CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
+            CreatePS(ps, "SSGIIndirectIrradiancePS", SHADER_SOURCE_PATH "ssgi_indirect_irradiance_p.glsl");
+            CreatePixelPipeline(pipeline, "SSGIIndirectIrradianceSample", vs, ps);
+
+            renderer->drawFullscreenQuad(
+                getFramebufferSize(outIndirectIrradiance.getGfxTexture2D()),
+                [outIndirectIrradiance](RenderPass& pass) {
+                    RenderTarget indirectIrradianceRenderTarget(outIndirectIrradiance.getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                    pass.setRenderTarget(indirectIrradianceRenderTarget, 0);
+                },
+                pipeline,
+                [this, gBuffer, sceneDepth, sceneNormal, inDirectDiffuseBuffer, &scene](VertexShader* vs, PixelShader* ps) {
+                    ps->setShaderStorageBuffer(scene.viewBuffer.get());
+                    ps->setUniform("outputSize", glm::vec2(sceneDepth->width, sceneDepth->height));
+                    ps->setTexture("sceneDepthTexture", sceneDepth);
+                    ps->setTexture("sceneNormalTexture", sceneNormal);
+                    ps->setTexture("diffuseRadianceBuffer", inDirectDiffuseBuffer.getGfxTexture2D());
+                    auto blueNoiseTexture_1024x1024 = AssetManager::getAsset<Texture2D>("BlueNoise_1024x1024_RGBA");
+                    ps->setTexture("blueNoiseTexture_1024x1024_RGBA", blueNoiseTexture_1024x1024->gfxTexture.get());
+                    ps->setUniform("numSamples", (i32)numSamples);
+                }
+            );
         }
 
         // bilateral filtering
@@ -254,10 +286,10 @@ namespace Cyan
                     pass.setRenderTarget(aoRenderTarget, 0);
                 },
                 pipeline,
-                [this, outAO, temporalPassOutput, sceneDepth, &scene](VertexShader* vs, PixelShader* ps) {
+                [this, outAO, AOSamplingPassOutput, sceneDepth, &scene](VertexShader* vs, PixelShader* ps) {
                     ps->setShaderStorageBuffer(scene.viewBuffer.get());
                     ps->setTexture("sceneDepthTexture", sceneDepth);
-                    ps->setTexture("aoTexture", temporalPassOutput.getGfxTexture2D());
+                    ps->setTexture("aoTexture", AOSamplingPassOutput.getGfxTexture2D());
                 }
             );
         }

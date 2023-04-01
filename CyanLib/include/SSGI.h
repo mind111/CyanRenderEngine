@@ -49,8 +49,11 @@ namespace Cyan
         // explicitly hide constructor to disallow direct construction
         SSGI(const glm::uvec2& inRes);
 
-        void renderAmbientOcclusionAndBentNormal(RenderTexture2D outAO, RenderTexture2D outBentNormal, const GBuffer& gBuffer, const RenderableScene& scene);
-        void renderIndirectIrradiance();
+        /**
+         * Reference:
+            * HBIL
+         */
+        void renderAOAndIndirectIrradiance(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIndirectIrradiance, const GBuffer& gBuffer, RenderTexture2D inDirectDiffuseBuffer, const RenderableScene& scene);
         void renderReflection() { };
 
         // used for SSAO temporal filtering

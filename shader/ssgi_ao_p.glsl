@@ -118,7 +118,7 @@ vec3 worldToScreen(vec3 pp, in mat4 view, in mat4 projection)
 
 void main()
 {
-    const int numSamplesPerDirection = 4;
+    const int numSamplesPerDirection = 4; // 2 x numSamplesPerDirection of taps per slice
     // screen space coords in [0, 1]
     vec2 pixelCoord = gl_FragCoord.xy / outputSize;
     vec3 n = texture(sceneNormalTexture, pixelCoord).xyz * 2.f - 1.f;
@@ -145,65 +145,62 @@ void main()
     screenSpaceEffectRadius *= offset * 0.5f + 0.5f;
     float stepSize = screenSpaceEffectRadius / numSamplesPerDirection;
 
-    // distributing samples in space, each pixel only gets 1 sample
-    float tileSize = 4.f;
-    ivec2 subtileCoord = ivec2(mod(floor(gl_FragCoord.xy), tileSize));
-    int sampleIndex = subtileCoord.y * int(tileSize) + subtileCoord.x;
-
     float visibility = 0.f;
 
     float rotation = texture(blueNoiseTextures_16x16_R[frameCount % 8], gl_FragCoord.xy / textureSize(blueNoiseTextures_16x16_R[0], 0)).r * 2.f * PI;
-	mat2 rotMat = {
+	mat2 rotMat2 = {
 		{  cos(rotation), sin(rotation) },
 		{ -sin(rotation), cos(rotation) }
 	};
-    vec2 dir = rotMat * vec2(1.f, 0.f);
+    vec2 dir = rotMat2 * vec2(1.f, 0.f);
 
-	float h1 = 0.f;
-	float h2 = 0.f;
-	float cosh1 = -1.f;
-	float cosh2 = -1.f;
-	vec3 sx;
+    vec3 cameraRightVector = vec3(view[0][0], view[1][0], view[2][0]);
+    vec3 cameraUpVector = vec3(view[0][1], view[1][1], view[2][1]);
+    // slice plane x axis
+    vec3 slicePlaneXAxis = dir.x * cameraRightVector + dir.y * cameraUpVector;
+
+	// projecting n onto current slice's plane to get np
+	vec3 slicePlaneNormal = normalize(cross(slicePlaneXAxis, wo));
+	vec3 np  = n - slicePlaneNormal * dot(slicePlaneNormal, n);
+	// angle between np and wo
+	float gamma = acos(clamp(dot(normalize(np), wo), -1.f, 1.f)) * dot(normalize(cross(wo, np)), slicePlaneNormal);
+
+	float h1 = -PI; // h1 is clock-wise thus negative
+	float h2 = PI;  // h2 is counterclock-wise thus positive
+
+    // start the horizon angle at the normal plane
+	h1 = gamma + max(-.5f * PI, h1 - gamma);
+	h2 = gamma + min( .5f * PI, h2 - gamma);
+
 	for (int j = 0; j < numSamplesPerDirection; ++j)
 	{
-		// calculate theta1 
 		vec2 sampleCoord = pixelCoord + (j * stepSize) * dir;
+
+		// calculate theta1 
 		float sz1 = texture(sceneDepthTexture, sampleCoord).r;
 		vec3 s1 = screenToWorld(vec3(sampleCoord, sz1) * 2.f - 1.f, inverse(view), inverse(projection));
-        float length1 = length(s1 - x);
-		vec3 sx1 = normalize(s1 - x);
-		// attenuate this sample based on distance
-		float d1 = mix(dot(sx1, wo), -1.f, clamp((length1 / worldSpaceSampleRadius), 0.f, 1.f));
-		cosh1 = max(cosh1, d1);
-		sx = sx1;
+		vec3 sx1 = s1 - x;
+
+        // todo: maybe should use unattenuated horizon angle for indirect irradiance calculation while use attenuated for ssao ..?
+        // todo: maybe instead of attenuate to PI, should only attenuate it to normal hemisphere ...?
+		// attenuate this sample's horizon angle based on distance
+		float t1 = mix(-acos(dot(normalize(sx1), wo)), -PI, clamp(length(sx1) / worldSpaceSampleRadius, 0.f, 1.f));  // t stands for theta
+		h1 = max(h1, t1);
 
 		// calculate theta2
 		sampleCoord = pixelCoord - (j * stepSize) * dir;
 		float sz2 = texture(sceneDepthTexture, sampleCoord).r;
 		vec3 s2 = screenToWorld(vec3(sampleCoord, sz2) * 2.f - 1.f, inverse(view), inverse(projection));
-        float length2 = length(s2 - x);
-		vec3 sx2 = normalize(s2 - x);
-		// attenuate this sample based on distance
-		float d2 = mix(dot(sx2, wo), -1.f, clamp((length2 / worldSpaceSampleRadius), 0.f, 1.f));
-		cosh2 = max(cosh2, d2);
+		vec3 sx2 = s2 - x;
+
+		// attenuate this sample's horizon angle based on distance
+		float t2 = mix(acos(dot(normalize(sx2), wo)), PI, clamp(length(sx2) / worldSpaceSampleRadius, 0.f, 1.f));
+		h2 = min(h2, t2);
 	}
-
-	h1 = -acos(cosh1);
-	h2 = acos(cosh2);
-
-	// projecting n onto current slice's plane to get np
-	vec3 slicePlaneNormal = normalize(cross(sx, wo));
-	vec3 np  = n - slicePlaneNormal * dot(slicePlaneNormal, n);
-
-	// angle between np and wo
-	float gamma = acos(clamp(dot(normalize(np), wo), -1.f, 1.f)) * dot(normalize(cross(wo, np)), slicePlaneNormal);
-
-	// clamp h1, h2 to normal hemisphere
-	h1 = gamma + max(-.5f * PI, h1 - gamma);
-	h2 = gamma + min( .5f * PI, h2 - gamma);
 
 	// calculate inner integral analytically
 	float a = 0.25f * (-cos(2.f * h1 - gamma) + cos(gamma) + 2.f * h1 * sin(gamma)) + .25f * (-cos(2.f * h2 - gamma) + cos(gamma) + 2.f * h2 * sin(gamma));
+    // integrate slices numerically
 	visibility += a * length(np);
 
     outAO = vec3(visibility);
