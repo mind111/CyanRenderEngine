@@ -82,8 +82,10 @@ namespace Cyan
 
     void SSGI::render(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIndirectIrradiance, const GBuffer& gBuffer, const RenderableScene& scene, const HiZBuffer& HiZ, RenderTexture2D inDirectDiffuseBuffer)
     {
+#if 1
         renderAOAndIndirectIrradiance(outAO, outBentNormal, outIndirectIrradiance, gBuffer, inDirectDiffuseBuffer, scene);
-#if 0
+        visualize(outIndirectIrradiance, gBuffer, scene);
+#else
         GfxTexture2D* sceneDepth = gBuffer.depth.getGfxDepthTexture2D();
 
         // trace
@@ -95,10 +97,10 @@ namespace Cyan
 
         renderer->drawFullscreenQuad(
             getFramebufferSize(outAO.getGfxTexture2D()),
-            [outAO, outBentNormal, outIrradiance](RenderPass& pass) {
+            [outAO, outBentNormal, outIndirectIrradiance](RenderPass& pass) {
                 pass.setRenderTarget(outAO.getGfxTexture2D(), 0);
                 pass.setRenderTarget(outBentNormal.getGfxTexture2D(), 1);
-                pass.setRenderTarget(outIrradiance.getGfxTexture2D(), 2);
+                pass.setRenderTarget(outIndirectIrradiance.getGfxTexture2D(), 2);
             },
             pipeline,
             [this, gBuffer, sceneDepth, HiZ, inDirectDiffuseBuffer, &scene](VertexShader* vs, PixelShader* ps) {
@@ -109,7 +111,7 @@ namespace Cyan
                 ps->setTexture("HiZ", HiZ.texture.getGfxTexture2D());
                 ps->setUniform("numLevels", (i32)HiZ.texture.getGfxTexture2D()->numMips);
                 ps->setUniform("kMaxNumIterations", (i32)numIterations);
-                auto blueNoiseTexture = AssetManager::getAsset<Texture2D>("BlueNoise_1024x1024");
+                auto blueNoiseTexture = AssetManager::getAsset<Texture2D>("BlueNoise_1024x1024_RGBA");
                 ps->setTexture("blueNoiseTexture", blueNoiseTexture->gfxTexture.get());
                 ps->setTexture("directLightingBuffer", inDirectDiffuseBuffer.getGfxTexture2D());
                 ps->setUniform("numSamples", (i32)numSamples);
@@ -128,10 +130,10 @@ namespace Cyan
 
             renderer->drawFullscreenQuad(
                 getFramebufferSize(outAO.getGfxTexture2D()),
-                [outAO, outBentNormal, outIrradiance](RenderPass& pass) {
+                [outAO, outBentNormal, outIndirectIrradiance](RenderPass& pass) {
                     pass.setRenderTarget(outAO.getGfxTexture2D(), 0);
                     pass.setRenderTarget(outBentNormal.getGfxTexture2D(), 1);
-                    pass.setRenderTarget(outIrradiance.getGfxTexture2D(), 2);
+                    pass.setRenderTarget(outIndirectIrradiance.getGfxTexture2D(), 2);
                 },
                 pipeline,
                 [this, gBuffer, &scene](VertexShader* vs, PixelShader* ps) {
@@ -141,7 +143,7 @@ namespace Cyan
                     ps->setTexture("hitPositionBuffer", hitBuffer.position);
                     ps->setTexture("hitNormalBuffer", hitBuffer.normal);
                     ps->setTexture("hitRadianceBuffer", hitBuffer.radiance);
-                    auto blueNoiseTexture = AssetManager::getAsset<Texture2D>("BlueNoise_1024x1024");
+                    auto blueNoiseTexture = AssetManager::getAsset<Texture2D>("BlueNoise_1024x1024_RGBA");
                     ps->setTexture("blueNoiseTexture", blueNoiseTexture->gfxTexture.get());
                     ps->setUniform("reuseKernelRadius", reuseKernelRadius);
                     ps->setUniform("numReuseSamples", numReuseSamples);
@@ -267,6 +269,7 @@ namespace Cyan
                     auto blueNoiseTexture_1024x1024 = AssetManager::getAsset<Texture2D>("BlueNoise_1024x1024_RGBA");
                     ps->setTexture("blueNoiseTexture_1024x1024_RGBA", blueNoiseTexture_1024x1024->gfxTexture.get());
                     ps->setUniform("numSamples", (i32)numSamples);
+                    ps->setUniform("normalErrorTolerance", indirectIrradianceNormalErrTolerance);
                 }
             );
         }
@@ -295,5 +298,87 @@ namespace Cyan
         }
 
         frameCount++;
+    }
+
+    void SSGI::visualize(RenderTexture2D outColor, const GBuffer& gBuffer, const RenderableScene& scene)
+    {
+        const i32 kNumSamplesPerDir = 32;
+        struct Sample
+        {
+            glm::vec4 position;
+            glm::vec4 radiance;
+        };
+        struct SampleBuffer
+        {
+            u32 getSizeInBytes()
+            {
+                return sizeof(numSamples) + sizeof(padding) + sizeOfVector(samples);
+            }
+
+            i32 numSamples = 0;
+            glm::vec3 padding = glm::vec3(0.f);
+            std::vector<Sample> samples = std::vector<Sample>(kNumSamplesPerDir);
+        };
+
+        static SampleBuffer cpuFrontSampleBuffer;
+        static SampleBuffer cpuBackSampleBuffer;
+
+        static ShaderStorageBuffer gpuFrontSampleBuffer("FrontSampleBuffer", cpuFrontSampleBuffer.getSizeInBytes());
+        static ShaderStorageBuffer gpuBackSampleBuffer("BackSampleBuffer", cpuBackSampleBuffer.getSizeInBytes());
+
+        auto ctx = GfxContext::get();
+
+        // sample pass
+        {
+            CreateCS(cs, "SSGIVisualizeSamplePointsCS", SHADER_SOURCE_PATH "ssgi_visualize_c.glsl");
+            CreateComputePipeline(pipeline, "SSGIVisualizeSamplePoints", cs);
+
+            ctx->setComputePipeline(pipeline, [](ComputeShader* cs) {
+                cs->setUniform("pixelCoord", glm::vec2(.5f));
+                cs->setUniform("sampleSliceIndex", (i32)0);
+                cs->setShaderStorageBuffer(&gpuFrontSampleBuffer);
+                cs->setShaderStorageBuffer(&gpuBackSampleBuffer);
+            });
+            glDispatchCompute(1, 1, 1);
+
+            // read back data
+            gpuFrontSampleBuffer.read(cpuFrontSampleBuffer.numSamples, 0);
+            gpuFrontSampleBuffer.read(cpuFrontSampleBuffer.samples, sizeof(cpuFrontSampleBuffer.numSamples) + sizeof(cpuFrontSampleBuffer.padding), sizeOfVector(cpuFrontSampleBuffer.samples));
+
+            gpuBackSampleBuffer.read(cpuBackSampleBuffer.numSamples, 0);
+            gpuBackSampleBuffer.read(cpuBackSampleBuffer.samples, sizeof(cpuBackSampleBuffer.numSamples) + sizeof(cpuBackSampleBuffer.padding), sizeOfVector(cpuBackSampleBuffer.samples));
+        }
+
+        {
+            // todo: draw sample points
+            u32 totalNumSamplesToDraw = cpuFrontSampleBuffer.numSamples + cpuBackSampleBuffer.numSamples;
+            static ShaderStorageBuffer sampleBuffer("SampleBuffer", sizeof(Sample) * totalNumSamplesToDraw);
+
+            u32 offset = 0;
+            sampleBuffer.write(cpuFrontSampleBuffer.samples, offset, sizeof(Sample) * cpuFrontSampleBuffer.numSamples);
+            offset += sizeof(Sample) * cpuFrontSampleBuffer.numSamples;
+            sampleBuffer.write(cpuBackSampleBuffer.samples, offset, sizeof(Sample) * cpuBackSampleBuffer.numSamples);
+
+            auto outGfxTexture = outColor.getGfxTexture2D();
+            RenderPass pass(outGfxTexture->width, outGfxTexture->height);
+            pass.setRenderTarget(outGfxTexture, 0, false);
+            pass.viewport = {0, 0, outGfxTexture->width, outGfxTexture->height };
+            GfxPipelineState gfxPipelineState;
+            gfxPipelineState.depth = DepthControl::kDisable;
+            pass.gfxPipelineState = gfxPipelineState;
+            pass.drawLambda = [](GfxContext* ctx) {
+                CreateVS(vs, "DrawScreenSpacePointVS", SHADER_SOURCE_PATH "ssgi_draw_indirect_irradiance_samples_v.glsl");
+                CreatePS(ps, "DrawScreenSpacePointPS", SHADER_SOURCE_PATH "ssgi_draw_indirect_irradiance_samples_p.glsl");
+                CreatePixelPipeline(pipeline, "DrawScreenSpacePoint", vs, ps);
+                ctx->setPixelPipeline(pipeline, [](VertexShader* vs, PixelShader* ps) {
+                    vs->setShaderStorageBuffer(&sampleBuffer);
+                });
+                u32 numVerts = cpuFrontSampleBuffer.numSamples + cpuBackSampleBuffer.numSamples;
+                glDrawArrays(GL_POINTS, 0, numVerts);
+            };
+            pass.render(ctx);
+
+            // todo: draw sample directions
+        }
     }
 }

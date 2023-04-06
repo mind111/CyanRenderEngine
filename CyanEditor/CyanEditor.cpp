@@ -224,6 +224,8 @@ namespace Cyan
                         ImGui::Checkbox("Bilateral Filtering", &SSGI->bBilateralFiltering);
                         ImGui::Separator();
                         ImGui::Text("Indirect Irradiance");
+                        ImGui::Text("Normal Error Tolerance:");
+                        ImGui::SliderFloat("##Normal Error Tolerance: ", &SSGI->indirectIrradianceNormalErrTolerance, -1.f, 0.f);
                         ImGui::Separator();
                         ImGui::Text("Reflection");
                         ImGui::Separator();

@@ -38,9 +38,9 @@ namespace Cyan
         bool isBound();
 
         template <typename T>
-        void read(T& data)
+        void read(T& data, u32 offset)
         {
-
+            glGetNamedBufferSubData(getGpuResource(), offset, sizeof(data), &data);
         }
 
         template <typename T>
@@ -59,18 +59,34 @@ namespace Cyan
         template <typename T>
         void write(const std::vector<T>& data, u32 offset, u32 bytesToWrite)
         {
-            if (bytesToWrite > sizeInBytes)
+            if ((offset + bytesToWrite) > sizeInBytes)
             {
                 // need to resize
-                sizeInBytes = bytesToWrite;
+                GLuint newBuffer = -1;
+                u32 newSize = offset + bytesToWrite;
+                glCreateBuffers(1, &newBuffer);
+                glNamedBufferData(newBuffer, newSize, nullptr, GL_DYNAMIC_COPY);
+
+                if (sizeInBytes > 0)
+                {
+                    // copy data over
+                    glCopyNamedBufferSubData(getGpuResource(), newBuffer, 0, 0, sizeInBytes);
+                }
+                // update size info
+                sizeInBytes = newSize;
+                // write data into new buffer
+                glNamedBufferSubData(newBuffer, offset, bytesToWrite, data.data());
+ 
+                // release old resource
                 GLuint buffers[] = { getGpuResource() };
                 glDeleteBuffers(1, buffers);
-                glCreateBuffers(1, &glObject);
-                glNamedBufferData(getGpuResource(), sizeInBytes, data.data(), GL_DYNAMIC_COPY);
+
+                // update buffer object
+                glObject = newBuffer;
             }
             else
             {
-                glNamedBufferSubData(getGpuResource(), offset, sizeInBytes, data.data());
+                glNamedBufferSubData(getGpuResource(), offset, bytesToWrite, data.data());
             }
         }
 

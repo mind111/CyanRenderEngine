@@ -33,6 +33,7 @@ namespace Cyan
         static SSGI* get() { return s_instance.get(); }
 
         void render(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIrradiance, const GBuffer& gBuffer, const RenderableScene& scene, const HiZBuffer& HiZ, RenderTexture2D inDirectDiffuseBuffer);
+        void visualize(RenderTexture2D outColor, const GBuffer& gBuffer, const RenderableScene& scene);
 
         bool bBilateralFiltering = true;
 
@@ -42,6 +43,7 @@ namespace Cyan
         const i32 kMaxNumReuseSamples = 32;
         i32 numReuseSamples = 32;
         f32 reuseKernelRadius = .01f;
+        f32 indirectIrradianceNormalErrTolerance = -.1f;
 
         glm::uvec2 resolution;
         HitBuffer hitBuffer;

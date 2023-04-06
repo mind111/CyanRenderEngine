@@ -88,6 +88,9 @@
     <Filter Include="Header Files\GfxAPI">
       <UniqueIdentifier>{e71251dc-dcad-4835-8bdf-9ec5d2b34b7b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\SSGI">
+      <UniqueIdentifier>{8627f827-61ec-4239-97c8-1a6a0837c68e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Allocator.h">
@@ -652,12 +655,6 @@
     <None Include="..\shader\scene_pass_p.glsl">
       <Filter>Shaders\Shading</Filter>
     </None>
-    <None Include="..\shader\screenspace_raytracing_v.glsl">
-      <Filter>Shaders\RayTracing</Filter>
-    </None>
-    <None Include="..\shader\screenspace_raytracing_p.glsl">
-      <Filter>Shaders\RayTracing</Filter>
-    </None>
     <None Include="..\shader\generate_vpl_p.glsl">
       <Filter>Shaders\Shading</Filter>
     </None>
@@ -829,14 +826,8 @@
     <None Include="..\shader\build_hi_z_p.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\hi_z_copy_p.glsl">
-      <Filter>Shaders\RayTracing</Filter>
-    </None>
     <None Include="..\shader\debug_draw_point_v.glsl">
       <Filter>Shaders\DebugDraw</Filter>
-    </None>
-    <None Include="..\shader\ssrt_ray_debug_c.glsl">
-      <Filter>Shaders\RayTracing</Filter>
     </None>
     <None Include="..\shader\debug_draw_line_screenspace_v.glsl">
       <Filter>Shaders\DebugDraw</Filter>
@@ -856,15 +847,6 @@
     <None Include="..\shader\scene_depth_prepass_p.glsl">
       <Filter>Shaders\Shading</Filter>
     </None>
-    <None Include="..\shader\ssgi_debug_mirror_p.glsl">
-      <Filter>Shaders\RayTracing</Filter>
-    </None>
-    <None Include="..\shader\ssgi_resolve_p.glsl">
-      <Filter>Shaders\RayTracing</Filter>
-    </None>
-    <None Include="..\shader\ssgi_tracing_p.glsl">
-      <Filter>Shaders\RayTracing</Filter>
-    </None>
     <None Include="..\shader\scene_gbuffer_texture_atlas_p.glsl">
       <Filter>Shaders\Shading</Filter>
     </None>
@@ -880,17 +862,47 @@
     <None Include="..\shader\scene_gbuffer_pass_non_bindless_p.glsl">
       <Filter>Shaders\Shading</Filter>
     </None>
+    <None Include="..\shader\hi_z_copy_p.glsl">
+      <Filter>Shaders\SSGI</Filter>
+    </None>
+    <None Include="..\shader\screenspace_raytracing_p.glsl">
+      <Filter>Shaders\SSGI</Filter>
+    </None>
+    <None Include="..\shader\screenspace_raytracing_v.glsl">
+      <Filter>Shaders\SSGI</Filter>
+    </None>
     <None Include="..\shader\ssgi_ao_p.glsl">
-      <Filter>Shaders\RayTracing</Filter>
+      <Filter>Shaders\SSGI</Filter>
     </None>
     <None Include="..\shader\ssgi_ao_resolve_p.glsl">
-      <Filter>Shaders\RayTracing</Filter>
+      <Filter>Shaders\SSGI</Filter>
     </None>
     <None Include="..\shader\ssgi_ao_temporal_p.glsl">
-      <Filter>Shaders\RayTracing</Filter>
+      <Filter>Shaders\SSGI</Filter>
+    </None>
+    <None Include="..\shader\ssgi_debug_mirror_p.glsl">
+      <Filter>Shaders\SSGI</Filter>
     </None>
     <None Include="..\shader\ssgi_indirect_irradiance_p.glsl">
-      <Filter>Shaders\RayTracing</Filter>
+      <Filter>Shaders\SSGI</Filter>
+    </None>
+    <None Include="..\shader\ssgi_resolve_p.glsl">
+      <Filter>Shaders\SSGI</Filter>
+    </None>
+    <None Include="..\shader\ssgi_tracing_p.glsl">
+      <Filter>Shaders\SSGI</Filter>
+    </None>
+    <None Include="..\shader\ssrt_ray_debug_c.glsl">
+      <Filter>Shaders\SSGI</Filter>
+    </None>
+    <None Include="..\shader\ssgi_visualize_c.glsl">
+      <Filter>Shaders\SSGI</Filter>
+    </None>
+    <None Include="..\shader\ssgi_draw_indirect_irradiance_samples_v.glsl">
+      <Filter>Shaders\SSGI</Filter>
+    </None>
+    <None Include="..\shader\ssgi_draw_indirect_irradiance_samples_p.glsl">
+      <Filter>Shaders\SSGI</Filter>
     </None>
   </ItemGroup>
 </Project>

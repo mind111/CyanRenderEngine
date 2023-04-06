@@ -138,6 +138,8 @@
     <None Include="..\shader\ssgi_ao_p.glsl" />
     <None Include="..\shader\ssgi_ao_resolve_p.glsl" />
     <None Include="..\shader\ssgi_ao_temporal_p.glsl" />
+    <None Include="..\shader\ssgi_draw_indirect_irradiance_samples_p.glsl" />
+    <None Include="..\shader\ssgi_draw_indirect_irradiance_samples_v.glsl" />
     <None Include="..\shader\ssgi_indirect_irradiance_p.glsl" />
     <None Include="..\shader\ssgi_tracing_p.glsl" />
     <None Include="..\shader\hi_z_copy_p.glsl" />
@@ -221,6 +223,7 @@
     <None Include="..\shader\bloom_downsample_v.glsl" />
     <None Include="..\shader\bloom_upscale_v.glsl" />
     <None Include="..\shader\ssgi_debug_mirror_p.glsl" />
+    <None Include="..\shader\ssgi_visualize_c.glsl" />
     <None Include="..\shader\ssrt_ray_debug_c.glsl" />
     <None Include="..\shader\ssgi_resolve_p.glsl" />
     <None Include="..\shader\surfel_direct_lighting_c.glsl" />
