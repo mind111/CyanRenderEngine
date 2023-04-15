@@ -280,9 +280,6 @@ namespace Cyan
 #endif
             renderSceneLighting(m_sceneTextures->color, renderableScene, m_sceneTextures->gBuffer);
 
-            // draw debug objects if any
-            drawDebugObjects();
-
             // post processing
             if (m_settings.bPostProcessing) 
             {
@@ -291,6 +288,9 @@ namespace Cyan
                 auto bloomTexture = bloom(m_sceneTextures->color.getGfxTexture2D());
                 compose(sceneView.canvas, m_sceneTextures->color.getGfxTexture2D(), bloomTexture.getGfxTexture2D(), m_windowSize);
             }
+
+            // draw debug objects if any
+            drawDebugObjects();
 
             if (m_visualization)
             {
@@ -962,12 +962,6 @@ namespace Cyan
 
     void Renderer::drawDebugObjects()
     {
-        while (!debugDrawCalls.empty())
-        {
-            auto& draw = debugDrawCalls.front();
-            draw();
-            debugDrawCalls.pop();
-        }
     }
 
     void Renderer::renderSceneGBufferWithTextureAtlas(Framebuffer* outFramebuffer, RenderableScene& scene, GBuffer gBuffer)

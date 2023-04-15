@@ -122,12 +122,12 @@ vec3 worldToScreen(vec3 pp, in mat4 view, in mat4 projection)
 
 float intersectScreenRect(vec2 screenSpaceRo, vec2 screenSpaceRd)
 {
-	float txLeft = (screenSpaceRo.x - 0.f) / screenSpaceRd.x;
-	float txRight = (screenSpaceRo.x - 1.f) / screenSpaceRd.x;
+	float txLeft = (0.f - screenSpaceRo.x) / screenSpaceRd.x;
+	float txRight = (1.f - screenSpaceRo.x) / screenSpaceRd.x;
     float tx = max(txLeft, txRight);
 
-	float tyBottom = (screenSpaceRo.y - 0.f) / screenSpaceRd.y;
-	float tyTop = (screenSpaceRo.y - 1.f) / screenSpaceRd.y;
+	float tyBottom = (0.f - screenSpaceRo.y) / screenSpaceRd.y;
+	float tyTop = (1.f - screenSpaceRo.y) / screenSpaceRd.y;
     float ty = max(tyBottom, tyTop);
     return min(tx, ty);
 }
@@ -172,6 +172,9 @@ void main()
 	// angle between np and wo
 	float gamma = acos(clamp(dot(normalize(np), wo), -1.f, 1.f)) * dot(normalize(cross(wo, np)), slicePlaneNormal);
 
+	float nx = sin(gamma);
+	float ny = cos(gamma);
+
 	float h1 = -PI; // h1 is clock-wise thus negative
 	float h2 = PI;  // h2 is counterclock-wise thus positive
 
@@ -184,7 +187,8 @@ void main()
 
 	float theta1; 
 	vec3 radiance1, n1, sx1;
-	for (int j = 0; j < numSteps1; ++j)
+	// count the center tap into front slice, thus starting at index 0
+	for (int j = 0; j <= numSteps1; ++j)
 	{
 		vec2 sampleCoord = pixelCoord + (j * uniformScreenSpaceStepSize) * dir;
 
@@ -198,14 +202,26 @@ void main()
 		theta1 = -acos(dot(normalize(sx1), wo));
 		h1 = max(h1, theta1);
 
+		if (theta1 > prevT1)
+		{
+			float t0 = prevT1;
+			float t1 = theta1;
+			float cost0 = cos(t0);
+			float cost1 = cos(t1);
+			indirectIrradiance += radiance1 * (.5f * ny * (t1 - t0 + sin(t0) * cost0 - sin(t1) * cost1) + .5f * nx * (cost0 * cost0 - cost1 * cost1));
+			prevT1 = theta1;
+
+			frontSampleBuffer.samples[j].radiance = vec4(radiance1, 1.f);
+		}
+
+		// frontSampleBuffer.samples[j].radiance = vec4(radiance1, 1.f);
 		frontSampleBuffer.samples[j].position = vec4(sampleCoord, 0.f, 1.f);
-		frontSampleBuffer.samples[j].radiance = vec4(radiance1, 1.f);
 	}
-	frontSampleBuffer.numSamples = numSteps1;
+	frontSampleBuffer.numSamples = numSteps1 + 1;
 
 	float theta2;
 	vec3 radiance2, n2, sx2;
-	for (int j = 0; j < numSteps2; ++j)
+	for (int j = 1; j <= numSteps2; ++j)
 	{
 		// calculate theta2
 		vec2 sampleCoord = pixelCoord - (j * uniformScreenSpaceStepSize) * dir;
@@ -219,33 +235,20 @@ void main()
 		theta2 = acos(dot(normalize(sx2), wo));
 		h2 = min(h2, theta2);
 
-		backSampleBuffer.samples[j].position = vec4(sampleCoord, 0.f, 1.f);
-		backSampleBuffer.samples[j].radiance = vec4(radiance2, 1.f);
+		if (theta2 < prevT2)
+		{
+			float t0 = theta2;
+			float t1 = prevT2;
+			float cost0 = cos(t0);
+			float cost1 = cos(t1);
+			indirectIrradiance += radiance2 * (.5f * nx * (t1 - t0 + sin(t0) * cost0 - sin(t1) * cost1) + .5f * ny * (cost0 * cost0 - cost1 * cost1));
+			prevT2 = theta2;
+
+			backSampleBuffer.samples[j - 1].radiance = vec4(radiance2, 1.f);
+		}
+
+		//backSampleBuffer.samples[j - 1].radiance = vec4(radiance2, 1.f);
+		backSampleBuffer.samples[j - 1].position = vec4(sampleCoord, 0.f, 1.f);
 	}
 	backSampleBuffer.numSamples = numSteps2;
-
-	// if the horizon angle sample "rises", then integrate indirect lighting
-	float nx = sin(gamma);
-	float ny = cos(gamma);
-
-	if (theta1 > prevT1)
-	{
-		float t0 = prevT1;
-		float t1 = theta1;
-		float cost0 = cos(t0);
-		float cost1 = cos(t1);
-		indirectIrradiance += radiance1 * (.5f * ny * (t1 - t0 + sin(t0) * cost0 - sin(t1) * cost1) + .5f * nx * (cost0 * cost0 - cost1 * cost1));
-
-		prevT1 = theta1;
-	}
-	if (theta2 < prevT2)
-	{
-		float t0 = theta2;
-		float t1 = prevT2;
-		float cost0 = cos(t0);
-		float cost1 = cos(t1);
-		indirectIrradiance += radiance2 * (.5f * nx * (t1 - t0 + sin(t0) * cost0 - sin(t1) * cost1) + .5f * ny * (cost0 * cost0 - cost1 * cost1));
-
-		prevT2 = theta2;
-	}
 }

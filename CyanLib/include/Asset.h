@@ -43,6 +43,7 @@ namespace Cyan
 
         // unique name identifier
         std::string name;
+        std::string path;
         // unique handle
         u64 handle;
         std::atomic<State> state = State::kInvalid;

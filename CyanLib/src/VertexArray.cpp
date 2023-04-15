@@ -1,5 +1,6 @@
 #include <cassert>
 
+#include "glm/glm.hpp"
 #include "VertexArray.h"
 #include "VertexBuffer.h"
 #include "IndexBuffer.h"
@@ -16,6 +17,27 @@ namespace Cyan
     {
         GLuint arrays[] = { getGpuResource() };
         glDeleteVertexArrays(1, arrays);
+    }
+
+    VertexArray* VertexArray::getDummyVertexArray()
+    {
+        static VertexBuffer* dummyVertexBuffer = nullptr;
+        static IndexBuffer* dummyIndexBuffer = nullptr;
+        static VertexArray* dummyVertexArray = nullptr;
+
+        if (dummyVertexArray == nullptr)
+        {
+            assert(dummyVertexBuffer == nullptr && dummyIndexBuffer == nullptr);
+            VertexBuffer::Spec spec;
+            spec.addVertexAttribute("Position", VertexBuffer::Attribute::Type::kVec3);
+            std::vector<glm::vec3> vertices = { glm::vec3(0.f) };
+            u32 sizeInBytes = sizeOfVector(vertices);
+            dummyVertexBuffer = new VertexBuffer(spec, vertices.data(), sizeInBytes);
+            std::vector<u32> indices = { 0 };
+            dummyIndexBuffer = new IndexBuffer(indices);
+            dummyVertexArray = new VertexArray(dummyVertexBuffer, dummyIndexBuffer);
+        }
+        return dummyVertexArray;
     }
 
     void VertexArray::init()

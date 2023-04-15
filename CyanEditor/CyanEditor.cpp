@@ -226,6 +226,10 @@ namespace Cyan
                         ImGui::Text("Indirect Irradiance");
                         ImGui::Text("Normal Error Tolerance:");
                         ImGui::SliderFloat("##Normal Error Tolerance: ", &SSGI->indirectIrradianceNormalErrTolerance, -1.f, 0.f);
+                        float v[2] = { SSGI->debugPixelCoord.x, SSGI->debugPixelCoord.y };
+                        ImGui::SliderFloat2("##Debug Pixel Coord: ", v, 0.f, 1.f);
+                        SSGI->debugPixelCoord.x = v[0];
+                        SSGI->debugPixelCoord.y = v[1];
                         ImGui::Separator();
                         ImGui::Text("Reflection");
                         ImGui::Separator();

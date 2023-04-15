@@ -77,6 +77,43 @@ namespace Cyan
         virtual void onLoaded() override;
         virtual void unload() override { }
 
+#if 0
+        virtual void save() 
+        { 
+            static const char* rootObjectFolder = "/data/";
+
+            if (!path.empty())
+            {
+                // open a file for write in binary mode
+                std::ofstream outFile(path.c_str(), std::ios::out | std::ios::binary);
+                if (outFile.is_open())
+                {
+                    outFile.write();
+                    outFile.close();
+                }
+                else
+                {
+                    // somehow failed to open the file
+                    assert(0);
+                }
+
+                // write meta data
+                /**
+                    struct StaticMeshMetadata
+                    {
+                        char[] magicNumber; // formed from class name
+                        char[] name; // path to this file + name forms the file path
+                    }
+                 */
+                {
+
+                }
+
+                // write bulk data
+            }
+        }
+#endif
+
         static Submesh::Desc getSubmeshDesc(Submesh* submesh);
         Submesh* getSubmesh(u32 index);
 

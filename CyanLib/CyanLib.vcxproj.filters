@@ -904,5 +904,8 @@
     <None Include="..\shader\ssgi_draw_indirect_irradiance_samples_p.glsl">
       <Filter>Shaders\SSGI</Filter>
     </None>
+    <None Include="..\shader\ssgi_restir_p.glsl">
+      <Filter>Shaders\SSGI</Filter>
+    </None>
   </ItemGroup>
 </Project>

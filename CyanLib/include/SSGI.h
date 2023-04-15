@@ -33,7 +33,7 @@ namespace Cyan
         static SSGI* get() { return s_instance.get(); }
 
         void render(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIrradiance, const GBuffer& gBuffer, const RenderableScene& scene, const HiZBuffer& HiZ, RenderTexture2D inDirectDiffuseBuffer);
-        void visualize(RenderTexture2D outColor, const GBuffer& gBuffer, const RenderableScene& scene);
+        void visualize(GfxTexture2D* outColor, const GBuffer& gBuffer, const RenderableScene& scene, RenderTexture2D inDirectDiffuseBuffer);
 
         bool bBilateralFiltering = true;
 
@@ -44,6 +44,7 @@ namespace Cyan
         i32 numReuseSamples = 32;
         f32 reuseKernelRadius = .01f;
         f32 indirectIrradianceNormalErrTolerance = -.1f;
+        glm::vec2 debugPixelCoord = glm::vec2(.5f);
 
         glm::uvec2 resolution;
         HitBuffer hitBuffer;
@@ -55,7 +56,8 @@ namespace Cyan
          * Reference:
             * HBIL
          */
-        void renderAOAndIndirectIrradiance(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIndirectIrradiance, const GBuffer& gBuffer, RenderTexture2D inDirectDiffuseBuffer, const RenderableScene& scene);
+        void renderHorizonBasedAOAndIndirectIrradiance(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIndirectIrradiance, const GBuffer& gBuffer, RenderTexture2D inDirectDiffuseBuffer, const RenderableScene& scene);
+        void renderScreenSpaceRayTracedIndirectIrradiance(RenderTexture2D outIndirectIrradiance, const GBuffer& gBuffer, RenderTexture2D inDirectDiffuseBuffer, const RenderableScene& scene);
         void renderReflection() { };
 
         // used for SSAO temporal filtering

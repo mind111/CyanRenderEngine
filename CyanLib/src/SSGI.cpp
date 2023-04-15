@@ -82,9 +82,8 @@ namespace Cyan
 
     void SSGI::render(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIndirectIrradiance, const GBuffer& gBuffer, const RenderableScene& scene, const HiZBuffer& HiZ, RenderTexture2D inDirectDiffuseBuffer)
     {
-#if 1
-        renderAOAndIndirectIrradiance(outAO, outBentNormal, outIndirectIrradiance, gBuffer, inDirectDiffuseBuffer, scene);
-        visualize(outIndirectIrradiance, gBuffer, scene);
+#if 0
+        renderHorizonBasedAOAndIndirectIrradiance(outAO, outBentNormal, outIndirectIrradiance, gBuffer, inDirectDiffuseBuffer, scene);
 #else
         GfxTexture2D* sceneDepth = gBuffer.depth.getGfxDepthTexture2D();
 
@@ -163,7 +162,7 @@ namespace Cyan
         - A Spatial and Temporal Coherence Framework for Real-Time Graphics 
         - High-Quality Screen-Space Ambient Occlusion using Temporal Coherence https://publik.tuwien.ac.at/files/PubDat_191582.pdf
      */
-    void SSGI::renderAOAndIndirectIrradiance(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIndirectIrradiance, const GBuffer& gBuffer, RenderTexture2D inDirectDiffuseBuffer, const RenderableScene& scene) 
+    void SSGI::renderHorizonBasedAOAndIndirectIrradiance(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIndirectIrradiance, const GBuffer& gBuffer, RenderTexture2D inDirectDiffuseBuffer, const RenderableScene& scene) 
     {
         static i32 frameCount = 0;
         static glm::mat4 prevFrameView(1.f);
@@ -300,7 +299,7 @@ namespace Cyan
         frameCount++;
     }
 
-    void SSGI::visualize(RenderTexture2D outColor, const GBuffer& gBuffer, const RenderableScene& scene)
+    void SSGI::visualize(GfxTexture2D* outColor, const GBuffer& gBuffer, const RenderableScene& scene, RenderTexture2D inDirectDiffuseBuffer)
     {
         const i32 kNumSamplesPerDir = 32;
         struct Sample
@@ -333,8 +332,9 @@ namespace Cyan
             CreateCS(cs, "SSGIVisualizeSamplePointsCS", SHADER_SOURCE_PATH "ssgi_visualize_c.glsl");
             CreateComputePipeline(pipeline, "SSGIVisualizeSamplePoints", cs);
 
-            ctx->setComputePipeline(pipeline, [](ComputeShader* cs) {
-                cs->setUniform("pixelCoord", glm::vec2(.5f));
+            ctx->setComputePipeline(pipeline, [this, inDirectDiffuseBuffer](ComputeShader* cs) {
+                cs->setUniform("pixelCoord", debugPixelCoord);
+                cs->setTexture("diffuseRadianceBuffer", inDirectDiffuseBuffer.getGfxTexture2D());
                 cs->setUniform("sampleSliceIndex", (i32)0);
                 cs->setShaderStorageBuffer(&gpuFrontSampleBuffer);
                 cs->setShaderStorageBuffer(&gpuBackSampleBuffer);
@@ -359,10 +359,9 @@ namespace Cyan
             offset += sizeof(Sample) * cpuFrontSampleBuffer.numSamples;
             sampleBuffer.write(cpuBackSampleBuffer.samples, offset, sizeof(Sample) * cpuBackSampleBuffer.numSamples);
 
-            auto outGfxTexture = outColor.getGfxTexture2D();
-            RenderPass pass(outGfxTexture->width, outGfxTexture->height);
-            pass.setRenderTarget(outGfxTexture, 0, false);
-            pass.viewport = {0, 0, outGfxTexture->width, outGfxTexture->height };
+            RenderPass pass(outColor->width, outColor->height);
+            pass.setRenderTarget(outColor, 0, false);
+            pass.viewport = {0, 0, outColor->width, outColor->height };
             GfxPipelineState gfxPipelineState;
             gfxPipelineState.depth = DepthControl::kDisable;
             pass.gfxPipelineState = gfxPipelineState;
@@ -374,11 +373,20 @@ namespace Cyan
                     vs->setShaderStorageBuffer(&sampleBuffer);
                 });
                 u32 numVerts = cpuFrontSampleBuffer.numSamples + cpuBackSampleBuffer.numSamples;
+                ctx->setVertexArray(VertexArray::getDummyVertexArray());
                 glDrawArrays(GL_POINTS, 0, numVerts);
             };
             pass.render(ctx);
 
             // todo: draw sample directions
         }
+    }
+
+    /**
+     * Screen space Hi-Z traced indirect irradiance leveraging ReSTIR
+     */
+    void SSGI::renderScreenSpaceRayTracedIndirectIrradiance(RenderTexture2D outIndirectIrradiance, const GBuffer& gBuffer, RenderTexture2D inDirectDiffuseBuffer, const RenderableScene& scene)
+    {
+        // 
     }
 }

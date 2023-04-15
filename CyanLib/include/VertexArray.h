@@ -13,6 +13,8 @@ namespace Cyan
         VertexArray(VertexBuffer* inVertexBuffer, IndexBuffer* inIndexBuffer);
         ~VertexArray();
 
+        static VertexArray* getDummyVertexArray();
+
         void init();
         void bind();
         void unbind();

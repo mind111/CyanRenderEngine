@@ -112,12 +112,12 @@ vec3 worldToScreen(vec3 pp, in mat4 view, in mat4 projection)
 
 float intersectScreenRect(vec2 screenSpaceRo, vec2 screenSpaceRd)
 {
-	float txLeft = (screenSpaceRo.x - 0.f) / screenSpaceRd.x;
-	float txRight = (screenSpaceRo.x - 1.f) / screenSpaceRd.x;
+	float txLeft = (0.f - screenSpaceRo.x) / screenSpaceRd.x;
+	float txRight = (1.f - screenSpaceRo.x) / screenSpaceRd.x;
     float tx = max(txLeft, txRight);
 
-	float tyBottom = (screenSpaceRo.y - 0.f) / screenSpaceRd.y;
-	float tyTop = (screenSpaceRo.y - 1.f) / screenSpaceRd.y;
+	float tyBottom = (0.f - screenSpaceRo.y) / screenSpaceRd.y;
+	float tyTop = (1.f - screenSpaceRo.y) / screenSpaceRd.y;
     float ty = max(tyBottom, tyTop);
     return min(tx, ty);
 }
@@ -152,7 +152,8 @@ void main()
 
     vec3 indirectIrradiance = vec3(0.f);
 
-    const float uniformScreenSpaceStepSize = .1f;
+#if 0
+    const float uniformScreenSpaceStepSize = .05f;
 
     const int numSampleSlices = 16;
     // distributing samples in space, each pixel only gets 1 sample
@@ -185,6 +186,10 @@ void main()
 		// angle between np and wo
 		float gamma = acos(clamp(dot(normalize(np), wo), -1.f, 1.f)) * dot(normalize(cross(wo, np)), slicePlaneNormal);
 
+		// if the horizon angle sample "rises", then integrate indirect lighting
+		float nx = sin(gamma);
+		float ny = cos(gamma);
+
 		float h1 = -PI; // h1 is clock-wise thus negative
 		float h2 = PI;  // h2 is counterclock-wise thus positive
 
@@ -195,10 +200,9 @@ void main()
 		float prevT1 = h1;
 		float prevT2 = h2;
 
-#if 1
         float theta1; 
         vec3 radiance1, n1, sx1;
-        for (int j = 0; j < numSteps1; ++j)
+        for (int j = 0; j <= numSteps1; ++j)
         {
 			vec2 sampleCoord = pixelCoord + (j * uniformScreenSpaceStepSize) * dir;
 
@@ -211,11 +215,23 @@ void main()
 
 			theta1 = -acos(dot(normalize(sx1), wo));
 			h1 = max(h1, theta1);
+
+			if (theta1 > prevT1)
+			{
+				float t0 = prevT1;
+				float t1 = theta1;
+				float cost0 = cos(t0);
+				float cost1 = cos(t1);
+				float normalCorrection = smoothstep(normalErrorTolerance, 0.f, dot(n1, normalize(-sx1)));
+				indirectIrradiance += radiance1 * (.5f * ny * (t1 - t0 + sin(t0) * cost0 - sin(t1) * cost1) + .5f * nx * (cost0 * cost0 - cost1 * cost1)) * normalCorrection;
+
+				prevT1 = theta1;
+			}
         }
 
         float theta2;
         vec3 radiance2, n2, sx2;
-        for (int j = 0; j < numSteps2; ++j)
+        for (int j = 1; j <= numSteps2; ++j)
         {
 			// calculate theta2
 			vec2 sampleCoord = pixelCoord - (j * uniformScreenSpaceStepSize) * dir;
@@ -228,67 +244,91 @@ void main()
 
 			theta2 = acos(dot(normalize(sx2), wo));
 			h2 = min(h2, theta2);
+
+			if (theta2 < prevT2)
+			{
+				float t0 = theta2;
+				float t1 = prevT2;
+				float cost0 = cos(t0);
+				float cost1 = cos(t1);
+				float normalCorrection = smoothstep(normalErrorTolerance, 0.f, dot(n2, normalize(-sx2)));
+				indirectIrradiance += radiance2 * (.5f * nx * (t1 - t0 + sin(t0) * cost0 - sin(t1) * cost1) + .5f * ny * (cost0 * cost0 - cost1 * cost1)) * normalCorrection;
+
+				prevT2 = theta2;
+			}
         }
+    }
+#else
+    float baseScreenSpaceStepSize = .001f;
+    // todo: slightly randomize the initialize step size to help with banding
+	float randomness = texture(blueNoiseTexture_1024x1024_RGBA, gl_FragCoord.xy / float(textureSize(blueNoiseTexture_1024x1024_RGBA, 0).xy)).r;
+    baseScreenSpaceStepSize = baseScreenSpaceStepSize * .1f + randomness * .9f;
+
+    const int numSampleSlices = 32;
+    // distributing samples in space, each pixel only gets 1 sample
+    float tileSize = 8.f;
+    ivec2 subtileCoord = ivec2(mod(floor(gl_FragCoord.xy), tileSize));
+    int sampleIndex = subtileCoord.y * int(tileSize) + subtileCoord.x;
+	for (int i = 0; i < numSampleSlices; ++i)
+    {
+		vec2 dir = normalize(BlueNoiseInDisk[i]);
+		float rotation = texture(blueNoiseTexture_1024x1024_RGBA, gl_FragCoord.xy / textureSize(blueNoiseTexture_1024x1024_RGBA, 0)).r * 2.f * PI;
+		mat2 rotMat2 = {
+			{  cos(rotation), sin(rotation) },
+			{ -sin(rotation), cos(rotation) }
+		};
+        dir = rotMat2 * dir;
+
+		vec3 cameraRightVector = vec3(view[0][0], view[1][0], view[2][0]);
+		vec3 cameraUpVector = vec3(view[0][1], view[1][1], view[2][1]);
+		// slice plane x axis
+		vec3 slicePlaneXAxis = dir.x * cameraRightVector + dir.y * cameraUpVector;
+
+		// projecting n onto current slice's plane to get np
+		vec3 slicePlaneNormal = normalize(cross(slicePlaneXAxis, wo));
+		vec3 np  = n - slicePlaneNormal * dot(slicePlaneNormal, n);
+		// angle between np and wo
+		float gamma = acos(clamp(dot(normalize(np), wo), -1.f, 1.f)) * dot(normalize(cross(wo, np)), slicePlaneNormal);
 
 		// if the horizon angle sample "rises", then integrate indirect lighting
 		float nx = sin(gamma);
 		float ny = cos(gamma);
 
-		if (theta1 > prevT1)
-		{
-			float t0 = prevT1;
-			float t1 = theta1;
-			float cost0 = cos(t0);
-			float cost1 = cos(t1);
-			float normalCorrection = smoothstep(normalErrorTolerance, 0.f, dot(n1, normalize(-sx1)));
-			indirectIrradiance += radiance1 * (.5f * ny * (t1 - t0 + sin(t0) * cost0 - sin(t1) * cost1) + .5f * nx * (cost0 * cost0 - cost1 * cost1)) * normalCorrection;
+		float h1 = -PI; // h1 is clock-wise thus negative
+		float h2 = PI;  // h2 is counterclock-wise thus positive
 
-			prevT1 = theta1;
-		}
-		if (theta2 < prevT2)
-		{
-			float t0 = theta2;
-			float t1 = prevT2;
-			float cost0 = cos(t0);
-			float cost1 = cos(t1);
-			float normalCorrection = smoothstep(normalErrorTolerance, 0.f, dot(n2, normalize(-sx2)));
-			indirectIrradiance += radiance2 * (.5f * nx * (t1 - t0 + sin(t0) * cost0 - sin(t1) * cost1) + .5f * ny * (cost0 * cost0 - cost1 * cost1)) * normalCorrection;
+		// start the horizon angle at the normal plane
+		h1 = gamma + max(-.5f * PI, h1 - gamma);
+		h2 = gamma + min( .5f * PI, h2 - gamma);
 
-			prevT2 = theta2;
-		}
-#else
-		// todo: solve the ray's intersection with the screen rect to determine sample boundry
-        // todo: define a uniform screen space step size, and use each ray's intersection with the screen rect to determine how many steps to take for each ray
+		float prevT1 = h1;
+		float prevT2 = h2;
 
-		for (int j = 0; j < numSamplesPerDirection; ++j)
-		{
-			vec2 sampleCoord = pixelCoord + (j * stepSize) * dir;
+        float theta1; 
+        vec3 prevRadiance1 = vec3(0.f), radiance1, n1, sx1;
 
+        int numSteps1 = 0;
+        float d1 = 0.f;
+        float t1 = intersectScreenRect(pixelCoord, dir);
+        while (d1 < t1)
+        {
+            float stepSize = baseScreenSpaceStepSize * pow(2.f, numSteps1);
+            d1 += stepSize;
+            if (d1 > t1)
+            {
+				continue;
+            }
+
+			vec2 sampleCoord = pixelCoord + d1 * dir;
 			// calculate theta1 
 			float sz1 = texture(sceneDepthTexture, sampleCoord).r;
-            vec3 n1 = normalize(texture(sceneNormalTexture, sampleCoord).xyz * 2.f - 1.f);
-			vec3 radiance1 = texture(diffuseRadianceBuffer, sampleCoord).rgb;
+            n1 = normalize(texture(sceneNormalTexture, sampleCoord).xyz * 2.f - 1.f);
+			radiance1 = texture(diffuseRadianceBuffer, sampleCoord).rgb;
 			vec3 s1 = screenToWorld(vec3(sampleCoord, sz1) * 2.f - 1.f, inverse(view), inverse(projection));
-			vec3 sx1 = s1 - x;
+			sx1 = s1 - x;
 
-			float theta1 = -acos(dot(normalize(sx1), wo));
+			theta1 = -acos(dot(normalize(sx1), wo));
 			h1 = max(h1, theta1);
-
-			// calculate theta2
-			sampleCoord = pixelCoord - (j * stepSize) * dir;
-
-			float sz2 = texture(sceneDepthTexture, sampleCoord).r;
-            vec3 n2 = normalize(texture(sceneNormalTexture, sampleCoord).xyz * 2.f - 1.f);
-			vec3 radiance2 = texture(diffuseRadianceBuffer, sampleCoord).rgb;
-			vec3 s2 = screenToWorld(vec3(sampleCoord, sz2) * 2.f - 1.f, inverse(view), inverse(projection));
-			vec3 sx2 = s2 - x;
-
-			float theta2 = acos(dot(normalize(sx2), wo));
-			h2 = min(h2, theta2);
-
-			// if the horizon angle sample "rises", then integrate indirect lighting
-			float nx = sin(gamma);
-			float ny = cos(gamma);
 
 			if (theta1 > prevT1)
 			{
@@ -296,25 +336,55 @@ void main()
 				float t1 = theta1;
 				float cost0 = cos(t0);
 				float cost1 = cos(t1);
-                float normalCorrection = smoothstep(normalErrorTolerance, 0.f, dot(n1, normalize(-sx1)));
-				indirectIrradiance += radiance1 * (.5f * ny * (t1 - t0 + sin(t0) * cost0 - sin(t1) * cost1) + .5f * nx * (cost0 * cost0 - cost1 * cost1));
+				float normalCorrection = smoothstep(normalErrorTolerance, 0.f, dot(n1, normalize(-sx1)));
+				indirectIrradiance += radiance1 * (.5f * ny * (t1 - t0 + sin(t0) * cost0 - sin(t1) * cost1) + .5f * nx * (cost0 * cost0 - cost1 * cost1)) * normalCorrection;
 
 				prevT1 = theta1;
 			}
+
+            numSteps1++;
+        }
+
+        float theta2;
+        vec3 prevRadiance2 = vec3(0.f), radiance2, n2, sx2;
+        int numSteps2 = 0;
+        float d2 = 0.f;
+        float t2 = intersectScreenRect(pixelCoord, -dir);
+        while (d2 < t2)
+        {
+            float stepSize = baseScreenSpaceStepSize * pow(2.f, numSteps2);
+            d2 += stepSize;
+            if (d2 > t2)
+            {
+				continue;
+            }
+
+			vec2 sampleCoord = pixelCoord - d2 * dir;
+			float sz2 = texture(sceneDepthTexture, sampleCoord).r;
+            n2 = normalize(texture(sceneNormalTexture, sampleCoord).xyz * 2.f - 1.f);
+			radiance2 = texture(diffuseRadianceBuffer, sampleCoord).rgb;
+			vec3 s2 = screenToWorld(vec3(sampleCoord, sz2) * 2.f - 1.f, inverse(view), inverse(projection));
+			sx2 = s2 - x;
+
+			theta2 = acos(dot(normalize(sx2), wo));
+			h2 = min(h2, theta2);
+
 			if (theta2 < prevT2)
 			{
 				float t0 = theta2;
 				float t1 = prevT2;
 				float cost0 = cos(t0);
 				float cost1 = cos(t1);
-                float normalCorrection = smoothstep(normalErrorTolerance, 0.f, dot(n2, normalize(-sx2)));
-				indirectIrradiance += radiance2 * (.5f * nx * (t1 - t0 + sin(t0) * cost0 - sin(t1) * cost1) + .5f * ny * (cost0 * cost0 - cost1 * cost1));
+				float normalCorrection = smoothstep(normalErrorTolerance, 0.f, dot(n2, normalize(-sx2)));
+				indirectIrradiance += radiance2 * (.5f * nx * (t1 - t0 + sin(t0) * cost0 - sin(t1) * cost1) + .5f * ny * (cost0 * cost0 - cost1 * cost1)) * normalCorrection;
 
-                prevT2 = theta2;
+				prevT2 = theta2;
 			}
-		}
-#endif
+
+            numSteps2++;
+        }
     }
+#endif
 
     indirectIrradiance /= numSampleSlices;
     outIndirectIrradiance = indirectIrradiance;
