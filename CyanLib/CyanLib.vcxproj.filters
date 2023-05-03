@@ -907,5 +907,8 @@
     <None Include="..\shader\ssgi_restir_p.glsl">
       <Filter>Shaders\SSGI</Filter>
     </None>
+    <None Include="..\shader\ssgi_restir_spatial_reuse_p.glsl">
+      <Filter>Shaders\SSGI</Filter>
+    </None>
   </ItemGroup>
 </Project>

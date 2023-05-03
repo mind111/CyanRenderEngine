@@ -142,6 +142,7 @@
     <None Include="..\shader\ssgi_draw_indirect_irradiance_samples_v.glsl" />
     <None Include="..\shader\ssgi_indirect_irradiance_p.glsl" />
     <None Include="..\shader\ssgi_restir_p.glsl" />
+    <None Include="..\shader\ssgi_restir_spatial_reuse_p.glsl" />
     <None Include="..\shader\ssgi_tracing_p.glsl" />
     <None Include="..\shader\hi_z_copy_p.glsl" />
     <None Include="..\shader\lighting.glsl" />

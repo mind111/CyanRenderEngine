@@ -82,8 +82,12 @@ namespace Cyan
 
     void SSGI::render(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIndirectIrradiance, const GBuffer& gBuffer, const RenderableScene& scene, const HiZBuffer& HiZ, RenderTexture2D inDirectDiffuseBuffer)
     {
-#if 0
+#if 1
+    #if 0
         renderHorizonBasedAOAndIndirectIrradiance(outAO, outBentNormal, outIndirectIrradiance, gBuffer, inDirectDiffuseBuffer, scene);
+    #else
+        renderScreenSpaceRayTracedIndirectIrradiance(outIndirectIrradiance, gBuffer, HiZ, inDirectDiffuseBuffer, scene);
+    #endif
 #else
         GfxTexture2D* sceneDepth = gBuffer.depth.getGfxDepthTexture2D();
 
@@ -385,8 +389,124 @@ namespace Cyan
     /**
      * Screen space Hi-Z traced indirect irradiance leveraging ReSTIR
      */
-    void SSGI::renderScreenSpaceRayTracedIndirectIrradiance(RenderTexture2D outIndirectIrradiance, const GBuffer& gBuffer, RenderTexture2D inDirectDiffuseBuffer, const RenderableScene& scene)
+    void SSGI::renderScreenSpaceRayTracedIndirectIrradiance(RenderTexture2D outIndirectIrradiance, const GBuffer& gBuffer, const HiZBuffer& HiZ, RenderTexture2D inDirectDiffuseBuffer, const RenderableScene& scene)
     {
-        // 
+        GPU_DEBUG_SCOPE(IndirectIrradiancePassMarker, "SSGI Indirect Irradiance");
+
+        auto sceneDepth = gBuffer.depth.getGfxDepthTexture2D();
+        auto sceneNormal = gBuffer.normal.getGfxTexture2D();
+        auto out = outIndirectIrradiance.getGfxTexture2D();
+        auto renderer = Renderer::get();
+        GfxTexture2D::Spec spec(out->width, out->height, 1, PF_RGB32F);
+        RenderTexture2D outReservoirRadiance("OutReservoirRadiance", spec);
+        RenderTexture2D outReservoirSamplePosition("OutReservoirSamplePosition", spec);
+        RenderTexture2D outReservoirSampleNormal("OutReservoirSampleNormal", spec);
+        RenderTexture2D outReservoirWSumMW("OutReservoirWSumMW", spec);
+
+        {
+            CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
+            CreatePS(ps, "SSGIReSTIR", SHADER_SOURCE_PATH "ssgi_restir_p.glsl");
+            CreatePixelPipeline(pipeline, "SSGIReSTIR", vs, ps);
+
+            renderer->drawFullscreenQuad(
+                getFramebufferSize(outIndirectIrradiance.getGfxTexture2D()),
+                [out, outReservoirRadiance, outReservoirSamplePosition, outReservoirSampleNormal, outReservoirWSumMW](RenderPass& pass) {
+                        {
+                            RenderTarget renderTarget(outReservoirRadiance.getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                            pass.setRenderTarget(renderTarget, 0);
+                        }
+                        {
+                            RenderTarget renderTarget(outReservoirSamplePosition.getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                            pass.setRenderTarget(renderTarget, 1);
+                        }
+                        {
+                            RenderTarget renderTarget(outReservoirSampleNormal.getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                            pass.setRenderTarget(renderTarget, 2);
+                        }
+                        {
+                            RenderTarget renderTarget(outReservoirWSumMW.getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                            pass.setRenderTarget(renderTarget, 3);
+                        }
+                        {
+                            RenderTarget renderTarget(out, 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                            pass.setRenderTarget(renderTarget, 4);
+                        }
+                },
+                pipeline,
+                [this, out, HiZ, inDirectDiffuseBuffer, sceneDepth, sceneNormal, &scene](VertexShader* vs, PixelShader* ps) {
+                    ps->setShaderStorageBuffer(scene.viewBuffer.get());
+                    ps->setUniform("outputSize", glm::vec2(out->width, out->height));
+
+                    ps->setTexture("HiZ", HiZ.texture.getGfxTexture2D());
+                    ps->setUniform("numLevels", (i32)HiZ.texture.getGfxTexture2D()->numMips);
+                    ps->setUniform("kMaxNumIterations", (i32)numIterations);
+                    ps->setUniform("useReSTIR", bUseReSTIR ? 1.f : 0.f);
+
+                    ps->setTexture("sceneDepthBuffer", sceneDepth);
+                    ps->setTexture("sceneNormalBuffer", sceneNormal);
+                    ps->setTexture("diffuseRadianceBuffer", inDirectDiffuseBuffer.getGfxTexture2D());
+                }
+            );
+        }
+
+        {
+            // spatial reuse
+            CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
+            CreatePS(ps, "SSGIReSTIRSpatial", SHADER_SOURCE_PATH "ssgi_restir_spatial_reuse_p.glsl");
+            CreatePixelPipeline(pipeline, "SSGIReSTIRSpatial", vs, ps);
+
+            // todo: need to ping pong between buffers
+            const i32 kNumSpatialReuseIterations = 2;
+            for (i32 i = 0; i < kNumSpatialReuseIterations; ++i)
+            {
+                renderer->drawFullscreenQuad(
+                    getFramebufferSize(out),
+                    [out, outReservoirRadiance, outReservoirSamplePosition, outReservoirSampleNormal, outReservoirWSumMW](RenderPass& pass) {
+                        {
+                            RenderTarget renderTarget(outReservoirRadiance.getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                            pass.setRenderTarget(renderTarget, 0, false);
+                        }
+                        {
+                            RenderTarget renderTarget(outReservoirSamplePosition.getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                            pass.setRenderTarget(renderTarget, 1, false);
+                        }
+                        {
+                            RenderTarget renderTarget(outReservoirSampleNormal.getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                            pass.setRenderTarget(renderTarget, 2, false);
+                        }
+                        {
+                            RenderTarget renderTarget(outReservoirWSumMW.getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                            pass.setRenderTarget(renderTarget, 3, false);
+                        }
+                        {
+                            RenderTarget renderTarget(out, 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                            pass.setRenderTarget(renderTarget, 4, false);
+                        }
+                    },
+                    pipeline,
+                    [this, i, out, inDirectDiffuseBuffer, sceneDepth, sceneNormal, outReservoirRadiance, outReservoirSamplePosition, outReservoirSampleNormal, outReservoirWSumMW, &scene](VertexShader* vs, PixelShader* ps) {
+                        ps->setShaderStorageBuffer(scene.viewBuffer.get());
+                        ps->setUniform("numSamples", numSpatialReuseSamples);
+                        ps->setUniform("outputSize", glm::vec2(out->width, out->height));
+                        ps->setTexture("sceneDepthBuffer", sceneDepth);
+                        ps->setTexture("sceneNormalBuffer", sceneNormal);
+
+                        if (i < kNumSpatialReuseIterations - 1)
+                        {
+                            ps->setUniform("reusePass", .5f);
+                        }
+                        else
+                        {
+                            ps->setUniform("reusePass", 0.f);
+                        }
+
+                        ps->setTexture("reservoirRadiance", outReservoirRadiance.getGfxTexture2D());
+                        ps->setTexture("reservoirSamplePosition", outReservoirSamplePosition.getGfxTexture2D());
+                        ps->setTexture("reservoirSampleNormal", outReservoirSampleNormal.getGfxTexture2D());
+                        ps->setTexture("reservoirWSumMW", outReservoirWSumMW.getGfxTexture2D());
+                    }
+                );
+            }
+        }
     }
 }

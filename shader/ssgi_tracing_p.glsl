@@ -244,7 +244,6 @@ bool hierarchicalTrace(in vec3 worldSpaceRO, in vec3 worldSpaceRD, inout float t
 
     // slightly offset the ray in screen space to avoid self intersection
     screenSpaceT += 0.001f;
-// todo: review the rest of this tracing procedure
     int level = numLevels - 1;
     for (int i = 0; i < kMaxNumIterations; ++i)
     {

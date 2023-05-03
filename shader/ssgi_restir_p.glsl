@@ -7,7 +7,11 @@ in VSOutput
 	vec2 texCoord0;
 } psIn;
 
-out vec3 outIndirectIrradiance;
+layout (location = 0) out vec3 outReservoirRadiance;
+layout (location = 1) out vec3 outReservoirSamplePosition;
+layout (location = 2) out vec3 outReservoirSampleNormal;
+layout (location = 3) out vec3 outReservoirWSumMW;
+layout (location = 4) out vec3 outIndirectIrradiance;
 
 layout(std430) buffer ViewBuffer
 {
@@ -135,7 +139,6 @@ bool HiZTrace(in vec3 worldSpaceRO, in vec3 worldSpaceRD, inout float t)
 
     // slightly offset the ray in screen space to avoid self intersection
     screenSpaceT += 0.001f;
-// todo: review the rest of this tracing procedure
     int level = numLevels - 1;
     for (int i = 0; i < kMaxNumIterations; ++i)
     {
@@ -195,6 +198,7 @@ bool HiZTrace(in vec3 worldSpaceRO, in vec3 worldSpaceRD, inout float t)
             {
                 if (tDepth > 0.f)
                 {
+					// todo: for some reason, tDepth can become infinity (divide by 0)
 					screenSpaceT += tDepth;
                 }
                 bHit = true;
@@ -225,8 +229,8 @@ bool HiZTrace(in vec3 worldSpaceRO, in vec3 worldSpaceRD, inout float t)
 struct Reservoir
 {
     vec3 sampleRadiance;
-    // vec3 samplePosition;
-    // vec3 sampleNormal;
+    vec3 samplePosition;
+    vec3 sampleNormal;
     float wSum;
     float M;
     float W;
@@ -237,72 +241,100 @@ float calcLuminance(vec3 inLinearColor)
     return 0.2126 * inLinearColor.r + 0.7152 * inLinearColor.g + 0.0722 * inLinearColor.b;
 }
 
-void updateReservoir(inout Reservoir r, in vec3 radiance, in float wi)
+void updateReservoir(inout Reservoir r, in vec3 radiance, in vec3 samplePosition, in vec3 sampleNormal, in float wi)
 {
     r.wSum += wi;
     float p = wi / r.wSum;
     if (get_random().x < p)
     {
 		r.sampleRadiance = radiance;
-        // r.sampleNormal = normal;
-        // r.samplePosition = position;
+        r.samplePosition = samplePosition;
+        r.sampleNormal = sampleNormal;
     }
 
     r.M += 1.f;
-    float pdf = calcLuminance(r.sampleRadiance);
-    r.W = r.wSum / (pdf * r.M);
-}
-
-void mergeReservoir()
-{
+	float targetPdf = calcLuminance(r.sampleRadiance);
+	if (targetPdf > 0.01f)
+	{
+		r.W = r.wSum / (targetPdf * r.M);
+	}
+	else
+	{
+		r.W = 0.f;
+	}
 }
 
 // todo: write a shader #include thing
 // #import "random.csh"
 
+uniform vec2 outputSize;
 uniform sampler2D sceneDepthBuffer;
 uniform sampler2D sceneNormalBuffer;
 uniform sampler2D diffuseRadianceBuffer;
 
-// note: for now, assuming that 
+// todo: implement spatio-temporal
 uniform sampler2D reservoirRadiance;
 uniform sampler2D reservoirPosition;
 uniform sampler2D reservoirWandM;
 
+uniform float useReSTIR;
+
 void main()
 {
+    seed = 0;
+    flat_idx = int(floor(gl_FragCoord.y) * outputSize.x + floor(gl_FragCoord.x));
+
 	float deviceDepth = texture(sceneDepthBuffer, psIn.texCoord0).r; 
 	vec3 n = texture(sceneNormalBuffer, psIn.texCoord0).rgb * 2.f - 1.f;
+
+    if (deviceDepth > 0.998f) discard;
 
 	vec3 ro = screenToWorld(vec3(psIn.texCoord0, deviceDepth) * 2.f - 1.f, inverse(view), inverse(projection));
 
     Reservoir r;
     r.sampleRadiance = vec3(0.f);
+    r.samplePosition = vec3(0.f);
+    r.sampleNormal = vec3(0.f);
     r.wSum = 0.f;
     r.M = 0.f;
     r.W = 0.f;
 
-#if 1
-    const int numSamples = 16;
+    const int numSamples = 1;
+    vec3 indirectIrradiance = vec3(0.f);
+
     for (int i = 0; i < numSamples; ++i)
     {
+        vec3 incidentRadiance = vec3(0.f);
+
 		vec3 rd = uniformSampleHemisphere(n);
 		float t;
-        vec3 indirectRadiance = vec3(0.f);
-		if (HiZTrace(ro + n * 0.001f, rd, t))
+        vec3 hitPosition = vec3(0.f); 
+        vec3 hitNormal = vec3(0.f);
+		if (HiZTrace(ro, rd, t))
 		{
-			vec3 hitPosition = ro + t * rd;
+			hitPosition = ro + t * rd;
 			vec2 screenCoord = worldToScreen(hitPosition, view, projection).xy;
-			indirectRadiance = texture(diffuseRadianceBuffer, screenCoord).rgb; 
+            hitNormal = texture(sceneNormalBuffer, screenCoord).rgb * 2.f - 1.f;
+            // reject (false positives) backfacing samples that shouldn't contribute to indirect irradiance 
+            bool bIsInUpperHemisphere = dot(hitNormal, -rd) > 0.f;
+            if (bIsInUpperHemisphere)
+            {
+				incidentRadiance = texture(diffuseRadianceBuffer, screenCoord).rgb;
+            }
 		}
 
-		// evaluate target pdf
-		float targetPdf = calcLuminance(indirectRadiance);
-		float wi = targetPdf / 1.f;
-		updateReservoir(r, indirectRadiance, wi);
-    }
-#endif
+		float srcPdf = 1.f / (2.f * PI);
+		float targetPdf = calcLuminance(incidentRadiance);
+		float wi = targetPdf / srcPdf;
+		updateReservoir(r, incidentRadiance, hitPosition, hitNormal, wi);
 
-    vec3 indirectIrradianceEstimate = r.sampleRadiance * r.W;
-    outIndirectIrradiance = indirectIrradianceEstimate;
+		indirectIrradiance += incidentRadiance;
+    }
+
+    outReservoirRadiance = r.sampleRadiance;
+    outReservoirSamplePosition = r.samplePosition;
+    outReservoirSampleNormal = r.sampleNormal * .5f + .5f;
+    outReservoirWSumMW = vec3(r.wSum, r.M, r.W);
+
+    outIndirectIrradiance = indirectIrradiance / numSamples;
 }

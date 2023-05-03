@@ -230,6 +230,8 @@ namespace Cyan
                         ImGui::SliderFloat2("##Debug Pixel Coord: ", v, 0.f, 1.f);
                         SSGI->debugPixelCoord.x = v[0];
                         SSGI->debugPixelCoord.y = v[1];
+                        ImGui::Checkbox("Use ReSTIR:", &SSGI->bUseReSTIR);
+                        ImGui::SliderInt("Num of Spatial Reuse Samples:", &SSGI->numSpatialReuseSamples, 1, 64);
                         ImGui::Separator();
                         ImGui::Text("Reflection");
                         ImGui::Separator();

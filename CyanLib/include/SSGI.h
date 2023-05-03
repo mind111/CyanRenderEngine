@@ -42,9 +42,11 @@ namespace Cyan
         i32 numIterations = 32u;
         const i32 kMaxNumReuseSamples = 32;
         i32 numReuseSamples = 32;
+        i32 numSpatialReuseSamples = 8;
         f32 reuseKernelRadius = .01f;
         f32 indirectIrradianceNormalErrTolerance = -.1f;
         glm::vec2 debugPixelCoord = glm::vec2(.5f);
+        bool bUseReSTIR = true;
 
         glm::uvec2 resolution;
         HitBuffer hitBuffer;
@@ -57,7 +59,7 @@ namespace Cyan
             * HBIL
          */
         void renderHorizonBasedAOAndIndirectIrradiance(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIndirectIrradiance, const GBuffer& gBuffer, RenderTexture2D inDirectDiffuseBuffer, const RenderableScene& scene);
-        void renderScreenSpaceRayTracedIndirectIrradiance(RenderTexture2D outIndirectIrradiance, const GBuffer& gBuffer, RenderTexture2D inDirectDiffuseBuffer, const RenderableScene& scene);
+        void renderScreenSpaceRayTracedIndirectIrradiance(RenderTexture2D outIndirectIrradiance, const GBuffer& gBuffer, const HiZBuffer& HiZ, RenderTexture2D inDirectDiffuseBuffer, const RenderableScene& scene);
         void renderReflection() { };
 
         // used for SSAO temporal filtering
