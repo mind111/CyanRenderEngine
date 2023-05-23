@@ -253,6 +253,7 @@ void updateReservoir(inout Reservoir r, in vec3 radiance, in vec3 samplePosition
     }
 
     r.M += 1.f;
+
 	float targetPdf = calcLuminance(r.sampleRadiance);
 	if (targetPdf > 0.01f)
 	{
@@ -272,16 +273,52 @@ uniform sampler2D sceneDepthBuffer;
 uniform sampler2D sceneNormalBuffer;
 uniform sampler2D diffuseRadianceBuffer;
 
-// todo: implement spatio-temporal
-uniform sampler2D reservoirRadiance;
-uniform sampler2D reservoirPosition;
-uniform sampler2D reservoirWandM;
+uniform int frameCount;
+uniform sampler2D temporalReservoirRadiance;
+uniform sampler2D temporalReservoirSamplePosition;
+uniform sampler2D temporalReservoirSampleNormal;
+uniform sampler2D temporalReservoirWSumMW;
+
+uniform mat4 prevFrameView;
+uniform mat4 prevFrameProjection;
+uniform sampler2D prevFrameSceneDepthBuffer; 
 
 uniform float useReSTIR;
 
+void getTemporalReservoir(inout Reservoir r, in vec3 worldSpacePosition)
+{
+    // reproject
+	// todo: take pixel velocity into consideration when doing reprojection
+	// todo: consider changes in pixel neighborhood when reusing cache sample, changes in neighborhood pixels means SSAO value can change even there is a cache hit
+	// todo: adaptive convergence-aware spatial filtering
+	vec3 prevViewSpacePos = (prevFrameView * vec4(worldSpacePosition, 1.f)).xyz;
+	vec4 prevNDCPos = prevFrameProjection * vec4(prevViewSpacePos, 1.f);
+	prevNDCPos /= prevNDCPos.w;
+	prevNDCPos.xyz = prevNDCPos.xyz * .5f + .5f;
+
+	if (prevNDCPos.x <= 1.f && prevNDCPos.x >= 0.f && prevNDCPos.y <= 1.f && prevNDCPos.y >= 0.f)
+	{
+		float prevFrameDeviceZ = texture(prevFrameSceneDepthBuffer, prevNDCPos.xy).r;
+		vec3 cachedPrevFrameViewSpacePos = (prevFrameView * vec4(screenToWorld(vec3(prevNDCPos.xy, prevFrameDeviceZ) * 2.f - 1.f, inverse(prevFrameView), inverse(prevFrameProjection)), 1.f)).xyz;
+		float relativeDepthDelta = abs(cachedPrevFrameViewSpacePos.z - prevViewSpacePos.z) / -cachedPrevFrameViewSpacePos.z;
+        if (relativeDepthDelta < 0.01f)
+        {
+			r.sampleRadiance = texture(temporalReservoirRadiance, prevNDCPos.xy).rgb;
+			r.samplePosition = texture(temporalReservoirSamplePosition, prevNDCPos.xy).xyz;
+			r.sampleNormal = texture(temporalReservoirSampleNormal, prevNDCPos.xy).xyz * 2.f - 1.f;
+			vec3 wSumMW = texture(temporalReservoirWSumMW, prevNDCPos.xy).xyz;
+			r.wSum = wSumMW.x; 
+			r.M = wSumMW.y; 
+			r.W = wSumMW.z;
+        } // cache hit
+	}
+}
+
+#define MAX_TEMPORAL_SAMPLE_COUNT 10
+
 void main()
 {
-    seed = 0;
+    seed = frameCount;
     flat_idx = int(floor(gl_FragCoord.y) * outputSize.x + floor(gl_FragCoord.x));
 
 	float deviceDepth = texture(sceneDepthBuffer, psIn.texCoord0).r; 
@@ -292,12 +329,18 @@ void main()
 	vec3 ro = screenToWorld(vec3(psIn.texCoord0, deviceDepth) * 2.f - 1.f, inverse(view), inverse(projection));
 
     Reservoir r;
-    r.sampleRadiance = vec3(0.f);
-    r.samplePosition = vec3(0.f);
-    r.sampleNormal = vec3(0.f);
-    r.wSum = 0.f;
-    r.M = 0.f;
-    r.W = 0.f;
+	r.sampleRadiance = vec3(0.f);
+	r.samplePosition = vec3(0.f);
+	r.sampleNormal = vec3(0.f);
+	r.wSum = 0.f;
+	r.M = 0.f;
+	r.W = 0.f;
+    if (frameCount > 0)
+    {
+        // todo: do temporal reprojection properly 
+        // load temporal reservoir
+        getTemporalReservoir(r, ro);
+    }
 
     const int numSamples = 1;
     vec3 indirectIrradiance = vec3(0.f);
@@ -308,7 +351,8 @@ void main()
 
 		vec3 rd = uniformSampleHemisphere(n);
 		float t;
-        vec3 hitPosition = vec3(0.f); 
+        // make the default hit position really really far
+        vec3 hitPosition = ro + 10000.f * rd;
         vec3 hitNormal = vec3(0.f);
 		if (HiZTrace(ro, rd, t))
 		{
@@ -326,15 +370,20 @@ void main()
 		float srcPdf = 1.f / (2.f * PI);
 		float targetPdf = calcLuminance(incidentRadiance);
 		float wi = targetPdf / srcPdf;
-		updateReservoir(r, incidentRadiance, hitPosition, hitNormal, wi);
 
-		indirectIrradiance += incidentRadiance;
+        // clamping max number of allowed temporal samples to help with faster convergence under motion
+        if (r.M >= MAX_TEMPORAL_SAMPLE_COUNT)
+        {
+            // reduce the weight sum by average
+            r.wSum -= r.wSum / MAX_TEMPORAL_SAMPLE_COUNT;
+            r.M = MAX_TEMPORAL_SAMPLE_COUNT - 1;
+        }
+
+		updateReservoir(r, incidentRadiance, hitPosition, hitNormal, wi);
     }
 
     outReservoirRadiance = r.sampleRadiance;
     outReservoirSamplePosition = r.samplePosition;
     outReservoirSampleNormal = r.sampleNormal * .5f + .5f;
     outReservoirWSumMW = vec3(r.wSum, r.M, r.W);
-
-    outIndirectIrradiance = indirectIrradiance / numSamples;
 }

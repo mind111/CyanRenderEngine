@@ -39,10 +39,12 @@ namespace Cyan
 
         u32 numSamples = 1u;
         const i32 kMaxNumIterations = 64u;
-        i32 numIterations = 32u;
+        i32 numIterations = 64u;
         const i32 kMaxNumReuseSamples = 32;
         i32 numReuseSamples = 32;
+        const i32 kNumSpatialReuseIterations = 2;
         i32 numSpatialReuseSamples = 8;
+        f32 ReSTIRSpatialReuseKernalRadius = .02f;
         f32 reuseKernelRadius = .01f;
         f32 indirectIrradianceNormalErrTolerance = -.1f;
         glm::vec2 debugPixelCoord = glm::vec2(.5f);
@@ -59,7 +61,14 @@ namespace Cyan
             * HBIL
          */
         void renderHorizonBasedAOAndIndirectIrradiance(RenderTexture2D outAO, RenderTexture2D outBentNormal, RenderTexture2D outIndirectIrradiance, const GBuffer& gBuffer, RenderTexture2D inDirectDiffuseBuffer, const RenderableScene& scene);
+
         void renderScreenSpaceRayTracedIndirectIrradiance(RenderTexture2D outIndirectIrradiance, const GBuffer& gBuffer, const HiZBuffer& HiZ, RenderTexture2D inDirectDiffuseBuffer, const RenderableScene& scene);
+        void bruteforceScreenSpaceRayTracedIndirectIrradiance(RenderTexture2D outIndirectIrradiance, const GBuffer& gBuffer, const HiZBuffer& HiZ, RenderTexture2D inDirectDiffuseBuffer, const RenderableScene& scene);
+        /**
+         * Reference:
+            *  
+         */
+        void ReSTIRScreenSpaceRayTracedIndirectIrradiance(RenderTexture2D outIndirectIrradiance, const GBuffer& gBuffer, const HiZBuffer& HiZ, RenderTexture2D inDirectDiffuseBuffer, const RenderableScene& scene);
         void renderReflection() { };
 
         // used for SSAO temporal filtering

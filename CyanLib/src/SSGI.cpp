@@ -392,48 +392,127 @@ namespace Cyan
     void SSGI::renderScreenSpaceRayTracedIndirectIrradiance(RenderTexture2D outIndirectIrradiance, const GBuffer& gBuffer, const HiZBuffer& HiZ, RenderTexture2D inDirectDiffuseBuffer, const RenderableScene& scene)
     {
         GPU_DEBUG_SCOPE(IndirectIrradiancePassMarker, "SSGI Indirect Irradiance");
+#if 1
+        ReSTIRScreenSpaceRayTracedIndirectIrradiance(outIndirectIrradiance, gBuffer, HiZ, inDirectDiffuseBuffer, scene);
+#else
+        bruteforceScreenSpaceRayTracedIndirectIrradiance(outIndirectIrradiance, gBuffer, HiZ, inDirectDiffuseBuffer, scene);
+#endif
+    }
 
+    void SSGI::bruteforceScreenSpaceRayTracedIndirectIrradiance(RenderTexture2D outIndirectIrradiance, const GBuffer& gBuffer, const HiZBuffer& HiZ, RenderTexture2D inDirectDiffuseBuffer, const RenderableScene& scene)
+    {
         auto sceneDepth = gBuffer.depth.getGfxDepthTexture2D();
         auto sceneNormal = gBuffer.normal.getGfxTexture2D();
         auto out = outIndirectIrradiance.getGfxTexture2D();
         auto renderer = Renderer::get();
-        GfxTexture2D::Spec spec(out->width, out->height, 1, PF_RGB32F);
-        RenderTexture2D outReservoirRadiance("OutReservoirRadiance", spec);
-        RenderTexture2D outReservoirSamplePosition("OutReservoirSamplePosition", spec);
-        RenderTexture2D outReservoirSampleNormal("OutReservoirSampleNormal", spec);
-        RenderTexture2D outReservoirWSumMW("OutReservoirWSumMW", spec);
 
+        static i32 frameCount = 0;
+        GfxTexture2D::Spec indirectIrradianceSpec(out->width, out->height, 1, PF_RGB32F);
+        static RenderTexture2D temporalIndirectIrradianceBuffer[2] = { RenderTexture2D("TemporalIndirectIrradianceBuffer_0", indirectIrradianceSpec), RenderTexture2D("TemporalIndirectIrradianceBuffer_1", indirectIrradianceSpec) };
+
+        static glm::mat4 prevFrameView(1.f);
+        static glm::mat4 prevFrameProjection(1.f);
+
+        GfxTexture2D::Spec spec(out->width, out->height, 1, PF_RGB32F);
+        static RenderTexture2D prevFrameSceneDepth("PrevFrameSceneDepth", spec);
+
+        u32 src = (u32)(frameCount - 1)% 2;
+        u32 dst = (u32)frameCount % 2;
+
+        CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
+        CreatePS(ps, "SSGIBruteforceTemporal", SHADER_SOURCE_PATH "ssgi_bruteforce_temporal_p.glsl");
+        CreatePixelPipeline(pipeline, "SSGIBruteforceTemporal", vs, ps);
+
+        renderer->drawFullscreenQuad(
+            getFramebufferSize(outIndirectIrradiance.getGfxTexture2D()),
+            [out, src, dst](RenderPass& pass) {
+                RenderTarget renderTarget(temporalIndirectIrradianceBuffer[dst].getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                pass.setRenderTarget(renderTarget, 0);
+            },
+            pipeline,
+            [this, out, HiZ, inDirectDiffuseBuffer, sceneDepth, sceneNormal, &scene, src](VertexShader* vs, PixelShader* ps) {
+                ps->setShaderStorageBuffer(scene.viewBuffer.get());
+                ps->setUniform("outputSize", glm::vec2(out->width, out->height));
+
+                ps->setTexture("HiZ", HiZ.texture.getGfxTexture2D());
+                ps->setUniform("numLevels", (i32)HiZ.texture.getGfxTexture2D()->numMips);
+                ps->setUniform("kMaxNumIterations", (i32)numIterations);
+
+                ps->setTexture("sceneDepthBuffer", sceneDepth);
+                ps->setTexture("sceneNormalBuffer", sceneNormal); 
+                ps->setTexture("diffuseRadianceBuffer", inDirectDiffuseBuffer.getGfxTexture2D());
+
+                ps->setUniform("frameCount", frameCount);
+                ps->setTexture("temporalIndirectIrradianceBuffer", temporalIndirectIrradianceBuffer[src].getGfxTexture2D());
+
+                ps->setUniform("prevFrameView", prevFrameView);
+                ps->setUniform("prevFrameProjection", prevFrameProjection);
+                ps->setTexture("prevFrameSceneDepthBuffer", prevFrameSceneDepth.getGfxTexture2D());
+            }
+        );
+
+        renderer->blitTexture(out, temporalIndirectIrradianceBuffer[dst].getGfxTexture2D());
+
+        // for temporal reprojection related calculations
+        prevFrameView = scene.view.view;
+        prevFrameProjection = scene.view.projection;
+        renderer->blitTexture(prevFrameSceneDepth.getGfxTexture2D(), sceneDepth);
+
+        frameCount++;
+    }
+
+#define APPLY_SPATIAL_REUSE 1
+    void SSGI::ReSTIRScreenSpaceRayTracedIndirectIrradiance(RenderTexture2D outIndirectIrradiance, const GBuffer& gBuffer, const HiZBuffer& HiZ, RenderTexture2D inDirectDiffuseBuffer, const RenderableScene& scene)
+    {
+        auto sceneDepth = gBuffer.depth.getGfxDepthTexture2D();
+        auto sceneNormal = gBuffer.normal.getGfxTexture2D();
+        auto out = outIndirectIrradiance.getGfxTexture2D();
+        auto renderer = Renderer::get();
+
+        static i32 frameCount = 0;
+
+        GfxTexture2D::Spec spec(out->width, out->height, 1, PF_RGB32F);
+        static RenderTexture2D temporalReservoirRadiances[2] = { RenderTexture2D("TemporalReservoirRadiance_0", spec), RenderTexture2D("TemporalReservoirRadiance_1", spec) };
+        static RenderTexture2D temporalReservoirSamplePositions[2] = { RenderTexture2D("TemporalReservoirSamplePosition_0", spec), RenderTexture2D("TemporalReservoirSamplePosition_1", spec) };
+        static RenderTexture2D temporalReservoirSampleNormals[2] = { RenderTexture2D("TemporalReservoirSampleNormal_0", spec), RenderTexture2D("TemporalReservoirSampleNormal_1", spec) };
+        static RenderTexture2D temporalReservoirWSumMW[2] = { RenderTexture2D("TemporalReservoirWSumMW_0", spec), RenderTexture2D("TemporalReservoirWSumMW_1", spec) };
+        static glm::mat4 prevFrameView(1.f);
+        static glm::mat4 prevFrameProjection(1.f);
+
+        GfxTexture2D::Spec depthSpec(out->width, out->height, 1, PF_R32F);
+        static RenderTexture2D prevFrameSceneDepth("PrevFrameSceneDepth", depthSpec);
+        u32 temporalPassSrc = (u32)(frameCount - 1)% 2;
+        u32 temporalPassDst = (u32)frameCount % 2;
         {
+            GPU_DEBUG_SCOPE(temporalReSTIRMarker, "SSGI ReSTIR Temporal");
+
+            // temporal pass
             CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
-            CreatePS(ps, "SSGIReSTIR", SHADER_SOURCE_PATH "ssgi_restir_p.glsl");
-            CreatePixelPipeline(pipeline, "SSGIReSTIR", vs, ps);
+            CreatePS(ps, "SSGIReSTIRTemporal", SHADER_SOURCE_PATH "ssgi_restir_temporal_p.glsl");
+            CreatePixelPipeline(pipeline, "SSGIReSTIRTemporal", vs, ps);
 
             renderer->drawFullscreenQuad(
                 getFramebufferSize(outIndirectIrradiance.getGfxTexture2D()),
-                [out, outReservoirRadiance, outReservoirSamplePosition, outReservoirSampleNormal, outReservoirWSumMW](RenderPass& pass) {
+                [out, temporalPassSrc, temporalPassDst](RenderPass& pass) {
                         {
-                            RenderTarget renderTarget(outReservoirRadiance.getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
-                            pass.setRenderTarget(renderTarget, 0);
+                            RenderTarget renderTarget(temporalReservoirRadiances[temporalPassDst].getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                            pass.setRenderTarget(renderTarget, 0, false);
                         }
                         {
-                            RenderTarget renderTarget(outReservoirSamplePosition.getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
-                            pass.setRenderTarget(renderTarget, 1);
+                            RenderTarget renderTarget(temporalReservoirSamplePositions[temporalPassDst].getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                            pass.setRenderTarget(renderTarget, 1, false);
                         }
                         {
-                            RenderTarget renderTarget(outReservoirSampleNormal.getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
-                            pass.setRenderTarget(renderTarget, 2);
+                            RenderTarget renderTarget(temporalReservoirSampleNormals[temporalPassDst].getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                            pass.setRenderTarget(renderTarget, 2, false);
                         }
                         {
-                            RenderTarget renderTarget(outReservoirWSumMW.getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
-                            pass.setRenderTarget(renderTarget, 3);
-                        }
-                        {
-                            RenderTarget renderTarget(out, 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
-                            pass.setRenderTarget(renderTarget, 4);
+                            RenderTarget renderTarget(temporalReservoirWSumMW[temporalPassDst].getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                            pass.setRenderTarget(renderTarget, 3, false);
                         }
                 },
                 pipeline,
-                [this, out, HiZ, inDirectDiffuseBuffer, sceneDepth, sceneNormal, &scene](VertexShader* vs, PixelShader* ps) {
+                [this, out, HiZ, inDirectDiffuseBuffer, sceneDepth, sceneNormal, &scene, temporalPassSrc](VertexShader* vs, PixelShader* ps) {
                     ps->setShaderStorageBuffer(scene.viewBuffer.get());
                     ps->setUniform("outputSize", glm::vec2(out->width, out->height));
 
@@ -443,70 +522,183 @@ namespace Cyan
                     ps->setUniform("useReSTIR", bUseReSTIR ? 1.f : 0.f);
 
                     ps->setTexture("sceneDepthBuffer", sceneDepth);
-                    ps->setTexture("sceneNormalBuffer", sceneNormal);
+                    ps->setTexture("sceneNormalBuffer", sceneNormal); 
                     ps->setTexture("diffuseRadianceBuffer", inDirectDiffuseBuffer.getGfxTexture2D());
+
+                    ps->setUniform("frameCount", frameCount);
+                    ps->setTexture("temporalReservoirRadiance", temporalReservoirRadiances[temporalPassSrc].getGfxTexture2D());
+                    ps->setTexture("temporalReservoirSamplePosition", temporalReservoirSamplePositions[temporalPassSrc].getGfxTexture2D());
+                    ps->setTexture("temporalReservoirSampleNormal", temporalReservoirSampleNormals[temporalPassSrc].getGfxTexture2D());
+                    ps->setTexture("temporalReservoirWSumMW", temporalReservoirWSumMW[temporalPassSrc].getGfxTexture2D());
+
+                    ps->setUniform("prevFrameView", prevFrameView);
+                    ps->setUniform("prevFrameProjection", prevFrameProjection);
+                    ps->setTexture("prevFrameSceneDepthBuffer", prevFrameSceneDepth.getGfxTexture2D());
                 }
             );
+
+            // for temporal reprojection related calculations
+            prevFrameView = scene.view.view;
+            prevFrameProjection = scene.view.projection;
+            renderer->blitTexture(prevFrameSceneDepth.getGfxTexture2D(), sceneDepth);
         }
 
-        {
-            // spatial reuse
-            CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
-            CreatePS(ps, "SSGIReSTIRSpatial", SHADER_SOURCE_PATH "ssgi_restir_spatial_reuse_p.glsl");
-            CreatePixelPipeline(pipeline, "SSGIReSTIRSpatial", vs, ps);
+        RenderTexture2D spatialReservoirRadiances[2] = { RenderTexture2D("SpatialReservoirRadiance_0", spec), RenderTexture2D("SpatialReservoirRadiance_1", spec) };
+        RenderTexture2D spatialReservoirSamplePositions[2] = { RenderTexture2D("SpatialReservoirSamplePosition_0", spec), RenderTexture2D("SpatialReservoirSamplePosition_1", spec) };
+        RenderTexture2D spatialReservoirSampleNormals[2] = { RenderTexture2D("SpatialReservoirSampleNormal_0", spec), RenderTexture2D("SpatialReservoirSampleNormal_1", spec) };
+        RenderTexture2D spatialReservoirWSumMW[2] = { RenderTexture2D("SpatialReservoirWSumMW_0", spec), RenderTexture2D("SpatialReservoirWSumMW_1", spec) };
 
-            // todo: need to ping pong between buffers
-            const i32 kNumSpatialReuseIterations = 2;
-            for (i32 i = 0; i < kNumSpatialReuseIterations; ++i)
+        {
+            GPU_DEBUG_SCOPE(spatialReSTIRMarker, "SSGI ReSTIR Spatial");
+
             {
+                // copy data from dst temporal reservoir buffers to src spatial reservoir buffers
+                CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
+                CreatePS(ps, "SSGIReSTIRSpatialCopy", SHADER_SOURCE_PATH "ssgi_restir_spatial_copy_p.glsl");
+                CreatePixelPipeline(pipeline, "SSGIReSTIRSpatialCopy", vs, ps);
+
+                u32 src = ((u32)0 - 1) % 2;
+
                 renderer->drawFullscreenQuad(
                     getFramebufferSize(out),
-                    [out, outReservoirRadiance, outReservoirSamplePosition, outReservoirSampleNormal, outReservoirWSumMW](RenderPass& pass) {
+                    [out, spatialReservoirRadiances, spatialReservoirSamplePositions, spatialReservoirSampleNormals, spatialReservoirWSumMW, src](RenderPass& pass) {
                         {
-                            RenderTarget renderTarget(outReservoirRadiance.getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                            RenderTarget renderTarget(spatialReservoirRadiances[src].getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
                             pass.setRenderTarget(renderTarget, 0, false);
                         }
                         {
-                            RenderTarget renderTarget(outReservoirSamplePosition.getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                            RenderTarget renderTarget(spatialReservoirSamplePositions[src].getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
                             pass.setRenderTarget(renderTarget, 1, false);
                         }
                         {
-                            RenderTarget renderTarget(outReservoirSampleNormal.getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                            RenderTarget renderTarget(spatialReservoirSampleNormals[src].getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
                             pass.setRenderTarget(renderTarget, 2, false);
                         }
                         {
-                            RenderTarget renderTarget(outReservoirWSumMW.getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                            RenderTarget renderTarget(spatialReservoirWSumMW[src].getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
                             pass.setRenderTarget(renderTarget, 3, false);
-                        }
-                        {
-                            RenderTarget renderTarget(out, 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
-                            pass.setRenderTarget(renderTarget, 4, false);
                         }
                     },
                     pipeline,
-                    [this, i, out, inDirectDiffuseBuffer, sceneDepth, sceneNormal, outReservoirRadiance, outReservoirSamplePosition, outReservoirSampleNormal, outReservoirWSumMW, &scene](VertexShader* vs, PixelShader* ps) {
+                    [this, src](VertexShader* vs, PixelShader* ps) {
+                        ps->setTexture("temporalReservoirRadiance", temporalReservoirRadiances[src].getGfxTexture2D());
+                        ps->setTexture("temporalReservoirSamplePosition", temporalReservoirSamplePositions[src].getGfxTexture2D());
+                        ps->setTexture("temporalReservoirSampleNormal", temporalReservoirSampleNormals[src].getGfxTexture2D());
+                        ps->setTexture("temporalReservoirWSumMW", temporalReservoirWSumMW[src].getGfxTexture2D());
+                    }
+                );
+            }
+
+            // iteratively apply spatial reuse
+            // todo£ºjacobian calculation is still broken
+            CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
+            CreatePS(ps, "SSGIReSTIRSpatial", SHADER_SOURCE_PATH "ssgi_restir_spatial_p.glsl");
+            CreatePixelPipeline(pipeline, "SSGIReSTIRSpatial", vs, ps);
+
+            for (i32 i = 0; i < kNumSpatialReuseIterations; ++i)
+            {
+                u32 src = ((u32)i - 1) % 2;
+                i32 dst = (u32)i % 2;
+
+                renderer->drawFullscreenQuad(
+                    getFramebufferSize(out),
+                    [out, spatialReservoirRadiances, spatialReservoirSamplePositions, spatialReservoirSampleNormals, spatialReservoirWSumMW, dst](RenderPass& pass) {
+                        {
+                            RenderTarget renderTarget(spatialReservoirRadiances[dst].getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                            pass.setRenderTarget(renderTarget, 0, false);
+                        }
+                        {
+                            RenderTarget renderTarget(spatialReservoirSamplePositions[dst].getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                            pass.setRenderTarget(renderTarget, 1, false);
+                        }
+                        {
+                            RenderTarget renderTarget(spatialReservoirSampleNormals[dst].getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                            pass.setRenderTarget(renderTarget, 2, false);
+                        }
+                        {
+                            RenderTarget renderTarget(spatialReservoirWSumMW[dst].getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                            pass.setRenderTarget(renderTarget, 3, false);
+                        }
+                    },
+                    pipeline,
+                    [this, i, out, inDirectDiffuseBuffer, sceneDepth, sceneNormal, src, spatialReservoirRadiances, spatialReservoirSamplePositions, spatialReservoirSampleNormals, spatialReservoirWSumMW, &scene](VertexShader* vs, PixelShader* ps) {
                         ps->setShaderStorageBuffer(scene.viewBuffer.get());
                         ps->setUniform("numSamples", numSpatialReuseSamples);
                         ps->setUniform("outputSize", glm::vec2(out->width, out->height));
                         ps->setTexture("sceneDepthBuffer", sceneDepth);
                         ps->setTexture("sceneNormalBuffer", sceneNormal);
+                        ps->setUniform("iteration", i);
+                        ps->setUniform("reuseKernelRadius", ReSTIRSpatialReuseKernalRadius);
+                        ps->setUniform("frameCount", frameCount);
 
-                        if (i < kNumSpatialReuseIterations - 1)
-                        {
-                            ps->setUniform("reusePass", .5f);
-                        }
-                        else
-                        {
-                            ps->setUniform("reusePass", 0.f);
-                        }
-
-                        ps->setTexture("reservoirRadiance", outReservoirRadiance.getGfxTexture2D());
-                        ps->setTexture("reservoirSamplePosition", outReservoirSamplePosition.getGfxTexture2D());
-                        ps->setTexture("reservoirSampleNormal", outReservoirSampleNormal.getGfxTexture2D());
-                        ps->setTexture("reservoirWSumMW", outReservoirWSumMW.getGfxTexture2D());
+                        ps->setTexture("spatialReservoirRadiance", spatialReservoirRadiances[src].getGfxTexture2D());
+                        ps->setTexture("spatialReservoirSamplePosition", spatialReservoirSamplePositions[src].getGfxTexture2D());
+                        ps->setTexture("spatialReservoirSampleNormal", spatialReservoirSampleNormals[src].getGfxTexture2D());
+                        ps->setTexture("spatialReservoirWSumMW", spatialReservoirWSumMW[src].getGfxTexture2D());
                     }
                 );
             }
         }
+
+        GfxTexture2D::Spec indirectIrradianceSpec(out->width, out->height, 1, PF_RGB16F);
+        RenderTexture2D unfilteredIndirectIrradiance("SSGIUnfilteredIndirectIrradiance", indirectIrradianceSpec);
+        {
+            // final resolve pass
+            i32 spatialPassDst = ((u32)kNumSpatialReuseIterations - 1) % 2;
+
+            CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
+            CreatePS(ps, "SSGIReSTIRResolve", SHADER_SOURCE_PATH "ssgi_restir_resolve_p.glsl");
+            CreatePixelPipeline(pipeline, "SSGIReSTIRResolve", vs, ps);
+
+            renderer->drawFullscreenQuad(
+                getFramebufferSize(outIndirectIrradiance.getGfxTexture2D()),
+                [unfilteredIndirectIrradiance](RenderPass& pass) {
+                    RenderTarget renderTarget(unfilteredIndirectIrradiance.getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                    pass.setRenderTarget(renderTarget, 0);
+                },
+                pipeline,
+                [this, out, sceneDepth, sceneNormal, &scene, spatialPassDst, temporalPassDst, spatialReservoirRadiances, spatialReservoirSamplePositions, spatialReservoirSampleNormals, spatialReservoirWSumMW](VertexShader* vs, PixelShader* ps) {
+                    ps->setShaderStorageBuffer(scene.viewBuffer.get());
+                    ps->setTexture("sceneDepthBuffer", sceneDepth);
+                    ps->setTexture("sceneNormalBuffer", sceneNormal);
+#if APPLY_SPATIAL_REUSE
+                    ps->setTexture("reservoirRadiance", spatialReservoirRadiances[spatialPassDst].getGfxTexture2D());
+                    ps->setTexture("reservoirSamplePosition", spatialReservoirSamplePositions[spatialPassDst].getGfxTexture2D());
+                    ps->setTexture("reservoirSampleNormal", spatialReservoirSampleNormals[spatialPassDst].getGfxTexture2D());
+                    ps->setTexture("reservoirWSumMW", spatialReservoirWSumMW[spatialPassDst].getGfxTexture2D());
+#else
+                    ps->setTexture("reservoirRadiance", temporalReservoirRadiances[temporalPassDst].getGfxTexture2D());
+                    ps->setTexture("reservoirSamplePosition", temporalReservoirSamplePositions[temporalPassDst].getGfxTexture2D());
+                    ps->setTexture("reservoirSampleNormal", temporalReservoirSampleNormals[temporalPassDst].getGfxTexture2D());
+                    ps->setTexture("reservoirWSumMW", temporalReservoirWSumMW[temporalPassDst].getGfxTexture2D());
+#endif
+                }
+            );
+        }
+
+        // todo: better denoiser..? 
+        {
+            GPU_DEBUG_SCOPE(SSGIDenoisingPass, "SSGI Denoise");
+
+            CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
+            CreatePS(ps, "SSGIDenoise", SHADER_SOURCE_PATH "ssgi_denoising_p.glsl");
+            CreatePixelPipeline(pipeline, "SSGIDenoise", vs, ps);
+
+            renderer->drawFullscreenQuad(
+                getFramebufferSize(out),
+                [out](RenderPass& pass) {
+                    RenderTarget renderTarget(out, 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                    pass.setRenderTarget(renderTarget, 0);
+                },
+                pipeline,
+                [this, sceneDepth, unfilteredIndirectIrradiance, &scene](VertexShader* vs, PixelShader* ps) {
+                    ps->setShaderStorageBuffer(scene.viewBuffer.get());
+                    ps->setTexture("sceneDepthBuffer", sceneDepth);
+                    ps->setTexture("unfilteredIndirectIrradiance", unfilteredIndirectIrradiance.getGfxTexture2D());
+                }
+            );
+        }
+
+        frameCount++;
     }
 }

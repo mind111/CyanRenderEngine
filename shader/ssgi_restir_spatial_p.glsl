@@ -1,5 +1,7 @@
 #version 450 core
 
+#define PI 3.1415926
+
 in VSOutput
 {
 	vec2 texCoord0;
@@ -125,19 +127,18 @@ vec2 get_random()
   	return fract(vec2(arg) / vec2(0xffffffffu));
 }
 
-uniform sampler2D reservoirRadiance;
-uniform sampler2D reservoirSamplePosition;
-uniform sampler2D reservoirSampleNormal;
-uniform sampler2D reservoirWSumMW;
-uniform float reusePass;
+uniform sampler2D spatialReservoirRadiance;
+uniform sampler2D spatialReservoirSamplePosition;
+uniform sampler2D spatialReservoirSampleNormal;
+uniform sampler2D spatialReservoirWSumMW;
 
 Reservoir getReservoir(vec2 sampleCoord)
 {
     Reservoir r;
-    r.sampleRadiance = texture(reservoirRadiance, sampleCoord).rgb;
-    r.samplePosition = texture(reservoirSamplePosition, sampleCoord).xyz;
-    r.sampleNormal = normalize(texture(reservoirSampleNormal, sampleCoord).xyz * 2.f - 1.f);
-    vec3 wSumMW = texture(reservoirWSumMW, sampleCoord).xyz;
+    r.sampleRadiance = texture(spatialReservoirRadiance, sampleCoord).rgb;
+    r.samplePosition = texture(spatialReservoirSamplePosition, sampleCoord).xyz;
+    r.sampleNormal = texture(spatialReservoirSampleNormal, sampleCoord).xyz * 2.f - 1.f;
+    vec3 wSumMW = texture(spatialReservoirWSumMW, sampleCoord).xyz;
     r.wSum = wSumMW.x;
     r.M = wSumMW.y;
     r.W = wSumMW.z;
@@ -161,7 +162,14 @@ void mergeReservoir(inout Reservoir merged, in Reservoir r, in float wi)
     }
     merged.M += r.M;
     float targetPdf = calcLuminance(merged.sampleRadiance);
-    merged.W = merged.wSum / (targetPdf * merged.M);
+    if (targetPdf > 0.f)
+    {
+		merged.W = merged.wSum / (targetPdf * merged.M);
+    }
+    else
+    {
+		merged.W = 0.f;
+    }
 }
 
 vec3 screenToWorld(vec3 pp, mat4 invView, mat4 invProjection) 
@@ -180,14 +188,23 @@ vec3 worldToScreen(vec3 pp, in mat4 view, in mat4 projection)
     return p.xyz * .5f + .5f;
 }
 
+float calcDistanceToCamera(vec3 worldSpacePosition, in mat4 view)
+{
+    vec3 viewSpacePosition = (view * vec4(worldSpacePosition, 1.f)).xyz;
+    return length(viewSpacePosition);
+}
+
 uniform sampler2D sceneDepthBuffer;
 uniform sampler2D sceneNormalBuffer;
 uniform vec2 outputSize; 
 uniform int numSamples;
+uniform int iteration;
+uniform float reuseKernelRadius;
+uniform int frameCount;
 
 void main()
 {
-    seed = 0;
+    seed = 128;
     flat_idx = int(floor(gl_FragCoord.y) * outputSize.x + floor(gl_FragCoord.x));
 
 	float deviceDepth = texture(sceneDepthBuffer, psIn.texCoord0).r; 
@@ -196,20 +213,19 @@ void main()
     if (deviceDepth > 0.998f) discard;
 
     vec3 worldSpacePosition = screenToWorld(vec3(psIn.texCoord0, deviceDepth) * 2.f - 1.f, inverse(view), inverse(projection));
+    float linearDepth = calcDistanceToCamera(worldSpacePosition, view);
     
     Reservoir r = getReservoir(psIn.texCoord0);
 
-	// todo: random rotation 
     vec2 rand = get_random().xy;
     float randomRotAngle = rand.x;
-    float randomRadius = rand.y;
 	mat2 rotation = {
 		{ cos(randomRotAngle), sin(randomRotAngle) },
 		{ -sin(randomRotAngle), cos(randomRotAngle) }
 	};
     for (int i = 0; i < numSamples; ++i)
     {
-        vec2 sampleCoord = psIn.texCoord0 + rotation * BlueNoiseInDisk[i] * 0.02f * randomRadius; 
+        vec2 sampleCoord = psIn.texCoord0 + rotation * BlueNoiseInDisk[numSamples * iteration + i] * reuseKernelRadius; 
 
         if (sampleCoord.x < 0.f || sampleCoord.x > 1.f || sampleCoord.y < 0.f || sampleCoord.y > 1.f)
         {
@@ -220,32 +236,43 @@ void main()
 
         float neighborDeviceZ = texture(sceneDepthBuffer, sampleCoord).r;
         vec3 neighborWorldSpacePos = screenToWorld(vec3(sampleCoord, neighborDeviceZ) * 2.f - 1.f, inverse(view), inverse(projection));
+        float neighborLinearDepth = calcDistanceToCamera(neighborWorldSpacePos, view);
         vec3 neighborNormal = texture(sceneNormalBuffer, sampleCoord).rgb * 2.f - 1.f;
-        // todo: reject samples based on depth and normal difference
-        // todo: is it necessary to reject neighboring reservoir's sample if it's not in the upper hemisphere
 
-        vec3 x1q = neighborWorldSpacePos;
-        vec3 x2q = rr.samplePosition;
-        vec3 x1r = worldSpacePosition;
-        vec3 x1qx2q = x1q - x2q;
-        vec3 x1rx2q = x1r - x2q;
+        // reducing bias by rejecting neighboring samples that have too much geometric difference
+        float depthDiff = abs(neighborLinearDepth - linearDepth) / linearDepth;
+        float normalDiff = dot(n, neighborNormal);
+        if (normalDiff < 0.9f || depthDiff > 0.1f) 
+        {
+			continue;
+		}
 
-        float a = abs(dot(normalize(x1rx2q), rr.sampleNormal)) / abs(dot(normalize(x1qx2q), rr.sampleNormal));
-        float b = dot(x1qx2q, x1qx2q) / dot(x1rx2q, x1rx2q);
-        float jacobian = a * b;
-        mergeReservoir(r, rr, rr.wSum);
+		// todo: debug this jacobian calculation
+        float jacobian = 1.f;
+        if (rr.wSum > 0.f)
+        {
+			vec3 x1q = neighborWorldSpacePos;
+			vec3 x2q = rr.samplePosition;
+			vec3 x1r = worldSpacePosition;
+			vec3 x1qx2q = x1q - x2q;
+			vec3 x1rx2q = x1r - x2q;
+
+			float a = abs(dot(normalize(x1rx2q), rr.sampleNormal)) / abs(dot(normalize(x1qx2q), rr.sampleNormal));
+			float b = dot(x1qx2q, x1qx2q) / dot(x1rx2q, x1rx2q);
+			jacobian = a * b;
+		}
+        if (jacobian > 0.f)
+        {
+			// mergeReservoir(r, rr, rr.wSum / jacobian);
+			mergeReservoir(r, rr, rr.wSum);
+		}
+        else
+        {
+            mergeReservoir(r, rr, rr.wSum);
+		}
     }
-
-    if (reusePass > 0.f)
-    {
-		outReservoirRadiance = r.sampleRadiance;
-		outReservoirSamplePosition = r.samplePosition;
-		outReservoirSampleNormal = r.sampleNormal;
-		outReservoirWSumMW = vec3(r.wSum, r.M, r.W);
-	}
-    else
-    {
-		float ndotl = max(dot(normalize(r.samplePosition - worldSpacePosition), n), 0.f);
-		outIndirectIrradiance = r.sampleRadiance * ndotl * r.W;
-    }
+	outReservoirRadiance = r.sampleRadiance;
+	outReservoirSamplePosition = r.samplePosition;
+	outReservoirSampleNormal = r.sampleNormal * .5f + .5f;
+	outReservoirWSumMW = vec3(r.wSum, r.M, r.W);
 }

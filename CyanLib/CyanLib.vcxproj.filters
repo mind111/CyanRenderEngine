@@ -904,10 +904,22 @@
     <None Include="..\shader\ssgi_draw_indirect_irradiance_samples_p.glsl">
       <Filter>Shaders\SSGI</Filter>
     </None>
-    <None Include="..\shader\ssgi_restir_p.glsl">
+    <None Include="..\shader\ssgi_restir_temporal_p.glsl">
       <Filter>Shaders\SSGI</Filter>
     </None>
-    <None Include="..\shader\ssgi_restir_spatial_reuse_p.glsl">
+    <None Include="..\shader\ssgi_restir_spatial_p.glsl">
+      <Filter>Shaders\SSGI</Filter>
+    </None>
+    <None Include="..\shader\ssgi_restir_resolve_p.glsl">
+      <Filter>Shaders\SSGI</Filter>
+    </None>
+    <None Include="..\shader\ssgi_bruteforce_temporal_p.glsl">
+      <Filter>Shaders\SSGI</Filter>
+    </None>
+    <None Include="..\shader\ssgi_restir_spatial_copy_p.glsl">
+      <Filter>Shaders\SSGI</Filter>
+    </None>
+    <None Include="..\shader\ssgi_denoising_p.glsl">
       <Filter>Shaders\SSGI</Filter>
     </None>
   </ItemGroup>

@@ -232,6 +232,7 @@ namespace Cyan
                         SSGI->debugPixelCoord.y = v[1];
                         ImGui::Checkbox("Use ReSTIR:", &SSGI->bUseReSTIR);
                         ImGui::SliderInt("Num of Spatial Reuse Samples:", &SSGI->numSpatialReuseSamples, 1, 64);
+                        ImGui::SliderFloat("ReSTIR Spatial Reuse Kernel Radius:", &SSGI->ReSTIRSpatialReuseKernalRadius, 0.f, 1.f);
                         ImGui::Separator();
                         ImGui::Text("Reflection");
                         ImGui::Separator();
