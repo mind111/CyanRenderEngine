@@ -7,10 +7,6 @@
 #include "Window.h"
 #include "Singleton.h"
 
-/** Cyan coding standard
-* name of smart pointer objects should be suffixed with "Ptr" while raw pointer variables is not required to. It is assumed that raw pointers doesn't claim any sort of ownership
-*/
-
 class DefaultApp;
 
 namespace Cyan

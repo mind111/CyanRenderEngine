@@ -37,7 +37,7 @@ namespace Cyan {
         } m_shadowAlgorithm = VPLShadowAlgorithm::kBasic;
 
         struct VPL {
-            glm::vec4 position;
+            glm::vec4 m_position;
             glm::vec4 normal;
             glm::vec4 flux;
         };

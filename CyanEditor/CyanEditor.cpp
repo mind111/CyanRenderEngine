@@ -7,6 +7,7 @@
 #include "AssetImporter.h"
 #include "AssetManager.h"
 #include "CyanApp.h"
+#include "World.h"
 
 namespace Cyan
 {
@@ -27,6 +28,7 @@ namespace Cyan
             static const char* diorama = ASSET_PATH "mesh/sd_macross_diorama.glb";
             static const char* picapica = ASSET_PATH "mesh/pica_pica_scene.glb";
 
+#if 0
             AssetImporter::importAsync(m_scene.get(), shaderBalls);
 
             // skybox
@@ -52,6 +54,12 @@ namespace Cyan
                 renderEditorUI();
                 renderer->renderUI();
             };
+#else
+            m_world->import(shaderBalls);
+            Transform t;
+            t.m_translate = glm::vec3(0.f, 1.f, -5.f);
+            auto camera = m_world->createPerspectiveCameraEntity("Camera", t, nullptr, glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f), m_appWindowDimension, VM_RESOLVED_SCENE_COLOR, 90.f, 0.1f, 100.f);
+#endif
         }
 
         void renderEditorUI()
@@ -63,8 +71,8 @@ namespace Cyan
                     class SceneInspectorPanel
                     {
                     public:
-                        SceneInspectorPanel(Scene* scene)
-                            : m_scene(scene)
+                        SceneInspectorPanel(World* world)
+                            : m_world(world)
                         {
 
                         }
@@ -77,39 +85,36 @@ namespace Cyan
                                 ImGui::TableNextColumn();
 
                                 ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_OpenOnArrow;
-                                if (selectedEntity && (selectedEntity->name == entity->name))
+                                if (selectedEntity && (selectedEntity->getName() == entity->getName()))
                                 {
                                     flags |= ImGuiTreeNodeFlags_Selected;
                                 }
 
-                                if (!entity->childs.empty())
+                                if (entity->numChildren() > 0)
                                 {
-                                    bool open = ImGui::TreeNodeEx(entity->name.c_str(), flags);
+                                    bool open = ImGui::TreeNodeEx(entity->getName().c_str(), flags);
                                     if (ImGui::IsItemClicked())
                                     {
                                         selectedEntity = entity;
                                     }
                                     ImGui::TableNextColumn();
-                                    ImGui::TextColored(ImVec4(1.0, 1.0, 1.0, 0.2), entity->getTypeDesc());
                                     if (open)
                                     {
-                                        for (auto child : entity->childs)
-                                        {
-                                            renderEntity(child);
-                                        }
+                                        entity->forEachChild([this](Entity* child) {
+                                                renderEntity(child);
+                                            });
                                         ImGui::TreePop();
                                     }
                                 }
                                 else
                                 {
                                     flags |= ImGuiTreeNodeFlags_Leaf;
-                                    bool open = ImGui::TreeNodeEx(entity->name.c_str(), flags);
+                                    bool open = ImGui::TreeNodeEx(entity->getName().c_str(), flags);
                                     if (ImGui::IsItemClicked())
                                     {
                                         selectedEntity = entity;
                                     }
                                     ImGui::TableNextColumn();
-                                    ImGui::TextColored(ImVec4(1.0, 1.0, 1.0, 0.2), entity->getTypeDesc());
                                     if (open)
                                     {
                                         ImGui::TreePop();
@@ -122,7 +127,7 @@ namespace Cyan
                         {
                             static ImGuiTableFlags flags = ImGuiTableFlags_RowBg
                                 | ImGuiTableFlags_NoBordersInBody;
-                            if (m_scene)
+                            if (m_world)
                             {
                                 if (ImGui::BeginTable("##SceneHierarchy", 2, flags, ImVec2(ImGui::GetWindowContentRegionWidth(), 100.f)))
                                 {
@@ -130,7 +135,7 @@ namespace Cyan
                                     ImGui::TableSetupColumn("Type");
                                     ImGui::TableHeadersRow();
 
-                                    renderEntity(m_scene->m_rootEntity);
+                                    renderEntity(m_world->m_rootEntity);
 
                                     ImGui::EndTable();
                                 }
@@ -139,10 +144,10 @@ namespace Cyan
                         }
 
                         Entity* selectedEntity = nullptr;
-                        Scene* m_scene = nullptr;
+                        World* m_world = nullptr;
                     };
 
-                    static SceneInspectorPanel sceneInspector(m_scene.get());
+                    static SceneInspectorPanel sceneInspector(m_world.get());
                     sceneInspector.render();
                 }
                 ImGui::End();
@@ -175,10 +180,10 @@ namespace Cyan
                                         bool selected = false;
                                         if (selectedVis && selectedVis->texture) 
                                         {
-                                            selected = (selectedVis->name == vis.name);
+                                            selected = (selectedVis->m_name == vis.m_name);
                                         }
                                         if (vis.texture) {
-                                            if (ImGui::MenuItem(vis.name.c_str(), nullptr, selected)) {
+                                            if (ImGui::MenuItem(vis.m_name.c_str(), nullptr, selected)) {
                                                 if (selected) {
                                                     if (selectedVis->bSwitch) 
                                                     {
@@ -206,7 +211,7 @@ namespace Cyan
                     }
                     if (ImGui::CollapsingHeader("Stats", ImGuiTreeNodeFlags_DefaultOpen))
                     {
-                        ImGui::TextColored(ImVec4(0.f, 1.f, 1.f, 1.f), "Frame Time: %.2f ms", gEngine->getFrameElapsedTimeInMs());
+                        ImGui::TextColored(ImVec4(0.f, 1.f, 1.f, 1.f), "Frame Time: %.2f ms", m_engine->getFrameElapsedTimeInMs());
                     }
                     if (ImGui::CollapsingHeader("Lighting", ImGuiTreeNodeFlags_DefaultOpen))
                     {
@@ -217,6 +222,7 @@ namespace Cyan
                         ImGui::Checkbox("Bent Normal", &renderer->m_settings.bBentNormalEnabled);
                         ImGui::Checkbox("Indirect Irradiance", &renderer->m_settings.bIndirectIrradianceEnabled);
                     }
+#if 0
                     if (ImGui::CollapsingHeader("SSGI", ImGuiTreeNodeFlags_DefaultOpen))
                     {
                         auto SSGI = SSGI::get();
@@ -258,6 +264,7 @@ namespace Cyan
                         ImGui::SameLine();
                         ImGui::SliderInt("##Spatial Reuse Sample Count:", &SSGI->numReuseSamples, 1, SSGI->kMaxNumReuseSamples);
                     }
+#endif
                     if (ImGui::CollapsingHeader("Post Processing"))
                     {
                         ImGui::TextUnformatted("Color Temperature"); ImGui::SameLine();
@@ -299,7 +306,7 @@ namespace Cyan
                             auto texture = selectedVis->texture;
                             if (texture) 
                             {
-                                ImGui::Text("%s", selectedVis->name);
+                                ImGui::Text("%s", selectedVis->m_name);
                                 ImGui::SliderInt("Active Mip:", &selectedVis->activeMip, 0, texture->numMips - 1);
                             }
                         }

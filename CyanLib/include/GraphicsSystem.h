@@ -14,6 +14,22 @@ namespace Cyan
     class AssetManager;
     class AssetImporter;
 
+    struct GfxCommand
+    {
+        GfxCommand(const std::function<void()>& lambda)
+            : command(lambda)
+        {
+
+        }
+
+        void exec() const
+        {
+            command();
+        }
+
+        std::function<void()> command;
+    };
+
     // todo: implement WindowManager to manage window related operations, and GraphicsSystem should be the owner of the 
     // WindowManager
     class GraphicsSystem : public Singleton<GraphicsSystem>, public System
@@ -26,6 +42,7 @@ namespace Cyan
         virtual void deinitialize() override;
         void update();
         void render(const std::function<void(GfxTexture2D* renderingOutput)>& renderOneFrame);
+        static void enqueueGfxCommand(const std::function<void()>& lambda);
 
         GLFWwindow* getAppWindow() { return m_glfwWindow; }
         glm::uvec2 getAppWindowDimension() { return m_windowDimension; }
@@ -49,5 +66,23 @@ namespace Cyan
 
         // rendering output 
         std::unique_ptr<GfxTexture2D> m_renderingOutput = nullptr;
+
+        class GfxCommandQueue
+        {
+        public:
+            GfxCommandQueue() = default; 
+            ~GfxCommandQueue() = default;
+
+            void enqueueCommand(const GfxCommand& command);
+            void executeCommands();
+        private:
+            std::mutex m_mutex;
+            std::queue<GfxCommand> m_queue;
+        };
+
+        std::unique_ptr<GfxCommandQueue> m_gfxCommandQueue = nullptr;
     };
 }
+
+#define ENQUEUE_GFX_COMMAND(commandName, ...) \
+    Cyan::GraphicsSystem::enqueueGfxCommand(__VA_ARGS__);

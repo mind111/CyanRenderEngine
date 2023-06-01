@@ -10,7 +10,7 @@ namespace Cyan
         i32 packedImageIndex = -1;
 
         // make sure the image being packed is a power of 2 square shaped image
-        assert(inImage->width == inImage->height && Cyan::isPowerOf2(inImage->width) && inImage->width <= maxSubtextureSize);
+        assert(inImage->m_width == inImage->m_height && Cyan::isPowerOf2(inImage->m_width) && inImage->m_width <= maxSubtextureSize);
 
         // todo: make sure the format of incoming texture matches with that of the atlas
         Cyan::GfxTexture2D::Spec spec(*inImage);
@@ -19,11 +19,11 @@ namespace Cyan
             assert(0);
         }
 
-        images.push_back(inImage);
+        m_images.push_back(inImage);
         ImageQuadTree::Node* node = nullptr;
-        if (imageQuadTree->insert(images.back(), &node))
+        if (imageQuadTree->insert(m_images.back(), &node))
         {
-            Image* image = images.back();
+            Image* image = m_images.back();
 
             // convert image to a texture and generate full mipmap chain
             std::unique_ptr<Cyan::GfxTexture2D> tempTexture = std::unique_ptr<Cyan::GfxTexture2D>(Cyan::GfxTexture2D::create(spec));
@@ -55,17 +55,17 @@ namespace Cyan
                     },
                     viewport, 
                     pipeline, 
-                    [&tempTexture, i](Cyan::VertexShader* vs, Cyan::PixelShader* ps) {
-                        ps->setTexture("srcTexture", tempTexture.get());
-                        ps->setUniform("mip", i);
+                    [&tempTexture, i](Cyan::ProgramPipeline* p) {
+                        p->setTexture("srcTexture", tempTexture.get());
+                        p->setUniform("mip", i);
                     }
                 );
             }
-            packedImageIndex = images.size() - 1;
+            packedImageIndex = m_images.size() - 1;
         }
         else
         {
-            images.pop_back();
+            m_images.pop_back();
         }
         return packedImageIndex;
     }

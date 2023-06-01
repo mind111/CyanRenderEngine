@@ -48,7 +48,8 @@ namespace Cyan
         Back
     };
 
-    enum class DepthControl {
+    enum class DepthControl 
+    {
         kDisable = 0,
         kEnable,
         kCount
@@ -73,15 +74,16 @@ namespace Cyan
 
         static glm::uvec2 getDefaultFramebufferSize();
 
-        void setPixelPipeline(PixelPipeline* pixelPipelineObject, const std::function<void(VertexShader*, PixelShader*)>& setupShaders = [](VertexShader* vs, PixelShader* ps) {});
-        void setGeometryPipeline(GeometryPipeline* geometryPipelineObject, const std::function<void(VertexShader*, GeometryShader*, PixelShader*)>& setupShaders = [](VertexShader*, GeometryShader*, PixelShader*) {});
-        void setComputePipeline(ComputePipeline* computePipelineObject, const std::function<void(ComputeShader*)>& setupShaders);
-
-        void setTexture(GfxTexture* texture, u32 textureUnit);
+        void bindProgramPipeline(ProgramPipeline* pipelineObject);
+        void unbindProgramPipeline();
+        u32 allocTextureUnit();
+        void bindTexture(GfxTexture* texture, u32 textureUnit);
+        void unbindTexture(u32 textureUnit);
         // todo: implement this
         void setImage(GfxTexture2DArray* textuerArray, u32 binding, u32 layered = true, u32 layer = 0) { }
-        void setShaderStorageBuffer(ShaderStorageBuffer* buffer, u32 binding);
-
+        u32 allocShaderStorageBinding();
+        void bindShaderStorageBuffer(ShaderStorageBuffer* buffer, u32 binding);
+        void unbindShaderStorageBuffer(u32 binding);
         void setVertexArray(VertexArray* array);
         void setPrimitiveType(PrimitiveMode type);
         void setViewport(Viewport viewport);
@@ -89,7 +91,7 @@ namespace Cyan
         void setDepthControl(DepthControl ctrl);
         void setClearColor(glm::vec4 albedo);
         void setCullFace(FrontFace frontFace, FaceCull faceToCull);
-
+#if 0
         void setUniform(Shader* shader, const char* uniformName, f32 data) 
         {
             i32 location = shader->getUniformLocation(uniformName);
@@ -98,39 +100,48 @@ namespace Cyan
                 glProgramUniform1f(shader->getGpuResource(), location, data);
             }
         }
+#endif
 
         void drawIndexAuto(u32 numVerts, u32 offset=0);
         void drawIndex(u32 numIndices);
-        void multiDrawArrayIndirect(IndirectDrawBuffer* indirectDrawBuffer);
+        // void multiDrawArrayIndirect(IndirectDrawBuffer* indirectDrawBuffer);
 
         void reset();
 
-        void flip();
+        void present();
         void clear();
 
         Framebuffer* createFramebuffer(u32 width, u32 height);
     private:
-        void setShaderInternal(Shader* shader);
-        void setProgramPipelineInternal();
-        void resetTextureBindingState();
-        void resetShaderStorageBindingState();
-        u32 allocTextureUnit();
-        u32 allocShaderStorageBinding();
 
         GLFWwindow* m_glfwWindow = nullptr;
         Framebuffer* m_framebuffer = nullptr;
         Viewport m_viewport;
-        PixelPipeline* m_pixelPipeline = nullptr;
+        ProgramPipeline* m_programPipeline = nullptr;
         GfxPipelineState m_gfxPipelineState;
         VertexArray* m_vertexArray = nullptr;
         glm::vec4 m_clearColor = glm::vec4(.2f, .2f, .2f, 1.f);
 
-        // some hardware constants
-        static i32 kMaxCombinedTextureUnits;
-        static i32 kMaxCombinedShaderStorageBlocks;
-        u32 numUsedTextureUnits = 0;
-        std::vector<GfxTexture*> m_textureBindings;
-        u32 numUsedShaderStorageBindings = 0;
-        std::vector<ShaderStorageBuffer*> m_shaderStorageBindings;
+        struct TextureBindingManager
+        {
+            i32 alloc();
+            void bind(GfxTexture* texture, u32 binding);
+            void unbind(u32 binding);
+
+            // todo: this is problematic, hard coding this hardware constraints for now
+            static constexpr i32 kMaxNumTextureUnits = 32;
+            std::array<GfxTexture*, kMaxNumTextureUnits> bindings;
+        } m_textureBindingManager;
+
+        struct ShaderStorageBindingManager
+        {
+            i32 alloc();
+            void bind(ShaderStorageBuffer* buffer, u32 binding);
+            void unbind(u32 binding);
+            // todo: this is problematic, hard coding this hardware constraints for now
+
+            static constexpr i32 kMaxNumBindingUnits = 32;
+            std::array<ShaderStorageBuffer*, kMaxNumBindingUnits> bindings;
+        } m_shaderStorageBindingManager;
     };
 }

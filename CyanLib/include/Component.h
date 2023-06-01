@@ -5,6 +5,7 @@
 
 namespace Cyan
 {
+#if 0
     struct Entity;
 
     struct Component
@@ -26,4 +27,25 @@ namespace Cyan
         Component* parent = nullptr;
         std::vector<Component*> children;
     };
+#else
+    class World;
+    class Entity;
+
+    class Component
+    {
+    public:
+        Component(Entity* owner, const char* m_name) 
+            : m_owner(owner), m_name(m_name)
+        { }
+        ~Component() { }
+
+        virtual void update() { }
+
+        World* getWorld();
+
+    protected:
+        Entity* m_owner = nullptr;
+        std::string m_name;
+    };
+#endif
 }

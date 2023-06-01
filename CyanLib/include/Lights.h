@@ -25,6 +25,8 @@ namespace Cyan
         glm::vec4 colorAndIntensity = glm::vec4(1.f, 0.7f, 0.9f, 1.f);
     };
 
+#if 0
+
     // todo: a light shouldn't need to care about what kind of shadow rendering technique its shadow map is using.
     struct DirectionalLight : public Light 
     {
@@ -70,11 +72,11 @@ namespace Cyan
     {
         PointLight() : Light() { }
         PointLight(const glm::vec3& inPosition) 
-            : Light(), position(inPosition) 
+            : Light(), m_position(inPosition) 
         { 
         }
 
-        glm::vec3 position = glm::vec3(0.f);
+        glm::vec3 m_position = glm::vec3(0.f);
     };
 
     struct SkyLight : public Light 
@@ -93,4 +95,5 @@ namespace Cyan
         std::unique_ptr<IrradianceProbe> irradianceProbe = nullptr;
         std::unique_ptr<ReflectionProbe> reflectionProbe = nullptr;
     };
+#endif
 }

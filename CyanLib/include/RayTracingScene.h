@@ -20,7 +20,7 @@ namespace Cyan
 
     struct SurfaceArray : public TriangleArray
     {
-        std::vector<u32> materials;
+        std::vector<u32> m_materials;
     };
 
     struct RayTracingMesh
@@ -34,7 +34,7 @@ namespace Cyan
         // index into the global mesh array managed by the parent scene
         u32 parent;
         // index into the global material array managed by the parent scene
-        std::vector<u32> materials;
+        std::vector<u32> m_materials;
     };
 
     // todo: support texture maps at some point ...?
@@ -64,8 +64,8 @@ namespace Cyan
 
         PerspectiveCamera camera;
 
-        std::vector<RayTracingMesh> meshes;
-        std::vector<RayTracingMaterial> materials;
+        std::vector<RayTracingMesh> m_meshes;
+        std::vector<RayTracingMaterial> m_materials;
         std::vector<RayTracingMeshInstance> meshInstances;
 
         // flattened big triangle array used to perform the actual tracing

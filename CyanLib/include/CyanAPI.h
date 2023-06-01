@@ -37,11 +37,11 @@ namespace Cyan
         using TimeSnapShot = std::chrono::high_resolution_clock::time_point;
 
         // begin
-        GpuTimer(const char* name, bool print=false) 
+        GpuTimer(const char* m_name, bool print=false) 
         {
             // Flush GPU commands
             glFinish();
-            timedBlockName.assign(std::string(name)); // is this faster ...?
+            timedBlockName.assign(std::string(m_name)); // is this faster ...?
             start = std::chrono::high_resolution_clock::now();
             durationInMS = 0.0;
             bPrint = print; 
@@ -78,9 +78,9 @@ namespace Cyan
         using TimeSnapShot = std::chrono::high_resolution_clock::time_point;
 
         // begin
-        ScopedTimer(const char* name, bool print=false) 
+        ScopedTimer(const char* m_name, bool print=false) 
         {
-            m_timedBlockName.assign(std::string(name)); // is this faster ...?
+            m_timedBlockName.assign(std::string(m_name)); // is this faster ...?
             m_begin = std::chrono::high_resolution_clock::now();
             m_durationInMs = 0.0;
             m_print = print; 

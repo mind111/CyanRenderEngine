@@ -8,6 +8,7 @@
 
 namespace Cyan
 {
+#if 0
     struct Scene;
     struct Skybox;
     struct SceneView;
@@ -129,4 +130,5 @@ namespace Cyan
         // todo: convert this to a general light buffer where all light data is stored
         std::unique_ptr<IndirectDrawBuffer> indirectDrawBuffer = nullptr;
     };
+#endif
 }

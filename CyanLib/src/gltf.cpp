@@ -33,37 +33,37 @@ namespace Cyan
 {
     namespace gltf
     {
-        bool jsonFind(json_const_iterator& outItr, const json& inJson, const char* name);
-        bool jsonFind(json& outJsonObject, const json& inJson, const char* name);
-        bool jsonGetString(std::string& outStr, const json& o);
-        bool jsonGetBool(bool& outBool, const json& o);
-        bool jsonGetInt(i32& outInt, const json& o);
-        bool jsonGetUint(u32& outUint, const json& o);
-        bool jsonGetVec3(glm::vec3& outVec3, const json& o);
-        bool jsonGetVec4(glm::vec4& outVec4, const json& o);
-        bool jsonGetFloat(f32& outFloat, const json& o);
-        bool jsonFindAndGetVec3(glm::vec3& outVec3, const json& o, const char* name);
-        bool jsonFindAndGetBool(bool& outBool, const json& o, const char* name);
-        bool jsonFindAndGetVec4(glm::vec4& outVec3, const json& o, const char* name);
-        bool jsonFindAndGetInt(i32& outInt, const json& o, const char* name);
-        bool jsonFindAndGetUint(u32& outUint, const json& o, const char* name);
-        bool jsonFindAndGetString(std::string& outStr, const json& o, const char* name);
-        bool jsonFindAndGetFloat(f32& outFloat, const json& o, const char* name);
+        bool jsonFind(json_const_iterator& outItr, const json& inJson, const char* m_name);
+        bool jsonFind(json& outJsonObject, const json& inJson, const char* m_name);
+        bool jsonGetString(std::string& outStr, const json& m_jsonObject);
+        bool jsonGetBool(bool& outBool, const json& m_jsonObject);
+        bool jsonGetInt(i32& outInt, const json& m_jsonObject);
+        bool jsonGetUint(u32& outUint, const json& m_jsonObject);
+        bool jsonGetVec3(glm::vec3& outVec3, const json& m_jsonObject);
+        bool jsonGetVec4(glm::vec4& outVec4, const json& m_jsonObject);
+        bool jsonGetFloat(f32& outFloat, const json& m_jsonObject);
+        bool jsonFindAndGetVec3(glm::vec3& outVec3, const json& m_jsonObject, const char* m_name);
+        bool jsonFindAndGetBool(bool& outBool, const json& m_jsonObject, const char* m_name);
+        bool jsonFindAndGetVec4(glm::vec4& outVec3, const json& m_jsonObject, const char* m_name);
+        bool jsonFindAndGetInt(i32& outInt, const json& m_jsonObject, const char* m_name);
+        bool jsonFindAndGetUint(u32& outUint, const json& m_jsonObject, const char* m_name);
+        bool jsonFindAndGetString(std::string& outStr, const json& m_jsonObject, const char* m_name);
+        bool jsonFindAndGetFloat(f32& outFloat, const json& m_jsonObject, const char* m_name);
 
-        static void from_json(const json& o, Scene& scene);
-        static void from_json(const json& o, Node& node);
-        static void from_json(const json& o, Buffer& buffer);
-        static void from_json(const json& o, BufferView& bufferView);
-        static void from_json(const json& o, Accessor& accessor);
-        static void from_json(const json& o, Attribute& attribute);
-        static void from_json(const json& o, Primitive& primitive);
-        static void from_json(const json& o, Mesh& mesh);
-        static void from_json(const json& o, Image& image);
-        static void from_json(const json& o, Sampler& sampler);
-        static void from_json(const json& o, Texture& texture);
-        static void from_json(const json& o, TextureInfo& textureInfo);
-        static void from_json(const json& o, PbrMetallicRoughness& pbrMetallicRoughness);
-        static void from_json(const json& o, Material& material);
+        static void from_json(const json& m_jsonObject, Scene& scene);
+        static void from_json(const json& m_jsonObject, Node& node);
+        static void from_json(const json& m_jsonObject, Buffer& buffer);
+        static void from_json(const json& m_jsonObject, BufferView& bufferView);
+        static void from_json(const json& m_jsonObject, Accessor& accessor);
+        static void from_json(const json& m_jsonObject, Attribute& attribute);
+        static void from_json(const json& m_jsonObject, Primitive& primitive);
+        static void from_json(const json& m_jsonObject, Mesh& mesh);
+        static void from_json(const json& m_jsonObject, Image& image);
+        static void from_json(const json& m_jsonObject, Sampler& sampler);
+        static void from_json(const json& m_jsonObject, Texture& texture);
+        static void from_json(const json& m_jsonObject, TextureInfo& textureInfo);
+        static void from_json(const json& m_jsonObject, PbrMetallicRoughness& pbrMetallicRoughness);
+        static void from_json(const json& m_jsonObject, Material& material);
 
         Image::~Image()
         {
@@ -75,45 +75,44 @@ namespace Cyan
 
         void Gltf::importMaterials()
         {
-            ScopedTimer timer("importMaterials()", true);
-            for (i32 i = 0; i < materials.size(); ++i)
+            for (i32 i = 0; i < m_materials.size(); ++i)
             {
-                const gltf::Material& gltfMatl = materials[i];
-                Cyan::Material* matl = AssetManager::createMaterial(gltfMatl.name.c_str());
+                const gltf::Material& gltfMatl = m_materials[i];
+                auto matl = AssetManager::createMaterial(gltfMatl.m_name.c_str());
                 matl->albedo = gltfMatl.pbrMetallicRoughness.baseColorFactor;
                 matl->roughness = gltfMatl.pbrMetallicRoughness.roughnessFactor;
                 matl->metallic = gltfMatl.pbrMetallicRoughness.metallicFactor;
                 i32 baseColorTextureIndex = gltfMatl.pbrMetallicRoughness.baseColorTexture.index;
                 if (baseColorTextureIndex >= 0)
                 {
-                    const gltf::Texture texture = textures[baseColorTextureIndex];
-                    matl->albedoMap = AssetManager::getAsset<Texture2D>(texture.name.c_str());
+                    const gltf::Texture texture = m_textures[baseColorTextureIndex];
+                    matl->albedoMap = AssetManager::findAsset<Texture2D>(texture.m_name.c_str());
                 }
 
                 i32 metallicRoughnessIndex = gltfMatl.pbrMetallicRoughness.metallicRoughnessTexture.index;
                 if (metallicRoughnessIndex >= 0)
                 {
-                    const gltf::Texture texture = textures[metallicRoughnessIndex];
-                    matl->metallicRoughnessMap = AssetManager::getAsset<Texture2D>(texture.name.c_str());
+                    const gltf::Texture texture = m_textures[metallicRoughnessIndex];
+                    matl->metallicRoughnessMap = AssetManager::findAsset<Texture2D>(texture.m_name.c_str());
                 }
 
                 i32 normalTextureIndex = gltfMatl.normalTexture.index;
                 if (normalTextureIndex >= 0)
                 {
-                    const gltf::Texture texture = textures[normalTextureIndex];
-                    matl->normalMap = AssetManager::getAsset<Texture2D>(texture.name.c_str());
+                    const gltf::Texture texture = m_textures[normalTextureIndex];
+                    matl->normalMap = AssetManager::findAsset<Texture2D>(texture.m_name.c_str());
                 }
             }
         }
 
-        Glb::Glb(const char* inFilename)
-            : Gltf(inFilename)
+        Glb::Glb(const char* filename)
+            : Gltf(filename)
         {
         }
 
         void Glb::load()
         {
-            std::ifstream glb(filename, std::ios_base::binary);
+            std::ifstream glb(m_filename, std::ios_base::binary);
 
             if (glb.is_open())
             {
@@ -130,44 +129,39 @@ namespace Cyan
                 // per gltf-2.0 spec https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#glb-file-format-specification-structure
                 assert(header.magic == 0x46546C67);
                 // read-in & parse the json chunk (reading this part as a whole could be slow ...?)
-                ChunkDesc jsonChunkDesc;
-                glb.read(reinterpret_cast<char*>(&jsonChunkDesc), sizeof(ChunkDesc));
+                ChunkDesc m_jsonChunkDesc;
+                glb.read(reinterpret_cast<char*>(&m_jsonChunkDesc), sizeof(ChunkDesc));
 
-                assert(jsonChunkDesc.chunkType == 0x4E4F534A);
-                std::string jsonStr(jsonChunkDesc.chunkLength, ' ');
-                glb.read(&jsonStr[0], jsonChunkDesc.chunkLength);
+                assert(m_jsonChunkDesc.chunkType == 0x4E4F534A);
+                std::string jsonStr(m_jsonChunkDesc.chunkLength, ' ');
+                glb.read(&jsonStr[0], m_jsonChunkDesc.chunkLength);
 
                 // parse the json
-                o = json::parse(jsonStr);
+                m_jsonObject = json::parse(jsonStr);
 
                 // load json chunk
                 loadJsonChunk();
 
                 // load binary chunk
-                glb.read(reinterpret_cast<char*>(&binaryChunkDesc), sizeof(binaryChunkDesc));
-                binaryChunk.resize(binaryChunkDesc.chunkLength);
-                glb.read(reinterpret_cast<char*>(binaryChunk.data()), binaryChunkDesc.chunkLength);
+                glb.read(reinterpret_cast<char*>(&m_binaryChunkDesc), sizeof(m_binaryChunkDesc));
+                m_binaryChunk.resize(m_binaryChunkDesc.chunkLength);
+                glb.read(reinterpret_cast<char*>(m_binaryChunk.data()), m_binaryChunkDesc.chunkLength);
             }
-        }
-
-        void Glb::unload()
-        {
-            // todo: clear all loaded data
         }
 
         void Glb::importTriangles(const gltf::Primitive& p, Triangles& outTriangles)
         {
-            u32 numVertices = accessors[p.attribute.position].count;
+            u32 numVertices = m_accessors[p.attribute.m_position].count;
 
             std::vector<Triangles::Vertex>& vertices = outTriangles.vertices;
             vertices.resize(numVertices);
 
             // determine whether the vertex attribute is tightly packed or interleaved
             bool bInterleaved = false;
-            const gltf::Accessor& a = accessors[p.attribute.position]; 
+            const gltf::Accessor& a = m_accessors[p.attribute.m_position]; 
             if (a.bufferView >= 0)
             {
-                const gltf::BufferView& bv = bufferViews[a.bufferView];
+                const gltf::BufferView& bv = m_bufferViews[a.bufferView];
                 if (bv.byteStride > 0)
                 {
                     bInterleaved = true;
@@ -185,37 +179,37 @@ namespace Cyan
                 glm::vec2* texCoord0 = nullptr;
                 // position
                 {
-                    const gltf::Accessor& a = accessors[p.attribute.position]; 
+                    const gltf::Accessor& a = m_accessors[p.attribute.m_position]; 
                     assert(a.type == "VEC3");
                     if (a.bufferView >= 0)
                     {
-                        const gltf::BufferView& bv = bufferViews[a.bufferView];
+                        const gltf::BufferView& bv = m_bufferViews[a.bufferView];
                         u32 offset = a.byteOffset + bv.byteOffset;
-                        positions = reinterpret_cast<glm::vec3*>(binaryChunk.data() + offset);
+                        positions = reinterpret_cast<glm::vec3*>(m_binaryChunk.data() + offset);
                     }
                 }
                 // normal
                 {
-                    const gltf::Accessor& a = accessors[p.attribute.normal]; 
+                    const gltf::Accessor& a = m_accessors[p.attribute.normal]; 
                     assert(a.type == "VEC3");
                     if (a.bufferView >= 0)
                     {
-                        const gltf::BufferView& bv = bufferViews[a.bufferView];
+                        const gltf::BufferView& bv = m_bufferViews[a.bufferView];
                         u32 offset = a.byteOffset + bv.byteOffset;
-                        normals = reinterpret_cast<glm::vec3*>(binaryChunk.data() + offset);
+                        normals = reinterpret_cast<glm::vec3*>(m_binaryChunk.data() + offset);
                     }
                 }
                 // tangents
                 {
                     if (p.attribute.tangent >= 0)
                     {
-                        const gltf::Accessor& a = accessors[p.attribute.tangent];
+                        const gltf::Accessor& a = m_accessors[p.attribute.tangent];
                         assert(a.type == "VEC4");
                         if (a.bufferView >= 0)
                         {
-                            const gltf::BufferView& bv = bufferViews[a.bufferView];
+                            const gltf::BufferView& bv = m_bufferViews[a.bufferView];
                             u32 offset = a.byteOffset + bv.byteOffset;
-                            tangents = reinterpret_cast<glm::vec4*>(binaryChunk.data() + offset);
+                            tangents = reinterpret_cast<glm::vec4*>(m_binaryChunk.data() + offset);
                         }
                     }
                 }
@@ -223,13 +217,13 @@ namespace Cyan
                 {
                     if (p.attribute.texCoord0 >= 0)
                     {
-                        const gltf::Accessor& a = accessors[p.attribute.texCoord0];
+                        const gltf::Accessor& a = m_accessors[p.attribute.texCoord0];
                         assert(a.type == "VEC2");
                         if (a.bufferView >= 0)
                         {
-                            const gltf::BufferView& bv = bufferViews[a.bufferView];
+                            const gltf::BufferView& bv = m_bufferViews[a.bufferView];
                             u32 offset = a.byteOffset + bv.byteOffset;
-                            texCoord0 = reinterpret_cast<glm::vec2*>(binaryChunk.data() + offset);
+                            texCoord0 = reinterpret_cast<glm::vec2*>(m_binaryChunk.data() + offset);
                         }
                     }
                 }
@@ -268,16 +262,16 @@ namespace Cyan
                 // fill indices
                 if (p.indices >= 0)
                 {
-                    const gltf::Accessor& a = accessors[p.indices];
+                    const gltf::Accessor& a = m_accessors[p.indices];
                     u32 numIndices = a.count;
                     indices.resize(numIndices);
                     if (a.bufferView >= 0)
                     {
-                        const gltf::BufferView& bv = bufferViews[a.bufferView];
+                        const gltf::BufferView& bv = m_bufferViews[a.bufferView];
                         // would like to convert any other index data type to u32
                         if (a.componentType == 5121)
                         {
-                            u8* dataAddress = reinterpret_cast<u8*>(binaryChunk.data() + a.byteOffset + bv.byteOffset);
+                            u8* dataAddress = reinterpret_cast<u8*>(m_binaryChunk.data() + a.byteOffset + bv.byteOffset);
                             for (i32 i = 0; i < numIndices; ++i)
                             {
                                 indices[i] = static_cast<u32>(dataAddress[i]);
@@ -285,7 +279,7 @@ namespace Cyan
                         }
                         else if (a.componentType == 5123)
                         {
-                            u16* dataAddress = reinterpret_cast<u16*>(binaryChunk.data() + a.byteOffset + bv.byteOffset);
+                            u16* dataAddress = reinterpret_cast<u16*>(m_binaryChunk.data() + a.byteOffset + bv.byteOffset);
                             for (i32 i = 0; i < numIndices; ++i)
                             {
                                 indices[i] = static_cast<u32>(dataAddress[i]);
@@ -293,7 +287,7 @@ namespace Cyan
                         }
                         else if (a.componentType == 5125)
                         {
-                            u32* dataAddress = reinterpret_cast<u32*>(binaryChunk.data() + a.byteOffset + bv.byteOffset);
+                            u32* dataAddress = reinterpret_cast<u32*>(m_binaryChunk.data() + a.byteOffset + bv.byteOffset);
                             memcpy(indices.data(), dataAddress, bv.byteLength);
                         }
                     }
@@ -307,26 +301,26 @@ namespace Cyan
             // loading image data from a buffer
             if (bufferView >= 0)
             {
-                const gltf::BufferView bv = bufferViews[bufferView];
-                u8* dataAddress = binaryChunk.data() + bv.byteOffset;
+                const gltf::BufferView bv = m_bufferViews[bufferView];
+                u8* dataAddress = m_binaryChunk.data() + bv.byteOffset;
                 i32 hdr = stbi_is_hdr_from_memory(dataAddress, bv.byteLength);
                 if (hdr)
                 {
-                    outImage.bitsPerChannel = 32;
-                    outImage.pixels = std::shared_ptr<u8>(((u8*)stbi_loadf_from_memory(dataAddress, bv.byteLength, &outImage.width, &outImage.height, &outImage.numChannels, 0)));
+                    outImage.m_bitsPerChannel = 32;
+                    outImage.m_pixels = std::shared_ptr<u8>(((u8*)stbi_loadf_from_memory(dataAddress, bv.byteLength, &outImage.m_width, &outImage.m_height, &outImage.m_numChannels, 0)));
                 }
                 else
                 {
                     i32 is16Bit = stbi_is_16_bit_from_memory(dataAddress, bv.byteLength);
                     if (is16Bit)
                     {
-                        outImage.bitsPerChannel = 16;
-                        outImage.pixels = std::shared_ptr<u8>((u8*)stbi_load_16_from_memory(dataAddress, bv.byteLength, &outImage.width, &outImage.height, &outImage.numChannels, 0));
+                        outImage.m_bitsPerChannel = 16;
+                        outImage.m_pixels = std::shared_ptr<u8>((u8*)stbi_load_16_from_memory(dataAddress, bv.byteLength, &outImage.m_width, &outImage.m_height, &outImage.m_numChannels, 0));
                     }
                     else
                     {
-                        outImage.bitsPerChannel = 8;
-                        outImage.pixels = std::shared_ptr<u8>((u8*)stbi_load_from_memory(dataAddress, bv.byteLength, &outImage.width, &outImage.height, &outImage.numChannels, 0));
+                        outImage.m_bitsPerChannel = 8;
+                        outImage.m_pixels = std::shared_ptr<u8>((u8*)stbi_load_from_memory(dataAddress, bv.byteLength, &outImage.m_width, &outImage.m_height, &outImage.m_numChannels, 0));
                     }
                 }
             }
@@ -334,7 +328,7 @@ namespace Cyan
             else
             {
             }
-            assert(outImage.pixels);
+            assert(outImage.m_pixels);
         }
 
         void translateSampler(const gltf::Sampler& sampler, Sampler2D& outSampler, bool& bOutGenerateMipmap)
@@ -391,15 +385,15 @@ namespace Cyan
         {
             // 1. parse "scenes"
             json jScenes;
-            if (jsonFind(jScenes, o, "scenes"))
+            if (jsonFind(jScenes, m_jsonObject, "scenes"))
             {
                 if (jScenes.is_array())
                 {
                     u32 numScenes = jScenes.size();
-                    scenes.resize(numScenes);
+                    m_scenes.resize(numScenes);
                     for (i32 i = 0; i < numScenes; ++i)
                     {
-                        jScenes[i].get_to(scenes[i]);
+                        jScenes[i].get_to(m_scenes[i]);
                     }
                 }
             }
@@ -413,11 +407,11 @@ namespace Cyan
             * so basically, "scene" property defines the default scene to render at load time.
             */
             json jDefaultScene;
-            if (jsonFind(jDefaultScene, o, "scene"))
+            if (jsonFind(jDefaultScene, m_jsonObject, "scene"))
             {
                 if (jDefaultScene.is_number_unsigned())
                 {
-                    jDefaultScene.get_to(defaultScene);
+                    jDefaultScene.get_to(m_defaultScene);
                 }
                 else
                 {
@@ -427,146 +421,146 @@ namespace Cyan
 
             // 3. load all nodes
             json jNodes;
-            if (jsonFind(jNodes, o, "nodes"))
+            if (jsonFind(jNodes, m_jsonObject, "nodes"))
             {
                 u32 numNodes = jNodes.size();
-                nodes.resize(numNodes);
+                m_nodes.resize(numNodes);
                 for (i32 i = 0; i < numNodes; ++i)
                 {
-                    jNodes[i].get_to(nodes[i]);
+                    jNodes[i].get_to(m_nodes[i]);
                 }
             }
 
             // 4. load all bufferViews
             json jBufferViews;
-            if (jsonFind(jBufferViews, o, "bufferViews"))
+            if (jsonFind(jBufferViews, m_jsonObject, "bufferViews"))
             {
                 u32 numBufferViews = jBufferViews.size();
-                bufferViews.resize(numBufferViews);
+                m_bufferViews.resize(numBufferViews);
                 for (i32 i = 0; i < numBufferViews; ++i)
                 {
-                    jBufferViews[i].get_to(bufferViews[i]);
+                    jBufferViews[i].get_to(m_bufferViews[i]);
                 }
             }
 
             // 5. load all accessors
             json jAccessors;
-            if (jsonFind(jAccessors, o, "accessors"))
+            if (jsonFind(jAccessors, m_jsonObject, "accessors"))
             {
                 u32 numAccessors = jAccessors.size();
-                accessors.resize(numAccessors);
+                m_accessors.resize(numAccessors);
                 for (i32 i = 0; i < numAccessors; ++i)
                 {
-                    jAccessors[i].get_to(accessors[i]);
+                    jAccessors[i].get_to(m_accessors[i]);
                 }
             }
 
             // 6: load all buffers (for .glb there should be only one buffer)
             json jBuffers;
-            if (jsonFind(jBuffers, o, "buffers"))
+            if (jsonFind(jBuffers, m_jsonObject, "buffers"))
             {
                 u32 numBuffers = jBuffers.size();
-                buffers.resize(numBuffers);
+                m_buffers.resize(numBuffers);
                 for (i32 i = 0; i < numBuffers; ++i)
                 {
-                    jBuffers[i].get_to(buffers[i]);
+                    jBuffers[i].get_to(m_buffers[i]);
                 }
             }
 
             // 7: load all meshes
             json jMeshes;
-            if (jsonFind(jMeshes, o, "meshes"))
+            if (jsonFind(jMeshes, m_jsonObject, "meshes"))
             {
                 u32 numMeshes = jMeshes.size();
-                meshes.resize(numMeshes);
+                m_meshes.resize(numMeshes);
                 for (i32 m = 0; m < numMeshes; ++m)
                 {
-                    jMeshes[m].get_to(meshes[m]);
+                    jMeshes[m].get_to(m_meshes[m]);
                     // todo: this is just a hack for dealing with unnamed images
-                    if (meshes[m].name.empty())
+                    if (m_meshes[m].m_name.empty())
                     {
-                        std::string prefix(filename);
-                        meshes[m].name = prefix + "/mesh_" + std::to_string(m);
+                        std::string prefix(m_filename);
+                        m_meshes[m].m_name = prefix + "/mesh_" + std::to_string(m);
                     }
                 }
             }
 
             // 8: load all images
             json jImages;
-            if (jsonFind(jImages, o, "images"))
+            if (jsonFind(jImages, m_jsonObject, "images"))
             {
                 u32 numImages = jImages.size();
-                images.resize(numImages);
+                m_images.resize(numImages);
                 for (i32 i = 0; i < numImages; ++i)
                 {
-                    jImages[i].get_to(images[i]);
+                    jImages[i].get_to(m_images[i]);
                     // todo: this is just a hack for dealing with unnamed images
-                    if (images[i].name.empty())
+                    if (m_images[i].m_name.empty())
                     {
-                        std::string prefix(filename);
-                        images[i].name = prefix + "/image_" + std::to_string(i);
+                        std::string prefix(m_filename);
+                        m_images[i].m_name = prefix + "/image_" + std::to_string(i);
                     }
                 }
             }
 
             // 9: load all samplers
             json jSamplers;
-            if (jsonFind(jSamplers, o, "samplers"))
+            if (jsonFind(jSamplers, m_jsonObject, "samplers"))
             {
                 u32 numSamplers = jSamplers.size();
-                samplers.resize(numSamplers);
+                m_samplers.resize(numSamplers);
                 for (i32 i = 0; i < numSamplers; ++i)
                 {
-                    jSamplers[i].get_to(samplers[i]);
+                    jSamplers[i].get_to(m_samplers[i]);
                 }
             }
 
             // 10: load all textures
             json jTextures;
-            if (jsonFind(jTextures, o, "textures"))
+            if (jsonFind(jTextures, m_jsonObject, "textures"))
             {
                 u32 numTextures = jTextures.size();
-                textures.resize(numTextures);
+                m_textures.resize(numTextures);
                 for (i32 i = 0; i < numTextures; ++i)
                 {
-                    jTextures[i].get_to(textures[i]);
+                    jTextures[i].get_to(m_textures[i]);
                     // todo: this is just a hack for dealing with unnamed textures
-                    if (textures[i].name.empty())
+                    if (m_textures[i].m_name.empty())
                     {
-                        std::string prefix(filename);
-                        textures[i].name = prefix + "/texture_" + std::to_string(i);
+                        std::string prefix(m_filename);
+                        m_textures[i].m_name = prefix + "/texture_" + std::to_string(i);
                     }
                 }
             }
 
             // 11. load all materials
             json jMaterials;
-            if (jsonFind(jMaterials, o, "materials"))
+            if (jsonFind(jMaterials, m_jsonObject, "materials"))
             {
                 u32 numMaterials = jMaterials.size();
-                materials.resize(numMaterials);
+                m_materials.resize(numMaterials);
                 for (i32 i = 0; i < numMaterials; ++i)
                 {
-                    jMaterials[i].get_to(materials[i]);
+                    jMaterials[i].get_to(m_materials[i]);
                     // todo: this is just a hack for dealing with unnamed materials
-                    if (materials[i].name.empty())
+                    if (m_materials[i].m_name.empty())
                     {
-                        std::string prefix(filename);
-                        materials[i].name = prefix + "/matl_" + std::to_string(i);
+                        std::string prefix(m_filename);
+                        m_materials[i].m_name = prefix + "/matl_" + std::to_string(i);
                     }
                 }
             }
         }
 
-        bool jsonFind(json_const_iterator& outItr, const json& inJson, const char* name)
+        bool jsonFind(json_const_iterator& outItr, const json& inJson, const char* m_name)
         {
-            outItr = inJson.find(name);
+            outItr = inJson.find(m_name);
             return (outItr != inJson.end());
         }
 
-        bool jsonFind(json& outJsonObject, const json& inJson, const char* name)
+        bool jsonFind(json& outJsonObject, const json& inJson, const char* m_name)
         {
-            auto itr = inJson.find(name);
+            auto itr = inJson.find(m_name);
             if (itr != inJson.end())
             {
                 outJsonObject = itr.value();
@@ -575,302 +569,302 @@ namespace Cyan
             return false;
         }
 
-        bool jsonGetString(std::string& outStr, const json& o)
+        bool jsonGetString(std::string& outStr, const json& m_jsonObject)
         {
-            if (o.type() == json::value_t::string)
+            if (m_jsonObject.type() == json::value_t::string)
             {
-                o.get_to(outStr);
+                m_jsonObject.get_to(outStr);
                 return true;
             }
             return false;
         }
 
-        bool jsonGetBool(bool& outBool, const json& o)
+        bool jsonGetBool(bool& outBool, const json& m_jsonObject)
         {
-            if (o.type() == json::value_t::boolean)
+            if (m_jsonObject.type() == json::value_t::boolean)
             {
-                o.get_to(outBool);
+                m_jsonObject.get_to(outBool);
                 return true;
             }
             return false;
         }
 
-        bool jsonGetInt(i32& outInt, const json& o)
+        bool jsonGetInt(i32& outInt, const json& m_jsonObject)
         {
-            if (o.type() == json::value_t::number_integer)
+            if (m_jsonObject.type() == json::value_t::number_integer)
             {
-                o.get_to(outInt);
+                m_jsonObject.get_to(outInt);
                 return true;
             }
             return false;
         }
 
-        bool jsonGetUint(u32& outUint, const json& o)
+        bool jsonGetUint(u32& outUint, const json& m_jsonObject)
         {
-            if (o.type() == json::value_t::number_unsigned)
+            if (m_jsonObject.type() == json::value_t::number_unsigned)
             {
-                o.get_to(outUint);
+                m_jsonObject.get_to(outUint);
                 return true;
             }
             return false;
         }
 
-        bool jsonGetVec3(glm::vec3& outVec3, const json& o)
+        bool jsonGetVec3(glm::vec3& outVec3, const json& m_jsonObject)
         {
-            if (o.type() == json::value_t::array)
+            if (m_jsonObject.type() == json::value_t::array)
             {
-                if (o.size() == 3)
+                if (m_jsonObject.size() == 3)
                 {
-                    o.get_to(outVec3);
+                    m_jsonObject.get_to(outVec3);
                     return true;
                 }
             }
             return false;
         }
 
-        bool jsonGetVec4(glm::vec4& outVec4, const json& o)
+        bool jsonGetVec4(glm::vec4& outVec4, const json& m_jsonObject)
         {
-            if (o.type() == json::value_t::array)
+            if (m_jsonObject.type() == json::value_t::array)
             {
-                if (o.size() == 4)
+                if (m_jsonObject.size() == 4)
                 {
-                    o.get_to(outVec4);
+                    m_jsonObject.get_to(outVec4);
                     return true;
                 }
             }
             return false;
         }
 
-        bool jsonGetFloat(f32& outFloat, const json& o)
+        bool jsonGetFloat(f32& outFloat, const json& m_jsonObject)
         {
-            if (o.type() == json::value_t::number_float 
-                || o.type() == json::value_t::number_unsigned 
-                || o.type() == json::value_t::number_integer)
+            if (m_jsonObject.type() == json::value_t::number_float 
+                || m_jsonObject.type() == json::value_t::number_unsigned 
+                || m_jsonObject.type() == json::value_t::number_integer)
             {
-                o.get_to(outFloat);
+                m_jsonObject.get_to(outFloat);
                 return true;
             }
             return false;
         }
 
-        bool jsonFindAndGetVec3(glm::vec3& outVec3, const json& o, const char* name)
+        bool jsonFindAndGetVec3(glm::vec3& outVec3, const json& m_jsonObject, const char* m_name)
         {
             json_const_iterator itr;
-            if (jsonFind(itr, o, name))
+            if (jsonFind(itr, m_jsonObject, m_name))
             {
                 return jsonGetVec3(outVec3, itr.value());
             }
             return false;
         }
 
-        bool jsonFindAndGetBool(bool& outBool, const json& o, const char* name)
+        bool jsonFindAndGetBool(bool& outBool, const json& m_jsonObject, const char* m_name)
         {
             json_const_iterator itr;
-            if (jsonFind(itr, o, name))
+            if (jsonFind(itr, m_jsonObject, m_name))
             {
                 return jsonGetBool(outBool, itr.value());
             }
             return false;
         }
 
-        bool jsonFindAndGetVec4(glm::vec4& outVec3, const json& o, const char* name)
+        bool jsonFindAndGetVec4(glm::vec4& outVec3, const json& m_jsonObject, const char* m_name)
         {
             json_const_iterator itr;
-            if (jsonFind(itr, o, name))
+            if (jsonFind(itr, m_jsonObject, m_name))
             {
                 return jsonGetVec4(outVec3, itr.value());
             }
             return false;
         }
 
-        bool jsonFindAndGetInt(i32& outInt, const json& o, const char* name)
+        bool jsonFindAndGetInt(i32& outInt, const json& m_jsonObject, const char* m_name)
         {
             json_const_iterator itr;
-            if (jsonFind(itr, o, name))
+            if (jsonFind(itr, m_jsonObject, m_name))
             {
                 return jsonGetInt(outInt, itr.value());
             }
             return false;
         }
 
-        bool jsonFindAndGetUint(u32& outUint, const json& o, const char* name)
+        bool jsonFindAndGetUint(u32& outUint, const json& m_jsonObject, const char* m_name)
         {
             json_const_iterator itr;
-            if (jsonFind(itr, o, name))
+            if (jsonFind(itr, m_jsonObject, m_name))
             {
                 return jsonGetUint(outUint, itr.value());
             }
             return false;
         }
 
-        bool jsonFindAndGetString(std::string& outStr, const json& o, const char* name)
+        bool jsonFindAndGetString(std::string& outStr, const json& m_jsonObject, const char* m_name)
         {
             json_const_iterator itr;
-            if (jsonFind(itr, o, name))
+            if (jsonFind(itr, m_jsonObject, m_name))
             {
                 return jsonGetString(outStr, itr.value());
             }
             return false;
         }
 
-        bool jsonFindAndGetFloat(f32& outFloat, const json& o, const char* name)
+        bool jsonFindAndGetFloat(f32& outFloat, const json& m_jsonObject, const char* m_name)
         {
             json_const_iterator itr;
-            if (jsonFind(itr, o, name))
+            if (jsonFind(itr, m_jsonObject, m_name))
             {
                 return jsonGetFloat(outFloat, itr.value());
             }
             return false;
         }
 
-        static void from_json(const json& o, Scene& scene)
+        static void from_json(const json& m_jsonObject, Scene& scene)
         {
-            jsonFindAndGetString(scene.name, o, "name");
+            jsonFindAndGetString(scene.m_name, m_jsonObject, "name");
             json jNodes;
-            if (jsonFind(jNodes, o, "nodes"))
+            if (jsonFind(jNodes, m_jsonObject, "nodes"))
             {
                 if (jNodes.is_array())
                 {
-                    jNodes.get_to(scene.nodes);
+                    jNodes.get_to(scene.m_nodes);
                 }
             }
         }
 
-        static void from_json(const json& o, Node& node)
+        static void from_json(const json& m_jsonObject, Node& node)
         {
-            jsonFindAndGetString(node.name, o, "name");
+            jsonFindAndGetString(node.m_name, m_jsonObject, "name");
             u32 mesh;
-            if (jsonFindAndGetUint(mesh, o, "mesh"))
+            if (jsonFindAndGetUint(mesh, m_jsonObject, "mesh"))
             {
                 node.mesh = (i32)mesh;
             }
             json matrix;
-            if (jsonFind(matrix, o, "matrix"))
+            if (jsonFind(matrix, m_jsonObject, "matrix"))
             {
                 node.hasMatrix = 1;
                 matrix.get_to(node.matrix);
             }
             json scale;
-            if (jsonFind(scale, o, "scale"))
+            if (jsonFind(scale, m_jsonObject, "scale"))
             {
                 node.hasScale = 1;
                 scale.get_to(node.scale);
             }
             json rotation;
-            if (jsonFind(rotation, o, "rotation"))
+            if (jsonFind(rotation, m_jsonObject, "rotation"))
             {
                 node.hasRotation = 1;
                 rotation.get_to(node.rotation);
             }
             json translation;
-            if (jsonFind(translation, o, "translation"))
+            if (jsonFind(translation, m_jsonObject, "translation"))
             {
                 node.hasTranslation = 1;
                 translation.get_to(node.translation);
             }
         }
 
-        static void from_json(const json& o, Buffer& buffer)
+        static void from_json(const json& m_jsonObject, Buffer& buffer)
         {
             // required
-            jsonFindAndGetUint(buffer.byteLength, o, "byteLength");
+            jsonFindAndGetUint(buffer.byteLength, m_jsonObject, "byteLength");
             // optional
-            jsonFindAndGetString(buffer.name, o, "name");
-            jsonFindAndGetString(buffer.uri, o, "uri");
+            jsonFindAndGetString(buffer.m_name, m_jsonObject, "name");
+            jsonFindAndGetString(buffer.uri, m_jsonObject, "uri");
         }
 
-        static void from_json(const json& o, BufferView& bufferView)
+        static void from_json(const json& m_jsonObject, BufferView& bufferView)
         {
             // required
-            jsonFindAndGetUint(bufferView.buffer, o, "buffer");
-            jsonFindAndGetUint(bufferView.byteLength, o, "byteLength");
+            jsonFindAndGetUint(bufferView.buffer, m_jsonObject, "buffer");
+            jsonFindAndGetUint(bufferView.byteLength, m_jsonObject, "byteLength");
             // optional
-            jsonFindAndGetUint(bufferView.byteOffset, o, "byteOffset");
-            jsonFindAndGetUint(bufferView.byteStride, o, "byteStride");
+            jsonFindAndGetUint(bufferView.byteOffset, m_jsonObject, "byteOffset");
+            jsonFindAndGetUint(bufferView.byteStride, m_jsonObject, "byteStride");
             u32 target;
-            if (jsonFindAndGetUint(target, o, "target"))
+            if (jsonFindAndGetUint(target, m_jsonObject, "target"))
             {
                 bufferView.target = target;
             }
-            jsonFindAndGetString(bufferView.name, o, "name");
+            jsonFindAndGetString(bufferView.m_name, m_jsonObject, "name");
         }
 
-        static void from_json(const json& o, Accessor& accessor)
+        static void from_json(const json& m_jsonObject, Accessor& accessor)
         {
             // required
-            jsonFindAndGetUint(accessor.componentType, o, "componentType");
-            jsonFindAndGetUint(accessor.count, o, "count");
-            jsonFindAndGetString(accessor.type, o, "type");
+            jsonFindAndGetUint(accessor.componentType, m_jsonObject, "componentType");
+            jsonFindAndGetUint(accessor.count, m_jsonObject, "count");
+            jsonFindAndGetString(accessor.type, m_jsonObject, "type");
             // optional
             u32 bufferView;
-            if (jsonFindAndGetUint(bufferView, o, "bufferView"))
+            if (jsonFindAndGetUint(bufferView, m_jsonObject, "bufferView"))
             {
                 accessor.bufferView = bufferView;
             }
-            jsonFindAndGetUint(accessor.byteOffset, o, "byteOffset");
-            jsonFindAndGetString(accessor.name, o, "name");
-            jsonFindAndGetBool(accessor.normalized, o, "normalized");
+            jsonFindAndGetUint(accessor.byteOffset, m_jsonObject, "byteOffset");
+            jsonFindAndGetString(accessor.m_name, m_jsonObject, "name");
+            jsonFindAndGetBool(accessor.normalized, m_jsonObject, "normalized");
         }
 
-        static void from_json(const json& o, Attribute& attribute)
+        static void from_json(const json& m_jsonObject, Attribute& attribute)
         {
-            if (!jsonFindAndGetUint(attribute.position, o, "POSITION"))
+            if (!jsonFindAndGetUint(attribute.m_position, m_jsonObject, "POSITION"))
             {
                 assert(0);
             }
-            if (!jsonFindAndGetUint(attribute.normal, o, "NORMAL"))
+            if (!jsonFindAndGetUint(attribute.normal, m_jsonObject, "NORMAL"))
             {
                 assert(0);
             }
             u32 tangent;
-            if (jsonFindAndGetUint(tangent, o, "TANGENT"))
+            if (jsonFindAndGetUint(tangent, m_jsonObject, "TANGENT"))
             {
                 attribute.tangent = (i32)tangent;
             }
             u32 texCoord0;
-            if (jsonFindAndGetUint(texCoord0, o, "TEXCOORD_0"))
+            if (jsonFindAndGetUint(texCoord0, m_jsonObject, "TEXCOORD_0"))
             {
                 attribute.texCoord0 = (i32)texCoord0;
             }
             u32 texCoord1;
-            if (jsonFindAndGetUint(texCoord1, o, "TEXCOORD_1"))
+            if (jsonFindAndGetUint(texCoord1, m_jsonObject, "TEXCOORD_1"))
             {
                 attribute.texCoord1 = (i32)texCoord1;
             }
         }
 
-        static void from_json(const json& o, Primitive& primitive)
+        static void from_json(const json& m_jsonObject, Primitive& primitive)
         {
             // required
             json_const_iterator itr;
-            if (!jsonFind(itr, o, "attributes"))
+            if (!jsonFind(itr, m_jsonObject, "attributes"))
             {
                 assert(0);
             }
             itr.value().get_to(primitive.attribute);
             // optional
             u32 indices;
-            if (jsonFindAndGetUint(indices, o, "indices"))
+            if (jsonFindAndGetUint(indices, m_jsonObject, "indices"))
             {
                 primitive.indices = (i32)indices;
             }
             u32 material;
-            if (jsonFindAndGetUint(material, o, "material"))
+            if (jsonFindAndGetUint(material, m_jsonObject, "material"))
             {
                 primitive.material = (i32)material;
             }
             u32 mode;
-            if (jsonFindAndGetUint(mode, o, "mode"))
+            if (jsonFindAndGetUint(mode, m_jsonObject, "mode"))
             {
                 primitive.mode = (i32)mode;
             }
         }
 
-        static void from_json(const json& o, Mesh& mesh)
+        static void from_json(const json& m_jsonObject, Mesh& mesh)
         {
             // required
             json jPrimitives;
-            jsonFind(jPrimitives, o, "primitives");
+            jsonFind(jPrimitives, m_jsonObject, "primitives");
             if (jPrimitives.is_array())
             {
                 u32 numPrimitives = jPrimitives.size();
@@ -881,101 +875,101 @@ namespace Cyan
                 }
             }
             // optional
-            jsonFindAndGetString(mesh.name, o, "name");
+            jsonFindAndGetString(mesh.m_name, m_jsonObject, "name");
         }
 
-        static void from_json(const json& o, Image& image)
+        static void from_json(const json& m_jsonObject, Image& image)
         {
             u32 bufferView;
-            if (jsonFindAndGetUint(bufferView, o, "bufferView"))
+            if (jsonFindAndGetUint(bufferView, m_jsonObject, "bufferView"))
             {
                 image.bufferView = (i32)bufferView;
-                if (!jsonFindAndGetString(image.mimeType, o, "mimeType"))
+                if (!jsonFindAndGetString(image.mimeType, m_jsonObject, "mimeType"))
                 {
                     // todo: issue error
                 }
             }
             else
             {
-                if (!jsonFindAndGetString(image.uri, o, "uri"))
+                if (!jsonFindAndGetString(image.uri, m_jsonObject, "uri"))
                 {
                     // todo: issue error
                 }
             }
-            jsonFindAndGetString(image.name, o, "name");
+            jsonFindAndGetString(image.m_name, m_jsonObject, "name");
         }
 
-        static void from_json(const json& o, Sampler& sampler)
+        static void from_json(const json& m_jsonObject, Sampler& sampler)
         {
-            jsonFindAndGetUint(sampler.magFilter, o, "magFilter");
-            jsonFindAndGetUint(sampler.minFilter, o, "minFilter");
-            jsonFindAndGetUint(sampler.wrapS, o, "wrapS");
-            jsonFindAndGetUint(sampler.wrapT, o, "wrapT");
-            jsonFindAndGetString(sampler.name, o, "name");
+            jsonFindAndGetUint(sampler.magFilter, m_jsonObject, "magFilter");
+            jsonFindAndGetUint(sampler.minFilter, m_jsonObject, "minFilter");
+            jsonFindAndGetUint(sampler.wrapS, m_jsonObject, "wrapS");
+            jsonFindAndGetUint(sampler.wrapT, m_jsonObject, "wrapT");
+            jsonFindAndGetString(sampler.m_name, m_jsonObject, "name");
         }
 
-        static void from_json(const json& o, Texture& texture)
+        static void from_json(const json& m_jsonObject, Texture& texture)
         {
             u32 source;
-            if (jsonFindAndGetUint(source, o, "source"))
+            if (jsonFindAndGetUint(source, m_jsonObject, "source"))
             {
                 texture.source = (i32)source;
             }
             u32 sampler;
-            if (jsonFindAndGetUint(sampler, o, "sampler"))
+            if (jsonFindAndGetUint(sampler, m_jsonObject, "sampler"))
             {
                 texture.sampler = sampler;
             }
-            jsonFindAndGetString(texture.name, o, "name");
+            jsonFindAndGetString(texture.m_name, m_jsonObject, "name");
         }
 
-        static void from_json(const json& o, TextureInfo& textureInfo)
+        static void from_json(const json& m_jsonObject, TextureInfo& textureInfo)
         {
             u32 index;
-            if (jsonFindAndGetUint(index, o, "index"))
+            if (jsonFindAndGetUint(index, m_jsonObject, "index"))
             {
                 textureInfo.index = (i32)index;
             }
-            jsonFindAndGetUint(textureInfo.texCoord, o, "texCoord");
+            jsonFindAndGetUint(textureInfo.texCoord, m_jsonObject, "texCoord");
         }
 
-        static void from_json(const json& o, PbrMetallicRoughness& pbrMetallicRoughness)
+        static void from_json(const json& m_jsonObject, PbrMetallicRoughness& pbrMetallicRoughness)
         {
             json jBaseColorTexture;
-            if (jsonFind(jBaseColorTexture, o, "baseColorTexture"))
+            if (jsonFind(jBaseColorTexture, m_jsonObject, "baseColorTexture"))
             {
                 jBaseColorTexture.get_to(pbrMetallicRoughness.baseColorTexture);
             }
             json jMetallicRoughness;
-            if (jsonFind(jMetallicRoughness, o, "metallicRoughnessTexture"))
+            if (jsonFind(jMetallicRoughness, m_jsonObject, "metallicRoughnessTexture"))
             {
                 jMetallicRoughness.get_to(pbrMetallicRoughness.metallicRoughnessTexture);
             }
-            jsonFindAndGetVec4(pbrMetallicRoughness.baseColorFactor, o, "baseColorFactor");
-            jsonFindAndGetFloat(pbrMetallicRoughness.metallicFactor, o, "metallicFactor");
-            jsonFindAndGetFloat(pbrMetallicRoughness.roughnessFactor, o, "roughnessFactor");
+            jsonFindAndGetVec4(pbrMetallicRoughness.baseColorFactor, m_jsonObject, "baseColorFactor");
+            jsonFindAndGetFloat(pbrMetallicRoughness.metallicFactor, m_jsonObject, "metallicFactor");
+            jsonFindAndGetFloat(pbrMetallicRoughness.roughnessFactor, m_jsonObject, "roughnessFactor");
         }
 
-        static void from_json(const json& o, Material& material)
+        static void from_json(const json& m_jsonObject, Material& material)
         {
-            jsonFindAndGetString(material.name, o, "name");
+            jsonFindAndGetString(material.m_name, m_jsonObject, "name");
             json jPbrMetallicRoughness;
-            if (jsonFind(jPbrMetallicRoughness, o, "pbrMetallicRoughness"))
+            if (jsonFind(jPbrMetallicRoughness, m_jsonObject, "pbrMetallicRoughness"))
             {
                 jPbrMetallicRoughness.get_to(material.pbrMetallicRoughness);
             }
             json jNormalTexture;
-            if (jsonFind(jNormalTexture, o, "normalTexture"))
+            if (jsonFind(jNormalTexture, m_jsonObject, "normalTexture"))
             {
                 jNormalTexture.get_to(material.normalTexture);
             }
             json jOcclusionTexture;
-            if (jsonFind(jOcclusionTexture, o, "occlusionTexture"))
+            if (jsonFind(jOcclusionTexture, m_jsonObject, "occlusionTexture"))
             {
                 jOcclusionTexture.get_to(material.occlusionTexture);
             }
             json jEmissiveTexture;
-            if (jsonFind(jEmissiveTexture, o, "emissiveTexture"))
+            if (jsonFind(jEmissiveTexture, m_jsonObject, "emissiveTexture"))
             {
                 jEmissiveTexture.get_to(material.emissiveTexture);
             }

@@ -77,7 +77,7 @@ namespace Cyan
         glm::vec2 uv = pixelCoords * 2.f - 1.f;
         uv.x *= camera.aspectRatio;
         f32 h = camera.n * glm::tan(glm::radians(.5f * camera.fov));
-        glm::vec3 ro = camera.position;
+        glm::vec3 ro = camera.m_position;
         glm::vec3 rd = normalize(
               camera.forward() * camera.n
             + camera.right() * uv.x * h
@@ -130,7 +130,7 @@ namespace Cyan
                 {
                     closestT = t;
                     hitTri = tri;
-                    material = rtxScene.surfaces.materials[tri];
+                    material = rtxScene.surfaces.m_materials[tri];
                 }
             }
         }
@@ -155,7 +155,7 @@ namespace Cyan
     static glm::vec3 shade(const RayTracingScene& rtxScene, const RayHit& hit)
     {
         glm::vec3 outRadiance(0.f);
-        const auto& material = rtxScene.materials[hit.material];
+        const auto& material = rtxScene.m_materials[hit.material];
 #if 0 
         glm::vec3 barycentrics = calcBarycentricCoords();
         glm::vec3 n = barycentricLerp(
@@ -230,7 +230,7 @@ namespace Cyan
         uv.y = (f32)pixelCoord.y / screenDim.y * 2.f - 1.f;
         uv.x *= (f32)screenDim.x / screenDim.y;
         f32 w = camera.n * glm::tan(glm::radians(.5f * 45.f));
-        glm::vec3 ro = camera.position;
+        glm::vec3 ro = camera.m_position;
         glm::vec3 rd = normalize(
               camera.forward * camera.n
             + camera.right   * uv.x * w
@@ -261,7 +261,7 @@ namespace Cyan
         // convert world space hit back to object space
         glm::vec3 hitPosObjectSpace = vec4ToVec3(glm::inverse(worldTransformMatrix) * glm::vec4(hitPosition, 1.f));
 
-        auto mesh = rayHit.m_node->m_meshInstance->m_mesh;
+        auto mesh = rayHit.m_node->m_staticMeshInstance->m_mesh;
         auto tri = mesh->getTriangle(rayHit.smIndex, rayHit.triIndex);
         return computeBaryCoord(tri, hitPosObjectSpace);
     }
@@ -298,7 +298,7 @@ namespace Cyan
     // return surface normal at ray hit in world space
     glm::vec3 getSurfaceNormal(RayCastInfo& rayHit, glm::vec3& baryCoord)
     {
-        auto mesh = rayHit.m_node->m_meshInstance->m_mesh;
+        auto mesh = rayHit.m_node->m_staticMeshInstance->m_mesh;
         auto sm = mesh->m_subMeshes[rayHit.smIndex];
         u32 vertexOffset = rayHit.triIndex * 3;
         glm::vec3 normal = baryCoord.x * sm->m_triangles.normals[vertexOffset]
@@ -387,19 +387,19 @@ namespace Cyan
                 {
                     auto* node = nodes.front();
                     nodes.pop();
-                    if (node->m_meshInstance)
+                    if (node->m_staticMeshInstance)
                     {
                         m_staticMeshNodes.push_back(node);
-                        for (u32 sm = 0; sm < node->m_meshInstance->m_mesh->numSubMeshes(); ++sm)
+                        for (u32 sm = 0; sm < node->m_staticMeshInstance->m_mesh->numSubMeshes(); ++sm)
                         {
-                            node->m_meshInstance->m_rtMatls.emplace_back(matlInstanceCount++);
+                            node->m_staticMeshInstance->m_rtMatls.emplace_back(matlInstanceCount++);
                             m_sceneMaterials.emplace_back();
                             auto& matl = m_sceneMaterials.back();
-                            u32 materialFlags = node->m_meshInstance->m_matls[sm]->getU32("uMatlData.flags");
+                            u32 materialFlags = node->m_staticMeshInstance->m_matls[sm]->getU32("uMatlData.flags");
                             if ((materialFlags & StandardPbrMaterial::Flags::kHasDiffuseMap) == 0u)
                             {
                                 // assume that the input albedo value is in sRGB space
-                                matl.flatColor = gammaCorrect(vec4ToVec3(node->m_meshInstance->m_matls[sm]->getVec4("uMatlData.flatColor")), 2.2f);
+                                matl.flatColor = gammaCorrect(vec4ToVec3(node->m_staticMeshInstance->m_matls[sm]->getVec4("uMatlData.flatColor")), 2.2f);
                                 matl.diffuseTex = nullptr;
                             }
                         }
@@ -430,7 +430,7 @@ namespace Cyan
         if (hit.t > 0.f)
         {
             glm::vec3 hitPosition = ro + rd * hit.t;
-            auto mesh = hit.m_node->m_meshInstance->m_mesh;
+            auto mesh = hit.m_node->m_staticMeshInstance->m_mesh;
             auto tri = mesh->getTriangle(hit.smIndex, hit.triIndex); 
             auto& triangles = mesh->m_subMeshes[hit.smIndex]->m_triangles;
 
@@ -459,7 +459,7 @@ namespace Cyan
     {
         SurfaceProperty props = { };
 
-        auto mesh = hit.m_node->m_meshInstance->m_mesh;
+        auto mesh = hit.m_node->m_staticMeshInstance->m_mesh;
         auto sm = mesh->m_subMeshes[hit.smIndex];
         u32 vertexOffset = hit.triIndex * 3;
         // normal
@@ -495,7 +495,7 @@ namespace Cyan
         for (u32 i = 0; i < m_staticMeshNodes.size(); ++i)
         {
             glm::mat4 model = m_staticMeshNodes[i]->getWorldTransformMatrix();
-            BoundingBox3D aabb = m_staticMeshNodes[i]->m_meshInstance->getAABB();
+            BoundingBox3D aabb = m_staticMeshNodes[i]->m_staticMeshInstance->getAABB();
 
             // transform the ray into object space
             glm::vec3 roObjectSpace = ro;
@@ -506,7 +506,7 @@ namespace Cyan
             if (aabb.intersectRay(roObjectSpace, rdObjectSpace) > 0.f)
             {
                 // do ray triangle intersectiont test
-                Cyan::Mesh* mesh = m_staticMeshNodes[i]->m_meshInstance->m_mesh;
+                Cyan::Mesh* mesh = m_staticMeshNodes[i]->m_staticMeshInstance->m_mesh;
                 Cyan::MeshRayHit currentRayHit = mesh->intersectRay(roObjectSpace, rdObjectSpace);
 
                 if (currentRayHit.t > 0.f)
@@ -532,14 +532,14 @@ namespace Cyan
 
     TriMaterial& PathTracer::getHitMaterial(RayCastInfo& hit)
     {
-        return m_sceneMaterials[hit.m_node->m_meshInstance->m_rtMatls[hit.smIndex]];
+        return m_sceneMaterials[hit.m_node->m_staticMeshInstance->m_rtMatls[hit.smIndex]];
     }
 
     glm::vec3 PathTracer::shadeSurface(RayCastInfo& hit, glm::vec3& ro, glm::vec3& rd, TriMaterial& matl)
     {
         glm::vec3 radiance(0.f);
         glm::vec3 hitPosition = ro + rd * hit.t;
-        auto mesh = hit.m_node->m_meshInstance->m_mesh;
+        auto mesh = hit.m_node->m_staticMeshInstance->m_mesh;
         auto tri = mesh->getTriangle(hit.smIndex, hit.triIndex); 
         auto& triangles = mesh->m_subMeshes[hit.smIndex]->m_triangles;
 
@@ -588,7 +588,7 @@ namespace Cyan
             auto hit = traceScene(samplePos, rd);
             if (hit.t > 0.f)
             {
-                auto& matl = m_sceneMaterials[hit.m_node->m_meshInstance->m_rtMatls[hit.smIndex]];
+                auto& matl = m_sceneMaterials[hit.m_node->m_staticMeshInstance->m_rtMatls[hit.smIndex]];
                 // todo: instead of only consider diffuse reflections along the path, also include indirect specular
                 auto radiance = bakeSurface(hit, samplePos, rd, matl);
                 irradiance += radiance * max(dot(rd, n), 0.f) * (1.f / M_PI);
@@ -610,7 +610,7 @@ namespace Cyan
             auto hit = traceScene(samplePos, rd);
             if (hit.t > 0.f)
             {
-                auto& matl = m_sceneMaterials[hit.m_node->m_meshInstance->m_rtMatls[hit.smIndex]];
+                auto& matl = m_sceneMaterials[hit.m_node->m_staticMeshInstance->m_rtMatls[hit.smIndex]];
                 auto radiance = shadeSurface(hit, samplePos, rd, matl);
                 irradiance += radiance;
             }
@@ -653,7 +653,7 @@ namespace Cyan
                         glm::vec2 sampleScreenCoord = pixelCenterCoord + subPixelOffset;
                         sampleScreenCoord.x *= aspectRatio;
 
-                        glm::vec3 ro = camera.position;
+                        glm::vec3 ro = camera.m_position;
                         glm::vec3 rd = normalize(camera.forward * camera.n
                             + camera.right * sampleScreenCoord.x * w
                             + camera.up * sampleScreenCoord.y * w);
@@ -709,7 +709,7 @@ namespace Cyan
                     glm::vec2 sampleScreenCoord = pixelCenterCoord + subPixelOffset;
                     sampleScreenCoord.x *= aspectRatio;
 
-                    glm::vec3 ro = camera.position;
+                    glm::vec3 ro = camera.m_position;
                     glm::vec3 rd = normalize(camera.forward * camera.n
                         + camera.right * sampleScreenCoord.x * w
                         + camera.up * sampleScreenCoord.y * w);
@@ -718,7 +718,7 @@ namespace Cyan
                     {
 #ifdef VISUALIZE_IRRADIANCE
                         glm::vec3 hitPosition = ro + rd * hit.t;
-                        auto mesh = hit.m_node->m_meshInstance->m_mesh;
+                        auto mesh = hit.m_node->m_staticMeshInstance->m_mesh;
                         auto tri = mesh->getTriangle(hit.smIndex, hit.triIndex);
                         auto& triangles = mesh->m_subMeshes[hit.smIndex]->m_triangles;
                         // compute barycentric coord of the surface point that we hit 
@@ -960,7 +960,7 @@ namespace Cyan
 
                 if (hit.t > 0.f)
                 {
-                    auto& matl = m_sceneMaterials[hit.m_node->m_meshInstance->m_rtMatls[hit.smIndex]];
+                    auto& matl = m_sceneMaterials[hit.m_node->m_staticMeshInstance->m_rtMatls[hit.smIndex]];
                     radiance = shadeSurface(hit, p, rd, matl);
                     irradiance += radiance;
                     hitDistance = hit.t;
@@ -1027,7 +1027,7 @@ namespace Cyan
         if (hit.t > 0.f)
         {
             glm::vec3 hitPosition = ro + rd * hit.t;
-            auto mesh = hit.m_node->m_meshInstance->m_mesh;
+            auto mesh = hit.m_node->m_staticMeshInstance->m_mesh;
             auto tri = mesh->getTriangle(hit.smIndex, hit.triIndex);
             auto& triangles = mesh->m_subMeshes[hit.smIndex]->m_triangles;
 
@@ -1083,7 +1083,7 @@ namespace Cyan
                 auto& record = m_irradianceCache->m_records[node->records[i]];
                 f32 wi = getIrradianceLerpWeight(m_debugData.pos, n, record, m_irradianceCacheCfg.kError);
                 // exclude cached samples that are "in front of" p
-                f32 dp = dot(m_debugData.pos - record.position, (record.normal + n) * .5f);
+                f32 dp = dot(m_debugData.pos - record.m_position, (record.normal + n) * .5f);
                 if (wi > 0.f && dp >= 0.f)
                 {
                     m_debugData.lerpRecords.push_back(node->records[i]);
@@ -1176,7 +1176,7 @@ namespace Cyan
                     glm::vec2 sampleScreenCoord = pixelCenterCoord + subPixelOffset;
                     sampleScreenCoord.x *= aspectRatio;
 
-                    glm::vec3 ro = camera.position;
+                    glm::vec3 ro = camera.m_position;
                     glm::vec3 rd = normalize(camera.forward * camera.n
                         + camera.right * sampleScreenCoord.x * w
                         + camera.up * sampleScreenCoord.y * w);
@@ -1221,7 +1221,7 @@ namespace Cyan
                         auto& record = m_irradianceCache->m_records[node->records[i]];
                         f32 wi = getIrradianceLerpWeight(hitPos, normal, record, m_irradianceCacheCfg.kError);
                         // exclude cached samples that are "in front of" p
-                        f32 dp = dot(hitPos - record.position, (record.normal + normal) * .5f);
+                        f32 dp = dot(hitPos - record.m_position, (record.normal + normal) * .5f);
                         if (wi > 0.f && dp >= 0.f)
                         {
                             weight += wi;
@@ -1332,7 +1332,7 @@ namespace Cyan
     */
     inline f32 computeIrradianceRecordWeight0(const glm::vec3& p, const glm::vec3& pn, const IrradianceRecord& record, f32 error)
     {
-        f32 distance = glm::length(p - record.position);
+        f32 distance = glm::length(p - record.m_position);
         return 1.f / ((distance / record.r) + sqrt(max(0.f, 1.0f - dot(pn, record.normal)))) - 1.f / error;
     }
 
@@ -1343,7 +1343,7 @@ namespace Cyan
     inline f32 computeIrradianceRecordWeight1(const glm::vec3& p, const glm::vec3& pn, const IrradianceRecord& record, f32 error)
     {
         f32 accuracy = 1.f / error;
-        f32 distance = glm::length(p - record.position);
+        f32 distance = glm::length(p - record.m_position);
         f32 translationalError = 2.f * distance / (record.r);
         f32 rotationalError = sqrt(max(0.f, 1.f - dot(pn, record.normal))) / sqrt(1.f - glm::cos(10.f / M_PI));
         return 1.f - accuracy * max(translationalError, rotationalError);
@@ -1369,7 +1369,7 @@ namespace Cyan
             auto& record = cache.m_records[i];
             f32 wi = getIrradianceLerpWeight(p, pn, record, error);
             // exclude cached samples that are "in front of" p
-            f32 dp = dot(p - record.position, (record.normal + pn) * .5f);
+            f32 dp = dot(p - record.m_position, (record.normal + pn) * .5f);
             if (wi > 0.f && dp >= 0.f)
             {
                 // rotational gradient
@@ -1377,9 +1377,9 @@ namespace Cyan
                 f32 rg = dot(glm::cross(record.normal, pn), record.gradient_r[1]);
                 f32 rb = dot(glm::cross(record.normal, pn), record.gradient_r[2]);
                 // translational gradient
-                f32 tr = dot(p - record.position, record.gradient_t[0]);
-                f32 tg = dot(p - record.position, record.gradient_t[1]);
-                f32 tb = dot(p - record.position, record.gradient_t[2]);
+                f32 tr = dot(p - record.m_position, record.gradient_t[0]);
+                f32 tg = dot(p - record.m_position, record.gradient_t[1]);
+                f32 tb = dot(p - record.m_position, record.gradient_t[2]);
                 outIrrad += wi * (record.irradiance + glm::vec3(max(tr, 0.f), max(tg, 0.f), max(tb, 0.f)));
                 outWeight += wi;
             }
@@ -1398,7 +1398,7 @@ namespace Cyan
                 auto& record = cache.m_records[node->records[i]];
                 f32 wi = getIrradianceLerpWeight(p, pn, record, error);
                 // exclude cached samples that are "in front of" p
-                f32 dp = dot(p - record.position, (record.normal + pn) * .5f);
+                f32 dp = dot(p - record.m_position, (record.normal + pn) * .5f);
                 if (wi > 0.f && dp >= 0.f)
                 {
                     // rotational gradient
@@ -1406,9 +1406,9 @@ namespace Cyan
                     f32 rg = dot(glm::cross(record.normal, pn), record.gradient_r[1]);
                     f32 rb = dot(glm::cross(record.normal, pn), record.gradient_r[2]);
                     // translational gradient
-                    f32 tr = dot(p - record.position, record.gradient_t[0]);
-                    f32 tg = dot(p - record.position, record.gradient_t[1]);
-                    f32 tb = dot(p - record.position, record.gradient_t[2]);
+                    f32 tr = dot(p - record.m_position, record.gradient_t[0]);
+                    f32 tg = dot(p - record.m_position, record.gradient_t[1]);
+                    f32 tb = dot(p - record.m_position, record.gradient_t[2]);
                     glm::vec3 gradients(max(tr + 1.f, 0.f), max(tg + 1.f, 0.f), max(tb + 1.f, 0.f));
                     outIrrad += wi * (record.irradiance + glm::vec3(tr, tg, tb));
                     outWeight += wi;
@@ -1468,9 +1468,9 @@ namespace Cyan
         m_root->sideLength = sideLength;
     }
 
-    u32 Octree::getChildIndexEnclosingSurfel(OctreeNode* node, const glm::vec3& position)
+    u32 Octree::getChildIndexEnclosingSurfel(OctreeNode* node, const glm::vec3& m_position)
     {
-        glm::vec3 vv = position - node->center;
+        glm::vec3 vv = m_position - node->center;
         u32 k = (vv.z <= 0.f) ? 1 : 0;
         u32 i = (vv.y <= 0.f) ? 1 : 0;
         u32 j = (vv.x >= 0.f) ? 1 : 0;
@@ -1515,7 +1515,7 @@ namespace Cyan
             if ((node->sideLength > (4.f * newRecord.r)))
             {
                 // compute which octant that current point belongs to
-                u32 childIndex = getChildIndexEnclosingSurfel(node, newRecord.position);
+                u32 childIndex = getChildIndexEnclosingSurfel(node, newRecord.m_position);
                 if (!node->childs[childIndex])
                 {
                     node->childs[childIndex] = allocNode();
@@ -1546,9 +1546,9 @@ namespace Cyan
         BoundingBox3D aabb;
         for (u32 i = 0; i < nodes.size(); ++i)
         {
-            if (nodes[i]->m_meshInstance)
+            if (nodes[i]->m_staticMeshInstance)
             {
-                auto& objectSpaceAABB = nodes[i]->m_meshInstance->getAABB();
+                auto& objectSpaceAABB = nodes[i]->m_staticMeshInstance->getAABB();
                 glm::mat4 model = nodes[i]->getWorldTransform().toMatrix();
                 BoundingBox3D worldSpaceAABB;
                 worldSpaceAABB.pmin = model * objectSpaceAABB.pmin;
@@ -1566,7 +1566,7 @@ namespace Cyan
     {
         CYAN_ASSERT(m_numRecords < cacheSize, "Too many irradiance records inserted!");
         IrradianceRecord& newRecord = m_records[m_numRecords];
-        newRecord.position = p;
+        newRecord.m_position = p;
         newRecord.normal = pn;
         newRecord.irradiance = irradiance;
         newRecord.r = r;

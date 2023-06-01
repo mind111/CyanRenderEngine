@@ -15,13 +15,9 @@
 
 #define RADIANS(x) (x) * 2 * M_PI / 360.f
 
-class MathUtils {
-public:
-    static glm::mat4 transformToMat4(const struct Transform& xform);
-};
-
 namespace Cyan
 {
+    glm::mat4 transformToMat4(const struct Transform& xform);
     f32 fabs(f32 value);
     glm::vec3 vec4ToVec3(const glm::vec4& v4);
     glm::mat4 calcTangentFrame(const glm::vec3& n);

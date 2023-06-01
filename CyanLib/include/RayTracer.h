@@ -151,7 +151,7 @@ namespace Cyan
 
         void        init(const glm::vec3& center, f32 sideLength);
         OctreeNode* allocNode();
-        u32         getChildIndexEnclosingSurfel(OctreeNode* node, const glm::vec3& position);
+        u32         getChildIndexEnclosingSurfel(OctreeNode* node, const glm::vec3& m_position);
         void        traverse(const std::function<void(std::queue<OctreeNode*>&, OctreeNode*)>& callback);
         void        insert(const IrradianceRecord& newRecord, u32 recordIndex);
     };
@@ -162,7 +162,7 @@ namespace Cyan
     struct IrradianceRecord
     {
         glm::vec3 irradiance;
-        glm::vec3 position;
+        glm::vec3 m_position;
         glm::vec3 normal;
         f32       r;
         // a gradient vector for each albedo component R, G, B
@@ -179,7 +179,7 @@ namespace Cyan
         IrradianceCache();
         ~IrradianceCache() {}
 
-        void init(std::vector<SceneNode*>& nodes);
+        void init(std::vector<SceneNode*>& m_nodes);
         const IrradianceRecord& addIrradianceRecord(const glm::vec3& p, const glm::vec3& pn, const glm::vec3& irradiance, f32 r, const glm::vec3* rotationalGradient, const glm::vec3* translationalGradient);
 
         static const u32 cacheSize = 1024 * 1024;

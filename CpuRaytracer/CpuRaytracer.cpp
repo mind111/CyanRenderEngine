@@ -19,7 +19,7 @@ namespace Cyan
         struct Camera
         {
             glm::vec3 eye;
-            glm::vec3 lookAt;
+            glm::vec3 m_lookAt;
             glm::vec3 forward;
             glm::vec3 right;
             glm::vec3 up;
@@ -67,8 +67,8 @@ namespace Cyan
             // building view data
             if (auto inCamera = dynamic_cast<PerspectiveCamera*>(inScene.m_mainCamera->getCamera()))
             {
-                camera.eye = inCamera->position;
-                camera.lookAt = inCamera->lookAt;
+                camera.eye = inCamera->m_position;
+                camera.m_lookAt = inCamera->m_lookAt;
                 camera.aspect = inCamera->aspectRatio;
                 camera.fov = inCamera->fov;
                 camera.forward = inCamera->forward();
@@ -91,7 +91,7 @@ namespace Cyan
                     auto meshInstance = staticMeshEntity->getMeshInstance();
                     auto mesh = meshInstance->mesh;
                     // todo: found a bug here, mesh doesn't have a name
-                    auto meshEntry = meshMap.find(mesh->name);
+                    auto meshEntry = meshMap.find(mesh->m_name);
 
                     if (meshEntry == meshMap.end())
                     {
@@ -122,7 +122,7 @@ namespace Cyan
                                 }
                             }
                         }
-                        meshMap.insert({ mesh->name, basePrimitiveID });
+                        meshMap.insert({ mesh->m_name, basePrimitiveID });
                     }
                     else
                     {
@@ -139,7 +139,7 @@ namespace Cyan
                     for (i32 i = 0; i < mesh->numSubmeshes(); ++i)
                     {
                         auto material = meshInstance->getMaterial(i);
-                        auto materialEntry = materialMap.find(material->name);
+                        auto materialEntry = materialMap.find(material->m_name);
                         if (materialEntry == materialMap.end())
                         {
 
@@ -167,7 +167,7 @@ namespace Cyan
         Camera camera;
         DirectionalLight sunLight;
         std::vector<Primitive> primitives;
-        std::vector<Material> materials;
+        std::vector<Material> m_materials;
         std::vector<Instance> instances;
         std::vector<glm::mat4> transforms;
     };
@@ -516,9 +516,9 @@ namespace Cyan
                 outAttribs.worldSpaceNormal = glm::normalize(glm::inverse(glm::transpose(instance.localToWorld)) * glm::vec4(localNormal, 0.f));
                 if (instance.materialID >= 0)
                 {
-                    outAttribs.albedo = scene.materials[instance.materialID].albedo;
-                    outAttribs.metallic = scene.materials[instance.materialID].metallic;
-                    outAttribs.roughness = scene.materials[instance.materialID].roughness;
+                    outAttribs.albedo = scene.m_materials[instance.materialID].albedo;
+                    outAttribs.metallic = scene.m_materials[instance.materialID].metallic;
+                    outAttribs.roughness = scene.m_materials[instance.materialID].roughness;
                 }
                 else
                 {

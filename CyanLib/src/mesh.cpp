@@ -3,85 +3,23 @@
 #include "Geometry.h"
 #include "AssetManager.h"
 #include "AssetImporter.h"
+#include "GraphicsSystem.h"
+#include "World.h"
+#include "StaticMeshComponent.h"
 
 namespace Cyan
 {
-    std::vector<StaticMesh::Submesh::Desc> StaticMesh::g_submeshes;
-    std::vector<StaticMesh::Vertex> StaticMesh::g_vertices;
-    std::vector<u32> StaticMesh::g_indices;
-
-    StaticMesh::Submesh::Submesh(StaticMesh* inOwner)
-        : owner(inOwner), geometry(nullptr), vb(nullptr), ib(nullptr), va(nullptr), index(-1)
+    StaticMesh::Submesh::Submesh(StaticMesh* inOwner, i32 submeshIndex, std::unique_ptr<Geometry> inGeometry)
+        : owner(inOwner), index(submeshIndex), geometry(std::move(inGeometry)), bInited(false), vb(nullptr), ib(nullptr), va(nullptr)
     {
+        assert(index < owner->getNumSubmeshes());
     }
 
-    StaticMesh::Submesh::Submesh(StaticMesh* inOwner, std::shared_ptr<Geometry> inGeometry)
-        : owner(inOwner), geometry(inGeometry), vb(nullptr), ib(nullptr), va(nullptr), index(-1)
-    {
-    }
-
-    StaticMesh::Submesh::Desc StaticMesh::getSubmeshDesc(StaticMesh::Submesh* submesh)
-    {
-        return g_submeshes[submesh->index];
-    }
-
-    void StaticMesh::Submesh::setGeometry(std::shared_ptr<Geometry> inGeometry)
-    {
-        assert(geometry == nullptr);
-        geometry = inGeometry;
-
-        AssetManager::deferredInitAsset(owner, [this](Asset* asset) {
-            init();
-        });
-    }
-
-    /**
-     *  this function actually initialize rendering related data on Gpu, and it
-     * makes Gfx API calls, thus requiring a valid GL context, thus need to be executed
-     * on the main thread.
-     */
     void StaticMesh::Submesh::init()
     {
-        if (!bInitialized)
+        assert(!bInited);
+        if (!bInited)
         {
-            assert(geometry);
-
-            Desc desc = { };
-            Geometry::Type type = geometry->getGeometryType();
-            switch (type)
-            {
-            case Geometry::Type::kTriangles: {
-                desc.vertexOffset = g_vertices.size();
-                desc.numVertices = geometry->numVertices();
-                desc.indexOffset = g_indices.size();
-                desc.numIndices = geometry->numIndices();
-
-                // pack the src geometry data into the global vertex/index buffer for static geometries
-                Triangles* triangles = static_cast<Triangles*>(geometry.get());
-                u32 start = g_vertices.size();
-                g_vertices.resize(g_vertices.size() + geometry->numVertices());
-                const auto& vertices = triangles->vertices;
-                const auto& indices = triangles->indices;
-                for (u32 v = 0; v < triangles->vertices.size(); ++v)
-                {
-                    g_vertices[start + v].pos = glm::vec4(vertices[v].pos, 1.f);
-                    g_vertices[start + v].normal = glm::vec4(vertices[v].normal, 0.f);
-                    g_vertices[start + v].tangent = vertices[v].tangent;
-                    g_vertices[start + v].texCoord = glm::vec4(vertices[v].texCoord0, vertices[v].texCoord1);
-                }
-                g_indices.insert(g_indices.end(), indices.begin(), indices.end());
-            } break;
-            case Geometry::Type::kPointCloud:
-            case Geometry::Type::kLines:
-            default:
-                assert(0);
-            }
-
-            index = g_submeshes.size();
-            g_submeshes.push_back(desc);
-
-            // todo: this makes the geometry data duplicated on the Gpu end, need to make it choosable whether a submesh should be both packed and initialized seperately
-            // initialize vertex buffer object, index buffer object, and vertex array object
             switch (geometry->getGeometryType())
             {
             case Geometry::Type::kTriangles: {
@@ -111,139 +49,115 @@ namespace Cyan
                 assert(0);
             }
 
-            bInitialized = true;
+            bInited = true;
 
-            // upload data to these three global buffers as they just become out-dated on gpu end
-            getGlobalVertexBuffer()->write(g_vertices, 0, sizeOfVector(g_vertices));
-            getGlobalIndexBuffer()->write(g_indices, 0, sizeOfVector(g_indices));
-            getGlobalSubmeshBuffer()->write(g_submeshes, 0, sizeOfVector(g_submeshes));
+            onInited();
         }
-        else
+    }
+
+    void StaticMesh::Submesh::onInited()
+    {
+        owner->onSubmeshInited(index);
+    }
+
+    StaticMesh::Instance::Instance(StaticMeshComponent* owner, std::shared_ptr<StaticMesh> inParent, const Transform& inLocalToWorld)
+        : meshComponent(owner), parent(inParent), localToWorld(inLocalToWorld)
+    {
+        assert(parent != nullptr);
+        m_materials.resize(parent->getNumSubmeshes());
+        auto defaultMaterial = AssetManager::findAsset<Material>("DefaultMaterial");
+        assert(defaultMaterial != nullptr);
+        for (i32 i = 0; i < parent->getNumSubmeshes(); ++i)
         {
-
+            m_materials[i] = defaultMaterial;
         }
+        parent->addInstance(this);
     }
 
-    ShaderStorageBuffer* StaticMesh::getGlobalSubmeshBuffer()
+    std::shared_ptr<Material>& StaticMesh::Instance::operator[](i32 index)
     {
-        static std::unique_ptr<ShaderStorageBuffer> g_submeshBuffer = std::make_unique<ShaderStorageBuffer>("SubmeshBuffer", sizeOfVector(g_submeshes));
-        return g_submeshBuffer.get();
+        assert(index < parent->getNumSubmeshes());
+        return m_materials[index];
     }
 
-    ShaderStorageBuffer* StaticMesh::getGlobalVertexBuffer()
+    void StaticMesh::Instance::onMeshInited()
     {
-        static std::unique_ptr<ShaderStorageBuffer> g_vertexBuffer = std::make_unique<ShaderStorageBuffer>("VertexBuffer", sizeOfVector(g_vertices));
-        return g_vertexBuffer.get();
+        assert(meshComponent != nullptr);
+        Scene* scene = meshComponent->getWorld()->getScene();
+        scene->addStaticMeshInstance(this);
     }
 
-    ShaderStorageBuffer* StaticMesh::getGlobalIndexBuffer()
+    void StaticMesh::Instance::addToScene()
     {
-        static std::unique_ptr<ShaderStorageBuffer> g_indexBuffer = std::make_unique<ShaderStorageBuffer>("IndexBuffer", sizeOfVector(g_indices));
-        return g_indexBuffer.get();
+        assert(meshComponent != nullptr);
+        Scene* scene = meshComponent->getWorld()->getScene();
+        scene->addStaticMeshInstance(this);
     }
 
-    void StaticMesh::import()
+    StaticMesh::StaticMesh(const char* name, i32 numSubmeshes)
+        : Asset(name), m_numSubmeshes(numSubmeshes)
     {
-        if (state != State::kLoaded && state != State::kLoading)
+        m_submeshes.resize(m_numSubmeshes);
+        for (i32 i = 0; i < m_numSubmeshes; ++i)
         {
-            state = State::kLoading;
-            AssetImporter::import(this);
+            m_submeshes[i] = nullptr;
         }
     }
 
-    void StaticMesh::onLoaded()
+    StaticMesh::Submesh* StaticMesh::createSubmesh(i32 index, std::unique_ptr<Geometry> geometry)
     {
-        state = State::kLoaded;
+        assert(index < m_numSubmeshes);
+        assert(m_submeshes[index] == nullptr);
+        m_submeshes[index] = std::make_shared<Submesh>(this, index, std::move(geometry));
+        onSubmeshLoaded(index);
+        return m_submeshes[index].get();
     }
 
-    void StaticMesh::addInstance(MeshInstance* inInstance)
-    {
-        instances.push_back(inInstance);
+    i32 StaticMesh::getNumSubmeshes() 
+    { 
+        assert(m_numSubmeshes == m_submeshes.size());
+        return m_numSubmeshes; 
     }
 
-    StaticMesh::Submesh* StaticMesh::getSubmesh(u32 index)
+    std::shared_ptr<StaticMesh::Submesh>& StaticMesh::getSubmesh(i32 smIndex)
     {
-        std::lock_guard<std::mutex> lock(submeshMutex);
-        return submeshes[index].get();
+        assert(smIndex < m_numSubmeshes);
+        return m_submeshes[smIndex];
     }
 
-    u32 StaticMesh::numSubmeshes()
+    std::shared_ptr<StaticMesh::Submesh>& StaticMesh::operator[](i32 index)
     {
-        std::lock_guard<std::mutex> lock(submeshMutex);
-        return submeshes.size();
+        return getSubmesh(index);
     }
 
-    u32 StaticMesh::numInstances()
+    void StaticMesh::addInstance(Instance* instance)
     {
-        return instances.size();
+        m_instances.push_back(instance);
     }
 
-    u32 StaticMesh::numVertices()
+    void StaticMesh::onSubmeshLoaded(i32 index)
     {
-        u32 totalNumVertices = 0u;
-        u32 numSubmesh = numSubmeshes();
-        for (u32 i = 0; i < numSubmesh; ++i)
+        assert(index < m_numSubmeshes);
+        assert(m_numLoadedSubmeshes < m_numSubmeshes);
+        m_numLoadedSubmeshes++;
+        ENQUEUE_GFX_COMMAND(InitSubmeshCommand, [this, index]() {
+            m_submeshes[index]->init();
+        });
+
+    }
+
+    void StaticMesh::onSubmeshInited(i32 index)
+    {
+        assert(index < m_numSubmeshes);
+        assert(m_numInitedSubmeshes < m_numSubmeshes);
+        m_numInitedSubmeshes++;
+        if (m_numInitedSubmeshes == m_numSubmeshes)
         {
-            auto sm = getSubmesh(i);
-            totalNumVertices += sm->numVertices();
+            for (auto instance : m_instances)
+            {
+                instance->addToScene();
+            }
         }
-        return totalNumVertices;
-    }
-
-    u32 StaticMesh::numIndices()
-    {
-        u32 totalNumIndices = 0u;
-        u32 numSubmesh = numSubmeshes();
-        for (u32 i = 0; i < numSubmesh; ++i)
-        {
-            auto sm = getSubmesh(i);
-            totalNumIndices += sm->numIndices();
-        }
-        return totalNumIndices;
-    }
-
-    void StaticMesh::addSubmeshDeferred(Geometry* inGeometry)
-    {
-        std::lock_guard<std::mutex> lock(submeshMutex);
-        auto sm = std::make_shared<StaticMesh::Submesh>(this, std::shared_ptr<Geometry>(inGeometry));
-        submeshes.emplace_back(sm);
-        onSubmeshAddedDeferred(sm.get());
-    }
-
-    void StaticMesh::onSubmeshAddedDeferred(Submesh* submesh)
-    {
-        std::lock_guard<std::mutex> lock(instanceMutex);
-        for (auto inst : instances)
-        {
-            inst->onSubmeshAdded();
-        }
-
-        AssetManager::deferredInitAsset(this, [this, submesh](Asset* asset) {
-            submesh->init();
-            });
-    }
-
-    void StaticMesh::addSubmeshImmediate(Geometry* inGeometry)
-    {
-        std::lock_guard<std::mutex> lock(submeshMutex);
-        auto sm = std::make_shared<StaticMesh::Submesh>(this, std::shared_ptr<Geometry>(inGeometry));
-        submeshes.emplace_back(sm);
-        onSubmeshAddedImmediate(sm.get());
-    }
-
-    void StaticMesh::onSubmeshAddedImmediate(Submesh* submesh)
-    {
-        std::lock_guard<std::mutex> lock(instanceMutex);
-        for (auto inst : instances)
-        {
-            inst->onSubmeshAdded();
-        }
-        submesh->init();
-    }
-
-    void MeshInstance::onSubmeshAdded()
-    {
-        addMaterial(AssetManager::getAsset<Material>("DefaultMaterial"));
     }
 }
 

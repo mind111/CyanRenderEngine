@@ -9,7 +9,7 @@
 
 namespace Cyan
 {
-    struct VertexBuffer : public GpuResource
+    struct VertexBuffer : public GfxResource
     {
         struct Attribute
         {
@@ -20,7 +20,7 @@ namespace Cyan
                 kVec4
             };
 
-            std::string name;
+            std::string m_name;
             Type type;
             u32 offset;
         };

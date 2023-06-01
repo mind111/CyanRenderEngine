@@ -8,210 +8,76 @@
 #include "Asset.h"
 #include "MathUtils.h"
 #include "Material.h"
-#include "BVH.h"
-#include "ShaderStorageBuffer.h"
 #include "Geometry.h"
 #include "VertexBuffer.h"
 #include "IndexBuffer.h"
 #include "VertexArray.h"
+#include "Transform.h"
 
 namespace Cyan
 {
     struct Geometry;
-    struct MeshInstance;
+    class StaticMeshComponent;
+    class Scene;
 
-    struct StaticMesh : public Asset
+    class StaticMesh : public Asset
     {
+    public:
+
         struct Submesh
         {
-            struct Desc
-            {
-                u32 vertexOffset;
-                u32 numVertices;
-                u32 indexOffset;
-                u32 numIndices;
-            };
-
-            Submesh(StaticMesh* inOwner);
-            Submesh(StaticMesh* inOwner, std::shared_ptr<Geometry> inGeometry);
+            Submesh(StaticMesh* inOwner, i32 submeshIndex, std::unique_ptr<Geometry> inGeometry);
             ~Submesh() { }
 
             void init();
-
-            u32 numVertices() const { return geometry->numVertices(); }
-            u32 numIndices() const { return geometry->numIndices(); }
-            VertexArray* getVertexArray() { return va.get(); }
-            void setGeometry(std::shared_ptr<Geometry> inGeometry);
+            void onInited();
+            i32 numVertices() { return geometry->numVertices(); }
+            i32 numIndices() { return geometry->numIndices(); }
 
             StaticMesh* owner = nullptr;
-            std::shared_ptr<Geometry> geometry = nullptr;
+            i32 index = -1; // index into parent's submesh array
+            std::unique_ptr<Geometry> geometry = nullptr;
+            bool bInited = false;
             std::shared_ptr<VertexBuffer> vb = nullptr;
             std::shared_ptr<IndexBuffer> ib = nullptr;
             std::shared_ptr<VertexArray> va = nullptr;
-            i32 index = -1;
-            bool bInitialized = false;
         };
 
-        StaticMesh(const char* meshName)
-            : Asset(meshName)
+        struct Instance
         {
+            Instance(StaticMeshComponent* owner, std::shared_ptr<StaticMesh> inParent, const Transform& inLocalToWorld);
+            ~Instance() { }
 
-        }
+            void onMeshInited();
+            void addToScene();
+            std::shared_ptr<Material>& operator[](i32 index);
 
-        StaticMesh(const char* meshName, u32 numSubmeshes)
-            : Asset(meshName)
-        {
-            for (i32 i = 0; i < numSubmeshes; ++i)
-            {
-                auto sm = std::make_shared<Submesh>(this);
-                submeshes.emplace_back(sm);
-            }
-        }
-
-        static const char* getClassName() { return "StaticMesh"; }
-
-        /* Asset interface */
-        virtual const char* getAssetTypeName() override { return getClassName(); }
-        virtual void import() override;
-        virtual void load() override { }
-        virtual void onLoaded() override;
-        virtual void unload() override { }
-
-#if 0
-        virtual void save() 
-        { 
-            static const char* rootObjectFolder = "/data/";
-
-            if (!path.empty())
-            {
-                // open a file for write in binary mode
-                std::ofstream outFile(path.c_str(), std::ios::out | std::ios::binary);
-                if (outFile.is_open())
-                {
-                    outFile.write();
-                    outFile.close();
-                }
-                else
-                {
-                    // somehow failed to open the file
-                    assert(0);
-                }
-
-                // write meta data
-                /**
-                    struct StaticMeshMetadata
-                    {
-                        char[] magicNumber; // formed from class name
-                        char[] name; // path to this file + name forms the file path
-                    }
-                 */
-                {
-
-                }
-
-                // write bulk data
-            }
-        }
-#endif
-
-        static Submesh::Desc getSubmeshDesc(Submesh* submesh);
-        Submesh* getSubmesh(u32 index);
-
-        // add a submesh while deferring the rendering data initialization, mainly meant for async loading
-        // because this function is called on a thread that doesn't have a valid GL context
-        void addSubmeshDeferred(Geometry* inGeometry);
-        void onSubmeshAddedDeferred(Submesh* sm);
-        // add a submesh while immediate initialize rendering data
-        void addSubmeshImmediate(Geometry* inGeometry);
-        void onSubmeshAddedImmediate(Submesh* sm);
-
-        void addInstance(MeshInstance* inInstance);
-        u32 numSubmeshes();
-        u32 numInstances();
-        u32 numVertices();
-        u32 numIndices();
-
-        const BoundingBox3D& getAABB() { return aabb; }
-
-        struct Vertex
-        {
-            glm::vec4 pos;
-            glm::vec4 normal;
-            glm::vec4 tangent;
-            glm::vec4 texCoord;
+            StaticMeshComponent* meshComponent = nullptr;
+            std::shared_ptr<StaticMesh> parent = nullptr;
+            Transform localToWorld;
+            std::vector<std::shared_ptr<Material>> m_materials;
         };
 
-        static std::vector<Submesh::Desc> g_submeshes;
-        static std::vector<Vertex> g_vertices;
-        static std::vector<u32> g_indices;
+        StaticMesh(const char* m_name, i32 numSubmeshes);
+        ~StaticMesh() { }
 
-        // todo: consider using a persistently mapped buffer for these global buffers, and stream-in data when necessary?
-        static ShaderStorageBuffer* getGlobalSubmeshBuffer();
-        static ShaderStorageBuffer* getGlobalVertexBuffer();
-        static ShaderStorageBuffer* getGlobalIndexBuffer();
+        static const char* getAssetTypeName() { return "StaticMesh"; }
 
-        BoundingBox3D aabb;
+        Submesh* createSubmesh(i32 index, std::unique_ptr<Geometry> geometry);
+        std::shared_ptr<Submesh>& operator[](i32 index);
+        i32 getNumSubmeshes();
+        void onSubmeshLoaded(i32 index);
+        void onSubmeshInited(i32 index);
+        void addInstance(Instance* instance);
 
-        std::mutex submeshMutex;
-        std::vector<std::shared_ptr<Submesh>> submeshes;
+    private:
+        std::shared_ptr<Submesh>& getSubmesh(i32 smIndex);
 
-        std::mutex instanceMutex;
-        std::vector<MeshInstance*> instances;
-    };
-
-    struct MeshInstance 
-    {
-        MeshInstance(StaticMesh* base)
-            : mesh(base), materials(base->numSubmeshes())
-        {
-            mesh->addInstance(this);
-        }
-
-        void onSubmeshAdded();
-
-        Material* getMaterial(u32 index) 
-        {
-            std::lock_guard<std::mutex> lock(materialsMutex);
-            if (!materials.empty())
-            {
-                return materials[index];
-            }
-            return nullptr;
-        }
-
-        void addMaterial(Material* matl)
-        {
-            std::lock_guard<std::mutex> lock(materialsMutex);
-            materials.push_back(matl);
-        }
-
-        void setMaterial(Material* matl) 
-        {
-            for (u32 i = 0; i < mesh->numSubmeshes(); ++i) 
-            {
-                setMaterial(matl, i);
-            }
-        }
-
-        void setMaterial(Material* matl, u32 index) 
-        {
-            std::lock_guard<std::mutex> lock(materialsMutex);
-            materials[index] = matl;
-        }
-
-        BoundingBox3D getAABB(const glm::mat4& worldTransform) 
-        {
-            BoundingBox3D parentAABB = mesh->getAABB();
-            BoundingBox3D aabb;
-            aabb.bound(worldTransform * parentAABB.pmin);
-            aabb.bound(worldTransform * parentAABB.pmax);
-            return aabb;
-        }
-
-        StaticMesh* mesh = nullptr;
-
-        std::mutex materialsMutex;
-        std::vector<Material*> materials;
+        i32 m_numSubmeshes = 0;
+        i32 m_numLoadedSubmeshes = 0;
+        i32 m_numInitedSubmeshes = 0;
+        std::vector<std::shared_ptr<Submesh>> m_submeshes;
+        std::vector<Instance*> m_instances;
     };
 }
 

@@ -5,28 +5,27 @@
 
 #include "Common.h"
 #include "Asset.h"
-#include "ExternalAssetFile.h"
 
 namespace Cyan
 {
-    struct Scene;
-    struct Entity;
+    class Scene;
+    class Entity;
     struct Triangles;
     struct Sampler2D;
-    struct Image;
+    class Image;
 
     namespace gltf
     {
         struct Scene
         {
-            std::string name;
-            std::vector<u32> nodes;
+            std::string m_name;
+            std::vector<u32> m_nodes;
         };
 
         struct Node
         {
             // optional
-            std::string name;
+            std::string m_name;
             i32 mesh = -1;
             i32 camera = -1;
             i32 hasMatrix = -1;
@@ -50,7 +49,7 @@ namespace Cyan
             i32 bufferView = -1;
             u32 byteOffset = 0u;
             bool normalized = false;
-            std::string name;
+            std::string m_name;
         };
 
         struct BufferView
@@ -62,7 +61,7 @@ namespace Cyan
             u32 byteOffset = 0;
             u32 byteStride = 0;
             i32 target = -1;
-            std::string name;
+            std::string m_name;
         };
 
         struct Buffer
@@ -71,13 +70,13 @@ namespace Cyan
             u32 byteLength;
             // optional
             std::string uri;
-            std::string name;
+            std::string m_name;
         };
 
         struct Attribute
         {
             // required
-            u32 position;
+            u32 m_position;
             u32 normal;
             // optional
             i32 tangent = -1;
@@ -111,7 +110,7 @@ namespace Cyan
             // required
             std::vector<Primitive> primitives;
             // optional
-            std::string name;
+            std::string m_name;
         };
 
         struct Image
@@ -120,7 +119,7 @@ namespace Cyan
             std::string uri;
             i32 bufferView = -1;
             std::string mimeType;
-            std::string name;
+            std::string m_name;
             // filled in when raw image data is interpreted using stbi
             i32 width, height, numChannels;
             bool bHdr = false;
@@ -153,14 +152,14 @@ namespace Cyan
             u32 minFilter = (u32)Filtering::LINEAR;
             u32 wrapS = 10497;
             u32 wrapT = 10497;
-            std::string name;
+            std::string m_name;
         };
 
         struct Texture
         {
             i32 source = -1;
             i32 sampler = -1;
-            std::string name;
+            std::string m_name;
         };
 
         // todo: handle extra fields such as "scale", "strength" etc
@@ -181,7 +180,7 @@ namespace Cyan
 
         struct Material
         {
-            std::string name;
+            std::string m_name;
             PbrMetallicRoughness pbrMetallicRoughness;
             TextureInfo normalTexture;
             TextureInfo occlusionTexture;
@@ -193,57 +192,57 @@ namespace Cyan
         using json_iterator = nlohmann::json::iterator;
         using json_const_iterator = nlohmann::json::const_iterator;
 
-        struct Gltf : public ExternalAssetFile
+        class Gltf
         {
+        public:
             Gltf(const char* filename) 
-                : ExternalAssetFile(filename)
+                : m_filename(filename)
             { 
             }
 
-            virtual void load() override { }
-            virtual void unload() override { }
+            virtual void load() { }
 
             virtual void importTriangles(const gltf::Primitive& p, Triangles& outTriangles) { }
             virtual void importImage(const gltf::Image& gltfImage, Cyan::Image& outImage) { }
             virtual void importMaterials();
 
+            std::string m_filename;
             // json object parsed from raw json string
-            json o;
-            u32 defaultScene = -1;
-            std::vector<Scene> scenes;
-            std::vector<Node> nodes;
-            std::vector<Mesh> meshes;
-            std::vector<Accessor> accessors;
-            std::vector<Buffer> buffers;
-            std::vector<BufferView> bufferViews;
-            std::vector<Image> images;
-            std::vector<Texture> textures;
-            std::vector<Sampler> samplers;
-            std::vector<Material> materials;
+            json m_jsonObject;
+            u32 m_defaultScene = -1;
+            std::vector<Scene> m_scenes;
+            std::vector<Node> m_nodes;
+            std::vector<Mesh> m_meshes;
+            std::vector<Accessor> m_accessors;
+            std::vector<Buffer> m_buffers;
+            std::vector<BufferView> m_bufferViews;
+            std::vector<gltf::Image> m_images;
+            std::vector<Texture> m_textures;
+            std::vector<Sampler> m_samplers;
+            std::vector<Material> m_materials;
         };
 
-        struct Glb : public Gltf
+        class Glb : public Gltf
         {
+        public:
             struct ChunkDesc
             {
                 u32 chunkLength;
                 u32 chunkType;
             };
 
-            Glb(const char* srcFilename);
+            Glb(const char* filename);
             ~Glb() { }
 
             virtual void load() override;
-            virtual void unload() override;
 
             virtual void importTriangles(const gltf::Primitive& p, Triangles& outTriangles) override;
             virtual void importImage(const gltf::Image& gltfImage, Cyan::Image& outImage) override;
 
-            bool bInitailized = false;
-            ChunkDesc jsonChunkDesc;
-            ChunkDesc binaryChunkDesc;
-            u32 binaryChunkOffset;
-            std::vector<u8> binaryChunk;
+            ChunkDesc m_jsonChunkDesc;
+            ChunkDesc m_binaryChunkDesc;
+            u32 m_binaryChunkOffset;
+            std::vector<u8> m_binaryChunk;
 
         private:
             void loadJsonChunk();

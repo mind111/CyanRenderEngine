@@ -13,12 +13,12 @@ struct Node
     Node* m_parent;
     std::vector<Node*> m_child; 
 
-    virtual bool isNamed(const char* name)
+    virtual bool isNamed(const char* m_name)
     {
-        return (strcmp(m_name, name) == 0);
+        return (strcmp(m_name, m_name) == 0);
     }
 
-    virtual Node* find(const char* name)
+    virtual Node* find(const char* m_name)
     {
         // breath first search
         std::queue<Node*> nodesQueue;
@@ -27,7 +27,7 @@ struct Node
         {
             Node* node = nodesQueue.front();
             nodesQueue.pop();
-            if (node->isNamed(name))
+            if (node->isNamed(m_name))
             {
                 return node;
             }
@@ -39,9 +39,9 @@ struct Node
         return nullptr;
     }
     
-    virtual Node* remove(const char* name)
+    virtual Node* remove(const char* m_name)
     {
-        Node* nodeToRemove = find(name);
+        Node* nodeToRemove = find(m_name);
         if (nodeToRemove) {
             Node* parent = nodeToRemove->m_parent;
             u32 index = 0;

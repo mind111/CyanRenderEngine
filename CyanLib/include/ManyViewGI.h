@@ -31,7 +31,7 @@ namespace Cyan {
     class ManyViewGI {
     public:
         struct Hemicube {
-            glm::vec4 position;
+            glm::vec4 m_position;
             glm::vec4 normal;
         };
 
@@ -62,7 +62,7 @@ namespace Cyan {
             GfxTexture2D* radianceAtlas = nullptr;
             // "gBuffer"
             GfxTexture2D* normal = nullptr;
-            GfxTexture2D* position = nullptr;
+            GfxTexture2D* m_position = nullptr;
             GfxTexture2D* albedo = nullptr;
             GfxTexture2D* directLighting = nullptr;
             GfxTexture2D* indirectLighting = nullptr;

@@ -11,6 +11,7 @@
 
 namespace Cyan
 {
+#if 0
     DirectionalLightEntity::DirectionalLightEntity(Scene* scene, const char* inName, const Transform& t, Entity* inParent)
         : Entity(scene, inName, t, inParent, EntityFlag_kDynamic | EntityFlag_kVisible) 
     {
@@ -48,4 +49,5 @@ namespace Cyan
             directionalLightComponent->setColorAndIntensity(colorAndIntensity);
         }
     }
+#endif
 }

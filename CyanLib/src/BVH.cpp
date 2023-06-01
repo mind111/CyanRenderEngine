@@ -16,7 +16,7 @@ namespace Cyan
         }
         // will this overflow because number of triangles is too big ...?
         u32 maxNumNodes = 2u * totalNumTriangles - 1;
-        nodes.resize(maxNumNodes);
+        m_nodes.resize(maxNumNodes);
         leafNodes.resize(totalNumTriangles);
 
         // initialize leaf nodes
@@ -36,14 +36,14 @@ namespace Cyan
 
     BVHNode* MeshBVH::allocNode()
     {
-        CYAN_ASSERT(numNodes < nodes.size(), "Too many BVHNode allocated! \n");
-        return &nodes[numNodes++];
+        CYAN_ASSERT(numNodes < m_nodes.size(), "Too many BVHNode allocated! \n");
+        return &m_nodes[numNodes++];
     }
 
     void MeshBVH::onBuildFinished()
     {
         // shrink the node array
-        nodes.resize(numNodes);
+        m_nodes.resize(numNodes);
     }
 
     // TODO: improve the tree by not choosing the split axis randomly 

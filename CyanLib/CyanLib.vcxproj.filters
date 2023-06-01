@@ -88,8 +88,14 @@
     <Filter Include="Header Files\GfxAPI">
       <UniqueIdentifier>{e71251dc-dcad-4835-8bdf-9ec5d2b34b7b}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Shaders\SSGI">
+    <Filter Include="Shaders\Shadow\SSGI">
       <UniqueIdentifier>{8627f827-61ec-4239-97c8-1a6a0837c68e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Components">
+      <UniqueIdentifier>{3fb3140f-e98c-4dad-8157-5e5ea484a87c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Components">
+      <UniqueIdentifier>{16f67d99-1a9d-4159-889d-abcc0ddf1fff}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -123,9 +129,6 @@
     <ClInclude Include="include\Scene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\SceneComponent.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\Shader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -153,16 +156,13 @@
     <ClInclude Include="include\CyanCore.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\Component.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\StaticMeshEntity.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\Texture.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\camera.h">
+    <ClInclude Include="include\Camera.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\GpuLights.h">
@@ -258,6 +258,27 @@
     <ClInclude Include="include\ScreenSpaceRayTracing.h">
       <Filter>Source Files\SSRT</Filter>
     </ClInclude>
+    <ClInclude Include="include\World.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\StaticMeshComponent.h">
+      <Filter>Header Files\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\SceneComponent.h">
+      <Filter>Header Files\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Component.h">
+      <Filter>Header Files\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\PerspectiveCameraComponent.h">
+      <Filter>Header Files\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\CameraEntity.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\CameraComponent.h">
+      <Filter>Header Files\Components</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\LightEntities.cpp">
@@ -271,9 +292,6 @@
     </ClCompile>
     <ClCompile Include="src\ScreenSpaceRayTracing.cpp">
       <Filter>Source Files\SSRT</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Camera.cpp">
-      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Component.cpp">
       <Filter>Source Files</Filter>
@@ -324,9 +342,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Scene.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\SceneComponent.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Shader.cpp">
@@ -396,6 +411,24 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\ShaderStorageBuffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\World.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SceneComponent.cpp">
+      <Filter>Source Files\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="src\StaticMeshComponent.cpp">
+      <Filter>Source Files\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PerspectiveCameraComponent.cpp">
+      <Filter>Source Files\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PerspectiveCameraEntity.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Camera.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -863,64 +896,70 @@
       <Filter>Shaders\Shading</Filter>
     </None>
     <None Include="..\shader\hi_z_copy_p.glsl">
-      <Filter>Shaders\SSGI</Filter>
+      <Filter>Shaders\Shadow\SSGI</Filter>
     </None>
     <None Include="..\shader\screenspace_raytracing_p.glsl">
-      <Filter>Shaders\SSGI</Filter>
+      <Filter>Shaders\Shadow\SSGI</Filter>
     </None>
     <None Include="..\shader\screenspace_raytracing_v.glsl">
-      <Filter>Shaders\SSGI</Filter>
+      <Filter>Shaders\Shadow\SSGI</Filter>
     </None>
     <None Include="..\shader\ssgi_ao_p.glsl">
-      <Filter>Shaders\SSGI</Filter>
+      <Filter>Shaders\Shadow\SSGI</Filter>
     </None>
     <None Include="..\shader\ssgi_ao_resolve_p.glsl">
-      <Filter>Shaders\SSGI</Filter>
+      <Filter>Shaders\Shadow\SSGI</Filter>
     </None>
     <None Include="..\shader\ssgi_ao_temporal_p.glsl">
-      <Filter>Shaders\SSGI</Filter>
+      <Filter>Shaders\Shadow\SSGI</Filter>
     </None>
     <None Include="..\shader\ssgi_debug_mirror_p.glsl">
-      <Filter>Shaders\SSGI</Filter>
+      <Filter>Shaders\Shadow\SSGI</Filter>
     </None>
     <None Include="..\shader\ssgi_indirect_irradiance_p.glsl">
-      <Filter>Shaders\SSGI</Filter>
+      <Filter>Shaders\Shadow\SSGI</Filter>
     </None>
     <None Include="..\shader\ssgi_resolve_p.glsl">
-      <Filter>Shaders\SSGI</Filter>
+      <Filter>Shaders\Shadow\SSGI</Filter>
     </None>
     <None Include="..\shader\ssgi_tracing_p.glsl">
-      <Filter>Shaders\SSGI</Filter>
+      <Filter>Shaders\Shadow\SSGI</Filter>
     </None>
     <None Include="..\shader\ssrt_ray_debug_c.glsl">
-      <Filter>Shaders\SSGI</Filter>
+      <Filter>Shaders\Shadow\SSGI</Filter>
     </None>
     <None Include="..\shader\ssgi_visualize_c.glsl">
-      <Filter>Shaders\SSGI</Filter>
+      <Filter>Shaders\Shadow\SSGI</Filter>
     </None>
     <None Include="..\shader\ssgi_draw_indirect_irradiance_samples_v.glsl">
-      <Filter>Shaders\SSGI</Filter>
+      <Filter>Shaders\Shadow\SSGI</Filter>
     </None>
     <None Include="..\shader\ssgi_draw_indirect_irradiance_samples_p.glsl">
-      <Filter>Shaders\SSGI</Filter>
+      <Filter>Shaders\Shadow\SSGI</Filter>
     </None>
     <None Include="..\shader\ssgi_restir_temporal_p.glsl">
-      <Filter>Shaders\SSGI</Filter>
+      <Filter>Shaders\Shadow\SSGI</Filter>
     </None>
     <None Include="..\shader\ssgi_restir_spatial_p.glsl">
-      <Filter>Shaders\SSGI</Filter>
+      <Filter>Shaders\Shadow\SSGI</Filter>
     </None>
     <None Include="..\shader\ssgi_restir_resolve_p.glsl">
-      <Filter>Shaders\SSGI</Filter>
+      <Filter>Shaders\Shadow\SSGI</Filter>
     </None>
     <None Include="..\shader\ssgi_bruteforce_temporal_p.glsl">
-      <Filter>Shaders\SSGI</Filter>
+      <Filter>Shaders\Shadow\SSGI</Filter>
     </None>
     <None Include="..\shader\ssgi_restir_spatial_copy_p.glsl">
-      <Filter>Shaders\SSGI</Filter>
+      <Filter>Shaders\Shadow\SSGI</Filter>
     </None>
     <None Include="..\shader\ssgi_denoising_p.glsl">
-      <Filter>Shaders\SSGI</Filter>
+      <Filter>Shaders\Shadow\SSGI</Filter>
+    </None>
+    <None Include="..\shader\static_mesh_v.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\gbuffer_p.glsl">
+      <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
 </Project>

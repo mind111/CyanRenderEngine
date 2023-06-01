@@ -5,7 +5,7 @@
 
 namespace Cyan {
     struct Surfel {
-        glm::vec3 position;
+        glm::vec3 m_position;
         glm::vec3 normal;
         glm::vec3 albedo;
         f32 radius;

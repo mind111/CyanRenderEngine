@@ -1,35 +1,24 @@
 #pragma once
 
-#include "Mesh.h"
 #include "Entity.h"
-#include "SceneComponent.h"
 
 namespace Cyan 
 {
-    struct Scene;
-    struct Material;
+    class World;
+    class StaticMesh;
+    class Material;
+    class StaticMeshComponent;
 
-    struct StaticMeshEntity : public Entity 
+    class StaticMeshEntity : public Entity
     {
-        /* Entity interface */
-        virtual void update() override { }
-        virtual const char* getTypeDesc() override { return "StaticMeshEntity"; }
-        virtual void renderUI() override;
+    public:
+        StaticMeshEntity(World* world, const char* name, const Transform& transform, Entity* parent, std::shared_ptr<StaticMesh> mesh);
+        ~StaticMeshEntity();
 
-        StaticMeshEntity(
-            Scene* scene,
-            const char* inName,
-            const Transform& t,
-            StaticMesh* inMesh,
-            Entity* inParent = nullptr, 
-            u32 inProperties = (EntityFlag_kDynamic | EntityFlag_kVisible | EntityFlag_kCastShadow));
-        ~StaticMeshEntity() { }
+        StaticMeshComponent* getStaticMeshComponent();
+        void setMaterial(std::shared_ptr<Material> material, i32 index=-1);
 
-        MeshInstance* getMeshInstance() { return staticMeshComponent->meshInst.get(); }
-
-        void setMaterial(Material* material);
-        void setMaterial(Material* material, u32 index);
     private:
-        std::unique_ptr<MeshComponent> staticMeshComponent = nullptr;
+        std::unique_ptr<StaticMeshComponent> m_staticMeshComponent = nullptr;
     };
 }

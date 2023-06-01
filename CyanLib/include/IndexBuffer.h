@@ -6,7 +6,7 @@
 
 namespace Cyan
 {
-    struct IndexBuffer : public GpuResource
+    struct IndexBuffer : public GfxResource
     {
         IndexBuffer() = delete;
         IndexBuffer(const std::vector<u32>& indices);

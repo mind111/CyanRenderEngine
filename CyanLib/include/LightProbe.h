@@ -20,7 +20,7 @@ namespace Cyan
         virtual void debugRender();
 
         Scene*               scene;
-        glm::vec3            position;
+        glm::vec3            m_position;
         glm::vec2            resolution;
         GfxTextureCube* sceneCapture;
         MeshInstance*        debugSphereMesh;

@@ -6,7 +6,7 @@ namespace Cyan
     void VertexBuffer::Spec::addVertexAttribute(const char* attribName, VertexBuffer::Attribute::Type attribType)
     {
         Attribute attribute = { };
-        attribute.name = std::string(attribName);
+        attribute.m_name = std::string(attribName);
         attribute.type = attribType;
         attribute.offset = stride;
 
@@ -29,7 +29,7 @@ namespace Cyan
     }
 
     VertexBuffer::VertexBuffer(const Spec& inSpec, void* data, u32 sizeInBytes)
-        : GpuResource(), spec(inSpec)
+        : GfxResource(), spec(inSpec)
     {
         glCreateBuffers(1, &glObject);
         glNamedBufferData(getGpuResource(), sizeInBytes, data, GL_STATIC_DRAW);

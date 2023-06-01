@@ -8,6 +8,7 @@
 
 namespace Cyan
 {
+#if 0
     struct GBuffer;
     struct HiZBuffer;
     struct GfxTexture2DArray;
@@ -21,7 +22,7 @@ namespace Cyan
             HitBuffer(u32 inNumLayers, const glm::uvec2& resolution);
             ~HitBuffer() { }
 
-            GfxTexture2DArray* position = nullptr;
+            GfxTexture2DArray* m_position = nullptr;
             GfxTexture2DArray* normal = nullptr;
             GfxTexture2DArray* radiance = nullptr;
             u32 numLayers;
@@ -79,4 +80,5 @@ namespace Cyan
         // only instance
         static std::unique_ptr<SSGI> s_instance;
     };
+#endif
 }

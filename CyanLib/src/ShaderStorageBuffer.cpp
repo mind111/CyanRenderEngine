@@ -16,13 +16,13 @@ namespace Cyan
 
     void ShaderStorageBuffer::bind(GfxContext* ctx, u32 inBinding) 
     { 
-        ctx->setShaderStorageBuffer(this, inBinding);
+        ctx->bindShaderStorageBuffer(this, inBinding);
         binding = inBinding;
     }
 
     void ShaderStorageBuffer::unbind(GfxContext* ctx)
     {
-        ctx->setShaderStorageBuffer(nullptr, binding);
+        ctx->unbindShaderStorageBuffer(binding);
         binding = -1;
     }
 

@@ -70,16 +70,16 @@ namespace Cyan
     
     void LightMapManager::createLightMapFromTexture(SceneNode* node, Texture* bakedTexture)
     {
-        node->m_meshInstance->m_lightMap = new LightMap{ };
-        node->m_meshInstance->m_lightMap->m_owner = node;
-        node->m_meshInstance->m_lightMap->m_texAltas = bakedTexture;
+        node->m_staticMeshInstance->m_lightMap = new LightMap{ };
+        node->m_staticMeshInstance->m_lightMap->m_owner = node;
+        node->m_staticMeshInstance->m_lightMap->m_texAltas = bakedTexture;
     }
 
     void LightMapManager::renderMeshInstanceToLightMap(SceneNode* node, bool saveImage)
     {
         glDisable(GL_CULL_FACE);
-        LightMap* lightMap = node->m_meshInstance->m_lightMap;
-        Mesh* parent = node->m_meshInstance->m_mesh;
+        LightMap* lightMap = node->m_staticMeshInstance->m_lightMap;
+        Mesh* parent = node->m_staticMeshInstance->m_mesh;
         // raster the lightmap using gpu
         u32 maxNumTexels = lightMap->m_texAltas->height * lightMap->m_texAltas->width;
         {
@@ -190,9 +190,9 @@ namespace Cyan
     void LightMapManager::renderMeshInstanceToSuperSampledLightMap(SceneNode* node, bool saveImage)
     {
         glDisable(GL_CULL_FACE);
-        LightMap* lightMap = node->m_meshInstance->m_lightMap;
+        LightMap* lightMap = node->m_staticMeshInstance->m_lightMap;
         CYAN_ASSERT(lightMap->superSampledTex, "SuperSampled texture is not created for lightMap");
-        Mesh* parent = node->m_meshInstance->m_mesh;
+        Mesh* parent = node->m_staticMeshInstance->m_mesh;
         // raster the lightmap using gpu
         u32 maxNumTexels = lightMap->superSampledTex->width * lightMap->superSampledTex->height;
         {
@@ -417,7 +417,7 @@ namespace Cyan
 
     void LightMapManager::createLightMapForMeshInstance(Scene* scene, SceneNode* node)
     {
-        MeshInstance* meshInstance = node->m_meshInstance;         
+        MeshInstance* meshInstance = node->m_staticMeshInstance;         
         Mesh*         parent =  meshInstance->m_mesh;
         CYAN_ASSERT(!meshInstance->m_lightMap, "lightMap is not properly initialized to nullptr");
         meshInstance->m_lightMap = new LightMap{ };

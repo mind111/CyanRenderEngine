@@ -1,15 +1,15 @@
 #pragma once
 
+#include <memory>
 #include <queue>
 #include <functional>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include "Node.h"
-#include "SceneComponent.h"
 #include "Geometry.h"
 #include "Component.h"
+#include "SceneComponent.h"
 
 #define kEntityNameMaxLen 128u
 
@@ -23,103 +23,62 @@ f32  transformHitFromObjectToWorldSpace(glm::vec3& objectSpaceHit, glm::mat4& tr
 
 namespace Cyan
 {
-    struct Entity
+    class World;
+
+    class Entity
     {
-        enum class Mobility
-        {
-            kStatic = 0,
-            kDynamic,
-            kCount
-        };
+    public:
+        Entity(World* world, const char* name, /*const Transform& local*/ const Transform& localToWorld, Entity* parent = nullptr);
+        ~Entity() { }
 
-        enum class Visibility
-        {
-            kVisible = (u32)Mobility::kCount,
-            kCount
-        };
-        
-        enum class Lighting
-        {
-            kCastShadow = (u32)Visibility::kCount,
-            kCount
-        };
+        virtual void update();
 
-        Entity(Scene* scene, const char* inName, const Transform& t, Entity* inParent = nullptr, u32 inProperties = (EntityFlag_kDynamic | EntityFlag_kVisible | EntityFlag_kCastShadow));
-        virtual ~Entity() { }
+        bool isRootEntity();
+        void attach(Entity* childEntity);
+        void onAttached();
+        void detach();
+        void onDetached();
+        void setParent(Entity* parent);
+        virtual void attachSceneComponent(const char* parentComponentName, SceneComponent* componentToAttach);
+        virtual void addComponent(std::shared_ptr<Component> component);
+        SceneComponent* findSceneComponent(const char* componentName);
 
-        virtual void update() { }
-        virtual const char* getTypeDesc() { return "Entity"; }
-        virtual void renderUI() { }
+        const std::string& getName() { return m_name; }
+        World* getWorld() { return m_world; }
+        Entity* getParent() { return m_parent; }
+        Entity* getChild(i32 index) { return m_children[index]; }
+        SceneComponent* getRootSceneComponent() { return m_rootSceneComponent.get(); }
+        Component* getComponent(i32 index) { return m_components[index].get(); }
+        i32 numChildren() { return m_children.size(); }
+        i32 numComponents() { return m_components.size(); }
 
-        u32 getProperties() { return properties; }
-        SceneComponent* getRootSceneComponent();
-        Component* getComponent(const char* name);
-        // void attachSceneComponent(SceneComponent* inChild, const char* parent=nullptr);
-
-        void attachComponent(Component* component, const char* parentName=nullptr);
-        // todo: implement component detaching
-
-        void attach(Entity* child);
-        void attachTo(Entity* inParent);
-        Entity* detach(const char* name);
-
-        // getters
-        i32 getChildIndex(const char* name);
-        const Transform& getLocalTransform();
-        const Transform& getWorldTransform();
-        const glm::vec3& getWorldPosition();
-        const glm::mat4& getWorldTransformMatrix() { return rootSceneComponent->getWorldTransformMatrix(); }
-
-        // setters
-        void setLocalTransform(const Transform& transform);
-
-        // e.g: e->getComponents<ILightComponent>();
-        template <typename ComponentType>
-        std::vector<ComponentType*> getComponents()
-        {
-            std::vector<ComponentType*> matchedComponents;
-            std::queue<Component*> q;
-            q.push(rootSceneComponent.get());
-            while (!q.empty())
+        void forEachChild(const std::function<void(Entity*)>& func) 
+        { 
+            for (auto e : m_children)
             {
-                auto c = q.front();
-                q.pop();
-                for (auto child : c->children)
-                {
-                    q.push(child);
-                }
-
-                if (ComponentType* matched = dynamic_cast<ComponentType*>(c))
-                {
-                    matchedComponents.push_back(matched);
-                }
+                func(e);
             }
-            return matchedComponents;
         }
 
-        static u32 count;
-        std::string name;
-        Entity* parent;
-        std::vector<Entity*> childs;
-        std::unique_ptr<SceneComponent> rootSceneComponent;
-        u32 properties;
-    };
-
-    struct RayCastInfo
-    {
-        SceneComponent* m_node;
-        i32        smIndex;
-        i32        triIndex;
-        f32        t;
-
-        RayCastInfo()
-        : 
-        m_node(nullptr), smIndex(-1), triIndex(-1), t(FLT_MAX)
-        {} 
-
-        bool operator<(const RayCastInfo& rhs)
+        void forEachSceneComponent(const std::function<void(SceneComponent*)>& func)
         {
-            return t < rhs.t;
+            // todo: BFS to traverse the scene components
         }
+
+        void forEachComponent(const std::function<void(Component*)>& func) 
+        { 
+            for (auto c : m_components)
+            {
+                func(c.get());
+            }
+        }
+
+    protected:
+        std::string m_name;
+        World* m_world = nullptr;
+        Entity* m_parent = nullptr;
+        std::vector<Entity*> m_children;
+        std::shared_ptr<SceneComponent> m_rootSceneComponent = nullptr;
+        std::vector<std::shared_ptr<Component>> m_components;
     };
 }

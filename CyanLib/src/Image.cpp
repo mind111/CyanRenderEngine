@@ -12,40 +12,39 @@ namespace Cyan
 
     }
 
-    void Image::import()
-    {
-        if (state != State::kLoaded && state != State::kLoading) 
-        {
-            state = State::kLoading;
-            AssetImporter::import(this);
-        }
-    }
-
     void Image::onLoaded()
     {
-        std::lock_guard<std::mutex> lock(listenersMutex);
+        std::lock_guard<std::mutex> lock(m_listenersMutex);
         // todo: should listeners be removed once the event is fired? probably not
-        for (auto listener : listeners)
+        for (auto listener : m_listeners)
         {
             listener->onImageLoaded();
         }
-        state = State::kLoaded;
+        m_listeners.clear();
+        m_state = State::kLoaded;
     }
 
     void Image::addListener(Listener* listener) 
     { 
-        std::lock_guard<std::mutex> lock(listenersMutex);
-        listeners.push_back(listener); 
+        std::lock_guard<std::mutex> lock(m_listenersMutex);
+        if (isLoaded())
+        {
+            listener->onImageLoaded();
+        }
+        else
+        {
+            m_listeners.push_back(listener); 
+        }
     }
 
     void Image::removeListener(Listener* toRemove) 
     { 
-        std::lock_guard<std::mutex> lock(listenersMutex);
-        for (i32 i = 0; i < listeners.size(); ++i)
+        std::lock_guard<std::mutex> lock(m_listenersMutex);
+        for (i32 i = 0; i < m_listeners.size(); ++i)
         {
-            if (listeners[i] == toRemove)
+            if (m_listeners[i] == toRemove)
             {
-                listeners.erase(listeners.begin() + i);
+                m_listeners.erase(m_listeners.begin() + i);
                 break;
             }
         }

@@ -10,7 +10,7 @@ namespace Cyan
 {
     class GfxContext;
 
-    class ShaderStorageBuffer : public GpuResource     
+    class ShaderStorageBuffer : public GfxResource     
     {
     public:
         ShaderStorageBuffer(const char* bufferBlockName, u32 inSizeInBytes)

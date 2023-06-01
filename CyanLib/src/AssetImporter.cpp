@@ -1,10 +1,33 @@
-#include <condition_variable>
+#include <thread>
 #include <algorithm>
 
+#include <tiny_obj/tiny_obj_loader.h>
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/hash.hpp>
 #include "gltf.h"
 #include "AssetImporter.h"
 #include "AssetManager.h"
+#include "World.h"
 #include "Entity.h"
+#include "Image.h"
+#include "StaticMeshEntity.h"
+
+namespace std 
+{
+    template<> 
+    struct hash<Cyan::Triangles::Vertex> 
+    {
+        size_t operator()(const Cyan::Triangles::Vertex& vertex) const 
+        {
+            size_t a = hash<glm::vec3>()(vertex.pos); 
+            size_t b = hash<glm::vec3>()(vertex.normal); 
+            size_t c = hash<glm::vec2>()(vertex.texCoord0);
+            size_t d = hash<glm::vec2>()(vertex.texCoord1); 
+            return (a ^ (b << 1)) ^ (c << 1);
+        }
+    };
+
+}
 
 namespace Cyan
 {
@@ -34,7 +57,7 @@ namespace Cyan
 
         void init()
         { 
-            auto numThreads = std::max(std::thread::hardware_concurrency(), 1u);
+            i32 numThreads = std::max((i32)std::thread::hardware_concurrency(), 1);
             for (i32 i = 0; i < numThreads; ++i)
             {
                 std::thread worker([this]() {
@@ -74,14 +97,20 @@ namespace Cyan
     static std::unique_ptr<TaskManager> s_taskManager = nullptr;
 
     AssetImporter* Singleton<AssetImporter>::singleton = nullptr;
-    AssetImporter::AssetImporter()
+    AssetImporter::AssetImporter(AssetManager* assetManager)
+        : m_assetManager(assetManager)
     {
         m_gltfImporter = std::make_unique<GltfImporter>(this);
         s_taskManager = std::make_unique<TaskManager>();
         s_taskManager->init();
     }
 
-    void AssetImporter::import(Scene* scene, const char* filename)
+    AssetImporter::~AssetImporter()
+    {
+
+    }
+
+    void AssetImporter::import(World* world, const char* filename)
     {
         // parse file extension
         std::string path(filename);
@@ -89,14 +118,14 @@ namespace Cyan
         std::string extension = path.substr(found, found + 1);
         if (extension == ".gltf" || extension == ".glb")
         {
-            singleton->m_gltfImporter->import(scene, filename);
+            singleton->m_gltfImporter->importAsync(world, filename);
         }
         else if (extension == ".obj")
         {
         }
     }
 
-    void AssetImporter::importAsync(Scene* scene, const char* filename)
+    void AssetImporter::importAsync(World* world, const char* filename)
     {
         // parse file extension
         std::string path(filename);
@@ -104,88 +133,189 @@ namespace Cyan
         std::string extension = path.substr(found, found + 1);
         if (extension == ".gltf" || extension == ".glb")
         {
-            singleton->m_gltfImporter->importAsync(scene, filename);
+            singleton->m_gltfImporter->importAsync(world, filename);
         }
         else if (extension == ".obj")
         {
         }
     }
 
-    void AssetImporter::import(Asset* outAsset) 
-    { 
-        auto entry = singleton->m_assetToSrcMap.find(outAsset->name);
-        if (entry != singleton->m_assetToSrcMap.end())
+    static bool operator==(const Triangles::Vertex& lhs, const Triangles::Vertex& rhs) {
+        // todo: maybe use memcmp() here instead ..?
+        // bit equivalence
+        return (lhs.pos == rhs.pos)
+            && (lhs.normal == rhs.normal)
+            && (lhs.tangent == rhs.tangent)
+            && (lhs.texCoord0 == rhs.texCoord0);
+    }
+
+    // treat all the meshes inside one obj file as submeshes
+    std::shared_ptr<StaticMesh> AssetImporter::importWavefrontObj(const char* name, const char* filename) 
+    {
+        auto calculateTangent = [](std::vector<Triangles::Vertex>& vertices, u32 face[3]) {
+            auto& v0 = vertices[face[0]];
+            auto& v1 = vertices[face[1]];
+            auto& v2 = vertices[face[2]];
+            glm::vec3 v0v1 = v1.pos - v0.pos;
+            glm::vec3 v0v2 = v2.pos - v0.pos;
+            glm::vec2 deltaUv0 = v1.texCoord0 - v0.texCoord0;
+            glm::vec2 deltaUv1 = v2.texCoord0 - v0.texCoord0;
+            f32 tx = (deltaUv1.y * v0v1.x - deltaUv0.y * v0v2.x) / (deltaUv0.x * deltaUv1.y - deltaUv1.x * deltaUv0.y);
+            f32 ty = (deltaUv1.y * v0v1.y - deltaUv0.y * v0v2.y) / (deltaUv0.x * deltaUv1.y - deltaUv1.x * deltaUv0.y);
+            f32 tz = (deltaUv1.y * v0v1.z - deltaUv0.y * v0v2.z) / (deltaUv0.x * deltaUv1.y - deltaUv1.x * deltaUv0.y);
+            glm::vec3 tangent(tx, ty, tz);
+            tangent = glm::normalize(tangent);
+            v0.tangent = glm::vec4(tangent, 1.f);
+            v1.tangent = glm::vec4(tangent, 1.f);
+            v2.tangent = glm::vec4(tangent, 1.f);
+        };
+
+        tinyobj::attrib_t attrib;
+        std::vector<tinyobj::shape_t> shapes;
+        std::vector<tinyobj::material_t> m_materials;
+        std::string warn;
+        std::string err;
+
+        std::string path(filename);
+        auto pos = path.find_last_of('/');
+        std::string baseDir = path.substr(0, pos);
+
+        bool ret = tinyobj::LoadObj(&attrib, &shapes, &m_materials, &warn, &err, filename, baseDir.c_str());
+        if (!ret)
         {
-            std::string path(entry->second);
-            u32 found = path.find_last_of('.');
-            std::string extension = path.substr(found, found + 1);
-            if (extension == ".gltf" || extension == ".glb")
+            cyanError("Failed loading obj file %s ", filename);
+            cyanError("Warnings: %s               ", warn.c_str());
+            cyanError("Errors:   %s               ", err.c_str());
+        }
+
+        auto outMesh = AssetManager::createStaticMesh(name, shapes.size());
+
+        for (u32 s = 0; s < shapes.size(); ++s)
+        {
+            // load triangle mesh
+            if (shapes[s].mesh.indices.size() > 0)
             {
-                singleton->m_gltfImporter->import(outAsset);
+                std::vector<Triangles::Vertex> vertices;
+                std::vector<u32> indices(shapes[s].mesh.indices.size());
+
+                std::unordered_map<Triangles::Vertex, u32> uniqueVerticesMap;
+                u32 numUniqueVertices = 0;
+
+                // load triangles
+                for (u32 f = 0; f < shapes[s].mesh.indices.size() / 3; ++f)
+                {
+                    Triangles::Vertex vertex = { };
+                    u32 face[3] = { };
+
+                    for (u32 v = 0; v < 3; ++v)
+                    {
+                        tinyobj::index_t index = shapes[s].mesh.indices[f * 3 + v];
+                        // position
+                        f32 vx = attrib.vertices[index.vertex_index * 3 + 0];
+                        f32 vy = attrib.vertices[index.vertex_index * 3 + 1];
+                        f32 vz = attrib.vertices[index.vertex_index * 3 + 2];
+                        vertex.pos = glm::vec3(vx, vy, vz);
+                        // normal
+                        if (index.normal_index >= 0)
+                        {
+                            f32 nx = attrib.normals[index.normal_index * 3 + 0];
+                            f32 ny = attrib.normals[index.normal_index * 3 + 1];
+                            f32 nz = attrib.normals[index.normal_index * 3 + 2];
+                            vertex.normal = glm::vec3(nx, ny, nz);
+                        }
+                        else
+                            vertex.normal = glm::vec3(0.f);
+                        // texcoord
+                        if (index.texcoord_index >= 0)
+                        {
+                            f32 tx = attrib.texcoords[index.texcoord_index * 2 + 0];
+                            f32 ty = attrib.texcoords[index.texcoord_index * 2 + 1];
+                            vertex.texCoord0 = glm::vec2(tx, ty);
+                        }
+                        else
+                            vertex.texCoord0 = glm::vec2(0.f);
+
+                        // deduplicate vertices
+                        auto iter = uniqueVerticesMap.find(vertex);
+                        if (iter == uniqueVerticesMap.end())
+                        {
+                            uniqueVerticesMap[vertex] = numUniqueVertices;
+                            vertices.push_back(vertex);
+                            face[v] = numUniqueVertices;
+                            indices[f * 3 + v] = numUniqueVertices++;
+                        }
+                        else
+                        {
+                            u32 reuseIndex = iter->second;
+                            indices[f * 3 + v] = reuseIndex;
+                            face[v] = reuseIndex;
+                        }
+                    }
+
+                    // compute face tangent
+                    calculateTangent(vertices, face);
+                }
+
+                auto t = std::make_unique<Triangles>(vertices, indices);
+                outMesh->createSubmesh(s, std::move(t));
+            }
+            // load lines
+            else if (shapes[s].lines.indices.size() > 0)
+            {
+                std::vector<Lines::Vertex> vertices;
+                std::vector<u32> indices;
+                vertices.resize(shapes[s].lines.num_line_vertices.size());
+                indices.resize(shapes[s].lines.indices.size());
+
+                for (u32 l = 0; l < shapes[s].lines.indices.size() / 2; ++l)
+                {
+                    Lines::Vertex vertex = { };
+                    for (u32 v = 0; v < 2; ++v)
+                    {
+                        tinyobj::index_t index = shapes[s].lines.indices[l * 2 + v];
+                        f32 vx = attrib.vertices[index.vertex_index * 3 + 0];
+                        f32 vy = attrib.vertices[index.vertex_index * 3 + 1];
+                        f32 vz = attrib.vertices[index.vertex_index * 3 + 2];
+                        vertex.pos = glm::vec3(vx, vy, vz);
+                        vertices[index.vertex_index] = vertex;
+                        indices[l * 2 + v] = index.vertex_index;
+                    }
+                }
+
+                auto l = std::make_unique<Lines>(vertices, indices);
+                outMesh->createSubmesh(s, std::move(l));
             }
         }
+
+        return outMesh;
     }
 
-    Image* AssetImporter::importImageSync(const char* imageName, const char* filename)
+
+    std::shared_ptr<Image> AssetImporter::importImage(const char* name, const char* filename)
     {
-        Image* outImage = AssetManager::getAsset<Image>(imageName);
-        if (outImage == nullptr)
-        {
-            outImage = AssetManager::createImage(imageName);
-            singleton->registerAssetSrcFile(outImage, filename);
-            // import image data immediately
-            singleton->importImageInternal(outImage, filename);
-        }
-        return outImage;
-    }
-
-    Image* AssetImporter::importImageAsync(const char* imageName, const char* filename)
-    {
-        Image* outImage = AssetManager::getAsset<Image>(imageName);
-        if (outImage == nullptr)
-        {
-            outImage = AssetManager::createImage(imageName);
-            singleton->registerAssetSrcFile(outImage, filename);
-
-            AsyncTask task([outImage, filename]() {
-                singleton->importImageInternal(outImage, filename);
-            });
-
-            // async loading image data
-            s_taskManager->enqueueTask(task);
-        }
-        return outImage;
-    }
-
-    void AssetImporter::importImageInternal(Image* outImage, const char* filename)
-    {
+        std::shared_ptr<Image> outImage = singleton->m_assetManager->createImage(name);
         i32 hdr = stbi_is_hdr(filename);
         if (hdr)
         {
-            outImage->bitsPerChannel = 32;
-            outImage->pixels = std::shared_ptr<u8>((u8*)stbi_loadf(filename, &outImage->width, &outImage->height, &outImage->numChannels, 0));
+            outImage->m_bitsPerChannel = 32;
+            outImage->m_pixels = std::shared_ptr<u8>((u8*)stbi_loadf(filename, &outImage->m_width, &outImage->m_height, &outImage->m_numChannels, 0));
         }
         else
         {
             i32 is16Bit = stbi_is_16_bit(filename);
             if (is16Bit)
             {
-                outImage->pixels = std::shared_ptr<u8>((u8*)stbi_load_16(filename, &outImage->width, &outImage->height, &outImage->numChannels, 0));
-                outImage->bitsPerChannel = 16;
+                outImage->m_pixels = std::shared_ptr<u8>((u8*)stbi_load_16(filename, &outImage->m_width, &outImage->m_height, &outImage->m_numChannels, 0));
+                outImage->m_bitsPerChannel = 16;
             }
             else
             {
-                outImage->pixels = std::shared_ptr<u8>(stbi_load(filename, &outImage->width, &outImage->height, &outImage->numChannels, 0));
-                outImage->bitsPerChannel = 8;
+                outImage->m_pixels = std::shared_ptr<u8>(stbi_load(filename, &outImage->m_width, &outImage->m_height, &outImage->m_numChannels, 0));
+                outImage->m_bitsPerChannel = 8;
             }
         }
-        assert(outImage->pixels);
-        outImage->onLoaded();
-    }
-
-    void AssetImporter::registerAssetSrcFile(Asset* asset, const char* filename)
-    {
-        m_assetToSrcMap.insert({ asset->name, filename });
+        assert(outImage->m_pixels != nullptr);
+        return outImage;
     }
 
     GltfImporter::GltfImporter(AssetImporter* inOwner)
@@ -194,52 +324,7 @@ namespace Cyan
 
     }
 
-    void GltfImporter::import(Scene* scene, const char* filename)
-    {
-        // parse file extension
-        std::string path(filename);
-        u32 found = path.find_last_of('.');
-        std::string extension = path.substr(found, found + 1);
-        if (extension == ".gltf")
-        {
-        }
-        else if (extension == ".glb")
-        {
-            auto glb = std::make_shared<gltf::Glb>(filename);
-            glb->load();
-
-            m_gltfAssetMappings.push_back(std::make_shared<GltfAssetMapping>());
-            auto mapping = m_gltfAssetMappings.back();
-            mapping->src = glb;
-
-            // import meshes
-            for (i32 i = 0; i < glb->meshes.size(); ++i)
-            {
-                const auto& gltfMesh = glb->meshes[i];
-                std::string meshName = gltfMesh.name;
-                if (meshName.empty())
-                {
-
-                }
-                // It's better for AssetImporter to manage the mapping between a external gltfMesh and StaticMesh because
-                // this way, Glb doesn't need to be aware of StaticMesh, keep them decoupled. It's the AssetImporter's
-                auto mesh = AssetManager::createStaticMesh(meshName.c_str(), gltfMesh.primitives.size());
-                mapping->meshMap.insert({ meshName, i });
-                m_assetToGltfMap.insert({ meshName, mapping });
-                m_owner->registerAssetSrcFile(mesh, filename);
-                importMesh(mesh, *glb, gltfMesh);
-            }
-
-            // import images 
-
-            // import textures
-
-            // import materials
-
-            // import scene hierarchy
-        }
-    }
-
+#if 0
     void GltfImporter::importAsync(Scene* scene, const char* filename)
     {
         // parse file extension
@@ -259,10 +344,10 @@ namespace Cyan
             mapping->src = glb;
 
             // lazy import meshes
-            for (i32 i = 0; i < glb->meshes.size(); ++i)
+            for (i32 i = 0; i < glb->m_meshes.size(); ++i)
             {
-                const auto& gltfMesh = glb->meshes[i];
-                std::string meshName = gltfMesh.name;
+                const auto& gltfMesh = glb->m_meshes[i];
+                std::string meshName = gltfMesh.m_name;
                 if (meshName.empty())
                 {
                     std::string prefix(filename);
@@ -279,10 +364,10 @@ namespace Cyan
             }
 
             // lazy import images
-            for (i32 i = 0; i < glb->images.size(); ++i)
+            for (i32 i = 0; i < glb->m_images.size(); ++i)
             {
-                const auto& gltfImage = glb->images[i];
-                std::string imageName = gltfImage.name;
+                const auto& gltfImage = glb->m_images[i];
+                std::string imageName = gltfImage.m_name;
                 if (imageName.empty())
                 {
                     std::string prefix(filename);
@@ -297,16 +382,16 @@ namespace Cyan
             }
 
             // import textures
-            for (i32 i = 0; i < glb->textures.size(); ++i)
+            for (i32 i = 0; i < glb->m_textures.size(); ++i)
             {
-                const gltf::Texture& gltfTexture = glb->textures[i];
-                const gltf::Image& gltfImage = glb->images[gltfTexture.source];
-                const gltf::Sampler& gltfSampler = glb->samplers[gltfTexture.sampler];
-                std::string textureName = gltfTexture.name;
+                const gltf::Texture& gltfTexture = glb->m_textures[i];
+                const gltf::Image& gltfImage = glb->m_images[gltfTexture.source];
+                const gltf::Sampler& gltfSampler = glb->m_samplers[gltfTexture.sampler];
+                std::string textureName = gltfTexture.m_name;
                 if (textureName.empty())
                 {
                 }
-                Cyan::Image* image = AssetManager::getAsset<Cyan::Image>(gltfImage.name.c_str());
+                Cyan::Image* image = AssetManager::getAsset<Cyan::Image>(gltfImage.m_name.c_str());
 
                 Sampler2D sampler;
                 bool bGenerateMipmap = false;
@@ -323,25 +408,80 @@ namespace Cyan
             importSceneAsync(scene, *glb);
         }
     }
+#endif
+    
+    void GltfImporter::importAsync(World* world, const char* filename)
+    {
+        std::string path(filename);
+        u32 found = path.find_last_of('.');
+        std::string extension = path.substr(found, found + 1);
+        if (extension == ".gltf")
+        {
+        }
+        else if (extension == ".glb")
+        {
+            // glb needs to persist until all async tasks are finished
+            auto glb = std::make_shared<gltf::Glb>(filename);
+            glb->load();
 
-    void GltfImporter::importSceneAsync(Scene* outScene, gltf::Gltf& gltf)
+            // async import meshes
+            for (i32 m = 0; m < glb->m_meshes.size(); ++m)
+            {
+                const auto& gltfMesh = glb->m_meshes[m];
+                std::string meshName = gltfMesh.m_name; // meshName cannot be empty here since it's handled in glb->load()
+                auto mesh = AssetManager::createStaticMesh(meshName.c_str(), gltfMesh.primitives.size());
+
+                for (i32 sm = 0; sm < gltfMesh.primitives.size(); ++sm)
+                {
+                    AsyncTask task([this, mesh, glb, m, sm]() {
+                            const gltf::Primitive& p = glb->m_meshes[m].primitives[sm];
+                            switch ((gltf::Primitive::Mode)p.mode)
+                            {
+                            case gltf::Primitive::Mode::kTriangles:
+                            {
+                                auto triangles = std::make_unique<Triangles>();
+                                glb->importTriangles(p, *triangles);
+                                mesh->createSubmesh(sm, std::move(triangles));
+                            } break;
+                            case gltf::Primitive::Mode::kLines:
+                            case gltf::Primitive::Mode::kPoints:
+                            default:
+                                assert(0);
+                            }
+                    });
+
+                    s_taskManager->enqueueTask(task);
+                }
+            }
+            // todo: async import images
+            for (i32 i = 0; i < glb->m_images.size(); ++i)
+            {
+            }
+            // todo: async import textures
+
+            // import scene nodes
+            importSceneNodes(world, *glb);
+        }
+    }
+
+    void GltfImporter::importSceneNodes(World* world, gltf::Gltf& gltf)
     {
         // load scene hierarchy 
-        if (gltf.defaultScene >= 0)
+        if (gltf.m_defaultScene >= 0)
         {
-            const gltf::Scene& gltfScene = gltf.scenes[gltf.defaultScene];
-            for (i32 i = 0; i < gltfScene.nodes.size(); ++i)
+            const gltf::Scene& gltfScene = gltf.m_scenes[gltf.m_defaultScene];
+            for (i32 i = 0; i < gltfScene.m_nodes.size(); ++i)
             {
-                const gltf::Node& node = gltf.nodes[gltfScene.nodes[i]];
-                importSceneNodeAsync(outScene, gltf, nullptr, node);
+                const gltf::Node& node = gltf.m_nodes[gltfScene.m_nodes[i]];
+                importSceneNode(world, gltf, nullptr, node);
             }
         }
     }
     
-    void GltfImporter::importSceneNodeAsync(Scene* outScene, gltf::Gltf& gltf, Entity* parent, const gltf::Node& node)
+    void GltfImporter::importSceneNode(World* world, gltf::Gltf& gltf, Entity* parent, const gltf::Node& node)
     {
         // @name
-        std::string name = node.name;
+        std::string m_name = node.m_name;
 
         // @transform
         Transform t;
@@ -382,39 +522,41 @@ namespace Cyan
         Entity* e = nullptr;
         if (node.mesh >= 0)
         {
-           const gltf::Mesh& gltfMesh = gltf.meshes[node.mesh];
-           Cyan::StaticMesh* mesh = AssetManager::getAsset<Cyan::StaticMesh>(gltfMesh.name.c_str());
-           StaticMeshEntity* staticMeshEntity = outScene->createStaticMeshEntity(name.c_str(), t, mesh, parent);
-           // todo: this feels kinda hacky
-           staticMeshEntity->setMaterial(AssetManager::getAsset<Cyan::Material>("DefaultMaterial"));
+           const gltf::Mesh& gltfMesh = gltf.m_meshes[node.mesh];
+           auto mesh = AssetManager::findAsset<Cyan::StaticMesh>(gltfMesh.m_name.c_str());
+           StaticMeshEntity* staticMeshEntity = world->createStaticMeshEntity(m_name.c_str(), t, parent, mesh);
            e = staticMeshEntity;
+           // setup materials
+#if 0
            for (i32 p = 0; p < gltfMesh.primitives.size(); ++p)
            {
                const gltf::Primitive& primitive = gltfMesh.primitives[p];
                if (primitive.material >= 0)
                {
-                   const gltf::Material& gltfMatl = gltf.materials[primitive.material];
-                   auto matl = AssetManager::getAsset<Cyan::Material>(gltfMatl.name.c_str());
-                   staticMeshEntity->setMaterial(matl, p);
+                   const gltf::Material& gltfMatl = gltf.m_materials[primitive.material];
+                   auto material = AssetManager::findAsset<Cyan::Material>(gltfMatl.m_name.c_str());
+                   staticMeshEntity->setMaterial(material, p);
                }
            }
+#endif
         }
         else
         {
-           e = outScene->createEntity(name.c_str(), t, parent);
+           e = world->createEntity(node.m_name.c_str(), t, parent);
         }
 
         // recurse into children nodes
         for (auto child : node.children)
         {
-            importSceneNodeAsync(outScene, gltf, e, gltf.nodes[child]);
+            importSceneNode(world, gltf, e, gltf.m_nodes[child]);
         }
     }
  
+#if 0
     // this function will likely need to be invoked from worker threads
     void GltfImporter::import(Asset* outAsset)
     {
-        auto gltfFileEntry = m_assetToGltfMap.find(outAsset->name);
+        auto gltfFileEntry = m_assetToGltfMap.find(outAsset->m_name);
         if (gltfFileEntry != m_assetToGltfMap.end())
         {
             auto mapping = gltfFileEntry->second;
@@ -422,11 +564,11 @@ namespace Cyan
             if (outAsset->getAssetTypeName() == "StaticMesh")
             {
                 StaticMesh* outMesh = dynamic_cast<StaticMesh*>(outAsset);
-                auto entry = mapping->meshMap.find(outAsset->name);
+                auto entry = mapping->meshMap.find(outAsset->m_name);
                 if (entry != mapping->meshMap.end())
                 {
                     i32 meshIndex = entry->second;
-                    const gltf::Mesh& gltfMesh = mapping->src->meshes[meshIndex];
+                    const gltf::Mesh& gltfMesh = mapping->src->m_meshes[meshIndex];
 
                     AsyncTask task([this, outMesh, src, &gltfMesh]() {
                         importMesh(outMesh, *src, gltfMesh);
@@ -439,11 +581,11 @@ namespace Cyan
             else if (outAsset->getAssetTypeName() == "Image")
             {
                 Image* outImage = dynamic_cast<Image*>(outAsset);
-                auto entry = mapping->imageMap.find(outAsset->name);
+                auto entry = mapping->imageMap.find(outAsset->m_name);
                 if (entry != mapping->imageMap.end())
                 {
                     i32 imageIndex = entry->second;
-                    const gltf::Image& gltfImage = mapping->src->images[imageIndex];
+                    const gltf::Image& gltfImage = mapping->src->m_images[imageIndex];
 
                     AsyncTask task([this, outImage, src, &gltfImage]() {
                         importImage(outImage, *src, gltfImage);
@@ -460,36 +602,9 @@ namespace Cyan
         }
     }
 
-    void GltfImporter::importMesh(StaticMesh* outMesh, gltf::Gltf& srcGltf, const gltf::Mesh& srcGltfMesh)
-    {
-        i32 numSubmeshes = srcGltfMesh.primitives.size();
-        // assuming that submesh array is preallocated
-        assert(numSubmeshes == outMesh->numSubmeshes());
-        for (i32 sm = 0; sm < numSubmeshes; ++sm)
-        {
-            const gltf::Primitive& p = srcGltfMesh.primitives[sm];
-
-            std::shared_ptr<Geometry> geometry = nullptr;
-            switch ((gltf::Primitive::Mode)p.mode)
-            {
-            case gltf::Primitive::Mode::kTriangles: {
-                // todo: this also needs to be tracked and managed by the AssetManager using some kind of GUID system
-                geometry = std::make_shared<Triangles>();
-                Triangles* triangles = static_cast<Triangles*>(geometry.get());
-                srcGltf.importTriangles(p, *triangles);
-                auto submesh = outMesh->getSubmesh(sm);
-                submesh->setGeometry(geometry);
-            } break;
-            case gltf::Primitive::Mode::kLines:
-            case gltf::Primitive::Mode::kPoints:
-            default:
-                assert(0);
-            }
-        }
-    }
-
     void GltfImporter::importImage(Image* outImage, gltf::Gltf& gltf, const gltf::Image& gltfImage)
     {
         gltf.importImage(gltfImage, *outImage);
     }
+#endif
 }

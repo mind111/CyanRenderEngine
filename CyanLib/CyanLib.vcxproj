@@ -28,7 +28,9 @@
     <ClInclude Include="include\Asset.h" />
     <ClInclude Include="include\AssetImporter.h" />
     <ClInclude Include="include\AssetManager.h" />
-    <ClInclude Include="include\camera.h" />
+    <ClInclude Include="include\Camera.h" />
+    <ClInclude Include="include\CameraComponent.h" />
+    <ClInclude Include="include\CameraEntity.h" />
     <ClInclude Include="include\Common.h" />
     <ClInclude Include="include\Component.h" />
     <ClInclude Include="include\CyanAPI.h" />
@@ -56,6 +58,7 @@
     <ClInclude Include="include\MathUtils.h" />
     <ClInclude Include="include\Mesh.h" />
     <ClInclude Include="include\Node.h" />
+    <ClInclude Include="include\PerspectiveCameraComponent.h" />
     <ClInclude Include="include\RenderableScene.h" />
     <ClInclude Include="include\Framebuffer.h" />
     <ClInclude Include="include\RenderPass.h" />
@@ -69,6 +72,7 @@
     <ClInclude Include="include\Singleton.h" />
     <ClInclude Include="include\SkyBox.h" />
     <ClInclude Include="include\SSGI.h" />
+    <ClInclude Include="include\StaticMeshComponent.h" />
     <ClInclude Include="include\StaticMeshEntity.h" />
     <ClInclude Include="include\System.h" />
     <ClInclude Include="include\Texture.h" />
@@ -79,6 +83,7 @@
     <ClInclude Include="include\VertexBuffer.h" />
     <ClInclude Include="include\VoxelConeTracing.h" />
     <ClInclude Include="include\Window.h" />
+    <ClInclude Include="include\World.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\AssetImporter.cpp" />
@@ -106,6 +111,8 @@
     <ClCompile Include="src\Material.cpp" />
     <ClCompile Include="src\MathUtils.cpp" />
     <ClCompile Include="src\Mesh.cpp" />
+    <ClCompile Include="src\PerspectiveCameraComponent.cpp" />
+    <ClCompile Include="src\PerspectiveCameraEntity.cpp" />
     <ClCompile Include="src\RenderableScene.cpp" />
     <ClCompile Include="src\Framebuffer.cpp" />
     <ClCompile Include="src\RenderPass.cpp" />
@@ -118,6 +125,7 @@
     <ClCompile Include="src\Shadow.cpp" />
     <ClCompile Include="src\SkyBox.cpp" />
     <ClCompile Include="src\SSGI.cpp" />
+    <ClCompile Include="src\StaticMeshComponent.cpp" />
     <ClCompile Include="src\StaticMeshEntity.cpp" />
     <ClCompile Include="src\Texture.cpp" />
     <ClCompile Include="src\TextureAtlas.cpp" />
@@ -127,6 +135,7 @@
     <ClCompile Include="src\VertexBuffer.cpp" />
     <ClCompile Include="src\VoxelConeTracing.cpp" />
     <ClCompile Include="src\Window.cpp" />
+    <ClCompile Include="src\World.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\shader\build_hi_z_p.glsl" />
@@ -135,6 +144,7 @@
     <None Include="..\shader\debug_draw_point_v.glsl" />
     <None Include="..\shader\downsample_p.glsl" />
     <None Include="..\shader\downsample_v.glsl" />
+    <None Include="..\shader\gbuffer_p.glsl" />
     <None Include="..\shader\ssgi_ao_p.glsl" />
     <None Include="..\shader\ssgi_ao_resolve_p.glsl" />
     <None Include="..\shader\ssgi_ao_temporal_p.glsl" />
@@ -232,6 +242,7 @@
     <None Include="..\shader\ssgi_visualize_c.glsl" />
     <None Include="..\shader\ssrt_ray_debug_c.glsl" />
     <None Include="..\shader\ssgi_resolve_p.glsl" />
+    <None Include="..\shader\static_mesh_v.glsl" />
     <None Include="..\shader\surfel_direct_lighting_c.glsl" />
     <None Include="..\shader\taa_p.glsl" />
     <None Include="..\shader\taa_v.glsl" />

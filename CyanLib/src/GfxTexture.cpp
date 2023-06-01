@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include "GfxContext.h"
 #include "GfxTexture.h"
 
@@ -20,13 +22,13 @@ namespace Cyan
 
     void GfxTexture::bind(GfxContext* ctx, u32 inTextureUnit)
     {
-        ctx->setTexture(this, inTextureUnit);
         textureUnit = inTextureUnit;
+        ctx->bindTexture(this, inTextureUnit);
     }
 
     void GfxTexture::unbind(GfxContext* ctx) 
     {
-        ctx->setTexture(nullptr, textureUnit);
+        ctx->unbindTexture(textureUnit);
         textureUnit = -1;
     }
 
@@ -177,12 +179,12 @@ namespace Cyan
     }
 
     GfxTexture2D::Spec::Spec(const Image& inImage, bool bGenerateMipmap)
-        : GfxTexture::Spec(TEX_2D), width(inImage.width), height(inImage.height)
+        : GfxTexture::Spec(TEX_2D), width(inImage.m_width), height(inImage.m_height)
     {
-        switch (inImage.bitsPerChannel)
+        switch (inImage.m_bitsPerChannel)
         {
         case 8:
-            switch (inImage.numChannels)
+            switch (inImage.m_numChannels)
             {
             case 1: format = PF_R8; break;
             case 3: format = PF_RGB8; break;
@@ -191,7 +193,7 @@ namespace Cyan
             }
             break;
         case 16:
-            switch (inImage.numChannels)
+            switch (inImage.m_numChannels)
             {
             case 3: format = PF_RGB16F; break;
             case 4: format = PF_RGBA16F; break;
@@ -199,7 +201,7 @@ namespace Cyan
             }
             break;
         case 32:
-            switch (inImage.numChannels)
+            switch (inImage.m_numChannels)
             {
             case 3: format = PF_RGB32F; break;
             case 4: format = PF_RGBA32F; break;
@@ -212,7 +214,7 @@ namespace Cyan
 
         if (bGenerateMipmap)
         {
-            numMips = (i32)log2(min(width, height)) + 1;
+            numMips = (i32)log2(std::min(width, height)) + 1;
         }
     }
 

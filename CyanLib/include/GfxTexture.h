@@ -50,7 +50,7 @@ namespace Cyan
     /**
      * Encapsulate a gl texture
      */
-    struct GfxTexture : public GpuResource
+    struct GfxTexture : public GfxResource
     {
         enum class Type : u32
         {

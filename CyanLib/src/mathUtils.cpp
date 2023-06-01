@@ -1,15 +1,17 @@
 #include "mathUtils.h"
 #include "scene.h"
 
-glm::mat4 MathUtils::transformToMat4(const Transform& xform) {
-    glm::mat4 res(1.f);
-    res = glm::translate(res, xform.m_translate);
-    res = glm::scale(res, xform.m_scale);
-    return res;
-}
 
 namespace Cyan
 {
+    glm::mat4 transformToMat4(const Transform& xform) 
+    {
+        glm::mat4 res(1.f);
+        res = glm::translate(res, xform.m_translate);
+        res = glm::scale(res, xform.m_scale);
+        return res;
+    }
+
     f32 fabs(f32 value)
     {
         return abs(value);
@@ -22,8 +24,8 @@ namespace Cyan
 
     glm::mat3 tangentToWorld(const glm::vec3& n)
     {
-        glm::vec3 worldUp = abs(n.y) < 0.99f ? glm::vec3(0.f, 1.f, 0.f) : glm::vec3(0.f, 0.f, 1.f);
-        glm::vec3 right = glm::cross(n, worldUp);
+        glm::vec3 m_worldUp = abs(n.y) < 0.99f ? glm::vec3(0.f, 1.f, 0.f) : glm::vec3(0.f, 0.f, 1.f);
+        glm::vec3 right = glm::cross(n, m_worldUp);
         glm::vec3 forward = glm::cross(n, right);
         glm::mat3 coordFrame = {
             right,
@@ -35,12 +37,12 @@ namespace Cyan
 
     glm::mat4 calcTangentFrame(const glm::vec3& n) {
         // calculate the tangent frame of the input hemicube
-        glm::vec3 worldUp = glm::vec3(0.f, 1.f, 0.f);
+        glm::vec3 m_worldUp = glm::vec3(0.f, 1.f, 0.f);
         glm::vec3 up = n;
         if (abs(up.y) > 0.99) {
-            worldUp = glm::vec3(0.f, 0.f, -1.f);
+            m_worldUp = glm::vec3(0.f, 0.f, -1.f);
         }
-        glm::vec3 right = glm::normalize(glm::cross(worldUp, up));
+        glm::vec3 right = glm::normalize(glm::cross(m_worldUp, up));
         glm::vec3 forward = glm::normalize(glm::cross(up, right));
         glm::mat4 tangentFrame = {
             glm::vec4(right, 0.f),

@@ -7,7 +7,7 @@ namespace Cyan
     struct VertexBuffer;
     struct IndexBuffer;
 
-    struct VertexArray : public GpuResource
+    struct VertexArray : public GfxResource
     {
         VertexArray() = delete;
         VertexArray(VertexBuffer* inVertexBuffer, IndexBuffer* inIndexBuffer);

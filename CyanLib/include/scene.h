@@ -7,22 +7,13 @@
 
 #include <glm/glm.hpp>
 
-#include "Allocator.h"
 #include "Camera.h"
 #include "Texture.h"
-#include "LightEntities.h"
 #include "Mesh.h"
-#include "Material.h"
-#include "LightProbe.h"
-#include "SkyBox.h"
-#include "Lights.h"
-#include "StaticMeshEntity.h"
 
 namespace Cyan 
 {
-    struct SceneComponent;
-    struct ILightComponent;
-
+#if 0
     class Scene 
     {
     public:
@@ -79,4 +70,100 @@ namespace Cyan
         std::vector<StaticMeshEntity*> m_staticMeshes;
         std::vector<ILightComponent*> m_lightComponents;
     };
+#else
+    class World;
+    class Camera;
+    class ProgramPipeline;
+
+    class SceneRender
+    {
+    public:
+
+        struct Output
+        {
+            Output(const glm::uvec2& inRenderResolution);
+
+            glm::uvec2 resolution;
+            std::unique_ptr<GfxDepthTexture2D> HiZ;
+            std::unique_ptr<GfxDepthTexture2D> depth;
+            std::unique_ptr<GfxTexture2D> normal;
+            std::unique_ptr<GfxTexture2D> albedo;
+            std::unique_ptr<GfxTexture2D> metallicRoughness;
+            std::unique_ptr<GfxTexture2D> directLighting;
+            std::unique_ptr<GfxTexture2D> directDiffuseLighting;
+            std::unique_ptr<GfxTexture2D> indirectLighting;
+            std::unique_ptr<GfxTexture2D> aoHistory;
+            std::unique_ptr<GfxTexture2D> ao;
+            std::unique_ptr<GfxTexture2D> bentNormal;
+            std::unique_ptr<GfxTexture2D> irradiance;
+            std::unique_ptr<GfxTexture2D> color;
+        };
+
+        struct ViewParameters
+        {
+            ViewParameters(Scene* scene, Camera* camera);
+
+            void setShaderParameters(ProgramPipeline* p) const;
+
+            glm::uvec2 renderResolution;
+            f32 aspectRatio;
+            glm::mat4 viewMatrix;
+            glm::mat4 projectionMatrix;
+            glm::vec3 cameraPosition;
+            glm::vec3 cameraLookAt;
+            glm::vec3 cameraRight;
+            glm::vec3 cameraForward;
+            glm::vec3 cameraUp;
+            i32 frameCount;
+            f32 elapsedTime;
+            f32 deltaTime;
+        };
+
+        SceneRender(Scene* scene, Camera* camera);
+        ~SceneRender() { }
+
+        void update();
+
+        GfxDepthTexture2D* depth() { return m_output->depth.get(); }
+        GfxTexture2D* normal() { return m_output->normal.get(); }
+        GfxTexture2D* albedo() { return m_output->albedo.get(); }
+        GfxTexture2D* metallicRoughness() { return m_output->metallicRoughness.get(); }
+        GfxTexture2D* directLighting() { return m_output->directLighting.get(); }
+        GfxTexture2D* indirectLighting() { return m_output->indirectLighting.get(); }
+        GfxTexture2D* ao() { return m_output->ao.get(); }
+        GfxTexture2D* color() { return m_output->color.get(); }
+
+        Scene* m_scene = nullptr;
+        Camera* m_camera = nullptr;
+        ViewParameters m_viewParameters;
+
+    protected:
+        std::unique_ptr<Output> m_output = nullptr;
+    };
+
+    class Scene
+    {
+    public:
+        Scene(World* world);
+        ~Scene() { }
+
+        void addCamera(Camera* camera);
+        void addStaticMeshInstance(StaticMesh::Instance* staticMeshInstance);
+        void removeStaticMeshInstance() { }
+
+        void addDirectionalLight() { }
+        void removeDirectionalLight() { }
+
+        i32 getFrameCount();
+        f32 getElapsedTime();
+        f32 getDeltaTime();
+
+        World* m_world = nullptr;
+        std::vector<Camera*> m_cameras;
+        std::vector<std::shared_ptr<SceneRender>> m_renders;
+        std::vector<StaticMesh::Instance*> m_staticMeshInstances;
+
+        // todo: lights
+    };
+#endif
 }

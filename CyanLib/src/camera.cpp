@@ -1,42 +1,15 @@
-#include <iostream>
-#include <glfw/glfw3.h>
-#include <glm/gtc/matrix_transform.hpp>
-
-#include "camera.h"
+#include "Camera.h"
 
 namespace Cyan
 {
-    void CameraEntity::orbit(f32 phi, f32 theta)
-    {
-        Camera* camera = getCamera();
-        glm::vec3 p = camera->position - camera->lookAt;
-        glm::quat quat(cos(.5f * -phi), sin(.5f * -phi) * camera->worldUp);
-        quat = glm::rotate(quat, -theta, camera->right());
-        glm::mat4 model(1.f);
-        model = glm::translate(model, camera->lookAt);
-        glm::mat4 rot = glm::toMat4(quat);
-        glm::vec4 pPrime = rot * glm::vec4(p, 1.f);
-        camera->position = glm::vec3(pPrime.x, pPrime.y, pPrime.z) + camera->lookAt;
+    Camera::Camera(const glm::vec3& inPosition, const glm::vec3& inLookAt, const glm::vec3& inWorldUp, const glm::vec2& renderResolution, const ViewMode& viewMode)
+        : m_position(inPosition), m_lookAt(inLookAt), m_worldUp(inWorldUp), m_renderResolution(renderResolution), m_viewMode(viewMode)
+    { 
     }
 
-    void CameraEntity::rotate()
+    void Camera::setSceneRender(SceneRender* sceneRender)
     {
-
-    }
-
-    void CameraEntity::zoom(f32 distance)
-    {
-        Camera* camera = getCamera();
-        glm::vec3 forward = camera->forward();
-        glm::vec3 translation = forward * distance;
-        glm::vec3 v1 = glm::normalize(camera->position + translation - camera->lookAt); 
-        if (glm::dot(v1, forward) >= 0.f)
-        {
-            camera->position = camera->lookAt - 0.001f * forward;
-        }
-        else
-        {
-            camera->position += translation;
-        }
+        assert(m_sceneRender == nullptr);
+        m_sceneRender = sceneRender;
     }
 }

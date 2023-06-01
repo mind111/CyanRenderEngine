@@ -1,6 +1,7 @@
 #pragma once
 
 namespace Cyan {
+#if 0
     struct Entity;
     struct DirectionalLightComponent;
 
@@ -19,4 +20,5 @@ namespace Cyan {
     private:
         std::unique_ptr<DirectionalLightComponent> directionalLightComponent = nullptr;
     };
+#endif
 }

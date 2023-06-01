@@ -2,18 +2,74 @@
 #include "CyanRenderer.h"
 #include "CyanAPI.h"
 
-namespace Cyan 
+namespace Cyan
 {
-    GfxContext* Singleton<GfxContext>::singleton = nullptr;
-    i32 GfxContext::kMaxCombinedTextureUnits = -1;
-    i32 GfxContext::kMaxCombinedShaderStorageBlocks = -1;
+    i32 GfxContext::TextureBindingManager::alloc()
+    {
+        for (i32 i = 0; i < bindings.size(); ++i)
+        {
+            if (bindings[i] == nullptr)
+            {
+                return i;
+            }
+        }
+        // unreachable
+        assert(0);
+    }
 
+    void GfxContext::TextureBindingManager::bind(GfxTexture* texture, u32 binding)
+    {
+        assert(texture != nullptr);
+        if (bindings[binding] != nullptr)
+        {
+            unbind(binding);
+        }
+        bindings[binding] = texture;
+        glBindTextureUnit(binding, texture->getGpuResource());
+    }
+
+    void GfxContext::TextureBindingManager::unbind(u32 binding)
+    {
+        if (bindings[binding] != nullptr)
+        {
+            bindings[binding] = nullptr;
+            glBindTextureUnit(binding, 0);
+        }
+    }
+
+    i32 GfxContext::ShaderStorageBindingManager::alloc()
+    {
+        for (i32 i = 0; i < bindings.size(); ++i)
+        {
+            if (bindings[i] == nullptr)
+            {
+                return i;
+            }
+        }
+        // unreachable
+        assert(0);
+    }
+
+    void GfxContext::ShaderStorageBindingManager::bind(ShaderStorageBuffer* buffer, u32 binding)
+    {
+        assert(buffer != nullptr);
+        unbind(binding);
+        bindings[binding] = buffer;
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding, buffer->getGpuResource());
+    }
+
+    void GfxContext::ShaderStorageBindingManager::unbind(u32 binding)
+    {
+        if (bindings[binding] != nullptr)
+        {
+            bindings[binding] = nullptr;
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding, 0);
+        }
+    }
+
+    GfxContext* Singleton<GfxContext>::singleton = nullptr;
     void GfxContext::initialize()
     {
-        glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &kMaxCombinedTextureUnits);
-        glGetIntegerv(GL_MAX_COMBINED_SHADER_STORAGE_BLOCKS, &kMaxCombinedShaderStorageBlocks);
-        m_textureBindings.resize(kMaxCombinedTextureUnits);
-        m_shaderStorageBindings.resize(kMaxCombinedShaderStorageBlocks);
     }
 
     glm::uvec2 GfxContext::getDefaultFramebufferSize()
@@ -41,125 +97,39 @@ namespace Cyan
         }
     }
 
-    void GfxContext::setShaderInternal(Shader* shader)
-    {
-        auto bindTextures = [this](Shader* shader) {
-            for (const auto& textureBinding : shader->m_samplerBindingMap) 
-            {
-                std::string samplerName = textureBinding.first;
-                auto texture = textureBinding.second;
-                if (texture) 
-                {
-                    u32 textureUnit = allocTextureUnit();
-                    shader->setUniform(samplerName.c_str(), static_cast<i32>(textureUnit));
-                    texture->bind(this, textureUnit);
-                }
-            }
-        };
-
-        auto bindShaderStorageBuffers = [this](Shader* shader) {
-            for (const auto& shaderStorageBinding : shader->m_shaderStorageBindingMap) 
-            {
-                std::string blockName = shaderStorageBinding.first;
-                u32 blockIndex = shaderStorageBinding.second.blockIndex;
-                ShaderStorageBuffer* buffer = shaderStorageBinding.second.buffer;
-                if (buffer != nullptr)
-                {
-                    u32 shaderStorageBinding = allocShaderStorageBinding();
-                    glShaderStorageBlockBinding(shader->getGpuResource(), blockIndex, shaderStorageBinding);
-                    buffer->bind(this, shaderStorageBinding);
-                }
-            }
-        };
-
-        if (shader) 
-        {
-            bindTextures(shader);
-            bindShaderStorageBuffers(shader);
-        }
-    }
-
     u32 GfxContext::allocTextureUnit()
     {
-        assert(numUsedTextureUnits < kMaxCombinedTextureUnits);
-        u32 outTextureUnit = numUsedTextureUnits;
-        numUsedTextureUnits++;
-        return outTextureUnit;
+        return (u32)m_textureBindingManager.alloc();
     }
 
     u32 GfxContext::allocShaderStorageBinding()
     {
-        assert(numUsedShaderStorageBindings < kMaxCombinedShaderStorageBlocks);
-        u32 outShaderStorageBinding = numUsedShaderStorageBindings;
-        numUsedShaderStorageBindings++;
-        return outShaderStorageBinding;
+        return (u32)m_shaderStorageBindingManager.alloc();
     }
 
-    void GfxContext::resetTextureBindingState()
+    void GfxContext::bindProgramPipeline(ProgramPipeline* pipelineObject)
     {
-        // reset all previously used texture units to cleanup texture binding state
-        for (u32 i = 0; i < numUsedTextureUnits; ++i)
+        assert(pipelineObject != nullptr);
+        /**
+         * todo: how to determine if two pipelineObject are identical? maybe using an unique hash that's generated for each
+            pipeline object instance? for now though, simply testing equality by memory address since we are not destroying shaders
+            while the application is running
+         */
+        if (pipelineObject != m_programPipeline)
         {
-            if (m_textureBindings[i] != nullptr)
+            if (m_programPipeline != nullptr)
             {
-                m_textureBindings[i]->unbind(this);
+                m_programPipeline->unbind(this);
             }
+            glBindProgramPipeline(pipelineObject->getGpuResource());
         }
-        numUsedTextureUnits = 0;
+        m_programPipeline = pipelineObject;
     }
 
-    void GfxContext::resetShaderStorageBindingState()
+    void GfxContext::unbindProgramPipeline()
     {
-        for (u32 i = 0; i < numUsedShaderStorageBindings; ++i)
-        {
-            if (m_shaderStorageBindings[i] != nullptr)
-            {
-                m_shaderStorageBindings[i]->unbind(this);
-            }
-        }
-        numUsedShaderStorageBindings = 0;
-    }
-
-    void GfxContext::setProgramPipelineInternal()
-    {
-        resetTextureBindingState();
-        resetShaderStorageBindingState();
-    }
-
-    void GfxContext::setPixelPipeline(PixelPipeline* pixelPipelineObject, const std::function<void(VertexShader*, PixelShader*)>& setupShaders) 
-    {
-        setProgramPipelineInternal();
-
-        VertexShader* vertexShader = pixelPipelineObject->m_vertexShader;
-        PixelShader* pixelShader = pixelPipelineObject->m_pixelShader;
-        setupShaders(vertexShader, pixelShader);
-        setShaderInternal(vertexShader);
-        setShaderInternal(pixelShader);
-        pixelPipelineObject->bind();
-    }
-
-    void GfxContext::setGeometryPipeline(GeometryPipeline* geometryPipelineObject, const std::function<void(VertexShader*, GeometryShader*, PixelShader*)>& setupShaders) 
-    {
-        setProgramPipelineInternal();
-
-        VertexShader* vertexShader = geometryPipelineObject->m_vertexShader;
-        GeometryShader* geometryShader = geometryPipelineObject->m_geometryShader;
-        PixelShader* pixelShader = geometryPipelineObject->m_pixelShader;
-        setupShaders(vertexShader, geometryShader, pixelShader);
-        setShaderInternal(vertexShader);
-        setShaderInternal(geometryShader);
-        setShaderInternal(pixelShader);
-        geometryPipelineObject->bind();
-    }
-
-    void GfxContext::setComputePipeline(ComputePipeline* computePipelineObject, const std::function<void(ComputeShader*)>& setupShaders) 
-    {
-        setProgramPipelineInternal();
-
-        ComputeShader* computeShader = computePipelineObject->m_computeShader;
-        setupShaders(computeShader);
-        setShaderInternal(computeShader);
-        computePipelineObject->bind();
+        glBindProgramPipeline(0);
+        m_programPipeline = nullptr;
     }
 
     void GfxContext::setCullFace(FrontFace frontFace, FaceCull faceToCull)
@@ -202,18 +172,24 @@ namespace Cyan
         }
     }
 
-    void GfxContext::setTexture(GfxTexture* texture, u32 textureUnit) 
+    void GfxContext::bindTexture(GfxTexture* texture, u32 textureUnit) 
     {
-        GLuint textureObject = texture == nullptr ? 0 : texture->getGpuResource();
-        glBindTextureUnit(textureUnit, textureObject);
-        m_textureBindings[textureUnit] = texture;
+        m_textureBindingManager.bind(texture, textureUnit);
     }
 
-    void GfxContext::setShaderStorageBuffer(ShaderStorageBuffer* buffer, u32 binding) 
+    void GfxContext::unbindTexture(u32 textureUnit) 
     {
-        GLuint shaderStorageObject = buffer == nullptr ? 0 : buffer->getGpuResource();
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding, shaderStorageObject);
-        m_shaderStorageBindings[binding] = buffer;
+        m_textureBindingManager.unbind(textureUnit);
+    }
+
+    void GfxContext::bindShaderStorageBuffer(ShaderStorageBuffer* buffer, u32 binding) 
+    {
+        m_shaderStorageBindingManager.bind(buffer, binding);
+    }
+
+    void GfxContext::unbindShaderStorageBuffer(u32 binding) 
+    {
+        m_shaderStorageBindingManager.unbind(binding);
     }
 
     void GfxContext::setVertexArray(VertexArray* va) 
@@ -289,6 +265,7 @@ namespace Cyan
         glDrawElements(translatePrimitiveMode(m_gfxPipelineState.primitiveMode), numIndices, GL_UNSIGNED_INT, reinterpret_cast<const void*>(0));
     }
 
+#if 0
     /** todo:
      * This call requires a vertex array object being bound, since I'm using programmable vertex pulling, I'm not using vertex array object
      for multiDrawIndirect, need to use a proper vertex array object to pass the vertex data instead later. For now can bind a dummy vao to 
@@ -300,6 +277,7 @@ namespace Cyan
         // todo: the offset and stride parameter should be configurable at some point
         glMultiDrawArraysIndirect(translatePrimitiveMode(m_gfxPipelineState.primitiveMode), 0, indirectDrawBuffer->numDrawcalls(), 0);
     }
+#endif
 
     void GfxContext::clear()
     {
@@ -317,19 +295,18 @@ namespace Cyan
         }
 
         m_viewport = {};
-        m_pixelPipeline->unbind();
-        m_pixelPipeline = nullptr;
-
+        if (m_programPipeline != nullptr)
+        {
+            m_programPipeline->unbind(this);
+        }
         m_gfxPipelineState = GfxPipelineState { };
-
-        if (m_vertexArray)
+        if (m_vertexArray != nullptr)
         {
             m_vertexArray->unbind();
-            m_vertexArray = nullptr;
         }
     }
 
-    void GfxContext::flip()
+    void GfxContext::present()
     {
         glfwSwapBuffers(m_glfwWindow);
     }

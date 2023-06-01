@@ -3,18 +3,22 @@
 #include <imgui/imgui_impl_opengl3.h>
 
 #include "CyanApp.h"
+#include "World.h"
+
 namespace Cyan
 {
     DefaultApp::DefaultApp(u32 appWindowWidth, u32 appWindowHeight)
         : isRunning(true), m_appWindowDimension(appWindowWidth, appWindowHeight)
     {
-        gEngine = std::make_unique<Engine>(appWindowWidth, appWindowHeight);
+        m_engine = std::make_unique<Engine>(appWindowWidth, appWindowHeight);
+        m_world = std::make_shared<World>("DefaultWorld");
     }
 
     void DefaultApp::initialize()
     {
-        gEngine->initialize();
+        m_engine->initialize();
 
+#if 0
         // setup default I/O controls 
         auto IOSystem = gEngine->getIOSystem();
         IOSystem->addIOEventListener<MouseCursorEvent>([this, IOSystem](f64 xPos, f64 yPos) {
@@ -87,20 +91,30 @@ namespace Cyan
                 break;
             }
         });
+#endif
 
-        ImGui_ImplGlfw_InstallCallbacks(gEngine->getGraphicsSystem()->getAppWindow());
+        ImGui_ImplGlfw_InstallCallbacks(m_engine->getGraphicsSystem()->getAppWindow());
 
+#if 0
         // create a default scene that can be modified or overwritten by custom app
         m_scene = std::make_shared<Scene>("DefaultScene", (f32)m_appWindowDimension.x / m_appWindowDimension.y);
+#endif
 
         // setup a default rendering lambda which can be overwritten by child app
         m_renderOneFrame = [this](GfxTexture2D* renderingOutput) {
             auto renderer = Renderer::get();
             // scene rendering
-            if (m_scene) 
+            if (m_world != nullptr) 
             {
-                SceneView sceneView(m_scene.get(), m_scene->m_mainCamera->getCamera(), renderingOutput);
-                renderer->render(m_scene.get(), sceneView);
+                auto scene = m_world->m_scene;
+                renderer->render(scene.get());
+
+                // assuming that renders[0] is the active render
+                if (!scene->m_renders.empty())
+                {
+                    auto render = scene->m_renders[0];
+                    renderer->renderToScreen(render->normal());
+                }
             }
             // UI rendering
             renderer->renderUI();
@@ -111,20 +125,20 @@ namespace Cyan
 
     void DefaultApp::deinitialize()
     {
-        gEngine->deinitialize();
         customFinalize();
+        m_engine->deinitialize();
     }
 
     void DefaultApp::update()
     {
-        gEngine->update();
-        m_scene->update();
+        m_engine->update();
+        m_world->update();
         customUpdate();
     }
 
     void DefaultApp::render()
     {
-        gEngine->render(m_renderOneFrame);
+        m_engine->render(m_renderOneFrame);
     }
    
     void DefaultApp::run()

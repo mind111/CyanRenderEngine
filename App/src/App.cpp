@@ -95,14 +95,14 @@ public:
                         ImGui::TableNextColumn();
 
                         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_OpenOnArrow;
-                        if (highlightedEntity && (highlightedEntity->name == entity->name))
+                        if (highlightedEntity && (highlightedEntity->m_name == entity->m_name))
                         {
                             flags |= ImGuiTreeNodeFlags_Selected;
                         }
 
                         if (!entity->childs.empty())
                         {
-                            bool open = ImGui::TreeNodeEx(entity->name.c_str(), flags);
+                            bool open = ImGui::TreeNodeEx(entity->m_name.c_str(), flags);
                             if (ImGui::IsItemClicked())
                             {
                                 highlightedEntity = entity;
@@ -121,7 +121,7 @@ public:
                         else
                         {
                             flags |= ImGuiTreeNodeFlags_Leaf;
-                            bool open = ImGui::TreeNodeEx(entity->name.c_str(), flags);
+                            bool open = ImGui::TreeNodeEx(entity->m_name.c_str(), flags);
                             if (ImGui::IsItemClicked())
                             {
                                 highlightedEntity = entity;
@@ -175,7 +175,7 @@ public:
                                 Component* render()
                                 {
                                     Component* highlightedComponent = nullptr;
-                                    ImGui::Text("%s", owner->name.c_str());
+                                    ImGui::Text("%s", owner->m_name.c_str());
                                     if (ImGui::BeginTable("##SceneComponentTable", 2, flags, ImVec2(ImGui::GetWindowContentRegionWidth(), 100.f)))
                                     {
                                         ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_NoHide);
@@ -198,7 +198,7 @@ public:
                                         ImGui::TableNextColumn();
                                         if (!component->children.empty())
                                         {
-                                            bool open = ImGui::TreeNodeEx(component->name.c_str(), ImGuiTreeNodeFlags_SpanFullWidth);
+                                            bool open = ImGui::TreeNodeEx(component->m_name.c_str(), ImGuiTreeNodeFlags_SpanFullWidth);
                                             ImGui::TableNextColumn();
                                             ImGui::TextColored(ImVec4(1.0, 1.0, 1.0, 0.2), "SceneComponent");
                                             if (open)
@@ -212,7 +212,7 @@ public:
                                         }
                                         else
                                         {
-                                            bool open = ImGui::TreeNodeEx(component->name.c_str(), ImGuiTreeNodeFlags_Leaf);
+                                            bool open = ImGui::TreeNodeEx(component->m_name.c_str(), ImGuiTreeNodeFlags_Leaf);
                                             ImGui::TableNextColumn();
                                             ImGui::TextColored(ImVec4(1.0, 1.0, 1.0, 0.2), "SceneComponent");
                                             if (open)
@@ -238,7 +238,7 @@ public:
                         {
                             ImGui::TextUnformatted("Position"); ImGui::SameLine();
                             glm::vec3 worldPosition = highlightedEntity->getWorldPosition();
-                            f32 position[3] = {
+                            f32 m_position[3] = {
                                 worldPosition.x,
                                 worldPosition.y,
                                 worldPosition.z
@@ -246,7 +246,7 @@ public:
                             f32 rotation[3] = {
                                 0.f, 0.f, 0.f
                             };
-                            ImGui::InputFloat3("##Position", position);
+                            ImGui::InputFloat3("##Position", m_position);
                             f32 scale[3] = {
                                 1.f, 1.f, 1.f
                             };
@@ -299,10 +299,10 @@ public:
                                 bool selected = false;
                                 if (selectedVis && selectedVis->texture) 
                                 {
-                                    selected = (selectedVis->texture->name == vis.texture->name);
+                                    selected = (selectedVis->texture->m_name == vis.texture->m_name);
                                 }
                                 if (vis.texture) {
-                                    if (ImGui::MenuItem(vis.texture->name, nullptr, selected)) {
+                                    if (ImGui::MenuItem(vis.texture->m_name, nullptr, selected)) {
                                         if (selected) {
                                             if (selectedVis->bSwitch) 
                                             {
@@ -402,7 +402,7 @@ public:
                     auto texture = selectedVis->texture;
                     if (texture) 
                     {
-                        ImGui::Text("%s", texture->name);
+                        ImGui::Text("%s", texture->m_name);
                         ImGui::SliderInt("Active Mip:", &selectedVis->activeMip, 0, texture->numMips - 1);
                     }
                 }
@@ -432,7 +432,7 @@ public:
                     }
                     if (ImGui::BeginTabItem("Rendering"))
                     {
-                        drawRenderingTab(gEngine->getGraphicsSystem()->getRenderer(), 0.f);
+                        drawRenderingTab(m_engine->getGraphicsSystem()->getRenderer(), 0.f);
                         ImGui::EndTabItem();
                     }
                     ImGui::EndTabBar();

@@ -15,7 +15,7 @@ namespace Cyan
         glm::vec4 clearColor = glm::vec4(0.f, 0.f, 0.f, 1.f);
     };
 
-    struct RenderBuffer : public GpuResource
+    struct RenderBuffer : public GfxResource
     {
         RenderBuffer(u32 inWidth, u32 inHeight)
             : width(inWidth), height(inHeight)
@@ -33,7 +33,7 @@ namespace Cyan
         u32 width, height;
     };
 
-    struct Framebuffer : public GpuResource
+    struct Framebuffer : public GfxResource
     {
         ~Framebuffer()
         {
@@ -50,7 +50,7 @@ namespace Cyan
         void setColorBuffer(GfxTextureCube* texture, u32 index, u32 layer, u32 mip = 0);
         void setDepthBuffer(GfxDepthTexture2D* depthTexture);
         void setDrawBuffers(i32* colorBufferIndices, u32 count);
-        void setDrawBuffers(const std::initializer_list<i32>& buffers);
+        void setDrawBuffers(const std::initializer_list<i32>& m_buffers);
         void clearDrawBuffer(i32 drawBufferIndex, glm::vec4 clearColor);
         void clearDepthBuffer(f32 clearDepthValue = 1.f);
         bool validate();

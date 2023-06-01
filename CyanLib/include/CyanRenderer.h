@@ -12,7 +12,7 @@
 #include "Common.h"
 #include "CyanAPI.h"
 #include "Scene.h"
-#include "camera.h"
+#include "Camera.h"
 #include "Entity.h"
 #include "Geometry.h"
 #include "Shadow.h"
@@ -21,8 +21,9 @@
 
 namespace Cyan
 {
+    using ShaderSetupFunc = std::function<void(ProgramPipeline*)>;
+
     // forward declarations
-    struct RenderableScene;
     struct Framebuffer;
     struct RenderPass;
 
@@ -43,20 +44,6 @@ namespace Cyan
     };
 #define GPU_DEBUG_SCOPE(markerVar, markerMsg) GpuDebugMarker markerVar(markerMsg);
 
-
-    struct SceneView 
-    {
-        SceneView(Scene* inScene, Camera* inCamera, GfxTexture2D* renderOutput)
-            : viewedScene(inScene), camera(inCamera), canvas(renderOutput)
-        {
-
-        }
-
-        Scene* viewedScene = nullptr;
-        Camera* camera = nullptr;
-        GfxTexture2D* canvas = nullptr;
-    };
-
     struct HiZBuffer
     {
         HiZBuffer(const GfxTexture2D::Spec& spec);
@@ -72,7 +59,6 @@ namespace Cyan
         GBuffer(const glm::uvec2& resolution);
         ~GBuffer() { }
 
-        // RenderTexture2D depth;
         RenderDepthTexture2D depth;
         RenderTexture2D normal;
         RenderTexture2D albedo;
@@ -97,43 +83,32 @@ namespace Cyan
         GfxTexture2D* createRenderTexture(const char* textureName, const GfxTexture2D::Spec& inSpec, const Sampler2D& inSampler);
 
 // rendering
-        struct SceneTextures
-        {
-            ~SceneTextures() { }
-
-            static SceneTextures* create(const glm::uvec2& inResolution);
-
-            glm::uvec2 resolution;
-            GBuffer gBuffer;
-            HiZBuffer HiZ;
-            RenderTexture2D directLighting;
-            RenderTexture2D directDiffuseLighting;
-            RenderTexture2D indirectLighting;
-            RenderTexture2D ssgiMirror;
-            RenderTexture2D aoHistory;
-            RenderTexture2D ao;
-            RenderTexture2D bentNormal;
-            RenderTexture2D irradiance;
-            RenderTexture2D color;
-        private:
-            SceneTextures(const glm::uvec2& inResolution);
-        };
-        SceneTextures* m_sceneTextures = nullptr;
-
         void beginRender();
+#if 0
         void render(Scene* scene, const SceneView& sceneView);
+#else
+        void render(Scene* scene);
+#endif
         void endRender();
-        void renderSceneDepthOnly(RenderableScene& renderableScene, GfxDepthTexture2D* outDepthTexture);
         void renderShadowMaps(Scene* inScene);
-        void renderSceneDepthPrepass(const RenderableScene& renderableScene, RenderDepthTexture2D outDepthBuffer);
+#if 0
+        void renderSceneDepthOnly(RenderableScene& renderableScene, GfxDepthTexture2D* outDepthTexture);
 #ifdef BINDLESS_TEXTURE
         void renderSceneGBufferBindless(const RenderableScene& scene, GBuffer gBuffer);
 #endif
         void renderSceneGBufferNonBindless(const RenderableScene& scene, GBuffer gBuffer);
+        void renderSceneDepthPrepass(const RenderableScene& renderableScene, RenderDepthTexture2D outDepthBuffer);
         void renderSceneGBufferWithTextureAtlas(Framebuffer* outFramebuffer, RenderableScene& scene, GBuffer gBuffer);
         void renderSceneLighting(RenderTexture2D outSceneColor, const RenderableScene& scene, GBuffer gBuffer);
         void renderSceneDirectLighting(RenderTexture2D outDirectLighting, const RenderableScene& scene, GBuffer gBuffer);
         void renderSceneIndirectLighting(RenderTexture2D outIndirectLighting, const RenderableScene& scene, GBuffer gBuffer);
+#else
+        void renderSceneDepthPrepass(GfxDepthTexture2D* outDepthBuffer, Scene* scene, const SceneRender::ViewParameters& viewParameters);
+        void renderSceneGBuffer(GfxTexture2D* outAlbedo, GfxTexture2D* outNormal, GfxTexture2D* outMetallicRoughness, GfxDepthTexture2D* depth, Scene* scene, const SceneRender::ViewParameters& viewParameters);
+        void renderSceneLighting(GfxTexture2D* outSceneColor, Scene* scene, GfxTexture2D* albedo, GfxTexture2D* normal, GfxTexture2D* metallicRoughness);
+        void renderSceneDirectLighting(GfxTexture2D* outDirectLighting, Scene* scene, GfxTexture2D* albedo, GfxTexture2D* normal, GfxTexture2D* metallicRoughness);
+        void renderSceneIndirectLighting(GfxTexture2D* outIndirectLighting, Scene* scene, GfxTexture2D* albedo, GfxTexture2D* normal, GfxTexture2D* metallicRoughness);
+#endif
         void renderToScreen(GfxTexture2D* inTexture);
 
         bool bDebugSSRT = false;
@@ -142,16 +117,16 @@ namespace Cyan
         i32 numDebugRays = 8;
         void visualizeSSRT(GfxTexture2D* depth, GfxTexture2D* normal);
 
-        void drawStaticMesh(const glm::uvec2& framebufferSize, const std::function<void(RenderPass&)>& renderTargetSetupLambda, const Viewport& viewport, StaticMesh* mesh, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda, const GfxPipelineState& gfxPipelineState);
-        void drawFullscreenQuad(const glm::uvec2& framebufferSize, const std::function<void(RenderPass&)>& renderTargetSetupLambda, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda);
-        void drawScreenQuad(const glm::uvec2& framebufferSize, const std::function<void(RenderPass&)>& renderTargetSetupLamdba, const Viewport& viewport, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda);
+        void drawStaticMesh(const glm::uvec2& framebufferSize, const std::function<void(RenderPass&)>& setupRenderTarget, const Viewport& viewport, StaticMesh* mesh, PixelPipeline* pipeline, const ShaderSetupFunc& setupShader, const GfxPipelineState& gfxPipelineState);
+        void drawFullscreenQuad(const glm::uvec2& framebufferSize, const std::function<void(RenderPass&)>& renderTargetSetupLambda, PixelPipeline* pipeline, const ShaderSetupFunc& setupShader);
+        void drawScreenQuad(const glm::uvec2& framebufferSize, const std::function<void(RenderPass&)>& renderTargetSetupLamdba, const Viewport& viewport, PixelPipeline* pipeline, const ShaderSetupFunc& setupShader);
         void drawColoredScreenSpaceQuad(GfxTexture2D* outTexture, const glm::vec2& screenSpaceMin, const glm::vec2& screenSpaceMax, const glm::vec4& color);
         void blitTexture(GfxTexture2D* dst, GfxTexture2D* src);
 
         /* Debugging utilities */
         struct Vertex
         {
-            glm::vec4 position;
+            glm::vec4 m_position;
             glm::vec4 color;
         };
         void drawScreenSpaceLines(Framebuffer* framebuffer, const std::vector<Vertex>& vertices);
@@ -160,9 +135,9 @@ namespace Cyan
         std::queue<std::function<void(void)>> debugDrawCalls;
         void drawDebugObjects();
         void debugDrawLineImmediate(const glm::vec3& v0, const glm::vec3& v1);
-        void debugDrawSphere(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection);
-        void debugDrawCubeImmediate(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection);
-        void debugDrawCubeBatched(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::vec3& facingDir, const glm::vec4& albedo, const glm::mat4& view, const glm::mat4& projection);
+        void debugDrawSphere(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& m_position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection);
+        void debugDrawCubeImmediate(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& m_position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection);
+        void debugDrawCubeBatched(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& m_position, const glm::vec3& scale, const glm::vec3& facingDir, const glm::vec4& albedo, const glm::mat4& view, const glm::mat4& projection);
         void debugDrawCubemap(GfxTextureCube* cubemap);
         void debugDrawCubemap(GLuint cubemap);
 
@@ -180,7 +155,7 @@ namespace Cyan
 
         struct ImagePyramid {
             u32 numLevels;
-            std::vector<GfxTexture2D*> images;
+            std::vector<GfxTexture2D*> m_images;
             GfxTexture2D* srcTexture;
         };
         void downsample(GfxTexture2D* src, GfxTexture2D* dst);
@@ -200,7 +175,7 @@ namespace Cyan
         void compose(GfxTexture2D* composited, GfxTexture2D* inSceneColor, GfxTexture2D* inBloomColor, const glm::uvec2& outputResolution);
 //
         struct VisualizationDesc {
-            std::string name;
+            std::string m_name;
             GfxTexture2D* texture = nullptr;
             i32 activeMip = 0;
             bool* bSwitch = nullptr;
@@ -245,5 +220,6 @@ namespace Cyan
         std::queue<UIRenderCommand> m_UIRenderCommandQueue;
         std::vector<GfxTexture2D*> renderTextures;
         bool bVisualize = false;
+        std::shared_ptr<StaticMesh> m_quad = nullptr;
     };
 };

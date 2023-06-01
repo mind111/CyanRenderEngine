@@ -14,49 +14,50 @@
 
 namespace Cyan
 {
-    struct Texture2DBase : public Asset, Image::Listener 
+    class Texture2DBase : public Asset, public Image::Listener 
     {
-        Texture2DBase(const char* inName, Image* inImage, const Sampler2D& inSampler2D);
+    public:
+        Texture2DBase(const char* name, std::shared_ptr<Image> image, const Sampler2D& sampler);
         virtual ~Texture2DBase() { }
 
-        /* Asset Interface */
-        virtual void import() override;
-        virtual void load() override;
-        virtual void onLoaded() override;
-        virtual void unload() override;
+        static const char* getAssetTypeName() { return "Texture2DBase"; }
 
         /* Image::Listener Interface */
         virtual bool operator==(const Image::Listener& rhs) override
         {
             if (const Texture2DBase* texture = dynamic_cast<const Texture2DBase*>(&rhs))
             {
-                return name == texture->name;
+                return m_name == texture->m_name;
             }
             return false;
         }
 
         virtual void onImageLoaded() override;
 
-        virtual void initGfxResource() = 0;
         virtual GfxTexture2D* getGfxResource() = 0;
 
-        Image* srcImage = nullptr;
-        Sampler2D sampler;
-        i32 width = -1;
-        i32 height = -1;
-        i32 numMips = 1;
+        std::shared_ptr<Image> m_srcImage = nullptr;
+        Sampler2D m_sampler;
+        i32 m_width = -1;
+        i32 m_height = -1;
+        i32 m_numMips = 1;
     };
 
-    struct Texture2D : public Texture2DBase
+    class Texture2D : public Texture2DBase
     {
-        Texture2D(const char* inName, Image* inImage, const Sampler2D& inSampler2D);
+    public:
+        Texture2D(const char* name, std::shared_ptr<Image> image, const Sampler2D& sampler);
         virtual ~Texture2D() { }
 
+        static const char* getAssetTypeName() { return "Texture2D"; }
+
         /* Texture2DBase interface */
-        virtual void initGfxResource() override;
-        virtual GfxTexture2D* getGfxResource() override { return gfxTexture.get(); };
+        virtual GfxTexture2D* getGfxResource() override { return m_gfxTexture.get(); };
+        virtual void onImageLoaded() override;
+
+        void initGfxResource();
 
         // gfx resource
-        std::shared_ptr<GfxTexture2D> gfxTexture = nullptr;
+        std::shared_ptr<GfxTexture2D> m_gfxTexture = nullptr;
     };
 }

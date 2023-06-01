@@ -1,4 +1,4 @@
-#include <memory>
+﻿#include <memory>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -106,7 +106,62 @@ namespace Cyan
         return true;
     }
 
-    void Shader::initialize(Shader* shader) {
+    static GfxContext* s_ctx = nullptr;
+
+    Shader::Shader(const char* shaderName, const char* shaderFilePath, Type type) 
+        : m_name(shaderName), m_source(shaderFilePath), m_type(type) 
+    {
+        if (s_ctx == nullptr)
+        {
+            s_ctx = GfxContext::get();
+        }
+
+        u32 stringCount = m_source.includes.size() + 1;
+        std::vector<const char*> strings{ m_source.src.c_str() };
+        for (const auto& string : m_source.includes) 
+        {
+            strings.push_back(string.c_str());
+        }
+
+        /** Node - @min:
+        * According to OpenGL wiki:
+            GLuint glCreateShaderProgramv(GLenum type​, GLsizei count​, const char **strings​);
+            This works exactly as if you took count​ and strings​ strings, created a shader object from them of the type​ shader type, and then linked that shader object into a program with the GL_PROGRAM_SEPARABLE parameter. And then detaching and deleting the shader object.
+
+            This process can fail, just as compilation or linking can fail. The program infolog can thus contain compile errors as well as linking errors.
+
+            Note: glCreateShaderProgramv will return either the name of a program object or zero - independent of which errors might occur during shader compilation or linkage! A return value of zero simply states that either the shader object or program object could not be created. If a non-zero value is returned, you will still need to check the program info logs to make sure compilation and linkage succeeded! Also, the function itself may generate an error under certain conditions which will also result in zero being returned.
+            Warning: When linking shaders with separable programs, your shaders must redeclare the gl_PerVertex interface block if you attempt to use any of the variables defined within it.
+        */
+        switch (m_type) 
+        {
+        case Type::kVertex:
+            glObject = glCreateShaderProgramv(GL_VERTEX_SHADER, stringCount, strings.data());
+            break;
+        case Type::kPixel:
+            glObject = glCreateShaderProgramv(GL_FRAGMENT_SHADER, stringCount, strings.data());
+            break;
+        case Type::kGeometry:
+            glObject = glCreateShaderProgramv(GL_GEOMETRY_SHADER, stringCount, strings.data());
+            break;
+        case Type::kCompute:
+            glObject = glCreateShaderProgramv(GL_COMPUTE_SHADER, stringCount, strings.data());
+            break;
+        case Type::kInvalid:
+        default:
+            break;
+        }
+        std::string linkLog;
+        if (!getProgramInfoLog(this, ShaderInfoLogType::kLink, linkLog)) 
+        {
+            cyanError("%s", linkLog.c_str());
+        }
+
+        Shader::initialize(this);
+    }
+
+    void Shader::initialize(Shader* shader) 
+    {
         GLuint program = shader->getProgram();
         // query list of active uniforms
         i32 activeNumUniforms = -1;
@@ -140,20 +195,28 @@ namespace Cyan
                             switch (translated) 
                             {
                             case UniformDesc::Type::kSampler2D:
-                                shader->m_samplerBindingMap.insert({ desc.name, nullptr });
+                                shader->m_textureBindingMap.insert({ desc.name, TextureBinding { desc.name.c_str(), nullptr, -1 } });
                                 break;
                             default:
                                 break;
                             }
                         }
                     }
-                    else 
+                    else
                     {
                         UniformDesc desc = { };
                         desc.type = translated;
                         desc.name = std::string(name);
                         desc.location = glGetUniformLocation(program, name);
                         shader->m_uniformMap.insert({ desc.name, desc });
+                        switch (translated) 
+                        {
+                        case UniformDesc::Type::kSampler2D:
+                            shader->m_textureBindingMap.insert({ desc.name, TextureBinding { desc.name.c_str(), nullptr, -1 } });
+                            break;
+                        default:
+                            break;
+                        }
                     }
                 }
             }
@@ -172,16 +235,23 @@ namespace Cyan
                 {
                     i32 nameLength = -1;
                     glGetProgramResourceName(program, GL_SHADER_STORAGE_BLOCK, i, maxNameLength, &nameLength, name);
-                    ShaderStorageBinding binding = { i, nullptr };
+                    ShaderStorageBinding binding = { name, i, nullptr, -1 };
                     shader->m_shaderStorageBindingMap.insert({ std::string(name), binding });
                 }
             }
         }
     }
 
-    i32 Shader::getUniformLocation(const char* name) {
+    bool Shader::hasActiveUniform(const char* name)
+    {
+        return (getUniformLocation(name) >= 0);
+    }
+
+    i32 Shader::getUniformLocation(const char* name) 
+    {
         auto entry = m_uniformMap.find(std::string(name));
-        if (entry == m_uniformMap.end()) {
+        if (entry == m_uniformMap.end()) 
+        {
             return -1;
         }
         return entry->second.location;
@@ -224,6 +294,11 @@ namespace Cyan
         SET_UNIFORM(glProgramUniform2f, data.x, data.y)
     }
 
+    Shader& Shader::setUniform(const char* name, const glm::uvec2& data)
+    {
+        SET_UNIFORM(glProgramUniform2ui, data.x, data.y)
+    }
+
     Shader& Shader::setUniform(const char* name, const glm::vec3& data) 
     {
         SET_UNIFORM(glProgramUniform3f, data.x, data.y, data.z)
@@ -251,19 +326,101 @@ namespace Cyan
 
     Shader& Shader::setTexture(const char* samplerName, GfxTexture* texture) 
     {
-        if (texture) 
+        auto entry = m_textureBindingMap.find(samplerName);
+        if (entry != m_textureBindingMap.end())
         {
-            m_samplerBindingMap[std::string(samplerName)] = texture;
+            TextureBinding& textureBinding = entry->second;
+            // there is already a texture binding unit allocated, only need to update which texture is bound
+            if (textureBinding.textureUnit >= 0)
+            {
+                texture->bind(s_ctx, textureBinding.textureUnit);
+            }
+            else
+            {
+                textureBinding.textureUnit = s_ctx->allocTextureUnit();
+                setUniform(samplerName, textureBinding.textureUnit);
+                texture->bind(s_ctx, textureBinding.textureUnit);
+            }
+            textureBinding.texture = texture;
         }
         return *this;
+    }
+
+    bool Shader::hasShaderStorgeBlock(const char* blockName)
+    {
+        auto entry = m_shaderStorageBindingMap.find(blockName);
+        return (entry != m_shaderStorageBindingMap.end());
     }
 
     Shader& Shader::setShaderStorageBuffer(ShaderStorageBuffer* buffer)
     {
         auto entry = m_shaderStorageBindingMap.find(buffer->getBlockName());
         assert(entry != m_shaderStorageBindingMap.end());
-        entry->second.buffer = buffer;
+        ShaderStorageBinding& bufferBinding = entry->second;
+        if (bufferBinding.bufferUnit >= 0)
+        {
+            buffer->bind(s_ctx, bufferBinding.bufferUnit);
+        }
+        else
+        {
+            u32 bufferUnit = s_ctx->allocShaderStorageBinding();
+            bufferBinding.bufferUnit = bufferUnit;
+            buffer->bind(s_ctx, bufferBinding.bufferUnit);
+        }
+        bufferBinding.buffer = buffer;
         return *this;
+    }
+
+    void Shader::unbindTextures(GfxContext* ctx)
+    {
+        for (auto& entry : m_textureBindingMap)
+        {
+            auto& textureBinding = entry.second;
+            if (textureBinding.textureUnit >= 0)
+            {
+                textureBinding.texture->unbind(ctx);
+                textureBinding.textureUnit = -1;
+            }
+            else
+            {
+                assert(textureBinding.texture == nullptr);
+            }
+        }
+    }
+
+    void Shader::unbindShaderStorageBuffers(GfxContext* ctx)
+    {
+        for (auto& entry : m_shaderStorageBindingMap)
+        {
+            auto& bufferBinding = entry.second;
+            if (bufferBinding.bufferUnit >= 0)
+            {
+                bufferBinding.buffer->unbind(ctx);
+                bufferBinding.bufferUnit = -1;
+            }
+            else
+            {
+                assert(bufferBinding.buffer == nullptr);
+            }
+        }
+    }
+
+    bool ProgramPipeline::isBound()
+    {
+        return m_bIsBound;
+    }
+
+    void ProgramPipeline::bind(GfxContext* ctx)
+    {
+        ctx->bindProgramPipeline(this);
+        m_bIsBound = true;
+    }
+
+    void ProgramPipeline::unbind(GfxContext* ctx)
+    {
+        resetBindings(ctx);
+        ctx->unbindProgramPipeline();
+        m_bIsBound = false;
     }
 
     PixelPipeline::PixelPipeline(const char* pipelineName, const char* vsName, const char* psName) 
@@ -281,21 +438,133 @@ namespace Cyan
         initialize();
     }
 
-    bool PixelPipeline::initialize() {
+    bool PixelPipeline::initialize() 
+    {
         bool bSuccess = false;
-        if (m_vertexShader) {
+        if (m_vertexShader) 
+        {
             glUseProgramStages(glObject, GL_VERTEX_SHADER_BIT, m_vertexShader->getProgram());
         }
-        else {
+        else 
+        {
             bSuccess = false;
         }
-        if (m_pixelShader) {
+        if (m_pixelShader) 
+        {
             glUseProgramStages(glObject, GL_FRAGMENT_SHADER_BIT, m_pixelShader->getProgram());
         }
-        else {
+        else 
+        {
             bSuccess = false;
         }
         return bSuccess;
+    }
+
+    void PixelPipeline::resetBindings(GfxContext* ctx)
+    {
+        m_vertexShader->unbindTextures(ctx);
+        m_vertexShader->unbindShaderStorageBuffers(ctx);
+        m_pixelShader->unbindTextures(ctx);
+        m_pixelShader->unbindShaderStorageBuffers(ctx);
+    }
+
+#define PIXEL_PIPELINE_SET_UNIFORM(name, data)      \
+        assert(isBound());                          \
+        bool bFoundUniform = false;                 \
+        if (m_vertexShader->hasActiveUniform(name)) \
+        {                                           \
+            bFoundUniform |= true;                  \
+            m_vertexShader->setUniform(name, data); \
+        }                                           \
+        if (m_pixelShader->hasActiveUniform(name))  \
+        {                                           \
+            bFoundUniform |= true;                  \
+            m_pixelShader->setUniform(name, data);  \
+        }                                           \
+        // assert(bFoundUniform);                   \
+
+    void PixelPipeline::setUniform(const char* name, u32 data)
+    {
+        PIXEL_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void PixelPipeline::setUniform(const char* name, const u64& data)
+    {
+        PIXEL_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void PixelPipeline::setUniform(const char* name, i32 data)
+    {
+        PIXEL_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void PixelPipeline::setUniform(const char* name, f32 data) 
+    {
+        PIXEL_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void PixelPipeline::setUniform(const char* name, const glm::ivec2& data)
+    {
+        PIXEL_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void PixelPipeline::setUniform(const char* name, const glm::uvec2& data)
+    {
+        PIXEL_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void PixelPipeline::setUniform(const char* name, const glm::vec2& data)
+    {
+        PIXEL_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void PixelPipeline::setUniform(const char* name, const glm::vec3& data)
+    {
+        PIXEL_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void PixelPipeline::setUniform(const char* name, const glm::vec4& data)
+    {
+        PIXEL_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void PixelPipeline::setUniform(const char* name, const glm::mat4& data)
+    {
+        PIXEL_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void PixelPipeline::setTexture(const char* samplerName, GfxTexture* texture)
+    {
+        assert(isBound());
+        bool bFoundUniform = false; 
+        if (m_vertexShader->hasActiveUniform(samplerName))
+        {
+            bFoundUniform |= true;
+            m_vertexShader->setTexture(samplerName, texture);
+        }
+        if (m_pixelShader->hasActiveUniform(samplerName))
+        {
+            bFoundUniform |= true;
+            m_pixelShader->setTexture(samplerName, texture);
+        }
+        // assert(bFoundUniform);
+    }
+
+    void PixelPipeline::setShaderStorageBuffer(ShaderStorageBuffer* buffer)
+    {
+        assert(isBound());
+        bool bFound = false;
+        if (m_vertexShader->hasShaderStorgeBlock(buffer->getBlockName()))
+        {
+            bFound |= true;
+            m_vertexShader->setShaderStorageBuffer(buffer);
+        }
+        if (m_pixelShader->hasShaderStorgeBlock(buffer->getBlockName()))
+        {
+            bFound |= true;
+            m_pixelShader->setShaderStorageBuffer(buffer);
+        }
+        // assert(bFound);
     }
 
     GeometryPipeline::GeometryPipeline(const char* pipelineName, const char* vsName, const char* gsName, const char* psName) 
@@ -318,8 +587,128 @@ namespace Cyan
         return true;
     }
 
+#define GEOMETRY_PIPELINE_SET_UNIFORM(name, data)       \
+        assert(isBound());                              \
+        bool bFoundUniform = false;                     \
+        if (m_geometryShader->hasActiveUniform(name))   \
+        {                                               \
+            bFoundUniform |= true;                      \
+            m_geometryShader->setUniform(name, data);   \
+        }                                               \
+        if (m_vertexShader->hasActiveUniform(name))     \
+        {                                               \
+            bFoundUniform |= true;                      \
+            m_vertexShader->setUniform(name, data);     \
+        }                                               \
+        if (m_pixelShader->hasActiveUniform(name))      \
+        {                                               \
+            bFoundUniform |= true;                      \
+            m_pixelShader->setUniform(name, data);      \
+        }                                               \
+        // assert(bFoundUniform);                          \
+
+    void GeometryPipeline::setUniform(const char* name, u32 data)
+    {
+        GEOMETRY_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void GeometryPipeline::setUniform(const char* name, const u64& data)
+    {
+        GEOMETRY_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void GeometryPipeline::setUniform(const char* name, i32 data)
+    {
+        GEOMETRY_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void GeometryPipeline::setUniform(const char* name, f32 data) 
+    {
+        GEOMETRY_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void GeometryPipeline::setUniform(const char* name, const glm::ivec2& data)
+    {
+        GEOMETRY_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void GeometryPipeline::setUniform(const char* name, const glm::uvec2& data)
+    {
+        GEOMETRY_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void GeometryPipeline::setUniform(const char* name, const glm::vec2& data)
+    {
+        GEOMETRY_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void GeometryPipeline::setUniform(const char* name, const glm::vec3& data)
+    {
+        GEOMETRY_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void GeometryPipeline::setUniform(const char* name, const glm::vec4& data)
+    {
+        GEOMETRY_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void GeometryPipeline::setUniform(const char* name, const glm::mat4& data)
+    {
+        GEOMETRY_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void GeometryPipeline::setTexture(const char* samplerName, GfxTexture* texture)
+    {
+        assert(isBound());
+        bool bFoundUniform = false; 
+        if (m_geometryShader->hasActiveUniform(samplerName))
+        {
+            bFoundUniform |= true;
+            m_geometryShader->setTexture(samplerName, texture);
+        }
+        if (m_vertexShader->hasActiveUniform(samplerName))
+        {
+            bFoundUniform |= true;
+            m_vertexShader->setTexture(samplerName, texture);
+        }
+        if (m_pixelShader->hasActiveUniform(samplerName))
+        {
+            bFoundUniform |= true;
+            m_pixelShader->setTexture(samplerName, texture);
+        }
+        // assert(bFoundUniform);
+    }
+
+    void GeometryPipeline::setShaderStorageBuffer(ShaderStorageBuffer* buffer)
+    {
+        assert(isBound());
+        bool bFound = false;
+        if (m_geometryShader->hasShaderStorgeBlock(buffer->getBlockName()))
+        {
+            bFound |= true;
+            m_geometryShader->setShaderStorageBuffer(buffer);
+        }
+        if (m_vertexShader->hasShaderStorgeBlock(buffer->getBlockName()))
+        {
+            bFound |= true;
+            m_vertexShader->setShaderStorageBuffer(buffer);
+        }
+        if (m_pixelShader->hasShaderStorgeBlock(buffer->getBlockName()))
+        {
+            bFound |= true;
+            m_pixelShader->setShaderStorageBuffer(buffer);
+        }
+        // assert(bFound);
+    }
+
+    void GeometryPipeline::resetBindings(GfxContext* ctx)
+    {
+
+    }
+
     ComputePipeline::ComputePipeline(const char* pipelineName, const char* csName) 
-        : ProgramPipeline(pipelineName) {
+        : ProgramPipeline(pipelineName) 
+    {
         initialize();
     }
 
@@ -333,30 +722,126 @@ namespace Cyan
         return true;
     }
 
-    ShaderManager* Singleton<ShaderManager>::singleton = nullptr;
+#define COMPUTE_PIPELINE_SET_UNIFORM(name, data)        \
+        assert(isBound());                              \
+        bool bFoundUniform = false;                     \
+        if (m_computeShader->hasActiveUniform(name))    \
+        {                                               \
+            bFoundUniform |= true;                      \
+            m_computeShader->setUniform(name, data);    \
+        }                                               \
 
-    void ShaderManager::initialize() {
+    void ComputePipeline::setUniform(const char* name, u32 data)
+    {
+        COMPUTE_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void ComputePipeline::setUniform(const char* name, const u64& data)
+    {
+        COMPUTE_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void ComputePipeline::setUniform(const char* name, i32 data)
+    {
+        COMPUTE_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void ComputePipeline::setUniform(const char* name, f32 data) 
+    {
+        COMPUTE_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void ComputePipeline::setUniform(const char* name, const glm::ivec2& data)
+    {
+        COMPUTE_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void ComputePipeline::setUniform(const char* name, const glm::uvec2& data)
+    {
+        COMPUTE_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void ComputePipeline::setUniform(const char* name, const glm::vec2& data)
+    {
+        COMPUTE_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void ComputePipeline::setUniform(const char* name, const glm::vec3& data)
+    {
+        COMPUTE_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void ComputePipeline::setUniform(const char* name, const glm::vec4& data)
+    {
+        COMPUTE_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void ComputePipeline::setUniform(const char* name, const glm::mat4& data)
+    {
+        COMPUTE_PIPELINE_SET_UNIFORM(name, data);
+    }
+
+    void ComputePipeline::setTexture(const char* samplerName, GfxTexture* texture)
+    {
+        assert(isBound());
+        bool bFoundUniform = false; 
+        if (m_computeShader->hasActiveUniform(samplerName))
+        {
+            bFoundUniform |= true;
+            m_computeShader->setTexture(samplerName, texture);
+        }
+        // assert(bFoundUniform);
+    }
+
+    void ComputePipeline::setShaderStorageBuffer(ShaderStorageBuffer* buffer)
+    {
+        assert(isBound());
+        bool bFound = false;
+        if (m_computeShader->hasShaderStorgeBlock(buffer->getBlockName()))
+        {
+            bFound |= true;
+            m_computeShader->setShaderStorageBuffer(buffer);
+        }
+        // assert(bFound);
+    }
+
+    void ComputePipeline::resetBindings(GfxContext* ctx)
+    {
 
     }
 
-    Shader* ShaderManager::getShader(const char* shaderName) {
+    ShaderManager* Singleton<ShaderManager>::singleton = nullptr;
+
+    void ShaderManager::initialize() 
+    {
+
+    }
+
+    Shader* ShaderManager::getShader(const char* shaderName) 
+    {
         auto entry = singleton->m_shaderMap.find(std::string(shaderName));
-        if (entry == singleton->m_shaderMap.end()) {
+        if (entry == singleton->m_shaderMap.end()) 
+        {
             return nullptr;
         }
         return entry->second.get();
     }
 
-    PixelPipeline* ShaderManager::createPixelPipeline(const char* pipelineName, VertexShader* vertexShader, PixelShader* pixelShader) {
-        if (pipelineName) {
+    PixelPipeline* ShaderManager::createPixelPipeline(const char* pipelineName, VertexShader* vertexShader, PixelShader* pixelShader) 
+    {
+        if (pipelineName) 
+        {
             auto entry = singleton->m_pipelineMap.find(std::string(pipelineName));
-            if (entry == singleton->m_pipelineMap.end()) {
+            if (entry == singleton->m_pipelineMap.end()) 
+            {
                 PixelPipeline* pipeline = new PixelPipeline(pipelineName, vertexShader, pixelShader);
                 singleton->m_pipelineMap.insert({ std::string(pipelineName), std::unique_ptr<ProgramPipeline>(pipeline) });
                 return pipeline;
             }
-            else {
-                if (PixelPipeline* foundPipeline = dynamic_cast<PixelPipeline*>(entry->second.get())) {
+            else 
+            {
+                if (PixelPipeline* foundPipeline = dynamic_cast<PixelPipeline*>(entry->second.get())) 
+                {
                     return foundPipeline;
                 }
             }
@@ -364,16 +849,21 @@ namespace Cyan
         return nullptr;
     }
 
-    ComputePipeline* ShaderManager::createComputePipeline(const char* pipelineName, ComputeShader* computeShader) {
-        if (pipelineName) {
+    ComputePipeline* ShaderManager::createComputePipeline(const char* pipelineName, ComputeShader* computeShader) 
+    {
+        if (pipelineName) 
+        {
             auto entry = singleton->m_pipelineMap.find(std::string(pipelineName));
-            if (entry == singleton->m_pipelineMap.end()) {
+            if (entry == singleton->m_pipelineMap.end()) 
+            {
                 ComputePipeline* pipeline = new ComputePipeline(pipelineName, computeShader);
                 singleton->m_pipelineMap.insert({ std::string(pipelineName), std::unique_ptr<ProgramPipeline>(pipeline) });
                 return pipeline;
             }
-            else {
-                if (ComputePipeline* foundPipeline = dynamic_cast<ComputePipeline*>(entry->second.get())) {
+            else 
+            {
+                if (ComputePipeline* foundPipeline = dynamic_cast<ComputePipeline*>(entry->second.get())) 
+                {
                     return foundPipeline;
                 }
             }

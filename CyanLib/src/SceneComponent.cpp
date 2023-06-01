@@ -1,46 +1,100 @@
-#include "Scene.h"
 #include "SceneComponent.h"
 #include "Entity.h"
+#include "World.h"
 
 namespace Cyan
 {
-    SceneComponent::SceneComponent(Entity* inOwner, const char* inName, const Transform& inTransform)
-        : Component(inOwner, inName), m_localTransform(inTransform), m_worldTransform()
+    SceneComponent::SceneComponent(Entity* owner, const char* name, const Transform& localTransform)
+        : Component(owner, name), m_parent(nullptr), m_local(localTransform), m_localToWorld()
     {
+        assert(m_owner != nullptr);
     }
 
-    SceneComponent::SceneComponent(Entity* inOwner, Component* inParent, const char* inName, const Transform& inTransform)
-        : Component(inOwner, inParent, inName), m_localTransform(inTransform), m_worldTransform()
-    {
+    void SceneComponent::attachToParent(SceneComponent* parent)
+    { 
+        parent->attachChild(this);
     }
 
-    const Transform& SceneComponent::getLocalTransform()
+    void SceneComponent::attachChild(SceneComponent* child)
     {
-        return m_localTransform;
+        child->detachFromParent();
+
+        m_children.push_back(child);
+        child->setParent(this);
+        child->onAttached();
     }
 
-    const Transform& SceneComponent::getWorldTransform()
+    void SceneComponent::onAttached()
     {
-        return m_worldTransform;
+        assert(m_parent != nullptr);
+        glm::mat4 localToWorldMatrix = m_local.toMatrix() * m_parent->getLocalToWorldTransform().toMatrix();
+        setLocalToWorldTransform(Transform(localToWorldMatrix));
     }
 
-    const glm::mat4& SceneComponent::getLocalTransformMatrix()
+    void SceneComponent::detachFromParent()
     {
-        return m_localTransform.toMatrix();
+        if (m_parent != nullptr)
+        {
+            i32 componentIndex = 0;
+            auto& children = m_parent->m_children;
+            for (auto child : children)
+            {
+                if (child->m_name == m_name)
+                {
+                    children.erase(children.begin() + componentIndex);
+                    setParent(nullptr);
+                    onDetached();
+                    break;
+                }
+                componentIndex++;
+            }
+        }
     }
 
-    const glm::mat4& SceneComponent::getWorldTransformMatrix()
+    void SceneComponent::onDetached()
     {
-        return m_worldTransform.toMatrix();
+        setLocalTransform(Transform());
     }
 
-    void MeshComponent::setMaterial(Material* material) 
+    void SceneComponent::setParent(SceneComponent* parent)
     {
-        meshInst->setMaterial(material);
+        m_parent = parent;
     }
 
-    void MeshComponent::setMaterial(Material* material, u32 submeshIndex) 
+    void SceneComponent::setLocalTransform(const Transform& localTransform)
     {
-        meshInst->setMaterial(material, submeshIndex);
+        m_local = localTransform;
+        if (m_parent != nullptr)
+        {
+            glm::mat4 localToWorldMatrix =  m_local.toMatrix() * m_parent->getLocalToWorldTransform().toMatrix();
+            setLocalToWorldTransform(localToWorldMatrix);
+        }
+    }
+
+    void SceneComponent::setLocalToWorldTransform(const Transform& localToWorldTransform)
+    {
+        // todo: when directly setting the world transform, its localTransform also need to be updated
+        m_localToWorld = localToWorldTransform;
+        onTransformUpdated();
+    }
+
+    void SceneComponent::finalizeAndUpdateTransform()
+    {
+        if (m_parent != nullptr)
+        {
+            Transform localToWorld;
+            localToWorld.fromMatrix(m_local.toMatrix() * m_parent->getLocalToWorldTransform().toMatrix());
+            setLocalToWorldTransform(localToWorld);
+        }
+        else
+        {
+            setLocalToWorldTransform(m_local);
+        }
+
+        // propagate transform changes to children
+        for (auto child : m_children)
+        {
+            child->finalizeAndUpdateTransform();
+        }
     }
 }

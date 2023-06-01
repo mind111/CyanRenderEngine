@@ -9,40 +9,40 @@
 
 namespace Cyan
 {
-    struct Image : public Asset
+    class Image : public Asset
     {
-        struct Listener
+    public:
+        class Listener
         {
-            Listener(Image* inBroadcaster)
-                : broadcaster(inBroadcaster)
-            { 
-                if (broadcaster)
-                {
-                    broadcaster->addListener(this);
-                }
-            }
+        public:
+            Listener(Image* topic) 
+                : m_topic(topic)
+            { }
 
             virtual ~Listener() 
             {
-                if (broadcaster)
+                if (m_topic != nullptr)
                 {
-                    broadcaster->removeListener(this);
+                    m_topic->removeListener(this);
+                    m_topic = nullptr;
                 }
             }
 
             virtual bool operator==(const Listener& rhs) = 0;
-            virtual void onImageLoaded() { };
+            virtual void onImageLoaded() { }
+            virtual void subscribe() 
+            {
+                m_topic->addListener(this);
+            }
 
-            Image* broadcaster = nullptr;
+            Image* m_topic = nullptr;
         };
 
         Image(const char* name);
 
-        /* Asset Interface */
-        virtual const char* getAssetTypeName() { return "Image"; }
+        static const char* getAssetTypeName() { return "Image"; }
 
         virtual ~Image() { }
-        virtual void import();
         virtual void load() override { }
         virtual void onLoaded() override;
         virtual void unload() { }
@@ -50,12 +50,12 @@ namespace Cyan
         void addListener(Listener* listener);
         void removeListener(Listener* toRemove);
 
-        i32 width;
-        i32 height;
-        i32 numChannels;
-        i32 bitsPerChannel;
-        std::shared_ptr<u8> pixels = nullptr;
-        std::mutex listenersMutex;
-        std::vector<Listener*> listeners;
+        i32 m_width;
+        i32 m_height;
+        i32 m_numChannels;
+        i32 m_bitsPerChannel;
+        std::shared_ptr<u8> m_pixels = nullptr;
+        std::mutex m_listenersMutex;
+        std::vector<Listener*> m_listeners;
     };
 }

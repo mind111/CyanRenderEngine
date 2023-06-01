@@ -36,7 +36,7 @@ namespace Cyan
             else {
                 i32 leftChild = node.childs[0];
                 i32 rightChild = node.childs[1];
-                intersect &= (castRayInternal(ro, rd, nodes[leftChild], hit) || castRayInternal(ro, rd, nodes[rightChild], hit));
+                intersect &= (castRayInternal(ro, rd, m_nodes[leftChild], hit) || castRayInternal(ro, rd, m_nodes[rightChild], hit));
             }
         }
         return intersect;
@@ -44,7 +44,7 @@ namespace Cyan
 
     bool SurfelBSH::castRay(const glm::vec3& ro, const glm::vec3& rd, RayHit& hit) const 
     {
-        return castRayInternal(ro, rd, nodes[0], hit);
+        return castRayInternal(ro, rd, m_nodes[0], hit);
     }
 
     bool SurfelBSH::Node::intersect(const glm::vec3& ro, const glm::vec3& rd, f32& t) const 
@@ -89,16 +89,16 @@ namespace Cyan
     {
         // this node is a child node
         surfelID = surfelIndex;
-        center = surfels[surfelID].position;
+        center = surfels[surfelID].m_position;
         radius = surfels[surfelID].radius;
         albedo = surfels[surfelID].albedo;
         normal = surfels[surfelID].normal;
     }
 
-    void SurfelBSH::Node::build(const std::vector<Node>& nodes, u32 leftChildIndex, u32 rightChildIndex) 
+    void SurfelBSH::Node::build(const std::vector<Node>& m_nodes, u32 leftChildIndex, u32 rightChildIndex) 
     {
-        const auto& leftChild = nodes[leftChildIndex];
-        const auto& rightChild = nodes[rightChildIndex];
+        const auto& leftChild = m_nodes[leftChildIndex];
+        const auto& rightChild = m_nodes[rightChildIndex];
         // this node is a internal node
         center = (leftChild.center + rightChild.center) * .5f;
         radius = glm::max(
@@ -120,7 +120,7 @@ namespace Cyan
         if (nodeIndex < 0) {
             return;
         }
-        Node& node = nodes[nodeIndex];
+        Node& node = m_nodes[nodeIndex];
         callback(node);
         dfs(node.childs[0], callback);
         dfs(node.childs[1], callback);
@@ -140,8 +140,8 @@ namespace Cyan
     }
 
     u32 SurfelBSH::allocNode() {
-        u32 nodeIndex = nodes.size();
-        nodes.emplace_back();
+        u32 nodeIndex = m_nodes.size();
+        m_nodes.emplace_back();
         return nodeIndex;
     }
 
@@ -155,8 +155,8 @@ namespace Cyan
                 break;
             }
             i32 nodeIndex = currentLevel.front();
-            i32 leftChildIndex = nodes[nodeIndex].childs[0];
-            i32 rightChildIndex = nodes[nodeIndex].childs[1];
+            i32 leftChildIndex = m_nodes[nodeIndex].childs[0];
+            i32 rightChildIndex = m_nodes[nodeIndex].childs[1];
             if (leftChildIndex >= 0) {
                 nextLevel.push(leftChildIndex);
             }
@@ -185,13 +185,13 @@ namespace Cyan
         }
         // leaf node
         else if ((end - start) == 1u) { 
-            nodes[nodeIndex].build(surfels, start);
+            m_nodes[nodeIndex].build(surfels, start);
         }
         else if ((end - start) > 1u) {
             // determine dominant axis
             BoundingBox3D aabb;
             for (u32 i = 0; i < (end - start); ++i) {
-                aabb.bound(surfels[start + i].position);
+                aabb.bound(surfels[start + i].m_position);
             }
             f32 extentX = abs(aabb.pmax.x - aabb.pmin.x);
             f32 extentY = abs(aabb.pmax.y - aabb.pmin.y);
@@ -208,21 +208,21 @@ namespace Cyan
             if (extentX >= glm::max(extentY, extentZ)) {
                 std::sort(beginItr, endItr,
                     [](const Surfel& a, const Surfel& b) {
-                        return a.position.x < b.position.x;
+                        return a.m_position.x < b.m_position.x;
                     });
                 splitAxis = SplitAxis::kX;
             }
             else if (extentY >= glm::max(extentX, extentZ)) {
                 std::sort(beginItr, endItr,
                     [](const Surfel& a, const Surfel& b) {
-                        return a.position.y < b.position.y;
+                        return a.m_position.y < b.m_position.y;
                     });
                 splitAxis = SplitAxis::kY;
             }
             else {
                 std::sort(beginItr, endItr,
                     [](const Surfel& a, const Surfel& b) {
-                        return a.position.z < b.position.z;
+                        return a.m_position.z < b.m_position.z;
                     });
                 splitAxis = SplitAxis::kZ;
             }
@@ -241,7 +241,7 @@ namespace Cyan
                         * will run into issues when duplicated surfels exist
                         */
                         for (i32 i = 1; i < (end - start); ++i) {
-                            if (surfels[start + i].position.x > split) {
+                            if (surfels[start + i].m_position.x > split) {
                                 mid = start + i;
                                 break;
                             }
@@ -252,7 +252,7 @@ namespace Cyan
                     {
                         f32 split = aabb.pmin.y + extentY * .5f;
                         for (i32 i = 1; i < (end - start); ++i) {
-                            if (surfels[start + i].position.y > split) {
+                            if (surfels[start + i].m_position.y > split) {
                                 mid = start + i;
                                 break;
                             }
@@ -263,7 +263,7 @@ namespace Cyan
                     {
                         f32 split = aabb.pmin.z + extentZ * .5f;
                         for (i32 i = 1; i < (end - start); ++i) {
-                            if (surfels[start + i].position.z > split) {
+                            if (surfels[start + i].m_position.z > split) {
                                 mid = start + i;
                                 break;
                             }
@@ -292,7 +292,7 @@ namespace Cyan
             buildInternal(leftChildIndex, surfels, start, mid);
             buildInternal(rightChildIndex, surfels, mid, end);
             // update current node's data based on two child nodes
-            nodes[nodeIndex].build(nodes, leftChildIndex, rightChildIndex);
+            m_nodes[nodeIndex].build(m_nodes, leftChildIndex, rightChildIndex);
         }
         else {
             // unreachable
@@ -301,7 +301,7 @@ namespace Cyan
     }
 
     void SurfelBSH::visualize(GfxContext* gfxc, RenderTarget* dstRenderTarget) {
-        if (nodes.empty()) {
+        if (m_nodes.empty()) {
             return;
         }
 
@@ -318,13 +318,13 @@ namespace Cyan
         levelFirstTraversal(activeVisLevel, numVisLevels, [this](i32 nodeIndex) {
             glm::mat4 transform(1.f);
             // todo: found a bug here, because some node's normal for some reason becomes 'nan'
-            glm::mat4 tangentFrame = calcTangentFrame(glm::normalize(nodes[nodeIndex].normal));
-            transform = glm::translate(transform, nodes[nodeIndex].center);
+            glm::mat4 tangentFrame = calcTangentFrame(glm::normalize(m_nodes[nodeIndex].normal));
+            transform = glm::translate(transform, m_nodes[nodeIndex].center);
             transform = transform * tangentFrame;
-            transform = glm::scale(transform, glm::vec3(nodes[nodeIndex].radius));
+            transform = glm::scale(transform, glm::vec3(m_nodes[nodeIndex].radius));
             Instance instanceDesc = { };
             instanceDesc.transform = transform;
-            instanceDesc.albedo = glm::vec4(nodes[nodeIndex].albedo, 1.f);
+            instanceDesc.albedo = glm::vec4(m_nodes[nodeIndex].albedo, 1.f);
             instanceDesc.debugColor = glm::vec4(1.f, 0.f, 0.f, 1.f);
             nodeInstanceBuffer.addElement(instanceDesc);
         });
@@ -357,8 +357,8 @@ namespace Cyan
         {
             StaticMesh* boundingSphere = AssetManager::getAsset<StaticMesh>("BoundingSphere");
             auto va = boundingSphere->getSubmesh(0)->getVertexArray();
-            gfxc->setPixelPipeline(pipeline, [](VertexShader* vs, PixelShader* ps) {
-                ps->setUniform("visMode", (u32)VisMode::kBoundingSphere);
+            gfxc->setPixelPipeline(pipeline, [](ProgramPipeline* p) {
+                p->setUniform("visMode", (u32)VisMode::kBoundingSphere);
             });
             gfxc->setRenderTarget(dstRenderTarget);
             gfxc->setViewport({ 0, 0, dstRenderTarget->width, dstRenderTarget->height });
@@ -370,8 +370,8 @@ namespace Cyan
         {
             StaticMesh* disk = AssetManager::getAsset<StaticMesh>("Disk");
             auto va = disk->getSubmesh(0)->getVertexArray();
-            gfxc->setPixelPipeline(pipeline, [](VertexShader* vs, PixelShader* ps) {
-                ps->setUniform("visMode", (u32)VisMode::kAlbedo);
+            gfxc->setPixelPipeline(pipeline, [](ProgramPipeline* p) {
+                p->setUniform("visMode", (u32)VisMode::kAlbedo);
             });
             gfxc->setRenderTarget(dstRenderTarget);
             gfxc->setViewport({ 0, 0, dstRenderTarget->width, dstRenderTarget->height });
@@ -394,14 +394,14 @@ namespace Cyan
         if (surfels.size() > 0) {
             numNodes = surfels.size() * 2 - 1;
         }
-        nodes.resize(numNodes);
+        m_nodes.resize(numNodes);
         // create root
-        root = !nodes.empty() ? &nodes[0] : nullptr;
+        root = !m_nodes.empty() ? &m_nodes[0] : nullptr;
         buildInternal(0, surfels, 0, surfels.size());
     }
 
     i32 CompleteSurfelBSH::getNumLevels() {
-        return log2(nodes.size() + 1) - 1;
+        return log2(m_nodes.size() + 1) - 1;
     }
 
     void CompleteSurfelBSH::visualize(GfxContext* gfxc, RenderTarget* dstRenderTarget) {
@@ -422,12 +422,12 @@ namespace Cyan
             u32 nodeIndex = startNodeIndex + i;
             glm::mat4 transform(1.f);
             // todo: found a bug here, because some node's normal for some reason becomes 'nan'
-            glm::mat4 tangentFrame = calcTangentFrame(glm::normalize(nodes[nodeIndex].normal));
-            transform = glm::translate(transform, nodes[nodeIndex].center);
+            glm::mat4 tangentFrame = calcTangentFrame(glm::normalize(m_nodes[nodeIndex].normal));
+            transform = glm::translate(transform, m_nodes[nodeIndex].center);
             transform = transform * tangentFrame;
-            transform = glm::scale(transform, glm::vec3(nodes[nodeIndex].radius));
+            transform = glm::scale(transform, glm::vec3(m_nodes[nodeIndex].radius));
             nodeInstanceBuffer[i].transform = transform;
-            nodeInstanceBuffer[i].albedo = glm::vec4(nodes[nodeIndex].albedo, 1.f);
+            nodeInstanceBuffer[i].albedo = glm::vec4(m_nodes[nodeIndex].albedo, 1.f);
             nodeInstanceBuffer[i].debugColor = glm::vec4(1.f, 0.f, 0.f, 1.f);
         };
         nodeInstanceBuffer.upload();
@@ -496,14 +496,14 @@ namespace Cyan
     void CompleteSurfelBSH::buildInternal(i32 nodeIndex, std::vector<Surfel>& surfels, u32 start, u32 end) {
         // leaf node
         if ((end - start) == 1u) { 
-            nodes[nodeIndex].build(surfels, start);
+            m_nodes[nodeIndex].build(surfels, start);
         }
         else if ((end - start) > 1u) {
             // determine dominant axis
             // todo: found a bug here, the centroid
             BoundingBox3D aabb;
             for (u32 i = 0; i < (end - start); ++i) {
-                aabb.bound(surfels[start + i].position);
+                aabb.bound(surfels[start + i].m_position);
             }
             f32 extentX = abs(aabb.pmax.x - aabb.pmin.x);
             f32 extentY = abs(aabb.pmax.y - aabb.pmin.y);
@@ -514,19 +514,19 @@ namespace Cyan
             if (extentX >= glm::max(extentY, extentZ)) {
                 std::sort(beginItr, endItr,
                     [](const Surfel& a, const Surfel& b) {
-                        return a.position.x < b.position.x;
+                        return a.m_position.x < b.m_position.x;
                     });
             }
             else if (extentY >= glm::max(extentX, extentZ)) {
                 std::sort(beginItr, endItr,
                     [](const Surfel& a, const Surfel& b) {
-                        return a.position.y < b.position.y;
+                        return a.m_position.y < b.m_position.y;
                     });
             }
             else {
                 std::sort(beginItr, endItr,
                     [](const Surfel& a, const Surfel& b) {
-                        return a.position.z < b.position.z;
+                        return a.m_position.z < b.m_position.z;
                     });
             }
             // recursively split the surfels 
@@ -537,7 +537,7 @@ namespace Cyan
             buildInternal(rightChildIndex, surfels, mid, end);
 
             // update current node's data based on two child nodes
-            nodes[nodeIndex].build(nodes, leftChildIndex, rightChildIndex);
+            m_nodes[nodeIndex].build(m_nodes, leftChildIndex, rightChildIndex);
         }
         else {
             cyanError("Num of surfels is not power of 2");

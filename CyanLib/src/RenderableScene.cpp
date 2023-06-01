@@ -14,6 +14,7 @@
 
 namespace Cyan
 {
+#if 0
     RenderableScene::RenderableScene(const Scene* inScene, const SceneView& sceneView)
     {
         // scene aabb
@@ -194,4 +195,5 @@ namespace Cyan
         indirectDrawBuffer.reset(new IndirectDrawBuffer(*src.indirectDrawBuffer));
         return *this;
     }
+#endif
 }

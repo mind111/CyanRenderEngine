@@ -1,7 +1,5 @@
 ﻿#pragma once
 
-#include "Windows.h"
-
 #include <memory>
 #include <vector>
 #include <array>
@@ -38,7 +36,7 @@ namespace Cyan
         }
     };
 
-    class Shader : public GpuResource 
+    class Shader : public GfxResource 
     {
     public:
         enum class Type
@@ -75,59 +73,24 @@ namespace Cyan
             i32 location;
         };
 
+        struct TextureBinding
+        {
+            const char* samplerName = nullptr;
+            GfxTexture* texture = nullptr;
+            i32 textureUnit = -1;
+        };
+
         struct ShaderStorageBinding
         {
-            u32 blockIndex = 0;
+            const char* blockName = nullptr;
+            i32 blockIndex = -1;
             ShaderStorageBuffer* buffer = nullptr;
+            i32 bufferUnit = -1;
         };
 
         friend class GfxContext;
 
-        Shader(const char* shaderName, const char* shaderFilePath, Type type = Type::kInvalid) 
-            : m_name(shaderName), m_source(shaderFilePath), m_type(type) 
-        {
-            u32 stringCount = m_source.includes.size() + 1;
-            std::vector<const char*> strings{ m_source.src.c_str() };
-            for (const auto& string : m_source.includes) 
-            {
-                strings.push_back(string.c_str());
-            }
-
-            /** Node - @min:
-            * According to OpenGL wiki:
-                GLuint glCreateShaderProgramv(GLenum type​, GLsizei count​, const char **strings​);
-                This works exactly as if you took count​ and strings​ strings, created a shader object from them of the type​ shader type, and then linked that shader object into a program with the GL_PROGRAM_SEPARABLE parameter. And then detaching and deleting the shader object.
-
-                This process can fail, just as compilation or linking can fail. The program infolog can thus contain compile errors as well as linking errors.
-
-                Note: glCreateShaderProgramv will return either the name of a program object or zero - independent of which errors might occur during shader compilation or linkage! A return value of zero simply states that either the shader object or program object could not be created. If a non-zero value is returned, you will still need to check the program info logs to make sure compilation and linkage succeeded! Also, the function itself may generate an error under certain conditions which will also result in zero being returned.
-                Warning: When linking shaders with separable programs, your shaders must redeclare the gl_PerVertex interface block if you attempt to use any of the variables defined within it.
-            */
-            switch (m_type) 
-            {
-            case Type::kVertex:
-                glObject = glCreateShaderProgramv(GL_VERTEX_SHADER, stringCount, strings.data());
-                break;
-            case Type::kPixel:
-                glObject = glCreateShaderProgramv(GL_FRAGMENT_SHADER, stringCount, strings.data());
-                break;
-            case Type::kGeometry:
-                glObject = glCreateShaderProgramv(GL_GEOMETRY_SHADER, stringCount, strings.data());
-                break;
-            case Type::kCompute:
-                glObject = glCreateShaderProgramv(GL_COMPUTE_SHADER, stringCount, strings.data());
-                break;
-            case Type::kInvalid:
-            default:
-                break;
-            }
-            std::string linkLog;
-            if (!getProgramInfoLog(this, ShaderInfoLogType::kLink, linkLog)) 
-            {
-                cyanError("%s", linkLog.c_str());
-            }
-            Shader::initialize(this);
-        }
+        Shader(const char* shaderName, const char* shaderFilePath, Type type = Type::kInvalid);
         virtual ~Shader() { }
 
         GLuint getProgram() { return getGpuResource(); }
@@ -135,17 +98,23 @@ namespace Cyan
         void unbind();
 
         // todo: do type checking to make sure type of 'data' matches uniform type defined in shader
+        i32 getUniformLocation(const char* name);
+        bool hasActiveUniform(const char* name);
+        bool hasShaderStorgeBlock(const char* blockName);
         Shader& setUniform(const char* name, u32 data);
         Shader& setUniform(const char* name, const u64& data);
         Shader& setUniform(const char* name, i32 data);
         Shader& setUniform(const char* name, f32 data);
         Shader& setUniform(const char* name, const glm::ivec2& data);
+        Shader& setUniform(const char* name, const glm::uvec2& data);
         Shader& setUniform(const char* name, const glm::vec2& data);
         Shader& setUniform(const char* name, const glm::vec3& data);
         Shader& setUniform(const char* name, const glm::vec4& data);
         Shader& setUniform(const char* name, const glm::mat4& data);
         Shader& setTexture(const char* samplerName, GfxTexture* texture);
         Shader& setShaderStorageBuffer(ShaderStorageBuffer* buffer);
+        void unbindTextures(GfxContext* ctx);
+        void unbindShaderStorageBuffers(GfxContext* ctx);
 
         std::string m_name;
         ShaderSource m_source;
@@ -164,10 +133,8 @@ namespace Cyan
         */
         static void initialize(Shader* shader);
 
-        i32 getUniformLocation(const char* name);
-
         std::unordered_map<std::string, UniformDesc> m_uniformMap;
-        std::unordered_map<std::string, GfxTexture*> m_samplerBindingMap;
+        std::unordered_map<std::string, TextureBinding> m_textureBindingMap;
         std::unordered_map<std::string, ShaderStorageBinding> m_shaderStorageBindingMap;
     };
 
@@ -208,7 +175,7 @@ namespace Cyan
     };
 
     // todo: maybe other gfx pipeline states can be encapsulated together with shader...? such as depth test, blending, and bluh bluh bluh
-    class ProgramPipeline : public GpuResource 
+    class ProgramPipeline : public GfxResource 
     {
     public:
         ProgramPipeline(const char* pipelineName) 
@@ -218,20 +185,28 @@ namespace Cyan
         }
         virtual ~ProgramPipeline() {}
 
-        void bind() 
-        {
-            glBindProgramPipeline(glObject);
-        }
+        bool isBound();
+        void bind(GfxContext* ctx);
+        void unbind(GfxContext* ctx);
+        virtual void resetBindings(GfxContext* ctx) { }
 
-
-        void unbind()
-        {
-            glBindProgramPipeline(0);
-        }
+        virtual void setUniform(const char* name, u32 data) = 0;
+        virtual void setUniform(const char* name, const u64& data) = 0;
+        virtual void setUniform(const char* name, i32 data) = 0; 
+        virtual void setUniform(const char* name, f32 data) = 0;
+        virtual void setUniform(const char* name, const glm::ivec2& data) = 0;
+        virtual void setUniform(const char* name, const glm::uvec2& data) = 0;
+        virtual void setUniform(const char* name, const glm::vec2& data) = 0;
+        virtual void setUniform(const char* name, const glm::vec3& data) = 0;
+        virtual void setUniform(const char* name, const glm::vec4& data) = 0;
+        virtual void setUniform(const char* name, const glm::mat4& data) = 0;
+        virtual void setTexture(const char* samplerName, GfxTexture* texture) = 0;
+        virtual void setShaderStorageBuffer(ShaderStorageBuffer* buffer) = 0;
         
         std::string m_name;
     protected:
         virtual bool initialize() { return true; }
+        bool m_bIsBound = false;
     };
 
     class PixelPipeline : public ProgramPipeline 
@@ -239,6 +214,21 @@ namespace Cyan
     public:
         PixelPipeline(const char* pipelineName, const char* vsName, const char* psName);
         PixelPipeline(const char* pipelineName, VertexShader* vertexShader, PixelShader* pixelShader);
+
+        virtual void resetBindings(GfxContext* ctx) override;
+
+        virtual void setUniform(const char* name, u32 data) override;
+        virtual void setUniform(const char* name, const u64& data) override;
+        virtual void setUniform(const char* name, i32 data) override; 
+        virtual void setUniform(const char* name, f32 data) override;
+        virtual void setUniform(const char* name, const glm::ivec2& data) override;
+        virtual void setUniform(const char* name, const glm::uvec2& data) override;
+        virtual void setUniform(const char* name, const glm::vec2& data) override;
+        virtual void setUniform(const char* name, const glm::vec3& data) override;
+        virtual void setUniform(const char* name, const glm::vec4& data) override;
+        virtual void setUniform(const char* name, const glm::mat4& data) override;
+        virtual void setTexture(const char* samplerName, GfxTexture* texture) override;
+        virtual void setShaderStorageBuffer(ShaderStorageBuffer* buffer) override;
 
         VertexShader* m_vertexShader = nullptr;
         PixelShader* m_pixelShader = nullptr;
@@ -252,6 +242,21 @@ namespace Cyan
         GeometryPipeline(const char* pipelineName, const char* vsName, const char* gsName, const char* psName);
         GeometryPipeline(const char* pipelineName, VertexShader* vertexShader, GeometryShader* geometryShader, PixelShader* pixelShader);
 
+        virtual void resetBindings(GfxContext* ctx) override;
+
+        virtual void setUniform(const char* name, u32 data) override;
+        virtual void setUniform(const char* name, const u64& data) override;
+        virtual void setUniform(const char* name, i32 data) override; 
+        virtual void setUniform(const char* name, f32 data) override;
+        virtual void setUniform(const char* name, const glm::ivec2& data) override;
+        virtual void setUniform(const char* name, const glm::uvec2& data) override;
+        virtual void setUniform(const char* name, const glm::vec2& data) override;
+        virtual void setUniform(const char* name, const glm::vec3& data) override;
+        virtual void setUniform(const char* name, const glm::vec4& data) override;
+        virtual void setUniform(const char* name, const glm::mat4& data) override;
+        virtual void setTexture(const char* samplerName, GfxTexture* texture) override;
+        virtual void setShaderStorageBuffer(ShaderStorageBuffer* buffer) override;
+
         VertexShader* m_vertexShader = nullptr;
         GeometryShader* m_geometryShader = nullptr;
         PixelShader* m_pixelShader = nullptr;
@@ -264,6 +269,22 @@ namespace Cyan
     public:
         ComputePipeline(const char* pipelineName, const char* csName);
         ComputePipeline(const char* pipelineName, ComputeShader* computeShader);
+
+        virtual void resetBindings(GfxContext* ctx) override;
+
+        virtual void setUniform(const char* name, u32 data) override;
+        virtual void setUniform(const char* name, const u64& data) override;
+        virtual void setUniform(const char* name, i32 data) override; 
+        virtual void setUniform(const char* name, f32 data) override;
+        virtual void setUniform(const char* name, const glm::ivec2& data) override;
+        virtual void setUniform(const char* name, const glm::uvec2& data) override;
+        virtual void setUniform(const char* name, const glm::vec2& data) override;
+        virtual void setUniform(const char* name, const glm::vec3& data) override;
+        virtual void setUniform(const char* name, const glm::vec4& data) override;
+        virtual void setUniform(const char* name, const glm::mat4& data) override;
+        virtual void setTexture(const char* samplerName, GfxTexture* texture) override;
+        virtual void setShaderStorageBuffer(ShaderStorageBuffer* buffer) override;
+
         ComputeShader* m_computeShader = nullptr;
     protected:
         virtual bool initialize() override;

@@ -56,7 +56,7 @@ namespace Cyan
 
     void Engine::render(const RenderFunc& renderOneFrame)
     {
-        if (m_graphicsSystem) 
+        if (m_graphicsSystem != nullptr) 
         {
             ScopedTimer rendererTimer("Renderer Timer", false);
             m_graphicsSystem->render(renderOneFrame);

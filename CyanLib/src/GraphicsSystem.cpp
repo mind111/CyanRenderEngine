@@ -2,6 +2,7 @@
 #include <imgui/imgui_impl_glfw.h>
 #include <imgui/imgui_impl_opengl3.h>
 
+#include "CyanEngine.h"
 #include "GraphicsSystem.h"
 #include "AssetManager.h"
 #include "AssetImporter.h"
@@ -11,7 +12,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-    _declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
+    _declspec(dllexport) u32 NvOptimusEnablement = 0x00000001;
 #ifdef __cplusplus
 }
 #endif
@@ -171,9 +172,9 @@ namespace Cyan
         m_ctx = std::make_unique<GfxContext>(m_glfwWindow);
         // todo: refactor asset related stuffs into something like AssetSystem
         m_assetManager = std::make_unique<AssetManager>();
-        m_assetImporter = std::make_unique<AssetImporter>();
         m_shaderManager = std::make_unique<ShaderManager>();
         m_renderer = std::make_unique<Renderer>(m_ctx.get(), windowWidth, windowHeight);
+        m_gfxCommandQueue = std::make_unique<GfxCommandQueue>();
 
         GfxTexture2D::Spec spec(m_windowDimension.x, m_windowDimension.y, 1, PF_RGB16F);
         Sampler2D sampler;
@@ -215,9 +216,40 @@ namespace Cyan
 
     }
 
+    void GraphicsSystem::GfxCommandQueue::enqueueCommand(const GfxCommand& command)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_queue.push(command);
+    }
+
+    void GraphicsSystem::GfxCommandQueue::executeCommands()
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        // todo: not draining (load balancing) the command queue to prevent stalling the rendering
+        while (!m_queue.empty())
+        {
+            auto command = m_queue.front();
+            m_queue.pop();
+            command.exec();
+        }
+    }
+
+    void GraphicsSystem::enqueueGfxCommand(const std::function<void()>& lambda)
+    {
+        GfxCommand command(lambda);
+        if (isMainThread())
+        {
+            command.exec();
+        }
+        else
+        {
+            singleton->m_gfxCommandQueue->enqueueCommand(command);
+        }
+    }
+
     void GraphicsSystem::update() 
     {
-        m_assetManager->update();
+        m_gfxCommandQueue->executeCommands();
     }
 
     void GraphicsSystem::render(const std::function<void(GfxTexture2D*)>& renderOneFrame) 
@@ -228,6 +260,6 @@ namespace Cyan
         
         renderOneFrame(m_renderingOutput.get());
 
-        m_ctx->flip();
+        m_ctx->present();
     }
 }

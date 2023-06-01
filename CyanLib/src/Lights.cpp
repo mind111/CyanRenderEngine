@@ -7,6 +7,7 @@
 
 namespace Cyan 
 {
+#if 0
     // helper function for converting world space AABB to light's view space
     BoundingBox3D calcLightSpaceAABB(const glm::vec3& inLightDirection, const BoundingBox3D& worldSpaceAABB)
     {
@@ -28,7 +29,7 @@ namespace Cyan
         glm::vec3 bc = fc + glm::vec3(0.f, 0.f, -depth);
         glm::vec3 bd = fd + glm::vec3(0.f, 0.f, -depth);
 
-        glm::mat4 lightSpaceView = glm::lookAt(glm::vec3(0.f), -inLightDirection, glm::vec3(0.f, 1.f, 0.f));
+        glm::mat4 lightSpaceView = glm::m_lookAt(glm::vec3(0.f), -inLightDirection, glm::vec3(0.f, 1.f, 0.f));
         BoundingBox3D lightSpaceAABB = { };
         lightSpaceAABB.bound(lightSpaceView * glm::vec4(fa, 1.f));
         lightSpaceAABB.bound(lightSpaceView * glm::vec4(fb, 1.f));
@@ -48,8 +49,8 @@ namespace Cyan
 
     void DirectionalLight::setShaderParameters(PixelShader* ps)
     {
-        ps->setUniform("directionalLight.colorAndIntensity", colorAndIntensity);
-        ps->setUniform("directionalLight.direction", glm::vec4(direction, 0.f));
+        p->setUniform("directionalLight.colorAndIntensity", colorAndIntensity);
+        p->setUniform("directionalLight.direction", glm::vec4(direction, 0.f));
         shadowMap->setShaderParameters(ps);
     }
 
@@ -116,7 +117,7 @@ namespace Cyan
                 { 0, 0, dstCubemap->resolution, dstCubemap->resolution },
                 cubeMesh,
                 pipeline,
-                [this, srcEquirectMap, f](VertexShader* vs, PixelShader* ps) {
+                [this, srcEquirectMap, f](ProgramPipeline* p) {
                     // Update view matrix
                     PerspectiveCamera camera(
                         glm::vec3(0.f),
@@ -127,12 +128,13 @@ namespace Cyan
                         100.f,
                         1.0f
                     );
-                    vs->setUniform("projection", camera.projection());
-                    vs->setUniform("view", camera.view());
-                    ps->setTexture("srcImageTexture", srcEquirectMap->gfxTexture.get());
+                    p->setUniform("projection", camera.projection());
+                    p->setUniform("view", camera.view());
+                    p->setTexture("srcImageTexture", srcEquirectMap->gfxTexture.get());
                 },
                 gfxPipelineState
            );
         }
     }
+#endif
 }

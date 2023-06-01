@@ -28,7 +28,7 @@ namespace Cyan
 
                 i32 nodeSize = (i32)(size * owner->sizeInPixels);
                 // found the correct slot to insert
-                if (inImage->width == nodeSize)
+                if (inImage->m_width == nodeSize)
                 {
                     // if current node is a leaf node
                     if (!bChildrenInitialized)
@@ -44,7 +44,7 @@ namespace Cyan
                     }
                     return false;
                 }
-                else if (inImage->width < nodeSize)
+                else if (inImage->m_width < nodeSize)
                 {
                     if (!bChildrenInitialized)
                     {
@@ -182,7 +182,7 @@ namespace Cyan
         i32 addSubtexture(i32 srcImageIndex, const Sampler2D& inSampler, bool bGenerateMipmap);
 
         const u32 maxSubtextureSize = 4096;
-        std::vector<Image*> images;
+        std::vector<Image*> m_images;
         std::vector<ImageTransform> imageTransforms;
         std::vector<Subtexture> subtextures;
         std::unique_ptr<ImageQuadTree> imageQuadTree;

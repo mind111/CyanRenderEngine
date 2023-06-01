@@ -6,16 +6,20 @@
 
 namespace Cyan 
 {
-    class GpuResource 
+    /**
+     * GfxResource is basically an encapsulation of graphics API object, in GL's context, such as a vertex buffer object,
+        a vertex array object and so on.
+     */
+    class GfxResource 
     {
     public:
-        GpuResource()
+        GfxResource()
             : glObject(-1) 
         { }
 
         u32 getGpuResource() const { return glObject; }
         // todo: this operator is not robust as object id can get recycled, so same id doesn't guarantee same object
-        bool operator==(const GpuResource& rhs) { return glObject == rhs.getGpuResource(); }
+        bool operator==(const GfxResource& rhs) { return glObject == rhs.getGpuResource(); }
 
     protected:
         GLuint glObject;
@@ -25,9 +29,9 @@ namespace Cyan
 namespace std
 {
     template <>
-    struct hash<Cyan::GpuResource>
+    struct hash<Cyan::GfxResource>
     {
-        std::size_t operator()(const Cyan::GpuResource& gpuResource) const
+        std::size_t operator()(const Cyan::GfxResource& gpuResource) const
         {
             return std::hash<GLuint>()(gpuResource.getGpuResource());
         }

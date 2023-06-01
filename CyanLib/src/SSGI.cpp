@@ -6,6 +6,7 @@
 
 namespace Cyan
 {
+#if 0
     std::unique_ptr<SSGI> SSGI::s_instance = nullptr;
 
     SSGI* SSGI::create(const glm::uvec2& inResolution)
@@ -29,7 +30,7 @@ namespace Cyan
         : numLayers(inNumLayers)
     {
         GfxTexture2DArray::Spec spec(resolution.x, resolution.y, 1, numLayers, PF_RGBA16F);
-        position = GfxTexture2DArray::create(spec, Sampler2D());
+        m_position = GfxTexture2DArray::create(spec, Sampler2D());
         normal = GfxTexture2DArray::create(spec, Sampler2D());
         radiance = GfxTexture2DArray::create(spec, Sampler2D());
     }
@@ -106,20 +107,20 @@ namespace Cyan
                 pass.setRenderTarget(outIndirectIrradiance.getGfxTexture2D(), 2);
             },
             pipeline,
-            [this, gBuffer, sceneDepth, HiZ, inDirectDiffuseBuffer, &scene](VertexShader* vs, PixelShader* ps) {
-                ps->setShaderStorageBuffer(scene.viewBuffer.get());
-                ps->setUniform("outputSize", glm::vec2(sceneDepth->width, sceneDepth->height));
-                ps->setTexture("depthBuffer", sceneDepth);
-                ps->setTexture("normalBuffer", gBuffer.normal.getGfxTexture2D());
-                ps->setTexture("HiZ", HiZ.texture.getGfxTexture2D());
-                ps->setUniform("numLevels", (i32)HiZ.texture.getGfxTexture2D()->numMips);
-                ps->setUniform("kMaxNumIterations", (i32)numIterations);
+            [this, gBuffer, sceneDepth, HiZ, inDirectDiffuseBuffer, &scene](ProgramPipeline* p) {
+                p->setShaderStorageBuffer(scene.viewBuffer.get());
+                p->setUniform("outputSize", glm::vec2(sceneDepth->width, sceneDepth->height));
+                p->setTexture("depthBuffer", sceneDepth);
+                p->setTexture("normalBuffer", gBuffer.normal.getGfxTexture2D());
+                p->setTexture("HiZ", HiZ.texture.getGfxTexture2D());
+                p->setUniform("numLevels", (i32)HiZ.texture.getGfxTexture2D()->numMips);
+                p->setUniform("kMaxNumIterations", (i32)numIterations);
                 auto blueNoiseTexture = AssetManager::getAsset<Texture2D>("BlueNoise_1024x1024_RGBA");
-                ps->setTexture("blueNoiseTexture", blueNoiseTexture->gfxTexture.get());
-                ps->setTexture("directLightingBuffer", inDirectDiffuseBuffer.getGfxTexture2D());
-                ps->setUniform("numSamples", (i32)numSamples);
+                p->setTexture("blueNoiseTexture", blueNoiseTexture->gfxTexture.get());
+                p->setTexture("directLightingBuffer", inDirectDiffuseBuffer.getGfxTexture2D());
+                p->setUniform("numSamples", (i32)numSamples);
 
-                glBindImageTexture(0, hitBuffer.position->getGpuResource(), 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
+                glBindImageTexture(0, hitBuffer.m_position->getGpuResource(), 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
                 glBindImageTexture(1, hitBuffer.normal->getGpuResource(), 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
                 glBindImageTexture(2, hitBuffer.radiance->getGpuResource(), 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
             }
@@ -139,17 +140,17 @@ namespace Cyan
                     pass.setRenderTarget(outIndirectIrradiance.getGfxTexture2D(), 2);
                 },
                 pipeline,
-                [this, gBuffer, &scene](VertexShader* vs, PixelShader* ps) {
-                    ps->setShaderStorageBuffer(scene.viewBuffer.get());
-                    ps->setTexture("depthBuffer", gBuffer.depth.getGfxDepthTexture2D());
-                    ps->setTexture("normalBuffer", gBuffer.normal.getGfxTexture2D());
-                    ps->setTexture("hitPositionBuffer", hitBuffer.position);
-                    ps->setTexture("hitNormalBuffer", hitBuffer.normal);
-                    ps->setTexture("hitRadianceBuffer", hitBuffer.radiance);
+                [this, gBuffer, &scene](ProgramPipeline* p) {
+                    p->setShaderStorageBuffer(scene.viewBuffer.get());
+                    p->setTexture("depthBuffer", gBuffer.depth.getGfxDepthTexture2D());
+                    p->setTexture("normalBuffer", gBuffer.normal.getGfxTexture2D());
+                    p->setTexture("hitPositionBuffer", hitBuffer.m_position);
+                    p->setTexture("hitNormalBuffer", hitBuffer.normal);
+                    p->setTexture("hitRadianceBuffer", hitBuffer.radiance);
                     auto blueNoiseTexture = AssetManager::getAsset<Texture2D>("BlueNoise_1024x1024_RGBA");
-                    ps->setTexture("blueNoiseTexture", blueNoiseTexture->gfxTexture.get());
-                    ps->setUniform("reuseKernelRadius", reuseKernelRadius);
-                    ps->setUniform("numReuseSamples", numReuseSamples);
+                    p->setTexture("blueNoiseTexture", blueNoiseTexture->gfxTexture.get());
+                    p->setUniform("reuseKernelRadius", reuseKernelRadius);
+                    p->setUniform("numReuseSamples", numReuseSamples);
                 }
             );
         }
@@ -200,42 +201,42 @@ namespace Cyan
                     pass.setRenderTarget(aoRenderTarget, 0);
                 },
                 pipeline,
-                [this, gBuffer, sceneDepth, sceneNormal, &scene](VertexShader* vs, PixelShader* ps) {
-                    ps->setShaderStorageBuffer(scene.viewBuffer.get());
-                    ps->setUniform("outputSize", glm::vec2(sceneDepth->width, sceneDepth->height));
-                    ps->setTexture("sceneDepthTexture", sceneDepth);
-                    ps->setTexture("sceneNormalTexture", sceneNormal);
+                [this, gBuffer, sceneDepth, sceneNormal, &scene](ProgramPipeline* p) {
+                    p->setShaderStorageBuffer(scene.viewBuffer.get());
+                    p->setUniform("outputSize", glm::vec2(sceneDepth->width, sceneDepth->height));
+                    p->setTexture("sceneDepthTexture", sceneDepth);
+                    p->setTexture("sceneNormalTexture", sceneNormal);
 
-                    ps->setTexture("blueNoiseTextures_16x16_R[0]", blueNoiseTextures_16x16[0]->getGfxResource());
-                    ps->setTexture("blueNoiseTextures_16x16_R[1]", blueNoiseTextures_16x16[1]->getGfxResource());
-                    ps->setTexture("blueNoiseTextures_16x16_R[2]", blueNoiseTextures_16x16[2]->getGfxResource());
-                    ps->setTexture("blueNoiseTextures_16x16_R[3]", blueNoiseTextures_16x16[3]->getGfxResource());
-                    ps->setTexture("blueNoiseTextures_16x16_R[4]", blueNoiseTextures_16x16[4]->getGfxResource());
-                    ps->setTexture("blueNoiseTextures_16x16_R[5]", blueNoiseTextures_16x16[5]->getGfxResource());
-                    ps->setTexture("blueNoiseTextures_16x16_R[6]", blueNoiseTextures_16x16[6]->getGfxResource());
-                    ps->setTexture("blueNoiseTextures_16x16_R[7]", blueNoiseTextures_16x16[7]->getGfxResource());
+                    p->setTexture("blueNoiseTextures_16x16_R[0]", blueNoiseTextures_16x16[0]->getGfxResource());
+                    p->setTexture("blueNoiseTextures_16x16_R[1]", blueNoiseTextures_16x16[1]->getGfxResource());
+                    p->setTexture("blueNoiseTextures_16x16_R[2]", blueNoiseTextures_16x16[2]->getGfxResource());
+                    p->setTexture("blueNoiseTextures_16x16_R[3]", blueNoiseTextures_16x16[3]->getGfxResource());
+                    p->setTexture("blueNoiseTextures_16x16_R[4]", blueNoiseTextures_16x16[4]->getGfxResource());
+                    p->setTexture("blueNoiseTextures_16x16_R[5]", blueNoiseTextures_16x16[5]->getGfxResource());
+                    p->setTexture("blueNoiseTextures_16x16_R[6]", blueNoiseTextures_16x16[6]->getGfxResource());
+                    p->setTexture("blueNoiseTextures_16x16_R[7]", blueNoiseTextures_16x16[7]->getGfxResource());
 
                     auto blueNoiseTexture_1024x1024 = AssetManager::getAsset<Texture2D>("BlueNoise_1024x1024_RGBA");
-                    ps->setTexture("blueNoiseTexture_1024x1024_RGBA", blueNoiseTexture_1024x1024->gfxTexture.get());
+                    p->setTexture("blueNoiseTexture_1024x1024_RGBA", blueNoiseTexture_1024x1024->gfxTexture.get());
 
-                    ps->setUniform("numSamples", (i32)numSamples);
-                    ps->setUniform("frameCount", frameCount);
+                    p->setUniform("numSamples", (i32)numSamples);
+                    p->setUniform("frameCount", frameCount);
 
                     if (frameCount > 0)
                     {
-                        ps->setUniform("prevFrameView", prevFrameView);
-                        ps->setUniform("prevFrameProjection", prevFrameProjection);
+                        p->setUniform("prevFrameView", prevFrameView);
+                        p->setUniform("prevFrameProjection", prevFrameProjection);
 
                         glBindSampler(32, depthBilinearSampler);
-                        ps->setUniform("prevFrameSceneDepthTexture", 32);
+                        p->setUniform("prevFrameSceneDepthTexture", 32);
                         glBindTextureUnit(32, prevSceneDepth.getGfxTexture2D()->getGpuResource());
 
                         glBindSampler(33, SSAOHistoryBilinearSampler);
-                        ps->setUniform("AOHistoryBuffer", 33);
+                        p->setUniform("AOHistoryBuffer", 33);
                         glBindTextureUnit(33, AOHistoryBuffer.getGfxTexture2D()->getGpuResource());
 
-                        // ps->setTexture("prevFrameSceneDepthTexture", prevSceneDepth);
-                        ps->setTexture("AOHistoryBuffer", AOHistoryBuffer.getGfxTexture2D());
+                        // p->setTexture("prevFrameSceneDepthTexture", prevSceneDepth);
+                        p->setTexture("AOHistoryBuffer", AOHistoryBuffer.getGfxTexture2D());
                     }
                 }
             );
@@ -263,16 +264,16 @@ namespace Cyan
                     pass.setRenderTarget(indirectIrradianceRenderTarget, 0);
                 },
                 pipeline,
-                [this, gBuffer, sceneDepth, sceneNormal, inDirectDiffuseBuffer, &scene](VertexShader* vs, PixelShader* ps) {
-                    ps->setShaderStorageBuffer(scene.viewBuffer.get());
-                    ps->setUniform("outputSize", glm::vec2(sceneDepth->width, sceneDepth->height));
-                    ps->setTexture("sceneDepthTexture", sceneDepth);
-                    ps->setTexture("sceneNormalTexture", sceneNormal);
-                    ps->setTexture("diffuseRadianceBuffer", inDirectDiffuseBuffer.getGfxTexture2D());
+                [this, gBuffer, sceneDepth, sceneNormal, inDirectDiffuseBuffer, &scene](ProgramPipeline* p) {
+                    p->setShaderStorageBuffer(scene.viewBuffer.get());
+                    p->setUniform("outputSize", glm::vec2(sceneDepth->width, sceneDepth->height));
+                    p->setTexture("sceneDepthTexture", sceneDepth);
+                    p->setTexture("sceneNormalTexture", sceneNormal);
+                    p->setTexture("diffuseRadianceBuffer", inDirectDiffuseBuffer.getGfxTexture2D());
                     auto blueNoiseTexture_1024x1024 = AssetManager::getAsset<Texture2D>("BlueNoise_1024x1024_RGBA");
-                    ps->setTexture("blueNoiseTexture_1024x1024_RGBA", blueNoiseTexture_1024x1024->gfxTexture.get());
-                    ps->setUniform("numSamples", (i32)numSamples);
-                    ps->setUniform("normalErrorTolerance", indirectIrradianceNormalErrTolerance);
+                    p->setTexture("blueNoiseTexture_1024x1024_RGBA", blueNoiseTexture_1024x1024->gfxTexture.get());
+                    p->setUniform("numSamples", (i32)numSamples);
+                    p->setUniform("normalErrorTolerance", indirectIrradianceNormalErrTolerance);
                 }
             );
         }
@@ -292,10 +293,10 @@ namespace Cyan
                     pass.setRenderTarget(aoRenderTarget, 0);
                 },
                 pipeline,
-                [this, outAO, AOSamplingPassOutput, sceneDepth, &scene](VertexShader* vs, PixelShader* ps) {
-                    ps->setShaderStorageBuffer(scene.viewBuffer.get());
-                    ps->setTexture("sceneDepthTexture", sceneDepth);
-                    ps->setTexture("aoTexture", AOSamplingPassOutput.getGfxTexture2D());
+                [this, outAO, AOSamplingPassOutput, sceneDepth, &scene](ProgramPipeline* p) {
+                    p->setShaderStorageBuffer(scene.viewBuffer.get());
+                    p->setTexture("sceneDepthTexture", sceneDepth);
+                    p->setTexture("aoTexture", AOSamplingPassOutput.getGfxTexture2D());
                 }
             );
         }
@@ -308,7 +309,7 @@ namespace Cyan
         const i32 kNumSamplesPerDir = 32;
         struct Sample
         {
-            glm::vec4 position;
+            glm::vec4 m_position;
             glm::vec4 radiance;
         };
         struct SampleBuffer
@@ -373,8 +374,8 @@ namespace Cyan
                 CreateVS(vs, "DrawScreenSpacePointVS", SHADER_SOURCE_PATH "ssgi_draw_indirect_irradiance_samples_v.glsl");
                 CreatePS(ps, "DrawScreenSpacePointPS", SHADER_SOURCE_PATH "ssgi_draw_indirect_irradiance_samples_p.glsl");
                 CreatePixelPipeline(pipeline, "DrawScreenSpacePoint", vs, ps);
-                ctx->setPixelPipeline(pipeline, [](VertexShader* vs, PixelShader* ps) {
-                    vs->setShaderStorageBuffer(&sampleBuffer);
+                ctx->setPixelPipeline(pipeline, [](ProgramPipeline* p) {
+                    p->setShaderStorageBuffer(&sampleBuffer);
                 });
                 u32 numVerts = cpuFrontSampleBuffer.numSamples + cpuBackSampleBuffer.numSamples;
                 ctx->setVertexArray(VertexArray::getDummyVertexArray());
@@ -430,24 +431,24 @@ namespace Cyan
                 pass.setRenderTarget(renderTarget, 0);
             },
             pipeline,
-            [this, out, HiZ, inDirectDiffuseBuffer, sceneDepth, sceneNormal, &scene, src](VertexShader* vs, PixelShader* ps) {
-                ps->setShaderStorageBuffer(scene.viewBuffer.get());
-                ps->setUniform("outputSize", glm::vec2(out->width, out->height));
+            [this, out, HiZ, inDirectDiffuseBuffer, sceneDepth, sceneNormal, &scene, src](ProgramPipeline* p) {
+                p->setShaderStorageBuffer(scene.viewBuffer.get());
+                p->setUniform("outputSize", glm::vec2(out->width, out->height));
 
-                ps->setTexture("HiZ", HiZ.texture.getGfxTexture2D());
-                ps->setUniform("numLevels", (i32)HiZ.texture.getGfxTexture2D()->numMips);
-                ps->setUniform("kMaxNumIterations", (i32)numIterations);
+                p->setTexture("HiZ", HiZ.texture.getGfxTexture2D());
+                p->setUniform("numLevels", (i32)HiZ.texture.getGfxTexture2D()->numMips);
+                p->setUniform("kMaxNumIterations", (i32)numIterations);
 
-                ps->setTexture("sceneDepthBuffer", sceneDepth);
-                ps->setTexture("sceneNormalBuffer", sceneNormal); 
-                ps->setTexture("diffuseRadianceBuffer", inDirectDiffuseBuffer.getGfxTexture2D());
+                p->setTexture("sceneDepthBuffer", sceneDepth);
+                p->setTexture("sceneNormalBuffer", sceneNormal); 
+                p->setTexture("diffuseRadianceBuffer", inDirectDiffuseBuffer.getGfxTexture2D());
 
-                ps->setUniform("frameCount", frameCount);
-                ps->setTexture("temporalIndirectIrradianceBuffer", temporalIndirectIrradianceBuffer[src].getGfxTexture2D());
+                p->setUniform("frameCount", frameCount);
+                p->setTexture("temporalIndirectIrradianceBuffer", temporalIndirectIrradianceBuffer[src].getGfxTexture2D());
 
-                ps->setUniform("prevFrameView", prevFrameView);
-                ps->setUniform("prevFrameProjection", prevFrameProjection);
-                ps->setTexture("prevFrameSceneDepthBuffer", prevFrameSceneDepth.getGfxTexture2D());
+                p->setUniform("prevFrameView", prevFrameView);
+                p->setUniform("prevFrameProjection", prevFrameProjection);
+                p->setTexture("prevFrameSceneDepthBuffer", prevFrameSceneDepth.getGfxTexture2D());
             }
         );
 
@@ -512,28 +513,28 @@ namespace Cyan
                         }
                 },
                 pipeline,
-                [this, out, HiZ, inDirectDiffuseBuffer, sceneDepth, sceneNormal, &scene, temporalPassSrc](VertexShader* vs, PixelShader* ps) {
-                    ps->setShaderStorageBuffer(scene.viewBuffer.get());
-                    ps->setUniform("outputSize", glm::vec2(out->width, out->height));
+                [this, out, HiZ, inDirectDiffuseBuffer, sceneDepth, sceneNormal, &scene, temporalPassSrc](ProgramPipeline* p) {
+                    p->setShaderStorageBuffer(scene.viewBuffer.get());
+                    p->setUniform("outputSize", glm::vec2(out->width, out->height));
 
-                    ps->setTexture("HiZ", HiZ.texture.getGfxTexture2D());
-                    ps->setUniform("numLevels", (i32)HiZ.texture.getGfxTexture2D()->numMips);
-                    ps->setUniform("kMaxNumIterations", (i32)numIterations);
-                    ps->setUniform("useReSTIR", bUseReSTIR ? 1.f : 0.f);
+                    p->setTexture("HiZ", HiZ.texture.getGfxTexture2D());
+                    p->setUniform("numLevels", (i32)HiZ.texture.getGfxTexture2D()->numMips);
+                    p->setUniform("kMaxNumIterations", (i32)numIterations);
+                    p->setUniform("useReSTIR", bUseReSTIR ? 1.f : 0.f);
 
-                    ps->setTexture("sceneDepthBuffer", sceneDepth);
-                    ps->setTexture("sceneNormalBuffer", sceneNormal); 
-                    ps->setTexture("diffuseRadianceBuffer", inDirectDiffuseBuffer.getGfxTexture2D());
+                    p->setTexture("sceneDepthBuffer", sceneDepth);
+                    p->setTexture("sceneNormalBuffer", sceneNormal); 
+                    p->setTexture("diffuseRadianceBuffer", inDirectDiffuseBuffer.getGfxTexture2D());
 
-                    ps->setUniform("frameCount", frameCount);
-                    ps->setTexture("temporalReservoirRadiance", temporalReservoirRadiances[temporalPassSrc].getGfxTexture2D());
-                    ps->setTexture("temporalReservoirSamplePosition", temporalReservoirSamplePositions[temporalPassSrc].getGfxTexture2D());
-                    ps->setTexture("temporalReservoirSampleNormal", temporalReservoirSampleNormals[temporalPassSrc].getGfxTexture2D());
-                    ps->setTexture("temporalReservoirWSumMW", temporalReservoirWSumMW[temporalPassSrc].getGfxTexture2D());
+                    p->setUniform("frameCount", frameCount);
+                    p->setTexture("temporalReservoirRadiance", temporalReservoirRadiances[temporalPassSrc].getGfxTexture2D());
+                    p->setTexture("temporalReservoirSamplePosition", temporalReservoirSamplePositions[temporalPassSrc].getGfxTexture2D());
+                    p->setTexture("temporalReservoirSampleNormal", temporalReservoirSampleNormals[temporalPassSrc].getGfxTexture2D());
+                    p->setTexture("temporalReservoirWSumMW", temporalReservoirWSumMW[temporalPassSrc].getGfxTexture2D());
 
-                    ps->setUniform("prevFrameView", prevFrameView);
-                    ps->setUniform("prevFrameProjection", prevFrameProjection);
-                    ps->setTexture("prevFrameSceneDepthBuffer", prevFrameSceneDepth.getGfxTexture2D());
+                    p->setUniform("prevFrameView", prevFrameView);
+                    p->setUniform("prevFrameProjection", prevFrameProjection);
+                    p->setTexture("prevFrameSceneDepthBuffer", prevFrameSceneDepth.getGfxTexture2D());
                 }
             );
 
@@ -580,11 +581,11 @@ namespace Cyan
                         }
                     },
                     pipeline,
-                    [this, src](VertexShader* vs, PixelShader* ps) {
-                        ps->setTexture("temporalReservoirRadiance", temporalReservoirRadiances[src].getGfxTexture2D());
-                        ps->setTexture("temporalReservoirSamplePosition", temporalReservoirSamplePositions[src].getGfxTexture2D());
-                        ps->setTexture("temporalReservoirSampleNormal", temporalReservoirSampleNormals[src].getGfxTexture2D());
-                        ps->setTexture("temporalReservoirWSumMW", temporalReservoirWSumMW[src].getGfxTexture2D());
+                    [this, src](ProgramPipeline* p) {
+                        p->setTexture("temporalReservoirRadiance", temporalReservoirRadiances[src].getGfxTexture2D());
+                        p->setTexture("temporalReservoirSamplePosition", temporalReservoirSamplePositions[src].getGfxTexture2D());
+                        p->setTexture("temporalReservoirSampleNormal", temporalReservoirSampleNormals[src].getGfxTexture2D());
+                        p->setTexture("temporalReservoirWSumMW", temporalReservoirWSumMW[src].getGfxTexture2D());
                     }
                 );
             }
@@ -621,20 +622,20 @@ namespace Cyan
                         }
                     },
                     pipeline,
-                    [this, i, out, inDirectDiffuseBuffer, sceneDepth, sceneNormal, src, spatialReservoirRadiances, spatialReservoirSamplePositions, spatialReservoirSampleNormals, spatialReservoirWSumMW, &scene](VertexShader* vs, PixelShader* ps) {
-                        ps->setShaderStorageBuffer(scene.viewBuffer.get());
-                        ps->setUniform("numSamples", numSpatialReuseSamples);
-                        ps->setUniform("outputSize", glm::vec2(out->width, out->height));
-                        ps->setTexture("sceneDepthBuffer", sceneDepth);
-                        ps->setTexture("sceneNormalBuffer", sceneNormal);
-                        ps->setUniform("iteration", i);
-                        ps->setUniform("reuseKernelRadius", ReSTIRSpatialReuseKernalRadius);
-                        ps->setUniform("frameCount", frameCount);
+                    [this, i, out, inDirectDiffuseBuffer, sceneDepth, sceneNormal, src, spatialReservoirRadiances, spatialReservoirSamplePositions, spatialReservoirSampleNormals, spatialReservoirWSumMW, &scene](ProgramPipeline* p) {
+                        p->setShaderStorageBuffer(scene.viewBuffer.get());
+                        p->setUniform("numSamples", numSpatialReuseSamples);
+                        p->setUniform("outputSize", glm::vec2(out->width, out->height));
+                        p->setTexture("sceneDepthBuffer", sceneDepth);
+                        p->setTexture("sceneNormalBuffer", sceneNormal);
+                        p->setUniform("iteration", i);
+                        p->setUniform("reuseKernelRadius", ReSTIRSpatialReuseKernalRadius);
+                        p->setUniform("frameCount", frameCount);
 
-                        ps->setTexture("spatialReservoirRadiance", spatialReservoirRadiances[src].getGfxTexture2D());
-                        ps->setTexture("spatialReservoirSamplePosition", spatialReservoirSamplePositions[src].getGfxTexture2D());
-                        ps->setTexture("spatialReservoirSampleNormal", spatialReservoirSampleNormals[src].getGfxTexture2D());
-                        ps->setTexture("spatialReservoirWSumMW", spatialReservoirWSumMW[src].getGfxTexture2D());
+                        p->setTexture("spatialReservoirRadiance", spatialReservoirRadiances[src].getGfxTexture2D());
+                        p->setTexture("spatialReservoirSamplePosition", spatialReservoirSamplePositions[src].getGfxTexture2D());
+                        p->setTexture("spatialReservoirSampleNormal", spatialReservoirSampleNormals[src].getGfxTexture2D());
+                        p->setTexture("spatialReservoirWSumMW", spatialReservoirWSumMW[src].getGfxTexture2D());
                     }
                 );
             }
@@ -657,20 +658,20 @@ namespace Cyan
                     pass.setRenderTarget(renderTarget, 0);
                 },
                 pipeline,
-                [this, out, sceneDepth, sceneNormal, &scene, spatialPassDst, temporalPassDst, spatialReservoirRadiances, spatialReservoirSamplePositions, spatialReservoirSampleNormals, spatialReservoirWSumMW](VertexShader* vs, PixelShader* ps) {
-                    ps->setShaderStorageBuffer(scene.viewBuffer.get());
-                    ps->setTexture("sceneDepthBuffer", sceneDepth);
-                    ps->setTexture("sceneNormalBuffer", sceneNormal);
+                [this, out, sceneDepth, sceneNormal, &scene, spatialPassDst, temporalPassDst, spatialReservoirRadiances, spatialReservoirSamplePositions, spatialReservoirSampleNormals, spatialReservoirWSumMW](ProgramPipeline* p) {
+                    p->setShaderStorageBuffer(scene.viewBuffer.get());
+                    p->setTexture("sceneDepthBuffer", sceneDepth);
+                    p->setTexture("sceneNormalBuffer", sceneNormal);
 #if APPLY_SPATIAL_REUSE
-                    ps->setTexture("reservoirRadiance", spatialReservoirRadiances[spatialPassDst].getGfxTexture2D());
-                    ps->setTexture("reservoirSamplePosition", spatialReservoirSamplePositions[spatialPassDst].getGfxTexture2D());
-                    ps->setTexture("reservoirSampleNormal", spatialReservoirSampleNormals[spatialPassDst].getGfxTexture2D());
-                    ps->setTexture("reservoirWSumMW", spatialReservoirWSumMW[spatialPassDst].getGfxTexture2D());
+                    p->setTexture("reservoirRadiance", spatialReservoirRadiances[spatialPassDst].getGfxTexture2D());
+                    p->setTexture("reservoirSamplePosition", spatialReservoirSamplePositions[spatialPassDst].getGfxTexture2D());
+                    p->setTexture("reservoirSampleNormal", spatialReservoirSampleNormals[spatialPassDst].getGfxTexture2D());
+                    p->setTexture("reservoirWSumMW", spatialReservoirWSumMW[spatialPassDst].getGfxTexture2D());
 #else
-                    ps->setTexture("reservoirRadiance", temporalReservoirRadiances[temporalPassDst].getGfxTexture2D());
-                    ps->setTexture("reservoirSamplePosition", temporalReservoirSamplePositions[temporalPassDst].getGfxTexture2D());
-                    ps->setTexture("reservoirSampleNormal", temporalReservoirSampleNormals[temporalPassDst].getGfxTexture2D());
-                    ps->setTexture("reservoirWSumMW", temporalReservoirWSumMW[temporalPassDst].getGfxTexture2D());
+                    p->setTexture("reservoirRadiance", temporalReservoirRadiances[temporalPassDst].getGfxTexture2D());
+                    p->setTexture("reservoirSamplePosition", temporalReservoirSamplePositions[temporalPassDst].getGfxTexture2D());
+                    p->setTexture("reservoirSampleNormal", temporalReservoirSampleNormals[temporalPassDst].getGfxTexture2D());
+                    p->setTexture("reservoirWSumMW", temporalReservoirWSumMW[temporalPassDst].getGfxTexture2D());
 #endif
                 }
             );
@@ -691,14 +692,15 @@ namespace Cyan
                     pass.setRenderTarget(renderTarget, 0);
                 },
                 pipeline,
-                [this, sceneDepth, unfilteredIndirectIrradiance, &scene](VertexShader* vs, PixelShader* ps) {
-                    ps->setShaderStorageBuffer(scene.viewBuffer.get());
-                    ps->setTexture("sceneDepthBuffer", sceneDepth);
-                    ps->setTexture("unfilteredIndirectIrradiance", unfilteredIndirectIrradiance.getGfxTexture2D());
+                [this, sceneDepth, unfilteredIndirectIrradiance, &scene](ProgramPipeline* p) {
+                    p->setShaderStorageBuffer(scene.viewBuffer.get());
+                    p->setTexture("sceneDepthBuffer", sceneDepth);
+                    p->setTexture("unfilteredIndirectIrradiance", unfilteredIndirectIrradiance.getGfxTexture2D());
                 }
             );
         }
 
         frameCount++;
     }
+#endif
 }

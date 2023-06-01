@@ -6,14 +6,14 @@ namespace Cyan
     std::unordered_multimap<GfxDepthTexture2D::Spec, GfxDepthTexture2D*> RenderDepthTexture2D::cache;
 
     RenderTexture::RenderTexture(const char* inName)
-        : name(inName), refCount(nullptr)
+        : m_name(inName), refCount(nullptr)
     {
         refCount = std::make_shared<u32>(1);
     }
 
     RenderTexture::RenderTexture(const RenderTexture& src)
     {
-        name = src.name;
+        m_name = src.m_name;
         refCount = src.refCount;
         (*refCount)++;
     }
@@ -24,7 +24,7 @@ namespace Cyan
         {
             (*refCount)--;
         }
-        name = src.name;
+        m_name = src.m_name;
         refCount = src.refCount;
         (*refCount)++;
         return *this;

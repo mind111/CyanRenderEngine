@@ -58,8 +58,8 @@ public:
         CreatePS(ps, "BlitPS", SHADER_SOURCE_PATH "blit_p.glsl");
         CreatePixelPipeline(pipeline, "BlitQuad", vs, ps);
         renderer->drawFullscreenQuad(framebuffer, pipeline, [this](Cyan::VertexShader* vs, Cyan::PixelShader* ps) {
-            ps->setTexture("srcTexture", materialManager->atlases[index]->atlas.get());
-            ps->setUniform("mip", mipLevel);
+            p->setTexture("srcTexture", materialManager->atlases[index]->atlas.get());
+            p->setUniform("mip", mipLevel);
         });
         renderer->renderToScreen(sceneRenderingOutput);
     }

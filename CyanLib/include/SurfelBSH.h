@@ -22,7 +22,7 @@ namespace Cyan {
 
         struct Node {
             void build(const std::vector<Surfel>& surfels, u32 surfelIndex);
-            void build(const std::vector<Node>& nodes, u32 leftChildIndex, u32 rightChildIndex);
+            void build(const std::vector<Node>& m_nodes, u32 leftChildIndex, u32 rightChildIndex);
             bool isLeaf() const { return (childs[0] < 0 && childs[1] < 0); }
             bool intersect(const glm::vec3& ro, const glm::vec3& rd, f32& t) const;
 
@@ -62,7 +62,7 @@ namespace Cyan {
 
         Node* root = nullptr;
         std::vector<Surfel> surfels;
-        std::vector<Node> nodes;
+        std::vector<Node> m_nodes;
         ShaderStorageBuffer<DynamicSsboData<GpuNode>> gpuNodes;
         std::vector<Node> leafNodes;
     protected:
@@ -92,7 +92,7 @@ namespace Cyan {
 
         BSHNode* root = nullptr;
         std::vector<Surfel> surfels;
-        std::vector<BSHNode> nodes;
+        std::vector<BSHNode> m_nodes;
 
     private:
         ShaderStorageBuffer<DynamicSsboData<Instance>> nodeInstanceBuffer;

@@ -4,6 +4,7 @@
 
 namespace Cyan
 {
+#if 0
     struct ILightComponent : public Component
     {
         ILightComponent(Entity* owner, const char* name) 
@@ -82,4 +83,5 @@ namespace Cyan
 
         PointLight pointLight;
     };
+#endif
 }

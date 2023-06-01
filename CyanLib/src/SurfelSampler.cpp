@@ -326,7 +326,7 @@ namespace Cyan {
         const f32 kEpsilon = 0.1;
         for (i32 i = 0; i < outSurfels.size(); ++i) {
             for (i32 j = i + 1; j < outSurfels.size(); ++j) {
-                f32 dist = glm::distance(outSurfels[i].position, outSurfels[j].position);
+                f32 dist = glm::distance(outSurfels[i].m_position, outSurfels[j].m_position);
                 // todo: also need to take normal into account
                 if (dist <= kEpsilon) {
                     duplicatedSet.insert(j);
@@ -357,7 +357,7 @@ namespace Cyan {
             CreateVS(vs, "DebugDrawSamplePointVS", SHADER_SOURCE_PATH "debug_draw_sample_points_v.glsl");
             CreatePS(ps, "DebugDrawSamplePointPS", SHADER_SOURCE_PATH "debug_draw_sample_points_p.glsl");
             CreatePixelPipeline(pipeline, "DebugDrawSamplePoint", vs, ps);
-            gfxc->setPixelPipeline(pipeline, [](VertexShader* vs, PixelShader* ps) {
+            gfxc->setPixelPipeline(pipeline, [](ProgramPipeline* p) {
 
             });
             auto sphere = AssetManager::getAsset<StaticMesh>("Sphere");

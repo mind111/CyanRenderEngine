@@ -25,7 +25,7 @@ namespace Cyan
         // convert world space hit back to object space
         glm::vec3 hitPosObjectSpace = vec4ToVec3(glm::inverse(worldTransformMatrix) * glm::vec4(hitPosition, 1.f));
 
-        auto parent = rayHit.m_node->m_meshInstance->m_mesh;
+        auto parent = rayHit.m_node->m_staticMeshInstance->m_mesh;
         auto tri = parent->getTriangle(rayHit.smIndex, rayHit.triIndex);
         return computeBaryCoord(tri, hitPosObjectSpace);
     }
@@ -33,7 +33,7 @@ namespace Cyan
     // return surface normal at ray hit in world space
     glm::vec3 getSurfaceNormal(RayCastInfo& rayHit, glm::vec3& baryCoord)
     {
-        auto parent = rayHit.m_node->m_meshInstance->m_mesh;
+        auto parent = rayHit.m_node->m_staticMeshInstance->m_mesh;
         auto sm = parent->m_subMeshes[rayHit.smIndex];
         u32 vertexOffset = rayHit.triIndex * 3;
         glm::vec3 normal = baryCoord.x * sm->m_triangles.normals[vertexOffset]

@@ -52,8 +52,8 @@ namespace Cyan
                     pass.setRenderTarget(RenderTarget(gfxTexture, 0, glm::vec4(1.f)), 0);
                 },
                 pipeline,
-                [srcDepthTexture](VertexShader* vs, PixelShader* ps) {
-                    ps->setTexture("srcDepthTexture", srcDepthTexture);
+                [srcDepthTexture](ProgramPipeline* p) {
+                    p->setTexture("srcDepthTexture", srcDepthTexture);
                 }
             );
         }
@@ -76,9 +76,9 @@ namespace Cyan
                         pass.setRenderTarget(RenderTarget(gfxTexture, dst), 0);
                     },
                     pipeline,
-                    [this, src, gfxTexture](VertexShader* vs, PixelShader* ps) {
-                        ps->setUniform("srcMip", src);
-                        ps->setTexture("srcDepthTexture", gfxTexture);
+                    [this, src, gfxTexture](ProgramPipeline* p) {
+                        p->setUniform("srcMip", src);
+                        p->setTexture("srcDepthTexture", gfxTexture);
                     }
                 );
             }
@@ -106,6 +106,7 @@ namespace Cyan
         return outTexture;
     }
 
+#if 0
     Renderer::SceneTextures* Renderer::SceneTextures::create(const glm::uvec2& inResolution)
     {
         static std::unique_ptr<SceneTextures> s_sceneTextures = nullptr;
@@ -151,6 +152,7 @@ namespace Cyan
         renderer->registerVisualization(std::string("SceneTextures"), "BentNormal", bentNormal.getGfxTexture2D());
         renderer->registerVisualization(std::string("SceneTextures"), "Irradiance", irradiance.getGfxTexture2D());
     }
+#endif
 
     Renderer::Renderer(GfxContext* ctx, u32 windowWidth, u32 windowHeight)
         : m_ctx(ctx),
@@ -161,6 +163,7 @@ namespace Cyan
 
     void Renderer::initialize() 
     {
+        m_quad = AssetManager::findAsset<StaticMesh>("FullScreenQuadMesh");
     }
 
     void Renderer::deinitialize() 
@@ -171,38 +174,39 @@ namespace Cyan
         ImGui::DestroyContext();
     }
 
-    void Renderer::drawStaticMesh(const glm::uvec2& framebufferSize, const std::function<void(RenderPass&)>& renderTargetSetupLambda, const Viewport& viewport, StaticMesh* mesh, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda, const GfxPipelineState& gfxPipelineState)
+    void Renderer::drawStaticMesh(const glm::uvec2& framebufferSize, const std::function<void(RenderPass&)>& setupRenderTarget, const Viewport& viewport, StaticMesh* mesh, PixelPipeline* pipeline, const ShaderSetupFunc& setupShader, const GfxPipelineState& gfxPipelineState)
     {
         RenderPass pass(framebufferSize.x, framebufferSize.y);
-        renderTargetSetupLambda(pass);
+        setupRenderTarget(pass);
         pass.viewport = viewport;
         pass.gfxPipelineState = gfxPipelineState;
-        pass.drawLambda = [mesh, pipeline, &shaderSetupLambda](GfxContext* ctx) {
-            ctx->setPixelPipeline(pipeline, shaderSetupLambda);
-            for (u32 i = 0; i < mesh->numSubmeshes(); ++i) 
+        pass.drawLambda = [mesh, pipeline, &setupShader](GfxContext* ctx) {
+            pipeline->bind(ctx);
+            setupShader(pipeline);
+            for (u32 i = 0; i < mesh->getNumSubmeshes(); ++i) 
             {
-                StaticMesh::Submesh* sm = mesh->getSubmesh(i);
-                auto va = sm->getVertexArray();
-                ctx->setVertexArray(va);
+                auto sm = (*mesh)[i];
+                ctx->setVertexArray(sm->va.get());
                 ctx->drawIndex(sm->numIndices());
             }
+            pipeline->unbind(ctx);
         };
         pass.render(m_ctx);
     }
 
-    void Renderer::drawFullscreenQuad(const glm::uvec2& framebufferSize, const std::function<void(RenderPass&)>& renderTargetSetupLambda, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda)
+    void Renderer::drawFullscreenQuad(const glm::uvec2& framebufferSize, const std::function<void(RenderPass&)>& renderTargetSetupLambda, PixelPipeline* pipeline, const ShaderSetupFunc& setupShader)
     {
         Viewport viewport = { 0, 0, framebufferSize.x, framebufferSize.y };
         GfxPipelineState gfxPipelineState;
         gfxPipelineState.depth = DepthControl::kDisable;
-        drawStaticMesh(framebufferSize, renderTargetSetupLambda, {0, 0, framebufferSize.x, framebufferSize.y }, AssetManager::getAsset<StaticMesh>("FullScreenQuadMesh"), pipeline, shaderSetupLambda, gfxPipelineState);
+        drawStaticMesh(framebufferSize, renderTargetSetupLambda, {0, 0, framebufferSize.x, framebufferSize.y }, m_quad.get(), pipeline, setupShader, gfxPipelineState);
     }
 
-    void Renderer::drawScreenQuad(const glm::uvec2& framebufferSize, const std::function<void(RenderPass&)>& renderTargetSetupLambda, const Viewport& viewport, PixelPipeline* pipeline, const std::function<void(VertexShader*, PixelShader*)>& shaderSetupLambda)
+    void Renderer::drawScreenQuad(const glm::uvec2& framebufferSize, const std::function<void(RenderPass&)>& renderTargetSetupLambda, const Viewport& viewport, PixelPipeline* pipeline, const ShaderSetupFunc& setupShader)
     {
         GfxPipelineState gfxPipelineState;
         gfxPipelineState.depth = DepthControl::kDisable;
-        drawStaticMesh(framebufferSize, renderTargetSetupLambda, viewport, AssetManager::getAsset<StaticMesh>("FullScreenQuadMesh"), pipeline, shaderSetupLambda, gfxPipelineState);
+        drawStaticMesh(framebufferSize, renderTargetSetupLambda, viewport, m_quad.get(), pipeline, setupShader, gfxPipelineState);
     }
 
     void Renderer::drawColoredScreenSpaceQuad(GfxTexture2D* outTexture, const glm::vec2& screenSpaceMin, const glm::vec2& screenSpaceMax, const glm::vec4& color)
@@ -221,14 +225,16 @@ namespace Cyan
         CreatePS(ps, "ColoredQuadPS", SHADER_SOURCE_PATH "colored_quad_p.glsl");
         CreatePixelPipeline(pipeline, "ColoredQuad", vs, ps);
 
-        drawStaticMesh(glm::uvec2(outTexture->width, outTexture->height), [outTexture](RenderPass& pass) {
+        drawStaticMesh(
+            glm::uvec2(outTexture->width, outTexture->height), 
+            [outTexture](RenderPass& pass) {
                 pass.setRenderTarget(outTexture, 0);
             },
             viewport,
-            AssetManager::getAsset<StaticMesh>("FullScreenQuadMesh"),
+            m_quad.get(),
             pipeline,
-            [color](VertexShader* vs, PixelShader* ps) {
-                ps->setUniform("color", color);
+            [color](ProgramPipeline* p) {
+                p->setUniform("color", color);
             },
             gfxPipelineState
         );
@@ -253,6 +259,7 @@ namespace Cyan
         m_frameAllocator.reset();
     }
 
+#if 0
     void Renderer::render(Scene* scene, const SceneView& sceneView) 
     {
         beginRender();
@@ -263,11 +270,8 @@ namespace Cyan
             // render shadow maps first 
             renderShadowMaps(scene);
 
-            // build scene rendering data
-            RenderableScene renderableScene(scene, sceneView);
-
             // depth prepass
-            renderSceneDepthPrepass(renderableScene, m_sceneTextures->gBuffer.depth);
+            renderSceneDepthPrepass(scene, m_sceneTextures->gBuffer.depth);
 
             // build Hi-Z buffer
             m_sceneTextures->HiZ.build(m_sceneTextures->gBuffer.depth.getGfxDepthTexture2D());
@@ -299,6 +303,93 @@ namespace Cyan
         } 
         endRender();
     }
+#else
+
+    void Renderer::render(Scene* scene)
+    {
+        // render each view
+        for (auto render : scene->m_renders)
+        {
+            render->update();
+            // todo: render shadow maps
+            renderSceneDepthPrepass(render->depth(), scene, render->m_viewParameters);
+            renderSceneGBuffer(render->albedo(), render->normal(), render->metallicRoughness(), render->depth(), scene, render->m_viewParameters);
+            // post processing
+        }
+    }
+
+    void Renderer::renderSceneDepthPrepass(GfxDepthTexture2D* outDepthBuffer, Scene* scene, const SceneRender::ViewParameters& viewParameters)
+    {
+        GPU_DEBUG_SCOPE(sceneDepthPrepassMarker, "Scene Depth Prepass");
+
+        if (outDepthBuffer)
+        {
+            CreateVS(vs, "StaticMeshVS", SHADER_SOURCE_PATH "static_mesh_v.glsl");
+            CreatePS(ps, "DepthOnlyPS", SHADER_SOURCE_PATH "depth_only_p.glsl");
+            CreatePixelPipeline(pipeline, "SceneDepthPrepass", vs, ps);
+
+            RenderPass pass(outDepthBuffer->width, outDepthBuffer->height);
+            pass.viewport = { 0, 0, outDepthBuffer->width, outDepthBuffer->height };
+            pass.setDepthBuffer(outDepthBuffer);
+            pass.drawLambda = [&scene, pipeline, viewParameters](GfxContext* ctx) { 
+                pipeline->bind(ctx);
+                viewParameters.setShaderParameters(pipeline);
+                for (auto instance : scene->m_staticMeshInstances)
+                {
+                    pipeline->setUniform("localToWorld", instance->localToWorld.toMatrix());
+                    auto mesh = instance->parent;
+                    for (i32 i = 0; i < mesh->getNumSubmeshes(); ++i)
+                    {
+                        auto sm = (*mesh)[i];
+                        ctx->setVertexArray(sm->va.get());
+                        ctx->drawIndex(sm->numIndices());
+                    }
+                }
+                pipeline->unbind(ctx);
+            };
+            pass.render(m_ctx);
+        }
+    }
+
+    void Renderer::renderSceneGBuffer(GfxTexture2D* outAlbedo, GfxTexture2D* outNormal, GfxTexture2D* outMetallicRoughness, GfxDepthTexture2D* depth, Scene* scene, const SceneRender::ViewParameters& viewParameters)
+    {
+        GPU_DEBUG_SCOPE(sceneGBufferPassMarker, "Scene GBuffer Pass");
+
+        if (outAlbedo != nullptr && outNormal != nullptr && outMetallicRoughness != nullptr && depth != nullptr && scene != nullptr)
+        {
+            CreateVS(vs, "StaticMeshVS", SHADER_SOURCE_PATH "static_mesh_v.glsl");
+            CreatePS(ps, "SceneGBufferPS", SHADER_SOURCE_PATH "gbuffer_p.glsl");
+            CreatePixelPipeline(pipeline, "SceneGBufferPass", vs, ps);
+
+            RenderPass pass(outAlbedo->width, outAlbedo->height);
+            pass.viewport = { 0, 0, outAlbedo->width, outAlbedo->height };
+            pass.setRenderTarget(outAlbedo, 0);
+            pass.setRenderTarget(outNormal, 1);
+            pass.setRenderTarget(outMetallicRoughness, 2);
+            pass.setDepthBuffer(depth);
+            pass.drawLambda = [&scene, pipeline, viewParameters](GfxContext* ctx) { 
+                pipeline->bind(ctx);
+                viewParameters.setShaderParameters(pipeline);
+                for (auto instance : scene->m_staticMeshInstances)
+                {
+                    pipeline->setUniform("localToWorld", instance->localToWorld.toMatrix());
+                    auto mesh = instance->parent;
+                    for (i32 i = 0; i < mesh->getNumSubmeshes(); ++i)
+                    {
+                        auto sm = (*mesh)[i];
+                        auto material = (*instance)[i];
+                        material->setShaderParameters(pipeline->m_pixelShader);
+                        ctx->setVertexArray(sm->va.get());
+                        ctx->drawIndex(sm->numIndices());
+                    }
+                }
+                pipeline->unbind(ctx);
+            };
+            pass.render(m_ctx);
+        }
+    }
+
+#endif
 
     void Renderer::visualize(GfxTexture2D* dst, GfxTexture2D* src, i32 mip) 
     {
@@ -312,9 +403,9 @@ namespace Cyan
                 pass.setRenderTarget(RenderTarget(dst, mip), 0);
             },
             pipeline,
-            [this, src, mip](VertexShader* vs, PixelShader* ps) {
-                ps->setTexture("srcTexture", src);
-                ps->setUniform("mip", mip);
+            [this, src, mip](ProgramPipeline* p) {
+                p->setTexture("srcTexture", src);
+                p->setUniform("mip", mip);
             });
     }
 
@@ -331,14 +422,14 @@ namespace Cyan
                 pass.setRenderTarget(dst, 0);
             },
             pipeline,
-            [this, src](VertexShader* vs, PixelShader* ps) {
-                ps->setTexture("srcTexture", src);
-                ps->setUniform("mip", (i32)0);
+            [this, src](ProgramPipeline* p) {
+                p->setTexture("srcTexture", src);
+                p->setUniform("mip", (i32)0);
             }
         );
     }
 
-    void Renderer::renderToScreen(GfxTexture2D* inTexture)
+    void Renderer::renderToScreen(GfxTexture2D* texture)
     {
         GPU_DEBUG_SCOPE(presentMarker, "Render to Screen");
 
@@ -352,9 +443,9 @@ namespace Cyan
             [](RenderPass& pass) {
             },
             pipeline,
-            [this, inTexture](VertexShader* vs, PixelShader* ps) {
-                ps->setTexture("srcTexture", inTexture);
-                ps->setUniform("mip", (i32)0);
+            [this, texture](ProgramPipeline* p) {
+                p->setTexture("srcTexture", texture);
+                p->setUniform("mip", (i32)0);
             }
         );
     }
@@ -363,6 +454,7 @@ namespace Cyan
     {
     }
 
+#if 0
     void Renderer::renderShadowMaps(Scene* inScene) 
     {
         GPU_DEBUG_SCOPE(shadowMapPassMarker, "Build ShadowMap");
@@ -392,13 +484,13 @@ namespace Cyan
             CreatePixelPipeline(pipeline, "SceneDepthPrepass", vs, ps);
             pass.drawLambda = [&scene, pipeline](GfxContext* ctx) { 
                 auto vs = pipeline->m_vertexShader;
-                vs->setShaderStorageBuffer(StaticMesh::getGlobalSubmeshBuffer());
-                vs->setShaderStorageBuffer(StaticMesh::getGlobalVertexBuffer());
-                vs->setShaderStorageBuffer(StaticMesh::getGlobalIndexBuffer());
-                vs->setShaderStorageBuffer(scene.viewBuffer.get());
-                vs->setShaderStorageBuffer(scene.transformBuffer.get());
-                vs->setShaderStorageBuffer(scene.instanceBuffer.get());
-                vs->setShaderStorageBuffer(scene.instanceLUTBuffer.get());
+                p->setShaderStorageBuffer(StaticMesh::getGlobalSubmeshBuffer());
+                p->setShaderStorageBuffer(StaticMesh::getGlobalVertexBuffer());
+                p->setShaderStorageBuffer(StaticMesh::getGlobalIndexBuffer());
+                p->setShaderStorageBuffer(scene.viewBuffer.get());
+                p->setShaderStorageBuffer(scene.transformBuffer.get());
+                p->setShaderStorageBuffer(scene.instanceBuffer.get());
+                p->setShaderStorageBuffer(scene.instanceLUTBuffer.get());
 
                 ctx->setPixelPipeline(pipeline);
                 // hack: suppress no vertex array bound gl error
@@ -408,7 +500,9 @@ namespace Cyan
             pass.render(m_ctx);
         }
     }
+#endif
 
+#if 0
     void Renderer::renderSceneDepthOnly(RenderableScene& scene, GfxDepthTexture2D* outDepthTexture)
     {
         GPU_DEBUG_SCOPE(sceneDepthPassMarker, "Scene Depth");
@@ -422,13 +516,13 @@ namespace Cyan
         pass.gfxPipelineState.depth = DepthControl::kEnable;
         pass.drawLambda = [&scene, pipeline](GfxContext* ctx) { 
             auto vs = pipeline->m_vertexShader;
-            vs->setShaderStorageBuffer(StaticMesh::getGlobalSubmeshBuffer());
-            vs->setShaderStorageBuffer(StaticMesh::getGlobalVertexBuffer());
-            vs->setShaderStorageBuffer(StaticMesh::getGlobalIndexBuffer());
-            vs->setShaderStorageBuffer(scene.viewBuffer.get());
-            vs->setShaderStorageBuffer(scene.transformBuffer.get());
-            vs->setShaderStorageBuffer(scene.instanceBuffer.get());
-            vs->setShaderStorageBuffer(scene.instanceLUTBuffer.get());
+            p->setShaderStorageBuffer(StaticMesh::getGlobalSubmeshBuffer());
+            p->setShaderStorageBuffer(StaticMesh::getGlobalVertexBuffer());
+            p->setShaderStorageBuffer(StaticMesh::getGlobalIndexBuffer());
+            p->setShaderStorageBuffer(scene.viewBuffer.get());
+            p->setShaderStorageBuffer(scene.transformBuffer.get());
+            p->setShaderStorageBuffer(scene.instanceBuffer.get());
+            p->setShaderStorageBuffer(scene.instanceLUTBuffer.get());
 
             ctx->setPixelPipeline(pipeline);
             // hack: suppress no vertex array bound gl error
@@ -437,6 +531,7 @@ namespace Cyan
         };
         pass.render(m_ctx);
     }
+#endif
 
 #ifdef BINDLESS_TEXTURE
     void Renderer::renderSceneGBufferBindless(const RenderableScene& scene, GBuffer gBuffer)
@@ -526,14 +621,14 @@ namespace Cyan
             // todo: maybe it's worth moving those shader storage buffer cached in "scene" into each function as a
             // static variable, and every time this function is called, reset the data of those persistent gpu buffers
             auto vs = pipeline->m_vertexShader;
-            vs->setShaderStorageBuffer(StaticMesh::getGlobalSubmeshBuffer());
-            vs->setShaderStorageBuffer(StaticMesh::getGlobalVertexBuffer());
-            vs->setShaderStorageBuffer(StaticMesh::getGlobalIndexBuffer());
-            vs->setShaderStorageBuffer(scene.viewBuffer.get());
-            vs->setShaderStorageBuffer(scene.transformBuffer.get());
-            vs->setShaderStorageBuffer(scene.instanceBuffer.get());
-            vs->setShaderStorageBuffer(scene.instanceLUTBuffer.get());
-            vs->setShaderStorageBuffer(bindlessMaterialBuffer.get());
+            p->setShaderStorageBuffer(StaticMesh::getGlobalSubmeshBuffer());
+            p->setShaderStorageBuffer(StaticMesh::getGlobalVertexBuffer());
+            p->setShaderStorageBuffer(StaticMesh::getGlobalIndexBuffer());
+            p->setShaderStorageBuffer(scene.viewBuffer.get());
+            p->setShaderStorageBuffer(scene.transformBuffer.get());
+            p->setShaderStorageBuffer(scene.instanceBuffer.get());
+            p->setShaderStorageBuffer(scene.instanceLUTBuffer.get());
+            p->setShaderStorageBuffer(bindlessMaterialBuffer.get());
 
             ctx->setPixelPipeline(pipeline);
             // hack: suppress no vertex array bound gl error
@@ -544,7 +639,117 @@ namespace Cyan
     }
 #endif
 
-    // todo: implement this
+#if 0
+    void Renderer::renderSceneGBuffer(Scene* scene, GBuffer gBuffer)
+    {
+        GPU_DEBUG_SCOPE(sceneGBufferPassMarker, "Scene GBuffer")
+
+        auto albedo = gBuffer.albedo.getGfxTexture2D();
+        auto normal = gBuffer.normal.getGfxTexture2D();
+        auto metallicRoughness = gBuffer.metallicRoughness.getGfxTexture2D();
+        RenderPass pass(albedo->width, albedo->height);
+        pass.viewport = { 0, 0, albedo->width, albedo->height };
+        pass.setRenderTarget(albedo, 0);
+        pass.setRenderTarget(normal, 1);
+        pass.setRenderTarget(metallicRoughness, 2);
+        pass.setDepthBuffer(gBuffer.depth.getGfxDepthTexture2D());
+        CreateVS(vs, "SceneNonBindlessGBufferPassVS", SHADER_SOURCE_PATH "scene_gbuffer_pass_non_bindless_v.glsl");
+        CreatePS(ps, "SceneNonBindlessGBufferPassPS", SHADER_SOURCE_PATH "scene_gbuffer_pass_non_bindless_p.glsl");
+        CreatePixelPipeline(pipeline, "SceneGBufferPass", vs, ps);
+
+        pass.drawLambda = [&scene, pipeline](GfxContext* ctx) {
+            auto vs = pipeline->m_vertexShader;
+            // todo: implement scene view
+            p->setShaderStorageBuffer(scene.viewBuffer.get());
+            auto ps = pipeline->m_pixelShader;
+
+            for (i32 i = 0; i < scene->m_staticMeshInstances.size(); ++i)
+            {
+                auto instance = scene->m_staticMeshInstances[i];
+                p->setUniform("localToWorld", instance->localToWorld.toMatrix());
+                auto mesh = instance->parent;
+                for (i32 i = 0; i < mesh->getNumSubmeshes(); ++i)
+                {
+                    auto sm = (*mesh)[i];
+                    // set material data
+                    auto material = (*instance)[i];
+                    // todo: shader should be queried from a material, instead of passing a shader to material
+                    material->setShaderParameters(ps);
+                    ctx->setPixelPipeline(pipeline);
+                    ctx->setVertexArray(sm->va.get());
+                    ctx->drawIndex(sm->numIndices());
+                }
+            }
+        };
+        pass.render(m_ctx);
+    }
+
+    void Renderer::renderSceneLighting(RenderTexture2D outSceneColor, Scene* scene, GBuffer gBuffer)
+    {
+        GPU_DEBUG_SCOPE(sceneLightingPassMarker, "Scene Lighting");
+
+        renderSceneDirectLighting(m_sceneTextures->directLighting, scene, gBuffer);
+        renderSceneIndirectLighting(m_sceneTextures->indirectLighting, scene, gBuffer);
+
+        CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
+        CreatePS(ps, "SceneLightingPassPS", SHADER_SOURCE_PATH "scene_lighting_p.glsl");
+        CreatePixelPipeline(pipeline, "SceneLightingPass", vs, ps);
+
+        // combine direct lighting with indirect lighting
+        auto outTexture = outSceneColor.getGfxTexture2D();
+        drawFullscreenQuad(
+            glm::uvec2(outTexture->width, outTexture->height),
+            [outTexture](RenderPass& pass) {
+                pass.setRenderTarget(outTexture, 0);
+            },
+            pipeline,
+            [this](ProgramPipeline* p) {
+                p->setTexture("directLightingTexture", m_sceneTextures->directLighting.getGfxTexture2D());
+                p->setTexture("indirectLightingTexture", m_sceneTextures->indirectLighting.getGfxTexture2D());
+            }
+        );
+    }
+
+    void Renderer::renderSceneDirectLighting(RenderTexture2D outDirectLighting, Scene* scene, GBuffer gBuffer)
+    {
+        GPU_DEBUG_SCOPE(sceneDirectLightingPassMarker, "Scene Direct");
+
+        CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
+        CreatePS(ps, "SceneDirectLightingPS", SHADER_SOURCE_PATH "scene_direct_lighting_p.glsl");
+        CreatePixelPipeline(pipeline, "SceneDirectLightingPass", vs, ps);
+
+        auto outDirectLightingGfx = outDirectLighting.getGfxTexture2D();
+        drawFullscreenQuad(
+            glm::uvec2(outDirectLightingGfx->width, outDirectLightingGfx->height),
+            [outDirectLightingGfx, this](RenderPass& pass) {
+                pass.setRenderTarget(outDirectLightingGfx, 0);
+                pass.setRenderTarget(RenderTarget(m_sceneTextures->directDiffuseLighting.getGfxTexture2D()), 1);
+            },
+            pipeline,
+            [gBuffer, &scene](ProgramPipeline* p) {
+                // directionalLight parameters
+                scene->sunLight->setShaderParameters(ps);
+
+                // p->setShaderStorageBuffer(scene.viewBuffer.get());
+                p->setTexture("sceneDepth", gBuffer.depth.getGfxDepthTexture2D());
+                p->setTexture("sceneNormal", gBuffer.normal.getGfxTexture2D());
+                p->setTexture("sceneAlbedo", gBuffer.albedo.getGfxTexture2D());
+                p->setTexture("sceneMetallicRoughness", gBuffer.metallicRoughness.getGfxTexture2D());
+            }
+        );
+
+        if (scene.skybox)
+        {
+            scene.skybox->render(m_sceneTextures->directLighting, gBuffer.depth, scene.view.view, scene.view.projection);
+        }
+    }
+
+    void Renderer::renderSceneIndirectLighting(RenderTexture2D outIndirectLighting, Scene* scene, GBuffer gBuffer)
+    {
+    }
+#endif
+
+#if 0
     void Renderer::renderSceneGBufferNonBindless(const RenderableScene& scene, GBuffer gBuffer)
     {
         GPU_DEBUG_SCOPE(sceneGBufferPassMarker, "Scene GBuffer")
@@ -564,13 +769,13 @@ namespace Cyan
         pass.drawLambda = [&scene, pipeline](GfxContext* ctx) {
             // bind shared data,
             auto vs = pipeline->m_vertexShader;
-            vs->setShaderStorageBuffer(scene.viewBuffer.get());
-            vs->setShaderStorageBuffer(scene.transformBuffer.get());
+            p->setShaderStorageBuffer(scene.viewBuffer.get());
+            p->setShaderStorageBuffer(scene.transformBuffer.get());
             auto ps = pipeline->m_pixelShader;
 
             for (i32 i = 0; i < scene.meshInstances.size(); ++i)
             {
-                vs->setUniform("instanceID", i);
+                p->setUniform("instanceID", i);
 
                 auto meshInstance = scene.meshInstances[i];
                 auto mesh = meshInstance->mesh;
@@ -612,9 +817,9 @@ namespace Cyan
                 pass.setRenderTarget(outTexture, 0);
             },
             pipeline,
-            [this](VertexShader* vs, PixelShader* ps) {
-                ps->setTexture("directLightingTexture", m_sceneTextures->directLighting.getGfxTexture2D());
-                ps->setTexture("indirectLightingTexture", m_sceneTextures->indirectLighting.getGfxTexture2D());
+            [this](ProgramPipeline* p) {
+                p->setTexture("directLightingTexture", m_sceneTextures->directLighting.getGfxTexture2D());
+                p->setTexture("indirectLightingTexture", m_sceneTextures->indirectLighting.getGfxTexture2D());
             }
         );
     }
@@ -634,15 +839,15 @@ namespace Cyan
                 pass.setRenderTarget(RenderTarget(m_sceneTextures->directDiffuseLighting.getGfxTexture2D()), 1);
             },
             pipeline,
-            [gBuffer, &scene](VertexShader* vs, PixelShader* ps) {
+            [gBuffer, &scene](ProgramPipeline* p) {
                 // directionalLight parameters
                 scene.sunLight->setShaderParameters(ps);
 
-                ps->setShaderStorageBuffer(scene.viewBuffer.get());
-                ps->setTexture("sceneDepth", gBuffer.depth.getGfxDepthTexture2D());
-                ps->setTexture("sceneNormal", gBuffer.normal.getGfxTexture2D());
-                ps->setTexture("sceneAlbedo", gBuffer.albedo.getGfxTexture2D());
-                ps->setTexture("sceneMetallicRoughness", gBuffer.metallicRoughness.getGfxTexture2D());
+                p->setShaderStorageBuffer(scene.viewBuffer.get());
+                p->setTexture("sceneDepth", gBuffer.depth.getGfxDepthTexture2D());
+                p->setTexture("sceneNormal", gBuffer.normal.getGfxTexture2D());
+                p->setTexture("sceneAlbedo", gBuffer.albedo.getGfxTexture2D());
+                p->setTexture("sceneMetallicRoughness", gBuffer.metallicRoughness.getGfxTexture2D());
             }
         );
 
@@ -677,24 +882,24 @@ namespace Cyan
                 pass.setRenderTarget(outTexture, 0);
             },
             pipeline,
-            [this, &scene, gBuffer](VertexShader* vs, PixelShader* ps) {
-                ps->setShaderStorageBuffer(scene.viewBuffer.get());
-                ps->setTexture("sceneDepth", gBuffer.depth.getGfxDepthTexture2D());
-                ps->setTexture("sceneNormal", gBuffer.normal.getGfxTexture2D());
-                ps->setTexture("sceneAlbedo", gBuffer.albedo.getGfxTexture2D());
-                ps->setTexture("sceneMetallicRoughness", gBuffer.metallicRoughness.getGfxTexture2D());
+            [this, &scene, gBuffer](ProgramPipeline* p) {
+                p->setShaderStorageBuffer(scene.viewBuffer.get());
+                p->setTexture("sceneDepth", gBuffer.depth.getGfxDepthTexture2D());
+                p->setTexture("sceneNormal", gBuffer.normal.getGfxTexture2D());
+                p->setTexture("sceneAlbedo", gBuffer.albedo.getGfxTexture2D());
+                p->setTexture("sceneMetallicRoughness", gBuffer.metallicRoughness.getGfxTexture2D());
 
                 // setup ssao
-                ps->setTexture("ssao", m_sceneTextures->ao.getGfxTexture2D());
-                ps->setUniform("ssaoEnabled", m_settings.bSSAOEnabled ? 1.f : 0.f);
+                p->setTexture("ssao", m_sceneTextures->ao.getGfxTexture2D());
+                p->setUniform("ssaoEnabled", m_settings.bSSAOEnabled ? 1.f : 0.f);
 
                 // setup ssbn
-                ps->setTexture("ssbn", m_sceneTextures->bentNormal.getGfxTexture2D());
-                ps->setUniform("ssbnEnabled", m_settings.bBentNormalEnabled ? 1.f : 0.f);
+                p->setTexture("ssbn", m_sceneTextures->bentNormal.getGfxTexture2D());
+                p->setUniform("ssbnEnabled", m_settings.bBentNormalEnabled ? 1.f : 0.f);
 
                 // setup indirect irradiance
-                ps->setTexture("indirectIrradiance", m_sceneTextures->irradiance.getGfxTexture2D());
-                ps->setUniform("indirectIrradianceEnabled", m_settings.bIndirectIrradianceEnabled ? 1.f : 0.f);
+                p->setTexture("indirectIrradiance", m_sceneTextures->irradiance.getGfxTexture2D());
+                p->setUniform("indirectIrradianceEnabled", m_settings.bIndirectIrradianceEnabled ? 1.f : 0.f);
 
                 // sky light
                 /* note
@@ -703,14 +908,16 @@ namespace Cyan
                 */
                 if (scene.skyLight)
                 {
-                    ps->setTexture("skyLight.irradiance", scene.skyLight->irradianceProbe->m_convolvedIrradianceTexture.get());
-                    ps->setTexture("skyLight.reflection", scene.skyLight->reflectionProbe->m_convolvedReflectionTexture.get());
-                    ps->setTexture("skyLight.BRDFLookupTexture", ReflectionProbe::getBRDFLookupTexture());
+                    p->setTexture("skyLight.irradiance", scene.skyLight->irradianceProbe->m_convolvedIrradianceTexture.get());
+                    p->setTexture("skyLight.reflection", scene.skyLight->reflectionProbe->m_convolvedReflectionTexture.get());
+                    p->setTexture("skyLight.BRDFLookupTexture", ReflectionProbe::getBRDFLookupTexture());
                 }
             }
         );
     }
+#endif
 
+#if 0
     // todo: move this into SSGI
     void Renderer::visualizeSSRT(GfxTexture2D* depth, GfxTexture2D* normal)
     {
@@ -856,19 +1063,20 @@ namespace Cyan
                 drawFullscreenQuad(
                     framebuffer,
                     pipeline,
-                    [this](VertexShader* vs, PixelShader* ps) {
-                        ps->setTexture("sceneDepth", m_sceneTextures->gBuffer.depth.getGfxDepthTexture2D());
-                        ps->setTexture("sceneNormal", m_sceneTextures->gBuffer.normal.getGfxTexture2D());
-                        ps->setTexture("directDiffuseBuffer", m_sceneTextures->gBuffer.normal.getGfxTexture2D());
-                        ps->setUniform("numLevels", (i32)m_sceneTextures->HiZ.texture.getGfxTexture2D());
-                        ps->setTexture("HiZ", m_sceneTextures->HiZ.texture.getGfxTexture2D());
-                        ps->setUniform("kMaxNumIterations", kNumIterations);
+                    [this](ProgramPipeline* p) {
+                        p->setTexture("sceneDepth", m_sceneTextures->gBuffer.depth.getGfxDepthTexture2D());
+                        p->setTexture("sceneNormal", m_sceneTextures->gBuffer.normal.getGfxTexture2D());
+                        p->setTexture("directDiffuseBuffer", m_sceneTextures->gBuffer.normal.getGfxTexture2D());
+                        p->setUniform("numLevels", (i32)m_sceneTextures->HiZ.texture.getGfxTexture2D());
+                        p->setTexture("HiZ", m_sceneTextures->HiZ.texture.getGfxTexture2D());
+                        p->setUniform("kMaxNumIterations", kNumIterations);
                     }
                 );
 #endif
             }
         }
     }
+#endif
 
     // todo: try to defer drawing debug objects till after the post-processing pass
     void Renderer::drawWorldSpacePoints(Framebuffer* framebuffer, const std::vector<Vertex>& points)
@@ -964,13 +1172,13 @@ namespace Cyan
     {
     }
 
+#if 0
     void Renderer::renderSceneGBufferWithTextureAtlas(Framebuffer* outFramebuffer, RenderableScene& scene, GBuffer gBuffer)
     {
-#if 0
         CreateVS(vs, "SceneColorPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
         CreatePS(ps, "SceneGBufferWithTextureAtlasPassPS", SHADER_SOURCE_PATH "scene_gbuffer_texture_atlas_p.glsl");
         CreatePixelPipeline(pipeline, "SceneGBufferWithTextureAtlasPass", vs, ps);
-        m_ctx->setPixelPipeline(pipeline, [](VertexShader* vs, PixelShader* ps) {
+        m_ctx->setPixelPipeline(pipeline, [](ProgramPipeline* p) {
         });
 
         outFramebuffer->setColorBuffer(gBuffer.albedo.getGfxTexture2D(), 0);
@@ -986,8 +1194,8 @@ namespace Cyan
         m_ctx->setDepthControl(DepthControl::kEnable);
         scene.bind(m_ctx);
         m_ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get());
-#endif
     }
+#endif
 
     void Renderer::downsample(GfxTexture2D* src, GfxTexture2D* dst) 
     {
@@ -1001,8 +1209,8 @@ namespace Cyan
                 pass.setRenderTarget(dst, 0);
             },
             pipeline, 
-            [src](VertexShader* vs, PixelShader* ps) {
-                ps->setTexture("srcTexture", src);
+            [src](ProgramPipeline* p) {
+                p->setTexture("srcTexture", src);
             }
         );
     }
@@ -1019,8 +1227,8 @@ namespace Cyan
                 pass.setRenderTarget(dst, 0);
             },
             pipeline, 
-            [src](VertexShader* vs, PixelShader* ps) {
-                ps->setTexture("srcTexture", src);
+            [src](ProgramPipeline* p) {
+                p->setTexture("srcTexture", src);
             }
         );
     }
@@ -1043,8 +1251,8 @@ namespace Cyan
                 pass.setRenderTarget(bloomSetupGfxTexture, 0);
             },
             pipeline,
-            [src](VertexShader* vs, PixelShader* ps) {
-                ps->setTexture("srcTexture", src);
+            [src](ProgramPipeline* p) {
+                p->setTexture("srcTexture", src);
             }
         );
 
@@ -1084,9 +1292,9 @@ namespace Cyan
                     pass.setRenderTarget(dst, 0);
                 },
                 pipeline,
-                [src, blend](VertexShader* vs, PixelShader* ps) {
-                    ps->setTexture("srcTexture", src);
-                    ps->setTexture("blendTexture", blend);
+                [src, blend](ProgramPipeline* p) {
+                    p->setTexture("srcTexture", src);
+                    p->setTexture("blendTexture", blend);
                 }
             );
         };
@@ -1128,21 +1336,24 @@ namespace Cyan
                 pass.setRenderTarget(composited, 0);
             },
             pipeline,
-            [this, inBloomColor, inSceneColor](VertexShader* vs, PixelShader* ps) {
-                ps->setUniform("enableTonemapping", m_settings.enableTonemapping ? 1.f : 0.f);
-                ps->setUniform("tonemapOperator", m_settings.tonemapOperator);
-                ps->setUniform("whitePointLuminance", m_settings.whitePointLuminance);
-                ps->setUniform("smoothstepWhitePoint", m_settings.smoothstepWhitePoint);
-                if (inBloomColor && m_settings.enableBloom) {
-                    ps->setUniform("enableBloom", 1.f);
-                } else {
-                    ps->setUniform("enableBloom", 0.f);
+            [this, inBloomColor, inSceneColor](ProgramPipeline* p) {
+                p->setUniform("enableTonemapping", m_settings.enableTonemapping ? 1.f : 0.f);
+                p->setUniform("tonemapOperator", m_settings.tonemapOperator);
+                p->setUniform("whitePointLuminance", m_settings.whitePointLuminance);
+                p->setUniform("smoothstepWhitePoint", m_settings.smoothstepWhitePoint);
+                if (inBloomColor && m_settings.enableBloom) 
+                {
+                    p->setUniform("enableBloom", 1.f);
+                } 
+                else 
+                {
+                    p->setUniform("enableBloom", 0.f);
                 }
-                ps->setUniform("exposure", m_settings.exposure)
-                    .setUniform("colorTempreture", m_settings.colorTempreture)
-                    .setUniform("bloomIntensity", m_settings.bloomIntensity)
-                    .setTexture("bloomTexture", inBloomColor)
-                    .setTexture("sceneColorTexture", inSceneColor);
+                p->setUniform("exposure", m_settings.exposure);
+                p->setUniform("colorTempreture", m_settings.colorTempreture);
+                p->setUniform("bloomIntensity", m_settings.bloomIntensity);
+                p->setTexture("bloomTexture", inBloomColor);
+                p->setTexture("sceneColorTexture", inSceneColor);
             }
         );
         // add a reconstruction pass using Gaussian filter
@@ -1211,10 +1422,10 @@ namespace Cyan
         CreatePixelPipeline(pipeline, "GaussianBlur", vs, ps);
 
         // create scratch buffer for storing intermediate output
-        std::string name("GaussianBlurScratch");
+        std::string m_name("GaussianBlurScratch");
         GfxTexture2D::Spec spec = inoutTexture->getSpec();
-        name += '_' + std::to_string(spec.width) + 'x' + std::to_string(spec.height);
-        RenderTexture2D scratchBuffer(name.c_str(), spec);
+        m_name += '_' + std::to_string(spec.width) + 'x' + std::to_string(spec.height);
+        RenderTexture2D scratchBuffer(m_name.c_str(), spec);
         auto scratch = scratchBuffer.getGfxTexture2D();
 
         GaussianKernel kernel(inRadius, inSigma, m_frameAllocator);
@@ -1226,15 +1437,15 @@ namespace Cyan
                 pass.setRenderTarget(scratch, 0);
             },
             pipeline,
-            [inoutTexture, &kernel](VertexShader* vs, PixelShader* ps) {
-                ps->setTexture("srcTexture", inoutTexture);
-                ps->setUniform("kernelRadius", kernel.radius);
-                ps->setUniform("pass", 1.f);
+            [inoutTexture, &kernel](ProgramPipeline* p) {
+                p->setTexture("srcTexture", inoutTexture);
+                p->setUniform("kernelRadius", kernel.radius);
+                p->setUniform("pass", 1.f);
                 for (u32 i = 0; i < kMaxkernelRadius; ++i)
                 {
-                    char name[32] = { };
-                    sprintf_s(name, "weights[%d]", i);
-                    ps->setUniform(name, kernel.weights[i]);
+                    char m_name[32] = { };
+                    sprintf_s(m_name, "weights[%d]", i);
+                    p->setUniform(m_name, kernel.weights[i]);
                 }
             }
         );
@@ -1246,15 +1457,15 @@ namespace Cyan
                 pass.setRenderTarget(inoutTexture, 0);
             },
             pipeline,
-            [scratch, &kernel](VertexShader* vs, PixelShader* ps) {
-                ps->setTexture("srcTexture", scratch);
-                ps->setUniform("kernelRadius", kernel.radius);
-                ps->setUniform("pass", 0.f);
+            [scratch, &kernel](ProgramPipeline* p) {
+                p->setTexture("srcTexture", scratch);
+                p->setUniform("kernelRadius", kernel.radius);
+                p->setUniform("pass", 0.f);
                 for (u32 i = 0; i < kMaxkernelRadius; ++i)
                 {
-                    char name[32] = { };
-                    sprintf_s(name, "weights[%d]", i);
-                    ps->setUniform(name, kernel.weights[i]);
+                    char m_name[32] = { };
+                    sprintf_s(m_name, "weights[%d]", i);
+                    p->setUniform(m_name, kernel.weights[i]);
                 }
             }
         );
@@ -1297,7 +1508,7 @@ namespace Cyan
         }
     }
 
-    void Renderer::debugDrawSphere(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection) 
+    void Renderer::debugDrawSphere(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& m_position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection) 
     {
 #if 0
         CreateVS(vs, "DebugDrawVS", "debug_draw_v.glsl");
@@ -1313,20 +1524,20 @@ namespace Cyan
             viewport,
             AssetManager::getAsset<StaticMesh>("Sphere"),
             pipeline,
-            [this, position, scale, view, projection](VertexShader* vs, PixelShader* ps) {
+            [this, position, scale, view, projection](ProgramPipeline* p) {
                 glm::mat4 mvp(1.f);
                 mvp = glm::translate(mvp, position);
                 mvp = glm::scale(mvp, scale);
                 mvp = projection * view * mvp;
-                vs->setUniform("mvp", mvp);
-                ps->setUniform("color", glm::vec3(1.f, 0.f, 0.f));
+                p->setUniform("mvp", mvp);
+                p->setUniform("color", glm::vec3(1.f, 0.f, 0.f));
             },
             gfxPipelineState
         );
 #endif
     }
 
-    void Renderer::debugDrawCubeImmediate(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection) 
+    void Renderer::debugDrawCubeImmediate(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& m_position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection) 
     {
 #if 0
         CreateVS(vs, "DebugDrawImmediateVS", "debug_draw_immediate_v.glsl");
@@ -1337,20 +1548,20 @@ namespace Cyan
             viewport,
             AssetManager::getAsset<StaticMesh>("UnitCubeMesh"),
             pipeline,
-            [this, position, scale, view, projection](VertexShader* vs, PixelShader* ps) {
+            [this, position, scale, view, projection](ProgramPipeline* p) {
                 glm::mat4 mvp(1.f);
                 mvp = glm::translate(mvp, position);
                 mvp = glm::scale(mvp, scale);
                 mvp = projection * view * mvp;
-                vs->setUniform("mvp", mvp);
-                ps->setUniform("color", glm::vec3(1.f, 0.f, 0.f));
+                p->setUniform("mvp", mvp);
+                p->setUniform("color", glm::vec3(1.f, 0.f, 0.f));
             },
             GfxPipelineState { }
         );
 #endif
     }
 
-    void Renderer::debugDrawCubeBatched(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& position, const glm::vec3& scale, const glm::vec3& facingDir, const glm::vec4& albedo, const glm::mat4& view, const glm::mat4& projection) {
+    void Renderer::debugDrawCubeBatched(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& m_position, const glm::vec3& scale, const glm::vec3& facingDir, const glm::vec4& albedo, const glm::mat4& view, const glm::mat4& projection) {
 
     }
 
@@ -1386,11 +1597,11 @@ namespace Cyan
             {0, 0, framebuffer->width, framebuffer->height },
             AssetManager::getAsset<StaticMesh>("UnitCubeMesh"),
             pipeline,
-            [cubemap](VertexShader* vs, PixelShader* ps) {
-                vs->setUniform("model", glm::mat4(1.f));
-                vs->setUniform("view", camera.view());
-                vs->setUniform("projection", camera.projection());
-                ps->setTexture("cubemap", cubemap);
+            [cubemap](ProgramPipeline* p) {
+                p->setUniform("model", glm::mat4(1.f));
+                p->setUniform("view", camera.view());
+                p->setUniform("projection", camera.projection());
+                p->setTexture("cubemap", cubemap);
             },
             GfxPipelineState { }
         );
@@ -1432,6 +1643,7 @@ namespace Cyan
 
     void Renderer::debugDrawCubemap(GLuint cubemap) 
     {
+#if 0
         static PerspectiveCamera camera(
             glm::vec3(0.f, 1.f, 2.f),
             glm::vec3(0.f, 0.f, 0.f),
@@ -1441,8 +1653,6 @@ namespace Cyan
             16.f,
             16.f / 9.f
         );
-
-#if 0
         auto framebuffer = createCachedFramebuffer("DebugDrawCubemapFramebuffer", 320, 180);
         GfxTexture2D::Spec spec(320, 180, 1, PF_RGB16F);
         static GfxTexture2D* outTexture = createRenderTexture("CubemapViewerTexture", spec, Sampler2D());
@@ -1459,11 +1669,11 @@ namespace Cyan
             {0, 0, framebuffer->width, framebuffer->height },
             AssetManager::getAsset<StaticMesh>("UnitCubeMesh"),
             pipeline,
-            [cubemap](VertexShader* vs, PixelShader* ps) {
-                vs->setUniform("model", glm::mat4(1.f));
-                vs->setUniform("view", camera.view());
-                vs->setUniform("projection", camera.projection());
-                ps->setUniform("cubemap", 128);
+            [cubemap](ProgramPipeline* p) {
+                p->setUniform("model", glm::mat4(1.f));
+                p->setUniform("view", camera.view());
+                p->setUniform("projection", camera.projection());
+                p->setUniform("cubemap", 128);
                 glBindTextureUnit(128, cubemap);
                 // shader->setTexture("cubemap", cubemap);
             },

@@ -15,7 +15,7 @@ namespace Cyan
         virtual ~RenderTexture();
         virtual void release() = 0;
     protected:
-        std::string name;
+        std::string m_name;
         std::shared_ptr<u32> refCount = nullptr;
     };
 

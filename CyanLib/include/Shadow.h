@@ -9,6 +9,7 @@
 
 namespace Cyan 
 {
+#if 0
     struct Camera;
     struct PerspectiveCamera;
     struct OrthographicCamera;
@@ -48,4 +49,5 @@ namespace Cyan
         void updateCascades(const PerspectiveCamera& camera);
         Cascade cascades[kNumCascades];
     };
+#endif
 }

@@ -36,14 +36,14 @@ namespace Cyan
     }
 
     LightProbe::LightProbe(GfxTextureCube* srcCubemapTexture)
-        : scene(nullptr), position(glm::vec3(0.f)), resolution(glm::uvec2(srcCubemapTexture->resolution, srcCubemapTexture->resolution)), 
+        : scene(nullptr), m_position(glm::vec3(0.f)), resolution(glm::uvec2(srcCubemapTexture->resolution, srcCubemapTexture->resolution)), 
         debugSphereMesh(nullptr), sceneCapture(srcCubemapTexture)
     {
         init();
     }
 
     LightProbe::LightProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& resolution)
-        : scene(scene), position(p), resolution(resolution), debugSphereMesh(nullptr), sceneCapture(nullptr)
+        : scene(scene), m_position(p), resolution(resolution), debugSphereMesh(nullptr), sceneCapture(nullptr)
     {
         // debugSphereMesh = AssetManager::getAsset<Mesh>("sphere_mesh")->createInstance(scene);
         init();
@@ -119,22 +119,23 @@ namespace Cyan
                     pass.setRenderTarget(RenderTarget(m_convolvedIrradianceTexture.get(), f), 0);
                 },
                 { 0u, 0u, (u32)m_convolvedIrradianceTexture->resolution, (u32)m_convolvedIrradianceTexture->resolution }, 
-                AssetManager::getAsset<StaticMesh>("UnitCubeMesh"),
+                AssetManager::findAsset<StaticMesh>("UnitCubeMesh").get(),
                 s_convolveIrradiancePipeline,
-                [this, f](VertexShader* vs, PixelShader* ps) {
+                [this, f](ProgramPipeline* p) {
                     // Update view matrix
                     PerspectiveCamera camera(
                         glm::vec3(0.f),
                         LightProbeCameras::cameraFacingDirections[f],
                         LightProbeCameras::worldUps[f],
+                        glm::uvec2(m_convolvedIrradianceTexture->resolution, m_convolvedIrradianceTexture->resolution),
+                        VM_SCENE_COLOR,
                         90.f,
                         0.1f,
-                        100.f,
-                        1.0f
+                        100.f
                     );
-                    vs->setUniform("view", camera.view())
-                        .setUniform("projection", camera.projection());
-                    ps->setTexture("srcCubemapTexture", sceneCapture);
+                    p->setUniform("view", camera.view());
+                    p->setUniform("projection", camera.projection());
+                    p->setTexture("srcCubemapTexture", sceneCapture);
                 },
                 gfxPipelineState
             );
@@ -213,7 +214,7 @@ namespace Cyan
                 pass.setRenderTarget(outTexture, 0);
             },
             pipeline,
-            [](VertexShader* vs, PixelShader* ps) {
+            [](ProgramPipeline* p) {
 
             });
 
@@ -240,24 +241,25 @@ namespace Cyan
                             pass.setRenderTarget(RenderTarget(m_convolvedReflectionTexture.get(), f, mip), 0);
                         },
                         { 0u, 0u, mipWidth, mipHeight }, 
-                        AssetManager::getAsset<StaticMesh>("UnitCubeMesh"),
+                        AssetManager::findAsset<StaticMesh>("UnitCubeMesh").get(),
                         s_convolveReflectionPipeline,
-                        [this, f, mip, kNumMips](VertexShader* vs, PixelShader* ps) {
+                        [this, f, mip, kNumMips](ProgramPipeline* p) {
                             // Update view matrix
                             PerspectiveCamera camera(
                                 glm::vec3(0.f),
                                 LightProbeCameras::cameraFacingDirections[f],
                                 LightProbeCameras::worldUps[f],
+                                glm::uvec2(m_convolvedReflectionTexture->resolution, m_convolvedReflectionTexture->resolution),
+                                VM_SCENE_COLOR,
                                 90.f,
                                 0.1f,
-                                100.f,
-                                1.0f
+                                100.f
                             );
 
-                            vs->setUniform("projection", camera.projection())
-                                .setUniform("view", camera.view());
-                            ps->setUniform("roughness", mip * (1.f / (kNumMips - 1)))
-                                .setTexture("envmapSampler", sceneCapture);
+                            p->setUniform("projection", camera.projection());
+                            p->setUniform("view", camera.view());
+                            p->setUniform("roughness", mip * (1.f / (kNumMips - 1)));
+                            p->setTexture("envmapSampler", sceneCapture);
                         },
                     gfxPipelineState);
                 }

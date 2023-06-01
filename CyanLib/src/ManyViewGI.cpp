@@ -15,7 +15,7 @@ namespace Cyan {
 
     glm::mat4 calcHemicubeTransform(const ManyViewGI::Hemicube& hemicube, const glm::vec3& scale) {
         glm::mat4 tangentFrame = calcHemicubeTangentFrame(hemicube);
-        glm::mat4 transform = glm::translate(glm::mat4(hemicube.position.w), vec4ToVec3(hemicube.position));
+        glm::mat4 transform = glm::translate(glm::mat4(hemicube.m_position.w), vec4ToVec3(hemicube.m_position));
         transform = transform * tangentFrame;
         transform = glm::scale(transform, scale);
         return transform;
@@ -28,7 +28,7 @@ namespace Cyan {
         VertexShader* vs = ShaderManager::createShader<VertexShader>("VisualizeSurfelVS", SHADER_SOURCE_PATH "visualize_surfel_v.glsl");
         PixelShader* ps = ShaderManager::createShader<PixelShader>("VisualizeSurfelPS", SHADER_SOURCE_PATH "visualize_surfel_p.glsl");
         PixelPipeline* pipeline = ShaderManager::createPixelPipeline("VisualizeSurfel", vs, ps);
-        gfxc->setPixelPipeline(pipeline, [](VertexShader* vs, PixelShader* ps) {
+        gfxc->setPixelPipeline(pipeline, [](ProgramPipeline* p) {
 
         });
         gfxc->setRenderTarget(dstRenderTarget);
@@ -77,7 +77,7 @@ namespace Cyan {
             }
             {
                 GfxTexture2D::Spec spec(irradianceRes.x, irradianceRes.y, 1, PF_RGBA16F);
-                position = GfxTexture2D::create(spec, Sampler2D());
+                m_position = GfxTexture2D::create(spec, Sampler2D());
             }
             {
                 GfxTexture2D::Spec spec(irradianceRes.x, irradianceRes.y, 1, PF_RGBA16F);
@@ -91,7 +91,7 @@ namespace Cyan {
             auto renderer = Renderer::get();
             renderer->registerVisualization("ManyViewGI", "MVGIRadianceAtlas", radianceAtlas);
             renderer->registerVisualization("ManyViewGI", "MVGIIrradince", irradiance);
-            renderer->registerVisualization("ManyViewGI", "MVGIPosition", position);
+            renderer->registerVisualization("ManyViewGI", "MVGIPosition", m_position);
             renderer->registerVisualization("ManyViewGI", "MVGINormal", normal);
             renderer->registerVisualization("ManyViewGI", "MVGIAlbedo", albedo);
             renderer->registerVisualization("ManyViewGI", "MVGIDirectLighting", directLighting);
@@ -113,7 +113,7 @@ namespace Cyan {
         scene->upload();
 
         auto renderTarget = std::unique_ptr<RenderTarget>(createRenderTarget(irradianceRes.x, irradianceRes.y));
-        renderTarget->setColorBuffer(position, 0);
+        renderTarget->setColorBuffer(m_position, 0);
         renderTarget->setColorBuffer(normal, 1);
         renderTarget->setColorBuffer(albedo, 2);
         renderTarget->setDrawBuffers({ 0, 1, 2 });
@@ -131,7 +131,7 @@ namespace Cyan {
             gfxc->setDepthControl(DepthControl::kEnable);
             gfxc->setRenderTarget(renderTarget.get());
             gfxc->setViewport({ 0, 0, renderTarget->width, renderTarget->height });
-            gfxc->setPixelPipeline(pipeline, [](VertexShader* vs, PixelShader* ps) {
+            gfxc->setPixelPipeline(pipeline, [](ProgramPipeline* p) {
             });
             renderer->multiDrawSceneIndirect(*scene);
         }
@@ -151,10 +151,10 @@ namespace Cyan {
             renderer->drawFullscreenQuad(
                 renderTarget.get(),
                 pipeline,
-                [this, outputSize](VertexShader* vs, PixelShader* ps) {
-                    ps->setTexture("mvgiPosition", position);
-                    ps->setTexture("mvgiNormal", normal);
-                    ps->setUniform("outputSize", outputSize);
+                [this, outputSize](ProgramPipeline* p) {
+                    p->setTexture("mvgiPosition", m_position);
+                    p->setTexture("mvgiNormal", normal);
+                    p->setUniform("outputSize", outputSize);
                 }
             );
             glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
@@ -166,7 +166,7 @@ namespace Cyan {
             hemicubeInstanceBuffer.data.array.clear();
             tangentFrameInstanceBuffer.data.array.clear();
             for (i32 i = 0; i < kMaxNumHemicubes; ++i) {
-                if (hemicubes[i].position.w > 0.f) {
+                if (hemicubes[i].m_position.w > 0.f) {
                     Instance desc = { };
                     desc.transform = calcHemicubeTransform(hemicubes[i], glm::vec3(0.1f));
                     desc.atlasTexCoord = glm::ivec2(i % irradiance->width, i / irradiance->width);
@@ -180,8 +180,8 @@ namespace Cyan {
                     };
                     for (i32 j = 0; j < 3; ++j) {
                         Axis axis = { };
-                        axis.v0 = glm::translate(glm::mat4(1.f), vec4ToVec3(hemicubes[i].position));
-                        axis.v1 = glm::translate(glm::mat4(1.f), vec4ToVec3(hemicubes[i].position + tangentFrame[j] * 0.1f));
+                        axis.v0 = glm::translate(glm::mat4(1.f), vec4ToVec3(hemicubes[i].m_position));
+                        axis.v1 = glm::translate(glm::mat4(1.f), vec4ToVec3(hemicubes[i].m_position + tangentFrame[j] * 0.1f));
                         axis.albedo = colors[j];
                         tangentFrameInstanceBuffer.addElement(axis);
                     }
@@ -214,7 +214,7 @@ namespace Cyan {
 
         jitteredSampleDirections.resize(hemicubes.size());
         for (i32 i = 0; i < kMaxNumHemicubes; ++i) {
-            if (hemicubes[i].position.w > 0.f) {
+            if (hemicubes[i].m_position.w > 0.f) {
                 jitteredSampleDirections[i] = m_sampler.sample(hemicubes[i].normal);
             }
         }
@@ -234,10 +234,10 @@ namespace Cyan {
         auto visHemicubePS = ShaderManager::createShader<PixelShader>("VisualizeHemicubePS", SHADER_SOURCE_PATH "debug_show_hemicubes_p.glsl");
         auto visualizeHemicubePipeline = ShaderManager::createPixelPipeline("VisualizeHemicube", visHemicubeVS, visHemicubePS);
         gfxc->setShaderStorageBuffer<DynamicSsboData<Instance>>(&hemicubeInstanceBuffer);
-        gfxc->setPixelPipeline(visualizeHemicubePipeline, [this](VertexShader* vs, PixelShader* ps) {
-                ps->setTexture("radianceAtlas", radianceAtlas);
-                ps->setUniform("radianceRes", radianceRes);
-                ps->setUniform("finalGatherRes", finalGatherRes);
+        gfxc->setPixelPipeline(visualizeHemicubePipeline, [this](ProgramPipeline* p) {
+                p->setTexture("radianceAtlas", radianceAtlas);
+                p->setUniform("radianceRes", radianceRes);
+                p->setUniform("finalGatherRes", finalGatherRes);
         });
 
         auto cube = AssetManager::getAsset<StaticMesh>("UnitCubeMesh");
@@ -251,7 +251,7 @@ namespace Cyan {
         auto drawLineVS = ShaderManager::createShader<VertexShader>("DebugDrawLineVS", SHADER_SOURCE_PATH "debug_draw_line_v.glsl");
         auto drawLinePS = ShaderManager::createShader<PixelShader>("DebugDrawLinePS", SHADER_SOURCE_PATH "debug_draw_line_p.glsl");
         auto drawLinePipeline = ShaderManager::createPixelPipeline("DebugDrawLine", drawLineVS, drawLinePS);
-        gfxc->setPixelPipeline(drawLinePipeline, [this](VertexShader* vs, PixelShader* ps) {});
+        gfxc->setPixelPipeline(drawLinePipeline, [this](ProgramPipeline* p) {});
         // draw tangent frames
         glDrawArraysInstanced(GL_LINES, 0, 2, numInstances * 3);
     }
@@ -268,8 +268,8 @@ namespace Cyan {
         auto visIrradianceVS = ShaderManager::createShader<VertexShader>("VisualizeIrradianceVS", SHADER_SOURCE_PATH "visualize_irradiance_v.glsl");
         auto visIrradiancePS = ShaderManager::createShader<PixelShader>("VisualizeIrradiancePS", SHADER_SOURCE_PATH "visualize_irradiance_p.glsl");
         auto visIrradiancePipeline = ShaderManager::createPixelPipeline("VisualizeIrradiance", visIrradianceVS, visIrradiancePS);
-        gfxc->setPixelPipeline(visIrradiancePipeline, [this](VertexShader* vs, PixelShader* ps) {
-            ps->setTexture("irradianceBuffer", irradiance);
+        gfxc->setPixelPipeline(visIrradiancePipeline, [this](ProgramPipeline* p) {
+            p->setTexture("irradianceBuffer", irradiance);
         });
         auto va = disk->getSubmesh(0)->getVertexArray();
         gfxc->setVertexArray(va);
@@ -331,7 +331,7 @@ namespace Cyan {
             for (u32 i = 0; i < perFrameWorkload; ++i)
             {
                 const auto& hemicube = hemicubes[nextHemicube];
-                if (hemicube.position.w > 0.f) 
+                if (hemicube.m_position.w > 0.f) 
                 {
                     auto radianceCubemap = gi->finalGathering(hemicubes[nextHemicube], *scene, true, jitteredSampleDirections[nextHemicube]);
                     u32 x = nextHemicube % irradianceRes.x;
@@ -363,10 +363,10 @@ namespace Cyan {
             renderer->drawFullscreenQuad(
                 renderTarget.get(),
                 pipeline,
-                [this](VertexShader* vs, PixelShader* ps) {
-                    ps->setTexture("mvgiPosition", position);
-                    ps->setTexture("mvgiNormal", normal);
-                    ps->setTexture("mvgiAlbedo", albedo);
+                [this](ProgramPipeline* p) {
+                    p->setTexture("mvgiPosition", m_position);
+                    p->setTexture("mvgiNormal", normal);
+                    p->setTexture("mvgiAlbedo", albedo);
                 }
             );
         }
@@ -385,9 +385,9 @@ namespace Cyan {
             renderer->drawFullscreenQuad(
                 renderTarget.get(),
                 pipeline,
-                [this](VertexShader* vs, PixelShader* ps) {
-                    ps->setTexture("irradiance", irradiance);
-                    ps->setTexture("mvgiAlbedo", albedo);
+                [this](ProgramPipeline* p) {
+                    p->setTexture("irradiance", irradiance);
+                    p->setTexture("mvgiAlbedo", albedo);
                 }
             );
         }
@@ -407,9 +407,9 @@ namespace Cyan {
             renderer->drawFullscreenQuad(
                 renderTarget.get(),
                 pipeline,
-                [this](VertexShader* vs, PixelShader* ps) {
-                    ps->setTexture("mvgiDirectLighting", directLighting);
-                    ps->setTexture("mvgiIndirectLighting", indirectLighting);
+                [this](ProgramPipeline* p) {
+                    p->setTexture("mvgiDirectLighting", directLighting);
+                    p->setTexture("mvgiIndirectLighting", indirectLighting);
                 }
             );
             // post
@@ -499,7 +499,7 @@ namespace Cyan {
         m_gfxc->setDepthControl(DepthControl::kEnable);
         m_gfxc->setViewport({ 0, 0, renderTarget->width, renderTarget->height });
         // calculate the tangent frame of radiance cube
-        glm::vec3 worldUp = glm::vec3(0.f, 1.f, 0.f);
+        glm::vec3 m_worldUp = glm::vec3(0.f, 1.f, 0.f);
         glm::vec3 up = hemicube.normal;
         if (jitter) 
         {
@@ -507,9 +507,9 @@ namespace Cyan {
         }
         if (abs(up.y) > 0.98) 
         {
-            worldUp = glm::vec3(0.f, 0.f, -1.f);
+            m_worldUp = glm::vec3(0.f, 0.f, -1.f);
         }
-        glm::vec3 right = glm::cross(worldUp, up);
+        glm::vec3 right = glm::cross(m_worldUp, up);
         glm::vec3 forward = glm::cross(up, right);
         glm::mat3 tangentFrame = {
             right,
@@ -545,8 +545,8 @@ namespace Cyan {
             };
             glm::vec3 lookAtDir = tangentFrame * LightProbeCameras::cameraFacingDirections[face];
             PerspectiveCamera camera(
-                glm::vec3(hemicube.position),
-                glm::vec3(hemicube.position) + lookAtDir,
+                glm::vec3(hemicube.m_position),
+                glm::vec3(hemicube.m_position) + lookAtDir,
                 tangentFrame * LightProbeCameras::worldUps[face],
                 90.f,
                 0.01f,
@@ -574,7 +574,7 @@ namespace Cyan {
         CreateVS(vs, "ManyViewGIVS", SHADER_SOURCE_PATH "manyview_gi_final_gather_v.glsl");
         CreatePS(ps, "ManyViewGIPS", SHADER_SOURCE_PATH "manyview_gi_final_gather_p.glsl");
         CreatePixelPipeline(pipeline, "ManyViewGI", vs, ps);
-        m_gfxc->setPixelPipeline(pipeline, [camera, hemicube, this](VertexShader* vs, PixelShader* ps) {
+        m_gfxc->setPixelPipeline(pipeline, [camera, hemicube, this](ProgramPipeline* p) {
         });
         m_renderer->multiDrawSceneIndirect(scene);
     }
@@ -778,7 +778,7 @@ namespace Cyan {
         surfelInstanceBuffer.data.array.resize(surfels.size());
         for (i32 i = 0; i < surfels.size(); ++i) 
         {
-            glm::mat4 transform = glm::translate(glm::mat4(1.f), surfels[i].position);
+            glm::mat4 transform = glm::translate(glm::mat4(1.f), surfels[i].m_position);
             transform = transform * calcTangentFrame(surfels[i].normal);
             surfelInstanceBuffer[i].transform = glm::scale(transform, glm::vec3(surfels[i].radius));
             surfelInstanceBuffer[i].albedo = glm::vec4(surfels[i].albedo, 1.f);
@@ -841,7 +841,7 @@ namespace Cyan {
         {
             surfelBuffer.addElement(
                 GpuSurfel {
-                    glm::vec4(surfel.position, surfel.radius),
+                    glm::vec4(surfel.m_position, surfel.radius),
                     glm::vec4(surfel.normal, 0.f),
                     glm::vec4(surfel.albedo, 1.f),
                     glm::vec4(0.f, 0.f, 0.f, 1.f)
@@ -971,7 +971,7 @@ namespace Cyan {
         }
 
         glm::vec3 lightDir = glm::normalize(glm::vec3(1.f, 1.f, 1.f));
-        const SurfelBSH::Node& node = surfelBSH.nodes[nodeIndex];
+        const SurfelBSH::Node& node = surfelBSH.m_nodes[nodeIndex];
         glm::mat4 view = camera.view;
         glm::mat4 projection = camera.projection;
         glm::vec3 cameraPos = camera.eye;
@@ -1023,7 +1023,7 @@ namespace Cyan {
     }
 
     void SoftwareMicroBuffer::raytraceInternal(const glm::vec3& ro, const glm::vec3& rd, const SurfelBSH& surfelBSH, i32 nodeIndex, f32& tmin, i32& hitNode) {
-        const SurfelBSH::Node node = surfelBSH.nodes[nodeIndex];
+        const SurfelBSH::Node node = surfelBSH.m_nodes[nodeIndex];
 #if 1
         // stop recursion at proper LOD
         f32 t;
@@ -1071,7 +1071,7 @@ namespace Cyan {
 
         RenderableScene::Camera camera = { };
         camera.eye = inCamera.eye;
-        camera.lookAt = inCamera.lookAt;
+        camera.m_lookAt = inCamera.m_lookAt;
         camera.right = inCamera.right;
         camera.forward = inCamera.forward;
         camera.up = inCamera.up;
@@ -1079,7 +1079,7 @@ namespace Cyan {
         camera.aspect = 1.f;
         camera.n = inCamera.n;
         camera.f = inCamera.f;
-        camera.view = glm::lookAt(camera.eye, camera.lookAt, glm::vec3(0.f, 1.f, 0.f));
+        camera.view = glm::m_lookAt(camera.eye, camera.m_lookAt, glm::vec3(0.f, 1.f, 0.f));
         camera.projection = glm::perspective(camera.fov, camera.aspect, camera.n, camera.f);
 
         f32 imagePlaneSize = camera.n;
@@ -1093,7 +1093,7 @@ namespace Cyan {
                 i32 hitNode = -1;
                 raytraceInternal(ro, rd, surfelBSH, 0, tmin, hitNode);
                 if (hitNode >= 0) {
-                    color[y][x] = surfelBSH.nodes[hitNode].albedo;
+                    color[y][x] = surfelBSH.m_nodes[hitNode].albedo;
                 }
             }
         }
@@ -1110,7 +1110,7 @@ namespace Cyan {
             for (i32 x = 0; x < resolution; ++x) {
                 i32 nodeIndex = postTraversalBuffer[y][x];
                 if (nodeIndex >= 0) {
-                    postTraversalList.push_back(surfelBSH.nodes[nodeIndex]);
+                    postTraversalList.push_back(surfelBSH.m_nodes[nodeIndex]);
                 }
             }
         }
@@ -1151,7 +1151,7 @@ namespace Cyan {
 
         RenderableScene::Camera camera = { };
         camera.eye = inCamera.eye;
-        camera.lookAt = inCamera.lookAt;
+        camera.m_lookAt = inCamera.m_lookAt;
         camera.right = inCamera.right;
         camera.forward = inCamera.forward;
         camera.up = inCamera.up;
@@ -1159,7 +1159,7 @@ namespace Cyan {
         camera.aspect = 1.f;
         camera.n = inCamera.n;
         camera.f = inCamera.f;
-        camera.view = glm::lookAt(camera.eye, camera.lookAt, glm::vec3(0.f, 1.f, 0.f));
+        camera.view = glm::m_lookAt(camera.eye, camera.m_lookAt, glm::vec3(0.f, 1.f, 0.f));
         camera.projection = glm::perspective(camera.fov, camera.aspect, camera.n, camera.f);
         traverseBSH(surfelBSH, 0, camera);
         postTraversal(camera, surfelBSH);

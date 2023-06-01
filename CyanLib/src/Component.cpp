@@ -4,6 +4,7 @@
 
 namespace Cyan
 {
+#if 0
     Component::Component(Entity* inOwner, const char* inName)
         : name(inName), owner(inOwner), parent(nullptr)
     {
@@ -57,5 +58,11 @@ namespace Cyan
             }
         }
         return found;
+    }
+#endif
+
+    World* Component::getWorld()
+    {
+        return m_owner->getWorld();
     }
 }

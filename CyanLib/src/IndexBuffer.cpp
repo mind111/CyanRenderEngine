@@ -4,7 +4,7 @@
 namespace Cyan
 {
     IndexBuffer::IndexBuffer(const std::vector<u32>& indices)
-        : GpuResource()
+        : GfxResource()
     {
         u32 sizeInBytes = sizeof(indices[0]) * indices.size();
         assert(sizeInBytes > 0);
@@ -15,7 +15,7 @@ namespace Cyan
 
     IndexBuffer::~IndexBuffer()
     {
-        GLuint buffers[] = { getGpuResource() };
-        glDeleteBuffers(1, buffers);
+        GLuint m_buffers[] = { getGpuResource() };
+        glDeleteBuffers(1, m_buffers);
     }
 }
