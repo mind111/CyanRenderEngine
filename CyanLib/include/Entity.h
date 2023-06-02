@@ -28,7 +28,9 @@ namespace Cyan
     class Entity
     {
     public:
-        Entity(World* world, const char* name, /*const Transform& local*/ const Transform& localToWorld, Entity* parent = nullptr);
+        friend class World;
+
+        Entity(World* world, const char* name, const Transform& local, const Transform& localToWorld, Entity* parent = nullptr);
         ~Entity() { }
 
         virtual void update();
@@ -39,7 +41,7 @@ namespace Cyan
         void detach();
         void onDetached();
         void setParent(Entity* parent);
-        virtual void attachSceneComponent(const char* parentComponentName, SceneComponent* componentToAttach);
+        virtual void attachSceneComponent(const char* parentComponentName, std::shared_ptr<SceneComponent> componentToAttach);
         virtual void addComponent(std::shared_ptr<Component> component);
         SceneComponent* findSceneComponent(const char* componentName);
 
@@ -79,6 +81,7 @@ namespace Cyan
         Entity* m_parent = nullptr;
         std::vector<Entity*> m_children;
         std::shared_ptr<SceneComponent> m_rootSceneComponent = nullptr;
+        // SceneComponents owned by this entity
         std::vector<std::shared_ptr<Component>> m_components;
     };
 }

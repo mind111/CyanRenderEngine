@@ -315,6 +315,7 @@ namespace Cyan
             }
         }
         assert(outImage->m_pixels != nullptr);
+        outImage->onLoaded();
         return outImage;
     }
 
@@ -324,92 +325,6 @@ namespace Cyan
 
     }
 
-#if 0
-    void GltfImporter::importAsync(Scene* scene, const char* filename)
-    {
-        // parse file extension
-        std::string path(filename);
-        u32 found = path.find_last_of('.');
-        std::string extension = path.substr(found, found + 1);
-        if (extension == ".gltf")
-        {
-        }
-        else if (extension == ".glb")
-        {
-            auto glb = std::make_shared<gltf::Glb>(filename);
-            glb->load();
-
-            m_gltfAssetMappings.push_back(std::make_shared<GltfAssetMapping>());
-            auto mapping = m_gltfAssetMappings.back();
-            mapping->src = glb;
-
-            // lazy import meshes
-            for (i32 i = 0; i < glb->m_meshes.size(); ++i)
-            {
-                const auto& gltfMesh = glb->m_meshes[i];
-                std::string meshName = gltfMesh.m_name;
-                if (meshName.empty())
-                {
-                    std::string prefix(filename);
-                    meshName = prefix + '/' + "mesh_" + std::to_string(i);
-                }
-                // It's better for AssetImporter to manage the mapping between a external gltfMesh and StaticMesh because
-                // this way, Glb doesn't need to be aware of StaticMesh, keep them decoupled. It's the AssetImporter's
-                auto mesh = AssetManager::createStaticMesh(meshName.c_str(), gltfMesh.primitives.size());
-                mapping->meshMap.insert({ meshName, i });
-                m_assetToGltfMap.insert({ meshName, mapping });
-                m_owner->registerAssetSrcFile(mesh, filename);
-                // async importing
-                mesh->import();
-            }
-
-            // lazy import images
-            for (i32 i = 0; i < glb->m_images.size(); ++i)
-            {
-                const auto& gltfImage = glb->m_images[i];
-                std::string imageName = gltfImage.m_name;
-                if (imageName.empty())
-                {
-                    std::string prefix(filename);
-                    imageName = prefix + '/' + "image_" + std::to_string(i);
-                }
-                auto image = AssetManager::createImage(imageName.c_str());
-                mapping->imageMap.insert({ imageName, i });
-                m_assetToGltfMap.insert({ imageName, mapping });
-                m_owner->registerAssetSrcFile(image, filename);
-                // async importing
-                image->import();
-            }
-
-            // import textures
-            for (i32 i = 0; i < glb->m_textures.size(); ++i)
-            {
-                const gltf::Texture& gltfTexture = glb->m_textures[i];
-                const gltf::Image& gltfImage = glb->m_images[gltfTexture.source];
-                const gltf::Sampler& gltfSampler = glb->m_samplers[gltfTexture.sampler];
-                std::string textureName = gltfTexture.m_name;
-                if (textureName.empty())
-                {
-                }
-                Cyan::Image* image = AssetManager::getAsset<Cyan::Image>(gltfImage.m_name.c_str());
-
-                Sampler2D sampler;
-                bool bGenerateMipmap = false;
-                gltf::translateSampler(gltfSampler, sampler, bGenerateMipmap);
-                auto texture = AssetManager::createTexture2D(textureName.c_str(), image, sampler);
-                // async importing
-                texture->import();
-            }
-
-            // import materials
-            glb->importMaterials();
-
-            // import scene hierarchy
-            importSceneAsync(scene, *glb);
-        }
-    }
-#endif
-    
     void GltfImporter::importAsync(World* world, const char* filename)
     {
         std::string path(filename);
@@ -453,11 +368,35 @@ namespace Cyan
                     s_taskManager->enqueueTask(task);
                 }
             }
-            // todo: async import images
+
             for (i32 i = 0; i < glb->m_images.size(); ++i)
             {
+                const auto& gltfImage = glb->m_images[i];
+                std::string imageName = gltfImage.m_name;
+                auto image = AssetManager::createImage(imageName.c_str());
+
+                AsyncTask task([this, glb, gltfImage, image]() {
+                    glb->importImage(gltfImage, *image);
+                    });
+
+                s_taskManager->enqueueTask(task);
             }
-            // todo: async import textures
+
+            for (i32 i = 0; i < glb->m_textures.size(); ++i)
+            {
+                const gltf::Texture& gltfTexture = glb->m_textures[i];
+                const gltf::Image& gltfImage = glb->m_images[gltfTexture.source];
+                const gltf::Sampler& gltfSampler = glb->m_samplers[gltfTexture.sampler];
+                std::string textureName = gltfTexture.m_name;
+                auto image = AssetManager::findAsset<Image>(gltfImage.m_name.c_str());
+
+                Sampler2D sampler;
+                bool bGenerateMipmap = false;
+                gltf::translateSampler(gltfSampler, sampler, bGenerateMipmap);
+                auto texture = AssetManager::createTexture2D(textureName.c_str(), image, sampler);
+            }
+
+            glb->importMaterials();
 
             // import scene nodes
             importSceneNodes(world, *glb);
@@ -484,7 +423,8 @@ namespace Cyan
         std::string m_name = node.m_name;
 
         // @transform
-        Transform t;
+        Transform localTransform;
+        Transform localToWorldTransform;
         if (node.hasMatrix >= 0)
         {
             const std::array<f32, 16>& m = node.matrix;
@@ -494,7 +434,7 @@ namespace Cyan
                 glm::vec4(m[8],  m[9],  m[10], m[11]),    // column 2
                 glm::vec4(m[12], m[13], m[14], m[15])     // column 3
             };
-            t.fromMatrix(mat);
+            localTransform.fromMatrix(mat);
         }
         else
         {
@@ -514,9 +454,9 @@ namespace Cyan
             {
                 translation = node.translation;
             }
-            t.m_scale = scale;
-            t.m_qRot = glm::quat(rotation.w, glm::vec3(rotation.x, rotation.y, rotation.z));
-            t.m_translate = translation;
+            localTransform.m_scale = scale;
+            localTransform.m_qRot = glm::quat(rotation.w, glm::vec3(rotation.x, rotation.y, rotation.z));
+            localTransform.m_translate = translation;
         }
         // @mesh
         Entity* e = nullptr;
@@ -524,10 +464,9 @@ namespace Cyan
         {
            const gltf::Mesh& gltfMesh = gltf.m_meshes[node.mesh];
            auto mesh = AssetManager::findAsset<Cyan::StaticMesh>(gltfMesh.m_name.c_str());
-           StaticMeshEntity* staticMeshEntity = world->createStaticMeshEntity(m_name.c_str(), t, parent, mesh);
+           StaticMeshEntity* staticMeshEntity = world->createStaticMeshEntity(m_name.c_str(), localTransform, localToWorldTransform, parent, mesh);
            e = staticMeshEntity;
            // setup materials
-#if 0
            for (i32 p = 0; p < gltfMesh.primitives.size(); ++p)
            {
                const gltf::Primitive& primitive = gltfMesh.primitives[p];
@@ -538,11 +477,10 @@ namespace Cyan
                    staticMeshEntity->setMaterial(material, p);
                }
            }
-#endif
         }
         else
         {
-           e = world->createEntity(node.m_name.c_str(), t, parent);
+           e = world->createEntity(node.m_name.c_str(), localTransform, localToWorldTransform, parent);
         }
 
         // recurse into children nodes
@@ -551,60 +489,4 @@ namespace Cyan
             importSceneNode(world, gltf, e, gltf.m_nodes[child]);
         }
     }
- 
-#if 0
-    // this function will likely need to be invoked from worker threads
-    void GltfImporter::import(Asset* outAsset)
-    {
-        auto gltfFileEntry = m_assetToGltfMap.find(outAsset->m_name);
-        if (gltfFileEntry != m_assetToGltfMap.end())
-        {
-            auto mapping = gltfFileEntry->second;
-            auto src = mapping->src;
-            if (outAsset->getAssetTypeName() == "StaticMesh")
-            {
-                StaticMesh* outMesh = dynamic_cast<StaticMesh*>(outAsset);
-                auto entry = mapping->meshMap.find(outAsset->m_name);
-                if (entry != mapping->meshMap.end())
-                {
-                    i32 meshIndex = entry->second;
-                    const gltf::Mesh& gltfMesh = mapping->src->m_meshes[meshIndex];
-
-                    AsyncTask task([this, outMesh, src, &gltfMesh]() {
-                        importMesh(outMesh, *src, gltfMesh);
-                        outMesh->onLoaded();
-                    });
-
-                    s_taskManager->enqueueTask(task);
-                }
-            }
-            else if (outAsset->getAssetTypeName() == "Image")
-            {
-                Image* outImage = dynamic_cast<Image*>(outAsset);
-                auto entry = mapping->imageMap.find(outAsset->m_name);
-                if (entry != mapping->imageMap.end())
-                {
-                    i32 imageIndex = entry->second;
-                    const gltf::Image& gltfImage = mapping->src->m_images[imageIndex];
-
-                    AsyncTask task([this, outImage, src, &gltfImage]() {
-                        importImage(outImage, *src, gltfImage);
-                        outImage->onLoaded();
-                    });
-
-                    s_taskManager->enqueueTask(task);
-                }
-            }
-        }
-        else
-        {
-            assert(0);
-        }
-    }
-
-    void GltfImporter::importImage(Image* outImage, gltf::Gltf& gltf, const gltf::Image& gltfImage)
-    {
-        gltf.importImage(gltfImage, *outImage);
-    }
-#endif
 }

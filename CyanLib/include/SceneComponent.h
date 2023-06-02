@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <queue>
+#include <memory>
 
 #include <glm/glm.hpp>
 
@@ -12,12 +13,14 @@ namespace Cyan
     class SceneComponent : public Component
     {
     public:
-        SceneComponent(Entity* owner, const char* name, const Transform& localTransform);
+        friend class Entity;
+
+        SceneComponent(const char* name, const Transform& localTransform);
         ~SceneComponent() { }
 
         void setParent(SceneComponent* parent);
         void attachToParent(SceneComponent* parent);
-        void attachChild(SceneComponent* child);
+        void attachChild(std::shared_ptr<SceneComponent> child);
         void onAttached();
         void detachFromParent();
         void onDetached();
@@ -28,13 +31,14 @@ namespace Cyan
         void finalizeAndUpdateTransform();
         virtual void onTransformUpdated() { }
 
+        SceneComponent* getParent() { return m_parent; }
         const Transform& getLocalTransform() { return m_local; }
         const Transform& getLocalToWorldTransform() { return m_localToWorld; }
         void setLocalTransform(const Transform& localTransform);
         void setLocalToWorldTransform(const Transform& localToWorldTransform);
     protected:
         SceneComponent* m_parent = nullptr;
-        std::vector<SceneComponent*> m_children;
+        std::vector<std::shared_ptr<SceneComponent>> m_children;
         Transform m_local;
         Transform m_localToWorld;
     };

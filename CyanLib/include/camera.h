@@ -32,7 +32,7 @@ namespace Cyan
 
         glm::mat4 view() const
         { 
-            return glm::lookAt(m_position, m_lookAt, m_worldUp);
+            return glm::lookAt(m_position, m_position + forward(), m_worldUp);
         }
 
         virtual glm::mat4 projection() const = 0;
@@ -40,6 +40,7 @@ namespace Cyan
         glm::vec3 right() const { return glm::normalize(glm::cross(forward(), m_worldUp)); }
         glm::vec3 up() const { return glm::normalize(glm::cross(right(), forward())); }
 
+        Camera();
         Camera(const glm::vec3& inPosition, const glm::vec3& inLookAt, const glm::vec3& inWorldUp, const glm::vec2& renderResolution, const Camera::ViewMode& viewMode);
 
         void setSceneRender(SceneRender* sceneRender);
@@ -74,13 +75,12 @@ namespace Cyan
         }
 
         PerspectiveCamera()
-            : Camera(glm::vec3(0.f, 1.f, -2.f), glm::vec3(0.f, 0.f, -4.f), glm::vec3(0.f, 1.f, 0.f), glm::vec2(1280, 720), VM_RESOLVED_SCENE_COLOR),
-            fov(90.f),
-            n(0.5f),
-            f(128.f),
-            aspectRatio(16.f / 9.f)
+            : Camera()
         {
-
+            fov = 45.f;
+            n = 0.5f;
+            f = 128.f;
+            aspectRatio = ((f32)m_renderResolution.x / m_renderResolution.y);
         }
 
         PerspectiveCamera(const glm::vec3& inPosition, const glm::vec3& inLookAt, const glm::vec3& inWorldUp, const glm::uvec2& renderResolution, const Camera::ViewMode& viewMode, f32 inFov, f32 inN, f32 inF)

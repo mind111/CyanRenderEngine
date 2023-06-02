@@ -2,8 +2,8 @@
 
 namespace Cyan
 {
-    StaticMeshComponent::StaticMeshComponent(Entity* owner, const char* name, const Transform& localTransform, std::shared_ptr<StaticMesh> mesh)
-        : SceneComponent(owner, name, localTransform)
+    StaticMeshComponent::StaticMeshComponent(const char* name, const Transform& localTransform, std::shared_ptr<StaticMesh> mesh)
+        : SceneComponent(name, localTransform)
     {
         m_staticMeshInstance = std::make_shared<StaticMesh::Instance>(this, mesh, getLocalToWorldTransform());
     }

@@ -8,6 +8,8 @@
 #include "AssetManager.h"
 #include "CyanApp.h"
 #include "World.h"
+#include "CameraComponent.h"
+#include "CameraEntity.h"
 
 namespace Cyan
 {
@@ -29,8 +31,6 @@ namespace Cyan
             static const char* picapica = ASSET_PATH "mesh/pica_pica_scene.glb";
 
 #if 0
-            AssetImporter::importAsync(m_scene.get(), shaderBalls);
-
             // skybox
             auto skybox = m_scene->createSkybox("Skybox", ASSET_PATH "cubemaps/neutral_sky.hdr", glm::uvec2(2048));
             // sun light
@@ -56,9 +56,11 @@ namespace Cyan
             };
 #else
             m_world->import(shaderBalls);
-            Transform t;
-            t.m_translate = glm::vec3(0.f, 1.f, -5.f);
-            auto camera = m_world->createPerspectiveCameraEntity("Camera", t, nullptr, glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f), m_appWindowDimension, VM_RESOLVED_SCENE_COLOR, 90.f, 0.1f, 100.f);
+            Transform local;
+            // todo: bug here
+            local.m_translate = glm::vec3(0.f, 3.f, 8.f);
+            auto cameraEntity = m_world->createPerspectiveCameraEntity("Camera", local, Transform(), nullptr, glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, 1.f, 0.f), m_appWindowDimension, VM_RESOLVED_SCENE_COLOR, 45.f, 0.1f, 100.f);
+            cameraEntity->addComponent(std::make_shared<CameraControllerComponent>("CameraController", cameraEntity->getCameraComponent()));
 #endif
         }
 

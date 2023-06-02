@@ -20,10 +20,10 @@ namespace Cyan
 
 #if 0
         // setup default I/O controls 
-        auto IOSystem = gEngine->getIOSystem();
-        IOSystem->addIOEventListener<MouseCursorEvent>([this, IOSystem](f64 xPos, f64 yPos) {
-            glm::dvec2 mouseCursorChange = IOSystem->getMouseCursorChange();
-            if (IOSystem->isMouseRightButtonDown())
+        auto InputSystem = gEngine->getIOSystem();
+        InputSystem->addIOEventListener<MouseCursorEvent>([this, InputSystem](f64 xPos, f64 yPos) {
+            glm::dvec2 mouseCursorChange = InputSystem->getMouseCursorChange();
+            if (InputSystem->isMouseRightButtonDown())
             {
                 // In radians per pixel 
                 const float kCameraOrbitSpeed = 0.005f;
@@ -35,18 +35,18 @@ namespace Cyan
             }
         });
 
-        IOSystem->addIOEventListener<MouseButtonEvent>([this, IOSystem](i32 button, i32 action) {
+        InputSystem->addIOEventListener<MouseButtonEvent>([this, InputSystem](i32 button, i32 action) {
             switch(button)
             {
                 case CYAN_MOUSE_BUTTON_RIGHT:
                 {
                     if (action == CYAN_PRESS)
                     {
-                        IOSystem->mouseRightButtonDown();
+                        InputSystem->mouseRightButtonDown();
                     }
                     else if (action == CYAN_RELEASE)
                     {
-                        IOSystem->mouseRightButtonUp();
+                        InputSystem->mouseRightButtonUp();
                     }
                     break;
                 }
@@ -55,12 +55,12 @@ namespace Cyan
             }
         });
 
-        IOSystem->addIOEventListener<MouseWheelEvent>([this](f64 xOffset, f64 yOffset) {
+        InputSystem->addIOEventListener<MouseWheelEvent>([this](f64 xOffset, f64 yOffset) {
             const f32 speed = 0.3f;
             m_scene->m_mainCamera->zoom(speed * yOffset);
         });
 
-        IOSystem->addIOEventListener<KeyEvent>([this](i32 key, i32 action) {
+        InputSystem->addIOEventListener<KeyEvent>([this](i32 key, i32 action) {
             switch (key)
             {
             case GLFW_KEY_W:
@@ -113,7 +113,7 @@ namespace Cyan
                 if (!scene->m_renders.empty())
                 {
                     auto render = scene->m_renders[0];
-                    renderer->renderToScreen(render->normal());
+                    renderer->renderToScreen(render->albedo());
                 }
             }
             // UI rendering

@@ -4,18 +4,17 @@
 
 namespace Cyan
 {
-    SceneComponent::SceneComponent(Entity* owner, const char* name, const Transform& localTransform)
-        : Component(owner, name), m_parent(nullptr), m_local(localTransform), m_localToWorld()
+    SceneComponent::SceneComponent(const char* name, const Transform& localTransform)
+        : Component(name), m_parent(nullptr), m_local(localTransform), m_localToWorld()
     {
-        assert(m_owner != nullptr);
     }
 
     void SceneComponent::attachToParent(SceneComponent* parent)
     { 
-        parent->attachChild(this);
+        parent->attachChild(std::shared_ptr<SceneComponent>(this));
     }
 
-    void SceneComponent::attachChild(SceneComponent* child)
+    void SceneComponent::attachChild(std::shared_ptr<SceneComponent> child)
     {
         child->detachFromParent();
 
@@ -27,8 +26,9 @@ namespace Cyan
     void SceneComponent::onAttached()
     {
         assert(m_parent != nullptr);
-        glm::mat4 localToWorldMatrix = m_local.toMatrix() * m_parent->getLocalToWorldTransform().toMatrix();
+        glm::mat4 localToWorldMatrix = m_parent->getLocalToWorldTransform().toMatrix() * m_local.toMatrix();
         setLocalToWorldTransform(Transform(localToWorldMatrix));
+        setOwner(m_parent->getOwner());
     }
 
     void SceneComponent::detachFromParent()
@@ -66,7 +66,7 @@ namespace Cyan
         m_local = localTransform;
         if (m_parent != nullptr)
         {
-            glm::mat4 localToWorldMatrix =  m_local.toMatrix() * m_parent->getLocalToWorldTransform().toMatrix();
+            glm::mat4 localToWorldMatrix = m_parent->getLocalToWorldTransform().toMatrix() * m_local.toMatrix();
             setLocalToWorldTransform(localToWorldMatrix);
         }
     }
@@ -83,7 +83,7 @@ namespace Cyan
         if (m_parent != nullptr)
         {
             Transform localToWorld;
-            localToWorld.fromMatrix(m_local.toMatrix() * m_parent->getLocalToWorldTransform().toMatrix());
+            localToWorld.fromMatrix(m_parent->getLocalToWorldTransform().toMatrix() * m_local.toMatrix());
             setLocalToWorldTransform(localToWorld);
         }
         else

@@ -31,7 +31,7 @@ namespace Cyan
         m_mainThreadID = std::this_thread::get_id();
 
         m_graphicsSystem = std::make_unique<GraphicsSystem>(windowWidth, windowHeight);
-        m_IOSystem = std::make_unique<IOSystem>();
+        m_IOSystem = std::make_unique<InputSystem>();
     }
 
     void Engine::initialize()

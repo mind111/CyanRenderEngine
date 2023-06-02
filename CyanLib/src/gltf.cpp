@@ -329,6 +329,7 @@ namespace Cyan
             {
             }
             assert(outImage.m_pixels);
+            outImage.onLoaded();
         }
 
         void translateSampler(const gltf::Sampler& sampler, Sampler2D& outSampler, bool& bOutGenerateMipmap)

@@ -22,4 +22,18 @@ namespace Cyan
     protected:
         std::unique_ptr<Camera> m_camera = nullptr;
     };
+
+    class CameraControllerComponent : public Component
+    {
+    public:
+        CameraControllerComponent(const char* name, CameraComponent* cameraComponent);
+        ~CameraControllerComponent() { }
+
+        virtual void update() override;
+    protected:
+        glm::vec3 m_velocity = glm::vec3(0.f);
+        f32 m_speed = 0.02f;
+        bool bWKeyPressed = false, bAKeyPressed = false, bSKeyPressed = false, bDKeyPressed = false;
+        CameraComponent* m_cameraComponent = nullptr;
+    };
 }

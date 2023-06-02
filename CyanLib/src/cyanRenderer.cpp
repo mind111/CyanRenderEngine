@@ -22,7 +22,7 @@
 #include "RenderableScene.h"
 #include "Lights.h"
 #include "LightComponents.h"
-#include "IOSystem.h"
+#include "InputSystem.h"
 #include "RenderPass.h"
 
 namespace Cyan 
@@ -1619,7 +1619,7 @@ namespace Cyan
                 ImVec2 rectMax = ImGui::GetWindowContentRegionMax();
                 if (ImGui::IsMouseHoveringRect(rectMin, rectMax)) {
                     if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
-                        glm::dvec2 mouseCursorChange = IOSystem::get()->getMouseCursorChange();
+                        glm::dvec2 mouseCursorChange = InputSystem::get()->getMouseCursorChange();
                         const f32 C = 0.02f;
                         f32 phi = mouseCursorChange.x * C;
                         f32 theta = mouseCursorChange.y * C;
@@ -1693,7 +1693,7 @@ namespace Cyan
                 ImVec2 rectMax = ImGui::GetWindowContentRegionMax();
                 if (ImGui::IsMouseHoveringRect(rectMin, rectMax)) {
                     if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
-                        glm::dvec2 mouseCursorChange = IOSystem::get()->getMouseCursorChange();
+                        glm::dvec2 mouseCursorChange = InputSystem::get()->getMouseCursorChange();
                         const f32 C = 0.02f;
                         f32 phi = mouseCursorChange.x * C;
                         f32 theta = mouseCursorChange.y * C;

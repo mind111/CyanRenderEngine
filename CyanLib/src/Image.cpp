@@ -6,8 +6,8 @@
 
 namespace Cyan
 {
-    Image::Image(const char* inName)
-        : Asset(inName)
+    Image::Image(const char* name)
+        : Asset(name)
     {
 
     }
@@ -15,7 +15,6 @@ namespace Cyan
     void Image::onLoaded()
     {
         std::lock_guard<std::mutex> lock(m_listenersMutex);
-        // todo: should listeners be removed once the event is fired? probably not
         for (auto listener : m_listeners)
         {
             listener->onImageLoaded();

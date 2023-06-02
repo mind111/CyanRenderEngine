@@ -6,13 +6,14 @@
 
 namespace Cyan
 {
-    Entity::Entity(World* world, const char* name, const Transform& localToWorld, Entity* parent) 
-        : m_name(name), m_world(world), m_parent(parent)
+    Entity::Entity(World* world, const char* name, const Transform& local, const Transform& localToWorld, Entity* parent) 
+        : m_name(name), m_world(world), m_parent(nullptr)
     {
-        m_rootSceneComponent = std::make_unique<SceneComponent>(this, "SceneRoot", localToWorld);
-        if (m_parent != nullptr)
+        m_rootSceneComponent = std::make_shared<SceneComponent>("SceneRoot", local);
+        m_rootSceneComponent->setOwner(this);
+        if (parent != nullptr)
         {
-            m_parent->attach(this);
+            parent->attach(this);
         }
         else
         {
@@ -37,12 +38,12 @@ namespace Cyan
     void Entity::onAttached()
     {
         assert(m_parent != nullptr);
-        m_parent->getRootSceneComponent()->attachChild(m_rootSceneComponent.get());
+        m_parent->getRootSceneComponent()->attachChild(m_rootSceneComponent);
     }
 
     void Entity::detach()
     {
-        if (m_parent)
+        if (m_parent != nullptr)
         {
             i32 childIndex = 0;
             for (auto child : m_parent->m_children)
@@ -71,10 +72,31 @@ namespace Cyan
     }
 
     void Entity::update() 
-    { 
+    {
+        std::queue<SceneComponent*> q;
+        q.push(m_rootSceneComponent.get());
+        while (!q.empty())
+        {
+            auto sceneComponent = q.front();
+            sceneComponent->update();
+            q.pop();
+
+            for (auto child : sceneComponent->m_children)
+            {
+                // make sure that we don't update child entity's scene components
+                if (child->getOwner() == this)
+                {
+                    q.push(child.get());
+                }
+            }
+        }
+        for (auto component : m_components)
+        {
+            component->update();
+        }
     }
 
-    void Entity::attachSceneComponent(const char* parentComponentName, SceneComponent* componentToAttach)
+    void Entity::attachSceneComponent(const char* parentComponentName, std::shared_ptr<SceneComponent> componentToAttach)
     {
         auto parentSceneComponent = findSceneComponent(parentComponentName);
         if (parentSceneComponent != nullptr)
@@ -86,6 +108,7 @@ namespace Cyan
     void Entity::addComponent(std::shared_ptr<Component> component) 
     { 
         m_components.push_back(component);
+        component->setOwner(this);
     }
 
     SceneComponent* Entity::findSceneComponent(const char* componentName)

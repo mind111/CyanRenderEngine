@@ -7,11 +7,11 @@
 
 namespace Cyan
 {
-    StaticMeshEntity::StaticMeshEntity(World* world, const char* name, const Transform& transform, Entity* parent, std::shared_ptr<StaticMesh> mesh)
-        : Entity(world, name, transform, parent)
+    StaticMeshEntity::StaticMeshEntity(World* world, const char* name, const Transform& local, const Transform& localToWorld, Entity* parent, std::shared_ptr<StaticMesh> mesh)
+        : Entity(world, name, local, localToWorld, parent)
     {
-        m_staticMeshComponent = std::make_unique<StaticMeshComponent>(this, "StaticMeshComponent", Transform(), mesh);
-        m_rootSceneComponent->attachChild(m_staticMeshComponent.get());
+        m_staticMeshComponent = std::make_shared<StaticMeshComponent>("StaticMeshComponent", Transform(), mesh);
+        m_rootSceneComponent->attachChild(m_staticMeshComponent);
     }
 
     StaticMeshEntity::~StaticMeshEntity() { }

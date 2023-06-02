@@ -13,10 +13,6 @@ namespace Cyan
 
     struct Transform
     {
-        glm::vec3 m_translate;
-        glm::quat m_qRot;
-        glm::vec3 m_scale;
-
         Transform(glm::vec3 translation=glm::vec3(0.f), glm::quat rotation=glm::quat(1.f, glm::vec3(0.f, 0.f, 0.f)), glm::vec3 scale=glm::vec3(1.f))
         {
             m_translate = translation;
@@ -74,5 +70,9 @@ namespace Cyan
         {
 
         }
+
+        glm::vec3 m_translate;
+        glm::quat m_qRot;
+        glm::vec3 m_scale;
     };
 }

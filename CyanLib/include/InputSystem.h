@@ -3,13 +3,13 @@
 #include <vector>
 #include <queue>
 #include <functional>
+#include <unordered_map>
 
 #include "mathUtils.h"
 
 #include "Singleton.h"
 #include "Common.h"
 #include "System.h"
-#include "Event.h"
 
 #define CYAN_PRESS GLFW_PRESS
 #define CYAN_RELEASE GLFW_RELEASE
@@ -18,6 +18,7 @@
 
 namespace Cyan
 {
+#if 0
     struct IOEvent : public IEvent
     {
         virtual std::string getTypeDesc() override { return "IOEvent"; }
@@ -161,19 +162,40 @@ namespace Cyan
         i32 key;
         i32 action;
     };
+#endif
+    enum class Action
+    {
+        kPress = 0,
+        kRepeat,
+        kRelease,
+        kCount
+    };
 
-    class IOSystem : public Singleton<IOSystem>, public System
+    struct KeyEvent
+    {
+        char key;
+        Action action;
+    };
+
+    struct MouseCursorEvent
+    {
+        bool bInited = false;
+        glm::vec2 pos;
+        glm::vec2 delta;
+    };
+
+    class InputSystem : public Singleton<InputSystem>, public System
     {
     public:
-        IOSystem();
-        ~IOSystem() { };
+        InputSystem();
+        ~InputSystem() { };
 
         virtual void initialize() override;
         virtual void update() override;
         virtual void deinitialize() override;
 
         // getters
-        glm::dvec2 getMouseCursorChange() { return glm::dvec2(m_mouseCursorState.dx, m_mouseCursorState.dy); }
+        glm::fvec2 getMouseCursorChange() { return m_mouseCursorState.delta; }
         bool isMouseLeftButtonDown() { return m_mouseButtonState.isLeftButtonDown; }
         bool isMouseRightButtonDown() { return m_mouseButtonState.isRightButtonDown; }
 
@@ -181,33 +203,21 @@ namespace Cyan
         void mouseRightButtonDown() { m_mouseButtonState.isRightButtonDown = true; }
         void mouseRightButtonUp() { m_mouseButtonState.isRightButtonDown = false; }
 
-        template <typename IOEventType>
-        void addIOEventListener(const typename IOEventType::Handler& handler)
-        {
-            m_IOEventDispatcher->addEventListener<IOEventType>(handler);
-        }
+        using KeyEventListener = std::function<void(const KeyEvent&)>;
+        using MouseCursorEventListener = std::function<void(const MouseCursorEvent&)>;
+        void registerKeyListener(char key, const KeyEventListener& listener);
+        void registerMouseCursorListener(const MouseCursorEventListener& listener);
+        std::unordered_map<char, std::vector<KeyEventListener>> m_keyEventListeners;
+        std::vector<MouseCursorEventListener> m_mouseCursorListeners;
 
-        template <typename IOEventType, typename ... Args>
-        void enqueIOEvent(Args... args)
-        {
-            m_IOEventDispatcher->createAndEnqueEvent<IOEventType>(args...);
-        }
+        typedef MouseCursorEvent MouseCursorState;
+        MouseCursorState m_mouseCursorState;
 
     private:
-        struct MouseCursor
-        {
-            f64 x = -1.0;
-            f64 y = -1.0;
-            f64 dx = 0.0;
-            f64 dy = 0.0;
-        } m_mouseCursorState;
-
         struct MouseButtonState
         {
             bool isLeftButtonDown = false;
             bool isRightButtonDown = false;
         } m_mouseButtonState;
-
-        EventDispatcher* m_IOEventDispatcher = nullptr;
     };
 }

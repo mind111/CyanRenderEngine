@@ -3,7 +3,7 @@
 #include <thread>
 
 #include "GraphicsSystem.h"
-#include "IOSystem.h"
+#include "InputSystem.h"
 #include "Window.h"
 #include "Singleton.h"
 
@@ -22,7 +22,7 @@ namespace Cyan
         static std::thread::id getMainThreadID() { assert(singleton); return singleton->m_mainThreadID; }
 
         GLFWwindow* getAppWindow() { return m_graphicsSystem->getAppWindow(); }
-        IOSystem* getIOSystem() { return m_IOSystem.get(); }
+        InputSystem* getIOSystem() { return m_IOSystem.get(); }
         GraphicsSystem* getGraphicsSystem() { return m_graphicsSystem.get(); }
 
         f32 getFrameElapsedTimeInMs() { return renderFrameTime; }
@@ -40,7 +40,7 @@ namespace Cyan
         std::thread::id m_mainThreadID;
 
         // systems
-        std::unique_ptr<IOSystem> m_IOSystem = nullptr;
+        std::unique_ptr<InputSystem> m_IOSystem = nullptr;
         std::unique_ptr<GraphicsSystem> m_graphicsSystem = nullptr;
         // stats
         f32 renderFrameTime = 0.0f;

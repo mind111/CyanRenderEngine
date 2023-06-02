@@ -144,13 +144,10 @@
     <ClInclude Include="include\VoxelConeTracing.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\IOSystem.h">
+    <ClInclude Include="include\InputSystem.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\System.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Event.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\CyanCore.h">
@@ -323,7 +320,7 @@
     <ClCompile Include="src\GraphicsSystem.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\IOSystem.cpp">
+    <ClCompile Include="src\InputSystem.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\LightProbe.cpp">
@@ -430,6 +427,9 @@
     </ClCompile>
     <ClCompile Include="src\Camera.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CameraComponent.cpp">
+      <Filter>Source Files\Components</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

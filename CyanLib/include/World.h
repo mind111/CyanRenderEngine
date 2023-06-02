@@ -29,9 +29,9 @@ namespace Cyan
         Scene* getScene() { return m_scene.get(); }
 
         void onEntityCreated(std::shared_ptr<Entity> entity);
-        Entity* createEntity(const char* name, /*const Transform& local,*/ const Transform& localToWorld, Entity* parent);
-        PerspectiveCameraEntity* createPerspectiveCameraEntity(const char* name, const Transform& localToWorld, Entity* parent, const glm::vec3& lookAt, const glm::vec3& worldUp, const glm::vec2& renderResolution, const Camera::ViewMode& viewMode, f32 fov, f32 n, f32 f);
-        StaticMeshEntity* createStaticMeshEntity(const char* name, const Transform& localToWorld, Entity* parent, std::shared_ptr<StaticMesh> mesh);
+        Entity* createEntity(const char* name, const Transform& local, const Transform& localToWorld, Entity* parent);
+        PerspectiveCameraEntity* createPerspectiveCameraEntity(const char* name, const Transform& local, const Transform& localToWorld, Entity* parent, const glm::vec3& lookAt, const glm::vec3& worldUp, const glm::vec2& renderResolution, const Camera::ViewMode& viewMode, f32 fov, f32 n, f32 f);
+        StaticMeshEntity* createStaticMeshEntity(const char* name, const Transform& local, const Transform& localToWorld, Entity* parent, std::shared_ptr<StaticMesh> mesh);
 
         std::string m_name;
         std::shared_ptr<Scene> m_scene = nullptr;

@@ -8,7 +8,7 @@ namespace Cyan
     class StaticMeshComponent : public SceneComponent
     {
     public:
-        StaticMeshComponent(Entity* owner, const char* name, const Transform& localTransform, std::shared_ptr<StaticMesh> mesh);
+        StaticMeshComponent(const char* name, const Transform& localTransform, std::shared_ptr<StaticMesh> mesh);
         ~StaticMeshComponent() { }
 
         virtual void onTransformUpdated() override;

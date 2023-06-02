@@ -45,11 +45,10 @@
     <ClInclude Include="include\LightEntities.h" />
     <ClInclude Include="include\CyanRenderer.h" />
     <ClInclude Include="include\Entity.h" />
-    <ClInclude Include="include\Event.h" />
     <ClInclude Include="include\Geometry.h" />
     <ClInclude Include="include\GfxContext.h" />
     <ClInclude Include="include\GraphicsSystem.h" />
-    <ClInclude Include="include\IOSystem.h" />
+    <ClInclude Include="include\InputSystem.h" />
     <ClInclude Include="include\Lights.h" />
     <ClInclude Include="include\LightComponents.h" />
     <ClInclude Include="include\LightProbe.h" />
@@ -89,6 +88,7 @@
     <ClCompile Include="src\AssetImporter.cpp" />
     <ClCompile Include="src\AssetManager.cpp" />
     <ClCompile Include="src\Camera.cpp" />
+    <ClCompile Include="src\CameraComponent.cpp" />
     <ClCompile Include="src\Component.cpp" />
     <ClCompile Include="src\CyanAPI.cpp" />
     <ClCompile Include="src\CyanApp.cpp" />
@@ -105,7 +105,7 @@
     <ClCompile Include="src\Geometry.cpp" />
     <ClCompile Include="src\GfxContext.cpp" />
     <ClCompile Include="src\GraphicsSystem.cpp" />
-    <ClCompile Include="src\IOSystem.cpp" />
+    <ClCompile Include="src\InputSystem.cpp" />
     <ClCompile Include="src\LightComponents.cpp" />
     <ClCompile Include="src\LightProbe.cpp" />
     <ClCompile Include="src\Material.cpp" />
