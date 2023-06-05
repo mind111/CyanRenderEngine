@@ -117,7 +117,7 @@ namespace Cyan
                                 for (i32 v = 0; v < triangles->numVertices(); ++v)
                                 {
                                     const Triangles::Vertex& vertex = triangles->vertices[v];
-                                    primitive.positions[v] = vertex.pos;
+                                    primitive.positions[v] = vertex.cursorPosition;
                                     primitive.normals[v] = vertex.normal;
                                 }
                             }

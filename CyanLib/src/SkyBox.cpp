@@ -64,6 +64,7 @@ namespace Cyan
                 cubeMesh,
                 pipeline,
                 [this, f](ProgramPipeline* p) {
+#if 0
                     PerspectiveCamera camera(
                         glm::vec3(0.f), // position
                         LightProbeCameras::cameraFacingDirections[f], // lookAt
@@ -77,6 +78,7 @@ namespace Cyan
                     p->setUniform("projection", camera.projection());
                     p->setUniform("view", camera.view());
                     p->setTexture("srcImageTexture", m_srcHDRITexture->m_gfxTexture.get());
+#endif
                 },
                 gfxPipelineState
             );

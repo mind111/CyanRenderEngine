@@ -11,6 +11,7 @@ in VSOutput
 
 layout (location = 0) out vec3 outRadiance;
 layout (location = 1) out vec3 outDiffuse;
+layout (location = 2) out vec3 outLightingOnly;
 
 uniform sampler2D sceneDepth;
 uniform sampler2D sceneNormal;
@@ -22,30 +23,42 @@ struct Cascade
 {
 	float n;
 	float f;
+    mat4 lightProjectionMatrix;
 	sampler2D depthTexture;
-    mat4 lightSpaceProjection;
 };
 
-struct DirectionalShadowMap 
+struct CascadedShadowMap 
 {
-    mat4 lightSpaceView;
+    mat4 lightViewMatrix;
 	Cascade cascades[kNumShadowCascades];
 };
 
 struct DirectionalLight 
 {
-	vec4 colorAndIntensity;
-	vec4 direction;
-	DirectionalShadowMap shadowMap;
+	vec3 color;
+    float intensity;
+	vec3 direction;
+	CascadedShadowMap csm;
 };
 
 uniform DirectionalLight directionalLight;
 
-layout(std430) buffer ViewBuffer 
+struct ViewParameters
 {
-    mat4  view;
-    mat4  projection;
+	uvec2 renderResolution;
+	float aspectRatio;
+	mat4 viewMatrix;
+	mat4 projectionMatrix;
+	vec3 cameraPosition;
+	vec3 cameraRight;
+	vec3 cameraForward;
+	vec3 cameraUp;
+	int frameCount;
+	float elapsedTime;
+	float deltaTime;
 };
+
+uniform ViewParameters viewParameters;
 
 vec3 screenToWorld(vec3 pp, mat4 invView, mat4 invProjection) 
 {
@@ -208,7 +221,7 @@ int calcCascadeIndex(in vec3 viewSpacePosition, in DirectionalLight directionalL
     int cascadeIndex = 0;
     for (int i = 0; i < 4; ++i)
     {
-        if (viewSpacePosition.z < directionalLight.shadowMap.cascades[i].f)
+        if (viewSpacePosition.z < directionalLight.csm.cascades[i].f)
         {
             cascadeIndex = i;
             break;
@@ -220,12 +233,12 @@ int calcCascadeIndex(in vec3 viewSpacePosition, in DirectionalLight directionalL
 float PCFShadow(vec3 worldSpacePosition, vec3 normal, in DirectionalLight directionalLight)
 {
 	float shadow = 0.0f;
-    vec2 texelOffset = vec2(1.f) / textureSize(directionalLight.shadowMap.cascades[0].depthTexture, 0);
-    vec3 viewSpacePosition = (view * vec4(worldSpacePosition, 1.f)).xyz;
+    vec2 texelOffset = vec2(1.f) / textureSize(directionalLight.csm.cascades[0].depthTexture, 0);
+    vec3 viewSpacePosition = (viewParameters.viewMatrix * vec4(worldSpacePosition, 1.f)).xyz;
     int cascadeIndex = calcCascadeIndex(viewSpacePosition, directionalLight);
     vec4 lightSpacePosition = 
-		directionalLight.shadowMap.cascades[cascadeIndex].lightSpaceProjection 
-	  * directionalLight.shadowMap.lightSpaceView * vec4(worldSpacePosition, 1.f);
+		directionalLight.csm.cascades[cascadeIndex].lightProjectionMatrix 
+	  * directionalLight.csm.lightViewMatrix * vec4(worldSpacePosition, 1.f);
     float depth = lightSpacePosition.z * .5f + .5f;
     vec2 uv = lightSpacePosition.xy * .5f + .5f;
 
@@ -254,7 +267,7 @@ float PCFShadow(vec3 worldSpacePosition, vec3 normal, in DirectionalLight direct
 #else
 			float bias = constantBias();
 #endif
-            float shadowSample = texture(directionalLight.shadowMap.cascades[cascadeIndex].depthTexture, texCoord).r < (depth - bias) ? 0.f : 1.f;
+            float shadowSample = texture(directionalLight.csm.cascades[cascadeIndex].depthTexture, texCoord).r < (depth - bias) ? 0.f : 1.f;
             shadow += shadowSample * kernel[(i + kernelRadius) * 5 + (j + kernelRadius)];
         }
     }
@@ -270,11 +283,11 @@ vec3 calcDirectionalLight(in DirectionalLight directionalLight, in Material mate
 {
     vec3 radiance = vec3(0.f);
     // view direction in world space
-    vec3 viewSpacePosition = (view * vec4(worldSpacePosition, 1.f)).xyz;
-    vec3 worldSpaceViewDirection = (inverse(view) * vec4(normalize(-viewSpacePosition), 0.f)).xyz;
+    vec3 viewSpacePosition = (viewParameters.viewMatrix * vec4(worldSpacePosition, 1.f)).xyz;
+    vec3 worldSpaceViewDirection = (inverse(viewParameters.viewMatrix) * vec4(normalize(-viewSpacePosition), 0.f)).xyz;
     float ndotl = max(dot(material.normal, directionalLight.direction.xyz), 0.f);
     vec3 f0 = calcF0(material);
-    vec3 li = directionalLight.colorAndIntensity.rgb * directionalLight.colorAndIntensity.a;
+    vec3 li = directionalLight.color * directionalLight.intensity;
 
     /** 
     * diffuse
@@ -304,6 +317,45 @@ vec3 calcDirectLighting(in Material material, vec3 worldSpacePosition)
     return radiance;
 }
 
+vec3 calcDirectDiffuseLighting(in Material material, vec3 worldSpacePosition)
+{
+    vec3 outDirectDiffuseRadiance = vec3(0.f);
+    return outDirectDiffuseRadiance;
+}
+
+vec3 calcDirectLightingOnly(in Material material, vec3 worldSpacePosition)
+{
+    vec3 outDirectLightingOnly = vec3(0.f);
+
+    material.albedo = vec3(1.f);
+
+    // view direction in world space
+    vec3 viewSpacePosition = (viewParameters.viewMatrix * vec4(worldSpacePosition, 1.f)).xyz;
+    vec3 worldSpaceViewDirection = (inverse(viewParameters.viewMatrix) * vec4(normalize(-viewSpacePosition), 0.f)).xyz;
+    float ndotl = max(dot(material.normal, directionalLight.direction.xyz), 0.f);
+    vec3 f0 = calcF0(material);
+    vec3 li = directionalLight.color * directionalLight.intensity;
+
+    /** 
+    * diffuse
+    */
+    vec3 diffuse = mix(material.albedo, vec3(0.f), material.metallic) * LambertBRDF();
+
+    /** 
+    * specular
+    */
+    vec3 specular = CookTorranceBRDF(directionalLight.direction.xyz, worldSpaceViewDirection, material.normal, material.roughness, f0);
+
+    outDirectLightingOnly += (diffuse + specular) * li * ndotl;
+
+    // shadow
+    float shadow = calcDirectionalShadow(worldSpacePosition, material.normal, directionalLight);
+
+    outDirectLightingOnly *= shadow;
+    outDirectLightingOnly += diffuse * li * ndotl * shadow;
+    return outDirectLightingOnly;
+}
+
 void main()
 {
 	float depth = texture(sceneDepth, psIn.texCoord0).r;
@@ -312,7 +364,7 @@ void main()
 		discard;
 	}
 	vec3 normal = normalize(texture(sceneNormal, psIn.texCoord0).rgb * 2.f - 1.f);
-	vec3 worldSpacePosition = screenToWorld(vec3(psIn.texCoord0, depth) * 2.f - 1.f, inverse(view), inverse(projection)); 
+	vec3 worldSpacePosition = screenToWorld(vec3(psIn.texCoord0, depth) * 2.f - 1.f, inverse(viewParameters.viewMatrix), inverse(viewParameters.projectionMatrix)); 
 
     // setup per pixel material 
     Material material;
@@ -324,4 +376,6 @@ void main()
     material.occlusion = 1.f;
 
     outRadiance = calcDirectLighting(material, worldSpacePosition);
+    outDiffuse = calcDirectDiffuseLighting(material, worldSpacePosition);
+    outLightingOnly = calcDirectLightingOnly(material, worldSpacePosition);
 }

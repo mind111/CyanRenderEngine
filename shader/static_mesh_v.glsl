@@ -33,7 +33,6 @@ struct ViewParameters
 	mat4 viewMatrix;
 	mat4 projectionMatrix;
 	vec3 cameraPosition;
-	vec3 cameraLookAt;
 	vec3 cameraRight;
 	vec3 cameraForward;
 	vec3 cameraUp;

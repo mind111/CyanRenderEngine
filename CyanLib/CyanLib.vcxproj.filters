@@ -162,13 +162,7 @@
     <ClInclude Include="include\Camera.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\GpuLights.h">
-      <Filter>Header Files\Lights</Filter>
-    </ClInclude>
     <ClInclude Include="include\Lights.h">
-      <Filter>Header Files\Lights</Filter>
-    </ClInclude>
-    <ClInclude Include="include\LightComponents.h">
       <Filter>Header Files\Lights</Filter>
     </ClInclude>
     <ClInclude Include="include\LightEntities.h">
@@ -207,7 +201,7 @@
     <ClInclude Include="include\RenderableScene.h">
       <Filter>Header Files\Rendering</Filter>
     </ClInclude>
-    <ClInclude Include="include\Shadow.h">
+    <ClInclude Include="include\ShadowMaps.h">
       <Filter>Header Files\Rendering</Filter>
     </ClInclude>
     <ClInclude Include="include\SkyBox.h">
@@ -276,12 +270,12 @@
     <ClInclude Include="include\CameraComponent.h">
       <Filter>Header Files\Components</Filter>
     </ClInclude>
+    <ClInclude Include="include\LightComponents.h">
+      <Filter>Header Files\Components</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\LightEntities.cpp">
-      <Filter>Source Files\Lights</Filter>
-    </ClCompile>
-    <ClCompile Include="src\LightComponents.cpp">
       <Filter>Source Files\Lights</Filter>
     </ClCompile>
     <ClCompile Include="src\Lights.cpp">
@@ -344,7 +338,7 @@
     <ClCompile Include="src\Shader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\Shadow.cpp">
+    <ClCompile Include="src\ShadowMaps.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\SkyBox.cpp">
@@ -429,6 +423,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\CameraComponent.cpp">
+      <Filter>Source Files\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="src\LightComponents.cpp">
       <Filter>Source Files\Components</Filter>
     </ClCompile>
   </ItemGroup>
@@ -959,6 +956,9 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\gbuffer_p.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\screen_pass_v.glsl">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

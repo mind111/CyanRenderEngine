@@ -15,7 +15,7 @@
 #include "Camera.h"
 #include "Entity.h"
 #include "Geometry.h"
-#include "Shadow.h"
+#include "ShadowMaps.h"
 #include "RenderTexture.h"
 #include "SSGI.h"
 
@@ -90,7 +90,6 @@ namespace Cyan
         void render(Scene* scene);
 #endif
         void endRender();
-        void renderShadowMaps(Scene* inScene);
 #if 0
         void renderSceneDepthOnly(RenderableScene& renderableScene, GfxDepthTexture2D* outDepthTexture);
 #ifdef BINDLESS_TEXTURE
@@ -103,11 +102,13 @@ namespace Cyan
         void renderSceneDirectLighting(RenderTexture2D outDirectLighting, const RenderableScene& scene, GBuffer gBuffer);
         void renderSceneIndirectLighting(RenderTexture2D outIndirectLighting, const RenderableScene& scene, GBuffer gBuffer);
 #else
+        void renderSceneDepth(GfxDepthTexture2D* outDepthBuffer, Scene* scene, const SceneRender::ViewParameters& viewParameters);
         void renderSceneDepthPrepass(GfxDepthTexture2D* outDepthBuffer, Scene* scene, const SceneRender::ViewParameters& viewParameters);
+        void renderShadowMaps(Scene* scene, Camera* camera);
         void renderSceneGBuffer(GfxTexture2D* outAlbedo, GfxTexture2D* outNormal, GfxTexture2D* outMetallicRoughness, GfxDepthTexture2D* depth, Scene* scene, const SceneRender::ViewParameters& viewParameters);
-        void renderSceneLighting(GfxTexture2D* outSceneColor, Scene* scene, GfxTexture2D* albedo, GfxTexture2D* normal, GfxTexture2D* metallicRoughness);
-        void renderSceneDirectLighting(GfxTexture2D* outDirectLighting, Scene* scene, GfxTexture2D* albedo, GfxTexture2D* normal, GfxTexture2D* metallicRoughness);
-        void renderSceneIndirectLighting(GfxTexture2D* outIndirectLighting, Scene* scene, GfxTexture2D* albedo, GfxTexture2D* normal, GfxTexture2D* metallicRoughness);
+        void renderSceneLighting(Scene* scene, SceneRender* render);
+        void renderSceneDirectLighting(Scene* scene, SceneRender* render);
+        void renderSceneIndirectLighting(Scene* scene, SceneRender* render);
 #endif
         void renderToScreen(GfxTexture2D* inTexture);
 

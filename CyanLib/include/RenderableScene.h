@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Common.h"
-#include "GpuLights.h"
 #include "LightProbe.h"
 #include "ShaderStorageBuffer.h"
 #include "Geometry.h"

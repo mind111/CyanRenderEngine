@@ -10,6 +10,7 @@
 #include "Camera.h"
 #include "Texture.h"
 #include "Mesh.h"
+#include "Lights.h"
 
 namespace Cyan 
 {
@@ -92,6 +93,7 @@ namespace Cyan
             std::unique_ptr<GfxTexture2D> directLighting;
             std::unique_ptr<GfxTexture2D> directDiffuseLighting;
             std::unique_ptr<GfxTexture2D> indirectLighting;
+            std::unique_ptr<GfxTexture2D> lightingOnly;
             std::unique_ptr<GfxTexture2D> aoHistory;
             std::unique_ptr<GfxTexture2D> ao;
             std::unique_ptr<GfxTexture2D> bentNormal;
@@ -129,7 +131,9 @@ namespace Cyan
         GfxTexture2D* albedo() { return m_output->albedo.get(); }
         GfxTexture2D* metallicRoughness() { return m_output->metallicRoughness.get(); }
         GfxTexture2D* directLighting() { return m_output->directLighting.get(); }
+        GfxTexture2D* directDiffuseLighting() { return m_output->directDiffuseLighting.get(); }
         GfxTexture2D* indirectLighting() { return m_output->indirectLighting.get(); }
+        GfxTexture2D* lightingOnly() { return m_output->lightingOnly.get(); }
         GfxTexture2D* ao() { return m_output->ao.get(); }
         GfxTexture2D* color() { return m_output->color.get(); }
 
@@ -151,7 +155,7 @@ namespace Cyan
         void addStaticMeshInstance(StaticMesh::Instance* staticMeshInstance);
         void removeStaticMeshInstance() { }
 
-        void addDirectionalLight() { }
+        void addDirectionalLight(DirectionalLight* directionalLight);
         void removeDirectionalLight() { }
 
         i32 getFrameCount();
@@ -164,6 +168,7 @@ namespace Cyan
         std::vector<StaticMesh::Instance*> m_staticMeshInstances;
 
         // todo: lights
+        DirectionalLight* m_directionalLight = nullptr;
     };
 #endif
 }

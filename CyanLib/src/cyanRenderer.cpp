@@ -106,54 +106,6 @@ namespace Cyan
         return outTexture;
     }
 
-#if 0
-    Renderer::SceneTextures* Renderer::SceneTextures::create(const glm::uvec2& inResolution)
-    {
-        static std::unique_ptr<SceneTextures> s_sceneTextures = nullptr;
-        if (s_sceneTextures == nullptr)
-        {
-            s_sceneTextures.reset(new SceneTextures(inResolution));
-        }
-        else
-        {
-            if (inResolution != s_sceneTextures->resolution)
-            {
-                assert(0);
-            }
-        }
-        return s_sceneTextures.get();
-    }
-
-    Renderer::SceneTextures::SceneTextures(const glm::uvec2& inResolution)
-        : resolution(inResolution)
-        , gBuffer(inResolution)
-        , HiZ(GfxTexture2D::Spec(gBuffer.depth.getGfxDepthTexture2D()->width, gBuffer.depth.getGfxDepthTexture2D()->height, 1, PF_R32F))
-        , directLighting("SceneDirectLighting", GfxTexture2D::Spec(inResolution.x, inResolution.y, 1, PF_RGBA16F), Sampler2D())
-        , directDiffuseLighting("SceneDirectDiffuseLighting", GfxTexture2D::Spec(inResolution.x, inResolution.y, 1, PF_RGBA16F), Sampler2D())
-        , indirectLighting("SceneIndirectLighting", GfxTexture2D::Spec(inResolution.x, inResolution.y, 1, PF_RGB16F), Sampler2D())
-        , ssgiMirror("SSGIMirrorDebug", GfxTexture2D::Spec(inResolution.x, inResolution.y, 1, PF_RGB16F), Sampler2D())
-        , ao("SSGIAO", GfxTexture2D::Spec(inResolution.x, inResolution.y, 1, PF_RGB16F), Sampler2D())
-        , bentNormal("SSGIBentNormal", GfxTexture2D::Spec(inResolution.x, inResolution.y, 1, PF_RGB16F), Sampler2D())
-        , irradiance("SSGIIrradiance", GfxTexture2D::Spec(inResolution.x, inResolution.y, 1, PF_RGB16F), Sampler2D())
-        , color("SceneColor", GfxTexture2D::Spec(inResolution.x, inResolution.y, 1, PF_RGB16F), Sampler2D())
-    {
-        auto renderer = Renderer::get();
-        renderer->registerVisualization(std::string("SceneTextures"), "SceneColor", color.getGfxTexture2D());
-        renderer->registerVisualization(std::string("SceneTextures"), "SceneAlbedo", gBuffer.albedo.getGfxTexture2D());
-        renderer->registerVisualization(std::string("SceneTextures"), "SceneMetallicRoughness", gBuffer.metallicRoughness.getGfxTexture2D());
-        renderer->registerVisualization(std::string("SceneTextures"), "SceneDepth", gBuffer.depth.getGfxDepthTexture2D());
-        renderer->registerVisualization(std::string("SceneTextures"), "HiZ", HiZ.texture.getGfxTexture2D());
-        renderer->registerVisualization(std::string("SceneTextures"), "SSGIMirror", ssgiMirror.getGfxTexture2D());
-        renderer->registerVisualization(std::string("SceneTextures"), "SceneNormal", gBuffer.normal.getGfxTexture2D());
-        renderer->registerVisualization(std::string("SceneTextures"), "SceneDirectDiffuseLighting", directDiffuseLighting.getGfxTexture2D());
-        renderer->registerVisualization(std::string("SceneTextures"), "SceneDirectLighting", directLighting.getGfxTexture2D());
-        renderer->registerVisualization(std::string("SceneTextures"), "SceneIndirectLighting", indirectLighting.getGfxTexture2D());
-        renderer->registerVisualization(std::string("SceneTextures"), "AmbientOcclusion", ao.getGfxTexture2D());
-        renderer->registerVisualization(std::string("SceneTextures"), "BentNormal", bentNormal.getGfxTexture2D());
-        renderer->registerVisualization(std::string("SceneTextures"), "Irradiance", irradiance.getGfxTexture2D());
-    }
-#endif
-
     Renderer::Renderer(GfxContext* ctx, u32 windowWidth, u32 windowHeight)
         : m_ctx(ctx),
         m_windowSize(windowWidth, windowHeight),
@@ -312,17 +264,17 @@ namespace Cyan
         {
             render->update();
             // todo: render shadow maps
+            renderShadowMaps(scene, render->m_camera);
             renderSceneDepthPrepass(render->depth(), scene, render->m_viewParameters);
             renderSceneGBuffer(render->albedo(), render->normal(), render->metallicRoughness(), render->depth(), scene, render->m_viewParameters);
+            renderSceneLighting(scene, render.get());
             // post processing
         }
     }
 
-    void Renderer::renderSceneDepthPrepass(GfxDepthTexture2D* outDepthBuffer, Scene* scene, const SceneRender::ViewParameters& viewParameters)
+    void Renderer::renderSceneDepth(GfxDepthTexture2D* outDepthBuffer, Scene* scene, const SceneRender::ViewParameters& viewParameters)
     {
-        GPU_DEBUG_SCOPE(sceneDepthPrepassMarker, "Scene Depth Prepass");
-
-        if (outDepthBuffer)
+        if (outDepthBuffer != nullptr)
         {
             CreateVS(vs, "StaticMeshVS", SHADER_SOURCE_PATH "static_mesh_v.glsl");
             CreatePS(ps, "DepthOnlyPS", SHADER_SOURCE_PATH "depth_only_p.glsl");
@@ -351,9 +303,52 @@ namespace Cyan
         }
     }
 
+    void Renderer::renderSceneDepthPrepass(GfxDepthTexture2D* outDepthBuffer, Scene* scene, const SceneRender::ViewParameters& viewParameters)
+    {
+        GPU_DEBUG_SCOPE(sceneDepthPrepassMarker, "Scene Depth Prepass");
+
+        if (outDepthBuffer != nullptr)
+        {
+            CreateVS(vs, "StaticMeshVS", SHADER_SOURCE_PATH "static_mesh_v.glsl");
+            CreatePS(ps, "DepthOnlyPS", SHADER_SOURCE_PATH "depth_only_p.glsl");
+            CreatePixelPipeline(pipeline, "SceneDepthPrepass", vs, ps);
+
+            RenderPass pass(outDepthBuffer->width, outDepthBuffer->height);
+            pass.viewport = { 0, 0, outDepthBuffer->width, outDepthBuffer->height };
+            pass.setDepthBuffer(outDepthBuffer);
+            pass.drawLambda = [&scene, pipeline, viewParameters](GfxContext* ctx) { 
+                pipeline->bind(ctx);
+                viewParameters.setShaderParameters(pipeline);
+                for (auto instance : scene->m_staticMeshInstances)
+                {
+                    pipeline->setUniform("localToWorld", instance->localToWorld.toMatrix());
+                    auto mesh = instance->parent;
+                    for (i32 i = 0; i < mesh->getNumSubmeshes(); ++i)
+                    {
+                        auto sm = (*mesh)[i];
+                        ctx->setVertexArray(sm->va.get());
+                        ctx->drawIndex(sm->numIndices());
+                    }
+                }
+                pipeline->unbind(ctx);
+            };
+            pass.render(m_ctx);
+        }
+    }
+
+    void Renderer::renderShadowMaps(Scene* scene, Camera* camera)
+    {
+        GPU_DEBUG_SCOPE(renderShadowMapsMarker, "Shadow Maps Pass");
+
+        if (scene->m_directionalLight != nullptr)
+        {
+            scene->m_directionalLight->m_csm->render(scene, camera);
+        }
+    }
+
     void Renderer::renderSceneGBuffer(GfxTexture2D* outAlbedo, GfxTexture2D* outNormal, GfxTexture2D* outMetallicRoughness, GfxDepthTexture2D* depth, Scene* scene, const SceneRender::ViewParameters& viewParameters)
     {
-        GPU_DEBUG_SCOPE(sceneGBufferPassMarker, "Scene GBuffer Pass");
+        GPU_DEBUG_SCOPE(renderSceneGBufferPassMarker, "Scene GBuffer Pass");
 
         if (outAlbedo != nullptr && outNormal != nullptr && outMetallicRoughness != nullptr && depth != nullptr && scene != nullptr)
         {
@@ -387,6 +382,77 @@ namespace Cyan
             };
             pass.render(m_ctx);
         }
+    }
+
+    void Renderer::renderSceneLighting(Scene* scene, SceneRender* render)
+    {
+        GPU_DEBUG_SCOPE(sceneGBufferPassMarker, "Scene Lighting Pass");
+
+        renderSceneDirectLighting(scene, render);
+        // renderSceneIndirectLighting(scene, render);
+
+        // compose lighting results
+    }
+
+    void Renderer::renderSceneDirectLighting(Scene* scene, SceneRender* render)
+    {
+        GPU_DEBUG_SCOPE(sceneDirectLightingPassMarker, "Scene Direct Lighting Pass");
+
+        CreateVS(vs, "ScreenPassVS", SHADER_SOURCE_PATH "screen_pass_v.glsl");
+        CreatePS(ps, "SceneDirectLightingPS", SHADER_SOURCE_PATH "scene_direct_lighting_p.glsl");
+        CreatePixelPipeline(pipeline, "SceneDirectLighting", vs, ps);
+
+        auto outDirectLighting = render->directLighting();
+        auto outDirectDiffuseLighting = render->directDiffuseLighting();
+        auto outLightingOnly = render->lightingOnly();
+
+        drawFullscreenQuad(
+            glm::uvec2(outDirectLighting->width, outDirectLighting->height),
+            [outDirectLighting, outDirectDiffuseLighting, outLightingOnly, this](RenderPass& pass) {
+                pass.setRenderTarget(outDirectLighting, 0);
+                pass.setRenderTarget(outDirectDiffuseLighting, 1);
+                pass.setRenderTarget(outLightingOnly, 2);
+            },
+            pipeline,
+            [scene, render](ProgramPipeline* p) {
+                render->m_viewParameters.setShaderParameters(p);
+                // setup shader parameters for the directional light
+                if (scene->m_directionalLight != nullptr)
+                {
+                    p->setUniform("directionalLight.color", scene->m_directionalLight->m_color);
+                    p->setUniform("directionalLight.intensity", scene->m_directionalLight->m_intensity);
+                    p->setUniform("directionalLight.direction", scene->m_directionalLight->m_direction);
+                    p->setUniform("directionalLight.csm.lightViewMatrix", scene->m_directionalLight->m_csm->m_lightViewMatrix);
+                    for (i32 i = 0; i < CascadedShadowMap::kNumCascades; ++i)
+                    {
+                        char nName[64];
+                        sprintf_s(nName, "directionalLight.csm.cascades[%d].n", i);
+                        p->setUniform(nName, scene->m_directionalLight->m_csm->m_cascades[i].n);
+                        char fName[64];
+                        sprintf_s(fName, "directionalLight.csm.cascades[%d].f", i);
+                        p->setUniform(fName, scene->m_directionalLight->m_csm->m_cascades[i].f);
+                        char lightProjectionMatrixName[64];
+                        sprintf_s(lightProjectionMatrixName, "directionalLight.csm.cascades[%d].lightProjectionMatrix", i);
+                        p->setUniform(lightProjectionMatrixName, scene->m_directionalLight->m_csm->m_cascades[i].camera->projection());
+                        char depthTextureName[64];
+                        sprintf_s(depthTextureName, "directionalLight.csm.cascades[%d].depthTexture", i);
+                        p->setTexture(depthTextureName, scene->m_directionalLight->m_csm->m_cascades[i].depthTexture.get());
+                    }
+                }
+                else
+                {
+                }
+                p->setTexture("sceneDepth", render->depth());
+                p->setTexture("sceneNormal", render->normal());
+                p->setTexture("sceneAlbedo", render->albedo());
+                p->setTexture("sceneMetallicRoughness", render->metallicRoughness());
+            }
+        );
+    }
+
+    void Renderer::renderSceneIndirectLighting(Scene* scene, SceneRender* render)
+    {
+        GPU_DEBUG_SCOPE(sceneIndirectLighting, "Scene Indirect Lighting Pass");
     }
 
 #endif

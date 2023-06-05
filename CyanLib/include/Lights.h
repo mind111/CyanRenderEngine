@@ -2,11 +2,7 @@
 
 #include <glm/glm.hpp>
 
-#include "Component.h"
-#include "Entity.h"
-#include "Texture.h"
-#include "Shadow.h"
-#include "GpuLights.h"
+#include "ShadowMaps.h"
 
 namespace Cyan
 {
@@ -25,8 +21,23 @@ namespace Cyan
         glm::vec4 colorAndIntensity = glm::vec4(1.f, 0.7f, 0.9f, 1.f);
     };
 
-#if 0
+    class DirectionalLightComponent;
+    class DirectionalLight
+    {
+    public:
+        DirectionalLight(DirectionalLightComponent* directionalLightComponent);
+        ~DirectionalLight() { }
 
+        static constexpr glm::vec3 defaultDirection = glm::vec3(0.f);
+
+        DirectionalLightComponent* m_directionalLightComponent = nullptr;
+        glm::vec3 m_color;
+        f32 m_intensity;
+        glm::vec3 m_direction;
+        std::unique_ptr<CascadedShadowMap> m_csm = nullptr;
+    };
+
+#if 0
     // todo: a light shouldn't need to care about what kind of shadow rendering technique its shadow map is using.
     struct DirectionalLight : public Light 
     {

@@ -6,6 +6,7 @@
 
 #include "glm/glm.hpp"
 
+#include "Image.h"
 #include "Common.h"
 #include "CyanCore.h"
 

@@ -13,11 +13,18 @@ namespace Cyan
 
     struct Transform
     {
-        Transform(glm::vec3 translation=glm::vec3(0.f), glm::quat rotation=glm::quat(1.f, glm::vec3(0.f, 0.f, 0.f)), glm::vec3 scale=glm::vec3(1.f))
+        Transform()
         {
-            m_translate = translation;
-            m_qRot = rotation;
-            m_scale = scale;
+            translation = glm::vec3(0.f);
+            rotation = glm::quat(1.f, glm::vec3(0.f));
+            scale = glm::vec3(1.f);
+        }
+
+        Transform(const glm::vec3& t, const glm::quat& r, const glm::vec3& s)
+        {
+            translation = t;
+            rotation = r;
+            scale = s;
         }
 
         Transform(const glm::mat4& mat)
@@ -28,51 +35,36 @@ namespace Cyan
         glm::mat4 toMatrix() const
         {
             glm::mat4 mat(1.f);
-            mat = glm::translate(mat, m_translate);
-            glm::mat4 rotation = glm::toMat4(m_qRot);
-            mat = mat * rotation;
-            mat = glm::scale(mat, m_scale);
+            mat = glm::translate(mat, translation);
+            glm::mat4 rotationMatrix = glm::toMat4(rotation);
+            mat = mat * rotationMatrix;
+            mat = glm::scale(mat, scale);
             return mat;
         }
 
         void fromMatrix(glm::mat4 mat) {
-            m_translate = glm::vec3(mat[3].x, mat[3].y, mat[3].z); 
-            m_scale = glm::vec3(glm::length(glm::vec3(mat[0].x, mat[0].y, mat[0].z)), 
+            translation = glm::vec3(mat[3].x, mat[3].y, mat[3].z); 
+            scale = glm::vec3(glm::length(glm::vec3(mat[0].x, mat[0].y, mat[0].z)), 
                                 glm::length(glm::vec3(mat[1].x, mat[1].y, mat[1].z)),
                                 glm::length(glm::vec3(mat[2].x, mat[2].y, mat[2].z)));
             // clear translation
             mat[3] = glm::vec4(0.f, 0.f, 0.f, 1.f);
             // clear scale
-            mat[0] *= 1.f / m_scale.x;
-            mat[1] *= 1.f / m_scale.y;
-            mat[2] *= 1.f / m_scale.z;
-            m_qRot = glm::toQuat(mat);
+            mat[0] *= 1.f / scale.x;
+            mat[1] *= 1.f / scale.y;
+            mat[2] *= 1.f / scale.z;
+            rotation = glm::toQuat(mat);
         }
 
         void operator=(Transform rhs)
         {
-            m_translate = rhs.m_translate;
-            m_qRot = rhs.m_qRot;
-            m_scale = rhs.m_scale;
+            translation = rhs.translation;
+            rotation = rhs.rotation;
+            scale = rhs.scale;
         }
 
-        void rotate()
-        {
-
-        }
-
-        void translate()
-        {
-
-        }
-
-        void scale()
-        {
-
-        }
-
-        glm::vec3 m_translate;
-        glm::quat m_qRot;
-        glm::vec3 m_scale;
+        glm::vec3 translation;
+        glm::quat rotation;
+        glm::vec3 scale;
     };
 }

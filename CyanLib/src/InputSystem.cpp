@@ -3,10 +3,10 @@
 
 namespace Cyan
 {
-    static void mouseButtonCallback(GLFWwindow* window, i32 button, i32 action, i32 mods);
-    static void mouseWheelCallback(GLFWwindow* window, f64 xOffset, f64 yOffset);
-    static void onMouseCursorEvent(GLFWwindow* window, f64 x, f64 y);
     static void onKeyEvent(GLFWwindow* window, i32 key, i32 scancode, i32 action, i32 mods);
+    static void onMouseCursorEvent(GLFWwindow* window, f64 x, f64 y);
+    static void onMouseButtonEvent(GLFWwindow* window, i32 button, i32 action, i32 mods);
+    static void onMouseWheelEvent(GLFWwindow* window, f64 xOffset, f64 yOffset);
 
     InputSystem* Singleton<InputSystem>::singleton = nullptr;
     InputSystem::InputSystem()
@@ -20,26 +20,10 @@ namespace Cyan
 
         // bind I/O handlers 
         glfwSetWindowUserPointer(window, this);
-        glfwSetMouseButtonCallback(window, mouseButtonCallback);
+        glfwSetMouseButtonCallback(window, onMouseButtonEvent);
         glfwSetCursorPosCallback(window, onMouseCursorEvent);
-        glfwSetScrollCallback(window, mouseWheelCallback);
+        glfwSetScrollCallback(window, onMouseWheelEvent);
         glfwSetKeyCallback(window, onKeyEvent);
-
-#if 0
-        // hook up event listeners
-        m_IOEventDispatcher->addEventListener<MouseCursorEvent>([this](f64 cursorX, f64 cursorY) { 
-            if (m_mouseCursorState.x < 0.f || m_mouseCursorState.y < 0.f)
-            {
-                m_mouseCursorState.x = cursorX;
-                m_mouseCursorState.y = cursorY;
-                return;
-            }
-            m_mouseCursorState.dx = cursorX - m_mouseCursorState.x;
-            m_mouseCursorState.dy = cursorY - m_mouseCursorState.y;
-            m_mouseCursorState.x = cursorX;
-            m_mouseCursorState.y = cursorY;
-        });
-#endif
     }
 
     void InputSystem::update()
@@ -52,23 +36,20 @@ namespace Cyan
 
     }
 
-    void mouseButtonCallback(GLFWwindow* window, i32 button, i32 action, i32 mods)
-    {
-    }
-
-    void mouseWheelCallback(GLFWwindow* window, f64 xOffset, f64 yOffset)
-    {
-    }
-
-    void InputSystem::registerKeyListener(char key, const std::function<void(const KeyEvent&)>& func)
+    void InputSystem::registerKeyEventListener(char key, const KeyEventListener& func)
     {
         auto& listeners = m_keyEventListeners[key];
         listeners.push_back(func);
     }
 
-    void InputSystem::registerMouseCursorListener(const MouseCursorEventListener& listener)
+    void InputSystem::registerMouseCursorEventListener(const MouseCursorEventListener& listener)
     {
         m_mouseCursorListeners.push_back(listener);
+    }
+
+    void InputSystem::registerMouseButtonEventListener(const MouseButtonEventListener& listener)
+    {
+        m_mouseButtonListeners.push_back(listener);
     }
 
     static void onKeyEvent(GLFWwindow* window, i32 key, i32 scancode, i32 action, i32 mods)
@@ -84,9 +65,9 @@ namespace Cyan
                 {
                     switch (action)
                     {
-                    case GLFW_PRESS: listener(KeyEvent{ key, Action::kPress }); break;
-                    case GLFW_RELEASE: listener(KeyEvent{ key, Action::kRelease }); break;
-                    case GLFW_REPEAT: listener(KeyEvent{ key, Action::kRepeat }); break;
+                    case GLFW_PRESS: listener(KeyEvent{ key, InputAction::kPress }); break;
+                    case GLFW_RELEASE: listener(KeyEvent{ key, InputAction::kRelease }); break;
+                    case GLFW_REPEAT: listener(KeyEvent{ key, InputAction::kRepeat }); break;
                     default: assert(0);
                     }
                 }
@@ -100,9 +81,9 @@ namespace Cyan
                 {
                     switch (action)
                     {
-                    case GLFW_PRESS: listener(KeyEvent{ key, Action::kPress }); break;
-                    case GLFW_RELEASE: listener(KeyEvent{ key, Action::kRelease }); break;
-                    case GLFW_REPEAT: listener(KeyEvent{ key, Action::kRepeat }); break;
+                    case GLFW_PRESS: listener(KeyEvent{ key, InputAction::kPress }); break;
+                    case GLFW_RELEASE: listener(KeyEvent{ key, InputAction::kRelease }); break;
+                    case GLFW_REPEAT: listener(KeyEvent{ key, InputAction::kRepeat }); break;
                     default: assert(0);
                     }
                 }
@@ -116,9 +97,9 @@ namespace Cyan
                 {
                     switch (action)
                     {
-                    case GLFW_PRESS: listener(KeyEvent{ key, Action::kPress }); break;
-                    case GLFW_RELEASE: listener(KeyEvent{ key, Action::kRelease }); break;
-                    case GLFW_REPEAT: listener(KeyEvent{ key, Action::kRepeat }); break;
+                    case GLFW_PRESS: listener(KeyEvent{ key, InputAction::kPress }); break;
+                    case GLFW_RELEASE: listener(KeyEvent{ key, InputAction::kRelease }); break;
+                    case GLFW_REPEAT: listener(KeyEvent{ key, InputAction::kRepeat }); break;
                     default: assert(0);
                     }
                 }
@@ -132,9 +113,9 @@ namespace Cyan
                 {
                     switch (action)
                     {
-                    case GLFW_PRESS: listener(KeyEvent{ key, Action::kPress }); break;
-                    case GLFW_RELEASE: listener(KeyEvent{ key, Action::kRelease }); break;
-                    case GLFW_REPEAT: listener(KeyEvent{ key, Action::kRepeat }); break;
+                    case GLFW_PRESS: listener(KeyEvent{ key, InputAction::kPress }); break;
+                    case GLFW_RELEASE: listener(KeyEvent{ key, InputAction::kRelease }); break;
+                    case GLFW_REPEAT: listener(KeyEvent{ key, InputAction::kRepeat }); break;
                     default: assert(0);
                     }
                 }
@@ -146,24 +127,63 @@ namespace Cyan
     static void onMouseCursorEvent(GLFWwindow* window, f64 x, f64 y)
     {
         auto inputSystem = InputSystem::get();
-        if (!inputSystem->m_mouseCursorState.bInited)
+        if (!inputSystem->m_mouseState.bInited)
         {
-            inputSystem->m_mouseCursorState.pos = glm::vec2(x, y);
-            inputSystem->m_mouseCursorState.bInited = true;
+            inputSystem->m_mouseState.cursorPosition = glm::vec2(x, y);
+            inputSystem->m_mouseState.cursorDelta = glm::vec2(0.f);
+            inputSystem->m_mouseState.bInited = true;
             return;
         }
         glm::vec2 newMouseCursorPos = glm::vec2(x, y);
-        inputSystem->m_mouseCursorState.delta = newMouseCursorPos - inputSystem->m_mouseCursorState.pos;
-        inputSystem->m_mouseCursorState.pos = newMouseCursorPos;
+        inputSystem->m_mouseState.cursorDelta = newMouseCursorPos - inputSystem->m_mouseState.cursorPosition;
+        inputSystem->m_mouseState.cursorPosition = newMouseCursorPos;
 
         // notify listeners
-        if (glm::length(inputSystem->m_mouseCursorState.delta) > 0.f)
+        for (auto& listener : inputSystem->m_mouseCursorListeners)
         {
-            for (auto& listener : inputSystem->m_mouseCursorListeners)
-            {
-                listener(inputSystem->m_mouseCursorState);
-            }
+            listener(inputSystem->m_mouseState);
         }
+    }
+
+    static void onMouseButtonEvent(GLFWwindow* window, i32 button, i32 action, i32 mods)
+    {
+        auto inputSystem = InputSystem::get();
+
+        switch (button)
+        {
+            case GLFW_MOUSE_BUTTON_LEFT: 
+            {
+                switch (action)
+                {
+                case GLFW_PRESS: inputSystem->m_mouseState.mouseLeftButtonState = MouseEvent::MouseButtonState::kPress; break;
+                case GLFW_REPEAT: inputSystem->m_mouseState.mouseLeftButtonState = MouseEvent::MouseButtonState::kRepeat; break;
+                case GLFW_RELEASE: inputSystem->m_mouseState.mouseLeftButtonState = MouseEvent::MouseButtonState::kRelease; break;
+                default:
+                    assert(0);
+                }
+            } break;
+            case GLFW_MOUSE_BUTTON_RIGHT: 
+            {
+                switch (action)
+                {
+                case GLFW_PRESS: inputSystem->m_mouseState.mouseRightButtonState = MouseEvent::MouseButtonState::kPress; break;
+                case GLFW_REPEAT: inputSystem->m_mouseState.mouseRightButtonState = MouseEvent::MouseButtonState::kRepeat; break;
+                case GLFW_RELEASE: inputSystem->m_mouseState.mouseRightButtonState = MouseEvent::MouseButtonState::kRelease; break;
+                default:
+                    assert(0);
+                }
+            } break;
+        }
+
+        // notify listeners
+        for (auto& listener : inputSystem->m_mouseButtonListeners)
+        {
+            listener(inputSystem->m_mouseState);
+        }
+    }
+
+    static void onMouseWheelEvent(GLFWwindow* window, f64 xOffset, f64 yOffset)
+    {
     }
 }
 

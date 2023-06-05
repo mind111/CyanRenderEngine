@@ -123,6 +123,8 @@ namespace Cyan
                 s_convolveIrradiancePipeline,
                 [this, f](ProgramPipeline* p) {
                     // Update view matrix
+                    // todo: calculate the correct transform to orient the camera
+#if 0
                     PerspectiveCamera camera(
                         glm::vec3(0.f),
                         LightProbeCameras::cameraFacingDirections[f],
@@ -136,6 +138,7 @@ namespace Cyan
                     p->setUniform("view", camera.view());
                     p->setUniform("projection", camera.projection());
                     p->setTexture("srcCubemapTexture", sceneCapture);
+#endif
                 },
                 gfxPipelineState
             );
@@ -245,6 +248,7 @@ namespace Cyan
                         s_convolveReflectionPipeline,
                         [this, f, mip, kNumMips](ProgramPipeline* p) {
                             // Update view matrix
+#if 0
                             PerspectiveCamera camera(
                                 glm::vec3(0.f),
                                 LightProbeCameras::cameraFacingDirections[f],
@@ -260,6 +264,7 @@ namespace Cyan
                             p->setUniform("view", camera.view());
                             p->setUniform("roughness", mip * (1.f / (kNumMips - 1)));
                             p->setTexture("envmapSampler", sceneCapture);
+#endif
                         },
                     gfxPipelineState);
                 }

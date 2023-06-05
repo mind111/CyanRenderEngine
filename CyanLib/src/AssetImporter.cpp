@@ -424,7 +424,6 @@ namespace Cyan
 
         // @transform
         Transform localTransform;
-        Transform localToWorldTransform;
         if (node.hasMatrix >= 0)
         {
             const std::array<f32, 16>& m = node.matrix;
@@ -454,9 +453,9 @@ namespace Cyan
             {
                 translation = node.translation;
             }
-            localTransform.m_scale = scale;
-            localTransform.m_qRot = glm::quat(rotation.w, glm::vec3(rotation.x, rotation.y, rotation.z));
-            localTransform.m_translate = translation;
+            localTransform.scale = scale;
+            localTransform.rotation = glm::quat(rotation.w, glm::vec3(rotation.x, rotation.y, rotation.z));
+            localTransform.translation = translation;
         }
         // @mesh
         Entity* e = nullptr;
@@ -464,7 +463,7 @@ namespace Cyan
         {
            const gltf::Mesh& gltfMesh = gltf.m_meshes[node.mesh];
            auto mesh = AssetManager::findAsset<Cyan::StaticMesh>(gltfMesh.m_name.c_str());
-           StaticMeshEntity* staticMeshEntity = world->createStaticMeshEntity(m_name.c_str(), localTransform, localToWorldTransform, parent, mesh);
+           StaticMeshEntity* staticMeshEntity = world->createStaticMeshEntity(m_name.c_str(), localTransform, mesh);
            e = staticMeshEntity;
            // setup materials
            for (i32 p = 0; p < gltfMesh.primitives.size(); ++p)
@@ -480,7 +479,12 @@ namespace Cyan
         }
         else
         {
-           e = world->createEntity(node.m_name.c_str(), localTransform, localToWorldTransform, parent);
+           e = world->createEntity(node.m_name.c_str(), localTransform);
+        }
+
+        if (parent != nullptr)
+        {
+            parent->attachChild(e);
         }
 
         // recurse into children nodes

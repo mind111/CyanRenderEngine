@@ -8,8 +8,8 @@ namespace Cyan
     class PerspectiveCameraEntity : public Entity
     {
     public:
-        PerspectiveCameraEntity(World* world, const char* name, const Transform& local, const Transform& localToWorld, Entity* parent,
-            const glm::vec3& lookAt, const glm::vec3& worldUp, const glm::uvec2& renderResolution, const Camera::ViewMode& viewMode,
+        PerspectiveCameraEntity(World* world, const char* name, const Transform& local,
+            const glm::vec3& worldUp, const glm::uvec2& renderResolution, const Camera::ViewMode& viewMode,
             f32 fov, f32 n, f32 f);
         ~PerspectiveCameraEntity() { }
         

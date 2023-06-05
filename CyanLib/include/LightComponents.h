@@ -1,9 +1,56 @@
 #pragma once
 
+#include "Common.h"
+#include "SceneComponent.h"
 #include "Lights.h"
 
 namespace Cyan
 {
+    class LightComponent : public SceneComponent
+    {
+    public:
+        const glm::vec3& getColor();
+
+    protected:
+        LightComponent(const char* name, const Transform& localTransform);
+        ~LightComponent() { }
+
+        glm::vec3 m_color = glm::vec3(0.88f, 0.77f, 0.65f);
+        f32 m_intensity = 1.f;
+    };
+
+    class DirectionalLightComponent : public LightComponent
+    {
+    public:
+        DirectionalLightComponent(const char* name, const Transform& localTransform);
+        ~DirectionalLightComponent() { }
+
+        f32 getIntensity();
+        void setColor(const glm::vec3& color);
+        void setIntensity(const f32 intensity);
+
+        virtual void onTransformUpdated() override;
+
+        DirectionalLight* getDirectionalLight();
+        const glm::vec3& getDirection();
+
+        /**
+         * setDirection() will update direction as well as updating the transform so that this component's facing
+           direction is always aligned with the light direction. Updating this component's transform will also affect
+           its light direction.
+         */
+        void setDirection(const glm::vec3& direction);
+
+    protected:
+        glm::vec3 m_direction = glm::normalize(glm::vec3(1.f));
+        std::unique_ptr<DirectionalLight> m_directionalLight = nullptr;
+    };
+
+    class SkyLightComponent : public LightComponent
+    {
+
+    };
+
 #if 0
     struct ILightComponent : public Component
     {

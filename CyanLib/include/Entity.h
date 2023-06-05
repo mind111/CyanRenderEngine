@@ -30,13 +30,13 @@ namespace Cyan
     public:
         friend class World;
 
-        Entity(World* world, const char* name, const Transform& local, const Transform& localToWorld, Entity* parent = nullptr);
+        Entity(World* world, const char* name, const Transform& local);
         ~Entity() { }
 
         virtual void update();
 
         bool isRootEntity();
-        void attach(Entity* childEntity);
+        void attachChild(Entity* childEntity);
         void onAttached();
         void detach();
         void onDetached();

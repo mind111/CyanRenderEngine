@@ -5,9 +5,6 @@
 #include "Entity.h"
 #include "LightEntities.h"
 #include "LightComponents.h"
-#include "CyanRenderer.h"
-#include "Scene.h"
-#include "CyanRenderer.h"
 
 namespace Cyan
 {
@@ -50,4 +47,21 @@ namespace Cyan
         }
     }
 #endif
+
+    DirectionalLightEntity::DirectionalLightEntity(World* world, const char* name, const Transform& local)
+        : Entity(world, name, local)
+    {
+        m_directionalLightComponent = std::make_shared<DirectionalLightComponent>("DirectionalLightComponent", Transform());
+        m_rootSceneComponent->attachChild(m_directionalLightComponent);
+    }
+
+    DirectionalLightEntity::~DirectionalLightEntity()
+    {
+
+    }
+
+    Cyan::DirectionalLightComponent* DirectionalLightEntity::getDirectionalLightComponent()
+    {
+        return m_directionalLightComponent.get();
+    }
 }

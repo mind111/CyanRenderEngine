@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cassert>
+
 namespace Cyan
 {
     template <typename T>

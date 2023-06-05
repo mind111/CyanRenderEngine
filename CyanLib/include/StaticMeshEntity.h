@@ -12,7 +12,7 @@ namespace Cyan
     class StaticMeshEntity : public Entity
     {
     public:
-        StaticMeshEntity(World* world, const char* name, const Transform& local, const Transform& localToWorld, Entity* parent, std::shared_ptr<StaticMesh> mesh);
+        StaticMeshEntity(World* world, const char* name, const Transform& local, std::shared_ptr<StaticMesh> mesh);
         ~StaticMeshEntity();
 
         StaticMeshComponent* getStaticMeshComponent();

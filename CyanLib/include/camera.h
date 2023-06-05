@@ -7,6 +7,7 @@
 
 #include "Common.h"
 #include "Geometry.h"
+#include "Transform.h"
 
 namespace Cyan
 {
@@ -36,20 +37,28 @@ namespace Cyan
         }
 
         virtual glm::mat4 projection() const = 0;
-        glm::vec3 forward() const { return glm::normalize(m_lookAt - m_position); }
-        glm::vec3 right() const { return glm::normalize(glm::cross(forward(), m_worldUp)); }
-        glm::vec3 up() const { return glm::normalize(glm::cross(right(), forward())); }
+        glm::vec3 forward() const { return m_forward; }
+        glm::vec3 right() const { return m_right; }
+        glm::vec3 up() const { return m_up; }
 
         Camera();
-        Camera(const glm::vec3& inPosition, const glm::vec3& inLookAt, const glm::vec3& inWorldUp, const glm::vec2& renderResolution, const Camera::ViewMode& viewMode);
+        Camera(const Transform& localTransform, const glm::vec3& worldUp, const glm::vec2& renderResolution, const Camera::ViewMode& viewMode);
+        virtual ~Camera();
 
         void setSceneRender(SceneRender* sceneRender);
 
         bool bEnabledForRendering = true;
 
         glm::vec3 m_position;
-        glm::vec3 m_lookAt;
         glm::vec3 m_worldUp;
+
+        static constexpr glm::vec3 localRight = glm::vec3(1.f, 0.f, 0.f);
+        static constexpr glm::vec3 localForward = glm::vec3(0.f, 0.f, -1.f);
+        static constexpr glm::vec3 localUp = glm::vec3(0.f, 1.f, 0.f);
+
+        glm::vec3 m_right;   // x 
+        glm::vec3 m_forward; //-z
+        glm::vec3 m_up;      // y
 
         glm::uvec2 m_renderResolution;
         ViewMode m_viewMode;
@@ -83,8 +92,8 @@ namespace Cyan
             aspectRatio = ((f32)m_renderResolution.x / m_renderResolution.y);
         }
 
-        PerspectiveCamera(const glm::vec3& inPosition, const glm::vec3& inLookAt, const glm::vec3& inWorldUp, const glm::uvec2& renderResolution, const Camera::ViewMode& viewMode, f32 inFov, f32 inN, f32 inF)
-            : Camera(inPosition, inLookAt, inWorldUp, renderResolution, viewMode), fov(inFov), n(inN), f(inF), aspectRatio(renderResolution.x / renderResolution.y)
+        PerspectiveCamera(const Transform& localToWorld, const glm::vec3& worldUp, const glm::uvec2& renderResolution, const Camera::ViewMode& viewMode, f32 inFov, f32 inN, f32 inF)
+            : Camera(localToWorld, worldUp, renderResolution, viewMode), fov(inFov), n(inN), f(inF), aspectRatio(renderResolution.x / renderResolution.y)
         {
 
         }
@@ -106,8 +115,14 @@ namespace Cyan
             return glm::orthoLH(left, right, bottom, top, zNear, zFar);
         }
 
-        OrthographicCamera(const glm::vec3& inPosition, const glm::vec3& inLookAt, const glm::vec3& inWorldUp, const glm::vec2& renderResolution, const BoundingBox3D& inViewAABB, const Camera::ViewMode& viewMode = VM_RESOLVED_SCENE_COLOR)
-            : Camera(inPosition, inLookAt,  inWorldUp, renderResolution, viewMode), m_viewVolume(inViewAABB)
+        OrthographicCamera()
+            : Camera()
+        {
+
+        }
+
+        OrthographicCamera(const Transform& localToWorld, const glm::vec3& worldUp, const glm::vec2& renderResolution, const BoundingBox3D& inViewAABB, const Camera::ViewMode& viewMode = VM_RESOLVED_SCENE_COLOR)
+            : Camera(localToWorld, worldUp, renderResolution, viewMode), m_viewVolume(inViewAABB)
         {
 
         }

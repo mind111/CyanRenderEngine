@@ -383,7 +383,7 @@ namespace Cyan
             }
             else
             {
-                assert(textureBinding.texture == nullptr);
+                // assert(textureBinding.texture == nullptr);
             }
         }
     }

@@ -1,6 +1,21 @@
 #pragma once
 
-namespace Cyan {
+namespace Cyan 
+{
+    class Entity;
+    class DirectionalLightComponent;
+
+    class DirectionalLightEntity : public Entity
+    {
+    public:
+        DirectionalLightEntity(World* world, const char* name, const Transform& local);
+        ~DirectionalLightEntity();
+
+        DirectionalLightComponent* getDirectionalLightComponent();
+    protected:
+        std::shared_ptr<DirectionalLightComponent> m_directionalLightComponent = nullptr;
+    };
+
 #if 0
     struct Entity;
     struct DirectionalLightComponent;

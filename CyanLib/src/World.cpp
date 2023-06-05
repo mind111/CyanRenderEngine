@@ -7,6 +7,8 @@
 #include "Mesh.h"
 #include "StaticMeshEntity.h"
 #include "StaticMeshComponent.h"
+#include "LightEntities.h"
+#include "LightComponents.h"
 
 namespace Cyan
 {
@@ -15,7 +17,7 @@ namespace Cyan
     { 
         // todo: create root entity
         assert(m_rootEntity == nullptr);
-        m_rootEntity = createEntity(m_name.c_str(), Transform(), Transform(), nullptr); // root entity's name is the same as the world
+        m_rootEntity = createEntity(m_name.c_str(), Transform()); // root entity's name is the same as the world
         m_scene = std::make_shared<Scene>(this);
     }
 
@@ -56,9 +58,17 @@ namespace Cyan
     {
         assert(e != nullptr);
         m_entities.push_back(e);
+        if (m_rootEntity != nullptr)
+        {
+            m_rootEntity->attachChild(e.get());
+        }
+        else
+        {
+            assert(e->isRootEntity());
+        }
     }
 
-    Entity* World::createEntity(const char* name, const Transform& local, const Transform& localToWorld, Entity* parent)
+    Entity* World::createEntity(const char* name, const Transform& local)
     {
         std::shared_ptr<Entity> outEntity = nullptr;
         World* world = this;
@@ -66,43 +76,53 @@ namespace Cyan
         {
             // we are creating the root entity
             assert(name == m_name.c_str());
-            outEntity = std::make_shared<Entity>(world, name, Transform(), Transform(), nullptr);
+            outEntity = std::make_shared<Entity>(world, name, Transform());
         }
         else
         {
-            auto parentEntity = (parent == nullptr) ? m_rootEntity : parent;
-            outEntity = std::make_shared<Entity>(world, name, local, localToWorld, parentEntity);
+            outEntity = std::make_shared<Entity>(world, name, local);
         }
         onEntityCreated(outEntity);
         return outEntity.get();
     }
 
-    PerspectiveCameraEntity* World::createPerspectiveCameraEntity(const char* name, const Transform& local, const Transform& localToWorld, Entity* parent, const glm::vec3& lookAt, const glm::vec3& worldUp, const glm::vec2& renderResolution, const Camera::ViewMode& viewMode, f32 fov, f32 n, f32 f)
+    PerspectiveCameraEntity* World::createPerspectiveCameraEntity(const char* name, const Transform& local, const glm::vec3& worldUp, const glm::vec2& renderResolution, const Camera::ViewMode& viewMode, f32 fov, f32 n, f32 f)
     {
         assert(m_rootEntity != nullptr);
+
         // add to World
-        auto parentEntity = (parent == nullptr) ? m_rootEntity : parent;
         auto e = std::make_shared<PerspectiveCameraEntity>(
-            this, name, local, localToWorld, parentEntity, // Entity
-            lookAt, worldUp, renderResolution, viewMode, // Camera
+            this, name, local, // Entity
+            worldUp, renderResolution, viewMode, // Camera
             fov, n, f // PerspectiveCamera
             );
 
         // add to Scene
         m_scene->addCamera(e->getCameraComponent()->getCamera());
+
         onEntityCreated(e);
         return e.get();
     }
 
-    StaticMeshEntity* World::createStaticMeshEntity(const char* name, const Transform& local, const Transform& localToWorld, Entity* parent, std::shared_ptr<StaticMesh> mesh)
+    StaticMeshEntity* World::createStaticMeshEntity(const char* name, const Transform& local, std::shared_ptr<StaticMesh> mesh)
     {
         assert(m_rootEntity != nullptr);
+
         // add to World
-        auto parentEntity = (parent == nullptr) ? m_rootEntity : parent;
         auto e = std::make_shared<StaticMeshEntity>(
-            this, name, local, localToWorld, parentEntity, // Entity
+            this, name, local, // Entity
             mesh // StaticMesh
             );
+
+        onEntityCreated(e);
+        return e.get();
+    }
+
+    DirectionalLightEntity* World::createDirectionalLightEntity(const char* name, const Transform& local)
+    {
+        assert(m_rootEntity != nullptr);
+        auto e = std::make_shared<DirectionalLightEntity>(this, name, local);
+        m_scene->addDirectionalLight(e->getDirectionalLightComponent()->getDirectionalLight());
         onEntityCreated(e);
         return e.get();
     }

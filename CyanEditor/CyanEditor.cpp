@@ -10,6 +10,8 @@
 #include "World.h"
 #include "CameraComponent.h"
 #include "CameraEntity.h"
+#include "LightEntities.h"
+#include "LightComponents.h"
 
 namespace Cyan
 {
@@ -39,28 +41,37 @@ namespace Cyan
             auto skylight = m_scene->createSkyLight("SkyLight", ASSET_PATH "cubemaps/neutral_sky.hdr");
             skylight->build();
 
-            // overwrite the default rendering lambda
-            m_renderOneFrame = [this](GfxTexture2D* renderingOutput) {
-                auto renderer = Renderer::get();
-                // scene rendering
-                if (m_scene) 
-                {
-                    SceneView sceneView(m_scene.get(), m_scene->m_mainCamera->getCamera(), renderingOutput);
-                    renderer->render(m_scene.get(), sceneView);
-                }
-                renderer->renderToScreen(renderingOutput);
-
-                // UI rendering
-                renderEditorUI();
-                renderer->renderUI();
-            };
 #else
             m_world->import(shaderBalls);
             Transform local;
             // todo: bug here
-            local.m_translate = glm::vec3(0.f, 3.f, 8.f);
-            auto cameraEntity = m_world->createPerspectiveCameraEntity("Camera", local, Transform(), nullptr, glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, 1.f, 0.f), m_appWindowDimension, VM_RESOLVED_SCENE_COLOR, 45.f, 0.1f, 100.f);
+            local.translation = glm::vec3(0.f, 3.f, 8.f);
+            auto cameraEntity = m_world->createPerspectiveCameraEntity("Camera", local, glm::vec3(0.f, 1.f, 0.f), m_appWindowDimension, VM_RESOLVED_SCENE_COLOR, 45.f, 0.1f, 100.f);
             cameraEntity->addComponent(std::make_shared<CameraControllerComponent>("CameraController", cameraEntity->getCameraComponent()));
+            auto directionalLightEntity = m_world->createDirectionalLightEntity("DirectionalLight", Transform());
+            auto directionalLightComponent = directionalLightEntity->getDirectionalLightComponent();
+            directionalLightComponent->setIntensity(10.f);
+
+            // overwrite the default rendering lambda
+            m_renderOneFrame = [this](GfxTexture2D* renderingOutput) {
+                auto renderer = Renderer::get();
+                // scene rendering
+                if (m_world != nullptr) 
+                {
+                    auto scene = m_world->m_scene;
+                    renderer->render(scene.get());
+
+                    // assuming that renders[0] is the active render
+                    if (!scene->m_renders.empty())
+                    {
+                        auto render = scene->m_renders[0];
+                        renderer->renderToScreen(render->directLighting());
+                    }
+                }
+                // UI rendering
+                renderEditorUI();
+                renderer->renderUI();
+            };
 #endif
         }
 

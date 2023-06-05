@@ -121,15 +121,15 @@ namespace Cyan
         T* alloc(Args... args)
         {
             u32 sizeInBytesToAllocate = numElements * sizeof(T);
-            if (pos + sizeInBytesToAllocate <= sizeInBytes)
+            if (cursorPosition + sizeInBytesToAllocate <= sizeInBytes)
             {
-                T* objects = reinterpret_cast<T*>(&memory[pos]);
+                T* objects = reinterpret_cast<T*>(&memory[cursorPosition]);
                 for (u32 i = 0; i < numElements; ++i)
                 {
                     // placement new
                     new (objects + i) T(args...);
                 }
-                pos += sizeInBytesToAllocate;
+                cursorPosition += sizeInBytesToAllocate;
                 return objects;
             }
 
@@ -139,12 +139,12 @@ namespace Cyan
 
         void reset()
         {
-            pos = 0u;
+            cursorPosition = 0u;
         }
 
     private:
         u32 sizeInBytes = 0u;
-        u32 pos = 0u;
+        u32 cursorPosition = 0u;
         u8* memory = nullptr;
     };
 }

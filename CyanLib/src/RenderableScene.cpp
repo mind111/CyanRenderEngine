@@ -6,7 +6,6 @@
 #include "Scene.h"
 #include "CyanRenderer.h"
 #include "LightComponents.h"
-#include "GpuLights.h"
 #include "AssetManager.h"
 #include "Mesh.h"
 #include "Material.h"

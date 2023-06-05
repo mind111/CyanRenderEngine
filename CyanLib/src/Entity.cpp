@@ -6,19 +6,12 @@
 
 namespace Cyan
 {
-    Entity::Entity(World* world, const char* name, const Transform& local, const Transform& localToWorld, Entity* parent) 
+    // todo: parent don't need to be passed in upon construction
+    Entity::Entity(World* world, const char* name, const Transform& local) 
         : m_name(name), m_world(world), m_parent(nullptr)
     {
         m_rootSceneComponent = std::make_shared<SceneComponent>("SceneRoot", local);
         m_rootSceneComponent->setOwner(this);
-        if (parent != nullptr)
-        {
-            parent->attach(this);
-        }
-        else
-        {
-            assert(isRootEntity());
-        }
     }
 
     bool Entity::isRootEntity()
@@ -26,7 +19,7 @@ namespace Cyan
         return (m_name == m_world->m_name);
     }
 
-    void Entity::attach(Entity* childEntity)
+    void Entity::attachChild(Entity* childEntity)
     {
         childEntity->detach();
 
@@ -50,7 +43,7 @@ namespace Cyan
             {
                 if (child->m_name == m_name)
                 {
-                    m_parent->m_children.erase(m_children.begin() + childIndex);
+                    m_parent->m_children.erase(m_parent->m_children.begin() + childIndex);
                     setParent(nullptr);
                     onDetached();
                     break;

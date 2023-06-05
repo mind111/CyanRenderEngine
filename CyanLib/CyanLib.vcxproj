@@ -52,7 +52,6 @@
     <ClInclude Include="include\Lights.h" />
     <ClInclude Include="include\LightComponents.h" />
     <ClInclude Include="include\LightProbe.h" />
-    <ClInclude Include="include\GpuLights.h" />
     <ClInclude Include="include\Material.h" />
     <ClInclude Include="include\MathUtils.h" />
     <ClInclude Include="include\Mesh.h" />
@@ -67,7 +66,7 @@
     <ClInclude Include="include\ScreenSpaceRayTracing.h" />
     <ClInclude Include="include\Shader.h" />
     <ClInclude Include="include\ShaderStorageBuffer.h" />
-    <ClInclude Include="include\Shadow.h" />
+    <ClInclude Include="include\ShadowMaps.h" />
     <ClInclude Include="include\Singleton.h" />
     <ClInclude Include="include\SkyBox.h" />
     <ClInclude Include="include\SSGI.h" />
@@ -122,7 +121,7 @@
     <ClCompile Include="src\ScreenSpaceRayTracing.cpp" />
     <ClCompile Include="src\Shader.cpp" />
     <ClCompile Include="src\ShaderStorageBuffer.cpp" />
-    <ClCompile Include="src\Shadow.cpp" />
+    <ClCompile Include="src\ShadowMaps.cpp" />
     <ClCompile Include="src\SkyBox.cpp" />
     <ClCompile Include="src\SSGI.cpp" />
     <ClCompile Include="src\StaticMeshComponent.cpp" />
@@ -145,6 +144,7 @@
     <None Include="..\shader\downsample_p.glsl" />
     <None Include="..\shader\downsample_v.glsl" />
     <None Include="..\shader\gbuffer_p.glsl" />
+    <None Include="..\shader\screen_pass_v.glsl" />
     <None Include="..\shader\ssgi_ao_p.glsl" />
     <None Include="..\shader\ssgi_ao_resolve_p.glsl" />
     <None Include="..\shader\ssgi_ao_temporal_p.glsl" />
