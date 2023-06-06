@@ -147,6 +147,7 @@ namespace Cyan
             initialize the default material 
         */ 
         createMaterial("DefaultMaterial");
+        createMaterial("M_DefaultOpaque", MATERIAL_SOURCE_PATH "M_DefaultOpaque_p.glsl");
 
         stbi_set_flip_vertically_on_load(1);
     }
@@ -256,6 +257,22 @@ namespace Cyan
         {
             outMaterial = std::make_shared<Material>(name);
             singleton->m_materialMap.insert({ name, outMaterial });
+        }
+        else
+        {
+            entry->second;
+        }
+        return outMaterial;
+    }
+
+    std::shared_ptr<NewMaterial> AssetManager::createMaterial(const char* name, const char* materialSourcePath) 
+    {
+        std::shared_ptr<NewMaterial> outMaterial = nullptr;
+        auto entry = singleton->m_newMaterialMap.find(name);
+        if (entry == singleton->m_newMaterialMap.end()) 
+        {
+            outMaterial = std::make_shared<NewMaterial>(name, materialSourcePath);
+            singleton->m_newMaterialMap.insert({ name, outMaterial });
         }
         else
         {

@@ -40,7 +40,6 @@ namespace Cyan
             // sky light 
             auto skylight = m_scene->createSkyLight("SkyLight", ASSET_PATH "cubemaps/neutral_sky.hdr");
             skylight->build();
-
 #else
             m_world->import(shaderBalls);
             Transform local;
@@ -51,6 +50,10 @@ namespace Cyan
             auto directionalLightEntity = m_world->createDirectionalLightEntity("DirectionalLight", Transform());
             auto directionalLightComponent = directionalLightEntity->getDirectionalLightComponent();
             directionalLightComponent->setIntensity(10.f);
+
+            auto testMaterial = AssetManager::createMaterial("M_Test", MATERIAL_SOURCE_PATH "M_Test_p.glsl");
+            testMaterial->setFloat("mp_Roughness", .5f);
+            testMaterial->setVec3("mp_Albedo", glm::vec3(1.f, 0.f, 0.f));
 
             // overwrite the default rendering lambda
             m_renderOneFrame = [this](GfxTexture2D* renderingOutput) {

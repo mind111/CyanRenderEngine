@@ -48,7 +48,6 @@ namespace Cyan
 
     class SkyLightComponent : public LightComponent
     {
-
     };
 
 #if 0
