@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <glm/glm.hpp>
 #include <vector>
 #include <unordered_map>
@@ -167,37 +168,24 @@ namespace Cyan
         virtual void bind(PixelShader* ps) override { ps->setTexture(name.c_str(), texture->getGfxResource()); }
     };
 
+    class MaterialInstance;
+
     /**
      * This implementation of material works but has insane amount of overhead due to 
-        excessive use of polymorphism, need to revisit and optimize later
+        excessive use of polymorphism, need to revisit and optimize later. Perfect example of
+        over engineering but I like it :)
      */
     class NewMaterial : public Asset
     {
     public:
-        NewMaterial(const char* name, const char* materialSourcePath);
+        friend class MaterialInstance;
+
+        using SetupDefaultInstance = std::function<void(MaterialInstance*)>;
+        NewMaterial(const char* name, const char* materialSourcePath, const SetupDefaultInstance& setupDefaultInstance);
         virtual ~NewMaterial();
 
         static const char* getAssetTypeName() { return "Material"; }
 
-        class Instance : public Asset
-        {
-        public:
-            Instance(const char* name, NewMaterial* parent);
-            ~Instance() { }
-
-            void setInt(const char* parameterName, i32 data);
-            void setUint(const char* parameterName, u32 data);
-            void setFloat(const char* parameterName, f32 data);
-            void setVec2(const char* parameterName, const glm::vec2& data);
-            void setVec3(const char* parameterName, const glm::vec3& data);
-            void setVec4(const char* parameterName, const glm::vec4& data);
-            void setTexture(Texture2D* texture);
-
-        private:
-            NewMaterial* m_parent = nullptr;
-            std::vector<MaterialParameter*> m_parameters;
-        };
-        
         void bind(GfxContext* ctx);
 
         void setInt(const char* parameterName, i32 data);
@@ -206,12 +194,18 @@ namespace Cyan
         void setVec2(const char* parameterName, const glm::vec2& data);
         void setVec3(const char* parameterName, const glm::vec3& data);
         void setVec4(const char* parameterName, const glm::vec4& data);
-        void setTexture(Texture2D* texture);
+        void setTexture(const char* parameterName, Texture2D* texture);
 
     protected:
         std::shared_ptr<PixelPipeline> m_pipeline = nullptr;
-        std::unordered_map<std::string, i32> m_parameterMap;
-        std::vector<MaterialParameter*> m_parameters;
+        struct MaterialParameterDesc
+        {
+            i32 index = -1;
+            Shader::UniformDesc desc = { };
+        };
+        std::unordered_map<std::string, MaterialParameterDesc> m_parameterMap;
+        std::function<void(NewMaterial*)> m_setupDefaultInstance;
+        std::unique_ptr<MaterialInstance> m_defaultInstance = nullptr;
 
         static constexpr const char* m_defaultOpaqueMaterial = R"(
             #version 450 core
@@ -250,16 +244,16 @@ namespace Cyan
                 return tbn * vec4(tangentSpaceNormal, 0.f);
             }
 
-            sampler2D mp_albedoMap;
-            sampler2D mp_normalMap;
-            sampler2D mp_metallicRoughnessMap;
-            sampler2D mp_emissiveMap;
-            sampler2D mp_occlusionMap;
-            vec4 mp_albedo;
-            float mp_metallic;
-            float mp_roughness;
-            float mp_emissive;
-            uint mp_flag;
+            uniform sampler2D mp_albedoMap;
+            uniform sampler2D mp_normalMap;
+            uniform sampler2D mp_metallicRoughnessMap;
+            uniform sampler2D mp_emissiveMap;
+            uniform sampler2D mp_occlusionMap;
+            uniform vec4 mp_albedo;
+            uniform float mp_metallic;
+            uniform float mp_roughness;
+            uniform float mp_emissive;
+            uniform uint mp_flag;
 
             const uint kHasAlbedoMap            = 1 << 0;
             const uint kHasNormalMap            = 1 << 1;
@@ -280,7 +274,7 @@ namespace Cyan
                     outMaterial.normal = normalize(tangentSpaceToWorldSpace(worldSpaceTangent, worldSpaceBitangent, worldSpaceNormal, tangentSpaceNormal).xyz);
                 }
 
-                outMaterial.albedo = desc.albedo.rgb;
+                outMaterial.albedo = mp_albedo.rgb;
                 if ((mp_flag & kHasAlbedoMap) != 0u) 
                 {
                     outMaterial.albedo = texture(mp_albedoMap, texCoord).rgb;
@@ -290,7 +284,7 @@ namespace Cyan
 
                 // According to gltf-2.0 spec, metal is sampled from b, roughness is sampled from g
                 float roughness = mp_roughness, metallic = mp_metallic;
-                if ((desc.flag & kHasMetallicRoughnessMap) != 0u)
+                if ((mp_flag & kHasMetallicRoughnessMap) != 0u)
                 {
                     vec2 metallicRoughness = texture(mp_metallicRoughnessMap, texCoord).gb;
                     roughness = metallicRoughness.x;
@@ -316,12 +310,33 @@ namespace Cyan
                 worldSpaceTangent = normalize(worldSpaceTangent - dot(worldSpaceNormal, worldSpaceTangent) * worldSpaceNormal); 
                 vec3 worldSpaceBitangent = normalize(cross(worldSpaceNormal, worldSpaceTangent)) * psIn.tangentSpaceHandedness;
 
-                Material material = calcMaterialProperties(materialDesc, worldSpaceNormal, worldSpaceTangent, worldSpaceBitangent, psIn.texCoord0);
+                Material material = calcMaterialProperties(worldSpaceNormal, worldSpaceTangent, worldSpaceBitangent, psIn.texCoord0);
 
                 outAlbedo = material.albedo;
                 outNormal = material.normal * .5f + .5f;
                 outMetallicRoughness = vec3(material.metallic, material.roughness, 0.f);
             }
         )";
+    };
+
+    class MaterialInstance : public Asset
+    {
+    public:
+        friend class NewMaterial;
+
+        MaterialInstance(const char* name, NewMaterial* parent);
+        ~MaterialInstance() { }
+
+        void setInt(const char* parameterName, i32 data);
+        void setUint(const char* parameterName, u32 data);
+        void setFloat(const char* parameterName, f32 data);
+        void setVec2(const char* parameterName, const glm::vec2& data);
+        void setVec3(const char* parameterName, const glm::vec3& data);
+        void setVec4(const char* parameterName, const glm::vec4& data);
+        void setTexture(const char* parameterName, Texture2D* texture);
+
+    private:
+        NewMaterial* m_parent = nullptr;
+        std::vector<MaterialParameter*> m_parameters;
     };
 };

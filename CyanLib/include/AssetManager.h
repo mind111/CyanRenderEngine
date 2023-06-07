@@ -55,7 +55,7 @@ namespace Cyan
         static std::shared_ptr<Texture2D> createTexture2D(const char* name, std::shared_ptr<Image> srcImage, const Sampler2D& inSampler = Sampler2D{});
         static std::shared_ptr<StaticMesh> createStaticMesh(const char* name, u32 numSubmeshes);
         static std::shared_ptr<Material> createMaterial(const char* name);
-        static std::shared_ptr<NewMaterial> createMaterial(const char* name, const char* materialSourcePath);
+        static std::shared_ptr<NewMaterial> createMaterial(const char* name, const char* materialSourcePath, const NewMaterial::SetupDefaultInstance& setupDefaultInstance);
         template <typename T>
         static std::shared_ptr<T> findAsset(const char* name);
 

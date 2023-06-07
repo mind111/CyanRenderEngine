@@ -39,7 +39,7 @@ uniform sampler2D mp_normalMap;
 uniform sampler2D mp_metallicRoughnessMap;
 uniform sampler2D mp_emissiveMap;
 uniform sampler2D mp_occlusionMap;
-uniform vec4 mp_albedo;
+uniform vec3 mp_albedo;
 uniform float mp_metallic;
 uniform float mp_roughness;
 uniform float mp_emissive;

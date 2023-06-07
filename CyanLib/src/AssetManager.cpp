@@ -147,7 +147,13 @@ namespace Cyan
             initialize the default material 
         */ 
         createMaterial("DefaultMaterial");
-        createMaterial("M_DefaultOpaque", MATERIAL_SOURCE_PATH "M_DefaultOpaque_p.glsl");
+        createMaterial("M_DefaultOpaque", MATERIAL_SOURCE_PATH "M_DefaultOpaque_p.glsl", [](MaterialInstance* defaultInstance) {
+            defaultInstance->setVec3("mp_albedo", glm::vec3(.8));
+            defaultInstance->setFloat("mp_roughness", .5f);
+            defaultInstance->setFloat("mp_metallic", 0.f);
+            defaultInstance->setFloat("mp_emissive", 1.f);
+            defaultInstance->setUint("mp_flag", 0);
+            });
 
         stbi_set_flip_vertically_on_load(1);
     }
@@ -265,13 +271,13 @@ namespace Cyan
         return outMaterial;
     }
 
-    std::shared_ptr<NewMaterial> AssetManager::createMaterial(const char* name, const char* materialSourcePath) 
+    std::shared_ptr<NewMaterial> AssetManager::createMaterial(const char* name, const char* materialSourcePath, const NewMaterial::SetupDefaultInstance& setupDefaultInstance)
     {
         std::shared_ptr<NewMaterial> outMaterial = nullptr;
         auto entry = singleton->m_newMaterialMap.find(name);
         if (entry == singleton->m_newMaterialMap.end()) 
         {
-            outMaterial = std::make_shared<NewMaterial>(name, materialSourcePath);
+            outMaterial = std::make_shared<NewMaterial>(name, materialSourcePath, setupDefaultInstance);
             singleton->m_newMaterialMap.insert({ name, outMaterial });
         }
         else
