@@ -12,21 +12,19 @@ namespace Cyan
         return m_color;
     }
 
-    f32 DirectionalLightComponent::getIntensity()
+    f32 LightComponent::getIntensity()
     {
         return m_intensity;
     }
 
-    void DirectionalLightComponent::setColor(const glm::vec3& color)
+    void LightComponent::setColor(const glm::vec3& color)
     {
         m_color = color;
-        m_directionalLight->m_color = color;
     }
 
-    void DirectionalLightComponent::setIntensity(const f32 intensity)
+    void LightComponent::setIntensity(const f32 intensity)
     {
         m_intensity = intensity;
-        m_directionalLight->m_intensity = intensity;
     }
 
     DirectionalLightComponent::DirectionalLightComponent(const char* name, const Transform& localTransform)
@@ -50,8 +48,42 @@ namespace Cyan
         return m_direction;
     }
 
+    void DirectionalLightComponent::setColor(const glm::vec3& color)
+    {
+        LightComponent::setColor(color);
+        m_directionalLight->m_color = color;
+    }
+
+    void DirectionalLightComponent::setIntensity(const f32 intensity)
+    {
+        LightComponent::setIntensity(intensity);
+        m_directionalLight->m_intensity = intensity;
+    }
+
     void DirectionalLightComponent::setDirection(const glm::vec3& direction)
     {
         // todo: find a rotation matrix that will drive m_direction to direction, and  use this derived transform delta to update the component's transform
     }
+
+    SkyLightComponent::SkyLightComponent(const char* name, const Transform& localTransform)
+        : LightComponent(name, localTransform)
+    {
+
+    }
+
+    SkyLightComponent::~SkyLightComponent()
+    {
+
+    }
+
+    void SkyLightComponent::setColor(const glm::vec3& color)
+    {
+        LightComponent::setColor(color);
+    }
+
+    void SkyLightComponent::setIntensity(const f32 intensity)
+    {
+        LightComponent::setIntensity(intensity);
+    }
+
 }

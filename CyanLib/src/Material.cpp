@@ -1,41 +1,11 @@
 #include "Common.h"
-#include "CyanAPI.h"
+#include "GfxContext.h"
 #include "Material.h"
-#include "AssetManager.h"
+#include "Scene.h"
 
 namespace Cyan 
 {
-    void Material::setShaderParameters(PixelShader* ps) 
-    {
-        u32 flag = 0;
-        if (albedoMap != nullptr && albedoMap->isInited())
-        {
-            ps->setTexture("materialDesc.albedoMap", albedoMap->getGfxResource());
-            flag |= (u32)Flags::kHasAlbedoMap;
-        }
-        if (normalMap != nullptr && normalMap->isInited())
-        {
-            ps->setTexture("materialDesc.normalMap", normalMap->getGfxResource());
-            flag |= (u32)Flags::kHasNormalMap;
-        }
-        if (metallicRoughnessMap != nullptr && metallicRoughnessMap->isInited())
-        {
-            ps->setTexture("materialDesc.metallicRoughnessMap", metallicRoughnessMap->getGfxResource());
-            flag |= (u32)Flags::kHasMetallicRoughnessMap;
-        }
-        if (occlusionMap != nullptr && occlusionMap->isInited())
-        {
-            ps->setTexture("materialDesc.occlusionMap", occlusionMap->getGfxResource());
-            flag |= (u32)Flags::kHasOcclusionMap;
-        }
-        ps->setUniform("materialDesc.albedo", albedo);
-        ps->setUniform("materialDesc.metallic", metallic);
-        ps->setUniform("materialDesc.roughness", roughness);
-        ps->setUniform("materialDesc.emissive", emissive);
-        ps->setUniform("materialDesc.flag", flag);
-    }
-
-    NewMaterial::NewMaterial(const char* name, const char* pixelShaderFilePath, const SetupDefaultInstance& setupDefaultInstance)
+    Material::Material(const char* name, const char* pixelShaderFilePath, const SetupDefaultInstance& setupDefaultInstance)
         : Asset(name)
     {
         CreateVS(vs, "StaticMeshVS", SHADER_SOURCE_PATH "static_mesh_v.glsl");
@@ -64,14 +34,16 @@ namespace Cyan
         setupDefaultInstance(m_defaultInstance.get());
     }
 
-    NewMaterial::~NewMaterial()
+    Material::~Material()
     {
 
     }
 
-    void NewMaterial::bind(GfxContext* ctx)
+    void Material::bind(GfxContext* ctx, const glm::mat4& localToWorldMatrix, const SceneRender::ViewParameters& viewParameters)
     {
         m_pipeline->bind(ctx);
+        m_pipeline->setUniform("localToWorld", localToWorldMatrix);
+        viewParameters.setShaderParameters(m_pipeline.get());
         for (auto p : m_defaultInstance->m_parameters)
         {
             p->bind(m_pipeline->m_pixelShader);
@@ -86,37 +58,37 @@ namespace Cyan
         p->func(data);                                                                  \
     }                                                                                   \
 
-    void NewMaterial::setInt(const char* parameterName, i32 data)
+    void Material::setInt(const char* parameterName, i32 data)
     {
         SET_MATERIAL_PARAMETER(parameterName, setInt, data)
     }
 
-    void NewMaterial::setUint(const char* parameterName, u32 data)
+    void Material::setUint(const char* parameterName, u32 data)
     {
         SET_MATERIAL_PARAMETER(parameterName, setInt, data)
     }
 
-    void NewMaterial::setFloat(const char* parameterName, f32 data)
+    void Material::setFloat(const char* parameterName, f32 data)
     {
         SET_MATERIAL_PARAMETER(parameterName, setFloat, data)
     }
 
-    void NewMaterial::setVec2(const char* parameterName, const glm::vec2& data)
+    void Material::setVec2(const char* parameterName, const glm::vec2& data)
     {
         SET_MATERIAL_PARAMETER(parameterName, setVec2, data)
     }
 
-    void NewMaterial::setVec3(const char* parameterName, const glm::vec3& data)
+    void Material::setVec3(const char* parameterName, const glm::vec3& data)
     {
         SET_MATERIAL_PARAMETER(parameterName, setVec3, data)
     }
 
-    void NewMaterial::setVec4(const char* parameterName, const glm::vec4& data)
+    void Material::setVec4(const char* parameterName, const glm::vec4& data)
     {
         SET_MATERIAL_PARAMETER(parameterName, setVec4, data)
     }
 
-    void NewMaterial::setTexture(const char* parameterName, Texture2D* texture)
+    void Material::setTexture(const char* parameterName, Texture2D* texture)
     {
         i32 parameterIndex = m_parameterMap[parameterName].index;
         if (parameterIndex >= 0 && parameterIndex < m_defaultInstance->m_parameters.size())
@@ -126,7 +98,7 @@ namespace Cyan
         }                                                              
     }
 
-    MaterialInstance::MaterialInstance(const char* name, NewMaterial* parent)
+    MaterialInstance::MaterialInstance(const char* name, Material* parent)
         : Asset(name), m_parent(parent)
     {
         i32 parameterCount = m_parent->m_parameterMap.size();

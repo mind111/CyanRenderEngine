@@ -16,7 +16,6 @@ namespace Cyan
         ~StaticMeshEntity();
 
         StaticMeshComponent* getStaticMeshComponent();
-        void setMaterial(std::shared_ptr<Material> material, i32 index=-1);
 
     private:
         std::shared_ptr<StaticMeshComponent> m_staticMeshComponent = nullptr;

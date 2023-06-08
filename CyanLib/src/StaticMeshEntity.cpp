@@ -20,9 +20,4 @@ namespace Cyan
     {
         return m_staticMeshComponent.get();
     }
-
-    void StaticMeshEntity::setMaterial(std::shared_ptr<Material> material, i32 index)
-    {
-        m_staticMeshComponent->setMaterial(material, index);
-    }
 }

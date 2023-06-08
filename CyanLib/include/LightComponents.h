@@ -9,11 +9,15 @@ namespace Cyan
     class LightComponent : public SceneComponent
     {
     public:
+        virtual ~LightComponent() { }
+
         const glm::vec3& getColor();
+        f32 getIntensity();
+        virtual void setColor(const glm::vec3& color);
+        virtual void setIntensity(const f32 intensity);
 
     protected:
         LightComponent(const char* name, const Transform& localTransform);
-        ~LightComponent() { }
 
         glm::vec3 m_color = glm::vec3(0.88f, 0.77f, 0.65f);
         f32 m_intensity = 1.f;
@@ -25,14 +29,12 @@ namespace Cyan
         DirectionalLightComponent(const char* name, const Transform& localTransform);
         ~DirectionalLightComponent() { }
 
-        f32 getIntensity();
-        void setColor(const glm::vec3& color);
-        void setIntensity(const f32 intensity);
-
         virtual void onTransformUpdated() override;
 
         DirectionalLight* getDirectionalLight();
         const glm::vec3& getDirection();
+        virtual void setColor(const glm::vec3& color) override;
+        virtual void setIntensity(const f32 intensity) override;
 
         /**
          * setDirection() will update direction as well as updating the transform so that this component's facing
@@ -48,6 +50,14 @@ namespace Cyan
 
     class SkyLightComponent : public LightComponent
     {
+    public:
+        SkyLightComponent(const char* name, const Transform& localTransform);
+        ~SkyLightComponent();
+
+        virtual void setColor(const glm::vec3& color) override;
+        virtual void setIntensity(const f32 intensity) override;
+    protected:
+        std::unique_ptr<SkyLight> m_skyLight = nullptr;
     };
 
 #if 0

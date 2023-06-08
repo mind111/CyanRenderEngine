@@ -146,14 +146,13 @@ namespace Cyan
         /**
             initialize the default material 
         */ 
-        createMaterial("DefaultMaterial");
-        createMaterial("M_DefaultOpaque", MATERIAL_SOURCE_PATH "M_DefaultOpaque_p.glsl", [](MaterialInstance* defaultInstance) {
+        createMaterial("M_DefaultOpaque", Material::defaultOpaqueMaterialPath, [](MaterialInstance* defaultInstance) {
             defaultInstance->setVec3("mp_albedo", glm::vec3(.8));
             defaultInstance->setFloat("mp_roughness", .5f);
             defaultInstance->setFloat("mp_metallic", 0.f);
             defaultInstance->setFloat("mp_emissive", 1.f);
-            defaultInstance->setUint("mp_flag", 0);
-            });
+            }
+        );
 
         stbi_set_flip_vertically_on_load(1);
     }
@@ -198,8 +197,8 @@ namespace Cyan
     std::shared_ptr<Material> AssetManager::findAsset(const char* name)
     {
         std::shared_ptr<Material> out = nullptr;
-        auto entry = singleton->m_materialMap.find(name);
-        if (entry != singleton->m_materialMap.end())
+        auto entry = singleton->m_newMaterialMap.find(name);
+        if (entry != singleton->m_newMaterialMap.end())
         {
             out = entry->second;
         }
@@ -255,29 +254,13 @@ namespace Cyan
         return outTexture;
     }
 
-    std::shared_ptr<Material> AssetManager::createMaterial(const char* name) 
+    std::shared_ptr<Material> AssetManager::createMaterial(const char* name, const char* materialSourcePath, const Material::SetupDefaultInstance& setupDefaultInstance)
     {
         std::shared_ptr<Material> outMaterial = nullptr;
-        auto entry = singleton->m_materialMap.find(name);
-        if (entry == singleton->m_materialMap.end()) 
-        {
-            outMaterial = std::make_shared<Material>(name);
-            singleton->m_materialMap.insert({ name, outMaterial });
-        }
-        else
-        {
-            entry->second;
-        }
-        return outMaterial;
-    }
-
-    std::shared_ptr<NewMaterial> AssetManager::createMaterial(const char* name, const char* materialSourcePath, const NewMaterial::SetupDefaultInstance& setupDefaultInstance)
-    {
-        std::shared_ptr<NewMaterial> outMaterial = nullptr;
         auto entry = singleton->m_newMaterialMap.find(name);
         if (entry == singleton->m_newMaterialMap.end()) 
         {
-            outMaterial = std::make_shared<NewMaterial>(name, materialSourcePath, setupDefaultInstance);
+            outMaterial = std::make_shared<Material>(name, materialSourcePath, setupDefaultInstance);
             singleton->m_newMaterialMap.insert({ name, outMaterial });
         }
         else

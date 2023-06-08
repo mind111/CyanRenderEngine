@@ -273,6 +273,9 @@
     <ClInclude Include="include\LightComponents.h">
       <Filter>Header Files\Components</Filter>
     </ClInclude>
+    <ClInclude Include="include\SceneRender.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\LightEntities.cpp">
@@ -427,6 +430,9 @@
     </ClCompile>
     <ClCompile Include="src\LightComponents.cpp">
       <Filter>Source Files\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SceneRender.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

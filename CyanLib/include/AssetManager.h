@@ -54,8 +54,7 @@ namespace Cyan
         static std::shared_ptr<Image> createImage(const char* name);
         static std::shared_ptr<Texture2D> createTexture2D(const char* name, std::shared_ptr<Image> srcImage, const Sampler2D& inSampler = Sampler2D{});
         static std::shared_ptr<StaticMesh> createStaticMesh(const char* name, u32 numSubmeshes);
-        static std::shared_ptr<Material> createMaterial(const char* name);
-        static std::shared_ptr<NewMaterial> createMaterial(const char* name, const char* materialSourcePath, const NewMaterial::SetupDefaultInstance& setupDefaultInstance);
+        static std::shared_ptr<Material> createMaterial(const char* name, const char* materialSourcePath, const Material::SetupDefaultInstance& setupDefaultInstance);
         template <typename T>
         static std::shared_ptr<T> findAsset(const char* name);
 
@@ -148,8 +147,7 @@ namespace Cyan
         std::unordered_map<std::string, std::shared_ptr<StaticMesh>> m_meshMap;
         std::unordered_map<std::string, std::shared_ptr<Image>> m_imageMap;
         std::unordered_map<std::string, std::shared_ptr<Texture2D>> m_textureMap;
-        std::unordered_map<std::string, std::shared_ptr<Material>> m_materialMap;
-        std::unordered_map<std::string, std::shared_ptr<NewMaterial>> m_newMaterialMap;
+        std::unordered_map<std::string, std::shared_ptr<Material>> m_newMaterialMap;
 
         std::unique_ptr<AssetImporter> m_assetImporter = nullptr;
     };

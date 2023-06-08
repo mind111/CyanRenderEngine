@@ -346,39 +346,35 @@ namespace Cyan
         }
     }
 
+    /**
+     * todo: implement material bucketing
+     * todo: implement material->unbind()
+     */
     void Renderer::renderSceneGBuffer(GfxTexture2D* outAlbedo, GfxTexture2D* outNormal, GfxTexture2D* outMetallicRoughness, GfxDepthTexture2D* depth, Scene* scene, const SceneRender::ViewParameters& viewParameters)
     {
         GPU_DEBUG_SCOPE(renderSceneGBufferPassMarker, "Scene GBuffer Pass");
 
         if (outAlbedo != nullptr && outNormal != nullptr && outMetallicRoughness != nullptr && depth != nullptr && scene != nullptr)
         {
-            CreateVS(vs, "StaticMeshVS", SHADER_SOURCE_PATH "static_mesh_v.glsl");
-            CreatePS(ps, "SceneGBufferPS", SHADER_SOURCE_PATH "gbuffer_p.glsl");
-            CreatePixelPipeline(pipeline, "SceneGBufferPass", vs, ps);
-
             RenderPass pass(outAlbedo->width, outAlbedo->height);
             pass.viewport = { 0, 0, outAlbedo->width, outAlbedo->height };
             pass.setRenderTarget(outAlbedo, 0);
             pass.setRenderTarget(outNormal, 1);
             pass.setRenderTarget(outMetallicRoughness, 2);
             pass.setDepthBuffer(depth);
-            pass.drawLambda = [&scene, pipeline, viewParameters](GfxContext* ctx) { 
-                pipeline->bind(ctx);
-                viewParameters.setShaderParameters(pipeline);
+            pass.drawLambda = [&scene, viewParameters](GfxContext* ctx) { 
                 for (auto instance : scene->m_staticMeshInstances)
                 {
-                    pipeline->setUniform("localToWorld", instance->localToWorld.toMatrix());
                     auto mesh = instance->parent;
                     for (i32 i = 0; i < mesh->getNumSubmeshes(); ++i)
                     {
                         auto sm = (*mesh)[i];
                         auto material = (*instance)[i];
-                        material->setShaderParameters(pipeline->m_pixelShader);
+                        material->bind(ctx, instance->localToWorld.toMatrix(), viewParameters);
                         ctx->setVertexArray(sm->va.get());
                         ctx->drawIndex(sm->numIndices());
                     }
                 }
-                pipeline->unbind(ctx);
             };
             pass.render(m_ctx);
         }

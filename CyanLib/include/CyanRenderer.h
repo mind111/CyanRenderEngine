@@ -12,6 +12,7 @@
 #include "Common.h"
 #include "CyanAPI.h"
 #include "Scene.h"
+#include "SceneRender.h"
 #include "Camera.h"
 #include "Entity.h"
 #include "Geometry.h"

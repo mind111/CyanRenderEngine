@@ -65,7 +65,7 @@ namespace Cyan
     {
         assert(parent != nullptr);
         m_materials.resize(parent->getNumSubmeshes());
-        auto defaultMaterial = AssetManager::findAsset<Material>("DefaultMaterial");
+        auto defaultMaterial = AssetManager::findAsset<Material>("M_DefaultOpaque");
         assert(defaultMaterial != nullptr);
         for (i32 i = 0; i < parent->getNumSubmeshes(); ++i)
         {

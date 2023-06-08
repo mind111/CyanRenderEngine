@@ -89,7 +89,7 @@ namespace Cyan
         };
 
         friend class GfxContext;
-        friend class NewMaterial;
+        friend class Material;
 
         Shader(const char* shaderName, const char* shaderFilePath, Type type = Type::kInvalid);
         virtual ~Shader() { }

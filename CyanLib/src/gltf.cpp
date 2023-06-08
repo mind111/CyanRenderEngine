@@ -78,30 +78,51 @@ namespace Cyan
             for (i32 i = 0; i < m_materials.size(); ++i)
             {
                 const gltf::Material& gltfMatl = m_materials[i];
-                auto matl = AssetManager::createMaterial(gltfMatl.m_name.c_str());
-                matl->albedo = gltfMatl.pbrMetallicRoughness.baseColorFactor;
-                matl->roughness = gltfMatl.pbrMetallicRoughness.roughnessFactor;
-                matl->metallic = gltfMatl.pbrMetallicRoughness.metallicFactor;
-                i32 baseColorTextureIndex = gltfMatl.pbrMetallicRoughness.baseColorTexture.index;
-                if (baseColorTextureIndex >= 0)
-                {
-                    const gltf::Texture texture = m_textures[baseColorTextureIndex];
-                    matl->albedoMap = AssetManager::findAsset<Texture2D>(texture.m_name.c_str());
-                }
+                auto matl = AssetManager::createMaterial(
+                    gltfMatl.m_name.c_str(),
+                    MATERIAL_SOURCE_PATH "M_DefaultOpaque_p.glsl",
+                    [this, gltfMatl](MaterialInstance* defaultInstance) {
+                        defaultInstance->setVec3("mp_albedo", gltfMatl.pbrMetallicRoughness.baseColorFactor);
+                        defaultInstance->setFloat("mp_roughness", gltfMatl.pbrMetallicRoughness.roughnessFactor);
+                        defaultInstance->setFloat("mp_metallic", gltfMatl.pbrMetallicRoughness.metallicFactor);
+                        i32 baseColorTextureIndex = gltfMatl.pbrMetallicRoughness.baseColorTexture.index;
+                        if (baseColorTextureIndex >= 0)
+                        {
+                            const gltf::Texture gltfTexture = m_textures[baseColorTextureIndex];
+                            Texture2D* texture = AssetManager::findAsset<Texture2D>(gltfTexture.m_name.c_str()).get();
+                            if (texture != nullptr)
+                            {
+                                defaultInstance->setTexture("mp_albedoMap", texture);
+                                defaultInstance->setFloat("mp_hasAlbedoMap", 0.5f);
+                            }
+                        }
 
-                i32 metallicRoughnessIndex = gltfMatl.pbrMetallicRoughness.metallicRoughnessTexture.index;
-                if (metallicRoughnessIndex >= 0)
-                {
-                    const gltf::Texture texture = m_textures[metallicRoughnessIndex];
-                    matl->metallicRoughnessMap = AssetManager::findAsset<Texture2D>(texture.m_name.c_str());
-                }
+                        i32 normalTextureIndex = gltfMatl.normalTexture.index;
+                        if (normalTextureIndex >= 0)
+                        {
+                            const gltf::Texture gltfTexture = m_textures[normalTextureIndex];
+                            Texture2D* texture = AssetManager::findAsset<Texture2D>(gltfTexture.m_name.c_str()).get();
+                            if (texture != nullptr)
+                            {
+                                defaultInstance->setTexture("mp_normalMap", texture);
+                                defaultInstance->setFloat("mp_hasNormalMap", .5f);
+                            }
+                        }
 
-                i32 normalTextureIndex = gltfMatl.normalTexture.index;
-                if (normalTextureIndex >= 0)
-                {
-                    const gltf::Texture texture = m_textures[normalTextureIndex];
-                    matl->normalMap = AssetManager::findAsset<Texture2D>(texture.m_name.c_str());
-                }
+                        i32 metallicRoughnessIndex = gltfMatl.pbrMetallicRoughness.metallicRoughnessTexture.index;
+                        if (metallicRoughnessIndex >= 0)
+                        {
+                            const gltf::Texture gltfTexture = m_textures[metallicRoughnessIndex];
+                            Texture2D* texture = AssetManager::findAsset<Texture2D>(gltfTexture.m_name.c_str()).get();
+                            if (texture != nullptr)
+                            {
+                                defaultInstance->setTexture("mp_metallicRoughnessMap", texture);
+                                defaultInstance->setFloat("mp_hasMetallicRoughnessMap", .5f);
+                            }
+                        }
+
+                    }
+                );
             }
         }
 

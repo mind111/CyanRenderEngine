@@ -3,7 +3,6 @@
 #include "Texture.h"
 #include "Framebuffer.h"
 
-
 namespace Cyan
 {
     struct Scene;
@@ -26,7 +25,8 @@ namespace Cyan
         MeshInstance*        debugSphereMesh;
     };
 
-    struct IrradianceProbe : public LightProbe {
+    struct IrradianceProbe : public LightProbe 
+    {
         IrradianceProbe(GfxTextureCube* srcCubemapTexture, const glm::uvec2& irradianceRes);
         IrradianceProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& sceneCaptureResolution, const glm::uvec2& irradianceResolution);
         ~IrradianceProbe() { }

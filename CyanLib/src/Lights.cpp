@@ -1,19 +1,35 @@
-#include "AssetManager.h"
-#include "AssetImporter.h"
-#include "CyanRenderer.h"
-#include "Camera.h"
 #include "Lights.h"
-#include "RenderPass.h"
 #include "LightComponents.h"
 
 namespace Cyan 
 {
-    DirectionalLight::DirectionalLight(DirectionalLightComponent* directionalLightComponent)
-        : m_directionalLightComponent(directionalLightComponent)
+    Light::Light(const glm::vec3& color, f32 intensity)
+        : m_color(color), m_intensity(intensity)
     {
-        m_color = m_directionalLightComponent->getColor();
-        m_intensity = m_directionalLightComponent->getIntensity();
+
+    }
+
+    Light::~Light()
+    {
+
+    }
+
+    DirectionalLight::DirectionalLight(DirectionalLightComponent* directionalLightComponent)
+        : Light(directionalLightComponent->getColor(), directionalLightComponent->getIntensity()), m_directionalLightComponent(directionalLightComponent)
+    {
         m_direction = m_directionalLightComponent->getDirection();
         m_csm = std::make_unique<CascadedShadowMap>(this);
     }
+
+    SkyLight::SkyLight(SkyLightComponent* skyLightComponent)
+        : Light(skyLightComponent->getColor(), skyLightComponent->getIntensity())
+    {
+
+    }
+
+    SkyLight::~SkyLight()
+    {
+
+    }
+
 }

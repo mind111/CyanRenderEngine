@@ -34,6 +34,11 @@ vec4 tangentSpaceToWorldSpace(vec3 tangent, vec3 bitangent, vec3 worldSpaceNorma
     return tbn * vec4(tangentSpaceNormal, 0.f);
 }
 
+uniform float mp_hasAlbedoMap;
+uniform float mp_hasNormalMap;
+uniform float mp_hasMetallicRoughnessMap;
+uniform float mp_hasEmissiveMap;
+uniform float mp_hasOcclusionMap;
 uniform sampler2D mp_albedoMap;
 uniform sampler2D mp_normalMap;
 uniform sampler2D mp_metallicRoughnessMap;
@@ -43,7 +48,6 @@ uniform vec3 mp_albedo;
 uniform float mp_metallic;
 uniform float mp_roughness;
 uniform float mp_emissive;
-uniform uint mp_flag;
 
 const uint kHasAlbedoMap            = 1 << 0;
 const uint kHasNormalMap            = 1 << 1;
@@ -55,7 +59,7 @@ Material calcMaterialProperties(vec3 worldSpaceNormal, vec3 worldSpaceTangent, v
     Material outMaterial;
     
     outMaterial.normal = worldSpaceNormal;
-    if ((mp_flag & kHasNormalMap) != 0u) 
+    if (mp_hasNormalMap > 0.f) 
     {
         vec3 tangentSpaceNormal = texture(mp_normalMap, texCoord).xyz;
         // Convert from [0, 1] to [-1.0, 1.0] and renomalize if texture filtering changes the length
@@ -65,7 +69,7 @@ Material calcMaterialProperties(vec3 worldSpaceNormal, vec3 worldSpaceTangent, v
     }
 
     outMaterial.albedo = mp_albedo.rgb;
-    if ((mp_flag & kHasAlbedoMap) != 0u) 
+    if (mp_hasAlbedoMap > 0.f) 
     {
         outMaterial.albedo = texture(mp_albedoMap, texCoord).rgb;
 		// from sRGB to linear space if using a texture
@@ -74,7 +78,7 @@ Material calcMaterialProperties(vec3 worldSpaceNormal, vec3 worldSpaceTangent, v
 
     // According to gltf-2.0 spec, metal is sampled from b, roughness is sampled from g
     float roughness = mp_roughness, metallic = mp_metallic;
-    if ((mp_flag & kHasMetallicRoughnessMap) != 0u)
+    if (mp_hasMetallicRoughnessMap > 0.f)
     {
         vec2 metallicRoughness = texture(mp_metallicRoughnessMap, texCoord).gb;
         roughness = metallicRoughness.x;
@@ -85,7 +89,7 @@ Material calcMaterialProperties(vec3 worldSpaceNormal, vec3 worldSpaceTangent, v
     outMaterial.metallic = metallic;
 
     outMaterial.occlusion = 1.f;
-    if ((mp_flag & kHasOcclusionMap) != 0u) 
+    if (mp_hasOcclusionMap > 0.f) 
     {
         outMaterial.occlusion = texture(mp_occlusionMap, texCoord).r;
 		outMaterial.occlusion = pow(outMaterial.occlusion, 3.0f);

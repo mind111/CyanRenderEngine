@@ -3,26 +3,22 @@
 #include <glm/glm.hpp>
 
 #include "ShadowMaps.h"
+#include "LightProbe.h"
 
 namespace Cyan
 {
-    struct Light 
+    class Light 
     {
-        Light() { }
-        Light(const glm::vec4& inColorAndIntensity) 
-        : colorAndIntensity(inColorAndIntensity) {
+    public:
+        Light(const glm::vec3& color, f32 intensity);
+        virtual ~Light();
 
-        }
-
-        glm::vec3 getColor() { return glm::vec3(colorAndIntensity.r, colorAndIntensity.g, colorAndIntensity.b); }
-        float getIntensity() { return colorAndIntensity.a; }
-        void setColor(const glm::vec4& colorAndIntensity) { }
-
-        glm::vec4 colorAndIntensity = glm::vec4(1.f, 0.7f, 0.9f, 1.f);
+        glm::vec3 m_color;
+        f32 m_intensity;
     };
 
     class DirectionalLightComponent;
-    class DirectionalLight
+    class DirectionalLight : public Light
     {
     public:
         DirectionalLight(DirectionalLightComponent* directionalLightComponent);
@@ -31,10 +27,20 @@ namespace Cyan
         static constexpr glm::vec3 defaultDirection = glm::vec3(0.f);
 
         DirectionalLightComponent* m_directionalLightComponent = nullptr;
-        glm::vec3 m_color;
-        f32 m_intensity;
         glm::vec3 m_direction;
         std::unique_ptr<CascadedShadowMap> m_csm = nullptr;
+    };
+
+    class SkyLightComponent;
+    class SkyLight : public Light
+    {
+    public:
+        SkyLight(SkyLightComponent* skyLightComponent);
+        ~SkyLight();
+
+        SkyLightComponent* m_skyLightComponent = nullptr;
+        std::unique_ptr<ReflectionProbe> m_reflectionProbe = nullptr;
+        std::unique_ptr<IrradianceProbe> m_irradianceProbe = nullptr;
     };
 
 #if 0
