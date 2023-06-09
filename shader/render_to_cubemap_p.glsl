@@ -3,10 +3,9 @@
 #define pi 3.14159265359
 
 in vec3 objectSpacePosition;
+out vec3 outColor;
 
-out vec4 fragColor;
-
-uniform sampler2D srcImageTexture;
+uniform sampler2D srcHDRI;
 
 float saturate(float k)
 {
@@ -28,7 +27,6 @@ vec2 sampleEquirectangularMap(vec3 d)
 void main()
 {
     vec3 d = normalize(objectSpacePosition);
-    vec2 uv = sampleEquirectangularMap(d);
-    vec3 hdrColor = texture(srcImageTexture, uv).rgb;
-    fragColor = vec4(hdrColor, 1.0f);
+    vec2 texCoord = sampleEquirectangularMap(d);
+    outColor = texture(srcHDRI, texCoord).rgb;
 }

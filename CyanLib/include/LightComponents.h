@@ -54,9 +54,36 @@ namespace Cyan
         SkyLightComponent(const char* name, const Transform& localTransform);
         ~SkyLightComponent();
 
+        /* SceneComponent Interface */
+        virtual void setOwner(Entity* owner);
+
+        /* LightComponent Interface */
         virtual void setColor(const glm::vec3& color) override;
         virtual void setIntensity(const f32 intensity) override;
+
+        enum class CaptureMode
+        {
+            kHDRI = 0,
+            kScene,
+            kCount
+        };
+
+        void setCaptureMode(const CaptureMode& captureMode);
+
+        /**
+         * 'HDRI' should be an equirectangular map
+         */
+        void setHDRI(std::shared_ptr<Texture2D> HRDI);
+        void capture();
+
     protected:
+        void captureHDRI();
+        void captureScene();
+
+        static constexpr const char* defaultHDRIPath = "";
+
+        CaptureMode m_captureMode = CaptureMode::kHDRI;
+        std::shared_ptr<Texture2D> m_HDRI = nullptr;
         std::unique_ptr<SkyLight> m_skyLight = nullptr;
     };
 

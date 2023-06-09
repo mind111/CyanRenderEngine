@@ -29,6 +29,10 @@ namespace Cyan
             lightingOnly = std::unique_ptr<GfxTexture2D>(GfxTexture2D::create(spec, Sampler2D()));
             ao = std::unique_ptr<GfxTexture2D>(GfxTexture2D::create(spec, Sampler2D()));
             aoHistory = std::unique_ptr<GfxTexture2D>(GfxTexture2D::create(spec, Sampler2D()));
+            color = std::unique_ptr<GfxTexture2D>(GfxTexture2D::create(spec, Sampler2D()));
+        }
+        // final resolved color
+        {
         }
     }
 

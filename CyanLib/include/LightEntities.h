@@ -4,6 +4,7 @@ namespace Cyan
 {
     class Entity;
     class DirectionalLightComponent;
+    class SkyLightComponent;
 
     class DirectionalLightEntity : public Entity
     {
@@ -16,24 +17,14 @@ namespace Cyan
         std::shared_ptr<DirectionalLightComponent> m_directionalLightComponent = nullptr;
     };
 
-#if 0
-    struct Entity;
-    struct DirectionalLightComponent;
-
-    struct DirectionalLightEntity : public Entity
+    class SkyLightEntity : public Entity
     {
-        /* Entity interface */
-        virtual void update() override;
-        virtual const char* getTypeDesc() override { return "DirectionalLightEntity"; }
-        virtual void renderUI() override;
+    public:
+        SkyLightEntity(World* world, const char* name, const Transform& local);
+        ~SkyLightEntity();
 
-        DirectionalLightEntity(Scene* scene, const char* inName, const Transform& t, Entity* inParent);
-        DirectionalLightEntity(Scene* scene, const char* inName, const Transform& t, Entity* inParenat, const glm::vec3& direction, const glm::vec4& colorAndIntensity, bool bCastShadow);
-
-        DirectionalLightComponent* getDirectionalLightComponent() { return directionalLightComponent.get(); }
-
-    private:
-        std::unique_ptr<DirectionalLightComponent> directionalLightComponent = nullptr;
+        SkyLightComponent* getSkyLightComponent();
+    protected:
+        std::shared_ptr<SkyLightComponent> m_skyLightComponent = nullptr;
     };
-#endif
 }

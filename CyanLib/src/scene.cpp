@@ -14,6 +14,7 @@
 #include "GraphicsSystem.h"
 #include "LightComponents.h"
 #include "SceneRender.h"
+#include "Skybox.h"
 
 namespace Cyan
 {
@@ -45,6 +46,39 @@ namespace Cyan
             removeDirectionalLight();
         }
         m_directionalLight = directionalLight;
+    }
+
+    void Scene::removeDirectionalLight()
+    {
+        m_directionalLight = nullptr;
+    }
+
+    void Scene::addSkyLight(SkyLight* skyLight)
+    {
+        if (m_skyLight != nullptr)
+        {
+            removeSkyLight();
+        }
+        m_skyLight = skyLight;
+    }
+
+    void Scene::removeSkyLight()
+    {
+        m_skyLight = nullptr;
+    }
+
+    void Scene::addSkybox(Skybox* skybox)
+    {
+        if (m_skybox != nullptr)
+        {
+            removeSkybox();
+        }
+        m_skybox = skybox;
+    }
+
+    void Scene::removeSkybox()
+    {
+        m_skybox = nullptr;
     }
 
     i32 Scene::getFrameCount()

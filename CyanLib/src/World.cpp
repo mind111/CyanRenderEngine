@@ -9,6 +9,7 @@
 #include "StaticMeshComponent.h"
 #include "LightEntities.h"
 #include "LightComponents.h"
+#include "SkyboxEntity.h"
 
 namespace Cyan
 {
@@ -123,6 +124,22 @@ namespace Cyan
         assert(m_rootEntity != nullptr);
         auto e = std::make_shared<DirectionalLightEntity>(this, name, local);
         m_scene->addDirectionalLight(e->getDirectionalLightComponent()->getDirectionalLight());
+        onEntityCreated(e);
+        return e.get();
+    }
+
+    SkyLightEntity* World::createSkyLightEntity(const char* name, const Transform& local)
+    {
+        assert(m_rootEntity != nullptr);
+        auto e = std::make_shared<SkyLightEntity>(this, name, local);
+        onEntityCreated(e);
+        return e.get();
+    }
+
+    SkyboxEntity* World::createSkyboxEntity(const char* name, const Transform& local)
+    {
+        assert(m_rootEntity != nullptr);
+        auto e = std::make_shared<SkyboxEntity>(this, name, local);
         onEntityCreated(e);
         return e.get();
     }

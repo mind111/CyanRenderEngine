@@ -295,28 +295,31 @@ namespace Cyan
     std::shared_ptr<Image> AssetImporter::importImage(const char* name, const char* filename)
     {
         std::shared_ptr<Image> outImage = singleton->m_assetManager->createImage(name);
-        i32 hdr = stbi_is_hdr(filename);
-        if (hdr)
+        if (!outImage->isLoaded())
         {
-            outImage->m_bitsPerChannel = 32;
-            outImage->m_pixels = std::shared_ptr<u8>((u8*)stbi_loadf(filename, &outImage->m_width, &outImage->m_height, &outImage->m_numChannels, 0));
-        }
-        else
-        {
-            i32 is16Bit = stbi_is_16_bit(filename);
-            if (is16Bit)
+            i32 hdr = stbi_is_hdr(filename);
+            if (hdr)
             {
-                outImage->m_pixels = std::shared_ptr<u8>((u8*)stbi_load_16(filename, &outImage->m_width, &outImage->m_height, &outImage->m_numChannels, 0));
-                outImage->m_bitsPerChannel = 16;
+                outImage->m_bitsPerChannel = 32;
+                outImage->m_pixels = std::shared_ptr<u8>((u8*)stbi_loadf(filename, &outImage->m_width, &outImage->m_height, &outImage->m_numChannels, 0));
             }
             else
             {
-                outImage->m_pixels = std::shared_ptr<u8>(stbi_load(filename, &outImage->m_width, &outImage->m_height, &outImage->m_numChannels, 0));
-                outImage->m_bitsPerChannel = 8;
+                i32 is16Bit = stbi_is_16_bit(filename);
+                if (is16Bit)
+                {
+                    outImage->m_pixels = std::shared_ptr<u8>((u8*)stbi_load_16(filename, &outImage->m_width, &outImage->m_height, &outImage->m_numChannels, 0));
+                    outImage->m_bitsPerChannel = 16;
+                }
+                else
+                {
+                    outImage->m_pixels = std::shared_ptr<u8>(stbi_load(filename, &outImage->m_width, &outImage->m_height, &outImage->m_numChannels, 0));
+                    outImage->m_bitsPerChannel = 8;
+                }
             }
+            assert(outImage->m_pixels != nullptr);
+            outImage->onLoaded();
         }
-        assert(outImage->m_pixels != nullptr);
-        outImage->onLoaded();
         return outImage;
     }
 

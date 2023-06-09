@@ -2,27 +2,20 @@
 
 #include "LightProbe.h"
 #include "RenderTexture.h"
+#include "Entity.h"
+#include "AssetManager.h"
 
 namespace Cyan
 {
-    class PixelPipeline;
+    class SkyboxComponent;
 
-    struct Skybox
+    class Skybox
     {
-        Skybox(const char* m_name, const char* srcHDRIPath, const glm::uvec2& resolution);
-        Skybox(const char* m_name, GfxTextureCube* srcCubemap);
-
+    public:
+        Skybox(SkyboxComponent* skyboxComponent);
         ~Skybox() { }
 
-        /** note:
-        * this render function assumes that certain scene data such as the global view ssbo is already updated and bound
-        */
-        void render(RenderTexture2D colorBuffer, RenderDepthTexture2D depthBuffer, const glm::mat4& view, const glm::mat4& projection, f32 mipLevel = 0.f);
-
-        static PixelPipeline* s_cubemapSkyPipeline;
-        static PixelPipeline* s_proceduralSkyPipeline;
-
-        std::shared_ptr<Texture2D> m_srcHDRITexture = nullptr;
-        std::unique_ptr<GfxTextureCube> m_cubemapTexture = nullptr;
+        SkyboxComponent* m_skyboxComponent = nullptr;
+        std::unique_ptr<GfxTextureCube> m_cubemap = nullptr;
     };
 }

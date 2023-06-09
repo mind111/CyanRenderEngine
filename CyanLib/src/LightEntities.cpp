@@ -8,46 +8,6 @@
 
 namespace Cyan
 {
-#if 0
-    DirectionalLightEntity::DirectionalLightEntity(Scene* scene, const char* inName, const Transform& t, Entity* inParent)
-        : Entity(scene, inName, t, inParent, EntityFlag_kDynamic | EntityFlag_kVisible) 
-    {
-        directionalLightComponent = std::make_unique<DirectionalLightComponent>(this, "DirectionalLightComponent");
-        attachComponent(directionalLightComponent.get());
-    }
-    
-    DirectionalLightEntity::DirectionalLightEntity(Scene* scene, const char* inName, const Transform& t, Entity* inParent, const glm::vec3& direction, const glm::vec4& colorAndIntensity, bool bCastShadow)
-        : Entity(scene, inName, t, inParent, EntityFlag_kDynamic | EntityFlag_kVisible) 
-    {
-        directionalLightComponent = std::make_unique<DirectionalLightComponent>(this, "DirectionalLightComponent", direction, colorAndIntensity, bCastShadow);
-        attachComponent(directionalLightComponent.get());
-    }
-
-    void DirectionalLightEntity::update()
-    {
-    }
-
-    void DirectionalLightEntity::renderUI()
-    {
-        if (ImGui::CollapsingHeader("DirectionalLight", ImGuiTreeNodeFlags_DefaultOpen))
-        {
-            glm::vec4 colorAndIntensity = directionalLightComponent->getColorAndIntensity();
-            // albedo
-            ImGui::Text("Color"); ImGui::SameLine();
-            f32 albedo[3] = { colorAndIntensity.x, colorAndIntensity.y, colorAndIntensity.z };
-            ImGui::ColorPicker3("##Color", albedo);
-            colorAndIntensity.r = albedo[0];
-            colorAndIntensity.g = albedo[1];
-            colorAndIntensity.b = albedo[2];
-
-            // intensity
-            ImGui::Text("Intensity"); ImGui::SameLine();
-            ImGui::SliderFloat("##Intensity", &colorAndIntensity.w, 0.f, 100.f);
-            directionalLightComponent->setColorAndIntensity(colorAndIntensity);
-        }
-    }
-#endif
-
     DirectionalLightEntity::DirectionalLightEntity(World* world, const char* name, const Transform& local)
         : Entity(world, name, local)
     {
@@ -60,8 +20,25 @@ namespace Cyan
 
     }
 
-    Cyan::DirectionalLightComponent* DirectionalLightEntity::getDirectionalLightComponent()
+    DirectionalLightComponent* DirectionalLightEntity::getDirectionalLightComponent()
     {
         return m_directionalLightComponent.get();
+    }
+
+    SkyLightEntity::SkyLightEntity(World* world, const char* name, const Transform& local)
+        : Entity(world, name, local)
+    {
+        m_skyLightComponent = std::make_shared<SkyLightComponent>("SkyLightComponent", Transform());
+        m_rootSceneComponent->attachChild(m_skyLightComponent);
+    }
+
+    SkyLightEntity::~SkyLightEntity()
+    {
+
+    }
+
+    SkyLightComponent* SkyLightEntity::getSkyLightComponent()
+    {
+        return m_skyLightComponent.get();
     }
 }

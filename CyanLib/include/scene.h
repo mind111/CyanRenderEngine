@@ -18,6 +18,7 @@ namespace Cyan
     class Camera;
     class ProgramPipeline;
     class SceneRender;
+    class Skybox;
 
     class Scene
     {
@@ -30,7 +31,11 @@ namespace Cyan
         void removeStaticMeshInstance() { }
 
         void addDirectionalLight(DirectionalLight* directionalLight);
-        void removeDirectionalLight() { }
+        void removeDirectionalLight();
+        void addSkyLight(SkyLight* skyLight);
+        void removeSkyLight();
+        void addSkybox(Skybox* skybox);
+        void removeSkybox();
 
         i32 getFrameCount();
         f32 getElapsedTime();
@@ -43,5 +48,7 @@ namespace Cyan
 
         // todo: lights
         DirectionalLight* m_directionalLight = nullptr;
+        SkyLight* m_skyLight = nullptr;
+        Skybox* m_skybox = nullptr;
     };
 }

@@ -1,14 +1,17 @@
 #version 450 core
 
-out vec3 outColor;
-
-in VSOutput
+in VertexShaderOutput
 {
     vec3 objectSpacePosition;
 } psIn;
 
+out vec3 outColor;
+
 uniform samplerCube cubemap;
-void main() {
+
+void main() 
+{
     vec3 d = normalize(psIn.objectSpacePosition);
-    outColor = texture(cubemap, d).rgb;
+    vec3 color = texture(cubemap, d).rgb;
+    outColor = color / (color + 1.f);
 }

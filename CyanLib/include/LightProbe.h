@@ -5,47 +5,54 @@
 
 namespace Cyan
 {
-    struct Scene;
+    class Scene;
     struct PixelPipeline;
-    struct MeshInstance;
 
-    struct LightProbe
+    class LightProbe
     {
-        LightProbe(GfxTextureCube* srcCubemapTexture);
-        LightProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& resolution);
-        ~LightProbe() { }
+    public:
+        LightProbe(const glm::vec3& position, GfxTextureCube* srcCubemap, const glm::uvec2& resolution);
+        // LightProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& resolution);
+        virtual ~LightProbe() { }
+
+        void setScene(Scene* scene);
+        virtual void build() = 0;
+#if 0
         virtual void init();
         virtual void captureScene();
         virtual void debugRender();
+#endif
 
-        Scene*               scene;
-        glm::vec3            m_position;
-        glm::vec2            resolution;
-        GfxTextureCube* sceneCapture;
-        MeshInstance*        debugSphereMesh;
+        Scene* m_scene = nullptr;
+        glm::vec3 m_position = glm::vec3(0.f);
+        glm::vec2 m_resolution;
+        GfxTextureCube* m_srcCubemap = nullptr;
     };
 
-    struct IrradianceProbe : public LightProbe 
+    class IrradianceProbe : public LightProbe 
     {
-        IrradianceProbe(GfxTextureCube* srcCubemapTexture, const glm::uvec2& irradianceRes);
-        IrradianceProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& sceneCaptureResolution, const glm::uvec2& irradianceResolution);
+    public:
+        IrradianceProbe(const glm::vec3& position, GfxTextureCube* srcCubemap, const glm::uvec2& resolution);
         ~IrradianceProbe() { }
-        virtual void debugRender() override;
+#if 0
+        IrradianceProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& sceneCaptureResolution, const glm::uvec2& irradianceResolution);
+#endif
 
+#if 0
+        virtual void debugRender() override;
         void initialize();
         void convolve();
         void build();
         void buildFromCubemap();
+#endif
+        virtual void build() override;
 
-        static PixelPipeline* s_convolveIrradiancePipeline;
-        static const u32 kNumZenithSlice       = 32u;
-        static const u32 kNumAzimuthalSlice    = 32u;
-        static const u32 kNumRaysPerHemiSphere = 128u;
-
-        glm::vec2 m_irradianceTextureRes;
-        std::unique_ptr<GfxTextureCube> m_convolvedIrradianceTexture = nullptr;
+        static constexpr u32 kNumSamplesInTheta = 32u;
+        static constexpr u32 kNumSamplesInPhi = 32u;
+        std::unique_ptr<GfxTextureCube> m_irradianceCubemap = nullptr;
     };
 
+#if 0
     struct ReflectionProbe : public LightProbe
     {
         ReflectionProbe(GfxTextureCube* srcCubemapTexture);
@@ -71,10 +78,7 @@ namespace Cyan
 
         std::unique_ptr<GfxTextureCube> m_convolvedReflectionTexture = nullptr;
     };
-
-    namespace LightProbeCameras
-    {
-        extern const glm::vec3 cameraFacingDirections[6];
-        extern const glm::vec3 worldUps[6];
-    }
+#endif
+    extern const glm::vec3 cameraFacingDirections[6];
+    extern const glm::vec3 worldUps[6];
 }

@@ -14,6 +14,8 @@ namespace Cyan
     class StaticMesh;
     class StaticMeshEntity;
     class DirectionalLightEntity;
+    class SkyLightEntity;
+    class SkyboxEntity;
     class Camera;
 
     // entity ownership?
@@ -34,6 +36,8 @@ namespace Cyan
         PerspectiveCameraEntity* createPerspectiveCameraEntity(const char* name, const Transform& local, const glm::vec3& worldUp, const glm::vec2& renderResolution, const Camera::ViewMode& viewMode, f32 fov, f32 n, f32 f);
         StaticMeshEntity* createStaticMeshEntity(const char* name, const Transform& local, std::shared_ptr<StaticMesh> mesh);
         DirectionalLightEntity* createDirectionalLightEntity(const char* name, const Transform& local);
+        SkyLightEntity* createSkyLightEntity(const char* name, const Transform& local);
+        SkyboxEntity* createSkyboxEntity(const char* name, const Transform& local);
 
         std::string m_name;
         std::shared_ptr<Scene> m_scene = nullptr;

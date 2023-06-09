@@ -5,9 +5,9 @@ in VSOutput
 	vec3 objectSpacePosition;
 } psIn;
 
-out vec4 outColor;
+out vec3 outColor;
 
-uniform samplerCube cubemapTexture;
+uniform samplerCube cubemap;
 uniform float mipLevel;
 
 float saturate(float k)
@@ -18,6 +18,6 @@ float saturate(float k)
 void main()
 {
     vec3 d = normalize(psIn.objectSpacePosition);
-    vec3 linearColor = textureLod(cubemapTexture, d, mipLevel).rgb;
-    outColor = vec4(linearColor, 1.0f);
+    vec3 linearColor = textureLod(cubemap, d, mipLevel).rgb;
+    outColor = linearColor;
 }

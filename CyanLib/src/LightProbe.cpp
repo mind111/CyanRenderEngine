@@ -10,46 +10,56 @@
 
 namespace Cyan
 {
+#if 0
     GfxTexture2D* ReflectionProbe::s_BRDFLookupTexture = nullptr;
-    PixelPipeline* IrradianceProbe::s_convolveIrradiancePipeline = nullptr;
-    PixelPipeline* ReflectionProbe::s_convolveReflectionPipeline = nullptr;
+#endif
 
-    namespace LightProbeCameras
-    {
-        const glm::vec3 cameraFacingDirections[] = {
-            {1.f, 0.f, 0.f},   // Right
-            {-1.f, 0.f, 0.f},  // Left
-            {0.f, 1.f, 0.f},   // Up
-            {0.f, -1.f, 0.f},  // Down
-            {0.f, 0.f, 1.f},   // Front
-            {0.f, 0.f, -1.f},  // Back
-        }; 
+    const glm::vec3 cameraFacingDirections[] = {
+        {1.f, 0.f, 0.f},   // Right
+        {-1.f, 0.f, 0.f},  // Left
+        {0.f, 1.f, 0.f},   // Up
+        {0.f, -1.f, 0.f},  // Down
+        {0.f, 0.f, 1.f},   // Front
+        {0.f, 0.f, -1.f},  // Back
+    }; 
 
-        const glm::vec3 worldUps[] = {
-            {0.f, -1.f, 0.f},   // Right
-            {0.f, -1.f, 0.f},   // Left
-            {0.f, 0.f, 1.f},    // Up
-            {0.f, 0.f, -1.f},   // Down
-            {0.f, -1.f, 0.f},   // Forward
-            {0.f, -1.f, 0.f},   // Back
-        };
-    }
+    const glm::vec3 worldUps[] = {
+        {0.f, -1.f, 0.f},   // Right
+        {0.f, -1.f, 0.f},   // Left
+        {0.f, 0.f, 1.f},    // Up
+        {0.f, 0.f, -1.f},   // Down
+        {0.f, -1.f, 0.f},   // Forward
+        {0.f, -1.f, 0.f},   // Back
+    };
 
+#if 0
     LightProbe::LightProbe(GfxTextureCube* srcCubemapTexture)
-        : scene(nullptr), m_position(glm::vec3(0.f)), resolution(glm::uvec2(srcCubemapTexture->resolution, srcCubemapTexture->resolution)), 
+        : m_scene(nullptr), m_position(glm::vec3(0.f)), m_resolution(glm::uvec2(srcCubemapTexture->resolution, srcCubemapTexture->resolution)), 
         debugSphereMesh(nullptr), sceneCapture(srcCubemapTexture)
     {
         init();
     }
 
     LightProbe::LightProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& resolution)
-        : scene(scene), m_position(p), resolution(resolution), debugSphereMesh(nullptr), sceneCapture(nullptr)
+        : m_scene(scene), m_position(p), m_resolution(resolution), debugSphereMesh(nullptr), sceneCapture(nullptr)
     {
         // debugSphereMesh = AssetManager::getAsset<Mesh>("sphere_mesh")->createInstance(scene);
         init();
     }
+#endif
 
-    void LightProbe::init() 
+    LightProbe::LightProbe(const glm::vec3& position, GfxTextureCube* srcCubemap, const glm::uvec2& resolution)
+        : m_scene(nullptr), m_position(position), m_srcCubemap(srcCubemap), m_resolution(resolution)
+    {
+
+    }
+
+    void LightProbe::setScene(Scene* scene)
+    {
+    }
+
+#if 0
+    void LightProbe::init()
     {
         if (!sceneCapture)
         {
@@ -59,7 +69,7 @@ namespace Cyan
 
     void LightProbe::captureScene() 
     {
-        assert(scene);
+        assert(m_scene);
 
 // todo: implement this at some point
 #if 0
@@ -144,13 +154,59 @@ namespace Cyan
             );
         }
     }
+#endif
+
+    IrradianceProbe::IrradianceProbe(const glm::vec3& position, GfxTextureCube* srcCubemap, const glm::uvec2& resolution)
+        : LightProbe(position, srcCubemap, resolution)
+    {
+        GfxTextureCube::Spec spec(m_resolution.x, 1, PF_RGB16F);
+        m_irradianceCubemap = std::unique_ptr<GfxTextureCube>(GfxTextureCube::create(spec));
+    }
 
     void IrradianceProbe::build()
     {
-        captureScene();
-        convolve();
+        auto renderer = Renderer::get();
+        CreateVS(vs, "ConvolveIrradianceCubemapVS", SHADER_SOURCE_PATH "convolve_diffuse_v.glsl");
+        CreatePS(ps, "ConvolveIrradianceCubemapPS", SHADER_SOURCE_PATH "convolve_diffuse_p.glsl");
+        CreatePixelPipeline(pipeline, "ConvolveIrradianceCubemap", vs, ps);
+        auto cube = AssetManager::findAsset<StaticMesh>("UnitCubeMesh").get();
+
+        for (i32 f = 0; f < 6u; ++f)
+        {
+            GfxPipelineState gfxPipelineState;
+            gfxPipelineState.depth = DepthControl::kDisable;
+
+            renderer->drawStaticMesh(
+                getFramebufferSize(m_irradianceCubemap.get()),
+                [this, f](RenderPass& pass) {
+                    pass.setRenderTarget(RenderTarget(m_irradianceCubemap.get(), f), 0);
+                },
+                { 0u, 0u, (u32)m_irradianceCubemap->resolution, (u32)m_irradianceCubemap->resolution },
+                cube,
+                pipeline,
+                [this, f](ProgramPipeline* p) {
+                    PerspectiveCamera camera;
+                    camera.m_position = m_position;
+                    camera.m_worldUp = worldUps[f];
+                    camera.m_forward = cameraFacingDirections[f];
+                    camera.m_right = glm::cross(camera.m_forward, camera.m_worldUp);
+                    camera.m_up = glm::cross(camera.m_right, camera.m_forward);
+                    camera.n = .1f;
+                    camera.f = 100.f;
+                    camera.fov = 90.f;
+                    camera.aspectRatio = 1.f;
+                    p->setUniform("cameraView", camera.view());
+                    p->setUniform("cameraProjection", camera.projection());
+                    p->setUniform("numSamplesInTheta", (f32)kNumSamplesInTheta);
+                    p->setUniform("numSamplesInPhi", (f32)kNumSamplesInPhi);
+                    p->setTexture("srcCubemapTexture", m_srcCubemap);
+                },
+                gfxPipelineState
+            );
+        }
     }
 
+#if 0
     void IrradianceProbe::buildFromCubemap()
     {
         convolve();
@@ -160,7 +216,9 @@ namespace Cyan
     {
 
     }
+#endif
 
+#if 0
     ReflectionProbe::ReflectionProbe(GfxTextureCube* srcCubemapTexture)
         : LightProbe(srcCubemapTexture)
     {
@@ -176,8 +234,8 @@ namespace Cyan
     void ReflectionProbe::initialize()
     {
         // convolved radiance texture
-        u32 numMips = log2(resolution.x) + 1;
-        GfxTextureCube::Spec spec(resolution.x, numMips, PF_RGB16F);
+        u32 numMips = log2(m_resolution.x) + 1;
+        GfxTextureCube::Spec spec(m_resolution.x, numMips, PF_RGB16F);
         SamplerCube sampler;
         sampler.minFilter = FM_TRILINEAR;
         sampler.magFilter = FM_BILINEAR;
@@ -290,4 +348,5 @@ namespace Cyan
     {
 
     }
+#endif
 }

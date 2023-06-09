@@ -1,22 +1,27 @@
 #version 450 core
 
-layout (location = 0) in vec3 vertexPos;
-layout (location = 1) in vec3 vertexNormal;
-layout (location = 2) in vec4 vertexTangent;
-layout (location = 3) in vec2 textureUv_0;
-layout (location = 4) in vec2 textureUv_1;
+layout (location = 0) in vec3 position;
 
-out VSOutput
+// this is necessary since using seperable program
+out gl_PerVertex
+{
+	vec4 gl_Position;
+	float gl_PointSize;
+	float gl_ClipDistance[];
+};
+
+out VertexShaderOutput
 {
 	vec3 objectSpacePosition;
 } vsOut;
 
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
+uniform mat4 cameraView;
+uniform mat4 cameraProjection;
 
-void main() {
-    mat4 mvp = projection * view * model;
-    gl_Position = mvp * vec4(vertexPos, 1.f);
-    vsOut.objectSpacePosition = vertexPos;
+void main() 
+{
+	mat4 view = cameraView;
+	view[3] = vec4(0.f, 0.f, 0.f, 1.f);
+    gl_Position = cameraProjection * view * vec4(position, 1.f);
+    vsOut.objectSpacePosition = position;
 }

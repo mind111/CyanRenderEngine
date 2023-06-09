@@ -1,6 +1,6 @@
 #version 450 core
 
-layout (location = 0) in vec3 vertexPos;
+layout (location = 0) in vec3 position;
 
 out gl_PerVertex
 {
@@ -9,11 +9,15 @@ out gl_PerVertex
 	float gl_ClipDistance[];
 };
 
-out vec3 fragmentObjPos;
+out VSOutput
+{
+	vec3 objectSpacePosition;
+} vsOut;
 
-uniform mat4 view;
-uniform mat4 projection;
+uniform mat4 cameraView;
+uniform mat4 cameraProjection;
 
+#if 0
 float cubeVertices[] = {
     -1.0f,  1.0f, -1.0f,
     -1.0f, -1.0f, -1.0f,
@@ -57,12 +61,14 @@ float cubeVertices[] = {
     -1.0f, -1.0f,  1.0f,
      1.0f, -1.0f,  1.0f
 };
+#endif
 
 void main()
 {
-    vec3 vPosition = vec3(cubeVertices[gl_VertexID * 3 + 0], cubeVertices[gl_VertexID * 3 + 1], cubeVertices[gl_VertexID * 3 + 2]);
-    fragmentObjPos = vPosition;
-    mat4 viewRotation = view;
+    // vec3 position = vec3(cubeVertices[gl_VertexID * 3 + 0], cubeVertices[gl_VertexID * 3 + 1], cubeVertices[gl_VertexID * 3 + 2]);
+    vsOut.objectSpacePosition = position;
+    mat4 viewRotation = cameraView;
+    // remove translation from the camera view matrix
     viewRotation[3] = vec4(0.f, 0.f, 0.f, 1.f);
-    gl_Position = (projection * viewRotation * vec4(vPosition, 1.f)).xyww; 
+    gl_Position = (cameraProjection * cameraView * vec4(position, 1.f)).xyww; 
 }

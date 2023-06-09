@@ -1,18 +1,15 @@
 #include "SkyBox.h"
 #include "Camera.h"
 #include "CyanRenderer.h"
-#include "CyanAPI.h"
 #include "Scene.h"
 #include "AssetManager.h"
 #include "AssetImporter.h"
 #include "RenderPass.h"
-#include "CyanRenderer.h"
+#include "SkyboxComponent.h"
 
 namespace Cyan
 {
-    PixelPipeline* Skybox::s_cubemapSkyPipeline = nullptr;
-    PixelPipeline* Skybox::s_proceduralSkyPipeline = nullptr;
-
+#if 0
     Skybox::Skybox(const char* m_name, const char* srcHDRIPath, const glm::uvec2& resolution) 
     {
         if (!s_proceduralSkyPipeline) 
@@ -90,31 +87,60 @@ namespace Cyan
         m_cubemapTexture->numMips = (u32)log2f(m_cubemapTexture->resolution) + 1;
         glGenerateTextureMipmap(m_cubemapTexture->getGpuResource());
     }
+#endif
 
-    
-    Skybox::Skybox(const char* m_name, GfxTextureCube* srcCubemap) 
+    Skybox::Skybox(SkyboxComponent* skyboxComponent)
+        : m_skyboxComponent(skyboxComponent)
     {
+        if (m_skyboxComponent->m_HDRI != nullptr)
+        {
+            u32 numMips = std::log2(m_skyboxComponent->m_cubemapResolution);
+            GfxTextureCube::Spec spec(m_skyboxComponent->m_cubemapResolution, numMips, PF_RGB16F);
+            SamplerCube sampler;
+            sampler.minFilter = FM_TRILINEAR;
+            sampler.magFilter = FM_BILINEAR;
+            sampler.wrapS = WM_CLAMP;
+            sampler.wrapT = WM_CLAMP;
+            m_cubemap.reset(GfxTextureCube::create(spec, sampler));
 
+            CreateVS(vs, "RenderToCubemapVS", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl");
+            CreatePS(ps, "RenderToCubemapPS", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl");
+            CreatePixelPipeline(pipeline, "RenderToCubemap", vs, ps);
+            StaticMesh* cubeMesh = AssetManager::findAsset<StaticMesh>("UnitCubeMesh").get();
+
+            for (i32 f = 0; f < 6u; f++)
+            {
+                GfxPipelineState gfxPipelineState;
+                gfxPipelineState.depth = DepthControl::kDisable;
+
+                Renderer::get()->drawStaticMesh(
+                    getFramebufferSize(m_cubemap.get()),
+                    [this, f](RenderPass& pass) {
+                        pass.setRenderTarget(RenderTarget(m_cubemap.get(), f), 0);
+                    },
+                    { 0, 0, m_cubemap->resolution, m_cubemap->resolution },
+                    cubeMesh,
+                    pipeline,
+                    [this, f](ProgramPipeline* p) {
+                        PerspectiveCamera camera;
+                        camera.m_position = glm::vec3(0.f);
+                        camera.m_worldUp = worldUps[f];
+                        camera.m_forward = cameraFacingDirections[f];
+                        camera.m_right = glm::cross(camera.m_forward, camera.m_worldUp);
+                        camera.m_up = glm::cross(camera.m_right, camera.m_forward);
+                        camera.n = .1f;
+                        camera.f = 100.f;
+                        camera.fov = 90.f;
+                        camera.aspectRatio = 1.f;
+                        p->setUniform("cameraView", camera.view());
+                        p->setUniform("cameraProjection", camera.projection());
+                        p->setTexture("srcHDRI", m_skyboxComponent->m_HDRI->getGfxResource());
+                    },
+                    gfxPipelineState
+                );
+            }
+            glGenerateTextureMipmap(m_cubemap->getGpuResource());
+        }
     }
 
-    void Skybox::render(RenderTexture2D colorBuffer, RenderDepthTexture2D depthBuffer, const glm::mat4& view, const glm::mat4& projection, f32 mipLevel)
-    {
-        Renderer::get()->drawStaticMesh(
-            getFramebufferSize(colorBuffer.getGfxTexture2D()),
-            [this, colorBuffer, depthBuffer](RenderPass& pass) {
-                pass.setRenderTarget(colorBuffer.getGfxTexture2D(), 0, false);
-                pass.setDepthBuffer(depthBuffer.getGfxDepthTexture2D(), false);
-            },
-            { 0, 0, colorBuffer.getGfxTexture2D()->width, colorBuffer.getGfxTexture2D()->height },
-            AssetManager::findAsset<StaticMesh>("UnitCubeMesh").get(),
-            s_cubemapSkyPipeline,
-            [this, mipLevel, view, projection](ProgramPipeline* p) {
-                p->setUniform("view", view);
-                p->setUniform("projection", projection);
-                p->setUniform("mipLevel", mipLevel);
-                p->setTexture("cubemapTexture", m_cubemapTexture.get());
-            },
-            GfxPipelineState()
-        );
-    }
 }

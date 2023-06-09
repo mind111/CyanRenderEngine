@@ -177,33 +177,17 @@ namespace Cyan
                     GLenum type; i32 count;
                     glGetActiveUniform(program, i, maxNameLength, nullptr, &count, &type, name);
                     auto translated = translate(type);
-                    if (count > 1) 
+                    for (i32 j = 0; j < count; ++j) 
                     {
-                        for (i32 j = 0; j < count; ++j) 
+                        if (count > 1)
                         {
                             char* nextToken;
                             char* token = strtok_s(name, "[", &nextToken);
                             char suffix[5] = "[%u]";
                             char* format = strcat(token, suffix);
                             sprintf(name, format, j);
-
-                            UniformDesc desc = { };
-                            desc.type = translated;
-                            desc.name = std::string(name);
-                            desc.location = glGetUniformLocation(program, name);
-                            shader->m_uniformMap.insert({ desc.name, desc });
-                            switch (translated) 
-                            {
-                            case UniformDesc::Type::kSampler2D:
-                                shader->m_textureBindingMap.insert({ desc.name, TextureBinding { desc.name.c_str(), nullptr, -1 } });
-                                break;
-                            default:
-                                break;
-                            }
                         }
-                    }
-                    else
-                    {
+
                         UniformDesc desc = { };
                         desc.type = translated;
                         desc.name = std::string(name);
@@ -212,6 +196,7 @@ namespace Cyan
                         switch (translated) 
                         {
                         case UniformDesc::Type::kSampler2D:
+                        case UniformDesc::Type::kSamplerCube:
                             shader->m_textureBindingMap.insert({ desc.name, TextureBinding { desc.name.c_str(), nullptr, -1 } });
                             break;
                         default:

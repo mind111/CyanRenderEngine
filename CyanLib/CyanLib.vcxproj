@@ -70,6 +70,8 @@
     <ClInclude Include="include\ShadowMaps.h" />
     <ClInclude Include="include\Singleton.h" />
     <ClInclude Include="include\SkyBox.h" />
+    <ClInclude Include="include\SkyboxComponent.h" />
+    <ClInclude Include="include\SkyboxEntity.h" />
     <ClInclude Include="include\SSGI.h" />
     <ClInclude Include="include\StaticMeshComponent.h" />
     <ClInclude Include="include\StaticMeshEntity.h" />
@@ -125,6 +127,8 @@
     <ClCompile Include="src\ShaderStorageBuffer.cpp" />
     <ClCompile Include="src\ShadowMaps.cpp" />
     <ClCompile Include="src\SkyBox.cpp" />
+    <ClCompile Include="src\SkyboxComponent.cpp" />
+    <ClCompile Include="src\SkyboxEntity.cpp" />
     <ClCompile Include="src\SSGI.cpp" />
     <ClCompile Include="src\StaticMeshComponent.cpp" />
     <ClCompile Include="src\StaticMeshEntity.cpp" />

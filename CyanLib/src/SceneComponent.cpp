@@ -97,4 +97,13 @@ namespace Cyan
             child->finalizeAndUpdateTransform();
         }
     }
+
+    void SceneComponent::setOwner(Entity* owner)
+    {
+        Component::setOwner(owner);
+        for (auto child : m_children)
+        {
+            child->setOwner(owner);
+        }
+    }
 }

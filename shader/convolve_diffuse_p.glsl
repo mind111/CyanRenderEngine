@@ -2,25 +2,20 @@
 
 #define pi 3.14159265359
 
-in vec3 fragmentObjPos;
-
-out vec4 fragColor;
-
-// HDR envmap
-uniform samplerCube srcCubemapTexture;
-
-// Watchout for padding if using vec3
-layout(std430, binding = 3) buffer sampleVertexData 
+in VSOutput
 {
-    vec4 vertices[];
-} sampleVertexBuffer;
+    vec3 objectSpacePosition;
+} psIn;
+
+out vec3 outIrradiance;
+
 
 float saturate(float k)
 {
     return clamp(k, 0.f, 1.f);
 }
 
-vec3 generateSample(vec3 n, float theta, float phi)
+vec3 calcSampleDir(vec3 n, float theta, float phi)
 {
     float x = sin(theta) * sin(phi);
     float y = sin(theta) * cos(phi);
@@ -39,6 +34,12 @@ vec3 generateSample(vec3 n, float theta, float phi)
     return normalize(toWorldSpace * s);
 }
 
+// Watchout for padding if using vec3
+layout(std430, binding = 3) buffer sampleVertexData 
+{
+    vec4 vertices[];
+} sampleVertexBuffer;
+
 void writeSampleDirectionData()
 {
     int numSamples = 8;
@@ -52,7 +53,7 @@ void writeSampleDirectionData()
         for (int t = 0; t < 8; t++)
         {
             float phi = t * deltaPhi;
-            vec3 v = generateSample(normal, theta, phi);
+            vec3 v = calcSampleDir(normal, theta, phi);
             int index = s * numSamples + t;
             sampleVertexBuffer.vertices[index * 2] = vec4(0.f, 0.f, 0.f, 1.0f);
             sampleVertexBuffer.vertices[index * 2 + 1] = vec4(v, 1.f);
@@ -63,28 +64,27 @@ void writeSampleDirectionData()
     sampleVertexBuffer.vertices[numSamples * numSamples * 2 + 1] = vec4(normal, 2.f);
 }
 
+uniform samplerCube srcCubemap;
+uniform float numSamplesInTheta;
+uniform float numSamplesInPhi;
+
 void main()
 {
-    vec3 n = normalize(fragmentObjPos);
-    vec3 result = vec3(0.f);
-    // need to be careful with number of samples because it could cause the gpu driver crashes with
-    // "fata program exit requested" 
-    float delta = 0.05f;
-    float numSampleTheta = 0.5f * pi / delta;
-    float numSamplePhi = 2.0f * pi / delta;
-    for (int s = 0; s < numSampleTheta; s++)
+    outIrradiance = vec3(0.f);
+
+    vec3 n = normalize(psIn.objectSpacePosition);
+    float N = numSamplesInTheta * numSamplesInPhi;
+    float deltaTheta = .5f * pi / numSamplesInTheta;
+    float deltaPhi = 2.f * pi / numSamplesInPhi;
+    for (int s = 0; s < int(numSamplesInTheta); s++)
     {
-        float theta = s * delta;
-        for (int t = 0; t < numSamplePhi; t++)
+        float theta = s * deltaTheta;
+        for (int t = 0; t < int(numSamplesInPhi); t++)
         {
-            float phi = t * delta;
-            vec3 r = generateSample(n, theta, phi);
-            result += texture(srcCubemapTexture, r).rgb * cos(theta) * sin(theta);
+            float phi = t * deltaPhi;
+            vec3 sampleDir = calcSampleDir(n, theta, phi);
+            outIrradiance += texture(srcCubemap, sampleDir).rgb * cos(theta) * sin(theta);
         }
     }
-    // the denominator, divide by N comes from solid angle in the integration formula
-    result = pi * result / (numSampleTheta * numSamplePhi);
-    // No need for tonemapping at the end as the result will be used in lighting instead of being
-    // displayed by the framebuffer
-    fragColor = vec4(result, 1.f);
+    outIrradiance = outIrradiance / N;
 }

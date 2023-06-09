@@ -29,6 +29,7 @@ namespace Cyan
            this SceneComponent's local transform is finalized for the current frame
          */
         void finalizeAndUpdateTransform();
+        virtual void setOwner(Entity* owner) override;
         virtual void onTransformUpdated() { }
 
         SceneComponent* getParent() { return m_parent; }

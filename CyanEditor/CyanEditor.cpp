@@ -12,6 +12,7 @@
 #include "CameraEntity.h"
 #include "LightEntities.h"
 #include "LightComponents.h"
+#include "SkyboxEntity.h"
 
 namespace Cyan
 {
@@ -42,14 +43,27 @@ namespace Cyan
             skylight->build();
 #else
             m_world->import(shaderBalls);
+
             Transform local;
             // todo: bug here
             local.translation = glm::vec3(0.f, 3.f, 8.f);
             auto cameraEntity = m_world->createPerspectiveCameraEntity("Camera", local, glm::vec3(0.f, 1.f, 0.f), m_appWindowDimension, VM_RESOLVED_SCENE_COLOR, 45.f, 0.1f, 100.f);
             cameraEntity->addComponent(std::make_shared<CameraControllerComponent>("CameraController", cameraEntity->getCameraComponent()));
+
             auto directionalLightEntity = m_world->createDirectionalLightEntity("DirectionalLight", Transform());
             auto directionalLightComponent = directionalLightEntity->getDirectionalLightComponent();
             directionalLightComponent->setIntensity(10.f);
+
+            auto skyLightEntity = m_world->createSkyLightEntity("SkyLightEntity", Transform());
+            auto skyLightComponent = skyLightEntity->getSkyLightComponent();
+            // todo: this is a bit awkward, an image should be equivalent to a texture, need to 
+            // decouple Sampler from Texture2D, also want to implement a virtual file system 
+            auto HDRIImage = AssetImporter::importImage("HDRI", ASSET_PATH "cubemaps/neutral_sky.hdr");
+            auto HDRITexture = AssetManager::createTexture2D("HDRITexture", HDRIImage, Sampler2D());
+            skyLightComponent->setHDRI(HDRITexture);
+            skyLightComponent->capture();
+
+            auto skyboxEntity = m_world->createSkyboxEntity("SkyboxEntity", Transform());
 
             auto testMaterial = AssetManager::createMaterial("M_Test", MATERIAL_SOURCE_PATH "M_Test_p.glsl", [](MaterialInstance* instance) {
                     instance->setFloat("mp_Roughness", .5f);
@@ -69,7 +83,7 @@ namespace Cyan
                     if (!scene->m_renders.empty())
                     {
                         auto render = scene->m_renders[0];
-                        renderer->renderToScreen(render->directLighting());
+                        renderer->renderToScreen(render->color());
                     }
                 }
                 // UI rendering

@@ -21,6 +21,7 @@
 #include "MathUtils.h"
 #include "RenderableScene.h"
 #include "Lights.h"
+#include "SkyBox.h"
 #include "LightComponents.h"
 #include "InputSystem.h"
 #include "RenderPass.h"
@@ -316,7 +317,7 @@ namespace Cyan
             RenderPass pass(outDepthBuffer->width, outDepthBuffer->height);
             pass.viewport = { 0, 0, outDepthBuffer->width, outDepthBuffer->height };
             pass.setDepthBuffer(outDepthBuffer);
-            pass.drawLambda = [&scene, pipeline, viewParameters](GfxContext* ctx) { 
+            pass.drawLambda = [scene, pipeline, viewParameters](GfxContext* ctx) { 
                 pipeline->bind(ctx);
                 viewParameters.setShaderParameters(pipeline);
                 for (auto instance : scene->m_staticMeshInstances)
@@ -361,8 +362,9 @@ namespace Cyan
             pass.setRenderTarget(outAlbedo, 0);
             pass.setRenderTarget(outNormal, 1);
             pass.setRenderTarget(outMetallicRoughness, 2);
-            pass.setDepthBuffer(depth);
+            pass.setDepthBuffer(depth, /*bClearDepth=*/false);
             pass.drawLambda = [&scene, viewParameters](GfxContext* ctx) { 
+#if 1
                 for (auto instance : scene->m_staticMeshInstances)
                 {
                     auto mesh = instance->parent;
@@ -375,6 +377,23 @@ namespace Cyan
                         ctx->drawIndex(sm->numIndices());
                     }
                 }
+#else
+                if (scene->m_skyLight != nullptr)
+                {
+                    CreateVS(vs, "DrawSkyboxVS", SHADER_SOURCE_PATH "skybox_v.glsl");
+                    CreatePS(ps, "DrawSkyboxPS", SHADER_SOURCE_PATH "skybox_p.glsl");
+                    CreatePixelPipeline(p, "DrawSkybox", vs, ps);
+                    p->bind(ctx);
+                    p->setUniform("cameraView", viewParameters.viewMatrix);
+                    p->setUniform("cameraProjection", viewParameters.projectionMatrix);
+                    p->setTexture("cubemap", scene->m_skyLight->m_cubemap.get());
+                    auto cubeMesh = AssetManager::findAsset<StaticMesh>("UnitCubeMesh");
+                    auto sm = (*cubeMesh)[0];
+                    ctx->setVertexArray(sm->va.get());
+                    ctx->drawIndex(sm->numIndices());
+                    p->unbind(ctx);
+                }
+#endif
             };
             pass.render(m_ctx);
         }
@@ -385,9 +404,26 @@ namespace Cyan
         GPU_DEBUG_SCOPE(sceneGBufferPassMarker, "Scene Lighting Pass");
 
         renderSceneDirectLighting(scene, render);
-        // renderSceneIndirectLighting(scene, render);
+        renderSceneIndirectLighting(scene, render);
 
         // compose lighting results
+        auto outSceneColor = render->color();
+
+        CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
+        CreatePS(ps, "SceneLightingPassPS", SHADER_SOURCE_PATH "scene_lighting_p.glsl");
+        CreatePixelPipeline(pipeline, "SceneLightingPass", vs, ps);
+
+        drawFullscreenQuad(
+            glm::uvec2(outSceneColor->width, outSceneColor->height),
+            [outSceneColor](RenderPass& pass) {
+                pass.setRenderTarget(outSceneColor, 0);
+            },
+            pipeline,
+            [this, render](ProgramPipeline* p) {
+                p->setTexture("directLightingTexture", render->directLighting());
+                p->setTexture("indirectLightingTexture", render->indirectLighting());
+            }
+        );
     }
 
     void Renderer::renderSceneDirectLighting(Scene* scene, SceneRender* render)
@@ -435,9 +471,6 @@ namespace Cyan
                         p->setTexture(depthTextureName, scene->m_directionalLight->m_csm->m_cascades[i].depthTexture.get());
                     }
                 }
-                else
-                {
-                }
                 p->setTexture("sceneDepth", render->depth());
                 p->setTexture("sceneNormal", render->normal());
                 p->setTexture("sceneAlbedo", render->albedo());
@@ -449,6 +482,42 @@ namespace Cyan
     void Renderer::renderSceneIndirectLighting(Scene* scene, SceneRender* render)
     {
         GPU_DEBUG_SCOPE(sceneIndirectLighting, "Scene Indirect Lighting Pass");
+
+        CreateVS(vs, "SkyboxVS", SHADER_SOURCE_PATH "skybox_v.glsl");
+        CreatePS(ps, "SkyboxPS", SHADER_SOURCE_PATH "skybox_p.glsl");
+        CreatePixelPipeline(p, "Skybox", vs, ps);
+
+        auto outIndirectLighting = render->indirectLighting();
+        auto depth = render->depth();
+        const auto& viewParameters = render->m_viewParameters;
+
+        // render skybox pass
+        {
+            RenderPass pass(outIndirectLighting->width, outIndirectLighting->height);
+            pass.viewport = { 0, 0, outIndirectLighting->width, outIndirectLighting->height };
+            pass.setRenderTarget(outIndirectLighting, 0);
+            pass.setDepthBuffer(depth, /*bClearDepth=*/false);
+            pass.drawLambda = [p, scene, viewParameters](GfxContext* ctx) {
+                if (scene->m_skybox != nullptr)
+                {
+                    p->bind(ctx);
+                    p->setUniform("cameraView", viewParameters.viewMatrix);
+                    p->setUniform("cameraProjection", viewParameters.projectionMatrix);
+                    p->setTexture("cubemap", scene->m_skybox->m_cubemap.get());
+                    auto cubeMesh = AssetManager::findAsset<StaticMesh>("UnitCubeMesh");
+                    auto sm = (*cubeMesh)[0];
+                    ctx->setVertexArray(sm->va.get());
+                    ctx->drawIndex(sm->numIndices());
+                    p->unbind(ctx);
+                }
+            };
+
+            pass.render(m_ctx);
+        }
+
+        // render indirect lighting effects pass
+        {
+        }
     }
 
 #endif

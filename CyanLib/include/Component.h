@@ -20,7 +20,7 @@ namespace Cyan
 
         World* getWorld();
         Entity* getOwner();
-        void setOwner(Entity* owner);
+        virtual void setOwner(Entity* owner);
 
     protected:
         Entity* m_owner = nullptr;

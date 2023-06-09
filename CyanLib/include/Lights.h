@@ -38,53 +38,20 @@ namespace Cyan
         SkyLight(SkyLightComponent* skyLightComponent);
         ~SkyLight();
 
+        void buildFromHDRI(Texture2D* HDRI);
+        void buildFromScene(Scene* scene);
+
+        static constexpr u32 cubemapCaptureResolution = 1024u;
+        static constexpr u32 irradianceResolution = 32u;
+        static constexpr u32 reflectionResolution = 1024u;
+
         SkyLightComponent* m_skyLightComponent = nullptr;
-        std::unique_ptr<ReflectionProbe> m_reflectionProbe = nullptr;
+        std::unique_ptr<GfxTextureCube> m_cubemap = nullptr;
         std::unique_ptr<IrradianceProbe> m_irradianceProbe = nullptr;
+        // std::unique_ptr<ReflectionProbe> m_reflectionProbe = nullptr;
     };
 
 #if 0
-    // todo: a light shouldn't need to care about what kind of shadow rendering technique its shadow map is using.
-    struct DirectionalLight : public Light 
-    {
-        DirectionalLight(const glm::vec3& inDirection, const glm::vec4& inColorAndIntensity, bool inCastShadow)
-            : Light(inColorAndIntensity), direction(glm::normalize(inDirection)), bCastShadow(inCastShadow) 
-        { 
-            shadowMap = std::make_unique<DirectionalShadowMap>(*this);
-        }
-
-        virtual void renderShadowMap(Scene* inScene, Renderer* renderer);
-        void setShaderParameters(PixelShader* ps);
-
-        glm::vec3 direction = glm::normalize(glm::vec3(1.f, 1.f, 1.f));
-        bool bCastShadow = true;
-    private:
-        std::shared_ptr<DirectionalShadowMap> shadowMap = nullptr;
-    };
-
-#if 0
-    struct CSMDirectionalLight : public DirectionalLight 
-    {
-        CSMDirectionalLight() : DirectionalLight() {
-            shadowMap = std::make_shared<CascadedShadowMap>(*this);
-        }
-
-        CSMDirectionalLight(const glm::vec3& inDirection, const glm::vec4& inColorAndIntensity, bool inCastShadow) 
-            : DirectionalLight(inDirection, inColorAndIntensity, inCastShadow) {
-            shadowMap = std::make_shared<CascadedShadowMap>(*this);
-        }
-
-        virtual void renderShadowMap(RenderableScene& scene, Renderer* renderer) override;
-
-        GpuCSMDirectionalLight buildGpuLight();
-    private:
-        std::shared_ptr<CascadedShadowMap> shadowMap = nullptr;
-    };
-#endif
-
-    // helper function for converting world space AABB to light's view space
-    BoundingBox3D calcLightSpaceAABB(const glm::vec3& inLightDirection, const BoundingBox3D& worldSpaceAABB);
-
     struct PointLight : public Light 
     {
         PointLight() : Light() { }
