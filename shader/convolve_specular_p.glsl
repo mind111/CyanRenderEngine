@@ -1,16 +1,16 @@
-
 #version 450 core
 
 #define pi 3.14159265359
 
-in vec3 fragmentObjPos;
+in VSOutput
+{
+    vec3 objectSpacePosition;
+} psIn;
 
-out vec4 fragColor;
+out vec3 outReflection;
 
 uniform float roughness;
-
-// HDR envmap
-uniform samplerCube envmapSampler;
+uniform samplerCube srcCubemap;
 
 float saturate(float k)
 {
@@ -97,11 +97,11 @@ float GGX(float roughness, float ndoth)
 
 void main()
 {
-    vec3 n = normalize(fragmentObjPos);
+    vec3 n = normalize(psIn.objectSpacePosition);
     // fix viewDir
     vec3 viewDir = n;
     uint numSamples = 1024;
-    vec3 result = vec3(0.f);
+    outReflection = vec3(0.f);
     float weight = 0.f; 
     for (int s = 0; s < numSamples; s++)
     {
@@ -113,11 +113,10 @@ void main()
         float vdoth = saturate(dot(h, viewDir));
         if (ndotl > 0)
         {
-            result += texture(envmapSampler, l).rgb * ndotl;
+            outReflection += texture(srcCubemap, l).rgb * ndotl;
             weight += ndotl;
         }
     }
     // according to Epic's notes, weighted by ndotl produce better visual results
-    result /= weight; 
-    fragColor = vec4(result, 1.f);
+    outReflection /= weight; 
 }

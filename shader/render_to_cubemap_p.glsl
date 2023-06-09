@@ -2,7 +2,11 @@
 
 #define pi 3.14159265359
 
-in vec3 objectSpacePosition;
+in VSOutput
+{
+	vec3 objectSpacePosition;
+} psIn;
+
 out vec3 outColor;
 
 uniform sampler2D srcHDRI;
@@ -26,7 +30,7 @@ vec2 sampleEquirectangularMap(vec3 d)
 
 void main()
 {
-    vec3 d = normalize(objectSpacePosition);
+    vec3 d = normalize(psIn.objectSpacePosition);
     vec2 texCoord = sampleEquirectangularMap(d);
     outColor = texture(srcHDRI, texCoord).rgb;
 }

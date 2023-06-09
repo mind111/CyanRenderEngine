@@ -240,7 +240,7 @@
     <None Include="..\shader\bloom_setup_p.glsl" />
     <None Include="..\shader\bloom_setup_v.glsl" />
     <None Include="..\shader\convolve_diffuse_p.glsl" />
-    <None Include="..\shader\convolve_diffuse_v.glsl" />
+    <None Include="..\shader\build_cubemap_v.glsl" />
     <None Include="..\shader\depth_only_p.glsl" />
     <None Include="..\shader\bloom_downsample_p.glsl" />
     <None Include="..\shader\bloom_downsample_v.glsl" />
@@ -280,7 +280,6 @@
     <None Include="..\shader\gaussian_blur_p.glsl" />
     <None Include="..\shader\gaussian_blur_v.glsl" />
     <None Include="..\shader\render_to_cubemap_p.glsl" />
-    <None Include="..\shader\render_to_cubemap_v.glsl" />
     <None Include="..\shader\shader_grid_texture.fs" />
     <None Include="..\shader\shader_grid_texture.vs" />
     <None Include="..\shader\integrate_BRDF_p.glsl" />

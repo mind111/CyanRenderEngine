@@ -48,7 +48,7 @@ namespace Cyan
         SkyLightComponent* m_skyLightComponent = nullptr;
         std::unique_ptr<GfxTextureCube> m_cubemap = nullptr;
         std::unique_ptr<IrradianceProbe> m_irradianceProbe = nullptr;
-        // std::unique_ptr<ReflectionProbe> m_reflectionProbe = nullptr;
+        std::unique_ptr<ReflectionProbe> m_reflectionProbe = nullptr;
     };
 
 #if 0

@@ -10,10 +10,6 @@
 
 namespace Cyan
 {
-#if 0
-    GfxTexture2D* ReflectionProbe::s_BRDFLookupTexture = nullptr;
-#endif
-
     const glm::vec3 cameraFacingDirections[] = {
         {1.f, 0.f, 0.f},   // Right
         {-1.f, 0.f, 0.f},  // Left
@@ -47,7 +43,12 @@ namespace Cyan
         : LightProbe(position, resolution)
     {
         GfxTextureCube::Spec spec(m_resolution, 1, PF_RGB16F);
-        m_irradianceCubemap = std::unique_ptr<GfxTextureCube>(GfxTextureCube::create(spec));
+        SamplerCube sampler = { };
+        sampler.minFilter = FM_BILINEAR;
+        sampler.magFilter = FM_BILINEAR;
+        sampler.wrapS = WM_CLAMP;
+        sampler.wrapT = WM_CLAMP;
+        m_irradianceCubemap = std::unique_ptr<GfxTextureCube>(GfxTextureCube::create(spec, sampler));
     }
 
     void IrradianceProbe::buildFrom(GfxTextureCube* srcCubemap)
@@ -56,10 +57,10 @@ namespace Cyan
         {
             m_srcCubemap = srcCubemap;
 
-            GPU_DEBUG_SCOPE(convolveIrradianceCubemapMarker, "ConvovleIrraidanceCubemap");
+            GPU_DEBUG_SCOPE(buildIrradianceCubemap, "BuildIrradianceCubemap");
 
             auto renderer = Renderer::get();
-            CreateVS(vs, "ConvolveIrradianceCubemapVS", SHADER_SOURCE_PATH "convolve_diffuse_v.glsl");
+            CreateVS(vs, "BuildCubemapVS", SHADER_SOURCE_PATH "build_cubemap_v.glsl");
             CreatePS(ps, "ConvolveIrradianceCubemapPS", SHADER_SOURCE_PATH "convolve_diffuse_p.glsl");
             CreatePixelPipeline(pipeline, "BuildIrradianceCubemap", vs, ps);
             auto cube = AssetManager::findAsset<StaticMesh>("UnitCubeMesh").get();
@@ -100,70 +101,130 @@ namespace Cyan
         }
     }
 
-#if 0
-    ReflectionProbe::ReflectionProbe(GfxTextureCube* srcCubemapTexture)
-        : LightProbe(srcCubemapTexture)
+    std::unique_ptr<GfxTexture2D> ReflectionProbe::s_BRDFLookupTexture = nullptr;
+    ReflectionProbe::ReflectionProbe(const glm::vec3& position, u32 resolution)
+        : LightProbe(position, resolution)
     {
-        initialize();
-    }
-
-    ReflectionProbe::ReflectionProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& sceneCaptureResolution)
-        : LightProbe(scene, p, sceneCaptureResolution), m_convolvedReflectionTexture(nullptr)
-    {
-        initialize();
-    }
-
-    void ReflectionProbe::initialize()
-    {
-        // convolved radiance texture
-        u32 numMips = log2(m_resolution.x) + 1;
-        GfxTextureCube::Spec spec(m_resolution.x, numMips, PF_RGB16F);
+        u32 numMips = log2(m_resolution) + 1;
+        GfxTextureCube::Spec spec(m_resolution, numMips, PF_RGB16F);
         SamplerCube sampler;
         sampler.minFilter = FM_TRILINEAR;
         sampler.magFilter = FM_BILINEAR;
-        m_convolvedReflectionTexture = std::unique_ptr<GfxTextureCube>(GfxTextureCube::create(spec, sampler));
+        sampler.wrapS = WM_CLAMP;
+        sampler.wrapT = WM_CLAMP;
+        m_reflectionCubemap.reset(GfxTextureCube::create(spec, sampler));
 
-        if (!s_convolveReflectionPipeline)
+        if (s_BRDFLookupTexture == nullptr)
         {
-            CreateVS(vs, "ConvolveReflectionVS", SHADER_SOURCE_PATH "convolve_specular_v.glsl");
-            CreatePS(ps, "ConvolveReflectionPS", SHADER_SOURCE_PATH "convolve_specular_p.glsl");
-            s_convolveReflectionPipeline = ShaderManager::createPixelPipeline("ConvolveReflection", vs, ps);
-        }
+            const glm::uvec2 BRDFLutResolution(512u);
+            GfxTexture2D::Spec spec(BRDFLutResolution.x, BRDFLutResolution.y, 1, PF_RGBA16F);
+            s_BRDFLookupTexture.reset(GfxTexture2D::create(spec));
 
-        // generate shared BRDF lookup texture
-        if (!s_BRDFLookupTexture)
-        {
-            s_BRDFLookupTexture = buildBRDFLookupTexture();
+            buildBRDFLookupTexture();
         }
     }
 
-    // todo: fix this, 
-    GfxTexture2D* ReflectionProbe::buildBRDFLookupTexture()
+    void ReflectionProbe::buildFrom(GfxTextureCube* srcCubemap)
     {
-        GfxTexture2D::Spec spec(512u, 512u, 1, PF_RGBA16F);
-        Sampler2D sampler;
-        GfxTexture2D* outTexture = GfxTexture2D::create(spec, sampler);
+        if (srcCubemap != nullptr)
+        {
+            m_srcCubemap = srcCubemap;
 
+            GPU_DEBUG_SCOPE(convolveReflectionCubemap, "BuildReflectionCubemap");
+
+            CreateVS(vs, "BuildCubemapVS", SHADER_SOURCE_PATH "build_cubemap_v.glsl");
+            CreatePS(ps, "ConvolveReflectionPS", SHADER_SOURCE_PATH "convolve_specular_p.glsl");
+            CreatePixelPipeline(p, "ConvolveReflection", vs, ps);
+
+            auto renderer = Renderer::get();
+
+            u32 kNumMips = m_reflectionCubemap->numMips;
+            u32 mipWidth = m_reflectionCubemap->resolution;
+            u32 mipHeight = m_reflectionCubemap->resolution;
+            for (u32 mip = 0; mip < kNumMips; ++mip)
+            {
+                std::string markerName("Mip[");
+                markerName += std::to_string(mip) + ']';
+                markerName += '_';
+                markerName += std::to_string(mipWidth) + 'x' + std::to_string(mipHeight);
+                GPU_DEBUG_SCOPE(convolveReflectionOneMip, markerName.c_str());
+
+                for (i32 f = 0; f < 6u; f++)
+                {
+                    GfxPipelineState gfxPipelineState;
+                    gfxPipelineState.depth = DepthControl::kDisable;
+                    renderer->drawStaticMesh(
+                        glm::uvec2(mipWidth, mipHeight),
+                        [this, f, mip](RenderPass& pass) {
+                            pass.setRenderTarget(RenderTarget(m_reflectionCubemap.get(), f, mip), 0);
+                        },
+                        { 0u, 0u, mipWidth, mipHeight },
+                        AssetManager::findAsset<StaticMesh>("UnitCubeMesh").get(),
+                        p,
+                        [this, f, mip, kNumMips](ProgramPipeline* p) {
+                            PerspectiveCamera camera;
+                            camera.m_position = m_position;
+                            camera.m_worldUp = worldUps[f];
+                            camera.m_forward = cameraFacingDirections[f];
+                            camera.m_right = glm::cross(camera.m_forward, camera.m_worldUp);
+                            camera.m_up = glm::cross(camera.m_right, camera.m_forward);
+                            camera.n = .1f;
+                            camera.f = 100.f;
+                            camera.fov = 90.f;
+                            camera.aspectRatio = 1.f;
+                            p->setUniform("cameraView", camera.view());
+                            p->setUniform("cameraProjection", camera.projection());
+                            p->setUniform("roughness", mip * (1.f / (kNumMips - 1)));
+                            p->setTexture("srcCubemap", m_srcCubemap);
+    #if 0
+                            PerspectiveCamera camera(
+                                glm::vec3(0.f),
+                                LightProbeCameras::cameraFacingDirections[f],
+                                LightProbeCameras::worldUps[f],
+                                glm::uvec2(m_convolvedReflectionTexture->resolution, m_convolvedReflectionTexture->resolution),
+                                VM_SCENE_COLOR,
+                                90.f,
+                                0.1f,
+                                100.f
+                            );
+
+                            p->setUniform("projection", camera.projection());
+                            p->setUniform("view", camera.view());
+                            p->setUniform("roughness", mip * (1.f / (kNumMips - 1)));
+                            p->setTexture("envmapSampler", sceneCapture);
+    #endif
+                        },
+                        gfxPipelineState
+                    );
+                }
+                mipWidth /= 2u;
+                mipHeight /= 2u;
+            }
+        }
+    }
+
+    // todo: fix this !!!
+    void ReflectionProbe::buildBRDFLookupTexture()
+    {
         auto renderer = Renderer::get();
-        GfxPipelineState pipelineState;
-        pipelineState.depth = DepthControl::kDisable;
+
         CreateVS(vs, "IntegrateBRDFVS", SHADER_SOURCE_PATH "integrate_BRDF_v.glsl");
         CreatePS(ps, "IntegrateBRDFPS", SHADER_SOURCE_PATH "integrate_BRDF_p.glsl");
         CreatePixelPipeline(pipeline, "IntegrateBRDF", vs, ps);
 
         renderer->drawFullscreenQuad(
-            getFramebufferSize(outTexture),
-            [outTexture](RenderPass& pass) {
-                pass.setRenderTarget(outTexture, 0);
+            getFramebufferSize(s_BRDFLookupTexture.get()),
+            [](RenderPass& pass) {
+                pass.setRenderTarget(s_BRDFLookupTexture.get(), 0);
             },
             pipeline,
             [](ProgramPipeline* p) {
 
-            });
-
-        return outTexture;
+            }
+        );
     }
 
+#if 0
     void ReflectionProbe::convolve()
     {
         auto renderer = Renderer::get();
@@ -213,22 +274,6 @@ namespace Cyan
             mipWidth /= 2u;
             mipHeight /= 2u;
         }
-    }
-
-    void ReflectionProbe::build()
-    {
-        captureScene();
-        convolve();
-    }
-
-    void ReflectionProbe::buildFromCubemap()
-    {
-        convolve();
-    }
-
-    void ReflectionProbe::debugRender()
-    {
-
     }
 #endif
 }

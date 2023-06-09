@@ -527,7 +527,7 @@ namespace Cyan
         std::string markerName = std::string("BuildCubemapFromHDRI (") + HDRIName + std::string("->") + cubemapName + std::string(")");
         GPU_DEBUG_SCOPE(buildCubemapFromHDRIMarker, markerName.c_str());
 
-        CreateVS(vs, "RenderToCubemapVS", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl");
+        CreateVS(vs, "BuildCubemapVS", SHADER_SOURCE_PATH "build_cubemap_v.glsl");
         CreatePS(ps, "RenderToCubemapPS", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl");
         CreatePixelPipeline(pipeline, "RenderToCubemap", vs, ps);
         StaticMesh* cubeMesh = AssetManager::findAsset<StaticMesh>("UnitCubeMesh").get();

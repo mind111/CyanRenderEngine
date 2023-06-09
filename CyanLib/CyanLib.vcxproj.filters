@@ -466,7 +466,7 @@
     <None Include="..\shader\convolve_diffuse_p.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\convolve_diffuse_v.glsl">
+    <None Include="..\shader\build_cubemap_v.glsl">
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\skybox_p.glsl">
@@ -482,9 +482,6 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\render_to_cubemap_p.glsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\shader\render_to_cubemap_v.glsl">
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\shader_grid_texture.fs">
