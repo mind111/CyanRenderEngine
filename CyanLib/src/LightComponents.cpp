@@ -84,6 +84,7 @@ namespace Cyan
         LightComponent::setOwner(owner);
         Scene* scene = m_owner->getWorld()->getScene();
         scene->addSkyLight(m_skyLight.get());
+        setScene(scene);
     }
 
     void SkyLightComponent::setCaptureMode(const CaptureMode& captureMode)
@@ -133,5 +134,10 @@ namespace Cyan
         case CaptureMode::kHDRI: captureHDRI(); break;
         default: assert(0);
         }
+    }
+
+    void SkyLightComponent::setScene(Scene* scene)
+    {
+        m_scene = scene;
     }
 }

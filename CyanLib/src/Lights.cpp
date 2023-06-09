@@ -29,7 +29,15 @@ namespace Cyan
     SkyLight::SkyLight(SkyLightComponent* skyLightComponent)
         : Light(skyLightComponent->getColor(), skyLightComponent->getIntensity())
     {
-
+        u32 numMips = std::log2(cubemapCaptureResolution);
+        GfxTextureCube::Spec spec(cubemapCaptureResolution, numMips, PF_RGB16F);
+        SamplerCube sampler;
+        sampler.minFilter = FM_TRILINEAR;
+        sampler.magFilter = FM_BILINEAR;
+        sampler.wrapS = WM_CLAMP;
+        sampler.wrapT = WM_CLAMP;
+        m_cubemap.reset(GfxTextureCube::create(spec, sampler));
+        m_irradianceProbe.reset(new IrradianceProbe(glm::vec3(0.f), irradianceResolution));
     }
 
     SkyLight::~SkyLight()
@@ -39,55 +47,18 @@ namespace Cyan
 
     void SkyLight::buildFromHDRI(Texture2D* HDRI)
     {
-        // 1. convert 2D HDRI (equirectangular map) to cubemap
-        u32 numMips = std::log2(cubemapCaptureResolution);
-        GfxTextureCube::Spec spec(cubemapCaptureResolution, numMips, PF_RGB16F);
-        SamplerCube sampler;
-        sampler.minFilter = FM_TRILINEAR;
-        sampler.magFilter = FM_BILINEAR;
-        sampler.wrapS = WM_CLAMP;
-        sampler.wrapT = WM_CLAMP;
-        m_cubemap.reset(GfxTextureCube::create(spec, sampler));
-
-        CreateVS(vs, "RenderToCubemapVS", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl");
-        CreatePS(ps, "RenderToCubemapPS", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl");
-        CreatePixelPipeline(pipeline, "RenderToCubemap", vs, ps);
-        StaticMesh* cubeMesh = AssetManager::findAsset<StaticMesh>("UnitCubeMesh").get();
-
-        for (i32 f = 0; f < 6u; f++)
+        if (HDRI != nullptr)
         {
-            GfxPipelineState gfxPipelineState;
-            gfxPipelineState.depth = DepthControl::kDisable;
-
-            Renderer::get()->drawStaticMesh(
-                getFramebufferSize(m_cubemap.get()),
-                [this, f](RenderPass& pass) {
-                    pass.setRenderTarget(RenderTarget(m_cubemap.get(), f), 0);
-                },
-                { 0, 0, m_cubemap->resolution, m_cubemap->resolution },
-                cubeMesh,
-                pipeline,
-                [this, f, HDRI](ProgramPipeline* p) {
-                    PerspectiveCamera camera;
-                    camera.m_position = glm::vec3(0.f);
-                    camera.m_worldUp = worldUps[f];
-                    camera.m_forward = cameraFacingDirections[f];
-                    camera.m_right = glm::cross(camera.m_forward, camera.m_worldUp);
-                    camera.m_up = glm::cross(camera.m_right, camera.m_forward);
-                    camera.n = .1f;
-                    camera.f = 100.f;
-                    camera.fov = 90.f;
-                    camera.aspectRatio = 1.f;
-                    p->setUniform("cameraView", camera.view());
-                    p->setUniform("cameraProjection", camera.projection());
-                    p->setTexture("srcHDRI", HDRI->getGfxResource());
-                },
-                gfxPipelineState
-            );
+            // 1. convert 2D HDRI (equirectangular map) to cubemap
+            {
+                Renderer::buildCubemapFromHDRI(m_cubemap.get(), HDRI->getGfxResource());
+            }
+            // 2. build light probes
+            {
+                m_irradianceProbe->buildFrom(m_cubemap.get());
+                // m_reflectionProbe->buildFrom(m_cubemap.get());
+            }
         }
-        glGenerateTextureMipmap(m_cubemap->getGpuResource());
-
-        // 2. build light probes
     }
 
     void SkyLight::buildFromScene(Scene* scene)

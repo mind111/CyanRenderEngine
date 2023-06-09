@@ -11,12 +11,12 @@ namespace Cyan
     class LightProbe
     {
     public:
-        LightProbe(const glm::vec3& position, GfxTextureCube* srcCubemap, const glm::uvec2& resolution);
+        LightProbe(const glm::vec3& position, u32 resolution);
         // LightProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& resolution);
         virtual ~LightProbe() { }
 
         void setScene(Scene* scene);
-        virtual void build() = 0;
+        virtual void buildFrom(GfxTextureCube* srcCubemap) = 0;
 #if 0
         virtual void init();
         virtual void captureScene();
@@ -25,27 +25,17 @@ namespace Cyan
 
         Scene* m_scene = nullptr;
         glm::vec3 m_position = glm::vec3(0.f);
-        glm::vec2 m_resolution;
+        u32 m_resolution;
         GfxTextureCube* m_srcCubemap = nullptr;
     };
 
     class IrradianceProbe : public LightProbe 
     {
     public:
-        IrradianceProbe(const glm::vec3& position, GfxTextureCube* srcCubemap, const glm::uvec2& resolution);
+        IrradianceProbe(const glm::vec3& position, u32 resolution);
         ~IrradianceProbe() { }
-#if 0
-        IrradianceProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& sceneCaptureResolution, const glm::uvec2& irradianceResolution);
-#endif
 
-#if 0
-        virtual void debugRender() override;
-        void initialize();
-        void convolve();
-        void build();
-        void buildFromCubemap();
-#endif
-        virtual void build() override;
+        virtual void buildFrom(GfxTextureCube* srcCubemap) override;
 
         static constexpr u32 kNumSamplesInTheta = 32u;
         static constexpr u32 kNumSamplesInPhi = 32u;

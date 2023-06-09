@@ -73,7 +73,8 @@ namespace Cyan
         /**
          * 'HDRI' should be an equirectangular map
          */
-        void setHDRI(std::shared_ptr<Texture2D> HRDI);
+        void setHDRI(std::shared_ptr<Texture2D> HDRI);
+        void setScene(Scene* scene);
         void capture();
 
     protected:
@@ -83,6 +84,7 @@ namespace Cyan
         static constexpr const char* defaultHDRIPath = "";
 
         CaptureMode m_captureMode = CaptureMode::kHDRI;
+        Scene* m_scene = nullptr;
         std::shared_ptr<Texture2D> m_HDRI = nullptr;
         std::unique_ptr<SkyLight> m_skyLight = nullptr;
     };

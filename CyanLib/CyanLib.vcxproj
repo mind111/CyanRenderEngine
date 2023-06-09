@@ -82,6 +82,7 @@
     <ClInclude Include="include\Utils.h" />
     <ClInclude Include="include\VertexArray.h" />
     <ClInclude Include="include\VertexBuffer.h" />
+    <ClInclude Include="include\VirtualFileSystem.h" />
     <ClInclude Include="include\VoxelConeTracing.h" />
     <ClInclude Include="include\Window.h" />
     <ClInclude Include="include\World.h" />

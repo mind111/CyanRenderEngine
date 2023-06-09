@@ -282,6 +282,9 @@
     <ClInclude Include="include\SkyboxEntity.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\VirtualFileSystem.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\LightEntities.cpp">

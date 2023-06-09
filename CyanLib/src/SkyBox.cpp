@@ -103,44 +103,7 @@ namespace Cyan
             sampler.wrapT = WM_CLAMP;
             m_cubemap.reset(GfxTextureCube::create(spec, sampler));
 
-            CreateVS(vs, "RenderToCubemapVS", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl");
-            CreatePS(ps, "RenderToCubemapPS", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl");
-            CreatePixelPipeline(pipeline, "RenderToCubemap", vs, ps);
-            StaticMesh* cubeMesh = AssetManager::findAsset<StaticMesh>("UnitCubeMesh").get();
-
-            for (i32 f = 0; f < 6u; f++)
-            {
-                GfxPipelineState gfxPipelineState;
-                gfxPipelineState.depth = DepthControl::kDisable;
-
-                Renderer::get()->drawStaticMesh(
-                    getFramebufferSize(m_cubemap.get()),
-                    [this, f](RenderPass& pass) {
-                        pass.setRenderTarget(RenderTarget(m_cubemap.get(), f), 0);
-                    },
-                    { 0, 0, m_cubemap->resolution, m_cubemap->resolution },
-                    cubeMesh,
-                    pipeline,
-                    [this, f](ProgramPipeline* p) {
-                        PerspectiveCamera camera;
-                        camera.m_position = glm::vec3(0.f);
-                        camera.m_worldUp = worldUps[f];
-                        camera.m_forward = cameraFacingDirections[f];
-                        camera.m_right = glm::cross(camera.m_forward, camera.m_worldUp);
-                        camera.m_up = glm::cross(camera.m_right, camera.m_forward);
-                        camera.n = .1f;
-                        camera.f = 100.f;
-                        camera.fov = 90.f;
-                        camera.aspectRatio = 1.f;
-                        p->setUniform("cameraView", camera.view());
-                        p->setUniform("cameraProjection", camera.projection());
-                        p->setTexture("srcHDRI", m_skyboxComponent->m_HDRI->getGfxResource());
-                    },
-                    gfxPipelineState
-                );
-            }
-            glGenerateTextureMipmap(m_cubemap->getGpuResource());
+            Renderer::buildCubemapFromHDRI(m_cubemap.get(), m_skyboxComponent->m_HDRI->getGfxResource());
         }
     }
-
 }

@@ -32,191 +32,73 @@ namespace Cyan
         {0.f, -1.f, 0.f},   // Back
     };
 
-#if 0
-    LightProbe::LightProbe(GfxTextureCube* srcCubemapTexture)
-        : m_scene(nullptr), m_position(glm::vec3(0.f)), m_resolution(glm::uvec2(srcCubemapTexture->resolution, srcCubemapTexture->resolution)), 
-        debugSphereMesh(nullptr), sceneCapture(srcCubemapTexture)
-    {
-        init();
-    }
-
-    LightProbe::LightProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& resolution)
-        : m_scene(scene), m_position(p), m_resolution(resolution), debugSphereMesh(nullptr), sceneCapture(nullptr)
-    {
-        // debugSphereMesh = AssetManager::getAsset<Mesh>("sphere_mesh")->createInstance(scene);
-        init();
-    }
-#endif
-
-    LightProbe::LightProbe(const glm::vec3& position, GfxTextureCube* srcCubemap, const glm::uvec2& resolution)
-        : m_scene(nullptr), m_position(position), m_srcCubemap(srcCubemap), m_resolution(resolution)
+    LightProbe::LightProbe(const glm::vec3& position, u32 resolution)
+        : m_scene(nullptr), m_position(position), m_srcCubemap(nullptr), m_resolution(resolution)
     {
 
     }
 
     void LightProbe::setScene(Scene* scene)
     {
+        m_scene = scene;
     }
 
-#if 0
-    void LightProbe::init()
+    IrradianceProbe::IrradianceProbe(const glm::vec3& position, u32 resolution)
+        : LightProbe(position, resolution)
     {
-        if (!sceneCapture)
-        {
-            assert(0);
-        }
-    }
-
-    void LightProbe::captureScene() 
-    {
-        assert(m_scene);
-
-// todo: implement this at some point
-#if 0
-        // create render target
-        auto framebuffer = std::unique_ptr<Framebuffer>(createFramebuffer(sceneCapture->resolution, sceneCapture->resolution));
-        framebuffer->setColorBuffer(sceneCapture, 0u);
-        Renderer::get()->renderSceneToLightProbe(scene, this, framebuffer.get());
-#endif
-    }
-
-    void LightProbe::debugRender()
-    {
-
-    }
-
-    IrradianceProbe::IrradianceProbe(GfxTextureCube* srcCubemapTexture, const glm::uvec2& irradianceRes)
-        : LightProbe(srcCubemapTexture), m_irradianceTextureRes(irradianceRes)
-    {
-        initialize();
-    }
-
-    IrradianceProbe::IrradianceProbe(Scene* scene, const glm::vec3& p, const glm::uvec2& sceneCaptureResolution, const glm::uvec2& irradianceRes)
-        : LightProbe(scene, p, sceneCaptureResolution), m_irradianceTextureRes(irradianceRes)
-    {
-        initialize();
-    }
-
-    void IrradianceProbe::initialize()
-    {
-        GfxTextureCube::Spec spec(m_irradianceTextureRes.x, 1, PF_RGB16F);
-        SamplerCube sampler;
-        sampler.minFilter = FM_BILINEAR;
-        sampler.magFilter = FM_BILINEAR;
-        m_convolvedIrradianceTexture = std::unique_ptr<GfxTextureCube>(GfxTextureCube::create(spec, sampler));
-
-        if (!s_convolveIrradiancePipeline)
-        {
-            CreateVS(vs, "ConvolveIrradianceVS", SHADER_SOURCE_PATH "convolve_diffuse_v.glsl");
-            CreatePS(ps, "ConvolveIrradiancePS", SHADER_SOURCE_PATH "convolve_diffuse_p.glsl");
-            s_convolveIrradiancePipeline = ShaderManager::createPixelPipeline("ConvolveIrradiance", vs, ps);
-        }
-    }
-
-    void IrradianceProbe::convolve()
-    {
-        assert(sceneCapture);
-        auto renderer = Renderer::get();
-
-        for (i32 f = 0; f < 6u; ++f)
-        {
-            GfxPipelineState gfxPipelineState;
-            gfxPipelineState.depth = DepthControl::kDisable;
-
-            renderer->drawStaticMesh(
-                getFramebufferSize(m_convolvedIrradianceTexture.get()),
-                [this, f](RenderPass& pass) {
-                    pass.setRenderTarget(RenderTarget(m_convolvedIrradianceTexture.get(), f), 0);
-                },
-                { 0u, 0u, (u32)m_convolvedIrradianceTexture->resolution, (u32)m_convolvedIrradianceTexture->resolution }, 
-                AssetManager::findAsset<StaticMesh>("UnitCubeMesh").get(),
-                s_convolveIrradiancePipeline,
-                [this, f](ProgramPipeline* p) {
-                    // Update view matrix
-                    // todo: calculate the correct transform to orient the camera
-#if 0
-                    PerspectiveCamera camera(
-                        glm::vec3(0.f),
-                        LightProbeCameras::cameraFacingDirections[f],
-                        LightProbeCameras::worldUps[f],
-                        glm::uvec2(m_convolvedIrradianceTexture->resolution, m_convolvedIrradianceTexture->resolution),
-                        VM_SCENE_COLOR,
-                        90.f,
-                        0.1f,
-                        100.f
-                    );
-                    p->setUniform("view", camera.view());
-                    p->setUniform("projection", camera.projection());
-                    p->setTexture("srcCubemapTexture", sceneCapture);
-#endif
-                },
-                gfxPipelineState
-            );
-        }
-    }
-#endif
-
-    IrradianceProbe::IrradianceProbe(const glm::vec3& position, GfxTextureCube* srcCubemap, const glm::uvec2& resolution)
-        : LightProbe(position, srcCubemap, resolution)
-    {
-        GfxTextureCube::Spec spec(m_resolution.x, 1, PF_RGB16F);
+        GfxTextureCube::Spec spec(m_resolution, 1, PF_RGB16F);
         m_irradianceCubemap = std::unique_ptr<GfxTextureCube>(GfxTextureCube::create(spec));
     }
 
-    void IrradianceProbe::build()
+    void IrradianceProbe::buildFrom(GfxTextureCube* srcCubemap)
     {
-        auto renderer = Renderer::get();
-        CreateVS(vs, "ConvolveIrradianceCubemapVS", SHADER_SOURCE_PATH "convolve_diffuse_v.glsl");
-        CreatePS(ps, "ConvolveIrradianceCubemapPS", SHADER_SOURCE_PATH "convolve_diffuse_p.glsl");
-        CreatePixelPipeline(pipeline, "ConvolveIrradianceCubemap", vs, ps);
-        auto cube = AssetManager::findAsset<StaticMesh>("UnitCubeMesh").get();
-
-        for (i32 f = 0; f < 6u; ++f)
+        if (srcCubemap != nullptr)
         {
-            GfxPipelineState gfxPipelineState;
-            gfxPipelineState.depth = DepthControl::kDisable;
+            m_srcCubemap = srcCubemap;
 
-            renderer->drawStaticMesh(
-                getFramebufferSize(m_irradianceCubemap.get()),
-                [this, f](RenderPass& pass) {
-                    pass.setRenderTarget(RenderTarget(m_irradianceCubemap.get(), f), 0);
-                },
-                { 0u, 0u, (u32)m_irradianceCubemap->resolution, (u32)m_irradianceCubemap->resolution },
-                cube,
-                pipeline,
-                [this, f](ProgramPipeline* p) {
-                    PerspectiveCamera camera;
-                    camera.m_position = m_position;
-                    camera.m_worldUp = worldUps[f];
-                    camera.m_forward = cameraFacingDirections[f];
-                    camera.m_right = glm::cross(camera.m_forward, camera.m_worldUp);
-                    camera.m_up = glm::cross(camera.m_right, camera.m_forward);
-                    camera.n = .1f;
-                    camera.f = 100.f;
-                    camera.fov = 90.f;
-                    camera.aspectRatio = 1.f;
-                    p->setUniform("cameraView", camera.view());
-                    p->setUniform("cameraProjection", camera.projection());
-                    p->setUniform("numSamplesInTheta", (f32)kNumSamplesInTheta);
-                    p->setUniform("numSamplesInPhi", (f32)kNumSamplesInPhi);
-                    p->setTexture("srcCubemapTexture", m_srcCubemap);
-                },
-                gfxPipelineState
-            );
+            GPU_DEBUG_SCOPE(convolveIrradianceCubemapMarker, "ConvovleIrraidanceCubemap");
+
+            auto renderer = Renderer::get();
+            CreateVS(vs, "ConvolveIrradianceCubemapVS", SHADER_SOURCE_PATH "convolve_diffuse_v.glsl");
+            CreatePS(ps, "ConvolveIrradianceCubemapPS", SHADER_SOURCE_PATH "convolve_diffuse_p.glsl");
+            CreatePixelPipeline(pipeline, "BuildIrradianceCubemap", vs, ps);
+            auto cube = AssetManager::findAsset<StaticMesh>("UnitCubeMesh").get();
+
+            for (i32 f = 0; f < 6u; ++f)
+            {
+                GfxPipelineState gfxPipelineState;
+                gfxPipelineState.depth = DepthControl::kDisable;
+
+                renderer->drawStaticMesh(
+                    getFramebufferSize(m_irradianceCubemap.get()),
+                    [this, f](RenderPass& pass) {
+                        pass.setRenderTarget(RenderTarget(m_irradianceCubemap.get(), f), 0);
+                    },
+                    { 0u, 0u, (u32)m_irradianceCubemap->resolution, (u32)m_irradianceCubemap->resolution },
+                    cube,
+                    pipeline,
+                    [this, f](ProgramPipeline* p) {
+                        PerspectiveCamera camera;
+                        camera.m_position = m_position;
+                        camera.m_worldUp = worldUps[f];
+                        camera.m_forward = cameraFacingDirections[f];
+                        camera.m_right = glm::cross(camera.m_forward, camera.m_worldUp);
+                        camera.m_up = glm::cross(camera.m_right, camera.m_forward);
+                        camera.n = .1f;
+                        camera.f = 100.f;
+                        camera.fov = 90.f;
+                        camera.aspectRatio = 1.f;
+                        p->setUniform("cameraView", camera.view());
+                        p->setUniform("cameraProjection", camera.projection());
+                        p->setUniform("numSamplesInTheta", (f32)kNumSamplesInTheta);
+                        p->setUniform("numSamplesInPhi", (f32)kNumSamplesInPhi);
+                        p->setTexture("srcCubemap", m_srcCubemap);
+                    },
+                    gfxPipelineState
+                );
+            }
         }
     }
-
-#if 0
-    void IrradianceProbe::buildFromCubemap()
-    {
-        convolve();
-    }
-
-    void IrradianceProbe::debugRender()
-    {
-
-    }
-#endif
 
 #if 0
     ReflectionProbe::ReflectionProbe(GfxTextureCube* srcCubemapTexture)

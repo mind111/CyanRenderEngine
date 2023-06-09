@@ -520,6 +520,55 @@ namespace Cyan
         }
     }
 
+    void Renderer::buildCubemapFromHDRI(GfxTextureCube* outCubemap, GfxTexture2D* HDRI)
+    {
+        std::string cubemapName = std::string("TextureCube ") + std::to_string(outCubemap->getGpuResource());
+        std::string HDRIName = std::string("Texture2D " ) + std::to_string(HDRI->getGpuResource());
+        std::string markerName = std::string("BuildCubemapFromHDRI (") + HDRIName + std::string("->") + cubemapName + std::string(")");
+        GPU_DEBUG_SCOPE(buildCubemapFromHDRIMarker, markerName.c_str());
+
+        CreateVS(vs, "RenderToCubemapVS", SHADER_SOURCE_PATH "render_to_cubemap_v.glsl");
+        CreatePS(ps, "RenderToCubemapPS", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl");
+        CreatePixelPipeline(pipeline, "RenderToCubemap", vs, ps);
+        StaticMesh* cubeMesh = AssetManager::findAsset<StaticMesh>("UnitCubeMesh").get();
+
+        const i32 kNumCubeFaces = 6u;
+        for (i32 f = 0; f < kNumCubeFaces; f++)
+        {
+            GfxPipelineState gfxPipelineState;
+            gfxPipelineState.depth = DepthControl::kDisable;
+
+            Renderer::get()->drawStaticMesh(
+                getFramebufferSize(outCubemap),
+                [f, outCubemap](RenderPass& pass) {
+                    pass.setRenderTarget(RenderTarget(outCubemap, f), 0);
+                },
+                { 0, 0, outCubemap->resolution, outCubemap->resolution },
+                cubeMesh,
+                pipeline,
+                [f, HDRI](ProgramPipeline* p) {
+                    PerspectiveCamera camera;
+                    camera.m_position = glm::vec3(0.f);
+                    camera.m_worldUp = worldUps[f];
+                    camera.m_forward = cameraFacingDirections[f];
+                    camera.m_right = glm::cross(camera.m_forward, camera.m_worldUp);
+                    camera.m_up = glm::cross(camera.m_right, camera.m_forward);
+                    camera.n = .1f;
+                    camera.f = 100.f;
+                    camera.fov = 90.f;
+                    camera.aspectRatio = 1.f;
+                    p->setUniform("cameraView", camera.view());
+                    p->setUniform("cameraProjection", camera.projection());
+                    p->setTexture("srcHDRI", HDRI);
+                },
+                gfxPipelineState
+            );
+        }
+
+        // generate mipmap
+        glGenerateTextureMipmap(outCubemap->getGpuResource());
+    }
+
 #endif
 
     void Renderer::visualize(GfxTexture2D* dst, GfxTexture2D* src, i32 mip) 

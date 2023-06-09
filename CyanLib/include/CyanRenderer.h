@@ -103,6 +103,13 @@ namespace Cyan
         void renderSceneDirectLighting(RenderTexture2D outDirectLighting, const RenderableScene& scene, GBuffer gBuffer);
         void renderSceneIndirectLighting(RenderTexture2D outIndirectLighting, const RenderableScene& scene, GBuffer gBuffer);
 #else
+        /* Rendering Utilities */
+        /**
+         * 'HDRI' needs to be an equirectangular map
+         */
+        static void buildCubemapFromHDRI(GfxTextureCube* outCubemap, GfxTexture2D* srcEquirectangularMap);
+
+        /* Scene Rendering Functions */
         void renderSceneDepth(GfxDepthTexture2D* outDepthBuffer, Scene* scene, const SceneRender::ViewParameters& viewParameters);
         void renderSceneDepthPrepass(GfxDepthTexture2D* outDepthBuffer, Scene* scene, const SceneRender::ViewParameters& viewParameters);
         void renderShadowMaps(Scene* scene, Camera* camera);
@@ -110,8 +117,8 @@ namespace Cyan
         void renderSceneLighting(Scene* scene, SceneRender* render);
         void renderSceneDirectLighting(Scene* scene, SceneRender* render);
         void renderSceneIndirectLighting(Scene* scene, SceneRender* render);
-#endif
         void renderToScreen(GfxTexture2D* inTexture);
+#endif
 
         bool bDebugSSRT = false;
         glm::vec2 debugCoord = glm::vec2(.5f);
