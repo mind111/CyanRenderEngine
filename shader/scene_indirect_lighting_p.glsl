@@ -24,19 +24,32 @@ in VSOutput
 
 out vec3 outRadiance;
 
-layout(std430) buffer ViewBuffer 
+struct ViewParameters
 {
-    mat4  view;
-    mat4  projection;
+	uvec2 renderResolution;
+	float aspectRatio;
+	mat4 viewMatrix;
+	mat4 projectionMatrix;
+	vec3 cameraPosition;
+	vec3 cameraRight;
+	vec3 cameraForward;
+	vec3 cameraUp;
+	int frameCount;
+	float elapsedTime;
+	float deltaTime;
 };
 
-uniform struct SkyLight 
+uniform ViewParameters viewParameters;
+
+struct SkyLight 
 {
 	float intensity;
 	samplerCube irradiance;
 	samplerCube reflection;
     sampler2D BRDFLookupTexture;
-} skyLight;
+}; 
+
+uniform SkyLight skyLight;
 
 struct Material 
 {
@@ -188,8 +201,8 @@ vec3 calcF0(in Material material) {
 
 vec3 calcSkyLight(SkyLight inSkyLight, in Material material, vec3 worldSpacePosition) {
     vec3 radiance = vec3(0.f);
-    vec3 viewSpacePosition = (view * vec4(worldSpacePosition, 1.f)).xyz;
-    vec3 worldSpaceViewDirection = (inverse(view) * vec4(normalize(-viewSpacePosition), 0.0)).xyz;
+    vec3 viewSpacePosition = (viewParameters.viewMatrix * vec4(worldSpacePosition, 1.f)).xyz;
+    vec3 worldSpaceViewDirection = (inverse(viewParameters.viewMatrix) * vec4(normalize(-viewSpacePosition), 0.0)).xyz;
     float ndotv = saturate(dot(material.normal, worldSpaceViewDirection));
 
     vec3 f0 = calcF0(material);
@@ -208,10 +221,6 @@ vec3 calcSkyLight(SkyLight inSkyLight, in Material material, vec3 worldSpacePosi
     {
         vec3 bentNormal = normalize(texture(ssbn, texCoord).rgb * 2.f - 1.f);
 		irradiance = diffuse * texture(skyLight.irradiance, bentNormal).rgb; 
-    }
-    else
-    {
-		irradiance = diffuse * texture(skyLight.irradiance, material.normal).rgb; 
     }
     radiance += irradiance * ao;
 
@@ -236,7 +245,7 @@ void main()
 		discard;
 	}
 	vec3 normal = normalize(texture(sceneNormal, psIn.texCoord0).rgb * 2.f - 1.f);
-	vec3 worldSpacePosition = screenToWorld(vec3(psIn.texCoord0, depth) * 2.f - 1.f, inverse(view), inverse(projection)); 
+	vec3 worldSpacePosition = screenToWorld(vec3(psIn.texCoord0, depth) * 2.f - 1.f, inverse(viewParameters.viewMatrix), inverse(viewParameters.projectionMatrix)); 
 
     // setup per pixel material 
     Material material;

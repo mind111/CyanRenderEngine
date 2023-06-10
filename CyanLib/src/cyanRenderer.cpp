@@ -481,11 +481,7 @@ namespace Cyan
 
     void Renderer::renderSceneIndirectLighting(Scene* scene, SceneRender* render)
     {
-        GPU_DEBUG_SCOPE(sceneIndirectLighting, "Scene Indirect Lighting Pass");
-
-        CreateVS(vs, "SkyboxVS", SHADER_SOURCE_PATH "skybox_v.glsl");
-        CreatePS(ps, "SkyboxPS", SHADER_SOURCE_PATH "skybox_p.glsl");
-        CreatePixelPipeline(p, "Skybox", vs, ps);
+        GPU_DEBUG_SCOPE(sceneIndirectLighting, "SceneIndirectLighting");
 
         auto outIndirectLighting = render->indirectLighting();
         auto depth = render->depth();
@@ -493,6 +489,12 @@ namespace Cyan
 
         // render skybox pass
         {
+            GPU_DEBUG_SCOPE(skybox, "Skybox");
+
+            CreateVS(vs, "SkyboxVS", SHADER_SOURCE_PATH "skybox_v.glsl");
+            CreatePS(ps, "SkyboxPS", SHADER_SOURCE_PATH "skybox_p.glsl");
+            CreatePixelPipeline(p, "Skybox", vs, ps);
+
             RenderPass pass(outIndirectLighting->width, outIndirectLighting->height);
             pass.viewport = { 0, 0, outIndirectLighting->width, outIndirectLighting->height };
             pass.setRenderTarget(outIndirectLighting, 0);
@@ -517,6 +519,37 @@ namespace Cyan
 
         // render indirect lighting effects pass
         {
+            GPU_DEBUG_SCOPE(indirectLighting, "IndirectLighting");
+
+            CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
+            CreatePS(ps, "SceneIndirectLightingPass", SHADER_SOURCE_PATH "scene_indirect_lighting_p.glsl");
+            CreatePixelPipeline(pipeline, "SceneIndirectLightingPass", vs, ps);
+
+            drawFullscreenQuad(
+                getFramebufferSize(outIndirectLighting),
+                [outIndirectLighting](RenderPass& pass) {
+                    pass.setRenderTarget(outIndirectLighting, 0, /*bClear=*/false);
+                },
+                pipeline,
+                [this, scene, render](ProgramPipeline* p) {
+                    render->m_viewParameters.setShaderParameters(p);
+                    p->setTexture("sceneDepth", render->depth());
+                    p->setTexture("sceneNormal", render->normal());
+                    p->setTexture("sceneAlbedo", render->albedo());
+                    p->setTexture("sceneMetallicRoughness", render->metallicRoughness());
+
+                    // todo: apply lighting effects
+
+                    // sky light
+                    if (scene->m_skyLight != nullptr)
+                    {
+                        auto skyLight = scene->m_skyLight;
+                        p->setTexture("skyLight.irradiance", skyLight->m_irradianceProbe->m_irradianceCubemap.get());
+                        p->setTexture("skyLight.reflection", skyLight->m_reflectionProbe->m_reflectionCubemap.get());
+                        p->setTexture("skyLight.BRDFLookupTexture", ReflectionProbe::s_BRDFLookupTexture.get());
+                    }
+                }
+            );
         }
     }
 

@@ -83,7 +83,7 @@ namespace Cyan
                     if (!scene->m_renders.empty())
                     {
                         auto render = scene->m_renders[0];
-                        renderer->renderToScreen(render->color());
+                        renderer->renderToScreen(render->indirectLighting());
                     }
                 }
                 // UI rendering

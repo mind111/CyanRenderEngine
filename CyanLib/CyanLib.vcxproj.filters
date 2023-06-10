@@ -532,9 +532,6 @@
     <None Include="..\shader\convolve_specular_p.glsl">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shader\convolve_specular_v.glsl">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="..\shader\shader_quad.fs">
       <Filter>Shaders</Filter>
     </None>

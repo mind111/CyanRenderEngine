@@ -298,7 +298,6 @@
     <None Include="..\shader\pbs_p.glsl" />
     <None Include="..\shader\pbs_v.glsl" />
     <None Include="..\shader\convolve_specular_p.glsl" />
-    <None Include="..\shader\convolve_specular_v.glsl" />
     <None Include="..\shader\shader_quad.fs" />
     <None Include="..\shader\shader_quad.vs" />
     <None Include="..\shader\shader_ray_tracing.fs" />

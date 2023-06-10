@@ -176,23 +176,6 @@ namespace Cyan
                             p->setUniform("cameraProjection", camera.projection());
                             p->setUniform("roughness", mip * (1.f / (kNumMips - 1)));
                             p->setTexture("srcCubemap", m_srcCubemap);
-    #if 0
-                            PerspectiveCamera camera(
-                                glm::vec3(0.f),
-                                LightProbeCameras::cameraFacingDirections[f],
-                                LightProbeCameras::worldUps[f],
-                                glm::uvec2(m_convolvedReflectionTexture->resolution, m_convolvedReflectionTexture->resolution),
-                                VM_SCENE_COLOR,
-                                90.f,
-                                0.1f,
-                                100.f
-                            );
-
-                            p->setUniform("projection", camera.projection());
-                            p->setUniform("view", camera.view());
-                            p->setUniform("roughness", mip * (1.f / (kNumMips - 1)));
-                            p->setTexture("envmapSampler", sceneCapture);
-    #endif
                         },
                         gfxPipelineState
                     );
@@ -206,6 +189,8 @@ namespace Cyan
     // todo: fix this !!!
     void ReflectionProbe::buildBRDFLookupTexture()
     {
+        GPU_DEBUG_SCOPE(buildBRDFLut, "BuildBRDFLUT");
+
         auto renderer = Renderer::get();
 
         CreateVS(vs, "IntegrateBRDFVS", SHADER_SOURCE_PATH "integrate_BRDF_v.glsl");
@@ -223,57 +208,4 @@ namespace Cyan
             }
         );
     }
-
-#if 0
-    void ReflectionProbe::convolve()
-    {
-        auto renderer = Renderer::get();
-        u32 kNumMips = m_convolvedReflectionTexture->numMips;
-        u32 mipWidth = sceneCapture->resolution; 
-        u32 mipHeight = sceneCapture->resolution;
-
-        for (u32 mip = 0; mip < kNumMips; ++mip)
-        {
-            {
-                for (i32 f = 0; f < 6u; f++)
-                {
-                    GfxPipelineState gfxPipelineState;
-                    gfxPipelineState.depth = DepthControl::kDisable;
-                    renderer->drawStaticMesh(
-                        glm::uvec2(mipWidth, mipHeight),
-                        [this, f, mip](RenderPass& pass) {
-                            pass.setRenderTarget(RenderTarget(m_convolvedReflectionTexture.get(), f, mip), 0);
-                        },
-                        { 0u, 0u, mipWidth, mipHeight }, 
-                        AssetManager::findAsset<StaticMesh>("UnitCubeMesh").get(),
-                        s_convolveReflectionPipeline,
-                        [this, f, mip, kNumMips](ProgramPipeline* p) {
-                            // Update view matrix
-#if 0
-                            PerspectiveCamera camera(
-                                glm::vec3(0.f),
-                                LightProbeCameras::cameraFacingDirections[f],
-                                LightProbeCameras::worldUps[f],
-                                glm::uvec2(m_convolvedReflectionTexture->resolution, m_convolvedReflectionTexture->resolution),
-                                VM_SCENE_COLOR,
-                                90.f,
-                                0.1f,
-                                100.f
-                            );
-
-                            p->setUniform("projection", camera.projection());
-                            p->setUniform("view", camera.view());
-                            p->setUniform("roughness", mip * (1.f / (kNumMips - 1)));
-                            p->setTexture("envmapSampler", sceneCapture);
-#endif
-                        },
-                    gfxPipelineState);
-                }
-            }
-
-            mipWidth /= 2u;
-            mipHeight /= 2u;
-        }
-    }
-#endif
 }
