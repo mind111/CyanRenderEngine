@@ -1,12 +1,10 @@
 #pragma once
 
 #include "Texture.h"
-#include "Framebuffer.h"
 
 namespace Cyan
 {
     class Scene;
-    struct PixelPipeline;
 
     class LightProbe
     {

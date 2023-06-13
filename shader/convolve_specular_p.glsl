@@ -17,82 +17,35 @@ float saturate(float k)
     return clamp(k, 0.f, 1.f);
 }
 
-float VanDerCorput(uint n, uint base)
+vec2 hammersley(uint i, float numSamples) 
 {
-    float invBase = 1.0 / float(base);
-    float denom   = 1.0;
-    float result  = 0.0;
-    for(uint i = 0u; i < 32u; ++i)
-    {
-        if(n > 0u)
-        {
-            denom   = mod(float(n), 2.0);
-            result += denom * invBase;
-            invBase = invBase / 2.0;
-            n       = uint(float(n) / 2.0);
-        }
-    }
-    return result;
+    uint bits = i;
+    bits = (bits << 16) | (bits >> 16);
+    bits = ((bits & 0x55555555) << 1) | ((bits & 0xAAAAAAAA) >> 1);
+    bits = ((bits & 0x33333333) << 2) | ((bits & 0xCCCCCCCC) >> 2);
+    bits = ((bits & 0x0F0F0F0F) << 4) | ((bits & 0xF0F0F0F0) >> 4);
+    bits = ((bits & 0x00FF00FF) << 8) | ((bits & 0xFF00FF00) >> 8);
+    return vec2(i / numSamples, bits / exp2(32));
 }
 
-vec2 HammersleyNoBitOps(uint i, uint N)
+vec3 importanceSampleGGX(vec3 n, float roughness, vec2 xi)
 {
-    return vec2(float(i)/float(N), VanDerCorput(i, 2u));
-}
+	float a = roughness;
 
-vec3 generateSample(vec3 n, float theta, float phi)
-{
-    float x = sin(theta) * sin(phi);
-    float y = sin(theta) * cos(phi);
-    float z = cos(theta);
-    vec3 s = vec3(x, y, z);
-    // Prevent the case where n is  (0.f, 1.f, 0.f)
-    vec3 up = abs(n.x) > 0.f ? vec3(0.f, 1.f, 0.f) : vec3(0.f, 0.f, 1.f);
-    vec3 xAxis = cross(up, n);
-    vec3 yAxis = cross(n, xAxis);
-    vec3 zAxis = n;
-    mat3 toWorldSpace = {
-        xAxis,
-        yAxis,
-        zAxis
-    };
-    return normalize(toWorldSpace * s);
-}
+	float phi = 2 * pi * xi.x;
+	float cosTheta = sqrt((1 - xi.y) / ( 1 + (a*a - 1) * xi.y));
+	float sinTheta = sqrt(1 - cosTheta * cosTheta);
 
-/*
-vec3 importanceSampleGGX(vec3 n, float roughness, float rand_u, float rand_v)
-{
-    float theta = atan(roughness * sqrt(rand_u) / max(sqrt(1 - rand_u), 0.01));
-    float phi = 2 * pi * rand_v;
-    return generateSample(n, theta, phi);
-}
-*/
-
-vec3 importanceSampleGGX(vec3 n, float roughness, float rand_u, float rand_v)
-{
-	float a = roughness * roughness;
-	float phi = 2 * pi * rand_u;
-	float cosTheta = sqrt( (1 - rand_v) / ( 1 + (a*a - 1) * rand_v ) );
-	float sinTheta = sqrt( 1 - cosTheta * cosTheta );
 	vec3 h;
-	h.x = sinTheta * sin( phi );
-	h.y = sinTheta * cos( phi );
+	h.x = sinTheta * cos( phi );
+	h.y = sinTheta * sin( phi );
 	h.z = cosTheta;
-	vec3 up = abs(n.y) < 0.999 ? vec3(0, 1.f, 0.f) : vec3(0.f, 0, 1.f);
-	vec3 tangentX = normalize( cross( n, up ) );
+
+	vec3 up = abs(n.z) < 0.999 ? vec3(0, 0.f, 1.f) : vec3(1.f, 0, 0.f);
+	vec3 tangentX = normalize( cross( up, n ) );
 	vec3 tangentY = cross( n, tangentX);
 	// tangent to world space
 	return tangentX * h.x + tangentY * h.y + n * h.z;
-}
-
-float GGX(float roughness, float ndoth) 
-{
-    float alpha = roughness * roughness;
-    float alpha2 = alpha * alpha;
-    float result = alpha2;
-    float denom = ndoth * ndoth * (alpha2 - 1.f) + 1.f;
-    result /= max((pi * denom * denom), 0.001); 
-    return result;
 }
 
 void main()
@@ -100,13 +53,16 @@ void main()
     vec3 n = normalize(psIn.objectSpacePosition);
     // fix viewDir
     vec3 viewDir = n;
+
+    float remappedRoughness = roughness * roughness;
+
     uint numSamples = 1024;
     outReflection = vec3(0.f);
     float weight = 0.f; 
-    for (int s = 0; s < numSamples; s++)
+    for (int i = 0; i < numSamples; i++)
     {
-        vec2 uv = HammersleyNoBitOps(s, numSamples);
-        vec3 h = importanceSampleGGX(n, roughness, uv.x, uv.y);
+        vec2 xi = hammersley(i, numSamples);
+        vec3 h = importanceSampleGGX(n, remappedRoughness, xi);
         vec3 l = -reflect(viewDir, h);
         float ndotl = saturate(dot(n, l));
         float ndoth = saturate(dot(n, h));

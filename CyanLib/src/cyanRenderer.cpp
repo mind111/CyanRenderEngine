@@ -212,51 +212,54 @@ namespace Cyan
         m_frameAllocator.reset();
     }
 
-#if 0
-    void Renderer::render(Scene* scene, const SceneView& sceneView) 
+    void Renderer::buildCubemapFromHDRI(GfxTextureCube* outCubemap, GfxTexture2D* HDRI)
     {
-        beginRender();
+        std::string cubemapName = std::string("TextureCube ") + std::to_string(outCubemap->getGpuResource());
+        std::string HDRIName = std::string("Texture2D " ) + std::to_string(HDRI->getGpuResource());
+        std::string markerName = std::string("BuildCubemapFromHDRI (") + HDRIName + std::string("->") + cubemapName + std::string(")");
+        GPU_DEBUG_SCOPE(buildCubemapFromHDRIMarker, markerName.c_str());
+
+        CreateVS(vs, "BuildCubemapVS", SHADER_SOURCE_PATH "build_cubemap_v.glsl");
+        CreatePS(ps, "RenderToCubemapPS", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl");
+        CreatePixelPipeline(pipeline, "RenderToCubemap", vs, ps);
+        StaticMesh* cubeMesh = AssetManager::findAsset<StaticMesh>("UnitCubeMesh").get();
+
+        const i32 kNumCubeFaces = 6u;
+        for (i32 f = 0; f < kNumCubeFaces; f++)
         {
-            // shared render target for this frame
-            m_sceneTextures = SceneTextures::create(glm::uvec2(sceneView.canvas->width, sceneView.canvas->height));
+            GfxPipelineState gfxPipelineState;
+            gfxPipelineState.depth = DepthControl::kDisable;
 
-            // render shadow maps first 
-            renderShadowMaps(scene);
+            Renderer::get()->drawStaticMesh(
+                getFramebufferSize(outCubemap),
+                [f, outCubemap](RenderPass& pass) {
+                    pass.setRenderTarget(RenderTarget(outCubemap, f), 0);
+                },
+                { 0, 0, outCubemap->resolution, outCubemap->resolution },
+                cubeMesh,
+                pipeline,
+                [f, HDRI](ProgramPipeline* p) {
+                    PerspectiveCamera camera;
+                    camera.m_position = glm::vec3(0.f);
+                    camera.m_worldUp = worldUps[f];
+                    camera.m_forward = cameraFacingDirections[f];
+                    camera.m_right = glm::cross(camera.m_forward, camera.m_worldUp);
+                    camera.m_up = glm::cross(camera.m_right, camera.m_forward);
+                    camera.n = .1f;
+                    camera.f = 100.f;
+                    camera.fov = 90.f;
+                    camera.aspectRatio = 1.f;
+                    p->setUniform("cameraView", camera.view());
+                    p->setUniform("cameraProjection", camera.projection());
+                    p->setTexture("srcHDRI", HDRI);
+                },
+                gfxPipelineState
+            );
+        }
 
-            // depth prepass
-            renderSceneDepthPrepass(scene, m_sceneTextures->gBuffer.depth);
-
-            // build Hi-Z buffer
-            m_sceneTextures->HiZ.build(m_sceneTextures->gBuffer.depth.getGfxDepthTexture2D());
-
-            // main scene pass
-#ifdef BINDLESS_TEXTURE
-            renderSceneGBufferBindless(renderableScene, m_sceneTextures->gBuffer);
-#else
-            renderSceneGBufferNonBindless(renderableScene, m_sceneTextures->gBuffer);
-#endif
-            renderSceneLighting(m_sceneTextures->color, renderableScene, m_sceneTextures->gBuffer);
-
-            // post processing
-            if (m_settings.bPostProcessing) 
-            {
-                GPU_DEBUG_SCOPE(postProcessMarker, "Post Processing");
-
-                auto bloomTexture = bloom(m_sceneTextures->color.getGfxTexture2D());
-                compose(sceneView.canvas, m_sceneTextures->color.getGfxTexture2D(), bloomTexture.getGfxTexture2D(), m_windowSize);
-            }
-
-            // draw debug objects if any
-            drawDebugObjects();
-
-            if (m_visualization)
-            {
-                visualize(sceneView.canvas, m_visualization->texture, m_visualization->activeMip);
-            }
-        } 
-        endRender();
+        // generate mipmap
+        glGenerateTextureMipmap(outCubemap->getGpuResource());
     }
-#else
 
     void Renderer::render(Scene* scene)
     {
@@ -264,12 +267,17 @@ namespace Cyan
         for (auto render : scene->m_renders)
         {
             render->update();
-            // todo: render shadow maps
+
             renderShadowMaps(scene, render->m_camera);
             renderSceneDepthPrepass(render->depth(), scene, render->m_viewParameters);
             renderSceneGBuffer(render->albedo(), render->normal(), render->metallicRoughness(), render->depth(), scene, render->m_viewParameters);
             renderSceneLighting(scene, render.get());
+
             // post processing
+            if (m_settings.bPostProcessing) 
+            {
+                postprocess(render->resolvedColor(), render->color());
+            }
         }
     }
 
@@ -364,7 +372,6 @@ namespace Cyan
             pass.setRenderTarget(outMetallicRoughness, 2);
             pass.setDepthBuffer(depth, /*bClearDepth=*/false);
             pass.drawLambda = [&scene, viewParameters](GfxContext* ctx) { 
-#if 1
                 for (auto instance : scene->m_staticMeshInstances)
                 {
                     auto mesh = instance->parent;
@@ -377,23 +384,6 @@ namespace Cyan
                         ctx->drawIndex(sm->numIndices());
                     }
                 }
-#else
-                if (scene->m_skyLight != nullptr)
-                {
-                    CreateVS(vs, "DrawSkyboxVS", SHADER_SOURCE_PATH "skybox_v.glsl");
-                    CreatePS(ps, "DrawSkyboxPS", SHADER_SOURCE_PATH "skybox_p.glsl");
-                    CreatePixelPipeline(p, "DrawSkybox", vs, ps);
-                    p->bind(ctx);
-                    p->setUniform("cameraView", viewParameters.viewMatrix);
-                    p->setUniform("cameraProjection", viewParameters.projectionMatrix);
-                    p->setTexture("cubemap", scene->m_skyLight->m_cubemap.get());
-                    auto cubeMesh = AssetManager::findAsset<StaticMesh>("UnitCubeMesh");
-                    auto sm = (*cubeMesh)[0];
-                    ctx->setVertexArray(sm->va.get());
-                    ctx->drawIndex(sm->numIndices());
-                    p->unbind(ctx);
-                }
-#endif
             };
             pass.render(m_ctx);
         }
@@ -553,56 +543,13 @@ namespace Cyan
         }
     }
 
-    void Renderer::buildCubemapFromHDRI(GfxTextureCube* outCubemap, GfxTexture2D* HDRI)
+    void Renderer::postprocess(GfxTexture2D* outResolvedColor, GfxTexture2D* color)
     {
-        std::string cubemapName = std::string("TextureCube ") + std::to_string(outCubemap->getGpuResource());
-        std::string HDRIName = std::string("Texture2D " ) + std::to_string(HDRI->getGpuResource());
-        std::string markerName = std::string("BuildCubemapFromHDRI (") + HDRIName + std::string("->") + cubemapName + std::string(")");
-        GPU_DEBUG_SCOPE(buildCubemapFromHDRIMarker, markerName.c_str());
+        GPU_DEBUG_SCOPE(postprocessing, "PostProcessing");
 
-        CreateVS(vs, "BuildCubemapVS", SHADER_SOURCE_PATH "build_cubemap_v.glsl");
-        CreatePS(ps, "RenderToCubemapPS", SHADER_SOURCE_PATH "render_to_cubemap_p.glsl");
-        CreatePixelPipeline(pipeline, "RenderToCubemap", vs, ps);
-        StaticMesh* cubeMesh = AssetManager::findAsset<StaticMesh>("UnitCubeMesh").get();
-
-        const i32 kNumCubeFaces = 6u;
-        for (i32 f = 0; f < kNumCubeFaces; f++)
-        {
-            GfxPipelineState gfxPipelineState;
-            gfxPipelineState.depth = DepthControl::kDisable;
-
-            Renderer::get()->drawStaticMesh(
-                getFramebufferSize(outCubemap),
-                [f, outCubemap](RenderPass& pass) {
-                    pass.setRenderTarget(RenderTarget(outCubemap, f), 0);
-                },
-                { 0, 0, outCubemap->resolution, outCubemap->resolution },
-                cubeMesh,
-                pipeline,
-                [f, HDRI](ProgramPipeline* p) {
-                    PerspectiveCamera camera;
-                    camera.m_position = glm::vec3(0.f);
-                    camera.m_worldUp = worldUps[f];
-                    camera.m_forward = cameraFacingDirections[f];
-                    camera.m_right = glm::cross(camera.m_forward, camera.m_worldUp);
-                    camera.m_up = glm::cross(camera.m_right, camera.m_forward);
-                    camera.n = .1f;
-                    camera.f = 100.f;
-                    camera.fov = 90.f;
-                    camera.aspectRatio = 1.f;
-                    p->setUniform("cameraView", camera.view());
-                    p->setUniform("cameraProjection", camera.projection());
-                    p->setTexture("srcHDRI", HDRI);
-                },
-                gfxPipelineState
-            );
-        }
-
-        // generate mipmap
-        glGenerateTextureMipmap(outCubemap->getGpuResource());
+        auto bloomTexture = bloom(color);
+        compose(outResolvedColor, color, bloomTexture.getGfxTexture2D());
     }
-
-#endif
 
     void Renderer::visualize(GfxTexture2D* dst, GfxTexture2D* src, i32 mip) 
     {
@@ -666,469 +613,6 @@ namespace Cyan
     void Renderer::endRender() 
     {
     }
-
-#if 0
-    void Renderer::renderShadowMaps(Scene* inScene) 
-    {
-        GPU_DEBUG_SCOPE(shadowMapPassMarker, "Build ShadowMap");
-
-        if (inScene->m_directionalLight)
-        {
-            inScene->m_directionalLight->getDirectionalLightComponent()->getDirectionalLight()->renderShadowMap(inScene, this);
-        }
-        // todo: other types of shadow casting lights
-        for (auto lightComponent : inScene->m_lightComponents)
-        {
-        }
-    }
-
-    void Renderer::renderSceneDepthPrepass(const RenderableScene& scene, RenderDepthTexture2D outDepthTexture)
-    {
-        GPU_DEBUG_SCOPE(sceneDepthPrepassMarker, "Scene Depth Prepass");
-
-        GfxDepthTexture2D* outGfxDepthTexture = dynamic_cast<GfxDepthTexture2D*>(outDepthTexture.getGfxDepthTexture2D());
-        if (outGfxDepthTexture)
-        {
-            RenderPass pass(outGfxDepthTexture->width, outGfxDepthTexture->height);
-            pass.viewport = { 0, 0, outGfxDepthTexture->width, outGfxDepthTexture->height };
-            pass.setDepthBuffer(outGfxDepthTexture);
-            CreateVS(vs, "SceneDepthOnlyVS", SHADER_SOURCE_PATH "scene_depth_only_v.glsl");
-            CreatePS(ps, "SceneDepthPrepassPS", SHADER_SOURCE_PATH "scene_depth_prepass_p.glsl");
-            CreatePixelPipeline(pipeline, "SceneDepthPrepass", vs, ps);
-            pass.drawLambda = [&scene, pipeline](GfxContext* ctx) { 
-                auto vs = pipeline->m_vertexShader;
-                p->setShaderStorageBuffer(StaticMesh::getGlobalSubmeshBuffer());
-                p->setShaderStorageBuffer(StaticMesh::getGlobalVertexBuffer());
-                p->setShaderStorageBuffer(StaticMesh::getGlobalIndexBuffer());
-                p->setShaderStorageBuffer(scene.viewBuffer.get());
-                p->setShaderStorageBuffer(scene.transformBuffer.get());
-                p->setShaderStorageBuffer(scene.instanceBuffer.get());
-                p->setShaderStorageBuffer(scene.instanceLUTBuffer.get());
-
-                ctx->setPixelPipeline(pipeline);
-                // hack: suppress no vertex array bound gl error
-                ctx->setVertexArray(AssetManager::getAsset<StaticMesh>("FullScreenQuadMesh")->getSubmesh(0)->getVertexArray());
-                ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get()); 
-            };
-            pass.render(m_ctx);
-        }
-    }
-#endif
-
-#if 0
-    void Renderer::renderSceneDepthOnly(RenderableScene& scene, GfxDepthTexture2D* outDepthTexture)
-    {
-        GPU_DEBUG_SCOPE(sceneDepthPassMarker, "Scene Depth");
-
-        RenderPass pass(outDepthTexture->width, outDepthTexture->height);
-        pass.viewport = { 0, 0, outDepthTexture->width, outDepthTexture->height };
-        pass.setDepthBuffer(outDepthTexture);
-        CreateVS(vs, "SceneDepthOnlyVS", SHADER_SOURCE_PATH "scene_depth_only_v.glsl");
-        CreatePS(ps, "DepthOnlyPS", SHADER_SOURCE_PATH "depth_only_p.glsl");
-        CreatePixelPipeline(pipeline, "DepthOnly", vs, ps);
-        pass.gfxPipelineState.depth = DepthControl::kEnable;
-        pass.drawLambda = [&scene, pipeline](GfxContext* ctx) { 
-            auto vs = pipeline->m_vertexShader;
-            p->setShaderStorageBuffer(StaticMesh::getGlobalSubmeshBuffer());
-            p->setShaderStorageBuffer(StaticMesh::getGlobalVertexBuffer());
-            p->setShaderStorageBuffer(StaticMesh::getGlobalIndexBuffer());
-            p->setShaderStorageBuffer(scene.viewBuffer.get());
-            p->setShaderStorageBuffer(scene.transformBuffer.get());
-            p->setShaderStorageBuffer(scene.instanceBuffer.get());
-            p->setShaderStorageBuffer(scene.instanceLUTBuffer.get());
-
-            ctx->setPixelPipeline(pipeline);
-            // hack: suppress no vertex array bound gl error
-            ctx->setVertexArray(AssetManager::getAsset<StaticMesh>("FullScreenQuadMesh")->getSubmesh(0)->getVertexArray());
-            ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get()); 
-        };
-        pass.render(m_ctx);
-    }
-#endif
-
-#ifdef BINDLESS_TEXTURE
-    void Renderer::renderSceneGBufferBindless(const RenderableScene& scene, GBuffer gBuffer)
-    {
-        GPU_DEBUG_SCOPE(sceneGBufferPassMarker, "Scene GBuffer")
-
-        /**
-         * Only this rendering function actually uses bindless texture for rendering. Would like to keep
-         * bindless texture decoupled from Asset, as well as RenderableScene because only the renderer needs
-         * to be aware of it when doing bindless rendering.
-         */
-        struct BindlessMaterial
-        {
-            TextureHandle albedoMap;
-            TextureHandle normalMap;
-            TextureHandle metallicRoughnessMap;
-            TextureHandle emissiveMap;
-            TextureHandle occlusionMap;
-            glm::vec2 padding;
-            glm::vec4 albedo;
-            f32 metallic;
-            f32 roughness;
-            f32 emissive = 1.f;
-            u32 flag = 0;
-        };
-
-        auto createBindlessMaterial = [](Material* material) -> BindlessMaterial {
-            BindlessMaterial outBindlessMaterial = { };
-            if (material->albedoMap != nullptr && material->albedoMap->isInited())
-            {
-                auto albedoMap = BindlessTextureHandle::create(material->albedoMap->getGfxResource());
-                albedoMap->makeResident();
-                outBindlessMaterial.albedoMap = albedoMap->getHandle();
-                outBindlessMaterial.flag |= (u32)Material::Flags::kHasAlbedoMap;
-            }
-            if (material->normalMap != nullptr && material->normalMap->isInited())
-            {
-                auto normalMap = BindlessTextureHandle::create(material->normalMap->getGfxResource());
-                normalMap->makeResident();
-                outBindlessMaterial.normalMap = normalMap->getHandle();
-                outBindlessMaterial.flag |= (u32)Material::Flags::kHasNormalMap;
-            }
-            if (material->metallicRoughnessMap != nullptr && material->metallicRoughnessMap->isInited())
-            {
-                auto metallicRoughnessMap = BindlessTextureHandle::create(material->metallicRoughnessMap->getGfxResource());
-                metallicRoughnessMap->makeResident();
-                outBindlessMaterial.metallicRoughnessMap = metallicRoughnessMap->getHandle();
-                outBindlessMaterial.flag |= (u32)Material::Flags::kHasMetallicRoughnessMap;
-            }
-            if (material->occlusionMap != nullptr && material->occlusionMap->isInited())
-            {
-                auto occlusionMap = BindlessTextureHandle::create(material->occlusionMap->getGfxResource());
-                occlusionMap->makeResident();
-                outBindlessMaterial.occlusionMap = occlusionMap->getHandle();
-                outBindlessMaterial.flag |= (u32)Material::Flags::kHasOcclusionMap;
-            }
-            outBindlessMaterial.albedo = material->albedo;
-            outBindlessMaterial.metallic = material->metallic;
-            outBindlessMaterial.roughness = material->roughness;
-            outBindlessMaterial.emissive = material->emissive;
-            return outBindlessMaterial;
-        };
-
-        // convert unique material used by materials to GfxBindlessTexture2Ds and cache them
-        std::vector<BindlessMaterial> bindlessMaterials(scene.materials.size());
-        for (i32 i = 0; i < scene.materials.size(); ++i)
-        {
-            bindlessMaterials[i] = createBindlessMaterial(scene.materials[i]);
-        }
-        static std::unique_ptr<ShaderStorageBuffer> bindlessMaterialBuffer = std::make_unique<ShaderStorageBuffer>("MaterialBuffer", sizeOfVector(bindlessMaterials));
-        // write material data to a ssbo, using a persistent mapped buffer at some point will be ideal if material data gets large at some point
-        bindlessMaterialBuffer->write(bindlessMaterials, 0);
-
-        auto albedo = gBuffer.albedo.getGfxTexture2D();
-        auto normal = gBuffer.normal.getGfxTexture2D();
-        auto metallicRoughness = gBuffer.metallicRoughness.getGfxTexture2D();
-        RenderPass pass(albedo->width, albedo->height);
-        pass.viewport = { 0, 0, albedo->width, albedo->height };
-        pass.setRenderTarget(albedo, 0);
-        pass.setRenderTarget(normal, 1);
-        pass.setRenderTarget(metallicRoughness, 2);
-        pass.setDepthBuffer(gBuffer.depth.getGfxDepthTexture2D());
-        CreateVS(vs, "SceneGBufferPassVS", SHADER_SOURCE_PATH "scene_pass_v.glsl");
-        CreatePS(ps, "SceneGBufferPassPS", SHADER_SOURCE_PATH "scene_gbuffer_p.glsl");
-        CreatePixelPipeline(pipeline, "SceneGBufferPass", vs, ps);
-        pass.drawLambda = [&scene, pipeline](GfxContext* ctx) { 
-            // todo: maybe it's worth moving those shader storage buffer cached in "scene" into each function as a
-            // static variable, and every time this function is called, reset the data of those persistent gpu buffers
-            auto vs = pipeline->m_vertexShader;
-            p->setShaderStorageBuffer(StaticMesh::getGlobalSubmeshBuffer());
-            p->setShaderStorageBuffer(StaticMesh::getGlobalVertexBuffer());
-            p->setShaderStorageBuffer(StaticMesh::getGlobalIndexBuffer());
-            p->setShaderStorageBuffer(scene.viewBuffer.get());
-            p->setShaderStorageBuffer(scene.transformBuffer.get());
-            p->setShaderStorageBuffer(scene.instanceBuffer.get());
-            p->setShaderStorageBuffer(scene.instanceLUTBuffer.get());
-            p->setShaderStorageBuffer(bindlessMaterialBuffer.get());
-
-            ctx->setPixelPipeline(pipeline);
-            // hack: suppress no vertex array bound gl error
-            ctx->setVertexArray(AssetManager::getAsset<StaticMesh>("FullScreenQuadMesh")->getSubmesh(0)->getVertexArray());
-            ctx->multiDrawArrayIndirect(scene.indirectDrawBuffer.get()); 
-        };
-        pass.render(m_ctx);
-    }
-#endif
-
-#if 0
-    void Renderer::renderSceneGBuffer(Scene* scene, GBuffer gBuffer)
-    {
-        GPU_DEBUG_SCOPE(sceneGBufferPassMarker, "Scene GBuffer")
-
-        auto albedo = gBuffer.albedo.getGfxTexture2D();
-        auto normal = gBuffer.normal.getGfxTexture2D();
-        auto metallicRoughness = gBuffer.metallicRoughness.getGfxTexture2D();
-        RenderPass pass(albedo->width, albedo->height);
-        pass.viewport = { 0, 0, albedo->width, albedo->height };
-        pass.setRenderTarget(albedo, 0);
-        pass.setRenderTarget(normal, 1);
-        pass.setRenderTarget(metallicRoughness, 2);
-        pass.setDepthBuffer(gBuffer.depth.getGfxDepthTexture2D());
-        CreateVS(vs, "SceneNonBindlessGBufferPassVS", SHADER_SOURCE_PATH "scene_gbuffer_pass_non_bindless_v.glsl");
-        CreatePS(ps, "SceneNonBindlessGBufferPassPS", SHADER_SOURCE_PATH "scene_gbuffer_pass_non_bindless_p.glsl");
-        CreatePixelPipeline(pipeline, "SceneGBufferPass", vs, ps);
-
-        pass.drawLambda = [&scene, pipeline](GfxContext* ctx) {
-            auto vs = pipeline->m_vertexShader;
-            // todo: implement scene view
-            p->setShaderStorageBuffer(scene.viewBuffer.get());
-            auto ps = pipeline->m_pixelShader;
-
-            for (i32 i = 0; i < scene->m_staticMeshInstances.size(); ++i)
-            {
-                auto instance = scene->m_staticMeshInstances[i];
-                p->setUniform("localToWorld", instance->localToWorld.toMatrix());
-                auto mesh = instance->parent;
-                for (i32 i = 0; i < mesh->getNumSubmeshes(); ++i)
-                {
-                    auto sm = (*mesh)[i];
-                    // set material data
-                    auto material = (*instance)[i];
-                    // todo: shader should be queried from a material, instead of passing a shader to material
-                    material->setShaderParameters(ps);
-                    ctx->setPixelPipeline(pipeline);
-                    ctx->setVertexArray(sm->va.get());
-                    ctx->drawIndex(sm->numIndices());
-                }
-            }
-        };
-        pass.render(m_ctx);
-    }
-
-    void Renderer::renderSceneLighting(RenderTexture2D outSceneColor, Scene* scene, GBuffer gBuffer)
-    {
-        GPU_DEBUG_SCOPE(sceneLightingPassMarker, "Scene Lighting");
-
-        renderSceneDirectLighting(m_sceneTextures->directLighting, scene, gBuffer);
-        renderSceneIndirectLighting(m_sceneTextures->indirectLighting, scene, gBuffer);
-
-        CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
-        CreatePS(ps, "SceneLightingPassPS", SHADER_SOURCE_PATH "scene_lighting_p.glsl");
-        CreatePixelPipeline(pipeline, "SceneLightingPass", vs, ps);
-
-        // combine direct lighting with indirect lighting
-        auto outTexture = outSceneColor.getGfxTexture2D();
-        drawFullscreenQuad(
-            glm::uvec2(outTexture->width, outTexture->height),
-            [outTexture](RenderPass& pass) {
-                pass.setRenderTarget(outTexture, 0);
-            },
-            pipeline,
-            [this](ProgramPipeline* p) {
-                p->setTexture("directLightingTexture", m_sceneTextures->directLighting.getGfxTexture2D());
-                p->setTexture("indirectLightingTexture", m_sceneTextures->indirectLighting.getGfxTexture2D());
-            }
-        );
-    }
-
-    void Renderer::renderSceneDirectLighting(RenderTexture2D outDirectLighting, Scene* scene, GBuffer gBuffer)
-    {
-        GPU_DEBUG_SCOPE(sceneDirectLightingPassMarker, "Scene Direct");
-
-        CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
-        CreatePS(ps, "SceneDirectLightingPS", SHADER_SOURCE_PATH "scene_direct_lighting_p.glsl");
-        CreatePixelPipeline(pipeline, "SceneDirectLightingPass", vs, ps);
-
-        auto outDirectLightingGfx = outDirectLighting.getGfxTexture2D();
-        drawFullscreenQuad(
-            glm::uvec2(outDirectLightingGfx->width, outDirectLightingGfx->height),
-            [outDirectLightingGfx, this](RenderPass& pass) {
-                pass.setRenderTarget(outDirectLightingGfx, 0);
-                pass.setRenderTarget(RenderTarget(m_sceneTextures->directDiffuseLighting.getGfxTexture2D()), 1);
-            },
-            pipeline,
-            [gBuffer, &scene](ProgramPipeline* p) {
-                // directionalLight parameters
-                scene->sunLight->setShaderParameters(ps);
-
-                // p->setShaderStorageBuffer(scene.viewBuffer.get());
-                p->setTexture("sceneDepth", gBuffer.depth.getGfxDepthTexture2D());
-                p->setTexture("sceneNormal", gBuffer.normal.getGfxTexture2D());
-                p->setTexture("sceneAlbedo", gBuffer.albedo.getGfxTexture2D());
-                p->setTexture("sceneMetallicRoughness", gBuffer.metallicRoughness.getGfxTexture2D());
-            }
-        );
-
-        if (scene.skybox)
-        {
-            scene.skybox->render(m_sceneTextures->directLighting, gBuffer.depth, scene.view.view, scene.view.projection);
-        }
-    }
-
-    void Renderer::renderSceneIndirectLighting(RenderTexture2D outIndirectLighting, Scene* scene, GBuffer gBuffer)
-    {
-    }
-#endif
-
-#if 0
-    void Renderer::renderSceneGBufferNonBindless(const RenderableScene& scene, GBuffer gBuffer)
-    {
-        GPU_DEBUG_SCOPE(sceneGBufferPassMarker, "Scene GBuffer")
-
-        auto albedo = gBuffer.albedo.getGfxTexture2D();
-        auto normal = gBuffer.normal.getGfxTexture2D();
-        auto metallicRoughness = gBuffer.metallicRoughness.getGfxTexture2D();
-        RenderPass pass(albedo->width, albedo->height);
-        pass.viewport = { 0, 0, albedo->width, albedo->height };
-        pass.setRenderTarget(albedo, 0);
-        pass.setRenderTarget(normal, 1);
-        pass.setRenderTarget(metallicRoughness, 2);
-        pass.setDepthBuffer(gBuffer.depth.getGfxDepthTexture2D());
-        CreateVS(vs, "SceneNonBindlessGBufferPassVS", SHADER_SOURCE_PATH "scene_gbuffer_pass_non_bindless_v.glsl");
-        CreatePS(ps, "SceneNonBindlessGBufferPassPS", SHADER_SOURCE_PATH "scene_gbuffer_pass_non_bindless_p.glsl");
-        CreatePixelPipeline(pipeline, "SceneGBufferPass", vs, ps);
-        pass.drawLambda = [&scene, pipeline](GfxContext* ctx) {
-            // bind shared data,
-            auto vs = pipeline->m_vertexShader;
-            p->setShaderStorageBuffer(scene.viewBuffer.get());
-            p->setShaderStorageBuffer(scene.transformBuffer.get());
-            auto ps = pipeline->m_pixelShader;
-
-            for (i32 i = 0; i < scene.meshInstances.size(); ++i)
-            {
-                p->setUniform("instanceID", i);
-
-                auto meshInstance = scene.meshInstances[i];
-                auto mesh = meshInstance->mesh;
-                for (i32 i = 0; i < mesh->numSubmeshes(); ++i)
-                {
-                    auto sm = mesh->getSubmesh(i);
-                    if (sm->bInitialized)
-                    {
-                        // set material data
-                        auto material = meshInstance->getMaterial(i);
-                        // todo: shader should be queried from a material, instead of passing a shader to material
-                        material->setShaderParameters(ps);
-                        ctx->setPixelPipeline(pipeline);
-                        auto va = sm->getVertexArray();
-                        ctx->setVertexArray(va);
-                        ctx->drawIndex(sm->numIndices());
-                    }
-                }
-            }
-        };
-        pass.render(m_ctx);
-    }
-
-    void Renderer::renderSceneLighting(RenderTexture2D outSceneColor, const RenderableScene& scene, GBuffer gBuffer)
-    {
-        GPU_DEBUG_SCOPE(sceneLightingPassMarker, "Scene Lighting");
-
-        renderSceneDirectLighting(m_sceneTextures->directLighting, scene, gBuffer);
-        renderSceneIndirectLighting(m_sceneTextures->indirectLighting, scene, gBuffer);
-
-        CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
-        CreatePS(ps, "SceneLightingPassPS", SHADER_SOURCE_PATH "scene_lighting_p.glsl");
-        CreatePixelPipeline(pipeline, "SceneLightingPass", vs, ps);
-        // combine direct lighting with indirect lighting
-        auto outTexture = outSceneColor.getGfxTexture2D();
-        drawFullscreenQuad(
-            glm::uvec2(outTexture->width, outTexture->height),
-            [outTexture](RenderPass& pass) {
-                pass.setRenderTarget(outTexture, 0);
-            },
-            pipeline,
-            [this](ProgramPipeline* p) {
-                p->setTexture("directLightingTexture", m_sceneTextures->directLighting.getGfxTexture2D());
-                p->setTexture("indirectLightingTexture", m_sceneTextures->indirectLighting.getGfxTexture2D());
-            }
-        );
-    }
-
-    void Renderer::renderSceneDirectLighting(RenderTexture2D outDirectLighting, const RenderableScene& scene, GBuffer gBuffer)
-    {
-        GPU_DEBUG_SCOPE(sceneDirectLightingPassMarker, "Scene Direct");
-
-        CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
-        CreatePS(ps, "SceneDirectLightingPS", SHADER_SOURCE_PATH "scene_direct_lighting_p.glsl");
-        CreatePixelPipeline(pipeline, "SceneDirectLightingPass", vs, ps);
-        auto outDirectLightingGfx = outDirectLighting.getGfxTexture2D();
-        drawFullscreenQuad(
-            glm::uvec2(outDirectLightingGfx->width, outDirectLightingGfx->height),
-            [outDirectLightingGfx, this](RenderPass& pass) {
-                pass.setRenderTarget(outDirectLightingGfx, 0);
-                pass.setRenderTarget(RenderTarget(m_sceneTextures->directDiffuseLighting.getGfxTexture2D()), 1);
-            },
-            pipeline,
-            [gBuffer, &scene](ProgramPipeline* p) {
-                // directionalLight parameters
-                scene.sunLight->setShaderParameters(ps);
-
-                p->setShaderStorageBuffer(scene.viewBuffer.get());
-                p->setTexture("sceneDepth", gBuffer.depth.getGfxDepthTexture2D());
-                p->setTexture("sceneNormal", gBuffer.normal.getGfxTexture2D());
-                p->setTexture("sceneAlbedo", gBuffer.albedo.getGfxTexture2D());
-                p->setTexture("sceneMetallicRoughness", gBuffer.metallicRoughness.getGfxTexture2D());
-            }
-        );
-
-        if (scene.skybox)
-        {
-            scene.skybox->render(m_sceneTextures->directLighting, gBuffer.depth, scene.view.view, scene.view.projection);
-        }
-    }
-
-    void Renderer::renderSceneIndirectLighting(RenderTexture2D outIndirectLighting, const RenderableScene& scene, GBuffer gBuffer)
-    {
-        GPU_DEBUG_SCOPE(sceneIndirectLightingPassMarker, "Scene Indirect Lighting")
-
-        auto outTexture = outIndirectLighting.getGfxTexture2D();
-
-        // render AO and bent normal, as well as indirect irradiance
-        if (bDebugSSRT)
-        {
-            visualizeSSRT(gBuffer.depth.getGfxDepthTexture2D(), gBuffer.normal.getGfxTexture2D());
-        }
-
-        auto SSGI = SSGI::create(glm::uvec2(outTexture->width, outTexture->height));
-        SSGI->render(m_sceneTextures->ao, m_sceneTextures->bentNormal, m_sceneTextures->irradiance, m_sceneTextures->gBuffer, scene, m_sceneTextures->HiZ, m_sceneTextures->directDiffuseLighting);
-
-        CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
-        CreatePS(ps, "SceneIndirectLightingPass", SHADER_SOURCE_PATH "scene_indirect_lighting_p.glsl");
-        CreatePixelPipeline(pipeline, "SceneIndirectLightingPass", vs, ps);
-
-        drawFullscreenQuad(
-            getFramebufferSize(outTexture),
-            [outTexture](RenderPass& pass) {
-                pass.setRenderTarget(outTexture, 0);
-            },
-            pipeline,
-            [this, &scene, gBuffer](ProgramPipeline* p) {
-                p->setShaderStorageBuffer(scene.viewBuffer.get());
-                p->setTexture("sceneDepth", gBuffer.depth.getGfxDepthTexture2D());
-                p->setTexture("sceneNormal", gBuffer.normal.getGfxTexture2D());
-                p->setTexture("sceneAlbedo", gBuffer.albedo.getGfxTexture2D());
-                p->setTexture("sceneMetallicRoughness", gBuffer.metallicRoughness.getGfxTexture2D());
-
-                // setup ssao
-                p->setTexture("ssao", m_sceneTextures->ao.getGfxTexture2D());
-                p->setUniform("ssaoEnabled", m_settings.bSSAOEnabled ? 1.f : 0.f);
-
-                // setup ssbn
-                p->setTexture("ssbn", m_sceneTextures->bentNormal.getGfxTexture2D());
-                p->setUniform("ssbnEnabled", m_settings.bBentNormalEnabled ? 1.f : 0.f);
-
-                // setup indirect irradiance
-                p->setTexture("indirectIrradiance", m_sceneTextures->irradiance.getGfxTexture2D());
-                p->setUniform("indirectIrradianceEnabled", m_settings.bIndirectIrradianceEnabled ? 1.f : 0.f);
-
-                // sky light
-                /* note
-                * seamless cubemap doesn't work with bindless textures that's accessed using a texture handle,
-                * so falling back to normal way of binding textures here.
-                */
-                if (scene.skyLight)
-                {
-                    p->setTexture("skyLight.irradiance", scene.skyLight->irradianceProbe->m_convolvedIrradianceTexture.get());
-                    p->setTexture("skyLight.reflection", scene.skyLight->reflectionProbe->m_convolvedReflectionTexture.get());
-                    p->setTexture("skyLight.BRDFLookupTexture", ReflectionProbe::getBRDFLookupTexture());
-                }
-            }
-        );
-    }
-#endif
 
 #if 0
     // todo: move this into SSGI
@@ -1537,24 +1021,24 @@ namespace Cyan
         return upscalePyramid[0];
     }
 
-    void Renderer::compose(GfxTexture2D* composited, GfxTexture2D* inSceneColor, GfxTexture2D* inBloomColor, const glm::uvec2& outputResolution) 
+    void Renderer::compose(GfxTexture2D* outComposited, GfxTexture2D* sceneColor, GfxTexture2D* bloomColor) 
     {
         CreateVS(vs, "CompositeVS", SHADER_SOURCE_PATH "composite_v.glsl");
         CreatePS(ps, "CompositePS", SHADER_SOURCE_PATH "composite_p.glsl");
         CreatePixelPipeline(pipeline, "Composite", vs, ps);
 
         drawFullscreenQuad(
-            getFramebufferSize(composited),
-            [composited](RenderPass& pass) {
-                pass.setRenderTarget(composited, 0);
+            getFramebufferSize(outComposited),
+            [outComposited](RenderPass& pass) {
+                pass.setRenderTarget(outComposited, 0);
             },
             pipeline,
-            [this, inBloomColor, inSceneColor](ProgramPipeline* p) {
+            [this, bloomColor, sceneColor](ProgramPipeline* p) {
                 p->setUniform("enableTonemapping", m_settings.enableTonemapping ? 1.f : 0.f);
                 p->setUniform("tonemapOperator", m_settings.tonemapOperator);
                 p->setUniform("whitePointLuminance", m_settings.whitePointLuminance);
                 p->setUniform("smoothstepWhitePoint", m_settings.smoothstepWhitePoint);
-                if (inBloomColor && m_settings.enableBloom) 
+                if (bloomColor && m_settings.enableBloom) 
                 {
                     p->setUniform("enableBloom", 1.f);
                 } 
@@ -1565,12 +1049,12 @@ namespace Cyan
                 p->setUniform("exposure", m_settings.exposure);
                 p->setUniform("colorTempreture", m_settings.colorTempreture);
                 p->setUniform("bloomIntensity", m_settings.bloomIntensity);
-                p->setTexture("bloomTexture", inBloomColor);
-                p->setTexture("sceneColorTexture", inSceneColor);
+                p->setTexture("bloomTexture", bloomColor);
+                p->setTexture("sceneColorTexture", sceneColor);
             }
         );
         // add a reconstruction pass using Gaussian filter
-        gaussianBlur(composited, 3u, 1.0f);
+        gaussianBlur(outComposited, 3u, 1.0f);
     }
 
     void Renderer::gaussianBlur(GfxTexture2D* inoutTexture, u32 inRadius, f32 inSigma) 

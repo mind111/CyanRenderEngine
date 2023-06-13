@@ -37,6 +37,7 @@ namespace Cyan
             std::unique_ptr<GfxTexture2D> bentNormal;
             std::unique_ptr<GfxTexture2D> irradiance;
             std::unique_ptr<GfxTexture2D> color;
+            std::unique_ptr<GfxTexture2D> resolvedColor;
         };
 
         struct ViewParameters
@@ -74,6 +75,7 @@ namespace Cyan
         GfxTexture2D* lightingOnly() { return m_output->lightingOnly.get(); }
         GfxTexture2D* ao() { return m_output->ao.get(); }
         GfxTexture2D* color() { return m_output->color.get(); }
+        GfxTexture2D* resolvedColor() { return m_output->resolvedColor.get(); }
 
         Scene* m_scene = nullptr;
         Camera* m_camera = nullptr;

@@ -85,24 +85,9 @@ namespace Cyan
 
 // rendering
         void beginRender();
-#if 0
-        void render(Scene* scene, const SceneView& sceneView);
-#else
         void render(Scene* scene);
-#endif
         void endRender();
-#if 0
-        void renderSceneDepthOnly(RenderableScene& renderableScene, GfxDepthTexture2D* outDepthTexture);
-#ifdef BINDLESS_TEXTURE
-        void renderSceneGBufferBindless(const RenderableScene& scene, GBuffer gBuffer);
-#endif
-        void renderSceneGBufferNonBindless(const RenderableScene& scene, GBuffer gBuffer);
-        void renderSceneDepthPrepass(const RenderableScene& renderableScene, RenderDepthTexture2D outDepthBuffer);
-        void renderSceneGBufferWithTextureAtlas(Framebuffer* outFramebuffer, RenderableScene& scene, GBuffer gBuffer);
-        void renderSceneLighting(RenderTexture2D outSceneColor, const RenderableScene& scene, GBuffer gBuffer);
-        void renderSceneDirectLighting(RenderTexture2D outDirectLighting, const RenderableScene& scene, GBuffer gBuffer);
-        void renderSceneIndirectLighting(RenderTexture2D outIndirectLighting, const RenderableScene& scene, GBuffer gBuffer);
-#else
+
         /* Rendering Utilities */
         /**
          * 'HDRI' needs to be an equirectangular map
@@ -117,8 +102,8 @@ namespace Cyan
         void renderSceneLighting(Scene* scene, SceneRender* render);
         void renderSceneDirectLighting(Scene* scene, SceneRender* render);
         void renderSceneIndirectLighting(Scene* scene, SceneRender* render);
+        void postprocess(GfxTexture2D* outResolvedColor, GfxTexture2D* color);
         void renderToScreen(GfxTexture2D* inTexture);
-#endif
 
         bool bDebugSSRT = false;
         glm::vec2 debugCoord = glm::vec2(.5f);
@@ -181,7 +166,7 @@ namespace Cyan
         /*
         * Compositing and resolving to final output albedo texture. Applying bloom, tone mapping, and gamma correction.
         */
-        void compose(GfxTexture2D* composited, GfxTexture2D* inSceneColor, GfxTexture2D* inBloomColor, const glm::uvec2& outputResolution);
+        void compose(GfxTexture2D* outComposited, GfxTexture2D* sceneColor, GfxTexture2D* bloomColor);
 //
         struct VisualizationDesc {
             std::string m_name;
