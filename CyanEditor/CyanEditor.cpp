@@ -47,12 +47,12 @@ namespace Cyan
             Transform local;
             // todo: bug here
             local.translation = glm::vec3(0.f, 3.f, 8.f);
-            auto cameraEntity = m_world->createPerspectiveCameraEntity("Camera", local, glm::vec3(0.f, 1.f, 0.f), m_appWindowDimension, VM_RESOLVED_SCENE_COLOR, 45.f, 0.1f, 100.f);
+            auto cameraEntity = m_world->createPerspectiveCameraEntity("Camera", local, glm::vec3(0.f, 1.f, 0.f), m_appWindowDimension, VM_RESOLVED_SCENE_COLOR, 90.f, 0.1f, 100.f);
             cameraEntity->addComponent(std::make_shared<CameraControllerComponent>("CameraController", cameraEntity->getCameraComponent()));
 
             auto directionalLightEntity = m_world->createDirectionalLightEntity("DirectionalLight", Transform());
             auto directionalLightComponent = directionalLightEntity->getDirectionalLightComponent();
-            directionalLightComponent->setIntensity(10.f);
+            directionalLightComponent->setIntensity(30.f);
 
             auto skyLightEntity = m_world->createSkyLightEntity("SkyLightEntity", Transform());
             auto skyLightComponent = skyLightEntity->getSkyLightComponent();

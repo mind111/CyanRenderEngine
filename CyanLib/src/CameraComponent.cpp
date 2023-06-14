@@ -97,19 +97,34 @@ namespace Cyan
 
             if (bMouseRightButtonPressed)
             {
-                // TODO: this camera rotation thing is bugged, not sure why
+                // TODO: learn quaternion properly and improve the rotation code below! 
                 // yaw first
-                t.rotation = glm::rotate(t.rotation, glm::radians(m_yawOneFrame), camera->up());
-                m_cameraComponent->setLocalTransform(t);
-
-#if 0
-                glm::vec3 up = camera->up();
-                cyanInfo("Camera Up: (%.2f, %.2f, %.2f)", up.x, up.y, up.z);
-#endif
-
+                {
+                    f32 yawAngle = glm::radians(m_yawOneFrame);
+                    glm::mat4 m = t.toMatrix();
+                    glm::vec3 forward = -m[2];
+                    const glm::vec3 yAxis(0.f, 1.f, 0.f);
+                    glm::quat qYaw(glm::cos(yawAngle * .5f), yAxis * glm::sin(yawAngle * .5f));
+                    forward = glm::normalize(glm::rotate(qYaw, glm::vec4(forward, 0.f)));
+                    glm::vec3 right = glm::normalize(glm::cross(forward, camera->m_worldUp));
+                    glm::vec3 up = glm::normalize(glm::cross(right, forward));
+                    glm::mat4 yawRotationMatrix(glm::vec4(right, 0.f), glm::vec4(up, 0.f), glm::vec4(-forward, 0.f), glm::vec4(0.f, 0.f, 0.f, 1.f));
+                    t.rotation = yawRotationMatrix;
+                    m_cameraComponent->setLocalTransform(t);
+                }
                 // then pitch
-                t.rotation = glm::rotate(t.rotation, glm::radians(m_pitchOneFrame), camera->right());
-                m_cameraComponent->setLocalTransform(t);
+                {
+                    f32 pitchAngle = glm::radians(m_pitchOneFrame);
+                    glm::mat4 m = t.toMatrix();
+                    glm::vec3 forward = -m[2];
+                    glm::quat qPitch(glm::cos(pitchAngle * .5f), camera->right() * glm::sin(pitchAngle * .5f));
+                    forward = glm::normalize(glm::rotate(qPitch, glm::vec4(forward, 0.f)));
+                    glm::vec3 right = glm::normalize(glm::cross(forward, camera->m_worldUp));
+                    glm::vec3 up = glm::normalize(glm::cross(right, forward));
+                    glm::mat4 pitchRotationMatrix(glm::vec4(right, 0.f), glm::vec4(up, 0.f), glm::vec4(-forward, 0.f), glm::vec4(0.f, 0.f, 0.f, 1.f));
+                    t.rotation = pitchRotationMatrix;
+                    m_cameraComponent->setLocalTransform(t);
+                }
             }
 
             // and then handle translation
@@ -133,9 +148,8 @@ namespace Cyan
             if (glm::length(direction) > 0.f)
             {
                 m_velocity = glm::normalize(direction) * m_speed;
-                t.translation += m_velocity;
             }
-
+            t.translation += m_velocity;
             m_cameraComponent->setLocalTransform(t);
         }
 

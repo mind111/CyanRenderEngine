@@ -86,5 +86,10 @@ void main()
             outIrradiance += texture(srcCubemap, sampleDir).rgb * cos(theta) * sin(theta);
         }
     }
-    outIrradiance = outIrradiance / N;
+    /*
+    * Referencing this article http://www.codinglabs.net/article_physically_based_rendering.aspx
+      for the pi term, though I don't understand its derivation. Not including it does make the output 
+      irradiance feel too dark, so including it for now.
+    */
+    outIrradiance = pi * outIrradiance / N;
 }

@@ -22,8 +22,8 @@ namespace Cyan
         glm::mat4 mat = t.toMatrix();
         // update camera pose
         m_camera->m_right = glm::normalize(mat * glm::vec4(Camera::localRight, 0.f));
-        m_camera->m_forward = glm::normalize(mat * glm::vec4(Camera::localForward, 0.f));
         m_camera->m_up = glm::normalize(mat * glm::vec4(Camera::localUp, 0.f));
+        m_camera->m_forward = glm::normalize(mat * glm::vec4(Camera::localForward, 0.f));
         m_camera->m_position = t.translation;
     }
 }

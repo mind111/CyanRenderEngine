@@ -32,8 +32,10 @@ namespace Cyan
         virtual void update() override;
     protected:
         f32 m_yawOneFrame = 0.f, m_pitchOneFrame = 0.f; // in degrees
+        f32 m_yaw = 0.f, m_pitch = 0.f;
         glm::vec3 m_velocity = glm::vec3(0.f);
-        f32 m_speed = 0.02f;
+        static constexpr f32 kMaxSpeed = 0.2f;
+        f32 m_speed = 0.15f;
         bool bMouseRightButtonPressed = false;
         bool bWKeyPressed = false, bAKeyPressed = false, bSKeyPressed = false, bDKeyPressed = false;
         CameraComponent* m_cameraComponent = nullptr;

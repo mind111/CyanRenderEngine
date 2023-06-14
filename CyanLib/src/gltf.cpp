@@ -120,7 +120,6 @@ namespace Cyan
                                 defaultInstance->setFloat("mp_hasMetallicRoughnessMap", .5f);
                             }
                         }
-
                     }
                 );
             }

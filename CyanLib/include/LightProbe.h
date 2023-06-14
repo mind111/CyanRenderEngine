@@ -30,7 +30,7 @@ namespace Cyan
         virtual void buildFrom(GfxTextureCube* srcCubemap) override;
 
         static constexpr u32 kNumSamplesInTheta = 32u;
-        static constexpr u32 kNumSamplesInPhi = 32u;
+        static constexpr u32 kNumSamplesInPhi = 64u;
         std::unique_ptr<GfxTextureCube> m_irradianceCubemap = nullptr;
     };
 

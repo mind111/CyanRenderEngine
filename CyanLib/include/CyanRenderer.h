@@ -98,6 +98,8 @@ namespace Cyan
         void renderSceneDepth(GfxDepthTexture2D* outDepthBuffer, Scene* scene, const SceneRender::ViewParameters& viewParameters);
         void renderSceneDepthPrepass(GfxDepthTexture2D* outDepthBuffer, Scene* scene, const SceneRender::ViewParameters& viewParameters);
         void renderShadowMaps(Scene* scene, Camera* camera);
+        // todo: implement this!
+        void renderVirtualShadowMap(Scene* scene, SceneRender* render);
         void renderSceneGBuffer(GfxTexture2D* outAlbedo, GfxTexture2D* outNormal, GfxTexture2D* outMetallicRoughness, GfxDepthTexture2D* depth, Scene* scene, const SceneRender::ViewParameters& viewParameters);
         void renderSceneLighting(Scene* scene, SceneRender* render);
         void renderSceneDirectLighting(Scene* scene, SceneRender* render);

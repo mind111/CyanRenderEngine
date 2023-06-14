@@ -355,6 +355,27 @@ namespace Cyan
         }
     }
 
+    // todo: continue implementing this later
+    void Renderer::renderVirtualShadowMap(Scene* scene, SceneRender* render)
+    {
+        // build page request for each pixel
+        PerspectiveCamera* camera = dynamic_cast<PerspectiveCamera*>(scene->m_cameras[0]);
+        if (camera != nullptr)
+        {
+            const f32 kMaxShadowDrawingDistance = 50.f; // 50 meters from the camera
+            // calculate a stable bound for the portion of view frustum that's drawing shadow 
+            f32 nearClippingDistance = camera->n;
+            f32 shadowClippingDistance = kMaxShadowDrawingDistance;
+
+            const u32 kVirtualShadowMapResolution = 32 * 1024;
+        }
+        else
+        {
+            cyanError("VirtualShadowMap only works for perspective camera for now!");
+            assert(0);
+        }
+    }
+
     /**
      * todo: implement material bucketing
      * todo: implement material->unbind()

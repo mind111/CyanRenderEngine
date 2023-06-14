@@ -169,5 +169,10 @@ namespace Cyan
                 renderer->renderSceneDepth(m_cascades[i].depthTexture.get(), scene, viewParameters);
             }
         }
+        else
+        {
+            cyanError("CascadedShadowMap only works for perspective camera for now!");
+            assert(0);
+        }
     }
 }
