@@ -51,6 +51,23 @@ namespace Cyan
         Entity* getChild(i32 index) { return m_children[index]; }
         SceneComponent* getRootSceneComponent() { return m_rootSceneComponent.get(); }
         Component* getComponent(i32 index) { return m_components[index].get(); }
+
+        /**
+         * get components by type
+         */
+        template <typename T>
+        void getComponent(std::vector<T*>& outComponents)
+        {
+            for (auto component : m_components)
+            {
+                T* typedComponent = dynamic_cast<T*>(component.get());
+                if (typedComponent != nullptr)
+                {
+                    outComponents.push_back(typedComponent);
+                }
+            }
+        }
+
         i32 numChildren() { return m_children.size(); }
         i32 numComponents() { return m_components.size(); }
 

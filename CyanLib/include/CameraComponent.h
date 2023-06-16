@@ -19,6 +19,9 @@ namespace Cyan
 
         Camera* getCamera() { return m_camera.get(); }
 
+        void turnOn();
+        void turnOff();
+
     protected:
         std::unique_ptr<Camera> m_camera = nullptr;
     };
@@ -30,7 +33,12 @@ namespace Cyan
         ~CameraControllerComponent() { }
 
         virtual void update() override;
+
+        void turnOn();
+        void turnOff();
+
     protected:
+        bool bEnabled = true;
         f32 m_yawOneFrame = 0.f, m_pitchOneFrame = 0.f; // in degrees
         f32 m_yaw = 0.f, m_pitch = 0.f;
         glm::vec3 m_velocity = glm::vec3(0.f);

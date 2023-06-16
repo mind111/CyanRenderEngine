@@ -97,11 +97,11 @@ namespace Cyan
             m_defaultShapes.unitCubeMesh->createSubmesh(0, std::move(t));
         }
 
+        m_defaultShapes.sphere = m_assetImporter->importWavefrontObj("DefaultSphere", ASSET_PATH "mesh/default/sphere.obj");
 #if 0
         // quad
         m_defaultShapes.quad = m_assetImporter->importWavefrontObj("Quad", ASSET_PATH "mesh/default/quad.obj");
         // sphere
-        m_defaultShapes.sphere = m_assetImporter->importWavefrontObj("Sphere", ASSET_PATH "mesh/default/sphere.obj");
         // icosphere
         m_defaultShapes.icosphere = m_assetImporter->importWavefrontObj("IcoSphere", ASSET_PATH "mesh/default/icosphere.obj");
         // bounding sphere

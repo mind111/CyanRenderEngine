@@ -20,6 +20,10 @@ namespace Cyan
         kCount
     };
 
+#define KEY_PRESSED InputAction::kPress
+#define KEY_REPEAT InputAction::kRepeat
+#define KEY_RELEASE InputAction::kRelease
+
     struct KeyEvent
     {
         char key;

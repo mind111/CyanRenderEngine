@@ -39,10 +39,10 @@ namespace Cyan
         , aspectRatio((f32)renderResolution.x / renderResolution.y)
         , viewMatrix(camera->view())
         , projectionMatrix(camera->projection())
-        , cameraPosition(camera->m_position)
-        , cameraRight(camera->right())
-        , cameraForward(camera->forward())
-        , cameraUp(camera->up())
+        , cameraPosition(camera->m_worldSpacePosition)
+        , cameraRight(camera->worldSpaceRight())
+        , cameraForward(camera->worldSpaceForward())
+        , cameraUp(camera->worldSpaceUp())
         , frameCount(scene->getFrameCount())
         , elapsedTime(scene->getElapsedTime())
         , deltaTime(scene->getDeltaTime())
@@ -74,11 +74,20 @@ namespace Cyan
             m_viewParameters.aspectRatio = (f32)m_camera->m_renderResolution.x / m_camera->m_renderResolution.y;
             m_viewParameters.viewMatrix = m_camera->view();
             m_viewParameters.projectionMatrix = m_camera->projection();
-            m_viewParameters.cameraPosition = m_camera->m_position;
-            m_viewParameters.cameraRight = m_camera->right();
-            m_viewParameters.cameraForward = m_camera->forward();
-            m_viewParameters.cameraUp = m_camera->up();
+            m_viewParameters.cameraPosition = m_camera->m_worldSpacePosition;
+            m_viewParameters.cameraRight = m_camera->worldSpaceRight();
+            m_viewParameters.cameraForward = m_camera->worldSpaceForward();
+            m_viewParameters.cameraUp = m_camera->worldSpaceUp();
         }
+    }
+
+    bool SceneRender::shouldRender()
+    {
+        if (m_camera != nullptr)
+        {
+            return m_camera->bEnabledForRendering;
+        }
+        return false;
     }
 
     SceneRender::SceneRender(Scene* scene, Camera* camera)

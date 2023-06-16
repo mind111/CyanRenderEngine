@@ -22,7 +22,7 @@ namespace Cyan
         static std::thread::id getMainThreadID() { assert(singleton); return singleton->m_mainThreadID; }
 
         GLFWwindow* getAppWindow() { return m_graphicsSystem->getAppWindow(); }
-        InputSystem* getIOSystem() { return m_IOSystem.get(); }
+        InputSystem* getInputSystem() { return m_IOSystem.get(); }
         GraphicsSystem* getGraphicsSystem() { return m_graphicsSystem.get(); }
 
         f32 getFrameElapsedTimeInMs() { return renderFrameTime; }

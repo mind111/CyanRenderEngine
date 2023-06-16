@@ -77,6 +77,8 @@ namespace Cyan
         GfxTexture2D* color() { return m_output->color.get(); }
         GfxTexture2D* resolvedColor() { return m_output->resolvedColor.get(); }
 
+        bool shouldRender();
+
         Scene* m_scene = nullptr;
         Camera* m_camera = nullptr;
         ViewParameters m_viewParameters;

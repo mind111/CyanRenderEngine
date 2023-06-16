@@ -119,23 +119,31 @@ namespace Cyan
         void drawColoredScreenSpaceQuad(GfxTexture2D* outTexture, const glm::vec2& screenSpaceMin, const glm::vec2& screenSpaceMax, const glm::vec4& color);
         void blitTexture(GfxTexture2D* dst, GfxTexture2D* src);
 
-        /* Debugging utilities */
-        struct Vertex
+        struct DebugPrimitiveVertex
         {
-            glm::vec4 m_position;
+            glm::vec4 position;
             glm::vec4 color;
         };
-        void drawScreenSpaceLines(Framebuffer* framebuffer, const std::vector<Vertex>& vertices);
-        void drawWorldSpaceLines(Framebuffer* framebuffer, const std::vector<Vertex>& vertices);
-        void drawWorldSpacePoints(Framebuffer* framebuffer, const std::vector<Vertex>& points);
-        std::queue<std::function<void(void)>> debugDrawCalls;
-        void drawDebugObjects();
-        void debugDrawLineImmediate(const glm::vec3& v0, const glm::vec3& v1);
-        void debugDrawSphere(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& m_position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection);
-        void debugDrawCubeImmediate(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& m_position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection);
-        void debugDrawCubeBatched(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& m_position, const glm::vec3& scale, const glm::vec3& facingDir, const glm::vec4& albedo, const glm::mat4& view, const glm::mat4& projection);
+
+        void debugDrawWorldSpaceLines(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const SceneRender::ViewParameters& viewParemters, const std::vector<DebugPrimitiveVertex>& vertices);
+        void debugDrawSphere(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color, const SceneRender::ViewParameters& viewParameters);
+        void debugDrawWireframeSphere(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color, const SceneRender::ViewParameters& viewParameters);
+        void debugDrawCube(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color, const SceneRender::ViewParameters& viewParameters);
+        void debugDrawWireframeCube(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color, const SceneRender::ViewParameters& viewParameters);
+
+        void drawScreenSpaceLines(Framebuffer* framebuffer, const std::vector<DebugPrimitiveVertex>& vertices);
+        void drawWorldSpacePoints(Framebuffer* framebuffer, const std::vector<DebugPrimitiveVertex>& points);
         void debugDrawCubemap(GfxTextureCube* cubemap);
         void debugDrawCubemap(GLuint cubemap);
+
+        using DebugDrawObject = std::function<void(void)>;
+        static constexpr u32 kMaxNumDebugDrawObjects = 128;
+        std::array<DebugDrawObject, kMaxNumDebugDrawObjects> debugDrawObjects;
+        u32 numUsedSlots = 0;
+        std::queue<u32> freeSlots;
+        void addDebugDrawObject(const DebugDrawObject& debugDrawObject, u32& slot);
+        void removeDebugDrawObject(u32 slot);
+        void drawDebugObjects();
 
         void addUIRenderCommand(const std::function<void()>& UIRenderCommand);
 

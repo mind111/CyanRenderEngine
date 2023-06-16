@@ -57,6 +57,7 @@ namespace Cyan
         auto InputSystem = InputSystem::get();
         switch (key)
         {
+            // todo: create a mapping between GLFW keys and Cyan keys
             case GLFW_KEY_W:
             {
                 char key = 'W';
@@ -108,6 +109,22 @@ namespace Cyan
             case GLFW_KEY_D:
             {
                 char key = 'D';
+                const auto& listeners = InputSystem->m_keyEventListeners[key];
+                for (const auto& listener : listeners)
+                {
+                    switch (action)
+                    {
+                    case GLFW_PRESS: listener(KeyEvent{ key, InputAction::kPress }); break;
+                    case GLFW_RELEASE: listener(KeyEvent{ key, InputAction::kRelease }); break;
+                    case GLFW_REPEAT: listener(KeyEvent{ key, InputAction::kRepeat }); break;
+                    default: assert(0);
+                    }
+                }
+                break;
+            }
+            case GLFW_KEY_T:
+            {
+                char key = 'T';
                 const auto& listeners = InputSystem->m_keyEventListeners[key];
                 for (const auto& listener : listeners)
                 {

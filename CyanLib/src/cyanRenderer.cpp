@@ -240,11 +240,9 @@ namespace Cyan
                 pipeline,
                 [f, HDRI](ProgramPipeline* p) {
                     PerspectiveCamera camera;
-                    camera.m_position = glm::vec3(0.f);
+                    camera.m_worldSpacePosition = glm::vec3(0.f);
                     camera.m_worldUp = worldUps[f];
-                    camera.m_forward = cameraFacingDirections[f];
-                    camera.m_right = glm::cross(camera.m_forward, camera.m_worldUp);
-                    camera.m_up = glm::cross(camera.m_right, camera.m_forward);
+                    camera.m_worldSpaceForward = cameraFacingDirections[f];
                     camera.n = .1f;
                     camera.f = 100.f;
                     camera.fov = 90.f;
@@ -266,17 +264,20 @@ namespace Cyan
         // render each view
         for (auto render : scene->m_renders)
         {
-            render->update();
-
-            renderShadowMaps(scene, render->m_camera);
-            renderSceneDepthPrepass(render->depth(), scene, render->m_viewParameters);
-            renderSceneGBuffer(render->albedo(), render->normal(), render->metallicRoughness(), render->depth(), scene, render->m_viewParameters);
-            renderSceneLighting(scene, render.get());
-
-            // post processing
-            if (m_settings.bPostProcessing) 
+            if (render->shouldRender())
             {
-                postprocess(render->resolvedColor(), render->color());
+                render->update();
+
+                renderShadowMaps(scene, render->m_camera);
+                renderSceneDepthPrepass(render->depth(), scene, render->m_viewParameters);
+                renderSceneGBuffer(render->albedo(), render->normal(), render->metallicRoughness(), render->depth(), scene, render->m_viewParameters);
+                renderSceneLighting(scene, render.get());
+
+                // post processing
+                if (m_settings.bPostProcessing)
+                {
+                    postprocess(render->resolvedColor(), render->color());
+                }
             }
         }
     }
@@ -347,12 +348,14 @@ namespace Cyan
 
     void Renderer::renderShadowMaps(Scene* scene, Camera* camera)
     {
+#if 0
         GPU_DEBUG_SCOPE(renderShadowMapsMarker, "Shadow Maps Pass");
 
         if (scene->m_directionalLight != nullptr)
         {
             scene->m_directionalLight->m_csm->render(scene, camera);
         }
+#endif
     }
 
     // todo: continue implementing this later
@@ -797,7 +800,7 @@ namespace Cyan
 #endif
 
     // todo: try to defer drawing debug objects till after the post-processing pass
-    void Renderer::drawWorldSpacePoints(Framebuffer* framebuffer, const std::vector<Vertex>& points)
+    void Renderer::drawWorldSpacePoints(Framebuffer* framebuffer, const std::vector<DebugPrimitiveVertex>& points)
     {
 #if 0
         static ShaderStorageBuffer<DynamicSsboData<Vertex>> vertexBuffer("VertexBuffer", 1024);
@@ -825,11 +828,36 @@ namespace Cyan
 #endif
     }
 
-    void Renderer::drawWorldSpaceLines(Framebuffer* framebuffer, const std::vector<Vertex>& vertices)
+    void Renderer::debugDrawWorldSpaceLines(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const SceneRender::ViewParameters& viewParameters, const std::vector<DebugPrimitiveVertex>& vertices)
     {
         const u32 kMaxNumVertices = 1024;
-        static ShaderStorageBuffer vertexBuffer("VertexBuffer", sizeof(Vertex) * kMaxNumVertices);
+        static ShaderStorageBuffer vertexBuffer("VertexBuffer", sizeof(DebugPrimitiveVertex) * kMaxNumVertices);
+        assert(vertices.size() <= kMaxNumVertices);
+        u32 numVertices = vertices.size();
 
+        CreateVS(vs, "DebugWorldSpaceLineVS", SHADER_SOURCE_PATH "debug_draw_line_worldspace_v.glsl");
+        CreatePS(ps, "DebugWorldSpaceLinePS", SHADER_SOURCE_PATH "debug_draw_line_worldspace_p.glsl");
+        CreatePixelPipeline(p, "DebugDrawLineWorldSpace", vs, ps);
+
+        vertexBuffer.write(vertices, 0);
+
+        RenderPass pass(outColor->width, outColor->height);
+        pass.viewport = { 0, 0, outColor->width, outColor->height };
+        pass.setRenderTarget(outColor, 0, /*bClear=*/false);
+        pass.setDepthBuffer(depthBuffer, /*bClearDepth=*/false);
+        pass.drawLambda = [p, viewParameters, numVertices](GfxContext* ctx) {
+            p->bind(ctx);
+            p->setShaderStorageBuffer(&vertexBuffer);
+            auto va = VertexArray::getDummyVertexArray(); // work around not using a vertex array for drawing
+            va->bind();
+            p->setUniform("cameraView", viewParameters.viewMatrix);
+            p->setUniform("cameraProjection", viewParameters.projectionMatrix);
+            glDrawArrays(GL_LINES, 0, numVertices);
+            va->unbind();
+            p->unbind(ctx);
+        };
+
+        pass.render(m_ctx);
 #if 0
         debugDrawCalls.push([this, framebuffer, vertices]() {
                 // setup buffer
@@ -856,7 +884,7 @@ namespace Cyan
 #endif
     }
 
-    void Renderer::drawScreenSpaceLines(Framebuffer* framebuffer, const std::vector<Vertex>& vertices)
+    void Renderer::drawScreenSpaceLines(Framebuffer* framebuffer, const std::vector<DebugPrimitiveVertex>& vertices)
     {
 #if 0
         static ShaderStorageBuffer<DynamicSsboData<Vertex>> vertexBuffer("VertexBuffer", 1024);
@@ -884,10 +912,6 @@ namespace Cyan
             }
         );
 #endif
-    }
-
-    void Renderer::drawDebugObjects()
-    {
     }
 
 #if 0
@@ -1226,64 +1250,52 @@ namespace Cyan
         }
     }
 
-    void Renderer::debugDrawSphere(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& m_position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection) 
+
+    void Renderer::debugDrawSphere(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color, const SceneRender::ViewParameters& viewParameters)
     {
-#if 0
-        CreateVS(vs, "DebugDrawVS", "debug_draw_v.glsl");
-        CreatePS(ps, "DebugDrawPS", "debug_draw_p.glsl");
+        CreateVS(vs, "DebugDrawVS", SHADER_SOURCE_PATH "debug_draw_v.glsl");
+        CreatePS(ps, "DebugDrawPS", SHADER_SOURCE_PATH "debug_draw_p.glsl");
         CreatePixelPipeline(pipeline, "DebugDraw", vs, ps);
 
-        GfxPipelineState gfxPipelineState;
-        gfxPipelineState.depth = DepthControl::kEnable;
-        gfxPipelineState.primitiveMode = PrimitiveMode::TriangleList;
-
+        auto sphere = AssetManager::findAsset<StaticMesh>("DefaultSphere");
         drawStaticMesh(
-            framebuffer,
-            viewport,
-            AssetManager::getAsset<StaticMesh>("Sphere"),
-            pipeline,
-            [this, position, scale, view, projection](ProgramPipeline* p) {
-                glm::mat4 mvp(1.f);
-                mvp = glm::translate(mvp, position);
-                mvp = glm::scale(mvp, scale);
-                mvp = projection * view * mvp;
-                p->setUniform("mvp", mvp);
-                p->setUniform("color", glm::vec3(1.f, 0.f, 0.f));
+            glm::uvec2(outColor->width, outColor->height),
+            [outColor, depthBuffer](RenderPass& pass) {
+                pass.setRenderTarget(outColor, 0, /*bClear=*/false);
+                pass.setDepthBuffer(depthBuffer, /*bClear=*/false);
             },
-            gfxPipelineState
+            { 0, 0, outColor->width, outColor->height },
+            sphere.get(),
+            pipeline,
+            [radius, worldSpacePosition, color, viewParameters](ProgramPipeline* p) {
+                glm::mat4 modelMatrix(1.f);
+                modelMatrix = glm::translate(modelMatrix, worldSpacePosition);
+                modelMatrix = glm::scale(modelMatrix, glm::vec3(radius));
+                p->setUniform("color", color);
+                p->setUniform("modelMatrix", modelMatrix);
+                p->setUniform("cameraView", viewParameters.viewMatrix);
+                p->setUniform("cameraProjection", viewParameters.projectionMatrix);
+            },
+            GfxPipelineState()
         );
-#endif
     }
 
-    void Renderer::debugDrawCubeImmediate(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& m_position, const glm::vec3& scale, const glm::mat4& view, const glm::mat4& projection) 
+    void Renderer::debugDrawWireframeSphere(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color,  const SceneRender::ViewParameters& viewParameters)
     {
-#if 0
-        CreateVS(vs, "DebugDrawImmediateVS", "debug_draw_immediate_v.glsl");
-        CreatePS(ps, "DebugDrawImmediatePS", "debug_draw_immediate_p.glsl");
-        CreatePixelPipeline(pipeline, "GaussianBlur", vs, ps);
-        drawStaticMesh(
-            framebuffer,
-            viewport,
-            AssetManager::getAsset<StaticMesh>("UnitCubeMesh"),
-            pipeline,
-            [this, position, scale, view, projection](ProgramPipeline* p) {
-                glm::mat4 mvp(1.f);
-                mvp = glm::translate(mvp, position);
-                mvp = glm::scale(mvp, scale);
-                mvp = projection * view * mvp;
-                p->setUniform("mvp", mvp);
-                p->setUniform("color", glm::vec3(1.f, 0.f, 0.f));
-            },
-            GfxPipelineState { }
-        );
-#endif
+        glDisable(GL_CULL_FACE);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        debugDrawSphere(outColor, depthBuffer, worldSpacePosition, radius, color, viewParameters);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        glEnable(GL_CULL_FACE);
     }
 
-    void Renderer::debugDrawCubeBatched(Framebuffer* framebuffer, const Viewport& viewport, const glm::vec3& m_position, const glm::vec3& scale, const glm::vec3& facingDir, const glm::vec4& albedo, const glm::mat4& view, const glm::mat4& projection) {
+    void Renderer::debugDrawCube(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color, const SceneRender::ViewParameters& viewParameters)
+    {
 
     }
 
-    void Renderer::debugDrawLineImmediate(const glm::vec3& v0, const glm::vec3& v1) {
+    void Renderer::debugDrawWireframeCube(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color, const SceneRender::ViewParameters& viewParameters)
+    {
 
     }
 
@@ -1431,5 +1443,38 @@ namespace Cyan
             } ImGui::End();
         });
 #endif
+    }
+
+    void Renderer::addDebugDrawObject(const DebugDrawObject& debugDrawObject, u32& slot)
+    {
+        // reuse a freed slot
+        if (!freeSlots.empty())
+        {
+            u32 reuseSlot = freeSlots.front();
+            freeSlots.pop();
+            slot = reuseSlot;
+            debugDrawObjects[slot] = debugDrawObject;
+        }
+        // allocate a new slot
+        else
+        {
+            assert((numUsedSlots + 1) <= kMaxNumDebugDrawObjects);
+            slot = numUsedSlots++;
+            debugDrawObjects[slot] = debugDrawObject;
+        }
+    }
+
+    void Renderer::removeDebugDrawObject(u32 slot)
+    {
+        freeSlots.push(slot);
+        debugDrawObjects[slot] = []() { };
+    }
+
+    void Renderer::drawDebugObjects()
+    {
+        for (i32 i = 0; i < numUsedSlots; ++i)
+        {
+            debugDrawObjects[i]();
+        }
     }
 }

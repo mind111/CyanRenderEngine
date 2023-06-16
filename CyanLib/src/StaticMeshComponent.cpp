@@ -5,13 +5,13 @@ namespace Cyan
     StaticMeshComponent::StaticMeshComponent(const char* name, const Transform& localTransform, std::shared_ptr<StaticMesh> mesh)
         : SceneComponent(name, localTransform)
     {
-        m_staticMeshInstance = std::make_shared<StaticMesh::Instance>(this, mesh, getLocalToWorldTransform());
+        m_staticMeshInstance = std::make_shared<StaticMesh::Instance>(this, mesh, getWorldSpaceTransform());
     }
 
     void StaticMeshComponent::onTransformUpdated()
     {
         // update transform to make sure that it's synced on Scene side
-        m_staticMeshInstance->localToWorld = getLocalToWorldTransform();
+        m_staticMeshInstance->localToWorld = getWorldSpaceTransform();
     }
 
     void StaticMeshComponent::setMaterial(std::shared_ptr<Material> material, u32 index)

@@ -5,7 +5,7 @@
 namespace Cyan
 {
     SceneComponent::SceneComponent(const char* name, const Transform& localTransform)
-        : Component(name), m_parent(nullptr), m_local(localTransform), m_localToWorld()
+        : Component(name), m_parent(nullptr), m_localSpaceTransform(localTransform), m_worldSpaceTransform()
     {
     }
 
@@ -26,8 +26,8 @@ namespace Cyan
     void SceneComponent::onAttached()
     {
         assert(m_parent != nullptr);
-        glm::mat4 localToWorldMatrix = m_parent->getLocalToWorldTransform().toMatrix() * m_local.toMatrix();
-        setLocalToWorldTransform(Transform(localToWorldMatrix));
+        glm::mat4 localToWorldMatrix = m_parent->getWorldSpaceTransform().toMatrix() * m_localSpaceTransform.toMatrix();
+        setWorldSpaceTransform(Transform(localToWorldMatrix));
         setOwner(m_parent->getOwner());
     }
 
@@ -53,7 +53,7 @@ namespace Cyan
 
     void SceneComponent::onDetached()
     {
-        setLocalTransform(Transform());
+        setLocalSpaceTransform(Transform());
     }
 
     void SceneComponent::setParent(SceneComponent* parent)
@@ -61,20 +61,20 @@ namespace Cyan
         m_parent = parent;
     }
 
-    void SceneComponent::setLocalTransform(const Transform& localTransform)
+    void SceneComponent::setLocalSpaceTransform(const Transform& localTransform)
     {
-        m_local = localTransform;
+        m_localSpaceTransform = localTransform;
         if (m_parent != nullptr)
         {
-            glm::mat4 localToWorldMatrix = m_parent->getLocalToWorldTransform().toMatrix() * m_local.toMatrix();
-            setLocalToWorldTransform(localToWorldMatrix);
+            glm::mat4 localToWorldMatrix = m_parent->getWorldSpaceTransform().toMatrix() * m_localSpaceTransform.toMatrix();
+            setWorldSpaceTransform(localToWorldMatrix);
         }
     }
 
-    void SceneComponent::setLocalToWorldTransform(const Transform& localToWorldTransform)
+    void SceneComponent::setWorldSpaceTransform(const Transform& localToWorldTransform)
     {
         // todo: when directly setting the world transform, its localTransform also need to be updated
-        m_localToWorld = localToWorldTransform;
+        m_worldSpaceTransform = localToWorldTransform;
         onTransformUpdated();
     }
 
@@ -83,12 +83,12 @@ namespace Cyan
         if (m_parent != nullptr)
         {
             Transform localToWorld;
-            localToWorld.fromMatrix(m_parent->getLocalToWorldTransform().toMatrix() * m_local.toMatrix());
-            setLocalToWorldTransform(localToWorld);
+            localToWorld.fromMatrix(m_parent->getWorldSpaceTransform().toMatrix() * m_localSpaceTransform.toMatrix());
+            setWorldSpaceTransform(localToWorld);
         }
         else
         {
-            setLocalToWorldTransform(m_local);
+            setWorldSpaceTransform(m_localSpaceTransform);
         }
 
         // propagate transform changes to children

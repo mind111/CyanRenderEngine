@@ -30,14 +30,6 @@ namespace Cyan
         bool isRunning = false;
         std::unique_ptr<Engine> m_engine = nullptr;
         Engine::RenderFunc m_renderOneFrame;
-
-#if 0
-        /** note: 
-            allow creating multiple scenes, and scene instances are managed and tracked by SceneManager,
-            app only holds reference to currently active scene.
-        */ 
-        std::shared_ptr<Scene> m_scene;
-#endif
         std::shared_ptr<World> m_world = nullptr;
     };
 }

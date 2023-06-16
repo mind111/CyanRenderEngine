@@ -33,22 +33,68 @@ namespace Cyan
             static const char* diorama = ASSET_PATH "mesh/sd_macross_diorama.glb";
             static const char* picapica = ASSET_PATH "mesh/pica_pica_scene.glb";
 
-#if 0
-            // skybox
-            auto skybox = m_scene->createSkybox("Skybox", ASSET_PATH "cubemaps/neutral_sky.hdr", glm::uvec2(2048));
-            // sun light
-            m_scene->createDirectionalLight("SunLight", glm::vec3(0.3f, 1.3f, 0.5f), glm::vec4(0.88f, 0.77f, 0.65f, 30.f));
-            // sky light 
-            auto skylight = m_scene->createSkyLight("SkyLight", ASSET_PATH "cubemaps/neutral_sky.hdr");
-            skylight->build();
-#else
             m_world->import(shaderBalls);
 
             Transform local;
-            // todo: bug here
             local.translation = glm::vec3(0.f, 3.f, 8.f);
-            auto cameraEntity = m_world->createPerspectiveCameraEntity("Camera", local, glm::vec3(0.f, 1.f, 0.f), m_appWindowDimension, VM_RESOLVED_SCENE_COLOR, 90.f, 0.1f, 100.f);
-            cameraEntity->addComponent(std::make_shared<CameraControllerComponent>("CameraController", cameraEntity->getCameraComponent()));
+            auto editorCameraEntity = m_world->createPerspectiveCameraEntity("EditorCamera", local, glm::vec3(0.f, 1.f, 0.f), m_appWindowDimension, VM_RESOLVED_SCENE_COLOR, 90.f, 0.1f, 100.f);
+            editorCameraEntity->addComponent(std::make_shared<CameraControllerComponent>("CameraController", editorCameraEntity->getCameraComponent()));
+            
+            // add a debug camera for viewing the
+            Transform t;
+            t.translation = glm::vec3(5.f, 3.f, 8.f);
+            f32 halfAngle = glm::radians(90.f * .5f);
+            t.rotation = glm::quat(glm::cos(halfAngle), glm::vec3(0.f, 1.f, 0.f) * glm::sin(halfAngle));
+            auto shadowDebugCameraEntity = m_world->createPerspectiveCameraEntity("ShadowDebugCamera", t, glm::vec3(0.f, 1.f, 0.f), m_appWindowDimension, VM_RESOLVED_SCENE_COLOR, 90.f, 0.1f, 300.f);
+            shadowDebugCameraEntity->getCameraComponent()->turnOff();
+            shadowDebugCameraEntity->addComponent(std::make_shared<CameraControllerComponent>("CameraController", shadowDebugCameraEntity->getCameraComponent()));
+
+            // register a callback for toggling between camera view
+            m_engine->getInputSystem()->registerKeyEventListener('T', [this, editorCameraEntity, shadowDebugCameraEntity](const KeyEvent& event) {
+                    static i32 activeCamerIndex = 0;
+                    bool bSwitchCamera = false;
+                    switch (event.action)
+                    {
+                    case KEY_PRESSED: 
+                        bSwitchCamera = true;
+                        break;
+                    case KEY_REPEAT:
+                    case KEY_RELEASE:
+                    default: break;
+                    }
+                    PerspectiveCameraEntity* cameraEntities[2] = { editorCameraEntity, shadowDebugCameraEntity };
+                    if (bSwitchCamera)
+                    {
+                        assert(editorCameraEntity != nullptr);
+                        assert(shadowDebugCameraEntity != nullptr);
+
+                        i32 currentActiveCameraIndex = activeCamerIndex;
+                        cameraEntities[currentActiveCameraIndex]->getCameraComponent()->turnOff();
+                        {
+                            std::vector<CameraControllerComponent*> cameraControllers;
+                            cameraEntities[currentActiveCameraIndex]->getComponent<CameraControllerComponent>(cameraControllers);
+                            for (auto controller : cameraControllers)
+                            {
+                                controller->turnOff();
+                            }
+                        }
+
+                        i32 nextActiveCameraIndex = (currentActiveCameraIndex + 1) % 2;
+                        cameraEntities[nextActiveCameraIndex]->getCameraComponent()->turnOn();
+                        {
+                            std::vector<CameraControllerComponent*> cameraControllers;
+                            cameraEntities[nextActiveCameraIndex]->getComponent<CameraControllerComponent>(cameraControllers);
+                            for (auto controller : cameraControllers)
+                            {
+                                controller->turnOn();
+                            }
+                        }
+
+                        activeCamerIndex = nextActiveCameraIndex;
+                        m_mainCameraIndex = activeCamerIndex;
+                    }
+                }
+            );
 
             auto directionalLightEntity = m_world->createDirectionalLightEntity("DirectionalLight", Transform());
             auto directionalLightComponent = directionalLightEntity->getDirectionalLightComponent();
@@ -71,7 +117,7 @@ namespace Cyan
                 });
 
             // overwrite the default rendering lambda
-            m_renderOneFrame = [this](GfxTexture2D* renderingOutput) {
+            m_renderOneFrame = [this, directionalLightComponent, editorCameraEntity](GfxTexture2D* renderingOutput) {
                 auto renderer = Renderer::get();
                 // scene rendering
                 if (m_world != nullptr) 
@@ -82,7 +128,11 @@ namespace Cyan
                     // assuming that renders[0] is the active render
                     if (!scene->m_renders.empty())
                     {
-                        auto render = scene->m_renders[0];
+                        auto render = scene->m_renders[m_mainCameraIndex];
+                        // debug visualize 
+                        directionalLightComponent->getDirectionalLight()->m_csm->render(scene.get(), editorCameraEntity->getCameraComponent()->getCamera());
+                        directionalLightComponent->getDirectionalLight()->m_csm->visualizeViewFrustum(render.get());
+
                         renderer->renderToScreen(render->resolvedColor());
                     }
                 }
@@ -90,7 +140,11 @@ namespace Cyan
                 renderEditorUI();
                 renderer->renderUI();
             };
-#endif
+        }
+
+        void debugCSM(SceneRender* render, CascadedShadowMap* csm)
+        {
+            const auto& cascade = csm->m_cascades[0];
         }
 
         void renderEditorUI()
@@ -350,6 +404,8 @@ namespace Cyan
                 ImGui::End();
             });
         }
+private:
+        i32 m_mainCameraIndex = 0;
     };
 }
 

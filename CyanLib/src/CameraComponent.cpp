@@ -16,7 +16,8 @@ namespace Cyan
                 case InputAction::kRepeat: bWKeyPressed = true; break;
                 default: assert(0);
                 }
-            });
+            }
+        );
 
         InputSystem->registerKeyEventListener('A', [this](const KeyEvent& keyEvent) {
                 switch (keyEvent.action)
@@ -90,72 +91,95 @@ namespace Cyan
     // todo: handle camera rotation
     void CameraControllerComponent::update()
     {
-        auto camera = m_cameraComponent->getCamera();
-        if (camera != nullptr)
+        if (bEnabled)
         {
-            auto t = m_cameraComponent->getLocalTransform();
+            auto camera = m_cameraComponent->getCamera();
+            if (camera != nullptr)
+            {
+                auto t = m_cameraComponent->getLocalSpaceTransform();
 
-            if (bMouseRightButtonPressed)
-            {
-                // TODO: learn quaternion properly and improve the rotation code below! 
-                // yaw first
+                if (bMouseRightButtonPressed)
                 {
-                    f32 yawAngle = glm::radians(m_yawOneFrame);
-                    glm::mat4 m = t.toMatrix();
-                    glm::vec3 forward = -m[2];
-                    const glm::vec3 yAxis(0.f, 1.f, 0.f);
-                    glm::quat qYaw(glm::cos(yawAngle * .5f), yAxis * glm::sin(yawAngle * .5f));
-                    forward = glm::normalize(glm::rotate(qYaw, glm::vec4(forward, 0.f)));
-                    glm::vec3 right = glm::normalize(glm::cross(forward, camera->m_worldUp));
-                    glm::vec3 up = glm::normalize(glm::cross(right, forward));
-                    glm::mat4 yawRotationMatrix(glm::vec4(right, 0.f), glm::vec4(up, 0.f), glm::vec4(-forward, 0.f), glm::vec4(0.f, 0.f, 0.f, 1.f));
-                    t.rotation = yawRotationMatrix;
-                    m_cameraComponent->setLocalTransform(t);
+                    // TODO: learn quaternion properly and improve the rotation code below! 
+                    // yaw first
+                    {
+                        f32 yawAngle = glm::radians(m_yawOneFrame);
+                        glm::mat4 m = t.toMatrix();
+                        glm::vec3 forward = -m[2];
+                        const glm::vec3 yAxis(0.f, 1.f, 0.f);
+                        glm::quat qYaw(glm::cos(yawAngle * .5f), yAxis * glm::sin(yawAngle * .5f));
+                        forward = glm::normalize(glm::rotate(qYaw, glm::vec4(forward, 0.f)));
+                        glm::vec3 right = glm::normalize(glm::cross(forward, camera->m_worldUp));
+                        glm::vec3 up = glm::normalize(glm::cross(right, forward));
+                        glm::mat4 yawRotationMatrix(glm::vec4(right, 0.f), glm::vec4(up, 0.f), glm::vec4(-forward, 0.f), glm::vec4(0.f, 0.f, 0.f, 1.f));
+                        t.rotation = yawRotationMatrix;
+                        m_cameraComponent->setLocalSpaceTransform(t);
+                    }
+                    // then pitch
+                    {
+                        f32 pitchAngle = glm::radians(m_pitchOneFrame);
+                        glm::mat4 m = t.toMatrix();
+                        glm::vec3 forward = -m[2];
+                        glm::quat qPitch(glm::cos(pitchAngle * .5f), camera->localSpaceRight() * glm::sin(pitchAngle * .5f));
+                        forward = glm::normalize(glm::rotate(qPitch, glm::vec4(forward, 0.f)));
+                        glm::vec3 right = glm::normalize(glm::cross(forward, camera->m_worldUp));
+                        glm::vec3 up = glm::normalize(glm::cross(right, forward));
+                        glm::mat4 pitchRotationMatrix(glm::vec4(right, 0.f), glm::vec4(up, 0.f), glm::vec4(-forward, 0.f), glm::vec4(0.f, 0.f, 0.f, 1.f));
+                        t.rotation = pitchRotationMatrix;
+                        m_cameraComponent->setLocalSpaceTransform(t);
+                    }
                 }
-                // then pitch
+
+                // and then handle translation
+                glm::vec3 direction = glm::vec3(0.f);
+                if (bWKeyPressed)
                 {
-                    f32 pitchAngle = glm::radians(m_pitchOneFrame);
-                    glm::mat4 m = t.toMatrix();
-                    glm::vec3 forward = -m[2];
-                    glm::quat qPitch(glm::cos(pitchAngle * .5f), camera->right() * glm::sin(pitchAngle * .5f));
-                    forward = glm::normalize(glm::rotate(qPitch, glm::vec4(forward, 0.f)));
-                    glm::vec3 right = glm::normalize(glm::cross(forward, camera->m_worldUp));
-                    glm::vec3 up = glm::normalize(glm::cross(right, forward));
-                    glm::mat4 pitchRotationMatrix(glm::vec4(right, 0.f), glm::vec4(up, 0.f), glm::vec4(-forward, 0.f), glm::vec4(0.f, 0.f, 0.f, 1.f));
-                    t.rotation = pitchRotationMatrix;
-                    m_cameraComponent->setLocalTransform(t);
+                    direction += camera->localSpaceForward();
                 }
+                if (bAKeyPressed)
+                {
+                    direction += -camera->localSpaceRight();
+                }
+                if (bSKeyPressed)
+                {
+                    direction += -camera->localSpaceForward();
+                }
+                if (bDKeyPressed)
+                {
+                    direction += camera->localSpaceRight();
+                }
+                if (glm::length(direction) > 0.f)
+                {
+                    m_velocity = glm::normalize(direction) * m_speed;
+                }
+                t.translation += m_velocity;
+                m_cameraComponent->setLocalSpaceTransform(t);
             }
 
-            // and then handle translation
-            glm::vec3 direction = glm::vec3(0.f);
-            if (bWKeyPressed)
-            {
-                direction += camera->forward();
-            }
-            if (bAKeyPressed)
-            {
-                direction += -camera->right();
-            }
-            if (bSKeyPressed)
-            {
-                direction += -camera->forward();
-            }
-            if (bDKeyPressed)
-            {
-                direction += camera->right();
-            }
-            if (glm::length(direction) > 0.f)
-            {
-                m_velocity = glm::normalize(direction) * m_speed;
-            }
-            t.translation += m_velocity;
-            m_cameraComponent->setLocalTransform(t);
+            // reset states
+            m_yawOneFrame = 0.f;
+            m_pitchOneFrame = 0.f;
+            m_velocity = glm::vec3(0.f);
         }
+    }
 
-        // reset states
-        m_yawOneFrame = 0.f;
-        m_pitchOneFrame = 0.f;
-        m_velocity = glm::vec3(0.f);
+    void CameraControllerComponent::turnOn()
+    {
+        bEnabled = true;
+    }
+
+    void CameraControllerComponent::turnOff()
+    {
+        bEnabled = false;
+    }
+
+    void CameraComponent::turnOn()
+    {
+        m_camera->bEnabledForRendering = true;
+    }
+
+    void CameraComponent::turnOff()
+    {
+        m_camera->bEnabledForRendering = false;
     }
 }

@@ -33,14 +33,14 @@ namespace Cyan
         virtual void onTransformUpdated() { }
 
         SceneComponent* getParent() { return m_parent; }
-        const Transform& getLocalTransform() { return m_local; }
-        const Transform& getLocalToWorldTransform() { return m_localToWorld; }
-        void setLocalTransform(const Transform& localTransform);
-        void setLocalToWorldTransform(const Transform& localToWorldTransform);
+        const Transform& getLocalSpaceTransform() { return m_localSpaceTransform; }
+        const Transform& getWorldSpaceTransform() { return m_worldSpaceTransform; }
+        void setLocalSpaceTransform(const Transform& localTransform);
+        void setWorldSpaceTransform(const Transform& localToWorldTransform);
     protected:
         SceneComponent* m_parent = nullptr;
         std::vector<std::shared_ptr<SceneComponent>> m_children;
-        Transform m_local;
-        Transform m_localToWorld;
+        Transform m_localSpaceTransform;
+        Transform m_worldSpaceTransform;
     };
 }

@@ -18,7 +18,10 @@ namespace Cyan
     class SkyboxEntity;
     class Camera;
 
-    // entity ownership?
+    /**
+     * Would like the game side things only interact with World object, and not having to
+       directly interacting with the Scene object.
+     */
     class World
     {
     public:

@@ -10,6 +10,7 @@
 namespace Cyan 
 {
     class Scene;
+    class SceneRender;
     class DirectionalLight;
     class Camera;
     class PerspectiveCamera;
@@ -26,6 +27,8 @@ namespace Cyan
             f32 n;
             f32 f;
             BoundingBox3D worldSpaceAABB;
+            glm::vec3 worldSpaceSphereBoundCenter;
+            f32 worldSpaceSphereBoundRadius;
             std::unique_ptr<OrthographicCamera> camera = nullptr;
             std::unique_ptr<GfxDepthTexture2D> depthTexture = nullptr;
         };
@@ -33,7 +36,6 @@ namespace Cyan
         CascadedShadowMap(DirectionalLight* directionalLight);
         ~CascadedShadowMap();
 
-        void update(PerspectiveCamera* camera);
         void render(Scene* scene, Camera* camera);
 
         static constexpr f32 cascadeBoundries[5] = { 0.0f, 0.1f, 0.3f, 0.6f, 1.0f };
@@ -44,5 +46,13 @@ namespace Cyan
         glm::vec3 m_lightDirection;
         glm::mat4 m_lightViewMatrix;
         Cascade m_cascades[kNumCascades];
+        PerspectiveCamera* m_lastCameraUsedForRendering = nullptr;
+
+    private:
+        void update(PerspectiveCamera* camera);
+    public:
+        // debugging related stuffs
+        void visualizeViewFrustum(SceneRender* render);
+        void visualizeCascadeSphereBounds(SceneRender* render);
     };
 }

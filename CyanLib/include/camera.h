@@ -33,13 +33,18 @@ namespace Cyan
 
         glm::mat4 view() const
         { 
-            return glm::lookAt(m_position, m_position + forward(), m_worldUp);
+            return glm::lookAt(m_worldSpacePosition, m_worldSpacePosition + worldSpaceForward(), m_worldUp);
         }
 
         virtual glm::mat4 projection() const = 0;
-        glm::vec3 forward() const { return m_forward; }
-        glm::vec3 right() const { return m_right; }
-        glm::vec3 up() const { return m_up; }
+
+        glm::vec3 localSpaceForward() const { return m_localSpaceForward; }
+        glm::vec3 localSpaceRight() const { return m_localSpaceRight; }
+        glm::vec3 localSpaceUp() const { return m_localSpaceUp; }
+
+        glm::vec3 worldSpaceForward() const { return m_worldSpaceForward; }
+        glm::vec3 worldSpaceRight() const { return m_worldSpaceRight; }
+        glm::vec3 worldSpaceUp() const { return m_worldSpaceUp; }
 
         Camera();
         Camera(const Transform& localTransform, const glm::vec3& worldUp, const glm::vec2& renderResolution, const Camera::ViewMode& viewMode);
@@ -49,16 +54,20 @@ namespace Cyan
 
         bool bEnabledForRendering = true;
 
-        glm::vec3 m_position;
+        glm::vec3 m_worldSpacePosition;
         glm::vec3 m_worldUp;
 
         static constexpr glm::vec3 localRight = glm::vec3(1.f, 0.f, 0.f);
         static constexpr glm::vec3 localForward = glm::vec3(0.f, 0.f, -1.f);
         static constexpr glm::vec3 localUp = glm::vec3(0.f, 1.f, 0.f);
 
-        glm::vec3 m_right;   // x 
-        glm::vec3 m_forward; //-z
-        glm::vec3 m_up;      // y
+        glm::vec3 m_localSpaceRight;   // x 
+        glm::vec3 m_localSpaceForward; //-z
+        glm::vec3 m_localSpaceUp;      // y
+
+        glm::vec3 m_worldSpaceRight;   // x 
+        glm::vec3 m_worldSpaceForward; //-z
+        glm::vec3 m_worldSpaceUp;      // y
 
         glm::uvec2 m_renderResolution;
         ViewMode m_viewMode;

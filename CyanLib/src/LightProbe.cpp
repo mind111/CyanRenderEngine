@@ -80,11 +80,9 @@ namespace Cyan
                     pipeline,
                     [this, f](ProgramPipeline* p) {
                         PerspectiveCamera camera;
-                        camera.m_position = m_position;
+                        camera.m_worldSpacePosition = m_position;
                         camera.m_worldUp = worldUps[f];
-                        camera.m_forward = cameraFacingDirections[f];
-                        camera.m_right = glm::cross(camera.m_forward, camera.m_worldUp);
-                        camera.m_up = glm::cross(camera.m_right, camera.m_forward);
+                        camera.m_worldSpaceForward = cameraFacingDirections[f];
                         camera.n = .1f;
                         camera.f = 100.f;
                         camera.fov = 90.f;
@@ -163,11 +161,9 @@ namespace Cyan
                         p,
                         [this, f, mip, kNumMips](ProgramPipeline* p) {
                             PerspectiveCamera camera;
-                            camera.m_position = m_position;
+                            camera.m_worldSpacePosition = m_position;
                             camera.m_worldUp = worldUps[f];
-                            camera.m_forward = cameraFacingDirections[f];
-                            camera.m_right = glm::cross(camera.m_forward, camera.m_worldUp);
-                            camera.m_up = glm::cross(camera.m_right, camera.m_forward);
+                            camera.m_worldSpaceForward = cameraFacingDirections[f];
                             camera.n = .1f;
                             camera.f = 100.f;
                             camera.fov = 90.f;

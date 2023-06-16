@@ -23,17 +23,11 @@ layout(std430) buffer VertexBuffer
     Vertex vertices[];
 };
 
-layout(std430) buffer ViewBuffer
-{
-    mat4  view;
-    mat4  projection;
-    float m_ssao;
-    float dummy;
-};
+uniform mat4 cameraView;
+uniform mat4 cameraProjection;
 
 void main() 
 {
-    int vertexIndex = gl_VertexID / 2 + gl_VertexID % 2;
-	gl_Position = projection * view * vertices[vertexIndex].position;
-    vsOut.color = vertices[vertexIndex].color;
+	gl_Position = cameraProjection * cameraView * vertices[gl_VertexID].position;
+    vsOut.color = vertices[gl_VertexID].color;
 }

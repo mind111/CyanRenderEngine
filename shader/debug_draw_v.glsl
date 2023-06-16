@@ -1,10 +1,17 @@
 #version 450 core
 
-layout (location = 0) in vec3 vertexPos;
-layout (location = 1) in vec3 vertexNormal;
-layout (location = 2) in vec4 vertexTangent;
-layout (location = 3) in vec2 textureUv_0;
-layout (location = 4) in vec2 textureUv_1;
+layout (location = 0) in vec3 position;
+layout (location = 1) in vec3 normal;
+layout (location = 2) in vec4 tangent;
+layout (location = 3) in vec2 texCoord0;
+layout (location = 4) in vec2 texCoord1;
+
+out gl_PerVertex
+{
+	vec4 gl_Position;
+	float gl_PointSize;
+	float gl_ClipDistance[];
+};
 
 out VSOutput
 {
@@ -12,27 +19,15 @@ out VSOutput
     vec3 objectSpacePosition;
 } vsOut;
 
-struct DebugInstanceData {
-    mat4 transform;
-    vec4 color; 
-};
+uniform vec3 color;
+uniform mat4 modelMatrix;
+uniform mat4 cameraView;
+uniform mat4 cameraProjection;
 
-layout(std430, binding = 53) buffer TransformSSBO {
-    DebugInstanceData instances[];
-};
-
-layout(std430, binding = 0) buffer ViewShaderStorageBuffer
+void main() 
 {
-    mat4  view;
-    mat4  projection;
-    float m_ssao;
-    float dummy;
-} viewSsbo;
-
-void main() {
-	mat4 model = instances[gl_InstanceID].transform;
-    mat4 mvp = viewSsbo.projection * viewSsbo.view * model;
-	gl_Position = mvp * vec4(vertexPos, 1.f);
-    vsOut.objectSpacePosition = vertexPos;
-    vsOut.color = instances[gl_InstanceID].color;
+    mat4 mvp = cameraProjection * cameraView * modelMatrix;
+	gl_Position = mvp * vec4(position, 1.f);
+    vsOut.objectSpacePosition = position;
+    vsOut.color = vec4(color, 1.f); 
 }
