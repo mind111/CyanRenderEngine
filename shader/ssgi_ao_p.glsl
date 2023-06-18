@@ -7,20 +7,29 @@ in VSOutput
 	vec2 texCoord0;
 } psIn;
 
-layout (std430) buffer ViewBuffer
+struct ViewParameters
 {
-    mat4 view;
-    mat4 projection;
+	uvec2 renderResolution;
+	float aspectRatio;
+	mat4 viewMatrix;
+	mat4 projectionMatrix;
+	vec3 cameraPosition;
+	vec3 cameraRight;
+	vec3 cameraForward;
+	vec3 cameraUp;
+	int frameCount;
+	float elapsedTime;
+	float deltaTime;
 };
 
-uniform sampler2D sceneDepthTexture;
-uniform sampler2D sceneNormalTexture;
+uniform ViewParameters viewParameters;
+uniform sampler2D sceneDepth;
+uniform sampler2D sceneNormal;
 // todo: maybe using the same noises from the GTAO talk will produce better results?
-uniform sampler2D blueNoiseTextures_16x16_R[8];
-uniform sampler2D blueNoiseTexture_1024x1024_RGBA;
+uniform sampler2D blueNoise_16x16_R[8];
+uniform sampler2D blueNoise_1024x1024_RGBA;
+
 uniform sampler2D AOHistoryBuffer;
-uniform vec2 outputSize;
-uniform int frameCount;
 
 uniform mat4 prevFrameView;
 uniform mat4 prevFrameProjection;
@@ -120,42 +129,43 @@ void main()
 {
     const int numSamplesPerDirection = 4; // 2 x numSamplesPerDirection of taps per slice
     // screen space coords in [0, 1]
-    vec2 pixelCoord = gl_FragCoord.xy / outputSize;
-    vec3 n = texture(sceneNormalTexture, pixelCoord).xyz * 2.f - 1.f;
-    float xz = texture(sceneDepthTexture, pixelCoord).r;
+    vec2 pixelCoord = gl_FragCoord.xy / viewParameters.renderResolution;
+    float xz = texture(sceneDepth, pixelCoord).r;
+    vec3 n = texture(sceneNormal, pixelCoord).xyz * 2.f - 1.f;
 
-    if (xz > 0.998)
+    if (xz > 0.999999)
     {
 		discard;
     }
 
-    vec3 x = screenToWorld(vec3(pixelCoord, xz) * 2.f - 1.f, inverse(view), inverse(projection));
-    vec3 viewSpacePosition = (view * vec4(x, 1.f)).xyz;
+    vec3 x = screenToWorld(vec3(pixelCoord, xz) * 2.f - 1.f, inverse(viewParameters.viewMatrix), inverse(viewParameters.projectionMatrix));
+    vec3 viewSpacePosition = (viewParameters.viewMatrix * vec4(x, 1.f)).xyz;
     vec3 viewDirection = -normalize(viewSpacePosition);
     // world space view direction
-    vec3 wo = (inverse(view) * vec4(viewDirection, 0.f)).xyz;
+    vec3 wo = (inverse(viewParameters.viewMatrix) * vec4(viewDirection, 0.f)).xyz;
 
     // 5m sample radius
     const float worldSpaceSampleRadius = 5.f;
     const float nearClippingPlane = .1f;
     // convert world space sample radius to screen space
     float screenSpaceEffectRadius = min(worldSpaceSampleRadius / abs(viewSpacePosition.z) * .5f, .05f);
+
     // randomly offset the sample positions along a slice
-	float offset = texture(blueNoiseTexture_1024x1024_RGBA, gl_FragCoord.xy / float(textureSize(blueNoiseTexture_1024x1024_RGBA, 0).xy)).r;
+	float offset = texture(blueNoise_1024x1024_RGBA, gl_FragCoord.xy / float(textureSize(blueNoise_1024x1024_RGBA, 0).xy)).r;
     screenSpaceEffectRadius *= offset * 0.5f + 0.5f;
     float stepSize = screenSpaceEffectRadius / numSamplesPerDirection;
 
     float visibility = 0.f;
 
-    float rotation = texture(blueNoiseTextures_16x16_R[frameCount % 8], gl_FragCoord.xy / textureSize(blueNoiseTextures_16x16_R[0], 0)).r * 2.f * PI;
+    float rotation = texture(blueNoise_16x16_R[viewParameters.frameCount % 8], gl_FragCoord.xy / textureSize(blueNoise_16x16_R[0], 0)).r * 2.f * PI;
 	mat2 rotMat2 = {
 		{  cos(rotation), sin(rotation) },
 		{ -sin(rotation), cos(rotation) }
 	};
     vec2 dir = rotMat2 * vec2(1.f, 0.f);
 
-    vec3 cameraRightVector = vec3(view[0][0], view[1][0], view[2][0]);
-    vec3 cameraUpVector = vec3(view[0][1], view[1][1], view[2][1]);
+    vec3 cameraRightVector = viewParameters.cameraRight;
+    vec3 cameraUpVector = viewParameters.cameraUp;
     // slice plane x axis
     vec3 slicePlaneXAxis = dir.x * cameraRightVector + dir.y * cameraUpVector;
 
@@ -177,8 +187,8 @@ void main()
 		vec2 sampleCoord = pixelCoord + (j * stepSize) * dir;
 
 		// calculate theta1 
-		float sz1 = texture(sceneDepthTexture, sampleCoord).r;
-		vec3 s1 = screenToWorld(vec3(sampleCoord, sz1) * 2.f - 1.f, inverse(view), inverse(projection));
+		float sz1 = texture(sceneDepth, sampleCoord).r;
+		vec3 s1 = screenToWorld(vec3(sampleCoord, sz1) * 2.f - 1.f, inverse(viewParameters.viewMatrix), inverse(viewParameters.projectionMatrix));
 		vec3 sx1 = s1 - x;
 
         // todo: maybe should use unattenuated horizon angle for indirect irradiance calculation while use attenuated for ssao ..?
@@ -189,8 +199,8 @@ void main()
 
 		// calculate theta2
 		sampleCoord = pixelCoord - (j * stepSize) * dir;
-		float sz2 = texture(sceneDepthTexture, sampleCoord).r;
-		vec3 s2 = screenToWorld(vec3(sampleCoord, sz2) * 2.f - 1.f, inverse(view), inverse(projection));
+		float sz2 = texture(sceneDepth, sampleCoord).r;
+		vec3 s2 = screenToWorld(vec3(sampleCoord, sz2) * 2.f - 1.f, inverse(viewParameters.viewMatrix), inverse(viewParameters.projectionMatrix));
 		vec3 sx2 = s2 - x;
 
 		// attenuate this sample's horizon angle based on distance
@@ -205,6 +215,7 @@ void main()
 
     outAO = vec3(visibility);
 
+    #if 0
     // temporal filtering
     // todo: take pixel velocity into consideration when doing reprojection
     // todo: consider changes in pixel neighborhood when reusing cache sample, changes in neighborhood pixels means SSAO value can change even there is a cache hit
@@ -232,4 +243,5 @@ void main()
 			outAO = vec3(AOHistory * smoothing + visibility * (1.f - smoothing));
 		}
 	}
+    #endif
 }

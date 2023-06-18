@@ -1,10 +1,12 @@
 #pragma once
 
+#include <array>
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "Common.h"
-#include "RenderTexture.h"
+#include "SceneCamera.h"
 
 namespace Cyan
 {
@@ -81,4 +83,19 @@ namespace Cyan
         static std::unique_ptr<SSGI> s_instance;
     };
 #endif
+
+    struct GfxTexture2D;
+    class Texture2D;
+
+    class SSGIRenderer
+    {
+    public:
+        SSGIRenderer();
+        ~SSGIRenderer();
+
+        void renderAO(GfxTexture2D* outAO, GfxTexture2D* depth, GfxTexture2D* normal, const SceneCamera::ViewParameters& viewParameters);
+    private:
+        std::shared_ptr<Texture2D> m_blueNoise_1024x1024_RGBA = nullptr;
+        std::array<std::shared_ptr<Texture2D>, 8> m_blueNoise_16x16_R;
+    };
 }

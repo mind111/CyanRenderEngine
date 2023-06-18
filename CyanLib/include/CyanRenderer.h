@@ -215,6 +215,7 @@ namespace Cyan
         bool bFixDebugRay = false;
     private:
         GfxContext* m_ctx;
+        std::unique_ptr<SSGIRenderer> m_SSGIRenderer = nullptr;
         LinearAllocator m_frameAllocator;
         std::queue<UIRenderCommand> m_UIRenderCommandQueue;
         std::vector<GfxTexture2D*> renderTextures;

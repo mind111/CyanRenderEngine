@@ -703,4 +703,181 @@ namespace Cyan
         frameCount++;
     }
 #endif
+
+    SSGIRenderer::SSGIRenderer()
+    {
+        {
+            Sampler2D sampler = { };
+            sampler.minFilter = FM_POINT;
+            sampler.magFilter = FM_POINT;
+            sampler.wrapS = WM_WRAP;
+            sampler.wrapT = WM_WRAP;
+
+            auto bn1024x1024 = AssetImporter::importImage("BlueNoise_1024x1024_RGBA", ASSET_PATH "textures/noise/BN_1024x1024_RGBA.png");
+            m_blueNoise_1024x1024_RGBA = AssetManager::createTexture2D("BlueNoise_1024x1024_RGBA", bn1024x1024, sampler);
+
+            auto bn16x16_0 = AssetImporter::importImage("BlueNoise_16x16_R_0", ASSET_PATH "textures/noise/BN_16x16_R_0.png");
+            m_blueNoise_16x16_R[0] = AssetManager::createTexture2D("BlueNoise_16x16_R_0", bn16x16_0, sampler);
+            auto bn16x16_1 = AssetImporter::importImage("BlueNoise_16x16_R_1", ASSET_PATH "textures/noise/BN_16x16_R_1.png");
+            m_blueNoise_16x16_R[1] = AssetManager::createTexture2D("BlueNoise_16x16_R_1", bn16x16_1, sampler);
+            auto bn16x16_2 = AssetImporter::importImage("BlueNoise_16x16_R_2", ASSET_PATH "textures/noise/BN_16x16_R_2.png");
+            m_blueNoise_16x16_R[2] = AssetManager::createTexture2D("BlueNoise_16x16_R_2", bn16x16_2, sampler);
+            auto bn16x16_3 = AssetImporter::importImage("BlueNoise_16x16_R_3", ASSET_PATH "textures/noise/BN_16x16_R_3.png");
+            m_blueNoise_16x16_R[3] = AssetManager::createTexture2D("BlueNoise_16x16_R_3", bn16x16_3, sampler);
+            auto bn16x16_4 = AssetImporter::importImage("BlueNoise_16x16_R_4", ASSET_PATH "textures/noise/BN_16x16_R_4.png");
+            m_blueNoise_16x16_R[4] = AssetManager::createTexture2D("BlueNoise_16x16_R_4", bn16x16_4, sampler);
+            auto bn16x16_5 = AssetImporter::importImage("BlueNoise_16x16_R_5", ASSET_PATH "textures/noise/BN_16x16_R_5.png");
+            m_blueNoise_16x16_R[5] = AssetManager::createTexture2D("BlueNoise_16x16_R_5", bn16x16_5, sampler);
+            auto bn16x16_6 = AssetImporter::importImage("BlueNoise_16x16_R_6", ASSET_PATH "textures/noise/BN_16x16_R_6.png");
+            m_blueNoise_16x16_R[6] = AssetManager::createTexture2D("BlueNoise_16x16_R_6", bn16x16_6, sampler);
+            auto bn16x16_7 = AssetImporter::importImage("BlueNoise_16x16_R_7", ASSET_PATH "textures/noise/BN_16x16_R_7.png");
+            m_blueNoise_16x16_R[7] = AssetManager::createTexture2D("BlueNoise_16x16_R_7", bn16x16_7, sampler);
+        }
+    }
+
+    SSGIRenderer::~SSGIRenderer()
+    {
+    }
+
+    void SSGIRenderer::renderAO(GfxTexture2D * outAO, GfxTexture2D * depth, GfxTexture2D * normal, const SceneCamera::ViewParameters& viewParameters)
+    {
+        auto renderer = Renderer::get();
+#if 0
+        static i32 frameCount = 0;
+        static glm::mat4 prevFrameView(1.f);
+        static glm::mat4 prevFrameProjection(1.f);
+        GfxTexture2D::Spec depthSpec(gBuffer.depth.getGfxDepthTexture2D()->width, gBuffer.depth.getGfxDepthTexture2D()->height, 1, PF_R32F);
+        static RenderTexture2D prevSceneDepth("PrevFrameSceneDepthTexture", depthSpec);
+        static RenderTexture2D AOHistoryBuffer("AOHistory", outAO.getGfxTexture2D()->getSpec());
+
+        auto sceneDepth = gBuffer.depth.getGfxDepthTexture2D();
+        auto sceneNormal = gBuffer.normal.getGfxTexture2D();
+        auto renderer = Renderer::get();
+
+        auto outAOGfxTexture = outAO.getGfxTexture2D();
+        glm::uvec2 outputSize(outAOGfxTexture->width, outAOGfxTexture->height);
+        GfxTexture2D::Spec aoSpec(outputSize.x, outputSize.y, 1, PF_RGBA16F);
+
+        RenderTexture2D AOSamplingPassOutput("AOSamplingPassOutput", aoSpec);
+
+        // taking 1 new ao sample per pixel and does temporal filtering 
+        {
+            GPU_DEBUG_SCOPE(SSAOSamplePassMarker, "SSAO Sampling");
+
+            CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
+            CreatePS(ps, "SSGIAOPS", SHADER_SOURCE_PATH "ssgi_ao_p.glsl");
+            CreatePixelPipeline(pipeline, "SSGIAOSample", vs, ps);
+
+            renderer->drawFullscreenQuad(
+                getFramebufferSize(outAO.getGfxTexture2D()),
+                [AOSamplingPassOutput](RenderPass& pass) {
+                    RenderTarget aoRenderTarget(AOSamplingPassOutput.getGfxTexture2D(), 0, glm::vec4(1.f, 1.f, 1.f, 1.f));
+                    pass.setRenderTarget(aoRenderTarget, 0);
+                },
+                pipeline,
+                [this, gBuffer, sceneDepth, sceneNormal, &scene](ProgramPipeline* p) {
+                    p->setShaderStorageBuffer(scene.viewBuffer.get());
+                    p->setUniform("outputSize", glm::vec2(sceneDepth->width, sceneDepth->height));
+                    p->setTexture("sceneDepthTexture", sceneDepth);
+                    p->setTexture("sceneNormalTexture", sceneNormal);
+
+                    p->setTexture("blueNoiseTextures_16x16_R[0]", blueNoiseTextures_16x16[0]->getGfxResource());
+                    p->setTexture("blueNoiseTextures_16x16_R[1]", blueNoiseTextures_16x16[1]->getGfxResource());
+                    p->setTexture("blueNoiseTextures_16x16_R[2]", blueNoiseTextures_16x16[2]->getGfxResource());
+                    p->setTexture("blueNoiseTextures_16x16_R[3]", blueNoiseTextures_16x16[3]->getGfxResource());
+                    p->setTexture("blueNoiseTextures_16x16_R[4]", blueNoiseTextures_16x16[4]->getGfxResource());
+                    p->setTexture("blueNoiseTextures_16x16_R[5]", blueNoiseTextures_16x16[5]->getGfxResource());
+                    p->setTexture("blueNoiseTextures_16x16_R[6]", blueNoiseTextures_16x16[6]->getGfxResource());
+                    p->setTexture("blueNoiseTextures_16x16_R[7]", blueNoiseTextures_16x16[7]->getGfxResource());
+
+                    auto blueNoiseTexture_1024x1024 = AssetManager::getAsset<Texture2D>("BlueNoise_1024x1024_RGBA");
+                    p->setTexture("blueNoiseTexture_1024x1024_RGBA", blueNoiseTexture_1024x1024->gfxTexture.get());
+
+                    p->setUniform("numSamples", (i32)numSamples);
+                    p->setUniform("frameCount", frameCount);
+
+                    if (frameCount > 0)
+                    {
+                        p->setUniform("prevFrameView", prevFrameView);
+                        p->setUniform("prevFrameProjection", prevFrameProjection);
+
+                        glBindSampler(32, depthBilinearSampler);
+                        p->setUniform("prevFrameSceneDepthTexture", 32);
+                        glBindTextureUnit(32, prevSceneDepth.getGfxTexture2D()->getGpuResource());
+
+                        glBindSampler(33, SSAOHistoryBilinearSampler);
+                        p->setUniform("AOHistoryBuffer", 33);
+                        glBindTextureUnit(33, AOHistoryBuffer.getGfxTexture2D()->getGpuResource());
+
+                        // p->setTexture("prevFrameSceneDepthTexture", prevSceneDepth);
+                        p->setTexture("AOHistoryBuffer", AOHistoryBuffer.getGfxTexture2D());
+                    }
+                }
+            );
+
+            prevFrameView = scene.view.view;
+            prevFrameProjection = scene.view.projection;
+            renderer->blitTexture(AOHistoryBuffer.getGfxTexture2D(), AOSamplingPassOutput.getGfxTexture2D());
+            renderer->blitTexture(prevSceneDepth.getGfxTexture2D(), sceneDepth);
+        }
+#endif
+        // taking 1 new ao sample per pixel and does temporal filtering 
+        {
+            GPU_DEBUG_SCOPE(SSAOSampling, "SSAOSampling");
+
+            CreateVS(vs, "ScreenPassVS", SHADER_SOURCE_PATH "screen_pass_v.glsl");
+            CreatePS(ps, "SSGIAOPS", SHADER_SOURCE_PATH "ssgi_ao_p.glsl");
+            CreatePixelPipeline(pipeline, "SSGIAOSamplingPass", vs, ps);
+
+            renderer->drawFullscreenQuad(
+                getFramebufferSize(outAO),
+                [outAO](RenderPass& pass) {
+                    RenderTarget aoRenderTarget(outAO, 0, glm::vec4(1.f, 1.f, 1.f, 1.f));
+                    pass.setRenderTarget(aoRenderTarget, 0);
+                },
+                pipeline,
+                [this, depth, normal, viewParameters](ProgramPipeline* p) {
+                    viewParameters.setShaderParameters(p);
+
+                    p->setTexture("sceneDepth", depth);
+                    p->setTexture("sceneNormal", normal);
+
+                    p->setTexture("blueNoise_1024x1024_RGBA", m_blueNoise_1024x1024_RGBA->getGfxResource());
+                    p->setTexture("blueNoise_16x16_R[0]", m_blueNoise_16x16_R[0]->getGfxResource());
+                    p->setTexture("blueNoise_16x16_R[1]", m_blueNoise_16x16_R[1]->getGfxResource());
+                    p->setTexture("blueNoise_16x16_R[2]", m_blueNoise_16x16_R[2]->getGfxResource());
+                    p->setTexture("blueNoise_16x16_R[3]", m_blueNoise_16x16_R[3]->getGfxResource());
+                    p->setTexture("blueNoise_16x16_R[4]", m_blueNoise_16x16_R[4]->getGfxResource());
+                    p->setTexture("blueNoise_16x16_R[5]", m_blueNoise_16x16_R[5]->getGfxResource());
+                    p->setTexture("blueNoise_16x16_R[6]", m_blueNoise_16x16_R[6]->getGfxResource());
+                    p->setTexture("blueNoise_16x16_R[7]", m_blueNoise_16x16_R[7]->getGfxResource());
+#if 0
+                    if (frameCount > 0)
+                    {
+                        p->setUniform("prevFrameViewMatrix", prevFrameView);
+                        p->setUniform("prevFrameProjection", prevFrameProjection);
+
+                        glBindSampler(32, depthBilinearSampler);
+                        p->setUniform("prevFrameSceneDepthTexture", 32);
+                        glBindTextureUnit(32, prevSceneDepth.getGfxTexture2D()->getGpuResource());
+
+                        glBindSampler(33, SSAOHistoryBilinearSampler);
+                        p->setUniform("AOHistoryBuffer", 33);
+                        glBindTextureUnit(33, AOHistoryBuffer.getGfxTexture2D()->getGpuResource());
+
+                        // p->setTexture("prevFrameSceneDepthTexture", prevSceneDepth);
+                        p->setTexture("AOHistoryBuffer", AOHistoryBuffer.getGfxTexture2D());
+                    }
+#endif
+                }
+            );
+
+#if 0
+            prevFrameView = scene.view.view;
+            prevFrameProjection = scene.view.projection;
+            renderer->blitTexture(AOHistoryBuffer.getGfxTexture2D(), AOSamplingPassOutput.getGfxTexture2D());
+            renderer->blitTexture(prevSceneDepth.getGfxTexture2D(), sceneDepth);
+#endif
+        }
+    }
 }

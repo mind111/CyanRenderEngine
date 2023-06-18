@@ -127,19 +127,6 @@ namespace Cyan
             auto gridDarkImage = AssetImporter::importImage("default_grid_dark", ASSET_PATH "textures/defaults/grid_dark.png");
             m_defaultTextures.gridDark = createTexture2D("default_grid_dark", gridDarkImage, sampler);
         }
-        {
-            Sampler2D sampler = { };
-            sampler.minFilter = FM_POINT;
-            sampler.magFilter = FM_POINT;
-            sampler.wrapS = WM_WRAP;
-            sampler.wrapT = WM_WRAP;
-
-            auto blueNoiseImage_128x128 = AssetImporter::importImage("BlueNoise_128x128_R", ASSET_PATH "textures/noise/BN_128x128_R.png");
-            m_defaultTextures.blueNoise_128x128_R = createTexture2D("BlueNoise_128x128_R", blueNoiseImage_128x128, sampler);
-
-            auto blueNoiseImage_1024x1024 = AssetImporter::importImage("BlueNoise_1024x1024_RGBA", ASSET_PATH "textures/noise/BN_1024x1024_RGBA.png");
-            m_defaultTextures.blueNoise_1024x1024_RGBA = createTexture2D("BlueNoise_1024x1024_RGBA", blueNoiseImage_1024x1024, sampler);
-        }
 
 #undef DEFAULT_TEXTURE_FOLDER
 

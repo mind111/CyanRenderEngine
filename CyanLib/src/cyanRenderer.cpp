@@ -112,6 +112,7 @@ namespace Cyan
         m_windowSize(windowWidth, windowHeight),
         m_frameAllocator(1024 * 1024 * 32)
     {
+        m_SSGIRenderer = std::make_unique<SSGIRenderer>();
     }
 
     void Renderer::initialize() 
@@ -469,6 +470,11 @@ namespace Cyan
             pass.render(m_ctx);
         }
 
+        // render ao and indirect irradiance
+        {
+            m_SSGIRenderer->renderAO(render->ao(), render->depth(), render->normal(), viewParameters);
+        }
+
         // render indirect lighting effects pass
         {
             GPU_DEBUG_SCOPE(indirectLighting, "IndirectLighting");
@@ -796,30 +802,6 @@ namespace Cyan
         };
 
         pass.render(m_ctx);
-#if 0
-        debugDrawCalls.push([this, framebuffer, vertices]() {
-                // setup buffer
-                u32 numVertices = vertices.size();
-                u32 numLineSegments = max(i32(numVertices - 1), (i32)0);
-                u32 numVerticesToDraw = numLineSegments * 2;
-                assert(vertices.size() < kMaxNumVertices);
-                // this maybe unsafe
-                memcpy(vertexBuffer.data.array.data(), vertices.data(), sizeof(Vertex) * vertices.size());
-                vertexBuffer.upload();
-
-                // draw
-                CreateVS(vs, "DebugDrawWorldSpaceLineVS", SHADER_SOURCE_PATH "debug_draw_line_worldspace_v.glsl");
-                CreatePS(ps, "DebugDrawWorldSpaceLinePS", SHADER_SOURCE_PATH "debug_draw_line_worldspace_p.glsl");
-                CreatePixelPipeline(pipeline, "DebugDrawLineWorldSpace", vs, ps);
-                m_ctx->setDepthControl(DepthControl::kEnable);
-                m_ctx->setShaderStorageBuffer(&vertexBuffer);
-                m_ctx->setPixelPipeline(pipeline);
-                m_ctx->setFramebuffer(framebuffer);
-                m_ctx->setViewport({ 0, 0, framebuffer->width, framebuffer->height });
-                glDrawArrays(GL_LINES, 0, numVerticesToDraw);
-            }
-        );
-#endif
     }
 
     void Renderer::drawScreenSpaceLines(Framebuffer* framebuffer, const std::vector<DebugPrimitiveVertex>& vertices)
