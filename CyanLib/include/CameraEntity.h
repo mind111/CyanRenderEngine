@@ -1,23 +1,21 @@
 #pragma once
 
-#include "PerspectiveCameraComponent.h"
+#include "CameraComponent.h"
 #include "Entity.h"
 
 namespace Cyan
 {
-    class PerspectiveCameraEntity : public Entity
+    class CameraEntity : public Entity
     {
     public:
-        PerspectiveCameraEntity(World* world, const char* name, const Transform& local,
-            const glm::vec3& worldUp, const glm::uvec2& renderResolution, const Camera::ViewMode& viewMode,
-            f32 fov, f32 n, f32 f);
-        ~PerspectiveCameraEntity() { }
+        CameraEntity(World* world, const char* name, const Transform& local, const glm::uvec2& resolution);
+        ~CameraEntity() { }
         
         virtual void update() override;
 
-        PerspectiveCameraComponent* getCameraComponent() { return m_cameraComponent.get(); }
+        CameraComponent* getCameraComponent() { return m_cameraComponent.get(); }
     protected:
-        std::shared_ptr<PerspectiveCameraComponent> m_cameraComponent = nullptr;
+        std::shared_ptr<CameraComponent> m_cameraComponent = nullptr;
     private:
 #if 0
         void orbit(f32 phi, f32 theta);

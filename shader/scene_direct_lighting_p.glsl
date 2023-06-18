@@ -150,7 +150,7 @@ vec3 calcF0(in Material material)
 
 float constantBias()
 {
-    return 0.0025f;
+    return 0.0030f;
 }
 
 /**
@@ -161,7 +161,7 @@ int calcCascadeIndex(in vec3 viewSpacePosition, in DirectionalLight directionalL
     int cascadeIndex = 0;
     for (int i = 0; i < 4; ++i)
     {
-        if (viewSpacePosition.z < directionalLight.csm.cascades[i].f)
+        if (abs(viewSpacePosition.z) < directionalLight.csm.cascades[i].f)
         {
             cascadeIndex = i;
             break;
@@ -170,53 +170,21 @@ int calcCascadeIndex(in vec3 viewSpacePosition, in DirectionalLight directionalL
     return cascadeIndex;
 }
 
-float PCFShadow(vec3 worldSpacePosition, vec3 normal, in DirectionalLight directionalLight)
+float calcDirectionalShadow(vec3 worldSpacePosition, vec3 normal, in DirectionalLight directionalLight)
 {
-	float shadow = 0.0f;
-    vec2 texelOffset = vec2(1.f) / textureSize(directionalLight.csm.cascades[0].depthTexture, 0);
+	float shadow = 1.0f;
     vec3 viewSpacePosition = (viewParameters.viewMatrix * vec4(worldSpacePosition, 1.f)).xyz;
     int cascadeIndex = calcCascadeIndex(viewSpacePosition, directionalLight);
-    vec4 lightSpacePosition = 
-		directionalLight.csm.cascades[cascadeIndex].lightProjectionMatrix 
-	  * directionalLight.csm.lightViewMatrix * vec4(worldSpacePosition, 1.f);
-    float depth = lightSpacePosition.z * .5f + .5f;
-    vec2 uv = lightSpacePosition.xy * .5f + .5f;
 
-    const int kernelRadius = 2;
-    // 5 x 5 filter kernel
-    float kernel[25] = {
-        0.04, 0.04, 0.04, 0.04, 0.04,
-        0.04, 0.04, 0.04, 0.04, 0.04,
-        0.04, 0.04, 0.04, 0.04, 0.04,
-        0.04, 0.04, 0.04, 0.04, 0.04,
-        0.04, 0.04, 0.04, 0.04, 0.04
-    };
-
-    for (int i = -kernelRadius; i <= kernelRadius; ++i)
-    {
-        for (int j = -kernelRadius; j <= kernelRadius; ++j)
-        {
-            vec2 offset = vec2(i, j) * texelOffset;
-            vec2 texCoord = uv + offset;
-            if (texCoord.x < 0.f || texCoord.x > 1.f || texCoord.y < 0.f || texCoord.y > 1.f) 
-            {
-                continue;
-			}
-#if SLOPE_BASED_BIAS
-			float bias = constantBias() + slopeBasedBias(normal, directionalLight.direction.xyz);
-#else
-			float bias = constantBias();
-#endif
-            float shadowSample = texture(directionalLight.csm.cascades[cascadeIndex].depthTexture, texCoord).r < (depth - bias) ? 0.f : 1.f;
-            shadow += shadowSample * kernel[(i + kernelRadius) * 5 + (j + kernelRadius)];
-        }
-    }
+    vec4 shadowSpacePosition = directionalLight.csm.cascades[cascadeIndex].lightProjectionMatrix * directionalLight.csm.lightViewMatrix * vec4(worldSpacePosition, 1.f);
+    float shadowSpaceZ = shadowSpacePosition.z * .5f + .5f;
+    vec2 shadowCoord = shadowSpacePosition.xy * .5f + .5f;
+	if (shadowCoord.x >= 0.f && shadowCoord.x <= 1.f && shadowCoord.y >= 0.f && shadowCoord.y <= 1.f) 
+	{
+		float bias = constantBias();
+		shadow = texture(directionalLight.csm.cascades[cascadeIndex].depthTexture, shadowCoord).r < (shadowSpaceZ - bias) ? 0.f : 1.f;
+	}
     return shadow;
-}
-
-float calcDirectionalShadow(vec3 worldPosition, vec3 normal, in DirectionalLight directionalLight)
-{
-    return PCFShadow(worldPosition, normal, directionalLight);
 }
 
 vec3 calcDirectionalLight(in DirectionalLight directionalLight, in Material material, vec3 worldSpacePosition, inout vec3 outDiffuseRadiance) 
@@ -292,7 +260,9 @@ vec3 calcDirectLightingOnly(in Material material, vec3 worldSpacePosition)
 void main()
 {
 	float depth = texture(sceneDepth, psIn.texCoord0).r;
-	if (depth > 0.999) 
+    // todo: need a more reliable way to distinguish pixels that doesn't overlap any geometry,
+    // maybe use stencil buffer to mark?
+	if (depth >= 0.999999f) 
 	{
 		discard;
 	}

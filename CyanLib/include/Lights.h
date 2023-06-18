@@ -28,7 +28,7 @@ namespace Cyan
 
         DirectionalLightComponent* m_directionalLightComponent = nullptr;
         glm::vec3 m_direction;
-        std::unique_ptr<CascadedShadowMap> m_csm = nullptr;
+        // std::unique_ptr<CascadedShadowMap> m_csm = nullptr;
     };
 
     class SkyLightComponent;

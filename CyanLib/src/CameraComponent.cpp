@@ -53,9 +53,9 @@ namespace Cyan
                 // convert mouse cursor movement to yaw, and pitch rotation
                 if (m_cameraComponent != nullptr)
                 {
-                    auto camera = m_cameraComponent->getCamera();
+                    auto sceneCamera = m_cameraComponent->getSceneCamera();
                     static const f32 sensitivity = 2.f;
-                    f32 kPixelToRotationDegree = 45.f / camera->m_renderResolution.y;
+                    f32 kPixelToRotationDegree = 45.f / sceneCamera->m_resolution.y;
                     if (mouseEvent.bInited)
                     {
                         // rotation around camera up
@@ -93,9 +93,10 @@ namespace Cyan
     {
         if (bEnabled)
         {
-            auto camera = m_cameraComponent->getCamera();
-            if (camera != nullptr)
+            auto sceneCamera = m_cameraComponent->getSceneCamera();
+            if (sceneCamera != nullptr)
             {
+                Camera& camera = sceneCamera->m_camera;
                 auto t = m_cameraComponent->getLocalSpaceTransform();
 
                 if (bMouseRightButtonPressed)
@@ -109,7 +110,7 @@ namespace Cyan
                         const glm::vec3 yAxis(0.f, 1.f, 0.f);
                         glm::quat qYaw(glm::cos(yawAngle * .5f), yAxis * glm::sin(yawAngle * .5f));
                         forward = glm::normalize(glm::rotate(qYaw, glm::vec4(forward, 0.f)));
-                        glm::vec3 right = glm::normalize(glm::cross(forward, camera->m_worldUp));
+                        glm::vec3 right = glm::normalize(glm::cross(forward, Camera::worldUpVector()));
                         glm::vec3 up = glm::normalize(glm::cross(right, forward));
                         glm::mat4 yawRotationMatrix(glm::vec4(right, 0.f), glm::vec4(up, 0.f), glm::vec4(-forward, 0.f), glm::vec4(0.f, 0.f, 0.f, 1.f));
                         t.rotation = yawRotationMatrix;
@@ -120,9 +121,9 @@ namespace Cyan
                         f32 pitchAngle = glm::radians(m_pitchOneFrame);
                         glm::mat4 m = t.toMatrix();
                         glm::vec3 forward = -m[2];
-                        glm::quat qPitch(glm::cos(pitchAngle * .5f), camera->localSpaceRight() * glm::sin(pitchAngle * .5f));
+                        glm::quat qPitch(glm::cos(pitchAngle * .5f), camera.localSpaceRight() * glm::sin(pitchAngle * .5f));
                         forward = glm::normalize(glm::rotate(qPitch, glm::vec4(forward, 0.f)));
-                        glm::vec3 right = glm::normalize(glm::cross(forward, camera->m_worldUp));
+                        glm::vec3 right = glm::normalize(glm::cross(forward, Camera::worldUpVector()));
                         glm::vec3 up = glm::normalize(glm::cross(right, forward));
                         glm::mat4 pitchRotationMatrix(glm::vec4(right, 0.f), glm::vec4(up, 0.f), glm::vec4(-forward, 0.f), glm::vec4(0.f, 0.f, 0.f, 1.f));
                         t.rotation = pitchRotationMatrix;
@@ -134,19 +135,19 @@ namespace Cyan
                 glm::vec3 direction = glm::vec3(0.f);
                 if (bWKeyPressed)
                 {
-                    direction += camera->localSpaceForward();
+                    direction += camera.localSpaceForward();
                 }
                 if (bAKeyPressed)
                 {
-                    direction += -camera->localSpaceRight();
+                    direction += -camera.localSpaceRight();
                 }
                 if (bSKeyPressed)
                 {
-                    direction += -camera->localSpaceForward();
+                    direction += -camera.localSpaceForward();
                 }
                 if (bDKeyPressed)
                 {
-                    direction += camera->localSpaceRight();
+                    direction += camera.localSpaceRight();
                 }
                 if (glm::length(direction) > 0.f)
                 {
@@ -173,13 +174,38 @@ namespace Cyan
         bEnabled = false;
     }
 
+    CameraComponent::CameraComponent(const char* name, const Transform& local, const glm::uvec2& resolution)
+        : SceneComponent(name, local)
+    {
+        m_sceneCamera = std::make_unique<SceneCamera>(resolution);
+    }
+
+    void CameraComponent::onTransformUpdated()
+    {
+        Camera& camera = m_sceneCamera->m_camera;
+        // update camera's transform relative to parent
+        Transform localSpaceTransform = getLocalSpaceTransform();
+        glm::mat4 localTransformMatrix = localSpaceTransform.toMatrix();
+        camera.m_localSpaceRight = glm::normalize(localTransformMatrix * glm::vec4(Camera::localRight, 0.f));
+        camera.m_localSpaceUp = glm::normalize(localTransformMatrix * glm::vec4(Camera::localUp, 0.f));
+        camera.m_localSpaceForward = glm::normalize(localTransformMatrix * glm::vec4(Camera::localForward, 0.f));
+
+        // update camera's global transform
+        Transform worldSpaceTransform = getWorldSpaceTransform();
+        glm::mat4 worldSpaceMatrix = worldSpaceTransform.toMatrix();
+        camera.m_worldSpaceRight = glm::normalize(worldSpaceMatrix * glm::vec4(Camera::localRight, 0.f));
+        camera.m_worldSpaceUp = glm::normalize(worldSpaceMatrix * glm::vec4(Camera::localUp, 0.f));
+        camera.m_worldSpaceForward = glm::normalize(worldSpaceMatrix * glm::vec4(Camera::localForward, 0.f));
+        camera.m_worldSpacePosition = worldSpaceTransform.translation;
+    }
+
     void CameraComponent::turnOn()
     {
-        m_camera->bEnabledForRendering = true;
+        m_sceneCamera->turnOn();
     }
 
     void CameraComponent::turnOff()
     {
-        m_camera->bEnabledForRendering = false;
+        m_sceneCamera->turnOff();
     }
 }

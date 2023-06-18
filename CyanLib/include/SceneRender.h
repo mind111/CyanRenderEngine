@@ -13,11 +13,11 @@ namespace Cyan
     class Scene;
     class Camera;
     class ProgramPipeline;
+    class CascadedShadowMap;
 
     class SceneRender
     {
     public:
-
         struct Output
         {
             Output(const glm::uvec2& inRenderResolution);
@@ -38,32 +38,11 @@ namespace Cyan
             std::unique_ptr<GfxTexture2D> irradiance;
             std::unique_ptr<GfxTexture2D> color;
             std::unique_ptr<GfxTexture2D> resolvedColor;
+            std::unique_ptr<GfxTexture2D> debugColor;
         };
 
-        struct ViewParameters
-        {
-            ViewParameters(Scene* scene, Camera* camera);
-
-            void setShaderParameters(ProgramPipeline* p) const;
-
-            glm::uvec2 renderResolution;
-            f32 aspectRatio;
-            glm::mat4 viewMatrix;
-            glm::mat4 projectionMatrix;
-            glm::vec3 cameraPosition;
-            glm::vec3 cameraLookAt;
-            glm::vec3 cameraRight;
-            glm::vec3 cameraForward;
-            glm::vec3 cameraUp;
-            i32 frameCount;
-            f32 elapsedTime;
-            f32 deltaTime;
-        };
-
-        SceneRender(Scene* scene, Camera* camera);
-        ~SceneRender() { }
-
-        void update();
+        SceneRender(const glm::uvec2& renderResolution);
+        ~SceneRender();
 
         GfxDepthTexture2D* depth() { return m_output->depth.get(); }
         GfxTexture2D* normal() { return m_output->normal.get(); }
@@ -76,12 +55,9 @@ namespace Cyan
         GfxTexture2D* ao() { return m_output->ao.get(); }
         GfxTexture2D* color() { return m_output->color.get(); }
         GfxTexture2D* resolvedColor() { return m_output->resolvedColor.get(); }
+        GfxTexture2D* debugColor() { return m_output->debugColor.get(); }
 
-        bool shouldRender();
-
-        Scene* m_scene = nullptr;
-        Camera* m_camera = nullptr;
-        ViewParameters m_viewParameters;
+        std::unique_ptr<CascadedShadowMap> m_csm = nullptr;
 
     protected:
         std::unique_ptr<Output> m_output = nullptr;

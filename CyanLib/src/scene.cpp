@@ -24,10 +24,18 @@ namespace Cyan
 
     }
 
-    void Scene::addCamera(Camera* camera)
+    void Scene::render()
     {
-        m_cameras.push_back(camera);
-        m_renders.push_back(std::make_shared<SceneRender>(this, camera));
+        for (auto sceneCamera : m_sceneCameras)
+        {
+            sceneCamera->render();
+        }
+    }
+
+    void Scene::addSceneCamera(SceneCamera* sceneCamera)
+    {
+        m_sceneCameras.push_back(sceneCamera);
+        sceneCamera->setScene(this);
     }
 
     void Scene::addStaticMeshInstance(StaticMesh::Instance* staticMeshInstance)

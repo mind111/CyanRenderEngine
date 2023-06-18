@@ -26,7 +26,9 @@ namespace Cyan
         Scene(World* world);
         ~Scene() { }
 
-        void addCamera(Camera* camera);
+        void render();
+
+        void addSceneCamera(SceneCamera* sceneCamera);
         void addStaticMeshInstance(StaticMesh::Instance* staticMeshInstance);
         void removeStaticMeshInstance() { }
 
@@ -42,8 +44,8 @@ namespace Cyan
         f32 getDeltaTime();
 
         World* m_world = nullptr;
-        std::vector<Camera*> m_cameras;
-        std::vector<std::shared_ptr<SceneRender>> m_renders;
+        std::vector<SceneCamera*> m_sceneCameras;
+        // std::vector<std::shared_ptr<SceneRender>> m_renders;
         std::vector<StaticMesh::Instance*> m_staticMeshInstances;
 
         // todo: lights

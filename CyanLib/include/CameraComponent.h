@@ -2,7 +2,7 @@
 
 #include <utility>
 
-#include "Camera.h"
+#include "SceneCamera.h"
 #include "SceneComponent.h"
 
 namespace Cyan
@@ -10,20 +10,19 @@ namespace Cyan
     class CameraComponent : public SceneComponent
     {
     public:
-        template <typename ... Args>
-        CameraComponent(Args&&... args) 
-            : SceneComponent(std::forward<Args>(args)...)
-        { }
-
+        CameraComponent(const char* name, const Transform& local, const glm::uvec2& resolution);
         ~CameraComponent() { }
 
-        Camera* getCamera() { return m_camera.get(); }
+        /* SceneComponent Interface*/
+        virtual void onTransformUpdated() override;
+
+        SceneCamera* getSceneCamera() { return m_sceneCamera.get(); }
 
         void turnOn();
         void turnOff();
 
     protected:
-        std::unique_ptr<Camera> m_camera = nullptr;
+        std::unique_ptr<SceneCamera> m_sceneCamera = nullptr;
     };
 
     class CameraControllerComponent : public Component

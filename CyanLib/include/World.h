@@ -10,7 +10,7 @@ namespace Cyan
 {
     class Scene;
     class Entity;
-    class PerspectiveCameraEntity;
+    class CameraEntity;
     class StaticMesh;
     class StaticMeshEntity;
     class DirectionalLightEntity;
@@ -36,7 +36,7 @@ namespace Cyan
 
         void onEntityCreated(std::shared_ptr<Entity> entity);
         Entity* createEntity(const char* name, const Transform& local);
-        PerspectiveCameraEntity* createPerspectiveCameraEntity(const char* name, const Transform& local, const glm::vec3& worldUp, const glm::vec2& renderResolution, const Camera::ViewMode& viewMode, f32 fov, f32 n, f32 f);
+        CameraEntity* createCameraEntity(const char* name, const Transform& local, const glm::uvec2& resolution);
         StaticMeshEntity* createStaticMeshEntity(const char* name, const Transform& local, std::shared_ptr<StaticMesh> mesh);
         DirectionalLightEntity* createDirectionalLightEntity(const char* name, const Transform& local);
         SkyLightEntity* createSkyLightEntity(const char* name, const Transform& local);

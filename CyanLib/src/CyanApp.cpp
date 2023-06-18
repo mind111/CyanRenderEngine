@@ -4,6 +4,7 @@
 
 #include "CyanApp.h"
 #include "World.h"
+#include "SceneCamera.h"
 
 namespace Cyan
 {
@@ -106,14 +107,12 @@ namespace Cyan
             // scene rendering
             if (m_world != nullptr) 
             {
-                auto scene = m_world->m_scene;
-                renderer->render(scene.get());
-
-                // assuming that renders[0] is the active render
-                if (!scene->m_renders.empty())
+                auto scene = m_world->getScene();
+                scene->render();
+                if (!scene->m_sceneCameras.empty())
                 {
-                    auto render = scene->m_renders[0];
-                    renderer->renderToScreen(render->albedo());
+                    auto render = scene->m_sceneCameras[0]->m_render.get();
+                    renderer->renderToScreen(render->resolvedColor());
                 }
             }
             // UI rendering

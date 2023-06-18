@@ -37,20 +37,20 @@ namespace Cyan
 
             Transform local;
             local.translation = glm::vec3(0.f, 3.f, 8.f);
-            auto editorCameraEntity = m_world->createPerspectiveCameraEntity("EditorCamera", local, glm::vec3(0.f, 1.f, 0.f), m_appWindowDimension, VM_RESOLVED_SCENE_COLOR, 90.f, 0.1f, 100.f);
-            editorCameraEntity->addComponent(std::make_shared<CameraControllerComponent>("CameraController", editorCameraEntity->getCameraComponent()));
+            m_editorCameraEntity = m_world->createCameraEntity("EditorCamera", local, m_appWindowDimension);
+            m_editorCameraEntity->addComponent(std::make_shared<CameraControllerComponent>("CameraController", m_editorCameraEntity->getCameraComponent()));
             
             // add a debug camera for viewing the
             Transform t;
             t.translation = glm::vec3(5.f, 3.f, 8.f);
             f32 halfAngle = glm::radians(90.f * .5f);
             t.rotation = glm::quat(glm::cos(halfAngle), glm::vec3(0.f, 1.f, 0.f) * glm::sin(halfAngle));
-            auto shadowDebugCameraEntity = m_world->createPerspectiveCameraEntity("ShadowDebugCamera", t, glm::vec3(0.f, 1.f, 0.f), m_appWindowDimension, VM_RESOLVED_SCENE_COLOR, 90.f, 0.1f, 300.f);
-            shadowDebugCameraEntity->getCameraComponent()->turnOff();
-            shadowDebugCameraEntity->addComponent(std::make_shared<CameraControllerComponent>("CameraController", shadowDebugCameraEntity->getCameraComponent()));
+            m_shadowDebugCameraEntity = m_world->createCameraEntity("ShadowDebugCamera", t, m_appWindowDimension);
+            m_shadowDebugCameraEntity->getCameraComponent()->turnOff();
+            m_shadowDebugCameraEntity->addComponent(std::make_shared<CameraControllerComponent>("CameraController", m_shadowDebugCameraEntity->getCameraComponent()));
 
             // register a callback for toggling between camera view
-            m_engine->getInputSystem()->registerKeyEventListener('T', [this, editorCameraEntity, shadowDebugCameraEntity](const KeyEvent& event) {
+            m_engine->getInputSystem()->registerKeyEventListener('T', [this](const KeyEvent& event) {
                     static i32 activeCamerIndex = 0;
                     bool bSwitchCamera = false;
                     switch (event.action)
@@ -62,11 +62,11 @@ namespace Cyan
                     case KEY_RELEASE:
                     default: break;
                     }
-                    PerspectiveCameraEntity* cameraEntities[2] = { editorCameraEntity, shadowDebugCameraEntity };
+                    CameraEntity* cameraEntities[2] = { m_editorCameraEntity, m_shadowDebugCameraEntity };
                     if (bSwitchCamera)
                     {
-                        assert(editorCameraEntity != nullptr);
-                        assert(shadowDebugCameraEntity != nullptr);
+                        assert(m_editorCameraEntity != nullptr);
+                        assert(m_shadowDebugCameraEntity != nullptr);
 
                         i32 currentActiveCameraIndex = activeCamerIndex;
                         cameraEntities[currentActiveCameraIndex]->getCameraComponent()->turnOff();
@@ -96,6 +96,19 @@ namespace Cyan
                 }
             );
 
+            m_engine->getInputSystem()->registerKeyEventListener('Y', [this](const KeyEvent& event) {
+                    switch (event.action)
+                    {
+                    case KEY_PRESSED: 
+                        m_bDebugShadow = !m_bDebugShadow;
+                        break;
+                    case KEY_REPEAT:
+                    case KEY_RELEASE:
+                    default: break;
+                    }
+                }
+            );
+
             auto directionalLightEntity = m_world->createDirectionalLightEntity("DirectionalLight", Transform());
             auto directionalLightComponent = directionalLightEntity->getDirectionalLightComponent();
             directionalLightComponent->setIntensity(30.f);
@@ -117,34 +130,25 @@ namespace Cyan
                 });
 
             // overwrite the default rendering lambda
-            m_renderOneFrame = [this, directionalLightComponent, editorCameraEntity](GfxTexture2D* renderingOutput) {
+            m_renderOneFrame = [this](GfxTexture2D* renderingOutput) {
                 auto renderer = Renderer::get();
                 // scene rendering
                 if (m_world != nullptr) 
                 {
-                    auto scene = m_world->m_scene;
-                    renderer->render(scene.get());
+                    auto scene = m_world->getScene();
+                    auto sceneCamera = scene->m_sceneCameras[m_mainCameraIndex];
+                    auto editorCamera = m_editorCameraEntity->getCameraComponent()->getSceneCamera();
+                    // todo: this call should be guarded by an if
+                    // editorCamera->m_render->m_csm->debugDraw(sceneCamera->m_render.get(), sceneCamera->m_viewParameters);
+                    // renderer->renderToScreen(sceneCamera->m_render->debugColor());
 
-                    // assuming that renders[0] is the active render
-                    if (!scene->m_renders.empty())
-                    {
-                        auto render = scene->m_renders[m_mainCameraIndex];
-                        // debug visualize 
-                        directionalLightComponent->getDirectionalLight()->m_csm->render(scene.get(), editorCameraEntity->getCameraComponent()->getCamera());
-                        directionalLightComponent->getDirectionalLight()->m_csm->visualizeViewFrustum(render.get());
-
-                        renderer->renderToScreen(render->resolvedColor());
-                    }
+                    scene->render();
+                    renderer->renderToScreen(sceneCamera->m_render->resolvedColor());
                 }
                 // UI rendering
                 renderEditorUI();
                 renderer->renderUI();
             };
-        }
-
-        void debugCSM(SceneRender* render, CascadedShadowMap* csm)
-        {
-            const auto& cascade = csm->m_cascades[0];
         }
 
         void renderEditorUI()
@@ -405,7 +409,10 @@ namespace Cyan
             });
         }
 private:
+        CameraEntity* m_editorCameraEntity = nullptr;
+        CameraEntity* m_shadowDebugCameraEntity = nullptr;
         i32 m_mainCameraIndex = 0;
+        bool m_bDebugShadow = false;
     };
 }
 

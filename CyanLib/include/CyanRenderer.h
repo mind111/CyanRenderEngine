@@ -13,6 +13,7 @@
 #include "CyanAPI.h"
 #include "Scene.h"
 #include "SceneRender.h"
+#include "SceneCamera.h"
 #include "Camera.h"
 #include "Entity.h"
 #include "Geometry.h"
@@ -85,7 +86,6 @@ namespace Cyan
 
 // rendering
         void beginRender();
-        void render(Scene* scene);
         void endRender();
 
         /* Rendering Utilities */
@@ -95,15 +95,14 @@ namespace Cyan
         static void buildCubemapFromHDRI(GfxTextureCube* outCubemap, GfxTexture2D* srcEquirectangularMap);
 
         /* Scene Rendering Functions */
-        void renderSceneDepth(GfxDepthTexture2D* outDepthBuffer, Scene* scene, const SceneRender::ViewParameters& viewParameters);
-        void renderSceneDepthPrepass(GfxDepthTexture2D* outDepthBuffer, Scene* scene, const SceneRender::ViewParameters& viewParameters);
-        void renderShadowMaps(Scene* scene, Camera* camera);
+        void renderSceneDepth(GfxDepthTexture2D* outDepthBuffer, Scene* scene, const SceneCamera::ViewParameters& viewParameters);
+        void renderSceneDepthPrepass(GfxDepthTexture2D* outDepthBuffer, Scene* scene, const SceneCamera::ViewParameters& viewParameters);
         // todo: implement this!
         void renderVirtualShadowMap(Scene* scene, SceneRender* render);
-        void renderSceneGBuffer(GfxTexture2D* outAlbedo, GfxTexture2D* outNormal, GfxTexture2D* outMetallicRoughness, GfxDepthTexture2D* depth, Scene* scene, const SceneRender::ViewParameters& viewParameters);
-        void renderSceneLighting(Scene* scene, SceneRender* render);
-        void renderSceneDirectLighting(Scene* scene, SceneRender* render);
-        void renderSceneIndirectLighting(Scene* scene, SceneRender* render);
+        void renderSceneGBuffer(GfxTexture2D* outAlbedo, GfxTexture2D* outNormal, GfxTexture2D* outMetallicRoughness, GfxDepthTexture2D* depth, Scene* scene, const SceneCamera::ViewParameters& viewParameters);
+        void renderSceneLighting(Scene* scene, SceneRender* render, const Camera& camera, const SceneCamera::ViewParameters& viewParameters);
+        void renderSceneDirectLighting(Scene* scene, SceneRender* render, const Camera& camera, const SceneCamera::ViewParameters& viewParameters);
+        void renderSceneIndirectLighting(Scene* scene, SceneRender* render, const SceneCamera::ViewParameters& viewParameters);
         void postprocess(GfxTexture2D* outResolvedColor, GfxTexture2D* color);
         void renderToScreen(GfxTexture2D* inTexture);
 
@@ -125,25 +124,21 @@ namespace Cyan
             glm::vec4 color;
         };
 
-        void debugDrawWorldSpaceLines(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const SceneRender::ViewParameters& viewParemters, const std::vector<DebugPrimitiveVertex>& vertices);
-        void debugDrawSphere(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color, const SceneRender::ViewParameters& viewParameters);
-        void debugDrawWireframeSphere(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color, const SceneRender::ViewParameters& viewParameters);
-        void debugDrawCube(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color, const SceneRender::ViewParameters& viewParameters);
-        void debugDrawWireframeCube(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color, const SceneRender::ViewParameters& viewParameters);
+        void debugDrawWorldSpaceLines(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const SceneCamera::ViewParameters& viewParemters, const std::vector<DebugPrimitiveVertex>& vertices);
+        void debugDrawSphere(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color, const SceneCamera::ViewParameters& viewParameters);
+        void debugDrawWireframeSphere(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color, const SceneCamera::ViewParameters& viewParameters);
+        void debugDrawCube(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color, const SceneCamera::ViewParameters& viewParameters);
+        void debugDrawWireframeCube(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color, const SceneCamera::ViewParameters& viewParameters);
 
         void drawScreenSpaceLines(Framebuffer* framebuffer, const std::vector<DebugPrimitiveVertex>& vertices);
         void drawWorldSpacePoints(Framebuffer* framebuffer, const std::vector<DebugPrimitiveVertex>& points);
         void debugDrawCubemap(GfxTextureCube* cubemap);
         void debugDrawCubemap(GLuint cubemap);
 
-        using DebugDrawObject = std::function<void(void)>;
-        static constexpr u32 kMaxNumDebugDrawObjects = 128;
-        std::array<DebugDrawObject, kMaxNumDebugDrawObjects> debugDrawObjects;
-        u32 numUsedSlots = 0;
-        std::queue<u32> freeSlots;
-        void addDebugDrawObject(const DebugDrawObject& debugDrawObject, u32& slot);
-        void removeDebugDrawObject(u32 slot);
-        void drawDebugObjects();
+        using DebugDraw = std::function<void()>;
+        std::queue<DebugDraw> debugDrawQueue;
+        void addDebugDraw(const DebugDraw& debugDraw);
+        void drawDebugObjects(SceneRender* render);
 
         void addUIRenderCommand(const std::function<void()>& UIRenderCommand);
 

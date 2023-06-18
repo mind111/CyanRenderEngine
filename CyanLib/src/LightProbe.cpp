@@ -79,16 +79,16 @@ namespace Cyan
                     cube,
                     pipeline,
                     [this, f](ProgramPipeline* p) {
-                        PerspectiveCamera camera;
+                        Camera camera;
                         camera.m_worldSpacePosition = m_position;
                         camera.m_worldUp = worldUps[f];
                         camera.m_worldSpaceForward = cameraFacingDirections[f];
-                        camera.n = .1f;
-                        camera.f = 100.f;
-                        camera.fov = 90.f;
-                        camera.aspectRatio = 1.f;
-                        p->setUniform("cameraView", camera.view());
-                        p->setUniform("cameraProjection", camera.projection());
+                        camera.m_perspective.n = .1f;
+                        camera.m_perspective.f = 100.f;
+                        camera.m_perspective.fov = 90.f;
+                        camera.m_perspective.aspectRatio = 1.f;
+                        p->setUniform("cameraView", camera.viewMatrix());
+                        p->setUniform("cameraProjection", camera.projectionMatrix());
                         p->setUniform("numSamplesInTheta", (f32)kNumSamplesInTheta);
                         p->setUniform("numSamplesInPhi", (f32)kNumSamplesInPhi);
                         p->setTexture("srcCubemap", m_srcCubemap);
@@ -160,16 +160,16 @@ namespace Cyan
                         AssetManager::findAsset<StaticMesh>("UnitCubeMesh").get(),
                         p,
                         [this, f, mip, kNumMips](ProgramPipeline* p) {
-                            PerspectiveCamera camera;
+                            Camera camera;
                             camera.m_worldSpacePosition = m_position;
                             camera.m_worldUp = worldUps[f];
                             camera.m_worldSpaceForward = cameraFacingDirections[f];
-                            camera.n = .1f;
-                            camera.f = 100.f;
-                            camera.fov = 90.f;
-                            camera.aspectRatio = 1.f;
-                            p->setUniform("cameraView", camera.view());
-                            p->setUniform("cameraProjection", camera.projection());
+                            camera.m_perspective.n = .1f;
+                            camera.m_perspective.f = 100.f;
+                            camera.m_perspective.fov = 90.f;
+                            camera.m_perspective.aspectRatio = 1.f;
+                            p->setUniform("cameraView", camera.viewMatrix());
+                            p->setUniform("cameraProjection", camera.projectionMatrix());
                             p->setUniform("roughness", mip * (1.f / (kNumMips - 1)));
                             p->setTexture("srcCubemap", m_srcCubemap);
                         },

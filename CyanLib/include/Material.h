@@ -9,7 +9,7 @@
 #include "Asset.h"
 #include "Texture.h"
 #include "Shader.h"
-#include "SceneRender.h"
+#include "SceneCamera.h"
 
 #define MATERIAL_SOURCE_PATH "C:/dev/cyanRenderEngine/materials/"
 
@@ -156,7 +156,7 @@ namespace Cyan
 
         static const char* getAssetTypeName() { return "Material"; }
 
-        void bind(GfxContext* ctx, const glm::mat4& localToWorldMatrix, const SceneRender::ViewParameters& viewParameters);
+        void bind(GfxContext* ctx, const glm::mat4& localToWorldMatrix, const SceneCamera::ViewParameters& viewParameters);
 
         void setInt(const char* parameterName, i32 data);
         void setUint(const char* parameterName, u32 data);

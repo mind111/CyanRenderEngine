@@ -87,19 +87,14 @@ namespace Cyan
         return outEntity.get();
     }
 
-    PerspectiveCameraEntity* World::createPerspectiveCameraEntity(const char* name, const Transform& local, const glm::vec3& worldUp, const glm::vec2& renderResolution, const Camera::ViewMode& viewMode, f32 fov, f32 n, f32 f)
+    CameraEntity* World::createCameraEntity(const char* name, const Transform& local, const glm::uvec2& resolution)
     {
         assert(m_rootEntity != nullptr);
 
         // add to World
-        auto e = std::make_shared<PerspectiveCameraEntity>(
-            this, name, local, // Entity
-            worldUp, renderResolution, viewMode, // Camera
-            fov, n, f // PerspectiveCamera
-            );
-
+        auto e = std::make_shared<CameraEntity>(this, name, local, resolution);
         // add to Scene
-        m_scene->addCamera(e->getCameraComponent()->getCamera());
+        m_scene->addSceneCamera(e->getCameraComponent()->getSceneCamera());
 
         onEntityCreated(e);
         return e.get();

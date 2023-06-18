@@ -261,9 +261,6 @@
     <ClInclude Include="include\Component.h">
       <Filter>Header Files\Components</Filter>
     </ClInclude>
-    <ClInclude Include="include\PerspectiveCameraComponent.h">
-      <Filter>Header Files\Components</Filter>
-    </ClInclude>
     <ClInclude Include="include\CameraEntity.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -284,6 +281,9 @@
     </ClInclude>
     <ClInclude Include="include\VirtualFileSystem.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\SceneCamera.h">
+      <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -425,10 +425,7 @@
     <ClCompile Include="src\StaticMeshComponent.cpp">
       <Filter>Source Files\Components</Filter>
     </ClCompile>
-    <ClCompile Include="src\PerspectiveCameraComponent.cpp">
-      <Filter>Source Files\Components</Filter>
-    </ClCompile>
-    <ClCompile Include="src\PerspectiveCameraEntity.cpp">
+    <ClCompile Include="src\CameraEntity.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Camera.cpp">
@@ -447,6 +444,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\SkyboxEntity.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SceneCamera.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -974,6 +974,12 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\shader\screen_pass_v.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\visualize_csm_cascade_p.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\visualize_csm_shadowcoord_p.glsl">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

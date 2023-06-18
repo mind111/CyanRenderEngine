@@ -23,7 +23,7 @@ namespace Cyan
         : Light(directionalLightComponent->getColor(), directionalLightComponent->getIntensity()), m_directionalLightComponent(directionalLightComponent)
     {
         m_direction = m_directionalLightComponent->getDirection();
-        m_csm = std::make_unique<CascadedShadowMap>(this);
+        // m_csm = std::make_unique<CascadedShadowMap>(this);
     }
 
     SkyLight::SkyLight(SkyLightComponent* skyLightComponent)

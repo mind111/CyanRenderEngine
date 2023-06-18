@@ -2,6 +2,7 @@
 #include "GfxTexture.h"
 #include "Camera.h"
 #include "Scene.h"
+#include "ShadowMaps.h"
 
 namespace Cyan
 {
@@ -31,69 +32,18 @@ namespace Cyan
             aoHistory = std::unique_ptr<GfxTexture2D>(GfxTexture2D::create(spec, Sampler2D()));
             color = std::unique_ptr<GfxTexture2D>(GfxTexture2D::create(spec, Sampler2D()));
             resolvedColor = std::unique_ptr<GfxTexture2D>(GfxTexture2D::create(spec, Sampler2D()));
+            debugColor = std::unique_ptr<GfxTexture2D>(GfxTexture2D::create(spec, Sampler2D()));
         }
     }
-
-    SceneRender::ViewParameters::ViewParameters(Scene* scene, Camera* camera)
-        : renderResolution(camera->m_renderResolution)
-        , aspectRatio((f32)renderResolution.x / renderResolution.y)
-        , viewMatrix(camera->view())
-        , projectionMatrix(camera->projection())
-        , cameraPosition(camera->m_worldSpacePosition)
-        , cameraRight(camera->worldSpaceRight())
-        , cameraForward(camera->worldSpaceForward())
-        , cameraUp(camera->worldSpaceUp())
-        , frameCount(scene->getFrameCount())
-        , elapsedTime(scene->getElapsedTime())
-        , deltaTime(scene->getDeltaTime())
+ 
+    SceneRender::SceneRender(const glm::uvec2& renderResolution)
     {
-
+        m_output = std::make_unique<Output>(renderResolution);
+        m_csm = std::make_unique<CascadedShadowMap>();
     }
 
-    void SceneRender::ViewParameters::setShaderParameters(ProgramPipeline* p) const
+    SceneRender::~SceneRender()
     {
-        p->setUniform("viewParameters.renderResolution", renderResolution);
-        p->setUniform("viewParameters.aspectRatio", aspectRatio);
-        p->setUniform("viewParameters.viewMatrix", viewMatrix);
-        p->setUniform("viewParameters.projectionMatrix", projectionMatrix);
-        p->setUniform("viewParameters.cameraPosition", cameraPosition);
-        p->setUniform("viewParameters.cameraRight", cameraRight);
-        p->setUniform("viewParameters.cameraForward", cameraForward);
-        p->setUniform("viewParameters.cameraUp", cameraUp);
-        p->setUniform("viewParameters.frameCount", frameCount);
-        p->setUniform("viewParameters.elapsedTime", elapsedTime);
-        p->setUniform("viewParameters.deltaTime", deltaTime);
-    }
 
-    void SceneRender::update()
-    {
-        // update view parameters
-        if (m_camera != nullptr)
-        {
-            m_viewParameters.renderResolution = m_camera->m_renderResolution;
-            m_viewParameters.aspectRatio = (f32)m_camera->m_renderResolution.x / m_camera->m_renderResolution.y;
-            m_viewParameters.viewMatrix = m_camera->view();
-            m_viewParameters.projectionMatrix = m_camera->projection();
-            m_viewParameters.cameraPosition = m_camera->m_worldSpacePosition;
-            m_viewParameters.cameraRight = m_camera->worldSpaceRight();
-            m_viewParameters.cameraForward = m_camera->worldSpaceForward();
-            m_viewParameters.cameraUp = m_camera->worldSpaceUp();
-        }
-    }
-
-    bool SceneRender::shouldRender()
-    {
-        if (m_camera != nullptr)
-        {
-            return m_camera->bEnabledForRendering;
-        }
-        return false;
-    }
-
-    SceneRender::SceneRender(Scene* scene, Camera* camera)
-        : m_scene(scene), m_camera(camera), m_viewParameters(scene, camera)
-    {
-        m_output = std::make_unique<Output>(camera->m_renderResolution);
-        m_camera->setSceneRender(this);
     }
 }

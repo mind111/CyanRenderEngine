@@ -239,16 +239,16 @@ namespace Cyan
                 cubeMesh,
                 pipeline,
                 [f, HDRI](ProgramPipeline* p) {
-                    PerspectiveCamera camera;
+                    Camera camera;
                     camera.m_worldSpacePosition = glm::vec3(0.f);
                     camera.m_worldUp = worldUps[f];
                     camera.m_worldSpaceForward = cameraFacingDirections[f];
-                    camera.n = .1f;
-                    camera.f = 100.f;
-                    camera.fov = 90.f;
-                    camera.aspectRatio = 1.f;
-                    p->setUniform("cameraView", camera.view());
-                    p->setUniform("cameraProjection", camera.projection());
+                    camera.m_perspective.n = .1f;
+                    camera.m_perspective.f = 100.f;
+                    camera.m_perspective.fov = 90.f;
+                    camera.m_perspective.aspectRatio = 1.f;
+                    p->setUniform("cameraView", camera.viewMatrix());
+                    p->setUniform("cameraProjection", camera.projectionMatrix());
                     p->setTexture("srcHDRI", HDRI);
                 },
                 gfxPipelineState
@@ -259,30 +259,7 @@ namespace Cyan
         glGenerateTextureMipmap(outCubemap->getGpuResource());
     }
 
-    void Renderer::render(Scene* scene)
-    {
-        // render each view
-        for (auto render : scene->m_renders)
-        {
-            if (render->shouldRender())
-            {
-                render->update();
-
-                renderShadowMaps(scene, render->m_camera);
-                renderSceneDepthPrepass(render->depth(), scene, render->m_viewParameters);
-                renderSceneGBuffer(render->albedo(), render->normal(), render->metallicRoughness(), render->depth(), scene, render->m_viewParameters);
-                renderSceneLighting(scene, render.get());
-
-                // post processing
-                if (m_settings.bPostProcessing)
-                {
-                    postprocess(render->resolvedColor(), render->color());
-                }
-            }
-        }
-    }
-
-    void Renderer::renderSceneDepth(GfxDepthTexture2D* outDepthBuffer, Scene* scene, const SceneRender::ViewParameters& viewParameters)
+    void Renderer::renderSceneDepth(GfxDepthTexture2D* outDepthBuffer, Scene* scene, const SceneCamera::ViewParameters& viewParameters)
     {
         if (outDepthBuffer != nullptr)
         {
@@ -313,7 +290,7 @@ namespace Cyan
         }
     }
 
-    void Renderer::renderSceneDepthPrepass(GfxDepthTexture2D* outDepthBuffer, Scene* scene, const SceneRender::ViewParameters& viewParameters)
+    void Renderer::renderSceneDepthPrepass(GfxDepthTexture2D* outDepthBuffer, Scene* scene, const SceneCamera::ViewParameters& viewParameters)
     {
         GPU_DEBUG_SCOPE(sceneDepthPrepassMarker, "Scene Depth Prepass");
 
@@ -346,44 +323,17 @@ namespace Cyan
         }
     }
 
-    void Renderer::renderShadowMaps(Scene* scene, Camera* camera)
-    {
-#if 0
-        GPU_DEBUG_SCOPE(renderShadowMapsMarker, "Shadow Maps Pass");
-
-        if (scene->m_directionalLight != nullptr)
-        {
-            scene->m_directionalLight->m_csm->render(scene, camera);
-        }
-#endif
-    }
-
     // todo: continue implementing this later
     void Renderer::renderVirtualShadowMap(Scene* scene, SceneRender* render)
     {
         // build page request for each pixel
-        PerspectiveCamera* camera = dynamic_cast<PerspectiveCamera*>(scene->m_cameras[0]);
-        if (camera != nullptr)
-        {
-            const f32 kMaxShadowDrawingDistance = 50.f; // 50 meters from the camera
-            // calculate a stable bound for the portion of view frustum that's drawing shadow 
-            f32 nearClippingDistance = camera->n;
-            f32 shadowClippingDistance = kMaxShadowDrawingDistance;
-
-            const u32 kVirtualShadowMapResolution = 32 * 1024;
-        }
-        else
-        {
-            cyanError("VirtualShadowMap only works for perspective camera for now!");
-            assert(0);
-        }
     }
 
     /**
      * todo: implement material bucketing
      * todo: implement material->unbind()
      */
-    void Renderer::renderSceneGBuffer(GfxTexture2D* outAlbedo, GfxTexture2D* outNormal, GfxTexture2D* outMetallicRoughness, GfxDepthTexture2D* depth, Scene* scene, const SceneRender::ViewParameters& viewParameters)
+    void Renderer::renderSceneGBuffer(GfxTexture2D* outAlbedo, GfxTexture2D* outNormal, GfxTexture2D* outMetallicRoughness, GfxDepthTexture2D* depth, Scene* scene, const SceneCamera::ViewParameters& viewParameters)
     {
         GPU_DEBUG_SCOPE(renderSceneGBufferPassMarker, "Scene GBuffer Pass");
 
@@ -413,12 +363,12 @@ namespace Cyan
         }
     }
 
-    void Renderer::renderSceneLighting(Scene* scene, SceneRender* render)
+    void Renderer::renderSceneLighting(Scene* scene, SceneRender* render, const Camera& camera, const SceneCamera::ViewParameters& viewParameters)
     {
         GPU_DEBUG_SCOPE(sceneGBufferPassMarker, "Scene Lighting Pass");
 
-        renderSceneDirectLighting(scene, render);
-        renderSceneIndirectLighting(scene, render);
+        renderSceneDirectLighting(scene, render, camera, viewParameters);
+        renderSceneIndirectLighting(scene, render, viewParameters);
 
         // compose lighting results
         auto outSceneColor = render->color();
@@ -440,9 +390,12 @@ namespace Cyan
         );
     }
 
-    void Renderer::renderSceneDirectLighting(Scene* scene, SceneRender* render)
+    void Renderer::renderSceneDirectLighting(Scene* scene, SceneRender* render, const Camera& camera, const SceneCamera::ViewParameters& viewParameters)
     {
         GPU_DEBUG_SCOPE(sceneDirectLightingPassMarker, "Scene Direct Lighting Pass");
+
+        // render directional shadow map
+        render->m_csm->render(scene, scene->m_directionalLight, camera);
 
         CreateVS(vs, "ScreenPassVS", SHADER_SOURCE_PATH "screen_pass_v.glsl");
         CreatePS(ps, "SceneDirectLightingPS", SHADER_SOURCE_PATH "scene_direct_lighting_p.glsl");
@@ -460,30 +413,16 @@ namespace Cyan
                 pass.setRenderTarget(outLightingOnly, 2);
             },
             pipeline,
-            [scene, render](ProgramPipeline* p) {
-                render->m_viewParameters.setShaderParameters(p);
+            [scene, render, viewParameters](ProgramPipeline* p) {
+                viewParameters.setShaderParameters(p);
                 // setup shader parameters for the directional light
                 if (scene->m_directionalLight != nullptr)
                 {
                     p->setUniform("directionalLight.color", scene->m_directionalLight->m_color);
                     p->setUniform("directionalLight.intensity", scene->m_directionalLight->m_intensity);
                     p->setUniform("directionalLight.direction", scene->m_directionalLight->m_direction);
-                    p->setUniform("directionalLight.csm.lightViewMatrix", scene->m_directionalLight->m_csm->m_lightViewMatrix);
-                    for (i32 i = 0; i < CascadedShadowMap::kNumCascades; ++i)
-                    {
-                        char nName[64];
-                        sprintf_s(nName, "directionalLight.csm.cascades[%d].n", i);
-                        p->setUniform(nName, scene->m_directionalLight->m_csm->m_cascades[i].n);
-                        char fName[64];
-                        sprintf_s(fName, "directionalLight.csm.cascades[%d].f", i);
-                        p->setUniform(fName, scene->m_directionalLight->m_csm->m_cascades[i].f);
-                        char lightProjectionMatrixName[64];
-                        sprintf_s(lightProjectionMatrixName, "directionalLight.csm.cascades[%d].lightProjectionMatrix", i);
-                        p->setUniform(lightProjectionMatrixName, scene->m_directionalLight->m_csm->m_cascades[i].camera->projection());
-                        char depthTextureName[64];
-                        sprintf_s(depthTextureName, "directionalLight.csm.cascades[%d].depthTexture", i);
-                        p->setTexture(depthTextureName, scene->m_directionalLight->m_csm->m_cascades[i].depthTexture.get());
-                    }
+                    auto csm = render->m_csm.get();
+                    csm->setShaderParameters(p);
                 }
                 p->setTexture("sceneDepth", render->depth());
                 p->setTexture("sceneNormal", render->normal());
@@ -493,13 +432,12 @@ namespace Cyan
         );
     }
 
-    void Renderer::renderSceneIndirectLighting(Scene* scene, SceneRender* render)
+    void Renderer::renderSceneIndirectLighting(Scene* scene, SceneRender* render, const SceneCamera::ViewParameters& viewParameters)
     {
         GPU_DEBUG_SCOPE(sceneIndirectLighting, "SceneIndirectLighting");
 
         auto outIndirectLighting = render->indirectLighting();
         auto depth = render->depth();
-        const auto& viewParameters = render->m_viewParameters;
 
         // render skybox pass
         {
@@ -545,8 +483,8 @@ namespace Cyan
                     pass.setRenderTarget(outIndirectLighting, 0, /*bClear=*/false);
                 },
                 pipeline,
-                [this, scene, render](ProgramPipeline* p) {
-                    render->m_viewParameters.setShaderParameters(p);
+                [this, scene, render, viewParameters](ProgramPipeline* p) {
+                    viewParameters.setShaderParameters(p);
                     p->setTexture("sceneDepth", render->depth());
                     p->setTexture("sceneNormal", render->normal());
                     p->setTexture("sceneAlbedo", render->albedo());
@@ -828,7 +766,7 @@ namespace Cyan
 #endif
     }
 
-    void Renderer::debugDrawWorldSpaceLines(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const SceneRender::ViewParameters& viewParameters, const std::vector<DebugPrimitiveVertex>& vertices)
+    void Renderer::debugDrawWorldSpaceLines(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const SceneCamera::ViewParameters& viewParameters, const std::vector<DebugPrimitiveVertex>& vertices)
     {
         const u32 kMaxNumVertices = 1024;
         static ShaderStorageBuffer vertexBuffer("VertexBuffer", sizeof(DebugPrimitiveVertex) * kMaxNumVertices);
@@ -1251,7 +1189,7 @@ namespace Cyan
     }
 
 
-    void Renderer::debugDrawSphere(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color, const SceneRender::ViewParameters& viewParameters)
+    void Renderer::debugDrawSphere(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color, const SceneCamera::ViewParameters& viewParameters)
     {
         CreateVS(vs, "DebugDrawVS", SHADER_SOURCE_PATH "debug_draw_v.glsl");
         CreatePS(ps, "DebugDrawPS", SHADER_SOURCE_PATH "debug_draw_p.glsl");
@@ -1280,7 +1218,7 @@ namespace Cyan
         );
     }
 
-    void Renderer::debugDrawWireframeSphere(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color,  const SceneRender::ViewParameters& viewParameters)
+    void Renderer::debugDrawWireframeSphere(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color,  const SceneCamera::ViewParameters& viewParameters)
     {
         glDisable(GL_CULL_FACE);
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -1289,12 +1227,12 @@ namespace Cyan
         glEnable(GL_CULL_FACE);
     }
 
-    void Renderer::debugDrawCube(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color, const SceneRender::ViewParameters& viewParameters)
+    void Renderer::debugDrawCube(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color, const SceneCamera::ViewParameters& viewParameters)
     {
 
     }
 
-    void Renderer::debugDrawWireframeCube(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color, const SceneRender::ViewParameters& viewParameters)
+    void Renderer::debugDrawWireframeCube(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color, const SceneCamera::ViewParameters& viewParameters)
     {
 
     }
@@ -1445,36 +1383,38 @@ namespace Cyan
 #endif
     }
 
-    void Renderer::addDebugDrawObject(const DebugDrawObject& debugDrawObject, u32& slot)
+    void Renderer::addDebugDraw(const DebugDraw& debugDraw)
     {
-        // reuse a freed slot
-        if (!freeSlots.empty())
-        {
-            u32 reuseSlot = freeSlots.front();
-            freeSlots.pop();
-            slot = reuseSlot;
-            debugDrawObjects[slot] = debugDrawObject;
-        }
-        // allocate a new slot
-        else
-        {
-            assert((numUsedSlots + 1) <= kMaxNumDebugDrawObjects);
-            slot = numUsedSlots++;
-            debugDrawObjects[slot] = debugDrawObject;
-        }
+        debugDrawQueue.push(debugDraw);
     }
 
-    void Renderer::removeDebugDrawObject(u32 slot)
+    void Renderer::drawDebugObjects(SceneRender* render)
     {
-        freeSlots.push(slot);
-        debugDrawObjects[slot] = []() { };
-    }
+        // clear the debug draw render target
+        auto debugColor = render->debugColor();
 
-    void Renderer::drawDebugObjects()
-    {
-        for (i32 i = 0; i < numUsedSlots; ++i)
+        // hack begin: just a quick and dirty workaround for not having a proper
+        // pass for clearing a texture
+        CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
+        CreatePS(ps, "BlitPS", SHADER_SOURCE_PATH "blit_p.glsl");
+        CreatePixelPipeline(p, "BlitQuad", vs, ps);
+
+        drawFullscreenQuad(
+            glm::uvec2(debugColor->width, debugColor->width),
+            [debugColor](RenderPass& pass) {
+                pass.setRenderTarget(debugColor, 0);
+            },
+            p,
+            [](ProgramPipeline* p) {
+            }
+        );
+        // hack end
+
+        while (!debugDrawQueue.empty())
         {
-            debugDrawObjects[i]();
+            auto& debugDraw = debugDrawQueue.front();
+            debugDraw();
+            debugDrawQueue.pop();
         }
     }
 }

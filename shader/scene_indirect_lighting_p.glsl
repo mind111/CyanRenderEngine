@@ -179,7 +179,9 @@ uniform float indirectIrradianceEnabled;
 void main() 
 {
 	float depth = texture(sceneDepth, psIn.texCoord0).r;
-	if (depth > 0.999) 
+    // todo: need a more reliable way to distinguish pixels that doesn't overlap any geometry,
+    // maybe use stencil buffer to mark?
+	if (depth >= 0.999999f) 
 	{
 		discard;
 	}

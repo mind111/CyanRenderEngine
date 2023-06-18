@@ -39,7 +39,7 @@ namespace Cyan
 
     }
 
-    void Material::bind(GfxContext* ctx, const glm::mat4& localToWorldMatrix, const SceneRender::ViewParameters& viewParameters)
+    void Material::bind(GfxContext* ctx, const glm::mat4& localToWorldMatrix, const SceneCamera::ViewParameters& viewParameters)
     {
         m_pipeline->bind(ctx);
         m_pipeline->setUniform("localToWorld", localToWorldMatrix);
