@@ -143,7 +143,7 @@ namespace Cyan
                     // renderer->renderToScreen(sceneCamera->m_render->debugColor());
 
                     scene->render();
-                    renderer->renderToScreen(sceneCamera->m_render->ao());
+                    renderer->renderToScreen(sceneCamera->m_render->resolvedColor());
                 }
                 // UI rendering
                 renderEditorUI();

@@ -5,11 +5,29 @@ in VSOutput
 	vec2 texCoord0;
 } psIn;
 
-layout(std430) buffer ViewBuffer
+out vec3 outAO;
+
+struct ViewParameters
 {
-    mat4  view;
-    mat4  projection;
+	uvec2 renderResolution;
+	float aspectRatio;
+	mat4 viewMatrix;
+    mat4 prevFrameViewMatrix;
+	mat4 projectionMatrix;
+    mat4 prevFrameProjectionMatrix;
+	vec3 cameraPosition;
+	vec3 prevFrameCameraPosition;
+	vec3 cameraRight;
+	vec3 cameraForward;
+	vec3 cameraUp;
+	int frameCount;
+	float elapsedTime;
+	float deltaTime;
 };
+
+uniform ViewParameters viewParameters;
+uniform sampler2D sceneDepthBuffer;
+uniform sampler2D aoTemporalOutput;
 
 vec3 screenToWorld(vec3 pp, mat4 invView, mat4 invProjection) 
 {
@@ -26,21 +44,15 @@ vec3 worldToScreen(vec3 pp, in mat4 view, in mat4 projection)
     p /= p.w;
     return p.xyz * .5f + .5f;
 }
-
-uniform sampler2D sceneDepthTexture;
-uniform sampler2D aoTexture;
-
-out vec3 outAO;
-
 // todo: improve range weighting (Gr)
 // todo: seperable filter
 void main()
 {
 	vec2 texCoord = psIn.texCoord0;
-	float deviceDepth = texture(sceneDepthTexture, texCoord).r;
-	vec3 viewSpacePosition = (view * vec4(screenToWorld(vec3(texCoord, deviceDepth) * 2.f - 1.f, inverse(view), inverse(projection)), 1.f)).xyz;
+	float deviceDepth = texture(sceneDepthBuffer, texCoord).r;
+	vec3 viewSpacePosition = (viewParameters.viewMatrix * vec4(screenToWorld(vec3(texCoord, deviceDepth) * 2.f - 1.f, inverse(viewParameters.viewMatrix), inverse(viewParameters.projectionMatrix)), 1.f)).xyz;
 	float linearDepth = -viewSpacePosition.z;
-	vec2 texelSize = 1.f / textureSize(aoTexture, 0).xy;
+	vec2 texelSize = 1.f / textureSize(aoTemporalOutput, 0).xy;
 
 #if 1
 #define NUM_TAPS 5
@@ -77,9 +89,9 @@ void main()
 			vec2 sampleCoord = texCoord + offset;
 			if (abs(sampleCoord.x * 2.f - 1.f) <= 1.f && abs(sampleCoord.y * 2.f - 1.f) <= 1.f)
 			{
-				float aoTap = texture(aoTexture, sampleCoord).r;
-				float depthTap = texture(sceneDepthTexture, sampleCoord).r;
-				float linearDepthTap = -(view * vec4(screenToWorld(vec3(sampleCoord, depthTap) * 2.f - 1.f, inverse(view), inverse(projection)), 1.f)).z;
+				float aoTap = texture(aoTemporalOutput, sampleCoord).r;
+				float depthTap = texture(sceneDepthBuffer, sampleCoord).r;
+				float linearDepthTap = -(viewParameters.viewMatrix * vec4(screenToWorld(vec3(sampleCoord, depthTap) * 2.f - 1.f, inverse(viewParameters.viewMatrix), inverse(viewParameters.projectionMatrix)), 1.f)).z;
 				float depthDelta = abs(linearDepthTap - linearDepth);
 				float Gr = clamp(-1.f * depthDelta + linearDepth * .1f, 0.f, 1.f);
 				float w = gaussianWeights[i * NUM_TAPS + j] * Gr;

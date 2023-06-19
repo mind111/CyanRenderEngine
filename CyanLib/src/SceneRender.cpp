@@ -13,6 +13,7 @@ namespace Cyan
         {
             GfxDepthTexture2D::Spec spec(resolution.x, resolution.y, 1);
             depth = std::unique_ptr<GfxDepthTexture2D>(GfxDepthTexture2D::create(spec, Sampler2D()));
+            prevFrameDepth = std::unique_ptr<GfxDepthTexture2D>(GfxDepthTexture2D::create(spec, Sampler2D()));
         }
         // normal
         {

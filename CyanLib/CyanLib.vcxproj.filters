@@ -982,5 +982,8 @@
     <None Include="..\shader\visualize_csm_shadowcoord_p.glsl">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="..\shader\copy_depth_p.glsl">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

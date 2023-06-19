@@ -36,8 +36,11 @@ namespace Cyan
             glm::uvec2 renderResolution;
             f32 aspectRatio;
             glm::mat4 viewMatrix;
+            glm::mat4 prevFrameViewMatrix;
             glm::mat4 projectionMatrix;
+            glm::mat4 prevFrameProjectionMatrix;
             glm::vec3 cameraPosition;
+            glm::vec3 prevFrameCameraPosition;
             glm::vec3 cameraLookAt;
             glm::vec3 cameraRight;
             glm::vec3 cameraForward;
@@ -50,7 +53,9 @@ namespace Cyan
         SceneCamera(const glm::uvec2& resolution);
         ~SceneCamera();
 
+        void onRenderStart();
         void render();
+        void onRenderFinish();
 
         void turnOn() { m_bPower = true; }
         void turnOff() { m_bPower = false; }

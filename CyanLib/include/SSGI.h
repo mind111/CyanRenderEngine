@@ -86,6 +86,7 @@ namespace Cyan
 
     struct GfxTexture2D;
     class Texture2D;
+    class SceneRender;
 
     class SSGIRenderer
     {
@@ -93,7 +94,7 @@ namespace Cyan
         SSGIRenderer();
         ~SSGIRenderer();
 
-        void renderAO(GfxTexture2D* outAO, GfxTexture2D* depth, GfxTexture2D* normal, const SceneCamera::ViewParameters& viewParameters);
+        void renderAO(SceneRender* render, const SceneCamera::ViewParameters& viewParameters);
     private:
         std::shared_ptr<Texture2D> m_blueNoise_1024x1024_RGBA = nullptr;
         std::array<std::shared_ptr<Texture2D>, 8> m_blueNoise_16x16_R;

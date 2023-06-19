@@ -17,13 +17,23 @@ namespace Cyan
 
     }
 
+    void SceneCamera::onRenderStart()
+    {
+        // update view parameters
+        m_viewParameters.update(*this);
+
+        if (m_numRenderedFrames > 0)
+        {
+            auto renderer = Renderer::get();
+            renderer->copyDepth(m_render->prevFrameDepth(), m_render->depth());
+        }
+    }
+
     void SceneCamera::render()
     {
         if (m_bPower)
         {
-            // update view parameters
-            m_viewParameters.update(*this);
-
+            onRenderStart();
             if (m_scene != nullptr)
             {
                 auto renderer = Renderer::get();
@@ -33,9 +43,13 @@ namespace Cyan
                 renderer->postprocess(m_render->resolvedColor(), m_render->color());
                 renderer->drawDebugObjects(m_render.get());
             }
-
-            m_numRenderedFrames++;
+            onRenderFinish();
         }
+    }
+
+    void SceneCamera::onRenderFinish()
+    {
+        m_numRenderedFrames++;
     }
 
     void SceneCamera::setScene(Scene* scene)
@@ -47,6 +61,13 @@ namespace Cyan
 
     void SceneCamera::ViewParameters::update(const SceneCamera& camera)
     {
+        if (camera.m_numRenderedFrames > 0)
+        {
+            prevFrameViewMatrix = viewMatrix;
+            prevFrameProjectionMatrix = projectionMatrix;
+            prevFrameCameraPosition = cameraPosition;
+        }
+
         renderResolution = camera.m_resolution;
         aspectRatio = camera.m_camera.m_perspective.aspectRatio;
         viewMatrix = camera.m_camera.viewMatrix();
@@ -65,8 +86,11 @@ namespace Cyan
         p->setUniform("viewParameters.renderResolution", renderResolution);
         p->setUniform("viewParameters.aspectRatio", aspectRatio);
         p->setUniform("viewParameters.viewMatrix", viewMatrix);
+        p->setUniform("viewParameters.prevFrameViewMatrix", prevFrameViewMatrix);
         p->setUniform("viewParameters.projectionMatrix", projectionMatrix);
+        p->setUniform("viewParameters.prevFrameProjectionMatrix", prevFrameProjectionMatrix);
         p->setUniform("viewParameters.cameraPosition", cameraPosition);
+        p->setUniform("viewParameters.prevFrameCameraPosition", prevFrameCameraPosition);
         p->setUniform("viewParameters.cameraRight", cameraRight);
         p->setUniform("viewParameters.cameraForward", cameraForward);
         p->setUniform("viewParameters.cameraUp", cameraUp);

@@ -25,6 +25,7 @@ namespace Cyan
             glm::uvec2 resolution;
             std::unique_ptr<GfxDepthTexture2D> HiZ;
             std::unique_ptr<GfxDepthTexture2D> depth;
+            std::unique_ptr<GfxDepthTexture2D> prevFrameDepth;
             std::unique_ptr<GfxTexture2D> normal;
             std::unique_ptr<GfxTexture2D> albedo;
             std::unique_ptr<GfxTexture2D> metallicRoughness;
@@ -45,6 +46,7 @@ namespace Cyan
         ~SceneRender();
 
         GfxDepthTexture2D* depth() { return m_output->depth.get(); }
+        GfxDepthTexture2D* prevFrameDepth() { return m_output->prevFrameDepth.get(); }
         GfxTexture2D* normal() { return m_output->normal.get(); }
         GfxTexture2D* albedo() { return m_output->albedo.get(); }
         GfxTexture2D* metallicRoughness() { return m_output->metallicRoughness.get(); }
@@ -53,6 +55,7 @@ namespace Cyan
         GfxTexture2D* indirectLighting() { return m_output->indirectLighting.get(); }
         GfxTexture2D* lightingOnly() { return m_output->lightingOnly.get(); }
         GfxTexture2D* ao() { return m_output->ao.get(); }
+        GfxTexture2D* aoHistory() { return m_output->aoHistory.get(); }
         GfxTexture2D* color() { return m_output->color.get(); }
         GfxTexture2D* resolvedColor() { return m_output->resolvedColor.get(); }
         GfxTexture2D* debugColor() { return m_output->debugColor.get(); }

@@ -452,13 +452,14 @@ namespace Cyan
             pass.viewport = { 0, 0, outIndirectLighting->width, outIndirectLighting->height };
             pass.setRenderTarget(outIndirectLighting, 0);
             pass.setDepthBuffer(depth, /*bClearDepth=*/false);
-            pass.drawLambda = [p, scene, viewParameters](GfxContext* ctx) {
+            pass.drawLambda = [p, scene, render, viewParameters](GfxContext* ctx) {
                 if (scene->m_skybox != nullptr)
                 {
                     p->bind(ctx);
                     p->setUniform("cameraView", viewParameters.viewMatrix);
                     p->setUniform("cameraProjection", viewParameters.projectionMatrix);
                     p->setTexture("cubemap", scene->m_skybox->m_cubemap.get());
+
                     auto cubeMesh = AssetManager::findAsset<StaticMesh>("UnitCubeMesh");
                     auto sm = (*cubeMesh)[0];
                     ctx->setVertexArray(sm->va.get());
@@ -472,7 +473,7 @@ namespace Cyan
 
         // render ao and indirect irradiance
         {
-            m_SSGIRenderer->renderAO(render->ao(), render->depth(), render->normal(), viewParameters);
+            m_SSGIRenderer->renderAO(render, viewParameters);
         }
 
         // render indirect lighting effects pass
@@ -497,6 +498,11 @@ namespace Cyan
                     p->setTexture("sceneMetallicRoughness", render->metallicRoughness());
 
                     // todo: apply lighting effects
+                    // ssao (screenspace ambient occlusion)
+                    p->setUniform("ssaoEnabled", m_settings.bSSAOEnabled ? 1.f : 0.f);
+                    p->setTexture("ssao", render->ao());
+                    // ssgi (screenspace indirect irradiance)
+                    // ssr (screenspace reflection)
 
                     // sky light
                     if (scene->m_skyLight != nullptr)
@@ -539,6 +545,8 @@ namespace Cyan
 
     void Renderer::blitTexture(GfxTexture2D* dst, GfxTexture2D* src)
     {
+        assert(dst->width == src->width && dst->height == src->height);
+
         CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
         CreatePS(ps, "BlitPS", SHADER_SOURCE_PATH "blit_p.glsl");
         CreatePixelPipeline(pipeline, "BlitQuad", vs, ps);
@@ -554,6 +562,32 @@ namespace Cyan
                 p->setTexture("srcTexture", src);
                 p->setUniform("mip", (i32)0);
             }
+        );
+    }
+
+    void Renderer::copyDepth(GfxDepthTexture2D* dst, GfxDepthTexture2D* src)
+    {
+        assert(dst->width == src->width && dst->height == src->height);
+
+        CreateVS(vs, "ScreenPassVS", SHADER_SOURCE_PATH "screen_pass_v.glsl");
+        CreatePS(ps, "CopyDepthPS", SHADER_SOURCE_PATH "copy_depth_p.glsl");
+        CreatePixelPipeline(pipeline, "CopyDepth", vs, ps);
+
+        GfxPipelineState gfxPipelineState;
+        gfxPipelineState.depth = DepthControl::kEnable;
+        drawStaticMesh(
+            getFramebufferSize(dst), 
+            [dst](RenderPass& pass) {
+                pass.setDepthBuffer(dst);
+            },
+            {0, 0, dst->width, dst->height}, 
+            m_quad.get(), 
+            pipeline, 
+            [this, src](ProgramPipeline* p) {
+                p->setTexture("srcDepth", src);
+                p->setUniform("mip", (i32)0);
+            },
+            gfxPipelineState
         );
     }
 
