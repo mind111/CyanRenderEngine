@@ -152,6 +152,7 @@
     <None Include="..\shader\downsample_p.glsl" />
     <None Include="..\shader\downsample_v.glsl" />
     <None Include="..\shader\gbuffer_p.glsl" />
+    <None Include="..\shader\hiz_downsample_p.glsl" />
     <None Include="..\shader\screen_pass_v.glsl" />
     <None Include="..\shader\ssgi_ao_p.glsl" />
     <None Include="..\shader\ssgi_ao_resolve_p.glsl" />

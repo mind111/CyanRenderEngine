@@ -214,6 +214,7 @@ namespace Cyan
 
         glm::uvec2 m_windowSize;
         bool bFixDebugRay = false;
+        std::shared_ptr<StaticMesh> m_quad = nullptr;
     private:
         GfxContext* m_ctx;
         std::unique_ptr<SSGIRenderer> m_SSGIRenderer = nullptr;
@@ -221,6 +222,5 @@ namespace Cyan
         std::queue<UIRenderCommand> m_UIRenderCommandQueue;
         std::vector<GfxTexture2D*> renderTextures;
         bool bVisualize = false;
-        std::shared_ptr<StaticMesh> m_quad = nullptr;
     };
 };

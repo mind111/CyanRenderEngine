@@ -18,7 +18,7 @@ namespace Cyan
         m_projectionMode = ProjectionMode::kPerspective;
         m_perspective.fov = 90.f;
         m_perspective.aspectRatio = 1.f;
-        m_perspective.n = 0.01f;
+        m_perspective.n = 0.1f;
         m_perspective.f = 100.f;
 
         m_orthographic.viewSpaceAABB = BoundingBox3D();
@@ -56,6 +56,12 @@ namespace Cyan
         m_perspective.f = 100.f;
 
         m_orthographic.viewSpaceAABB = BoundingBox3D();
+    }
+
+    Camera::Camera(const glm::uvec2& resolution)
+        : Camera()
+    {
+        m_perspective.aspectRatio = (f32)resolution.x / resolution.y;
     }
 
     Camera::~Camera()

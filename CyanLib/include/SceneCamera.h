@@ -7,6 +7,7 @@ namespace Cyan
     class Scene;
     class SceneRender;
     class ProgramPipeline;
+    struct GfxTexture2D;
 
     /**
      * A camera used for scene rendering
@@ -24,9 +25,14 @@ namespace Cyan
             kSceneDirectLighting,
             kSceneIndirectLighting,
             kSceneLightingOnly,
+            kSSGIAO,
+            kSSGIDiffuse,
+            kDebug,
             kWireframe,
             kCount
         };
+
+        static const char* renderModeName(const RenderMode& renderMode);
 
         struct ViewParameters
         {
@@ -57,6 +63,7 @@ namespace Cyan
         void render();
         void onRenderFinish();
 
+        GfxTexture2D* getRender();
         void turnOn() { m_bPower = true; }
         void turnOff() { m_bPower = false; }
 

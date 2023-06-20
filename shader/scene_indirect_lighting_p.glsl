@@ -10,12 +10,11 @@ uniform sampler2D sceneNormal;
 uniform sampler2D sceneAlbedo;
 uniform sampler2D sceneMetallicRoughness;
 
-uniform float ssaoEnabled;
-uniform sampler2D ssao;
-uniform float ssbnEnabled;
-uniform sampler2D ssbn;
-uniform sampler2D indirectIrradiance;
-uniform float indirectBoost;
+uniform float SSGIAOEnabled;
+uniform sampler2D SSGIAO;
+
+uniform float SSGIDiffuseEnabled;
+uniform sampler2D SSGIDiffuse;
 
 in VSOutput
 {
@@ -140,30 +139,39 @@ vec3 calcF0(in Material material)
     return mix(dialectricF0, conductorF0, material.metallic);
 }
 
-vec3 calcSkyLight(SkyLight inSkyLight, in Material material, vec3 worldSpacePosition) {
+float calcAO()
+{
+    float ao = 1.f;
+	vec2 texCoord = psIn.texCoord0;
+    if (SSGIAOEnabled > .5f)
+    {
+        ao = texture(SSGIAO, texCoord).r;
+    }
+    return ao;
+}
+
+vec3 calcIndirectIrradiance()
+{
+    vec3 indirectIrradiance = vec3(0.f);
+    if (SSGIDiffuseEnabled > .5f)
+    {
+        indirectIrradiance = texture(SSGIDiffuse, psIn.texCoord0).rgb;
+    }
+    return indirectIrradiance;
+}
+
+vec3 calcSkyLight(SkyLight inSkyLight, in Material material, vec3 worldSpacePosition, in float ao) 
+{
     vec3 radiance = vec3(0.f);
     vec3 viewSpacePosition = (viewParameters.viewMatrix * vec4(worldSpacePosition, 1.f)).xyz;
     vec3 worldSpaceViewDirection = (inverse(viewParameters.viewMatrix) * vec4(normalize(-viewSpacePosition), 0.0)).xyz;
     float ndotv = saturate(dot(material.normal, worldSpaceViewDirection));
 
     vec3 f0 = calcF0(material);
-
-    float ao = 1.f;
-	vec2 texCoord = psIn.texCoord0;
-    if (ssaoEnabled > .5f)
-    {
-        ao = texture(ssao, texCoord).r;
-    }
-
     // irradiance
     vec3 diffuseColor = (1.f - material.metallic) * material.albedo;
-    vec3 irradiance = diffuseColor * texture(skyLight.irradiance, material.normal).rgb; 
-    if (ssbnEnabled > .5f)
-    {
-        vec3 bentNormal = normalize(texture(ssbn, texCoord).rgb * 2.f - 1.f);
-		irradiance = diffuseColor * texture(skyLight.irradiance, bentNormal).rgb; 
-    }
-    radiance += irradiance * ao;
+    vec3 skyIrradiance = diffuseColor * texture(skyLight.irradiance, material.normal).rgb; 
+    radiance += skyIrradiance * ao;
 
     // reflection
     vec3 reflectionDirection = -reflect(worldSpaceViewDirection, material.normal);
@@ -174,10 +182,11 @@ vec3 calcSkyLight(SkyLight inSkyLight, in Material material, vec3 worldSpacePosi
     return radiance;
 }
 
-uniform float indirectIrradianceEnabled;
 
 void main() 
 {
+    outRadiance = vec3(0.f);
+
 	float depth = texture(sceneDepth, psIn.texCoord0).r;
     // todo: need a more reliable way to distinguish pixels that doesn't overlap any geometry,
     // maybe use stencil buffer to mark?
@@ -196,11 +205,10 @@ void main()
     material.metallic = metallicRoughness.r; 
     material.roughness = metallicRoughness.g; 
     material.occlusion = 1.f;
-    
-    outRadiance = calcSkyLight(skyLight, material, worldSpacePosition);
-    if (indirectIrradianceEnabled > 0.f)
-    {
-		vec3 diffuse = mix(material.albedo, vec3(0.04f), material.metallic);
-		outRadiance += diffuse * texture(indirectIrradiance, psIn.texCoord0).rgb;
-	}
+
+    float ao = calcAO();
+    outRadiance += calcSkyLight(skyLight, material, worldSpacePosition, ao);
+    vec3 indirectIrradiance = calcIndirectIrradiance();
+    vec3 diffuseColor = (1.f - material.metallic) * material.albedo;
+    outRadiance += diffuseColor * indirectIrradiance * ao;
 }

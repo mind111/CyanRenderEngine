@@ -91,11 +91,26 @@ namespace Cyan
     class SSGIRenderer
     {
     public:
+        struct Settings
+        {
+            i32 kTracingStopMipLevel = 1;
+            i32 kMaxNumIterationsPerRay = 64;
+        };
+
         SSGIRenderer();
         ~SSGIRenderer();
 
+        // ao and bent normal
         void renderAO(SceneRender* render, const SceneCamera::ViewParameters& viewParameters);
+
+        // diffuse GI
+        void renderDiffuse(SceneRender* render, const SceneCamera::ViewParameters& viewParameters);
+        void stochasticIndirectIrradiance(SceneRender* render, const SceneCamera::ViewParameters& viewParameters);
+
+        // reflection
+        void renderReflection(SceneRender* render, const SceneCamera::ViewParameters& viewParameters);
     private:
+        Settings m_settings;
         std::shared_ptr<Texture2D> m_blueNoise_1024x1024_RGBA = nullptr;
         std::array<std::shared_ptr<Texture2D>, 8> m_blueNoise_16x16_R;
     };

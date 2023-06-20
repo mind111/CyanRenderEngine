@@ -20,7 +20,7 @@ namespace Cyan
     {
     public:
         Editor()
-            : DefaultApp(1024, 1024)
+            : DefaultApp(1920, 1080)
         {
         }
 
@@ -138,12 +138,9 @@ namespace Cyan
                     auto scene = m_world->getScene();
                     auto sceneCamera = scene->m_sceneCameras[m_mainCameraIndex];
                     auto editorCamera = m_editorCameraEntity->getCameraComponent()->getSceneCamera();
-                    // todo: this call should be guarded by an if
-                    // editorCamera->m_render->m_csm->debugDraw(sceneCamera->m_render.get(), sceneCamera->m_viewParameters);
-                    // renderer->renderToScreen(sceneCamera->m_render->debugColor());
-
+                    editorCamera->setRenderMode((SceneCamera::RenderMode)m_renderMode);
                     scene->render();
-                    renderer->renderToScreen(sceneCamera->m_render->resolvedColor());
+                    renderer->renderToScreen(sceneCamera->getRender());
                 }
                 // UI rendering
                 renderEditorUI();
@@ -298,6 +295,21 @@ namespace Cyan
                         }
                         ImGui::EndMenuBar();
                     }
+                    const char* renderModeNames[(u32)SceneCamera::RenderMode::kCount] = {
+                        SceneCamera::renderModeName(SceneCamera::RenderMode::kSceneColor),
+                        SceneCamera::renderModeName(SceneCamera::RenderMode::kResolvedSceneColor),
+                        SceneCamera::renderModeName(SceneCamera::RenderMode::kSceneAlbedo),
+                        SceneCamera::renderModeName(SceneCamera::RenderMode::kSceneDepth),
+                        SceneCamera::renderModeName(SceneCamera::RenderMode::kSceneNormal),
+                        SceneCamera::renderModeName(SceneCamera::RenderMode::kSceneDirectLighting),
+                        SceneCamera::renderModeName(SceneCamera::RenderMode::kSceneIndirectLighting),
+                        SceneCamera::renderModeName(SceneCamera::RenderMode::kSceneLightingOnly),
+                        SceneCamera::renderModeName(SceneCamera::RenderMode::kSSGIAO),
+                        SceneCamera::renderModeName(SceneCamera::RenderMode::kSSGIDiffuse),
+                        SceneCamera::renderModeName(SceneCamera::RenderMode::kDebug),
+                        SceneCamera::renderModeName(SceneCamera::RenderMode::kWireframe)
+                    };
+                    ImGui::Combo("RenderMode", &m_renderMode, renderModeNames, (i32)SceneCamera::RenderMode::kCount);
                     if (ImGui::CollapsingHeader("Stats", ImGuiTreeNodeFlags_DefaultOpen))
                     {
                         ImGui::TextColored(ImVec4(0.f, 1.f, 1.f, 1.f), "Frame Time: %.2f ms", m_engine->getFrameElapsedTimeInMs());
@@ -412,6 +424,7 @@ private:
         CameraEntity* m_editorCameraEntity = nullptr;
         CameraEntity* m_shadowDebugCameraEntity = nullptr;
         i32 m_mainCameraIndex = 0;
+        i32 m_renderMode = 1;
         bool m_bDebugShadow = false;
     };
 }

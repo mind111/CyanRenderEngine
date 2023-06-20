@@ -187,9 +187,13 @@ float calcDirectionalShadow(vec3 worldSpacePosition, vec3 normal, in Directional
     return shadow;
 }
 
-vec3 calcDirectionalLight(in DirectionalLight directionalLight, in Material material, vec3 worldSpacePosition, inout vec3 outDiffuseRadiance) 
+vec3 calcDirectionalLight(in DirectionalLight directionalLight, in Material material, vec3 worldSpacePosition, inout vec3 diffuseOnly) 
 {
     vec3 radiance = vec3(0.f);
+
+    // shadow
+    float shadow = calcDirectionalShadow(worldSpacePosition, material.normal, directionalLight);
+
     // view direction in world space
     vec3 viewSpacePosition = (viewParameters.viewMatrix * vec4(worldSpacePosition, 1.f)).xyz;
     vec3 worldSpaceViewDirection = (inverse(viewParameters.viewMatrix) * vec4(normalize(-viewSpacePosition), 0.f)).xyz;
@@ -200,28 +204,18 @@ vec3 calcDirectionalLight(in DirectionalLight directionalLight, in Material mate
     vec3 diffuse = diffuseColor * LambertBRDF();
     vec3 f0 = calcF0(material); // f0 is specular color
     vec3 specular = CookTorranceBRDF(directionalLight.direction.xyz, worldSpaceViewDirection, material.normal, material.roughness, f0);
-    radiance += (diffuse + specular) * li * ndotl;
 
-    // shadow
-    float shadow = calcDirectionalShadow(worldSpacePosition, material.normal, directionalLight);
-
-    radiance *= shadow;
-    outDiffuseRadiance += diffuse * li * ndotl * shadow;
+    radiance += (diffuse + specular) * li * ndotl * shadow;
+    diffuseOnly += diffuse * li * ndotl * shadow;
     return radiance;
 }
 
-vec3 calcDirectLighting(in Material material, vec3 worldSpacePosition) 
+vec3 calcDirectLighting(in Material material, vec3 worldSpacePosition, out vec3 diffuseOnly) 
 {
     vec3 radiance = vec3(0.f);
     // sun light
-    radiance += calcDirectionalLight(directionalLight, material, worldSpacePosition, outDiffuse);
+    radiance += calcDirectionalLight(directionalLight, material, worldSpacePosition, diffuseOnly);
     return radiance;
-}
-
-vec3 calcDirectDiffuseLighting(in Material material, vec3 worldSpacePosition)
-{
-    vec3 outDirectDiffuseRadiance = vec3(0.f);
-    return outDirectDiffuseRadiance;
 }
 
 vec3 calcDirectLightingOnly(in Material material, vec3 worldSpacePosition)
@@ -254,6 +248,7 @@ vec3 calcDirectLightingOnly(in Material material, vec3 worldSpacePosition)
 
     outDirectLightingOnly *= shadow;
     outDirectLightingOnly += diffuse * li * ndotl * shadow;
+
     return outDirectLightingOnly;
 }
 
@@ -278,7 +273,6 @@ void main()
     material.roughness = metallicRoughness.g; 
     material.occlusion = 1.f;
 
-    outRadiance = calcDirectLighting(material, worldSpacePosition);
-    outDiffuse = calcDirectDiffuseLighting(material, worldSpacePosition);
+    outRadiance = calcDirectLighting(material, worldSpacePosition, outDiffuse);
     outLightingOnly = calcDirectLightingOnly(material, worldSpacePosition);
 }

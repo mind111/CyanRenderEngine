@@ -9,14 +9,37 @@ in VSOutput
 
 layout (location = 0) out vec3 outIndirectIrradiance;
 
-layout(std430) buffer ViewBuffer
+// todo: write a shader #include thing
+// #import "random.csh"
+
+struct ViewParameters
 {
-    mat4  view;
-    mat4  projection;
+	uvec2 renderResolution;
+	float aspectRatio;
+	mat4 viewMatrix;
+    mat4 prevFrameViewMatrix;
+	mat4 projectionMatrix;
+    mat4 prevFrameProjectionMatrix;
+	vec3 cameraPosition;
+	vec3 prevFrameCameraPosition;
+	vec3 cameraRight;
+	vec3 cameraForward;
+	vec3 cameraUp;
+	int frameCount;
+	float elapsedTime;
+	float deltaTime;
 };
 
-uniform mat4 prevFrameView;
-uniform mat4 prevFrameProjection;
+uniform ViewParameters viewParameters;
+uniform sampler2D sceneDepthBuffer;
+uniform sampler2D prevFrameSceneDepthBuffer;
+uniform sampler2D sceneNormalBuffer;
+uniform sampler2D prevFrameIndirectIrradianceBuffer;
+uniform sampler2D diffuseRadianceBuffer;
+
+// todo: maybe using the same noises from the GTAO talk will produce better results?
+uniform sampler2D blueNoise_16x16_R[8];
+uniform sampler2D blueNoise_1024x1024_RGBA;
 
 /* note: 
 * rand number generator taken from https://www.shadertoy.com/view/4lfcDr
@@ -101,13 +124,25 @@ vec3 worldToScreen(vec3 pp, in mat4 view, in mat4 projection)
     return p.xyz * .5f + .5f;
 }
 
-uniform int numLevels;
-uniform int kMaxNumIterations;
-uniform sampler2D HiZ;
+struct HierarchicalZBuffer
+{
+	sampler2D depthQuadtree;
+	int numMipLevels;
+};
+uniform HierarchicalZBuffer hiZ;
+
+struct Settings 
+{
+	int kTracingStopMipLevel;
+	int kMaxNumIterationsPerRay;
+};
+uniform Settings settings;
 
 bool HiZTrace(in vec3 worldSpaceRO, in vec3 worldSpaceRD, inout float t)
 {
     bool bHit = false;
+	mat4 view = viewParameters.viewMatrix;
+	mat4 projection = viewParameters.projectionMatrix;
 
     vec4 clipSpaceRO = projection * view * vec4(worldSpaceRO, 1.f);
     clipSpaceRO /= clipSpaceRO.w;
@@ -138,8 +173,9 @@ bool HiZTrace(in vec3 worldSpaceRO, in vec3 worldSpaceRD, inout float t)
 
     // slightly offset the ray in screen space to avoid self intersection
     screenSpaceT += 0.001f;
-    int level = numLevels - 1;
-    for (int i = 0; i < kMaxNumIterations; ++i)
+    // int level = hiZ.numMipLevels - 1;
+	int level = 2;
+    for (int i = 0; i < settings.kMaxNumIterationsPerRay; ++i)
     {
         // ray reached near/far plane and no intersection found
 		if (screenSpaceT >= 1.f)
@@ -157,7 +193,7 @@ bool HiZTrace(in vec3 worldSpaceRO, in vec3 worldSpaceRD, inout float t)
         }
 
 		// calculate height field intersection
-		float minDepth = textureLod(HiZ, pp.xy, level).r;
+		float minDepth = textureLod(hiZ.depthQuadtree, pp.xy, level).r;
 		float tDepth;
         if (minDepth <= pp.z)
         {
@@ -170,7 +206,7 @@ bool HiZTrace(in vec3 worldSpaceRO, in vec3 worldSpaceRD, inout float t)
         }
 
 		// calculate cell boundries intersection
-		vec2 mipSize = vec2(textureSize(HiZ, level));
+		vec2 mipSize = vec2(textureSize(hiZ.depthQuadtree, level));
 		vec2 texelSize = 1.f / mipSize;
 		vec2 coord = pp.xy / texelSize;
         vec4 boundry = vec4(floor(coord.x), ceil(coord.x), floor(coord.y), ceil(coord.y));
@@ -209,10 +245,10 @@ bool HiZTrace(in vec3 worldSpaceRO, in vec3 worldSpaceRD, inout float t)
 		else
 		{
             // bump the ray a tiny bit to avoid having it landing exactly on the texel boundry at current level
-            float rayBump = 0.25f * length(rd.xy) * 1.f / min(textureSize(HiZ, 0).x, textureSize(HiZ, 0).y);
+            float rayBump = 0.25f * length(rd.xy) * 1.f / min(textureSize(hiZ.depthQuadtree, 0).x, textureSize(hiZ.depthQuadtree, 0).y);
 			// go up a level to perform more coarse trace
 			screenSpaceT += (tCellBoundry + rayBump);
-            level = min(level + 1, numLevels - 1);
+            level = min(level + 1, hiZ.numMipLevels - 1);
 		}
     }
 
@@ -225,51 +261,50 @@ bool HiZTrace(in vec3 worldSpaceRO, in vec3 worldSpaceRD, inout float t)
     return bHit;
 }
 
-// todo: write a shader #include thing
-// #import "random.csh"
-
-uniform vec2 outputSize;
-uniform sampler2D sceneDepthBuffer;
-uniform sampler2D sceneNormalBuffer;
-uniform sampler2D diffuseRadianceBuffer;
-
-uniform int frameCount;
-uniform sampler2D temporalIndirectIrradianceBuffer;
-uniform sampler2D prevFrameSceneDepthBuffer;
-
 void main()
 {
-    seed = frameCount;
-    flat_idx = int(floor(gl_FragCoord.y) * outputSize.x + floor(gl_FragCoord.x));
+    seed = viewParameters.frameCount;
+    flat_idx = int(floor(gl_FragCoord.y) * viewParameters.renderResolution.x + floor(gl_FragCoord.x));
 
 	float deviceDepth = texture(sceneDepthBuffer, psIn.texCoord0).r; 
 	vec3 n = texture(sceneNormalBuffer, psIn.texCoord0).rgb * 2.f - 1.f;
 
-    if (deviceDepth > 0.998f) outIndirectIrradiance = vec3(0.f);
+    if (deviceDepth > 0.999999f) discard;
+
+	mat4 view = viewParameters.viewMatrix;
+	mat4 prevFrameView = viewParameters.prevFrameViewMatrix;
+	mat4 projection = viewParameters.projectionMatrix;
+	mat4 prevFrameProjection = viewParameters.prevFrameProjectionMatrix;
 
 	vec3 ro = screenToWorld(vec3(psIn.texCoord0, deviceDepth) * 2.f - 1.f, inverse(view), inverse(projection));
 	
 	vec3 indirectIrradiance = vec3(0.f);
-	vec3 incidentRadiance = vec3(0.f);
-	vec3 rd = uniformSampleHemisphere(n);
-	float t;
-	// make the default hit position really really far
-	vec3 hitPosition = ro + 10000.f * rd;
-	vec3 hitNormal = vec3(0.f);
-	if (HiZTrace(ro, rd, t))
-	{
-		hitPosition = ro + t * rd;
-		vec2 screenCoord = worldToScreen(hitPosition, view, projection).xy;
-		hitNormal = texture(sceneNormalBuffer, screenCoord).rgb * 2.f - 1.f;
-		// reject (false positives) backfacing samples that shouldn't contribute to indirect irradiance 
-		bool bIsInUpperHemisphere = dot(hitNormal, -rd) > 0.f;
-		if (bIsInUpperHemisphere)
+	// for (int i = 0; i < 32; ++i)
+	// {
+		vec3 incidentRadiance = vec3(0.f);
+		vec3 rd = uniformSampleHemisphere(n);
+		float t;
+		// make the default hit position really really far
+		vec3 hitPosition = ro + 10000.f * rd;
+		vec3 hitNormal = vec3(0.f);
+		if (HiZTrace(ro, rd, t))
 		{
-			incidentRadiance = texture(diffuseRadianceBuffer, screenCoord).rgb;
+			hitPosition = ro + t * rd;
+			vec2 screenCoord = worldToScreen(hitPosition, view, projection).xy;
+			hitNormal = texture(sceneNormalBuffer, screenCoord).rgb * 2.f - 1.f;
+			// reject (false positives) backfacing samples that shouldn't contribute to indirect irradiance 
+			bool bIsInUpperHemisphere = dot(hitNormal, -rd) > 0.f;
+			if (bIsInUpperHemisphere)
+			{
+				float ndotl = max(dot(rd, n), 0.f);
+				incidentRadiance = texture(diffuseRadianceBuffer, screenCoord).rgb * ndotl;
+			}
 		}
-	}
+		indirectIrradiance += incidentRadiance;
+	// }
+	// indirectIrradiance /= float(32);
 
-    if (frameCount > 0)
+    if (viewParameters.frameCount > 0)
     {
 		// temporal reprojection 
 		// todo: take pixel velocity into consideration when doing reprojection
@@ -285,7 +320,7 @@ void main()
 			float prevFrameDeviceZ = texture(prevFrameSceneDepthBuffer, prevNDCPos.xy).r;
 			vec3 cachedPrevFrameViewSpacePos = (prevFrameView * vec4(screenToWorld(vec3(prevNDCPos.xy, prevFrameDeviceZ) * 2.f - 1.f, inverse(prevFrameView), inverse(prevFrameProjection)), 1.f)).xyz;
 			float relativeDepthDelta = abs(cachedPrevFrameViewSpacePos.z - prevViewSpacePos.z) / -cachedPrevFrameViewSpacePos.z;
-			vec3 indirectIrradianceHistory = texture(temporalIndirectIrradianceBuffer, prevNDCPos.xy).rgb;
+			vec3 indirectIrradianceHistory = texture(prevFrameIndirectIrradianceBuffer, prevNDCPos.xy).rgb;
 
 			float smoothing = .9f;
 			smoothing = clamp(smoothing * 0.05f / relativeDepthDelta, 0.f, smoothing);

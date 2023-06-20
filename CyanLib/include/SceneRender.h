@@ -15,6 +15,19 @@ namespace Cyan
     class ProgramPipeline;
     class CascadedShadowMap;
 
+    class HierarchicalZBuffer
+    {
+    public:
+        HierarchicalZBuffer(const glm::uvec2& inputDepthResolution);
+        ~HierarchicalZBuffer();
+
+        void build(GfxDepthTexture2D* sceneDepthBuffer);
+
+        std::unique_ptr<GfxTexture2D> m_depthBuffer;
+        glm::uvec2 m_inputDepthResolution;
+        glm::uvec2 m_powerOfTwoResolution;
+    };
+
     class SceneRender
     {
     public:
@@ -23,7 +36,7 @@ namespace Cyan
             Output(const glm::uvec2& inRenderResolution);
 
             glm::uvec2 resolution;
-            std::unique_ptr<GfxDepthTexture2D> HiZ;
+            std::unique_ptr<HierarchicalZBuffer> hiZ;
             std::unique_ptr<GfxDepthTexture2D> depth;
             std::unique_ptr<GfxDepthTexture2D> prevFrameDepth;
             std::unique_ptr<GfxTexture2D> normal;
@@ -36,7 +49,8 @@ namespace Cyan
             std::unique_ptr<GfxTexture2D> aoHistory;
             std::unique_ptr<GfxTexture2D> ao;
             std::unique_ptr<GfxTexture2D> bentNormal;
-            std::unique_ptr<GfxTexture2D> irradiance;
+            std::unique_ptr<GfxTexture2D> indirectIrradiance;
+            std::unique_ptr<GfxTexture2D> prevFrameIndirectIrradiance;
             std::unique_ptr<GfxTexture2D> color;
             std::unique_ptr<GfxTexture2D> resolvedColor;
             std::unique_ptr<GfxTexture2D> debugColor;
@@ -46,6 +60,7 @@ namespace Cyan
         ~SceneRender();
 
         GfxDepthTexture2D* depth() { return m_output->depth.get(); }
+        HierarchicalZBuffer* hiZ() { return m_output->hiZ.get(); }
         GfxDepthTexture2D* prevFrameDepth() { return m_output->prevFrameDepth.get(); }
         GfxTexture2D* normal() { return m_output->normal.get(); }
         GfxTexture2D* albedo() { return m_output->albedo.get(); }
@@ -56,6 +71,8 @@ namespace Cyan
         GfxTexture2D* lightingOnly() { return m_output->lightingOnly.get(); }
         GfxTexture2D* ao() { return m_output->ao.get(); }
         GfxTexture2D* aoHistory() { return m_output->aoHistory.get(); }
+        GfxTexture2D* indirectIrradiance() { return m_output->indirectIrradiance.get(); }
+        GfxTexture2D* prevFrameIndirectIrradiance() { return m_output->prevFrameIndirectIrradiance.get(); }
         GfxTexture2D* color() { return m_output->color.get(); }
         GfxTexture2D* resolvedColor() { return m_output->resolvedColor.get(); }
         GfxTexture2D* debugColor() { return m_output->debugColor.get(); }

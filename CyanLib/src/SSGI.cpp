@@ -155,6 +155,7 @@ namespace Cyan
             );
         }
 #endif
+
     }
 
     // todo: take pixel velocity into consideration when doing reprojection
@@ -828,5 +829,64 @@ namespace Cyan
 
         // todo: could potentially feed spatial output to history buffer
         renderer->blitTexture(render->aoHistory(), aoTemporalOutput.getGfxTexture2D());
+    }
+
+    void SSGIRenderer::renderDiffuse(SceneRender* render, const SceneCamera::ViewParameters& viewParameters)
+    {
+        GPU_DEBUG_SCOPE(SSGIDiffuse, "SSGIDiffuse");
+
+        stochasticIndirectIrradiance(render, viewParameters);
+    }
+
+    void SSGIRenderer::stochasticIndirectIrradiance(SceneRender* render, const SceneCamera::ViewParameters& viewParameters)
+    {
+        auto renderer = Renderer::get();
+
+        CreateVS(vs, "ScreenPassVS", SHADER_SOURCE_PATH "screen_pass_v.glsl");
+        CreatePS(ps, "SSGIStochasticTemporal", SHADER_SOURCE_PATH "ssgi_bruteforce_temporal_p.glsl");
+        CreatePixelPipeline(p, "SSGIBruteforceTemporal", vs, ps);
+
+        // temporal pass
+        {
+            auto outIndirectIrradiance = render->indirectIrradiance();
+            RenderTexture2D temporalIndirectIrradianceBuffer("SSGITemporalIndirectIrradianceBuffer", outIndirectIrradiance->getSpec());
+
+            renderer->drawFullscreenQuad(
+#if 0
+                getFramebufferSize(temporalIndirectIrradianceBuffer.getGfxTexture2D()),
+                [temporalIndirectIrradianceBuffer](RenderPass& pass) {
+                    RenderTarget renderTarget(temporalIndirectIrradianceBuffer.getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                    pass.setRenderTarget(renderTarget, 0);
+                },
+#else
+                getFramebufferSize(render->indirectIrradiance()),
+                [render](RenderPass& pass) {
+                    RenderTarget renderTarget(render->indirectIrradiance(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                    pass.setRenderTarget(renderTarget, 0);
+                },
+#endif
+                p,
+                [this, render, viewParameters](ProgramPipeline* p) {
+                    viewParameters.setShaderParameters(p);
+
+                    auto hiZ = render->hiZ();
+                    p->setTexture("hiZ.depthQuadtree", hiZ->m_depthBuffer.get());
+                    p->setUniform("hiZ.numMipLevels", (i32)hiZ->m_depthBuffer->numMips);
+                    p->setUniform("settings.kTraceStopMipLevel", (i32)m_settings.kTracingStopMipLevel);
+                    p->setUniform("settings.kMaxNumIterationsPerRay", (i32)m_settings.kMaxNumIterationsPerRay);
+
+                    p->setTexture("sceneDepthBuffer", render->depth());
+                    p->setTexture("sceneNormalBuffer", render->normal()); 
+                    p->setTexture("diffuseRadianceBuffer", render->directDiffuseLighting());
+
+                    p->setTexture("prevFrameSceneDepthBuffer", render->prevFrameDepth());
+                    p->setTexture("prevFrameIndirectIrradianceBuffer", render->prevFrameIndirectIrradiance());
+                }
+            );
+        }
+        // spatial pass
+        {
+
+        }
     }
 }

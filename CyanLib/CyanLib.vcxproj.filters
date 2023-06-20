@@ -985,5 +985,8 @@
     <None Include="..\shader\copy_depth_p.glsl">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="..\shader\hiz_downsample_p.glsl">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

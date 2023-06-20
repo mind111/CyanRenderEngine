@@ -474,6 +474,7 @@ namespace Cyan
         // render ao and indirect irradiance
         {
             m_SSGIRenderer->renderAO(render, viewParameters);
+            m_SSGIRenderer->renderDiffuse(render, viewParameters);
         }
 
         // render indirect lighting effects pass
@@ -499,9 +500,12 @@ namespace Cyan
 
                     // todo: apply lighting effects
                     // ssao (screenspace ambient occlusion)
-                    p->setUniform("ssaoEnabled", m_settings.bSSAOEnabled ? 1.f : 0.f);
-                    p->setTexture("ssao", render->ao());
+                    p->setUniform("SSGIAOEnabled", m_settings.bSSAOEnabled ? 1.f : 0.f);
+                    p->setTexture("SSGIAO", render->ao());
                     // ssgi (screenspace indirect irradiance)
+                    p->setUniform("SSGIDiffuseEnabled", m_settings.bIndirectIrradianceEnabled ? 1.f : 0.f);
+                    p->setTexture("SSGIDiffuse", render->indirectIrradiance());
+
                     // ssr (screenspace reflection)
 
                     // sky light
@@ -1416,7 +1420,7 @@ namespace Cyan
         CreatePixelPipeline(p, "BlitQuad", vs, ps);
 
         drawFullscreenQuad(
-            glm::uvec2(debugColor->width, debugColor->width),
+            glm::uvec2(debugColor->width, debugColor->height),
             [debugColor](RenderPass& pass) {
                 pass.setRenderTarget(debugColor, 0);
             },
