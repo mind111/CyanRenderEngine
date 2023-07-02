@@ -111,7 +111,7 @@ namespace Cyan
 
             auto directionalLightEntity = m_world->createDirectionalLightEntity("DirectionalLight", Transform());
             auto directionalLightComponent = directionalLightEntity->getDirectionalLightComponent();
-            directionalLightComponent->setIntensity(30.f);
+            directionalLightComponent->setIntensity(20.f);
 
             auto skyLightEntity = m_world->createSkyLightEntity("SkyLightEntity", Transform());
             auto skyLightComponent = skyLightEntity->getSkyLightComponent();
@@ -135,8 +135,7 @@ namespace Cyan
                     auto editorCamera = m_editorCameraEntity->getCameraComponent()->getSceneCamera();
                     editorCamera->setRenderMode((SceneCamera::RenderMode)m_renderMode);
                     scene->render();
-                    // debug ssgi
-                    renderer->m_SSGIRenderer->debugDraw(sceneCamera->m_render.get(), sceneCamera->m_viewParameters);
+                    renderer->m_SSGIRenderer->debugDraw(editorCamera->m_render.get(), editorCamera->m_viewParameters);
                     renderer->renderToScreen(sceneCamera->getRender());
                 }
                 // UI rendering
@@ -319,11 +318,7 @@ namespace Cyan
                             ImGui::Checkbox("Ambient Occlusion", &renderer->m_settings.bSSAOEnabled);
                             ImGui::Checkbox("Bent Normal", &renderer->m_settings.bBentNormalEnabled);
                             ImGui::Checkbox("Indirect Irradiance", &renderer->m_settings.bIndirectIrradianceEnabled);
-                            if (ImGui::TreeNode("SSGI"))
-                            {
-                                renderer->m_SSGIRenderer->renderUI();
-                                ImGui::TreePop();
-                            }
+                            renderer->m_SSGIRenderer->renderUI();
                             ImGui::TreePop();
                         }
                     }

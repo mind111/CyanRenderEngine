@@ -471,53 +471,9 @@ namespace Cyan
             pass.render(m_ctx);
         }
 
-        // render ao and indirect irradiance
+        // render indirect lighting
         {
-            m_SSGIRenderer->renderAO(render, viewParameters);
-            m_SSGIRenderer->renderDiffuse(render, viewParameters);
-        }
-
-        // render indirect lighting effects pass
-        {
-            GPU_DEBUG_SCOPE(indirectLighting, "IndirectLighting");
-
-            CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");
-            CreatePS(ps, "SceneIndirectLightingPass", SHADER_SOURCE_PATH "scene_indirect_lighting_p.glsl");
-            CreatePixelPipeline(pipeline, "SceneIndirectLightingPass", vs, ps);
-
-            drawFullscreenQuad(
-                getFramebufferSize(outIndirectLighting),
-                [outIndirectLighting](RenderPass& pass) {
-                    pass.setRenderTarget(outIndirectLighting, 0, /*bClear=*/false);
-                },
-                pipeline,
-                [this, scene, render, viewParameters](ProgramPipeline* p) {
-                    viewParameters.setShaderParameters(p);
-                    p->setTexture("sceneDepth", render->depth());
-                    p->setTexture("sceneNormal", render->normal());
-                    p->setTexture("sceneAlbedo", render->albedo());
-                    p->setTexture("sceneMetallicRoughness", render->metallicRoughness());
-
-                    // todo: apply lighting effects
-                    // ssao (screenspace ambient occlusion)
-                    p->setUniform("SSGIAOEnabled", m_settings.bSSAOEnabled ? 1.f : 0.f);
-                    p->setTexture("SSGIAO", render->ao());
-                    // ssgi (screenspace indirect irradiance)
-                    p->setUniform("SSGIDiffuseEnabled", m_settings.bIndirectIrradianceEnabled ? 1.f : 0.f);
-                    p->setTexture("SSGIDiffuse", render->indirectIrradiance());
-
-                    // ssr (screenspace reflection)
-
-                    // sky light
-                    if (scene->m_skyLight != nullptr)
-                    {
-                        auto skyLight = scene->m_skyLight;
-                        p->setTexture("skyLight.irradiance", skyLight->m_irradianceProbe->m_irradianceCubemap.get());
-                        p->setTexture("skyLight.reflection", skyLight->m_reflectionProbe->m_reflectionCubemap.get());
-                        p->setTexture("skyLight.BRDFLookupTexture", ReflectionProbe::s_BRDFLookupTexture.get());
-                    }
-                }
-            );
+            m_SSGIRenderer->renderSceneIndirectLighting(scene, render, viewParameters);
         }
     }
 

@@ -168,6 +168,7 @@
     <None Include="..\shader\ssgi_draw_indirect_irradiance_samples_p.glsl" />
     <None Include="..\shader\ssgi_draw_indirect_irradiance_samples_v.glsl" />
     <None Include="..\shader\ssgi_indirect_irradiance_p.glsl" />
+    <None Include="..\shader\SSGI_indirect_lighting_p.glsl" />
     <None Include="..\shader\ssgi_restir_spatial_copy_p.glsl" />
     <None Include="..\shader\ssgi_restir_temporal_p.glsl" />
     <None Include="..\shader\ssgi_restir_spatial_p.glsl" />

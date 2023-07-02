@@ -8,6 +8,7 @@
 #include "AssetImporter.h"
 #include "RenderPass.h"
 #include "ShaderStorageBuffer.h"
+#include "Lights.h"
 
 namespace Cyan
 {
@@ -160,7 +161,6 @@ namespace Cyan
             );
         }
 #endif
-
 
     }
 
@@ -742,18 +742,47 @@ namespace Cyan
         }
 
         m_debugger = std::make_unique<SSGIDebugger>(this);
-
-#if 0
-        m_rayMarchingInfos.resize(m_settings.kMaxNumIterationsPerRay);
-        for (i32 iter = 0; iter < m_settings.kMaxNumIterationsPerRay; ++iter)
-        {
-            m_rayMarchingInfos[iter] = RayMarchingInfo{ };
-        }
-#endif
     }
 
     SSGIRenderer::~SSGIRenderer()
     {
+    }
+
+    void SSGIRenderer::renderSceneIndirectLighting(Scene* scene, SceneRender * render, const SceneCamera::ViewParameters & viewParameters)
+    {
+        renderAO(render, viewParameters);
+        renderDiffuseGI(scene->m_skyLight, render, viewParameters);
+
+        // compose final indirect lighting
+        {
+            GPU_DEBUG_SCOPE(SSGIComposeIndirectLighting, "SSGIComposeIndirectLighting");
+
+            auto renderer = Renderer::get();
+            CreateVS(vs, "ScreenPassVS", SHADER_SOURCE_PATH "screen_pass_v.glsl");
+            CreatePS(ps, "SSGIIndirectLightingPS", SHADER_SOURCE_PATH "SSGI_indirect_lighting_p.glsl");
+            CreatePixelPipeline(pipeline, "SSGIIndirectLighting", vs, ps);
+
+            renderer->drawFullscreenQuad(
+                getFramebufferSize(render->indirectLighting()),
+                [render](RenderPass& pass) {
+                    pass.setRenderTarget(render->indirectLighting(), 0, /*bClear=*/false);
+                },
+                pipeline,
+                [this, scene, render, viewParameters](ProgramPipeline* p) {
+                    viewParameters.setShaderParameters(p);
+                    p->setTexture("sceneDepth", render->depth());
+                    p->setTexture("sceneNormal", render->normal());
+                    p->setTexture("sceneAlbedo", render->albedo());
+                    p->setTexture("sceneMetallicRoughness", render->metallicRoughness());
+
+                    p->setUniform("settings.bNearFieldSSAO", m_settings.bNearFieldSSAO ? 1.f : 0.f);
+                    p->setTexture("SSGI_NearFieldSSAO", render->ao());
+                    p->setUniform("settings.bIndirectIrradiance", m_settings.bIndirectIrradiance ? 1.f : 0.f);
+                    p->setTexture("SSGI_Diffuse", render->indirectIrradiance());
+                    p->setUniform("settings.indirectBoost", m_settings.indirectBoost);
+                }
+            );
+        }
     }
 
     void SSGIRenderer::renderAO(SceneRender* render, const SceneCamera::ViewParameters& viewParameters)
@@ -847,15 +876,10 @@ namespace Cyan
         renderer->blitTexture(render->aoHistory(), aoTemporalOutput.getGfxTexture2D());
     }
 
-    void SSGIRenderer::renderDiffuse(SceneRender* render, const SceneCamera::ViewParameters& viewParameters)
+    void SSGIRenderer::renderDiffuseGI(SkyLight* skyLight, SceneRender* render, const SceneCamera::ViewParameters& viewParameters)
     {
         GPU_DEBUG_SCOPE(SSGIDiffuse, "SSGIDiffuse");
 
-        stochasticIndirectIrradiance(render, viewParameters);
-    }
-
-    void SSGIRenderer::stochasticIndirectIrradiance(SceneRender* render, const SceneCamera::ViewParameters& viewParameters)
-    {
         auto renderer = Renderer::get();
 
         CreateVS(vs, "ScreenPassVS", SHADER_SOURCE_PATH "screen_pass_v.glsl");
@@ -868,21 +892,13 @@ namespace Cyan
             RenderTexture2D temporalIndirectIrradianceBuffer("SSGITemporalIndirectIrradianceBuffer", outIndirectIrradiance->getSpec());
 
             renderer->drawFullscreenQuad(
-#if 0
-                getFramebufferSize(temporalIndirectIrradianceBuffer.getGfxTexture2D()),
-                [temporalIndirectIrradianceBuffer](RenderPass& pass) {
-                    RenderTarget renderTarget(temporalIndirectIrradianceBuffer.getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
-                    pass.setRenderTarget(renderTarget, 0);
-                },
-#else
                 getFramebufferSize(render->indirectIrradiance()),
                 [render](RenderPass& pass) {
                     RenderTarget renderTarget(render->indirectIrradiance(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
                     pass.setRenderTarget(renderTarget, 0);
                 },
-#endif
                 p,
-                [this, render, viewParameters](ProgramPipeline* p) {
+                [this, skyLight, render, viewParameters](ProgramPipeline* p) {
                     viewParameters.setShaderParameters(p);
 
                     auto hiZ = render->hiZ();
@@ -890,10 +906,12 @@ namespace Cyan
                     p->setUniform("hiz.numMipLevels", (i32)hiZ->m_depthBuffer->numMips);
                     p->setUniform("settings.kTraceStopMipLevel", (i32)m_settings.kTracingStopMipLevel);
                     p->setUniform("settings.kMaxNumIterationsPerRay", (i32)m_settings.kMaxNumIterationsPerRay);
+                    p->setUniform("settings.bSSDO", m_settings.bSSDO ? 1.f : 0.f);
 
                     p->setTexture("sceneDepthBuffer", render->depth());
                     p->setTexture("sceneNormalBuffer", render->normal()); 
                     p->setTexture("diffuseRadianceBuffer", render->directDiffuseLighting());
+                    p->setTexture("skyCubemap", skyLight->m_cubemap.get());
 
                     p->setTexture("prevFrameSceneDepthBuffer", render->prevFrameDepth());
                     p->setTexture("prevFrameIndirectIrradianceBuffer", render->prevFrameIndirectIrradiance());
@@ -902,18 +920,36 @@ namespace Cyan
         }
         // spatial pass
         {
-
         }
+    }
+
+    void SSGIRenderer::renderReflection(SkyLight* skyLight, SceneRender* render, const SceneCamera::ViewParameters& viewParameters)
+    {
     }
 
     void SSGIRenderer::debugDraw(SceneRender* render, const SceneCamera::ViewParameters& viewParameters)
     {
-        m_debugger->render(render, viewParameters);
+        if (bDebugging)
+        {
+            m_debugger->render(render, viewParameters);
+        }
     }
 
     void SSGIRenderer::renderUI()
     {
-        m_debugger->renderUI();
+        if (ImGui::TreeNode("SSGI"))
+        {
+            ImGui::Text("SSDO"); ImGui::SameLine();
+            ImGui::Checkbox("##SSDO", &m_settings.bSSDO);
+            ImGui::SliderFloat("##Indirect Boost", &m_settings.indirectBoost, Settings::kMinIndirectBoost, Settings::kMaxIndirectBoost);
+            ImGui::Text("Debugging"); ImGui::SameLine();
+            ImGui::Checkbox("##Debugging", &bDebugging); 
+            if (bDebugging)
+            {
+                m_debugger->renderUI();
+            }
+            ImGui::TreePop();
+        }
     }
 
     SSGIDebugger::SSGIDebugger(SSGIRenderer * renderer)
@@ -940,27 +976,31 @@ namespace Cyan
 
     void SSGIDebugger::renderUI()
     {
-        ImGui::Text("Freeze Debug Ray"); ImGui::SameLine();
-        ImGui::Checkbox("##Freeze Debug Ray", &m_freezeDebugRay);
-
-        if (!m_freezeDebugRay)
+        if (ImGui::TreeNode("SSGI Debugger"))
         {
-            f32 debugRayScreenCoord[2] = { m_debugRayScreenCoord.x, m_debugRayScreenCoord.y };
-            ImGui::Text("Debug Ray ScreenCoord"); ImGui::SameLine();
-            ImGui::SliderFloat2("##Debug Ray ScreenCoord", debugRayScreenCoord, 0.f, 1.f);
-            m_debugRayScreenCoord.x = debugRayScreenCoord[0];
-            m_debugRayScreenCoord.y = debugRayScreenCoord[1];
+            ImGui::Text("Freeze Debug Ray"); ImGui::SameLine();
+            ImGui::Checkbox("##Freeze Debug Ray", &m_freezeDebugRay);
 
-            f32 depthSampleCoord[2] = { m_depthSampleCoord.x, m_depthSampleCoord.y};
-            ImGui::Text("Debug DepthSample Coord"); ImGui::SameLine();
-            ImGui::SliderFloat2("##Debug DepthSample Coord", depthSampleCoord, 0.f, 1.f);
-            m_depthSampleCoord.x = depthSampleCoord[0];
-            m_depthSampleCoord.y = depthSampleCoord[1];
+            if (!m_freezeDebugRay)
+            {
+                f32 debugRayScreenCoord[2] = { m_debugRayScreenCoord.x, m_debugRayScreenCoord.y };
+                ImGui::Text("Debug Ray ScreenCoord"); ImGui::SameLine();
+                ImGui::SliderFloat2("##Debug Ray ScreenCoord", debugRayScreenCoord, 0.f, 1.f);
+                m_debugRayScreenCoord.x = debugRayScreenCoord[0];
+                m_debugRayScreenCoord.y = debugRayScreenCoord[1];
 
-            ImGui::Text("Debug DepthSample Mip"); ImGui::SameLine();
-            ImGui::SliderInt("##Debug DepthSample Mip", &m_depthSampleLevel, 0, 10);
-            ImGui::Text("Scene Depth: %.5f", m_depthSample.sceneDepth.x);
-            ImGui::Text("Quadtree MinDepth: %.5f", m_depthSample.quadtreeMinDepth.x);
+                f32 depthSampleCoord[2] = { m_depthSampleCoord.x, m_depthSampleCoord.y };
+                ImGui::Text("Debug DepthSample Coord"); ImGui::SameLine();
+                ImGui::SliderFloat2("##Debug DepthSample Coord", depthSampleCoord, 0.f, 1.f);
+                m_depthSampleCoord.x = depthSampleCoord[0];
+                m_depthSampleCoord.y = depthSampleCoord[1];
+
+                ImGui::Text("Debug DepthSample Mip"); ImGui::SameLine();
+                ImGui::SliderInt("##Debug DepthSample Mip", &m_depthSampleLevel, 0, 10);
+                ImGui::Text("Scene Depth: %.5f", m_depthSample.sceneDepth.x);
+                ImGui::Text("Quadtree MinDepth: %.5f", m_depthSample.quadtreeMinDepth.x);
+            }
+            ImGui::TreePop();
         }
     }
 

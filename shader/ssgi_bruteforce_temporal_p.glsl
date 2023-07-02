@@ -36,6 +36,7 @@ uniform sampler2D prevFrameSceneDepthBuffer;
 uniform sampler2D sceneNormalBuffer;
 uniform sampler2D prevFrameIndirectIrradianceBuffer;
 uniform sampler2D diffuseRadianceBuffer;
+uniform samplerCube skyCubemap;
 
 // todo: maybe using the same noises from the GTAO talk will produce better results?
 uniform sampler2D blueNoise_16x16_R[8];
@@ -135,6 +136,10 @@ struct Settings
 {
 	int kTracingStopMipLevel;
 	int kMaxNumIterationsPerRay;
+    float bNearFieldSSAO;
+	float bSSDO;
+    float bIndirectIrradiance;
+	float indirectBoost;
 };
 uniform Settings settings;
 
@@ -372,10 +377,17 @@ void main()
 	vec3 rd = uniformSampleHemisphere(n);
 	HitRecord hit;
 	hizTrace(ro, rd, hit);
+	float ndotl = max(dot(rd, n), 0.f);
 	if (hit.result == HitResult_Hit)
 	{
-		float ndotl = max(dot(rd, n), 0.f);
 		incidentRadiance = texture(diffuseRadianceBuffer, hit.positionSS).rgb * ndotl;
+	}
+	else if (hit.result == HitResult_Miss)
+	{
+		if (settings.bSSDO > 0.5f)
+		{
+			incidentRadiance = texture(skyCubemap, rd).rgb * ndotl;
+		}
 	}
 	indirectIrradiance += incidentRadiance;
 

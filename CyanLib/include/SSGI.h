@@ -86,6 +86,7 @@ namespace Cyan
 
     struct GfxTexture2D;
     class Texture2D;
+    class SkyLight;
     class SceneRender;
     struct ShaderStorageBuffer;
     class SSGIDebugger;
@@ -98,28 +99,33 @@ namespace Cyan
         {
             i32 kTracingStopMipLevel = 1;
             i32 kMaxNumIterationsPerRay = 64;
+            bool bNearFieldSSAO = true;
+            bool bSSDO = true;
+            bool bIndirectIrradiance = true;
+            static constexpr f32 kMinIndirectBoost = 0.f;
+            static constexpr f32 kMaxIndirectBoost = 10.f;
+            f32 indirectBoost= 1.f;
         };
 
         SSGIRenderer();
         ~SSGIRenderer();
 
+        void renderSceneIndirectLighting(Scene* scene, SceneRender* render, const SceneCamera::ViewParameters& viewParameters);
         void renderUI();
 
         // ao and bent normal
         void renderAO(SceneRender* render, const SceneCamera::ViewParameters& viewParameters);
-
         // diffuse GI
-        void renderDiffuse(SceneRender* render, const SceneCamera::ViewParameters& viewParameters);
-        void stochasticIndirectIrradiance(SceneRender* render, const SceneCamera::ViewParameters& viewParameters);
-
+        virtual void renderDiffuseGI(SkyLight* skyLight, SceneRender* render, const SceneCamera::ViewParameters& viewParameters);
         // reflection
-        void renderReflection(SceneRender* render, const SceneCamera::ViewParameters& viewParameters);
+        virtual void renderReflection(SkyLight* skyLight, SceneRender* render, const SceneCamera::ViewParameters& viewParameters);
 
         // debugging
         void debugDraw(SceneRender* render, const SceneCamera::ViewParameters& viewParameters);
 
     private:
         Settings m_settings;
+        bool bDebugging = false;
         std::unique_ptr<SSGIDebugger> m_debugger = nullptr;
         std::shared_ptr<Texture2D> m_blueNoise_1024x1024_RGBA = nullptr;
         std::array<std::shared_ptr<Texture2D>, 8> m_blueNoise_16x16_R;
