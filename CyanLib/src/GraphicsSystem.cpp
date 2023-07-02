@@ -104,6 +104,7 @@ namespace Cyan
         case GL_DEBUG_TYPE_ERROR:
             type = "ERROR";
             cyanError("Source: %s, Type: %s, Severity: %s, Message: %s", source.c_str(), type.c_str(), severity.c_str(), inMessage);
+            __debugbreak();
             break;
         case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
             type = "DEPRECATED BEHAVIOR";

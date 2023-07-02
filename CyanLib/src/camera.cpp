@@ -18,6 +18,11 @@ namespace Cyan
         m_projectionMode = ProjectionMode::kPerspective;
         m_perspective.fov = 90.f;
         m_perspective.aspectRatio = 1.f;
+        /**
+         * todo: Run into depth precision issues when using a near plane of .01 (1cm), especially
+         * visible in screen space ray traced effects. Need to learn about how to combat these issues
+         */
+        // m_perspective.n = 0.01f;
         m_perspective.n = 0.1f;
         m_perspective.f = 100.f;
 

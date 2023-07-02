@@ -46,7 +46,7 @@ namespace Cyan
         template <typename T>
         void read(std::vector<T>& data, u32 offset, u32 bytesToRead)
         {
-            assert(bytesToRead < sizeInBytes);
+            assert(bytesToRead <= sizeInBytes);
             assert(bytesToRead % sizeof(T) == 0);
             u32 numElements = bytesToRead / sizeof(T);
             if (data.size() < numElements)

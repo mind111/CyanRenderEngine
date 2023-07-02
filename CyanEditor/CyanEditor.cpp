@@ -124,11 +124,6 @@ namespace Cyan
 
             auto skyboxEntity = m_world->createSkyboxEntity("SkyboxEntity", Transform());
 
-            auto testMaterial = AssetManager::createMaterial("M_Test", MATERIAL_SOURCE_PATH "M_Test_p.glsl", [](MaterialInstance* instance) {
-                    instance->setFloat("mp_Roughness", .5f);
-                    instance->setVec3("mp_Albedo", glm::vec3(1.f, 0.f, 0.f));
-                });
-
             // overwrite the default rendering lambda
             m_renderOneFrame = [this](GfxTexture2D* renderingOutput) {
                 auto renderer = Renderer::get();
@@ -140,6 +135,8 @@ namespace Cyan
                     auto editorCamera = m_editorCameraEntity->getCameraComponent()->getSceneCamera();
                     editorCamera->setRenderMode((SceneCamera::RenderMode)m_renderMode);
                     scene->render();
+                    // debug ssgi
+                    renderer->m_SSGIRenderer->debugDraw(sceneCamera->m_render.get(), sceneCamera->m_viewParameters);
                     renderer->renderToScreen(sceneCamera->getRender());
                 }
                 // UI rendering
@@ -317,11 +314,18 @@ namespace Cyan
                     if (ImGui::CollapsingHeader("Lighting", ImGuiTreeNodeFlags_DefaultOpen))
                     {
                         ImGui::Text("Direct Lighting");
-                        ImGui::Separator();
-                        ImGui::Text("Indirect Lighting");
-                        ImGui::Checkbox("Ambient Occlusion", &renderer->m_settings.bSSAOEnabled);
-                        ImGui::Checkbox("Bent Normal", &renderer->m_settings.bBentNormalEnabled);
-                        ImGui::Checkbox("Indirect Irradiance", &renderer->m_settings.bIndirectIrradianceEnabled);
+                        if (ImGui::TreeNodeEx("Indirect Lighting", ImGuiTreeNodeFlags_DefaultOpen))
+                        {
+                            ImGui::Checkbox("Ambient Occlusion", &renderer->m_settings.bSSAOEnabled);
+                            ImGui::Checkbox("Bent Normal", &renderer->m_settings.bBentNormalEnabled);
+                            ImGui::Checkbox("Indirect Irradiance", &renderer->m_settings.bIndirectIrradianceEnabled);
+                            if (ImGui::TreeNode("SSGI"))
+                            {
+                                renderer->m_SSGIRenderer->renderUI();
+                                ImGui::TreePop();
+                            }
+                            ImGui::TreePop();
+                        }
                     }
 #if 0
                     if (ImGui::CollapsingHeader("SSGI", ImGuiTreeNodeFlags_DefaultOpen))

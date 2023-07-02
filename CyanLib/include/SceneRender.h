@@ -22,7 +22,7 @@ namespace Cyan
         ~HierarchicalZBuffer();
 
         void build(GfxDepthTexture2D* sceneDepthBuffer);
-
+        
         std::unique_ptr<GfxTexture2D> m_depthBuffer;
         glm::uvec2 m_inputDepthResolution;
         glm::uvec2 m_powerOfTwoResolution;

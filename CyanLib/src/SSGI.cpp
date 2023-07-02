@@ -1,8 +1,13 @@
+#include <imgui/imgui.h>
+#include <imgui/imgui_impl_glfw.h>
+#include <imgui/imgui_impl_opengl3.h>
+
 #include "SSGI.h"
 #include "CyanRenderer.h"
 #include "AssetManager.h"
 #include "AssetImporter.h"
 #include "RenderPass.h"
+#include "ShaderStorageBuffer.h"
 
 namespace Cyan
 {
@@ -155,6 +160,7 @@ namespace Cyan
             );
         }
 #endif
+
 
     }
 
@@ -734,6 +740,16 @@ namespace Cyan
             auto bn16x16_7 = AssetImporter::importImage("BlueNoise_16x16_R_7", ASSET_PATH "textures/noise/BN_16x16_R_7.png");
             m_blueNoise_16x16_R[7] = AssetManager::createTexture2D("BlueNoise_16x16_R_7", bn16x16_7, sampler);
         }
+
+        m_debugger = std::make_unique<SSGIDebugger>(this);
+
+#if 0
+        m_rayMarchingInfos.resize(m_settings.kMaxNumIterationsPerRay);
+        for (i32 iter = 0; iter < m_settings.kMaxNumIterationsPerRay; ++iter)
+        {
+            m_rayMarchingInfos[iter] = RayMarchingInfo{ };
+        }
+#endif
     }
 
     SSGIRenderer::~SSGIRenderer()
@@ -870,8 +886,8 @@ namespace Cyan
                     viewParameters.setShaderParameters(p);
 
                     auto hiZ = render->hiZ();
-                    p->setTexture("hiZ.depthQuadtree", hiZ->m_depthBuffer.get());
-                    p->setUniform("hiZ.numMipLevels", (i32)hiZ->m_depthBuffer->numMips);
+                    p->setTexture("hiz.depthQuadtree", hiZ->m_depthBuffer.get());
+                    p->setUniform("hiz.numMipLevels", (i32)hiZ->m_depthBuffer->numMips);
                     p->setUniform("settings.kTraceStopMipLevel", (i32)m_settings.kTracingStopMipLevel);
                     p->setUniform("settings.kMaxNumIterationsPerRay", (i32)m_settings.kMaxNumIterationsPerRay);
 
@@ -887,6 +903,401 @@ namespace Cyan
         // spatial pass
         {
 
+        }
+    }
+
+    void SSGIRenderer::debugDraw(SceneRender* render, const SceneCamera::ViewParameters& viewParameters)
+    {
+        m_debugger->render(render, viewParameters);
+    }
+
+    void SSGIRenderer::renderUI()
+    {
+        m_debugger->renderUI();
+    }
+
+    SSGIDebugger::SSGIDebugger(SSGIRenderer * renderer)
+        : m_SSGIRenderer(renderer)
+    {
+        m_rayMarchingInfos.resize(m_SSGIRenderer->m_settings.kMaxNumIterationsPerRay);
+        for (i32 iter = 0; iter < m_SSGIRenderer->m_settings.kMaxNumIterationsPerRay; ++iter)
+        {
+            m_rayMarchingInfos[iter] = RayMarchingInfo{ };
+        }
+    }
+
+    SSGIDebugger::~SSGIDebugger()
+    {
+
+    }
+
+    void SSGIDebugger::render(SceneRender* render, const SceneCamera::ViewParameters& viewParameters)
+    {
+        GPU_DEBUG_SCOPE(SSGIDebugRender, "DebugDrawSSGIRay")
+
+        debugDrawRay(render, viewParameters);
+    }
+
+    void SSGIDebugger::renderUI()
+    {
+        ImGui::Text("Freeze Debug Ray"); ImGui::SameLine();
+        ImGui::Checkbox("##Freeze Debug Ray", &m_freezeDebugRay);
+
+        if (!m_freezeDebugRay)
+        {
+            f32 debugRayScreenCoord[2] = { m_debugRayScreenCoord.x, m_debugRayScreenCoord.y };
+            ImGui::Text("Debug Ray ScreenCoord"); ImGui::SameLine();
+            ImGui::SliderFloat2("##Debug Ray ScreenCoord", debugRayScreenCoord, 0.f, 1.f);
+            m_debugRayScreenCoord.x = debugRayScreenCoord[0];
+            m_debugRayScreenCoord.y = debugRayScreenCoord[1];
+
+            f32 depthSampleCoord[2] = { m_depthSampleCoord.x, m_depthSampleCoord.y};
+            ImGui::Text("Debug DepthSample Coord"); ImGui::SameLine();
+            ImGui::SliderFloat2("##Debug DepthSample Coord", depthSampleCoord, 0.f, 1.f);
+            m_depthSampleCoord.x = depthSampleCoord[0];
+            m_depthSampleCoord.y = depthSampleCoord[1];
+
+            ImGui::Text("Debug DepthSample Mip"); ImGui::SameLine();
+            ImGui::SliderInt("##Debug DepthSample Mip", &m_depthSampleLevel, 0, 10);
+            ImGui::Text("Scene Depth: %.5f", m_depthSample.sceneDepth.x);
+            ImGui::Text("Quadtree MinDepth: %.5f", m_depthSample.quadtreeMinDepth.x);
+        }
+    }
+
+    void drawQuadtreeCell(GfxTexture2D* outColor, GfxDepthTexture2D* depth, HierarchicalZBuffer* hiz, const SceneCamera::ViewParameters& viewParameters, i32 mipLevel, glm::vec2 cellCenter, f32 cellSize)
+    {
+        CreateVS(vs, "DebugDrawQuadtreeCellVS", SHADER_SOURCE_PATH "debug_draw_quadtree_cell_v.glsl");
+        CreatePS(ps, "DebugDrawPS", SHADER_SOURCE_PATH "debug_draw_p.glsl");
+        CreatePixelPipeline(p, "DebugDrawQuadtreeCell", vs, ps);
+
+        RenderPass pass(outColor->width, outColor->height);
+        pass.viewport = { 0, 0, outColor->width, outColor->height };
+        pass.setRenderTarget(outColor, 0, /*bClear=*/false);
+        pass.setDepthBuffer(depth, /*bClearDepth=*/false);
+        pass.drawLambda = [=](GfxContext* ctx) {
+            p->bind(ctx);
+            auto va = VertexArray::getDummyVertexArray(); // work around not using a vertex array for drawing
+            va->bind();
+            viewParameters.setShaderParameters(p);
+            p->setTexture("depthQuadtree", hiz->m_depthBuffer.get());
+            p->setUniform("mipLevel", mipLevel);
+            p->setUniform("cellCenter", cellCenter);
+            p->setUniform("cellSize", cellSize);
+            p->setUniform("cellColor", vec4ToVec3(Color::blue));
+            p->setUniform("cameraView", viewParameters.viewMatrix);
+            p->setUniform("cameraProjection", viewParameters.projectionMatrix);
+            glDrawArrays(GL_POINTS, 0, 1);
+            va->unbind();
+            p->unbind(ctx);
+        };
+        auto renderer = Renderer::get();
+        pass.render(renderer->getGfxCtx());
+    }
+
+    void SSGIDebugger::debugDrawRay(SceneRender* render, const SceneCamera::ViewParameters& viewParameters)
+    {
+        GPU_DEBUG_SCOPE(debugDrawSSGIRay, "DebugDrawSSGIRay")
+
+        const auto& SSGISettings = m_SSGIRenderer->m_settings;
+
+        // generate a ray data
+        if (!m_freezeDebugRay)
+        {
+            if (m_debugRayBuffer == nullptr)
+            {
+                m_debugRayBuffer = std::make_unique<ShaderStorageBuffer>("DebugRayBuffer", sizeof(DebugRay));
+            }
+            if (m_rayMarchingInfoBuffer == nullptr)
+            {
+                m_rayMarchingInfoBuffer = std::make_unique<ShaderStorageBuffer>("RayMarchingInfoBuffer", sizeOfVector(m_rayMarchingInfos));
+            }
+
+            CreateCS(cs, "SSGIDebugGenerateRayCS", SHADER_SOURCE_PATH "ssgi_debug_ray_gen_c.glsl");
+            CreateComputePipeline(p, "SSGIDebugGenerateRay", cs);
+
+            // clear data
+            for (i32 i = 0; i < SSGISettings.kMaxNumIterationsPerRay; ++i)
+            {
+                m_rayMarchingInfos[i] = RayMarchingInfo{ };
+            }
+            m_rayMarchingInfoBuffer->write(m_rayMarchingInfos, 0);
+
+            auto ctx = GfxContext::get();
+            p->bind(ctx);
+            viewParameters.setShaderParameters(p);
+            p->setShaderStorageBuffer(m_debugRayBuffer.get());
+            p->setShaderStorageBuffer(m_rayMarchingInfoBuffer.get());
+
+            auto hiZ = render->hiZ();
+            p->setTexture("hiz.depthQuadtree", hiZ->m_depthBuffer.get());
+            p->setUniform("hiz.numMipLevels", (i32)hiZ->m_depthBuffer->numMips);
+            p->setUniform("settings.kTraceStopMipLevel", (i32)SSGISettings.kTracingStopMipLevel);
+            p->setUniform("settings.kMaxNumIterationsPerRay", (i32)SSGISettings.kMaxNumIterationsPerRay);
+
+            p->setTexture("sceneDepthBuffer", render->depth());
+            p->setTexture("sceneNormalBuffer", render->normal());
+            p->setTexture("diffuseRadianceBuffer", render->directDiffuseLighting());
+            p->setUniform("debugRayScreenCoord", m_debugRayScreenCoord);
+            glDispatchCompute(1, 1, 1);
+            p->unbind(ctx);
+
+            m_debugRayBuffer->read<DebugRay>(m_debugRay, 0);
+            m_rayMarchingInfoBuffer->read<RayMarchingInfo>(m_rayMarchingInfos, 0, sizeOfVector(m_rayMarchingInfos));
+        }
+
+        {
+            auto renderer = Renderer::get();
+
+            // validate hiz buffer first mip
+            CreateVS(vs, "ScreenPassVS", SHADER_SOURCE_PATH "screen_pass_v.glsl");
+            CreatePS(ps, "HizValidationPS", SHADER_SOURCE_PATH "validate_hiz_p.glsl");
+            CreatePixelPipeline(p, "HizValidation", vs, ps);
+            RenderTexture2D validationOutput("HizValidation", render->albedo()->getSpec());
+            renderer->drawFullscreenQuad(
+                getFramebufferSize(render->depth()),
+                [render, validationOutput](RenderPass& pass) {
+                    pass.setRenderTarget(validationOutput.getGfxTexture2D(), 0);
+                },
+                p,
+                [render](ProgramPipeline* p) {
+                    auto hiz = render->hiZ();
+                    p->setTexture("sceneDepthBuffer", render->depth());
+                    p->setTexture("depthQuadtree", hiz->m_depthBuffer.get());
+                }
+            );
+
+            // copy scene rendering output into debug color
+            renderer->blitTexture(render->debugColor(), render->resolvedColor());
+
+            // draw screen space ray origin and screen space ray origin with offset
+            {
+#if 0
+                // draw a screen space grid to help visualize a quadtree level
+                CreateVS(vs, "ScreenPassVS", SHADER_SOURCE_PATH "screen_pass_v.glsl");
+                CreatePS(ps, "DrawQuadtreeGridPS", SHADER_SOURCE_PATH "draw_quadtree_grid_p.glsl");
+                CreatePixelPipeline(p, "DrawQuadtreeGrid", vs, ps);
+
+                RenderTexture2D outColor("DrawQuadtreeGridOutput", render->debugColor()->getSpec());
+                renderer->drawFullscreenQuad(
+                    getFramebufferSize(render->debugColor()),
+                    [outColor](RenderPass& pass) {
+                        pass.setRenderTarget(outColor.getGfxTexture2D(), 0, false);
+                    },
+                    p,
+                    [render](ProgramPipeline* p) {
+                        auto hiz = render->hiZ();
+                        p->setTexture("srcQuadtreeTexture", hiz->m_depthBuffer.get());
+                        p->setTexture("backgroundTexture", render->debugColor());
+                        p->setUniform("mip", 7);
+                    }
+                );
+                renderer->blitTexture(render->debugColor(), outColor.getGfxTexture2D());
+#endif
+
+                std::vector<Renderer::DebugPrimitiveVertex> points(2);
+                points[0].position = m_debugRay.screenSpaceRo;
+                points[0].color = Color::yellow;
+                points[1].position = m_debugRay.screenSpaceRoWithOffset;
+                points[1].color = Color::purple;
+                renderer->debugDrawScreenSpacePoints(render->debugColor(), render->depth(), viewParameters, points);
+            }
+            // draw ray
+            if (m_debugRay.hitResult.x == f32(HitResult::kHit))
+            {
+                std::vector<Renderer::DebugPrimitiveVertex> vertices(2);
+                vertices[0].position = m_debugRay.ro;
+                vertices[0].color = m_debugRay.hitRadiance;
+                vertices[1].position = m_debugRay.worldSpaceHitPosition;
+                vertices[1].color = m_debugRay.hitRadiance;
+                renderer->debugDrawWorldSpaceLines(render->debugColor(), render->depth(), viewParameters, vertices);
+
+                // draw a point for the screen space hit position
+                std::vector<Renderer::DebugPrimitiveVertex> points(1);
+                points[0].position = m_debugRay.screenSpaceHitPosition;
+                points[0].color = Color::green;
+                renderer->debugDrawScreenSpacePoints(render->debugColor(), render->depth(), viewParameters, points);
+            }
+            else if (m_debugRay.hitResult.x == f32(HitResult::kBackface))
+            {
+                std::vector<Renderer::DebugPrimitiveVertex> vertices(2);
+                vertices[0].position = m_debugRay.ro;
+                vertices[0].color = Color::purple;
+                vertices[1].position = m_debugRay.worldSpaceHitPosition;
+                vertices[1].color = Color::purple;
+                renderer->debugDrawWorldSpaceLines(render->debugColor(), render->depth(), viewParameters, vertices);
+
+                // draw a point for the screen space hit position
+                std::vector<Renderer::DebugPrimitiveVertex> points(1);
+                points[0].position = m_debugRay.screenSpaceHitPosition;
+                points[0].color = Color::purple;
+                renderer->debugDrawScreenSpacePoints(render->debugColor(), render->depth(), viewParameters, points);
+            }
+            else if (m_debugRay.hitResult.x == f32(HitResult::kHidden))
+            {
+                std::vector<Renderer::DebugPrimitiveVertex> vertices(2);
+                vertices[0].position = m_debugRay.ro;
+                vertices[0].color = Color::cyan;
+                vertices[1].position = m_debugRay.worldSpaceHitPosition;
+                vertices[1].color = Color::cyan;
+                renderer->debugDrawWorldSpaceLines(render->debugColor(), render->depth(), viewParameters, vertices);
+
+                // draw a point for the screen space hit position
+                std::vector<Renderer::DebugPrimitiveVertex> points(1);
+                points[0].position = m_debugRay.screenSpaceHitPosition;
+                points[0].color = Color::cyan;
+                renderer->debugDrawScreenSpacePoints(render->debugColor(), render->depth(), viewParameters, points);
+            }
+
+            // draw intermediate steps
+            {
+                std::vector<Renderer::DebugPrimitiveVertex> screenSpacePoints;
+                std::vector<Renderer::DebugPrimitiveVertex> screenSpaceDepthSamples;
+                std::vector<Renderer::DebugPrimitiveVertex> worldSpacePoints;
+                for (i32 iter = 0; iter < SSGISettings.kMaxNumIterationsPerRay; ++iter)
+                {
+                    const auto& info = m_rayMarchingInfos[iter];
+                    if (info.screenSpacePosition.w > 0.f)
+                    {
+                        Renderer::DebugPrimitiveVertex v0 = { };
+                        v0.position = info.screenSpacePosition; 
+                        v0.color = Color::blue;
+                        screenSpacePoints.push_back(v0);
+
+                        Renderer::DebugPrimitiveVertex v1 = { };
+                        v1.position = info.depthSampleCoord; 
+
+                        if (info.screenSpacePosition.z < info.minDepth.x)
+                        {
+                            v1.color = Color::cyan;
+                        }
+                        else
+                        {
+                            v1.color = Color::orange;
+                        }
+                        screenSpaceDepthSamples.push_back(v1);
+                    } 
+                    if (info.worldSpacePosition.w > 0.f)
+                    {
+                        Renderer::DebugPrimitiveVertex v = { };
+                        v.position = info.worldSpacePosition;
+                        if (info.screenSpacePosition.z < info.minDepth.x)
+                        {
+                            v.color = Color::pink;
+                        }
+                        else
+                        {
+                            v.color = Color::red;
+                        }
+                        worldSpacePoints.push_back(v);
+                    }
+                }
+
+                // renderer->debugDrawScreenSpacePoints(render->debugColor(), render->depth(), viewParameters, screenSpacePoints);
+                // renderer->debugDrawScreenSpacePoints(render->debugColor(), render->depth(), viewParameters, screenSpaceDepthSamples);
+                renderer->debugDrawWorldSpacePoints(render->debugColor(), render->depth(), viewParameters, worldSpacePoints);
+            }
+
+            // sample min depth
+            {
+                const char* src = R"(
+#version 450 core
+layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+struct DepthSample
+{
+    vec4 sceneDepth;
+    vec4 quadtreeDepth;
+};
+uniform int depthSampleLevel;
+uniform vec2 depthSampleCoord;
+uniform sampler2D sceneDepthBuffer;
+uniform sampler2D depthQuadtree;
+layout (std430) buffer DepthSampleBuffer 
+{
+    DepthSample depthSample;
+};
+void main() 
+{
+    float sceneDepth = texture(sceneDepthBuffer, depthSampleCoord).r;
+    float quadtreeDepth = textureLod(depthQuadtree, depthSampleCoord, depthSampleLevel).r;
+    depthSample.sceneDepth = vec4(vec3(sceneDepth), 1.f);
+    depthSample.quadtreeDepth = vec4(vec3(quadtreeDepth), 1.f);
+}
+                )";
+                CreateCSInline(cs, "SSGIDebugMinDepthCS", src);
+                CreateComputePipeline(p, "SSGIDebugMinDepth", cs);
+
+                if (m_depthSampleBuffer == nullptr)
+                {
+                    m_depthSampleBuffer = std::make_unique<ShaderStorageBuffer>("DepthSampleBuffer", sizeof(DepthSample));
+                }
+                auto ctx = GfxContext::get();
+                p->bind(ctx);
+                p->setShaderStorageBuffer(m_depthSampleBuffer.get());
+                auto hiZ = render->hiZ();
+                p->setTexture("depthQuadtree", hiZ->m_depthBuffer.get());
+                p->setTexture("sceneDepthBuffer", render->depth());
+                p->setUniform("depthSampleCoord", m_depthSampleCoord);
+                p->setUniform("depthSampleLevel", m_depthSampleLevel);
+                glDispatchCompute(1, 1, 1);
+                p->unbind(ctx);
+                // read back
+                m_depthSampleBuffer->read<DepthSample>(m_depthSample, 0);
+                // draw a point on screen to indicate where the depth sample is at
+                std::vector<Renderer::DebugPrimitiveVertex> vertices(1);
+                vertices[0].position = glm::vec4(m_depthSampleCoord * 2.f - 1.f, 0.f, 1.f);
+                vertices[0].color = Color::pink;
+                renderer->debugDrawScreenSpacePoints(render->debugColor(), render->depth(), viewParameters, vertices);
+            }
+
+            // draw ray start normal
+            {
+                std::vector<Renderer::DebugPrimitiveVertex> vertices(2);
+                vertices[0].position = m_debugRay.ro;
+                vertices[0].color = Color::blue;
+                vertices[1].position = glm::vec4(vec4ToVec3(m_debugRay.ro) + vec4ToVec3(m_debugRay.n), 1.f);
+                vertices[1].color = Color::blue;
+                renderer->debugDrawWorldSpaceLines(render->debugColor(), render->depth(), viewParameters, vertices);
+            }
+            // draw ray hit normal
+        }
+    }
+
+    void SSGIDebugger::debugDrawRayOriginAndOffset(SceneRender* render, const SceneCamera::ViewParameters& viewParameters)
+    {
+        auto renderer = Renderer::get();
+
+        // copy scene rendering output into debug color
+        renderer->blitTexture(render->debugColor(), render->resolvedColor());
+
+        // draw screen space ray origin and screen space ray origin with offset
+        {
+            // draw a screen space grid to help visualize a quadtree level
+            CreateVS(vs, "ScreenPassVS", SHADER_SOURCE_PATH "screen_pass_v.glsl");
+            CreatePS(ps, "DrawQuadtreeGridPS", SHADER_SOURCE_PATH "draw_quadtree_grid_p.glsl");
+            CreatePixelPipeline(p, "DrawQuadtreeGrid", vs, ps);
+
+            RenderTexture2D outColor("DrawQuadtreeGridOutput", render->debugColor()->getSpec());
+            renderer->drawFullscreenQuad(
+                getFramebufferSize(render->debugColor()),
+                [outColor](RenderPass& pass) {
+                    pass.setRenderTarget(outColor.getGfxTexture2D(), 0, false);
+                },
+                p,
+                [render](ProgramPipeline* p) {
+                    auto hiz = render->hiZ();
+                    p->setTexture("srcQuadtreeTexture", hiz->m_depthBuffer.get());
+                    p->setTexture("backgroundTexture", render->debugColor());
+                    p->setUniform("mip", 5);
+                }
+            );
+            renderer->blitTexture(render->debugColor(), outColor.getGfxTexture2D());
+
+            std::vector<Renderer::DebugPrimitiveVertex> points(2);
+            points[0].position = m_debugRay.screenSpaceRo;
+            points[0].color = Color::yellow;
+            points[1].position = m_debugRay.screenSpaceRoWithOffset;
+            points[1].color = Color::purple;
+            renderer->debugDrawScreenSpacePoints(render->debugColor(), render->depth(), viewParameters, points);
         }
     }
 }

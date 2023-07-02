@@ -781,33 +781,36 @@ namespace Cyan
     }
 #endif
 
-    // todo: try to defer drawing debug objects till after the post-processing pass
-    void Renderer::drawWorldSpacePoints(Framebuffer* framebuffer, const std::vector<DebugPrimitiveVertex>& points)
+    void Renderer::debugDrawWorldSpacePoints(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const SceneCamera::ViewParameters& viewParameters, const std::vector<DebugPrimitiveVertex>& points)
     {
-#if 0
-        static ShaderStorageBuffer<DynamicSsboData<Vertex>> vertexBuffer("VertexBuffer", 1024);
+        const u32 kMaxNumVertices = 1024;
+        static ShaderStorageBuffer vertexBuffer("VertexBuffer", sizeof(DebugPrimitiveVertex) * kMaxNumVertices);
+        assert(points.size() <= kMaxNumVertices);
+        u32 numVertices = points.size();
 
-        debugDrawCalls.push([this, framebuffer, points]() {
-                // setup buffer
-                assert(points.size() < vertexBuffer.getNumElements());
-                u32 numPoints = points.size();
-                // this maybe unsafe
-                memcpy(vertexBuffer.data.array.data(), points.data(), sizeof(Vertex) * points.size());
-                vertexBuffer.upload();
+        CreateVS(vs, "DebugDrawWorldSpacePointVS", SHADER_SOURCE_PATH "debug_draw_points_worldspace_v.glsl");
+        CreatePS(ps, "DebugDrawPS", SHADER_SOURCE_PATH "debug_draw_p.glsl");
+        CreatePixelPipeline(p, "DebugDrawPointWorldSpace", vs, ps);
 
-                // draw
-                CreateVS(vs, "DebugDrawPointVS", SHADER_SOURCE_PATH "debug_draw_point_v.glsl");
-                CreatePS(ps, "DebugDrawLinePS", SHADER_SOURCE_PATH "debug_draw_line_worldspace_p.glsl");
-                CreatePixelPipeline(pipeline, "DebugDrawPoint", vs, ps);
-                m_ctx->setDepthControl(DepthControl::kEnable);
-                m_ctx->setShaderStorageBuffer(&vertexBuffer);
-                m_ctx->setPixelPipeline(pipeline);
-                m_ctx->setFramebuffer(framebuffer);
-                m_ctx->setViewport({ 0, 0, framebuffer->width, framebuffer->height });
-                glDrawArrays(GL_POINTS, 0, numPoints);
-            }
-        );
-#endif
+        vertexBuffer.write(points, 0);
+
+        RenderPass pass(outColor->width, outColor->height);
+        pass.viewport = { 0, 0, outColor->width, outColor->height };
+        pass.setRenderTarget(outColor, 0, /*bClear=*/false);
+        pass.setDepthBuffer(depthBuffer, /*bClearDepth=*/false);
+        pass.drawLambda = [p, viewParameters, numVertices](GfxContext* ctx) {
+            p->bind(ctx);
+            p->setShaderStorageBuffer(&vertexBuffer);
+            auto va = VertexArray::getDummyVertexArray(); // work around not using a vertex array for drawing
+            va->bind();
+            p->setUniform("cameraView", viewParameters.viewMatrix);
+            p->setUniform("cameraProjection", viewParameters.projectionMatrix);
+            glDrawArrays(GL_POINTS, 0, numVertices);
+            va->unbind();
+            p->unbind(ctx);
+        };
+
+        pass.render(m_ctx);
     }
 
     void Renderer::debugDrawWorldSpaceLines(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const SceneCamera::ViewParameters& viewParameters, const std::vector<DebugPrimitiveVertex>& vertices)
@@ -817,8 +820,8 @@ namespace Cyan
         assert(vertices.size() <= kMaxNumVertices);
         u32 numVertices = vertices.size();
 
-        CreateVS(vs, "DebugWorldSpaceLineVS", SHADER_SOURCE_PATH "debug_draw_line_worldspace_v.glsl");
-        CreatePS(ps, "DebugWorldSpaceLinePS", SHADER_SOURCE_PATH "debug_draw_line_worldspace_p.glsl");
+        CreateVS(vs, "DebugDrawWorldSpaceVS", SHADER_SOURCE_PATH "debug_draw_worldspace_v.glsl");
+        CreatePS(ps, "DebugDrawPS", SHADER_SOURCE_PATH "debug_draw_p.glsl");
         CreatePixelPipeline(p, "DebugDrawLineWorldSpace", vs, ps);
 
         vertexBuffer.write(vertices, 0);
@@ -842,34 +845,69 @@ namespace Cyan
         pass.render(m_ctx);
     }
 
-    void Renderer::drawScreenSpaceLines(Framebuffer* framebuffer, const std::vector<DebugPrimitiveVertex>& vertices)
+    void Renderer::debugDrawScreenSpaceLines(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const std::vector<DebugPrimitiveVertex>& vertices)
     {
-#if 0
-        static ShaderStorageBuffer<DynamicSsboData<Vertex>> vertexBuffer("VertexBuffer", 1024);
+        const u32 kMaxNumVertices = 1024;
+        static ShaderStorageBuffer vertexBuffer("VertexBuffer", sizeof(DebugPrimitiveVertex) * kMaxNumVertices);
+        assert(vertices.size() <= kMaxNumVertices);
+        u32 numVertices = vertices.size();
 
-        debugDrawCalls.push([this, framebuffer, vertices] {
-                // setup buffer
-                u32 numVertices = vertices.size();
-                u32 numLineSegments = max(numVertices - 1, 0);
-                u32 numVerticesToDraw = numLineSegments * 2;
-                assert(vertices.size() < vertexBuffer.getNumElements());
-                // this maybe unsafe
-                memcpy(vertexBuffer.data.array.data(), vertices.data(), sizeof(Vertex) * vertices.size());
-                vertexBuffer.upload();
+        CreateVS(vs, "DebugDrawScreenSpaceLineVS", SHADER_SOURCE_PATH "debug_draw_line_screenspace_v.glsl");
+        CreatePS(ps, "DebugDrawPS", SHADER_SOURCE_PATH "debug_draw_p.glsl");
+        CreatePixelPipeline(p, "DebugDrawLineScreenSpace", vs, ps);
 
-                // draw
-                CreateVS(vs, "DebugDrawScreenSpaceLineVS", SHADER_SOURCE_PATH "debug_draw_line_screenspace_v.glsl");
-                CreatePS(ps, "DebugDrawWorldSpaceLinePS", SHADER_SOURCE_PATH "debug_draw_line_worldspace_p.glsl");
-                CreatePixelPipeline(pipeline, "DebugDrawLineScreenSpace", vs, ps);
-                m_ctx->setDepthControl(DepthControl::kDisable);
-                m_ctx->setShaderStorageBuffer(&vertexBuffer);
-                m_ctx->setPixelPipeline(pipeline);
-                m_ctx->setFramebuffer(framebuffer);
-                m_ctx->setViewport({ 0, 0, framebuffer->width, framebuffer->height });
-                glDrawArrays(GL_LINES, 0, numVerticesToDraw);
-            }
-        );
-#endif
+        vertexBuffer.write(vertices, 0);
+
+        RenderPass pass(outColor->width, outColor->height);
+        pass.viewport = { 0, 0, outColor->width, outColor->height };
+        pass.setRenderTarget(outColor, 0, /*bClear=*/false);
+        pass.setDepthBuffer(depthBuffer, /*bClearDepth=*/false);
+        pass.drawLambda = [p, numVertices](GfxContext* ctx) {
+            p->bind(ctx);
+            p->setShaderStorageBuffer(&vertexBuffer);
+            auto va = VertexArray::getDummyVertexArray(); // work around not using a vertex array for drawing
+            va->bind();
+            glDrawArrays(GL_LINES, 0, numVertices);
+            va->unbind();
+            p->unbind(ctx);
+        };
+
+        pass.render(m_ctx);
+    }
+
+    void Renderer::debugDrawScreenSpacePoints(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const SceneCamera::ViewParameters& viewParameters, const std::vector<DebugPrimitiveVertex>& vertices)
+    {
+        const u32 kMaxNumVertices = 1024;
+        static ShaderStorageBuffer vertexBuffer("VertexBuffer", sizeof(DebugPrimitiveVertex) * kMaxNumVertices);
+        assert(vertices.size() <= kMaxNumVertices);
+        u32 numVertices = vertices.size();
+
+        CreateVS(vs, "DebugDrawScreenSpacePointsVS", SHADER_SOURCE_PATH "debug_draw_points_screenspace_v.glsl");
+        CreatePS(ps, "DebugDrawPS", SHADER_SOURCE_PATH "debug_draw_p.glsl");
+        CreatePixelPipeline(p, "DebugDrawScreenSpacePoints", vs, ps);
+
+        vertexBuffer.write(vertices, 0);
+
+        RenderPass pass(outColor->width, outColor->height);
+        pass.viewport = { 0, 0, outColor->width, outColor->height };
+        pass.setRenderTarget(outColor, 0, /*bClear=*/false);
+        pass.setDepthBuffer(depthBuffer, /*bClearDepth=*/false);
+        pass.drawLambda = [p, viewParameters, numVertices](GfxContext* ctx) {
+            p->bind(ctx);
+            p->setShaderStorageBuffer(&vertexBuffer);
+            auto va = VertexArray::getDummyVertexArray(); // work around not using a vertex array for drawing
+            va->bind();
+            p->setUniform("cameraView", viewParameters.viewMatrix);
+            p->setUniform("cameraProjection", viewParameters.projectionMatrix);
+            glDrawArrays(GL_POINTS, 0, numVertices);
+            va->unbind();
+            p->unbind(ctx);
+        };
+        GfxPipelineState gfxPipelineState = { };
+        gfxPipelineState.depth = DepthControl::kDisable;
+        pass.gfxPipelineState = gfxPipelineState;
+
+        pass.render(m_ctx);
     }
 
 #if 0
@@ -1256,7 +1294,6 @@ namespace Cyan
     {
 
     }
-
     void Renderer::debugDrawCubemap(GfxTextureCube* cubemap) {
 #if 0
         static PerspectiveCamera camera(

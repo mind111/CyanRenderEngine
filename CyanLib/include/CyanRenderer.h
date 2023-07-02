@@ -67,6 +67,26 @@ namespace Cyan
         RenderTexture2D metallicRoughness;
     };
 
+    class RenderingUIWidget
+    {
+    public:
+        virtual void render() = 0;
+        const char* m_name;
+    };
+
+    // set of common colors
+    struct Color
+    {
+        static constexpr glm::vec4 red = glm::vec4(1.f, 0.f, 0.f, 1.f);
+        static constexpr glm::vec4 green = glm::vec4(0.f, 1.f, 0.f, 1.f);
+        static constexpr glm::vec4 blue = glm::vec4(0.f, 0.f, 1.f, 1.f);
+        static constexpr glm::vec4 yellow = glm::vec4(1.f, 1.f, 0.f, 1.f);
+        static constexpr glm::vec4 purple = glm::vec4(0.5f, 0.f, 0.5f, 1.f);
+        static constexpr glm::vec4 orange = glm::vec4(1.f, 1.f, 0.f, 1.f);
+        static constexpr glm::vec4 pink = glm::vec4(1.f, .412f, 0.706f, 1.f);
+        static constexpr glm::vec4 cyan = glm::vec4(0.f, 1.f, 1.f, 1.f);
+    };
+
     class Renderer : public Singleton<Renderer>
     {
     public:
@@ -120,19 +140,23 @@ namespace Cyan
         void copyDepth(GfxDepthTexture2D* dst, GfxDepthTexture2D* src);
 
         struct DebugPrimitiveVertex
-        {
-            glm::vec4 position;
+        { glm::vec4 position;
             glm::vec4 color;
         };
 
+        // points
+        void debugDrawScreenSpacePoints(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const SceneCamera::ViewParameters& viewParemters, const std::vector<DebugPrimitiveVertex>& vertices);
+        void debugDrawWorldSpacePoints(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const SceneCamera::ViewParameters& viewParameters, const std::vector<DebugPrimitiveVertex>& points);
+        // lines
         void debugDrawWorldSpaceLines(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const SceneCamera::ViewParameters& viewParemters, const std::vector<DebugPrimitiveVertex>& vertices);
+        void debugDrawScreenSpaceLines(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const std::vector<DebugPrimitiveVertex>& vertices);
+        // sphere
         void debugDrawSphere(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color, const SceneCamera::ViewParameters& viewParameters);
         void debugDrawWireframeSphere(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color, const SceneCamera::ViewParameters& viewParameters);
+        // cube
         void debugDrawCube(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color, const SceneCamera::ViewParameters& viewParameters);
         void debugDrawWireframeCube(GfxTexture2D* outColor, GfxDepthTexture2D* depthBuffer, const glm::vec3& worldSpacePosition, f32 radius, const glm::vec3& color, const SceneCamera::ViewParameters& viewParameters);
 
-        void drawScreenSpaceLines(Framebuffer* framebuffer, const std::vector<DebugPrimitiveVertex>& vertices);
-        void drawWorldSpacePoints(Framebuffer* framebuffer, const std::vector<DebugPrimitiveVertex>& points);
         void debugDrawCubemap(GfxTextureCube* cubemap);
         void debugDrawCubemap(GLuint cubemap);
 
@@ -215,9 +239,9 @@ namespace Cyan
         glm::uvec2 m_windowSize;
         bool bFixDebugRay = false;
         std::shared_ptr<StaticMesh> m_quad = nullptr;
+        std::unique_ptr<SSGIRenderer> m_SSGIRenderer = nullptr;
     private:
         GfxContext* m_ctx;
-        std::unique_ptr<SSGIRenderer> m_SSGIRenderer = nullptr;
         LinearAllocator m_frameAllocator;
         std::queue<UIRenderCommand> m_UIRenderCommandQueue;
         std::vector<GfxTexture2D*> renderTextures;

@@ -48,7 +48,10 @@ namespace Cyan
 
         u32 numMips = log2(glm::min(m_powerOfTwoResolution.x, m_powerOfTwoResolution.y)) + 1;
         GfxTexture2D::Spec spec(m_powerOfTwoResolution.x, m_powerOfTwoResolution.y, numMips, PF_R32F);
-        m_depthBuffer.reset(GfxTexture2D::create(spec));
+        Sampler2D sampler = { };
+        // this is necessary if want to use textureLod() to sample a mip level!!!
+        sampler.minFilter = Sampler::Filtering::kMipmapPoint;
+        m_depthBuffer.reset(GfxTexture2D::create(spec, sampler));
     }
 
     HierarchicalZBuffer::~HierarchicalZBuffer()
@@ -84,6 +87,7 @@ namespace Cyan
                 p,
                 [this, sceneDepthBuffer](ProgramPipeline* p) {
                     p->setTexture("sceneDepthBuffer", sceneDepthBuffer);
+                    p->setUniform("outputResolution", glm::vec2(m_powerOfTwoResolution));
                 },
                 gps
             );

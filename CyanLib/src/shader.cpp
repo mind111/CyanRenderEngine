@@ -13,24 +13,33 @@
 
 namespace Cyan
 {    
-    ShaderSource::ShaderSource(const char* shaderFilePath) 
+    ShaderSource::ShaderSource(const char* inputStr, bool bInline)
     {
-        // open & load the shader source file into @src
-        std::ifstream shaderFile(shaderFilePath);
-        if (shaderFile.is_open()) 
-        { 
-            std::string line;
-            bool bParsingHeaders = false;
-            while (std::getline(shaderFile, line)) 
-            {
-                src += line;
-                src += '\n';
-            }
-            shaderFile.close();
-        }
-        else 
+        if (bInline)
         {
-            cyanError("Failed to open shader file %s", shaderFilePath);
+            // interpret inputStr as inline shader src string
+            src = std::string(inputStr);
+        }
+        else
+        {
+            // interpret inputStr as the filepath to the shader file
+            // open & load the shader source file into @src
+            std::ifstream shaderFile(inputStr);
+            if (shaderFile.is_open()) 
+            { 
+                std::string line;
+                bool bParsingHeaders = false;
+                while (std::getline(shaderFile, line)) 
+                {
+                    src += line;
+                    src += '\n';
+                }
+                shaderFile.close();
+            }
+            else 
+            {
+                cyanError("Failed to open shader file %s", inputStr);
+            }
         }
     }
 
@@ -108,8 +117,8 @@ namespace Cyan
 
     static GfxContext* s_ctx = nullptr;
 
-    Shader::Shader(const char* shaderName, const char* shaderFilePath, Type type) 
-        : m_name(shaderName), m_source(shaderFilePath), m_type(type) 
+    Shader::Shader(const char* shaderName, const char* inputStr, bool bInline, Type type) 
+        : m_name(shaderName), m_source(inputStr, bInline), m_type(type) 
     {
         if (s_ctx == nullptr)
         {
@@ -160,7 +169,7 @@ namespace Cyan
         Shader::initialize(this);
     }
 
-    void Shader::initialize(Shader* shader) 
+    void Shader::initialize(Shader* shader)
     {
         GLuint program = shader->getProgram();
         // query list of active uniforms
@@ -220,8 +229,9 @@ namespace Cyan
                 {
                     i32 nameLength = -1;
                     glGetProgramResourceName(program, GL_SHADER_STORAGE_BLOCK, i, maxNameLength, &nameLength, name);
-                    ShaderStorageBinding binding = { name, i, nullptr, -1 };
-                    shader->m_shaderStorageBindingMap.insert({ std::string(name), binding });
+                    std::string blockName(name);
+                    ShaderStorageBinding binding = { blockName, i, nullptr, -1 };
+                    shader->m_shaderStorageBindingMap.insert({ blockName, binding });
                 }
             }
         }
@@ -353,6 +363,7 @@ namespace Cyan
             buffer->bind(s_ctx, bufferBinding.bufferUnit);
         }
         bufferBinding.buffer = buffer;
+        glShaderStorageBlockBinding(getGpuResource(), bufferBinding.blockIndex, bufferBinding.bufferUnit);
         return *this;
     }
 
@@ -382,6 +393,7 @@ namespace Cyan
             {
                 bufferBinding.buffer->unbind(ctx);
                 bufferBinding.bufferUnit = -1;
+                glShaderStorageBlockBinding(getGpuResource(), bufferBinding.blockIndex, 0);
             }
             else
             {
@@ -792,7 +804,8 @@ namespace Cyan
 
     void ComputePipeline::resetBindings(GfxContext* ctx)
     {
-
+        m_computeShader->unbindTextures(ctx);
+        m_computeShader->unbindShaderStorageBuffers(ctx);
     }
 
     ShaderManager* Singleton<ShaderManager>::singleton = nullptr;

@@ -22,7 +22,8 @@ namespace Cyan
 
     struct ShaderSource 
     {
-        ShaderSource(const char* shaderFilePath);
+        // ShaderSource(const char* shaderFilePath);
+        ShaderSource(const char* inputStr, bool bInline);
         ~ShaderSource() { }
 
         std::vector<std::string> includes;
@@ -82,7 +83,7 @@ namespace Cyan
 
         struct ShaderStorageBinding
         {
-            const char* blockName = nullptr;
+            std::string blockName;
             i32 blockIndex = -1;
             ShaderStorageBuffer* buffer = nullptr;
             i32 bufferUnit = -1;
@@ -91,7 +92,7 @@ namespace Cyan
         friend class GfxContext;
         friend class Material;
 
-        Shader(const char* shaderName, const char* shaderFilePath, Type type = Type::kInvalid);
+        Shader(const char* shaderName, const char* inputStr, bool bInline, Type type = Type::kInvalid);
         virtual ~Shader() { }
 
         GLuint getProgram() { return getGpuResource(); }
@@ -142,8 +143,8 @@ namespace Cyan
     class VertexShader : public Shader 
     {
     public:
-        VertexShader(const char* shaderName, const char* shaderFilePath) 
-            : Shader(shaderName, shaderFilePath, Type::kVertex) 
+        VertexShader(const char* shaderName, const char* inputStr, bool bInline) 
+            : Shader(shaderName, inputStr, bInline, Type::kVertex) 
         {
         }
     };
@@ -151,8 +152,8 @@ namespace Cyan
     class PixelShader : public Shader 
     {
     public:
-        PixelShader(const char* shaderName, const char* shaderFilePath) 
-            : Shader(shaderName, shaderFilePath, Type::kPixel) 
+        PixelShader(const char* shaderName, const char* inputStr, bool bInline) 
+            : Shader(shaderName, inputStr, bInline, Type::kPixel) 
         {
         }
     };
@@ -160,8 +161,8 @@ namespace Cyan
     class GeometryShader : public Shader 
     {
     public:
-        GeometryShader(const char* shaderName, const char* shaderFilePath) 
-            : Shader(shaderName, shaderFilePath, Type::kGeometry) 
+        GeometryShader(const char* shaderName, const char* inputStr, bool bInline) 
+            : Shader(shaderName, inputStr, bInline, Type::kGeometry) 
         {
         }
     };
@@ -169,8 +170,8 @@ namespace Cyan
     class ComputeShader : public Shader 
     {
     public:
-        ComputeShader(const char* shaderName, const char* shaderFilePath) 
-            : Shader(shaderName, shaderFilePath, Type::kCompute) 
+        ComputeShader(const char* shaderName, const char* inputStr, bool bInline) 
+            : Shader(shaderName, inputStr, bInline, Type::kCompute) 
         {
         }
     };
@@ -313,7 +314,30 @@ namespace Cyan
                 auto entry = singleton->m_shaderMap.find(std::string(shaderName));
                 if (entry == singleton->m_shaderMap.end()) 
                 {
-                    ShaderType* shader = new ShaderType(shaderName, shaderFilePath);
+                    ShaderType* shader = new ShaderType(shaderName, shaderFilePath, false);
+                    singleton->m_shaderMap.insert({ std::string(shaderName), std::unique_ptr<ShaderType>(shader) });
+                    return shader;
+                }
+                else 
+                {
+                    if (ShaderType* foundShader = dynamic_cast<ShaderType*>(entry->second.get())) 
+                    {
+                        return foundShader;
+                    }
+                }
+            }
+            return nullptr;
+        }
+
+        template <typename ShaderType>
+        static ShaderType* createShaderInline(const char* shaderName, const char* shaderSrc) 
+        {
+            if (shaderName) 
+            {
+                auto entry = singleton->m_shaderMap.find(std::string(shaderName));
+                if (entry == singleton->m_shaderMap.end()) 
+                {
+                    ShaderType* shader = new ShaderType(shaderName, shaderSrc, true);
                     singleton->m_shaderMap.insert({ std::string(shaderName), std::unique_ptr<ShaderType>(shader) });
                     return shader;
                 }
@@ -339,6 +363,7 @@ namespace Cyan
 #define CreateVS(vs, shaderName, file) auto vs = Cyan::ShaderManager::createShader<Cyan::VertexShader>(shaderName, file);
 #define CreatePS(ps, shaderName, file) auto ps = Cyan::ShaderManager::createShader<Cyan::PixelShader>(shaderName, file);
 #define CreateCS(cs, shaderName, file) auto cs = Cyan::ShaderManager::createShader<Cyan::ComputeShader>(shaderName, file);
+#define CreateCSInline(cs, shaderName, shaderSrc) auto cs = Cyan::ShaderManager::createShaderInline<Cyan::ComputeShader>(shaderName, shaderSrc);
 #define CreatePixelPipeline(pipeline, pipelineName, vs, ps) auto pipeline = Cyan::ShaderManager::createPixelPipeline(pipelineName, vs, ps);
 #define CreateComputePipeline(pipeline, pipelineName, cs) auto pipeline = Cyan::ShaderManager::createComputePipeline(pipelineName, cs);
 }

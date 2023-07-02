@@ -1,8 +1,5 @@
 #version 450 core
 
-#extension GL_NV_bindless_texture : require
-#extension GL_ARB_gpu_shader_int64 : enable 
-
 #define pi 3.14159265359
 
 uniform sampler2D sceneDepth;
@@ -175,7 +172,7 @@ vec3 calcSkyLight(SkyLight inSkyLight, in Material material, vec3 worldSpacePosi
 
     // reflection
     vec3 reflectionDirection = -reflect(worldSpaceViewDirection, material.normal);
-    vec3 incidentRadiance = textureLod(samplerCube(skyLight.reflection), reflectionDirection, material.roughness * log2(textureSize(skyLight.reflection, 0).x)).rgb;
+    vec3 incidentRadiance = textureLod(skyLight.reflection, reflectionDirection, material.roughness * log2(textureSize(skyLight.reflection, 0).x)).rgb;
     vec3 BRDF = texture(inSkyLight.BRDFLookupTexture, vec2(ndotv, material.roughness)).rgb; 
     radiance += incidentRadiance * (f0 * BRDF.r + BRDF.g) * ao;
 
@@ -207,7 +204,7 @@ void main()
     material.occlusion = 1.f;
 
     float ao = calcAO();
-    outRadiance += calcSkyLight(skyLight, material, worldSpacePosition, ao);
+    // outRadiance += calcSkyLight(skyLight, material, worldSpacePosition, ao);
     vec3 indirectIrradiance = calcIndirectIrradiance();
     vec3 diffuseColor = (1.f - material.metallic) * material.albedo;
     outRadiance += diffuseColor * indirectIrradiance * ao;

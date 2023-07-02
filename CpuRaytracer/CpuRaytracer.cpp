@@ -11,6 +11,9 @@
 #include "CyanApp.h"
 #include "LightComponents.h"
 #include "LightEntities.h"
+#include "World.h"
+#include "Transform.h"
+#include "CameraEntity.h"
 
 namespace Cyan
 {
@@ -762,28 +765,27 @@ public:
 
     virtual void customInitialize() override
     {
-        // building the scene
-        Cyan::AssetImporter::importAsync(m_scene.get(), ASSET_PATH "mesh/raytracing_test_scene.glb");
-        // sun light
-        m_scene->createDirectionalLight("SunLight", glm::vec3(0.8f, 1.3f, 0.5f), glm::vec4(0.88f, 0.77f, 0.65f, 10.f));
+        m_world->import(ASSET_PATH "mesh/raytracing_test_scene.glb");
+
+        auto directionalLightEntity = m_world->createDirectionalLightEntity("DirectionalLight", Transform());
+        auto directionalLightComponent = directionalLightEntity->getDirectionalLightComponent();
+        directionalLightComponent->setIntensity(30.f);
+
+        Cyan::Transform local;
+        local.translation = glm::vec3(0.f, 3.f, 8.f);
+        auto sceneCamera = m_world->createCameraEntity("Camera", local, m_appWindowDimension);
 
         // override rendering lambda
-        m_renderOneFrame = [this](Cyan::GfxTexture2D* renderingOutput) {
+        m_renderOneFrame = [this, sceneCamera](Cyan::GfxTexture2D* renderingOutput) {
             auto renderer = Cyan::Renderer::get();
-            // normal scene rendering
-            if (m_scene)
+
+            // scene rendering
+            if (m_world != nullptr) 
             {
-                if (auto camera = dynamic_cast<Cyan::PerspectiveCamera*>(m_scene->m_mainCamera->getCamera())) 
-                {
-                    Cyan::SceneView mainSceneView(*m_scene, *camera,
-                        [](Cyan::Entity* entity) {
-                            return entity->getProperties() | EntityFlag_kVisible;
-                        },
-                        renderingOutput, 
-                        { 0, 0, renderingOutput->width, renderingOutput->height }
-                    );
-                    renderer->render(m_scene.get(), mainSceneView, glm::uvec2(renderingOutput->width, renderingOutput->height));
-                }
+                auto scene = m_world->getScene();
+                scene->render();
+                // debug ssgi
+                renderer->renderToScreen(sceneCamera->getCameraComponent()->getSceneCamera()->getRender());
             }
 
             // render a progress bar and update renderingOutput when a tile has finished rendering

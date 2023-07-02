@@ -26,5 +26,6 @@ layout(std430) buffer VertexBuffer
 void main() 
 {
 	gl_Position = vertices[gl_VertexID].position;
+    gl_PointSize = 10.f; // hardcoded for now
     vsOut.color = vertices[gl_VertexID].color;
 }

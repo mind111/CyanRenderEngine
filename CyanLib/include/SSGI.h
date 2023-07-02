@@ -87,10 +87,13 @@ namespace Cyan
     struct GfxTexture2D;
     class Texture2D;
     class SceneRender;
+    struct ShaderStorageBuffer;
+    class SSGIDebugger;
 
     class SSGIRenderer
     {
     public:
+        friend class SSGIDebugger;
         struct Settings
         {
             i32 kTracingStopMipLevel = 1;
@@ -99,6 +102,8 @@ namespace Cyan
 
         SSGIRenderer();
         ~SSGIRenderer();
+
+        void renderUI();
 
         // ao and bent normal
         void renderAO(SceneRender* render, const SceneCamera::ViewParameters& viewParameters);
@@ -109,9 +114,82 @@ namespace Cyan
 
         // reflection
         void renderReflection(SceneRender* render, const SceneCamera::ViewParameters& viewParameters);
+
+        // debugging
+        void debugDraw(SceneRender* render, const SceneCamera::ViewParameters& viewParameters);
+
     private:
         Settings m_settings;
+        std::unique_ptr<SSGIDebugger> m_debugger = nullptr;
         std::shared_ptr<Texture2D> m_blueNoise_1024x1024_RGBA = nullptr;
         std::array<std::shared_ptr<Texture2D>, 8> m_blueNoise_16x16_R;
+    };
+
+    class SSGIDebugger
+    {
+    public:
+        SSGIDebugger(SSGIRenderer* renderer);
+        ~SSGIDebugger();
+
+        void render(SceneRender* render, const SceneCamera::ViewParameters& viewParameters);
+        void renderUI();
+
+        void debugDrawRay(SceneRender* render, const SceneCamera::ViewParameters& viewParameters);
+        void debugDrawRayOriginAndOffset(SceneRender* render, const SceneCamera::ViewParameters& viewParameters);
+
+        enum class HitResult
+        {
+            kHit = 0,
+            kBackface,
+            kHidden,
+            kMiss
+        };
+
+        struct DebugRay
+        {
+            glm::vec4 ro = glm::vec4(0.f);
+            glm::vec4 screenSpaceRo = glm::vec4(0.f);
+            glm::vec4 screenSpaceRoWithOffset = glm::vec4(0.f);
+            glm::vec4 screenSpaceRoOffsetT = glm::vec4(0.f);
+            glm::vec4 screenSpaceT = glm::vec4(0.f);
+            glm::vec4 rd = glm::vec4(0.f);
+            glm::vec4 screenSpaceRd = glm::vec4(0.f);
+            glm::vec4 n = glm::vec4(0.f);
+            glm::vec4 screenSpaceHitPosition = glm::vec4(0.f);
+            glm::vec4 worldSpaceHitPosition = glm::vec4(0.f);
+            glm::vec4 hitRadiance = glm::vec4(0.f, 0.f, 0.f, 1.f);
+            glm::vec4 hitNormal = glm::vec4(0.f);
+            glm::vec4 hitResult = glm::vec4(f32(HitResult::kMiss));
+        };
+
+        glm::vec2 m_debugRayScreenCoord = glm::vec2(.5f);
+        bool m_freezeDebugRay = false;
+        std::unique_ptr<ShaderStorageBuffer> m_debugRayBuffer = nullptr;
+        DebugRay m_debugRay;
+
+        struct RayMarchingInfo
+        {
+            glm::vec4 screenSpacePosition = glm::vec4(0.f);
+            glm::vec4 worldSpacePosition = glm::vec4(0.f);
+            glm::vec4 depthSampleCoord = glm::vec4(0.f);
+            glm::vec4 mipLevel = glm::vec4(0.f);
+            glm::vec4 minDepth = glm::vec4(0.f);
+            glm::vec4 tCell = glm::vec4(0.f);
+            glm::vec4 tDepth = glm::vec4(0.f);
+        };
+        std::unique_ptr<ShaderStorageBuffer> m_rayMarchingInfoBuffer = nullptr;
+        std::vector<RayMarchingInfo> m_rayMarchingInfos;
+
+        struct DepthSample
+        {
+            glm::vec4 sceneDepth;
+            glm::vec4 quadtreeMinDepth;
+        };
+        std::unique_ptr<ShaderStorageBuffer> m_depthSampleBuffer = nullptr;
+        DepthSample m_depthSample;
+        i32 m_depthSampleLevel = 0;
+        glm::vec2 m_depthSampleCoord = glm::vec2(.5f);
+
+        SSGIRenderer* m_SSGIRenderer = nullptr;
     };
 }

@@ -97,6 +97,9 @@
     <Filter Include="Header Files\Components">
       <UniqueIdentifier>{16f67d99-1a9d-4159-889d-abcc0ddf1fff}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\SSGI">
+      <UniqueIdentifier>{08aa4b5f-6882-4f30-9658-5e111c278e74}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Allocator.h">
@@ -721,16 +724,7 @@
     <None Include="..\shader\point_vsm_shadow_p.glsl">
       <Filter>Shaders\Shadow</Filter>
     </None>
-    <None Include="..\shader\debug_draw_p.glsl">
-      <Filter>Shaders\DebugDraw</Filter>
-    </None>
-    <None Include="..\shader\debug_draw_v.glsl">
-      <Filter>Shaders\DebugDraw</Filter>
-    </None>
-    <None Include="..\shader\debug_draw_line_worldspace_v.glsl">
-      <Filter>Shaders\DebugDraw</Filter>
-    </None>
-    <None Include="..\shader\debug_draw_line_worldspace_p.glsl">
+    <None Include="..\shader\debug_draw_worldspace_v.glsl">
       <Filter>Shaders\DebugDraw</Filter>
     </None>
     <None Include="..\shader\manyview_gi_final_gather_v.glsl">
@@ -745,12 +739,6 @@
     <None Include="..\shader\generate_hemicube_p.glsl">
       <Filter>Shaders\ManyViewGI</Filter>
     </None>
-    <None Include="..\shader\debug_draw_immediate_v.glsl">
-      <Filter>Shaders\DebugDraw</Filter>
-    </None>
-    <None Include="..\shader\debug_draw_immediate_p.glsl">
-      <Filter>Shaders\DebugDraw</Filter>
-    </None>
     <None Include="..\shader\raster_gi_final_gather_multiview_v.glsl">
       <Filter>Shaders\ManyViewGI</Filter>
     </None>
@@ -759,12 +747,6 @@
     </None>
     <None Include="..\shader\raster_gi_final_gather_multiview_p.glsl">
       <Filter>Shaders\ManyViewGI</Filter>
-    </None>
-    <None Include="..\shader\debug_draw_cubemap_v.glsl">
-      <Filter>Shaders\DebugDraw</Filter>
-    </None>
-    <None Include="..\shader\debug_draw_cubemap_p.glsl">
-      <Filter>Shaders\DebugDraw</Filter>
     </None>
     <None Include="..\shader\resample_radiance_multiview_c.glsl">
       <Filter>Shaders\ManyViewGI</Filter>
@@ -870,9 +852,6 @@
     </None>
     <None Include="..\shader\build_hi_z_p.glsl">
       <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\shader\debug_draw_point_v.glsl">
-      <Filter>Shaders\DebugDraw</Filter>
     </None>
     <None Include="..\shader\debug_draw_line_screenspace_v.glsl">
       <Filter>Shaders\DebugDraw</Filter>
@@ -987,6 +966,30 @@
     </None>
     <None Include="..\shader\hiz_downsample_p.glsl">
       <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\ssgi_debug_ray_gen_c.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\shader\debug_draw_points_screenspace_v.glsl">
+      <Filter>Shaders\DebugDraw</Filter>
+    </None>
+    <None Include="..\shader\debug_draw_points_screenspace_p.glsl">
+      <Filter>Shaders\DebugDraw</Filter>
+    </None>
+    <None Include="..\shader\draw_quadtree_grid_p.glsl">
+      <Filter>Shaders\DebugDraw</Filter>
+    </None>
+    <None Include="..\shader\debug_draw_p.glsl">
+      <Filter>Shaders\DebugDraw</Filter>
+    </None>
+    <None Include="..\shader\debug_draw_points_worldspace_v.glsl">
+      <Filter>Shaders\DebugDraw</Filter>
+    </None>
+    <None Include="..\shader\validate_hiz_p.glsl">
+      <Filter>Shaders\SSGI</Filter>
+    </None>
+    <None Include="..\shader\debug_draw_quadtree_cell_v.glsl">
+      <Filter>Shaders\SSGI</Filter>
     </None>
   </ItemGroup>
 </Project>
