@@ -54,6 +54,22 @@ namespace Cyan
             std::unique_ptr<GfxTexture2D> color;
             std::unique_ptr<GfxTexture2D> resolvedColor;
             std::unique_ptr<GfxTexture2D> debugColor;
+            // ReSTIR related
+            std::unique_ptr<GfxTexture2D> reservoirRadiance;
+            std::unique_ptr<GfxTexture2D> reservoirPosition;
+            std::unique_ptr<GfxTexture2D> reservoirNormal;
+            std::unique_ptr<GfxTexture2D> reservoirWSumMW;
+            std::unique_ptr<GfxTexture2D> prevFrameReservoirRadiance;
+            std::unique_ptr<GfxTexture2D> prevFrameReservoirPosition;
+            std::unique_ptr<GfxTexture2D> prevFrameReservoirNormal;
+            std::unique_ptr<GfxTexture2D> prevFrameReservoirWSumMW;
+        };
+
+        // todo: implement this ...
+        struct Extension
+        {
+            std::string name;
+            std::unique_ptr<GfxTexture2D> gfxTexture;
         };
 
         SceneRender(const glm::uvec2& renderResolution);
@@ -76,6 +92,14 @@ namespace Cyan
         GfxTexture2D* color() { return m_output->color.get(); }
         GfxTexture2D* resolvedColor() { return m_output->resolvedColor.get(); }
         GfxTexture2D* debugColor() { return m_output->debugColor.get(); }
+        GfxTexture2D* reservoirRadiance() { return m_output->reservoirRadiance.get(); }
+        GfxTexture2D* reservoirPosition() { return m_output->reservoirPosition.get(); }
+        GfxTexture2D* reservoirNormal() { return m_output->reservoirNormal.get(); }
+        GfxTexture2D* reservoirWSumMW() { return m_output->reservoirWSumMW.get(); }
+        GfxTexture2D* prevFrameReservoirRadiance() { return m_output->prevFrameReservoirRadiance.get(); }
+        GfxTexture2D* prevFrameReservoirPosition() { return m_output->prevFrameReservoirPosition.get(); }
+        GfxTexture2D* prevFrameReservoirNormal() { return m_output->prevFrameReservoirNormal.get(); }
+        GfxTexture2D* prevFrameReservoirWSumMW() { return m_output->prevFrameReservoirWSumMW.get(); }
 
         std::unique_ptr<CascadedShadowMap> m_csm = nullptr;
 

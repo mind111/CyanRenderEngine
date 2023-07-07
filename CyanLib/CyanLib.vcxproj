@@ -158,6 +158,10 @@
     <None Include="..\shader\draw_quadtree_grid_p.glsl" />
     <None Include="..\shader\gbuffer_p.glsl" />
     <None Include="..\shader\hiz_downsample_p.glsl" />
+    <None Include="..\shader\ReSTIRSSGI_denoise_p.glsl" />
+    <None Include="..\shader\ReSTIRSSGI_resolve_p.glsl" />
+    <None Include="..\shader\ReSTIRSSGI_spatial_p.glsl" />
+    <None Include="..\shader\ReSTIRSSGI_temporal_p.glsl" />
     <None Include="..\shader\screen_pass_v.glsl" />
     <None Include="..\shader\ssgi_ao_p.glsl" />
     <None Include="..\shader\ssgi_ao_resolve_p.glsl" />

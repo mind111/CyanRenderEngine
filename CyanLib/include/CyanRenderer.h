@@ -136,6 +136,7 @@ namespace Cyan
         void drawFullscreenQuad(const glm::uvec2& framebufferSize, const std::function<void(RenderPass&)>& renderTargetSetupLambda, PixelPipeline* pipeline, const ShaderSetupFunc& setupShader);
         void drawScreenQuad(const glm::uvec2& framebufferSize, const std::function<void(RenderPass&)>& renderTargetSetupLamdba, const Viewport& viewport, PixelPipeline* pipeline, const ShaderSetupFunc& setupShader);
         void drawColoredScreenSpaceQuad(GfxTexture2D* outTexture, const glm::vec2& screenSpaceMin, const glm::vec2& screenSpaceMax, const glm::vec4& color);
+        void copyTexture(GfxTexture2D* dst, GfxTexture2D* src);
         void blitTexture(GfxTexture2D* dst, GfxTexture2D* src);
         void copyDepth(GfxDepthTexture2D* dst, GfxDepthTexture2D* src);
 

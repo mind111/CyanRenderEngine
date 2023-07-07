@@ -23,6 +23,7 @@ namespace Cyan
     {
         RenderTexture2D() = default;
 
+        RenderTexture2D(const char* inName, GfxTexture2D* srcGfxTexture, const Sampler2D& inSampler = {});
         RenderTexture2D(const char* inName, const GfxTexture2D::Spec& inSpec, const Sampler2D& inSampler = {});
         RenderTexture2D(const RenderTexture2D& src);
         RenderTexture2D& operator=(const RenderTexture2D& src);

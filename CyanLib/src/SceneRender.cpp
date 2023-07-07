@@ -136,6 +136,13 @@ namespace Cyan
         {
             GfxTexture2D::Spec spec(resolution.x, resolution.y, 1, PF_RGB32F);
             normal = std::unique_ptr<GfxTexture2D>(GfxTexture2D::create(spec, Sampler2D()));
+            // ReSTIR related
+            reservoirPosition = std::unique_ptr<GfxTexture2D>(GfxTexture2D::create(spec, Sampler2D()));
+            reservoirNormal = std::unique_ptr<GfxTexture2D>(GfxTexture2D::create(spec, Sampler2D()));
+            reservoirWSumMW = std::unique_ptr<GfxTexture2D>(GfxTexture2D::create(spec, Sampler2D()));
+            prevFrameReservoirPosition = std::unique_ptr<GfxTexture2D>(GfxTexture2D::create(spec, Sampler2D()));
+            prevFrameReservoirNormal = std::unique_ptr<GfxTexture2D>(GfxTexture2D::create(spec, Sampler2D()));
+            prevFrameReservoirWSumMW = std::unique_ptr<GfxTexture2D>(GfxTexture2D::create(spec, Sampler2D()));
         }
         // lighting
         {
@@ -153,6 +160,9 @@ namespace Cyan
             color = std::unique_ptr<GfxTexture2D>(GfxTexture2D::create(spec, Sampler2D()));
             resolvedColor = std::unique_ptr<GfxTexture2D>(GfxTexture2D::create(spec, Sampler2D()));
             debugColor = std::unique_ptr<GfxTexture2D>(GfxTexture2D::create(spec, Sampler2D()));
+            // ReSTIR related
+            reservoirRadiance = std::unique_ptr<GfxTexture2D>(GfxTexture2D::create(spec, Sampler2D()));
+            prevFrameReservoirRadiance = std::unique_ptr<GfxTexture2D>(GfxTexture2D::create(spec, Sampler2D()));
         }
     }
  

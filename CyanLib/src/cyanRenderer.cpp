@@ -112,7 +112,8 @@ namespace Cyan
         m_windowSize(windowWidth, windowHeight),
         m_frameAllocator(1024 * 1024 * 32)
     {
-        m_SSGIRenderer = std::make_unique<SSGIRenderer>();
+        // m_SSGIRenderer = std::make_unique<SSGIRenderer>();
+        m_SSGIRenderer = std::make_unique<ReSTIRSSGIRenderer>();
     }
 
     void Renderer::initialize() 
@@ -194,7 +195,7 @@ namespace Cyan
         );
     }
 
-    void Renderer::registerVisualization(const std::string& categoryName, const char* visName, GfxTexture2D* visualization, bool* toggle) 
+    void Renderer::registerVisualization(const std::string& categoryName, const char* visName, GfxTexture2D* visualization, bool* toggle)
     {
         auto entry = visualizationMap.find(categoryName);
         if (entry == visualizationMap.end()) 
@@ -505,6 +506,8 @@ namespace Cyan
 
     void Renderer::blitTexture(GfxTexture2D* dst, GfxTexture2D* src)
     {
+        GPU_DEBUG_SCOPE(blitTexture, "BlitTexture");
+
         assert(dst->width == src->width && dst->height == src->height);
 
         CreateVS(vs, "BlitVS", SHADER_SOURCE_PATH "blit_v.glsl");

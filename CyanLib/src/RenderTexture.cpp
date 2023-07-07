@@ -57,6 +57,12 @@ namespace Cyan
         : RenderTexture(src), texture(src.texture)
     { }
 
+    RenderTexture2D::RenderTexture2D(const char* inName, GfxTexture2D* srcGfxTexture, const Sampler2D& inSampler /*= {}*/)
+        : RenderTexture2D(inName, srcGfxTexture->getSpec(), inSampler)
+    {
+
+    }
+
     RenderTexture2D& RenderTexture2D::operator=(const RenderTexture2D& src)
     {
         RenderTexture::operator=(src);

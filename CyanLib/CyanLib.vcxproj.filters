@@ -991,5 +991,17 @@
     <None Include="..\shader\SSGI_indirect_lighting_p.glsl">
       <Filter>Shaders\SSGI</Filter>
     </None>
+    <None Include="..\shader\ReSTIRSSGI_temporal_p.glsl">
+      <Filter>Shaders\SSGI</Filter>
+    </None>
+    <None Include="..\shader\ReSTIRSSGI_resolve_p.glsl">
+      <Filter>Shaders\SSGI</Filter>
+    </None>
+    <None Include="..\shader\ReSTIRSSGI_spatial_p.glsl">
+      <Filter>Shaders\SSGI</Filter>
+    </None>
+    <None Include="..\shader\ReSTIRSSGI_denoise_p.glsl">
+      <Filter>Shaders\SSGI</Filter>
+    </None>
   </ItemGroup>
 </Project>

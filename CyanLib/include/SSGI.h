@@ -111,7 +111,7 @@ namespace Cyan
         ~SSGIRenderer();
 
         void renderSceneIndirectLighting(Scene* scene, SceneRender* render, const SceneCamera::ViewParameters& viewParameters);
-        void renderUI();
+        virtual void renderUI();
 
         // ao and bent normal
         void renderAO(SceneRender* render, const SceneCamera::ViewParameters& viewParameters);
@@ -123,7 +123,7 @@ namespace Cyan
         // debugging
         void debugDraw(SceneRender* render, const SceneCamera::ViewParameters& viewParameters);
 
-    private:
+    protected:
         Settings m_settings;
         bool bDebugging = false;
         std::unique_ptr<SSGIDebugger> m_debugger = nullptr;
@@ -197,5 +197,21 @@ namespace Cyan
         glm::vec2 m_depthSampleCoord = glm::vec2(.5f);
 
         SSGIRenderer* m_SSGIRenderer = nullptr;
+    };
+
+    class ReSTIRSSGIRenderer : public SSGIRenderer
+    {
+    public:
+        ReSTIRSSGIRenderer();
+        ~ReSTIRSSGIRenderer();
+
+        // diffuse GI
+        virtual void renderDiffuseGI(SkyLight* skyLight, SceneRender* render, const SceneCamera::ViewParameters& viewParameters) override;
+        virtual void renderUI() override;
+    private:
+        i32 m_numSpatialReusePass = 4u;
+        i32 m_spatialReuseSampleCount = 8u;
+        f32 m_spatialReuseRadius = .009f;
+        i32 m_numDenoisingPass = 4u;
     };
 }
