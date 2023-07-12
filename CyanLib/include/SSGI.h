@@ -209,9 +209,17 @@ namespace Cyan
         virtual void renderDiffuseGI(SkyLight* skyLight, SceneRender* render, const SceneCamera::ViewParameters& viewParameters) override;
         virtual void renderUI() override;
     private:
-        i32 m_numSpatialReusePass = 4u;
+        bool bUseJacobian = false;
+
+        // todo: temporal resampling and feeding resampled result into next frame's temporal reservoir is kind of hard to get right
+        bool bTemporalResampling = false;
+
+        bool bSpatialResampling = false;
+        i32 m_numSpatialReusePass = 2u;
         i32 m_spatialReuseSampleCount = 8u;
-        f32 m_spatialReuseRadius = .009f;
+        f32 m_spatialReuseRadius = .02f;
+
+        bool bDenoisingPass = false;
         i32 m_numDenoisingPass = 4u;
     };
 }

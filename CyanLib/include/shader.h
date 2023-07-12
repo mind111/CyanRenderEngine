@@ -20,14 +20,13 @@ namespace Cyan
     class GfxContext;
     struct ShaderStorageBuffer;
 
-    struct ShaderSource 
+    struct ShaderText 
     {
-        // ShaderSource(const char* shaderFilePath);
-        ShaderSource(const char* inputStr, bool bInline);
-        ~ShaderSource() { }
+        ShaderText(const char* inputStr, bool bInline);
+        ~ShaderText() { }
 
         std::vector<std::string> includes;
-        std::string src;
+        std::string content;
         // only for debugging purpose
         std::string merged;
 
@@ -119,7 +118,7 @@ namespace Cyan
         void unbindShaderStorageBuffers(GfxContext* ctx);
 
         std::string m_name;
-        ShaderSource m_source;
+        ShaderText m_source;
         Type m_type = Type::kInvalid;
     protected:
         enum class ShaderInfoLogType 

@@ -97,6 +97,9 @@
     <Filter Include="Shaders\SSGI">
       <UniqueIdentifier>{08aa4b5f-6882-4f30-9658-5e111c278e74}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\ScreenSpaceRaytracing">
+      <UniqueIdentifier>{13b489e4-968a-4756-9704-04879f6e9451}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Allocator.h">
@@ -284,6 +287,9 @@
     </ClInclude>
     <ClInclude Include="include\SceneCamera.h">
       <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shader\ScreenSpaceRaytracing\hiz_raytracing.h.glsl">
+      <Filter>Shaders\ScreenSpaceRaytracing</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

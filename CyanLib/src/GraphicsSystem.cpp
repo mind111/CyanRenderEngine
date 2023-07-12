@@ -111,7 +111,7 @@ namespace Cyan
             cyanError("Source: %s, Type: %s, Severity: %s, Message: %s", source.c_str(), type.c_str(), severity.c_str(), inMessage);
             break;
         case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
-            type = "UDEFINED BEHAVIOR";
+            type = "UNDEFINED BEHAVIOR";
             cyanError("Source: %s, Type: %s, Severity: %s, Message: %s", source.c_str(), type.c_str(), severity.c_str(), inMessage);
             break;
         case GL_DEBUG_TYPE_PORTABILITY:

@@ -139,64 +139,107 @@ uniform sampler2D inReservoirRadiance;
 uniform sampler2D inReservoirPosition;
 uniform sampler2D inReservoirNormal;
 uniform sampler2D inReservoirWSumMW;
+uniform float bUseJacobian;
+
+struct ReservoirSample
+{
+	vec3 radiance;
+	vec3 position;
+	vec3 normal;
+};
 
 struct Reservoir
 {
-    vec3 radiance;
-    vec3 position;
-    vec3 normal;
+	ReservoirSample z;
     float wSum;
     float M;
     float W;
 };
-
-Reservoir getReservoir(vec2 sampleCoord)
-{
-    Reservoir r;
-    r.radiance = texture(inReservoirRadiance, sampleCoord).rgb;
-    r.position = texture(inReservoirPosition, sampleCoord).xyz;
-    r.normal = texture(inReservoirNormal, sampleCoord).xyz * 2.f - 1.f;
-    vec3 wSumMW = texture(inReservoirWSumMW, sampleCoord).xyz;
-    r.wSum = wSumMW.x;
-    r.M = wSumMW.y;
-    r.W = wSumMW.z;
-    return r;
-}
 
 float calcLuminance(vec3 inLinearColor)
 {
     return 0.2126 * inLinearColor.r + 0.7152 * inLinearColor.g + 0.0722 * inLinearColor.b;
 }
 
-void mergeReservoir(inout Reservoir merged, in Reservoir r, in float wi)
+/**
+ * this assumes that 
+ */
+float calcReSTIRGISampleWeight(in ReservoirSample s)
 {
-    merged.wSum += wi;
-    float p = wi / merged.wSum;
-    if (get_random().x < p)
-    {
-        merged.radiance = r.radiance;
-        merged.position = r.position;
-        merged.normal = r.normal;
-    }
-    merged.M += r.M;
-    float targetPdf = calcLuminance(merged.radiance);
-    if (targetPdf > 0.f)
-    {
-		merged.W = merged.wSum / (targetPdf * merged.M);
-    }
-    else
-    {
-		merged.W = 0.f;
-    }
+	float srcPdf = 1.f / (2.f * PI);
+	float targetPdf = calcLuminance(s.radiance);
+	return targetPdf / srcPdf;
 }
 
-vec3 screenToWorld(vec3 pp, mat4 invView, mat4 invProjection) 
+Reservoir createEmptyReservoir()
 {
-    vec4 p = invProjection * vec4(pp, 1.f);
-    p /= p.w;
-    p.w = 1.f;
-    p = invView * p;
-    return p.xyz;
+	Reservoir r;
+	r.z.radiance = vec3(0.f);
+	r.z.position = vec3(0.f);
+	r.z.normal = vec3(0.f);
+	r.wSum = 0.f;
+	r.M = 0.f;
+	r.W = 0.f;
+	return r;
+}
+
+Reservoir createFreshReservoirWithSample(in ReservoirSample s, float weight)
+{
+	Reservoir r;
+	r.z = s;
+	r.wSum = weight;
+	r.M = 1.f;
+	float targetPdf = calcLuminance(r.z.radiance);
+	// r.W = targetPdf > 1e-4 ? r.wSum / (r.M * targetPdf) : 0.f;
+	r.W = r.wSum / max(r.M * targetPdf, 1e-4);
+	return r;
+}
+
+Reservoir sampleReservoir(in vec2 sampleCoord)
+{
+    Reservoir r;
+    r.z.radiance = texture(inReservoirRadiance, sampleCoord).rgb;
+    r.z.position = texture(inReservoirPosition, sampleCoord).rgb;
+    r.z.normal = texture(inReservoirNormal, sampleCoord).rgb * 2.f - 1.f;
+    vec3 wSumMW = texture(inReservoirWSumMW, sampleCoord).rgb;
+    r.wSum = wSumMW.x;
+    r.M = wSumMW.y;
+    r.W = wSumMW.z;
+    return r;
+}
+
+void updateReservoir(inout Reservoir r, in ReservoirSample s, in float weight)
+{
+    r.wSum += weight;
+    float probablity = weight / r.wSum;
+    if (get_random().x < probablity)
+    {
+		r.z = s;
+    }
+
+    r.M += 1.f;
+
+	float targetPdf = calcLuminance(r.z.radiance);
+	// r.W = targetPdf > 1e-4 ? r.wSum / (r.M * targetPdf) : 0.f;
+	r.W = r.wSum / max(r.M * targetPdf, 1e-4);
+}
+
+void mergeReservoir(inout Reservoir r, in Reservoir rr, float jacobian)
+{
+	float pq = calcLuminance(rr.z.radiance);
+	float wi = pq * rr.W * rr.M * jacobian;
+
+    r.wSum += wi;
+    float p = wi / r.wSum;
+    if (get_random().x < p)
+    {
+		r.z = rr.z;
+    }
+	r.M += rr.M;
+
+	float targetPdf = calcLuminance(r.z.radiance);
+	// r.W = targetPdf > 1e-4 ? r.wSum / (r.M * targetPdf) : 0.f;
+	r.W = r.wSum / max(r.M * targetPdf, 1e-4);
 }
 
 vec3 worldToScreen(vec3 pp, in mat4 view, in mat4 projection)
@@ -206,16 +249,41 @@ vec3 worldToScreen(vec3 pp, in mat4 view, in mat4 projection)
     return p.xyz * .5f + .5f;
 }
 
-float calcDistanceToCamera(vec3 worldSpacePosition, in mat4 view)
+bool isValidScreenCoord(vec2 coord)
 {
-    vec3 viewSpacePosition = (view * vec4(worldSpacePosition, 1.f)).xyz;
-    return length(viewSpacePosition);
+	return (coord.x >= 0.f && coord.x <= 1.f && coord.y >= 0.f && coord.y <= 1.f); 
+}
+
+vec3 screenToWorld(in vec2 pixelCoord, in sampler2D depthTex, mat4 viewMatrix, mat4 projectionMatrix)
+{
+	float depth = texture(depthTex, pixelCoord).r;
+	vec3 NDCSpacePos = vec3(pixelCoord, depth) * 2.f - 1.f;
+    vec4 clipSpacePos = inverse(projectionMatrix) * vec4(NDCSpacePos, 1.f);
+    vec3 viewSpacePos = clipSpacePos.xyz / clipSpacePos.w;
+    vec3 worldSpacePos = (inverse(viewMatrix) * vec4(viewSpacePos, 1.f)).xyz;
+    return worldSpacePos;
+}
+
+vec3 screenToView(in vec2 pixelCoord, in sampler2D depthTex, mat4 projectionMatrix)
+{
+	float depth = texture(depthTex, pixelCoord).r;
+	vec3 NDCSpacePos = vec3(pixelCoord, depth) * 2.f - 1.f;
+    vec4 clipSpacePos = inverse(projectionMatrix) * vec4(NDCSpacePos, 1.f);
+    vec3 viewSpacePos = clipSpacePos.xyz / clipSpacePos.w;
+    return viewSpacePos;
 }
 
 void main()
 {
     seed = 0;
     flat_idx = int(floor(gl_FragCoord.y) * viewParameters.renderResolution.x + floor(gl_FragCoord.x));
+    vec2 rng2 = get_random().xy;
+
+    float angle = rng2.x * PI * 2.f;
+    mat2 perPixelRandomRotation = {
+		{ cos(angle), sin(angle) },
+		{ -sin(angle), cos(angle) }
+    };
 
 	float deviceDepth = texture(sceneDepthBuffer, psIn.texCoord0).r; 
 	vec3 n = texture(sceneNormalBuffer, psIn.texCoord0).rgb * 2.f - 1.f;
@@ -223,64 +291,55 @@ void main()
     if (deviceDepth > 0.999999f) discard;
 
     mat4 view = viewParameters.viewMatrix, projection = viewParameters.projectionMatrix;
-    vec3 worldSpacePosition = screenToWorld(vec3(psIn.texCoord0, deviceDepth) * 2.f - 1.f, inverse(view), inverse(projection));
-    float linearDepth = calcDistanceToCamera(worldSpacePosition, view);
-    
-    Reservoir r = getReservoir(psIn.texCoord0);
+    vec3 worldSpacePosition = screenToWorld(psIn.texCoord0, sceneDepthBuffer, view, projection);
+    vec3 viewSpacePosition = screenToView(psIn.texCoord0, sceneDepthBuffer, projection);
+    float linearDepth = abs(viewSpacePosition.z);
 
+    vec2 centerTapCoord = psIn.texCoord0;
+    Reservoir r = sampleReservoir(centerTapCoord);
     for (int i = 0; i < reuseSampleCount; ++i)
     {
-        vec2 sampleCoord = psIn.texCoord0 + BlueNoiseInDisk[reuseSampleCount * reusePass + i] * reuseRadius; 
-        if (sampleCoord.x < 0.f || sampleCoord.x > 1.f || sampleCoord.y < 0.f || sampleCoord.y > 1.f)
+        int blueNoiseSampleIndex = reusePass * reuseSampleCount + i;
+        vec2 neighborCoord = centerTapCoord + perPixelRandomRotation * BlueNoiseInDisk[blueNoiseSampleIndex] * (reuseRadius / pow(2.f, i)); 
+        if (!isValidScreenCoord(neighborCoord))
         {
-			continue;
+            continue;
         }
 
-        Reservoir rr = getReservoir(sampleCoord);
+        Reservoir rn = sampleReservoir(neighborCoord);
 
-        float neighborDeviceZ = texture(sceneDepthBuffer, sampleCoord).r;
-        vec3 neighborWorldSpacePos = screenToWorld(vec3(sampleCoord, neighborDeviceZ) * 2.f - 1.f, inverse(view), inverse(projection));
-        float neighborLinearDepth = calcDistanceToCamera(neighborWorldSpacePos, view);
-        vec3 neighborNormal = texture(sceneNormalBuffer, sampleCoord).rgb * 2.f - 1.f;
+        vec3 neighborWorldSpacePos = screenToWorld(neighborCoord, sceneDepthBuffer, view, projection);
+        vec3 neighborViewSpacePos = screenToView(neighborCoord, sceneDepthBuffer, projection);
+        float neighborLinearDepth = abs(neighborViewSpacePos.z);
+        vec3 neighborNormal = texture(sceneNormalBuffer, neighborCoord).rgb * 2.f - 1.f;
 
         // reducing bias by rejecting neighboring samples that have too much geometric difference
         float depthDiff = abs(neighborLinearDepth - linearDepth) / linearDepth;
         float normalDiff = dot(n, neighborNormal);
-        if (normalDiff < 0.9f || depthDiff > 0.1f) 
+        // todo: visualize area being rejected due to geometric difference
+        // todo: instead of using a hard cutoff, maybe attenuate the reservoir weight instead
+        if (normalDiff < 0.8f || depthDiff > 0.1f) 
         {
 			continue;
 		}
 
-		// todo: debug this jacobian calculation
-        float jacobian = 1.f;
-        if (rr.wSum > 0.f)
-        {
-			vec3 x1q = neighborWorldSpacePos;
-			vec3 x2q = rr.position;
-			vec3 x1r = worldSpacePosition;
-			vec3 x1qx2q = x1q - x2q;
-			vec3 x1rx2q = x1r - x2q;
+		// todo: test for the neighbor reservoir is visible
 
-			float a = abs(dot(normalize(x1rx2q), rr.normal)) / abs(dot(normalize(x1qx2q), rr.normal));
-			float b = dot(x1qx2q, x1qx2q) / dot(x1rx2q, x1rx2q);
-			jacobian = a * b;
-		}
+        // calc reuse jacobian
+		vec3 x1r = worldSpacePosition;
+		vec3 x1q = neighborWorldSpacePos;
+		vec3 x2q = rn.z.position;
+		vec3 x1qx2q = x1q - x2q;
+		vec3 x1rx2q = x1r - x2q;
+		float a = dot(normalize(x1rx2q), rn.z.normal) / max(dot(normalize(x1qx2q), rn.z.normal), 1e-1);
+		float b = dot(x1qx2q, x1qx2q) / max(dot(x1rx2q, x1rx2q), 1e-4);
+		float jacobian = a * b;
 
-        // todo: test for the neighbor reservoir is visible
-
-        if (jacobian > 0.f)
-        {
-			// mergeReservoir(r, rr, rr.wSum / jacobian);
-			mergeReservoir(r, rr, rr.wSum);
-		}
-        else
-        {
-            mergeReservoir(r, rr, rr.wSum);
-		}
+		mergeReservoir(r, rn, jacobian);
     }
 
-	outReservoirRadiance = r.radiance;
-	outReservoirPosition = r.position;
-	outReservoirNormal = r.normal * .5f + .5f;
+	outReservoirRadiance = r.z.radiance;
+	outReservoirPosition = r.z.position;
+	outReservoirNormal = r.z.normal * .5f + .5f;
 	outReservoirWSumMW = vec3(r.wSum, r.M, r.W);
 }

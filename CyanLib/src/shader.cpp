@@ -13,17 +13,152 @@
 
 namespace Cyan
 {    
-    ShaderSource::ShaderSource(const char* inputStr, bool bInline)
+    ShaderText::ShaderText(const char* inputStr, bool bInline)
     {
+        class ShaderTextBuilder
+        {
+        public:
+            struct Node
+            {
+                Node(const char* inFilename)
+                    : filename(inFilename)
+                {
+
+                }
+                ~Node() {}
+
+                bool build()
+                {
+                    bool result = true;
+                    std::ifstream file(filename);
+                    if (file.is_open())
+                    {
+                        std::string line;
+                        while (std::getline(file, line)) 
+                        {
+                            // todo: a better approach would probably be tokenize this line using quote and dot as deliminaters
+                            i32 includeStrBeginPos = line.find("// #include");
+                            if (includeStrBeginPos != std::string::npos)
+                            {
+                                // find first occurrence of `"`
+                                i32 firstQuotePos = line.find_first_of("\"", includeStrBeginPos);
+                                // find second occurrence of `"`
+                                i32 secondQuotePos = line.find_first_of("\"", firstQuotePos + 1);
+                                // header filename
+                                std::string headerPath = line.substr(firstQuotePos + 1, secondQuotePos - (firstQuotePos + 1));
+                                // verify header filename suffix
+                                const char* shaderHeaderFileSuffix = ".h.glsl";
+                                i32 suffixStartPos = headerPath.find_first_of("\.");
+                                std::string suffix = headerPath.substr(suffixStartPos, line.length() - (suffixStartPos + 1));
+                                assert(suffix == shaderHeaderFileSuffix);
+                                // verify if the file exists
+                                std::string fullHeaderFilePath = SHADER_SOURCE_PATH + headerPath;
+                                auto node = std::make_shared<Node>(fullHeaderFilePath.c_str());
+                                dependencies.push_back(node);
+                                result &= node->build();
+                            }
+                        }
+                        file.close();
+                    }
+                    else
+                    {
+                        result = false;
+                    }
+                    return result;
+                }
+
+                std::string filename;
+                std::vector<std::shared_ptr<Node>> dependencies;
+            };
+
+            ShaderTextBuilder(const char* shaderTextFilename)
+                : m_shaderTextFilename(shaderTextFilename)
+            {
+                root = std::make_shared<Node>(shaderTextFilename);
+            }
+            ~ShaderTextBuilder() { }
+
+            bool build(std::string& outText)
+            {
+                assert(root != nullptr);
+                root->build();
+
+                // detect cycle and duplicated includes
+                std::queue<std::weak_ptr<Node>> q;
+                q.push(root);
+
+                while (!q.empty())
+                {
+                    auto node = q.front().lock();
+                    if (node != nullptr)
+                    {
+                        for (auto dependen)
+                        {
+
+                        }
+                    }
+                }
+
+                // paste text
+            }
+
+            std::shared_ptr<Node> root;
+            std::string m_shaderTextFilename;
+        };
+
+        struct ShaderTextNode
+        {
+            ShaderTextNode(const char* inFilename)
+                : filename(inFilename)
+            {
+
+            }
+
+            std::string filename;
+            std::vector<std::shared_ptr<ShaderTextNode>> dependencies;
+            std::vector<std::weak_ptr<ShaderTextNode>> dependents;
+
+            bool include(const char* headerFilePath)
+            {
+                dependencies.push_back(std::move(std::make_unique<ShaderTextNode>(headerFilePath)));
+            }
+        };
+
+        struct HeaderDependencyGraph
+        {
+            HeaderDependencyGraph(const char* rootShaderFilePath)
+            {
+            }
+
+            ~HeaderDependencyGraph() { }
+
+            bool include(const char* parentFilePath, const char* headerFilePath)
+            {
+                auto entry = nodeMap.find(std::string(parentFilePath));
+                if (entry != nodeMap.end())
+                {
+                    return entry->second->include(headerFilePath);
+                }
+                return false;
+            }
+
+            bool detectCircularDependency(const char* headerFilePath)
+            {
+            }
+
+            std::unique_ptr<ShaderTextNode> root = nullptr;
+            std::unordered_map<std::string, ShaderTextNode*> nodeMap;
+        };
+
         if (bInline)
         {
             // interpret inputStr as inline shader src string
-            src = std::string(inputStr);
+            content = std::string(inputStr);
         }
         else
         {
             // interpret inputStr as the filepath to the shader file
-            // open & load the shader source file into @src
+            // open & load the shader source file into src
             std::ifstream shaderFile(inputStr);
             if (shaderFile.is_open()) 
             { 
@@ -31,8 +166,44 @@ namespace Cyan
                 bool bParsingHeaders = false;
                 while (std::getline(shaderFile, line)) 
                 {
-                    src += line;
-                    src += '\n';
+                    // todo: a better approach would probably be tokenize this line using quote and dot as deliminaters
+                    i32 includeStrBeginPos = line.find("// #include");
+                    if (includeStrBeginPos != std::string::npos)
+                    {
+                        // find first occurrence of `"`
+                        i32 firstQuotePos = line.find_first_of("\"", includeStrBeginPos);
+                        // find second occurrence of `"`
+                        i32 secondQuotePos = line.find_first_of("\"", firstQuotePos + 1);
+                        // header filename
+                        std::string headerPath = line.substr(firstQuotePos + 1, secondQuotePos - (firstQuotePos + 1));
+                        // verify header filename suffix
+                        const char* shaderHeaderFileSuffix = ".h.glsl";
+                        i32 suffixStartPos = headerPath.find_first_of("\.");
+                        std::string suffix = headerPath.substr(suffixStartPos, line.length() - (suffixStartPos + 1));
+                        assert(suffix == shaderHeaderFileSuffix);
+                        // verify if the file exists
+                        std::string fullHeaderFilePath = SHADER_SOURCE_PATH + headerPath;
+                        std::ifstream headerFile(fullHeaderFilePath);
+                        if (headerFile.good())
+                        {
+                            // verify if the header has not been included before as well as
+                            // there is no circular dependency
+                            if 
+                            content += "// begin #include: " + headerPath + "\n";
+                            std::string headerLine;
+                            while (std::getline(headerFile, headerLine))
+                            {
+                                content += headerLine;
+                                content += "\n";
+                            }
+                            content += "// end include \n";
+                            headerFile.close();
+                            cyanInfo("%s", content.c_str());
+                        }
+                    }
+
+                    content += line;
+                    content += '\n';
                 }
                 shaderFile.close();
             }
@@ -126,7 +297,7 @@ namespace Cyan
         }
 
         u32 stringCount = m_source.includes.size() + 1;
-        std::vector<const char*> strings{ m_source.src.c_str() };
+        std::vector<const char*> strings{ m_source.content.c_str() };
         for (const auto& string : m_source.includes) 
         {
             strings.push_back(string.c_str());

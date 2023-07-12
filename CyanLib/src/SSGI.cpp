@@ -1351,6 +1351,18 @@ void main()
 
     }
 
+    // todo: implement this
+    struct Reservoir
+    {
+        Reservoir(const char* reservoirName);
+
+        const char* name = nullptr;
+        RenderTexture2D radiance;
+        RenderTexture2D position;
+        RenderTexture2D normal;
+        RenderTexture2D wSumMW;
+    };
+
     void ReSTIRSSGIRenderer::renderDiffuseGI(SkyLight* skyLight, SceneRender* render, const SceneCamera::ViewParameters& viewParameters)
     {
         GPU_DEBUG_SCOPE(ReSTIRSSGIDiffuse, "ReSTIRSSGIDiffuse");
@@ -1391,7 +1403,7 @@ void main()
                     }
                 },
                 pipeline,
-                [this, render, viewParameters](ProgramPipeline* p) {
+                [this, skyLight, render, viewParameters](ProgramPipeline* p) {
                     viewParameters.setShaderParameters(p);
 
                     auto hiZ = render->hiZ();
@@ -1410,6 +1422,8 @@ void main()
                     p->setTexture("prevFrameReservoirNormal", render->prevFrameReservoirNormal());
                     p->setTexture("prevFrameReservoirWSumMW", render->prevFrameReservoirWSumMW());
                     p->setTexture("prevFrameSceneDepthBuffer", render->prevFrameDepth());
+
+                    p->setUniform("bTemporalResampling", bTemporalResampling ? 1.f : 0.f);
                 }
             );
 
@@ -1428,61 +1442,65 @@ void main()
 
         // spatial pass
         {
-            GPU_DEBUG_SCOPE(ReSTIRSSGISpatial, "ReSTIRSSGISpatial");
-
-            CreateVS(vs, "ScreenPassVS", SHADER_SOURCE_PATH "screen_pass_v.glsl");
-            CreatePS(ps, "ReSTIRSSGISpatial", SHADER_SOURCE_PATH "ReSTIRSSGI_spatial_p.glsl");
-            CreatePixelPipeline(pipeline, "ReSTIRSSGISpatial", vs, ps);
-
-            for (i32 pass = 0; pass < m_numSpatialReusePass; ++pass)
+            if (bSpatialResampling)
             {
-                spatialPassSrc = pass % 2;
-                spatialPassDst = (pass + 1) % 2;
+                GPU_DEBUG_SCOPE(ReSTIRSSGISpatial, "ReSTIRSSGISpatial");
 
-                if (pass == 0)
+                CreateVS(vs, "ScreenPassVS", SHADER_SOURCE_PATH "screen_pass_v.glsl");
+                CreatePS(ps, "ReSTIRSSGISpatial", SHADER_SOURCE_PATH "ReSTIRSSGI_spatial_p.glsl");
+                CreatePixelPipeline(pipeline, "ReSTIRSSGISpatial", vs, ps);
+
+                for (i32 pass = 0; pass < m_numSpatialReusePass; ++pass)
                 {
-                    renderer->blitTexture(spatialReservoirRadiances[spatialPassSrc].getGfxTexture2D(), temporalReservoirRadiance.getGfxTexture2D());
-                    renderer->blitTexture(spatialReservoirPositions[spatialPassSrc].getGfxTexture2D(), temporalReservoirPosition.getGfxTexture2D());
-                    renderer->blitTexture(spatialReservoirNormals[spatialPassSrc].getGfxTexture2D(), temporalReservoirNormal.getGfxTexture2D());
-                    renderer->blitTexture(spatialReservoirWSumMWs[spatialPassSrc].getGfxTexture2D(), temporalReservoirWSumMW.getGfxTexture2D());
-                }
+                    spatialPassSrc = pass % 2;
+                    spatialPassDst = (pass + 1) % 2;
 
-                renderer->drawFullscreenQuad(
-                    getFramebufferSize(render->indirectIrradiance()),
-                    [render, spatialPassSrc, spatialPassDst, spatialReservoirRadiances, spatialReservoirPositions, spatialReservoirNormals, spatialReservoirWSumMWs](RenderPass& pass) {
-                        {
-                            RenderTarget renderTarget(spatialReservoirRadiances[spatialPassDst].getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
-                            pass.setRenderTarget(renderTarget, 0);
-                        }
-                        {
-                            RenderTarget renderTarget(spatialReservoirPositions[spatialPassDst].getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
-                            pass.setRenderTarget(renderTarget, 1);
-                        }
-                        {
-                            RenderTarget renderTarget(spatialReservoirNormals[spatialPassDst].getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
-                            pass.setRenderTarget(renderTarget, 2);
-                        }
-                        {
-                            RenderTarget renderTarget(spatialReservoirWSumMWs[spatialPassDst].getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
-                            pass.setRenderTarget(renderTarget, 3);
-                        }
-                    },
-                    pipeline,
-                    [this, render, pass, spatialPassSrc, spatialPassDst, spatialReservoirRadiances, spatialReservoirPositions, spatialReservoirNormals, spatialReservoirWSumMWs, viewParameters](ProgramPipeline* p) {
-                        viewParameters.setShaderParameters(p);
-
-                        p->setUniform("reusePass", pass);
-                        p->setUniform("reuseSampleCount", m_spatialReuseSampleCount);
-                        p->setUniform("reuseRadius", m_spatialReuseRadius);
-
-                        p->setTexture("sceneDepthBuffer", render->depth());
-                        p->setTexture("sceneNormalBuffer", render->normal()); 
-                        p->setTexture("inReservoirRadiance", spatialReservoirRadiances[spatialPassSrc].getGfxTexture2D());
-                        p->setTexture("inReservoirPosition", spatialReservoirPositions[spatialPassSrc].getGfxTexture2D());
-                        p->setTexture("inReservoirNormal", spatialReservoirNormals[spatialPassSrc].getGfxTexture2D());
-                        p->setTexture("inReservoirWSumMW", spatialReservoirWSumMWs[spatialPassSrc].getGfxTexture2D());
+                    if (pass == 0)
+                    {
+                        renderer->blitTexture(spatialReservoirRadiances[spatialPassSrc].getGfxTexture2D(), temporalReservoirRadiance.getGfxTexture2D());
+                        renderer->blitTexture(spatialReservoirPositions[spatialPassSrc].getGfxTexture2D(), temporalReservoirPosition.getGfxTexture2D());
+                        renderer->blitTexture(spatialReservoirNormals[spatialPassSrc].getGfxTexture2D(), temporalReservoirNormal.getGfxTexture2D());
+                        renderer->blitTexture(spatialReservoirWSumMWs[spatialPassSrc].getGfxTexture2D(), temporalReservoirWSumMW.getGfxTexture2D());
                     }
-                );
+
+                    renderer->drawFullscreenQuad(
+                        getFramebufferSize(render->indirectIrradiance()),
+                        [render, spatialPassSrc, spatialPassDst, spatialReservoirRadiances, spatialReservoirPositions, spatialReservoirNormals, spatialReservoirWSumMWs](RenderPass& pass) {
+                            {
+                                RenderTarget renderTarget(spatialReservoirRadiances[spatialPassDst].getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                                pass.setRenderTarget(renderTarget, 0);
+                            }
+                            {
+                                RenderTarget renderTarget(spatialReservoirPositions[spatialPassDst].getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                                pass.setRenderTarget(renderTarget, 1);
+                            }
+                            {
+                                RenderTarget renderTarget(spatialReservoirNormals[spatialPassDst].getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                                pass.setRenderTarget(renderTarget, 2);
+                            }
+                            {
+                                RenderTarget renderTarget(spatialReservoirWSumMWs[spatialPassDst].getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                                pass.setRenderTarget(renderTarget, 3);
+                            }
+                        },
+                        pipeline,
+                        [this, render, pass, spatialPassSrc, spatialPassDst, spatialReservoirRadiances, spatialReservoirPositions, spatialReservoirNormals, spatialReservoirWSumMWs, viewParameters](ProgramPipeline* p) {
+                            viewParameters.setShaderParameters(p);
+
+                            p->setUniform("reusePass", pass);
+                            p->setUniform("reuseSampleCount", m_spatialReuseSampleCount);
+                            p->setUniform("reuseRadius", m_spatialReuseRadius);
+
+                            p->setTexture("sceneDepthBuffer", render->depth());
+                            p->setTexture("sceneNormalBuffer", render->normal());
+                            p->setTexture("inReservoirRadiance", spatialReservoirRadiances[spatialPassSrc].getGfxTexture2D());
+                            p->setTexture("inReservoirPosition", spatialReservoirPositions[spatialPassSrc].getGfxTexture2D());
+                            p->setTexture("inReservoirNormal", spatialReservoirNormals[spatialPassSrc].getGfxTexture2D());
+                            p->setTexture("inReservoirWSumMW", spatialReservoirWSumMWs[spatialPassSrc].getGfxTexture2D());
+                            p->setUniform("bUseJacobian", bUseJacobian ? 1.f : 0.f);
+                        }
+                    );
+                }
             }
         }
 
@@ -1495,6 +1513,26 @@ void main()
             CreatePS(ps, "ReSTIRSSGIResolve", SHADER_SOURCE_PATH "ReSTIRSSGI_resolve_p.glsl");
             CreatePixelPipeline(pipeline, "ReSTIRSSGIResolve", vs, ps);
 
+            ShaderSetupFunc withSpatialReuseShaderFunc = [this, render, viewParameters, spatialPassDst, spatialReservoirRadiances, spatialReservoirPositions, spatialReservoirNormals, spatialReservoirWSumMWs](ProgramPipeline* p) {
+                viewParameters.setShaderParameters(p);
+                p->setTexture("sceneDepthBuffer", render->depth());
+                p->setTexture("sceneNormalBuffer", render->normal()); 
+                p->setTexture("reservoirRadiance", spatialReservoirRadiances[spatialPassDst].getGfxTexture2D());
+                p->setTexture("reservoirPosition", spatialReservoirPositions[spatialPassDst].getGfxTexture2D());
+                p->setTexture("reservoirNormal", spatialReservoirNormals[spatialPassDst].getGfxTexture2D());
+                p->setTexture("reservoirWSumMW", spatialReservoirWSumMWs[spatialPassDst].getGfxTexture2D());
+            };
+
+            ShaderSetupFunc withoutSpatialReuseShaderFunc = [this, render, viewParameters, temporalReservoirRadiance, temporalReservoirPosition, temporalReservoirNormal, temporalReservoirWSumMW](ProgramPipeline* p) {
+                viewParameters.setShaderParameters(p);
+                p->setTexture("sceneDepthBuffer", render->depth());
+                p->setTexture("sceneNormalBuffer", render->normal()); 
+                p->setTexture("reservoirRadiance", temporalReservoirRadiance.getGfxTexture2D());
+                p->setTexture("reservoirPosition", temporalReservoirPosition.getGfxTexture2D());
+                p->setTexture("reservoirNormal", temporalReservoirNormal.getGfxTexture2D());
+                p->setTexture("reservoirWSumMW", temporalReservoirWSumMW.getGfxTexture2D());
+            };
+
             renderer->drawFullscreenQuad(
                 getFramebufferSize(render->indirectIrradiance()),
                 [render, resolved](RenderPass& pass) {
@@ -1502,69 +1540,78 @@ void main()
                     pass.setRenderTarget(renderTarget, 0);
                 },
                 pipeline,
-                [this, render, viewParameters, spatialPassSrc, spatialPassDst, spatialReservoirRadiances, spatialReservoirPositions, spatialReservoirNormals, spatialReservoirWSumMWs](ProgramPipeline* p) {
-                    viewParameters.setShaderParameters(p);
-                    p->setTexture("sceneDepthBuffer", render->depth());
-                    p->setTexture("sceneNormalBuffer", render->normal()); 
-                    p->setTexture("reservoirRadiance", spatialReservoirRadiances[spatialPassDst].getGfxTexture2D());
-                    p->setTexture("reservoirPosition", spatialReservoirPositions[spatialPassDst].getGfxTexture2D());
-                    p->setTexture("reservoirNormal", spatialReservoirNormals[spatialPassDst].getGfxTexture2D());
-                    p->setTexture("reservoirWSumMW", spatialReservoirWSumMWs[spatialPassDst].getGfxTexture2D());
-                }
+                bSpatialResampling ? withSpatialReuseShaderFunc : withoutSpatialReuseShaderFunc
             );
         }
 
         // denoising pass
         {
-            // simple bilateral filtering for now
-            GPU_DEBUG_SCOPE(ReSTIRSSGIDenoise, "ReSTIRSSGIDenoise");
-
-            CreateVS(vs, "ScreenPassVS", SHADER_SOURCE_PATH "screen_pass_v.glsl");
-            CreatePS(ps, "ReSTIRSSGIDenoise", SHADER_SOURCE_PATH "ReSTIRSSGI_denoise_p.glsl");
-            CreatePixelPipeline(pipeline, "ReSTIRSSGIDenoise", vs, ps);
-
-            RenderTexture2D denoised[2] = { RenderTexture2D("ReSTIRSSGIResolvedIrradiance_0", render->indirectIrradiance()), RenderTexture2D("ReSTIRSSGIResolvedIrradiance_1", render->indirectIrradiance())};
-
-            i32 src, dst;
-            for (i32 pass = 0; pass < m_numDenoisingPass; ++pass)
+            if (bDenoisingPass)
             {
-                src = pass % 2;
-                dst = (pass + 1) % 2;
+                // simple bilateral filtering for now
+                GPU_DEBUG_SCOPE(ReSTIRSSGIDenoise, "ReSTIRSSGIDenoise");
 
-                if (pass == 0)
+                CreateVS(vs, "ScreenPassVS", SHADER_SOURCE_PATH "screen_pass_v.glsl");
+                CreatePS(ps, "ReSTIRSSGIDenoise", SHADER_SOURCE_PATH "ReSTIRSSGI_denoise_p.glsl");
+                CreatePixelPipeline(pipeline, "ReSTIRSSGIDenoise", vs, ps);
+
+                i32 src, dst;
+                RenderTexture2D denoised[2] = { RenderTexture2D("ReSTIRSSGIResolvedIrradiance_0", render->indirectIrradiance()), RenderTexture2D("ReSTIRSSGIResolvedIrradiance_1", render->indirectIrradiance())};
+
+                for (i32 pass = 0; pass < m_numDenoisingPass; ++pass)
                 {
-                    renderer->blitTexture(denoised[src].getGfxTexture2D(), resolved.getGfxTexture2D());
+                    src = pass % 2;
+                    dst = (pass + 1) % 2;
+
+                    if (pass == 0)
+                    {
+                        renderer->blitTexture(denoised[src].getGfxTexture2D(), resolved.getGfxTexture2D());
+                    }
+
+                    renderer->drawFullscreenQuad(
+                        getFramebufferSize(render->indirectIrradiance()),
+                        [render, denoised, dst](RenderPass& pass) {
+                            RenderTarget renderTarget(denoised[dst].getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
+                            pass.setRenderTarget(renderTarget, 0);
+                        },
+                        pipeline,
+                        [this, render, viewParameters, denoised, src](ProgramPipeline* p) {
+                            viewParameters.setShaderParameters(p);
+                            p->setTexture("sceneDepthBuffer", render->depth());
+                            p->setTexture("sceneNormalBuffer", render->normal()); 
+                            p->setTexture("indirectIrradiance", denoised[src].getGfxTexture2D());
+                        }
+                    );
                 }
 
-                renderer->drawFullscreenQuad(
-                    getFramebufferSize(render->indirectIrradiance()),
-                    [render, denoised, dst](RenderPass& pass) {
-                        RenderTarget renderTarget(denoised[dst].getGfxTexture2D(), 0, glm::vec4(0.f, 0.f, 0.f, 1.f));
-                        pass.setRenderTarget(renderTarget, 0);
-                    },
-                    pipeline,
-                    [this, render, viewParameters, denoised, src](ProgramPipeline* p) {
-                        viewParameters.setShaderParameters(p);
-                        p->setTexture("sceneDepthBuffer", render->depth());
-                        p->setTexture("sceneNormalBuffer", render->normal()); 
-                        p->setTexture("indirectIrradiance", denoised[src].getGfxTexture2D());
-                    }
-                );
+                renderer->blitTexture(render->indirectIrradiance(), denoised[dst].getGfxTexture2D());
             }
-
-            renderer->blitTexture(render->indirectIrradiance(), denoised[dst].getGfxTexture2D());
+            else
+            {
+                renderer->blitTexture(render->indirectIrradiance(), resolved.getGfxTexture2D());
+            }
         }
     }
+
+#define IMGUI_CHECKBOX(name, var)           \
+    ImGui::Text(name); ImGui::SameLine();   \
+    ImGui::Checkbox("##" name, &var);       \
 
     void ReSTIRSSGIRenderer::renderUI()
     {
         if (ImGui::TreeNode("ReSTIRSSGI"))
         {
-            ImGui::Text("Spatial Reuse Radius"); ImGui::SameLine();
-            ImGui::SliderFloat("##Reuse Kernel Radius", &m_spatialReuseRadius, 0.f, 1.f);
-
             ImGui::Text("Indirect Boost"); ImGui::SameLine();
             ImGui::SliderFloat("##Indirect Boost", &m_settings.indirectBoost, Settings::kMinIndirectBoost, Settings::kMaxIndirectBoost);
+
+            IMGUI_CHECKBOX("Temporal Resampling", bTemporalResampling)
+
+            IMGUI_CHECKBOX("Spatial Resampling", bSpatialResampling)
+            ImGui::Text("Spatial Resampling Radius"); ImGui::SameLine();
+            ImGui::SliderFloat("##Spatial Resampling Radius", &m_spatialReuseRadius, 0.f, 1.f);
+
+            IMGUI_CHECKBOX("Denoising", bDenoisingPass)
+
             ImGui::TreePop();
         }
     }

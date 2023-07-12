@@ -1,5 +1,7 @@
 #version 450 core
 
+// #include "ScreenSpaceRaytracing/hiz_raytracing.h.glsl"
+
 #define PI 3.1415926
 
 in VSOutput
@@ -95,11 +97,16 @@ vec3 worldToScreen(vec3 pp, in mat4 view, in mat4 projection)
     return p.xyz * .5f + .5f;
 }
 
+struct ReservoirSample
+{
+	vec3 radiance;
+	vec3 position;
+	vec3 normal;
+};
+
 struct Reservoir
 {
-    vec3 radiance;
-    vec3 position;
-    vec3 normal;
+	ReservoirSample z;
     float wSum;
     float M;
     float W;
@@ -110,28 +117,70 @@ float calcLuminance(vec3 inLinearColor)
     return 0.2126 * inLinearColor.r + 0.7152 * inLinearColor.g + 0.0722 * inLinearColor.b;
 }
 
-void updateReservoir(inout Reservoir r, in vec3 radiance, in vec3 samplePosition, in vec3 sampleNormal, in float wi)
+/**
+ * this assumes that 
+ */
+float calcReSTIRGISampleWeight(in ReservoirSample s)
 {
-    r.wSum += wi;
-    float p = wi / r.wSum;
-    if (get_random().x < p)
+	float srcPdf = 1.f / (2.f * PI);
+	float targetPdf = calcLuminance(s.radiance);
+	return targetPdf / srcPdf;
+}
+
+Reservoir createEmptyReservoir()
+{
+	Reservoir r;
+	r.z.radiance = vec3(0.f);
+	r.z.position = vec3(0.f);
+	r.z.normal = vec3(0.f);
+	r.wSum = 0.f;
+	r.M = 0.f;
+	r.W = 0.f;
+	return r;
+}
+
+Reservoir createFreshReservoirWithSample(in ReservoirSample s, float weight)
+{
+	Reservoir r;
+	r.z = s;
+	r.wSum = weight;
+	r.M = 1.f;
+	float targetPdf = calcLuminance(r.z.radiance);
+	// r.W = targetPdf > 1e-4 ? r.wSum / (r.M * targetPdf) : 0.f;
+	r.W = r.wSum / max(r.M * targetPdf, 1e-4);
+	return r;
+}
+
+void updateReservoir(inout Reservoir r, in ReservoirSample s, in float weight)
+{
+    r.wSum += weight;
+    float probablity = weight / r.wSum;
+    if (get_random().x < probablity)
     {
-		r.radiance = radiance;
-        r.position = samplePosition;
-        r.normal = sampleNormal;
+		r.z = s;
     }
 
     r.M += 1.f;
 
-	float targetPdf = calcLuminance(r.radiance);
-	if (targetPdf > 0.01f)
-	{
-		r.W = r.wSum / (targetPdf * r.M);
-	}
-	else
-	{
-		r.W = 0.f;
-	}
+	float targetPdf = calcLuminance(r.z.radiance);
+	r.W = r.wSum / max(r.M * targetPdf, 1e-4);
+}
+
+void mergeReservoir(inout Reservoir r, in Reservoir rr, float jacobian)
+{
+	float pq = calcLuminance(rr.z.radiance);
+	float wi = pq * rr.W * rr.M * jacobian;
+
+    r.wSum += wi;
+    float p = wi / r.wSum;
+    if (get_random().x < p)
+    {
+		r.z = rr.z;
+    }
+	r.M += rr.M;
+
+	float targetPdf = calcLuminance(r.z.radiance);
+	r.W = r.wSum / max(r.M * targetPdf, 1e-4);
 }
 
 struct ViewParameters
@@ -166,38 +215,76 @@ uniform sampler2D prevFrameReservoirPosition;
 uniform sampler2D prevFrameReservoirNormal;
 uniform sampler2D prevFrameReservoirWSumMW;
 uniform sampler2D prevFrameSceneDepthBuffer;
+uniform float bTemporalResampling;
 
-void lookupTemporalReservoir(inout Reservoir r, in vec3 worldSpacePosition)
+bool isValidScreenCoord(vec2 coord)
 {
-    // reproject
-	// todo: take pixel velocity into consideration when doing reprojection
-	// todo: consider changes in pixel neighborhood when reusing cache sample, changes in neighborhood pixels means SSAO value can change even there is a cache hit
-	// todo: adaptive convergence-aware spatial filtering
-	mat4 prevFrameView = viewParameters.prevFrameViewMatrix;
-	mat4 prevFrameProjection = viewParameters.prevFrameProjectionMatrix;
+	return (coord.x >= 0.f && coord.x <= 1.f && coord.y >= 0.f && coord.y <= 1.f); 
+}
 
-	vec3 prevViewSpacePos = (prevFrameView * vec4(worldSpacePosition, 1.f)).xyz;
-	vec4 prevNDCPos = prevFrameProjection * vec4(prevViewSpacePos, 1.f);
-	prevNDCPos /= prevNDCPos.w;
-	prevNDCPos.xyz = prevNDCPos.xyz * .5f + .5f;
+vec3 screenToWorld(in vec2 pixelCoord, in sampler2D depthTex, mat4 viewMatrix, mat4 projectionMatrix)
+{
+	float depth = texture(depthTex, pixelCoord).r;
+	vec3 NDCSpacePos = vec3(pixelCoord, depth) * 2.f - 1.f;
+    vec4 clipSpacePos = inverse(projectionMatrix) * vec4(NDCSpacePos, 1.f);
+    vec3 viewSpacePos = clipSpacePos.xyz / clipSpacePos.w;
+    vec3 worldSpacePos = (inverse(viewMatrix) * vec4(viewSpacePos, 1.f)).xyz;
+    return worldSpacePos;
+}
 
-	if (prevNDCPos.x <= 1.f && prevNDCPos.x >= 0.f && prevNDCPos.y <= 1.f && prevNDCPos.y >= 0.f)
+vec3 screenToView(in vec2 pixelCoord, in sampler2D depthTex, mat4 projectionMatrix)
+{
+	float depth = texture(depthTex, pixelCoord).r;
+	vec3 NDCSpacePos = vec3(pixelCoord, depth) * 2.f - 1.f;
+    vec4 clipSpacePos = inverse(projectionMatrix) * vec4(NDCSpacePos, 1.f);
+    vec3 viewSpacePos = clipSpacePos.xyz / clipSpacePos.w;
+    return viewSpacePos;
+}
+
+vec3 reproject(in vec2 pixelCoord, in sampler2D depthTex, in sampler2D prevFrameDepthTex, in ViewParameters viewParameters)
+{
+	vec3 reprojected;
+	float depth = texture(depthTex, pixelCoord).r;
+	vec3 worldSpacePos = screenToWorld(pixelCoord, depthTex, viewParameters.viewMatrix, viewParameters.projectionMatrix);
+
+	vec4 prevFrameClipPos = viewParameters.prevFrameProjectionMatrix * viewParameters.prevFrameViewMatrix * vec4(worldSpacePos, 1.f);
+	vec3 prevFrameNDC = prevFrameClipPos.xyz / prevFrameClipPos.w;
+	reprojected = prevFrameNDC * .5f + .5f;
+	return reprojected;
+}
+
+// reproject
+// todo: take pixel velocity into consideration when doing reprojection
+// todo: consider changes in pixel neighborhood when reusing cache sample, changes in neighborhood pixels means SSAO value can change even there is a cache hit
+// todo: adaptive convergence-aware spatial filtering
+bool lookupTemporalReservoir(inout Reservoir r, in vec2 sampleCoord, sampler2D depthTex, sampler2D prevFrameDepthTex, in ViewParameters viewParameters)
+{
+	bool lookupResult = false;
+
+	vec3 worldSpacePos = screenToWorld(sampleCoord, depthTex, viewParameters.viewMatrix, viewParameters.projectionMatrix);
+	vec3 prevFrameViewSpacePos = (viewParameters.prevFrameViewMatrix * vec4(worldSpacePos, 1.f)).xyz;
+
+	vec3 reprojectedCoord = reproject(sampleCoord, depthTex, prevFrameDepthTex, viewParameters);
+	if (isValidScreenCoord(reprojectedCoord.xy))
 	{
-		float prevFrameDeviceZ = texture(prevFrameSceneDepthBuffer, prevNDCPos.xy).r;
-		vec3 cachedPrevFrameViewSpacePos = (prevFrameView * vec4(screenToWorld(vec3(prevNDCPos.xy, prevFrameDeviceZ) * 2.f - 1.f, inverse(prevFrameView), inverse(prevFrameProjection)), 1.f)).xyz;
-		float relativeDepthDelta = abs(cachedPrevFrameViewSpacePos.z - prevViewSpacePos.z) / -cachedPrevFrameViewSpacePos.z;
-		// cache hit
-        if (relativeDepthDelta < 0.01f)
-        {
-			r.radiance = texture(prevFrameReservoirRadiance, prevNDCPos.xy).rgb;
-			r.position = texture(prevFrameReservoirPosition, prevNDCPos.xy).xyz;
-			r.normal = texture(prevFrameReservoirNormal, prevNDCPos.xy).xyz * 2.f - 1.f;
-			vec3 wSumMW = texture(prevFrameReservoirWSumMW, prevNDCPos.xy).xyz;
+		vec3 cachedPrevFrameViewSpacePos = screenToView(reprojectedCoord.xy, prevFrameDepthTex, viewParameters.prevFrameProjectionMatrix);
+
+		// compare relative depth
+		float relativeDepthDiff = abs((prevFrameViewSpacePos.z - cachedPrevFrameViewSpacePos.z) / cachedPrevFrameViewSpacePos.z);
+		if (relativeDepthDiff < .01f)
+		{
+			lookupResult = true;
+			r.z.radiance = texture(prevFrameReservoirRadiance, reprojectedCoord.xy).rgb;
+			r.z.position = texture(prevFrameReservoirPosition, reprojectedCoord.xy).xyz;
+			r.z.normal = texture(prevFrameReservoirNormal, reprojectedCoord.xy).xyz * 2.f - 1.f;
+			vec3 wSumMW = texture(prevFrameReservoirWSumMW, reprojectedCoord.xy).xyz;
 			r.wSum = wSumMW.x; 
 			r.M = wSumMW.y; 
 			r.W = wSumMW.z;
-        }
+		}
 	}
+
+	return lookupResult;
 }
 
 struct HierarchicalZBuffer
@@ -430,12 +517,90 @@ void hizTrace(in vec3 worldSpaceRO, in vec3 worldSpaceRD, inout HitRecord hitRec
     }
 }
 
-#define MAX_TEMPORAL_SAMPLE_COUNT 16
+#define MAX_TEMPORAL_SAMPLE_COUNT 32
+#define SKY_DIST 1e5
+
+/**
+* blue noise samples on a unit disk taken from https://www.shadertoy.com/view/3sfBWs
+*/
+const vec2 BlueNoiseInDisk[64] = vec2[64](
+    vec2(0.478712,0.875764),
+    vec2(-0.337956,-0.793959),
+    vec2(-0.955259,-0.028164),
+    vec2(0.864527,0.325689),
+    vec2(0.209342,-0.395657),
+    vec2(-0.106779,0.672585),
+    vec2(0.156213,0.235113),
+    vec2(-0.413644,-0.082856),
+    vec2(-0.415667,0.323909),
+    vec2(0.141896,-0.939980),
+    vec2(0.954932,-0.182516),
+    vec2(-0.766184,0.410799),
+    vec2(-0.434912,-0.458845),
+    vec2(0.415242,-0.078724),
+    vec2(0.728335,-0.491777),
+    vec2(-0.058086,-0.066401),
+    vec2(0.202990,0.686837),
+    vec2(-0.808362,-0.556402),
+    vec2(0.507386,-0.640839),
+    vec2(-0.723494,-0.229240),
+    vec2(0.489740,0.317826),
+    vec2(-0.622663,0.765301),
+    vec2(-0.010640,0.929347),
+    vec2(0.663146,0.647618),
+    vec2(-0.096674,-0.413835),
+    vec2(0.525945,-0.321063),
+    vec2(-0.122533,0.366019),
+    vec2(0.195235,-0.687983),
+    vec2(-0.563203,0.098748),
+    vec2(0.418563,0.561335),
+    vec2(-0.378595,0.800367),
+    vec2(0.826922,0.001024),
+    vec2(-0.085372,-0.766651),
+    vec2(-0.921920,0.183673),
+    vec2(-0.590008,-0.721799),
+    vec2(0.167751,-0.164393),
+    vec2(0.032961,-0.562530),
+    vec2(0.632900,-0.107059),
+    vec2(-0.464080,0.569669),
+    vec2(-0.173676,-0.958758),
+    vec2(-0.242648,-0.234303),
+    vec2(-0.275362,0.157163),
+    vec2(0.382295,-0.795131),
+    vec2(0.562955,0.115562),
+    vec2(0.190586,0.470121),
+    vec2(0.770764,-0.297576),
+    vec2(0.237281,0.931050),
+    vec2(-0.666642,-0.455871),
+    vec2(-0.905649,-0.298379),
+    vec2(0.339520,0.157829),
+    vec2(0.701438,-0.704100),
+    vec2(-0.062758,0.160346),
+    vec2(-0.220674,0.957141),
+    vec2(0.642692,0.432706),
+    vec2(-0.773390,-0.015272),
+    vec2(-0.671467,0.246880),
+    vec2(0.158051,0.062859),
+    vec2(0.806009,0.527232),
+    vec2(-0.057620,-0.247071),
+    vec2(0.333436,-0.516710),
+    vec2(-0.550658,-0.315773),
+    vec2(-0.652078,0.589846),
+    vec2(0.008818,0.530556),
+    vec2(-0.210004,0.519896) 
+);
 
 void main()
 {
-    seed = viewParameters.frameCount;
+    seed = viewParameters.frameCount % 16;
     flat_idx = int(floor(gl_FragCoord.y) * viewParameters.renderResolution.x + floor(gl_FragCoord.x));
+    vec2 rng2 = get_random().xy;
+
+    float angle = rng2.x * PI * 2.f;
+    mat2 perPixelRandomRotation = {
+		{ cos(angle), sin(angle) },
+		{ -sin(angle), cos(angle) }
+    };
 
 	float deviceDepth = texture(sceneDepthBuffer, psIn.texCoord0).r; 
 	vec3 n = texture(sceneNormalBuffer, psIn.texCoord0).rgb * 2.f - 1.f;
@@ -444,61 +609,109 @@ void main()
 
 	mat4 view = viewParameters.viewMatrix, projection = viewParameters.projectionMatrix;
 	vec3 ro = screenToWorld(vec3(psIn.texCoord0, deviceDepth) * 2.f - 1.f, inverse(view), inverse(projection));
+	vec3 worldSpacePosition = ro;
 
-    Reservoir r;
-	r.radiance = vec3(0.f);
-	r.position = vec3(0.f);
-	r.normal = vec3(0.f);
-	r.wSum = 0.f;
-	r.M = 0.f;
-	r.W = 0.f;
+
+	vec3 incidentRadiance = vec3(0.f);
+
+	vec3 rd = uniformSampleHemisphere(n);
+	HitRecord hit;
+	hizTrace(ro, rd, hit);
+
+	// make the default hit position really really far as if it hits the sky
+	vec3 hitPosition = SKY_DIST * rd;
+	vec3 hitNormal = -rd;
+
+	if (hit.result == HitResult_Hit)
+	{
+		incidentRadiance = texture(diffuseRadianceBuffer, hit.positionSS).rgb;
+		// todo: debug infinite bounce 
+		// incidentRadiance += texture(prevFrameIndirectIrradianceBuffer, hit.positionSS).rgb;
+		hitPosition = hit.positionWS; 
+		hitNormal = hit.normalWS;
+	}
+
+	ReservoirSample s;
+	s.radiance = incidentRadiance;
+	s.position = hitPosition;
+	s.normal = hitNormal;
+    Reservoir r = createFreshReservoirWithSample(s, calcReSTIRGISampleWeight(s));
+
     if (viewParameters.frameCount > 0)
     {
-        // todo: do temporal reprojection properly 
+		Reservoir rHistoryCenter = createEmptyReservoir();
+
         // load temporal reservoir
-        lookupTemporalReservoir(r, ro);
-    }
-
-    const int numSamples = 1;
-    vec3 indirectIrradiance = vec3(0.f);
-
-    for (int i = 0; i < numSamples; ++i)
-    {
-        vec3 incidentRadiance = vec3(0.f);
-
-		vec3 rd = uniformSampleHemisphere(n);
-		HitRecord hit;
-		hizTrace(ro, rd, hit);
-        // make the default hit position really really far
-        vec3 hitPosition = ro + 10000.f * rd;
-        vec3 hitNormal = vec3(0.f);
-		if (hit.result == HitResult_Hit)
+        if (lookupTemporalReservoir(rHistoryCenter, psIn.texCoord0, sceneDepthBuffer, prevFrameSceneDepthBuffer, viewParameters))
 		{
-			incidentRadiance = texture(diffuseRadianceBuffer, hit.positionSS).rgb;
-			// todo: debug infinite bounce 
-			// incidentRadiance += texture(prevFrameIndirectIrradianceBuffer, hit.positionSS).rgb;
-			hitPosition = hit.positionWS; 
-			hitNormal = hit.normalWS;
+			// clamp history reservoir's M
+			if (rHistoryCenter.M >= MAX_TEMPORAL_SAMPLE_COUNT)
+			{
+				int clampedSampleCount = MAX_TEMPORAL_SAMPLE_COUNT - 1;
+				float averageW = rHistoryCenter.wSum / rHistoryCenter.M;
+				// reduce wSum
+				rHistoryCenter.wSum -= (rHistoryCenter.M - clampedSampleCount) * averageW;
+				rHistoryCenter.wSum = max(0.f, rHistoryCenter.wSum);
+				// clamp M 
+				rHistoryCenter.M = clampedSampleCount;
+			}
+
+			// update history with new sample generated in current frame
+			updateReservoir(rHistoryCenter, r.z, calcReSTIRGISampleWeight(r.z));
+			r = rHistoryCenter;
+
+			// temporal resampling neighbors in the temporal buffer
+			if (bTemporalResampling > .5f)
+			{
+				const int kNumTemporalResampledSamples = 4;
+				const float kTemporalResampleRadius = 0.005f;
+
+				vec2 centerTapCoord = psIn.texCoord0;
+				for (int i = 0; i < kNumTemporalResampledSamples; ++i)
+				{
+					int blueNoiseSampleIndex = i;
+					vec2 offset = perPixelRandomRotation * BlueNoiseInDisk[blueNoiseSampleIndex] * kTemporalResampleRadius;
+					vec2 sampleCoord = centerTapCoord + offset;
+
+					Reservoir rn = createEmptyReservoir();
+
+					if (lookupTemporalReservoir(rn, sampleCoord, sceneDepthBuffer, prevFrameSceneDepthBuffer, viewParameters))
+					{
+						vec3 reprojectedNeighborCoord = reproject(sampleCoord, sceneDepthBuffer, prevFrameSceneDepthBuffer, viewParameters);
+						vec3 neighborWorldSpacePos = screenToWorld(reprojectedNeighborCoord.xy, prevFrameSceneDepthBuffer, viewParameters.prevFrameViewMatrix, viewParameters.prevFrameProjectionMatrix);
+
+						// calc reuse jacobian
+						vec3 x1r = worldSpacePosition;
+						vec3 x1q = neighborWorldSpacePos;
+						vec3 x2q = rn.z.position;
+						vec3 x1qx2q = x1q - x2q;
+						vec3 x1rx2q = x1r - x2q;
+						float a = max(dot(normalize(x1rx2q), rn.z.normal), 0.f) / max(dot(normalize(x1qx2q), rn.z.normal), 1e-1);
+						float b = dot(x1qx2q, x1qx2q) / max(dot(x1rx2q, x1rx2q), 1e-4);
+						float jacobian = a * b;
+						// merge neighbor's history with r
+						mergeReservoir(r, rn, jacobian);
+					}
+				}
+
+				// clamp M here again
+				if (r.M >= MAX_TEMPORAL_SAMPLE_COUNT)
+				{
+					int clampedSampleCount = MAX_TEMPORAL_SAMPLE_COUNT - 1;
+					float averageW = r.wSum / r.M;
+					// reduce wSum
+					r.wSum -= (r.M - clampedSampleCount) * averageW;
+					r.wSum = max(0.f, r.wSum);
+					// clamp M 
+					r.M = clampedSampleCount;
+				}
+			}
 		}
-
-		float srcPdf = 1.f / (2.f * PI);
-		float targetPdf = calcLuminance(incidentRadiance);
-		float wi = targetPdf / srcPdf;
-
-        // clamping max number of allowed temporal samples to help with faster convergence under motion
-        if (r.M >= MAX_TEMPORAL_SAMPLE_COUNT)
-        {
-            // reduce the weight sum by average
-            r.wSum -= r.wSum / MAX_TEMPORAL_SAMPLE_COUNT;
-            r.M = MAX_TEMPORAL_SAMPLE_COUNT - 1;
-        }
-
-		updateReservoir(r, incidentRadiance, hitPosition, hitNormal, wi);
     }
 
-    outReservoirRadiance = r.radiance;
-    outReservoirPosition = r.position;
+    outReservoirRadiance = r.z.radiance;
+    outReservoirPosition = r.z.position;
 	// todo: this normal might be problematic for jacobian calculation during spatial reservoir merging
-    outReservoirNormal = r.normal * .5f + .5f;
+    outReservoirNormal = r.z.normal * .5f + .5f;
     outReservoirWSumMW = vec3(r.wSum, r.M, r.W);
 }
