@@ -1,0 +1,54 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Header Files\Private">
+      <UniqueIdentifier>{8e6ddee5-a9e5-4124-958a-c8d4c4a970ab}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Public">
+      <UniqueIdentifier>{a8dec545-1022-47bf-bff4-dcaaff174dde}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Private">
+      <UniqueIdentifier>{4225c6d0-ab99-425b-8199-3cff998f6f3d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Public">
+      <UniqueIdentifier>{710f5d33-26cc-4da9-9709-a65e6777d519}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Code\Public\Header\Gfx.h">
+      <Filter>Header Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\Public\Header\GfxInterface.h">
+      <Filter>Header Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\Private\Header\Scene.h">
+      <Filter>Header Files\Private</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\Private\Header\SceneRenderer.h">
+      <Filter>Header Files\Private</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Code\Public\Source\GfxInterface.cpp">
+      <Filter>Source Files\Public</Filter>
+    </ClCompile>
+    <ClCompile Include="Code\Private\Source\Scene.cpp">
+      <Filter>Source Files\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="Code\Private\Source\SceneRenderer.cpp">
+      <Filter>Source Files\Private</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
