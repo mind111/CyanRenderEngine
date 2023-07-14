@@ -1,12 +1,13 @@
 #pragma once
 
 /**
- * note: this file includes all the interfaces exposed by the Gfx module
+ * Note: This file includes all the interfaces exposed by the Gfx module
  */
 
 #include <memory>
 
 #include "Gfx.h"
+#include "CameraViewInfo.h"
 
 namespace Cyan
 {
@@ -19,6 +20,30 @@ namespace Cyan
         GFX_API static std::unique_ptr<IScene> create();
     };
 
+    class ISceneRender
+    {
+    public:
+    };
+
+    struct SceneViewInfo
+    {
+        glm::uvec2 resolution;
+        f32 aspectRatio;
+        glm::mat4 viewMatrix;
+        glm::mat4 prevFrameViewMatrix;
+        glm::mat4 projectionMatrix;
+        glm::mat4 prevFrameProjectionMatrix;
+        glm::vec3 cameraPosition;
+        glm::vec3 prevFrameCameraPosition;
+        glm::vec3 cameraLookAt;
+        glm::vec3 cameraRight;
+        glm::vec3 cameraForward;
+        glm::vec3 cameraUp;
+        i32 frameCount;
+        f32 elapsedTime;
+        f32 deltaTime;
+    };
+
     class ISceneRenderer
     {
     public:
@@ -26,5 +51,8 @@ namespace Cyan
 
         // factory method
         GFX_API static std::unique_ptr<ISceneRenderer> create();
+
+        // interface
+        virtual void render(ISceneRender* outRender, IScene* scene, const SceneViewInfo& viewInfo) = 0;
     };
 }

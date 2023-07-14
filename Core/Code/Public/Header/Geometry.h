@@ -21,7 +21,7 @@ namespace Cyan
         virtual u32 numIndices() = 0;
     };
 
-    struct CORE_API Triangles : public Geometry
+    struct Triangles : public Geometry
     {
         struct Vertex
         {

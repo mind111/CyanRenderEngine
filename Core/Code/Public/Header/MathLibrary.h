@@ -1,6 +1,8 @@
+#pragma once
 
 #include "Core.h"
 #include "glm.hpp"
+#include "gtx/transform.hpp"
 
 namespace Cyan
 {

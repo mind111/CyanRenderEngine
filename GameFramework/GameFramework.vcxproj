@@ -155,10 +155,12 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Code\Public\Header\Camera.h" />
     <ClInclude Include="Code\Public\Header\GameFramework.h" />
     <ClInclude Include="Code\Public\Header\World.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Code\Public\Source\Camera.cpp" />
     <ClCompile Include="Code\Public\Source\World.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

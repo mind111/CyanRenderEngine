@@ -20,6 +20,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Code\Public\Header\Asset.h" />
+    <ClInclude Include="Code\Public\Header\Bounds.h" />
+    <ClInclude Include="Code\Public\Header\CameraViewInfo.h" />
     <ClInclude Include="Code\Public\Header\Core.h" />
     <ClInclude Include="Code\Public\Header\Geometry.h" />
     <ClInclude Include="Code\Public\Header\MathLibrary.h" />

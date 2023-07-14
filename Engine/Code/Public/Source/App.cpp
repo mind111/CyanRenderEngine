@@ -13,14 +13,12 @@ namespace Cyan
     void App::initalize()
     {
         m_engine->initialize();
-
         customInitialize();
     }
 
     void App::deinitialize()
     {
         m_engine->deinitialize();
-
         customDeinitialize();
     }
 

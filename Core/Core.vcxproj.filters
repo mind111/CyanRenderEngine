@@ -42,6 +42,12 @@
     <ClInclude Include="Code\Public\Header\StaticMeshAsset.h">
       <Filter>Header Files\Public</Filter>
     </ClInclude>
+    <ClInclude Include="Code\Public\Header\Bounds.h">
+      <Filter>Header Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\Public\Header\CameraViewInfo.h">
+      <Filter>Header Files\Public</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Code\Public\Source\StaticMeshAsset.cpp">

@@ -33,9 +33,15 @@
     <ClInclude Include="Code\Public\Header\World.h">
       <Filter>Header Files\Public</Filter>
     </ClInclude>
+    <ClInclude Include="Code\Public\Header\Camera.h">
+      <Filter>Header Files\Public</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Code\Public\Source\World.cpp">
+      <Filter>Source Files\Public</Filter>
+    </ClCompile>
+    <ClCompile Include="Code\Public\Source\Camera.cpp">
       <Filter>Source Files\Public</Filter>
     </ClCompile>
   </ItemGroup>

@@ -1,5 +1,6 @@
-#include "Asset.h"
+#pragma once
 
+#include "Asset.h"
 #include "Core.h"
 #include "Geometry.h"
 
