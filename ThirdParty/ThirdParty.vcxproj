@@ -19,17 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="imgui\Code\Source\imgui.cpp" />
-    <ClCompile Include="imgui\Code\Source\imgui_demo.cpp" />
-    <ClCompile Include="imgui\Code\Source\imgui_draw.cpp" />
-    <ClCompile Include="imgui\Code\Source\imgui_impl_glfw.cpp" />
-    <ClCompile Include="imgui\Code\Source\imgui_impl_opengl3.cpp" />
-    <ClCompile Include="imgui\Code\Source\imgui_tables.cpp" />
-    <ClCompile Include="imgui\Code\Source\imgui_widgets.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="glfw\Code\Header\glfw3.h" />
-    <ClInclude Include="glfw\Code\Header\glfw3native.h" />
+    <ClInclude Include="glew\glew.h" />
     <ClInclude Include="imgui\Code\Header\imconfig.h" />
     <ClInclude Include="imgui\Code\Header\imgui.h" />
     <ClInclude Include="imgui\Code\Header\imgui_impl_glfw.h" />
@@ -39,6 +29,18 @@
     <ClInclude Include="imgui\Code\Header\imstb_rectpack.h" />
     <ClInclude Include="imgui\Code\Header\imstb_textedit.h" />
     <ClInclude Include="imgui\Code\Header\imstb_truetype.h" />
+    <ClInclude Include="stbi\Code\Header\stb_image.h" />
+    <ClInclude Include="stbi\Code\Header\stb_image_write.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="imgui\Code\Source\imgui.cpp" />
+    <ClCompile Include="imgui\Code\Source\imgui_demo.cpp" />
+    <ClCompile Include="imgui\Code\Source\imgui_draw.cpp" />
+    <ClCompile Include="imgui\Code\Source\imgui_impl_glfw.cpp" />
+    <ClCompile Include="imgui\Code\Source\imgui_impl_opengl3.cpp" />
+    <ClCompile Include="imgui\Code\Source\imgui_tables.cpp" />
+    <ClCompile Include="imgui\Code\Source\imgui_widgets.cpp" />
+    <ClCompile Include="stbi\Code\Source\stb_image.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -96,17 +98,17 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;THIRDPARTY_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>GLEW_STATIC</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)imgui\Code\Header;$(ProjectDir)glm\Code\Header;$(ProjectDir)glfw\Code\Header;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)imgui\Code\Header;$(ProjectDir)glm\Code\Header;$(ProjectDir)glfw\Code\Header;$(ProjectDir)stbi\Code\Header;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>$(ProjectDir)glfw\Lib\glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(ProjectDir)glfw\Lib\glfw3.lib;$(ProjectDir)glew\glew32s.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/NODEFAULTLIB:library</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
@@ -116,11 +118,11 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;THIRDPARTY_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>GLEW_STATIC</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)imgui\Code\Header;$(ProjectDir)glm\Code\Header;$(ProjectDir)glfw\Code\Header;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)imgui\Code\Header;$(ProjectDir)glm\Code\Header;$(ProjectDir)glfw\Code\Header;$(ProjectDir)stbi\Code\Header;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -128,7 +130,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>$(ProjectDir)glfw\Lib\glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(ProjectDir)glfw\Lib\glfw3.lib;$(ProjectDir)glew\glew32s.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/NODEFAULTLIB:library</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
@@ -136,17 +138,17 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;THIRDPARTY_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>GLEW_STATIC</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)imgui\Code\Header;$(ProjectDir)glm\Code\Header;$(ProjectDir)glfw\Code\Header;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)imgui\Code\Header;$(ProjectDir)glm\Code\Header;$(ProjectDir)glfw\Code\Header;$(ProjectDir)stbi\Code\Header;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>$(ProjectDir)glfw\Lib\glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(ProjectDir)glfw\Lib\glfw3.lib;$(ProjectDir)glew\glew32s.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/NODEFAULTLIB:library</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
@@ -156,11 +158,11 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;THIRDPARTY_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>GLEW_STATIC</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)imgui\Code\Header;$(ProjectDir)glm\Code\Header;$(ProjectDir)glfw\Code\Header;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)imgui\Code\Header;$(ProjectDir)glm\Code\Header;$(ProjectDir)glfw\Code\Header;$(ProjectDir)stbi\Code\Header;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -168,7 +170,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>$(ProjectDir)glfw\Lib\glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(ProjectDir)glfw\Lib\glfw3.lib;$(ProjectDir)glew\glew32s.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/NODEFAULTLIB:library</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>

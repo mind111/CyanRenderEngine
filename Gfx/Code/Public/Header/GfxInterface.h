@@ -17,7 +17,7 @@ namespace Cyan
         virtual ~IScene() { }
 
         // factory method
-        GFX_API static std::unique_ptr<IScene> create();
+        static GFX_API std::unique_ptr<IScene> create();
     };
 
     class ISceneRender

@@ -1,57 +1,15 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Source Files">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
-    </Filter>
-    <Filter Include="Header Files">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
-    </Filter>
-    <Filter Include="Resource Files">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
-    </Filter>
-    <Filter Include="Header Files\Private">
-      <UniqueIdentifier>{c6fc6dd5-546c-4dab-be41-24a43a46e0d9}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\Public">
-      <UniqueIdentifier>{684ae58e-f72b-4d08-b8af-e00bd5be7c5f}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\Private">
-      <UniqueIdentifier>{40f4b9dc-2e21-4fbb-a608-cd0b4dbc57f2}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\Public">
-      <UniqueIdentifier>{acee172a-b232-4284-a702-afef357451be}</UniqueIdentifier>
-    </Filter>
+    <ClInclude Include="Code\Public\Header\Asset.h" />
+    <ClInclude Include="Code\Public\Header\Bounds.h" />
+    <ClInclude Include="Code\Public\Header\CameraViewInfo.h" />
+    <ClInclude Include="Code\Public\Header\Core.h" />
+    <ClInclude Include="Code\Public\Header\Geometry.h" />
+    <ClInclude Include="Code\Public\Header\MathLibrary.h" />
+    <ClInclude Include="Code\Public\Header\StaticMeshAsset.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Code\Public\Header\Asset.h">
-      <Filter>Header Files\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="Code\Public\Header\Core.h">
-      <Filter>Header Files\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="Code\Public\Header\Geometry.h">
-      <Filter>Header Files\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="Code\Public\Header\MathLibrary.h">
-      <Filter>Header Files\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="Code\Public\Header\StaticMeshAsset.h">
-      <Filter>Header Files\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="Code\Public\Header\Bounds.h">
-      <Filter>Header Files\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="Code\Public\Header\CameraViewInfo.h">
-      <Filter>Header Files\Public</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="Code\Public\Source\StaticMeshAsset.cpp">
-      <Filter>Source Files\Public</Filter>
-    </ClCompile>
+    <ClCompile Include="Code\Public\Source\StaticMeshAsset.cpp" />
   </ItemGroup>
 </Project>

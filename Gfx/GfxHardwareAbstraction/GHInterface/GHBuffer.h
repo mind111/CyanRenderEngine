@@ -2,23 +2,23 @@
 
 namespace Cyan
 {
-    class VertexBuffer
+    class GHVertexBuffer
     {
     public:
-        static VertexBuffer* create();
+        static GHVertexBuffer* create();
 
-        virtual ~VertexBuffer() { }
+        virtual ~GHVertexBuffer() { }
 
         virtual void bind() = 0;
         virtual void unbind() = 0;
     };
 
-    class IndexBuffer
+    class GHIndexBuffer
     {
     public:
-        static IndexBuffer* create();
+        static GHIndexBuffer* create();
 
-        virtual ~IndexBuffer() { }
+        virtual ~GHIndexBuffer() { }
 
         virtual void bind() = 0;
         virtual void unbind() = 0;
