@@ -1,10 +1,11 @@
 #include "GLShader.h"
+#include "GLTexture.h"
 #include "glew.h"
 
 namespace Cyan
 {
     GLShader::GLShader(const char* text)
-        : m_text(text)
+        : GLObject(), m_text(text)
     {
     }
 
@@ -101,7 +102,28 @@ namespace Cyan
         }
     }
 
-    i32 GLShader::getUniformLocation(const char* name) 
+    void GLShader::bindTexture(const char* samplerName, GHTexture* texture)
+    {
+        auto glTexture = dynamic_cast<GLTexture*>(texture);
+        if (glTexture != nullptr)
+        {
+            glTexture->bind();
+            i32 textureUnit = glTexture->getBoundTextureUnit();
+            glSetUniform(samplerName, textureUnit);
+        }
+    }
+
+    void GLShader::unbindTexture(const char* samplerName, GHTexture* texture)
+    {
+        auto glTexture = dynamic_cast<GLTexture*>(texture);
+        if (glTexture != nullptr)
+        {
+            glTexture->unbind();
+            glSetUniform(samplerName, -1);
+        }
+    }
+
+    i32 GLShader::getUniformLocation(const char* name)
     {
         auto entry = m_uniformDescMap.find(std::string(name));
         if (entry == m_uniformDescMap.end()) 
@@ -111,61 +133,60 @@ namespace Cyan
         return entry->second.location;
     }
 
-#define SET_UNIFORM(func, ...)                \
-    i32 location = getUniformLocation(name);  \
-    if (location >= 0) {                      \
-        func(m_name, location, __VA_ARGS__);\
-    }                                         \
-    return *this;                             \
+#define GL_SET_UNIFORM(func, ...)                \
+    i32 location = getUniformLocation(name);     \
+    if (location >= 0) {                         \
+        func(m_name, location, __VA_ARGS__);     \
+    }                                            \
 
-    GLShader& GLShader::setUniform(const char* name, f32 data) 
+    void GLShader::glSetUniform(const char* name, f32 data) 
     {
-        SET_UNIFORM(glProgramUniform1f, data)
+        GL_SET_UNIFORM(glProgramUniform1f, data)
     }
 
-    GLShader& GLShader::setUniform(const char* name, u32 data) 
+    void GLShader::glSetUniform(const char* name, u32 data) 
     {
-        SET_UNIFORM(glProgramUniform1ui, data)
+        GL_SET_UNIFORM(glProgramUniform1ui, data)
     }
 
-    GLShader& GLShader::setUniform(const char* name, i32 data) 
+    void GLShader::glSetUniform(const char* name, i32 data) 
     {
-        SET_UNIFORM(glProgramUniform1i, data)
+        GL_SET_UNIFORM(glProgramUniform1i, data)
     }
 
-    GLShader& GLShader::setUniform(const char* name, const glm::vec2& data) 
+    void GLShader::glSetUniform(const char* name, const glm::vec2& data) 
     {
-        SET_UNIFORM(glProgramUniform2f, data.x, data.y)
+        GL_SET_UNIFORM(glProgramUniform2f, data.x, data.y)
     }
 
-    GLShader& GLShader::setUniform(const char* name, const glm::uvec2& data)
+    void GLShader::glSetUniform(const char* name, const glm::uvec2& data)
     {
-        SET_UNIFORM(glProgramUniform2ui, data.x, data.y)
+        GL_SET_UNIFORM(glProgramUniform2ui, data.x, data.y)
     }
 
-    GLShader& GLShader::setUniform(const char* name, const glm::vec3& data) 
+    void GLShader::glSetUniform(const char* name, const glm::vec3& data) 
     {
-        SET_UNIFORM(glProgramUniform3f, data.x, data.y, data.z)
+        GL_SET_UNIFORM(glProgramUniform3f, data.x, data.y, data.z)
     }
     
-    GLShader& GLShader::setUniform(const char* name, const glm::vec4& data) 
+    void GLShader::glSetUniform(const char* name, const glm::vec4& data) 
     {
-        SET_UNIFORM(glProgramUniform4f, data.x, data.y, data.z, data.w)
+        GL_SET_UNIFORM(glProgramUniform4f, data.x, data.y, data.z, data.w)
     }
 
-    GLShader& GLShader::setUniform(const char* name, const glm::mat4& data) 
+    void GLShader::glSetUniform(const char* name, const glm::mat4& data) 
     {
-        SET_UNIFORM(glProgramUniformMatrix4fv, 1, false, &data[0][0])
+        GL_SET_UNIFORM(glProgramUniformMatrix4fv, 1, false, &data[0][0])
     }
 
-    GLShader& GLShader::setUniform(const char* name, const u64& data) 
+    void GLShader::glSetUniform(const char* name, const u64& data) 
     {
-        SET_UNIFORM(glProgramUniformHandleui64ARB, data);
+        GL_SET_UNIFORM(glProgramUniformHandleui64ARB, data);
     }
 
-    GLShader& GLShader::setUniform(const char* name, const glm::ivec2& data) 
+    void GLShader::glSetUniform(const char* name, const glm::ivec2& data) 
     {
-        SET_UNIFORM(glProgramUniform2i, data.x, data.y);
+        GL_SET_UNIFORM(glProgramUniform2i, data.x, data.y);
     }
 
     GLVertexShader::GLVertexShader(const char* text)
@@ -188,4 +209,4 @@ namespace Cyan
         const char* strings[1] = { m_text };
         m_name = glCreateShaderProgramv(GL_COMPUTE_SHADER, 1, strings);
     }
-}
+ }

@@ -13,6 +13,8 @@
     <ClInclude Include="stbi\Code\Header\stb_image.h" />
     <ClInclude Include="stbi\Code\Header\stb_image_write.h" />
     <ClInclude Include="glew\glew.h" />
+    <ClInclude Include="tiny_gltf\json.hpp" />
+    <ClInclude Include="tiny_gltf\tiny_gltf.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="imgui\Code\Source\imgui.cpp" />
@@ -23,5 +25,6 @@
     <ClCompile Include="imgui\Code\Source\imgui_tables.cpp" />
     <ClCompile Include="imgui\Code\Source\imgui_widgets.cpp" />
     <ClCompile Include="stbi\Code\Source\stb_image.cpp" />
+    <ClCompile Include="tiny_gltf\tiny_gltf.cc" />
   </ItemGroup>
 </Project>

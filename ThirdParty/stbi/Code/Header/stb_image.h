@@ -438,7 +438,11 @@ STBIDEF int      stbi_is_hdr_from_file(FILE *f);
 STBIDEF const char *stbi_failure_reason  (void);
 
 // free the loaded image -- this is just free()
-STBIDEF void     stbi_image_free      (void *retval_from_stbi_load);
+#ifdef THIRDPARTY_EXPORTS
+__declspec(dllexport) STBIDEF void     stbi_image_free      (void *retval_from_stbi_load);
+#else
+__declspec(dllimport) STBIDEF void     stbi_image_free      (void *retval_from_stbi_load);
+#endif
 
 // get image dimensions & components without fully decoding
 STBIDEF int      stbi_info_from_memory(stbi_uc const *buffer, int len, int *x, int *y, int *comp);

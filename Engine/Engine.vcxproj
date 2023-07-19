@@ -27,12 +27,12 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Code\Public\Header\App.h" />
-    <ClInclude Include="Code\Public\Header\Engine.h" />
+    <ClInclude Include="Code\Public\App.h" />
+    <ClInclude Include="Code\Public\Engine.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Code\Public\Source\App.cpp" />
-    <ClCompile Include="Code\Public\Source\Engine.cpp" />
+    <ClCompile Include="Code\Public\App.cpp" />
+    <ClCompile Include="Code\Public\Engine.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -94,7 +94,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\Header\;$(ProjectDir)Code\Private\Header\;$(SolutionDir)Core\Code\Public\Header\;$(SolutionDir)GameFramework\Code\Public\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\;$(ProjectDir)Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)GameFramework\Code\Public\;$(SolutionDir)Modular\Code\Public\;$(SolutionDir)Gfx\Code\Public\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -113,7 +113,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\Header\;$(ProjectDir)Code\Private\Header\;$(SolutionDir)Core\Code\Public\Header\;$(SolutionDir)GameFramework\Code\Public\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\;$(ProjectDir)Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)GameFramework\Code\Public\;$(SolutionDir)Modular\Code\Public\;$(SolutionDir)Gfx\Code\Public\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -132,7 +132,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\Header\;$(ProjectDir)Code\Private\Header\;$(SolutionDir)Core\Code\Public\Header\;$(SolutionDir)GameFramework\Code\Public\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\;$(ProjectDir)Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)GameFramework\Code\Public\;$(SolutionDir)Modular\Code\Public\;$(SolutionDir)Gfx\Code\Public\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -151,7 +151,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\Header\;$(ProjectDir)Code\Private\Header\;$(SolutionDir)Core\Code\Public\Header\;$(SolutionDir)GameFramework\Code\Public\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\;$(ProjectDir)Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)GameFramework\Code\Public\;$(SolutionDir)Modular\Code\Public\;$(SolutionDir)Gfx\Code\Public\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>

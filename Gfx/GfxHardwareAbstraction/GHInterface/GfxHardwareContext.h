@@ -4,6 +4,7 @@
 #include "GHTexture.h"
 #include "GHShader.h"
 #include "GHPipeline.h"
+#include "GHFramebuffer.h"
 
 namespace Cyan
 {
@@ -20,15 +21,20 @@ namespace Cyan
     {
     public:
         static GfxHardwareContext* create();
+        static GfxHardwareContext* get();
 
         virtual ~GfxHardwareContext() { }
+        // buffers
         virtual GHVertexBuffer* createVertexBuffer() = 0;
         virtual GHIndexBuffer* createIndexBuffer() = 0;
-
-        virtual GHVertexShader* createVertexShader(const char* text) = 0;
-        virtual GHPixelShader* createPixelShader(const char* text) = 0;
-        virtual GHComputeShader* createComputeShader(const char* text) = 0;
-        virtual GHGfxPipeline* createGfxPipeline(const char* vsText, const char* psText) = 0;
+        // shaders
+        virtual GHShader* createVertexShader(const char* text) = 0;
+        virtual GHShader* createPixelShader(const char* text) = 0;
+        virtual GHShader* createComputeShader(const char* text) = 0;
+        virtual GHGfxPipeline* createGfxPipeline(std::shared_ptr<GHShader> vs, std::shared_ptr<GHShader> ps) = 0;
+        // framebuffers
+        virtual GHFramebuffer* createFramebuffer(u32 width, u32 height) = 0;
+        virtual void setViewport(i32 x, i32 y, i32 width, i32 height) = 0;
     protected:
         GfxHardwareContext() { }
     private:

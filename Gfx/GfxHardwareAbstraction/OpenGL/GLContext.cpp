@@ -1,7 +1,9 @@
+#include "Core.h"
 #include "GLContext.h"
 #include "GLBuffer.h"
 #include "GLShader.h"
 #include "GLPipeline.h"
+#include "GLFramebuffer.h"
 
 namespace Cyan
 {
@@ -25,25 +27,40 @@ namespace Cyan
         return nullptr;
     }
 
-    GHVertexShader* GLGHContext::createVertexShader(const char* text)
+    GHShader* GLGHContext::createVertexShader(const char* text)
     {
         return new GLVertexShader(text);
     }
 
-    GHPixelShader* GLGHContext::createPixelShader(const char* text)
+    GHShader* GLGHContext::createPixelShader(const char* text)
     {
         return new GLPixelShader(text);
     }
 
-    GHComputeShader* GLGHContext::createComputeShader(const char* text)
+    GHShader* GLGHContext::createComputeShader(const char* text)
     {
         return new GLComputeShader(text);
     }
 
-    GHGfxPipeline* GLGHContext::createGfxPipeline(const char* vsText, const char* psText)
+    GHGfxPipeline* GLGHContext::createGfxPipeline(std::shared_ptr<GHShader> vs, std::shared_ptr<GHShader> ps)
     {
-        auto vs = std::make_shared<GLVertexShader>(vsText);
-        auto ps = std::make_shared<GLPixelShader>(psText);
-        return new GLGfxPipeline(vs, ps);
+        auto glVS = std::dynamic_pointer_cast<GLVertexShader>(vs);
+        auto glPS = std::dynamic_pointer_cast<GLPixelShader>(ps);
+        if (glVS != nullptr && glPS != nullptr)
+        {
+            return new GLGfxPipeline(glVS, glPS);
+        }
+        assert(0); // catching errors here
+        return nullptr;
+    }
+
+    GHFramebuffer* GLGHContext::createFramebuffer(u32 width, u32 height)
+    {
+        return new GLFramebuffer(width, height);
+    }
+
+    void GLGHContext::setViewport(i32 x, i32 y, i32 width, i32 height)
+    {
+        glViewport(x, y, width, height);
     }
 }

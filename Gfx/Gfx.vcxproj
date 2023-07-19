@@ -22,35 +22,59 @@
     <ProjectReference Include="..\Core\Core.vcxproj">
       <Project>{83f758df-eafb-4fcd-bd4f-f10457f04f08}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\ThirdParty\ThirdParty.vcxproj">
+      <Project>{6c78afaa-2c32-41fb-973d-932bf9dbaadf}</Project>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Code\Private\Header\Scene.h" />
-    <ClInclude Include="Code\Private\Header\SceneRender.h" />
-    <ClInclude Include="Code\Private\Header\SceneRenderer.h" />
-    <ClInclude Include="Code\Public\Header\Gfx.h" />
-    <ClInclude Include="Code\Public\Header\GfxInterface.h" />
+    <ClInclude Include="Code\Private\gltf.h" />
+    <ClInclude Include="Code\Private\RenderPass.h" />
+    <ClInclude Include="Code\Private\Scene.h" />
+    <ClInclude Include="Code\Private\SceneRender.h" />
+    <ClInclude Include="Code\Private\SceneRenderer.h" />
+    <ClInclude Include="Code\Public\Asset.h" />
+    <ClInclude Include="Code\Public\AssetManager.h" />
+    <ClInclude Include="Code\Public\Gfx.h" />
+    <ClInclude Include="Code\Public\GfxModule.h" />
+    <ClInclude Include="Code\Public\GfxInterface.h" />
+    <ClInclude Include="Code\Public\StaticMesh.h" />
+    <ClInclude Include="GfxHardwareAbstraction\GfxContext.h" />
     <ClInclude Include="GfxHardwareAbstraction\GHInterface\GfxHardwareContext.h" />
     <ClInclude Include="GfxHardwareAbstraction\GHInterface\GHBuffer.h" />
+    <ClInclude Include="GfxHardwareAbstraction\GHInterface\GHFramebuffer.h" />
     <ClInclude Include="GfxHardwareAbstraction\GHInterface\GHPipeline.h" />
     <ClInclude Include="GfxHardwareAbstraction\GHInterface\GHShader.h" />
     <ClInclude Include="GfxHardwareAbstraction\GHInterface\GHTexture.h" />
     <ClInclude Include="GfxHardwareAbstraction\OpenGL\GLBuffer.h" />
     <ClInclude Include="GfxHardwareAbstraction\OpenGL\GLContext.h" />
+    <ClInclude Include="GfxHardwareAbstraction\OpenGL\GLFramebuffer.h" />
     <ClInclude Include="GfxHardwareAbstraction\OpenGL\GLObject.h" />
     <ClInclude Include="GfxHardwareAbstraction\OpenGL\GLPipeline.h" />
     <ClInclude Include="GfxHardwareAbstraction\OpenGL\GLShader.h" />
+    <ClInclude Include="GfxHardwareAbstraction\OpenGL\GLTexture.h" />
+    <ClInclude Include="GfxHardwareAbstraction\Shader.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Code\Private\Source\Scene.cpp" />
-    <ClCompile Include="Code\Private\Source\SceneRenderer.cpp" />
-    <ClCompile Include="Code\Public\Source\GfxInterface.cpp" />
+    <ClCompile Include="Code\Private\gltf.cpp" />
+    <ClCompile Include="Code\Private\RenderPass.cpp" />
+    <ClCompile Include="Code\Private\Scene.cpp" />
+    <ClCompile Include="Code\Private\SceneRenderer.cpp" />
+    <ClCompile Include="Code\Public\AssetManager.cpp" />
+    <ClCompile Include="Code\Public\GfxModule.cpp" />
+    <ClCompile Include="Code\Public\GfxInterface.cpp" />
+    <ClCompile Include="Code\Public\StaticMesh.cpp" />
+    <ClCompile Include="GfxHardwareAbstraction\GfxContext.cpp" />
     <ClCompile Include="GfxHardwareAbstraction\GHInterface\GHBuffer.cpp" />
     <ClCompile Include="GfxHardwareAbstraction\GHInterface\GfxHardwareContext.cpp" />
+    <ClCompile Include="GfxHardwareAbstraction\GHInterface\GHFramebuffer.cpp" />
     <ClCompile Include="GfxHardwareAbstraction\GHInterface\GHTexture.cpp" />
     <ClCompile Include="GfxHardwareAbstraction\OpenGL\GLBuffer.cpp" />
     <ClCompile Include="GfxHardwareAbstraction\OpenGL\GLContext.cpp" />
+    <ClCompile Include="GfxHardwareAbstraction\OpenGL\GLFramebuffer.cpp" />
     <ClCompile Include="GfxHardwareAbstraction\OpenGL\GLPipeline.cpp" />
     <ClCompile Include="GfxHardwareAbstraction\OpenGL\GLShader.cpp" />
+    <ClCompile Include="GfxHardwareAbstraction\OpenGL\GLTexture.cpp" />
+    <ClCompile Include="GfxHardwareAbstraction\Shader.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -112,7 +136,8 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\Header\;$(SolutionDir)Gfx\Code\Private\Header\;$(SolutionDir)Gfx\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)Core\Code\Public\Header\;$(SolutionDir)Gfx\GfxHardwareAbstraction\OpenGL\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\glew\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Gfx\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)Gfx\GfxHardwareAbstraction\;$(SolutionDir)GameFramework\Code\Public\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)Gfx\GfxHardwareAbstraction\OpenGL\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\glew\;$(SolutionDir)ThirdParty\stbi\Code\Header\;$(SolutionDir)ThirdParty\tiny_gltf\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -131,7 +156,8 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\Header\;$(SolutionDir)Gfx\Code\Private\Header\;$(SolutionDir)Gfx\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)Core\Code\Public\Header\;$(SolutionDir)Gfx\GfxHardwareAbstraction\OpenGL\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\glew\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Gfx\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)Gfx\GfxHardwareAbstraction\;$(SolutionDir)GameFramework\Code\Public\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)Gfx\GfxHardwareAbstraction\OpenGL\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\glew\;$(SolutionDir)ThirdParty\stbi\Code\Header\;$(SolutionDir)ThirdParty\tiny_gltf\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -150,7 +176,8 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\Header\;$(SolutionDir)Gfx\Code\Private\Header\;$(SolutionDir)Gfx\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)Core\Code\Public\Header\;$(SolutionDir)Gfx\GfxHardwareAbstraction\OpenGL\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\glew\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Gfx\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)Gfx\GfxHardwareAbstraction\;$(SolutionDir)GameFramework\Code\Public\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)Gfx\GfxHardwareAbstraction\OpenGL\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\glew\;$(SolutionDir)ThirdParty\stbi\Code\Header\;$(SolutionDir)ThirdParty\tiny_gltf\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -169,7 +196,8 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\Header\;$(SolutionDir)Gfx\Code\Private\Header\;$(SolutionDir)Gfx\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)Core\Code\Public\Header\;$(SolutionDir)Gfx\GfxHardwareAbstraction\OpenGL\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\glew\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Gfx\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)Gfx\GfxHardwareAbstraction\;$(SolutionDir)GameFramework\Code\Public\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)Gfx\GfxHardwareAbstraction\OpenGL\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\glew\;$(SolutionDir)ThirdParty\stbi\Code\Header\;$(SolutionDir)ThirdParty\tiny_gltf\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

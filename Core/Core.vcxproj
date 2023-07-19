@@ -19,16 +19,12 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Code\Public\Header\Asset.h" />
-    <ClInclude Include="Code\Public\Header\Bounds.h" />
-    <ClInclude Include="Code\Public\Header\CameraViewInfo.h" />
-    <ClInclude Include="Code\Public\Header\Core.h" />
-    <ClInclude Include="Code\Public\Header\Geometry.h" />
-    <ClInclude Include="Code\Public\Header\MathLibrary.h" />
-    <ClInclude Include="Code\Public\Header\StaticMeshAsset.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="Code\Public\Source\StaticMeshAsset.cpp" />
+    <ClInclude Include="Code\Public\Bounds.h" />
+    <ClInclude Include="Code\Public\CameraViewInfo.h" />
+    <ClInclude Include="Code\Public\Core.h" />
+    <ClInclude Include="Code\Public\Geometry.h" />
+    <ClInclude Include="Code\Public\MathLibrary.h" />
+    <ClInclude Include="Code\Public\Transform.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

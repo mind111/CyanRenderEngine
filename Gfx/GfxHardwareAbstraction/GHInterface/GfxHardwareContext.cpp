@@ -30,4 +30,10 @@ namespace  Cyan
         }
         return s_instance;
     }
+
+    GfxHardwareContext* GfxHardwareContext::get()
+    {
+        assert(s_instance != nullptr);
+        return s_instance;
+    }
 }
