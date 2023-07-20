@@ -1,5 +1,6 @@
 #include "World.h"
 #include "GfxInterface.h"
+#include "AssetManager.h"
 
 namespace Cyan
 {
@@ -17,5 +18,10 @@ namespace Cyan
     void World::update()
     {
 
+    }
+
+    void World::import(const char* filename)
+    {
+        AssetManager::import(this, filename);
     }
 }

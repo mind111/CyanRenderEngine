@@ -12,6 +12,8 @@ namespace Cyan
         i32 width = 0, height = 0;
     };
 
+    struct Geometry;
+
     class GfxContext
     {
     public:
@@ -22,6 +24,7 @@ namespace Cyan
         void unsetFramebuffer();
         void setViewport(i32 x, i32 y, i32 width, i32 height);
         void unsetViewport();
+        GfxStaticSubMesh* createGfxStaticSubMesh(Geometry* geometry);
 
     private:
         GfxContext();

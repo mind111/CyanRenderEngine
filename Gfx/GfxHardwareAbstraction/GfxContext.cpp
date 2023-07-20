@@ -57,5 +57,10 @@ namespace Cyan
         m_GHCtx->setViewport(0, 0, 0, 0);
         m_viewport = { };
     }
+
+    GfxStaticSubMesh* GfxContext::createGfxStaticSubMesh(Geometry* geometry)
+    {
+        return m_GHCtx->createGfxStaticSubMesh(geometry);
+    }
 }
 

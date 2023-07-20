@@ -27,6 +27,8 @@
     <ClInclude Include="Code\Public\StaticMesh.h" />
     <ClInclude Include="Code\Private\gltf.h" />
     <ClInclude Include="Code\Public\Gfx.h" />
+    <ClInclude Include="Code\Public\GfxStaticMesh.h" />
+    <ClInclude Include="GfxHardwareAbstraction\OpenGL\GLStaticMesh.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GfxHardwareAbstraction\GHInterface\GHBuffer.cpp" />
@@ -49,5 +51,7 @@
     <ClCompile Include="Code\Public\AssetManager.cpp" />
     <ClCompile Include="Code\Private\gltf.cpp" />
     <ClCompile Include="Code\Public\GfxModule.cpp" />
+    <ClCompile Include="Code\Public\GfxStaticMesh.cpp" />
+    <ClCompile Include="GfxHardwareAbstraction\OpenGL\GLStaticMesh.cpp" />
   </ItemGroup>
 </Project>

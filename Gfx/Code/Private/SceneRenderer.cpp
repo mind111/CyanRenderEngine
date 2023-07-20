@@ -2,6 +2,8 @@
 #include "SceneRenderer.h"
 #include "RenderPass.h"
 #include "Shader.h"
+#include "Scene.h"
+#include "StaticMesh.h"
 
 namespace Cyan
 {
@@ -12,63 +14,30 @@ namespace Cyan
 
     SceneRenderer::~SceneRenderer() { }
 
-    void SceneRenderer::render(ISceneRender* outRender, IScene* scene, const SceneViewInfo& viewInfo)
+    void SceneRenderer::render(ISceneRender* outRender, IScene* scene, const SceneViewState& viewInfo)
     {
         // render depth prepass
     }
 
-    /**
-        if (outDepthBuffer != nullptr)
-        {
-            CreateVS(vs, "StaticMeshVS", SHADER_SOURCE_PATH "static_mesh_v.glsl");
-            CreatePS(ps, "DepthOnlyPS", SHADER_SOURCE_PATH "depth_only_p.glsl");
-            CreatePixelPipeline(pipeline, "SceneDepthPrepass", vs, ps);
-
-            RenderPass pass(outDepthBuffer->width, outDepthBuffer->height);
-            pass.viewport = { 0, 0, outDepthBuffer->width, outDepthBuffer->height };
-            pass.setDepthBuffer(outDepthBuffer);
-            pass.drawLambda = [&scene, pipeline, viewParameters](GfxContext* ctx) { 
-                pipeline->bind(ctx);
-                viewParameters.setShaderParameters(pipeline);
-                for (auto instance : scene->m_staticMeshInstances)
-                {
-                    pipeline->setUniform("localToWorld", instance->localToWorld.toMatrix());
-                    auto mesh = instance->parent;
-                    for (i32 i = 0; i < mesh->getNumSubmeshes(); ++i)
-                    {
-                        auto sm = (*mesh)[i];
-                        ctx->setVertexArray(sm->va.get());
-                        ctx->drawIndex(sm->numIndices());
-                    }
-                }
-                pipeline->unbind(ctx);
-            };
-            pass.render(m_ctx);
-        }
-     */
-
-    static void setShaderSceneViewInfo(GfxPipeline* gfxp, const SceneViewInfo& viewInfo)
+    static void setShaderSceneViewInfo(GfxPipeline* gfxp, const SceneViewState& viewState)
     {
-        gfxp->setUniform("viewParameters.renderResolution", viewInfo.resolution);
-        gfxp->setUniform("viewParameters.aspectRatio", viewInfo.aspectRatio);
-        gfxp->setUniform("viewParameters.viewMatrix", viewInfo.viewMatrix);
-        gfxp->setUniform("viewParameters.prevFrameViewMatrix", viewInfo.prevFrameViewMatrix);
-        gfxp->setUniform("viewParameters.projectionMatrix", viewInfo.projectionMatrix);
-        gfxp->setUniform("viewParameters.prevFrameProjectionMatrix", viewInfo.prevFrameProjectionMatrix);
-        gfxp->setUniform("viewParameters.cameraPosition", viewInfo.cameraPosition);
-        gfxp->setUniform("viewParameters.prevFrameCameraPosition", viewInfo.prevFrameCameraPosition);
-        gfxp->setUniform("viewParameters.cameraRight", viewInfo.cameraRight);
-        gfxp->setUniform("viewParameters.cameraForward", viewInfo.cameraForward);
-        gfxp->setUniform("viewParameters.cameraUp", viewInfo.cameraUp);
-        gfxp->setUniform("viewParameters.frameCount", viewInfo.frameCount);
-        gfxp->setUniform("viewParameters.elapsedTime", viewInfo.elapsedTime);
-        gfxp->setUniform("viewParameters.deltaTime", viewInfo.deltaTime);
+        gfxp->setUniform("viewParameters.renderResolution", viewState.resolution);
+        gfxp->setUniform("viewParameters.aspectRatio", viewState.aspectRatio);
+        gfxp->setUniform("viewParameters.viewMatrix", viewState.viewMatrix);
+        gfxp->setUniform("viewParameters.prevFrameViewMatrix", viewState.prevFrameViewMatrix);
+        gfxp->setUniform("viewParameters.projectionMatrix", viewState.projectionMatrix);
+        gfxp->setUniform("viewParameters.prevFrameProjectionMatrix", viewState.prevFrameProjectionMatrix);
+        gfxp->setUniform("viewParameters.cameraPosition", viewState.cameraPosition);
+        gfxp->setUniform("viewParameters.prevFrameCameraPosition", viewState.prevFrameCameraPosition);
+        gfxp->setUniform("viewParameters.cameraRight", viewState.cameraRight);
+        gfxp->setUniform("viewParameters.cameraForward", viewState.cameraForward);
+        gfxp->setUniform("viewParameters.cameraUp", viewState.cameraUp);
+        gfxp->setUniform("viewParameters.frameCount", viewState.frameCount);
+        gfxp->setUniform("viewParameters.elapsedTime", viewState.elapsedTime);
+        gfxp->setUniform("viewParameters.deltaTime", viewState.deltaTime);
     }
 
-    // todo: implement this
-    // 1. get Shader to work
-    // 2. get Texture2D, and DepthTexture2D to work
-    void SceneRenderer::renderSceneDepth(GHDepthTexture* outDepthTex, Scene* scene, const SceneViewInfo& viewInfo)
+    void SceneRenderer::renderSceneDepth(GHDepthTexture* outDepthTex, Scene* scene, const SceneViewState& viewState)
     {
         if (outDepthTex != nullptr && scene != nullptr)
         {
@@ -81,22 +50,19 @@ namespace Cyan
             u32 width = desc.width, height = desc.height;
             RenderPass rp(width, height);
             rp.setDepthTarget(outDepthTex);
-            rp.setRenderFunc([gfxp, scene, viewInfo](GfxContext* gfxc) {
+            rp.setRenderFunc([gfxp, scene, viewState](GfxContext* gfxc) {
                 gfxp->bind();
-                setShaderSceneViewInfo(gfxp.get(), viewInfo);
-#if 0
+                setShaderSceneViewInfo(gfxp.get(), viewState);
                 for (auto instance : scene->m_staticMeshInstances)
                 {
-                    pipeline->setUniform("localToWorld", instance->localToWorld.toMatrix());
-                    auto mesh = instance->parent;
-                    for (i32 i = 0; i < mesh->getNumSubmeshes(); ++i)
+                    gfxp->setUniform("localToWorld", instance->getLocalToWorldMatrix());
+                    auto mesh = instance->getParentMesh();
+                    for (u32 i = 0; i < mesh->numSubMeshes(); ++i)
                     {
                         auto sm = (*mesh)[i];
-                        ctx->setVertexArray(sm->va.get());
-                        ctx->drawIndex(sm->numIndices());
+                        sm->gfxProxy->draw();
                     }
                 }
-#endif
                 gfxp->unbind();
             });
             rp.render(GfxContext::get());

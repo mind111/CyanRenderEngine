@@ -14,9 +14,9 @@ namespace Cyan
         SceneRenderer();
         virtual ~SceneRenderer();
 
-        virtual void render(ISceneRender* outRender, IScene* scene, const SceneViewInfo& viewInfo) override;
+        virtual void render(ISceneRender* outRender, IScene* scene, const SceneViewState& viewInfo) override;
 
-        void renderSceneDepth(GHDepthTexture* outDepth, Scene* scene, const SceneViewInfo& viewInfo);
+        void renderSceneDepth(GHDepthTexture* outDepth, Scene* scene, const SceneViewState& viewInfo);
     private:
     };
 } 

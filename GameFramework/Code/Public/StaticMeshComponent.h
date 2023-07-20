@@ -17,8 +17,8 @@ namespace Cyan
         virtual void onTransformUpdated() override;
 
         StaticMeshInstance* getMeshInstance() { return m_staticMeshInstance.get(); }
-        void setMaterial(std::shared_ptr<Material> material, u32 index);
+        // void setMaterial(std::shared_ptr<Material> material, u32 index);
     private:
-        std::shared_ptr<StaticMeshInstance> m_staticMeshInstance = nullptr;
+        std::unique_ptr<StaticMeshInstance> m_staticMeshInstance = nullptr;
     };
 }

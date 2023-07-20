@@ -54,8 +54,8 @@ namespace Cyan
             }
         }
 
-        i32 numChildren() { return m_children.size(); }
-        i32 numComponents() { return m_components.size(); }
+        u32 numChildren() { return static_cast<u32>(m_children.size()); }
+        u32 numComponents() { return static_cast<u32>(m_components.size()); }
 
         void forEachChild(const std::function<void(Entity*)>& func) 
         { 

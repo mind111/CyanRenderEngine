@@ -1,6 +1,7 @@
 #pragma once
 
 #include "GfxHardwareContext.h"
+#include "GLStaticMesh.h"
 
 namespace Cyan
 {
@@ -21,6 +22,8 @@ namespace Cyan
         // framebuffers
         virtual GHFramebuffer* createFramebuffer(u32 width, u32 height) override;
         virtual void setViewport(i32 x, i32 y, i32 width, i32 height) override;
+        // static mesh
+        virtual GLStaticSubMesh* createGfxStaticSubMesh(Geometry* geometry) override;
     private:
     };
 }

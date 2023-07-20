@@ -249,28 +249,28 @@ namespace Cyan
                 // fill vertices
                 if (positions) 
                 {
-                    for (i32 v = 0; v < numVertices; ++v)
+                    for (u32 v = 0; v < numVertices; ++v)
                     {
                         vertices[v].pos = positions[v];
                     }
                 }
                 if (normals) 
                 {
-                    for (i32 v = 0; v < numVertices; ++v)
+                    for (u32 v = 0; v < numVertices; ++v)
                     {
                         vertices[v].normal = normals[v];
                     }
                 }
                 if (tangents) 
                 {
-                    for (i32 v = 0; v < numVertices; ++v)
+                    for (u32 v = 0; v < numVertices; ++v)
                     {
                         vertices[v].tangent = tangents[v];
                     }
                 }
                 if (texCoord0) 
                 {
-                    for (i32 v = 0; v < numVertices; ++v)
+                    for (u32 v = 0; v < numVertices; ++v)
                     {
                         vertices[v].texCoord0 = glm::vec2(texCoord0[v].x, 1.f - texCoord0[v].y);
                     }
@@ -290,7 +290,7 @@ namespace Cyan
                         if (a.componentType == 5121)
                         {
                             u8* dataAddress = reinterpret_cast<u8*>(m_binaryChunk.data() + a.byteOffset + bv.byteOffset);
-                            for (i32 i = 0; i < numIndices; ++i)
+                            for (u32 i = 0; i < numIndices; ++i)
                             {
                                 indices[i] = static_cast<u32>(dataAddress[i]);
                             }
@@ -298,7 +298,7 @@ namespace Cyan
                         else if (a.componentType == 5123)
                         {
                             u16* dataAddress = reinterpret_cast<u16*>(m_binaryChunk.data() + a.byteOffset + bv.byteOffset);
-                            for (i32 i = 0; i < numIndices; ++i)
+                            for (u32 i = 0; i < numIndices; ++i)
                             {
                                 indices[i] = static_cast<u32>(dataAddress[i]);
                             }

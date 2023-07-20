@@ -8,12 +8,19 @@ namespace Cyan
     {
     }
 
-    void App::initalize()
+    App::~App()
     {
+
+    }
+
+    void App::initialize(World* world)
+    {
+        customInitialize(world);
     }
 
     void App::deinitialize()
     {
+        customDeinitialize();
     }
 
     void App::update(World* world)
@@ -22,5 +29,15 @@ namespace Cyan
 
     void App::render()
     {
+    }
+
+    void App::customInitialize(World* world)
+    {
+
+    }
+
+    void App::customDeinitialize()
+    {
+
     }
 }

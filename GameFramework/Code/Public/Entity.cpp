@@ -1,7 +1,4 @@
 #include "Entity.h"
-#include "CyanAPI.h"
-#include "MathUtils.h"
-#include "BVH.h"
 #include "World.h"
 
 namespace Cyan

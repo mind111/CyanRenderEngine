@@ -1,5 +1,6 @@
 #include <atomic>
 
+#include "App.h"
 #include "Engine.h"
 #include "GfxModule.h"
 #include "World.h"
@@ -8,6 +9,11 @@
 namespace Cyan
 {
     Engine* Engine::s_instance = nullptr;
+
+    Engine::~Engine() 
+    {
+
+    }
 
     Engine* Engine::create(std::unique_ptr<App> app)
     {
@@ -30,6 +36,7 @@ namespace Cyan
         // initialize the gfx module
         m_gfx = GfxModule::create();
         m_gfx->initialize();
+        m_app->initialize(m_world.get());
     }
 
     void Engine::deinitialize()
@@ -45,19 +52,12 @@ namespace Cyan
     bool Engine::syncWithRendering()
     {
         i32 renderFrameNumber = m_gfx->m_renderFrameNumber.load();
-        assert(renderFrameNumber <= m_gameFrameNumber);
-        return renderFrameNumber >= (m_gameFrameNumber - 1);
+        assert(renderFrameNumber <= m_mainFrameNumber);
+        return renderFrameNumber >= (m_mainFrameNumber - 1);
     }
 
     void Engine::submitForRendering()
     {
-        struct SceneView
-        {
-            IScene* scene;
-            ISceneRenderer* renderer;
-            ISceneRender* render;
-            SceneViewState state;
-        };
     }
 
     void Engine::run()
@@ -73,19 +73,8 @@ namespace Cyan
                 // copy game state and submit work to render thread
                 submitForRendering();
 
-                m_gameFrameNumber++;
+                m_mainFrameNumber++;
             }
         }
     }
-}
-
-#include "Modular.h"
-
-int main()
-{
-    Cyan::Engine* engine = Cyan::Engine::create(std::move(std::make_unique<Cyan::ModularApp>("Modular", 1920, 1080)));
-    engine->initialize();
-    engine->run();
-    engine->deinitialize();
-    return 0;
 }

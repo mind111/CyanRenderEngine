@@ -19,9 +19,6 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Core\Core.vcxproj">
-      <Project>{83f758df-eafb-4fcd-bd4f-f10457f04f08}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\ThirdParty\ThirdParty.vcxproj">
       <Project>{6c78afaa-2c32-41fb-973d-932bf9dbaadf}</Project>
     </ProjectReference>
@@ -37,6 +34,7 @@
     <ClInclude Include="Code\Public\Gfx.h" />
     <ClInclude Include="Code\Public\GfxModule.h" />
     <ClInclude Include="Code\Public\GfxInterface.h" />
+    <ClInclude Include="Code\Public\GfxStaticMesh.h" />
     <ClInclude Include="Code\Public\StaticMesh.h" />
     <ClInclude Include="GfxHardwareAbstraction\GfxContext.h" />
     <ClInclude Include="GfxHardwareAbstraction\GHInterface\GfxHardwareContext.h" />
@@ -51,6 +49,7 @@
     <ClInclude Include="GfxHardwareAbstraction\OpenGL\GLObject.h" />
     <ClInclude Include="GfxHardwareAbstraction\OpenGL\GLPipeline.h" />
     <ClInclude Include="GfxHardwareAbstraction\OpenGL\GLShader.h" />
+    <ClInclude Include="GfxHardwareAbstraction\OpenGL\GLStaticMesh.h" />
     <ClInclude Include="GfxHardwareAbstraction\OpenGL\GLTexture.h" />
     <ClInclude Include="GfxHardwareAbstraction\Shader.h" />
   </ItemGroup>
@@ -62,6 +61,7 @@
     <ClCompile Include="Code\Public\AssetManager.cpp" />
     <ClCompile Include="Code\Public\GfxModule.cpp" />
     <ClCompile Include="Code\Public\GfxInterface.cpp" />
+    <ClCompile Include="Code\Public\GfxStaticMesh.cpp" />
     <ClCompile Include="Code\Public\StaticMesh.cpp" />
     <ClCompile Include="GfxHardwareAbstraction\GfxContext.cpp" />
     <ClCompile Include="GfxHardwareAbstraction\GHInterface\GHBuffer.cpp" />
@@ -73,6 +73,7 @@
     <ClCompile Include="GfxHardwareAbstraction\OpenGL\GLFramebuffer.cpp" />
     <ClCompile Include="GfxHardwareAbstraction\OpenGL\GLPipeline.cpp" />
     <ClCompile Include="GfxHardwareAbstraction\OpenGL\GLShader.cpp" />
+    <ClCompile Include="GfxHardwareAbstraction\OpenGL\GLStaticMesh.cpp" />
     <ClCompile Include="GfxHardwareAbstraction\OpenGL\GLTexture.cpp" />
     <ClCompile Include="GfxHardwareAbstraction\Shader.cpp" />
   </ItemGroup>

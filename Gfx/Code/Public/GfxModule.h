@@ -1,6 +1,7 @@
-#include "Core.h"
-
 #include <atomic>
+
+#include "Core.h"
+#include "Gfx.h"
 
 namespace Cyan
 {
@@ -22,7 +23,7 @@ namespace Cyan
     /**
      * the Gfx module responsible for everything rendering related
      */
-    class GfxModule
+    class GFX_API GfxModule
     {
     public:
         friend class Engine;

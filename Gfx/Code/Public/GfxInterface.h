@@ -53,6 +53,6 @@ namespace Cyan
         GFX_API static std::unique_ptr<ISceneRenderer> create();
 
         // interface
-        virtual void render(ISceneRender* outRender, IScene* scene, const SceneViewState& viewInfo) = 0;
+        virtual void render(ISceneRender* outRender, IScene* scene, const SceneViewState& viewState) = 0;
     };
 }

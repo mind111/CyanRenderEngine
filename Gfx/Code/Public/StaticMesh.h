@@ -3,13 +3,13 @@
 #include "Asset.h"
 #include "Gfx.h"
 #include "Geometry.h"
+#include "GfxStaticMesh.h"
+#include "Transform.h"
 
 namespace Cyan
 {
-    class VertexBuffer;
-    class IndexBuffer;
-    class Material;
-    class MaterialInstance;
+    // class Material;
+    // class MaterialInstance;
     class StaticMeshInstance;
 
     class GFX_API StaticMesh : public Asset
@@ -21,7 +21,7 @@ namespace Cyan
         struct SubMesh
         {
             SubMesh(StaticMesh* inParent, std::unique_ptr<Geometry> inGeometry);
-            ~SubMesh() { }
+            ~SubMesh();
 
             i32 numVertices() { return geometry->numVertices(); }
             i32 numIndices() { return geometry->numIndices(); }
@@ -30,18 +30,29 @@ namespace Cyan
             StaticMesh* parent = nullptr;
             std::unique_ptr<Geometry> geometry = nullptr;
 
-            void initGfxData();
+            void createGfxProxy();
 
             // gfx data
-            bool bReadyForRendering = false;
-            std::unique_ptr<VertexBuffer> vb = nullptr;
-            std::unique_ptr<IndexBuffer> ib = nullptr;
+            GfxStaticSubMesh* gfxProxy = nullptr;
         };
 
         StaticMesh(const char* name, u32 numSubMeshes);
-        ~StaticMesh() { }
+        ~StaticMesh();
 
-        StaticMeshInstance* createInstance();
+        SubMesh* operator[](u32 index) 
+        { 
+            assert(index < m_numSubMeshes);
+            return m_subMeshes[index].get();
+        }
+
+        SubMesh* operator[](i32 index) 
+        { 
+            assert(static_cast<u32>(index) < m_numSubMeshes);
+            return m_subMeshes[index].get();
+        }
+
+        std::unique_ptr<StaticMeshInstance> createInstance(const Transform& localToWorld);
+        // todo: implement this
         void removeInstance();
 
         u32 numSubMeshes() const { return m_numSubMeshes; }
@@ -52,15 +63,21 @@ namespace Cyan
         std::vector<StaticMeshInstance*> m_instances;
     };
 
-    class StaticMeshInstance
+    class GFX_API StaticMeshInstance
     {
     public:
-        StaticMeshInstance(StaticMesh* inParent, const glm::mat4& inTransform);
-        ~StaticMeshInstance() { }
+        StaticMeshInstance(StaticMesh* parent, const Transform& localToWorld);
+        ~StaticMeshInstance();
 
+        StaticMesh* getParentMesh() { return m_parent; }
+        const Transform& getLocalToWorldTransform() { return m_localToWorldTransform; }
+        const glm::mat4& getLocalToWorldMatrix() { return m_localToWorldMatrix; }
+        void setLocalToWorldTransform(const Transform& localToWorld);
+        // void setMaterial(Material);
     private:
-        StaticMesh* parent = nullptr;
-        glm::mat4 transform;
-        std::vector<MaterialInstance*> materials;
+        StaticMesh* m_parent = nullptr;
+        Transform m_localToWorldTransform;
+        glm::mat4 m_localToWorldMatrix;
+        // std::vector<MaterialInstance*> materials;
     };
 }

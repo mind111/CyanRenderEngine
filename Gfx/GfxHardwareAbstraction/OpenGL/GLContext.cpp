@@ -63,4 +63,9 @@ namespace Cyan
     {
         glViewport(x, y, width, height);
     }
+
+    GLStaticSubMesh* GLGHContext::createGfxStaticSubMesh(Geometry* geometry)
+    {
+        return new GLStaticSubMesh(geometry);
+    }
 }

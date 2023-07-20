@@ -29,7 +29,7 @@ namespace Cyan
     {
         // parse file extension
         std::string path(filename);
-        u32 found = path.find_last_of('.');
+        u32 found = static_cast<u32>(path.find_last_of('.'));
         std::string extension = path.substr(found, found + 1);
         if (extension == ".gltf" || extension == ".glb")
         {
@@ -43,7 +43,7 @@ namespace Cyan
     void AssetManager::importGltf(const char* gltfFilename)
     {
         std::string path(gltfFilename);
-        u32 found = path.find_last_of('.');
+        u32 found = static_cast<u32>(path.find_last_of('.'));
         std::string extension = path.substr(found, found + 1);
         if (extension == ".gltf")
         {
@@ -63,7 +63,7 @@ namespace Cyan
                 auto mesh = AssetManager::createStaticMesh(meshName.c_str(), numSubMeshes);
 
                 // todo: this can be run on a worker thread, hmmm, maybe a job system ...?
-                for (i32 sm = 0; sm < numSubMeshes; ++sm)
+                for (u32 sm = 0; sm < numSubMeshes; ++sm)
                 {
                     const gltf::Primitive& p = glb->m_meshes[m].primitives[sm];
                     switch ((gltf::Primitive::Mode)p.mode)
@@ -72,7 +72,7 @@ namespace Cyan
                     {
                         auto triangles = std::make_unique<Triangles>();
                         glb->importTriangles(p, *triangles);
-                        auto subMesh = std::make_unique<StaticMesh::SubMesh>(std::move(triangles));
+                        auto subMesh = std::make_unique<StaticMesh::SubMesh>(mesh, std::move(triangles));
                         mesh->setSubMesh(std::move(subMesh), sm);
                     } break;
                     case gltf::Primitive::Mode::kLines:
@@ -83,6 +83,11 @@ namespace Cyan
                 }
             }
         }
+    }
+
+    void AssetManager::importGltfNode(World* world)
+    {
+
     }
 
     StaticMesh* AssetManager::createStaticMesh(const char* name, u32 numSubMeshes)

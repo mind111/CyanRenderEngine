@@ -17,6 +17,7 @@ namespace Cyan
         ~World();
 
         void update();
+        void import(const char* filename);
 
         std::string m_name;
         std::unique_ptr<IScene> m_scene = nullptr;

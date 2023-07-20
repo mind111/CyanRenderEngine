@@ -1,4 +1,5 @@
 #include "StaticMesh.h"
+#include "GfxContext.h"
 
 namespace Cyan
 {
@@ -8,8 +9,19 @@ namespace Cyan
         m_subMeshes.resize(numSubMeshes);
     }
 
-    StaticMeshInstance* StaticMesh::createInstance()
+    StaticMesh::~StaticMesh()
     {
+
+    }
+
+    std::unique_ptr<StaticMeshInstance> StaticMesh::createInstance(const Transform& localToWorld)
+    {
+        return std::move(std::make_unique<StaticMeshInstance>(this, localToWorld));
+    }
+
+    void StaticMesh::removeInstance()
+    {
+
     }
 
 #define ENQUEUE_GFX_TASK(task)
@@ -19,7 +31,7 @@ namespace Cyan
         assert(slot < m_numSubMeshes);
 
         ENQUEUE_GFX_TASK([this, std::move(sm), slot]() {
-            sm->initGfxData();
+            sm->createGfxProxy();
             m_subMeshes[slot] = std::move(sm);
         })
     }
@@ -29,17 +41,32 @@ namespace Cyan
     {
     }
 
-    void StaticMesh::SubMesh::initGfxData()
+    StaticMesh::SubMesh::~SubMesh()
     {
-        if (bReadyForRendering != true)
-        {
-            bReadyForRendering = true;
-        }
+
     }
 
-    StaticMeshInstance::StaticMeshInstance(StaticMesh* inParent, const glm::mat4& inTransform)
-        : parent(inParent), transform(inTransform)
+    void StaticMesh::SubMesh::createGfxProxy()
     {
-        materials.resize(parent->numSubMeshes());
+        // create gfx proxy here
+        gfxProxy = GfxContext::get()->createGfxStaticSubMesh(geometry.get());
     }
+
+    StaticMeshInstance::StaticMeshInstance(StaticMesh* parent, const Transform& localToWorld)
+        : m_parent(parent), m_localToWorldTransform(localToWorld), m_localToWorldMatrix(localToWorld.toMatrix())
+    {
+        // materials.resize(parent->numSubMeshes());
+    }
+
+    StaticMeshInstance::~StaticMeshInstance()
+    {
+
+    }
+
+    void StaticMeshInstance::setLocalToWorldTransform(const Transform& localToWorld)
+    {
+        m_localToWorldTransform = localToWorld;
+        m_localToWorldMatrix = m_localToWorldTransform.toMatrix();
+    }
+
 }

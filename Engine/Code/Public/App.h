@@ -13,14 +13,17 @@ namespace Cyan
     {
     public:
         App(const char* name, int windowWidth, int windowHeight);
-        ~App();
+        virtual ~App();
 
-        virtual void initalize();
-        virtual void deinitialize();
+        void initialize(World* world);
+        void deinitialize();
         virtual void update(World* world);
         virtual void render();
 
     protected:
+        virtual void customInitialize(World* world);
+        virtual void customDeinitialize();
+
         std::string m_name;
         int m_windowWidth, m_windowHeight;
     };

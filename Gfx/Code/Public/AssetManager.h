@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core.h"
+#include "Gfx.h"
 
 namespace Cyan
 {
@@ -9,7 +10,7 @@ namespace Cyan
     // class Material;
     // class Texture2D;
 
-    class AssetManager
+    class GFX_API AssetManager
     {
     public:
         ~AssetManager();
@@ -24,6 +25,7 @@ namespace Cyan
         AssetManager();
 
         void importGltf(const char* gltfFilename);
+        void importGltfNode(World* world);
 
         std::unordered_map<std::string, StaticMesh*> m_staticMeshMap;
         static std::unique_ptr<AssetManager> s_instance;

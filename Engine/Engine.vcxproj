@@ -40,6 +40,7 @@
     <ProjectGuid>{2297efb7-fd39-4938-9789-380b1bac432b}</ProjectGuid>
     <RootNamespace>Engine</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>Engine</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -94,7 +95,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\;$(ProjectDir)Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)GameFramework\Code\Public\;$(SolutionDir)Modular\Code\Public\;$(SolutionDir)Gfx\Code\Public\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\;$(ProjectDir)Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)GameFramework\Code\Public\;$(SolutionDir)Modular\Code\Public\;$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)ThirdParty\glm\Code\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -113,7 +114,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\;$(ProjectDir)Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)GameFramework\Code\Public\;$(SolutionDir)Modular\Code\Public\;$(SolutionDir)Gfx\Code\Public\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\;$(ProjectDir)Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)GameFramework\Code\Public\;$(SolutionDir)Modular\Code\Public\;$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)ThirdParty\glm\Code\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -132,7 +133,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\;$(ProjectDir)Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)GameFramework\Code\Public\;$(SolutionDir)Modular\Code\Public\;$(SolutionDir)Gfx\Code\Public\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\;$(ProjectDir)Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)GameFramework\Code\Public\;$(SolutionDir)Modular\Code\Public\;$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)ThirdParty\glm\Code\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -151,7 +152,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\;$(ProjectDir)Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)GameFramework\Code\Public\;$(SolutionDir)Modular\Code\Public\;$(SolutionDir)Gfx\Code\Public\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\;$(ProjectDir)Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)GameFramework\Code\Public\;$(SolutionDir)Modular\Code\Public\;$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)ThirdParty\glm\Code\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
