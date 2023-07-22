@@ -16,17 +16,31 @@ namespace Cyan
 
     std::unique_ptr<StaticMeshInstance> StaticMesh::createInstance(const Transform& localToWorld)
     {
-        return std::move(std::make_unique<StaticMeshInstance>(this, localToWorld));
+        i32 instanceID = -1;
+        if (!m_freeInstanceIDList.empty())
+        {
+            instanceID = m_freeInstanceIDList.front();
+            m_freeInstanceIDList.pop();
+        }
+        else
+        {
+            instanceID = m_instances.size();
+        }
+        return std::move(std::make_unique<StaticMeshInstance>(this, instanceID, localToWorld));
     }
 
-    void StaticMesh::removeInstance()
+    void StaticMesh::removeInstance(StaticMeshInstance* instance)
     {
-
+        i32 id = instance->getInstanceID();
+        assert(id >= 0);
+        m_instances[id] = nullptr;
+        // recycle the id
+        m_freeInstanceIDList.push(id);
     }
 
 #define ENQUEUE_GFX_TASK(task)
 
-    void StaticMesh::setSubMesh(std::unique_ptr<SubMesh> sm, u32 slot)
+    void StaticMesh::setSubMesh(std::unique_ptr<StaticSubMesh> sm, u32 slot)
     {
         assert(slot < m_numSubMeshes);
 
@@ -36,31 +50,52 @@ namespace Cyan
         })
     }
 
-    StaticMesh::SubMesh::SubMesh(StaticMesh* inParent, std::unique_ptr<Geometry> inGeometry)
-        : parent(inParent), geometry(std::move(inGeometry))
+    StaticSubMesh::StaticSubMesh(StaticMesh* parent, std::unique_ptr<Geometry> geometry)
+        : m_parent(parent), m_geometry(std::move(geometry))
     {
     }
 
-    StaticMesh::SubMesh::~SubMesh()
+    StaticSubMesh::~StaticSubMesh()
     {
-
     }
 
-    void StaticMesh::SubMesh::createGfxProxy()
+    void StaticSubMesh::onLoaded()
     {
-        // create gfx proxy here
-        gfxProxy = GfxContext::get()->createGfxStaticSubMesh(geometry.get());
+        bLoaded.store(true);
+        std::lock_guard<std::mutex> lock(m_listenersMutex);
+        for (const auto& listener : m_listeners)
+        {
+            listener(this);
+        }
+        m_listeners.clear();
+        assert(m_listeners.empty() == true);
     }
 
-    StaticMeshInstance::StaticMeshInstance(StaticMesh* parent, const Transform& localToWorld)
+    void StaticSubMesh::addListener(const Listener& listener)
+    {
+        bool isLoaded = bLoaded.load();
+
+        // if the subMesh is not ready yet, defer execution
+        if (!isLoaded) 
+        {
+            std::lock_guard<std::mutex> lock(m_listenersMutex);
+            m_listeners.push_back(listener);
+        }
+        else
+        {
+            // if the subMesh is ready, immediately execute
+            listener(this);
+        }
+    }
+
+    StaticMeshInstance::StaticMeshInstance(StaticMesh* parent, i32 instanceID, const Transform& localToWorld)
         : m_parent(parent), m_localToWorldTransform(localToWorld), m_localToWorldMatrix(localToWorld.toMatrix())
     {
-        // materials.resize(parent->numSubMeshes());
     }
 
     StaticMeshInstance::~StaticMeshInstance()
     {
-
+        m_parent->removeInstance(this);
     }
 
     void StaticMeshInstance::setLocalToWorldTransform(const Transform& localToWorld)
@@ -68,5 +103,4 @@ namespace Cyan
         m_localToWorldTransform = localToWorld;
         m_localToWorldMatrix = m_localToWorldTransform.toMatrix();
     }
-
 }

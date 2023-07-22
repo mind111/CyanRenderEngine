@@ -28,13 +28,14 @@ namespace Cyan
 
     Engine::Engine(std::unique_ptr<App> app)
     {
+        m_gfx = GfxModule::create();
         m_app = std::move(app);
+        m_world = std::make_unique<World>("Default");
     }
 
     void Engine::initialize()
     {
         // initialize the gfx module
-        m_gfx = GfxModule::create();
         m_gfx->initialize();
         m_app->initialize(m_world.get());
     }

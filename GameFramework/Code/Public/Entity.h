@@ -1,5 +1,6 @@
 #pragma once
 
+#include "GameFramework.h"
 #include "Core.h"
 #include "MathLibrary.h"
 
@@ -11,18 +12,18 @@ namespace Cyan
 {
     class World;
 
-    class Entity
+    class  Entity
     {
     public:
         friend class World;
 
-        Entity(World* world, const char* name, const Transform& local);
+        Entity(World* world, const char* name, const Transform& entityLocalTransform);
         ~Entity() { }
 
         virtual void update();
 
         bool isRootEntity();
-        void attachChild(Entity* childEntity);
+        void attachChild(std::shared_ptr<Entity> childEntity);
         void onAttached();
         void detach();
         void onDetached();
@@ -34,7 +35,7 @@ namespace Cyan
         const std::string& getName() { return m_name; }
         World* getWorld() { return m_world; }
         Entity* getParent() { return m_parent; }
-        Entity* getChild(i32 index) { return m_children[index]; }
+        Entity* getChild(i32 index) { return m_children[index].get(); }
         SceneComponent* getRootSceneComponent() { return m_rootSceneComponent.get(); }
         Component* getComponent(i32 index) { return m_components[index].get(); }
 
@@ -61,7 +62,7 @@ namespace Cyan
         { 
             for (auto e : m_children)
             {
-                func(e);
+                func(e.get());
             }
         }
 
@@ -82,9 +83,8 @@ namespace Cyan
         std::string m_name;
         World* m_world = nullptr;
         Entity* m_parent = nullptr;
-        std::vector<Entity*> m_children;
+        std::vector<std::shared_ptr<Entity>> m_children;
         std::shared_ptr<SceneComponent> m_rootSceneComponent = nullptr;
-        // SceneComponents owned by this entity
         std::vector<std::shared_ptr<Component>> m_components;
     };
 }

@@ -26,6 +26,9 @@
     <ClInclude Include="Code\Public\MathLibrary.h" />
     <ClInclude Include="Code\Public\Transform.h" />
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Code\Public\Transform.cpp" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>

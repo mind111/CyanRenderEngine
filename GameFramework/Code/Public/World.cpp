@@ -7,6 +7,8 @@ namespace Cyan
     World::World(const char* name)
         : m_name(name), m_scene(nullptr)
     {
+        assert(m_root == nullptr);
+        m_root = createEntity<Entity>(m_name.c_str(), Transform());
         m_scene = std::move(IScene::create());
     }
 

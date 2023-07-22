@@ -8,6 +8,7 @@
     <ClInclude Include="Code\Public\SceneComponent.h" />
     <ClInclude Include="Code\Public\StaticMeshComponent.h" />
     <ClInclude Include="Code\Public\Entity.h" />
+    <ClInclude Include="Code\Public\StaticMeshEntity.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Code\Public\Camera.cpp" />
@@ -16,5 +17,6 @@
     <ClCompile Include="Code\Public\Component.cpp" />
     <ClCompile Include="Code\Public\SceneComponent.cpp" />
     <ClCompile Include="Code\Public\StaticMeshComponent.cpp" />
+    <ClCompile Include="Code\Public\StaticMeshEntity.cpp" />
   </ItemGroup>
 </Project>

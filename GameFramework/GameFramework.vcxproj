@@ -158,6 +158,7 @@
     <ClInclude Include="Code\Public\GameFramework.h" />
     <ClInclude Include="Code\Public\SceneComponent.h" />
     <ClInclude Include="Code\Public\StaticMeshComponent.h" />
+    <ClInclude Include="Code\Public\StaticMeshEntity.h" />
     <ClInclude Include="Code\Public\World.h" />
   </ItemGroup>
   <ItemGroup>
@@ -166,6 +167,7 @@
     <ClCompile Include="Code\Public\Entity.cpp" />
     <ClCompile Include="Code\Public\SceneComponent.cpp" />
     <ClCompile Include="Code\Public\StaticMeshComponent.cpp" />
+    <ClCompile Include="Code\Public\StaticMeshEntity.cpp" />
     <ClCompile Include="Code\Public\World.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

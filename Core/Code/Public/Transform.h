@@ -62,7 +62,7 @@ namespace Cyan
             rotation = rhs.rotation;
             scale = rhs.scale;
         }
-
+ 
         glm::vec3 translation;
         glm::quat rotation;
         glm::vec3 scale;

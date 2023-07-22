@@ -11,6 +11,8 @@
 
 namespace Cyan
 {
+    class StaticMeshInstance;
+
     class IScene
     {
     public:
@@ -18,6 +20,7 @@ namespace Cyan
 
         // factory method
         static GFX_API std::unique_ptr<IScene> create();
+        virtual void addStaticMeshInstance(StaticMeshInstance* staticMeshInstance) = 0;
     };
 
     class ISceneRender

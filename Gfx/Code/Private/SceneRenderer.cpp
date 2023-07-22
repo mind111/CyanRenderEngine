@@ -53,15 +53,10 @@ namespace Cyan
             rp.setRenderFunc([gfxp, scene, viewState](GfxContext* gfxc) {
                 gfxp->bind();
                 setShaderSceneViewInfo(gfxp.get(), viewState);
-                for (auto instance : scene->m_staticMeshInstances)
+                for (auto instance : scene->m_staticSubMeshInstances)
                 {
-                    gfxp->setUniform("localToWorld", instance->getLocalToWorldMatrix());
-                    auto mesh = instance->getParentMesh();
-                    for (u32 i = 0; i < mesh->numSubMeshes(); ++i)
-                    {
-                        auto sm = (*mesh)[i];
-                        sm->gfxProxy->draw();
-                    }
+                    gfxp->setUniform("localToWorld", instance.localToWorldMatrix);
+                    instance.subMesh->draw();
                 }
                 gfxp->unbind();
             });

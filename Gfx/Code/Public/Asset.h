@@ -41,6 +41,7 @@ namespace Cyan
 
         static const char* getAssetTypeName() { return "Asset"; }
 
+        const std::string& getName() { return m_name; }
         bool isLoaded() { return m_state >= State::kLoaded; }
         bool isInited() { return m_state == State::kInitialized; }
 
