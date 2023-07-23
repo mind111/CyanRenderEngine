@@ -41,7 +41,21 @@ namespace Cyan
             IScene* scene = world->getScene();
             if (scene != nullptr)
             {
-                scene->addStaticMeshInstance(m_staticMeshInstance.get());
+                if (m_staticMeshInstance != nullptr)
+                {
+                    i32 instanceID = m_staticMeshInstance->getInstanceID();
+                    StaticMesh& mesh = *m_staticMeshInstance->getParentMesh();
+                    for (u32 i = 0; i < mesh.numSubMeshes(); ++i)
+                    {
+                        mesh[i]->addListener([this, scene, instanceID](StaticSubMesh* sm) {
+                            // this function needs to be run on the rendering thread
+                            StaticSubMeshInstance instance = { };
+                            instance.subMesh = GfxStaticSubMesh::create(sm->getGeometry());
+                            instance.localToWorldMatrix = m_staticMeshInstance->getLocalToWorldMatrix();
+                            scene->addStaticSubMeshInstance(instance);
+                        });
+                    }
+                }
             }
         }
     }

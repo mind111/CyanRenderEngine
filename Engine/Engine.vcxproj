@@ -19,20 +19,42 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\GameFramework\GameFramework.vcxproj">
-      <Project>{0bfa30d3-520d-4455-9451-2fcb7a736922}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\Gfx\Gfx.vcxproj">
       <Project>{fe8bf429-0c59-4e6d-ae9c-a12b3505fe22}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\ThirdParty\ThirdParty.vcxproj">
+      <Project>{6c78afaa-2c32-41fb-973d-932bf9dbaadf}</Project>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Code\Private\gltf.h" />
     <ClInclude Include="Code\Public\App.h" />
+    <ClInclude Include="Code\Public\Asset.h" />
+    <ClInclude Include="Code\Public\AssetManager.h" />
+    <ClInclude Include="Code\Public\Camera.h" />
+    <ClInclude Include="Code\Public\Component.h" />
     <ClInclude Include="Code\Public\Engine.h" />
+    <ClInclude Include="Code\Public\Entity.h" />
+    <ClInclude Include="Code\Public\GameFramework.h" />
+    <ClInclude Include="Code\Public\SceneComponent.h" />
+    <ClInclude Include="Code\Public\StaticMesh.h" />
+    <ClInclude Include="Code\Public\StaticMeshComponent.h" />
+    <ClInclude Include="Code\Public\StaticMeshEntity.h" />
+    <ClInclude Include="Code\Public\World.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Code\Private\gltf.cpp" />
     <ClCompile Include="Code\Public\App.cpp" />
+    <ClCompile Include="Code\Public\AssetManager.cpp" />
+    <ClCompile Include="Code\Public\Camera.cpp" />
+    <ClCompile Include="Code\Public\Component.cpp" />
     <ClCompile Include="Code\Public\Engine.cpp" />
+    <ClCompile Include="Code\Public\Entity.cpp" />
+    <ClCompile Include="Code\Public\SceneComponent.cpp" />
+    <ClCompile Include="Code\Public\StaticMesh.cpp" />
+    <ClCompile Include="Code\Public\StaticMeshComponent.cpp" />
+    <ClCompile Include="Code\Public\StaticMeshEntity.cpp" />
+    <ClCompile Include="Code\Public\World.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -95,7 +117,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\;$(ProjectDir)Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)GameFramework\Code\Public\;$(SolutionDir)Modular\Code\Public\;$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)ThirdParty\glm\Code\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Code\Public\;$(SolutionDir)Engine\Code\Private\;$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\tiny_gltf\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\stbi\Code\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -114,7 +136,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\;$(ProjectDir)Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)GameFramework\Code\Public\;$(SolutionDir)Modular\Code\Public\;$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)ThirdParty\glm\Code\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Code\Public\;$(SolutionDir)Engine\Code\Private\;$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\tiny_gltf\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\stbi\Code\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -133,7 +155,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\;$(ProjectDir)Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)GameFramework\Code\Public\;$(SolutionDir)Modular\Code\Public\;$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)ThirdParty\glm\Code\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Code\Public\;$(SolutionDir)Engine\Code\Private\;$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\tiny_gltf\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\stbi\Code\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -152,7 +174,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\;$(ProjectDir)Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)GameFramework\Code\Public\;$(SolutionDir)Modular\Code\Public\;$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)ThirdParty\glm\Code\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Code\Public\;$(SolutionDir)Engine\Code\Private\;$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\tiny_gltf\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\stbi\Code\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>

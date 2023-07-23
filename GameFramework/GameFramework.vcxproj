@@ -151,25 +151,6 @@
       <Project>{fe8bf429-0c59-4e6d-ae9c-a12b3505fe22}</Project>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="Code\Public\Camera.h" />
-    <ClInclude Include="Code\Public\Component.h" />
-    <ClInclude Include="Code\Public\Entity.h" />
-    <ClInclude Include="Code\Public\GameFramework.h" />
-    <ClInclude Include="Code\Public\SceneComponent.h" />
-    <ClInclude Include="Code\Public\StaticMeshComponent.h" />
-    <ClInclude Include="Code\Public\StaticMeshEntity.h" />
-    <ClInclude Include="Code\Public\World.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="Code\Public\Camera.cpp" />
-    <ClCompile Include="Code\Public\Component.cpp" />
-    <ClCompile Include="Code\Public\Entity.cpp" />
-    <ClCompile Include="Code\Public\SceneComponent.cpp" />
-    <ClCompile Include="Code\Public\StaticMeshComponent.cpp" />
-    <ClCompile Include="Code\Public\StaticMeshEntity.cpp" />
-    <ClCompile Include="Code\Public\World.cpp" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

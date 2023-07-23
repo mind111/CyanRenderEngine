@@ -8,10 +8,17 @@
 
 #include "Gfx.h"
 #include "CameraViewInfo.h"
+#include "GfxStaticMesh.h"
 
 namespace Cyan
 {
-    class StaticMeshInstance;
+    struct StaticSubMeshInstance
+    {
+        // todo: material
+        GfxStaticSubMesh* subMesh = nullptr;
+        glm::mat4 localToWorldMatrix = glm::mat4(1.f);
+    };
+
 
     class IScene
     {
@@ -20,7 +27,7 @@ namespace Cyan
 
         // factory method
         static GFX_API std::unique_ptr<IScene> create();
-        virtual void addStaticMeshInstance(StaticMeshInstance* staticMeshInstance) = 0;
+        virtual void addStaticSubMeshInstance(const StaticSubMeshInstance& staticSubMeshInstance) = 0;
     };
 
     class ISceneRender

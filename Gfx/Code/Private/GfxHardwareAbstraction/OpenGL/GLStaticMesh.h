@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Core.h"
-#include "StaticMesh.h"
 #include "GfxStaticMesh.h"
 
 namespace Cyan

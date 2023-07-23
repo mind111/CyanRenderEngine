@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Core.h"
-#include "Gfx.h"
+#include "Engine.h"
 
 namespace Cyan
 {
@@ -18,7 +18,7 @@ namespace Cyan
 
     // class Material;
     // class Texture2D;
-    class GFX_API AssetManager
+    class ENGINE_API AssetManager
     {
     public:
         ~AssetManager();

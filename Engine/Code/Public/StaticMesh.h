@@ -20,7 +20,7 @@ namespace Cyan
     public:
         using Listener = std::function<void(StaticSubMesh* sm)>;
 
-        StaticSubMesh(StaticMesh* parent, std::unique_ptr<Geometry> geometry);
+        StaticSubMesh(StaticMesh* parent);
         ~StaticSubMesh();
 
         // async loading related
@@ -34,13 +34,15 @@ namespace Cyan
         i32 numIndices() { return m_geometry->numIndices(); }
         StaticMesh* getParentMesh() { return m_parent; }
         Geometry* getGeometry() { return m_geometry.get(); }
+        /* This function can be called on worker thread */
+        void setGeometry(std::unique_ptr<Geometry> geometry);
 
     private:
         StaticMesh* m_parent = nullptr;
         std::unique_ptr<Geometry> m_geometry = nullptr;
     };
 
-    class GFX_API StaticMesh : public Asset
+    class StaticMesh : public Asset
     {
     public:
         friend class Scene;
@@ -65,7 +67,6 @@ namespace Cyan
         void removeInstance(StaticMeshInstance* instance);
 
         u32 numSubMeshes() const { return m_numSubMeshes; }
-        void setSubMesh(std::unique_ptr<StaticSubMesh> sm, u32 slot);
     private:
         const u32 m_numSubMeshes;
         std::vector<std::unique_ptr<StaticSubMesh>> m_subMeshes;
@@ -75,7 +76,7 @@ namespace Cyan
         std::vector<StaticMeshInstance*> m_instances;
     };
 
-    class GFX_API StaticMeshInstance
+    class StaticMeshInstance
     {
     public:
         friend class Scene;

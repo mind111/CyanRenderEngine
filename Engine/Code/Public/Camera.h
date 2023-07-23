@@ -4,7 +4,7 @@
 
 #include "Core.h"
 #include "MathLibrary.h"
-#include "GameFramework.h"
+#include "Engine.h"
 #include "CameraViewInfo.h"
 #include "GfxInterface.h"
 
@@ -17,7 +17,7 @@ namespace Cyan
     /**
      * A camera used for scene rendering
      */
-    class GAMEFRAMEWORK_API Camera
+    class ENGINE_API Camera
     {
     public:
         enum class RenderMode

@@ -3,7 +3,7 @@
 #include "RenderPass.h"
 #include "Shader.h"
 #include "Scene.h"
-#include "StaticMesh.h"
+#include "GfxStaticMesh.h"
 
 namespace Cyan
 {

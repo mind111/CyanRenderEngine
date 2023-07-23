@@ -4,7 +4,7 @@
 #include <memory>
 
 #include "Core.h"
-#include "GameFramework.h"
+#include "Engine.h"
 #include "Transform.h"
 #include "Entity.h"
 
@@ -14,7 +14,7 @@ namespace Cyan
     class Entity;
     class StaticMeshEntity;
 
-    class GAMEFRAMEWORK_API World
+    class ENGINE_API World
     {
     public:
         World(const char* name);

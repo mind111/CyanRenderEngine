@@ -3,9 +3,31 @@
   <ItemGroup>
     <ClInclude Include="Code\Public\App.h" />
     <ClInclude Include="Code\Public\Engine.h" />
+    <ClInclude Include="Code\Public\Camera.h" />
+    <ClInclude Include="Code\Public\Component.h" />
+    <ClInclude Include="Code\Public\Entity.h" />
+    <ClInclude Include="Code\Public\GameFramework.h" />
+    <ClInclude Include="Code\Public\SceneComponent.h" />
+    <ClInclude Include="Code\Public\StaticMeshComponent.h" />
+    <ClInclude Include="Code\Public\StaticMeshEntity.h" />
+    <ClInclude Include="Code\Public\World.h" />
+    <ClInclude Include="Code\Public\StaticMesh.h" />
+    <ClInclude Include="Code\Public\AssetManager.h" />
+    <ClInclude Include="Code\Public\Asset.h" />
+    <ClInclude Include="Code\Private\gltf.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Code\Public\App.cpp" />
     <ClCompile Include="Code\Public\Engine.cpp" />
+    <ClCompile Include="Code\Public\Camera.cpp" />
+    <ClCompile Include="Code\Public\Component.cpp" />
+    <ClCompile Include="Code\Public\Entity.cpp" />
+    <ClCompile Include="Code\Public\SceneComponent.cpp" />
+    <ClCompile Include="Code\Public\StaticMeshComponent.cpp" />
+    <ClCompile Include="Code\Public\StaticMeshEntity.cpp" />
+    <ClCompile Include="Code\Public\World.cpp" />
+    <ClCompile Include="Code\Public\StaticMesh.cpp" />
+    <ClCompile Include="Code\Public\AssetManager.cpp" />
+    <ClCompile Include="Code\Private\gltf.cpp" />
   </ItemGroup>
 </Project>

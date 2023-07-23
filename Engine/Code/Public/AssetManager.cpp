@@ -143,9 +143,10 @@ namespace Cyan
                 const auto& gltfMesh = glb->m_meshes[m];
                 std::string meshName = gltfMesh.m_name; // meshName cannot be empty here since it's handled in glb->load()
                 u32 numSubMeshes = static_cast<u32>(gltfMesh.primitives.size());
+                // todo: this call needs to preallocate all the subMeshes
                 auto mesh = AssetManager::createStaticMesh(meshName.c_str(), numSubMeshes);
 
-                // todo: this can be run on a worker thread, hmmm, maybe a job system ...?
+                // todo: this can be run on a worker thread
                 for (u32 sm = 0; sm < numSubMeshes; ++sm)
                 {
                     const gltf::Primitive& p = glb->m_meshes[m].primitives[sm];
@@ -155,9 +156,8 @@ namespace Cyan
                     {
                         auto triangles = std::make_unique<Triangles>();
                         glb->importTriangles(p, *triangles);
-                        auto subMesh = std::make_unique<StaticSubMesh>(mesh, std::move(triangles));
-                        mesh->setSubMesh(std::move(subMesh), sm);
-                        subMesh->onLoaded();
+                        auto subMesh = (*mesh)[sm];
+                        subMesh->setGeometry(std::move(triangles));
                     } break;
                     case gltf::Primitive::Mode::kLines:
                     case gltf::Primitive::Mode::kPoints:

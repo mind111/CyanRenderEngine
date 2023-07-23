@@ -27,7 +27,7 @@ namespace Cyan
         {
         case Geometry::Type::kTriangles: {
             auto triangles = static_cast<Triangles*>(geometry);
-            u32 sizeInBytes = sizeof(triangles->vertices[0]) * triangles->vertices.size();
+            u32 sizeInBytes = sizeof(triangles->vertices[0]) * static_cast<u32>(triangles->vertices.size());
             assert(sizeInBytes > 0);
             m_vb = std::make_unique<GLVertexBuffer>(geometry->getVertexSpec(), sizeInBytes, triangles->vertices.data());
             m_ib = std::make_unique<GLIndexBuffer>(triangles->indices);

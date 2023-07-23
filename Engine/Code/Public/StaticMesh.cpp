@@ -1,5 +1,4 @@
 #include "StaticMesh.h"
-#include "GfxContext.h"
 
 namespace Cyan
 {
@@ -7,6 +6,11 @@ namespace Cyan
         : Asset(name), m_numSubMeshes(numSubMeshes)
     {
         m_subMeshes.resize(numSubMeshes);
+        // create all subMeshes here upfront
+        for (u32 i = 0; i < m_numSubMeshes; ++i)
+        {
+            m_subMeshes[i] = std::make_unique<StaticSubMesh>(this);
+        }
     }
 
     StaticMesh::~StaticMesh()
@@ -24,7 +28,7 @@ namespace Cyan
         }
         else
         {
-            instanceID = m_instances.size();
+            instanceID = static_cast<i32>(m_instances.size());
         }
         return std::move(std::make_unique<StaticMeshInstance>(this, instanceID, localToWorld));
     }
@@ -38,20 +42,8 @@ namespace Cyan
         m_freeInstanceIDList.push(id);
     }
 
-#define ENQUEUE_GFX_TASK(task)
-
-    void StaticMesh::setSubMesh(std::unique_ptr<StaticSubMesh> sm, u32 slot)
-    {
-        assert(slot < m_numSubMeshes);
-
-        ENQUEUE_GFX_TASK([this, std::move(sm), slot]() {
-            sm->createGfxProxy();
-            m_subMeshes[slot] = std::move(sm);
-        })
-    }
-
-    StaticSubMesh::StaticSubMesh(StaticMesh* parent, std::unique_ptr<Geometry> geometry)
-        : m_parent(parent), m_geometry(std::move(geometry))
+    StaticSubMesh::StaticSubMesh(StaticMesh* parent)
+        : m_parent(parent)
     {
     }
 
@@ -86,6 +78,12 @@ namespace Cyan
             // if the subMesh is ready, immediately execute
             listener(this);
         }
+    }
+
+    void StaticSubMesh::setGeometry(std::unique_ptr<Geometry> geometry)
+    {
+        m_geometry = std::move(geometry);
+        onLoaded();
     }
 
     StaticMeshInstance::StaticMeshInstance(StaticMesh* parent, i32 instanceID, const Transform& localToWorld)

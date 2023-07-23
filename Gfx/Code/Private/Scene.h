@@ -8,13 +8,6 @@ namespace Cyan
     class StaticMeshInstance;
     class GfxStaticSubMesh;
 
-    struct StaticSubMeshInstance
-    {
-        // todo: material
-        GfxStaticSubMesh* subMesh = nullptr;
-        glm::mat4 localToWorldMatrix = glm::mat4(1.f);
-    };
-
     // todo: design & implement this
     class Scene : public IScene
     {
@@ -24,7 +17,7 @@ namespace Cyan
         Scene();
         virtual ~Scene() override;
 
-        virtual void addStaticMeshInstance(StaticMeshInstance* staticMeshInstance) override;
+        virtual void addStaticSubMeshInstance(const StaticSubMeshInstance& staticSubMeshInstance) override;
 
         // todo: implement this
         void removeStaticMeshInstance(StaticMeshInstance* staticMeshInstance);

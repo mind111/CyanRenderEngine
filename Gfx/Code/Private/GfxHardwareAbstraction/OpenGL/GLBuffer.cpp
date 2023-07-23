@@ -29,7 +29,7 @@ namespace Cyan
     GLIndexBuffer::GLIndexBuffer(const std::vector<u32>& indices)
     {
         glCreateBuffers(1, &m_name);
-        u32 sizeInBytes = sizeof(u32) * indices.size();
+        u32 sizeInBytes = sizeof(u32) * static_cast<u32>(indices.size());
         glNamedBufferData(m_name, sizeInBytes, indices.data(), GL_STATIC_DRAW);
     }
 
@@ -56,7 +56,7 @@ namespace Cyan
 
         const auto& vertexSpec = vb->getVertexSpec();
         glVertexArrayVertexBuffer(m_name, 0, vb->getName(), 0, vertexSpec.getSizeInBytes());
-        for (i32 i = 0; i < vertexSpec.numAttributes(); ++i)
+        for (u32 i = 0; i < vertexSpec.numAttributes(); ++i)
         {
             const auto& attribute = vertexSpec[i];
             GLint size = 0;
@@ -82,7 +82,7 @@ namespace Cyan
                 break;
             }
 
-            glVertexAttribPointer(i, size, dataType, GL_FALSE, vertexSpec.getSizeInBytes(), (const void*)attribute.getOffset());
+            glVertexAttribPointer(i, size, dataType, GL_FALSE, vertexSpec.getSizeInBytes(), reinterpret_cast<const void*>(attribute.getOffset()));
             glEnableVertexArrayAttrib(m_name, i);
         }
         glVertexArrayElementBuffer(m_name, ib->getName());

@@ -1,22 +1,2 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <ItemGroup>
-    <ClInclude Include="Code\Public\Camera.h" />
-    <ClInclude Include="Code\Public\GameFramework.h" />
-    <ClInclude Include="Code\Public\World.h" />
-    <ClInclude Include="Code\Public\Component.h" />
-    <ClInclude Include="Code\Public\SceneComponent.h" />
-    <ClInclude Include="Code\Public\StaticMeshComponent.h" />
-    <ClInclude Include="Code\Public\Entity.h" />
-    <ClInclude Include="Code\Public\StaticMeshEntity.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="Code\Public\Camera.cpp" />
-    <ClCompile Include="Code\Public\World.cpp" />
-    <ClCompile Include="Code\Public\Entity.cpp" />
-    <ClCompile Include="Code\Public\Component.cpp" />
-    <ClCompile Include="Code\Public\SceneComponent.cpp" />
-    <ClCompile Include="Code\Public\StaticMeshComponent.cpp" />
-    <ClCompile Include="Code\Public\StaticMeshEntity.cpp" />
-  </ItemGroup>
-</Project>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" />

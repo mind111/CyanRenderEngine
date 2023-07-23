@@ -5,7 +5,7 @@
 #include <string>
 
 #include "Core.h"
-#include "Gfx.h"
+#include "Engine.h"
 
 namespace Cyan
 {
@@ -16,7 +16,7 @@ namespace Cyan
     };
 
     // todo:
-    class GFX_API Asset
+    class ENGINE_API Asset
     {
     public:
         enum class State : u32
