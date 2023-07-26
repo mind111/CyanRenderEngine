@@ -12,6 +12,8 @@ namespace Cyan
     class ENGINE_API App
     {
     public:
+        friend class Engine;
+
         App(const char* name, int windowWidth, int windowHeight);
         virtual ~App();
 

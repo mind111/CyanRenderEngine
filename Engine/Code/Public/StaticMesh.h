@@ -81,17 +81,19 @@ namespace Cyan
     public:
         friend class Scene;
 
-        StaticMeshInstance(StaticMesh* parent, i32 instanceID, const Transform& localToWorld);
+        StaticMeshInstance(StaticMesh* parent, i32 instanceID, const std::string& instanceKey, const Transform& localToWorld);
         ~StaticMeshInstance();
 
         StaticMesh* getParentMesh() { return m_parent; }
         i32 getInstanceID() { return m_instanceID; }
+        const std::string getInstanceKey() { return m_instanceKey; }
         const Transform& getLocalToWorldTransform() { return m_localToWorldTransform; }
         const glm::mat4& getLocalToWorldMatrix() { return m_localToWorldMatrix; }
         void setLocalToWorldTransform(const Transform& localToWorld);
         // void setMaterial(Material);
     private:
         i32 m_instanceID = -1;
+        std::string m_instanceKey;
         StaticMesh* m_parent = nullptr;
         Transform m_localToWorldTransform;
         glm::mat4 m_localToWorldMatrix;

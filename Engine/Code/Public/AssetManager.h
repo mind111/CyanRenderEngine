@@ -8,7 +8,7 @@ namespace Cyan
     namespace gltf
     {
         class Gltf;
-        class Node;
+        struct Node;
     }
 
     class World;

@@ -14,12 +14,12 @@ namespace Cyan
 
     SceneRenderer::~SceneRenderer() { }
 
-    void SceneRenderer::render(ISceneRender* outRender, IScene* scene, const SceneViewState& viewInfo)
+    void SceneRenderer::render(Scene* scene, SceneView& sceneView)
     {
         // render depth prepass
     }
 
-    static void setShaderSceneViewInfo(GfxPipeline* gfxp, const SceneViewState& viewState)
+    static void setShaderSceneViewInfo(GfxPipeline* gfxp, const SceneView::State& viewState)
     {
         gfxp->setUniform("viewParameters.renderResolution", viewState.resolution);
         gfxp->setUniform("viewParameters.aspectRatio", viewState.aspectRatio);
@@ -37,7 +37,7 @@ namespace Cyan
         gfxp->setUniform("viewParameters.deltaTime", viewState.deltaTime);
     }
 
-    void SceneRenderer::renderSceneDepth(GHDepthTexture* outDepthTex, Scene* scene, const SceneViewState& viewState)
+    void SceneRenderer::renderSceneDepth(GHDepthTexture* outDepthTex, Scene* scene, const SceneView::State& viewState)
     {
         if (outDepthTex != nullptr && scene != nullptr)
         {

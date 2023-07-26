@@ -9,18 +9,15 @@ namespace Cyan
     class GfxStaticSubMesh;
 
     // todo: design & implement this
-    class Scene : public IScene
+    class GFX_API Scene
     {
     public:
+        friend class Engine;
         friend class SceneRenderer;
 
         Scene();
-        virtual ~Scene() override;
+        ~Scene();
 
-        virtual void addStaticSubMeshInstance(const StaticSubMeshInstance& staticSubMeshInstance) override;
-
-        // todo: implement this
-        void removeStaticMeshInstance(StaticMeshInstance* staticMeshInstance);
     private:
         std::vector<StaticSubMeshInstance> m_staticSubMeshInstances;
     };

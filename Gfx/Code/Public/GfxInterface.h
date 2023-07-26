@@ -15,54 +15,8 @@ namespace Cyan
     struct StaticSubMeshInstance
     {
         // todo: material
+        std::string staticMeshInstanceKey;
         GfxStaticSubMesh* subMesh = nullptr;
         glm::mat4 localToWorldMatrix = glm::mat4(1.f);
-    };
-
-
-    class IScene
-    {
-    public:
-        virtual ~IScene() { }
-
-        // factory method
-        static GFX_API std::unique_ptr<IScene> create();
-        virtual void addStaticSubMeshInstance(const StaticSubMeshInstance& staticSubMeshInstance) = 0;
-    };
-
-    class ISceneRender
-    {
-    public:
-    };
-
-    struct SceneViewState
-    {
-        glm::uvec2 resolution;
-        f32 aspectRatio;
-        glm::mat4 viewMatrix;
-        glm::mat4 prevFrameViewMatrix;
-        glm::mat4 projectionMatrix;
-        glm::mat4 prevFrameProjectionMatrix;
-        glm::vec3 cameraPosition;
-        glm::vec3 prevFrameCameraPosition;
-        glm::vec3 cameraLookAt;
-        glm::vec3 cameraRight;
-        glm::vec3 cameraForward;
-        glm::vec3 cameraUp;
-        i32 frameCount;
-        f32 elapsedTime;
-        f32 deltaTime;
-    };
-
-    class ISceneRenderer
-    {
-    public:
-        virtual ~ISceneRenderer() { }
-
-        // factory method
-        GFX_API static std::unique_ptr<ISceneRenderer> create();
-
-        // interface
-        virtual void render(ISceneRender* outRender, IScene* scene, const SceneViewState& viewState) = 0;
     };
 }

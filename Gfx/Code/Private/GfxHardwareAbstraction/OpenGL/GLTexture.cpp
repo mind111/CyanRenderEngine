@@ -261,4 +261,9 @@ namespace Cyan
     {
         GLTexture::unbind();
     }
+
+    void GLDepthTexture::getMipSize(i32& outWidth, i32& outHeight, i32 mipLevel)
+    {
+        NOT_IMPLEMENTED_ERROR()
+    }
 }

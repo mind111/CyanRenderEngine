@@ -50,5 +50,6 @@ namespace Cyan
         virtual void init() override;
         virtual void bind() override;
         virtual void unbind() override;
+        virtual void getMipSize(i32& outWidth, i32& outHeight, i32 mipLevel) override;
     };
 }

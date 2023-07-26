@@ -3,6 +3,7 @@
 #include "World.h"
 #include "Entity.h"
 #include "GfxInterface.h"
+#include "GfxModule.h"
 
 namespace Cyan
 {
@@ -19,6 +20,8 @@ namespace Cyan
     {
         // update transform to make sure that it's synced on Scene side
         m_staticMeshInstance->setLocalToWorldTransform(getWorldSpaceTransform());
+
+        Engine::get()->onStaticMeshInstanceTransformUpdated(m_staticMeshInstance.get());
     }
 
     void StaticMeshComponent::setOwner(Entity* owner)
@@ -38,32 +41,56 @@ namespace Cyan
         World* world = owner->getWorld();
         if (world != nullptr)
         {
-            IScene* scene = world->getScene();
-            if (scene != nullptr)
+            if (m_staticMeshInstance != nullptr)
             {
-                if (m_staticMeshInstance != nullptr)
-                {
-                    i32 instanceID = m_staticMeshInstance->getInstanceID();
-                    StaticMesh& mesh = *m_staticMeshInstance->getParentMesh();
-                    for (u32 i = 0; i < mesh.numSubMeshes(); ++i)
-                    {
-                        mesh[i]->addListener([this, scene, instanceID](StaticSubMesh* sm) {
-                            // this function needs to be run on the rendering thread
-                            StaticSubMeshInstance instance = { };
-                            instance.subMesh = GfxStaticSubMesh::create(sm->getGeometry());
-                            instance.localToWorldMatrix = m_staticMeshInstance->getLocalToWorldMatrix();
-                            scene->addStaticSubMeshInstance(instance);
-                        });
-                    }
-                }
+                world->addStaticMeshInstance(m_staticMeshInstance.get());
             }
         }
     }
 
     void StaticMeshComponent::setStaticMesh(StaticMesh* mesh)
     {
-        m_staticMeshInstance.release();
-        m_staticMeshInstance = std::move(mesh->createInstance(getWorldSpaceTransform()));
+        // detect if mesh changed
+        bool bMeshChanged = false;
+        StaticMesh* currentMesh = nullptr;
+
+        if (m_staticMeshInstance != nullptr)
+        {
+            currentMesh = m_staticMeshInstance->getParentMesh();
+        }
+
+        if (currentMesh != nullptr)
+        {
+            if (mesh != nullptr)
+            {
+                if (currentMesh->getName() != mesh->getName())
+                {
+                    bMeshChanged = true;
+                }
+            }
+        }
+        else
+        {
+            if (mesh != nullptr)
+            {
+                bMeshChanged = true;
+            }
+        }
+
+        if (bMeshChanged)
+        {
+            World* world = m_owner->getWorld();
+            if (world != nullptr)
+            {
+                if (currentMesh != nullptr)
+                {
+                    world->removeStaticMeshInstance(m_staticMeshInstance.get());
+                }
+            }
+            m_staticMeshInstance.release();
+            m_staticMeshInstance = std::move(mesh->createInstance(getWorldSpaceTransform()));
+            world->addStaticMeshInstance(m_staticMeshInstance.get());
+        }
     }
 
 #if 0

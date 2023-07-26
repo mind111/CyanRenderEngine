@@ -17,9 +17,11 @@ namespace Cyan
     /**
      * A camera used for scene rendering
      */
-    class ENGINE_API Camera
+    class ENGINE_API SceneCamera
     {
     public:
+        friend class Engine;
+
         enum class RenderMode
         {
             kSceneColor = 0,
@@ -37,24 +39,30 @@ namespace Cyan
             kCount
         };
 
-        Camera(const glm::uvec2& renderResolution);
-        ~Camera();
+        struct RenderSettings
+        {
+
+        };
+
+        SceneCamera();
+        SceneCamera(const glm::uvec2& renderResolution);
+        ~SceneCamera();
+
+        const glm::uvec2& getRenderResolution() { return m_resolution; }
 
         void turnOn() { bPower = true; }
         void turnOff() { bPower = false; }
 
+#if 0
         void onRenderStart();
         void render(IScene* scene);
         void onRenderFinish();
+        void updateSceneViewInfo();
+#endif
 
     private:
-        void updateSceneViewInfo();
 
         CameraViewInfo m_cameraViewInfo;
-        SceneViewState m_sceneViewInfo;
-        std::unique_ptr<ISceneRenderer> m_sceneRenderer = nullptr;
-        std::unique_ptr<ISceneRender> m_sceneRender = nullptr;
-
         bool bPower = true;
         u32 m_numRenderedFrames = 0u;
         f32 m_elapsedTime = 0.f;

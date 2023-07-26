@@ -35,6 +35,7 @@ namespace Cyan
         void setWorldSpaceTransform(const Transform& localToWorldTransform);
     protected:
         SceneComponent* m_parent = nullptr;
+        // todo: don't need to use shared_ptr here
         std::vector<std::shared_ptr<SceneComponent>> m_children;
         Transform m_localSpaceTransform;
         Transform m_worldSpaceTransform;

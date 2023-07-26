@@ -2,21 +2,22 @@
 
 #include "GfxInterface.h"
 #include "GHTexture.h"
+#include "GfxModule.h"
 
 namespace Cyan
 {
     class Scene;
-    class ISceneRender;
+    class SceneView;
 
-    class SceneRenderer : public ISceneRenderer
+    class SceneRenderer
     {
     public:
         SceneRenderer();
         virtual ~SceneRenderer();
 
-        virtual void render(ISceneRender* outRender, IScene* scene, const SceneViewState& viewInfo) override;
+        void render(Scene* scene, SceneView& sceneView);
 
-        void renderSceneDepth(GHDepthTexture* outDepth, Scene* scene, const SceneViewState& viewInfo);
+        void renderSceneDepth(GHDepthTexture* outDepth, Scene* scene, const SceneView::State& viewState);
     private:
     };
 } 

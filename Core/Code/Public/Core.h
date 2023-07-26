@@ -27,3 +27,12 @@ typedef double   f64;
 #else
     #define CORE_API __declspec(dllimport)
 #endif
+
+#define NOT_IMPLEMENTED_ERROR() \
+        assert(0);
+
+#define UNREACHABLE_ERROR() \
+        assert(0);
+
+#define UNEXPECTED_FATAL_ERROR() \
+        assert(0);

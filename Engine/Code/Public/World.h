@@ -10,13 +10,15 @@
 
 namespace Cyan
 {
-    class IScene;
     class Entity;
     class StaticMeshEntity;
+    class SceneCamera;
 
     class ENGINE_API World
     {
     public:
+        friend class Engine;
+
         World(const char* name);
         ~World();
 
@@ -41,12 +43,25 @@ namespace Cyan
             return outEntity;
         }
 
-        IScene* getScene() { return m_scene.get(); }
+        void addStaticMeshInstance(StaticMeshInstance* staticMeshInstance);
+        void removeStaticMeshInstance(StaticMeshInstance* staticMeshInstance);
+
+        // IScene* getScene() { return m_scene.get(); }
         const std::string& getName() { return m_name; }
+        void addSceneCamera(SceneCamera* sceneCamera);
+        void removeSceneCamera(SceneCamera* sceneCamera);
 
     private:
         std::string m_name;
-        std::unique_ptr<IScene> m_scene = nullptr;
+
+        /**/
+        std::vector<SceneCamera*> m_cameras;
+
+        /**/
+        std::vector<StaticMeshInstance*> m_staticMeshInstances;
+        std::unordered_map<std::string, u32> m_staticMeshInstanceMap;
+        std::queue<u32> m_emptyStaticMeshInstanceSlots;
+
         std::shared_ptr<Entity> m_root = nullptr;
         i32 m_frameCount = 0;
         f32 m_elapsedTime = 0.f;

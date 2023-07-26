@@ -30,7 +30,10 @@ namespace Cyan
         {
             instanceID = static_cast<i32>(m_instances.size());
         }
-        return std::move(std::make_unique<StaticMeshInstance>(this, instanceID, localToWorld));
+        std::string instanceKey = getName() + "_Instance" + std::to_string(instanceID);
+        std::unique_ptr<StaticMeshInstance> instance = std::make_unique<StaticMeshInstance>(this, instanceID, instanceKey, localToWorld);
+        m_instances.push_back(instance.get());
+        return std::move(instance);
     }
 
     void StaticMesh::removeInstance(StaticMeshInstance* instance)
@@ -86,8 +89,8 @@ namespace Cyan
         onLoaded();
     }
 
-    StaticMeshInstance::StaticMeshInstance(StaticMesh* parent, i32 instanceID, const Transform& localToWorld)
-        : m_parent(parent), m_localToWorldTransform(localToWorld), m_localToWorldMatrix(localToWorld.toMatrix())
+    StaticMeshInstance::StaticMeshInstance(StaticMesh* parent, i32 instanceID, const std::string& instanceKey, const Transform& localToWorld)
+        : m_instanceID(instanceID), m_instanceKey(instanceKey), m_parent(parent), m_localToWorldTransform(localToWorld), m_localToWorldMatrix(localToWorld.toMatrix())
     {
     }
 

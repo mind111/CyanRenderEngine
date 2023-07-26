@@ -4,6 +4,7 @@
 #include "GLShader.h"
 #include "GLPipeline.h"
 #include "GLFramebuffer.h"
+#include "GLTexture.h"
 
 namespace Cyan
 {
@@ -62,6 +63,16 @@ namespace Cyan
     void GLGHContext::setViewport(i32 x, i32 y, i32 width, i32 height)
     {
         glViewport(x, y, width, height);
+    }
+
+    std::unique_ptr<GHDepthTexture> GLGHContext::createDepthTexture(const GHDepthTexture::Desc& desc)
+    {
+        return std::move(std::unique_ptr<GHDepthTexture>(new GLDepthTexture(desc)));
+    }
+
+    std::unique_ptr<GHTexture2D> GLGHContext::createTexture2D(const GHTexture2D::Desc& desc)
+    {
+        return std::move(std::unique_ptr<GHTexture2D>(new GLTexture2D(desc)));
     }
 
     GLStaticSubMesh* GLGHContext::createGfxStaticSubMesh(Geometry* geometry)

@@ -38,6 +38,10 @@ namespace Cyan
         // framebuffers
         virtual GHFramebuffer* createFramebuffer(u32 width, u32 height) = 0;
         virtual void setViewport(i32 x, i32 y, i32 width, i32 height) = 0;
+        // textures
+        virtual std::unique_ptr<GHDepthTexture> createDepthTexture(const GHDepthTexture::Desc& desc) = 0;
+        virtual std::unique_ptr<GHTexture2D> createTexture2D(const GHTexture2D::Desc& desc) = 0;
+        // static mesh
         virtual GfxStaticSubMesh* createGfxStaticSubMesh(Geometry* geometry) = 0;
     protected:
         GfxHardwareContext() { }
