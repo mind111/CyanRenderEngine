@@ -6,23 +6,29 @@
 #include "Core.h"
 #include "Gfx.h"
 #include "GfxInterface.h"
+#include "LowLeveInputs.h"
 
 struct GLFWwindow;
 
 namespace Cyan
 {
-#define THREADED_RENDERING 0
+#define THREADED_RENDERING 1
 
     class GfxContext;
     class Scene;
     class SceneCamera;
     class SceneRender;
+    class RenderingUtils;
     class SceneRenderer;
+    class ShaderManager;
+    class GHTexture2D;
 
     class GFX_API SceneView
     {
     public:
         friend class Engine;
+        friend class SceneRenderer;
+        friend class GfxModule;
 
         // direct mirror of SceneCamera::RenderMode
         enum class ViewMode
@@ -69,33 +75,38 @@ namespace Cyan
         SceneView(const glm::uvec2& renderResolution);
         ~SceneView();
 
+        GHTexture2D* getOutput();
+
     private:
         std::unique_ptr<SceneRender> m_render = nullptr;
         State m_state;
+        ViewMode m_viewMode = ViewMode::kSceneColor;
     };
 
-    using FrameGfxTask = std::function<void(struct Frame& frame)>;
+    struct FrameGfxTask
+    {
+        std::string debugName;
+        std::function<void(struct Frame& frame)> lambda;
+    };
+
     struct Frame
     {
+        void flushGfxTasks();
+
         u32 simFrameNumber;
         std::queue<FrameGfxTask> gfxTasks;
         Scene* scene = nullptr;
         std::vector<SceneView*>* views = nullptr;
     };
 
-    class RenderQueue
-    {
-    public:
-    private:
-    };
-
-    /**
+    /** 
      * the Gfx module responsible for everything rendering related
      */
     class GFX_API GfxModule
     {
     public:
         friend class Engine;
+        friend static void renderLoop();
 
         ~GfxModule();
         static std::unique_ptr<GfxModule> create(const glm::uvec2& windowSize);
@@ -105,6 +116,10 @@ namespace Cyan
 
         void initialize();
         void deinitialize();
+        void setInputEventHandler(std::unique_ptr<InputEventHandler> eventHandler);
+        void enqueueInputEvent(std::unique_ptr<ILowLevelInputEvent> inputEvent);
+
+        glm::uvec2 getWindowSize() { return m_windowSize; }
 
         static bool isInRenderThread();
 
@@ -115,6 +130,8 @@ namespace Cyan
         void renderOneFrame();
     private:
         GfxModule(const glm::uvec2& windowSize);
+
+        void handleInputs();
 
         /* threaded rendering */
         std::atomic<i32> m_renderFrameNumber;
@@ -128,8 +145,14 @@ namespace Cyan
         const char* m_windowTitle = nullptr;
         GLFWwindow* m_glfwWindow = nullptr;
 
+        /* user input related */
+        std::unique_ptr<InputEventHandler> m_inputHandler = nullptr;
+        std::queue<std::unique_ptr<ILowLevelInputEvent>> m_inputEventQueue;
+
         /**/
-        std::unique_ptr<GfxContext> m_gfxCtx = nullptr;
+        GfxContext* m_gfxCtx = nullptr;
+        ShaderManager* m_shaderManager = nullptr;
+        RenderingUtils* m_renderingUtils = nullptr;
         std::unique_ptr<SceneRenderer> m_sceneRenderer = nullptr;
 
         static GfxModule* s_instance;

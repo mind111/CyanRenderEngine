@@ -10,9 +10,9 @@ namespace Cyan
     {
     }
 
-    void Shader::bindTexture(const char* samplerName, GHTexture* texture)
+    void Shader::bindTexture(const char* samplerName, GHTexture* texture, bool& outBound)
     {
-        m_GHO->bindTexture(samplerName, texture);
+        m_GHO->bindTexture(samplerName, texture, outBound);
     }
 
     void Shader::unbindTexture(const char* samplerName)
@@ -33,7 +33,7 @@ namespace Cyan
         }
     }
 
-    VertexShader::VertexShader(const char* name, const char* text)
+    VertexShader::VertexShader(const char* name, const std::string& text)
         : Shader(name)
     {
         m_GHO.reset(GfxHardwareContext::get()->createVertexShader(text));
@@ -51,7 +51,7 @@ namespace Cyan
         return std::static_pointer_cast<GHVertexShader>(m_GHO); 
     }
 
-    PixelShader::PixelShader(const char* name, const char* text)
+    PixelShader::PixelShader(const char* name, const std::string& text)
         : Shader(name)
     {
         m_GHO.reset(GfxHardwareContext::get()->createPixelShader(text));
@@ -102,7 +102,10 @@ namespace Cyan
 
     void GfxPipeline::setTexture(const char* samplerName, GHTexture* texture)
     {
-
+        bool bBoundToVS = false, bBoundToPS = false;
+        m_vs->bindTexture(samplerName, texture, bBoundToVS);
+        m_ps->bindTexture(samplerName, texture, bBoundToPS);
+        assert(bBoundToVS | bBoundToPS);
     }
 
     ShaderManager::ShaderManager()

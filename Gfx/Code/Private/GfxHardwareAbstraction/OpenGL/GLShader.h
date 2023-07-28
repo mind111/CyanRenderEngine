@@ -46,17 +46,17 @@ namespace Cyan
         IMPLEMENT_SET_UNIFORM_TYPE(glm::vec2)  \
         IMPLEMENT_SET_UNIFORM_TYPE(glm::vec3)  \
         IMPLEMENT_SET_UNIFORM_TYPE(glm::mat4)  \
-        virtual void bindTexture(const char* samplerName, GHTexture* texture) override {   \
-            GLShader::bindTexture(samplerName, texture);                                   \
-        }                                                                                  \
-        virtual void unbindTexture(const char* samplerName, GHTexture* texture) override { \
-            GLShader::unbindTexture(samplerName, texture);                                 \
-        }                                                                                  \
+        virtual void bindTexture(const char* samplerName, GHTexture* texture, bool& outBound) override {    \
+            GLShader::bindTexture(samplerName, texture, outBound);                                          \
+        }                                                                                                   \
+        virtual void unbindTexture(const char* samplerName, GHTexture* texture) override {                  \
+            GLShader::unbindTexture(samplerName, texture);                                                  \
+        }                                                                                                   \
 
     class GLShader : public GLObject
     {
     public:
-        GLShader(const char* text);
+        GLShader(const std::string& text);
         ~GLShader();
 
         void build();
@@ -73,17 +73,17 @@ namespace Cyan
         void glSetUniform(const char* name, const glm::vec3& data);
         void glSetUniform(const char* name, const glm::vec4& data);
         void glSetUniform(const char* name, const glm::mat4& data);
-        void bindTexture(const char* samplerName, GHTexture* texture);
+        void bindTexture(const char* samplerName, GHTexture* texture, bool& outBound);
         void unbindTexture(const char* samplerName, GHTexture* texture);
 
-        const char* m_text = nullptr;
+        std::string m_text;
         std::unordered_map<std::string, GLShaderUniformDesc> m_uniformDescMap;
     };
 
     class GLVertexShader : public GLShader, public GHVertexShader
     {
     public:
-        GLVertexShader(const char* text);
+        GLVertexShader(const std::string& text);
         ~GLVertexShader() { }
 
         IMPLEMENT_SET_UNIFORM_INTERFACE()
@@ -92,7 +92,7 @@ namespace Cyan
     class GLPixelShader : public GLShader, public GHPixelShader
     {
     public:
-        GLPixelShader(const char* text);
+        GLPixelShader(const std::string& text);
         ~GLPixelShader() { }
 
         IMPLEMENT_SET_UNIFORM_INTERFACE()
@@ -101,7 +101,7 @@ namespace Cyan
     class GLComputeShader : public GLShader, public GHComputeShader
     {
     public:
-        GLComputeShader(const char* text);
+        GLComputeShader(const std::string& text);
         ~GLComputeShader() { }
 
         IMPLEMENT_SET_UNIFORM_INTERFACE()

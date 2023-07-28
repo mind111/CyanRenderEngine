@@ -68,6 +68,9 @@ namespace Cyan
         RenderPass(u32 renderWidth, u32 renderHeight);
         ~RenderPass();
 
+        void enableRenderToDefaultTarget() { bRenderToDefaultTarget = true; }
+        void disableRenderToDefaultTarget() { bRenderToDefaultTarget = false; }
+
         void setRenderTarget(const RenderTarget& renderTarget, u32 slot);
         void setDepthTarget(const DepthTarget& depthTarget);
         void setViewport(i32 x, i32 y, i32 width, i32 height);
@@ -82,6 +85,7 @@ namespace Cyan
         void setupFramebuffer(GHFramebuffer* framebuffer);
         void cleanupFramebuffer(GHFramebuffer* framebuffer);
 
+        bool bRenderToDefaultTarget = false;
         bool bHasAnyTargetBound = false;
 
         std::array<RenderTarget, FRAMEBUFFER_MAX_NUM_COLOR_BUFFERS> m_renderTargets;
@@ -89,7 +93,7 @@ namespace Cyan
         DepthTarget m_depthTarget;
         Viewport m_viewport;
         u32 m_renderWidth = 0, m_renderHeight = 0;
-        bool bDepthTest = true;
+        bool bDepthTest = false;
 
         RenderFunc m_renderFunc;
     };

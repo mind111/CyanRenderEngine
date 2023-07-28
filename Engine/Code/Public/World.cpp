@@ -20,7 +20,25 @@ namespace Cyan
 
     void World::update()
     {
+        // update each entity
+        std::queue<Entity*> q;
+        q.push(m_root.get());
+        while (!q.empty())
+        {
+            auto e = q.front();
+            e->update();
+            q.pop();
 
+            for (auto child : e->m_children)
+            {
+                q.push(child.get());
+            }
+        }
+
+        // simulate physics
+
+        // finalize all the transforms
+        m_root->getRootSceneComponent()->finalizeAndUpdateTransform();
     }
 
     void World::import(const char* filename)
@@ -50,7 +68,7 @@ namespace Cyan
             else
             {
                 m_staticMeshInstances.push_back(staticMeshInstance);
-                slot = m_staticMeshInstances.size() - 1;
+                slot = static_cast<u32>(m_staticMeshInstances.size()) - 1;
             }
 
             assert(slot >= 0);
@@ -84,6 +102,8 @@ namespace Cyan
     void World::addSceneCamera(SceneCamera* sceneCamera)
     {
         m_cameras.push_back(sceneCamera);
+
+        Engine::get()->onSceneCameraAdded(sceneCamera);
     }
 
     void World::removeSceneCamera(SceneCamera* sceneCamera)
@@ -100,5 +120,7 @@ namespace Cyan
             }
         }
         assert(bFound);
+
+        Engine::get()->onSceneCameraRemoved(sceneCamera);
     }
 }

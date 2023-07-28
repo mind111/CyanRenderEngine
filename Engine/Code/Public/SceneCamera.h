@@ -6,13 +6,13 @@
 #include "MathLibrary.h"
 #include "Engine.h"
 #include "CameraViewInfo.h"
-#include "GfxInterface.h"
 
 namespace Cyan
 {
     class IScene;
     class ISceneRender;
     class ISceneRenderer;
+    struct Transform;
 
     /**
      * A camera used for scene rendering
@@ -21,6 +21,8 @@ namespace Cyan
     {
     public:
         friend class Engine;
+        friend class SceneCameraComponent;
+        friend class CameraControllerComponent;
 
         enum class RenderMode
         {
@@ -45,7 +47,8 @@ namespace Cyan
         };
 
         SceneCamera();
-        SceneCamera(const glm::uvec2& renderResolution);
+        SceneCamera(const Transform& transform);
+        SceneCamera(const glm::uvec2& renderResolution, const Transform& transform);
         ~SceneCamera();
 
         const glm::uvec2& getRenderResolution() { return m_resolution; }
@@ -61,7 +64,6 @@ namespace Cyan
 #endif
 
     private:
-
         CameraViewInfo m_cameraViewInfo;
         bool bPower = true;
         u32 m_numRenderedFrames = 0u;

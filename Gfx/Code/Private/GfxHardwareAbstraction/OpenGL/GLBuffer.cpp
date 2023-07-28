@@ -4,11 +4,13 @@
 namespace Cyan
 {
     GLVertexBuffer::GLVertexBuffer(const VertexSpec& vertexSpec, i32 sizeInBytes, const void* data)
-        : GLObject(), m_vertexSpec(vertexSpec)
+        : GLObject()
+        , m_vertexSpec(vertexSpec)
+        , m_bufferSizeInBytes(sizeInBytes)
     {
         glCreateBuffers(1, &m_name);
         // todo: expose the usage parameter
-        glNamedBufferData(m_name, sizeInBytes, data, GL_STATIC_DRAW);
+        glNamedBufferData(m_name, m_bufferSizeInBytes, data, GL_STATIC_DRAW);
     }
     
     GLVertexBuffer::~GLVertexBuffer()
@@ -30,7 +32,8 @@ namespace Cyan
     {
         glCreateBuffers(1, &m_name);
         u32 sizeInBytes = sizeof(u32) * static_cast<u32>(indices.size());
-        glNamedBufferData(m_name, sizeInBytes, indices.data(), GL_STATIC_DRAW);
+        m_bufferSizeInBytes = sizeInBytes;
+        glNamedBufferData(m_name, m_bufferSizeInBytes, indices.data(), GL_STATIC_DRAW);
     }
 
     GLIndexBuffer::~GLIndexBuffer()
@@ -56,6 +59,8 @@ namespace Cyan
 
         const auto& vertexSpec = vb->getVertexSpec();
         glVertexArrayVertexBuffer(m_name, 0, vb->getName(), 0, vertexSpec.getSizeInBytes());
+        bind();
+        vb->bind();
         for (u32 i = 0; i < vertexSpec.numAttributes(); ++i)
         {
             const auto& attribute = vertexSpec[i];
@@ -85,6 +90,8 @@ namespace Cyan
             glVertexAttribPointer(i, size, dataType, GL_FALSE, vertexSpec.getSizeInBytes(), reinterpret_cast<const void*>(attribute.getOffset()));
             glEnableVertexArrayAttrib(m_name, i);
         }
+        vb->unbind();
+        unbind();
         glVertexArrayElementBuffer(m_name, ib->getName());
     }
 

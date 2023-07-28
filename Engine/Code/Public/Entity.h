@@ -1,6 +1,6 @@
 #pragma once
 
-#include "GameFramework.h"
+#include "Engine.h"
 #include "Core.h"
 #include "MathLibrary.h"
 
@@ -12,13 +12,13 @@ namespace Cyan
 {
     class World;
 
-    class  Entity
+    class ENGINE_API Entity
     {
     public:
         friend class World;
 
         Entity(World* world, const char* name, const Transform& entityLocalTransform);
-        ~Entity() { }
+        virtual ~Entity() { }
 
         virtual void update();
 

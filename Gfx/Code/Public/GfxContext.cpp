@@ -5,7 +5,7 @@ namespace Cyan
     GfxContext* GfxContext::s_instance = nullptr;
     GfxContext::GfxContext()
     {
-
+        m_GHCtx = GfxHardwareContext::create();
     }
 
     GfxContext::~GfxContext()
@@ -21,6 +21,17 @@ namespace Cyan
             s_instance = s_gfxc.get();
         }
         return s_instance;
+    }
+
+    void GfxContext::initialize()
+    {
+        m_GHCtx->initialize();
+    }
+
+
+    void GfxContext::deinitialize()
+    {
+        m_GHCtx->deinitialize();
     }
 
     void GfxContext::setFramebuffer(GHFramebuffer* framebuffer)
@@ -58,7 +69,19 @@ namespace Cyan
         m_viewport = { };
     }
 
-    GfxStaticSubMesh* GfxContext::createGfxStaticSubMesh(Geometry* geometry)
+    void GfxContext::enableDepthTest()
+    {
+        bDepthTest = true;
+        m_GHCtx->enableDepthTest();
+    }
+
+    void GfxContext::disableDepthTest()
+    {
+        bDepthTest = false;
+        m_GHCtx->disableDepthTest();
+    }
+
+    std::unique_ptr<GfxStaticSubMesh> GfxContext::createGfxStaticSubMesh(Geometry* geometry)
     {
         return m_GHCtx->createGfxStaticSubMesh(geometry);
     }

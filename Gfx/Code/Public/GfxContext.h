@@ -20,11 +20,16 @@ namespace Cyan
         ~GfxContext();
         static GfxContext* get();
 
+        void initialize();
+        void deinitialize();
+
         void setFramebuffer(GHFramebuffer* framebuffer);
         void unsetFramebuffer();
         void setViewport(i32 x, i32 y, i32 width, i32 height);
         void unsetViewport();
-        GfxStaticSubMesh* createGfxStaticSubMesh(Geometry* geometry);
+        void enableDepthTest();
+        void disableDepthTest();
+        std::unique_ptr<GfxStaticSubMesh> createGfxStaticSubMesh(Geometry* geometry);
 
     private:
         GfxContext();
@@ -33,6 +38,8 @@ namespace Cyan
         GfxPipeline* m_gfxPipeline = nullptr;
         GHFramebuffer* m_framebuffer = nullptr;
         Viewport m_viewport = { };
+
+        bool bDepthTest = false;
 
         static GfxContext* s_instance;
     };

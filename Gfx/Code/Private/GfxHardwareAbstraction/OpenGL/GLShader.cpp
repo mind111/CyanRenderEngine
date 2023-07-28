@@ -4,7 +4,7 @@
 
 namespace Cyan
 {
-    GLShader::GLShader(const char* text)
+    GLShader::GLShader(const std::string& text)
         : GLObject(), m_text(text)
     {
     }
@@ -102,14 +102,22 @@ namespace Cyan
         }
     }
 
-    void GLShader::bindTexture(const char* samplerName, GHTexture* texture)
+    void GLShader::bindTexture(const char* samplerName, GHTexture* texture, bool& outBound)
     {
         auto glTexture = dynamic_cast<GLTexture*>(texture);
         if (glTexture != nullptr)
         {
-            glTexture->bind();
-            i32 textureUnit = glTexture->getBoundTextureUnit();
-            glSetUniform(samplerName, textureUnit);
+            if (getUniformLocation(samplerName) >= 0)
+            {
+                glTexture->bind();
+                i32 textureUnit = glTexture->getBoundTextureUnit();
+                glSetUniform(samplerName, textureUnit);
+                outBound = true;
+            }
+            else
+            {
+                outBound = false;
+            }
         }
     }
 
@@ -189,24 +197,27 @@ namespace Cyan
         GL_SET_UNIFORM(glProgramUniform2i, data.x, data.y);
     }
 
-    GLVertexShader::GLVertexShader(const char* text)
+    GLVertexShader::GLVertexShader(const std::string& text)
         : GLShader(text)
     {
-        const char* strings[1] = { m_text };
+        const char* strings[1] = { m_text.c_str() };
         m_name = glCreateShaderProgramv(GL_VERTEX_SHADER, 1, strings);
+        build();
     }
 
-    GLPixelShader::GLPixelShader(const char* text)
+    GLPixelShader::GLPixelShader(const std::string& text)
         : GLShader(text)
     {
-        const char* strings[1] = { m_text };
+        const char* strings[1] = { m_text.c_str() };
         m_name = glCreateShaderProgramv(GL_FRAGMENT_SHADER, 1, strings);
+        build();
     }
 
-    GLComputeShader::GLComputeShader(const char* text)
+    GLComputeShader::GLComputeShader(const std::string& text)
         : GLShader(text)
     {
-        const char* strings[1] = { m_text };
+        const char* strings[1] = { m_text.c_str() };
         m_name = glCreateShaderProgramv(GL_COMPUTE_SHADER, 1, strings);
+        build();
     }
  }

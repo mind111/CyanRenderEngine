@@ -2,6 +2,7 @@
 
 #include "Core.h"
 #include "GHTexture.h"
+#include "MathLibrary.h"
 
 namespace Cyan
 {
@@ -33,6 +34,18 @@ namespace Cyan
             slots[slot] = cb;
         }
 
+        i32 findDrawBuffer(const ColorBuffer& cb)
+        {
+            for (u32 i = 0; i < kNumDrawBuffers; ++i)
+            {
+                if (slots[i] == cb)
+                {
+                    return (i32)i;
+                }
+            }
+            return -1;
+        }
+
         static constexpr u32 kNumDrawBuffers = FRAMEBUFFER_MAX_NUM_COLOR_BUFFERS;
         ColorBuffer slots[kNumDrawBuffers] = { 
             ColorBuffer::None, 
@@ -55,8 +68,10 @@ namespace Cyan
         virtual void bindColorBuffer(GHTexture2D* colorBuffer, u32 bindingUnit) = 0;
         virtual void bindColorBuffer(GHTexture2D* colorBuffer, u32 bindingUnit, u32 mipLevel) = 0;
         virtual void unbindColorBuffer(u32 bindingUnit) = 0;
+        virtual void clearColorBuffer(u32 bindingUnit, glm::vec4 clearColor) = 0;
         virtual void bindDepthBuffer(GHDepthTexture* depthBuffer) = 0;
         virtual void unbindDepthBuffer() = 0;
+        virtual void clearDepthBuffer(f32 clearDepth) = 0;
         virtual void setDrawBuffers(const DrawBufferBindings& drawBufferBindings) = 0;
         virtual void unsetDrawBuffers() = 0;
     protected:

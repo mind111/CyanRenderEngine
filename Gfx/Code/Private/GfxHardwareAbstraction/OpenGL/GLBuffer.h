@@ -18,6 +18,7 @@ namespace Cyan
         VertexSpec getVertexSpec() { return m_vertexSpec; }
     private:
         VertexSpec m_vertexSpec;
+        i32 m_bufferSizeInBytes;
     };
 
     class GLIndexBuffer : public GLObject, public GHIndexBuffer
@@ -28,6 +29,8 @@ namespace Cyan
 
         virtual void bind() override;
         virtual void unbind() override;
+    private:
+        i32 m_bufferSizeInBytes;
     };
 
     class GLVertexArray : public GLObject

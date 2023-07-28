@@ -92,7 +92,7 @@ namespace Cyan
 
     private:
         std::vector<VertexAttribute> attributes;
-        u32 sizeInBytes;
+        u32 sizeInBytes = 0;
     };
 
     struct Geometry
@@ -124,7 +124,11 @@ namespace Cyan
         };
 
         Triangles() = default;
-        Triangles(const std::vector<Triangles::Vertex>& inVertices, const std::vector<u32>& inIndices);
+        Triangles(const std::vector<Triangles::Vertex>& inVertices, const std::vector<u32>& inIndices)
+            : vertices(inVertices), indices(inIndices)
+        {
+
+        }
         ~Triangles() { }
 
         virtual Type getGeometryType() override { return Type::kTriangles; }

@@ -1,11 +1,14 @@
 #include "GHTexture.h"
 #include "GfxHardwareContext.h"
+#include "GfxModule.h"
 
 namespace Cyan
 {
     std::unique_ptr<GHTexture2D> GHTexture2D::create(const Desc& desc)
     {
-        return std::move(GfxHardwareContext::get()->createTexture2D(desc));
+        std::unique_ptr<GHTexture2D> outTex2D = std::move(GfxHardwareContext::get()->createTexture2D(desc));
+        outTex2D->init();
+        return std::move(outTex2D);
     }
 
     GHTexture2D::GHTexture2D(const Desc& desc)
@@ -26,7 +29,9 @@ namespace Cyan
 
     std::unique_ptr<GHDepthTexture> GHDepthTexture::create(const Desc& desc)
     {
-        return std::move(GfxHardwareContext::get()->createDepthTexture(desc));
+        std::unique_ptr<GHDepthTexture> outDepthTex = std::move(GfxHardwareContext::get()->createDepthTexture(desc));
+        outDepthTex->init();
+        return std::move(outDepthTex);
     }
 
     GHDepthTexture::GHDepthTexture(const Desc& desc)

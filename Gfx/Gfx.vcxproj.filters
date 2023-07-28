@@ -25,6 +25,8 @@
     <ClInclude Include="Code\Public\Gfx.h" />
     <ClInclude Include="Code\Public\GfxStaticMesh.h" />
     <ClInclude Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLStaticMesh.h" />
+    <ClInclude Include="Code\Public\RenderingUtils.h" />
+    <ClInclude Include="Code\Public\LowLeveInputs.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Code\Private\GfxHardwareAbstraction\GHInterface\GHBuffer.cpp" />
@@ -47,5 +49,6 @@
     <ClCompile Include="Code\Public\GfxStaticMesh.cpp" />
     <ClCompile Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLStaticMesh.cpp" />
     <ClCompile Include="Code\Private\SceneRender.cpp" />
+    <ClCompile Include="Code\Public\RenderingUtils.cpp" />
   </ItemGroup>
 </Project>

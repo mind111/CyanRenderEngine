@@ -7,7 +7,7 @@ namespace Cyan
         : m_viewport{ 0, 0, (i32)renderWidth, (i32)renderHeight }
         , m_renderWidth(renderWidth)
         , m_renderHeight(renderHeight)
-        , bDepthTest(true)
+        , bDepthTest(false)
         , m_renderFunc(RenderFunc())
     {
 
@@ -50,6 +50,10 @@ namespace Cyan
             if (m_renderTargets[i].isBound())
             {
                 framebuffer->bindColorBuffer(m_renderTargets[i].colorTexture, i, m_renderTargets[i].mipLevel);
+                if (m_renderTargets[i].bNeedsClear)
+                {
+                    framebuffer->clearColorBuffer(i, m_renderTargets[i].clearColor);
+                }
             }
         }
         framebuffer->setDrawBuffers(m_drawBufferBindings);
@@ -57,6 +61,10 @@ namespace Cyan
         if (m_depthTarget.isBound())
         {
             framebuffer->bindDepthBuffer(m_depthTarget.depthTexture);
+            if (m_depthTarget.bNeedsClear)
+            {
+                framebuffer->clearDepthBuffer(m_depthTarget.clearValue);
+            }
         }
     }
 
@@ -137,12 +145,27 @@ namespace Cyan
             ctx->setFramebuffer(framebuffer);
             ctx->setViewport(m_viewport.x, m_viewport.y, m_viewport.width, m_viewport.height);
 
+            bDepthTest ? ctx->enableDepthTest() : ctx->disableDepthTest();
             m_renderFunc(ctx);
 
             // clean up
             ctx->unsetViewport();
             ctx->unsetFramebuffer();
             cleanupFramebuffer(framebuffer);
+        }
+        else
+        {
+            if (bRenderToDefaultTarget)
+            {
+                ctx->setViewport(m_viewport.x, m_viewport.y, m_viewport.width, m_viewport.height);
+                bDepthTest ? ctx->enableDepthTest() : ctx->disableDepthTest();
+                m_renderFunc(ctx);
+                ctx->unsetViewport();
+            }
+            else
+            {
+                UNREACHABLE_ERROR()
+            }
         }
     }
 }

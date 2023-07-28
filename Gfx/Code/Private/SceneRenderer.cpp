@@ -17,6 +17,14 @@ namespace Cyan
     void SceneRenderer::render(Scene* scene, SceneView& sceneView)
     {
         // render depth prepass
+        GHDepthTexture* sceneDepthTex = sceneView.m_render->depth();
+        renderSceneDepth(sceneDepthTex, scene, sceneView.m_state);
+
+        // render gbuffer
+
+        // render lighting
+
+        // render postprocessing
     }
 
     static void setShaderSceneViewInfo(GfxPipeline* gfxp, const SceneView::State& viewState)
@@ -42,8 +50,8 @@ namespace Cyan
         if (outDepthTex != nullptr && scene != nullptr)
         {
             bool found = false;
-            auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "StaticMeshVS", "static_mesh_v.glsl");
-            auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "DepthPS", "depth_p.glsl");
+            auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "StaticMeshVS", SHADER_TEXT_PATH "static_mesh_v.glsl");
+            auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "DepthPS", SHADER_TEXT_PATH "depth_p.glsl");
             auto gfxp = ShaderManager::findOrCreateGfxPipeline(found, vs, ps);
 
             const auto desc = outDepthTex->getDesc();
@@ -60,6 +68,7 @@ namespace Cyan
                 }
                 gfxp->unbind();
             });
+            rp.enableDepthTest();
             rp.render(GfxContext::get());
         }
     }

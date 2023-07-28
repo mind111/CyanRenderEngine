@@ -16,6 +16,9 @@
     <ClInclude Include="Code\Public\Asset.h" />
     <ClInclude Include="Code\Private\gltf.h" />
     <ClInclude Include="Code\Public\SceneCameraComponent.h" />
+    <ClInclude Include="Code\Public\SceneCameraEntity.h" />
+    <ClInclude Include="Code\Public\InputManager.h" />
+    <ClInclude Include="Code\Public\CameraControllerComponent.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Code\Public\App.cpp" />
@@ -31,5 +34,8 @@
     <ClCompile Include="Code\Public\AssetManager.cpp" />
     <ClCompile Include="Code\Private\gltf.cpp" />
     <ClCompile Include="Code\Public\SceneCameraComponent.cpp" />
+    <ClCompile Include="Code\Public\SceneCameraEntity.cpp" />
+    <ClCompile Include="Code\Public\InputManager.cpp" />
+    <ClCompile Include="Code\Public\CameraControllerComponent.cpp" />
   </ItemGroup>
 </Project>

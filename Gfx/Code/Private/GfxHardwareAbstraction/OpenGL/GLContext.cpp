@@ -18,6 +18,16 @@ namespace Cyan
 
     }
 
+    void GLGHContext::initialize()
+    {
+
+    }
+
+    void GLGHContext::deinitialize()
+    {
+
+    }
+
     GHVertexBuffer* GLGHContext::createVertexBuffer()
     {
         return nullptr;
@@ -28,17 +38,17 @@ namespace Cyan
         return nullptr;
     }
 
-    GHShader* GLGHContext::createVertexShader(const char* text)
+    GHShader* GLGHContext::createVertexShader(const std::string& text)
     {
         return new GLVertexShader(text);
     }
 
-    GHShader* GLGHContext::createPixelShader(const char* text)
+    GHShader* GLGHContext::createPixelShader(const std::string& text)
     {
         return new GLPixelShader(text);
     }
 
-    GHShader* GLGHContext::createComputeShader(const char* text)
+    GHShader* GLGHContext::createComputeShader(const std::string& text)
     {
         return new GLComputeShader(text);
     }
@@ -75,8 +85,18 @@ namespace Cyan
         return std::move(std::unique_ptr<GHTexture2D>(new GLTexture2D(desc)));
     }
 
-    GLStaticSubMesh* GLGHContext::createGfxStaticSubMesh(Geometry* geometry)
+    std::unique_ptr<GfxStaticSubMesh> GLGHContext::createGfxStaticSubMesh(Geometry* geometry)
     {
-        return new GLStaticSubMesh(geometry);
+        return std::move(std::unique_ptr<GLStaticSubMesh>(new GLStaticSubMesh(geometry)));
+    }
+
+    void GLGHContext::enableDepthTest()
+    {
+        glEnable(GL_DEPTH_TEST);
+    }
+
+    void GLGHContext::disableDepthTest()
+    {
+        glDisable(GL_DEPTH_TEST);
     }
 }

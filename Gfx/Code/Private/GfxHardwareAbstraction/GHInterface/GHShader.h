@@ -17,7 +17,7 @@ namespace Cyan
         DECLARE_SET_UNIFORM_TYPE(glm::vec2)  \
         DECLARE_SET_UNIFORM_TYPE(glm::vec3)  \
         DECLARE_SET_UNIFORM_TYPE(glm::mat4)  \
-        virtual void bindTexture(const char* samplerName, GHTexture* texture) = 0; \
+        virtual void bindTexture(const char* samplerName, GHTexture* texture, bool& outBound) = 0; \
         virtual void unbindTexture(const char* samplerName, GHTexture* texture) = 0; \
 
     class GHShader

@@ -11,13 +11,16 @@ namespace Cyan
         GLGHContext();
         virtual ~GLGHContext();
 
+        virtual void initialize() override;
+        virtual void deinitialize() override;
+
         // buffers
         virtual GHVertexBuffer* createVertexBuffer() override;
         virtual GHIndexBuffer* createIndexBuffer() override;
         // shaders
-        virtual GHShader* createVertexShader(const char* text) override;
-        virtual GHShader* createPixelShader(const char* text) override;
-        virtual GHShader* createComputeShader(const char* text) override;
+        virtual GHShader* createVertexShader(const std::string& text) override;
+        virtual GHShader* createPixelShader(const std::string& text) override;
+        virtual GHShader* createComputeShader(const std::string& text) override;
         virtual GHGfxPipeline* createGfxPipeline(std::shared_ptr<GHShader> vs, std::shared_ptr<GHShader> ps) override;
         // framebuffers
         virtual GHFramebuffer* createFramebuffer(u32 width, u32 height) override;
@@ -26,7 +29,10 @@ namespace Cyan
         virtual std::unique_ptr<GHDepthTexture> createDepthTexture(const GHDepthTexture::Desc& desc) override;
         virtual std::unique_ptr<GHTexture2D> createTexture2D(const GHTexture2D::Desc& desc) override;
         // static mesh
-        virtual GLStaticSubMesh* createGfxStaticSubMesh(Geometry* geometry) override;
+        virtual std::unique_ptr<GfxStaticSubMesh> createGfxStaticSubMesh(Geometry* geometry) override;
+
+        virtual void enableDepthTest() override;
+        virtual void disableDepthTest() override;
     private:
     };
 }

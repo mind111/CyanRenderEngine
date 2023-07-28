@@ -1,5 +1,7 @@
 #pragma once
 
+#include <mutex>
+
 #include "Core.h"
 #include "MathLibrary.h"
 
@@ -21,8 +23,8 @@ namespace Cyan
     class Scene;
     class SceneView;
     class AssetManager;
-
-    using FrameGfxTask = std::function<void(struct Frame&)>;
+    class InputManager;
+    struct FrameGfxTask;
 
     class ENGINE_API Engine
     {
@@ -47,6 +49,7 @@ namespace Cyan
         Engine(std::unique_ptr<App> app); // hiding constructor to prohibit direct construction
 
         void update();
+        void handleInputs();
         void enqueueFrameGfxTask(const FrameGfxTask& task);
         bool syncWithRendering();
         void submitForRendering();
@@ -54,6 +57,14 @@ namespace Cyan
         std::unique_ptr<GfxModule> m_gfx = nullptr;
         std::unique_ptr<App> m_app = nullptr;
         AssetManager* m_assetManager = nullptr;
+        InputManager* m_inputManager = nullptr;
+
+        /**
+         * Input handling
+         */
+        using InputEventQueue = std::queue<std::unique_ptr<struct ILowLevelInputEvent>>;
+        std::mutex m_frameInputEventsQueueMutex;
+        std::queue<InputEventQueue> m_frameInputEventsQueue;
 
         /**
          * There can only be one world and one scene alive at any given time
@@ -66,8 +77,6 @@ namespace Cyan
         /* These are accessed on the render thread */
         std::unique_ptr<Scene> m_sceneRenderThread = nullptr;
         std::vector<SceneView*> m_views;
-
-        std::queue<FrameGfxTask> m_frameGfxTaskQueue;
 
         bool bRunning = false;
         i32 m_mainFrameNumber = 0;

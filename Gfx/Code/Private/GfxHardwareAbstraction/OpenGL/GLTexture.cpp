@@ -114,7 +114,6 @@ namespace Cyan
     GLTexture::GLTexture()
         : GLObject()
     {
-
     }
 
     GLTexture::~GLTexture()
@@ -189,8 +188,8 @@ namespace Cyan
         glBindTexture(GL_TEXTURE_2D, glTextureObject);
         auto glPixelFormat = translatePixelFormat(desc.pf);
         // todo: verify input pixel data validity
-#if 0 
-        glTexImage2D(GL_TEXTURE_2D, 0, glPixelFormat.internalFormat, m_desc.width, m_desc.height, 0, glPixelFormat.format, glPixelFormat.type, m_desc.data);
+#if 1 
+        glTexImage2D(GL_TEXTURE_2D, 0, glPixelFormat.internalFormat, desc.width, desc.height, 0, glPixelFormat.format, glPixelFormat.type, desc.data);
 #else
         // allocate texture memory
         glTextureStorage2D(glTextureObject, desc.numMips, glPixelFormat.internalFormat, desc.width, desc.height);
@@ -240,6 +239,7 @@ namespace Cyan
     GLDepthTexture::GLDepthTexture(const GHDepthTexture::Desc& desc)
         : GLTexture(), GHDepthTexture(desc)
     {
+        glCreateTextures(GL_TEXTURE_2D, 1, &m_name);
     }
 
     GLDepthTexture::~GLDepthTexture()

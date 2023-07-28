@@ -1,20 +1,25 @@
 #include <atomic>
 
+#include "glfw3.h"
+
 #include "App.h"
 #include "Engine.h"
 #include "World.h"
 #include "SceneCamera.h"
 #include "StaticMesh.h"
 #include "AssetManager.h"
+#include "InputManager.h"
 
 #include "GfxModule.h"
 #include "GfxInterface.h"
 #include "Scene.h"
 
+// todo: think about component memory ownership
 namespace Cyan
 {
-    Engine* Engine::s_instance = nullptr;
+    static std::queue<FrameGfxTask> s_frameGfxTaskQueue;
 
+    Engine* Engine::s_instance = nullptr;
     Engine::~Engine() 
     {
 
@@ -36,6 +41,7 @@ namespace Cyan
     {
         m_gfx = std::move(GfxModule::create(glm::uvec2(app->m_windowWidth, app->m_windowHeight)));
         m_app = std::move(app);
+        m_inputManager = InputManager::get();
         m_world = std::make_unique<World>("Default");
         m_sceneRenderThread = std::make_unique<Scene>();
     }
@@ -44,6 +50,16 @@ namespace Cyan
     {
         m_assetManager = AssetManager::get();
         m_gfx->initialize();
+        // setup input handler with the render thread
+        auto inputHandler = std::make_unique<InputEventHandler>([this](InputEventQueue& eventQueue) {
+            // this lambda will only be invoked on the render thread
+            assert(GfxModule::isInRenderThread());
+            std::lock_guard<std::mutex> lock(m_frameInputEventsQueueMutex);
+            m_frameInputEventsQueue.push(std::move(eventQueue));
+            assert(m_frameInputEventsQueue.size() <= 2);
+        });
+        m_gfx->setInputEventHandler(std::move(inputHandler));
+
         m_app->initialize(m_world.get());
     }
 
@@ -55,6 +71,48 @@ namespace Cyan
     {
         m_app->update(m_world.get());
         m_world->update();
+    }
+
+    void Engine::handleInputs()
+    {
+        InputEventQueue q;
+        {
+            std::lock_guard<std::mutex> lock(m_frameInputEventsQueueMutex);
+            if (!m_frameInputEventsQueue.empty())
+            {
+                q = std::move(m_frameInputEventsQueue.front());
+                m_frameInputEventsQueue.pop();
+            }
+        }
+
+        // process input events
+        while (!q.empty())
+        {
+            std::unique_ptr<ILowLevelInputEvent> event = std::move(q.front());
+            q.pop();
+            switch (event->getEventType())
+            {
+                case ILowLevelInputEvent::Type::kKeyEvent: 
+                {
+                    LowLevelKeyEvent* keyEvent = static_cast<LowLevelKeyEvent*>(event.get());
+                    m_inputManager->processKeyEvent(keyEvent);
+                    break;
+                }
+                case ILowLevelInputEvent::Type::kMouseCursor:
+                {
+                    LowLevelMouseCursorEvent* mouseCursorEvent = static_cast<LowLevelMouseCursorEvent*>(event.get());
+                    m_inputManager->processMouseCursorEvent(mouseCursorEvent);
+                    break;
+                }
+                case ILowLevelInputEvent::Type::kMouseButton:
+                {
+                    LowLevelMouseButtonEvent* mouseButtonEvent = static_cast<LowLevelMouseButtonEvent*>(event.get());
+                    m_inputManager->processMouseButtonEvent(mouseButtonEvent);
+                    break;
+                }
+                default: break;
+            }
+        }
     }
 
     bool Engine::syncWithRendering()
@@ -93,12 +151,15 @@ namespace Cyan
             cameraStates[i].m_renderMode = world->m_cameras[i]->m_renderMode;
         }
 
-        enqueueFrameGfxTask([this, cameraStates, transforms](Frame& frame) {
+        FrameGfxTask task = { };
+        task.debugName = std::string("SyncRenderState");
+        task.lambda = [this, cameraStates, transforms](Frame& frame) {
             // update scene views
             std::vector<SceneView*> views = *frame.views;
             for (i32 i = 0; i < views.size(); ++i)
             {
                 const auto& cameraState = cameraStates[i];
+                views[i]->m_viewMode = (SceneView::ViewMode)cameraState.m_renderMode;
                 auto& viewState = views[i]->m_state;
                 if (viewState.frameCount > 0)
                 {
@@ -129,11 +190,13 @@ namespace Cyan
             {
                 frame.scene->m_staticSubMeshInstances[i].localToWorldMatrix = transforms[i];
             }
-        });
+        };
+
+        enqueueFrameGfxTask(task);
 
         Frame frame = { };
         frame.simFrameNumber = m_mainFrameNumber;
-        frame.gfxTasks = std::move(m_frameGfxTaskQueue);
+        frame.gfxTasks = std::move(s_frameGfxTaskQueue);
         frame.scene = m_sceneRenderThread.get();
         frame.views = &m_views;
 
@@ -148,12 +211,12 @@ namespace Cyan
             // check if main thread is too far ahead of render thread
             if (syncWithRendering())
             {
-                // rendering a frame
-                printf("[Main   Thread] Simulating frame %d \n", m_mainFrameNumber);
+                handleInputs();
+
+                // simulating a frame
+                // cyanInfo("Simulating frame %d", m_mainFrameNumber);
                 // do sim work on main thread
                 update();
-                // wait for a new frame to arrive
-                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
                 // copy game state and submit work to render thread
                 submitForRendering();
@@ -172,10 +235,14 @@ namespace Cyan
         glm::uvec2 renderResoltuion = camera->getRenderResolution();
 
         // create a new SceneView for this new camera
-        s_instance->enqueueFrameGfxTask([renderResoltuion](Frame& frame) {
+        FrameGfxTask task = { };
+        task.debugName = "AddSceneView";
+        task.lambda = [renderResoltuion](Frame& frame) {
             // todo: deal with memory ownership here
             s_instance->m_views.push_back(new SceneView(renderResoltuion));
-        });
+        };
+
+        s_instance->enqueueFrameGfxTask(task);
     }
 
     // todo: implement this
@@ -204,6 +271,7 @@ namespace Cyan
 
             for (u32 i = 0; i < mesh.numSubMeshes(); ++i)
             {
+                std::string subMeshKey = mesh.getName() + "[" + std::to_string(i) + "]";
                 u32 slot = -1;
 
                 if (!m_emptyStaticSubMeshInstanceSlots.empty())
@@ -213,15 +281,19 @@ namespace Cyan
                     m_emptyStaticSubMeshInstanceSlots.pop();
                     m_transformCache[emptySlot] = localToWorldMatrix;
 
-                    mesh[i]->addListener([this, emptySlot, instanceID, instanceKey, localToWorldMatrix](StaticSubMesh* sm) {
-                        enqueueFrameGfxTask([this, sm, emptySlot, instanceKey, localToWorldMatrix](Frame& frame) {
+                    mesh[i]->addListener([this, emptySlot, instanceID, instanceKey, subMeshKey, localToWorldMatrix](StaticSubMesh* sm) {
+                        FrameGfxTask task = { };
+                        task.debugName = "AddStaticSubMeshInstance: " + instanceKey;
+                        task.lambda = [this, sm, emptySlot, instanceKey, subMeshKey, localToWorldMatrix](Frame& frame) {
                             // this function needs to be run on the rendering thread
                             StaticSubMeshInstance instance = { };
                             instance.staticMeshInstanceKey = instanceKey;
-                            instance.subMesh = GfxStaticSubMesh::create(sm->getGeometry());
+                            instance.subMesh = GfxStaticSubMesh::create(subMeshKey, sm->getGeometry());
                             instance.localToWorldMatrix = localToWorldMatrix;
                             m_sceneRenderThread->m_staticSubMeshInstances[emptySlot] = instance;
-                        });
+                        };
+
+                        enqueueFrameGfxTask(task);
                     });
                 }
                 else
@@ -229,15 +301,19 @@ namespace Cyan
                     m_transformCache.push_back(localToWorldMatrix);
                     u32 newSlot = static_cast<u32>(m_transformCache.size()) - 1;
                     slot = newSlot;
-                    mesh[i]->addListener([this, instanceID, instanceKey, localToWorldMatrix](StaticSubMesh* sm) {
-                        enqueueFrameGfxTask([this, sm, instanceKey, localToWorldMatrix](Frame& frame) {
+                    mesh[i]->addListener([this, instanceID, instanceKey, subMeshKey, localToWorldMatrix](StaticSubMesh* sm) {
+                        FrameGfxTask task = { };
+                        task.debugName = "AddStaticSubMeshInstance: " + instanceKey;
+                        task.lambda = [this, sm, instanceKey, subMeshKey, localToWorldMatrix](Frame& frame) {
                             // this function needs to be run on the rendering thread
                             StaticSubMeshInstance instance = { };
                             instance.staticMeshInstanceKey = instanceKey;
-                            instance.subMesh = GfxStaticSubMesh::create(sm->getGeometry());
+                            instance.subMesh = GfxStaticSubMesh::create(subMeshKey, sm->getGeometry());
                             instance.localToWorldMatrix = localToWorldMatrix;
                             m_sceneRenderThread->m_staticSubMeshInstances.push_back(instance);
-                        });
+                        };
+
+                        enqueueFrameGfxTask(task);
                     });
                 }
 
@@ -265,6 +341,6 @@ namespace Cyan
 
     void Engine::enqueueFrameGfxTask(const FrameGfxTask& task)
     {
-        m_frameGfxTaskQueue.push(task);
+        s_frameGfxTaskQueue.push(task);
     }
 }

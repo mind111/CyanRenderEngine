@@ -25,6 +25,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Code\Private\RenderPass.h" />
+    <ClInclude Include="Code\Public\LowLeveInputs.h" />
+    <ClInclude Include="Code\Public\RenderingUtils.h" />
     <ClInclude Include="Code\Public\Scene.h" />
     <ClInclude Include="Code\Private\SceneRender.h" />
     <ClInclude Include="Code\Private\SceneRenderer.h" />
@@ -52,6 +54,7 @@
   <ItemGroup>
     <ClCompile Include="Code\Private\RenderPass.cpp" />
     <ClCompile Include="Code\Private\SceneRender.cpp" />
+    <ClCompile Include="Code\Public\RenderingUtils.cpp" />
     <ClCompile Include="Code\Public\Scene.cpp" />
     <ClCompile Include="Code\Private\SceneRenderer.cpp" />
     <ClCompile Include="Code\Public\GfxModule.cpp" />
@@ -138,7 +141,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>$(SolutionDir)ThirdParty\glew\glew32s.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\glfw\Lib\glfw3.lib;$(SolutionDir)ThirdParty\glew\glew32s.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -160,7 +163,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>$(SolutionDir)ThirdParty\glew\glew32s.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\glfw\Lib\glfw3.lib;$(SolutionDir)ThirdParty\glew\glew32s.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -178,7 +181,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>$(SolutionDir)ThirdParty\glew\glew32s.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\glfw\Lib\glfw3.lib;$(SolutionDir)ThirdParty\glew\glew32s.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -200,7 +203,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>$(SolutionDir)ThirdParty\glew\glew32s.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\glfw\Lib\glfw3.lib;$(SolutionDir)ThirdParty\glew\glew32s.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

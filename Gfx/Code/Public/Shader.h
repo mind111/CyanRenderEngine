@@ -6,6 +6,8 @@
 
 namespace Cyan
 {
+#define SHADER_TEXT_PATH "C:\\dev\\cyanRenderEngine\\Gfx\\Shader\\"
+
     class Shader
     {
     public:
@@ -18,7 +20,7 @@ namespace Cyan
             m_GHO->setUniform(name, value);
         }
 
-        void bindTexture(const char* samplerName, GHTexture* texture);
+        void bindTexture(const char* samplerName, GHTexture* texture, bool& outBound);
         void unbindTexture(const char* samplerName);
 
         void resetState();
@@ -40,7 +42,7 @@ namespace Cyan
     class VertexShader : public Shader
     {
     public:
-        VertexShader(const char* name, const char* text);
+        VertexShader(const char* name, const std::string& text);
         virtual ~VertexShader();
 
         std::shared_ptr<GHVertexShader> getGHO();
@@ -49,7 +51,7 @@ namespace Cyan
     class PixelShader : public Shader
     {
     public:
-        PixelShader(const char* name, const char* text);
+        PixelShader(const char* name, const std::string& text);
         virtual ~PixelShader();
 
         std::shared_ptr<GHPixelShader> getGHO();
@@ -112,15 +114,43 @@ namespace Cyan
         }
 
         template <typename T>
-        static std::shared_ptr<T> createShader(const char* name, const char* text)
+        static std::shared_ptr<T> createShader(const char* name, const char* shaderTextPath)
         {
+            std::string path(shaderTextPath);
+            std::string text;
+            auto pos = path.find_last_of('.');
+            if (pos != std::string::npos)
+            {
+                std::string suffix = path.substr(pos);
+                // enforce a standard suffix for glsl shader
+                if (suffix == ".glsl")
+                {
+                    std::ifstream shaderTextFile(shaderTextPath);
+                    if (shaderTextFile.is_open())
+                    {
+                        std::string line;
+                        while (std::getline(shaderTextFile, line)) 
+                        {
+                            text += line;
+                            text += '\n';
+                        }
+                        shaderTextFile.close();
+                    }
+                }
+                else
+                {
+                    cyanError("Shader text file must ends with .glsl");
+                    assert(0);
+                }
+            }
+
             auto shader = std::make_shared<T>(name, text);
             s_instance->m_shaderMap.insert({ std::string(name), shader });
             return shader;
         }
 
         template <typename T>
-        static std::shared_ptr<T> findOrCreateShader(bool& outFound, const char* name, const char* text)
+        static std::shared_ptr<T> findOrCreateShader(bool& outFound, const char* name, const char* shaderTextPath)
         {
             auto found = findShader<T>(name);
             outFound = (found != nullptr);
@@ -129,7 +159,7 @@ namespace Cyan
                 return found;
             }
             assert(!outFound);
-            return createShader<T>(name, text);
+            return createShader<T>(name, shaderTextPath);
         }
 
         template <typename T>

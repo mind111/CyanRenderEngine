@@ -6,6 +6,7 @@
 #include "GHPipeline.h"
 #include "GHFramebuffer.h"
 #include "Geometry.h"
+#include "GfxStaticMesh.h"
 
 namespace Cyan
 {
@@ -18,22 +19,23 @@ namespace Cyan
 
     static GfxHardwareAPI getActiveGfxHardwareAPI();
 
-    class GfxStaticSubMesh;
-
     class GfxHardwareContext
     {
     public:
         static GfxHardwareContext* create();
         static GfxHardwareContext* get();
 
-        virtual ~GfxHardwareContext() { }
+        virtual void initialize() = 0;
+        virtual void deinitialize() = 0;
+
+        virtual ~GfxHardwareContext() { };
         // buffers
         virtual GHVertexBuffer* createVertexBuffer() = 0;
         virtual GHIndexBuffer* createIndexBuffer() = 0;
         // shaders
-        virtual GHShader* createVertexShader(const char* text) = 0;
-        virtual GHShader* createPixelShader(const char* text) = 0;
-        virtual GHShader* createComputeShader(const char* text) = 0;
+        virtual GHShader* createVertexShader(const std::string& text) = 0;
+        virtual GHShader* createPixelShader(const std::string& text) = 0;
+        virtual GHShader* createComputeShader(const std::string& text) = 0;
         virtual GHGfxPipeline* createGfxPipeline(std::shared_ptr<GHShader> vs, std::shared_ptr<GHShader> ps) = 0;
         // framebuffers
         virtual GHFramebuffer* createFramebuffer(u32 width, u32 height) = 0;
@@ -42,7 +44,10 @@ namespace Cyan
         virtual std::unique_ptr<GHDepthTexture> createDepthTexture(const GHDepthTexture::Desc& desc) = 0;
         virtual std::unique_ptr<GHTexture2D> createTexture2D(const GHTexture2D::Desc& desc) = 0;
         // static mesh
-        virtual GfxStaticSubMesh* createGfxStaticSubMesh(Geometry* geometry) = 0;
+        virtual std::unique_ptr<GfxStaticSubMesh> createGfxStaticSubMesh(Geometry* geometry) = 0;
+        // pipeline misc state
+        virtual void enableDepthTest() = 0;
+        virtual void disableDepthTest() = 0;
     protected:
         GfxHardwareContext() { }
     private:

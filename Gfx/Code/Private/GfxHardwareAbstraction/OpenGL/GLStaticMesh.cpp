@@ -56,6 +56,7 @@ namespace Cyan
         {
         case PrimitiveMode::kTriangles:
             glDrawElements(GL_TRIANGLES, numIndices(), GL_UNSIGNED_INT, 0);
+            break;
         default:
             assert(0);
             break;

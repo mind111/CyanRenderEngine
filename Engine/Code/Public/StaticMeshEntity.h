@@ -14,6 +14,6 @@ namespace Cyan
 
         StaticMeshComponent* getStaticMeshComponent() { return m_staticMeshComponent.get(); }
     private:
-        std::unique_ptr<StaticMeshComponent> m_staticMeshComponent = nullptr;
+        std::shared_ptr<StaticMeshComponent> m_staticMeshComponent = nullptr;
     };
 }

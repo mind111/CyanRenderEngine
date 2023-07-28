@@ -19,9 +19,12 @@ namespace Cyan
     void StaticMeshComponent::onTransformUpdated()
     {
         // update transform to make sure that it's synced on Scene side
-        m_staticMeshInstance->setLocalToWorldTransform(getWorldSpaceTransform());
+        if (m_staticMeshInstance != nullptr)
+        {
+            m_staticMeshInstance->setLocalToWorldTransform(getWorldSpaceTransform());
 
-        Engine::get()->onStaticMeshInstanceTransformUpdated(m_staticMeshInstance.get());
+            Engine::get()->onStaticMeshInstanceTransformUpdated(m_staticMeshInstance.get());
+        }
     }
 
     void StaticMeshComponent::setOwner(Entity* owner)

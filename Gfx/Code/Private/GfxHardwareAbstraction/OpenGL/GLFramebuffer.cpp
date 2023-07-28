@@ -66,6 +66,14 @@ namespace Cyan
         glNamedFramebufferTexture2DEXT(m_name, GL_COLOR_ATTACHMENT0 + bindingUnit, GL_TEXTURE_2D, 0, 0);
     }
 
+    void GLFramebuffer::clearColorBuffer(u32 bindingUnit, glm::vec4 clearColor)
+    {
+        ColorBuffer cb = (ColorBuffer)((u32)ColorBuffer::Color0 + bindingUnit);
+        i32 drawBuffer = m_drawBufferBindings.findDrawBuffer(cb);
+        assert(drawBuffer >= 0);
+        glClearNamedFramebufferfv(m_name, GL_COLOR, drawBuffer, &clearColor.x);
+    }
+
     void GLFramebuffer::bindDepthBuffer(GHDepthTexture* depthBuffer)
     {
         auto glTexture = dynamic_cast<GLDepthTexture*>(depthBuffer);
@@ -80,6 +88,11 @@ namespace Cyan
     void GLFramebuffer::unbindDepthBuffer()
     {
         glNamedFramebufferTexture2DEXT(m_name, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
+    }
+
+    void GLFramebuffer::clearDepthBuffer(f32 clearDepth)
+    {
+        glClearNamedFramebufferfv(m_name, GL_DEPTH, 0, &clearDepth);
     }
 
     static auto translate = [](const ColorBuffer& colorBuffer) -> GLenum {
@@ -100,7 +113,7 @@ namespace Cyan
 
     void GLFramebuffer::setDrawBuffers(const DrawBufferBindings& drawBufferBindings)
     {
-
+        m_drawBufferBindings = drawBufferBindings;
         GLenum drawBuffers[DrawBufferBindings::kNumDrawBuffers];
         for (i32 i = 0; i < DrawBufferBindings::kNumDrawBuffers; ++i)
         {

@@ -9,6 +9,9 @@
 #include <queue>
 #include <array>
 #include <functional>
+#include <fstream>
+
+#include "intrin.h"
 
 typedef uint8_t   u8;
 typedef uint16_t  u16;
@@ -29,10 +32,24 @@ typedef double   f64;
 #endif
 
 #define NOT_IMPLEMENTED_ERROR() \
-        assert(0);
+        assert(0);              \
 
 #define UNREACHABLE_ERROR() \
-        assert(0);
+        assert(0);          \
 
 #define UNEXPECTED_FATAL_ERROR() \
-        assert(0);
+        assert(0);               \
+
+#define cyanInfo(...)           \
+    {                           \
+        printf("[Info] ");      \
+        printf(__VA_ARGS__);    \
+        printf("\n");           \
+    }                           \
+
+#define cyanError(str, ...)                     \
+    {                                           \
+        printf("\033[1;31m[Error] \033[0m");    \
+        printf(str, __VA_ARGS__);               \
+        printf("\n");                           \
+    }                                           \
