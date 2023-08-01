@@ -7,31 +7,6 @@
 
 namespace Cyan
 {
-    struct GLShaderUniformDesc
-    {
-        enum class Type 
-        {
-            kInt,
-            kUint,
-            kFloat,
-            kVec2,
-            kVec3,
-            kVec4,
-            kMat4,
-            kSampler2D,
-            kSampler2DArray,
-            kSampler3D,
-            kSamplerCube,
-            kSamplerShadow,
-            kImage3D,
-            kImageUI3D,
-            kAtomicUint,
-            kCount
-        } type;
-        std::string name;
-        i32 location;
-    };
-
 #define IMPLEMENT_SET_UNIFORM_TYPE(valueType)                                    \
     virtual void setUniform(const char* name, const valueType& value) override { \
         glSetUniform(name, value);                                               \
@@ -45,6 +20,7 @@ namespace Cyan
         IMPLEMENT_SET_UNIFORM_TYPE(glm::ivec2) \
         IMPLEMENT_SET_UNIFORM_TYPE(glm::vec2)  \
         IMPLEMENT_SET_UNIFORM_TYPE(glm::vec3)  \
+        IMPLEMENT_SET_UNIFORM_TYPE(glm::vec4)  \
         IMPLEMENT_SET_UNIFORM_TYPE(glm::mat4)  \
         virtual void bindTexture(const char* samplerName, GHTexture* texture, bool& outBound) override {    \
             GLShader::bindTexture(samplerName, texture, outBound);                                          \
@@ -59,7 +35,7 @@ namespace Cyan
         GLShader(const std::string& text);
         ~GLShader();
 
-        void build();
+        void build(ShaderUniformMap& uniformMap);
 
     protected:
         i32 getUniformLocation(const char* name);
@@ -77,7 +53,7 @@ namespace Cyan
         void unbindTexture(const char* samplerName, GHTexture* texture);
 
         std::string m_text;
-        std::unordered_map<std::string, GLShaderUniformDesc> m_uniformDescMap;
+        std::unordered_map<std::string, i32> m_uniformLocationMap;
     };
 
     class GLVertexShader : public GLShader, public GHVertexShader

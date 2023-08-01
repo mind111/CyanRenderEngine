@@ -31,6 +31,7 @@
     <ClInclude Include="imgui\Code\Header\imstb_truetype.h" />
     <ClInclude Include="stbi\Code\Header\stb_image.h" />
     <ClInclude Include="stbi\Code\Header\stb_image_write.h" />
+    <ClInclude Include="stbi\Code\Header\ThirdParty.h" />
     <ClInclude Include="tiny_gltf\json.hpp" />
     <ClInclude Include="tiny_gltf\tiny_gltf.h" />
   </ItemGroup>
@@ -105,7 +106,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)imgui\Code\Header;$(ProjectDir)glm\Code\Header;$(ProjectDir)glfw\Code\Header;$(ProjectDir)stbi\Code\Header;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)imgui\Code\Header;$(ProjectDir)glm\Code\Header;$(ProjectDir)glfw\Code\Header;$(ProjectDir)stbi\Code\Header;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -125,7 +126,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)imgui\Code\Header;$(ProjectDir)glm\Code\Header;$(ProjectDir)glfw\Code\Header;$(ProjectDir)stbi\Code\Header;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)imgui\Code\Header;$(ProjectDir)glm\Code\Header;$(ProjectDir)glfw\Code\Header;$(ProjectDir)stbi\Code\Header;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -145,7 +146,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)imgui\Code\Header;$(ProjectDir)glm\Code\Header;$(ProjectDir)glfw\Code\Header;$(ProjectDir)stbi\Code\Header;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)imgui\Code\Header;$(ProjectDir)glm\Code\Header;$(ProjectDir)glfw\Code\Header;$(ProjectDir)stbi\Code\Header;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -165,7 +166,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)imgui\Code\Header;$(ProjectDir)glm\Code\Header;$(ProjectDir)glfw\Code\Header;$(ProjectDir)stbi\Code\Header;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)imgui\Code\Header;$(ProjectDir)glm\Code\Header;$(ProjectDir)glfw\Code\Header;$(ProjectDir)stbi\Code\Header;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

@@ -27,6 +27,7 @@
     <ClInclude Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLStaticMesh.h" />
     <ClInclude Include="Code\Public\RenderingUtils.h" />
     <ClInclude Include="Code\Public\LowLeveInputs.h" />
+    <ClInclude Include="Code\Public\GfxMaterial.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Code\Private\GfxHardwareAbstraction\GHInterface\GHBuffer.cpp" />
@@ -50,5 +51,12 @@
     <ClCompile Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLStaticMesh.cpp" />
     <ClCompile Include="Code\Private\SceneRender.cpp" />
     <ClCompile Include="Code\Public\RenderingUtils.cpp" />
+    <ClCompile Include="Code\Public\GfxMaterial.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shader\blit_texture_p.glsl" />
+    <None Include="Shader\depth_p.glsl" />
+    <None Include="Shader\screen_pass_v.glsl" />
+    <None Include="Shader\static_mesh_v.glsl" />
   </ItemGroup>
 </Project>

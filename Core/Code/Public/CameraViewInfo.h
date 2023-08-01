@@ -38,7 +38,7 @@ namespace Cyan
             m_worldSpaceRight = glm::vec3(1.f, 0.f, 0.f);
             m_worldSpaceForward = glm::vec3(0.f, 0.f, -1.f);
             m_worldSpaceUp = glm::vec3(0.f, 1.f, 0.f);
-            m_worldSpacePosition = glm::vec3(0.f, 4.f, 5.f); 
+            m_worldSpacePosition = glm::vec3(0.f, 0.f, 0.f);
 
             m_worldUp = worldUpVector();
 

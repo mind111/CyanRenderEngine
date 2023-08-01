@@ -14,7 +14,10 @@
 #include "GfxInterface.h"
 #include "Scene.h"
 
+// todo: get material back
 // todo: think about component memory ownership
+// todo: think about asset ownership
+// todo: gfx side material representation
 namespace Cyan
 {
     static std::queue<FrameGfxTask> s_frameGfxTaskQueue;
@@ -43,7 +46,6 @@ namespace Cyan
         m_app = std::move(app);
         m_inputManager = InputManager::get();
         m_world = std::make_unique<World>("Default");
-        m_sceneRenderThread = std::make_unique<Scene>();
     }
 
     void Engine::initialize()
@@ -125,7 +127,6 @@ namespace Cyan
     void Engine::submitForRendering()
     {
         World* world = m_world.get();
-        const std::vector<glm::mat4>& transforms = m_transformCache;
 
         struct CameraState
         {
@@ -153,7 +154,7 @@ namespace Cyan
 
         FrameGfxTask task = { };
         task.debugName = std::string("SyncRenderState");
-        task.lambda = [this, cameraStates, transforms](Frame& frame) {
+        task.lambda = [this, cameraStates](Frame& frame) {
             // update scene views
             std::vector<SceneView*> views = *frame.views;
             for (i32 i = 0; i < views.size(); ++i)
@@ -182,14 +183,6 @@ namespace Cyan
                 viewState.elapsedTime = cameraState.m_elapsedTime;
                 viewState.deltaTime = cameraState.m_deltaTime;
             }
-
-            // copy scene state
-            u32 numSubMeshInstances = (u32)frame.scene->m_staticSubMeshInstances.size();
-            assert(numSubMeshInstances == (u32)transforms.size());
-            for (u32 i = 0; i < numSubMeshInstances; ++i)
-            {
-                frame.scene->m_staticSubMeshInstances[i].localToWorldMatrix = transforms[i];
-            }
         };
 
         enqueueFrameGfxTask(task);
@@ -197,8 +190,8 @@ namespace Cyan
         Frame frame = { };
         frame.simFrameNumber = m_mainFrameNumber;
         frame.gfxTasks = std::move(s_frameGfxTaskQueue);
-        frame.scene = m_sceneRenderThread.get();
-        frame.views = &m_views;
+        frame.scene = m_world->m_sceneRenderThread.get();
+        frame.views = &m_world->m_views;
 
         GfxModule::enqueueFrame(frame);
     }
@@ -226,115 +219,6 @@ namespace Cyan
 #if !THREADED_RENDERING
                 m_gfx->renderOneFrame();
 #endif
-            }
-        }
-    }
-
-    void Engine::onSceneCameraAdded(SceneCamera* camera)
-    {
-        glm::uvec2 renderResoltuion = camera->getRenderResolution();
-
-        // create a new SceneView for this new camera
-        FrameGfxTask task = { };
-        task.debugName = "AddSceneView";
-        task.lambda = [renderResoltuion](Frame& frame) {
-            // todo: deal with memory ownership here
-            s_instance->m_views.push_back(new SceneView(renderResoltuion));
-        };
-
-        s_instance->enqueueFrameGfxTask(task);
-    }
-
-    // todo: implement this
-    void Engine::onSceneCameraRemoved(SceneCamera* camera)
-    {
-        // remove the SceneView for this camera
-    }
-
-    // todo: is there a way to simplify this ...?
-    void Engine::onStaticMeshInstanceAdded(StaticMeshInstance* staticMeshInstance)
-    {
-        if (staticMeshInstance != nullptr)
-        {
-            const std::string& instanceKey = staticMeshInstance->getInstanceKey();
-            auto entry = m_staticSubMeshInstanceMap.find(instanceKey);
-            if (entry != m_staticSubMeshInstanceMap.end())
-            {
-                UNEXPECTED_FATAL_ERROR();
-            }
-
-            i32 instanceID = staticMeshInstance->getInstanceID();
-            glm::mat4 localToWorldMatrix = staticMeshInstance->getLocalToWorldMatrix();
-            StaticMesh& mesh = *staticMeshInstance->getParentMesh();
-
-            std::vector<u32>& subMeshInstanceIndices = m_staticSubMeshInstanceMap[instanceKey];
-
-            for (u32 i = 0; i < mesh.numSubMeshes(); ++i)
-            {
-                std::string subMeshKey = mesh.getName() + "[" + std::to_string(i) + "]";
-                u32 slot = -1;
-
-                if (!m_emptyStaticSubMeshInstanceSlots.empty())
-                {
-                    u32 emptySlot = m_emptyStaticSubMeshInstanceSlots.front();
-                    slot = emptySlot;
-                    m_emptyStaticSubMeshInstanceSlots.pop();
-                    m_transformCache[emptySlot] = localToWorldMatrix;
-
-                    mesh[i]->addListener([this, emptySlot, instanceID, instanceKey, subMeshKey, localToWorldMatrix](StaticSubMesh* sm) {
-                        FrameGfxTask task = { };
-                        task.debugName = "AddStaticSubMeshInstance: " + instanceKey;
-                        task.lambda = [this, sm, emptySlot, instanceKey, subMeshKey, localToWorldMatrix](Frame& frame) {
-                            // this function needs to be run on the rendering thread
-                            StaticSubMeshInstance instance = { };
-                            instance.staticMeshInstanceKey = instanceKey;
-                            instance.subMesh = GfxStaticSubMesh::create(subMeshKey, sm->getGeometry());
-                            instance.localToWorldMatrix = localToWorldMatrix;
-                            m_sceneRenderThread->m_staticSubMeshInstances[emptySlot] = instance;
-                        };
-
-                        enqueueFrameGfxTask(task);
-                    });
-                }
-                else
-                {
-                    m_transformCache.push_back(localToWorldMatrix);
-                    u32 newSlot = static_cast<u32>(m_transformCache.size()) - 1;
-                    slot = newSlot;
-                    mesh[i]->addListener([this, instanceID, instanceKey, subMeshKey, localToWorldMatrix](StaticSubMesh* sm) {
-                        FrameGfxTask task = { };
-                        task.debugName = "AddStaticSubMeshInstance: " + instanceKey;
-                        task.lambda = [this, sm, instanceKey, subMeshKey, localToWorldMatrix](Frame& frame) {
-                            // this function needs to be run on the rendering thread
-                            StaticSubMeshInstance instance = { };
-                            instance.staticMeshInstanceKey = instanceKey;
-                            instance.subMesh = GfxStaticSubMesh::create(subMeshKey, sm->getGeometry());
-                            instance.localToWorldMatrix = localToWorldMatrix;
-                            m_sceneRenderThread->m_staticSubMeshInstances.push_back(instance);
-                        };
-
-                        enqueueFrameGfxTask(task);
-                    });
-                }
-
-                subMeshInstanceIndices.push_back(slot);
-            }
-        }
-    }
-
-    void Engine::onStaticMeshInstanceRemoved(StaticMeshInstance* staticMeshInstance)
-    {
-        NOT_IMPLEMENTED_ERROR()
-    }
-
-    void Engine::onStaticMeshInstanceTransformUpdated(StaticMeshInstance* staticMeshInstance)
-    {
-        const auto& entry = m_staticSubMeshInstanceMap.find(staticMeshInstance->getInstanceKey());
-        if (entry != m_staticSubMeshInstanceMap.end())
-        {
-            for (u32 smInstanceIndex : entry->second)
-            {
-               m_transformCache[smInstanceIndex] = staticMeshInstance->getLocalToWorldMatrix();
             }
         }
     }

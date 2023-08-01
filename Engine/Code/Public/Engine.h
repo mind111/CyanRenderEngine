@@ -38,19 +38,12 @@ namespace Cyan
         void deinitialize();
         void run();
 
-        void onSceneCameraAdded(SceneCamera* camera);
-        void onSceneCameraRemoved(SceneCamera* camera);
-
-        void onStaticMeshInstanceAdded(StaticMeshInstance* staticMeshInstance);
-        void onStaticMeshInstanceRemoved(StaticMeshInstance* staticMeshInstance);
-        void onStaticMeshInstanceTransformUpdated(StaticMeshInstance* staticMeshInstance);
-
+        void enqueueFrameGfxTask(const FrameGfxTask& task);
     private:
         Engine(std::unique_ptr<App> app); // hiding constructor to prohibit direct construction
 
         void update();
         void handleInputs();
-        void enqueueFrameGfxTask(const FrameGfxTask& task);
         bool syncWithRendering();
         void submitForRendering();
 
@@ -70,6 +63,7 @@ namespace Cyan
          * There can only be one world and one scene alive at any given time
          */
         std::unique_ptr<World> m_world = nullptr;
+#if 0
         std::vector<glm::mat4> m_transformCache;
         std::unordered_map<std::string, std::vector<u32>> m_staticSubMeshInstanceMap;
         std::queue<u32> m_emptyStaticSubMeshInstanceSlots;
@@ -77,9 +71,16 @@ namespace Cyan
         /* These are accessed on the render thread */
         std::unique_ptr<Scene> m_sceneRenderThread = nullptr;
         std::vector<SceneView*> m_views;
+#endif
 
         bool bRunning = false;
         i32 m_mainFrameNumber = 0;
         static Engine* s_instance;
     };
 }
+
+#define ENQUEUE_GFX_TASK(taskName, ...)                     \
+    FrameGfxTask task = { };                                \
+    task.debugName = std::move(taskName);                   \
+    task.lambda = std::move(__VA_ARGS__);                   \
+    Engine::get()->enqueueFrameGfxTask(task);               \

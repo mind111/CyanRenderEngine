@@ -11,7 +11,7 @@ namespace Cyan
         return std::move(outTex2D);
     }
 
-    GHTexture2D::GHTexture2D(const Desc& desc)
+    GHTexture2D::GHTexture2D(const Desc& desc, const GHSampler2D& sampler2D)
         : m_desc(desc), m_defaultSampler()
     {
         assert(desc.width > 0 && desc.height > 0 && desc.numMips >= 1);

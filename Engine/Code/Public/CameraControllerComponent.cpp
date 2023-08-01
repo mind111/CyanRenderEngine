@@ -60,12 +60,12 @@ namespace Cyan
                     // rotation around camera up
                     if (glm::abs(cursorEvent->delta.x) >= 1.f)
                     {
-                        m_yawOneFrame += sensitivity * kPixelToRotationDegree * - cursorEvent->delta.x;
+                        m_yawOneFrame += sensitivity * kPixelToRotationDegree * -(f32)(cursorEvent->delta.x);
                     }
                     if (glm::abs(cursorEvent->delta.y) >= 1.f)
                     {
                         // rotation around camera right
-                        m_pitchOneFrame += sensitivity * kPixelToRotationDegree * - cursorEvent->delta.y;
+                        m_pitchOneFrame += sensitivity * kPixelToRotationDegree * -(f32)(cursorEvent->delta.y);
                     }
                 }
             });

@@ -15,6 +15,7 @@
     <ClInclude Include="glew\glew.h" />
     <ClInclude Include="tiny_gltf\json.hpp" />
     <ClInclude Include="tiny_gltf\tiny_gltf.h" />
+    <ClInclude Include="stbi\Code\Header\ThirdParty.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="imgui\Code\Source\imgui.cpp" />

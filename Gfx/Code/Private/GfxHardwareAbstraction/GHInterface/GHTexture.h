@@ -27,19 +27,26 @@ namespace Cyan
             Trilinear,
         };
 
+        GHSampler2D() = default;
+        ~GHSampler2D() = default;
+
         virtual void setAddressingModeX(const AddressingMode& am) { m_addressingX = am; }
         virtual void setAddressingModeY(const AddressingMode& am) { m_addressingY = am; }
         virtual void setFilteringModeMin(const FilteringMode& fm) { m_filteringMin = fm; }
         virtual void setFilteringModeMag(const FilteringMode& fm) { m_filteringMag = fm; }
 
     protected:
-        GHSampler2D() = default;
-
         AddressingMode m_addressingX = AddressingMode::Wrap;
         AddressingMode m_addressingY = AddressingMode::Wrap;
         FilteringMode m_filteringMin = FilteringMode::Point;
         FilteringMode m_filteringMag = FilteringMode::Point;
     };
+
+#define SAMPLER2D_FM_POINT GHSampler2D::FilteringMode::Point
+#define SAMPLER2D_FM_BILINEAR GHSampler2D::FilteringMode::Bilinear
+#define SAMPLER2D_FM_TRILINEAR GHSampler2D::FilteringMode::Trilinear
+#define SAMPLER2D_AM_WRAP GHSampler2D::AddressingMode::Wrap
+#define SAMPLER2D_AM_CLAMP GHSampler2D::AddressingMode::Clamp
 
     enum class PixelFormat
     {
@@ -114,7 +121,7 @@ namespace Cyan
 
         const Desc& getDesc() { return m_desc; }
     protected:
-        GHTexture2D(const Desc& desc);
+        GHTexture2D(const Desc& desc, const GHSampler2D& sampler2D = GHSampler2D());
 
         Desc m_desc;
         GHSampler2D m_defaultSampler;

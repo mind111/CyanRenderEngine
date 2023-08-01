@@ -12,11 +12,4 @@
 
 namespace Cyan
 {
-    struct StaticSubMeshInstance
-    {
-        // todo: material
-        std::string staticMeshInstanceKey;
-        GfxStaticSubMesh* subMesh = nullptr;
-        glm::mat4 localToWorldMatrix = glm::mat4(1.f);
-    };
 }

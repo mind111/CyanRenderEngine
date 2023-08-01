@@ -1,14 +1,15 @@
 #pragma once
 
 #include "Core.h"
+#include "Gfx.h"
 #include "GHShader.h"
 #include "GHPipeline.h"
 
 namespace Cyan
 {
-#define SHADER_TEXT_PATH "C:\\dev\\cyanRenderEngine\\Gfx\\Shader\\"
+#define SHADER_TEXT_PATH "C:/dev/cyanRenderEngine/Gfx/Shader/"
 
-    class Shader
+    class GFX_API Shader
     {
     public:
         virtual ~Shader() { }
@@ -39,25 +40,29 @@ namespace Cyan
         std::unordered_map<const char*, TextureBinding> m_textureBindingMap;
     };
 
-    class VertexShader : public Shader
+    class GFX_API VertexShader : public Shader
     {
     public:
+        friend class GfxPipeline;
+
         VertexShader(const char* name, const std::string& text);
         virtual ~VertexShader();
 
-        std::shared_ptr<GHVertexShader> getGHO();
+        GHVertexShader* getGHO();
     };
 
-    class PixelShader : public Shader
+    class GFX_API PixelShader : public Shader
     {
     public:
+        friend class GfxPipeline;
+
         PixelShader(const char* name, const std::string& text);
         virtual ~PixelShader();
 
-        std::shared_ptr<GHPixelShader> getGHO();
+        GHPixelShader* getGHO();
     };
 
-    class Pipeline
+    class GFX_API Pipeline
     {
     public:
         virtual ~Pipeline() { }
@@ -67,7 +72,7 @@ namespace Cyan
         std::string m_name;
     };
 
-    class GfxPipeline : public Pipeline
+    class GFX_API GfxPipeline : public Pipeline
     {
     public:
         GfxPipeline(const char* name, std::shared_ptr<VertexShader> vs, std::shared_ptr<PixelShader> ps);
@@ -75,6 +80,9 @@ namespace Cyan
 
         void bind();
         void unbind();
+
+        VertexShader* getVertexShader() { return m_vs.get(); }
+        PixelShader* getPixelShader() { return m_ps.get(); }
 
         template <typename T>
         void setUniform(const char* name, const T& value)
@@ -94,7 +102,7 @@ namespace Cyan
         bool bBound = false;
     };
 
-    class ShaderManager
+    class GFX_API ShaderManager
     {
     public:
         ~ShaderManager();

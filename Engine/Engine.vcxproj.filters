@@ -19,6 +19,9 @@
     <ClInclude Include="Code\Public\SceneCameraEntity.h" />
     <ClInclude Include="Code\Public\InputManager.h" />
     <ClInclude Include="Code\Public\CameraControllerComponent.h" />
+    <ClInclude Include="Code\Public\Material.h" />
+    <ClInclude Include="Code\Public\Texture.h" />
+    <ClInclude Include="Code\Public\Image.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Code\Public\App.cpp" />
@@ -37,5 +40,8 @@
     <ClCompile Include="Code\Public\SceneCameraEntity.cpp" />
     <ClCompile Include="Code\Public\InputManager.cpp" />
     <ClCompile Include="Code\Public\CameraControllerComponent.cpp" />
+    <ClCompile Include="Code\Public\Material.cpp" />
+    <ClCompile Include="Code\Public\Image.cpp" />
+    <ClCompile Include="Code\Public\Texture.cpp" />
   </ItemGroup>
 </Project>

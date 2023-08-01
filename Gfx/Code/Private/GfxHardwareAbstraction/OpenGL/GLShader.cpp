@@ -14,9 +14,9 @@ namespace Cyan
         glDeleteShader(m_name);
     }
 
-    GLShaderUniformDesc::Type translate(GLenum glType)
+    ShaderUniformDesc::Type translate(GLenum glType)
     {
-        using UniformType = GLShaderUniformDesc::Type;
+        using UniformType = ShaderUniformDesc::Type;
 
         switch (glType) 
         {
@@ -53,7 +53,7 @@ namespace Cyan
         }
     }
 
-    void GLShader::build()
+    void GLShader::build(ShaderUniformMap& outUniformMap)
     {
         GLuint program = m_name;
         // query list of active uniforms
@@ -90,11 +90,14 @@ namespace Cyan
                                 }
                             }
 
-                            GLShaderUniformDesc desc = { };
+                            ShaderUniformDesc desc = { };
                             desc.type = translated;
                             desc.name = std::string(name);
-                            desc.location = glGetUniformLocation(program, name);
-                            m_uniformDescMap.insert({ desc.name, desc });
+                            // desc.location = glGetUniformLocation(program, name);
+                            outUniformMap.insert({ desc.name, desc });
+                            i32 uniformLocation = glGetUniformLocation(program, name);
+                            assert(uniformLocation >= 0);
+                            m_uniformLocationMap.insert({ desc.name, uniformLocation });
                         }
                     }
                 }
@@ -131,23 +134,23 @@ namespace Cyan
         }
     }
 
-    i32 GLShader::getUniformLocation(const char* name)
-    {
-        auto entry = m_uniformDescMap.find(std::string(name));
-        if (entry == m_uniformDescMap.end()) 
-        {
-            return -1;
-        }
-        return entry->second.location;
-    }
-
 #define GL_SET_UNIFORM(func, ...)                \
     i32 location = getUniformLocation(name);     \
     if (location >= 0) {                         \
         func(m_name, location, __VA_ARGS__);     \
     }                                            \
 
-    void GLShader::glSetUniform(const char* name, f32 data) 
+    i32 GLShader::getUniformLocation(const char* name)
+    {
+        auto entry = m_uniformLocationMap.find(std::string(name));
+        if (entry == m_uniformLocationMap.end()) 
+        {
+            return -1;
+        }
+        return entry->second;
+    }
+
+    void GLShader::glSetUniform(const char* name, f32 data)
     {
         GL_SET_UNIFORM(glProgramUniform1f, data)
     }
@@ -202,7 +205,7 @@ namespace Cyan
     {
         const char* strings[1] = { m_text.c_str() };
         m_name = glCreateShaderProgramv(GL_VERTEX_SHADER, 1, strings);
-        build();
+        build(m_uniformMap);
     }
 
     GLPixelShader::GLPixelShader(const std::string& text)
@@ -210,7 +213,7 @@ namespace Cyan
     {
         const char* strings[1] = { m_text.c_str() };
         m_name = glCreateShaderProgramv(GL_FRAGMENT_SHADER, 1, strings);
-        build();
+        build(m_uniformMap);
     }
 
     GLComputeShader::GLComputeShader(const std::string& text)
@@ -218,6 +221,6 @@ namespace Cyan
     {
         const char* strings[1] = { m_text.c_str() };
         m_name = glCreateShaderProgramv(GL_COMPUTE_SHADER, 1, strings);
-        build();
+        build(m_uniformMap);
     }
  }

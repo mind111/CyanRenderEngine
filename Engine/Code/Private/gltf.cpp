@@ -1,11 +1,14 @@
 #include <string>
 #include <fstream>
-#include <unordered_map>
-#include <thread>
 
+#include "AssetManager.h"
 #include "gltf.h"
 #include "stb_image.h"
 #include "Geometry.h"
+#include "Image.h"
+#include "Texture.h"
+#include "GfxHardwareAbstraction/GHInterface/GHTexture.h"
+#include "Material.h"
 
 namespace glm 
 {
@@ -69,7 +72,6 @@ namespace Cyan
             }
         }
 
-#if 0
         void Gltf::importMaterials()
         {
             for (i32 i = 0; i < m_materials.size(); ++i)
@@ -78,19 +80,19 @@ namespace Cyan
                 auto matl = AssetManager::createMaterial(
                     gltfMatl.m_name.c_str(),
                     MATERIAL_SOURCE_PATH "M_DefaultOpaque_p.glsl",
-                    [this, gltfMatl](MaterialInstance* defaultInstance) {
-                        defaultInstance->setVec3("mp_albedo", gltfMatl.pbrMetallicRoughness.baseColorFactor);
-                        defaultInstance->setFloat("mp_roughness", gltfMatl.pbrMetallicRoughness.roughnessFactor);
-                        defaultInstance->setFloat("mp_metallic", gltfMatl.pbrMetallicRoughness.metallicFactor);
+                    [this, gltfMatl](Cyan::Material* m) {
+                        m->setVec3("mp_albedo", gltfMatl.pbrMetallicRoughness.baseColorFactor);
+                        m->setFloat("mp_roughness", gltfMatl.pbrMetallicRoughness.roughnessFactor);
+                        m->setFloat("mp_metallic", gltfMatl.pbrMetallicRoughness.metallicFactor);
                         i32 baseColorTextureIndex = gltfMatl.pbrMetallicRoughness.baseColorTexture.index;
                         if (baseColorTextureIndex >= 0)
                         {
                             const gltf::Texture gltfTexture = m_textures[baseColorTextureIndex];
-                            Texture2D* texture = AssetManager::findAsset<Texture2D>(gltfTexture.m_name.c_str()).get();
+                            Texture2D* texture = AssetManager::findAsset<Texture2D>(gltfTexture.m_name.c_str());
                             if (texture != nullptr)
                             {
-                                defaultInstance->setTexture("mp_albedoMap", texture);
-                                defaultInstance->setFloat("mp_hasAlbedoMap", 0.5f);
+                                m->setTexture("mp_albedoMap", texture);
+                                m->setFloat("mp_hasAlbedoMap", 0.5f);
                             }
                         }
 
@@ -98,11 +100,11 @@ namespace Cyan
                         if (normalTextureIndex >= 0)
                         {
                             const gltf::Texture gltfTexture = m_textures[normalTextureIndex];
-                            Texture2D* texture = AssetManager::findAsset<Texture2D>(gltfTexture.m_name.c_str()).get();
+                            Texture2D* texture = AssetManager::findAsset<Texture2D>(gltfTexture.m_name.c_str());
                             if (texture != nullptr)
                             {
-                                defaultInstance->setTexture("mp_normalMap", texture);
-                                defaultInstance->setFloat("mp_hasNormalMap", .5f);
+                                m->setTexture("mp_normalMap", texture);
+                                m->setFloat("mp_hasNormalMap", .5f);
                             }
                         }
 
@@ -110,18 +112,17 @@ namespace Cyan
                         if (metallicRoughnessIndex >= 0)
                         {
                             const gltf::Texture gltfTexture = m_textures[metallicRoughnessIndex];
-                            Texture2D* texture = AssetManager::findAsset<Texture2D>(gltfTexture.m_name.c_str()).get();
+                            Texture2D* texture = AssetManager::findAsset<Texture2D>(gltfTexture.m_name.c_str());
                             if (texture != nullptr)
                             {
-                                defaultInstance->setTexture("mp_metallicRoughnessMap", texture);
-                                defaultInstance->setFloat("mp_hasMetallicRoughnessMap", .5f);
+                                m->setTexture("mp_metallicRoughnessMap", texture);
+                                m->setFloat("mp_hasMetallicRoughnessMap", .5f);
                             }
                         }
                     }
                 );
             }
         }
-#endif
 
         Glb::Glb(const char* filename)
             : Gltf(filename)
@@ -313,7 +314,6 @@ namespace Cyan
             }
         }
 
-#if 0
         void Glb::importImage(const gltf::Image& gltfImage, Cyan::Image& outImage)
         {
             i32 bufferView = gltfImage.bufferView;
@@ -322,26 +322,7 @@ namespace Cyan
             {
                 const gltf::BufferView bv = m_bufferViews[bufferView];
                 u8* dataAddress = m_binaryChunk.data() + bv.byteOffset;
-                i32 hdr = stbi_is_hdr_from_memory(dataAddress, bv.byteLength);
-                if (hdr)
-                {
-                    outImage.m_bitsPerChannel = 32;
-                    outImage.m_pixels = std::shared_ptr<u8>(((u8*)stbi_loadf_from_memory(dataAddress, bv.byteLength, &outImage.m_width, &outImage.m_height, &outImage.m_numChannels, 0)));
-                }
-                else
-                {
-                    i32 is16Bit = stbi_is_16_bit_from_memory(dataAddress, bv.byteLength);
-                    if (is16Bit)
-                    {
-                        outImage.m_bitsPerChannel = 16;
-                        outImage.m_pixels = std::shared_ptr<u8>((u8*)stbi_load_16_from_memory(dataAddress, bv.byteLength, &outImage.m_width, &outImage.m_height, &outImage.m_numChannels, 0));
-                    }
-                    else
-                    {
-                        outImage.m_bitsPerChannel = 8;
-                        outImage.m_pixels = std::shared_ptr<u8>((u8*)stbi_load_from_memory(dataAddress, bv.byteLength, &outImage.m_width, &outImage.m_height, &outImage.m_numChannels, 0));
-                    }
-                }
+                outImage.importFromMemory(dataAddress, bv.byteLength);
             }
             // todo: loading image data from an uri
             else
@@ -351,21 +332,21 @@ namespace Cyan
             outImage.onLoaded();
         }
 
-        void translateSampler(const gltf::Sampler& sampler, Sampler2D& outSampler, bool& bOutGenerateMipmap)
+        void translateSampler2D(const gltf::Sampler& sampler, GHSampler2D& outSampler, bool& bOutGenerateMipmap)
         {
             switch (sampler.magFilter)
             {
-            case (u32)gltf::Sampler::Filtering::NEAREST: outSampler.magFilter = FM_POINT; break;
-            case (u32)gltf::Sampler::Filtering::LINEAR: outSampler.magFilter = FM_BILINEAR; break;
+            case (u32)gltf::Sampler::Filtering::NEAREST: outSampler.setFilteringModeMag(SAMPLER2D_FM_POINT); break;
+            case (u32)gltf::Sampler::Filtering::LINEAR: outSampler.setFilteringModeMag(SAMPLER2D_FM_BILINEAR); break;
             default: assert(0); break;
             }
 
             switch (sampler.minFilter)
             {
-            case (u32)gltf::Sampler::Filtering::NEAREST: outSampler.minFilter = FM_POINT; break;
-            case (u32)gltf::Sampler::Filtering::LINEAR: outSampler.minFilter = FM_BILINEAR; break;
+            case (u32)gltf::Sampler::Filtering::NEAREST: outSampler.setFilteringModeMin(SAMPLER2D_FM_POINT); break;
+            case (u32)gltf::Sampler::Filtering::LINEAR: outSampler.setFilteringModeMin(SAMPLER2D_FM_BILINEAR); break;
             case (u32)gltf::Sampler::Filtering::LINEAR_MIPMAP_LINEAR: 
-                outSampler.minFilter = FM_TRILINEAR; 
+                outSampler.setFilteringModeMin(SAMPLER2D_FM_TRILINEAR); 
                 bOutGenerateMipmap = true;
                 break;
             case (u32)gltf::Sampler::Filtering::LINEAR_MIPMAP_NEAREST:
@@ -379,28 +360,15 @@ namespace Cyan
             switch (sampler.wrapS)
             {
             case (u32)gltf::Sampler::Wrap::CLAMP_TO_EDGE: 
-                outSampler.wrapS = WM_CLAMP; 
+                outSampler.setAddressingModeX(SAMPLER2D_AM_CLAMP); 
                 break;
             case (u32)gltf::Sampler::Wrap::REPEAT: 
-                outSampler.wrapS = WM_WRAP; 
-                break;
-            case (u32)gltf::Sampler::Wrap::MIRRORED_REPEAT:
-            default: assert(0); break;
-            }
-
-            switch (sampler.wrapT)
-            {
-            case (u32)gltf::Sampler::Wrap::CLAMP_TO_EDGE: 
-                outSampler.wrapT = WM_CLAMP; 
-                break;
-            case (u32)gltf::Sampler::Wrap::REPEAT: 
-                outSampler.wrapT = WM_WRAP; 
+                outSampler.setAddressingModeY(SAMPLER2D_AM_WRAP); 
                 break;
             case (u32)gltf::Sampler::Wrap::MIRRORED_REPEAT:
             default: assert(0); break;
             }
         }
-#endif
 
         void Glb::loadJsonChunk()
         {

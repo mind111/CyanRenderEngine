@@ -21,7 +21,9 @@ namespace Cyan
     {
         const char* sceneFilePath = ASSET_PATH "mesh/shader_balls.glb";
         world->import(sceneFilePath);
-        SceneCameraEntity* ce = world->createEntity<SceneCameraEntity>("TestCamera_0", Transform()).get();
+        Transform cameraTransform = { };
+        cameraTransform.translation = glm::vec3(0.f, 4.f, 5.f); 
+        SceneCameraEntity* ce = world->createEntity<SceneCameraEntity>("TestCamera_0", cameraTransform).get();
         auto cc = ce->getSceneCameraComponent();
         cc->setResolution(glm::uvec2(1920, 1080));
         cc->setRenderMode(SceneCamera::RenderMode::kSceneDepth);

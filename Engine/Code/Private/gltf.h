@@ -11,7 +11,7 @@ namespace Cyan
     class Scene;
     class Entity;
     struct Triangles;
-    struct Sampler2D;
+    class GHSampler2D;
     class Image;
 
     namespace gltf
@@ -203,8 +203,8 @@ namespace Cyan
             virtual void load() { }
 
             virtual void importTriangles(const gltf::Primitive& p, Triangles& outTriangles) { }
-            // virtual void importImage(const gltf::Image& gltfImage, Cyan::Image& outImage) { }
-            // virtual void importMaterials();
+            virtual void importImage(const gltf::Image& gltfImage, Cyan::Image& outImage) { }
+            virtual void importMaterials();
 
             std::string m_filename;
             // json object parsed from raw json string
@@ -237,7 +237,7 @@ namespace Cyan
             virtual void load() override;
 
             virtual void importTriangles(const gltf::Primitive& p, Triangles& outTriangles) override;
-            // virtual void importImage(const gltf::Image& gltfImage, Cyan::Image& outImage) override;
+            virtual void importImage(const gltf::Image& gltfImage, Cyan::Image& outImage) override;
 
             ChunkDesc m_jsonChunkDesc;
             ChunkDesc m_binaryChunkDesc;
@@ -248,6 +248,6 @@ namespace Cyan
             void loadJsonChunk();
         };
 
-        // void translateSampler(const gltf::Sampler& sampler, Cyan::Sampler2D& outSampler, bool& bOutGenerateMipmap);
+        void translateSampler2D(const gltf::Sampler& sampler, Cyan::GHSampler2D& outSampler, bool& bOutGenerateMipmap);
     }
 }

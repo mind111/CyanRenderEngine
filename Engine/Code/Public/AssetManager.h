@@ -15,9 +15,14 @@ namespace Cyan
     class Entity;
     class Asset;
     class StaticMesh;
+    class Image;
+    class Texture2D;
+    class GHSampler2D;
+    class Material;
+    class MaterialInstance;
 
-    // class Material;
-    // class Texture2D;
+    using MaterialSetupFunc = std::function<void(Material*)>;
+
     class ENGINE_API AssetManager
     {
     public:
@@ -43,8 +48,10 @@ namespace Cyan
         }
 
         static StaticMesh* createStaticMesh(const char* name, u32 numSubMeshes);
-        // static Texture2D* createTexture2D(const char* name, u32 numSubMeshes);
-        // static Material* createTexture2D(const char* name, u32 numSubMeshes);
+        static Image* createImage(const char* name);
+        static Texture2D* createTexture2D(const char* name, const GHSampler2D& sampler2D, Image* image, bool bGenerateMipmap);
+        static Material* createMaterial(const char* name, const char* materialSourcePath, const MaterialSetupFunc& setupFunc);
+        static MaterialInstance* createMaterialInstance(const char* name, Material* parent);
 
     private:
         AssetManager();

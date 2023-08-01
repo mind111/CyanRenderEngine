@@ -43,12 +43,12 @@ namespace Cyan
     {
     }
 
-    std::shared_ptr<GHVertexShader> VertexShader::getGHO() 
+    GHVertexShader* VertexShader::getGHO() 
     { 
         /**
          * Note: This cast should be safe here since m_GHO is guaranteed to be type VertexShader
          */
-        return std::static_pointer_cast<GHVertexShader>(m_GHO); 
+        return static_cast<GHVertexShader*>(m_GHO.get()); 
     }
 
     PixelShader::PixelShader(const char* name, const std::string& text)
@@ -61,12 +61,12 @@ namespace Cyan
     {
     }
 
-    std::shared_ptr<Cyan::GHPixelShader> PixelShader::getGHO()
+    GHPixelShader* PixelShader::getGHO()
     {
         /**
          * Note: This cast should be safe here since m_GHO is guaranteed to be type VertexShader
          */
-        return std::static_pointer_cast<GHPixelShader>(m_GHO); 
+        return static_cast<GHPixelShader*>(m_GHO.get()); 
     }
 
     Pipeline::Pipeline(const char* name)
@@ -78,7 +78,7 @@ namespace Cyan
     GfxPipeline::GfxPipeline(const char* name, std::shared_ptr<VertexShader> vs, std::shared_ptr<PixelShader> ps)
         : Pipeline(name), m_vs(vs), m_ps(ps)
     {
-        m_GHO.reset(GfxHardwareContext::get()->createGfxPipeline(vs->getGHO(), ps->getGHO()));
+        m_GHO.reset(GfxHardwareContext::get()->createGfxPipeline(vs->m_GHO, ps->m_GHO));
     }
 
     GfxPipeline::~GfxPipeline()

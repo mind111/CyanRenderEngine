@@ -22,8 +22,6 @@ namespace Cyan
         if (m_staticMeshInstance != nullptr)
         {
             m_staticMeshInstance->setLocalToWorldTransform(getWorldSpaceTransform());
-
-            Engine::get()->onStaticMeshInstanceTransformUpdated(m_staticMeshInstance.get());
         }
     }
 
@@ -33,6 +31,18 @@ namespace Cyan
         if (prevOwner != nullptr)
         {
             // todo: remove the static mesh instance from the previous scene
+            World* world = prevOwner->getWorld();
+            if (world != nullptr)
+            {
+                Scene* scene = world->getScene();
+                if (scene != nullptr)
+                {
+                    if (m_staticMeshInstance != nullptr)
+                    {
+                        m_staticMeshInstance->removeFromScene(scene);
+                    }
+                }
+            }
         }
 
         // update owner
@@ -44,9 +54,13 @@ namespace Cyan
         World* world = owner->getWorld();
         if (world != nullptr)
         {
-            if (m_staticMeshInstance != nullptr)
+            Scene* scene = world->getScene();
+            if (scene != nullptr)
             {
-                world->addStaticMeshInstance(m_staticMeshInstance.get());
+                if (m_staticMeshInstance != nullptr)
+                {
+                    m_staticMeshInstance->addToScene(scene);
+                }
             }
         }
     }
@@ -85,32 +99,38 @@ namespace Cyan
             World* world = m_owner->getWorld();
             if (world != nullptr)
             {
-                if (currentMesh != nullptr)
+                Scene* scene = world->getScene();
+                if (scene != nullptr)
                 {
-                    world->removeStaticMeshInstance(m_staticMeshInstance.get());
+                    if (currentMesh != nullptr)
+                    {
+                        m_staticMeshInstance->removeFromScene(scene);
+                    }
+                    else
+                    {
+
+                    }
+                    m_staticMeshInstance.release();
+                    m_staticMeshInstance = std::move(mesh->createInstance(getWorldSpaceTransform()));
+                    m_staticMeshInstance->addToScene(scene);
                 }
             }
-            m_staticMeshInstance.release();
-            m_staticMeshInstance = std::move(mesh->createInstance(getWorldSpaceTransform()));
-            world->addStaticMeshInstance(m_staticMeshInstance.get());
         }
     }
 
-#if 0
-    void StaticMeshComponent::setMaterial(std::shared_ptr<Material> material, u32 index)
+    void StaticMeshComponent::setMaterial(u32 slot, MaterialInstance* mi)
     {
-        if (index < 0)
+        if (slot < 0)
         {
             auto mesh = m_staticMeshInstance->getParentMesh();
             for (i32 i = 0; i < mesh->numSubMeshes(); ++i)
             {
-                setMaterial(material, i);
+                setMaterial(i, mi);
             }
         }
         else
         {
-            m_staticMeshInstance->setMaterial(material, index);
+            m_staticMeshInstance->setMaterial(slot, mi);
         }
     }
-#endif
 }

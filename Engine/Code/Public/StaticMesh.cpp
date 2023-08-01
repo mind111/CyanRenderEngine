@@ -1,4 +1,11 @@
 #include "StaticMesh.h"
+#include "Material.h"
+#include "AssetManager.h"
+#include "Engine.h"
+
+#include "Scene.h"
+#include "GfxModule.h"
+#include "GfxMaterial.h"
 
 namespace Cyan
 {
@@ -9,7 +16,7 @@ namespace Cyan
         // create all subMeshes here upfront
         for (u32 i = 0; i < m_numSubMeshes; ++i)
         {
-            m_subMeshes[i] = std::make_unique<StaticSubMesh>(this);
+            m_subMeshes[i] = std::make_unique<StaticSubMesh>(this, i);
         }
     }
 
@@ -32,6 +39,13 @@ namespace Cyan
         }
         std::string instanceKey = getName() + "_Instance" + std::to_string(instanceID);
         std::unique_ptr<StaticMeshInstance> instance = std::make_unique<StaticMeshInstance>(this, instanceID, instanceKey, localToWorld);
+        // setup default material
+        auto defaultMaterial = AssetManager::findAsset<Material>("M_DefaultOpaque");
+        auto mi = defaultMaterial->getDefaultInstance();
+        for (u32 i = 0; i < numSubMeshes(); ++i)
+        {
+            instance->setMaterial(i, mi);
+        }
         m_instances.push_back(instance.get());
         return std::move(instance);
     }
@@ -45,9 +59,12 @@ namespace Cyan
         m_freeInstanceIDList.push(id);
     }
 
-    StaticSubMesh::StaticSubMesh(StaticMesh* parent)
+    StaticSubMesh::StaticSubMesh(StaticMesh* parent, u32 index)
         : m_parent(parent)
+        , m_index(index)
+        , m_name()
     {
+        m_name = m_parent->getName() + "[" + std::to_string(index) + "]";
     }
 
     StaticSubMesh::~StaticSubMesh()
@@ -90,8 +107,25 @@ namespace Cyan
     }
 
     StaticMeshInstance::StaticMeshInstance(StaticMesh* parent, i32 instanceID, const std::string& instanceKey, const Transform& localToWorld)
-        : m_instanceID(instanceID), m_instanceKey(instanceKey), m_parent(parent), m_localToWorldTransform(localToWorld), m_localToWorldMatrix(localToWorld.toMatrix())
+        : m_instanceID(instanceID)
+        , m_instanceKey(instanceKey)
+        , m_parent(parent)
+        , m_localToWorldTransform(localToWorld)
+        , m_localToWorldMatrix(localToWorld.toMatrix())
+        , m_materials(parent->numSubMeshes())
     {
+        // todo: setup default material bindings 
+        auto m = AssetManager::findAsset<Material>("M_DefaultOpaque");
+        if (m == nullptr)
+        {
+            m = AssetManager::createMaterial("M_DefaultOpaque", Material::defaultOpaqueMaterialPath, [](Material* m) {
+                });
+        }
+        auto mi = m->getDefaultInstance();
+        for (u32 i = 0; i < m_materials.size(); ++i)
+        {
+            setMaterial(i, mi);
+        }
     }
 
     StaticMeshInstance::~StaticMeshInstance()
@@ -99,9 +133,106 @@ namespace Cyan
         m_parent->removeInstance(this);
     }
 
+    void StaticMeshInstance::addToScene(Scene* scene)
+    {
+        m_scene = scene;
+        StaticMesh& mesh = *getParentMesh();
+        for (i32 i = 0; i < mesh.numSubMeshes(); ++i)
+        {
+            auto m = getMaterial(i);
+            const glm::mat4 localToWorldMatrix = m_localToWorldMatrix;
+            std::string instanceKey = std::move(getSubMeshInstanceKey(i));
+            mesh[i]->addListener([this, scene, i, m, localToWorldMatrix, instanceKey](StaticSubMesh* sm) {
+                FrameGfxTask task = { };
+                task.debugName = std::string("AddStaticMeshInstance");
+                task.lambda = [i, this, scene, sm, m, localToWorldMatrix, instanceKey](Frame& frame) {
+                    StaticSubMeshInstance instance = { };
+                    instance.key = instanceKey;
+                    instance.subMesh = GfxStaticSubMesh::create(sm->getName(), sm->getGeometry());
+                    instance.material = m->getGfxMaterialInstance();
+                    instance.localToWorldMatrix = localToWorldMatrix;
+
+                    if (scene != nullptr)
+                    {
+                        scene->addStaticSubMeshInstance(instance);
+                    }
+                };
+                Engine::get()->enqueueFrameGfxTask(task);
+            });
+        }
+    }
+
+    void StaticMeshInstance::removeFromScene(Scene* scene)
+    {
+
+    }
+
+    std::string StaticMeshInstance::getSubMeshInstanceKey(u32 subMeshIndex)
+    {
+        // subMeshName + instanceID
+        StaticMesh& mesh = *getParentMesh();
+        const std::string& subMeshName = mesh[subMeshIndex]->getName();
+        std::string outKey = subMeshName + "_" + std::to_string(getInstanceID());
+        return outKey;
+    }
+
     void StaticMeshInstance::setLocalToWorldTransform(const Transform& localToWorld)
     {
         m_localToWorldTransform = localToWorld;
         m_localToWorldMatrix = m_localToWorldTransform.toMatrix();
+
+        // copy the state to make sure thread safety
+        Scene* scene = m_scene;
+        u32 numSubMeshes = getParentMesh()->numSubMeshes();
+        glm::mat4 localToWorldMatrix = m_localToWorldMatrix;
+        // todo: if numSubMeshes is large, this can get slow, is there any ways to avoid the copy?
+        std::vector<std::string> instanceKeys(numSubMeshes);
+        for (i32 i = 0; i < instanceKeys.size(); ++i)
+        {
+            instanceKeys[i] = getSubMeshInstanceKey(i);
+        }
+
+        FrameGfxTask task = {  };
+        task.debugName = std::string("UpdateStaticMeshInstanceTransform");
+        task.lambda = [scene, numSubMeshes, instanceKeys, localToWorldMatrix](Frame& frame) {
+            if (scene != nullptr)
+            {
+                for (i32 i = 0; i < numSubMeshes; ++i)
+                {
+                    bool bFound;
+                    StaticSubMeshInstance& outInstance = scene->findStaticSubMeshInstance(instanceKeys[i], bFound);
+                    if (bFound)
+                    {
+                        outInstance.localToWorldMatrix = localToWorldMatrix;
+                    }
+                }
+            }
+        };
+        Engine::get()->enqueueFrameGfxTask(task);
+    }
+
+    void StaticMeshInstance::setMaterial(u32 slot, MaterialInstance* mi)
+    {
+        assert(slot < m_materials.size());
+        m_materials[slot] = mi;
+
+        Scene* scene = m_scene;
+        std::string instanceKey = std::move(getSubMeshInstanceKey(slot));
+
+        // replicate changes to the rendering side data
+        ENQUEUE_GFX_TASK(
+            std::string("setMaterial"),
+            [scene, mi, slot, instanceKey](Frame& frame) {
+                if (scene != nullptr)
+                {
+                    bool bFound;
+                    StaticSubMeshInstance outInstance = scene->findStaticSubMeshInstance(instanceKey, bFound);
+                    if (bFound)
+                    {
+                        outInstance.material = mi->getGfxMaterialInstance();
+                    }
+                }
+            }
+        )
     }
 }

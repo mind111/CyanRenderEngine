@@ -4,7 +4,7 @@
 
 namespace Cyan
 {
-    class Material;
+    class MaterialInstance;
     class StaticMesh;
     class StaticMeshInstance;
 
@@ -19,7 +19,7 @@ namespace Cyan
 
         StaticMeshInstance* getMeshInstance() { return m_staticMeshInstance.get(); }
         void setStaticMesh(StaticMesh* mesh);
-        // void setMaterial(std::shared_ptr<Material> material, u32 index);
+        void setMaterial(u32 slot, MaterialInstance* mi);
     private:
         std::unique_ptr<StaticMeshInstance> m_staticMeshInstance = nullptr;
     };

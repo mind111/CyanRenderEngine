@@ -43,10 +43,7 @@ namespace Cyan
             return outEntity;
         }
 
-        void addStaticMeshInstance(StaticMeshInstance* staticMeshInstance);
-        void removeStaticMeshInstance(StaticMeshInstance* staticMeshInstance);
-
-        // IScene* getScene() { return m_scene.get(); }
+        Scene* getScene() { return m_sceneRenderThread.get(); }
         const std::string& getName() { return m_name; }
         void addSceneCamera(SceneCamera* sceneCamera);
         void removeSceneCamera(SceneCamera* sceneCamera);
@@ -57,10 +54,9 @@ namespace Cyan
         /**/
         std::vector<SceneCamera*> m_cameras;
 
-        /**/
-        std::vector<StaticMeshInstance*> m_staticMeshInstances;
-        std::unordered_map<std::string, u32> m_staticMeshInstanceMap;
-        std::queue<u32> m_emptyStaticMeshInstanceSlots;
+        /* these member needs to be accessed from the render thread */
+        std::unique_ptr<Scene> m_sceneRenderThread = nullptr;
+        std::vector<SceneView*> m_views;
 
         std::shared_ptr<Entity> m_root = nullptr;
         i32 m_frameCount = 0;

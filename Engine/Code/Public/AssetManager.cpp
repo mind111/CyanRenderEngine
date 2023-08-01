@@ -1,10 +1,14 @@
 #include "World.h"
 #include "StaticMeshEntity.h"
 #include "StaticMeshComponent.h"
+#include "gltf.h"
 
 #include "AssetManager.h"
 #include "StaticMesh.h"
-#include "gltf.h"
+#include "Image.h"
+#include "Texture.h"
+#include "GfxHardwareAbstraction/GHInterface/GHTexture.h"
+#include "Material.h"
 
 namespace Cyan
 {
@@ -167,6 +171,30 @@ namespace Cyan
                 }
             }
 
+            for (i32 i = 0; i < glb->m_images.size(); ++i)
+            {
+                const auto& gltfImage = glb->m_images[i];
+                std::string imageName = gltfImage.m_name;
+                auto image = AssetManager::createImage(imageName.c_str());
+                glb->importImage(gltfImage, *image);
+            }
+
+            for (i32 i = 0; i < glb->m_textures.size(); ++i)
+            {
+                const gltf::Texture& gltfTexture = glb->m_textures[i];
+                const gltf::Image& gltfImage = glb->m_images[gltfTexture.source];
+                const gltf::Sampler& gltfSampler = glb->m_samplers[gltfTexture.sampler];
+                std::string textureName = gltfTexture.m_name;
+                auto image = AssetManager::findAsset<Image>(gltfImage.m_name.c_str());
+
+                GHSampler2D sampler;
+                bool bGenerateMipmap = false;
+                gltf::translateSampler2D(gltfSampler, sampler, bGenerateMipmap);
+                auto texture = AssetManager::createTexture2D(textureName.c_str(), sampler, image, bGenerateMipmap);
+            }
+
+            glb->importMaterials();
+
             // sync import scene nodes
             if (glb->m_defaultScene >= 0)
             {
@@ -180,7 +208,6 @@ namespace Cyan
         }
     }
 
-
     StaticMesh* AssetManager::createStaticMesh(const char* name, u32 numSubMeshes)
     {
         StaticMesh* found = findAsset<StaticMesh>(name);
@@ -189,5 +216,47 @@ namespace Cyan
         StaticMesh* outMesh = new StaticMesh(name, numSubMeshes);
         s_instance->m_residentAssetMap.insert({ outMesh->getName(), outMesh });
         return outMesh;
+    }
+
+    Image* AssetManager::createImage(const char* name)
+    {
+        Image* found = findAsset<Image>(name);
+        assert(found == nullptr);
+
+        Image* outImage = new Image(name);
+        s_instance->m_residentAssetMap.insert({ outImage->getName(), outImage });
+        return outImage;
+    }
+
+    Texture2D* AssetManager::createTexture2D(const char* name, const GHSampler2D& sampler2D, Image* image, bool bGenerateMipmap)
+    {
+        Texture2D* found = findAsset<Texture2D>(name);
+        assert(found == nullptr);
+
+        Texture2D* outTex2D = new Texture2D(name, sampler2D, image, bGenerateMipmap);
+        s_instance->m_residentAssetMap.insert({ outTex2D->getName(), outTex2D });
+        return outTex2D;
+    }
+
+    Material* AssetManager::createMaterial(const char* name, const char* materialSourcePath, const MaterialSetupFunc& setupFunc)
+    {
+        Material* found = findAsset<Material>(name);
+        assert(found == nullptr);
+
+        Material* outMaterial = new Material(name, materialSourcePath, setupFunc);
+        s_instance->m_residentAssetMap.insert({ outMaterial->getName(), outMaterial });
+        return outMaterial;
+    }
+
+    MaterialInstance* AssetManager::createMaterialInstance(const char* name, Material* parent)
+    {
+        Material* m = findAsset<Material>(parent->getName());
+        assert(m != nullptr);
+        MaterialInstance* mi = findAsset<MaterialInstance>(name);
+        assert(mi == nullptr);
+
+        mi = m->createInstance(name);
+        s_instance->m_residentAssetMap.insert({ mi->getName(), mi });
+        return mi;
     }
 }
