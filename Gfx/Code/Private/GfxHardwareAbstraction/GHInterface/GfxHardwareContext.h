@@ -48,6 +48,9 @@ namespace Cyan
         // pipeline misc state
         virtual void enableDepthTest() = 0;
         virtual void disableDepthTest() = 0;
+        // debugging
+        virtual void pushGpuDebugMarker(const char* markerName) = 0;
+        virtual void popGpuDebugMarker() = 0;
     protected:
         GfxHardwareContext() { }
     private:

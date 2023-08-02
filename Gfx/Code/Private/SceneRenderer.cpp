@@ -4,6 +4,7 @@
 #include "Shader.h"
 #include "Scene.h"
 #include "GfxStaticMesh.h"
+#include "GfxMaterial.h"
 
 namespace Cyan
 {
@@ -16,13 +17,9 @@ namespace Cyan
 
     void SceneRenderer::render(Scene* scene, SceneView& sceneView)
     {
-        // render depth prepass
         GHDepthTexture* sceneDepthTex = sceneView.m_render->depth();
         renderSceneDepth(sceneDepthTex, scene, sceneView.m_state);
-
-        // render gbuffer
-
-        // render lighting
+        renderSceneGBuffer(scene, sceneView);
 
         // render postprocessing
     }
@@ -47,6 +44,8 @@ namespace Cyan
 
     void SceneRenderer::renderSceneDepth(GHDepthTexture* outDepthTex, Scene* scene, const SceneView::State& viewState)
     {
+        GPU_DEBUG_SCOPE(depthPass, "SceneDepthPass")
+
         if (outDepthTex != nullptr && scene != nullptr)
         {
             bool found = false;
@@ -67,6 +66,49 @@ namespace Cyan
                     instance.subMesh->draw();
                 }
                 gfxp->unbind();
+            });
+            rp.enableDepthTest();
+            rp.render(GfxContext::get());
+        }
+    }
+
+    void SceneRenderer::renderSceneGBuffer(Scene* scene, SceneView& sceneView)
+    {
+        GPU_DEBUG_SCOPE(gbufferPass, "SceneGBufferPass")
+
+        auto render = sceneView.m_render.get();
+        /**
+         * Assuming that there is always a depth prepass
+         */
+        auto inDepthTex = render->depth();
+        auto outAlbedoTex = render->albedo();
+        auto outNormalTex = render->normal();
+        auto outMRTex = render->metallicRoughness();
+
+        if (scene != nullptr && inDepthTex != nullptr && outAlbedoTex != nullptr && outNormalTex != nullptr && outMRTex != nullptr)
+        {
+            const auto desc = outAlbedoTex->getDesc();
+            u32 width = desc.width, height = desc.height;
+            RenderPass rp(width, height);
+
+            DepthTarget depthTarget = { };
+            depthTarget.depthTexture = inDepthTex;
+            depthTarget.bNeedsClear = false;
+            rp.setDepthTarget(depthTarget);
+            rp.setRenderTarget(outAlbedoTex, 0);
+            rp.setRenderTarget(outNormalTex, 1);
+            rp.setRenderTarget(outMRTex, 2);
+
+            const SceneView::State& viewState = sceneView.m_state;
+            rp.setRenderFunc([scene, viewState](GfxContext* gfxc) {
+                for (auto instance : scene->m_staticSubMeshInstances)
+                {
+                    auto gfxp = instance.material->bind();
+                    gfxp->setUniform("localToWorld", instance.localToWorldMatrix);
+                    setShaderSceneViewInfo(gfxp, viewState);
+                    instance.subMesh->draw();
+                    instance.material->unbind();
+                }
             });
             rp.enableDepthTest();
             rp.render(GfxContext::get());

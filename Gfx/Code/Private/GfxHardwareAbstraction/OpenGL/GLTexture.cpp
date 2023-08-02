@@ -232,8 +232,8 @@ namespace Cyan
 
     void GLTexture2D::getMipSize(i32& outWidth, i32& outHeight, i32 mipLevel)
     {
-        glGetTexLevelParameteriv(GL_TEXTURE_2D, mipLevel, GL_TEXTURE_WIDTH, &outWidth);
-        glGetTexLevelParameteriv(GL_TEXTURE_2D, mipLevel, GL_TEXTURE_HEIGHT, &outHeight);
+        glGetTextureLevelParameteriv(getName(), mipLevel, GL_TEXTURE_WIDTH, &outWidth);
+        glGetTextureLevelParameteriv(getName(), mipLevel, GL_TEXTURE_HEIGHT, &outHeight);
     }
 
     GLDepthTexture::GLDepthTexture(const GHDepthTexture::Desc& desc)

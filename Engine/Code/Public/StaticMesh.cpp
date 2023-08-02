@@ -114,11 +114,20 @@ namespace Cyan
         , m_localToWorldMatrix(localToWorld.toMatrix())
         , m_materials(parent->numSubMeshes())
     {
-        // todo: setup default material bindings 
-        auto m = AssetManager::findAsset<Material>("M_DefaultOpaque");
+        // create the default material if it doesn't exist
+        auto m = AssetManager::findAsset<Cyan::Material>(Cyan::Material::defaultOpaqueMaterialName);
         if (m == nullptr)
         {
-            m = AssetManager::createMaterial("M_DefaultOpaque", Material::defaultOpaqueMaterialPath, [](Material* m) {
+            m = AssetManager::createMaterial(
+                Cyan::Material::defaultOpaqueMaterialName,
+                Cyan::Material::defaultOpaqueMaterialPath,
+                [](Cyan::Material* m) {
+                    m->setVec3("mp_albedo", glm::vec3(.95));
+                    m->setFloat("mp_roughness", .5f);
+                    m->setFloat("mp_metallic", 0.f);
+                    m->setFloat("mp_hasAlbedoMap", 0.f);
+                    m->setFloat("mp_hasNormalMap", 0.f);
+                    m->setFloat("mp_hasMetallicRoughnessMap", 0.f);
                 });
         }
         auto mi = m->getDefaultInstance();
@@ -211,6 +220,13 @@ namespace Cyan
         Engine::get()->enqueueFrameGfxTask(task);
     }
 
+    /**
+     * todo: thread safety needs to be improved regarding material pointers, as capturing material pointers doesn't
+     * guarantee that it won't be released on the main thread while the render thread is trying to access it. Think about
+     * under what cases will the Material pointer be destroyed. Using shared_ptr here makes the copy save, and prevent the main
+     * thread from releasing the Material pointer while render thread is still using it. For now, this is now an issue since Material
+     * pointer never gets freed, so it's always valid.
+     */
     void StaticMeshInstance::setMaterial(u32 slot, MaterialInstance* mi)
     {
         assert(slot < m_materials.size());

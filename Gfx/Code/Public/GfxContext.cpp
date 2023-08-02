@@ -81,6 +81,16 @@ namespace Cyan
         m_GHCtx->disableDepthTest();
     }
 
+    void GfxContext::pushGpuDebugMarker(const char* markerName)
+    {
+        m_GHCtx->pushGpuDebugMarker(markerName);
+    }
+
+    void GfxContext::popGpuDebugMarker()
+    {
+        m_GHCtx->popGpuDebugMarker();
+    }
+
     std::unique_ptr<GfxStaticSubMesh> GfxContext::createGfxStaticSubMesh(Geometry* geometry)
     {
         return m_GHCtx->createGfxStaticSubMesh(geometry);

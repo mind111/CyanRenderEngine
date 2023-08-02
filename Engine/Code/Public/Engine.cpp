@@ -18,6 +18,13 @@
 // todo: think about component memory ownership
 // todo: think about asset ownership
 // todo: gfx side material representation
+// todo: think about the communication model between the main thread and the render thread
+
+// bug: When an entity is attached to another entity as an child, current setup will mistakenly
+//      update the owner of current entities' scene components to parent entity. This causes a SceneCamera
+//      instance being added twice into the scene. A temp workaround is in but the scene component
+//      attachment setup really needs a bit of work later. Maybe differentiate "indirect" child scene components
+//      from direct child scene components or maybe not attaching current entity's scene root to its parent entity's scene root?
 namespace Cyan
 {
     static std::queue<FrameGfxTask> s_frameGfxTaskQueue;

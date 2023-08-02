@@ -18,6 +18,7 @@ namespace Cyan
         void render(Scene* scene, SceneView& sceneView);
 
         void renderSceneDepth(GHDepthTexture* outDepth, Scene* scene, const SceneView::State& viewState);
+        void renderSceneGBuffer(Scene* scene, SceneView& sceneView);
     private:
     };
 } 

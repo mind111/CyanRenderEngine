@@ -33,6 +33,10 @@ namespace Cyan
 
         virtual void enableDepthTest() override;
         virtual void disableDepthTest() override;
+
+        // debugging
+        virtual void pushGpuDebugMarker(const char* markerName) override;
+        virtual void popGpuDebugMarker() override;
     private:
     };
 }

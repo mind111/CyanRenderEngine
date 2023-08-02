@@ -29,6 +29,10 @@ namespace Cyan
         void unsetViewport();
         void enableDepthTest();
         void disableDepthTest();
+        /**/
+        void pushGpuDebugMarker(const char* markerName);
+        void popGpuDebugMarker();
+
         std::unique_ptr<GfxStaticSubMesh> createGfxStaticSubMesh(Geometry* geometry);
 
     private:
@@ -43,4 +47,18 @@ namespace Cyan
 
         static GfxContext* s_instance;
     };
+
+    struct GpuDebugMarker
+    {
+        GpuDebugMarker(const char* markerName)
+        {
+            GfxContext::get()->pushGpuDebugMarker(markerName);
+        }
+
+        ~GpuDebugMarker()
+        {
+            GfxContext::get()->popGpuDebugMarker();
+        }
+    };
+#define GPU_DEBUG_SCOPE(markerVar, markerName) GpuDebugMarker markerVar(markerName);
 }

@@ -11,6 +11,20 @@ namespace Cyan
 {
     struct RenderTarget
     {
+        RenderTarget() = default;
+        RenderTarget(GHTexture2D* inColorTexture)
+            : colorTexture(inColorTexture)
+        {
+        }
+
+        RenderTarget(GHTexture2D* inColorTexture, u32 inMipLevel)
+            : colorTexture(inColorTexture)
+            , mipLevel(inMipLevel)
+        {
+        }
+
+        ~RenderTarget() { }
+
         u32 width() const
         { 
             const auto& desc = colorTexture->getDesc();

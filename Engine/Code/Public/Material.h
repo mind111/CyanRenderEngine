@@ -43,6 +43,7 @@ namespace Cyan
         void setVec4(const char* parameterName, const glm::vec4& data);
         void setTexture(const char* parameterName, Texture2D* texture);
 
+        static constexpr const char* defaultOpaqueMaterialName = "M_DefaultOpaque";
         static constexpr const char* defaultOpaqueMaterialPath = MATERIAL_SOURCE_PATH "M_DefaultOpaque_p.glsl";
 
     protected:
@@ -55,6 +56,9 @@ namespace Cyan
         std::unique_ptr<GfxMaterial> m_gfxMaterial = nullptr;
     };
 
+    /**
+     * Materials that shares the same shader while having different parameters are considered as MaterialInstances
+     */
     class MaterialInstance : public Asset
     {
     public:

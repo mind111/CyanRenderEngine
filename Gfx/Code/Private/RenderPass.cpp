@@ -45,6 +45,8 @@ namespace Cyan
 
     void RenderPass::setupFramebuffer(GHFramebuffer* framebuffer)
     {
+        framebuffer->setDrawBuffers(m_drawBufferBindings);
+
         for (i32 i = 0; i < FRAMEBUFFER_MAX_NUM_COLOR_BUFFERS; ++i)
         {
             if (m_renderTargets[i].isBound())
@@ -56,7 +58,6 @@ namespace Cyan
                 }
             }
         }
-        framebuffer->setDrawBuffers(m_drawBufferBindings);
 
         if (m_depthTarget.isBound())
         {

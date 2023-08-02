@@ -28,7 +28,20 @@ namespace Cyan
         assert(m_parent != nullptr);
         glm::mat4 localToWorldMatrix = m_parent->getWorldSpaceTransform().toMatrix() * m_localSpaceTransform.toMatrix();
         setWorldSpaceTransform(Transform(localToWorldMatrix));
-        setOwner(m_parent->getOwner());
+        // todo: a hack to prevent updating owner when this component is the scene root, this works for now, 
+        // but really need a proper fix later
+        Entity* currentOwner = getOwner();
+        if (currentOwner != nullptr)
+        {
+            if (this != currentOwner->getRootSceneComponent())
+            {
+                setOwner(m_parent->getOwner());
+            }
+        }
+        else
+        {
+            setOwner(m_parent->getOwner());
+        }
     }
 
     void SceneComponent::detachFromParent()

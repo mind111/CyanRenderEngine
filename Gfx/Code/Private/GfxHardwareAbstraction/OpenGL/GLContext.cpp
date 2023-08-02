@@ -99,4 +99,14 @@ namespace Cyan
     {
         glDisable(GL_DEPTH_TEST);
     }
+
+    void GLGHContext::pushGpuDebugMarker(const char* markerName)
+    {
+        glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, markerName);
+    }
+
+    void GLGHContext::popGpuDebugMarker()
+    {
+        glPopDebugGroup();
+    }
 }
