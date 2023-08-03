@@ -92,10 +92,12 @@ namespace Cyan
                     auto node = q.front().lock();
                     if (node != nullptr)
                     {
+#if 0
                         for (auto dependen)
                         {
 
                         }
+#endif
                     }
                 }
 
@@ -166,6 +168,7 @@ namespace Cyan
                 bool bParsingHeaders = false;
                 while (std::getline(shaderFile, line)) 
                 {
+#if 0
                     // todo: a better approach would probably be tokenize this line using quote and dot as deliminaters
                     i32 includeStrBeginPos = line.find("// #include");
                     if (includeStrBeginPos != std::string::npos)
@@ -201,6 +204,7 @@ namespace Cyan
                             cyanInfo("%s", content.c_str());
                         }
                     }
+#endif
 
                     content += line;
                     content += '\n';
