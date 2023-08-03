@@ -29,7 +29,7 @@ namespace Cyan
         SceneCameraEntity* ce = world->createEntity<SceneCameraEntity>("TestCamera_0", cameraTransform).get();
         auto cc = ce->getSceneCameraComponent();
         cc->setResolution(glm::uvec2(1920, 1080));
-        cc->setRenderMode(SceneCamera::RenderMode::kSceneDirectLighting);
+        cc->setRenderMode(SceneCamera::RenderMode::kResolvedSceneColor);
         auto cameraControllerComponent = std::make_shared<CameraControllerComponent>("CameraControllerComponent", cc);
         ce->addComponent(cameraControllerComponent);
 

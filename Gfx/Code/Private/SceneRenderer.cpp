@@ -34,7 +34,8 @@ namespace Cyan
         renderSceneGBuffer(scene, sceneView);
         renderSceneDirectLighting(scene, sceneView);
 
-        // render postprocessing
+        // postprocessing
+        tonemapping(sceneView.m_render->resolvedColor(), sceneView.m_render->directLighting());
     }
 
     static void setShaderSceneViewInfo(GfxPipeline* gfxp, const SceneView::State& viewState)
@@ -178,8 +179,26 @@ namespace Cyan
         }
     }
 
-    void SceneRenderer::postprocess(SceneView& sceneView)
+    void SceneRenderer::tonemapping(GHTexture2D* dstTexture, GHTexture2D* srcTexture)
     {
+        if (dstTexture != nullptr && srcTexture != nullptr)
+        {
+            bool found = false;
+            auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "ScreenPassVS", SHADER_TEXT_PATH "screen_pass_v.glsl");
+            auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "TonemappingPS", SHADER_TEXT_PATH "tonemapping_p.glsl");
+            auto gfxp = ShaderManager::findOrCreateGfxPipeline(found, vs, ps);
 
+            const auto desc = dstTexture->getDesc();
+            u32 width = desc.width, height = desc.height;
+            RenderingUtils::renderScreenPass(
+                glm::uvec2(width, height),
+                [srcTexture, dstTexture](RenderPass& rp) {
+                    rp.setRenderTarget(dstTexture, 0);
+                },
+                gfxp.get(),
+                [srcTexture, dstTexture](GfxPipeline* p) {
+                    p->setTexture("srcTexture", srcTexture);
+                });
+        }
     }
 }

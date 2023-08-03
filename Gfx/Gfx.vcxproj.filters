@@ -62,5 +62,7 @@
     <None Include="Shader\depth_p.glsl" />
     <None Include="Shader\screen_pass_v.glsl" />
     <None Include="Shader\static_mesh_v.glsl" />
+    <None Include="Shader\scene_direct_lighting_p.glsl" />
+    <None Include="Shader\tonemapping_p.glsl" />
   </ItemGroup>
 </Project>

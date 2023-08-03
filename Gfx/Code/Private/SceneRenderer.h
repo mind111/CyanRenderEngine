@@ -20,7 +20,8 @@ namespace Cyan
         void renderSceneDepth(GHDepthTexture* outDepth, Scene* scene, const SceneView::State& viewState);
         void renderSceneGBuffer(Scene* scene, SceneView& sceneView);
         void renderSceneDirectLighting(Scene* scene, SceneView& sceneView);
-        void postprocess();
+
+        void tonemapping(GHTexture2D* dstTexture, GHTexture2D* srcTexture);
     private:
         SceneRenderer();
 
