@@ -5,12 +5,24 @@
 #include "Scene.h"
 #include "GfxStaticMesh.h"
 #include "GfxMaterial.h"
+#include "RenderingUtils.h"
+#include "ShadowMaps.h"
 
 namespace Cyan
 {
+    SceneRenderer* SceneRenderer::s_renderer = nullptr;
     SceneRenderer::SceneRenderer()
     {
+    }
 
+    SceneRenderer* SceneRenderer::get()
+    {
+        static std::unique_ptr<SceneRenderer> s_instance(new SceneRenderer());
+        if (s_renderer == nullptr)
+        {
+            s_renderer = s_instance.get();;
+        }
+        return s_renderer;
     }
 
     SceneRenderer::~SceneRenderer() { }
@@ -20,6 +32,7 @@ namespace Cyan
         GHDepthTexture* sceneDepthTex = sceneView.m_render->depth();
         renderSceneDepth(sceneDepthTex, scene, sceneView.m_state);
         renderSceneGBuffer(scene, sceneView);
+        renderSceneDirectLighting(scene, sceneView);
 
         // render postprocessing
     }
@@ -113,5 +126,60 @@ namespace Cyan
             rp.enableDepthTest();
             rp.render(GfxContext::get());
         }
+    }
+
+    void SceneRenderer::renderSceneDirectLighting(Scene* scene, SceneView& sceneView)
+    {
+        GPU_DEBUG_SCOPE(gbufferPass, "SceneDirectLightingPass")
+
+        // render directional shadow map
+        sceneView.m_render->m_csm->render(scene, scene->m_directionalLight, sceneView.m_cameraInfo);
+
+        auto outDirectLighting = sceneView.m_render->directLighting();
+        auto depth = sceneView.m_render->depth();
+        auto albedo = sceneView.m_render->albedo();
+        auto normal = sceneView.m_render->normal();
+        auto metallicRoughness = sceneView.m_render->metallicRoughness();
+        auto csm = sceneView.m_render->m_csm.get();
+
+        if (scene != nullptr && outDirectLighting != nullptr)
+        {
+            bool found = false;
+            auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "ScreenPassVS", SHADER_TEXT_PATH "screen_pass_v.glsl");
+            auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "SceneDirectLightingPS", SHADER_TEXT_PATH "scene_direct_lighting_p.glsl");
+            auto gfxp = ShaderManager::findOrCreateGfxPipeline(found, vs, ps);
+
+            const auto desc = outDirectLighting->getDesc();
+            u32 width = desc.width, height = desc.height;
+            const auto& viewState = sceneView.m_state;
+
+            RenderingUtils::renderScreenPass(
+                glm::uvec2(width, height),
+                [outDirectLighting](RenderPass& rp) {
+                    rp.setRenderTarget(outDirectLighting, 0);
+                },
+                gfxp.get(),
+                [scene, depth, normal, albedo, metallicRoughness, csm, viewState](GfxPipeline* p) {
+                    setShaderSceneViewInfo(p, viewState);
+
+                    if (scene->m_directionalLight != nullptr)
+                    {
+                        p->setUniform("directionalLight.color", scene->m_directionalLight->m_color);
+                        p->setUniform("directionalLight.intensity", scene->m_directionalLight->m_intensity);
+                        p->setUniform("directionalLight.direction", scene->m_directionalLight->m_direction);
+                        csm->setShaderParameters(p);
+                    }
+
+                    p->setTexture("sceneDepth", depth);
+                    p->setTexture("sceneNormal", normal);
+                    p->setTexture("sceneAlbedo", albedo);
+                    p->setTexture("sceneMetallicRoughness", metallicRoughness);
+                });
+        }
+    }
+
+    void SceneRenderer::postprocess(SceneView& sceneView)
+    {
+
     }
 }

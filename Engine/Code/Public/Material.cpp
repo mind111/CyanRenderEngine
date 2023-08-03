@@ -131,12 +131,12 @@ namespace Cyan
 
     void MaterialInstance::setVec3(const char* parameterName, const glm::vec3& data)
     {
-        ENQUEUE_GFX_TASK(
-            std::string("MaterialInstance::setVec3"),
-            [this, parameterName, data](Frame& frame) {
-                m_gfxMaterialInstance->setVec3(parameterName, data);
-            }
-        )
+        FrameGfxTask task = { };
+        task.debugName = std::move(std::string("MaterialInstance::setVec3"));
+        task.lambda = [this, parameterName, data](Frame& frame) {
+            m_gfxMaterialInstance->setVec3(parameterName, data);
+        };
+        Engine::get()->enqueueFrameGfxTask(task);
     }
 
     void MaterialInstance::setVec4(const char* parameterName, const glm::vec4& data)

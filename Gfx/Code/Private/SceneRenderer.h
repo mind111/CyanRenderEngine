@@ -1,8 +1,8 @@
 #pragma once
 
-#include "GfxInterface.h"
 #include "GHTexture.h"
 #include "GfxModule.h"
+#include "SceneView.h"
 
 namespace Cyan
 {
@@ -12,13 +12,18 @@ namespace Cyan
     class SceneRenderer
     {
     public:
-        SceneRenderer();
+        static SceneRenderer* get();
         virtual ~SceneRenderer();
 
         void render(Scene* scene, SceneView& sceneView);
 
         void renderSceneDepth(GHDepthTexture* outDepth, Scene* scene, const SceneView::State& viewState);
         void renderSceneGBuffer(Scene* scene, SceneView& sceneView);
+        void renderSceneDirectLighting(Scene* scene, SceneView& sceneView);
+        void postprocess();
     private:
+        SceneRenderer();
+
+        static SceneRenderer* s_renderer;
     };
 } 

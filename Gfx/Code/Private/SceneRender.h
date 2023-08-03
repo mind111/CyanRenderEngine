@@ -1,6 +1,7 @@
 #pragma once
 
-#include "GfxInterface.h"
+#include "Core.h"
+#include "MathLibrary.h"
 
 namespace Cyan
 {
@@ -9,6 +10,7 @@ namespace Cyan
     class ProgramPipeline;
     class GHDepthTexture;
     class GHTexture2D;
+    class CascadedShadowMap;
 
     class SceneRender
     {
@@ -86,7 +88,7 @@ namespace Cyan
         GHTexture2D* prevFrameReservoirWSumMW() { return m_output->prevFrameReservoirWSumMW.get(); }
 #endif
 
-        // std::unique_ptr<CascadedShadowMap> m_csm = nullptr;
+        std::unique_ptr<CascadedShadowMap> m_csm = nullptr;
 
     protected:
         std::unique_ptr<Output> m_output = nullptr;

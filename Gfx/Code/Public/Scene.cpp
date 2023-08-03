@@ -43,7 +43,7 @@ namespace Cyan
         }
         else
         {
-            slot = m_staticSubMeshInstances.size();
+            slot = static_cast<u32>(m_staticSubMeshInstances.size());
             m_staticSubMeshInstances.push_back(instance);
         }
         m_staticSubMeshInstanceMap.insert({ instance.key, slot });
@@ -52,6 +52,17 @@ namespace Cyan
     void Scene::removeStaticSubMeshInstance()
     {
 
+    }
+
+    void Scene::addDirectionalLight(DirectionalLight* directionalLight)
+    {
+        assert(m_directionalLight == nullptr);
+        m_directionalLight = directionalLight;
+    }
+
+    void Scene::removeDirectionalLight(DirectionalLight* directionalLight)
+    {
+        assert(m_directionalLight != nullptr);
     }
 }
 

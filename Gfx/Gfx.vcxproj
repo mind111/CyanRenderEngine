@@ -19,6 +19,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Core\Core.vcxproj">
+      <Project>{83f758df-eafb-4fcd-bd4f-f10457f04f08}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\ThirdParty\ThirdParty.vcxproj">
       <Project>{6c78afaa-2c32-41fb-973d-932bf9dbaadf}</Project>
     </ProjectReference>
@@ -26,6 +29,7 @@
   <ItemGroup>
     <ClInclude Include="Code\Private\RenderPass.h" />
     <ClInclude Include="Code\Public\GfxMaterial.h" />
+    <ClInclude Include="Code\Public\Lights.h" />
     <ClInclude Include="Code\Public\LowLeveInputs.h" />
     <ClInclude Include="Code\Public\RenderingUtils.h" />
     <ClInclude Include="Code\Public\Scene.h" />
@@ -33,7 +37,6 @@
     <ClInclude Include="Code\Private\SceneRenderer.h" />
     <ClInclude Include="Code\Public\Gfx.h" />
     <ClInclude Include="Code\Public\GfxModule.h" />
-    <ClInclude Include="Code\Public\GfxInterface.h" />
     <ClInclude Include="Code\Public\GfxStaticMesh.h" />
     <ClInclude Include="Code\Public\GfxContext.h" />
     <ClInclude Include="Code\Private\GfxHardwareAbstraction\GHInterface\GfxHardwareContext.h" />
@@ -50,17 +53,19 @@
     <ClInclude Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLShader.h" />
     <ClInclude Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLStaticMesh.h" />
     <ClInclude Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLTexture.h" />
+    <ClInclude Include="Code\Public\SceneView.h" />
     <ClInclude Include="Code\Public\Shader.h" />
+    <ClInclude Include="Code\Public\ShadowMaps.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Code\Private\RenderPass.cpp" />
     <ClCompile Include="Code\Private\SceneRender.cpp" />
     <ClCompile Include="Code\Public\GfxMaterial.cpp" />
+    <ClCompile Include="Code\Public\Lights.cpp" />
     <ClCompile Include="Code\Public\RenderingUtils.cpp" />
     <ClCompile Include="Code\Public\Scene.cpp" />
     <ClCompile Include="Code\Private\SceneRenderer.cpp" />
     <ClCompile Include="Code\Public\GfxModule.cpp" />
-    <ClCompile Include="Code\Public\GfxInterface.cpp" />
     <ClCompile Include="Code\Public\GfxStaticMesh.cpp" />
     <ClCompile Include="Code\Public\GfxContext.cpp" />
     <ClCompile Include="Code\Private\GfxHardwareAbstraction\GHInterface\GHBuffer.cpp" />
@@ -74,7 +79,9 @@
     <ClCompile Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLShader.cpp" />
     <ClCompile Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLStaticMesh.cpp" />
     <ClCompile Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLTexture.cpp" />
+    <ClCompile Include="Code\Public\SceneView.cpp" />
     <ClCompile Include="Code\Public\Shader.cpp" />
+    <ClCompile Include="Code\Public\ShadowMaps.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shader\blit_texture_p.glsl" />

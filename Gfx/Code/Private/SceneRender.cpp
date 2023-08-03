@@ -2,6 +2,7 @@
 #include "GHTexture.h"
 #include "Scene.h"
 #include "RenderPass.h"
+#include "ShadowMaps.h"
 
 namespace Cyan
 {
@@ -50,7 +51,7 @@ namespace Cyan
     SceneRender::SceneRender(const glm::uvec2& renderResolution)
     {
         m_output = std::make_unique<Output>(renderResolution);
-        // m_csm = std::make_unique<CascadedShadowMap>();
+        m_csm = std::make_unique<CascadedShadowMap>();
     }
 
     SceneRender::~SceneRender()

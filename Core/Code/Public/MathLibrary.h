@@ -6,9 +6,5 @@
 
 namespace Cyan
 {
-    // todo: provide wrapper implementations
-    struct vec2
-    {
-        glm::vec2 v;
-    };
+    glm::vec3 vec4ToVec3(const glm::vec4& v4);
 }

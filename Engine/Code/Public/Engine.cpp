@@ -11,13 +11,11 @@
 #include "InputManager.h"
 
 #include "GfxModule.h"
-#include "GfxInterface.h"
 #include "Scene.h"
 
-// todo: get material back
+// todo: get textured material back
 // todo: think about component memory ownership
 // todo: think about asset ownership
-// todo: gfx side material representation
 // todo: think about the communication model between the main thread and the render thread
 
 // bug: When an entity is attached to another entity as an child, current setup will mistakenly
@@ -178,7 +176,6 @@ namespace Cyan
 
                 // todo: detect resolution changes
                 viewState.resolution = cameraState.m_resolution;
-
                 viewState.aspectRatio = cameraState.m_cameraViewInfo.m_perspective.aspectRatio;
                 viewState.viewMatrix = cameraState.m_cameraViewInfo.viewMatrix();
                 viewState.projectionMatrix = cameraState.m_cameraViewInfo.projectionMatrix();
@@ -189,6 +186,8 @@ namespace Cyan
                 viewState.frameCount = cameraState.m_numRenderedFrames;
                 viewState.elapsedTime = cameraState.m_elapsedTime;
                 viewState.deltaTime = cameraState.m_deltaTime;
+
+                views[i]->m_cameraInfo = cameraState.m_cameraViewInfo;
             }
         };
 
@@ -232,6 +231,14 @@ namespace Cyan
 
     void Engine::enqueueFrameGfxTask(const FrameGfxTask& task)
     {
+        s_frameGfxTaskQueue.push(task);
+    }
+
+    void Engine::enqueueFrameGfxTask(const char* taskName, std::function<void(Frame&)>&& taskLambda)
+    {
+        FrameGfxTask task = { };
+        task.debugName = taskName;
+        task.lambda = std::move(taskLambda);
         s_frameGfxTaskQueue.push(task);
     }
 }

@@ -105,8 +105,8 @@ namespace Cyan
                if (primitive.material >= 0)
                {
                    const gltf::Material& gltfMatl = gltf.m_materials[primitive.material];
-                   // auto material = AssetManager::findAsset<Material>(gltfMatl.m_name.c_str());
-                   // staticMeshEntity->getStaticMeshComponent()->setMaterial(material, p);
+                   auto mi = AssetManager::findAsset<MaterialInstance>(gltfMatl.m_name.c_str());
+                   staticMeshEntity->getStaticMeshComponent()->setMaterial(p, mi);
                }
            }
         }

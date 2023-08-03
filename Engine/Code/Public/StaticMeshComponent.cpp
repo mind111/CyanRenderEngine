@@ -2,7 +2,6 @@
 #include "StaticMesh.h"
 #include "World.h"
 #include "Entity.h"
-#include "GfxInterface.h"
 #include "GfxModule.h"
 
 namespace Cyan
@@ -123,7 +122,7 @@ namespace Cyan
         if (slot < 0)
         {
             auto mesh = m_staticMeshInstance->getParentMesh();
-            for (i32 i = 0; i < mesh->numSubMeshes(); ++i)
+            for (u32 i = 0; i < mesh->numSubMeshes(); ++i)
             {
                 setMaterial(i, mi);
             }

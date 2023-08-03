@@ -93,6 +93,7 @@ namespace Cyan
         ~StaticMeshInstance();
 
         void addToScene(Scene* scene);
+        void onAddedToScene();
         void removeFromScene(Scene* scene);
 
         StaticMesh* getParentMesh() { return m_parent; }
@@ -103,7 +104,7 @@ namespace Cyan
 
         const Transform& getLocalToWorldTransform() { return m_localToWorldTransform; }
         const glm::mat4& getLocalToWorldMatrix() { return m_localToWorldMatrix; }
-        MaterialInstance* getMaterial(u32 slot) { assert(slot < m_materials.size()); return m_materials[slot]; }
+        MaterialInstance* getMaterial(u32 slot);
 
         void setLocalToWorldTransform(const Transform& localToWorld);
         void setMaterial(u32 slot, MaterialInstance* mi);
@@ -113,6 +114,8 @@ namespace Cyan
         StaticMesh* m_parent = nullptr;
         Transform m_localToWorldTransform;
         glm::mat4 m_localToWorldMatrix;
+
+        std::mutex m_materialMutex;
         // todo: this should really shader_ptr once the ref counting system is implemented for Assets 
         std::vector<MaterialInstance*> m_materials;
 

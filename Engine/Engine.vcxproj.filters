@@ -22,6 +22,8 @@
     <ClInclude Include="Code\Public\Material.h" />
     <ClInclude Include="Code\Public\Texture.h" />
     <ClInclude Include="Code\Public\Image.h" />
+    <ClInclude Include="Code\Public\LightComponents.h" />
+    <ClInclude Include="Code\Public\LightEntities.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Code\Public\App.cpp" />
@@ -43,5 +45,7 @@
     <ClCompile Include="Code\Public\Material.cpp" />
     <ClCompile Include="Code\Public\Image.cpp" />
     <ClCompile Include="Code\Public\Texture.cpp" />
+    <ClCompile Include="Code\Public\LightComponents.cpp" />
+    <ClCompile Include="Code\Public\LightEntities.cpp" />
   </ItemGroup>
 </Project>

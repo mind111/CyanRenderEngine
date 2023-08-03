@@ -10,5 +10,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Code\Public\Transform.cpp" />
+    <ClCompile Include="Code\Public\Bounds.cpp" />
+    <ClCompile Include="Code\Public\MathLibrary.cpp" />
+    <ClCompile Include="Code\Public\CameraViewInfo.cpp" />
   </ItemGroup>
 </Project>

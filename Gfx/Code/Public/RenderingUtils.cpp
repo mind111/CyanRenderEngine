@@ -109,6 +109,21 @@ namespace Cyan
 
     }
 
+    void RenderingUtils::renderScreenPass(const glm::uvec2& renderResolution, const RenderTargetSetupFunc& renderTargetSetupFunc, GfxPipeline* p, ShaderSetupFunc& shaderSetupFunc)
+    {
+        RenderPass rp(renderResolution.x, renderResolution.y);
+        renderTargetSetupFunc(rp);
+        rp.setRenderFunc([p, &shaderSetupFunc](GfxContext* ctx) {
+            p->bind();
+            shaderSetupFunc(p);
+            s_unitQuadMesh->draw();
+            p->unbind();
+        });
+
+        rp.disableDepthTest();
+        rp.render(GfxContext::get());
+    }
+
     void RenderingUtils::renderToBackBuffer(GHTexture2D* srcTexture)
     {
         GfxModule* gfxModule = GfxModule::get();

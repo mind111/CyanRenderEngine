@@ -19,6 +19,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Core\Core.vcxproj">
+      <Project>{83f758df-eafb-4fcd-bd4f-f10457f04f08}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\Gfx\Gfx.vcxproj">
       <Project>{fe8bf429-0c59-4e6d-ae9c-a12b3505fe22}</Project>
     </ProjectReference>
@@ -34,6 +37,8 @@
     <ClInclude Include="Code\Public\CameraControllerComponent.h" />
     <ClInclude Include="Code\Public\Image.h" />
     <ClInclude Include="Code\Public\InputManager.h" />
+    <ClInclude Include="Code\Public\LightComponents.h" />
+    <ClInclude Include="Code\Public\LightEntities.h" />
     <ClInclude Include="Code\Public\Material.h" />
     <ClInclude Include="Code\Public\SceneCamera.h" />
     <ClInclude Include="Code\Public\Component.h" />
@@ -56,6 +61,8 @@
     <ClCompile Include="Code\Public\CameraControllerComponent.cpp" />
     <ClCompile Include="Code\Public\Image.cpp" />
     <ClCompile Include="Code\Public\InputManager.cpp" />
+    <ClCompile Include="Code\Public\LightComponents.cpp" />
+    <ClCompile Include="Code\Public\LightEntities.cpp" />
     <ClCompile Include="Code\Public\Material.cpp" />
     <ClCompile Include="Code\Public\SceneCamera.cpp" />
     <ClCompile Include="Code\Public\Component.cpp" />

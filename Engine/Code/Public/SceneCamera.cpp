@@ -1,5 +1,4 @@
 #include "SceneCamera.h"
-#include "GfxInterface.h"
 #include "Transform.h"
 
 namespace Cyan
