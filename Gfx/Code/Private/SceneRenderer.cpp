@@ -73,7 +73,7 @@ namespace Cyan
             rp.setDepthTarget(outDepthTex);
             rp.setRenderFunc([gfxp, scene, viewState](GfxContext* gfxc) {
                 gfxp->bind();
-                setShaderSceneViewInfo(gfxp.get(), viewState);
+                viewState.setShaderParameters(gfxp.get());
                 for (auto instance : scene->m_staticSubMeshInstances)
                 {
                     gfxp->setUniform("localToWorld", instance.localToWorldMatrix);
@@ -118,8 +118,9 @@ namespace Cyan
                 for (auto instance : scene->m_staticSubMeshInstances)
                 {
                     auto gfxp = instance.material->bind();
+                    viewState.setShaderParameters(gfxp);
                     gfxp->setUniform("localToWorld", instance.localToWorldMatrix);
-                    setShaderSceneViewInfo(gfxp, viewState);
+
                     instance.subMesh->draw();
                     instance.material->unbind();
                 }
@@ -161,7 +162,7 @@ namespace Cyan
                 },
                 gfxp.get(),
                 [scene, depth, normal, albedo, metallicRoughness, csm, viewState](GfxPipeline* p) {
-                    setShaderSceneViewInfo(p, viewState);
+                    viewState.setShaderParameters(p);
 
                     if (scene->m_directionalLight != nullptr)
                     {

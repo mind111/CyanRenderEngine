@@ -28,6 +28,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Code\Private\RenderPass.h" />
+    <ClInclude Include="Code\Private\RenderTexture.h" />
+    <ClInclude Include="Code\Private\SSGI.h" />
     <ClInclude Include="Code\Public\GfxMaterial.h" />
     <ClInclude Include="Code\Public\Lights.h" />
     <ClInclude Include="Code\Public\LowLeveInputs.h" />
@@ -59,7 +61,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Code\Private\RenderPass.cpp" />
+    <ClCompile Include="Code\Private\RenderTexture.cpp" />
     <ClCompile Include="Code\Private\SceneRender.cpp" />
+    <ClCompile Include="Code\Private\SSGI.cpp" />
     <ClCompile Include="Code\Public\GfxMaterial.cpp" />
     <ClCompile Include="Code\Public\Lights.cpp" />
     <ClCompile Include="Code\Public\RenderingUtils.cpp" />
@@ -90,6 +94,16 @@
     <None Include="Shader\screen_pass_v.glsl" />
     <None Include="Shader\static_mesh_v.glsl" />
     <None Include="Shader\tonemapping_p.glsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Texture\Noise\BN_16x16_R_0.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_1.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_2.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_3.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_4.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_5.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_6.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_7.png" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

@@ -19,7 +19,6 @@ namespace Cyan
     DirectionalLight::DirectionalLight(const glm::vec3& color, f32 intensity, const glm::vec3& direction)
         : Light(color, intensity), m_direction(direction)
     {
-        // m_csm = std::make_unique<CascadedShadowMap>();
     }
 
 #if 0

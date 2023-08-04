@@ -13,6 +13,9 @@
 #include "GfxModule.h"
 #include "Scene.h"
 
+// todo: get ssgi back
+// todo: get skybox back
+// todo: get skylight back
 // todo: get textured material back
 // todo: think about component memory ownership
 // todo: think about asset ownership

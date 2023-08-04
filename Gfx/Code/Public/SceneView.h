@@ -5,6 +5,7 @@
 #include "MathLibrary.h"
 #include "GHTexture.h"
 #include "CameraViewInfo.h"
+#include "Shader.h"
 
 namespace Cyan
 {
@@ -42,6 +43,24 @@ namespace Cyan
 
         struct State
         {
+            void setShaderParameters(Pipeline* p) const
+            {
+                p->setUniform("viewParameters.renderResolution", resolution);
+                p->setUniform("viewParameters.aspectRatio", aspectRatio);
+                p->setUniform("viewParameters.viewMatrix", viewMatrix);
+                p->setUniform("viewParameters.prevFrameViewMatrix", prevFrameViewMatrix);
+                p->setUniform("viewParameters.projectionMatrix", projectionMatrix);
+                p->setUniform("viewParameters.prevFrameProjectionMatrix", prevFrameProjectionMatrix);
+                p->setUniform("viewParameters.cameraPosition", cameraPosition);
+                p->setUniform("viewParameters.prevFrameCameraPosition", prevFrameCameraPosition);
+                p->setUniform("viewParameters.cameraRight", cameraRight);
+                p->setUniform("viewParameters.cameraForward", cameraForward);
+                p->setUniform("viewParameters.cameraUp", cameraUp);
+                p->setUniform("viewParameters.frameCount", frameCount);
+                p->setUniform("viewParameters.elapsedTime", elapsedTime);
+                p->setUniform("viewParameters.deltaTime", deltaTime);
+            }
+
             glm::uvec2 resolution;
             f32 aspectRatio;
             glm::mat4 viewMatrix;

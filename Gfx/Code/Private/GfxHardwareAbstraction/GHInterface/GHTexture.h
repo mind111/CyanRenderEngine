@@ -63,16 +63,16 @@ namespace Cyan
         kCount
     };
 
-#define PF_R8 PixelFormat::kR8
-#define PF_R16F PixelFormat::kR16F
-#define PF_R32F PixelFormat::kR32F
-#define PF_D24S8 PixelFormat::kD24S8
-#define PF_RGB8 PixelFormat::kRGB8
-#define PF_RGBA8 PixelFormat::kRGBA8
-#define PF_RGB16F PixelFormat::kRGB16F
-#define PF_RGBA16F PixelFormat::kRGBA16F
-#define PF_RGB32F PixelFormat::kRGB32F
-#define PF_RGBA32F PixelFormat::kRGBA32F
+#define PF_R8 Cyan::PixelFormat::kR8
+#define PF_R16F Cyan::PixelFormat::kR16F
+#define PF_R32F Cyan::PixelFormat::kR32F
+#define PF_D24S8 Cyan::PixelFormat::kD24S8
+#define PF_RGB8 Cyan::PixelFormat::kRGB8
+#define PF_RGBA8 Cyan::PixelFormat::kRGBA8
+#define PF_RGB16F Cyan::PixelFormat::kRGB16F
+#define PF_RGBA16F Cyan::PixelFormat::kRGBA16F
+#define PF_RGB32F Cyan::PixelFormat::kRGB32F
+#define PF_RGBA32F Cyan::PixelFormat::kRGBA32F
 
     enum class DepthFormat
     {
@@ -105,6 +105,16 @@ namespace Cyan
                 desc.pf = inPf;
                 desc.data = inData;
                 return desc;
+            }
+
+            bool operator==(const Desc& rhs) const
+            {
+                bool isEqual = true;
+                isEqual &= (width == rhs.width);
+                isEqual &= (height == rhs.height);
+                isEqual &= (numMips == rhs.numMips);
+                isEqual &= (pf == rhs.pf);
+                return isEqual;
             }
 
             u32 width = 0;
@@ -161,5 +171,43 @@ namespace Cyan
     {
     public:
         virtual ~GHTextureCube() { }
+    };
+}
+
+// custom hash function for texture specs
+namespace std
+{
+    template <>
+    struct hash<Cyan::GHTexture2D::Desc>
+    {
+        std::size_t operator()(const Cyan::GHTexture2D::Desc& desc) const
+        {
+            std::string key = std::to_string(desc.width) + 'x' + std::to_string(desc.height);
+            switch (desc.pf)
+            {
+            case PF_R16F:
+                key += "_R16F";
+                break;
+            case PF_R32F:
+                key += "_R32F";
+                break;
+            case PF_RGB16F:
+                key += "_RGB16F";
+                break;
+            case PF_RGB32F:
+                key += "_RGB32F";
+                break;
+            case PF_RGBA16F:
+                key += "_RGBA16F";
+                break;
+            case PF_RGBA32F:
+                key += "_RGBA32F";
+                break;
+            default:
+                assert(0);
+            }
+            key += "_" + std::to_string(desc.numMips);
+            return std::hash<std::string>()(key);
+        }
     };
 }

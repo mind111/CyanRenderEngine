@@ -86,7 +86,7 @@ namespace Cyan
                         Cyan::Material::defaultOpaqueMaterialName,
                         Cyan::Material::defaultOpaqueMaterialPath,
                         [](Cyan::Material* m) {
-                            m->setVec3("mp_albedo", glm::vec3(.95));
+                            m->setVec3("mp_albedo", glm::vec3(.95f));
                             m->setFloat("mp_roughness", .5f);
                             m->setFloat("mp_metallic", 0.f);
                             m->setFloat("mp_hasAlbedoMap", 0.f);

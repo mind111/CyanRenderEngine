@@ -66,6 +66,14 @@ namespace Cyan
     {
     public:
         virtual ~Pipeline() { }
+
+        virtual void setUniform(const char* name, i32 value) = 0;
+        virtual void setUniform(const char* name, u32 value) = 0;
+        virtual void setUniform(const char* name, f32 value) = 0;
+        virtual void setUniform(const char* name, const glm::vec2& value) = 0;
+        virtual void setUniform(const char* name, const glm::vec3& value) = 0;
+        virtual void setUniform(const char* name, const glm::vec4& value) = 0;
+        virtual void setUniform(const char* name, const glm::mat4& value) = 0;
     protected: 
         Pipeline(const char* name);
 
@@ -81,11 +89,19 @@ namespace Cyan
         void bind();
         void unbind();
 
+        virtual void setUniform(const char* name, i32 value) override { setUniformInternal(name, value); }
+        virtual void setUniform(const char* name, u32 value) override { setUniformInternal(name, value); }
+        virtual void setUniform(const char* name, f32 value) override { setUniformInternal(name, value); }
+        virtual void setUniform(const char* name, const glm::vec2& value) override { setUniformInternal(name, value); }
+        virtual void setUniform(const char* name, const glm::vec3& value) override { setUniformInternal(name, value); }
+        virtual void setUniform(const char* name, const glm::vec4& value) override { setUniformInternal(name, value); }
+        virtual void setUniform(const char* name, const glm::mat4& value) override { setUniformInternal(name, value); }
+
         VertexShader* getVertexShader() { return m_vs.get(); }
         PixelShader* getPixelShader() { return m_ps.get(); }
 
         template <typename T>
-        void setUniform(const char* name, const T& value)
+        void setUniformInternal(const char* name, const T& value)
         {
             assert(bBound);
 

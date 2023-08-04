@@ -30,6 +30,8 @@
     <ClInclude Include="Code\Public\Lights.h" />
     <ClInclude Include="Code\Public\SceneView.h" />
     <ClInclude Include="Code\Public\ShadowMaps.h" />
+    <ClInclude Include="Code\Private\RenderTexture.h" />
+    <ClInclude Include="Code\Private\SSGI.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Code\Private\GfxHardwareAbstraction\GHInterface\GHBuffer.cpp" />
@@ -56,6 +58,8 @@
     <ClCompile Include="Code\Public\Lights.cpp" />
     <ClCompile Include="Code\Public\SceneView.cpp" />
     <ClCompile Include="Code\Public\ShadowMaps.cpp" />
+    <ClCompile Include="Code\Private\RenderTexture.cpp" />
+    <ClCompile Include="Code\Private\SSGI.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shader\blit_texture_p.glsl" />
@@ -64,5 +68,15 @@
     <None Include="Shader\static_mesh_v.glsl" />
     <None Include="Shader\scene_direct_lighting_p.glsl" />
     <None Include="Shader\tonemapping_p.glsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Texture\Noise\BN_16x16_R_0.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_1.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_2.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_3.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_4.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_5.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_6.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_7.png" />
   </ItemGroup>
 </Project>

@@ -81,7 +81,6 @@ namespace Cyan
 
     class Material;
     class MaterialInstance;
-    class StaticSubMeshInstance;
     class Scene;
 
     class StaticMeshInstance

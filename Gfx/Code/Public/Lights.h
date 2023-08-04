@@ -27,7 +27,6 @@ namespace Cyan
         static constexpr glm::vec3 defaultDirection = glm::vec3(0.f);
 
         glm::vec3 m_direction;
-        // std::unique_ptr<CascadedShadowMap> m_csm = nullptr;
     };
 
 #if 0

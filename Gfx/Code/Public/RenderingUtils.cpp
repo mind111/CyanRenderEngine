@@ -1,3 +1,5 @@
+#include "stb_image.h"
+
 #include "RenderingUtils.h"
 #include "RenderPass.h"
 #include "GfxModule.h"
@@ -9,6 +11,7 @@ namespace Cyan
     RenderingUtils* RenderingUtils::s_instance = nullptr;
     GfxStaticSubMesh* RenderingUtils::s_unitQuadMesh = nullptr;
     GfxStaticSubMesh* RenderingUtils::s_unitCubeMesh = nullptr;
+    RenderingUtils::NoiseTextures RenderingUtils::s_noiseTextures = { };
 
     RenderingUtils::RenderingUtils()
     {
@@ -101,6 +104,134 @@ namespace Cyan
             }
             std::unique_ptr<Geometry> unitCube = std::make_unique<Triangles>(vertices, indices);
             s_unitCubeMesh = GfxStaticSubMesh::create(std::string("UnitCube"), unitCube.get());
+        }
+
+        // init textures
+        {
+            struct ImageInfo
+            {
+                i32 width = -1;
+                i32 height = -1;
+                i32 numChannels = -1;
+                i32 bitsPerChannel = -1;
+                std::unique_ptr<u8> pixels = nullptr;
+            };
+
+            auto loadImage = [](ImageInfo& outInfo, const char* filename) {
+                i32 hdr = stbi_is_hdr(filename);
+                if (hdr)
+                {
+                    outInfo.bitsPerChannel = 32;
+                    outInfo.pixels.reset((u8*)stbi_loadf(filename, &outInfo.width, &outInfo.height, &outInfo.numChannels, 0));
+                }
+                else
+                {
+                    i32 is16Bit = stbi_is_16_bit(filename);
+                    if (is16Bit)
+                    {
+                        outInfo.bitsPerChannel = 16;
+                        outInfo.pixels.reset((u8*)stbi_load_16(filename, &outInfo.width, &outInfo.height, &outInfo.numChannels, 0));
+                    }
+                    else
+                    {
+                        outInfo.bitsPerChannel = 8;
+                        outInfo.pixels.reset((u8*)stbi_load(filename, &outInfo.width, &outInfo.height, &outInfo.numChannels, 0));
+                    }
+                }
+            };
+
+            auto translatePF = [](const ImageInfo& info) -> PixelFormat {
+                PixelFormat pf = PixelFormat::kCount;
+                switch (info.numChannels)
+                {
+                case 1:
+                    switch (info.bitsPerChannel)
+                    {
+                    case 8: pf = PF_R8; break;
+                    case 16: pf = PF_R16F; break;
+                    case 32: pf = PF_R32F; break;
+                    }
+                    break;
+                case 2:
+                    break;
+                case 3:
+                    switch (info.bitsPerChannel)
+                    {
+                    case 8: pf = PF_RGB8; break;
+                    case 16: pf = PF_RGB16F; break;
+                    case 32: pf = PF_RGB32F; break;
+                    }
+                    break;
+                case 4:
+                    switch (info.bitsPerChannel)
+                    {
+                    case 8: pf = PF_RGBA8; break;
+                    case 16: pf = PF_RGBA16F; break;
+                    case 32: pf = PF_RGBA32F; break;
+                    }
+                    break;
+                default:
+                    assert(0);
+                }
+                return pf;
+            };
+
+            {
+                ImageInfo info = { };
+                loadImage(info, s_instance->s_noiseTextures.blueNoise16x16_0_Path);
+
+                GHTexture2D::Desc desc = GHTexture2D::Desc::create(info.width, info.height, 1, translatePF(info), info.pixels.get());
+                s_instance->s_noiseTextures.blueNoise16x16_0 = GHTexture2D::create(desc);
+            }
+            {
+                ImageInfo info = { };
+                loadImage(info, s_instance->s_noiseTextures.blueNoise16x16_1_Path);
+
+                GHTexture2D::Desc desc = GHTexture2D::Desc::create(info.width, info.height, 1, translatePF(info), info.pixels.get());
+                s_instance->s_noiseTextures.blueNoise16x16_1 = GHTexture2D::create(desc);
+            }
+            {
+                ImageInfo info = { };
+                loadImage(info, s_instance->s_noiseTextures.blueNoise16x16_2_Path);
+
+                GHTexture2D::Desc desc = GHTexture2D::Desc::create(info.width, info.height, 1, translatePF(info), info.pixels.get());
+                s_instance->s_noiseTextures.blueNoise16x16_2 = GHTexture2D::create(desc);
+            }
+            {
+                ImageInfo info = { };
+                loadImage(info, s_instance->s_noiseTextures.blueNoise16x16_3_Path);
+
+                GHTexture2D::Desc desc = GHTexture2D::Desc::create(info.width, info.height, 1, translatePF(info), info.pixels.get());
+                s_instance->s_noiseTextures.blueNoise16x16_3 = GHTexture2D::create(desc);
+            }
+            {
+                ImageInfo info = { };
+                loadImage(info, s_instance->s_noiseTextures.blueNoise16x16_4_Path);
+
+                GHTexture2D::Desc desc = GHTexture2D::Desc::create(info.width, info.height, 1, translatePF(info), info.pixels.get());
+                s_instance->s_noiseTextures.blueNoise16x16_4 = GHTexture2D::create(desc);
+            }
+            {
+                ImageInfo info = { };
+                loadImage(info, s_instance->s_noiseTextures.blueNoise16x16_5_Path);
+
+                GHTexture2D::Desc desc = GHTexture2D::Desc::create(info.width, info.height, 1, translatePF(info), info.pixels.get());
+                s_instance->s_noiseTextures.blueNoise16x16_5 = GHTexture2D::create(desc);
+            }
+            {
+                ImageInfo info = { };
+                loadImage(info, s_instance->s_noiseTextures.blueNoise16x16_6_Path);
+
+                GHTexture2D::Desc desc = GHTexture2D::Desc::create(info.width, info.height, 1, translatePF(info), info.pixels.get());
+                s_instance->s_noiseTextures.blueNoise16x16_6 = GHTexture2D::create(desc);
+            }
+            {
+                ImageInfo info = { };
+                loadImage(info, s_instance->s_noiseTextures.blueNoise16x16_7_Path);
+
+                GHTexture2D::Desc desc = GHTexture2D::Desc::create(info.width, info.height, 1, translatePF(info), info.pixels.get());
+                s_instance->s_noiseTextures.blueNoise16x16_7 = GHTexture2D::create(desc);
+            }
         }
     }
 
