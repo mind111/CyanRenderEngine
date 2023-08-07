@@ -38,8 +38,8 @@ namespace Cyan
         void deinitialize();
         void run();
 
-        void enqueueFrameGfxTask(const FrameGfxTask& task);
-        void enqueueFrameGfxTask(const char* taskName, std::function<void(struct Frame&)>&& taskLambda);
+        // void enqueueFrameGfxTask(const FrameGfxTask& task);
+        void enqueueFrameGfxTask(const enum class RenderingStage& stage, const char* taskName, std::function<void(struct Frame&)>&& taskLambda);
     private:
         Engine(std::unique_ptr<App> app); // hiding constructor to prohibit direct construction
 

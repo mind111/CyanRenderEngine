@@ -23,6 +23,18 @@ namespace Cyan
     class ShaderManager;
     class GHTexture2D;
 
+    using PostRenderSceneViewsFunc = std::function<void(std::vector<SceneView*>*)>;
+    using RenderToBackBufferFunc = std::function<void(struct Frame& frame)>;
+    using UIRenderCommand = std::function<void()>;
+
+    enum class RenderingStage
+    {
+        kPreSceneRendering = 0,
+        kPostSceneRendering,
+        kPostRenderToBackBuffer,
+        kCount
+    };
+
     struct FrameGfxTask
     {
         std::string debugName;
@@ -31,12 +43,14 @@ namespace Cyan
 
     struct Frame
     {
-        void flushGfxTasks();
+        void update();
 
         u32 simFrameNumber;
-        std::queue<FrameGfxTask> gfxTasks;
         Scene* scene = nullptr;
         std::vector<SceneView*>* views = nullptr;
+        RenderingStage renderingStage = RenderingStage::kPreSceneRendering;
+        std::queue<FrameGfxTask> gfxTaskQueues[(i32)RenderingStage::kCount];
+        std::queue<UIRenderCommand> UICommands;
     };
 
     /** 
@@ -49,7 +63,7 @@ namespace Cyan
         friend static void renderLoop();
 
         ~GfxModule();
-        static std::unique_ptr<GfxModule> create(const glm::uvec2& windowSize);
+        static std::unique_ptr<GfxModule> create(const char* windowTitle, const glm::uvec2& windowSize);
         static GfxModule* get();
         static void enqueueFrame(const Frame& frame);
         bool tryPopOneFrame(Frame& outFrame);
@@ -66,10 +80,16 @@ namespace Cyan
         void beginFrame();
         void endFrame();
 
-        // non-threaded variant
         void renderOneFrame();
+        void renderUI(Frame& frame);
+
+        // provide ways to override some rendering behavior
+        void setPostRenderSceneViews(const PostRenderSceneViewsFunc& postRenderSceneView);
+
+        static PostRenderSceneViewsFunc s_defaultPostRenderSceneViews;
+        static RenderToBackBufferFunc s_defaultRenderToBackBufferFunc;
     private:
-        GfxModule(const glm::uvec2& windowSize);
+        GfxModule(const char* windowTitle, const glm::uvec2& windowSize);
 
         void handleInputs();
 
@@ -81,8 +101,8 @@ namespace Cyan
         std::queue<Frame> m_frameQueue;
         
         /* window related */
-        glm::uvec2 m_windowSize;
         const char* m_windowTitle = nullptr;
+        glm::uvec2 m_windowSize;
         GLFWwindow* m_glfwWindow = nullptr;
 
         /* user input related */
@@ -94,6 +114,10 @@ namespace Cyan
         ShaderManager* m_shaderManager = nullptr;
         RenderingUtils* m_renderingUtils = nullptr;
         SceneRenderer* m_sceneRenderer = nullptr;
+
+        PostRenderSceneViewsFunc m_postRenderSceneViews;
+        RenderToBackBufferFunc m_renderToBackBuffer;
+        std::queue<UIRenderCommand> m_UIRenderCommands;
 
         static GfxModule* s_instance;
     };

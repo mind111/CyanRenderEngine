@@ -20,7 +20,6 @@ namespace Cyan
         void initialize(World* world);
         void deinitialize();
         virtual void update(World* world);
-        virtual void render();
 
     protected:
         virtual void customInitialize(World* world);

@@ -4,11 +4,11 @@
 
 namespace Cyan
 {
-    class ModularApp : public App
+    class DemoApp : public App
     {
     public:
-        ModularApp(i32 windowWidth, i32 windowHeight);
-        ~ModularApp();
+        DemoApp(i32 windowWidth, i32 windowHeight);
+        ~DemoApp();
     protected:
         virtual void customInitialize(World* world) override;
     };

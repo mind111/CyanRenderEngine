@@ -82,6 +82,8 @@ namespace Cyan
         ~SceneView();
 
         GHTexture2D* getOutput();
+        const State& getState() { return m_state; }
+        const CameraViewInfo& getCameraInfo() { return m_cameraInfo; }
 
     private:
         std::unique_ptr<SceneRender> m_render = nullptr;

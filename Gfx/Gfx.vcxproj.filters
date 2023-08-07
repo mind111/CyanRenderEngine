@@ -17,7 +17,7 @@
     <ClInclude Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLPipeline.h" />
     <ClInclude Include="Code\Public\Shader.h" />
     <ClInclude Include="Code\Public\GfxContext.h" />
-    <ClInclude Include="Code\Private\RenderPass.h" />
+    <ClInclude Include="Code\Public\RenderPass.h" />
     <ClInclude Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLTexture.h" />
     <ClInclude Include="Code\Private\GfxHardwareAbstraction\GHInterface\GHFramebuffer.h" />
     <ClInclude Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLFramebuffer.h" />
@@ -45,7 +45,7 @@
     <ClCompile Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLPipeline.cpp" />
     <ClCompile Include="Code\Public\Shader.cpp" />
     <ClCompile Include="Code\Public\GfxContext.cpp" />
-    <ClCompile Include="Code\Private\RenderPass.cpp" />
+    <ClCompile Include="Code\Public\RenderPass.cpp" />
     <ClCompile Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLTexture.cpp" />
     <ClCompile Include="Code\Private\GfxHardwareAbstraction\GHInterface\GHFramebuffer.cpp" />
     <ClCompile Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLFramebuffer.cpp" />

@@ -63,8 +63,8 @@ namespace Cyan
         if (outDepthTex != nullptr && scene != nullptr)
         {
             bool found = false;
-            auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "StaticMeshVS", SHADER_TEXT_PATH "static_mesh_v.glsl");
-            auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "DepthPS", SHADER_TEXT_PATH "depth_p.glsl");
+            auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "StaticMeshVS", ENGINE_SHADER_PATH "static_mesh_v.glsl");
+            auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "DepthPS", ENGINE_SHADER_PATH "depth_p.glsl");
             auto gfxp = ShaderManager::findOrCreateGfxPipeline(found, vs, ps);
 
             const auto desc = outDepthTex->getDesc();
@@ -147,8 +147,8 @@ namespace Cyan
         if (scene != nullptr && outDirectLighting != nullptr)
         {
             bool found = false;
-            auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "ScreenPassVS", SHADER_TEXT_PATH "screen_pass_v.glsl");
-            auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "SceneDirectLightingPS", SHADER_TEXT_PATH "scene_direct_lighting_p.glsl");
+            auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "ScreenPassVS", ENGINE_SHADER_PATH "screen_pass_v.glsl");
+            auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "SceneDirectLightingPS", ENGINE_SHADER_PATH "scene_direct_lighting_p.glsl");
             auto gfxp = ShaderManager::findOrCreateGfxPipeline(found, vs, ps);
 
             const auto desc = outDirectLighting->getDesc();
@@ -185,8 +185,8 @@ namespace Cyan
         if (dstTexture != nullptr && srcTexture != nullptr)
         {
             bool found = false;
-            auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "ScreenPassVS", SHADER_TEXT_PATH "screen_pass_v.glsl");
-            auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "TonemappingPS", SHADER_TEXT_PATH "tonemapping_p.glsl");
+            auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "ScreenPassVS", ENGINE_SHADER_PATH "screen_pass_v.glsl");
+            auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "TonemappingPS", ENGINE_SHADER_PATH "tonemapping_p.glsl");
             auto gfxp = ShaderManager::findOrCreateGfxPipeline(found, vs, ps);
 
             const auto desc = dstTexture->getDesc();

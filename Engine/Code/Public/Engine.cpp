@@ -14,8 +14,10 @@
 #include "Scene.h"
 
 // todo: get ssgi back
+// todo: frame rate independent camera controls
 // todo: get skybox back
 // todo: get skylight back
+// todo: write something like a screen pass effects library...?
 // todo: get textured material back
 // todo: think about component memory ownership
 // todo: think about asset ownership
@@ -28,7 +30,7 @@
 //      from direct child scene components or maybe not attaching current entity's scene root to its parent entity's scene root?
 namespace Cyan
 {
-    static std::queue<FrameGfxTask> s_frameGfxTaskQueue;
+    static std::queue<FrameGfxTask> s_frameGfxTaskQueues[(i32)RenderingStage::kCount];
 
     Engine* Engine::s_instance = nullptr;
     Engine::~Engine() 
@@ -50,7 +52,7 @@ namespace Cyan
 
     Engine::Engine(std::unique_ptr<App> app)
     {
-        m_gfx = std::move(GfxModule::create(glm::uvec2(app->m_windowWidth, app->m_windowHeight)));
+        m_gfx = std::move(GfxModule::create(app->m_name.c_str(), glm::uvec2(app->m_windowWidth, app->m_windowHeight)));
         m_app = std::move(app);
         m_inputManager = InputManager::get();
         m_world = std::make_unique<World>("Default");
@@ -198,7 +200,10 @@ namespace Cyan
 
         Frame frame = { };
         frame.simFrameNumber = m_mainFrameNumber;
-        frame.gfxTasks = std::move(s_frameGfxTaskQueue);
+        for (i32 i = 0; i < (i32)RenderingStage::kCount; ++i)
+        {
+            frame.gfxTaskQueues[i] = std::move(s_frameGfxTaskQueues[i]);
+        }
         frame.scene = m_world->m_sceneRenderThread.get();
         frame.views = &m_world->m_views;
 
@@ -232,16 +237,12 @@ namespace Cyan
         }
     }
 
-    void Engine::enqueueFrameGfxTask(const FrameGfxTask& task)
-    {
-        s_frameGfxTaskQueue.push(task);
-    }
-
-    void Engine::enqueueFrameGfxTask(const char* taskName, std::function<void(Frame&)>&& taskLambda)
+    void Engine::enqueueFrameGfxTask(const RenderingStage& stage, const char* taskName, std::function<void(Frame&)>&& taskLambda)
     {
         FrameGfxTask task = { };
         task.debugName = taskName;
         task.lambda = std::move(taskLambda);
-        s_frameGfxTaskQueue.push(task);
+
+        s_frameGfxTaskQueues[(i32)stage].push(std::move(task));
     }
 }

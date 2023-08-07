@@ -24,6 +24,7 @@
     <ClInclude Include="Code\Public\Core.h" />
     <ClInclude Include="Code\Public\Geometry.h" />
     <ClInclude Include="Code\Public\MathLibrary.h" />
+    <ClInclude Include="Code\Public\Noise.h" />
     <ClInclude Include="Code\Public\Transform.h" />
   </ItemGroup>
   <ItemGroup>

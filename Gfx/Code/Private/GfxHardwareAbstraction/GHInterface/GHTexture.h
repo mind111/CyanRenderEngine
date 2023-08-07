@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core.h"
+#include "Gfx.h"
 
 namespace Cyan
 {
@@ -42,11 +43,11 @@ namespace Cyan
         FilteringMode m_filteringMag = FilteringMode::Point;
     };
 
-#define SAMPLER2D_FM_POINT GHSampler2D::FilteringMode::Point
-#define SAMPLER2D_FM_BILINEAR GHSampler2D::FilteringMode::Bilinear
-#define SAMPLER2D_FM_TRILINEAR GHSampler2D::FilteringMode::Trilinear
-#define SAMPLER2D_AM_WRAP GHSampler2D::AddressingMode::Wrap
-#define SAMPLER2D_AM_CLAMP GHSampler2D::AddressingMode::Clamp
+#define SAMPLER2D_FM_POINT Cyan::GHSampler2D::FilteringMode::Point
+#define SAMPLER2D_FM_BILINEAR Cyan::GHSampler2D::FilteringMode::Bilinear
+#define SAMPLER2D_FM_TRILINEAR Cyan::GHSampler2D::FilteringMode::Trilinear
+#define SAMPLER2D_AM_WRAP Cyan::GHSampler2D::AddressingMode::Wrap
+#define SAMPLER2D_AM_CLAMP Cyan::GHSampler2D::AddressingMode::Clamp
 
     enum class PixelFormat
     {
@@ -81,7 +82,7 @@ namespace Cyan
         kCount
     };
 
-    class GHTexture
+    class GFX_API GHTexture
     {
     public:
         virtual ~GHTexture() { }
@@ -91,7 +92,7 @@ namespace Cyan
         virtual void unbind() = 0;
     };
 
-    class GHTexture2D : public GHTexture
+    class GFX_API GHTexture2D : public GHTexture
     {
     public:
         struct Desc
@@ -124,7 +125,7 @@ namespace Cyan
             void* data = nullptr;
         };
 
-        static std::unique_ptr<GHTexture2D> create(const Desc& desc);
+        static std::unique_ptr<GHTexture2D> create(const Desc& desc, const GHSampler2D& sampler2D = GHSampler2D());
         virtual ~GHTexture2D() { }
 
         virtual void getMipSize(i32& outWidth, i32& outHeight, i32 mipLevel) = 0;

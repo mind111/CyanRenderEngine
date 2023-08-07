@@ -27,7 +27,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Code\Private\RenderPass.h" />
+    <ClInclude Include="Code\Public\RenderPass.h" />
     <ClInclude Include="Code\Private\RenderTexture.h" />
     <ClInclude Include="Code\Private\SSGI.h" />
     <ClInclude Include="Code\Public\GfxMaterial.h" />
@@ -60,7 +60,7 @@
     <ClInclude Include="Code\Public\ShadowMaps.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Code\Private\RenderPass.cpp" />
+    <ClCompile Include="Code\Public\RenderPass.cpp" />
     <ClCompile Include="Code\Private\RenderTexture.cpp" />
     <ClCompile Include="Code\Private\SceneRender.cpp" />
     <ClCompile Include="Code\Private\SSGI.cpp" />
@@ -165,7 +165,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\OpenGL\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\glew\;$(SolutionDir)ThirdParty\stbi\Code\Header\;$(SolutionDir)ThirdParty\glfw\Code\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\OpenGL\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\glew\;$(SolutionDir)ThirdParty\stbi\Code\Header\;$(SolutionDir)ThirdParty\glfw\Code\Header\;$(SolutionDir)ThirdParty\imgui\Code\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -185,7 +185,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\OpenGL\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\glew\;$(SolutionDir)ThirdParty\stbi\Code\Header\;$(SolutionDir)ThirdParty\glfw\Code\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\OpenGL\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\glew\;$(SolutionDir)ThirdParty\stbi\Code\Header\;$(SolutionDir)ThirdParty\glfw\Code\Header\;$(SolutionDir)ThirdParty\imgui\Code\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -205,7 +205,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\OpenGL\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\glew\;$(SolutionDir)ThirdParty\stbi\Code\Header\;$(SolutionDir)ThirdParty\glfw\Code\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\OpenGL\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\glew\;$(SolutionDir)ThirdParty\stbi\Code\Header\;$(SolutionDir)ThirdParty\glfw\Code\Header\;$(SolutionDir)ThirdParty\imgui\Code\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -225,7 +225,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\OpenGL\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\glew\;$(SolutionDir)ThirdParty\stbi\Code\Header\;$(SolutionDir)ThirdParty\glfw\Code\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\OpenGL\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\glew\;$(SolutionDir)ThirdParty\stbi\Code\Header\;$(SolutionDir)ThirdParty\glfw\Code\Header\;$(SolutionDir)ThirdParty\imgui\Code\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>

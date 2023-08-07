@@ -261,8 +261,8 @@ namespace Cyan
         glm::uvec2 backbufferSize = GfxModule::get()->getWindowSize();
 
         bool found = false;
-        auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "ScreenPassVS", SHADER_TEXT_PATH "screen_pass_v.glsl");
-        auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "BlitTexturePS", SHADER_TEXT_PATH "blit_texture_p.glsl");
+        auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "ScreenPassVS", ENGINE_SHADER_PATH "screen_pass_v.glsl");
+        auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "BlitTexturePS", ENGINE_SHADER_PATH "blit_texture_p.glsl");
         auto gfxp = ShaderManager::findOrCreateGfxPipeline(found, vs, ps);
 
         RenderPass rp(backbufferSize.x, backbufferSize.y);
@@ -274,6 +274,30 @@ namespace Cyan
             s_unitQuadMesh->draw();
             gfxp->unbind();
         });
+        rp.disableDepthTest();
+        rp.render(GfxContext::get());
+    }
+
+    void RenderingUtils::renderToBackBuffer(GHTexture2D* srcTexture, const Viewport& viewport)
+    {
+        GfxModule* gfxModule = GfxModule::get();
+        glm::uvec2 backbufferSize = GfxModule::get()->getWindowSize();
+
+        bool found = false;
+        auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "ScreenPassVS", ENGINE_SHADER_PATH "screen_pass_v.glsl");
+        auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "BlitTexturePS", ENGINE_SHADER_PATH "blit_texture_p.glsl");
+        auto gfxp = ShaderManager::findOrCreateGfxPipeline(found, vs, ps);
+
+        RenderPass rp(backbufferSize.x, backbufferSize.y);
+        rp.enableRenderToDefaultTarget();
+        rp.setRenderFunc([gfxp, srcTexture](GfxContext* ctx) {
+            gfxp->bind();
+            gfxp->setUniform("mipLevel", 0);
+            gfxp->setTexture("srcTexture", srcTexture);
+            s_unitQuadMesh->draw();
+            gfxp->unbind();
+        });
+        rp.setViewport(viewport.x, viewport.y, viewport.width, viewport.height);
         rp.disableDepthTest();
         rp.render(GfxContext::get());
     }

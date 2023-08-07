@@ -5,7 +5,7 @@ namespace Cyan
     GfxMaterial::GfxMaterial(const char* materialAssetName, const char* pixelShaderFilePath)
     {
         bool bFoundVS = false;
-        auto vs = ShaderManager::findOrCreateShader<VertexShader>(bFoundVS, "StaticMeshVS", SHADER_TEXT_PATH "static_mesh_v.glsl");
+        auto vs = ShaderManager::findOrCreateShader<VertexShader>(bFoundVS, "StaticMeshVS", ENGINE_SHADER_PATH "static_mesh_v.glsl");
 
         bool bFoundPS = false;
         std::string pixelShaderName(materialAssetName);

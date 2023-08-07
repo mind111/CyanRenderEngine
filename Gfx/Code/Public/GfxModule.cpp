@@ -3,6 +3,9 @@
 
 #include "glew.h"
 #include "glfw3.h"
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
 
 #include "GfxModule.h"
 #include "SceneRender.h"
@@ -14,18 +17,47 @@
 namespace Cyan
 {
     GfxModule* GfxModule::s_instance = nullptr;
-    GfxModule::GfxModule(const glm::uvec2& windowSize)
+    PostRenderSceneViewsFunc GfxModule::s_defaultPostRenderSceneViews = [](std::vector<SceneView*>* views) {
+        // todo: for now, assuming that views[0] is always the main view, need to think about a proper way to 
+        // abstract this
+        // blit views[0]'s result to the default backbuffer
+        if (views->size() > 0)
+        {
+            SceneView* defaultView = (*views)[0];
+            GHTexture2D* output = defaultView->getOutput();
+            RenderingUtils::renderToBackBuffer(output);
+        }
+    };
+
+    RenderToBackBufferFunc GfxModule::s_defaultRenderToBackBufferFunc = [](Frame& frame) {
+        // todo: for now, assuming that views[0] is always the main view, need to think about a proper way to 
+        // abstract this
+        // blit views[0]'s result to the default backbuffer
+
+        auto views = frame.views;
+        if (views->size() > 0)
+        {
+            SceneView* defaultView = (*views)[0];
+            GHTexture2D* output = defaultView->getOutput();
+            RenderingUtils::renderToBackBuffer(output);
+        }
+    };
+
+    GfxModule::GfxModule(const char* windowTitle, const glm::uvec2& windowSize)
         : m_renderFrameNumber(0)
         , m_renderThread()
         , m_renderThreadID()
         , m_frameQueueMutex()
         , m_frameQueue()
+        , m_windowTitle(windowTitle)
         , m_windowSize(windowSize)
     {
         m_gfxCtx = GfxContext::get();
         m_shaderManager = ShaderManager::get();
         m_renderingUtils = RenderingUtils::get();
         m_sceneRenderer = SceneRenderer::get();
+        m_postRenderSceneViews = s_defaultPostRenderSceneViews;
+        m_renderToBackBuffer = s_defaultRenderToBackBufferFunc;
     }
 
     void GfxModule::handleInputs()
@@ -55,9 +87,9 @@ namespace Cyan
 
     }
 
-    std::unique_ptr<GfxModule> GfxModule::create(const glm::uvec2& windowSize)
+    std::unique_ptr<GfxModule> GfxModule::create(const char* windowTitle, const glm::uvec2& windowSize)
     {
-        static std::unique_ptr<GfxModule> s_gfx(new GfxModule(windowSize));
+        static std::unique_ptr<GfxModule> s_gfx(new GfxModule(windowTitle, windowSize));
         if (s_instance == nullptr)
         {
             s_instance = s_gfx.get();
@@ -106,28 +138,32 @@ namespace Cyan
                 // rendering a frame
                 // cyanInfo("Rendering frame %d", frame.simFrameNumber);
 
-                // execute frame gfx tasks first
-                frame.flushGfxTasks();
-
+                // execute pre scene rendering tasks
+                frame.update();
                 if (frame.scene != nullptr && frame.views != nullptr)
                 {
                     // render views
                     auto& views = *(frame.views);
-                    for (auto view : views)
+                    if (views.size() > 0)
                     {
-                        m_sceneRenderer->render(frame.scene, *view);
+                        for (auto view : views)
+                        {
+                            m_sceneRenderer->render(frame.scene, *view);
+                        }
+                        // m_postRenderSceneViews(frame.views);
                     }
-
-                    // todo: for now, assuming that views[0] is always the main view, need to think about a proper way to 
-                    // abstract this
-                    // blit views[0]'s result to the default backbuffer
-                    SceneView* defaultView = views[0];
-                    GHTexture2D* output = defaultView->getOutput();
-                    RenderingUtils::renderToBackBuffer(output);
-
-                    // only increment frame counter when actual rendering work happened
-                    m_renderFrameNumber.fetch_add(1);
                 }
+                // execute post scene rendering tasks
+                frame.update();
+                m_renderToBackBuffer(frame);
+                // execute post render to backbuffer tasks
+                frame.update();
+
+                // render UI
+                renderUI(frame);
+
+                // only increment frame counter when actual rendering work happened
+                m_renderFrameNumber.fetch_add(1);
             }
             else
             {
@@ -139,7 +175,42 @@ namespace Cyan
         endFrame();
     }
 
-    static void glErrorCallback(GLenum inSource, GLenum inType, GLuint inID, GLenum inSeverity, GLsizei inLength, const GLchar* inMessage, const void* userParam) 
+    void GfxModule::renderUI(Frame& frame)
+    {
+        GPU_DEBUG_SCOPE(UIPassMarker, "Render UI");
+
+        // begin imgui
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        while (!frame.UICommands.empty())
+        {
+            const auto& command = frame.UICommands.front();
+            command();
+            frame.UICommands.pop();
+        }
+
+        // end imgui
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        ImGuiIO& io = ImGui::GetIO(); (void)io;
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        {
+            GLFWwindow* backup_current_context = glfwGetCurrentContext();
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
+            glfwMakeContextCurrent(backup_current_context);
+        }
+    }
+
+    void GfxModule::setPostRenderSceneViews(const PostRenderSceneViewsFunc& postRenderSceneView)
+    {
+        m_postRenderSceneViews = postRenderSceneView;
+    }
+
+    static void glErrorCallback(GLenum inSource, GLenum inType, GLuint inID, GLenum inSeverity, GLsizei inLength, const GLchar* inMessage, const void* userParam)
     {
         std::string source, type, severity;
         switch (inSource) 
@@ -319,7 +390,7 @@ namespace Cyan
                 glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
                 glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
                 glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
-                gfxModule->m_glfwWindow = glfwCreateWindow(gfxModule->m_windowSize.x, gfxModule->m_windowSize.y, "Cyan", nullptr, nullptr);
+                gfxModule->m_glfwWindow = glfwCreateWindow(gfxModule->m_windowSize.x, gfxModule->m_windowSize.y, gfxModule->m_windowTitle, nullptr, nullptr);
                 glfwMakeContextCurrent(gfxModule->m_glfwWindow);
                 GLenum glewErr = glewInit();
                 assert(glewErr == GLEW_OK);
@@ -422,15 +493,25 @@ namespace Cyan
         glfwSwapBuffers(m_glfwWindow);
     }
 
-    void Frame::flushGfxTasks()
+    void Frame::update()
     {
-        assert(GfxModule::isInRenderThread());
-        while (!gfxTasks.empty())
+        auto flushTaskQueue = [](Frame& frame, std::queue<FrameGfxTask>& taskQueue) {
+            assert(GfxModule::isInRenderThread());
+            while (!taskQueue.empty())
+            {
+                auto& task = taskQueue.front();
+                // cyanInfo("Executing Gfx task %s", task.debugName.c_str());
+                task.lambda(frame);
+                taskQueue.pop();
+            }
+        };
+
+        i32 currentStage = (i32)renderingStage;
+        if (currentStage < (i32)RenderingStage::kCount)
         {
-            auto& task = gfxTasks.front();
-            // cyanInfo("Executing Gfx task %s", task.debugName.c_str());
-            task.lambda(*this);
-            gfxTasks.pop();
+            flushTaskQueue(*this, gfxTaskQueues[currentStage]);
+            i32 nextStage = currentStage + 1;
+            renderingStage = (RenderingStage)nextStage;
         }
     }
 }

@@ -5,7 +5,7 @@
 
 namespace Cyan
 {
-    class Image : public Asset
+    class ENGINE_API Image : public Asset
     {
     public:
         using Listener = std::function<void(Image*)>;
@@ -28,5 +28,9 @@ namespace Cyan
         i32 m_numChannels;
         i32 m_bitsPerChannel;
         std::unique_ptr<u8> m_pixels = nullptr;
+    private:
+        std::atomic<bool> bLoaded = false;
+        std::mutex m_listenerMutex;
+        std::vector<Listener> m_listeners;
     };
 }

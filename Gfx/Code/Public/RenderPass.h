@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core.h"
+#include "Gfx.h"
 #include "Shader.h"
 #include "GHTexture.h"
 #include "GHFramebuffer.h"
@@ -73,7 +74,7 @@ namespace Cyan
         f32 clearValue = 1.f;
     };
 
-    class RenderPass
+    class GFX_API RenderPass
     {
     public:
         using RenderFunc = std::function<void(GfxContext*)>;

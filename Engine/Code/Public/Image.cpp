@@ -20,7 +20,18 @@ namespace Cyan
 
     void Image::onLoaded()
     {
+        std::lock_guard<std::mutex> lock(m_listenerMutex);
 
+        bLoaded.store(true);
+
+        // notify all the listeners
+        for (auto& listener : m_listeners)
+        {
+            listener(this);
+        }
+
+        // clear pending listeners
+        m_listeners.clear();
     }
 
     void Image::importFromFile(const char* filename)
@@ -45,6 +56,8 @@ namespace Cyan
                 m_bitsPerChannel = 8;
             }
         }
+
+        onLoaded();
     }
 
     void Image::importFromMemory(u8* memory, u32 sizeInBytes)
@@ -69,10 +82,21 @@ namespace Cyan
                 m_pixels.reset((u8*)stbi_load_from_memory(memory, sizeInBytes, &m_width, &m_height, &m_numChannels, 0));
             }
         }
+
+        onLoaded();
     }
 
     void Image::addListener(const Listener& listener)
     {
-
+        bool bIsLoaded = bLoaded.load();
+        if (bIsLoaded)
+        {
+            listener(this);
+        }
+        else
+        {
+            std::lock_guard<std::mutex> lock(m_listenerMutex);
+            m_listeners.push_back(listener);
+        }
     }
 }

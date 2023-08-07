@@ -3,6 +3,7 @@
 #include "Core.h"
 #include "glm.hpp"
 #include "gtx/transform.hpp"
+#include "gtc/integer.hpp"
 
 namespace Cyan
 {

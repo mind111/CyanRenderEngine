@@ -42,7 +42,7 @@ namespace Cyan
         virtual void setViewport(i32 x, i32 y, i32 width, i32 height) = 0;
         // textures
         virtual std::unique_ptr<GHDepthTexture> createDepthTexture(const GHDepthTexture::Desc& desc) = 0;
-        virtual std::unique_ptr<GHTexture2D> createTexture2D(const GHTexture2D::Desc& desc) = 0;
+        virtual std::unique_ptr<GHTexture2D> createTexture2D(const GHTexture2D::Desc& desc, const GHSampler2D& sampler2D = GHSampler2D()) = 0;
         // static mesh
         virtual std::unique_ptr<GfxStaticSubMesh> createGfxStaticSubMesh(Geometry* geometry) = 0;
         // pipeline misc state

@@ -1,3 +1,4 @@
+#include "ThirdParty.h"
 /* stb_image_write - v1.16 - public domain - http://nothings.org/stb
    writes out PNG/BMP/TGA/JPEG/HDR images to C stdio - Sean Barrett 2010-2015
                                      no warranty implied; use at your own risk
@@ -176,7 +177,7 @@ STBIWDEF int stbi_write_force_png_filter;
 STBIWDEF int stbi_write_png(char const *filename, int w, int h, int comp, const void  *data, int stride_in_bytes);
 STBIWDEF int stbi_write_bmp(char const *filename, int w, int h, int comp, const void  *data);
 STBIWDEF int stbi_write_tga(char const *filename, int w, int h, int comp, const void  *data);
-STBIWDEF int stbi_write_hdr(char const *filename, int w, int h, int comp, const float *data);
+STBIWDEF THIRDPARTY_API int stbi_write_hdr(char const *filename, int w, int h, int comp, const float *data);
 STBIWDEF int stbi_write_jpg(char const *filename, int x, int y, int comp, const void  *data, int quality);
 
 #ifdef STBIW_WINDOWS_UTF8

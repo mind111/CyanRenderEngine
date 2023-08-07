@@ -190,6 +190,12 @@ namespace Cyan
         // todo: verify input pixel data validity
 #if 1 
         glTexImage2D(GL_TEXTURE_2D, 0, glPixelFormat.internalFormat, desc.width, desc.height, 0, glPixelFormat.format, glPixelFormat.type, desc.data);
+
+        // todo: this needs some improvements, ideally would like to specify how many mips to generate specifically
+        if (desc.numMips > 1)
+        {
+            glGenerateTextureMipmap(glTextureObject);
+        }
 #else
         // allocate texture memory
         glTextureStorage2D(glTextureObject, desc.numMips, glPixelFormat.internalFormat, desc.width, desc.height);
@@ -205,8 +211,8 @@ namespace Cyan
         setupFiltering(defaultSampler.m_filteringMag, GL_TEXTURE_MAG_FILTER, glTextureObject);
     }
 
-    GLTexture2D::GLTexture2D(const GHTexture2D::Desc& desc)
-        : GLTexture(), GHTexture2D(desc)
+    GLTexture2D::GLTexture2D(const GHTexture2D::Desc& desc, const GHSampler2D& sampler2D)
+        : GLTexture(), GHTexture2D(desc, sampler2D)
     {
         glCreateTextures(GL_TEXTURE_2D, 1, &m_name);
     }

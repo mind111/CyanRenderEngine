@@ -4,15 +4,15 @@
 
 namespace Cyan
 {
-    std::unique_ptr<GHTexture2D> GHTexture2D::create(const Desc& desc)
+    std::unique_ptr<GHTexture2D> GHTexture2D::create(const Desc& desc, const GHSampler2D& sampler2D)
     {
-        std::unique_ptr<GHTexture2D> outTex2D = std::move(GfxHardwareContext::get()->createTexture2D(desc));
+        std::unique_ptr<GHTexture2D> outTex2D = std::move(GfxHardwareContext::get()->createTexture2D(desc, sampler2D));
         outTex2D->init();
         return std::move(outTex2D);
     }
 
     GHTexture2D::GHTexture2D(const Desc& desc, const GHSampler2D& sampler2D)
-        : m_desc(desc), m_defaultSampler()
+        : m_desc(desc), m_defaultSampler(sampler2D)
     {
         assert(desc.width > 0 && desc.height > 0 && desc.numMips >= 1);
     }

@@ -53,12 +53,13 @@ namespace Cyan
         GfxStaticSubMesh* getUnitCubeMesh() { return s_unitCubeMesh; }
         NoiseTextures& getNoiseTextures() { return s_noiseTextures; }
 
-        static void renderScreenPass(const glm::uvec2& renderResolution, const RenderTargetSetupFunc& renderTargetSetupFunc, GfxPipeline* p, ShaderSetupFunc& shaderSetupFunc);
+        GFX_API static void renderScreenPass(const glm::uvec2& renderResolution, const RenderTargetSetupFunc& renderTargetSetupFunc, GfxPipeline* p, ShaderSetupFunc& shaderSetupFunc);
 
         /**
          * Blit a 2D texture to the default framebuffer
          */
-        static void renderToBackBuffer(GHTexture2D* srcTexture);
+        GFX_API static void renderToBackBuffer(GHTexture2D* srcTexture);
+        GFX_API static void renderToBackBuffer(GHTexture2D* srcTexture, const Viewport& viewport);
     private:
         RenderingUtils();
 

@@ -80,9 +80,9 @@ namespace Cyan
         return std::move(std::unique_ptr<GHDepthTexture>(new GLDepthTexture(desc)));
     }
 
-    std::unique_ptr<GHTexture2D> GLGHContext::createTexture2D(const GHTexture2D::Desc& desc)
+    std::unique_ptr<GHTexture2D> GLGHContext::createTexture2D(const GHTexture2D::Desc& desc, const GHSampler2D& sampler2D)
     {
-        return std::move(std::unique_ptr<GHTexture2D>(new GLTexture2D(desc)));
+        return std::move(std::unique_ptr<GHTexture2D>(new GLTexture2D(desc, sampler2D)));
     }
 
     std::unique_ptr<GfxStaticSubMesh> GLGHContext::createGfxStaticSubMesh(Geometry* geometry)

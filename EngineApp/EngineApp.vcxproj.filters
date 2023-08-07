@@ -2,9 +2,15 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="EngineApp.cpp" />
-    <ClCompile Include="Modular\Modular.cpp" />
+    <ClCompile Include="Apps\RayMarchingHeightField\RayMarchingHeightField.cpp" />
+    <ClCompile Include="Apps\Demo\DemoApp.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Modular\Modular.h" />
+    <ClInclude Include="Apps\RayMarchingHeightField\RayMarchingHeightField.h" />
+    <ClInclude Include="Apps\Demo\DemoApp.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Apps\RayMarchingHeightField\Resources\Scene.glb" />
+    <None Include="Apps\RayMarchingHeightField\Shader\raymarching_heightfield_p.glsl" />
   </ItemGroup>
 </Project>

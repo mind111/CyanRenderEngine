@@ -79,8 +79,8 @@ namespace Cyan
             GPU_DEBUG_SCOPE(SSAOSampling, "SSAOTemporal");
 
             bool found = false;
-            auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "ScreenPassVS", SHADER_TEXT_PATH "screen_pass_v.glsl");
-            auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "SSGIAOPS", SHADER_TEXT_PATH "ssgi_ao_p.glsl");
+            auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "ScreenPassVS", ENGINE_SHADER_PATH "screen_pass_v.glsl");
+            auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "SSGIAOPS", ENGINE_SHADER_PATH "ssgi_ao_p.glsl");
             auto gfxp = ShaderManager::findOrCreateGfxPipeline(found, vs, ps);
 
             auto outAO = render->ao();

@@ -7,6 +7,7 @@
     <ClInclude Include="Code\Public\Geometry.h" />
     <ClInclude Include="Code\Public\MathLibrary.h" />
     <ClInclude Include="Code\Public\Transform.h" />
+    <ClInclude Include="Code\Public\Noise.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Code\Public\Transform.cpp" />

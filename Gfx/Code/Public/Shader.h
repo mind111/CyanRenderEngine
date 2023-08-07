@@ -7,7 +7,7 @@
 
 namespace Cyan
 {
-#define SHADER_TEXT_PATH "C:/dev/cyanRenderEngine/Gfx/Shader/"
+#define ENGINE_SHADER_PATH "C:/dev/cyanRenderEngine/Gfx/Shader/"
 
     class GFX_API Shader
     {

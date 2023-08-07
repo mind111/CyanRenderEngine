@@ -32,8 +32,8 @@ namespace Cyan
     class GLTexture2D : public GLTexture, public GHTexture2D
     {
     public:
-        GLTexture2D(const GHTexture2D::Desc& desc);
-        virtual ~GLTexture2D();
+        GLTexture2D(const GHTexture2D::Desc& desc, const GHSampler2D& sampler2D = GHSampler2D());
+        virtual ~GLTexture2D(); 
 
         virtual void init() override;
         virtual void bind() override;

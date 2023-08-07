@@ -27,7 +27,7 @@ namespace Cyan
         virtual void setViewport(i32 x, i32 y, i32 width, i32 height) override;
         // textures
         virtual std::unique_ptr<GHDepthTexture> createDepthTexture(const GHDepthTexture::Desc& desc) override;
-        virtual std::unique_ptr<GHTexture2D> createTexture2D(const GHTexture2D::Desc& desc) override;
+        virtual std::unique_ptr<GHTexture2D> createTexture2D(const GHTexture2D::Desc& desc, const GHSampler2D& sampler2D) override;
         // static mesh
         virtual std::unique_ptr<GfxStaticSubMesh> createGfxStaticSubMesh(Geometry* geometry) override;
 
