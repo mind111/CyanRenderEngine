@@ -55,13 +55,14 @@ namespace Cyan
 
         // create a new SceneView for this new camera
         glm::uvec2 renderResoltuion = camera->getRenderResolution();
-        ENQUEUE_GFX_TASK(
-            std::string("AddSceneView"),
+        Engine::get()->enqueueFrameGfxTask(
+            RenderingStage::kPreSceneRendering,
+            "AddSceneView",
             [this, renderResoltuion](Frame& frame) {
                 // todo: deal with memory ownership here
                 m_views.push_back(new SceneView(renderResoltuion));
             }
-        )
+        );
     }
 
     void World::removeSceneCamera(SceneCamera* sceneCamera)
@@ -81,12 +82,13 @@ namespace Cyan
         }
         assert(bFound);
 
-        ENQUEUE_GFX_TASK(
-            std::string("RemoveSceneView"),
+        Engine::get()->enqueueFrameGfxTask(
+            RenderingStage::kPreSceneRendering,
+            "RemoveSceneView",
             [this, foundAtIndex](Frame& frame) {
                 // todo: deal with memory ownership here
                 m_views.erase(m_views.begin() + foundAtIndex);
             }
-        )
+        );
     }
 }

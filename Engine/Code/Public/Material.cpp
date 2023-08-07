@@ -9,13 +9,16 @@ namespace Cyan
         , m_materialSourcePath(materialSourcePath)
         , m_defaultInstanceSetupFunc(setupDefaultInstance)
     {
+        std::string taskName = "CreateGfxMaterial: " + getName();
+
         // create gfx material
-        ENQUEUE_GFX_TASK(
-            "CreateGfxMaterial:" + getName(),
+        Engine::get()->enqueueFrameGfxTask(
+            RenderingStage::kPreSceneRendering,
+            taskName.c_str(),
             [this](Frame& frame) {
                 m_gfxMaterial = std::make_unique<GfxMaterial>(getName().c_str(), m_materialSourcePath);
             }
-        )
+        );
 
         // create and setup the default instance
         std::string instanceName = "Default_" + getName();
@@ -76,12 +79,14 @@ namespace Cyan
     MaterialInstance::MaterialInstance(const char* name, Material* parent)
         : Asset(name), m_parent(parent)
     {
-        ENQUEUE_GFX_TASK(
-            "CreateGfxMaterialInstance:" + getName(),
+        std::string taskName = "CreateGfxMaterialInstance: " + getName();
+        Engine::get()->enqueueFrameGfxTask(
+            RenderingStage::kPreSceneRendering,
+            taskName.c_str(),
             [this](Frame& frame) {
                 m_gfxMaterialInstance = std::make_unique<GfxMaterialInstance>(getName().c_str(), m_parent->m_gfxMaterial.get());
             }
-        )
+        );
     }
 
     MaterialInstance::~MaterialInstance()
@@ -91,71 +96,78 @@ namespace Cyan
 
     void MaterialInstance::setInt(const char* parameterName, i32 data)
     {
-        ENQUEUE_GFX_TASK(
-            std::string("MaterialInstance::setInt"),
+        Engine::get()->enqueueFrameGfxTask(
+            RenderingStage::kPreSceneRendering,
+            "MaterialInstance::setInt",
             [this, parameterName, data](Frame& frame) {
                 m_gfxMaterialInstance->setInt(parameterName, data);
             }
-        )
+        );
     }
 
     void MaterialInstance::setUint(const char* parameterName, u32 data)
     {
-        ENQUEUE_GFX_TASK(
-            std::string("MaterialInstance::setUint"),
+        Engine::get()->enqueueFrameGfxTask(
+            RenderingStage::kPreSceneRendering,
+            "MaterialInstance::setUint",
             [this, parameterName, data](Frame& frame) {
                 m_gfxMaterialInstance->setUint(parameterName, data);
             }
-        )
+        );
     }
 
     void MaterialInstance::setFloat(const char* parameterName, f32 data)
     {
-        ENQUEUE_GFX_TASK(
-            std::string("MaterialInstance::setFloat"),
+        Engine::get()->enqueueFrameGfxTask(
+            RenderingStage::kPreSceneRendering,
+            "MaterialInstance::setFloat",
             [this, parameterName, data](Frame& frame) {
                 m_gfxMaterialInstance->setFloat(parameterName, data);
             }
-        )
+        );
     }
 
     void MaterialInstance::setVec2(const char* parameterName, const glm::vec2& data)
     {
-        ENQUEUE_GFX_TASK(
-            std::string("MaterialInstance::setVec2"),
+        Engine::get()->enqueueFrameGfxTask(
+            RenderingStage::kPreSceneRendering,
+            "MaterialInstance::setVec2",
             [this, parameterName, data](Frame& frame) {
                 m_gfxMaterialInstance->setVec2(parameterName, data);
             }
-        )
+        );
     }
 
     void MaterialInstance::setVec3(const char* parameterName, const glm::vec3& data)
     {
-        FrameGfxTask task = { };
-        task.debugName = std::move(std::string("MaterialInstance::setVec3"));
-        task.lambda = [this, parameterName, data](Frame& frame) {
-            m_gfxMaterialInstance->setVec3(parameterName, data);
-        };
-        Engine::get()->enqueueFrameGfxTask(task);
+        Engine::get()->enqueueFrameGfxTask(
+            RenderingStage::kPreSceneRendering,
+            "MaterialInstance::setVec3",
+            [this, parameterName, data](Frame& frame) {
+                m_gfxMaterialInstance->setVec3(parameterName, data);
+            }
+        );
     }
 
     void MaterialInstance::setVec4(const char* parameterName, const glm::vec4& data)
     {
-        ENQUEUE_GFX_TASK(
-            std::string("MaterialInstance::setVec4"),
+        Engine::get()->enqueueFrameGfxTask(
+            RenderingStage::kPreSceneRendering,
+            "MaterialInstance::setVec4",
             [this, parameterName, data](Frame& frame) {
                 m_gfxMaterialInstance->setVec4(parameterName, data);
             }
-        )
+        );
     }
 
     void MaterialInstance::setTexture(const char* parameterName, Texture2D* texture)
     {
-        ENQUEUE_GFX_TASK(
-            std::string("MaterialInstance::setTexture"),
+        Engine::get()->enqueueFrameGfxTask(
+            RenderingStage::kPreSceneRendering,
+            "MaterialInstance::setTexture",
             [this, parameterName, texture](Frame& frame) {
                 m_gfxMaterialInstance->setTexture(parameterName, texture->getGHTexture());
             }
-        )
+        );
     }
 }

@@ -34,7 +34,9 @@ namespace Cyan
     DirectionalLightComponent::DirectionalLightComponent(const char* name, const Transform& localTransform)
         : LightComponent(name, localTransform)
     {
-        Engine::get()->enqueueFrameGfxTask("CreateDirectionalLight", 
+        Engine::get()->enqueueFrameGfxTask(
+            RenderingStage::kPreSceneRendering,
+            "CreateDirectionalLight", 
             [this](Frame& frame) {
                 m_directionalLight = std::make_unique<DirectionalLight>(glm::vec3(.9f), 20.f, glm::normalize(glm::vec3(1.f)));
             });
@@ -49,7 +51,9 @@ namespace Cyan
             if (currentWorld != nullptr)
             {
                 auto currentScene = currentWorld->getScene();
-                Engine::get()->enqueueFrameGfxTask("RemoveDirectionalLight",
+                Engine::get()->enqueueFrameGfxTask(
+                    RenderingStage::kPreSceneRendering,
+                    "RemoveDirectionalLight",
                     [this, currentScene](Frame& frame) {
                         currentScene->removeDirectionalLight(m_directionalLight.get());
                     });
@@ -62,7 +66,9 @@ namespace Cyan
         if (newWorld != nullptr)
         {
             Scene* newScene = newWorld->getScene();
-            Engine::get()->enqueueFrameGfxTask("AddDirectionalLight",
+            Engine::get()->enqueueFrameGfxTask(
+                RenderingStage::kPreSceneRendering,
+                "AddDirectionalLight",
                 [this, newScene](Frame& frame) {
                     newScene->addDirectionalLight(m_directionalLight.get());
                 });

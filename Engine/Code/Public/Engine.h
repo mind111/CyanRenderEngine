@@ -38,7 +38,6 @@ namespace Cyan
         void deinitialize();
         void run();
 
-        // void enqueueFrameGfxTask(const FrameGfxTask& task);
         void enqueueFrameGfxTask(const enum class RenderingStage& stage, const char* taskName, std::function<void(struct Frame&)>&& taskLambda);
     private:
         Engine(std::unique_ptr<App> app); // hiding constructor to prohibit direct construction
@@ -70,9 +69,3 @@ namespace Cyan
         static Engine* s_instance;
     };
 }
-
-#define ENQUEUE_GFX_TASK(taskName, ...)                     \
-    FrameGfxTask task = { };                                \
-    task.debugName = std::move(taskName);                   \
-    task.lambda = std::move(__VA_ARGS__);                   \
-    Engine::get()->enqueueFrameGfxTask(task);               \

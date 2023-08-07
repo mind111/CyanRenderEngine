@@ -70,7 +70,9 @@ namespace Cyan
     void RayMarchingHeightFieldApp::update(World* world)
     {
         // add a pass to perform ray marching into the height field
-        Engine::get()->enqueueFrameGfxTask("RayMarchingHeightField", [this](Frame& frame) {
+        Engine::get()->enqueueFrameGfxTask(
+            RenderingStage::kPostSceneRendering,
+            "RayMarchingHeightField", [this](Frame& frame) {
             static Transform s_heightFieldTransform;
 
             auto views = *(frame.views);
@@ -153,7 +155,10 @@ namespace Cyan
             }
         }
 
-        Engine::get()->enqueueFrameGfxTask("CreateTextures", [this, heightValues](Frame& frame) mutable {
+        Engine::get()->enqueueFrameGfxTask(
+            RenderingStage::kPreSceneRendering,
+            "CreateTextures", 
+            [this, heightValues](Frame& frame) mutable {
             {
                 auto desc = GHTexture2D::Desc::create(heightMapSize, heightMapSize, 1, PF_R32F, heightValues.data());
                 GHSampler2D sampler2D;
@@ -171,7 +176,10 @@ namespace Cyan
             }
         });
 
-        Engine::get()->enqueueFrameGfxTask("SetPostRenderSceneViewFunc", [this](Frame& frame) {
+        Engine::get()->enqueueFrameGfxTask(
+            RenderingStage::kPreSceneRendering,
+            "SetPostRenderSceneViewFunc", 
+            [this](Frame& frame) {
             GfxModule::get()->setPostRenderSceneViews([this](std::vector<SceneView*>* views) {
                 // GfxModule::s_defaultPostRenderSceneViews(views);
 

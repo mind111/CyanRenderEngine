@@ -164,39 +164,42 @@ namespace Cyan
 
         FrameGfxTask task = { };
         task.debugName = std::string("SyncRenderState");
-        task.lambda = [this, cameraStates](Frame& frame) {
-            // update scene views
-            std::vector<SceneView*> views = *frame.views;
-            for (i32 i = 0; i < views.size(); ++i)
-            {
-                const auto& cameraState = cameraStates[i];
-                views[i]->m_viewMode = (SceneView::ViewMode)cameraState.m_renderMode;
-                auto& viewState = views[i]->m_state;
-                if (viewState.frameCount > 0)
+
+        enqueueFrameGfxTask(
+            RenderingStage::kPreSceneRendering,
+            "SyncRenderState",
+            [this, cameraStates](Frame& frame) {
+                // update scene views
+                std::vector<SceneView*> views = *frame.views;
+                for (i32 i = 0; i < views.size(); ++i)
                 {
-                    viewState.prevFrameViewMatrix = viewState.viewMatrix;
-                    viewState.prevFrameProjectionMatrix = viewState.projectionMatrix;
-                    viewState.prevFrameCameraPosition = viewState.cameraPosition;
+                    const auto& cameraState = cameraStates[i];
+                    views[i]->m_viewMode = (SceneView::ViewMode)cameraState.m_renderMode;
+                    auto& viewState = views[i]->m_state;
+                    if (viewState.frameCount > 0)
+                    {
+                        viewState.prevFrameViewMatrix = viewState.viewMatrix;
+                        viewState.prevFrameProjectionMatrix = viewState.projectionMatrix;
+                        viewState.prevFrameCameraPosition = viewState.cameraPosition;
+                    }
+
+                    // todo: detect resolution changes
+                    viewState.resolution = cameraState.m_resolution;
+                    viewState.aspectRatio = cameraState.m_cameraViewInfo.m_perspective.aspectRatio;
+                    viewState.viewMatrix = cameraState.m_cameraViewInfo.viewMatrix();
+                    viewState.projectionMatrix = cameraState.m_cameraViewInfo.projectionMatrix();
+                    viewState.cameraPosition = cameraState.m_cameraViewInfo.m_worldSpacePosition;
+                    viewState.cameraRight = cameraState.m_cameraViewInfo.worldSpaceRight();
+                    viewState.cameraForward = cameraState.m_cameraViewInfo.worldSpaceForward();
+                    viewState.cameraUp = cameraState.m_cameraViewInfo.worldSpaceUp();
+                    viewState.frameCount = cameraState.m_numRenderedFrames;
+                    viewState.elapsedTime = cameraState.m_elapsedTime;
+                    viewState.deltaTime = cameraState.m_deltaTime;
+
+                    views[i]->m_cameraInfo = cameraState.m_cameraViewInfo;
                 }
-
-                // todo: detect resolution changes
-                viewState.resolution = cameraState.m_resolution;
-                viewState.aspectRatio = cameraState.m_cameraViewInfo.m_perspective.aspectRatio;
-                viewState.viewMatrix = cameraState.m_cameraViewInfo.viewMatrix();
-                viewState.projectionMatrix = cameraState.m_cameraViewInfo.projectionMatrix();
-                viewState.cameraPosition = cameraState.m_cameraViewInfo.m_worldSpacePosition;
-                viewState.cameraRight = cameraState.m_cameraViewInfo.worldSpaceRight();
-                viewState.cameraForward = cameraState.m_cameraViewInfo.worldSpaceForward();
-                viewState.cameraUp = cameraState.m_cameraViewInfo.worldSpaceUp();
-                viewState.frameCount = cameraState.m_numRenderedFrames;
-                viewState.elapsedTime = cameraState.m_elapsedTime;
-                viewState.deltaTime = cameraState.m_deltaTime;
-
-                views[i]->m_cameraInfo = cameraState.m_cameraViewInfo;
             }
-        };
-
-        enqueueFrameGfxTask(task);
+        );
 
         Frame frame = { };
         frame.simFrameNumber = m_mainFrameNumber;

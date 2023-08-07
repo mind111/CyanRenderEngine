@@ -416,6 +416,19 @@ namespace Cyan
                 glfwSetCursorPosCallback(gfxModule->m_glfwWindow, onMouseCursorEvent);
                 glfwSetScrollCallback(gfxModule->m_glfwWindow, onMouseWheelEvent);
                 glfwSetKeyCallback(gfxModule->m_glfwWindow, onKeyEvent);
+
+                // ui
+                IMGUI_CHECKVERSION();
+                ImGui::CreateContext();
+
+                ImGuiIO& io = ImGui::GetIO(); (void)io;
+                io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
+                io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+
+                ImGui::StyleColorsDark();
+
+                ImGui_ImplGlfw_InitForOpenGL(gfxModule->m_glfwWindow, false);
+                ImGui_ImplOpenGL3_Init();
             }
 
             gfxModule->m_renderingUtils->initialize();

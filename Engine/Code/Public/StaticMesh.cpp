@@ -154,19 +154,22 @@ namespace Cyan
             mesh[i]->addListener([this, scene, i, mi, localToWorldMatrix, instanceKey](StaticSubMesh* sm) {
                 FrameGfxTask task = { };
                 task.debugName = std::string("AddStaticMeshInstance");
-                task.lambda = [i, this, scene, sm, mi, localToWorldMatrix, instanceKey](Frame& frame) {
-                    StaticSubMeshInstance instance = { };
-                    instance.key = instanceKey;
-                    instance.subMesh = GfxStaticSubMesh::create(sm->getName(), sm->getGeometry());
-                    instance.material = mi->getGfxMaterialInstance();
-                    instance.localToWorldMatrix = localToWorldMatrix;
+                Engine::get()->enqueueFrameGfxTask(
+                    RenderingStage::kPreSceneRendering,
+                    "AddStaticMeshInstance",
+                    [i, this, scene, sm, mi, localToWorldMatrix, instanceKey](Frame& frame) {
+                        StaticSubMeshInstance instance = { };
+                        instance.key = instanceKey;
+                        instance.subMesh = GfxStaticSubMesh::create(sm->getName(), sm->getGeometry());
+                        instance.material = mi->getGfxMaterialInstance();
+                        instance.localToWorldMatrix = localToWorldMatrix;
 
-                    if (scene != nullptr)
-                    {
-                        scene->addStaticSubMeshInstance(instance);
+                        if (scene != nullptr)
+                        {
+                            scene->addStaticSubMeshInstance(instance);
+                        }
                     }
-                };
-                Engine::get()->enqueueFrameGfxTask(task);
+                );
 
                 onAddedToScene();
             });
@@ -182,28 +185,30 @@ namespace Cyan
         {
             instanceKeys[i] = getSubMeshInstanceKey(i);
         }
-        FrameGfxTask task = { };
-        task.debugName = std::string("SyncMaterialChanges");
+
         // todo: hmm, is there a way to guarantee that this pointer is valid until the following lambda
         // is executed on the render thread?
-        task.lambda = [this, scene, numSubMeshes, instanceKeys](Frame& frame) {
-            for (u32 i = 0; i < numSubMeshes; ++i)
-            {
-                bool bFound;
-                StaticSubMeshInstance& outInstance = scene->findStaticSubMeshInstance(instanceKeys[i], bFound);
-                if (bFound)
+        Engine::get()->enqueueFrameGfxTask(
+            RenderingStage::kPreSceneRendering,
+            "SyncMaterialChanges",
+            [this, scene, numSubMeshes, instanceKeys](Frame& frame) {
+                for (u32 i = 0; i < numSubMeshes; ++i)
                 {
-                    /**
-                     * For simplicity, instead of capturing materials vector as a copy, just have render thread grab the 
-                     * materials vector when necessary. This introduces a lock, but since this vector is not accessed so often
-                     * currently, so use of lock here is justified.
-                     */
-                    auto mi = getMaterial(i);
-                    outInstance.material = mi->getGfxMaterialInstance();
+                    bool bFound;
+                    StaticSubMeshInstance& outInstance = scene->findStaticSubMeshInstance(instanceKeys[i], bFound);
+                    if (bFound)
+                    {
+                        /**
+                         * For simplicity, instead of capturing materials vector as a copy, just have render thread grab the 
+                         * materials vector when necessary. This introduces a lock, but since this vector is not accessed so often
+                         * currently, so use of lock here is justified.
+                         */
+                        auto mi = getMaterial(i);
+                        outInstance.material = mi->getGfxMaterialInstance();
+                    }
                 }
             }
-        };
-        Engine::get()->enqueueFrameGfxTask(task);
+        );
     }
 
     void StaticMeshInstance::removeFromScene(Scene* scene)
@@ -244,23 +249,24 @@ namespace Cyan
             instanceKeys[i] = getSubMeshInstanceKey(i);
         }
 
-        FrameGfxTask task = {  };
-        task.debugName = std::string("UpdateStaticMeshInstanceTransform");
-        task.lambda = [scene, numSubMeshes, instanceKeys, localToWorldMatrix](Frame& frame) {
-            if (scene != nullptr)
-            {
-                for (u32 i = 0; i < numSubMeshes; ++i)
+        Engine::get()->enqueueFrameGfxTask(
+            RenderingStage::kPreSceneRendering,
+            "UpdateStaticMeshInstanceTransform",
+            [scene, numSubMeshes, instanceKeys, localToWorldMatrix](Frame& frame) {
+                if (scene != nullptr)
                 {
-                    bool bFound;
-                    StaticSubMeshInstance& outInstance = scene->findStaticSubMeshInstance(instanceKeys[i], bFound);
-                    if (bFound)
+                    for (u32 i = 0; i < numSubMeshes; ++i)
                     {
-                        outInstance.localToWorldMatrix = localToWorldMatrix;
+                        bool bFound;
+                        StaticSubMeshInstance& outInstance = scene->findStaticSubMeshInstance(instanceKeys[i], bFound);
+                        if (bFound)
+                        {
+                            outInstance.localToWorldMatrix = localToWorldMatrix;
+                        }
                     }
                 }
             }
-        };
-        Engine::get()->enqueueFrameGfxTask(task);
+        );
     }
 
     /**
@@ -283,34 +289,34 @@ namespace Cyan
         std::string instanceKey = std::move(getSubMeshInstanceKey(slot));
 
         // replicate changes to the rendering side data
-        FrameGfxTask task = { };
-        task.debugName = std::string("setMaterial");
-        task.lambda = [scene, mi, slot, instanceKey](Frame& frame) {
-            if (scene != nullptr)
-            {
-                bool bFound;
-                StaticSubMeshInstance& outInstance = scene->findStaticSubMeshInstance(instanceKey, bFound);
-                if (bFound)
+        Engine::get()->enqueueFrameGfxTask(
+            RenderingStage::kPreSceneRendering,
+            "setMaterial",
+            [scene, mi, slot, instanceKey](Frame& frame) {
+                if (scene != nullptr)
                 {
-                    outInstance.material = mi->getGfxMaterialInstance();
-                }
-                else
-                {
-                    /**
-                     * If scene is not null and the instance is not found, it means that the instance is not added yet due to reasons including
-                     * 1. the mesh instance is waiting on mesh to be loaded and then added into the scene, in this case the execution of updating the
-                     * material on the render thread side should be further deferred until the instance arrives in the scene. Can do something like a
-                     * event driven approach.
-                     * like 
-                         scene->addStaticMeshInstanceListener(instanceKey, []() {
+                    bool bFound;
+                    StaticSubMeshInstance& outInstance = scene->findStaticSubMeshInstance(instanceKey, bFound);
+                    if (bFound)
+                    {
+                        outInstance.material = mi->getGfxMaterialInstance();
+                    }
+                    else
+                    {
+                        /**
+                         * If scene is not null and the instance is not found, it means that the instance is not added yet due to reasons including
+                         * 1. the mesh instance is waiting on mesh to be loaded and then added into the scene, in this case the execution of updating the
+                         * material on the render thread side should be further deferred until the instance arrives in the scene. Can do something like a
+                         * event driven approach.
+                         * like 
+                             scene->addStaticMeshInstanceListener(instanceKey, []() {
 
-                            });
-                     *
-                     */
+                                });
+                         *
+                         */
+                    }
                 }
             }
-        };
-
-        Engine::get()->enqueueFrameGfxTask(task);
+        );
     }
 }
