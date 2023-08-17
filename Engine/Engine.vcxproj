@@ -77,6 +77,10 @@
     <ClCompile Include="Code\Public\World.cpp" />
     <ClCompile Include="Code\Public\SceneCameraComponent.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Material\M_DefaultOpaque_p.glsl" />
+    <None Include="Material\M_Test_p.glsl" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
@@ -138,14 +142,14 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Code\Public\;$(SolutionDir)Engine\Code\Private\;$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\tiny_gltf\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\stbi\Code\Header\;$(SolutionDir)ThirdParty\glfw\Code\Header\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\GHInterface\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Core\Code\Public\;$(SolutionDir)Engine\Code\Public\;$(SolutionDir)Engine\Code\Private\;$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)ThirdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>$(SolutionDir)ThirdParty\glfw\Lib\glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\glfw\glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -158,7 +162,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Code\Public\;$(SolutionDir)Engine\Code\Private\;$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\tiny_gltf\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\stbi\Code\Header\;$(SolutionDir)ThirdParty\glfw\Code\Header\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\GHInterface\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Core\Code\Public\;$(SolutionDir)Engine\Code\Public\;$(SolutionDir)Engine\Code\Private\;$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)ThirdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -167,7 +171,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>$(SolutionDir)ThirdParty\glfw\Lib\glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\glfw\glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -178,14 +182,14 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Code\Public\;$(SolutionDir)Engine\Code\Private\;$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\tiny_gltf\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\stbi\Code\Header\;$(SolutionDir)ThirdParty\glfw\Code\Header\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\GHInterface\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Core\Code\Public\;$(SolutionDir)Engine\Code\Public\;$(SolutionDir)Engine\Code\Private\;$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)ThirdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>$(SolutionDir)ThirdParty\glfw\Lib\glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\glfw\glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -198,7 +202,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Code\Public\;$(SolutionDir)Engine\Code\Private\;$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\tiny_gltf\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\stbi\Code\Header\;$(SolutionDir)ThirdParty\glfw\Code\Header\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\GHInterface\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Core\Code\Public\;$(SolutionDir)Engine\Code\Public\;$(SolutionDir)Engine\Code\Private\;$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)ThirdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -207,7 +211,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>$(SolutionDir)ThirdParty\glfw\Lib\glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\glfw\glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

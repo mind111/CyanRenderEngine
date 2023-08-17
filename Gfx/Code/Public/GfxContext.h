@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Shader.h"
-#include "GHFramebuffer.h"
-#include "GfxHardwareContext.h"
+#include "GfxHardwareAbstraction/GHInterface/GHFramebuffer.h"
+#include "GfxHardwareAbstraction/GHInterface/GfxHardwareContext.h"
 
 namespace Cyan
 {
@@ -33,6 +33,9 @@ namespace Cyan
         void pushGpuDebugMarker(const char* markerName);
         void popGpuDebugMarker();
 
+        void setGeometryMode(const GeometryMode& mode);
+        void drawArrays(u32 numVertices);
+
         std::unique_ptr<GfxStaticSubMesh> createGfxStaticSubMesh(Geometry* geometry);
 
     private:
@@ -48,7 +51,7 @@ namespace Cyan
         static GfxContext* s_instance;
     };
 
-    struct GpuDebugMarker
+    struct GFX_API GpuDebugMarker
     {
         GpuDebugMarker(const char* markerName)
         {

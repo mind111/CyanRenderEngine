@@ -1,6 +1,9 @@
 #include <atomic>
 
-#include "glfw3.h"
+#include "glfw/glfw3.h"
+#include <imgui/imgui.h>
+#include <imgui/imgui_impl_glfw.h>
+#include <imgui/imgui_impl_opengl3.h>
 
 #include "App.h"
 #include "Engine.h"
@@ -13,6 +16,7 @@
 #include "GfxModule.h"
 #include "Scene.h"
 
+// todo: there is a memory leak somewhere
 // todo: get ssgi back
 // todo: frame rate independent camera controls
 // todo: get skybox back
@@ -31,6 +35,7 @@
 namespace Cyan
 {
     static std::queue<FrameGfxTask> s_frameGfxTaskQueues[(i32)RenderingStage::kCount];
+    static std::queue<UIRenderCommand> s_frameUICommands;
 
     Engine* Engine::s_instance = nullptr;
     Engine::~Engine() 
@@ -203,12 +208,13 @@ namespace Cyan
 
         Frame frame = { };
         frame.simFrameNumber = m_mainFrameNumber;
+        frame.scene = m_world->m_sceneRenderThread.get();
+        frame.views = &m_world->m_views;
         for (i32 i = 0; i < (i32)RenderingStage::kCount; ++i)
         {
             frame.gfxTaskQueues[i] = std::move(s_frameGfxTaskQueues[i]);
         }
-        frame.scene = m_world->m_sceneRenderThread.get();
-        frame.views = &m_world->m_views;
+        frame.UICommands = std::move(s_frameUICommands);
 
         GfxModule::enqueueFrame(frame);
     }
@@ -247,5 +253,10 @@ namespace Cyan
         task.lambda = std::move(taskLambda);
 
         s_frameGfxTaskQueues[(i32)stage].push(std::move(task));
+    }
+
+    void Engine::enqueueUICommand(std::function<void(ImGuiContext*)>&& cmd)
+    {
+        s_frameUICommands.push(std::move(cmd));
     }
 }

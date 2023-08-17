@@ -3,7 +3,7 @@
 #include "Core.h"
 #include "MathLibrary.h"
 #include "GLObject.h"
-#include "GHShader.h"
+#include "GfxHardwareAbstraction/GHInterface/GHShader.h"
 
 namespace Cyan
 {

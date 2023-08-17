@@ -39,6 +39,7 @@ namespace Cyan
         void run();
 
         void enqueueFrameGfxTask(const enum class RenderingStage& stage, const char* taskName, std::function<void(struct Frame&)>&& taskLambda);
+        void enqueueUICommand(std::function<void(struct ImGuiContext*)>&& cmd);
     private:
         Engine(std::unique_ptr<App> app); // hiding constructor to prohibit direct construction
 

@@ -1,6 +1,6 @@
-#include "GfxHardwareContext.h"
+#include "GfxHardwareAbstraction/GHInterface/GfxHardwareContext.h"
 #include "Shader.h"
-#include "GHTexture.h"
+#include "GfxHardwareAbstraction/GHInterface/GHTexture.h"
 #include "GfxContext.h"
 
 namespace Cyan
@@ -69,6 +69,22 @@ namespace Cyan
         return static_cast<GHPixelShader*>(m_GHO.get()); 
     }
 
+    ComputeShader::ComputeShader(const char* name, const std::string& text)
+        : Shader(name)
+    {
+        m_GHO.reset(GfxHardwareContext::get()->createComputeShader(text));
+    }
+
+    ComputeShader::~ComputeShader()
+    {
+
+    }
+
+    GHComputeShader* ComputeShader::getGHO()
+    {
+        return static_cast<GHComputeShader*>(m_GHO.get()); 
+    }
+
     Pipeline::Pipeline(const char* name)
         : m_name(name)
     {
@@ -105,7 +121,38 @@ namespace Cyan
         bool bBoundToVS = false, bBoundToPS = false;
         m_vs->bindTexture(samplerName, texture, bBoundToVS);
         m_ps->bindTexture(samplerName, texture, bBoundToPS);
-        assert(bBoundToVS | bBoundToPS);
+        // assert(bBoundToVS | bBoundToPS);
+    }
+
+    ComputePipeline::ComputePipeline(const char* name, std::shared_ptr<ComputeShader> cs)
+        : Pipeline(name)
+        , m_cs(cs)
+    {
+        m_GHO.reset(GfxHardwareContext::get()->createComputePipeline(cs->m_GHO));
+    }
+
+    ComputePipeline::~ComputePipeline()
+    {
+
+    }
+
+    void ComputePipeline::bind()
+    {
+        m_GHO->bind();
+        bBound = true;
+    }
+
+    void ComputePipeline::unbind()
+    {
+        m_cs->resetState();
+        m_GHO->unbind();
+        bBound = false;
+    }
+
+    void ComputePipeline::setTexture(const char* samplerName, GHTexture* texture)
+    {
+        bool bBound = false;
+        m_cs->bindTexture(samplerName, texture, bBound);
     }
 
     ShaderManager::ShaderManager()
@@ -146,5 +193,23 @@ namespace Cyan
         auto gfxPipeline = std::make_shared<GfxPipeline>(name, vs, ps);
         s_instance->m_pipelineMap.insert({ std::string(name), gfxPipeline });
         return gfxPipeline;
+    }
+
+    std::shared_ptr<Cyan::ComputePipeline> ShaderManager::findOrCreateComputePipeline(bool& outFound, std::shared_ptr<ComputeShader> cs)
+    {
+        std::string computePipelineName = "Compute_" + cs->getName();
+        auto found = findPipeline<ComputePipeline>(outFound, computePipelineName.c_str());
+        if (found != nullptr)
+        {
+            return found;
+        }
+        return createComputePipeline(computePipelineName.c_str(), cs);
+    }
+
+    std::shared_ptr<Cyan::ComputePipeline> ShaderManager::createComputePipeline(const char* name, std::shared_ptr<ComputeShader> cs)
+    {
+        auto computePipeline = std::make_shared<ComputePipeline>(name, cs);
+        s_instance->m_pipelineMap.insert({ std::string(name), computePipeline });
+        return computePipeline;
     }
 }

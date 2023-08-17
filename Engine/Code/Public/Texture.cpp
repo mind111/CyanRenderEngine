@@ -76,6 +76,13 @@ namespace Cyan
         });
     }
 
+    Texture2D::Texture2D(const char* name, std::unique_ptr<GHTexture2D> GHTexture)
+        : Texture(name)
+        , m_GHTexture(std::move(GHTexture))
+    {
+
+    }
+
     Texture2D::~Texture2D()
     {
 

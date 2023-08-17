@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Engine.h"
 #include "SceneComponent.h"
 
 namespace Cyan
@@ -8,7 +9,7 @@ namespace Cyan
     class StaticMesh;
     class StaticMeshInstance;
 
-    class StaticMeshComponent : public SceneComponent
+    class ENGINE_API StaticMeshComponent : public SceneComponent
     {
     public:
         StaticMeshComponent(const char* name, const Transform& localTransform);

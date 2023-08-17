@@ -91,6 +91,16 @@ namespace Cyan
         m_GHCtx->popGpuDebugMarker();
     }
 
+    void GfxContext::setGeometryMode(const GeometryMode& mode)
+    {
+        m_GHCtx->setGeometryMode(mode);
+    }
+
+    void GfxContext::drawArrays(u32 numVertices)
+    {
+        m_GHCtx->drawArrays(numVertices);
+    }
+
     std::unique_ptr<GfxStaticSubMesh> GfxContext::createGfxStaticSubMesh(Geometry* geometry)
     {
         return m_GHCtx->createGfxStaticSubMesh(geometry);

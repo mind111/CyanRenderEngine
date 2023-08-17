@@ -1,6 +1,6 @@
 #include "Core.h"
 #include "GfxHardwareContext.h"
-#include "GLContext.h"
+#include "GfxHardwareAbstraction/OpenGL/GLContext.h"
 
 namespace  Cyan
 {

@@ -15,7 +15,7 @@ namespace Cyan
     class StaticMesh;
     class StaticMeshInstance;
 
-    class StaticSubMesh
+    class ENGINE_API StaticSubMesh
     {
     public:
         using Listener = std::function<void(StaticSubMesh* sm)>;
@@ -45,7 +45,7 @@ namespace Cyan
         std::unique_ptr<Geometry> m_geometry = nullptr;
     };
 
-    class StaticMesh : public Asset
+    class ENGINE_API StaticMesh : public Asset
     {
     public:
         friend class Scene;
@@ -83,7 +83,7 @@ namespace Cyan
     class MaterialInstance;
     class Scene;
 
-    class StaticMeshInstance
+    class ENGINE_API StaticMeshInstance
     {
     public:
         friend class Scene;

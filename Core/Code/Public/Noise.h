@@ -5,7 +5,7 @@
 
 namespace Cyan
 {
-    float PerlineNoise(glm::dvec3 q, f64 tiling = 256)
+    float PerlinNoise(glm::dvec3 q, f64 tiling = 256)
     {
         static i32 permutation[] = { 
             151,160,137,91,90,15,
@@ -118,5 +118,19 @@ namespace Cyan
         x2 = lerp(grad(abb, xf, yf - 1, zf - 1), grad(bbb, xf - 1, yf - 1, zf - 1), u);
         y2 = lerp(x1, x2, v);
         return (f32)((lerp(y1, y2, w) + 1) / 2);
+    }
+
+    float PerlinNoise(glm::dvec3 q, f64 tiling, f64 frequency, f64 amplitude, i32 numOctaves, f64 persistence)
+    {
+        f64 total = 0;
+        f64 maxValue = 0;
+        for (i32 i = 0; i < numOctaves; ++i) 
+        {
+            total += PerlinNoise(q * frequency, tiling) * amplitude;
+            maxValue += amplitude;
+            amplitude *= persistence;
+            frequency *= 2;
+        }
+        return total / maxValue;
     }
 }

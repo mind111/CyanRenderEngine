@@ -17,6 +17,7 @@ namespace Cyan
     class StaticMesh;
     class Image;
     class Texture2D;
+    class GHTexture2D;
     class GHSampler2D;
     class Material;
     class MaterialInstance;
@@ -50,6 +51,7 @@ namespace Cyan
         static StaticMesh* createStaticMesh(const char* name, u32 numSubMeshes);
         static Image* createImage(const char* name);
         static Texture2D* createTexture2D(const char* name, const GHSampler2D& sampler2D, Image* image, bool bGenerateMipmap);
+        static Texture2D* createTexture2D(const char* name, std::unique_ptr<GHTexture2D> GHTexture);
         static Material* createMaterial(const char* name, const char* materialSourcePath, const MaterialSetupFunc& setupFunc);
         static MaterialInstance* createMaterialInstance(const char* name, Material* parent);
 

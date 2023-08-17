@@ -17,6 +17,7 @@ namespace Cyan
             kTangent,
             kTexCoord0,
             kTexCoord1,
+            kColor,
             kInvalid
         };
 
@@ -34,6 +35,7 @@ namespace Cyan
             case Type::kTangent: return 4u;
             case Type::kTexCoord0: return 2u;
             case Type::kTexCoord1: return 2u;
+            case Type::kColor: return 4u;
             default: assert(0); return 0;
             }
         }
@@ -59,6 +61,7 @@ namespace Cyan
             case Type::kTangent: return sizeof(glm::vec4);
             case Type::kTexCoord0: return sizeof(glm::vec2);
             case Type::kTexCoord1: return sizeof(glm::vec2);
+            case Type::kColor: return sizeof(glm::vec4);
             default: assert(0); return 0;
             }
         }
@@ -201,15 +204,23 @@ namespace Cyan
         struct Vertex
         {
             glm::vec3 pos;
+            glm::vec4 color;
         };
 
         Lines() = default;
-        Lines(const std::vector<Vertex>& vertices, const std::vector<u32>& indices);
+        Lines(const std::vector<Vertex>& inVertices, const std::vector<u32>& inIndices)
+            : vertices(inVertices)
+            , indices(inIndices)
+        {
+
+        }
+
         virtual Type getGeometryType() override { return Type::kLines; }
         virtual VertexSpec getVertexSpec() override
         {
             VertexSpec outSpec;
             outSpec.addAttribute(VertexAttribute::Type::kPosition);
+            outSpec.addAttribute(VertexAttribute::Type::kColor);
             return outSpec;
         }
         u32 numVertices() { return (u32)vertices.size(); }

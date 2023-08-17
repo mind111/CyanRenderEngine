@@ -28,6 +28,12 @@ namespace Cyan
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 
+    void GLVertexBuffer::update(u32 byteOffset, u32 numOfBytes, const void* data)
+    {
+        assert(byteOffset + numOfBytes <= m_bufferSizeInBytes);
+        glNamedBufferSubData(getName(), byteOffset, numOfBytes, data);
+    }
+
     GLIndexBuffer::GLIndexBuffer(const std::vector<u32>& indices)
     {
         glCreateBuffers(1, &m_name);
@@ -80,6 +86,10 @@ namespace Cyan
             case VertexAttribute::Type::kTexCoord0: 
             case VertexAttribute::Type::kTexCoord1: 
                 size = 2;
+                dataType = GL_FLOAT;
+                break;
+            case VertexAttribute::Type::kColor: 
+                size = 4;
                 dataType = GL_FLOAT;
                 break;
             default: 

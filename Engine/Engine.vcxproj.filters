@@ -48,4 +48,8 @@
     <ClCompile Include="Code\Public\LightComponents.cpp" />
     <ClCompile Include="Code\Public\LightEntities.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Material\M_Test_p.glsl" />
+    <None Include="Material\M_DefaultOpaque_p.glsl" />
+  </ItemGroup>
 </Project>

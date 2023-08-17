@@ -1,7 +1,7 @@
 #pragma once
 
 #include "MathLibrary.h"
-#include <gtx/quaternion.hpp>
+#include <glm/gtx/quaternion.hpp>
 
 namespace Cyan
 {

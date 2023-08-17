@@ -1,21 +1,23 @@
 #include <chrono>
 #include <thread>
 
-#include "glew.h"
-#include "glfw3.h"
-#include <imgui.h>
-#include <imgui_impl_glfw.h>
-#include <imgui_impl_opengl3.h>
+#include "glew/glew.h"
+#include "glfw/glfw3.h"
+#include <imgui/imgui.h>
+#include <imgui/imgui_impl_glfw.h>
+#include <imgui/imgui_impl_opengl3.h>
 
 #include "GfxModule.h"
 #include "SceneRender.h"
 #include "SceneRenderer.h"
 #include "GfxContext.h"
-#include "GHTexture.h"
+#include "GfxHardwareAbstraction/GHInterface/GHTexture.h"
 #include "RenderingUtils.h"
 
 namespace Cyan
 {
+    static ImGuiContext* s_imguiCtx = nullptr;
+
     GfxModule* GfxModule::s_instance = nullptr;
     PostRenderSceneViewsFunc GfxModule::s_defaultPostRenderSceneViews = [](std::vector<SceneView*>* views) {
         // todo: for now, assuming that views[0] is always the main view, need to think about a proper way to 
@@ -179,6 +181,9 @@ namespace Cyan
     {
         GPU_DEBUG_SCOPE(UIPassMarker, "Render UI");
 
+        assert(s_imguiCtx != nullptr);
+        ImGui::SetCurrentContext(s_imguiCtx);
+
         // begin imgui
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -187,7 +192,7 @@ namespace Cyan
         while (!frame.UICommands.empty())
         {
             const auto& command = frame.UICommands.front();
-            command();
+            command(s_imguiCtx);
             frame.UICommands.pop();
         }
 
@@ -419,7 +424,8 @@ namespace Cyan
 
                 // ui
                 IMGUI_CHECKVERSION();
-                ImGui::CreateContext();
+                assert(s_imguiCtx == nullptr);
+                s_imguiCtx = ImGui::CreateContext();
 
                 ImGuiIO& io = ImGui::GetIO(); (void)io;
                 io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
@@ -427,7 +433,7 @@ namespace Cyan
 
                 ImGui::StyleColorsDark();
 
-                ImGui_ImplGlfw_InitForOpenGL(gfxModule->m_glfwWindow, false);
+                ImGui_ImplGlfw_InitForOpenGL(gfxModule->m_glfwWindow, true);
                 ImGui_ImplOpenGL3_Init();
             }
 

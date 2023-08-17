@@ -61,6 +61,12 @@ vec3 ACESFitted(vec3 color)
     return color;
 }
 
+vec3 acesFilm(vec3 x) 
+{
+    //Aces film curve
+    return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),0.,1.);
+}
+
 vec3 gammaCorrection(in vec3 inLinearColor, float gamma)
 {
 	return vec3(pow(inLinearColor.r, gamma), pow(inLinearColor.g, gamma), pow(inLinearColor.b, gamma));
@@ -70,7 +76,9 @@ vec3 tonemapping(vec3 linearColor, float exposure)
 {
     vec3 tonemapped;
 #if 1
-    tonemapped = luminanceReinhard(linearColor * exposure);
+    // tonemapped = luminanceReinhard(linearColor * exposure);
+    // tonemapped = gammaCorrection(tonemapped, 1.f / 2.2f);
+    tonemapped = acesFilm(linearColor * exposure);
     tonemapped = gammaCorrection(tonemapped, 1.f / 2.2f);
 #else
     tonemapped = ACESFitted(gammaCorrection(exposure * linearColor, 1.f / 2.2f));

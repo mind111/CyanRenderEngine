@@ -1,10 +1,10 @@
 #pragma once
 
-#include <glm.hpp>
+#include <glm/glm.hpp>
 
 #include "Geometry.h"
 #include "Shader.h"
-#include "GHTexture.h"
+#include "GfxHardwareAbstraction/GHInterface/GHTexture.h"
 #include "CameraViewInfo.h"
 #include "SceneView.h"
 

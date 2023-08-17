@@ -27,4 +27,29 @@ namespace Cyan
     {
         glBindProgramPipeline(0);
     }
+
+    GLComputePipeline::GLComputePipeline(std::shared_ptr<GLComputeShader> cs)
+        : GLObject()
+        , m_computeShader(cs)
+    {
+        assert(m_computeShader != nullptr);
+        glCreateProgramPipelines(1, &m_name);
+        glUseProgramStages(m_name, GL_COMPUTE_SHADER_BIT, m_computeShader->getName());
+    }
+
+    GLComputePipeline::~GLComputePipeline()
+    {
+        GLuint pipelines[1] = { m_name };
+        glDeleteProgramPipelines(1, pipelines);
+    }
+
+    void GLComputePipeline::bind()
+    {
+        glBindProgramPipeline(m_name);
+    }
+
+    void GLComputePipeline::unbind()
+    {
+        glBindProgramPipeline(0);
+    }
 }

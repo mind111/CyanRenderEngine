@@ -6,4 +6,9 @@ namespace Cyan
     {
         return glm::vec3(v4.x, v4.y, v4.z);
     }
+
+    bool isPowerOf2(i32 value)
+    {
+        return (value & (value - 1)) == 0;
+    }
 }

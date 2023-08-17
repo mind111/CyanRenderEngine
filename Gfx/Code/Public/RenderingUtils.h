@@ -53,7 +53,12 @@ namespace Cyan
         GfxStaticSubMesh* getUnitCubeMesh() { return s_unitCubeMesh; }
         NoiseTextures& getNoiseTextures() { return s_noiseTextures; }
 
-        GFX_API static void renderScreenPass(const glm::uvec2& renderResolution, const RenderTargetSetupFunc& renderTargetSetupFunc, GfxPipeline* p, ShaderSetupFunc& shaderSetupFunc);
+        GFX_API static void renderScreenPass(const glm::uvec2& renderResolution, const RenderTargetSetupFunc& renderTargetSetupFunc, GfxPipeline* p, ShaderSetupFunc& shaderSetupFunc, bool bDepthTest = false);
+        GFX_API static void copyTexture(GHTexture2D* dstTexture, u32 dstMip, GHTexture2D* srcTexture, u32 srcMip);
+
+        // debug drawing helpers
+        GFX_API static void drawWorldSpacePoint(GHTexture2D* dstTexture, GHDepthTexture* depthTexture, const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix, const glm::vec3& p, const glm::vec4& color);
+        GFX_API static void drawWorldSpaceLine(GHTexture2D* dstTexture, GHDepthTexture* depthTexture, const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix, const glm::vec3& start, const glm::vec3& end, const glm::vec4& color);
 
         /**
          * Blit a 2D texture to the default framebuffer

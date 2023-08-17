@@ -36,9 +36,14 @@ namespace Cyan
     {
         Engine::get()->enqueueFrameGfxTask(
             RenderingStage::kPreSceneRendering,
-            "CreateDirectionalLight", 
+            "CreateDirectionalLight",
             [this](Frame& frame) {
-                m_directionalLight = std::make_unique<DirectionalLight>(glm::vec3(.9f), 20.f, glm::normalize(glm::vec3(1.f)));
+                // const glm::vec3 defaultColor = glm::vec3(1.f, .5f, .25f);
+                const glm::vec3 defaultColor = glm::vec3(1.f, .8f, .6f);
+                const f32 defaultIntensity = 5.f;
+                const glm::vec3 defaultDirection = glm::vec3(1.f, 1.f, 1.f);
+
+                m_directionalLight = std::make_unique<DirectionalLight>(defaultColor, defaultIntensity, defaultDirection);
             });
     }
 

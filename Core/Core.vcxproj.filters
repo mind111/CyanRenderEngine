@@ -8,6 +8,7 @@
     <ClInclude Include="Code\Public\MathLibrary.h" />
     <ClInclude Include="Code\Public\Transform.h" />
     <ClInclude Include="Code\Public\Noise.h" />
+    <ClInclude Include="Code\Public\Color.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Code\Public\Transform.cpp" />

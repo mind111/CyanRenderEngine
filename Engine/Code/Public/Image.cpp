@@ -1,5 +1,5 @@
 #include "Image.h"
-#include "stb_image.h"
+#include "stbi/stb_image.h"
 
 namespace Cyan
 {

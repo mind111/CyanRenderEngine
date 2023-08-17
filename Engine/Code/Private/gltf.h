@@ -1,6 +1,6 @@
 #pragma once
 
-#include "json.hpp"
+#include "tiny_gltf/json.hpp"
 
 #include "Core.h"
 #include "Asset.h"

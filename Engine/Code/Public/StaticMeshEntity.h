@@ -6,7 +6,7 @@ namespace Cyan
 {
     class StaticMeshComponent;
 
-    class StaticMeshEntity : public Entity 
+    class ENGINE_API StaticMeshEntity : public Entity 
     {
     public:
         StaticMeshEntity(World* world, const char* name, const Transform& entityLocalTransform);

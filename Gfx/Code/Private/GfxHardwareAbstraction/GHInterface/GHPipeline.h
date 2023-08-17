@@ -10,12 +10,15 @@ namespace Cyan
         virtual void unbind() = 0;
     };
 
-#if 0
-    class ComputePipeline : public Pipeline
+    class GHComputePipeline
     {
-
+    public:
+        virtual ~GHComputePipeline() { }
+        virtual void bind() = 0;
+        virtual void unbind() = 0;
     };
 
+#if 0
     class GeometryPipeline : public Pipeline
     {
     };

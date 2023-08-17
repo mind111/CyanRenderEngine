@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Core.h"
-#include "GHBuffer.h"
-#include "GLObject.h"
+#include "GfxHardwareAbstraction/GHInterface/GHBuffer.h"
+#include "GfxHardwareAbstraction/OpenGL/GLObject.h"
 #include "Geometry.h"
 
 namespace Cyan
@@ -12,9 +12,10 @@ namespace Cyan
     public:
         GLVertexBuffer(const VertexSpec& vertexSpec, i32 sizeInBytes, const void* data);
         virtual ~GLVertexBuffer();
-
         virtual void bind() override;
         virtual void unbind() override;
+
+        void update(u32 byteOffset, u32 numOfBytes, const void* data);
         VertexSpec getVertexSpec() { return m_vertexSpec; }
     private:
         VertexSpec m_vertexSpec;

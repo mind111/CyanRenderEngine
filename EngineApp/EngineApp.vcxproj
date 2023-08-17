@@ -74,14 +74,16 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>
+      </PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Code\Public\;$(ProjectDir)Apps\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\stbi\Code\Header\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)Gfx\Code\Public\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Apps\;$(SolutionDir)Engine\Code\Public;$(SolutionDir)Gfx\Code\Public;$(SolutionDir)Gfx\Code\Private;$(SolutionDir)Core\Code\Public;$(SolutionDir)ThirdParty\glm;$(SolutionDir)ThirdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -90,9 +92,10 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>
+      </PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Code\Public\;$(ProjectDir)Apps\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\stbi\Code\Header\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)Gfx\Code\Public\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Apps\;$(SolutionDir)Engine\Code\Public;$(SolutionDir)Gfx\Code\Public;$(SolutionDir)Gfx\Code\Private;$(SolutionDir)Core\Code\Public;$(SolutionDir)ThirdParty\glm;$(SolutionDir)ThirdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -100,20 +103,23 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>
+      </PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Code\Public\;$(ProjectDir)Apps\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\stbi\Code\Header\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)Gfx\Code\Public\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Apps\;$(SolutionDir)Engine\Code\Public;$(SolutionDir)Gfx\Code\Public;$(SolutionDir)Gfx\Code\Private;$(SolutionDir)Core\Code\Public;$(SolutionDir)ThirdParty\glm;$(SolutionDir)ThirdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -122,9 +128,10 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>
+      </PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Code\Public\;$(ProjectDir)Apps\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\stbi\Code\Header\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)Gfx\Code\Public\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Apps\;$(SolutionDir)Engine\Code\Public;$(SolutionDir)Gfx\Code\Public;$(SolutionDir)Gfx\Code\Private;$(SolutionDir)Core\Code\Public;$(SolutionDir)ThirdParty\glm;$(SolutionDir)ThirdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -132,6 +139,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -144,6 +152,9 @@
     <ClInclude Include="Apps\RayMarchingHeightField\RayMarchingHeightField.h" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Core\Core.vcxproj">
+      <Project>{83f758df-eafb-4fcd-bd4f-f10457f04f08}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\Engine\Engine.vcxproj">
       <Project>{2297efb7-fd39-4938-9789-380b1bac432b}</Project>
     </ProjectReference>
@@ -155,7 +166,12 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <None Include="Apps\RayMarchingHeightField\Materials\M_RayMarchedHeightField_p.glsl" />
     <None Include="Apps\RayMarchingHeightField\Resources\Scene.glb" />
+    <None Include="Apps\RayMarchingHeightField\Shader\bake_heightfield_properties_p.glsl" />
+    <None Include="Apps\RayMarchingHeightField\Shader\build_heightfield_quadtree_p.glsl" />
+    <None Include="Apps\RayMarchingHeightField\Shader\debug_hierarchical_raymarching_c.glsl" />
+    <None Include="Apps\RayMarchingHeightField\Shader\generate_heightfield_p.glsl" />
     <None Include="Apps\RayMarchingHeightField\Shader\raymarching_heightfield_p.glsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -68,6 +68,9 @@
     <None Include="Shader\static_mesh_v.glsl" />
     <None Include="Shader\scene_direct_lighting_p.glsl" />
     <None Include="Shader\tonemapping_p.glsl" />
+    <None Include="Shader\ssgi_ao_p.glsl" />
+    <None Include="Shader\worldspace_line_v.glsl" />
+    <None Include="Shader\vertexcolor_p.glsl" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Texture\Noise\BN_16x16_R_0.png" />

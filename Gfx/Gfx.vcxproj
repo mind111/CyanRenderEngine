@@ -92,8 +92,11 @@
     <None Include="Shader\depth_p.glsl" />
     <None Include="Shader\scene_direct_lighting_p.glsl" />
     <None Include="Shader\screen_pass_v.glsl" />
+    <None Include="Shader\ssgi_ao_p.glsl" />
     <None Include="Shader\static_mesh_v.glsl" />
     <None Include="Shader\tonemapping_p.glsl" />
+    <None Include="Shader\vertexcolor_p.glsl" />
+    <None Include="Shader\worldspace_line_v.glsl" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Texture\Noise\BN_16x16_R_0.png" />
@@ -165,14 +168,14 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\OpenGL\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\glew\;$(SolutionDir)ThirdParty\stbi\Code\Header\;$(SolutionDir)ThirdParty\glfw\Code\Header\;$(SolutionDir)ThirdParty\imgui\Code\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>$(SolutionDir)ThirdParty\glfw\Lib\glfw3.lib;$(SolutionDir)ThirdParty\glew\glew32s.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\glfw\glfw3.lib;$(SolutionDir)ThirdParty\glew\glew32s.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -185,7 +188,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\OpenGL\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\glew\;$(SolutionDir)ThirdParty\stbi\Code\Header\;$(SolutionDir)ThirdParty\glfw\Code\Header\;$(SolutionDir)ThirdParty\imgui\Code\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -194,7 +197,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>$(SolutionDir)ThirdParty\glfw\Lib\glfw3.lib;$(SolutionDir)ThirdParty\glew\glew32s.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\glfw\glfw3.lib;$(SolutionDir)ThirdParty\glew\glew32s.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -205,14 +208,14 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\OpenGL\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\glew\;$(SolutionDir)ThirdParty\stbi\Code\Header\;$(SolutionDir)ThirdParty\glfw\Code\Header\;$(SolutionDir)ThirdParty\imgui\Code\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>$(SolutionDir)ThirdParty\glfw\Lib\glfw3.lib;$(SolutionDir)ThirdParty\glew\glew32s.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\glfw\glfw3.lib;$(SolutionDir)ThirdParty\glew\glew32s.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -225,7 +228,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\GHInterface\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\;$(SolutionDir)Gfx\Code\Private\GfxHardwareAbstraction\OpenGL\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\glm\Code\Header\;$(SolutionDir)ThirdParty\glew\;$(SolutionDir)ThirdParty\stbi\Code\Header\;$(SolutionDir)ThirdParty\glfw\Code\Header\;$(SolutionDir)ThirdParty\imgui\Code\Header\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -234,7 +237,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>$(SolutionDir)ThirdParty\glfw\Lib\glfw3.lib;$(SolutionDir)ThirdParty\glew\glew32s.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\glfw\glfw3.lib;$(SolutionDir)ThirdParty\glew\glew32s.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

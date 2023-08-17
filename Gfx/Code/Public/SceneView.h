@@ -3,13 +3,24 @@
 #include "Gfx.h"
 #include "Core.h"
 #include "MathLibrary.h"
-#include "GHTexture.h"
+#include "GfxHardwareAbstraction/GHInterface/GHTexture.h"
 #include "CameraViewInfo.h"
 #include "Shader.h"
 
 namespace Cyan
 {
     class SceneRender;
+
+    using SceneViewTask = std::function<void(class SceneView& view)>;
+
+    enum class SceneRenderingStage
+    {
+        kPreDepthPrepass = 0,
+        kPostDepthPrepass,
+        kPreGBuffer,
+        kPostGBuffer,
+        kCount
+    };
 
     class GFX_API SceneView
     {
@@ -81,15 +92,18 @@ namespace Cyan
         SceneView(const glm::uvec2& renderResolution);
         ~SceneView();
 
+        SceneRender* getRender() { return m_render.get(); }
         GHTexture2D* getOutput();
         const State& getState() { return m_state; }
         const CameraViewInfo& getCameraInfo() { return m_cameraInfo; }
-
+        void addTask(const SceneRenderingStage& stage, SceneViewTask&& task);
+        void flushTasks(const SceneRenderingStage& stage);
     private:
         std::unique_ptr<SceneRender> m_render = nullptr;
         State m_state;
         CameraViewInfo m_cameraInfo;
         ViewMode m_viewMode = ViewMode::kSceneColor;
+        std::queue<SceneViewTask> m_taskQueues[(i32)SceneRenderingStage::kCount];
     };
 }
 

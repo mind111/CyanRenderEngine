@@ -1,6 +1,6 @@
 #pragma once
 
-#include "glew.h"
+#include "glew/glew.h"
 
 #define GL_INVALID_NAME -1
 

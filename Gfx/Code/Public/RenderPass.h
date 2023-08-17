@@ -3,8 +3,8 @@
 #include "Core.h"
 #include "Gfx.h"
 #include "Shader.h"
-#include "GHTexture.h"
-#include "GHFramebuffer.h"
+#include "GfxHardwareAbstraction/GHInterface/GHTexture.h"
+#include "GfxHardwareAbstraction/GHInterface/GHFramebuffer.h"
 #include "GfxContext.h"
 #include "MathLibrary.h"
 
@@ -28,14 +28,16 @@ namespace Cyan
 
         u32 width() const
         { 
-            const auto& desc = colorTexture->getDesc();
-            return desc.width;
+            glm::ivec2 mipSize;
+            colorTexture->getMipSize(mipSize.x, mipSize.y, mipLevel);
+            return mipSize.x;
         }
 
         u32 height() const
         {
-            const auto& desc = colorTexture->getDesc();
-            return desc.height;
+            glm::ivec2 mipSize;
+            colorTexture->getMipSize(mipSize.x, mipSize.y, mipLevel);
+            return mipSize.y;
         }
 
         bool isBound() { return colorTexture != nullptr; }

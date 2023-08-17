@@ -2,7 +2,8 @@
 #include "GLContext.h"
 #include "GLBuffer.h"
 #include "GLShader.h"
-#include "GLPipeline.h"
+#include "GfxHardwareAbstraction/GHInterface/GHPipeline.h"
+#include "GfxHardwareAbstraction/OpenGL/GLPipeline.h"
 #include "GLFramebuffer.h"
 #include "GLTexture.h"
 
@@ -65,6 +66,17 @@ namespace Cyan
         return nullptr;
     }
 
+    GHComputePipeline* GLGHContext::createComputePipeline(std::shared_ptr<GHShader> cs)
+    {
+        auto glCS = std::dynamic_pointer_cast<GLComputeShader>(cs);
+        if (glCS != nullptr)
+        {
+            return new GLComputePipeline(glCS);
+        }
+        assert(0); // catching errors here
+        return nullptr;
+    }
+
     GHFramebuffer* GLGHContext::createFramebuffer(u32 width, u32 height)
     {
         return new GLFramebuffer(width, height);
@@ -88,6 +100,27 @@ namespace Cyan
     std::unique_ptr<GfxStaticSubMesh> GLGHContext::createGfxStaticSubMesh(Geometry* geometry)
     {
         return std::move(std::unique_ptr<GLStaticSubMesh>(new GLStaticSubMesh(geometry)));
+    }
+
+    void GLGHContext::setGeometryMode(const GeometryMode& mode)
+    {
+        switch (mode)
+        {
+        case GeometryMode::kTriangles: m_geometryMode = GL_TRIANGLES; break;
+        case GeometryMode::kLines: m_geometryMode = GL_LINES; break;
+        default:
+            break;
+        }
+    }
+
+    void GLGHContext::drawArrays(u32 numVertices)
+    {
+        glDrawArrays(m_geometryMode, 0, numVertices);
+    }
+
+    void GLGHContext::drawIndices(u32 numIndices)
+    {
+        glDrawElements(m_geometryMode, numIndices, GL_UNSIGNED_INT, 0);
     }
 
     void GLGHContext::enableDepthTest()

@@ -11,6 +11,7 @@ namespace Cyan
     public:
         virtual ~GfxStaticSubMesh() { };
         static GFX_API GfxStaticSubMesh* create(std::string subMeshKey, Geometry* geometry);
+        virtual void updateVertices(u32 byteOffset, u32 numOfBytes, const void* data) = 0;
         virtual void draw() = 0;
     protected:
         GfxStaticSubMesh();

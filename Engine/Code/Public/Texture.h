@@ -2,7 +2,7 @@
 
 #include "Core.h"
 #include "Asset.h"
-#include "GHTexture.h"
+#include "GfxHardwareAbstraction/GHInterface/GHTexture.h"
 #include "Image.h"
 
 namespace Cyan
@@ -18,6 +18,7 @@ namespace Cyan
     class Texture2D : public Texture 
     {
     public:
+        Texture2D(const char* name, std::unique_ptr<GHTexture2D> GHTexture);
         Texture2D(const char* name, const GHSampler2D& sampler2D, Image* image, bool bGenerateMipmap);
         virtual ~Texture2D();
 

@@ -1,5 +1,5 @@
 #include "SceneRender.h"
-#include "GHTexture.h"
+#include "GfxHardwareAbstraction/GHInterface/GHTexture.h"
 #include "Scene.h"
 #include "RenderPass.h"
 #include "ShadowMaps.h"

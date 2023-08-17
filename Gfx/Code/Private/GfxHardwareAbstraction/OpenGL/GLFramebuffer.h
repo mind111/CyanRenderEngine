@@ -1,7 +1,7 @@
 #pragma once
 
 #include "GLObject.h"
-#include "GHFramebuffer.h"
+#include "GfxHardwareAbstraction/GHInterface/GHFramebuffer.h"
 
 namespace Cyan
 {

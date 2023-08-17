@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClInclude Include="Code\Public\Bounds.h" />
     <ClInclude Include="Code\Public\CameraViewInfo.h" />
+    <ClInclude Include="Code\Public\Color.h" />
     <ClInclude Include="Code\Public\Core.h" />
     <ClInclude Include="Code\Public\Geometry.h" />
     <ClInclude Include="Code\Public\MathLibrary.h" />
@@ -105,7 +106,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\Header\;$(ProjectDir)Code\Private\Header\;$(SolutionDir)ThirdParty\glm\Code\Header;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\Header\;$(ProjectDir)Code\Private\Header\;$(SolutionDir)ThirdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -124,7 +125,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\Header\;$(ProjectDir)Code\Private\Header\;$(SolutionDir)ThirdParty\glm\Code\Header;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\Header\;$(ProjectDir)Code\Private\Header\;$(SolutionDir)ThirdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -143,7 +144,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\Header\;$(ProjectDir)Code\Private\Header\;$(SolutionDir)ThirdParty\glm\Code\Header;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\Header\;$(ProjectDir)Code\Private\Header\;$(SolutionDir)ThirdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -162,7 +163,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\Header\;$(ProjectDir)Code\Private\Header\;$(SolutionDir)ThirdParty\glm\Code\Header;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Code\Public\Header\;$(ProjectDir)Code\Private\Header\;$(SolutionDir)ThirdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>

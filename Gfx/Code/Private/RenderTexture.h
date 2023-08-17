@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Core.h"
-#include "GHTexture.h"
+#include "GfxHardwareAbstraction/GHInterface/GHTexture.h"
 
 namespace Cyan
 {

@@ -16,6 +16,8 @@ namespace Cyan
         enum class PrimitiveMode
         {
             kTriangles = 0,
+            kDefault = 0,
+            kLines,
             kInvalid
         };
 
@@ -25,6 +27,7 @@ namespace Cyan
         u32 numVertices() { return m_numVertices; }
         u32 numIndices() { return m_numIndices; }
 
+        virtual void updateVertices(u32 byteOffset, u32 numOfBytes, const void* data) override;
         virtual void draw() override;
     private:
         u32 m_numVertices = 0, m_numIndices = 0;

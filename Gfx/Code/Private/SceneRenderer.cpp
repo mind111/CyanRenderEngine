@@ -90,6 +90,8 @@ namespace Cyan
     {
         GPU_DEBUG_SCOPE(gbufferPass, "SceneGBufferPass")
 
+        sceneView.flushTasks(SceneRenderingStage::kPreGBuffer);
+
         auto render = sceneView.m_render.get();
         /**
          * Assuming that there is always a depth prepass
@@ -128,6 +130,8 @@ namespace Cyan
             rp.enableDepthTest();
             rp.render(GfxContext::get());
         }
+
+        sceneView.flushTasks(SceneRenderingStage::kPostGBuffer);
     }
 
     void SceneRenderer::renderSceneDirectLighting(Scene* scene, SceneView& sceneView)

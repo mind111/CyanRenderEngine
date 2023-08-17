@@ -12,5 +12,10 @@
   <ItemGroup>
     <None Include="Apps\RayMarchingHeightField\Resources\Scene.glb" />
     <None Include="Apps\RayMarchingHeightField\Shader\raymarching_heightfield_p.glsl" />
+    <None Include="Apps\RayMarchingHeightField\Materials\M_RayMarchedHeightField_p.glsl" />
+    <None Include="Apps\RayMarchingHeightField\Shader\generate_heightfield_p.glsl" />
+    <None Include="Apps\RayMarchingHeightField\Shader\bake_heightfield_properties_p.glsl" />
+    <None Include="Apps\RayMarchingHeightField\Shader\build_heightfield_quadtree_p.glsl" />
+    <None Include="Apps\RayMarchingHeightField\Shader\debug_hierarchical_raymarching_c.glsl" />
   </ItemGroup>
 </Project>

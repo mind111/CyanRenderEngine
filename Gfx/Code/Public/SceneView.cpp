@@ -47,4 +47,20 @@ namespace Cyan
             return nullptr;
         }
     }
+
+    void SceneView::addTask(const SceneRenderingStage& stage, SceneViewTask&& task)
+    {
+        m_taskQueues[(i32)stage].push(std::move(task));
+    }
+
+    void SceneView::flushTasks(const SceneRenderingStage& stage)
+    {
+        auto& taskQueue = m_taskQueues[(i32)stage];
+        while (!taskQueue.empty())
+        {
+            auto& task = taskQueue.front();
+            task(*this);
+            taskQueue.pop();
+        }
+    }
 }

@@ -1,10 +1,11 @@
-#include "stb_image.h"
+#include "stbi/stb_image.h"
 
 #include "RenderingUtils.h"
 #include "RenderPass.h"
 #include "GfxModule.h"
 #include "GfxStaticMesh.h"
 #include "Geometry.h"
+#include "GfxHardwareAbstraction/GHInterface/GHBuffer.h"
 
 namespace Cyan
 {
@@ -240,7 +241,7 @@ namespace Cyan
 
     }
 
-    void RenderingUtils::renderScreenPass(const glm::uvec2& renderResolution, const RenderTargetSetupFunc& renderTargetSetupFunc, GfxPipeline* p, ShaderSetupFunc& shaderSetupFunc)
+    void RenderingUtils::renderScreenPass(const glm::uvec2& renderResolution, const RenderTargetSetupFunc& renderTargetSetupFunc, GfxPipeline* p, ShaderSetupFunc& shaderSetupFunc, bool bDepthTest)
     {
         RenderPass rp(renderResolution.x, renderResolution.y);
         renderTargetSetupFunc(rp);
@@ -250,9 +251,33 @@ namespace Cyan
             s_unitQuadMesh->draw();
             p->unbind();
         });
-
-        rp.disableDepthTest();
+        bDepthTest ? rp.enableDepthTest() : rp.disableDepthTest();
         rp.render(GfxContext::get());
+    }
+
+    // todo: should the format of src and dst texture match in order for the copying to be considered as valid ..?
+    GFX_API void RenderingUtils::copyTexture(GHTexture2D* dstTexture, u32 dstMip, GHTexture2D* srcTexture, u32 srcMip)
+    {
+        GPU_DEBUG_SCOPE(marker, "CopyTexture")
+        
+        bool found = false;
+        auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "ScreenPassVS", ENGINE_SHADER_PATH "screen_pass_v.glsl");
+        auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "BlitTexturePS", ENGINE_SHADER_PATH "blit_texture_p.glsl");
+        auto gfxp = ShaderManager::findOrCreateGfxPipeline(found, vs, ps);
+
+        const auto& desc = dstTexture->getDesc();
+        renderScreenPass(
+            glm::uvec2(desc.width, desc.height),
+            [dstTexture, dstMip](RenderPass& rp) {
+                RenderTarget rt(dstTexture, dstMip);
+                rp.setRenderTarget(rt, 0);
+            },
+            gfxp.get(),
+            [srcTexture, srcMip](GfxPipeline* p) {
+                p->setTexture("srcTexture", srcTexture);
+                p->setUniform("mipLevel", (i32)srcMip);
+            }
+        );
     }
 
     void RenderingUtils::renderToBackBuffer(GHTexture2D* srcTexture)
@@ -299,6 +324,48 @@ namespace Cyan
         });
         rp.setViewport(viewport.x, viewport.y, viewport.width, viewport.height);
         rp.disableDepthTest();
+        rp.render(GfxContext::get());
+    }
+
+    GFX_API void RenderingUtils::drawWorldSpacePoint(GHTexture2D* dstTexture, GHDepthTexture* depthTexture, const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix, const glm::vec3& p, const glm::vec4& color)
+    {
+
+    }
+
+    GFX_API void RenderingUtils::drawWorldSpaceLine(GHTexture2D* dstColorTexture, GHDepthTexture* depthTexture, const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix, const glm::vec3& start, const glm::vec3& end, const glm::vec4& color)
+    {
+        static std::vector<Lines::Vertex> vertices(2);
+        static std::vector<u32> indices{ 0, 1 };
+        static std::unique_ptr<Geometry> g = std::make_unique<Lines>(vertices, indices);
+        static std::unique_ptr<GfxStaticSubMesh> mesh = std::unique_ptr<GfxStaticSubMesh>(GfxStaticSubMesh::create(std::string("drawWorldSpaceLineMesh"), g.get()));
+
+        vertices[0].pos = start;
+        vertices[0].color = color;
+        vertices[1].pos = end;
+        vertices[1].color = color;
+
+        mesh->updateVertices(0, sizeOfVectorInBytes(vertices), vertices.data());
+
+        bool found = false;
+        auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "WorldSpaceLineVS", ENGINE_SHADER_PATH "worldspace_line_v.glsl");
+        auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "VertexColorPS", ENGINE_SHADER_PATH "vertexcolor_p.glsl");
+        auto gfxp = ShaderManager::findOrCreateGfxPipeline(found, vs, ps);
+
+        const auto& desc = dstColorTexture->getDesc();
+        RenderPass rp(desc.width, desc.height);
+        RenderTarget rt(dstColorTexture);
+        rt.bNeedsClear = false;
+        rp.setRenderTarget(rt, 0);
+        DepthTarget dt(depthTexture, false);
+        rp.setDepthTarget(dt);
+        rp.setRenderFunc([gfxp, dstColorTexture, viewMatrix, projectionMatrix](GfxContext* ctx) {
+            gfxp->bind();
+            gfxp->setUniform("u_viewMatrix", viewMatrix);
+            gfxp->setUniform("u_projectionMatrix", projectionMatrix);
+            mesh->draw();
+            gfxp->unbind();
+        });
+        rp.enableDepthTest();
         rp.render(GfxContext::get());
     }
 }

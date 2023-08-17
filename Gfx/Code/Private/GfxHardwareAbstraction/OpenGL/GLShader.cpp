@@ -1,6 +1,6 @@
 #include "GLShader.h"
 #include "GLTexture.h"
-#include "glew.h"
+#include "glew/glew.h"
 
 namespace Cyan
 {
@@ -83,6 +83,7 @@ namespace Cyan
                                 char suffix[5] = "[%u]";
                                 size_t formatLength = strlen(token) + strlen(suffix) + 1;
                                 char* format = static_cast<char*>(_malloca(formatLength));
+                                sprintf_s(format, formatLength, "%s", token);
                                 if (format != nullptr)
                                 {
                                     strcat_s(format, formatLength, suffix);

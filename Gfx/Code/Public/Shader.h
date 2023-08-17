@@ -2,8 +2,8 @@
 
 #include "Core.h"
 #include "Gfx.h"
-#include "GHShader.h"
-#include "GHPipeline.h"
+#include "GfxHardwareAbstraction/GHInterface/GHShader.h"
+#include "GfxHardwareAbstraction/GHInterface/GHPipeline.h"
 
 namespace Cyan
 {
@@ -62,6 +62,17 @@ namespace Cyan
         GHPixelShader* getGHO();
     };
 
+    class GFX_API ComputeShader : public Shader
+    {
+    public:
+        friend class ComputePipeline;
+
+        ComputeShader(const char* name, const std::string& text);
+        virtual ~ComputeShader();
+
+        GHComputeShader* getGHO();
+    };
+
     class GFX_API Pipeline
     {
     public:
@@ -70,10 +81,13 @@ namespace Cyan
         virtual void setUniform(const char* name, i32 value) = 0;
         virtual void setUniform(const char* name, u32 value) = 0;
         virtual void setUniform(const char* name, f32 value) = 0;
+        virtual void setUniform(const char* name, const glm::uvec2& value) = 0;
+        virtual void setUniform(const char* name, const glm::ivec2& value) = 0;
         virtual void setUniform(const char* name, const glm::vec2& value) = 0;
         virtual void setUniform(const char* name, const glm::vec3& value) = 0;
         virtual void setUniform(const char* name, const glm::vec4& value) = 0;
         virtual void setUniform(const char* name, const glm::mat4& value) = 0;
+        virtual void setTexture(const char* samplerName, GHTexture* texture) = 0;
     protected: 
         Pipeline(const char* name);
 
@@ -92,10 +106,13 @@ namespace Cyan
         virtual void setUniform(const char* name, i32 value) override { setUniformInternal(name, value); }
         virtual void setUniform(const char* name, u32 value) override { setUniformInternal(name, value); }
         virtual void setUniform(const char* name, f32 value) override { setUniformInternal(name, value); }
+        virtual void setUniform(const char* name, const glm::uvec2& value) override { setUniformInternal(name, value); }
+        virtual void setUniform(const char* name, const glm::ivec2& value) override { setUniformInternal(name, value); }
         virtual void setUniform(const char* name, const glm::vec2& value) override { setUniformInternal(name, value); }
         virtual void setUniform(const char* name, const glm::vec3& value) override { setUniformInternal(name, value); }
         virtual void setUniform(const char* name, const glm::vec4& value) override { setUniformInternal(name, value); }
         virtual void setUniform(const char* name, const glm::mat4& value) override { setUniformInternal(name, value); }
+        virtual void setTexture(const char* samplerName, GHTexture* texture) override;
 
         VertexShader* getVertexShader() { return m_vs.get(); }
         PixelShader* getPixelShader() { return m_ps.get(); }
@@ -109,12 +126,47 @@ namespace Cyan
             m_ps->setUniform(name, value);
         }
 
-        void setTexture(const char* samplerName, GHTexture* texture);
 
     private:
         std::shared_ptr<VertexShader> m_vs;
         std::shared_ptr<PixelShader> m_ps;
         std::unique_ptr<GHGfxPipeline> m_GHO = nullptr;
+        bool bBound = false;
+    };
+
+    class GFX_API ComputePipeline : public Pipeline
+    {
+    public:
+        ComputePipeline(const char* name, std::shared_ptr<ComputeShader> cs);
+        ~ComputePipeline();
+
+        void bind();
+        void unbind();
+
+        virtual void setUniform(const char* name, i32 value) override { setUniformInternal(name, value); }
+        virtual void setUniform(const char* name, u32 value) override { setUniformInternal(name, value); }
+        virtual void setUniform(const char* name, f32 value) override { setUniformInternal(name, value); }
+        virtual void setUniform(const char* name, const glm::uvec2& value) override { setUniformInternal(name, value); }
+        virtual void setUniform(const char* name, const glm::ivec2& value) override { setUniformInternal(name, value); }
+        virtual void setUniform(const char* name, const glm::vec2& value) override { setUniformInternal(name, value); }
+        virtual void setUniform(const char* name, const glm::vec3& value) override { setUniformInternal(name, value); }
+        virtual void setUniform(const char* name, const glm::vec4& value) override { setUniformInternal(name, value); }
+        virtual void setUniform(const char* name, const glm::mat4& value) override { setUniformInternal(name, value); }
+        virtual void setTexture(const char* samplerName, GHTexture* texture) override;
+
+        ComputeShader* getComputeShader() { return m_cs.get(); }
+
+        template <typename T>
+        void setUniformInternal(const char* name, const T& value)
+        {
+            assert(bBound);
+
+            m_cs->setUniform(name, value);
+        }
+
+    private:
+        std::shared_ptr<ComputeShader> m_cs = nullptr;
+        std::unique_ptr<GHComputePipeline> m_GHO = nullptr;
         bool bBound = false;
     };
 
@@ -200,7 +252,8 @@ namespace Cyan
 
         static std::shared_ptr<GfxPipeline> findOrCreateGfxPipeline(bool& outFound, std::shared_ptr<VertexShader> vs, std::shared_ptr<PixelShader> ps);
         static std::shared_ptr<GfxPipeline> createGfxPipeline(const char* name, std::shared_ptr<VertexShader> vs, std::shared_ptr<PixelShader> ps);
-
+        static std::shared_ptr<ComputePipeline> findOrCreateComputePipeline(bool& outFound, std::shared_ptr<ComputeShader> cs);
+        static std::shared_ptr<ComputePipeline> createComputePipeline(const char* name, std::shared_ptr<ComputeShader> cs);
     private:
         ShaderManager();
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "GHTexture.h"
+#include "GfxHardwareAbstraction/GHInterface/GHTexture.h"
 #include "GfxModule.h"
 #include "SceneView.h"
 

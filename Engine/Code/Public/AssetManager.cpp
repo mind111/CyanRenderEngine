@@ -238,6 +238,16 @@ namespace Cyan
         return outTex2D;
     }
 
+    Texture2D* AssetManager::createTexture2D(const char* name, std::unique_ptr<GHTexture2D> GHTexture)
+    {
+        Texture2D* found = findAsset<Texture2D>(name);
+        assert(found == nullptr);
+
+        Texture2D* outTex2D = new Texture2D(name, std::move(GHTexture));
+        s_instance->m_residentAssetMap.insert({ outTex2D->getName(), outTex2D });
+        return outTex2D;
+    }
+
     Material* AssetManager::createMaterial(const char* name, const char* materialSourcePath, const MaterialSetupFunc& setupFunc)
     {
         Material* found = findAsset<Material>(name);

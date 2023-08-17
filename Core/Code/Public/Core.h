@@ -53,3 +53,12 @@ typedef double   f64;
         printf(str, __VA_ARGS__);               \
         printf("\n");                           \
     }                                           \
+
+namespace Cyan
+{
+    template <typename T>
+    u32 sizeOfVectorInBytes(const std::vector<T>& vector)
+    {
+        return (u32)(sizeof(T) * vector.size());
+    }
+}

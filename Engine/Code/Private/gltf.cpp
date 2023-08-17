@@ -3,7 +3,7 @@
 
 #include "AssetManager.h"
 #include "gltf.h"
-#include "stb_image.h"
+#include "stbi/stb_image.h"
 #include "Geometry.h"
 #include "Image.h"
 #include "Texture.h"

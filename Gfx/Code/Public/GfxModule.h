@@ -25,7 +25,7 @@ namespace Cyan
 
     using PostRenderSceneViewsFunc = std::function<void(std::vector<SceneView*>*)>;
     using RenderToBackBufferFunc = std::function<void(struct Frame& frame)>;
-    using UIRenderCommand = std::function<void()>;
+    using UIRenderCommand = std::function<void(struct ImGuiContext*)>;
 
     enum class RenderingStage
     {

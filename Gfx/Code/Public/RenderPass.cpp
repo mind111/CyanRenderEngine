@@ -1,5 +1,5 @@
 #include "RenderPass.h"
-#include "GfxHardwareContext.h"
+#include "GfxHardwareAbstraction/GHInterface/GfxHardwareContext.h"
 
 namespace Cyan
 {

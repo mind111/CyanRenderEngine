@@ -21,7 +21,7 @@ namespace Cyan
         excessive use of polymorphism, need to revisit and optimize later. Perfect example of
         over engineering but I like it :)
      */
-    class Material : public Asset
+    class ENGINE_API Material : public Asset
     {
     public:
         friend class MaterialInstance;
@@ -59,7 +59,7 @@ namespace Cyan
     /**
      * Materials that shares the same shader while having different parameters are considered as MaterialInstances
      */
-    class MaterialInstance : public Asset
+    class ENGINE_API MaterialInstance : public Asset
     {
     public:
         friend class Material;
