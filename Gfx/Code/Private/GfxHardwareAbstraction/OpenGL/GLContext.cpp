@@ -97,6 +97,11 @@ namespace Cyan
         return std::move(std::unique_ptr<GHTexture2D>(new GLTexture2D(desc, sampler2D)));
     }
 
+    std::unique_ptr<GHRWBuffer> GLGHContext::createRWBuffer(u32 sizeInBytes)
+    {
+        return std::move(std::make_unique<GLShaderStorageBuffer>(sizeInBytes));
+    }
+
     std::unique_ptr<GfxStaticSubMesh> GLGHContext::createGfxStaticSubMesh(Geometry* geometry)
     {
         return std::move(std::unique_ptr<GLStaticSubMesh>(new GLStaticSubMesh(geometry)));
@@ -121,6 +126,11 @@ namespace Cyan
     void GLGHContext::drawIndices(u32 numIndices)
     {
         glDrawElements(m_geometryMode, numIndices, GL_UNSIGNED_INT, 0);
+    }
+
+    void GLGHContext::dispatchCompute(i32 threadGroupSizeX, i32 threadGroupSizeY, i32 threadGroupSizeZ)
+    {
+        glDispatchCompute(threadGroupSizeX, threadGroupSizeY, threadGroupSizeZ);
     }
 
     void GLGHContext::enableDepthTest()

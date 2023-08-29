@@ -122,7 +122,7 @@ namespace Cyan
     }
 
     static constexpr i32 kNumTextureUnits = 16;
-    static std::queue<i32> s_freeUnits;
+    static std::queue<i32> s_freeTextureUnits;
     static std::array<GLTexture*, kNumTextureUnits> s_textureBindings;
 
     static i32 allocTextureUnit()
@@ -133,14 +133,14 @@ namespace Cyan
             for (i32 unit = 0; unit < kNumTextureUnits; ++unit)
             {
                 s_textureBindings[unit] = nullptr;
-                s_freeUnits.push(unit);
+                s_freeTextureUnits.push(unit);
             }
         }
 
-        if (!s_freeUnits.empty())
+        if (!s_freeTextureUnits.empty())
         {
-            i32 unit = s_freeUnits.front();
-            s_freeUnits.pop();
+            i32 unit = s_freeTextureUnits.front();
+            s_freeTextureUnits.pop();
             assert(s_textureBindings[unit] == nullptr);
             return unit;
         }
@@ -157,7 +157,7 @@ namespace Cyan
         assert(boundTexture != nullptr);
         boundTexture->unbind();
         s_textureBindings[textureUnit] = nullptr;
-        s_freeUnits.push(textureUnit);
+        s_freeTextureUnits.push(textureUnit);
     }
 
     void GLTexture::bind()
@@ -270,6 +270,7 @@ namespace Cyan
 
     void GLDepthTexture::getMipSize(i32& outWidth, i32& outHeight, i32 mipLevel)
     {
-        NOT_IMPLEMENTED_ERROR()
+        glGetTextureLevelParameteriv(getName(), mipLevel, GL_TEXTURE_WIDTH, &outWidth);
+        glGetTextureLevelParameteriv(getName(), mipLevel, GL_TEXTURE_HEIGHT, &outHeight);
     }
 }

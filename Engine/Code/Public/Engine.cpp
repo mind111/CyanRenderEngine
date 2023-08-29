@@ -147,7 +147,7 @@ namespace Cyan
         {
             CameraViewInfo m_cameraViewInfo;
             bool bPower = true;
-            u32 m_numRenderedFrames = 0u;
+            i32 m_numRenderedFrames = -1;
             f32 m_elapsedTime = 0.f;
             f32 m_deltaTime = 0.f;
             glm::uvec2 m_resolution;
@@ -170,6 +170,7 @@ namespace Cyan
         FrameGfxTask task = { };
         task.debugName = std::string("SyncRenderState");
 
+        // make sure nothing rendering related runs before this "SyncRenderState" task
         enqueueFrameGfxTask(
             RenderingStage::kPreSceneRendering,
             "SyncRenderState",
@@ -181,6 +182,7 @@ namespace Cyan
                     const auto& cameraState = cameraStates[i];
                     views[i]->m_viewMode = (SceneView::ViewMode)cameraState.m_renderMode;
                     auto& viewState = views[i]->m_state;
+
                     if (viewState.frameCount > 0)
                     {
                         viewState.prevFrameViewMatrix = viewState.viewMatrix;
@@ -205,6 +207,8 @@ namespace Cyan
                 }
             }
         );
+
+        m_app->render();
 
         Frame frame = { };
         frame.simFrameNumber = m_mainFrameNumber;

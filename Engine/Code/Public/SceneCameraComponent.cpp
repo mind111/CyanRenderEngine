@@ -15,6 +15,14 @@ namespace Cyan
 
     }
 
+    void SceneCameraComponent::update()
+    {
+        if (m_sceneCamera != nullptr)
+        {
+            m_sceneCamera->incrementFrameCount();
+        }
+    }
+
     void SceneCameraComponent::setOwner(Entity* owner)
     {
         SceneComponent::setOwner(owner);
@@ -63,7 +71,7 @@ namespace Cyan
 
     void SceneCameraComponent::setNearClippingPlane(f32 n)
     {
-
+        m_sceneCamera->m_cameraViewInfo.m_perspective.n = n;
     }
 
     void SceneCameraComponent::setFarClippingPlane(f32 f)

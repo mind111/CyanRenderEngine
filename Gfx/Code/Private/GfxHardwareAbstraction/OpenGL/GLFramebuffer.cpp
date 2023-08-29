@@ -54,7 +54,6 @@ namespace Cyan
         i32 mipWidth = 0, mipHeight = 0;
         glTexture->getMipSize(mipWidth, mipHeight, mipLevel);
         assert(mipWidth == m_width && mipHeight == m_height);
-
         glNamedFramebufferTexture2DEXT(m_name, GL_COLOR_ATTACHMENT0 + bindingUnit, GL_TEXTURE_2D, glTexture->getName(), mipLevel);
         m_colorBuffers[bindingUnit] = colorBuffer;
     }

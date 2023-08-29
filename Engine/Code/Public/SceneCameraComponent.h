@@ -16,6 +16,8 @@ namespace Cyan
         SceneCameraComponent(const char* name, const Transform& transform);
         ~SceneCameraComponent();
 
+        virtual void update() override;
+
         /* SceneComponent Interface*/
         virtual void setOwner(Entity* owner) override;
         virtual void onTransformUpdated() override;

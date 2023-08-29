@@ -8,6 +8,7 @@
   <ItemGroup>
     <ClInclude Include="Apps\RayMarchingHeightField\RayMarchingHeightField.h" />
     <ClInclude Include="Apps\Demo\DemoApp.h" />
+    <ClInclude Include="Apps\RayMarchingHeightField\Shader\restir_ao_debug_ray_c.glsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Apps\RayMarchingHeightField\Resources\Scene.glb" />
@@ -16,6 +17,12 @@
     <None Include="Apps\RayMarchingHeightField\Shader\generate_heightfield_p.glsl" />
     <None Include="Apps\RayMarchingHeightField\Shader\bake_heightfield_properties_p.glsl" />
     <None Include="Apps\RayMarchingHeightField\Shader\build_heightfield_quadtree_p.glsl" />
+    <None Include="Apps\RayMarchingHeightField\Shader\hierarchical_raymarching_depth_p.glsl" />
+    <None Include="Apps\RayMarchingHeightField\Shader\hierarchical_raymarching_normal_p.glsl" />
+    <None Include="Apps\RayMarchingHeightField\Shader\hierarchical_raymarching_lighting_p.glsl" />
+    <None Include="Apps\RayMarchingHeightField\Shader\restir_ao_temporal_p.glsl" />
+    <None Include="Apps\RayMarchingHeightField\Shader\restir_ao_resolve_p.glsl" />
+    <None Include="Apps\RayMarchingHeightField\Shader\restir_ao_debug_p.glsl" />
     <None Include="Apps\RayMarchingHeightField\Shader\debug_hierarchical_raymarching_c.glsl" />
   </ItemGroup>
 </Project>

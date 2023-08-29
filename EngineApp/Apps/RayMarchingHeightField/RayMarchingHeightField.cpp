@@ -27,9 +27,12 @@
 #include "Color.h"
 #include "glew/glew.h"
 
-// todo: hierachical tracing
+// todo: catching shader compilation error and linking error
+// [x] hierachical tracing
 // todo: restir sky light
 // todo: SVGF denoising
+// todo: TAA
+
 namespace Cyan
 {
     class HeightField
@@ -81,6 +84,10 @@ namespace Cyan
 
     void RayMarchingHeightFieldApp::update(World* world)
     {
+    }
+
+    void RayMarchingHeightFieldApp::render()
+    {
         // these are only used on the render thread
         static glm::vec3 position = glm::vec3(0.f);
         static glm::vec3 scale = glm::vec3(5.f, 5.f, 5.f);
@@ -88,9 +95,10 @@ namespace Cyan
         // noise shape control parameters
         static i32 rotationRandomSeed = 0;
         static f32 amplitude = 1.f;
-        static f32 frequency = .5f;
-        static i32 numOctaves = 16;
+        static f32 frequency = 1.f;
+        static i32 numOctaves = 8;
         static f32 persistence = .5f;
+        static bool bUseReSTIR = true;
 
         static f32 snowLayerAmplitude = 1.f;
         static f32 snowLayerFrequency = .5f;
@@ -106,9 +114,10 @@ namespace Cyan
         static f32 cloudPersistence = .5f;
 
         static i32 maxNumRayMarchingSteps = 512;
+        static bool bImprovedNormal = true;
 
-        static glm::vec3 debugRo = glm::vec3(0.f, 10.f, -2.f);
-        static glm::vec3 debugRd = glm::vec3(0.f, -1.f, 0.f);
+        static glm::vec3 debugRo = glm::vec3(0.f, 2.f, 3.f);
+        static glm::vec3 debugRd = glm::normalize(glm::vec3(-.5f, 1.f, 0.f));
 
 #if GPU_NOISE
         Engine::get()->enqueueFrameGfxTask(
@@ -142,10 +151,10 @@ namespace Cyan
                     },
                     gfxp.get(),
                     [this](GfxPipeline* p) {
-                        p->setUniform("amplitude", amplitude);
-                        p->setUniform("frequency", frequency);
-                        p->setUniform("numOctaves", numOctaves);
-                        p->setUniform("persistence", persistence);
+                        p->setUniform("u_amplitude", amplitude);
+                        p->setUniform("u_frequency", frequency);
+                        p->setUniform("u_numOctaves", numOctaves);
+                        p->setUniform("u_persistence", persistence);
 
                         p->setUniform("u_snowBlendMin", snowBlendMin);
                         p->setUniform("u_snowBlendMax", snowBlendMax);
@@ -162,7 +171,7 @@ namespace Cyan
 
                         for (i32 i = 0; i < numOctaves; ++i)
                         {
-                            std::string uniformName = "octaveRotationAngles";
+                            std::string uniformName = "u_octaveRotationAngles";
                             uniformName += "[" + std::to_string(i) + "]";
                             p->setUniform(uniformName.c_str(), octaveRandomRotationAngles[i]);
                         }
@@ -211,21 +220,13 @@ namespace Cyan
         Engine::get()->enqueueFrameGfxTask(
             RenderingStage::kPreSceneRendering,
             "RayMarchingHeightField", [this](Frame& frame) {
-                auto rayMarchingTask = [this](SceneView& view) {
-                    GPU_DEBUG_SCOPE(marker, "RayMarching Height Field");
 
-                    auto render = view.getRender();
-                    auto sceneDepth = render->depth();
-
-                    const auto& viewState = view.getState();
-                    const auto& cameraInfo = view.getCameraInfo();
-
-                    glm::vec3 cameraPosition = viewState.cameraPosition;
-                    auto desc = m_rayMarchingOutTexture->getDesc();
+                auto rayMarchingDepthPass = [this](SceneView& view) {
+                    GPU_DEBUG_SCOPE(marker, "Ray Marching Depth Pass");
 
                     bool found;
                     auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "ScreenPassVS", ENGINE_SHADER_PATH "screen_pass_v.glsl");
-                    auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "RayMarchingHeightField", APP_SHADER_PATH "raymarching_heightfield_p.glsl");
+                    auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "RayMarchingHeightFieldDepthPass", APP_SHADER_PATH "hierarchical_raymarching_depth_p.glsl");
                     auto gfxp = ShaderManager::findOrCreateGfxPipeline(found, vs, ps);
 
                     Transform heightFieldTransform;
@@ -233,140 +234,347 @@ namespace Cyan
                     heightFieldTransform.scale = scale;
                     glm::mat4 transformMatrix = heightFieldTransform.toMatrix();
 
+                    const auto& viewState = view.getState();
+                    const auto& cameraInfo = view.getCameraInfo();
+
+                    glm::vec3 cameraPosition = viewState.cameraPosition;
+                    auto desc = m_rayMarchingDepthTexture->getDesc();
+
                     RenderingUtils::renderScreenPass(
                         glm::uvec2(desc.width, desc.height),
-                        [this, render](RenderPass& rp) {
-                            rp.setRenderTarget(m_rayMarchingOutTexture.get(), 0);
-                            rp.setDepthTarget(render->depth());
+                        [this](RenderPass& rp) {
+                            rp.setDepthTarget(m_rayMarchingDepthTexture.get());
                         },
                         gfxp.get(),
                         [this, cameraInfo, viewState, desc, transformMatrix](GfxPipeline* p) {
-                            p->setUniform("renderResolution", glm::ivec2(desc.width, desc.height));
-                            p->setUniform("maxNumRayMarchingSteps", maxNumRayMarchingSteps);
-                            p->setUniform("heightFieldTransformMatrix", transformMatrix);
-
-                            p->setUniform("u_groundAlbedo", groundAlbedo);
-                            p->setUniform("u_snowAlbedo", glm::vec3(1.f));
-                            p->setUniform("u_snowBlendMin", snowBlendMin);
-                            p->setUniform("u_snowBlendMax", snowBlendMax);
+                            p->setUniform("u_heightFieldTransformMatrix", transformMatrix);
 
                             p->setUniform("viewMatrix", cameraInfo.viewMatrix());
                             p->setUniform("projectionMatrix", cameraInfo.projectionMatrix());
-                            p->setUniform("cameraPosition", viewState.cameraPosition);
-                            p->setUniform("cameraRight", viewState.cameraRight);
-                            p->setUniform("cameraForward", viewState.cameraForward);
-                            p->setUniform("cameraUp", viewState.cameraUp);
-                            p->setUniform("n", cameraInfo.m_perspective.n);
-                            p->setUniform("f", cameraInfo.m_perspective.f);
-                            p->setUniform("fov", cameraInfo.m_perspective.fov);
-                            p->setUniform("aspectRatio", (f32)desc.width / desc.height);
-#if GPU_NOISE
-                            p->setTexture("u_compositedHeightMap", m_gpuCompositedHeightMap.get());
-                            p->setTexture("u_compositedNormalMap", m_gpuCompositedNormalMap.get());
-                            p->setTexture("u_baseLayerHeightMap", m_gpuBaseLayerHeightMap.get());
-                            p->setTexture("u_cloudOpacityMap", m_gpuCloudOpacityMap.get());
-                            p->setTexture("u_heightFieldQuadTree", m_heightFieldQuadTree.get());
+                            p->setUniform("u_cameraPosition", viewState.cameraPosition);
+                            p->setUniform("u_cameraRight", viewState.cameraRight);
+                            p->setUniform("u_cameraForward", viewState.cameraForward);
+                            p->setUniform("u_cameraUp", viewState.cameraUp);
+                            p->setUniform("u_n", cameraInfo.m_perspective.n);
+                            p->setUniform("u_f", cameraInfo.m_perspective.f);
+                            p->setUniform("u_fov", cameraInfo.m_perspective.fov);
+                            p->setUniform("u_aspectRatio", (f32)desc.width / desc.height);
+                            p->setTexture("u_heightFieldQuadTreeTexture", m_heightFieldQuadTree.get());
                             p->setUniform("u_numMipLevels", (i32)m_heightFieldQuadTree->getDesc().numMips);
-#else
-                            p->setTexture("heightMap", m_cpuHeightMap.get());
-                            p->setTexture("normalMap", m_cpuNormalMap.get());
-#endif
                         },
                         true
                     );
                 };
 
-                auto views = *(frame.views);
-                auto currentActiveView = views[0];
-                rayMarchingTask(*currentActiveView);
+                auto rayMarchingNormalPass = [this](SceneView& view) {
+                    GPU_DEBUG_SCOPE(marker, "Ray Marching Normal Pass");
 
-                auto debugHierarchicalMarchingTask = [this](SceneView& view) {
+                    bool found;
+                    auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "ScreenPassVS", ENGINE_SHADER_PATH "screen_pass_v.glsl");
+                    auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "RayMarchingHeightFieldNormalPass", APP_SHADER_PATH "hierarchical_raymarching_normal_p.glsl");
+                    auto gfxp = ShaderManager::findOrCreateGfxPipeline(found, vs, ps);
+
+                    const auto& desc = m_rayMarchingNormalTexture->getDesc();
+                    const auto& cameraInfo = view.getCameraInfo();
+
+                    RenderingUtils::renderScreenPass(
+                        glm::uvec2(desc.width, desc.height),
+                        [this](RenderPass& rp) {
+                            rp.setRenderTarget(m_rayMarchingNormalTexture.get(), 0);
+                        },
+                        gfxp.get(),
+                        [this, cameraInfo, desc](GfxPipeline* p) {
+                            p->setUniform("u_improvedNormal", bImprovedNormal ? 1.f : 0.f);
+                            p->setUniform("u_renderResolution", glm::vec2(desc.width, desc.height));
+                            p->setUniform("u_viewMatrix", cameraInfo.viewMatrix());
+                            p->setUniform("u_projectionMatrix", cameraInfo.projectionMatrix());
+                            p->setTexture("u_sceneDepth", m_rayMarchingDepthTexture.get());
+                        }
+                    );
+                };
+
+                auto rayMarchingLightingPass = [this](SceneView& view) {
+                    GPU_DEBUG_SCOPE(marker, "Ray Marching Lighting Pass");
+
+                    bool found;
+                    auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "ScreenPassVS", ENGINE_SHADER_PATH "screen_pass_v.glsl");
+                    auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "RayMarchingHeightFieldLightingPass", APP_SHADER_PATH "hierarchical_raymarching_lighting_p.glsl");
+                    auto gfxp = ShaderManager::findOrCreateGfxPipeline(found, vs, ps);
+
+                    const auto& desc = m_rayMarchingOutTexture->getDesc();
+                    const auto& viewState = view.getState();
+                    const auto& cameraInfo = view.getCameraInfo();
+
+                    RenderingUtils::renderScreenPass(
+                        glm::uvec2(desc.width, desc.height),
+                        [this](RenderPass& rp) {
+                            rp.setRenderTarget(m_rayMarchingOutTexture.get(), 0);
+                        },
+                        gfxp.get(),
+                        [this, viewState, cameraInfo, desc](GfxPipeline* p) {
+                            p->setUniform("u_renderResolution", glm::vec2(desc.width, desc.height));
+                            p->setUniform("u_viewMatrix", cameraInfo.viewMatrix());
+                            p->setUniform("u_projectionMatrix", cameraInfo.projectionMatrix());
+                            p->setUniform("u_frameCount", viewState.frameCount);
+                            p->setTexture("u_sceneDepth", m_rayMarchingDepthTexture.get());
+                            p->setTexture("u_sceneNormal", m_rayMarchingNormalTexture.get());
+                            if (viewState.frameCount > 0)
+                            {
+                                p->setUniform("u_prevFrameViewMatrix", viewState.prevFrameViewMatrix);
+                                p->setUniform("u_prevFrameProjectionMatrix", viewState.prevFrameProjectionMatrix);
+                                p->setTexture("u_prevFrameSceneDepth", m_prevFrameRayMarchingDepthTexture.get());
+                                p->setTexture("u_prevFrameAO", m_prevFrameRayMarchingAOTexture.get());
+                            }
+
+                            Transform heightFieldTransform;
+                            heightFieldTransform.translation = position;
+                            heightFieldTransform.scale = scale;
+                            glm::mat4 transformMatrix = heightFieldTransform.toMatrix();
+
+                            p->setUniform("u_heightFieldTransformMatrix", transformMatrix);
+                            p->setTexture("u_heightFieldQuadTreeTexture", m_heightFieldQuadTree.get());
+                            p->setUniform("u_numMipLevels", (i32)m_heightFieldQuadTree->getDesc().numMips);
+                        }
+                    );
+
+                    RenderingUtils::copyDepthTexture(m_prevFrameRayMarchingDepthTexture.get(), m_rayMarchingDepthTexture.get());
+                    RenderingUtils::copyTexture(m_prevFrameRayMarchingAOTexture.get(), 0, m_rayMarchingOutTexture.get(), 0);
+                };
+
+                auto rayMarchingReSTIRAOPass = [this](SceneView& view) {
+                    GPU_DEBUG_SCOPE(marker, "Ray Marching AO Pass");
                     {
-                        GPU_DEBUG_SCOPE(marker, "Record Hierarchical RayMarching Traces");
+#if 0
+#if 0
+                        GPU_DEBUG_SCOPE(marker, "Debug Pass");
+
+                        bool found;
+                        auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "ScreenPassVS", ENGINE_SHADER_PATH "screen_pass_v.glsl");
+                        auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "RayMarchingReSTIRAODebug", APP_SHADER_PATH "restir_ao_debug_p.glsl");
+                        auto gfxp = ShaderManager::findOrCreateGfxPipeline(found, vs, ps);
+
+                        const auto& desc = m_rayMarchingOutTexture->getDesc();
+                        const auto& cameraInfo = view.getCameraInfo();
+                        const auto& viewState = view.getState();
+
+                        RenderingUtils::renderScreenPass(
+                            glm::uvec2(desc.width, desc.height),
+                            [this](RenderPass& rp) {
+                                rp.setRenderTarget(m_rayMarchingOutTexture.get(), 0);
+                            },
+                            gfxp.get(),
+                            [this, cameraInfo, viewState, desc](GfxPipeline* p) {
+                                p->setUniform("u_renderResolution", glm::vec2(desc.width, desc.height));
+                                p->setUniform("u_viewMatrix", viewState.viewMatrix);
+                                p->setUniform("u_projectionMatrix", viewState.projectionMatrix);
+
+                                p->setTexture("u_sceneDepth", m_rayMarchingDepthTexture.get());
+                                p->setTexture("u_sceneNormal", m_rayMarchingNormalTexture.get());
+                                p->setUniform("u_frameCount", viewState.frameCount);
+
+                                Transform heightFieldTransform;
+                                heightFieldTransform.translation = position;
+                                heightFieldTransform.scale = scale;
+                                glm::mat4 transformMatrix = heightFieldTransform.toMatrix();
+
+                                p->setUniform("u_heightFieldTransformMatrix", transformMatrix);
+                                p->setTexture("u_heightFieldQuadTreeTexture", m_heightFieldQuadTree.get());
+                                p->setUniform("u_numMipLevels", (i32)m_heightFieldQuadTree->getDesc().numMips);
+                            }
+                        );
+#else
+                        GPU_DEBUG_SCOPE(marker, "Debug Pass");
+
+                        struct DebugRay
+                        {
+                            glm::vec4 ro;
+                            glm::vec4 hit;
+                        };
+                        static std::vector<DebugRay> debugRays(1);
+                        static std::unique_ptr<GHRWBuffer> rayBuffer = std::move(GHRWBuffer::create(sizeOfVectorInBytes(debugRays)));
 
                         struct Trace
                         {
-                            int stepID;
-                            glm::vec3 padding;
-                            float t;
-                            glm::vec3 textureSpacePos;
-                            int mipLevel;
-                            float tQuadTreeCell;
-                            float sceneHeight;
-                            float tHeight;
+                            glm::vec4 uv;
+                            glm::vec4 tCell;
+                            glm::vec4 tHeight;
+                            glm::vec4 tMarched;
+                            glm::vec4 mipLevel;
+                            glm::vec4 sceneHeight;
+                            glm::vec4 rayHeight;
+                            glm::vec4 rayEntryHeight;
                         };
+                        static std::vector<Trace> traces(128);
+                        static std::unique_ptr<GHRWBuffer> traceBuffer = std::move(GHRWBuffer::create(sizeOfVectorInBytes(traces)));
 
-                        // todo: implement shader storage buffer
-                        struct TraceBuffer
-                        {
-                            TraceBuffer(u32 inNumElements) 
-                                : numElements(inNumElements)
-                            {
-                                sizeInBytes = numElements * sizeof(Trace);
-                                glCreateBuffers(1, &buffer);
-                                glNamedBufferData(buffer, sizeInBytes, nullptr, GL_DYNAMIC_COPY);
-                            }
-
-                            void bind()
-                            {
-                                glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, buffer);
-                            }
-
-                            void unbind()
-                            {
-                                glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
-                            }
-
-                            void read(std::vector<Trace>& outTraces)
-                            {
-                                if (outTraces.size() < numElements)
-                                {
-                                    outTraces.resize(numElements);
-                                }
-                                glGetNamedBufferSubData(buffer, 0, sizeInBytes, outTraces.data());
-                            }
-
-                            GLuint buffer;
-                            u32 sizeInBytes;
-                            u32 numElements;
-                        };
-
-                        static TraceBuffer traceBuffer(64);
-
-                        bool found = false;
-                        auto cs = ShaderManager::findOrCreateShader<ComputeShader>(found, "DebugHierarchicalHeightFieldTracingCS", APP_SHADER_PATH "debug_hierarchical_raymarching_c.glsl");
+                        bool found;
+                        auto cs = ShaderManager::findOrCreateShader<ComputeShader>(found, "RayMarchingReSTIRAODebug", APP_SHADER_PATH "restir_ao_debug_ray_c.glsl");
                         auto cp = ShaderManager::findOrCreateComputePipeline(found, cs);
 
-                        cp->bind();
-                        Transform heightFieldTransform;
-                        heightFieldTransform.translation = position;
-                        heightFieldTransform.scale = scale;
-                        glm::mat4 transformMatrix = heightFieldTransform.toMatrix();
-                        cp->setUniform("u_heightFieldTransfromMat", transformMatrix);
-                        cp->setTexture("u_heightFieldQuadTree", m_heightFieldQuadTree.get());
-                        cp->setUniform("u_numMipLevels", (i32)m_heightFieldQuadTree->getDesc().numMips);
-                        cp->setUniform("u_debugRo", debugRo);
-                        cp->setUniform("u_debugRd", debugRd);
-                        cp->unbind();
+                        const auto& desc = m_rayMarchingOutTexture->getDesc();
+                        const auto& viewState = view.getState();
+                        static glm::vec2 debugPos(0.f);
+
+                        RenderingUtils::dispatchComputePass(
+                            cp.get(),
+                            [this, desc, viewState](ComputePipeline* p) {
+                                rayBuffer->bind();
+                                traceBuffer->bind();
+
+                                p->setUniform("u_debugPos", debugPos);
+                                p->setUniform("u_renderResolution", glm::vec2(desc.width, desc.height));
+                                p->setUniform("u_viewMatrix", viewState.viewMatrix);
+                                p->setUniform("u_projectionMatrix", viewState.projectionMatrix);
+                                p->setTexture("u_sceneDepth", m_rayMarchingDepthTexture.get());
+                                p->setTexture("u_sceneNormal", m_rayMarchingNormalTexture.get());
+
+                                Transform heightFieldTransform;
+                                heightFieldTransform.translation = position;
+                                heightFieldTransform.scale = scale;
+                                glm::mat4 transformMatrix = heightFieldTransform.toMatrix();
+
+                                p->setUniform("u_heightFieldTransformMatrix", transformMatrix);
+                                p->setTexture("u_heightFieldQuadTreeTexture", m_heightFieldQuadTree.get());
+                                p->setUniform("u_numMipLevels", (i32)m_heightFieldQuadTree->getDesc().numMips);
+                            },
+                            1,
+                            1,
+                            1
+                            );
+
+                        rayBuffer->read(debugRays.data(), 0, 0, sizeOfVectorInBytes(debugRays));
+                        traceBuffer->read(traces.data(), 0, 0, sizeOfVectorInBytes(traces));
+
+                        for (i32 i = 0; i < 128; ++i)
+                        {
+                            const auto& trace = traces[i];
+                            if (trace.uv.w > 0.f)
+                            {
+                                cyanInfo("------------------")
+                                cyanInfo("Step: %d", i)
+                                cyanInfo("Mip Level: %.4f", trace.mipLevel.x)
+                                cyanInfo("tCell: %.4f", trace.tCell.x)
+                                cyanInfo("tHeight: %.4f", trace.tHeight.x)
+                                cyanInfo("tMarched: %.4f", trace.tMarched.x)
+                                cyanInfo("SceneHeight: %.4f", trace.sceneHeight.x)
+                                cyanInfo("RayHeight: %.4f", trace.rayHeight.x)
+                                cyanInfo("RayEntryHeight: %.4f", trace.rayEntryHeight.x)
+                            }
+                        }
+
+                        RenderingUtils::drawWorldSpaceLine(
+                            m_rayMarchingOutTexture.get(), 
+                            m_rayMarchingDepthTexture.get(), 
+                            viewState.viewMatrix,
+                            viewState.projectionMatrix,
+                            debugRays[0].ro,
+                            debugRays[0].hit,
+                            glm::vec4(1.f, 0.f, 0.f, 1.f)
+                        );
+#endif
+#endif
+                    }
+
+#if 1
+                    {
+                        GPU_DEBUG_SCOPE(marker, "ReSTIR Temporal Pass");
+
+                        bool found;
+                        auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "ScreenPassVS", ENGINE_SHADER_PATH "screen_pass_v.glsl");
+                        auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "RayMarchingReSTIRAOTemporal", APP_SHADER_PATH "restir_ao_temporal_p.glsl");
+                        auto gfxp = ShaderManager::findOrCreateGfxPipeline(found, vs, ps);
+
+                        const auto& desc = m_temporalReservoirDirection->getDesc();
+                        const auto& cameraInfo = view.getCameraInfo();
+                        const auto& viewState = view.getState();
+
+                        RenderingUtils::renderScreenPass(
+                            glm::uvec2(desc.width, desc.height),
+                            [this](RenderPass& rp) {
+                                rp.setRenderTarget(m_temporalReservoirDirection.get(), 0);
+                                rp.setRenderTarget(m_temporalReservoirWSumMWT.get(), 1);
+                            },
+                            gfxp.get(),
+                            [this, cameraInfo, viewState, desc](GfxPipeline* p) {
+                                p->setUniform("u_renderResolution", glm::vec2(desc.width, desc.height));
+                                p->setUniform("u_viewMatrix", viewState.viewMatrix);
+                                p->setUniform("u_projectionMatrix", viewState.projectionMatrix);
+
+                                p->setTexture("u_sceneDepth", m_rayMarchingDepthTexture.get());
+                                p->setTexture("u_sceneNormal", m_rayMarchingNormalTexture.get());
+                                p->setUniform("u_frameCount", viewState.frameCount);
+
+                                if (viewState.frameCount > 0)
+                                {
+                                    p->setUniform("u_prevFrameViewMatrix", viewState.prevFrameViewMatrix);
+                                    p->setUniform("u_prevFrameProjectionMatrix", viewState.prevFrameProjectionMatrix);
+                                    p->setTexture("u_prevFrameSceneDepth", m_prevFrameRayMarchingDepthTexture.get());
+                                    p->setTexture("u_temporalReservoirDirection", m_prevFrameTemporalReservoirDirection.get());
+                                    p->setTexture("u_temporalReservoirWSumMWT", m_prevFrameTemporalReservoirWSumMWT.get());
+                                }
+
+                                Transform heightFieldTransform;
+                                heightFieldTransform.translation = position;
+                                heightFieldTransform.scale = scale;
+                                glm::mat4 transformMatrix = heightFieldTransform.toMatrix();
+
+                                p->setUniform("u_heightFieldTransformMatrix", transformMatrix);
+                                p->setTexture("u_heightFieldQuadTreeTexture", m_heightFieldQuadTree.get());
+                                p->setUniform("u_numMipLevels", (i32)m_heightFieldQuadTree->getDesc().numMips);
+                            }
+                        );
+
+                        RenderingUtils::copyTexture(m_prevFrameTemporalReservoirDirection.get(), 0, m_temporalReservoirDirection.get(), 0);
+                        RenderingUtils::copyTexture(m_prevFrameTemporalReservoirWSumMWT.get(), 0, m_temporalReservoirWSumMWT.get(), 0);
+                        RenderingUtils::copyDepthTexture(m_prevFrameRayMarchingDepthTexture.get(), m_rayMarchingDepthTexture.get());
                     }
 
                     {
-                        GPU_DEBUG_SCOPE(marker, "Visualize Hierarchical RayMarching Traces");
+                        GPU_DEBUG_SCOPE(marker, "ReSTIR Resolve Pass");
 
-                        auto render = view.getRender();
-                        const auto cameraInfo = view.getCameraInfo();
-                        RenderingUtils::drawWorldSpaceLine(
-                            m_rayMarchingOutTexture.get(),
-                            render->depth(),
-                            cameraInfo.viewMatrix(),
-                            cameraInfo.projectionMatrix(),
-                            debugRo,
-                            debugRo + debugRd * 10.f,
-                            glm::vec4(Color::navy, 1.f)
+                        bool found;
+                        auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "ScreenPassVS", ENGINE_SHADER_PATH "screen_pass_v.glsl");
+                        auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "RayMarchingReSTIRAOResolve", APP_SHADER_PATH "restir_ao_resolve_p.glsl");
+                        auto gfxp = ShaderManager::findOrCreateGfxPipeline(found, vs, ps);
+
+                        const auto& desc = m_rayMarchingOutTexture->getDesc();
+                        const auto& cameraInfo = view.getCameraInfo();
+                        const auto& viewState = view.getState();
+
+                        RenderingUtils::renderScreenPass(
+                            glm::uvec2(desc.width, desc.height),
+                            [this](RenderPass& rp) {
+                                rp.setRenderTarget(m_rayMarchingOutTexture.get(), 0);
+                            },
+                            gfxp.get(),
+                            [this, cameraInfo, viewState, desc](GfxPipeline* p) {
+                                p->setUniform("u_renderResolution", glm::vec2(desc.width, desc.height));
+                                p->setUniform("u_viewMatrix", viewState.viewMatrix);
+                                p->setUniform("u_projectionMatrix", viewState.projectionMatrix);
+
+                                p->setTexture("u_sceneDepth", m_rayMarchingDepthTexture.get());
+                                p->setTexture("u_sceneNormal", m_rayMarchingNormalTexture.get());
+                                p->setTexture("u_reservoirDirection", m_temporalReservoirDirection.get());
+                                p->setTexture("u_reservoirWSumMWT", m_temporalReservoirWSumMWT.get());
+                            }
                         );
                     }
+#endif
                 };
-                debugHierarchicalMarchingTask(*currentActiveView);
+
+                auto views = *(frame.views);
+                auto currentActiveView = views[0];
+
+                rayMarchingDepthPass(*currentActiveView);
+                rayMarchingNormalPass(*currentActiveView);
+                if (bUseReSTIR)
+                {
+                    rayMarchingReSTIRAOPass(*currentActiveView);
+                }
+                else
+                {
+                    rayMarchingLightingPass(*currentActiveView);
+                }
             });
 
         Engine::get()->enqueueFrameGfxTask(
@@ -394,6 +602,10 @@ namespace Cyan
 #define IMGUI_SLIDER_INT(label, ptr, vmin, vmax)       \
     ImGui::Text(label); ImGui::SameLine();              \
     ImGui::SliderInt("##" label, ptr, vmin, vmax);    \
+
+#define IMGUI_CHECKBOX(label, bValue)       \
+    ImGui::Text(label); ImGui::SameLine();              \
+    ImGui::Checkbox("##" label, &bValue);    \
 
         Engine::get()->enqueueUICommand([this](ImGuiContext* imguiCtx) {
             /**
@@ -444,9 +656,13 @@ namespace Cyan
                 IMGUI_SLIDER_FLOAT("Cloud Frequency", &cloudFrequency, 0.f, 16.f)
                 IMGUI_SLIDER_INT("Cloud Num Octaves", &cloudNumOctaves, 1, 16)
                 IMGUI_SLIDER_FLOAT("Cloud Persistence", &cloudPersistence, 0.f, 1.f)
+
+                IMGUI_CHECKBOX("Improved Normal", bImprovedNormal)
+                IMGUI_CHECKBOX("Use ReSTIR", bUseReSTIR)
             }
             ImGui::End();
         });
+
     }
 
     // todo:
@@ -466,6 +682,7 @@ namespace Cyan
         auto cc = ce->getSceneCameraComponent();
         cc->setResolution(glm::uvec2(1920, 1080));
         cc->setRenderMode(SceneCamera::RenderMode::kSceneAlbedo);
+        cc->setNearClippingPlane(0.01f);
         auto cameraControllerComponent = std::make_shared<CameraControllerComponent>("CameraControllerComponent", cc);
         ce->addComponent(cameraControllerComponent);
 
@@ -636,11 +853,45 @@ namespace Cyan
                 }
                 {
                     glm::uvec2 windowSize = GfxModule::get()->getWindowSize();
-                    auto desc = GHTexture2D::Desc::create(windowSize.x, windowSize.y, 1, PF_RGB16F);
-                    GHSampler2D sampler2D;
-                    sampler2D.setAddressingModeX(SAMPLER2D_AM_CLAMP);
-                    sampler2D.setAddressingModeY(SAMPLER2D_AM_CLAMP);
-                    m_rayMarchingOutTexture = std::move(GHTexture2D::create(desc, sampler2D));
+                    {
+                        auto desc = GHDepthTexture::Desc::create(windowSize.x, windowSize.y, 1);
+                        GHSampler2D sampler2D;
+                        sampler2D.setAddressingModeX(SAMPLER2D_AM_CLAMP);
+                        sampler2D.setAddressingModeY(SAMPLER2D_AM_CLAMP);
+                        m_rayMarchingDepthTexture = std::move(GHDepthTexture::create(desc));
+                        m_prevFrameRayMarchingDepthTexture = std::move(GHDepthTexture::create(desc));
+                    }
+                    {
+                        auto desc = GHTexture2D::Desc::create(windowSize.x, windowSize.y, 1, PF_RGB32F);
+                        GHSampler2D sampler2D;
+                        sampler2D.setAddressingModeX(SAMPLER2D_AM_CLAMP);
+                        sampler2D.setAddressingModeY(SAMPLER2D_AM_CLAMP);
+                        m_rayMarchingNormalTexture = std::move(GHTexture2D::create(desc, sampler2D));
+                    }
+                    {
+                        auto desc = GHTexture2D::Desc::create(windowSize.x, windowSize.y, 1, PF_RGB16F);
+                        GHSampler2D sampler2D;
+                        sampler2D.setAddressingModeX(SAMPLER2D_AM_CLAMP);
+                        sampler2D.setAddressingModeY(SAMPLER2D_AM_CLAMP);
+                        m_rayMarchingOutTexture = std::move(GHTexture2D::create(desc, sampler2D));
+                        m_prevFrameRayMarchingAOTexture = std::move(GHTexture2D::create(desc, sampler2D));
+                    }
+                    {
+                        auto desc = GHTexture2D::Desc::create(windowSize.x, windowSize.y, 1, PF_RGB32F);
+                        GHSampler2D sampler2D;
+                        sampler2D.setAddressingModeX(SAMPLER2D_AM_CLAMP);
+                        sampler2D.setAddressingModeY(SAMPLER2D_AM_CLAMP);
+                        m_temporalReservoirDirection = std::move(GHTexture2D::create(desc, sampler2D));
+                        m_prevFrameTemporalReservoirDirection = std::move(GHTexture2D::create(desc, sampler2D));
+                    }
+                    {
+                        auto desc = GHTexture2D::Desc::create(windowSize.x, windowSize.y, 1, PF_RGBA32F);
+                        GHSampler2D sampler2D;
+                        sampler2D.setAddressingModeX(SAMPLER2D_AM_CLAMP);
+                        sampler2D.setAddressingModeY(SAMPLER2D_AM_CLAMP);
+                        m_temporalReservoirWSumMWT = std::move(GHTexture2D::create(desc, sampler2D));
+                        m_prevFrameTemporalReservoirWSumMWT = std::move(GHTexture2D::create(desc, sampler2D));
+                    }
                 }
         });
     }

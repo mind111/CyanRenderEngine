@@ -138,7 +138,7 @@ namespace Cyan
         GHSampler2D m_defaultSampler;
     };
 
-    class GHDepthTexture : public GHTexture2D
+    class GFX_API GHDepthTexture : public GHTexture2D
     {
     public:
         struct Desc

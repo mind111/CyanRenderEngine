@@ -27,6 +27,11 @@ namespace Cyan
     {
     }
 
+    void App::render()
+    {
+
+    }
+
     void App::customInitialize(World* world)
     {
 

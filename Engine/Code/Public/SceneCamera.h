@@ -55,18 +55,12 @@ namespace Cyan
 
         void turnOn() { bPower = true; }
         void turnOff() { bPower = false; }
-
-#if 0
-        void onRenderStart();
-        void render(IScene* scene);
-        void onRenderFinish();
-        void updateSceneViewInfo();
-#endif
+        void incrementFrameCount() { m_numRenderedFrames++; }
 
     private:
         CameraViewInfo m_cameraViewInfo;
         bool bPower = true;
-        u32 m_numRenderedFrames = 0u;
+        i32 m_numRenderedFrames = -1;
         f32 m_elapsedTime = 0.f;
         f32 m_deltaTime = 0.f;
         glm::uvec2 m_resolution;

@@ -30,12 +30,14 @@ namespace Cyan
         // textures
         virtual std::unique_ptr<GHDepthTexture> createDepthTexture(const GHDepthTexture::Desc& desc) override;
         virtual std::unique_ptr<GHTexture2D> createTexture2D(const GHTexture2D::Desc& desc, const GHSampler2D& sampler2D) override;
+        virtual std::unique_ptr<GHRWBuffer> createRWBuffer(u32 sizeInBytes) override;
         // static mesh
         virtual std::unique_ptr<GfxStaticSubMesh> createGfxStaticSubMesh(Geometry* geometry) override;
         virtual void setGeometryMode(const GeometryMode& mode) override;
         // draw
         virtual void drawArrays(u32 numVertices) override;
         virtual void drawIndices(u32 numIndices) override;
+        virtual void dispatchCompute(i32 x, i32 y, i32 z) override;
 
         virtual void enableDepthTest() override;
         virtual void disableDepthTest() override;

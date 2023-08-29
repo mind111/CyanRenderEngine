@@ -101,6 +101,11 @@ namespace Cyan
         m_GHCtx->drawArrays(numVertices);
     }
 
+    void GfxContext::dispatchCompute(ComputePipeline* cp, i32 threadGroupSizeX, i32 threadGroupSizeY, i32 threadGroupSizeZ)
+    {
+        m_GHCtx->dispatchCompute(threadGroupSizeX, threadGroupSizeY, threadGroupSizeZ);
+    }
+
     std::unique_ptr<GfxStaticSubMesh> GfxContext::createGfxStaticSubMesh(Geometry* geometry)
     {
         return m_GHCtx->createGfxStaticSubMesh(geometry);

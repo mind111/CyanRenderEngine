@@ -26,7 +26,7 @@ uniform float aspectRatio;
 uniform ivec2 renderResolution;
 uniform int maxNumRayMarchingSteps;
 uniform vec3 u_albedo;
-uniform mat4 heightFieldTransformMatrix;
+uniform mat4 u_heightFieldTransformMatrix;
 
 uniform float u_snowBlendMin;
 uniform float u_snowBlendMax;
@@ -49,22 +49,22 @@ bool intersectHeightFieldLocalSpaceAABB(vec3 ro, vec3 rd, inout float t0, inout 
 	vec3 pmax = vec3( 1.f, 1.f,  1.f);
 	t0 = -1.f / 0.f, t1 = 1.f / 0.f;
 
-	float txmin = (pmin.x - ro.x) / rd.x;
-	float txmax = (pmax.x - ro.x) / rd.x;
+	float txmin = (rd.x == 0.f) ? -1e10 : (pmin.x - ro.x) / rd.x;
+	float txmax = (rd.x == 0.f) ?  1e10 : (pmax.x - ro.x) / rd.x;
 	float tx0 = min(txmin, txmax);
 	float tx1 = max(txmin, txmax);
 	t0 = max(tx0, t0);
 	t1 = min(tx1, t1);
 
-	float tymin = (pmin.y - ro.y) / rd.y;
-	float tymax = (pmax.y - ro.y) / rd.y;
+	float tymin = (rd.y == 0.f) ? -1e10 : (pmin.y - ro.y) / rd.y;
+	float tymax = (rd.y == 0.f) ?  1e10 : (pmax.y - ro.y) / rd.y;
 	float ty0 = min(tymin, tymax);
 	float ty1 = max(tymin, tymax);
 	t0 = max(ty0, t0);
 	t1 = min(ty1, t1);
 
-	float tzmin = (pmin.z - ro.z) / rd.z;
-	float tzmax = (pmax.z - ro.z) / rd.z;
+	float tzmin = (rd.z == 0.f) ? -1e10 : (pmin.z - ro.z) / rd.z;
+	float tzmax = (rd.z == 0.f) ?  1e10 : (pmax.z - ro.z) / rd.z;
 	float tz0 = min(tzmin, tzmax);
 	float tz1 = max(tzmin, tzmax);
 	t0 = max(tz0, t0);
@@ -169,9 +169,12 @@ struct HitRecord
 	bool bHit;
 	vec2 textureSpaceHit;
 	vec3 worldSpaceHit;
+	vec3 worldSpaceNormal;
 	int numMarchedSteps;
 	int layer;
 	float cloudOpacity;
+	int level;
+	vec3 debugColor;
 };
 
 vec3 transformPositionLocalSpaceToTextureSpace(vec3 p)
@@ -196,13 +199,10 @@ uniform int u_numMipLevels;
 // assumes that both p and d are in texture uv space 
 float calcIntersectionWithQuadTreeCell(vec2 p, vec2 d, float mip0TexelSize, int mipLevel)
 {
-	// offset the starting position slightly
-	const float kOffset = 0.0005f;
-	p += d * kOffset;
 
-	float t = 0.f;
+	float t = 1.f / 0.f;
 	float cellSize = mip0TexelSize * pow(2, mipLevel);
-	vec2 cellBottom = floor(p / cellSize);
+	vec2 cellBottom = floor(p / cellSize) * cellSize;
 	float left = cellBottom.x;
 	float right = cellBottom.x + cellSize;
 	float bottom = cellBottom.y;
@@ -213,15 +213,16 @@ float calcIntersectionWithQuadTreeCell(vec2 p, vec2 d, float mip0TexelSize, int 
 	float tTop = (top - p.y) / d.y;
 	float tBottom = (bottom - p.y) / d.y;
 
-	t = tLeft > 0.f ? max(tLeft, t) : t;
-	t = tRight > 0.f ? max(tRight, t) : t;
-	t = tBottom > 0.f ? max(tBottom, t) : t;
-	t = tTop > 0.f ? max(tTop, t) : t;
+	t = tLeft > 0.f ? min(tLeft, t) : t;
+	t = tRight > 0.f ? min(tRight, t) : t;
+	t = tBottom > 0.f ? min(tBottom, t) : t;
+	t = tTop > 0.f ? min(tTop, t) : t;
 
-	return (t + kOffset);
+	return t;
 }
 
-// todo: debug this trace procedure
+// todo: do a seperate pass to reconstruct normal from scene depth
+// todo: light pass with ao only
 HitRecord hierarchicalRayMarching(in vec3 localSpaceRo, in vec3 localSpaceRd)
 {
 	HitRecord outHitRecord;
@@ -237,28 +238,87 @@ HitRecord hierarchicalRayMarching(in vec3 localSpaceRo, in vec3 localSpaceRd)
 	if (intersectHeightFieldLocalSpaceAABB(localSpaceRo, localSpaceRd, t0, t1))
 	{
 		vec3 rayEntry = localSpaceRo + t0 * localSpaceRd;
+		vec3 rayExit = localSpaceRo + t1 * localSpaceRd;
 
-		const int maxNumTraceSteps = 64;
+		const int maxNumTraceSteps = 128;
 
 		// convert ro, and rd to texture uv space
 		vec3 ro = transformPositionLocalSpaceToTextureSpace(rayEntry);
+		vec3 re = transformPositionLocalSpaceToTextureSpace(rayExit);
 		vec3 rd = transformDirectionLocalSpaceToTextureSpace(localSpaceRd);
 
-		float t = 0.f;
-		vec3 p = ro + t * rd;
-		outHitRecord.textureSpaceHit = p.xz;
+		/**
+		 * Parameterize the ray such that marched distance t is always within range [0.f, 1.f], when t = 0.f, 
+		 * rayHeight is either 0 or 1, when t = 1, rayHeight is also either 0 or 1
+		 */ 
+		float t = 0.f, tMax = 0.f;
+		if (rd.y > 0.f)
+		{
+			rd /= abs(rd.y); 
+			float tStart = ro.y;
+			tMax = re.y - tStart;
+		}
+		else if (rd.y < 0.f) 
+		{
+			rd /= abs(rd.y);
+			float tStart = 1.f - ro.y;
+			tMax = (1.f - re.y) - tStart;
+		}
+		else
+		{
+			tMax = t1 - t0;
+		}
 
-		int startLevel = u_numMipLevels / 2;
+		vec3 p = ro + t * rd;
+
+		int startLevel = rd.y >= 0.f ? 1 : (u_numMipLevels - 1);
 		int currentLevel = startLevel;
 		for (int i = 0; i < maxNumTraceSteps; ++i)
 		{
-			if (currentLevel <= 0)
+			// stop marching if we find a good enough hit
+			if (currentLevel < 0)
 			{
 				outHitRecord.bHit = true;
-				outHitRecord.textureSpaceHit = p.xz;
 
-				vec3 localSpaceHitPosition = p.xyz * 2.f + vec3(-1.f, 0.f, 1.f);
-				vec3 worldSpaceHitPosition = (heightFieldTransformMatrix * vec4(localSpaceHitPosition, 1.f)).xyz;
+				/**
+				 * when a hit is found, the ray will always stop at the texel edge, need to 
+				 * snap it to texel center to get correct height, and march a small step to
+				 * reach the height plane to find xz 
+				 */
+				vec3 textureSpaceHit = p;
+				textureSpaceHit.xz = (floor(textureSpaceHit.xz / mip0TexelSize) + .5f) * mip0TexelSize;
+				ivec2 mip0Size = textureSize(u_heightFieldQuadTreeTexture, 0).xy;
+				ivec2 texCoordi = ivec2(floor(textureSpaceHit.xz * mip0Size));
+				float sceneHeightAtHit = texelFetch(u_heightFieldQuadTreeTexture, texCoordi, 0).r;
+				textureSpaceHit.y = sceneHeightAtHit;
+
+				// backoff the ray to cell boundary
+				const float kOffset = 0.0001f;
+				p += -kOffset / length(rd) * rd;
+
+				float tHeight = p.y - sceneHeightAtHit;
+				// keep marching till the ray hit height plane
+				if (tHeight > 0.f)
+				{
+					textureSpaceHit = p + tHeight * rd;
+					outHitRecord.debugColor = vec3(0.f, 1.f, 0.f);
+					outHitRecord.worldSpaceNormal = vec3(0.f, 1.f, 0.f);
+				}
+				// the ray hit the side
+				else
+				{
+					textureSpaceHit = p;
+					outHitRecord.debugColor = vec3(1.f, 0.f, 0.f);
+					outHitRecord.worldSpaceNormal = vec3(1.f, 0.f, 0.f);
+				}
+
+				outHitRecord.textureSpaceHit = textureSpaceHit.xz;
+
+				vec3 localSpaceHitPosition;
+				localSpaceHitPosition.xz = vec2(textureSpaceHit.x, -textureSpaceHit.z) * 2.f + vec2(-1.f, 1.f);
+				localSpaceHitPosition.y = textureSpaceHit.y;
+
+				vec3 worldSpaceHitPosition = (u_heightFieldTransformMatrix * vec4(localSpaceHitPosition, 1.f)).xyz;
 				outHitRecord.worldSpaceHit = worldSpaceHitPosition;
 				outHitRecord.numMarchedSteps = i;
 				outHitRecord.layer = SNOW_LAYER;  
@@ -266,26 +326,46 @@ HitRecord hierarchicalRayMarching(in vec3 localSpaceRo, in vec3 localSpaceRd)
 				break;
 			}
 
+			// stop marching when the ray is exiting the height field AABB, no hit is found
+			if (t >= tMax) break;
+
 			p = ro + t * rd;
+
 			float rayHeight = p.y;
-			float cellBoundryT = calcIntersectionWithQuadTreeCell(p.xz, rd.xz, mip0TexelSize, currentLevel);
-			ivec2 texCoordi = ivec2(floor(p.xz * textureSize(u_heightFieldQuadTreeTexture, currentLevel)));
+			float tCell = calcIntersectionWithQuadTreeCell(p.xz, rd.xz, mip0TexelSize, currentLevel);
+			ivec2 mipLevelSize = textureSize(u_heightFieldQuadTreeTexture, currentLevel).xy;
+			ivec2 texCoordi = ivec2(floor(p.xz * mipLevelSize));
 			float sceneHeight = texelFetch(u_heightFieldQuadTreeTexture, texCoordi, currentLevel).r;
-			float heightT = rayHeight - sceneHeight;
-			if (cellBoundryT <= heightT)
+			float tHeight = (sceneHeight - rayHeight) / rd.y;
+			tHeight = tHeight < 0.f ? 1.f / 0.f : tHeight;
+			if (rayHeight > sceneHeight && tCell <= tHeight)
 			{
 				// go up a level to perform coarser trace 
-				t += cellBoundryT;
+				t += tCell;
 				currentLevel += 1;
 				currentLevel = min(currentLevel, u_numMipLevels);
+
+				/**
+				 * This offset is important as it helps the calculation of intersection with quadtree 
+				 * cell boundary as well as using correct tex coordinate to sample the height quadtree.
+				 * It avoids having the ray getting stuck at quadtree cell boundary.
+				 * Bumping the ray with a small offset here works and it's a easy way to work around the
+				 * issues brought by having the ray stuck at the quadtree cell boundry, but need 
+				 * some trial-and-error to find the right value to use or else artifacts may appear.
+				 */
+				// offset the ray slightly to avoid it stopping on the quadtree cell boundary
+				const float kOffset = 0.0001f; // offset constant in uv space
+				// take the length of parameterized rd into consideration, 0.0001 in uv space can be a tiny offset for rd
+				// if length(rd) is large
+				t += kOffset / length(rd);
 			}
 			else
 			{
 				// go down a level to perform more detailed trace
 				currentLevel -= 1;
-				currentLevel = max(currentLevel, 0);
 			}
 			outHitRecord.numMarchedSteps += 1;
+			outHitRecord.level = currentLevel;
 		}
 	}
 
@@ -358,7 +438,7 @@ HitRecord linearRayMarchingHeightField(in vec3 localSpaceRo, in vec3 localSpaceR
 				}
 
 				vec3 localSpaceHitPosition = rayEntry + localSpaceRd * t;
-				vec3 worldSpaceHitPosition = (heightFieldTransformMatrix * vec4(localSpaceHitPosition, 1.f)).xyz;
+				vec3 worldSpaceHitPosition = (u_heightFieldTransformMatrix * vec4(localSpaceHitPosition, 1.f)).xyz;
 
 				outHitRecord.bHit = true;
 				outHitRecord.textureSpaceHit = uv;
@@ -385,18 +465,6 @@ float calcDirectShadow(vec3 localSpaceRo, vec3 localSpaceRd)
 	shadow = hitRecord.bHit ? 0.f : 1.f;
 	return shadow;
 }
-
-#if 0
-float calcAo(in sampler2D heightMapTex, in vec3 worldSpaceNormal)
-{
-	float ao = 1.f;
-	const float numSamples = 16;
-	for ()
-	{
-	}
-	return ao;
-}
-#endif
 
 const vec3 sunDir = normalize(vec3(-2.f, 0.5f, -2.f));
 const vec3 sunColor = vec3(1.f, 0.5f, 0.25f) * 1.f;
@@ -477,52 +545,64 @@ vec3 uniformSampleHemisphere(vec3 n)
 	return normalize(sphericalToCartesian(theta, phi, n));
 }
 
-vec3 calcDirectSkyLight(vec3 localSpacePosition, vec3 localSpaceNormal)
+float calcAO(vec3 localSpacePosition, vec3 localSpaceNormal)
 {
-	const int numSamples = 8;
-	vec3 outColor = vec3(0.f);
-	vec3 ro = localSpacePosition + localSpaceNormal * 0.01f;
+	float outAO = 0.f;
+	const float numSamples = 16;
+	vec3 ro = localSpacePosition + localSpaceNormal * 0.002f;
 	for (int i = 0; i < numSamples; ++i)
 	{
 		vec3 rd = uniformSampleHemisphere(localSpaceNormal);
-		HitRecord hitRecord = linearRayMarchingHeightField(ro, rd);
+		HitRecord hitRecord = hierarchicalRayMarching(ro, rd);
 		if (!hitRecord.bHit) 
 		{
-			outColor += calcSkyColor(rd) * max(dot(rd, localSpaceNormal), 0.f);
+			outAO += max(dot(rd, localSpaceNormal), 0.f);
 		}
 	}
-	outColor /= float(numSamples);
-	return outColor;
+	outAO /= float(numSamples);
+	return outAO;
+}
+
+
+vec3 calcDirectSkyLight(vec3 localSpacePosition, vec3 localSpaceNormal)
+{
+	const int numSamples = 8;
+	vec3 color = vec3(0.f);
+	vec3 ro = localSpacePosition + localSpaceNormal * 0.005f;
+	for (int i = 0; i < numSamples; ++i)
+	{
+		vec3 rd = uniformSampleHemisphere(localSpaceNormal);
+		// HitRecord hitRecord = linearRayMarchingHeightField(ro, rd);
+		HitRecord hitRecord = hierarchicalRayMarching(ro, rd);
+		if (!hitRecord.bHit) 
+		{
+			color += calcSkyColor(rd) * max(dot(rd, localSpaceNormal), 0.f);
+		}
+	}
+	color /= float(numSamples);
+	return color;
 }
 
 vec3 shadeHeightField(vec3 localSpaceRo, vec3 localSpaceRd)
 {
 	// vec3 color = backgroundColor();
-	vec3 worldSpaceRd = normalize((heightFieldTransformMatrix * vec4(localSpaceRd, 0.f)).xyz);
+	vec3 worldSpaceRd = normalize((u_heightFieldTransformMatrix * vec4(localSpaceRd, 0.f)).xyz);
 	vec3 color = calcSkyColor(worldSpaceRd);
 	// HitRecord hitRecord = linearRayMarchingHeightField(localSpaceRo, localSpaceRd);
 	HitRecord hitRecord = hierarchicalRayMarching(localSpaceRo, localSpaceRd);
 	if (hitRecord.bHit)
 	{
-		vec2 uv = hitRecord.textureSpaceHit;
-		vec3 n = texture(u_compositedNormalMap, uv).rgb * 2.f - 1.f;
-
-		vec3 worldSpaceShadowRayRo = hitRecord.worldSpaceHit + n * 0.05f;
-		vec3 localSpaceShadowRayRo = (inverse(heightFieldTransformMatrix) * vec4(worldSpaceShadowRayRo, 1.f)).xyz;
-		vec3 localSpaceShadowRayRd = (inverse(heightFieldTransformMatrix) * vec4(sunDir, 0.f)).xyz;
-		float shadow = calcDirectShadow(localSpaceShadowRayRo, localSpaceShadowRayRd);
-		float shadowRayT0, shadowRayT1;
-		intersectHeightFieldLocalSpaceAABB(localSpaceShadowRayRo, localSpaceShadowRayRd, shadowRayT0, shadowRayT1);
-
 		vec3 worldSpacePosition = hitRecord.worldSpaceHit;
-		vec3 worldSpaceNormal = n;
-		vec3 localSpacePosition = (inverse(heightFieldTransformMatrix) * vec4(worldSpacePosition, 1.f)).xyz;
-		vec3 localSpaceNormal = n;
+		vec3 worldSpaceNormal = hitRecord.worldSpaceNormal;
+		vec3 localSpacePosition = (inverse(u_heightFieldTransformMatrix) * vec4(worldSpacePosition, 1.f)).xyz;
+		vec3 localSpaceNormal = hitRecord.worldSpaceNormal;
 
 		vec3 albedo = calcHeightFieldAlbedo(localSpacePosition, localSpaceNormal, hitRecord.layer);
-		// color = max(dot(n, sunDir), 0.f) * albedo * sunColor * shadow;
-		color = vec3(hitRecord.numMarchedSteps);
+		// color = max(dot(n, sunDir), 0.f) * albedo * sunColor * 1.f;
 		// color += calcDirectSkyLight(localSpacePosition, localSpaceNormal) * albedo;
+		color = vec3(calcAO(localSpacePosition, localSpaceNormal));
+		// color = vec3(localSpacePosition);
+		// color = hitRecord.debugColor;
 
 		vec4 clipSpacePos = projectionMatrix * viewMatrix * vec4(worldSpacePosition, 1.f);
 		clipSpacePos /= clipSpacePos.w;
@@ -560,7 +640,7 @@ void main()
 	vec3 rd = normalize(p - cameraPosition);
 
 	// transform the view ray from world space to height field's local space
-	mat4 worldToHeightFieldLocal = inverse(heightFieldTransformMatrix);
+	mat4 worldToHeightFieldLocal = inverse(u_heightFieldTransformMatrix);
 	vec3 localSpaceRo = (worldToHeightFieldLocal * vec4(ro, 1.f)).xyz;
 	vec3 localSpaceRd = (worldToHeightFieldLocal * vec4(rd, 0.f)).xyz;
 

@@ -280,6 +280,35 @@ namespace Cyan
         );
     }
 
+    GFX_API void RenderingUtils::copyDepthTexture(GHDepthTexture* dstTexture, GHDepthTexture* srcTexture)
+    {
+        GPU_DEBUG_SCOPE(marker, "CopyDepthTexture")
+
+        const auto& srcDesc = srcTexture->getDesc();
+        const auto& dstDesc = dstTexture->getDesc();
+
+        assert(srcDesc.width == dstDesc.width && srcDesc.height == dstDesc.height);
+
+        bool found = false;
+        auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "ScreenPassVS", ENGINE_SHADER_PATH "screen_pass_v.glsl");
+        auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "BlitDepthTexturePS", ENGINE_SHADER_PATH "blit_depth_texture_p.glsl");
+        auto gfxp = ShaderManager::findOrCreateGfxPipeline(found, vs, ps);
+
+        const auto& desc = dstTexture->getDesc();
+        renderScreenPass(
+            glm::uvec2(desc.width, desc.height),
+            [dstTexture](RenderPass& rp) {
+                DepthTarget dt(dstTexture);
+                rp.setDepthTarget(dt);
+            },
+            gfxp.get(),
+            [srcTexture](GfxPipeline* p) {
+                p->setTexture("srcDepthTexture", srcTexture);
+            },
+            true
+        );
+    }
+
     void RenderingUtils::renderToBackBuffer(GHTexture2D* srcTexture)
     {
         GfxModule* gfxModule = GfxModule::get();
@@ -325,6 +354,14 @@ namespace Cyan
         rp.setViewport(viewport.x, viewport.y, viewport.width, viewport.height);
         rp.disableDepthTest();
         rp.render(GfxContext::get());
+    }
+
+    GFX_API void RenderingUtils::dispatchComputePass(ComputePipeline* cp, std::function<void(ComputePipeline*)>&& passLambda, i32 threadGroupSizeX, i32 threadGroupSizeY, i32 threadGroupSizeZ)
+    {
+        cp->bind();
+        passLambda(cp);
+        GfxContext::get()->dispatchCompute(cp, threadGroupSizeX, threadGroupSizeY, threadGroupSizeZ);
+        cp->unbind();
     }
 
     GFX_API void RenderingUtils::drawWorldSpacePoint(GHTexture2D* dstTexture, GHDepthTexture* depthTexture, const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix, const glm::vec3& p, const glm::vec4& color)

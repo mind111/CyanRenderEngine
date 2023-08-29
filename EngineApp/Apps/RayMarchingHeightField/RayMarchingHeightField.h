@@ -7,6 +7,7 @@
 namespace Cyan
 {
     class GHTexture2D;
+    class GHDepthTexture;
     class Texture2D;
 
     class RayMarchingHeightFieldApp : public App
@@ -16,6 +17,7 @@ namespace Cyan
         ~RayMarchingHeightFieldApp();
 
         virtual void update(World* world) override;
+        virtual void render() override;
     protected:
         virtual void customInitialize(World* world) override;
     private:
@@ -33,6 +35,17 @@ namespace Cyan
         std::unique_ptr<GHTexture2D> m_cpuHeightMap = nullptr;
         std::unique_ptr<GHTexture2D> m_cpuNormalMap = nullptr;
 #endif
+        std::unique_ptr<GHDepthTexture> m_rayMarchingDepthTexture = nullptr;
+        std::unique_ptr<GHTexture2D> m_rayMarchingNormalTexture = nullptr;
+        std::unique_ptr<GHDepthTexture> m_prevFrameRayMarchingDepthTexture = nullptr;
+
         std::unique_ptr<GHTexture2D> m_rayMarchingOutTexture = nullptr;
+        std::unique_ptr<GHTexture2D> m_prevFrameRayMarchingAOTexture = nullptr;
+
+        std::unique_ptr<GHTexture2D> m_prevFrameTemporalReservoirDirection = nullptr;
+        std::unique_ptr<GHTexture2D> m_prevFrameTemporalReservoirWSumMWT = nullptr;
+
+        std::unique_ptr<GHTexture2D> m_temporalReservoirDirection = nullptr;
+        std::unique_ptr<GHTexture2D> m_temporalReservoirWSumMWT = nullptr;
     };
 }

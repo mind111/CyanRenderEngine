@@ -62,11 +62,11 @@ float simplexNoise2D( vec2 v)
 	return 130.0 * dot(m, g);
 }
 
-uniform float amplitude;
-uniform float frequency;
-uniform float persistence;
-uniform int numOctaves;
-uniform float octaveRotationAngles[16];
+uniform float u_amplitude;
+uniform float u_frequency;
+uniform float u_persistence;
+uniform int u_numOctaves;
+uniform float u_octaveRotationAngles[16];
 
 uniform float u_snowBlendMin;
 uniform float u_snowBlendMax;
@@ -87,7 +87,7 @@ float noise2D(vec2 p, float amplitude, float frequency, int numOctaves, float pe
 	float maxValue = 0.f;
 	for (int i = 0; i < numOctaves; ++i) 
 	{
-		float angle = octaveRotationAngles[i];
+		float angle = u_octaveRotationAngles[i];
 		mat2 octaveRotationMat = {
 			{ cos(angle), sin(angle) },
 			{ -sin(angle), cos(angle) }
@@ -105,7 +105,7 @@ uniform float snowHeightBias;
 
 float calcBaseLayerHeight(vec2 coord)
 {
-	return noise2D(coord, amplitude, frequency, numOctaves, persistence);
+	return noise2D(coord, u_amplitude, u_frequency, u_numOctaves, u_persistence);
 }
 
 float calcSnowLayerHeight(vec2 coord)

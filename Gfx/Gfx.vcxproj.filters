@@ -71,6 +71,7 @@
     <None Include="Shader\ssgi_ao_p.glsl" />
     <None Include="Shader\worldspace_line_v.glsl" />
     <None Include="Shader\vertexcolor_p.glsl" />
+    <None Include="Shader\blit_depth_texture_p.glsl" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Texture\Noise\BN_16x16_R_0.png" />

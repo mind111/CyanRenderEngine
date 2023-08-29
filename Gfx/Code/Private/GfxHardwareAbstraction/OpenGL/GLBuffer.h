@@ -46,4 +46,23 @@ namespace Cyan
         GLVertexBuffer* m_vb = nullptr;
         GLIndexBuffer* m_ib = nullptr;
     };
+
+#define INVALID_SHADER_STORAGE_UNIT -1
+    class GLShaderStorageBuffer : public GLObject, public GHRWBuffer
+    {
+    public:
+        GLShaderStorageBuffer(u32 inSizeInBytes);
+        virtual ~GLShaderStorageBuffer();
+
+        virtual void bind() override;
+        virtual void unbind() override;
+        virtual void read(void* dst, u32 dstOffset, u32 srcOffset, u32 bytesToRead) override;
+        virtual void write(void* src, u32 srcOffset, u32 dstOffset, u32 bytesToWrite) override;
+
+        bool isBound() { return m_boundUnit > INVALID_SHADER_STORAGE_UNIT; }
+
+    private:
+        u32 m_sizeInBytes = 0;
+        i32 m_boundUnit = INVALID_SHADER_STORAGE_UNIT;
+    };
 }

@@ -84,7 +84,7 @@ namespace Cyan
             glm::vec3 cameraRight;
             glm::vec3 cameraForward;
             glm::vec3 cameraUp;
-            i32 frameCount;
+            i32 frameCount = -1;
             f32 elapsedTime;
             f32 deltaTime;
         };

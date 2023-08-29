@@ -88,6 +88,7 @@
     <ClCompile Include="Code\Public\ShadowMaps.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Shader\blit_depth_texture_p.glsl" />
     <None Include="Shader\blit_texture_p.glsl" />
     <None Include="Shader\depth_p.glsl" />
     <None Include="Shader\scene_direct_lighting_p.glsl" />

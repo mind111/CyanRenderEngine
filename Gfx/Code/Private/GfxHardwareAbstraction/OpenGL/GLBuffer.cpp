@@ -119,4 +119,95 @@ namespace Cyan
     {
         glBindVertexArray(0);
     }
+
+    GLShaderStorageBuffer::GLShaderStorageBuffer(u32 sizeInBytes)
+        : GLObject()
+        , m_sizeInBytes(sizeInBytes)
+    {
+        glCreateBuffers(1, &m_name);
+        // todo: the usage hint should be configurable
+        glNamedBufferData(m_name, sizeInBytes, nullptr, GL_DYNAMIC_COPY);
+    }
+
+    GLShaderStorageBuffer::~GLShaderStorageBuffer()
+    {
+
+    }
+
+    static constexpr i32 kNumShaderStorageBindings = 16;
+    static std::queue<i32> s_freeShaderStorageUnits;
+    static std::array<GLShaderStorageBuffer*, kNumShaderStorageBindings> s_shaderStorageBindings;
+
+    static i32 allocShaderStorageUnit()
+    {
+        static bool bInitialized = false;
+        if (!bInitialized)
+        {
+            for (i32 unit = 0; unit < kNumShaderStorageBindings; ++unit)
+            {
+                s_shaderStorageBindings[unit] = nullptr;
+                s_freeShaderStorageUnits.push(unit);
+            }
+            bInitialized = true;
+        }
+
+        if (!s_freeShaderStorageUnits.empty())
+        {
+            i32 unit = s_freeShaderStorageUnits.front();
+            s_freeShaderStorageUnits.pop();
+            assert(s_shaderStorageBindings[unit] == nullptr);
+            return unit;
+        }
+        else
+        {
+            assert(0); // unreachable
+            return -1;
+        }
+    }
+
+    static void releaseShaderStorageUnit(i32 shaderStorageUnit)
+    {
+        auto boundBuffer = s_shaderStorageBindings[shaderStorageUnit];
+        assert(boundBuffer != nullptr);
+        s_shaderStorageBindings[shaderStorageUnit] = nullptr;
+        s_freeShaderStorageUnits.push(shaderStorageUnit);
+    }
+
+    void GLShaderStorageBuffer::bind()
+    {
+        if (!isBound())
+        {
+            i32 shaderStorageUnit = allocShaderStorageUnit();
+            if (shaderStorageUnit >= 0)
+            {
+                glBindBufferBase(GL_SHADER_STORAGE_BUFFER, shaderStorageUnit, getName());
+                m_boundUnit = shaderStorageUnit;
+                s_shaderStorageBindings[shaderStorageUnit] = this;
+            }
+        }
+    }
+
+    void GLShaderStorageBuffer::unbind()
+    {
+        if (isBound())
+        {
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, m_boundUnit, 0);
+            releaseShaderStorageUnit(m_boundUnit);
+            m_boundUnit = INVALID_SHADER_STORAGE_UNIT;
+        }
+    }
+
+    void GLShaderStorageBuffer::read(void* dst, u32 dstOffset, u32 srcOffset, u32 bytesToRead)
+    {
+        assert(dst != nullptr);
+        assert((srcOffset + bytesToRead) <= m_sizeInBytes);
+        glGetNamedBufferSubData(getName(), srcOffset, bytesToRead, (u8*)dst + dstOffset);
+    }
+
+    void GLShaderStorageBuffer::write(void* src, u32 srcOffset, u32 dstOffset, u32 bytesToWrite)
+    {
+        assert(src != nullptr);
+        assert((dstOffset + bytesToWrite) <= m_sizeInBytes);
+        glNamedBufferSubData(getName(), dstOffset, bytesToWrite, (u8*)src + srcOffset);
+    }
 }

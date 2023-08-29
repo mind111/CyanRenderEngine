@@ -36,6 +36,8 @@ namespace Cyan
         void setGeometryMode(const GeometryMode& mode);
         void drawArrays(u32 numVertices);
 
+        void dispatchCompute(ComputePipeline* cp, i32 threadGroupSizeX, i32 threadGroupSizeY, i32 threadGroupSizeZ);
+
         std::unique_ptr<GfxStaticSubMesh> createGfxStaticSubMesh(Geometry* geometry);
 
     private:

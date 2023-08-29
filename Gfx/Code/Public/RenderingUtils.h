@@ -55,6 +55,7 @@ namespace Cyan
 
         GFX_API static void renderScreenPass(const glm::uvec2& renderResolution, const RenderTargetSetupFunc& renderTargetSetupFunc, GfxPipeline* p, ShaderSetupFunc& shaderSetupFunc, bool bDepthTest = false);
         GFX_API static void copyTexture(GHTexture2D* dstTexture, u32 dstMip, GHTexture2D* srcTexture, u32 srcMip);
+        GFX_API static void copyDepthTexture(GHDepthTexture* dstTexture, GHDepthTexture* srcTexture);
 
         // debug drawing helpers
         GFX_API static void drawWorldSpacePoint(GHTexture2D* dstTexture, GHDepthTexture* depthTexture, const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix, const glm::vec3& p, const glm::vec4& color);
@@ -65,6 +66,8 @@ namespace Cyan
          */
         GFX_API static void renderToBackBuffer(GHTexture2D* srcTexture);
         GFX_API static void renderToBackBuffer(GHTexture2D* srcTexture, const Viewport& viewport);
+
+        GFX_API static void dispatchComputePass(ComputePipeline* cp, std::function<void(ComputePipeline*)>&& passLambda, i32 threadGroupSizeX, i32 threadGroupSizeY, i32 threadGroupSizeZ);
     private:
         RenderingUtils();
 
