@@ -1,5 +1,6 @@
 # folders to ignore
 .git/
+.vs/
 asset/
 x64/
 CyanApp/x64
@@ -15,3 +16,12 @@ TexturePacking/x64
 TexturePacking/imgui.ini
 CpuRaytracer/x64
 CpuRaytracer/imgui.ini
+Core/x64
+Engine/x64
+Engine/Resources
+EngineApp/x64
+EngineApp/Apps/Demo/Resources
+EngineApp/Apps/ParallaxOcclusionMapping/Resources
+Gfx/x64
+ThirdParty/x64
+scene/

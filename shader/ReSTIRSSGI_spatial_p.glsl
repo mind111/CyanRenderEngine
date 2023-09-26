@@ -335,7 +335,7 @@ void main()
 		float b = dot(x1qx2q, x1qx2q) / max(dot(x1rx2q, x1rx2q), 1e-4);
 		float jacobian = a * b;
 
-		mergeReservoir(r, rn, jacobian);
+		mergeReservoir(r, rn, 1.f);
     }
 
 	outReservoirRadiance = r.z.radiance;

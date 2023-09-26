@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="EngineApp.cpp" />
+    <ClCompile Include="Apps\RayMarchingHeightField\RayMarchingHeightField.cpp" />
+    <ClCompile Include="Apps\Demo\DemoApp.cpp" />
+    <ClCompile Include="Apps\SimpleParticles\SimpleParticles.cpp" />
+    <ClCompile Include="Apps\ParallaxOcclusionMapping\ParallaxOcclusionMapping.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Apps\RayMarchingHeightField\RayMarchingHeightField.h" />
+    <ClInclude Include="Apps\Demo\DemoApp.h" />
+    <ClInclude Include="Apps\RayMarchingHeightField\Shader\restir_ao_debug_ray_c.glsl" />
+    <ClInclude Include="Apps\SimpleParticles\SimpleParticles.h" />
+    <ClInclude Include="Apps\ParallaxOcclusionMapping\ParallaxOcclusionMapping.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Apps\RayMarchingHeightField\Resources\Scene.glb" />
+    <None Include="Apps\RayMarchingHeightField\Shader\raymarching_heightfield_p.glsl" />
+    <None Include="Apps\RayMarchingHeightField\Materials\M_RayMarchedHeightField_p.glsl" />
+    <None Include="Apps\RayMarchingHeightField\Shader\generate_heightfield_p.glsl" />
+    <None Include="Apps\RayMarchingHeightField\Shader\bake_heightfield_properties_p.glsl" />
+    <None Include="Apps\RayMarchingHeightField\Shader\build_heightfield_quadtree_p.glsl" />
+    <None Include="Apps\RayMarchingHeightField\Shader\hierarchical_raymarching_depth_p.glsl" />
+    <None Include="Apps\RayMarchingHeightField\Shader\hierarchical_raymarching_normal_p.glsl" />
+    <None Include="Apps\RayMarchingHeightField\Shader\hierarchical_raymarching_lighting_p.glsl" />
+    <None Include="Apps\RayMarchingHeightField\Shader\restir_ao_temporal_p.glsl" />
+    <None Include="Apps\RayMarchingHeightField\Shader\restir_ao_resolve_p.glsl" />
+    <None Include="Apps\RayMarchingHeightField\Shader\restir_ao_debug_p.glsl" />
+    <None Include="Apps\RayMarchingHeightField\Shader\debug_hierarchical_raymarching_c.glsl" />
+    <None Include="Apps\SimpleParticles\Shader\point_sprite_particle_p.glsl" />
+    <None Include="Apps\SimpleParticles\Shader\particle_p.glsl" />
+    <None Include="Apps\SimpleParticles\Shader\build_particle_sprite_p.glsl" />
+    <None Include="Apps\SimpleParticles\Shader\generate_bounding_cube_g.glsl" />
+    <None Include="Apps\SimpleParticles\Shader\cube_particle_p.glsl" />
+    <None Include="Apps\ParallaxOcclusionMapping\Resources\Materials\M_BrickWall_p.glsl" />
+    <None Include="Apps\ParallaxOcclusionMapping\Resources\Materials\M_SwimmingTile_p.glsl" />
+    <None Include="Apps\ParallaxOcclusionMapping\Resources\Materials\M_POM_p.glsl" />
+  </ItemGroup>
+</Project>

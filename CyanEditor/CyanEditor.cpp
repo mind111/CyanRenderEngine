@@ -111,7 +111,7 @@ namespace Cyan
 
             auto directionalLightEntity = m_world->createDirectionalLightEntity("DirectionalLight", Transform());
             auto directionalLightComponent = directionalLightEntity->getDirectionalLightComponent();
-            directionalLightComponent->setIntensity(20.f);
+            directionalLightComponent->setIntensity(2.f);
 
             auto skyLightEntity = m_world->createSkyLightEntity("SkyLightEntity", Transform());
             auto skyLightComponent = skyLightEntity->getSkyLightComponent();

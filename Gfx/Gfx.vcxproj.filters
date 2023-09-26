@@ -1,0 +1,116 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLBuffer.h" />
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\GHInterface\GHBuffer.h" />
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\GHInterface\GHTexture.h" />
+    <ClInclude Include="Code\Public\Scene.h" />
+    <ClInclude Include="Code\Private\SceneRender.h" />
+    <ClInclude Include="Code\Private\SceneRenderer.h" />
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\GHInterface\GHShader.h" />
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\GHInterface\GHPipeline.h" />
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\GHInterface\GfxHardwareContext.h" />
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLContext.h" />
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLObject.h" />
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLShader.h" />
+    <ClInclude Include="Code\Public\GfxModule.h" />
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLPipeline.h" />
+    <ClInclude Include="Code\Public\Shader.h" />
+    <ClInclude Include="Code\Public\GfxContext.h" />
+    <ClInclude Include="Code\Public\RenderPass.h" />
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLTexture.h" />
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\GHInterface\GHFramebuffer.h" />
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLFramebuffer.h" />
+    <ClInclude Include="Code\Public\Gfx.h" />
+    <ClInclude Include="Code\Public\GfxStaticMesh.h" />
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLStaticMesh.h" />
+    <ClInclude Include="Code\Public\RenderingUtils.h" />
+    <ClInclude Include="Code\Public\LowLeveInputs.h" />
+    <ClInclude Include="Code\Public\GfxMaterial.h" />
+    <ClInclude Include="Code\Public\Lights.h" />
+    <ClInclude Include="Code\Public\SceneView.h" />
+    <ClInclude Include="Code\Public\ShadowMaps.h" />
+    <ClInclude Include="Code\Private\RenderTexture.h" />
+    <ClInclude Include="Code\Private\SSGI.h" />
+    <ClInclude Include="Code\Public\Skybox.h" />
+    <ClInclude Include="Shader\restir_indirect_diffuse_estimate_p.glsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Code\Private\GfxHardwareAbstraction\GHInterface\GHBuffer.cpp" />
+    <ClCompile Include="Code\Private\GfxHardwareAbstraction\GHInterface\GHTexture.cpp" />
+    <ClCompile Include="Code\Public\Scene.cpp" />
+    <ClCompile Include="Code\Private\SceneRenderer.cpp" />
+    <ClCompile Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLBuffer.cpp" />
+    <ClCompile Include="Code\Private\GfxHardwareAbstraction\GHInterface\GfxHardwareContext.cpp" />
+    <ClCompile Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLContext.cpp" />
+    <ClCompile Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLShader.cpp" />
+    <ClCompile Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLPipeline.cpp" />
+    <ClCompile Include="Code\Public\Shader.cpp" />
+    <ClCompile Include="Code\Public\GfxContext.cpp" />
+    <ClCompile Include="Code\Public\RenderPass.cpp" />
+    <ClCompile Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLTexture.cpp" />
+    <ClCompile Include="Code\Private\GfxHardwareAbstraction\GHInterface\GHFramebuffer.cpp" />
+    <ClCompile Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLFramebuffer.cpp" />
+    <ClCompile Include="Code\Public\GfxModule.cpp" />
+    <ClCompile Include="Code\Public\GfxStaticMesh.cpp" />
+    <ClCompile Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLStaticMesh.cpp" />
+    <ClCompile Include="Code\Private\SceneRender.cpp" />
+    <ClCompile Include="Code\Public\RenderingUtils.cpp" />
+    <ClCompile Include="Code\Public\GfxMaterial.cpp" />
+    <ClCompile Include="Code\Public\Lights.cpp" />
+    <ClCompile Include="Code\Public\SceneView.cpp" />
+    <ClCompile Include="Code\Public\ShadowMaps.cpp" />
+    <ClCompile Include="Code\Private\RenderTexture.cpp" />
+    <ClCompile Include="Code\Private\SSGI.cpp" />
+    <ClCompile Include="Code\Public\Skybox.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shader\blit_texture_p.glsl" />
+    <None Include="Shader\depth_p.glsl" />
+    <None Include="Shader\screen_pass_v.glsl" />
+    <None Include="Shader\static_mesh_v.glsl" />
+    <None Include="Shader\scene_direct_lighting_p.glsl" />
+    <None Include="Shader\tonemapping_p.glsl" />
+    <None Include="Shader\ssgi_ao_p.glsl" />
+    <None Include="Shader\worldspace_line_v.glsl" />
+    <None Include="Shader\vertexcolor_p.glsl" />
+    <None Include="Shader\blit_depth_texture_p.glsl" />
+    <None Include="Shader\worldspace_point_v.glsl" />
+    <None Include="Shader\build_skybox_v.glsl" />
+    <None Include="Shader\build_skybox_p.glsl" />
+    <None Include="Shader\render_skybox_v.glsl" />
+    <None Include="Shader\render_skybox_p.glsl" />
+    <None Include="Shader\build_irradiance_cubemap_p.glsl" />
+    <None Include="Shader\scene_direct_skylight_p.glsl" />
+    <None Include="Shader\build_reflection_cubemap_p.glsl" />
+    <None Include="Shader\integrate_BRDF_p.glsl" />
+    <None Include="Shader\integrate_BRDF_v.glsl" />
+    <None Include="Shader\combine_lighting_p.glsl" />
+    <None Include="Shader\gtao_p.glsl" />
+    <None Include="Shader\ssao_filtering_p.glsl" />
+    <None Include="Shader\hiz_downsample_p.glsl" />
+    <None Include="Shader\build_hiz_p.glsl" />
+    <None Include="Shader\ssgi_diffuse_naive_p.glsl" />
+    <None Include="Shader\ssgi_scene_color_p.glsl" />
+    <None Include="Shader\ssgi_combine_p.glsl" />
+    <None Include="Shader\naive_ssdo_p.glsl" />
+    <None Include="Shader\restir_ssdo_temporal_p.glsl" />
+    <None Include="Shader\restir_ssdo_estimate_p.glsl" />
+    <None Include="Shader\restir_ssdo_spatial_p.glsl" />
+    <None Include="Shader\restir_indirect_diffuse_temporal_p.glsl" />
+    <None Include="Shader\clear_texture_p.glsl" />
+    <None Include="Shader\restir_indirect_diffuse_spatial_p.glsl" />
+    <None Include="Shader\restir_indirect_diffuse_denoise_p.glsl" />
+    <None Include="Shader\restir_indirect_diffuse_composite_p.glsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Texture\Noise\BN_16x16_R_0.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_1.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_2.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_3.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_4.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_5.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_6.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_7.png" />
+  </ItemGroup>
+</Project>

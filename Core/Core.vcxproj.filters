@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClInclude Include="Code\Public\Bounds.h" />
+    <ClInclude Include="Code\Public\CameraViewInfo.h" />
+    <ClInclude Include="Code\Public\Core.h" />
+    <ClInclude Include="Code\Public\Geometry.h" />
+    <ClInclude Include="Code\Public\MathLibrary.h" />
+    <ClInclude Include="Code\Public\Transform.h" />
+    <ClInclude Include="Code\Public\Noise.h" />
+    <ClInclude Include="Code\Public\Color.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Code\Public\Transform.cpp" />
+    <ClCompile Include="Code\Public\Bounds.cpp" />
+    <ClCompile Include="Code\Public\MathLibrary.cpp" />
+    <ClCompile Include="Code\Public\CameraViewInfo.cpp" />
+    <ClCompile Include="Code\Public\Color.cpp" />
+  </ItemGroup>
+</Project>

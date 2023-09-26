@@ -1,0 +1,59 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClInclude Include="Code\Public\App.h" />
+    <ClInclude Include="Code\Public\Engine.h" />
+    <ClInclude Include="Code\Public\SceneCamera.h" />
+    <ClInclude Include="Code\Public\Component.h" />
+    <ClInclude Include="Code\Public\Entity.h" />
+    <ClInclude Include="Code\Public\GameFramework.h" />
+    <ClInclude Include="Code\Public\SceneComponent.h" />
+    <ClInclude Include="Code\Public\StaticMeshComponent.h" />
+    <ClInclude Include="Code\Public\StaticMeshEntity.h" />
+    <ClInclude Include="Code\Public\World.h" />
+    <ClInclude Include="Code\Public\StaticMesh.h" />
+    <ClInclude Include="Code\Public\AssetManager.h" />
+    <ClInclude Include="Code\Public\Asset.h" />
+    <ClInclude Include="Code\Private\gltf.h" />
+    <ClInclude Include="Code\Public\SceneCameraComponent.h" />
+    <ClInclude Include="Code\Public\SceneCameraEntity.h" />
+    <ClInclude Include="Code\Public\InputManager.h" />
+    <ClInclude Include="Code\Public\CameraControllerComponent.h" />
+    <ClInclude Include="Code\Public\Material.h" />
+    <ClInclude Include="Code\Public\Texture.h" />
+    <ClInclude Include="Code\Public\Image.h" />
+    <ClInclude Include="Code\Public\LightComponents.h" />
+    <ClInclude Include="Code\Public\LightEntities.h" />
+    <ClInclude Include="Code\Public\SkyboxEntity.h" />
+    <ClInclude Include="Code\Public\SkyboxComponent.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Code\Public\App.cpp" />
+    <ClCompile Include="Code\Public\Engine.cpp" />
+    <ClCompile Include="Code\Public\SceneCamera.cpp" />
+    <ClCompile Include="Code\Public\Component.cpp" />
+    <ClCompile Include="Code\Public\Entity.cpp" />
+    <ClCompile Include="Code\Public\SceneComponent.cpp" />
+    <ClCompile Include="Code\Public\StaticMeshComponent.cpp" />
+    <ClCompile Include="Code\Public\StaticMeshEntity.cpp" />
+    <ClCompile Include="Code\Public\World.cpp" />
+    <ClCompile Include="Code\Public\StaticMesh.cpp" />
+    <ClCompile Include="Code\Public\AssetManager.cpp" />
+    <ClCompile Include="Code\Private\gltf.cpp" />
+    <ClCompile Include="Code\Public\SceneCameraComponent.cpp" />
+    <ClCompile Include="Code\Public\SceneCameraEntity.cpp" />
+    <ClCompile Include="Code\Public\InputManager.cpp" />
+    <ClCompile Include="Code\Public\CameraControllerComponent.cpp" />
+    <ClCompile Include="Code\Public\Material.cpp" />
+    <ClCompile Include="Code\Public\Image.cpp" />
+    <ClCompile Include="Code\Public\Texture.cpp" />
+    <ClCompile Include="Code\Public\LightComponents.cpp" />
+    <ClCompile Include="Code\Public\LightEntities.cpp" />
+    <ClCompile Include="Code\Public\SkyboxEntity.cpp" />
+    <ClCompile Include="Code\Public\SkyboxComponent.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Material\M_Test_p.glsl" />
+    <None Include="Material\M_DefaultOpaque_p.glsl" />
+  </ItemGroup>
+</Project>

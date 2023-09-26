@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Core\Core.vcxproj">
+      <Project>{83f758df-eafb-4fcd-bd4f-f10457f04f08}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\ThirdParty\ThirdParty.vcxproj">
+      <Project>{6c78afaa-2c32-41fb-973d-932bf9dbaadf}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Code\Public\RenderPass.h" />
+    <ClInclude Include="Code\Private\RenderTexture.h" />
+    <ClInclude Include="Code\Private\SSGI.h" />
+    <ClInclude Include="Code\Public\GfxMaterial.h" />
+    <ClInclude Include="Code\Public\Lights.h" />
+    <ClInclude Include="Code\Public\LowLeveInputs.h" />
+    <ClInclude Include="Code\Public\RenderingUtils.h" />
+    <ClInclude Include="Code\Public\Scene.h" />
+    <ClInclude Include="Code\Private\SceneRender.h" />
+    <ClInclude Include="Code\Private\SceneRenderer.h" />
+    <ClInclude Include="Code\Public\Gfx.h" />
+    <ClInclude Include="Code\Public\GfxModule.h" />
+    <ClInclude Include="Code\Public\GfxStaticMesh.h" />
+    <ClInclude Include="Code\Public\GfxContext.h" />
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\GHInterface\GfxHardwareContext.h" />
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\GHInterface\GHBuffer.h" />
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\GHInterface\GHFramebuffer.h" />
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\GHInterface\GHPipeline.h" />
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\GHInterface\GHShader.h" />
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\GHInterface\GHTexture.h" />
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLBuffer.h" />
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLContext.h" />
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLFramebuffer.h" />
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLObject.h" />
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLPipeline.h" />
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLShader.h" />
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLStaticMesh.h" />
+    <ClInclude Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLTexture.h" />
+    <ClInclude Include="Code\Public\SceneView.h" />
+    <ClInclude Include="Code\Public\Shader.h" />
+    <ClInclude Include="Code\Public\ShadowMaps.h" />
+    <ClInclude Include="Code\Public\Skybox.h" />
+    <ClInclude Include="Shader\restir_indirect_diffuse_estimate_p.glsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Code\Public\RenderPass.cpp" />
+    <ClCompile Include="Code\Private\RenderTexture.cpp" />
+    <ClCompile Include="Code\Private\SceneRender.cpp" />
+    <ClCompile Include="Code\Private\SSGI.cpp" />
+    <ClCompile Include="Code\Public\GfxMaterial.cpp" />
+    <ClCompile Include="Code\Public\Lights.cpp" />
+    <ClCompile Include="Code\Public\RenderingUtils.cpp" />
+    <ClCompile Include="Code\Public\Scene.cpp" />
+    <ClCompile Include="Code\Private\SceneRenderer.cpp" />
+    <ClCompile Include="Code\Public\GfxModule.cpp" />
+    <ClCompile Include="Code\Public\GfxStaticMesh.cpp" />
+    <ClCompile Include="Code\Public\GfxContext.cpp" />
+    <ClCompile Include="Code\Private\GfxHardwareAbstraction\GHInterface\GHBuffer.cpp" />
+    <ClCompile Include="Code\Private\GfxHardwareAbstraction\GHInterface\GfxHardwareContext.cpp" />
+    <ClCompile Include="Code\Private\GfxHardwareAbstraction\GHInterface\GHFramebuffer.cpp" />
+    <ClCompile Include="Code\Private\GfxHardwareAbstraction\GHInterface\GHTexture.cpp" />
+    <ClCompile Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLBuffer.cpp" />
+    <ClCompile Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLContext.cpp" />
+    <ClCompile Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLFramebuffer.cpp" />
+    <ClCompile Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLPipeline.cpp" />
+    <ClCompile Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLShader.cpp" />
+    <ClCompile Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLStaticMesh.cpp" />
+    <ClCompile Include="Code\Private\GfxHardwareAbstraction\OpenGL\GLTexture.cpp" />
+    <ClCompile Include="Code\Public\SceneView.cpp" />
+    <ClCompile Include="Code\Public\Shader.cpp" />
+    <ClCompile Include="Code\Public\ShadowMaps.cpp" />
+    <ClCompile Include="Code\Public\Skybox.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shader\blit_depth_texture_p.glsl" />
+    <None Include="Shader\blit_texture_p.glsl" />
+    <None Include="Shader\build_hiz_p.glsl" />
+    <None Include="Shader\build_irradiance_cubemap_p.glsl" />
+    <None Include="Shader\build_reflection_cubemap_p.glsl" />
+    <None Include="Shader\build_skybox_p.glsl" />
+    <None Include="Shader\build_skybox_v.glsl" />
+    <None Include="Shader\clear_texture_p.glsl" />
+    <None Include="Shader\combine_lighting_p.glsl" />
+    <None Include="Shader\depth_p.glsl" />
+    <None Include="Shader\gtao_p.glsl" />
+    <None Include="Shader\hiz_downsample_p.glsl" />
+    <None Include="Shader\integrate_BRDF_p.glsl" />
+    <None Include="Shader\integrate_BRDF_v.glsl" />
+    <None Include="Shader\render_skybox_p.glsl" />
+    <None Include="Shader\render_skybox_v.glsl" />
+    <None Include="Shader\restir_indirect_diffuse_composite_p.glsl" />
+    <None Include="Shader\restir_indirect_diffuse_denoise_p.glsl" />
+    <None Include="Shader\restir_indirect_diffuse_spatial_p.glsl" />
+    <None Include="Shader\restir_indirect_diffuse_temporal_p.glsl" />
+    <None Include="Shader\restir_ssdo_estimate_p.glsl" />
+    <None Include="Shader\restir_ssdo_spatial_p.glsl" />
+    <None Include="Shader\restir_ssdo_temporal_p.glsl" />
+    <None Include="Shader\scene_direct_lighting_p.glsl" />
+    <None Include="Shader\scene_direct_skylight_p.glsl" />
+    <None Include="Shader\screen_pass_v.glsl" />
+    <None Include="Shader\ssao_filtering_p.glsl" />
+    <None Include="Shader\naive_ssdo_p.glsl" />
+    <None Include="Shader\ssgi_ao_p.glsl" />
+    <None Include="Shader\ssgi_combine_p.glsl" />
+    <None Include="Shader\ssgi_scene_color_p.glsl" />
+    <None Include="Shader\ssgi_diffuse_naive_p.glsl" />
+    <None Include="Shader\static_mesh_v.glsl" />
+    <None Include="Shader\tonemapping_p.glsl" />
+    <None Include="Shader\vertexcolor_p.glsl" />
+    <None Include="Shader\worldspace_line_v.glsl" />
+    <None Include="Shader\worldspace_point_v.glsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Texture\Noise\BN_16x16_R_0.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_1.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_2.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_3.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_4.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_5.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_6.png" />
+    <Image Include="Texture\Noise\BN_16x16_R_7.png" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>16.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{fe8bf429-0c59-4e6d-ae9c-a12b3505fe22}</ProjectGuid>
+    <RootNamespace>Gfx</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>GLEW_STATIC;GFX_EXPORTS</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4251</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableUAC>false</EnableUAC>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\glfw\glfw3.lib;$(SolutionDir)ThirdParty\glew\glew32s.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>GLEW_STATIC;GFX_EXPORTS</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4251</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableUAC>false</EnableUAC>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\glfw\glfw3.lib;$(SolutionDir)ThirdParty\glew\glew32s.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>GLEW_STATIC;GFX_EXPORTS</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4251</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableUAC>false</EnableUAC>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\glfw\glfw3.lib;$(SolutionDir)ThirdParty\glew\glew32s.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>GLEW_STATIC;GFX_EXPORTS</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>$(SolutionDir)Gfx\Code\Public\;$(SolutionDir)Gfx\Code\Private\;$(SolutionDir)Core\Code\Public\;$(SolutionDir)ThirdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4251</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableUAC>false</EnableUAC>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\glfw\glfw3.lib;$(SolutionDir)ThirdParty\glew\glew32s.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
