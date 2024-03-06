@@ -22,6 +22,7 @@ Engine/Resources
 EngineApp/x64
 EngineApp/Apps/Demo/Resources
 EngineApp/Apps/ParallaxOcclusionMapping/Resources
+EngineApp/Apps/VoxelBasedGI/Resources
 Gfx/x64
 ThirdParty/x64
 scene/
