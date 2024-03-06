@@ -14,6 +14,7 @@ namespace Cyan
     class Scene;
     class StaticMesh;
     class StaticMeshInstance;
+    class GfxStaticSubMesh;
 
     class ENGINE_API StaticSubMesh
     {
@@ -35,6 +36,7 @@ namespace Cyan
         i32 numIndices() { return m_geometry->numIndices(); }
         StaticMesh* getParentMesh() { return m_parent; }
         Geometry* getGeometry() { return m_geometry.get(); }
+        GfxStaticSubMesh* getGfxMesh();
         /* This function can be called on worker thread */
         void setGeometry(std::unique_ptr<Geometry> geometry);
 

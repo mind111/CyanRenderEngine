@@ -42,10 +42,10 @@ namespace Cyan
         void setSkyLight(SkyLight* skylight);
         void unsetSkyLight();
 
+        std::vector<StaticSubMeshInstance> m_staticSubMeshInstances;
     private:
         std::queue<u32> m_freeStaticSubMeshInstanceSlots;
         std::unordered_map<std::string, u32> m_staticSubMeshInstanceMap;
-        std::vector<StaticSubMeshInstance> m_staticSubMeshInstances;
 
     public:
         Skybox* m_skybox = nullptr;

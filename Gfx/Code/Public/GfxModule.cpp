@@ -462,7 +462,7 @@ namespace Cyan
                 glEnable(GL_CULL_FACE);
                 glFrontFace(GL_CCW);
                 glCullFace(GL_BACK);
-                glLineWidth(6.f);
+                glLineWidth(3.f);
                 glfwSwapInterval(0);
                 glEnable(GL_PROGRAM_POINT_SIZE);
 

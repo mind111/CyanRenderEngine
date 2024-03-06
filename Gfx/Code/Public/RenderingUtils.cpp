@@ -6,6 +6,7 @@
 #include "GfxStaticMesh.h"
 #include "Geometry.h"
 #include "GfxHardwareAbstraction/GHInterface/GHBuffer.h"
+#include "SkyBox.h"
 
 namespace Cyan
 {
@@ -248,6 +249,67 @@ namespace Cyan
 
     }
 
+    GFX_API void RenderingUtils::renderSkybox(GHTexture2D* dstColorTexture, GHDepthTexture* dstDepthTexture, Skybox* skybox, const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix, i32 mipLevel)
+    {
+        GPU_DEBUG_SCOPE(marker, "Skybox Pass")
+
+        auto cubemapTex = skybox->getCubemapTexture();
+        // render skybox
+        const auto desc = dstColorTexture->getDesc();
+        RenderPass pass(desc.width, desc.height);
+        RenderTarget rt(dstColorTexture, 0, false);
+        pass.setRenderTarget(rt, 0);
+
+        DepthTarget dt(dstDepthTexture, false);
+        pass.setDepthTarget(dt);
+
+        bool found = false;
+        auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "RenderSkyboxVS", ENGINE_SHADER_PATH "render_skybox_v.glsl");
+        auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "RenderSkyboxPS", ENGINE_SHADER_PATH "render_skybox_p.glsl");
+        auto gfxp = ShaderManager::findOrCreateGfxPipeline(found, vs, ps);
+        auto cubeMesh = RenderingUtils::get()->getUnitCubeMesh();
+        pass.setRenderFunc([gfxp, cubeMesh, cubemapTex, viewMatrix, projectionMatrix, mipLevel](GfxContext* ctx) {
+            gfxp->bind();
+            gfxp->setUniform("u_viewMatrix", viewMatrix);
+            gfxp->setUniform("u_projectionMatrix", projectionMatrix);
+            gfxp->setTexture("u_cubemapTex", cubemapTex);
+            gfxp->setUniform("u_mipLevel", mipLevel);
+            cubeMesh->draw();
+            gfxp->unbind();
+        });
+
+        pass.enableDepthTest();
+        pass.render(GfxContext::get());
+    }
+
+    GFX_API void RenderingUtils::tonemapping(GHTexture2D* dstTexture, GHTexture2D* srcTexture)
+    {
+        if (dstTexture != nullptr && srcTexture != nullptr)
+        {
+            bool found = false;
+            auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "ScreenPassVS", ENGINE_SHADER_PATH "screen_pass_v.glsl");
+            auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "TonemappingPS", ENGINE_SHADER_PATH "tonemapping_p.glsl");
+            auto gfxp = ShaderManager::findOrCreateGfxPipeline(found, vs, ps);
+
+            const auto desc = dstTexture->getDesc();
+            u32 width = desc.width, height = desc.height;
+            RenderingUtils::renderScreenPass(
+                glm::uvec2(width, height),
+                [srcTexture, dstTexture](RenderPass& rp) {
+                    rp.setRenderTarget(dstTexture, 0);
+                },
+                gfxp.get(),
+                [srcTexture, dstTexture](GfxPipeline* p) {
+                    p->setTexture("srcTexture", srcTexture);
+                });
+        }
+    }
+
+    GFX_API void RenderingUtils::postprocessing(GHTexture2D* dstTexture, GHTexture2D* srcTexture)
+    {
+        tonemapping(dstTexture, srcTexture);
+    }
+
     void RenderingUtils::renderScreenPass(const glm::uvec2& renderResolution, const RenderTargetSetupFunc& renderTargetSetupFunc, GfxPipeline* p, ShaderSetupFunc& shaderSetupFunc, bool bDepthTest)
     {
         RenderPass rp(renderResolution.x, renderResolution.y);
@@ -332,6 +394,27 @@ namespace Cyan
             gfxp.get(),
             [clearColor](GfxPipeline* p) {
                 p->setUniform("u_clearColor", clearColor);
+            }
+        );
+    }
+
+    GFX_API void RenderingUtils::clearDepthTexture(GHDepthTexture* depthTextureToClear, f32 clearDepthValue)
+    {
+        bool found = false;
+        auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "ScreenPassVS", ENGINE_SHADER_PATH "screen_pass_v.glsl");
+        auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "ClearTexturePS", ENGINE_SHADER_PATH "clear_texture_p.glsl");
+        auto gfxp = ShaderManager::findOrCreateGfxPipeline(found, vs, ps);
+
+        const auto& desc = depthTextureToClear->getDesc();
+
+        renderScreenPass(
+            glm::uvec2(desc.width, desc.height),
+            [depthTextureToClear, clearDepthValue](RenderPass& rp) {
+                DepthTarget dt(depthTextureToClear, true, clearDepthValue);
+                rp.setDepthTarget(dt);
+            },
+            gfxp.get(),
+            [](GfxPipeline* p) {
             }
         );
     }
@@ -523,6 +606,40 @@ namespace Cyan
         });
         rp.enableDepthTest();
         rp.render(GfxContext::get());
+    }
+
+    GFX_API void RenderingUtils::drawAABB(GHTexture2D* dstTexture, GHDepthTexture* depthTexture, const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix, const AxisAlignedBoundingBox3D& aabb, const glm::vec4& color)
+    {
+        GPU_DEBUG_SCOPE(debugDrawAABB, "Debug Draw AABB")
+
+        glm::vec3 pmin = aabb.pmin;
+        glm::vec3 pmax = aabb.pmax;
+        glm::vec3 size = pmax - pmin;
+
+        glm::vec3 v0 = pmin + glm::vec3(0.f, 0.f, size.z);
+        glm::vec3 v1 = pmin + glm::vec3(size.x, 0.f, size.z);
+        glm::vec3 v2 = pmin + size;
+        glm::vec3 v3 = pmin + glm::vec3(0.f, size.y, size.z);
+
+        glm::vec3 v4 = pmin;
+        glm::vec3 v5 = pmin + glm::vec3(size.x, 0.f, 0.f);
+        glm::vec3 v6 = pmin + glm::vec3(size.x, size.y, 0.f);
+        glm::vec3 v7 = pmin + glm::vec3(0.f, size.y, 0.f);
+
+        RenderingUtils::drawWorldSpaceLine(dstTexture, depthTexture, viewMatrix, projectionMatrix, v0, v1, color);
+        RenderingUtils::drawWorldSpaceLine(dstTexture, depthTexture, viewMatrix, projectionMatrix, v1, v2, color);
+        RenderingUtils::drawWorldSpaceLine(dstTexture, depthTexture, viewMatrix, projectionMatrix, v2, v3, color);
+        RenderingUtils::drawWorldSpaceLine(dstTexture, depthTexture, viewMatrix, projectionMatrix, v3, v0, color);
+
+        RenderingUtils::drawWorldSpaceLine(dstTexture, depthTexture, viewMatrix, projectionMatrix, v0, v4, color);
+        RenderingUtils::drawWorldSpaceLine(dstTexture, depthTexture, viewMatrix, projectionMatrix, v1, v5, color);
+        RenderingUtils::drawWorldSpaceLine(dstTexture, depthTexture, viewMatrix, projectionMatrix, v2, v6, color);
+        RenderingUtils::drawWorldSpaceLine(dstTexture, depthTexture, viewMatrix, projectionMatrix, v3, v7, color);
+
+        RenderingUtils::drawWorldSpaceLine(dstTexture, depthTexture, viewMatrix, projectionMatrix, v4, v5, color);
+        RenderingUtils::drawWorldSpaceLine(dstTexture, depthTexture, viewMatrix, projectionMatrix, v5, v6, color);
+        RenderingUtils::drawWorldSpaceLine(dstTexture, depthTexture, viewMatrix, projectionMatrix, v6, v7, color);
+        RenderingUtils::drawWorldSpaceLine(dstTexture, depthTexture, viewMatrix, projectionMatrix, v7, v4, color);
     }
 
     // todo: implement this

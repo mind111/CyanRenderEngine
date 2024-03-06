@@ -67,7 +67,10 @@ namespace Cyan
         MaterialInstance(const char* name, Material* parent);
         ~MaterialInstance();
 
-        GfxMaterialInstance* getGfxMaterialInstance() { return m_gfxMaterialInstance.get(); }
+        GfxMaterialInstance* getGfxMaterialInstance() 
+        { 
+            return m_gfxMaterialInstance.get(); 
+        }
 
         void setInt(const char* parameterName, i32 data);
         void setUint(const char* parameterName, u32 data);

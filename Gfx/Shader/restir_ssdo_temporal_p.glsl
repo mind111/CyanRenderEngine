@@ -11,6 +11,7 @@ layout (location = 0) out vec3 outReservoirSkyRadiance;
 layout (location = 1) out vec3 outReservoirSkyDirection;
 layout (location = 2) out vec3 outReservoirSkyWSumMW;
 layout (location = 3) out vec3 outScreenSpaceHitPosition;
+layout (location = 4) out vec3 outDebugScreenSpaceHitPosition;
 
 struct ViewParameters
 {
@@ -721,7 +722,6 @@ void main()
 		float ndotl = max(dot(n, rd), 0.f);
 		r = createFreshReservoirWithSample(s, calcReSTIRGISampleWeight(s, ndotl));
 	}
-	// else if (hit.result == HitResult_Hit || hit.result == HitResult_Hidden)
 	else if (hit.result == HitResult_Hit)
 	{
 		// cache screen space hit position and defer radiance fetching

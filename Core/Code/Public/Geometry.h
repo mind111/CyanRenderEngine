@@ -112,6 +112,8 @@ namespace Cyan
         virtual VertexSpec getVertexSpec() = 0;
         virtual u32 numVertices() = 0;
         virtual u32 numIndices() = 0;
+        virtual glm::vec3 getMin() { return glm::vec3(-FLT_MAX); }
+        virtual glm::vec3 getMax() { return glm::vec3(FLT_MAX); }
     };
 
     // todo: this works 
@@ -148,9 +150,13 @@ namespace Cyan
 
         u32 numVertices() { return (u32)vertices.size(); }
         u32 numIndices() { return (u32)indices.size(); }
+        virtual glm::vec3 getMin() override { return min; };
+        virtual glm::vec3 getMax() override { return max; };
 
         std::vector<Vertex> vertices;
         std::vector<u32> indices;
+        glm::vec3 min;
+        glm::vec3 max;
     };
 
     struct PointCloud : public Geometry

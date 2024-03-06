@@ -2,6 +2,7 @@
 
 #include "Shader.h"
 #include "RenderPass.h"
+#include "Bounds.h"
 
 namespace Cyan
 {
@@ -9,6 +10,7 @@ namespace Cyan
 
     class GHTexture2D;
     class GfxStaticSubMesh;
+    class Skybox;
 
     using RenderTargetSetupFunc = const std::function<void(RenderPass&)>;
     using ShaderSetupFunc = const std::function<void(GfxPipeline* p)>;
@@ -56,15 +58,20 @@ namespace Cyan
         GfxStaticSubMesh* getUnitCubeMesh() { return s_unitCubeMesh; }
         NoiseTextures& getNoiseTextures() { return s_noiseTextures; }
 
+        GFX_API static void renderSkybox(GHTexture2D* dstColorTexture, GHDepthTexture* dstDepthTexture, Skybox* skybox, const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix, i32 mipLevel);
+        GFX_API static void tonemapping(GHTexture2D* dstTexture, GHTexture2D* srcTexture);
+        GFX_API static void postprocessing(GHTexture2D* dstTexture, GHTexture2D* srcTexture);
         GFX_API static void renderScreenPass(const glm::uvec2& renderResolution, const RenderTargetSetupFunc& renderTargetSetupFunc, GfxPipeline* p, ShaderSetupFunc& shaderSetupFunc, bool bDepthTest = false);
         GFX_API static void copyTexture(GHTexture2D* dstTexture, u32 dstMip, GHTexture2D* srcTexture, u32 srcMip);
         GFX_API static void copyDepthTexture(GHDepthTexture* dstTexture, GHDepthTexture* srcTexture);
         GFX_API static void clearTexture2D(GHTexture2D* textureToClear, const glm::vec4& clearColor);
+        GFX_API static void clearDepthTexture(GHDepthTexture* depthTextureToClear, f32 depthClearValue);
 
         // debug drawing helpers
         GFX_API static void drawScreenSpacePoint(GHTexture2D* dstTexture, const glm::vec3& p, const glm::vec4& color);
         GFX_API static void drawWorldSpacePoint(GHTexture2D* dstTexture, GHDepthTexture* depthTexture, const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix, const glm::vec3& p, const glm::vec4& color, f32 size);
         GFX_API static void drawWorldSpaceLine(GHTexture2D* dstTexture, GHDepthTexture* depthTexture, const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix, const glm::vec3& start, const glm::vec3& end, const glm::vec4& color);
+        GFX_API static void drawAABB(GHTexture2D* dstTexture, GHDepthTexture* depthTexture, const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix, const AxisAlignedBoundingBox3D& aabb, const glm::vec4& color);
 
         /**
          * Blit a 2D texture to the default framebuffer

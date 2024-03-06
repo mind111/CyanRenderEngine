@@ -17,7 +17,7 @@ namespace Cyan
     /**
      * Cascaded Shadow Map
      */
-    class CascadedShadowMap
+    class GFX_API CascadedShadowMap
     {
     public:
         struct Cascade
@@ -34,7 +34,7 @@ namespace Cyan
         ~CascadedShadowMap();
 
         void render(Scene* scene, DirectionalLight* directionalLight, const CameraViewInfo& camera);
-        void setShaderParameters(GfxPipeline* p);
+        void setShaderParameters(Pipeline* p);
 
         static constexpr f32 cascadeBoundries[5] = { 0.0f, 0.1f, 0.3f, 0.6f, 1.0f };
         static constexpr u32 kNumCascades = 4u;

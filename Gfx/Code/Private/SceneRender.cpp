@@ -48,8 +48,11 @@ namespace Cyan
         u32 numMips = log2(glm::min(m_powerOfTwoResolution.x, m_powerOfTwoResolution.y)) + 1;
         const auto& desc = GHTexture2D::Desc::create(m_powerOfTwoResolution.x, m_powerOfTwoResolution.y, numMips, PF_R32F);
         GHSampler2D sampler = { };
+        sampler.setAddressingModeX(SamplerAddressingMode::Clamp);
+        sampler.setAddressingModeY(SamplerAddressingMode::Clamp);
         // this is necessary if want to use textureLod() to sample a mip level!!!
-        sampler.setFilteringModeMin(SamplerFilteringMode::PointMipmapPoint);
+        sampler.setFilteringModeMin(Sampler2DFilteringMode::PointMipmapPoint);
+        sampler.setFilteringModeMag(Sampler2DFilteringMode::Bilinear);
         m_depthBuffer = std::move(GHTexture2D::create(desc, sampler));
     }
 

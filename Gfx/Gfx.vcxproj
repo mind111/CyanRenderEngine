@@ -101,6 +101,7 @@
     <None Include="Shader\clear_texture_p.glsl" />
     <None Include="Shader\combine_lighting_p.glsl" />
     <None Include="Shader\depth_p.glsl" />
+    <None Include="Shader\constant_color_p.glsl" />
     <None Include="Shader\gtao_p.glsl" />
     <None Include="Shader\hiz_downsample_p.glsl" />
     <None Include="Shader\integrate_BRDF_p.glsl" />

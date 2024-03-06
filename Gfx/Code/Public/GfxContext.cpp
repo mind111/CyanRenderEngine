@@ -81,6 +81,16 @@ namespace Cyan
         m_GHCtx->disableDepthTest();
     }
 
+    void GfxContext::enableBackfaceCulling()
+    {
+        m_GHCtx->enableBackfaceCulling();
+    }
+
+    void GfxContext::disableBackfaceCulling()
+    {
+        m_GHCtx->disableBackfaceCulling();
+    }
+
     void GfxContext::enableBlending()
     {
         m_GHCtx->enableBlending();

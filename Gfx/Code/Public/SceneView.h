@@ -9,6 +9,7 @@
 
 namespace Cyan
 {
+    class Scene;
     class SceneRender;
 
     using SceneViewTask = std::function<void(class SceneView& view)>;
@@ -90,9 +91,10 @@ namespace Cyan
             f32 deltaTime;
         };
 
-        SceneView(const glm::uvec2& renderResolution);
+        SceneView(Scene* scene, const glm::uvec2& renderResolution);
         ~SceneView();
 
+        Scene* getScene() { return m_scene; }
         SceneRender* getRender() { return m_render.get(); }
         GHTexture2D* getOutput();
         const State& getState() { return m_state; }
@@ -101,6 +103,7 @@ namespace Cyan
         void addTask(const SceneRenderingStage& stage, SceneViewTask&& task);
         void flushTasks(const SceneRenderingStage& stage);
     private:
+        Scene* m_scene = nullptr;
         std::unique_ptr<SceneRender> m_render = nullptr;
         State m_state;
         CameraViewInfo m_cameraInfo;

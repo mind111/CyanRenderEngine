@@ -50,6 +50,8 @@ namespace Cyan
             u32 byteOffset = 0u;
             bool normalized = false;
             std::string m_name;
+            glm::vec3 minVec3;
+            glm::vec3 maxVec3;
         };
 
         struct BufferView

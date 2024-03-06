@@ -54,6 +54,11 @@ namespace Cyan
         return new GLComputeShader(text);
     }
 
+    Cyan::GHShader* GLGHContext::createGeometryShader(const std::string& text)
+    {
+        return new GLGeometryShader(text);
+    }
+
     GHGfxPipeline* GLGHContext::createGfxPipeline(std::shared_ptr<GHShader> vs, std::shared_ptr<GHShader> ps)
     {
         auto glVS = std::dynamic_pointer_cast<GLVertexShader>(vs);
@@ -74,6 +79,19 @@ namespace Cyan
             return new GLComputePipeline(glCS);
         }
         assert(0); // catching errors here
+        return nullptr;
+    }
+
+    GHGeometryPipeline* GLGHContext::createGeometryPipeline(std::shared_ptr<GHShader> vs, std::shared_ptr<GHShader> gs, std::shared_ptr<GHShader> ps)
+    {
+        auto glVS = std::dynamic_pointer_cast<GLVertexShader>(vs);
+        auto glGS = std::dynamic_pointer_cast<GLGeometryShader>(gs);
+        auto glPS = std::dynamic_pointer_cast<GLPixelShader>(ps);
+        if (glVS != nullptr && glGS != nullptr && glPS != nullptr)
+        {
+            return new GLGeometryPipeline(glVS, glGS, glPS);
+        }
+        assert(0);
         return nullptr;
     }
 
@@ -102,9 +120,19 @@ namespace Cyan
         return std::move(std::unique_ptr<GHTextureCube>(new GLTextureCube(desc, samplerCube)));
     }
 
+    std::unique_ptr<Cyan::GHTexture3D> GLGHContext::createTexture3D(const GHTexture3D::Desc& desc, const GHSampler3D& sampler3D /*= GHSampler3D()*/)
+    {
+        return std::move(std::unique_ptr<GHTexture3D>(new GLTexture3D(desc, sampler3D)));
+    }
+
     std::unique_ptr<GHRWBuffer> GLGHContext::createRWBuffer(u32 sizeInBytes)
     {
         return std::move(std::make_unique<GLShaderStorageBuffer>(sizeInBytes));
+    }
+
+    std::unique_ptr<Cyan::GHAtomicCounterBuffer> GLGHContext::createAtomicCounterBuffer()
+    {
+        return std::move(std::make_unique<GLAtomicCounterBuffer>());
     }
 
     std::unique_ptr<GfxStaticSubMesh> GLGHContext::createGfxStaticSubMesh(Geometry* geometry)
@@ -147,6 +175,18 @@ namespace Cyan
     void GLGHContext::disableDepthTest()
     {
         glDisable(GL_DEPTH_TEST);
+    }
+
+    void GLGHContext::enableBackfaceCulling()
+    {
+        glCullFace(GL_BACK);
+        glEnable(GL_CULL_FACE);
+    }
+
+    void GLGHContext::disableBackfaceCulling()
+    {
+        glCullFace(GL_BACK);
+        glDisable(GL_CULL_FACE);
     }
 
     void GLGHContext::enableBlending()

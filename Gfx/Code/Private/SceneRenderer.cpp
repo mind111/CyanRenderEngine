@@ -39,39 +39,10 @@ namespace Cyan
 
         if (scene->m_skybox != nullptr)
         {
-            GPU_DEBUG_SCOPE(marker, "Skybox Pass")
-
-            Skybox* skybox = scene->m_skybox;
-            auto cubemapTex = skybox->getCubemapTexture();
-            // render skybox
-            auto sceneDirectLighting = sceneView.getRender()->directLighting();
-            const auto desc = sceneDirectLighting->getDesc();
-            RenderPass pass(desc.width, desc.height);
-            RenderTarget rt(sceneDirectLighting, 0, false);
-            pass.setRenderTarget(rt, 0);
-
             auto sceneDepthTex = sceneView.getRender()->depth();
-            DepthTarget dt(sceneDepthTex, false);
-            pass.setDepthTarget(dt);
-
-            bool found = false;
-            auto vs = ShaderManager::findOrCreateShader<VertexShader>(found, "RenderSkyboxVS", ENGINE_SHADER_PATH "render_skybox_v.glsl");
-            auto ps = ShaderManager::findOrCreateShader<PixelShader>(found, "RenderSkyboxPS", ENGINE_SHADER_PATH "render_skybox_p.glsl");
-            auto gfxp = ShaderManager::findOrCreateGfxPipeline(found, vs, ps);
-            auto cubeMesh = RenderingUtils::get()->getUnitCubeMesh();
-            const auto& cameraInfo = sceneView.getCameraInfo();
-            pass.setRenderFunc([gfxp, cubeMesh, cameraInfo, cubemapTex](GfxContext* ctx) {
-                gfxp->bind();
-                gfxp->setUniform("u_viewMatrix", cameraInfo.viewMatrix());
-                gfxp->setUniform("u_projectionMatrix", cameraInfo.projectionMatrix());
-                gfxp->setTexture("u_cubemapTex", cubemapTex);
-                gfxp->setTexture("u_mipLevel", 0);
-                cubeMesh->draw();
-                gfxp->unbind();
-            });
-
-            pass.enableDepthTest();
-            pass.render(GfxContext::get());
+            auto sceneDirectLighting = sceneView.getRender()->directLighting();
+            const auto& viewState = sceneView.getState();
+            RenderingUtils::renderSkybox(sceneDirectLighting, sceneDepthTex, scene->m_skybox, viewState.viewMatrix, viewState.projectionMatrix, 0);
         }
 
         renderSceneIndirectLighting(scene, sceneView);
@@ -109,7 +80,7 @@ namespace Cyan
         {
         case RenderMode::kResolvedSceneColor:
             // postprocessing
-            tonemapping(sceneView.m_render->resolvedColor(), sceneView.m_render->color());
+            postprocessing(sceneView.m_render->resolvedColor(), sceneView.m_render->color());
             break;
         case RenderMode::kAlbedo:
             RenderingUtils::copyTexture(sceneView.m_render->resolvedColor(), 0, sceneView.m_render->albedo(), 0);
@@ -1035,6 +1006,8 @@ namespace Cyan
 
     void SceneRenderer::renderSceneIndirectLighting(Scene* scene, SceneView& sceneView)
     {
+        GPU_DEBUG_SCOPE(IndirectLightingPass, "SceneIndirectLightingPass");
+
         auto render = sceneView.getRender();
         const auto& viewState = sceneView.getState();
 
@@ -1044,12 +1017,15 @@ namespace Cyan
         {
             // renderNaiveSSGI(viewState, scene, render);
             // todo: restir version
-            renderReSTIRSSGI(this, viewState, scene, render);
+            // renderReSTIRSSGI(this, viewState, scene, render);
+            renderBasicImageBasedLighting(viewState, render, scene->m_skyLight);
         }
     }
 
-    void SceneRenderer::tonemapping(GHTexture2D* dstTexture, GHTexture2D* srcTexture)
+    void SceneRenderer::postprocessing(GHTexture2D* dstTexture, GHTexture2D* srcTexture)
     {
+        RenderingUtils::tonemapping(dstTexture, srcTexture);
+#if 0
         if (dstTexture != nullptr && srcTexture != nullptr)
         {
             bool found = false;
@@ -1069,5 +1045,6 @@ namespace Cyan
                     p->setTexture("srcTexture", srcTexture);
                 });
         }
+#endif
     }
 }

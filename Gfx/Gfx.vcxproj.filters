@@ -102,6 +102,7 @@
     <None Include="Shader\restir_indirect_diffuse_spatial_p.glsl" />
     <None Include="Shader\restir_indirect_diffuse_denoise_p.glsl" />
     <None Include="Shader\restir_indirect_diffuse_composite_p.glsl" />
+    <None Include="Shader\constant_color_p.glsl" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Texture\Noise\BN_16x16_R_0.png" />

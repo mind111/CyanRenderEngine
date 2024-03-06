@@ -100,6 +100,15 @@ namespace Cyan
         }
     }
 
+    Cyan::GfxStaticSubMesh* StaticSubMesh::getGfxMesh()
+    {
+        // only allow doing this on the render thread for now
+        assert(GfxModule::isInRenderThread());
+
+        const std::string& submeshKey = getName();
+        return GfxStaticSubMesh::find(submeshKey);
+    }
+
     void StaticSubMesh::setGeometry(std::unique_ptr<Geometry> geometry)
     {
         m_geometry = std::move(geometry);

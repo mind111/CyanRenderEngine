@@ -60,7 +60,7 @@ namespace Cyan
             "AddSceneView",
             [this, renderResoltuion](Frame& frame) {
                 // todo: deal with memory ownership here
-                m_views.push_back(new SceneView(renderResoltuion));
+                m_views.push_back(new SceneView(frame.scene, renderResoltuion));
             }
         );
     }

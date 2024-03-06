@@ -1,6 +1,7 @@
 #include "GLShader.h"
 #include "GLTexture.h"
 #include "glew/glew.h"
+#include "GLBuffer.h"
 
 namespace Cyan
 {
@@ -73,7 +74,7 @@ namespace Cyan
                     {
                         GLenum type; i32 count;
                         glGetActiveUniform(program, i, maxNameLength, nullptr, &count, &type, name);
-                        auto translated = translate(type);
+                        auto translatedType = translate(type);
                         for (i32 j = 0; j < count; ++j) 
                         {
                             if (count > 1)
@@ -92,17 +93,70 @@ namespace Cyan
                             }
 
                             ShaderUniformDesc desc = { };
-                            desc.type = translated;
+                            desc.type = translatedType;
                             desc.name = std::string(name);
                             // desc.location = glGetUniformLocation(program, name);
                             outUniformMap.insert({ desc.name, desc });
                             i32 uniformLocation = glGetUniformLocation(program, name);
-                            assert(uniformLocation >= 0);
-                            m_uniformLocationMap.insert({ desc.name, uniformLocation });
+                            if (uniformLocation >= 0)
+                            {
+                                m_uniformLocationMap.insert({ desc.name, uniformLocation });
+                            }
+                            if (translatedType == ShaderUniformDesc::Type::kAtomicUint)
+                            {
+                                GLenum props = { GL_ATOMIC_COUNTER_BUFFER_INDEX };
+                                GLsizei length = 1;
+                                GLint counterIndex = -1;
+                                glGetProgramResourceiv(program,
+                                    GL_UNIFORM,
+                                    i,
+                                    1,
+                                    &props,
+                                    sizeof(counterIndex),
+                                    &length,
+                                    &counterIndex);
+
+                                AtomicCounterBinding binding = { };
+                                binding.name = desc.name;
+                                binding.index = counterIndex;
+                                m_atomicCounterBindingMap.insert({ desc.name, binding });
+                            }
                         }
                     }
                 }
             }
+        }
+
+        // query list of active shader storage blocks
+        i32 activeNumShaderStorageBlock = -1;
+        glGetProgramInterfaceiv(program, GL_SHADER_STORAGE_BLOCK, GL_ACTIVE_RESOURCES, &activeNumShaderStorageBlock);
+        if (activeNumShaderStorageBlock > 0) 
+        {
+            i32 maxNameLength = -1;
+            glGetProgramInterfaceiv(program, GL_SHADER_STORAGE_BLOCK, GL_MAX_NAME_LENGTH, &maxNameLength);
+            if (maxNameLength > 0)
+            {
+                char* name = static_cast<char*>(alloca(maxNameLength + 1));
+                for (i32 i = 0; i < activeNumShaderStorageBlock; ++i) 
+                {
+                    i32 nameLength = -1;
+                    glGetProgramResourceName(program, GL_SHADER_STORAGE_BLOCK, i, maxNameLength, &nameLength, name);
+                    std::string blockName(name);
+                    ShaderStorageBinding binding = { blockName, i, nullptr, -1 };
+                    m_shaderStorageBindingMap.insert({ blockName, binding });
+                }
+            }
+        }
+
+        // query list of active atomic counters
+        for (auto& entry : m_atomicCounterBindingMap)
+        {
+            AtomicCounterBinding& binding = entry.second;
+            i32 atomicCounterIndex = binding.index;
+            GLint bindingUnit = -1;
+            glGetActiveAtomicCounterBufferiv(program, atomicCounterIndex, GL_ATOMIC_COUNTER_BUFFER_BINDING, &bindingUnit);
+            assert(bindingUnit >= 0);
+            binding.bindingUnit = bindingUnit;
         }
     }
 
@@ -113,7 +167,7 @@ namespace Cyan
         {
             if (getUniformLocation(samplerName) >= 0)
             {
-                glTexture->bind();
+                glTexture->bindAsTexture();
                 i32 textureUnit = glTexture->getBoundTextureUnit();
                 glSetUniform(samplerName, textureUnit);
                 outBound = true;
@@ -130,8 +184,102 @@ namespace Cyan
         auto glTexture = dynamic_cast<GLTexture*>(texture);
         if (glTexture != nullptr)
         {
-            glTexture->unbind();
-            glSetUniform(samplerName, -1);
+            glTexture->unbindAsTexture();
+            glSetUniform(samplerName, 0);
+        }
+    }
+
+    void GLShader::bindRWBuffer(const char* bufferName, GHRWBuffer* RWBuffer, bool& outBound)
+    {
+        auto glShaderStorageBuffer = dynamic_cast<GLShaderStorageBuffer*>(RWBuffer);
+        if (glShaderStorageBuffer != nullptr)
+        {
+            auto entry = m_shaderStorageBindingMap.find(bufferName);
+            if (entry != m_shaderStorageBindingMap.end())
+            {
+                ShaderStorageBinding& binding = entry->second;
+                glShaderStorageBuffer->bind();
+                assert(glShaderStorageBuffer->isBound());
+                GLuint boundUnit = glShaderStorageBuffer->getBoundUnit();
+                binding.buffer = glShaderStorageBuffer;
+                binding.bufferUnit = boundUnit;
+                glShaderStorageBlockBinding(getName(), binding.blockIndex, boundUnit);
+                outBound = true;
+            }
+            else
+            {
+                outBound = false;
+            }
+        }
+    }
+
+    void GLShader::unbindRWBuffer(const char* bufferName)
+    {
+        auto entry = m_shaderStorageBindingMap.find(bufferName);
+        if (entry != m_shaderStorageBindingMap.end())
+        {
+            ShaderStorageBinding& binding = entry->second;
+            assert(binding.buffer != nullptr);
+            binding.buffer->unbind();
+            binding.buffer = nullptr;
+            binding.bufferUnit = -1;
+        }
+        else
+        {
+            assert(0);
+        }
+    }
+
+    void GLShader::bindAtomicCounter(const char* name, GHAtomicCounterBuffer* counter, bool& bOutBound)
+    {
+        auto entry = m_atomicCounterBindingMap.find(name);
+        if (entry != m_atomicCounterBindingMap.end())
+        {
+            AtomicCounterBinding& binding = entry->second;
+            assert(binding.bindingUnit >= 0);
+            counter->bind(binding.bindingUnit);
+            binding.counter = counter;
+            bOutBound = true;
+        }
+        else
+        {
+            bOutBound = false;
+        }
+    }
+
+    void GLShader::unbindAtomicCounter(const char* name)
+    {
+        auto entry = m_atomicCounterBindingMap.find(name);
+        if (entry != m_atomicCounterBindingMap.end())
+        {
+            AtomicCounterBinding& binding = entry->second;
+            assert(binding.bindingUnit >= 0);
+            assert(binding.counter != nullptr);
+            binding.counter->unbind();
+            binding.counter = nullptr;
+        }
+        else
+        {
+            assert(0);
+        }
+    }
+
+    void GLShader::bindRWTexture(const char* imageName, GHTexture* RWTexture, u32 mipLevel, bool& outBound)
+    {
+        auto glTexture = dynamic_cast<GLTexture*>(RWTexture);
+        if (glTexture != nullptr)
+        {
+            if (getUniformLocation(imageName) >= 0)
+            {
+                RWTexture->bindAsRWTexture(mipLevel);
+                i32 imageUnit = glTexture->getBoundImageUnit();
+                glSetUniform(imageName, imageUnit);
+                outBound = true;
+            }
+            else
+            {
+                outBound = false;
+            }
         }
     }
 
@@ -201,62 +349,70 @@ namespace Cyan
         GL_SET_UNIFORM(glProgramUniform2i, data.x, data.y);
     }
 
-    enum class ShaderInfoLogType 
+    void GLShader::glSetUniform(const char* name, const glm::ivec3& data)
     {
-        kCompile,
-        kLink
-    };
+        GL_SET_UNIFORM(glProgramUniform3i, data.x, data.y, data.z);
+    }
 
-    bool getProgramInfoLog(GLShader* shader, ShaderInfoLogType type, std::string& output) 
+    static void checkShaderCompilation(const char* strings[], GLenum shaderType)
     {
-        i32 result = GL_TRUE;
-        switch (type) 
+        // for debugging shader compilation error purpose
+        GLuint shader = glCreateShader(shaderType);
+        glShaderSource(shader, 1, strings, 0);
+        glCompileShader(shader);
+        i32 compilationResult = GL_TRUE;
+        glGetShaderiv(shader, GL_COMPILE_STATUS, &compilationResult);
+        if (compilationResult != GL_TRUE)
         {
-        case ShaderInfoLogType::kCompile:
-            // querying a gl program's compile status is considered as an invalid operation
-        case ShaderInfoLogType::kLink:
-            glGetProgramiv(shader->getName(), GL_LINK_STATUS, &result);
-            break;
-        default:
-            break;
-        }
-        if (result == GL_FALSE) 
-        {
+            std::string log;
             i32 infoLogLength = -1;
-            glGetProgramiv(shader->getName(), GL_INFO_LOG_LENGTH, &infoLogLength);
+            glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLogLength);
             if (infoLogLength > 0) 
             {
                 i32 bufferSize = sizeof(char) * infoLogLength;
                 char* infoLog = static_cast<char*>(alloca(bufferSize));
-                glGetProgramInfoLog(shader->getName(), bufferSize, &infoLogLength, infoLog);
-                output.assign(infoLog);
+                glGetShaderInfoLog(shader, bufferSize, &infoLogLength, infoLog);
+                log.assign(infoLog);
             }
-            return false;
+
+            cyanError("%s", log.c_str());
+            // assert on the spot to help catching compilation errors
+            assert(0);
         }
-        return true;
+        glDeleteShader(shader);
+    }
+
+    static void checkProgramLinkage(GLuint program)
+    {
+        std::string log;
+        i32 result = GL_FALSE;
+        glGetProgramiv(program, GL_LINK_STATUS, &result);
+        if (result == GL_FALSE) 
+        {
+            i32 infoLogLength = -1;
+            glGetProgramiv(program, GL_INFO_LOG_LENGTH, &infoLogLength);
+            if (infoLogLength > 0) 
+            {
+                i32 bufferSize = sizeof(char) * infoLogLength;
+                char* infoLog = static_cast<char*>(alloca(bufferSize));
+                glGetProgramInfoLog(program, bufferSize, &infoLogLength, infoLog);
+                log.assign(infoLog);
+
+                cyanError("%s", log.c_str());
+                // assert on the spot to help catching linking errors
+                assert(0);
+            }
+        }
     }
 
     GLVertexShader::GLVertexShader(const std::string& text)
         : GLShader(text)
     {
         const char* strings[1] = { m_text.c_str() };
-
-        // for debugging shader compilation error purpose
-        GLuint shader = glCreateShader(GL_VERTEX_SHADER);
-        glShaderSource(shader, 1, strings, 0);
-        glCompileShader(shader);
-        i32 compilationResult = GL_TRUE;
-        glGetShaderiv(shader, GL_COMPILE_STATUS, &compilationResult);
-        assert(compilationResult == GL_TRUE);
-        glDeleteShader(shader);
+        checkShaderCompilation(strings, GL_VERTEX_SHADER);
 
         m_name = glCreateShaderProgramv(GL_VERTEX_SHADER, 1, strings);
-
-        std::string linkLog;
-        if (!getProgramInfoLog(this, ShaderInfoLogType::kLink, linkLog)) 
-        {
-            cyanError("%s", linkLog.c_str());
-        }
+        checkProgramLinkage(m_name);
 
         build(m_uniformMap);
     }
@@ -265,24 +421,10 @@ namespace Cyan
         : GLShader(text)
     {
         const char* strings[1] = { m_text.c_str() };
-
-        // for debugging shader compilation error purpose
-        GLuint shader = glCreateShader(GL_FRAGMENT_SHADER);
-        GLint length[1] = { -1 };
-        glShaderSource(shader, 1, strings, length);
-        glCompileShader(shader);
-        i32 compilationResult = GL_FALSE;
-        glGetShaderiv(shader, GL_COMPILE_STATUS, &compilationResult);
-        assert(compilationResult == GL_TRUE);
-        glDeleteShader(shader);
+        checkShaderCompilation(strings, GL_FRAGMENT_SHADER);
 
         m_name = glCreateShaderProgramv(GL_FRAGMENT_SHADER, 1, strings);
-
-        std::string linkLog;
-        if (!getProgramInfoLog(this, ShaderInfoLogType::kLink, linkLog)) 
-        {
-            cyanError("%s", linkLog.c_str());
-        }
+        checkProgramLinkage(m_name);
 
         build(m_uniformMap);
     }
@@ -291,19 +433,22 @@ namespace Cyan
         : GLShader(text)
     {
         const char* strings[1] = { m_text.c_str() };
+        checkShaderCompilation(strings, GL_COMPUTE_SHADER);
+
         m_name = glCreateShaderProgramv(GL_COMPUTE_SHADER, 1, strings);
+        checkProgramLinkage(m_name);
 
-        std::string compileLog;
-        if (!getProgramInfoLog(this, ShaderInfoLogType::kCompile, compileLog)) 
-        {
-            cyanError("%s", compileLog.c_str());
-        }
+        build(m_uniformMap);
+    }
 
-        std::string linkLog;
-        if (!getProgramInfoLog(this, ShaderInfoLogType::kLink, linkLog)) 
-        {
-            cyanError("%s", linkLog.c_str());
-        }
+    GLGeometryShader::GLGeometryShader(const std::string& text)
+        : GLShader(text)
+    {
+        const char* strings[1] = { m_text.c_str() };
+        checkShaderCompilation(strings, GL_GEOMETRY_SHADER);
+
+        m_name = glCreateShaderProgramv(GL_GEOMETRY_SHADER, 1, strings);
+        checkProgramLinkage(m_name);
 
         build(m_uniformMap);
     }

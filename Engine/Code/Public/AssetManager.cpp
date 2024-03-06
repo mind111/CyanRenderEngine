@@ -55,6 +55,21 @@ namespace Cyan
         }
     }
 
+    void AssetManager::import(const char* filename)
+    {
+        // parse file extension
+        std::string path(filename);
+        u32 found = static_cast<u32>(path.find_last_of('.'));
+        std::string extension = path.substr(found, found + 1);
+        if (extension == ".gltf" || extension == ".glb")
+        {
+            s_instance->importGltf(filename);
+        }
+        else if (extension == ".obj")
+        {
+        }
+    }
+
     static void importGltfNode(World* world, gltf::Gltf& gltf, Entity* parent, const gltf::Node& node)
     {
         // @name
@@ -336,12 +351,12 @@ namespace Cyan
         auto image = createImage(imageFilePath);
         image->importFromFile(imageFilePath);
         bool bGenerateMipmap = false;
-        SamplerFilteringMode minFM = sampler2D.getFilteringModeMin();
+        Sampler2DFilteringMode minFM = sampler2D.getFilteringModeMin();
         switch (minFM)
         {
-        case SamplerFilteringMode::BilinearMipmapPoint:
-        case SamplerFilteringMode::PointMipmapPoint:
-        case SamplerFilteringMode::Trilinear: bGenerateMipmap = true; break;
+        case Sampler2DFilteringMode::BilinearMipmapPoint:
+        case Sampler2DFilteringMode::PointMipmapPoint:
+        case Sampler2DFilteringMode::Trilinear: bGenerateMipmap = true; break;
         default: break;
         }
         return createTexture2D(textureName, sampler2D, image, bGenerateMipmap);
@@ -363,6 +378,11 @@ namespace Cyan
         assert(m != nullptr);
         MaterialInstance* mi = findAsset<MaterialInstance>(name);
         assert(mi == nullptr);
+        // todo: signal name conflict ... and auto generate a non conflicting new name
+        if (mi != nullptr)
+        {
+
+        }
 
         mi = m->createInstance(name);
         s_instance->m_residentAssetMap.insert({ mi->getName(), mi });

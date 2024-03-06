@@ -8,7 +8,7 @@ in VSOutput
 out vec3 outColor;
 
 uniform samplerCube u_cubemapTex;
-uniform float u_mipLevel;
+uniform int u_mipLevel;
 
 float saturate(float k)
 {

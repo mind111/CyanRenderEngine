@@ -99,8 +99,7 @@ namespace Cyan
                 auto mi = AssetManager::createMaterialInstance(gltfMatl.m_name.c_str(), m);
                 mi->setVec3("mp_albedo", gltfMatl.pbrMetallicRoughness.baseColorFactor);
                 mi->setFloat("mp_roughness", gltfMatl.pbrMetallicRoughness.roughnessFactor);
-                // mi->setFloat("mp_metallic", gltfMatl.pbrMetallicRoughness.metallicFactor);
-                mi->setFloat("mp_metallic", 0.f);
+                mi->setFloat("mp_metallic", gltfMatl.pbrMetallicRoughness.metallicFactor);
                 i32 baseColorTextureIndex = gltfMatl.pbrMetallicRoughness.baseColorTexture.index;
                 if (baseColorTextureIndex >= 0)
                 {
@@ -195,6 +194,8 @@ namespace Cyan
             // determine whether the vertex attribute is tightly packed or interleaved
             bool bInterleaved = false;
             const gltf::Accessor& a = m_accessors[p.attribute.m_position]; 
+            outTriangles.min = a.minVec3;
+            outTriangles.max = a.maxVec3;
             if (a.bufferView >= 0)
             {
                 const gltf::BufferView& bv = m_bufferViews[a.bufferView];
@@ -815,6 +816,12 @@ namespace Cyan
             jsonFindAndGetUint(accessor.byteOffset, m_jsonObject, "byteOffset");
             jsonFindAndGetString(accessor.m_name, m_jsonObject, "name");
             jsonFindAndGetBool(accessor.normalized, m_jsonObject, "normalized");
+
+            if (accessor.type == "VEC3")
+            {
+                jsonFindAndGetVec3(accessor.minVec3, m_jsonObject, "min");
+                jsonFindAndGetVec3(accessor.maxVec3, m_jsonObject, "max");
+            }
         }
 
         static void from_json(const json& m_jsonObject, Attribute& attribute)

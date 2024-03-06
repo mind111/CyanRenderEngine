@@ -161,12 +161,15 @@ namespace Cyan
             ctx->setViewport(m_viewport.x, m_viewport.y, m_viewport.width, m_viewport.height);
 
             bDepthTest ? ctx->enableDepthTest() : ctx->disableDepthTest();
+            bBackfaceCulling ? ctx->enableBackfaceCulling() : ctx->disableBackfaceCulling();
             m_renderFunc(ctx);
 
             // clean up
             ctx->unsetViewport();
             ctx->unsetFramebuffer();
             cleanupFramebuffer(framebuffer);
+            ctx->disableDepthTest();
+            ctx->enableBackfaceCulling();
         }
         else
         {

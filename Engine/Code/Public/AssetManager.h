@@ -32,6 +32,7 @@ namespace Cyan
         static AssetManager* get();
         void initialize();
         static void import(World* world, const char* filename);
+        static void import(const char* filename);
 
         template <typename T>
         static T* findAsset(const std::string& name)
@@ -60,7 +61,9 @@ namespace Cyan
     private:
         AssetManager();
 
+        // this variant only imports assets without importing scene nodes from a gltf
         void importGltf(const char* gltfFilename);
+        // this variant imports both assets and scene nodes from a gltf into a world
         void importGltf(World* world, const char* gltfFilename);
 
         std::unordered_map<std::string, Asset*> m_residentAssetMap;

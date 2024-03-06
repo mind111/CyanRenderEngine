@@ -29,8 +29,8 @@ namespace Cyan
             const i32 cubemapRes = 1024;
             const auto& desc = GHTextureCube::Desc::create(cubemapRes, 1);
             GHSamplerCube samplerCube;
-            samplerCube.setFilteringModeMin(SamplerFilteringMode::Bilinear);
-            samplerCube.setFilteringModeMag(SamplerFilteringMode::Bilinear);
+            samplerCube.setFilteringModeMin(Sampler2DFilteringMode::Bilinear);
+            samplerCube.setFilteringModeMag(Sampler2DFilteringMode::Bilinear);
             m_cubemap = std::move(GHTextureCube::create(desc, samplerCube));
         }
 
@@ -67,8 +67,8 @@ namespace Cyan
         GHSamplerCube samplerCube;
         samplerCube.setAddressingModeX(SamplerAddressingMode::Clamp);
         samplerCube.setAddressingModeY(SamplerAddressingMode::Clamp);
-        samplerCube.setFilteringModeMin(SamplerFilteringMode::Bilinear);
-        samplerCube.setFilteringModeMag(SamplerFilteringMode::Bilinear);
+        samplerCube.setFilteringModeMin(Sampler2DFilteringMode::Bilinear);
+        samplerCube.setFilteringModeMag(Sampler2DFilteringMode::Bilinear);
         cubemap = std::move(GHTextureCube::create(desc, samplerCube));
     }
 
@@ -148,8 +148,8 @@ namespace Cyan
         GHSampler2D sampler = { };
         sampler.setAddressingModeX(SamplerAddressingMode::Clamp);
         sampler.setAddressingModeY(SamplerAddressingMode::Clamp);
-        sampler.setFilteringModeMin(SamplerFilteringMode::Bilinear);
-        sampler.setFilteringModeMag(SamplerFilteringMode::Bilinear);
+        sampler.setFilteringModeMin(Sampler2DFilteringMode::Bilinear);
+        sampler.setFilteringModeMag(Sampler2DFilteringMode::Bilinear);
         BRDFLUT = std::move(GHTexture2D::create(desc, sampler));
 
         bool found = false;
@@ -179,8 +179,8 @@ namespace Cyan
         GHSamplerCube samplerCube;
         samplerCube.setAddressingModeX(SamplerAddressingMode::Clamp);
         samplerCube.setAddressingModeY(SamplerAddressingMode::Clamp);
-        samplerCube.setFilteringModeMin(SamplerFilteringMode::Trilinear);
-        samplerCube.setFilteringModeMag(SamplerFilteringMode::Bilinear);
+        samplerCube.setFilteringModeMin(Sampler2DFilteringMode::Trilinear);
+        samplerCube.setFilteringModeMag(Sampler2DFilteringMode::Bilinear);
         cubemap = std::move(GHTextureCube::create(desc, samplerCube));
     }
 

@@ -14,11 +14,11 @@ namespace Cyan
 
     struct Geometry;
 
-    class GfxContext
+    class GFX_API GfxContext
     {
     public:
         ~GfxContext();
-        static GFX_API GfxContext* get();
+        static GfxContext* get();
 
         void initialize();
         void deinitialize();
@@ -29,6 +29,8 @@ namespace Cyan
         void unsetViewport();
         void enableDepthTest();
         void disableDepthTest();
+        void enableBackfaceCulling();
+        void disableBackfaceCulling();
         void enableBlending();
         void disableBlending();
         void setBlendingMode(const BlendingMode& bm);

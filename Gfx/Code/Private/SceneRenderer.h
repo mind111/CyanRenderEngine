@@ -70,7 +70,7 @@ namespace Cyan
         void renderSceneDirectLighting(Scene* scene, SceneView& sceneView);
         void renderSceneIndirectLighting(Scene* scene, SceneView& sceneView);
 
-        void tonemapping(GHTexture2D* dstTexture, GHTexture2D* srcTexture);
+        void postprocessing(GHTexture2D* dstTexture, GHTexture2D* srcTexture);
     private:
         SceneRenderer();
 

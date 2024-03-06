@@ -30,6 +30,8 @@ namespace Cyan
         virtual void setVec3(const glm::vec3& data) { assert(0); }
         virtual void setVec4(const glm::vec4& data) { assert(0); }
         virtual void setTexture(GHTexture2D* texture) { assert(0); }
+        virtual f32 getFloat() { assert(0); return 0.f; }
+        virtual const glm::vec3& getVec3() { assert(0); return glm::vec3(0.f); }
     };
 
     struct IntMaterialParameter : public MaterialParameter 
@@ -69,6 +71,7 @@ namespace Cyan
 
         virtual void setFloat(f32 inData) override { data = inData; }
         virtual void bind(PixelShader* ps) override { ps->setUniform(name.c_str(), data); }
+        virtual f32 getFloat() { return data; }
     };
 
     struct Vec2MaterialParameter : public MaterialParameter 
@@ -95,6 +98,7 @@ namespace Cyan
 
         virtual void setVec3(const glm::vec3& inData) override { data = inData; }
         virtual void bind(PixelShader* ps) override { ps->setUniform(name.c_str(), data); }
+        virtual const glm::vec3& getVec3() { return data; }
     };
 
     struct Vec4MaterialParameter : public MaterialParameter 
@@ -173,6 +177,9 @@ namespace Cyan
         void setVec3(const char* parameterName, const glm::vec3& data);
         void setVec4(const char* parameterName, const glm::vec4& data);
         void setTexture(const char* parameterName, GHTexture2D* texture);
+
+        bool getFloat(const char* parameterName, f32& outData);
+        bool getVec3(const char* parameterName, glm::vec3& outData);
 
     private:
         GfxMaterial* m_parent = nullptr;

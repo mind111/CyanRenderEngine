@@ -60,9 +60,26 @@ namespace Cyan
         virtual void write(void* src, u32 srcOffset, u32 dstOffset, u32 bytesToWrite) override;
 
         bool isBound() { return m_boundUnit > INVALID_SHADER_STORAGE_UNIT; }
-
+        GLuint getBoundUnit() { return m_boundUnit; }
     private:
         u32 m_sizeInBytes = 0;
         i32 m_boundUnit = INVALID_SHADER_STORAGE_UNIT;
+    };
+
+#define INVALID_ATOMIC_COUNTER_UNIT -1
+    // intentionally only supporting counter buffer with no byte offset
+    class GLAtomicCounterBuffer : public GLObject, public GHAtomicCounterBuffer
+    {
+    public:
+        GLAtomicCounterBuffer();
+        virtual ~GLAtomicCounterBuffer();
+
+        virtual void bind(u32 bindingUnit) override;
+        virtual void unbind() override;
+        virtual void read(u32* dst) override;
+        virtual void write(u32 data) override;
+        bool isBound() { return m_boundUnit > INVALID_ATOMIC_COUNTER_UNIT; }
+    private:
+        i32 m_boundUnit = INVALID_ATOMIC_COUNTER_UNIT;
     };
 }

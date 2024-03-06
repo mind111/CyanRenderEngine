@@ -69,8 +69,8 @@ namespace Cyan
         GHSampler2D sampler; 
         sampler.setAddressingModeX(SamplerAddressingMode::Wrap);
         sampler.setAddressingModeY(SamplerAddressingMode::Wrap);
-        sampler.setFilteringModeMin(SamplerFilteringMode::Trilinear);
-        sampler.setFilteringModeMag(SamplerFilteringMode::Bilinear);
+        sampler.setFilteringModeMin(Sampler2DFilteringMode::Trilinear);
+        sampler.setFilteringModeMag(Sampler2DFilteringMode::Bilinear);
 
         // todo: manually load textures and setup materials
         {
@@ -82,8 +82,8 @@ namespace Cyan
             GHSampler2D heightSampler;
             heightSampler.setAddressingModeX(SamplerAddressingMode::Wrap);
             heightSampler.setAddressingModeY(SamplerAddressingMode::Wrap);
-            heightSampler.setFilteringModeMin(SamplerFilteringMode::Trilinear);
-            heightSampler.setFilteringModeMag(SamplerFilteringMode::Bilinear);
+            heightSampler.setFilteringModeMin(Sampler2DFilteringMode::Trilinear);
+            heightSampler.setFilteringModeMag(Sampler2DFilteringMode::Bilinear);
             auto brickHeightTex = AssetManager::createTexture2DFromImage(APP_ASSET_PATH "brick_height.jpg", "Brick_Height", heightSampler);
 
             auto POMMateiral = AssetManager::createMaterial(

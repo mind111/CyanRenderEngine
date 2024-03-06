@@ -153,6 +153,9 @@ namespace Cyan
         void enableDepthTest() { bDepthTest = true; }
         void disableDepthTest() { bDepthTest = false; }
 
+        void enableBackfaceCulling() { bBackfaceCulling = true; }
+        void disableBackfaceCulling() { bBackfaceCulling = false; }
+
         void setRenderFunc(const RenderFunc& renderFunc);
         void render(GfxContext* ctx);
     private:
@@ -169,6 +172,7 @@ namespace Cyan
         Viewport m_viewport;
         u32 m_renderWidth = 0, m_renderHeight = 0;
         bool bDepthTest = false;
+        bool bBackfaceCulling = true; // backface culling is enbaled by default
 
         RenderFunc m_renderFunc;
     };

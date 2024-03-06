@@ -4,7 +4,8 @@
 
 namespace Cyan
 {
-    SceneView::SceneView(const glm::uvec2& renderResolution)
+    SceneView::SceneView(Scene* scene, const glm::uvec2& renderResolution)
+        : m_scene(scene)
     {
         m_render = std::make_unique<SceneRender>(renderResolution);
 

@@ -52,4 +52,33 @@ namespace Cyan
     {
         glBindProgramPipeline(0);
     }
+
+    GLGeometryPipeline::GLGeometryPipeline(std::shared_ptr<GLVertexShader> vs, std::shared_ptr<GLGeometryShader> gs, std::shared_ptr<GLPixelShader> ps)
+        : GLObject()
+        , m_vertexShader(vs)
+        , m_geometryShader(gs)
+        , m_pixelShader(ps)
+    {
+        assert(m_vertexShader != nullptr && m_geometryShader != nullptr && m_pixelShader != nullptr);
+        glCreateProgramPipelines(1, &m_name);
+        glUseProgramStages(m_name, GL_VERTEX_SHADER_BIT, m_vertexShader->getName());
+        glUseProgramStages(m_name, GL_GEOMETRY_SHADER_BIT, m_geometryShader->getName());
+        glUseProgramStages(m_name, GL_FRAGMENT_SHADER_BIT, m_pixelShader->getName());
+    }
+
+    GLGeometryPipeline::~GLGeometryPipeline()
+    {
+        GLuint pipelines[1] = { m_name };
+        glDeleteProgramPipelines(1, pipelines);
+    }
+
+    void GLGeometryPipeline::bind()
+    {
+        glBindProgramPipeline(m_name);
+    }
+
+    void GLGeometryPipeline::unbind()
+    {
+        glBindProgramPipeline(0);
+    }
 }

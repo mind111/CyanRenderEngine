@@ -4,6 +4,7 @@
 #include "Gfx.h"
 #include "GfxHardwareAbstraction/GHInterface/GHShader.h"
 #include "GfxHardwareAbstraction/GHInterface/GHPipeline.h"
+#include "GfxHardwareAbstraction/GHInterface/GHBuffer.h"
 
 namespace Cyan
 {
@@ -23,27 +24,32 @@ namespace Cyan
 
         void bindTexture(const char* samplerName, GHTexture* texture, bool& outBound);
         void unbindTexture(const char* samplerName);
+        void bindRWBuffer(const char* bufferName, GHRWBuffer* buffer);
+        void unbindRWBuffer(const char* bufferName);
+        void bindAtomicCounter(const char* name, GHAtomicCounterBuffer* atomicCounter);
+        void unbindAtomicCounter(const char* name);
+        void bindRWTexture(const char* name, GHTexture* RWTexture, u32 mipLevel);
+        void unbindRWTexture(const char* name);
 
         void resetState();
 
     protected:
-        struct TextureBinding 
-        {
-            const char* samplerName = nullptr;
-            GHTexture* texture = nullptr;
-        };
 
         Shader(const char* name);
 
         std::string m_name;
         std::shared_ptr<GHShader> m_GHO = nullptr;
-        std::unordered_map<const char*, TextureBinding> m_textureBindingMap;
+        std::unordered_map<std::string, GHTexture*> m_textureBindingMap;
+        std::unordered_map<std::string, GHTexture*> m_RWTextureBindingMap;
+        std::unordered_map<std::string, GHRWBuffer*> m_RWBufferBindingMap;
+        std::unordered_map<std::string, GHAtomicCounterBuffer*> m_atomicCounterBindingMap;
     };
 
     class GFX_API VertexShader : public Shader
     {
     public:
         friend class GfxPipeline;
+        friend class GeometryPipeline;
 
         VertexShader(const char* name, const std::string& text);
         virtual ~VertexShader();
@@ -55,11 +61,23 @@ namespace Cyan
     {
     public:
         friend class GfxPipeline;
+        friend class GeometryPipeline;
 
         PixelShader(const char* name, const std::string& text);
         virtual ~PixelShader();
 
         GHPixelShader* getGHO();
+    };
+
+    class GFX_API GeometryShader : public Shader
+    {
+    public:
+        friend class GeometryPipeline;
+
+        GeometryShader(const char* name, const std::string& text);
+        virtual ~GeometryShader();
+
+        GHGeometryShader* getGHO();
     };
 
     class GFX_API ComputeShader : public Shader
@@ -83,11 +101,15 @@ namespace Cyan
         virtual void setUniform(const char* name, f32 value) = 0;
         virtual void setUniform(const char* name, const glm::uvec2& value) = 0;
         virtual void setUniform(const char* name, const glm::ivec2& value) = 0;
+        virtual void setUniform(const char* name, const glm::ivec3& value) = 0;
         virtual void setUniform(const char* name, const glm::vec2& value) = 0;
         virtual void setUniform(const char* name, const glm::vec3& value) = 0;
         virtual void setUniform(const char* name, const glm::vec4& value) = 0;
         virtual void setUniform(const char* name, const glm::mat4& value) = 0;
         virtual void setTexture(const char* samplerName, GHTexture* texture) = 0;
+        virtual void setRWBuffer(const char* name, GHRWBuffer* buffer) = 0;
+        virtual void bindAtomicCounter(const char* name, GHAtomicCounterBuffer* atomicCounter) = 0;
+        virtual void setRWTexture(const char* name, GHTexture* RWTexture, u32 mipLevel) = 0;
     protected: 
         Pipeline(const char* name);
 
@@ -108,11 +130,15 @@ namespace Cyan
         virtual void setUniform(const char* name, f32 value) override { setUniformInternal(name, value); }
         virtual void setUniform(const char* name, const glm::uvec2& value) override { setUniformInternal(name, value); }
         virtual void setUniform(const char* name, const glm::ivec2& value) override { setUniformInternal(name, value); }
+        virtual void setUniform(const char* name, const glm::ivec3& value) override { setUniformInternal(name, value); }
         virtual void setUniform(const char* name, const glm::vec2& value) override { setUniformInternal(name, value); }
         virtual void setUniform(const char* name, const glm::vec3& value) override { setUniformInternal(name, value); }
         virtual void setUniform(const char* name, const glm::vec4& value) override { setUniformInternal(name, value); }
         virtual void setUniform(const char* name, const glm::mat4& value) override { setUniformInternal(name, value); }
         virtual void setTexture(const char* samplerName, GHTexture* texture) override;
+        virtual void setRWBuffer(const char* name, GHRWBuffer* buffer) override;
+        virtual void bindAtomicCounter(const char* name, GHAtomicCounterBuffer* atomicCounter) override;
+        virtual void setRWTexture(const char* name, GHTexture* RWTexture, u32 mipLevel) override;
 
         VertexShader* getVertexShader() { return m_vs.get(); }
         PixelShader* getPixelShader() { return m_ps.get(); }
@@ -148,11 +174,15 @@ namespace Cyan
         virtual void setUniform(const char* name, f32 value) override { setUniformInternal(name, value); }
         virtual void setUniform(const char* name, const glm::uvec2& value) override { setUniformInternal(name, value); }
         virtual void setUniform(const char* name, const glm::ivec2& value) override { setUniformInternal(name, value); }
+        virtual void setUniform(const char* name, const glm::ivec3& value) override { setUniformInternal(name, value); }
         virtual void setUniform(const char* name, const glm::vec2& value) override { setUniformInternal(name, value); }
         virtual void setUniform(const char* name, const glm::vec3& value) override { setUniformInternal(name, value); }
         virtual void setUniform(const char* name, const glm::vec4& value) override { setUniformInternal(name, value); }
         virtual void setUniform(const char* name, const glm::mat4& value) override { setUniformInternal(name, value); }
         virtual void setTexture(const char* samplerName, GHTexture* texture) override;
+        virtual void setRWTexture(const char* name, GHTexture* RWTexture, u32 mipLevel) override;
+        virtual void setRWBuffer(const char* name, GHRWBuffer* buffer) override;
+        virtual void bindAtomicCounter(const char* name, GHAtomicCounterBuffer* atomicCounter) override;
 
         ComputeShader* getComputeShader() { return m_cs.get(); }
 
@@ -167,6 +197,48 @@ namespace Cyan
     private:
         std::shared_ptr<ComputeShader> m_cs = nullptr;
         std::unique_ptr<GHComputePipeline> m_GHO = nullptr;
+        bool bBound = false;
+    };
+
+    class GFX_API GeometryPipeline : public Pipeline
+    {
+    public:
+        GeometryPipeline(const char* name, std::shared_ptr<VertexShader> vs, std::shared_ptr<GeometryShader> gs, std::shared_ptr<PixelShader> ps);
+        ~GeometryPipeline();
+
+        void bind();
+        void unbind();
+
+        virtual void setUniform(const char* name, i32 value) override { setUniformInternal(name, value); }
+        virtual void setUniform(const char* name, u32 value) override { setUniformInternal(name, value); }
+        virtual void setUniform(const char* name, f32 value) override { setUniformInternal(name, value); }
+        virtual void setUniform(const char* name, const glm::uvec2& value) override { setUniformInternal(name, value); }
+        virtual void setUniform(const char* name, const glm::ivec2& value) override { setUniformInternal(name, value); }
+        virtual void setUniform(const char* name, const glm::ivec3& value) override { setUniformInternal(name, value); }
+        virtual void setUniform(const char* name, const glm::vec2& value) override { setUniformInternal(name, value); }
+        virtual void setUniform(const char* name, const glm::vec3& value) override { setUniformInternal(name, value); }
+        virtual void setUniform(const char* name, const glm::vec4& value) override { setUniformInternal(name, value); }
+        virtual void setUniform(const char* name, const glm::mat4& value) override { setUniformInternal(name, value); }
+        virtual void setTexture(const char* samplerName, GHTexture* texture) override;
+        virtual void setRWTexture(const char* name, GHTexture* RWTexture, u32 mipLevel) override;
+        virtual void setRWBuffer(const char* name, GHRWBuffer* buffer) override;
+        virtual void bindAtomicCounter(const char* name, GHAtomicCounterBuffer* counter) override;
+
+        template <typename T>
+        void setUniformInternal(const char* name, const T& value)
+        {
+            assert(bBound);
+
+            m_vs->setUniform(name, value);
+            m_gs->setUniform(name, value);
+            m_ps->setUniform(name, value);
+        }
+
+    private:
+        std::shared_ptr<VertexShader> m_vs = nullptr;
+        std::shared_ptr<GeometryShader> m_gs = nullptr;
+        std::shared_ptr<PixelShader> m_ps = nullptr;
+        std::unique_ptr<GHGeometryPipeline> m_GHO = nullptr;
         bool bBound = false;
     };
 
@@ -254,6 +326,8 @@ namespace Cyan
         static std::shared_ptr<GfxPipeline> createGfxPipeline(const char* name, std::shared_ptr<VertexShader> vs, std::shared_ptr<PixelShader> ps);
         static std::shared_ptr<ComputePipeline> findOrCreateComputePipeline(bool& outFound, std::shared_ptr<ComputeShader> cs);
         static std::shared_ptr<ComputePipeline> createComputePipeline(const char* name, std::shared_ptr<ComputeShader> cs);
+        static std::shared_ptr<GeometryPipeline> createGeometryPipeline(const char* name, std::shared_ptr<VertexShader> vs, std::shared_ptr<GeometryShader> gs, std::shared_ptr<PixelShader> ps);
+        static std::shared_ptr<GeometryPipeline> findOrCreateGeometryPipeline(bool& outFound, std::shared_ptr<VertexShader> vs, std::shared_ptr<GeometryShader> gs, std::shared_ptr<PixelShader> ps);
     private:
         ShaderManager();
 

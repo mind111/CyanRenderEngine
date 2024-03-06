@@ -2,9 +2,10 @@
     std::make_unique<Cyan::appClass>(appWidth, appHeight)   \
 
 // #define PARALLAX_OCCLUSION_MAPPING
-#define DEMO
+// #define DEMO
 // #define SIMPLE_PARTICLES
 // #define RAYMARCHING_HEIGHTFIELD
+#define VOXEL_BASED_GI
 
 #if defined DEMO
     #include "Demo/DemoApp.h"
@@ -25,6 +26,11 @@
     #include "ParallaxOcclusionMapping/ParallaxOcclusionMapping.h"
     #define CREATE_APP(w, h)                                            \
         CREATE_APP_INTERNAL(ParallaxOcclusionMapping, w, h)             \
+
+#elif defined VOXEL_BASED_GI
+    #include "VoxelBasedGI/VoxelBasedGI.h"
+    #define CREATE_APP(w, h)                                \
+        CREATE_APP_INTERNAL(VoxelBasedGI, w, h)             \
 
 #else
     #error "No active app defined!"

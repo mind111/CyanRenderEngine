@@ -1,3 +1,5 @@
+#include <stack>
+
 #include "Core.h"
 #include "GLBuffer.h"
 
@@ -131,11 +133,15 @@ namespace Cyan
 
     GLShaderStorageBuffer::~GLShaderStorageBuffer()
     {
-
+        if (isBound())
+        {
+            unbind();
+        }
+        glDeleteBuffers(1, &m_name);
     }
 
     static constexpr i32 kNumShaderStorageBindings = 16;
-    static std::queue<i32> s_freeShaderStorageUnits;
+    static std::stack<i32> s_freeShaderStorageUnits;
     static std::array<GLShaderStorageBuffer*, kNumShaderStorageBindings> s_shaderStorageBindings;
 
     static i32 allocShaderStorageUnit()
@@ -143,7 +149,7 @@ namespace Cyan
         static bool bInitialized = false;
         if (!bInitialized)
         {
-            for (i32 unit = 0; unit < kNumShaderStorageBindings; ++unit)
+            for (i32 unit = kNumShaderStorageBindings - 1; unit >= 0; --unit)
             {
                 s_shaderStorageBindings[unit] = nullptr;
                 s_freeShaderStorageUnits.push(unit);
@@ -153,7 +159,7 @@ namespace Cyan
 
         if (!s_freeShaderStorageUnits.empty())
         {
-            i32 unit = s_freeShaderStorageUnits.front();
+            i32 unit = s_freeShaderStorageUnits.top();
             s_freeShaderStorageUnits.pop();
             assert(s_shaderStorageBindings[unit] == nullptr);
             return unit;
@@ -209,5 +215,91 @@ namespace Cyan
         assert(src != nullptr);
         assert((dstOffset + bytesToWrite) <= m_sizeInBytes);
         glNamedBufferSubData(getName(), dstOffset, bytesToWrite, (u8*)src + srcOffset);
+    }
+
+    GLAtomicCounterBuffer::GLAtomicCounterBuffer()
+    {
+        glCreateBuffers(1, &m_name);
+        // todo: the usage hint should be configurable
+        glNamedBufferData(m_name, sizeof(u32), nullptr, GL_DYNAMIC_COPY);
+    }
+
+#if 0
+    static constexpr i32 kNumAtomicCounterBufferBindings = 8;
+    static std::stack<i32> s_freeAtomicCounterBindingUnits;
+    static std::array<GLAtomicCounterBuffer*, kNumAtomicCounterBufferBindings> s_atomicCounterBufferBindings;
+
+    static GLuint allocateAtomicCounterBindingUnit()
+    {
+        static bool bInitialized = false;
+        if (!bInitialized)
+        {
+            for (i32 unit = kNumAtomicCounterBufferBindings - 1; unit >= 0; --unit)
+            {
+                s_atomicCounterBufferBindings[unit] = nullptr;
+                s_freeAtomicCounterBindingUnits.push(unit);
+            }
+            bInitialized = true;
+        }
+
+        if (!s_freeAtomicCounterBindingUnits.empty())
+        {
+            i32 unit = s_freeAtomicCounterBindingUnits.top();
+            s_freeAtomicCounterBindingUnits.pop();
+            assert(s_atomicCounterBufferBindings[unit] == nullptr);
+            return unit;
+        }
+        else
+        {
+            assert(0); // unreachable
+            return -1;
+        }
+    }
+
+    static void releaseAtomicCounterBindingUnit(GLuint unit)
+    {
+        auto boundCounter = s_atomicCounterBufferBindings[unit];
+        assert(boundCounter != nullptr);
+        s_atomicCounterBufferBindings[unit] = nullptr;
+        s_freeAtomicCounterBindingUnits.push(unit);
+    }
+#endif
+
+    GLAtomicCounterBuffer::~GLAtomicCounterBuffer()
+    {
+        if (isBound())
+        {
+            unbind();
+        }
+
+        glDeleteBuffers(1, &m_name);
+    }
+
+    void GLAtomicCounterBuffer::bind(u32 bindingUnit)
+    {
+        if (m_boundUnit != bindingUnit)
+        {
+            glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, bindingUnit, getName());
+            m_boundUnit = bindingUnit;
+        }
+    }
+
+    void GLAtomicCounterBuffer::unbind()
+    {
+        if (isBound())
+        {
+            glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, m_boundUnit, 0);
+            m_boundUnit = INVALID_ATOMIC_COUNTER_UNIT;
+        }
+    }
+
+    void GLAtomicCounterBuffer::read(u32* dst)
+    {
+        glGetNamedBufferSubData(m_name, 0, sizeof(u32), dst);
+    }
+
+    void GLAtomicCounterBuffer::write(u32 data)
+    {
+        glNamedBufferSubData(m_name, 0, sizeof(u32), &data);
     }
 }

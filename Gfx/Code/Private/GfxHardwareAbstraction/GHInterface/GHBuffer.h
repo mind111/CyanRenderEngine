@@ -38,4 +38,16 @@ namespace Cyan
         virtual void read(void* dst, u32 dstOffset, u32 srcOffset, u32 bytesToRead) = 0;
         virtual void write(void* src, u32 srcOffset, u32 dstOffset, u32 bytesToWrite) = 0;
     };
+
+    class GFX_API GHAtomicCounterBuffer
+    {
+    public:
+        static std::unique_ptr<GHAtomicCounterBuffer> create();
+        virtual ~GHAtomicCounterBuffer() { }
+
+        virtual void bind(u32 bindingUnit) = 0;
+        virtual void unbind() = 0;
+        virtual void read(u32* dst) = 0;
+        virtual void write(u32 data) = 0;
+    };
 }

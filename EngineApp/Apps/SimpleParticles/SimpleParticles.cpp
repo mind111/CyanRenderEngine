@@ -95,7 +95,7 @@ namespace Cyan
                 "CreateParticleSprite",
                 [this](Frame& frame) {
                     const glm::uvec2 spriteSize(128, 128);
-                    GHSampler2D spriteSampler(SamplerAddressingMode::Clamp, SamplerAddressingMode::Clamp, SamplerFilteringMode::Bilinear, SamplerFilteringMode::Bilinear);
+                    GHSampler2D spriteSampler(SamplerAddressingMode::Clamp, SamplerAddressingMode::Clamp, Sampler2DFilteringMode::Bilinear, Sampler2DFilteringMode::Bilinear);
                     auto spriteDesc = GHTexture2D::Desc::create(spriteSize.x, spriteSize.y, 1, PF_RGBA16F);
                     sprite = std::move(GHTexture2D::create(spriteDesc, spriteSampler));
                 }

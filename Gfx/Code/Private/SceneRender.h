@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core.h"
+#include "Gfx.h" 
 #include "MathLibrary.h"
 
 namespace Cyan
@@ -18,7 +19,7 @@ namespace Cyan
         HierarchicalZBuffer(const glm::uvec2& inputDepthResolution);
         ~HierarchicalZBuffer();
 
-        void build(GHDepthTexture* sceneDepthBuffer);
+        void GFX_API build(GHDepthTexture* sceneDepthBuffer);
         
         std::unique_ptr<GHTexture2D> m_depthBuffer;
         glm::uvec2 m_inputDepthResolution;

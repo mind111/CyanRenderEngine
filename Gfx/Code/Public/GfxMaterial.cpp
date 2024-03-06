@@ -133,4 +133,30 @@ namespace Cyan
             }                                                    
         }                                                              
     }
+
+    bool GfxMaterialInstance::getFloat(const char* parameterName, f32& outData)
+    {
+        for (auto parameter : m_parameters)
+        {
+            if (parameter->name == parameterName)
+            {
+                outData = parameter->getFloat();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool GfxMaterialInstance::getVec3(const char* parameterName, glm::vec3& outData)
+    {
+        for (auto parameter : m_parameters)
+        {
+            if (parameter->name == parameterName)
+            {
+                outData = parameter->getVec3();
+                return true;
+            }
+        }
+        return false;
+    }
 }

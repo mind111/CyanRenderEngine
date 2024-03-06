@@ -18,4 +18,10 @@ namespace Cyan
         std::unique_ptr<GHRWBuffer> outRWBuffer = std::move(GfxHardwareContext::get()->createRWBuffer(sizeInBytes));
         return std::move(outRWBuffer);
     }
+
+    std::unique_ptr<Cyan::GHAtomicCounterBuffer> GHAtomicCounterBuffer::create()
+    {
+        std::unique_ptr<GHAtomicCounterBuffer> outAtomicCounter = std::move(GfxHardwareContext::get()->createAtomicCounterBuffer());
+        return std::move(outAtomicCounter);
+    }
 }

@@ -207,7 +207,7 @@ namespace Cyan
         }
     }
 
-    void CascadedShadowMap::setShaderParameters(GfxPipeline* p)
+    void CascadedShadowMap::setShaderParameters(Pipeline* p)
     {
         p->setUniform("directionalLight.csm.lightViewMatrix", m_lightViewMatrix);
         for (i32 i = 0; i < CascadedShadowMap::kNumCascades; ++i)
@@ -223,6 +223,7 @@ namespace Cyan
             p->setUniform(lightProjectionMatrixName, m_cascades[i].lightCamera.projectionMatrix());
             char depthTextureName[64];
             sprintf_s(depthTextureName, "directionalLight.csm.cascades[%d].depthTexture", i);
+            // todo: there is a bug here, passing these name as temp chara  
             p->setTexture(depthTextureName, m_cascades[i].depthTexture.get());
         }
     }
