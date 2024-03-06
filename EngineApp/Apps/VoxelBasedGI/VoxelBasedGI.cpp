@@ -2269,11 +2269,11 @@ namespace Cyan
 
     void VoxelBasedGI::customInitialize(World* world)
     {
-        const char* sceneFilePath = APP_ASSET_PATH "Scene.glb";
+        // const char* sceneFilePath = APP_ASSET_PATH "Scene.glb";
         // const char* sceneFilePath = APP_ASSET_PATH "Sponza.glb";
         // const char* sceneFilePath = APP_ASSET_PATH "ConferenceRoom.glb";
         // const char* sceneFilePath = APP_ASSET_PATH "CyberpunkStreet.glb";
-        // const char* sceneFilePath = APP_ASSET_PATH "PicaPica.glb";
+        const char* sceneFilePath = APP_ASSET_PATH "PicaPica.glb";
 
         world->import(sceneFilePath);
         const char* debugConeFilePath = APP_ASSET_PATH "DebugCone.glb";

@@ -211,7 +211,7 @@ namespace Cyan
             std::string m_filename;
             // json object parsed from raw json string
             json m_jsonObject;
-            u32 m_defaultScene = -1;
+            i32 m_defaultScene = -1;
             std::vector<Scene> m_scenes;
             std::vector<Node> m_nodes;
             std::vector<Mesh> m_meshes;
